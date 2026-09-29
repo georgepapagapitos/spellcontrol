@@ -807,6 +807,19 @@ export async function ensureSchema(): Promise<void> {
     );
     CREATE INDEX IF NOT EXISTS commander_card_inclusion_rank_idx ON commander_card_inclusion(commander_key, rank);
 
+    -- EDHREC's top lists (top commanders, top cards, salt), one row per list,
+    -- served by GET /api/edhrec/top so the browser never calls EDHREC for them.
+    -- A cache, not user data: fetched_at is the last good copy (refreshed
+    -- after 24h), checked_at the last attempt (a failing refresh retries at
+    -- most every 15 min and keeps serving the old copy). See edhrec/top-store.ts.
+    CREATE TABLE IF NOT EXISTS edhrec_top_lists (
+      list_key TEXT PRIMARY KEY,
+      entries JSONB NOT NULL,
+      source_url TEXT NOT NULL,
+      fetched_at BIGINT NOT NULL,
+      checked_at BIGINT NOT NULL
+    );
+
     -- First-party, cookieless usage counters (marketing top-5). One row per
     -- (day, event, path) holding only a count: no identifiers, no IP, no UA
     -- are ever written, so the privacy page's "no third-party trackers"

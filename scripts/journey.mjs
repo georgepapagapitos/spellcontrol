@@ -848,9 +848,26 @@ async function main() {
         '/friends',
         '/trades',
         '/pods',
+        // `/you` is a hub and each section its own page (T173): every one
+        // is visited, since a phone renders each alone.
         '/you',
+        '/you/profile',
+        '/you/account',
+        '/you/appearance',
+        '/you/prices',
+        '/you/data',
+        '/you/storage',
+        '/you/help',
         '/settings',
         '/search?q=sol+ring',
+        // The Search landing's browse rails, and each list in full (E520).
+        '/search',
+        '/search/top/commanders',
+        '/search/top/new-commanders',
+        '/search/top/cards?colors=WU&type=creatures',
+        '/search/top/game-changers',
+        '/search/top/salt',
+        '/search/top/banned',
         '/tags',
         '/rules',
         `/u/${seeded.username}`,
@@ -1017,6 +1034,30 @@ async function main() {
             await sleep(600);
             const observed = await page.$eval(sel, (el) => el.value);
             return { ok: observed === typed, expected: typed, observed };
+          });
+        }
+        if (r === '/search' || r.startsWith('/search/top/')) {
+          // Every rail and list has to reach its data: a list that errors
+          // shows the Retry strip, which the generic checks would pass.
+          await assertPage(rec, 'browse lists load their cards', async () => {
+            await page
+              .waitForFunction(
+                () =>
+                  !document.querySelector('[aria-busy="true"], .browse-grid[aria-hidden="true"]'),
+                { timeout: 20_000 }
+              )
+              .catch(() => {});
+            const observed = await page.evaluate(() => ({
+              tiles: document.querySelectorAll(
+                '.browse-rail .collection-grid-item, .browse-grid .collection-grid-item'
+              ).length,
+              errors: document.querySelectorAll('.discover-decks-error').length,
+            }));
+            return {
+              ok: observed.tiles > 0 && observed.errors === 0,
+              expected: 'tiles, no errors',
+              observed,
+            };
           });
         }
         if (r === '/collection') {

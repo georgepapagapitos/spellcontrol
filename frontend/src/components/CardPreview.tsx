@@ -12,7 +12,9 @@ import {
   X,
 } from 'lucide-react';
 import {
+  lazy,
   type ReactNode,
+  Suspense,
   useCallback,
   useEffect,
   useId,
@@ -50,6 +52,14 @@ import type { CubeListing } from '../lib/cube-listings';
 import type { BinderInfo } from './BinderBadge';
 import { CardName } from '@/components/shared/CardName';
 import { IconButton } from '@/components/shared/Button';
+
+// Lazy on purpose: the section opens a commander in a preview of its own, so
+// it imports this module back (through useCardCarousel). A dynamic import is
+// not an init-order edge, and the section's EDHREC code and styles stay out of
+// every chunk that renders a preview but never opens one.
+const PlayedInSection = lazy(() =>
+  import('./PlayedInSection').then((m) => ({ default: m.PlayedInSection }))
+);
 
 /** Scryfall card UUID — gates the rulings fetch to real printings. */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -721,7 +731,7 @@ export function CardPreview({
 
   // ── Panel sections ─────────────────────────────────────────────────────
   // The lead section follows where the preview was opened from; the rest keep
-  // one order everywhere: Rules text, Printing, Rulings, Legality.
+  // one order everywhere: Rules text, Played in, Printing, Rulings, Legality.
   const metaSlot = renderPanelMeta?.(selected);
   const extraSlot = renderPanelExtra?.(selected);
 
@@ -855,6 +865,15 @@ export function CardPreview({
         )}
       </div>
     </section>
+  );
+
+  // Keyed by name, not printing: EDHREC counts the card, and a name-only
+  // placeholder (no scryfallId yet) already has one. Not in the playtest
+  // inspector, where the card is being played, not built around.
+  const playedInSection = isPlaytest ? null : (
+    <Suspense fallback={null}>
+      <PlayedInSection key={current.name} name={current.name} onLeave={onClose} />
+    </Suspense>
   );
 
   // Real Scryfall printings only — placeholder/synthetic ids would 400.
@@ -1108,6 +1127,7 @@ export function CardPreview({
             {copySection}
             {rulesSection}
             {!leadsWithExtra && slot(extraSlot)}
+            {playedInSection}
             {printingSection}
             {rulingsSection}
             {legalitySection}

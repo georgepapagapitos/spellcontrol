@@ -206,23 +206,9 @@
   }
 }
 
-/* Clip the hover art-zoom to the card's rounded shape. Safe to hard-set
-   (rather than rely on cascade order) because no discover tile renders a
-   popover that needs to escape the card yet — .decks-index-card's own
-   overflow: visible exists only for its ⋮ popover, which this tile does
-   not have this PR. Revisit if a future corner action needs to overflow. */
-.decks-index-card.discover-tile {
-  overflow: hidden;
-}
-
+/* The tile's hover (ring, lift, art zoom) is every index tile's, in
+   base-layout.css (§ Index tiles). Only the quick actions are Discover's. */
 @media (hover: hover) and (pointer: fine) {
-  .discover-tile .decks-index-card-art {
-    transition: transform var(--motion-base) var(--ease-out-soft);
-  }
-  .discover-tile:hover .decks-index-card-art {
-    transform: scale(1.03);
-  }
-
   /* Quick-actions reveal (grid only) — Open/Like/Bookmark fade in on
      hover/focus-within instead of sitting on the art permanently. Touch
      devices never match this query, so .tile-actions keeps its
@@ -328,7 +314,6 @@
   .discover-tile-skeleton-bar {
     animation: none;
   }
-  .discover-tile .decks-index-card-art,
   .decks-index-list.is-grid .discover-tile .tile-actions {
     transition: none;
   }

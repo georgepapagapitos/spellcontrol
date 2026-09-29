@@ -1,0 +1,291 @@
+{
+  "_source": "json.edhrec.com/pages/cards/the-one-ring.json, fetched 2026-09-29; cardviews trimmed to the fields the app reads, highliftcards cut to 3",
+  "container": {
+    "json_dict": {
+      "card": {
+        "name": "The One Ring",
+        "num_decks": 800016,
+        "potential_decks": 10153350
+      },
+      "cardlists": [
+        {
+          "tag": "newcommanders",
+          "header": "New Commanders",
+          "cardviews": [
+            {
+              "id": "55872bce-08ce-4d4f-8951-9fa230f3e160",
+              "name": "Smaug the Impenetrable",
+              "sanitized": "smaug-the-impenetrable",
+              "url": "/commanders/smaug-the-impenetrable",
+              "num_decks": 1993,
+              "potential_decks": 6301
+            },
+            {
+              "id": "726f8ac7-d7a3-442c-adb6-82836e4490a7",
+              "name": "Whtz, the Bibliophile",
+              "sanitized": "whtz-the-bibliophile",
+              "url": "/commanders/whtz-the-bibliophile",
+              "num_decks": 1366,
+              "potential_decks": 6061
+            },
+            {
+              "id": "6a5d8fad-2ffd-4645-8c49-907999b6cecf",
+              "name": "Smaug the Magnificent",
+              "sanitized": "smaug-the-magnificent",
+              "url": "/commanders/smaug-the-magnificent",
+              "num_decks": 1284,
+              "potential_decks": 4048
+            },
+            {
+              "id": "773813a8-723f-4c26-9e0a-a01b2faada98",
+              "name": "Thorin, King of Durin's Folk",
+              "sanitized": "thorin-king-of-durins-folk",
+              "url": "/commanders/thorin-king-of-durins-folk",
+              "num_decks": 1240,
+              "potential_decks": 7159
+            },
+            {
+              "id": "fe2fe8fa-3b99-44c1-bab9-922e5c864952",
+              "name": "Thranduil, the Elvenking",
+              "sanitized": "thranduil-the-elvenking",
+              "url": "/commanders/thranduil-the-elvenking",
+              "num_decks": 1231,
+              "potential_decks": 9868
+            }
+          ]
+        },
+        {
+          "tag": "topcommanders",
+          "header": "Top Commanders",
+          "cardviews": [
+            {
+              "id": "034e0929-b2c7-4b5f-94f2-8eaf4fb1a2a1",
+              "name": "Sauron, the Dark Lord",
+              "sanitized": "sauron-the-dark-lord",
+              "url": "/commanders/sauron-the-dark-lord",
+              "num_decks": 21824,
+              "potential_decks": 40212
+            },
+            {
+              "id": "63cda4a0-0dff-4edb-ae67-a2b7e2971350",
+              "name": "Kinnan, Bonder Prodigy",
+              "sanitized": "kinnan-bonder-prodigy",
+              "url": "/commanders/kinnan-bonder-prodigy",
+              "num_decks": 10506,
+              "potential_decks": 21782
+            },
+            {
+              "id": "c7f2c2d5-e052-49e8-b5de-712858c2ea78",
+              "name": "Y'shtola, Night's Blessed",
+              "sanitized": "yshtola-nights-blessed",
+              "url": "/commanders/yshtola-nights-blessed",
+              "num_decks": 10058,
+              "potential_decks": 55356
+            },
+            {
+              "id": "ecc1027a-8c07-44a0-bdde-fa2844cff694",
+              "name": "Vivi Ornitier",
+              "sanitized": "vivi-ornitier",
+              "url": "/commanders/vivi-ornitier",
+              "num_decks": 8754,
+              "potential_decks": 41253
+            },
+            {
+              "id": "328df403-7428-4b17-bdd1-9759fc0f32d8",
+              "name": "Frodo, Adventurous Hobbit // Sam, Loyal Attendant",
+              "sanitized": "frodo-adventurous-hobbit-sam-loyal-attendant",
+              "url": "/commanders/frodo-adventurous-hobbit-sam-loyal-attendant",
+              "num_decks": 8666,
+              "potential_decks": 27139
+            },
+            {
+              "id": "7b7a348a-51f7-4dc5-8fe7-1c70fea5e050",
+              "name": "Urza, Lord High Artificer",
+              "sanitized": "urza-lord-high-artificer",
+              "url": "/commanders/urza-lord-high-artificer",
+              "num_decks": 8268,
+              "potential_decks": 20622
+            },
+            {
+              "id": "a015461d-4214-4feb-8b04-519c537759eb",
+              "name": "Zhulodok, Void Gorger",
+              "sanitized": "zhulodok-void-gorger",
+              "url": "/commanders/zhulodok-void-gorger",
+              "num_decks": 7856,
+              "potential_decks": 21328
+            },
+            {
+              "id": "8fcf3fbb-1ddd-437e-81c1-f5a3133f5ee8",
+              "name": "Kefka, Court Mage",
+              "sanitized": "kefka-court-mage",
+              "url": "/commanders/kefka-court-mage",
+              "num_decks": 6416,
+              "potential_decks": 31562
+            },
+            {
+              "id": "21e27b91-c7f1-4709-aa0d-8b5d81b22a0a",
+              "name": "Thrasios, Triton Hero // Tymna the Weaver",
+              "sanitized": "thrasios-triton-hero-tymna-the-weaver",
+              "url": "/commanders/thrasios-triton-hero-tymna-the-weaver",
+              "num_decks": 6335,
+              "potential_decks": 11589
+            },
+            {
+              "id": "10d42b35-844f-4a64-9981-c6118d45e826",
+              "name": "The Ur-Dragon",
+              "sanitized": "the-ur-dragon",
+              "url": "/commanders/the-ur-dragon",
+              "num_decks": 5955,
+              "potential_decks": 51147
+            },
+            {
+              "id": "079e6263-e54c-4899-a336-5315909b9322",
+              "name": "Magda, Brazen Outlaw",
+              "sanitized": "magda-brazen-outlaw",
+              "url": "/commanders/magda-brazen-outlaw",
+              "num_decks": 5878,
+              "potential_decks": 17935
+            },
+            {
+              "id": "41e3d118-8f97-4c68-acff-2f90a055af5b",
+              "name": "Lord of the Nazgûl",
+              "sanitized": "lord-of-the-nazgul",
+              "url": "/commanders/lord-of-the-nazgul",
+              "num_decks": 5548,
+              "potential_decks": 15179
+            },
+            {
+              "id": "ffc70b2d-5a3a-49ea-97db-175a62248302",
+              "name": "Glarb, Calamity's Augur",
+              "sanitized": "glarb-calamitys-augur",
+              "url": "/commanders/glarb-calamitys-augur",
+              "num_decks": 5425,
+              "potential_decks": 24400
+            },
+            {
+              "id": "95c14c4d-6c16-4826-8d93-d89ad04aee09",
+              "name": "Etali, Primal Conqueror",
+              "sanitized": "etali-primal-conqueror",
+              "url": "/commanders/etali-primal-conqueror",
+              "num_decks": 5358,
+              "potential_decks": 17234
+            },
+            {
+              "id": "02645651-cd55-4bd0-8a4d-fa257270a0e0",
+              "name": "Hashaton, Scarab's Fist",
+              "sanitized": "hashaton-scarabs-fist",
+              "url": "/commanders/hashaton-scarabs-fist",
+              "num_decks": 5295,
+              "potential_decks": 27144
+            },
+            {
+              "id": "e71c8c39-3fbb-4a42-9cf6-b3224f5a56fc",
+              "name": "Kaalia of the Vast",
+              "sanitized": "kaalia-of-the-vast",
+              "url": "/commanders/kaalia-of-the-vast",
+              "num_decks": 5273,
+              "potential_decks": 39937
+            },
+            {
+              "id": "70b6670f-a9fa-4d75-b0a7-c01b5071a514",
+              "name": "Toph, the First Metalbender",
+              "sanitized": "toph-the-first-metalbender",
+              "url": "/commanders/toph-the-first-metalbender",
+              "num_decks": 5200,
+              "potential_decks": 33266
+            },
+            {
+              "id": "e4b1aa1e-b4e3-4346-8937-76b312501c70",
+              "name": "Jodah, the Unifier",
+              "sanitized": "jodah-the-unifier",
+              "url": "/commanders/jodah-the-unifier",
+              "num_decks": 5092,
+              "potential_decks": 33304
+            },
+            {
+              "id": "a577ba08-0aa8-45be-aa83-d5078770127c",
+              "name": "Edgar Markov",
+              "sanitized": "edgar-markov",
+              "url": "/commanders/edgar-markov",
+              "num_decks": 4896,
+              "potential_decks": 51277
+            },
+            {
+              "id": "0e259db1-14db-4314-998c-6a076a28d8cb",
+              "name": "Kenrith, the Returned King",
+              "sanitized": "kenrith-the-returned-king",
+              "url": "/commanders/kenrith-the-returned-king",
+              "num_decks": 4608,
+              "potential_decks": 31668
+            },
+            {
+              "id": "e98d5321-ec09-456c-a9ea-c8ca2cfc6205",
+              "name": "Aragorn, the Uniter",
+              "sanitized": "aragorn-the-uniter",
+              "url": "/commanders/aragorn-the-uniter",
+              "num_decks": 4379,
+              "potential_decks": 23240
+            },
+            {
+              "id": "d67be074-cdd4-41d9-ac89-0a0456c4e4b2",
+              "name": "Sheoldred, the Apocalypse",
+              "sanitized": "sheoldred-the-apocalypse",
+              "url": "/commanders/sheoldred-the-apocalypse",
+              "num_decks": 4373,
+              "potential_decks": 12142
+            },
+            {
+              "id": "8ae6fc26-cfad-4da8-98d9-49c27c24d293",
+              "name": "Giada, Font of Hope",
+              "sanitized": "giada-font-of-hope",
+              "url": "/commanders/giada-font-of-hope",
+              "num_decks": 4372,
+              "potential_decks": 35667
+            },
+            {
+              "id": "9235977e-a999-4ed0-83a3-742be87b13bb",
+              "name": "Tivit, Seller of Secrets",
+              "sanitized": "tivit-seller-of-secrets",
+              "url": "/commanders/tivit-seller-of-secrets",
+              "num_decks": 4360,
+              "potential_decks": 12928
+            }
+          ]
+        },
+        {
+          "tag": "highliftcards",
+          "header": "High Lift Cards",
+          "cardviews": [
+            {
+              "id": "6eab6765-eba3-4844-81ca-ae37a6e903df",
+              "name": "Transmute Artifact",
+              "sanitized": "transmute-artifact",
+              "url": "/cards/transmute-artifact",
+              "num_decks": 32183,
+              "potential_decks": 434175,
+              "lift": 8.237693408128981
+            },
+            {
+              "id": "befb996b-1da6-41a3-8d9a-a45c2353c401",
+              "name": "Auriok Salvagers",
+              "sanitized": "auriok-salvagers",
+              "url": "/cards/auriok-salvagers",
+              "num_decks": 5066,
+              "potential_decks": 359160,
+              "lift": 7.707451597655211
+            },
+            {
+              "id": "135de5c7-6ac9-4b68-8f1a-97f120a4b125",
+              "name": "Mishra's Workshop",
+              "sanitized": "mishras-workshop",
+              "url": "/cards/mishras-workshop",
+              "num_decks": 26360,
+              "potential_decks": 800016,
+              "lift": 7.5639555851628675
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -39,7 +39,7 @@ export function TypeSetPicker() {
   }, []);
 
   return (
-    <fieldset className="settings-theme-grid" aria-label="Choose typeface">
+    <fieldset className="settings-theme-grid settings-typeset-grid" aria-label="Choose typeface">
       {TYPESETS.map((t) => (
         <label
           key={t.id}

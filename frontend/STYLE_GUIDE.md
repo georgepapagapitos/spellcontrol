@@ -54,6 +54,7 @@ primitives directory.
 | `components/shared/Count`                                      | a raw count-bubble class                             | § Shape language — Badges, counts and surfaces are primitives                                                               |
 | `components/shared/Surface`                                    | a raw tile, section-card or popover class            | § Layout system — Surfaces: one frame                                                                                       |
 | `components/shared/SwipeRow`                                   | a hand-built horizontal tile row                     | § Layout system — A row of tiles                                                                                            |
+| `components/shared/ColorIdentityPicker`                        | a hand-built WUBRG + colorless pip row               | [§ Color pip rows](style-guide/cards-collection.md#color-pip-rows--andor-match-mode-chip)                                   |
 | `components/shared/SectionHeader`                              | a hand-built `-section-head` row                     | § Layout system — Section header                                                                                            |
 | `components/SearchPill`                                        | a bare `<input type="search">`                       | [§ Toolbars & action rows](style-guide/components.md#toolbars--action-rows-responsive) · § Responsive (keep `min-width: 0`) |
 | `components/SelectMenu`                                        | a restyled `<select>`                                | [§ Toolbars & action rows](style-guide/components.md#toolbars--action-rows-responsive)                                      |
@@ -374,7 +375,10 @@ meanwhile.
   **Built** as `SwipeRow` (`components/shared/SwipeRow`, T135): the list
   element itself, carrying the tiles' own list classes, with `columns` across
   on desktop. Home's Your decks and Discover and the welcome page's fresh
-  public decks use it.
+  public decks use it. A row of portrait card tiles takes `tile="card"`: 40% of
+  a phone and 22% of a tablet, still under 72%, so two cards and the next one's
+  edge show rather than one card filling the screen (the Search page's browse
+  rails).
 - **Section header: title · meta · tools.** A section inside a page is a
   title, one short meta, and on the right its tools: the section's own search
   ([§ Toolbars](style-guide/components.md#toolbars--action-rows-responsive), search beside its list) and one door, which is `Button variant="link"` with a trailing chevron (T135: one link style app-wide, no bespoke door class). The meta hides on a
@@ -753,6 +757,26 @@ lines ("Knowledge is mana.", "The oracle reads between the lines…") are
 deliberately atmospheric MTG flavor — the app's one cinematic moment. This is
 the _only_ surface exempt from the functional-prose rules above. Don't extend
 this register elsewhere, and don't flatten it here.
+
+### Third-party numbers name their source
+
+A number another site counted (EDHREC's play rates and deck counts, a Scryfall
+price) says whose number it is, and the block that shows it links to the page
+it came from. Rule 3's honesty, applied to provenance: a player weighs "In 36%
+of its decks" differently once they know it is EDHREC's crowd and not their own
+pod, and the link lets them check it.
+
+- **Name the source once per block,** in the copy ("decks on EDHREC", "Popular
+  commanders on EDHREC") or in a closing link. Not on every row.
+- **Link to the matching page, not the site's home.** An external link in the
+  shared style (`.card-preview-ext-link` in the card preview, `View on EDHREC`
+  in a combo row), opening in a new tab. First instance: the card preview's
+  Played in section ends with View on EDHREC, linked to that card's page.
+- **A thin sample says so** through `ThinDataNote`, the one way to say a number
+  rests on few decks.
+- Our own counts (decks published on SpellControl) are named as ours, "on
+  SpellControl", never blended into a third party's number without saying so
+  (`CommanderPopularityStat`).
 
 ---
 
@@ -2340,7 +2364,7 @@ must follow goes in the core.
   - [Full-viewport centered pages (scroll, don't clip)](style-guide/app-shell.md#full-viewport-centered-pages-scroll-dont-clip)
   - [First-run welcome / landing screen (UX-331, pass 2c "welcome storefront")](style-guide/app-shell.md#first-run-welcome--landing-screen-ux-331-pass-2c-welcome-storefront)
   - [Guest gates — every "Sign in" door carries `returnTo`](style-guide/app-shell.md#guest-gates--every-sign-in-door-carries-returnto)
-  - [The You page — one page, one name, precise doors](style-guide/app-shell.md#the-you-page--one-page-one-name-precise-doors)
+  - [The You page — a hub of sections, one name, precise doors](style-guide/app-shell.md#the-you-page--a-hub-of-sections-one-name-precise-doors)
   - [Command palette (⌘K) — desktop-only by design](style-guide/app-shell.md#command-palette-k--desktop-only-by-design)
   - [Keyboard shortcuts — discoverability pattern (UX-334)](style-guide/app-shell.md#keyboard-shortcuts--discoverability-pattern-ux-334)
 - **[Cards, collection & binders](style-guide/cards-collection.md)**: Card rows and tables, the collection hub, binders, import review and card-level terminology.
@@ -2358,6 +2382,7 @@ must follow goes in the core.
   - [Card-stat terminology (mana value / mana cost / price)](style-guide/cards-collection.md#card-stat-terminology-mana-value--mana-cost--price)
   - [Binder flipbook — one page per slide (2026-09-07 ruling)](style-guide/cards-collection.md#binder-flipbook--one-page-per-slide-2026-09-07-ruling)
   - [Checklist grids — owned vs missing (E131)](style-guide/cards-collection.md#checklist-grids--owned-vs-missing-e131)
+  - [Browse lists — the tile stands for the card, the number names its owner (E520, 2026-09-29)](style-guide/cards-collection.md#browse-lists--the-tile-stands-for-the-card-the-number-names-its-owner-e520-2026-09-29)
 - **[Decks](style-guide/decks.md)**: The deck view, analysis, bracket, Coach, upgrades, deck lists and AI-written content.
   - [Blend controls — N axes that must always sum to 1 (E234)](style-guide/decks.md#blend-controls--n-axes-that-must-always-sum-to-1-e234)
   - [Build-time coach strip (E169 Half B) — a NAVIGATING insight strip](style-guide/decks.md#build-time-coach-strip-e169-half-b--a-navigating-insight-strip)

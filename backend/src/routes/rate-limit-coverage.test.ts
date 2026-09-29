@@ -8,6 +8,7 @@ import { gamesRouter } from './games';
 import { gameResultsRouter } from './game-results';
 import { combosRouter } from './combos';
 import { aggregatesRouter } from './aggregates';
+import { edhrecRouter } from './edhrec';
 import { sharesRouter } from './shares';
 import { feedbackRouter } from './feedback';
 import { offlineRouter } from './offline';
@@ -71,6 +72,7 @@ const ROUTERS: Array<[string, unknown]> = [
   ['game-results', gameResultsRouter],
   ['combos', combosRouter],
   ['aggregates', aggregatesRouter],
+  ['edhrec', edhrecRouter],
   ['shares', sharesRouter],
   ['feedback', feedbackRouter],
   ['offline', offlineRouter],

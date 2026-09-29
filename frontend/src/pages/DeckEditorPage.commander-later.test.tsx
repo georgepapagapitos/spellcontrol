@@ -254,6 +254,8 @@ vi.mock('../lib/allocations', () => ({
   bindableFinishesByPrinting: () => new Map(),
   findStealableCopy: () => null,
   useCollectionByCopyId: () => new Map(),
+  classifyAllocation: (id: string | null, byId?: Map<string, unknown>) =>
+    id ? (byId?.has(id) ? 'allocated' : 'orphan') : 'unowned',
 }));
 vi.mock('../deck-builder/services/deckBuilder/substituteFinder', () => ({
   buildSubstitutionPlan: () => [],

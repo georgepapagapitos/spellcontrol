@@ -17,7 +17,7 @@ const CONFIDENCE_BADGE: Record<string, { tone: VerdictTone; label: string }> = {
 import { useCardThumb } from '@/lib/card-thumbs';
 import { formatMoney } from '@/lib/format-money';
 import { ManaCost } from '../ManaCost';
-import { classifyInclusion } from '@/lib/inclusion-label';
+import { classifyInclusion, inclusionColor } from '@/lib/inclusion-label';
 import { synergyPct } from '@/lib/why-factors';
 import { scryfallArtCrop } from '@/lib/offline/slim-to-scryfall';
 import { MeterBar } from '../shared/MeterBar';
@@ -31,25 +31,6 @@ function Thumb({ url }: { url: string | undefined }): JSX.Element {
   ) : (
     <span className="deck-card-row-art-ph" aria-hidden />
   );
-}
-
-/**
- * Inclusion-% → a hue, so a glance reads "how-staple is this". A real
- * percentage is never rendered below 1% (see `classifyInclusion` — 0/missing
- * render as the calm "Off-meta" chip instead), so this ramp never needs to
- * speak for "no signal": every value it colors is a genuine, if low, signal —
- * a "deep cut", not an error. Red is reserved exclusively for the Cut verdict
- * tone, so the ramp never touches it:
- *
- *   1–50%   → amber→yellow (35–60)  from a spicy low-end pick to ordinary
- *   ≥50%    → yellow→green (60–120) staple ramp (unchanged from the old scale)
- *
- * Pure + exported for unit tests.
- */
-export function inclusionColor(pct: number): string {
-  const p = Math.max(0, Math.min(100, pct));
-  const hue = p < 50 ? 35 + ((p - 1) / 49) * 25 : (p / 100) * 120;
-  return `hsl(${Math.round(hue)} 60% 45%)`;
 }
 
 /** type → the action button's leading icon + default verb (icon size 14, per

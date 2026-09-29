@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { formatDeckCount } from './CommanderResultCard';
 import {
   getPartnerType,
   getPartnerTypeLabel,
@@ -48,11 +49,6 @@ function partnerHint(partnerType: ReturnType<typeof getPartnerType>, withName: s
     default:
       return '';
   }
-}
-
-function formatDeckCount(count: number): string {
-  if (count >= 1000) return `${(count / 1000).toFixed(count >= 10000 ? 0 : 1)}k decks`;
-  return `${count} deck${count === 1 ? '' : 's'}`;
 }
 
 export function PartnerCommanderSelector({ commander, partner, onSelect, collectionMode }: Props) {

@@ -375,8 +375,7 @@ select {
 }
 
 /* Shared by two programmatic-focus call sites: lib/scroll-to-heading.ts (a
-   query-param deep link's heading, `/you?section=…`, FriendsManagement's
-   `?friendsTab=…`) and Layout.tsx's route-change effect (focuses the new
+   query-param deep link's heading, FriendsManagement's `?friendsTab=…`) and Layout.tsx's route-change effect (focuses the new
    page's <h1> on every navigation, B1-05). Both leave the browser's raw
    default focus ring around a heading that was never a tabbed-to control,
    which reads as a rendering glitch (B8-01) — not "a control silently lost
@@ -439,6 +438,76 @@ select {
   background: var(--surface);
   border: 0.5px solid var(--border-strong);
   box-shadow: var(--shadow-tooltip);
+}
+
+/* ── Index tiles: one hover (§ Index tiles) ──────────────────────────────
+   Every tile that opens a deck or a binder (the decks and binders indexes,
+   Lists, Discover, profiles, Home's rows) answers the pointer the same way:
+   the frame rings in the tile's own colour and lifts, and in grid the cover
+   art zooms. Keyboard focus on the tile's link gets the same answer.
+   It was three behaviours: Discover and profiles zoomed the art, while the
+   decks and binders indexes tinted a border #2486 had removed, so they did
+   nothing. A family adds only what is its own (Discover's quick actions).
+   Guard: styles/index-tile-hover.test.ts. */
+:where(.decks-index-card, .binders-index-card) {
+  --tile-color: var(--deck-color, var(--binder-color, var(--accent)));
+}
+
+:is(.decks-index-card, .binders-index-card):has(
+  > :is(.decks-index-card-link, .binders-index-card-link):focus-visible
+) {
+  box-shadow:
+    var(--shadow-card-hover),
+    0 0 0 1px var(--tile-color);
+}
+
+/* The zoom stays inside the tile: the link clips at the art's own corners.
+   The tile itself can't clip, since its ⋮ menu has to escape it. */
+:is(.decks-index-list, .binders-index-list).is-grid
+  :is(.decks-index-card-link, .binders-index-card-link) {
+  overflow: clip;
+  border-top-left-radius: calc(var(--radius-lg) - 1px);
+  border-top-right-radius: calc(var(--radius-lg) - 1px);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :is(.decks-index-card, .binders-index-card):has(
+      > :is(.decks-index-card-link, .binders-index-card-link)
+    ):hover {
+    box-shadow:
+      var(--shadow-card-hover),
+      0 0 0 1px var(--tile-color);
+  }
+}
+
+/* Motion (the zoom and both transitions) only when the viewer allows it;
+   reduced motion keeps the ring and the lift. */
+@media (prefers-reduced-motion: no-preference) {
+  :where(.decks-index-card, .binders-index-card) {
+    transition: box-shadow var(--motion-fast) ease;
+  }
+
+  :where(.decks-index-card-art, .binders-index-card-art) {
+    transition: transform var(--motion-base) var(--ease-out-soft);
+  }
+
+  :is(.decks-index-list, .binders-index-list).is-grid
+    :is(.decks-index-card, .binders-index-card):has(
+      > :is(.decks-index-card-link, .binders-index-card-link):focus-visible
+    )
+    :is(.decks-index-card-art, .binders-index-card-art) {
+    transform: scale(1.03);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  :is(.decks-index-list, .binders-index-list).is-grid
+    :is(.decks-index-card, .binders-index-card):has(
+      > :is(.decks-index-card-link, .binders-index-card-link)
+    ):hover
+    :is(.decks-index-card-art, .binders-index-card-art) {
+    transform: scale(1.03);
+  }
 }
 
 /* ── Section headings (T166) ─────────────────────────────────────────

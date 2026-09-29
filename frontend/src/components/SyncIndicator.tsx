@@ -170,8 +170,8 @@ export function SyncIndicator() {
  * Signed-out / guest / unknown: also renders nothing — there is no cloud sync
  * to report. Guests already know they're local-only from the Settings badge.
  *
- * Tapping leads to the Account card on /you (`?section=account` — the full
- * sync story + any retry actions live there). The link wraps only the compact
+ * Tapping leads to You › Account (`/you/account` — the full sync story +
+ * any retry actions live there). The link wraps only the compact
  * pill so it's a contained click target — not the whole nav slot.
  *
  * Non-happy state precedence (same as full SyncIndicator):
@@ -209,7 +209,7 @@ export function HeaderSyncIndicator() {
         : 'Offline';
     return (
       <Link
-        to="/you?section=account"
+        to="/you/account"
         className="sync-indicator sync-indicator-offline header-sync-indicator"
         title="Changes saved on this device. Tap for details."
         aria-label={label}
@@ -227,7 +227,7 @@ export function HeaderSyncIndicator() {
     const detail = `Saving to your account, ${current} of ${progress.total}…`;
     return (
       <Link
-        to="/you?section=account"
+        to="/you/account"
         className="sync-indicator sync-indicator-syncing header-sync-indicator"
         title={detail}
         aria-label={detail}
@@ -242,7 +242,7 @@ export function HeaderSyncIndicator() {
   if (state === 'syncing') {
     return (
       <Link
-        to="/you?section=account"
+        to="/you/account"
         className="sync-indicator sync-indicator-syncing header-sync-indicator"
         aria-label="Syncing…"
       >
@@ -256,7 +256,7 @@ export function HeaderSyncIndicator() {
   if (errored) {
     return (
       <Link
-        to="/you?section=account"
+        to="/you/account"
         className="sync-indicator sync-indicator-error header-sync-indicator"
         title="Retrying. Tap for sync details."
         aria-label="Sync failed. Tap for sync details."
@@ -271,7 +271,7 @@ export function HeaderSyncIndicator() {
     const detail = pending === 1 ? 'Saving changes…' : `Saving ${pending} changes…`;
     return (
       <Link
-        to="/you?section=account"
+        to="/you/account"
         className="sync-indicator sync-indicator-pending header-sync-indicator"
         title={detail}
         aria-label={detail}

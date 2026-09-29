@@ -1,15 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-
-/**
- * Mirrors Header's formatCount (intentionally copied, not imported — keeps the
- * hub shell decoupled from the header so either can change independently).
- */
-function formatCount(n: number): string {
-  if (n < 1000) return String(n);
-  if (n < 10_000) return `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k`;
-  return `${Math.round(n / 1000)}k`;
-}
+import { formatCount } from '@/lib/format-count';
 
 export interface HubTab {
   to: string;

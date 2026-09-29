@@ -51,7 +51,7 @@ describe('RecoveryBanner', () => {
     setAuth({ emailVerified: false });
     renderBanner();
     expect(screen.getByRole('link', { name: 'Confirm email' }).getAttribute('href')).toBe(
-      '/you?section=sign-in'
+      '/you/account'
     );
   });
 

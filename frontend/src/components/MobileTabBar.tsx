@@ -11,7 +11,7 @@ import { Count } from './shared/Count';
 /**
  * True while sync has something a phone user should know about (offline,
  * failing, or a change still queued) — the only place this signal reaches a
- * signed-in phone user outside `/you?section=account`, since the full
+ * signed-in phone user outside `/you/account`, since the full
  * indicator lives in the header, which is hidden below 1024px. Mirrors the
  * same non-happy precedence `HeaderSyncIndicator`/`SyncIndicator` use, just
  * collapsed to a boolean for a plain dot rather than a labeled pill.

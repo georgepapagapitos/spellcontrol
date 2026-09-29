@@ -54,11 +54,13 @@ export function OfflineModeSettings(): React.ReactElement | null {
     const label = PHASE_LABELS[progress.phase];
     statusText = progress.detail ? `${label} (${progress.detail})` : label;
   } else if (progress?.phase === 'error') {
-    statusText = `Refresh failed${error ? `: ${error}` : ''}. Card searches still use the live API.`;
+    statusText = `${hasData ? 'Refresh' : 'Download'} failed${error ? `: ${error}` : ''}. Card searches still use the live API.`;
   } else if (hasData) {
     statusText = `${formatNumber(cardCount)} cards · ${formatBytes(sizeBytes)} · updated ${formatRelative(manifest!.oracleUpdatedAt)}`;
   } else {
-    statusText = 'Downloading… searches use the live API until then.';
+    // The download is opt-in: with no data and no sync running, nothing is
+    // downloading, so the status must not say it is.
+    statusText = 'Not downloaded.';
   }
 
   return (
@@ -73,7 +75,7 @@ export function OfflineModeSettings(): React.ReactElement | null {
           Card data
         </h2>
         <p className="settings-card-hint">
-          Kept on this device so search, deck generation, and combos work offline.
+          Download it to this device and card search and combos work offline.
         </p>
       </header>
       <div className="settings-card-body">
@@ -84,7 +86,13 @@ export function OfflineModeSettings(): React.ReactElement | null {
           </div>
           <div className="settings-row-actions">
             <Button onClick={() => void sync()} disabled={syncing}>
-              {syncing ? 'Refreshing…' : 'Refresh card data now'}
+              {hasData
+                ? syncing
+                  ? 'Refreshing…'
+                  : 'Refresh card data'
+                : syncing
+                  ? 'Downloading…'
+                  : 'Download card data'}
             </Button>
           </div>
         </div>
@@ -92,7 +100,11 @@ export function OfflineModeSettings(): React.ReactElement | null {
           <div className="settings-row">
             <div className="settings-row-text">
               <div className="settings-row-label">Cached card data</div>
-              <div className="settings-row-hint">Re-downloads the next time you sign in.</div>
+              {/* Nothing re-downloads on its own; clearing is final until the
+                  user presses Download again. */}
+              <div className="settings-row-hint">
+                Frees {formatBytes(sizeBytes)} on this device.
+              </div>
             </div>
             <div className="settings-row-actions">
               <Button onClick={() => void clear()} disabled={syncing}>

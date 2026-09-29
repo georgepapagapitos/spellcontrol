@@ -77,18 +77,3 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-@media (hover: hover) and (pointer: fine) {
-  .public-profile-tile .decks-index-card-art {
-    transition: transform var(--motion-base) var(--ease-out-soft);
-  }
-  .public-profile-tile:hover .decks-index-card-art {
-    transform: scale(1.03);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .public-profile-tile .decks-index-card-art {
-    transition: none;
-  }
-}

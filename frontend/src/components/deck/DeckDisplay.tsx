@@ -484,6 +484,11 @@ export interface DeckDisplayProps {
   ownershipFor?: (name: string) => ChangeOwnership;
   /** Stamp deck.lastArrivalReviewAt (silent) — fired once the sheet closes. */
   onMarkArrivalsReviewed?: () => void;
+  /** Open the new-arrivals sheet once, as soon as it has rows — Home's
+   *  "+N new cards" badge lands here (`?arrivals=1`). The host sets it only
+   *  after every arrivals input has loaded, since the sheet freezes its rows
+   *  when it opens. */
+  autoOpenArrivals?: boolean;
   /**
    * User tags (E171). All three optional — omitted (e.g. a read-only/shared
    * view) means tags still DISPLAY (chips render from `cards`/`sideboard`/
@@ -604,6 +609,7 @@ export function DeckDisplay({
   existingCardCounts,
   ownershipFor,
   onMarkArrivalsReviewed,
+  autoOpenArrivals,
   onSetCardTags,
   onRenameDeckTag,
   onRemoveDeckTag,
@@ -1251,6 +1257,12 @@ export function DeckDisplay({
         .sort((a, b) => b.score - a.score),
     [arrivalsByType]
   );
+  const autoOpenedArrivals = useRef(false);
+  useEffect(() => {
+    if (!autoOpenArrivals || autoOpenedArrivals.current || arrivalRows.length === 0) return;
+    autoOpenedArrivals.current = true;
+    setArrivalsOpen(true);
+  }, [autoOpenArrivals, arrivalRows.length]);
   // Mana curve / color demand+production / type breakdown / drill-downs — the
   // shared pure builder so this view and the deck-compare page agree exactly.
   // Deck rows store each card as the cache had it when the card was added, so a

@@ -196,6 +196,28 @@ the pure `lib/upgrade-plan.ts`.
   with Undo). Apply to a copy saves "<name> (upgraded)" and leaves the list as
   it was.
 
+## Adding from Scryfall: drop or paste a card link (2026-09-29)
+
+- **A card dragged off scryfall.com onto the deck editor is an add**, the same
+  add as the Add cards panel's +: into the zone the "Add cards to" toggle
+  names, the exact printing dropped (the image's printing id beats the page's
+  set/number), owned-copy claiming for that printing, one undoable edit, the
+  "Added X" toast, the copy-limit refusal, the off-color note, and the
+  replace-when-full prompt on a full deck (whose ways out keep the printing).
+- **The drop target is the whole window** (`lib/use-link-drop.ts`), shown by a
+  `.deck-link-drop` veil naming the zone: "Drop to add to Mainboard". It is
+  aria-hidden and pointer-events: none (the toast is the announcement), has no
+  entry animation (so it appears and leaves instantly), and says "Finding the
+  card on Scryfall…" while the lookup runs. Drags that start inside the page
+  and bare desktop files (the import dialog's business) never show it.
+- **Any link shows the veil**: during a drag only the data types can be read.
+  The drop decides; a link that isn't a card toasts "That link isn't a
+  Scryfall card." and changes nothing.
+- **A phone can't drag between apps, so a pasted link does the same job**: a
+  Scryfall card link typed or pasted into Add cards jumps to the Scryfall tab
+  and shows exactly that printing as the one result. A Scryfall link that
+  isn't a card reads "No matches. That link isn't a Scryfall card."
+
 ## Deck view — one fact, one place (2026-09-08)
 
 The deck editor is three tabs (Deck · Power · Coach) under one hero; Stats
