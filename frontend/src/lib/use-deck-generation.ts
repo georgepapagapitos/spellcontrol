@@ -319,6 +319,10 @@ export function useDeckGeneration({
             colorIdentity: c.colorIdentity ?? [],
             cmc: c.cmc,
             typeLine: c.typeLine,
+            // Generation resolves an owned card by its printing id, never a
+            // look-alike name (ownedCardResolution.ts).
+            scryfallId: c.scryfallId || undefined,
+            oracleId: c.oracleId,
           });
         }
         if (byName.size > 0) collectionPool = [...byName.values()];
