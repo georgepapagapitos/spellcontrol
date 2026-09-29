@@ -124,7 +124,7 @@ import { sameType } from '@/lib/card-matching';
 import { resolveMultiCopyCards } from './multiCopy';
 import { generateLands, CHANNEL_LAND_BOOST, MDFC_LAND_BOOST } from './landGenerator';
 import { resolveManaPhilosophy } from './manaPhilosophy';
-import { assertCommandersEligible } from './commanderEligibility';
+import { assertCommandersEligible, commanderPreviewNote } from './commanderEligibility';
 import {
   pickEdhrecTypePass,
   bumpRoleAndSubtypeCounts,
@@ -1161,7 +1161,18 @@ export function hasExilePayoffIdentity(card: ScryfallCard): boolean {
  */
 export async function generateDeck(context: GenerationContext): Promise<GeneratedDeck> {
   // E530: an illegal commander refuses to build, naming why, before any fetch.
+  // A previewed one builds, and the deck says it isn't legal until it releases.
   assertCommandersEligible(context);
+  const deck = await generateDeckForMode(context);
+  const previewNote = commanderPreviewNote(
+    context.commander,
+    context.partnerCommander,
+    context.customization.mtgFormat
+  );
+  return previewNote ? { ...deck, commanderPreviewNote: previewNote } : deck;
+}
+
+async function generateDeckForMode(context: GenerationContext): Promise<GeneratedDeck> {
   const mode = context.customization.generationMode ?? 'edhrec';
   // PDH always sources from the Scryfall alt-pool (EDHREC has no data for
   // non-legendary uncommon commanders), so it takes the force-live path even

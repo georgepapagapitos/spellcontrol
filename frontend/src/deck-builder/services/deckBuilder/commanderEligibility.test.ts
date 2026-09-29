@@ -14,6 +14,8 @@ import {
   assertCommandersEligible,
   commanderIneligibility,
   CommanderIneligibleError,
+  commanderPreviewNote,
+  formatReleaseDate,
 } from './commanderEligibility';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -91,19 +93,40 @@ describe('commanderIneligibility: legality', () => {
     expect(why('Griselbrand')?.reason).toBe('banned');
   });
 
-  it('refuses an unreleased commander until it releases, then only on legality', () => {
-    expect(why('Seven of Nine')).toMatchObject({
-      reason: 'unreleased',
-      message: "Seven of Nine isn't legal in Commander until it releases.",
-    });
+  // USER RULING (second pass): a previewed commander builds, disclosed.
+  it('builds a previewed commander and says when it becomes legal', () => {
+    expect(why('Seven of Nine')).toBeNull();
     // A Spacecraft with a power/toughness box passes the type rule, so only
-    // the release date stands in the way.
-    expect(why('U.S.S. Enterprise-D, Galaxy-Class')?.reason).toBe('unreleased');
-    // After the date, Scryfall's own not_legal is the answer.
-    expect(why('Seven of Nine', null, 'commander', new Date('2027-01-01'))).toMatchObject({
+    // the release date stood in the way.
+    expect(why('U.S.S. Enterprise-D, Galaxy-Class')).toBeNull();
+    const nov13 = formatReleaseDate('2026-11-13');
+    expect(commanderPreviewNote(card('Seven of Nine'), null, 'commander', NOW)).toBe(
+      `Seven of Nine isn't legal until ${nov13}.`
+    );
+    // One sentence per previewed card; a released partner adds none.
+    expect(
+      commanderPreviewNote(card('Seven of Nine'), card('Krenko, Mob Boss'), 'commander', NOW)
+    ).toBe(`Seven of Nine isn't legal until ${nov13}.`);
+    expect(commanderPreviewNote(card('Krenko, Mob Boss'), null, 'commander', NOW)).toBeUndefined();
+  });
+
+  it("writes the date the app's way", () => {
+    expect(formatReleaseDate('2026-11-13')).toBe(
+      new Date('2026-11-13T00:00:00').toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      })
+    );
+  });
+
+  it('refuses it once released if Scryfall still reads it not legal', () => {
+    const later = new Date('2027-01-01T12:00:00');
+    expect(why('Seven of Nine', null, 'commander', later)).toMatchObject({
       reason: 'not-legal',
       message: "Seven of Nine isn't legal in Commander.",
     });
+    expect(commanderPreviewNote(card('Seven of Nine'), null, 'commander', later)).toBeUndefined();
   });
 
   it('treats a missing legality record as not legal, like isValidCommander', () => {

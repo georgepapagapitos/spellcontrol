@@ -202,6 +202,7 @@ export function BuildReportPanel({
     generationMode,
     generationModeDetail,
     generationNote,
+    commanderPreviewNote,
     archetypeNote,
     landCountNote,
     poolExhaustionNote,
@@ -307,6 +308,10 @@ export function BuildReportPanel({
           {note}
         </p>
       ))}
+
+      {/* E530: a previewed commander builds, and the report says it isn't
+          legal yet, beside the other flags a player must not miss. */}
+      {commanderPreviewNote && <p className="build-report-flag">{commanderPreviewNote}</p>}
 
       {generationMode && generationMode !== 'edhrec' && (
         <p className="build-report-line build-report-method">

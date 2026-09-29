@@ -9,12 +9,16 @@
 //
 // The rules, per format the generator builds (it treats every format other
 // than Brawl and Pauper Commander as Commander, and so does this):
-//   - Commander (CR 903.3): a legendary creature, Vehicle, or Spacecraft with
-//     a power/toughness box, or a card whose text says it "can be your
-//     commander" (903.3a). Grist, the Hunger Tide counts: it is a creature
-//     card everywhere but the battlefield. Then Scryfall's `commander`
-//     legality must be legal (a banned card, a card not legal in the format,
-//     or one that hasn't been released yet all refuse).
+//   - Commander: the app's one CR 903.3 type rule, `canBeCommanderByType` in
+//     @spellcontrol/binder-routing (a legendary creature, Vehicle or
+//     Spacecraft with a power/toughness box, "can be your commander", Grist),
+//     shared with binders, isValidCommander, the cube and offline search.
+//     Then Scryfall's `commander` legality: a banned card, or one not legal
+//     in the format, refuses.
+//   - A previewed commander, not legal only because it hasn't released yet,
+//     BUILDS (user ruling, second pass): the deck carries
+//     `commanderPreviewNote` ("Seven of Nine isn't legal until Nov 13, 2026.")
+//     instead of refusing. commanderPreviewNote() below writes it.
 //   - Brawl: the same, plus any legendary planeswalker, against the `brawl`
 //     legality.
 //   - Pauper Commander: an uncommon creature that isn't banned, the app's
@@ -29,17 +33,12 @@
 // companion, and is a legal commander), so Scryfall's `banned` status is the
 // whole answer.
 import type { Customization, ScryfallCard } from '@/deck-builder/types';
-import { isPdhCommanderEligible } from '@/lib/commanders';
+import { canBeCommanderByType, isPdhCommanderEligible } from '@/lib/commanders';
 import { frontFaceName } from '@/lib/card-text';
 import { areValidPartners } from '@/deck-builder/lib/partnerUtils';
 
 export type CommanderIneligibleReason =
-  | 'banned'
-  | 'unreleased'
-  | 'not-legal'
-  | 'not-a-commander'
-  | 'pdh-not-uncommon-creature'
-  | 'invalid-pair';
+  'banned' | 'not-legal' | 'not-a-commander' | 'pdh-not-uncommon-creature' | 'invalid-pair';
 
 export interface CommanderIneligibility {
   /** The card at fault, as its full Scryfall name. */
@@ -73,11 +72,6 @@ const FORMAT_LABEL: Record<CommanderFormat, string> = {
   paupercommander: 'Pauper Commander',
 };
 
-/** A card's front face type line: the face a commander is chosen by. */
-function frontTypeLine(card: ScryfallCard): string {
-  return (card.card_faces?.[0]?.type_line ?? card.type_line ?? '').split('//')[0];
-}
-
 function allText(card: ScryfallCard): string {
   return [card.oracle_text, ...(card.card_faces ?? []).map((f) => f.oracle_text)]
     .filter(Boolean)
@@ -85,26 +79,32 @@ function allText(card: ScryfallCard): string {
 }
 
 function isBackground(card: ScryfallCard): boolean {
-  return /\bBackground\b/.test(frontTypeLine(card));
+  const front = (card.card_faces?.[0]?.type_line ?? card.type_line ?? '').split('//')[0];
+  return /\bBackground\b/.test(front);
 }
 
-/** The type half of the rule: could this card be a commander at all. */
-function canLeadByType(card: ScryfallCard, format: CommanderFormat): boolean {
-  const text = allText(card);
-  if (/\bcan be your commander\b/i.test(text)) return true;
-  const type = frontTypeLine(card);
-  if (!/\bLegendary\b/.test(type)) return false;
-  if (/\bCreature\b/.test(type) || /\bVehicle\b/.test(type)) return true;
-  // A Spacecraft only with a power/toughness box (Station cards print one).
-  if (/\bSpacecraft\b/.test(type) && card.power != null) return true;
-  // Grist, the Hunger Tide: "As long as Grist isn't on the battlefield, it's
-  // a 1/1 Insect creature in addition to its other types."
-  if (/isn't on the battlefield, it's an? [^.\n]*\bcreature\b/i.test(text)) return true;
-  return format === 'brawl' && /\bPlaneswalker\b/.test(type);
+/** Today in the player's calendar, as Scryfall writes dates ("2026-09-29"). */
+function localIsoDate(now: Date): string {
+  return [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0'),
+  ].join('-');
 }
 
-function releasedAfter(card: ScryfallCard, now: Date): boolean {
-  return !!card.released_at && card.released_at > now.toISOString().slice(0, 10);
+/** Not legal in the format only because it hasn't released yet: Scryfall
+ *  reads a previewed card `not_legal` until its release date. */
+function isPreview(card: ScryfallCard, format: CommanderFormat, now: Date): boolean {
+  if (card.legalities?.[format] !== 'not_legal' || !card.released_at) return false;
+  return card.released_at > localIsoDate(now);
+}
+
+/** A release date ("2026-11-13") in the app's short date format ("Nov 13, 2026"). */
+export function formatReleaseDate(isoDate: string): string {
+  const d = new Date(`${isoDate}T00:00:00`);
+  return Number.isNaN(d.getTime())
+    ? isoDate
+    : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 /**
@@ -140,7 +140,9 @@ function cardIneligibility(
         );
   }
 
-  if (!background && !canLeadByType(card, format)) {
+  const typeLine = card.type_line ?? card.card_faces?.[0]?.type_line ?? '';
+  const power = card.power ?? card.card_faces?.[0]?.power;
+  if (!background && !canBeCommanderByType(typeLine, allText(card), { format, power })) {
     return fail(
       'not-a-commander',
       format === 'brawl'
@@ -151,9 +153,7 @@ function cardIneligibility(
   const status = card.legalities?.[format];
   if (status === 'legal' || status === 'restricted') return null;
   if (status === 'banned') return fail('banned', `${name} is banned in ${label}.`);
-  if (releasedAfter(card, now)) {
-    return fail('unreleased', `${name} isn't legal in ${label} until it releases.`);
-  }
+  if (isPreview(card, format, now)) return null; // builds, disclosed by commanderPreviewNote
   return fail('not-legal', `${name} isn't legal in ${label}.`);
 }
 
@@ -184,6 +184,25 @@ export function commanderIneligibility(
     };
   }
   return null;
+}
+
+/**
+ * The disclosure a deck built around a previewed commander carries, one
+ * sentence per previewed card, or undefined when neither is one. Pauper
+ * Commander reads rarity, not this legality, so it never has one.
+ */
+export function commanderPreviewNote(
+  commander: ScryfallCard,
+  partner: ScryfallCard | null | undefined,
+  mtgFormat: Customization['mtgFormat'],
+  now: Date = new Date()
+): string | undefined {
+  const format = formatOf(mtgFormat);
+  if (format === 'paupercommander') return undefined;
+  const lines = [commander, partner]
+    .filter((c): c is ScryfallCard => !!c && isPreview(c, format, now))
+    .map((c) => `${frontFaceName(c.name)} isn't legal until ${formatReleaseDate(c.released_at!)}.`);
+  return lines.length > 0 ? lines.join(' ') : undefined;
 }
 
 /** The generator's entry gate: throws CommanderIneligibleError, or returns. */

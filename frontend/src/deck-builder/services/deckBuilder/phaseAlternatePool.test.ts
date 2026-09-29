@@ -11,12 +11,8 @@ vi.mock('@/deck-builder/services/scryfall/client', async (orig) => ({
   searchCards: (...args: unknown[]) => searchCards(...args),
 }));
 
-import {
-  buildModeConstraint,
-  slugifyTag,
-  buildAlternatePool,
-  resolveReversiblePrinting,
-} from './phaseAlternatePool';
+import { buildModeConstraint, slugifyTag, buildAlternatePool } from './phaseAlternatePool';
+import { resolveReversiblePrinting } from '@/deck-builder/lib/printingLayouts';
 import type { Customization } from '@/deck-builder/types';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────

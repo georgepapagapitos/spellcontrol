@@ -540,6 +540,9 @@ export interface BuildReport {
    *  commander." Includes a multi-theme addendum when more than one theme
    *  was selected (role targets only follow the first). */
   archetypeNote?: string;
+  /** A previewed (not yet released) commander isn't legal until its release
+   *  date, and the deck says so (E530). Undefined for any released commander. */
+  commanderPreviewNote?: string;
   /** Which generation strategy the user chose (defaults to 'edhrec'). */
   generationMode?: GenerationMode;
   /** Mode-specific descriptor for the report (art motif slug, or print-year ceiling). */
@@ -839,6 +842,7 @@ export interface GeneratedDeck {
   generationMode?: GenerationMode; // Which generator built this deck (default 'edhrec')
   generationModeDetail?: string; // Mode-specific descriptor (art motif slug, or "year<=YYYY")
   generationRelaxedNote?: string; // e.g. historical mode eased its year ceiling to find a pool
+  commanderPreviewNote?: string; // a previewed commander isn't legal until it releases (E530): "Seven of Nine isn't legal until Nov 13, 2026."
   landCountNote?: string; // e.g. archetype-aware auto land count nudged the 37-land default
   poolExhaustionNote?: string; // e.g. an invalid filter / thin collection / other caps ran the pool dry and basics padded the gap
   thinPoolFillNote?: string; // E282: owned-only build — N slots filled from the collection outside the commander's EDHREC data, weakest first

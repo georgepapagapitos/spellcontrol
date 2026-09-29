@@ -29,7 +29,7 @@ import type {
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 import { frontFaceName } from '@/lib/card-text';
 import { computeRoleCounts } from './commanderDeckAnalysis';
-import { commanderIneligibility } from './commanderEligibility';
+import { commanderIneligibility, commanderPreviewNote } from './commanderEligibility';
 import { cardManaValue } from './deckStats';
 import {
   constrainsToCollection,
@@ -112,6 +112,9 @@ export interface InvariantContext {
    * that priced Brainstorm out), so it is SOFT.
    */
   requestedNames?: Iterable<string>;
+  /** "Today", for the previewed-commander check. Defaults to now; tests pin
+   *  it so a card's release date can't flip their answer. */
+  now?: Date;
 }
 
 // ── Name helpers ────────────────────────────────────────────────────────────
@@ -460,14 +463,25 @@ export function checkDeckInvariants(
   }
 
   // 4b. commander legality (E530). The generator refuses an illegal command
-  // zone at its entry, so a deck built around one got past that gate.
+  // zone at its entry, so a deck built around one got past that gate. A
+  // previewed commander builds by ruling, but only with its disclosure: SOFT
+  // when the deck carries the note, HARD when it doesn't.
   if (commander) {
-    const problem = commanderIneligibility(commander, partner, cz.mtgFormat);
+    const problem = commanderIneligibility(commander, partner, cz.mtgFormat, ctx.now);
     if (problem) {
       add(
         'HARD',
         'commander-legality',
         `a deck was built for an illegal command zone (${problem.reason}): ${problem.message}`
+      );
+    }
+    const preview = commanderPreviewNote(commander, partner, cz.mtgFormat, ctx.now);
+    if (preview) {
+      const disclosed = deck.commanderPreviewNote === preview;
+      add(
+        disclosed ? 'SOFT' : 'HARD',
+        'commander-legality',
+        `previewed commander: ${preview}` + (disclosed ? ' (disclosed)' : ' (undisclosed)')
       );
     }
   }

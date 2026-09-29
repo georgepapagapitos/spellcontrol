@@ -10,6 +10,7 @@ import {
 } from '@/deck-builder/services/tagger/client';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { estimateBracket } from './bracketEstimator';
+import { computeRoleCounts } from './commanderDeckAnalysis';
 import { frontFaceName } from '@/lib/card-text';
 
 const ROLE_TO_CATEGORY: Record<RoleKey, DeckCategory> = {
@@ -108,43 +109,28 @@ export function swapCard(
     }
   }
 
-  // Recalculate role counts and all subtype counts
+  // Recount roles and subtypes the way generation stores them and the deck
+  // page recounts them (computeRoleCounts over the nonland buckets, E166 and
+  // E528). This used to tally the pick-time deckRole / *Subtype stamps across
+  // every category, lands included, and stampRoleSubtypes stamps every
+  // subtype on every pick, so one swap put the stored numbers back out of
+  // step with the page's live count.
   let newRoleCounts = deck.roleCounts;
   let newRampSubtypeCounts = deck.rampSubtypeCounts;
   let newRemovalSubtypeCounts = deck.removalSubtypeCounts;
   let newBoardwipeSubtypeCounts = deck.boardwipeSubtypeCounts;
   let newCardDrawSubtypeCounts = deck.cardDrawSubtypeCounts;
   if (deck.roleCounts && deck.roleTargets) {
-    newRoleCounts = { ramp: 0, removal: 0, boardwipe: 0, cardDraw: 0 };
-    newRampSubtypeCounts = { 'mana-producer': 0, 'mana-rock': 0, 'cost-reducer': 0, ramp: 0 };
-    newRemovalSubtypeCounts = { counterspell: 0, bounce: 0, 'spot-removal': 0, removal: 0 };
-    newBoardwipeSubtypeCounts = { 'bounce-wipe': 0, boardwipe: 0 };
-    newCardDrawSubtypeCounts = {
-      tutor: 0,
-      wheel: 0,
-      cantrip: 0,
-      'card-draw': 0,
-      'card-advantage': 0,
-    };
-    for (const cards of Object.values(newCategories)) {
-      for (const card of cards) {
-        if (card.deckRole && card.deckRole in newRoleCounts) {
-          newRoleCounts[card.deckRole] = (newRoleCounts[card.deckRole] || 0) + 1;
-        }
-        if (card.rampSubtype)
-          newRampSubtypeCounts[card.rampSubtype] =
-            (newRampSubtypeCounts[card.rampSubtype] || 0) + 1;
-        if (card.removalSubtype)
-          newRemovalSubtypeCounts[card.removalSubtype] =
-            (newRemovalSubtypeCounts[card.removalSubtype] || 0) + 1;
-        if (card.boardwipeSubtype)
-          newBoardwipeSubtypeCounts[card.boardwipeSubtype] =
-            (newBoardwipeSubtypeCounts[card.boardwipeSubtype] || 0) + 1;
-        if (card.cardDrawSubtype)
-          newCardDrawSubtypeCounts[card.cardDrawSubtype] =
-            (newCardDrawSubtypeCounts[card.cardDrawSubtype] || 0) + 1;
-      }
-    }
+    const recount = computeRoleCounts(
+      (Object.entries(newCategories) as [DeckCategory, ScryfallCard[]][])
+        .filter(([category]) => category !== 'lands')
+        .flatMap(([, cards]) => cards)
+    );
+    newRoleCounts = recount.roleCounts;
+    newRampSubtypeCounts = recount.rampSubtypeCounts;
+    newRemovalSubtypeCounts = recount.removalSubtypeCounts;
+    newBoardwipeSubtypeCounts = recount.boardwipeSubtypeCounts;
+    newCardDrawSubtypeCounts = recount.cardDrawSubtypeCounts;
   }
 
   // Recalculate combo completeness based on updated deck card names

@@ -6,181 +6,33 @@
 // Fully offline (same 3 mocked client boundaries as the golden test). Run
 // this file in isolation — never the full suite alongside
 // deckGenerator.live.test.ts's network panel.
+// The fixture universe lives in __fixtures__/settings-universe.ts.
 import { describe, it, expect, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import type {
   ScryfallCard,
-  EDHRECCard,
   EDHRECCommanderData,
-  EDHRECCommanderStats,
   Customization,
   GenerationMode,
 } from '@/deck-builder/types';
 import type { GenerationContext } from './deckGeneration/state';
-
-// ---- Fixture universe -----------------------------------------------------
-
-interface Enrich {
-  rarity: string;
-  usd: string | null;
-  games: string[];
-  legalities: { commander: string; paupercommander: string };
-}
-
-// Deterministic per-index rarity/price/arena/PDH-legality so settings have real, varied material to filter against.
-function enrich(i: number): Enrich {
-  const rarity = (['common', 'uncommon', 'rare', 'mythic'] as const)[i % 4];
-  const priceByRarity: Record<string, number> = {
-    common: 0.1 + (i % 6) * 0.3,
-    uncommon: 1 + (i % 6) * 0.5,
-    rare: 4 + (i % 6) * 1.5,
-    mythic: 20 + (i % 6) * 6,
-  };
-  const usd = i % 11 === 0 ? null : priceByRarity[rarity].toFixed(2);
-  const games = i % 5 === 0 ? ['paper'] : ['paper', 'arena'];
-  // Scryfall stamps paupercommander at ORACLE level ("ever printed at
-  // common") — model that as common/uncommon being PDH-legal, same rule
-  // deckFilters.ts's notPauperCommanderLegal relies on.
-  const paupercommander = rarity === 'common' || rarity === 'uncommon' ? 'legal' : 'not_legal';
-  return { rarity, usd, games, legalities: { commander: 'legal', paupercommander } };
-}
-
-function mkSC(name: string, typeLine: string, cmc: number, i = 0): ScryfallCard {
-  const e = enrich(i);
-  return {
-    id: `id-${name}`,
-    oracle_id: `oracle-${name}`,
-    name,
-    mana_cost: cmc > 0 ? `{${cmc}}{G}` : '',
-    cmc,
-    type_line: typeLine,
-    oracle_text: '',
-    colors: typeLine.includes('Land') ? [] : ['G'],
-    color_identity: ['G'],
-    keywords: [],
-    rarity: e.rarity,
-    set: 'tst',
-    set_name: 'Test Set',
-    games: e.games,
-    prices: { usd: e.usd },
-    legalities: e.legalities,
-  };
-}
-
-function mkEC(name: string, primaryType: string, inclusion: number): EDHRECCard {
-  return { name, sanitized: name, primary_type: primaryType, inclusion, num_decks: 1000 };
-}
-
-function buildPool() {
-  const scMap = new Map<string, ScryfallCard>();
-  const add = (n: string, t: string, c: number, i: number) => {
-    scMap.set(n, mkSC(n, t, c, i));
-    return n;
-  };
-  const gen = (prefix: string, type: string, count: number, cmcOf: (i: number) => number) =>
-    Array.from({ length: count }, (_, i) => {
-      const n = `${prefix}_${i + 1}`;
-      add(n, type, cmcOf(i), i);
-      return mkEC(n, prefix, 90 - i);
-    });
-
-  const creatures = gen('Creature', 'Creature', 40, (i) => (i % 7) + 1); // reaches cmc 7 for high-CMC coverage
-  const instants = gen('Instant', 'Instant', 15, (i) => (i % 4) + 1);
-  const sorceries = gen('Sorcery', 'Sorcery', 15, (i) => (i % 4) + 2);
-  const artifacts = gen('Artifact', 'Artifact', 15, (i) => (i % 3) + 1);
-  const enchantments = gen('Enchantment', 'Enchantment', 15, (i) => (i % 4) + 2);
-  const planeswalkers = gen('Planeswalker', 'Planeswalker', 4, (i) => i + 3);
-  const lands = Array.from({ length: 30 }, (_, i) => {
-    const n = `Utility Land ${i + 1}`;
-    add(n, 'Land', 0, i);
-    return mkEC(n, 'Land', 70 - i);
-  });
-
-  // Legality-in-name-only card the EDHREC mock still recommends — probes
-  // whether the generator independently rechecks commander legality.
-  scMap.get('Creature_2')!.legalities.commander = 'banned';
-
-  // Off-color card, reachable ONLY via mustIncludeCards (never EDHREC-recommended for mono-G).
-  scMap.set('Offcolor Bolt', {
-    ...mkSC('Offcolor Bolt', 'Instant', 1, 0),
-    colors: ['U'],
-    color_identity: ['U'],
-  });
-
-  const allNonLand = [
-    ...creatures,
-    ...instants,
-    ...sorceries,
-    ...artifacts,
-    ...enchantments,
-    ...planeswalkers,
-  ];
-  return {
-    scMap,
-    cardlists: {
-      creatures,
-      instants,
-      sorceries,
-      artifacts,
-      enchantments,
-      planeswalkers,
-      lands,
-      allNonLand,
-    },
-  };
-}
-
-const POOL = buildPool();
-const onColor = (c: ScryfallCard) => c.color_identity.every((ci) => ci === 'G');
-// PDH-legal on-color pool for the alt-generator sourcing path (buildOraclePool);
-// the searchCards mock returns raw arrays regardless of query, so it must
-// pre-filter color identity itself (real Scryfall search does this server-side).
-const PDH_POOL = [...POOL.scMap.values()].filter(
-  (c) => c.legalities.paupercommander === 'legal' && onColor(c)
-);
-// On-color non-instant/sorcery pool for the oracle-role permanents-only facets.
-const PERMANENT_POOL = [...POOL.scMap.values()].filter(
-  (c) => !/instant|sorcery/i.test(c.type_line) && !c.type_line.includes('Land') && onColor(c)
-);
-// High-inclusion, on-color, legal cards — near-certain top picks, so forcing
-// them into getGameChangerNames gives the bracket/GC ceilings something to cap.
-const GC_NAMES = new Set(['Creature_1', 'Creature_3', 'Creature_5']);
-
-const STATS: EDHRECCommanderStats = {
-  avgPrice: 100,
-  numDecks: 5000,
-  deckSize: 99,
-  manaCurve: { 1: 8, 2: 14, 3: 14, 4: 10, 5: 7, 6: 5 },
-  typeDistribution: {
-    creature: 30,
-    instant: 8,
-    sorcery: 7,
-    artifact: 8,
-    enchantment: 6,
-    land: 37,
-    planeswalker: 2,
-    battle: 0,
-  },
-  landDistribution: { basic: 12, nonbasic: 25, total: 37 },
-};
-
-function edhrecData(): EDHRECCommanderData {
-  return { themes: [], stats: STATS, cardlists: POOL.cardlists, similarCommanders: [] };
-}
-
-const COMMANDER = mkSC('Test Commander', 'Legendary Creature — Elf', 4, 2); // rare, priced, legal
-const PARTNER = {
-  ...mkSC('Test Partner', 'Legendary Creature — Elf', 3, 6),
-  color_identity: ['U'],
-};
-const FOREST = mkSC('Forest', 'Basic Land — Forest', 0, 0);
-const withPartner = (card: ScryfallCard): ScryfallCard => ({
-  ...card,
-  keywords: [...card.keywords, 'Partner'],
-  oracle_text: 'Partner (You can have two commanders if both have partner.)',
-});
+import {
+  COMMANDER,
+  FOREST,
+  GC_NAMES,
+  PARTNER,
+  PDH_POOL,
+  PERMANENT_POOL,
+  POOL,
+  STATS,
+  baseContext,
+  customization,
+  deadReducerData,
+  edhrecData,
+  mkEC,
+  mkSC,
+  realCard,
+  withPartner,
+} from './__fixtures__/settings-universe';
 
 // ---- Module mocks -----------------------------------------------------------
 
@@ -270,63 +122,10 @@ import {
   hasTaggerData,
   validateCardRole,
 } from '@/deck-builder/services/tagger/client';
-import { CommanderIneligibleError } from './commanderEligibility';
+import { CommanderIneligibleError, formatReleaseDate } from './commanderEligibility';
 
 function searchResult(data: ScryfallCard[]): ScryfallSearchResponse {
   return { object: 'list', total_cards: data.length, has_more: false, data };
-}
-
-// ---- Customization / context factories (copied from the golden harness) ---
-
-function customization(overrides: Partial<Customization> = {}): Customization {
-  return {
-    deckFormat: 99,
-    landCount: 37,
-    nonBasicLandCount: 25,
-    bannedCards: [],
-    banLists: [],
-    mustIncludeCards: [],
-    tempBannedCards: [],
-    tempMustIncludeCards: [],
-    maxCardPrice: null,
-    deckBudget: null,
-    budgetOption: 'any',
-    gameChangerLimit: 'unlimited',
-    targetBracket: 'all',
-    maxRarity: null,
-    tinyLeaders: false,
-    ignoreOwnedBudget: false,
-    ignoreOwnedRarity: false,
-    collectionMode: false,
-    collectionStrategy: 'full',
-    collectionOwnedPercent: 75,
-    arenaOnly: false,
-    scryfallQuery: '',
-    comboCount: 1,
-    balancedRoles: true,
-    currency: 'USD',
-    appliedExcludeLists: [],
-    appliedIncludeLists: [],
-    tempoAutoDetect: true,
-    tempoPacing: 'balanced',
-    saltTolerance: 2,
-    generationMode: 'edhrec',
-    artThemeTag: '',
-    historicalYear: 2005,
-    permanentsOnly: false,
-    brewLevel: 0.5,
-    ...overrides,
-  };
-}
-
-function baseContext(): GenerationContext {
-  return {
-    commander: COMMANDER,
-    partnerCommander: null,
-    colorIdentity: ['G'],
-    customization: customization(),
-    selectedThemes: [],
-  };
 }
 
 // ---- Invariant checker ------------------------------------------------------
@@ -513,37 +312,6 @@ function simCommanderData(): EDHRECCommanderData {
       planeswalkers: [],
       lands: [],
       allNonLand: creatures,
-    },
-  };
-}
-
-// E524: the two real reducers The Prismatic Piper (chosen green) shipped on
-// the live stress panel, from the pinned Scryfall fixtures. They top this
-// EDHREC page the way they sit on the Piper's, which mixes every color its
-// players chose. Neither may be seated in a mono-green deck.
-const REAL_CARDS = new Map<string, ScryfallCard>();
-for (const file of ['invariant-cards.fixture.json', 'commander-cards.fixture.json']) {
-  const { cards } = JSON.parse(
-    readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '__fixtures__', file), 'utf8')
-  ) as { cards: ScryfallCard[] };
-  for (const c of cards) REAL_CARDS.set(c.name, c);
-}
-function realCard(name: string): ScryfallCard {
-  const c = REAL_CARDS.get(name);
-  if (!c) throw new Error(`no fixture card named ${name}`);
-  return structuredClone(c);
-}
-const DEAD_REDUCERS = ['Ruby Medallion', "Hazoret's Monument"].map(realCard);
-for (const c of DEAD_REDUCERS) POOL.scMap.set(c.name, c);
-function deadReducerData(): EDHRECCommanderData {
-  const base = edhrecData();
-  const reducers = DEAD_REDUCERS.map((c) => mkEC(c.name, 'Artifact', 99));
-  return {
-    ...base,
-    cardlists: {
-      ...base.cardlists,
-      artifacts: [...reducers, ...base.cardlists.artifacts],
-      allNonLand: [...reducers, ...base.cardlists.allNonLand],
     },
   };
 }
@@ -1096,5 +864,29 @@ describe('generateDeck — settings matrix (offline stress)', () => {
       "Llanowar Elves isn't a legendary creature, so it can't be your commander."
     );
     expect(fetchCommanderData).not.toHaveBeenCalled();
+  });
+
+  // USER RULING (second pass): a previewed commander, not legal only because
+  // it hasn't released, builds and the deck says when it becomes legal.
+  it('builds a previewed commander and discloses it', async () => {
+    const preview: ScryfallCard = {
+      ...COMMANDER,
+      legalities: { ...COMMANDER.legalities, commander: 'not_legal' },
+      released_at: '2099-06-01',
+    };
+    const ctx = { ...baseContext(), commander: preview };
+    try {
+      const deck = await generateDeck(ctx);
+      expect(deck.commanderPreviewNote).toBe(
+        `Test Commander isn't legal until ${formatReleaseDate('2099-06-01')}.`
+      );
+      assertInvariants(deck, ctx.customization, ctx);
+      expectDeckInvariants('builds a previewed commander and discloses it', deck, ctx);
+      expect(
+        checkDeckInvariants(deck, ctx).filter((x) => x.check === 'commander-legality')
+      ).toEqual([expect.objectContaining({ level: 'SOFT' })]);
+    } finally {
+      clearGenerationCache();
+    }
   });
 });

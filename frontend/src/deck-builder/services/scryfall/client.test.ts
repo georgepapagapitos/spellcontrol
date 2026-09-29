@@ -1,4 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { pending } from '@/test/pending';
 import type { ScryfallCard } from '@/deck-builder/types';
 
@@ -1112,6 +1115,41 @@ describe('upgradeCardPrintings', () => {
 
     await expect(upgradeCardPrintings(cards, 'is:full-art', true)).resolves.toBeUndefined();
     expect(cards.has('Sol Ring')).toBe(false);
+  });
+
+  // E527, LIVE (stress panel, krenko art-theme-goblin): the `art:goblin`
+  // upgrade answered with the real Secret Lair reversible printing, and the
+  // deck seated "Krark's Thumb // Krark's Thumb" with no mana value.
+  it('seats a reversible printing as the card it prints', async () => {
+    const sld = (
+      JSON.parse(
+        readFileSync(
+          resolve(
+            dirname(fileURLToPath(import.meta.url)),
+            '../deckBuilder/__fixtures__/commander-cards.fixture.json'
+          ),
+          'utf8'
+        )
+      ) as { cards: ScryfallCard[] }
+    ).cards.find((c) => c.name === "Krark's Thumb // Krark's Thumb")!;
+    const cards = new Map([["Krark's Thumb", makeCard({ name: "Krark's Thumb", set: 'unh' })]]);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ object: 'list', has_more: false, data: [sld] }),
+      })
+    );
+
+    await upgradeCardPrintings(cards, 'art:goblin', true);
+    expect(cards.get("Krark's Thumb")).toMatchObject({
+      name: "Krark's Thumb",
+      set: 'sld',
+      cmc: 2,
+      type_line: 'Legendary Artifact',
+    });
+    expect(cards.get("Krark's Thumb")?.card_faces).toBeUndefined();
   });
 });
 

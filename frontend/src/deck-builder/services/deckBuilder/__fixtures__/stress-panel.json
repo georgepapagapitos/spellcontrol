@@ -485,8 +485,9 @@
     "variant": "niche"
   },
   {
-    "commanderName": "Lutri, the Spellchaser",
-    "variant": "banned-commander"
+    "commanderName": "Rofellos, Llanowar Emissary",
+    "variant": "banned-commander",
+    "expectedError": "Rofellos, Llanowar Emissary is banned in Commander."
   },
   {
     "commanderName": "Giada, Font of Hope",
@@ -538,10 +539,9 @@
   {
     "commanderName": "The Prismatic Piper",
     "variant": "choose-color-partner",
-    "partnerName": "Kenrith, the Returned King",
+    "partnerName": "Kraum, Ludevic's Opus",
     "overrides": {},
-    "chosenColor": "R",
-    "expectedError": "Kenrith, the Returned King can't be a second commander with The Prismatic Piper"
+    "chosenColor": "G"
   },
   {
     "commanderName": "Clara Oswald",
@@ -619,20 +619,17 @@
   {
     "commanderName": "Seven of Nine",
     "variant": "unreleased",
-    "overrides": {},
-    "expectedError": "Seven of Nine isn't legal in Commander until it releases"
+    "overrides": {}
   },
   {
     "commanderName": "U.S.S. Enterprise-D, Galaxy-Class",
     "variant": "unreleased-colorless",
-    "overrides": {},
-    "expectedError": "U.S.S. Enterprise-D, Galaxy-Class isn't legal in Commander until it releases"
+    "overrides": {}
   },
   {
     "commanderName": "La'An Noonien-Singh, Security",
     "variant": "punct-name",
-    "overrides": {},
-    "expectedError": "La'An Noonien-Singh, Security isn't legal in Commander until it releases"
+    "overrides": {}
   },
   {
     "commanderName": "Obeka, Splitter of Seconds",
