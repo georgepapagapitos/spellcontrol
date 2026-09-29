@@ -213,7 +213,9 @@ export function CardRow({
           <TypeIcon type={type} label={typeLabel} className="card-list-type" />
           <RarityBadge rarity={card.rarity} />
           <span className="collection-list-name">
-            <CardName card={card} />
+            <span className="collection-list-name-text card-name-chip-text" title={card.name}>
+              <CardName card={card} />
+            </span>
             {card.foil && <FoilBadge card={card} />}
             <ProxyBadge card={card} />
             <DeckBadge allocations={allocations} listedIn={cubeListings} />
@@ -313,7 +315,11 @@ export function CardRow({
       )}
       <div className="collection-list-main">
         <div className="collection-list-name">
-          <CardName card={card} />
+          {/* Only the name truncates: the badges after it never shrink, so a
+              long name on a phone keeps its deck, cube and binder marks. */}
+          <span className="collection-list-name-text card-name-chip-text" title={card.name}>
+            <CardName card={card} />
+          </span>
           {card.foil && <FoilBadge card={card} />}
           <ProxyBadge card={card} />
           <DeckBadge allocations={allocations} listedIn={cubeListings} />
