@@ -612,6 +612,46 @@ its own and shows only the controls it uses; never a segmented toggle halfway
 down the form with the rest of the form still showing and ignored. Editing
 never shows the chooser.
 
+**Ten-plus tiles group by job** (E495, the binder chooser): tiles doing the
+same kind of work sit under their own labelled group (`SectionHeader`
+`variant="overline"`) — "Pull out a pile", "One slice", "Deck-building pools" —
+rather than one flat grid that mixes "keep this safe" with "feed a deck".
+Anything without a real filter (Blank, a catch-all, an import) stays in its
+own dashed, ungrouped row last, unchanged from the single-preset case above.
+
+- **Every tile states the order it will use and the page count it lands on**,
+  not just a raw match count — a preset name (from the shared preset list the
+  order picker itself offers) plus "N cards · N pages" from a real materialize
+  at the surface's own new-item defaults. A tile that still needs a second
+  step ("A set") states its order but swaps the count for the next step
+  ("Pick the set next").
+- **The count is "would land here", not "matches".** Run the SAME
+  first-match-wins pass the editor's own footer uses, with the tile's filter
+  appended LAST — where a new item actually goes — against the surface's real
+  existing items. When something upstream claims the difference, say so
+  instead of just showing a smaller number: "N match · would land" when
+  partial, "N match · all in `<name>` now" when something already claims all
+  of it.
+- **Overlap between two tiles is said out loud, twice.** A standing note under
+  the description states the relationship whether or not the other tile has
+  been made yet ("Part of Ramp"); the live would-land count above independently
+  confirms it once the other one actually exists. Neither replaces the other —
+  the first is always true, the second is only true after the fact.
+- **A tile whose filter needs a value picked on the spot (a color) puts the
+  picker ON the tile**, as its own control (a real radiogroup, never silently
+  defaulting), separate from the tile's own "make it" trigger so picking a
+  value never also commits.
+- **Compute every tile's count off the idle queue, never inline in render.**
+  Ten-plus materialize passes against a real collection is real work (~100ms
+  each on ~11k cards); block nothing, show "Counting…" per tile until its
+  answer lands, and cache by (filter, order) so switching a picked value back
+  to one already computed is instant.
+- **On a phone, tiles compact to a row**: name on its own line, order and
+  count together on the line under it; the description drops (the name, order
+  and count already answer "what is this and what will it look like", and the
+  full sentence is one tap away after picking). An overlap note is the one
+  exception — kept, on its own line, because it changes what the tile means.
+
 **The kit, one job each:**
 
 | Piece              | Use it for                                                                                                                                                                                    | Never                                                                   |

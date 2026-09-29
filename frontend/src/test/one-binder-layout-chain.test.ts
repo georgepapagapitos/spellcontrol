@@ -69,6 +69,8 @@ const MATERIALIZE_ALLOWLIST: Record<string, string> = {
   'lib/binder-counts.ts': 'fed by BinderEditor from useBinderLayoutInputs, plus the unsaved draft',
   'lib/shelf-plan.ts':
     'fed by PlanShelfModal from useBinderLayoutInputs, plus a batch of unsaved draft binders (E496)',
+  'lib/binder-chooser-preview.ts':
+    "fed by BinderStartChooser from BinderEditor's useBinderLayoutInputs, plus the would-be binder",
   'pages/BinderPage.tsx': 'reads useBinderLayoutInputs',
   'pages/BindersIndexPage.tsx': 'reads useBinderLayoutInputs',
   'pages/CollectionPage.tsx': 'reads useBinderLayoutInputs',

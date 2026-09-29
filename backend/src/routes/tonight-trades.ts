@@ -3,11 +3,15 @@ import { requireAuth } from '../auth';
 import { getPool } from '../db';
 import { testAwareLimiter } from '../route-utils';
 import {
+  anyBinderUsesSpareCopies,
+  collectAllocatedCopyIds,
+  decorateWithSpareCopies,
   materializeBinders,
   type BinderDef,
   type EnrichedCard,
 } from '@spellcontrol/binder-routing';
 import { asRecord, asString } from '../shares/projections';
+import { stampSharePrices } from '../shares/context';
 
 /**
  * Tonight's trades (w5-tonight-trades): a reciprocity-gated cross-reference of
@@ -127,10 +131,37 @@ tonightTradesRouter.get(
           [row.user_id]
         );
 
-        const cards = cardRows.rows.map((r) => r.data) as EnrichedCard[];
+        let cards = cardRows.rows.map((r) => r.data) as EnrichedCard[];
         const binders = binderRows.rows
           .map((r) => r.data)
           .filter((d): d is AnyRecord => asRecord(d) !== null);
+
+        // A synced card row carries no market price (prices are device-local),
+        // so a price rule (the Trade binder's "$1 or more") matched nothing
+        // here. Stamp prices from the server's Scryfall cache, as a shared
+        // binder does, before routing.
+        stampSharePrices(cards);
+        // A "Spare copies" rule decides per copy from the whole collection
+        // plus what the owner's decks and cubes claim — the same
+        // binder-routing function the owner's app runs. Loaded only when a
+        // binder asks for it.
+        if (anyBinderUsesSpareCopies(binders)) {
+          const deckRows = await pool.query<{ data: unknown }>(
+            `SELECT data FROM user_decks WHERE user_id = $1 AND deleted_at IS NULL`,
+            [row.user_id]
+          );
+          const cubeRows = await pool.query<{ data: unknown }>(
+            `SELECT data FROM user_cubes WHERE user_id = $1 AND deleted_at IS NULL`,
+            [row.user_id]
+          );
+          cards = decorateWithSpareCopies(
+            cards,
+            collectAllocatedCopyIds(
+              deckRows.rows.map((r) => r.data),
+              cubeRows.rows.map((r) => r.data)
+            )
+          );
+        }
 
         // Route the attendee's FULL binder set through materializeBinders
         // (first-match-wins by position across ALL binders), THEN filter to

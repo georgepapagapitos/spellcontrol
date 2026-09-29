@@ -12,6 +12,7 @@ import { invalidateDeckPublicationCache } from '../publications/cache';
 import { invalidatePublicUserCacheById } from '../publications/purge';
 import { resolveShareLabels } from '../shares/labels';
 import { getSetMap } from '../sets';
+import { collectAllocatedCopyIds } from '@spellcontrol/binder-routing';
 import {
   findCubeById,
   findDeckById,
@@ -406,7 +407,16 @@ async function projectAndRespond(
     // Release-date sorts date every non-Secret-Lair card from the set map; a
     // Scryfall hiccup degrades to undated (tie-broken) order, never a 500.
     const setMap = await getSetMap().catch(() => undefined);
-    const projected = projectBinder(owner, share.resourceId, data.collection, data.binders, setMap);
+    // decks/cubes are loaded for a binder share only when a Spare copies rule
+    // needs them (see loadShareContext); otherwise they're empty and unread.
+    const projected = projectBinder(
+      owner,
+      share.resourceId,
+      data.collection,
+      data.binders,
+      setMap,
+      collectAllocatedCopyIds(data.decks, data.cubes)
+    );
     if (!projected) {
       return res.status(404).json({ error: 'Share not found.' });
     }

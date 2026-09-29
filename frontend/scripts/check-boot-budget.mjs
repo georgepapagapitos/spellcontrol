@@ -26,12 +26,16 @@
 // suggestion chips, playstyle grid, the old readiness chip) left
 // deck-builder-commander.css and deck-builder-guided.css; its own styles ship
 // in the finder's chunk. Measured 65.80.
+// CSS went 67 → 64 on 2026-09-28 (T163 E495): the binder rules editor loads on
+// its first open (Layout lazy-loads BinderEditor), so BinderEditor.css, the
+// chooser, preview column and Pages pictures included, left the boot path.
+// Measured 63 with the new chooser styles in.
 import { readFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const BUDGET_KB = { js: 410, css: 67 };
+export const BUDGET_KB = { js: 410, css: 64 };
 
 const dist = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 // Vite emits multi-line <link> tags; a line-based scan misses them.
@@ -58,7 +62,8 @@ const report = (label, rows, budget) => {
   console.log(
     `${ok ? 'OK  ' : 'FAIL'} ${label}: ${sum.toFixed(0)} KB gzipped across ${rows.length} files (budget ${budget} KB)`
   );
-  for (const r of rows.slice(0, 8)) console.log(`      ${r.kb.toFixed(1).padStart(6)} KB  ${r.href}`);
+  for (const r of rows.slice(0, 8))
+    console.log(`      ${r.kb.toFixed(1).padStart(6)} KB  ${r.href}`);
   return ok;
 };
 

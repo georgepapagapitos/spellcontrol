@@ -127,6 +127,16 @@ export interface EnrichedCard {
    */
   tags?: string[];
   /**
+   * Whether this specific physical copy is tradeable surplus — computed
+   * collection-wide (per card NAME, across every copy and its deck/cube
+   * allocation), decorated onto cards by the caller just before materializing,
+   * exactly like `tags`. `true`/`false` always both set once decorated (never
+   * left `undefined` on a "not spare" copy), because `spareCopies: false` (IS
+   * NOT) must match every kept copy, not just ones the decorator bothered to
+   * touch. See `computeSpareCopyIds`/`decorateWithSpareCopies` in `surplus.ts`.
+   */
+  spareCopy?: boolean;
+  /**
    * Which Secret Lair *drop* this printing came from, e.g. 'Goblin Storm'.
    * Scryfall lumps every Secret Lair into the single flat `SLD` set with no
    * drop metadata, so this can't be derived from set fields — it comes from the
@@ -304,6 +314,16 @@ export interface BinderFilter {
    * physical binder.
    */
   proxy?: boolean;
+  /**
+   * Spare-copy constraint. undefined = no constraint; true = card must be a
+   * spare copy; false = must NOT be. "Spare" = tradeable surplus beyond the
+   * copies kept (see `SURPLUS_KEEP_COPIES`/`computeSpareCopyIds` in
+   * `surplus.ts`) — a per-copy fact requiring the whole collection plus its
+   * deck/cube allocations, so it reads a `card.spareCopy` the caller decorated
+   * onto cards before materializing, exactly like `commanderEligible` reads a
+   * pure per-card fact and `oracleTagChips` reads a decorated `card.tags`.
+   */
+  spareCopies?: boolean;
   /**
    * A Scryfall search query (e.g. "is:shockland") snapshot-resolved to a set of
    * oracle ids. Scryfall's curated filters can't be evaluated offline, so the

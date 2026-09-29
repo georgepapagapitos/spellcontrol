@@ -103,8 +103,14 @@ import { dayKey } from '../lib/value-history';
 /** The thinnest rows the scale line's three counts can be taken from — the
  *  cards below still walk them (NewArrivalsCard reads deck.cards), so an
  *  empty object literal isn't enough. */
+// Each row is one physical copy with its own copyId, as a real collection
+// row always is: spare copies are decided per copy (binder-routing
+// computeSpareCopyIds), so two rows sharing an undefined copyId read as one
+// copy counted twice.
+let rowSeq = 0;
 function makeRow(): EnrichedCard {
-  return { name: 'Card', quantity: 1 } as unknown as EnrichedCard;
+  rowSeq += 1;
+  return { copyId: `row-${rowSeq}`, name: 'Card', quantity: 1 } as unknown as EnrichedCard;
 }
 
 function makeDeckRow(id: string): Deck {

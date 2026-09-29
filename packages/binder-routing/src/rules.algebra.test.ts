@@ -102,6 +102,9 @@ const CORPUS: EnrichedCard[] = [
   card({ rarity: 'rare', tags: ['removal', 'ramp'] }),
   card({ rarity: 'common', tags: ['ramp'] }),
   card({ rarity: 'uncommon', tags: [] }),
+  card({ rarity: 'rare', spareCopy: true }),
+  card({ rarity: 'common', spareCopy: true }),
+  card({ rarity: 'uncommon', spareCopy: false }),
   card({ rarity: 'rare', purchasePrice: 0.5 }),
   card({ rarity: 'rare', purchasePrice: 50 }),
   card({ rarity: 'rare', purchasePrice: 0 }), // unpriced — excluded from price bounds
@@ -207,6 +210,33 @@ describe.each(FIELDS)('filter algebra: %s', (field, a, b, c, kind) => {
   });
 });
 
+/**
+ * `spareCopies` (and `commanderEligible`/`proxy`) is a plain tri-state
+ * boolean, not a `ChipExpression` — it can't sit in the FIELDS table above
+ * (which drives `expr([chip(v, negate)], [])` calls), so its IS/IS-NOT
+ * partition is checked directly here instead. Same identity the FIELDS table
+ * checks for every chip field: the two outcomes are disjoint and complete.
+ */
+describe('filter algebra: spareCopies (boolean)', () => {
+  const isSpare = () => match({ spareCopies: true });
+  const isNotSpare = () => match({ spareCopies: false });
+
+  it('IS and IS-NOT partition the corpus exactly', () => {
+    expect(sorted(inter(isSpare(), isNotSpare()))).toEqual([]);
+    expect(isSpare().size + isNotSpare().size).toBe(all.size);
+  });
+
+  it('IS matches something (the filter is wired, not dead)', () => {
+    expect(isSpare().size).toBeGreaterThan(0);
+  });
+
+  it('an undecorated card (spareCopy left unset) reads as NOT spare', () => {
+    const undecorated = CORPUS.find((c) => c.spareCopy === undefined)!;
+    expect(cardMatchesFilter(undecorated, { spareCopies: true })).toBe(false);
+    expect(cardMatchesFilter(undecorated, { spareCopies: false })).toBe(true);
+  });
+});
+
 describe('filter algebra: cross-field and group level', () => {
   const rare = () => match({ rarities: expr([chip('rare')], []) });
   const creature = () => match({ typeTokenChips: expr([chip('creature')], []) });
@@ -309,6 +339,8 @@ describe('filter engine: hostile input', () => {
       { edhrecRankMax: 100 },
       { commanderEligible: true },
       { proxy: false },
+      { spareCopies: true },
+      { spareCopies: false },
     ];
     for (const f of filters) expect(() => cardMatchesFilter(bare, f)).not.toThrow();
   });

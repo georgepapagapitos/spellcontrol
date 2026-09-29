@@ -585,6 +585,27 @@ function FilterGroupFields({
         />
       </RuleRow>
 
+      {/* Spare copies (E495/E473) */}
+      <RuleRow
+        fieldId="spareCopies"
+        label={
+          <>
+            Spare copies{' '}
+            <InfoTip
+              label="spare copies"
+              text="Copies past the one you keep of each card. Copies in a deck or cube are never spare, and neither are basic lands. Of the rest, you keep the priciest copy."
+            />
+          </>
+        }
+      >
+        <SegmentedControl
+          ariaLabel="Spare copies"
+          value={triState(filter.spareCopies)}
+          options={TRI_STATE_OPTIONS}
+          onChange={(v) => patch({ spareCopies: fromTriState(v) })}
+        />
+      </RuleRow>
+
       {/* Sets */}
       <RuleRow fieldId="setCodes" label="Sets" rowRef={setsRowRef}>
         <SetFilterPicker

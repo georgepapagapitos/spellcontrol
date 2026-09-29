@@ -54,6 +54,10 @@ export const SAMPLE_BINDERS: SampleBinderTemplate[] = [
         { field: 'color', dir: 'asc' },
         { field: 'name', dir: 'asc' },
       ],
+      // Physical-first defaults (E473): color is this sample's first sort
+      // field, so without packing every color section starts its own page —
+      // fine for hundreds of commanders, wasteful for a dozen-card demo pack.
+      packSections: true,
       isSample: true,
     },
   },
@@ -86,6 +90,7 @@ export const SAMPLE_BINDERS: SampleBinderTemplate[] = [
         { field: 'color', dir: 'asc' },
         { field: 'name', dir: 'asc' },
       ],
+      packSections: true,
       isSample: true,
     },
   },
@@ -113,6 +118,9 @@ export const SAMPLE_BINDERS: SampleBinderTemplate[] = [
         { field: 'cmc', dir: 'asc' },
         { field: 'name', dir: 'asc' },
       ],
+      // Without this, the mana-value sort's cmc groups each start their own
+      // page — the 8-card starter pack landed 8 mana rocks over 5 pages.
+      packSections: true,
       isSample: true,
     },
   },

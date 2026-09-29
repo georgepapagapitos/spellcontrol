@@ -52,6 +52,7 @@ export interface CompiledFilter {
   edhrecRankMax?: number;
   commanderEligible?: boolean;
   proxy?: boolean;
+  spareCopies?: boolean;
 }
 
 export function compileFilter(filter: BinderFilter): CompiledFilter {
@@ -97,6 +98,7 @@ export function compileFilter(filter: BinderFilter): CompiledFilter {
   if (filter.edhrecRankMax !== undefined) out.edhrecRankMax = filter.edhrecRankMax;
   if (filter.commanderEligible !== undefined) out.commanderEligible = filter.commanderEligible;
   if (filter.proxy !== undefined) out.proxy = filter.proxy;
+  if (filter.spareCopies !== undefined) out.spareCopies = filter.spareCopies;
 
   return out;
 }
@@ -223,6 +225,11 @@ export function cardMatchesCompiled(
   // card.proxy unset/false both mean "not a proxy" — coerce to boolean before compare.
   if (f.proxy !== undefined && Boolean(card.proxy) !== f.proxy) return false;
 
+  // card.spareCopy is decorated onto cards by the caller before materializing
+  // (see surplus.ts) — undecorated/undefined reads as "not spare", same
+  // coercion as proxy above.
+  if (f.spareCopies !== undefined && Boolean(card.spareCopy) !== f.spareCopies) return false;
+
   return true;
 }
 
@@ -330,6 +337,7 @@ export function isFilterEmpty(filter: BinderFilter): boolean {
     filter.edhrecRankMax === undefined &&
     filter.commanderEligible === undefined &&
     filter.proxy === undefined &&
+    filter.spareCopies === undefined &&
     !filter.scryfallQuery?.query.trim()
   );
 }

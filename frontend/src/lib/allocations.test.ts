@@ -15,6 +15,7 @@ import {
   pickSlotsToRelease,
   type AllocationInfo,
 } from './allocations';
+import { collectAllocatedCopyIds, computeSpareCopyIds } from '@spellcontrol/binder-routing';
 import type { SavedCube, CubePickSlot } from '../store/cube';
 import type { EnrichedCard } from '../types';
 import type { Deck, DeckCard } from '../store/decks';
@@ -1029,6 +1030,35 @@ describe('buildAllocationMap with physical cubes', () => {
     expect(map.size).toBe(0);
   });
 
+  // The server decides spare copies (shared binders, the game-night trade
+  // board) from binder-routing's `collectAllocatedCopyIds`, which reads raw
+  // deck/cube JSON. It must claim exactly what this map claims, or a Trade
+  // binder shows different copies on a share link than in the owner's app.
+  it('claims the same copies as binder-routing collectAllocatedCopyIds', () => {
+    const decks = [
+      deck({
+        commander: { name: 'Atraxa' } as never,
+        commanderAllocatedCopyId: 'cmd',
+        partnerCommander: { name: 'Tymna' } as never,
+        partnerCommanderAllocatedCopyId: 'partner',
+        cards: [
+          { slotId: 's1', card: { name: 'Sol Ring' } as never, allocatedCopyId: 'main' },
+          { slotId: 's2', card: { name: 'Arcane Signet' } as never, allocatedCopyId: null },
+        ],
+        sideboard: [{ slotId: 's3', card: { name: 'Swords' } as never, allocatedCopyId: 'side' }],
+        considering: [{ slotId: 's4', card: { name: 'Path' } as never, allocatedCopyId: 'maybe' }],
+      }),
+      deck({ id: 'd2', commander: null, commanderAllocatedCopyId: 'stale' }),
+    ];
+    const cubes = [
+      savedCube({ picks: [cubeSlot('Brainstorm', 'cube-copy')] }),
+      savedCube({ id: 'cube-2', isPhysical: false, picks: [cubeSlot('Opt', 'virtual')] }),
+    ];
+    expect(collectAllocatedCopyIds(decks, cubes)).toEqual(
+      new Set(buildAllocationMap(decks, cubes).keys())
+    );
+  });
+
   it('ignores cube slots with no bound copy', () => {
     const map = buildAllocationMap([], [savedCube({ picks: [cubeSlot('Sol Ring', null)] })]);
     expect(map.size).toBe(0);
@@ -1252,6 +1282,52 @@ describe('computeSurplusByName', () => {
     ];
     const surplus = computeSurplusByName(cards, new Map());
     expect(surplus.get('Sol Ring')).toBe(2);
+  });
+
+  // E495: the binder engine's "Spare copies" rule decides spare-ness per COPY
+  // (`computeSpareCopyIds`, @spellcontrol/binder-routing) and this function
+  // tallies that answer per name. The count itself must still be the
+  // long-standing one — unallocated, non-basic copies past the one kept — so
+  // this checks the per-copy answer against that arithmetic, computed
+  // independently, over a collection with every case in it.
+  it('the per-copy answer tallies to the unallocated-minus-kept count, name by name', () => {
+    const d = deck({
+      commander: { name: 'Atraxa' } as never,
+      commanderAllocatedCopyId: 'atraxa-1',
+      cards: [
+        { slotId: 's1', card: { name: 'Sol Ring' } as never, allocatedCopyId: 'ring-1' },
+        { slotId: 's2', card: { name: 'Sol Ring' } as never, allocatedCopyId: 'ring-2' },
+      ],
+    });
+    const cards = [
+      ...['ring-1', 'ring-2', 'ring-3', 'ring-4', 'ring-5'].map((copyId, i) =>
+        card({ copyId, name: 'Sol Ring', finish: i === 4 ? 'foil' : 'nonfoil' })
+      ),
+      card({ copyId: 'atraxa-1', name: 'Atraxa' }),
+      card({ copyId: 'atraxa-2', name: 'Atraxa' }),
+      card({ copyId: 'signet-1', name: 'Arcane Signet' }),
+      card({ copyId: 'signet-2', name: 'Arcane Signet', proxy: true }),
+      card({ copyId: 'path-1', name: 'Path' }),
+      card({ copyId: 'forest-1', name: 'Forest' }),
+      card({ copyId: 'forest-2', name: 'Forest' }),
+    ];
+    const allocations = buildAllocationMap([d]);
+    const expected = new Map<string, number>();
+    const unallocated = new Map<string, number>();
+    for (const c of cards) {
+      if (allocations.has(c.copyId) || c.name === 'Forest') continue;
+      unallocated.set(c.name, (unallocated.get(c.name) ?? 0) + 1);
+    }
+    for (const [name, n] of unallocated) if (n > 1) expected.set(name, n - 1);
+
+    expect(Object.fromEntries(computeSurplusByName(cards, allocations))).toEqual(
+      Object.fromEntries(expected)
+    );
+    // And which copies: the foil Sol Ring is kept over the two loose nonfoils,
+    // the real Signet over its proxy, and nothing in the deck is spare.
+    expect(computeSpareCopyIds(cards, new Set(allocations.keys()))).toEqual(
+      new Set(['ring-3', 'ring-4', 'signet-2'])
+    );
   });
 });
 

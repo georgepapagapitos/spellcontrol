@@ -13,6 +13,7 @@ import { logger } from '@/lib/logger';
 import type { Deck, DeckCard } from '../store/decks';
 import type { SavedCube } from '../store/cube';
 import type { EnrichedCard, Finish } from '../types';
+import { computeSpareCopyIds } from '@spellcontrol/binder-routing';
 
 /**
  * Basic-land names — fungible across printings. A deck slot for a Swamp
@@ -20,35 +21,16 @@ import type { EnrichedCard, Finish } from '../types';
  * the user owns is always correct. Used to short-circuit preferred-printing
  * logic in the allocator, remap pass, and suboptimal-printing audit so a
  * mixed-printing collection stops generating spurious "wrong printing" rows.
+ *
+ * Re-exported from `@spellcontrol/binder-routing` (E495/E473: the binder
+ * engine needs the same list for its per-copy spare-copy decision) rather
+ * than kept as a second copy here — the two must never drift.
  */
-export const BASIC_LAND_NAMES: ReadonlySet<string> = new Set([
-  'Plains',
-  'Island',
-  'Swamp',
-  'Mountain',
-  'Forest',
-  'Wastes',
-  'Snow-Covered Plains',
-  'Snow-Covered Island',
-  'Snow-Covered Swamp',
-  'Snow-Covered Mountain',
-  'Snow-Covered Forest',
-  'Snow-Covered Wastes',
-]);
-
-export function isBasicLandName(name: string): boolean {
-  return BASIC_LAND_NAMES.has(name);
-}
-
-/**
- * Copies kept aside before the rest of a card's unallocated stock counts as
- * tradeable surplus. 1 is the simplest defensible default: decks here are
- * predominantly Commander (singleton), so a card only ever needs one
- * "working" copy — anything past that, once nothing has claimed it, is free
- * to trade. Constructed playsets (up to 4) would need per-format awareness
- * this collection doesn't track, so the floor stays flat and card-agnostic.
- */
-export const SURPLUS_KEEP_COPIES = 1;
+export {
+  BASIC_LAND_NAMES,
+  isBasicLandName,
+  SURPLUS_KEEP_COPIES,
+} from '@spellcontrol/binder-routing';
 
 /**
  * Map<cardName, surplus count> for the "tradeable surplus" collection
@@ -61,21 +43,23 @@ export const SURPLUS_KEEP_COPIES = 1;
  * single-binder view's `cards` prop) — a surplus copy sitting in a
  * different binder than the one currently displayed still counts, since
  * allocation is a collection-wide fact.
+ *
+ * A thin per-name tally over `computeSpareCopyIds`'s per-copy answer (the
+ * binder engine's "Spare copies" rule field, E495) — "spare" has ONE
+ * definition app-wide rather than two counts that could silently disagree.
+ * `allocations.test.ts` checks the tally against the unallocated-minus-kept
+ * arithmetic, computed independently.
  */
 export function computeSurplusByName(
   cards: EnrichedCard[],
   allocations: ReadonlyMap<string, AllocationInfo>
 ): Map<string, number> {
-  const unallocated = new Map<string, number>();
-  for (const c of cards) {
-    if (isBasicLandName(c.name)) continue;
-    if (allocations.has(c.copyId)) continue;
-    unallocated.set(c.name, (unallocated.get(c.name) ?? 0) + 1);
-  }
+  const allocatedCopyIds = new Set(allocations.keys());
+  const spareCopyIds = computeSpareCopyIds(cards, allocatedCopyIds);
   const surplus = new Map<string, number>();
-  for (const [name, count] of unallocated) {
-    const over = count - SURPLUS_KEEP_COPIES;
-    if (over > 0) surplus.set(name, over);
+  for (const c of cards) {
+    if (!spareCopyIds.has(c.copyId)) continue;
+    surplus.set(c.name, (surplus.get(c.name) ?? 0) + 1);
   }
   return surplus;
 }

@@ -426,16 +426,25 @@ const SAVE_AS_BINDER: Record<
   colors: { input: { colorFilter: new Set(['W']) }, carried: (f) => !!f.colorIdentity },
   condition: { input: { conditionExpr: chip('nm') }, flag: 'condition' },
   language: { input: { languageExpr: chip('ja') }, flag: 'language' },
-  surplusOnly: { input: { surplusOnly: true }, flag: 'surplus' },
+  // Carried as the Spare copies rule AND flagged: the rule holds the spare
+  // copies, the collection view lists every copy of a card that has one.
+  surplusOnly: {
+    input: { surplusOnly: true },
+    carried: (f) => f.spareCopies === true,
+    flag: 'surplus',
+  },
   proxyOnly: { input: { proxyOnly: true }, carried: (f) => f.proxy === true },
 };
 
 describe('Save as binder accounts for every collection filter', () => {
   for (const [key, spec] of Object.entries(SAVE_AS_BINDER)) {
-    it(`${key} is ${spec.flag ? 'flagged as not carried' : 'carried into the rule'}`, () => {
+    const how = [spec.carried && 'carried into the rule', spec.flag && 'flagged']
+      .filter(Boolean)
+      .join(' and ');
+    it(`${key} is ${how}`, () => {
       const { group, flagged } = collectionFiltersToFilterGroup(makeInput(spec.input));
       if (spec.flag) expect(flagged).toContain(spec.flag);
-      else expect(spec.carried!(group.filter)).toBe(true);
+      if (spec.carried) expect(spec.carried(group.filter)).toBe(true);
     });
   }
 

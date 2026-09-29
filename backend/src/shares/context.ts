@@ -12,6 +12,7 @@ import {
 } from '../db/schema';
 import { shareCache, type ShareContext, type ShareDataView } from './cache';
 import { getScryfallCache, pickUsdForFinish } from '../scryfall-cache';
+import { anyBinderUsesSpareCopies } from '@spellcontrol/binder-routing';
 
 /**
  * Stamp current market value onto shared cards from the backend Scryfall cache.
@@ -124,15 +125,35 @@ export async function loadShareContext(token: string): Promise<ShareContext | nu
       : [],
   ]);
 
+  // A binder share whose owner has a "Spare copies" rule anywhere needs their
+  // decks and cubes too: which copy of a card is spare depends on which copies
+  // those claim. A second round trip only in that case, so every other binder
+  // share keeps its single fetch.
+  const binderData = binders.map((r) => r.data).filter((d): d is unknown => d != null);
+  let allocationDecks: { data: unknown }[] = decks;
+  let allocationCubes: { data: unknown }[] = cubes;
+  if (kind === 'binder' && anyBinderUsesSpareCopies(binderData)) {
+    [allocationDecks, allocationCubes] = await Promise.all([
+      db
+        .select({ data: userDecks.data })
+        .from(userDecks)
+        .where(and(eq(userDecks.userId, share.userId), isNull(userDecks.deletedAt))),
+      db
+        .select({ data: userCubes.data })
+        .from(userCubes)
+        .where(and(eq(userCubes.userId, share.userId), isNull(userCubes.deletedAt))),
+    ]);
+  }
+
   const data: ShareDataView = {
     collection: {
       cards: cards.map((r) => r.data).filter((d): d is unknown => d != null),
       importHistory: [],
       lists: lists.map((r) => r.data).filter((d): d is unknown => d != null),
     },
-    binders: binders.map((r) => r.data).filter((d): d is unknown => d != null),
-    decks: decks.map((r) => r.data).filter((d): d is unknown => d != null),
-    cubes: cubes.map((r) => r.data).filter((d): d is unknown => d != null),
+    binders: binderData,
+    decks: allocationDecks.map((r) => r.data).filter((d): d is unknown => d != null),
+    cubes: allocationCubes.map((r) => r.data).filter((d): d is unknown => d != null),
     gameResult: gameResultRows[0],
   };
 

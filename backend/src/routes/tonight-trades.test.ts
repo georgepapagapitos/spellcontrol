@@ -3,6 +3,7 @@ import request from 'supertest';
 import type { Server } from 'node:http';
 import type { Pool } from 'pg';
 import { createTestEnv, extractSessionCookie } from '../test-helpers';
+import { getScryfallCache } from '../scryfall-cache';
 
 let app: Server;
 let pool: Pool;
@@ -50,7 +51,7 @@ async function joinTrades(token: string, cookie: string, tradeOptIn = true): Pro
 
 let seedCounter = 0;
 async function seedRow(
-  table: 'user_cards' | 'user_binders' | 'user_lists',
+  table: 'user_cards' | 'user_binders' | 'user_lists' | 'user_decks',
   userId: string,
   data: Record<string, unknown>
 ): Promise<void> {
@@ -283,5 +284,71 @@ describe('GET /api/tonight-trades/:nightId', () => {
     const res = await request(app).get(`/api/tonight-trades/${id}`).set('Cookie', host.cookie);
     const userIds = (res.body.attendees as Array<{ userId: string }>).map((att) => att.userId);
     expect(userIds).toEqual([host.userId]);
+  });
+
+  it("a Trade binder (spare copies worth $1 or more) offers only the owner's spare copies, priced from the server cache", async () => {
+    const host = await makeUser('tt-spare-host');
+    const owner = await makeUser('tt-spare-owner');
+    const { id, token } = await createNight(host.cookie);
+    await joinTrades(token, host.cookie, true);
+    await joinTrades(token, owner.cookie, true);
+
+    // Synced rows carry no price; the board prices them from the cache.
+    getScryfallCache().setMany(
+      [
+        ['sf-tt-sol', 'o-tt-sol', '2.00'],
+        ['sf-tt-stone', 'o-tt-stone', '3.00'],
+        ['sf-tt-signet', 'o-tt-signet', '4.00'],
+        ['sf-tt-storm', 'o-tt-storm', '0.50'],
+      ].map(([sfId, oracleId, usd]) => ({
+        id: sfId,
+        oracle_id: oracleId,
+        name: sfId,
+        rarity: 'common',
+        set: 'tst',
+        set_name: 'Test Set',
+        collector_number: '1',
+        prices: { usd },
+      }))
+    );
+    const copy = (name: string, oracleId: string, copyId: string) =>
+      card({ name, oracleId, copyId, scryfallId: `sf-${oracleId.slice(2)}` });
+    // Sol Ring: two loose copies, so one is spare. Mind Stone: two copies but
+    // one is in a deck, so the loose one is the kept copy. Arcane Signet: one
+    // copy. Brainstorm: a spare copy, but under $1.
+    for (const c of [
+      copy('Sol Ring', 'o-tt-sol', 'sol-1'),
+      copy('Sol Ring', 'o-tt-sol', 'sol-2'),
+      copy('Mind Stone', 'o-tt-stone', 'stone-1'),
+      copy('Mind Stone', 'o-tt-stone', 'stone-2'),
+      copy('Arcane Signet', 'o-tt-signet', 'signet-1'),
+      copy('Brainstorm', 'o-tt-storm', 'storm-1'),
+      copy('Brainstorm', 'o-tt-storm', 'storm-2'),
+    ]) {
+      await seedRow('user_cards', owner.userId, c);
+    }
+    await seedRow('user_decks', owner.userId, {
+      id: 'd-rocks',
+      name: 'Rocks',
+      commander: null,
+      cards: [{ slotId: 's1', card: { name: 'Mind Stone' }, allocatedCopyId: 'stone-1' }],
+    });
+    await seedRow(
+      'user_binders',
+      owner.userId,
+      binder({
+        id: 'b-trade',
+        position: 0,
+        name: 'Trade binder',
+        tradeable: true,
+        filterGroups: [{ filter: { spareCopies: true, priceMin: 1 } }],
+      })
+    );
+
+    const res = await request(app).get(`/api/tonight-trades/${id}`).set('Cookie', host.cookie);
+    const ownerAttendee = (
+      res.body.attendees as Array<{ userId: string; tradeableCards: Array<{ oracleId: string }> }>
+    ).find((att) => att.userId === owner.userId);
+    expect(ownerAttendee?.tradeableCards.map((c) => c.oracleId)).toEqual(['o-tt-sol']);
   });
 });

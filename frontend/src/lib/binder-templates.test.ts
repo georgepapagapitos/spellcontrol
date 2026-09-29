@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { STARTER_TEMPLATES } from './binder-templates';
 import { cleanFilter } from './clean-filter';
+import { SORT_PRESETS } from './sorting';
 
 describe('STARTER_TEMPLATES', () => {
   it('every template is either an action or applies a real (non-empty) constraint', () => {
@@ -9,19 +10,28 @@ describe('STARTER_TEMPLATES', () => {
     // "A set binder" pre-filled `setCodes: []`). Each template must either be
     // an explicit action (revealSets) or survive cleanFilter with content.
     for (const tpl of STARTER_TEMPLATES) {
-      if (tpl.revealSets) {
+      if (tpl.revealSets || tpl.colorPick) {
         expect(
           tpl.filter,
-          `${tpl.id}: action template must not also carry a filter`
+          `${tpl.id}: action/color-pick template must not also carry a filter`
         ).toBeUndefined();
         continue;
       }
-      expect(tpl.filter, `${tpl.id}: needs a filter or revealSets`).toBeDefined();
+      expect(tpl.filter, `${tpl.id}: needs a filter, revealSets or colorPick`).toBeDefined();
       const cleaned = cleanFilter(tpl.filter!);
       expect(
         Object.keys(cleaned).length,
         `${tpl.id}: filter cleans to empty (would match all)`
       ).toBeGreaterThan(0);
+    }
+  });
+
+  it('every grouped template names a real SORT_PRESETS id', () => {
+    // The chooser tile shows this preset's name as the order it will use
+    // (E495) — an id that doesn't exist would silently show "Custom" instead.
+    const presetIds = new Set(SORT_PRESETS.map((p) => p.id));
+    for (const tpl of STARTER_TEMPLATES) {
+      expect(presetIds.has(tpl.sortPreset), `${tpl.id}: sortPreset "${tpl.sortPreset}"`).toBe(true);
     }
   });
 

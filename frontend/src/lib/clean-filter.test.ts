@@ -32,6 +32,19 @@ describe('cleanFilter', () => {
     expect('proxy' in cleanFilter({ priceMin: 0.4 })).toBe(false);
   });
 
+  it('preserves spareCopies: true through save (same #235-shaped leak)', () => {
+    expect(cleanFilter({ spareCopies: true })).toEqual({ spareCopies: true });
+  });
+
+  it('preserves spareCopies: false', () => {
+    expect(cleanFilter({ spareCopies: false })).toEqual({ spareCopies: false });
+  });
+
+  it('keeps spareCopies absent when unset (no spurious key)', () => {
+    expect(cleanFilter({}).spareCopies).toBeUndefined();
+    expect('spareCopies' in cleanFilter({ priceMin: 0.4 })).toBe(false);
+  });
+
   it('still passes representative scalar and chip fields through unchanged', () => {
     const f: BinderFilter = {
       priceMin: 0.4,

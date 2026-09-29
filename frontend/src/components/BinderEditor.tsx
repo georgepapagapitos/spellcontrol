@@ -7,7 +7,7 @@ import { useCollectionStore } from '../store/collection';
 import { toast } from '../store/toasts';
 import { mergeStagedFiles, stagedFilesNotice, stripExtension } from '../lib/staged-files';
 import { useFileDrop } from '../lib/use-file-drop';
-import { NEW_BINDER_DEFAULT_SORTS, SORT_FIELDS } from '../lib/sorting';
+import { NEW_BINDER_DEFAULT_SORTS, SORT_FIELDS, SORT_PRESETS } from '../lib/sorting';
 import { useAnchoredPanel } from '../lib/use-anchored-panel';
 import { SortEditor } from './SortEditor';
 import { SortPresetChips } from './SortPresets';
@@ -19,8 +19,8 @@ import {
   materializeDraftPreview,
   type EffectiveLandingCounts,
 } from '../lib/binder-counts';
-import { STARTER_TEMPLATES } from '../lib/binder-templates';
 import { useCardsWithTags, groupsUseTags } from '../lib/card-tags';
+import { useCardsWithSpareCopies, groupsUseSpareCopies } from '../lib/spare-copies';
 import { useBinderLayoutInputs } from '../lib/use-binder-layout-inputs';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { useMediaQuery } from '../lib/use-media-query';
@@ -51,7 +51,13 @@ import { ColorPicker } from './ColorPicker';
 import { PRESET_COLORS, pickRandomPresetColor } from '../lib/preset-colors';
 import { InfoTip } from './InfoTip';
 import { FilterGroupList, cloneChips, validateRanges } from './FilterGroupEditor';
-import { BinderStartChooser, type BinderStart } from './BinderStartChooser';
+import {
+  BinderStartChooser,
+  startBinderName,
+  CHOOSER_START_LABELS,
+  type BinderStart,
+} from './BinderStartChooser';
+import { colorPickFilter } from '../lib/binder-templates';
 import { BinderLadder } from './BinderLadder';
 import { BinderEditorPreview } from './BinderEditorPreview';
 import { BinderEditorPreviewStrip } from './BinderEditorPreviewStrip';
@@ -102,7 +108,7 @@ const CARDS_TIP = (
 const defaultFixedCapacity = (pocket: PocketSize, doubleSided: boolean): number =>
   pocket * (doubleSided ? 40 : 20);
 
-const STARTER_LABELS = new Set(STARTER_TEMPLATES.map((t) => t.label));
+const STARTER_LABELS = new Set(CHOOSER_START_LABELS);
 
 /** A sort field's picker label ("Set"), for copy that names the field. */
 const sortFieldLabel = (field: string | undefined): string =>
@@ -465,7 +471,9 @@ export function BinderEditor() {
   // initialized for, and re-init whenever any of them changes while the modal
   // is open. Tracking editingBinderSeed ensures re-opening 'new' with a fresh
   // seed (e.g. "Save as binder" with different filters) re-seeds name+groups.
-  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  // Starts closed, not at `isOpen`: Layout loads this editor lazily on its
+  // first open, so it can mount already open and must still seed its form.
+  const [prevIsOpen, setPrevIsOpen] = useState(false);
   const [prevExisting, setPrevExisting] = useState(existing);
   const [prevSeed, setPrevSeed] = useState(editingBinderSeed);
   if (prevIsOpen !== isOpen || prevExisting !== existing || prevSeed !== editingBinderSeed) {
@@ -564,6 +572,13 @@ export function BinderEditor() {
   // landing counts below and the per-group badge in FilterGroupList.
   const layout = useBinderLayoutInputs();
   const taggedCards = useCardsWithTags(layout.cards, groupsUseTags(groups));
+  // Same reasoning as tags: the draft's OWN "Spare copies" rule needs the
+  // decoration too, even before any saved binder uses the field.
+  const draftCards = useCardsWithSpareCopies(
+    taggedCards,
+    layout.allocatedCopyIds,
+    groupsUseSpareCopies(groups)
+  );
   // `groups` changes on every keystroke inside a condition; the reads below
   // scan the whole collection (a real account runs 11k+ cards), so feeding
   // them live `groups` made typing itself the janky part — the character
@@ -580,7 +595,7 @@ export function BinderEditor() {
   const effectiveLanding = useMemo(() => {
     if (!isOpen || routingMode === 'manual') return null;
     return countEffectiveLanding(
-      taggedCards,
+      draftCards,
       binders,
       {
         id: existing?.id ?? null,
@@ -595,7 +610,7 @@ export function BinderEditor() {
     );
   }, [
     layout,
-    taggedCards,
+    draftCards,
     binders,
     debouncedGroups,
     keepPrintingsTogether,
@@ -687,14 +702,14 @@ export function BinderEditor() {
   const draftPreview = useMemo(() => {
     if (!isOpen || step !== 'rules') return null;
     return materializeDraftPreview(
-      taggedCards,
+      draftCards,
       binders,
       existing,
       previewInput,
       placeAboveId,
       layout
     );
-  }, [isOpen, step, taggedCards, binders, existing, previewInput, placeAboveId, layout]);
+  }, [isOpen, step, draftCards, binders, existing, previewInput, placeAboveId, layout]);
 
   const phone = useMediaQuery('(max-width: 599px)');
   // The Holds control, so "Use a <size>-card binder" can hand focus to it.
@@ -949,10 +964,24 @@ export function BinderEditor() {
     const previous = STARTER_LABELS.has(name.trim());
     if (start.kind === 'template') {
       const tpl = start.template;
-      setGroups([{ filter: { ...(tpl.filter ?? {}) } }]);
-      // Name the binder after its template unless the user already named it.
-      if (!name.trim() || previous) setName(tpl.label);
+      const filter =
+        tpl.colorPick && start.color ? colorPickFilter(start.color) : (tpl.filter ?? {});
+      setGroups([{ filter: { ...filter } }]);
+      // Name the binder after its template (or its picked color) unless the
+      // user already named it.
+      const label = startBinderName(start);
+      if (label && (!name.trim() || previous)) setName(label);
       setRevealSetsSignal(tpl.revealSets ? 1 : 0);
+      // Every grouped tile promises an order (E495) — seed it now so the
+      // binder created from it actually lands on the page count the tile
+      // showed, not the color-sort default every OTHER new binder opens on.
+      const preset = SORT_PRESETS.find((p) => p.id === tpl.sortPreset);
+      if (preset) setSorts(preset.sorts);
+      if (tpl.tradeable) setTradeable(true);
+    } else if (start.kind === 'catch-all') {
+      setGroups([newGroup()]);
+      if (!name.trim() || previous) setName('Everything else');
+      setRevealSetsSignal(0);
     } else {
       setGroups([newGroup()]);
       if (previous) setName('');
@@ -1317,7 +1346,14 @@ export function BinderEditor() {
         </div>
 
         <div className="modal-body binder-editor-body">
-          {step === 'start' && <BinderStartChooser cards={cards} onPick={pickStart} />}
+          {step === 'start' && (
+            <BinderStartChooser
+              cards={cards}
+              binders={binders}
+              layout={layout}
+              onPick={pickStart}
+            />
+          )}
 
           {step === 'rules' && (
             <>
@@ -1365,7 +1401,7 @@ export function BinderEditor() {
                     <div className={routingMode === 'manual' ? 'binder-editor-paused' : undefined}>
                       <FilterGroupList
                         groups={groups}
-                        cards={taggedCards}
+                        cards={draftCards}
                         ownedSets={ownedSets}
                         typeSuggestions={typeSuggestions}
                         oracleSuggestions={oracleSuggestions}
