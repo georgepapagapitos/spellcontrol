@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, relative } from 'node:path';
-import { contrastRatio } from '../lib/ink';
+import { contrastRatio } from '@/lib/util/ink';
 
 // Contrast guards for the grounds themes-contrast.test.ts does not reach
 // (a11y sweep 2026-09: --text-muted measured 4.16:1 on a selected choice card
@@ -37,6 +37,9 @@ interface Theme {
   secondary: string;
   mutedTint: string;
   secondaryTint: string;
+  accentTint: string;
+  accentHoverTint: string;
+  onAccent: string;
   accent: string;
   accentAlpha: number;
 }
@@ -48,7 +51,18 @@ function themes(): Theme[] {
   while ((m = re.exec(themesCss))) {
     const tok = (n: string) => m![2].match(new RegExp(`--${n}:[ ]*(#[0-9a-fA-F]{6})`))?.[1];
     const tint = m[2].match(/--accent-light:\s*color-mix\(in srgb,\s*(#[0-9a-fA-F]{6})\s+(\d+)%/);
-    const [bg, surface, raised, muted, secondary, mutedTint, secondaryTint] = [
+    const [
+      bg,
+      surface,
+      raised,
+      muted,
+      secondary,
+      mutedTint,
+      secondaryTint,
+      accentTint,
+      accentHoverTint,
+      onAccent,
+    ] = [
       'bg',
       'surface',
       'surface-raised',
@@ -56,6 +70,9 @@ function themes(): Theme[] {
       'text-secondary',
       'text-muted-tint',
       'text-secondary-tint',
+      'accent-tint',
+      'accent-hover-tint',
+      'on-accent',
     ].map(tok);
     if (!bg || !surface || !raised || !muted || !secondary || !tint) continue;
     out.push({
@@ -65,6 +82,9 @@ function themes(): Theme[] {
       secondary,
       mutedTint: mutedTint ?? '',
       secondaryTint: secondaryTint ?? '',
+      accentTint: accentTint ?? '',
+      accentHoverTint: accentHoverTint ?? '',
+      onAccent: onAccent ?? '',
       accent: tint[1],
       accentAlpha: Number(tint[2]) / 100,
     });
@@ -101,19 +121,48 @@ describe('text on the accent-tinted selected ground', () => {
         ).toBeGreaterThanOrEqual(0.3);
       }
     });
+    // Accent text (a selected tile's accent label, the hover colour of a link in
+    // it) fell to 3.6-4.2:1 on the tint in eight themes; tinted rules point
+    // --accent / --accent-hover at this pair. A control filled with it inside a
+    // selected tile still writes --on-accent, so that pairing holds too.
+    it(`${t.name}: the on-tint accent pair clears AA, and --on-accent on it`, () => {
+      expect(t.accentTint, `${t.name} declares no --accent-tint`).toMatch(/^#/);
+      expect(t.accentHoverTint, `${t.name} declares no --accent-hover-tint`).toMatch(/^#/);
+      for (const [where, ground] of Object.entries(t.grounds)) {
+        const tinted = mix(t.accent, t.accentAlpha, ground);
+        for (const [tokenName, ink] of [
+          ['accent-tint', t.accentTint],
+          ['accent-hover-tint', t.accentHoverTint],
+        ] as const) {
+          const ratio = contrastRatio(ink, tinted);
+          expect(
+            ratio,
+            `${t.name} --${tokenName} on accent-light over --${where} = ${ratio.toFixed(2)}`
+          ).toBeGreaterThanOrEqual(AA);
+        }
+      }
+      for (const fill of [t.accentTint, t.accentHoverTint]) {
+        const ratio = contrastRatio(t.onAccent, fill);
+        expect(
+          ratio,
+          `${t.name} --on-accent on ${fill} = ${ratio.toFixed(2)}`
+        ).toBeGreaterThanOrEqual(AA);
+      }
+    });
   }
 });
 
 // Every rule that paints the tint as a background must hand its text the
-// on-tint pair; a new tinted rule without it would show muted text at ~3.3:1.
-describe('every rule painting --accent-light re-points muted and secondary', () => {
+// on-tint pairs; a new tinted rule without them would show muted text at
+// ~3.3:1 and accent text at ~3.6:1.
+describe('every rule painting --accent-light re-points its text and accent roles', () => {
   const srcDir = join(here, '..');
   const files = (dir: string): string[] =>
     readdirSync(dir).flatMap((n) => {
       const p = join(dir, n);
       return statSync(p).isDirectory() ? files(p) : p.endsWith('.css') ? [p] : [];
     });
-  it('declares --text-muted and --text-secondary as the tint pair', () => {
+  it('declares the text and accent tint pairs', () => {
     const missing: string[] = [];
     for (const file of files(srcDir)) {
       const css = readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
@@ -121,7 +170,9 @@ describe('every rule painting --accent-light re-points muted and secondary', () 
         if (!/background(?:-color|-image)?\s*:[^;]*var\(--accent-light\)/.test(m[2])) continue;
         const ok =
           /--text-muted:\s*var\(--text-muted-tint\)/.test(m[2]) &&
-          /--text-secondary:\s*var\(--text-secondary-tint\)/.test(m[2]);
+          /--text-secondary:\s*var\(--text-secondary-tint\)/.test(m[2]) &&
+          /--accent:\s*var\(--accent-tint\)/.test(m[2]) &&
+          /--accent-hover:\s*var\(--accent-hover-tint\)/.test(m[2]);
         if (!ok) missing.push(`${relative(srcDir, file)}: ${m[1].trim().split('\n').pop()}`);
       }
     }
@@ -187,8 +238,8 @@ describe('text on the deck identity warn/fail row tints', () => {
   });
 });
 
-// Text painted on a binder's own colour takes its ink from lib/ink.ts (numeric
-// proof in lib/ink.test.ts); these pin the wiring so a fixed colour can't return.
+// Text painted on a binder's own colour takes its ink from lib/util/ink.ts (numeric
+// proof in lib/util/ink.test.ts); these pin the wiring so a fixed colour can't return.
 describe('binder colour fills use the picked ink', () => {
   it('the active binder tab and the index name band read --binder-ink', () => {
     expect(read('binder-nav.css')).toMatch(/\.tab\.active\s*\{\s*color:\s*var\(--binder-ink/);

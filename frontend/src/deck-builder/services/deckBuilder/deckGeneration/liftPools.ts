@@ -6,6 +6,7 @@
 // the whole run instead of one per call site.
 import type { LiftEntry } from '@/deck-builder/types';
 import { fetchCardLiftPool } from '@/deck-builder/services/edhrec/client';
+import { frontFaceName } from '@/lib/cards/card-text';
 import { buildLiftIndex } from '../liftSynergy';
 import type { GenerationState } from './state';
 
@@ -55,4 +56,22 @@ export function getLiftIndex(
     };
   }
   return state.liftIndexCache.index;
+}
+
+/**
+ * The lifters a disclosure may name: the ones in the deck right now. A lift
+ * seed cut before the swap still sits in the lift index, and the reason named
+ * it ("lifted by Goblin King" in a Krenko deck without one).
+ */
+export function liftersInDeck(
+  liftedBy: readonly string[] | undefined,
+  state: Pick<GenerationState, 'categories'>
+): string[] | undefined {
+  if (!liftedBy) return undefined;
+  const inDeck = new Set<string>();
+  for (const c of Object.values(state.categories).flat()) {
+    inDeck.add(c.name.toLowerCase());
+    inDeck.add(frontFaceName(c.name).toLowerCase());
+  }
+  return liftedBy.filter((n) => inDeck.has(n.toLowerCase()));
 }

@@ -20,7 +20,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  * all share it. Size and edited-time are what differ.
  */
 
-vi.mock('@/lib/deck-diff', () => ({ diffDecks: () => null }));
+vi.mock('@/lib/deck/deck-diff', () => ({ diffDecks: () => null }));
 
 import { DeckComparePage } from './DeckComparePage';
 import { useDecksStore } from '../store/decks';

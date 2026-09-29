@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useDeckBuilderStore } from './index';
-import { useCurrencyStore } from '@/lib/currency';
+import { useCurrencyStore } from '@/lib/collection/currency';
 import type { ScryfallCard, ThemeResult } from '@/deck-builder/types';
 
 // Whole-state snapshot taken before any test mutates it — action closures

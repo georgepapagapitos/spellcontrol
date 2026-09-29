@@ -2,7 +2,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { DeckTokensSheet } from './DeckTokensSheet';
-import type { DeckToken } from '@/lib/deck-tokens';
+import type { DeckToken } from '@/lib/deck/deck-tokens';
 
 const GOBLINS: DeckToken = {
   name: 'Goblin',

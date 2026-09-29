@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { usePlayStore } from './play';
-import { applyAction, createGameState, makePlayer, type GameState } from '../lib/game-state';
-import { createGame, sendGameSignal, type GameSignal } from '../lib/games-api';
+import { applyAction, createGameState, makePlayer, type GameState } from '@/lib/play/game-state';
+import { createGame, sendGameSignal, type GameSignal } from '@/lib/play/games-api';
 
 /**
  * Arrows on the table: an `arrow` signal adds one everyone keeps, `clear`
@@ -10,7 +10,7 @@ import { createGame, sendGameSignal, type GameSignal } from '../lib/games-api';
  * table uses (the server's echo is what the store adopts).
  */
 
-vi.mock('../lib/games-api', () => ({
+vi.mock('@/lib/play/games-api', () => ({
   createGame: vi.fn(),
   getGame: vi.fn(),
   pollGame: vi.fn(),
@@ -22,8 +22,8 @@ vi.mock('../lib/games-api', () => ({
   cancelGameRequest: vi.fn(),
   sendGameSignal: vi.fn(),
 }));
-vi.mock('../lib/games-sse', () => ({ subscribeGameEvents: vi.fn(() => () => {}) }));
-vi.mock('../lib/games-longpoll', () => ({
+vi.mock('@/lib/play/games-sse', () => ({ subscribeGameEvents: vi.fn(() => () => {}) }));
+vi.mock('@/lib/play/games-longpoll', () => ({
   subscribeGameLongPoll: vi.fn(() => () => {}),
   usesLongPoll: vi.fn(() => false),
 }));

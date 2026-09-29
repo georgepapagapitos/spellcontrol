@@ -20,7 +20,7 @@ const card = (id: string, set: string, num: string): ScryfallCard =>
 const ROW = card('msc', 'msc', '793');
 const OTHER = card('a25', 'a25', '82');
 
-vi.mock('../lib/api', () => ({ fetchPrintings: vi.fn(async () => [ROW, OTHER]) }));
+vi.mock('@/lib/api', () => ({ fetchPrintings: vi.fn(async () => [ROW, OTHER]) }));
 
 import { AddCardInspector } from './AddCardInspector';
 

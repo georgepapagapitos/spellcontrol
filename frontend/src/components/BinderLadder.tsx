@@ -1,6 +1,6 @@
 import { useState, type CSSProperties } from 'react';
-import { useMediaQuery } from '../lib/use-media-query';
-import { UNCATEGORIZED_LADDER_ID, type LadderEntry } from '../lib/binder-counts';
+import { useMediaQuery } from '@/lib/util/use-media-query';
+import { UNCATEGORIZED_LADDER_ID, type LadderEntry } from '@/lib/binder/binder-counts';
 import { Button } from '@/components/shared/Button';
 import './BinderLadder.css';
 

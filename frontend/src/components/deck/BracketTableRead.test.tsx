@@ -7,7 +7,7 @@ import 'fake-indexeddb/auto';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
-import type { GameRecord } from '@/lib/game-state';
+import type { GameRecord } from '@/lib/play/game-state';
 
 let history: GameRecord[] = [];
 

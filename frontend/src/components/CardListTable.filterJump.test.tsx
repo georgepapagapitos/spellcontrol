@@ -12,7 +12,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { EnrichedCard } from '../types';
-import type { CollectionFilterJump } from '../lib/collection-insights';
+import type { CollectionFilterJump } from '@/lib/collection/collection-insights';
 
 vi.mock('@tanstack/react-virtual', () => ({
   useVirtualizer: ({ count }: { count: number }) => ({
@@ -36,7 +36,7 @@ vi.mock('./CardPreview', () => ({
 }));
 
 import { CardListTable } from './CardListTable';
-import { ShortcutRegistryProvider } from '../lib/shortcut-registry';
+import { ShortcutRegistryProvider } from './shortcut-registry';
 import { useCollectionStore } from '../store/collection';
 
 let idSeq = 0;

@@ -3,8 +3,8 @@ import { act, render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { usePlayStore } from '@/store/play';
 import { useAuth } from '@/store/auth';
-import { createGameState, makePlayer } from '@/lib/game-state';
-import type { GameSignal } from '@/lib/games-api';
+import { createGameState, makePlayer } from '@/lib/play/game-state';
+import type { GameSignal } from '@/lib/play/games-api';
 import { usePlaytestStore } from '../store';
 import { TableSignals } from './TableSignals';
 

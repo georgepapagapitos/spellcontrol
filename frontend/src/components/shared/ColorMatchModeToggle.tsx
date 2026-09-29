@@ -1,5 +1,5 @@
 import './ColorMatchModeToggle.css';
-import type { ColorMatchMode } from '../../lib/colors';
+import type { ColorMatchMode } from '@/lib/cards/colors';
 
 export interface ColorMatchModeToggleProps {
   mode: ColorMatchMode;

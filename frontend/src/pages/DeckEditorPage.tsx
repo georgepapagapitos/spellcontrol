@@ -1,5 +1,5 @@
 import { MoreVertical, Play, Plus, Redo2, RefreshCw, Undo2, X } from 'lucide-react';
-import { canRegenerate, regenerateHref, regenerateState } from '../lib/regenerate-prefill';
+import { canRegenerate, regenerateHref, regenerateState } from '@/lib/deck/regenerate-prefill';
 import {
   type ReactNode,
   useCallback,
@@ -19,15 +19,15 @@ import '@/styles/deck-builder-combos-list.css';
 import '@/styles/deck-builder-row-qty.css';
 import '@/styles/deck-builder-import-dialog.css';
 import '@/styles/deck-builder-analysis-panel.css';
-import { useMenuKeyboard } from '../lib/use-menu-keyboard';
-import { useDocumentTitle } from '../lib/use-document-title';
-import { useMediaQuery } from '../lib/use-media-query';
-import { computePopoverPlacement, getSafeViewport } from '../lib/popover-placement';
-import { haptics } from '../lib/haptics';
-import { deckCoverArt } from '../lib/deck-cover';
+import { useMenuKeyboard } from '@/lib/overlays/use-menu-keyboard';
+import { useDocumentTitle } from '@/lib/util/use-document-title';
+import { useMediaQuery } from '@/lib/util/use-media-query';
+import { computePopoverPlacement, getSafeViewport } from '@/lib/overlays/popover-placement';
+import { haptics } from '@/lib/util/haptics';
+import { deckCoverArt } from '@/lib/deck/deck-cover';
 import { pickDeckCover } from '@spellcontrol/deck-metrics';
-import { useBinderLayoutInputs } from '../lib/use-binder-layout-inputs';
-import { useBinderByCopyId } from '../lib/use-binder-by-copy';
+import { useBinderLayoutInputs } from '@/lib/binder/use-binder-layout-inputs';
+import { useBinderByCopyId } from '@/lib/binder/use-binder-by-copy';
 import { useLocation, useNavigate, useParams, useSearchParams, Navigate } from 'react-router-dom';
 import {
   useDecksStore,
@@ -53,24 +53,24 @@ import {
   bracketReasons,
   bracketBorderline,
 } from '@/deck-builder/services/deckBuilder/bracketEstimator';
-import { formatMoney } from '../lib/format-money';
-import { deckValue } from '../lib/deck-value';
-import { useCurrency } from '../lib/currency';
-import { buildCommanderKey } from '../lib/commander-key';
+import { formatMoney } from '@/lib/collection/format-money';
+import { deckValue } from '@/lib/deck/deck-value';
+import { useCurrency } from '@/lib/collection/currency';
+import { buildCommanderKey } from '@/lib/deck/commander-key';
 import type { BinderInfo } from '../components/BinderBadge';
 import { CardSearchPanel, type CardSearchPanelHandle } from '../components/deck/CardSearchPanel';
 import { BuildTimeCoachStrip } from '../components/deck/BuildTimeCoachStrip';
-import { useBuildTimeNudge } from '../lib/use-build-time-nudge';
+import { useBuildTimeNudge } from '@/lib/coach/use-build-time-nudge';
 import { WedgeHintStrip } from '../components/deck/WedgeHintStrip';
-import { dismissResyncHint, shouldShowResyncHint } from '../lib/wedge-hints';
+import { dismissResyncHint, shouldShowResyncHint } from '@/lib/home/wedge-hints';
 import { DeckCombosPanel, type DeckCombosPanelHandle } from '../components/deck/DeckCombosPanel';
 import { DeckAnalysisPanel } from '../components/deck/DeckAnalysisPanel';
 import { DeckAiReview } from '../components/deck/DeckAiReview';
 import { DeckAiRefine } from '../components/deck/DeckAiRefine';
 import { AiSourcesControl } from '../components/deck/AiSourcesControl';
-import { isCollectionScope, type AiScope } from '../lib/ai-scope';
-import { buildRefinePool } from '../lib/ai-refine';
-import { buildAlternativeIndex } from '../lib/refine-alternatives';
+import { isCollectionScope, type AiScope } from '@/lib/ai/ai-scope';
+import { buildRefinePool } from '@/lib/ai/ai-refine';
+import { buildAlternativeIndex } from '@/lib/ai/refine-alternatives';
 import { constrainsToCollection } from '@/deck-builder/services/deckBuilder/deckFilters';
 import { DeckTestHandPanel } from '../components/deck/DeckTestHandPanel';
 import { DeckTokensSheet } from '../components/deck/DeckTokensSheet';
@@ -84,7 +84,7 @@ import { DeckHero } from '../components/deck/DeckHero';
 import { InlineRename } from '@/components/shared/InlineRename';
 import { DeckPublishNudge } from '../components/deck/DeckPublishNudge';
 import { useSealMoment } from '../components/shared/SealMoment';
-import { shouldCelebrateFirstPublish } from '../lib/first-publish-celebration';
+import { shouldCelebrateFirstPublish } from '@/lib/social/first-publish-celebration';
 import { PullListSheet } from '../components/deck/PullListSheet';
 import { useDeckTokens } from '../components/deck/use-deck-tokens';
 import { PowerHero } from '../components/deck/PowerHero';
@@ -114,30 +114,35 @@ import {
   type Change,
   type LaneId,
   type ChangeOwnership,
-} from '@/lib/deck-change';
-import { DECK_NAME_MAX } from '@/lib/deck-name';
-import { rankReplacementCuts } from '@/lib/intelligent-cuts';
-import { buildSwapAlternativeFactors, type WhyFactor } from '@/lib/why-factors';
+} from '@/lib/coach/deck-change';
+import { DECK_NAME_MAX } from '@/lib/deck/deck-name';
+import { rankReplacementCuts } from '@/lib/coach/intelligent-cuts';
+import { buildSwapAlternativeFactors, type WhyFactor } from '@/lib/coach/why-factors';
 import '../styles/deck-builder-card-search.css';
-import { computeAddFit } from '@/lib/card-fit';
-import { toClockCard } from '@/lib/hand-classify';
-import { useEdhrecComboOverlay } from '@/lib/edhrec-combo-overlay';
+import { computeAddFit } from '@/lib/coach/card-fit';
+import { toClockCard } from '@/lib/mana-sim/hand-classify';
+import { useEdhrecComboOverlay } from '@/lib/deck-analysis/edhrec-combo-overlay';
 import { CardFitPanel } from '../components/deck/CardFitPanel';
 import { SwapThisCard } from '../components/deck/SwapThisCard';
 import { SimilarCardsStrip } from '../components/deck/SimilarCardsStrip';
-import { classifyCandidate, analyzeDeck } from '../lib/deck-analysis';
-import { useTaggerReady } from '../lib/use-tagger-ready';
-import { heroBracketReadout } from '../lib/format-bracket-label';
-import { findCrossDeckMoves, type CrossDeckMove } from '../lib/cross-deck-moves';
+import { useSubstituteRanking } from '../components/deck/useSubstituteRanking';
+import * as substitutesV2 from '@/deck-builder/services/substitutes/surfaces';
+import { classifyCandidate, analyzeDeck } from '@/lib/deck-analysis/deck-analysis';
+import { useTaggerReady } from '@/lib/cards/use-tagger-ready';
+import { heroBracketReadout } from '@/lib/deck-analysis/format-bracket-label';
+import { findCrossDeckMoves, type CrossDeckMove } from '@/lib/coach/cross-deck-moves';
 import { loadTaggerData, hasTaggerData } from '@/deck-builder/services/tagger/client';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
-import { useDeckCombos } from '../lib/use-deck-combos';
-import { partitionCombosByZone, toMainboardComboData } from '../lib/combo-zone-partition';
-import { buildWinConditionSummary } from '../lib/win-condition-summary';
-import { useCommanderBracketAnalysis } from '../lib/use-commander-bracket-analysis';
-import { useUndoRedoKeyboard } from '../lib/use-undo-redo-keyboard';
-import { useRegisterShortcuts } from '../lib/shortcut-registry';
-import { useSheetExit } from '../lib/use-sheet-exit';
+import { useDeckCombos } from '@/lib/deck-analysis/use-deck-combos';
+import {
+  partitionCombosByZone,
+  toMainboardComboData,
+} from '@/lib/deck-analysis/combo-zone-partition';
+import { buildWinConditionSummary } from '@/lib/deck-analysis/win-condition-summary';
+import { useCommanderBracketAnalysis } from '@/lib/deck-analysis/use-commander-bracket-analysis';
+import { useUndoRedoKeyboard } from '@/lib/deck/use-undo-redo-keyboard';
+import { useRegisterShortcuts } from '@/components/shortcut-registry';
+import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
 import { CardEditDialog, type PrintingSelection } from '../components/CardEditDialog';
 import {
   buildAllocationMap,
@@ -152,44 +157,44 @@ import {
   type DonorOutcome,
   type DonorZone,
   type StealableCopy,
-} from '../lib/allocations';
-import { planQtyChange } from '../lib/deck-qty';
-import { deckColorIdentity, fitsColorIdentity, getMaxCopies } from '../lib/deck-validation';
+} from '@/lib/collection/allocations';
+import { planQtyChange } from '@/lib/deck/deck-qty';
+import { deckColorIdentity, fitsColorIdentity, getMaxCopies } from '@/lib/deck/deck-validation';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SharedCopiesSheet } from '../components/deck/SharedCopiesSheet';
 import { DeckFeedbackSheet } from '../components/deck/DeckFeedbackSheet';
 import { MovePrintingPrompt } from '../components/deck/MovePrintingPrompt';
 import { MoveToDeckSheet } from '../components/deck/MoveToDeckSheet';
 import { BuildReportSheet } from '../components/deck/BuildReportSheet';
-import { isBuildReportSeen } from '../lib/build-report-seen';
+import { isBuildReportSeen } from '@/lib/deck/build-report-seen';
 import type { ComboMatch, ComboSeedContext } from '../types/combos';
-import { computeNewArrivals, type ArrivalsByType } from '../lib/new-arrivals';
+import { computeNewArrivals, type ArrivalsByType } from '@/lib/coach/new-arrivals';
 import {
   coachWantedNames,
   narrowArrivals,
   rememberArrivalWatchlist,
-} from '../lib/arrival-watchlist';
+} from '@/lib/coach/arrival-watchlist';
 import { BackLink } from '../components/BackLink';
 import { ColorPicker } from '../components/ColorPicker';
 import { Modal } from '../components/Modal';
-import { isValidCommander, isPdhCommanderEligible } from '../lib/commanders';
+import { isValidCommander, isPdhCommanderEligible } from '@/lib/deck/commanders';
 import { areValidPartners, canHavePartner } from '@/deck-builder/lib/partnerUtils';
 import { PartnerCommanderSelector } from '../components/deck/PartnerCommanderSelector';
 import { useToastsStore } from '../store/toasts';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Finish } from '../types';
 import { computeLandUpgrades } from '@/deck-builder/services/deckBuilder/landUpgrades';
-import { buildUpgradePlanTools } from '@/lib/upgrade-plan-tools';
-import { applyUpgradePlan, type PlanStep } from '@/lib/apply-upgrade-plan';
+import { buildUpgradePlanTools } from '@/lib/coach/upgrade-plan-tools';
+import { applyUpgradePlan, type PlanStep } from '@/lib/coach/apply-upgrade-plan';
 import {
   applyCheapestPrintings,
   applyMatchMyCopies,
   copyMismatches,
   missingSlots,
   PrintingLookupOfflineError,
-} from '@/lib/deck-printing-actions';
-import { logger } from '@/lib/logger';
-import { useSearchCards } from '@/lib/use-search-cards';
+} from '@/lib/deck/deck-printing-actions';
+import { logger } from '@/lib/util/logger';
+import { useSearchCards } from '@/lib/search/use-search-cards';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import {
   getCardByName,
@@ -197,9 +202,9 @@ import {
   getOwnedPrinting,
   searchCards,
 } from '../deck-builder/services/scryfall/client';
-import { parseScryfallCardRefs } from '@/lib/scryfall-card-link';
-import { useLinkDrop } from '@/lib/use-link-drop';
-import { userMessage } from '@/lib/user-error';
+import { parseScryfallCardRefs } from '@/lib/cards/scryfall-card-link';
+import { useLinkDrop } from '@/lib/import-export/use-link-drop';
+import { userMessage } from '@/lib/util/user-error';
 
 // Fetch strong on-color fixing lands for the "Re-analyze lands" tool's acquire
 // rows (duals the user may not own yet). The deck's identity letters are passed
@@ -343,7 +348,7 @@ export function DeckEditorPage() {
   const collectionById = useCollectionByCopyId();
 
   // New arrivals (E140) — importId -> import batch's addedAt, for the
-  // acquired-at resolution (see lib/new-arrivals.ts). Mirrors CardListTable's
+  // acquired-at resolution (see lib/coach/new-arrivals.ts). Mirrors CardListTable's
   // dateAdded sort context.
   const addedAtByImportId = useMemo(
     () => new Map(importHistory.map((e) => [e.id, e.addedAt])),
@@ -762,7 +767,7 @@ export function DeckEditorPage() {
   const [appendOpen, setAppendOpen] = useState(false);
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [resyncOpen, setResyncOpen] = useState(false);
-  // Deck re-sync discovery hint (see lib/wedge-hints.ts) — same
+  // Deck re-sync discovery hint (see lib/home/wedge-hints.ts) — same
   // dismiss-locally-then-persist shape as the binder hint in CardSearchPanel.
   const [resyncHintDismissed, setResyncHintDismissed] = useState(false);
   const hasPullSlots =
@@ -1240,6 +1245,8 @@ export function DeckEditorPage() {
     }
     return [...byName.values()];
   }, [collectionCards]);
+  // E517: v2 re-ranks the owned alternatives once its card facts load (the Coach tab asks).
+  const substitutesReady = useSubstituteRanking(view === 'tune');
   const substitutionPlan = useMemo(() => {
     if (!deck || !DECK_FORMAT_CONFIGS[deck.format].hasCommander) return null;
     const gap = deck.gapAnalysis;
@@ -1256,8 +1263,9 @@ export function DeckEditorPage() {
     // single-pick buildSubstitutionPlan).
     return buildSubstitutionOptions(missingStaples, ownedPool, deckNames, commanderColorIdentity, {
       inclusionByName,
+      rerank: substitutesReady ? substitutesV2.ownedAlternativesReranker([...deckNames]) : null,
     });
-  }, [deck, ownedNames, ownedPool, commanderColorIdentity]);
+  }, [deck, ownedNames, ownedPool, commanderColorIdentity, substitutesReady]);
 
   // Strong on-color duals for the deck's colors, fetched live for the
   // "Re-analyze lands" tool's acquire rows (duals worth getting, not just ones
@@ -1366,7 +1374,7 @@ export function DeckEditorPage() {
     [deck, substitutionPlan, landUpgrades, deckCardNames, aiScope, ownedNames]
   );
   // New arrivals, tailored to THIS deck: only cards the coach recommends for
-  // it or that finish a one-away combo (lib/arrival-watchlist.ts says which
+  // it or that finish a one-away combo (lib/coach/arrival-watchlist.ts says which
   // lanes, and why not the owned-only ones). The raw arrivals are "in colour
   // identity, acquired since the deck last changed", which on any real import
   // reads as random: every red card you bought lit up a Krenko deck.
@@ -1387,7 +1395,7 @@ export function DeckEditorPage() {
     [arrivalsByType, coachWanted]
   );
   // The wanted list is what Home's "+N new cards" narrows by, so Home and this
-  // page count the same cards (lib/arrival-watchlist.ts). Recorded only once
+  // page count the same cards (lib/coach/arrival-watchlist.ts). Recorded only once
   // every input has landed: a list taken mid-load (collection still
   // hydrating, combos still fetching) is short, and Home would under-count.
   const arrivalsSettled = !collectionHydrating && !comboData.loading;
@@ -1462,7 +1470,7 @@ export function DeckEditorPage() {
   }, [deck, currency]);
 
   // The deck's cover behind the hero, the same face its index tile wears
-  // (lib/deck-cover). Undefined only for a deck with no art at all; the hero
+  // (lib/deck/deck-cover). Undefined only for a deck with no art at all; the hero
   // then keeps its plain color-border look.
   const heroArt = useMemo(() => (deck ? deckCoverArt(deck) : undefined), [deck]);
   // The card menu's "Use as deck cover". `chosen` is only the pick while that
@@ -2438,22 +2446,25 @@ export function DeckEditorPage() {
     // Each alternative is a real swap (this card → the alternative), so the row
     // shows the trade: the focused card dimmed on the left, the alternative
     // coming in. The apply path still reads the incoming name (`onSwap`).
-    const alternatives = sortOwnedFirst(
-      gaps.map((g) => {
-        const ownership = ownershipFor(g.name);
-        return {
-          ...toSwapAgainst(fromGapCard(g, ownership), card.name),
-          // Each same-role alternative gets its own grounded "why this over the
-          // others" — replaces the six identical "{role} staple" reason lines.
-          whyFactors: buildSwapAlternativeFactors({
-            inclusion: g.inclusion,
-            synergy: g.synergy,
-            owned: ownership === 'owned',
-            roleLabel: g.roleLabel,
-            commanderName: deck.commander?.name,
-          }),
-        };
-      })
+    const built = gaps.map((g) => {
+      const ownership = ownershipFor(g.name);
+      return {
+        ...toSwapAgainst(fromGapCard(g, ownership), card.name),
+        // Each same-role alternative gets its own grounded "why this over the
+        // others" — replaces the six identical "{role} staple" reason lines.
+        whyFactors: buildSwapAlternativeFactors({
+          inclusion: g.inclusion,
+          synergy: g.synergy,
+          owned: ownership === 'owned',
+          roleLabel: g.roleLabel,
+          commanderName: deck.commander?.name,
+        }),
+      };
+    });
+    // E517: owned first, then by how well each replaces this card (v2), else by play rate.
+    const alternatives = (
+      substitutesV2.rankSwapAlternatives(card.name, role, built, [...deckCardNames]) ??
+      sortOwnedFirst(built)
     ).slice(0, 6);
     return (
       <SwapThisCard
@@ -2576,7 +2587,7 @@ export function DeckEditorPage() {
   };
 
   // ⋮ Deck actions: printing swaps that never touch a copy binding, each one
-  // write and one undo entry (lib/deck-printing-actions).
+  // write and one undo entry (lib/deck/deck-printing-actions).
   const printingLookupFailed = (err: unknown, fallback: string) => {
     if (!(err instanceof PrintingLookupOfflineError)) logger.warn('[Printings] lookup failed', err);
     pushToast({
@@ -2931,7 +2942,7 @@ export function DeckEditorPage() {
   // of the deck's three card arrays this edit targets — previously
   // hard-wired to `deck.cards`, which meant the mainboard stepper could
   // never be safely reused for sideboard/considering rows without risking a
-  // silent cross-zone mutation. `planQtyChange` (lib/deck-qty.ts) is the pure
+  // silent cross-zone mutation. `planQtyChange` (lib/deck/deck-qty.ts) is the pure
   // diff; the add/remove itself is ONE store write via bulkAddCards/
   // bulkRemoveCards regardless of how many copies change (never loop
   // per-card store actions — each would fire its own sync push). Bulk

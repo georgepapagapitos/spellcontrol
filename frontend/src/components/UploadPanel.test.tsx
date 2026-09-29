@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, within, waitFor } from '@testing-library/react';
 import type { EnrichedCard, FetchErrorRow, UploadResponse } from '../types';
-import type { ImportHistoryEntry } from '../lib/local-cards';
+import type { ImportHistoryEntry } from '@/lib/sync/local-cards';
 
 // UploadPanel's own commit path (importCards) and parse path (importText) are
 // mocked; everything else (Modal, ConfirmDialog, useConfirm, card-tags,
@@ -12,7 +12,7 @@ import type { ImportHistoryEntry } from '../lib/local-cards';
 const importTextMock =
   vi.fn<(text: string, onProgress?: unknown, proxy?: boolean) => Promise<UploadResponse>>();
 const fetchImportLinkMock = vi.fn<(url: string) => Promise<{ text: string; name: string }>>();
-vi.mock('../lib/api', () => ({
+vi.mock('@/lib/api', () => ({
   importText: (text: string, onProgress?: unknown, proxy?: boolean) =>
     importTextMock(text, onProgress, proxy),
   importFile: vi.fn(),
@@ -39,7 +39,7 @@ const { CancelledError } = vi.hoisted(() => ({
     }
   },
 }));
-vi.mock('../lib/google-picker', () => ({
+vi.mock('@/lib/import-export/google-picker', () => ({
   googlePickerAvailable: () => pickerAvailableMock(),
   googlePickerConfigured: () => pickerAvailableMock(),
   pickFromGoogleDrive: () => pickFromDriveMock(),
@@ -59,7 +59,7 @@ vi.mock('@/deck-builder/services/scryfall/client', () => ({
 const pushProgressMock = vi.fn<() => { done: number; total: number; ops: number } | null>(
   () => null
 );
-vi.mock('../lib/use-push-progress', () => ({
+vi.mock('@/lib/sync/use-push-progress', () => ({
   usePushProgress: () => pushProgressMock(),
 }));
 

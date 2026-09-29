@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ChevronRight, Compass } from 'lucide-react';
 import { DiscoverDeckTile } from '../DiscoverDeckTile';
-import { listDiscoverDecks, type DiscoverDeck } from '../../lib/discover-client';
-import { userMessage } from '@/lib/user-error';
+import { listDiscoverDecks, type DiscoverDeck } from '@/lib/discover/discover-client';
+import { userMessage } from '@/lib/util/user-error';
 import { HomeSectionSearch } from './HomeSectionSearch';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';

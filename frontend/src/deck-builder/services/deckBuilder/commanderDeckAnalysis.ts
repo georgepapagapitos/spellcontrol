@@ -1,7 +1,7 @@
-import { logger } from '@/lib/logger';
-import { bestEffortBudget } from '@/lib/best-effort';
+import { logger } from '@/lib/util/logger';
+import { bestEffortBudget } from '@/deck-builder/lib/best-effort';
 import { HARDCODED_GAME_CHANGERS, resolveComboTemplates } from '@spellcontrol/deck-metrics';
-import { ensureCardTags, getCardTags, isKnownCardTag } from '@/lib/card-tags';
+import { ensureCardTags, getCardTags, isKnownCardTag } from '@/lib/cards/card-tags';
 import type {
   ScryfallCard,
   EDHRECCommanderData,
@@ -28,7 +28,7 @@ import {
   searchCards,
   commanderSearchIdentity,
 } from '@/deck-builder/services/scryfall/client';
-import { isBasicLandName } from '@/lib/allocations';
+import { isBasicLandName } from '@/lib/collection/allocations';
 import { fetchCommanderData, fetchPartnerCommanderData, fetchCardLiftPool } from '../edhrec/client';
 import { buildLiftIndex } from './liftSynergy';
 import { estimateBracket, type BracketEstimation } from './bracketEstimator';
@@ -51,7 +51,7 @@ import { loadCardSimilar, getSimilarRank } from './cardSimilar';
 import { computePlanScore, type PlanScore, type StrategyEngineInput } from './planScore';
 import { computeMisfits, summarizeMisfits, type MisfitSummary } from './cardFit';
 import { buildCostPlan, type CostPlan } from './costAnalyzer';
-import { frontFaceName, getByCardName } from '@/lib/card-text';
+import { frontFaceName, getByCardName } from '@/lib/cards/card-text';
 import { isSignatureSynergy } from './synergyLift';
 import { analyzeDeckSynergy, isLoadBearing, type DeckSynergy } from '../synergy/deckSynergy';
 import {
@@ -301,7 +301,7 @@ export function buildStrategyEngineInput(
  * deck-metrics' `TemplateCard` structurally, no adapter needed) resolves any
  * `--` unnamed-card ("template") requirement against what the deck actually
  * runs, via `resolveComboTemplates`. `otag:` clauses read against whatever
- * the `lib/card-tags` snapshot has loaded so far — best-effort: if it hasn't
+ * the `lib/cards/card-tags` snapshot has loaded so far — best-effort: if it hasn't
  * loaded yet, those clauses stay unresolved (never a wrong "satisfied") until
  * the next recompute.
  */

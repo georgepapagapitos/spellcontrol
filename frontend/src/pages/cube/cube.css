@@ -1123,6 +1123,8 @@
   background: linear-gradient(90deg, var(--accent-light), transparent 60%);
   --text-muted: var(--text-muted-tint);
   --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
 }
 /* The clickable row nests a real <button> (a11y: an `<li role="button">` is
    a non-interactive element carrying an interactive role) — the row (li)
@@ -1230,6 +1232,8 @@
   background: var(--accent-light);
   --text-muted: var(--text-muted-tint);
   --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   border: 1px solid transparent;
   font-size: var(--text-xs);
   color: var(--accent);
@@ -1476,6 +1480,8 @@
   background: var(--accent-light);
   --text-muted: var(--text-muted-tint);
   --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
 }
 
 .cube-collab-friend-row.disabled {

@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { CARD_TABLE_COLUMNS } from '../components/shared/CardTable';
-import { formatLocation } from '../lib/card-locations';
+import { formatLocation } from '@/lib/binder/card-locations';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const css = readFileSync(join(here, 'collection.css'), 'utf8');

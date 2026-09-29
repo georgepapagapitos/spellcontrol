@@ -1,5 +1,5 @@
 import { useThemeStore } from '@/store/theme';
-import { THEMES } from '@/lib/themes';
+import { THEMES } from '@/lib/account/themes';
 import { TypeSetPicker } from '@/components/TypeSetPicker';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 

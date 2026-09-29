@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useThemeStore, bootstrapTheme } from './theme';
-import { DEFAULT_THEME, DEFAULT_DARK_THEME } from '../lib/themes';
+import { DEFAULT_THEME, DEFAULT_DARK_THEME } from '@/lib/account/themes';
 
 const VALID = 'boros';
 const VALID_DARK = 'rakdos';

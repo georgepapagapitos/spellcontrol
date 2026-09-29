@@ -5,7 +5,7 @@ import { OwnershipBadge } from './OwnershipBadge';
 import { VerdictBadge, type VerdictTone } from './VerdictBadge';
 import { WhyBreakdown } from './WhyBreakdown';
 import { AiMarker } from './AiMarker';
-import { isOffMetaChange, type Change } from '@/lib/deck-change';
+import { isOffMetaChange, type Change } from '@/lib/coach/deck-change';
 
 /** Budget-swap confidence tier → badge tone + word (STYLE_GUIDE: success/info/warn).
  *  How close the cheaper suggestion is to the card it replaces. */
@@ -14,11 +14,11 @@ const CONFIDENCE_BADGE: Record<string, { tone: VerdictTone; label: string }> = {
   sidegrade: { tone: 'info', label: 'Sidegrade' },
   budget: { tone: 'warn', label: 'Budget' },
 };
-import { useCardThumb } from '@/lib/card-thumbs';
-import { formatMoney } from '@/lib/format-money';
+import { useCardThumb } from '@/lib/cards/card-thumbs';
+import { formatMoney } from '@/lib/collection/format-money';
 import { ManaCost } from '../ManaCost';
-import { classifyInclusion, inclusionColor } from '@/lib/inclusion-label';
-import { synergyPct } from '@/lib/why-factors';
+import { classifyInclusion, inclusionColor } from '@/lib/deck-analysis/inclusion-label';
+import { synergyPct } from '@/lib/coach/why-factors';
 import { scryfallArtCrop } from '@/lib/offline/slim-to-scryfall';
 import { MeterBar } from '../shared/MeterBar';
 

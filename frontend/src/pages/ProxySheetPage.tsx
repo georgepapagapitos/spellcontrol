@@ -8,9 +8,9 @@ import { Button } from '@/components/shared/Button';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { MeterBar } from '@/components/shared/MeterBar';
 import { Field, SegmentedControl, SwitchRow } from '@/components/shared/form';
-import { useCollectionByCopyId } from '@/lib/allocations';
-import { useAwaitingFirstPull } from '@/lib/use-awaiting-first-pull';
-import { useDocumentTitle } from '@/lib/use-document-title';
+import { useCollectionByCopyId } from '@/lib/collection/allocations';
+import { useAwaitingFirstPull } from '@/lib/sync/use-awaiting-first-pull';
+import { useDocumentTitle } from '@/lib/util/use-document-title';
 import {
   buildProxyTiles,
   chunkPages,
@@ -19,7 +19,7 @@ import {
   selectProxyCards,
   type ProxyScope,
   type ProxyTile,
-} from '@/lib/proxy-sheet';
+} from '@/lib/collection/proxy-sheet';
 import { useDecksStore } from '@/store/decks';
 import './ProxySheetPage.css';
 

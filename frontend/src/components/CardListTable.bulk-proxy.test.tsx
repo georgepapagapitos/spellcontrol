@@ -5,7 +5,7 @@
  * reusing the same replaceAllCards + Undo-toast mechanism as the single-card
  * edit path (CardListTable.edit-undo.test.tsx) rather than a new persistence
  * path. Also covers the price-total consequence: applyPrices force-zeros a
- * proxy's purchasePrice (lib/card-prices.ts) and that must land immediately,
+ * proxy's purchasePrice (lib/collection/card-prices.ts) and that must land immediately,
  * not just on the next price refresh.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -14,12 +14,12 @@ import { MemoryRouter } from 'react-router-dom';
 import type { EnrichedCard } from '../types';
 import { useCollectionStore } from '../store/collection';
 import { useToastsStore } from '../store/toasts';
-import { setPrices, _resetForTests as resetPriceCache } from '../lib/card-prices';
+import { setPrices, _resetForTests as resetPriceCache } from '@/lib/collection/card-prices';
 
 // These tests assert on the in-memory store; the IndexedDB save behind it
 // would otherwise wait on a collection hydration that never happens here.
-vi.mock('../lib/local-cards', async (importActual) => ({
-  ...(await importActual<typeof import('../lib/local-cards')>()),
+vi.mock('@/lib/sync/local-cards', async (importActual) => ({
+  ...(await importActual<typeof import('@/lib/sync/local-cards')>()),
   saveCollection: async () => {},
 }));
 
@@ -46,7 +46,7 @@ vi.mock('./CardPreview', () => ({
 }));
 
 import { CardListTable } from './CardListTable';
-import { ShortcutRegistryProvider } from '../lib/shortcut-registry';
+import { ShortcutRegistryProvider } from './shortcut-registry';
 
 function mk(o: Partial<EnrichedCard> = {}): EnrichedCard {
   return {

@@ -36,6 +36,8 @@
   background: var(--accent-light);
   --text-muted: var(--text-muted-tint);
   --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -52,6 +54,8 @@ input.deck-row-qty-input {
   background: var(--accent-light);
   --text-muted: var(--text-muted-tint);
   --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   border: 1px solid var(--accent);
   color: var(--text-primary);
   /* Fill the section's qty column (never narrower than two digits), so

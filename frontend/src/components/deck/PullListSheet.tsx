@@ -1,12 +1,12 @@
 import { createPortal } from 'react-dom';
 import { type JSX, useCallback, useId, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
-import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
-import { useSheetExit } from '../../lib/use-sheet-exit';
-import { useSetMap } from '../../lib/api';
-import { buildPullList, isPullableKind, type PullListGroup } from '../../lib/pull-list';
-import { formatLocationSpan } from '../../lib/card-locations';
-import type { AllocationInfo } from '../../lib/allocations';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
+import { useSetMap } from '@/lib/api';
+import { buildPullList, isPullableKind, type PullListGroup } from '@/lib/collection/pull-list';
+import { formatLocationSpan } from '@/lib/binder/card-locations';
+import type { AllocationInfo } from '@/lib/collection/allocations';
 import type { Deck } from '../../store/decks';
 import type { BinderDef, EnrichedCard } from '../../types';
 import { CardRow } from '../shared/CardRow';

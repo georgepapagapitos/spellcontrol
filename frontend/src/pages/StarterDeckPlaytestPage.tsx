@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { fetchProduct } from '@/lib/api';
-import { importToDeck } from '@/lib/import-to-deck';
-import { starterDeckLocalId } from '@/lib/starter-decks';
-import { userMessage } from '@/lib/user-error';
-import { useDocumentTitle } from '@/lib/use-document-title';
+import { importToDeck } from '@/lib/import-export/import-to-deck';
+import { starterDeckLocalId } from '@/lib/play/starter-decks';
+import { userMessage } from '@/lib/util/user-error';
+import { useDocumentTitle } from '@/lib/util/use-document-title';
 import { PlaytestSession } from '@/playtest/components/PlaytestSession';
 import { toast } from '@/store/toasts';
 import type { Deck } from '@/store/decks';
@@ -30,7 +30,7 @@ type State =
  * endpoint every time, so a starter always reflects the current card cache.
  *
  * This is also the board an online seat on a starter opens (see
- * `lib/starter-decks.ts:deckBoardPath`), which is why it is a real route with
+ * `lib/play/starter-decks.ts:deckBoardPath`), which is why it is a real route with
  * a resolvable id and not a piece of picker state. The table link then holds
  * by construction: `useTableSeat` seats a board when the seat's `deckId` is
  * the deck the board is playing, and both are `starter:<fileName>`.

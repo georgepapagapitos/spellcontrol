@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
-import { grantAiConsent } from '../../lib/use-ai-status';
+import { grantAiConsent } from '@/lib/ai/use-ai-status';
 import { AiMarker } from './AiMarker';
 import './DeckAiConsent.css';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
 /** Shared across every AI surface — dismissing anywhere dismisses everywhere. */

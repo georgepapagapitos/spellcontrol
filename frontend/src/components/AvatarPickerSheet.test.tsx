@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 
-vi.mock('../lib/use-lock-body-scroll', () => ({ useLockBodyScroll: () => {} }));
+vi.mock('@/lib/overlays/use-lock-body-scroll', () => ({ useLockBodyScroll: () => {} }));
 
 interface FakeCard {
   copyId: string;
@@ -17,7 +17,7 @@ vi.mock('../store/collection', () => ({
 }));
 
 const useSearchCardsMock = vi.fn();
-vi.mock('../lib/use-search-cards', () => ({
+vi.mock('@/lib/search/use-search-cards', () => ({
   useSearchCards: (query: string) => useSearchCardsMock(query),
 }));
 
@@ -26,7 +26,7 @@ vi.mock('../lib/use-search-cards', () => ({
 // the real Scryfall client. useCardThumb resolves by name, same as every
 // other name-only surface in the app.
 const loadCardMock = vi.fn(async (name: string) => ({ id: `resolved-${name}`, name }));
-vi.mock('../lib/card-thumbs', () => ({
+vi.mock('@/lib/cards/card-thumbs', () => ({
   imageFromCard: (card: { id: string }) => `https://cards.scryfall.io/art_crop/${card.id}.jpg`,
   useCardThumb: (name: string | undefined) =>
     name ? `https://cards.scryfall.io/art_crop/thumb-${name}.jpg` : undefined,

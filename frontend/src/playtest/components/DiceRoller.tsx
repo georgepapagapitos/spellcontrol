@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import './DiceRoller.css';
-import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/use-sheet-exit';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
 import { useOnlineSignals } from '../hooks/use-online-signals';
 import { Button } from '@/components/shared/Button';
 

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import type { PlaytestCard, Zone } from '@/lib/playtest';
-import { useLongPress } from '@/lib/use-long-press';
+import { useLongPress } from '@/lib/util/use-long-press';
 import { TaxCoins } from './TaxCoins';
 
 /** How many command-zone cards the corner row draws. Two, because that is a

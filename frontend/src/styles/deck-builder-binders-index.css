@@ -166,7 +166,7 @@
 }
 
 /* Name is the colored header band. Its ink is picked from the band's own
-   colour (--binder-ink, see lib/ink.ts), so it stays legible on any
+   colour (--binder-ink, see lib/util/ink.ts), so it stays legible on any
    user-chosen binder color (pale gold through dark purple); an uncoloured
    tile falls back to the accent and its --on-accent pair.
    Right padding clears the absolutely-positioned 3-dot menu: the button, its

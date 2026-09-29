@@ -2,7 +2,7 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect } from 'vitest';
 import { ownershipIndex, countEligibleLegends, pickToPreviewCard, pickThumb } from './shared';
-import type { AllocationInfo } from '@/lib/allocations';
+import type { AllocationInfo } from '@/lib/collection/allocations';
 import type { EnrichedCard } from '@/types';
 import type { ScryfallCard } from '@/deck-builder/types';
 

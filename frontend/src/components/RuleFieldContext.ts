@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import type { FilterFieldId } from '../lib/filter-fields';
+import type { FilterFieldId } from '@/lib/search/filter-fields';
 
 export interface RuleFieldVisibility {
   /** Whether this field's row should render at all. */

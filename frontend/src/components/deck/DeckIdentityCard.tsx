@@ -8,14 +8,14 @@ import {
   type SubScoreKey,
   type PlanScore,
 } from '@/deck-builder/services/deckBuilder/planScore';
-import { buildCommanderKey } from '@/lib/commander-key';
-import { getCommanderStats } from '@/lib/aggregates-client';
+import { buildCommanderKey } from '@/lib/deck/commander-key';
+import { getCommanderStats } from '@/lib/discover/aggregates-client';
 import { CommanderPopularityStat } from './CommanderPopularityStat';
 import type {
   CheckStatus,
   ValidationResult,
 } from '@/deck-builder/services/deckBuilder/validationChecklist';
-import type { LaneId } from '@/lib/deck-change';
+import type { LaneId } from '@/lib/coach/deck-change';
 import { InfoTip } from '@/components/InfoTip';
 import { SelectMenu, type SelectOption } from '@/components/SelectMenu';
 import { MeterBar } from '@/components/shared/MeterBar';

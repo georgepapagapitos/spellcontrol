@@ -1,7 +1,7 @@
 import type { EDHRECCard, EDHRECCommanderData, GapAnalysisCard } from '@/deck-builder/types';
 import { getCardRole } from '@/deck-builder/services/tagger/client';
-import { isBasicLandName } from '@/lib/allocations';
-import { frontFaceName } from '@/lib/card-text';
+import { isBasicLandName } from '@/lib/collection/allocations';
+import { frontFaceName } from '@/lib/cards/card-text';
 
 /** Default number of EDHREC-recommended cards to surface as "cards to consider". */
 const DEFAULT_GAP_LIMIT = 30;

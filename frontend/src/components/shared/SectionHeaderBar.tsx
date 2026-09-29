@@ -1,6 +1,6 @@
 import { ChevronDown } from 'lucide-react';
 import type { CSSProperties, ReactNode } from 'react';
-import type { SectionHeader } from '../../lib/group-sections';
+import type { SectionHeader } from '@/lib/collection/group-sections';
 
 /**
  * The group divider inside a grouped card list: a disclosure button carrying a

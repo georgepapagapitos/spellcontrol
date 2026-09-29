@@ -1,7 +1,7 @@
 import type { JSX } from 'react';
 import './SubScoreTile.css';
 import type { SubScore, SubScoreKey } from '@/deck-builder/services/deckBuilder/planScore';
-import { useAnimatedNumber } from '@/lib/use-animated-number';
+import { useAnimatedNumber } from '@/lib/util/use-animated-number';
 
 /** Human label for each subscore key. */
 const KEY_LABELS: Record<SubScoreKey, string> = {

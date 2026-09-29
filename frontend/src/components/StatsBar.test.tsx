@@ -3,7 +3,7 @@
  * T164 — the Breakdown drawer's Insights section (compact rows, hidden when
  * empty) and the flexible group-by/measure Breakdown card. ValueTrend is
  * mocked: it owns its own value-history IndexedDB store (a concurrent
- * session's file — see lib/value-history.ts) and isn't this file's concern.
+ * session's file — see lib/collection/value-history.ts) and isn't this file's concern.
  */
 import 'fake-indexeddb/auto';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -15,7 +15,7 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import { useCubeStore } from '../store/cube';
-import { useCurrencyStore } from '../lib/currency';
+import { useCurrencyStore } from '@/lib/collection/currency';
 
 vi.mock('./ValueTrend', () => ({ ValueTrend: () => null }));
 

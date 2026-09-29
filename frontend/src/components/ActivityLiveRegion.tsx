@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useActivity, subscribeToActivityAnnouncements } from '../lib/use-activity';
+import { useActivity, subscribeToActivityAnnouncements } from '@/lib/social/use-activity';
 
 /**
  * Mounted once in Layout.tsx (not duplicated in Header/MobileTabBar, which

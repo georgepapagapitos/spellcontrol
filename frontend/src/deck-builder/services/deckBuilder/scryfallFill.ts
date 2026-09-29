@@ -1,6 +1,6 @@
 // Scryfall-search fallback fill: used when EDHREC pools can't satisfy a slot
 // target. Extracted verbatim from deckGenerator.ts.
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/util/logger';
 import type { ScryfallCard, MaxRarity, CollectionStrategy } from '@/deck-builder/types';
 import { searchCards, commanderSearchIdentity } from '@/deck-builder/services/scryfall/client';
 import { BudgetTracker } from './budgetTracker';
@@ -16,7 +16,7 @@ import {
   exceedsCmcCap,
   notLegalForFormat,
 } from './deckFilters';
-import { frontFaceName } from '@/lib/card-text';
+import { frontFaceName } from '@/lib/cards/card-text';
 import { buildSynergyFingerprint, synergyScore } from './synergyFingerprint';
 import type { BracketGuard } from './bracketGuard';
 import { validateCardRole, type RoleKey } from '@/deck-builder/services/tagger/client';

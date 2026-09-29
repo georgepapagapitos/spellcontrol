@@ -7,7 +7,7 @@ import { PageHeader } from '../../components/PageHeader';
 import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
 import { useCubeStore } from '../../store/cube';
-import { buildAvailableCollection } from '../../lib/collection-availability';
+import { buildAvailableCollection } from '@/lib/collection/collection-availability';
 
 /**
  * `/decks/cube/new` — the start chooser (STYLE_GUIDE § Config surfaces: "a new

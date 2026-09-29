@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('../lib/use-can-scan', () => ({
+vi.mock('@/lib/scanner/use-can-scan', () => ({
   useCanScan: vi.fn(() => false),
 }));
 
@@ -17,7 +17,7 @@ vi.mock('./CardScanner', () => ({
   ),
 }));
 
-import { useCanScan } from '../lib/use-can-scan';
+import { useCanScan } from '@/lib/scanner/use-can-scan';
 import { ScanFab } from './ScanFab';
 
 function setPhone(phone: boolean) {

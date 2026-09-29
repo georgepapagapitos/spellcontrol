@@ -24,9 +24,9 @@
  */
 import { useEffect, useState } from 'react';
 import { SelectMenu } from '@/components/SelectMenu';
-import { THEMES, isValidTheme } from '@/lib/themes';
-import { TYPESETS, isValidTypeSet } from '@/lib/typesets';
-import { useDocumentTitle } from '@/lib/use-document-title';
+import { THEMES, isValidTheme } from '@/lib/account/themes';
+import { TYPESETS, isValidTypeSet } from '@/lib/account/typesets';
+import { useDocumentTitle } from '@/lib/util/use-document-title';
 import { useThemeStore } from '@/store/theme';
 import { useTypeSetStore } from '@/store/typeset';
 import { CatalogSections } from './catalog/CatalogSections';

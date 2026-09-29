@@ -15,17 +15,17 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EnrichedCard } from '../../types';
-import type { TradeCard } from '../../lib/trades-client';
+import type { TradeCard } from '@/lib/trade/trades-client';
 
-vi.mock('../../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
-vi.mock('../../lib/use-binder-by-copy', () => ({ useBinderByCopyId: () => new Map() }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/binder/use-binder-by-copy', () => ({ useBinderByCopyId: () => new Map() }));
 vi.mock('../../store/decks', () => ({
   useDecksStore: (sel: (s: unknown) => unknown) => sel({ decks: [] }),
 }));
 vi.mock('../../store/cube', () => ({
   useCubeStore: (sel: (s: unknown) => unknown) => sel({ saved: [] }),
 }));
-vi.mock('../../lib/trade-preview', () => ({ resolveTradePreview: vi.fn() }));
+vi.mock('@/lib/trade/trade-preview', () => ({ resolveTradePreview: vi.fn() }));
 vi.mock('../CardPreview', () => ({ CardPreview: () => null }));
 
 import { TradeAcceptDialog, type AcceptChoice } from './TradeAcceptDialog';

@@ -9,12 +9,12 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { fetchPublicShareMock } = vi.hoisted(() => ({ fetchPublicShareMock: vi.fn() }));
-vi.mock('../lib/share-client', async (importOriginal) => {
-  const real = await importOriginal<typeof import('../lib/share-client')>();
+vi.mock('@/lib/social/share-client', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@/lib/social/share-client')>();
   return { ...real, fetchPublicShare: fetchPublicShareMock };
 });
 
-import { ShareAuthRequiredError, ShareForbiddenError } from '../lib/share-client';
+import { ShareAuthRequiredError, ShareForbiddenError } from '@/lib/social/share-client';
 import { SharedView } from './SharedView';
 
 function renderShare() {

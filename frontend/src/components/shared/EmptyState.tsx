@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { joinClasses } from '@/lib/join-classes';
+import { joinClasses } from '@/lib/util/join-classes';
 
 interface PrimaryProps {
   compact?: false;

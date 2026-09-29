@@ -5,7 +5,7 @@ import path from 'node:path';
 export default defineConfig({
   plugins: [react()],
   // Mirror the `__BUILD_ID__` define from vite.config.ts so source files
-  // that read it (lib/register-pwa.ts) compile under vitest. Tests that
+  // that read it (lib/util/register-pwa.ts) compile under vitest. Tests that
   // need a specific value override via vi.stubGlobal('__BUILD_ID__', ...).
   define: {
     __BUILD_ID__: JSON.stringify('test-build-id'),
@@ -101,8 +101,8 @@ export default defineConfig({
       //   - use-wake-lock.ts: navigator.wakeLock + visibilitychange
       //   - keyboard.ts: window.visualViewport resize/scroll glue
       exclude: [
-        'src/lib/use-wake-lock.ts',
-        'src/lib/keyboard.ts',
+        'src/lib/util/use-wake-lock.ts',
+        'src/lib/util/keyboard.ts',
         // Network + IDB orchestration (fetch streaming, gzipped bulk loads,
         // progress callbacks). Verified via integration; not unit-testable
         // without a streaming-fetch shim that fights real-runtime behavior.

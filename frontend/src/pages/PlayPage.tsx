@@ -14,7 +14,7 @@ import { Count } from '@/components/shared/Count';
 import { Check, Copy, Eye, Swords, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { useSignInPath } from '../lib/sign-in-path';
+import { useSignInPath } from '@/lib/account/sign-in-path';
 import { useAuth } from '../store/auth';
 import { useDecksStore, type Deck } from '../store/decks';
 import {
@@ -25,9 +25,9 @@ import {
   type LocalGameSetup,
   type SeatSeed,
 } from '../store/play';
-import { listFriends, type Friend } from '../lib/friends-client';
-import { getPod, listPods, type Pod } from '../lib/pods-client';
-import { formatIdentity } from '../lib/display-name';
+import { listFriends, type Friend } from '@/lib/social/friends-client';
+import { getPod, listPods, type Pod } from '@/lib/social/pods-client';
+import { formatIdentity } from '@/lib/social/display-name';
 import { toast } from '../store/toasts';
 import { GameBoard } from '../components/play/GameBoard';
 import { EndGameDialog } from '../components/play/EndGameDialog';
@@ -44,20 +44,26 @@ import { PageHeader } from '../components/PageHeader';
 import { StackedBar } from '../components/shared/MeterBar';
 import { FriendsLeaderboard } from '../components/play/FriendsLeaderboard';
 import { GameNightsTab, pendingInviteCount, useGameNights } from '../components/play/GameNights';
-import { aggregateMatchupRecords } from '../lib/matchup-records';
-import { FORMAT_OPTIONS, MAX_LOCAL_PLAYERS, MIN_LOCAL_PLAYERS } from '../lib/game-formats';
-import { MAX_COUNTERS_PER_SCOPE, MAX_COUNTER_NAME_LENGTH } from '../lib/game-state';
+import { aggregateMatchupRecords } from '@/lib/play/matchup-records';
+import { FORMAT_OPTIONS, MAX_LOCAL_PLAYERS, MIN_LOCAL_PLAYERS } from '@/lib/play/game-formats';
+import { MAX_COUNTERS_PER_SCOPE, MAX_COUNTER_NAME_LENGTH } from '@/lib/play/game-state';
 import { DeckPicker, SeatPips, Stepper } from '../components/play/SetupControls';
 import { SwitchRow } from '../components/shared/form';
 import type { PickedDeck } from '../components/play/DeckPickerDialog';
-import { deckBoardPath, starterFileName } from '../lib/starter-decks';
+import { deckBoardPath, starterFileName } from '@/lib/play/starter-decks';
 import { TableProfiles } from '../components/play/TableProfiles';
-import type { GameAction, GameFormat, GamePlayer, GameRecord, GameState } from '../lib/game-state';
-import { useCopyFeedback } from '@/lib/use-copy-feedback';
-import { gameToRecord } from '../lib/game-state';
+import type {
+  GameAction,
+  GameFormat,
+  GamePlayer,
+  GameRecord,
+  GameState,
+} from '@/lib/play/game-state';
+import { useCopyFeedback } from '@/lib/util/use-copy-feedback';
+import { gameToRecord } from '@/lib/play/game-state';
 import type { PublicBoard } from '../lib/playtest/projection';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { PlayHome, type PlayHomeTarget } from '../components/play/PlayHome';
 import { HordeSetupFields } from '../components/play/horde/HordeSetupFields';
 import { HordeTable } from '../components/play/horde/HordeTable';
@@ -66,7 +72,7 @@ import { findBannedCards } from '../lib/horde/ban-list';
 import { useStarterDeckCardNames } from '../lib/horde/starter-deck-cards';
 import { HORDE_CATALOG, type HordeLevel, type HordeSettings } from '@/lib/horde';
 import { useHordeGameStore, type HordeSurvivor } from '../store/horde-game';
-import { coopResultLabel } from '../lib/horde-records';
+import { coopResultLabel } from '@/lib/horde/horde-records';
 import { Button, IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 type Tab = 'home' | 'local' | 'online' | 'nights' | 'history';

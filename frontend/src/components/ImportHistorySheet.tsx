@@ -3,11 +3,11 @@ import { Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import './ImportHistorySheet.css';
 import { useCollectionStore } from '../store/collection';
-import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
-import { useSheetExit } from '../lib/use-sheet-exit';
-import { formatRelativeTime } from '../lib/format-time';
-import { prettyImportName } from '../lib/import-history-name';
-import type { ImportHistoryEntry } from '../lib/local-cards';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
+import { formatRelativeTime } from '@/lib/util/format-time';
+import { prettyImportName } from '@/lib/import-export/import-history-name';
+import type { ImportHistoryEntry } from '@/lib/sync/local-cards';
 import { Modal } from './Modal';
 import { Button } from '@/components/shared/Button';
 

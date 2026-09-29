@@ -1,4 +1,4 @@
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/util/logger';
 import type {
   CoherenceRepair,
   DetectedCombo,
@@ -7,7 +7,7 @@ import type {
 } from '@/deck-builder/types';
 import type { GenerationState } from './state';
 import { markBanned } from './state';
-import { frontFaceName, getByCardName } from '@/lib/card-text';
+import { frontFaceName, getByCardName } from '@/lib/cards/card-text';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { isProtectionPiece, isFreeInteraction } from '@/deck-builder/services/tagger/client';
 import {

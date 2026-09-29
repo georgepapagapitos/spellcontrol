@@ -258,7 +258,7 @@ accent-filled variant and OR the muted one.
   itself; standing alone it doesn't — never render the bare pill without the
   hint text.
 - **Semantics:** OR = card shows any selected color (`colorSelectionMatches`
-  in `lib/colors.ts`, the single predicate); AND = the card's colors are
+  in `lib/cards/colors.ts`, the single predicate); AND = the card's colors are
   **exactly** the selection (Blue alone = mono-blue, R + W = Boros only, not
   Naya). AND is an exact match, not a superset one: a lone pip reading as
   "every card that happens to contain blue" is the bug that made the mode
@@ -304,7 +304,7 @@ is $0, not real"), never color-only (the letter carries the meaning).
   purpose, so `card.priceOverride` follows the identical path.
 - **One chip, two states, not two components.** A currency-mismatched
   override (recorded in EUR, viewed in USD, or vice versa — this app has no
-  FX conversion, see `applyPrices` in `lib/card-prices.ts`) dims the same chip
+  FX conversion, see `applyPrices` in `lib/collection/card-prices.ts`) dims the same chip
   to `.is-dormant` rather than hiding it: the override still exists, it's just
   not the number currently on screen, and the dimmed chip + its `title` say
   so. Losing the indicator entirely on a currency flip would look like the
@@ -351,7 +351,7 @@ and `UnresolvedNameRow`:
 - **One container** (`.import-review`, `--radius-lg`, `--surface` bg) with a
   single header: a small-caps title that reads `Import needs a look` if
   anything is still actionable (fetch errors to retry, names to fix) or
-  `Import summary` when everything resolved cleanly — `lib/import-review.ts`
+  `Import summary` when everything resolved cleanly — `lib/import-export/import-review.ts`
   `importReviewHeadline()` is the pure decision. Only fetch-errors and
   unresolved-names escalate the headline; malformed/skipped/clamped rows are
   informational only (nothing left to do), so they don't.
@@ -384,7 +384,7 @@ and `UnresolvedNameRow`:
   instead of navigating away mid-summary, so "where did my cards go?" is
   answered before the sheet closes.
 - **One hook owns every input that changes a binder's layout** (E457,
-  2026-09-27): `lib/use-binder-layout-inputs.ts`'s `useBinderLayoutInputs()`
+  2026-09-27): `lib/binder/use-binder-layout-inputs.ts`'s `useBinderLayoutInputs()`
   is `pages/BinderPage.tsx`'s own materialize chain — cards decorated with
   oracle tags → Secret Lair drops → per-printing release dates, plus
   `allocatedCopyIds` and `setMap` — extracted so a caller outside BinderPage
@@ -501,7 +501,7 @@ commanders): the same violet Boxes mark drawn **hollow and dashed**, the "no
 physical home" mark the Uncategorized chip already uses. In a row that is a
 dashed chip; on art it is the scrim with a dashed violet ring
 (`data-identity="listed"`, STYLE_GUIDE § On-art scrims). A listing is not a
-claim. It comes from `lib/cube-listings.ts`, by card name, and never enters the
+claim. It comes from `lib/cube/cube-listings.ts`, by card name, and never enters the
 allocation map, so a listed copy stays available to decks and binders. The
 dashed badge reads "Listed in cube: <name>", links to the cube, and sits beside
 any deck badge rather than replacing it. The card preview's context line
@@ -556,7 +556,7 @@ It's baked into the two shared primitives directly, not a per-surface slot,
 so every consumer gets it for free. `altered`/`misprint` have identical
 plumbing (`CardEditDialog`'s flag chips, `CardPreview`'s inspector line) but
 stay inspector-only: unlike proxy, they don't change a computed value — a
-proxy is force-priced to $0 by `applyPrices` (`lib/card-prices.ts`), which is
+proxy is force-priced to $0 by `applyPrices` (`lib/collection/card-prices.ts`), which is
 what makes it worth surfacing at a glance everywhere a price total is read.
 Revisit if a real ask for altered/misprint at-a-glance ever lands.
 
@@ -687,7 +687,7 @@ same controls, from `components/CopyControls` plus the kit:
   side labels ([§ Config surfaces](components.md#config-surfaces-t139)). Two fields to a row once the container, not
   the viewport, is 30rem wide.
 - **Sticky defaults are one settings sheet ("Add settings"), not per-surface
-  state.** `ScannerSettingsSheet` (`lib/scanner-settings.ts`'s persisted store)
+  state.** `ScannerSettingsSheet` (`lib/scanner/scanner-settings.ts`'s persisted store)
   holds `defaultFinish` / `defaultCondition` / `defaultLanguage`, opened from
   the scanner's gear and from a matching gear in the Add cards sheet header.
   A quick add ("+" with no picker) applies these three; an explicit picker add
@@ -837,7 +837,7 @@ references. Rules:
   never show art.
 - **The cover is derived, user-overridable.** Decks use the commander's art;
   binders use the **most valuable card** (price, ties toward the lower EDHREC
-  rank — `lib/binder-cover.ts`), overridable per card via "Set cover" /
+  rank — `lib/binder/binder-cover.ts`), overridable per card via "Set cover" /
   "Remove cover" in the card preview's icon bar inside that binder. The
   override is stored as a **Scryfall printing id** on the def (durable across
   the copyId regeneration every import causes) and silently falls back to
@@ -888,7 +888,7 @@ public profile) is the reference. Rulings:
   **class, never `> span:last-child`** — that selector silently retargets the
   moment anything is appended to the row.
 - **The deck value is pinned to the end of the tail (2026-09-25).** The
-  index prints each deck's value (`lib/deck-value.ts`, the same number the
+  index prints each deck's value (`lib/deck/deck-value.ts`, the same number the
   deck hero shows and the Value sort orders by). It sits in
   `.decks-index-card-facts`, one flex item holding the detail and the value:
   the detail shrinks, the value never does, and a CSS `::before` supplies the
@@ -974,7 +974,7 @@ where the user owns some and lacks the rest — first used by the Sets tab
   chip. Hover (hover-gated) partially restores the art as an invitation.
   Never drop missing cards from the default view — the gaps ARE the feature.
 - **Completion numbers never round up:** a partial set displays at most 99%
-  (`completionPct` in `lib/set-completion.ts`); 100% is reserved for a truly
+  (`completionPct` in `lib/cards/set-completion.ts`); 100% is reserved for a truly
   complete set and is the only state that uses `--brand-seal-gold` (bar fill,
   check icon). Crossing to 100% while mounted fires the seal (standard
   once-per-subject rules in "Completion moments").
@@ -994,11 +994,11 @@ ten cards under a section header (title, a "This week" meta where the list
 has a window, hidden on a phone so the title and its door keep one line) with
 one door, **See all**, to the whole list at
 `/search/top/<list>` (`pages/BrowseListPage.tsx`). The lists are defined once
-in `lib/browse-lists.ts`; a new list is a row there, not a new page.
+in `lib/discover/browse-lists.ts`; a new list is a row there, not a new page.
 
 - **Popularity is EDHREC's; facts about the cards are ours.** Top commanders,
   top cards and salt are EDHREC's numbers, read from our backend's daily copy
-  (`GET /api/edhrec/top`, `lib/edhrec-top.ts`), never from EDHREC in the
+  (`GET /api/edhrec/top`, `lib/discover/edhrec-top.ts`), never from EDHREC in the
   browser. Game Changers, bans and new commanders are Scryfall searches
   (`is:gamechanger`, `banned:commander`, first printings by release date),
   because they are properties of the cards, not of what people play.

@@ -14,7 +14,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 const syncMock = { state: 'ready' as 'idle' | 'syncing' | 'ready', error: false };
 import { vi } from 'vitest';
-vi.mock('../lib/sync', () => ({
+vi.mock('@/lib/sync', () => ({
   getSyncState: () => syncMock.state,
   hasSyncError: () => syncMock.error,
   onSyncedChange: () => () => {},

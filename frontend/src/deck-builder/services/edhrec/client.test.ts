@@ -11,7 +11,7 @@ import {
   MIN_HEALTHY_POOL_CARDS,
   MAX_RETRIES,
 } from './client';
-import { frontFaceName } from '@/lib/card-text';
+import { frontFaceName } from '@/lib/cards/card-text';
 import type { EDHRECCard, EDHRECCommanderData } from '@/deck-builder/types';
 
 // E93: isPoolTooThin gates the fallback ladder — these fixtures are the exact

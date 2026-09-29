@@ -7,22 +7,22 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PublicProfile, PublicProfileDeck } from '../lib/profile-client';
-import { ProfileNotFoundError, ProfileRenamedError } from '../lib/profile-client';
+import type { PublicProfile, PublicProfileDeck } from '@/lib/social/profile-client';
+import { ProfileNotFoundError, ProfileRenamedError } from '@/lib/social/profile-client';
 
 const { fetchPublicProfileMock, fetchProfileCollectionMock } = vi.hoisted(() => ({
   fetchPublicProfileMock: vi.fn(),
   fetchProfileCollectionMock: vi.fn(),
 }));
-vi.mock('../lib/profile-client', async (importOriginal) => {
-  const real = await importOriginal<typeof import('../lib/profile-client')>();
+vi.mock('@/lib/social/profile-client', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@/lib/social/profile-client')>();
   return {
     ...real,
     fetchPublicProfile: fetchPublicProfileMock,
     fetchProfileCollection: fetchProfileCollectionMock,
   };
 });
-vi.mock('../lib/use-panel-cascade', () => ({
+vi.mock('@/lib/util/use-panel-cascade', () => ({
   usePanelCascade: () => ({ animating: false }),
   panelCascadeClass: () => '',
 }));
@@ -357,6 +357,9 @@ describe('PublicProfilePage — banner, stats, follow and what they brew (T175)'
     const first = renderProfile();
     expect(await screen.findByRole('button', { name: 'Follow alice' })).toBeTruthy();
     expect(screen.getByText('Friends')).toBeTruthy();
+    // A status label, never a control: it must not be a button or a link.
+    expect(screen.queryByRole('button', { name: 'Friends' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Friends' })).toBeNull();
     first.unmount();
 
     fetchPublicProfileMock.mockResolvedValue(rich({ isOwner: true }));

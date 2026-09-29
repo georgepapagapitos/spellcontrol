@@ -29,15 +29,15 @@ primitives directory.
 
 ### Card surfaces
 
-| Reach for                                                   | Instead of                    | Ruling                                                                                                                            |
-| ----------------------------------------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `components/shared/CardGridCell`                            | a bespoke grid tile           | [§ Card row information hierarchy](style-guide/cards-collection.md#card-row-information-hierarchy) · § Index tiles wear cover art |
-| `components/shared/CardRow`                                 | a bespoke list row            | [§ Card row information hierarchy](style-guide/cards-collection.md#card-row-information-hierarchy)                                |
-| `components/CardThumb` + `lib/card-thumbs` (`useCardThumb`) | a raw Scryfall image URL      | [§ Card art peek](style-guide/overlays.md#card-art-peek--hover--touch-long-press-e129)                                            |
-| `components/CardPreview`                                    | a second card-detail view     | [§ Card art peek](style-guide/overlays.md#card-art-peek--hover--touch-long-press-e129) — there is exactly one card view           |
-| `components/shared/ManaSymbol` (`ColorPip`)                 | a bare `mana-font` class      | [§ Symbol key / Legend](style-guide/cards-collection.md#symbol-key--legend)                                                       |
-| `components/ManaCost`                                       | mapping a mana string by hand | [§ Card-stat terminology](style-guide/cards-collection.md#card-stat-terminology-mana-value--mana-cost--price)                     |
-| `components/shared/SetSymbol`                               | a bare `keyrune` class        | [§ Symbol key / Legend](style-guide/cards-collection.md#symbol-key--legend)                                                       |
+| Reach for                                                         | Instead of                    | Ruling                                                                                                                            |
+| ----------------------------------------------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `components/shared/CardGridCell`                                  | a bespoke grid tile           | [§ Card row information hierarchy](style-guide/cards-collection.md#card-row-information-hierarchy) · § Index tiles wear cover art |
+| `components/shared/CardRow`                                       | a bespoke list row            | [§ Card row information hierarchy](style-guide/cards-collection.md#card-row-information-hierarchy)                                |
+| `components/CardThumb` + `lib/cards/card-thumbs` (`useCardThumb`) | a raw Scryfall image URL      | [§ Card art peek](style-guide/overlays.md#card-art-peek--hover--touch-long-press-e129)                                            |
+| `components/CardPreview`                                          | a second card-detail view     | [§ Card art peek](style-guide/overlays.md#card-art-peek--hover--touch-long-press-e129) — there is exactly one card view           |
+| `components/shared/ManaSymbol` (`ColorPip`)                       | a bare `mana-font` class      | [§ Symbol key / Legend](style-guide/cards-collection.md#symbol-key--legend)                                                       |
+| `components/ManaCost`                                             | mapping a mana string by hand | [§ Card-stat terminology](style-guide/cards-collection.md#card-stat-terminology-mana-value--mana-cost--price)                     |
+| `components/shared/SetSymbol`                                     | a bare `keyrune` class        | [§ Symbol key / Legend](style-guide/cards-collection.md#symbol-key--legend)                                                       |
 
 ### Controls & chrome
 
@@ -46,7 +46,7 @@ primitives directory.
 | `components/PageHeader`                                        | a hand-built `.binder-hero`                          | § Layout system                                                                                                             |
 | `components/shared/Button` (`Button`)                          | a raw `className="btn …"`                            | § Shape language — Buttons are a primitive                                                                                  |
 | `components/shared/Button` (`IconButton`)                      | a `<button>` holding only a glyph                    | § Shape language — Buttons are a primitive                                                                                  |
-| `lib/icon-scale` (`ICON_SCALE`)                                | a one-off `lucide-react` size/strokeWidth pair       | § Icon scale                                                                                                                |
+| `lib/util/icon-scale` (`ICON_SCALE`)                           | a one-off `lucide-react` size/strokeWidth pair       | § Icon scale                                                                                                                |
 | `components/shared/CopyButton` (`CopyButton`/`CopyIconButton`) | a hand-rolled `Copied` label swap or copy toast      | § Verbs (Copy)                                                                                                              |
 | `components/shared/Chip`                                       | a raw `className="…-chip"` element                   | § Shape language — Chips are a primitive                                                                                    |
 | `components/shared/Chip` (`tone`)                              | a raw `-badge`/`-pill`/`-tag` label, or `is-*` tones | § Shape language — Badges, counts and surfaces are primitives                                                               |
@@ -60,9 +60,9 @@ primitives directory.
 | `components/SelectMenu`                                        | a restyled `<select>`                                | [§ Toolbars & action rows](style-guide/components.md#toolbars--action-rows-responsive)                                      |
 | `components/OverflowMenu`                                      | a hand-rolled `⋮` popover                            | [§ Toolbars & action rows](style-guide/components.md#toolbars--action-rows-responsive)                                      |
 | `components/shared/CtxMenuShell`                               | a hand-rolled right-click menu                       | § Verbs (menus)                                                                                                             |
-| `lib/use-menu-keyboard`                                        | a bespoke `role="menu"` key handler                  | § Verbs (menus)                                                                                                             |
+| `lib/overlays/use-menu-keyboard`                               | a bespoke `role="menu"` key handler                  | § Verbs (menus)                                                                                                             |
 | `components/shared/InlineRename`                               | a bespoke input-swap rename flow                     | § Verbs (rename)                                                                                                            |
-| `OverflowMenu` `contextHost` (+ `lib/context-menu`)            | an `onContextMenu` on an item                        | § Verbs (menus)                                                                                                             |
+| `OverflowMenu` `contextHost` (+ `lib/overlays/context-menu`)   | an `onContextMenu` on an item                        | § Verbs (menus)                                                                                                             |
 | `components/shared/ToolbarPopover`                             | a second portal-popover impl                         | [§ Toolbars & action rows](style-guide/components.md#toolbars--action-rows-responsive)                                      |
 | `components/shared/ViewPopoverPanel`                           | letting a phone toolbar wrap rows                    | [§ Toolbars & action rows](style-guide/components.md#toolbars--action-rows-responsive)                                      |
 | `components/Tabs`                                              | bespoke tab markup                                   | [§ Tabs / view switchers](style-guide/components.md#tabs--view-switchers)                                                   |
@@ -86,12 +86,12 @@ primitives directory.
   containing block, which is how the share dialog once opened clipped inside
   the deck hero with a backdrop that dimmed only that card.
 
-| Reach for                                         | Instead of                           | Ruling                                                                  |
-| ------------------------------------------------- | ------------------------------------ | ----------------------------------------------------------------------- |
-| `components/Modal`                                | a bespoke `position: fixed` layer    | § Overlays — hand-rolled `.modal-backdrop` dialogs are the anti-pattern |
-| `lib/use-sheet-exit` + `lib/use-lock-body-scroll` | hand-rolled open/close + scroll lock | § Overlays                                                              |
-| `lib/use-escape-key`                              | a bare `keydown` listener            | § Overlays                                                              |
-| `components/ConfirmDialog` / `lib/use-confirm`    | `window.confirm`                     | § Overlays                                                              |
+| Reach for                                                           | Instead of                           | Ruling                                                                  |
+| ------------------------------------------------------------------- | ------------------------------------ | ----------------------------------------------------------------------- |
+| `components/Modal`                                                  | a bespoke `position: fixed` layer    | § Overlays — hand-rolled `.modal-backdrop` dialogs are the anti-pattern |
+| `lib/overlays/use-sheet-exit` + `lib/overlays/use-lock-body-scroll` | hand-rolled open/close + scroll lock | § Overlays                                                              |
+| `lib/overlays/use-escape-key`                                       | a bare `keydown` listener            | § Overlays                                                              |
+| `components/ConfirmDialog` / `components/use-confirm`               | `window.confirm`                     | § Overlays                                                              |
 
 ### Feedback, state & identity
 
@@ -221,7 +221,7 @@ screen.
   card). An item that is a page of its own (a deck tile) passes `itemHref`:
   its menu gains **Open in new tab** and **Copy link** above the destructive
   rows, so taking the right-click from its link loses nothing the browser
-  offered. The rules live in `lib/context-menu.ts`.
+  offered. The rules live in `lib/overlays/context-menu.ts`.
 - **Inside a selection, a right-click acts on the selection** (the playtest
   board's rule, app-wide). In select mode, a right-click on an item that is
   one of two or more selected opens the selection's actions, headed by the
@@ -260,7 +260,7 @@ screen.
   `getByRole('status')` query. No toast — the control already shows the
   confirmation. Built: `CopyButton`/`CopyIconButton`
   (`components/shared/CopyButton.tsx`), or `useCopyFeedback`
-  (`lib/use-copy-feedback.ts`) directly for a bespoke non-`Button` trigger
+  (`lib/util/use-copy-feedback.ts`) directly for a bespoke non-`Button` trigger
   (the join-code chip in `OnlineLobby`/`PlayPage`). One duration everywhere —
   1500ms.
 - **A copy action whose trigger disappears on use** (a menu item that closes
@@ -269,7 +269,7 @@ screen.
 - **A failed copy always toasts an error** (`Couldn't copy <what>.`), in both
   cases — a silent failure on a control that just showed "Copied" is worse
   than the toast. Every clipboard-text write goes through `copyToClipboard`
-  (`lib/clipboard.ts`) or one of the two primitives above, which call it;
+  (`lib/util/clipboard.ts`) or one of the two primitives above, which call it;
   `src/test/no-direct-clipboard-write.test.ts` fails a `.tsx` file that calls
   `navigator.clipboard.writeText` directly.
 
@@ -365,7 +365,7 @@ meanwhile.
 - **Chip rows are one line.** Past the width they scroll horizontally with an
   edge fade; they never wrap into a second row with one chip left over.
   Explanatory text for a chip row goes in an `InfoTip`, not a sentence under it.
-  The fade is `useOverflowEdges` (`lib/use-overflow-edges.ts`), which sets
+  The fade is `useOverflowEdges` (`lib/util/use-overflow-edges.ts`), which sets
   `data-overflow` to the edge(s) with more behind them. It is the one copy:
   `Tabs`, the admin users table and the deck's role chips use it, so never
   hand-roll another scroll listener for a fade.
@@ -568,7 +568,7 @@ meaning)`, no `(not X)`. A count qualifier `(4 of 10)` is fine. Placeholders
     `Keepable` / `Mulligan`, `Bracket N · Label` via `formatBracketLabel()`, the
     build-health words `Dialed in` / `Needs work`) is one constant, not
     independently authored prose per file. A fact with no better home goes
-    in `lib/shared-copy.ts` (`PROXY_HINT`, `aiConsentBlurb()`).
+    in `lib/util/shared-copy.ts` (`PROXY_HINT`, `aiConsentBlurb()`).
 19. **Plain words over precise ones.** Write what the player sees happen, not
     the property the engine guarantees. "Sections share a page when they fit
     whole. None is split." was accurate and unreadable ("None" reads as an
@@ -1201,7 +1201,7 @@ Pick by the icon's role, not the surface it happens to sit on — a leading
 icon inside a button label is "inline-with-text" even if the button itself is
 a hero CTA.
 
-The scale's canonical home is `lib/icon-scale.ts` (`ICON_SCALE`) — reach for it
+The scale's canonical home is `lib/util/icon-scale.ts` (`ICON_SCALE`) — reach for it
 when a size needs to travel through code; a JSX call site stays a plain
 `width={14} height={14} strokeWidth={1.8}` literal, lucide's own idiomatic
 shape. `src/test/icon-scale.test.ts` is the guard: it walks every non-test
@@ -1247,7 +1247,7 @@ must be checked at 360px.
 
 ### Type sets — the user-selectable typeface axis
 
-`lib/typesets.ts` + `styles/typesets.css` + the picker in
+`lib/account/typesets.ts` + `styles/typesets.css` + the picker in
 `components/TypeSetPicker.tsx`. A set is a `data-typeset="<id>"` attribute on
 `<html>`, exactly parallel to a theme's `data-theme`, and the two axes compose
 freely: **a set touches only the four type tokens, a theme only color tokens.**
@@ -1267,7 +1267,7 @@ Rulings:
   `font` shorthand on controls, which resets `font-size-adjust` instead of
   inheriting it, so a rule on `body` alone left every `<button>` label ~12%
   smaller than an `<a>` with the same `.btn` classes beside it (E433,
-  guarded in `lib/typesets.test.ts`).
+  guarded in `lib/account/typesets.test.ts`).
 - **Every stack ends in the same generic families as the `tokens.css`
   defaults**, so a set whose webfont fails to load degrades to the same system
   serif/sans/mono rather than to an unrelated face.
@@ -1408,7 +1408,7 @@ e.currentTarget) close(); }}`. A full-screen viewer whose backdrop is covered by
   `aria-labelledby`. A label wrapping an icon-only control carries its text
   as `.sr-only`.
 - **Deliberate exceptions, in the config:** `no-autofocus` is off (sheets and
-  dialogs focus their first field on open; `lib/overlay-layer.ts` restores
+  dialogs focus their first field on open; `lib/overlays/overlay-layer.ts` restores
   focus on close), and `role="list"` on `ul`/`ol` is allowed (Safari/VoiceOver
   drops list semantics from `list-style: none` lists; the explicit role
   restores them).
@@ -1489,7 +1489,7 @@ causality (where did it come from / where did it go), not decoration.
 A surface that animates in (rise/slide/pop/fade) must play the mirrored exit
 on EVERY dismiss path (backdrop, ✕, Escape, swipe, action-complete
 auto-close) before unmounting — wire it through `useSheetExit`
-(`src/lib/use-sheet-exit.ts`; pass the surface's exit keyframe name). A
+(`src/lib/overlays/use-sheet-exit.ts`; pass the surface's exit keyframe name). A
 surface with no entry animation closes instantly — that IS its symmetric
 exit (e.g. the desktop dropdown/centered-panel presentations of the mobile
 sheets skip the hook). The rule is about the **entry animation**, not the
@@ -1570,7 +1570,7 @@ celebration surfaces have different physical characters on purpose.
 **Live values animate on computation, not on mount.** A count-up or cascade
 plays when the underlying analysis (re)computes or the value genuinely changes —
 never again on tab switches or remounts of unchanged data. The `revealKey`
-registry in `lib/use-animated-number.ts` is the mechanism: a key is consumed
+registry in `lib/util/use-animated-number.ts` is the mechanism: a key is consumed
 globally once, so remounts of the same component don't replay the tween.
 
 **Motion budget:**

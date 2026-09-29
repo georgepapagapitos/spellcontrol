@@ -1,6 +1,6 @@
-import { joinClasses } from '@/lib/join-classes';
-import { useCardThumb } from '@/lib/card-thumbs';
-import { paletteForIndex } from '@/lib/seat-palette';
+import { joinClasses } from '@/lib/util/join-classes';
+import { useCardThumb } from '@/lib/cards/card-thumbs';
+import { paletteForIndex } from '@/lib/play/seat-palette';
 import type { BattlefieldCard, PlaytestCard } from '@/lib/playtest';
 import type { PublicBattlefieldCard } from '@/lib/playtest/projection';
 import { commanderTaxAmount } from '../lib/zones';

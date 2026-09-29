@@ -17,7 +17,7 @@ import type {
   Pacing,
   ScryfallCard,
 } from '@/deck-builder/types';
-import { frontFaceName } from '@/lib/card-text';
+import { frontFaceName } from '@/lib/cards/card-text';
 import type { EdhrecRow, ObjectiveDeck, ObjectiveRole } from './types';
 
 /** One card as the dump projects it (deckGenerator.live.test.ts projectCard). */

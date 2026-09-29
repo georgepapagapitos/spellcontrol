@@ -2,9 +2,9 @@ import { createPortal } from 'react-dom';
 import { Check } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useCollectionStore } from '../store/collection';
-import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
-import { useSheetExit } from '../lib/use-sheet-exit';
-import { compileFilterGroups, cardMatchesAnyGroup, areAllGroupsEmpty } from '../lib/rules';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
+import { compileFilterGroups, cardMatchesAnyGroup, areAllGroupsEmpty } from '@/lib/binder/rules';
 import type { EnrichedCard } from '../types';
 import { Button } from '@/components/shared/Button';
 

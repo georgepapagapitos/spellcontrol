@@ -11,15 +11,15 @@
 // `--stack-w` width differ (see deck-builder-card-list.css § Stacks).
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { ChevronDown, Handshake, MoreVertical, Tag as TagIcon } from 'lucide-react';
-import { getRoleBadge, type RoleKey } from '../../lib/role-badges';
-import { stackWidth, zoomBucket, zoomCols, zoomMinCol, zoomTier } from '@/lib/grid-zoom';
-import { useElementWidth } from '@/lib/use-element-width';
-import { prefersReducedMotion } from '@/lib/use-list-flip';
-import type { LegalityIssue } from '../../lib/deck-validation';
+import { getRoleBadge, type RoleKey } from '@/lib/deck-analysis/role-badges';
+import { stackWidth, zoomBucket, zoomCols, zoomMinCol, zoomTier } from '@/lib/util/grid-zoom';
+import { useElementWidth } from '@/lib/util/use-element-width';
+import { prefersReducedMotion } from '@/lib/util/use-list-flip';
+import type { LegalityIssue } from '@/lib/deck/deck-validation';
 import { countedRoleOf } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import { MeterBar } from '../shared/MeterBar';
 import { BinderBadge, type BinderInfo } from '../BinderBadge';
-import { formatMoney } from '../../lib/format-money';
+import { formatMoney } from '@/lib/collection/format-money';
 import {
   foilTileClass,
   allocationSummary,

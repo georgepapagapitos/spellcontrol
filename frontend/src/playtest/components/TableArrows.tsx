@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { paletteForIndex } from '@/lib/seat-palette';
+import { paletteForIndex } from '@/lib/play/seat-palette';
 import { usePlayStore, type TableArrow } from '@/store/play';
 import { opponentPreviewId } from './OpponentQuadrant';
 import './TableArrows.css';

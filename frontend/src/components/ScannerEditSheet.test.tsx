@@ -2,12 +2,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ScannerEditSheet } from './ScannerEditSheet';
-import type { ScannedEntry } from '../lib/use-scan-queue';
+import type { ScannedEntry } from '@/lib/scanner/use-scan-queue';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { useCollectionStore } from '../store/collection';
 
 const fetchPrintingsMock = vi.fn();
-vi.mock('../lib/api', () => ({
+vi.mock('@/lib/api', () => ({
   fetchPrintings: (name: string, set?: string) => fetchPrintingsMock(name, set),
 }));
 

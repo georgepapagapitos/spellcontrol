@@ -1,0 +1,157 @@
+// @vitest-environment happy-dom
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { renderHook, waitFor } from '@testing-library/react';
+import type { BinderDef, BinderFilterGroup, EnrichedCard } from '@/types/index';
+
+function card(name: string): EnrichedCard {
+  return {
+    copyId: name,
+    name,
+    setCode: 'TST',
+    setName: 'Test',
+    collectorNumber: '1',
+    rarity: 'common',
+    scryfallId: name,
+    purchasePrice: 0,
+    sourceCategory: '',
+    sourceFormat: 'plain',
+    finish: 'nonfoil',
+    foil: false,
+  };
+}
+
+const tagGroup: BinderFilterGroup = {
+  filter: { oracleTagChips: { chips: [{ value: 'mana-rock', negate: false }], joiners: [] } },
+};
+const plainGroup: BinderFilterGroup = {
+  filter: { typeChips: { chips: [{ value: 'artifact', negate: false }], joiners: [] } },
+};
+const binder = (groups: BinderFilterGroup[]): BinderDef =>
+  ({ id: 'b', filterGroups: groups }) as unknown as BinderDef;
+
+// Shape of public/otag-index.json: a parallel tag array, cards holding indices
+// into it. Hierarchy is pre-expanded by the build script, so no ancestors here.
+const SNAPSHOT = {
+  generatedAt: '2026-01-01T00:00:00Z',
+  tags: [
+    { s: 'mana-rock', l: 'mana-rock', d: 'Artifact that produces mana' },
+    { s: 'ramp', l: 'ramp', d: '' },
+    { s: 'sweeper', l: 'sweeper', d: 'Destroys many permanents at once' },
+  ],
+  cards: {
+    'Sol Ring': [0, 1],
+    'Llanowar Elves': [1],
+    'Wrath of God': [2],
+  },
+};
+
+describe('card-tags pure helpers', () => {
+  it('groupsUseTags / bindersUseTags detect tag rules', async () => {
+    const { groupsUseTags, bindersUseTags } = await import('./card-tags');
+    expect(groupsUseTags([tagGroup])).toBe(true);
+    expect(groupsUseTags([plainGroup])).toBe(false);
+    expect(bindersUseTags([binder([tagGroup])])).toBe(true);
+    expect(bindersUseTags([binder([plainGroup])])).toBe(false);
+  });
+
+  it('cardTagLabel curates known tags and title-cases the rest', async () => {
+    const { cardTagLabel } = await import('./card-tags');
+    expect(cardTagLabel('mana-rock')).toBe('Mana rock');
+    expect(cardTagLabel('card-advantage')).toBe('Card advantage');
+    expect(cardTagLabel('lifegain')).toBe('Lifegain');
+    expect(cardTagLabel('graveyard-hate')).toBe('Graveyard hate');
+  });
+});
+
+describe('card-tags snapshot load + decorate', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, json: async () => SNAPSHOT }) as unknown as Response)
+    );
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('decorate is a no-op before load, then attaches tags after', async () => {
+    const mod = await import('./card-tags');
+    const input = [card('Sol Ring'), card('Mountain')];
+    // Before load: unchanged reference.
+    expect(mod.decorateWithTags(input)).toBe(input);
+    expect(mod.isCardTagsReady()).toBe(false);
+
+    await mod.ensureCardTags();
+    expect(mod.isCardTagsReady()).toBe(true);
+    expect(mod.listCardTags()).toEqual(['mana-rock', 'ramp', 'sweeper']);
+    expect(mod.getCardTags('Sol Ring')).toEqual(['mana-rock', 'ramp']);
+    expect(mod.getCardTags('Mountain')).toEqual([]);
+
+    const out = mod.decorateWithTags(input);
+    expect(out[0].tags).toEqual(['mana-rock', 'ramp']);
+    expect(out[1].tags).toBeUndefined();
+    expect(out[1]).toBe(input[1]); // untagged card not copied
+  });
+
+  it('carries legacy slugs alongside their modern equivalent so saved rules keep matching', async () => {
+    // Binder rules persisted under the old 23-tag vocabulary say "boardwipe";
+    // the full corpus calls it "sweeper". A card tagged sweeper must answer to
+    // both, or every existing boardwipe binder silently empties.
+    const mod = await import('./card-tags');
+    await mod.ensureCardTags();
+    expect(mod.getCardTags('Wrath of God')).toEqual(['sweeper', 'boardwipe']);
+  });
+
+  it('answers whether a slug is a tag at all, aliases included (board E340)', async () => {
+    const mod = await import('./card-tags');
+    // Before load nothing is known — the caller has to gate on ready, or a
+    // real deep link would be told its tag does not exist.
+    expect(mod.isKnownCardTag('sweeper')).toBe(false);
+
+    await mod.ensureCardTags();
+    expect(mod.isKnownCardTag('sweeper')).toBe(true);
+    expect(mod.isKnownCardTag('mana-rock')).toBe(true);
+    // A legacy alias resolves even though it is absent from the ranked list.
+    expect(mod.listCardTagsRanked().some((t) => t.slug === 'boardwipe')).toBe(false);
+    expect(mod.isKnownCardTag('boardwipe')).toBe(true);
+    // And the made-up slug from the report does not.
+    expect(mod.isKnownCardTag('not-a-real-tag-xyz')).toBe(false);
+    expect(mod.isKnownCardTag('')).toBe(false);
+  });
+
+  it('exposes the corpus description, empty when the tag has none', async () => {
+    const mod = await import('./card-tags');
+    await mod.ensureCardTags();
+    expect(mod.cardTagDescription('sweeper')).toBe('Destroys many permanents at once');
+    expect(mod.cardTagDescription('ramp')).toBe('');
+    expect(mod.cardTagDescription('nope')).toBe('');
+  });
+
+  it('failed fetch leaves tags unavailable (rules match nothing, no throw)', async () => {
+    vi.resetModules();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: false, status: 503 }) as unknown as Response)
+    );
+    const mod = await import('./card-tags');
+    await mod.ensureCardTags();
+    expect(mod.isCardTagsReady()).toBe(false);
+    expect(mod.getCardTags('Sol Ring')).toEqual([]);
+  });
+
+  it('useCardsWithTags is a pass-through when no rule uses tags, decorates once ready', async () => {
+    const mod = await import('./card-tags');
+    const cards = [card('Sol Ring')];
+
+    // usesTags=false → returns the exact input array (no load, no copy).
+    const off = renderHook(({ c }) => mod.useCardsWithTags(c, false), {
+      initialProps: { c: cards },
+    });
+    expect(off.result.current).toBe(cards);
+
+    // usesTags=true → triggers load, then decorates with tags.
+    const on = renderHook(({ c }) => mod.useCardsWithTags(c, true), {
+      initialProps: { c: cards },
+    });
+    await waitFor(() => expect(on.result.current[0].tags).toEqual(['mana-rock', 'ramp']));
+  });
+});

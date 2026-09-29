@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { safeLocalStorage } from '@/lib/safe-local-storage';
-import { DEFAULT_DARK_THEME, DEFAULT_THEME, isValidTheme, themeScheme } from '../lib/themes';
+import { safeLocalStorage } from '@/lib/util/safe-local-storage';
+import { DEFAULT_DARK_THEME, DEFAULT_THEME, isValidTheme, themeScheme } from '@/lib/account/themes';
 
 interface ThemeState {
   theme: string;

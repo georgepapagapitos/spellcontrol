@@ -4,10 +4,10 @@ import {
   GameNightNotFoundError,
   resolveGuestInvite,
   saveGuestInviteToken,
-} from '../lib/game-nights-api';
+} from '@/lib/play/game-nights-api';
 import { ErrorView, LoadingView, NotFoundView, SharedShell } from '../components/share/SharedShell';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 /**
  * Shared landing for the two link types that resolve to a night rather than
  * being one: the stable weekly-series link (/gn/s/:token, E125) and a named

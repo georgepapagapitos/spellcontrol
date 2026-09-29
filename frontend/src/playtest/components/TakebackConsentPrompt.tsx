@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { usePlayStore } from '@/store/play';
 import { TAKEBACK_EXPIRY_GRACE_MS } from '../lib/takeback';
-import type { GameRequest } from '@/lib/games-api';
+import type { GameRequest } from '@/lib/play/games-api';
 import type { OnlineTable } from '../hooks/use-online-table';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 interface Props {
   onlineTable: OnlineTable;

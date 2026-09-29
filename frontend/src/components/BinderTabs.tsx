@@ -2,7 +2,7 @@ import { Download } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
-import { inkOn } from '../lib/ink';
+import { inkOn } from '@/lib/util/ink';
 import type { MaterializedBinder } from '../types';
 import { BinderExportDialog } from './BinderExportDialog';
 import { Chip } from './shared/Chip';

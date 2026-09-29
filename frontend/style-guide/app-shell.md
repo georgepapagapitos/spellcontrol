@@ -204,7 +204,7 @@ Rulings:
   collection (`isRecentPartialImport`: under 90% of the cards). A first import
   or a replace-everything re-import is the collection itself and would restate
   the hero's card count, so the slot goes to **Your cards**: at most three
-  rows from `lib/collection-insights.ts` (decks a few cards from done, spare
+  rows from `lib/collection/collection-insights.ts` (decks a few cards from done, spare
   copies, a card more decks want than you own), each a door to where it is
   acted on (`/decks/:id`, `/collection?spares`, `/collection?stats`), with the
   full list behind its Breakdown door. The rows reuse Recently added's deck
@@ -255,7 +255,7 @@ Rulings:
   that leaves the buttons usable. A host sees "You're hosting."; a night
   still voting on its date links to vote.
 - **Loading takes last visit's footprint (E277), unchanged in spirit.**
-  `lib/home-shape.ts` (`sc-home-shape`) remembers, per `HomeCard` title, the
+  `lib/home/home-shape.ts` (`sc-home-shape`) remembers, per `HomeCard` title, the
   rendered height or 0 for absent — a remembered-absent card stays absent
   while loading, never a phantom skeleton — plus the hero's value, scale and
   caption lines, the `your-decks` tile count and the `waiting` line. A first
@@ -480,7 +480,7 @@ follow the full-viewport scroll pattern above. Design rulings settled here:
 - **Guests have no collection, so the hero art rotates a hardcoded pool.**
   Unlike `HomeHero`'s collection-derived pick, `WelcomeHero`'s backdrop
   rotates a small const list of iconic, evergreen Commander staples
-  (`lib/welcome-hero.ts`'s `EVERGREEN_COMMANDERS`) by the same day-key
+  (`lib/home/welcome-hero.ts`'s `EVERGREEN_COMMANDERS`) by the same day-key
   rotation idiom as `home-hero.ts` (`pickWelcomeHeroCard` reuses its exported
   `epochDay`). Never wire personal/collection data into this hero — it must
   render identically for every guest.
@@ -542,7 +542,7 @@ follow the full-viewport scroll pattern above. Design rulings settled here:
 
 A gated surface (Friends, Trades, Pods, Online play, game nights, Saved decks,
 a deck's share dialog, the feedback sheet, the friends-only shared view, the
-header's own Sign in) links to `useSignInPath()` from `lib/sign-in-path.ts`,
+header's own Sign in) links to `useSignInPath()` from `lib/account/sign-in-path.ts`,
 never a bare `/auth`. AuthPage already honours `?returnTo=` (same-origin
 relative paths only — `safeReturnTo`), so a finished sign-in — and "Continue
 without an account" — lands the person back on the page they were gated from.
@@ -727,7 +727,7 @@ server's `isOwner` flag decides, and nobody reports themselves.
 
 ## Command palette (⌘K) — desktop-only by design
 
-The palette (`components/CommandPalette.tsx`, model in `lib/commands.ts`) is
+The palette (`components/CommandPalette.tsx`, model in `lib/search/commands.ts`) is
 reachable by **⌘K / Ctrl+K** anywhere outside a text input and is listed in
 the `?` shortcuts overlay. That is its whole entry surface: **no header
 button, no tab-bar trigger, no touch affordance**, on purpose. Its value is
@@ -743,7 +743,7 @@ action row ([§ Toolbars & action rows](components.md#toolbars--action-rows-resp
 **One global overlay, one registry.** The `?` key opens a single
 `KeyboardShortcutsOverlay` (a shared `Modal`) from anywhere outside a text
 input. Pages/components contribute their section via
-`useRegisterShortcuts(sectionTitle, shortcuts)` from `lib/shortcut-registry`.
+`useRegisterShortcuts(sectionTitle, shortcuts)` from `components/shortcut-registry`.
 The overlay renders all mounted sections in registration order ("Global" always
 first, since Layout mounts it first). Do NOT wire a local `?` listener in a
 page — the global listener in Layout handles it.
@@ -755,7 +755,7 @@ repeatedly (an infinite render loop).
 
 **Input guard.** The `?` key is suppressed when focus is inside any
 `<input>`, `<textarea>`, `<select>`, or `contentEditable`. The guard is
-`isTypingTarget` from `lib/shortcut-registry`.
+`isTypingTarget` from `components/shortcut-registry`.
 
 **Footer chip.** A `<button className="footer-shortcuts-chip">` in `Footer.tsx`
 calls `show()` from `useShortcutRegistry`. It is `display:none` by default and

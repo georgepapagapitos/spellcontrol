@@ -74,6 +74,47 @@
   font-size: var(--text-lg);
 }
 
+/* Desktop: the pinned deck spans the grid's row as a wide feature, art left
+   and details right, instead of a half-width tile with dead space beside it.
+   The link becomes a two-column grid: banner over its colour bar on the left,
+   the body centred on the right across both rows. A phone and a tablet keep
+   the stacked tile above. */
+@media (min-width: 1024px) {
+  .decks-index-list.is-grid.deck-library-featured {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .decks-index-card.public-profile-tile.is-featured .decks-index-card-link {
+    display: grid;
+    grid-template-columns: minmax(0, 26rem) minmax(0, 1fr);
+    align-items: stretch;
+    border-bottom-left-radius: calc(var(--radius-lg) - 1px);
+  }
+
+  .decks-index-card.public-profile-tile.is-featured .public-profile-tile-banner {
+    grid-column: 1;
+    grid-row: 1;
+    aspect-ratio: 16 / 9;
+    border-top-right-radius: 0;
+  }
+
+  .decks-index-card.public-profile-tile.is-featured .color-identity-bar {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .decks-index-card.public-profile-tile.is-featured .decks-index-card-body {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
+    padding: var(--space-5) var(--space-6);
+  }
+
+  .decks-index-card.public-profile-tile.is-featured .decks-index-card-name {
+    font-size: var(--text-xl);
+  }
+}
+
 /* Theme-invariant on-art scrim — same always-dark-over-art rationale as the
    card-preview panel (CardDetails.css) and DiscoverDeckTile.css's identical
    overlay: legibility over unpredictable art can't follow the theme swap

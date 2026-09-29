@@ -1,28 +1,28 @@
 import { createPortal } from 'react-dom';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useSignInPath } from '../../lib/sign-in-path';
+import { useSignInPath } from '@/lib/account/sign-in-path';
 import { Check, X } from 'lucide-react';
 import './DeckFeedbackSheet.css';
-import { createShare, shareUrl } from '../../lib/share-client';
+import { createShare, shareUrl } from '@/lib/social/share-client';
 import {
   deleteFeedback,
   listDeckFeedback,
   setSuggestionStatus,
   type FeedbackResponse,
   type FeedbackSuggestion,
-} from '../../lib/feedback-client';
-import { findSlotForCut, suggestionBlockedReason } from '../../lib/feedback-apply';
-import { formatRelativeTime } from '../../lib/format-time';
-import { canShare, openShareSheet } from '@/lib/web-share';
-import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
-import { useSheetExit } from '../../lib/use-sheet-exit';
+} from '@/lib/social/feedback-client';
+import { findSlotForCut, suggestionBlockedReason } from '@/lib/social/feedback-apply';
+import { formatRelativeTime } from '@/lib/util/format-time';
+import { canShare, openShareSheet } from '@/lib/util/web-share';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
 import { useAuth } from '../../store/auth';
 import { useDeckHistoryStore } from '../../store/deck-history';
 import { useDecksStore, type Deck } from '../../store/decks';
 import { toast } from '../../store/toasts';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button, IconButton } from '@/components/shared/Button';
 import { CopyButton } from '@/components/shared/CopyButton';
 interface Props {

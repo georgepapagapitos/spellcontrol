@@ -3,8 +3,8 @@ import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
 import { X } from 'lucide-react';
 import './GuestActionPopover.css';
-import { useMenuKeyboard } from '../lib/use-menu-keyboard';
-import { computePopoverPlacement, getSafeViewport } from '../lib/popover-placement';
+import { useMenuKeyboard } from '@/lib/overlays/use-menu-keyboard';
+import { computePopoverPlacement, getSafeViewport } from '@/lib/overlays/popover-placement';
 import { Button, IconButton } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
 

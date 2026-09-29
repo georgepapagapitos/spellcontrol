@@ -33,13 +33,13 @@ vi.mock('../store/toasts', () => ({
   useToastsStore: (selector: (s: { push: typeof h.push }) => unknown) => selector({ push: h.push }),
 }));
 
-vi.mock('../lib/use-search-cards', () => ({
+vi.mock('@/lib/search/use-search-cards', () => ({
   useSearchCards: () => ({ results: h.results, loading: false, error: null }),
 }));
 
-vi.mock('../lib/api', () => ({ fetchPrintings: h.fetchPrintings }));
+vi.mock('@/lib/api', () => ({ fetchPrintings: h.fetchPrintings }));
 
-vi.mock('../lib/haptics', () => ({ haptics: { tap: () => {} } }));
+vi.mock('@/lib/util/haptics', () => ({ haptics: { tap: () => {} } }));
 
 // CardPreview itself is covered by its own suite — here we only care that the
 // row's thumbnail opens it at the right slide with the right card.

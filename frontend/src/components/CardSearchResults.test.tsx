@@ -18,7 +18,7 @@ const RESULT: ScryfallCard = {
   image_uris: { normal: 'https://cards.scryfall.io/normal/row-parity.jpg' },
 } as unknown as ScryfallCard;
 
-vi.mock('../lib/use-search-cards', () => ({
+vi.mock('@/lib/search/use-search-cards', () => ({
   useSearchCards: () => ({ results: [RESULT], loading: false, error: null, total: null }),
 }));
 
@@ -26,8 +26,8 @@ import { AddCardSearchPanel } from './AddCardSearchPanel';
 import { InlineCardSearch } from './InlineCardSearch';
 import { CardSearchResults } from './CardSearchResults';
 import { useCollectionStore } from '../store/collection';
-import { entryKey, useScanQueueStore } from '../lib/use-scan-queue';
-import { useScannerSettings } from '../lib/scanner-settings';
+import { entryKey, useScanQueueStore } from '@/lib/scanner/use-scan-queue';
+import { useScannerSettings } from '@/lib/scanner/scanner-settings';
 
 /** Class names of the row and every descendant, in document order — the
  *  "same markup" the two surfaces must agree on. */

@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { Modal } from './Modal';
 import { Button } from './shared/Button';
 import { useCollectionStore } from '../store/collection';
-import { suggestBinders } from '../lib/binder-suggestions';
+import { suggestBinders } from '@/lib/binder/binder-suggestions';
 import type { EnrichedCard } from '../types';
 
 interface Props {

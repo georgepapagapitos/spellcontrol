@@ -3,8 +3,8 @@ import { CircleUserRound, Home, Layers, List, Search, Users } from 'lucide-react
 import { NavLink } from 'react-router-dom';
 import { usePlayStore } from '../store/play';
 import { useAuth } from '../store/auth';
-import { useActivity } from '../lib/use-activity';
-import { getPendingCount, hasSyncError, isOnline, onSyncedChange } from '../lib/sync';
+import { useActivity } from '@/lib/social/use-activity';
+import { getPendingCount, hasSyncError, isOnline, onSyncedChange } from '@/lib/sync';
 import { UserAvatar } from './UserAvatar';
 import { Count } from './shared/Count';
 

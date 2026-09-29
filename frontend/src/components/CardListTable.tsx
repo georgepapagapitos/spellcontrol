@@ -24,9 +24,9 @@ import {
 } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { useScrollContainer } from '../lib/scroll-container';
-import { formatMoney } from '../lib/format-money';
-import { applyPrices } from '../lib/card-prices';
+import { useScrollContainer } from '@/lib/util/scroll-container';
+import { formatMoney } from '@/lib/collection/format-money';
+import { applyPrices } from '@/lib/collection/card-prices';
 import type {
   BinderFilter,
   ChipExpression,
@@ -36,25 +36,29 @@ import type {
   SortField,
   SortDir,
 } from '../types';
-import type { SetMap } from '../lib/api';
+import type { SetMap } from '@/lib/api';
 import { CardRowMenu } from './CardRowMenu';
 import type { OverflowMenuItem } from './OverflowMenu';
 import { CardPreview } from './CardPreview';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
-import { LANGUAGE_OPTIONS } from '../lib/copy-options';
+import { LANGUAGE_OPTIONS } from '@/lib/collection/copy-options';
 import { RemoveCopiesDialog } from './RemoveCopiesDialog';
 import { BulkMoveToBinderSheet } from './BulkMoveToBinderSheet';
-import { useConfirm } from '../lib/use-confirm';
-import { removeCopiesOfPrinting, printingFinishKey } from '../lib/collection-mutations';
+import { useConfirm } from './use-confirm';
+import { removeCopiesOfPrinting, printingFinishKey } from '@/lib/collection/collection-mutations';
 import { useToastsStore } from '../store/toasts';
-import { useRegisterShortcuts, isTypingTarget } from '../lib/shortcut-registry';
-import { setSymbolTitle } from '../lib/set-symbols';
+import { useRegisterShortcuts, isTypingTarget } from './shortcut-registry';
+import { setSymbolTitle } from '@/lib/cards/set-symbols';
 import { DeckBadge } from './DeckBadge';
 import { Legend } from './Legend';
 import { BinderBadge, type BinderInfo } from './BinderBadge';
-import { useAllocations, computeSurplusByName, type AllocationInfo } from '../lib/allocations';
-import { useCubeListings } from '../lib/cube-listings';
-import type { CollectionFilterJump } from '../lib/collection-insights';
+import {
+  useAllocations,
+  computeSurplusByName,
+  type AllocationInfo,
+} from '@/lib/collection/allocations';
+import { useCubeListings } from '@/lib/cube/cube-listings';
+import type { CollectionFilterJump } from '@/lib/collection/collection-insights';
 import { ViewModeToggle } from './ViewModeToggle';
 import { ZoomControl } from './ZoomControl';
 import {
@@ -66,17 +70,17 @@ import {
   zoomBucket,
   zoomCols,
   zoomTier,
-} from '../lib/grid-zoom';
+} from '@/lib/util/grid-zoom';
 import { SearchPill } from './SearchPill';
 import { SelectMenu } from './SelectMenu';
 import { CollectionFiltersDialog } from './CollectionFiltersDialog';
 import { SaveToListDialog } from './SaveToListDialog';
-import { useCardsWithTags, cardTagLabel } from '../lib/card-tags';
-import { useCardsWithReleaseDates } from '../lib/card-release-dates';
+import { useCardsWithTags, cardTagLabel } from '@/lib/cards/card-tags';
+import { useCardsWithReleaseDates } from '@/lib/cards/card-release-dates';
 import { SortMenu, type SortMenuOption } from './SortMenu';
-import { useMediaQuery } from '../lib/use-media-query';
-import { useDebouncedValue } from '../lib/use-debounced-value';
-import { sortCards, printingKey, sortDirectionLabel, type SortContext } from '../lib/sorting';
+import { useMediaQuery } from '@/lib/util/use-media-query';
+import { useDebouncedValue } from '@/lib/util/use-debounced-value';
+import { sortCards, printingKey, sortDirectionLabel, type SortContext } from '@/lib/search/sorting';
 import { getSectionMeta, releaseDateOf } from '@spellcontrol/binder-routing';
 import {
   groupRowsIntoSections,
@@ -85,18 +89,18 @@ import {
   type SectionHeader,
   type GridLayoutRow,
   type ListLayoutRow,
-} from '../lib/group-sections';
-import { readLocalStorage } from '../lib/local-storage';
-import { type ColorMatchMode } from '../lib/colors';
-import { rowMatchesCollectionFilter } from '../lib/collection-filter';
+} from '@/lib/collection/group-sections';
+import { readLocalStorage } from '@/lib/util/local-storage';
+import { type ColorMatchMode } from '@/lib/cards/colors';
+import { rowMatchesCollectionFilter } from '@/lib/search/collection-filter';
 import { useCollectionStore } from '../store/collection';
 import {
   collectionFiltersToFilterGroup,
   deriveBinderName,
   hasStructuredFilter,
-} from '../lib/collection-filters-to-binder';
-import { fetchTypeSuggestions } from '../lib/scryfall-catalog';
-import { parseTypeLine, SUPERTYPES, TYPES } from '../lib/card-types';
+} from '@/lib/search/collection-filters-to-binder';
+import { fetchTypeSuggestions } from '@/lib/cards/scryfall-catalog';
+import { parseTypeLine, SUPERTYPES, TYPES } from '@/lib/cards/card-types';
 import { CardRow } from './shared/CardRow';
 import { SectionHeaderBar } from './shared/SectionHeaderBar';
 import {
@@ -122,8 +126,8 @@ import {
   stackCopies,
   stackDetailMix,
   printingStubFromEnriched,
-} from '../lib/edit-card';
-import { compileExpression, compileFilter, isExpressionEmpty } from '../lib/rules';
+} from '@/lib/collection/edit-card';
+import { compileExpression, compileFilter, isExpressionEmpty } from '@/lib/binder/rules';
 import { Button } from '@/components/shared/Button';
 import { ArtBadge } from '@/components/shared/ArtBadge';
 
@@ -149,7 +153,7 @@ interface Props {
   /**
    * A one-shot filter request from an external surface (the Breakdown
    * drawer's insight rows and grouped rows — see
-   * `lib/collection-insights.ts`'s `CollectionFilterJump`). Applied by a
+   * `lib/collection/collection-insights.ts`'s `CollectionFilterJump`). Applied by a
    * `useEffect` (not a mount-time read, unlike the `?binder=` deep link
    * above) since the drawer and this table are mounted siblings on the same
    * page — a URL param wouldn't retrigger. Call `onFilterJumpApplied` once
@@ -818,7 +822,7 @@ export function CardListTable({
     debouncedSearch,
   ]);
 
-  // The predicate itself lives in lib/collection-filter so the Filters dialog
+  // The predicate itself lives in lib/search/collection-filter so the Filters dialog
   // can run the identical thing over its DRAFT state for a live match count.
   const filterCriteria = useMemo(
     () => ({
@@ -1007,7 +1011,7 @@ export function CardListTable({
   const showScryfall = debouncedSearch.trim().length >= 2;
   const handoffQuery = debouncedSearch.trim();
   const triggerIndex = displayRows.length;
-  // Shared with the zoom column math (lib/grid-zoom.ts) and with the deck /
+  // Shared with the zoom column math (lib/util/grid-zoom.ts) and with the deck /
   // list grids' CSS `gap` — the three must agree or the same zoom step
   // renders a different column count on different surfaces.
   const GRID_GAP = GRID_GAP_PX;
@@ -1461,7 +1465,7 @@ export function CardListTable({
   // so this skips the blocking confirm() that guards handleBulkDelete — that
   // bar is for data loss, not a flag flip. applyPrices re-runs inline so the
   // collection total reflects the price zeroing immediately, the same
-  // chokepoint refreshPrices/reapplyCardPrices use (lib/card-prices.ts).
+  // chokepoint refreshPrices/reapplyCardPrices use (lib/collection/card-prices.ts).
   const bulkProxyAllMarked = useMemo(() => {
     if (selectedRowKeys.size === 0) return false;
     const ids = new Set(selectedCopyIds());
@@ -1694,7 +1698,7 @@ export function CardListTable({
         break;
       case 'color':
         // 'all' (exact match) mirrors the breakdown bucket's semantics — see
-        // lib/collection-insights.ts's colorFilterJump doc.
+        // lib/collection/collection-insights.ts's colorFilterJump doc.
         setColorFilter(new Set([filterJump.key]));
         setColorMode('all');
         break;

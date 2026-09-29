@@ -17,8 +17,8 @@ interface StubDialogProps {
 
 // These tests assert on the in-memory store; the IndexedDB save behind it
 // would otherwise wait on a collection hydration that never happens here.
-vi.mock('../lib/local-cards', async (importActual) => ({
-  ...(await importActual<typeof import('../lib/local-cards')>()),
+vi.mock('@/lib/sync/local-cards', async (importActual) => ({
+  ...(await importActual<typeof import('@/lib/sync/local-cards')>()),
   saveCollection: async () => {},
 }));
 
@@ -94,7 +94,7 @@ vi.mock('./CardEditDialog', () => ({
 }));
 
 import { CardListTable } from './CardListTable';
-import { ShortcutRegistryProvider } from '../lib/shortcut-registry';
+import { ShortcutRegistryProvider } from './shortcut-registry';
 
 function mk(copyId: string): EnrichedCard {
   return {

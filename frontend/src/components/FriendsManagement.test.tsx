@@ -37,10 +37,10 @@ vi.mock('../store/auth', () => ({
 }));
 
 const { mockMarkInboxSeen } = vi.hoisted(() => ({ mockMarkInboxSeen: vi.fn() }));
-vi.mock('../lib/use-inbox', async (importOriginal) => {
+vi.mock('@/lib/social/use-inbox', async (importOriginal) => {
   // Keep the real countUnseen/useInboxSeenAt (the requests-tab unseen pill,
   // T117, is built on them) — only useInbox/markInboxSeen are stubbed.
-  const actual = await importOriginal<typeof import('../lib/use-inbox')>();
+  const actual = await importOriginal<typeof import('@/lib/social/use-inbox')>();
   return {
     ...actual,
     useInbox: () => inboxState,
@@ -64,7 +64,7 @@ const STUB_FRIEND = {
 };
 
 const { mockGetFriendsActivity } = vi.hoisted(() => ({ mockGetFriendsActivity: vi.fn() }));
-vi.mock('../lib/friends-client', () => ({
+vi.mock('@/lib/social/friends-client', () => ({
   searchUsers: vi.fn(() => Promise.resolve([])),
   sendFriendRequest: vi.fn(),
   acceptRequest: vi.fn(),
@@ -76,7 +76,26 @@ vi.mock('../lib/friends-client', () => ({
   getFriendsActivity: mockGetFriendsActivity,
 }));
 
+// The Following tab, the brewer-directory half of the search and the suggested
+// strip all read lib/social/brewers-client; stubbed so no test reaches the network.
+vi.mock('@/lib/social/brewers-client', () => ({
+  fetchFollowing: vi.fn(() => Promise.resolve([])),
+  fetchBrewerRails: vi.fn(() =>
+    Promise.resolve({
+      newest: [],
+      mostLiked: [],
+      mostFollowed: [],
+      sharedCommanders: [],
+      spotlight: null,
+    })
+  ),
+  searchBrewers: vi.fn(() => Promise.resolve([])),
+  followUser: vi.fn(() => Promise.resolve({ following: true, followerCount: 1 })),
+  unfollowUser: vi.fn(() => Promise.resolve({ following: false, followerCount: 0 })),
+}));
+
 import { FriendsManagement } from './FriendsManagement';
+import { fetchFollowing, fetchBrewerRails } from '@/lib/social/brewers-client';
 import {
   searchUsers,
   sendFriendRequest,
@@ -86,7 +105,33 @@ import {
   removeFriend,
   listFriends,
   listRequests,
-} from '../lib/friends-client';
+} from '@/lib/social/friends-client';
+
+const NO_RAILS = {
+  newest: [],
+  mostLiked: [],
+  mostFollowed: [],
+  sharedCommanders: [],
+  spotlight: null,
+};
+
+function brewer(username: string) {
+  return {
+    username,
+    displayName: null,
+    avatarImageUrl: null,
+    bannerImage: null,
+    deckCount: 2,
+    followerCount: 0,
+    topColors: ['G'],
+    topCommander: null,
+    joinedAt: 1,
+  };
+}
+
+function friendRow(id: string) {
+  return { id, username: id, displayName: null, friendedAt: Date.now(), cardCount: 1 };
+}
 
 async function renderPage(initialPath = '/') {
   const utils = render(
@@ -99,6 +144,12 @@ async function renderPage(initialPath = '/') {
   );
   await screen.findByRole('tablist');
   return utils;
+}
+
+/** Remove lives in the row's ⋮ menu: open it, pick Remove friend. */
+async function removeViaMenu() {
+  fireEvent.click(await screen.findByRole('button', { name: /more actions for erin/i }));
+  fireEvent.click(await screen.findByRole('menuitem', { name: /remove friend/i }));
 }
 
 function openActivityTab() {
@@ -124,6 +175,8 @@ beforeEach(() => {
   vi.mocked(listFriends).mockReset().mockResolvedValue([]);
   vi.mocked(listRequests).mockReset().mockResolvedValue({ incoming: [], outgoing: [] });
   mockMarkInboxSeen.mockReset();
+  vi.mocked(fetchFollowing).mockReset().mockResolvedValue([]);
+  vi.mocked(fetchBrewerRails).mockReset().mockResolvedValue(NO_RAILS);
 });
 
 describe('FriendsManagement — Activity tab', () => {
@@ -260,16 +313,16 @@ describe('FriendsManagement — search and add', () => {
     ]);
     await renderPage();
 
-    fireEvent.change(screen.getByRole('textbox', { name: /search users by username/i }), {
-      target: { value: 'bob' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: /^search$/i }));
+    const box = screen.getByRole('textbox', { name: /find people by name or username/i });
+    fireEvent.change(box, { target: { value: 'bob' } });
+    // Enter searches at once; typing alone waits out the debounce.
+    fireEvent.submit(box.closest('form')!);
 
-    const addBtn = await screen.findByRole('button', { name: /^add bob$/i });
+    const addBtn = await screen.findByRole('button', { name: /^add bob as a friend$/i });
     fireEvent.click(addBtn);
 
     await waitFor(() => expect(sendFriendRequest).toHaveBeenCalledWith('bob'));
-    expect(await screen.findByRole('button', { name: /^pending bob$/i })).toBeTruthy();
+    expect(await screen.findByText('Request sent')).toBeTruthy();
   });
 });
 
@@ -358,25 +411,22 @@ describe('FriendsManagement — request and friend actions', () => {
     ]);
     await renderPage();
 
-    const removeBtn = await screen.findByRole('button', {
-      name: /remove erin from friends/i,
-    });
-    fireEvent.click(removeBtn);
+    await removeViaMenu();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Remove friend' }));
     await waitFor(() => expect(removeFriend).toHaveBeenCalledWith('f1'));
   });
 
   // Removing a friend is irreversible from the UI (both sides lose
-  // friends-only shares and the H2H history stops), and the button sits inline
-  // in the list next to "View shared" — one stray tap must not commit it.
+  // friends-only shares and the H2H history stops), and it sits in a menu
+  // beside a link-row — one stray tap must not commit it.
   it('does not remove a friend until the confirm is accepted', async () => {
     vi.mocked(listFriends).mockResolvedValue([
       { id: 'f1', username: 'erin', displayName: null, friendedAt: Date.now(), cardCount: 12 },
     ]);
     await renderPage();
 
-    fireEvent.click(await screen.findByRole('button', { name: /remove erin from friends/i }));
+    await removeViaMenu();
 
     // The dialog is up and nothing has been destroyed yet.
     expect(await screen.findByRole('button', { name: 'Remove friend' })).toBeTruthy();
@@ -470,5 +520,56 @@ describe('FriendsManagement — tab param aliasing (?tab= over legacy ?friendsTa
 
     await waitFor(() => expect(currentSearch).toContain('tab=requests'));
     expect(currentSearch).not.toContain('friendsTab');
+  });
+});
+
+describe('FriendsManagement — people, following and suggestions', () => {
+  it('shows friends as profile links, with no "View shared" button', async () => {
+    vi.mocked(listFriends).mockResolvedValue([friendRow('erin')]);
+    await renderPage();
+    const link = await screen.findByRole('link', { name: /erin/ });
+    expect(link.getAttribute('href')).toBe('/u/erin');
+    expect(screen.queryByText('View shared')).toBeNull();
+  });
+
+  it('lists who you follow on the Following tab, with a count on the tab', async () => {
+    vi.mocked(fetchFollowing).mockResolvedValue([brewer('ada')]);
+    await renderPage();
+    fireEvent.click(screen.getByRole('tab', { name: /^following/i }));
+    expect(await screen.findByRole('list', { name: 'Brewers you follow' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Follow ada' })).toBeTruthy();
+  });
+
+  it('invites you to Discover from an empty Following tab', async () => {
+    await renderPage();
+    fireEvent.click(screen.getByRole('tab', { name: /^following/i }));
+    expect(await screen.findByText("You aren't following anyone yet.")).toBeTruthy();
+  });
+
+  it('offers suggested brewers when friends and follows together are under three', async () => {
+    vi.mocked(listFriends).mockResolvedValue([friendRow('erin')]);
+    vi.mocked(fetchFollowing).mockResolvedValue([brewer('ada')]);
+    vi.mocked(fetchBrewerRails).mockResolvedValue({ ...NO_RAILS, newest: [brewer('newbie')] });
+    await renderPage();
+    expect(await screen.findByRole('heading', { name: 'Brewers to meet' })).toBeTruthy();
+  });
+
+  it('hides the suggestions at three or more combined, and when there are none to give', async () => {
+    vi.mocked(listFriends).mockResolvedValue([friendRow('a'), friendRow('b')]);
+    vi.mocked(fetchFollowing).mockResolvedValue([brewer('ada')]);
+    vi.mocked(fetchBrewerRails).mockResolvedValue({ ...NO_RAILS, newest: [brewer('newbie')] });
+    const first = await renderPage();
+    await screen.findByRole('link', { name: /^a/ });
+    await waitFor(() => expect(fetchFollowing).toHaveBeenCalled());
+    expect(screen.queryByRole('heading', { name: 'Brewers to meet' })).toBeNull();
+    expect(fetchBrewerRails).not.toHaveBeenCalled();
+    first.unmount();
+
+    vi.mocked(listFriends).mockResolvedValue([]);
+    vi.mocked(fetchFollowing).mockResolvedValue([]);
+    vi.mocked(fetchBrewerRails).mockResolvedValue(NO_RAILS);
+    await renderPage();
+    await waitFor(() => expect(fetchBrewerRails).toHaveBeenCalled());
+    expect(screen.queryByRole('heading', { name: 'Brewers to meet' })).toBeNull();
   });
 });

@@ -1,9 +1,9 @@
 import { createPortal } from 'react-dom';
 import { useMemo } from 'react';
-import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
-import { useSheetExit } from '../../lib/use-sheet-exit';
-import { formatMoney } from '../../lib/format-money';
-import type { OwnershipLens } from '../../lib/ownership-lens';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
+import { formatMoney } from '@/lib/collection/format-money';
+import type { OwnershipLens } from '@/lib/collection/ownership-lens';
 import { Button } from '@/components/shared/Button';
 
 interface Props {

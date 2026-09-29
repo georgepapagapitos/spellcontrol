@@ -1,12 +1,12 @@
-import { rarityTint } from '@/lib/set-symbols';
-import { joinClasses } from '@/lib/join-classes';
+import { rarityTint } from '@/lib/cards/set-symbols';
+import { joinClasses } from '@/lib/util/join-classes';
 
 /**
  * The atomic keyrune set-symbol glyph — one `<i class="ss ss-…">`, the sister
  * primitive to `ManaSymbol` (mana-font) for the *set* icon font. Every set
  * symbol on screen routes through this so the keyrune class conventions and
  * the rarity-tint mapping live in exactly one place. Helper logic lives in
- * `lib/set-symbols.ts` (use `setSymbolTitle` there to build the tooltip).
+ * `lib/cards/set-symbols.ts` (use `setSymbolTitle` there to build the tooltip).
  *
  * Tinting: collector-app standard (ManaBox/Delver/Moxfield) — the glyph is
  * colored by the printing's rarity. We use flat theme-token tints

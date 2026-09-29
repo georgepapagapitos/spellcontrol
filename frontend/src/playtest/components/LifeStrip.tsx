@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import { paletteForIndex } from '@/lib/seat-palette';
-import { usePressRepeat } from '@/lib/use-press-repeat';
-import { cmdDamageKey, type GamePlayer } from '@/lib/game-state';
+import { paletteForIndex } from '@/lib/play/seat-palette';
+import { usePressRepeat } from '@/lib/play/use-press-repeat';
+import { cmdDamageKey, type GamePlayer } from '@/lib/play/game-state';
 import { LifeAdjustPanel, type CmdDamageRow, type OnlinePanelData } from './LifeAdjustPanel';
 import type { OnlineTable } from '../hooks/use-online-table';
 

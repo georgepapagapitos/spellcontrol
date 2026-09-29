@@ -1,8 +1,8 @@
 import { createPortal } from 'react-dom';
 import { ColorPip } from './shared/ManaSymbol';
 import { FilterTrigger } from './shared/FilterTrigger';
-import { FILTER_COLOR_OPTIONS } from '@/lib/colors';
-import { useAnchoredPanel } from '@/lib/use-anchored-panel';
+import { FILTER_COLOR_OPTIONS } from '@/lib/cards/colors';
+import { useAnchoredPanel } from '@/lib/overlays/use-anchored-panel';
 import {
   COMBO_RESULT_LABELS,
   countActiveFilters,
@@ -10,7 +10,7 @@ import {
   type ComboFilterState,
   type ComboPieceCount,
   type ComboResultKind,
-} from '../lib/combo-filters';
+} from '@/lib/deck-analysis/combo-filters';
 import { Button, IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 import { Surface } from '@/components/shared/Surface';

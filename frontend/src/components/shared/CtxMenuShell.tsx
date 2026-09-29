@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { createPortal, flushSync } from 'react-dom';
 import './CtxMenuShell.css';
-import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
-import { useMenuKeyboard } from '@/lib/use-menu-keyboard';
-import { useSheetExit } from '@/lib/use-sheet-exit';
-import { getSafeViewport } from '@/lib/popover-placement';
-import { markMenuTarget } from '@/lib/context-menu';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useMenuKeyboard } from '@/lib/overlays/use-menu-keyboard';
+import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
+import { getSafeViewport } from '@/lib/overlays/popover-placement';
+import { markMenuTarget } from '@/lib/overlays/context-menu';
 import { Button } from '@/components/shared/Button';
 
 /** Every role a row inside this shell can carry — a plain action, a toggle,

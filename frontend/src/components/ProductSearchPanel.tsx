@@ -3,22 +3,22 @@ import { useNavigate } from 'react-router-dom';
 import { AlignJustify, ChevronLeft, Layers, LayoutGrid, Package, Rows3, X } from 'lucide-react';
 import { ViewModeToggle, type ViewModeOption } from './ViewModeToggle';
 import { CardThumb } from './CardThumb';
-import { searchProducts, fetchProduct } from '../lib/api';
+import { searchProducts, fetchProduct } from '@/lib/api';
 import {
   colorIdentityCost,
   colorIdentityLabel,
   useProductCommander,
-} from '../lib/use-product-commander';
-import { useBuildDeckFromImport } from '../lib/build-deck-from-import';
+} from '@/lib/import-export/use-product-commander';
+import { useBuildDeckFromImport } from '@/lib/import-export/build-deck-from-import';
 import { useCollectionStore } from '../store/collection';
-import { useBinderLayoutInputs } from '../lib/use-binder-layout-inputs';
+import { useBinderLayoutInputs } from '@/lib/binder/use-binder-layout-inputs';
 import {
   PRODUCT_IMPORT_LABEL,
   groupPhysicalByZone,
   physicalCardsToUploadResponse,
-} from '../lib/product-import';
-import { fetchErrorMessage } from '../lib/import-review';
-import { summarizeImportRouting } from '../lib/import-routing';
+} from '@/lib/import-export/product-import';
+import { fetchErrorMessage } from '@/lib/import-export/import-review';
+import { summarizeImportRouting } from '@/lib/import-export/import-routing';
 import { useCardCarousel, type CarouselEntry } from './deck/useCardCarousel';
 import { ManaCost } from './ManaCost';
 import { SearchPill } from './SearchPill';
@@ -35,7 +35,7 @@ import type {
 } from '../types';
 import './ProductSearchPanel.css';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button, IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 import { Field, SwitchRow } from '@/components/shared/form';

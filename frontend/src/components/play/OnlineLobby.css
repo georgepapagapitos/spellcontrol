@@ -508,6 +508,8 @@
   background: var(--accent-light);
   --text-muted: var(--text-muted-tint);
   --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   border-radius: var(--radius);
 }
 
@@ -717,6 +719,16 @@
   margin: var(--space-1) 0 0;
   font-size: var(--text-xs);
   color: var(--err-text);
+}
+
+.lobby-voice-discord {
+  margin-top: var(--space-2);
+}
+
+.lobby-voice-hint {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
 }
 
 .lobby-voice-link {

@@ -29,14 +29,14 @@ import { SegmentedControl } from './shared/form';
 import { Button, IconButton } from './shared/Button';
 import { Chip } from './shared/Chip';
 import { conditionLabel, conditionShort } from './shared/CardRow';
-import { useSearchCards } from '../lib/use-search-cards';
-import { useConfirm } from '../lib/use-confirm';
-import { formatMoney } from '../lib/format-money';
-import { formatRelativeTime } from '../lib/format-time';
-import { CONDITIONS, FINISH_LABELS, finishUnitPrice } from '../lib/scanner-feedback';
-import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
-import { bindersUseTags, useCardsWithTags } from '../lib/card-tags';
-import type { ScannedEntry } from '../lib/use-scan-queue';
+import { useSearchCards } from '@/lib/search/use-search-cards';
+import { useConfirm } from './use-confirm';
+import { formatMoney } from '@/lib/collection/format-money';
+import { formatRelativeTime } from '@/lib/util/format-time';
+import { CONDITIONS, FINISH_LABELS, finishUnitPrice } from '@/lib/scanner/scanner-feedback';
+import { scryfallToEnrichedCard } from '@/lib/cards/scryfall-to-enriched';
+import { bindersUseTags, useCardsWithTags } from '@/lib/cards/card-tags';
+import type { ScannedEntry } from '@/lib/scanner/use-scan-queue';
 
 /** Every scanner sheet sits over the full-screen camera, which is above the
  *  modal tier: `--over-sheet` lifts the backdrop past it. A bottom sheet on a

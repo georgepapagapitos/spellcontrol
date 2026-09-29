@@ -4,12 +4,12 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode }
 import { Link } from 'react-router-dom';
 import type { BinderPage, EnrichedCard, PocketSize } from '../types';
 import { CardPreview, type CardPreviewAction } from './CardPreview';
-import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
 import { SnapCarousel, type SnapCarouselHandle } from './SnapCarousel';
-import { useSwipeDownDismiss } from '../lib/use-swipe-down-dismiss';
-import { useSheetExit } from '../lib/use-sheet-exit';
-import { useAllocations, type AllocationInfo } from '../lib/allocations';
-import { classifyFoil } from '../lib/foil-style';
+import { useSwipeDownDismiss } from '@/lib/overlays/use-swipe-down-dismiss';
+import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
+import { useAllocations, type AllocationInfo } from '@/lib/collection/allocations';
+import { classifyFoil } from '@/lib/cards/foil-style';
 import { IconButton } from '@/components/shared/Button';
 import { FoilShimmer } from '@/components/shared/FoilShimmer';
 
@@ -28,7 +28,7 @@ interface Props {
   /**
    * Per-page "Vol N" label, parallel to `pages` — present only when the
    * binder is over its fixed capacity and so reads as more than one physical
-   * book (`lib/binder-volumes.ts`). Omitted entirely for a binder that fits
+   * book (`lib/binder/binder-volumes.ts`). Omitted entirely for a binder that fits
    * in one book, so a single-volume binder never shows "Vol 1".
    */
   volumeLabels?: string[];

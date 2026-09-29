@@ -1,6 +1,6 @@
 /* FriendsPage.css — /friends route */
 
-/* `scrollToHeading` (lib/scroll-to-heading.ts) focuses this non-interactive
+/* `scrollToHeading` (lib/util/scroll-to-heading.ts) focuses this non-interactive
    heading on a `?tab=` deep link so sighted users land in the right place and
    screen readers get the announcement. It's not a control, so it gets no
    `:focus-visible` ring pairing — suppress the raw default outline rather
@@ -31,45 +31,6 @@
   }
 }
 
-/* ── Add Friend search ───────────────────────────────────────────────────── */
-.friends-search-form {
-  display: flex;
-  gap: var(--space-2);
-  margin-bottom: var(--space-2);
-}
-
-.friends-search-btn {
-  /* A primary Button; the form's default stretch matches it to the field. */
-  flex-shrink: 0;
-}
-
-/* Search results */
-.friends-search-results {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 var(--space-4);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.friends-search-result {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-3);
-  background: var(--surface-raised);
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius);
-}
-
-.friends-search-result-name {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-
 /* Shared primary/secondary identity text — reused wherever a row shows a
    user's display name with @username as a secondary line underneath. */
 .friends-identity-text {
@@ -95,46 +56,6 @@
 
 .friends-panel {
   margin-top: var(--space-3);
-}
-
-/* ── Friends list ────────────────────────────────────────────────────────── */
-.friends-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.friends-list-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3);
-  background: var(--surface-raised);
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius-lg);
-}
-
-.friends-list-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.friends-list-name {
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.friends-list-since {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  margin-top: var(--space-0-5);
 }
 
 /* ── Requests panel ──────────────────────────────────────────────────────── */

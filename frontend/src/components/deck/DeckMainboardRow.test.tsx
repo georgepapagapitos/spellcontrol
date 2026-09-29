@@ -5,7 +5,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { DeckDisplay, type DeckDisplayCard } from './DeckDisplay';
-import { useCurrencyStore } from '../../lib/currency';
+import { useCurrencyStore } from '@/lib/collection/currency';
 
 // DeckMainboardRow.tsx (CategorySection/DeckCardRow) is exercised through
 // DeckDisplay — the same route DeckDisplay.qty-zone.test.tsx uses — rather
@@ -13,7 +13,7 @@ import { useCurrencyStore } from '../../lib/currency';
 // allocation counts, printing groups, image variants...). DeckDisplay's own
 // row-building (deck-display-rows.ts) is what produces a real Row, so this
 // is the shortest path to a row that actually reflects app behaviour.
-vi.mock('@/lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
 function bolt(overrides: Partial<ScryfallCard> = {}): ScryfallCard {
   return {

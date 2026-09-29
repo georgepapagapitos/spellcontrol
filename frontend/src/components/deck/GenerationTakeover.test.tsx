@@ -5,7 +5,7 @@ import { GenerationTakeover } from './GenerationTakeover';
 
 // useCardThumb is an async CDN hook; stub it to a no-op in unit tests so we
 // don't fire real network requests.
-vi.mock('@/lib/card-thumbs', () => ({
+vi.mock('@/lib/cards/card-thumbs', () => ({
   useCardThumb: () => undefined,
 }));
 

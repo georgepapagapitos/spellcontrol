@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
-import { logger } from '@/lib/logger';
-import type { GameState } from '@/lib/game-state';
+import { logger } from '@/lib/util/logger';
+import type { GameState } from '@/lib/play/game-state';
 import { loadHordeDeck, replayHorde, type HordeDeckDef, type HordeReplay } from '@/lib/horde';
 import type { Rect } from '@/playtest/lib/auto-place';
 

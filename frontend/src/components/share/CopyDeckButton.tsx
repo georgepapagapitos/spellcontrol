@@ -1,8 +1,8 @@
 import { Copy } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { copySharedDeck } from '../../lib/copy-shared-deck';
+import { copySharedDeck } from '@/lib/social/copy-shared-deck';
 import { toast } from '../../store/toasts';
-import type { PublicDeck } from '../../lib/shared-types';
+import type { PublicDeck } from '@/lib/social/shared-types';
 import { Button } from '@/components/shared/Button';
 
 interface Props {

@@ -1,11 +1,11 @@
 import { useMemo } from 'react';
-import type { PublicCard } from '../../lib/shared-types';
-import { publicCardToEnriched } from '../../lib/shared-filter';
+import type { PublicCard } from '@/lib/social/shared-types';
+import { publicCardToEnriched } from '@/lib/social/shared-filter';
 import { BinderBadge, type BinderInfo } from '../BinderBadge';
 import { DeckBadge } from '../DeckBadge';
-import type { AllocationInfo } from '../../lib/allocations-core';
+import type { AllocationInfo } from '@/lib/collection/allocations-core';
 import { CardGridCell, gridSetLabel, useGridCaptionPrefs } from '../shared/CardGridCell';
-import { formatMoney } from '../../lib/format-money';
+import { formatMoney } from '@/lib/collection/format-money';
 import { ArtBadge } from '@/components/shared/ArtBadge';
 
 export interface CardOwnership {

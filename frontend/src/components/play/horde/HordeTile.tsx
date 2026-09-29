@@ -2,7 +2,7 @@ import { Check } from 'lucide-react';
 import { ColorPip } from '../../shared/ManaSymbol';
 import { Chip } from '../../shared/Chip';
 import type { HordeCatalogEntry } from '@/lib/horde';
-import type { HordeRecordRow } from '@/lib/horde-records';
+import type { HordeRecordRow } from '@/lib/horde/horde-records';
 import './horde-setup.css';
 
 interface Props {

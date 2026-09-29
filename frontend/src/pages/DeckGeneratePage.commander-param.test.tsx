@@ -22,7 +22,7 @@ vi.mock('../store/decks', () => ({
 vi.mock('../store/auth', () => ({
   useAuth: <T,>(selector: (s: { status: string }) => T): T => selector({ status: 'guest' }),
 }));
-vi.mock('../lib/sync', () => ({ isOnline: () => true, onSyncedChange: () => () => {} }));
+vi.mock('@/lib/sync', () => ({ isOnline: () => true, onSyncedChange: () => () => {} }));
 vi.mock('../components/deck/CommanderSearch', () => ({
   CommanderSearch: ({ value }: { value: ScryfallCard | null }) => (
     <div data-testid="commander-search" data-value={value?.name ?? ''} />

@@ -10,7 +10,7 @@ import {
   volumePageRange,
   volumeSpine,
   volumesOfCapacity,
-} from '../lib/binder-volumes';
+} from '@/lib/binder/binder-volumes';
 import type { PocketSize, Volume } from '../types';
 
 interface Props {

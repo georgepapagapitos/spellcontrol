@@ -1,29 +1,29 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, RefreshCw, X } from 'lucide-react';
 import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
-import type { Change } from '@/lib/deck-change';
-import { analyzeDeck } from '../../lib/deck-analysis';
-import { useTaggerReady } from '@/lib/use-tagger-ready';
+import type { Change } from '@/lib/coach/deck-change';
+import { analyzeDeck } from '@/lib/deck-analysis/deck-analysis';
+import { useTaggerReady } from '@/lib/cards/use-tagger-ready';
 import {
   buildDeckReviewCards,
   splitReviewSections,
   stripEmphasis,
   toAiAnalysis,
   tokenizeCardNames,
-} from '../../lib/ai-review';
-import { requestDeckRefine, type RefineCard, type RefineTweak } from '../../lib/ai-refine';
-import type { AiScope } from '../../lib/ai-scope';
-import { aiPriceCurrency } from '../../lib/currency';
-import { noteAiExhausted, noteAiSpend, useAiStatus } from '../../lib/use-ai-status';
+} from '@/lib/ai/ai-review';
+import { requestDeckRefine, type RefineCard, type RefineTweak } from '@/lib/ai/ai-refine';
+import type { AiScope } from '@/lib/ai/ai-scope';
+import { aiPriceCurrency } from '@/lib/collection/currency';
+import { noteAiExhausted, noteAiSpend, useAiStatus } from '@/lib/ai/use-ai-status';
 import { AiMarker, DeckAiConsent, isAiInviteDismissed } from './DeckAiConsent';
 import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
 import './DeckAiReview.css';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button, IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 import { Surface } from '@/components/shared/Surface';
-import { aiConsentBlurb } from '@/lib/shared-copy';
+import { aiConsentBlurb } from '@/lib/util/shared-copy';
 interface DeckAiRefineProps {
   deckId: string;
   format: DeckFormat;

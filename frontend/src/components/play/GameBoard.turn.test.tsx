@@ -20,8 +20,8 @@
  */
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { GameAction, GamePlayer, GameState } from '../../lib/game-state';
-import { createGameState, makePlayer } from '../../lib/game-state';
+import type { GameAction, GamePlayer, GameState } from '@/lib/play/game-state';
+import { createGameState, makePlayer } from '@/lib/play/game-state';
 
 function seat(n: number, name: string, over: Partial<GamePlayer> = {}): GamePlayer {
   return {
@@ -64,13 +64,13 @@ vi.mock('../../store/play', () => {
   return { usePlayStore };
 });
 
-vi.mock('../../lib/haptics', () => ({
+vi.mock('@/lib/util/haptics', () => ({
   haptics: { tap: vi.fn(), lethal: vi.fn(), warning: vi.fn(), success: vi.fn(), bump: vi.fn() },
 }));
 
-vi.mock('../../lib/use-wake-lock', () => ({ useWakeLock: vi.fn() }));
+vi.mock('@/lib/util/use-wake-lock', () => ({ useWakeLock: vi.fn() }));
 
-vi.mock('../../lib/undo-stack', () => ({
+vi.mock('@/lib/play/undo-stack', () => ({
   capture: vi.fn(),
   clearUndo: vi.fn(),
   peekLabel: vi.fn(() => null),
@@ -88,7 +88,7 @@ vi.mock('@dnd-kit/core', () => ({
   useSensors: vi.fn((...args: unknown[]) => args),
 }));
 
-vi.mock('../../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
 import { GameBoard } from './GameBoard';
 

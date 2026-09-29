@@ -8,17 +8,17 @@ import { ValueSparkline } from './ValueSparkline';
 import { useAuth } from '../../store/auth';
 import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
-import { imageFromCard, useCardThumb } from '../../lib/card-thumbs';
+import { imageFromCard, useCardThumb } from '@/lib/cards/card-thumbs';
 import { scryfallArtCrop } from '../../lib/offline/slim-to-scryfall';
-import { getSyncState, onSyncedChange } from '../../lib/sync';
-import { useCurrency } from '../../lib/currency';
-import { formatMoney } from '../../lib/format-money';
-import { formatIdentity } from '../../lib/display-name';
-import { pickHeroCard, heroGreeting, type HeroPickReason } from '../../lib/home-hero';
-import { readHomeShape, rememberHomeShape } from '../../lib/home-shape';
-import { useAwaitingFirstPull } from '../../lib/use-awaiting-first-pull';
-import { useLoadSamples } from '../../lib/use-load-samples';
-import { track } from '../../lib/analytics';
+import { getSyncState, onSyncedChange } from '@/lib/sync';
+import { useCurrency } from '@/lib/collection/currency';
+import { formatMoney } from '@/lib/collection/format-money';
+import { formatIdentity } from '@/lib/social/display-name';
+import { pickHeroCard, heroGreeting, type HeroPickReason } from '@/lib/home/home-hero';
+import { readHomeShape, rememberHomeShape } from '@/lib/home/home-shape';
+import { useAwaitingFirstPull } from '@/lib/sync/use-awaiting-first-pull';
+import { useLoadSamples } from '@/lib/home/use-load-samples';
+import { track } from '@/lib/util/analytics';
 import {
   computeValueDelta,
   dayKey,
@@ -26,7 +26,7 @@ import {
   getValueHistory,
   onValueHistoryChange,
   type ValuePoint,
-} from '../../lib/value-history';
+} from '@/lib/collection/value-history';
 import { Button, buttonClass } from '@/components/shared/Button';
 
 /** Every scale-line label is a plain plural, so one copy of the s-strip
@@ -258,7 +258,7 @@ export function HomeHero() {
   // loading shimmer, never flash the empty-sleeve fallback or the checklist.
   // Same subscribe-and-rerender idiom as SyncIndicator.
   const hydrating = useCollectionStore((s) => s.hydrating);
-  // Last visit's resolved hero shape (lib/home-shape) — read once at mount.
+  // Last visit's resolved hero shape (lib/home/home-shape) — read once at mount.
   const [remembered] = useState(() => readHomeShape());
   const [, syncTick] = useState(0);
   useEffect(() => onSyncedChange(() => syncTick((n) => n + 1)), []);

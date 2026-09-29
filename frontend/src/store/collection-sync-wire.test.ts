@@ -10,13 +10,13 @@
  */
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it, afterEach } from 'vitest';
-import { flushSync } from '../lib/sync';
+import { flushSync } from '@/lib/sync';
 
 import { useCollectionStore } from './collection';
 import { useDecksStore } from './decks';
-import { clearCollection } from '../lib/local-cards';
-import * as queue from '../lib/mutation-queue';
-import * as estore from '../lib/entity-store';
+import { clearCollection } from '@/lib/sync/local-cards';
+import * as queue from '@/lib/sync/mutation-queue';
+import * as estore from '@/lib/sync/entity-store';
 import type { EnrichedCard, UploadResponse } from '../types';
 
 function enriched(copyId: string, scryfallId: string): EnrichedCard {

@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import { MAX_STAGED_FILES } from '../lib/staged-files';
+import { MAX_STAGED_FILES } from '@/lib/import-export/staged-files';
 import { Button, IconButton } from '@/components/shared/Button';
 
 interface Props {

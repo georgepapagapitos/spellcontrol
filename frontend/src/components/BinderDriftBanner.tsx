@@ -8,7 +8,7 @@ import {
   formatDriftReason,
   hasDrift,
   referencedLegalityFormats,
-} from '../lib/binder-drift';
+} from '@/lib/binder/binder-drift';
 import {
   buildReviewQueue,
   destinationKey,
@@ -19,10 +19,10 @@ import {
   type AddedGroup,
   type RemovedGroup,
   type ReviewQueueRow,
-} from '../lib/binder-review-queue';
+} from '@/lib/binder/binder-review-queue';
 import type { MaterializedBinder } from '../types';
 import { InfoTip } from './InfoTip';
-import { formatRelativeTime } from '../lib/format-time';
+import { formatRelativeTime } from '@/lib/util/format-time';
 import { toast } from '../store/toasts';
 import { Button } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';

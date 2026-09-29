@@ -1,10 +1,10 @@
 import './TrendingRail.css';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { apiUrl } from '../../lib/api-base';
-import { useCardThumb } from '../../lib/card-thumbs';
+import { apiUrl } from '@/lib/api/api-base';
+import { useCardThumb } from '@/lib/cards/card-thumbs';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 import { Count } from '@/components/shared/Count';
 interface RisingCommander {

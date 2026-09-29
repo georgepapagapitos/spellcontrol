@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useMenuKeyboard } from '@/lib/use-menu-keyboard';
-import { computePopoverPlacement, getSafeViewport } from '@/lib/popover-placement';
+import { useMenuKeyboard } from '@/lib/overlays/use-menu-keyboard';
+import { computePopoverPlacement, getSafeViewport } from '@/lib/overlays/popover-placement';
 import { useOnlineSignals } from '../hooks/use-online-signals';
 import { REACTION_EMOTES, REACTION_LABEL } from '../lib/table-signals';
 import './ReactionPicker.css';

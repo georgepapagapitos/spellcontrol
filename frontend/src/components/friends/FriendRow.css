@@ -1,0 +1,152 @@
+/* FriendRow: a friend as a person. One link for the identity, a ⋮ beside it.
+   See style-guide/social.md § Friends page. */
+
+.friends-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.friend-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+}
+
+.friend-row-link {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-3);
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.friend-row-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .friend-row-link:hover .friend-row-name {
+    color: var(--accent);
+  }
+}
+
+.friend-row-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+
+.friend-row-name {
+  font-size: var(--text-md);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.friend-row-handle,
+.friend-row-since {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.friend-row-peek {
+  margin-top: var(--space-0-5);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The art of one of their decks, with the colour bar under it. Hidden on a
+   phone: the row's line is the name, peek and time, and the art would cost
+   the name its width. */
+.friend-row-art {
+  display: none;
+  flex: none;
+  width: 6.5rem;
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.friend-row-art img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  background: var(--surface-raised);
+}
+
+@media (min-width: 600px) {
+  .friend-row-art {
+    display: block;
+  }
+}
+
+.friend-row-menu {
+  flex: none;
+  margin-inline-end: var(--space-2);
+}
+
+/* Skeleton */
+.friend-row--skeleton {
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+
+.friend-row-avatar-skel,
+.friend-row-bar {
+  display: block;
+  background: linear-gradient(
+    90deg,
+    var(--surface-raised) 25%,
+    var(--border) 50%,
+    var(--surface-raised) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer calc(var(--motion-drawer) * 3) ease-in-out infinite;
+}
+
+.friend-row-avatar-skel {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+}
+
+.friend-row-bar {
+  height: 0.9rem;
+  width: 60%;
+  border-radius: var(--radius);
+}
+
+.friend-row-bar + .friend-row-bar {
+  margin-top: var(--space-2);
+}
+
+.friend-row-bar--short {
+  width: 35%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .friend-row-avatar-skel,
+  .friend-row-bar {
+    animation: none;
+  }
+}

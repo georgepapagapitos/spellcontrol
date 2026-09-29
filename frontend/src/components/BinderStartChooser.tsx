@@ -7,22 +7,22 @@ import {
   type ChooserColorKey,
   type StarterTemplate,
   type TemplateGroup,
-} from '../lib/binder-templates';
-import { useCardTagsError, useCardTagsReady, useCardsWithTags } from '../lib/card-tags';
-import { useCardsWithSpareCopies } from '../lib/spare-copies';
+} from '@/lib/binder/binder-templates';
+import { useCardTagsError, useCardTagsReady, useCardsWithTags } from '@/lib/cards/card-tags';
+import { useCardsWithSpareCopies } from '@/lib/binder/spare-copies';
 import {
   useChooserPreviews,
   type PreviewRequest,
   type TilePreview,
-} from '../lib/binder-chooser-preview';
-import { SORT_PRESETS } from '../lib/sorting';
-import { formatCaughtBy } from '../lib/binder-counts';
+} from '@/lib/binder/binder-chooser-preview';
+import { SORT_PRESETS } from '@/lib/search/sorting';
+import { formatCaughtBy } from '@/lib/binder/binder-counts';
 import { ColorPip } from './shared/ManaSymbol';
 import { SectionHeader } from './shared/SectionHeader';
 import type { BinderDef, BinderFilter, EnrichedCard } from '../types';
-import type { BinderLayoutInputs } from '../lib/use-binder-layout-inputs';
+import type { BinderLayoutInputs } from '@/lib/binder/use-binder-layout-inputs';
 import { useCollectionStore } from '../store/collection';
-import { COLOR_INFO } from '../lib/colors';
+import { COLOR_INFO } from '@/lib/cards/colors';
 
 /** The lead tile's little shelf: a row of binder spines in the color-group
  *  swatches the planner itself uses, decorative only. Heights vary so it reads

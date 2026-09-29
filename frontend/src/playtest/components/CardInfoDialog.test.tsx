@@ -15,7 +15,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { CardInfoDialog } from './CardInfoDialog';
 
-vi.mock('@/lib/card-rulings', () => ({
+vi.mock('@/lib/cards/card-rulings', () => ({
   fetchCardRulings: () =>
     Promise.resolve([
       {

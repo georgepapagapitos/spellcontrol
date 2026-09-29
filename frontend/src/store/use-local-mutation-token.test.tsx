@@ -7,7 +7,7 @@ import { useDecksStore, useLocalMutationToken } from './decks';
 // mutation; let that import (and the push debounce it may arm) settle inside
 // this short file instead of outliving it.
 afterEach(async () => {
-  const sync = await import('../lib/sync');
+  const sync = await import('@/lib/sync');
   await sync.flushSync();
 });
 

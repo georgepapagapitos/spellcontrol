@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 //
 // The seam between "which names need production" and "hand the analysis cards
-// that carry it". The pure halves are guarded in `lib/produced-mana.test.ts`;
+// that carry it". The pure halves are guarded in `lib/deck-analysis/produced-mana.test.ts`;
 // what is only testable here is WHEN the lookup happens — and the one that
 // matters is that a deck already carrying production makes no request, so this
 // costs a modern deck nothing.

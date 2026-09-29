@@ -10,14 +10,14 @@ import {
   Trash2,
 } from 'lucide-react';
 import { ViewModeToggle } from '../../components/ViewModeToggle';
-import { useStoredView } from '../../lib/use-stored-view';
+import { useStoredView } from '@/lib/util/use-stored-view';
 import { StackedBar } from '../../components/shared/MeterBar';
 import { CardGridCell } from '../../components/shared/CardGridCell';
 import { DeckBadge } from '../../components/DeckBadge';
 import { CardPreview } from '../../components/CardPreview';
 import { OverflowMenu } from '../../components/OverflowMenu';
-import { formatRelativeTime } from '../../lib/format-time';
-import type { AllocationInfo } from '../../lib/allocations';
+import { formatRelativeTime } from '@/lib/util/format-time';
+import type { AllocationInfo } from '@/lib/collection/allocations';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '../../types';
 import { ColorBucket, sizeInfo, provenance } from '../../lib/cube/targets';

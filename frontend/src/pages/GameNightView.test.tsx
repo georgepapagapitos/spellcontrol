@@ -9,15 +9,15 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PublicGameNight } from '../lib/game-nights-api';
+import type { PublicGameNight } from '@/lib/play/game-nights-api';
 
 const { fetchPublicGameNightMock } = vi.hoisted(() => ({ fetchPublicGameNightMock: vi.fn() }));
-vi.mock('../lib/game-nights-api', async (importOriginal) => {
-  const real = await importOriginal<typeof import('../lib/game-nights-api')>();
+vi.mock('@/lib/play/game-nights-api', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@/lib/play/game-nights-api')>();
   return { ...real, fetchPublicGameNight: fetchPublicGameNightMock };
 });
 
-import { GameNightNotFoundError } from '../lib/game-nights-api';
+import { GameNightNotFoundError } from '@/lib/play/game-nights-api';
 import { GameNightView } from './GameNightView';
 
 const DAY = 24 * 60 * 60 * 1000;

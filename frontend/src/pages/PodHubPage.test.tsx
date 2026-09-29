@@ -26,17 +26,17 @@ vi.mock('../store/auth', () => ({
   useAuth: (selector: (s: typeof authState) => unknown) => selector(authState),
 }));
 
-vi.mock('../lib/friends-client', () => ({
+vi.mock('@/lib/social/friends-client', () => ({
   listFriends: vi.fn(() => Promise.resolve([])),
 }));
 
-vi.mock('../lib/share-client', () => ({
+vi.mock('@/lib/social/share-client', () => ({
   getFriendShares: vi.fn(() =>
     Promise.resolve({ ownerUsername: '', ownerDisplayName: null, shares: [] })
   ),
 }));
 
-vi.mock('../lib/pods-client', () => {
+vi.mock('@/lib/social/pods-client', () => {
   class PodNotFoundError extends Error {}
   return {
     getPod: vi.fn(),
@@ -61,8 +61,8 @@ vi.mock('../lib/pods-client', () => {
 });
 
 import { PodHubPage } from './PodHubPage';
-import { listFriends } from '../lib/friends-client';
-import { getFriendShares } from '../lib/share-client';
+import { listFriends } from '@/lib/social/friends-client';
+import { getFriendShares } from '@/lib/social/share-client';
 import {
   acceptPodInvite,
   declinePodInvite,
@@ -78,7 +78,7 @@ import {
   type PodDetail,
   type PodRecords,
   type PodStanding,
-} from '../lib/pods-client';
+} from '@/lib/social/pods-client';
 
 function renderPage() {
   return render(

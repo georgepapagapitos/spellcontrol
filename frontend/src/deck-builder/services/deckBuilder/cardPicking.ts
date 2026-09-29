@@ -1,6 +1,6 @@
 // EDHREC card-pool selection: priority scoring and the two prefetched-map
 // pickers (flat + curve-aware). Extracted verbatim from deckGenerator.ts.
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/util/logger';
 import type { ScryfallCard, EDHRECCard, MaxRarity, CollectionStrategy } from '@/deck-builder/types';
 import { getCardPrice, getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { hasCurveRoom } from './curveUtils';

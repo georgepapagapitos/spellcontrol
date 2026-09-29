@@ -5,15 +5,15 @@ import { Link } from 'react-router-dom';
 import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
 import { useCubeStore } from '../../store/cube';
-import { useAllocations } from '../../lib/allocations';
-import { useCurrency } from '../../lib/currency';
-import { formatMoneyTally } from '../../lib/format-money';
+import { useAllocations } from '@/lib/collection/allocations';
+import { useCurrency } from '@/lib/collection/currency';
+import { formatMoneyTally } from '@/lib/collection/format-money';
 import {
   computeCloseToDone,
   computeSharedCopies,
   computeSparesSummary,
-} from '../../lib/collection-insights';
-import { isRecentPartialImport, latestImport } from '../../lib/home-signals';
+} from '@/lib/collection/collection-insights';
+import { isRecentPartialImport, latestImport } from '@/lib/home/home-signals';
 import { HomeCard } from './HomeCard';
 
 /** Rows the card shows at most; the rest live in the Breakdown drawer. */

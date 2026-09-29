@@ -9,10 +9,10 @@ import { describe, expect, it, vi } from 'vitest';
 import type { ComboMatchResponse } from '../../types/combos';
 
 const useDeckCombos = vi.fn();
-vi.mock('../../lib/use-deck-combos', () => ({
+vi.mock('@/lib/deck-analysis/use-deck-combos', () => ({
   useDeckCombos: (args: unknown) => useDeckCombos(args),
 }));
-vi.mock('../../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 vi.mock('../CardPreview', () => ({ CardPreview: () => null }));
 vi.mock('../../store/collection', () => ({
   useCollectionStore: (sel: (s: unknown) => unknown) => sel({ cards: [] }),

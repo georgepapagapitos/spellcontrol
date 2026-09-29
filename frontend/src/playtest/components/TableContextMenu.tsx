@@ -8,7 +8,7 @@ import {
 } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { CtxMenuShell } from '@/components/shared/CtxMenuShell';
-import { getSafeViewport } from '@/lib/popover-placement';
+import { getSafeViewport } from '@/lib/overlays/popover-placement';
 
 export interface TableMenuItem {
   /** Names a row so a caller can open the menu with it already open (the

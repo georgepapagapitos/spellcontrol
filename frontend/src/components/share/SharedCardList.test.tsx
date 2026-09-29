@@ -3,10 +3,10 @@ import { describe, it, expect, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { SharedCardList } from './SharedCardList';
-import type { PublicCard } from '../../lib/shared-types';
+import type { PublicCard } from '@/lib/social/shared-types';
 import { SHARED_TABLE_COLUMNS } from '../shared/CardTable';
 
-vi.mock('../../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
 function stubViewport(tabletOrWider: boolean) {
   vi.stubGlobal('matchMedia', (query: string) => ({

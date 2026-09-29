@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { haptics } from '@/lib/haptics';
+import { haptics } from '@/lib/util/haptics';
 
 /** What the tab reads while your turn waits in the background. */
 export const TURN_TITLE_PREFIX = '● Your turn · ';

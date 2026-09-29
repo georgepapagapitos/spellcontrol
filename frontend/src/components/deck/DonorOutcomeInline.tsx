@@ -2,12 +2,12 @@ import { type JSX, useId } from 'react';
 import './DonorOutcomeInline.css';
 import { DeckCardRow } from './DeckCardRow';
 import { useSimilarCards } from './useSimilarCards';
-import type { DonorOutcome } from '@/lib/allocations';
+import type { DonorOutcome } from '@/lib/collection/allocations';
 import type { Deck } from '@/store/decks';
-import type { Change, ChangeOwnership } from '@/lib/deck-change';
+import type { Change, ChangeOwnership } from '@/lib/coach/deck-change';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '@/types';
-import type { SimilarCandidate } from '@/lib/similar-cards';
+import type { SimilarCandidate } from '@/lib/coach/similar-cards';
 
 export interface DonorOutcomeInlineProps {
   /** The deck losing the physical copy (donor). Source of identity/inclusion. */

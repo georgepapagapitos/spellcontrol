@@ -1,12 +1,12 @@
 import { createPortal } from 'react-dom';
 import './CardFitPanel.css';
 import { type JSX } from 'react';
-import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
-import { useEscapeKey } from '@/lib/use-escape-key';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useEscapeKey } from '@/lib/overlays/use-escape-key';
 import type { ScryfallCard } from '@/deck-builder/types';
-import type { AddFitReport } from '@/lib/card-fit';
-import type { RankedCut } from '@/lib/intelligent-cuts';
-import type { Change } from '@/lib/deck-change';
+import type { AddFitReport } from '@/lib/coach/card-fit';
+import type { RankedCut } from '@/lib/coach/intelligent-cuts';
+import type { Change } from '@/lib/coach/deck-change';
 import { DeckCardRow } from './DeckCardRow';
 import { Button } from '@/components/shared/Button';
 

@@ -25,7 +25,7 @@ vi.mock('../store/decks', () => ({
 vi.mock('../store/auth', () => ({
   useAuth: <T,>(selector: (s: { status: string }) => T): T => selector({ status: 'authed' }),
 }));
-vi.mock('../lib/sync', () => ({ isOnline: () => true, onSyncedChange: () => () => {} }));
+vi.mock('@/lib/sync', () => ({ isOnline: () => true, onSyncedChange: () => () => {} }));
 // The land pre-fetch would outlive these synchronous tests (see the note in
 // DeckGeneratePage.choose-color.test.tsx).
 vi.mock('@/deck-builder/services/edhrec/client', () => ({

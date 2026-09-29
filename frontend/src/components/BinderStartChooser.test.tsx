@@ -11,8 +11,8 @@ vi.mock('react-router-dom', async () => {
   return { ...actual, useNavigate: () => navigateMock };
 });
 
-vi.mock('../lib/card-tags', async (importActual) => ({
-  ...(await importActual<typeof import('../lib/card-tags')>()),
+vi.mock('@/lib/cards/card-tags', async (importActual) => ({
+  ...(await importActual<typeof import('@/lib/cards/card-tags')>()),
   useCardTagsReady: () => true,
   useCardTagsError: () => false,
   useCardsWithTags: (cards: EnrichedCard[]) => cards,

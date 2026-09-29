@@ -1,15 +1,15 @@
 import { useEffect, useId, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
-import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
-import { useSheetExit } from '../lib/use-sheet-exit';
-import { restoreFocus } from '../lib/overlay-layer';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
+import { restoreFocus } from '@/lib/overlays/overlay-layer';
 import { useCollectionStore } from '../store/collection';
-import { useSearchCards } from '../lib/use-search-cards';
-import { imageFromCard, loadCard, useCardThumb } from '../lib/card-thumbs';
+import { useSearchCards } from '@/lib/search/use-search-cards';
+import { imageFromCard, loadCard, useCardThumb } from '@/lib/cards/card-thumbs';
 import { SearchPill } from './SearchPill';
 import type { EnrichedCard } from '../types';
-import type { AvatarPatch } from '../lib/auth-api';
+import type { AvatarPatch } from '@/lib/account/auth-api';
 import './AvatarPickerSheet.css';
 import { Button, IconButton } from '@/components/shared/Button';
 

@@ -1,7 +1,7 @@
 import { useId, useState, type JSX } from 'react';
 import { ChevronDown } from 'lucide-react';
 import './WhyBreakdown.css';
-import type { WhyFactor } from '@/lib/why-factors';
+import type { WhyFactor } from '@/lib/coach/why-factors';
 
 export interface WhyBreakdownProps {
   /** The grounded reasoning bullets. Empty → renders nothing. */

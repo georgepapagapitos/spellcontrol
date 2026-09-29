@@ -13,8 +13,8 @@ vi.mock('@/deck-builder/services/edhrec/client', async (importOriginal) => ({
 }));
 
 // Art resolves through Scryfall's CDN in the app; nothing to fetch here.
-vi.mock('@/lib/card-thumbs', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/lib/card-thumbs')>()),
+vi.mock('@/lib/cards/card-thumbs', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/cards/card-thumbs')>()),
   useCardThumb: () => undefined,
 }));
 
@@ -33,7 +33,7 @@ vi.mock('@/lib/api', async () => {
 vi.mock('./CardImageFrame', () => ({
   CardImageFrame: (p: { card: { name: string } }) => <div data-name={p.card.name} />,
 }));
-vi.mock('@/lib/card-rulings', () => ({ fetchCardRulings: async () => [] }));
+vi.mock('@/lib/cards/card-rulings', () => ({ fetchCardRulings: async () => [] }));
 
 import { PlayedInSection, PLAYED_IN_SETTLE_MS } from './PlayedInSection';
 import { parseCardPlayedIn } from '@/deck-builder/services/edhrec/client';

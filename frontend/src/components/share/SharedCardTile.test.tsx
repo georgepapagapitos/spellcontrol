@@ -2,11 +2,11 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { SharedCardTile } from './SharedCardTile';
-import type { PublicCard } from '../../lib/shared-types';
+import type { PublicCard } from '@/lib/social/shared-types';
 
 // The tile resolves art by name through the card cache when the projection
 // carries no image; the network is not the subject here.
-vi.mock('../../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
 function pc(over: Partial<PublicCard> = {}): PublicCard {
   return {

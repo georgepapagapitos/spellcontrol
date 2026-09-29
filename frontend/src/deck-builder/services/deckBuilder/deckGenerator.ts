@@ -1,5 +1,5 @@
-import { logger } from '@/lib/logger';
-import { formatMoney } from '@/lib/format-money';
+import { logger } from '@/lib/util/logger';
+import { formatMoney } from '@/lib/collection/format-money';
 import type {
   ScryfallCard,
   GeneratedDeck,
@@ -92,9 +92,9 @@ import {
   isHighSynergyCard,
   PRICE_SANITY_RATIO,
   PRICE_SANITY_INCLUSION_BAND,
-  STAPLE_INCLUSION_BAR,
 } from './cardPicking';
 import { commanderMustSurvive, makeProtectionAdmits } from './deckGeneration/protectionPicks';
+import { buildRoleCapOverflowNote } from './deckGeneration/roleCapNote';
 import {
   categorizeCards,
   stampRoleSubtypes,
@@ -123,7 +123,14 @@ import {
   type SubstituteCandidate,
   type SubstituteRow,
 } from './substituteFinder';
-import { sameType } from '@/lib/card-matching';
+import { sameType } from '@/lib/coach/card-matching';
+import { resolveOwnedCards } from './ownedCardResolution';
+import { pageInclusionOf, weakestFirst } from './ownedShareEviction';
+import {
+  finalDeckMembership,
+  gapsOutsideDeck,
+  survivingSubstitutionRows,
+} from './finalDeckDisclosure';
 import { resolveMultiCopyCards } from './multiCopy';
 import { generateLands, CHANNEL_LAND_BOOST, MDFC_LAND_BOOST } from './landGenerator';
 import { resolveManaPhilosophy } from './manaPhilosophy';
@@ -201,7 +208,7 @@ import {
   PROTECTION_PIECE_BOOST,
   FREE_INTERACTION_BOOST,
 } from './deckGeneration/trimResistanceConstants';
-import { frontFaceName } from '@/lib/card-text';
+import { frontFaceName } from '@/lib/cards/card-text';
 
 // Re-exported so existing consumers keep importing from here (stable public API).
 export { calculateStats } from './deckStats';
@@ -543,46 +550,9 @@ export function roleCapOverage(
   return (currentRoleCounts[role] ?? 0) - (roleTargets[role] ?? 0);
 }
 
-const ROLE_DISPLAY: Record<RoleKey, string> = {
-  ramp: 'ramp',
-  removal: 'removal',
-  boardwipe: 'board wipe',
-  cardDraw: 'card draw',
-};
-
-/**
- * Disclosure for the role-cap escape hatch (E77 iter-4) — every gated path
- * (pick loop, Scryfall fallback, shortage backfill, owned substitutes)
- * increments the same shared counter when it admits an over-cap card rather
- * than shipping the deck short. Mirrors the `buildDisclosureNote` idiom in
- * phaseLiftPicks.ts: one terse note naming the total and the dominant role,
- * not per-card spam. Undefined when the hatch never actually fired.
- *
- * Deliberately narrow (round 3 fix): this counts ONLY escape-hatch
- * admissions, not the deck's total role overshoot — exempt picks
- * (must-includes, combo floor) and in-tolerance amounts can push a role's
- * final count well past this number, and `roleExcesses` (Overbuilt roles)
- * is the full accounting for that. Wording must never read as "the total is
- * N" when Overbuilt roles can show a larger one for the same role.
- * `stapleCounts` (E532) are staples the pick loop never holds back.
- */
-export function buildRoleCapOverflowNote(
-  counts: Partial<Record<RoleKey, number>>,
-  stapleCounts: Partial<Record<RoleKey, number>> = {}
-): string | undefined {
-  const entries = (Object.entries(counts) as [RoleKey, number][]).filter(([, n]) => n > 0);
-  const thin = entries.reduce((s, [, n]) => s + n, 0);
-  const staples = Object.values(stapleCounts).reduce((s: number, n) => s + (n ?? 0), 0);
-  const total = thin + staples;
-  if (total === 0) return undefined;
-  const [dominantRole] = entries.sort((a, b) => b[1] - a[1]);
-  const thinClause = thin > 0 ? ` The ${ROLE_DISPLAY[dominantRole[0]]} pool was thin.` : '';
-  const allStaples = total === 1 ? "It's" : "They're";
-  const who = staples === total ? allStaples : `${staples} ${staples === 1 ? 'is' : 'are'}`;
-  const stapleClause =
-    staples > 0 ? ` ${who} in ${STAPLE_INCLUSION_BAR}% or more of this commander's decks.` : '';
-  return `${total} card${total === 1 ? '' : 's'} went past a role cap.${thinClause}${stapleClause} See Overbuilt roles for the total.`;
-}
+// The role-cap overflow note moved to deckGeneration/roleCapNote.ts (E532, to
+// keep this file under its size ceiling); re-exported for existing importers.
+export { buildRoleCapOverflowNote };
 
 /**
  * E80 product ruling: price-sanity (cardPicking.ts's priceSanityTieBreak)
@@ -2134,6 +2104,21 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // to the format-legal pool the way the Scryfall searches are, so every
   // phase reusing this gate (coherence repair, flagship seating, bracket/
   // budget convergence, role-surplus rebalance) gets the check for free.
+  // Owned cards by collection name, resolved by printing id and verified to
+  // be the card the collection names (ownedCardResolution.ts). A canonical
+  // name the collection spells another way (a front face only, another
+  // language) joins the owned-name set, so ownership checks see the card that
+  // ships under it; the names are the same owned cards.
+  const resolveOwned = async (names: string[]): Promise<Map<string, ScryfallCard>> => {
+    const pool = new Map((context.collectionPool ?? []).map((e) => [e.name, e]));
+    const entries = names.map((n) => pool.get(n) ?? { name: n, colorIdentity: [] });
+    const { byName, aliases } = await resolveOwnedCards(entries, {
+      arenaOnly,
+      ownedNames: context.collectionNames,
+    });
+    for (const alias of aliases) context.collectionNames?.add(alias);
+    return byName;
+  };
   // E532: the card's inclusion on this commander's page exempts a staple.
   const pageInclusion = state.edhrecData ? buildInclusionIndex(state.edhrecData) : new Map();
   const isCardAllowedBySynergyDependencies = (card: ScryfallCard) =>
@@ -3715,12 +3700,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         });
         const chosen = plan.rows.slice(0, need);
         if (chosen.length > 0) {
-          const fetched = await getCardsByNames(
-            chosen.map((r) => r.usedName),
-            undefined,
-            undefined,
-            { arenaOnly }
-          );
+          const fetched = await resolveOwned(chosen.map((r) => r.usedName));
           for (const row of chosen) {
             const card = fetched.get(row.usedName);
             if (!card || usedNames.has(card.name)) continue;
@@ -4036,6 +4016,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
 
     const inclusionByName = new Map<string, number>();
     for (const ec of edhrecNonLand) inclusionByName.set(ec.name, ec.inclusion);
+    const inclusionOf = pageInclusionOf(inclusionByName);
 
     // Swap one owned card in for an unowned one. `preferEvict` names the card
     // it was matched against (an owned substitute's staple); otherwise the
@@ -4076,15 +4057,14 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
             : sameKind.length > 0
               ? sameKind
               : swappable;
-      evictPool.sort(
-        (a, b) => (inclusionByName.get(a.name) ?? -1) - (inclusionByName.get(b.name) ?? -1)
-      );
+      // Weakest first, a double-faced card by its front face (ownedShareEviction.ts).
+      const evictOrder = weakestFirst(evictPool, inclusionOf);
       // Role cap only guards a role-CROSSING swap (same-role is net-zero).
       const target = wantedRole ? (roleTargets?.[wantedRole] ?? 0) : 0;
       const roleFull = strictRole
         ? target > 0 && (currentRoleCounts[wantedRole!] ?? 0) >= target
         : isOverRoleCap(card, roleTargets, currentRoleCounts);
-      const evicted = evictPool.find((c) => validateCardRole(c) === wantedRole || !roleFull);
+      const evicted = evictOrder.find((c) => validateCardRole(c) === wantedRole || !roleFull);
       if (!evicted) return false;
 
       // Remove the evicted unowned card (mirrors phaseBudgetConverge's removeCard).
@@ -4139,7 +4119,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         unownedWithRole.push({
           name: c.name,
           price: null,
-          inclusion: inclusionByName.get(c.name) ?? 0,
+          inclusion: Math.max(0, inclusionOf(c.name)),
           synergy: 0,
           typeLine: getFrontFaceTypeLine(c),
           cmc: c.cmc,
@@ -4152,12 +4132,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         inclusionByName,
       });
       if (plan.rows.length > 0) {
-        const fetched = await getCardsByNames(
-          plan.rows.map((r) => r.usedName),
-          undefined,
-          undefined,
-          { arenaOnly }
-        );
+        const fetched = await resolveOwned(plan.rows.map((r) => r.usedName));
         for (const row of plan.rows) {
           if (deficit <= 0) break;
           const card = fetched.get(row.usedName);
@@ -4172,13 +4147,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     if (deficit > 0) {
       const rest = unseated();
       if (rest.length > 0) {
-        const fetched = await getCardsByNames(
-          rest.map((c) => c.name),
-          undefined,
-          undefined,
-          { arenaOnly }
-        );
-        const ranked = [...fetched.values()].sort(
+        const fetched = await resolveOwned(rest.map((c) => c.name));
+        const ranked = [...new Set(fetched.values())].sort(
           (a, b) => (a.edhrec_rank ?? Infinity) - (b.edhrec_rank ?? Infinity)
         );
         for (const card of ranked) {
@@ -4830,8 +4800,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // WHICH cards came from outside their collection.
   const collectionRelaxedNamesList = [...relaxedNames].filter((n) => finalNames.has(n));
   collectionRelaxedCount = collectionRelaxedNamesList.length;
-  // Keep only substitutions whose owned card survived the audit/fixup passes.
-  const survivingSubstitutions = substitutionRows.filter((r) => finalNames.has(r.usedName));
+  // Substitutions and gaps against the final deck (finalDeckDisclosure.ts).
+  const inFinalDeck = finalDeckMembership(finalNames);
+  const survivingSubstitutions = survivingSubstitutionRows(substitutionRows, inFinalDeck);
 
   // Bounded to the final deck (not the whole lift index) so the build report
   // only explains cards actually in the deck.
@@ -5001,7 +4972,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     categories,
     stats,
     usedThemes,
-    gapAnalysis,
+    gapAnalysis: gapsOutsideDeck(gapAnalysis, inFinalDeck),
     packagePicks: liftPicks?.packagePicks,
     liftPicksNote: liftPicks?.liftPicksNote,
     manabase,

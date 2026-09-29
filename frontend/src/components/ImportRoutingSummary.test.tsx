@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import { ImportRoutingSummary } from './ImportRoutingSummary';
-import type { ImportRoutingSummary as Summary } from '../lib/import-routing';
+import type { ImportRoutingSummary as Summary } from '@/lib/import-export/import-routing';
 
 function renderSummary(summary: Summary) {
   return render(

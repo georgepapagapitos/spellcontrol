@@ -7,11 +7,11 @@ import '@/styles/admin-scanner.css';
 // Settings/admin page body: shared with AdminPage, off the boot payload.
 import '@/styles/settings-page.css';
 import { useAuth } from '@/store/auth';
-import { useMediaQuery } from '@/lib/use-media-query';
-import { useDocumentTitle } from '@/lib/use-document-title';
-import { fetchAiStatus, type AiStatus } from '@/lib/ai-review';
-import { listFriends } from '@/lib/friends-client';
-import { useFriendRequests } from '@/lib/use-friend-requests';
+import { useMediaQuery } from '@/lib/util/use-media-query';
+import { useDocumentTitle } from '@/lib/util/use-document-title';
+import { fetchAiStatus, type AiStatus } from '@/lib/ai/ai-review';
+import { listFriends } from '@/lib/social/friends-client';
+import { useFriendRequests } from '@/lib/social/use-friend-requests';
 import { AiFeaturesSettings } from '@/components/settings/AiFeaturesSettings';
 import {
   LEGACY_SECTION_ROUTES,

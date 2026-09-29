@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ErrorBoundary } from './ErrorBoundary';
 
 const reportError = vi.hoisted(() => vi.fn());
-vi.mock('@/lib/analytics', () => ({ reportError }));
+vi.mock('@/lib/util/analytics', () => ({ reportError }));
 
 function Bomb({ shouldThrow }: { shouldThrow: boolean }) {
   if (shouldThrow) throw new Error('boom: some cryptic internal exception');

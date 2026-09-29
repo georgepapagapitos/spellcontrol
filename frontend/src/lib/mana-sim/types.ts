@@ -3,7 +3,7 @@
  * its assumptions and the API contract.
  */
 
-import type { SimCard } from '../opening-hand-sim';
+import type { SimCard } from './opening-hand-sim';
 
 /**
  * A set of mana types as bits: W U B R G, then C for colourless-specific mana

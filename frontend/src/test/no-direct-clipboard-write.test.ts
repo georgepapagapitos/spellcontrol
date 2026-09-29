@@ -2,7 +2,7 @@
 //
 // Guard: no `.tsx` file calls `navigator.clipboard.writeText` directly.
 // Everything that copies plain text to the clipboard goes through
-// `lib/clipboard.ts`'s `copyToClipboard` (a plain async helper, safe to call
+// `lib/util/clipboard.ts`'s `copyToClipboard` (a plain async helper, safe to call
 // from any event handler) or the React-only `useCopyFeedback`/
 // `CopyButton`/`CopyIconButton` built on it (STYLE_GUIDE § Verbs — Copy) —
 // so a denied clipboard (an insecure origin, a WebView that refuses) is
@@ -57,7 +57,7 @@ describe('every clipboard-text write goes through the shared helper', () => {
     expect(
       offenders,
       'These call navigator.clipboard.writeText directly instead of going through ' +
-        'lib/clipboard.ts (copyToClipboard), lib/use-copy-feedback.ts, or ' +
+        'lib/util/clipboard.ts (copyToClipboard), lib/util/use-copy-feedback.ts, or ' +
         'components/shared/CopyButton.tsx. Route the write through one of those, ' +
         'or add a commented allowlist entry above:\n  ' +
         offenders.join('\n  ')

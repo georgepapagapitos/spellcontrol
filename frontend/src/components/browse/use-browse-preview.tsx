@@ -1,7 +1,7 @@
 import { Wand2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useCardCarousel } from '@/components/deck/useCardCarousel';
-import type { BrowseItem, BrowseListDef } from '@/lib/browse-lists';
+import type { BrowseItem, BrowseListDef } from '@/lib/discover/browse-lists';
 import { browsePreviewLabel } from './browse-labels';
 
 /**

@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { usePlayStore } from '@/store/play';
-import { paletteForIndex } from '@/lib/seat-palette';
-import { haptics } from '@/lib/haptics';
+import { paletteForIndex } from '@/lib/play/seat-palette';
+import { haptics } from '@/lib/util/haptics';
 import { TAKEBACK_EXPIRY_GRACE_MS } from '../lib/takeback';
 import { useTableSeat } from '../hooks/use-table-seat';
-import type { GameRequest } from '@/lib/games-api';
+import type { GameRequest } from '@/lib/play/games-api';
 import './HoldBanner.css';
 
 /** Every seat's currently-live hold, oldest first — the table-wide sibling

@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { X } from 'lucide-react';
 import { useAuth } from '../../store/auth';
 import { toast } from '../../store/toasts';
-import { unpublishDeck } from '../../lib/publications-client';
-import { notifyDeckVisibilityChanged } from '../../lib/use-deck-visibility';
-import { userMessage } from '@/lib/user-error';
+import { unpublishDeck } from '@/lib/social/publications-client';
+import { notifyDeckVisibilityChanged } from '@/lib/social/use-deck-visibility';
+import { userMessage } from '@/lib/util/user-error';
 import './DeckPublishNudge.css';
 import { Button, IconButton } from '@/components/shared/Button';
 

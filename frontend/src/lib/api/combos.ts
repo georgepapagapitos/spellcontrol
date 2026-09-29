@@ -1,5 +1,5 @@
-import { handleResponse, fetchWithAbortTimeout } from '../fetch-utils';
-import { logger } from '../logger';
+import { handleResponse, fetchWithAbortTimeout } from './fetch-utils';
+import { logger } from '@/lib/util/logger';
 import { ensureCombosCached, matchCombosLocal, searchCombosLocal } from '../offline';
 import type { ComboSearchResult } from '../offline';
 import type { ComboDetail, ComboMatchResponse } from '../../types/combos';

@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { makePlayer, type GamePlayer } from '@/lib/game-state';
+import { makePlayer, type GamePlayer } from '@/lib/play/game-state';
 import type { OnlineTable } from '../hooks/use-online-table';
 import { LifeStrip } from './LifeStrip';
 
