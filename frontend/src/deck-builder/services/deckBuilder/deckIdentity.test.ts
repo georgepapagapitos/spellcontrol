@@ -172,6 +172,43 @@ describe("resolveAutoArchetype: the deck's engine decides Auto", () => {
     expect(engineArchetype(engine(['equipment', 4]))).toBeUndefined();
   });
 
+  it('pools Equipment and Auras into one Voltron engine before the lead test (E417)', () => {
+    // Neither axis alone doubles Tokens; together they do.
+    expect(engineArchetype(engine(['equipment', 12], ['tokens', 10], ['auras', 9]))).toBe(
+      Archetype.VOLTRON
+    );
+  });
+
+  it('keeps value axes apart: Midrange engines are never summed into a rival', () => {
+    // 25 typal cards against 12 lifegain and 10 counters: a 2x lead over each,
+    // though summed they would be a 22-card rival.
+    expect(engineArchetype(engine(['tribal', 25], ['lifegain', 12], ['counters', 10]))).toBe(
+      Archetype.TRIBAL
+    );
+  });
+
+  it('reads a Ninja engine as Tempo, from the real card text', () => {
+    const ninja = (i: number) =>
+      makeCard({
+        name: `Ninja ${i}`,
+        type_line: 'Creature — Human Ninja',
+        oracle_text:
+          'Whenever a Ninja you control deals combat damage to a player, reveal the top card of your library and put that card into your hand.',
+      });
+    const changeling = makeCard({
+      name: 'Changeling Outcast',
+      type_line: 'Creature — Shapeshifter',
+      oracle_text:
+        "Changeling (This card is every creature type.)\nThis creature can't block and can't be blocked.",
+      keywords: ['Changeling'],
+    });
+    const synergy = analyzeDeckSynergy([
+      ...Array.from({ length: 5 }, (_, i) => ninja(i)),
+      changeling,
+    ]);
+    expect(engineArchetype(synergy)).toBe(Archetype.TEMPO);
+  });
+
   it('never trades a named archetype for Midrange', () => {
     expect(engineArchetype(engine(['counters', 20]))).toBeUndefined();
   });

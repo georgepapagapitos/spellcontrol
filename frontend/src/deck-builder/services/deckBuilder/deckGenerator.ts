@@ -47,9 +47,10 @@ import {
 import {
   getDynamicRoleTargets,
   estimatePacingFromStats,
-  inferArchetype,
-  inferArchetypeFromEdhrecThemes,
-  inferArchetypeProvenance,
+  cardEvidencePool,
+  decideBuildArchetype,
+  isCommanderEdhrecPool,
+  readCardEvidence,
   isBoardCentricPlan,
 } from './roleTargets';
 import { buildCommanderProfile } from './commanderProfile';
@@ -1879,33 +1880,40 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     (!!partnerCommander && isExtraCombatPiece(partnerCommander)) ||
     commanderProfile.abilities.some((a) => a.keyword === 'attack-trigger');
 
-  // Prefer EDHREC's own ranked commander-page themes (the community's stated
-  // consensus) over the oracle-text keyword-vote heuristic, which tie-breaks
-  // on a static precedence list and mislabels commanders like Atraxa
-  // ("voltron" instead of proliferate/superfriends) or Sythis ("spellslinger"
-  // instead of enchantress). Only when EDHREC has nothing to say does the
-  // keyword vote decide — and that fallback path is the low-confidence case
-  // landCountNote's copy softens below.
-  const edhrecThemeArchetype = inferArchetypeFromEdhrecThemes(state.edhrecData?.themes);
-  // EDHREC theme data existing but not dominant (a genuinely split-strategy
-  // commander, e.g. Atraxa) is different from EDHREC having no data at all
-  // (fetch failed / offline / Scryfall-only generation). In the first case,
-  // don't let the coarse structural-keyword vote assert a specific — and
-  // possibly wrong — strategy (it pegs Atraxa as VOLTRON); default to the
-  // neutral GOODSTUFF instead. The keyword vote remains the only signal, and
-  // stays unchanged, when there's no EDHREC theme data to consult at all.
-  const hasEdhrecThemeData = (state.edhrecData?.themes?.length ?? 0) > 0;
-  const archetypeFallback =
-    edhrecThemeArchetype ??
-    (hasEdhrecThemeData ? Archetype.GOODSTUFF : commanderProfile.primaryArchetype);
-  archetypeIsLowConfidence =
-    edhrecThemeArchetype === undefined && !context.selectedThemes?.some((t) => t.isSelected);
-  detectedArchetype = inferArchetype(context.selectedThemes, archetypeFallback);
-  detectedArchetypeProvenance = inferArchetypeProvenance(
-    context.selectedThemes,
-    edhrecThemeArchetype,
-    hasEdhrecThemeData
-  );
+  // E511: the build's archetype comes from the cards. The average deck for
+  // this commander (its EDHREC pool weighted by inclusion, plus the commander
+  // itself) is read with the same engine rule the deck page applies to a
+  // finished list; EDHREC's theme list is a hint that picks between engines
+  // the cards leave comparable. Precedence lives in decideBuildArchetype. The
+  // card text is fetched with the pool fetch's own options, so the later
+  // batch fetch reads these same cards from the cache.
+  const evidencePool =
+    state.edhrecData && isCommanderEdhrecPool(state.dataSource)
+      ? cardEvidencePool(state.edhrecData)
+      : [];
+  const cardEvidence =
+    evidencePool.length > 0
+      ? readCardEvidence({
+          commanders: partnerCommander ? [commander, partnerCommander] : [commander],
+          pool: evidencePool,
+          cards: await getCardsByNames(
+            evidencePool.map((e) => e.name),
+            undefined,
+            undefined,
+            { arenaOnly }
+          ),
+        })
+      : undefined;
+  const archetypeDecision = decideBuildArchetype({
+    selectedThemes: context.selectedThemes,
+    edhrecThemes: state.edhrecData?.themes,
+    cardEvidence,
+    oracleTextArchetype: commanderProfile.primaryArchetype,
+  });
+  const archetypeFallback = archetypeDecision.fallback;
+  archetypeIsLowConfidence = archetypeDecision.isLowConfidence;
+  detectedArchetype = archetypeDecision.archetype;
+  detectedArchetypeProvenance = archetypeDecision.provenance;
 
   // Dynamic role targets (blended EDHREC + archetype-model ramp/removal/
   // boardwipe/cardDraw slots) — computed once, unconditionally, so both the
@@ -5062,6 +5070,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     cardRelevancyMap,
     detectedArchetype,
     archetypeProvenance: detectedArchetypeProvenance,
+    archetypeEvidence: archetypeDecision.evidence,
     archetypeIsLowConfidence,
     detectedPacing,
     bracketEstimation,

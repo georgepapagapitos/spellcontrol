@@ -2,6 +2,7 @@ import { logger } from '@/lib/logger';
 import {
   Archetype,
   type ArchetypeProvenance,
+  type DeckDataSource,
   type DeckSize,
   type ThemeResult,
   type EDHRECCommanderStats,
@@ -11,7 +12,23 @@ import {
 } from '@/deck-builder/types';
 import type { Pacing } from './pacingDetector';
 import { getCardRole, type RoleKey } from '@/deck-builder/services/tagger/client';
-import { THEME_TO_ARCHETYPE } from './strategyVocabulary';
+import { classifyCard } from '@/deck-builder/services/synergy/classify';
+import type { AxisKey } from '@/deck-builder/services/synergy/axes';
+import type { CardLike } from '@/deck-builder/services/synergy/text';
+import { getByCardName } from '@/lib/card-text';
+import {
+  axisMassFrom,
+  engineLeader,
+  isEngineContender,
+  isInvestedAxis,
+  isSharpArchetype,
+  readEngine,
+  themeArchetype,
+  themeAxes,
+  type ArchetypeMass,
+  type AxisMass,
+  type EngineRead,
+} from './strategyVocabulary';
 
 // ─── EDHREC Blend Tuning ────────────────────────────────────────────
 // Threshold for "cards in the typical deck for this commander" — a card above
@@ -110,9 +127,10 @@ const ARCHETYPE_ROLE_MULTIPLIERS: Record<Archetype, Record<RoleKey, number>> = {
 //  - `attackTriggerCommander` (E109 fix round): the commander's payoff IS
 //    attacking (Isshin doubles attack triggers, Aurelia/Karlach grant extra
 //    combats) — that deck needs its attackers alive through a wipe by
-//    construction, independent of archetype/creature-count. Isshin's own
-//    archetype vote lands GOODSTUFF (its top EDHREC theme holds only
-//    31.6% — under DOMINANT_THEME_SHARE) and its PLANNED creature density
+//    construction, independent of archetype/creature-count. Isshin's
+//    archetype vote landed GOODSTUFF when E109 shipped (its top EDHREC theme
+//    held only 31.6% — under DOMINANT_THEME_SHARE; since E511 its cards read
+//    as Tokens) and its PLANNED creature density
 //    (pre-generation typeTargets, ~0.44) undercounts its DELIVERED density
 //    (~0.475, only known after picking) — this clause catches it without
 //    switching the density check to delivered counts or lowering the
@@ -206,82 +224,223 @@ export function estimatePacingFromStats(manaCurve: Record<number, number>): Paci
 
 // ─── Archetype Inference ────────────────────────────────────────────
 
-// Share of the page's archetype-mapped taglink weight a real-archetype theme
-// must hold before it's trusted as the commander's singular strategy signal,
-// rather than one popular sub-build among several comparable ones (e.g.
-// Atraxa: counters/superfriends/proliferate/infect are all present at
-// meaningful weight — no plurality). Denominator is the sum of only the
-// taglinks that have a THEME_TO_ARCHETYPE entry, not every taglink EDHREC
-// returns — pages carry a lot of flavor/type tags with no archetype mapping
-// at all (Historic, Legends, Samurai, Phyrexians, Sagas, Eldrazi, Big Mana...)
-// that would otherwise dilute every real theme's share without representing
-// a competing *strategy*. Calibrated against live EDHREC data for all 10
-// panel commanders (see build spec + calibration table): Atraxa's Infect
-// tops out at 35.7% of mapped-taglink weight; Meren — the tightest legitimate
-// single-strategy commander in the panel — clears 40.1%. 0.38 sits at the
-// midpoint, giving ~2pts of headroom on both sides; every other panel
-// commander (Krenko/Lathril/Sythis/Talrand/Ur-Dragon/Yuriko/Kozilek) clears
-// by 4+ points, several by 20-40+.
+// The build's archetype decides role targets (ARCHETYPE_ROLE_MULTIPLIERS),
+// the type floor and the auto land count, so it's read before a card is
+// picked. Precedence, highest first:
+//  1. The user's first selected theme (`user-theme`).
+//  2. The cards: the commander plus its EDHREC pool weighted by inclusion,
+//     classified by the synergy axes and read by `readEngine`, the rule the
+//     deck page applies to a finished list. A decisive engine decides
+//     (`card-evidence`).
+//  3. EDHREC's dominant theme, when the cards leave it room: it is one of the
+//     comparable engines, or a strategy no axis reads in card text (ninjutsu,
+//     extra combats). A dominant theme the cards can read but don't show is
+//     dropped (`edhrec-dominant`).
+//  4. The cards' leading engine when EDHREC's own leader agrees, though
+//     neither clears its bar alone: two independent reads naming one strategy
+//     (`card-evidence`).
+//  5. Balanced Goodstuff when there's data but nothing leads (`neutral`).
+//  6. The commander's oracle-text keyword vote when there's no EDHREC data at
+//     all (`oracle-text`).
+// EDHREC hand-tunes its theme pages, and a deck that is clearly a theme can
+// miss the tag, so the list is a hint and the cards are the evidence.
+
+// Share of the page's archetype-mapped taglink weight EDHREC's leading
+// strategy must hold to be dominant. Themes that build the same strategy sum
+// first (E417): Sram's Equipment, Voltron and Auras tags are one Voltron vote,
+// not three competing ones. Value themes (Midrange, Goodstuff) never sum, the
+// same rule `readEngine` applies to axes. The denominator counts only taglinks
+// that resolve to an archetype, since flavor tags (Historic, Legends) don't
+// compete as a strategy (NON_STRATEGY_THEMES). Calibrated per theme against
+// the 10 panel commanders in E90: Atraxa's Infect 35.7% fails, Meren's
+// Aristocrats 40.1% passes. Re-measured on the E511 vocabulary and summing
+// (September 2026 pages): Atraxa's Aggro tags 28.7% and Edgar's typal tags
+// 32.6% fail, Meren's graveyard family 40.5% and Krenko's typal 41.3% pass.
 const DOMINANT_THEME_SHARE = 0.38;
 
-/**
- * Infer archetype from EDHREC's own ranked commander-page themes (the
- * community's stated consensus for this commander, e.g. "Enchantress" for
- * Sythis or "Ninjutsu"/tempo-flavored themes for Yuriko) — a stronger signal
- * than the mechanically-detected `commanderProfile.primaryArchetype` keyword
- * vote, which tie-breaks on a static precedence list and can land on the
- * wrong archetype (voltron/spellslinger/aristocrats false positives). Walks
- * `themes` in their already-popularity-sorted order looking for the first
- * that maps to a real (non-GOODSTUFF) archetype, but only trusts it if it's
- * a clear plurality of the page's mapped-theme weight (DOMINANT_THEME_SHARE) —
- * a commander whose page is genuinely split across several comparable
- * strategies shouldn't have its first count-sorted real-archetype tag treated
- * as "the" strategy. Returns undefined when nothing maps, or the leading
- * candidate isn't dominant, so callers fall back further.
- */
-export function inferArchetypeFromEdhrecThemes(themes?: EDHRECTheme[]): Archetype | undefined {
-  const list = themes ?? [];
-  const total = list.reduce(
-    (s, t) => s + (THEME_TO_ARCHETYPE[t.name.toLowerCase().trim()] ? t.count : 0),
-    0
-  );
-  for (const theme of list) {
-    const mapped = THEME_TO_ARCHETYPE[theme.name.toLowerCase().trim()];
-    if (!mapped || mapped === Archetype.GOODSTUFF) continue;
-    // List is count-sorted descending, so if the first real candidate isn't
-    // dominant, no later theme can have a higher share either — bail out
-    // rather than keep scanning.
-    if (total > 0 && theme.count / total < DOMINANT_THEME_SHARE) return undefined;
-    return mapped;
-  }
-  return undefined;
+/** EDHREC's leading strategy, with the themes that voted for it. */
+export interface EdhrecThemeHint {
+  archetype: Archetype;
+  share: number;
+  /** Holds {@link DOMINANT_THEME_SHARE} of the page's mapped weight. */
+  dominant: boolean;
+  /** The page's theme names behind it, in page order. */
+  themeNames: string[];
 }
 
 /**
+ * EDHREC's leading strategy on a commander page: the heaviest competitor by
+ * summed taglink count, dominant or not. Goodstuff-mapped themes count toward
+ * the denominator but never lead. Undefined when nothing maps.
+ */
+export function readEdhrecThemeHint(themes?: EDHRECTheme[]): EdhrecThemeHint | undefined {
+  const entries = new Map<string, { archetype: Archetype; count: number; themeNames: string[] }>();
+  let total = 0;
+  for (const theme of themes ?? []) {
+    const archetype = themeArchetype(theme.name);
+    if (!archetype) continue;
+    total += theme.count;
+    const key = isSharpArchetype(archetype) ? archetype : `theme:${theme.name.toLowerCase()}`;
+    const entry = entries.get(key) ?? { archetype, count: 0, themeNames: [] };
+    entry.count += theme.count;
+    entry.themeNames.push(theme.name);
+    entries.set(key, entry);
+  }
+  let best: { archetype: Archetype; count: number; themeNames: string[] } | undefined;
+  for (const entry of entries.values()) {
+    if (entry.archetype === Archetype.GOODSTUFF) continue;
+    // Strict: on a tie the page-order-first competitor keeps the lead.
+    if (!best || entry.count > best.count) best = entry;
+  }
+  if (!best || total <= 0) return undefined;
+  const share = best.count / total;
+  return {
+    archetype: best.archetype,
+    share,
+    dominant: share >= DOMINANT_THEME_SHARE,
+    themeNames: best.themeNames,
+  };
+}
+
+/** EDHREC's dominant strategy alone, or undefined when none dominates. */
+export function inferArchetypeFromEdhrecThemes(themes?: EDHRECTheme[]): Archetype | undefined {
+  const hint = readEdhrecThemeHint(themes);
+  return hint?.dominant ? hint.archetype : undefined;
+}
+
+// ─── Card evidence ──────────────────────────────────────────────────
+
+/** A card with the weight it carries in an engine read. */
+export interface WeightedCard {
+  card: CardLike;
+  weight: number;
+}
+
+/**
+ * Producer and payoff weight per synergy axis, through `axisMassFrom`, the
+ * function the deck page reads a finished list with. At weight 1 per card
+ * these are `analyzeDeckSynergy`'s counts. At inclusion weights they are the
+ * expected counts in an average deck.
+ */
+export function weightedAxisMass(cards: readonly WeightedCard[]): AxisMass[] {
+  return axisMassFrom(
+    cards.flatMap(({ card, weight }) => {
+      const cs = classifyCard(card);
+      return [
+        ...cs.producers.map((p) => ({
+          axis: p.axis,
+          side: 'producer' as const,
+          reason: p.reason,
+          weight,
+        })),
+        ...cs.payoffs.map((o) => ({
+          axis: o.axis,
+          side: 'payoff' as const,
+          reason: o.reason,
+          weight,
+        })),
+      ];
+    })
+  );
+}
+
+/** One card of the commander's EDHREC pool with its inclusion, in percent. */
+export interface PoolEntry {
+  name: string;
+  inclusion: number;
+}
+
+/**
+ * A pool that is what this commander's decks play: one of its own EDHREC
+ * pages. The alternative generators' pools and the Scryfall fallback rank
+ * cards by other means, and their inclusion is synthetic.
+ */
+export function isCommanderEdhrecPool(source: DeckDataSource | null | undefined): boolean {
+  return (
+    source === 'theme+bracket' ||
+    source === 'theme' ||
+    source === 'base+bracket' ||
+    source === 'base'
+  );
+}
+
+/**
+ * What this commander's decks play: every nonland and land card on its EDHREC
+ * page, deduped by name. Cards injected from elsewhere (a theme's tag page, a
+ * similar commander's decks) are left out, since they aren't this
+ * commander's decks.
+ */
+export function cardEvidencePool(data: EDHRECCommanderData): PoolEntry[] {
+  const seen = new Set<string>();
+  const out: PoolEntry[] = [];
+  for (const card of [...data.cardlists.allNonLand, ...data.cardlists.lands]) {
+    if (card.blendSource || seen.has(card.name)) continue;
+    seen.add(card.name);
+    out.push({ name: card.name, inclusion: card.inclusion });
+  }
+  return out;
+}
+
+/**
+ * Minimum share of the pool's inclusion weight that must resolve to card text
+ * before the average deck is read. Below it (a failed or partial fetch) the
+ * read would describe the cards that happened to load, so there is no read.
+ */
+export const EVIDENCE_MIN_COVERAGE = 0.8;
+
+export interface CardEvidence {
+  read: EngineRead;
+  /** Share of the pool's inclusion weight whose card text was read. */
+  coverage: number;
+}
+
+/**
+ * Read the average deck for this commander: the commander (and partner) at
+ * weight 1, since they're in every deck, plus each pool card at its inclusion
+ * as a fraction. `cards` holds the fetched card text, keyed by the pool's
+ * names. Undefined when too little of the pool resolved to read it honestly.
+ */
+export function readCardEvidence(input: {
+  commanders: readonly CardLike[];
+  pool: readonly PoolEntry[];
+  cards: ReadonlyMap<string, CardLike>;
+}): CardEvidence | undefined {
+  const weighted: WeightedCard[] = input.commanders.map((card) => ({ card, weight: 1 }));
+  let total = 0;
+  let resolved = 0;
+  for (const entry of input.pool) {
+    const weight = entry.inclusion / 100;
+    if (!(weight > 0)) continue;
+    total += weight;
+    const card = getByCardName(input.cards, entry.name);
+    if (!card) continue;
+    resolved += weight;
+    weighted.push({ card, weight });
+  }
+  if (total <= 0 || resolved / total < EVIDENCE_MIN_COVERAGE) return undefined;
+  return { read: readEngine(weightedAxisMass(weighted)), coverage: resolved / total };
+}
+
+// ─── Build-archetype decision ───────────────────────────────────────
+
+/**
  * The archetype implied by the user's FIRST selected theme, if it resolves to
- * one — shared by `inferArchetype` and `inferArchetypeProvenance` so the
- * "does the first selected theme actually decide this?" check lives in
- * exactly one place. Uses the theme's own `archetype` field if populated,
- * else looks up its name; returns undefined (not GOODSTUFF) when nothing at
- * all is selected OR the lookup finds nothing, so callers can tell "no
- * signal" apart from "explicitly resolved to GOODSTUFF".
+ * one. Uses the theme's own `archetype` field if populated, else looks up its
+ * name. Undefined (not GOODSTUFF) when nothing is selected or the name
+ * resolves to nothing, so callers can tell "no signal" apart from "explicitly
+ * resolved to GOODSTUFF".
  */
 function firstSelectedThemeArchetype(selectedThemes?: ThemeResult[]): Archetype | undefined {
   const selected = (selectedThemes ?? []).filter((t) => t.isSelected);
   if (!selected.length) return undefined;
-  const lower = selected[0].name.toLowerCase().trim();
-  return selected[0].archetype ?? THEME_TO_ARCHETYPE[lower];
+  return selected[0].archetype ?? themeArchetype(selected[0].name);
 }
 
 /**
  * Infer the archetype from the user's selected EDHREC themes. `fallback` is
- * used whenever theme-inference has nothing to say (no themes, none
- * selected, or the theme maps to the generic GOODSTUFF bucket) — pass the
- * commander's own `commanderProfile.primaryArchetype` (mechanically detected
- * from oracle text: tribal/spellslinger/enchantress/etc.) so a deck with no
- * theme picks still gets a real archetype instead of silently defaulting to
- * goodstuff. Defaults to GOODSTUFF when no fallback is given, preserving the
- * historical no-fallback behavior for callers that don't have a profile.
+ * used whenever the first selected theme resolves to nothing (or nothing is
+ * selected): pass the archetype `decideBuildArchetype` settled from the cards
+ * and EDHREC. Defaults to GOODSTUFF for callers with no fallback.
  */
 export function inferArchetype(
   selectedThemes?: ThemeResult[],
@@ -291,25 +450,88 @@ export function inferArchetype(
 }
 
 /**
- * Which precedence tier decided `inferArchetype`'s result, for report/UI
- * disclosure — mirrors `inferArchetype`'s own precedence chain (user's first
- * selected theme > EDHREC's dominant theme > neutral goodstuff > oracle-text
- * keyword vote) exactly, so the label shown to the user can never disagree
- * with the archetype generation actually used. `edhrecThemeArchetype` and
- * `hasEdhrecThemeData` are the same values the caller already computed via
- * `inferArchetypeFromEdhrecThemes` for the `fallback` it passes to
- * `inferArchetype` — passed in rather than recomputed here to keep this a
- * pure classification with no EDHREC-fetching of its own.
+ * Whether a dominant hint may decide: the cards can't observe any of its
+ * themes (no synergy axis reads ninjutsu or extra combats), or its archetype
+ * is one of the engines the cards leave comparable. With no card read at all,
+ * EDHREC is the only data and the hint stands, as it did before the cards
+ * were read.
  */
-export function inferArchetypeProvenance(
-  selectedThemes: ThemeResult[] | undefined,
-  edhrecThemeArchetype: Archetype | undefined,
-  hasEdhrecThemeData: boolean
-): ArchetypeProvenance {
-  if (firstSelectedThemeArchetype(selectedThemes) !== undefined) return 'user-theme';
-  if (edhrecThemeArchetype !== undefined) return 'edhrec-dominant';
-  if (hasEdhrecThemeData) return 'neutral';
-  return 'oracle-text';
+function hintStands(hint: EdhrecThemeHint, evidence: CardEvidence | undefined): boolean {
+  if (!evidence) return true;
+  const observable = hint.themeNames.some((name) => themeAxes(name).length > 0);
+  return !observable || isEngineContender(evidence.read, hint.archetype);
+}
+
+/** The deciding engine for the disclosure: the busiest real engine among the
+ *  leader's axes, as expected counts. */
+function evidenceOf(leader: ArchetypeMass): BuildArchetypeDecision['evidence'] {
+  const lead = leader.axes.find(isInvestedAxis) ?? leader.axes[0];
+  return { axis: lead.axis, producers: lead.producers, payoffs: lead.payoffs };
+}
+
+export interface BuildArchetypeDecision {
+  /** The archetype generation builds as. */
+  archetype: Archetype;
+  /** What the build falls back to without a user theme: pass it to
+   *  `getDynamicRoleTargets` so its own `inferArchetype` lands on `archetype`. */
+  fallback: Archetype;
+  provenance: ArchetypeProvenance;
+  /** Nothing but the neutral default or the keyword vote decided, and the user
+   *  selected no theme. Softens the land-count note's copy. */
+  isLowConfidence: boolean;
+  /** For `card-evidence`: the engine that decided, as expected counts in the
+   *  average deck. */
+  evidence?: { axis: AxisKey; producers: number; payoffs: number };
+}
+
+export function decideBuildArchetype(input: {
+  selectedThemes?: ThemeResult[];
+  edhrecThemes?: EDHRECTheme[];
+  /** Undefined when the pool isn't EDHREC's or its card text didn't load. */
+  cardEvidence?: CardEvidence;
+  /** `commanderProfile.primaryArchetype`, the last resort. */
+  oracleTextArchetype: Archetype;
+}): BuildArchetypeDecision {
+  const read = input.cardEvidence?.read;
+  const decisive = read?.decisive;
+  const leader = read ? engineLeader(read) : undefined;
+  const hint = readEdhrecThemeHint(input.edhrecThemes);
+  const hasData = (input.edhrecThemes?.length ?? 0) > 0 || !!input.cardEvidence;
+
+  let fallback: Archetype;
+  let provenance: ArchetypeProvenance;
+  let evidence: BuildArchetypeDecision['evidence'];
+  if (decisive) {
+    fallback = decisive.archetype;
+    provenance = 'card-evidence';
+    evidence = evidenceOf(decisive);
+  } else if (hint?.dominant && hintStands(hint, input.cardEvidence)) {
+    fallback = hint.archetype;
+    provenance = 'edhrec-dominant';
+  } else if (leader && hint?.archetype === leader.archetype) {
+    fallback = leader.archetype;
+    provenance = 'card-evidence';
+    evidence = evidenceOf(leader);
+  } else if (hasData) {
+    fallback = Archetype.GOODSTUFF;
+    provenance = 'neutral';
+  } else {
+    fallback = input.oracleTextArchetype;
+    provenance = 'oracle-text';
+  }
+
+  const userArchetype = firstSelectedThemeArchetype(input.selectedThemes);
+  const anySelected = (input.selectedThemes ?? []).some((t) => t.isSelected);
+  if (userArchetype !== undefined) {
+    return { archetype: userArchetype, fallback, provenance: 'user-theme', isLowConfidence: false };
+  }
+  return {
+    archetype: fallback,
+    fallback,
+    provenance,
+    isLowConfidence: !anySelected && (provenance === 'neutral' || provenance === 'oracle-text'),
+    evidence,
+  };
 }
 
 // ─── Base Targets (format-only, backward compat) ────────────────────
@@ -338,8 +560,9 @@ export function getDynamicRoleTargets(
   edhrecData?: EDHRECCommanderData | null,
   overrideBlendWeight?: number | null,
   overrideThreshold?: number | null,
-  /** Commander's mechanically-detected archetype (`commanderProfile.primaryArchetype`),
-   *  used as the fallback when theme-inference lands on GOODSTUFF. */
+  /** The archetype to build as when the user's first theme resolves to none:
+   *  `decideBuildArchetype`'s `fallback` (the cards, EDHREC, or the
+   *  commander's keyword vote). */
   primaryArchetype?: Archetype
 ): {
   targets: Record<RoleKey, number>;

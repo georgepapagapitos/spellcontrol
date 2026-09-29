@@ -18,6 +18,10 @@ import {
   millSignals,
   paysOffCreatureDeath,
   sacrificeSignals,
+  typalPayoffType,
+  typalFinderType,
+  creatureTypePlurals,
+  resolveCreatureType,
 } from './text';
 
 export type AxisKey =
@@ -457,16 +461,28 @@ const superfriends: SynergyAxis = {
   },
 };
 
+// The two typal reasons that name a tribe. `typalReasonType` reads the tribe
+// back, so an engine read can tell a Ninja engine from an Elf one.
+const TYPAL_FINDS = 'finds ';
+const TYPAL_REWARDS = 'rewards your ';
+
+/** The creature type a tribal reason names ("rewards your Ninjas" → "Ninja"),
+ *  or undefined for type-agnostic typal support ("chooses a creature type"). */
+export function typalReasonType(reason: string): string | undefined {
+  for (const prefix of [TYPAL_REWARDS, TYPAL_FINDS]) {
+    if (reason.startsWith(prefix)) return resolveCreatureType(reason.slice(prefix.length));
+  }
+  return undefined;
+}
+
 const tribal: SynergyAxis = {
   key: 'tribal',
   label: 'Tribal / typal',
   producer(card) {
-    // The typal "engine" is a shared creature type. Producers select/grant it:
-    // "choose a creature type" selectors and changelings (every creature type).
-    // NOTE: specific-type lords ("Other Goblins get +1/+1") are deliberately NOT
-    // generalized — that needs a creature-type list and would be brittle; this
-    // axis recognizes the colorless "chosen type" / changeling staples that
-    // appear across typal decks, like the other axes' partial heuristics.
+    // The typal "engine" is a shared creature type. Producers select or grant
+    // it ("choose a creature type" selectors, changelings, which are every
+    // creature type) or find it: a tutor or recursion for one named type
+    // (Goblin Matron, Gravedigger-class "return target Zombie card").
     if (/choose a creature type/.test(card.oracle)) return 'chooses a creature type';
     if (
       has(card, 'changeling') ||
@@ -474,9 +490,17 @@ const tribal: SynergyAxis = {
       /every creature type|all creature types/.test(card.oracle)
     )
       return 'changeling / every creature type';
+    const found = typalFinderType(card.oracle);
+    if (found) return `${TYPAL_FINDS}${creatureTypePlurals(found)[0]}`;
     return null;
   },
   payoff(card) {
+    // A named type, against the full Comprehensive Rules list: lords ("Other
+    // Elves you control get +1/+1"), counts ("the number of Goblins you
+    // control"), typal triggers and cost reducers. Opponents' creatures never
+    // match, and "non-Human" isn't a Human payoff.
+    const named = typalPayoffType(card.oracle);
+    if (named) return `${TYPAL_REWARDS}${creatureTypePlurals(named)[0]}`;
     for (const clause of splitClauses(card.oracle)) {
       // "Of the chosen type" is only a payoff when it's about CREATURES (not a
       // land-type or card-type selector wearing similar wording) AND about YOUR

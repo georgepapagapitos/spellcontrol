@@ -974,7 +974,36 @@ describe('buildArchetypeNote', () => {
       isLowConfidence: false,
       multiThemeSelected: false,
     });
-    expect(note).toBe('Built as balanced Goodstuff. EDHREC shows no dominant theme.');
+    expect(note).toBe("Built as balanced Goodstuff. No one strategy leads this commander's decks.");
+  });
+
+  it('names the deciding engine for the card-evidence tier, rounded to whole cards (E511)', () => {
+    const note = buildArchetypeNote({
+      archetype: Archetype.ARISTOCRATS,
+      provenance: 'card-evidence',
+      isLowConfidence: false,
+      multiThemeSelected: false,
+      evidence: { axis: 'sacrifice', producers: 12.4, payoffs: 0.6 },
+    });
+    expect(note).toBe(
+      "Built as Aristocrats, from this commander's decks. They average 12 Sacrifice / aristocrats producers and 1 payoff."
+    );
+  });
+
+  it('carries the card evidence from the generated deck into the report', () => {
+    const report = assembleBuildReport({
+      generated: makeGenerated({
+        detectedArchetype: Archetype.TEMPO,
+        archetypeProvenance: 'card-evidence',
+        archetypeEvidence: { axis: 'tribal', producers: 3.5, payoffs: 6.2 },
+      }),
+      customization: makeCustomization(),
+      collectionNames: new Set(),
+    });
+    expect(report.archetypeProvenance).toBe('card-evidence');
+    expect(report.archetypeNote).toBe(
+      "Built as Tempo, from this commander's decks. They average 4 Tribal / typal producers and 6 payoffs."
+    );
   });
 
   it('softens the copy for a low-confidence oracle-text read', () => {
