@@ -36,7 +36,7 @@ export function TakebackModePicker({ mode, onSelect, onClose, online }: Props) {
 
   function description(m: TakebackMode): string {
     if (m === 'ask' && !online) {
-      return 'Solo play has nobody to ask, so this takes back immediately, like Free.';
+      return 'Solo play has nobody to ask, so this acts like Free.';
     }
     return TAKEBACK_MODE_DESCRIPTION[m];
   }
@@ -58,7 +58,7 @@ export function TakebackModePicker({ mode, onSelect, onClose, online }: Props) {
           <h2 className="card-picker-title">Your takeback rule</h2>
           <p className="playtest-takeback-picker__intro">
             Steps nobody else saw always take back free. This rule covers the rest, and each player
-            sets their own. Hidden information never returns.
+            sets their own.
           </p>
         </div>
         <fieldset className="playtest-takeback-picker__list" aria-label="Your takeback rule">

@@ -500,7 +500,7 @@ describe('game log (E140 + E142)', () => {
     const [a, b] = store().state!.zones.library;
     store().dispatch({ type: 'RESOLVE_TOP', mode: 'scry', top: [a.id], bottom: [b.id] });
     expect(store().gameLog).toMatchObject([
-      { seq: 1, turn: 1, kind: 'scry', text: 'Scried 2 — 1 to the bottom', verdict: 'locked' },
+      { seq: 1, turn: 1, kind: 'scry', text: 'Scried 2: 1 to the bottom', verdict: 'locked' },
     ]);
   });
 

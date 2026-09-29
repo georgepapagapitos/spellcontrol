@@ -28,8 +28,8 @@ function entry(overrides: Partial<GameLogEntry> = {}): GameLogEntry {
 
 describe('buildLogEntries', () => {
   it.each([
-    ['scry', { bottom: 1 }, 'scry', 'Scried 3 — 1 to the bottom'],
-    ['surveil', { graveyard: 1 }, 'mill', 'Surveilled 3 — 1 to the graveyard'],
+    ['scry', { bottom: 1 }, 'scry', 'Scried 3: 1 to the bottom'],
+    ['surveil', { graveyard: 1 }, 'mill', 'Surveilled 3: 1 to the graveyard'],
   ] as const)('logs a resolved %s', (mode, away, kind, text) => {
     const s = init(10, 1, 0);
     const [a, b, c] = s.zones.library;
@@ -55,7 +55,7 @@ describe('buildLogEntries', () => {
       hand: [b.id],
     };
     expect(buildLogEntries(s, action, applyAction(s, action))).toEqual([
-      { turn: 1, kind: 'scry', text: 'Scried 3 — 1 to hand, 1 to the bottom', verdict: 'locked' },
+      { turn: 1, kind: 'scry', text: 'Scried 3: 1 to hand, 1 to the bottom', verdict: 'locked' },
     ]);
   });
 
@@ -286,7 +286,7 @@ describe('buildLogEntries', () => {
       { type: 'MOVE_TO_ZONE', cardId: 'tok1', to: 'graveyard' },
       next
     );
-    expect(entries[0].text).toBe('Squirrel left the battlefield (ceased to exist)');
+    expect(entries[0].text).toBe('Squirrel ceased to exist');
   });
 
   it('a token moved to the command zone is a normal zone move, not a cessation', () => {
@@ -384,9 +384,7 @@ describe('buildLogEntries', () => {
     const down = applyAction(withToken, flip);
     expect(buildLogEntries(withToken, flip, down)[0].text).toBe('Squirrel turned face down');
     const up = applyAction(down, flip);
-    expect(buildLogEntries(down, flip, up)[0].text).toBe(
-      'A face-down card turned face up: Squirrel'
-    );
+    expect(buildLogEntries(down, flip, up)[0].text).toBe('Squirrel turned face up');
   });
 
   it('never names a card played face down', () => {
@@ -674,8 +672,8 @@ describe('buildLogEntries — the hand menu', () => {
 
   it('announces playing with the hand revealed, and stopping', () => {
     const s = init(10);
-    expect(log(s, { type: 'SET_HAND_REVEALED', revealed: true })[0].text).toContain(
-      'hand revealed'
+    expect(log(s, { type: 'SET_HAND_REVEALED', revealed: true })[0].text).toBe(
+      'Revealing the hand'
     );
     const on = applyAction(s, { type: 'SET_HAND_REVEALED', revealed: true });
     expect(log(on, { type: 'SET_HAND_REVEALED', revealed: false })[0].text).toContain('Stopped');

@@ -32,8 +32,7 @@ function classification(verdict: RewindVerdict, reason: string): RewindClassific
   return { verdict, reason };
 }
 
-const LOCKED_LIBRARY_LOOK =
-  "The library is hidden. Taking a card off it means seeing, or choosing among, what was underneath. That can't be handed back.";
+const LOCKED_LIBRARY_LOOK = "You saw cards from the library. That can't be taken back.";
 
 /** Where a card *was*, not the zone map's iteration order — battlefield is
  *  checked separately since it isn't a key of `state.zones`. */
@@ -107,16 +106,10 @@ export function classifyAction(
 ): RewindClassification {
   switch (action.type) {
     case 'DRAW':
-      return classification(
-        'locked',
-        'Drawing shows the actor a card. No replay hands that knowledge back.'
-      );
+      return classification('locked', "Drawing showed you a card. That can't be taken back.");
 
     case 'MULLIGAN':
-      return classification(
-        'locked',
-        'A new hand was seen. The London mulligan draws a fresh seven before any bottoming happens.'
-      );
+      return classification('locked', "You saw a new hand. That can't be taken back.");
 
     case 'SHUFFLE_LIBRARY':
       // Nobody *sees* anything here, unlike the other locked cases — but the
@@ -125,10 +118,7 @@ export function classifyAction(
       // rewriting what the deck deals next — the same "the game now knows
       // something it didn't" shape as hidden information, just one step
       // removed from a human's eyes.
-      return classification(
-        'locked',
-        'The library order changed, and future draws depend on it. Un-shuffling would hand back an ordering nobody is entitled to know in advance.'
-      );
+      return classification('locked', "The library was shuffled. That can't be taken back.");
 
     case 'SHUFFLE_ZONE_INTO_LIBRARY':
       // Same reasoning as SHUFFLE_LIBRARY: the RNG advanced and every future
@@ -136,15 +126,12 @@ export function classifyAction(
       // public (graveyard/exile), so nothing hidden was *seen* — but the
       // shuffle itself can't be handed back any more than SHUFFLE_LIBRARY's
       // can.
-      return classification(
-        'locked',
-        'The cards were shuffled into the library, and future draws depend on the new order. Un-shuffling would hand back an ordering nobody is entitled to know in advance.'
-      );
+      return classification('locked', "The library was shuffled. That can't be taken back.");
 
     case 'RESOLVE_TOP':
       return classification(
         'locked',
-        `${RESOLVE_TOP_VERB[action.mode]} looks at the top of the library, hidden information now seen.`
+        `${RESOLVE_TOP_VERB[action.mode]} showed you the top of the library. That can't be taken back.`
       );
 
     case 'MOVE_TO_ZONE':
@@ -329,7 +316,7 @@ export function classifyAction(
       // reason (the history was destroyed, not that someone learned a secret).
       return classification(
         'locked',
-        "Clears the undo history outright. There's no prior state left to rewind to, regardless of consent."
+        "Reset cleared the undo history. There's nothing to go back to."
       );
 
     case 'UNDO':
