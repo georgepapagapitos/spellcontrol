@@ -44,6 +44,7 @@ describe('CubeResult — Who brings what', () => {
         loaded={null}
         ownershipFor={NOOP_STRING}
         committedFor={NOOP_ARR}
+        copyFor={() => null}
         enrichedMap={new Map()}
       />
     );
@@ -68,6 +69,7 @@ describe('CubeResult — Who brings what', () => {
         loaded={null}
         ownershipFor={NOOP_STRING}
         committedFor={NOOP_ARR}
+        copyFor={() => null}
         enrichedMap={new Map()}
         supplierMap={supplierMap}
         myUsername="me"

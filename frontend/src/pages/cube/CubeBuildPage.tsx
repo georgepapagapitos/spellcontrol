@@ -274,7 +274,7 @@ export function CubeBuildPage() {
   const genAbort = useRef<AbortController | null>(null);
   useEffect(() => () => genAbort.current?.abort(), []);
   const cube = cubeStore.result;
-  const { ownershipFor, committedFor } = useOwnershipFor();
+  const { ownershipFor, committedFor, copyFor } = useOwnershipFor();
   const { uniqueNames, hidden, load: loadPool } = useOwnedCubePool(filters);
   // Commander only: how many of the currently filtered names are eligible
   // legends, live off the collection cache (no oracle fetch) — feeds both the
@@ -565,6 +565,7 @@ export function CubeBuildPage() {
                 loaded={null}
                 ownershipFor={ownershipFor}
                 committedFor={committedFor}
+                copyFor={copyFor}
                 enrichedMap={enrichedMap}
                 supplierMap={supplierMap}
                 myUsername={myUsername}

@@ -1,9 +1,10 @@
 // @vitest-environment happy-dom
 import 'fake-indexeddb/auto';
 import { describe, it, expect } from 'vitest';
-import { ownershipIndex, countEligibleLegends } from './shared';
+import { ownershipIndex, countEligibleLegends, pickToPreviewCard, pickThumb } from './shared';
 import type { AllocationInfo } from '@/lib/allocations';
 import type { EnrichedCard } from '@/types';
+import type { ScryfallCard } from '@/deck-builder/types';
 
 const copy = (copyId: string, name: string) => ({ copyId, name }) as EnrichedCard;
 const claim = (ownerKind: 'deck' | 'cube', ownerId: string, cardName: string): AllocationInfo => ({
@@ -62,6 +63,71 @@ describe('ownershipIndex', () => {
 
   it('unknown name is unowned', () => {
     expect(ownershipIndex(cards, new Map()).ownershipFor('Ghost')).toBe('unowned');
+  });
+});
+
+// The cube once drew every card's art from a by-NAME Scryfall lookup, i.e.
+// Scryfall's default printing, so a user who owns the 2XM Swords saw some
+// other set's Swords. These pin that an owned pick resolves to the user's copy.
+describe('copyFor: the printing the cube shows', () => {
+  const printing = (copyId: string, set: string, over: Partial<EnrichedCard> = {}): EnrichedCard =>
+    ({
+      copyId,
+      name: 'Swords to Plowshares',
+      setCode: set,
+      scryfallId: `sf-${set}`,
+      imageSmall: `https://img/${set}.jpg`,
+      finish: 'nonfoil',
+      purchasePrice: 1,
+      ...over,
+    }) as EnrichedCard;
+  const defaultPrinting = {
+    name: 'Swords to Plowshares',
+    image_uris: { small: 'https://img/scryfall-default.jpg' },
+  } as unknown as ScryfallCard;
+  const enriched = new Map([['Swords to Plowshares', defaultPrinting]]);
+
+  it('an owned pick previews and thumbs the owned printing, not the default', () => {
+    const { copyFor } = ownershipIndex([printing('a', '2xm')], new Map());
+    const card = pickToPreviewCard({ name: 'Swords to Plowshares' }, enriched, copyFor);
+    expect(card.setCode).toBe('2xm');
+    expect(card.copyId).toBe('a');
+    expect(pickThumb('Swords to Plowshares', enriched, copyFor)).toBe('https://img/2xm.jpg');
+  });
+
+  it('an unowned pick (a friend supplies it) falls back to the default printing', () => {
+    const { copyFor } = ownershipIndex([], new Map());
+    expect(pickThumb('Swords to Plowshares', enriched, copyFor)).toBe(
+      'https://img/scryfall-default.jpg'
+    );
+  });
+
+  it("the copy the viewed cube holds wins over a copy that's merely free", () => {
+    const owned = [printing('cheap', 'ema', { purchasePrice: 0.5 }), printing('held', 'ice')];
+    const allocs = new Map([['held', claim('cube', 'cube-x', 'Swords to Plowshares')]]);
+    expect(ownershipIndex(owned, allocs, 'cube-x').copyFor('Swords to Plowshares')?.copyId).toBe(
+      'held'
+    );
+    // Viewed from elsewhere, that copy is someone else's: the free one shows.
+    expect(ownershipIndex(owned, allocs).copyFor('Swords to Plowshares')?.copyId).toBe('cheap');
+  });
+
+  it('a free copy beats one a deck holds, and ranks like the allocator (real, nonfoil)', () => {
+    const owned = [
+      printing('in-deck', 'm10'),
+      printing('proxy', 'prx', { proxy: true, purchasePrice: 0 }),
+      printing('foil', 'a25', { finish: 'foil' }),
+      printing('plain', 'mh3'),
+    ];
+    const allocs = new Map([['in-deck', claim('deck', 'deck-a', 'Swords to Plowshares')]]);
+    expect(ownershipIndex(owned, allocs).copyFor('Swords to Plowshares')?.copyId).toBe('plain');
+  });
+
+  it('every copy held elsewhere still shows a printing you own', () => {
+    const allocs = new Map([['a', claim('deck', 'deck-a', 'Swords to Plowshares')]]);
+    expect(
+      ownershipIndex([printing('a', '2xm')], allocs).copyFor('swords to plowshares')?.setCode
+    ).toBe('2xm');
   });
 });
 

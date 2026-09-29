@@ -33,7 +33,9 @@ import {
   OwnRowBadge,
   CubeArchetypes,
   pickToPreviewCard,
+  pickThumb,
   groupPicksByBucket,
+  type CopyFor,
 } from './shared';
 import { CubeHealthPanel } from './CubeHealthPanel';
 import { CubeDraftabilityPanel } from './CubeDraftabilityPanel';
@@ -77,6 +79,7 @@ export function CubeResult({
   loaded,
   ownershipFor,
   committedFor,
+  copyFor,
   enrichedMap,
   hideTitle,
   hideCopyAction,
@@ -91,6 +94,8 @@ export function CubeResult({
   loaded: SavedCube | null;
   ownershipFor: (name: string) => Ownership;
   committedFor: (name: string) => AllocationInfo[];
+  /** The owned copy per name, so owned picks show the user's own printing. */
+  copyFor: CopyFor;
   enrichedMap: Map<string, ScryfallCard>;
   /** The cube's own page already has a header with the name — skip the
    *  duplicate title/sub line and render just the sections + actions. */
@@ -138,8 +143,8 @@ export function CubeResult({
 
   // Build EnrichedCard[] parallel to allPicks for CardPreview.
   const previewCards = useMemo<EnrichedCard[]>(
-    () => allPicks.map((p) => pickToPreviewCard(p.card, enrichedMap)),
-    [allPicks, enrichedMap]
+    () => allPicks.map((p) => pickToPreviewCard(p.card, enrichedMap, copyFor)),
+    [allPicks, enrichedMap, copyFor]
   );
 
   // Sample pack: closed by default so it never pushes "The cards" down the
@@ -173,8 +178,8 @@ export function CubeResult({
     [packPool, packSeed]
   );
   const packPreviewCards = useMemo<EnrichedCard[]>(
-    () => (pack ? pack.map((p) => pickToPreviewCard(p.card, enrichedMap)) : []),
-    [pack, enrichedMap]
+    () => (pack ? pack.map((p) => pickToPreviewCard(p.card, enrichedMap, copyFor)) : []),
+    [pack, enrichedMap, copyFor]
   );
 
   const groups = useMemo(() => groupPicksByBucket(allPicks), [allPicks]);
@@ -342,7 +347,7 @@ export function CubeResult({
         )}
       </div>
 
-      <CubeCommandersSection cube={cube} view={view} enrichedMap={enrichedMap} />
+      <CubeCommandersSection cube={cube} view={view} enrichedMap={enrichedMap} copyFor={copyFor} />
 
       <div className="cube-list">
         <div className="cube-list-head">
@@ -428,8 +433,7 @@ export function CubeResult({
                   <ul className="cube-rows">
                     {items.map(({ pick: p, flatIndex }) => {
                       const own = ownershipFor(p.card.name);
-                      const s = enrichedMap.get(p.card.name);
-                      const img = s?.image_uris?.small ?? s?.card_faces?.[0]?.image_uris?.small;
+                      const img = pickThumb(p.card.name, enrichedMap, copyFor);
                       const isLocked = edit?.locked.has(p.card.oracleId) ?? false;
                       // A friend-only pick (I don't supply it myself) shows who does
                       // instead of the ownership badge — "not owned" would say less.

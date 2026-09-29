@@ -33,7 +33,7 @@ type OwnFilter = 'all' | 'owned' | 'in-other-deck' | 'unowned';
 type BuildStatus = 'idle' | 'working' | 'done' | 'error';
 
 export function ImportCube() {
-  const { ownershipFor } = useOwnershipFor();
+  const { ownershipFor, copyFor } = useOwnershipFor();
   const [url, setUrl] = useState('');
   const [status, setStatus] = useState<'idle' | 'working' | 'done' | 'error'>('idle');
   const [error, setError] = useState('');
@@ -322,6 +322,7 @@ export function ImportCube() {
           imported={result.cube}
           result={myVersion}
           enrichedMap={myVersionEnriched}
+          copyFor={copyFor}
         />
       )}
     </div>
