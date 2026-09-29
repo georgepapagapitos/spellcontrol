@@ -171,7 +171,7 @@ export function buildMyVersion(
       ? [
           {
             severity: 'short',
-            text: `${missing.length} card${missing.length === 1 ? '' : 's'} from the import have no owned match in the same slot. Add them to your collection, or accept the cube without them.`,
+            text: `${missing.length} card${missing.length === 1 ? '' : 's'} from the import have no owned match in the same slot. Add them to your collection to include them.`,
           },
         ]
       : [];

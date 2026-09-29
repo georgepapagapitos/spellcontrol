@@ -31,13 +31,13 @@ export function explainPlacement(
   let reason: string;
   switch (why.kind) {
     case 'pinned':
-      reason = 'Added here by hand, so it stays whatever the rules say.';
+      reason = 'Added by hand, so it stays here.';
       break;
     case 'price-margin':
-      reason = "Kept here: its price moved just past this binder's rule, not far enough to move.";
+      reason = "Kept here: its price moved just past this binder's rule.";
       break;
     case 'printings':
-      reason = 'Kept with its other printings: another copy of this card matches the rules.';
+      reason = 'Kept with its other printings, which match the rules.';
       break;
     case 'rule':
       reason = areAllGroupsEmpty(def.filterGroups)

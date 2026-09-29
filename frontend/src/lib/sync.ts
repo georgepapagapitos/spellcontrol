@@ -1563,8 +1563,8 @@ function notifyForeignDeckEdit(count: number): void {
   toast.show({
     message:
       count === 1
-        ? 'A deck you were editing changed on another device. Its undo history was reset.'
-        : `${count} decks you were editing changed on another device. Undo history was reset.`,
+        ? "A deck you're editing changed on another device. Undo history reset."
+        : `${count} decks you're editing changed on another device. Undo history reset.`,
     tone: 'info',
   });
 }

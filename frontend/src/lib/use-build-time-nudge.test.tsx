@@ -142,7 +142,7 @@ describe('useBuildTimeNudge — combo signal', () => {
       id: 'combo-c1',
       kind: 'combo',
       headline: 'Kiki-Jiki, Mirror Breaker completes a combo',
-      detail: 'Kiki-Jiki, Mirror Breaker + Restoration Angel — Infinite combat damage',
+      detail: 'Kiki-Jiki, Mirror Breaker + Restoration Angel: Infinite combat damage',
     });
   });
 

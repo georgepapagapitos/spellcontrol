@@ -488,7 +488,7 @@ function notifyBinderMoves(moves: BinderMove[]): void {
 
   if (moves.length > MAX_VISIBLE_TOASTS) {
     toast.show({
-      message: `${moves.length} cards moved between binders (prices updated).`,
+      message: `Prices updated. ${moves.length} cards moved between binders.`,
       tone: 'info',
       actionLabel: 'View',
       onAction: () => appNavigate('/collection/binders'),
@@ -755,7 +755,7 @@ export const useCollectionStore = create<CollectionState>()(
           const failed = err instanceof SaveCollectionError ? err.kinds : ['cards'];
           set({
             error: failed.includes('cards')
-              ? "Cards imported but couldn't be saved locally. They will be lost if you refresh the page."
+              ? "Cards imported but couldn't be saved locally. They'll be lost if you refresh."
               : `Cards imported, but some data (${failed.join(', ')}) couldn't be saved locally.`,
           });
         }

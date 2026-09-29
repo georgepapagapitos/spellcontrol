@@ -149,12 +149,12 @@ function landsMessageFor(
 ): string {
   const basis = `avg MV ${avgCmc.toFixed(1)}, ${rampCount} ramp`;
   if (count < range[0]) {
-    return `Add ${suggested - count} to reach the ~${suggested} this deck's curve suggests (${basis}).`;
+    return `Add ${suggested - count} to reach ~${suggested} for this curve (${basis}).`;
   }
   if (count > range[1]) {
-    return `${count - suggested} over the ~${suggested} this deck's curve suggests (${basis}). Swap for spells.`;
+    return `${count - suggested} over the ~${suggested} this curve needs (${basis}). Swap for spells.`;
   }
-  return `In range of the ~${suggested} this deck's curve suggests (${basis}).`;
+  return `In range of the ~${suggested} this curve needs (${basis}).`;
 }
 
 function messageFor(role: string, count: number, range: [number, number]): string {

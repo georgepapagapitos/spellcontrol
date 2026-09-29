@@ -934,9 +934,9 @@ function buildGaps(
         severity: 'short',
         text: `Light on ${COLOR_NAME[c]} (${Math.round(share * 100)}% vs the ${Math.round(
           band.color[c].p25 * 100
-        )}–${Math.round(band.color[c].p75 * 100)}% real ${corpusPhrase} run). You own fewer good ${COLOR_NAME[
+        )}–${Math.round(band.color[c].p75 * 100)}% real ${corpusPhrase} run). You own few good ${COLOR_NAME[
           c
-        ].toLowerCase()} cards than the template wants.`,
+        ].toLowerCase()} cards.`,
       });
     }
   }
@@ -950,7 +950,7 @@ function buildGaps(
       severity: 'short',
       text: `${landPhrase} Real ${corpusPhrase} run ${Math.round(
         band.fixingLands.p25
-      )}–${Math.round(band.fixingLands.p75)}. Drafters may struggle to cast multicolor cards.`,
+      )}–${Math.round(band.fixingLands.p75)}. Multicolor cards will be hard to cast.`,
     });
   }
 
@@ -994,7 +994,7 @@ function buildGaps(
       } else if (n.producers < enablerFloor || n.payoffs < payoffFloor) {
         gaps.push({
           severity: 'short',
-          text: `${label}: ${n.producers} enablers / ${n.payoffs} payoffs, thin for a draftable archetype (good ${corpusPhrase} want ~${enablerFloor} / ~${payoffFloor}). More in your collection would deepen it.`,
+          text: `${label}: ${n.producers} enablers / ${n.payoffs} payoffs, thin for a draftable archetype (good ${corpusPhrase} want ~${enablerFloor} / ~${payoffFloor}).`,
         });
         reported++;
       }
@@ -1008,7 +1008,7 @@ function buildGaps(
   if (max > 0 && min / max >= 0.85 && shortfall === 0) {
     gaps.push({
       severity: 'note',
-      text: 'Colors are evenly balanced, the hallmark of a well-built cube.',
+      text: 'Colors are evenly balanced.',
     });
   }
 

@@ -212,7 +212,7 @@ describe('describeFormatSwitch', () => {
     expect(describeFormatSwitch(deck(), 'modern')).toEqual([
       'Krenko, Tin Street Kingpin moves into the main deck.',
       'The sideboard counts toward legality.',
-      'Bracket, Coach and the upgrade plan are for Commander decks, so they go away.',
+      'Bracket, Coach and the upgrade plan only apply to Commander decks.',
     ]);
   });
 
@@ -243,8 +243,8 @@ describe('describeFormatSwitch', () => {
     expect(describeFormatSwitch(d, 'commander')).toEqual([
       'Choose a commander next. Legends in this deck: Krenko, Tin Street Kingpin.',
       // Bolt and Shock; basics may run any number.
-      '2 cards run more than one copy, and get flagged until you trim them.',
-      "The sideboard becomes a holding pile that doesn't count.",
+      '2 cards run more than one copy and get flagged.',
+      'The sideboard stops counting toward legality.',
     ]);
   });
 
@@ -270,7 +270,7 @@ describe('describeFormatSwitch', () => {
       sideboard: [],
     });
     expect(describeFormatSwitch(d, 'standard')).toContain(
-      "1 card isn't legal in Standard, and gets flagged until you swap it."
+      "1 card isn't legal in Standard and gets flagged."
     );
     expect(describeFormatSwitch(d, 'modern')).not.toContainEqual(
       expect.stringContaining('legal in')
@@ -293,7 +293,7 @@ describe('describeFormatSwitch', () => {
   it('names a sideboard over 15 when switching into a 60-card format', () => {
     const side = Array.from({ length: 22 }, (_, i) => slot(card(`Side ${i}`), 100 + i));
     expect(describeFormatSwitch(deck({ sideboard: side }), 'modern')).toContain(
-      'The sideboard has 22 cards and Modern allows 15, so it gets flagged until you trim it.'
+      'The sideboard has 22 cards. Modern allows 15.'
     );
     const fifteen = side.slice(0, 15);
     expect(describeFormatSwitch(deck({ sideboard: fifteen }), 'modern')).not.toContainEqual(

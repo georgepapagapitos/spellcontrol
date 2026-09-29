@@ -22,8 +22,7 @@ export const COLLECTION_EXPORT_FORMATS: {
   {
     value: 'spellcontrol',
     label: 'SpellControl CSV',
-    description:
-      'Every field, ManaBox-compatible. One row per copy. Re-imports here with nothing lost.',
+    description: 'Every field, ManaBox-compatible. One row per copy.',
   },
   {
     value: 'moxfield',

@@ -63,25 +63,25 @@ export function buildSwapAlternativeFactors(s: SwapAlternativeSignals): WhyFacto
   const out: WhyFactor[] = [];
   out.push(
     s.owned
-      ? { text: 'Already in your collection. No purchase needed.', tone: 'pro' }
+      ? { text: 'Already in your collection.', tone: 'pro' }
       : { text: 'Not in your collection yet', tone: 'con' }
   );
   if (typeof s.inclusion === 'number') {
     const word = stapleWord(s.inclusion);
     out.push(
       word === 'fringe'
-        ? { text: `A fringe pick (${pct(s.inclusion)}), more of a pet card`, tone: 'neutral' }
+        ? { text: `A fringe pick (${pct(s.inclusion)})`, tone: 'neutral' }
         : { text: `A ${word} in similar decks (${pct(s.inclusion)})`, tone: 'pro' }
     );
   }
   if (typeof s.synergy === 'number' && synergyPct(s.synergy) >= 1) {
     out.push({
-      text: `Pulls its weight on synergy${s.commanderName ? ` with ${s.commanderName}` : ''} (+${synergyPct(s.synergy)}%)`,
+      text: `Synergy${s.commanderName ? ` with ${s.commanderName}` : ''} (+${synergyPct(s.synergy)}%)`,
       tone: 'pro',
     });
   }
   if (s.roleLabel) {
-    out.push({ text: `Same ${s.roleLabel} role. Your curve and counts hold.`, tone: 'neutral' });
+    out.push({ text: `Same ${s.roleLabel} role.`, tone: 'neutral' });
   }
   return out;
 }
@@ -115,14 +115,14 @@ export function buildBudgetSwapFactors(s: BudgetSwapSignals): WhyFactor[] {
   if (s.confidence === 'drop-in') {
     out.push({
       text: sameCurve
-        ? 'Plays nearly the same: same curve slot, comparable play-rate'
-        : 'Plays nearly the same: comparable play-rate',
+        ? 'Plays nearly the same. Same curve slot and play-rate.'
+        : 'Plays nearly the same. Similar play-rate.',
       tone: 'pro',
     });
   } else if (s.confidence === 'sidegrade') {
-    out.push({ text: 'A mild trade: less played, but the same mana cost', tone: 'neutral' });
+    out.push({ text: 'Less played, but the same mana cost.', tone: 'neutral' });
   } else {
-    out.push({ text: 'A real step down in power, traded for the savings', tone: 'con' });
+    out.push({ text: 'A step down in power for the savings.', tone: 'con' });
   }
   if (typeof s.suggestionInclusion === 'number') {
     const word = stapleWord(s.suggestionInclusion);
@@ -163,11 +163,11 @@ export interface GapAddSignals {
 export function buildGapAddFactors(s: GapAddSignals): WhyFactor[] {
   const out: WhyFactor[] = [];
   if (s.roleLabel) {
-    out.push({ text: `Your deck is light on ${s.roleLabel}. This closes the gap.`, tone: 'pro' });
+    out.push({ text: `Your deck is light on ${s.roleLabel}.`, tone: 'pro' });
   }
   if (s.liftedBy?.length) {
     out.push({
-      text: `Lifted by ${s.liftedBy.join(', ')}: a package fit`,
+      text: `Often played with ${s.liftedBy.join(', ')}`,
       tone: 'pro',
     });
   }
@@ -175,20 +175,20 @@ export function buildGapAddFactors(s: GapAddSignals): WhyFactor[] {
     const word = stapleWord(s.inclusion);
     out.push(
       word === 'fringe'
-        ? { text: `A fringe pick (${pct(s.inclusion)}), more of a pet card`, tone: 'neutral' }
+        ? { text: `A fringe pick (${pct(s.inclusion)})`, tone: 'neutral' }
         : { text: `A ${word} in similar decks (${pct(s.inclusion)})`, tone: 'pro' }
     );
   }
   if (typeof s.synergy === 'number' && synergyPct(s.synergy) >= 1) {
     out.push({
-      text: `Overperforms with this commander (+${synergyPct(s.synergy)}% vs baseline)`,
+      text: `Played more with this commander (+${synergyPct(s.synergy)}%)`,
       tone: 'pro',
     });
   }
-  if (s.owned) out.push({ text: 'Already in your collection. No purchase needed.', tone: 'pro' });
+  if (s.owned) out.push({ text: 'Already in your collection.', tone: 'pro' });
   if (s.brewFavored) {
     out.push({
-      text: "You dialed toward Theme. It fits the commander even though it's not widely played.",
+      text: 'Fits the commander, though few decks play it.',
       tone: 'neutral',
     });
   }
@@ -213,14 +213,14 @@ export function buildSynergyPickFactors(s: SynergyPickSignals): WhyFactor[] {
   const out: WhyFactor[] = [];
   out.push(
     s.side === 'payoff'
-      ? { text: `Pays off your ${s.axisLabel} engine. The fuel is already here.`, tone: 'pro' }
-      : { text: `Feeds your ${s.axisLabel} payoffs. More fuel for what you run.`, tone: 'pro' }
+      ? { text: `Pays off your ${s.axisLabel} engine.`, tone: 'pro' }
+      : { text: `Feeds your ${s.axisLabel} payoffs.`, tone: 'pro' }
   );
   out.push(
     typeof s.inclusion === 'number'
       ? { text: `Under the radar: ${pct(s.inclusion)} of similar decks run it`, tone: 'neutral' }
       : {
-          text: 'An off-meta pick. No play-rate data, just a text match to your engine.',
+          text: 'An off-meta pick with no play-rate data.',
           tone: 'neutral',
         }
   );
@@ -244,12 +244,12 @@ function optimizeCutLine(s: OptimizeSignals): WhyFactor | null {
   if (cat === 'tapland')
     return { text: 'Enters tapped: a tempo tax every time you draw it', tone: 'pro' };
   if (cat === 'excess-land')
-    return { text: 'The deck is over its land target. A land is the safest trim.', tone: 'pro' };
+    return { text: 'Over your land target. A land is the safest cut.', tone: 'pro' };
   if (cat === 'oversupplied-basic')
-    return { text: 'More basics of this color than your costs actually need', tone: 'pro' };
+    return { text: 'More basics of this color than you need', tone: 'pro' };
   if (cat === 'color-rebalance')
     return {
-      text: 'A swap, not a loss: this color holds more basics than its costs use',
+      text: 'A spare basic in this color. Land count stays the same.',
       tone: 'pro',
     };
   if (cat.startsWith('excess:'))
@@ -259,7 +259,7 @@ function optimizeCutLine(s: OptimizeSignals): WhyFactor | null {
     };
   if (cat === 'off-package')
     return {
-      text: "No co-play ties to anything else here. It isn't part of a package.",
+      text: 'Nothing else here plays with it.',
       tone: 'pro',
     };
   if (cat === 'low-synergy')
@@ -277,27 +277,26 @@ function optimizeAddLine(s: OptimizeSignals): WhyFactor | null {
   const cat = s.reasonCategory ?? '';
   if (cat.startsWith('fills:'))
     return {
-      text: `Your ${s.roleLabel ?? 'role'} count is under target. This closes the gap.`,
+      text: `Your ${s.roleLabel ?? 'role'} count is under target.`,
       tone: 'pro',
     };
   if (cat === 'mana-fix')
     return {
-      text: 'Your mana base graded low. Another good source helps every game.',
+      text: 'Your mana base graded low. This adds a source.',
       tone: 'pro',
     };
-  if (cat === 'color-fix')
-    return { text: 'Fixes the color your current sources shortchange', tone: 'pro' };
+  if (cat === 'color-fix') return { text: "Fixes a color you're short on", tone: 'pro' };
   if (cat === 'color-rebalance')
     return {
-      text: 'Closes a color shortfall the deck itself flags: net-zero land count',
+      text: 'Fixes a color shortfall. Land count stays the same.',
       tone: 'pro',
     };
   if (cat === 'flex-land')
-    return { text: "A land that's also a spell. Flex slots cut flood at no cost.", tone: 'pro' };
-  if (cat.startsWith('curve:')) return { text: 'Fills a quiet phase of your curve', tone: 'pro' };
+    return { text: "A land that's also a spell, so flooding costs less.", tone: 'pro' };
+  if (cat.startsWith('curve:')) return { text: 'Fills a gap in your curve', tone: 'pro' };
   if (cat === 'theme' || cat === 'synergy')
     return {
-      text: 'Overperforms with this commander: picked on synergy, not just play-rate',
+      text: 'Picked for synergy with this commander',
       tone: 'pro',
     };
   return null;
@@ -331,9 +330,9 @@ export function buildOptimizeFactors(kind: 'add' | 'cut', s: OptimizeSignals): W
   if (s.isGameChanger) {
     out.push(
       kind === 'cut'
-        ? { text: 'A Game Changer. Cutting it also eases your bracket weight.', tone: 'neutral' }
+        ? { text: 'A Game Changer. Cutting it eases your bracket.', tone: 'neutral' }
         : {
-            text: 'A Game Changer. Real power, and it counts toward your bracket.',
+            text: 'A Game Changer. It counts toward your bracket.',
             tone: 'neutral',
           }
     );
@@ -352,16 +351,16 @@ export interface BracketMoveSignals {
 
 /** Bracket-signal → what it means at the table. Grounded in the official bracket definitions. */
 const BRACKET_SIGNAL_LINES: Record<string, string> = {
-  'game-changer': "On the official Game Changers list, over your target bracket's cap",
+  'game-changer': "On the Game Changers list, over your target bracket's cap",
   'mass-land-denial': 'Mass land denial, reserved for Bracket 4+',
-  stax: 'A stax piece, heavier than your target bracket expects',
-  combo: 'Part of a compact combo line, plays above your target',
+  stax: 'A stax piece, heavy for your target bracket',
+  combo: 'A compact combo, above your target bracket',
   'extra-turn': 'Chained extra turns read as Bracket 4–5',
-  'fast-mana': 'Fast mana accelerates everything past your target',
-  tutor: 'Tutors add consistency beyond your target bracket',
-  'upshift-gc': 'A Game Changer, real power toward your target',
-  'upshift-combo': 'Completes a compact combo, a genuine win line at your target',
-  'upshift-fill': 'A proven staple to tighten the deck upward',
+  'fast-mana': 'Fast mana, above your target bracket',
+  tutor: 'A tutor, above your target bracket',
+  'upshift-gc': 'A Game Changer, more power toward your target',
+  'upshift-combo': 'Completes a compact combo, a real win line at your target',
+  'upshift-fill': 'A proven staple that adds power',
 };
 
 /**
@@ -374,7 +373,7 @@ export function buildBracketMoveFactors(s: BracketMoveSignals): WhyFactor[] {
   if (line) out.push({ text: line, tone: 'pro' });
   if (s.type === 'swap' && s.roleLabel) {
     out.push({
-      text: `Same ${s.roleLabel} slot: the function stays, the power moves`,
+      text: `Same ${s.roleLabel} slot. Only the power changes.`,
       tone: 'neutral',
     });
   }
@@ -412,21 +411,21 @@ export function buildLandUpgradeFactors(s: LandUpgradeSignals): WhyFactor[] {
   const out: WhyFactor[] = [];
   if (s.fixesShortColors.length > 0) {
     out.push({
-      text: `Covers ${s.fixesShortColors.join(' and ')}, a color your manabase was short on`,
+      text: `Covers ${s.fixesShortColors.join(' and ')}, which the deck was short on`,
       tone: 'pro',
     });
   } else if (s.addsColors.length > 0) {
     out.push({
-      text: `Adds ${s.addsColors.join(' and ')} while keeping every color ${s.outName} made`,
+      text: `Adds ${s.addsColors.join(' and ')} and keeps every color ${s.outName} made`,
       tone: 'pro',
     });
   }
   if (s.strongerFixing) {
-    out.push({ text: 'Rated on the card itself, not its popularity', tone: 'neutral' });
+    out.push({ text: 'Stronger fixing or extra upside', tone: 'neutral' });
   }
   out.push(
     s.owned
-      ? { text: 'A land you already own. No acquisition needed.', tone: 'pro' }
+      ? { text: 'A land you already own.', tone: 'pro' }
       : { text: "Worth acquiring. You don't own it yet.", tone: 'neutral' }
   );
   return out;
@@ -459,11 +458,11 @@ export function buildComboCompletionFactors(s: ComboCompletionSignals): WhyFacto
   }
   if (s.totalPieces === 2) {
     out.push({
-      text: "A live two-card combo once it lands. Mind your bracket's expectations.",
+      text: 'A two-card combo. Mind your bracket.',
       tone: 'con',
     });
   }
-  if (s.owned) out.push({ text: 'You own the missing piece. Free to assemble.', tone: 'pro' });
+  if (s.owned) out.push({ text: 'You own the missing piece.', tone: 'pro' });
   return out;
 }
 
@@ -486,12 +485,12 @@ export function buildCrossDeckMoveFactors(s: CrossDeckMoveSignals): WhyFactor[] 
   const out: WhyFactor[] = [];
   if (s.targetAxisLabels.length > 0) {
     out.push({
-      text: `Feeds ${s.toDeckName}'s ${s.targetAxisLabels.join(' & ')} engine, an established payoff there`,
+      text: `Feeds ${s.toDeckName}'s ${s.targetAxisLabels.join(' & ')} engine`,
       tone: 'pro',
     });
   }
   out.push({
-    text: `Doesn't touch any of ${s.fromDeckName}'s own engines. A generic value pick there.`,
+    text: `Not part of any of ${s.fromDeckName}'s engines.`,
     tone: 'pro',
   });
   return out;
@@ -526,11 +525,11 @@ export function buildCutFactors(s: CutSignals): WhyFactor[] {
   const out: WhyFactor[] = [];
   if (s.comboWarning) out.push({ text: s.comboWarning, tone: 'con' });
   if (s.sameAxis && s.axisLabel) {
-    out.push({ text: `Shares your ${s.axisLabel} engine, a like-for-like swap`, tone: 'pro' });
+    out.push({ text: `Shares your ${s.axisLabel} engine`, tone: 'pro' });
   } else if (s.sameRole && s.roleLabel) {
     out.push({ text: `Same ${s.roleLabel} role as the card you're adding`, tone: 'pro' });
   } else if (s.sameType && s.typeLabel) {
-    out.push({ text: `Same card type (${s.typeLabel}), fills the slot`, tone: 'neutral' });
+    out.push({ text: `Same card type (${s.typeLabel})`, tone: 'neutral' });
   }
   if (typeof s.inclusion === 'number') {
     out.push(

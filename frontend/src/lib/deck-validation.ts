@@ -245,8 +245,7 @@ export function validateDeck(
           slotId,
           cardName: card.name,
           issue: 'not-legal',
-          detail:
-            'Not a legal Pauper Commander — the commander must be a creature printed at uncommon',
+          detail: 'Not a legal Pauper Commander. It must be a creature printed at uncommon',
         });
       }
     }

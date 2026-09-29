@@ -88,7 +88,7 @@ describe('explainPlacement', () => {
       binder('Artifacts', 1, [{ filter: artifacts }]),
     ];
     expect(explain(rock, [rock], defs, 'Pins')).toEqual({
-      reason: 'Added here by hand, so it stays whatever the rules say.',
+      reason: 'Added by hand, so it stays here.',
       also: undefined,
     });
   });

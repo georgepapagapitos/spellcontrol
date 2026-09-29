@@ -181,8 +181,8 @@ export function describeFormatSwitch(deck: Deck, to: DeckFormat): string[] {
   if (illegal > 0) {
     lines.push(
       illegal === 1
-        ? `1 card isn't legal in ${target.label}, and gets flagged until you swap it.`
-        : `${illegal} cards aren't legal in ${target.label}, and get flagged until you swap them.`
+        ? `1 card isn't legal in ${target.label} and gets flagged.`
+        : `${illegal} cards aren't legal in ${target.label} and get flagged.`
     );
   }
   const overCopies = newlyFlagged(before, after, 'over-copy-limit');
@@ -192,15 +192,15 @@ export function describeFormatSwitch(deck: Deck, to: DeckFormat): string[] {
       : `more than ${target.maxCopies} copies`;
     lines.push(
       overCopies === 1
-        ? `1 card runs ${limit}, and gets flagged until you trim it.`
-        : `${overCopies} cards run ${limit}, and get flagged until you trim them.`
+        ? `1 card runs ${limit} and gets flagged.`
+        : `${overCopies} cards run ${limit} and get flagged.`
     );
   }
 
   if (deck.sideboard.length > 0 && from.hasCommander !== target.hasCommander) {
     lines.push(
       target.hasCommander
-        ? "The sideboard becomes a holding pile that doesn't count."
+        ? 'The sideboard stops counting toward legality.'
         : 'The sideboard counts toward legality.'
     );
   }
@@ -211,13 +211,11 @@ export function describeFormatSwitch(deck: Deck, to: DeckFormat): string[] {
   const fromCap = sideboardLimit(from);
   const side = next.sideboard.length;
   if (cap !== null && side > cap && (fromCap === null || side <= fromCap)) {
-    lines.push(
-      `The sideboard has ${side} cards and ${target.label} allows ${cap}, so it gets flagged until you trim it.`
-    );
+    lines.push(`The sideboard has ${side} cards. ${target.label} allows ${cap}.`);
   }
 
   if (from.hasCommander && !target.hasCommander) {
-    lines.push('Bracket, Coach and the upgrade plan are for Commander decks, so they go away.');
+    lines.push('Bracket, Coach and the upgrade plan only apply to Commander decks.');
   }
 
   return lines.length > 0 ? lines : ['Nothing else changes.'];

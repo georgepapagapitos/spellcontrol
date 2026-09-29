@@ -55,7 +55,7 @@ function fetchWithTimeout(url: string, opts: RequestInit): Promise<Response> {
     url,
     opts,
     TIMEOUT_MS,
-    'The request timed out. This can happen with very large collections. Try importing a smaller batch.'
+    'The request timed out. Try importing a smaller batch.'
   ).catch((err: unknown) => {
     // fetchWithAbortTimeout rethrows AbortError as the timeout message above.
     // Any other rejection is a network-level failure — DNS, connection reset,
