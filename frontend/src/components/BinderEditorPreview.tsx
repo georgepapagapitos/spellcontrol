@@ -5,6 +5,7 @@ import { PageGrid } from './PageGrid';
 import { ColorPip } from './shared/ManaSymbol';
 import { EmptyState } from './shared/EmptyState';
 import { IconButton } from '@/components/shared/Button';
+import { bindersOfCapacity, volumesFor } from '../lib/binder-volumes';
 import './BinderEditorPreview.css';
 
 interface Props {
@@ -13,7 +14,6 @@ interface Props {
    *  still hydrating. */
   binder: MaterializedBinder | null;
   loading: boolean;
-  fixedCapacity: number | null;
 }
 
 /** Binder-wide page list + per-page section labels, and where each section
@@ -41,7 +41,7 @@ function useFlatPreview(binder: MaterializedBinder | null) {
   }, [binder]);
 }
 
-export function BinderEditorPreview({ binder, loading, fixedCapacity }: Props) {
+export function BinderEditorPreview({ binder, loading }: Props) {
   const { pages, labels, sectionRows } = useFlatPreview(binder);
   const [spreadIndex, setSpreadIndex] = useState(0);
   const maxSpread = Math.max(0, Math.ceil(pages.length / 2) - 1);
@@ -75,7 +75,11 @@ export function BinderEditorPreview({ binder, loading, fixedCapacity }: Props) {
     );
   }
 
-  const binderCount = fixedCapacity ? Math.ceil(binder.totalCards / fixedCapacity) : null;
+  // How many physical binders, from the same pass and the same page-based
+  // plan as the Pages answer and the binder page (never cards ÷ capacity,
+  // which undercounts once sections start fresh pages).
+  const fixedCapacity = binder.def.fixedCapacity;
+  const binderCount = fixedCapacity !== null ? (volumesFor(binder)?.length ?? null) : null;
   const leftPage = pages[spread * 2];
   const rightPage = pages[spread * 2 + 1];
 
@@ -140,9 +144,7 @@ export function BinderEditorPreview({ binder, loading, fixedCapacity }: Props) {
         {binderCount !== null && fixedCapacity !== null && (
           <div className="binder-editor-preview-stat">
             <b>{binderCount.toLocaleString()}</b>
-            <span>
-              {binderCount === 1 ? 'binder' : 'binders'} of {fixedCapacity.toLocaleString()}
-            </span>
+            <span>{bindersOfCapacity(binderCount, fixedCapacity)}</span>
           </div>
         )}
       </div>

@@ -6,7 +6,7 @@
  * REAL materialize pass, not a stand-in.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import type { BinderDef, EnrichedCard } from '../types';
 import { useCollectionStore } from '../store/collection';
 import { BinderEditor } from './BinderEditor';
@@ -156,9 +156,12 @@ describe('the editor previews the draft (E493)', () => {
     });
     open(existing.id);
     expect(screen.getByTestId('preview-page-1').dataset.pocket).toBe('9');
+    act(() => {
+      vi.advanceTimersByTime(250); // the debounce settles on the opened binder
+    });
 
     fireEvent.click(screen.getByRole('button', { name: /Pages/ }));
-    fireEvent.click(screen.getByRole('radio', { name: '4-pocket' }));
+    fireEvent.click(screen.getByRole('radio', { name: '4-pocket, Toploader pages' }));
     // Not yet — the heavy materialize pass waits for the debounce.
     act(() => {
       vi.advanceTimersByTime(50);
@@ -190,6 +193,15 @@ describe('the editor previews the draft (E493)', () => {
     expect(screen.getByTestId('preview-page-4').textContent).toContain('Blue');
   });
 
+  it("opens on the binder's own layout, never the draft the closed editor last held", () => {
+    // The editor is mounted while closed; its debounced draft still holds the
+    // blank 9-pocket form when this 4-pocket binder opens.
+    const existing = makeBinderDef({ filterGroups: [{ filter: {} }], pocketSize: 4 });
+    useCollectionStore.setState({ binders: [existing], cards: [card('1', ['W'])] });
+    open(existing.id);
+    expect(screen.getByTestId('preview-page-1').dataset.pocket).toBe('4');
+  });
+
   it('shows capacity as "N binders of <capacity>" once a fixed capacity is set', () => {
     const existing = makeBinderDef({ filterGroups: [{ filter: {} }], fixedCapacity: 1 });
     useCollectionStore.setState({
@@ -197,8 +209,9 @@ describe('the editor previews the draft (E493)', () => {
       cards: [card('1', ['W']), card('2', ['U'])],
     });
     open(existing.id);
-    // 2 cards land, capacity 1 -> ceil(2/1) = 2 binders of 1.
-    expect(screen.getByText(/binders of 1\b/)).toBeTruthy();
+    // Two one-card sections on two pages; a 1-card binder holds one page.
+    const column = screen.getByText('Preview').closest('.binder-editor-preview') as HTMLElement;
+    expect(within(column).getByText('binders of 1')).toBeTruthy();
   });
 
   it('on a phone, shows the compact strip instead of the column, opening the real pages on tap', () => {

@@ -3,7 +3,14 @@ import { useId } from 'react';
 import { X } from 'lucide-react';
 import { Modal } from './Modal';
 import { Button, IconButton } from '@/components/shared/Button';
-import { smallestFittingCapacity } from '../lib/binder-volumes';
+import {
+  fitButtonLabel,
+  noFitMessage,
+  smallestFittingCapacity,
+  volumePageRange,
+  volumeSpine,
+  volumesOfCapacity,
+} from '../lib/binder-volumes';
 import type { PocketSize, Volume } from '../types';
 
 interface Props {
@@ -16,14 +23,6 @@ interface Props {
   onApplyFit: (size: number) => void;
   onOpenRules: () => void;
   onClose: () => void;
-}
-
-function pageRange(v: Volume): string {
-  return v.pageStart === v.pageEnd ? `p. ${v.pageStart}` : `pp. ${v.pageStart}–${v.pageEnd}`;
-}
-
-function spine(v: Volume): string {
-  return v.firstLabel === v.lastLabel ? v.firstLabel : `${v.firstLabel} → ${v.lastLabel}`;
 }
 
 /**
@@ -71,14 +70,14 @@ export function BinderVolumesSheet({
       </div>
       <div className="modal-body binder-volumes-sheet-body">
         <p className="binder-volumes-sheet-intro">
-          {binderName} fills {volumes.length} binders of {fixedCapacity.toLocaleString()} cards.
+          {binderName} fills {volumesOfCapacity(volumes.length, fixedCapacity)} cards.
         </p>
         <ul className="binder-volumes-list">
           {volumes.map((v) => (
             <li key={v.index} className="binder-volumes-row">
               <span className="binder-volumes-row-index">Vol {v.index}</span>
-              <span className="binder-volumes-row-pages">{pageRange(v)}</span>
-              <span className="binder-volumes-row-spine">{spine(v)}</span>
+              <span className="binder-volumes-row-pages">{volumePageRange(v)}</span>
+              <span className="binder-volumes-row-spine">{volumeSpine(v)}</span>
               <span className="binder-volumes-row-count">
                 {v.cardCount.toLocaleString()} {v.cardCount === 1 ? 'card' : 'cards'}
               </span>
@@ -88,12 +87,10 @@ export function BinderVolumesSheet({
         <div className="binder-volumes-sheet-fix">
           {fitSize ? (
             <Button variant="primary" onClick={() => onApplyFit(fitSize)}>
-              Use a {fitSize.toLocaleString()}-card binder
+              {fitButtonLabel(fitSize)}
             </Button>
           ) : (
-            <p className="binder-volumes-sheet-hint">
-              No standard size holds it in one book, so it stays in {volumes.length} volumes.
-            </p>
+            <p className="binder-volumes-sheet-hint">{noFitMessage(volumes.length)}</p>
           )}
           <Button variant="link" onClick={onOpenRules}>
             Binder rules

@@ -30,7 +30,6 @@ interface Entry {
 }
 
 const OPTION_KEYS: (keyof MaterializeOptions)[] = [
-  'globalPocketSize',
   'search',
   'uncategorizedSorts',
   'allocatedCopyIds',

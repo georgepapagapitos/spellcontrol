@@ -63,9 +63,7 @@ function fakeBinder(): MaterializedBinder {
 
 describe('BinderEditorPreviewStrip', () => {
   it('shows a loading placeholder while cards hydrate', () => {
-    render(
-      <BinderEditorPreviewStrip binder={null} loading fixedCapacity={null} binderName="Draft" />
-    );
+    render(<BinderEditorPreviewStrip binder={null} loading binderName="Draft" />);
     expect(screen.getByText(/loading your cards/i)).toBeTruthy();
     expect(screen.queryByRole('button')).toBeNull();
   });
@@ -77,23 +75,15 @@ describe('BinderEditorPreviewStrip', () => {
       totalCards: 0,
       totalPages: 0,
     };
-    render(
-      <BinderEditorPreviewStrip
-        binder={empty}
-        loading={false}
-        fixedCapacity={null}
-        binderName="Draft"
-      />
-    );
+    render(<BinderEditorPreviewStrip binder={empty} loading={false} binderName="Draft" />);
     expect(screen.getByText(/nothing to preview/i)).toBeTruthy();
   });
 
   it('summarizes pages, the first section and capacity', () => {
     render(
       <BinderEditorPreviewStrip
-        binder={fakeBinder()}
+        binder={{ ...fakeBinder(), def: { ...fakeBinder().def, fixedCapacity: 18 } }}
         loading={false}
-        fixedCapacity={18}
         binderName="Draft"
       />
     );
@@ -107,7 +97,6 @@ describe('BinderEditorPreviewStrip', () => {
       <BinderEditorPreviewStrip
         binder={fakeBinder()}
         loading={false}
-        fixedCapacity={null}
         binderName="Rares worth $1+"
       />
     );

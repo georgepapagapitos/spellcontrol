@@ -482,6 +482,24 @@ export interface BinderDef {
    * plain packing, so the field degrades gracefully.
    */
   packSections?: boolean | 'continuous';
+  /**
+   * "Leave room": at least this many empty pockets after EACH section's last
+   * card, so a card added later slots in without moving every section after
+   * it. A section's own unfilled pockets on its last page count toward it;
+   * only the shortfall adds wholly blank pages, so a section that ends exactly
+   * on a page boundary gets a whole blank page. The blank pages are real
+   * pages: they count toward `totalPages`, page numbers and volumes, and they
+   * are left out of a search's pages like any other page with no match.
+   *
+   * A refinement of "every section starts a fresh page": **inert whenever
+   * `packSections` is set** (a shared page has no section end to leave room
+   * at). Applies to rule sections (`sectionMode: 'group'`) and, under a
+   * deeper `pageBreakDepth`, to each sub-section. Ignored for manual-ordered
+   * binders (one flat run). Undefined/0 = none. Clamped to four pages.
+   * Stored in pockets, not pages, so it means the same physical room at any
+   * pocket size; the editor offers half a page or a full page.
+   */
+  sparePockets?: number;
   /** Captured each time the user clicks "Mark reviewed" on this binder. The
    *  next view diffs current membership against this snapshot and surfaces
    *  added/removed cards — so volatile fields (price, EDHREC rank) silently

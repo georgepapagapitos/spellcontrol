@@ -33,7 +33,6 @@ import {
 } from './sorting.js';
 
 export interface MaterializeOptions {
-  globalPocketSize?: PocketSize;
   search: string;
   /** Sort applied to the uncategorized bucket. */
   uncategorizedSorts?: SortEntry[];
@@ -60,6 +59,22 @@ const DEFAULT_UNCATEGORIZED_SORTS: SortEntry[] = [
 
 /** Fallback pocket size for binders that don't specify one and for the uncategorized bucket. */
 const DEFAULT_POCKET_SIZE: PocketSize = 9;
+
+/**
+ * The page filter when nothing is being searched. A named constant (not a
+ * fresh `() => true`) so page building can tell "no search" apart from "a
+ * search every card happens to match": reserved "Leave room" pages have no
+ * card to match, so they render only when nothing is being searched.
+ */
+const MATCH_ALL = (): boolean => true;
+
+/**
+ * Upper bound on "Leave room" (`BinderDef.sparePockets`), in pages per
+ * section. The editor offers at most one page; the field arrives as synced
+ * JSON, so a hostile or corrupt value must not allocate thousands of blank
+ * pages per section.
+ */
+const MAX_SPARE_PAGES = 4;
 
 /** Number of pages needed to hold `cardCount` cards in a pocket of `slotSize`. */
 function countPages(cardCount: number, slotSize: number): number {
@@ -90,7 +105,7 @@ export function materializeBinders(
   opts: MaterializeOptions
 ): { binders: MaterializedBinder[]; uncategorized: UncategorizedBucket } {
   const search = normalizeForSearch(opts.search);
-  const isMatch = search ? (c: EnrichedCard) => nameMatchesNormalized(c, search) : () => true;
+  const isMatch = search ? (c: EnrichedCard) => nameMatchesNormalized(c, search) : MATCH_ALL;
 
   const orderedDefs = [...binderDefs].sort((a, b) => a.position - b.position);
   // Compile each binder's groups once. Outer index = binder, inner = OR-branches.
@@ -222,9 +237,7 @@ export function materializeBinders(
 
   const materialized: MaterializedBinder[] = orderedDefs.map((def) => {
     const rawCards = buildBinderCards(def, buckets.get(def.id)!);
-    const effectivePocketSize = (def.pocketSize ??
-      opts.globalPocketSize ??
-      DEFAULT_POCKET_SIZE) as PocketSize;
+    const effectivePocketSize = (def.pocketSize ?? DEFAULT_POCKET_SIZE) as PocketSize;
     const useManualOrder = !!def.manualOrder?.length;
     const defSorts = normalizeSorts(def.sorts);
     const effectiveSorts = useManualOrder ? [] : withImplicitTiebreakers(defSorts);
@@ -254,7 +267,8 @@ export function materializeBinders(
             { value: 0 },
             '',
             '',
-            def.packSections ?? false
+            def.packSections ?? false,
+            def.sparePockets ?? 0
           );
     return {
       def,
@@ -282,7 +296,7 @@ export function materializeBinders(
   const uncategorizedSections = buildSections(
     uncategorized,
     uncategorizedSorts,
-    opts.globalPocketSize ?? DEFAULT_POCKET_SIZE,
+    DEFAULT_POCKET_SIZE,
     isMatch,
     uncatCtx
   );
@@ -293,7 +307,7 @@ export function materializeBinders(
       totalCards: uncategorizedSections.reduce((s, sec) => s + sec.cards.length, 0),
       sections: uncategorizedSections,
       totalPages: uncategorizedSections.reduce((s, sec) => s + sec.pages.length, 0),
-      effectivePocketSize: opts.globalPocketSize ?? DEFAULT_POCKET_SIZE,
+      effectivePocketSize: DEFAULT_POCKET_SIZE,
       effectiveSorts: uncategorizedSorts,
       displaySorts: getDisplaySorts(
         uncategorizedSorts,
@@ -410,6 +424,10 @@ function buildSections(
   labelPrefix = '',
   keyPrefix = '',
   packSections: boolean | 'continuous' = false,
+  // "Leave room" (BinderDef.sparePockets), see its doc comment. Threaded
+  // through recursion unchanged (like fullSorts): it only takes effect once
+  // recursion bottoms out at a real leaf, where `buildSection` cuts pages.
+  sparePockets = 0,
   // The whole chain, for the leaf sort. `sorts` shrinks by one per page-break
   // level so each level groups by its own field, but the cards inside the
   // deepest group must still be ordered by EVERY field — dropping the parents
@@ -419,32 +437,35 @@ function buildSections(
 ): BinderSection[] {
   const primary = sorts[0];
   const useGrouping = !!primary && primary.field !== 'none';
+  // Leave room is a refinement of "every section starts a fresh page": a
+  // shared page has no section end to leave room at, so packing makes it
+  // inert (see BinderDef.sparePockets).
+  const layout: PageLayout = {
+    slotSize,
+    isMatch,
+    pageOffsetRef,
+    sparePockets: packSections ? 0 : sparePockets,
+  };
 
   const buildSection = (
     meta: SectionMeta,
     sectionCards: EnrichedCard[],
     labels?: string[]
   ): BinderSection | null => {
-    const sectionPageCount = countPages(sectionCards.length, slotSize);
     const startPage = pageOffsetRef.value;
-    const pages = chunkIntoPages(sectionCards, slotSize, isMatch, startPage);
-    pageOffsetRef.value += sectionPageCount;
+    const pages = cutSectionPages(sectionCards, layout);
     // A merged section spans several groups, so the header alone can't say
-    // which group sits on which page — stamp each surviving page with the
-    // distinct labels of the cards physically on it. Recomputed from each
-    // card (not from pre-merge group sizes) because the leaf re-sorts the
-    // merged cards by the full chain, which can reorder across groups.
+    // which group sits on which page. Recomputed from each card (not from
+    // pre-merge group sizes) because the leaf re-sorts the merged cards by
+    // the full chain, which can reorder across groups.
     if (labels && labels.length > 1 && primary) {
-      const effSlot = slotSize > 0 ? slotSize : 9;
-      for (const page of pages) {
-        const idx = page.pageNum - 1 - startPage;
-        const distinct: string[] = [];
-        for (const c of sectionCards.slice(idx * effSlot, (idx + 1) * effSlot)) {
-          const l = getSectionMeta(c, primary.field, ctx).label;
-          if (!distinct.includes(l)) distinct.push(l);
-        }
-        page.labels = distinct;
-      }
+      stampPageLabels(
+        pages,
+        sectionCards,
+        startPage,
+        slotSize,
+        (c) => getSectionMeta(c, primary.field, ctx).label
+      );
     }
     const matchingCards = sectionCards.filter(isMatch);
     if (matchingCards.length === 0) return null;
@@ -539,6 +560,9 @@ function buildSections(
   const subSorts = sorts.slice(1);
   const recursing = pageBreakDepth > 1 && subSorts.length > 0;
   // Packing only makes sense at the leaf, where groups actually become pages.
+  // A deeper page break wins over packing: "also start a new page for each
+  // <field>" and "share a page" answer the same question in opposite ways,
+  // and the editor offers packing only at depth 1 for that reason.
   const groupsToBuild =
     packSections && !recursing
       ? packGroups(ordered, slotSize, packSections === 'continuous')
@@ -559,6 +583,7 @@ function buildSections(
         labelPrefix ? `${labelPrefix} · ${meta.label}` : meta.label,
         keyPrefix ? `${keyPrefix}/${meta.key}` : meta.key,
         false,
+        sparePockets,
         fullSorts
       );
       sections.push(...subSections);
@@ -578,10 +603,18 @@ function buildSections(
 }
 
 /**
- * Sections driven by filterGroups: one section per group, in group definition
- * order. Cards are assigned by first-matching-group-wins (same semantics as the
- * cross-binder routing so the labeling is consistent). Empty sections are omitted.
- * Within each section, cards are sorted by `sorts`.
+ * Sections driven by filterGroups: one section per rule, in rule order. Cards
+ * are assigned by first-matching-rule-wins (same semantics as the cross-binder
+ * routing so the labeling is consistent). Empty sections are omitted. Within
+ * each section, cards are sorted by `sorts`.
+ *
+ * Honours the same page settings as sort-driven sections (E473: this used to
+ * ignore both): page filling (`packSections`) flows small rule sections onto
+ * a shared page exactly like `packGroups` does for sort groups, and "Leave
+ * room" (`sparePockets`) reserves pockets after each rule's cards. Merged
+ * cards keep rule order (never re-sorted across rules), so a shared page
+ * reads rule by rule. Page breaks deeper than the rules (`pageBreakDepth`)
+ * don't apply here: the rules ARE the page breaks.
  */
 function buildGroupSections(
   cards: EnrichedCard[],
@@ -615,26 +648,124 @@ function buildGroupSections(
     if (!assigned.has(card.copyId)) buckets[buckets.length - 1].push(card);
   }
 
-  let pageOffset = 0;
+  // A rule's section is named after the rule; an unnamed one is "Rule N",
+  // the editor's own fallback word (one vocabulary for rules).
+  const ruleOf = new Map<EnrichedCard, string>();
+  const groups: SectionGroup[] = [];
+  def.filterGroups.forEach((group, i) => {
+    if (buckets[i].length === 0) return; // hide empty sections
+    const label = group.name?.trim() || `Rule ${i + 1}`;
+    const sorted = sortCards(buckets[i], sorts, ctx);
+    for (const c of sorted) ruleOf.set(c, label);
+    groups.push({ meta: { key: `group-${i}`, label, order: i }, cards: sorted });
+  });
+
+  const pack = def.packSections ?? false;
+  const pageOffsetRef = { value: 0 };
+  const layout: PageLayout = {
+    slotSize,
+    isMatch,
+    pageOffsetRef,
+    sparePockets: pack ? 0 : (def.sparePockets ?? 0),
+  };
   const sections: BinderSection[] = [];
-  for (let i = 0; i < def.filterGroups.length; i++) {
-    const group = def.filterGroups[i];
-    const groupCards = buckets[i];
-    if (groupCards.length === 0) continue; // hide empty sections
-
-    const label = group.name?.trim() || `Group ${i + 1}`;
-    const key = `group-${i}`;
-    const sorted = sortCards(groupCards, sorts, ctx);
-
-    const sectionPageCount = countPages(sorted.length, slotSize);
-    const pages = chunkIntoPages(sorted, slotSize, isMatch, pageOffset);
-    pageOffset += sectionPageCount;
-    const matchingCards = sorted.filter(isMatch);
+  for (const { meta, cards: sectionCards, labels } of pack
+    ? packGroups(groups, slotSize, pack === 'continuous')
+    : groups) {
+    const startPage = pageOffsetRef.value;
+    const pages = cutSectionPages(sectionCards, layout);
+    const merged = !!labels && labels.length > 1;
+    if (merged) stampPageLabels(pages, sectionCards, startPage, slotSize, (c) => ruleOf.get(c)!);
+    const matchingCards = sectionCards.filter(isMatch);
     if (matchingCards.length === 0) continue; // skip if search hides all cards in this group
-
-    sections.push({ key, label, cards: matchingCards, pages });
+    sections.push({
+      key: meta.key,
+      label: merged ? labels.join(' · ') : meta.label,
+      ...(merged ? { labels, cardLabels: matchingCards.map((c) => ruleOf.get(c)!) } : {}),
+      cards: matchingCards,
+      pages,
+    });
   }
   return sections;
+}
+
+/** Where a binder's sections are cut into pages, shared by every leaf. */
+interface PageLayout {
+  slotSize: number;
+  isMatch: (c: EnrichedCard) => boolean;
+  /** The binder-wide page counter, so page numbers run on across sections. */
+  pageOffsetRef: { value: number };
+  /** Reserved pockets after each section, already zeroed where inert. */
+  sparePockets: number;
+}
+
+/**
+ * How many wholly blank pages "Leave room" adds after a section of
+ * `cardCount` cards: enough that at least `sparePockets` empty pockets follow
+ * its last card. The section's own last page already carries its unfilled
+ * pockets for free, so only the shortfall costs a page, and a section that
+ * lands exactly on a page boundary gets a whole reserved page. Clamped to
+ * `MAX_SPARE_PAGES`; a non-finite or negative request reserves nothing.
+ */
+function reservedPageCount(cardCount: number, slotSize: number, sparePockets: number): number {
+  if (!(sparePockets > 0) || cardCount <= 0) return 0;
+  const effective = slotSize > 0 ? slotSize : 9;
+  const want = Math.min(Math.floor(sparePockets), MAX_SPARE_PAGES * effective);
+  const slack = countPages(cardCount, effective) * effective - cardCount;
+  return Math.max(0, Math.ceil((want - slack) / effective));
+}
+
+/**
+ * One section's physical pages: its cards cut into pages (search-filtered by
+ * `chunkIntoPages`), then any reserved "Leave room" pages, numbered on from
+ * the binder-wide counter, which advances past all of them.
+ *
+ * Reserved pages hold no card, so they can never match a search: while
+ * searching they are left out like any other page with no match, but the
+ * counter still advances past them, so every later page keeps its physical
+ * number.
+ */
+function cutSectionPages(sectionCards: EnrichedCard[], layout: PageLayout): BinderPage[] {
+  const { slotSize, isMatch, pageOffsetRef, sparePockets } = layout;
+  const startPage = pageOffsetRef.value;
+  const naturalPages = countPages(sectionCards.length, slotSize);
+  const pages = chunkIntoPages(sectionCards, slotSize, isMatch, startPage);
+  const reserved = reservedPageCount(sectionCards.length, slotSize, sparePockets);
+  if (isMatch === MATCH_ALL) {
+    const effective = slotSize > 0 ? slotSize : 9;
+    for (let i = 1; i <= reserved; i++) {
+      pages.push({
+        slots: new Array<null>(effective).fill(null),
+        pageNum: startPage + naturalPages + i,
+      });
+    }
+  }
+  pageOffsetRef.value += naturalPages + reserved;
+  return pages;
+}
+
+/**
+ * Stamp each page of a merged section with the distinct group labels of the
+ * cards physically on it, in slot order, so a shared page can say which
+ * groups it holds when the section header can't.
+ */
+function stampPageLabels(
+  pages: BinderPage[],
+  sectionCards: EnrichedCard[],
+  startPage: number,
+  slotSize: number,
+  labelOf: (c: EnrichedCard) => string
+): void {
+  const effective = slotSize > 0 ? slotSize : 9;
+  for (const page of pages) {
+    const idx = page.pageNum - 1 - startPage;
+    const distinct: string[] = [];
+    for (const c of sectionCards.slice(idx * effective, (idx + 1) * effective)) {
+      const l = labelOf(c);
+      if (!distinct.includes(l)) distinct.push(l);
+    }
+    page.labels = distinct;
+  }
 }
 
 /**
