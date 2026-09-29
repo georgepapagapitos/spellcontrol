@@ -18,11 +18,13 @@
 #    deckInvariants.ts fails the run. Dumps + summary.json are uploaded
 #    whether it passes or fails.
 #
-# Sizing (measured 2026-09-29 on a cold cache, 2 req/s Scryfall limit): a
-# stress row takes 15-40 s and ~30 Scryfall requests, so the whole panel runs
-# in well under an hour. Every row runs every night; there is no rotation.
-# If the panel grows past what fits in timeout-minutes, rotate with the
-# harness's LIVE_GEN_SHARD=k/n (k = day of year mod n) and say so here.
+# Sizing (measured 2026-09-29 from a cold HTTP cache on a dev box, Scryfall
+# spaced at its 2 req/s limit): all 100 rows took 1,534 s of generation, a
+# median of 12 s a row, the slowest 187 s (a 1995 era build), and 1,881
+# Scryfall requests in all. That fits inside timeout-minutes several times
+# over, so every row runs every night and nothing rotates. If the panel
+# outgrows it, rotate with the harness's LIVE_GEN_SHARD=k/n (k = day of year
+# mod n, so each row still runs every n nights) and say so here.
 #
 # No HTTP cache, on purpose: LIVE_GEN_HTTP_CACHE would replay yesterday's
 # responses and hide exactly the drift this job exists to catch.
