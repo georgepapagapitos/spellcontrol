@@ -10,6 +10,7 @@ import { DiscoverFiltersPopover } from '../DiscoverFiltersPopover';
 import { SearchPill } from '../SearchPill';
 import { SortMenu, type SortMenuOption } from '../SortMenu';
 import { SharedEmptyState } from '../share/SharedEmptyState';
+import { ColorIdentityBar } from '../shared/ColorIdentityBar';
 import { ColorPip } from '../shared/ManaSymbol';
 import { Chip } from '../shared/Chip';
 import { Surface } from '../shared/Surface';
@@ -286,14 +287,7 @@ function DeckLibraryTile({
             </ArtBadge>
           )}
         </span>
-        <span className="public-profile-tile-colorbar" aria-hidden="true">
-          {(colors.length > 0 ? colors : ['C']).map((c, i) => (
-            <span
-              key={`${c}-${i}`}
-              className={`public-profile-tile-colorbar-seg public-profile-tile-colorbar-seg--${c.toLowerCase()}`}
-            />
-          ))}
-        </span>
+        <ColorIdentityBar colors={colors} />
         <div className="decks-index-card-body">
           <div className="decks-index-card-name">
             <span>{deck.name}</span>

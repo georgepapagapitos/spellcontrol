@@ -214,12 +214,22 @@ describe('Settings', () => {
 
   // STYLE_GUIDE § Table settings / § Config surfaces: an on/off row states
   // what On does in one line under the label, not just its own name.
-  it('describes what On does for every switch', () => {
+  // A switch gets a line only when its label doesn't already say what On does
+  // (style-guide/overlays.md). A new switch must land in one list or the other.
+  it('describes what On does where the label alone does not', () => {
     settings({ fullscreenSupported: true });
-    for (const row of screen.getAllByRole('switch')) {
+    const described = ['Turn tracker', 'Low life warning', 'Underlined 6 and 9', 'Minimalist mode'];
+    const selfEvident = ['Game timer', 'Full screen', 'Haptic feedback'];
+    expect(screen.getAllByRole('switch')).toHaveLength(described.length + selfEvident.length);
+    for (const name of described) {
+      const row = screen.getByRole('switch', { name: new RegExp(`^${name}`) });
       const describedBy = row.getAttribute('aria-describedby');
-      expect(describedBy).toBeTruthy();
-      expect(document.getElementById(describedBy!)?.textContent).toBeTruthy();
+      expect(describedBy, name).toBeTruthy();
+      expect(document.getElementById(describedBy!)?.textContent, name).toBeTruthy();
+    }
+    for (const name of selfEvident) {
+      const row = screen.getByRole('switch', { name: new RegExp(`^${name}`) });
+      expect(row.getAttribute('aria-describedby'), name).toBeNull();
     }
   });
 

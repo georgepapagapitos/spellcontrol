@@ -1,6 +1,7 @@
 import { apiUrl } from './api-base';
 import type { ListDef } from '../types';
 import type { FriendCard } from './cube/pool';
+import { ONLINE_PLAY_HINT, TABLE_PLAY_HINT } from './shared-copy';
 
 /**
  * Client for the game-nights API (E123): schedule a night, invite friends,
@@ -20,8 +21,8 @@ export const STATUS_LABELS: Array<{ status: RsvpStatus; label: string }> = [
 /** Where a night is played — see `GameNight.venue`. */
 export type NightVenue = 'table' | 'online';
 export const NIGHT_VENUES: ReadonlyArray<{ value: NightVenue; label: string; hint: string }> = [
-  { value: 'table', label: 'At the table', hint: 'One device tracks every seat.' },
-  { value: 'online', label: 'Online', hint: 'Everyone on their own device, with a join code.' },
+  { value: 'table', label: 'At the table', hint: TABLE_PLAY_HINT },
+  { value: 'online', label: 'Online', hint: ONLINE_PLAY_HINT },
 ];
 
 export interface NightRsvp {

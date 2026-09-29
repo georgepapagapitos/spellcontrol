@@ -1,0 +1,32 @@
+/* Segmented color-identity bar (ColorIdentityBar.tsx), directly under a deck
+   tile's banner. Segment fills are the exact backgrounds ColorPip/ManaSymbol
+   paint for a solid WUBRG pip (mana-font's `.ms-cost.ms-<letter>` circle,
+   exposed as --mtg-*); colorless is mana-font's own `.ms-cost` base gray.
+   See style-guide/social.md § Segmented color-identity bar. */
+.color-identity-bar {
+  display: flex;
+  height: 4px;
+}
+
+.color-identity-bar-seg {
+  flex: 1;
+}
+
+.color-identity-bar-seg--w {
+  background: var(--mtg-w);
+}
+.color-identity-bar-seg--u {
+  background: var(--mtg-u);
+}
+.color-identity-bar-seg--b {
+  background: var(--mtg-b);
+}
+.color-identity-bar-seg--r {
+  background: var(--mtg-r);
+}
+.color-identity-bar-seg--g {
+  background: var(--mtg-g);
+}
+.color-identity-bar-seg--c {
+  background: var(--mtg-colorless);
+}

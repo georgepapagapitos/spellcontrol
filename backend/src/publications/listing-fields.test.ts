@@ -166,6 +166,57 @@ describe('extractListingFields', () => {
     ).toBe('https://cards.scryfall.io/art_crop/one.jpg');
   });
 
+  // A non-commander deck's colors come from its cards, as on the owner's own
+  // deck index. Reading only the commander left every Pauper deck colorless on
+  // Discover and /u/:username: no pips, a grey strip.
+  it('colors a non-commander deck from its cards, most-used color first', () => {
+    const slot = (name: string, color_identity: string[]) => ({
+      slotId: name,
+      card: { id: name, name, color_identity },
+      allocatedCopyId: null,
+    });
+    const fields = extractListingFields(
+      baseDeck({
+        format: 'pauper',
+        commander: null,
+        partnerCommander: null,
+        cards: [
+          slot('Llanowar Elves', ['G']),
+          slot('Llanowar Elves', ['G']),
+          slot('Llanowar Elves', ['G']),
+          slot('Deathrite Shaman', ['B', 'G']),
+          slot('Forest', []),
+        ],
+        sideboard: [slot('Duress', ['B']), slot('Duress', ['B']), slot('Pyroblast', ['R'])],
+      })
+    );
+    // G ×4, B ×3 (one mainboard, two sideboard), R ×1.
+    expect(fields?.colorIdentity).toEqual(['G', 'B', 'R']);
+  });
+
+  it('breaks color-count ties in WUBRG order', () => {
+    const fields = extractListingFields(
+      baseDeck({
+        format: 'pauper',
+        commander: null,
+        cards: [
+          { slotId: 'a', card: { name: 'Bolt', color_identity: ['R'] } },
+          { slotId: 'b', card: { name: 'Counterspell', color_identity: ['U'] } },
+        ],
+      })
+    );
+    expect(fields?.colorIdentity).toEqual(['U', 'R']);
+  });
+
+  it('keeps a commander deck on its commander identity, not its cards', () => {
+    const fields = extractListingFields(
+      baseDeck({
+        cards: [{ slotId: 's1', card: { name: 'Lightning Bolt', color_identity: ['R'] } }],
+      })
+    );
+    expect(fields?.colorIdentity).toEqual(['W', 'U', 'B', 'G']);
+  });
+
   it('is null when nothing has art', () => {
     const fields = extractListingFields(
       baseDeck({

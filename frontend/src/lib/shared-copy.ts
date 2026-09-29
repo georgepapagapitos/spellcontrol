@@ -13,3 +13,13 @@ export const PROXY_HINT = 'Counts as owned, with no market value.';
 export function aiConsentBlurb(purpose: string, sends: string): string {
   return `${purpose} Turning this on sends ${sends} to Anthropic. Nothing is sent until you press an AI button. Your collection is never sent. Turn it off any time in Settings.`;
 }
+
+/** Changes kept on this device while offline: the sync toast and the sync pill. */
+export function offlineSavedLine(count: number): string {
+  const what = count === 1 ? '1 change' : `${count.toLocaleString()} changes`;
+  return `${what} saved here until you reconnect.`;
+}
+
+/** The two ways to play, on the Play page's doors and the game-night venue picker. */
+export const TABLE_PLAY_HINT = 'One device for every seat.';
+export const ONLINE_PLAY_HINT = 'Everyone on their own device, with a join code.';
