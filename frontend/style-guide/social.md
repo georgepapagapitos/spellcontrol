@@ -172,6 +172,16 @@ zero destination difference. On touch, Like/Bookmark stay **exactly as
 today**: always visible, never hover-gated (the `hover: hover` media query
 itself already excludes touch — no separate override needed).
 
+**Controls on the art sit on the scrim plate at rest** (2026-09-29). Like,
+Bookmark and Open each take `--art-scrim` behind `--art-scrim-text`, the same
+plate as every badge on art (STYLE_GUIDE § On-art scrims); pressed tints the
+filled glyph `--art-scrim-accent`. A bare white glyph with a drop-shadow was
+the old treatment, and it vanished wherever the cover is a full card image,
+since the corner lands on the pale name bar and the mana cost. On touch the
+disc stays 1.9rem and the 44px target comes from an `::after`, as with the
+owner's ⋮ button, with the cluster gap widened so neighbouring targets don't
+overlap. Guard: `styles/art-controls-plate.test.ts`.
+
 **Footer**: `buildablePercent`, `estimatedValueUsd`, and "no data" are mutually
 exclusive, in that priority order — never stack a price line and a buildable
 meter, and never render an empty shell when neither applies. This is the
