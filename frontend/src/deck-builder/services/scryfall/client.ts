@@ -284,7 +284,7 @@ export interface CommanderFinderPage {
  * regex: the finder then leaves them out and filters by playstyle itself.
  */
 export function commanderFinderSupportsRegex(): boolean {
-  return !(offlineActive() && !forceLive);
+  return !(offlineActive() && forceLiveDepth === 0);
 }
 
 /**
@@ -703,11 +703,12 @@ async function postCollection(
  * request). Returns a map keyed by id; unknown/non-playable ids are simply
  * absent — callers fall back to name resolution for those. Live-only, like
  * `getCardById`: offline has no by-printing index, so this returns an empty
- * map and callers degrade to the name path.
+ * map and callers degrade to the name path, unless a caller has forced the
+ * live path with `setForceLiveSearch`.
  */
 export async function getCardsByIds(ids: string[]): Promise<Map<string, ScryfallCard>> {
   const result = new Map<string, ScryfallCard>();
-  if (ids.length === 0 || offlineActive()) return result;
+  if (ids.length === 0 || (offlineActive() && forceLiveDepth === 0)) return result;
 
   await primeFromDisk(ids);
 
@@ -1956,16 +1957,18 @@ let wrappedOffline: CardRepository | null = null;
 // use Scryfall operators the offline query parser can't evaluate (otag:, arttag:,
 // year<=) — on a device with the offline bundle downloaded, routing those searches
 // offline would silently return the wrong cards. The generator sets this for the
-// duration of a non-EDHREC build and clears it in a finally.
-// ponytail: module-global, fine because generation is single-flight (one user-
-// initiated build at a time); make it a counter if concurrent builds ever land.
-let forceLive = false;
+// duration of a non-EDHREC build and clears it in a finally. The deck editor's
+// printing actions set it too: the slim offline payload keeps one printing per
+// oracle, so a cheapest or exact printing has to come from the live path.
+// A depth, not a flag: a build and a printing lookup can overlap, and the first
+// to finish must not hand the other back to offline data mid-flight.
+let forceLiveDepth = 0;
 export function setForceLiveSearch(value: boolean): void {
-  forceLive = value;
+  forceLiveDepth = Math.max(0, forceLiveDepth + (value ? 1 : -1));
 }
 
 export function getCardRepository(): CardRepository {
-  if (offlineActive() && !forceLive) {
+  if (offlineActive() && forceLiveDepth === 0) {
     wrappedOffline ??= withPlayableFilter(offlineCardRepository);
     return wrappedOffline;
   }

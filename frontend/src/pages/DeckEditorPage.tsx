@@ -181,6 +181,13 @@ import type { Finish } from '../types';
 import { computeLandUpgrades } from '@/deck-builder/services/deckBuilder/landUpgrades';
 import { buildUpgradePlanTools } from '@/lib/upgrade-plan-tools';
 import { applyUpgradePlan, type PlanStep } from '@/lib/apply-upgrade-plan';
+import {
+  applyCheapestPrintings,
+  applyMatchMyCopies,
+  copyMismatches,
+  missingSlots,
+  PrintingLookupOfflineError,
+} from '@/lib/deck-printing-actions';
 import { logger } from '@/lib/logger';
 import { useSearchCards } from '@/lib/use-search-cards';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
@@ -749,6 +756,16 @@ export function DeckEditorPage() {
   const [resyncHintDismissed, setResyncHintDismissed] = useState(false);
   const hasPullSlots =
     !!deck && (deck.cards.length > 0 || deck.sideboard.length > 0 || !!deck.commander);
+  // The two printing rows in ⋮ Deck actions show only when they have slots to
+  // act on: a missing card to reprice, or an owned slot off its copy's printing.
+  const hasMissingSlots = useMemo(
+    () => !!deck && missingSlots(deck, collectionById).length > 0,
+    [deck, collectionById]
+  );
+  const hasCopyMismatches = useMemo(
+    () => !!deck && copyMismatches(deck, collectionById).length > 0,
+    [deck, collectionById]
+  );
   const [showSharedCopies, setShowSharedCopies] = useState(false);
 
   // Flat card list for EnginePanel's tappable axis drill-through — mainboard only
@@ -2462,6 +2479,59 @@ export function DeckEditorPage() {
     }
   };
 
+  // ⋮ Deck actions: printing swaps that never touch a copy binding, each one
+  // write and one undo entry (lib/deck-printing-actions).
+  const printingLookupFailed = (err: unknown, fallback: string) => {
+    if (!(err instanceof PrintingLookupOfflineError)) logger.warn('[Printings] lookup failed', err);
+    pushToast({
+      message:
+        err instanceof PrintingLookupOfflineError
+          ? "You're offline. Reconnect to look up printings."
+          : fallback,
+      tone: 'error',
+    });
+  };
+
+  const handleCheapestPrintings = async () => {
+    const deckId = deck.id;
+    try {
+      const { changed, saved, unresolved } = await applyCheapestPrintings(deckId, currency);
+      if (changed > 0) {
+        pushToast({
+          message: `Switched ${changed} ${changed === 1 ? 'printing' : 'printings'}. Missing cards cost ${formatMoney(saved, { currency })} less`,
+          tone: 'success',
+          actionLabel: 'Undo',
+          onAction: () => undoEdit(deckId),
+        });
+      } else if (unresolved > 0) {
+        pushToast({ message: "Couldn't look up cheaper printings.", tone: 'error' });
+      } else {
+        pushToast({ message: 'No cheaper printings for your missing cards', tone: 'info' });
+      }
+    } catch (err) {
+      printingLookupFailed(err, "Couldn't look up cheaper printings.");
+    }
+  };
+
+  const handleMatchMyCopies = async () => {
+    const deckId = deck.id;
+    try {
+      const { changed } = await applyMatchMyCopies(deckId);
+      if (changed === 0) {
+        pushToast({ message: "Couldn't look up your copies' printings.", tone: 'error' });
+        return;
+      }
+      pushToast({
+        message: `Matched ${changed} ${changed === 1 ? 'card' : 'cards'} to your copies`,
+        tone: 'success',
+        actionLabel: 'Undo',
+        onAction: () => undoEdit(deckId),
+      });
+    } catch (err) {
+      printingLookupFailed(err, "Couldn't look up your copies' printings.");
+    }
+  };
+
   const handleRemoveSideboardCard = (slotId: string) => {
     const slot = deck.sideboard.find((c) => c.slotId === slotId);
     if (!slot) return;
@@ -3277,6 +3347,10 @@ export function DeckEditorPage() {
               onPlaytest={isPhone ? () => navigate(`/decks/${deck.id}/playtest`) : undefined}
               onTokens={deckTokens.length > 0 ? () => setTokensOpen(true) : undefined}
               onPullList={hasPullSlots ? () => setPullListOpen(true) : undefined}
+              onCheapestPrintings={
+                hasMissingSlots ? () => void handleCheapestPrintings() : undefined
+              }
+              onMatchCopies={hasCopyMismatches ? () => void handleMatchMyCopies() : undefined}
               onUndo={!isDesktop && canUndoEdit ? () => undoEdit(deck.id) : undefined}
               onRedo={!isDesktop && canRedoEdit ? () => redoEdit(deck.id) : undefined}
               undoLabel={undoEditLabel}
@@ -4127,6 +4201,8 @@ function DeckEditorOverflowMenu({
   onPlaytest,
   onTokens,
   onPullList,
+  onCheapestPrintings,
+  onMatchCopies,
   onUndo,
   onRedo,
   undoLabel,
@@ -4161,6 +4237,10 @@ function DeckEditorOverflowMenu({
   onTokens?: () => void;
   /** Present only when the deck has cards to pull. */
   onPullList?: () => void;
+  /** Present only when the deck has a missing card (no owned copy bound). */
+  onCheapestPrintings?: () => void;
+  /** Present only when an owned slot's printing differs from its copy's. */
+  onMatchCopies?: () => void;
   /** Present only when there's an edit to undo; carries the action label. */
   onUndo?: () => void;
   /** Present only when there's an edit to redo; carries the action label. */
@@ -4245,6 +4325,12 @@ function DeckEditorOverflowMenu({
     { key: 'feedback', label: 'Get feedback', onClick: onFeedback },
     onBuildReport && { key: 'build-report', label: 'Build report', onClick: onBuildReport },
     onRegenerate && { key: 'regenerate', label: 'Regenerate', onClick: onRegenerate },
+    onCheapestPrintings && {
+      key: 'cheapest-printings',
+      label: 'Cheapest printings for missing',
+      onClick: onCheapestPrintings,
+    },
+    onMatchCopies && { key: 'match-copies', label: 'Match my copies', onClick: onMatchCopies },
   ].filter((r): r is Row => !!r);
 
   const renderRow = (row: Row) => (
