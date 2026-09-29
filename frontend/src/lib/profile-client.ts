@@ -26,6 +26,8 @@ export interface PublicProfile {
   avatarCardName: string | null;
   avatarImageUrl: string | null;
   joinedAt: number;
+  /** The SpellControl house account, which publishes the precons. */
+  isOfficial?: boolean;
   isOwner: boolean;
   moderationHidden: boolean;
   deckCount: number;

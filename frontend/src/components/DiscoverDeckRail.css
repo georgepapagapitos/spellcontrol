@@ -1,0 +1,7 @@
+/* A rail's own header (title + View all) sits tight above its tile row; the
+ * host page's own gap handles spacing before and after the whole rail. */
+.discover-deck-rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}

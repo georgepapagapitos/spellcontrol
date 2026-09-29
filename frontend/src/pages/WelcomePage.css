@@ -130,15 +130,6 @@
   font-size: var(--text-sm);
 }
 
-/* Fresh-decks rail's own header (title + View all) sits tight above its
- * tile grid — the shell's own `gap` handles spacing before/after the whole
- * rail relative to its neighbors. */
-.welcome-fresh-rail {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
 /* Feature grid — 1 column on phones, 2 from the small breakpoint up, 4 from
  * desktop (there are exactly four feature blocks — the wider shell fits
  * them in one row instead of two). */

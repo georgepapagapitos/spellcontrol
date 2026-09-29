@@ -181,6 +181,8 @@ export interface PublicDeckPage {
   updatedAt: number;
   viewCount: number;
   copyCount: number;
+  /** Listed by the SpellControl house account (a precon). */
+  official?: boolean;
   deck: PublicDeck;
 }
 

@@ -75,6 +75,7 @@ usersRouter.get('/search', requireAuth, searchLimiter, async (req: Request, res:
        ON rev.requester_id = u.id AND rev.addressee_id = $1
      WHERE u.username LIKE $2
        AND u.id != $1
+       AND NOT u.is_official
      ORDER BY
        CASE WHEN u.username = $3 THEN 0 ELSE 1 END,
        u.username

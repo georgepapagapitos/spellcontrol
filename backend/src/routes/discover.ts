@@ -157,7 +157,9 @@ const LISTING_COLUMNS = `dp.user_id, dp.deck_id, dp.slug, dp.deck_name, u.userna
 // viewer's own. The browse page leaves it off, so your published deck still
 // shows up in the gallery. $6 is the free-text search box: a substring match
 // over the deck's name, its commander and its builder, already escaped for
-// LIKE by `likeContains`.
+// LIKE by `likeContains`. $7 picks the shelf: community decks, or the house
+// account's precons (`source=precons`). The two never mix, so seeded decks
+// can't fill the community grid or pass for someone's brew.
 const LISTING_WHERE = `dp.unpublished_at IS NULL
       AND ($1::text IS NULL OR dp.commander_name = $1)
       AND ($2::text IS NULL OR dp.format = $2)
@@ -165,7 +167,8 @@ const LISTING_WHERE = `dp.unpublished_at IS NULL
       AND ($4::text[] IS NULL OR dp.color_identity <@ to_jsonb($4::text[]))
       AND ($5::text IS NULL OR dp.user_id <> $5)
       AND ($6::text IS NULL OR dp.deck_name ILIKE $6 OR dp.commander_name ILIKE $6
-           OR u.username ILIKE $6 OR u.display_name ILIKE $6)`;
+           OR u.username ILIKE $6 OR u.display_name ILIKE $6)
+      AND u.is_official = $7`;
 
 const MAX_QUERY_LENGTH = 80;
 
@@ -186,6 +189,7 @@ interface ParsedFilters {
   page: number;
   pageSize: number;
   excludeMine: boolean;
+  precons: boolean;
 }
 
 function parseFilters(query: Request['query']): ParsedFilters {
@@ -200,6 +204,7 @@ function parseFilters(query: Request['query']): ParsedFilters {
     page: parsePage(query.page),
     pageSize: parsePageSize(query.pageSize),
     excludeMine: query.exclude === 'mine',
+    precons: query.source === 'precons',
   };
 }
 
@@ -218,6 +223,7 @@ discoverRouter.get(
       filters.colors,
       filters.excludeMine ? (viewerId ?? null) : null,
       filters.query,
+      filters.precons,
     ];
     const sortCol = SORT_COLUMNS[filters.sort];
 
@@ -230,7 +236,7 @@ discoverRouter.get(
          FROM deck_publications dp JOIN users u ON u.id = dp.user_id
         WHERE ${LISTING_WHERE}
         ORDER BY ${sortCol} DESC, ${TIEBREAK}
-        LIMIT $7 OFFSET $8`,
+        LIMIT $8 OFFSET $9`,
         [...whereParams, filters.pageSize + 1, offset]
       );
       const hasMore = rows.length > filters.pageSize;
@@ -421,10 +427,11 @@ discoverRouter.get(
     if (q.length > 40) return res.status(400).json({ error: 'q must be 40 characters or fewer.' });
 
     const { rows } = await getPool().query<CommanderRow>(
-      `SELECT DISTINCT commander_name FROM deck_publications
-        WHERE unpublished_at IS NULL AND lower(commander_name) LIKE lower($1) || '%'
-        ORDER BY commander_name LIMIT 10`,
-      [q]
+      `SELECT DISTINCT dp.commander_name FROM deck_publications dp JOIN users u ON u.id = dp.user_id
+        WHERE dp.unpublished_at IS NULL AND lower(dp.commander_name) LIKE lower($1) || '%'
+          AND u.is_official = $2
+        ORDER BY dp.commander_name LIMIT 10`,
+      [q, req.query.source === 'precons']
     );
     res.json({ commanders: rows.map((r) => r.commander_name) });
   }

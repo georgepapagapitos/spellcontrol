@@ -107,7 +107,8 @@ export function rankTrendingDecks(events: EngagementEvent[], now: number): Trend
 
 /**
  * Every like, save and live copy of a live public deck inside the window, by
- * anyone but its owner. A copy's time is the copied deck's own `createdAt`
+ * anyone but its owner. The house account's precons never trend: this rail
+ * counts what players are building, and a precon isn't anyone's build. A copy's time is the copied deck's own `createdAt`
  * (the CASE keeps a malformed value from failing the whole read). "Played"
  * means the copy's id sits in one of its player's logged games.
  */
@@ -148,7 +149,8 @@ export async function loadEngagementEvents(now: number): Promise<EngagementEvent
            ) copies
           WHERE copies.at > $1
        ) e ON e.slug = p.slug
-      WHERE p.unpublished_at IS NULL AND e.actor_id <> p.user_id`,
+       JOIN users owner ON owner.id = p.user_id
+      WHERE p.unpublished_at IS NULL AND e.actor_id <> p.user_id AND NOT owner.is_official`,
     [since]
   );
   return rows.map((r) => ({

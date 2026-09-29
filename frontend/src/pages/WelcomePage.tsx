@@ -52,6 +52,7 @@ import { track } from '../lib/analytics';
 import { WelcomeHero } from '../components/welcome/WelcomeHero';
 import { FreshDecksRail } from '../components/welcome/FreshDecksRail';
 import { TrendingRail } from '../components/aggregates/TrendingRail';
+import { PreconsRail } from '../components/PreconsRail';
 import './WelcomePage.css';
 import { Button } from '@/components/shared/Button';
 
@@ -118,6 +119,11 @@ export function WelcomePage() {
             (see hasFreshDecks). The rail is its own labelled section; the
             way on to /decks/discover is FreshDecksRail's "View all". */}
         {hasFreshDecks && <TrendingRail enabled={true} />}
+
+        {/* Real, recognisable decks for a first visit, whatever the size of
+            the community so far. Not gated on the rails above: they wait
+            for players, and precons are there from day one. */}
+        <PreconsRail />
 
         <section className="welcome-alt-start" aria-label="Other ways to start">
           <div className="welcome-doors">

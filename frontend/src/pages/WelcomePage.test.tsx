@@ -43,6 +43,12 @@ vi.mock('react-router-dom', async (importOriginal) => {
 // Hermetic art resolution for the hero + both live rails' tiles.
 vi.mock('../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
+// The precons rail has its own test (PreconsRail.test.tsx); stubbed so this
+// file's listing mock only answers the community rails.
+vi.mock('../components/PreconsRail', () => ({
+  PreconsRail: () => <div data-testid="precons-rail" />,
+}));
+
 const { mockListDiscoverDecks } = vi.hoisted(() => ({ mockListDiscoverDecks: vi.fn() }));
 // Named-export-complete: DiscoverDeckTile (mounted by FreshDecksRail) also
 // pulls LikeButton/BookmarkButton, which import the like/bookmark client fns

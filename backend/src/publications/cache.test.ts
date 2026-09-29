@@ -10,6 +10,7 @@ function fakeDeckPage(slug: string): PublicDeckPage {
     updatedAt: 0,
     viewCount: 0,
     copyCount: 0,
+    official: false,
     deck: { ownerUsername: `owner-${slug}` } as unknown as PublicDeckPage['deck'],
   };
 }
@@ -98,6 +99,7 @@ describe('LruTtlCache<PublicUserProfile>', () => {
       memberSince: 0,
       profileHiddenAt: null,
       collectionVisibility: null,
+      isOfficial: false,
       deckCount: 0,
       decks: [],
     };

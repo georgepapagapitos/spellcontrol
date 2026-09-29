@@ -913,5 +913,9 @@ export async function ensureSchema(): Promise<void> {
     -- this moment is rejected. Bumped on password reset/change so a stolen
     -- cookie dies with the old password. NULL = never revoked.
     ALTER TABLE users ADD COLUMN IF NOT EXISTS sessions_valid_after BIGINT;
+    -- The house account (precons/official-account.ts): the one account the
+    -- app itself publishes as. Its decks stay out of everything that counts
+    -- people (trending, commander stats, the community grid, user search).
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS is_official BOOLEAN NOT NULL DEFAULT false;
   `);
 }

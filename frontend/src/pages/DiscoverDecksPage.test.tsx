@@ -28,6 +28,15 @@ vi.mock('../lib/discover-client', () => ({
   unbookmarkDeck: vi.fn(),
 }));
 
+// The precons rail has its own test (PreconsRail.test.tsx). Stubbed here so
+// the page's listing mock only answers the community grid, and so these tests
+// can see where the page mounts it and with which filters.
+vi.mock('../components/PreconsRail', () => ({
+  PreconsRail: ({ filters }: { filters?: { query: string | null } }) => (
+    <div data-testid="precons-rail" data-query={filters?.query ?? ''} />
+  ),
+}));
+
 // The tile resolves commander art via useCardThumb (a batched network fetch)
 // — stubbed so the test stays hermetic and only exercises this page's own
 // fetch/branch logic, not card-art resolution.
@@ -279,5 +288,56 @@ describe('DiscoverDecksPage', () => {
     // Switching to the client-only buildable sort must not trigger a second
     // fetch — the server never sees `sort=buildable`.
     expect(mockListDiscoverDecks).toHaveBeenCalledTimes(1);
+  });
+
+  it('mounts the precons rail under the community grid, narrowed by the same search', async () => {
+    mockListDiscoverDecks.mockResolvedValue({ decks: [makeDeck()], page: 1, hasMore: false });
+    render(
+      <MemoryRouter initialEntries={['/discover?q=atraxa']}>
+        <DiscoverDecksPage />
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(screen.getByText('Atraxa Superfriends')).toBeTruthy());
+
+    const rail = screen.getByTestId('precons-rail');
+    expect(rail.getAttribute('data-query')).toBe('atraxa');
+    const grid = screen.getByRole('list', { name: 'Public decks' });
+    // After the grid in document order: community decks keep the top.
+    expect(grid.compareDocumentPosition(rail) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(mockListDiscoverDecks).toHaveBeenCalledWith(
+      expect.objectContaining({ source: 'community', query: 'atraxa' })
+    );
+  });
+
+  it('?source=precons browses the precons shelf with the same grid, and no rails', async () => {
+    mockListDiscoverDecks.mockResolvedValue({
+      decks: [makeDeck({ name: 'Heavenly Inferno', ownerUsername: 'spellcontrol' })],
+      page: 1,
+      hasMore: false,
+    });
+    render(
+      <MemoryRouter initialEntries={['/discover?source=precons']}>
+        <DiscoverDecksPage />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Precons' })).toBeTruthy();
+    await waitFor(() => expect(screen.getByText('Heavenly Inferno')).toBeTruthy());
+    expect(mockListDiscoverDecks).toHaveBeenCalledWith(
+      expect.objectContaining({ source: 'precons' })
+    );
+    expect(screen.getByRole('list', { name: 'Commander precons' })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: 'Search precons' })).toBeTruthy();
+    expect(screen.queryByTestId('precons-rail')).toBeNull();
+  });
+
+  it('an empty precons shelf says the precons are still loading', async () => {
+    mockListDiscoverDecks.mockResolvedValue({ decks: [], page: 1, hasMore: false });
+    render(
+      <MemoryRouter initialEntries={['/discover?source=precons']}>
+        <DiscoverDecksPage />
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(screen.getByText('No precons yet.')).toBeTruthy());
   });
 });

@@ -2,7 +2,7 @@ import './DiscoverSearch.css';
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { SearchPill } from './SearchPill';
 import { useDebouncedValue } from '@/lib/use-debounced-value';
-import { searchCommanders } from '@/lib/discover-client';
+import { searchCommanders, type DiscoverSource } from '@/lib/discover-client';
 
 interface Props {
   /** The committed text search (`?q=`), or null for none. */
@@ -14,6 +14,9 @@ interface Props {
   /** Docked inside the pill after the clear button (the filters popover),
    *  the same slot every other SearchPill surface puts its filter icon in. */
   trailing?: ReactNode;
+  /** Which shelf the commander suggestions come from. */
+  source?: DiscoverSource;
+  placeholder?: string;
 }
 
 const DEBOUNCE_MS = 250;
@@ -31,7 +34,14 @@ const DEBOUNCE_MS = 250;
  * Enter on its own searches the typed text instead of swapping it for
  * whichever commander happened to be first.
  */
-export function DiscoverSearch({ query, onQueryChange, onPickCommander, trailing }: Props) {
+export function DiscoverSearch({
+  query,
+  onQueryChange,
+  onPickCommander,
+  trailing,
+  source = 'community',
+  placeholder,
+}: Props) {
   const [text, setText] = useState(query ?? '');
   // The last value this box pushed up. A `query` prop that differs from it
   // came from outside (Clear all, back/forward), so the box adopts it; one
@@ -83,7 +93,7 @@ export function DiscoverSearch({ query, onQueryChange, onPickCommander, trailing
   useEffect(() => {
     if (!fetchKey) return;
     let cancelled = false;
-    searchCommanders(fetchKey)
+    searchCommanders(fetchKey, source)
       .then((names) => {
         if (!cancelled) setResults(names);
       })
@@ -93,7 +103,7 @@ export function DiscoverSearch({ query, onQueryChange, onPickCommander, trailing
     return () => {
       cancelled = true;
     };
-  }, [fetchKey]);
+  }, [fetchKey, source]);
 
   useEffect(() => {
     if (!open) return;
@@ -155,8 +165,8 @@ export function DiscoverSearch({ query, onQueryChange, onPickCommander, trailing
           if (!next.trim()) commit('');
           else commitTimer.current = window.setTimeout(() => commit(next), DEBOUNCE_MS);
         }}
-        placeholder="Search decks, commanders, builders…"
-        ariaLabel="Search public decks"
+        placeholder={placeholder ?? 'Search decks, commanders, builders…'}
+        ariaLabel={source === 'precons' ? 'Search precons' : 'Search public decks'}
         trailing={trailing}
         inputProps={{
           role: 'combobox',

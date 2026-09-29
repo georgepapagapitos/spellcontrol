@@ -61,6 +61,9 @@ async function readError(res: Response, fallback: string): Promise<string> {
   }
 }
 
+/** Which shelf of public decks: players' own, or the house account's precons. */
+export type DiscoverSource = 'community' | 'precons';
+
 /** Filtered/sorted/paginated public deck browse. Unauthenticated — works logged out. */
 export async function listDiscoverDecks(
   params: {
@@ -69,11 +72,15 @@ export async function listDiscoverDecks(
     /** Drop the signed-in viewer's own decks — Home's row is "decks from other
      *  players"; the browse page leaves it off so a published deck still shows. */
     exclude?: 'mine';
+    /** The house account's precons instead of community decks. The two
+     *  shelves never mix (routes/discover.ts). */
+    source?: DiscoverSource;
   } & Partial<DiscoverFilters>
 ): Promise<ListDiscoverDecksResult> {
   const qs = new URLSearchParams({ sort: params.sort ?? 'newest' });
   if (params.page) qs.set('page', String(params.page));
   if (params.exclude) qs.set('exclude', params.exclude);
+  if (params.source === 'precons') qs.set('source', 'precons');
   if (params.query) qs.set('q', params.query);
   if (params.commander) qs.set('commander', params.commander);
   if (params.format) qs.set('format', params.format);
@@ -97,10 +104,15 @@ export async function listDiscoverDecks(
  * requires a non-empty `q` (≤40 chars) and returns ≤10 distinct commander
  * names with the given prefix.
  */
-export async function searchCommanders(q: string): Promise<string[]> {
-  const res = await fetch(apiUrl(`/api/discover/decks/commanders?q=${encodeURIComponent(q)}`), {
-    credentials: 'include',
-  });
+export async function searchCommanders(
+  q: string,
+  source: DiscoverSource = 'community'
+): Promise<string[]> {
+  const shelf = source === 'precons' ? '&source=precons' : '';
+  const res = await fetch(
+    apiUrl(`/api/discover/decks/commanders?q=${encodeURIComponent(q)}${shelf}`),
+    { credentials: 'include' }
+  );
   if (!res.ok) {
     throw new Error(await readError(res, "Couldn't search commanders."));
   }

@@ -61,6 +61,8 @@ interface PublicMeta {
   deckId: string;
   viewCount: number;
   copyCount: number;
+  /** A precon listed by the SpellControl house account, not a player's build. */
+  official?: boolean;
 }
 
 interface Props {
@@ -268,7 +270,11 @@ export function SharedDeckSurface({ data, sourceKey, publicMeta, ownership, lead
     username: data.ownerUsername,
     displayName: data.ownerDisplayName,
   });
-  const ownerLine = (
+  // A precon is Wizards' deck, so its byline names what it is and who lists
+  // it rather than crediting the house account as its builder.
+  const ownerLine = publicMeta?.official ? (
+    <>Commander precon · Listed by {owner.primary}</>
+  ) : (
     <>
       Shared by {owner.primary}
       {owner.secondary && <span className="shared-view-owner-handle">{owner.secondary}</span>}
@@ -349,7 +355,11 @@ export function SharedDeckSurface({ data, sourceKey, publicMeta, ownership, lead
             <Link
               to={`/u/${data.ownerUsername}`}
               className="shared-view-owner-link"
-              aria-label={`Shared by @${data.ownerUsername}: view profile`}
+              aria-label={
+                publicMeta.official
+                  ? `Listed by ${owner.primary}: view profile`
+                  : `Shared by @${data.ownerUsername}: view profile`
+              }
             >
               {ownerLine}
             </Link>

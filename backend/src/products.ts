@@ -152,6 +152,19 @@ export async function searchProducts(
   return scored.slice(0, SEARCH_LIMIT).map((s) => toSummary(s.e));
 }
 
+/**
+ * Every product of the given MTGJSON types, oldest first. Unlike
+ * {@link searchProducts} there is no cap: the precon seed job needs the whole
+ * catalogue, not a page of it.
+ */
+export async function listProducts(types: string[]): Promise<ProductSummary[]> {
+  const typeSet = new Set(types);
+  return (await getDeckList())
+    .filter((e) => typeSet.has(e.type))
+    .sort((a, b) => (a.releaseDate ?? '').localeCompare(b.releaseDate ?? ''))
+    .map(toSummary);
+}
+
 /** Resolves a fileName to its index entry (also the path-traversal guard). */
 export async function getProductSummary(fileName: string): Promise<ProductSummary | null> {
   const entries = await getDeckList();

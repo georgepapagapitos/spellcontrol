@@ -8,6 +8,7 @@ import {
   commanderCardInclusion,
   deckPublications,
   userDecks,
+  users,
 } from '../db/schema';
 import { asRecord, asString } from '../shares/projections';
 import { buildCommanderKey } from './commander-key';
@@ -334,6 +335,9 @@ export async function runRollup(): Promise<RollupResult> {
           eq(userDecks.id, deckPublications.deckId)
         )
       )
+      // Commander stats describe what players build, so the house account's
+      // precons stay out of them.
+      .innerJoin(users, and(eq(users.id, deckPublications.userId), eq(users.isOfficial, false)))
       .where(
         and(
           isNull(deckPublications.unpublishedAt),

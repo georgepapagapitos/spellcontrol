@@ -1,5 +1,5 @@
 import './DiscoverDecksPage.css';
-import { LayoutGrid, List as ListIconLucide } from 'lucide-react';
+import { LayoutGrid, List as ListIconLucide, Users } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { DecksHubTabs } from '../components/DecksHubTabs';
@@ -12,6 +12,7 @@ import {
 } from '../components/DiscoverDeckTile';
 import { DiscoverFiltersPopover } from '../components/DiscoverFiltersPopover';
 import { TrendingRail } from '../components/aggregates/TrendingRail';
+import { PreconsRail } from '../components/PreconsRail';
 import { DiscoverSearch } from '../components/DiscoverSearch';
 import { SelectMenu, type SelectOption } from '../components/SelectMenu';
 import { ViewModeToggle } from '../components/ViewModeToggle';
@@ -69,9 +70,14 @@ const BASE_SORT_OPTIONS: SelectOption<DiscoverSortField>[] = [
  * — never sent to the server.
  */
 export function DiscoverDecksPage() {
-  useDocumentTitle('Discover public decks');
   const [searchParams, setSearchParams] = useSearchParams();
   const searchKey = searchParams.toString();
+  // `?source=precons` is the precons shelf (PreconsRail's "View all"): the
+  // same grid, search and filters over the house account's precons. It isn't
+  // a filter, so Clear all keeps it; the header's link is the way back.
+  const precons = searchParams.get('source') === 'precons';
+  const source = precons ? 'precons' : 'community';
+  useDocumentTitle(precons ? 'Commander precons' : 'Discover public decks');
   // Memoized off that stable string key, not the `searchParams` object
   // itself (react-router doesn't guarantee its identity is stable across
   // renders) — so the fetch effect/callbacks below can depend on `filters`
@@ -80,8 +86,11 @@ export function DiscoverDecksPage() {
     () => parseDiscoverFiltersFromSearchParams(new URLSearchParams(searchKey)),
     [searchKey]
   );
-  const setFilters = (next: DiscoverFilters) =>
-    setSearchParams(discoverFiltersToSearchParams(next), { replace: true });
+  const setFilters = (next: DiscoverFilters) => {
+    const params = discoverFiltersToSearchParams(next);
+    if (precons) params.set('source', 'precons');
+    setSearchParams(params, { replace: true });
+  };
 
   const authed = useAuth((s) => s.status === 'authed');
   const collectionCards = useCollectionStore((s) => s.cards);
@@ -155,7 +164,7 @@ export function DiscoverDecksPage() {
   const loadFirstPage = useCallback(() => {
     setLoading(true);
     setError(null);
-    listDiscoverDecks({ page: 1, sort: serverSort, ...filters })
+    listDiscoverDecks({ page: 1, sort: serverSort, source, ...filters })
       .then((res) => {
         setDecks(res.decks);
         setPage(res.page);
@@ -167,7 +176,7 @@ export function DiscoverDecksPage() {
         );
       })
       .finally(() => setLoading(false));
-  }, [serverSort, filters]);
+  }, [serverSort, source, filters]);
 
   // Fetches page 1 whenever sort/filters change (the render-phase block
   // above already flipped `loading`/reset `error` for this render). Every
@@ -175,7 +184,7 @@ export function DiscoverDecksPage() {
   // itself, so react-hooks/set-state-in-effect has nothing to flag.
   useEffect(() => {
     let cancelled = false;
-    listDiscoverDecks({ page: 1, sort: serverSort, ...filters })
+    listDiscoverDecks({ page: 1, sort: serverSort, source, ...filters })
       .then((res) => {
         if (cancelled) return;
         setDecks(res.decks);
@@ -194,13 +203,13 @@ export function DiscoverDecksPage() {
     return () => {
       cancelled = true;
     };
-  }, [serverSort, filters]);
+  }, [serverSort, source, filters]);
 
   const handleLoadMore = useCallback(() => {
     const requestKey = fetchKey;
     setLoadingMore(true);
     setLoadMoreError(null);
-    listDiscoverDecks({ page: page + 1, sort: serverSort, ...filters })
+    listDiscoverDecks({ page: page + 1, sort: serverSort, source, ...filters })
       .then((res) => {
         // Stale — sort/filters changed (and page 1 already reloaded) while
         // this request was in flight; discard rather than append.
@@ -213,7 +222,7 @@ export function DiscoverDecksPage() {
         setLoadMoreError(userMessage(err, "Couldn't load more decks. Try again."));
       })
       .finally(() => setLoadingMore(false));
-  }, [page, serverSort, filters, fetchKey]);
+  }, [page, serverSort, source, filters, fetchKey]);
 
   // Client-side buildable resort over the full accumulated (all Load-More
   // pages fetched so far) list. Stable: a fresh `[...decks].sort()` off the
@@ -280,16 +289,28 @@ export function DiscoverDecksPage() {
   return (
     <>
       <div className="decks-index-page">
-        <PageHeader title="Discover" meta="Public decks from the SpellControl community." />
+        {precons ? (
+          <PageHeader
+            title="Precons"
+            meta="Every Commander precon Wizards has printed."
+            // On a phone this goes to the ⋮ menu; the Discover tab below is
+            // the same way back and always shows.
+            actions={[{ label: 'Community decks', icon: Users, to: '/decks/discover' }]}
+          />
+        ) : (
+          <PageHeader title="Discover" meta="Public decks from the SpellControl community." />
+        )}
         <DecksHubTabs />
 
-        <TrendingRail enabled={true} />
+        {!precons && <TrendingRail enabled={true} />}
 
         <div className="discover-toolbar">
           <DiscoverSearch
             query={filters.query}
             onQueryChange={(query) => setFilters({ ...filters, query })}
             onPickCommander={(commander) => setFilters({ ...filters, commander, query: null })}
+            source={source}
+            placeholder={precons ? 'Search precons and commanders…' : undefined}
             trailing={<DiscoverFiltersPopover filters={filters} onChange={setFilters} />}
           />
           <div className="discover-sort-bar">
@@ -353,14 +374,19 @@ export function DiscoverDecksPage() {
             <EmptyState
               tagline={
                 filters.query && filterChips.length === 0
-                  ? `No public decks match “${filters.query}”.`
-                  : 'No public decks match these filters.'
+                  ? `No ${precons ? 'precons' : 'public decks'} match “${filters.query}”.`
+                  : `No ${precons ? 'precons' : 'public decks'} match these filters.`
               }
               actions={
                 <Button variant="link" onClick={() => setFilters(NO_DISCOVER_FILTERS)}>
                   Clear filters
                 </Button>
               }
+            />
+          ) : precons ? (
+            <EmptyState
+              tagline="No precons yet."
+              hint="They load in the background. Check back soon."
             />
           ) : (
             <EmptyState
@@ -370,7 +396,10 @@ export function DiscoverDecksPage() {
           )
         ) : (
           <>
-            <ul className={`decks-index-list is-${view}`} aria-label="Public decks">
+            <ul
+              className={`decks-index-list is-${view}`}
+              aria-label={precons ? 'Commander precons' : 'Public decks'}
+            >
               {displayDecks.map((deck) => (
                 <DiscoverDeckTile
                   key={deck.slug}
@@ -403,6 +432,10 @@ export function DiscoverDecksPage() {
             )}
           </>
         )}
+
+        {/* Below the community grid, not above it: players' decks are this
+            page's content, and precons fill in until there are more of them. */}
+        {!precons && <PreconsRail filters={filters} />}
       </div>
     </>
   );

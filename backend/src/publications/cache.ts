@@ -19,6 +19,8 @@ export interface PublicDeckPage {
   updatedAt: number;
   viewCount: number;
   copyCount: number;
+  /** Published by the house account (a precon), so the page says so. */
+  official: boolean;
   deck: PublicDeck;
 }
 
@@ -57,6 +59,8 @@ export interface PublicUserProfile {
   /** `users.collection_visibility`; null = the owner never chose. The route
    *  decides per viewer whether the Collection tab opens. */
   collectionVisibility: 'public' | 'friends' | 'private' | null;
+  /** The house account (precons/official-account.ts). */
+  isOfficial: boolean;
   deckCount: number;
   decks: PublicDeckSummary[];
 }
