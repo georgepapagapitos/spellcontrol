@@ -15,6 +15,7 @@ import { bracketLabel } from '../deck-builder/services/deckBuilder/bracketEstima
 import { bracketBadgeWithEstimate, bracketAriaWithEstimate } from '../lib/format-bracket-label';
 import { LikeButton } from './LikeButton';
 import { BookmarkButton } from './BookmarkButton';
+import { ColorIdentityBar } from './shared/ColorIdentityBar';
 import { Surface } from './shared/Surface';
 import type { DeckFormat } from '../deck-builder/types';
 import type { DiscoverDeck } from '../lib/discover-client';
@@ -177,16 +178,7 @@ export function DiscoverDeckTile({ deck, view, buildablePercent = null, onUnsave
             />
           )
         )}
-        {isGrid && (
-          <span className="discover-tile-colorbar" aria-hidden="true">
-            {(deck.colorIdentity.length > 0 ? deck.colorIdentity : ['C']).map((c, i) => (
-              <span
-                key={`${c}-${i}`}
-                className={`discover-tile-colorbar-seg discover-tile-colorbar-seg--${c.toLowerCase()}`}
-              />
-            ))}
-          </span>
-        )}
+        {isGrid && <ColorIdentityBar colors={deck.colorIdentity} />}
         <div className="decks-index-card-body">
           <div className="decks-index-card-name">
             <span>{deck.name}</span>

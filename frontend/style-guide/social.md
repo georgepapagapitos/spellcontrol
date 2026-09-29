@@ -160,6 +160,13 @@ unrelated part of the tree, and aren't what a solid pip actually renders
 on screen): W `#f0f2c0`, U `#b5cde3`, B `#aca29a`, R `#db8664`, G `#93b483`.
 Colorless renders a single neutral segment (mana-font's own `.ms-cost` base
 gray, `#beb9b2`) instead of an empty bar — never omit the bar entirely.
+It is one primitive, `ColorIdentityBar` (`components/shared/`), and every
+deck tile in a grid wears it: the owner's own index, Discover and a profile
+or friend's library (2026-09-29, user ruling). It used to be two copy-pasted
+families and absent from My Decks, so one deck had a strip on Discover and
+none in its owner's list. List and compact views leave it off. Its colors
+come in the order the tile's pips use: most-used first for a deck without
+a commander, the commander's identity otherwise.
 
 **Hover quick-actions** (grid + `@media (hover: hover) and (pointer: fine)`
 strictly — never on touch): an "Open" pill plus the relocated Like/Bookmark
@@ -171,6 +178,16 @@ stop there would just be a redundant announcement for keyboard/AT users with
 zero destination difference. On touch, Like/Bookmark stay **exactly as
 today**: always visible, never hover-gated (the `hover: hover` media query
 itself already excludes touch — no separate override needed).
+
+**Controls on the art sit on the scrim plate at rest** (2026-09-29). Like,
+Bookmark and Open each take `--art-scrim` behind `--art-scrim-text`, the same
+plate as every badge on art (STYLE_GUIDE § On-art scrims); pressed tints the
+filled glyph `--art-scrim-accent`. A bare white glyph with a drop-shadow was
+the old treatment, and it vanished wherever the cover is a full card image,
+since the corner lands on the pale name bar and the mana cost. On touch the
+disc stays 1.9rem and the 44px target comes from an `::after`, as with the
+owner's ⋮ button, with the cluster gap widened so neighbouring targets don't
+overlap. Guard: `styles/art-controls-plate.test.ts`.
 
 **Footer**: `buildablePercent`, `estimatedValueUsd`, and "no data" are mutually
 exclusive, in that priority order — never stack a price line and a buildable

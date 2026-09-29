@@ -22,6 +22,7 @@ import { conflictQueue, type DeckConflict } from '../store/conflicts';
 import { recordDeckConflict } from './conflict-metrics';
 import type { EnrichedCard } from '../types';
 import type { Deck } from '../store/decks';
+import { offlineSavedLine } from './shared-copy';
 
 /**
  * Card shape as far as the sync layer cares: an id (copyId) + optional importId,
@@ -1376,7 +1377,7 @@ async function webPushInner(
       toast.show(
         offline
           ? {
-              message: `You're offline. ${what} saved on this device, will sync when you reconnect.`,
+              message: `You're offline. ${offlineSavedLine(kept)}`,
               tone: 'info',
             }
           : overCap

@@ -15,6 +15,7 @@ import { isTouchDevice } from '../lib/platform';
 import { PullToRefresh } from './PullToRefresh';
 import { refreshNow } from '../lib/sync';
 import { useDocumentTitle } from '../lib/use-document-title';
+import { focusArrivalHeading } from '../lib/scroll-to-heading';
 import { useCollectionStore } from '../store/collection';
 
 // The binder editor (and its stylesheet) loads on its first open, not at boot:
@@ -130,23 +131,11 @@ function LayoutShell() {
     }
     const el = scrollEl;
     if (!el) return;
-    const focusHeading = () => {
-      const heading = el.querySelector<HTMLElement>('h1');
-      if (!heading) return false;
-      heading.tabIndex = -1;
-      // Same recognized exception as lib/scroll-to-heading.ts (base-layout.css):
-      // this is a programmatic arrival focus, not a tabbed-to control, so the
-      // browser's raw default ring is suppressed rather than reading as a
-      // rendering glitch on every route change.
-      heading.classList.add('scroll-heading-target');
-      heading.focus({ preventScroll: true });
-      return true;
-    };
-    if (focusHeading()) return;
+    if (focusArrivalHeading(el)) return;
     // The route's lazy chunk (or a page that fetches before it can render a
     // title) hasn't painted its <h1> yet — catch it the moment it does.
     const observer = new MutationObserver(() => {
-      if (focusHeading()) observer.disconnect();
+      if (focusArrivalHeading(el)) observer.disconnect();
     });
     observer.observe(el, { childList: true, subtree: true });
     return () => observer.disconnect();

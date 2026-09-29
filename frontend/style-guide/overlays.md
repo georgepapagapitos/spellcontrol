@@ -670,10 +670,18 @@ row and a felt-menu row, not a settings row. EDHPlay's Preferences draws the
 same line.
 
 - **An on/off preference is a full-width `role="switch"` row**: the link row's
-  shape, the label with one line under it saying what On does
-  (`aria-describedby`), and `On` / `Off` where a link row shows its value, in
-  the accent when on. Not a segmented Off | On pair: two buttons for one bit
-  cost twice the width and read as a choice between equals.
+  shape, the label, and `On` / `Off` where a link row shows its value, in the
+  accent when on. Not a segmented Off | On pair: two buttons for one bit cost
+  twice the width and read as a choice between equals.
+- **A switch gets a line under its label only when the label doesn't already
+  say what On does** (voice rule 20, 2026-09-29). "Turn tracker" could mean a
+  timer or a log, "Minimalist mode" names nothing, and "Low life warning"
+  hides its threshold, so each keeps one line (`aria-describedby`). "Game
+  timer", "Full screen" and "Haptic feedback" say it themselves and carry
+  none. Rows of mixed height are fine: the switch and its value still line up
+  on the right. A line under every switch taught the eye to skip them all,
+  including the ones that mattered. `BoardSheets.test.tsx` lists which
+  switches carry a line, so a new one has to pick a side.
 - **Changes apply as you make them.** No Save button: the sheet sits over the
   table so you can watch the change land.
 - **An option that only means something online appears only online.** The turn

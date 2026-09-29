@@ -124,19 +124,19 @@ describe('DiscoverDeckTile — grid art banner', () => {
     useCardThumbMock.mockReturnValue(undefined);
     const { container } = renderTile({ colorIdentity: ['W', 'U'] });
 
-    const segs = container.querySelectorAll('.discover-tile-colorbar-seg');
+    const segs = container.querySelectorAll('.color-identity-bar-seg');
     expect(segs.length).toBe(2);
-    expect(segs[0].className).toContain('discover-tile-colorbar-seg--w');
-    expect(segs[1].className).toContain('discover-tile-colorbar-seg--u');
+    expect(segs[0].className).toContain('color-identity-bar-seg--w');
+    expect(segs[1].className).toContain('color-identity-bar-seg--u');
   });
 
   it('renders a single neutral segment for a colorless deck instead of an empty bar', () => {
     useCardThumbMock.mockReturnValue(undefined);
     const { container } = renderTile({ colorIdentity: [] });
 
-    const segs = container.querySelectorAll('.discover-tile-colorbar-seg');
+    const segs = container.querySelectorAll('.color-identity-bar-seg');
     expect(segs.length).toBe(1);
-    expect(segs[0].className).toContain('discover-tile-colorbar-seg--c');
+    expect(segs[0].className).toContain('color-identity-bar-seg--c');
   });
 
   // ============================================================
@@ -253,7 +253,7 @@ describe('DiscoverDeckTile — list view stays the pre-v2 compact row', () => {
     const { container } = renderTile({ ownerUsername: 'alice' }, 'list');
 
     expect(screen.getByText('by alice')).toBeTruthy();
-    expect(container.querySelector('.discover-tile-colorbar')).toBeFalsy();
+    expect(container.querySelector('.color-identity-bar')).toBeFalsy();
     expect(container.querySelector('.discover-tile-open-pill')).toBeFalsy();
     expect(container.querySelector('.discover-tile-banner-stats')).toBeFalsy();
   });

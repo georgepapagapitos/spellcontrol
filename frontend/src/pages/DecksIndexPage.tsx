@@ -37,6 +37,7 @@ import { DeckPickerDialog } from '../components/play/DeckPickerDialog';
 import { deckBoardPath } from '../lib/starter-decks';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SortMenu, type SortMenuOption } from '../components/SortMenu';
+import { ColorIdentityBar } from '../components/shared/ColorIdentityBar';
 import { ColorPip } from '../components/shared/ManaSymbol';
 import { colorSelectionMatches, type ColorMatchMode } from '../lib/colors';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -840,6 +841,9 @@ export function DecksIndexPage() {
                           )}
                         </span>
                       )}
+                      {/* The same strip the deck wears on Discover and a
+                          profile, so one deck reads the same everywhere. */}
+                      {view === 'grid' && <ColorIdentityBar colors={colorIdentity} />}
                       <div className="decks-index-card-body">
                         <div className="decks-index-card-name">
                           <span>{deck.name}</span>

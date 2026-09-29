@@ -147,7 +147,6 @@ export function SharedBinderView({ data }: Props) {
         <SharedEmptyState
           empty={data.totalCards === 0}
           emptyTagline="This binder is empty."
-          emptyHint="The owner hasn't added any cards to it yet."
           filteredTagline="No cards match your search or filters."
           onClearSearch={search ? () => setSearch('') : undefined}
         />

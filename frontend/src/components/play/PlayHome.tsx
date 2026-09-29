@@ -7,6 +7,7 @@ import { gameFormatLabel } from '../../lib/game-formats';
 import { aggregateDeckRecords } from '../../store/play';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
+import { ONLINE_PLAY_HINT, TABLE_PLAY_HINT } from '@/lib/shared-copy';
 
 export type PlayHomeTarget =
   { tab: 'local' } | { tab: 'online'; mode?: 'host' | 'join' | 'browse' };
@@ -86,7 +87,7 @@ export function PlayHome({
         <button type="button" className="play-home-door" onClick={() => go({ tab: 'local' })}>
           <Swords width={20} height={20} strokeWidth={1.8} aria-hidden />
           <span className="play-home-door-title">Track a table</span>
-          <span className="play-home-door-sub">One phone for every seat. No account needed.</span>
+          <span className="play-home-door-sub">{TABLE_PLAY_HINT} No account needed.</span>
         </button>
         <button
           type="button"
@@ -96,7 +97,7 @@ export function PlayHome({
           <Radio width={20} height={20} strokeWidth={1.8} aria-hidden />
           <span className="play-home-door-title">Host online</span>
           <span className="play-home-door-sub">
-            {isGuest ? 'Needs an account.' : 'Everyone on their own device, with a join code.'}
+            {isGuest ? 'Needs an account.' : ONLINE_PLAY_HINT}
           </span>
         </button>
         <button

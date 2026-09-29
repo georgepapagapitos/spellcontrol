@@ -56,16 +56,44 @@ function normalImageUrl(raw: unknown): string | undefined {
   return asString(asRecord(face?.image_uris)?.normal);
 }
 
+const WUBRG = ['W', 'U', 'B', 'R', 'G'];
+
 /**
- * A deck's overall color identity: the union of its commander(s)' identities.
- * Mirrors DeckEditorPage's `commanderColorIdentity` memo exactly (insertion
- * order, no sort). A non-commander deck has neither field set, so this is [].
+ * A deck's overall color identity, the same colors the owner's own deck index
+ * shows (frontend `effectiveDeckColors` + DecksIndexPage's pip order):
+ *
+ * - With a commander: the union of the commander(s)' identities, in insertion
+ *   order (DeckEditorPage's `commanderColorIdentity` memo).
+ * - Without one (Pauper, Modern, Standard, …): the union over the mainboard and
+ *   sideboard cards, most-used color first, ties in WUBRG order. Reading only
+ *   the commander here left every non-commander deck colorless in Discover,
+ *   on /u/:username and in the friend library: no pips, a grey strip, and a
+ *   color filter that matched it under any selection.
  */
-function deckColorIdentity(commander: unknown, partnerCommander: unknown): string[] {
-  const identity = new Set<string>();
-  for (const c of asStringArray(asRecord(commander)?.color_identity)) identity.add(c);
-  for (const c of asStringArray(asRecord(partnerCommander)?.color_identity)) identity.add(c);
-  return [...identity];
+function deckColorIdentity(
+  commander: unknown,
+  partnerCommander: unknown,
+  zones: unknown[][]
+): string[] {
+  if (asRecord(commander) || asRecord(partnerCommander)) {
+    const identity = new Set<string>();
+    for (const c of asStringArray(asRecord(commander)?.color_identity)) identity.add(c);
+    for (const c of asStringArray(asRecord(partnerCommander)?.color_identity)) identity.add(c);
+    return [...identity];
+  }
+  // One count per slot per color, as deckColorFrequency does: a 4-of is four
+  // slots, so it weighs four times a one-of.
+  const counts = new Map<string, number>();
+  for (const zone of zones) {
+    for (const slot of zone) {
+      for (const c of asStringArray(asRecord(asRecord(slot)?.card)?.color_identity)) {
+        counts.set(c, (counts.get(c) ?? 0) + 1);
+      }
+    }
+  }
+  return [...counts.keys()].sort(
+    (a, b) => counts.get(b)! - counts.get(a)! || WUBRG.indexOf(a) - WUBRG.indexOf(b)
+  );
 }
 
 /**
@@ -87,6 +115,7 @@ export function extractListingFields(deckData: unknown): ListingFields | null {
   const name = clampDeckName(rawName);
 
   const cardsArr = Array.isArray(deck.cards) ? deck.cards : [];
+  const sideboardArr = Array.isArray(deck.sideboard) ? deck.sideboard : [];
   const { commander, partnerCommander } = deck;
 
   return {
@@ -94,7 +123,7 @@ export function extractListingFields(deckData: unknown): ListingFields | null {
     format: asString(deck.format) ?? 'commander',
     commanderName: asString(asRecord(commander)?.name) ?? null,
     commanderImageNormal: normalImageUrl(commander) ?? null,
-    colorIdentity: deckColorIdentity(commander, partnerCommander),
+    colorIdentity: deckColorIdentity(commander, partnerCommander, [cardsArr, sideboardArr]),
     bracket:
       asFiniteNumber(deck.bracketOverride) ??
       asFiniteNumber(asRecord(deck.bracketEstimation)?.bracket) ??

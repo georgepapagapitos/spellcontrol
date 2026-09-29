@@ -65,25 +65,43 @@
   }
 }
 
-/* Grid mode: the button sits on the commander art / colored banner, where
-   the default muted color washes out against arbitrary art colors. White
-   icon + shadow keeps it visible on any art; hover/pressed uses a dark
-   scrim chip instead of the light surface treatment (which disappears on
-   pale art). */
+/* Grid mode: the button sits on card art, so it is on the scrim plate at
+   rest, like everything else on art (STYLE_GUIDE § On-art scrims). It used
+   to be a bare white glyph with a drop-shadow, which vanished wherever the
+   cover is a full card image: the heart and bookmark landed on the pale
+   name bar and the mana cost. Pressed tints the glyph with the scrim accent
+   (the themed --accent drops below 3:1 on the dark plate) and fills it.
+   Touch keeps the visible disc at 1.9rem and takes the 44px target from an
+   ::after, the same way the owner's ⋮ button does on the same art. */
 .decks-index-list.is-grid .tile-action-btn {
-  color: #fff;
-  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.5));
+  position: relative;
+  width: 1.9rem;
+  height: 1.9rem;
+  background: var(--art-scrim);
+  color: var(--art-scrim-text);
+  box-shadow: var(--shadow-raised);
 }
 
 @media (hover: hover) and (pointer: fine) {
   .decks-index-list.is-grid .tile-action-btn:hover {
-    background: rgba(0, 0, 0, 0.35);
-    color: #fff;
+    background: var(--art-scrim);
+    color: var(--art-scrim-accent);
   }
 }
 
 .decks-index-list.is-grid .tile-action-btn[aria-pressed='true'] {
-  color: var(--accent);
-  filter: none;
-  background: rgba(0, 0, 0, 0.35);
+  color: var(--art-scrim-accent);
+  background: var(--art-scrim);
+}
+
+@media (pointer: coarse) {
+  .decks-index-list.is-grid .tile-action-btn::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
 }
