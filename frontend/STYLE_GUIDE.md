@@ -54,6 +54,7 @@ primitives directory.
 | `components/shared/Count`                                      | a raw count-bubble class                             | § Shape language — Badges, counts and surfaces are primitives                                                               |
 | `components/shared/Surface`                                    | a raw tile, section-card or popover class            | § Layout system — Surfaces: one frame                                                                                       |
 | `components/shared/SwipeRow`                                   | a hand-built horizontal tile row                     | § Layout system — A row of tiles                                                                                            |
+| `components/shared/ColorIdentityPicker`                        | a hand-built WUBRG + colorless pip row               | [§ Color pip rows](style-guide/cards-collection.md#color-pip-rows--andor-match-mode-chip)                                   |
 | `components/shared/SectionHeader`                              | a hand-built `-section-head` row                     | § Layout system — Section header                                                                                            |
 | `components/SearchPill`                                        | a bare `<input type="search">`                       | [§ Toolbars & action rows](style-guide/components.md#toolbars--action-rows-responsive) · § Responsive (keep `min-width: 0`) |
 | `components/SelectMenu`                                        | a restyled `<select>`                                | [§ Toolbars & action rows](style-guide/components.md#toolbars--action-rows-responsive)                                      |
@@ -374,7 +375,10 @@ meanwhile.
   **Built** as `SwipeRow` (`components/shared/SwipeRow`, T135): the list
   element itself, carrying the tiles' own list classes, with `columns` across
   on desktop. Home's Your decks and Discover and the welcome page's fresh
-  public decks use it.
+  public decks use it. A row of portrait card tiles takes `tile="card"`: 40% of
+  a phone and 22% of a tablet, still under 72%, so two cards and the next one's
+  edge show rather than one card filling the screen (the Search page's browse
+  rails).
 - **Section header: title · meta · tools.** A section inside a page is a
   title, one short meta, and on the right its tools: the section's own search
   ([§ Toolbars](style-guide/components.md#toolbars--action-rows-responsive), search beside its list) and one door, which is `Button variant="link"` with a trailing chevron (T135: one link style app-wide, no bespoke door class). The meta hides on a
@@ -2378,6 +2382,7 @@ must follow goes in the core.
   - [Card-stat terminology (mana value / mana cost / price)](style-guide/cards-collection.md#card-stat-terminology-mana-value--mana-cost--price)
   - [Binder flipbook — one page per slide (2026-09-07 ruling)](style-guide/cards-collection.md#binder-flipbook--one-page-per-slide-2026-09-07-ruling)
   - [Checklist grids — owned vs missing (E131)](style-guide/cards-collection.md#checklist-grids--owned-vs-missing-e131)
+  - [Browse lists — the tile stands for the card, the number names its owner (E520, 2026-09-29)](style-guide/cards-collection.md#browse-lists--the-tile-stands-for-the-card-the-number-names-its-owner-e520-2026-09-29)
 - **[Decks](style-guide/decks.md)**: The deck view, analysis, bracket, Coach, upgrades, deck lists and AI-written content.
   - [Blend controls — N axes that must always sum to 1 (E234)](style-guide/decks.md#blend-controls--n-axes-that-must-always-sum-to-1-e234)
   - [Build-time coach strip (E169 Half B) — a NAVIGATING insight strip](style-guide/decks.md#build-time-coach-strip-e169-half-b--a-navigating-insight-strip)

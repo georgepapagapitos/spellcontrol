@@ -18,14 +18,27 @@ export type SwipeRowProps = Omit<ComponentPropsWithRef<'ul'>, 'className'> & {
   className: string;
   /** Tiles across on desktop. */
   columns?: number;
+  /**
+   * `card` for a row of portrait card tiles: a card at 72% of a phone would
+   * fill the screen, so each takes 40% (two and a peek) and 22% of a tablet.
+   * A deck tile is landscape and keeps the default.
+   */
+  tile?: 'default' | 'card';
 };
 
-export function SwipeRow({ className, columns = 5, style, ...rest }: SwipeRowProps) {
+export function SwipeRow({
+  className,
+  columns = 5,
+  tile = 'default',
+  style,
+  ...rest
+}: SwipeRowProps) {
   return (
     <ul
       {...rest}
       className={`swipe-row ${className}`}
       data-swipe-row=""
+      data-tile={tile === 'card' ? 'card' : undefined}
       style={{ ...style, '--swipe-columns': columns } as CSSProperties}
     />
   );

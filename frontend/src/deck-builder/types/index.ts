@@ -33,6 +33,8 @@ export interface ScryfallCard {
   set: string;
   set_name: string;
   collector_number?: string;
+  /** The printing's release date, `YYYY-MM-DD`. */
+  released_at?: string;
   edhrec_rank?: number;
   image_uris?: {
     small: string;

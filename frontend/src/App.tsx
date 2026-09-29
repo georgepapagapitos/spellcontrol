@@ -1,7 +1,6 @@
 import { logger } from '@/lib/logger';
 import { lazy, Suspense, useEffect, useRef, type ComponentType } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { EmptyState } from '@/components/shared/EmptyState';
 import { Layout } from './components/Layout';
 import { CollectionHubLayout } from './components/CollectionHubLayout';
 // Eager pages — the entry surfaces a first paint lands on. WelcomePage is the
@@ -30,7 +29,7 @@ import { useFirstRunGate } from './lib/use-first-run-gate';
 import { useTradeSettlement } from './lib/use-trade-settlement';
 import { hasEverVisited } from './lib/first-run';
 import { setUsageSuppressed, track } from './lib/analytics';
-import { Button } from '@/components/shared/Button';
+import { NotFoundPage } from '@/components/NotFoundPage';
 
 /** Named-export adapter for React.lazy (every page below exports by name). */
 function lazyPage<K extends string, T extends Record<K, ComponentType>>(
@@ -84,6 +83,7 @@ const PodsIndexPage = lazyPage(() => import('./pages/PodsIndexPage'), 'PodsIndex
 const PodHubPage = lazyPage(() => import('./pages/PodHubPage'), 'PodHubPage');
 // Utility / public
 const SearchPage = lazyPage(() => import('./pages/SearchPage'), 'SearchPage');
+const BrowseListPage = lazyPage(() => import('./pages/BrowseListPage'), 'BrowseListPage');
 const TagsPage = lazyPage(() => import('./pages/TagsPage'), 'TagsPage');
 const RulesPage = lazyPage(() => import('./pages/RulesPage'), 'RulesPage');
 const AdminPage = lazyPage(() => import('./pages/AdminPage'), 'AdminPage');
@@ -136,25 +136,6 @@ function LegacyCubeRedirect() {
 function SettingsRedirect() {
   const { search } = useLocation();
   return <Navigate to={`/you${search}`} replace />;
-}
-
-/** An unmatched in-Layout route (typo, stale link, dead deep link) used to
- *  silently redirect to Home/Collection with zero feedback. Render an actual
- *  state instead, so a bad link reads as a bad link, not a random landing. */
-function NotFoundPage({ homePath }: { homePath: string }) {
-  const homeLabel = homePath === '/home' ? 'Home' : 'Collection';
-  return (
-    <EmptyState
-      taglineAs="h1"
-      tagline="Page not found."
-      hint="That link is broken or the page has moved."
-      actions={
-        <Button variant="primary" to={homePath}>
-          Go to {homeLabel}
-        </Button>
-      }
-    />
-  );
 }
 
 export default function App() {
@@ -399,6 +380,7 @@ export default function App() {
             <Route path="/play/:section" element={<PlayPage />} />
             <Route path="/rules" element={<RulesPage />} />
             <Route path="/search" element={<SearchPage />} />
+            <Route path="/search/top/:list" element={<BrowseListPage />} />
             <Route path="/tags" element={<TagsPage />} />
             <Route path="/you" element={<YouPage />} />
             <Route path="/friends" element={<FriendsPage />} />

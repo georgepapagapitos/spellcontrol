@@ -1,6 +1,6 @@
 /* SearchPage.css — standalone any-card lookup (/search). Sized to the shared
-   .inline-card-search column (540px) so the pill, landing state, and results
-   read as one centered rail. */
+   .inline-card-search column (540px) so the pill and list results read as one
+   centered rail; grid results and the landing's browse rails widen it. */
 .search-page {
   max-width: calc(540px + var(--space-4) * 2);
   margin: 0 auto;
@@ -25,7 +25,7 @@
 }
 
 /* The results block (.inline-card-search) brings its own top margin; the
-   landing empty-state doesn't, so the pill carries the gap. */
+   landing's rails bring theirs, so the pill carries the gap. */
 .search-page-pill {
   margin-bottom: var(--space-4);
 }
@@ -154,21 +154,22 @@
   margin-top: var(--space-2);
 }
 
-/* Grid layout lets the tiles breathe on desktop; the head, pill, and toggle
-   stay on the 540px rail so the page still reads as one centered column. */
-.search-page--grid {
+/* Grid results and the landing's browse rails get the wide column so their
+   tiles breathe on desktop; the head, pill, and toggle stay on the 540px rail
+   so the page still reads as one centered column. */
+.search-page--wide {
   max-width: 1100px;
 }
 
-.search-page--grid .search-page-head,
-.search-page--grid .search-syntax,
-.search-page--grid .search-page-toolbar {
+.search-page--wide .search-page-head,
+.search-page--wide .search-syntax,
+.search-page--wide .search-page-toolbar {
   width: 100%;
   max-width: 540px;
   margin-inline: auto;
 }
 
-.search-page--grid .search-page-pill {
+.search-page--wide .search-page-pill {
   max-width: 540px;
   margin-inline: auto;
 }
