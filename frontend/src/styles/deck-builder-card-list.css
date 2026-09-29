@@ -1580,6 +1580,12 @@
   color: var(--text-secondary);
   line-height: 0;
   cursor: pointer;
+  /* WCAG 2.5.8: the 0.875rem glyph + padding measured 18px. The box is 24px
+     for a fine pointer; the negative margin hands the extra 3px a side back so
+     the row's layout (and height) stays what it was. */
+  min-width: 24px;
+  min-height: 24px;
+  margin: -3px;
 }
 
 /* Coarse-pointer floor (STYLE_GUIDE § Responsive): a 0.875rem glyph with
@@ -1591,6 +1597,7 @@
 @media (pointer: coarse) {
   .deck-row-menu-trigger {
     position: relative;
+    margin: 0;
   }
   .deck-row-menu-trigger::after {
     content: '';
