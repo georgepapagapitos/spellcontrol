@@ -1,0 +1,873 @@
+{
+  "_source": "Scryfall card objects recorded by the LIVE_GEN HTTP cache (the /cards/named, /cards/search and /cards/collection answers the live harness got), 2026-09-29, for commanderEligibility.test.ts and deckInvariants.test.ts. Real oracle text and legalities; fields trimmed to what the code reads.",
+  "cards": [
+    {
+      "id": "d0d33d52-3d28-4635-b985-51e126289259",
+      "oracle_id": "7e6b9b59-cd68-4e3c-827b-38833c92d6eb",
+      "name": "Atraxa, Praetors' Voice",
+      "mana_cost": "{G}{W}{U}{B}",
+      "cmc": 4.0,
+      "type_line": "Legendary Creature — Phyrexian Angel Horror",
+      "oracle_text": "Flying, vigilance, deathtouch, lifelink\nAt the beginning of your end step, proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)",
+      "colors": ["B", "G", "U", "W"],
+      "color_identity": ["B", "G", "U", "W"],
+      "keywords": ["Deathtouch", "Flying", "Lifelink", "Vigilance", "Proliferate"],
+      "power": "4",
+      "toughness": "4",
+      "rarity": "mythic",
+      "layout": "normal",
+      "set": "2xm",
+      "set_name": "Double Masters",
+      "released_at": "2020-08-07",
+      "games": ["paper", "mtgo"],
+      "prices": {
+        "usd": "27.99",
+        "eur": "21.88"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal",
+        "oathbreaker": "legal"
+      }
+    },
+    {
+      "id": "fb1189c9-7842-466e-8238-1e02677d8494",
+      "oracle_id": "158a6225-a246-4fd6-aa57-0df8067b4383",
+      "name": "Lutri, the Spellchaser",
+      "mana_cost": "{1}{U/R}{U/R}",
+      "cmc": 3.0,
+      "type_line": "Legendary Creature — Elemental Otter",
+      "oracle_text": "Companion — Each nonland card in your starting deck has a different name. (If this card is your chosen companion, you may put it into your hand from outside the game for {3} as a sorcery.)\nFlash\nWhen Lutri enters, if you cast it, copy target instant or sorcery spell you control. You may choose new targets for the copy.",
+      "colors": ["R", "U"],
+      "color_identity": ["R", "U"],
+      "keywords": ["Companion", "Flash"],
+      "power": "3",
+      "toughness": "2",
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "iko",
+      "set_name": "Ikoria: Lair of Behemoths",
+      "released_at": "2020-04-24",
+      "games": ["arena", "paper", "mtgo"],
+      "prices": {
+        "usd": "0.49",
+        "eur": "0.72"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "banned",
+        "oathbreaker": "legal"
+      }
+    },
+    {
+      "id": "6d63a085-101c-4749-a3a4-1d335c25b10e",
+      "oracle_id": "3015882b-4897-4d2c-8e33-6731c85a0d03",
+      "name": "Rofellos, Llanowar Emissary",
+      "mana_cost": "{G}{G}",
+      "cmc": 2.0,
+      "type_line": "Legendary Creature — Elf Druid",
+      "oracle_text": "{T}: Add {G} for each Forest you control.",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": [],
+      "power": "2",
+      "toughness": "1",
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "vma",
+      "set_name": "Vintage Masters",
+      "released_at": "2014-06-16",
+      "games": ["mtgo"],
+      "prices": {
+        "usd": null,
+        "eur": null
+      },
+      "legalities": {
+        "commander": "banned",
+        "paupercommander": "not_legal",
+        "brawl": "legal",
+        "oathbreaker": "legal"
+      }
+    },
+    {
+      "id": "4069e510-f3f3-4668-9f13-3546fa9bc7c3",
+      "oracle_id": "f759d112-76db-4091-a22b-b9f19ab6fa5f",
+      "name": "Griselbrand",
+      "mana_cost": "{4}{B}{B}{B}{B}",
+      "cmc": 8.0,
+      "type_line": "Legendary Creature — Demon",
+      "oracle_text": "Flying, lifelink\nPay 7 life: Draw seven cards.",
+      "colors": ["B"],
+      "color_identity": ["B"],
+      "keywords": ["Flying", "Lifelink"],
+      "power": "7",
+      "toughness": "7",
+      "rarity": "mythic",
+      "layout": "normal",
+      "set": "inr",
+      "set_name": "Innistrad Remastered",
+      "released_at": "2025-01-24",
+      "games": ["paper", "mtgo"],
+      "prices": {
+        "usd": "8.08",
+        "eur": "6.18"
+      },
+      "legalities": {
+        "commander": "banned",
+        "paupercommander": "not_legal",
+        "brawl": "legal",
+        "oathbreaker": "banned"
+      }
+    },
+    {
+      "id": "6204cfdb-6fb4-4030-96b6-9306c8266bcf",
+      "oracle_id": "3c037865-d38c-48da-aee9-308975e12638",
+      "name": "Seven of Nine",
+      "mana_cost": "{2}{U}{B}",
+      "cmc": 4.0,
+      "type_line": "Legendary Artifact Creature — Human Scientist",
+      "oracle_text": "Whenever you face a dilemma, draw a card. (You face a dilemma as you choose one or more modes for a spell or ability.)",
+      "colors": ["B", "U"],
+      "color_identity": ["B", "U"],
+      "keywords": ["Face a dilemma"],
+      "power": "2",
+      "toughness": "4",
+      "rarity": "uncommon",
+      "layout": "normal",
+      "set": "trk",
+      "set_name": "Star Trek",
+      "released_at": "2026-11-13",
+      "games": ["paper", "mtgo", "arena"],
+      "prices": {
+        "usd": "2.99",
+        "eur": null
+      },
+      "legalities": {
+        "commander": "not_legal",
+        "paupercommander": "not_legal",
+        "brawl": "not_legal",
+        "oathbreaker": "not_legal"
+      }
+    },
+    {
+      "id": "057a4413-6a17-491e-bfd7-6cd427b1a442",
+      "oracle_id": "d95af032-3efd-40c7-8229-ade9d974934f",
+      "name": "U.S.S. Enterprise-D, Galaxy-Class",
+      "mana_cost": "{3}",
+      "cmc": 3.0,
+      "type_line": "Legendary Artifact — Spacecraft",
+      "oracle_text": "Whenever one or more charge counters are put on U.S.S. Enterprise-D for the first time each turn, exile the top card of your library. You may play that card this turn.\nStation (Tap another creature you control: Put charge counters equal to its power on this Spacecraft. Station only as a sorcery. It's an artifact creature at 7+.)\n7+ | Flying, vigilance",
+      "colors": [],
+      "color_identity": [],
+      "keywords": ["Station"],
+      "power": "4",
+      "toughness": "5",
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "trk",
+      "set_name": "Star Trek",
+      "released_at": "2026-11-13",
+      "games": ["paper", "mtgo", "arena"],
+      "prices": {
+        "usd": "35.49",
+        "eur": null
+      },
+      "legalities": {
+        "commander": "not_legal",
+        "paupercommander": "not_legal",
+        "brawl": "not_legal",
+        "oathbreaker": "not_legal"
+      }
+    },
+    {
+      "id": "1925dc45-4dee-4772-aa16-3b4ca54be6c7",
+      "oracle_id": "0efb0d7e-dea0-4817-a243-15066e9ef333",
+      "name": "Grist, the Hunger Tide",
+      "mana_cost": "{1}{B}{G}",
+      "cmc": 3.0,
+      "type_line": "Legendary Planeswalker — Grist",
+      "oracle_text": "As long as Grist isn't on the battlefield, it's a 1/1 Insect creature in addition to its other types.\n+1: Create a 1/1 black and green Insect creature token, then mill a card. If an Insect card was milled this way, put a loyalty counter on Grist and repeat this process.\n−2: You may sacrifice a creature. When you do, destroy target creature or planeswalker.\n−5: Each opponent loses life equal to the number of creature cards in your graveyard.",
+      "colors": ["B", "G"],
+      "color_identity": ["B", "G"],
+      "keywords": ["Mill"],
+      "loyalty": "3",
+      "rarity": "mythic",
+      "layout": "normal",
+      "set": "dsc",
+      "set_name": "Duskmourn: House of Horror Commander",
+      "released_at": "2024-09-27",
+      "games": ["paper", "mtgo"],
+      "prices": {
+        "usd": "0.46",
+        "eur": "0.64"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal",
+        "oathbreaker": "legal"
+      }
+    },
+    {
+      "id": "9a5bb122-19f3-4e46-a71c-b8a53e9aacc7",
+      "oracle_id": "7e5a7a1d-dcfb-4ab8-b773-f521cb4d3fa6",
+      "name": "Commodore Guff",
+      "mana_cost": "{1}{U}{R}{W}",
+      "cmc": 4.0,
+      "type_line": "Legendary Planeswalker — Guff",
+      "oracle_text": "At the beginning of your end step, put a loyalty counter on another target planeswalker you control.\n+1: Create a 1/1 red Wizard creature token with \"{T}: Add {R}. Spend this mana only to cast a planeswalker spell.\"\n−3: You draw X cards and Commodore Guff deals X damage to each opponent, where X is the number of planeswalkers you control.\nCommodore Guff can be your commander.",
+      "colors": ["R", "U", "W"],
+      "color_identity": ["R", "U", "W"],
+      "keywords": [],
+      "loyalty": "5",
+      "rarity": "mythic",
+      "layout": "normal",
+      "set": "cmm",
+      "set_name": "Commander Masters",
+      "released_at": "2023-08-04",
+      "games": ["paper", "mtgo"],
+      "prices": {
+        "usd": null,
+        "eur": null
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "not_legal",
+        "oathbreaker": "legal"
+      }
+    },
+    {
+      "id": "dfe0daf8-43da-484b-baa1-76f8313c5a0c",
+      "oracle_id": "d2766fd7-5cf9-4037-9f34-9ae3982c613a",
+      "name": "Wilson, Refined Grizzly",
+      "mana_cost": "{1}{G}",
+      "cmc": 2.0,
+      "type_line": "Legendary Creature — Bear Warrior",
+      "oracle_text": "This spell can't be countered.\nReach, vigilance, trample\nWard {2} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {2}.)\nChoose a Background (You can have a Background as a second commander.)",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": ["Reach", "Vigilance", "Choose a background", "Trample", "Ward"],
+      "power": "2",
+      "toughness": "2",
+      "rarity": "uncommon",
+      "layout": "normal",
+      "set": "clb",
+      "set_name": "Commander Legends: Battle for Baldur's Gate",
+      "released_at": "2022-06-10",
+      "games": ["paper", "mtgo"],
+      "prices": {
+        "usd": "0.31",
+        "eur": "0.23"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "not_legal",
+        "oathbreaker": "legal"
+      }
+    },
+    {
+      "id": "11c93414-935e-462b-ad89-27ca21d01bf9",
+      "oracle_id": "1682cf24-17a3-49ad-8b6f-9b7f13ebf53c",
+      "name": "Raised by Giants",
+      "mana_cost": "{5}{G}",
+      "cmc": 6.0,
+      "type_line": "Legendary Enchantment — Background",
+      "oracle_text": "Commander creatures you own have base power and toughness 10/10 and are Giants in addition to their other types.",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": [],
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "clb",
+      "set_name": "Commander Legends: Battle for Baldur's Gate",
+      "released_at": "2022-06-10",
+      "games": ["paper", "mtgo"],
+      "prices": {
+        "usd": "0.40",
+        "eur": "0.26"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "not_legal",
+        "oathbreaker": "legal"
+      }
+    },
+    {
+      "id": "25564fba-5765-457b-8dd3-f26b877221b8",
+      "oracle_id": "ef220170-c01a-4ca5-b887-f248c50227ee",
+      "name": "Faceless One",
+      "mana_cost": "{5}",
+      "cmc": 5.0,
+      "type_line": "Legendary Enchantment Creature — Background",
+      "oracle_text": "If Faceless One is your commander, choose a color before the game begins. Faceless One is the chosen color.\nChoose a Background (You can have a Background as a second commander.)",
+      "colors": [],
+      "color_identity": [],
+      "keywords": ["Choose a background"],
+      "power": "3",
+      "toughness": "3",
+      "rarity": "special",
+      "layout": "normal",
+      "set": "clb",
+      "set_name": "Commander Legends: Battle for Baldur's Gate",
+      "released_at": "2022-06-10",
+      "games": ["paper"],
+      "prices": {
+        "usd": "0.16",
+        "eur": "0.09"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "not_legal",
+        "oathbreaker": "legal"
+      }
+    },
+    {
+      "id": "c78c2713-39e7-4a6e-a132-027099a89665",
+      "oracle_id": "b2aeee90-7b8d-47a6-9167-cc21f7fbfd43",
+      "name": "The Prismatic Piper",
+      "mana_cost": "{5}",
+      "cmc": 5.0,
+      "type_line": "Legendary Creature — Shapeshifter",
+      "oracle_text": "If The Prismatic Piper is your commander, choose a color before the game begins. The Prismatic Piper is the chosen color.\nPartner (You can have two commanders if both have partner.)",
+      "colors": [],
+      "color_identity": [],
+      "keywords": ["Partner"],
+      "power": "3",
+      "toughness": "3",
+      "rarity": "special",
+      "layout": "normal",
+      "set": "cmm",
+      "set_name": "Commander Masters",
+      "released_at": "2023-08-04",
+      "games": ["paper", "mtgo"],
+      "prices": {
+        "usd": "0.21",
+        "eur": "0.08"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "not_legal",
+        "oathbreaker": "legal"
+      }
+    },
+    {
+      "id": "9a1ee042-6713-4e9e-9901-9b94d99d33f1",
+      "oracle_id": "542eae01-058d-4959-92a8-49d6b1e33ecd",
+      "name": "Clara Oswald",
+      "mana_cost": "{6}",
+      "cmc": 6.0,
+      "type_line": "Legendary Creature — Human Advisor",
+      "oracle_text": "Impossible Girl — If Clara Oswald is your commander, choose a color before the game begins. Clara Oswald is the chosen color.\nIf a triggered ability of a Doctor you control triggers, that ability triggers an additional time.\nDoctor's companion (You can have two commanders if the other is the Doctor.)",
+      "colors": [],
+      "color_identity": [],
+      "keywords": ["Impossible Girl", "Doctor's companion"],
+      "power": "2",
+      "toughness": "6",
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "who",
+      "set_name": "Doctor Who",
+      "released_at": "2023-10-13",
+      "games": ["paper"],
+      "prices": {
+        "usd": "0.32",
+        "eur": "0.46"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "not_legal",
+        "oathbreaker": "legal"
+      }
+    },
+    {
+      "id": "f1499f49-793b-4265-9ad0-883a431941ab",
+      "oracle_id": "23af0a0a-1d12-47c7-b191-2bd3f84eea93",
+      "name": "The Tenth Doctor",
+      "mana_cost": "{3}{U}{R}",
+      "cmc": 5.0,
+      "type_line": "Legendary Creature — Time Lord Doctor",
+      "oracle_text": "Allons-y! — Whenever you attack, exile cards from the top of your library until you exile a nonland card. Put three time counters on it. If it doesn't have suspend, it gains suspend.\nTimey-Wimey — {7}: Time travel three times. Activate only as a sorcery. (For each suspended card you own and each permanent you control with a time counter on it, you may add or remove a time counter. Then do it two more times.)",
+      "colors": ["R", "U"],
+      "color_identity": ["R", "U"],
+      "keywords": ["Allons-y!", "Time Travel", "Timey-Wimey"],
+      "power": "3",
+      "toughness": "5",
+      "rarity": "mythic",
+      "layout": "normal",
+      "set": "who",
+      "set_name": "Doctor Who",
+      "released_at": "2023-10-13",
+      "games": ["paper"],
+      "prices": {
+        "usd": null,
+        "eur": null
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "not_legal",
+        "oathbreaker": "legal"
+      }
+    },
+    {
+      "id": "3aa8d034-f98c-4e27-b6af-850eadf59941",
+      "oracle_id": "2f56de72-80d7-48c6-9b57-84fbd252c699",
+      "name": "Rose Tyler",
+      "mana_cost": "{1}{W}",
+      "cmc": 2.0,
+      "type_line": "Legendary Creature — Human",
+      "oracle_text": "Rose Tyler gets +1/+1 for each time counter on it.\nBad Wolf — Whenever Rose Tyler attacks, put a time counter on it for each suspended card you own and each other permanent you control with a time counter on it.\nDoctor's companion (You can have two commanders if the other is the Doctor.)",
+      "colors": ["W"],
+      "color_identity": ["W"],
+      "keywords": ["Bad Wolf", "Doctor's companion"],
+      "power": "2",
+      "toughness": "2",
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "who",
+      "set_name": "Doctor Who",
+      "released_at": "2023-10-13",
+      "games": ["paper"],
+      "prices": {
+        "usd": null,
+        "eur": null
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "not_legal",
+        "oathbreaker": "legal"
+      }
+    },
+    {
+      "id": "5a7241f5-4d69-47fe-b037-95037008184c",
+      "oracle_id": "7683c2b2-a06f-4691-9cc5-1968dc032885",
+      "name": "Pir, Imaginative Rascal",
+      "mana_cost": "{2}{G}",
+      "cmc": 3.0,
+      "type_line": "Legendary Creature — Human",
+      "oracle_text": "Partner with Toothy, Imaginary Friend (When this creature enters, target player may put Toothy into their hand from their library, then shuffle.)\nIf one or more counters would be put on a permanent your team controls, that many plus one of each of those kinds of counters are put on that permanent instead.",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": ["Partner with", "Partner"],
+      "power": "1",
+      "toughness": "1",
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "bbd",
+      "set_name": "Battlebond",
+      "released_at": "2018-06-08",
+      "games": ["paper", "mtgo"],
+      "prices": {
+        "usd": "4.48",
+        "eur": "4.56"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "not_legal",
+        "oathbreaker": "legal"
+      }
+    },
+    {
+      "id": "ebdf2f50-f69a-47c4-a75f-ff55781bb0c8",
+      "oracle_id": "41d6cce0-b852-4d0e-aee2-081df13dd9b8",
+      "name": "Toothy, Imaginary Friend",
+      "mana_cost": "{3}{U}",
+      "cmc": 4.0,
+      "type_line": "Legendary Creature — Illusion",
+      "oracle_text": "Partner with Pir, Imaginative Rascal (When this creature enters, target player may put Pir into their hand from their library, then shuffle.)\nWhenever you draw a card, put a +1/+1 counter on Toothy.\nWhen Toothy leaves the battlefield, draw a card for each +1/+1 counter on it.",
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": ["Partner with", "Partner"],
+      "power": "1",
+      "toughness": "1",
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "bbd",
+      "set_name": "Battlebond",
+      "released_at": "2018-06-08",
+      "games": ["paper", "mtgo"],
+      "prices": {
+        "usd": "11.30",
+        "eur": "8.26"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "not_legal",
+        "oathbreaker": "legal"
+      }
+    },
+    {
+      "id": "f6cd7465-9dd0-473c-ac5e-dd9e2f22f5f6",
+      "oracle_id": "92023a5d-a143-4950-a71b-d736e6b8e959",
+      "name": "Esika, God of the Tree // The Prismatic Bridge",
+      "cmc": 3.0,
+      "type_line": "Legendary Creature — God // Legendary Enchantment",
+      "color_identity": ["B", "G", "R", "U", "W"],
+      "keywords": ["Vigilance"],
+      "rarity": "mythic",
+      "layout": "modal_dfc",
+      "set": "khm",
+      "set_name": "Kaldheim",
+      "released_at": "2021-02-05",
+      "games": ["arena", "paper", "mtgo"],
+      "prices": {
+        "usd": "21.74",
+        "eur": "15.69"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal",
+        "oathbreaker": "legal"
+      },
+      "card_faces": [
+        {
+          "object": "card_face",
+          "name": "Esika, God of the Tree",
+          "mana_cost": "{1}{G}{G}",
+          "type_line": "Legendary Creature — God",
+          "oracle_text": "Vigilance\n{T}: Add one mana of any color.\nOther legendary creatures you control have vigilance and \"{T}: Add one mana of any color.\"",
+          "colors": ["G"],
+          "power": "1",
+          "toughness": "4"
+        },
+        {
+          "object": "card_face",
+          "name": "The Prismatic Bridge",
+          "mana_cost": "{W}{U}{B}{R}{G}",
+          "type_line": "Legendary Enchantment",
+          "oracle_text": "At the beginning of your upkeep, reveal cards from the top of your library until you reveal a creature or planeswalker card. Put that card onto the battlefield and the rest on the bottom of your library in a random order.",
+          "colors": ["B", "G", "R", "U", "W"]
+        }
+      ]
+    },
+    {
+      "id": "9f63277b-e139-46c8-b9e3-0cfb647f44cc",
+      "name": "Krark's Thumb // Krark's Thumb",
+      "color_identity": [],
+      "keywords": [],
+      "rarity": "rare",
+      "layout": "reversible_card",
+      "set": "sld",
+      "set_name": "Secret Lair Drop",
+      "released_at": "2022-04-22",
+      "games": ["paper"],
+      "prices": {
+        "usd": null,
+        "eur": null
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "not_legal",
+        "oathbreaker": "legal"
+      },
+      "card_faces": [
+        {
+          "object": "card_face",
+          "oracle_id": "a97c8482-775c-4f11-9872-25b4f9bfcb1a",
+          "name": "Krark's Thumb",
+          "mana_cost": "{2}",
+          "cmc": 2.0,
+          "type_line": "Legendary Artifact",
+          "oracle_text": "If you would flip a coin, instead flip two coins and ignore one.",
+          "colors": [],
+          "image_uris": {
+            "normal": "https://cards.scryfall.io/normal/front/9/f/9f63277b-e139-46c8-b9e3-0cfb647f44cc.jpg?1783923536",
+            "art_crop": "https://cards.scryfall.io/art_crop/front/9/f/9f63277b-e139-46c8-b9e3-0cfb647f44cc.jpg?1783923536"
+          }
+        },
+        {
+          "object": "card_face",
+          "oracle_id": "a97c8482-775c-4f11-9872-25b4f9bfcb1a",
+          "name": "Krark's Thumb",
+          "mana_cost": "{2}",
+          "cmc": 2.0,
+          "type_line": "Legendary Artifact",
+          "oracle_text": "If you would flip a coin, instead flip two coins and ignore one.",
+          "colors": [],
+          "image_uris": {
+            "normal": "https://cards.scryfall.io/normal/back/9/f/9f63277b-e139-46c8-b9e3-0cfb647f44cc.jpg?1783923536",
+            "art_crop": "https://cards.scryfall.io/art_crop/back/9/f/9f63277b-e139-46c8-b9e3-0cfb647f44cc.jpg?1783923536"
+          }
+        }
+      ]
+    },
+    {
+      "id": "3c862fc4-e2fe-4fad-8bc1-a53f1fecc4de",
+      "oracle_id": "f02a4cbf-f0bb-4bc7-99c2-6afa1b41ebb8",
+      "name": "Hazoret's Monument",
+      "mana_cost": "{3}",
+      "cmc": 3.0,
+      "type_line": "Legendary Artifact",
+      "oracle_text": "Red creature spells you cast cost {1} less to cast.\nWhenever you cast a creature spell, you may discard a card. If you do, draw a card.",
+      "colors": [],
+      "color_identity": [],
+      "keywords": [],
+      "rarity": "uncommon",
+      "layout": "normal",
+      "set": "dmc",
+      "set_name": "Dominaria United Commander",
+      "released_at": "2022-09-09",
+      "games": ["paper", "mtgo"],
+      "prices": {
+        "usd": "2.19",
+        "eur": "1.50"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal",
+        "oathbreaker": "legal"
+      }
+    },
+    {
+      "id": "4c831c42-77a0-4f4f-9628-ad630541cf66",
+      "oracle_id": "a8f5a11f-3291-4ee9-a96d-4fa38af14932",
+      "name": "Stormscape Familiar",
+      "mana_cost": "{1}{U}",
+      "cmc": 2.0,
+      "type_line": "Creature — Bird",
+      "oracle_text": "Flying\nWhite spells and black spells you cast cost {1} less to cast.",
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": ["Flying"],
+      "power": "1",
+      "toughness": "1",
+      "rarity": "common",
+      "layout": "normal",
+      "set": "pls",
+      "set_name": "Planeshift",
+      "released_at": "2001-02-05",
+      "games": ["paper", "mtgo"],
+      "prices": {
+        "usd": "0.97",
+        "eur": "0.60"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "legal",
+        "brawl": "not_legal",
+        "oathbreaker": "legal"
+      }
+    },
+    {
+      "id": "dec91ec3-42d3-4922-96f0-dbb50a576084",
+      "oracle_id": "a6bcec1f-f515-4e63-9e84-8eb04cc582ff",
+      "name": "The Seriema",
+      "mana_cost": "{1}{W}{W}",
+      "cmc": 3.0,
+      "type_line": "Legendary Artifact — Spacecraft",
+      "oracle_text": "When The Seriema enters, search your library for a legendary creature card, reveal it, put it into your hand, then shuffle.\nStation (Tap another creature you control: Put charge counters equal to its power on this Spacecraft. Station only as a sorcery. It's an artifact creature at 7+.)\n7+ | Flying\nOther tapped legendary creatures you control have indestructible.",
+      "colors": ["W"],
+      "color_identity": ["W"],
+      "keywords": ["Station"],
+      "power": "5",
+      "toughness": "5",
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "eoe",
+      "set_name": "Edge of Eternities",
+      "released_at": "2025-08-01",
+      "games": ["paper", "arena", "mtgo"],
+      "prices": {
+        "usd": "2.03",
+        "eur": "0.70"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal",
+        "oathbreaker": "legal"
+      }
+    },
+    {
+      "id": "1bb90ab9-43b9-4991-806a-0afc4d8caf5f",
+      "oracle_id": "11323af4-b8b8-4ca9-932f-377c7fd77dea",
+      "name": "The Eternity Elevator",
+      "mana_cost": "{5}",
+      "cmc": 5.0,
+      "type_line": "Legendary Artifact — Spacecraft",
+      "oracle_text": "{T}: Add {C}{C}{C}.\nStation (Tap another creature you control: Put charge counters equal to its power on this Spacecraft. Station only as a sorcery.)\n20+ | {T}: Add X mana of any one color, where X is the number of charge counters on The Eternity Elevator.",
+      "colors": [],
+      "color_identity": [],
+      "keywords": ["Station"],
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "eoe",
+      "set_name": "Edge of Eternities",
+      "released_at": "2025-08-01",
+      "games": ["paper", "arena", "mtgo"],
+      "prices": {
+        "usd": "2.84",
+        "eur": "1.25"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal",
+        "oathbreaker": "legal"
+      }
+    },
+    {
+      "id": "c86cf087-c50a-487a-bc1a-eee5410f14d9",
+      "oracle_id": "73b3682f-396a-4ebe-aaac-6ce3ee36283a",
+      "name": "Weatherlight",
+      "mana_cost": "{4}",
+      "cmc": 4.0,
+      "type_line": "Legendary Artifact — Vehicle",
+      "oracle_text": "Flying\nWhenever Weatherlight deals combat damage to a player, look at the top five cards of your library. You may reveal a historic card from among them and put it into your hand. Put the rest on the bottom of your library in a random order. (Artifacts, legendaries, and Sagas are historic.)\nCrew 3",
+      "colors": [],
+      "color_identity": [],
+      "keywords": ["Flying", "Crew"],
+      "power": "4",
+      "toughness": "5",
+      "rarity": "mythic",
+      "layout": "normal",
+      "set": "nec",
+      "set_name": "Neon Dynasty Commander",
+      "released_at": "2022-02-18",
+      "games": ["paper", "mtgo"],
+      "prices": {
+        "usd": "1.54",
+        "eur": "0.93"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal",
+        "oathbreaker": "legal"
+      }
+    },
+    {
+      "id": "824b2d73-2151-4e5e-9f05-8f63e2bdcaa9",
+      "oracle_id": "68418069-f615-40ef-ae0d-764192acae00",
+      "name": "Krenko, Mob Boss",
+      "mana_cost": "{2}{R}{R}",
+      "cmc": 4.0,
+      "type_line": "Legendary Creature — Goblin Warrior",
+      "oracle_text": "{T}: Create X 1/1 red Goblin creature tokens, where X is the number of Goblins you control.",
+      "colors": ["R"],
+      "color_identity": ["R"],
+      "keywords": [],
+      "power": "3",
+      "toughness": "3",
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "fdn",
+      "set_name": "Foundations",
+      "released_at": "2024-11-15",
+      "games": ["paper", "arena", "mtgo"],
+      "prices": {
+        "usd": "3.61",
+        "eur": "1.68"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal",
+        "oathbreaker": "legal"
+      }
+    },
+    {
+      "id": "cb28d217-795e-4320-a032-cd713f7ecc8a",
+      "oracle_id": "5e958212-6a5b-4288-8d31-f1572619d7dc",
+      "name": "Liliana, Dreadhorde General",
+      "mana_cost": "{4}{B}{B}",
+      "cmc": 6.0,
+      "type_line": "Legendary Planeswalker — Liliana",
+      "oracle_text": "Whenever a creature you control dies, draw a card.\n+1: Create a 2/2 black Zombie creature token.\n−4: Each player sacrifices two creatures of their choice.\n−9: Each opponent chooses a permanent they control of each permanent type and sacrifices the rest.",
+      "colors": ["B"],
+      "color_identity": ["B"],
+      "keywords": [],
+      "loyalty": "6",
+      "rarity": "mythic",
+      "layout": "normal",
+      "set": "fdn",
+      "set_name": "Foundations",
+      "released_at": "2024-11-15",
+      "games": ["paper", "arena", "mtgo"],
+      "prices": {
+        "usd": "8.38",
+        "eur": "7.65"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal",
+        "oathbreaker": "legal"
+      }
+    },
+    {
+      "id": "5ad36fb2-c44e-4085-ba0d-54277841ad3a",
+      "oracle_id": "3bc757c1-3adb-4321-8832-8e1cc9e687f7",
+      "name": "Lurrus of the Dream-Den",
+      "mana_cost": "{1}{W/B}{W/B}",
+      "cmc": 3.0,
+      "type_line": "Legendary Creature — Cat Nightmare",
+      "oracle_text": "Companion — Each permanent card in your starting deck has mana value 2 or less. (If this card is your chosen companion, you may put it into your hand from outside the game for {3} as a sorcery.)\nLifelink\nOnce during each of your turns, you may cast a permanent spell with mana value 2 or less from your graveyard.",
+      "colors": ["B", "W"],
+      "color_identity": ["B", "W"],
+      "keywords": ["Lifelink", "Companion"],
+      "power": "3",
+      "toughness": "2",
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "iko",
+      "set_name": "Ikoria: Lair of Behemoths",
+      "released_at": "2020-04-24",
+      "games": ["arena", "paper", "mtgo"],
+      "prices": {
+        "usd": "1.98",
+        "eur": "1.26"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal",
+        "oathbreaker": "legal"
+      }
+    },
+    {
+      "id": "4219b5ea-a252-4d76-a60a-9674340e8ed3",
+      "oracle_id": "bc8802db-8c94-4eb4-817f-5f4f5408b7a4",
+      "name": "Karn, Legacy Reforged",
+      "mana_cost": "{5}",
+      "cmc": 5.0,
+      "type_line": "Legendary Artifact Creature — Golem",
+      "oracle_text": "Karn's power and toughness are each equal to the greatest mana value among artifacts you control.\nAt the beginning of your upkeep, add {C} for each artifact you control. This mana can't be spent to cast nonartifact spells. Until end of turn, you don't lose this mana as steps and phases end.",
+      "colors": [],
+      "color_identity": [],
+      "keywords": [],
+      "power": "*",
+      "toughness": "*",
+      "rarity": "mythic",
+      "layout": "normal",
+      "set": "mat",
+      "set_name": "March of the Machine: The Aftermath",
+      "released_at": "2023-05-12",
+      "games": ["paper", "arena", "mtgo"],
+      "prices": {
+        "usd": "18.55",
+        "eur": "13.07"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal",
+        "oathbreaker": "legal"
+      }
+    }
+  ]
+}

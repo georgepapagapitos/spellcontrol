@@ -17,6 +17,7 @@ import type {
   ScryfallCard,
 } from '@/deck-builder/types';
 import { loadTaggerData } from '@/deck-builder/services/tagger/client';
+import { withChosenColor } from '@/deck-builder/lib/partnerUtils';
 import { computeRoleCounts } from './commanderDeckAnalysis';
 import { calculateStats } from './deckStats';
 import {
@@ -46,6 +47,21 @@ function card(name: string, patch: Partial<ScryfallCard> = {}): ScryfallCard {
   const c = CARDS.get(name);
   if (!c) throw new Error(`no fixture card named ${name}`);
   return { ...structuredClone(c), ...patch };
+}
+
+// Commanders and odd printings the live stress panel resolved (E524, E527,
+// E530), from the same recorded Scryfall answers.
+const COMMANDER_CARDS = new Map<string, ScryfallCard>(
+  (
+    JSON.parse(
+      readFileSync(resolve(here, '__fixtures__', 'commander-cards.fixture.json'), 'utf8')
+    ) as { cards: ScryfallCard[] }
+  ).cards.map((c) => [c.name, c])
+);
+function commanderCard(name: string): ScryfallCard {
+  const c = COMMANDER_CARDS.get(name);
+  if (!c) throw new Error(`no commander fixture card named ${name}`);
+  return structuredClone(c);
 }
 
 beforeAll(async () => {
@@ -406,6 +422,77 @@ describe('identity, legality, bans', () => {
     expect(checks(checkDeckInvariants(assemble(cats), context()), 'HARD')).toContain(
       'commander-in-99'
     );
+  });
+
+  // E524: the live Prismatic Piper row, chosen green. The dead-card check
+  // reads the deck's EFFECTIVE identity, the chosen color.
+  it('flags a reducer for a color a choose-a-color commander did not choose', () => {
+    const cats = cleanCategories();
+    swap(cats, 'Negate', card('Ruby Medallion'));
+    const piper = withChosenColor(commanderCard('The Prismatic Piper'), 'G');
+    const v = checkDeckInvariants(
+      assemble(cats, { commander: piper }),
+      context({ commander: piper, colorIdentity: ['G'] })
+    );
+    expect(v.find((x) => x.check === 'dead-in-identity')).toMatchObject({
+      level: 'HARD',
+      detail: "Ruby Medallion discounts a color the deck can't cast (identity [G])",
+    });
+  });
+
+  // E530: the generator refuses these at its entry, so a deck built around
+  // one got past the gate.
+  it('flags a deck built around a commander the format does not allow', () => {
+    const cats = cleanCategories();
+    const elves = card('Llanowar Elves');
+    const v = checkDeckInvariants(
+      assemble(cats, { commander: elves }),
+      context({ commander: elves })
+    );
+    expect(v.find((x) => x.check === 'commander-legality')).toEqual({
+      level: 'HARD',
+      check: 'commander-legality',
+      detail:
+        "a deck was built for an illegal command zone (not-a-commander): Llanowar Elves isn't a legendary creature, so it can't be your commander.",
+    });
+    const pdh = checkDeckInvariants(
+      assemble(cats),
+      context({
+        commander: commanderCard("Atraxa, Praetors' Voice"),
+        customization: customization({ mtgFormat: 'paupercommander' }),
+      })
+    );
+    expect(pdh.find((x) => x.check === 'commander-legality')?.detail).toContain(
+      "isn't an uncommon creature"
+    );
+  });
+
+  it('flags a second commander that does not pair with the first', () => {
+    const v = checkDeckInvariants(
+      assemble(cleanCategories()),
+      context({ partnerCommander: card('Kenrith, the Returned King') })
+    );
+    expect(v.find((x) => x.check === 'commander-legality')?.detail).toContain(
+      "Kenrith, the Returned King can't be a second commander with Tatyova, Benthic Druid."
+    );
+  });
+
+  it('accepts every legal commander and pair on the stress panel', () => {
+    for (const [a, b] of [
+      ['Thrasios, Triton Hero', 'Tymna the Weaver'],
+      ['Wilson, Refined Grizzly', 'Raised by Giants'],
+      ['Lutri, the Spellchaser', null],
+      ['Grist, the Hunger Tide', null],
+      ['Commodore Guff', null],
+    ] as const) {
+      const commander = CARDS.has(a) ? card(a) : commanderCard(a);
+      const partner = b ? (CARDS.has(b) ? card(b) : commanderCard(b)) : null;
+      const v = checkDeckInvariants(
+        assemble(cleanCategories()),
+        context({ commander, partnerCommander: partner })
+      );
+      expect(checks(v), `${a} + ${b}`).not.toContain('commander-legality');
+    }
   });
 
   it('checks legality for the format the deck was built in', () => {
@@ -806,11 +893,29 @@ describe('report truth (E166)', () => {
     expect(checks(checkDeckInvariants(deck, context()), 'HARD')).toContain('report-roles');
   });
 
-  it('flags subtype tallies that will jump when the live recount replaces them (SOFT)', () => {
+  // E528: HARD now that the generator stores this very recount.
+  it('flags subtype tallies that will jump when the live recount replaces them', () => {
     const deck = { ...assemble(cleanCategories()), rampSubtypeCounts: { 'mana-rock': 40 } };
     expect(
       checkDeckInvariants(deck, context()).find((x) => x.check === 'report-subtypes')?.level
-    ).toBe('SOFT');
+    ).toBe('HARD');
+  });
+
+  it('accepts subtype tallies equal to the recount', () => {
+    const cats = cleanCategories();
+    const nonLand = Object.entries(cats)
+      .filter(([cat]) => cat !== 'lands')
+      .flatMap(([, cards]) => cards);
+    const recount = computeRoleCounts(nonLand);
+    const deck = assemble(cats, {
+      rampSubtypeCounts: recount.rampSubtypeCounts,
+      removalSubtypeCounts: recount.removalSubtypeCounts,
+      boardwipeSubtypeCounts: recount.boardwipeSubtypeCounts,
+      cardDrawSubtypeCounts: recount.cardDrawSubtypeCounts,
+    });
+    // The snapshot tags real subtypes on this deck, so the check has teeth.
+    expect(Object.keys(recount.rampSubtypeCounts).length).toBeGreaterThan(0);
+    expect(checks(checkDeckInvariants(deck, context()))).not.toContain('report-subtypes');
   });
 
   it('flags stats that do not describe the seated cards', () => {
@@ -828,6 +933,25 @@ describe('report truth (E166)', () => {
       context()
     );
     expect(v.filter((x) => x.check === 'stats').length).toBe(3);
+  });
+
+  // E527: the live art-theme-goblin row seated the real Secret Lair
+  // reversible Krark's Thumb, which has no top-level cmc, and the curve
+  // shipped a "NaN" bucket.
+  it('counts a reversible printing by its front face, and flags a NaN curve bucket', () => {
+    const cats = cleanCategories();
+    swap(cats, 'Negate', commanderCard("Krark's Thumb // Krark's Thumb"));
+    const deck = assemble(cats);
+    expect(checks(checkDeckInvariants(deck, context()))).not.toContain('stats');
+    const nan = checkDeckInvariants(
+      {
+        ...deck,
+        stats: { ...deck.stats, manaCurve: { ...deck.stats.manaCurve, NaN: 1 } as never },
+      },
+      context()
+    ).filter((x) => x.check === 'stats');
+    expect(nan.map((x) => x.detail)).toContain('stats.manaCurve has a bad entry "NaN": 1');
+    expect(nan.every((x) => x.level === 'HARD')).toBe(true);
   });
 
   it('flags roles far over target as SOFT', () => {

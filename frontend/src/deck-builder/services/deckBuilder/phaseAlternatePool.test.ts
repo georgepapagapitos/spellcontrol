@@ -1,4 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { ScryfallCard } from '@/deck-builder/types';
 
 // Must hoist the spy before the module import so the mock intercepts it.
@@ -8,7 +11,12 @@ vi.mock('@/deck-builder/services/scryfall/client', async (orig) => ({
   searchCards: (...args: unknown[]) => searchCards(...args),
 }));
 
-import { buildModeConstraint, slugifyTag, buildAlternatePool } from './phaseAlternatePool';
+import {
+  buildModeConstraint,
+  slugifyTag,
+  buildAlternatePool,
+  resolveReversiblePrinting,
+} from './phaseAlternatePool';
 import type { Customization } from '@/deck-builder/types';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -648,5 +656,59 @@ describe('buildAlternatePool — Pauper Commander', () => {
     for (const call of searchCards.mock.calls) {
       expect(call[0]).not.toContain('f:paupercommander');
     }
+  });
+});
+
+// ── Reversible printings (E527) ──────────────────────────────────────────────
+
+describe('reversible printings', () => {
+  // The real Secret Lair printing the live art-theme-goblin row seated: no
+  // top-level cmc, type line, oracle text or oracle_id, a doubled name.
+  const thumb = (
+    JSON.parse(
+      readFileSync(
+        resolve(
+          dirname(fileURLToPath(import.meta.url)),
+          '__fixtures__',
+          'commander-cards.fixture.json'
+        ),
+        'utf8'
+      )
+    ) as { cards: ScryfallCard[] }
+  ).cards.find((c) => c.name === "Krark's Thumb // Krark's Thumb")!;
+
+  it('resolves to the card it prints, keeping the printing', () => {
+    const card = resolveReversiblePrinting(thumb);
+    expect(card).toMatchObject({
+      name: "Krark's Thumb",
+      layout: 'normal',
+      oracle_id: 'a97c8482-775c-4f11-9872-25b4f9bfcb1a',
+      mana_cost: '{2}',
+      cmc: 2,
+      type_line: 'Legendary Artifact',
+      oracle_text: 'If you would flip a coin, instead flip two coins and ignore one.',
+      set: 'sld',
+      id: thumb.id,
+    });
+    expect(card.card_faces).toBeUndefined();
+    // The art the motif search matched is the printing's front face.
+    expect(card.image_uris?.art_crop).toBe(thumb.card_faces![0].image_uris!.art_crop);
+  });
+
+  it('passes every other layout through untouched', () => {
+    const plain = sc({ name: 'Goblin Guide' });
+    expect(resolveReversiblePrinting(plain)).toBe(plain);
+  });
+
+  it('enters the art-theme pool under its real name and mana value', async () => {
+    searchCards.mockResolvedValue(okResponse([thumb]));
+    const result = await buildAlternatePool(
+      'art-theme',
+      cust({ generationMode: 'art-theme', artThemeTag: 'goblin' }),
+      ['R']
+    );
+    expect(result.data.cardlists.artifacts).toEqual([
+      expect.objectContaining({ name: "Krark's Thumb", cmc: 2, primary_type: 'Artifact' }),
+    ]);
   });
 });

@@ -440,7 +440,8 @@
     "variant": "pdh-illegal-commander",
     "overrides": {
       "mtgFormat": "paupercommander"
-    }
+    },
+    "expectedError": "isn't an uncommon creature, so it can't lead a Pauper Commander deck"
   },
   {
     "commanderName": "Krenko, Mob Boss",
@@ -539,7 +540,8 @@
     "variant": "choose-color-partner",
     "partnerName": "Kenrith, the Returned King",
     "overrides": {},
-    "chosenColor": "R"
+    "chosenColor": "R",
+    "expectedError": "Kenrith, the Returned King can't be a second commander with The Prismatic Piper"
   },
   {
     "commanderName": "Clara Oswald",
@@ -611,22 +613,26 @@
   {
     "commanderName": "Llanowar Elves",
     "variant": "not-legendary",
-    "overrides": {}
+    "overrides": {},
+    "expectedError": "Llanowar Elves isn't a legendary creature, so it can't be your commander"
   },
   {
     "commanderName": "Seven of Nine",
     "variant": "unreleased",
-    "overrides": {}
+    "overrides": {},
+    "expectedError": "Seven of Nine isn't legal in Commander until it releases"
   },
   {
     "commanderName": "U.S.S. Enterprise-D, Galaxy-Class",
     "variant": "unreleased-colorless",
-    "overrides": {}
+    "overrides": {},
+    "expectedError": "U.S.S. Enterprise-D, Galaxy-Class isn't legal in Commander until it releases"
   },
   {
     "commanderName": "La'An Noonien-Singh, Security",
     "variant": "punct-name",
-    "overrides": {}
+    "overrides": {},
+    "expectedError": "La'An Noonien-Singh, Security isn't legal in Commander until it releases"
   },
   {
     "commanderName": "Obeka, Splitter of Seconds",

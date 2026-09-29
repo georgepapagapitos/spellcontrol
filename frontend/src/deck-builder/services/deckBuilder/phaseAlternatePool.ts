@@ -310,7 +310,11 @@ async function fetchPool(
       // A cost reducer for colors the deck can't cast (Stormscape Familiar in
       // mono-blue) passes the identity search, since its own identity fits,
       // but does nothing here. The typed Scryfall fill already skips these.
-      out.push(...res.data.filter((card) => !isDeadInIdentity(card, colorIdentity)));
+      out.push(
+        ...res.data
+          .map(resolveReversiblePrinting)
+          .filter((card) => !isDeadInIdentity(card, colorIdentity))
+      );
       if (!res.has_more || out.length >= take) break;
     } catch (err) {
       // A facet that matches nothing (e.g. counterspells off-color) 404s — fine,
@@ -320,6 +324,42 @@ async function fetchPool(
     }
   }
   return out.slice(0, take);
+}
+
+/**
+ * A reversible printing as the card it prints (E527). Scryfall's
+ * `reversible_card` layout is one card with the same face on both sides (the
+ * Secret Lair "Krark's Thumb // Krark's Thumb"): the name doubles, and cmc,
+ * type line, oracle text and oracle_id live on the faces only. Art searches
+ * find these printings for their art, and the card went on through the whole
+ * pipeline under the doubled name with no mana value (a "NaN" curve bucket,
+ * no tagger tags, no EDHREC match). Flattening it onto its front face keeps
+ * the printing (its art, set and price) and restores the card: every other
+ * layout passes through untouched.
+ */
+export function resolveReversiblePrinting(card: ScryfallCard): ScryfallCard {
+  const face = card.card_faces?.[0] as
+    | (NonNullable<ScryfallCard['card_faces']>[number] & { cmc?: number; oracle_id?: string })
+    | undefined;
+  if (card.layout !== 'reversible_card' || !face) return card;
+  const { card_faces: _faces, ...printing } = card;
+  return {
+    ...printing,
+    layout: 'normal',
+    name: face.name,
+    oracle_id: card.oracle_id ?? face.oracle_id ?? '',
+    mana_cost: face.mana_cost,
+    cmc: Number.isFinite(card.cmc) ? card.cmc : (face.cmc ?? 0),
+    type_line: face.type_line,
+    oracle_text: face.oracle_text,
+    flavor_text: face.flavor_text,
+    colors: card.colors ?? face.colors,
+    power: face.power,
+    toughness: face.toughness,
+    loyalty: face.loyalty,
+    // Scryfall sends a face the full image set; the face type lists fewer.
+    image_uris: card.image_uris ?? (face.image_uris as ScryfallCard['image_uris'] | undefined),
+  };
 }
 
 /** Turn gathered Scryfall cards into the EDHREC-shaped data the pipeline expects. */
