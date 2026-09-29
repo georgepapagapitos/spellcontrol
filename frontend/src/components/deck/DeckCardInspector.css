@@ -214,7 +214,8 @@
   color: var(--text-muted);
 }
 
-.deck-card-inspector-chip.is-synergy {
+.deck-card-inspector-chip.is-synergy,
+.deck-card-inspector-chip.is-combo {
   border-color: var(--accent);
   color: var(--accent);
 }

@@ -949,22 +949,10 @@
   border-radius: 0;
 }
 
-/* One qty column per section. A ± stepper (basics, non-singleton formats) is
-   ~3x the width of a bare count, so when any row in the section carries one,
-   every row's qty cell widens to match and the names start on one line down
-   the list. A section with no stepper keeps the narrow column. */
+/* One qty column per section: every row's qty cell sizes from this one
+   property, so the names start on one line down the list. */
 .deck-section-rows {
   --deck-qty-col: 1.4rem;
-}
-
-.deck-section-rows:has(.deck-row-qty-group) {
-  --deck-qty-col: calc(2 * 1.05rem + 1.4rem + 2 * var(--space-0-5));
-}
-
-@media (pointer: coarse) {
-  .deck-section-rows:has(.deck-row-qty-group) {
-    --deck-qty-col: calc(2 * 32px + 1.4rem + 2 * var(--space-0-5));
-  }
 }
 
 .deck-section-rows {
@@ -1090,12 +1078,14 @@
   min-width: 0;
   display: flex;
   align-items: center;
+  /* The chip cluster below sizes itself against this cell, not the viewport:
+     the same screen runs one wide column or four narrow ones. */
+  container: deck-row-name / inline-size;
 }
 
 /* The card name truncates with an ellipsis so the trailing chips never get
    pushed off or forced to wrap; the full name stays available via title +
-   the tap-to-open preview. Chips keep their own margin-left (uniform 0.4rem)
-   so the flex row needs no gap. */
+   the tap-to-open preview. The chip tiers below keep ~7rem of it readable. */
 .deck-row-name-text {
   flex: 0 1 auto;
   min-width: 0;
@@ -1114,7 +1104,37 @@
 .deck-row-hovermeta {
   display: inline-flex;
   align-items: center;
-  min-width: 0;
+  flex: 0 0 auto;
+  gap: var(--space-1);
+  /* A trailing cluster against the mana column, not glued to the name: the
+     name keeps a clean left run and the chips line up down the list. */
+  margin-left: auto;
+  padding-left: var(--space-2);
+}
+
+/* The cluster owns the spacing and the height. Each chip used to bring its
+   own margin (the combo badge had none, and the foil pip lost its margin
+   when it moved in here, so both touched the name) and its own line-height,
+   so no two rows spaced alike. */
+.deck-row .deck-row-hovermeta > * {
+  margin-left: 0;
+}
+
+.deck-row-hovermeta .deck-row-alloc-chip,
+.deck-row-hovermeta .deck-row-alloc-badge,
+.deck-row-hovermeta .deck-row-synergy,
+.deck-row-hovermeta .deck-row-inclusion,
+.deck-row-hovermeta .combo-badge-glyph,
+.deck-row-hovermeta .foil-badge {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  height: 1.125rem;
+  line-height: 1;
+}
+
+.deck-row-hovermeta .foil-badge {
+  width: 1.125rem;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -1144,6 +1164,48 @@
 
   .deck-row {
     gap: var(--space-1);
+  }
+}
+
+/* Chips drop by the name cell's width, never the name (2026-09-29). A
+   100-card deck on a desktop runs four ~350px columns, which leaves the name
+   cell ~170px after mana, price and the kebab; the full cluster is ~175px,
+   so it pushed the name to nothing or clipped its own tail. Each tier keeps
+   ~7rem for the name and drops the least-needed chip first: EDHREC %, then
+   synergy and the provenance tip, then ownership (the qty already turns red
+   for a missing copy). Combo and foil go last. The card inspector and the
+   preview carry all of them. */
+@container deck-row-name (width < 26rem) {
+  .deck-row-hovermeta .deck-row-alloc-badge-label {
+    display: none;
+  }
+}
+
+@container deck-row-name (width < 22.5rem) {
+  .deck-row-hovermeta .deck-row-inclusion {
+    display: none;
+  }
+}
+
+@container deck-row-name (width < 20rem) {
+  .deck-row-hovermeta .deck-row-synergy,
+  .deck-row-hovermeta .deck-row-provenance {
+    display: none;
+  }
+}
+
+@container deck-row-name (width < 17rem) {
+  .deck-row-hovermeta .deck-row-alloc-chip,
+  .deck-row-hovermeta .deck-row-alloc-badge {
+    display: none;
+  }
+}
+
+/* Out-ranks the hover reveal above: same specificity, later in the file.
+   Keep these tiers below that block. */
+@container deck-row-name (width < 10rem) {
+  .deck-row .deck-row-name > .deck-row-hovermeta {
+    display: none;
   }
 }
 

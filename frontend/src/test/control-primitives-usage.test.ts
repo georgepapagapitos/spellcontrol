@@ -147,7 +147,7 @@ const BLOCKS_WHILE_BUSY =
 const BOARD_CHROME =
   'PERMANENT: playtest and live-table board chrome is a bespoke control (E435 scope ruling)';
 const STEPPER =
-  'PERMANENT: a labeled -/+ quantity stepper, same genre as trade-stepper-btn / printing-choice-step / deck-row-qty-step (E435 scope ruling), not a menu-triggering icon action';
+  'PERMANENT: a labeled -/+ quantity stepper, same genre as trade-stepper-btn / printing-choice-step (E435 scope ruling), not a menu-triggering icon action';
 /** Files still to migrate, with their current counts. Lower as each wave lands. */
 const ALLOWED: Record<Shape, Record<string, number | { count: number; why: string }>> = {
   rawClass: {

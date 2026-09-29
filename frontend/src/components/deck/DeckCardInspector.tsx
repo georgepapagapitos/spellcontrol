@@ -11,6 +11,8 @@ import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { Button, IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 import { RulesTextParagraphs } from '@/components/RulesText';
+import { classifyInclusion } from '@/lib/inclusion-label';
+import type { ComboMatch } from '@/types/combos';
 
 export interface DeckCardInspectorCard {
   row: Row;
@@ -19,6 +21,11 @@ export interface DeckCardInspectorCard {
   binders: BinderInfo[];
   /** Why the generator picked this card, when it recorded a reason. */
   synergyReasons?: string[];
+  /** Combos this card is in. The row's CB badge drops out of a narrow
+   *  column, so the inspector is where the count stays readable. */
+  combos?: ComboMatch[];
+  /** EDHREC inclusion, resolved as the row does (`resolveInclusionPct`). */
+  inclusionPct?: number;
 }
 
 export interface DeckCardInspectorActions {
@@ -90,6 +97,9 @@ export function DeckCardInspector({
   const typeLine = getFrontFaceTypeLine(row.card);
   const oracle = row.card.oracle_text ?? row.card.card_faces?.[0]?.oracle_text ?? '';
   const slotIds = row.slotIds;
+  const comboCount = card.combos?.length ?? 0;
+  const inclusion =
+    typeof card.inclusionPct === 'number' ? classifyInclusion(card.inclusionPct) : null;
 
   return (
     <aside className="deck-card-inspector" aria-label="Card inspector">
@@ -135,8 +145,21 @@ export function DeckCardInspector({
         <BinderBadge binders={card.binders} />
       </div>
 
-      {(roles.length > 0 || (card.synergyReasons?.length ?? 0) > 0) && (
+      {(roles.length > 0 ||
+        (card.synergyReasons?.length ?? 0) > 0 ||
+        comboCount > 0 ||
+        inclusion) && (
         <ul className="deck-card-inspector-chips">
+          {comboCount > 0 && (
+            <Chip as="li" className="deck-card-inspector-chip is-combo">
+              {comboCount === 1 ? 'In 1 combo' : `In ${comboCount} combos`}
+            </Chip>
+          )}
+          {inclusion && (
+            <Chip as="li" className="deck-card-inspector-chip">
+              {inclusion.label}
+            </Chip>
+          )}
           {roles.map((label) => (
             <Chip as="li" key={label} className="deck-card-inspector-chip">
               {label}

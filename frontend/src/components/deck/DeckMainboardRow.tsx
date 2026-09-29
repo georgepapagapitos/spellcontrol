@@ -5,15 +5,7 @@
 // already exists as an unrelated swap-suggestion row component — the
 // `DeckCardRow` function name itself is unchanged, only the file differs.
 import { useId, useRef, useState } from 'react';
-import {
-  Check,
-  ChevronDown,
-  GripVertical,
-  Handshake,
-  Minus,
-  MoreVertical,
-  Plus,
-} from 'lucide-react';
+import { Check, ChevronDown, GripVertical, Handshake, MoreVertical } from 'lucide-react';
 import { DeckCardMenuBody, type DeckCardMenuPage } from './DeckCardMenuBody';
 import { hasCardActions, type DeckCardActionCtx } from './deck-card-actions';
 import {
@@ -40,7 +32,7 @@ import { classifyInclusion, OFFMETA_TOOLTIP } from '@/lib/inclusion-label';
 import { setSymbolTitle } from '@/lib/set-symbols';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { ComboMatch } from '@/types/combos';
-import { getMaxCopies, type LegalityIssue } from '../../lib/deck-validation';
+import type { LegalityIssue } from '../../lib/deck-validation';
 import { getRoleBadge, type RoleKey } from '../../lib/role-badges';
 import { formatMoney } from '../../lib/format-money';
 import { MeterBar } from '../shared/MeterBar';
@@ -127,7 +119,7 @@ export function CategorySection({
   onRowClick: (name: string) => void;
   onRemoveCard?: (slotId: string) => void;
   onSetQty?: (card: ScryfallCard, qty: number, opts?: { relative?: boolean }) => void;
-  /** Format's singleton-ness — gates the qty stepper (see DeckCardRow). */
+  /** Format's singleton-ness — the ⋮ menu's "Add another copy" ceiling. */
   isSingleton?: boolean;
   onEditCard?: (slotId: string, card: ScryfallCard) => void;
   /** Active role filter — rows not filling it render dimmed. */
@@ -323,7 +315,7 @@ export function CategorySection({
         }
         titleClassName="deck-section-title"
         // Not in tab order, but a programmatic focus target: the qty
-        // stepper's decrement-to-zero focus handoff falls back here when the
+        // editor's commit-to-zero focus handoff falls back here when the
         // row it removes has no sibling row left.
         titleTabIndex={-1}
         title={
@@ -437,7 +429,7 @@ function DeckCardRow({
   onClick: () => void;
   onRemoveCard?: (slotId: string) => void;
   onSetQty?: (card: ScryfallCard, qty: number, opts?: { relative?: boolean }) => void;
-  /** Format's singleton-ness — gates the +/− stepper via getMaxCopies. */
+  /** Format's singleton-ness — the ⋮ menu's "Add another copy" ceiling. */
   isSingleton?: boolean;
   onEditCard?: (slotId: string, card: ScryfallCard) => void;
   /** Active role filter — this row dims when it doesn't fill the role. */
@@ -499,13 +491,10 @@ function DeckCardRow({
 }) {
   const roleBadge = showPrefs.roles ? getRoleBadge(row.card) : null;
   const mana = showPrefs.mana ? frontFaceMana(row.card) : undefined;
+  // No −/+ stepper on any row: the count is a tap-to-edit button, and the ⋮
+  // menu carries add/remove one copy. Steppers on only the basics and the
+  // "any number" cards read as a bug in a singleton list.
   const canEditQty = !!onSetQty && row.slotIds.length > 0;
-  // Stepper only earns its place when a second copy is actually legal — on a
-  // singleton nonbasic it's pure UI noise (Commander/Brawl/PDH). Basics and
-  // any "any number" card (getMaxCopies) still get it everywhere.
-  const maxCopies = getMaxCopies(row.card, isSingleton ?? true);
-  const atCap = row.qty >= maxCopies;
-  const showStepper = canEditQty && maxCopies > 1;
   const [editingQty, setEditingQty] = useState(false);
   // Only stacks that actually span >1 printing get an expand affordance — a
   // uniform "Mountain ×22" has nothing to reveal.
@@ -543,25 +532,18 @@ function DeckCardRow({
   const sortable = useSortable({ id: row.name });
   const rowIsDragging = dragEnabled && sortable.isDragging;
 
-  // ── +/− stepper ────────────────────────────────────────────────────────
-  // liRef backs the decrement-to-zero focus handoff below; itemRef is the
-  // FLIP measurement callback the host already passes — both need the node.
+  // liRef backs the edit-to-zero focus handoff below; itemRef is the FLIP
+  // measurement callback the host already passes — both need the node.
   const liRef = useRef<HTMLLIElement | null>(null);
   const setLiRef = (el: HTMLLIElement | null) => {
     liRef.current = el;
     itemRef?.(el);
     sortable.setNodeRef(el);
   };
-  // Local in-flight guard (defense in depth): the relative-delta call below
-  // is what actually prevents a dropped update on a rapid double-tap (it
-  // never reads the stale `row.qty` closure), but disabling the buttons for
-  // one frame after a tap also blocks a literal duplicate event (some
-  // touchscreens fire click twice for one tap) from applying twice.
-  const [stepBusy, setStepBusy] = useState(false);
-  // On the tap that takes qty to 0, the row unmounts after its leave
-  // animation — move focus to a sibling row's own control (or the section
-  // header if this was the last row) now, before the browser can drop focus
-  // to <body> once the node disappears.
+  // When Enter commits a 0, the row unmounts after its leave animation — move
+  // focus to a sibling row's own qty button (or the section header if this
+  // was the last row) now, before the browser can drop focus to <body> once
+  // the node disappears.
   const focusOffRowBeforeRemoval = () => {
     const li = liRef.current;
     if (!li) return;
@@ -569,19 +551,12 @@ function DeckCardRow({
     const siblingRows = list ? Array.from(list.querySelectorAll<HTMLElement>('.deck-row')) : [];
     const idx = siblingRows.indexOf(li);
     const target = siblingRows[idx + 1] ?? siblingRows[idx - 1];
-    const control = target?.querySelector<HTMLElement>('.deck-row-qty-step, .deck-row-qty-edit');
+    const control = target?.querySelector<HTMLElement>('.deck-row-qty-edit');
     (
       control ??
       target ??
       li.closest('.deck-section')?.querySelector<HTMLElement>('.deck-section-title')
     )?.focus();
-  };
-  const step = (delta: number) => {
-    if (!onSetQty || stepBusy) return;
-    if (delta < 0 && row.qty <= 1) focusOffRowBeforeRemoval();
-    setStepBusy(true);
-    onSetQty(row.card, delta, { relative: true });
-    requestAnimationFrame(() => setStepBusy(false));
   };
 
   // Role-filter lens: non-matching rows dim in place (layout preserved) so the
@@ -627,9 +602,8 @@ function DeckCardRow({
   // the row's own buttons (which already stopPropagation) needs to change.
   const rowActivate = selectMode && onToggleSelected ? onToggleSelected : onClick;
 
-  // Shared between the plain and stepper-flanked layouts below so the two
-  // never drift — the number itself is the live region (aria-atomic so a
-  // screen reader reads the new count whole, not digit-by-digit).
+  // The number itself is the live region (aria-atomic so a screen reader
+  // reads the new count whole, not digit-by-digit).
   const qtyChip = (
     <button
       type="button"
@@ -709,35 +683,17 @@ function DeckCardRow({
             onFocus={(e) => e.currentTarget.select()}
             onKeyDown={(e) => {
               e.stopPropagation();
-              if (e.key === 'Enter') commitQty(e.currentTarget.value);
+              if (e.key === 'Enter') {
+                const input = e.currentTarget;
+                // A 0 removes the row: hand focus off first, and the blur that
+                // causes commits it (one commit, not Enter's plus blur's).
+                if (Math.floor(Number(input.value)) <= 0) focusOffRowBeforeRemoval();
+                if (document.activeElement === input) commitQty(input.value);
+              }
               if (e.key === 'Escape') setEditingQty(false);
             }}
             onBlur={(e) => commitQty(e.target.value)}
           />
-        ) : canEditQty && showStepper ? (
-          <span className="deck-row-qty-group">
-            <IconButton
-              className="deck-row-qty-step deck-row-qty-step-minus"
-              disabled={stepBusy}
-              onClick={(e) => {
-                e.stopPropagation();
-                step(-1);
-              }}
-              label={`Remove one copy of ${row.name}`}
-              icon={<Minus width={11} height={11} strokeWidth={2.6} />}
-            />
-            {qtyChip}
-            <IconButton
-              className="deck-row-qty-step deck-row-qty-step-plus"
-              disabled={stepBusy || atCap}
-              onClick={(e) => {
-                e.stopPropagation();
-                step(1);
-              }}
-              label={`Add one copy of ${row.name}`}
-              icon={<Plus width={11} height={11} strokeWidth={2.6} />}
-            />
-          </span>
         ) : canEditQty ? (
           qtyChip
         ) : (
