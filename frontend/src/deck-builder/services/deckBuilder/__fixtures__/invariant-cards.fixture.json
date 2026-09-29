@@ -1,5 +1,5 @@
 {
-  "_source": "Scryfall /cards/collection, fetched 2026-09-29 for deckInvariants.test.ts. Real oracle text; fields trimmed to what the checker reads.",
+  "_source": "Scryfall /cards/collection, fetched 2026-09-29 for deckInvariants.test.ts. Real oracle text; fields trimmed to what the checker reads. E525 added the land-slot cards (Westvale Abbey, Hostile Hostel, Legion's Landing, Nykthos, the artifact lands) from Scryfall responses recorded the same day.",
   "cards": [
     {
       "id": "eabc978a-0666-472d-bdc6-d4b29d29eca4",
@@ -1994,6 +1994,207 @@
         "commander": "legal",
         "paupercommander": "not_legal",
         "brawl": "not_legal"
+      }
+    },
+    {
+      "id": "834b27a0-dfd7-4f96-8cde-cacac4b24acc",
+      "oracle_id": "84dc18f0-8225-4b40-a165-b10321e41769",
+      "name": "Nykthos, Shrine to Nyx",
+      "mana_cost": "",
+      "cmc": 0.0,
+      "type_line": "Legendary Land",
+      "oracle_text": "{T}: Add {C}.\n{2}, {T}: Choose a color. Add an amount of mana of that color equal to your devotion to that color. (Your devotion to a color is the number of mana symbols of that color in the mana costs of permanents you control.)",
+      "colors": [],
+      "color_identity": [],
+      "keywords": [],
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "ths",
+      "set_name": "Theros",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "50.91",
+        "eur": "37.30"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "05e2a5e6-3aaa-4096-bdd0-fcc1afe5a36c",
+      "oracle_id": "f7d8b91b-6541-4d3e-af51-7e000eac69c1",
+      "name": "Legion's Landing // Adanto, the First Fort",
+      "cmc": 1.0,
+      "type_line": "Legendary Enchantment // Legendary Land",
+      "color_identity": ["W"],
+      "keywords": ["Transform"],
+      "rarity": "rare",
+      "layout": "transform",
+      "set": "xln",
+      "set_name": "Ixalan",
+      "games": ["arena", "paper", "mtgo"],
+      "game_changer": false,
+      "card_faces": [
+        {
+          "name": "Legion's Landing",
+          "mana_cost": "{W}",
+          "type_line": "Legendary Enchantment",
+          "oracle_text": "When Legion's Landing enters, create a 1/1 white Vampire creature token with lifelink.\nWhen you attack with three or more creatures, transform Legion's Landing.",
+          "colors": ["W"]
+        },
+        {
+          "name": "Adanto, the First Fort",
+          "mana_cost": "",
+          "type_line": "Legendary Land",
+          "oracle_text": "(Transforms from Legion's Landing.)\n{T}: Add {W}.\n{2}{W}, {T}: Create a 1/1 white Vampire creature token with lifelink.",
+          "colors": []
+        }
+      ],
+      "prices": {
+        "usd": "3.43",
+        "eur": "2.59"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "2ba7597d-6d76-45b8-b172-342999e401bd",
+      "oracle_id": "8dc067bf-f78f-4ac4-b6e7-b305c42cf0bc",
+      "name": "Darksteel Citadel",
+      "mana_cost": "",
+      "cmc": 0.0,
+      "type_line": "Artifact Land",
+      "oracle_text": "Indestructible\n{T}: Add {C}.",
+      "colors": [],
+      "color_identity": [],
+      "keywords": ["Indestructible"],
+      "rarity": "uncommon",
+      "layout": "normal",
+      "set": "c21",
+      "set_name": "Commander 2021",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "2.66",
+        "eur": "0.93"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "5da5587d-6b6c-4645-8cc9-2866d1e6911b",
+      "oracle_id": "39451b4d-cd7a-40da-b457-cb51b609173f",
+      "name": "Seat of the Synod",
+      "mana_cost": "",
+      "cmc": 0.0,
+      "type_line": "Artifact Land",
+      "oracle_text": "{T}: Add {U}.",
+      "colors": [],
+      "color_identity": ["U"],
+      "keywords": [],
+      "rarity": "common",
+      "layout": "normal",
+      "set": "mrd",
+      "set_name": "Mirrodin",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "1.22",
+        "eur": "0.80"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "677b1405-a667-4a29-94ba-a821b10223b1",
+      "oracle_id": "04eeb9ad-5c59-411b-8809-db8349838588",
+      "name": "Westvale Abbey // Ormendahl, Profane Prince",
+      "cmc": 0.0,
+      "type_line": "Land // Legendary Creature — Demon",
+      "color_identity": ["B"],
+      "keywords": ["Flying", "Lifelink", "Indestructible", "Transform", "Haste"],
+      "rarity": "rare",
+      "layout": "transform",
+      "set": "inr",
+      "set_name": "Innistrad Remastered",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "card_faces": [
+        {
+          "name": "Westvale Abbey",
+          "mana_cost": "",
+          "type_line": "Land",
+          "oracle_text": "{T}: Add {C}.\n{5}, {T}, Pay 1 life: Create a 1/1 white and black Human Cleric creature token.\n{5}, {T}, Sacrifice five creatures: Transform this land, then untap it.",
+          "colors": []
+        },
+        {
+          "name": "Ormendahl, Profane Prince",
+          "mana_cost": "",
+          "type_line": "Legendary Creature — Demon",
+          "oracle_text": "Flying, lifelink, indestructible, haste",
+          "colors": ["B"]
+        }
+      ],
+      "prices": {
+        "usd": "2.51",
+        "eur": "1.89"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "ac83c27f-55d6-4e5a-93a4-febb0c183289",
+      "oracle_id": "1b340f71-502f-48e9-85ed-9af62f356115",
+      "name": "Hostile Hostel // Creeping Inn",
+      "cmc": 0.0,
+      "type_line": "Land // Artifact Creature — Horror Construct",
+      "color_identity": ["B"],
+      "keywords": ["Transform"],
+      "rarity": "mythic",
+      "layout": "transform",
+      "set": "mid",
+      "set_name": "Innistrad: Midnight Hunt",
+      "games": ["arena", "paper", "mtgo"],
+      "game_changer": false,
+      "card_faces": [
+        {
+          "name": "Hostile Hostel",
+          "mana_cost": "",
+          "type_line": "Land",
+          "oracle_text": "{T}: Add {C}.\n{1}, {T}, Sacrifice a creature: Put a soul counter on this land. Then if there are three or more soul counters on it, remove those counters, transform it, then untap it. Activate only as a sorcery.",
+          "colors": []
+        },
+        {
+          "name": "Creeping Inn",
+          "mana_cost": "",
+          "type_line": "Artifact Creature — Horror Construct",
+          "oracle_text": "Whenever this creature attacks, you may exile a creature card from your graveyard. If you do, each opponent loses X life and you gain X life, where X is the number of creature cards exiled with this creature.\n{4}: This creature phases out.",
+          "colors": ["B"]
+        }
+      ],
+      "prices": {
+        "usd": "0.64",
+        "eur": "1.01"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
       }
     }
   ]

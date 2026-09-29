@@ -72,6 +72,7 @@ import {
   notLegalForFormat,
   violatesUserCaps,
   userCapsWithoutPrice,
+  fitsSpellSlot,
 } from './deckFilters';
 import {
   calculateTargetCounts,
@@ -410,11 +411,6 @@ export function buildLandCountClampNote(
   return `${lead}, but this deck size ${clause}.${deliveredClause}`;
 }
 
-// A land-count delta this small is routine land-generation rounding (color-
-// balance splits, MDFC handling), not pool exhaustion — see
-// buildPoolExhaustionNote.
-export const POOL_EXHAUSTION_LAND_THRESHOLD = 3;
-
 /**
  * Root-cause-honest disclosure for pool exhaustion (LIVE-CONFIRMED three
  * ways: an invalid Scryfall filter, a thin owned-only pool, and a plain
@@ -427,8 +423,8 @@ export const POOL_EXHAUSTION_LAND_THRESHOLD = 3;
  * ran. Comparing the FINAL delivered land count against `targets.lands` (the
  * pre-generation plan — fixed once by calculateTargetCounts and never
  * mutated afterward) catches the excess regardless of which phase produced
- * it. Undefined when the excess is at/under POOL_EXHAUSTION_LAND_THRESHOLD
- * (routine rounding, not exhaustion).
+ * it. Every extra land is disclosed (E529): the old 3-land "rounding" band
+ * hid real padding, since land generation delivers its planned count exactly.
  */
 export function buildPoolExhaustionNote(params: {
   plannedLandCount: number;
@@ -438,7 +434,7 @@ export function buildPoolExhaustionNote(params: {
   hasCollectionNames: boolean;
 }): string | undefined {
   const excess = params.finalLandCount - params.plannedLandCount;
-  if (excess <= POOL_EXHAUSTION_LAND_THRESHOLD) return undefined;
+  if (excess <= 0) return undefined;
   const cause = params.hasCollectionNames
     ? 'your collection'
     : params.hasScryfallQuery
@@ -3474,7 +3470,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         if (filled >= shortage) break;
 
         const scryfallCard = fillCardMap.get(edhrecCard.name);
-        if (!scryfallCard) continue;
+        if (!scryfallCard || !fitsSpellSlot(scryfallCard)) continue; // E525: allNonLand holds lands
 
         if (!isCardAllowedBySynergyDependencies(scryfallCard)) continue;
         if (!fitsColorIdentity(scryfallCard, colorIdentity)) continue;
@@ -3535,7 +3531,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           if (usedNames.has(edhrecCard.name)) continue;
 
           const scryfallCard = fillCardMap.get(edhrecCard.name);
-          if (!scryfallCard) continue;
+          if (!scryfallCard || !fitsSpellSlot(scryfallCard)) continue;
 
           if (!isCardAllowedBySynergyDependencies(scryfallCard)) continue;
           if (!fitsColorIdentity(scryfallCard, colorIdentity)) continue;
@@ -3624,6 +3620,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     // escape hatch below rather than silently over-filling the role.
     const ownedCapSkipped: ScryfallCard[] = [];
     const addOwnedCard = (card: ScryfallCard, allowCapOverflow = false): boolean => {
+      if (!fitsSpellSlot(card)) return false; // E525: these fill spell slots
       if (!allowCapOverflow && isOverRoleCap(card, roleTargets, currentRoleCounts)) {
         ownedCapSkipped.push(card);
         return false;
@@ -4015,7 +4012,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       preferEvict?: string,
       strictRole = false
     ): boolean => {
-      if (usedNames.has(card.name)) return false;
+      if (usedNames.has(card.name) || !fitsSpellSlot(card)) return false; // E525
       if (!fitsColorIdentity(card, colorIdentity) || isDeadInIdentity(card, colorIdentity)) {
         return false;
       }

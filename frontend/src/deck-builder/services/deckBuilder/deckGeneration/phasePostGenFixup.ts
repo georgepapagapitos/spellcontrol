@@ -9,7 +9,12 @@ import {
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import type { GenerationState } from './state';
 import { stampRoleSubtypes, routeCardByType } from '../categorize';
-import { constrainsToCollection, notInCollection, violatesUserCaps } from '../deckFilters';
+import {
+  constrainsToCollection,
+  fitsSpellSlot,
+  notInCollection,
+  violatesUserCaps,
+} from '../deckFilters';
 import { calculateCardPriority } from '../cardPicking';
 import { STAPLE_ROCK_NAMES } from './phaseStapleManaRocks';
 import { ROLE_LABEL } from './phaseRoleSurplusRebalance';
@@ -142,6 +147,9 @@ export function postGenFixupPhase(
           !bannedCards.has(c.name) &&
           getCardRole(c.name) === role &&
           scryfallCardMap.has(c.name) &&
+          // E525: allNonLand still carries utility lands (Nykthos has a ramp
+          // role), and this swap fills a spell slot.
+          fitsSpellSlot(scryfallCardMap.get(c.name)!) &&
           isOwnedCandidate(c.name) &&
           !violatesUserCaps(scryfallCardMap.get(c.name)!, state.cfg, collectionNames)
       )
@@ -220,6 +228,7 @@ export function postGenFixupPhase(
                   !usedNames.has(c.name) &&
                   !bannedCards.has(c.name) &&
                   scryfallCardMap.has(c.name) &&
+                  fitsSpellSlot(scryfallCardMap.get(c.name)!) &&
                   isOwnedCandidate(c.name) &&
                   (scryfallCardMap.get(c.name)!.cmc ?? 0) === targetCmc &&
                   // E-arena-leak: same missing gate as findRoleCandidate above.
