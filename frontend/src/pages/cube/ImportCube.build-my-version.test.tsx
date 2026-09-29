@@ -199,6 +199,33 @@ describe('Import a cube → Build my version', () => {
 
     await waitFor(() => screen.getByText('Cube page opened'));
     expect(useCubeStore.getState().saved).toHaveLength(1);
+    // A draft by default: nothing reserved.
+    expect(useCubeStore.getState().saved[0].isPhysical).toBe(false);
+    expect(useCubeStore.getState().saved[0].picks).toEqual([]);
+  });
+
+  it('the Physical cube switch reserves your copies of my version at save time', async () => {
+    fetchCubeCobraCube.mockResolvedValue(importedCube());
+    await importAndBuild();
+    // Seeded after the build: the save must read live collection state.
+    const copy = (copyId: string, name: string) =>
+      ({ copyId, name, scryfallId: `sf-${copyId}`, finish: 'nonfoil', purchasePrice: 1 }) as never;
+    useCollectionStore.setState({
+      cards: [copy('bear-1', 'Owned Bear'), copy('bolt-1', 'Red Bolt Alt')],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save this cube' }));
+    await screen.findByLabelText('Cube name');
+    const toggle = screen.getByRole('switch', { name: 'Physical cube' });
+    expect(toggle.getAttribute('aria-checked')).toBe('false');
+    fireEvent.click(toggle);
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => screen.getByText('Cube page opened'));
+    const saved = useCubeStore.getState().saved[0];
+    expect(saved.isPhysical).toBe(true);
+    const bound = Object.fromEntries(saved.picks.map((p) => [p.card.name, p.allocatedCopyId]));
+    expect(bound).toEqual({ 'Owned Bear': 'bear-1', 'Red Bolt Alt': 'bolt-1' });
   });
 
   it("sends the cards you don't own to a want list", async () => {

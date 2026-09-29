@@ -3,13 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import './cube.css';
 import { BackLink } from '../../components/BackLink';
 import { PageHeader } from '../../components/PageHeader';
-import { Disclosure, SwitchRow } from '../../components/shared/form';
+import { Disclosure } from '../../components/shared/form';
 import { NameInputDialog } from '../../components/NameInputDialog';
 import { useCollectionStore } from '../../store/collection';
 import { useToastsStore } from '../../store/toasts';
 import { useCubeStore } from '../../store/cube';
-import { useDecksStore } from '../../store/decks';
-import { bindCubeCopies } from '../../lib/bind-cube-copies';
 import { useAuth } from '../../store/auth';
 import { DEFAULT_POOL_FILTERS, type PoolFilters } from '../../lib/cube/pool-filters';
 import { SelectMenu } from '../../components/SelectMenu';
@@ -37,6 +35,9 @@ import {
   CubeLoadingBlock,
   CubeErrorBlock,
   countEligibleLegends,
+  PhysicalCubeSwitch,
+  picksForSave,
+  savedCubeMessage,
   type CardPriority,
 } from './shared';
 import { LEGEND_TARGET } from '../../lib/cube/legend';
@@ -424,17 +425,7 @@ export function CubeBuildPage() {
 
   const handleSave = (name: string) => {
     const suppliers = supplierMap.size > 0 ? Object.fromEntries(supplierMap) : undefined;
-    // Bind against live store state read at save time, like "Mark physical",
-    // so a copy another deck claimed since the build is never double-claimed.
-    const picks =
-      savePhysical && cube
-        ? bindCubeCopies(
-            cube.picks,
-            useCollectionStore.getState().cards,
-            useDecksStore.getState().decks,
-            useCubeStore.getState().saved.filter((c) => c.isPhysical)
-          )
-        : [];
+    const picks = cube ? picksForSave(cube.picks, savePhysical) : [];
     const id = cubeStore.saveCurrent(
       name,
       savePhysical,
@@ -444,13 +435,7 @@ export function CubeBuildPage() {
     );
     setSaveOpen(false);
     if (!id) return;
-    const reserved = picks.filter((p) => p.allocatedCopyId).length;
-    pushToast({
-      message: savePhysical
-        ? `Saved "${name}" and reserved ${reserved} of ${picks.length} cards`
-        : `Saved "${name}"`,
-      tone: 'success',
-    });
+    pushToast({ message: savedCubeMessage(name, savePhysical, picks), tone: 'success' });
     navigate(`/decks/cube/${id}`);
   };
 
@@ -602,12 +587,7 @@ export function CubeBuildPage() {
               onSubmit={handleSave}
               onCancel={() => setSaveOpen(false)}
             >
-              <SwitchRow
-                label="Physical cube"
-                hint="Reserves one of your copies of each card, so decks stop counting them as free. You can unmark it any time."
-                checked={savePhysical}
-                onChange={setSavePhysical}
-              />
+              <PhysicalCubeSwitch checked={savePhysical} onChange={setSavePhysical} />
             </NameInputDialog>
           )}
         </div>
