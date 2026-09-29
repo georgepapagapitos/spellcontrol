@@ -1532,7 +1532,8 @@ i.ss.set-symbol--mythic {
    colour is the row chip's dashed outline, and the style guide's mark for
    "no physical home". */
 :where(.art-badge[data-identity='listed']) {
-  border: 1.5px dashed var(--identity-color, var(--accent));
+  border-style: dashed;
+  border-color: var(--identity-color, var(--accent));
 }
 
 /* A single owner is a link or a button: it lifts and brightens, keeping its

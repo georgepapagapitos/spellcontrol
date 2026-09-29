@@ -46,4 +46,35 @@ describe('DeckBadge listed cubes (E503)', () => {
     expect(screen.getByRole('link', { name: 'In deck: Atraxa' })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Listed in cube: Shelf' })).toBeTruthy();
   });
+
+  it('on art, a listing is the hollow identity mark, never the filled disc', () => {
+    // A filled violet disc is a physical cube holding a copy; a listing holds
+    // none, so it must not look the same on a grid tile.
+    renderBadge(
+      <DeckBadge
+        allocations={[
+          {
+            ownerKind: 'cube',
+            ownerId: 'p1',
+            ownerName: 'Physical',
+            ownerColor: 'var(--cube-color)',
+            deckId: '',
+            deckName: 'Physical',
+            deckColor: 'var(--cube-color)',
+            cardName: 'Sol Ring',
+          },
+        ]}
+        listedIn={[
+          { cubeId: 'c1', cubeName: 'Shelf' },
+          { cubeId: 'c2', cubeName: 'Pauper' },
+        ]}
+        placement="art"
+      />
+    );
+    const held = screen.getByRole('link', { name: 'In cube: Physical' });
+    expect(held.getAttribute('data-identity')).toBe('one');
+    const listed = screen.getByLabelText('Listed in 2 cubes: Shelf, Pauper');
+    expect(listed.getAttribute('data-identity')).toBe('listed');
+    expect(listed.className).not.toContain('card-list-deck-badge');
+  });
 });
