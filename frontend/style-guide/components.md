@@ -842,6 +842,12 @@ own dashed, ungrouped row last, unchanged from the single-preset case above.
   "Binder rules" as the secondary way in.
 - Gate every volumes UI on `volumes !== null && volumes.length > 1` — a binder
   with no fixed capacity or one that fits never says "Vol 1".
+- **Volumes are worked out once, from the unfiltered binder, and handed down.**
+  BinderPage computes them from its search-free pass and passes them to the
+  grid view (its page viewer) and the list view as a prop. A view never
+  recomputes them from the binder it renders: during a search that is the
+  narrowed pass, which drops pages. The list view did exactly that until
+  2026-09-28, so a search inside a multi-volume binder renumbered its volumes.
 
 ### Plan a shelf (E496)
 

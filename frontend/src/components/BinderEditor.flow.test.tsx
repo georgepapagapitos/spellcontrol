@@ -226,6 +226,24 @@ describe('Order and Pages are collapsed rows that state their value', () => {
     expect(screen.getByRole('radio', { name: /^Keep sections whole/ })).toBeTruthy();
   });
 
+  it('"Choose fields" in Order moves focus to the chain\'s first field picker (E506)', () => {
+    const existing = makeBinderDef({ sorts: [{ field: 'rarity', dir: 'asc' }] });
+    useCollectionStore.setState({ binders: [existing] });
+    open(existing.id);
+    fireEvent.click(screen.getByRole('button', { name: /Order/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Choose fields/ }));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Sort 1 field' }));
+  });
+
+  it('"Choose fields" on an empty chain lands on "+ Then by", which starts one (E506)', () => {
+    const existing = makeBinderDef({ sorts: [] });
+    useCollectionStore.setState({ binders: [existing] });
+    open(existing.id);
+    fireEvent.click(screen.getByRole('button', { name: /Order/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Choose fields/ }));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: '+ Then by' }));
+  });
+
   it('a pocket change in Pages persists on save', () => {
     const existing = makeBinderDef();
     const updateBinder = vi.fn();

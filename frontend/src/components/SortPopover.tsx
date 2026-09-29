@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { SORT_FIELDS, sortDirectionLabel } from '../lib/sorting';
 import { SortEditor } from './SortEditor';
+import { focusFirstSortField } from '../lib/sort-field-focus';
 import { SortPresetChips, SortPresetList } from './SortPresets';
 import { sortOrderSummaryLabel } from '@/lib/sort-order-label';
 import { Modal } from './Modal';
@@ -114,12 +115,12 @@ function SortAnchoredPopover({ sorts, valueOrders, onSortsChange, onValueOrdersC
                 it always had (E491). The compact chip form (not the sheet's
                 description-per-row list) keeps the panel short enough that
                 the chain stays visible without scrolling at 1440×900.
-                Picking "Choose fields" is a no-op here — the chain is
-                already showing below. */}
+                The chain is already showing below, so "Choose fields"
+                moves to its first field picker (E506). */}
             <SortPresetChips
               sorts={sorts}
               onPick={(preset) => onSortsChange(preset.sorts)}
-              onChooseFields={() => {}}
+              onChooseFields={() => focusFirstSortField(panelRef.current)}
             />
             <SortEditor
               sorts={sorts}

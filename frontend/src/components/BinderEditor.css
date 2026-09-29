@@ -2,6 +2,14 @@
    pieces themselves (switch rows, segmented controls, disclosures) come from
    components/shared/form.css; this file only arranges them. */
 
+/* The Order section's chips and chain share one wrapper (so "Choose fields"
+   can reach the chain); keep the Disclosure body's own spacing between them. */
+.binder-editor-order {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
 /* ── Header: the binder's identity, edited in place ────────────────────── */
 .binder-editor-header {
   gap: var(--space-2);

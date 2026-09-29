@@ -24,6 +24,7 @@ import {
   printingStubFromEnriched,
 } from '../lib/edit-card';
 import { BinderPagePreview } from './BinderPagePreview';
+import { hasMultipleVolumes, pageVolume, type Volume } from '../lib/binder-volumes';
 import { useBinderCardPreview } from './use-binder-card-preview';
 import { BinderDriftBanner } from './BinderDriftBanner';
 import { BinderSummaryBar, type BinderViewControls } from './BinderSummaryBar';
@@ -64,9 +65,21 @@ interface Props {
   qtyByCopyId?: Map<string, number>;
   /** When true, card slots show thumbnail images instead of text names. */
   showImages?: boolean;
+  /**
+   * The active binder's volumes, from BinderPage's UNFILTERED pass (a search
+   * drops pages, which would renumber them). Labels the page viewer's pages.
+   */
+  volumes?: Volume[] | null;
 }
 
-export function BinderView({ binders, driftBinders, controls, qtyByCopyId, showImages }: Props) {
+export function BinderView({
+  binders,
+  driftBinders,
+  controls,
+  qtyByCopyId,
+  showImages,
+  volumes = null,
+}: Props) {
   const activeTab = useCollectionStore((s) => s.activeTab);
   const setActiveTab = useCollectionStore((s) => s.setActiveTab);
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
@@ -134,6 +147,7 @@ export function BinderView({ binders, driftBinders, controls, qtyByCopyId, showI
         showImages={showImages}
         getCardActions={cardPreview.getCardActions}
         renderCardMeta={cardPreview.renderCardMeta}
+        volumes={volumes}
       />
       {cardPreview.sheet}
     </>
@@ -158,6 +172,7 @@ function SectionList({
   showImages,
   getCardActions,
   renderCardMeta,
+  volumes,
 }: {
   viewKey: string;
   binderName: string;
@@ -178,6 +193,7 @@ function SectionList({
   getCardActions?: (card: EnrichedCard | undefined) => CardPreviewAction[];
   /** The preview panel's lead section for a card (why it is in this binder). */
   renderCardMeta?: (card: EnrichedCard | undefined) => ReactNode;
+  volumes: Volume[] | null;
 }) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
@@ -287,6 +303,18 @@ function SectionList({
   const flatPageLabels = useMemo(
     () => sections.flatMap((s) => s.pages.map((p) => p.labels?.join(' · ') ?? s.label)),
     [sections]
+  );
+  // "Vol 2" per page for the page viewer's top bar, only once the binder
+  // outgrows its capacity (the list view does the same).
+  const flatVolumeLabels = useMemo(
+    () =>
+      hasMultipleVolumes(volumes)
+        ? flatPages.map((p) => {
+            const v = pageVolume(volumes, p.pageNum);
+            return v ? `Vol ${v}` : '';
+          })
+        : undefined,
+    [volumes, flatPages]
   );
 
   // Cumulative page-offset per section, for translating section-local page
@@ -470,6 +498,7 @@ function SectionList({
         <BinderPagePreview
           pages={flatPages}
           pageLabels={flatPageLabels}
+          volumeLabels={flatVolumeLabels}
           startPageIndex={pagesStartIndex}
           pocketSize={pocketSize}
           binderName={binderName}
