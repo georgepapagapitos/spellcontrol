@@ -132,6 +132,22 @@ describe('planVolumes — fixtures', () => {
     ]);
   });
 
+  it('fills a volume before splitting a section bigger than a volume (no stranded books)', () => {
+    // Capacity = 4 pages. A small section (1 page) then one bigger than a
+    // volume (6 pages): 7 pages need 2 books. Closing volume 1 after the small
+    // section stranded 3 pages and made 3 books (seen on a real "Worth $5 or
+    // more" binder: 43 pages at 40 a book read "3 volumes").
+    const sections = buildFixtureSections([
+      { label: 'A', pageCounts: [9] },
+      { label: 'B', pageCounts: [9, 9, 9, 9, 9, 9] },
+    ]);
+    const volumes = planVolumes(sections, { capacityCards: 36, pocketSize: 9 });
+    expect(volumes).toEqual([
+      { index: 1, pageStart: 1, pageEnd: 4, cardCount: 36, firstLabel: 'A', lastLabel: 'B' },
+      { index: 2, pageStart: 5, pageEnd: 7, cardCount: 27, firstLabel: 'B', lastLabel: 'B' },
+    ]);
+  });
+
   it('handles a partial final page correctly in card counts', () => {
     // Section has one full page (9) and one partial page (4 real cards, 5 nulls).
     const partialSection: Pick<BinderSection, 'label' | 'pages'> = {
@@ -225,6 +241,22 @@ describe('planVolumes — invariants over materializeBinders', () => {
               containing,
               `section "${section.label}" (pages ${start}-${end}) should sit inside one volume`
             ).toBeTruthy();
+          }
+
+          // A volume ends short of capacity only to keep the next section
+          // whole: the section opening the next volume then fits in one
+          // volume. A section bigger than a volume is split anyway, so it must
+          // fill the short volume first instead of stranding its space.
+          for (let i = 0; i + 1 < vols.length; i++) {
+            const pages = vols[i].pageEnd - vols[i].pageStart + 1;
+            if (pages === capacityPages) continue;
+            const next = binder.sections.find((s) =>
+              s.pages.some((p) => p.pageNum === vols[i + 1].pageStart)
+            )!;
+            expect(
+              next.pages.length,
+              `volume ${vols[i].index} ends at ${pages}/${capacityPages} pages before "${next.label}"`
+            ).toBeLessThanOrEqual(capacityPages);
           }
 
           // Determinism.
