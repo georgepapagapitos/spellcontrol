@@ -7,7 +7,7 @@ import {
 } from './allocations';
 import { validateDeckZones, type LegalityIssue } from './deck-validation';
 import { deckNameForCommander, newDeckCard, type Deck, type DeckCard } from '../store/decks';
-import { commanderEligibleFor } from '../components/deck/import-deck-shared';
+import { commanderEligibleFor } from './deck-import-format';
 import { cardKey, type CardDelta, type CardListDiff } from './deck-diff';
 import type { EnrichedCard } from '../types';
 

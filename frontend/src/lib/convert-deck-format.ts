@@ -1,9 +1,6 @@
 import type { DeckFormat, ScryfallCard } from '@/deck-builder/types';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
-import {
-  commanderCandidatesFor,
-  commanderEligibleFor,
-} from '../components/deck/import-deck-shared';
+import { commanderCandidatesFor, commanderEligibleFor } from './deck-import-format';
 import { isPdhCommanderEligible } from './commanders';
 import { sideboardLimit, validateDeckZones, type LegalityIssue } from './deck-validation';
 import { genId } from './id';
