@@ -6,13 +6,10 @@ import { useSignInPath } from '../lib/sign-in-path';
 import { useAuth } from '../store/auth';
 import { toast } from '../store/toasts';
 import { Tabs } from './Tabs';
-import { SearchPill } from './SearchPill';
 import { formatRelativeTime } from '../lib/format-time';
 import { formatIdentity } from '../lib/display-name';
 import { scrollToHeading } from '../lib/scroll-to-heading';
 import {
-  searchUsers,
-  sendFriendRequest,
   acceptRequest,
   declineRequest,
   cancelRequest,
@@ -20,38 +17,29 @@ import {
   listFriends,
   listRequests,
   getFriendsActivity,
-  type FriendUser,
   type Friend,
   type FriendRequest,
   type FriendActivityItem,
 } from '../lib/friends-client';
 import { useInbox, markInboxSeen, countUnseen, useInboxSeenAt } from '../lib/use-inbox';
 import { useConfirm } from '../lib/use-confirm';
+import { useFollowing } from '../lib/social/use-following';
+import { FollowingPanel } from './friends/FollowingPanel';
+import { FriendRow, FriendRowSkeleton } from './friends/FriendRow';
+import { PeopleSearch } from './friends/PeopleSearch';
+import { SuggestedBrewers } from './friends/SuggestedBrewers';
 
 import { userMessage } from '@/lib/user-error';
 import { Button } from '@/components/shared/Button';
-type TabId = 'friends' | 'requests' | 'inbox' | 'activity';
+type TabId = 'friends' | 'following' | 'requests' | 'inbox' | 'activity';
 
 const TABS = [
   { id: 'friends' as TabId, label: 'Friends' },
+  { id: 'following' as TabId, label: 'Following' },
   { id: 'requests' as TabId, label: 'Requests' },
   { id: 'inbox' as TabId, label: 'Inbox' },
   { id: 'activity' as TabId, label: 'Activity' },
 ];
-
-// ── Add Friend row action label ───────────────────────────────────────────────
-function friendStatusLabel(status: FriendUser['friendStatus']): string {
-  switch (status) {
-    case 'none':
-      return 'Add';
-    case 'request_sent':
-      return 'Pending';
-    case 'request_received':
-      return 'Accept';
-    case 'friends':
-      return 'Friends';
-  }
-}
 
 // ── Skeleton ──────────────────────────────────────────────────────────────────
 function FriendsSkeleton() {
@@ -84,17 +72,12 @@ export function FriendsManagement() {
     TABS.find((t) => t.id === (searchParams.get('tab') ?? searchParams.get('friendsTab')))?.id ??
     'friends';
 
-  // Search
-  const [query, setQuery] = useState('');
-  const [searching, setSearching] = useState(false);
-  const [searchResults, setSearchResults] = useState<FriendUser[] | null>(null);
-  const [searchError, setSearchError] = useState<string | null>(null);
-
   // null = not yet loaded (shows skeleton); loaded = array (may be empty)
   const [friends, setFriends] = useState<Friend[] | null>(null);
   const [incoming, setIncoming] = useState<FriendRequest[] | null>(null);
   const [outgoing, setOutgoing] = useState<FriendRequest[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const following = useFollowing(status === 'authed');
 
   // Activity tab: null = not yet loaded (skeleton). Fetched lazily on first
   // selection (see the tab-side-effects useEffect below), not on mount, and
@@ -219,62 +202,6 @@ export function FriendsManagement() {
     return () => window.removeEventListener('focus', loadData);
   }, [status, loadData]);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const q = query.trim();
-    if (!q) return;
-    setSearching(true);
-    setSearchError(null);
-    try {
-      const results = await searchUsers(q);
-      setSearchResults(results);
-    } catch (err) {
-      setSearchError(
-        userMessage(err, "Couldn't run that search. Check your connection and try again.")
-      );
-      setSearchResults(null);
-    } finally {
-      setSearching(false);
-    }
-  };
-
-  const handleSearchAction = async (user: FriendUser) => {
-    if (user.friendStatus !== 'none' && user.friendStatus !== 'request_received') return;
-    setBusy(user.id, true);
-    try {
-      if (user.friendStatus === 'none') {
-        await sendFriendRequest(user.username);
-        toast.show({
-          message: `Friend request sent to ${formatIdentity(user).primary}.`,
-          tone: 'success',
-        });
-        // Update search result in-place
-        setSearchResults((prev) =>
-          prev
-            ? prev.map((u) => (u.id === user.id ? { ...u, friendStatus: 'request_sent' } : u))
-            : prev
-        );
-      } else if (user.friendStatus === 'request_received') {
-        await acceptRequest(user.id);
-        toast.show({
-          message: `You and ${formatIdentity(user).primary} are now friends.`,
-          tone: 'success',
-        });
-        setSearchResults((prev) =>
-          prev ? prev.map((u) => (u.id === user.id ? { ...u, friendStatus: 'friends' } : u)) : prev
-        );
-        void loadData();
-      }
-    } catch (err) {
-      toast.show({
-        message: userMessage(err, "That didn't go through. Try again."),
-        tone: 'error',
-      });
-    } finally {
-      setBusy(user.id, false);
-    }
-  };
-
   const handleAccept = async (req: FriendRequest) => {
     setBusy(req.requesterId, true);
     try {
@@ -378,6 +305,16 @@ export function FriendsManagement() {
   const incomingList = incoming ?? [];
   const outgoingList = outgoing ?? [];
   const inboxList = inbox ?? [];
+  const followingList = following.brewers ?? [];
+  const followingNames = new Set(followingList.map((b) => b.username));
+  // Few people in your circle: offer a short strip of brewers to meet. Only
+  // once both lists have answered (a slow one must not flash it), and never
+  // over an error.
+  const fewPeople =
+    !loading &&
+    !loadError &&
+    following.brewers !== null &&
+    friendsList.length + followingList.length < 3;
   // Suppress the unseen badge while its own tab is open (it's been seen) —
   // same server truth (users.inbox_seen_at, T117) backs both.
   const unseenRequests = tab === 'requests' ? 0 : countUnseen(incomingList, inboxSeenAt);
@@ -386,6 +323,7 @@ export function FriendsManagement() {
   const tabsWithCounts = TABS.map((t) => {
     let count: number | null = null;
     if (t.id === 'friends') count = friendsList.length || null;
+    else if (t.id === 'following') count = followingList.length || null;
     else if (t.id === 'requests') count = unseenRequests > 0 ? unseenRequests : null;
     else if (t.id === 'inbox') count = unseenInbox > 0 ? unseenInbox : null;
     return { ...t, count };
@@ -393,84 +331,13 @@ export function FriendsManagement() {
 
   return (
     <>
-      {/* ── Add Friend search ──────────────────────────────────────────────── */}
-      <section aria-label="Add a friend">
-        <form className="friends-search-form" onSubmit={(e) => void handleSearch(e)}>
-          <SearchPill
-            placeholder="Search by username…"
-            value={query}
-            onChange={(next) => {
-              setQuery(next);
-              if (!next) {
-                setSearchResults(null);
-                setSearchError(null);
-              }
-            }}
-            ariaLabel="Search users by username"
-            inputProps={{ autoComplete: 'off', autoCapitalize: 'none', spellCheck: false }}
-          />
-          <Button
-            type="submit"
-            variant="primary"
-            className="friends-search-btn"
-            disabled={searching || !query.trim()}
-            aria-label="Search"
-          >
-            {searching ? 'Searching…' : 'Search'}
-          </Button>
-        </form>
-
-        {searchError && (
-          <p className="friends-error" role="alert">
-            {searchError}
-          </p>
-        )}
-
-        {searchResults !== null && (
-          <ul className="friends-search-results" aria-label="Search results">
-            {searchResults.length === 0 ? (
-              <li className="friends-empty">
-                <span role="status">No users found for &ldquo;{query}&rdquo;.</span>
-              </li>
-            ) : (
-              searchResults.map((user) => {
-                const label = friendStatusLabel(user.friendStatus);
-                const actionable =
-                  user.friendStatus === 'none' || user.friendStatus === 'request_received';
-                const isPrimary =
-                  user.friendStatus === 'none' || user.friendStatus === 'request_received';
-                // Two different actions share this button (send a request vs
-                // accept one) — the busy label names the one actually in
-                // flight rather than a bare, verb-less ellipsis.
-                const busyLabel =
-                  user.friendStatus === 'request_received' ? 'Accepting…' : 'Adding…';
-                const identity = formatIdentity(user);
-                return (
-                  <li key={user.id} className="friends-search-result">
-                    <span className="friends-search-result-name">
-                      <span className="friends-identity-text" title={identity.primary}>
-                        {identity.primary}
-                      </span>
-                      {identity.secondary && (
-                        <span className="friends-identity-handle">{identity.secondary}</span>
-                      )}
-                    </span>
-                    <Button
-                      placement="row"
-                      variant={isPrimary ? 'primary' : 'secondary'}
-                      onClick={() => void handleSearchAction(user)}
-                      disabled={!actionable || busyIds.has(user.id)}
-                      aria-label={`${label} ${identity.primary}`}
-                    >
-                      {busyIds.has(user.id) ? busyLabel : label}
-                    </Button>
-                  </li>
-                );
-              })
-            )}
-          </ul>
-        )}
-      </section>
+      <PeopleSearch
+        friends={friends}
+        incoming={incomingList}
+        outgoing={outgoingList}
+        following={followingNames}
+        onChanged={() => void loadData()}
+      />
 
       {/* ── Tabs ──────────────────────────────────────────────────────────── */}
       <div className="friends-tabs-area">
@@ -500,47 +367,44 @@ export function FriendsManagement() {
           className="friends-panel"
         >
           {loading ? (
-            <FriendsSkeleton />
+            <ul className="friends-list" aria-hidden="true">
+              {[0, 1, 2].map((i) => (
+                <FriendRowSkeleton key={i} />
+              ))}
+            </ul>
           ) : friendsList.length === 0 ? (
-            <EmptyState status tagline="No friends yet." />
+            <EmptyState
+              status
+              tagline="No friends yet."
+              hint="Search above for someone you play with, then send a request."
+            />
           ) : (
             <ul className="friends-list" aria-label="Your friends">
-              {friendsList.map((friend) => {
-                const identity = formatIdentity(friend);
-                return (
-                  <li key={friend.id} className="friends-list-item">
-                    <div className="friends-list-info">
-                      <div className="friends-list-name" title={identity.primary}>
-                        {identity.primary}
-                      </div>
-                      {identity.secondary && (
-                        <div className="friends-identity-handle">{identity.secondary}</div>
-                      )}
-                      <div className="friends-list-since">
-                        Friends since {formatRelativeTime(friend.friendedAt)}
-                      </div>
-                    </div>
-                    <Button
-                      placement="row"
-                      to={`/friends/${friend.id}`}
-                      aria-label={`View what ${identity.primary} shared with friends`}
-                    >
-                      View shared
-                    </Button>
-                    <Button
-                      placement="row"
-                      variant="danger"
-                      onClick={() => void handleRemoveFriend(friend)}
-                      disabled={busyIds.has(friend.id)}
-                      aria-label={`Remove ${identity.primary} from friends`}
-                    >
-                      {busyIds.has(friend.id) ? 'Removing…' : 'Remove'}
-                    </Button>
-                  </li>
-                );
-              })}
+              {friendsList.map((friend) => (
+                <FriendRow
+                  key={friend.id}
+                  friend={friend}
+                  busy={busyIds.has(friend.id)}
+                  onRemove={(f) => void handleRemoveFriend(f)}
+                />
+              ))}
             </ul>
           )}
+        </div>
+
+        {/* Following panel */}
+        <div
+          role="tabpanel"
+          id="friends-panel-following"
+          aria-labelledby="sc-tab-following"
+          hidden={tab !== 'following'}
+          className="friends-panel"
+        >
+          <FollowingPanel
+            brewers={following.brewers}
+            error={following.error}
+            onRetry={following.reload}
+          />
         </div>
 
         {/* Requests panel */}
@@ -733,6 +597,7 @@ export function FriendsManagement() {
           )}
         </div>
       </div>
+      {fewPeople && (tab === 'friends' || tab === 'following') && <SuggestedBrewers />}
       {confirmDialog}
     </>
   );

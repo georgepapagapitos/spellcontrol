@@ -357,6 +357,9 @@ describe('PublicProfilePage — banner, stats, follow and what they brew (T175)'
     const first = renderProfile();
     expect(await screen.findByRole('button', { name: 'Follow alice' })).toBeTruthy();
     expect(screen.getByText('Friends')).toBeTruthy();
+    // A status label, never a control: it must not be a button or a link.
+    expect(screen.queryByRole('button', { name: 'Friends' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Friends' })).toBeNull();
     first.unmount();
 
     fetchPublicProfileMock.mockResolvedValue(rich({ isOwner: true }));

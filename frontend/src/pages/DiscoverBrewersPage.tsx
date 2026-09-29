@@ -240,7 +240,7 @@ export function DiscoverBrewersPage() {
 
   return (
     <div className="decks-index-page">
-      <PageHeader title="Discover" meta="Public decks from the SpellControl community." />
+      <PageHeader title="Discover" meta="Find brewers to follow and see what they build." />
       <DecksHubTabs />
       <DiscoverSwitch value="brewers" />
       <DiscoverPanel section="brewers">

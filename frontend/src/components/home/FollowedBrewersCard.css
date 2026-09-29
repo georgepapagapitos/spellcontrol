@@ -1,0 +1,74 @@
+/* FollowedBrewersCard: new decks from brewers you follow. Two lines per row
+   (deck, then "by brewer"); the time is Around the table's `home-table-time`. */
+
+.home-followed-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--row-h);
+  padding: var(--space-1) 0;
+}
+
+.home-followed-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+
+.home-followed-deck,
+.home-followed-brewer {
+  color: inherit;
+  text-decoration: none;
+}
+
+.home-followed-deck {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-followed-by {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-followed-brewer {
+  color: var(--text-secondary);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .home-followed-deck:hover,
+  .home-followed-brewer:hover {
+    color: var(--accent);
+  }
+}
+
+.home-followed-deck:focus-visible,
+.home-followed-brewer:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
+/* Two stacked links share the row: on a coarse pointer the row grows so each
+   line has a finger-sized band (28px each, 56px together). */
+@media (pointer: coarse) {
+  .home-followed-row {
+    min-height: 56px;
+  }
+
+  .home-followed-deck,
+  .home-followed-by {
+    display: flex;
+    align-items: center;
+    min-height: 28px;
+  }
+}
