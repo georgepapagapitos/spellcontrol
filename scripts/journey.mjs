@@ -903,6 +903,7 @@ async function main() {
       // --- Guest: the marketing landing, a guide, and a route nobody owns.
       await visit('/');
       await visit('/decks/discover');
+      await visit('/decks/discover/brewers');
       await visit('/this-route-does-not-exist');
 
       // --- Sign up once (the second viewport signs in to the same account).

@@ -52,6 +52,10 @@ const CollectionCombosPage = lazyPage(
 const SetsPage = lazyPage(() => import('./pages/SetsPage'), 'SetsPage');
 // Decks hub
 const DecksIndexPage = lazyPage(() => import('./pages/DecksIndexPage'), 'DecksIndexPage');
+const DiscoverBrewersPage = lazyPage(
+  () => import('./pages/DiscoverBrewersPage'),
+  'DiscoverBrewersPage'
+);
 const DiscoverDecksPage = lazyPage(() => import('./pages/DiscoverDecksPage'), 'DiscoverDecksPage');
 const SavedDecksPage = lazyPage(() => import('./pages/SavedDecksPage'), 'SavedDecksPage');
 const DeckNewPage = lazyPage(() => import('./pages/DeckNewPage'), 'DeckNewPage');
@@ -352,6 +356,7 @@ export default function App() {
 
             <Route path="/decks" element={<DecksIndexPage />} />
             <Route path="/decks/discover" element={<DiscoverDecksPage />} />
+            <Route path="/decks/discover/brewers" element={<DiscoverBrewersPage />} />
             <Route path="/decks/saved" element={<SavedDecksPage />} />
             <Route path="/decks/new" element={<DeckNewPage />} />
             <Route path="/decks/new/generate" element={<DeckGeneratePage />} />

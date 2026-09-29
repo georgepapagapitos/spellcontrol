@@ -3,6 +3,7 @@ import { LayoutGrid, List as ListIconLucide, Users } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { DecksHubTabs } from '../components/DecksHubTabs';
+import { DiscoverPanel, DiscoverSwitch } from '../components/DiscoverSwitch';
 import { PageHeader } from '../components/PageHeader';
 import {
   DiscoverDeckTile,
@@ -301,149 +302,152 @@ export function DiscoverDecksPage() {
           <PageHeader title="Discover" meta="Public decks from the SpellControl community." />
         )}
         <DecksHubTabs />
+        <DiscoverSwitch value="decks" />
 
-        {!precons && <TrendingRail enabled={true} />}
+        <DiscoverPanel section="decks">
+          {!precons && <TrendingRail enabled={true} />}
 
-        <div className="discover-toolbar">
-          <DiscoverSearch
-            query={filters.query}
-            onQueryChange={(query) => setFilters({ ...filters, query })}
-            onPickCommander={(commander) => setFilters({ ...filters, commander, query: null })}
-            source={source}
-            placeholder={precons ? 'Search precons and commanders…' : undefined}
-            trailing={<DiscoverFiltersPopover filters={filters} onChange={setFilters} />}
+          <div className="discover-toolbar">
+            <DiscoverSearch
+              query={filters.query}
+              onQueryChange={(query) => setFilters({ ...filters, query })}
+              onPickCommander={(commander) => setFilters({ ...filters, commander, query: null })}
+              source={source}
+              placeholder={precons ? 'Search precons and commanders…' : undefined}
+              trailing={<DiscoverFiltersPopover filters={filters} onChange={setFilters} />}
+            />
+            <div className="discover-sort-bar">
+              <SelectMenu
+                value={sortField}
+                options={sortOptions}
+                onChange={toggleSort}
+                ariaLabel="Sort discover decks by"
+              />
+              <ViewModeToggle<DiscoverTileView>
+                ariaLabel="Discover view mode"
+                value={view}
+                onChange={setView}
+                options={[
+                  {
+                    value: 'grid',
+                    label: 'Grid view',
+                    icon: <LayoutGrid width={14} height={14} strokeWidth={1.8} aria-hidden />,
+                  },
+                  {
+                    value: 'list',
+                    label: 'List view',
+                    icon: <ListIconLucide width={14} height={14} strokeWidth={1.8} aria-hidden />,
+                  },
+                ]}
+              />
+            </div>
+          </div>
+
+          <FilterChipsRow
+            chips={filterChips}
+            onClearAll={() => setFilters({ ...NO_DISCOVER_FILTERS })}
           />
-          <div className="discover-sort-bar">
-            <SelectMenu
-              value={sortField}
-              options={sortOptions}
-              onChange={toggleSort}
-              ariaLabel="Sort discover decks by"
-            />
-            <ViewModeToggle<DiscoverTileView>
-              ariaLabel="Discover view mode"
-              value={view}
-              onChange={setView}
-              options={[
-                {
-                  value: 'grid',
-                  label: 'Grid view',
-                  icon: <LayoutGrid width={14} height={14} strokeWidth={1.8} aria-hidden />,
-                },
-                {
-                  value: 'list',
-                  label: 'List view',
-                  icon: <ListIconLucide width={14} height={14} strokeWidth={1.8} aria-hidden />,
-                },
-              ]}
-            />
-          </div>
-        </div>
 
-        <FilterChipsRow
-          chips={filterChips}
-          onClearAll={() => setFilters({ ...NO_DISCOVER_FILTERS })}
-        />
-
-        {filters.budget != null && (
-          <p className="discover-budget-note">
-            Some decks may not appear until pricing is available.
-          </p>
-        )}
-
-        {loading ? (
-          <>
-            <p role="status" aria-live="polite" className="sr-only">
-              Loading public decks…
+          {filters.budget != null && (
+            <p className="discover-budget-note">
+              Some decks may not appear until pricing is available.
             </p>
-            <ul className={`decks-index-list is-${view}`} aria-hidden="true">
-              {Array.from({ length: DISCOVER_SKELETON_COUNT }, (_, i) => (
-                <DiscoverTileSkeleton key={i} view={view} />
-              ))}
-            </ul>
-          </>
-        ) : error ? (
-          <div className="discover-decks-error" role="alert">
-            <span>{error}</span>
-            <Button onClick={loadFirstPage} className="discover-decks-error-retry">
-              Retry
-            </Button>
-          </div>
-        ) : displayDecks.length === 0 ? (
-          hasActiveFilters ? (
-            <EmptyState
-              tagline={
-                filters.query && filterChips.length === 0
-                  ? `No ${precons ? 'precons' : 'public decks'} match “${filters.query}”.`
-                  : `No ${precons ? 'precons' : 'public decks'} match these filters.`
-              }
-              actions={
-                <Button variant="link" onClick={() => setFilters(NO_DISCOVER_FILTERS)}>
-                  Clear filters
-                </Button>
-              }
-            />
-          ) : precons ? (
-            <EmptyState
-              tagline="No precons yet."
-              hint="They load in the background. Check back soon."
-            />
-          ) : (
-            <EmptyState
-              tagline="No public decks yet."
-              hint="Publish one of your own from the Decks page to be the first."
-            />
-          )
-        ) : (
-          <>
-            <ul
-              className={`decks-index-list is-${view}`}
-              aria-label={precons ? 'Commander precons' : 'Public decks'}
-            >
-              {displayDecks.map((deck) => (
-                <DiscoverDeckTile
-                  key={deck.slug}
-                  deck={deck}
-                  view={view}
-                  buildablePercent={
-                    ownedOracleIds
-                      ? computeBuildablePercent(deck.cardOracleIds, ownedOracleIds)
-                      : null
-                  }
-                />
-              ))}
-            </ul>
-            {loadMoreError ? (
-              <div className="discover-decks-error" role="alert">
-                <span>{loadMoreError}</span>
-                <Button onClick={handleLoadMore} className="discover-decks-error-retry">
-                  Retry
-                </Button>
-              </div>
+          )}
+
+          {loading ? (
+            <>
+              <p role="status" aria-live="polite" className="sr-only">
+                Loading public decks…
+              </p>
+              <ul className={`decks-index-list is-${view}`} aria-hidden="true">
+                {Array.from({ length: DISCOVER_SKELETON_COUNT }, (_, i) => (
+                  <DiscoverTileSkeleton key={i} view={view} />
+                ))}
+              </ul>
+            </>
+          ) : error ? (
+            <div className="discover-decks-error" role="alert">
+              <span>{error}</span>
+              <Button onClick={loadFirstPage} className="discover-decks-error-retry">
+                Retry
+              </Button>
+            </div>
+          ) : displayDecks.length === 0 ? (
+            hasActiveFilters ? (
+              <EmptyState
+                tagline={
+                  filters.query && filterChips.length === 0
+                    ? `No ${precons ? 'precons' : 'public decks'} match “${filters.query}”.`
+                    : `No ${precons ? 'precons' : 'public decks'} match these filters.`
+                }
+                actions={
+                  <Button variant="link" onClick={() => setFilters(NO_DISCOVER_FILTERS)}>
+                    Clear filters
+                  </Button>
+                }
+              />
+            ) : precons ? (
+              <EmptyState
+                tagline="No precons yet."
+                hint="They load in the background. Check back soon."
+              />
             ) : (
-              hasMore && (
-                <div className="discover-decks-load-more">
-                  <Button onClick={handleLoadMore} disabled={loadingMore} aria-busy={loadingMore}>
-                    {loadingMore && <span className="spinner" aria-hidden="true" />}
-                    Load more
+              <EmptyState
+                tagline="No public decks yet."
+                hint="Publish one of your own from the Decks page to be the first."
+              />
+            )
+          ) : (
+            <>
+              <ul
+                className={`decks-index-list is-${view}`}
+                aria-label={precons ? 'Commander precons' : 'Public decks'}
+              >
+                {displayDecks.map((deck) => (
+                  <DiscoverDeckTile
+                    key={deck.slug}
+                    deck={deck}
+                    view={view}
+                    buildablePercent={
+                      ownedOracleIds
+                        ? computeBuildablePercent(deck.cardOracleIds, ownedOracleIds)
+                        : null
+                    }
+                  />
+                ))}
+              </ul>
+              {loadMoreError ? (
+                <div className="discover-decks-error" role="alert">
+                  <span>{loadMoreError}</span>
+                  <Button onClick={handleLoadMore} className="discover-decks-error-retry">
+                    Retry
                   </Button>
                 </div>
-              )
-            )}
-          </>
-        )}
+              ) : (
+                hasMore && (
+                  <div className="discover-decks-load-more">
+                    <Button onClick={handleLoadMore} disabled={loadingMore} aria-busy={loadingMore}>
+                      {loadingMore && <span className="spinner" aria-hidden="true" />}
+                      Load more
+                    </Button>
+                  </div>
+                )
+              )}
+            </>
+          )}
 
-        {/* Below the community grid, not above it: players' decks are this
+          {/* Below the community grid, not above it: players' decks are this
             page's content, and precons fill in until there are more of them. */}
-        {!precons && (
-          <PreconsRail
-            filters={filters}
-            viewAllTo={`/decks/discover?${new URLSearchParams([
-              ...discoverFiltersToSearchParams(filters),
-              ['source', 'precons'],
-            ]).toString()}`}
-          />
-        )}
+          {!precons && (
+            <PreconsRail
+              filters={filters}
+              viewAllTo={`/decks/discover?${new URLSearchParams([
+                ...discoverFiltersToSearchParams(filters),
+                ['source', 'precons'],
+              ]).toString()}`}
+            />
+          )}
+        </DiscoverPanel>
       </div>
     </>
   );

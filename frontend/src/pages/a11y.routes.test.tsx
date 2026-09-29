@@ -94,6 +94,7 @@ import { ListsPage } from './ListsPage';
 import { CollectionCombosPage } from './CollectionCombosPage';
 import { SetsPage } from './SetsPage';
 import { DecksIndexPage } from './DecksIndexPage';
+import { DiscoverBrewersPage } from './DiscoverBrewersPage';
 import { DiscoverDecksPage } from './DiscoverDecksPage';
 import { SavedDecksPage } from './SavedDecksPage';
 import { DeckNewPage } from './DeckNewPage';
@@ -194,6 +195,11 @@ const CASES: RouteCase[] = [
     path: '/decks/discover',
     routes: <Route path="/decks/discover" element={<DiscoverDecksPage />} />,
     ready: /discover|public decks/i,
+  },
+  {
+    path: '/decks/discover/brewers',
+    routes: <Route path="/decks/discover/brewers" element={<DiscoverBrewersPage />} />,
+    ready: /brewers/i,
   },
   {
     path: '/decks/saved',
