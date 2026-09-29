@@ -754,6 +754,26 @@ deliberately atmospheric MTG flavor — the app's one cinematic moment. This is
 the _only_ surface exempt from the functional-prose rules above. Don't extend
 this register elsewhere, and don't flatten it here.
 
+### Third-party numbers name their source
+
+A number another site counted (EDHREC's play rates and deck counts, a Scryfall
+price) says whose number it is, and the block that shows it links to the page
+it came from. Rule 3's honesty, applied to provenance: a player weighs "In 36%
+of its decks" differently once they know it is EDHREC's crowd and not their own
+pod, and the link lets them check it.
+
+- **Name the source once per block,** in the copy ("decks on EDHREC", "Popular
+  commanders on EDHREC") or in a closing link. Not on every row.
+- **Link to the matching page, not the site's home.** An external link in the
+  shared style (`.card-preview-ext-link` in the card preview, `View on EDHREC`
+  in a combo row), opening in a new tab. First instance: the card preview's
+  Played in section ends with View on EDHREC, linked to that card's page.
+- **A thin sample says so** through `ThinDataNote`, the one way to say a number
+  rests on few decks.
+- Our own counts (decks published on SpellControl) are named as ours, "on
+  SpellControl", never blended into a third party's number without saying so
+  (`CommanderPopularityStat`).
+
 ---
 
 ## Shape language — corners
