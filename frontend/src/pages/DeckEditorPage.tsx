@@ -193,9 +193,13 @@ import { useSearchCards } from '@/lib/use-search-cards';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import {
   getCardByName,
+  getCardsByRefs,
   getOwnedPrinting,
   searchCards,
 } from '../deck-builder/services/scryfall/client';
+import { parseScryfallCardRefs } from '@/lib/scryfall-card-link';
+import { useLinkDrop } from '@/lib/use-link-drop';
+import { userMessage } from '@/lib/user-error';
 
 // Fetch strong on-color fixing lands for the "Re-analyze lands" tool's acquire
 // rows (duals the user may not own yet). The deck's identity letters are passed
@@ -555,6 +559,13 @@ export function DeckEditorPage() {
     forName: string;
     card: ScryfallCard;
   } | null>(null);
+  // The exact printing behind `pendingAdd` when the add came with one (a search
+  // result, a card dropped from Scryfall), so every way out of the full-deck
+  // prompt stores that printing instead of re-resolving the name to the
+  // cheapest one. Honoured only while its name matches `pendingAdd`.
+  const [pendingAddPrinting, setPendingAddPrinting] = useState<ScryfallCard | null>(null);
+  const pendingPrinting =
+    pendingAdd && pendingAddPrinting?.name === pendingAdd ? pendingAddPrinting : null;
   const [refillAfterCut, setRefillAfterCut] = useState<{
     name: string;
     role: string | null;
@@ -610,7 +621,7 @@ export function DeckEditorPage() {
   // Resolve the pending-add card so the replace-when-full ranker can use its type
   // + CMC for relatedness. Guarded against races (a newer pendingAdd wins).
   useEffect(() => {
-    if (!pendingAdd) return;
+    if (!pendingAdd || pendingPrinting) return;
     let stale = false;
     void getCardByName(pendingAdd).then((scry) => {
       if (!stale && scry) setPendingAddCard({ forName: pendingAdd, card: scry });
@@ -618,7 +629,7 @@ export function DeckEditorPage() {
     return () => {
       stale = true;
     };
-  }, [pendingAdd]);
+  }, [pendingAdd, pendingPrinting]);
 
   // The Combos panel lives inside the Power bento; switching to Power lands on
   // the top of the bento, not the panel. A next-best-move with focus 'combos'
@@ -1532,6 +1543,106 @@ export function DeckEditorPage() {
     }
   };
 
+  // The Add cards "+" for a card already resolved to its printing, into the
+  // zone the "Add cards to" toggle names. The search panel's + and a card
+  // dropped from Scryfall both come through here, so they behave the same.
+  // `full` defaults to the deck's own size; a multi-card drop passes its
+  // running count. Returns 'full' when it opened the replace-when-full prompt
+  // instead of adding.
+  const addChosenCard = (
+    card: ScryfallCard,
+    notify: boolean,
+    full: boolean = deckIsFull
+  ): 'added' | 'full' => {
+    if (addZone === 'side' || addZone === 'considering') {
+      // allocateAndAdd resolves the copy itself (free / auto-move /
+      // proxy) — the panel's own pick only ever sees free copies, so
+      // routing through it is what makes "add an owned card whose copy
+      // is in another deck" Just Work instead of silently proxying.
+      allocateAndAdd(card, addZone === 'side' ? 'sideboard' : 'considering', notify);
+      return 'added';
+    }
+    // A full Commander deck would overfill — open the intelligent
+    // replace-when-full prompt instead of silently going to 101.
+    if (full) {
+      // The sheet gets out of the way so DeckSizePrompt isn't stacked
+      // on top of it.
+      setShowAddPanel(false);
+      setPendingMove(null);
+      setPendingAdd(card.name);
+      setPendingAddPrinting(card);
+      return 'full';
+    }
+    // Arm the build-time nudge BEFORE the mutation lands, so its
+    // baseline token snapshot is genuinely "before" — see
+    // notifyMainboardAdd's own doc for why the order matters.
+    buildTimeNudge.notifyMainboardAdd(card.name);
+    allocateAndAdd(card, 'main', notify);
+    return 'added';
+  };
+
+  // A card link dropped on the editor (a card image dragged off scryfall.com)
+  // adds that exact printing through addChosenCard, with the same copy-limit
+  // refusal and off-color note the search panel gives its +.
+  const addZoneLabel =
+    addZone === 'side' ? 'Sideboard' : addZone === 'considering' ? 'Considering' : 'Mainboard';
+  const handleScryfallDrop = async (text: string) => {
+    const refs = parseScryfallCardRefs(text);
+    if (refs.length === 0) {
+      pushToast({ message: "That link isn't a Scryfall card.", tone: 'error' });
+      return;
+    }
+    const { cards, error } = await getCardsByRefs(refs).catch((e: unknown) => ({
+      cards: [] as ScryfallCard[],
+      error: e,
+    }));
+    if (cards.length === 0) {
+      pushToast({
+        message: userMessage(error, "Couldn't find that card on Scryfall."),
+        tone: 'error',
+      });
+      return;
+    }
+    const zoneCards = addZone === 'side' ? deck.sideboard : deck.cards;
+    const addedByName = new Map<string, number>();
+    let mainCount = deck.cards.length;
+    for (const card of cards) {
+      const copies =
+        zoneCards.filter((c) => c.card.name === card.name).length +
+        (addedByName.get(card.name) ?? 0);
+      if (addZone === 'main' && commanderNames.includes(card.name)) {
+        pushToast({ message: `${card.name} is already your commander.`, tone: 'info' });
+        continue;
+      }
+      if (addZone !== 'considering' && copies >= getMaxCopies(card, !!formatConfig?.isSingleton)) {
+        pushToast({ message: `${card.name} is already at its copy limit.`, tone: 'info' });
+        continue;
+      }
+      if (addChosenCard(card, true, addZone === 'main' && mainCount >= mainboardLimit) === 'full')
+        break;
+      addedByName.set(card.name, (addedByName.get(card.name) ?? 0) + 1);
+      if (addZone === 'main') mainCount += 1;
+      const offColor =
+        commanderColorIdentity.length > 0 &&
+        (card.color_identity ?? []).some((k) => !commanderColorIdentity.includes(k));
+      if (offColor)
+        pushToast(
+          addZone === 'main'
+            ? { message: `${card.name} is outside your commander's color identity.`, tone: 'warn' }
+            : {
+                message: `${card.name} is outside your commander's color identity. It can sit here, but not in the mainboard.`,
+                tone: 'info',
+              }
+        );
+    }
+    const missed = refs.length - cards.length;
+    if (missed > 0)
+      pushToast({
+        message: `Couldn't find ${missed} of the dropped cards on Scryfall.`,
+        tone: 'error',
+      });
+  };
+
   // The add-cards panel's contents (zone toggle + coach strip + search),
   // hosted by the card-picker sheet (bottom sheet on mobile, centered
   // modal ≥1024px). `close` is the sheet's animated `dismiss`.
@@ -1619,31 +1730,7 @@ export function DeckEditorPage() {
         existingCardCounts={existingCardCounts}
         atCopyLimit={atCopyLimit}
         binderByCardName={binderByCardName}
-        onAdd={({ card }) => {
-          if (addZone === 'side' || addZone === 'considering') {
-            // allocateAndAdd resolves the copy itself (free / auto-move /
-            // proxy) — the panel's own pick only ever sees free copies, so
-            // routing through it is what makes "add an owned card whose copy
-            // is in another deck" Just Work instead of silently proxying.
-            allocateAndAdd(card, addZone === 'side' ? 'sideboard' : 'considering', false);
-            return;
-          }
-          // A full Commander deck would overfill — open the intelligent
-          // replace-when-full prompt instead of silently going to 101.
-          if (deckIsFull) {
-            // The sheet gets out of the way so DeckSizePrompt isn't stacked
-            // on top of it.
-            setShowAddPanel(false);
-            setPendingMove(null);
-            setPendingAdd(card.name);
-            return;
-          }
-          // Arm the build-time nudge BEFORE the mutation lands, so its
-          // baseline token snapshot is genuinely "before" — see
-          // notifyMainboardAdd's own doc for why the order matters.
-          buildTimeNudge.notifyMainboardAdd(card.name);
-          allocateAndAdd(card, 'main', false);
-        }}
+        onAdd={({ card }) => addChosenCard(card, false)}
         onPreviewFit={(card) => setAuditionCard(card)}
         onClose={close}
         suggestions={deck.gapAnalysis}
@@ -2012,12 +2099,13 @@ export function DeckEditorPage() {
   // the Optimize plan and the Coach/Engine lanes (which only have a card name).
   const addResolvedCard = async (
     cardName: string,
-    zone: 'main' | 'sideboard' | 'considering' = 'main'
+    zone: 'main' | 'sideboard' | 'considering' = 'main',
+    printing: ScryfallCard | null = null
   ) => {
     if (!deck) return;
     setAddingEngineNames((prev) => new Set(prev).add(cardName));
     try {
-      const scry = await getCardByName(cardName);
+      const scry = printing ?? (await getCardByName(cardName));
       if (!scry) return;
       allocateAndAdd(scry, zone, true);
       haptics.tap();
@@ -2040,6 +2128,7 @@ export function DeckEditorPage() {
     if (deckIsFull) {
       setPendingMove(null);
       setPendingAdd(cardName);
+      setPendingAddPrinting(null);
       return;
     }
     await addResolvedCard(cardName);
@@ -2067,6 +2156,7 @@ export function DeckEditorPage() {
   const handleReplaceWhenFull = async (cutSlotId: string) => {
     if (!deck || !pendingAdd) return;
     const name = pendingAdd;
+    const printing = pendingPrinting;
     setPendingAdd(null);
     if (pendingMoveFor) {
       // Atomic 1-for-1 here too: the cut frees its copy, the moved one binds.
@@ -2078,7 +2168,7 @@ export function DeckEditorPage() {
     const cutName = deck.cards.find((c) => c.slotId === cutSlotId)?.card.name;
     setAddingEngineNames((prev) => new Set(prev).add(name));
     try {
-      const scry = await getCardByName(name);
+      const scry = printing ?? (await getCardByName(name));
       if (!scry) {
         pushToast({ message: `Couldn't add ${name}`, tone: 'error' });
         return;
@@ -2110,23 +2200,26 @@ export function DeckEditorPage() {
   const addToSideboardAndClose = async () => {
     if (!pendingAdd) return;
     const name = pendingAdd;
+    const printing = pendingPrinting;
     setPendingAdd(null);
     if (pendingMoveFor) return commitCrossDeckMove(pendingMoveFor, addSideboardCard);
-    await addResolvedCard(name, 'sideboard');
+    await addResolvedCard(name, 'sideboard', printing);
   };
   const addToConsideringAndClose = async () => {
     if (!pendingAdd) return;
     const name = pendingAdd;
+    const printing = pendingPrinting;
     setPendingAdd(null);
     if (pendingMoveFor) return commitCrossDeckMove(pendingMoveFor, addConsideringCard);
-    await addResolvedCard(name, 'considering');
+    await addResolvedCard(name, 'considering', printing);
   };
   const addAnywayAndClose = async () => {
     if (!pendingAdd) return;
     const name = pendingAdd;
+    const printing = pendingPrinting;
     setPendingAdd(null);
     if (pendingMoveFor) return commitCrossDeckMove(pendingMoveFor, addCard);
-    await addResolvedCard(name);
+    await addResolvedCard(name, 'main', printing);
   };
 
   // Replace-when-full options (E20 intelligent cuts): rank cuts by how
@@ -2158,7 +2251,9 @@ export function DeckEditorPage() {
           });
           // Stub when the add card hasn't resolved yet (or the resolve is for a
           // previous prompt) — name-based role still works.
-          const resolvedAdd = pendingAddCard?.forName === pendingAdd ? pendingAddCard.card : null;
+          const resolvedAdd =
+            pendingPrinting ??
+            (pendingAddCard?.forName === pendingAdd ? pendingAddCard.card : null);
           const addCard: ScryfallCard =
             resolvedAdd ?? ({ name: pendingAdd, type_line: '', cmc: 0 } as ScryfallCard);
           const ranked = rankReplacementCuts({
@@ -2305,6 +2400,7 @@ export function DeckEditorPage() {
       if (deckIsFull) {
         setPendingMove(move);
         setPendingAdd(move.cardName);
+        setPendingAddPrinting(null);
         return;
       }
       await commitCrossDeckMove(move, addCard);
@@ -4141,8 +4237,40 @@ export function DeckEditorPage() {
         />
       )}
 
+      <DeckScryfallDropOverlay zoneLabel={addZoneLabel} onDropText={handleScryfallDrop} />
+
       {/* Suppress unused-import lint */}
       <span hidden>{updateDeck.name}</span>
+    </div>
+  );
+}
+
+/**
+ * The editor's drop target for cards dragged in from Scryfall (useLinkDrop): a
+ * full-window veil naming the zone the card lands in, shown while a link drag
+ * is over the window and while the drop is looked up. Purely visual
+ * (aria-hidden, pointer-events off); the toast after the drop is the
+ * announcement.
+ */
+function DeckScryfallDropOverlay({
+  zoneLabel,
+  onDropText,
+}: {
+  zoneLabel: string;
+  onDropText: (text: string) => Promise<void>;
+}) {
+  const [finding, setFinding] = useState(false);
+  const dragging = useLinkDrop((text) => {
+    setFinding(true);
+    void onDropText(text).finally(() => setFinding(false));
+  });
+  if (!dragging && !finding) return null;
+  return (
+    <div className="deck-link-drop" aria-hidden="true">
+      <p className="deck-link-drop-message">
+        <Plus width={20} height={20} strokeWidth={1.8} aria-hidden />
+        {dragging ? `Drop to add to ${zoneLabel}` : 'Finding the card on Scryfall…'}
+      </p>
     </div>
   );
 }
