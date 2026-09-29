@@ -261,6 +261,37 @@ describe('mana: the goldfish with a fixed seed', () => {
     const ctx = merenCtx();
     expect(manaTerm(islands, ctx).value).toBeLessThan(manaTerm(BASELINE, ctx).value - 5);
   });
+
+  describe('common random numbers', () => {
+    const slots = BASELINE.cards.map((c) => c.name);
+
+    it('a swap that plays the same, in the same slot, barely moves the term', () => {
+      // Snow-Covered Swamp is a Swamp to the goldfish; only the name (and so
+      // the simulator's card id, which breaks a few ties) differs.
+      const snow = swap(BASELINE, 'Swamp', 'Snow-Covered Swamp');
+      const aligned = merenCtx({ slotOrder: slots });
+      const inSlot = Math.abs(manaTerm(snow, aligned).value - manaTerm(BASELINE, aligned).value);
+      // In name order the snow basic shifts every card between the two names.
+      const sorted = merenCtx();
+      const moved = Math.abs(manaTerm(snow, sorted).value - manaTerm(BASELINE, sorted).value);
+      expect(inSlot).toBeLessThan(0.01);
+      expect(moved).toBeGreaterThan(5 * inSlot);
+    });
+
+    it("shrinks the seed noise of a real pair's mana delta", () => {
+      // The E510 Meren pair (seven swaps) at six fixed seeds: the spread of
+      // the delta is the goldfish's own noise on the comparison.
+      const spread = (slotOrder?: string[]) => {
+        const d = [11, 12, 13, 14, 15, 16].map((seed) => {
+          const ctx = merenCtx({ manaSim: { games: 1000, seed }, slotOrder });
+          return manaTerm(TREATMENT, ctx).value - manaTerm(BASELINE, ctx).value;
+        });
+        const mean = d.reduce((a, b) => a + b, 0) / d.length;
+        return Math.sqrt(d.reduce((a, b) => a + (b - mean) ** 2, 0) / (d.length - 1));
+      };
+      expect(spread(slots)).toBeLessThan(spread() * 0.8);
+    });
+  });
 });
 
 describe('combos: completeness', () => {

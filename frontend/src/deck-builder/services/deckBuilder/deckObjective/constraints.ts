@@ -3,7 +3,7 @@
  * infeasible whatever its score, and two infeasible decks compare by how far
  * they break (`magnitude`), so a local search can walk out of an infeasible
  * seed. Each check mirrors the rule deckInvariants.ts enforces on shipped
- * decks and reuses its helpers and the deckFilters predicates, so "legal" can
+ * decks and reuses its helpers (cardIdentity.ts) and the deckFilters predicates, so "legal" can
  * only mean one thing. What differs is deliberate: the invariant checker also
  * accepts a DISCLOSED break (a forced pick named in a note, a relaxation in
  * collectionRelaxedNames) because it judges a finished build with its report;
@@ -23,11 +23,7 @@ import {
   notLegalForFormat,
 } from '../deckFilters';
 import { bracketCeilings, type BracketCeilings } from '../bracketGuard';
-// ponytail: deckInvariants.ts value-imports deckGenerator.ts (for one
-// constant), so wiring the objective INTO the generator would close an import
-// cycle through this line — push normalizeCardName and copyLimit down into a
-// leaf module (import-cycles.test.ts will say so) before the E513 search lands.
-import { copyLimit, normalizeCardName } from '../deckInvariants';
+import { copyLimit, normalizeCardName } from '../cardIdentity';
 import type { ConstraintViolation, ObjectiveContext, ObjectiveDeck } from './types';
 import { isBasicLand, isLandCard } from './context';
 

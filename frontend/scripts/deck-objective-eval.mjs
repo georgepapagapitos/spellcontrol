@@ -32,6 +32,11 @@
 //                        harness's owned-collection fixture).
 //   --json <file>        also write every score to a JSON file.
 //   --only <a,b>         restrict to decks whose file name contains a substring.
+//   --seed <n>           goldfish seed (default: the objective's).
+//   --seeds <a,b,...>    validate: also re-run the mana term at each seed and
+//                        report agreement per seed (the only seeded term).
+//   --no-slots           score each deck's library in name order instead of
+//                        the baseline's slots (no common random numbers).
 
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -61,6 +66,8 @@ const HTTP_CACHE = resolve(opt('--http-cache') ?? join(DEV_ROOT, '.deckgen-http-
 const LIVE = flag('--live');
 const LOCK = join(DEV_ROOT, '.deckgen-live.lock');
 const SEED = opt('--seed') ? Number(opt('--seed')) : undefined;
+const SEEDS = (opt('--seeds') ?? '').split(',').filter(Boolean).map(Number);
+const NO_SLOTS = flag('--no-slots');
 const ONLY = opt('--only')
   ?.split(',')
   .map((s) => s.trim())
@@ -314,7 +321,7 @@ async function evaluatePair(pair, byName, rank, weights) {
   );
   const commanders = baseDeck.commanders.map((c) => c.name);
   const cz = base.customization;
-  const ctx = H.createObjectiveContext({
+  const input = {
     colorIdentity: base.colorIdentity,
     customization: cz,
     edhrec: page.rows,
@@ -325,13 +332,21 @@ async function evaluatePair(pair, byName, rank, weights) {
     globalRank: rank,
     ownedNames: cz.collectionMode ? OWNED : undefined,
     manaSim: SEED === undefined ? undefined : { seed: SEED },
+    // The baseline's library order: both decks play the same shuffled slots.
+    slotOrder: NO_SLOTS ? undefined : baseDeck.cards.map((c) => c.name),
     weights,
-  });
+  };
+  const ctx = H.createObjectiveContext(input);
   const t0 = performance.now();
   const baseScore = H.scoreDeck(baseDeck, ctx);
   const t1 = performance.now();
   const treatScore = H.scoreDeck(treatDeck, ctx);
   const t2 = performance.now();
+  // The mana term again at each extra seed (every other term is seed-free).
+  const manaSeeds = SEEDS.map((seed) => {
+    const c = H.createObjectiveContext({ ...input, manaSim: { seed } });
+    return { seed, base: H.TERMS.mana(baseDeck, c).value, treat: H.TERMS.mana(treatDeck, c).value };
+  });
   const notes = [];
   if (page.fallback) notes.push('scored against the base page (filtered page missing)');
   if (JSON.stringify(base.roleTargets) !== JSON.stringify(treat.roleTargets))
@@ -346,6 +361,7 @@ async function evaluatePair(pair, byName, rank, weights) {
     base: baseScore,
     treat: treatScore,
     ms: [t1 - t0, t2 - t1],
+    manaSeeds,
     notes,
   };
 }
@@ -566,6 +582,31 @@ async function runValidate() {
     const every = all.flatMap(({ results }) => results);
     console.log(agreementLine('pooled score only', deltasWith(every, prior)));
     console.log(agreementLine('pooled constraints first', lexWith(every, prior)));
+  }
+  if (SEEDS.length) {
+    console.log('\n══ Per goldfish seed (constraints first, prior weights) ══');
+    const every = all.flatMap(({ results }) => results);
+    SEEDS.forEach((seed, i) => {
+      const at = (rs) =>
+        rs.map((r) => ({
+          ...r,
+          x: { ...r.x, mana: r.manaSeeds[i].treat - r.manaSeeds[i].base },
+        }));
+      const parts = [
+        ...all.map(({ gate, results }) => [gate.name, lexWith(at(results), prior)]),
+        ['pooled', lexWith(at(every), prior)],
+      ].map(([name, d]) => `${name} ${(100 * H.agreement(d)).toFixed(1)}%`);
+      console.log(`  seed ${String(seed).padEnd(10)} ${parts.join('  ')}`);
+    });
+    // Seed noise of the mana delta, per pair, across the seeds.
+    const sds = every.map((r) => {
+      const d = r.manaSeeds.map((m) => m.treat - m.base);
+      const mean = d.reduce((a, b) => a + b, 0) / d.length;
+      return Math.sqrt(d.reduce((a, b) => a + (b - mean) ** 2, 0) / Math.max(1, d.length - 1));
+    });
+    console.log(
+      `  mana delta: mean SD across seeds ${(sds.reduce((a, b) => a + b, 0) / sds.length).toFixed(3)} card-equivalents over ${sds.length} pairs`
+    );
   }
 
   console.log('\n══ Single-term agreement (sign of that term alone; 0 counts half) ══');

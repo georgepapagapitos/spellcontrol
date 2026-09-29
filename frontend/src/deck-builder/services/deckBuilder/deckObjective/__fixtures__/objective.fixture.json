@@ -270,6 +270,26 @@
       "edhrec_rank": 141
     },
     {
+      "id": "424eb4c7-647e-4168-9471-f299e8e77f5f",
+      "oracle_id": "9609cd5c-b537-4cb2-9dde-4b12795531f7",
+      "name": "Blot Out",
+      "mana_cost": "{2}{B}",
+      "cmc": 3,
+      "type_line": "Instant",
+      "oracle_text": "Target opponent exiles a creature or planeswalker they control with the greatest mana value among creatures and planeswalkers they control.",
+      "colors": ["B"],
+      "color_identity": ["B"],
+      "keywords": [],
+      "rarity": "uncommon",
+      "layout": "normal",
+      "set": "mat",
+      "set_name": "March of the Machine: The Aftermath",
+      "prices": { "usd": "0.28", "eur": "0.12" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
+      "games": ["paper", "arena", "mtgo"],
+      "edhrec_rank": 13957
+    },
+    {
       "id": "2135ac5a-187b-4dc9-8f82-34e8d1603416",
       "oracle_id": "bf1341dd-41a3-49f6-87ec-63170dde4324",
       "name": "Boseiju, Who Endures",
@@ -440,6 +460,28 @@
       "edhrec_rank": 2
     },
     {
+      "id": "0d91e61d-e3bf-4ddc-9f01-18b1abe35a61",
+      "oracle_id": "d61fb9e8-d05a-481a-a90f-5def300c9abb",
+      "name": "Cordial Vampire",
+      "mana_cost": "{B}{B}",
+      "cmc": 2,
+      "type_line": "Creature — Vampire",
+      "oracle_text": "Whenever this creature or another creature dies, put a +1/+1 counter on each Vampire you control.",
+      "colors": ["B"],
+      "color_identity": ["B"],
+      "keywords": [],
+      "power": "1",
+      "toughness": "1",
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "lcc",
+      "set_name": "The Lost Caverns of Ixalan Commander",
+      "prices": { "usd": "2.45", "eur": "1.94" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
+      "games": ["paper", "mtgo"],
+      "edhrec_rank": 1874
+    },
+    {
       "id": "4f616706-ec97-4923-bb1e-11a69fbaa1f8",
       "oracle_id": "cc187110-1148-4090-bbb8-e205694a39f5",
       "name": "Counterspell",
@@ -480,6 +522,26 @@
       "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
       "games": ["paper", "arena", "mtgo"],
       "edhrec_rank": 299
+    },
+    {
+      "id": "11721b88-2654-482c-b9d4-80e54efdbf63",
+      "oracle_id": "52a0dae4-2a95-487e-acd4-eabdb2d031e2",
+      "name": "Crux of Fate",
+      "mana_cost": "{3}{B}{B}",
+      "cmc": 5,
+      "type_line": "Sorcery",
+      "oracle_text": "Choose one —\n• Destroy all Dragon creatures.\n• Destroy all non-Dragon creatures.",
+      "colors": ["B"],
+      "color_identity": ["B"],
+      "keywords": [],
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "c17",
+      "set_name": "Commander 2017",
+      "prices": { "usd": "3.27", "eur": "1.17" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
+      "games": ["paper"],
+      "edhrec_rank": 1572
     },
     {
       "id": "30f6fca9-003b-4f6b-9d6e-1e88adda4155",
@@ -686,6 +748,28 @@
       "edhrec_rank": 538
     },
     {
+      "id": "a577ba08-0aa8-45be-aa83-d5078770127c",
+      "oracle_id": "41e2790d-49f5-4e98-b8d9-04179f47f13a",
+      "name": "Edgar Markov",
+      "mana_cost": "{3}{R}{W}{B}",
+      "cmc": 6,
+      "type_line": "Legendary Creature — Vampire Knight",
+      "oracle_text": "Eminence — Whenever you cast another Vampire spell, if Edgar is in the command zone or on the battlefield, create a 1/1 black Vampire creature token.\nFirst strike, haste\nWhenever Edgar attacks, put a +1/+1 counter on each Vampire you control.",
+      "colors": ["B", "R", "W"],
+      "color_identity": ["B", "R", "W"],
+      "keywords": ["First strike", "Haste", "Eminence"],
+      "power": "4",
+      "toughness": "4",
+      "rarity": "mythic",
+      "layout": "normal",
+      "set": "inr",
+      "set_name": "Innistrad Remastered",
+      "prices": { "usd": "43.46", "eur": "38.83" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "not_legal" },
+      "games": ["paper", "mtgo"],
+      "edhrec_rank": 3155
+    },
+    {
       "id": "6040ba5e-7042-4095-9000-89bcb8ce1ea6",
       "oracle_id": "20347559-95a9-4689-bb79-c5bb3809b719",
       "name": "Elves of Deep Shadow",
@@ -876,6 +960,26 @@
       "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
       "games": ["paper", "mtgo"],
       "edhrec_rank": 411
+    },
+    {
+      "id": "e262f55e-9239-4a97-a19e-9b08fb34502e",
+      "oracle_id": "edad60c6-80de-4033-af1b-a703ac332983",
+      "name": "Goblin Bombardment",
+      "mana_cost": "{1}{R}",
+      "cmc": 2,
+      "type_line": "Enchantment",
+      "oracle_text": "Sacrifice a creature: This enchantment deals 1 damage to any target.",
+      "colors": ["R"],
+      "color_identity": ["R"],
+      "keywords": [],
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "mh2",
+      "set_name": "Modern Horizons 2",
+      "prices": { "usd": "4.27", "eur": "2.72" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
+      "games": ["paper", "mtgo"],
+      "edhrec_rank": 463
     },
     {
       "id": "b36a1bc7-a080-4fb6-b975-c59bb33a090a",
@@ -1228,6 +1332,28 @@
       "edhrec_rank": 1088
     },
     {
+      "id": "7a5be94c-08b8-4964-a79d-e22ea6e94be8",
+      "oracle_id": "aa286dd5-aa19-446d-9003-684d81eb57ca",
+      "name": "Laboratory Maniac",
+      "mana_cost": "{2}{U}",
+      "cmc": 3,
+      "type_line": "Creature — Human Wizard",
+      "oracle_text": "If you would draw a card while your library has no cards in it, you win the game instead.",
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": [],
+      "power": "2",
+      "toughness": "2",
+      "rarity": "uncommon",
+      "layout": "normal",
+      "set": "inr",
+      "set_name": "Innistrad Remastered",
+      "prices": { "usd": "2.26", "eur": "0.72" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
+      "games": ["paper", "mtgo"],
+      "edhrec_rank": 555
+    },
+    {
       "id": "e16d52ca-f8de-4852-9bff-9d208e5f678f",
       "oracle_id": "d476f4b3-db63-4756-ab76-4b35f63c2825",
       "name": "Life // Death",
@@ -1473,6 +1599,28 @@
       "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "not_legal" },
       "games": ["paper", "mtgo"],
       "edhrec_rank": 1316
+    },
+    {
+      "id": "d479ca28-bdc2-4b87-abf7-5aeb229a3f1e",
+      "oracle_id": "7efd5d62-6da2-428a-98e3-5b842f668656",
+      "name": "Mogg Fanatic",
+      "mana_cost": "{R}",
+      "cmc": 1,
+      "type_line": "Creature — Goblin",
+      "oracle_text": "Sacrifice this creature: It deals 1 damage to any target.",
+      "colors": ["R"],
+      "color_identity": ["R"],
+      "keywords": [],
+      "power": "1",
+      "toughness": "1",
+      "rarity": "common",
+      "layout": "normal",
+      "set": "ema",
+      "set_name": "Eternal Masters",
+      "prices": { "usd": "0.27", "eur": "0.32" },
+      "legalities": { "commander": "legal", "paupercommander": "legal", "brawl": "not_legal" },
+      "games": ["paper", "mtgo"],
+      "edhrec_rank": 12132
     },
     {
       "id": "4ebce261-3a53-48f2-a173-0d98c68aff2c",
@@ -1725,6 +1873,29 @@
       "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
       "games": ["paper", "mtgo", "arena"],
       "edhrec_rank": 194
+    },
+    {
+      "id": "5b5cd187-857a-44dd-8595-a52857a0b753",
+      "oracle_id": "a784481f-eccb-4112-bb38-04a659319660",
+      "name": "Pitiless Plunderer",
+      "mana_cost": "{3}{B}",
+      "cmc": 4,
+      "type_line": "Creature — Human Pirate",
+      "oracle_text": "Whenever another creature you control dies, create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+      "colors": ["B"],
+      "color_identity": ["B"],
+      "keywords": ["Treasure"],
+      "produced_mana": ["B", "G", "R", "U", "W"],
+      "power": "1",
+      "toughness": "4",
+      "rarity": "uncommon",
+      "layout": "normal",
+      "set": "lcc",
+      "set_name": "The Lost Caverns of Ixalan Commander",
+      "prices": { "usd": "4.72", "eur": "3.81" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
+      "games": ["paper", "mtgo"],
+      "edhrec_rank": 225
     },
     {
       "id": "97505837-e0e2-4f7b-8581-01942e886bb8",
@@ -2113,6 +2284,47 @@
       "edhrec_rank": 41
     },
     {
+      "id": "861b5889-0183-4bee-afeb-a4b2aa700a8e",
+      "oracle_id": "153376c9-dffd-458c-8ce3-a4c8269bc4e9",
+      "name": "Smothering Tithe",
+      "mana_cost": "{3}{W}",
+      "cmc": 4,
+      "type_line": "Enchantment",
+      "oracle_text": "Whenever an opponent draws a card, that player may pay {2}. If the player doesn't, you create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+      "colors": ["W"],
+      "color_identity": ["W"],
+      "keywords": ["Treasure"],
+      "produced_mana": ["B", "G", "R", "U", "W"],
+      "rarity": "mythic",
+      "layout": "normal",
+      "set": "cmm",
+      "set_name": "Commander Masters",
+      "prices": { "usd": "57.33", "eur": "41.33" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
+      "games": ["paper", "mtgo"],
+      "edhrec_rank": 65
+    },
+    {
+      "id": "6aa85af8-15f5-4620-8aea-0b45c28372ed",
+      "oracle_id": "d8239a86-7184-4005-ba1e-2dddcd756c47",
+      "name": "Snow-Covered Swamp",
+      "mana_cost": "",
+      "cmc": 0,
+      "type_line": "Basic Snow Land — Swamp",
+      "oracle_text": "({T}: Add {B}.)",
+      "colors": [],
+      "color_identity": ["B"],
+      "keywords": [],
+      "produced_mana": ["B"],
+      "rarity": "common",
+      "layout": "normal",
+      "set": "khm",
+      "set_name": "Kaldheim",
+      "prices": { "usd": "0.56", "eur": "0.63" },
+      "legalities": { "commander": "legal", "paupercommander": "legal", "brawl": "legal" },
+      "games": ["arena", "paper", "mtgo"]
+    },
+    {
       "id": "8ee443cc-e17a-493b-9c93-1f9e141a30e4",
       "oracle_id": "6ad8011d-3471-4369-9d68-b264cc027487",
       "name": "Sol Ring",
@@ -2156,6 +2368,28 @@
       "edhrec_rank": 39
     },
     {
+      "id": "47a6234f-309f-4e03-9263-66da48b57153",
+      "oracle_id": "dcb9c2a7-ae54-4ddc-a567-640bf4bf4366",
+      "name": "Solitude",
+      "mana_cost": "{3}{W}{W}",
+      "cmc": 5,
+      "type_line": "Creature — Elemental Incarnation",
+      "oracle_text": "Flash\nLifelink\nWhen this creature enters, exile up to one other target creature. That creature's controller gains life equal to its power.\nEvoke—Exile a white card from your hand.",
+      "colors": ["W"],
+      "color_identity": ["W"],
+      "keywords": ["Lifelink", "Evoke", "Flash"],
+      "power": "3",
+      "toughness": "2",
+      "rarity": "mythic",
+      "layout": "normal",
+      "set": "mh2",
+      "set_name": "Modern Horizons 2",
+      "prices": { "usd": "36.06", "eur": "41.93" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
+      "games": ["paper", "mtgo"],
+      "edhrec_rank": 1969
+    },
+    {
       "id": "6d42fd52-34ea-4d1b-80dc-58fb0593bb5b",
       "oracle_id": "97db6c39-e690-49b6-93a6-e51b8dfad10b",
       "name": "Spore Frog",
@@ -2176,6 +2410,27 @@
       "legalities": { "commander": "legal", "paupercommander": "legal", "brawl": "not_legal" },
       "games": ["paper", "mtgo"],
       "edhrec_rank": 1139
+    },
+    {
+      "id": "e15ab0aa-4059-4923-9816-6f7a9e5b5a18",
+      "oracle_id": "bdeb440d-a714-40e8-9038-f651e6ae45fb",
+      "name": "Springleaf Drum",
+      "mana_cost": "{1}",
+      "cmc": 1,
+      "type_line": "Artifact",
+      "oracle_text": "{T}, Tap an untapped creature you control: Add one mana of any color.",
+      "colors": [],
+      "color_identity": [],
+      "keywords": [],
+      "produced_mana": ["B", "G", "R", "U", "W"],
+      "rarity": "uncommon",
+      "layout": "normal",
+      "set": "ecl",
+      "set_name": "Lorwyn Eclipsed",
+      "prices": { "usd": "0.35", "eur": "0.33" },
+      "legalities": { "commander": "legal", "paupercommander": "legal", "brawl": "legal" },
+      "games": ["paper", "arena", "mtgo"],
+      "edhrec_rank": 566
     },
     {
       "id": "b9edb215-f967-4968-905e-d1dc3b5d3424",
@@ -2322,6 +2577,27 @@
       "edhrec_rank": 244
     },
     {
+      "id": "78d5366f-eb6d-4ec1-880b-111872863766",
+      "oracle_id": "4c0a0448-b9d6-43a0-8549-64066dac63f0",
+      "name": "Talisman of Dominance",
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "type_line": "Artifact",
+      "oracle_text": "{T}: Add {C}.\n{T}: Add {U} or {B}. This artifact deals 1 damage to you.",
+      "colors": [],
+      "color_identity": ["B", "U"],
+      "keywords": [],
+      "produced_mana": ["B", "C", "U"],
+      "rarity": "uncommon",
+      "layout": "normal",
+      "set": "frc",
+      "set_name": "Reality Fracture Commander",
+      "prices": { "usd": "0.72", "eur": "0.86" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
+      "games": ["paper", "mtgo"],
+      "edhrec_rank": 93
+    },
+    {
       "id": "1ca36218-db87-4e44-8606-2a516504ed20",
       "oracle_id": "dc55421f-dee8-4263-9df0-2365df5f14bb",
       "name": "Temple of Malady",
@@ -2341,6 +2617,26 @@
       "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
       "games": ["paper", "mtgo"],
       "edhrec_rank": 368
+    },
+    {
+      "id": "a08b7a1e-b404-41ea-875f-b3468501cb4b",
+      "oracle_id": "c216b924-88ac-4853-9e95-0c345c09eeb6",
+      "name": "Temporal Trespass",
+      "mana_cost": "{8}{U}{U}{U}",
+      "cmc": 11,
+      "type_line": "Sorcery",
+      "oracle_text": "Delve (Each card you exile from your graveyard while casting this spell pays for {1}.)\nTake an extra turn after this one. Exile Temporal Trespass.",
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": ["Delve"],
+      "rarity": "mythic",
+      "layout": "normal",
+      "set": "frf",
+      "set_name": "Fate Reforged",
+      "prices": { "usd": "2.85", "eur": "3.86" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
+      "games": ["paper", "mtgo"],
+      "edhrec_rank": 3058
     },
     {
       "id": "14dc88ee-bba9-4625-af0d-89f3762a0ead",
@@ -2398,6 +2694,26 @@
       "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
       "games": ["arena", "paper", "mtgo"],
       "edhrec_rank": 450
+    },
+    {
+      "id": "d5806e68-1054-458e-866d-1f2470f682b2",
+      "oracle_id": "3aa83ed2-f48b-4ce6-a614-2c54ddf50538",
+      "name": "The One Ring",
+      "mana_cost": "{4}",
+      "cmc": 4,
+      "type_line": "Legendary Artifact",
+      "oracle_text": "Indestructible\nWhen The One Ring enters, if you cast it, you gain protection from everything until your next turn.\nAt the beginning of your upkeep, you lose 1 life for each burden counter on The One Ring.\n{T}: Put a burden counter on The One Ring, then draw a card for each burden counter on The One Ring.",
+      "colors": [],
+      "color_identity": [],
+      "keywords": ["Indestructible"],
+      "rarity": "mythic",
+      "layout": "normal",
+      "set": "ltr",
+      "set_name": "The Lord of the Rings: Tales of Middle-earth",
+      "prices": { "usd": "115.29", "eur": "96.98" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
+      "games": ["paper", "mtgo", "arena"],
+      "edhrec_rank": 95
     },
     {
       "id": "de5afccc-8d42-4bd6-b068-b9ea2361655e",
@@ -2588,6 +2904,28 @@
       "edhrec_rank": 257
     },
     {
+      "id": "5272436e-74f0-44c4-a291-ea8ebc3f1525",
+      "oracle_id": "4b515bb0-f275-4400-8032-3173b799ab40",
+      "name": "Walking Ballista",
+      "mana_cost": "{X}{X}",
+      "cmc": 0,
+      "type_line": "Artifact Creature — Construct",
+      "oracle_text": "This creature enters with X +1/+1 counters on it.\n{4}: Put a +1/+1 counter on this creature.\nRemove a +1/+1 counter from this creature: It deals 1 damage to any target.",
+      "colors": [],
+      "color_identity": [],
+      "keywords": [],
+      "power": "0",
+      "toughness": "0",
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "2xm",
+      "set_name": "Double Masters",
+      "prices": { "usd": "10.71", "eur": "7.63" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "not_legal" },
+      "games": ["paper", "mtgo"],
+      "edhrec_rank": 425
+    },
+    {
       "id": "b334e4c6-d316-4141-8889-f95afcc04701",
       "oracle_id": "ace86e56-efde-4eb7-8815-71456a4c3abe",
       "name": "Warren Soultrader",
@@ -2694,6 +3032,26 @@
       "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
       "games": ["paper", "mtgo"],
       "edhrec_rank": 167
+    },
+    {
+      "id": "537d2b05-3f52-45d6-8fe3-26282085d0c6",
+      "oracle_id": "34515b16-c9a4-4f98-8c77-416a7a523407",
+      "name": "Wrath of God",
+      "mana_cost": "{2}{W}{W}",
+      "cmc": 4,
+      "type_line": "Sorcery",
+      "oracle_text": "Destroy all creatures. They can't be regenerated.",
+      "colors": ["W"],
+      "color_identity": ["W"],
+      "keywords": [],
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "cmm",
+      "set_name": "Commander Masters",
+      "prices": { "usd": "4.14", "eur": "2.60" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
+      "games": ["paper", "mtgo"],
+      "edhrec_rank": 676
     },
     {
       "id": "b5a79f5d-d0df-4799-ac3a-84305e3af0c9",
@@ -4330,6 +4688,7 @@
     "Orcish Bowmasters": 258,
     "Overgrown Tomb": 71,
     "Phyrexian Tower": 194,
+    "Pitiless Plunderer": 225,
     "Plaguecrafter": 639,
     "Protean Hulk": 2545,
     "Ravenous Chupacabra": 1132,
@@ -4475,7 +4834,6 @@
     "Simulacrum Shaper": 21918,
     "Final Parting": 2616,
     "Evolving Wilds": 19,
-    "Pitiless Plunderer": 225,
     "Attrition": 4897,
     "Dina's Guidance": 4665,
     "Life from the Loam": 711,
@@ -4649,6 +5007,22 @@
         "coPlayPct": 18,
         "numDecks": 14887,
         "potentialDecks": 85039,
+        "lowSample": false
+      },
+      {
+        "name": "Pitiless Plunderer",
+        "lift": 2.6866013029781177,
+        "coPlayPct": 15,
+        "numDecks": 13128,
+        "potentialDecks": 85039,
+        "lowSample": false
+      },
+      {
+        "name": "Goblin Bombardment",
+        "lift": 2.60574920175296,
+        "coPlayPct": 9,
+        "numDecks": 2028,
+        "potentialDecks": 23809,
         "lowSample": false
       },
       {
@@ -4972,6 +5346,14 @@
         "lowSample": false
       },
       {
+        "name": "Talisman of Dominance",
+        "lift": 0.8004748082455242,
+        "coPlayPct": 7,
+        "numDecks": 2660,
+        "potentialDecks": 40786,
+        "lowSample": false
+      },
+      {
         "name": "Heroic Intervention",
         "lift": 0.7899918634375469,
         "coPlayPct": 21,
@@ -5004,6 +5386,14 @@
         "lowSample": false
       },
       {
+        "name": "Smothering Tithe",
+        "lift": 0.5246288105866874,
+        "coPlayPct": 9,
+        "numDecks": 1688,
+        "potentialDecks": 18802,
+        "lowSample": false
+      },
+      {
         "name": "Fierce Guardianship",
         "lift": 0.5208828234222934,
         "coPlayPct": 7,
@@ -5025,6 +5415,14 @@
         "coPlayPct": 10,
         "numDecks": 4191,
         "potentialDecks": 40786,
+        "lowSample": false
+      },
+      {
+        "name": "The One Ring",
+        "lift": 0.4758922947420968,
+        "coPlayPct": 3,
+        "numDecks": 2752,
+        "potentialDecks": 85039,
         "lowSample": false
       },
       {
@@ -5470,6 +5868,14 @@
         "lowSample": false
       },
       {
+        "name": "Smothering Tithe",
+        "lift": 1.1328083232691744,
+        "coPlayPct": 18,
+        "numDecks": 8073,
+        "potentialDecks": 46012,
+        "lowSample": false
+      },
+      {
         "name": "Lightning Greaves",
         "lift": 1.1010818999700724,
         "coPlayPct": 23,
@@ -5515,6 +5921,14 @@
         "coPlayPct": 28,
         "numDecks": 5296,
         "potentialDecks": 19137,
+        "lowSample": false
+      },
+      {
+        "name": "Talisman of Dominance",
+        "lift": 0.9737840858822486,
+        "coPlayPct": 8,
+        "numDecks": 2434,
+        "potentialDecks": 30660,
         "lowSample": false
       },
       {
@@ -5602,6 +6016,14 @@
         "lift": 0.6124355274802008,
         "coPlayPct": 1,
         "numDecks": 1389,
+        "potentialDecks": 136342,
+        "lowSample": false
+      },
+      {
+        "name": "The One Ring",
+        "lift": 0.5499849342698373,
+        "coPlayPct": 3,
+        "numDecks": 4650,
         "potentialDecks": 136342,
         "lowSample": false
       },
@@ -5800,6 +6222,14 @@
         "lowSample": false
       },
       {
+        "name": "Goblin Bombardment",
+        "lift": 3.724509523071651,
+        "coPlayPct": 21,
+        "numDecks": 8597,
+        "potentialDecks": 40728,
+        "lowSample": false
+      },
+      {
         "name": "Eternal Witness",
         "lift": 3.614668453499318,
         "coPlayPct": 56,
@@ -5828,6 +6258,14 @@
         "lift": 3.3309764427027932,
         "coPlayPct": 31,
         "numDecks": 64534,
+        "potentialDecks": 210174,
+        "lowSample": false
+      },
+      {
+        "name": "Pitiless Plunderer",
+        "lift": 3.312629772881512,
+        "coPlayPct": 29,
+        "numDecks": 60769,
         "potentialDecks": 210174,
         "lowSample": false
       },
@@ -6048,6 +6486,14 @@
         "lowSample": false
       },
       {
+        "name": "Talisman of Dominance",
+        "lift": 1.3179750904675585,
+        "coPlayPct": 42,
+        "numDecks": 15923,
+        "potentialDecks": 37560,
+        "lowSample": false
+      },
+      {
         "name": "Lightning Greaves",
         "lift": 1.262602280228229,
         "coPlayPct": 31,
@@ -6184,6 +6630,14 @@
         "lowSample": false
       },
       {
+        "name": "Smothering Tithe",
+        "lift": 0.7417266608352296,
+        "coPlayPct": 16,
+        "numDecks": 6118,
+        "potentialDecks": 37855,
+        "lowSample": false
+      },
+      {
         "name": "Fierce Guardianship",
         "lift": 0.7125301897859969,
         "coPlayPct": 12,
@@ -6205,6 +6659,14 @@
         "coPlayPct": 17,
         "numDecks": 10313,
         "potentialDecks": 59372,
+        "lowSample": false
+      },
+      {
+        "name": "The One Ring",
+        "lift": 0.6517982548698624,
+        "coPlayPct": 5,
+        "numDecks": 11106,
+        "potentialDecks": 210174,
         "lowSample": false
       },
       {

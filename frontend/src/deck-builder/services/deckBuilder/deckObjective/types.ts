@@ -85,6 +85,15 @@ export interface ObjectiveContextInput {
   factsOf?: (card: ScryfallCard) => CardFacts;
   /** Goldfish settings. Fixed seed = common random numbers across compared decks. */
   manaSim?: { games?: number; seed?: number };
+  /**
+   * A reference library order (card names, one per copy): the deck the
+   * compared decks descend from (a gate's baseline, a search's seed). Each
+   * scored deck's library is laid out in these slots, a swapped-in card
+   * taking a vacated slot, so the goldfish plays the same shuffled positions
+   * for both and a one-card swap moves only the games that card changes.
+   * Omitted: name order, which is deterministic but shares no games.
+   */
+  slotOrder?: readonly string[];
   /** Term weight overrides (multipliers on DEFAULT_WEIGHTS). */
   weights?: Partial<Record<TermKey, number>>;
 }

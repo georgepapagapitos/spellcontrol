@@ -5,6 +5,7 @@
 
 import { isKeepableHand, librarySeed } from '../opening-hand-sim';
 import { mulberry32, shuffle } from '../playtest/rng';
+import { gameSeed } from './game-seed';
 import {
   allocate,
   canPay,
@@ -111,7 +112,6 @@ export function simulateManaDeck(deck: ManaDeck, options: ManaSimOptions = {}): 
   const seed =
     options.seed ??
     librarySeed([...deck.commanders, ...deck.library].map((c) => ({ name: c.name })));
-  const rand = mulberry32(seed);
 
   // ── Card table: distinct cards by name, the library as ids ────────────────
   const cards: ManaCard[] = [];
@@ -615,6 +615,8 @@ export function simulateManaDeck(deck: ManaDeck, options: ManaSimOptions = {}): 
   };
 
   for (let g = 0; g < games; g++) {
+    // One stream per game, so decks a slot apart share games (game-seed.ts).
+    const rand = mulberry32(gameSeed(seed, g));
     lands = [];
     sources = [];
     treasures = 0;
