@@ -1,0 +1,49 @@
+/* BrowseListPage.css — one browse list in full (/search/top/:list). It sits
+   on the Search page's wide 1100px rail, so a list opened from a rail keeps
+   the width it was browsed at. */
+.browse-list-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding-top: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* The same grid the search results use: auto-fill columns of card tiles,
+   three across a phone. */
+.browse-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr));
+  gap: var(--card-grid-gap, var(--space-3));
+}
+
+@media (max-width: 599px) {
+  .browse-grid {
+    grid-template-columns: repeat(auto-fill, minmax(min(100px, 100%), 1fr));
+  }
+}
+
+/* Offscreen tiles skip rendering until scrolled near (the search grid and
+   the cube gallery do the same). */
+.browse-grid > li {
+  min-width: 0;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 240px;
+}
+
+.browse-list-more {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.browse-list-more-error {
+  margin: 0;
+  color: var(--err-text);
+  font-size: var(--text-sm);
+}

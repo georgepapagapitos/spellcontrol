@@ -463,33 +463,46 @@ describe('fetchTopCommanders — a failed fetch is not an empty list (E278)', ()
       json: async () => body,
     };
   }
-  const page = (name: string) => ({
-    container: {
-      json_dict: { cardlists: [{ cardviews: [{ name, sanitized: name, num_decks: 9 }] }] },
-    },
+  // The backend's snapshot of the list (GET /api/edhrec/top), not EDHREC.
+  const list = (name: string) => ({
+    kind: 'commanders',
+    period: 'year',
+    colors: 'R',
+    type: null,
+    entries: [{ rank: 1, name, scryfallId: null, numDecks: 9, potentialDecks: null, salt: null }],
+    fetchedAt: 0,
+    stale: false,
+    sourceUrl: 'https://edhrec.com/commanders/mono-red',
   });
 
-  it('rejects on a non-retryable error with nothing cached, so the UI can offer Retry', async () => {
+  it('reads the list from our backend, never from EDHREC', async () => {
+    const fetchMock = vi.fn(async (_url: string) => res(200, list('Isshin, Two Heavens as One')));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await fetchTopCommanders(['W', 'B', 'R']);
+
+    expect(result.map((c) => c.name)).toEqual(['Isshin, Two Heavens as One']);
+    expect(result[0].colorIdentity).toEqual(['W', 'B', 'R']);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      '/api/edhrec/top?kind=commanders&period=year&colors=WBR'
+    );
+  });
+
+  it('rejects when the backend has no list, so the UI can offer Retry', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => res(404))
+      vi.fn(async () => res(502, { error: "Couldn't reach EDHREC." }))
     );
-    vi.useFakeTimers();
 
-    const outcome = fetchTopCommanders(['U']).then(
-      () => 'resolved',
-      (e: Error) => e.message
-    );
-    await vi.runAllTimersAsync();
-
-    expect(await outcome).toMatch(/EDHREC API error: 404/);
+    await expect(fetchTopCommanders(['U'])).rejects.toThrow("Couldn't reach EDHREC.");
   });
 
   it('serves the stale list when the refresh fails instead of throwing', async () => {
     let calls = 0;
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => (++calls === 1 ? res(200, page('Krenko, Mob Boss')) : res(404)))
+      vi.fn(async () => (++calls === 1 ? res(200, list('Krenko, Mob Boss')) : res(502)))
     );
     vi.useFakeTimers();
 

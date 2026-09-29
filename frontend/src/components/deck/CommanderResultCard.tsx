@@ -1,4 +1,5 @@
 import './CommanderResultCard.css';
+import { formatCount } from '@/lib/format-count';
 import type { ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useCardThumb } from '../../lib/card-thumbs';
@@ -54,9 +55,7 @@ interface Props {
 
 /** "31k decks", "4.7k decks", "812 decks". */
 export function formatDeckCount(n: number): string {
-  if (n >= 10_000) return `${Math.round(n / 1000)}k decks`;
-  if (n >= 1_000) return `${(n / 1000).toFixed(1)}k decks`;
-  return `${n.toLocaleString()} ${n === 1 ? 'deck' : 'decks'}`;
+  return `${formatCount(n)} ${n === 1 ? 'deck' : 'decks'}`;
 }
 
 function ReasonLine({ reason }: { reason: MatchReason }) {

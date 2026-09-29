@@ -28,6 +28,12 @@ vi.mock('../components/InlineCardSearch', () => ({
   }),
 }));
 
+// The landing's rails have their own tests (components/browse); here they only
+// have to be the landing, and step aside for results.
+vi.mock('../components/browse/BrowseRails', () => ({
+  BrowseRails: () => <div data-testid="browse-rails" />,
+}));
+
 function renderPage(initialEntry = '/search') {
   return render(
     <MemoryRouter initialEntries={[initialEntry]}>
@@ -98,6 +104,31 @@ describe('SearchPage syntax helper', () => {
     renderPage();
     fireEvent.click(screen.getByRole('button', { name: /search syntax/i }));
     expect(screen.queryByText('online')).toBeNull();
+  });
+});
+
+describe('SearchPage landing', () => {
+  it('shows the browse lists until there is a query, then the results in their place', () => {
+    renderPage();
+    expect(screen.getByTestId('browse-rails')).toBeTruthy();
+    expect(screen.queryByTestId('results')).toBeNull();
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search any card' }), {
+      target: { value: 'sol ring' },
+    });
+    expect(screen.queryByTestId('browse-rails')).toBeNull();
+    expect(screen.getByTestId('results')).toBeTruthy();
+  });
+
+  it('keeps the wide column for the rails whatever the saved result layout', () => {
+    window.localStorage.setItem('mtg-search-view-mode', 'list');
+    const { container } = renderPage();
+    expect(container.querySelector('.search-page--wide')).toBeTruthy();
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search any card' }), {
+      target: { value: 'sol ring' },
+    });
+    expect(container.querySelector('.search-page--wide')).toBeNull();
   });
 });
 

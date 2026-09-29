@@ -14,6 +14,7 @@ import type {
 import { offlineSearchCards } from '@/lib/offline';
 import { frontFaceName } from '@/lib/card-text';
 import { sortWUBRG } from '@/deck-builder/lib/edhrecUtils';
+import { fetchEdhrecTop } from '@/lib/edhrec-top';
 
 const BASE_URL = import.meta.env.DEV ? '/edhrec-api' : 'https://json.edhrec.com';
 
@@ -1022,29 +1023,10 @@ const COLOR_SLUG_MAP: Record<string, string> = {
   WUBRG: 'five-color',
 };
 
-interface RawTopCommanderEntry {
-  name: string;
-  sanitized: string;
-  num_decks?: number;
-  inclusion?: number;
-  color_identity?: string[];
-}
-
 interface RawTagPageResponse {
   container?: {
     json_dict?: {
       cardlists?: Array<RawCardList & { header?: string }>;
-    };
-  };
-}
-
-interface RawTopCommandersResponse {
-  container?: {
-    json_dict?: {
-      cardlists?: Array<{
-        header?: string;
-        cardviews?: RawTopCommanderEntry[];
-      }>;
     };
   };
 }
@@ -1094,27 +1076,23 @@ export async function fetchTopCommanders(colors: string[]): Promise<EDHRECTopCom
   if (offlineActive()) return [];
 
   try {
-    const response = await edhrecFetch<RawTopCommandersResponse>(`/pages/commanders/${slug}.json`);
-
-    const cardviews = response.container?.json_dict?.cardlists?.[0]?.cardviews ?? [];
+    // Our backend's daily snapshot of EDHREC's list (lib/edhrec-top.ts), not
+    // EDHREC itself: an EDHREC outage then serves yesterday's list.
+    const list = await fetchEdhrecTop({ kind: 'commanders', period: 'year', colors: key });
     const isOverall = key === '';
     // Filter out partner pairs (e.g. "Kraum // Tymna") before taking top 12
-    const top = cardviews.filter((e) => !e.name.includes('//')).slice(0, 12);
+    const top = list.entries.filter((e) => !e.name.includes('//')).slice(0, 12);
 
     let commanders: EDHRECTopCommander[] = top.map((entry, i) => ({
       rank: i + 1,
       name: entry.name,
-      sanitized: entry.sanitized,
-      colorIdentity: isOverall
-        ? (entry.color_identity?.map((c) => c.toUpperCase()) ?? [])
-        : key === 'C'
-          ? []
-          : sorted,
-      numDecks: entry.num_decks ?? entry.inclusion ?? 0,
+      sanitized: formatCommanderNameForUrl(entry.name),
+      colorIdentity: isOverall || key === 'C' ? [] : sorted,
+      numDecks: entry.numDecks,
     }));
 
-    // The overall "year" endpoint doesn't include color_identity on page 1.
-    // Batch-fetch from Scryfall to fill them in.
+    // The overall list carries no colour identity. Batch-fetch from Scryfall
+    // to fill it in.
     if (isOverall) commanders = await backfillColorIdentities(commanders);
 
     topCommanderCache.set(key, { data: commanders, timestamp: Date.now() });
@@ -1293,43 +1271,6 @@ export async function fetchPlaystyleCommanders(tagSlug: string): Promise<EDHRECT
 const ALL_COLOR_KEYS = Object.keys(COLOR_SLUG_MAP).filter((k) => k !== '' && k !== 'C');
 
 /**
- * Fetch commanders from EDHREC for all color combos that *include* the given colors.
- * E.g. colors=['G'] returns commanders from mono-green, golgari, simic, ..., WUBRG.
- * Returns all entries (not capped to 12) sorted by deck count, with duplicates removed.
- */
-export async function fetchCommandersIncludingColors(
-  colors: string[]
-): Promise<EDHRECTopCommander[]> {
-  // Colorless is its own identity — doesn't combine with other colors
-  if (colors.includes('C')) {
-    return fetchAllCommandersForColor(['C']);
-  }
-
-  const required = new Set(colors.map((c) => c.toUpperCase()));
-  // Find all color keys that contain every required color
-  const matchingKeys = ALL_COLOR_KEYS.filter((key) => [...required].every((c) => key.includes(c)));
-  if (matchingKeys.length === 0) return [];
-
-  // Fetch all matching combos in parallel (uses cache internally)
-  const results = await Promise.all(
-    matchingKeys.map((key) => fetchAllCommandersForColor(key.split('')))
-  );
-
-  // Union + dedupe by name, keeping the entry with the highest deck count
-  const map = new Map<string, EDHRECTopCommander>();
-  for (const list of results) {
-    for (const cmd of list) {
-      const existing = map.get(cmd.name);
-      if (!existing || cmd.numDecks > existing.numDecks) {
-        map.set(cmd.name, cmd);
-      }
-    }
-  }
-
-  return [...map.values()].sort((a, b) => b.numDecks - a.numDecks);
-}
-
-/**
  * Fetch commanders from EDHREC for all color combos that are a *subset* of
  * the given colors — i.e. playable within that color identity. E.g.
  * colors=['W','G'] returns mono-white, mono-green, selesnya, and colorless
@@ -1383,16 +1324,15 @@ async function fetchAllCommandersForColor(colors: string[]): Promise<EDHRECTopCo
   if (offlineActive()) return [];
 
   try {
-    const response = await edhrecFetch<RawTopCommandersResponse>(`/pages/commanders/${slug}.json`);
-    const cardviews = response.container?.json_dict?.cardlists?.[0]?.cardviews ?? [];
-    const commanders: EDHRECTopCommander[] = cardviews
+    const list = await fetchEdhrecTop({ kind: 'commanders', period: 'year', colors: key });
+    const commanders: EDHRECTopCommander[] = list.entries
       .filter((e) => !e.name.includes('//'))
       .map((entry, i) => ({
         rank: i + 1,
         name: entry.name,
-        sanitized: entry.sanitized,
+        sanitized: formatCommanderNameForUrl(entry.name),
         colorIdentity: key === 'C' ? [] : sorted,
-        numDecks: entry.num_decks ?? entry.inclusion ?? 0,
+        numDecks: entry.numDecks,
       }));
 
     fullCommanderCache.set(key, { data: commanders, timestamp: Date.now() });

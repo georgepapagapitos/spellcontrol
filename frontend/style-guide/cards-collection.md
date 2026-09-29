@@ -266,8 +266,10 @@ accent-filled variant and OR the muted one.
   AND (its pre-existing behavior). Filter chips echo the mode: "White, Red"
   (OR) vs "White + Red" (AND) via `colorChipLabel`.
 - **Deliberate exceptions — no toggle:** combos ("fits inside these colors",
-  subset), Discover decks (identity-subset, server-side), and the commander
-  finder (`CommanderSearch`). Their color rows mean something else; don't
+  subset), Discover decks (identity-subset, server-side), the browse lists
+  (an EDHREC colour list is one exact identity), and the commander
+  finder (`CommanderSearch`). The finder and the browse lists share one pip
+  row, `ColorIdentityPicker` (`components/shared`). Their color rows mean something else; don't
   "unify" them onto this chip. The finder asks a commander question, so its
   switch is **Exactly / Within** (a `SegmentedControl`, shown once a color is
   on): Exactly is the identity itself (Golgari = black-green only), Within is
@@ -982,3 +984,69 @@ where the user owns some and lacks the rest — first used by the Sets tab
 - Big checklists (Secret Lair ~2600 tiles) stay un-virtualized: tiles carry
   `content-visibility: auto` + `contain-intrinsic-size` instead of a JS
   windowing dependency.
+
+## Browse lists — the tile stands for the card, the number names its owner (E520, 2026-09-29)
+
+The Search page's landing is a stack of browse lists (`components/browse/`):
+top commanders this week, new commanders, top cards this week, Game Changers,
+the saltiest cards and the Commander ban list. Each is a rail of its first
+ten cards under a section header (title, a "This week" meta where the list
+has a window, hidden on a phone so the title and its door keep one line) with
+one door, **See all**, to the whole list at
+`/search/top/<list>` (`pages/BrowseListPage.tsx`). The lists are defined once
+in `lib/browse-lists.ts`; a new list is a row there, not a new page.
+
+- **Popularity is EDHREC's; facts about the cards are ours.** Top commanders,
+  top cards and salt are EDHREC's numbers, read from our backend's daily copy
+  (`GET /api/edhrec/top`, `lib/edhrec-top.ts`), never from EDHREC in the
+  browser. Game Changers, bans and new commanders are Scryfall searches
+  (`is:gamechanger`, `banned:commander`, first printings by release date),
+  because they are properties of the cards, not of what people play.
+- **Every EDHREC number names EDHREC and links to it**
+  ([§ Third-party numbers name their source](../STYLE_GUIDE.md#third-party-numbers-name-their-source)),
+  with how old our copy is: "Data from EDHREC · updated 3 hours ago" under a
+  list page, linked to that list's page there, and one sources line under the
+  rails that links each list's name to its own page at EDHREC or Scryfall.
+  When EDHREC couldn't be reached the backend serves its last copy, and the
+  line says so ("EDHREC couldn't be reached, so this list is from 2 days
+  ago") rather than passing it off as today's.
+- **The tile is `CardGridCell` with `printing={false}`.** A browse list names a
+  card, and EDHREC counts every printing as one, so the tile carries no rarity
+  mark and no set line. Its one caption is what the list ranks by: "20k decks"
+  (`formatDeckCount`), "In 84% of decks" (`classifyInclusion`), "Salt 3.06",
+  "Released Aug 14". Game Changers and bans rank nothing and have no caption.
+  The card preview's context line says the longer version ("In 84% of the
+  decks that could run it", "Salt 3.06 of 4 · polarizing").
+- **Owned is a check on the art**, the success `ArtBadge` in the tile's badge
+  cluster, and ", in your collection" in the tile's name. A list page with a
+  collection behind it offers **Show: All / In my collection**; a paged list
+  (new commanders) doesn't, since it could only filter the pages loaded so far.
+- **A commander list's preview offers Build a deck**, which opens the generator
+  with that commander picked (`/decks/new/generate?commander=`).
+- **Rails are card-sized swipe rows.** `SwipeRow tile="card"` gives a portrait
+  card 40% of a phone and 22% of a tablet (a deck tile's 72% would fill the
+  screen with one card); on a desktop the rail is one row of six and See all
+  has the rest. A loading rail keeps its header and reserves its tiles
+  (`BrowseTileSkeleton`, the card grids' shared placeholder); a failed rail
+  shows the error strip with Retry; an empty rail renders nothing.
+- **Offline, the network lists stand aside behind one quiet line** ("Popular
+  and new card lists need a connection.") and Game Changers and bans still
+  show when the device's offline card data can answer them.
+- **Filters live in the URL** (`period`, `colors`, `type`, `show`) so a list is
+  a link, and change it in place. Period is a `SegmentedControl` (Week / Month
+  / 2 years), colour the shared `ColorIdentityPicker`, type a `SelectMenu`.
+  Wider than a phone they share one row; a phone keeps the period in the row
+  and folds colour, type and owned into one **Filters** popover
+  (`BrowseListFilters`), whose label counts what's on ("Filters · 2"), since
+  four controls stacked three rows deep above the cards. In the popover the
+  type is a row of radio chips: a `SelectMenu` nested in a popover closes its
+  host on the first pick.
+  EDHREC's colour and type lists only cover the past 2 years, so either filter
+  locks the period to 2 years, greys the other two options and says why beside
+  them ("Color and type lists cover the past 2 years."). The header's one line
+  names the whole selection in words ("The Azorius mana rocks most played on
+  EDHREC over the past 2 years."), so the filter row carries no label of its
+  own. The colour row has no AND/OR chip: an EDHREC colour list is one exact
+  identity ([§ Color pip rows](#color-pip-rows--andor-match-mode-chip)).
+- **An unknown list is a broken link**: `/search/top/<anything else>` renders
+  the app's "Page not found." state (`components/NotFoundPage`).

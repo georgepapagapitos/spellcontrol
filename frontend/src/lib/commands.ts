@@ -48,6 +48,37 @@ const ROUTES: ReadonlyArray<{ label: string; path: string; hint?: string; keywor
   { label: 'Pods', path: '/pods' },
   { label: 'Search', path: '/search', keywords: ['find', 'scryfall'] },
   {
+    label: 'Top commanders',
+    path: '/search/top/commanders',
+    hint: 'Search',
+    keywords: ['popular', 'edhrec', 'most played'],
+  },
+  {
+    label: 'New commanders',
+    path: '/search/top/new-commanders',
+    hint: 'Search',
+    keywords: ['latest', 'recent', 'released'],
+  },
+  {
+    label: 'Top cards',
+    path: '/search/top/cards',
+    hint: 'Search',
+    keywords: ['popular', 'staples', 'edhrec', 'most played'],
+  },
+  {
+    label: 'Game Changers',
+    path: '/search/top/game-changers',
+    hint: 'Search',
+    keywords: ['bracket'],
+  },
+  { label: 'Saltiest cards', path: '/search/top/salt', hint: 'Search', keywords: ['salt'] },
+  {
+    label: 'Banned in Commander',
+    path: '/search/top/banned',
+    hint: 'Search',
+    keywords: ['ban list', 'banlist', 'illegal'],
+  },
+  {
     label: 'Rules',
     path: '/rules',
     hint: 'Comprehensive Rules',

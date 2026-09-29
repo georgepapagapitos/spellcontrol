@@ -1,4 +1,3 @@
-import { EmptyState } from '../components/shared/EmptyState';
 import { Surface } from '../components/shared/Surface';
 import { AlignJustify, HelpCircle, LayoutGrid, List } from 'lucide-react';
 import { useRef, useState } from 'react';
@@ -6,6 +5,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import './SearchPage.css';
 import { SearchPill } from '../components/SearchPill';
 import { InlineCardSearch, type InlineCardSearchView } from '../components/InlineCardSearch';
+import { BrowseRails } from '../components/browse/BrowseRails';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { useCollapsedPref } from '../lib/use-collapsed-pref';
 import { useResultsKeys } from '../lib/use-results-keys';
@@ -54,8 +54,10 @@ const SYNTAX_ENTRIES: SyntaxEntry[] = [
  * shareable and survives back/forward. Results, owned-count badges, the
  * full-card preview carousel, and the add-a-copy action are all
  * {@link InlineCardSearch}, shared with the collection add flow — this page
- * only owns the input, the layout toggle, the syntax helper, and the landing
- * state.
+ * only owns the input, the layout toggle, the syntax helper, and the landing.
+ * With no query the landing is the browse rails ({@link BrowseRails}): top and
+ * new commanders, top cards, Game Changers, salt and bans, each with a door to
+ * its full list at `/search/top/:list`.
  */
 export function SearchPage() {
   const [params, setParams] = useSearchParams();
@@ -114,8 +116,12 @@ export function SearchPage() {
     inputRef.current?.focus();
   };
 
+  const searching = query.trim().length >= 2;
+  // The landing's browse rails want the wide column the grid results use.
+  const wide = !searching || view === 'grid';
+
   return (
-    <div className={`search-page${view === 'grid' ? ' search-page--grid' : ''}`}>
+    <div className={`search-page${wide ? ' search-page--wide' : ''}`}>
       <header className="search-page-head">
         <h1>Card search</h1>
         <p className="search-page-sub">
@@ -184,7 +190,7 @@ export function SearchPage() {
           </Surface>
         )}
       </div>
-      {query.trim().length >= 2 ? (
+      {searching ? (
         <>
           <div className="search-page-toolbar">
             <ViewModeToggle<InlineCardSearchView>
@@ -218,14 +224,7 @@ export function SearchPage() {
           />
         </>
       ) : (
-        <EmptyState
-          tagline="Every card, one search away."
-          hint={
-            <>
-              Type a card name, or use Scryfall syntax like “t:dragon cmc&lt;4” or “o:landfall c:g”.
-            </>
-          }
-        />
+        <BrowseRails />
       )}
     </div>
   );

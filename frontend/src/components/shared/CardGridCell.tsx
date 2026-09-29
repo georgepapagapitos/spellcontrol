@@ -150,6 +150,14 @@ interface CardGridCellProps {
    * count the surface is not allowed to report.
    */
   hideQty?: boolean;
+  /**
+   * False for a card that stands for its oracle, not a printing: a browse
+   * list names a card, and EDHREC counts every printing as one (STYLE_GUIDE
+   * cards-collection, "EDHREC data has no single printing to name"). It drops
+   * the rarity mark, which would otherwise read "common" for a card with no
+   * printing behind it.
+   */
+  printing?: boolean;
 }
 
 /**
@@ -174,6 +182,7 @@ export function CardGridCell({
   ariaExtra,
   hideQty = false,
   menu,
+  printing = true,
 }: CardGridCellProps) {
   const foilStyle = classifyFoil(card);
   const foilClass = foilStyle !== 'none' ? ` is-foil foil-${foilStyle}` : '';
@@ -224,11 +233,11 @@ export function CardGridCell({
             while it's shown. The proxy chip is independent of that toggle —
             it must stay legible regardless of caption prefs or select mode,
             so it lives in its own top-right cluster alongside rarity. */}
-        {(card.proxy || card.priceOverride !== undefined || setLabel === null) && (
+        {(card.proxy || card.priceOverride !== undefined || (setLabel === null && printing)) && (
           <div className="collection-grid-topright">
             <ProxyBadge card={card} className="collection-grid-proxy" />
             <PriceOverrideBadge card={card} className="collection-grid-price-override" />
-            {setLabel === null && (
+            {setLabel === null && printing && (
               <RarityBadge rarity={card.rarity} className="collection-grid-rarity" />
             )}
           </div>
