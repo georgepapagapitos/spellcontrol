@@ -14,7 +14,8 @@
  * Contrast contract: --text-muted ≥ 4.5:1 against bg/surface/surface-raised
  * is CI-enforced (themes-contrast.test.ts). The material re-derivation
  * additionally holds --text-secondary ≥ 4.5:1, --text-primary ≥ 6.5:1,
- * --on-accent vs --accent ≥ 4.5:1, and accent vs surface ≥ 3:1 everywhere.
+ * --on-accent vs --accent ≥ 4.5:1, and --accent and --accent-hover ≥ 4.5:1 as
+ * text on bg/surface/surface-raised (they colour labels, not only fills).
  *
  * Only semantic UI tokens are overridden here. Mana pip colors live in
  * lib/colors.ts; rarity colors live in :root in tokens.css. Both are
@@ -51,7 +52,7 @@
   --text-secondary: #6b4c2e;
   --text-muted: #7a5d3c;
   --accent: #b03018;
-  --accent-hover: #c44530;
+  --accent-hover: #962914;
   --accent-light: color-mix(in srgb, #b03018 14%, transparent);
   --on-accent: #fdf3e0;
 }
@@ -67,7 +68,7 @@
   --text-secondary: #4c5936;
   --text-muted: #5c6945;
   --accent: #3f7230;
-  --accent-hover: #518540;
+  --accent-hover: #366129;
   --accent-light: color-mix(in srgb, #3f7230 16%, transparent);
   --on-accent: #f4f6e6;
 }
@@ -82,9 +83,9 @@
   --text-primary: #14302b;
   --text-secondary: #3d5852;
   --text-muted: #4d685f;
-  --accent: #177862;
-  --accent-hover: #2b8b75;
-  --accent-light: color-mix(in srgb, #177862 16%, transparent);
+  --accent: #16725d;
+  --accent-hover: #13614f;
+  --accent-light: color-mix(in srgb, #16725d 16%, transparent);
   --on-accent: #eaf5f0;
 }
 
@@ -148,9 +149,9 @@
   --text-primary: #e2e7f8;
   --text-secondary: #a3aed2;
   --text-muted: #95a0c0;
-  --accent: #fa5c3a;
+  --accent: #fa6646;
   --accent-hover: #ff7758;
-  --accent-light: color-mix(in srgb, #fa5c3a 18%, transparent);
+  --accent-light: color-mix(in srgb, #fa6646 18%, transparent);
   --on-accent: #0d1024;
 }
 
@@ -180,9 +181,9 @@
   --text-primary: #e9d6d2;
   --text-secondary: #b9928d;
   --text-muted: #a68681;
-  --accent: #e2483f;
+  --accent: #e55c54;
   --accent-hover: #f1615a;
-  --accent-light: color-mix(in srgb, #e2483f 18%, transparent);
+  --accent-light: color-mix(in srgb, #e55c54 18%, transparent);
   --on-accent: #180d0e;
 }
 
