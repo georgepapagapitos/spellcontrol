@@ -90,6 +90,7 @@ function BrowseRail({
     <SectionHeader
       id={headingId}
       title={def.railTitle}
+      meta={def.railMeta && <span className="browse-rail-meta">{def.railMeta}</span>}
       className="browse-rail-head"
       tools={
         <Button

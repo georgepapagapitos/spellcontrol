@@ -84,9 +84,9 @@ describe('BrowseRails', () => {
     renderRails();
 
     for (const [title, href] of [
-      ['Top commanders this week', '/search/top/commanders'],
+      ['Top commanders', '/search/top/commanders'],
       ['New commanders', '/search/top/new-commanders'],
-      ['Top cards this week', '/search/top/cards'],
+      ['Top cards', '/search/top/cards'],
       ['Game Changers', '/search/top/game-changers'],
       ['Saltiest cards', '/search/top/salt'],
       ['Banned in Commander', '/search/top/banned'],
@@ -175,9 +175,9 @@ describe('BrowseRails', () => {
       expect(within(rail('Game Changers')).getAllByRole('button')).toHaveLength(2)
     );
     for (const title of [
-      'Top commanders this week',
+      'Top commanders',
       'New commanders',
-      'Top cards this week',
+      'Top cards',
       'Saltiest cards',
       'Banned in Commander',
     ]) {
@@ -192,15 +192,13 @@ describe('BrowseRails', () => {
   it('brings the network lists back when the connection returns', async () => {
     setOnline(false);
     renderRails();
-    expect(screen.queryByRole('heading', { name: 'Top cards this week' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Top cards' })).toBeNull();
 
     act(() => {
       setOnline(true);
       window.dispatchEvent(new Event('online'));
     });
-    await waitFor(() =>
-      expect(within(rail('Top cards this week')).getAllByRole('button')).toHaveLength(10)
-    );
+    await waitFor(() => expect(within(rail('Top cards')).getAllByRole('button')).toHaveLength(10));
     expect(screen.queryByText('Popular and new card lists need a connection.')).toBeNull();
   });
 

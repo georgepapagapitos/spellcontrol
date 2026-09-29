@@ -30,6 +30,23 @@
   flex-shrink: 0;
 }
 
+/* The meta says which week; on a phone it gives way so the title and its
+   door keep to one line (§ Layout system, Section header). */
+.browse-rail-meta {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+@media (max-width: 599px) {
+  .browse-rail-meta {
+    display: none;
+  }
+}
+
+.browse-rail-row {
+  list-style: none;
+}
+
 /* A phone swipes through the whole rail; the desktop grid shows its first
    six across and leaves the rest to See all, so a rail is one row. */
 @media (min-width: 1024px) {

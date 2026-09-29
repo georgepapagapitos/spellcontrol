@@ -26,6 +26,8 @@ export interface BrowseListDef {
   title: string;
   /** The rail's title on the Search landing. */
   railTitle: string;
+  /** The rail's one short meta beside its title, hidden on a phone. */
+  railMeta?: string;
   source: 'edhrec' | 'scryfall';
   /** Needs the network even when the offline card data is on the device. */
   needsNetwork: boolean;
@@ -44,7 +46,8 @@ export const BROWSE_LISTS: readonly BrowseListDef[] = [
   {
     id: 'commanders',
     title: 'Top commanders',
-    railTitle: 'Top commanders this week',
+    railTitle: 'Top commanders',
+    railMeta: 'This week',
     source: 'edhrec',
     needsNetwork: true,
     commanders: true,
@@ -64,7 +67,8 @@ export const BROWSE_LISTS: readonly BrowseListDef[] = [
   {
     id: 'cards',
     title: 'Top cards',
-    railTitle: 'Top cards this week',
+    railTitle: 'Top cards',
+    railMeta: 'This week',
     source: 'edhrec',
     needsNetwork: true,
     commanders: false,

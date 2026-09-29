@@ -4,15 +4,13 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { BackLink } from '@/components/BackLink';
 import { NotFoundPage } from '@/components/NotFoundPage';
 import { PageHeader } from '@/components/PageHeader';
-import { SelectMenu } from '@/components/SelectMenu';
+import { BrowseListFilters } from '@/components/browse/BrowseListFilters';
 import { BrowseTile, BrowseTileSkeleton } from '@/components/browse/BrowseTile';
 import { useOwnedNames } from '@/lib/use-owned-names';
 import { EdhrecSource } from '@/components/browse/EdhrecSource';
 import { useBrowsePreview } from '@/components/browse/use-browse-preview';
 import { Button } from '@/components/shared/Button';
-import { ColorIdentityPicker } from '@/components/shared/ColorIdentityPicker';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { SegmentedControl } from '@/components/shared/form';
 import {
   browseFiltersToParams,
   browseListDef,
@@ -20,14 +18,13 @@ import {
   isOwnedName,
   loadBrowseList,
   parseBrowseFilters,
-  periodLocked,
   type BrowseFilters,
   type BrowseItem,
   type BrowseListDef,
   type EdhrecProvenance,
 } from '@/lib/browse-lists';
 import { colorComboName } from '@/lib/commander-finder';
-import { EDHREC_TOP_TYPES, type EdhrecTopPeriod, type EdhrecTopType } from '@/lib/edhrec-top';
+import { EDHREC_TOP_TYPES, type EdhrecTopPeriod } from '@/lib/edhrec-top';
 import { useDocumentTitle } from '@/lib/use-document-title';
 import { userMessage } from '@/lib/user-error';
 import { useAuth } from '@/store/auth';
@@ -187,7 +184,6 @@ function BrowseList({ def }: { def: BrowseListDef }) {
         ? state.items.filter((i) => isOwnedName(owned, i.name))
         : state.items;
 
-  const locked = periodLocked(filters);
   const hasServerFilters = colors !== '' || type !== '';
 
   return (
@@ -195,55 +191,12 @@ function BrowseList({ def }: { def: BrowseListDef }) {
       <BackLink to="/search" label="Search" />
       <PageHeader title={def.title} meta={listMeta(def, filters)} />
 
-      {(def.filters.period || def.filters.colors || def.filters.type || ownedFilter) && (
-        <div className="browse-list-filters">
-          {def.filters.period && (
-            <SegmentedControl<EdhrecTopPeriod>
-              ariaLabel="Time period"
-              value={period}
-              onChange={(period) => setFilters({ ...filters, period })}
-              options={[
-                { value: 'week', label: 'Week', disabled: locked },
-                { value: 'month', label: 'Month', disabled: locked },
-                { value: 'year', label: '2 years' },
-              ]}
-            />
-          )}
-          {def.filters.colors && (
-            <div className="browse-list-colors" role="group" aria-label="Color identity">
-              <ColorIdentityPicker
-                colors={new Set(colors ? [...colors] : [])}
-                onChange={(next) => setFilters({ ...filters, colors: [...next].join('') })}
-              />
-            </div>
-          )}
-          {def.filters.type && (
-            <SelectMenu<EdhrecTopType | ''>
-              label="Type"
-              value={filters.type}
-              onChange={(type) => setFilters({ ...filters, type })}
-              options={[
-                { value: '', label: 'All types' },
-                ...EDHREC_TOP_TYPES.map((t) => ({ value: t.value, label: t.label })),
-              ]}
-            />
-          )}
-          {ownedFilter && (
-            <SegmentedControl<boolean>
-              ariaLabel="Show"
-              value={filters.ownedOnly}
-              onChange={(ownedOnly) => setFilters({ ...filters, ownedOnly })}
-              options={[
-                { value: false, label: 'All' },
-                { value: true, label: 'In my collection' },
-              ]}
-            />
-          )}
-          {locked && (
-            <p className="browse-list-hint">Color and type lists cover the past 2 years.</p>
-          )}
-        </div>
-      )}
+      <BrowseListFilters
+        def={def}
+        filters={filters}
+        ownedFilter={ownedFilter}
+        onChange={setFilters}
+      />
 
       {state.status === 'loading' ? (
         <>

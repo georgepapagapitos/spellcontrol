@@ -974,7 +974,9 @@ where the user owns some and lacks the rest — first used by the Sets tab
 The Search page's landing is a stack of browse lists (`components/browse/`):
 top commanders this week, new commanders, top cards this week, Game Changers,
 the saltiest cards and the Commander ban list. Each is a rail of its first
-ten cards with one door, **See all**, to the whole list at
+ten cards under a section header (title, a "This week" meta where the list
+has a window, hidden on a phone so the title and its door keep one line) with
+one door, **See all**, to the whole list at
 `/search/top/<list>` (`pages/BrowseListPage.tsx`). The lists are defined once
 in `lib/browse-lists.ts`; a new list is a row there, not a new page.
 
@@ -1015,6 +1017,12 @@ in `lib/browse-lists.ts`; a new list is a row there, not a new page.
 - **Filters live in the URL** (`period`, `colors`, `type`, `show`) so a list is
   a link, and change it in place. Period is a `SegmentedControl` (Week / Month
   / 2 years), colour the shared `ColorIdentityPicker`, type a `SelectMenu`.
+  Wider than a phone they share one row; a phone keeps the period in the row
+  and folds colour, type and owned into one **Filters** popover
+  (`BrowseListFilters`), whose label counts what's on ("Filters · 2"), since
+  four controls stacked three rows deep above the cards. In the popover the
+  type is a row of radio chips: a `SelectMenu` nested in a popover closes its
+  host on the first pick.
   EDHREC's colour and type lists only cover the past 2 years, so either filter
   locks the period to 2 years, greys the other two options and says why beside
   them ("Color and type lists cover the past 2 years."). The header's one line
