@@ -1,12 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import {
   computeShelfPlan,
-  defaultCheckedRows,
+  defaultShelfPlan,
   defaultPullOutOrder,
   totalCopiesPlanned,
   SHELF_STRATEGIES,
   type ShelfStrategyId,
 } from './shelf-plan';
+import { SORT_PRESETS } from './sorting';
 import { materializeBinders } from './materialize';
 import { getColorKey } from './colors';
 import type { BinderDef, EnrichedCard } from '../types';
@@ -112,13 +113,26 @@ function bigPile(): EnrichedCard[] {
   return out;
 }
 
+function defaultsFor(strategy: ShelfStrategyId, pile: EnrichedCard[], existing: BinderDef[] = []) {
+  return defaultShelfPlan({
+    strategy,
+    pullOutOrder: defaultPullOutOrder(),
+    pile,
+    existingBinders: existing,
+  });
+}
+
+function defaultCheckedRows(strategy: ShelfStrategyId, pile: EnrichedCard[]) {
+  return new Set(defaultsFor(strategy, pile).checked);
+}
+
 function plan(
   strategy: ShelfStrategyId,
   pile: EnrichedCard[],
   existing: BinderDef[] = [],
   overrideChecked?: Set<string>
 ) {
-  const checked = overrideChecked ?? defaultCheckedRows(strategy, pile, undefined);
+  const checked = overrideChecked ?? defaultsFor(strategy, pile, existing).checked;
   return computeShelfPlan({
     strategy,
     pullOutOrder: defaultPullOutOrder(),
@@ -155,9 +169,12 @@ describe('shelf-plan strategies', () => {
       expect(uncategorized.totalCards).toBe(0);
       const landed = binders.reduce((n, b) => n + b.totalCards, 0);
       expect(landed).toBe(result.totals.cardCount);
-      // Per-binder counts match the plan's own checked-row counts, in order.
-      const checkedRowCounts = result.rows.filter((r) => r.checked).map((r) => r.count);
-      expect(binders.map((b) => b.totalCards)).toEqual(checkedRowCounts);
+      // Per-binder counts match the plan's own created-row counts, in order,
+      // and not one of them is empty.
+      const createdRowCounts = result.rows.filter((r) => r.creates).map((r) => r.count);
+      expect(binders.map((b) => b.totalCards)).toEqual(createdRowCounts);
+      expect(binders.every((b) => b.totalCards > 0)).toBe(true);
+      expect(created).toHaveLength(result.totals.binderCount);
     });
 
     it(`${strategy.id}: is deterministic`, () => {
@@ -237,7 +254,7 @@ describe('shelf-plan strategies', () => {
 
   it('unchecking a row folds its cards into the next matching row instead of losing them', () => {
     const pile = bigPile();
-    const checked = defaultCheckedRows('by-color', pile, undefined);
+    const checked = defaultCheckedRows('by-color', pile);
     checked.delete('color-w'); // uncheck White
     const result = plan('by-color', pile, [], checked);
     const white = result.rows.find((r) => r.id === 'color-w')!;
@@ -309,7 +326,7 @@ describe('shelf-plan strategies', () => {
 
   it('by-color: lands never land in a color bucket, only Everything else or the Lands pull-out', () => {
     const pile = bigPile();
-    const checked = defaultCheckedRows('by-color', pile, undefined);
+    const checked = defaultCheckedRows('by-color', pile);
     checked.add('lands');
     const result = plan('by-color', pile, [], checked);
     const created = result.toCreate(0);
@@ -395,5 +412,118 @@ describe('shelf-plan strategies', () => {
     expect(result.totals.cardCount).toBe(0);
     expect(result.totals.leftOver).toBe(0);
     expect(result.rows.every((r) => r.count === 0)).toBe(true);
+  });
+
+  it('a row that would land nothing starts unchecked and is left out of N and toCreate', () => {
+    // bigPile has no sorcery, enchantment, planeswalker or battle, so By card
+    // type proposes four rows with nothing for them.
+    const pile = bigPile();
+    const { checked, plan: result } = defaultsFor('by-type', pile);
+    const zero = result.rows.filter((r) => r.count === 0);
+    expect(zero.map((r) => r.id)).toEqual(
+      expect.arrayContaining([
+        'type-sorcery',
+        'type-enchantment',
+        'type-planeswalker',
+        'type-battle',
+      ])
+    );
+    for (const row of zero) {
+      if (row.section === 'catch-all') continue;
+      expect(row.checked, row.id).toBe(false);
+      expect(checked.has(row.id), row.id).toBe(false);
+      expect(row.creates, row.id).toBe(false);
+    }
+    const names = result.toCreate(0).map((b) => b.name);
+    for (const row of zero) expect(names).not.toContain(row.name);
+    expect(result.totals.binderCount).toBe(
+      result.rows.filter((r) => r.count > 0 && r.checked).length
+    );
+    expect(result.totals.binderCount).toBe(names.length);
+    // Every row that does land cards is checked by default.
+    for (const row of result.rows.filter((r) => r.count > 0 && r.section === 'split'))
+      expect(row.checked, row.id).toBe(true);
+  });
+
+  it('the default plan is exactly computeShelfPlan with the checked set it returns', () => {
+    const pile = bigPile();
+    for (const strategy of SHELF_STRATEGIES) {
+      const d = defaultsFor(strategy.id, pile);
+      const again = plan(strategy.id, pile, [], d.checked);
+      expect(d.plan.rows.map((r) => [r.id, r.checked, r.count, r.pages, r.creates])).toEqual(
+        again.rows.map((r) => [r.id, r.checked, r.count, r.pages, r.creates])
+      );
+      expect(d.plan.totals).toEqual(again.totals);
+    }
+  });
+
+  it('a checked row that lands nothing stays checked but is never created or counted', () => {
+    // Value first, then color, with the Worth $5+ pull-out checked on top:
+    // the pull-out takes every card the $20+ and $5 to $20 tiers would hold.
+    const pile = bigPile();
+    const checked = defaultCheckedRows('value-then-color', pile);
+    checked.add('value');
+    checked.add('price-20');
+    checked.add('price-5');
+    const result = plan('value-then-color', pile, [], checked);
+    for (const id of ['price-20', 'price-5']) {
+      const row = result.rows.find((r) => r.id === id)!;
+      expect(row.checked, id).toBe(true);
+      expect(row.count, id).toBe(0);
+      expect(row.creates, id).toBe(false);
+    }
+    const names = result.toCreate(0).map((b) => b.name);
+    expect(names).not.toContain('Worth $20 or more');
+    expect(names).not.toContain('Worth $5 to $20');
+    expect(result.totals.binderCount).toBe(names.length);
+    expect(result.totals.leftOver).toBe(0);
+    expect(totalCopiesPlanned(result)).toBe(pile.length);
+  });
+
+  it('the catch-all is not created when every card already has a row', () => {
+    const pile = bigPile().filter((c) => c.name !== 'Unknown Colors Card');
+    const result = plan('by-type', pile);
+    const catchAll = result.rows.find((r) => r.section === 'catch-all')!;
+    expect(catchAll.count).toBe(0);
+    expect(catchAll.creates).toBe(false);
+    expect(result.toCreate(0).map((b) => b.name)).not.toContain('Everything else');
+    expect(result.totals.leftOver).toBe(0);
+    expect(totalCopiesPlanned(result)).toBe(pile.length);
+  });
+
+  it("an unchecked row's count is exactly what checking it would give", () => {
+    // An expensive land sits in two unchecked rows' rules (Worth $5+ and
+    // Lands under Value first): checking Lands alone must still count it.
+    const pile = [...bigPile(), card('Scalding Tarn', 'Land', [], 'rare', 30)];
+    for (const strategy of SHELF_STRATEGIES) {
+      const { checked, plan: result } = defaultsFor(strategy.id, pile);
+      for (const row of result.rows.filter((r) => !r.checked)) {
+        const withIt = plan(strategy.id, pile, [], new Set([...checked, row.id]));
+        const after = withIt.rows.find((r) => r.id === row.id)!;
+        expect([row.count, row.pages], `${strategy.id}: ${row.id}`).toEqual([
+          after.count,
+          after.pages,
+        ]);
+      }
+    }
+    const lands = defaultsFor('value-then-color', pile).plan.rows.find((r) => r.id === 'lands')!;
+    expect(lands.checked).toBe(false);
+    expect(lands.count).toBeGreaterThanOrEqual(4); // Forest, Command Tower, Godless Shrine, Scalding Tarn
+  });
+
+  it('every row names its order with the named-order name the sort pill shows', () => {
+    const names = new Set(SORT_PRESETS.map((p) => p.name));
+    const pile = bigPile();
+    for (const strategy of SHELF_STRATEGIES) {
+      for (const row of plan(strategy.id, pile).rows) {
+        expect(names.has(row.orderLabel), `${strategy.id}: ${row.id} "${row.orderLabel}"`).toBe(
+          true
+        );
+      }
+    }
+    const byColor = plan('by-color', pile).rows;
+    expect(byColor.find((r) => r.id === 'color-w')!.orderLabel).toBe('A to Z');
+    expect(byColor.find((r) => r.id === 'value')!.orderLabel).toBe('Most valuable first');
+    expect(byColor.find((r) => r.section === 'catch-all')!.orderLabel).toBe('By card type');
   });
 });

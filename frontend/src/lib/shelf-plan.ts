@@ -7,13 +7,16 @@
  * user's existing ones (existing binders keep first-match-wins priority).
  *
  * Pure and side-effect free: nothing here touches the store. The planner UI
- * (`PlanShelfModal`) calls `computeShelfPlan` on every state change and hands
- * the result's `create` list to the store's `createBinders`.
+ * (`PlanShelfModal`) opens on `defaultShelfPlan`, calls `computeShelfPlan`
+ * once the user changes a row, and hands the result's `toCreate` list to the
+ * store's `createBinders`. A row that would land nothing is never created.
  */
 import type { BinderDef, BinderFilter, BinderInput, ChipExpression, EnrichedCard } from '../types';
 import type { SetMap } from './api';
 import { materializeBinders } from './materialize';
+import { cardMatchesAnyGroup, compileFilterGroups } from './rules';
 import { SORT_PRESETS } from './sorting';
+import { sortOrderSummaryLabel } from './sort-order-label';
 import { TYPE_ORDER } from './card-types';
 import { COLOR_INFO } from './colors';
 import { volumesFor } from './binder-volumes';
@@ -72,9 +75,10 @@ export type PullOutId = 'value' | 'commanders' | 'lands';
 export interface ShelfRowDef {
   id: string;
   name: string;
-  /** Sentence-case description, shown under the name on the row. */
-  description: string;
   filter: BinderFilter;
+  /** A `SORT_PRESETS` id. The row shows that named order's own name (via
+   *  `sortOrderSummaryLabel`), the same words the binder's sort pill and the
+   *  editor's Order summary will show once it exists. */
   sortPresetId: string;
   /** Swatch color for the row / shelf spine. */
   color: string;
@@ -84,7 +88,6 @@ export const SHELF_PULL_OUTS: readonly (ShelfRowDef & { id: PullOutId })[] = [
   {
     id: 'value',
     name: 'Worth $5 or more',
-    description: 'most valuable first',
     filter: { priceMin: 5 },
     sortPresetId: 'most-valuable',
     color: '#c9a94a',
@@ -92,7 +95,6 @@ export const SHELF_PULL_OUTS: readonly (ShelfRowDef & { id: PullOutId })[] = [
   {
     id: 'commanders',
     name: 'Commanders',
-    description: 'by color',
     filter: { commanderEligible: true },
     sortPresetId: 'by-color',
     color: '#3f8c58',
@@ -100,7 +102,6 @@ export const SHELF_PULL_OUTS: readonly (ShelfRowDef & { id: PullOutId })[] = [
   {
     id: 'lands',
     name: 'Lands',
-    description: 'by color',
     filter: { typeTokenChips: chip('land') },
     sortPresetId: 'by-color',
     color: '#8a7458',
@@ -121,14 +122,11 @@ export function defaultPullOutOrder(): PullOutId[] {
   return SHELF_PULL_OUTS.map((p) => p.id);
 }
 
-export function defaultCheckedPullOuts(strategy: ShelfStrategyId): Set<PullOutId> {
-  return new Set(DEFAULT_PULL_OUTS[strategy]);
-}
-
-/** Every row checked by default when a strategy is (re)selected: its default
- *  pull-outs, plus every one of its split rows (the catch-all is implicit and
- *  never appears in this set at all — see `computeShelfPlan`). */
-export function defaultCheckedRows(
+/** The rows a strategy proposes before any counting: its default pull-outs,
+ *  plus every one of its split rows (the catch-all is implicit and never
+ *  appears in this set — see `computeShelfPlan`). `defaultShelfPlan` then
+ *  drops every one of these that would land nothing. */
+function candidateRows(
   strategy: ShelfStrategyId,
   pile: EnrichedCard[],
   setMap: SetMap | undefined
@@ -174,7 +172,6 @@ function colorSplitBuckets(): ShelfRowDef[] {
   return COLOR_KEYS.map((k) => ({
     id: `color-${k.toLowerCase()}`,
     name: COLOR_INFO[k].label,
-    description: 'a to z',
     filter: { colors: chip(k.toLowerCase()), typeTokenChips: notLand },
     sortPresetId: 'a-to-z',
     color: COLOR_INFO[k].pip,
@@ -212,7 +209,6 @@ function typeSplitBuckets(): ShelfRowDef[] {
   return TYPE_ORDER.filter((t) => t !== 'other').map((t) => ({
     id: `type-${t}`,
     name: TYPE_LABEL[t] ?? t,
-    description: 'by mana value',
     filter: { typeTokenChips: chip(t) },
     sortPresetId: 'by-type',
     color: TYPE_COLOR[t] ?? '#a8b0bc',
@@ -246,7 +242,6 @@ function setSplitBuckets(pile: EnrichedCard[], setMap: SetMap | undefined): Shel
   return top.map(([code], i) => ({
     id: `set-${code}`,
     name: setMap?.[code.toUpperCase()]?.name ?? code.toUpperCase(),
-    description: 'set collection',
     filter: { setCodes: [code] },
     sortPresetId: 'set-collection',
     // A muted, evenly-spaced palette independent of any card's own colors —
@@ -269,7 +264,6 @@ function valueThenColorBuckets(): ShelfRowDef[] {
   const tiers: ShelfRowDef[] = PRICE_TIERS.map((t) => ({
     id: t.id,
     name: t.name,
-    description: 'most valuable first',
     filter: { priceMin: t.priceMin },
     sortPresetId: 'most-valuable',
     color: t.color,
@@ -281,7 +275,6 @@ function catchAllBucket(strategy: ShelfStrategyId): ShelfRowDef {
   return {
     id: CATCH_ALL_ID,
     name: 'Everything else',
-    description: strategy === 'by-type' ? 'a to z' : 'by card type',
     filter: {},
     sortPresetId: strategy === 'by-type' ? 'a-to-z' : 'by-type',
     color: COLOR_INFO.C.pip,
@@ -314,21 +307,29 @@ export function splitBucketsFor(
 export interface ShelfPlanRow {
   id: string;
   name: string;
-  description: string;
+  /** The row's order in words: the named order's own name ("A to Z",
+   *  "Most valuable first"), from the same `sortOrderSummaryLabel` the sort
+   *  pill and the editor's Order summary read. */
+  orderLabel: string;
   color: string;
   section: 'pull-out' | 'split' | 'catch-all';
   checked: boolean;
-  /** Cards this row would land, given every row ABOVE it in the final order
-   *  that is currently CHECKED (a checked row's count is the real,
-   *  engine-computed figure that would be created; an unchecked row's count
-   *  is informational — "if you check this now" — computed the same way but
-   *  never included in the totals or the create list). */
+  /** Cards this row lands. A checked row's count is the real, engine-computed
+   *  figure that would be created. An unchecked row's is exactly what it
+   *  would hold if you checked it now: the cards that get past every existing
+   *  binder and every checked row above it and match its rule. Informational
+   *  only, never in the totals or the create list. */
   count: number;
   pages: number;
   volumes: Volume[] | null;
+  /** True when this row becomes a binder on Create: checked AND it lands at
+   *  least one card. A checked row that lands nothing is never created
+   *  (an empty binder is shelf clutter), and it isn't counted anywhere. */
+  creates: boolean;
 }
 
 export interface ShelfPlanTotals {
+  /** Binders Create makes: the rows that are checked and land cards. */
   binderCount: number;
   cardCount: number;
   /** Always 0 in a well-formed plan (the catch-all is always active) — kept
@@ -340,10 +341,11 @@ export interface ShelfPlanTotals {
 export interface ShelfPlan {
   rows: ShelfPlanRow[];
   totals: ShelfPlanTotals;
-  /** Binder inputs for every CHECKED row, in final shelf order, ready for the
-   *  store's `createBinders` (positions still need `existingCount + index`,
-   *  applied by the caller at create time since the planner never assumes
-   *  the binder count is stable between preview and click). */
+  /** Binder inputs for every row that `creates`, in final shelf order, ready
+   *  for the store's `createBinders` (positions still need
+   *  `existingCount + index`, applied by the caller at create time since the
+   *  planner never assumes the binder count is stable between preview and
+   *  click). */
   toCreate: (existingCount: number) => BinderInput[];
 }
 
@@ -410,7 +412,7 @@ export interface ComputeShelfPlanInput {
 /**
  * Computes the full plan: every row's would-land count (real engine,
  * existing binders placed first and kept at their own positions), the
- * totals, and a `toCreate` builder for the checked rows.
+ * totals, and a `toCreate` builder for the rows that will become binders.
  */
 export function computeShelfPlan(input: ComputeShelfPlanInput): ShelfPlan {
   const { strategy, pullOutOrder, checked, pile, existingBinders, allocatedCopyIds, setMap } =
@@ -432,28 +434,20 @@ export function computeShelfPlan(input: ComputeShelfPlanInput): ShelfPlan {
     existingBinders.length === 0 ? 0 : Math.max(...existingBinders.map((b) => b.position)) + 1;
 
   const now = Date.now();
+  const planId = (row: ShelfRowDef) => `__plan_${row.id}__`;
   const buildDef = (row: ShelfRowDef, position: number): BinderDef => ({
     ...rowToInput(row, row.color),
-    id: `__plan_${row.id}__`,
+    id: planId(row),
     position,
     createdAt: now,
     updatedAt: now,
   });
+  const isChecked = (row: ShelfRowDef, section: ShelfPlanRow['section']) =>
+    section === 'catch-all' || checked.has(row.id);
 
-  // Pass 1: every row (checked or not) present, in final order — gives an
-  // "if this were checked" count for unchecked rows. Not used for totals.
-  const allDefs = allRows.map(({ row }, i) => buildDef(row, basePosition + i));
-  const previewResult = materializeBinders([...pile], [...existingBinders, ...allDefs], {
-    search: '',
-    allocatedCopyIds,
-    setMap,
-  });
-  const previewById = new Map(previewResult.binders.map((b) => [b.def.id, b]));
-
-  // Pass 2: only checked rows (+ the always-on catch-all) — the REAL plan.
-  const checkedRows = allRows.filter(
-    ({ row, section }) => section === 'catch-all' || checked.has(row.id)
-  );
+  // The REAL plan: existing binders first, then only the checked rows (and
+  // the always-on catch-all), in final order.
+  const checkedRows = allRows.filter(({ row, section }) => isChecked(row, section));
   const checkedDefs = checkedRows.map(({ row }, i) => buildDef(row, basePosition + i));
   const realResult = materializeBinders([...pile], [...existingBinders, ...checkedDefs], {
     search: '',
@@ -462,49 +456,108 @@ export function computeShelfPlan(input: ComputeShelfPlanInput): ShelfPlan {
   });
   const realById = new Map(realResult.binders.map((b) => [b.def.id, b]));
 
-  const rows: ShelfPlanRow[] = allRows.map(({ row, section }) => {
-    const isChecked = section === 'catch-all' || checked.has(row.id);
-    const planId = `__plan_${row.id}__`;
-    const materialized = isChecked ? realById.get(planId) : previewById.get(planId);
+  // Which plan row (by its index in `allRows`) claimed each copy. A copy an
+  // existing binder claims, or one a hide-deck-cards binder swallowed, is in
+  // no plan row and never reaches one.
+  const rowIndexById = new Map(allRows.map(({ row }, i) => [planId(row), i]));
+  const claimedAt = new Map<string, number>();
+  for (const b of realResult.binders) {
+    const i = rowIndexById.get(b.def.id);
+    if (i === undefined) continue;
+    for (const section of b.sections) for (const c of section.cards) claimedAt.set(c.copyId, i);
+  }
+
+  // An unchecked row's count is what it would hold if checked now: routing is
+  // first-match-wins, so inserting it takes exactly the copies that reach its
+  // slot (claimed by a checked row BELOW it) and match its rule, and changes
+  // nothing above it. Pre-filtered here so the engine only sorts the copies
+  // it would actually hold, not the whole remainder.
+  const ifChecked = (row: ShelfRowDef, index: number) => {
+    const def = buildDef(row, 0);
+    const compiled = compileFilterGroups(def.filterGroups);
+    const reaching = pile.filter(
+      (c) => (claimedAt.get(c.copyId) ?? -1) > index && cardMatchesAnyGroup(c, compiled)
+    );
+    return materializeBinders(reaching, [def], { search: '', allocatedCopyIds, setMap }).binders[0];
+  };
+
+  const rows: ShelfPlanRow[] = allRows.map(({ row, section }, index) => {
+    const on = isChecked(row, section);
+    const materialized = on ? realById.get(planId(row)) : ifChecked(row, index);
     const count = materialized?.totalCards ?? 0;
-    const pages = materialized?.totalPages ?? 0;
-    const volumes = materialized ? volumesFor(materialized) : null;
     return {
       id: row.id,
       name: row.name,
-      description: row.description,
+      orderLabel: sortOrderSummaryLabel(sortsFor(row.sortPresetId)),
       color: row.color,
       section,
-      checked: isChecked,
+      checked: on,
       count,
-      pages,
-      volumes,
+      pages: materialized?.totalPages ?? 0,
+      volumes: materialized ? volumesFor(materialized) : null,
+      creates: on && count > 0,
     };
   });
 
+  // Only rows that land cards become binders. Dropping a checked row that
+  // lands nothing changes no other row's count (it claimed no copy), so the
+  // totals and `toCreate` stay exactly what the engine routed above. The
+  // catch-all is no exception: when it lands nothing there is nothing left
+  // over without it either.
+  const creating = allRows.filter((_, i) => rows[i].creates);
   // Sum only the PLAN's own binders — `realResult.binders` also carries the
   // user's existing binders (placed first so they keep priority), whose
   // cards are already spoken for and must not inflate what the plan itself
   // reports it will create.
-  const cardCount = checkedDefs.reduce((n, def) => n + (realById.get(def.id)?.totalCards ?? 0), 0);
+  const cardCount = rows.reduce((n, r) => n + (r.creates ? r.count : 0), 0);
 
   return {
     rows,
     totals: {
-      binderCount: checkedRows.length,
+      binderCount: creating.length,
       cardCount,
       leftOver: realResult.uncategorized.totalCards,
     },
     toCreate: (existingCount: number) => {
       const names = dedupeNames(
-        checkedRows.map(({ row }) => row.name),
+        creating.map(({ row }) => row.name),
         existingBinders.map((b) => b.name)
       );
-      return checkedRows.map(({ row }, i) => ({
+      return creating.map(({ row }, i) => ({
         ...rowToInput(row, row.color),
         name: names[i],
         position: existingCount + i,
       }));
+    },
+  };
+}
+
+export type DefaultShelfPlanInput = Omit<ComputeShelfPlanInput, 'checked'>;
+
+/**
+ * The plan a strategy opens with, and the rows it checks. Every proposed row
+ * starts checked EXCEPT one that would land nothing: an empty binder is never
+ * offered as a default. Unchecking those changes no other row's count (they
+ * claim no copy), so this is one engine pass, not two, and the returned plan
+ * is exactly `computeShelfPlan` with the returned `checked` set.
+ */
+export function defaultShelfPlan(input: DefaultShelfPlanInput): {
+  checked: Set<string>;
+  plan: ShelfPlan;
+} {
+  const candidates = candidateRows(input.strategy, input.pile, input.setMap);
+  const plan = computeShelfPlan({ ...input, checked: candidates });
+  const checked = new Set<string>();
+  for (const row of plan.rows) {
+    if (row.section !== 'catch-all' && row.checked && row.count > 0) checked.add(row.id);
+  }
+  return {
+    checked,
+    plan: {
+      ...plan,
+      rows: plan.rows.map((r) =>
+        r.section === 'catch-all' || checked.has(r.id) ? r : { ...r, checked: false }
+      ),
     },
   };
 }

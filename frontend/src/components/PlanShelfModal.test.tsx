@@ -2,6 +2,7 @@
 import 'fake-indexeddb/auto';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import { PlanShelfModal } from './PlanShelfModal';
 import { useCollectionStore } from '../store/collection';
 import { useToastsStore } from '../store/toasts';
@@ -71,7 +72,11 @@ function bigWhitePile(): EnrichedCard[] {
 
 function renderModal() {
   const onClose = vi.fn();
-  render(<PlanShelfModal onClose={onClose} />);
+  render(
+    <MemoryRouter>
+      <PlanShelfModal onClose={onClose} />
+    </MemoryRouter>
+  );
   return { onClose };
 }
 
@@ -92,10 +97,9 @@ describe('PlanShelfModal', () => {
       screen.getByText('Import your collection first. A shelf is planned from the cards you own.')
     ).toBeTruthy();
     expect(screen.queryByRole('radio', { name: /By color/ })).toBeFalsy();
-    expect(screen.getByRole('button', { name: 'Create 0 binders' })).toHaveProperty(
-      'disabled',
-      true
-    );
+    // No dead "Create 0 binders": the way forward is importing.
+    expect(screen.queryByRole('button', { name: /Create/ })).toBeFalsy();
+    expect(screen.getByRole('link', { name: 'Import your collection' })).toBeTruthy();
   });
 
   it('defaults to By color and shows every row with a count and page total', async () => {
@@ -175,7 +179,7 @@ describe('PlanShelfModal', () => {
     useCollectionStore.setState({ cards: bigPile(), binders: [existing] });
     renderModal();
     await waitFor(() => expect(screen.getByText(/left over/).textContent).toMatch(/0 left over/));
-    expect(screen.getByText('Your 1 existing binder stays in front of these')).toBeTruthy();
+    expect(screen.getByText('Your 1 existing binder stays in front of these.')).toBeTruthy();
   });
 
   it('an all-filed collection says so and disables Create', async () => {
@@ -201,10 +205,48 @@ describe('PlanShelfModal', () => {
         )
       ).toBeTruthy()
     );
-    expect(screen.getByRole('button', { name: /Create 0 binders/ })).toHaveProperty(
-      'disabled',
-      true
-    );
+    expect(screen.queryByRole('radio', { name: /By color/ })).toBeFalsy();
+    expect(screen.queryByRole('button', { name: /Create/ })).toBeFalsy();
+    expect(screen.getByRole('button', { name: 'Done' })).toBeTruthy();
+  });
+
+  it('a row with nothing for it starts unchecked, says so, and never counts toward Create', async () => {
+    // bigPile has no multicolor card, so Multicolor would land nothing.
+    useCollectionStore.setState({ cards: bigPile(), binders: [] });
+    renderModal();
+    const multiRow = await waitFor(() => screen.getByText('Multicolor').closest('li')!);
+    expect(within(multiRow).getByText('Nothing left for this one')).toBeTruthy();
+    const multiBox = within(multiRow).getByRole('checkbox', {
+      name: 'Include Multicolor in the shelf',
+    });
+    expect(multiBox).toHaveProperty('checked', false);
+    // Worth $5+, Commanders, the five colors and Everything else: 8, not 9.
+    expect(screen.getByRole('button', { name: 'Create 8 binders' })).toBeTruthy();
+
+    // Checking it anyway is allowed, and the count stays honest.
+    fireEvent.click(multiBox);
+    expect(multiBox).toHaveProperty('checked', true);
+    await new Promise((r) => setTimeout(r, 200));
+    expect(screen.getByRole('button', { name: 'Create 8 binders' })).toBeTruthy();
+    expect(within(multiRow).getByText('Nothing left for this one')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create 8 binders' }));
+    const names = useCollectionStore.getState().binders.map((b) => b.name);
+    expect(names).toHaveLength(8);
+    expect(names).not.toContain('Multicolor');
+  });
+
+  it('rows use the named-order names and spell out pages', async () => {
+    useCollectionStore.setState({ cards: bigPile(), binders: [] });
+    renderModal();
+    const whiteRow = await waitFor(() => screen.getByText('White').closest('li')!);
+    expect(within(whiteRow).getByText('A to Z')).toBeTruthy();
+    expect(within(whiteRow).getByText('1 page')).toBeTruthy();
+    const valueRow = screen.getByText('Worth $5 or more').closest('li')!;
+    expect(within(valueRow).getByText('Most valuable first')).toBeTruthy();
+    const catchAllRow = screen.getByText('Everything else').closest('li')!;
+    expect(within(catchAllRow).getByText('By card type')).toBeTruthy();
+    expect(screen.queryByText(/\b(pp|pg)\b/)).toBeFalsy();
   });
 
   it('Create calls the store once with sequential positions after existing binders, then offers a working Undo', async () => {

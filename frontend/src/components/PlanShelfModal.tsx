@@ -9,7 +9,7 @@ import { toast } from '../store/toasts';
 import { useBinderLayoutInputs } from '../lib/use-binder-layout-inputs';
 import {
   computeShelfPlan,
-  defaultCheckedRows,
+  defaultShelfPlan,
   defaultPullOutOrder,
   DEFAULT_PLAN_CAPACITY,
   SHELF_STRATEGIES,
@@ -26,32 +26,51 @@ const SPLIT_SECTION_TITLE: Record<ShelfStrategyId, string> = {
   'value-then-color': 'Then by color',
 };
 
-/** Visual spine height for the shelf picture, clamped so one huge bucket
- *  doesn't dwarf the row: proportional to pages, never below a stub. */
-function spineHeight(pages: number, maxPages: number): number {
-  if (maxPages <= 0) return 12;
-  return Math.round(12 + (pages / maxPages) * 44);
+const plural = (n: number, one: string, many: string) =>
+  `${n.toLocaleString()} ${n === 1 ? one : many}`;
+
+/** The shelf picture's spines: one per physical book, so a row that splits
+ *  into volumes stands as that many binders. Height follows the book's page
+ *  count against the fullest book, never below a stub. */
+function shelfSpines(rows: ShelfPlanRow[]) {
+  const spines = rows.flatMap((row) =>
+    row.volumes && row.volumes.length > 1
+      ? row.volumes.map((v) => ({
+          key: `${row.id}-${v.index}`,
+          color: row.color,
+          pages: v.pageEnd - v.pageStart + 1,
+        }))
+      : [{ key: row.id, color: row.color, pages: row.pages }]
+  );
+  const max = Math.max(1, ...spines.map((s) => s.pages));
+  return spines.map((s) => ({ ...s, height: Math.round(14 + (s.pages / max) * 42) }));
 }
 
 function Row({
   row,
+  checked,
   onToggle,
   reorder,
 }: {
   row: ShelfPlanRow;
+  /** The row's live checkbox state. It can run a beat ahead of `row`, whose
+   *  figures come from the debounced recount. */
+  checked: boolean;
   onToggle: (id: string) => void;
   /** Only pull-out rows are reorderable. */
   reorder?: { onUp: () => void; onDown: () => void; canUp: boolean; canDown: boolean };
 }) {
   const checkboxId = useId();
+  const empty = row.count === 0;
+  const volumes = row.volumes && row.volumes.length > 1 ? row.volumes.length : 0;
   return (
-    <li className={`plan-shelf-row${row.checked ? '' : ' is-off'}`}>
+    <li className={`plan-shelf-row${checked ? '' : ' is-off'}${empty ? ' is-empty' : ''}`}>
       {row.section === 'catch-all' ? (
         <span
           className="plan-shelf-row-check plan-shelf-row-check--fixed"
-          title="Always created, last"
+          title="Always last, so nothing is left over"
         >
-          <Check width={14} height={14} strokeWidth={1.8} aria-hidden />
+          <Check width={16} height={16} strokeWidth={2} aria-hidden />
           <span className="sr-only">Always included</span>
         </span>
       ) : (
@@ -59,12 +78,34 @@ function Row({
           <input
             id={checkboxId}
             type="checkbox"
-            checked={row.checked}
+            checked={checked}
             onChange={() => onToggle(row.id)}
             aria-label={`Include ${row.name} in the shelf`}
           />
         </label>
       )}
+      <span className="plan-shelf-row-swatch" style={{ background: row.color }} aria-hidden />
+      <span className="plan-shelf-row-text">
+        <span className="plan-shelf-row-name">{row.name}</span>
+        <span className="plan-shelf-row-sep" aria-hidden="true">
+          {' · '}
+        </span>
+        <span className="plan-shelf-row-meta">
+          {empty
+            ? 'Nothing left for this one'
+            : volumes
+              ? `${row.orderLabel} · ${volumes} volumes of ${DEFAULT_PLAN_CAPACITY.toLocaleString()}`
+              : row.orderLabel}
+        </span>
+      </span>
+      <span className="plan-shelf-row-figures">
+        {!empty && (
+          <>
+            <span className="plan-shelf-row-count">{row.count.toLocaleString()}</span>
+            <span className="plan-shelf-row-pages">{plural(row.pages, 'page', 'pages')}</span>
+          </>
+        )}
+      </span>
       {reorder && (
         <span className="plan-shelf-row-reorder">
           <IconButton
@@ -83,22 +124,15 @@ function Row({
           />
         </span>
       )}
-      <span className="plan-shelf-row-swatch" style={{ background: row.color }} aria-hidden />
-      <span className="plan-shelf-row-name">
-        {row.name}
-        <span className="plan-shelf-row-desc"> · {row.description}</span>
-      </span>
-      <span className="plan-shelf-row-count">{row.count.toLocaleString()}</span>
-      <span className="plan-shelf-row-pages">
-        {row.pages.toLocaleString()} {row.pages === 1 ? 'pg' : 'pp'}
-      </span>
-      {row.volumes && row.volumes.length > 1 && (
-        <p className="plan-shelf-row-volumes">
-          {row.name} · {row.volumes.length} volumes of {DEFAULT_PLAN_CAPACITY.toLocaleString()}
-        </p>
-      )}
     </li>
   );
+}
+
+/** The user's own row picks, tagged with the strategy they were made under so
+ *  a debounced set left over from the previous strategy never applies here. */
+interface RowPicks {
+  strategy: ShelfStrategyId;
+  ids: Set<string>;
 }
 
 /**
@@ -107,7 +141,7 @@ function Row({
  * above, via `backdropClassName="modal-backdrop--sheet"` (the same pattern
  * `BinderVolumesSheet` uses). All the actual planning lives in the pure
  * `lib/shelf-plan.ts`; this component only holds the picker state (strategy,
- * pull-out order, which rows are checked) and renders what it computes.
+ * pull-out order, which rows the user checked) and renders what it computes.
  */
 export function PlanShelfModal({ onClose }: { onClose: () => void }) {
   const titleId = useId();
@@ -117,25 +151,56 @@ export function PlanShelfModal({ onClose }: { onClose: () => void }) {
 
   const [strategy, setStrategy] = useState<ShelfStrategyId>('by-color');
   const [pullOutOrder, setPullOutOrder] = useState<PullOutId[]>(defaultPullOutOrder);
-  const [checked, setChecked] = useState<Set<string>>(() =>
-    defaultCheckedRows('by-color', cards, setMap)
-  );
+  // null until the user checks or unchecks a row. Until then the plan's own
+  // defaults apply (every row that lands cards), and they follow the
+  // collection as it hydrates instead of freezing what the first render saw.
+  const [picks, setPicks] = useState<RowPicks | null>(null);
   const [creating, setCreating] = useState(false);
 
+  // Live recount, debounced: a rapid run of clicks (unchecking several rows,
+  // reordering twice) settles into ONE recompute instead of one per click,
+  // since each pass runs the real routing engine over the whole collection.
+  // The checkboxes and the row order read the live state, so they never lag.
+  const debouncedOrder = useDebouncedValue(pullOutOrder, 150);
+  const debouncedPicks = useDebouncedValue(picks, 150);
+  const livePicks = picks?.strategy === strategy ? picks : null;
+  const settledPicks =
+    livePicks && debouncedPicks?.strategy === strategy ? debouncedPicks.ids : null;
+
+  const plan = useMemo(() => {
+    const input = {
+      strategy,
+      pullOutOrder: debouncedOrder,
+      pile: cards,
+      existingBinders: binders,
+      allocatedCopyIds,
+      setMap,
+    };
+    return settledPicks
+      ? computeShelfPlan({ ...input, checked: settledPicks })
+      : defaultShelfPlan(input).plan;
+  }, [strategy, debouncedOrder, settledPicks, cards, binders, allocatedCopyIds, setMap]);
+
+  const isChecked = (row: ShelfPlanRow) =>
+    row.section === 'catch-all' || (livePicks ? livePicks.ids.has(row.id) : row.checked);
+
   const changeStrategy = (next: ShelfStrategyId) => {
+    // A fresh strategy proposes an entirely different bucket set, so the old
+    // picks don't carry over: the new one opens on its own defaults.
     setStrategy(next);
-    // A fresh strategy proposes an entirely different bucket set — the old
-    // checked ids (color keys, type keys, …) don't carry over meaningfully,
-    // so every row of the new strategy starts checked, same as a first open.
-    setChecked(defaultCheckedRows(next, cards, setMap));
+    setPicks(null);
   };
 
   const toggleRow = (id: string) =>
-    setChecked((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
+    setPicks((prev) => {
+      const ids = new Set(
+        prev?.strategy === strategy
+          ? prev.ids
+          : plan.rows.filter((r) => r.checked && r.section !== 'catch-all').map((r) => r.id)
+      );
+      if (ids.has(id)) ids.delete(id);
+      else ids.add(id);
+      return { strategy, ids };
     });
 
   const movePullOut = (id: PullOutId, dir: -1 | 1) =>
@@ -148,49 +213,30 @@ export function PlanShelfModal({ onClose }: { onClose: () => void }) {
       return next;
     });
 
-  // Live recount, debounced: a rapid run of clicks (unchecking several rows,
-  // reordering twice) settles into ONE recompute instead of one per click —
-  // each pass runs the real routing engine twice over the whole collection.
-  const debouncedOrder = useDebouncedValue(pullOutOrder, 150);
-  const debouncedChecked = useDebouncedValue(checked, 150);
-
-  const plan = useMemo(
-    () =>
-      computeShelfPlan({
-        strategy,
-        pullOutOrder: debouncedOrder,
-        checked: debouncedChecked,
-        pile: cards,
-        existingBinders: binders,
-        allocatedCopyIds,
-        setMap,
-      }),
-    [strategy, debouncedOrder, debouncedChecked, cards, binders, allocatedCopyIds, setMap]
-  );
-
-  const pullOutRows = plan.rows.filter((r) => r.section === 'pull-out');
+  const rowById = new Map(plan.rows.map((r) => [r.id, r]));
+  // Pull-outs render in the live order; their figures catch up with the
+  // debounced recount a beat later.
+  const pullOutRows = pullOutOrder
+    .map((id) => rowById.get(id))
+    .filter((r): r is ShelfPlanRow => !!r);
   const splitRows = plan.rows.filter((r) => r.section === 'split');
   const catchAllRow = plan.rows.find((r) => r.section === 'catch-all');
-  const checkedRows = plan.rows.filter((r) => r.checked);
-  const maxPages = Math.max(1, ...checkedRows.map((r) => r.pages));
+  const creatingRows = plan.rows.filter((r) => r.creates);
+  const spines = shelfSpines(creatingRows);
+  const splitsIntoVolumes = creatingRows.some((r) => r.volumes && r.volumes.length > 1);
 
   const noCollection = cards.length === 0;
   const allFiled = !noCollection && plan.totals.cardCount === 0;
-  // The footer button's own count: 0 whenever there's genuinely nothing to
-  // create (no collection, or every card is already filed) — `plan.totals.
-  // binderCount` alone would still count checked-but-empty rows and print
-  // "Create 9 binders" on a button that's disabled for creating nothing.
-  const creatableCount = noCollection || allFiled ? 0 : plan.totals.binderCount;
+  const binderCount = noCollection || allFiled ? 0 : plan.totals.binderCount;
 
   const handleCreate = () => {
-    if (plan.totals.binderCount === 0 || creating) return;
+    if (binderCount === 0 || creating) return;
     setCreating(true);
-    const inputs = plan.toCreate(binders.length);
-    const created = createBinders(inputs);
+    const created = createBinders(plan.toCreate(binders.length));
     setCreating(false);
     onClose();
     toast.show({
-      message: `Created ${created.length} ${created.length === 1 ? 'binder' : 'binders'}`,
+      message: `Created ${plural(created.length, 'binder', 'binders')}`,
       tone: 'success',
       actionLabel: 'Undo',
       onAction: () => deleteBinders(created.map((b) => b.id)),
@@ -218,105 +264,112 @@ export function PlanShelfModal({ onClose }: { onClose: () => void }) {
           <p className="plan-shelf-empty">
             Import your collection first. A shelf is planned from the cards you own.
           </p>
+        ) : allFiled ? (
+          <p className="plan-shelf-empty">
+            Every card you own already has a binder. Nothing is left to plan a shelf from.
+          </p>
         ) : (
           <>
-            <ChoiceList
-              ariaLabel="Split my collection"
-              value={strategy}
-              onChange={changeStrategy}
-              options={SHELF_STRATEGIES.map((s) => ({
-                value: s.id,
-                label: s.name,
-                hint: s.description,
-              }))}
-            />
+            <section className="plan-shelf-section">
+              <h3 className="form-section-heading">Split my collection</h3>
+              <ChoiceList
+                ariaLabel="Split my collection"
+                value={strategy}
+                onChange={changeStrategy}
+                options={SHELF_STRATEGIES.map((s) => ({
+                  value: s.id,
+                  label: s.name,
+                  hint: s.description,
+                }))}
+              />
+            </section>
 
-            {allFiled ? (
-              <p className="plan-shelf-all-filed">
-                Every card you own already has a binder. Nothing is left to plan a shelf from.
+            <section className="plan-shelf-section">
+              <h3 className="form-section-heading">Pull these out first</h3>
+              <p className="form-field-hint">
+                They go at the front of the shelf, so they take their cards before the split below
+                does.
               </p>
-            ) : (
-              <>
-                <section className="plan-shelf-section">
-                  <h3 className="plan-shelf-section-title">Pull these out first</h3>
-                  <p className="plan-shelf-section-hint">
-                    They go at the front of the shelf, so they take their cards before the split
-                    below does.
+              <ul className="plan-shelf-rows">
+                {pullOutRows.map((row, i) => (
+                  <Row
+                    key={row.id}
+                    row={row}
+                    checked={isChecked(row)}
+                    onToggle={toggleRow}
+                    reorder={{
+                      onUp: () => movePullOut(row.id as PullOutId, -1),
+                      onDown: () => movePullOut(row.id as PullOutId, 1),
+                      canUp: i > 0,
+                      canDown: i < pullOutRows.length - 1,
+                    }}
+                  />
+                ))}
+              </ul>
+            </section>
+
+            <section className="plan-shelf-section">
+              <h3 className="form-section-heading">{SPLIT_SECTION_TITLE[strategy]}</h3>
+              <ul className="plan-shelf-rows">
+                {splitRows.map((row) => (
+                  <Row key={row.id} row={row} checked={isChecked(row)} onToggle={toggleRow} />
+                ))}
+                {catchAllRow && <Row row={catchAllRow} checked onToggle={toggleRow} />}
+              </ul>
+            </section>
+
+            <div className="plan-shelf-summary">
+              <span className="plan-shelf-shelf" aria-hidden="true">
+                {spines.map((s) => (
+                  <i key={s.key} style={{ background: s.color, height: s.height }} />
+                ))}
+              </span>
+              <div className="plan-shelf-totals">
+                <strong>
+                  {plural(plan.totals.binderCount, 'binder', 'binders')} ·{' '}
+                  {plural(plan.totals.cardCount, 'card', 'cards')} ·{' '}
+                  {plan.totals.leftOver.toLocaleString()} left over
+                </strong>
+                <p className="plan-shelf-totals-hint">
+                  {splitsIntoVolumes
+                    ? `Rows over ${DEFAULT_PLAN_CAPACITY.toLocaleString()} cards split into volumes. Raise the size later in each binder's Pages settings.`
+                    : `Each binder holds ${DEFAULT_PLAN_CAPACITY.toLocaleString()} cards, 9 to a page. A row with nothing left for it isn't created.`}
+                </p>
+                {binders.length > 0 && (
+                  <p className="plan-shelf-totals-hint">
+                    Your {binders.length.toLocaleString()} existing{' '}
+                    {binders.length === 1 ? 'binder stays' : 'binders stay'} in front of these.
                   </p>
-                  <ul className="plan-shelf-rows">
-                    {pullOutRows.map((row, i) => (
-                      <Row
-                        key={row.id}
-                        row={row}
-                        onToggle={toggleRow}
-                        reorder={{
-                          onUp: () => movePullOut(row.id as PullOutId, -1),
-                          onDown: () => movePullOut(row.id as PullOutId, 1),
-                          canUp: i > 0,
-                          canDown: i < pullOutRows.length - 1,
-                        }}
-                      />
-                    ))}
-                  </ul>
-                </section>
-
-                <section className="plan-shelf-section">
-                  <h3 className="plan-shelf-section-title">{SPLIT_SECTION_TITLE[strategy]}</h3>
-                  <ul className="plan-shelf-rows">
-                    {splitRows.map((row) => (
-                      <Row key={row.id} row={row} onToggle={toggleRow} />
-                    ))}
-                    {catchAllRow && <Row row={catchAllRow} onToggle={toggleRow} />}
-                  </ul>
-                </section>
-
-                <div className="plan-shelf-summary">
-                  <span className="plan-shelf-shelf" aria-hidden="true">
-                    {checkedRows.map((row) => (
-                      <i
-                        key={row.id}
-                        style={{ background: row.color, height: spineHeight(row.pages, maxPages) }}
-                      />
-                    ))}
-                  </span>
-                  <div className="plan-shelf-totals">
-                    <strong>
-                      {plan.totals.binderCount.toLocaleString()}{' '}
-                      {plan.totals.binderCount === 1 ? 'binder' : 'binders'} ·{' '}
-                      {plan.totals.cardCount.toLocaleString()}{' '}
-                      {plan.totals.cardCount === 1 ? 'card' : 'cards'} · {plan.totals.leftOver} left
-                      over
-                    </strong>
-                    <p className="plan-shelf-totals-hint">
-                      Rows over {DEFAULT_PLAN_CAPACITY.toLocaleString()} cards split into volumes,
-                      or raise the size later in each binder's Pages settings.
-                    </p>
-                  </div>
-                </div>
-              </>
-            )}
+                )}
+              </div>
+            </div>
           </>
         )}
       </div>
       <div className="modal-footer">
-        <div className="plan-shelf-footer-note">
-          {binders.length > 0 && !noCollection && (
-            <span>
-              Your {binders.length.toLocaleString()} existing{' '}
-              {binders.length === 1 ? 'binder stays' : 'binders stay'} in front of these
-            </span>
-          )}
-        </div>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button
-          variant="primary"
-          onClick={handleCreate}
-          disabled={creating || noCollection || allFiled || plan.totals.binderCount === 0}
-        >
-          {creating
-            ? 'Creating…'
-            : `Create ${creatableCount.toLocaleString()} ${creatableCount === 1 ? 'binder' : 'binders'}`}
-        </Button>
+        {noCollection ? (
+          <>
+            <Button onClick={onClose}>Cancel</Button>
+            <Button variant="primary" to="/collection" onClick={onClose}>
+              Import your collection
+            </Button>
+          </>
+        ) : allFiled ? (
+          <Button variant="primary" onClick={onClose}>
+            Done
+          </Button>
+        ) : (
+          <>
+            <Button onClick={onClose}>Cancel</Button>
+            <Button
+              variant="primary"
+              onClick={handleCreate}
+              disabled={creating || binderCount === 0}
+            >
+              {creating ? 'Creating…' : `Create ${plural(binderCount, 'binder', 'binders')}`}
+            </Button>
+          </>
+        )}
       </div>
     </Modal>
   );
