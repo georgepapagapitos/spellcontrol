@@ -143,6 +143,34 @@ describe('useActivity', () => {
     expect(result.current.recent).toHaveLength(1);
   });
 
+  it('exposes the following bucket without counting it toward the badge', async () => {
+    getActivityMock.mockResolvedValue({
+      actionRequired: [],
+      recent: [],
+      following: [
+        {
+          type: 'followed_deck_published',
+          id: 'fdp:1',
+          slug: 'atraxa',
+          deckName: 'Atraxa',
+          brewerUsername: 'ada',
+          brewerDisplayName: null,
+          occurredAt: Date.now(),
+        },
+      ],
+    });
+    const { result } = renderHook(() => useActivity());
+    await waitFor(() => expect(result.current.following).toHaveLength(1));
+    expect(result.current.count).toBe(0);
+  });
+
+  it('reads an older backend with no following bucket as an empty one', async () => {
+    getActivityMock.mockResolvedValue({ actionRequired: [], recent: [] });
+    const { result } = renderHook(() => useActivity());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.following).toEqual([]);
+  });
+
   it('a count decrease (markInboxSeen fired elsewhere) is reflected on the next refetch, without a reload', async () => {
     const occurredAt = Date.now();
     // mockImplementation (not mockResolvedValue) so each call returns a fresh

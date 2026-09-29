@@ -64,6 +64,13 @@ beforeEach(() => {
 });
 
 describe('DiscoverBrewersPage rails', () => {
+  it('describes brewers, not the Decks tab subtitle about public decks', async () => {
+    mockRails.mockResolvedValue(rails());
+    renderPage();
+    expect(await screen.findByText('Find brewers to follow and see what they build.')).toBeTruthy();
+    expect(screen.queryByText(/public decks from the spellcontrol community/i)).toBeNull();
+  });
+
   it('renders each non-empty rail with its heading and the spotlight', async () => {
     authStatus = 'authed';
     mockRails.mockResolvedValue(

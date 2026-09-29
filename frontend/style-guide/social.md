@@ -269,3 +269,54 @@ wheel. (`SnapCarousel` is the centred card-preview carousel and is not a rail.)
 **Search replaces the rails.** Two characters minimum, debounced 300ms; under two
 the rails stay. Results are `row` cards; states are skeleton rows, "No brewers
 match “…”", and the shared `.discover-decks-error` strip with Retry.
+
+## Friends page (`/friends`, T175)
+
+The page shows people, not usernames. Top to bottom: the find-people box, the
+tab strip (`Friends | Following | Requests | Inbox | Activity`), the active
+panel, then, only when there are fewer than three friends and follows combined,
+a strip of brewers to meet.
+
+- **A friend row is a person** (`components/friends/FriendRow`): avatar, name,
+  `@handle`, a peek at what they brew ("3 decks · Brews Atraxa", or the honest
+  "No public decks yet"), "Friends since …", and from 600px the art of one of
+  their decks with its colour bar. The whole identity is one link to
+  `/u/:username`; everything else lives in a `⋮` beside it, outside the link.
+  Friends are accepted mutuals, so the avatar and public deck count are fine to
+  show. The peek comes from `GET /api/friends` (backend `friends/peek.ts`,
+  the same projection as `BrewerCard`).
+- **No "View shared" button.** The friend hub (`/friends/:id`: head-to-head,
+  trades, what they shared with you) is in the row's menu as "Trades, games and
+  shared"; the profile is the row itself and "View profile". The hub earns its
+  place only for what the profile lacks, so it is a menu item, not a headline.
+- **Remove is a menu item, danger-toned, and asks first.** A friendship can't be
+  undone from the UI (both sides lose friends-only shares), so the confirm
+  dialog stays; there is no undo toast because there is nothing to restore.
+- **Following is a tab**, `BrewerCard` `row` cards, each with the `FollowButton`
+  beside it (a sibling, never inside the card's link). Unfollowing leaves the row
+  as "Follow" until the list next loads, so a mis-tap is one tap to undo. Empty:
+  "You aren't following anyone yet." with a Find brewers action.
+- **Find people is one box.** As you type (300ms, two characters; Enter searches
+  at once, even one character) it asks the handle search (any account, deck or
+  not) and the brewer directory (name or handle; accounts with a live deck) and
+  merges them by handle. Rows link to the profile, with Add friend for anyone
+  and Follow for brewers only (Follow is the row's filled button when both show;
+  Add friend goes secondary). Friendship state is derived from the lists the page
+  already holds ("Friends", "Request sent"). A name with a space skips the handle
+  search, which would 400. One directory failing never blocks the other.
+  "Find brewers to follow" sits under the box.
+- **Suggested brewers are an insight surface**: shared-commander brewers first,
+  else the newest, six cards in the rail scroller. They render nothing when
+  empty or failed (no skeleton, no error), only after friends and follows have
+  both answered, and never while the load error shows.
+- **Home gets "New from brewers you follow"**: deck (to `/d/:slug`), "by brewer"
+  (to the profile) and relative time, at most four rows, last seven days. It rides
+  the activity fetch, is deliberately not in the nav badge count, and renders
+  nothing when empty.
+- **Profile rulings that landed with it.** The pinned deck spans the grid row from
+  1024px as a wide feature (art left, details right); below that it stays the
+  stacked tile. "Friends" beside Follow is a flat status label (tinted, no border,
+  no pill, no pointer), so it cannot be mistaken for a button. On a phone the
+  stat line is one row of equal columns, value over label, never wrapped
+  sentences that orphan the last stat. The Brewers tab's header reads
+  "Find brewers to follow and see what they build."

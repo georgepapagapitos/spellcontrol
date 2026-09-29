@@ -18,7 +18,7 @@ vi.mock('../components/AddCardsSheet', () => ({
 // stays hermetic and exercises HomePage's composition and the hero, not each
 // section's own branching (covered by each section's own test file).
 vi.mock('../lib/use-activity', () => ({
-  useActivity: () => ({ count: 0, actionRequired: [], recent: [], loading: false }),
+  useActivity: () => ({ count: 0, actionRequired: [], recent: [], following: [], loading: false }),
 }));
 
 // Controllable per-test — mutated directly (not via mockReturnValue) since

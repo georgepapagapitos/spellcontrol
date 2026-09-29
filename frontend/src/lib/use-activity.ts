@@ -4,6 +4,7 @@ import {
   getActivity,
   type ActionRequiredItem,
   type DirectShareActivityItem,
+  type FollowedDeckPublishedActivityItem,
   type RecentActivityItem,
 } from './activity-client';
 import { countUnseen, useInboxSeenAt } from './use-inbox';
@@ -77,6 +78,9 @@ export function useActivity(): {
   count: number;
   actionRequired: ActionRequiredItem[];
   recent: RecentActivityItem[];
+  /** New decks from brewers the viewer follows. Feed content only: never part
+   *  of `count`, so following someone can't light the nav badge. */
+  following: FollowedDeckPublishedActivityItem[];
   /** True until the first fetch settles (authed only — a guest never fetches,
    *  so this is false immediately). Home (Waiting on you, Around the table)
    *  is the one consumer that needs a loading signal; Header/MobileTabBar only render
@@ -95,6 +99,7 @@ export function useActivity(): {
   }, [inboxSeenAt]);
   const [actionRequired, setActionRequired] = useState<ActionRequiredItem[]>([]);
   const [recent, setRecent] = useState<RecentActivityItem[]>([]);
+  const [following, setFollowing] = useState<FollowedDeckPublishedActivityItem[]>([]);
   // Whether the (authed-only) fetch has settled at least once this session —
   // set only inside the promise's .finally(), never synchronously in the
   // effect body, so react-hooks/set-state-in-effect has nothing to flag
@@ -116,6 +121,7 @@ export function useActivity(): {
           if (cancelled) return;
           setActionRequired(data.actionRequired);
           setRecent(data.recent);
+          setFollowing(data.following ?? []);
           const nextCount = computeActivityCount(
             data.actionRequired,
             data.recent,
@@ -144,5 +150,5 @@ export function useActivity(): {
   }, [status]);
 
   const count = computeActivityCount(actionRequired, recent, inboxSeenAt);
-  return { count, actionRequired, recent, loading: status === 'authed' && !hasFetched };
+  return { count, actionRequired, recent, following, loading: status === 'authed' && !hasFetched };
 }
