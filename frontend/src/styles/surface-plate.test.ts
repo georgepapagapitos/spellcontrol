@@ -28,6 +28,26 @@ function cssFiles(dir: string): string[] {
   return out;
 }
 
+/** Split a selector list on its top-level commas only: the commas inside
+ *  `:is(a, b)` belong to one selector, and splitting there cut a state rule
+ *  in two halves, one of which no longer showed its `:hover`. */
+function splitSelectors(list: string): string[] {
+  const out: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < list.length; i++) {
+    const c = list[i];
+    if (c === '(') depth++;
+    else if (c === ')') depth--;
+    else if (c === ',' && depth === 0) {
+      out.push(list.slice(start, i).trim());
+      start = i + 1;
+    }
+  }
+  out.push(list.slice(start).trim());
+  return out;
+}
+
 /** The Surface families (T166 W4), matching the display-primitives guard. */
 const FAMILIES = [
   'decks-index-card',
@@ -75,7 +95,7 @@ describe('surfaces are painted once, by variant (T166)', () => {
     for (const { file, css } of all) {
       const text = css.replace(/\/\*[\s\S]*?\*\//g, '');
       for (const m of text.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-        const selectors = m[1].split(',').map((s) => s.trim());
+        const selectors = splitSelectors(m[1]);
         const hit = selectors.some((s) =>
           FAMILIES.some((f) => new RegExp(`\\.${f}(?![\\w-])[^\\s>+~]*$`).test(s))
         );
