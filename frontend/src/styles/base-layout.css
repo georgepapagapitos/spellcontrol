@@ -375,8 +375,7 @@ select {
 }
 
 /* Shared by two programmatic-focus call sites: lib/scroll-to-heading.ts (a
-   query-param deep link's heading, `/you?section=…`, FriendsManagement's
-   `?friendsTab=…`) and Layout.tsx's route-change effect (focuses the new
+   query-param deep link's heading, FriendsManagement's `?friendsTab=…`) and Layout.tsx's route-change effect (focuses the new
    page's <h1> on every navigation, B1-05). Both leave the browser's raw
    default focus ring around a heading that was never a tabbed-to control,
    which reads as a rendering glitch (B8-01) — not "a control silently lost

@@ -317,7 +317,7 @@
 }
 
 /* Sync-attention dot on the mobile tab bar's You icon (B1-04) — the only
-   ambient sync signal a phone user gets outside /you?section=account, since
+   ambient sync signal a phone user gets outside /you/account, since
    HeaderSyncIndicator lives in the header, which is display:none below
    1024px. One dot for any non-happy state (offline, failing, or a change
    still queued); the full pill-with-label story lives on Settings. */
