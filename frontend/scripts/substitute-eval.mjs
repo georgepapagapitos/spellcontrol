@@ -112,7 +112,7 @@ const m = await importTogether({
   tagger: 'deck-builder/services/tagger/client.ts',
   similar: 'deck-builder/services/deckBuilder/cardSimilar.ts',
   finder: 'deck-builder/services/deckBuilder/substituteFinder.ts',
-  similarCards: 'lib/similar-cards.ts',
+  similarCards: 'lib/coach/similar-cards.ts',
 });
 const FEATURES = m.features.FEATURES;
 

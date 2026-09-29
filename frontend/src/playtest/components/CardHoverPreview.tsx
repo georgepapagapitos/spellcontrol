@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useMediaQuery } from '@/lib/use-media-query';
+import { useMediaQuery } from '@/lib/util/use-media-query';
 import type { PtDisplay } from '../lib/power-toughness';
 import { CardCounters } from './CardCounters';
 import { CardPtBox } from './PlaytestCardFace';

@@ -1,11 +1,11 @@
 import { Headphones } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import type { GameAction, GameState } from '../../lib/game-state';
+import type { GameAction, GameState } from '@/lib/play/game-state';
 import { Button } from '@/components/shared/Button';
 import { DiscordMark } from '@/components/shared/DiscordMark';
-import { getDiscordTablesEnabled, openDiscordTable } from '@/lib/games-api';
-import { userMessage } from '@/lib/user-error';
-import { isDiscordLink, voiceLinkLabel } from '@/lib/voice-link';
+import { getDiscordTablesEnabled, openDiscordTable } from '@/lib/play/games-api';
+import { userMessage } from '@/lib/util/user-error';
+import { isDiscordLink, voiceLinkLabel } from '@/lib/play/voice-link';
 
 /**
  * Where the table is talking. A link the host pastes, or a Discord table the

@@ -1,9 +1,9 @@
-import { logger } from '@/lib/logger';
-import { isApplyingServer } from '../lib/applying-server';
-import { track } from '../lib/analytics';
+import { logger } from '@/lib/util/logger';
+import { isApplyingServer } from '@/lib/sync/applying-server';
+import { track } from '@/lib/util/analytics';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { safeLocalStorage } from '@/lib/safe-local-storage';
+import { safeLocalStorage } from '@/lib/util/safe-local-storage';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type {
   BinderDef,
@@ -27,41 +27,41 @@ import {
   clearCollection,
   type ImportHistoryEntry,
   type StoredCollection,
-} from '../lib/local-cards';
-import { applyPrices, getPrice, setPrices, priceKey, type PriceEntry } from '../lib/card-prices';
-import { setReleaseDates } from '../lib/card-release-dates';
-import { getCurrency } from '../lib/currency';
-import type { Backup } from '../lib/backup';
-import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
-import { landedFinish } from '../lib/add-card-message';
-import { useScannerSettings } from '../lib/scanner-settings';
-import { fetchWithAbortTimeout } from '../lib/fetch-utils';
-import { SAMPLE_BINDERS, SAMPLE_IMPORT_LABEL } from '../lib/samples';
-import { reconcileBinderRefs, addRef, removeRef, setOrderRefs } from '../lib/binder-refs';
-import { acknowledgeInSnapshot, referencedLegalityFormats } from '../lib/binder-drift';
-import { computeBinderMoves, formatBinderMoveMessage, type BinderMove } from '../lib/binder-moves';
+} from '@/lib/sync/local-cards';
+import { applyPrices, getPrice, setPrices, priceKey, type PriceEntry } from '@/lib/collection/card-prices';
+import { setReleaseDates } from '@/lib/cards/card-release-dates';
+import { getCurrency } from '@/lib/collection/currency';
+import type { Backup } from '@/lib/import-export/backup';
+import { scryfallToEnrichedCard } from '@/lib/cards/scryfall-to-enriched';
+import { landedFinish } from '@/lib/import-export/add-card-message';
+import { useScannerSettings } from '@/lib/scanner/scanner-settings';
+import { fetchWithAbortTimeout } from '@/lib/api/fetch-utils';
+import { SAMPLE_BINDERS, SAMPLE_IMPORT_LABEL } from '@/lib/binder/samples';
+import { reconcileBinderRefs, addRef, removeRef, setOrderRefs } from '@/lib/binder/binder-refs';
+import { acknowledgeInSnapshot, referencedLegalityFormats } from '@/lib/binder/binder-drift';
+import { computeBinderMoves, formatBinderMoveMessage, type BinderMove } from '@/lib/binder/binder-moves';
 import {
   computeMarketMove,
   computeMovers,
   recordDailyMovers,
   recordCollectionSnapshot,
   recordValueSnapshot,
-} from '../lib/value-history';
-import { bindersUseTags, decorateWithTags, ensureCardTags } from '../lib/card-tags';
-import { buildAllocationMap } from '../lib/allocations-core';
-import { remapCubeAllocations } from '../lib/remap-cube-allocations';
-import { appNavigate } from '../lib/navigate-bridge';
-import { findPriceTargetHits, filterNewPriceTargetHits } from '../lib/price-alerts';
-import { MAX_VISIBLE_TOASTS } from '../lib/toast-stack';
-import { clampListName, entryToCards, makeListEntry } from '../lib/lists';
+} from '@/lib/collection/value-history';
+import { bindersUseTags, decorateWithTags, ensureCardTags } from '@/lib/cards/card-tags';
+import { buildAllocationMap } from '@/lib/collection/allocations-core';
+import { remapCubeAllocations } from '@/lib/cube/remap-cube-allocations';
+import { appNavigate } from '@/lib/util/navigate-bridge';
+import { findPriceTargetHits, filterNewPriceTargetHits } from '@/lib/collection/price-alerts';
+import { MAX_VISIBLE_TOASTS } from '@/lib/overlays/toast-stack';
+import { clampListName, entryToCards, makeListEntry } from '@/lib/collection/lists';
 import {
   captureCollectionSnapshot,
   snapshotHasContent,
   type CollectionSnapshot,
-} from '../lib/collection-snapshot';
+} from '@/lib/collection/collection-snapshot';
 import { toast } from './toasts';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 function newBinderId(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
     return crypto.randomUUID();
@@ -262,7 +262,7 @@ interface CollectionState {
   restoreExcludedCard: (binderId: string, copyId: string) => void;
   /** Review-queue "Added it" / "Moved it": acknowledges a single drifted card into the
    *  binder's review baseline without recapturing the whole binder. No-op if
-   *  the binder has no baseline yet. See lib/binder-drift.ts:acknowledgeInSnapshot.
+   *  the binder has no baseline yet. See lib/binder/binder-drift.ts:acknowledgeInSnapshot.
    *
    *  A cross-binder move is ONE physical act, so one confirmation covers both
    *  ends: pass `counterpartBinderId` (the other endpoint of the move the
@@ -356,7 +356,7 @@ interface CollectionState {
   updateBinder: (id: string, input: Partial<BinderInput>) => void;
   /** Stamps a snapshot of the binder's current membership + volatile field
    *  values (price, edhrecRank) so the next view can diff against it and
-   *  surface drift. See `lib/binder-drift.ts`. */
+   *  surface drift. See `lib/binder/binder-drift.ts`. */
   markBinderReviewed: (id: string, snapshot: BinderReviewSnapshot) => void;
   deleteBinder: (id: string) => void;
   /** Delete a set of binders in one shot (bulk-select). Positions renumber; cards re-route. */
@@ -542,7 +542,7 @@ function notifyPriceTargetHits(hits: ReturnType<typeof findPriceTargetHits>): vo
  */
 async function persistListsOnly(lists: ReadonlyArray<{ id: string }>): Promise<void> {
   try {
-    const sync = await import('../lib/sync');
+    const sync = await import('@/lib/sync');
     await sync.persistListsState(lists);
   } catch (err) {
     logger.warn('[store] Failed to persist lists:', err);
@@ -655,7 +655,7 @@ export const useCollectionStore = create<CollectionState>()(
         // in). The viewer's display currency is the best signal available for
         // what they paid in, so stamp it — absent reads as USD, which would
         // silently drop a EUR user's whole imported basis from the roll-up (see
-        // `lib/cost-basis.ts`). USD stays absent, since that IS the default.
+        // `lib/collection/cost-basis.ts`). USD stays absent, since that IS the default.
         const basisCurrency = getCurrency();
         const stamped = response.cards.map((c) => ({
           ...c,
@@ -1719,7 +1719,7 @@ export const useCollectionStore = create<CollectionState>()(
           tone: 'success',
           actionLabel: 'Undo',
           onAction: () => {
-            // The move minted brand-new copyIds (lib/lists.ts:entryToCards), so
+            // The move minted brand-new copyIds (lib/collection/lists.ts:entryToCards), so
             // undo can drop exactly those — unambiguous even if the user has
             // since done other things to the collection. Re-running the same
             // remap this action ran forward re-resolves any deck/cube slot
@@ -1939,7 +1939,7 @@ export const useCollectionStore = create<CollectionState>()(
       version: 15,
       storage: createJSONStorage(() => safeLocalStorage),
       // Synced data — including binders — lives in the per-entity IDB
-      // (`entity-store`) and is rehydrated by `lib/sync.ts`. Nothing in this
+      // (`entity-store`) and is rehydrated by `lib/sync/index.ts`. Nothing in this
       // store needs zustand-persist anymore; partialize returns an empty
       // object so the persist middleware writes nothing on mutation. The
       // middleware stays in place so any future UI-only field added to
@@ -1953,7 +1953,7 @@ export const useCollectionStore = create<CollectionState>()(
  * Sync subscriber for binder changes only. Cards / lists / importHistory are
  * persisted via the explicit `persistCollection()` call inside every mutator
  * that touches them (the legacy whole-blob path now routes through the per-
- * entity entity-store under the hood — see `lib/local-cards.ts`). Binders,
+ * entity entity-store under the hood — see `lib/sync/local-cards.ts`). Binders,
  * however, are mutated by sync helpers (`pinCardToBinder`, `setBinderMode`,
  * etc.) that don't run `persistCollection`, so we still need a subscriber
  * to fan binder changes into the per-row sync layer.
@@ -1966,13 +1966,13 @@ useCollectionStore.subscribe((state, prev) => {
   if (state.binders === prev.binders) return;
   // Check the guard synchronously: subscribers fire synchronously during the
   // sync driver's setState, where the flag is set — but it would already be
-  // reset by the time an async import('../lib/sync') resolved, which let pulled
+  // reset by the time an async import('@/lib/sync') resolved, which let pulled
   // state get re-persisted and re-pushed. Lazy-import only the persist call to
   // break the cycle (sync.ts imports the stores back). Errors must not bubble —
   // a missing IDB (tests) or network-down push must never crash the mutation;
   // the sync driver retries on next focus / online.
   if (isApplyingServer()) return;
-  void import('../lib/sync')
+  void import('@/lib/sync')
     .then((sync) => sync.persistBindersState(state.binders))
     .catch(() => {});
 });

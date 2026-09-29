@@ -2,8 +2,8 @@ import { useMemo } from 'react';
 import { Check } from 'lucide-react';
 import { CardGridCell } from '@/components/shared/CardGridCell';
 import { ArtBadge } from '@/components/shared/ArtBadge';
-import { scryfallToEnrichedCard } from '@/lib/scryfall-to-enriched';
-import type { BrowseItem, BrowseListId } from '@/lib/browse-lists';
+import { scryfallToEnrichedCard } from '@/lib/cards/scryfall-to-enriched';
+import type { BrowseItem, BrowseListId } from '@/lib/discover/browse-lists';
 import type { EnrichedCard } from '@/types';
 import { browseStat } from './browse-labels';
 

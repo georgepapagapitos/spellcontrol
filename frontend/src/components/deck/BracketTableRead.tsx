@@ -3,7 +3,7 @@ import { useMemo, type JSX } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../store/auth';
 import { usePlayStore } from '../../store/play';
-import { deckTableRead, TABLE_READ_MIN_GAMES } from '@/lib/table-read';
+import { deckTableRead, TABLE_READ_MIN_GAMES } from '@/lib/play/table-read';
 import { MeterBar } from '../shared/MeterBar';
 
 const READ_COPY = {

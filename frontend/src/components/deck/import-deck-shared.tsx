@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { getCardImageUrl } from '@/deck-builder/services/scryfall/client';
 import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
-import { normalizeFormat } from '@/lib/deck-import-format';
+import { normalizeFormat } from '@/lib/import-export/deck-import-format';
 import type { DeckImportResponse } from '../../types';
 import { Button } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';

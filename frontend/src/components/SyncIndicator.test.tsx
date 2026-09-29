@@ -3,9 +3,9 @@ import { render, screen, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SyncIndicator, HeaderSyncIndicator } from './SyncIndicator';
-import { formatRelativeTime } from '../lib/format-time';
+import { formatRelativeTime } from '@/lib/util/format-time';
 import { useAuth } from '../store/auth';
-import * as sync from '../lib/sync';
+import * as sync from '@/lib/sync';
 
 function renderIndicator() {
   return render(<SyncIndicator />);

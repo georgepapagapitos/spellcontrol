@@ -54,7 +54,7 @@ vi.mock('../components/ConfirmDialog', () => ({
   ),
 }));
 vi.mock('../components/DeckFiltersPopover', () => ({ DeckFiltersPopover: () => null }));
-vi.mock('../lib/deck-validation', () => ({
+vi.mock('@/lib/deck/deck-validation', () => ({
   effectiveDeckColors: () => [],
   deckDisplayColors: () => [],
   validateDeckZones: () => ({ deck: [], sideboardOnly: [] }),

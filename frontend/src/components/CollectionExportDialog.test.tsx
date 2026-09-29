@@ -5,8 +5,8 @@ import { CollectionExportDialog } from './CollectionExportDialog';
 import type { EnrichedCard } from '../types';
 
 const downloadText = vi.fn();
-vi.mock('../lib/collection-export', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../lib/collection-export')>()),
+vi.mock('@/lib/import-export/collection-export', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/import-export/collection-export')>()),
   downloadText: (...args: unknown[]) => downloadText(...args),
 }));
 

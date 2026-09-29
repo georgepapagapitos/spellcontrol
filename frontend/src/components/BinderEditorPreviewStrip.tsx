@@ -4,7 +4,7 @@ import type { BinderSection, EnrichedCard, MaterializedBinder } from '../types';
 import { PageGrid } from './PageGrid';
 import { BinderPagePreview } from './BinderPagePreview';
 import { EmptyState } from './shared/EmptyState';
-import { volumesFor, volumesOfCapacity } from '../lib/binder-volumes';
+import { volumesFor, volumesOfCapacity } from '@/lib/binder/binder-volumes';
 import './BinderEditorPreviewStrip.css';
 
 interface Props {

@@ -21,13 +21,13 @@ import {
   tokenizeRuleRefs,
   type CitedRule,
   type RulesQuestionEntry,
-} from '../lib/ai-rules';
-import { stripEmphasis, tokenizeCardNames } from '../lib/ai-review';
-import { noteAiExhausted, noteAiSpend, useAiStatus } from '../lib/use-ai-status';
-import { formatRelativeTime } from '../lib/format-time';
+} from '@/lib/ai/ai-rules';
+import { stripEmphasis, tokenizeCardNames } from '@/lib/ai/ai-review';
+import { noteAiExhausted, noteAiSpend, useAiStatus } from '@/lib/ai/use-ai-status';
+import { formatRelativeTime } from '@/lib/util/format-time';
 import './RulesPage.css';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 /** Fill-the-box starters — tapping one spends nothing (never auto-ask). */

@@ -1,0 +1,387 @@
+import { authedFetch, handleResponse } from '@/lib/api/fetch-utils';
+import type { GameAction, GameState } from './game-state';
+import type { PublicBoard } from '@/lib/playtest/projection';
+
+/**
+ * A cross-seat request/response (see `POST /api/games/:code/request` in
+ * backend `routes/games.ts`) — `kind: 'rewind'` (takeback consent) or
+ * `kind: 'hold'` (T101 "Hold — anyone respond?" priority ask). Approvals
+ * is a partial map: only seats that have responded appear in it — and for
+ * a hold it's always empty, since a hold has **no approval machinery at
+ * all**: nobody approves or declines it (the server 400s `/respond` for
+ * one). A hold resolves only via the requester's own cancel or its TTL.
+ * `status` starts `pending` and is terminal once it's anything else — the
+ * server deletes a resolved request from its store immediately, so a
+ * `pending` request is the only kind still open for a response.
+ */
+export interface GameRequest {
+  id: string;
+  code: string;
+  kind: 'rewind' | 'hold';
+  /** rewind: `{ steps, summary }`. hold: `{ summary }` only — `steps` stays absent. */
+  payload: { steps?: number; summary: string };
+  requesterSeat: number;
+  approvals: Record<number, boolean>;
+  status: 'pending' | 'approved' | 'denied' | 'expired' | 'cancelled';
+  createdAt: number;
+  expiresAt: number;
+}
+
+export interface CreateGameInput {
+  format: GameState['format'];
+  startingLife: number;
+  commanderDamageEnabled: boolean;
+  poisonEnabled: boolean;
+  hostName?: string;
+  hostDeckId?: string | null;
+  hostDeckName?: string | null;
+  hostCommander?: string | null;
+  hostPartner?: string | null;
+  hostColorIdentity?: string[];
+  /** Computed client-side from the host's picked deck — see `GamePlayer.bracket`. */
+  hostBracket?: 1 | 2 | 3 | 4 | 5 | null;
+  name?: string;
+  visibility?: GameState['visibility'];
+}
+
+export async function createGame(input: CreateGameInput): Promise<GameState> {
+  const res = await authedFetch('/api/games', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  const data = await handleResponse<{ game: GameState }>(res);
+  return data.game;
+}
+
+/**
+ * Fetch a game's current state. When `knownVersion` is supplied the server may
+ * answer `{ unchanged: true }` (the version still matches), in which case this
+ * resolves to `null` so the caller can skip the update entirely — no full
+ * `GameState` payload crosses the wire. Call without `knownVersion` to always
+ * get the full state.
+ */
+export async function getGame(code: string, knownVersion?: number): Promise<GameState | null> {
+  const path = `/api/games/${encodeURIComponent(code)}`;
+  const url = knownVersion != null ? `${path}?knownVersion=${knownVersion}` : path;
+  const res = await authedFetch(url);
+  const data = await handleResponse<{ game?: GameState; unchanged?: boolean }>(res);
+  return data.unchanged ? null : (data.game ?? null);
+}
+
+/** One published board, as delivered by `pollGame` / `subscribeGameEvents`. */
+export interface BoardEntry {
+  seat: number;
+  board: unknown;
+}
+
+export interface PollResult {
+  /** Fresh state, or null when the server reported `{ unchanged: true }`. */
+  game: GameState | null;
+  /** Full boards catch-up — present whenever `game` is (see the route doc). */
+  boards?: BoardEntry[];
+  /** A single board that resolved a held request early. */
+  board?: BoardEntry;
+  /** Pending cross-seat requests catch-up — present whenever `game` is. */
+  requests?: GameRequest[];
+  /** A single request create/respond/resolve that resolved a held poll early. */
+  request?: GameRequest;
+  /** A signal that resolved a held poll early. No catch-up equivalent — signals aren't stored server-side. */
+  signal?: GameSignal;
+}
+
+/**
+ * One round-trip of `GET /api/games/:code/poll?since=<version>` (backend:
+ * routes/games.ts) — the native long-poll transport's single request (the
+ * loop built on top lives in lib/play/games-longpoll.ts). The server holds the
+ * request open until either a mutation/board publish lands or ~25s elapses.
+ *
+ * `catchUp` forces an immediate reply (with the current `boards` snapshot)
+ * even when `since` isn't stale — the long-poll loop passes it on its very
+ * first request only, since a freshly-joined player's own `since` already
+ * matches the version their join just produced (see the route doc for why
+ * the ordinary staleness check alone would miss that case).
+ */
+export async function pollGame(
+  code: string,
+  since: number,
+  signal?: AbortSignal,
+  catchUp?: boolean
+): Promise<PollResult> {
+  const qs = `since=${since}${catchUp ? '&catchUp=1' : ''}`;
+  const res = await authedFetch(`/api/games/${encodeURIComponent(code)}/poll?${qs}`, { signal });
+  const data = await handleResponse<{
+    game?: GameState;
+    unchanged?: boolean;
+    boards?: BoardEntry[];
+    board?: BoardEntry;
+    requests?: GameRequest[];
+    request?: GameRequest;
+    signal?: GameSignal;
+  }>(res);
+  return {
+    game: data.unchanged ? null : (data.game ?? null),
+    boards: data.boards,
+    board: data.board,
+    requests: data.requests,
+    request: data.request,
+    signal: data.signal,
+  };
+}
+
+/**
+ * Publish this seat's `PublicBoard` projection to the table (backend:
+ * `POST /api/games/:code/board` in routes/games.ts). The server derives the
+ * seat from the caller's own participant record — it ignores/overwrites
+ * anything this payload claims — so this can never forge another seat's
+ * board. Callers should go through the debounced wrapper in
+ * `lib/play/games-board.ts` rather than calling this directly on every state
+ * change.
+ */
+export async function postBoard(code: string, board: PublicBoard): Promise<void> {
+  const res = await authedFetch(`/api/games/${encodeURIComponent(code)}/board`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(board),
+  });
+  await handleResponse<{ ok: boolean }>(res);
+}
+
+/**
+ * An ephemeral table signal — a reaction emote, a server-rolled die/coin, a
+ * line of table chat, or a point at something on the table — broadcast to
+ * every subscriber and stored nowhere (backend:
+ * `POST /api/games/:code/signal` in routes/games.ts). `seat`, `value`, and
+ * `ts` are server-authoritative: the seat is the caller's own participant
+ * record and a roll's value is generated server-side so every seat sees the
+ * same result. The sender's own copy comes back in the POST response for
+ * instant local echo (see store/play.ts `sendSignal`); the transport
+ * delivery of the same frame is deduped there by (seat, ts), which the
+ * server keeps a usable identity by stamping `ts` strictly ascending rather
+ * than from the raw clock (see `nextSignalTs` in the route).
+ *
+ * Chat being a *signal* and not stored history is deliberate — see the
+ * `GameSignal` doc comment on the backend for the reasoning. It means chat
+ * reaches only who is connected now and is gone on reload, same as an emote.
+ */
+export interface GameSignal {
+  kind: 'reaction' | 'roll' | 'chat' | 'point' | 'arrow' | 'ping';
+  seat: number;
+  ts: number;
+  /** reaction only — one of the fixed emote set (validated server-side). */
+  emote?: string;
+  /** roll only. */
+  die?: 'd6' | 'd20' | 'coin' | 'first';
+  /** roll only: the die face, 0|1 for coin, or the chosen seat for 'first'. */
+  value?: number;
+  /** chat only: the message, trimmed and length-capped server-side. */
+  text?: string;
+  /** point and ping only: the seat whose board is being indicated. Always a
+   *  seat the server verified is actually at this table. */
+  targetSeat?: number;
+  /** point and ping only: which card on that seat's board. Absent means the
+   *  point is at the seat as a whole — and a receiver that can't find this
+   *  id on the target board must degrade to exactly that, since the server
+   *  does not (and cannot reliably) validate the id against live board
+   *  state. A ping always carries one: it renders as a ring around that
+   *  card, so an id matching nothing simply draws nothing. */
+  cardId?: string;
+  /** arrow only: `add` draws one from (fromSeat, fromCardId?) to (toSeat,
+   *  toCardId?); `clear` removes every arrow this seat drew. A missing card
+   *  id, or one a receiver can't find, means the seat as a whole. */
+  op?: 'add' | 'clear';
+  fromSeat?: number;
+  fromCardId?: string;
+  toSeat?: number;
+  toCardId?: string;
+}
+
+export type GameSignalInput =
+  | { kind: 'reaction'; emote: string }
+  | { kind: 'roll'; die: NonNullable<GameSignal['die']> }
+  | { kind: 'chat'; text: string }
+  | { kind: 'point'; targetSeat: number; cardId?: string }
+  /** A ring around one card, for about a second, on every screen at the
+   *  table. Deliberately NOT a `point`: a ping rides an ordinary card tap
+   *  and writes nothing to the play ticker. */
+  | { kind: 'ping'; targetSeat: number; cardId: string }
+  | {
+      kind: 'arrow';
+      op: 'add';
+      fromSeat: number;
+      fromCardId?: string;
+      toSeat: number;
+      toCardId?: string;
+    }
+  | { kind: 'arrow'; op: 'clear' };
+
+export async function sendGameSignal(code: string, input: GameSignalInput): Promise<GameSignal> {
+  const res = await authedFetch(`/api/games/${encodeURIComponent(code)}/signal`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  const data = await handleResponse<{ signal: GameSignal }>(res);
+  return data.signal;
+}
+
+/**
+ * Raise a cross-seat request (backend: `POST /api/games/:code/request`).
+ * Today `kind: 'rewind'` is the only caller — the rewind classifier decides
+ * *whether* a takeback needs consent; this is just the channel that carries
+ * the ask to the table and back. The server derives the requesting seat
+ * server-side and rejects a second raise while one is already pending for
+ * that seat (409) — see the route's doc comment.
+ */
+export async function raiseGameRequest(
+  code: string,
+  kind: GameRequest['kind'],
+  payload: GameRequest['payload']
+): Promise<GameRequest> {
+  const res = await authedFetch(`/api/games/${encodeURIComponent(code)}/request`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ kind, payload }),
+  });
+  const data = await handleResponse<{ request: GameRequest }>(res);
+  return data.request;
+}
+
+/**
+ * Approve or decline a pending request (backend:
+ * `POST /api/games/:code/request/:id/respond`). The responding seat is
+ * derived server-side; there's no seat to pass here. Returns the request's
+ * new state — still `pending` if this response didn't resolve it (more
+ * approvals still needed), or a terminal status otherwise.
+ */
+export async function respondGameRequest(
+  code: string,
+  id: string,
+  approve: boolean
+): Promise<GameRequest> {
+  const res = await authedFetch(`/api/games/${encodeURIComponent(code)}/request/${id}/respond`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ approve }),
+  });
+  const data = await handleResponse<{ request: GameRequest }>(res);
+  return data.request;
+}
+
+/**
+ * Withdraw a still-pending request (backend:
+ * `POST /api/games/:code/request/:id/cancel`). Requester-only.
+ */
+export async function cancelGameRequest(code: string, id: string): Promise<GameRequest> {
+  const res = await authedFetch(`/api/games/${encodeURIComponent(code)}/request/${id}/cancel`, {
+    method: 'POST',
+  });
+  const data = await handleResponse<{ request: GameRequest }>(res);
+  return data.request;
+}
+
+export interface JoinGameInput {
+  name?: string;
+  deckId?: string | null;
+  deckName?: string | null;
+  commander?: string | null;
+  partner?: string | null;
+  colorIdentity?: string[];
+  /** Computed client-side from the picked deck — see `GamePlayer.bracket`. */
+  bracket?: 1 | 2 | 3 | 4 | 5 | null;
+}
+
+export async function joinGame(code: string, input: JoinGameInput): Promise<GameState> {
+  const res = await authedFetch(`/api/games/${encodeURIComponent(code)}/join`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  const data = await handleResponse<{ game: GameState }>(res);
+  return data.game;
+}
+
+/**
+ * Apply actions to a game. On a version conflict the server answers 409; we let
+ * that (like any non-2xx) throw via `handleResponse` with `.status = 409` set,
+ * so the caller's conflict-recovery branch (`dispatchOnline`) runs. Swallowing
+ * the 409 into a returned snapshot silently desynced near-simultaneous plays.
+ */
+export async function patchGame(
+  code: string,
+  baseVersion: number,
+  actions: GameAction[]
+): Promise<{ game: GameState }> {
+  const res = await authedFetch(`/api/games/${encodeURIComponent(code)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ baseVersion, actions }),
+  });
+  const data = await handleResponse<{ game: GameState }>(res);
+  return { game: data.game };
+}
+
+/**
+ * One row of the public room browser (board E367) — the narrow projection
+ * `GET /api/games` answers with (backend: `projectGameListing` in
+ * routes/games.ts). Never the full `GameState`: no account id, deck, or
+ * commander crosses the wire for a table this device hasn't joined.
+ */
+export interface GameListing {
+  code: string;
+  name: string;
+  format: GameState['format'];
+  status: GameState['status'];
+  seated: number;
+  max: number;
+  /** Open seat and not yet started — the row's Join action. Spectating is a
+   *  separate affordance (available once `status` is 'active') and doesn't
+   *  depend on this flag. */
+  joinable: boolean;
+  /** `'friends'` rows are only ever the caller's own friends' tables (the
+   *  server filters everyone else's out before this ever reaches the wire —
+   *  see `projectGameListing`), so the row can badge them "Friends only",
+   *  same language as `FriendDeckSummary`'s deck-tile badge. Never
+   *  `'private'`. */
+  visibility: 'public' | 'friends';
+  /**
+   * Board E370: the computed Commander bracket range across seated decks
+   * that have one — `min === max` for a single known bracket, null when
+   * nobody seated has one yet. Never a guess; render nothing when null.
+   */
+  bracket: { min: 1 | 2 | 3 | 4 | 5; max: 1 | 2 | 3 | 4 | 5 } | null;
+}
+
+/** List public, live, non-stale games for the room browser. */
+export async function listGames(): Promise<GameListing[]> {
+  const res = await authedFetch('/api/games');
+  const data = await handleResponse<{ games: GameListing[] }>(res);
+  return data.games;
+}
+
+export async function leaveGame(code: string): Promise<{ deleted?: boolean; game?: GameState }> {
+  const res = await authedFetch(`/api/games/${encodeURIComponent(code)}/leave`, {
+    method: 'POST',
+  });
+  return handleResponse<{ deleted?: boolean; game?: GameState }>(res);
+}
+
+/** Whether the server can open Discord tables (the DISCORD_* env is set). */
+export async function getDiscordTablesEnabled(): Promise<boolean> {
+  const res = await authedFetch('/api/games/discord');
+  const data = await handleResponse<{ enabled: boolean }>(res);
+  return data.enabled;
+}
+
+/**
+ * Host only: open (or reopen) this table's voice channel in the SpellControl
+ * Discord. Returns the invite link; the caller stores it as the table's
+ * `voiceUrl` through the ordinary settings action.
+ */
+export async function openDiscordTable(code: string): Promise<string> {
+  const res = await authedFetch(`/api/games/${encodeURIComponent(code)}/discord`, {
+    method: 'POST',
+  });
+  const data = await handleResponse<{ url: string }>(res);
+  return data.url;
+}

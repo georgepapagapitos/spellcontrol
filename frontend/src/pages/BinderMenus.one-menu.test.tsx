@@ -11,8 +11,8 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('../lib/sync', async (importActual) => ({
-  ...(await importActual<typeof import('../lib/sync')>()),
+vi.mock('@/lib/sync', async (importActual) => ({
+  ...(await importActual<typeof import('@/lib/sync')>()),
   getSyncState: () => 'ready',
   hasSyncError: () => false,
   onSyncedChange: () => () => {},

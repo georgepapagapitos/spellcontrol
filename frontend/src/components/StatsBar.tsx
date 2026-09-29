@@ -5,12 +5,12 @@ import { Link } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import { useCubeStore } from '../store/cube';
-import { useAllocations } from '../lib/allocations';
-import { summarizeCostBasis } from '../lib/cost-basis';
-import { useCurrency } from '../lib/currency';
-import { formatMoney, formatMoneyTally } from '../lib/format-money';
-import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
-import { useSheetExit } from '../lib/use-sheet-exit';
+import { useAllocations } from '@/lib/collection/allocations';
+import { summarizeCostBasis } from '@/lib/collection/cost-basis';
+import { useCurrency } from '@/lib/collection/currency';
+import { formatMoney, formatMoneyTally } from '@/lib/collection/format-money';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
 import type { BinderDef, EnrichedCard } from '../types';
 import { ColorPip, ManaSymbol, TypeIcon } from './shared/ManaSymbol';
 import { MeterBar, StackedBar } from './shared/MeterBar';
@@ -35,12 +35,12 @@ import {
   type GroupedBreakdownRow,
   type SharedCopyRow,
   type CloseToDoneRow,
-} from '../lib/collection-insights';
+} from '@/lib/collection/collection-insights';
 
 interface Props {
   open: boolean;
   /** Decorated with oracle tags, Secret Lair drops and per-printing release
-   *  dates (`lib/use-binder-layout-inputs.ts`'s `cards`) — the Breakdown
+   *  dates (`lib/binder/use-binder-layout-inputs.ts`'s `cards`) — the Breakdown
    *  card's Binder grouping routes copies with the same inputs BinderPage
    *  renders from, per `src/test/one-binder-layout-chain.test.ts`. */
   cards: EnrichedCard[];
@@ -238,7 +238,7 @@ function closeToDoneDetail(row: CloseToDoneRow): string {
 function SharedCopiesSheet({ rows, onClose }: { rows: SharedCopyRow[]; onClose: () => void }) {
   useLockBodyScroll();
   // Escape is useSheetExit's own (T147) — no separate useEscapeKey call; see
-  // that hook's doc and src/lib/use-sheet-exit.escape.test.tsx.
+  // that hook's doc and src/lib/overlays/use-sheet-exit.escape.test.tsx.
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
   const dismiss = () => beginClose();
 

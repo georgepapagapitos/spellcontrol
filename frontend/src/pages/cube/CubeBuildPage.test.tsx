@@ -7,7 +7,7 @@ import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
 import { useCubeStore } from '../../store/cube';
 import type { EnrichedCard } from '../../types';
-import type { Friend } from '../../lib/friends-client';
+import type { Friend } from '@/lib/social/friends-client';
 import type { FriendCollectionResponse, FriendCard } from '../../lib/cube/pool';
 import type { CubeCard, GeneratedCube } from '../../lib/cube/generate';
 import type { OracleFacts } from '../../lib/cube/oracle';
@@ -27,7 +27,7 @@ const {
   getCardsByNamesMock: vi.fn(),
 }));
 
-vi.mock('../../lib/friends-client', () => ({
+vi.mock('@/lib/social/friends-client', () => ({
   listFriends: listFriendsMock,
 }));
 

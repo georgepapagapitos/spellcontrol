@@ -6,23 +6,23 @@ import {
   type Deck,
   type DeckCard,
 } from './decks';
-import { buildAllocationMap } from '../lib/allocations';
-import { setApplyingServer } from '../lib/applying-server';
+import { buildAllocationMap } from '@/lib/collection/allocations';
+import { setApplyingServer } from '@/lib/sync/applying-server';
 import type { EnrichedCard } from '../types';
 import type { ScryfallCard } from '@/deck-builder/types';
 
 // The centralized-heal/sync subscriber (E133) fire-and-forgets a dynamic
-// `import('../lib/sync').then(sync => sync.persistDecksState(...))` on every
+// `import('@/lib/sync').then(sync => sync.persistDecksState(...))` on every
 // decks change it decides to push. Mock it so those tests can assert a push
 // actually happened, instead of relying on the real module (which imports
 // network code irrelevant here) resolving or its errors being
 // silently swallowed by the subscriber's `.catch(() => {})`.
 const persistDecksState = vi.fn().mockResolvedValue(undefined);
-vi.mock('../lib/sync', () => ({
+vi.mock('@/lib/sync', () => ({
   persistDecksState: (...args: unknown[]) => persistDecksState(...args),
 }));
 
-// Flushes both the microtask queue AND the mocked dynamic `import('../lib/sync')`'s
+// Flushes both the microtask queue AND the mocked dynamic `import('@/lib/sync')`'s
 // own `.then()` continuation, which resolves on a later microtask tick than
 // the import call itself — a macrotask boundary reliably drains all of it.
 const flush = () => new Promise((r) => setTimeout(r, 0));
@@ -967,7 +967,7 @@ describe('centralized allocation self-heal subscriber', () => {
   });
 
   it('defers the heal-and-push until the applyingServer guard clears, then pushes (simulated sync-rehydrate race)', async () => {
-    // Mirrors lib/sync.ts's rehydrateStoresFromIdb: two independent per-row
+    // Mirrors lib/sync/index.ts's rehydrateStoresFromIdb: two independent per-row
     // LWW deck blobs arrive via a single setState wrapped in
     // setApplyingServer(true)/(false), and can disagree about who owns a copy.
     setApplyingServer(true);
@@ -1103,7 +1103,7 @@ describe('local mutation token (E177)', () => {
   });
 
   it('does not bump on rehydration from IDB (a direct setState, bypassing every mutator)', () => {
-    // Mirrors exactly what lib/sync.ts's rehydrateStoresFromIdb does: it sets
+    // Mirrors exactly what lib/sync/index.ts's rehydrateStoresFromIdb does: it sets
     // `decks` directly via setState, never calling into any mutator/touch().
     useDecksStore.setState({ decks: [baseDeck({ id: 'd-tok-1' })] });
     const before = getLocalMutationToken('d-tok-1');

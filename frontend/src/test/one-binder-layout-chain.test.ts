@@ -1,7 +1,7 @@
 // @vitest-environment node
 //
 // Guard: every answer to "where is this card?" is laid out from one chain,
-// `useBinderLayoutInputs()` (lib/use-binder-layout-inputs.ts), the inputs
+// `useBinderLayoutInputs()` (lib/binder/use-binder-layout-inputs.ts), the inputs
 // BinderPage renders from.
 //
 // A card's binder, page and pocket depend on more than the raw collection:
@@ -44,10 +44,10 @@ const MATERIALIZE = /\bmaterializeBinders\s*\(/;
 
 /** Files allowed to call a chain gate, each with its reason. */
 const GATE_ALLOWLIST: Record<string, string> = {
-  'lib/use-binder-layout-inputs.ts': 'the chain itself',
-  'lib/card-tags.ts': 'defines bindersUseTags',
-  'lib/sld-drops.ts': 'defines bindersUseSldDrops',
-  'lib/card-release-dates.ts': 'defines bindersUseReleaseDates',
+  'lib/binder/use-binder-layout-inputs.ts': 'the chain itself',
+  'lib/cards/card-tags.ts': 'defines bindersUseTags',
+  'lib/cards/sld-drops.ts': 'defines bindersUseSldDrops',
+  'lib/cards/card-release-dates.ts': 'defines bindersUseReleaseDates',
   'store/collection.ts':
     "the store's price-refresh move notice runs outside React and cannot call a hook",
   'components/ScannerQueueSheet.tsx':
@@ -56,20 +56,20 @@ const GATE_ALLOWLIST: Record<string, string> = {
 
 /** Files allowed to call materializeBinders, each with where its inputs come from. */
 const MATERIALIZE_ALLOWLIST: Record<string, string> = {
-  'lib/materialize.ts': 'defines the memoized materializeBinders',
-  'lib/card-locations.ts': 'takes BinderLayoutInputs whole',
-  'lib/import-routing.ts': 'takes BinderLayoutInputs whole',
-  'lib/use-binder-by-copy.ts': 'its hook reads useBinderLayoutInputs',
-  'lib/ownership-lens.ts': 'fed by use-ownership-lens, which reads useBinderLayoutInputs',
-  'lib/collection-insights.ts':
+  'lib/binder/materialize.ts': 'defines the memoized materializeBinders',
+  'lib/binder/card-locations.ts': 'takes BinderLayoutInputs whole',
+  'lib/import-export/import-routing.ts': 'takes BinderLayoutInputs whole',
+  'lib/binder/use-binder-by-copy.ts': 'its hook reads useBinderLayoutInputs',
+  'lib/collection/ownership-lens.ts': 'fed by use-ownership-lens, which reads useBinderLayoutInputs',
+  'lib/collection/collection-insights.ts':
     "fed by StatsBar, whose cards/binders come from CollectionPage's useBinderLayoutInputs",
-  'lib/pull-list.ts': 'fed by DeckEditorPage and DecksIndexPage from useBinderLayoutInputs',
+  'lib/collection/pull-list.ts': 'fed by DeckEditorPage and DecksIndexPage from useBinderLayoutInputs',
   'lib/cube/pull-list.ts': 'fed by CubePullList from useBinderLayoutInputs',
-  'lib/binder-moves.ts': "the store's price-refresh move notice, outside React",
-  'lib/binder-counts.ts': 'fed by BinderEditor from useBinderLayoutInputs, plus the unsaved draft',
-  'lib/shelf-plan.ts':
+  'lib/binder/binder-moves.ts': "the store's price-refresh move notice, outside React",
+  'lib/binder/binder-counts.ts': 'fed by BinderEditor from useBinderLayoutInputs, plus the unsaved draft',
+  'lib/binder/shelf-plan.ts':
     'fed by PlanShelfModal from useBinderLayoutInputs, plus a batch of unsaved draft binders (E496)',
-  'lib/binder-chooser-preview.ts':
+  'lib/binder/binder-chooser-preview.ts':
     "fed by BinderStartChooser from BinderEditor's useBinderLayoutInputs, plus the would-be binder",
   'pages/BinderPage.tsx': 'reads useBinderLayoutInputs',
   'pages/BindersIndexPage.tsx': 'reads useBinderLayoutInputs',
@@ -99,7 +99,7 @@ describe('one binder layout chain', () => {
     expect(
       offenders,
       'These re-derive part of the binder decoration chain. Read ' +
-        'useBinderLayoutInputs() (lib/use-binder-layout-inputs.ts) instead, so the ' +
+        'useBinderLayoutInputs() (lib/binder/use-binder-layout-inputs.ts) instead, so the ' +
         'binder, page and pocket they report match the binder view:\n  ' +
         offenders.join('\n  ')
     ).toEqual([]);
@@ -110,7 +110,7 @@ describe('one binder layout chain', () => {
     expect(
       offenders,
       'These call materializeBinders outside the chain. For a location use ' +
-        'useCardLocations() (lib/card-locations.ts); otherwise read ' +
+        'useCardLocations() (lib/binder/card-locations.ts); otherwise read ' +
         'useBinderLayoutInputs() and add a commented allowlist entry:\n  ' +
         offenders.join('\n  ')
     ).toEqual([]);

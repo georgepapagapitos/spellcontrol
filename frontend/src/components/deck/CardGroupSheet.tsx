@@ -1,9 +1,9 @@
 import { type JSX, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { LayoutGrid, Rows3, X } from 'lucide-react';
-import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
-import { useSwipeDownDismiss } from '../../lib/use-swipe-down-dismiss';
-import { useSheetExit } from '../../lib/use-sheet-exit';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useSwipeDownDismiss } from '@/lib/overlays/use-swipe-down-dismiss';
+import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
 import { getCardImageUrl } from '@/deck-builder/services/scryfall/client';
 import { CardThumb } from '../CardThumb';
 import { ViewModeToggle } from '../ViewModeToggle';

@@ -24,7 +24,7 @@ import { tmpdir } from 'node:os';
 import type { EnrichedCard } from '@/types';
 import { loadTaggerData } from '@/deck-builder/services/tagger/client';
 import { loadCubeSignal } from './signal';
-import { ensureCardTags, getCardTags } from '@/lib/card-tags';
+import { ensureCardTags, getCardTags } from '@/lib/cards/card-tags';
 import { formatExclusion } from './play-format';
 import {
   generateCube,

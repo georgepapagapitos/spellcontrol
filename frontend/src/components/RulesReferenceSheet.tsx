@@ -2,9 +2,9 @@ import { createPortal } from 'react-dom';
 import { Sparkles, X } from 'lucide-react';
 import { useId, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
-import { useSheetExit } from '../lib/use-sheet-exit';
-import { useAiStatus } from '../lib/use-ai-status';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
+import { useAiStatus } from '@/lib/ai/use-ai-status';
 import {
   RulesReference,
   RulesReferenceFoot,

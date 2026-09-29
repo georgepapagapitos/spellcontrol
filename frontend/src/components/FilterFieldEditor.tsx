@@ -10,15 +10,15 @@
  */
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import type { BinderFilter, ChipExpression, ScryfallQueryRule } from '../types';
-import { SUPERTYPES, TYPES } from '../lib/card-types';
-import { FINISH_LABELS } from '../lib/scanner-feedback';
-import { cardTagLabel, listCardTags, useCardTagsReady } from '../lib/card-tags';
+import { SUPERTYPES, TYPES } from '@/lib/cards/card-types';
+import { FINISH_LABELS } from '@/lib/scanner/scanner-feedback';
+import { cardTagLabel, listCardTags, useCardTagsReady } from '@/lib/cards/card-tags';
 import { searchCardsLive } from '@/deck-builder/services/scryfall/client';
 import { ChipExpressionBuilder } from './ChipExpressionBuilder';
 import { X } from 'lucide-react';
 import { InfoTip } from './InfoTip';
 import { useRuleFieldVisibility } from './RuleFieldContext';
-import { filterFieldSpec, type FilterFieldGroup, type FilterFieldId } from '../lib/filter-fields';
+import { filterFieldSpec, type FilterFieldGroup, type FilterFieldId } from '@/lib/search/filter-fields';
 import { Field } from './shared/form';
 import { Button, IconButton } from '@/components/shared/Button';
 
@@ -183,7 +183,7 @@ export interface FilterFieldEditorProps {
   variant?: 'binder' | 'dialog';
   /**
    * Dialog variant only: render just the rows belonging to this registry
-   * group (`lib/filter-fields.ts`), so the collection Filters dialog can
+   * group (`lib/search/filter-fields.ts`), so the collection Filters dialog can
    * call this once per group and interleave its own bespoke rows (color,
    * rarity, set, price, CMC) into the same group in registry order, instead
    * of re-deciding "Format is Value & play" as a second hand-kept fact.

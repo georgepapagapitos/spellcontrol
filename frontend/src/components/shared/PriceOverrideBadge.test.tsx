@@ -2,7 +2,7 @@
 import { afterEach, describe, it, expect } from 'vitest';
 import { render } from '@testing-library/react';
 import { PriceOverrideBadge } from './PriceOverrideBadge';
-import { useCurrencyStore } from '../../lib/currency';
+import { useCurrencyStore } from '@/lib/collection/currency';
 
 afterEach(() => {
   useCurrencyStore.getState().setCurrency('USD');

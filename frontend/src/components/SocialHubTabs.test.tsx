@@ -4,15 +4,15 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { useAuth } from '../store/auth';
 
-vi.mock('../lib/use-activity', () => ({
+vi.mock('@/lib/social/use-activity', () => ({
   useActivity: () => ({ count: 0, actionRequired: [], recent: [] }),
 }));
-vi.mock('../lib/pods-client', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../lib/pods-client')>();
+vi.mock('@/lib/social/pods-client', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/social/pods-client')>();
   return { ...actual, listPods: vi.fn(() => Promise.resolve([])) };
 });
 
-import { listPods, type Pod } from '../lib/pods-client';
+import { listPods, type Pod } from '@/lib/social/pods-client';
 import { SocialHubTabs } from './SocialHubTabs';
 
 const invite: Pod = {

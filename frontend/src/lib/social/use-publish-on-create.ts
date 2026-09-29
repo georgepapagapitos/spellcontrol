@@ -1,0 +1,151 @@
+import { useCallback, useEffect, useState } from 'react';
+import { useAuth } from '@/store/auth';
+import { isOnline, onSyncedChange } from '@/lib/sync';
+import {
+  DeckNotSyncedYetError,
+  publicationUrl,
+  publishDeck,
+  type PublishResult,
+} from './publications-client';
+import { createShare } from './share-client';
+import { toast } from '@/store/toasts';
+
+import { userMessage } from '@/lib/util/user-error';
+export type CreateVisibility = 'private' | 'public' | 'friends';
+
+/** Handed to `onSettled` only when a publish attempt actually succeeded. */
+export interface PublishOutcome {
+  isFirstPublish: boolean;
+}
+
+/** How long a freshly-created deck's fire-and-forget local persist typically
+ *  takes to reach the server (see publishWithSyncRetry below) — comfortably
+ *  more than a signed-in web session's immediate write-through, and more
+ *  than the native/guest debounced queue's 500ms window. */
+const SYNC_CATCH_UP_MS = 600;
+
+/**
+ * `publishDeck()`, tolerant of the one race every creation-time publish
+ * attempt is exposed to: `createDeck()`'s persist-to-server is fire-and-
+ * forget from the store's own subscriber (store/decks.ts) — there is no
+ * promise a caller can await to know the deck has actually reached the
+ * server. Firing `publishDeck()` immediately after `createDeck()` can
+ * therefore reach the server before the deck itself does, 404ing with "Deck
+ * not found." (caught live via browser validation — a mocked publishDeck in
+ * a unit test can't reproduce it). A single bounded retry after a short
+ * delay is far simpler and more robust than teaching this hook to couple to
+ * sync.ts's internals (E22 — audit before building anything sync-adjacent);
+ * by the second attempt the deck has always landed.
+ */
+async function publishWithSyncRetry(deckId: string): Promise<PublishResult> {
+  try {
+    return await publishDeck(deckId);
+  } catch (err) {
+    if (!(err instanceof DeckNotSyncedYetError)) throw err;
+    await new Promise((r) => setTimeout(r, SYNC_CATCH_UP_MS));
+    return await publishDeck(deckId);
+  }
+}
+
+/**
+ * Shared creation-time "publish on create" flow — the exact choke point
+ * the generator's Private/Public fieldset (#1278) already used, now reused by
+ * ImportDeckDialog's single-deck path (E150) so this network/error dance
+ * doesn't fork into a second, slowly-drifting copy. Owns: guest/offline
+ * gating for the fieldset, and the success toast.
+ *
+ * Deliberately does NOT fire the first-publish seal moment itself — every
+ * caller navigates away the instant a publish resolves (straight to the new
+ * deck's editor), which would unmount the portal mid-animation. Instead it
+ * hands `PublishOutcome` to `onSettled`, whose caller threads it to wherever
+ * the flow actually lands (DeckEditorPage's `justPublished` router state),
+ * which is the real choke point for `shouldCelebrateFirstPublish`.
+ */
+export function usePublishOnCreate(onSettled: (deckId: string, outcome?: PublishOutcome) => void) {
+  const isGuest = useAuth((s) => s.status === 'guest');
+  const [, forceOnlineTick] = useState(0);
+  useEffect(() => onSyncedChange(() => forceOnlineTick((n) => n + 1)), []);
+  const online = isOnline();
+  // Same gate for Public and Friends — both write to the server, so both need
+  // an account and a connection.
+  const canPublish = !isGuest && online;
+  const publicDisabledReason = isGuest
+    ? 'Sign in to publish.'
+    : !online
+      ? "You're offline. Reconnect to publish."
+      : null;
+
+  const [visibility, setVisibility] = useState<CreateVisibility>('public');
+  // Never leave Public/Friends selected-but-disabled (e.g. connectivity drops
+  // after one was chosen) — snap back to Private during render, mirroring
+  // DeckGeneratePage's identical guarded render-time setState (terminating, so
+  // react-hooks/set-state-in-effect doesn't apply — there's no effect here).
+  if (!canPublish && visibility !== 'private') {
+    setVisibility('private');
+  }
+
+  const [publishing, setPublishing] = useState(false);
+
+  const announcePublished = (slug: string) => {
+    toast.show({
+      message: `Published. Anyone can view it at ${publicationUrl(slug)}`,
+      tone: 'success',
+    });
+  };
+
+  /** Publish a just-created deck. A failure only toasts a warning: the deck
+   *  already exists, so a failed publish never blocks getting to it. */
+  const publishAfterCreate = useCallback(
+    async (deckId: string) => {
+      setPublishing(true);
+      try {
+        const pub = await publishWithSyncRetry(deckId);
+        announcePublished(pub.slug);
+        onSettled(deckId, { isFirstPublish: pub.isFirstPublish });
+      } catch (err) {
+        toast.show({
+          message: userMessage(err, "Couldn't publish the deck. Try again."),
+          tone: 'warn',
+        });
+        onSettled(deckId);
+      } finally {
+        setPublishing(false);
+      }
+    },
+    [onSettled]
+  );
+
+  /** Friends' counterpart to `publishAfterCreate`: the exact same share
+   *  ShareDialog's Friends choice mints (`createShare` with audience
+   *  'friends'), reused rather than duplicated. No first-publish outcome —
+   *  that celebration is for going public. */
+  const shareWithFriendsAfterCreate = useCallback(
+    async (deckId: string) => {
+      setPublishing(true);
+      try {
+        await createShare({ kind: 'deck', resourceId: deckId, audience: 'friends' });
+        toast.show({ message: 'Shared with your friends.', tone: 'success' });
+        onSettled(deckId);
+      } catch (err) {
+        toast.show({
+          message: userMessage(err, "Couldn't share it. Try again."),
+          tone: 'warn',
+        });
+        onSettled(deckId);
+      } finally {
+        setPublishing(false);
+      }
+    },
+    [onSettled]
+  );
+
+  return {
+    canPublish,
+    publicDisabledReason,
+    visibility,
+    setVisibility,
+    publishing,
+    publishAfterCreate,
+    shareWithFriendsAfterCreate,
+  };
+}

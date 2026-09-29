@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { mockSearchCommanders } = vi.hoisted(() => ({ mockSearchCommanders: vi.fn() }));
-vi.mock('@/lib/discover-client', () => ({ searchCommanders: mockSearchCommanders }));
+vi.mock('@/lib/discover/discover-client', () => ({ searchCommanders: mockSearchCommanders }));
 
 import { DiscoverSearch } from './DiscoverSearch';
 

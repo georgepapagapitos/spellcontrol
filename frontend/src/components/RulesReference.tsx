@@ -10,7 +10,7 @@ import {
   searchRules,
   subrulesFor,
   type RulesBundle,
-} from '../lib/comprehensive-rules';
+} from '@/lib/cards/comprehensive-rules';
 import './RulesReference.css';
 import { Chip } from './shared/Chip';
 

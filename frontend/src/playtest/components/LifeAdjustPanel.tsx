@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Clock, Radiation, Skull, Ticket, Zap, type LucideIcon } from 'lucide-react';
-import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/use-sheet-exit';
-import { getSafeViewport } from '@/lib/popover-placement';
-import { usePressRepeat } from '@/lib/use-press-repeat';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
+import { getSafeViewport } from '@/lib/overlays/popover-placement';
+import { usePressRepeat } from '@/lib/play/use-press-repeat';
 import { Button } from '@/components/shared/Button';
 
 /** One commander-damage row in the self panel's list — solo: damage YOU

@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import '@/styles/binder-grid-slots.css';
-import { formatLocationSpan } from '../lib/card-locations';
-import { hasMultipleVolumes, pageVolume, type Volume } from '../lib/binder-volumes';
+import { formatLocationSpan } from '@/lib/binder/card-locations';
+import { hasMultipleVolumes, pageVolume, type Volume } from '@/lib/binder/binder-volumes';
 import type { EnrichedCard, MaterializedBinder } from '../types';
 import { CardRowMenu } from './CardRowMenu';
 import { CardPreview } from './CardPreview';
@@ -16,22 +16,22 @@ import {
   CardTableHead,
   visibleColumns,
 } from './shared/CardTable';
-import { useMediaQuery } from '../lib/use-media-query';
+import { useMediaQuery } from '@/lib/util/use-media-query';
 import {
   buildEditedCards,
   isNoOpCardEdit,
   stackCopies,
   stackDetailMix,
   printingStubFromEnriched,
-} from '../lib/edit-card';
+} from '@/lib/collection/edit-card';
 import { useCollectionStore } from '../store/collection';
 import { useToastsStore } from '../store/toasts';
 import { BinderSummaryBar, type BinderViewControls } from './BinderSummaryBar';
 import { BinderPagePreview } from './BinderPagePreview';
-import { useAllocations, type AllocationInfo } from '../lib/allocations';
-import { useCubeListings } from '../lib/cube-listings';
-import { sectionHeading } from '../lib/section-heading';
-import { printingFinishKey } from '../lib/collection-mutations';
+import { useAllocations, type AllocationInfo } from '@/lib/collection/allocations';
+import { useCubeListings } from '@/lib/cube/cube-listings';
+import { sectionHeading } from '@/lib/binder/section-heading';
+import { printingFinishKey } from '@/lib/collection/collection-mutations';
 
 interface Props {
   binder: MaterializedBinder;
@@ -156,7 +156,7 @@ export function BinderListView({
     [binder.sections]
   );
   // Present only once the binder outgrows its own fixed capacity — see
-  // lib/binder-volumes.ts. `null` (no capacity) and a single-volume binder
+  // lib/binder/binder-volumes.ts. `null` (no capacity) and a single-volume binder
   // both leave this undefined, so the page viewer never shows "Vol 1".
   const flatVolumeLabels = useMemo(
     () =>

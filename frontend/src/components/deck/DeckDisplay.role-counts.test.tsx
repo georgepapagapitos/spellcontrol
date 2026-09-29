@@ -13,8 +13,8 @@ import { DeckDisplay, type DeckDisplayCard, type DeckDisplayProps } from './Deck
 // bars and checks), so a generated Sram deck showed Removal as 11, 10 and 6
 // on one page. These cases are the ones that split them.
 
-vi.mock('@/lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
-vi.mock('@/lib/use-tagger-ready', () => ({ useTaggerReady: () => true }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/use-tagger-ready', () => ({ useTaggerReady: () => true }));
 
 // Every role each card is tagged with; the first is its main role.
 const TAGS: Record<string, string[]> = {

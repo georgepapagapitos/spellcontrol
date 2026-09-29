@@ -1,7 +1,7 @@
 // Target-count computation: turns a Customization (+ optional EDHREC stats) into
 // per-type and per-CMC slot targets, applying any advanced user overrides.
 // Pure — extracted verbatim from deckGenerator.ts for isolation/testing.
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/util/logger';
 import { Archetype } from '@/deck-builder/types';
 import type {
   Customization,

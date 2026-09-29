@@ -14,7 +14,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { pending } from '@/test/pending';
-import type { TradeOffer } from '../lib/trades-client';
+import type { TradeOffer } from '@/lib/trade/trades-client';
 
 vi.mock('../store/auth', () => ({
   useAuth: (sel: (s: { status: string }) => unknown) => sel({ status: 'authed' }),
@@ -25,13 +25,13 @@ vi.mock('../store/collection', () => ({
     sel({ cards: [], binders: [] }),
 }));
 
-vi.mock('../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
 const listTrades = vi.fn();
 const clearTradeHistory = vi.fn();
-vi.mock('../lib/trades-client', async () => {
+vi.mock('@/lib/trade/trades-client', async () => {
   const actual =
-    await vi.importActual<typeof import('../lib/trades-client')>('../lib/trades-client');
+    await vi.importActual<typeof import('@/lib/trade/trades-client')>('@/lib/trade/trades-client');
   return {
     ...actual,
     listTrades: (...args: unknown[]) => listTrades(...args),

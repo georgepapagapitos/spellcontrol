@@ -298,7 +298,7 @@
 }
 
 /* ── Deck primer (markdown-lite rendered strategy notes) ─────────────────
-   Content comes from lib/markdown-lite.ts, which only ever emits
+   Content comes from lib/util/markdown-lite.ts, which only ever emits
    p/strong/em/ul/li — style exactly those five tags. */
 .shared-deck-primer {
   margin: 0 0 var(--space-4);

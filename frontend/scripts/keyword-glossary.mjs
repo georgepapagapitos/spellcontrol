@@ -1,7 +1,7 @@
 // Derives public/keyword-glossary.json from the Comprehensive Rules bundle:
 // one row per keyword ability / keyword action, carrying the sentence of its
 // rule that says what it does. Card text links each keyword to this row (see
-// src/lib/keyword-glossary.ts), so the card panel shows a keyword's meaning
+// src/lib/cards/keyword-glossary.ts), so the card panel shows a keyword's meaning
 // without downloading the ~1 MB rules bundle.
 //
 // Pure, so refresh-rules.mjs can re-derive it on every run (including the

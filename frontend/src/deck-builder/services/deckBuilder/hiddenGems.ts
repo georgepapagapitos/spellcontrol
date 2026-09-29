@@ -21,8 +21,8 @@
  */
 import type { EDHRECCard, EDHRECCommanderData, ScryfallCard } from '@/deck-builder/types';
 import type { HiddenGemRow, HiddenGemSignal } from '@/deck-builder/types';
-import { isBasicLandName } from '@/lib/allocations';
-import { frontFaceName } from '@/lib/card-text';
+import { isBasicLandName } from '@/lib/collection/allocations';
+import { frontFaceName } from '@/lib/cards/card-text';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { fitsColorIdentity, notCommanderLegal } from './deckFilters';
 import { tallyAxisInvestment, packageFitAxes } from './packageBoost';

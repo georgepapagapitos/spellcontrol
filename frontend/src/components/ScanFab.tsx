@@ -1,15 +1,15 @@
 import { Camera } from 'lucide-react';
 import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { useCanScan } from '../lib/use-can-scan';
-import { useMediaQuery } from '../lib/use-media-query';
-import { useAnyOverlayOpen } from '../lib/overlay-layer';
+import { useCanScan } from '@/lib/scanner/use-can-scan';
+import { useMediaQuery } from '@/lib/util/use-media-query';
+import { useAnyOverlayOpen } from '@/lib/overlays/overlay-layer';
 import { useCollectionStore } from '../store/collection';
 import { toast } from '../store/toasts';
-import { importScannedCards } from '../lib/scan-import';
-import { fetchErrorMessage } from '../lib/import-review';
+import { importScannedCards } from '@/lib/scanner/scan-import';
+import { fetchErrorMessage } from '@/lib/import-export/import-review';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { IconButton } from '@/components/shared/Button';
 const CardScanner = lazy(() => import('./CardScanner').then((m) => ({ default: m.CardScanner })));
 

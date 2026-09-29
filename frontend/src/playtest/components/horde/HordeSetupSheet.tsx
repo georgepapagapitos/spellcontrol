@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/use-sheet-exit';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
 // `HordeSetupFields` reuses the Local setup form's `Stepper`/`RulePill`
 // (`.play-stepper`/`.play-rule-pill`) — an explicit import so the playtest
 // page chunks that mount this sheet actually load that stylesheet too (see

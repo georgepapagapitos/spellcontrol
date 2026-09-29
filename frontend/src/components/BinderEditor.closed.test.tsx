@@ -36,8 +36,8 @@ const materializeDraftPreview = vi.hoisted(() =>
     totalValue: 0,
   }))
 );
-vi.mock('../lib/binder-counts', async (importActual) => ({
-  ...(await importActual<typeof import('../lib/binder-counts')>()),
+vi.mock('@/lib/binder/binder-counts', async (importActual) => ({
+  ...(await importActual<typeof import('@/lib/binder/binder-counts')>()),
   countEffectiveLanding,
   countBinderMatches,
   materializeDraftPreview,

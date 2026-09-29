@@ -47,7 +47,7 @@ import type { GenerationContext } from './deckGeneration/state';
 import { generateDeck, clearGenerationCache } from './deckGenerator';
 import { assembleBuildReport } from './buildReport';
 import { getCardByName, getCardPrice } from '@/deck-builder/services/scryfall/client';
-import { getScryfallStats, resetScryfallStats, type ScryfallStats } from '@/lib/scryfall-fetch';
+import { getScryfallStats, resetScryfallStats, type ScryfallStats } from '@/lib/cards/scryfall-fetch';
 import { validateCardRole, getCardTags } from '@/deck-builder/services/tagger/client';
 import {
   fetchCommanderData,
@@ -64,7 +64,7 @@ import {
   normalizeCardName,
   type InvariantViolation,
 } from './deckInvariants';
-import { frontFaceName } from '@/lib/card-text';
+import { frontFaceName } from '@/lib/cards/card-text';
 import { choosesColorBeforeGame, withChosenColor } from '@/deck-builder/lib/partnerUtils';
 
 const here = dirname(fileURLToPath(import.meta.url));

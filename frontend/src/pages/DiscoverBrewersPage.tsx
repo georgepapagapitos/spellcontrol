@@ -13,11 +13,11 @@ import {
   searchBrewers,
   type BrewerCard as BrewerCardData,
   type BrewerRails,
-} from '@/lib/brewers-client';
-import { useDebouncedValue } from '@/lib/use-debounced-value';
-import { useDocumentTitle } from '@/lib/use-document-title';
-import { useOverflowEdges } from '@/lib/use-overflow-edges';
-import { userMessage } from '@/lib/user-error';
+} from '@/lib/social/brewers-client';
+import { useDebouncedValue } from '@/lib/util/use-debounced-value';
+import { useDocumentTitle } from '@/lib/util/use-document-title';
+import { useOverflowEdges } from '@/lib/util/use-overflow-edges';
+import { userMessage } from '@/lib/util/user-error';
 import { useAuth } from '../store/auth';
 
 const SEARCH_DEBOUNCE_MS = 300;

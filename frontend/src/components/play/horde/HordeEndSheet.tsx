@@ -1,7 +1,7 @@
-import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/use-sheet-exit';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
 import { usePlayStore } from '@/store/play';
-import { aggregateHordeRecords } from '@/lib/horde-records';
+import { aggregateHordeRecords } from '@/lib/horde/horde-records';
 import './horde-sheets.css';
 import { Button } from '@/components/shared/Button';
 

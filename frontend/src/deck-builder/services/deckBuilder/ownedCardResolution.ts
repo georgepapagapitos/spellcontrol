@@ -12,7 +12,7 @@
  * with Harmonized Trio // Brainstorm (#2157), a different card that would ship
  * as "owned".
  */
-import { frontFaceName } from '@/lib/card-text';
+import { frontFaceName } from '@/lib/cards/card-text';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { getCardsByIds, getCardsByNames } from '@/deck-builder/services/scryfall/client';
 import type { SubstituteCandidate } from './substituteFinder';

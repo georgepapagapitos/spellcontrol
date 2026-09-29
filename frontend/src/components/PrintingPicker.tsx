@@ -1,10 +1,10 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { fetchPrintings } from '../lib/api';
-import { formatMoney } from '../lib/format-money';
-import { imageFromCard } from '../lib/card-thumbs';
-import { FINISH_LABELS, availableFinishes } from '../lib/scanner-feedback';
-import { LANGUAGE_OPTIONS } from '../lib/copy-options';
-import { useScannerSettings } from '../lib/scanner-settings';
+import { fetchPrintings } from '@/lib/api';
+import { formatMoney } from '@/lib/collection/format-money';
+import { imageFromCard } from '@/lib/cards/card-thumbs';
+import { FINISH_LABELS, availableFinishes } from '@/lib/scanner/scanner-feedback';
+import { LANGUAGE_OPTIONS } from '@/lib/collection/copy-options';
+import { useScannerSettings } from '@/lib/scanner/scanner-settings';
 import { CardThumb } from './CardThumb';
 import { ConditionControl, FinishControl } from './CopyControls';
 import { SelectMenu } from './SelectMenu';
@@ -12,7 +12,7 @@ import { Field } from './shared/form';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Condition, Finish } from '../types';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 const PRINTING_PAGE_SIZE = 8;
 

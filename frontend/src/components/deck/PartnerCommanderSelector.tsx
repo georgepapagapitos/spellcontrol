@@ -14,7 +14,7 @@ import { CommanderPickArt } from './CommanderPickArt';
 import { SearchPill } from '../SearchPill';
 import { ManaCost } from '../ManaCost';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
 import { RulesTextParagraphs } from '@/components/RulesText';

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { useCurrency } from '../lib/currency';
-import { formatMoney } from '../lib/format-money';
+import { useCurrency } from '@/lib/collection/currency';
+import { formatMoney } from '@/lib/collection/format-money';
 import {
   computeValueDelta,
   dayKey,
@@ -11,7 +11,7 @@ import {
   getValueHistory,
   type MoverRecord,
   type ValuePoint,
-} from '../lib/value-history';
+} from '@/lib/collection/value-history';
 import './ValueTrend.css';
 import { Surface } from './shared/Surface';
 

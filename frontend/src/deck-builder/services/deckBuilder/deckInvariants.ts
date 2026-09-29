@@ -27,7 +27,7 @@ import type {
   ScryfallCard,
 } from '@/deck-builder/types';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
-import { frontFaceName } from '@/lib/card-text';
+import { frontFaceName } from '@/lib/cards/card-text';
 import { computeRoleCounts } from './commanderDeckAnalysis';
 import { commanderIneligibility, commanderPreviewNote } from './commanderEligibility';
 import { cardManaValue } from './deckStats';

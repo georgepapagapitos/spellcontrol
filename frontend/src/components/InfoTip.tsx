@@ -2,7 +2,7 @@ import './InfoTip.css';
 import { type JSX, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Info } from 'lucide-react';
-import { computePopoverPlacement, getSafeViewport } from '@/lib/popover-placement';
+import { computePopoverPlacement, getSafeViewport } from '@/lib/overlays/popover-placement';
 
 /**
  * The shared "ⓘ" info affordance — a small icon button beside a label that

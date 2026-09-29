@@ -1,0 +1,216 @@
+import { apiUrl } from '@/lib/api/api-base';
+import type { ShareKind } from './shared-types';
+
+export type FriendStatus = 'none' | 'friends' | 'request_sent' | 'request_received';
+
+export interface FriendUser {
+  id: string;
+  username: string;
+  displayName: string | null;
+  friendStatus: FriendStatus;
+}
+
+export interface FriendRequest {
+  requesterId: string;
+  requesterUsername: string;
+  requesterDisplayName: string | null;
+  addresseeId: string;
+  addresseeUsername: string;
+  addresseeDisplayName: string | null;
+  createdAt: number;
+}
+
+export interface Friend {
+  id: string;
+  username: string;
+  displayName: string | null;
+  friendedAt: number;
+  /** Unique cards (by oracle id) in the friend's collection. */
+  cardCount: number;
+  /** A peek at their public profile (backend friends/peek.ts): what the
+   *  friend row shows beside the name. Absent from an older backend, and
+   *  empty (0 decks) for a friend with nothing published. */
+  avatarImageUrl?: string | null;
+  deckCount?: number;
+  /** Art crop of their pinned, most-liked or newest deck. */
+  bannerImage?: string | null;
+  topColors?: string[];
+  topCommander?: string | null;
+}
+
+async function readError(res: Response, fallback: string): Promise<string> {
+  try {
+    const body = (await res.json()) as { error?: string };
+    return body?.error ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+export async function searchUsers(q: string): Promise<FriendUser[]> {
+  const res = await fetch(apiUrl(`/api/users/search?q=${encodeURIComponent(q)}`), {
+    credentials: 'include',
+  });
+  if (!res.ok) {
+    throw new Error(
+      await readError(res, "Couldn't search for players. Check your connection and try again.")
+    );
+  }
+  const body = (await res.json()) as { users: FriendUser[] };
+  return body.users;
+}
+
+export async function sendFriendRequest(username: string): Promise<{
+  friendStatus: FriendStatus;
+  addressee: { id: string; username: string; displayName: string | null };
+}> {
+  const res = await fetch(apiUrl('/api/friends/requests'), {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username }),
+  });
+  if (!res.ok) {
+    throw new Error(await readError(res, "Couldn't send that friend request. Try again."));
+  }
+  return (await res.json()) as {
+    friendStatus: FriendStatus;
+    addressee: { id: string; username: string; displayName: string | null };
+  };
+}
+
+export async function acceptRequest(requesterId: string): Promise<Friend> {
+  const res = await fetch(
+    apiUrl(`/api/friends/requests/${encodeURIComponent(requesterId)}/accept`),
+    {
+      method: 'POST',
+      credentials: 'include',
+    }
+  );
+  if (!res.ok) {
+    throw new Error(await readError(res, "Couldn't accept that request. Try again."));
+  }
+  const body = (await res.json()) as { friend: Friend };
+  return body.friend;
+}
+
+export async function declineRequest(requesterId: string): Promise<void> {
+  const res = await fetch(
+    apiUrl(`/api/friends/requests/${encodeURIComponent(requesterId)}/decline`),
+    {
+      method: 'POST',
+      credentials: 'include',
+    }
+  );
+  if (!res.ok && res.status !== 204) {
+    throw new Error(await readError(res, "Couldn't decline that request. Try again."));
+  }
+}
+
+export async function cancelRequest(addresseeId: string): Promise<void> {
+  const res = await fetch(apiUrl(`/api/friends/requests/${encodeURIComponent(addresseeId)}`), {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+  if (!res.ok && res.status !== 204) {
+    throw new Error(await readError(res, "Couldn't cancel that request. Try again."));
+  }
+}
+
+export async function removeFriend(friendId: string): Promise<void> {
+  const res = await fetch(apiUrl(`/api/friends/${encodeURIComponent(friendId)}`), {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+  if (!res.ok && res.status !== 204) {
+    throw new Error(await readError(res, "Couldn't remove that friend. Try again."));
+  }
+}
+
+export async function listFriends(): Promise<Friend[]> {
+  const res = await fetch(apiUrl('/api/friends'), { credentials: 'include' });
+  if (!res.ok) {
+    throw new Error(
+      await readError(res, "Couldn't load your friends. Check your connection and try again.")
+    );
+  }
+  const body = (await res.json()) as { friends: Friend[] };
+  return body.friends;
+}
+
+export async function listRequests(): Promise<{
+  incoming: FriendRequest[];
+  outgoing: FriendRequest[];
+}> {
+  const res = await fetch(apiUrl('/api/friends/requests'), { credentials: 'include' });
+  if (!res.ok) {
+    throw new Error(
+      await readError(
+        res,
+        "Couldn't load your friend requests. Check your connection and try again."
+      )
+    );
+  }
+  return (await res.json()) as { incoming: FriendRequest[]; outgoing: FriendRequest[] };
+}
+
+/** One entry in the "new from friends" aggregated feed — a friend's newly
+ *  published deck, or a friend's friends-audience share. */
+export type FriendActivityItem =
+  | {
+      type: 'published_deck';
+      friendUsername: string;
+      deckName: string;
+      slug: string;
+      format: string;
+      occurredAt: number;
+    }
+  | {
+      type: 'shared_content';
+      friendUsername: string;
+      kind: ShareKind;
+      token: string;
+      label: string;
+      occurredAt: number;
+    };
+
+/**
+ * One card a friend is looking for. `{name, oracleId}` and nothing else — the
+ * server strips quantity, target price, per-entry note and the owning list's
+ * own name before any of it reaches the wire (see the `/wants` route). The
+ * mirror of `FriendCard`'s contents-yes-value-no projection, one notch thinner
+ * because a want is only ever matched against your own collection.
+ */
+export interface FriendWant {
+  name: string;
+  oracleId: string;
+}
+
+export interface FriendWantsResponse {
+  ownerUsername: string;
+  ownerDisplayName: string | null;
+  wants: FriendWant[];
+}
+
+export async function fetchFriendWants(friendId: string): Promise<FriendWantsResponse> {
+  const res = await fetch(apiUrl(`/api/friends/${encodeURIComponent(friendId)}/wants`), {
+    credentials: 'include',
+  });
+  if (!res.ok) {
+    throw new Error(
+      await readError(res, "Couldn't load what this friend is looking for. Try again in a moment.")
+    );
+  }
+  return (await res.json()) as FriendWantsResponse;
+}
+
+export async function getFriendsActivity(): Promise<FriendActivityItem[]> {
+  const res = await fetch(apiUrl('/api/friends/activity'), { credentials: 'include' });
+  if (!res.ok) {
+    throw new Error(
+      await readError(res, "Couldn't load recent activity. Check your connection and try again.")
+    );
+  }
+  const body = (await res.json()) as { items: FriendActivityItem[] };
+  return body.items;
+}

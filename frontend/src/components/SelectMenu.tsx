@@ -1,8 +1,8 @@
 import { ChevronDown } from 'lucide-react';
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { useMenuKeyboard } from '@/lib/use-menu-keyboard';
-import { computePopoverPlacement, getSafeViewport } from '@/lib/popover-placement';
+import { useMenuKeyboard } from '@/lib/overlays/use-menu-keyboard';
+import { computePopoverPlacement, getSafeViewport } from '@/lib/overlays/popover-placement';
 import { Surface } from '@/components/shared/Surface';
 
 export interface SelectOption<T extends string | number> {

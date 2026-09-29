@@ -1,31 +1,31 @@
 import { useState, useEffect, useMemo, useRef, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, ChevronLeft, X } from 'lucide-react';
-import { fetchTypeSuggestions, fetchOracleSuggestions } from '../lib/scryfall-catalog';
-import { importFile, importText, type ImportProgressCallback } from '../lib/api';
+import { fetchTypeSuggestions, fetchOracleSuggestions } from '@/lib/cards/scryfall-catalog';
+import { importFile, importText, type ImportProgressCallback } from '@/lib/api';
 import { useCollectionStore } from '../store/collection';
 import { toast } from '../store/toasts';
-import { mergeStagedFiles, stagedFilesNotice, stripExtension } from '../lib/staged-files';
-import { useFileDrop } from '../lib/use-file-drop';
-import { NEW_BINDER_DEFAULT_SORTS, SORT_FIELDS, SORT_PRESETS } from '../lib/sorting';
-import { useAnchoredPanel } from '../lib/use-anchored-panel';
+import { mergeStagedFiles, stagedFilesNotice, stripExtension } from '@/lib/import-export/staged-files';
+import { useFileDrop } from '@/lib/import-export/use-file-drop';
+import { NEW_BINDER_DEFAULT_SORTS, SORT_FIELDS, SORT_PRESETS } from '@/lib/search/sorting';
+import { useAnchoredPanel } from '@/lib/overlays/use-anchored-panel';
 import { SortEditor } from './SortEditor';
 import { SortPresetChips } from './SortPresets';
-import { focusFirstSortField } from '../lib/sort-field-focus';
-import { sortOrderSummaryLabel } from '../lib/sort-order-label';
-import { areAllGroupsEmpty } from '../lib/rules';
+import { focusFirstSortField } from '@/lib/search/sort-field-focus';
+import { sortOrderSummaryLabel } from '@/lib/search/sort-order-label';
+import { areAllGroupsEmpty } from '@/lib/binder/rules';
 import {
   countEffectiveLanding,
   formatCaughtBy,
   materializeDraftPreview,
   type EffectiveLandingCounts,
-} from '../lib/binder-counts';
-import { useCardsWithTags, groupsUseTags } from '../lib/card-tags';
-import { useCardsWithSpareCopies, groupsUseSpareCopies } from '../lib/spare-copies';
-import { useBinderLayoutInputs } from '../lib/use-binder-layout-inputs';
-import { useDebouncedValue } from '../lib/use-debounced-value';
-import { useMediaQuery } from '../lib/use-media-query';
-import { cleanFilter } from '../lib/clean-filter';
+} from '@/lib/binder/binder-counts';
+import { useCardsWithTags, groupsUseTags } from '@/lib/cards/card-tags';
+import { useCardsWithSpareCopies, groupsUseSpareCopies } from '@/lib/binder/spare-copies';
+import { useBinderLayoutInputs } from '@/lib/binder/use-binder-layout-inputs';
+import { useDebouncedValue } from '@/lib/util/use-debounced-value';
+import { useMediaQuery } from '@/lib/util/use-media-query';
+import { cleanFilter } from '@/lib/search/clean-filter';
 import {
   formatPagesSummary,
   PACK_LABEL,
@@ -34,7 +34,7 @@ import {
   sheetCount,
   sheetsPhrase,
   type LeaveRoom,
-} from '../lib/binder-pages-summary';
+} from '@/lib/binder/binder-pages-summary';
 import {
   cardsNeedVolumes,
   fitButtonLabel,
@@ -45,11 +45,11 @@ import {
   volumePageRange,
   volumeSpine,
   volumesFor,
-} from '../lib/binder-volumes';
+} from '@/lib/binder/binder-volumes';
 import { Modal } from './Modal';
 import { SelectMenu } from './SelectMenu';
 import { ColorPicker } from './ColorPicker';
-import { PRESET_COLORS, pickRandomPresetColor } from '../lib/preset-colors';
+import { PRESET_COLORS, pickRandomPresetColor } from '@/lib/util/preset-colors';
 import { InfoTip } from './InfoTip';
 import { FilterGroupList, cloneChips, validateRanges } from './FilterGroupEditor';
 import {
@@ -58,7 +58,7 @@ import {
   CHOOSER_START_LABELS,
   type BinderStart,
 } from './BinderStartChooser';
-import { colorPickFilter } from '../lib/binder-templates';
+import { colorPickFilter } from '@/lib/binder/binder-templates';
 import { BinderLadder } from './BinderLadder';
 import { BinderEditorPreview } from './BinderEditorPreview';
 import { BinderEditorPreviewStrip } from './BinderEditorPreviewStrip';
@@ -74,15 +74,15 @@ import type {
   SortField,
 } from '../types';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button, IconButton } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
-import { PROXY_HINT } from '@/lib/shared-copy';
+import { PROXY_HINT } from '@/lib/util/shared-copy';
 const EMPTY_FILTER: BinderFilter = {};
 const newGroup = (): BinderFilterGroup => ({ filter: {} });
 
 // Starter templates (pre-fill patterns for a new binder's first rule group)
-// live in lib/binder-templates.ts, consumed by ./FilterGroupEditor.
+// live in lib/binder/binder-templates.ts, consumed by ./FilterGroupEditor.
 
 // ── InfoTip copy ───────────────────────────────────────────────────────────
 // The one explanation of how rules combine, on the "Cards" heading. It
@@ -1779,4 +1779,4 @@ export function BinderEditor() {
   );
 }
 
-// cleanFilter moved to ../lib/clean-filter (pure, unit-tested, coverage-gated).
+// cleanFilter moved to ../lib/search/clean-filter (pure, unit-tested, coverage-gated).

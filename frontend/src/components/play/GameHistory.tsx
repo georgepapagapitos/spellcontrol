@@ -1,8 +1,8 @@
 import { useEffect, useId, useMemo, useState } from 'react';
-import type { GameEvent, GameState, GameSummary } from '../../lib/game-state';
-import { isKeyMoment, summarizeGame } from '../../lib/game-state';
-import { describeGameEvent } from '../../lib/game-event-text';
-import { paletteForSeat } from '../../lib/seat-palette';
+import type { GameEvent, GameState, GameSummary } from '@/lib/play/game-state';
+import { isKeyMoment, summarizeGame } from '@/lib/play/game-state';
+import { describeGameEvent } from '@/lib/play/game-event-text';
+import { paletteForSeat } from '@/lib/play/seat-palette';
 import { Chip } from '@/components/shared/Chip';
 
 interface Props {
@@ -306,7 +306,7 @@ function Timeline({ game, rows: allRows }: { game: GameState; rows: TimelineRow[
 }
 
 // Game event granularity: shows seconds. Injectable `now` for deterministic renders.
-// Different from lib/format-time.ts:formatRelativeTime (minute granularity, no injectable now).
+// Different from lib/util/format-time.ts:formatRelativeTime (minute granularity, no injectable now).
 function formatRelative(ts: number, now: number): string {
   const diff = Math.max(0, now - ts);
   const sec = Math.floor(diff / 1000);

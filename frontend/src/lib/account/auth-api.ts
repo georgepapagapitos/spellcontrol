@@ -1,0 +1,536 @@
+export type UserRole = 'user' | 'admin';
+
+export interface AuthUser {
+  id: string;
+  username: string;
+  role: UserRole;
+}
+
+/**
+ * One delta row from `GET /api/sync`. `data === null && deletedAt != null`
+ * is a tombstone — clients should drop the local row with this id.
+ * Cards carry their owning `importId`; other kinds omit it.
+ */
+export interface SyncRow {
+  kind: SyncKind;
+  id: string;
+  data: unknown;
+  rev: number;
+  deletedAt: number | null;
+  importId?: string;
+}
+
+export type SyncKind = 'import' | 'card' | 'binder' | 'deck' | 'game' | 'list' | 'cube';
+
+export interface SyncPullPage {
+  rows: SyncRow[];
+  cursor: number;
+  hasMore: boolean;
+  /**
+   * Live row count per kind, sent only on the LAST page of a pull. The client
+   * checks its local store against this rather than trusting that the delta
+   * stream kept it complete — see the reconcile in sync.ts (E291).
+   */
+  counts?: Partial<Record<SyncKind, number>>;
+}
+
+export interface SyncUpsert {
+  kind: SyncKind;
+  id: string;
+  data: unknown;
+  importId?: string;
+  clientRev?: number;
+}
+export interface SyncDeletion {
+  kind: SyncKind;
+  id: string;
+}
+
+/**
+ * Card-only reject-stale check (E129): asserts the client's believed live
+ * copyIds for a (scryfallId, finish) printing group, so the server can detect
+ * a concurrent add/remove for that SAME group before applying this batch's
+ * upserts/deletions for it. See routes/sync.ts for the server-side semantics.
+ */
+export interface SyncCardGroupCheck {
+  scryfallId: string;
+  finish: string;
+  /** Sorted copyIds the client believes are currently live for this group. */
+  baseline: string[];
+}
+
+export interface SyncPushResult {
+  applied: Array<{
+    kind: SyncKind;
+    id: string;
+    rev: number;
+    deletedAt: number | null;
+  }>;
+  conflicts?: Array<{
+    kind: 'deck' | 'card';
+    id: string;
+    serverRev: number;
+    serverData: unknown;
+    /** Card-only; the row's owning import so a restore doesn't lose it. */
+    importId?: string;
+  }>;
+  cursor: number;
+}
+
+import { authedFetch, describeHttpFailure, handleResponse } from '@/lib/api/fetch-utils';
+import { apiUrl } from '@/lib/api/api-base';
+
+/**
+ * Create a password account. The email is required by the server: password
+ * reset is the only way back in, and it sends there. The address is not live
+ * on the account until the link in that mail is clicked.
+ */
+export async function register(
+  username: string,
+  password: string,
+  email: string
+): Promise<AuthUser> {
+  const res = await authedFetch('/api/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password, email }),
+  });
+  const data = await handleResponse<{ user: AuthUser }>(res);
+  return data.user;
+}
+
+export async function login(username: string, password: string): Promise<AuthUser> {
+  const res = await authedFetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  });
+  const data = await handleResponse<{ user: AuthUser }>(res);
+  return data.user;
+}
+
+export async function logout(): Promise<void> {
+  await authedFetch('/api/auth/logout', { method: 'POST' });
+}
+
+/** Which sign-in methods this deployment offers. Google is optional. */
+export interface AuthProviders {
+  password: boolean;
+  google: boolean;
+}
+
+/**
+ * Ask the backend which sign-in methods are enabled. Used by the auth screen
+ * to decide whether to render the "Continue with Google" button. Falls back to
+ * password-only if the request fails, so a network blip never strands the user.
+ */
+export async function fetchProviders(): Promise<AuthProviders> {
+  try {
+    const res = await authedFetch('/api/auth/providers', { method: 'GET' });
+    return await handleResponse<AuthProviders>(res);
+  } catch {
+    return { password: true, google: false };
+  }
+}
+
+/**
+ * Absolute URL that starts the Google OAuth flow. The top-level page navigates
+ * here; the backend callback sets the session cookie and redirects back.
+ */
+export function googleSignInUrl(): string {
+  return apiUrl('/api/auth/google');
+}
+
+/**
+ * Finish a first-time Google sign-in: the user picked `username` on the
+ * choose-username screen; `signupToken` is the short-lived token from the
+ * OAuth callback that carries their verified Google identity. Creates the
+ * account and returns the user. Throws with `.status === 409` if the username
+ * is taken so the screen can prompt for another.
+ */
+export async function completeGoogleSignup(
+  signupToken: string,
+  username: string
+): Promise<AuthUser> {
+  const res = await authedFetch('/api/auth/google/complete-signup', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ signupToken, username }),
+  });
+  const data = await handleResponse<{ user: AuthUser }>(res);
+  return data.user;
+}
+
+/**
+ * Account linking, password-confirmed: the user picked a username that's
+ * already taken; if it's their existing account they can prove ownership by
+ * supplying the password, and the Google identity gets attached to it.
+ * Throws with `.status === 401` on bad credentials, `.status === 409` if that
+ * account already has a Google account linked.
+ */
+export async function linkGoogleWithPassword(
+  signupToken: string,
+  username: string,
+  password: string
+): Promise<AuthUser> {
+  const res = await authedFetch('/api/auth/google/link-with-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ signupToken, username, password }),
+  });
+  const data = await handleResponse<{ user: AuthUser }>(res);
+  return data.user;
+}
+
+/** Which sign-in methods the authed user has set up. */
+export interface MyIdentities {
+  /** True if the account has a password (i.e. is not SSO-only). */
+  password: boolean;
+  /** Set when a Google identity is attached. */
+  google: { linkedAt: number } | null;
+  /** Verified email on the account, or null if none. */
+  email: string | null;
+  emailVerified: boolean;
+  /** Email awaiting a click on its verification link, or null. */
+  pendingEmail: string | null;
+  /** Opt-out for the T117 notification emails (friend request / trade offer /
+   *  game-night invite). Only takes effect once `emailVerified` is true. */
+  notifyEmail: boolean;
+}
+
+export async function fetchIdentities(): Promise<MyIdentities> {
+  const res = await authedFetch('/api/auth/me/identities', { method: 'GET' });
+  return handleResponse<MyIdentities>(res);
+}
+
+/** Who can see a collection (board T136). */
+export type CollectionVisibility = 'public' | 'friends' | 'private';
+
+/** Your own collection's visibility; null = never chosen (an account from
+ *  before T136, whose friends see which cards but not quantities or prices). */
+export async function fetchCollectionVisibility(): Promise<CollectionVisibility | null> {
+  const res = await authedFetch('/api/auth/me', { method: 'GET' });
+  const data = await handleResponse<{ collectionVisibility?: CollectionVisibility | null }>(res);
+  return data.collectionVisibility ?? null;
+}
+
+export async function setCollectionVisibility(
+  visibility: CollectionVisibility
+): Promise<CollectionVisibility> {
+  const res = await authedFetch('/api/auth/me/collection-visibility', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ visibility }),
+  });
+  return (await handleResponse<{ collectionVisibility: CollectionVisibility }>(res))
+    .collectionVisibility;
+}
+
+/** Toggle the T117 notification emails. */
+export async function setNotifyEmail(enabled: boolean): Promise<void> {
+  const res = await authedFetch('/api/auth/me/notify-email', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled }),
+  });
+  await handleResponse<{ ok: true }>(res);
+}
+
+/**
+ * Start adding/changing the authed user's email. Doesn't take effect until
+ * the verification link is clicked (verifyEmail below) — returns the pending
+ * address so the UI can show "Pending verification" immediately.
+ */
+export async function requestEmailChange(email: string): Promise<{ pendingEmail: string }> {
+  const res = await authedFetch('/api/auth/me/email', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  return handleResponse<{ pendingEmail: string }>(res);
+}
+
+/** Finish adding/changing an email. Public — the link may open on another device. */
+export async function verifyEmail(token: string): Promise<void> {
+  const res = await authedFetch('/api/auth/verify-email', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token }),
+  });
+  await handleResponse<{ ok: true }>(res);
+}
+
+/** Re-send the newest pending verification email. */
+export async function resendEmailVerification(): Promise<void> {
+  const res = await authedFetch('/api/auth/me/email/resend', { method: 'POST' });
+  await handleResponse<{ ok: true }>(res);
+}
+
+/**
+ * Request a password-reset email. Always resolves — the backend returns 200
+ * whether or not the address is on a (verified) account, so the UI never
+ * learns which.
+ */
+export async function forgotPassword(email: string): Promise<void> {
+  const res = await authedFetch('/api/auth/forgot-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  await handleResponse<{ ok: true }>(res);
+}
+
+/** Finish a password reset: sets the new password and signs the user in. */
+export async function resetPassword(token: string, password: string): Promise<AuthUser> {
+  const res = await authedFetch('/api/auth/reset-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, password }),
+  });
+  const data = await handleResponse<{ user: AuthUser }>(res);
+  return data.user;
+}
+
+/**
+ * Set (no existing password) or change (existing password — `currentPassword`
+ * required) the authed user's password.
+ */
+export async function updatePassword(input: {
+  currentPassword?: string;
+  newPassword: string;
+}): Promise<void> {
+  const res = await authedFetch('/api/auth/me/password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  await handleResponse<{ ok: true }>(res);
+}
+
+/**
+ * Absolute URL that starts the link-Google flow. The top-level page navigates
+ * here so the session cookie travels.
+ */
+export function googleLinkUrl(): string {
+  return apiUrl('/api/auth/google/link');
+}
+
+/** Detach the Google identity from the authed user. */
+export async function unlinkGoogle(): Promise<void> {
+  const res = await authedFetch('/api/auth/me/identities/google', { method: 'DELETE' });
+  await handleResponse<{ ok: true }>(res);
+}
+
+/**
+ * Permanently delete the current account and all server-side data. The backend
+ * deletes the `users` row; every user-owned table cascades. The session cookie
+ * is cleared by the response. Callers must NOT flush pending sync writes first
+ * — that would re-push data the user just asked to destroy.
+ */
+export async function deleteAccount(): Promise<void> {
+  const res = await authedFetch('/api/auth/me', { method: 'DELETE' });
+  await handleResponse<{ ok: true }>(res);
+}
+
+/**
+ * User-editable public-profile fields (social program W0). All nullable —
+ * `null` means "not set", never absent/undefined, so consumers can render a
+ * fixed set of fields without an extra existence check.
+ */
+export interface Profile {
+  displayName: string | null;
+  bio: string | null;
+  avatarCardId: string | null;
+  avatarCardName: string | null;
+  avatarImageUrl: string | null;
+  /** Deck pinned atop the public profile; null unless still one of your live public decks. */
+  pinnedDeckSlug: string | null;
+  /** Opt-in: show a game record on the public profile. Off by default. */
+  showGameRecord: boolean;
+}
+
+/** A freshly-picked avatar, pre-derived client-side (see AvatarPickerSheet). */
+export interface AvatarPatch {
+  cardId: string;
+  cardName: string;
+  imageUrl: string;
+}
+
+/**
+ * Result shape for /me. `autoLinkedAt` is non-null when an external sign-in
+ * was just attached to this account via a verified-email match — the
+ * frontend surfaces a "was this you?" banner until it's acknowledged.
+ * `inboxSeenAt` (T117) is the server truth behind the inbox/friend-request
+ * "unseen" badges — null until the user has ever opened the inbox/friends
+ * page (or stamped it offline via the local fallback).
+ */
+export interface MeResponse {
+  user: AuthUser;
+  autoLinkedAt: number | null;
+  inboxSeenAt: number | null;
+  /**
+   * False when this account cannot receive a password reset — either it has
+   * no address yet, or the one it gave at sign-up has not been confirmed.
+   * Both mean the same thing to the person (no way back in), which is what
+   * the recovery banner acts on.
+   */
+  emailVerified: boolean;
+  profile: Profile;
+}
+
+export async function fetchMe(): Promise<MeResponse | null> {
+  const res = await authedFetch('/api/auth/me', { method: 'GET' });
+  if (res.status === 401) return null;
+  const data = await handleResponse<{
+    user: AuthUser;
+    autoLinkedAt?: number | null;
+    inboxSeenAt?: number | null;
+    emailVerified?: boolean;
+    profile: Profile;
+  }>(res);
+  return {
+    user: data.user,
+    autoLinkedAt: data.autoLinkedAt ?? null,
+    inboxSeenAt: data.inboxSeenAt ?? null,
+    // Absent (an older backend) is treated as verified: a banner nobody can
+    // act on is worse than a missing one.
+    emailVerified: data.emailVerified ?? true,
+    profile: data.profile,
+  };
+}
+
+/** Stamp `users.inbox_seen_at` to now (T117) — call when the user opens the
+ *  inbox or friends page. Returns the server-stamped timestamp. */
+export async function stampInboxSeen(): Promise<number> {
+  const res = await authedFetch('/api/users/me/inbox-seen', { method: 'POST' });
+  const data = await handleResponse<{ ok: true; inboxSeenAt: number }>(res);
+  return data.inboxSeenAt;
+}
+
+/**
+ * Per-field PATCH semantics: a key absent from `patch` leaves that field
+ * unchanged server-side; `null` clears it; any other value sets it. Callers
+ * that always hold all three fields in local state (ProfileEditor) just pass
+ * the current value of each — the server treats an empty string the same as
+ * `null` (trims, then a blank result clears).
+ */
+export async function updateProfile(patch: {
+  displayName?: string | null;
+  bio?: string | null;
+  avatar?: AvatarPatch | null;
+  /** One of your own live public decks, or null to unpin. */
+  pinnedDeckSlug?: string | null;
+  showGameRecord?: boolean;
+}): Promise<Profile> {
+  const res = await authedFetch('/api/auth/profile', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  });
+  const data = await handleResponse<{ profile: Profile }>(res);
+  return data.profile;
+}
+
+/**
+ * A refusal from the username endpoint, carrying the date the UI needs to say
+ * WHEN rather than only "no": `availableAt` for a handle someone else released
+ * and still has first claim on, `nextChangeAt` for your own cooldown.
+ */
+export class UsernameChangeError extends Error {
+  readonly status: number;
+  readonly availableAt?: number;
+  readonly nextChangeAt?: number;
+
+  constructor(message: string, status: number, detail: Record<string, unknown>) {
+    super(message);
+    this.name = 'UsernameChangeError';
+    this.status = status;
+    if (typeof detail.availableAt === 'number') this.availableAt = detail.availableAt;
+    if (typeof detail.nextChangeAt === 'number') this.nextChangeAt = detail.nextChangeAt;
+  }
+}
+
+/**
+ * Change the signed-in account's username. The server re-mints the session
+ * cookie as part of the response, so this device is immediately consistent;
+ * the caller only has to update its own in-memory copy.
+ *
+ * Reads the body itself rather than going through `handleResponse`, which
+ * keeps only `error` and `status` — the two timestamps are the whole
+ * difference between "not available" and "not available until March 3".
+ */
+export async function changeUsername(username: string): Promise<AuthUser> {
+  const res = await authedFetch('/api/auth/me/username', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username }),
+  });
+  const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!res.ok) {
+    const message =
+      typeof body.error === 'string' && body.error ? body.error : describeHttpFailure(res.status);
+    throw new UsernameChangeError(message, res.status, body);
+  }
+  return (body as unknown as { user: AuthUser }).user;
+}
+
+/** Dismiss the auto-link banner (server-side: clears users.auto_linked_at). */
+export async function acknowledgeAutoLink(): Promise<void> {
+  const res = await authedFetch('/api/auth/me/acknowledge-auto-link', { method: 'POST' });
+  await handleResponse<{ ok: true }>(res);
+}
+
+/**
+ * Pull delta rows newer than `since`. The server pages at `limit` (default 2000);
+ * the response carries `hasMore` so the driver knows to keep pulling. `fresh`
+ * tells the server we have no local rows yet, so it skips historical tombstones
+ * and sends only live rows — a fresh client has nothing to delete.
+ */
+export async function pullSync(
+  since: number,
+  limit?: number,
+  fresh?: boolean
+): Promise<SyncPullPage> {
+  const params = new URLSearchParams({ since: String(since) });
+  if (typeof limit === 'number' && limit > 0) params.set('limit', String(limit));
+  if (fresh) params.set('fresh', '1');
+  const res = await authedFetch(`/api/sync?${params.toString()}`, { method: 'GET' });
+  return handleResponse<SyncPullPage>(res);
+}
+
+/**
+ * Apply a delta batch. Last-write-wins per row for every kind. The server
+ * stamps each applied op with a fresh rev (from `user_data_rev_seq`) and an
+ * `import` deletion cascades tombstones to its cards inside the same tx.
+ * Callers reflect the returned `applied[]` revs onto their local rows so
+ * subsequent pulls don't re-deliver them.
+ */
+/**
+ * Server-authoritative "empty the collection". Returns how many rows of each
+ * kind were tombstoned. Used instead of enqueuing one delete per card: the
+ * client can only enumerate rows it has locally, which may be a fraction of
+ * what the server holds.
+ */
+export async function clearCollectionSync(): Promise<{
+  cleared: { card: number; import: number; list: number };
+  cursor: number;
+}> {
+  const res = await authedFetch('/api/sync/clear-collection', { method: 'POST' });
+  return handleResponse<{
+    cleared: { card: number; import: number; list: number };
+    cursor: number;
+  }>(res);
+}
+
+export async function pushSync(input: {
+  upserts: SyncUpsert[];
+  deletions: SyncDeletion[];
+  cardGroupChecks?: SyncCardGroupCheck[];
+}): Promise<SyncPushResult> {
+  const res = await authedFetch('/api/sync', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return handleResponse<SyncPushResult>(res);
+}

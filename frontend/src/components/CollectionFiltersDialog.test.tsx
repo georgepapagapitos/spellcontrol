@@ -2,7 +2,7 @@
 /**
  * The collection Filters dialog on the config-surface kit (board T139):
  * sections now order by the same registry groups the Add-condition picker
- * uses (lib/filter-fields.ts), Surplus/Proxy/Options are one "This copy"
+ * uses (lib/search/filter-fields.ts), Surplus/Proxy/Options are one "This copy"
  * heading of switch rows instead of three checkbox headings, and the footer
  * grew a "Save as a binder…" link that seeds BinderEditor from the draft.
  */
@@ -10,8 +10,8 @@ import { useState } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import type { ChipExpression, EnrichedCard } from '../types';
-import type { ColorMatchMode } from '../lib/colors';
-import type { FilterableRow } from '../lib/collection-filter';
+import type { ColorMatchMode } from '@/lib/cards/colors';
+import type { FilterableRow } from '@/lib/search/collection-filter';
 import { useCollectionStore } from '../store/collection';
 import { CollectionFiltersDialog } from './CollectionFiltersDialog';
 
@@ -78,7 +78,7 @@ function Harness({ rows }: { rows?: FilterableRow[] } = {}) {
 const openDialog = () => fireEvent.click(screen.getByRole('button', { name: /Filters/ }));
 
 /** The dialog's group headings, in DOM order — one `.form-section-heading`
- *  per registry group (lib/filter-fields.ts), plus the dialog's own
+ *  per registry group (lib/search/filter-fields.ts), plus the dialog's own
  *  "This copy" group last. */
 const groupHeadings = () =>
   Array.from(document.querySelectorAll('.form-section-heading')).map((el) => el.textContent);

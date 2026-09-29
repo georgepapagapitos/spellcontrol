@@ -1,5 +1,5 @@
 import { useId, useState } from 'react';
-import type { CardDelta } from '@/lib/deck-diff';
+import type { CardDelta } from '@/lib/deck/deck-diff';
 import './DiffCardRow.css';
 
 /**

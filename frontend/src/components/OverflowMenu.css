@@ -95,7 +95,7 @@
    ring, so "which card is this menu for" never needs guessing: a right-click
    menu sits at the pointer, not beside the item. Inset, so a tile inside a
    clipping grid or a virtualised list still shows all four sides. Set and
-   cleared only by lib/context-menu.ts `markMenuTarget`. */
+   cleared only by lib/overlays/context-menu.ts `markMenuTarget`. */
 [data-menu-open] {
   outline: 2px solid var(--accent);
   outline-offset: -2px;

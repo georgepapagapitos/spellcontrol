@@ -2,7 +2,7 @@ import type { JSX } from 'react';
 import './SimilarCardsStrip.css';
 import { DeckCardRow } from './DeckCardRow';
 import { useSimilarCards } from './useSimilarCards';
-import { toSwapAgainst, type Change, type ChangeOwnership } from '@/lib/deck-change';
+import { toSwapAgainst, type Change, type ChangeOwnership } from '@/lib/coach/deck-change';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '@/types';
 import type { RankedSimilar } from '@/deck-builder/services/substitutes/surfaces';

@@ -10,12 +10,12 @@ import { KeyboardShortcutsOverlay } from './KeyboardShortcutsOverlay';
 import { CommandPalette } from './CommandPalette';
 import { RulesReferenceSheet } from './RulesReferenceSheet';
 import { ActivityLiveRegion } from './ActivityLiveRegion';
-import { ScrollContainerContext } from '../lib/scroll-container';
-import { isTouchDevice } from '../lib/platform';
+import { ScrollContainerContext } from '@/lib/util/scroll-container';
+import { isTouchDevice } from '@/lib/util/platform';
 import { PullToRefresh } from './PullToRefresh';
-import { refreshNow } from '../lib/sync';
-import { useDocumentTitle } from '../lib/use-document-title';
-import { focusArrivalHeading } from '../lib/scroll-to-heading';
+import { refreshNow } from '@/lib/sync';
+import { useDocumentTitle } from '@/lib/util/use-document-title';
+import { focusArrivalHeading } from '@/lib/util/scroll-to-heading';
 import { useCollectionStore } from '../store/collection';
 
 // The binder editor (and its stylesheet) loads on its first open, not at boot:
@@ -61,7 +61,7 @@ import {
   isTypingTarget,
   useRegisterShortcuts,
   useShortcutRegistry,
-} from '../lib/shortcut-registry';
+} from './shortcut-registry';
 
 // ── Global shortcut section ───────────────────────────────────────────────────
 
@@ -118,7 +118,7 @@ function LayoutShell() {
 
   // Route-change announcement: a hub title in the tab, and focus moved to
   // the new page's <h1> — the same "scroll/focus a heading on arrival" idea
-  // lib/scroll-to-heading.ts already applies to `?section=` deep links,
+  // lib/util/scroll-to-heading.ts already applies to `?section=` deep links,
   // extended to ordinary top-level navigation so a screen-reader user isn't
   // silently left wherever focus last was. Skips the very first render (the
   // browser already places focus sensibly on initial load).

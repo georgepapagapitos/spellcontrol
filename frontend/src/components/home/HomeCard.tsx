@@ -1,7 +1,7 @@
 import './HomeCard.css';
 import { ChevronRight, type LucideIcon } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { readHomeShape, rememberHomeShape } from '../../lib/home-shape';
+import { readHomeShape, rememberHomeShape } from '@/lib/home/home-shape';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
 
@@ -33,7 +33,7 @@ interface Props {
  * actions, Waiting on you, Around the table).
  *
  * While loading, the shell takes the footprint it resolved to on this
- * browser's last visit (lib/home-shape, keyed by title): a card that ended up
+ * browser's last visit (lib/home/home-shape, keyed by title): a card that ended up
  * empty stays absent, a card that had content reserves its last height.
  * Resolving then happens in place instead of reflowing the page (E277).
  */

@@ -11,12 +11,12 @@ import type { BinderDef, EnrichedCard } from '../types';
 import { useCollectionStore } from '../store/collection';
 import { BinderEditor } from './BinderEditor';
 
-vi.mock('../lib/scryfall-catalog', () => ({
+vi.mock('@/lib/cards/scryfall-catalog', () => ({
   fetchTypeSuggestions: async () => [],
   fetchOracleSuggestions: async () => [],
 }));
-vi.mock('../lib/card-tags', async (importActual) => ({
-  ...(await importActual<typeof import('../lib/card-tags')>()),
+vi.mock('@/lib/cards/card-tags', async (importActual) => ({
+  ...(await importActual<typeof import('@/lib/cards/card-tags')>()),
   useCardTagsReady: () => true,
   useCardTagsError: () => false,
   useCardsWithTags: (cards: EnrichedCard[]) => cards,
@@ -25,8 +25,8 @@ vi.mock('../lib/card-tags', async (importActual) => ({
 // the real `smallestFittingCapacity`. A real over-70-page fixture would work
 // too, but this isolates the UI wiring from needing one.
 let forceNoFit = false;
-vi.mock('../lib/binder-volumes', async (importActual) => {
-  const actual = await importActual<typeof import('../lib/binder-volumes')>();
+vi.mock('@/lib/binder/binder-volumes', async (importActual) => {
+  const actual = await importActual<typeof import('@/lib/binder/binder-volumes')>();
   return {
     ...actual,
     smallestFittingCapacity: (...args: Parameters<typeof actual.smallestFittingCapacity>) =>

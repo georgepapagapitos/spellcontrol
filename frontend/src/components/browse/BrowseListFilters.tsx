@@ -13,9 +13,9 @@ import {
   periodLocked,
   type BrowseFilters,
   type BrowseListDef,
-} from '@/lib/browse-lists';
-import { EDHREC_TOP_TYPES, type EdhrecTopPeriod, type EdhrecTopType } from '@/lib/edhrec-top';
-import { useMediaQuery } from '@/lib/use-media-query';
+} from '@/lib/discover/browse-lists';
+import { EDHREC_TOP_TYPES, type EdhrecTopPeriod, type EdhrecTopType } from '@/lib/discover/edhrec-top';
+import { useMediaQuery } from '@/lib/util/use-media-query';
 
 /** The phone tier (STYLE_GUIDE § Layout system, density tiers). */
 const PHONE = '(max-width: 599px)';

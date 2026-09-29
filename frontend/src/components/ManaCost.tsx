@@ -1,4 +1,4 @@
-import { parseSymbol } from '@/lib/mana-symbols';
+import { parseSymbol } from '@/lib/cards/mana-symbols';
 import { ManaSymbol } from './shared/ManaSymbol';
 
 interface Props {

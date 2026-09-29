@@ -5,21 +5,21 @@ import { ColorPip } from './shared/ManaSymbol';
 import { Chip } from './shared/Chip';
 import { MeterBar } from './shared/MeterBar';
 import { UserAvatar } from './UserAvatar';
-import { useCardThumb } from '../lib/card-thumbs';
+import { useCardThumb } from '@/lib/cards/card-thumbs';
 import { scryfallArtCrop } from '../lib/offline/slim-to-scryfall';
-import { formatMoney } from '../lib/format-money';
-import { formatSocialCount } from '../lib/social-proof';
-import { formatRelativeTime } from '../lib/format-time';
-import { formatIdentity } from '../lib/display-name';
+import { formatMoney } from '@/lib/collection/format-money';
+import { formatSocialCount } from '@/lib/social/social-proof';
+import { formatRelativeTime } from '@/lib/util/format-time';
+import { formatIdentity } from '@/lib/social/display-name';
 import { DECK_FORMAT_CONFIGS } from '../deck-builder/lib/constants/archetypes';
 import { bracketLabel } from '../deck-builder/services/deckBuilder/bracketEstimator';
-import { bracketBadgeWithEstimate, bracketAriaWithEstimate } from '../lib/format-bracket-label';
+import { bracketBadgeWithEstimate, bracketAriaWithEstimate } from '@/lib/deck-analysis/format-bracket-label';
 import { LikeButton } from './LikeButton';
 import { BookmarkButton } from './BookmarkButton';
 import { ColorIdentityBar } from './shared/ColorIdentityBar';
 import { Surface } from './shared/Surface';
 import type { DeckFormat } from '../deck-builder/types';
-import type { DiscoverDeck } from '../lib/discover-client';
+import type { DiscoverDeck } from '@/lib/discover/discover-client';
 
 export type DiscoverTileView = 'grid' | 'list';
 

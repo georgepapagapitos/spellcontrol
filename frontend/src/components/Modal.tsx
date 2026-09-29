@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
-import { focusInto, restoreFocus, trapTab, useOverlayLayer } from '../lib/overlay-layer';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { focusInto, restoreFocus, trapTab, useOverlayLayer } from '@/lib/overlays/overlay-layer';
 
 interface Props {
   onClose: () => void;

@@ -3,15 +3,15 @@ import { PageHeader } from '@/components/PageHeader';
 import { SocialHubTabs } from '../components/SocialHubTabs';
 import { useCallback, useEffect, useId, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useSignInPath } from '../lib/sign-in-path';
+import { useSignInPath } from '@/lib/account/sign-in-path';
 import { Plus } from 'lucide-react';
 import { useAuth } from '../store/auth';
 import { toast } from '../store/toasts';
 import { Modal } from '../components/Modal';
 import { UserAvatar } from '../components/UserAvatar';
 import { EmptyState } from '../components/shared/EmptyState';
-import { useAnimatedNumber } from '../lib/use-animated-number';
-import { listFriends, type Friend } from '../lib/friends-client';
+import { useAnimatedNumber } from '@/lib/util/use-animated-number';
+import { listFriends, type Friend } from '@/lib/social/friends-client';
 import {
   acceptPodInvite,
   createPod,
@@ -19,9 +19,9 @@ import {
   invitePodMembers,
   listPods,
   type Pod,
-} from '../lib/pods-client';
+} from '@/lib/social/pods-client';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 const POD_NAME_MAX = 60;
 

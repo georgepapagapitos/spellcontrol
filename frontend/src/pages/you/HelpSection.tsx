@@ -1,4 +1,4 @@
-import { track } from '@/lib/analytics';
+import { track } from '@/lib/util/analytics';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsRow } from '@/components/settings/SettingsRow';
 import { Button } from '@/components/shared/Button';

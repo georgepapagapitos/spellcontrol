@@ -1,0 +1,352 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import {
+  fetchImportLink,
+  importFile,
+  importText,
+  importDeckFile,
+  importDeckText,
+  fetchPrintings,
+  getSetMap,
+  getCardById,
+} from './';
+
+function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+    ...init,
+  });
+}
+
+const uploadOk = (overrides: Record<string, unknown> = {}) =>
+  jsonResponse({
+    cards: [],
+    totalRows: 0,
+    scryfallHits: 0,
+    scryfallMisses: 0,
+    unresolvedNames: [],
+    detectedFormat: 'plain',
+    ...overrides,
+  });
+
+beforeEach(() => {
+  vi.restoreAllMocks();
+});
+
+describe('api', () => {
+  it('importText posts JSON and returns the parsed body', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(uploadOk());
+    const out = await importText('Sol Ring');
+    expect(out.detectedFormat).toBe('plain');
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/import',
+      expect.objectContaining({ method: 'POST' })
+    );
+    const init = fetchSpy.mock.calls[0][1] as RequestInit;
+    expect(init.headers).toMatchObject({ 'Content-Type': 'application/json' });
+    expect(JSON.parse(init.body as string)).toEqual({ text: 'Sol Ring' });
+  });
+
+  it('fetchImportLink posts the link and returns the text plus its name', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(jsonResponse({ text: 'Sol Ring', name: 'Cards.csv' }));
+    const url = 'https://docs.google.com/spreadsheets/d/ABC/edit#gid=0';
+    await expect(fetchImportLink(url)).resolves.toEqual({ text: 'Sol Ring', name: 'Cards.csv' });
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/import/link',
+      expect.objectContaining({ method: 'POST' })
+    );
+    const init = fetchSpy.mock.calls[0][1] as RequestInit;
+    expect(JSON.parse(init.body as string)).toEqual({ url });
+  });
+
+  it("fetchImportLink surfaces the server's message so the sharing hint reaches the user", async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({ error: 'Set access to "Anyone with the link".' }, { status: 400 })
+    );
+    await expect(fetchImportLink('https://drive.google.com/open?id=X')).rejects.toThrow(
+      /Anyone with the link/
+    );
+  });
+
+  it('importFile reads the file as text and posts JSON', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(uploadOk({ detectedFormat: 'csv' }));
+    const file = new File(['Name\nSol Ring'], 'cards.csv', { type: 'text/csv' });
+    await importFile(file);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const init = fetchSpy.mock.calls[0][1] as RequestInit;
+    expect(init.method).toBe('POST');
+    expect(init.headers).toMatchObject({ 'Content-Type': 'application/json' });
+    expect(JSON.parse(init.body as string)).toEqual({ text: 'Name\nSol Ring' });
+  });
+
+  it('importText chunks large inputs and merges responses', async () => {
+    // 1200 plain rows → at chunk size 500 splits into 3 chunks.
+    const lines = Array.from({ length: 1200 }, (_, i) => `Card ${i}`);
+    const text = lines.join('\n');
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        uploadOk({ totalRows: 500, scryfallHits: 500, unresolvedNames: ['miss-a'] })
+      )
+      .mockResolvedValueOnce(uploadOk({ totalRows: 500, scryfallHits: 499, scryfallMisses: 1 }))
+      .mockResolvedValueOnce(
+        uploadOk({ totalRows: 200, scryfallHits: 200, unresolvedNames: ['miss-a', 'miss-b'] })
+      );
+
+    const progress: Array<[number, number]> = [];
+    const out = await importText(text, (p) => progress.push([p.chunkIndex, p.totalChunks]));
+
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+    expect(out.totalRows).toBe(1200);
+    expect(out.scryfallHits).toBe(1199);
+    expect(out.scryfallMisses).toBe(1);
+    expect(out.unresolvedNames).toEqual(['miss-a', 'miss-b']);
+    expect(progress).toEqual([
+      [1, 3],
+      [2, 3],
+      [3, 3],
+    ]);
+  });
+
+  it('importText carries the proxy flag on every chunk, not just the first', async () => {
+    // 1200 rows → 3 chunks at chunk size 500. Every independent /api/import
+    // call must carry proxy:true — a single-chunk-only test wouldn't catch a
+    // miss on the worker-pool path.
+    const lines = Array.from({ length: 1200 }, (_, i) => `Card ${i}`);
+    const text = lines.join('\n');
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(uploadOk({ totalRows: 500 }))
+      .mockResolvedValueOnce(uploadOk({ totalRows: 500 }))
+      .mockResolvedValueOnce(uploadOk({ totalRows: 200 }));
+
+    await importText(text, undefined, true);
+
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+    for (const call of fetchSpy.mock.calls) {
+      const init = call[1] as RequestInit;
+      expect(JSON.parse(init.body as string)).toMatchObject({ proxy: true });
+    }
+  });
+
+  it('importText omits the proxy field when the flag is not set', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(uploadOk());
+    await importText('Sol Ring');
+    const init = fetchSpy.mock.calls[0][1] as RequestInit;
+    expect(JSON.parse(init.body as string)).toEqual({ text: 'Sol Ring' });
+  });
+
+  it('importText retries a transient network failure on a single chunk', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockRejectedValueOnce(new TypeError('failed to fetch'))
+      .mockResolvedValueOnce(uploadOk({ totalRows: 1, scryfallHits: 1 }));
+    const out = await importText('Sol Ring');
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(out.totalRows).toBe(1);
+  });
+
+  it('importText retries a transient 503 on a single chunk', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(jsonResponse({ error: 'busy' }, { status: 503 }))
+      .mockResolvedValueOnce(uploadOk({ totalRows: 1, scryfallHits: 1 }));
+    const out = await importText('Sol Ring');
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(out.totalRows).toBe(1);
+  });
+
+  it('importText does NOT retry a 4xx — it surfaces immediately', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(jsonResponse({ error: 'bad request' }, { status: 400 }));
+    await expect(importText('Sol Ring')).rejects.toThrow(/bad request/);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('importText surfaces a chunk failure with batch context after retries exhaust', async () => {
+    const lines = Array.from({ length: 1200 }, (_, i) => `Card ${i}`);
+    const text = lines.join('\n');
+    // One chunk succeeds; the rest fail 3 times (initial + 2 retries). Chunks
+    // upload concurrently, so which failing batch loses the race first is timing
+    // dependent — assert the batch-context shape, not a specific batch number.
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(uploadOk({ totalRows: 500 }))
+      .mockRejectedValue(new TypeError('failed to fetch'));
+    await expect(importText(text)).rejects.toThrow(/Couldn't finish the import \(batch \d+ of 3\)/);
+  });
+
+  it('atomicity: a mid-chunk failure leaves the caller with NO partial data', async () => {
+    // Regression guard for the audit's "partial state leaks to caller" claim.
+    // The contract is: importText either returns a fully-merged UploadResponse
+    // for ALL chunks or throws. Cards from a chunk that succeeded before a
+    // later chunk failed MUST NOT leak out (they would otherwise reach
+    // useCollectionStore via importCards() and get pushed to /api/sync as
+    // half an import).
+    const lines = Array.from({ length: 1200 }, (_, i) => `Card ${i}`);
+    const text = lines.join('\n');
+    // First TWO chunks succeed with non-empty card data; third fails for good.
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        uploadOk({ totalRows: 500, cards: [{ id: 'c-from-chunk-1' } as never] })
+      )
+      .mockResolvedValueOnce(
+        uploadOk({ totalRows: 500, cards: [{ id: 'c-from-chunk-2' } as never] })
+      )
+      .mockRejectedValue(new TypeError('failed to fetch'));
+    let resolvedValue: unknown = 'not-resolved';
+    try {
+      resolvedValue = await importText(text);
+    } catch {
+      /* expected */
+    }
+    // No partial UploadResponse ever materialised — the local responses[]
+    // array stays internal to importText and is discarded on throw.
+    expect(resolvedValue).toBe('not-resolved');
+  });
+
+  it('does not retry on HTTP error responses (server replied — not transient)', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ error: 'Bad format' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+    await expect(importText('Sol Ring')).rejects.toThrow(/Bad format/);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('importDeckText posts JSON to /api/import-deck', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({
+        commander: null,
+        companion: null,
+        cards: [],
+        unresolvedNames: [],
+        detectedFormat: 'plain',
+        cardCount: 0,
+      })
+    );
+    await importDeckText('Sol Ring');
+    expect(fetchSpy.mock.calls[0][0]).toBe('/api/import-deck');
+  });
+
+  it('importDeckFile reads the file and posts JSON to /api/import-deck', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({
+        commander: null,
+        companion: null,
+        cards: [],
+        unresolvedNames: [],
+        detectedFormat: 'csv',
+        cardCount: 0,
+      })
+    );
+    const file = new File(['x'], 'd.csv');
+    await importDeckFile(file);
+    expect(fetchSpy.mock.calls[0][0]).toBe('/api/import-deck');
+    const init = fetchSpy.mock.calls[0][1] as RequestInit;
+    expect(init.headers).toMatchObject({ 'Content-Type': 'application/json' });
+    expect(JSON.parse(init.body as string)).toEqual({ text: 'x' });
+  });
+
+  it('fetchPrintings encodes the card name', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(jsonResponse({ printings: [{ id: 'a', name: 'Sol Ring' }] }));
+    const out = await fetchPrintings("Atraxa, Praetors' Voice");
+    expect(out).toHaveLength(1);
+    expect(fetchSpy.mock.calls[0][0]).toContain('/api/cards/');
+    expect(fetchSpy.mock.calls[0][0]).toContain(encodeURIComponent("Atraxa, Praetors' Voice"));
+  });
+
+  it('fetchPrintings sends the oracle id, which is how a token finds its printings', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(jsonResponse({ printings: [] }));
+    await fetchPrintings('Dinosaur // Treasure', undefined, 'fd2617fe-1bf3-40c3-9da5-841e63f4d62d');
+    const url = String(fetchSpy.mock.calls[0][0]);
+    expect(url).toContain('?oracle=fd2617fe-1bf3-40c3-9da5-841e63f4d62d');
+    expect(url).not.toContain('set=');
+  });
+
+  it('surfaces structured server errors', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ error: 'Boom' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+    await expect(importText('x')).rejects.toThrow(/Boom/);
+  });
+
+  it('surfaces short non-JSON error bodies', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('plain failure', { status: 500 }));
+    await expect(importText('x')).rejects.toThrow(/plain failure/);
+  });
+
+  it('falls back to an actionable message for long error bodies (never a bare status)', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('x'.repeat(500), { status: 500 }));
+    const err = await importText('x').catch((e: Error & { status?: number }) => e);
+    expect(err).toBeInstanceOf(Error);
+    expect((err as Error).message).toMatch(/server isn't responding/);
+    expect((err as Error).message).not.toMatch(/500/);
+    expect((err as { status?: number }).status).toBe(500);
+  });
+
+  it('reports timeouts as a friendly message', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => {
+      const err = new Error('aborted');
+      err.name = 'AbortError';
+      return Promise.reject(err);
+    });
+    await expect(importText('x')).rejects.toThrow(/timed out/);
+  });
+
+  it('reports unreachable server as a friendly message after retries exhaust', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockRejectedValue(new TypeError('failed to fetch'));
+    await expect(importText('x')).rejects.toThrow(/isn't responding/);
+    // 1 initial attempt + 2 retries (delays are zero in test env).
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('getCardById', () => {
+  it('encodes the id and returns the resolved card', async () => {
+    const card = { id: '895ac890-1234-5678-90ab-cdef12345678', name: 'Sol Ring' };
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ card }));
+    const out = await getCardById(card.id);
+    expect(out).toEqual(card);
+    const url = fetchSpy.mock.calls[0][0] as string;
+    expect(url).toContain(`/api/cards/by-id/${encodeURIComponent(card.id)}`);
+  });
+
+  it('returns null when the server reports an unknown id', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ card: null }));
+    expect(await getCardById('00000000-0000-0000-0000-000000000000')).toBeNull();
+  });
+});
+
+describe('getSetMap', () => {
+  it('caches the response across calls', async () => {
+    const sets = {
+      CMR: {
+        code: 'CMR',
+        name: 'Commander Legends',
+        iconSvgUri: 'x',
+        releasedAt: '2020-11-20',
+      },
+    };
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ sets }));
+    const a = await getSetMap();
+    const b = await getSetMap();
+    expect(a).toBe(b);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+});

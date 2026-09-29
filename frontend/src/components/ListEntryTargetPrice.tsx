@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import type { ListEntry } from '../types';
-import { parseTargetPrice } from '../lib/lists';
-import { formatMoney } from '../lib/format-money';
-import { currencySymbol, getCurrency } from '../lib/currency';
+import { parseTargetPrice } from '@/lib/collection/lists';
+import { formatMoney } from '@/lib/collection/format-money';
+import { currencySymbol, getCurrency } from '@/lib/collection/currency';
 import { IconButton } from '@/components/shared/Button';
 
 interface Props {

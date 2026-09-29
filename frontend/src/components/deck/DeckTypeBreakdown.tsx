@@ -1,6 +1,6 @@
 import { type JSX, useMemo, useState } from 'react';
 import type { ScryfallCard } from '@/deck-builder/types';
-import { classifyType } from '@/lib/build-mana-data';
+import { classifyType } from '@/lib/deck-analysis/build-mana-data';
 import { useCardCarousel, tallyToEntries, type CardTally } from './useCardCarousel';
 import { CardGroupSheet } from './CardGroupSheet';
 import { MeterBar } from '../shared/MeterBar';

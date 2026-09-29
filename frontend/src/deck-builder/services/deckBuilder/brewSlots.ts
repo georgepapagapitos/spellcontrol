@@ -14,7 +14,7 @@ import {
   EDHREC_BLEND_WEIGHT,
   EDHREC_INCLUSION_THRESHOLD,
 } from './roleTargets';
-import { isBasicLandName } from '@/lib/allocations';
+import { isBasicLandName } from '@/lib/collection/allocations';
 
 /** The four functional roles plus the three non-functional buckets Brew mode
  * walks through. Order here IS the slot order (mirrors the product spec:

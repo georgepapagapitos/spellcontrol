@@ -26,15 +26,15 @@ import {
   useSortable,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { useListFlip, prefersReducedMotion } from '@/lib/use-list-flip';
-import { reorderIndexForMove } from '@/lib/deck-reorder';
-import { classifyInclusion, OFFMETA_TOOLTIP } from '@/lib/inclusion-label';
-import { setSymbolTitle } from '@/lib/set-symbols';
+import { useListFlip, prefersReducedMotion } from '@/lib/util/use-list-flip';
+import { reorderIndexForMove } from '@/lib/deck/deck-reorder';
+import { classifyInclusion, OFFMETA_TOOLTIP } from '@/lib/deck-analysis/inclusion-label';
+import { setSymbolTitle } from '@/lib/cards/set-symbols';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { ComboMatch } from '@/types/combos';
-import type { LegalityIssue } from '../../lib/deck-validation';
-import { getRoleBadge, type RoleKey } from '../../lib/role-badges';
-import { formatMoney } from '../../lib/format-money';
+import type { LegalityIssue } from '@/lib/deck/deck-validation';
+import { getRoleBadge, type RoleKey } from '@/lib/deck-analysis/role-badges';
+import { formatMoney } from '@/lib/collection/format-money';
 import { MeterBar } from '../shared/MeterBar';
 import { SetSymbol } from '../shared/SetSymbol';
 import { ManaCost } from '../ManaCost';

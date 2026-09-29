@@ -467,7 +467,7 @@ to anything new that edits a predicate.
   exists. The binder/list editor renders only fields with a value (plus ones
   the user just added); the rest live behind a searchable, grouped
   `Add condition` picker. The old fixed form rendered 22 rows for a binder with
-  two rules. The vocabulary is data — `lib/filter-fields.ts`; a field absent
+  two rules. The vocabulary is data — `lib/search/filter-fields.ts`; a field absent
   from that registry is unreachable in the editor.
   (The collection Filters dialog stays a flat always-visible form: it is a
   narrow-then-apply surface, not an authoring one. `RuleFieldContext` is null
@@ -534,7 +534,7 @@ to anything new that edits a predicate.
   tab stays unfiltered: a drag-sortable list with hidden rows can't say where
   a drop lands.
 - **The collection Filters dialog sections by the same registry groups the
-  Add-condition picker uses, in the same order** (`lib/filter-fields.ts`:
+  Add-condition picker uses, in the same order** (`lib/search/filter-fields.ts`:
   Identity, Cost, Text, Printing, Value & play) — one `.form-section-heading`
   per group, its fields inside as plain `Field` rows, not a second heading
   each. The dialog derives the group LIST from `FILTER_FIELD_GROUPS` (minus
@@ -566,7 +566,7 @@ to anything new that edits a predicate.
   than gating the old listener.
 - **"Save as a binder…"** sits in the collection Filters dialog's footer, next
   to Clear, and seeds `BinderEditor` from the DRAFT (not yet applied) filters
-  via `editingBinderSeed` (`lib/collection-filters-to-binder.ts`). It shows
+  via `editingBinderSeed` (`lib/search/collection-filters-to-binder.ts`). It shows
   only once a structured filter is set — a search-only draft has nothing a
   binder rule can express.
 
@@ -698,7 +698,7 @@ own dashed, ungrouped row last, unchanged from the single-preset case above.
   widens to a two-column modal (`binder-editor--wide`, 1120px) for the "rules"
   step: the left column is the editor, the right is a sticky `Preview` —
   the first spread of pages from a REAL materialize pass of the draft
-  (`lib/binder-counts.ts:materializeDraftPreview`), built from the exact
+  (`lib/binder/binder-counts.ts:materializeDraftPreview`), built from the exact
   `BinderInput` Save would write (one `buildDraftInput()` feeds both, so the
   preview can never show a binder Save wouldn't produce) and the same
   `useBinderLayoutInputs()` chain every other binder surface reads (never a
@@ -779,7 +779,7 @@ own dashed, ungrouped row last, unchanged from the single-preset case above.
 - **A card preview opened from a binder leads with why the card is there**
   (E470), in CardPreview's meta slot, the same slot the deck view uses for its
   context: "Filed by the rule “Rocks”." (the rule's name, else the editor's own
-  auto title, from `lib/filter-summary.ts`), "Added here by hand…", the price
+  auto title, from `lib/search/filter-summary.ts`), "Added here by hand…", the price
   margin, or its other printings. The reason is the one `materializeBinders`
   recorded when it placed the card (`MaterializedBinder.reasons`), never
   re-derived, so it cannot disagree with the routing. At most one "also" line:
@@ -811,7 +811,7 @@ own dashed, ungrouped row last, unchanged from the single-preset case above.
 - **Volumes are derived, never persisted** (E494). A binder bigger than its own
   `fixedCapacity` is physically several books — ONE rule set, N books — so
   `planVolumes` (`@spellcontrol/binder-routing`, wrapped by
-  `lib/binder-volumes.ts`) re-derives them from an already-materialized binder
+  `lib/binder/binder-volumes.ts`) re-derives them from an already-materialized binder
   every render, exactly like page numbers themselves. It cuts at a section
   boundary whenever the next section fits in what's left of the current
   volume; a section bigger than a whole volume splits at a page boundary,
@@ -855,7 +855,7 @@ Most people don't want one binder — they want their whole collection in
 binders, in the right order. `PlanShelfModal` (`Modal` +
 `modal-backdrop--sheet`, same pattern as `BinderVolumesSheet`) proposes an
 ordered set at once instead of a normal binder trip repeated seven times; the
-plan engine (`lib/shelf-plan.ts`) is pure and reuses `materializeBinders`
+plan engine (`lib/binder/shelf-plan.ts`) is pure and reuses `materializeBinders`
 directly rather than re-deriving counts.
 
 - **Four strategies, each a fixed bucket order, never user-reorderable**: By
@@ -906,7 +906,7 @@ directly rather than re-deriving counts.
   just trusted; a bucket that needed a hidden OR-list to work would defeat
   that the moment someone looked.
 - **Volumes reuse the exact same derivation as a normal binder** (`planVolumes`
-  via `lib/binder-volumes.ts`) — every proposed binder defaults to the
+  via `lib/binder/binder-volumes.ts`) — every proposed binder defaults to the
   standard 360-card/9-pocket size specifically so the plan's volumes note
   ("White · 3 volumes of 360") means something before the binder even exists,
   the same "derived, never persisted, a normal shelving state" ruling as
@@ -995,7 +995,7 @@ like" question while the binder is still a draft:
   edit (applied on Save like everything else in this dialog — no toast, since
   nothing has been saved yet). When nothing fits, the same `noFitMessage()` the
   sheet uses says so, with no button. `volumesOfCapacity()`/`noFitMessage()`
-  (`lib/binder-volumes.ts`) are the ONE wording for "N binders of C" and "N/A
+  (`lib/binder/binder-volumes.ts`) are the ONE wording for "N binders of C" and "N/A
   fits" — `BinderVolumesSheet` and the editor both call them; a phrase should
   never be retyped at a second call site.
 
@@ -1155,7 +1155,7 @@ the chain editor it already showed.
   rest — so the sort pill beside it keeps its width budget
   (`control-row-budget.test.tsx`, § Phone chrome density).
 - **The camera FAB hides while ANY overlay is open**, not just its own
-  scanner — `useAnyOverlayOpen()` (`lib/overlay-layer.ts`) subscribes to the
+  scanner — `useAnyOverlayOpen()` (`lib/overlays/overlay-layer.ts`) subscribes to the
   same module-global layer stack every `Modal`/sheet already registers with,
   so a new overlay never needs its own opt-in. Before this, the FAB floated on
   top of whatever sheet or dialog was open over it.
@@ -1410,7 +1410,7 @@ A feature that ships with real product value but no proactive signal is
 invisible in practice — a user can plausibly never find it. Rather than an
 onboarding tour, carousel, or nag, this codebase surfaces such a feature with
 a **contextual, once-only, dismissible hint at the moment it becomes
-relevant**, built from two pieces: `lib/wedge-hints.ts` (precondition +
+relevant**, built from two pieces: `lib/home/wedge-hints.ts` (precondition +
 device-local "never again" persistence, one pair of functions per hint — see
 the module doc for why this is _not_ a registry) and `WedgeHintStrip.tsx`
 (the shared one-row presentational shell). Reference instances: the
@@ -1536,7 +1536,7 @@ link, on every surface at once.
   reminder is already the explanation. The card's own name is never a keyword
   ("Arrow Storm deals 4 damage").
 - **Everyday verbs are not links.** Destroy, exile, sacrifice, create, counter and
-  the rest of `NOT_LINKED` in `lib/keyword-glossary.ts` would underline half of
+  the rest of `NOT_LINKED` in `lib/cards/keyword-glossary.ts` would underline half of
   every card. Link the terms a player might not know.
 - **The popover says what the rule says.** Its body is the rule's own sentence
   (`“Ward [cost]” means “…”`), derived at build time into

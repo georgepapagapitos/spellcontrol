@@ -8,10 +8,10 @@ import {
   getCardTags,
   useCardTagsError,
   useCardTagsReady,
-} from '../lib/card-tags';
-import { describeOtag } from '../lib/otag-descriptions';
-import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
-import { useSheetExit } from '../lib/use-sheet-exit';
+} from '@/lib/cards/card-tags';
+import { describeOtag } from '@/lib/cards/otag-descriptions';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
 import type { EnrichedCard } from '../types';
 import { Button } from '@/components/shared/Button';
 

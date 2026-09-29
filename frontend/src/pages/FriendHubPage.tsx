@@ -2,7 +2,7 @@ import './FriendHubPage.css';
 import { PageHeader } from '@/components/PageHeader';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { useSignInPath } from '../lib/sign-in-path';
+import { useSignInPath } from '@/lib/account/sign-in-path';
 import { BackLink } from '../components/BackLink';
 import {
   BookOpen,
@@ -16,33 +16,33 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../store/auth';
 import { useCollectionStore } from '../store/collection';
-import { useAwaitingFirstPull } from '../lib/use-awaiting-first-pull';
-import { getFriendShares, type FriendShareRow } from '../lib/share-client';
-import { formatIdentity } from '../lib/display-name';
-import { fetchH2H, type H2HResponse } from '../lib/game-results-client';
+import { useAwaitingFirstPull } from '@/lib/sync/use-awaiting-first-pull';
+import { getFriendShares, type FriendShareRow } from '@/lib/social/share-client';
+import { formatIdentity } from '@/lib/social/display-name';
+import { fetchH2H, type H2HResponse } from '@/lib/play/game-results-client';
 import { fetchFriendCollection, type FriendCard } from '../lib/cube/pool';
-import { fetchFriendWants, type FriendWant } from '../lib/friends-client';
+import { fetchFriendWants, type FriendWant } from '@/lib/social/friends-client';
 import {
   buildTradeRadar,
   buildWantRadar,
   type TradeRadarMatch,
   type WantMatch,
-} from '../lib/trade-radar';
-import { groupOwnedForTrade } from '../lib/trade-picker';
+} from '@/lib/trade/trade-radar';
+import { groupOwnedForTrade } from '@/lib/trade/trade-picker';
 import {
   useAllocations,
   computeSurplusByName,
   makeDeckAllocationInfo,
   type AllocationInfo,
-} from '../lib/allocations';
-import { listTrades, subscribeTradesChanged, type TradeOffer } from '../lib/trades-client';
+} from '@/lib/collection/allocations';
+import { listTrades, subscribeTradesChanged, type TradeOffer } from '@/lib/trade/trades-client';
 import { TradeComposer } from '../components/trade/TradeComposer';
 import { TradeOfferList } from '../components/trade/TradeOfferList';
 import { RadarCardTile } from '../components/trade/RadarCardTile';
-import { isTrackingList } from '../lib/lists';
-import { useCardThumb } from '../lib/card-thumbs';
-import { resolveFriendPreview } from '../lib/friend-preview';
-import { fetchFriendDecks, type FriendDeck } from '../lib/friend-decks-client';
+import { isTrackingList } from '@/lib/collection/lists';
+import { useCardThumb } from '@/lib/cards/card-thumbs';
+import { resolveFriendPreview } from '@/lib/social/friend-preview';
+import { fetchFriendDecks, type FriendDeck } from '@/lib/social/friend-decks-client';
 import { DeckLibrary, type LibraryDeck } from '../components/decks/DeckLibrary';
 import { CardPreview } from '../components/CardPreview';
 import { toast } from '../store/toasts';
@@ -52,9 +52,9 @@ import {
   friendCardToPublic,
   sortFriendCollection,
   type FriendSortKey,
-} from '../lib/friend-collection-filter';
-import { getCardTags, useCardTagsReady } from '../lib/card-tags';
-import { friendPayloadCaps } from '../lib/friend-search';
+} from '@/lib/social/friend-collection-filter';
+import { getCardTags, useCardTagsReady } from '@/lib/cards/card-tags';
+import { friendPayloadCaps } from '@/lib/social/friend-search';
 import { H2HSummary } from '../components/play/H2HSummary';
 import { Tabs, type TabItem } from '../components/Tabs';
 import { SearchPill } from '../components/SearchPill';
@@ -65,9 +65,9 @@ import { SharedCardTile } from '../components/share/SharedCardTile';
 import { SharedCardList } from '../components/share/SharedCardList';
 import { SharedEmptyState } from '../components/share/SharedEmptyState';
 import { EmptyState } from '@/components/shared/EmptyState';
-import type { PublicCard, ShareKind } from '../lib/shared-types';
+import type { PublicCard, ShareKind } from '@/lib/social/shared-types';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
 import { SectionHeader } from '@/components/shared/SectionHeader';

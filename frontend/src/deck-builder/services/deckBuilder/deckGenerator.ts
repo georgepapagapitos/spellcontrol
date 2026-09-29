@@ -1,5 +1,5 @@
-import { logger } from '@/lib/logger';
-import { formatMoney } from '@/lib/format-money';
+import { logger } from '@/lib/util/logger';
+import { formatMoney } from '@/lib/collection/format-money';
 import type {
   ScryfallCard,
   GeneratedDeck,
@@ -120,7 +120,7 @@ import {
   type SubstituteCandidate,
   type SubstituteRow,
 } from './substituteFinder';
-import { sameType } from '@/lib/card-matching';
+import { sameType } from '@/lib/coach/card-matching';
 import { resolveOwnedCards } from './ownedCardResolution';
 import { pageInclusionOf, weakestFirst } from './ownedShareEviction';
 import {
@@ -205,7 +205,7 @@ import {
   PROTECTION_PIECE_BOOST,
   FREE_INTERACTION_BOOST,
 } from './deckGeneration/trimResistanceConstants';
-import { frontFaceName } from '@/lib/card-text';
+import { frontFaceName } from '@/lib/cards/card-text';
 
 // Re-exported so existing consumers keep importing from here (stable public API).
 export { calculateStats } from './deckStats';

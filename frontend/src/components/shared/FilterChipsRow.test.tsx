@@ -2,7 +2,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { FilterChipsRow } from './FilterChipsRow';
-import { colorChipLabel } from '../../lib/filter-summary';
+import { colorChipLabel } from '@/lib/search/filter-summary';
 
 const chip = (id: string, onClear = () => {}) => ({ id, label: id, onClear });
 

@@ -167,7 +167,7 @@ to be two copy-pasted families and absent from My Decks, so one deck had a
 strip on Discover and none in its owner's list; Home's row, which draws its
 own tile, missed it again. List and compact views leave it off. Its colors
 come in the order the tile's pips use, from `deckDisplayColors`
-(`lib/deck-validation.ts`): most-used first for a deck without a commander,
+(`lib/deck/deck-validation.ts`): most-used first for a deck without a commander,
 the commander's identity in WUBRG order otherwise.
 
 **Hover quick-actions** (grid + `@media (hover: hover) and (pointer: fine)`

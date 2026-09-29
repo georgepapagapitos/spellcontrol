@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { SettingsSection } from './SettingsSection';
 import { SwitchRow } from '../shared/form';
-import { setAiOptIn, type AiStatus } from '../../lib/ai-review';
+import { setAiOptIn, type AiStatus } from '@/lib/ai/ai-review';
 import { toast } from '../../store/toasts';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 /**
  * The single global AI consent toggle (T96) — not a per-feature matrix.
  * The You page fetches the status (its hub row shows On/Off, and hides when

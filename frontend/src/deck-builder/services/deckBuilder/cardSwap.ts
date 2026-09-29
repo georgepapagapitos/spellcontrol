@@ -11,7 +11,7 @@ import {
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { estimateBracket } from './bracketEstimator';
 import { computeRoleCounts } from './commanderDeckAnalysis';
-import { frontFaceName } from '@/lib/card-text';
+import { frontFaceName } from '@/lib/cards/card-text';
 
 const ROLE_TO_CATEGORY: Record<RoleKey, DeckCategory> = {
   ramp: 'ramp',

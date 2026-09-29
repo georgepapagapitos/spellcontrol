@@ -1,15 +1,15 @@
 import { ExternalLink, Link2, MoreVertical, type LucideIcon } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { useMenuKeyboard } from '@/lib/use-menu-keyboard';
-import { computePopoverPlacement, getSafeViewport } from '@/lib/popover-placement';
+import { useMenuKeyboard } from '@/lib/overlays/use-menu-keyboard';
+import { computePopoverPlacement, getSafeViewport } from '@/lib/overlays/popover-placement';
 import {
   isKeyboardContextMenu,
   itemFocusTarget,
   keepsBrowserMenu,
   markMenuTarget,
-} from '@/lib/context-menu';
-import { copyToClipboard } from '@/lib/clipboard';
+} from '@/lib/overlays/context-menu';
+import { copyToClipboard } from '@/lib/util/clipboard';
 import { toast } from '@/store/toasts';
 import './OverflowMenu.css';
 

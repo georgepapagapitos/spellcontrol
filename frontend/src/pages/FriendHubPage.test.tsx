@@ -12,7 +12,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FriendCard } from '../lib/cube/pool';
-import type { TradeOffer } from '../lib/trades-client';
+import type { TradeOffer } from '@/lib/trade/trades-client';
 import type { EnrichedCard } from '../types';
 
 vi.mock('../store/auth', () => ({
@@ -30,14 +30,14 @@ vi.mock('../store/collection', () => ({
 
 // The real hook subscribes to the persisted decks/cube stores; nothing here
 // allocates a copy, so an empty claim map is the whole truth.
-vi.mock('../lib/allocations', async () => {
-  const actual = await vi.importActual<typeof import('../lib/allocations')>('../lib/allocations');
+vi.mock('@/lib/collection/allocations', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/collection/allocations')>('@/lib/collection/allocations');
   return { ...actual, useAllocations: () => new Map() };
 });
 
-vi.mock('../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
-vi.mock('../lib/share-client', () => ({
+vi.mock('@/lib/social/share-client', () => ({
   getFriendShares: vi.fn(() =>
     Promise.resolve({
       ownerUsername: 'friendo',
@@ -47,7 +47,7 @@ vi.mock('../lib/share-client', () => ({
   ),
 }));
 
-vi.mock('../lib/game-results-client', () => ({
+vi.mock('@/lib/play/game-results-client', () => ({
   fetchH2H: vi.fn(() => Promise.reject(new Error('no h2h in this test'))),
 }));
 
@@ -63,23 +63,23 @@ vi.mock('../lib/cube/pool', async () => {
 // Their deck shelf. Fails by default, as the unmocked fetch always did here;
 // the deck-badge test resolves it.
 const fetchFriendDecks = vi.fn((_id: string): Promise<unknown> => Promise.reject(new Error('no')));
-vi.mock('../lib/friend-decks-client', async () => {
-  const actual = await vi.importActual<typeof import('../lib/friend-decks-client')>(
-    '../lib/friend-decks-client'
+vi.mock('@/lib/social/friend-decks-client', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/social/friend-decks-client')>(
+    '@/lib/social/friend-decks-client'
   );
   return { ...actual, fetchFriendDecks: (id: string) => fetchFriendDecks(id) };
 });
 
 // The first-pull window: flipped on by the test that models a fresh device.
 const firstPull = vi.hoisted(() => ({ awaiting: false }));
-vi.mock('../lib/use-awaiting-first-pull', () => ({
+vi.mock('@/lib/sync/use-awaiting-first-pull', () => ({
   useAwaitingFirstPull: () => firstPull.awaiting,
 }));
 
 const fetchFriendWants = vi.fn();
-vi.mock('../lib/friends-client', async () => {
+vi.mock('@/lib/social/friends-client', async () => {
   const actual =
-    await vi.importActual<typeof import('../lib/friends-client')>('../lib/friends-client');
+    await vi.importActual<typeof import('@/lib/social/friends-client')>('@/lib/social/friends-client');
   return { ...actual, fetchFriendWants: (...args: unknown[]) => fetchFriendWants(...args) };
 });
 
@@ -88,15 +88,15 @@ vi.mock('../lib/friends-client', async () => {
 const listTrades = vi.fn((_opts?: unknown): Promise<{ offers: TradeOffer[]; truncated: boolean }> =>
   Promise.resolve({ offers: [], truncated: false })
 );
-vi.mock('../lib/trades-client', async () => {
+vi.mock('@/lib/trade/trades-client', async () => {
   const actual =
-    await vi.importActual<typeof import('../lib/trades-client')>('../lib/trades-client');
+    await vi.importActual<typeof import('@/lib/trade/trades-client')>('@/lib/trade/trades-client');
   return { ...actual, listTrades: (opts?: unknown) => listTrades(opts) };
 });
 // The composer's per-printing binder badges and tag search — not under test.
-vi.mock('../lib/use-binder-by-copy', () => ({ useBinderByCopyId: () => new Map() }));
+vi.mock('@/lib/binder/use-binder-by-copy', () => ({ useBinderByCopyId: () => new Map() }));
 // Settled trades file into the viewer's binders; this suite has none.
-vi.mock('../lib/use-binder-layout-inputs', () => ({
+vi.mock('@/lib/binder/use-binder-layout-inputs', () => ({
   useBinderLayoutInputs: () => ({
     cards: [],
     binders: [],
@@ -104,7 +104,7 @@ vi.mock('../lib/use-binder-layout-inputs', () => ({
     setMap: undefined,
   }),
 }));
-vi.mock('../lib/card-tags', () => ({ getCardTags: () => [], useCardTagsReady: () => false }));
+vi.mock('@/lib/cards/card-tags', () => ({ getCardTags: () => [], useCardTagsReady: () => false }));
 
 import { FriendHubPage } from './FriendHubPage';
 

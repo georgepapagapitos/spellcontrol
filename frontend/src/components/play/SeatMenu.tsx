@@ -14,17 +14,17 @@ import {
   X,
 } from 'lucide-react';
 import { useId, useLayoutEffect, useRef, useState } from 'react';
-import type { DesignationKind, GameAction, GamePlayer, GameState } from '../../lib/game-state';
+import type { DesignationKind, GameAction, GamePlayer, GameState } from '@/lib/play/game-state';
 import {
   MAX_COUNTERS_PER_SCOPE,
   MAX_COUNTER_NAME_LENGTH,
   normalizeCounterName,
   seatCounters,
-} from '../../lib/game-state';
-import { encodeCustomLayout, resolveLayout, turnOrderOf } from '../../lib/board-layouts';
-import { paletteForSeat } from '../../lib/seat-palette';
-import { useOverlayDismiss } from '../../lib/use-overlay-dismiss';
-import { useTapAndHold } from '../../lib/tap-and-hold';
+} from '@/lib/play/game-state';
+import { encodeCustomLayout, resolveLayout, turnOrderOf } from '@/lib/play/board-layouts';
+import { paletteForSeat } from '@/lib/play/seat-palette';
+import { useOverlayDismiss } from '@/lib/overlays/use-overlay-dismiss';
+import { useTapAndHold } from '@/lib/play/tap-and-hold';
 import { Button, IconButton } from '../shared/Button';
 import { FacingArrow } from './FacingArrow';
 

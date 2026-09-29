@@ -2,7 +2,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { CommanderReadiness } from './CommanderReadiness';
-import type { ReadinessScore } from '../../lib/commander-readiness';
+import type { ReadinessScore } from '@/lib/deck/commander-readiness';
 
 function score(p: Partial<ReadinessScore> = {}): ReadinessScore {
   return {

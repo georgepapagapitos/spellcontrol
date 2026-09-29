@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { ScannerQueueSheet } from './ScannerQueueSheet';
-import type { ScannedEntry } from '../lib/use-scan-queue';
+import type { ScannedEntry } from '@/lib/scanner/use-scan-queue';
 import type { BinderDef, BinderFilter } from '../types';
 import type { ScryfallCard } from '@/deck-builder/types';
 
@@ -12,8 +12,8 @@ vi.mock('@/deck-builder/services/scryfall/client', () => ({
 }));
 // The otag index is a network fetch; stand in for it with one tag on Bolt, and
 // only when a binder asks for tags, the way the real hook gates.
-vi.mock('../lib/card-tags', async (importActual) => ({
-  ...(await importActual<typeof import('../lib/card-tags')>()),
+vi.mock('@/lib/cards/card-tags', async (importActual) => ({
+  ...(await importActual<typeof import('@/lib/cards/card-tags')>()),
   useCardsWithTags: <T extends { name: string }>(cards: T[], usesTags: boolean) =>
     usesTags
       ? cards.map((c) => (c.name === 'Lightning Bolt' ? { ...c, tags: ['burn'] } : c))

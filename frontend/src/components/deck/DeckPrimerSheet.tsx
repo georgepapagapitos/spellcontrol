@@ -1,8 +1,8 @@
 import { createPortal } from 'react-dom';
 import { type JSX, useEffect, useId, useRef, useState } from 'react';
 import { X } from 'lucide-react';
-import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
-import { useSheetExit } from '../../lib/use-sheet-exit';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
 import { useDecksStore, type Deck } from '../../store/decks';
 import './DeckPrimerSheet.css';
 import { IconButton } from '@/components/shared/Button';

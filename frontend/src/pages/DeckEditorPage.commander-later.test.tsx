@@ -19,9 +19,9 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 
-vi.mock('@/lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
-vi.mock('@/lib/edhrec-combo-overlay', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/lib/edhrec-combo-overlay')>()),
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/deck-analysis/edhrec-combo-overlay', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/deck-analysis/edhrec-combo-overlay')>()),
   useEdhrecComboOverlay: () => ({}),
 }));
 
@@ -231,15 +231,15 @@ vi.mock('../components/deck/BuildReportSheet', () => ({ BuildReportSheet: () => 
 vi.mock('../components/deck/PartnerCommanderSelector', () => ({
   PartnerCommanderSelector: () => <div />,
 }));
-vi.mock('../lib/materialize', () => ({ materializeBinders: () => ({ binders: [] }) }));
-vi.mock('../lib/use-deck-combos', () => ({ useDeckCombos: () => ({ combos: [] }) }));
-vi.mock('../lib/use-commander-bracket-analysis', () => ({
+vi.mock('@/lib/binder/materialize', () => ({ materializeBinders: () => ({ binders: [] }) }));
+vi.mock('@/lib/deck-analysis/use-deck-combos', () => ({ useDeckCombos: () => ({ combos: [] }) }));
+vi.mock('@/lib/deck-analysis/use-commander-bracket-analysis', () => ({
   useCommanderBracketAnalysis: () => ({ status: 'ready', retry: () => {} }),
 }));
-vi.mock('../lib/use-undo-redo-keyboard', () => ({ useUndoRedoKeyboard: () => {} }));
+vi.mock('@/lib/deck/use-undo-redo-keyboard', () => ({ useUndoRedoKeyboard: () => {} }));
 // The binder chain (tags, Secret Lair drops, release dates, allocations, set
 // data) reads the same empty collection as the store mock above.
-vi.mock('../lib/use-binder-layout-inputs', () => ({
+vi.mock('@/lib/binder/use-binder-layout-inputs', () => ({
   useBinderLayoutInputs: () => ({
     cards: [],
     binders: [],
@@ -247,8 +247,8 @@ vi.mock('../lib/use-binder-layout-inputs', () => ({
     setMap: undefined,
   }),
 }));
-vi.mock('../lib/use-binder-by-copy', () => ({ useBinderByCopyId: () => new Map() }));
-vi.mock('../lib/allocations', () => ({
+vi.mock('@/lib/binder/use-binder-by-copy', () => ({ useBinderByCopyId: () => new Map() }));
+vi.mock('@/lib/collection/allocations', () => ({
   buildAllocationMap: () => new Map(),
   pickCollectionCopy: () => null,
   bindableFinishesByPrinting: () => new Map(),
@@ -275,25 +275,25 @@ vi.mock('../deck-builder/services/tagger/client', async (importOriginal) => ({
 vi.mock('../deck-builder/services/deckBuilder/costAnalyzer', () => ({
   filterCostPlanByOwnership: () => [],
 }));
-vi.mock('@/lib/deck-change', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/lib/deck-change')>()),
+vi.mock('@/lib/coach/deck-change', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/coach/deck-change')>()),
   fromGapCard: () => null,
   sortOwnedFirst: () => [],
 }));
-vi.mock('../lib/deck-analysis', () => ({
+vi.mock('@/lib/deck-analysis/deck-analysis', () => ({
   classifyCandidate: () => 'neutral',
   analyzeDeck: () => ({ roles: [] }),
 }));
-vi.mock('../lib/intelligent-cuts', () => ({ rankReplacementCuts: () => [] }));
-vi.mock('../lib/card-fit', () => ({ computeAddFit: () => null }));
+vi.mock('@/lib/coach/intelligent-cuts', () => ({ rankReplacementCuts: () => [] }));
+vi.mock('@/lib/coach/card-fit', () => ({ computeAddFit: () => null }));
 vi.mock('@/deck-builder/services/scryfall/client', () => ({
   getCardPrice: () => null,
   getCardByName: () => Promise.resolve(null),
   getOwnedPrinting: () => Promise.resolve(null),
   searchCards: () => Promise.resolve({ data: [] }),
 }));
-vi.mock('../lib/sync', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../lib/sync')>()),
+vi.mock('@/lib/sync', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/sync')>()),
   getSyncState: () => 'idle',
   onSyncedChange: () => () => {},
 }));

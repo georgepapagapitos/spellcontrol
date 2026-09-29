@@ -5,12 +5,12 @@ import { SelectMenu } from '../SelectMenu';
 import { VisibilityChoice } from '../VisibilityChoice';
 import { DeckPicker, SeatPips, Stepper } from './SetupControls';
 import type { PickedDeck } from './DeckPickerDialog';
-import { deckBoardPath, starterFileName } from '../../lib/starter-decks';
-import { FORMAT_OPTIONS } from '../../lib/game-formats';
-import { pickFirstPlayer } from '../../lib/game-tools';
-import { useCardThumb } from '../../lib/card-thumbs';
+import { deckBoardPath, starterFileName } from '@/lib/play/starter-decks';
+import { FORMAT_OPTIONS } from '@/lib/play/game-formats';
+import { pickFirstPlayer } from '@/lib/play/game-tools';
+import { useCardThumb } from '@/lib/cards/card-thumbs';
 import { effectiveBracket, type Deck } from '../../store/decks';
-import { bracketTextWithEstimate } from '../../lib/format-bracket-label';
+import { bracketTextWithEstimate } from '@/lib/deck-analysis/format-bracket-label';
 import type {
   GameAction,
   GameEvent,
@@ -19,8 +19,8 @@ import type {
   GameState,
   HordeTable as HordeTableState,
   MulliganType,
-} from '../../lib/game-state';
-import { makePlayer, MAX_ONLINE_SEATS, HORDE_MAX_SEATS, nextHostSeat } from '../../lib/game-state';
+} from '@/lib/play/game-state';
+import { makePlayer, MAX_ONLINE_SEATS, HORDE_MAX_SEATS, nextHostSeat } from '@/lib/play/game-state';
 import { ColorPip } from '../shared/ManaSymbol';
 import { HordeSetupFields, levelSummary } from './horde/HordeSetupFields';
 import {
@@ -35,8 +35,8 @@ import { useStarterDeckCardNames } from '@/lib/horde/starter-deck-cards';
 import './OnlineLobby.css';
 import { Button, IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
-import { useCopyFeedback } from '@/lib/use-copy-feedback';
-import { voiceLinkLabel } from '@/lib/voice-link';
+import { useCopyFeedback } from '@/lib/util/use-copy-feedback';
+import { voiceLinkLabel } from '@/lib/play/voice-link';
 import { VoiceLinkRow } from './VoiceLinkRow';
 
 /** Same cap as the create/join paths and the local setup's seat names. */

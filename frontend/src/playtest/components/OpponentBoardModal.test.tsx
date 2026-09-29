@@ -13,7 +13,7 @@ import type { PublicBattlefieldCard, PublicBoard } from '@/lib/playtest/projecti
 import { getCardsByIds, getCardsByNames } from '@/deck-builder/services/scryfall/client';
 import { usePlayStore } from '@/store/play';
 import { useAuth } from '@/store/auth';
-import { createGameState, makePlayer } from '@/lib/game-state';
+import { createGameState, makePlayer } from '@/lib/play/game-state';
 import { usePlaytestStore } from '../store';
 
 const MY_DECK = 'deck-mine';
@@ -26,7 +26,7 @@ vi.mock('@/deck-builder/services/scryfall/client', () => ({
 // Art resolution isn't the point of this component's tests — a resolved thumb
 // keeps every tile on its image branch (never the name-text placeholder),
 // so a card's name appears exactly once (its own label), not twice.
-vi.mock('@/lib/card-thumbs', () => ({ useCardThumb: () => 'https://img.example/test.jpg' }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => 'https://img.example/test.jpg' }));
 
 // CardPreview itself has its own test file and a large dependency tree
 // (Scryfall rulings, the share sheet, react-router Link…). Stub it here so

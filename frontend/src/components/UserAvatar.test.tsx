@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/react';
 import { UserAvatar, contrastRatio, fallbackTextColor } from './UserAvatar';
-import { PRESET_COLORS } from '../lib/preset-colors';
+import { PRESET_COLORS } from '@/lib/util/preset-colors';
 
 describe('UserAvatar', () => {
   it('renders the image when imageUrl is set', () => {

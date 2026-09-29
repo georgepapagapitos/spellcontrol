@@ -1,5 +1,5 @@
 import { useParams } from 'react-router-dom';
-import { resolveGameNightSeries } from '../lib/game-nights-api';
+import { resolveGameNightSeries } from '@/lib/play/game-nights-api';
 import { GameNightLinkForward } from './GameNightLinkForward';
 
 /**

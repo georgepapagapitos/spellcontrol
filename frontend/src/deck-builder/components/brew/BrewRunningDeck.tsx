@@ -3,13 +3,13 @@ import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import './BrewRunningDeck.css';
 import { MeterBar } from '@/components/shared/MeterBar';
-import { buildManaData } from '@/lib/build-mana-data';
-import { useSheetExit } from '@/lib/use-sheet-exit';
-import { useCardThumb } from '@/lib/card-thumbs';
+import { buildManaData } from '@/lib/deck-analysis/build-mana-data';
+import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
+import { useCardThumb } from '@/lib/cards/card-thumbs';
 import { getCardsByNames } from '@/deck-builder/services/scryfall/client';
 import { useBrewStore } from '@/deck-builder/store/brew';
 import { flattenAccepted } from '@/deck-builder/services/deckBuilder/brewSlots';
-import { COLOR_INFO } from '@/lib/colors';
+import { COLOR_INFO } from '@/lib/cards/colors';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { IconButton } from '@/components/shared/Button';
 

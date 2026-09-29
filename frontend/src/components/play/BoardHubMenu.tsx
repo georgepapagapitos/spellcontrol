@@ -7,8 +7,8 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react';
-import { useMenuKeyboard } from '../../lib/use-menu-keyboard';
-import { hubPetalPositions, type Point, type Size } from '../../lib/board-hub-layout';
+import { useMenuKeyboard } from '@/lib/overlays/use-menu-keyboard';
+import { hubPetalPositions, type Point, type Size } from '@/lib/play/board-hub-layout';
 import './BoardHubMenu.css';
 
 export interface HubPetal {

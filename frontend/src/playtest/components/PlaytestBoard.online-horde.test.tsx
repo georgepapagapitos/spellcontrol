@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, within, act } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { createPlaytestState } from '@/lib/playtest';
-import type { GameState } from '@/lib/game-state';
+import type { GameState } from '@/lib/play/game-state';
 import { usePlayStore } from '@/store/play';
 import { usePlaytestStore } from '../store';
 import { buildTestHorde } from '../lib/horde-solo.fixtures';
@@ -37,7 +37,7 @@ vi.mock('@/deck-builder/services/scryfall/client', async (orig) => ({
   searchTokens: async () => [],
   resolveTokenOption: async () => null,
 }));
-vi.mock('@/lib/card-thumbs', () => ({
+vi.mock('@/lib/cards/card-thumbs', () => ({
   useCardThumb: (name?: string) => (name ? `https://cards.example/${name}.jpg` : undefined),
   cachedCardThumb: (name: string) => `https://cards.example/${name}.jpg`,
 }));

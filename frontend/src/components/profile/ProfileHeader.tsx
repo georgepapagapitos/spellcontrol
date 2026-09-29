@@ -4,9 +4,9 @@ import { UserAvatar } from '../UserAvatar';
 import { Button } from '../shared/Button';
 import { Chip } from '../shared/Chip';
 import { FollowButton } from '../social/FollowButton';
-import { formatCount } from '../../lib/format-count';
-import { formatSocialCount } from '../../lib/social-proof';
-import type { PublicProfile } from '../../lib/profile-client';
+import { formatCount } from '@/lib/util/format-count';
+import { formatSocialCount } from '@/lib/social/social-proof';
+import type { PublicProfile } from '@/lib/social/profile-client';
 import './ProfileHeader.css';
 
 /**

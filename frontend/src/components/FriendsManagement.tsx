@@ -2,13 +2,13 @@ import { EmptyState } from './shared/EmptyState';
 import './FriendsManagement.css';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { useSignInPath } from '../lib/sign-in-path';
+import { useSignInPath } from '@/lib/account/sign-in-path';
 import { useAuth } from '../store/auth';
 import { toast } from '../store/toasts';
 import { Tabs } from './Tabs';
-import { formatRelativeTime } from '../lib/format-time';
-import { formatIdentity } from '../lib/display-name';
-import { scrollToHeading } from '../lib/scroll-to-heading';
+import { formatRelativeTime } from '@/lib/util/format-time';
+import { formatIdentity } from '@/lib/social/display-name';
+import { scrollToHeading } from '@/lib/util/scroll-to-heading';
 import {
   acceptRequest,
   declineRequest,
@@ -20,16 +20,16 @@ import {
   type Friend,
   type FriendRequest,
   type FriendActivityItem,
-} from '../lib/friends-client';
-import { useInbox, markInboxSeen, countUnseen, useInboxSeenAt } from '../lib/use-inbox';
-import { useConfirm } from '../lib/use-confirm';
+} from '@/lib/social/friends-client';
+import { useInbox, markInboxSeen, countUnseen, useInboxSeenAt } from '@/lib/social/use-inbox';
+import { useConfirm } from './use-confirm';
 import { useFollowing } from '../lib/social/use-following';
 import { FollowingPanel } from './friends/FollowingPanel';
 import { FriendRow, FriendRowSkeleton } from './friends/FriendRow';
 import { PeopleSearch } from './friends/PeopleSearch';
 import { SuggestedBrewers } from './friends/SuggestedBrewers';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 type TabId = 'friends' | 'following' | 'requests' | 'inbox' | 'activity';
 

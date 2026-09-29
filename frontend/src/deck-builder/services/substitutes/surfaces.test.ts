@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GapAnalysisCard, ScryfallCard } from '@/deck-builder/types';
-import type { Change } from '@/lib/deck-change';
+import type { Change } from '@/lib/coach/deck-change';
 import { encodeSnapshot, type SnapshotMeta } from '../cardFacts/codec';
 import { extractCardFacts } from '../cardFacts/extract';
 import { setCardFactsSnapshot } from '../cardFacts/index';

@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { SearchPill } from './SearchPill';
 import { CardSearchResults } from './CardSearchResults';
-import { useSearchCards } from '../lib/use-search-cards';
-import { useResultsKeys } from '../lib/use-results-keys';
+import { useSearchCards } from '@/lib/search/use-search-cards';
+import { useResultsKeys } from '@/lib/search/use-results-keys';
 import type { ScryfallCard } from '@/deck-builder/types';
 
 interface Props {

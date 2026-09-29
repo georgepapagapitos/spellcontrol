@@ -18,7 +18,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { SortField } from '../types';
-import { getDefaultValueOrder, getValueLabel, resolveValueOrder } from '../lib/sorting';
+import { getDefaultValueOrder, getValueLabel, resolveValueOrder } from '@/lib/search/sorting';
 import { IconButton } from '@/components/shared/Button';
 
 interface Props {

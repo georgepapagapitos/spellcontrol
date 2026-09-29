@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import './EndGameDialog.css';
 import { Modal } from '../Modal';
-import type { GamePlayer } from '../../lib/game-state';
+import type { GamePlayer } from '@/lib/play/game-state';
 import { Button } from '@/components/shared/Button';
 
 /**

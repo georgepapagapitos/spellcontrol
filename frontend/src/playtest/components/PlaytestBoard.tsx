@@ -21,9 +21,9 @@ import {
   Settings,
   Undo2,
 } from 'lucide-react';
-import { useConfirm } from '@/lib/use-confirm';
+import { useConfirm } from '@/components/use-confirm';
 import { WedgeHintStrip } from '@/components/deck/WedgeHintStrip';
-import { dismissPlaytestDragHint, shouldShowPlaytestDragHint } from '@/lib/wedge-hints';
+import { dismissPlaytestDragHint, shouldShowPlaytestDragHint } from '@/lib/home/wedge-hints';
 import {
   DndContext,
   DragOverlay,
@@ -83,7 +83,7 @@ import { useHoverTarget } from '../hooks/use-hover-target';
 import { useTablePings } from '../hooks/use-table-pings';
 import { TablePings } from './TablePings';
 import { StackPanel, type StackPanelItem } from './StackPanel';
-import { isTypingTarget, useRegisterShortcuts } from '@/lib/shortcut-registry';
+import { isTypingTarget, useRegisterShortcuts } from '@/components/shortcut-registry';
 import { useOnlineTable } from '../hooks/use-online-table';
 import { useOnlineHorde } from '../hooks/use-online-horde';
 import { Button } from '@/components/shared/Button';
@@ -112,14 +112,14 @@ import { makePlaytestCollision } from '../lib/attach-drop';
 import { clampGroupDelta, planGroupDrag } from '../lib/group-drag';
 import { hostFromDroppableId, zoneDropIndex } from '../lib/zones';
 import { sideboardInstanceId } from '../lib/deck-to-playtest';
-import { haptics } from '@/lib/haptics';
-import { suppressNativeContextMenu } from '@/lib/suppress-context-menu';
-import { cachedCardThumb } from '@/lib/card-thumbs';
+import { haptics } from '@/lib/util/haptics';
+import { suppressNativeContextMenu } from '@/lib/play/suppress-context-menu';
+import { cachedCardThumb } from '@/lib/cards/card-thumbs';
 import { Battlefield } from './Battlefield';
 import { Hand } from './Hand';
 import { HandCardMenu } from './HandCardMenu';
 import { CardHoverPreview, type PreviewFaces } from './CardHoverPreview';
-import { useMediaQuery } from '@/lib/use-media-query';
+import { useMediaQuery } from '@/lib/util/use-media-query';
 import { ZonePile } from './ZonePile';
 import { ZoneViewerModal } from './ZoneViewerModal';
 import { SEPARATOR, TableContextMenu, type MenuEntry } from './TableContextMenu';
@@ -128,9 +128,9 @@ import { Modal } from '@/components/Modal';
 import { EndGameDialog } from '@/components/play/EndGameDialog';
 import { useRulesReferenceStore } from '@/store/rules-reference';
 import { GameMenuSheet, type GameMenuSection } from './GameMenuSheet';
-import { cardsToBottom, GAME_PHASES, nextHostSeat, type MulliganType } from '@/lib/game-state';
-import { formatClock, msToNextSecond } from '@/lib/game-clock';
-import { useNow } from '@/lib/use-now';
+import { cardsToBottom, GAME_PHASES, nextHostSeat, type MulliganType } from '@/lib/play/game-state';
+import { formatClock, msToNextSecond } from '@/lib/play/game-clock';
+import { useNow } from '@/lib/util/use-now';
 import {
   SHORTCUTS,
   formatChord,
@@ -356,7 +356,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     setHoldHintSeen(true);
     writeHoldHintSeen();
   }, []);
-  // Drag-to-play discovery hint (E484, see lib/wedge-hints.ts) — dismissed
+  // Drag-to-play discovery hint (E484, see lib/home/wedge-hints.ts) — dismissed
   // locally too, same reasoning as the binder hint in CardSearchPanel: the
   // strip disappears on click without waiting on a re-render, and
   // dismissPlaytestDragHint()'s localStorage write makes "never again" durable.

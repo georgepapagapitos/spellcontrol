@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import { DeckBadge } from './DeckBadge';
 import { BinderBadge } from './BinderBadge';
-import type { AllocationInfo } from '../lib/allocations';
+import type { AllocationInfo } from '@/lib/collection/allocations';
 
 const deck = (id: string, name: string, color = '#c33'): AllocationInfo => ({
   ownerKind: 'deck',

@@ -6,7 +6,7 @@ import { Button, IconButton } from './shared/Button';
 import { ChoiceList } from './shared/form';
 import { useCollectionStore } from '../store/collection';
 import { toast } from '../store/toasts';
-import { useBinderLayoutInputs } from '../lib/use-binder-layout-inputs';
+import { useBinderLayoutInputs } from '@/lib/binder/use-binder-layout-inputs';
 import {
   computeShelfPlan,
   defaultShelfPlan,
@@ -16,8 +16,8 @@ import {
   type PullOutId,
   type ShelfPlanRow,
   type ShelfStrategyId,
-} from '../lib/shelf-plan';
-import { useDebouncedValue } from '../lib/use-debounced-value';
+} from '@/lib/binder/shelf-plan';
+import { useDebouncedValue } from '@/lib/util/use-debounced-value';
 
 const SPLIT_SECTION_TITLE: Record<ShelfStrategyId, string> = {
   'by-color': 'Then one binder per color',
@@ -140,7 +140,7 @@ interface RowPicks {
  * binders in one go. A Modal — a bottom sheet on phones, a centered dialog
  * above, via `backdropClassName="modal-backdrop--sheet"` (the same pattern
  * `BinderVolumesSheet` uses). All the actual planning lives in the pure
- * `lib/shelf-plan.ts`; this component only holds the picker state (strategy,
+ * `lib/binder/shelf-plan.ts`; this component only holds the picker state (strategy,
  * pull-out order, which rows the user checked) and renders what it computes.
  */
 export function PlanShelfModal({ onClose }: { onClose: () => void }) {

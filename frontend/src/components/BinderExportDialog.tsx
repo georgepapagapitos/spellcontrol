@@ -10,7 +10,7 @@ import {
   downloadBackup,
   binderBackupFileName,
   allBindersBackupFileName,
-} from '../lib/backup';
+} from '@/lib/import-export/backup';
 import { CollectionExportDialog } from './CollectionExportDialog';
 import { Button } from '@/components/shared/Button';
 

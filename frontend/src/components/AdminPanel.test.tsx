@@ -2,7 +2,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { AdminPanel } from './AdminPanel';
-import type { AdminUserSummary, AdminReportRow, AiSpend } from '../lib/admin-api';
+import type { AdminUserSummary, AdminReportRow, AiSpend } from '@/lib/account/admin-api';
 
 // AdminPanel's own network calls are mocked; Modal is real, so this is an
 // integration-style test of the confirm-gating wiring around clearUserProfile
@@ -34,7 +34,7 @@ const getAiSpendMock = vi.fn<() => Promise<AiSpend>>(() =>
     users: [],
   })
 );
-vi.mock('../lib/admin-api', () => ({
+vi.mock('@/lib/account/admin-api', () => ({
   listUsers: () => listUsersMock(),
   getAiSpend: () => getAiSpendMock(),
   deleteUser: (id: string) => deleteUserMock(id),

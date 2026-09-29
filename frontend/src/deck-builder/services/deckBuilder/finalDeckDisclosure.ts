@@ -7,7 +7,7 @@
  * gaps while running both), and "Wanted Elvish Archdruid, used your Rishkar"
  * in a Lathril deck that ended up running both.
  */
-import { frontFaceName } from '@/lib/card-text';
+import { frontFaceName } from '@/lib/cards/card-text';
 
 /** Whether a name is in the final deck, by full name or front face (a
  *  collection row or an EDHREC name can name a double-faced card by its

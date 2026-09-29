@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePlayStore } from '@/store/play';
 import { toast } from '@/store/toasts';
 import { bossTickPhrase, type HordeDamageResult } from '@/lib/horde';
-import type { HordeLogEntry, HordePhase, HordeStep } from '@/lib/game-state';
+import type { HordeLogEntry, HordePhase, HordeStep } from '@/lib/play/game-state';
 import type { PlaytestState } from '@/lib/playtest';
 import type { Rect } from '@/playtest/lib/auto-place';
 import { usePlaytestStore } from '@/playtest/store';

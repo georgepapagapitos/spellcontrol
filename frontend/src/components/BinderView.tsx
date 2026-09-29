@@ -23,15 +23,15 @@ import {
   stackCopies,
   stackDetailMix,
   printingStubFromEnriched,
-} from '../lib/edit-card';
+} from '@/lib/collection/edit-card';
 import { BinderPagePreview } from './BinderPagePreview';
-import { hasMultipleVolumes, pageVolume, type Volume } from '../lib/binder-volumes';
+import { hasMultipleVolumes, pageVolume, type Volume } from '@/lib/binder/binder-volumes';
 import { useBinderCardPreview } from './use-binder-card-preview';
 import { BinderDriftBanner } from './BinderDriftBanner';
 import { BinderSummaryBar, type BinderViewControls } from './BinderSummaryBar';
-import { useAllocations } from '../lib/allocations';
+import { useAllocations } from '@/lib/collection/allocations';
 import { useToastsStore } from '../store/toasts';
-import { useGridColumns } from '../lib/use-grid-columns';
+import { useGridColumns } from '@/lib/util/use-grid-columns';
 import { Button } from '@/components/shared/Button';
 
 /**

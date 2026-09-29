@@ -34,7 +34,7 @@
  * hybrid costs genuinely are easier to cast.
  */
 import type { ManabaseSummary, ManabaseColorLine, ScryfallCard } from '@/deck-builder/types';
-import { producedManaColors, isManaSourceType } from '@/lib/mana-sources';
+import { producedManaColors, isManaSourceType } from '@/lib/deck-analysis/mana-sources';
 import { shortfallThresholdsForCurve } from './colorShortfall';
 
 export const WUBRG = ['W', 'U', 'B', 'R', 'G'] as const;

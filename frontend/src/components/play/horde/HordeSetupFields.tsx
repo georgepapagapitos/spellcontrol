@@ -12,7 +12,7 @@ import {
   type RevealMode,
 } from '@/lib/horde';
 import type { HordeBanWarning } from '@/lib/horde/ban-list';
-import { aggregateHordeRecords } from '@/lib/horde-records';
+import { aggregateHordeRecords } from '@/lib/horde/horde-records';
 import { usePlayStore } from '@/store/play';
 import './horde-setup.css';
 

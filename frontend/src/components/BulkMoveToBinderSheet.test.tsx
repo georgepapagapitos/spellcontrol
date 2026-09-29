@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import type { BinderDef, EnrichedCard } from '../types';
 
-vi.mock('../lib/use-lock-body-scroll', () => ({ useLockBodyScroll: () => {} }));
+vi.mock('@/lib/overlays/use-lock-body-scroll', () => ({ useLockBodyScroll: () => {} }));
 
 const binders: BinderDef[] = [
   {

@@ -1,6 +1,6 @@
 import type { JSX, ReactNode } from 'react';
 import { X } from 'lucide-react';
-import { useEscapeKey } from '../../lib/use-escape-key';
+import { useEscapeKey } from '@/lib/overlays/use-escape-key';
 import './WedgeHintStrip.css';
 import { IconButton } from '@/components/shared/Button';
 
@@ -21,7 +21,7 @@ interface Props {
  * plausibly never find (STYLE_GUIDE "Wedge-feature discovery hints"). Follows
  * the UX-334 insight-strip ground rules — one row, full-width, 44px touch
  * target, never a permanent fixture — but the caller owns the precondition
- * (via `lib/wedge-hints.ts`) and mount/unmount entirely; this component has
+ * (via `lib/home/wedge-hints.ts`) and mount/unmount entirely; this component has
  * no internal "nothing to show" state of its own, unlike UX-334's own strips.
  * `role="status"`/`aria-live="polite"` announces its appearance without
  * moving focus. Escape dismisses it, same as every other click-away surface

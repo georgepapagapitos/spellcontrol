@@ -5,9 +5,9 @@ import { OverflowMenu } from '../OverflowMenu';
 import { UserAvatar } from '../UserAvatar';
 import { ColorIdentityBar } from '../shared/ColorIdentityBar';
 import { Surface } from '../shared/Surface';
-import type { Friend } from '@/lib/friends-client';
-import { formatIdentity } from '@/lib/display-name';
-import { formatRelativeTime } from '@/lib/format-time';
+import type { Friend } from '@/lib/social/friends-client';
+import { formatIdentity } from '@/lib/social/display-name';
+import { formatRelativeTime } from '@/lib/util/format-time';
 import { friendPeekLine } from '@/lib/social/friend-peek';
 
 interface Props {

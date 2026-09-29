@@ -7,7 +7,7 @@ import type { CubeCard } from '../../lib/cube/core';
 import type { GeneratedCube, Pick } from '../../lib/cube/generate';
 import type { ShoppingRow } from '../../lib/cube/shopping-list';
 import { useCollectionStore } from '../../store/collection';
-import { useCurrencyStore } from '@/lib/currency';
+import { useCurrencyStore } from '@/lib/collection/currency';
 import { pending } from '../../test/pending';
 import type { SavedCube } from '../../store/cube';
 import { DEFAULT_POOL_FILTERS } from '../../lib/cube/pool-filters';
@@ -46,7 +46,7 @@ vi.mock('../../lib/cube/signal', () => ({
     if (!snapshotState.signalWillFail) snapshotState.signalLoaded = true;
   }),
 }));
-vi.mock('@/lib/card-tags', () => ({
+vi.mock('@/lib/cards/card-tags', () => ({
   isCardTagsFailed: vi.fn(() => snapshotState.tagsWillFail),
   ensureCardTags: vi.fn(async () => {
     if (snapshotState.tagsLoaded) return;

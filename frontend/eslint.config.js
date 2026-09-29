@@ -46,7 +46,7 @@ export default [
       // and touch floors; the audit matrix measures the rendered result.
       ...jsxA11y.flatConfigs.recommended.rules,
       // Sheets and dialogs focus their first field on open on purpose; the
-      // overlay layer (lib/overlay-layer.ts) restores focus on close. The
+      // overlay layer (lib/overlays/overlay-layer.ts) restores focus on close. The
       // rule is an opinion about page loads, not about opened dialogs.
       'jsx-a11y/no-autofocus': 'off',
       // `role="list"` on a `<ul>` is deliberate: Safari/VoiceOver drops the
@@ -70,14 +70,14 @@ export default [
         'error',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
       ],
-      // Route all logging through src/lib/logger so debug chatter stays out of
+      // Route all logging through src/lib/util/logger so debug chatter stays out of
       // the production browser console; warn/error still surface in the field.
       'no-console': 'error',
     },
   },
   {
     // The logger wrapper is the one place console.* is allowed.
-    files: ['src/lib/logger.ts'],
+    files: ['src/lib/util/logger.ts'],
     rules: { 'no-console': 'off' },
   },
   {

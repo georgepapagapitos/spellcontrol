@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { BinderVolumesSheet } from './BinderVolumesSheet';
 import type { Volume } from '../types';
 
-vi.mock('../lib/use-lock-body-scroll', () => ({ useLockBodyScroll: () => {} }));
+vi.mock('@/lib/overlays/use-lock-body-scroll', () => ({ useLockBodyScroll: () => {} }));
 
 const VOLUMES: Volume[] = [
   { index: 1, pageStart: 1, pageEnd: 21, cardCount: 188, firstLabel: 'White', lastLabel: 'White' },

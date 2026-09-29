@@ -13,7 +13,7 @@
  *
  * Generation-inert in this slice: no generator phase calls into it yet.
  */
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/util/logger';
 import { decodeCard, type EncodedCard, type Snapshot, type SnapshotMeta } from './codec';
 import {
   CARD_FACTS_VERSION,

@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
 import { Download, Printer, X } from 'lucide-react';
-import { canShare, openShareSheet } from '@/lib/web-share';
+import { canShare, openShareSheet } from '@/lib/util/web-share';
 import { Modal } from '../Modal';
 import { SelectMenu } from '../SelectMenu';
-import type { ExportFormat } from '@/lib/deck-export';
+import type { ExportFormat } from '@/lib/import-export/deck-export';
 import { Button, IconButton } from '@/components/shared/Button';
 import { CopyButton } from '@/components/shared/CopyButton';
 

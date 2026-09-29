@@ -2,9 +2,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { CardScanner } from './CardScanner';
-import { useScanQueueStore, type ScannedEntry } from '../lib/use-scan-queue';
-import { useScannerSettings } from '../lib/scanner-settings';
-import { entriesToImportCsv } from '../lib/scan-import';
+import { useScanQueueStore, type ScannedEntry } from '@/lib/scanner/use-scan-queue';
+import { useScannerSettings } from '@/lib/scanner/scanner-settings';
+import { entriesToImportCsv } from '@/lib/scanner/scan-import';
 import type { ScryfallCard } from '@/deck-builder/types';
 
 // The scanner pulls in the opencv/WASM loader, which can't run under

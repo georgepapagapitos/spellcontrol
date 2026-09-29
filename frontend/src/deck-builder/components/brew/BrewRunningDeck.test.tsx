@@ -7,7 +7,7 @@ import type { BrewSlotDef, BrewCandidate } from '@/deck-builder/services/deckBui
 
 // Stub the CDN thumb hook so tests don't fire real network requests — return
 // a deterministic URL keyed on the card name so we can assert per-row art.
-vi.mock('@/lib/card-thumbs', () => ({
+vi.mock('@/lib/cards/card-thumbs', () => ({
   useCardThumb: (name: string | undefined) =>
     name ? `https://cdn.example/${name}.jpg` : undefined,
 }));

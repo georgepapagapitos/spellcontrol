@@ -67,7 +67,7 @@ function brokenRule(from: string, to: string): string | null {
 const ALLOWED = new Set<string>([
   // A hook that renders a dialog: it belongs in components/ and moves there
   // with the lib/ regroup (T176 W4).
-  'lib/use-confirm.tsx -> components/ConfirmDialog.tsx',
+  'components/use-confirm.tsx -> components/ConfirmDialog.tsx',
 ]);
 
 describe('layer boundaries', () => {

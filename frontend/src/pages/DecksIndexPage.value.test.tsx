@@ -7,7 +7,7 @@ import 'fake-indexeddb/auto';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useCurrencyStore } from '../lib/currency';
+import { useCurrencyStore } from '@/lib/collection/currency';
 
 // ── Store stubs ─────────────────────────────────────────────────────────────
 let mockDecks: unknown[] = [];
@@ -27,7 +27,7 @@ vi.mock('../components/ProductSearchDialog', () => ({ ProductSearchDialog: () =>
 vi.mock('../components/ShareDialog', () => ({ ShareDialog: () => null }));
 vi.mock('../components/ConfirmDialog', () => ({ ConfirmDialog: () => null }));
 vi.mock('../components/DeckFiltersPopover', () => ({ DeckFiltersPopover: () => null }));
-vi.mock('../lib/deck-validation', () => ({
+vi.mock('@/lib/deck/deck-validation', () => ({
   effectiveDeckColors: () => [],
   deckDisplayColors: () => [],
   validateDeckZones: () => ({ deck: [], sideboardOnly: [] }),

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { MessageCircle } from 'lucide-react';
 import { usePlayStore, type TickerItem } from '@/store/play';
-import { paletteForIndex } from '@/lib/seat-palette';
+import { paletteForIndex } from '@/lib/play/seat-palette';
 import type { OnlineTable } from '../hooks/use-online-table';
 import { useMediaQuery } from '../hooks/use-media-query';
 import { GLANCE_QUERY } from './OpponentRail';

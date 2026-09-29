@@ -13,7 +13,7 @@ export interface ProxyBadgeProps {
  * per-copy authenticity chips read as a family.
  *
  * Scoped to `proxy` only, not its siblings `altered`/`misprint`: a proxy is
- * force-priced to $0 by `applyPrices` (lib/card-prices.ts), so it changes
+ * force-priced to $0 by `applyPrices` (lib/collection/card-prices.ts), so it changes
  * every downstream computation that reads `purchasePrice` — collection
  * total, budget/binder price rules, price filters. `altered`/`misprint` are
  * cosmetic-only and stay inspector-only (CardPreview's " · ALTERED" line);

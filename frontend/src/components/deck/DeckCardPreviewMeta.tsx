@@ -1,11 +1,11 @@
 import { Fragment, useId, useState, type ReactNode } from 'react';
 import { Crown, Handshake, Plus, X } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
-import type { LegalityIssue } from '../../lib/deck-validation';
-import type { AllocationStatus } from '../../lib/allocations';
-import { getRoleBadge, rolesForCard, multiRoleTitle } from '../../lib/role-badges';
-import { classifyInclusion, OFFMETA_TOOLTIP } from '@/lib/inclusion-label';
-import { withTagAdded, withTagRemoved } from '@/lib/deck-tags';
+import type { LegalityIssue } from '@/lib/deck/deck-validation';
+import type { AllocationStatus } from '@/lib/collection/allocations';
+import { getRoleBadge, rolesForCard, multiRoleTitle } from '@/lib/deck-analysis/role-badges';
+import { classifyInclusion, OFFMETA_TOOLTIP } from '@/lib/deck-analysis/inclusion-label';
+import { withTagAdded, withTagRemoved } from '@/lib/deck/deck-tags';
 import './DeckCardPreviewMeta.css';
 import { IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';

@@ -16,11 +16,11 @@
  * Deck generation never comes through here: it keeps the validated greedy
  * `buildSubstitutionPlan`.
  */
-import { axisKeys, sharedAxisNames } from '@/lib/axis-overlap';
-import { withinColorIdentity } from '@/lib/card-matching';
-import { ownershipRank, type ChangeOwnership } from '@/lib/deck-change';
-import type { SimilarCandidate, SimilarInput } from '@/lib/similar-cards';
-import type { WhyFactor } from '@/lib/why-factors';
+import { axisKeys, sharedAxisNames } from '@/lib/coach/axis-overlap';
+import { withinColorIdentity } from '@/lib/coach/card-matching';
+import { ownershipRank, type ChangeOwnership } from '@/lib/coach/deck-change';
+import type { SimilarCandidate, SimilarInput } from '@/lib/coach/similar-cards';
+import type { WhyFactor } from '@/lib/coach/why-factors';
 import type { GapAnalysisCard, ScryfallCard } from '@/deck-builder/types';
 import { getCardFacts } from '../cardFacts';
 import { ROLE_TO_TAGGER, countsAsRole, type CardFacts } from '../cardFacts/schema';

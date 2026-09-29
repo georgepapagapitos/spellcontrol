@@ -1,6 +1,6 @@
 /**
  * Grounded "why this substitute" factors for v2 (E517), in the WhyBreakdown
- * format every suggestion row already uses (lib/why-factors.ts).
+ * format every suggestion row already uses (lib/coach/why-factors.ts).
  *
  * Every line reads off a fact the ranker scored, never a comparison it didn't
  * make and never a "% match" (STYLE_GUIDE decks appendix, "Collection lane —
@@ -10,7 +10,7 @@
  * EDHREC provenance when a similar list names the pair. When a tuple has no
  * phrasing here, the line names the card instead of guessing at words.
  */
-import type { WhyFactor } from '@/lib/why-factors';
+import type { WhyFactor } from '@/lib/coach/why-factors';
 import type { AbilityFact, CardFacts, EffectSig, TriggerSig } from '../cardFacts/schema';
 import { roleAbilities } from './features';
 import type { SubstituteScore } from './ranker';

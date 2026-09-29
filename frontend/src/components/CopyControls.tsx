@@ -8,8 +8,8 @@ import {
   FINISH_LABELS,
   availableFinishes,
   finishUnitPrice,
-} from '../lib/scanner-feedback';
-import { formatMoney } from '../lib/format-money';
+} from '@/lib/scanner/scanner-feedback';
+import { formatMoney } from '@/lib/collection/format-money';
 import './CopyControls.css';
 
 /**

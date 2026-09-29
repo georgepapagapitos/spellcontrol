@@ -3,14 +3,14 @@ import './BuildReportPanel.css';
 import { AlertOctagon, Check, Loader2, Plus, Sparkles } from 'lucide-react';
 import type { BuildReport, DeckDataSource, GenerationMode } from '@/deck-builder/types';
 import type { ComboMatch, ComboSeedContext } from '@/types/combos';
-import { ROLE_TITLES, type RoleKey } from '@/lib/role-badges';
-import { comboPayoffScore } from '@/lib/combo-payoff';
+import { ROLE_TITLES, type RoleKey } from '@/lib/deck-analysis/role-badges';
+import { comboPayoffScore } from '@/lib/deck-analysis/combo-payoff';
 import { VerdictBadge } from './VerdictBadge';
 import { OwnershipBadge } from './OwnershipBadge';
 import { ColorPip } from '@/components/shared/ManaSymbol';
 import { THIN_SAMPLE_FLOOR } from '@/components/shared/ThinDataNote';
 import { InfoTip } from '../InfoTip';
-import { EXHIBITION_BRACKET_NOTE, formatBracketLabel } from '@/lib/format-bracket-label';
+import { EXHIBITION_BRACKET_NOTE, formatBracketLabel } from '@/lib/deck-analysis/format-bracket-label';
 import { Button, IconButton } from '@/components/shared/Button';
 
 const COLOR_WORDS: Record<string, string> = {

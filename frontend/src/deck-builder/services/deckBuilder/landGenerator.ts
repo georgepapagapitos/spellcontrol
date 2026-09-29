@@ -1,9 +1,9 @@
 // Land base generation: non-basic land selection (EDHREC + Scryfall fallback),
 // channel/MDFC/tapland pacing boosts, and pip-proportional basics.
 // Extracted verbatim from deckGenerator.ts.
-import { logger } from '@/lib/logger';
-import { BASIC_LAND_NAMES } from '@/lib/allocations';
-import { planBasicPrintings, type BasicPrintingAvail } from '@/lib/collection-availability';
+import { logger } from '@/lib/util/logger';
+import { BASIC_LAND_NAMES } from '@/lib/collection/allocations';
+import { planBasicPrintings, type BasicPrintingAvail } from '@/lib/collection/collection-availability';
 import type {
   EDHRECCard,
   ScryfallCard,
@@ -40,7 +40,7 @@ import {
   colorsNeedingSources,
   WUBRG,
 } from './manabaseMath';
-import { producedManaColors } from '@/lib/mana-sources';
+import { producedManaColors } from '@/lib/deck-analysis/mana-sources';
 import { landPowerScore } from './landPower';
 import { computeManaPhilosophyBoosts } from './manaPhilosophy';
 
@@ -49,7 +49,7 @@ import { computeManaPhilosophyBoosts } from './manaPhilosophy';
 export const COLOR_DEMAND_BOOST_MAX = 25;
 
 // Basic land names to filter out from EDHREC suggestions — canonical set lives
-// in lib/allocations; re-exported here so existing './landGenerator' importers
+// in lib/collection/allocations; re-exported here so existing './landGenerator' importers
 // keep working.
 export { BASIC_LAND_NAMES };
 

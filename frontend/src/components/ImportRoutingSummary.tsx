@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
-import { formatBinderPages, type ImportRoutingSummary as Summary } from '../lib/import-routing';
+import { formatBinderPages, type ImportRoutingSummary as Summary } from '@/lib/import-export/import-routing';
 
 interface Props {
   summary: Summary;

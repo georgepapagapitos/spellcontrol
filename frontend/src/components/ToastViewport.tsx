@@ -1,7 +1,7 @@
 import { type CSSProperties, useCallback, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { useToastsStore, type Toast } from '../store/toasts';
-import { useToastExits } from '../lib/use-toast-exits';
+import { useToastExits } from '@/lib/overlays/use-toast-exits';
 import { Button, IconButton } from '@/components/shared/Button';
 
 export function ToastViewport() {

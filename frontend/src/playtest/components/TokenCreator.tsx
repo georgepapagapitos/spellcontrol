@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/use-sheet-exit';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
 import type { ScryfallCard } from '@/deck-builder/types';
 import {
   resolveTokenOption,
@@ -39,7 +39,7 @@ const SEARCH_DEBOUNCE_MS = 300;
  * tokens anybody makes are the ones their own deck makes — a Commander deck
  * has a handful, and they are the answer nine times out of ten. The list is
  * the same one the deck page's "Tokens to prep" sheet shows
- * (`lib/deck-tokens`), so a player sees the same set in both places.
+ * (`lib/deck/deck-tokens`), so a player sees the same set in both places.
  *
  * Search is for everything else: a token somebody else's card made, a Copy,
  * an emblem. It hits Scryfall live, so it is empty offline — the deck grid

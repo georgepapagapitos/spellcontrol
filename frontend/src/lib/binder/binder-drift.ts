@@ -1,0 +1,432 @@
+import type { BinderDef, BinderReviewSnapshot, EnrichedCard, MaterializedBinder } from '@/types/index';
+import { legalityFormatLabel } from '@/lib/cards/card-details';
+import { printingFinishKey } from '@/lib/collection/collection-mutations';
+import { formatMoney } from '@/lib/collection/format-money';
+import type { ImportHistoryEntry } from '@/lib/sync/local-cards';
+
+type CardSnapshot = BinderReviewSnapshot['cardSnapshots'][string];
+
+/**
+ * Drift attribution for a single card that moved in or out of a binder since
+ * the user last marked it reviewed. The drift system exists because binder
+ * rules read live volatile fields — Scryfall prices and EDHREC rank — so a
+ * card can silently fall in or out of a binder when those values shift. This
+ * surfaces the change with the actual delta so the user knows *why*.
+ *
+ * Reason taxonomy:
+ *   - `price`: the snapshot vs current price crossed a threshold (or the card
+ *     just gained/lost a price entirely). We can't know which rule field caused
+ *     it without re-running rules at snapshot time, so we report the raw delta
+ *     and let the user judge — "price 6.20 → 4.80" is enough signal in practice.
+ *   - `edhrec`: same idea for EDHREC rank.
+ *   - `legality`: the card's status in a rule-referenced format changed between
+ *     snapshot and now (banned / unbanned / rotated / newly legal). Checked
+ *     BEFORE price — a ban usually crashes the price too, and the ban is the
+ *     root cause. Only formats some binder rule reads are pinned in the
+ *     snapshot (see `referencedLegalityFormats`), so this costs nothing for
+ *     users with no legality rules.
+ *   - `imported`: the card was added by an import that happened after the
+ *     snapshot was captured. Distinct from `collection` because we know
+ *     *which* import brought it in, so we can show "from manabox.csv" rather
+ *     than the generic "no longer in collection" / "rule change".
+ *   - `collection`: the card was removed from the user's collection between
+ *     snapshot and now (no longer owned). Only used for removed cards.
+ *   - `other`: snapshot/current values are unchanged on the volatile fields
+ *     we track and no import explains it, so the cause is something else —
+ *     typically the user edited the binder rules. Cheaper than full rule
+ *     attribution and almost always self-evident ("I just edited this binder").
+ */
+export type DriftReasonKind = 'price' | 'edhrec' | 'legality' | 'imported' | 'collection' | 'other';
+
+export interface DriftReason {
+  kind: DriftReasonKind;
+  /** Per-kind detail used to render a short human line. */
+  detail?: {
+    priceBefore?: number;
+    priceAfter?: number;
+    edhrecBefore?: number;
+    edhrecAfter?: number;
+    /** For `legality` reasons: the Scryfall format key and the raw status
+     *  strings ('legal' | 'not_legal' | 'banned' | 'restricted') either side. */
+    format?: string;
+    legalityBefore?: string;
+    legalityAfter?: string;
+    /** For `imported` reasons: the human-readable source label (filename or
+     *  "pasted-list") and the time of the import. */
+    importName?: string;
+    importedAt?: number;
+  };
+}
+
+export interface DriftCard {
+  key: string;
+  /** Best-effort display name. For removed cards we don't have a live
+   *  EnrichedCard, so this falls back to the key itself if nothing better
+   *  was supplied. */
+  name: string;
+  /** A representative card (used to render an image / link). Undefined for
+   *  removed cards that are no longer in the live collection. */
+  card?: EnrichedCard;
+  reason: DriftReason;
+}
+
+export interface DriftResult {
+  added: DriftCard[];
+  removed: DriftCard[];
+  /** True when the binder has never been reviewed — caller can show a
+   *  one-time "snapshot this binder" prompt instead of a diff. */
+  neverReviewed: boolean;
+  /** Snapshot timestamp the diff is against. Undefined when neverReviewed. */
+  snapshotAt?: number;
+}
+
+/**
+ * Formats any binder's rules actually read — the only legalities worth pinning
+ * in a review snapshot (a full per-card legality map would bloat the synced
+ * binder row with data no rule can act on). Includes negated chips (a "NOT
+ * standard" rule moves cards when Standard legality flips) and `commander`
+ * for commander-eligibility rules (`isCommanderEligible` reads Commander
+ * legality). Empty when no binder has a legality-shaped rule — the common
+ * case, which keeps snapshots byte-identical to the pre-legality shape.
+ */
+export function referencedLegalityFormats(binderDefs: BinderDef[]): string[] {
+  const formats = new Set<string>();
+  for (const def of binderDefs) {
+    for (const group of def.filterGroups) {
+      for (const chip of group.filter.legalities?.chips ?? []) formats.add(chip.value);
+      if (group.filter.commanderEligible !== undefined) formats.add('commander');
+    }
+  }
+  return [...formats];
+}
+
+/** The card's status in each tracked format, or undefined when there's nothing
+ *  to pin (no tracked formats / card has no legality data). */
+function pickLegalities(card: EnrichedCard, formats: string[]): Record<string, string> | undefined {
+  if (formats.length === 0 || !card.legalities) return undefined;
+  let out: Record<string, string> | undefined;
+  for (const f of formats) {
+    const status = card.legalities[f];
+    if (status === undefined) continue;
+    (out ??= {})[f] = status;
+  }
+  return out;
+}
+
+/**
+ * Capture every card currently routed to this binder. Called when the user
+ * clicks "All filed" in BinderView. We dedupe by printingFinishKey rather
+ * than copyId because copyIds regenerate on every re-import; this matches the
+ * approach used by `pinnedKeys` and `manualKeys` elsewhere on BinderDef.
+ * `legalityFormats` (from `referencedLegalityFormats`) selects which per-card
+ * legalities to pin for later "banned in Commander" attribution.
+ */
+export function captureBinderSnapshot(
+  binder: MaterializedBinder,
+  legalityFormats: string[] = []
+): BinderReviewSnapshot {
+  const keys = new Set<string>();
+  const cardSnapshots: Record<string, CardSnapshot> = {};
+  for (const section of binder.sections) {
+    for (const card of section.cards) {
+      const key = printingFinishKey(card);
+      if (keys.has(key)) continue;
+      keys.add(key);
+      const snap: CardSnapshot = { price: card.purchasePrice };
+      if (card.edhrecRank !== undefined) snap.edhrecRank = card.edhrecRank;
+      const legalities = pickLegalities(card, legalityFormats);
+      if (legalities) snap.legalities = legalities;
+      cardSnapshots[key] = snap;
+    }
+  }
+  return {
+    at: Date.now(),
+    keys: [...keys],
+    cardSnapshots,
+  };
+}
+
+/** Threshold below which a numeric price delta isn't worth attributing —
+ *  Scryfall prices flicker at the cent level constantly. */
+const PRICE_EPSILON = 0.01;
+
+/**
+ * Compare a binder's current membership against its last-reviewed snapshot.
+ * Result is ordered: added then removed, each by name. Callers should treat
+ * an empty added + empty removed as "nothing to show" and hide the banner.
+ *
+ * Attribution heuristic: for a card that is no longer in the binder, we look
+ * at the snapshot's pinned volatile values and compare to the live card (if
+ * still in the user's collection). If price or EDHREC moved meaningfully,
+ * that's the reason; otherwise we report "other" (rule edit / something we
+ * don't track). For added cards we do the symmetric check, plus a check
+ * against post-snapshot imports — if the card came in with a recent import,
+ * that's the most informative reason.
+ *
+ * `importHistory` is optional so callers without it (tests, future helpers)
+ * still get a meaningful result — they just lose the `imported` attribution.
+ */
+export function computeDrift(
+  binder: MaterializedBinder,
+  allCards: EnrichedCard[],
+  importHistory: ImportHistoryEntry[] = []
+): DriftResult {
+  const snapshot = binder.def.lastReviewedSnapshot;
+  if (!snapshot) {
+    return { added: [], removed: [], neverReviewed: true };
+  }
+
+  const previousKeys = new Set(snapshot.keys);
+  const currentByKey = new Map<string, EnrichedCard>();
+  for (const section of binder.sections) {
+    for (const card of section.cards) {
+      const key = printingFinishKey(card);
+      if (!currentByKey.has(key)) currentByKey.set(key, card);
+    }
+  }
+
+  // For attribution on removed cards, we need to find the live representative
+  // (a copy still in the collection) outside the binder.
+  const liveByKey = new Map<string, EnrichedCard>();
+  for (const c of allCards) {
+    const k = printingFinishKey(c);
+    if (!liveByKey.has(k)) liveByKey.set(k, c);
+  }
+
+  // Index imports newer than the snapshot. Imports that pre-date the snapshot
+  // can't explain a card's arrival in the binder (the snapshot would have
+  // captured it), so we skip them up front rather than re-checking per card.
+  const recentImports = new Map<string, ImportHistoryEntry>();
+  for (const h of importHistory) {
+    if (!h.id) continue;
+    if (h.addedAt > snapshot.at) recentImports.set(h.id, h);
+  }
+
+  const added: DriftCard[] = [];
+  for (const [key, card] of currentByKey) {
+    if (previousKeys.has(key)) continue;
+    added.push({
+      key,
+      name: card.name,
+      card,
+      reason: attributeAdded(key, card, snapshot, recentImports),
+    });
+  }
+
+  const removed: DriftCard[] = [];
+  for (const key of previousKeys) {
+    if (currentByKey.has(key)) continue;
+    const live = liveByKey.get(key);
+    removed.push({
+      key,
+      name: live?.name ?? key,
+      card: live,
+      reason: attributeRemoved(key, live, snapshot),
+    });
+  }
+
+  added.sort((a, b) => a.name.localeCompare(b.name));
+  removed.sort((a, b) => a.name.localeCompare(b.name));
+
+  return {
+    added,
+    removed,
+    neverReviewed: false,
+    snapshotAt: snapshot.at,
+  };
+}
+
+function attributeAdded(
+  key: string,
+  card: EnrichedCard,
+  snapshot: BinderReviewSnapshot,
+  recentImports: Map<string, ImportHistoryEntry>
+): DriftReason {
+  const prev = snapshot.cardSnapshots[key];
+  if (prev) {
+    const legality = legalityChanged(prev, card);
+    if (legality) return legality;
+    if (priceMoved(prev.price, card.purchasePrice)) {
+      return {
+        kind: 'price',
+        detail: { priceBefore: prev.price, priceAfter: card.purchasePrice },
+      };
+    }
+    if (edhrecMoved(prev.edhrecRank, card.edhrecRank)) {
+      return {
+        kind: 'edhrec',
+        detail: { edhrecBefore: prev.edhrecRank, edhrecAfter: card.edhrecRank },
+      };
+    }
+    // Card was known at snapshot time, value-stable, but now matches —
+    // most likely the rules were edited.
+    return { kind: 'other' };
+  }
+
+  // Card was *unknown* at snapshot time: either freshly imported, or already
+  // in the collection but didn't match. Prefer the import attribution when
+  // we can prove it via a post-snapshot import id.
+  if (card.importId) {
+    const imp = recentImports.get(card.importId);
+    if (imp) {
+      return {
+        kind: 'imported',
+        detail: { importName: imp.name, importedAt: imp.addedAt },
+      };
+    }
+  }
+  return { kind: 'other' };
+}
+
+function attributeRemoved(
+  key: string,
+  live: EnrichedCard | undefined,
+  snapshot: BinderReviewSnapshot
+): DriftReason {
+  if (!live) {
+    return { kind: 'collection' };
+  }
+  const prev = snapshot.cardSnapshots[key];
+  if (!prev) return { kind: 'other' };
+  const legality = legalityChanged(prev, live);
+  if (legality) return legality;
+  if (priceMoved(prev.price, live.purchasePrice)) {
+    return {
+      kind: 'price',
+      detail: { priceBefore: prev.price, priceAfter: live.purchasePrice },
+    };
+  }
+  if (edhrecMoved(prev.edhrecRank, live.edhrecRank)) {
+    return {
+      kind: 'edhrec',
+      detail: { edhrecBefore: prev.edhrecRank, edhrecAfter: live.edhrecRank },
+    };
+  }
+  return { kind: 'other' };
+}
+
+/**
+ * First tracked format whose pinned status differs from the live card's,
+ * as a ready-made `legality` reason. Checked before price in both attribution
+ * directions: a ban usually crashes the price in the same window, and the ban
+ * is the root cause. A format missing from the live card's data is skipped —
+ * absence isn't evidence of a change. Snapshots predating legality tracking
+ * have no `legalities` field and fall straight through (back-compat).
+ */
+function legalityChanged(prev: CardSnapshot, card: EnrichedCard): DriftReason | undefined {
+  if (!prev.legalities) return undefined;
+  for (const [format, before] of Object.entries(prev.legalities)) {
+    const after = card.legalities?.[format];
+    if (after !== undefined && after !== before) {
+      return {
+        kind: 'legality',
+        detail: { format, legalityBefore: before, legalityAfter: after },
+      };
+    }
+  }
+  return undefined;
+}
+
+function priceMoved(before: number, after: number): boolean {
+  return Math.abs(before - after) > PRICE_EPSILON;
+}
+
+function edhrecMoved(before: number | undefined, after: number | undefined): boolean {
+  if (before === after) return false;
+  if (before === undefined || after === undefined) return true;
+  return before !== after;
+}
+
+/**
+ * Render a drift reason into a one-line human string. UI calls this to keep
+ * the banner code free of the per-kind switch.
+ */
+export function formatDriftReason(reason: DriftReason): string {
+  switch (reason.kind) {
+    case 'price': {
+      const a = reason.detail?.priceBefore;
+      const b = reason.detail?.priceAfter;
+      if (a === undefined || b === undefined) return 'price changed';
+      return `price ${formatPrice(a)} → ${formatPrice(b)}`;
+    }
+    case 'edhrec': {
+      const a = reason.detail?.edhrecBefore;
+      const b = reason.detail?.edhrecAfter;
+      if (a === undefined && b !== undefined) return `EDHREC rank now ${b}`;
+      if (a !== undefined && b === undefined) return `EDHREC rank removed (was ${a})`;
+      if (a === undefined || b === undefined) return 'EDHREC rank changed';
+      return `EDHREC rank ${a} → ${b}`;
+    }
+    case 'legality': {
+      const format = legalityFormatLabel(reason.detail?.format);
+      const a = reason.detail?.legalityBefore;
+      const b = reason.detail?.legalityAfter;
+      if (b === 'banned') return `banned in ${format}`;
+      if (a === 'banned' && b === 'legal') return `unbanned in ${format}`;
+      if (b === 'restricted') return `restricted in ${format}`;
+      if (b === 'legal') return `now legal in ${format}`;
+      if (b === 'not_legal') return `no longer legal in ${format}`;
+      return `legality changed in ${format}`;
+    }
+    case 'imported': {
+      const name = reason.detail?.importName;
+      if (!name) return 'newly imported';
+      return `newly imported from ${name}`;
+    }
+    case 'collection':
+      return 'no longer in collection';
+    case 'other':
+      return 'rule or other change';
+  }
+}
+
+function formatPrice(p: number): string {
+  // Zero keeps its terse historical form ("$0") — drift lines compare two
+  // observed prices, so a bare $0 reads as "had/has no price" at a glance.
+  return p === 0 ? '$0' : formatMoney(p);
+}
+
+/** Convenience used by the banner: does this binder have anything to show? */
+export function hasDrift(result: DriftResult): boolean {
+  return result.added.length > 0 || result.removed.length > 0;
+}
+
+/**
+ * Surgically updates ONE card's presence in a review-baseline snapshot,
+ * without recapturing the whole binder (that's what `captureBinderSnapshot` /
+ * "All filed" is for). Backs the review queue's per-row "Added it" /
+ * "Moved it" confirmations.
+ *
+ * - `direction: 'added'` — the card now matches the binder but wasn't in the
+ *   baseline. Acknowledging means "yes, I added this" — add its key plus a
+ *   snapshot of its current price/edhrecRank/tracked legalities (mirrors
+ *   `captureBinderSnapshot`'s per-key dedup: `keys` holds one entry per
+ *   printingFinishKey, not per copy) so it stops showing as drift.
+ * - `direction: 'removed'` — the card no longer matches but was in the
+ *   baseline. Acknowledging means "yes, I removed this" — drop its key so
+ *   its absence stops showing as drift. `card` is optional here: a removed
+ *   card can be fully gone from the collection (reason `collection`), so
+ *   there may be no live representative to read price/edhrec from.
+ */
+export function acknowledgeInSnapshot(
+  snapshot: BinderReviewSnapshot,
+  key: string,
+  direction: 'added' | 'removed',
+  card?: EnrichedCard,
+  legalityFormats: string[] = []
+): BinderReviewSnapshot {
+  if (direction === 'removed') {
+    if (!snapshot.keys.includes(key)) return snapshot;
+    const cardSnapshots = { ...snapshot.cardSnapshots };
+    delete cardSnapshots[key];
+    return { ...snapshot, keys: snapshot.keys.filter((k) => k !== key), cardSnapshots };
+  }
+  const cardSnapshots = { ...snapshot.cardSnapshots };
+  const snap: CardSnapshot = { price: card?.purchasePrice ?? 0 };
+  if (card?.edhrecRank !== undefined) snap.edhrecRank = card.edhrecRank;
+  const legalities = card ? pickLegalities(card, legalityFormats) : undefined;
+  if (legalities) snap.legalities = legalities;
+  cardSnapshots[key] = snap;
+  const keys = snapshot.keys.includes(key) ? snapshot.keys : [...snapshot.keys, key];
+  return { ...snapshot, keys, cardSnapshots };
+}

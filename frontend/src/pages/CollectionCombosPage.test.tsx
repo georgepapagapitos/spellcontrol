@@ -6,7 +6,7 @@ import type { ComboMatch, ComboMatchResponse } from '../types/combos';
 
 const useDeckCombos = vi.fn();
 
-vi.mock('../lib/use-deck-combos', () => ({
+vi.mock('@/lib/deck-analysis/use-deck-combos', () => ({
   useDeckCombos: (args: unknown) => useDeckCombos(args),
 }));
 // E216: dataset-wide search. Resolving to null is the "local dataset
@@ -16,8 +16,8 @@ const searchCombos = vi.fn(async (_args: unknown): Promise<unknown> => null);
 vi.mock('../lib/api/combos', () => ({
   searchCombos: (args: unknown) => searchCombos(args),
 }));
-vi.mock('../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
-vi.mock('../lib/sync', () => ({ getSyncState: () => 'ready', onSyncedChange: () => () => {} }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/sync', () => ({ getSyncState: () => 'ready', onSyncedChange: () => () => {} }));
 vi.mock('../components/CardPreview', () => ({ CardPreview: () => null }));
 
 // One commander-eligible legend (UB) so the host-commander line has something

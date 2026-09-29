@@ -1,7 +1,7 @@
 // Tracks deck spend during generation and derives a dynamic per-card price cap.
 // Pure stateful helper (instance state only) — extracted verbatim from
 // deckGenerator.ts for isolation and unit testing.
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/util/logger';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 

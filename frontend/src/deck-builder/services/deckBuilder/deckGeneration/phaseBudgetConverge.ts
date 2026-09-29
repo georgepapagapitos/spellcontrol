@@ -1,4 +1,4 @@
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/util/logger';
 import type {
   CoherenceRepair,
   DeckCategory,
@@ -8,7 +8,7 @@ import type {
   ScryfallCard,
 } from '@/deck-builder/types';
 import type { GenerationState } from './state';
-import { frontFaceName } from '@/lib/card-text';
+import { frontFaceName } from '@/lib/cards/card-text';
 import {
   getCardRole,
   isProtectionPiece,
@@ -29,7 +29,7 @@ import {
 import { calculateCardPriority } from '../cardPicking';
 import { parsePrice } from '../costAnalyzer';
 import { getCardPrice, getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
-import { primaryTypeOf } from '@/lib/card-matching';
+import { primaryTypeOf } from '@/lib/coach/card-matching';
 import type { BudgetTracker } from '../budgetTracker';
 import type { BracketGuard } from '../bracketGuard';
 import { analyzeDeckSynergy, isLoadBearing } from '@/deck-builder/services/synergy/deckSynergy';

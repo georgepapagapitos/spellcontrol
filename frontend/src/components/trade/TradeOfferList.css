@@ -192,7 +192,7 @@
 
 /* Exact once a side's printings are pinned down; "from …" while it is still
    oracle-level (the ask, pre-acceptance). Never a bare 0 for unknown — the
-   point of a number here is that it can be trusted. See lib/trade-value.ts. */
+   point of a number here is that it can be trusted. See lib/trade/trade-value.ts. */
 .trade-offer-side-value {
   margin-left: auto;
   font-variant-numeric: tabular-nums;

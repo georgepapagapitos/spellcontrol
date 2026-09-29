@@ -8,8 +8,8 @@
 // absent, which label a multi-copy row gets) is the part worth testing.
 import { coverHasArt } from '@spellcontrol/deck-metrics';
 import type { ScryfallCard } from '@/deck-builder/types';
-import { getMaxCopies } from '../../lib/deck-validation';
-import { withTagAdded, withTagRemoved } from '../../lib/deck-tags';
+import { getMaxCopies } from '@/lib/deck/deck-validation';
+import { withTagAdded, withTagRemoved } from '@/lib/deck/deck-tags';
 import type { Row } from './deck-display-rows';
 
 /** Clusters, in render order. The menu runs past a dozen rows, and the style
@@ -70,7 +70,7 @@ export interface DeckCardActionCtx {
   /** Already bound to this row's zone by the caller, so the action list never
    *  needs to know which zone it is in. Absent means no tag actions. */
   onSetRowTags?: (slotIds: string[], tags: string[]) => void;
-  /** The deck's cover art (lib/deck-cover): the owner's pick by name, the
+  /** The deck's cover art (lib/deck/deck-cover): the owner's pick by name, the
    *  card the deck wears right now, and the setter (null = automatic again).
    *  Absent means no cover action: a read-only deck, or an out-zone row. */
   cover?: {

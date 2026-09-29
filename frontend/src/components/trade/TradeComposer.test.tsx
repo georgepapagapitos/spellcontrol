@@ -16,14 +16,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EnrichedCard } from '../../types';
 import type { FriendCard } from '../../lib/cube/pool';
 
-vi.mock('../../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
-vi.mock('../../lib/trade-value', async () => {
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/trade/trade-value', async () => {
   const actual =
-    await vi.importActual<typeof import('../../lib/trade-value')>('../../lib/trade-value');
+    await vi.importActual<typeof import('@/lib/trade/trade-value')>('@/lib/trade/trade-value');
   return { ...actual, useFloorPrices: () => ({ prices: new Map(), pending: false }) };
 });
-vi.mock('../../lib/use-binder-by-copy', () => ({ useBinderByCopyId: () => new Map() }));
-vi.mock('../../lib/card-tags', () => ({ getCardTags: () => [], useCardTagsReady: () => false }));
+vi.mock('@/lib/binder/use-binder-by-copy', () => ({ useBinderByCopyId: () => new Map() }));
+vi.mock('@/lib/cards/card-tags', () => ({ getCardTags: () => [], useCardTagsReady: () => false }));
 
 const toastShow = vi.fn();
 vi.mock('../../store/toasts', () => ({
@@ -45,7 +45,7 @@ vi.mock('../../store/cube', () => ({
 // NOT (its cards are already owned and enriched). Returning only the cards it
 // was asked for is what lets a test assert which SET was opened.
 const resolveTradePreview = vi.fn();
-vi.mock('../../lib/trade-preview', () => ({
+vi.mock('@/lib/trade/trade-preview', () => ({
   resolveTradePreview: (cards: { name: string; oracleId: string }[]) => resolveTradePreview(cards),
 }));
 

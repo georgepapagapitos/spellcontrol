@@ -31,7 +31,7 @@
 // how the other reads. `loadCubeSignal(scope)` only fetches; every reader
 // (`cubeSignalOf`, `hasCubeSignal`, the ranked-name walks) takes its own
 // `scope` argument instead.
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/util/logger';
 import type { RarityCap } from './pool-filters';
 
 export interface CubeSignal {

@@ -15,15 +15,15 @@
  *
  * Both passes share one scorer, so the two lists rank by the same rules:
  * substitute ranking v2 (services/substitutes, E517) once its card facts have
- * loaded, the synergy-axis scorer in `lib/similar-cards` before that or when
+ * loaded, the synergy-axis scorer in `lib/coach/similar-cards` before that or when
  * the focused card isn't in the facts snapshot. The
  * effect is cancellable — flipping the carousel to another card abandons any
  * in-flight resolution/search. All the network/tagger glue lives here (an
- * un-gated component-tree hook); the pure scoring lives in `lib/similar-cards`.
+ * un-gated component-tree hook); the pure scoring lives in `lib/coach/similar-cards`.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { computeSimilarCards, primaryType, type SimilarInput } from '@/lib/similar-cards';
-import type { ChangeOwnership } from '@/lib/deck-change';
+import { computeSimilarCards, primaryType, type SimilarInput } from '@/lib/coach/similar-cards';
+import type { ChangeOwnership } from '@/lib/coach/deck-change';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '@/types';
 import { classifyCard } from '@/deck-builder/services/synergy/classify';

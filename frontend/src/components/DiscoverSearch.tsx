@@ -1,8 +1,8 @@
 import './DiscoverSearch.css';
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { SearchPill } from './SearchPill';
-import { useDebouncedValue } from '@/lib/use-debounced-value';
-import { searchCommanders, type DiscoverSource } from '@/lib/discover-client';
+import { useDebouncedValue } from '@/lib/util/use-debounced-value';
+import { searchCommanders, type DiscoverSource } from '@/lib/discover/discover-client';
 
 interface Props {
   /** The committed text search (`?q=`), or null for none. */

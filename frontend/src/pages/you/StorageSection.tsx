@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/util/logger';
 import { useCollectionStore } from '@/store/collection';
 import { useDecksStore } from '@/store/decks';
 import { toast } from '@/store/toasts';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { InfoTip } from '@/components/InfoTip';
 import { OfflineModeSettings } from '@/components/OfflineModeSettings';
-import { resetAppCacheAndReload } from '@/lib/reset-app-cache';
+import { resetAppCacheAndReload } from '@/lib/account/reset-app-cache';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsRow } from '@/components/settings/SettingsRow';
 import { Button } from '@/components/shared/Button';

@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState, type JSX } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, Plus, X } from 'lucide-react';
-import { useSheetExit } from '@/lib/use-sheet-exit';
-import { restoreFocus } from '@/lib/overlay-layer';
-import { useCardThumb } from '@/lib/card-thumbs';
-import type { ArrivalRow } from '@/lib/new-arrivals';
-import { OWNERSHIP_BADGE, type ChangeOwnership } from '@/lib/deck-change';
-import { TYPE_GROUP_PLURAL, type TypeGroup } from '@/lib/build-mana-data';
+import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
+import { restoreFocus } from '@/lib/overlays/overlay-layer';
+import { useCardThumb } from '@/lib/cards/card-thumbs';
+import type { ArrivalRow } from '@/lib/coach/new-arrivals';
+import { OWNERSHIP_BADGE, type ChangeOwnership } from '@/lib/coach/deck-change';
+import { TYPE_GROUP_PLURAL, type TypeGroup } from '@/lib/deck-analysis/build-mana-data';
 import { ManaCost } from '../ManaCost';
 import './NewArrivalsSheet.css';
 import { IconButton } from '@/components/shared/Button';

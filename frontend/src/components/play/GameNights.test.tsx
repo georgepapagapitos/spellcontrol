@@ -3,10 +3,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { GameNightsTab } from './GameNights';
-import { rsvpGameNight, type GameNight } from '../../lib/game-nights-api';
+import { rsvpGameNight, type GameNight } from '@/lib/play/game-nights-api';
 
-vi.mock('../../lib/game-nights-api', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../lib/game-nights-api')>();
+vi.mock('@/lib/play/game-nights-api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/play/game-nights-api')>();
   return { ...actual, rsvpGameNight: vi.fn() };
 });
 

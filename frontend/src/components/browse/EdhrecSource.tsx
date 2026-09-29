@@ -1,6 +1,6 @@
 import './EdhrecSource.css';
-import { formatRelativeTime } from '@/lib/format-time';
-import type { EdhrecProvenance } from '@/lib/browse-lists';
+import { formatRelativeTime } from '@/lib/util/format-time';
+import type { EdhrecProvenance } from '@/lib/discover/browse-lists';
 
 /**
  * Where an EDHREC list comes from and how old our copy is. EDHREC's numbers

@@ -1,7 +1,7 @@
-import { formatBytes } from '../lib/format-bytes';
-import { formatMoney } from '../lib/format-money';
+import { formatBytes } from '@/lib/util/format-bytes';
+import { formatMoney } from '@/lib/collection/format-money';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useOverflowEdges } from '@/lib/use-overflow-edges';
+import { useOverflowEdges } from '@/lib/util/use-overflow-edges';
 import {
   listUsers,
   deleteUser,
@@ -15,12 +15,12 @@ import {
   type AdminReportRow,
   type AiSpend,
   type AiSpendWindow,
-} from '../lib/admin-api';
+} from '@/lib/account/admin-api';
 import { toast } from '../store/toasts';
 import { Modal } from './Modal';
 import { OverflowMenu } from './OverflowMenu';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 import { Surface } from '@/components/shared/Surface';

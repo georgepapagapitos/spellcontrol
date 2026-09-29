@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { resolvePlatformCounts } from './CommanderSearch';
 import type { ScryfallCard } from '@/deck-builder/types';
-import type { CommanderStats } from '@/lib/aggregates-client';
+import type { CommanderStats } from '@/lib/discover/aggregates-client';
 
 // CommanderSearch.tsx has no test file today (43KB, heavy store/EDHREC/
 // Scryfall-client surface) and this PR's own Risks note calls for a strictly

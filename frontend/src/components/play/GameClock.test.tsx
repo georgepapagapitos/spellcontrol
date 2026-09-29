@@ -11,10 +11,10 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { applyAction, createGameState, makePlayer, type GameState } from '../../lib/game-state';
+import { applyAction, createGameState, makePlayer, type GameState } from '@/lib/play/game-state';
 import { GameClock } from './GameClock';
 
-vi.mock('../../lib/haptics', () => ({ haptics: { tap: vi.fn() } }));
+vi.mock('@/lib/util/haptics', () => ({ haptics: { tap: vi.fn() } }));
 
 const T0 = Date.UTC(2026, 8, 26, 20, 0, 0); // a whole second
 

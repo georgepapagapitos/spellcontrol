@@ -3,7 +3,7 @@ import {
   computePeekPlacement,
   computePointerPlacement,
   peekWidth,
-} from '@/lib/hover-peek-placement';
+} from '@/lib/overlays/hover-peek-placement';
 
 // MTG card aspect ratio (Scryfall normal is 488×680) — derives the peek height
 // from its (viewport-responsive) width for the vertical centering/clamping math.

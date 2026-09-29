@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { WhyBreakdown } from './WhyBreakdown';
-import type { WhyFactor } from '@/lib/why-factors';
+import type { WhyFactor } from '@/lib/coach/why-factors';
 
 const FACTORS: WhyFactor[] = [
   { text: 'Already in your collection — no purchase', tone: 'pro' },

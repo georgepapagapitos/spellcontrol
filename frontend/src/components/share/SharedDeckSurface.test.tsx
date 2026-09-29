@@ -13,7 +13,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it } from 'vitest';
 import { useAuth } from '../../store/auth';
-import type { PublicDeck, PublicDeckCard } from '../../lib/shared-types';
+import type { PublicDeck, PublicDeckCard } from '@/lib/social/shared-types';
 import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import { SharedDeckSurface } from './SharedDeckSurface';
 

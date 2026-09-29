@@ -13,7 +13,7 @@
 // Four such cycles existed before this guard landed (store/decks <-> allocations,
 // store/collection -> ... -> allocations, and cube generate <-> objective /
 // refine). All four were fixed by pushing the shared leaf DOWN into its own
-// module (`lib/allocations-core.ts`, `lib/cube/core.ts`) — never by importing
+// module (`lib/collection/allocations-core.ts`, `lib/cube/core.ts`) — never by importing
 // back up into the parent. That is the fix to reach for when this test fails.
 //
 // There is intentionally NO allowlist. The count is zero; keep it zero.
@@ -77,7 +77,7 @@ describe('import graph', () => {
         ? ''
         : `Found ${cycles.length} value-level import cycle(s).\n${detail}\n\n` +
             'Fix by moving the shared leaf DOWN into its own module (see ' +
-            'lib/allocations-core.ts, lib/cube/core.ts), not by importing back up.'
+            'lib/collection/allocations-core.ts, lib/cube/core.ts), not by importing back up.'
     ).toBe(0);
   });
 });

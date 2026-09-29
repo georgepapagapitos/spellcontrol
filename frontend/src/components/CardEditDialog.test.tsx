@@ -4,10 +4,10 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { CardEditDialog } from './CardEditDialog';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Finish } from '../types';
-import type { ChangeOwnership } from '../lib/deck-change';
+import type { ChangeOwnership } from '@/lib/coach/deck-change';
 
 const fetchPrintingsMock = vi.fn();
-vi.mock('../lib/api', () => ({
+vi.mock('@/lib/api', () => ({
   fetchPrintings: (name: string) => fetchPrintingsMock(name),
   getSetMap: () => Promise.resolve({}),
 }));

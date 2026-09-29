@@ -1,9 +1,9 @@
 import './RoomBrowser.css';
 import { useCallback, useEffect, useState } from 'react';
 import { EmptyState } from '../shared/EmptyState';
-import { listGames, type GameListing } from '../../lib/games-api';
-import { gameFormatLabel } from '../../lib/game-formats';
-import { userMessage } from '../../lib/user-error';
+import { listGames, type GameListing } from '@/lib/play/games-api';
+import { gameFormatLabel } from '@/lib/play/game-formats';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 
 interface Props {

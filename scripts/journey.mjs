@@ -43,9 +43,9 @@ import puppeteer from 'puppeteer-core';
 import { TIERS, executable } from './journey-browser.mjs';
 
 // Expected sample-pack card count, read straight from the source constant
-// (not re-typed here) so it can't drift from lib/samples.ts.
+// (not re-typed here) so it can't drift from lib/binder/samples.ts.
 const SAMPLE_CARD_COUNT = (
-  readFileSync(new URL('../frontend/src/lib/samples.ts', import.meta.url), 'utf8').match(
+  readFileSync(new URL('../frontend/src/lib/binder/samples.ts', import.meta.url), 'utf8').match(
     /\{ name:/g
   ) ?? []
 ).length;
@@ -100,10 +100,10 @@ const AXE_SRC = A11Y ? src('../frontend/node_modules/axe-core/axe.min.js') : '';
 // Read the registries rather than re-typing them, so a new theme or type set
 // is swept the day it lands.
 const THEMES = [
-  ...src('../frontend/src/lib/themes.ts').matchAll(/id: '([a-z]+)',[^}]*?scheme: '(light|dark)'/g),
+  ...src('../frontend/src/lib/account/themes.ts').matchAll(/id: '([a-z]+)',[^}]*?scheme: '(light|dark)'/g),
 ].map((m) => ({ id: m[1], scheme: m[2] }));
 const TYPESETS = [
-  ...src('../frontend/src/lib/typesets.ts').matchAll(/id: '([a-z]+)',[^}]*?href: (null|'[^']+')/g),
+  ...src('../frontend/src/lib/account/typesets.ts').matchAll(/id: '([a-z]+)',[^}]*?href: (null|'[^']+')/g),
 ].map((m) => ({ id: m[1], href: m[2] === 'null' ? null : m[2].slice(1, -1) }));
 const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 

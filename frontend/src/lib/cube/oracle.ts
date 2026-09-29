@@ -1,4 +1,4 @@
-import { apiUrl } from '../api-base';
+import { apiUrl } from '@/lib/api/api-base';
 import { getCardsByNames } from '@/deck-builder/services/scryfall/client';
 import { offlineDataAvailable, useOfflineStore } from '@/store/offline';
 import type { EnrichedCard } from '@/types';

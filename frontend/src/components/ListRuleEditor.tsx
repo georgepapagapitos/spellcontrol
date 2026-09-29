@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { BinderFilter, BinderFilterGroup, ListDef } from '../types';
 import { useCollectionStore } from '../store/collection';
-import { cleanFilter } from '../lib/clean-filter';
-import { areAllGroupsEmpty } from '../lib/rules';
-import { dynamicListCount } from '../lib/dynamic-list';
-import { useCardsWithTags, groupsUseTags } from '../lib/card-tags';
-import { fetchTypeSuggestions, fetchOracleSuggestions } from '../lib/scryfall-catalog';
+import { cleanFilter } from '@/lib/search/clean-filter';
+import { areAllGroupsEmpty } from '@/lib/binder/rules';
+import { dynamicListCount } from '@/lib/collection/dynamic-list';
+import { useCardsWithTags, groupsUseTags } from '@/lib/cards/card-tags';
+import { fetchTypeSuggestions, fetchOracleSuggestions } from '@/lib/cards/scryfall-catalog';
 import { Modal } from './Modal';
 import { FilterGroupList, cloneChips, validateGroups } from './FilterGroupEditor';
 import './ListRuleEditor.css';

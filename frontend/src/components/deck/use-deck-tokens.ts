@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { getCardsByNames } from '@/deck-builder/services/scryfall/client';
-import { aggregateDeckTokens, type DeckToken } from '@/lib/deck-tokens';
+import { aggregateDeckTokens, type DeckToken } from '@/lib/deck/deck-tokens';
 
 /**
  * Resolve a deck's token-prep checklist for the Stats tab.

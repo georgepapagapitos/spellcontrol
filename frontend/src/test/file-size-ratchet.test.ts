@@ -54,7 +54,7 @@ const CEILINGS: Record<string, number> = {
   'deck-builder/services/scryfall/client.ts': 2200,
   'deck-builder/types/index.ts': 1200,
   'lib/cube/generate.ts': 1100,
-  'lib/sync.ts': 2100,
+  'lib/sync/index.ts': 2100,
   'pages/AdminPage.tsx': 1100,
   'pages/DeckEditorPage.tsx': 4600,
   'pages/DecksIndexPage.tsx': 1100,

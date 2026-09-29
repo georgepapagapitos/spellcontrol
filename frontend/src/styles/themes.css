@@ -18,7 +18,7 @@
  * text on bg/surface/surface-raised (they colour labels, not only fills).
  *
  * Only semantic UI tokens are overridden here. Mana pip colors live in
- * lib/colors.ts; rarity colors live in :root in tokens.css. Both are
+ * lib/cards/colors.ts; rarity colors live in :root in tokens.css. Both are
  * MTG-canonical and intentionally never themed so card data and
  * warnings always read consistently.
  */
@@ -259,7 +259,7 @@
  * errors stay legible.
  *
  * Scoped by `data-scheme`, which the theme store sets on <html> alongside
- * `data-theme` from each theme's `scheme` field in lib/themes.ts — a new
+ * `data-theme` from each theme's `scheme` field in lib/account/themes.ts — a new
  * theme needs no edits here.
  */
 [data-scheme='light'] {

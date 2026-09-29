@@ -13,22 +13,22 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BinderDef, EnrichedCard } from '../../types';
-import type { TradeOffer } from '../../lib/trades-client';
+import type { TradeOffer } from '@/lib/trade/trades-client';
 
-vi.mock('../../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 // The value line fetches floor prices; mocked so a test can price a side (the
 // net tests) and everything else sees "unknown".
 let floors = new Map<string, number>();
-vi.mock('../../lib/trade-value', async () => {
+vi.mock('@/lib/trade/trade-value', async () => {
   const actual =
-    await vi.importActual<typeof import('../../lib/trade-value')>('../../lib/trade-value');
+    await vi.importActual<typeof import('@/lib/trade/trade-value')>('@/lib/trade/trade-value');
   return { ...actual, useFloorPrices: () => ({ prices: floors, pending: false }) };
 });
 // The device-local price cache a pinned printing is priced from.
 let pinned: Record<string, number> = {};
-vi.mock('../../lib/card-prices', async () => {
+vi.mock('@/lib/collection/card-prices', async () => {
   const actual =
-    await vi.importActual<typeof import('../../lib/card-prices')>('../../lib/card-prices');
+    await vi.importActual<typeof import('@/lib/collection/card-prices')>('@/lib/collection/card-prices');
   return {
     ...actual,
     getPrice: (id: string) => (id in pinned ? { usd: pinned[id], eur: pinned[id] } : undefined),
@@ -37,9 +37,9 @@ vi.mock('../../lib/card-prices', async () => {
 const removeTrade = vi.fn();
 const declineTrade = vi.fn();
 const withdrawTrade = vi.fn();
-vi.mock('../../lib/trades-client', async () => {
+vi.mock('@/lib/trade/trades-client', async () => {
   const actual =
-    await vi.importActual<typeof import('../../lib/trades-client')>('../../lib/trades-client');
+    await vi.importActual<typeof import('@/lib/trade/trades-client')>('@/lib/trade/trades-client');
   return {
     ...actual,
     removeTrade: (id: string) => removeTrade(id),
@@ -70,7 +70,7 @@ vi.mock('../CardPreview', () => ({
 }));
 
 const resolveTradePreview = vi.fn();
-vi.mock('../../lib/trade-preview', () => ({
+vi.mock('@/lib/trade/trade-preview', () => ({
   resolveTradePreview: (cards: unknown[]) => resolveTradePreview(cards),
 }));
 

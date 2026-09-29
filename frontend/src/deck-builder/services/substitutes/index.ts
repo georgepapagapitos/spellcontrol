@@ -8,7 +8,7 @@
  * Until the facts arrive, or if they can't load, every surface keeps its v1
  * order, so a failed fetch costs nothing but the better ranking.
  */
-import { frontFaceName } from '@/lib/card-text';
+import { frontFaceName } from '@/lib/cards/card-text';
 import { getCardFacts, hasCardFacts, loadCardFacts } from '../cardFacts';
 import type { CardFacts } from '../cardFacts/schema';
 import { getSimilarRank } from '../deckBuilder/cardSimilar';

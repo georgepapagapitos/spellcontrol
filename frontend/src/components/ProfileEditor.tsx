@@ -1,14 +1,14 @@
 import { Camera } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useAuth } from '../store/auth';
-import { updateProfile, type AvatarPatch } from '../lib/auth-api';
-import { isOnline, onSyncedChange } from '../lib/sync';
+import { updateProfile, type AvatarPatch } from '@/lib/account/auth-api';
+import { isOnline, onSyncedChange } from '@/lib/sync';
 import { toast } from '../store/toasts';
 import { UserAvatar } from './UserAvatar';
 import { AvatarPickerSheet } from './AvatarPickerSheet';
 import './ProfileEditor.css';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 const DISPLAY_NAME_MAX = 40;
 const BIO_MAX = 280;

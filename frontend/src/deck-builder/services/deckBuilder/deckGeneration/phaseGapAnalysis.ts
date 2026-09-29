@@ -1,4 +1,4 @@
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/util/logger';
 import type { GapAnalysisCard, ScryfallCard } from '@/deck-builder/types';
 import {
   getCardsByNames,
@@ -10,7 +10,7 @@ import { getCardRole } from '@/deck-builder/services/tagger/client';
 import { calculateCardPriority } from '../cardPicking';
 import { exceedsMaxRarity, isOwnedRarityExempt, notOnArena, exceedsCmcCap } from '../deckFilters';
 import type { GenerationState } from './state';
-import { frontFaceName } from '@/lib/card-text';
+import { frontFaceName } from '@/lib/cards/card-text';
 import { getLiftIndex } from './liftPools';
 
 export interface GapAnalysisOptions {

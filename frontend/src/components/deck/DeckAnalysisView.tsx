@@ -5,15 +5,15 @@ import { useMemo } from 'react';
 import { ChevronDown } from 'lucide-react';
 import type { ScryfallCard, Archetype } from '@/deck-builder/types';
 import type { ComboMatch } from '@/types/combos';
-import type { LaneId } from '@/lib/deck-change';
-import { usePanelCascade, panelCascadeClass } from '@/lib/use-panel-cascade';
+import type { LaneId } from '@/lib/coach/deck-change';
+import { usePanelCascade, panelCascadeClass } from '@/lib/util/use-panel-cascade';
 import {
   bracketSource,
   type BracketEstimation,
 } from '@/deck-builder/services/deckBuilder/bracketEstimator';
-import { bracketSourceSentence } from '@/lib/format-bracket-label';
+import { bracketSourceSentence } from '@/lib/deck-analysis/format-bracket-label';
 import type { PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
-import { ROLE_TITLES } from '@/lib/role-badges';
+import { ROLE_TITLES } from '@/lib/deck-analysis/role-badges';
 import { ARCHETYPE_LABEL } from '@/deck-builder/services/deckBuilder/strategyVocabulary';
 import type { ValidationResult } from '@/deck-builder/services/deckBuilder/validationChecklist';
 import type { BuildReport } from '@/deck-builder/types';
@@ -21,7 +21,7 @@ import { MeterBar } from '../shared/MeterBar';
 import { Button } from '@/components/shared/Button';
 import { BuildReportPanel } from './BuildReportPanel';
 import { BracketBreakdown } from './BracketBreakdown';
-import type { ClockCard } from '@/lib/opening-hand-sim';
+import type { ClockCard } from '@/lib/mana-sim/opening-hand-sim';
 import { BracketVerdictStrip } from './BracketVerdictStrip';
 import { DeckAnalysisSkeleton } from './DeckAnalysisSkeleton';
 import { DeckColorPanel } from './DeckColorPanel';

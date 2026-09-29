@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import type { BattlefieldCard } from '@/lib/playtest';
-import { useLongPress } from '@/lib/use-long-press';
+import { useLongPress } from '@/lib/util/use-long-press';
 import { PlaytestCardView } from './PlaytestCardView';
 import { CardPtBadges } from './CardPtBadges';
 import { CardCounters } from './CardCounters';

@@ -12,10 +12,10 @@ import {
   DISCOVER_SKELETON_COUNT,
 } from '../components/DiscoverDeckTile';
 import { useAuth } from '../store/auth';
-import { listBookmarkedDecks, type DiscoverDeck } from '../lib/discover-client';
+import { listBookmarkedDecks, type DiscoverDeck } from '@/lib/discover/discover-client';
 import { EmptyState } from '../components/shared/EmptyState';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 /**
  * /decks/saved — the caller's own bookmarked decks (w2-likes-bookmarks). No

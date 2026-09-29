@@ -2,10 +2,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { usePlayStore } from '@/store/play';
 import { toast } from '@/store/toasts';
 import { TAKEBACK_EXPIRY_GRACE_MS } from '../lib/takeback';
-import type { GameRequest } from '@/lib/games-api';
+import type { GameRequest } from '@/lib/play/games-api';
 import { useOnlineSignals } from './use-online-signals';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 export interface HoldStatus {
   /** This seat's own pending hold, id-tracked by this hook instance the same
    *  way use-takeback.ts tracks its own request — null once released or

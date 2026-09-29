@@ -3,7 +3,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { SocialHubTabs } from '../components/SocialHubTabs';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSignInPath } from '../lib/sign-in-path';
+import { useSignInPath } from '@/lib/account/sign-in-path';
 import { useAuth } from '../store/auth';
 import { toast } from '../store/toasts';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -15,9 +15,9 @@ import {
   listTrades,
   subscribeTradesChanged,
   type TradeOffer,
-} from '../lib/trades-client';
+} from '@/lib/trade/trades-client';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 import { Count } from '@/components/shared/Count';
 import { SectionHeader } from '@/components/shared/SectionHeader';

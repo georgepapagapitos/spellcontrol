@@ -2,11 +2,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { RoomBrowser } from './RoomBrowser';
-import { listGames, type GameListing } from '../../lib/games-api';
+import { listGames, type GameListing } from '@/lib/play/games-api';
 import { pending } from '../../test/pending';
 
-vi.mock('../../lib/games-api', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../lib/games-api')>();
+vi.mock('@/lib/play/games-api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/play/games-api')>();
   return { ...actual, listGames: vi.fn() };
 });
 

@@ -3,11 +3,11 @@ import { useState } from 'react';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AiFeaturesSettings } from './AiFeaturesSettings';
-import type { AiStatus } from '../../lib/ai-review';
+import type { AiStatus } from '@/lib/ai/ai-review';
 
 const setAiOptInMock = vi.fn();
 
-vi.mock('../../lib/ai-review', () => ({
+vi.mock('@/lib/ai/ai-review', () => ({
   setAiOptIn: (enabled: boolean) => setAiOptInMock(enabled),
 }));
 

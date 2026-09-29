@@ -6,7 +6,7 @@
  */
 import type { ScryfallCard } from '@/deck-builder/types';
 import { HARDCODED_GAME_CHANGERS } from '@spellcontrol/deck-metrics';
-import { getByCardName } from '@/lib/card-text';
+import { getByCardName } from '@/lib/cards/card-text';
 import { classifyManaCard, maskOf, type ManaCard } from '@/lib/mana-sim';
 import { extractCardFacts } from '@/deck-builder/services/cardFacts/extract';
 import {
