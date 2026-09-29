@@ -1,5 +1,10 @@
 // EDHREC synergy read as a RATIO, not a subtraction (E510). Pure — no I/O.
 //
+// Gated 2026-09-29 as a generation priority term: 12/31 regressed through slot
+// displacement of premium low-lift staples. Used for suggestions only (Brew's
+// theme slot, Coach's lift seeds, hidden gems, the Coach gap pick); a
+// generation use belongs in E513's whole-deck objective.
+//
 // EDHREC's `synergy` is a difference of two play rates:
 //
 //   synergy = (share of THIS page's decks playing the card)
@@ -51,15 +56,18 @@
 //    commander's players avoid a card (lift < 1), zero at lift 1.
 //
 // What strength does and doesn't do to the brief's case: 12% vs 1% (+0.11)
-// and 40% vs 20% (+0.20) read about the same (0.43 vs 0.40). Neither
-// outranks the other on it; the 12% card is no longer buried (the old
-// formula gave it nothing below +0.3), and play rate still separates them at
-// Balanced. A ratio-dominant reading (log2 lift at full weight above 10% play
-// rate) was built and measured on the LIVE_GEN panels, 2026-09-29: it put
-// 12% vs 1% first, and shipped decks paid for it with the Hyper Focus trade
-// (avg-deck overlap 68.1 → 64.8 on the standard panel, the added cards' median
-// play rate 20.9% against 27.6% for the cards they replaced). This reading
-// kept overlap at 68.7 and the added/removed play rates level (26.0 / 26.5).
+// and 40% vs 20% (+0.20) read about the same (0.43 vs 0.40); the 12% card is
+// no longer buried under a subtraction that gave it nothing below +0.3.
+//
+// Both generation variants measured on the LIVE_GEN panels (2026-09-29),
+// for E513 to start from. A ratio-dominant term (log2 lift at full weight
+// above 10% play rate) put 12% vs 1% first and paid the Hyper Focus trade:
+// avg-deck overlap 68.1 → 64.8 on the standard panel, added cards' median
+// play rate 20.9% against 27.6% for the cards they replaced. The strength
+// term, with the old term as a floor, kept overlap at 68.8 and play rates
+// level, and still regressed 12 of 31 decks in the blind gate: every
+// promoted card takes a slot from something, and the cascades pushed out
+// premium low-lift cards (Path to Exile, Swords, Toxic Deluge, Hermit Druid).
 //
 // Worked values from live EDHREC rows (Meren of Clan Nel Toth, 22,305 decks):
 //   Spore Frog          75.6% vs  5.5%  lift 13.8   strength 2.86
@@ -115,8 +123,7 @@ export const BASELINE_FLOOR_PCT = 1;
 /**
  * The old signature bar, EDHREC synergy above +0.3 (30 points more played
  * than in the colours). Kept as half of the signature test so nothing it
- * marked drops out, and calculateCardPriority keeps its old priority as a
- * floor for these cards.
+ * marked drops out.
  */
 export const LEGACY_SIGNATURE_SYNERGY = 0.3;
 
@@ -221,10 +228,11 @@ export function synergyStrength(card: SynergyFields): number {
 }
 
 /**
- * The shared "signature card" predicate: the one definition behind every
- * place that used to ask `synergy > 0.3` (the generator's high-synergy tier,
- * Brew's theme slot, Coach's lift seeds). A UNION, so it only ever adds:
- * the old bar, or the ratio test.
+ * The "signature card" predicate for suggestion surfaces that used to ask
+ * `synergy > 0.3` (Brew's theme slot, Coach's lift seeds). A UNION, so it
+ * only ever adds: the old bar, or the ratio test. The generator's
+ * high-synergy tier (cardPicking.ts isHighSynergyCard) keeps the plain
+ * `synergy > 0.3` bar; see the gate note at the top of this file.
  */
 export function isSignatureSynergy(card: SynergyFields): boolean {
   if ((card.synergy ?? 0) > LEGACY_SIGNATURE_SYNERGY) return true;
