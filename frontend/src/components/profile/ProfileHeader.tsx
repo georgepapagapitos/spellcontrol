@@ -171,7 +171,7 @@ export function ProfileHeader({ profile, heading, handle, joined, onReport }: Pr
               {profile.viewerIsFriend && (
                 <Chip
                   className="public-profile-friend-chip"
-                  icon={<Users width={14} height={14} />}
+                  icon={<Users width={14} height={14} strokeWidth={1.8} />}
                 >
                   Friends
                 </Chip>
