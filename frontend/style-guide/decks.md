@@ -1168,6 +1168,27 @@ tappable disclosure under the reason line.
   `CardFitPanel` audition cuts, and the full-deck `DeckSizePrompt` options all
   feed it the same `whyFactors`, so the explanation reads identically everywhere.
 
+**Substitute reasons are fixed vocabulary (E517).** The owned alternatives,
+Swap this card and Similar cards rows take their factors from
+`services/substitutes/reasons.ts`, and every line reads off a fact the ranker
+scored:
+
+- `Same effect: {trigger}, {effect}` (pro, first) when the two cards share a
+  trigger and effect aimed at the same player: "Same effect: whenever a
+  creature you control dies, each opponent sacrifices a creature". The words
+  come from the replaced card's own facts; a tuple with no phrasing reads
+  `Same effect as {card}`, never a paraphrase.
+- `Pays off your {engine} engine: N cards feed it` / `Feeds your {engine}
+engine: N cards pay it off` (pro) when at least 3 deck cards support the link.
+  `{engine}` is the synergy axis's name, lower-cased ("sacrifice").
+- `A common substitute for {card} on EDHREC` (pro), the collection lane's
+  existing line, reused verbatim.
+- What the substitute gives up, as cons: `Hits creatures only`, `Sorcery
+speed`, `Costs 2 more`, `Watches opponents' creatures, not yours`. Their
+  mirror images are pros: `Instant speed`, `Costs 1 less`, `Same mana cost`.
+
+Pros lead, the lane's own factors sit in the middle, cons close the list.
+
 ### Tiered ordering
 
 The ranker (`lib/coach-rank.ts`) orders moves in three tiers, then by
@@ -1249,8 +1270,14 @@ collapsed by default, that expands the ranked alternatives as nested
   staple's alternative (no implying you can apply the same copy twice);
   `buildSubstitutionOptions` enforces this. Applying any option removes every
   feed row naming that card on the next render (the live `deckNames` filter).
-- **No fabricated "% match".** The owned-substitute similarity heuristic tops out
-  at ~0.44 nDCG@5, so rank order carries fit — never a false-precision percentage.
+- **No fabricated "% match".** Substitute ranking v2 (E517,
+  `services/substitutes`) orders the options. Its score is a fitted sum with no
+  unit, and held out it reaches nDCG@5 0.79 against hand grades, far from
+  certain. Rank order carries fit, the Why disclosure carries the reasons, and
+  no surface shows the score or a percentage.
+- **The ranking only reorders.** v2 never adds or drops an owned option: the
+  role gate, colour identity and the land rule decide which cards qualify, so
+  a row can only move, never appear from nowhere.
 
 ### Apply feedback
 

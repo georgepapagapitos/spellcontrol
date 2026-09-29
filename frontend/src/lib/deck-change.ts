@@ -179,7 +179,7 @@ export interface Change {
 }
 
 /** Sort rank: a free owned copy beats an owned-but-committed copy beats unowned. */
-function ownershipRank(o: ChangeOwnership): number {
+export function ownershipRank(o: ChangeOwnership): number {
   if (o === 'owned') return 0;
   if (o === 'in-other-deck' || o === 'in-cube') return 1;
   return 2; // 'unowned' or undefined

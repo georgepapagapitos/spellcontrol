@@ -5,7 +5,7 @@ import { useSimilarCards } from './useSimilarCards';
 import { toSwapAgainst, type Change, type ChangeOwnership } from '@/lib/deck-change';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '@/types';
-import type { SimilarCandidate } from '@/lib/similar-cards';
+import type { RankedSimilar } from '@/deck-builder/services/substitutes/surfaces';
 
 export interface SimilarCardsStripProps {
   /** The full focused deck card (carries oracle text — must already be resolved). */
@@ -36,11 +36,7 @@ export interface SimilarCardsStripProps {
 
 /** Build a human-readable reason line for a SimilarCandidate row.
  *  `Plays like {card}` always names the anchor card — never a pronoun. */
-function buildReason(
-  c: SimilarCandidate,
-  group: 'owned' | 'discovery',
-  anchorName: string
-): string {
+function buildReason(c: RankedSimilar, group: 'owned' | 'discovery', anchorName: string): string {
   if (group === 'owned' && (c.freeCount ?? 0) > 0) {
     return `${c.freeCount} free in your collection`;
   }
@@ -53,7 +49,7 @@ function buildReason(
 /** Build the INCOMING add-Change for a SimilarCandidate. The caller promotes it
  *  to a real `type:'swap'` against the focused card via `toSwapAgainst`, so the
  *  row renders the trade (focused card → this candidate) in <DeckCardRow>. */
-function toChange(c: SimilarCandidate, group: 'owned' | 'discovery', anchorName: string): Change {
+function toChange(c: RankedSimilar, group: 'owned' | 'discovery', anchorName: string): Change {
   return {
     id: `similar:${group}:${c.name}`,
     type: 'add',
@@ -64,6 +60,8 @@ function toChange(c: SimilarCandidate, group: 'owned' | 'discovery', anchorName:
     inclusion: c.inclusion,
     imageUrl: c.card.image_uris?.normal,
     reason: buildReason(c, group, anchorName),
+    // v2's grounded reasons (same effect, deck fit, tradeoffs) when it ranked the row.
+    whyFactors: c.whyFactors,
     cmc: c.card.cmc,
     typeLine: c.card.type_line,
   };
@@ -108,7 +106,7 @@ export function SimilarCardsStrip({
   // Bridge: the page-level onPreview is (name, card) → void, but DeckCardRow
   // delivers onPreview as (change: Change) → void. Adapt per-candidate so we
   // always have the right ScryfallCard in scope.
-  function makeRowPreview(c: SimilarCandidate): ((change: Change) => void) | undefined {
+  function makeRowPreview(c: RankedSimilar): ((change: Change) => void) | undefined {
     if (!onPreview) return undefined;
     return (_change: Change) => onPreview(c.name, c.card);
   }
