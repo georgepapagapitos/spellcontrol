@@ -37,6 +37,7 @@ export type FilterFieldId =
   | 'edhrecRankMax'
   | 'legalities'
   | 'proxy'
+  | 'spareCopies'
   | 'scryfallQuery';
 
 /** Picker sections, in the order they appear. Most-reached-for first. */
@@ -259,6 +260,15 @@ export const FILTER_FIELDS: FilterFieldSpec[] = [
     hint: 'Whether the copy is a proxy.',
     isSet: (f) => f.proxy !== undefined,
     clear: () => ({ proxy: undefined }),
+  },
+  {
+    id: 'spareCopies',
+    label: 'Spare copies',
+    group: 'Value & play',
+    hint: 'Copies past the one you keep of each card.',
+    keywords: ['surplus', 'extra', 'duplicate', 'trade'],
+    isSet: (f) => f.spareCopies !== undefined,
+    clear: () => ({ spareCopies: undefined }),
   },
   {
     id: 'scryfallQuery',

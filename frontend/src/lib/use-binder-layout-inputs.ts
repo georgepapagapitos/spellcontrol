@@ -3,6 +3,7 @@ import { useCollectionStore } from '../store/collection';
 import { useCardsWithTags, bindersUseTags } from './card-tags';
 import { useCardsWithSldDrops, bindersUseSldDrops } from './sld-drops';
 import { useCardsWithReleaseDates, bindersUseReleaseDates } from './card-release-dates';
+import { useCardsWithSpareCopies, bindersUseSpareCopies } from './spare-copies';
 import { useAllocations } from './allocations';
 import { useSetMap, type SetMap } from './api';
 import type { BinderDef, EnrichedCard } from '../types';
@@ -39,14 +40,21 @@ export interface BinderLayoutInputs {
 export function useBinderLayoutInputs(): BinderLayoutInputs {
   const rawCards = useCollectionStore((s) => s.cards);
   const binders = useCollectionStore((s) => s.binders);
+  const allocations = useAllocations();
+  const allocatedCopyIds = useMemo(() => new Set(allocations.keys()), [allocations]);
+
   // No-op (returns its input by reference) unless a binder actually uses the
   // corresponding rule/sort — each decoration only costs what it's for.
   const taggedCards = useCardsWithTags(rawCards, bindersUseTags(binders));
   const droppedCards = useCardsWithSldDrops(taggedCards, bindersUseSldDrops(binders));
-  const cards = useCardsWithReleaseDates(droppedCards, bindersUseReleaseDates(binders));
+  const dateCards = useCardsWithReleaseDates(droppedCards, bindersUseReleaseDates(binders));
+  // Last in the chain: needs `allocatedCopyIds`, computed above.
+  const cards = useCardsWithSpareCopies(
+    dateCards,
+    allocatedCopyIds,
+    bindersUseSpareCopies(binders)
+  );
 
-  const allocations = useAllocations();
-  const allocatedCopyIds = useMemo(() => new Set(allocations.keys()), [allocations]);
   const setMap = useSetMap();
 
   // Stable reference when nothing changed, so a caller that memoizes on the

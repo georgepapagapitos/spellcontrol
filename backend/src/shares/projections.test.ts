@@ -644,6 +644,30 @@ describe('projectBinder', () => {
     expect(out?.ownerUsername).toBe('alice');
     expect(out?.ownerDisplayName).toBe('Alice A.');
   });
+
+  it('a Spare copies binder holds the spare copies, leaving out what decks claim', () => {
+    const copy = (name: string, copyId: string) => ({ ...card(name, 'Artifact'), copyId });
+    const cards = {
+      cards: [
+        copy('Sol Ring', 'ring-1'),
+        copy('Sol Ring', 'ring-2'),
+        copy('Sol Ring', 'ring-3'),
+        copy('Arcane Signet', 'signet-1'),
+        copy('Arcane Signet', 'signet-2'),
+      ],
+    };
+    const trade = binderDef({ filterGroups: [{ filter: { spareCopies: true } }] });
+    // No claims: one Sol Ring kept, two spare; one Signet kept, one spare.
+    expect(projectBinder(ALICE, 'b-1', cards, [trade])?.totalCards).toBe(3);
+    // A deck holds a Signet: the other is now the kept copy, not spare.
+    const claimed = new Set(['signet-1']);
+    const out = projectBinder(ALICE, 'b-1', cards, [trade], undefined, claimed);
+    expect(out?.totalCards).toBe(2);
+    expect(out?.sections.flatMap((s) => s.cards.map((c) => c.name))).toEqual([
+      'Sol Ring',
+      'Sol Ring',
+    ]);
+  });
 });
 
 function gameResultRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {

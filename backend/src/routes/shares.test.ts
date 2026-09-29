@@ -429,6 +429,41 @@ describe('GET /api/shares/public/:token — binder', () => {
     const res = await request(app).get(`/api/shares/public/${token}`);
     expect(res.status).toBe(404);
   });
+
+  it("a Spare copies binder shows the spare copies, reading the owner's decks", async () => {
+    const cookie = await makeUser('share-pub-binder-spare');
+    await setSnapshot(cookie, 0, {
+      collection: {
+        fileName: 'export.csv',
+        cards: [
+          makeCard({ copyId: 'ring-1' }),
+          makeCard({ copyId: 'ring-2' }),
+          makeCard({ copyId: 'ring-3' }),
+        ],
+        scryfallHits: 3,
+        scryfallMisses: 0,
+        uploadedAt: 1700000000000,
+      },
+      // One Sol Ring is in a deck: of the two loose copies one is kept, so
+      // exactly one is spare. Without the deck read it would show two.
+      decks: [
+        {
+          id: 'd-1',
+          name: 'Rings',
+          commander: null,
+          cards: [{ slotId: 's1', card: { name: 'Sol Ring' }, allocatedCopyId: 'ring-1' }],
+        },
+      ],
+      binders: [makeBinder({ filterGroups: [{ filter: { spareCopies: true } }] })],
+    });
+    const create = await request(app)
+      .post('/api/shares')
+      .set('Cookie', cookie)
+      .send({ kind: 'binder', resourceId: 'b-1' });
+    const res = await request(app).get(`/api/shares/public/${create.body.share.token as string}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data.totalCards).toBe(1);
+  });
 });
 
 describe('GET /api/shares/public/:token — list', () => {

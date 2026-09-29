@@ -98,6 +98,11 @@ function subset(a: Set<string>, b: Set<string>): boolean {
 // subjectively. Keep this allowlist short; each entry needs its own
 // justification comment naming the real replacement.
 const NO_VISIBLE_OUTLINE_ALLOWLIST = new Set<string>([
+  '.binder-start-tile--color .binder-start-tile-body', // stretched-button tile
+  // (BinderStartChooser's One color): the button's ::after covers the whole
+  // tile so the pips can sit on top of it, and the 2px accent ring is drawn on
+  // that ::after (`:focus-visible::after`, BinderEditor.css), so it wraps the
+  // tile instead of the button's text box. A real ring, on the pseudo-element.
   '.commander-color-pip', // circular swatch — outline can't follow the circle;
   // real ring is a double box-shadow instead: `0 0 0 2px var(--accent), 0 0 0
   // 4px var(--surface)` (deck-builder-commander.css) — a genuine 2px ring,

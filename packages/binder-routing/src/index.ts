@@ -16,6 +16,7 @@ export * from './normalize-search.js';
 export * from './printed-name.js';
 export * from './sections.js';
 export * from './sorting.js';
+export * from './surplus.js';
 export * from './rules.js';
 export * from './materialize.js';
 export * from './next-match.js';

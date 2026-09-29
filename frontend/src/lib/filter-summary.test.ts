@@ -24,6 +24,16 @@ describe('ruleGroupLabel', () => {
   });
 });
 
+describe('autoSummary — Spare copies field (E495)', () => {
+  it('titles a Trade-binder-shaped rule "Spare copies"', () => {
+    expect(autoSummary({ spareCopies: true, priceMin: 1 })).toContain('Spare copies');
+  });
+
+  it('names the negative case too', () => {
+    expect(autoSummary({ spareCopies: false })).toBe('Not spare copies');
+  });
+});
+
 describe('colorChipLabel', () => {
   it('reads an AND selection as an intersection', () => {
     expect(colorChipLabel(['W', 'U'], 'all')).toBe('White + Blue');

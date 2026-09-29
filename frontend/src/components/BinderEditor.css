@@ -474,10 +474,44 @@
   color: var(--text-muted);
 }
 
+/* Tiles are grouped by job (E495: Pull out a pile / One slice / Deck-building
+   pools), each its own labelled grid, so a section header never reads as
+   just another tile. */
+.binder-start-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.binder-start-group-title {
+  margin: 0;
+}
+
+.binder-start-group--dash {
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border);
+}
+
 .binder-start-tiles {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-2);
+}
+
+/* No group leaves a lone tile on a row of its own. A group's tile count
+   (data-count) picks its columns: a 4-tile group (Pull out a pile) is one row
+   of 4 once the dialog is wide enough for four readable tiles, and 2 by 2
+   below that; never 3 + 1. The container queries further down cover the
+   narrower widths. */
+.binder-start-tiles[data-count='2'],
+.binder-start-tiles[data-count='4'] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@container (min-width: 44rem) {
+  .binder-start-tiles[data-count='4'] {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 /* A sleeve (§ Layout system): raised surface, no outline until it is the
@@ -499,6 +533,78 @@
   transition: border-color var(--motion-fast);
 }
 
+/* The lead tile (E496, Plan a shelf): a full row above the job groups, tinted
+   with the accent so it reads as the bigger door, with a shelf of spines on
+   the left and the action named on the right. */
+.binder-start-tile--shelf {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-4);
+  width: 100%;
+  min-height: 0;
+  margin-bottom: var(--space-4);
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  background: linear-gradient(100deg, var(--accent-light), transparent 70%), var(--surface-raised);
+}
+
+.binder-start-shelf {
+  display: flex;
+  flex: none;
+  align-items: flex-end;
+  gap: var(--space-0-5);
+  height: 44px;
+}
+
+.binder-start-shelf i {
+  display: block;
+  width: 12px;
+  border-radius: 2px 2px 1px 1px;
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+.binder-start-shelf-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-0-5);
+  min-width: 0;
+}
+
+.binder-start-shelf-cta {
+  flex: none;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .binder-start-tile--shelf:hover {
+    border-color: var(--accent);
+  }
+}
+
+.binder-start-tile--shelf:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* A narrow dialog: the action drops under the text; the shelf stays. */
+@container (max-width: 34rem) {
+  .binder-start-tile--shelf {
+    flex-wrap: wrap;
+    gap: var(--space-3);
+  }
+
+  .binder-start-shelf-cta {
+    flex-basis: 100%;
+    text-align: center;
+  }
+}
+
 .binder-start-tile-label {
   font-size: var(--text-sm);
   font-weight: 600;
@@ -509,6 +615,19 @@
   color: var(--text-muted);
 }
 
+.binder-start-tile-order {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* A standing overlap note (Mana rocks ⊂ Ramp) — separate from the live
+   would-land count below it, which only speaks once an overlapping binder
+   actually exists. */
+.binder-start-tile-overlap {
+  font-size: var(--text-xs);
+  color: var(--warn-text);
+}
+
 .binder-start-tile-count {
   margin-top: auto;
   padding-top: var(--space-2);
@@ -517,32 +636,245 @@
   color: var(--text-secondary);
 }
 
-/* Blank and From a list are ways to start without a preset: drawn as open
-   slots so they read as different from the templates. */
+/* The gap explanation — only present when the would-land count differs from
+   the raw match ("of 102 that match; 47 are in Commanders"). Sits right under
+   the primary would-land line, quieter than it. */
+.binder-start-tile-count-secondary {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* Blank, Everything else and From a list start without a preset: drawn as
+   open slots so they read as different from the templates above them. */
 .binder-start-tile--alt {
   border: 1px dashed var(--border-strong);
   background: transparent;
 }
 
+/* One color (E473/E495): title, then the pips, then order and count, like
+   every other tile. Radios can't nest inside a <button>, so the tile's button
+   holds order and count and its ::after stretches over the whole tile: a
+   click anywhere but a pip creates the binder, and the pips sit above that
+   layer so choosing a color never also creates it. */
+.binder-start-tile--color {
+  position: relative;
+  cursor: default;
+}
+
+.binder-start-tile--color .binder-start-tile-body {
+  flex: 1;
+}
+
+.binder-start-tile--color .binder-start-tile-body::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+}
+
+.binder-start-color-pips {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: var(--space-1);
+  margin: var(--space-1) 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.binder-start-color-pip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  padding: var(--space-0-5);
+  cursor: pointer;
+  opacity: 0.55;
+}
+
+.binder-start-color-pip input {
+  /* Native radio, visually replaced by the pip: present for keyboard/AT,
+     invisible so the pip itself carries the selected look. */
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.binder-start-color-pip:has(input:checked) {
+  opacity: 1;
+}
+
+.binder-start-color-pip:has(input:checked) .ms {
+  box-shadow: 0 0 0 2px var(--accent);
+  border-radius: 50%;
+}
+
+.binder-start-color-pip:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* A 44px box per pip on touch. Seven of those need more width than a tile
+   has in a multi-column grid, so the row may wrap there; the boxes' own
+   padding does the spacing. */
+@media (pointer: coarse) {
+  .binder-start-color-pips {
+    flex-wrap: wrap;
+    gap: 0;
+  }
+
+  .binder-start-color-pip {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+.binder-start-tile-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-0-5);
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
 @media (hover: hover) and (pointer: fine) {
-  .binder-start-tile:hover {
+  .binder-start-tile:hover,
+  .binder-start-tile--color:has(.binder-start-tile-body:hover) {
     border-color: var(--accent);
   }
 }
 
-.binder-start-tile:focus-visible {
+.binder-start-tile:focus-visible,
+.binder-start-tile-body:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The one-color tile's button covers the tile, so its focus ring does too. */
+.binder-start-tile--color .binder-start-tile-body:focus-visible {
+  outline: none;
+}
+
+.binder-start-tile--color .binder-start-tile-body:focus-visible::after {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
 @container (max-width: 34rem) {
-  .binder-start-tiles {
+  .binder-start-tiles,
+  .binder-start-tiles[data-count] {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Two columns and an odd count: the last tile takes the whole row rather
+     than sitting alone beside a gap. */
+  .binder-start-tiles[data-count='3'] > :last-child {
+    grid-column: 1 / -1;
   }
 
   .binder-start-tile--wide {
     grid-column: 1 / -1;
     min-height: 0;
+  }
+}
+
+/* Phone width: one column, each tile compacted to two lines so a dozen tiles
+   across three groups scroll rather than each burning a full card's height.
+   Line one is the name with the would-land count at its right; line two is
+   the order, then how many matched in all when that differs. The description
+   is the thing that goes: the name, order and counts still answer "what is
+   this and what will it look like", and the full sentence is one tap away in
+   the rules editor after picking. */
+@container (max-width: 26rem) {
+  .binder-start-tiles,
+  .binder-start-tiles[data-count] {
+    grid-template-columns: 1fr;
+  }
+
+  .binder-start-tiles[data-count='3'] > :last-child {
+    grid-column: auto;
+  }
+
+  .binder-start-tile,
+  .binder-start-tile-body {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: var(--space-2);
+    min-height: 44px;
+  }
+
+  .binder-start-tile-desc {
+    display: none;
+  }
+
+  .binder-start-tile-order,
+  .binder-start-tile-count {
+    flex: 0 1 auto;
+    margin-top: 0;
+    padding-top: 0;
+  }
+
+  /* Line one: name, count pushed right. The empty ::after is a full-width
+     flex item, so everything ordered after it starts line two. */
+  button.binder-start-tile > .binder-start-tile-label {
+    order: 1;
+    flex: 1 1 auto;
+  }
+
+  button.binder-start-tile > .binder-start-tile-count {
+    order: 2;
+    margin-left: auto;
+    text-align: right;
+  }
+
+  button.binder-start-tile::after {
+    content: '';
+    order: 3;
+    flex-basis: 100%;
+  }
+
+  button.binder-start-tile > .binder-start-tile-order,
+  button.binder-start-tile > .binder-start-tile-count-secondary {
+    order: 4;
+  }
+
+  button.binder-start-tile > .binder-start-tile-overlap {
+    order: 5;
+    flex: 1 0 100%;
+  }
+
+  /* The "of N that match; M are in …" line is a sentence that wraps on a
+     phone, so it takes its own line under the order instead of trailing it
+     after a separator dot that the wrap left dangling. */
+  button.binder-start-tile > .binder-start-tile-count-secondary {
+    order: 5;
+    flex: 1 0 100%;
+  }
+
+  /* One color keeps its column: name, pips, then order and count. */
+  .binder-start-tile--color {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .binder-start-tile--color .binder-start-tile-order::after {
+    content: ' \00b7';
+  }
+
+  .binder-start-tile--color .binder-start-tile-count-secondary {
+    flex: 1 0 100%;
   }
 }
 

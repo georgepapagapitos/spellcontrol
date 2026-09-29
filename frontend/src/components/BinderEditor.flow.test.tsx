@@ -109,7 +109,7 @@ function open(id: string) {
 }
 
 describe('a new binder starts from a starting point', () => {
-  it('opens on the chooser, and a template names the binder and fills its rule', () => {
+  it('opens on the chooser, and a template names the binder and fills its rule', async () => {
     useCollectionStore.setState({
       cards: [card('1', 'rare'), card('2', 'mythic'), card('3', 'common')],
     });
@@ -117,8 +117,10 @@ describe('a new binder starts from a starting point', () => {
 
     expect(screen.getByText('What goes in it?')).toBeTruthy();
     const rares = screen.getByRole('button', { name: /Rares & mythics/ });
-    // The tile says how many of the user's own cards it would take.
-    expect(within(rares).getByText('2 of your cards')).toBeTruthy();
+    // The tile states its order and, once the idle-queued preview lands, what
+    // it would actually land here (E495) — not just how many match.
+    expect(within(rares).getByText('Set collection')).toBeTruthy();
+    expect(await within(rares).findByText('2 cards · 1 page')).toBeTruthy();
 
     // The footer/ladder counts are debounced off `groups` (E493) — a
     // collection-wide scan on every keystroke otherwise made typing itself

@@ -103,6 +103,9 @@ export function autoSummary(f: BinderFilter): string {
   if (f.proxy === true) parts.push('Proxy');
   else if (f.proxy === false) parts.push('Not proxy');
 
+  if (f.spareCopies === true) parts.push('Spare copies');
+  else if (f.spareCopies === false) parts.push('Not spare copies');
+
   if (f.setCodes && f.setCodes.length > 0) {
     push(
       f.setCodes.length <= 2

@@ -46,6 +46,7 @@ describe('the registry covers the whole vocabulary', () => {
       edhrecRankMax: { edhrecRankMax: 100 },
       legalities: { legalities: chips('commander') },
       proxy: { proxy: false },
+      spareCopies: { spareCopies: true },
       scryfallQuery: { scryfallQuery: { query: 'is:shockland', oracleIds: [] } },
     };
 

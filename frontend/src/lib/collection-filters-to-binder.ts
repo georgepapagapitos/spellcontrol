@@ -34,7 +34,7 @@ export interface CollectionFilterInput {
   search: string;
   /** "Proxies only": carried as the binder's Proxy rule. */
   proxyOnly?: boolean;
-  /** "Tradeable surplus only": depends on decks and cubes, so no rule can hold it; flagged. */
+  /** "Tradeable surplus only": carried as the Spare copies rule, and flagged (per copy, not per card). */
   surplusOnly?: boolean;
 }
 
@@ -63,7 +63,8 @@ export function hasStructuredFilter(input: CollectionFilterInput): boolean {
     input.priceMax !== undefined ||
     input.cmcMin !== undefined ||
     input.cmcMax !== undefined ||
-    !!input.proxyOnly
+    !!input.proxyOnly ||
+    !!input.surplusOnly
   );
 }
 
@@ -75,7 +76,8 @@ export function hasStructuredFilter(input: CollectionFilterInput): boolean {
  *   'condition' — condition filter dropped (physical-copy only, no binder equivalent)
  *   'language'  — language filter dropped (physical-copy only, no binder equivalent)
  *   'binder'    — binder-membership filter dropped (circular)
- *   'surplus'   — tradeable-surplus filter dropped (depends on deck and cube allocation)
+ *   'surplus'   — tradeable surplus carried as the Spare copies rule, which holds only
+ *                 the spare copies; the collection view lists every copy of those cards
  *
  * Everything else, color included, is carried so the binder matches the same cards.
  */
@@ -190,9 +192,15 @@ export function collectionFiltersToFilterGroup(input: CollectionFilterInput): {
   // Proxies only — the binder Proxy rule is the same test (card.proxy truthy).
   if (input.proxyOnly) filter.proxy = true;
 
-  // Tradeable surplus — dropped: it reads deck and cube allocations, which a
-  // card-level rule can't see. Flagged so the editor says so.
-  if (input.surplusOnly) flagged.push('surplus');
+  // Tradeable surplus — the Spare copies rule is the same definition
+  // (binder-routing computeSpareCopyIds, which computeSurplusByName tallies),
+  // but per copy: the binder holds the spare copies, where the collection view
+  // lists every copy of a card that has one. Carried, and flagged so the
+  // editor says it matches differently.
+  if (input.surplusOnly) {
+    filter.spareCopies = true;
+    flagged.push('surplus');
+  }
 
   // Binder membership — dropped (circular)
   if (!isExpressionEmpty(input.binderExpr)) {
@@ -290,6 +298,7 @@ export function deriveBinderName(input: CollectionFilterInput): string {
   }
 
   if (input.proxyOnly) parts.push('Proxies');
+  if (input.surplusOnly) parts.push('Spare copies');
 
   if (parts.length === 0) return 'Filtered binder';
   return parts.slice(0, 4).join(' · ');

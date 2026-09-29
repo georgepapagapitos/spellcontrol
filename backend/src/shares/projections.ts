@@ -19,6 +19,8 @@
  */
 
 import {
+  anyBinderUsesSpareCopies,
+  decorateWithSpareCopies,
   materializeBinders,
   type BinderDef,
   type EnrichedCard,
@@ -712,7 +714,13 @@ export function projectBinder(
   collection: unknown,
   bindersRaw: unknown,
   /** Scryfall set metadata — the Release-date sort dates every non-SLD card from it. */
-  setMap?: SetMap
+  setMap?: SetMap,
+  /**
+   * Every copy the owner's decks and cubes claim (`collectAllocatedCopyIds`).
+   * Read only by a "Spare copies" rule, which decides per copy and needs to
+   * know which copies are already spoken for; absent reads as "none claimed".
+   */
+  allocatedCopyIds: ReadonlySet<string> = new Set()
 ): PublicBinder | null {
   if (!Array.isArray(bindersRaw)) return null;
   const binders = bindersRaw.filter((b): b is AnyRecord => asRecord(b) !== null);
@@ -734,9 +742,14 @@ export function projectBinder(
   // And again for each printing's own release date: a Release-date sort dates a
   // rolling container set (SLD/PLST/PRM/SLP/SLC) per printing, so without this
   // the shared view orders those cards differently from the owner's.
-  const cards = anyBinderUsesReleaseDateSort(binders)
+  const dated = anyBinderUsesReleaseDateSort(binders)
     ? decorateCardsWithReleaseDates(dropped)
     : dropped;
+  // And for a "Spare copies" rule: which copy is spare is a whole-collection
+  // fact, decided by the same binder-routing function the owner's app uses.
+  const cards = anyBinderUsesSpareCopies(binders)
+    ? decorateWithSpareCopies(dated, allocatedCopyIds)
+    : dated;
 
   let materialized;
   try {
