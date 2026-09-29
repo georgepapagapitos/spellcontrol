@@ -894,30 +894,26 @@ function noteMessageError(action: GameAction): string | null {
  * `packages/game-core`), so the route is the only place this is checked.
  */
 /**
- * The voice link the host pastes into the lobby. The reducer stores whatever
- * it is handed (see `packages/game-core`), so this route is the only place it
- * is checked — same division of labour as `phase` below.
+ * The table's voice link: the invite to its Discord table (POST /:code/discord
+ * returns it and the client stores it here). The reducer stores whatever it
+ * is handed (see `packages/game-core`), so this route is the only place it is
+ * checked — same division of labour as `phase` below.
  *
- * https only, and that is the point rather than pedantry: this string is
- * rendered as a link every other seat can click, so a `javascript:` or `data:`
- * URL would be one player handing the rest of the pod a script. Clearing it
- * back to null is always allowed.
+ * Discord or nothing: only a `https://discord.gg/<code>` invite, the shape
+ * discord.ts builds. The string is rendered as a link every other seat can
+ * click, so anything looser is one player handing the pod a link of their
+ * choosing (a `javascript:` URL at worst). Clearing it back to null is always
+ * allowed.
  */
-const MAX_VOICE_URL_LEN = 2048;
+const DISCORD_INVITE = /^https:\/\/discord\.gg\/[A-Za-z0-9-]{2,64}$/;
 
 function invalidVoiceUrlError(action: GameAction): string | null {
   if (action.type !== 'settings') return null;
   const url = action.patch.voiceUrl;
   if (url === undefined || url === null || url === '') return null;
-  if (typeof url !== 'string') return 'Invalid voice link.';
-  if (url.length > MAX_VOICE_URL_LEN) return 'That voice link is too long.';
-  let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
-    return 'That voice link is not a URL.';
+  if (typeof url !== 'string' || !DISCORD_INVITE.test(url)) {
+    return 'A table’s voice link has to be its Discord invite.';
   }
-  if (parsed.protocol !== 'https:') return 'A voice link has to start with https.';
   return null;
 }
 
