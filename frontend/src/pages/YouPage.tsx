@@ -84,6 +84,9 @@ export const SECTION_HEADING_IDS: Record<string, string> = {
 // expanding something) never yanks the page.
 const SECTION_SETTLE_MS = 3000;
 
+/** The reason on every card-only data action while the collection is empty. */
+const NEEDS_CARDS = 'Needs cards in your collection.';
+
 function friendsSummary(count: number | null, pending: number): string {
   if (count === null) return 'Manage friend requests and shared collections.';
   const friendsPart = `${count} ${count === 1 ? 'friend' : 'friends'}`;
@@ -117,6 +120,7 @@ export function YouPage() {
   const decks = useDecksStore((s) => s.decks);
   const deckCount = decks.length;
   const remapAllocations = useDecksStore((s) => s.remapAllocations);
+  const hasAnything = cardCount > 0 || binders.length > 0 || deckCount > 0;
 
   const [wipeOpen, setWipeOpen] = useState(false);
   const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0);
@@ -368,7 +372,7 @@ export function YouPage() {
    * first. Nothing to lose on a blank account, so no nag there.
    */
   function handlePickRestore() {
-    if (cardCount > 0 || binders.length > 0 || deckCount > 0) {
+    if (hasAnything) {
       setRestoreConfirmOpen(true);
       return;
     }
@@ -547,7 +551,7 @@ export function YouPage() {
                       : 'Not set'
               }
               actions={
-                <>
+                <div className="settings-row-action-group">
                   {identities.pendingEmail && (
                     <Button
                       onClick={() => void handleResendVerification()}
@@ -559,7 +563,7 @@ export function YouPage() {
                   <Button onClick={() => setEmailModalOpen(true)}>
                     {identities.emailVerified || identities.pendingEmail ? 'Change' : 'Add'}
                   </Button>
-                </>
+                </div>
               }
             >
               {!identities.emailVerified && (
@@ -689,28 +693,27 @@ export function YouPage() {
 
       <div>
         <SettingsSection id="settings-collection-title" title="Collection">
+          {/* A disabled control's hint names what turns it on (STYLE_GUIDE
+              § Voice rule 20), so an empty account never meets a greyed
+              button with no reason. A backup carries binders and decks too,
+              so it is live as soon as any of the three exists. */}
           <SettingsRow
-            value="Export full collection"
-            hint="A backup keeps everything. Export is cards only, for other tools."
+            value="Backup"
+            hint={
+              hasAnything
+                ? 'Your cards, binders and decks in one file.'
+                : 'Needs cards, a binder or a deck.'
+            }
             actions={
-              <div className="settings-row-action-group">
-                <Button
-                  aria-haspopup="dialog"
-                  onClick={() => setExportOpen(true)}
-                  disabled={cardCount === 0}
-                >
-                  Export
-                </Button>
-                <Button onClick={handleExportFull} disabled={cardCount === 0}>
-                  Download backup
-                </Button>
-              </div>
+              <Button onClick={handleExportFull} disabled={!hasAnything}>
+                Download backup
+              </Button>
             }
           />
 
           <SettingsRow
             value="Restore from a backup file"
-            hint="Replaces your current collection, binders, and decks."
+            hint="Replaces everything here with the backup's contents."
             actions={
               <Button onClick={handlePickRestore} disabled={restoreBusy}>
                 {restoreBusy ? 'Restoring…' : 'Restore…'}
@@ -719,12 +722,30 @@ export function YouPage() {
           />
 
           <SettingsRow
+            value="Export cards"
+            hint={cardCount > 0 ? 'A card list other tools can import.' : NEEDS_CARDS}
+            actions={
+              <Button
+                aria-haspopup="dialog"
+                onClick={() => setExportOpen(true)}
+                disabled={cardCount === 0}
+              >
+                Export
+              </Button>
+            }
+          />
+
+          <SettingsRow
             value="Refresh card prices"
             hint={
-              <>
-                Fetches {currency} prices from Scryfall.
-                {pricesUpdated && ` Last updated ${pricesUpdated}.`}
-              </>
+              cardCount === 0 ? (
+                NEEDS_CARDS
+              ) : (
+                <>
+                  Fetches {currency} prices from Scryfall.
+                  {pricesUpdated && ` Last updated ${pricesUpdated}.`}
+                </>
+              )
             }
             actions={
               <Button
@@ -747,6 +768,7 @@ export function YouPage() {
               </>
             }
             valueWithTip
+            hint={cardCount === 0 || deckCount === 0 ? 'Needs cards and a deck.' : undefined}
             actions={
               <Button
                 onClick={handleRepairAllocations}
@@ -805,9 +827,7 @@ export function YouPage() {
           <h2 id="settings-danger-title" className="settings-card-title">
             Danger zone
           </h2>
-          <p className="settings-card-hint">
-            Make a backup first: Collection → Export full collection.
-          </p>
+          <p className="settings-card-hint">Download a backup first.</p>
         </header>
         <div className="settings-card-body">
           <div className="settings-row">
@@ -1263,8 +1283,7 @@ function DeleteAccountDialog({
         ) : (
           <>
             This permanently deletes the account <strong>{username}</strong> and all of its data
-            from the server. Export a backup first (Collection → Export full collection) if you want
-            to keep your collection.
+            from the server. Download a backup first if you want to keep your collection.
           </>
         )}
       </p>

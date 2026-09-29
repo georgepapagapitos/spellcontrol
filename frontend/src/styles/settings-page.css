@@ -110,9 +110,9 @@
   margin-top: var(--space-0-5);
 }
 
-/* Groups 2+ buttons in one `actions` slot (e.g. "Export CSV" + "Download
-   backup") as one flex item, so `.settings-row`'s space-between keeps a
-   single gap against the text instead of spreading each button to the edge. */
+/* Groups 2+ buttons in one `actions` slot (the Email row's Resend + Change)
+   as one flex item, so `.settings-row`'s space-between keeps a single gap
+   against the text instead of spreading each button to the edge. */
 .settings-row-action-group {
   display: flex;
   align-items: center;

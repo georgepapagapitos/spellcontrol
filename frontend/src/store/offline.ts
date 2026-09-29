@@ -10,10 +10,10 @@ import {
 } from '@/lib/offline';
 
 /**
- * Live offline-data status. There is no user-facing on/off — the app always
- * keeps a local copy of the Scryfall + combo bulks once authed (downloaded
- * silently on first authed load, refreshed at most once per day). Settings
- * surface this for inspection + an escape-hatch "Clear" button only.
+ * Live offline-data status. The local copy of the Scryfall + combo bulks is
+ * opt-in: `sync()` runs only from OfflineModeSettings' Download / Refresh
+ * button, never on its own (the old silent first-load seed is gone). That
+ * card also offers an escape-hatch Clear.
  *
  * Nothing is persisted to localStorage; manifest + counts live in IndexedDB
  * and rehydrate via `bootstrap()` on app boot.
