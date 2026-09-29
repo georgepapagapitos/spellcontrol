@@ -62,7 +62,7 @@ export const SHELF_STRATEGIES: readonly ShelfStrategy[] = [
   {
     id: 'value-then-color',
     name: 'Value first, then color',
-    description: 'Priciest cards peel off into value binders first; everything else by color.',
+    description: 'Your priciest cards get their own binders. The rest go by color.',
   },
 ];
 

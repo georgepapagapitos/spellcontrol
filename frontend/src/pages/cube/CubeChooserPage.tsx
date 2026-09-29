@@ -39,8 +39,7 @@ export function CubeChooserPage() {
           />
           <span className="cube-chooser-title">From my collection</span>
           <p className="cube-chooser-desc">
-            Draw from your owned cards, and up to 3 friends' collections: best cards, or lean into
-            what your collection can support.
+            Build from your cards and up to 3 friends' collections.
           </p>
           {eligible > 0 && (
             <p className="cube-chooser-note">
@@ -58,8 +57,7 @@ export function CubeChooserPage() {
           />
           <span className="cube-chooser-title">Import a cube</span>
           <p className="cube-chooser-desc">
-            Paste a public CubeCobra link. See what you already own, then build your own version
-            from what's missing.
+            Paste a public CubeCobra link and build your own version from your collection.
           </p>
         </Link>
       </div>

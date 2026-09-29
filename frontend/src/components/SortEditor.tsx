@@ -225,7 +225,6 @@ function SortRow({
             <IconButton
               className="sort-editor-remove"
               onClick={() => onSortsChange(sorts.filter((_, j) => j !== i))}
-              title="Remove this sort"
               label={`Remove the ${fieldLabel} sort`}
               icon={<X width={14} height={14} strokeWidth={1.8} />}
             />

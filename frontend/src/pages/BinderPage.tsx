@@ -446,9 +446,7 @@ export function BinderPage() {
           <Chip className="sort-mode-badge" tone="accent">
             Custom order
           </Chip>
-          <span className="binder-manual-order-hint">
-            Cards are in your custom order. Open “Manage cards” → Order tab to change.
-          </span>
+          <span className="binder-manual-order-hint">Change it in Manage cards.</span>
         </div>
       ) : null}
       <div className="binder-toolbar">
@@ -486,7 +484,7 @@ export function BinderPage() {
             return (
               <EmptyState
                 tagline="No cards match this binder's rules."
-                hint="Loosen a rule or add another match group, and cards from your collection file in here."
+                hint="Loosen a rule to catch more cards."
                 actions={
                   <Button variant="primary" onClick={() => setEditingBinder(active.def.id)}>
                     Binder rules

@@ -165,7 +165,7 @@ describe('PlaytestBoard drag-to-play hint (E484)', () => {
         <PlaytestBoard state={seededState()} />
       </MemoryRouter>
     );
-    expect(screen.getByText(/hold it to choose from the menu/)).toBeTruthy();
+    expect(screen.getByText(/hold it for the menu/)).toBeTruthy();
   });
 
   it('wording names the mouse gesture on a fine pointer', () => {
@@ -175,6 +175,6 @@ describe('PlaytestBoard drag-to-play hint (E484)', () => {
         <PlaytestBoard state={seededState()} />
       </MemoryRouter>
     );
-    expect(screen.getByText(/right-click it to choose from the menu/)).toBeTruthy();
+    expect(screen.getByText(/right-click it for the menu/)).toBeTruthy();
   });
 });

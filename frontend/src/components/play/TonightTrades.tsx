@@ -139,8 +139,7 @@ export function TonightTrades({
 
           {!optedIn && (
             <p className="game-night-dialog-hint">
-              Cross-references your want lists and tradeable binders against everyone else who's
-              opted in tonight.
+              Matches your want lists and tradeable binders with everyone else opted in tonight.
             </p>
           )}
 
@@ -164,7 +163,7 @@ export function TonightTrades({
                 matches={current.incoming}
                 personKey="supplierUsername"
                 emptyTagline="Nothing to get tonight."
-                emptyHint="Nobody who's opted in has anything on your want lists — add cards to a list to show up here."
+                emptyHint="Nobody who's opted in has anything on your want lists."
                 onPropose={(username) => setComposingWith(peers.get(username) ?? null)}
               />
               <TonightTradesSection
@@ -172,7 +171,7 @@ export function TonightTrades({
                 matches={current.outgoing}
                 personKey="wanterUsername"
                 emptyTagline="Nothing to bring tonight."
-                emptyHint="Nobody who's opted in wants anything from your tradeable binders — mark a binder as tradeable in Collection to show up here."
+                emptyHint="Nobody who's opted in wants anything from your tradeable binders."
                 onPropose={(username) => setComposingWith(peers.get(username) ?? null)}
               />
             </>

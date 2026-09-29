@@ -65,8 +65,8 @@ export function AiFeaturesSettings() {
             busy
               ? 'Saving…'
               : status.optIn
-                ? `Nothing is sent unless you press an AI button. ${status.limit} requests per day · used today: ${status.used}.`
-                : 'Off. Nothing is ever sent.'
+                ? `${status.limit} requests per day · used today: ${status.used}.`
+                : 'Off.'
           }
           checked={status.optIn}
           onChange={() => void toggle()}

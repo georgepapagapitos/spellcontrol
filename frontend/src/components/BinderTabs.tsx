@@ -134,11 +134,7 @@ export function BinderTabs({ binders }: Props) {
         })}
       </div>
 
-      <button
-        className="tab tab-new"
-        onClick={() => setEditingBinder('new')}
-        title="Create a new binder"
-      >
+      <button className="tab tab-new" onClick={() => setEditingBinder('new')}>
         + New binder
       </button>
 
@@ -147,7 +143,6 @@ export function BinderTabs({ binders }: Props) {
         className="tab tab-export"
         onClick={() => setExportOpen(true)}
         disabled={binders.length === 0}
-        title="Export binders or your collection"
       >
         <Download width={14} height={14} strokeWidth={1.8} aria-hidden />
         <span>Export</span>

@@ -98,7 +98,7 @@ export function GoldfishListPage() {
       <PageHeader
         title="Goldfish a list"
         className="goldfish-header"
-        meta="Paste a decklist and play it. Nothing is saved, and it never touches your decks."
+        meta="Paste a decklist and play it. Nothing is saved."
       />
 
       <label className="goldfish-label" htmlFor={fieldId}>

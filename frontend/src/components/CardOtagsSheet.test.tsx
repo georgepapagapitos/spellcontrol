@@ -80,7 +80,7 @@ describe('CardOtagsSheet', () => {
         onClose={() => {}}
       />
     );
-    expect(screen.getByText('No function tags in the local snapshot for this card.')).toBeTruthy();
+    expect(screen.getByText('No function tags for this card.')).toBeTruthy();
   });
 
   it('shows a loading state until the snapshot is ready', () => {

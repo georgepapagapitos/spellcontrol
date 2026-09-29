@@ -455,7 +455,7 @@ export function UpgradePlanSheet({
       </Field>
       <SwitchRow
         label="Use cards I own"
-        hint="Cards you own and aren't using in another deck are free and don't use the budget."
+        hint="Free copies you own don't use the budget."
         checked={ownedFree}
         onChange={setOwnedFree}
       />

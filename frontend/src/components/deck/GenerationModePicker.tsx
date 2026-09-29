@@ -118,15 +118,10 @@ export function GenerationModePicker({
           <h2 className="deck-builder-section-title" id={groupLabelId}>
             Pick a build method
           </h2>
-          <p className="gen-mode-intro">
-            Build by what cards <em>do</em>, what they <em>depict</em>, or when they were{' '}
-            <em>printed</em>.
-          </p>
-
           {!online && (
             <p className="gen-mode-offline" role="status">
               <WifiOff width={14} height={14} strokeWidth={1.8} aria-hidden /> The Scryfall-powered
-              modes need a connection. They'll switch on when you're back online.
+              modes need a connection.
             </p>
           )}
 
@@ -177,9 +172,7 @@ export function GenerationModePicker({
 
       {/* Standard mode in the guided 'config' slot: nothing to tune — say so. */}
       {section === 'config' && mode === 'edhrec' && (
-        <p className="gen-mode-explain">
-          Standard mode uses EDHREC's popular picks for your commander. No extra tuning needed here.
-        </p>
+        <p className="gen-mode-explain">Nothing to tune for this mode.</p>
       )}
 
       {showConfig && (
@@ -212,8 +205,8 @@ function OracleConfig({ customization, update }: Pick<Props, 'customization' | '
   return (
     <>
       <p className="gen-mode-explain">
-        Skips crowd data and picks the strongest cards for each <strong>role</strong> in your
-        colors. A solid functional deck for any commander, even ones EDHREC barely covers.
+        Picks the strongest cards for each <strong>role</strong> in your colors. Works for
+        commanders EDHREC barely covers.
       </p>
       <label className="gen-mode-toggle">
         <input
@@ -228,10 +221,7 @@ function OracleConfig({ customization, update }: Pick<Props, 'customization' | '
         />
         <span>
           <strong>Permanents only</strong>
-          <span className="gen-mode-toggle-hint">
-            No instants or sorceries. Every nonland is a permanent, so the deck dodges
-            counterspells.
-          </span>
+          <span className="gen-mode-toggle-hint">No instants or sorceries.</span>
         </span>
       </label>
     </>
@@ -254,8 +244,7 @@ function ArtConfig({
   return (
     <>
       <p className="gen-mode-explain">
-        Pick a motif. Every nonland card <strong>depicts it</strong>, in the printing whose art
-        matches. The finished list reads like a gallery.
+        Every nonland card <strong>depicts your motif</strong>, in the printing whose art matches.
       </p>
       {/* Native radios: exclusivity, arrow-key nav and one group tab stop
           come free. A free-typed motif below leaves every chip unchecked. */}
@@ -354,7 +343,7 @@ function HistoricalConfig({
         query={`year<=${year} -t:land`}
         colorIdentity={colorIdentity}
         caption={(n) => `≈${n.toLocaleString()} cards were printed through ${year} in these colors`}
-        emptyHint="Almost nothing that old in these colors — we'll reach forward when building."
+        emptyHint="Almost nothing that old in these colors. The build reaches forward."
       />
     </>
   );
@@ -432,7 +421,7 @@ function ScryfallPreview({
   }, [debounced, colorIdentity, colorKey]);
 
   if (state.status === 'idle') {
-    return <p className="gen-mode-preview-hint">Pick or type a motif to preview the pool.</p>;
+    return null;
   }
 
   return (

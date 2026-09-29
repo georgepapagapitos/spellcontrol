@@ -379,7 +379,7 @@ function ScryfallQueryRow({
               ? `${value.oracleIds.length.toLocaleString()} ${value.oracleIds.length === 1 ? 'card' : 'cards'} matched${truncated ? ` (capped at ${MAX_RESOLVED_IDS.toLocaleString()})` : ''} · resolved ${new Date(value.resolvedAt).toLocaleDateString()}${applied ? '' : ' · edited, re-run to apply'}`
               : trimmed
                 ? 'Press Run to resolve this query.'
-                : 'Matches the live Scryfall result set, snapshot to your owned cards.'}
+                : ''}
       </span>
     </div>
   );
@@ -438,7 +438,7 @@ export function FilterFieldEditor({
               Oracle tags{' '}
               <InfoTip
                 label="oracle tags filter"
-                text="Scryfall's tags (otags) group cards by concept. Pick “Mana rock” and the binder catches every card tagged that way. More precise than an oracle-text search, which “add” would also match against “addition”."
+                text="Scryfall's tags group cards by what they do. Pick “Mana rock” to catch every card tagged that way."
               />
             </>
           }
@@ -462,7 +462,7 @@ export function FilterFieldEditor({
               Scryfall query{' '}
               <InfoTip
                 label="Scryfall query filter"
-                text="Run any Scryfall search, like is:shockland or t:goblin o:haste, and the binder catches every owned card it returns. Searches can't run offline, so results are a snapshot. Re-run after new sets release."
+                text="Runs a Scryfall search, like is:shockland or t:goblin o:haste, and catches every owned card it returns. Results are a snapshot, so re-run after new sets."
               />
             </>
           }

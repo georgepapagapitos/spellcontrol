@@ -245,7 +245,7 @@ describe('each key and dock item opens one sheet', () => {
     render(<GameBoard game={game} dispatch={dispatch} canControlAll />);
     openRing();
     fireEvent.click(screen.getByRole('menuitem', { name: 'Players' }));
-    expect(screen.getByText(/Roster locks once the game starts/)).toBeTruthy();
+    expect(screen.getByText(/Seats lock once the game starts/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Restart…' }));
     expect(screen.getByText('Restart the game?')).toBeTruthy();
     expect(dispatch).not.toHaveBeenCalled();

@@ -221,9 +221,7 @@ describe('page breaks — kept in view, disabled with the reason, when they cann
       })
     );
     expect(screen.getByRole('button', { name: 'Page breaks' })).toHaveProperty('disabled', true);
-    expect(
-      screen.getByText('Sections come from your rules here, so pages break only between rules.')
-    ).toBeTruthy();
+    expect(screen.getByText('Pages break only between rules.')).toBeTruthy();
     expect(screen.getByRole('radio', { name: /^Keep sections whole/ })).toHaveProperty(
       'disabled',
       false
@@ -233,9 +231,8 @@ describe('page breaks — kept in view, disabled with the reason, when they cann
   it('are disabled while sections share pages, and come back under New page per section', () => {
     openToPages(makeBinderDef({ sorts: twoSorts, packSections: true }));
     expect(screen.getByRole('button', { name: 'Page breaks' })).toHaveProperty('disabled', true);
-    expect(
-      screen.getByText('Sections share pages here. Pick New page per section to break deeper.')
-    ).toBeTruthy();
+    // Page breaks and Leave room both need New page per section.
+    expect(screen.getAllByText('Needs “New page per section”.')).toHaveLength(2);
     fireEvent.click(screen.getByRole('radio', { name: /^New page per section/ }));
     expect(screen.getByRole('button', { name: 'Page breaks' })).toHaveProperty('disabled', false);
   });
@@ -258,11 +255,7 @@ describe('Leave room after each section', () => {
     openToPages(makeBinderDef({ packSections: 'continuous' }));
     expect(screen.getByRole('radio', { name: 'Half a page' })).toHaveProperty('disabled', true);
     expect(screen.getByRole('radio', { name: 'None' })).toHaveProperty('checked', true);
-    expect(
-      screen.getByText(
-        'Sections share pages here, so there is no page end to leave room at. Pick New page per section to use it.'
-      )
-    ).toBeTruthy();
+    expect(screen.getByText('Needs “New page per section”.')).toBeTruthy();
   });
 });
 

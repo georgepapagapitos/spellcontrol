@@ -227,7 +227,7 @@ describe('Import a cube → Build my version', () => {
       target: { value: 'https://cubecobra.com/cube/overview/legacy-cube' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Import' }));
-    await waitFor(() => screen.getByText(/Import your collection first/));
+    await waitFor(() => screen.getByText(/Import your collection to build your version/));
     expect(screen.queryByRole('button', { name: 'Build my version' })).toBeNull();
   });
 

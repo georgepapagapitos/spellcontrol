@@ -58,7 +58,7 @@ export function OfflineModeSettings(): React.ReactElement | null {
   } else if (hasData) {
     statusText = `${formatNumber(cardCount)} cards · ${formatBytes(sizeBytes)} · updated ${formatRelative(manifest!.oracleUpdatedAt)}`;
   } else {
-    statusText = 'Downloading… searches will use the live API until this finishes.';
+    statusText = 'Downloading… searches use the live API until then.';
   }
 
   return (
@@ -73,8 +73,7 @@ export function OfflineModeSettings(): React.ReactElement | null {
           Card data
         </h2>
         <p className="settings-card-hint">
-          Card and combo data are kept on this device, so search, deck generation, and combos work
-          offline. Refreshes automatically in the background.
+          Kept on this device so search, deck generation, and combos work offline.
         </p>
       </header>
       <div className="settings-card-body">
@@ -82,9 +81,6 @@ export function OfflineModeSettings(): React.ReactElement | null {
           <div className="settings-row-text">
             <div className="settings-row-label">Status</div>
             <div className="settings-row-value">{statusText}</div>
-            <div className="settings-row-hint">
-              Checks the server for newer card data and downloads it now.
-            </div>
           </div>
           <div className="settings-row-actions">
             <Button onClick={() => void sync()} disabled={syncing}>
@@ -96,9 +92,7 @@ export function OfflineModeSettings(): React.ReactElement | null {
           <div className="settings-row">
             <div className="settings-row-text">
               <div className="settings-row-label">Cached card data</div>
-              <div className="settings-row-hint">
-                Wipes the local card catalog. It re-downloads the next time you sign in.
-              </div>
+              <div className="settings-row-hint">Re-downloads the next time you sign in.</div>
             </div>
             <div className="settings-row-actions">
               <Button onClick={() => void clear()} disabled={syncing}>

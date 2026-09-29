@@ -219,8 +219,7 @@ export function BrewBuildPage(): JSX.Element {
       <header className="deck-builder-header">
         <h1>Brew mode</h1>
         <p className="deck-builder-subtitle">
-          Build the 99 one slot at a time. Each stop deals you a hand of candidates to add or pass,
-          and you review the manabase before the deck saves.
+          Build the 99 one slot at a time from a hand of candidates.
         </p>
       </header>
 

@@ -477,7 +477,7 @@ export function PlayPage() {
           ) : isGuest ? (
             <EmptyState
               tagline="Online games need an account."
-              hint="Sign in to host or join a multiplayer game so other players can sync to it. Local games work without an account."
+              hint="Sign in to host or join online. Local games work without an account."
               actions={
                 <Button variant="primary" to={signInHref}>
                   Sign in
@@ -1032,34 +1032,26 @@ function LocalSetup({
           <div className="play-setup-switches">
             <SwitchRow
               label="Commander damage"
-              hint="Lose at 21 combat damage from a single commander."
               checked={commanderDamageEnabled}
               onChange={setCmdDmg}
             />
             <SwitchRow
               label="Game timer"
-              hint="Show how long the game has run, with a pause."
               checked={gameTimerEnabled}
               onChange={setGameTimerEnabled}
             />
             <SwitchRow
               label="Turn tracker"
-              hint="Show whose turn it is and how long, and pass it from the clock."
+              hint="Marks the active seat and who's next."
               checked={turnTrackerEnabled}
               onChange={setTurnTrackerEnabled}
             />
             <SwitchRow
               label="Counterclockwise seating"
-              hint="Seats run the other way around the table."
               checked={turnOrder === 'counterclockwise'}
               onChange={(on) => setTurnOrder(on ? 'counterclockwise' : 'clockwise')}
             />
-            <SwitchRow
-              label="Poison counters"
-              hint="Lose at 10 poison counters."
-              checked={poisonEnabled}
-              onChange={setPoison}
-            />
+            <SwitchRow label="Poison counters" checked={poisonEnabled} onChange={setPoison} />
           </div>
         )}
 
@@ -1493,8 +1485,7 @@ function OnlineSetup({
               {hasActive ? 'Host a different game' : 'Host a game'}
             </h2>
             <p className="play-setup-help">
-              You'll get a 4-character code. Share it with friends so they can join from their own
-              devices.
+              You'll get a 4-character code to share.
               {hasActive && ' Hosting a new game will leave the one you have minimized.'}
             </p>
           </header>
@@ -1606,9 +1597,7 @@ function OnlineSetup({
         >
           <header className="play-setup-header">
             <h2 className="play-setup-title">Join a game</h2>
-            <p className="play-setup-help">
-              Enter the 4-character code shared by the host, then pick your name and deck.
-            </p>
+            <p className="play-setup-help">Enter the host's 4-character code.</p>
           </header>
 
           <section className="play-setup-row">

@@ -41,7 +41,7 @@ export function CommanderOpenSlot({ onChoose }: { onChoose: () => void }) {
           <p className="commander-open-slot-title">No commander yet</p>
           <p className="commander-open-slot-detail">
             <span className="commander-open-slot-detail-long">
-              Choose one when you&apos;re ready. Until then, every color shows.
+              Every color shows until you choose one.
             </span>
             <span className="commander-open-slot-detail-short">
               Every color shows until you choose.

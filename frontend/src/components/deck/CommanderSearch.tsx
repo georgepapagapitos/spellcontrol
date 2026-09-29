@@ -886,7 +886,7 @@ export function CommanderSearch({
                 Plays like
                 <InfoTip
                   label="Plays like"
-                  text="How this commander tends to win, read from its rules text. Change the commander and filter by playstyle to find more like it."
+                  text="How this commander tends to win, read from its rules text."
                 />
               </span>
               {playstyleMatches.map((m) => (

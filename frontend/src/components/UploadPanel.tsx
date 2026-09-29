@@ -59,9 +59,7 @@ import { Surface } from '@/components/shared/Surface';
 // never showed what their export actually looks like).
 const IMPORT_FORMAT_EXAMPLES = (
   <>
-    <p className="info-tip-lead">
-      Every export is auto-detected from its columns. No need to pick a format:
-    </p>
+    <p className="info-tip-lead">The format is detected from the columns:</p>
     <ul className="info-tip-list">
       <li>
         <strong>ManaBox</strong> CSV: <code>Name, Set code, Quantity, Foil, Scryfall ID</code>
@@ -73,10 +71,10 @@ const IMPORT_FORMAT_EXAMPLES = (
         <strong>Moxfield</strong> CSV: <code>Count, Tradelist Count, Name, Edition</code>
       </li>
       <li>
-        <strong>MTGA</strong>: one card per line, e.g. <code>4 Arcane Signet (KHM) 331</code>
+        <strong>MTGA</strong>: one card per line, <code>4 Arcane Signet (KHM) 331</code>
       </li>
       <li>
-        <strong>Plain text</strong>: one card per line, e.g. <code>4 Arcane Signet</code>
+        <strong>Plain text</strong>: one card per line, <code>4 Arcane Signet</code>
       </li>
     </ul>
   </>
@@ -804,7 +802,6 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
                 <Button
                   onClick={() => setScannerOpen(true)}
                   disabled={isLoading}
-                  title="Scan physical cards with your device camera"
                   className="import-upload-btn"
                   icon={<Camera width={14} height={14} strokeWidth={1.8} />}
                 >
@@ -815,7 +812,6 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
                 <Button
                   onClick={handlePickDrive}
                   disabled={isLoading || driveBusy}
-                  title="Browse Google Drive for a card list"
                   className="import-upload-btn"
                   icon={
                     driveBusy ? (
@@ -831,7 +827,6 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
               <Button
                 onClick={handlePickFile}
                 disabled={isLoading}
-                title="Upload CSV or TXT files"
                 className="import-upload-btn"
                 icon={
                   isLoading ? (
@@ -855,10 +850,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
             />
           </div>
 
-          <p className="import-card-desc">
-            Paste a card list or upload CSVs. Each card is matched to Scryfall and routed into your
-            binders.
-          </p>
+          <p className="import-card-desc">Paste a card list or upload CSVs.</p>
 
           {stagedFiles.length > 0 ? (
             <>
@@ -868,24 +860,21 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
                 onClear={handleClearStaged}
                 disabled={isLoading}
               />
-              <p className="import-card-desc">
-                {stageNote ??
-                  'Each file is imported as a separate entry in your import history. Upload more to add to this list.'}
-              </p>
+              <p className="import-card-desc">{stageNote ?? 'Each file imports separately.'}</p>
               {priorFilenameMatches.length > 0 && (
                 <p className="import-reimport-warning" role="alert">
                   {priorFilenameMatches.length === 1 ? (
                     <>
                       You already imported <strong>{priorFilenameMatches[0].name}</strong> (
                       {priorFilenameMatches[0].count.toLocaleString()} cards,{' '}
-                      {formatRelative(priorFilenameMatches[0].addedAt)}). Adding it again stacks a
-                      second copy of every card. Open Options below to replace instead.
+                      {formatRelative(priorFilenameMatches[0].addedAt)}). Importing it again adds a
+                      second copy of every card. Replace it in Options instead.
                     </>
                   ) : (
                     <>
                       <strong>{priorFilenameMatches.length}</strong> of these were imported before:{' '}
-                      {priorFilenameMatches.map((r) => r.name).join(', ')}. Adding them again stacks
-                      a second copy of every card. Open Options below to replace instead.
+                      {priorFilenameMatches.map((r) => r.name).join(', ')}. Importing them again
+                      adds a second copy of every card. Replace them in Options instead.
                     </>
                   )}
                 </p>
@@ -942,7 +931,6 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
                 <Button
                   onClick={handleFetchLink}
                   disabled={isLoading || linkBusy || !linkUrl.trim()}
-                  title="Fetch the card list from this link"
                   className="import-link-btn"
                   icon={
                     linkBusy ? (
@@ -968,19 +956,17 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
                   value: 'merge',
                   label: 'Add to collection',
                   hint:
-                    binders.length > 0
-                      ? 'Cards are routed through your binder rules.'
-                      : 'Cards go straight into your collection.',
+                    binders.length > 0 ? 'Cards are routed through your binder rules.' : undefined,
                 },
                 {
                   value: 'binder',
                   label: 'Add as a new binder',
-                  hint: 'Creates a new binder with these cards, in the order they were listed. Cards are also added to your collection.',
+                  hint: 'Keeps the listed order, and adds the cards to your collection too.',
                 },
                 {
                   value: 'replace',
                   label: 'Replace my collection',
-                  hint: 'Wipes your current collection and loads this import fresh, with no duplicates.',
+                  hint: 'Wipes your current collection first.',
                 },
               ]}
             />
@@ -1000,7 +986,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
             )}
             <SwitchRow
               label="Mark all as proxies"
-              hint="Proxy copies count as owned in your collection and binders, but carry no market value. Their cost, if any, still counts toward what you paid."
+              hint="Proxies count as owned but have no market value."
               checked={markAsProxies}
               onChange={setMarkAsProxies}
               disabled={isLoading}

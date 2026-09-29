@@ -122,9 +122,7 @@ export function DeckNewPage() {
       <BackLink to="/decks" label="All decks" />
       <header className="deck-builder-header">
         <h1>New deck</h1>
-        <p className="deck-builder-subtitle">
-          Pick how you want to build. You can change the format later.
-        </p>
+        <p className="deck-builder-subtitle">You can change the format later.</p>
       </header>
 
       {showImport && <ImportDeckDialog onClose={() => setShowImport(false)} format={format} />}

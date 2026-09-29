@@ -137,13 +137,6 @@ export function ImportCube() {
         </Button>
       </form>
 
-      {status === 'idle' && !result && (
-        <p className="cube-import-hint">
-          Paste a link to any public cube on CubeCobra. It&apos;s matched against your collection,
-          so you see exactly what you own and what you&apos;d need.
-        </p>
-      )}
-
       {/* aria-live region: always in DOM so screen readers catch transitions */}
       <div aria-live="polite" aria-atomic="true">
         {status === 'working' && (
@@ -294,14 +287,11 @@ export function ImportCube() {
                     : 'Build my version'}
               </Button>
               <p className="cube-build-mine-hint">
-                Keeps every card you own from this list, substitutes your closest match for the
-                rest, and leaves anything left over for your want list.
+                Keeps the cards you own and swaps in your closest match for the rest.
               </p>
             </>
           ) : (
-            <p className="cube-import-hint">
-              Import your collection first, so "Build my version" has something to draw from.
-            </p>
+            <p className="cube-import-hint">Import your collection to build your version.</p>
           )}
         </div>
       )}

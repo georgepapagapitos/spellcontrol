@@ -33,7 +33,7 @@ describe('AiFeaturesSettings', () => {
     render(<AiFeaturesSettings />);
     const row = await screen.findByRole('switch', { name: 'AI deck analysis' });
     expect(row.getAttribute('aria-checked')).toBe('false');
-    expect(screen.getByText('Off. Nothing is ever sent.')).toBeTruthy();
+    expect(screen.getByText('Off.')).toBeTruthy();
   });
 
   it('toggling the switch calls setAiOptIn and updates the checked state', async () => {

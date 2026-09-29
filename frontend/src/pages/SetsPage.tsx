@@ -361,7 +361,7 @@ function SetsIndex() {
         title="Sets"
         meta={
           progress.length === 0
-            ? 'Track how much of each Magic set you own.'
+            ? undefined
             : `${progress.length} ${progress.length === 1 ? 'set' : 'sets'} in your collection` +
               (completeCount > 0 ? ` · ${completeCount} complete` : '')
         }
@@ -764,7 +764,7 @@ function SetDetail({ code }: { code: string }) {
                 : filter === 'missing'
                   ? `You own every card in ${displayName}.`
                   : filter === 'owned'
-                    ? `Nothing from ${displayName} yet. Tap a card to add it.`
+                    ? `Nothing from ${displayName} yet.`
                     : `Scryfall lists no cards for ${displayName}.`}
             </p>
           ) : view === 'grid' ? (

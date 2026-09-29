@@ -45,7 +45,6 @@ import { LANGUAGE_OPTIONS } from '../lib/copy-options';
 import { RemoveCopiesDialog } from './RemoveCopiesDialog';
 import { BulkMoveToBinderSheet } from './BulkMoveToBinderSheet';
 import { useConfirm } from '../lib/use-confirm';
-import { useCanScan } from '../lib/use-can-scan';
 import { removeCopiesOfPrinting, printingFinishKey } from '../lib/collection-mutations';
 import { useToastsStore } from '../store/toasts';
 import { useRegisterShortcuts, isTypingTarget } from '../lib/shortcut-registry';
@@ -575,8 +574,6 @@ export function CardListTable({
   }, [clearSelection]);
   const [bulkMoveOpen, setBulkMoveOpen] = useState(false);
   const { confirm, dialog: confirmDialog } = useConfirm();
-  // Scanning is native-only (see use-can-scan) — don't promise it on web.
-  const canScan = useCanScan();
   const listContainerRef = useRef<HTMLDivElement>(null);
   const gridContainerRef = useRef<HTMLDivElement>(null);
   const controlsRowRef = useRef<HTMLDivElement>(null);
@@ -2362,12 +2359,7 @@ export function CardListTable({
         // and offer the Add cards sheet (search · list · scan) right here.
         <EmptyState
           tagline="Your collection is empty."
-          hint={
-            <>
-              Search for a card above to add it, or use Add cards to import a list
-              {canScan ? ' or scan your cards' : ''}.
-            </>
-          }
+          hint={'Search above to add a card, or use Add cards.'}
           actions={
             onAddCards && (
               <Button

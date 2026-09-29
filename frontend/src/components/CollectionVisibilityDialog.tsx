@@ -97,9 +97,7 @@ export function CollectionVisibilityDialog({
         <h2 id="collection-visibility-title" className="choice-dialog-title">
           Share your collection
         </h2>
-        <p className="choice-dialog-body">
-          Sharing needs an account, so you stay in control of who sees it.
-        </p>
+        <p className="choice-dialog-body">Sharing needs an account.</p>
         <div className="choice-dialog-actions">
           <Button onClick={onClose}>Not now</Button>
           <Button variant="primary" to={signInHref} onClick={onClose}>

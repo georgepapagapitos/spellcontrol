@@ -572,7 +572,7 @@ export function ProductSearchPanel({ onClose, context = 'collection' }: Props) {
           {unresolved > 0 && (
             <p className="product-detail-warn">
               {unresolved} card{unresolved === 1 ? '' : 's'} couldn't be matched to Scryfall and
-              will be skipped. Check the contents against the physical box.
+              will be skipped.
             </p>
           )}
 
@@ -642,7 +642,6 @@ export function ProductSearchPanel({ onClose, context = 'collection' }: Props) {
             {!cardListProduct && context === 'collection' && (
               <SwitchRow
                 label="Also build it as a deck"
-                hint="Creates the deck in Decks from these copies"
                 checked={alsoBuildDeck}
                 onChange={setAlsoBuildDeck}
                 disabled={busy}
@@ -651,7 +650,6 @@ export function ProductSearchPanel({ onClose, context = 'collection' }: Props) {
             {!cardListProduct && context === 'deck' && (
               <SwitchRow
                 label="Also add the cards to my collection"
-                hint="Adds every copy in the box to your collection too"
                 checked={alsoAddToCollection}
                 onChange={setAlsoAddToCollection}
                 disabled={busy}
@@ -713,9 +711,7 @@ export function ProductSearchPanel({ onClose, context = 'collection' }: Props) {
         )}
         {listError && <p className="card-picker-empty add-card-sheet-error">{listError}</p>}
         {!loadingList && !listError && results.length === 0 && (
-          <p className="card-picker-empty">
-            No matching products. Newly released products may not be catalogued yet.
-          </p>
+          <p className="card-picker-empty">No matching products. New releases may be missing.</p>
         )}
         {!loadingList && results.length > 0 && (
           <ul className="product-result-list">

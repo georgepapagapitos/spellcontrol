@@ -83,9 +83,7 @@ export function CardOtagsSheet({ card, onClose }: Props) {
         ) : !ready ? (
           <div className="card-picker-empty">Loading tags…</div>
         ) : tags.length === 0 ? (
-          <div className="card-picker-empty">
-            No function tags in the local snapshot for this card.
-          </div>
+          <div className="card-picker-empty">No function tags for this card.</div>
         ) : (
           <ul className="card-picker-list" role="list">
             {tags.map((tag) => (
@@ -118,8 +116,7 @@ export function CardOtagsSheet({ card, onClose }: Props) {
         )}
 
         <p className="card-otags-note">
-          Tags come from Scryfall's community Tagger project; this app bundles a snapshot of
-          function tags.
+          Tags come from Scryfall's community Tagger project.
           {taggerUrl && (
             <>
               {' '}

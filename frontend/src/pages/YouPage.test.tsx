@@ -4,7 +4,7 @@
  *
  * Verifies:
  *  - UX-332: guest-state account card explains that local data merges on sign-in.
- *  - UX-335: InfoTip for "deck allocations" renders; InfoTip for "binders, lists, and decks" renders.
+ *  - UX-335: InfoTip for "deck allocations" renders;
  *  - w7-you-ia: the page's tier hierarchy (Identity → Preferences → Your data)
  *    and the Friends pointer row that replaced the inline FriendsManagement
  *    mount now that Friends lives at its own /friends route.
@@ -146,7 +146,7 @@ describe('UX-332 — Settings account card honesty copy', () => {
   it('explains that local data merges on sign-in when the user is not signed in', () => {
     renderYouPage();
     // The guest-state row should mention that local cards will be added to the account.
-    expect(screen.getByText(/sync the cards here into your account/i)).toBeTruthy();
+    expect(screen.getByText(/sign in to sync it to your account/i)).toBeTruthy();
   });
 });
 
@@ -155,12 +155,6 @@ describe('UX-335 — Settings InfoTips', () => {
     renderYouPage();
     // The InfoTip's aria-label is "What is deck allocations?"
     const tip = screen.getByRole('button', { name: /what is deck allocations/i });
-    expect(tip).toBeTruthy();
-  });
-
-  it('renders the binders, lists, and decks InfoTip trigger', () => {
-    renderYouPage();
-    const tip = screen.getByRole('button', { name: /what is binders, lists, and decks/i });
     expect(tip).toBeTruthy();
   });
 });
@@ -217,19 +211,17 @@ describe('w7-you-ia — Friends pointer', () => {
 });
 
 describe('you-page — hero copy', () => {
-  it('is titled "You" for a guest, with a meta line that does not promise a Profile card', () => {
+  it('is titled "You" for a guest, with no Profile card', () => {
     renderYouPage();
     expect(screen.getByRole('heading', { level: 1, name: 'You' })).toBeTruthy();
-    expect(screen.getByText('Account, appearance, and data tools.')).toBeTruthy();
     expect(screen.queryByRole('heading', { name: 'Profile' })).toBeNull();
   });
 
-  it('is titled "You" for a signed-in player, with Profile named in the meta line', () => {
+  it('is titled "You" for a signed-in player, with a Profile card', () => {
     authState.user = { username: 'alice', id: 'u1' };
     authState.status = 'authed';
     renderYouPage();
     expect(screen.getByRole('heading', { level: 1, name: 'You' })).toBeTruthy();
-    expect(screen.getByText('Profile, account, appearance, and data tools.')).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Profile' })).toBeTruthy();
   });
 
@@ -549,7 +541,7 @@ describe('T117 — Sign-in methods: Password and Email rows', () => {
     renderYouPage('/?section=sign-in');
     const offSwitch = await screen.findByRole('switch', { name: 'Email notifications' });
     expect(offSwitch.hasAttribute('disabled')).toBe(true);
-    expect(screen.getByText('Add a verified email above to get these.')).toBeTruthy();
+    expect(screen.getByText('Needs a verified email.')).toBeTruthy();
   });
 
   it('T117 — Email notifications switch is enabled and toggles with a verified email', async () => {

@@ -120,7 +120,7 @@ export function CollectionExportDialog({ cards, binderName, onClose }: Props) {
           </div>
         </div>
         <p className="export-dialog-hint">
-          {option.description} Saves as <code>{fileName}</code>.
+          Saves as <code>{fileName}</code>.
         </p>
         <textarea
           className="export-dialog-preview"

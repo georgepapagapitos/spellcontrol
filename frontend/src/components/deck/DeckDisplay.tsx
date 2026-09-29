@@ -2039,7 +2039,7 @@ export function DeckDisplay({
             {confirmBulkRemove && selection && onBulkRemove && (
               <ConfirmDialog
                 title={`Remove ${selection.keys.size} ${selection.keys.size === 1 ? 'card' : 'cards'}?`}
-                body="Removes the selected cards. Undo from the editor's history right after."
+                body="Removes the selected cards. You can undo this from history."
                 confirmLabel="Remove"
                 danger
                 onConfirm={() => {
@@ -2112,8 +2112,8 @@ export function DeckDisplay({
                   label="role filter"
                   text={
                     <p className="info-tip-lead">
-                      Each card counts once, under its main role, the same count as the Roles panel
-                      on Power. Tap a chip to spotlight those cards, tap again to clear.
+                      Each card counts once, under its main role. Tap a chip to spotlight those
+                      cards.
                     </p>
                   }
                 />
@@ -2142,7 +2142,7 @@ export function DeckDisplay({
                       <p className="deck-empty-state-detail">
                         {chooseCommander
                           ? 'Add cards, or choose a commander first.'
-                          : 'Open Add cards to search for cards and start your list.'}
+                          : 'Open Add cards to start your list.'}
                       </p>
                     </div>
                     <div

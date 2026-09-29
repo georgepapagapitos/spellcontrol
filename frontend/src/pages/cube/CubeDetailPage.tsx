@@ -397,7 +397,7 @@ export function CubeDetailPage() {
             icon: Boxes,
             primary: true,
             disabled: rebuildStatus === 'working' || target.cube.picks.length === 0,
-            title: "Regenerate with this cube's settings, keeping locked cards.",
+            title: 'Keeps locked cards.',
             onClick: () => setRebuildConfirmOpen(true),
           },
           { label: 'Share', icon: Share2, opensDialog: true, onClick: () => setShareOpen(true) },
@@ -489,7 +489,7 @@ export function CubeDetailPage() {
         {tab === 'pull' && !target.isPhysical && (
           <EmptyState
             tagline="Mark this cube physical first."
-            hint="A pull list only makes sense once a cube's cards are reserved from your binders."
+            hint="Pull lists come from cards reserved out of your binders."
             actions={
               <Button variant="primary" onClick={handleTogglePhysical}>
                 Mark physical
@@ -510,7 +510,7 @@ export function CubeDetailPage() {
       {physicalConfirmOpen && (
         <ConfirmDialog
           title="Mark as a physical cube?"
-          body={`"${target.name}" will reserve one of your copies for each card it can. Those copies stop showing as available for decks and binders, like sleeving the cards into the cube. You can unmark it any time to free them.`}
+          body={`"${target.name}" will reserve one of your copies for each card it can. Those copies stop showing as available for decks and binders. You can unmark it any time to free them.`}
           confirmLabel="Mark physical"
           onConfirm={confirmPhysical}
           onCancel={() => setPhysicalConfirmOpen(false)}
@@ -532,7 +532,7 @@ export function CubeDetailPage() {
       {banTarget && (
         <ConfirmDialog
           title={`Ban ${banTarget.name}?`}
-          body="Removed now, and never picked again on this cube's future rebuilds. Unban it later from the cube's overflow menu."
+          body="Removes it now and keeps it out of future rebuilds. Unban it from the cube's menu."
           confirmLabel="Ban card"
           danger
           onConfirm={confirmBan}

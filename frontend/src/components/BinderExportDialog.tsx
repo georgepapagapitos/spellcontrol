@@ -81,10 +81,7 @@ export function BinderExportDialog({ binders, activeId, onClose }: Props) {
       <h2 id="binder-export-title" className="choice-dialog-title">
         Export
       </h2>
-      <p className="choice-dialog-body">
-        Export a JSON backup that can be re-imported via Restore. Cards include the full Scryfall
-        enrichment used by this app.
-      </p>
+      <p className="choice-dialog-body">Backups re-import with Restore.</p>
       <div className="choice-dialog-options">
         <button
           type="button"
@@ -111,10 +108,7 @@ export function BinderExportDialog({ binders, activeId, onClose }: Props) {
           <span className="choice-dialog-option-title">
             {active ? `This binder as a file: ${active.def.name}` : 'This binder as a file'}
           </span>
-          <span className="choice-dialog-option-desc">
-            Cards only, one row per copy, as a SpellControl, Moxfield or Archidekt CSV or an Arena
-            list. No rule definitions.
-          </span>
+          <span className="choice-dialog-option-desc">Cards only, one row per copy. No rules.</span>
         </button>
         <button
           type="button"
@@ -126,8 +120,7 @@ export function BinderExportDialog({ binders, activeId, onClose }: Props) {
             {active ? `Print checklist: ${active.def.name}` : 'Print checklist'}
           </span>
           <span className="choice-dialog-option-desc">
-            A plain checklist: name, quantity, set/collector number. Grouped the same way this
-            binder is.
+            A plain checklist, grouped like this binder.
           </span>
         </button>
         <button
@@ -138,15 +131,13 @@ export function BinderExportDialog({ binders, activeId, onClose }: Props) {
         >
           <span className="choice-dialog-option-title">All binders</span>
           <span className="choice-dialog-option-desc">
-            {binders.length} binder{binders.length === 1 ? '' : 's'} and every card routed to one of
-            them. Uncategorized cards aren't included.
+            {binders.length} binder{binders.length === 1 ? '' : 's'} and their cards. Uncategorized
+            cards aren't included.
           </span>
         </button>
         <button type="button" className="choice-dialog-option" onClick={() => handlePick('full')}>
           <span className="choice-dialog-option-title">Full collection</span>
-          <span className="choice-dialog-option-desc">
-            Everything: all cards, including uncategorized, all binder definitions, and every deck.
-          </span>
+          <span className="choice-dialog-option-desc">Every card, binder and deck.</span>
         </button>
       </div>
       <div className="choice-dialog-actions">

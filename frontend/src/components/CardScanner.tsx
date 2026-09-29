@@ -1130,9 +1130,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       )}
 
       {firstCard && (
-        <p className="scanner-card-panel scanner-card-panel-empty">
-          Cards you scan show up here. Scanning starts on its own.
-        </p>
+        <p className="scanner-card-panel scanner-card-panel-empty">Cards you scan show up here.</p>
       )}
 
       {/* The last-scan panel: the card just read, its price, and its finish

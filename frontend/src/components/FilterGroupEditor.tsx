@@ -407,7 +407,7 @@ function FilterGroupFields({
             Type line{' '}
             <InfoTip
               label="type line filter"
-              text="Matches anywhere in the type line: 'Legendary Creature' works. Each chip flips between IS and IS NOT: IS Creature with IS NOT Legendary leaves out legendary creatures. Supertype, Card type and Subtype match one part."
+              text="Matches anywhere in the type line. Each chip flips between IS and IS NOT, so IS Creature with IS NOT Legendary leaves out legendary creatures."
             />
           </>
         }
@@ -530,7 +530,7 @@ function FilterGroupFields({
             Mana cost{' '}
             <InfoTip
               label="mana cost filter"
-              text="Exact mana cost match. Use Scryfall syntax with curly braces, like {2}{G}{W} or {1}{R/W}. Leave blank to ignore."
+              text="Exact match, in Scryfall syntax like {2}{G}{W}. Leave blank to ignore."
             />
           </>
         }
@@ -551,7 +551,7 @@ function FilterGroupFields({
             Commander{' '}
             <InfoTip
               label="commander eligibility"
-              text="Matches legal commanders: legendary creatures and any card that says “can be your commander”, including planeswalker-commanders."
+              text="Legendary creatures and any card that says “can be your commander”."
             />
           </>
         }
@@ -565,18 +565,7 @@ function FilterGroupFields({
       </RuleRow>
 
       {/* Proxy */}
-      <RuleRow
-        fieldId="proxy"
-        label={
-          <>
-            Proxy{' '}
-            <InfoTip
-              label="proxy filter"
-              text="Matches cards flagged as proxies: stand-ins with no market value."
-            />
-          </>
-        }
-      >
+      <RuleRow fieldId="proxy" label="Proxy">
         <SegmentedControl
           ariaLabel="Proxy"
           value={triState(filter.proxy)}
@@ -593,7 +582,7 @@ function FilterGroupFields({
             Spare copies{' '}
             <InfoTip
               label="spare copies"
-              text="Copies past the one you keep of each card. Copies in a deck or cube are never spare, and neither are basic lands. Of the rest, you keep the priciest copy."
+              text="Copies beyond the priciest one you keep of each card. Copies in a deck or cube and basic lands are never spare."
             />
           </>
         }
@@ -623,7 +612,7 @@ function FilterGroupFields({
             EDHREC popularity{' '}
             <InfoTip
               label="EDHREC popularity"
-              text="EDHREC tracks how often each card appears in EDH/Commander decks. Lower rank = more popular. Top 100 = roughly the most-played 100 cards across the format."
+              text="Lower rank means more popular. Top 100 is the 100 most-played Commander cards."
             />
           </>
         }
@@ -683,8 +672,8 @@ function FilterGroupFields({
         {visibleFields.size === 0 && (
           <span className="rule-add-hint">
             {emptyGroupMatchesNothing
-              ? 'No conditions yet. This rule matches nothing until you add one.'
-              : 'No conditions yet. This rule takes every card the binders above leave over.'}
+              ? 'No conditions yet. This rule matches nothing.'
+              : 'No conditions yet. This rule takes every card the binders above leave.'}
           </span>
         )}
       </div>

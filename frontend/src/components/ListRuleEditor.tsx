@@ -120,10 +120,6 @@ export function ListRuleEditor({ list, onClose }: Props) {
       </div>
 
       <div className="modal-body">
-        <p className="form-field-hint">
-          Cards from your collection that match this rule appear in the list automatically. New
-          imports included.
-        </p>
         <FilterGroupList
           groups={groups}
           cards={taggedCards}

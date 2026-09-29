@@ -329,10 +329,7 @@ export function CollectionCombosPage() {
 
       {partial && (
         <div className="deck-combos-partial-banner" role="status" aria-live="polite">
-          <span>
-            Showing partial results. The full combo dataset didn't load, so some combos may be
-            missing.
-          </span>
+          <span>Showing partial results. Some combos didn't load.</span>
           <Button variant="link" onClick={refetch} disabled={loading}>
             {loading ? 'Retrying…' : 'Retry'}
           </Button>
@@ -459,7 +456,7 @@ export function CollectionCombosPage() {
                   )}
                 </>
               ) : (
-                <p>No combos one card away. Try expanding your collection.</p>
+                <p>No combos one card away.</p>
               )}
             </div>
           )}

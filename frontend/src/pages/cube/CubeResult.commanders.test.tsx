@@ -143,7 +143,7 @@ describe('CubeResult — Commanders section (board #12, PR3)', () => {
     // size 180 → LEGEND_TARGET 60; 10 legends is well short.
     const legends = Array.from({ length: 10 }, (_, i) => legend(i));
     const gapText =
-      'Only 10 legendary creatures are eligible, 50 short of the 60-commander target. Own more legends to fill it out.';
+      'Only 10 legendary creatures are eligible, 50 short of the 60-commander target.';
     renderCube(
       cube({
         format: 'commander',

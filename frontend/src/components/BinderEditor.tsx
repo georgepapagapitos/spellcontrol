@@ -1078,7 +1078,7 @@ export function BinderEditor() {
           />
         </div>
       </Field>
-      <Field label="Sides" hint="Double-sided sheets hold twice as much.">
+      <Field label="Sides">
         <SegmentedControl
           ariaLabel="Sides"
           value={doubleSided}
@@ -1096,14 +1096,7 @@ export function BinderEditor() {
           }}
         />
       </Field>
-      <Field
-        label="Holds"
-        hint={
-          fixedCapacity === null
-            ? 'The binder grows with its cards.'
-            : 'Past this, the cards go on into another volume.'
-        }
-      >
+      <Field label="Holds">
         <div className="binder-holds" ref={holdsRef}>
           <SegmentedControl
             ariaLabel="Holds"
@@ -1228,11 +1221,7 @@ export function BinderEditor() {
       </Field>
       <Field
         label="Leave room after each section"
-        hint={
-          sharing
-            ? 'Sections share pages here, so there is no page end to leave room at. Pick New page per section to use it.'
-            : 'Empty pockets for cards you add later, so nothing after them moves.'
-        }
+        hint={sharing ? 'Needs “New page per section”.' : undefined}
       >
         <SegmentedControl
           ariaLabel="Leave room after each section"
@@ -1249,9 +1238,9 @@ export function BinderEditor() {
           label="Page breaks"
           hint={
             rulesSections
-              ? 'Sections come from your rules here, so pages break only between rules.'
+              ? 'Pages break only between rules.'
               : sharing
-                ? 'Sections share pages here. Pick New page per section to break deeper.'
+                ? 'Needs “New page per section”.'
                 : undefined
           }
         >
@@ -1283,7 +1272,7 @@ export function BinderEditor() {
       ? `“${ruleHeader(0)}”, then “${ruleHeader(1)}”${
           groups.length > 2 ? ` and ${groups.length - 2} more` : ''
         }.`
-      : `“${ruleHeader(0)}”, then your next rule. Needs two or more rules.`;
+      : 'Needs two or more rules.';
 
   return (
     <>
@@ -1442,13 +1431,13 @@ export function BinderEditor() {
                       <div className="binder-editor-switches">
                         <SwitchRow
                           label="Include cards in decks and cubes"
-                          hint="Off: a card in a deck or cube stays hidden here, even one added by hand, until you take it out."
+                          hint="Off hides a card that is in a deck or cube, even one pinned by hand."
                           checked={showDeckAllocated}
                           onChange={setShowDeckAllocated}
                         />
                         <SwitchRow
                           label="Keep printings together"
-                          hint="When one copy matches here, its other printings come too, unless a binder above already took them."
+                          hint="A matching card brings its other printings along."
                           checked={keepPrintingsTogether}
                           onChange={setKeepPrintingsTogether}
                         />
@@ -1472,9 +1461,8 @@ export function BinderEditor() {
                         </p>
                       ) : (
                         <div className="warn-banner binder-editor-warn">
-                          This binder has no conditions, so it takes every card the binders below it
-                          were meant to get. Add a condition, or move it to the bottom of your
-                          binder list.
+                          This binder has no conditions, so it takes cards meant for the binders
+                          below it. Add a condition or move it to the bottom.
                         </div>
                       ))}
 
@@ -1533,7 +1521,7 @@ export function BinderEditor() {
 
                   <SwitchRow
                     label="Offer for trade"
-                    hint="Cards here can appear on a game night's trade board when you opt in."
+                    hint="Shows on a game night's trade board when you opt in."
                     checked={tradeable}
                     onChange={setTradeable}
                   />
@@ -1650,7 +1638,7 @@ export function BinderEditor() {
 
               <SwitchRow
                 label="Mark all as proxies"
-                hint="Proxies count as owned but carry no market value. What you paid still counts."
+                hint="Proxies count as owned but have no market value."
                 checked={importAsProxies}
                 onChange={setImportAsProxies}
                 disabled={saving}
@@ -1671,7 +1659,7 @@ export function BinderEditor() {
 
               <SwitchRow
                 label="Offer for trade"
-                hint="Cards here can appear on a game night's trade board when you opt in."
+                hint="Shows on a game night's trade board when you opt in."
                 checked={tradeable}
                 onChange={setTradeable}
                 disabled={saving}

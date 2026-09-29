@@ -235,9 +235,7 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
         <h2 id="share-dialog-title" className="choice-dialog-title">
           Share {resourceLabel}
         </h2>
-        <p className="choice-dialog-body">
-          Sharing needs an account, so you stay in control of who sees it.
-        </p>
+        <p className="choice-dialog-body">Sharing needs an account.</p>
         <div className="choice-dialog-actions">
           <Button onClick={onClose}>Not now</Button>
           <Button variant="primary" to={signInHref} onClick={onClose}>
@@ -326,7 +324,6 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
           {showQr && (
             <div className="share-qr-panel" id="share-qr-panel">
               <ShareQrCode value={url} label={`QR code for ${resourceLabel}`} />
-              <p className="share-qr-caption">Scan with a phone camera to open this link.</p>
             </div>
           )}
         </>

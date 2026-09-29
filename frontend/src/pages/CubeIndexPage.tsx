@@ -86,7 +86,7 @@ export function CubeIndexPage() {
       ) : saved.length === 0 ? (
         <EmptyState
           tagline="Build your first cube."
-          hint="A cube is a draft-sized pool pulled from your collection: best cards, an archetype-leaning build, or a mix."
+          hint="A cube is a draft-sized pool built from your collection."
           actions={
             <Button
               to="/decks/cube/new"
@@ -156,7 +156,7 @@ export function CubeIndexPage() {
       {physicalTarget && (
         <ConfirmDialog
           title="Mark as a physical cube?"
-          body={`"${physicalTarget.name}" will reserve one of your copies for each card it can. Those copies stop showing as available for decks and binders, like sleeving the cards into the cube. You can unmark it any time to free them.`}
+          body={`"${physicalTarget.name}" will reserve one of your copies for each card it can. Those copies stop showing as available for decks and binders. You can unmark it any time to free them.`}
           confirmLabel="Mark physical"
           onConfirm={confirmPhysical}
           onCancel={() => setPhysicalTarget(null)}

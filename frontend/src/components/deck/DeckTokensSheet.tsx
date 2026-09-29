@@ -60,8 +60,7 @@ export function DeckTokensSheet({
                 a zero-tokens empty state here can never render. Deleted
                 rather than kept as dead code. */}
             <p className="deck-tokens-sheet-sub">
-              Grab these before you play. {tokens.length} {tokens.length === 1 ? 'token' : 'tokens'}
-              .
+              {tokens.length} {tokens.length === 1 ? 'token' : 'tokens'}
             </p>
           </div>
           <IconButton

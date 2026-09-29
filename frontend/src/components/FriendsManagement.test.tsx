@@ -180,7 +180,6 @@ describe('FriendsManagement — Activity tab', () => {
     openActivityTab();
 
     expect(await screen.findByText(/nothing new from friends yet/i)).toBeTruthy();
-    expect(screen.getByText(/fills in as friends publish decks/i, { exact: false })).toBeTruthy();
   });
 
   it('shows an error row with Retry, and a successful retry loads the list', async () => {

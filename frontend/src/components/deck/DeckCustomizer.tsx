@@ -208,12 +208,12 @@ export function DeckCustomizer({ customization, update }: DeckCustomizerProps) {
                 <CardListGroup
                   hint={
                     poolFetcher
-                      ? `These cards are forced into the deck before EDHREC suggestions are considered. While "Build from my collection" is on, search is limited to ${
+                      ? `These cards go in first. While "Build from my collection" is on, search is limited to ${
                           customization.collectionStrategy === 'available'
                             ? 'free copies in your collection'
                             : 'cards you own'
                         }.`
-                      : 'These cards are forced into the deck before EDHREC suggestions are considered.'
+                      : 'These cards go in first.'
                   }
                   values={customization.mustIncludeCards}
                   onChange={(next) => update({ mustIncludeCards: next })}
@@ -225,7 +225,7 @@ export function DeckCustomizer({ customization, update }: DeckCustomizerProps) {
                 summary={count(customization.bannedCards.length, 'card', 'cards') ?? 'None'}
               >
                 <CardListGroup
-                  hint="These cards will never be suggested by the generator."
+                  hint="The generator never picks these cards."
                   values={customization.bannedCards}
                   onChange={(next) => update({ bannedCards: next })}
                 />
@@ -392,7 +392,7 @@ function SaltGroup({ customization, update }: DeckCustomizerProps) {
         <a href="https://edhrec.com/top/salt" target="_blank" rel="noopener noreferrer">
           EDHREC&apos;s salt scores
         </a>{' '}
-        tally votes for the most-hated cards in the format: Stax, Armageddon, Cyclonic Rift.
+        rank the most-hated cards in the format.
       </p>
       <ChoiceList<0 | 1 | 2 | 3>
         ariaLabel="Salt level"
@@ -486,11 +486,11 @@ function CollectionGroup({ customization, update }: DeckCustomizerProps) {
     ? 'Import cards on the Collection page to enable this.'
     : active
       ? strategy === 'partial'
-        ? `Aims for about ${pct}% owned; the rest come from outside your collection.`
+        ? `Aims for about ${pct}% owned.`
         : strategy === 'available'
           ? 'Uses only copies not committed to other decks.'
           : strategy === 'prefer'
-            ? 'Builds the best deck it can, leaning on cards you already own. No card is excluded.'
+            ? 'Leans on cards you own. Nothing is excluded.'
             : 'Uses only cards you own.'
       : 'Constrain the build to your owned cards.';
   return (
@@ -665,25 +665,25 @@ const MP_AXES: {
   {
     key: 'reliable',
     label: 'Color fixing',
-    hint: "Favors lands that tap more of your deck's colors over off-color picks.",
+    hint: "Lands that tap more of your deck's colors.",
     color: 'var(--accent)',
   },
   {
     key: 'greedy',
     label: 'Utility',
-    hint: 'Favors lands with a real ability, like draw, scry, or damage, over plain fixing.',
+    hint: 'Lands with a real ability, like draw or scry.',
     color: 'var(--info)',
   },
   {
     key: 'spelllands',
     label: 'Spell-lands',
-    hint: 'Favors modal double-faced cards you can cast as a spell instead of playing as a land.',
+    hint: 'Modal double-faced cards you can cast as a spell.',
     color: 'var(--success)',
   },
   {
     key: 'budget',
     label: 'Budget',
-    hint: 'Favors cheaper lands. Capped, so it never fully overrules the other priorities.',
+    hint: 'Cheaper lands.',
     color: 'var(--warn-text)',
   },
 ];
@@ -697,11 +697,6 @@ function ManaPhilosophyGroup({ customization, update }: DeckCustomizerProps) {
 
   return (
     <div className="mana-philosophy-group">
-      <p className="deck-customizer-hint">
-        Blend four priorities for the nonbasic lands the generator picks: reliable color fixing,
-        useful abilities, modal spell-lands, and price. Off by default: every deck keeps today's
-        land priority until you turn this on.
-      </p>
       <label className="collection-group-row">
         <input
           type="checkbox"
@@ -716,9 +711,7 @@ function ManaPhilosophyGroup({ customization, update }: DeckCustomizerProps) {
         <span className="collection-group-text">
           <span className="collection-group-title">Blend land priorities</span>
           <span className="collection-group-sub">
-            {active
-              ? 'Blending the four priorities below into the nonbasic land picks.'
-              : 'Off. Lands use the default priority order.'}
+            {active ? 'Favoring the priorities below.' : 'Off. Lands use the default order.'}
           </span>
         </span>
       </label>
@@ -783,11 +776,6 @@ function ManaPhilosophyGroup({ customization, update }: DeckCustomizerProps) {
               </div>
             );
           })}
-
-          <p className="deck-customizer-slider-desc">
-            Every priority keeps a small floor. None ever drops to zero, so even a maxed-out slider
-            still leaves the others a little room.
-          </p>
         </div>
       )}
     </div>
@@ -850,10 +838,7 @@ function PoolGroup({ customization, update }: DeckCustomizerProps) {
         />
       </Field>
 
-      <Field
-        label="Max card rarity"
-        hint="Cards in your collection bypass this cap when the toggle below is on."
-      >
+      <Field label="Max card rarity">
         <SelectMenu<Exclude<MaxRarity, null> | 'all'>
           ariaLabel="Max card rarity"
           value={customization.maxRarity ?? 'all'}
@@ -875,7 +860,7 @@ function PoolGroup({ customization, update }: DeckCustomizerProps) {
         />
       )}
 
-      <Field label="Game changers" hint="EDHREC-flagged high-impact cards.">
+      <Field label="Game changers">
         <GameChangerOptions
           value={customization.gameChangerLimit}
           onChange={(v) => update({ gameChangerLimit: v })}
@@ -898,7 +883,6 @@ function PoolGroup({ customization, update }: DeckCustomizerProps) {
 
       <SwitchRow
         label="Arena only"
-        hint="Only cards playable on MTG Arena."
         checked={customization.arenaOnly}
         onChange={(v) => update({ arenaOnly: v })}
       />
@@ -947,10 +931,7 @@ function BanListsGroup({ customization, update }: DeckCustomizerProps) {
 
   return (
     <>
-      <p className="deck-customizer-hint">
-        Pulled live from Scryfall. Every card banned in the format is excluded from generation, on
-        top of your own excluded cards.
-      </p>
+      <p className="deck-customizer-hint">Cards banned in the format are left out of the build.</p>
       <div className="ban-preset-row">
         {BAN_PRESETS.map(({ format, label }) => {
           const applied = lists.find((l) => l.id === format);
@@ -1065,26 +1046,6 @@ function TempoGroup({ customization, update }: DeckCustomizerProps) {
   }));
   return (
     <>
-      <p
-        style={{
-          margin: '0 0 0.75rem',
-          fontSize: '0.85em',
-          lineHeight: 1.4,
-          opacity: 0.75,
-        }}
-      >
-        Tempo shapes the mana curve and play pattern. Aggressive decks load up on cheap threats,
-        late-game decks lean on big payoffs. Auto-detect picks a profile from{' '}
-        <a
-          href="https://edhrec.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ color: 'inherit', textDecoration: 'underline' }}
-        >
-          EDHREC
-        </a>
-        &apos;s stats for your commander.
-      </p>
       <SwitchRow
         label="Auto-detect from EDHREC stats"
         checked={customization.tempoAutoDetect}
@@ -1106,7 +1067,7 @@ function TempoGroup({ customization, update }: DeckCustomizerProps) {
 // ── Scryfall query ────────────────────────────────────────────────────────
 function ScryfallGroup({ customization, update }: DeckCustomizerProps) {
   return (
-    <Field label="Additional Scryfall query" hint="Appended to every card-pool query.">
+    <Field label="Additional Scryfall query">
       <input
         type="text"
         className="deck-customizer-text-input"

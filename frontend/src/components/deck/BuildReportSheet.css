@@ -165,16 +165,6 @@
   line-height: 1.2;
 }
 
-.build-report-sheet-subheading {
-  position: relative;
-  z-index: 1;
-  margin: 0;
-  font-family: var(--font-serif);
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  line-height: 1.4;
-}
-
 /* ── Body ──────────────────────────────────────────────────────────────── */
 .build-report-sheet-body {
   display: flex;

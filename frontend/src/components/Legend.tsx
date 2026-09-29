@@ -316,8 +316,8 @@ export function LegendContent({ context }: { context: LegendContext }) {
               word="A tag you applied — press and hold a row's tag button, then swipe"
             />
             <div className="legend-footnote">
-              Role badges are detected automatically; tags are yours. Ramp / Draw / Removal /
-              Interaction tags also count toward role health in Analysis.
+              Role badges are detected automatically; tags are yours. Ramp, Draw, Removal, and
+              Interaction tags count toward role health.
             </div>
           </Section>
           <Section title="Markers">

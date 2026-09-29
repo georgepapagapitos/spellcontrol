@@ -142,7 +142,6 @@ export function FillDeckSheet({
     return GROUPS.filter((g) => by.has(g)).map((g) => ({ group: g, cards: by.get(g)! }));
   }, [phase]);
 
-  const commanderName = deck.commander?.name ?? 'this commander';
   const additions = phase.kind === 'review' ? phase.result.plan.additions : [];
 
   return (
@@ -176,9 +175,7 @@ export function FillDeckSheet({
           {phase.kind === 'setup' && (
             <>
               <p className="fill-deck-lead">
-                Every card you picked stays. The builder finds the rest from EDHREC data for{' '}
-                {commanderName}, favoring cards that play well with yours, and shows you the list
-                before anything is added.
+                Every card you picked stays. You review the rest before anything is added.
               </p>
               <fieldset className="bracket-pill-row fill-deck-lean" aria-label="Lean toward">
                 {LEANS.map((l) => (

@@ -2153,8 +2153,8 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       headline="Play a card"
       detail={
         dragHintCoarsePointer
-          ? 'Drag a card onto the battlefield to play it, or hold it to choose from the menu.'
-          : 'Drag a card onto the battlefield to play it, or right-click it to choose from the menu.'
+          ? 'Drag a card onto the battlefield, or hold it for the menu.'
+          : 'Drag a card onto the battlefield, or right-click it for the menu.'
       }
       onDismiss={retireDragHint}
     />
@@ -3741,9 +3741,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
             min: ZOOM_MIN,
             max: ZOOM_MAX,
             step: ZOOM_STEP,
-            hint: isNarrow
-              ? 'The battlefield and the zone piles follow it. Your hand keeps the size that fits the screen.'
-              : 'Your hand, the battlefield and the zone piles all follow it. The = and − keys step it too.',
+            hint: isNarrow ? 'Your hand keeps its own size.' : 'The = and − keys step it too.',
             onZoom: setZoomTo,
           }}
           skin={{

@@ -259,8 +259,7 @@ export function CubeArchetypes({ score }: { score: GeneratedCube['score'] }) {
         </span>
       </div>
       <p className="cube-archetypes-sub">
-        How deeply a drafter can commit to each strategy your collection supports: balanced enablers
-        and payoffs, concentrated in their colors.
+        How deeply a drafter can commit to each strategy your collection supports.
       </p>
       <ul className="cube-archetype-list">
         {score.axes.slice(0, 8).map((a) => (
@@ -296,7 +295,7 @@ export function CubeEmptyState({
   message: string;
   ctaHref: string;
   ctaLabel: string;
-  hint: string;
+  hint?: string;
 }) {
   return (
     <div className="cube-empty">
@@ -304,7 +303,7 @@ export function CubeEmptyState({
       <Button variant="primary" to={ctaHref}>
         {ctaLabel}
       </Button>
-      <p className="cube-empty-hint">{hint}</p>
+      {hint && <p className="cube-empty-hint">{hint}</p>}
     </div>
   );
 }

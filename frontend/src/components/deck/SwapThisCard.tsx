@@ -36,9 +36,7 @@ export function SwapThisCard({
   return (
     <section className="swap-this-card" aria-label={`Swap ${currentName}`}>
       <h4 className="swap-this-card-title">Swap this card</h4>
-      <p className="swap-this-card-sub">
-        Same-role alternatives, owned first. Swapping keeps your deck size.
-      </p>
+      <p className="swap-this-card-sub">Same-role alternatives, owned first.</p>
       <ul className="swap-this-card-list">
         {alternatives.map((change) => (
           <DeckCardRow

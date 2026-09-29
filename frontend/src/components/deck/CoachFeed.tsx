@@ -781,7 +781,7 @@ export function CoachFeed({
         {!isPending && allChanges.length === 0 ? (
           <EmptyState
             tagline="Nothing to coach. This deck looks tuned."
-            hint="Your deck is well-covered. Try adjusting your power bracket or browsing themes below."
+            hint="Try another power bracket, or browse themes below."
           />
         ) : (
           <>
@@ -890,9 +890,6 @@ export function CoachFeed({
                   label="budget confidence"
                   text={
                     <>
-                      <p className="info-tip-lead">
-                        How close each cheaper pick is to the card it replaces:
-                      </p>
                       <ul className="info-tip-list">
                         <li>
                           <strong>Drop-in</strong>: near-identical, swap freely.

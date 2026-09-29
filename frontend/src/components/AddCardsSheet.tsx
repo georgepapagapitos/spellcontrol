@@ -365,9 +365,8 @@ export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: 
                 </div>
                 <h3 className="scan-tab-title">Scan cards with your camera</h3>
                 <p className="scan-tab-desc">
-                  Point your camera at one card at a time. Each match is added straight to your
-                  collection, no mode picker or re-import needed. For bulk file imports or paste,
-                  use{' '}
+                  Point your camera at one card at a time. Each match is added to your collection.
+                  For a file or pasted list, use{' '}
                   <Button variant="link" onClick={() => setTab('upload')}>
                     Add from list
                   </Button>

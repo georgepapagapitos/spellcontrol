@@ -59,11 +59,7 @@ export function ListAddCardSheet({ list, initialQuery = '', onClose }: Props) {
         <div className="card-picker-handle" aria-hidden />
         <div className="card-picker-header">
           <h2 className="card-picker-title">{title}</h2>
-          <p className="add-card-sheet-hint">
-            {list.kind === 'tracking'
-              ? 'This tracking list catalogues cards. Adding here never touches your collection.'
-              : "Lists hold cards you don't own yet. Adding here never touches your collection."}
-          </p>
+          <p className="add-card-sheet-hint">Adding here never touches your collection.</p>
           <SearchPill
             value={query}
             onChange={setQuery}

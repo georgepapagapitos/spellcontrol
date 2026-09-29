@@ -250,7 +250,7 @@ describe('TradeComposer — the 40-line side cap', () => {
     expect(within(basket).queryByText('Wanted Card 41')).toBeNull();
     expect(
       toastShow.mock.calls.some((c) =>
-        (c[0] as { message: string }).message.includes('maxes out at 40')
+        (c[0] as { message: string }).message.includes('holds up to 40 different cards')
       )
     ).toBe(true);
   });

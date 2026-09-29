@@ -94,7 +94,7 @@ export function PlaystyleRadar({ cards }: { cards: ScryfallCard[] }): JSX.Elemen
           Engine balance, not power. Tap an axis to see its cards.{' '}
           <InfoTip
             label="playstyle radar"
-            text="Producers feed a resource; payoffs spend it. Vertices scale to your busiest axis."
+            text="Producers feed a resource; payoffs spend it."
             wide
           />
         </p>
@@ -214,11 +214,7 @@ export function PlaystyleRadar({ cards }: { cards: ScryfallCard[] }): JSX.Elemen
       {/* ── Honesty caption ── */}
       <p className="playstyle-radar-caption">
         Engine balance, not power. Tap an axis to see its cards.{' '}
-        <InfoTip
-          label="playstyle radar"
-          text="Producers feed a resource; payoffs spend it. Vertices scale to your busiest axis."
-          wide
-        />
+        <InfoTip label="playstyle radar" text="Producers feed a resource; payoffs spend it." wide />
       </p>
 
       {/* ── Drill-through: axis card group sheet ── */}

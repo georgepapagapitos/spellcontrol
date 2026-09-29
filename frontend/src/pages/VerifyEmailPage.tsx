@@ -67,8 +67,7 @@ export default function VerifyEmailPage() {
     heading = 'Email verified';
     body = (
       <p className="auth-subtitle" role="status">
-        Your email is confirmed. You can now use it to reset your password if you ever lose access
-        to your account.
+        Your email is confirmed. You can use it to reset your password.
       </p>
     );
   } else if (phase === 'missing') {
@@ -86,8 +85,8 @@ export default function VerifyEmailPage() {
         {username ? (
           <p className="auth-subtitle">
             {resent
-              ? "We've sent a new link. Check your inbox (and spam folder)."
-              : 'Request a fresh verification email from the button below.'}
+              ? "We've sent a new link. Check your spam folder too."
+              : 'Request a new link below.'}
           </p>
         ) : (
           <p className="auth-subtitle">Sign in, then request a new verification email from You.</p>

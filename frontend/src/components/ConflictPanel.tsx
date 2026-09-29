@@ -85,19 +85,16 @@ function ConflictDialog({
         &quot;{name}&quot; changed on another device
       </h2>
       <p className="conflict-panel-body">
-        You edited this deck here, but another device saved a newer version first. Review what
-        differs below, then keep the server&apos;s version or restore your edits on top of it.
+        Another device saved a newer version first. Keep that one or restore your edits on top of
+        it.
       </p>
 
       {diff == null ? (
         <p className="deck-compare-empty-hint">
-          Couldn&apos;t compare card lists for this deck. You can still restore your full edit or
-          keep the server&apos;s version.
+          Couldn&apos;t compare card lists. You can still keep either version.
         </p>
       ) : untouched ? (
-        <p className="deck-compare-empty-hint">
-          No card differences. Only deck details (name, bracket, notes) changed.
-        </p>
+        <p className="deck-compare-empty-hint">No card differences. Only deck details changed.</p>
       ) : (
         <div className="conflict-panel-diff">
           <p className="deck-compare-summary">

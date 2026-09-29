@@ -74,9 +74,6 @@ export function UsernameEditor() {
     <div className="username-editor">
       <p className="username-editor-current">
         <span className="username-editor-handle">@{username}</span>
-        <span className="settings-row-hint">
-          How friends find you, and the address of your public profile.
-        </span>
       </p>
 
       <div className="field">
@@ -127,9 +124,8 @@ export function UsernameEditor() {
             Change to @{next}?
           </h2>
           <p className="choice-dialog-body">
-            Anyone who knows you as <strong>@{username}</strong> will see the new name. Links to
-            your old profile keep working while nobody else takes the name, and you can change it
-            again in 30 days.
+            Friends will see <strong>@{next}</strong>. Your old profile link keeps working until
+            someone else takes the name.
           </p>
           <div className="choice-dialog-actions">
             <Button placement="row" onClick={() => setConfirming(false)} disabled={saving}>

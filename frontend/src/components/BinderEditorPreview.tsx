@@ -69,7 +69,7 @@ export function BinderEditorPreview({ binder, loading }: Props) {
           <span className="binder-editor-preview-title">Preview</span>
         </div>
         <EmptyState compact className="binder-editor-preview-empty" as="p">
-          Nothing to preview. No cards match here yet.
+          No cards match here yet.
         </EmptyState>
       </div>
     );
@@ -106,9 +106,7 @@ export function BinderEditorPreview({ binder, loading }: Props) {
       </div>
 
       {binder.def.mode === 'manual' && (
-        <p className="binder-editor-preview-note">
-          Manual order: pinned cards, in the order set in Manage cards.
-        </p>
+        <p className="binder-editor-preview-note">Pinned cards, in your Manage cards order.</p>
       )}
 
       <div className="binder-editor-preview-spread">
@@ -174,7 +172,6 @@ export function BinderEditorPreview({ binder, loading }: Props) {
               </li>
             ))}
           </ul>
-          <p className="binder-editor-preview-hint">Select a section to jump the preview to it.</p>
         </>
       )}
     </div>

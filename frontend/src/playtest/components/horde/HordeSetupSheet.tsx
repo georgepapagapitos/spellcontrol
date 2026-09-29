@@ -65,8 +65,7 @@ export function HordeSetupSheet({ horde, hordeLoad, cardNames, resistanceOn, onC
         <div className="card-picker-header">
           <h2 className="card-picker-title">Fight a horde</h2>
           <p className="horde-setup-sheet__intro">
-            A deck that plays itself. Each turn it reveals cards until a nontoken card, and
-            everything it controls attacks you. Damage you deal it mills its library.
+            A deck that plays itself and attacks you each turn. Damage you deal mills its library.
           </p>
           {resistanceOn && <p className="horde-setup-sheet__exclusive">Turns Resistance off.</p>}
         </div>

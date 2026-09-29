@@ -400,9 +400,7 @@ function CommanderDraftSimReport({
         </div>
         <MeterBar value={result.builtDeckShare} max={1} />
         <p className="cube-commander-coverage-caption">
-          {builtCount} of {result.totalDecks} drafted decks had a commander and at least{' '}
-          {COMMANDER_PLAYABLE_TARGET} playables in its colors. Basics fill the rest of a 60-card
-          deck.
+          {builtCount} of {result.totalDecks} drafted decks. Basics fill the rest of a 60-card deck.
         </p>
       </div>
 

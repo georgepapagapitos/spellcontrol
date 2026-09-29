@@ -419,10 +419,7 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
           <div className="deck-combos-empty">
             {tab === 'inDeck' ? (
               !deckHasOracleIds ? (
-                <p>
-                  This deck's cards don't have combo data yet. If you imported it before the combo
-                  update, re-import or wait for background sync.
-                </p>
+                <p>This deck's cards don't have combo data yet. Re-import it or wait for sync.</p>
               ) : (
                 <>
                   <p>No complete combos in this deck.</p>
@@ -435,8 +432,7 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
                   )}
                   {deckEntered && oneAwayCount === 0 && (
                     <p className="deck-combos-empty-secondary">
-                      Many casual decks, precons included, have none. Spellbook tracks a few
-                      thousand documented combos.
+                      Many casual decks, precons included, have none.
                     </p>
                   )}
                 </>

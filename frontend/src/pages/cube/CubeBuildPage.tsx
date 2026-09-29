@@ -142,7 +142,7 @@ function PoolFilterRow({
         <InfoTip
           label="Draw from"
           ariaLabel="How Cards, Price and Rarity work"
-          text="Available skips copies a deck or physical cube claims, so you can pull every card. Spares only needs two or more, so singles stay put. Price reads your cheapest copy; rarity, the printing you own."
+          text="Available skips copies a deck or physical cube claims. Spares needs two or more copies. Price reads your cheapest copy; rarity, the printing you own."
         />
       </div>
 
@@ -199,15 +199,14 @@ function PoolFilterRow({
             </div>
             {selectedFriendIds.length >= MAX_FRIENDS && (
               <p className="cube-collab-max-note" id="build-max-friends" aria-live="polite">
-                Maximum {MAX_FRIENDS} friends selected. Uncheck one to pick a different friend.
+                Maximum {MAX_FRIENDS} friends. Uncheck one to pick another.
               </p>
             )}
           </fieldset>
         )}
         <p className="cube-friend-picker-note">
-          Their cards always count, regardless of Cards above. The rarity cap still applies to what
-          they own; there is no price data for a friend's cards, so the price ceiling never filters
-          them.
+          Their cards always count, whatever Cards is set to. The rarity cap applies. The price
+          ceiling doesn't, since friends' cards have no prices.
         </p>
       </div>
     </Disclosure>
@@ -482,7 +481,6 @@ export function CubeBuildPage() {
           message="You haven't imported a collection yet."
           ctaHref="/collection"
           ctaLabel="Import your collection"
-          hint="A cube is built from the cards you own. Bring them in first."
         />
       ) : (
         <div className="cube-build">
@@ -526,7 +524,7 @@ export function CubeBuildPage() {
                 Only {legendCount.toLocaleString()} legendary creatures are eligible,{' '}
                 {(LEGEND_TARGET[size] - legendCount).toLocaleString()} short of the{' '}
                 {LEGEND_TARGET[size]}-commander target. The cube will build with fewer commander
-                choices than usual. Own more legends to fill it out.
+                choices than usual.
               </p>
             </div>
           )}
@@ -606,7 +604,7 @@ export function CubeBuildPage() {
             >
               <SwitchRow
                 label="Physical cube"
-                hint="Reserves one of your copies of each card, like sleeving them into the cube, so decks stop counting them as free. You can unmark it any time."
+                hint="Reserves one of your copies of each card, so decks stop counting them as free. You can unmark it any time."
                 checked={savePhysical}
                 onChange={setSavePhysical}
               />

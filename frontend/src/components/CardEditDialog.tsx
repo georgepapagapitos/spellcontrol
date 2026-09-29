@@ -69,14 +69,10 @@ export interface CardDetails {
 
 type CardFlag = 'altered' | 'proxy' | 'misprint';
 
-const FLAG_OPTIONS: { key: CardFlag; label: string; hint: string }[] = [
-  {
-    key: 'altered',
-    label: 'Altered',
-    hint: 'Custom or altered artwork, not the printed original.',
-  },
+const FLAG_OPTIONS: { key: CardFlag; label: string; hint?: string }[] = [
+  { key: 'altered', label: 'Altered' },
   { key: 'proxy', label: 'Proxy', hint: "Doesn't count toward your collection's market value." },
-  { key: 'misprint', label: 'Misprint', hint: 'An off-center, wrong color, or other print flaw.' },
+  { key: 'misprint', label: 'Misprint' },
 ];
 
 export interface PrintingSelection {
@@ -319,9 +315,7 @@ export function CardEditDialog({
         // is unreachable). Treat it as the outage it is so the fallback below
         // keeps the rest of the dialog usable.
         setError(
-          cards.length === 0
-            ? "Couldn't load other printings. You can still edit this copy; try again in a moment for a printing swap."
-            : null
+          cards.length === 0 ? "Couldn't load other printings. You can still edit this copy." : null
         );
         setLoadedFor(cardName);
       })
@@ -633,11 +627,7 @@ export function CardEditDialog({
                       placeholder={languageMixed ? `Mixed (${mixedDetails?.language})` : undefined}
                     />
                   </Field>
-                  <Field
-                    label="Notes"
-                    htmlFor="card-edit-notes-input"
-                    hint="Anything about this copy: signed, for trade, which box it lives in. Blank to clear."
-                  >
+                  <Field label="Notes" htmlFor="card-edit-notes-input">
                     <input
                       id="card-edit-notes-input"
                       type="text"
@@ -651,7 +641,7 @@ export function CardEditDialog({
                   <Field
                     label={`Paid (${currencySymbol(currency)})`}
                     htmlFor="card-edit-paid-input"
-                    hint={`What you paid per copy, in ${currency}. Blank if you'd rather not track it.`}
+                    hint="Per copy."
                   >
                     <input
                       id="card-edit-paid-input"
@@ -676,7 +666,7 @@ export function CardEditDialog({
                   <Field
                     label={`Market override (${currencySymbol(currency)})`}
                     htmlFor="card-edit-override-input"
-                    hint="Use this when Scryfall has no price, or the wrong one. It overrides the market price everywhere it's used. Leave blank to use Scryfall's price."
+                    hint="Replaces the market price for this card. Blank uses Scryfall's."
                   >
                     <input
                       id="card-edit-override-input"

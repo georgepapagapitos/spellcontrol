@@ -76,14 +76,13 @@ export function StatsBar({ open, cards, binderDefs, onClose, onFilterJump }: Pro
     <>
       {showStaleBanner && (
         <div className="warn-banner">
-          Some cards are missing newer Scryfall fields. Re-import your collection to filter by
-          format, oracle text, layout, or finish.
+          Some cards lack newer Scryfall data. Re-import your collection to use these filters.
         </div>
       )}
       {scryfallMisses > 0 && (
         <div className="warn-banner">
-          {scryfallMisses} card{scryfallMisses !== 1 ? 's' : ''} couldn't be enriched with Scryfall
-          data. Color, mana value, and type sorting may be inaccurate for them.
+          {scryfallMisses} card{scryfallMisses !== 1 ? 's' : ''} couldn't be matched to Scryfall.
+          Their color, mana value, and type sorting may be off.
         </div>
       )}
 

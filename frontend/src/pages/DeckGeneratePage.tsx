@@ -438,9 +438,7 @@ export function DeckGeneratePage() {
               {prefill.comboContext.produces.slice(0, 3).join(' · ')}
             </p>
           )}
-          <p className="combo-seed-banner-hint">
-            These cards are pinned as must-includes. Generation seats them first.
-          </p>
+          <p className="combo-seed-banner-hint">Pinned as must-includes.</p>
         </section>
       )}
 
@@ -541,10 +539,7 @@ export function DeckGeneratePage() {
               onChange={setVisibility}
             />
           </section>
-          <p className="deck-generate-hint">
-            {generateHint} Start blank gives you just the commander so you can pick every card by
-            hand.
-          </p>
+          <p className="deck-generate-hint">{generateHint}</p>
 
           <div className="deck-generate-bar" role="group" aria-label="Build this deck">
             <p

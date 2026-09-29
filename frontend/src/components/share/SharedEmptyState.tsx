@@ -11,7 +11,7 @@ interface Props {
   /** Reason only, no CTA — `SharedShell`'s footer already carries "Plan your
    *  own binders & decks" right below every one of these views, so a second
    *  action button here would just repeat it. */
-  emptyHint: string;
+  emptyHint?: string;
   /** e.g. "No cards match your search or filters." */
   filteredTagline: string;
   /** Clears the view's own search box (rendered as "Reset search" — see the
