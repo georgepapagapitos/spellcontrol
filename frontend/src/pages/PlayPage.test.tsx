@@ -282,14 +282,10 @@ describe('Local setup — rule switches', () => {
     usePlayStore.setState({ local: null });
   });
 
-  it('renders each rule as a named switch with a visible hint, reading real state', () => {
+  it('renders each rule as a named switch, reading real state', () => {
     renderPage('/play/local');
     for (const [name, hint] of [
-      ['Commander damage', 'Lose at 21 combat damage from a single commander.'],
-      ['Game timer', 'Show how long the game has run, with a pause.'],
-      ['Turn tracker', 'Show whose turn it is and how long, and pass it from the clock.'],
-      ['Counterclockwise seating', 'Seats run the other way around the table.'],
-      ['Poison counters', 'Lose at 10 poison counters.'],
+      ['Turn tracker', "Marks the active seat and who's next."],
     ] as const) {
       const row = screen.getByRole('switch', { name });
       expect(screen.getByText(hint)).toBeTruthy();
@@ -374,8 +370,8 @@ describe('Local setup — Horde (co-op)', () => {
     pickHorde();
     fireEvent.click(screen.getByText('Customise'));
     for (const [name, hint] of [
-      ['Bosses', 'A held-back boss joins the battlefield when the library crosses a tick.'],
-      ['Safe zone', "The horde's first cards skip its late-game threats."],
+      ['Bosses', 'Bosses join the fight partway through the library.'],
+      ['Safe zone', 'The first reveals skip late-game threats.'],
     ] as const) {
       const row = screen.getByRole('switch', { name });
       const describedBy = row.getAttribute('aria-describedby');

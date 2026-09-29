@@ -71,22 +71,22 @@ const FEATURES = [
   {
     Icon: Layers,
     title: 'Rule-based binders',
-    body: 'Sort your physical collection into binders. Cards file into the first one whose rule matches, top to bottom.',
+    body: 'Sort your physical collection into binders. Each card goes in the first binder whose rule matches.',
   },
   {
     Icon: Wand2,
     title: 'Generate Commander decks',
-    body: 'Pick a commander and a power bracket, and generate a full 100-card deck tuned to your curve and role mix.',
+    body: 'Pick a commander and a bracket, and get a full 100-card deck.',
   },
   {
     Icon: SlidersHorizontal,
     title: 'Tune any deck with the Coach',
-    body: 'Build in eight formats with live legality checks, then tune with the Coach: a ranked list of adds, cuts, and swaps, each with a plain-English reason.',
+    body: 'Build in eight formats with live legality checks. The Coach ranks adds, cuts, and swaps.',
   },
   {
     Icon: Swords,
     title: 'Track multiplayer games',
-    body: 'Run life totals and full game state for your pod, at the table or online, synced across devices.',
+    body: 'Run life totals for your pod, at the table or online.',
   },
 ];
 

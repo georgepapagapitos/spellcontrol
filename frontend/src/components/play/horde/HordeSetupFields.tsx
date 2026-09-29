@@ -201,7 +201,7 @@ export function HordeSetupFields({
             </div>
             <SwitchRow
               label="Bosses"
-              hint="A held-back boss joins the battlefield when the library crosses a tick."
+              hint="Bosses join the fight partway through the library."
               checked={effective.bossTicks.length > 0}
               onChange={(on) =>
                 patch({ bossTicks: on ? resolveHordeSettings(level, survivorCount).bossTicks : [] })
@@ -209,7 +209,7 @@ export function HordeSetupFields({
             />
             <SwitchRow
               label="Safe zone"
-              hint="The horde's first cards skip its late-game threats."
+              hint="The first reveals skip late-game threats."
               checked={effective.safeZone !== 'off'}
               onChange={(on) =>
                 patch({

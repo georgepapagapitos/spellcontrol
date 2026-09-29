@@ -144,9 +144,7 @@ describe('Players', () => {
     render(<PlayersSheet game={game} dispatch={vi.fn()} onClose={vi.fn()} onRestart={onRestart} />);
     expect(screen.queryByRole('button', { name: /Remove/ })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Add player' })).toBeNull();
-    expect(
-      screen.getByText(/Roster locks once the game starts\. Restart to change seats\./)
-    ).toBeTruthy();
+    expect(screen.getByText(/Seats lock once the game starts\./)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Restart…' }));
     expect(onRestart).toHaveBeenCalledTimes(1);
   });
@@ -257,10 +255,9 @@ describe('Settings', () => {
 });
 
 describe('History', () => {
-  it('is one two-part empty state before anything has happened', () => {
+  it('is a one-line empty state before anything has happened', () => {
     render(<HistorySheet game={activeGame()} onClose={vi.fn()} />);
     expect(screen.getByText('Nothing to show yet.')).toBeTruthy();
-    expect(screen.getByText('Stats appear once life totals start moving.')).toBeTruthy();
     expect(screen.queryByText('Key moments')).toBeNull();
     // Nothing to act on, so the dialog itself takes focus (never the ✕).
     expect(document.activeElement).toBe(screen.getByRole('dialog', { name: 'History' }));

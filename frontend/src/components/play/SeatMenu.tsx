@@ -423,7 +423,7 @@ export function SeatMenu({
                     </Button>
                   </div>
                   <span className="seat-menu-color-hint">
-                    A partner counts its own commander damage, toward its own 21.
+                    A partner takes its own commander damage, up to 21.
                   </span>
                 </form>
               </div>
@@ -488,7 +488,7 @@ export function SeatMenu({
                   </label>
                 </fieldset>
                 <span className="seat-menu-color-hint">
-                  Seat default uses your deck&apos;s color identity, or your seat color if none.
+                  Seat default uses your deck&apos;s colors, or your seat color.
                 </span>
               </div>
             </div>
@@ -516,9 +516,7 @@ export function SeatMenu({
                     </label>
                   ))}
                 </fieldset>
-                <span className="seat-menu-color-hint">
-                  Rotate this seat so the player reads it upright from their chair.
-                </span>
+                <span className="seat-menu-color-hint">Turn the seat to face its player.</span>
               </div>
             </div>
           )}
@@ -628,9 +626,7 @@ function SeatCounters({
             />
           ))}
           {!game.poisonEnabled && counters.length === 0 && (
-            <p className="pp-counters-empty">
-              Nothing tracked yet. Add whatever this table counts.
-            </p>
+            <p className="pp-counters-empty">Nothing tracked yet.</p>
           )}
         </div>
         {/* Compact row only: the trigger that swaps the row for the form

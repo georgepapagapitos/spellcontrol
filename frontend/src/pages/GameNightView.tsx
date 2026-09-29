@@ -207,7 +207,7 @@ function NightBody({
     const trimmed = name.trim();
     const rsvpId = username === null ? (myRsvp?.id ?? loadGuestRsvp(token)?.id) : undefined;
     if (username === null && rsvpId === undefined && trimmed.length === 0) {
-      throw new Error('Enter your name so the host knows who can make it.');
+      throw new Error('Enter your name.');
     }
     const rsvp = await fn({
       displayName: trimmed.length > 0 ? trimmed : undefined,
@@ -221,7 +221,7 @@ function NightBody({
     if (busy) return;
     const trimmed = name.trim();
     if (needsName && trimmed.length === 0) {
-      setFormError('Enter your name so the host knows who replied.');
+      setFormError('Enter your name.');
       return;
     }
     setFormError(null);
@@ -295,7 +295,7 @@ function NightBody({
         {night.venue === 'online' && (
           <div className="game-night-fact">
             <dt>Played</dt>
-            <dd>Online. Everyone plays from their own device and the host shares a join code.</dd>
+            <dd>Online, with a join code from the host.</dd>
           </div>
         )}
         {night.location && (
@@ -342,7 +342,7 @@ function NightBody({
       {!closed && canRsvp && polling && (
         <section className="game-night-reply" aria-label="Vote on a date">
           <h2 className="game-night-section-title">
-            {myRsvp ? 'Your votes · change them any time' : 'Which times can you make?'}
+            {myRsvp ? 'Your votes' : 'Which times can you make?'}
           </h2>
           {username !== null ? (
             <p className="game-night-reply-as">Voting as {username}</p>
@@ -363,9 +363,7 @@ function NightBody({
 
       {!closed && canRsvp && !polling && (
         <section className="game-night-reply" aria-label="Your reply">
-          <h2 className="game-night-section-title">
-            {myRsvp ? 'Your reply · change it any time' : 'Can you make it?'}
-          </h2>
+          <h2 className="game-night-section-title">{myRsvp ? 'Your reply' : 'Can you make it?'}</h2>
           {username !== null ? (
             <p className="game-night-reply-as">Replying as {username}</p>
           ) : (

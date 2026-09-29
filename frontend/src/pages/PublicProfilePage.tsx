@@ -334,15 +334,13 @@ function PublicProfilePageInner({ username }: { username: string }) {
   ];
   const decksBody = profile.moderationHidden ? (
     <div className="public-profile-hidden-banner">
-      <p>
-        Your profile was hidden by a moderator. Contact support if you believe this is a mistake.
-      </p>
+      <p>Your profile was hidden by a moderator. Contact support if that's a mistake.</p>
     </div>
   ) : profile.decks.length === 0 ? (
     profile.isOwner ? (
       <EmptyState
         tagline="No public decks yet."
-        hint="New decks are public unless you pick Private, and they show up here."
+        hint="New decks are public unless set to Private."
         actions={
           <Button variant="primary" to="/decks">
             Go to your decks

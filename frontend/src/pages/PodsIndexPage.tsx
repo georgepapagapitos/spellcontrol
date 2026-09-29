@@ -165,9 +165,6 @@ function PodsIndexPageBody() {
         <SocialHubTabs />
         <div className="friends-signin-prompt">
           <p className="friends-signin-title">Sign in to set up your pod</p>
-          <p className="friends-signin-body">
-            Create an account or sign in to track games and trades with your regular table.
-          </p>
           <Button variant="primary" to={signInHref}>
             Sign in
           </Button>
@@ -340,7 +337,7 @@ function CreatePodDialog({
           // The pod itself was created successfully — never strand it or
           // block navigation over the secondary invite call failing.
           toast.show({
-            message: 'Pod created, but invites failed to send. Invite friends from the pod page.',
+            message: 'Pod created, but invites failed. Invite from the pod page.',
             tone: 'error',
           });
         }
@@ -390,9 +387,7 @@ function CreatePodDialog({
               Couldn't load your friends list. Invite people from the pod page instead.
             </p>
           ) : friendsFetch.friends.length === 0 ? (
-            <p className="pods-dialog-hint">
-              No friends yet. Invite people from the pod page once you have some.
-            </p>
+            <p className="pods-dialog-hint">No friends yet.</p>
           ) : (
             <ul className="pods-dialog-friend-list">
               {friendsFetch.friends.map((f) => (

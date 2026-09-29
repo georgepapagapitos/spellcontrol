@@ -605,7 +605,7 @@ function SimulateSection({ deck }: { deck: Deck | undefined }) {
             ))}
           </div>
           <p className="playtest-stats-sim-note">
-            Counts land drops only. Not whether you could afford to cast anything.
+            Counts land drops, not whether you could cast anything.
           </p>
 
           <div className="playtest-stats-sim">
@@ -635,8 +635,7 @@ function SimulateSection({ deck }: { deck: Deck | undefined }) {
           </div>
 
           <p className="playtest-stats-sim-note">
-            Goldfish simulations, not full games. There's no opponent, and color requirements aren't
-            modeled.
+            Goldfish runs: no opponent, and colors aren't modeled.
           </p>
         </>
       )}

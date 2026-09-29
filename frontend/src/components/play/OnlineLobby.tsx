@@ -334,9 +334,7 @@ export function OnlineLobby({
             )}
           </ul>
 
-          <p className="lobby-hint">
-            Bracket numbers are estimates. Talk them over with your playgroup before starting.
-          </p>
+          <p className="lobby-hint">Bracket numbers are estimates.</p>
         </div>
       </div>
 
@@ -626,9 +624,7 @@ function OpenSeat({
             placeholder="Who's sitting here?"
           />
         </label>
-        <span className="lobby-seat-guest-hint">
-          No account or device needed. The table tracks them.
-        </span>
+        <span className="lobby-seat-guest-hint">No account or device needed.</span>
         <div className="lobby-seat-guest-actions">
           <Button onClick={() => setNaming(false)}>Cancel</Button>
           <Button variant="primary" type="submit" disabled={!name.trim()}>
@@ -807,7 +803,6 @@ function LobbyRail({
         <span className="sr-only copy-feedback-announce" aria-live="polite">
           {announcement}
         </span>
-        <span className="play-code-hint">Share this code so others can join.</span>
       </div>
 
       <section className="lobby-section" aria-labelledby="lobby-settings-label">

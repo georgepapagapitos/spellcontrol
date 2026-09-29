@@ -297,7 +297,7 @@ export function TradeComposer({
    *  say what actually happened, and what to do about it, before sending. */
   function warnLineCap() {
     toast.show({
-      message: `A trade side maxes out at ${MAX_TRADE_LINES_PER_SIDE} different cards. Remove one to add another.`,
+      message: `One side holds up to ${MAX_TRADE_LINES_PER_SIDE} different cards.`,
       tone: 'warn',
     });
   }
@@ -472,8 +472,7 @@ export function TradeComposer({
             Trade with {friendName}
           </h2>
           <p className="game-night-dialog-hint">
-            Pick what changes hands. {friendName} sees the exact printings and confirms theirs when
-            they accept.
+            {friendName} sees the exact printings and confirms theirs when they accept.
           </p>
 
           <div className="trade-composer-sides">
@@ -588,7 +587,7 @@ export function TradeComposer({
               searchLabel={`Search ${friendName}'s collection`}
               searchNote={
                 wantSearch.ignored.length > 0
-                  ? `${wantSearch.ignored.join(', ')} ${wantSearch.ignored.length === 1 ? 'is' : 'are'} not searchable in a friend's collection; the rest of your search still ran.`
+                  ? `${wantSearch.ignored.join(', ')} ${wantSearch.ignored.length === 1 ? 'is' : 'are'} not searchable in a friend's collection. The rest of your search still ran.`
                   : undefined
               }
               picked={wantCards.map((c) => ({

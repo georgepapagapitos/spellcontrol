@@ -210,7 +210,6 @@ export function PlayersSheet({
           {game.mode === 'local' && (
             <SwitchRow
               label={`Default for ${count}-player games`}
-              hint={`Every new ${count}-player local game opens in this layout.`}
               checked={isDefault}
               onChange={(next) => setPreferredLayout(count, next ? currentId : null)}
             />
@@ -295,7 +294,7 @@ function PlayerRoster({
         <div className="board-sheet-note">
           <Lock width={18} height={18} strokeWidth={2} aria-hidden />
           <p>
-            Roster locks once the game starts. Restart to change seats.{' '}
+            Seats lock once the game starts.{' '}
             <Button variant="link" className="board-sheet-note-fix" onClick={onRestart}>
               Restart…
             </Button>
@@ -401,13 +400,13 @@ export function SettingsSheet({
         <div>
           <SwitchRow
             label="Game timer"
-            hint="Shows how long the game has run, on the clock strip."
+            hint="Shows how long the game has run."
             checked={gameTimerEnabled}
             onChange={setGameTimerEnabled}
           />
           <SwitchRow
             label="Turn tracker"
-            hint="Marks the active seat and who's next, and adds turn time to the clock strip."
+            hint="Marks the active seat and who's next."
             checked={turnTrackerEnabled}
             onChange={setTurnTrackerEnabled}
           />
@@ -423,13 +422,13 @@ export function SettingsSheet({
           />
           <SwitchRow
             label="Underlined 6 and 9"
-            hint="Underlines the 6 and the 9 so a number stays readable upside down across the table."
+            hint="Keeps 6 and 9 readable upside down."
             checked={underlineSixNine}
             onChange={setUnderlineSixNine}
           />
           <SwitchRow
             label="Minimalist mode"
-            hint="Hides the plus and minus buttons beside the life numeral. The tap zones still work."
+            hint="Hides the plus and minus buttons. The tap zones still work."
             checked={minimalistMode}
             onChange={setMinimalistMode}
           />
@@ -442,14 +441,14 @@ export function SettingsSheet({
           {fullscreenSupported && (
             <SwitchRow
               label="Full screen"
-              hint="Hides the browser bars while the board is open."
+              hint="Hides the browser bars."
               checked={isFullscreen}
               onChange={onToggleFullscreen}
             />
           )}
           <SwitchRow
             label="Haptic feedback"
-            hint="Vibrates for taps and undo, and for a lethal hit or an elimination."
+            hint="Vibrates on taps, undo and lethal hits."
             checked={hapticsEnabled}
             onChange={setHaptics}
           />
@@ -496,7 +495,6 @@ export function HistorySheet({ game, onClose }: { game: GameState; onClose: () =
         <div className="board-sheet-empty">
           <ChartLine width={40} height={40} strokeWidth={1.6} aria-hidden />
           <p className="board-sheet-empty-title">Nothing to show yet.</p>
-          <p className="board-sheet-hint">Stats appear once life totals start moving.</p>
         </div>
       ) : (
         <>
@@ -666,7 +664,7 @@ export function LeaveSheet({
           >
             End game…
           </Button>
-          <p className="board-sheet-hint">Pick the winner and save the game to History.</p>
+          <p className="board-sheet-hint">Saves it to History.</p>
         </div>
       )}
       {onMinimize && (
@@ -678,7 +676,7 @@ export function LeaveSheet({
           >
             Minimize
           </Button>
-          <p className="board-sheet-hint">Hide the board. The game waits on the Play tab.</p>
+          <p className="board-sheet-hint">The game waits on the Play tab.</p>
         </div>
       )}
       {onDiscard && (
@@ -693,7 +691,7 @@ export function LeaveSheet({
             >
               Discard game
             </Button>
-            <p className="board-sheet-hint">Removes it without saving to History. Asks first.</p>
+            <p className="board-sheet-hint">Removes it without saving to History.</p>
           </div>
         </>
       )}

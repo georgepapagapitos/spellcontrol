@@ -562,9 +562,6 @@ export function FriendHubPage() {
         <BackLink to="/friends" label="Friends" />
         <div className="friends-signin-prompt">
           <p className="friends-signin-title">Sign in to view shared content</p>
-          <p className="friends-signin-body">
-            Sign in to see what your friends have shared with you.
-          </p>
           <Button variant="primary" to={signInHref}>
             Sign in
           </Button>
@@ -777,7 +774,6 @@ export function FriendHubPage() {
                 shared anything with friends yet.
               </>
             }
-            hint="Check back after their next share."
           />
         ) : (
           KIND_ORDER.map((kind) => {
@@ -912,9 +908,7 @@ export function FriendHubPage() {
               <p className="friend-hub-search-note" role="status">
                 {friendSearchResult.ignored.join(', ')}{' '}
                 {friendSearchResult.ignored.length === 1 ? "isn't" : "aren't"} searchable in this
-                collection: its card data doesn't carry what{' '}
-                {friendSearchResult.ignored.length === 1 ? 'it' : 'they'} read. The rest of your
-                search still ran.
+                collection. The rest of your search still ran.
               </p>
             )}
 
@@ -927,11 +921,7 @@ export function FriendHubPage() {
                       ? `${who} keeps their collection private.`
                       : `${who} hasn't added anything to their collection yet.`
                   }
-                  emptyHint={
-                    collectionCurrent?.isPrivate
-                      ? 'Only they can see it.'
-                      : "There's nothing to browse until they do."
-                  }
+                  emptyHint={collectionCurrent?.isPrivate ? 'Only they can see it.' : undefined}
                   filteredTagline="No cards match your search or filters."
                   onClearSearch={
                     collectionQuery || collectionFilterCount > 0

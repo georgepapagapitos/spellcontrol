@@ -334,7 +334,7 @@ export function FriendsManagement() {
     const identity = formatIdentity(friend);
     const ok = await confirm({
       title: `Remove ${identity.primary}?`,
-      body: `You'll both lose access to anything the other shared friends-only, and any head-to-head history stops updating. You can send a new friend request later.`,
+      body: `You'll both lose access to anything the other shared friends-only, and any head-to-head history stops updating.`,
       confirmLabel: 'Remove friend',
       danger: true,
     });
@@ -365,10 +365,7 @@ export function FriendsManagement() {
       // would read as a duplicate immediately below it and add a second <h1>.
       <div className="friends-signin-prompt">
         <p className="friends-signin-title">Sign in to connect with friends</p>
-        <p className="friends-signin-body">
-          Create an account or sign in to send friend requests, track your friends' collections, and
-          more.
-        </p>
+        <p className="friends-signin-body">Create an account or sign in to send friend requests.</p>
         <Button variant="primary" to={signInHref}>
           Sign in
         </Button>
@@ -505,11 +502,7 @@ export function FriendsManagement() {
           {loading ? (
             <FriendsSkeleton />
           ) : friendsList.length === 0 ? (
-            <EmptyState
-              status
-              tagline="No friends yet."
-              hint="Search above to find and add other players."
-            />
+            <EmptyState status tagline="No friends yet." />
           ) : (
             <ul className="friends-list" aria-label="Your friends">
               {friendsList.map((friend) => {
@@ -561,11 +554,7 @@ export function FriendsManagement() {
           {loading ? (
             <FriendsSkeleton />
           ) : incomingList.length === 0 && outgoingList.length === 0 ? (
-            <EmptyState
-              status
-              tagline="No pending requests."
-              hint="Send one from the search above, or wait for someone to send you one."
-            />
+            <EmptyState status tagline="No pending requests." />
           ) : (
             <>
               {incomingList.length > 0 && (
@@ -663,11 +652,7 @@ export function FriendsManagement() {
           {inbox === null ? (
             <FriendsSkeleton />
           ) : inboxList.length === 0 ? (
-            <EmptyState
-              status
-              tagline="Nothing shared yet."
-              hint="When a friend shares a deck or collection with you, it shows up here."
-            />
+            <EmptyState status tagline="Nothing shared yet." />
           ) : (
             <ul className="friends-inbox-list" aria-label="Shared with you">
               {inboxList.map((item) => {
@@ -719,11 +704,7 @@ export function FriendsManagement() {
           ) : activity === null ? (
             <FriendsSkeleton />
           ) : activity.length === 0 ? (
-            <EmptyState
-              status
-              tagline="Nothing new from friends yet."
-              hint="This fills in as friends publish decks or share with you."
-            />
+            <EmptyState status tagline="Nothing new from friends yet." />
           ) : (
             <ul className="friends-activity-list" aria-label="Recent friend activity">
               {activity.map((item) => {

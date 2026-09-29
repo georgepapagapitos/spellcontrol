@@ -81,7 +81,6 @@ export function RotatePrompt({ fullscreen }: Props) {
           <h2 id="playtest-rotate-title" className="playtest-rotate__title">
             Turn your phone sideways
           </h2>
-          <p className="playtest-rotate__body">The battlefield gets the whole width.</p>
         </>
       )}
       {canFullscreen && (

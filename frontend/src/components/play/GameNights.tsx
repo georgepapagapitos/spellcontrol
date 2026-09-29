@@ -137,7 +137,7 @@ export function GameNightsTab({ isGuest, nights, loading, error, refresh }: Game
     return (
       <EmptyState
         tagline="Game nights need an account."
-        hint="Sign in to plan a night and invite friends. Anyone you send the link to can RSVP without an account."
+        hint="Sign in to plan a night and invite friends."
         actions={
           <Button variant="primary" to={signInHref}>
             Sign in
@@ -179,9 +179,6 @@ export function GameNightsTab({ isGuest, nights, loading, error, refresh }: Game
           <header className="play-setup-header game-nights-header">
             <div>
               <h2 className="play-setup-title">Game nights</h2>
-              <p className="play-setup-help">
-                Share a night's link with anyone. RSVPs don't need an account.
-              </p>
             </div>
             <Button variant="primary" onClick={() => setDialog('create')}>
               Plan a game night
@@ -865,8 +862,7 @@ function PollDialog({
           Vote on a new date
         </h2>
         <p className="game-night-dialog-hint">
-          Attendees vote on which times they can make; you lock one in from the night's card. The
-          current time is the first option.
+          Attendees vote on times. You lock one in from the night's card.
         </p>
         <fieldset className="game-night-dialog-options">
           <legend>Times to vote on (2–5)</legend>
@@ -1331,16 +1327,12 @@ function NightDialog({
                 />
               </Field>
               {repeatWeekly && (
-                <p className="game-night-dialog-hint">
-                  Same time every week, on one link that always opens the next night.
-                </p>
+                <p className="game-night-dialog-hint">One link always opens the next night.</p>
               )}
             </>
           )}
           {night !== null && night.series !== null && night.series.endedAt === null && (
-            <p className="game-night-dialog-hint">
-              This night repeats weekly. Your changes carry forward to future weeks.
-            </p>
+            <p className="game-night-dialog-hint">Changes carry forward to future weeks.</p>
           )}
 
           {pollingEdit ? (
@@ -1478,7 +1470,7 @@ function NightDialog({
             label="Invite only"
             hint={
               inviteOnly
-                ? 'Anyone with the link can see the night, but only people you invite, or who already replied, can RSVP.'
+                ? 'Anyone with the link can see it. Only people you invite, or who already replied, can RSVP.'
                 : undefined
             }
             checked={inviteOnly}
@@ -1549,8 +1541,8 @@ function NightDialog({
               <legend>Invite someone without an account</legend>
               <p className="game-night-dialog-hint">
                 {night.series !== null
-                  ? 'Each person gets their own link that keeps working every week. It works even on an invite-only night, no signup required.'
-                  : 'Each person gets their own link for this night. It works even on an invite-only night, no signup required.'}
+                  ? 'Each person gets their own link that works every week, no signup needed. It works on invite-only nights.'
+                  : 'Each person gets their own link, no signup needed. It works on invite-only nights.'}
               </p>
               <div className="game-night-guest-invite-add">
                 <label className="game-night-dialog-field">
@@ -1640,9 +1632,7 @@ function NightDialog({
                 Couldn't load your friends list. Share the link instead, no account needed.
               </p>
             ) : friendsFetch.friends.length === 0 ? (
-              <p className="game-night-dialog-hint">
-                No friends yet. Share the link instead, no account needed.
-              </p>
+              <p className="game-night-dialog-hint">No friends yet. Share the link instead.</p>
             ) : (
               <ul className="game-night-dialog-friend-list">
                 {friendsFetch.friends.map((f) => {

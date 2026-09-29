@@ -199,7 +199,7 @@ function TradesPageBody() {
       toast.show({
         message:
           n === 0
-            ? 'Nothing to clear yet. A trade still being added to your collection stays until it lands.'
+            ? 'Nothing to clear yet.'
             : `Removed ${n} ${n === 1 ? 'trade' : 'trades'} from your list.`,
         tone: n === 0 ? 'info' : 'success',
       });
@@ -235,7 +235,7 @@ function TradesPageBody() {
         <EmptyState
           status
           tagline="No trades yet."
-          hint="Open a friend's hub to see what they have and propose one. It shows up here for both of you until it's answered."
+          hint="Propose one from a friend's page."
           actions={
             <Button variant="primary" to="/friends">
               Find a friend to trade with
@@ -335,7 +335,7 @@ function TradesPageBody() {
       {clearing && (
         <ConfirmDialog
           title="Clear your trade history?"
-          body="Every answered trade comes off your list. Trades still being added to your collection stay, and the other person keeps their own copy."
+          body="Answered trades come off your list, and the other person keeps their copy."
           confirmLabel="Clear history"
           danger
           onConfirm={() => void clearHistory()}

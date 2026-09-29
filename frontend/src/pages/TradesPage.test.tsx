@@ -284,7 +284,7 @@ describe('TradesPage', () => {
     // Nothing happens until the dialog is confirmed.
     expect(clearTradeHistory).not.toHaveBeenCalled();
     const dialog = screen.getByRole('dialog');
-    expect(dialog.textContent).toMatch(/other person keeps their own copy/);
+    expect(dialog.textContent).toMatch(/other person keeps their copy/);
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Clear history' }));
     await waitFor(() => expect(clearTradeHistory).toHaveBeenCalledTimes(1));

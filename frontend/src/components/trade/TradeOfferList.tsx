@@ -140,13 +140,7 @@ export function TradeOfferList({ offers, onChanged, onCounter, linkCounterparty,
   const locations = useCardLocations(locationsNeeded).byOracleId;
 
   if (offers.length === 0) {
-    return (
-      <EmptyState
-        className="trade-offers-empty"
-        tagline="No trades yet."
-        hint="Propose one and it shows up here for both of you, until it's answered."
-      />
-    );
+    return <EmptyState className="trade-offers-empty" tagline="No trades yet." />;
   }
 
   return (

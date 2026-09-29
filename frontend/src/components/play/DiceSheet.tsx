@@ -134,7 +134,6 @@ export function DiceSheet({
             </div>
           )}
         </div>
-        <p className="board-sheet-hint dice-slot-hint">Every roll and flip goes in the game log.</p>
       </div>
 
       <SheetSection title="Roll">

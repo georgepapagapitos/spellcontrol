@@ -57,9 +57,8 @@ export function TakebackModePicker({ mode, onSelect, onClose, online }: Props) {
         <div className="card-picker-header">
           <h2 className="card-picker-title">Your takeback rule</h2>
           <p className="playtest-takeback-picker__intro">
-            Steps nobody but you saw always take back free. This only covers steps the table already
-            saw, and it is your rule alone: every player sets their own. Hidden information never
-            returns.
+            Steps nobody else saw always take back free. This rule covers the rest, and each player
+            sets their own. Hidden information never returns.
           </p>
         </div>
         <fieldset className="playtest-takeback-picker__list" aria-label="Your takeback rule">
