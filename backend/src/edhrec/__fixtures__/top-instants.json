@@ -1,0 +1,55 @@
+{
+  "header": "Top Instants",
+  "container": {
+    "json_dict": {
+      "cardlists": [
+        {
+          "tag": "topinstants",
+          "header": "Top Instants",
+          "cardviews": [
+            {
+              "id": "f7e12477-d59f-442b-a678-1be746d0b7be",
+              "name": "Swords to Plowshares",
+              "sanitized": "swords-to-plowshares",
+              "slug": "swords-to-plowshares",
+              "url": "/cards/swords-to-plowshares",
+              "num_decks": 2873057,
+              "potential_decks": 4720052,
+              "trend_zscore": 2.6595561146604956
+            },
+            {
+              "id": "22e08a78-55b7-46b0-bd1a-a51548fc1861",
+              "name": "Path to Exile",
+              "sanitized": "path-to-exile",
+              "slug": "path-to-exile",
+              "url": "/cards/path-to-exile",
+              "num_decks": 2251137,
+              "potential_decks": 4720052,
+              "trend_zscore": 1.8624451796568646
+            },
+            {
+              "id": "4f616706-ec97-4923-bb1e-11a69fbaa1f8",
+              "name": "Counterspell",
+              "sanitized": "counterspell",
+              "slug": "counterspell",
+              "url": "/cards/counterspell",
+              "num_decks": 2098826,
+              "potential_decks": 4996772,
+              "trend_zscore": 0.050220974523179
+            },
+            {
+              "id": "e01cc65a-0e38-4f41-b9ed-796ef0355d0b",
+              "name": "Wear // Tear",
+              "sanitized": "wear-tear",
+              "slug": "wear-tear",
+              "url": "/cards/wear-tear",
+              "num_decks": 148404,
+              "potential_decks": 2361965,
+              "trend_zscore": -0.7392874746994711
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
