@@ -12,7 +12,7 @@ import type { TradeRadarMatch } from '../../lib/trade-radar';
 import { useAuth } from '../../store/auth';
 import { toast } from '../../store/toasts';
 import { Modal } from '../Modal';
-import { RadarCardTile } from '../../pages/FriendHubPage';
+import { RadarCardTile } from '../trade/RadarCardTile';
 import './TonightTrades.css';
 
 import { userMessage } from '@/lib/user-error';
