@@ -7,7 +7,11 @@ import { SegmentedControl } from '../../components/shared/form';
 import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
 import { useCubeStore } from '../../store/cube';
-import { buildAllocationMap, type AllocationInfo } from '../../lib/allocations';
+import {
+  buildAllocationMap,
+  compareCopyPreference,
+  type AllocationInfo,
+} from '../../lib/allocations';
 import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
 import { CUBE_SIZES, sizeInfo, type ColorBucket, type CubeSize } from '../../lib/cube/targets';
 import type { GeneratedCube } from '../../lib/cube/generate';
@@ -88,13 +92,36 @@ export function cubeCardToEnriched(card: {
   };
 }
 
-/** Resolve a pick's preview card: cached Scryfall row, else minimal fallback. */
+/** A card's copy in the user's collection, or null when they own none. */
+export type CopyFor = (name: string) => EnrichedCard | null;
+
+/**
+ * Resolve a pick's preview card: the copy the user owns, so the art is the
+ * printing on their shelf; else the cached Scryfall row, which is Scryfall's
+ * DEFAULT printing for the name (right only for a friend-supplied or unowned
+ * pick); else a minimal fallback.
+ */
 export function pickToPreviewCard(
   card: { name: string; oracleId?: string; cmc?: number; typeLine?: string; colors?: string[] },
-  enriched: Map<string, ScryfallCard>
+  enriched: Map<string, ScryfallCard>,
+  copyFor?: CopyFor
 ): EnrichedCard {
+  const owned = copyFor?.(card.name);
+  if (owned) return owned;
   const s = enriched.get(card.name);
   return s ? scryfallToEnrichedCard(s) : cubeCardToEnriched(card);
+}
+
+/** A cube row's small thumbnail, resolved in the same order as the preview. */
+export function pickThumb(
+  name: string,
+  enriched: Map<string, ScryfallCard>,
+  copyFor?: CopyFor
+): string | undefined {
+  const owned = copyFor?.(name)?.imageSmall;
+  if (owned) return owned;
+  const s = enriched.get(name);
+  return s?.image_uris?.small ?? s?.card_faces?.[0]?.image_uris?.small;
 }
 
 /** Group picks into the fixed bucket order, dropping empty buckets, with flat indices. */
@@ -131,22 +158,37 @@ export function cubeRowKeyDown(e: KeyboardEvent, idx: number, open: (idx: number
  * count as free — a physical cube's picks are in THIS cube, and badging all
  * 180 of them "in a cube" says nothing (the deck editor likewise never badges
  * a card as in the deck you're editing).
+ *
+ * `copyFor(name)`: the owned copy whose printing the cube shows. The copy this
+ * cube holds wins (a physical cube's reserved copy), then the free copy that
+ * "Mark physical" would bind (`compareCopyPreference`, the allocator's own
+ * order), then any copy held elsewhere: it is still the printing you own.
  */
 export function ownershipIndex(
   collectionCards: readonly EnrichedCard[],
   allocations: ReadonlyMap<string, AllocationInfo>,
   viewingCubeId: string | null = null
 ) {
-  const byName = new Map<string, { free: number; claims: AllocationInfo[] }>();
+  const byName = new Map<
+    string,
+    { free: number; claims: AllocationInfo[]; best: EnrichedCard; bestTier: number }
+  >();
   for (const copy of collectionCards) {
     if (!copy.name) continue;
     const key = copy.name.toLowerCase();
-    const e = byName.get(key) ?? { free: 0, claims: [] };
     const claim = allocations.get(copy.copyId);
-    if (!claim || (claim.ownerKind === 'cube' && claim.ownerId === viewingCubeId)) e.free += 1;
+    const mine = claim?.ownerKind === 'cube' && claim.ownerId === viewingCubeId;
+    const tier = mine ? 0 : claim ? 2 : 1;
+    const e = byName.get(key) ?? { free: 0, claims: [], best: copy, bestTier: tier };
+    if (!claim || mine) e.free += 1;
     else e.claims.push(claim);
+    if (tier < e.bestTier || (tier === e.bestTier && compareCopyPreference(copy, e.best) < 0)) {
+      e.best = copy;
+      e.bestTier = tier;
+    }
     byName.set(key, e);
   }
+  const copyFor: CopyFor = (name) => byName.get(name.toLowerCase())?.best ?? null;
   const ownershipFor = (name: string): Ownership => {
     const e = byName.get(name.toLowerCase());
     if (!e) return 'unowned';
@@ -166,7 +208,7 @@ export function ownershipIndex(
       return true;
     });
   };
-  return { ownershipFor, committedFor };
+  return { ownershipFor, committedFor, copyFor };
 }
 
 /** `ownershipIndex` over the live collection, decks and physical cubes. */

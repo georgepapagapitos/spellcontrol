@@ -18,7 +18,7 @@ import type { BuildMyVersionResult as BuildMyVersionData } from '../../lib/cube/
 import type { CubeCobraCard, ImportedCube } from '../../lib/cube/import';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '../../types';
-import { cubeCardToEnriched, pickToPreviewCard } from './shared';
+import { cubeCardToEnriched, pickToPreviewCard, pickThumb, type CopyFor } from './shared';
 import { Button } from '../../components/shared/Button';
 
 /** Why a card got no substitute — the same bucket/color language `buildMyVersion`
@@ -49,10 +49,13 @@ export function BuildMyVersionResult({
   imported,
   result,
   enrichedMap,
+  copyFor,
 }: {
   imported: ImportedCube;
   result: BuildMyVersionData;
   enrichedMap: Map<string, ScryfallCard>;
+  /** Kept and substitute cards come from the collection: show the owned printing. */
+  copyFor?: CopyFor;
 }) {
   const navigate = useNavigate();
   const pushToast = useToastsStore((s) => s.push);
@@ -64,8 +67,8 @@ export function BuildMyVersionResult({
   const totalRows = result.kept.length + result.substituted.length + result.missing.length;
 
   const keptCards = useMemo(
-    () => result.kept.map((c) => pickToPreviewCard(c, enrichedMap)),
-    [result.kept, enrichedMap]
+    () => result.kept.map((c) => pickToPreviewCard(c, enrichedMap, copyFor)),
+    [result.kept, enrichedMap, copyFor]
   );
   // Reading order matches the trade preview's give-then-get ruling: the card
   // leaving the list, then the one replacing it.
@@ -73,9 +76,9 @@ export function BuildMyVersionResult({
     () =>
       result.substituted.flatMap((s) => [
         cubeCardToEnriched(s.original),
-        pickToPreviewCard(s.substitute, enrichedMap),
+        pickToPreviewCard(s.substitute, enrichedMap, copyFor),
       ]),
-    [result.substituted, enrichedMap]
+    [result.substituted, enrichedMap, copyFor]
   );
   const missingCards = useMemo(
     () => result.missing.map((c) => cubeCardToEnriched(c)),
@@ -199,8 +202,7 @@ export function BuildMyVersionResult({
           </h3>
           <ul className="cube-sub-rows">
             {result.substituted.map((s, i) => {
-              const sub = enrichedMap.get(s.substitute.name);
-              const subImg = sub?.image_uris?.small ?? sub?.card_faces?.[0]?.image_uris?.small;
+              const subImg = pickThumb(s.substitute.name, enrichedMap, copyFor);
               return (
                 <li key={s.original.oracleId || s.original.name} className="cube-sub-row">
                   <button

@@ -90,7 +90,7 @@ export function CubeDetailPage() {
   useEffect(() => () => rebuildAbort.current?.abort(), []);
   const [enrichedMap, setEnrichedMap] = useState<Map<string, ScryfallCard>>(new Map());
 
-  const { ownershipFor, committedFor } = useOwnershipFor(target?.id ?? null);
+  const { ownershipFor, committedFor, copyFor } = useOwnershipFor(target?.id ?? null);
   const filters = target?.settings?.filters ?? DEFAULT_POOL_FILTERS;
   const {
     pool,
@@ -465,6 +465,7 @@ export function CubeDetailPage() {
             loaded={target}
             ownershipFor={ownershipFor}
             committedFor={committedFor}
+            copyFor={copyFor}
             enrichedMap={enrichedMap}
             hideTitle
             hideCopyAction

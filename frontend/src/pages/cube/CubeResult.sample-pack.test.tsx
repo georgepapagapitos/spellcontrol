@@ -49,6 +49,7 @@ describe('CubeResult sample pack', () => {
         loaded={null}
         ownershipFor={NOOP_STRING}
         committedFor={NOOP_ARR}
+        copyFor={() => null}
         enrichedMap={new Map()}
       />
     );
@@ -72,6 +73,7 @@ describe('CubeResult sample pack', () => {
         loaded={null}
         ownershipFor={NOOP_STRING}
         committedFor={NOOP_ARR}
+        copyFor={() => null}
         enrichedMap={new Map()}
       />
     );

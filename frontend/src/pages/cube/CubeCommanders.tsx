@@ -43,7 +43,7 @@ import { legendKindLabel, type LegendIdentity } from '../../lib/cube/legend';
 import { simulateCommanderDraftAsync } from '../../lib/cube/generate-async';
 import { COMMANDER_PLAYABLE_TARGET, type CommanderDraftSimResult } from '../../lib/cube/draft-sim';
 import { sizeInfo } from '../../lib/cube/targets';
-import { pickToPreviewCard } from './shared';
+import { pickToPreviewCard, pickThumb, type CopyFor } from './shared';
 import { Button } from '../../components/shared/Button';
 import { Chip } from '../../components/shared/Chip';
 import { ArtBadge } from '../../components/shared/ArtBadge';
@@ -94,18 +94,20 @@ export function CubeCommandersSection({
   cube,
   view,
   enrichedMap,
+  copyFor,
 }: {
   cube: GeneratedCube;
   view: 'gallery' | 'list';
   enrichedMap: Map<string, ScryfallCard>;
+  copyFor?: CopyFor;
 }) {
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [expanded, setExpanded] = useState(false);
   const status = legendsStatus(cube);
   const legends = cube.legends ?? [];
   const previewCards = useMemo<EnrichedCard[]>(
-    () => legends.map((l) => pickToPreviewCard(l.card, enrichedMap)),
-    [legends, enrichedMap]
+    () => legends.map((l) => pickToPreviewCard(l.card, enrichedMap, copyFor)),
+    [legends, enrichedMap, copyFor]
   );
   const canExpand = legends.length > PREVIEW_COUNT;
   const visible = expanded ? legends : legends.slice(0, PREVIEW_COUNT);
@@ -154,8 +156,7 @@ export function CubeCommandersSection({
         ) : (
           <ul className="cube-rows">
             {visible.map((l, i) => {
-              const s = enrichedMap.get(l.card.name);
-              const img = s?.image_uris?.small ?? s?.card_faces?.[0]?.image_uris?.small;
+              const img = pickThumb(l.card.name, enrichedMap, copyFor);
               return (
                 <li key={l.card.oracleId || l.card.name} className="cube-row">
                   <button
