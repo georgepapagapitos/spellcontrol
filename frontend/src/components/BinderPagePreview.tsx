@@ -380,10 +380,11 @@ function Cell({
               ? `/decks/cube/${allocation.ownerId}`
               : `/decks/${allocation.ownerId}`
           }
-          className="slot-deck-badge"
+          className="art-badge slot-deck-badge"
+          data-identity="one"
           style={
             {
-              '--deck-color':
+              '--identity-color':
                 allocation.ownerKind === 'cube'
                   ? 'var(--cube-color)'
                   : allocation.ownerColor || 'var(--accent)',

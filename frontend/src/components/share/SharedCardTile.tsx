@@ -121,10 +121,10 @@ export function SharedCardTile({
       badges={
         ownership?.owned || allocations?.length ? (
           <>
-            {allocations && <DeckBadge allocations={allocations} />}
+            {allocations && <DeckBadge allocations={allocations} placement="art" />}
             {ownership?.owned && <span className="shared-tile-owned-dot" aria-hidden="true" />}
             {ownership?.owned && ownership.binders.length > 0 && (
-              <BinderBadge binders={ownership.binders} />
+              <BinderBadge binders={ownership.binders} placement="art" />
             )}
           </>
         ) : undefined

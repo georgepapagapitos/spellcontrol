@@ -1384,9 +1384,9 @@ i.ss.set-symbol--mythic {
    `.art-badge` beside the family class; everything here is wrapped in
    :where() so it has no specificity, and a family keeps only what is its
    own: a code's mono face, a status fill, a size tier that scales with the
-   card. The deck and binder identity marks are the domain badges' look
-   (DeckBadge / BinderBadge), not this plate. */
-:where(.art-badge:not(.card-list-deck-badge, .slot-deck-badge)) {
+   card. A deck, cube or binder mark on art is this plate too, with its
+   owner's colour (data-identity, below). */
+:where(.art-badge) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1403,7 +1403,7 @@ i.ss.set-symbol--mythic {
   white-space: nowrap;
 }
 
-:where(.art-badge[data-icon-only]:not(.card-list-deck-badge, .slot-deck-badge)) {
+:where(.art-badge[data-icon-only]) {
   width: 1.25rem;
   height: 1.25rem;
   padding: 0;
@@ -1490,83 +1490,60 @@ i.ss.set-symbol--mythic {
   z-index: 2;
 }
 
-.collection-grid-badges .card-list-deck-badge,
-.collection-grid-badges .card-list-binder-badge {
-  margin-left: 0;
+/* An identity mark on art: which deck, cube or binder holds the copy
+   (DeckBadge / BinderBadge placement="art", the binder slot's deck mark).
+   The plate's shape and shadow, filled with the owner's colour
+   (--identity-color) under a light glyph: the mark says whose card this is,
+   and a colour disc says it at 12px, on the card's black frame and on a
+   dimmed pocket, where a coloured glyph on the scrim vanished (a purple deck
+   was near invisible). Identity is not status, so it is the one thing on art
+   that is not the scrim. Several owners have no one colour, so they stay on
+   the scrim with its light glyph. A family keeps its size and place; the
+   paint is only here. Guard: styles/identity-mark-plate.test.ts. */
+:where(.art-badge[data-identity]) {
+  border: 1px solid rgba(0, 0, 0, 0.35);
+  text-decoration: none;
+  transition:
+    filter var(--motion-fast),
+    transform var(--motion-fast),
+    box-shadow var(--motion-fast);
+}
+
+:where(.art-badge[data-identity='one']) {
+  background: var(--identity-color, var(--accent));
+  color: var(--on-accent);
+}
+
+:where(.art-badge[data-identity='many']) {
+  border-color: color-mix(in srgb, var(--art-scrim-text) 55%, transparent);
+}
+
+/* A single owner is a link or a button: it lifts and brightens, keeping its
+   colour, and its focus ring reads on any artwork. */
+:where(.art-badge[data-identity]:is(a, button)):focus-visible {
+  filter: brightness(1.1);
+  transform: scale(1.15);
+  outline: 2px solid var(--identity-color, var(--accent));
+  outline-offset: 2px;
+  box-shadow:
+    0 0 0 2px rgba(0, 0, 0, 0.85),
+    0 0 0 4px var(--art-scrim-text);
+}
+@media (hover: hover) and (pointer: fine) {
+  :where(.art-badge[data-identity]:is(a, button)):hover {
+    filter: brightness(1.1);
+    transform: scale(1.15);
+    outline: none;
+  }
+}
+
+.collection-grid-badges .identity-mark {
   padding: var(--space-1);
-  background: var(--art-scrim);
-  border: 1px solid color-mix(in srgb, var(--binder-color, var(--accent)) 55%, transparent);
-  box-shadow: var(--shadow-raised);
-}
-
-.collection-grid-badges .card-list-deck-badge {
-  border-color: color-mix(in srgb, var(--deck-color, var(--accent)) 55%, transparent);
-  color: var(--deck-color, var(--accent));
-}
-
-/* In the grid badge cluster the deck pill stays a fixed icon-size dot —
-   per-deck names are surfaced via the title/aria-label, so the ×N count
-   we show in list view would just clutter the thumbnail. */
-.collection-grid-badges .card-list-deck-badge-count {
-  display: none;
 }
 
 .collection-grid-badges svg {
   width: 13px;
   height: 13px;
-}
-
-/* Grid badges are interactive (a single binder/deck renders as a
-   button/link) but the opaque grid background above overrides the base
-   :hover/:focus-visible styles, leaving no feedback. Restore an explicit
-   affordance — lift + brighten on hover, and a focus ring that reads
-   against the card art behind it regardless of binder/deck color. */
-.collection-grid-badges .card-list-deck-badge,
-.collection-grid-badges .card-list-binder-badge {
-  transition:
-    background var(--motion-fast),
-    border-color var(--motion-fast),
-    transform var(--motion-fast),
-    box-shadow var(--motion-fast);
-}
-
-.collection-grid-badges .card-list-binder-badge:focus-visible {
-  background: rgba(0, 0, 0, 0.92);
-  border-color: var(--binder-color, var(--accent));
-  transform: scale(1.15);
-  outline: 2px solid var(--binder-color, var(--accent));
-  outline-offset: 2px;
-}
-@media (hover: hover) and (pointer: fine) {
-  .collection-grid-badges .card-list-binder-badge:hover {
-    background: rgba(0, 0, 0, 0.92);
-    border-color: var(--binder-color, var(--accent));
-    transform: scale(1.15);
-    outline: none;
-  }
-}
-
-.collection-grid-badges .card-list-deck-badge:focus-visible {
-  background: rgba(0, 0, 0, 0.92);
-  border-color: var(--deck-color, var(--accent));
-  transform: scale(1.15);
-  outline: 2px solid var(--deck-color, var(--accent));
-  outline-offset: 2px;
-}
-@media (hover: hover) and (pointer: fine) {
-  .collection-grid-badges .card-list-deck-badge:hover {
-    background: rgba(0, 0, 0, 0.92);
-    border-color: var(--deck-color, var(--accent));
-    transform: scale(1.15);
-    outline: none;
-  }
-}
-
-.collection-grid-badges .card-list-deck-badge:focus-visible,
-.collection-grid-badges .card-list-binder-badge:focus-visible {
-  box-shadow:
-    0 0 0 2px rgba(0, 0, 0, 0.85),
-    0 0 0 4px var(--art-scrim-text);
 }
 
 .collection-grid-item.grid-2x .collection-grid-badges {
@@ -1575,8 +1552,7 @@ i.ss.set-symbol--mythic {
   gap: var(--space-1);
 }
 
-.collection-grid-item.grid-2x .collection-grid-badges .card-list-deck-badge,
-.collection-grid-item.grid-2x .collection-grid-badges .card-list-binder-badge {
+.collection-grid-item.grid-2x .collection-grid-badges .identity-mark {
   padding: var(--space-1);
 }
 
@@ -1591,8 +1567,7 @@ i.ss.set-symbol--mythic {
   gap: var(--space-1-5);
 }
 
-.collection-grid-item.grid-3x .collection-grid-badges .card-list-deck-badge,
-.collection-grid-item.grid-3x .collection-grid-badges .card-list-binder-badge {
+.collection-grid-item.grid-3x .collection-grid-badges .identity-mark {
   padding: var(--space-1-5);
 }
 
@@ -1611,8 +1586,7 @@ i.ss.set-symbol--mythic {
     gap: var(--space-1);
   }
 
-  .collection-grid-badges .card-list-deck-badge,
-  .collection-grid-badges .card-list-binder-badge {
+  .collection-grid-badges .identity-mark {
     padding: var(--space-1-5);
   }
 
@@ -2591,7 +2565,8 @@ i.ss.set-symbol--mythic {
     transform: translate(-50%, -50%);
   }
 
-  .card-list-deck-badge {
+  .card-list-deck-badge,
+  .identity-mark {
     position: relative;
   }
 
@@ -2606,6 +2581,18 @@ i.ss.set-symbol--mythic {
        neighbour by ~10px and the badge painted later won that strip — a tap
        on the deck badge opened the BINDER sheet. The nightly journey's
        overlapping-target check caught it. */
+    width: calc(100% + var(--space-1));
+    height: 36px;
+    transform: translate(-50%, -50%);
+  }
+
+  .identity-mark::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    /* The same pitch cap as the row badges above: the marks in a tile
+       corner sit 33.8px apart. */
     width: calc(100% + var(--space-1));
     height: 36px;
     transform: translate(-50%, -50%);

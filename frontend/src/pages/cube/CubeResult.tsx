@@ -416,13 +416,14 @@ export function CubeResult({
                             <>
                               {isLocked && (
                                 <ArtBadge
-                                  className="card-list-deck-badge"
+                                  className="cube-lock-mark"
+                                  tone="accent"
                                   title='Locked, stays on "Rebuild the rest"'
                                   label='Locked, stays on "Rebuild the rest"'
                                   icon={<Lock width={12} height={12} strokeWidth={2} />}
                                 />
                               )}
-                              <DeckBadge allocations={committedFor(p.card.name)} />
+                              <DeckBadge allocations={committedFor(p.card.name)} placement="art" />
                             </>
                           }
                         />

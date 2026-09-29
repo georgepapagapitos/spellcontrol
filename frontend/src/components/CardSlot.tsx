@@ -217,10 +217,11 @@ export function CardSlot({ card, showImage }: Props) {
                   ? `/decks/cube/${allocation.ownerId}`
                   : `/decks/${allocation.ownerId}`
               }
-              className="slot-deck-badge"
+              className="art-badge slot-deck-badge"
+              data-identity="one"
               style={
                 {
-                  '--deck-color':
+                  '--identity-color':
                     allocation.ownerKind === 'cube'
                       ? 'var(--cube-color)'
                       : allocation.ownerColor || 'var(--accent)',
@@ -309,9 +310,10 @@ export function CardSlot({ card, showImage }: Props) {
                   <ArtBadge
                     corner="bottom-end"
                     className="slot-deck-badge tooltip-deck-badge"
+                    data-identity="one"
                     style={
                       {
-                        '--deck-color':
+                        '--identity-color':
                           allocation.ownerKind === 'cube'
                             ? 'var(--cube-color)'
                             : allocation.ownerColor || 'var(--accent)',

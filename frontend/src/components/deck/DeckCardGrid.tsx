@@ -512,7 +512,7 @@ export function DeckCardGrid({
                           )}
                         </ArtBadge>
                       )}
-                      {binders.length > 0 && <BinderBadge binders={binders} />}
+                      {binders.length > 0 && <BinderBadge binders={binders} placement="art" />}
                       {synergy && synergy.length > 0 && (
                         <ArtBadge
                           className="deck-card-grid-synergy"

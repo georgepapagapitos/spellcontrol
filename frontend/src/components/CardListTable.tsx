@@ -2500,8 +2500,8 @@ export function CardListTable({
                       }
                       badges={
                         <>
-                          <DeckBadge allocations={allocationsFor(r.card)} />
-                          <BinderBadge binders={r.binders} />
+                          <DeckBadge allocations={allocationsFor(r.card)} placement="art" />
+                          <BinderBadge binders={r.binders} placement="art" />
                         </>
                       }
                     />
