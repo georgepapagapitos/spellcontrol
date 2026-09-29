@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import './FillDeckSheet.css';
 import { type JSX, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -144,7 +145,7 @@ export function FillDeckSheet({
 
   const additions = phase.kind === 'review' ? phase.result.plan.additions : [];
 
-  return (
+  return createPortal(
     <div
       className="card-picker-root"
       onClick={(e) => {
@@ -302,6 +303,7 @@ export function FillDeckSheet({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

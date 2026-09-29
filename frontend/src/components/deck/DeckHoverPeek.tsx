@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useEffect, useState } from 'react';
 import './DeckHoverPeek.css';
 import { ImageOff } from 'lucide-react';
@@ -48,7 +49,7 @@ export function DeckHoverPeek({
 
   if (variant === 'hover') {
     if (!imageUrl) return null;
-    return (
+    return createPortal(
       <img
         className="deck-card-hover-peek"
         src={imageUrl}
@@ -56,11 +57,12 @@ export function DeckHoverPeek({
         aria-hidden="true"
         draggable={false}
         style={{ left, top, width }}
-      />
+      />,
+      document.body
     );
   }
 
-  return (
+  return createPortal(
     <div
       className="deck-card-hover-peek deck-card-hover-peek-touch"
       aria-hidden="true"
@@ -76,6 +78,7 @@ export function DeckHoverPeek({
       ) : (
         <div className="deck-card-hover-peek-loading" aria-hidden />
       )}
-    </div>
+    </div>,
+    document.body
   );
 }

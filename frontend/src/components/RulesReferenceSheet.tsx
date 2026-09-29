@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { Sparkles, X } from 'lucide-react';
 import { useId, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -53,7 +54,7 @@ function RulesReferenceBody({
   useLockBodyScroll();
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'modal-panel-out');
 
-  return (
+  return createPortal(
     <div
       // Over-sheet: the sheet opens from inside other overlays (a keyword in
       // the card preview, the playtest table), and at the base modal layer it
@@ -128,6 +129,7 @@ function RulesReferenceBody({
 
         <RulesReferenceFoot bundle={bundle} />
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

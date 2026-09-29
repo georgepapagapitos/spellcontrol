@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import './CardOtagsSheet.css';
@@ -51,7 +52,7 @@ export function CardOtagsSheet({ card, onClose }: Props) {
         )}`
       : null;
 
-  return (
+  return createPortal(
     <div
       className="card-picker-root"
       onClick={(e) => {
@@ -133,6 +134,7 @@ export function CardOtagsSheet({ card, onClose }: Props) {
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { type JSX, useEffect, useId, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
@@ -61,7 +62,7 @@ export function DeckPrimerSheet({ deck, onClose }: Props): JSX.Element {
   const remaining = PRIMER_MAX - text.length;
   const showCounter = remaining < COUNTER_THRESHOLD;
 
-  return (
+  return createPortal(
     <div
       className="card-picker-root"
       role="presentation"
@@ -122,6 +123,7 @@ export function DeckPrimerSheet({ deck, onClose }: Props): JSX.Element {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
