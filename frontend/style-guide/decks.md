@@ -286,7 +286,7 @@ three times on one screen, so these rulings now hold:
   for this deck or that finish a one-away combo — "in colour identity and
   bought recently" is not a recommendation.
 - **List is the default deck view** (reversing E127's card-forward grid). The
-  list is the editing surface — steppers, kebab, reorder, price, mana cost,
+  list is the editing surface — editable count, kebab, reorder, price, mana cost,
   hover-peek; the grid is a gallery that fits ~8 cards per row on desktop and
   2 on a phone. An explicit persisted choice still wins either way.
 - **A "will it fit" affordance says what it does.** The row button is
@@ -427,6 +427,22 @@ preview) and Archidekt's static-card panel, these rulings now hold:
   on touch. The ⋮ kebab keeps its slot but rests at `opacity: 0` on a fine
   pointer and shows on row hover/focus. Add a new always-on glyph to the row
   only by trading one out.
+- **Hover chips drop by the name cell's width, never the name (2026-09-29).**
+  `.deck-row-name` is a size container; the chip cluster is one right-aligned
+  group against the mana column with a single gap (no per-chip margins, one
+  chip height). As the cell narrows it drops EDHREC % (below 22.5rem), then
+  synergy and the provenance tip (20rem), then ownership (17rem; the qty
+  already turns red), and last combo and foil (10rem). A 100-card deck's four
+  desktop columns leave ~160px, which holds the name and the combo badge. The
+  card inspector lists the combo count and EDHREC share, so nothing a narrow
+  row drops is lost. Add a new row chip by giving it a tier, not a margin.
+- **A deck row's count is a button, never a −/+ stepper (2026-09-28).** Tap
+  or click the number to type a new one (Enter commits, Escape cancels, 0
+  removes the card and hands focus to the next row's count); the ⋮ menu
+  carries Add another copy / Remove one copy / Remove all. The stepper used
+  to appear only where a second copy was legal, so a Commander list showed it
+  on the basics and on "any number" cards like Sphinx's Approach, and it read
+  as a bug. One control on every row, in every format and zone.
 - **Wide + fine pointer gets a card inspector, and it earns its width.**
   Superseded the day-old pinned rail (see the amendment below). `DeckCardInspector`
   (co-located CSS) is a sticky LEFT column beside the deck body at

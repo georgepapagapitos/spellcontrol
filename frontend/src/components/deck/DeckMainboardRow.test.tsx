@@ -71,7 +71,7 @@ describe('DeckMainboardRow (via DeckDisplay)', () => {
     // Scoped by selector — "Lightning Bolt" and "$7.00" also appear in the
     // deck's own missing-cards buy-list summary, not just the row.
     expect(screen.getByText('Lightning Bolt', { selector: '.deck-row-name-text' })).toBeTruthy();
-    // qty renders in the +/- stepper's live chip (canEditQty + maxCopies>1).
+    // qty renders in the tap-to-edit button (canEditQty).
     expect(document.querySelector('.deck-row-qty-edit')?.textContent).toBe('2');
     expect(screen.getByText('$7.00', { selector: '.deck-row-price' })).toBeTruthy(); // 2 × $3.50
   });
@@ -85,13 +85,77 @@ describe('DeckMainboardRow (via DeckDisplay)', () => {
     expect(badge.getAttribute('aria-label')).toBe('Not in your collection');
   });
 
-  it('fires the qty-change callback with the mainboard zone when + is tapped', () => {
+  it('fires the qty-change callback with the mainboard zone when the count is edited', () => {
     const onSetQty = renderDeck(copies(2));
 
-    fireEvent.click(screen.getByLabelText('Add one copy of Lightning Bolt'));
+    fireEvent.click(document.querySelector('.deck-row-qty-edit')!);
+    const input = document.querySelector<HTMLInputElement>('.deck-row-qty-input')!;
+    fireEvent.change(input, { target: { value: '3' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
 
-    expect(onSetQty).toHaveBeenCalledWith('cards', expect.objectContaining({ id: 'sf-bolt' }), 1, {
-      relative: true,
-    });
+    expect(onSetQty).toHaveBeenCalledTimes(1);
+    expect(onSetQty).toHaveBeenCalledWith(
+      'cards',
+      expect.objectContaining({ id: 'sf-bolt' }),
+      3,
+      undefined
+    );
+  });
+
+  it('commits a 0 once and hands focus to the next row before the row leaves', () => {
+    const shock = bolt({ id: 'sf-shock', oracle_id: 'o-shock', name: 'Shock' });
+    const onSetQty = renderDeck([...copies(1), ...copies(1, shock)]);
+
+    const [first, second] = Array.from(
+      document.querySelectorAll<HTMLButtonElement>('.deck-row-qty-edit')
+    );
+    fireEvent.click(first);
+    const input = document.querySelector<HTMLInputElement>('.deck-row-qty-input')!;
+    input.focus();
+    fireEvent.change(input, { target: { value: '0' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(onSetQty).toHaveBeenCalledTimes(1);
+    expect(onSetQty).toHaveBeenCalledWith('cards', expect.anything(), 0, undefined);
+    expect(document.activeElement).toBe(second);
+  });
+
+  // The rows that used to carry a −/+ stepper in a Commander list: a basic,
+  // and a card whose own rules text allows any number of copies. The user
+  // read the stepper on only those rows as a bug. Real oracle text, not an
+  // author-written stand-in, so the "any number" branch is the real one.
+  it.each([
+    bolt({
+      id: 'sf-island',
+      oracle_id: 'o-island',
+      name: 'Island',
+      type_line: 'Basic Land — Island',
+      mana_cost: '',
+      oracle_text: '({T}: Add {U}.)',
+    }),
+    bolt({
+      id: 'sf-approach',
+      oracle_id: 'o-approach',
+      name: "Sphinx's Approach",
+      mana_cost: '{2}{U}{U}',
+      oracle_text:
+        "Draw two cards. Then you may exile this spell and four cards named Sphinx's Approach from your graveyard. If you do, search your library for a Sphinx creature card, put it onto the battlefield, then shuffle.\nA deck can have any number of cards named Sphinx's Approach.",
+    }),
+  ])('shows no −/+ stepper on $name in a Commander deck, only the editable count', (card) => {
+    render(
+      <MemoryRouter>
+        <DeckDisplay
+          title="Test deck"
+          commander={null}
+          format="commander"
+          cards={copies(3, card)}
+          onSetQty={vi.fn()}
+        />
+      </MemoryRouter>
+    );
+
+    expect(document.querySelector('.deck-row-qty-edit')?.textContent).toBe('3');
+    expect(screen.queryByLabelText(`Add one copy of ${card.name}`)).toBeNull();
+    expect(screen.queryByLabelText(`Remove one copy of ${card.name}`)).toBeNull();
   });
 });

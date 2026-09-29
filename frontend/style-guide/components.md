@@ -1622,7 +1622,7 @@ a gesture layered on top of the existing tap:
 - Turning it on reroutes the row's existing `onClick`/`onKeyDown` handler to
   toggle selection instead — same handler slot, different target function.
   Nothing about the card-preview carousel or the row's own buttons (qty
-  stepper, kebab menu — which already `stopPropagation()`) needs to change.
+  button, kebab menu — which already `stopPropagation()`) needs to change.
 - The row is `role="button" aria-pressed={selected}` — **not**
   `role="checkbox"` — with a small visual check glyph (`.deck-row-select-check`)
   inside, not a native `<input type="checkbox">`. This follows the "Read-only

@@ -1650,8 +1650,20 @@ export function DeckDisplay({
         (pinnedName ? undefined : hoverKey?.img) || enriched?.imageLarge || enriched?.imageNormal,
       binders,
       synergyReasons: synergyByName.get(name),
+      combos: row.card.oracle_id ? combosByOracle?.get(row.card.oracle_id) : undefined,
+      inclusionPct: resolveInclusionPct(cardInclusionMap, row),
     };
-  }, [inspectorActive, pinnedName, hoverKey, commander, flat, binderByCopyId, synergyByName]);
+  }, [
+    inspectorActive,
+    pinnedName,
+    hoverKey,
+    commander,
+    flat,
+    binderByCopyId,
+    synergyByName,
+    combosByOracle,
+    cardInclusionMap,
+  ]);
   const cardMenuCtx = (row: Row, zone: DeckZone): DeckCardActionCtx => ({
     row,
     isSingleton: formatConfig.isSingleton,
