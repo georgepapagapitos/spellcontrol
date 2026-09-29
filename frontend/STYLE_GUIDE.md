@@ -534,7 +534,20 @@ meaning)`, no `(not X)`. A count qualifier `(4 of 10)` is fine. Placeholders
     starts its own page" under it. No hint for a control that isn't shown
     ("Add a second sort to break pages deeper", "With two or more rules…"):
     when the condition is met the control appears, and until then the line is
-    noise the player has to parse to learn it doesn't apply.
+    noise the player has to parse to learn it doesn't apply. The E505 sweep
+    (2026-09-28) found the same few shapes on every surface:
+    - **A subtitle that repeats its title.** A page, sheet or settings-section
+      subtitle exists only when it adds a fact the title lacks ("Edit 4
+      cards" needs no "Changes apply to every selected card").
+    - **A `title=` that repeats the visible label.** Drop it. Keep one only
+      when the label is cryptic on its own ("Fit & cut") or when it is an
+      input's `pattern` validation message, which the browser shows on a bad
+      entry.
+    - **A reassurance tail.** "Everything else still works", "Nothing is sent
+      until you ask", "Review the changes before you save": the next screen
+      already shows it. Privacy and cost facts are not tails; they stay.
+    - **A disabled control's reason** names what turns it on:
+      `Needs “<option>”.`, not a sentence about the engine's state.
 
 **Model-tells checklist** (run over any new copy before it ships):
 
