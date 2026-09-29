@@ -1,7 +1,12 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { ArrowUpDown, Check, Notebook, Plus } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
-import { searchCards, getCardByNameResilient } from '@/deck-builder/services/scryfall/client';
+import {
+  searchCards,
+  getCardByNameResilient,
+  getCardsByRefs,
+} from '@/deck-builder/services/scryfall/client';
+import { isScryfallLink, parseScryfallCardRefs } from '../../lib/scryfall-card-link';
 import { ManaCost } from '../ManaCost';
 import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
@@ -743,7 +748,12 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
               : 'Search all of Scryfall…'
         }
         value={query}
-        onChange={setQuery}
+        onChange={(q) => {
+          setQuery(q);
+          // A pasted Scryfall card link is looked up on Scryfall, whichever
+          // tab was open.
+          if (isScryfallLink(q)) setMode('scryfall');
+        }}
         ariaLabel={
           activeMode === 'collection'
             ? 'Search your collection'
@@ -1713,6 +1723,8 @@ function ScryfallResults({
   const [results, setResults] = useState<ScryfallCard[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The query is a Scryfall link, but not to a card (a search, a set page).
+  const [notACard, setNotACard] = useState(false);
   const debounce = useRef<number | null>(null);
 
   const pushToast = useToastsStore((s) => s.push);
@@ -1745,18 +1757,40 @@ function ScryfallResults({
         debounce.current = window.setTimeout(resolve, 300);
       });
       if (cancelled) return;
+      // A pasted Scryfall card link (the phone's stand-in for dragging a card
+      // off scryfall.com) resolves to exactly that printing, the one result.
+      const link = isScryfallLink(q);
       setLoading(true);
       setError(null);
+      setNotACard(false);
       try {
-        // Skip the color-identity filter so off-color cards still appear —
-        // they're tagged in the row UI and an add-time warning lets the user
-        // know they're outside the deck's color identity.
-        const resp = await searchCards(q, colorIdentity, { skipColorFilter: true });
-        if (!cancelled) setResults(resp.data.filter((c) => !excludeNames.has(c.name)).slice(0, 60));
+        let found: ScryfallCard[];
+        if (link) {
+          const refs = parseScryfallCardRefs(q).slice(0, 1);
+          if (refs.length === 0) {
+            if (!cancelled) setNotACard(true);
+            found = [];
+          } else {
+            const { cards, error: lookupError } = await getCardsByRefs(refs);
+            if (cards.length === 0) throw lookupError ?? new Error('');
+            found = cards;
+          }
+        } else {
+          // Skip the color-identity filter so off-color cards still appear —
+          // they're tagged in the row UI and an add-time warning lets the user
+          // know they're outside the deck's color identity.
+          found = (await searchCards(q, colorIdentity, { skipColorFilter: true })).data;
+        }
+        if (!cancelled) setResults(found.filter((c) => !excludeNames.has(c.name)).slice(0, 60));
       } catch (e) {
         if (!cancelled) {
           setError(
-            userMessage(e, "Couldn't run that search. Check your connection and try again.")
+            userMessage(
+              e,
+              link
+                ? "Couldn't find that card on Scryfall."
+                : "Couldn't run that search. Check your connection and try again."
+            )
           );
           setResults([]);
         }
@@ -1844,7 +1878,11 @@ function ScryfallResults({
     return <p className="card-search-empty card-search-error">{error}</p>;
   }
   if (display.length === 0) {
-    return <p className="card-search-empty">No matches.</p>;
+    return (
+      <p className="card-search-empty">
+        {notACard ? "No matches. That link isn't a Scryfall card." : 'No matches.'}
+      </p>
+    );
   }
 
   return (

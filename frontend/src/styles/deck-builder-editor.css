@@ -600,3 +600,38 @@
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* Scryfall drop target (useLinkDrop): a card link dragged in from another tab
+   veils the whole window and names the zone it will land in. Same language as
+   the import dropzone's `.file-drop-overlay` (surface wash, dashed accent
+   message), full-window because the whole editor takes the drop. Purely
+   visual: pointer-events off so it can never trap a click after the drag, and
+   no entry animation, so it appears and leaves instantly (its symmetric exit,
+   and nothing to reduce under prefers-reduced-motion). */
+.deck-link-drop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  background: color-mix(in srgb, var(--surface) 85%, transparent);
+  pointer-events: none;
+}
+
+.deck-link-drop-message {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: 100%;
+  margin: 0;
+  padding: var(--space-3) var(--space-5);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--surface-raised);
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius);
+  overflow-wrap: anywhere;
+}

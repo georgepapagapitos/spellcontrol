@@ -22,6 +22,8 @@ vi.mock('@/lib/offline', () => ({
 import {
   isPlayableCard,
   getCardById,
+  getCardBySetAndNumber,
+  getCardsByRefs,
   getCardByName,
   getCardsByNames,
   getCardsByIds,
@@ -210,6 +212,90 @@ describe('getCardById', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => artCard }));
 
     await expect(getCardById('art-1')).rejects.toThrow(/can't be played/);
+  });
+});
+
+describe('getCardBySetAndNumber', () => {
+  beforeEach(() => {
+    gate.offline = false;
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('fetches /cards/{set}/{number}, encoding the number, and caches by key and id', async () => {
+    const card = makeCard({ id: 'star-print', name: 'Karn', set: 'pwar', layout: 'normal' });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => card });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await getCardBySetAndNumber('PWAR', '1★');
+    expect(result.id).toBe('star-print');
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/cards/pwar/1%E2%98%85');
+
+    // Served from the cache on both keys, no second request.
+    await getCardBySetAndNumber('pwar', '1★');
+    await getCardById('star-print');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('throws when the printing is not playable', async () => {
+    const token = makeCard({ id: 'tok-1', name: 'Soldier', layout: 'token' });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => token }));
+    await expect(getCardBySetAndNumber('tcmm', '5')).rejects.toThrow(/can't be played/);
+  });
+});
+
+describe('getCardsByRefs', () => {
+  beforeEach(() => {
+    gate.offline = false;
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('resolves one id and one set/number in order', async () => {
+    const byId = makeCard({ id: 'ref-id-1', name: 'Sol Ring', layout: 'normal' });
+    const bySet = makeCard({ id: 'ref-set-1', name: 'Black Lotus', layout: 'normal' });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => ({
+        ok: true,
+        json: async () => (String(url).includes('/cards/lea/232') ? bySet : byId),
+      }))
+    );
+    const { cards, error } = await getCardsByRefs([
+      { id: 'ref-id-1' },
+      { set: 'lea', number: '232' },
+    ]);
+    expect(cards.map((c) => c.id)).toEqual(['ref-id-1', 'ref-set-1']);
+    expect(error).toBeNull();
+  });
+
+  it('batches several ids and falls back to a single lookup for any the batch missed', async () => {
+    const a = makeCard({ id: 'batch-a', name: 'A', layout: 'normal' });
+    const b = makeCard({ id: 'batch-b', name: 'B', layout: 'normal' });
+    const fetchMock = vi.fn(async (url: string) => {
+      const u = String(url);
+      // Our bulk lookup knows A only; Scryfall's collection batch fails.
+      if (u.includes('/api/cards/lookup'))
+        return { ok: true, json: async () => ({ byId: { 'batch-a': a } }) };
+      if (u.includes('/cards/collection')) return { ok: false, status: 500, statusText: 'x' };
+      return { ok: true, json: async () => b };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const { cards } = await getCardsByRefs([{ id: 'batch-a' }, { id: 'batch-b' }]);
+    expect(cards.map((c) => c.id)).toEqual(['batch-a', 'batch-b']);
+    expect(fetchMock.mock.calls.some(([u]) => String(u).endsWith('/cards/batch-b'))).toBe(true);
+  });
+
+  it('skips a ref that fails and returns the first error', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: false, status: 404, statusText: 'Not Found' })
+    );
+    const { cards, error } = await getCardsByRefs([{ set: 'zzz', number: '999' }]);
+    expect(cards).toEqual([]);
+    expect(error).toBeInstanceOf(Error);
   });
 });
 
