@@ -18,7 +18,10 @@
  *
  *   A payoff with nothing feeding it scores 0: that is the loss. Resources
  *   every deck makes ('mana', 'cards') are left out: they'd pay every
- *   payoff for nothing specific.
+ *   payoff for nothing specific. Payoffs of ONE resource are redundant with
+ *   each other: ranked best first, the k-th counts PAYOFF_REDUNDANCY^k (the
+ *   tenth death payoff adds a quarter of what the first did), so a deck full
+ *   of payoffs can't out-score one with the enablers and answers it needs.
  *
  * lift (E71 card pages, liftSynergy.ts). A seed's co-play pool says which
  * cards its players run with it. A card earns edgeScore(seed → card) from
@@ -39,6 +42,7 @@ import { expSat, nameKeys, round2, type TermFn } from './shared';
 
 export const PAYOFF_SCALE = 0.5;
 export const PAYOFF_K = 3;
+export const PAYOFF_REDUNDANCY = 0.85;
 export const COMMANDER_FEED = 2;
 export const COMMANDER_PAYOFF_SCALE = 2;
 export const COMMANDER_K = 6;
@@ -114,16 +118,26 @@ export const synergyTerm: TermFn = (deck, ctx) => {
     }
   }
   let dead = 0;
+  const byResource = new Map<Resource, Array<[string, { v: number; feeders: string[] }]>>();
   for (const [name, b] of best) {
     if (b.v <= 0) {
       dead++;
       continue;
     }
-    value += b.v;
-    notes.push({
-      name,
-      value: b.v,
-      note: `pays off ${b.r}, fed by ${b.feeders.slice(0, 4).join(', ')}${b.feeders.length > 4 ? ` and ${b.feeders.length - 4} more` : ''}`,
+    let list = byResource.get(b.r);
+    if (!list) byResource.set(b.r, (list = []));
+    list.push([name, b]);
+  }
+  for (const [r, list] of byResource) {
+    list.sort(([an, a], [bn, b]) => b.v - a.v || an.localeCompare(bn));
+    list.forEach(([name, b], k) => {
+      const v = b.v * PAYOFF_REDUNDANCY ** k;
+      value += v;
+      notes.push({
+        name,
+        value: v,
+        note: `pays off ${r} (payoff ${k + 1} of ${list.length}), fed by ${b.feeders.slice(0, 4).join(', ')}${b.feeders.length > 4 ? ` and ${b.feeders.length - 4} more` : ''}`,
+      });
     });
   }
   return {

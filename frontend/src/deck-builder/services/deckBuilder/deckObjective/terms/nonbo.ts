@@ -38,7 +38,13 @@ import { nonLandCards, pct, type TermFn } from './shared';
 export const HARD_NONBO = 1;
 export const GRAVEYARD_TENSION = 0.5;
 export const QUALIFIED = 0.3;
-export const WIPE_SELF_SCALE = 1;
+/**
+ * Half a card at full exposure. A wipe that clears the deck's whole board is a
+ * reset button its players still run (Toxic Deluge is in a third of Meren of
+ * Clan Nel Toth's decks), so the cost offsets its interaction credit rather
+ * than burying it; at 1 the search cut Toxic Deluge from Meren first.
+ */
+export const WIPE_SELF_SCALE = 0.5;
 export const TOKEN_WEIGHT = 0.5;
 
 /** nonbo.ts's wipe-tension message: those findings are replaced by the graded cost. */

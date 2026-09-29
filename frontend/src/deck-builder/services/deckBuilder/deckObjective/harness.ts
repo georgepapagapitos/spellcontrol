@@ -11,6 +11,8 @@
 export * from './index';
 export * from './panelDump';
 export * from './validation';
+export * from './optimizer';
+export * from './panelRewrite';
 export { setCardFactsSnapshot, hasCardFacts } from '@/deck-builder/services/cardFacts';
 export { loadTaggerData, hasTaggerData } from '@/deck-builder/services/tagger/client';
 export {

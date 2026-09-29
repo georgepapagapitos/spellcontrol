@@ -50,6 +50,60 @@ export function ownedShare(deck: ObjectiveDeck, ctx: ObjectiveContext): number |
   return (100 * spells.filter((c) => owns(ctx.ownedNames, c)).length) / spells.length;
 }
 
+/**
+ * Why ONE card may never be added under this context (the card-level rules
+ * of `checkConstraints`: identity, legality, bans, rarity, card price, Arena,
+ * Tiny Leaders, the owned-only strategies), or null when it may. Deck-level
+ * rules (size, singleton, budget, Game Changer and bracket counts, owned
+ * share) depend on the rest of the deck and are checked on the whole list.
+ */
+export function cardIneligibility(card: ScryfallCard, ctx: ObjectiveContext): string | null {
+  const cz = ctx.customization;
+  const identity = [...ctx.colorIdentity];
+  const owned = ctx.ownedNames;
+  const basic = isBasicLand(card);
+  if (!fitsColorIdentity(card, identity)) return 'outside the colour identity';
+  if (isDeadInIdentity(card, identity)) return 'discounts a colour the deck cannot cast';
+  if (!basic && notLegalForFormat(card, cz.mtgFormat)) return 'not legal in the format';
+  const banned = new Set<string>();
+  for (const n of [...(cz.bannedCards ?? []), ...(cz.tempBannedCards ?? [])])
+    banned.add(normalizeCardName(n));
+  for (const list of cz.banLists ?? [])
+    if (list.enabled) for (const n of list.cards) banned.add(normalizeCardName(n));
+  if (
+    banned.has(normalizeCardName(card.name)) ||
+    banned.has(normalizeCardName(frontFaceName(card.name)))
+  )
+    return 'banned';
+  if (basic) return null;
+  const ownedSet = owned as Set<string> | undefined;
+  if (
+    cz.maxRarity &&
+    !isOwnedRarityExempt(card.name, ownedSet, !!(cz.ignoreOwnedRarity && owned)) &&
+    exceedsMaxRarity(card, cz.maxRarity)
+  )
+    return `above ${cz.maxRarity}`;
+  if (cz.maxCardPrice != null) {
+    const p = priceOf(card, cz.currency ?? 'USD');
+    if (
+      p !== null &&
+      p > cz.maxCardPrice &&
+      !isOwnedBudgetExempt(card.name, ownedSet, !!(cz.ignoreOwnedBudget && owned))
+    )
+      return 'over the card price cap';
+  }
+  if (cz.arenaOnly && !card.games?.includes('arena')) return 'not on Arena';
+  if (cz.tinyLeaders && !isLandCard(card) && (card.cmc ?? 0) > 3) return 'mana value over 3';
+  if (
+    owned &&
+    cz.collectionMode !== false &&
+    constrainsToCollection(cz.collectionStrategy ?? 'full') &&
+    !owns(owned, card)
+  )
+    return 'not owned';
+  return null;
+}
+
 /** The first bracket-floor category a card falls in, as BracketGuard counts it. */
 function bracketCategory(name: string, ctx: ObjectiveContext): keyof BracketCeilings | null {
   if (ctx.gameChangerNames.has(name) || ctx.gameChangerNames.has(frontFaceName(name)))

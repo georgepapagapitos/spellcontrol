@@ -38,10 +38,18 @@
 //   --no-slots           score each deck's library in name order instead of
 //                        the baseline's slots (no common random numbers).
 
-import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { FRONTEND, ensureBulk, streamBulk } from './card-facts-lib.mjs';
+import {
+  DEFAULT_HTTP_CACHE,
+  DEFAULT_OWNED,
+  installNetwork,
+  liftPools,
+  loadHarness,
+  pageRows,
+  readOwned,
+  resolveCards as resolveBulk,
+} from './deck-objective-lib.mjs';
 
 // ── Arguments ──────────────────────────────────────────────────────────────
 const argv = process.argv.slice(2);
@@ -61,10 +69,7 @@ if (command !== 'score' && command !== 'validate') {
   process.exit(2);
 }
 
-const DEV_ROOT = resolve(FRONTEND, '..', '..');
-const HTTP_CACHE = resolve(opt('--http-cache') ?? join(DEV_ROOT, '.deckgen-http-cache'));
-const LIVE = flag('--live');
-const LOCK = join(DEV_ROOT, '.deckgen-live.lock');
+const HTTP_CACHE = resolve(opt('--http-cache') ?? DEFAULT_HTTP_CACHE);
 const SEED = opt('--seed') ? Number(opt('--seed')) : undefined;
 const SEEDS = (opt('--seeds') ?? '').split(',').filter(Boolean).map(Number);
 const NO_SLOTS = flag('--no-slots');
@@ -72,119 +77,14 @@ const ONLY = opt('--only')
   ?.split(',')
   .map((s) => s.trim())
   .filter(Boolean);
-const OWNED_FILE = resolve(
-  opt('--owned') ??
-    join(
-      FRONTEND,
-      'src',
-      'deck-builder',
-      'services',
-      'deckBuilder',
-      '__fixtures__',
-      'owned-collection.fixture.json'
-    )
-);
-
-// ── Network: replay the panels' HTTP cache; live only under the lock ──────
-let lockHeld = false;
-function acquireLock() {
-  if (lockHeld) return;
-  // Same protocol as the lanes' shell loop: mkdir is atomic.
-  for (;;) {
-    try {
-      mkdirSync(LOCK);
-      break;
-    } catch {
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 30_000);
-    }
-  }
-  writeFileSync(join(LOCK, 'owner'), 'deck-objective-eval');
-  lockHeld = true;
-  process.on('exit', () => rmSync(LOCK, { recursive: true, force: true }));
-}
-
-const stats = { hits: 0, misses: 0, live: 0 };
-const realFetch = globalThis.fetch;
-const taggerJson = readFileSync(join(FRONTEND, 'public', 'tagger-tags.json'), 'utf8');
-globalThis.fetch = async (input, init) => {
-  let url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
-  if (url.endsWith('/tagger-tags.json')) return new Response(taggerJson, { status: 200 });
-  // The harness is imported in production mode, so the client calls the real
-  // host; a dev-mode import would call the dev proxy path, keyed the same way.
-  if (url.startsWith('/edhrec-api'))
-    url = `https://json.edhrec.com${url.slice('/edhrec-api'.length)}`;
-  const key = createHash('sha1')
-    .update(`${init?.method ?? 'GET'} ${url} ${typeof init?.body === 'string' ? init.body : ''}`)
-    .digest('hex');
-  const file = join(HTTP_CACHE, `${key}.json`);
-  if (existsSync(file)) {
-    stats.hits++;
-    const hit = JSON.parse(readFileSync(file, 'utf8'));
-    return new Response(hit.body, { status: hit.status });
-  }
-  stats.misses++;
-  if (!LIVE) return new Response('{"error":"not in the HTTP cache"}', { status: 404 });
-  acquireLock();
-  stats.live++;
-  const res = await realFetch(url, {
-    ...init,
-    headers: { ...(init?.headers ?? {}), 'User-Agent': 'SpellControl-DeckObjective/1.0' },
-  });
-  if (res.ok || res.status === 404) {
-    const body = await res.text();
-    mkdirSync(HTTP_CACHE, { recursive: true });
-    writeFileSync(file, JSON.stringify({ status: res.status, body }));
-    return new Response(body, { status: res.status });
-  }
-  return res;
-};
-const cacheHas = (url) =>
-  existsSync(join(HTTP_CACHE, `${createHash('sha1').update(`GET ${url} `).digest('hex')}.json`));
-
-// ── The objective, in ONE module graph (harness.ts says why) ──────────────
-// card-facts-lib's importSrc aliases only deck-metrics; the objective's graph
-// reaches the other two shared packages too (through the Scryfall client), and
-// their ESM dist is bundler-only, so all three resolve to source here.
-async function importHarness() {
-  // Vite derives import.meta.env.DEV from NODE_ENV, not the mode alone.
-  process.env.NODE_ENV = 'production';
-  const { runnerImport } = await import('vite');
-  const pkg = (name) => join(FRONTEND, '..', 'packages', name, 'src', 'index.ts');
-  const config = {
-    configFile: false,
-    root: FRONTEND,
-    logLevel: 'error',
-    // Production: the clients call the real API hosts (not the dev proxy) and
-    // the logger's debug chatter stays quiet, as in the shipped app.
-    mode: 'production',
-    resolve: {
-      alias: {
-        '@spellcontrol/deck-metrics': pkg('deck-metrics'),
-        '@spellcontrol/binder-routing': pkg('binder-routing'),
-        '@spellcontrol/game-core': pkg('game-core'),
-        '@': join(FRONTEND, 'src'),
-      },
-    },
-  };
-  const entry = join(
-    FRONTEND,
-    'src',
-    'deck-builder',
-    'services',
-    'deckBuilder',
-    'deckObjective',
-    'harness.ts'
-  );
-  return (await runnerImport(entry, config)).module;
-}
-const H = await importHarness();
-H.setCardFactsSnapshot(
-  JSON.parse(readFileSync(join(FRONTEND, 'public', 'card-facts.json'), 'utf8'))
-);
-await H.loadTaggerData();
-if (!H.hasTaggerData()) throw new Error('tagger snapshot did not load');
-const ownedFile = JSON.parse(readFileSync(OWNED_FILE, 'utf8'));
-const OWNED = new Set(Array.isArray(ownedFile) ? ownedFile : ownedFile.names);
+const net = installNetwork({
+  httpCache: HTTP_CACHE,
+  live: flag('--live'),
+  owner: 'deck-objective-eval',
+});
+const { stats } = net;
+const H = await loadHarness();
+const OWNED = readOwned(resolve(opt('--owned') ?? DEFAULT_OWNED));
 
 // ── Panels ─────────────────────────────────────────────────────────────────
 function loadPairs(baselineDir, treatmentDir) {
@@ -200,114 +100,24 @@ function loadPairs(baselineDir, treatmentDir) {
   }));
 }
 
-/**
- * Full Scryfall records for every name the pairs mention, and the global
- * EDHREC rank of every card on their pages (the off-page quality fallback), in
- * one bulk pass. Call after `attachPages`.
- */
+/** Full records for every card the pairs name, and the global rank of their pages' cards. */
 async function resolveCards(pairs) {
-  const want = new Set();
-  const front = (n) => n.split(' // ')[0];
-  for (const p of pairs) {
-    for (const d of [p.base, p.treat]) {
-      const names = [
+  const names = new Set();
+  for (const p of pairs)
+    for (const d of [p.base, p.treat])
+      for (const n of [
         d.commander,
         ...(d.partner ? [d.partner] : []),
         ...H.dumpCards(d).map((c) => c.name),
-      ];
-      for (const n of names) want.add(H.straightQuotes(n));
-    }
-  }
-  const wantFront = new Set([...want].map(front));
-  const pageNames = new Set(pairs.flatMap((p) => [...p.page.rows.keys()]));
-  const rank = new Map();
-  const bulk = await ensureBulk({ explicit: opt('--bulk'), offline: true });
-  const byName = new Map();
-  const byFront = new Map();
-  // Tokens, emblems and art cards share names with real cards (a "Llanowar
-  // Elves" token exists); keep playable cards, commander-legal first.
-  const better = (prev, c) =>
-    !prev || (prev.legalities?.commander !== 'legal' && c.legalities?.commander === 'legal');
-  for await (const c of streamBulk(bulk.path)) {
-    if (/token|emblem|art_series/.test(c.layout ?? '')) continue;
-    if (c.edhrec_rank && (pageNames.has(c.name) || pageNames.has(front(c.name)))) {
-      rank.set(c.name, c.edhrec_rank);
-      rank.set(front(c.name), c.edhrec_rank);
-    }
-    if (want.has(c.name)) {
-      if (better(byName.get(c.name), c)) byName.set(c.name, c);
-    } else if (wantFront.has(front(c.name)) && better(byFront.get(front(c.name)), c)) {
-      byFront.set(front(c.name), c);
-    }
-  }
-  for (const [k, c] of byFront) if (!byName.has(k)) byName.set(k, c);
-  const missing = [...want].filter((n) => !byName.has(n) && !byName.has(front(n)));
-  if (missing.length) throw new Error(`not in ${bulk.file}: ${missing.join(', ')}`);
-  return { byName, rank, bulkFile: bulk.file };
+      ])
+        names.add(n);
+  const rankNames = new Set(pairs.flatMap((p) => [...p.page.rows.keys()]));
+  return resolveBulk(H, { names, rankNames, required: names, bulkPath: opt('--bulk') });
 }
 
 /** Each pair's EDHREC page, read once from the baseline's settings. */
 async function attachPages(pairs) {
-  for (const p of pairs) p.page = await pageRows(p.base);
-}
-
-async function pageRows(dump) {
-  const page = H.dumpPage(dump);
-  const attempts = [];
-  if (page.partner) {
-    if (page.theme)
-      attempts.push(() =>
-        H.fetchPartnerThemeData(
-          page.commander,
-          page.partner,
-          page.theme,
-          page.budgetOption,
-          page.targetBracket
-        )
-      );
-    attempts.push(() =>
-      H.fetchPartnerCommanderData(
-        page.commander,
-        page.partner,
-        page.budgetOption,
-        page.targetBracket
-      )
-    );
-  } else {
-    if (page.theme)
-      attempts.push(() =>
-        H.fetchCommanderThemeData(page.commander, page.theme, page.budgetOption, page.targetBracket)
-      );
-    attempts.push(() =>
-      H.fetchCommanderData(page.commander, page.budgetOption, page.targetBracket)
-    );
-  }
-  // The generator falls back to the base page when a filtered page is missing.
-  attempts.push(() => H.fetchCommanderData(page.commander));
-  let lastError;
-  for (const [i, attempt] of attempts.entries()) {
-    try {
-      const data = await attempt();
-      const rows = H.edhrecRowsFrom(data);
-      if (rows.size > 0) return { rows, fallback: i > 0 && i === attempts.length - 1 };
-    } catch (e) {
-      lastError = e;
-    }
-  }
-  throw new Error(`no EDHREC page for ${dump.commander}: ${lastError?.message ?? 'empty'}`);
-}
-
-async function liftPools(commanders, shared) {
-  const pools = new Map();
-  const seeds = [...new Set([...commanders, ...shared])];
-  for (const name of seeds) {
-    const url = `https://json.edhrec.com/pages/cards/${H.formatCommanderNameForUrl(name)}.json`;
-    const isCommander = commanders.includes(name);
-    if (!cacheHas(url) && !(LIVE && isCommander)) continue;
-    const pool = await H.fetchCardLiftPool(name);
-    if (pool.length) pools.set(name, pool);
-  }
-  return pools;
+  for (const p of pairs) p.page = await pageRows(H, p.base);
 }
 
 /** Score one baseline/treatment pair under one shared context. */
@@ -328,7 +138,7 @@ async function evaluatePair(pair, byName, rank, weights) {
     roleTargets: base.roleTargets ?? {},
     pacing: base.detectedPacing,
     combos: H.combosOf(base, treat),
-    liftPools: await liftPools(commanders, shared),
+    liftPools: await liftPools(H, net, commanders, shared),
     globalRank: rank,
     ownedNames: cz.collectionMode ? OWNED : undefined,
     manaSim: SEED === undefined ? undefined : { seed: SEED },
@@ -769,5 +579,5 @@ try {
   if (command === 'score') await runScore();
   else await runValidate();
 } finally {
-  if (lockHeld) rmSync(LOCK, { recursive: true, force: true });
+  net.release();
 }
