@@ -1350,9 +1350,38 @@ i.ss.set-symbol--mythic {
   cursor: pointer;
 }
 
-.collection-grid-item:focus-visible {
+.collection-grid-item:focus-visible,
+.collection-grid-item:has(> .collection-grid-open:focus-visible) {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* The tile's one primary control: a button stretched over the whole tile, so
+   the tile itself stays a plain box that may hold links and marks (a button
+   cannot hold controls). The ring goes on the tile, not the button. */
+.collection-grid-open {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.collection-grid-open:focus-visible {
+  outline: none;
+}
+
+/* The chips over the art are not controls: a tap on one falls through to the
+   open button. The identity marks and the binder mark stay live (links,
+   tooltips), above the button. */
+.collection-grid-corner,
+.collection-grid-topright {
+  pointer-events: none;
 }
 
 .collection-grid-img {
@@ -1839,7 +1868,7 @@ i.ss.set-symbol--mythic {
 }
 
 .collection-list-row.is-selectable > *,
-.collection-grid-item.is-selectable > * {
+.collection-grid-item.is-selectable > *:not(.collection-grid-open) {
   pointer-events: none;
 }
 

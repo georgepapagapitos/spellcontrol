@@ -79,9 +79,11 @@ describe('CubeResult sample pack', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Sample pack' }));
     const namesOf = () =>
-      Array.from(document.querySelectorAll('.cube-sample-pack-body .collection-grid-item')).map(
-        (el) => el.getAttribute('aria-label')
-      );
+      Array.from(
+        document.querySelectorAll(
+          '.cube-sample-pack-body .collection-grid-item .collection-grid-open'
+        )
+      ).map((el) => el.getAttribute('aria-label'));
     const first = namesOf();
     fireEvent.click(screen.getByRole('button', { name: 'Deal another pack' }));
     const second = namesOf();
