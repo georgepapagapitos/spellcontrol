@@ -1,0 +1,762 @@
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { isFilterEmpty } from '@/lib/binder/rules';
+import { countBinderMatches } from '@/lib/binder/binder-counts';
+import { useDebouncedValue } from '@/lib/util/use-debounced-value';
+import { autoSummary } from '@/lib/search/filter-summary';
+import { ChipExpressionBuilder } from './ChipExpressionBuilder';
+import { InfoTip } from '@/components/overlays/InfoTip';
+import { OverflowMenu } from '@/components/overlays/OverflowMenu';
+import { SegmentedControl, type Option } from '@/components/shared/form';
+import { BinderRow as RuleRow, FilterFieldEditor, NumberRangeInput } from './FilterFieldEditor';
+import { RuleFieldContext } from './RuleFieldContext';
+import { RuleFieldPicker } from './RuleFieldPicker';
+import { SetFilterPicker } from './SetFilterPicker';
+import { filterFieldSpec, setFilterFields, type FilterFieldId } from '@/lib/search/filter-fields';
+import type {
+  BinderFilter,
+  BinderFilterGroup,
+  ChipExpression,
+  ColorChoice,
+  EnrichedCard,
+  Rarity,
+} from '@/types/index';
+import { Button, IconButton } from '@/components/shared/Button';
+import { ColorPip } from '@/components/shared/ManaSymbol';
+import { ColorMatchModeToggle } from '@/components/shared/ColorMatchModeToggle';
+import { FILTER_COLOR_OPTIONS } from '@/lib/cards/colors';
+
+const RARITIES: Rarity[] = ['common', 'uncommon', 'rare', 'mythic', 'special', 'bonus'];
+
+const EMPTY_EXPR: ChipExpression = { chips: [], joiners: [] };
+const COLORS: { key: ColorChoice; label: string }[] = [
+  { key: 'W', label: 'White' },
+  { key: 'U', label: 'Blue' },
+  { key: 'B', label: 'Black' },
+  { key: 'R', label: 'Red' },
+  { key: 'G', label: 'Green' },
+  { key: 'M', label: 'Multicolor' },
+  { key: 'C', label: 'Colorless' },
+];
+const DEFAULT_EDHREC_TOP_N = 100;
+
+/** A yes/no/either predicate as a segmented control's value. */
+type TriState = 'any' | 'is' | 'not';
+const TRI_STATE_OPTIONS: Option<TriState>[] = [
+  { value: 'any', label: 'Any' },
+  { value: 'is', label: 'Is' },
+  { value: 'not', label: 'Is not' },
+];
+const triState = (v: boolean | undefined): TriState => (v === undefined ? 'any' : v ? 'is' : 'not');
+const fromTriState = (v: TriState): boolean | undefined => (v === 'any' ? undefined : v === 'is');
+
+/**
+ * A rule group's badge count (B4-01). `matchCount` always comes from
+ * `countBinderMatches`, which treats an empty filter as a binder's
+ * deliberate catch-all — correct for a binder, wrong for a list (whose empty
+ * rule matches nothing, per `dynamic-list.ts`). Returns null to mean "no rule
+ * yet" rather than surfacing the binder's catch-all number to a list caller.
+ */
+export function groupBadgeCount(
+  filter: BinderFilter,
+  matchCount: number,
+  emptyGroupMatchesNothing: boolean
+): number | null {
+  return emptyGroupMatchesNothing && isFilterEmpty(filter) ? null : matchCount;
+}
+
+/* ─────────────────────────── filter-group UI ─────────────────────────── */
+
+/**
+ * Renders the OR-list of rule groups. A binder has RULES; each rule is a card
+ * that matches when every one of its CONDITIONS does ("Match all of"), and the
+ * binder takes a card that matches any rule. Each group is a `<fieldset>`
+ * whose `<legend>` names it for assistive tech; an "or" divider sits between
+ * groups (decorative — the meaning is in the fieldset list). One button
+ * follows the list to add another rule.
+ */
+// Exported for reuse by the dynamic-list rule editor (ListRuleEditor) — the
+// group list is pure rule-editing UI with no binder-specific chrome.
+export function FilterGroupList({
+  groups,
+  cards,
+  ownedSets,
+  typeSuggestions,
+  oracleSuggestions,
+  autofocusIdx,
+  clearAutofocus,
+  onPatchFilter,
+  onSetName,
+  onAdd,
+  onDuplicate,
+  onRemove,
+  revealSetsSignal = 0,
+  emptyGroupMatchesNothing = false,
+}: {
+  groups: BinderFilterGroup[];
+  cards: EnrichedCard[];
+  ownedSets: { code: string; label: string }[];
+  typeSuggestions: string[];
+  oracleSuggestions: string[];
+  autofocusIdx: number | null;
+  clearAutofocus: () => void;
+  onPatchFilter: (idx: number, p: Partial<BinderFilter>) => void;
+  onSetName: (idx: number, name: string) => void;
+  onAdd: () => void;
+  onDuplicate: (idx: number) => void;
+  onRemove: (idx: number) => void;
+  /** Bumped by the "A set binder" start: add a Sets condition to the first
+   *  rule and scroll it into view. */
+  revealSetsSignal?: number;
+  /** A binder's empty rule group is a deliberate catch-all (matches every
+   *  remaining card); a list's empty rule matches nothing (see
+   *  `dynamic-list.ts`'s `isRuleEmpty`). `countBinderMatches` always computes
+   *  the binder semantics, so a list caller sets this to correct the per-group
+   *  badge to match its own "no rule yet" reality instead of the binder's
+   *  catch-all count (B4-01). */
+  emptyGroupMatchesNothing?: boolean;
+}) {
+  // Per-group counts are raw rule matches. The whole-binder answer (and what
+  // "keep printings together" pulls in) belongs to the host's footer, which
+  // is the one place a count is stated — not a second total down here.
+  //
+  // Debounced: this scans the whole collection (11k+ cards on a real
+  // account) per group on every render, so feeding it live `groups` made
+  // every keystroke in a condition a 200ms+ main-thread task — the typed
+  // character itself waited behind the scan before it could paint (E493).
+  // `groups` stays live for the rows/chips actually being edited; only the
+  // match-count badge lags the debounce.
+  const debouncedGroups = useDebouncedValue(groups, 200);
+  const { perGroup } = useMemo(
+    () => countBinderMatches(cards, debouncedGroups, false),
+    [debouncedGroups, cards]
+  );
+
+  return (
+    <div className="filter-group-list">
+      {groups.map((g, i) => (
+        <div key={i}>
+          <FilterGroupCard
+            group={g}
+            index={i}
+            total={groups.length}
+            matchCount={perGroup[i] ?? 0}
+            ownedSets={ownedSets}
+            typeSuggestions={typeSuggestions}
+            oracleSuggestions={oracleSuggestions}
+            autofocus={autofocusIdx === i}
+            onAutofocusHandled={clearAutofocus}
+            onPatchFilter={(p) => onPatchFilter(i, p)}
+            onSetName={(n) => onSetName(i, n)}
+            onDuplicate={() => onDuplicate(i)}
+            onRemove={() => onRemove(i)}
+            revealSetsSignal={i === 0 ? revealSetsSignal : 0}
+            emptyGroupMatchesNothing={emptyGroupMatchesNothing}
+          />
+          {/* An "or" divider follows every rule, including the last — the
+              "Also take other cards" button below adds one more rule on the
+              same "or" chain, so the divider belongs to it too. */}
+          <div className="filter-group-or" aria-hidden="true">
+            <span>or</span>
+          </div>
+        </div>
+      ))}
+
+      <div className="filter-group-footer">
+        <Button onClick={onAdd} className="btn-add-group">
+          + Also take other cards
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function FilterGroupCard({
+  group,
+  index,
+  total,
+  matchCount,
+  ownedSets,
+  typeSuggestions,
+  oracleSuggestions,
+  autofocus,
+  onAutofocusHandled,
+  onPatchFilter,
+  onSetName,
+  onDuplicate,
+  onRemove,
+  revealSetsSignal,
+  emptyGroupMatchesNothing,
+}: {
+  group: BinderFilterGroup;
+  index: number;
+  total: number;
+  matchCount: number;
+  ownedSets: { code: string; label: string }[];
+  typeSuggestions: string[];
+  oracleSuggestions: string[];
+  autofocus: boolean;
+  onAutofocusHandled: () => void;
+  onPatchFilter: (p: Partial<BinderFilter>) => void;
+  onSetName: (n: string) => void;
+  onDuplicate: () => void;
+  onRemove: () => void;
+  revealSetsSignal: number;
+  emptyGroupMatchesNothing: boolean;
+}) {
+  const cardRef = useRef<HTMLFieldSetElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
+  // Renaming is an explicit act from the ⋯ menu. The group used to open with
+  // an always-editable name field, which made every rule look like a form to
+  // fill in before it could do anything.
+  const [renaming, setRenaming] = useState(false);
+  // This is a LIVE field, not InlineRename (STYLE_GUIDE § Verbs — Rename):
+  // onSetName writes straight into the binder editor's own uncommitted
+  // draft on every keystroke (the whole rule set only lands on the dialog's
+  // Save), so there is no separate committed value to fall back to on blur —
+  // blur is not a save here, the draft already has whatever was typed. The
+  // one piece InlineRename would otherwise give for free is Escape-reverts,
+  // so this captures the name as it was when renaming opened and restores
+  // it by hand.
+  const nameBeforeRenameRef = useRef('');
+
+  // A freshly added rule hands focus to its "Add condition" button, which is
+  // the next thing anyone does with an empty rule.
+  useEffect(() => {
+    if (!autofocus) return;
+    cardRef.current?.querySelector<HTMLButtonElement>('.btn-add-rule')?.focus();
+    onAutofocusHandled();
+  }, [autofocus, onAutofocusHandled]);
+
+  useEffect(() => {
+    if (renaming) {
+      nameBeforeRenameRef.current = group.name ?? '';
+      nameRef.current?.select();
+    }
+    // Captured once, at the moment renaming opens — not on every keystroke.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [renaming]);
+
+  // Sentence case: it is shown as a title, and a rarity summary alone reads
+  // "uncommon".
+  const rawSummary = autoSummary(group.filter);
+  const summary = rawSummary && rawSummary.charAt(0).toUpperCase() + rawSummary.slice(1);
+  const name = group.name?.trim() ?? '';
+  const displayLabel = name || summary || `Rule ${index + 1}`;
+  const badgeCount = groupBadgeCount(group.filter, matchCount, emptyGroupMatchesNothing);
+
+  return (
+    <fieldset className="filter-group" ref={cardRef}>
+      <legend className="sr-only">{displayLabel}</legend>
+      <div className="filter-group-head">
+        {renaming ? (
+          <input
+            ref={nameRef}
+            className="filter-group-name"
+            value={group.name ?? ''}
+            onChange={(e) => onSetName(e.target.value)}
+            onBlur={() => setRenaming(false)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === 'Escape') {
+                // Escape here closes the field, not the dialog around it,
+                // and reverts the live-written draft back to the name the
+                // field opened with (STYLE_GUIDE § Verbs — Rename).
+                e.stopPropagation();
+                e.preventDefault();
+                if (e.key === 'Escape') onSetName(nameBeforeRenameRef.current);
+                setRenaming(false);
+              }
+            }}
+            placeholder={summary || 'Name this rule'}
+            aria-label={`Name for rule ${index + 1}`}
+          />
+        ) : name ? (
+          <span className="filter-group-title">{name}</span>
+        ) : summary ? (
+          // A summary is real information (what this rule actually matches),
+          // not a placeholder — it reads with the same weight as a chosen name.
+          <span className="filter-group-title">{summary}</span>
+        ) : (
+          <span className="filter-group-title is-generic">Match all of</span>
+        )}
+        {/* `aria-live` because this is the feedback loop of the whole editor:
+            you change a condition to watch this number move. */}
+        <span
+          className="filter-group-count"
+          role="status"
+          aria-label={
+            badgeCount === null
+              ? `Rule ${index + 1} has no conditions yet`
+              : `Rule ${index + 1} matches ${badgeCount} ${badgeCount === 1 ? 'card' : 'cards'}`
+          }
+        >
+          {badgeCount === null ? '' : badgeCount.toLocaleString()}
+        </span>
+        <OverflowMenu
+          ariaLabel={`Actions for rule: ${displayLabel}`}
+          contextHost=".filter-group"
+          items={[
+            { label: name ? 'Rename' : 'Name this rule', onClick: () => setRenaming(true) },
+            { label: 'Duplicate', onClick: onDuplicate },
+            {
+              label: total <= 1 ? 'Remove (a binder keeps one rule)' : 'Remove',
+              onClick: onRemove,
+              danger: true,
+              disabled: total <= 1,
+            },
+          ]}
+        />
+      </div>
+      {name && <span className="filter-group-sub">Match all of</span>}
+      <FilterGroupFields
+        filter={group.filter}
+        onPatch={onPatchFilter}
+        ownedSets={ownedSets}
+        typeSuggestions={typeSuggestions}
+        oracleSuggestions={oracleSuggestions}
+        revealSetsSignal={revealSetsSignal}
+        emptyGroupMatchesNothing={emptyGroupMatchesNothing}
+      />
+    </fieldset>
+  );
+}
+
+/**
+ * The condition rows that make up one rule. A row exists because its field is
+ * SET (STYLE_GUIDE § Rule & filter editors): fields with a value render, plus
+ * any the user just added from the "Add condition" picker.
+ */
+function FilterGroupFields({
+  filter,
+  onPatch,
+  ownedSets,
+  typeSuggestions,
+  oracleSuggestions,
+  revealSetsSignal = 0,
+  emptyGroupMatchesNothing = false,
+}: {
+  filter: BinderFilter;
+  onPatch: (p: Partial<BinderFilter>) => void;
+  ownedSets: { code: string; label: string }[];
+  typeSuggestions: string[];
+  oracleSuggestions: string[];
+  /** Bumped by the "A set binder" start — add a Sets row and reveal it. */
+  revealSetsSignal?: number;
+  /** See `groupBadgeCount` — also corrects the "no conditions yet" hint's
+   *  wording for a list, whose empty rule matches nothing rather than catching
+   *  every remaining card. */
+  emptyGroupMatchesNothing?: boolean;
+}) {
+  const patch = onPatch;
+  const edhrecEnabled = filter.edhrecRankMax !== undefined;
+  const setsRowRef = useRef<HTMLDivElement>(null);
+
+  // Fields the user added that don't hold a value yet. A field with a value is
+  // visible on its own account (`setFilterFields`), so this only has to carry
+  // the gap between "I picked Rarity" and "I typed a rarity into it".
+  const [added, setAdded] = useState<Set<FilterFieldId>>(() =>
+    revealSetsSignal > 0 ? new Set<FilterFieldId>(['setCodes']) : new Set()
+  );
+  const withValues = setFilterFields(filter);
+  const visibleFields = useMemo(() => {
+    const next = new Set(withValues);
+    for (const id of added) next.add(id);
+    return next;
+  }, [withValues, added]);
+
+  const visibility = useMemo(
+    () => ({
+      isVisible: (id: FilterFieldId) => visibleFields.has(id),
+      clearField: (id: FilterFieldId) => {
+        const spec = filterFieldSpec(id);
+        if (spec) patch(spec.clear());
+        setAdded((prev) => {
+          if (!prev.has(id)) return prev;
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      },
+    }),
+    [visibleFields, patch]
+  );
+
+  // "A set binder": reveal + scroll to the Sets row. Render-phase rising-edge
+  // compare, so the lint-discouraged setState-in-effect isn't needed. Signal 0
+  // = no reveal, so editing an existing binder is unaffected.
+  const [prevRevealSignal, setPrevRevealSignal] = useState(revealSetsSignal);
+  if (revealSetsSignal !== prevRevealSignal) {
+    setPrevRevealSignal(revealSetsSignal);
+    if (revealSetsSignal > 0) setAdded((prev) => new Set(prev).add('setCodes'));
+  }
+  useEffect(() => {
+    if (revealSetsSignal === 0) return;
+    const raf = requestAnimationFrame(() => {
+      setsRowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setsRowRef.current?.querySelector<HTMLInputElement>('input')?.focus();
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [revealSetsSignal]);
+
+  return (
+    <RuleFieldContext.Provider value={visibility}>
+      {/* Type chips */}
+      <RuleRow
+        fieldId="typeChips"
+        label={
+          <>
+            Type line{' '}
+            <InfoTip
+              label="type line filter"
+              text="Matches anywhere in the type line. Each chip flips between IS and IS NOT, so IS Creature with IS NOT Legendary leaves out legendary creatures."
+            />
+          </>
+        }
+      >
+        <ChipExpressionBuilder
+          value={filter.typeChips ?? EMPTY_EXPR}
+          onChange={(next) => patch({ typeChips: next })}
+          suggestions={typeSuggestions}
+          defaultJoiner="OR"
+          placeholder="creature, angel, legendary"
+        />
+      </RuleRow>
+
+      {/* Color identity: the collection's pip row and AND/OR mode, run through
+          the same predicate, so a saved collection filter matches the same cards. */}
+      <RuleRow fieldId="colorIdentity" label="Color identity">
+        <div className="rule-color-identity">
+          <div className="color-filter-row" role="group" aria-label="Color identity">
+            {FILTER_COLOR_OPTIONS.map((c) => {
+              const selected = filter.colorIdentity?.colors ?? [];
+              const active = selected.includes(c.key);
+              return (
+                <IconButton
+                  className={`color-filter-btn${active ? ' is-active' : ''}`}
+                  key={c.key}
+                  onClick={() => {
+                    const colors = active
+                      ? selected.filter((k) => k !== c.key)
+                      : [...selected, c.key];
+                    // Turning the last pip off clears the value, not the row:
+                    // keep it on screen so the next pip is one tap away.
+                    if (!colors.length) setAdded((prev) => new Set(prev).add('colorIdentity'));
+                    patch({
+                      colorIdentity: colors.length
+                        ? { colors, mode: filter.colorIdentity?.mode ?? 'any' }
+                        : undefined,
+                    });
+                  }}
+                  aria-pressed={active}
+                  label={c.label}
+                  icon={<ColorPip color={c.key} pip="lg" />}
+                />
+              );
+            })}
+          </div>
+          <ColorMatchModeToggle
+            mode={filter.colorIdentity?.mode ?? 'any'}
+            onChange={(mode) =>
+              patch({
+                colorIdentity: { colors: filter.colorIdentity?.colors ?? [], mode },
+              })
+            }
+          />
+        </div>
+      </RuleRow>
+
+      {/* The older color rule, one bucket per card. Only rules saved with it show it. */}
+      <RuleRow fieldId="colors" label="Color group">
+        <ChipExpressionBuilder
+          options={COLORS.map((c) => ({ value: c.key, label: c.label }))}
+          value={filter.colors ?? EMPTY_EXPR}
+          onChange={(next) => patch({ colors: next })}
+          defaultJoiner="OR"
+          placeholder="Add color…"
+        />
+      </RuleRow>
+
+      {/* Rarity */}
+      <RuleRow fieldId="rarities" label="Rarity">
+        <ChipExpressionBuilder
+          options={RARITIES.map((r) => ({ value: r, label: r }))}
+          value={filter.rarities ?? EMPTY_EXPR}
+          onChange={(next) => patch({ rarities: next })}
+          defaultJoiner="OR"
+          // A card has exactly ONE rarity, so "rare AND mythic" can never match
+          // anything. The collection Filters dialog already locked this; the
+          // binder editor let you build the empty set by hand.
+          lockJoiner="OR"
+          placeholder="Add rarity…"
+        />
+      </RuleRow>
+
+      {/* Mana value */}
+      <RuleRow fieldId="cmc" label="Mana value">
+        <NumberRangeInput
+          min={filter.cmcMin}
+          max={filter.cmcMax}
+          step={1}
+          onMinChange={(v) => patch({ cmcMin: v })}
+          onMaxChange={(v) => patch({ cmcMax: v })}
+        />
+      </RuleRow>
+
+      {/* Price */}
+      <RuleRow fieldId="price" label="Price ($)">
+        <NumberRangeInput
+          min={filter.priceMin}
+          max={filter.priceMax}
+          step={0.01}
+          onMinChange={(v) => patch({ priceMin: v })}
+          onMaxChange={(v) => patch({ priceMax: v })}
+        />
+      </RuleRow>
+
+      {/* Name contains */}
+      <RuleRow fieldId="nameContains" label="Name contains">
+        <input
+          type="text"
+          value={filter.nameContains || ''}
+          onChange={(e) => patch({ nameContains: e.target.value })}
+          placeholder="dragon, sword"
+        />
+      </RuleRow>
+
+      {/* Mana cost */}
+      <RuleRow
+        fieldId="manaCost"
+        label={
+          <>
+            Mana cost{' '}
+            <InfoTip
+              label="mana cost filter"
+              text="Exact match, in Scryfall syntax like {2}{G}{W}. Leave blank to ignore."
+            />
+          </>
+        }
+      >
+        <input
+          type="text"
+          value={filter.manaCost || ''}
+          onChange={(e) => patch({ manaCost: e.target.value })}
+          placeholder="{2}{G}{W}"
+        />
+      </RuleRow>
+
+      {/* Commander eligibility */}
+      <RuleRow
+        fieldId="commanderEligible"
+        label={
+          <>
+            Commander{' '}
+            <InfoTip
+              label="commander eligibility"
+              text="Legendary creatures and any card that says “can be your commander”."
+            />
+          </>
+        }
+      >
+        <SegmentedControl
+          ariaLabel="Commander eligibility"
+          value={triState(filter.commanderEligible)}
+          options={TRI_STATE_OPTIONS}
+          onChange={(v) => patch({ commanderEligible: fromTriState(v) })}
+        />
+      </RuleRow>
+
+      {/* Proxy */}
+      <RuleRow fieldId="proxy" label="Proxy">
+        <SegmentedControl
+          ariaLabel="Proxy"
+          value={triState(filter.proxy)}
+          options={TRI_STATE_OPTIONS}
+          onChange={(v) => patch({ proxy: fromTriState(v) })}
+        />
+      </RuleRow>
+
+      {/* Spare copies (E495/E473) */}
+      <RuleRow
+        fieldId="spareCopies"
+        label={
+          <>
+            Spare copies{' '}
+            <InfoTip
+              label="spare copies"
+              text="Copies beyond the priciest one you keep of each card. Copies in a deck or cube and basic lands are never spare."
+            />
+          </>
+        }
+      >
+        <SegmentedControl
+          ariaLabel="Spare copies"
+          value={triState(filter.spareCopies)}
+          options={TRI_STATE_OPTIONS}
+          onChange={(v) => patch({ spareCopies: fromTriState(v) })}
+        />
+      </RuleRow>
+
+      {/* Sets */}
+      <RuleRow fieldId="setCodes" label="Sets" rowRef={setsRowRef}>
+        <SetFilterPicker
+          options={ownedSets.map((o) => ({ code: o.code, label: o.label }))}
+          value={new Set(filter.setCodes ?? [])}
+          onChange={(next) => patch({ setCodes: [...next] })}
+        />
+      </RuleRow>
+
+      {/* EDHREC */}
+      <RuleRow
+        fieldId="edhrecRankMax"
+        label={
+          <>
+            EDHREC popularity{' '}
+            <InfoTip
+              label="EDHREC popularity"
+              text="Lower rank means more popular. Top 100 is the 100 most-played Commander cards."
+            />
+          </>
+        }
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <label className="field-checkbox">
+            <input
+              type="checkbox"
+              checked={edhrecEnabled}
+              onChange={(e) =>
+                patch({
+                  edhrecRankMax: e.target.checked ? DEFAULT_EDHREC_TOP_N : undefined,
+                })
+              }
+            />
+            Top
+          </label>
+          <input
+            type="number"
+            aria-label="Number of most popular EDH cards"
+            value={filter.edhrecRankMax ?? ''}
+            min={1}
+            max={50000}
+            step={50}
+            disabled={!edhrecEnabled}
+            placeholder={String(DEFAULT_EDHREC_TOP_N)}
+            onChange={(e) =>
+              patch({
+                edhrecRankMax: e.target.value === '' ? undefined : parseInt(e.target.value),
+              })
+            }
+            className="rule-number-input"
+          />
+          <span className="rule-field-note">most popular EDH cards</span>
+        </div>
+      </RuleRow>
+
+      {/* Oracle · Legality · Layout · Treatment · Border · Finish
+              Supertype · Type · Subtype — shared rows via FilterFieldEditor */}
+      <FilterFieldEditor
+        value={filter}
+        onPatch={patch}
+        subtypeSuggestions={typeSuggestions}
+        oracleSuggestions={oracleSuggestions}
+        showTypeRows
+        showOracleTags
+        showScryfallQuery
+        showFinish
+        variant="binder"
+      />
+
+      <div className="rule-add-row">
+        <RuleFieldPicker
+          inUse={visibleFields}
+          onPick={(id) => setAdded((prev) => new Set(prev).add(id))}
+        />
+        {visibleFields.size === 0 && (
+          <span className="rule-add-hint">
+            {emptyGroupMatchesNothing
+              ? 'No conditions yet. This rule matches nothing.'
+              : 'No conditions yet. This rule takes every card the binders above leave.'}
+          </span>
+        )}
+      </div>
+    </RuleFieldContext.Provider>
+  );
+}
+
+/** Deep-clone the chip fields of a filter (so duplication doesn't share mutable refs). */
+export function cloneChips(f: BinderFilter): Partial<BinderFilter> {
+  const dup = (expr?: ChipExpression): ChipExpression | undefined =>
+    expr ? { chips: expr.chips.map((c) => ({ ...c })), joiners: [...expr.joiners] } : undefined;
+  return {
+    legalities: dup(f.legalities),
+    colors: dup(f.colors),
+    colorIdentity: f.colorIdentity
+      ? { colors: [...f.colorIdentity.colors], mode: f.colorIdentity.mode }
+      : undefined,
+    rarities: dup(f.rarities),
+    typeChips: dup(f.typeChips),
+    typeTokenChips: dup(f.typeTokenChips),
+    supertypeChips: dup(f.supertypeChips),
+    subtypeChips: dup(f.subtypeChips),
+    oracleChips: dup(f.oracleChips),
+    oracleTagChips: dup(f.oracleTagChips),
+    finishes: dup(f.finishes),
+    layouts: dup(f.layouts),
+    treatments: dup(f.treatments),
+    borderColors: dup(f.borderColors),
+    setCodes: f.setCodes ? [...f.setCodes] : undefined,
+    scryfallQuery: f.scryfallQuery
+      ? { ...f.scryfallQuery, oracleIds: [...f.scryfallQuery.oracleIds] }
+      : undefined,
+  };
+}
+
+/* ─────────────────────────── small components ─────────────────────────── */
+
+export function validateRanges(f: BinderFilter): string | null {
+  // NaN first, and before anything else. `parseFloat('')` / `parseInt('e')` in
+  // the number inputs can put NaN on the filter, and EVERY comparison below is
+  // `false` against NaN — so a NaN sailed through untouched, compiled into the
+  // matcher as a live constraint nothing can fail, and silently read as "no
+  // minimum". The live match count then disagreed with what actually saved,
+  // because `cleanFilter` strips NaN on the way out but this gate didn't.
+  const numeric: Array<[number | undefined, string]> = [
+    [f.priceMin, 'Price minimum'],
+    [f.priceMax, 'Price maximum'],
+    [f.cmcMin, 'Mana value minimum'],
+    [f.cmcMax, 'Mana value maximum'],
+    [f.edhrecRankMax, 'EDHREC top N'],
+  ];
+  for (const [value, label] of numeric) {
+    if (value !== undefined && Number.isNaN(value)) return `${label} isn't a number`;
+  }
+
+  if (f.priceMin !== undefined && f.priceMax !== undefined && f.priceMin > f.priceMax) {
+    return "Price minimum can't exceed maximum";
+  }
+  if (f.cmcMin !== undefined && f.cmcMax !== undefined && f.cmcMin > f.cmcMax) {
+    return "Mana value minimum can't exceed maximum";
+  }
+  // Both ends, not only the minimum. A lone negative MAX ("nothing over -5")
+  // matches zero cards, which is exactly the mistake worth catching.
+  if (f.priceMin !== undefined && f.priceMin < 0) return "Price can't be negative";
+  if (f.priceMax !== undefined && f.priceMax < 0) return "Price can't be negative";
+  if (f.cmcMin !== undefined && f.cmcMin < 0) return "Mana value can't be negative";
+  if (f.cmcMax !== undefined && f.cmcMax < 0) return "Mana value can't be negative";
+  if (f.edhrecRankMax !== undefined && f.edhrecRankMax < 1) {
+    return 'EDHREC top N must be at least 1';
+  }
+  return null;
+}
+
+/**
+ * First validation error across a whole OR-chain of groups, tagged with which
+ * group it came from. Both editors call this now — the binder modal validated
+ * its groups at save time while the dynamic-list sheet, mounting the identical
+ * controls, validated nothing at all.
+ */
+export function validateGroups(groups: BinderFilterGroup[]): string | null {
+  for (let i = 0; i < groups.length; i++) {
+    const err = validateRanges(groups[i].filter);
+    if (err) return groups.length > 1 ? `Rule group ${i + 1}: ${err}` : err;
+  }
+  return null;
+}

@@ -59,8 +59,8 @@ const FILE_ALLOWLIST = [
   'components/deck/deck-display-icons.tsx',
   'components/deck/deck-display-rows.ts',
   'components/shared/EmptyState.tsx',
-  'components/StatsBar.tsx',
-  'components/CardListTable.tsx',
+  'components/collection/StatsBar.tsx',
+  'components/collection/CardListTable.tsx',
   'components/home/',
   'pages/CollectionPage.tsx',
   'pages/HomePage.tsx',
@@ -81,10 +81,10 @@ const FILE_ALLOWLIST = [
 const SITE_ALLOWLIST = new Set<string>([
   // Miniature badge sized to a binder-slot overlay at variable grid density,
   // not a role-governed action icon.
-  'components/BinderPagePreview.tsx::Boxes::9',
-  'components/BinderPagePreview.tsx::Layers::9',
-  'components/CardSlot.tsx::Boxes::9',
-  'components/CardSlot.tsx::Layers::9',
+  'components/binder/BinderPagePreview.tsx::Boxes::9',
+  'components/binder/BinderPagePreview.tsx::Layers::9',
+  'components/binder/CardSlot.tsx::Boxes::9',
+  'components/binder/CardSlot.tsx::Layers::9',
   // Empty/error-state illustrative mark, paired with a caption.
   'components/deck/DeckCardInspector.tsx::ImageOff::22',
   'components/deck/DeckHoverPeek.tsx::ImageOff::22',
@@ -97,9 +97,9 @@ const SITE_ALLOWLIST = new Set<string>([
   'components/play/OnlineLobby.tsx::UserRound::22',
   // Large camera/scan CTA and scanner-overlay glyphs (STYLE_GUIDE calls out
   // the scanner overlay by name as a deliberate-large exception).
-  'components/AddCardsSheet.tsx::Camera::36',
-  'components/CardScanner.tsx::LoaderCircle::34',
-  'components/ScannerQueueSheet.tsx::Camera::32',
+  'components/import/AddCardsSheet.tsx::Camera::36',
+  'components/scanner/CardScanner.tsx::LoaderCircle::34',
+  'components/scanner/ScannerQueueSheet.tsx::Camera::32',
   // Large stat-emphasis glyph in a game sheet.
   'components/play/BoardSheets.tsx::ChartLine::40',
   // Device-rotate prompt hero glyph.

@@ -10,10 +10,10 @@ import { sectionHeading } from '@/lib/binder/section-heading';
 import { SharedCardTile } from './SharedCardTile';
 import { SharedCardList } from './SharedCardList';
 import { SharedEmptyState } from './SharedEmptyState';
-import { CardPreview } from '../CardPreview';
+import { CardPreview } from '@/components/card/CardPreview';
 import { publicCardToEnriched } from '@/lib/social/shared-filter';
 import { useSharedFilters } from './use-shared-filters';
-import { SearchPill } from '../SearchPill';
+import { SearchPill } from '@/components/search/SearchPill';
 import { ViewModeToggle } from '../ViewModeToggle';
 import { nameMatchesNormalized } from '@spellcontrol/binder-routing';
 

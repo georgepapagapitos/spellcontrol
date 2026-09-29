@@ -2,20 +2,20 @@ import './DiscoverDecksPage.css';
 import { LayoutGrid, List as ListIconLucide, Users } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { DecksHubTabs } from '../components/DecksHubTabs';
-import { DiscoverPanel, DiscoverSwitch } from '../components/DiscoverSwitch';
-import { PageHeader } from '../components/PageHeader';
+import { DecksHubTabs } from '@/components/decks/DecksHubTabs';
+import { DiscoverPanel, DiscoverSwitch } from '@/components/decks/DiscoverSwitch';
+import { PageHeader } from '@/components/app-shell/PageHeader';
 import {
   DiscoverDeckTile,
   DiscoverTileSkeleton,
   DISCOVER_SKELETON_COUNT,
   type DiscoverTileView,
-} from '../components/DiscoverDeckTile';
-import { DiscoverFiltersPopover } from '../components/DiscoverFiltersPopover';
+} from '@/components/decks/DiscoverDeckTile';
+import { DiscoverFiltersPopover } from '@/components/decks/DiscoverFiltersPopover';
 import { TrendingRail } from '../components/aggregates/TrendingRail';
-import { PreconsRail } from '../components/PreconsRail';
-import { DiscoverSearch } from '../components/DiscoverSearch';
-import { SelectMenu, type SelectOption } from '../components/SelectMenu';
+import { PreconsRail } from '@/components/decks/PreconsRail';
+import { DiscoverSearch } from '@/components/decks/DiscoverSearch';
+import { SelectMenu, type SelectOption } from '@/components/overlays/SelectMenu';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { FilterChipsRow, type FilterChipDescriptor } from '../components/shared/FilterChipsRow';

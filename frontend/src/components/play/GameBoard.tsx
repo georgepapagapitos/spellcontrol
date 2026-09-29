@@ -49,7 +49,7 @@ import { HOLD_JUMP } from '@/lib/play/hold-ramp';
 import { useTapAndHold } from '@/lib/play/tap-and-hold';
 import { LifeKeypad } from './LifeKeypad';
 import { SeatMenu } from './SeatMenu';
-import { ConfirmDialog } from '../ConfirmDialog';
+import { ConfirmDialog } from '@/components/overlays/ConfirmDialog';
 import { hasSeenBoardGestures } from '@/lib/play/board-gestures-seen';
 import { BoardGestureHint } from './BoardGestureHint';
 import { BoardHubMenu, type HubPetal } from './BoardHubMenu';

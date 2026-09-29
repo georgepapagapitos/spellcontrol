@@ -1,9 +1,9 @@
 import { useId, useMemo, useState } from 'react';
 import { ExternalLink, RotateCw, X } from 'lucide-react';
-import { Modal } from '@/components/Modal';
+import { Modal } from '@/components/overlays/Modal';
 import { ManaCost } from '@/components/ManaCost';
-import { CardLegalities, CardText } from '@/components/CardDetails';
-import { CardRulings } from '@/components/CardRulings';
+import { CardLegalities, CardText } from '@/components/card/CardDetails';
+import { CardRulings } from '@/components/card/CardRulings';
 import { RarityBadge } from '@/components/shared/RarityBadge';
 import { scryfallToEnrichedCard } from '@/lib/cards/scryfall-to-enriched';
 import { formatMoney } from '@/lib/collection/format-money';

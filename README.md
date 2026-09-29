@@ -240,7 +240,7 @@ The table below documents the collection-import, auth, and sync core. The rest o
 - AI model list price used by the admin panel's spend estimate (USD per million tokens: input, output, cache write, cache read) — `AI_USD_PER_MTOK` next to `AI_MODEL` in [backend/src/ai/client.ts](backend/src/ai/client.ts); change the two together
 - Default sorts for new binders — `NEW_BINDER_DEFAULT_SORTS` in [frontend/src/lib/search/sorting.ts](frontend/src/lib/search/sorting.ts)
 - Sticky price margin (reviewed cards don't leave a binder for a within-margin price wobble) — `PRICE_STICKINESS_MARGIN` in [packages/binder-routing/src/rules.ts](packages/binder-routing/src/rules.ts)
-- Default EDHREC top-N — `DEFAULT_EDHREC_TOP_N` in [frontend/src/components/BinderEditor.tsx](frontend/src/components/BinderEditor.tsx)
+- Default EDHREC top-N — `DEFAULT_EDHREC_TOP_N` in [frontend/src/components/binder/BinderEditor.tsx](frontend/src/components/binder/BinderEditor.tsx)
 - Commander-aggregate rollup thresholds (min sample sizes, budget bucket boundaries, top-card cap) — top of [backend/src/aggregates/rollup.ts](backend/src/aggregates/rollup.ts)
 - EDHREC top-list freshness (refresh after 24h, retry a failing refresh every 15 min) — `FRESH_MS`, `RETRY_MS` in [backend/src/edhrec/top-store.ts](backend/src/edhrec/top-store.ts)
 - Backend port — `PORT` env var (default `3737`)

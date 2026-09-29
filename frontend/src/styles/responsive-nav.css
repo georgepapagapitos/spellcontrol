@@ -624,7 +624,7 @@
 }
 
 /* ── Native Scan FAB ────────────────────────────────────────────────────────
-   The native-only Scan action (components/ScanFab.tsx). Layout.tsx renders
+   The native-only Scan action (components/scanner/ScanFab.tsx). Layout.tsx renders
    the same MobileTabBar native uses on web mobile, plus this FAB floating on
    top — the one action the tab bar has no room for. position:absolute inside
    the stable .app-shell — never position:fixed — so the URL-bar shift can't

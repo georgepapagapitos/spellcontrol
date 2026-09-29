@@ -3,7 +3,7 @@ import './FollowedBrewersCard.css';
 import { Link } from 'react-router-dom';
 import { UserCheck } from 'lucide-react';
 import { HomeCard } from './HomeCard';
-import { UserAvatar } from '../UserAvatar';
+import { UserAvatar } from '@/components/profile/UserAvatar';
 import type { FollowedDeckPublishedActivityItem } from '@/lib/social/activity-client';
 import { formatIdentity } from '@/lib/social/display-name';
 import { formatRelativeTime } from '@/lib/util/format-time';

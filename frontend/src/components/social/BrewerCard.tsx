@@ -2,7 +2,7 @@ import './BrewerCard.css';
 import { Link } from 'react-router-dom';
 import { ColorIdentityBar } from '../shared/ColorIdentityBar';
 import { Surface } from '../shared/Surface';
-import { UserAvatar } from '../UserAvatar';
+import { UserAvatar } from '@/components/profile/UserAvatar';
 import { formatIdentity } from '@/lib/social/display-name';
 import { brewerStatsLine } from '@/lib/social/brewer-stats';
 import type { BrewerCard as BrewerCardData } from '@/lib/social/brewers-client';

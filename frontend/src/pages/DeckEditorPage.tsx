@@ -47,7 +47,7 @@ import {
   type DeckView,
   scrollToDeckStats,
 } from '../components/deck/DeckDisplay';
-import { Tabs, type TabBadge } from '../components/Tabs';
+import { Tabs, type TabBadge } from '@/components/overlays/Tabs';
 import {
   bracketLabel,
   bracketReasons,
@@ -141,9 +141,9 @@ import {
 import { buildWinConditionSummary } from '@/lib/deck-analysis/win-condition-summary';
 import { useCommanderBracketAnalysis } from '@/lib/deck-analysis/use-commander-bracket-analysis';
 import { useUndoRedoKeyboard } from '@/lib/deck/use-undo-redo-keyboard';
-import { useRegisterShortcuts } from '@/components/shortcut-registry';
+import { useRegisterShortcuts } from '@/components/app-shell/shortcut-registry';
 import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
-import { CardEditDialog, type PrintingSelection } from '../components/CardEditDialog';
+import { CardEditDialog, type PrintingSelection } from '@/components/collection/CardEditDialog';
 import {
   buildAllocationMap,
   pickCollectionCopy,
@@ -160,7 +160,7 @@ import {
 } from '@/lib/collection/allocations';
 import { planQtyChange } from '@/lib/deck/deck-qty';
 import { deckColorIdentity, fitsColorIdentity, getMaxCopies } from '@/lib/deck/deck-validation';
-import { ConfirmDialog } from '../components/ConfirmDialog';
+import { ConfirmDialog } from '@/components/overlays/ConfirmDialog';
 import { SharedCopiesSheet } from '../components/deck/SharedCopiesSheet';
 import { DeckFeedbackSheet } from '../components/deck/DeckFeedbackSheet';
 import { MovePrintingPrompt } from '../components/deck/MovePrintingPrompt';
@@ -174,9 +174,9 @@ import {
   narrowArrivals,
   rememberArrivalWatchlist,
 } from '@/lib/coach/arrival-watchlist';
-import { BackLink } from '../components/BackLink';
-import { ColorPicker } from '../components/ColorPicker';
-import { Modal } from '../components/Modal';
+import { BackLink } from '@/components/app-shell/BackLink';
+import { ColorPicker } from '@/components/binder/ColorPicker';
+import { Modal } from '@/components/overlays/Modal';
 import { isValidCommander, isPdhCommanderEligible } from '@/lib/deck/commanders';
 import { areValidPartners, canHavePartner } from '@/deck-builder/lib/partnerUtils';
 import { PartnerCommanderSelector } from '../components/deck/PartnerCommanderSelector';

@@ -18,10 +18,10 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { LegendContent } from '../Legend';
-import { OverflowMenu } from '../OverflowMenu';
-import { SearchPill } from '../SearchPill';
-import { SelectMenu } from '../SelectMenu';
-import { SortMenu, type SortMenuOption } from '../SortMenu';
+import { OverflowMenu } from '@/components/overlays/OverflowMenu';
+import { SearchPill } from '@/components/search/SearchPill';
+import { SelectMenu } from '@/components/overlays/SelectMenu';
+import { SortMenu, type SortMenuOption } from '@/components/search/SortMenu';
 import { ViewModeToggle as SharedViewModeToggle } from '../ViewModeToggle';
 import { ZoomControl } from '../ZoomControl';
 import { ZOOM_MAX, ZOOM_MAX_NARROW } from '@/lib/util/grid-zoom';

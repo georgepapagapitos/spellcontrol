@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Globe, Link2, Lock, Users } from 'lucide-react';
-import { ShareDialog } from '../ShareDialog';
+import { ShareDialog } from '@/components/share/ShareDialog';
 import { useDeckVisibility, type DeckVisibility } from '@/lib/social/use-deck-visibility';
 import { Chip } from '@/components/shared/Chip';
 import './DeckVisibilityChip.css';

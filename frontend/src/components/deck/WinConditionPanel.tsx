@@ -14,7 +14,7 @@ import {
   simulateAssemblyClock,
   type ClockCard,
 } from '@/lib/mana-sim/opening-hand-sim';
-import { InfoTip } from '../InfoTip';
+import { InfoTip } from '@/components/overlays/InfoTip';
 import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
 import { IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';

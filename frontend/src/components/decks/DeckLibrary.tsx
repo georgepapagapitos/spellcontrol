@@ -9,9 +9,9 @@ import {
 } from '@/lib/deck-analysis/format-bracket-label';
 import type { DeckFormat } from '@/deck-builder/types';
 import { NO_DISCOVER_FILTERS, type DiscoverFilters } from '@/lib/discover/discover-filters';
-import { DiscoverFiltersPopover } from '../DiscoverFiltersPopover';
-import { SearchPill } from '../SearchPill';
-import { SortMenu, type SortMenuOption } from '../SortMenu';
+import { DiscoverFiltersPopover } from './DiscoverFiltersPopover';
+import { SearchPill } from '@/components/search/SearchPill';
+import { SortMenu, type SortMenuOption } from '@/components/search/SortMenu';
 import { SharedEmptyState } from '../share/SharedEmptyState';
 import { ColorIdentityBar } from '../shared/ColorIdentityBar';
 import { ColorPip } from '../shared/ManaSymbol';

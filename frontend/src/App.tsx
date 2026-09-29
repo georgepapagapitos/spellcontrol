@@ -1,8 +1,8 @@
 import { logger } from '@/lib/util/logger';
 import { lazy, Suspense, useEffect, useRef, type ComponentType } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Layout } from './components/Layout';
-import { CollectionHubLayout } from './components/CollectionHubLayout';
+import { Layout } from '@/components/app-shell/Layout';
+import { CollectionHubLayout } from '@/components/collection/CollectionHubLayout';
 // Eager pages — the entry surfaces a first paint lands on. WelcomePage is the
 // marketing landing (guest-fresh "/") and the auth pair is where the first-run
 // gate sends a brand-new install. Everything else is lazy — including HomePage:
@@ -23,13 +23,13 @@ import { useAuth } from './store/auth';
 import { useCollectionStore } from './store/collection';
 import { startSync, hydrateLocal } from '@/lib/sync';
 import { setAppNavigator } from '@/lib/util/navigate-bridge';
-import { AutoLinkBanner } from './components/AutoLinkBanner';
-import { RecoveryBanner } from './components/RecoveryBanner';
+import { AutoLinkBanner } from '@/components/account/AutoLinkBanner';
+import { RecoveryBanner } from '@/components/account/RecoveryBanner';
 import { useFirstRunGate } from '@/lib/home/use-first-run-gate';
 import { useTradeSettlement } from '@/lib/trade/use-trade-settlement';
 import { hasEverVisited } from '@/lib/home/first-run';
 import { setUsageSuppressed, track } from '@/lib/util/analytics';
-import { NotFoundPage } from '@/components/NotFoundPage';
+import { NotFoundPage } from '@/pages/NotFoundPage';
 
 /** Named-export adapter for React.lazy (every page below exports by name). */
 function lazyPage<K extends string, T extends Record<K, ComponentType>>(

@@ -1,5 +1,5 @@
 import './CommanderReadiness.css';
-import { InfoTip } from '../InfoTip';
+import { InfoTip } from '@/components/overlays/InfoTip';
 import { MeterBar } from '../shared/MeterBar';
 import type { ReadinessScore } from '@/lib/deck/commander-readiness';
 

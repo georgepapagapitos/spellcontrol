@@ -12,7 +12,7 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import type { PlaytestCard } from '@/lib/playtest';
 import { ZoneViewerModal } from './ZoneViewerModal';
 
-vi.mock('@/components/CardPreview', () => ({
+vi.mock('@/components/card/CardPreview', () => ({
   CardPreview: (props: { cards: Array<{ name: string }>; index: number }) => (
     <div data-testid="card-preview">{props.cards[props.index]?.name}</div>
   ),

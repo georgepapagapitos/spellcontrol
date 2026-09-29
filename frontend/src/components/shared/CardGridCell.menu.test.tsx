@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import type { EnrichedCard } from '../../types';
 import { CardGridCell } from './CardGridCell';
-import { OverflowMenu } from '../OverflowMenu';
+import { OverflowMenu } from '@/components/overlays/OverflowMenu';
 
 const card = {
   copyId: 'c1',

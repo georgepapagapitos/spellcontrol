@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Upload, Download, ChevronRight, Cloud, Link2, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { Modal } from '../Modal';
-import { ProgressBar } from '../ProgressBar';
+import { Modal } from '@/components/overlays/Modal';
+import { ProgressBar } from '@/components/import/ProgressBar';
 import { fetchImportLink, importDeckText, importDeckFile } from '@/lib/api';
 import { useDecksStore } from '../../store/decks';
 import { buildAllocationMap, type AllocationInfo } from '@/lib/collection/allocations';
@@ -27,8 +27,8 @@ import {
   warmGooglePicker,
 } from '@/lib/import-export/google-picker';
 import { usePublishOnCreate, type PublishOutcome } from '@/lib/social/use-publish-on-create';
-import { VisibilityChoice } from '../VisibilityChoice';
-import { SelectMenu, type SelectOption } from '../SelectMenu';
+import { VisibilityChoice } from '@/components/share/VisibilityChoice';
+import { SelectMenu, type SelectOption } from '@/components/overlays/SelectMenu';
 
 import {
   MAX_STAGED_FILES as MAX_FILES,

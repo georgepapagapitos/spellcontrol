@@ -1,6 +1,6 @@
 import './ComboBadge.css';
 import type { ComboMatch } from '@/types/combos';
-import { InfoTip } from '../InfoTip';
+import { InfoTip } from '@/components/overlays/InfoTip';
 
 export interface ComboBadgeProps {
   /** Oracle id of the row this badge is attached to — highlighted within

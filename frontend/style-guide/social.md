@@ -68,7 +68,7 @@ raw `{1}{W}` text); sort headers use the shared `SortDirArrow`.
 
 ### Visibility is one choice, not a link to manage (board T136)
 
-Who can see a thing is one control, `components/VisibilityChoice.tsx` (a
+Who can see a thing is one control, `components/share/VisibilityChoice.tsx` (a
 `ChoiceList` under the hood), applied the moment it's picked: **Public /
 Friends / Private**, or **Anyone with the link / Friends / Private** for a
 kind with no public page of its own. Every option's hint stays visible, not

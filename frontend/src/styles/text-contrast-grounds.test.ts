@@ -252,7 +252,7 @@ describe('binder colour fills use the picked ink', () => {
     expect(block).not.toMatch(/text-shadow|color:\s*#fff/);
   });
   it('the components that paint --binder-color also set --binder-ink', () => {
-    for (const file of ['../components/BinderTabs.tsx', '../pages/BindersIndexPage.tsx']) {
+    for (const file of ['../components/binder/BinderTabs.tsx', '../pages/BindersIndexPage.tsx']) {
       expect(read(file), file).toMatch(/--binder-ink/);
     }
   });

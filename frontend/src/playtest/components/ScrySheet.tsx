@@ -21,7 +21,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ArrowLeft, ArrowRight, Hand, Minus, Plus, Undo2 } from 'lucide-react';
-import { SelectMenu } from '@/components/SelectMenu';
+import { SelectMenu } from '@/components/overlays/SelectMenu';
 import './ScrySheet.css';
 import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
 import { useSheetExit } from '@/lib/overlays/use-sheet-exit';

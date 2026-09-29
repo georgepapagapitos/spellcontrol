@@ -25,7 +25,7 @@ const selfPath = fileURLToPath(import.meta.url);
 const srcDir = resolve(dirname(selfPath), '..');
 
 /** The one surface allowed to state the version, relative to `src/`. */
-const OWNER = join('components', 'RulesReference.tsx');
+const OWNER = join('components', 'rules', 'RulesReference.tsx');
 
 function sourceFiles(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {

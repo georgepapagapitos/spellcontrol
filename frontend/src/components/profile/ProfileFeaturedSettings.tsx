@@ -4,7 +4,7 @@ import { toast } from '../../store/toasts';
 import { updateProfile, type Profile } from '@/lib/account/auth-api';
 import { fetchPublicProfile, type PublicProfileDeck } from '@/lib/social/profile-client';
 import { userMessage } from '@/lib/util/user-error';
-import { SelectMenu, type SelectOption } from '../SelectMenu';
+import { SelectMenu, type SelectOption } from '@/components/overlays/SelectMenu';
 import { Field, SwitchRow } from '../shared/form';
 
 const NO_PIN = '';

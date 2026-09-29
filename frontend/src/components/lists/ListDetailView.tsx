@@ -1,0 +1,896 @@
+import { useEffect, useMemo, useState } from 'react';
+import { LayoutList, AlignJustify, Captions, Eye, LayoutGrid, Search } from 'lucide-react';
+import type { ScryfallCard } from '@/deck-builder/types';
+import type {
+  BinderFilter,
+  ChipExpression,
+  Finish,
+  ListDef,
+  ListEntry,
+  ScryfallQueryRule,
+  SortDir,
+  SortField,
+} from '@/types/index';
+import type { SortContext } from '@/lib/search/sorting';
+import { compileFilter, cardMatchesCompiled, isExpressionEmpty } from '@/lib/binder/rules';
+import { sortCards, printingKey, sortDirectionLabel } from '@/lib/search/sorting';
+import { colorSelectionMatches, getColorKey, type ColorMatchMode } from '@/lib/cards/colors';
+import { cardTagLabel } from '@/lib/cards/card-tags';
+import { useCardsWithTags } from '@/lib/cards/card-tags';
+import type { EnrichedListRow } from '@/lib/collection/use-enriched-list-entries';
+import { ownedCountForEntry, isTrackingList } from '@/lib/collection/lists';
+import { useResultsKeys } from '@/lib/search/use-results-keys';
+import { useCollectionStore } from '@/store/collection';
+import { CollectionFiltersDialog } from '@/components/search/CollectionFiltersDialog';
+import { SearchPill } from '@/components/search/SearchPill';
+import { SortMenu, type SortMenuOption } from '@/components/search/SortMenu';
+import { ViewModeToggle } from '@/components/ViewModeToggle';
+import { Legend } from '@/components/Legend';
+import { CardRow } from '@/components/shared/CardRow';
+import { EmptyState } from '@/components/shared/EmptyState';
+import {
+  CardTableFrame,
+  CardTableHead,
+  LIST_TABLE_COLUMNS,
+  LIST_TABLE_COLUMNS_WITH_TARGET,
+  visibleColumns,
+  type CardTableCol,
+} from '@/components/shared/CardTable';
+import { useMediaQuery } from '@/lib/util/use-media-query';
+import {
+  CardGridCell,
+  GridCaptionList,
+  gridSetLabel,
+  useGridCaptionPrefs,
+} from '@/components/shared/CardGridCell';
+import { FilterChipsRow } from '@/components/shared/FilterChipsRow';
+import { ToolbarPopover } from '@/components/shared/ToolbarPopover';
+import { ViewPopoverPanel } from '@/components/shared/ViewPopoverPanel';
+import { CardPreview } from '@/components/card/CardPreview';
+import { OverflowMenu } from '@/components/overlays/OverflowMenu';
+import { InlineCardSearch } from '@/components/search/InlineCardSearch';
+import { scryfallToEnrichedCard } from '@/lib/cards/scryfall-to-enriched';
+import { formatMoney } from '@/lib/collection/format-money';
+import { CardEditDialog, type PrintingSelection } from '@/components/collection/CardEditDialog';
+import { ListEntryTargetPrice } from './ListEntryTargetPrice';
+import { VerdictBadge } from '@/components/deck/VerdictBadge';
+import { ZoomControl } from '@/components/ZoomControl';
+import {
+  ZOOM_MAX,
+  ZOOM_MAX_NARROW,
+  clampZoom,
+  readStoredZoom,
+  zoomBucket,
+  zoomMinCol,
+  zoomTier,
+} from '@/lib/util/grid-zoom';
+import { useElementWidth } from '@/lib/util/use-element-width';
+import { Button } from '@/components/shared/Button';
+
+const GRID_SIZE_KEY = 'mtg-lists-grid-size';
+
+const EMPTY_EXPR: ChipExpression = { chips: [], joiners: [] };
+
+const COLOR_FILTERS: Array<{ key: string; label: string }> = [
+  { key: 'W', label: 'White' },
+  { key: 'U', label: 'Blue' },
+  { key: 'B', label: 'Black' },
+  { key: 'R', label: 'Red' },
+  { key: 'G', label: 'Green' },
+  { key: 'C', label: 'Colorless' },
+];
+
+const RARITIES = ['mythic', 'rare', 'uncommon', 'common'] as const;
+
+// Card-attribute sorts only — lists have no import/edit timestamps, so the
+// collection's "Date added"/"Last edited" sorts don't apply here.
+const LIST_SORTS: Array<{ value: SortField; label: string; defaultDir: SortDir }> = [
+  { value: 'name', label: 'Name', defaultDir: 'asc' },
+  { value: 'color', label: 'Color', defaultDir: 'asc' },
+  { value: 'type', label: 'Type', defaultDir: 'asc' },
+  { value: 'cmc', label: 'Mana value', defaultDir: 'asc' },
+  { value: 'rarity', label: 'Rarity', defaultDir: 'asc' },
+  { value: 'price', label: 'Price', defaultDir: 'desc' },
+  { value: 'edhrec', label: 'EDHREC rank', defaultDir: 'asc' },
+  { value: 'quantity', label: 'Quantity', defaultDir: 'desc' },
+  { value: 'setName', label: 'Set', defaultDir: 'asc' },
+];
+const DEFAULT_DIR = new Map(LIST_SORTS.map((s) => [s.value, s.defaultDir]));
+
+// Every key here is a real SortField, so the direction wording comes from the
+// shared per-field vocabulary rather than being restated for this surface.
+const SORT_MENU_OPTIONS: SortMenuOption<SortField>[] = LIST_SORTS.map((s) => ({
+  value: s.value,
+  label: s.label,
+  dirLabels: [sortDirectionLabel(s.value, 'asc'), sortDirectionLabel(s.value, 'desc')],
+}));
+
+// Richest → sparsest (grid, list, compact) — the canonical view-toggle order
+// every card surface uses (collection, search, binder, shared views).
+const VIEW_OPTIONS = [
+  {
+    value: 'grid' as const,
+    label: 'Grid view',
+    icon: <LayoutGrid width={16} height={16} aria-hidden />,
+  },
+  {
+    value: 'list' as const,
+    label: 'List view',
+    icon: <LayoutList width={16} height={16} aria-hidden />,
+  },
+  {
+    value: 'compact' as const,
+    label: 'Compact view',
+    icon: <AlignJustify width={16} height={16} aria-hidden />,
+  },
+];
+
+function exprLabel(expr: ChipExpression, transform: (v: string) => string = (v) => v): string {
+  return expr.chips
+    .filter((c) => c.value.trim())
+    .map((c) => (c.negate ? `not ${transform(c.value)}` : transform(c.value)))
+    .join(', ');
+}
+
+interface Props {
+  list: ListDef;
+  /** Resolved rows + loading, lifted to the caller so the header cost stat
+   *  (ListEntriesView) and this table share one `useEnrichedListEntries` call
+   *  instead of double-resolving the same names. */
+  rows: EnrichedListRow[];
+  loading: boolean;
+  /** True once `loading` has run long enough to read as stuck rather than
+   *  slow — swaps in a retry strip above the skeleton instead of leaving the
+   *  player staring at an unchanging spinner (see `useEnrichedListEntries`). */
+  loadingLong?: boolean;
+  /** Re-runs entry resolution from scratch. Omitted for a dynamic list, which
+   *  never fetches. */
+  onRetry?: () => void;
+  /** Dynamic (rule-driven) list: rows are owned collection copies, so the
+   *  manual affordances (per-row menu, owned badge, Scryfall add) hide. */
+  dynamic?: boolean;
+}
+
+/** Placeholder rows shown while entries resolve to card data — count mirrors
+ *  the list's entry count (capped) so real rows drop in with no layout shift. */
+function SkeletonRows({ count }: { count: number }) {
+  return (
+    <div className="collection-list" role="status" aria-label="Loading this list's cards">
+      {Array.from({ length: count }, (_, i) => (
+        <div key={i} className="collection-list-row-skeleton" aria-hidden>
+          <div className="collection-list-skeleton-thumb" />
+          <div className="collection-list-skeleton-lines">
+            <div className="collection-list-skeleton-bar is-name" />
+            <div className="collection-list-skeleton-bar is-meta" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Placeholder grid cells while entries resolve — aspect-ratio tiles so the
+ *  grid doesn't collapse before real cards arrive. */
+function SkeletonGrid({ count, style }: { count: number; style?: React.CSSProperties }) {
+  return (
+    <div
+      className="list-entries-grid"
+      style={style}
+      role="status"
+      aria-label="Loading this list's cards"
+    >
+      {Array.from({ length: count }, (_, i) => (
+        <div
+          key={i}
+          className="collection-grid-item list-entries-grid-cell--skeleton"
+          aria-hidden
+        />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * The filterable, sortable card table for a single list — the same filter
+ * dialog, sort menu, view toggle, card rows and preview the collection uses,
+ * fed by entries resolved to full card data (`useEnrichedListEntries`). Lists
+ * are unowned printing references, so the collection-only filters (condition,
+ * binder, finish, price, group-printings) are simply not wired and the dialog
+ * hides those sections. Per-row actions live in an overflow menu.
+ */
+export function ListDetailView({
+  list,
+  rows: enrichedRows,
+  loading,
+  loadingLong = false,
+  onRetry,
+  dynamic = false,
+}: Props) {
+  const removeListEntry = useCollectionStore((s) => s.removeListEntry);
+  const moveListEntryToCollection = useCollectionStore((s) => s.moveListEntryToCollection);
+  const updateListEntry = useCollectionStore((s) => s.updateListEntry);
+  const addListEntry = useCollectionStore((s) => s.addListEntry);
+  const ownedCards = useCollectionStore((s) => s.cards);
+  const isRefreshingPrices = useCollectionStore((s) => s.isRefreshingPrices);
+
+  // Add a Scryfall result as a list entry — the retarget the collection's
+  // InlineCardSearch (which would call addCard) to lists instead.
+  const addToList = (card: ScryfallCard, finish?: Finish) =>
+    addListEntry(list.id, scryfallToEnrichedCard(card, finish ?? 'nonfoil'), 1);
+
+  // Filter state — the card-attribute subset that's meaningful for unowned
+  // cards. Mirrors the collection filter dialog's controlled props.
+  const [search, setSearch] = useState('');
+  const { resultsRef, onActiveChange, onKeyDown: resultsKeyDown } = useResultsKeys();
+  const [supertypeExpr, setSupertypeExpr] = useState<ChipExpression>(EMPTY_EXPR);
+  const [typesExpr, setTypesExpr] = useState<ChipExpression>(EMPTY_EXPR);
+  const [subtypeExpr, setSubtypeExpr] = useState<ChipExpression>(EMPTY_EXPR);
+  const [colorFilter, setColorFilter] = useState<Set<string>>(new Set());
+  const [colorMode, setColorMode] = useState<ColorMatchMode>('any');
+  const [rarityExpr, setRarityExpr] = useState<ChipExpression>(EMPTY_EXPR);
+  const [oracleExpr, setOracleExpr] = useState<ChipExpression>(EMPTY_EXPR);
+  const [oracleTagExpr, setOracleTagExpr] = useState<ChipExpression>(EMPTY_EXPR);
+  const [scryfallQuery, setScryfallQuery] = useState<ScryfallQueryRule | undefined>(undefined);
+  const [legalityExpr, setLegalityExpr] = useState<ChipExpression>(EMPTY_EXPR);
+  const [layoutExpr, setLayoutExpr] = useState<ChipExpression>(EMPTY_EXPR);
+  const [treatmentExpr, setTreatmentExpr] = useState<ChipExpression>(EMPTY_EXPR);
+  const [borderExpr, setBorderExpr] = useState<ChipExpression>(EMPTY_EXPR);
+  const [setFilter, setSetFilter] = useState<Set<string>>(new Set());
+  const [cmcMin, setCmcMin] = useState<number | undefined>(undefined);
+  const [cmcMax, setCmcMax] = useState<number | undefined>(undefined);
+
+  // Which columns drive the sort here. Lists already sort by SortField, so a
+  // header click is the same `pickSort` the SortMenu calls — one sort state,
+  // two ways to reach it.
+  const TABLE_SORTS: Partial<Record<CardTableCol, SortField>> = {
+    qty: 'quantity',
+    name: 'name',
+    set: 'setName',
+    mana: 'cmc',
+    price: 'price',
+  };
+  const [sortKey, setSortKey] = useState<SortField>('name');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [view, setView] = useState<'list' | 'compact' | 'grid'>('list');
+  // Grid caption prefs are shared with the collection grid (one key, one set
+  // of toggles) — a list tile carries the same price + set lines by default.
+  const [captionPrefs, setCaptionPrefs] = useGridCaptionPrefs();
+  const [gridZoom, setGridZoomRaw] = useState(() => readStoredZoom(GRID_SIZE_KEY));
+  const setGridZoom = (z: number) => {
+    setGridZoomRaw(z);
+    try {
+      localStorage.setItem(GRID_SIZE_KEY, String(z));
+    } catch {
+      /* ignore */
+    }
+  };
+  // Mirrors the collection/deck grids: on narrow viewports the top zoom
+  // steps all render as a single full-width column, so the reachable range
+  // is capped (without overwriting the stored preference).
+  const [isNarrow, setIsNarrow] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches
+  );
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mql = window.matchMedia('(max-width: 640px)');
+    const update = () => setIsNarrow(mql.matches);
+    mql.addEventListener('change', update);
+    return () => mql.removeEventListener('change', update);
+  }, []);
+  const effectiveZoom = clampZoom(gridZoom, isNarrow);
+  // The grid's own width, not the viewport's: the CSS tier switch is a
+  // `@media` query, so a grid narrower than the viewport picked the desktop
+  // ladder while the JS picked mobile. Once measured, the inline `--card-min`
+  // (container-derived) overrides the media query; the two `-desktop`/`-mobile`
+  // vars stay as the pre-measure first-paint fallback.
+  const [gridRef, gridWidth] = useElementWidth<HTMLDivElement>();
+  const gridStyle = {
+    '--card-min-desktop': `${zoomMinCol(effectiveZoom, 'desktop')}px`,
+    '--card-min-mobile': `${zoomMinCol(effectiveZoom, 'mobile')}px`,
+    ...(gridWidth > 0
+      ? { '--card-min': `${zoomMinCol(effectiveZoom, zoomTier(gridWidth))}px` }
+      : {}),
+  } as React.CSSProperties;
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const [editing, setEditing] = useState<ListEntry | null>(null);
+  // Inline "Search Scryfall to add" affordance — same pattern as the
+  // collection table: the list search doubles as the add query, and when it
+  // doesn't match a card already in the list you can search Scryfall and add.
+  const [scryfallOpen, setScryfallOpen] = useState(false);
+
+  // Decorate with oracle tags only when the tag filter is active (lazy — the
+  // snapshot isn't loaded otherwise), then re-pair with entries by index.
+  const tagActive = !isExpressionEmpty(oracleTagExpr);
+  const cardsRaw = useMemo(() => enrichedRows.map((r) => r.card), [enrichedRows]);
+  const taggedCards = useCardsWithTags(cardsRaw, tagActive);
+  const rows = useMemo(
+    () => enrichedRows.map((r, i) => ({ entry: r.entry, card: taggedCards[i] ?? r.card })),
+    [enrichedRows, taggedCards]
+  );
+
+  const compiledMatchFilter = useMemo(() => {
+    const f: BinderFilter = {};
+    if (!isExpressionEmpty(supertypeExpr)) f.supertypeChips = supertypeExpr;
+    if (!isExpressionEmpty(typesExpr)) f.typeTokenChips = typesExpr;
+    if (!isExpressionEmpty(subtypeExpr)) f.subtypeChips = subtypeExpr;
+    if (!isExpressionEmpty(rarityExpr)) f.rarities = rarityExpr;
+    if (!isExpressionEmpty(oracleExpr)) f.oracleChips = oracleExpr;
+    if (!isExpressionEmpty(oracleTagExpr)) f.oracleTagChips = oracleTagExpr;
+    if (scryfallQuery) f.scryfallQuery = scryfallQuery;
+    if (!isExpressionEmpty(legalityExpr)) f.legalities = legalityExpr;
+    if (!isExpressionEmpty(layoutExpr)) f.layouts = layoutExpr;
+    if (!isExpressionEmpty(treatmentExpr)) f.treatments = treatmentExpr;
+    if (!isExpressionEmpty(borderExpr)) f.borderColors = borderExpr;
+    if (setFilter.size > 0) f.setCodes = [...setFilter].map((s) => s.toUpperCase());
+    if (cmcMin !== undefined) f.cmcMin = cmcMin;
+    if (cmcMax !== undefined) f.cmcMax = cmcMax;
+    const t = search.trim();
+    if (t) f.nameContains = t;
+    return compileFilter(f);
+  }, [
+    supertypeExpr,
+    typesExpr,
+    subtypeExpr,
+    rarityExpr,
+    oracleExpr,
+    oracleTagExpr,
+    scryfallQuery,
+    legalityExpr,
+    layoutExpr,
+    treatmentExpr,
+    borderExpr,
+    setFilter,
+    cmcMin,
+    cmcMax,
+    search,
+  ]);
+
+  const filtered = useMemo(
+    () =>
+      rows.filter(({ card }) => {
+        // Color identity (OR/AND per colorMode), same semantics as the collection.
+        if (colorFilter.size > 0) {
+          const k = getColorKey(card);
+          const ci = card.colorIdentity || [];
+          if (!colorSelectionMatches(k, ci, colorFilter, colorMode)) return false;
+        }
+        return cardMatchesCompiled(card, compiledMatchFilter);
+      }),
+    [rows, colorFilter, colorMode, compiledMatchFilter]
+  );
+
+  const sorted = useMemo(() => {
+    // Accumulate per printing+finish — two entries can share a printing (the
+    // Scryfall quick-add doesn't dedup), so the quantity sort uses the
+    // printing's total rather than whichever entry was seen last.
+    const qtyByPrintingKey = new Map<string, number>();
+    for (const r of filtered)
+      qtyByPrintingKey.set(
+        printingKey(r.card),
+        (qtyByPrintingKey.get(printingKey(r.card)) ?? 0) + r.entry.quantity
+      );
+    const ctx: SortContext = { qtyByPrintingKey };
+    const sortedCards = sortCards(
+      filtered.map((r) => r.card),
+      [{ field: sortKey, dir: sortDir }],
+      ctx
+    );
+    const byCopyId = new Map(filtered.map((r) => [r.card.copyId, r]));
+    return sortedCards.map((c) => byCopyId.get(c.copyId)!).filter(Boolean);
+  }, [filtered, sortKey, sortDir]);
+
+  const previewCards = useMemo(() => sorted.map((r) => r.card), [sorted]);
+  const previewSectionLabels = useMemo(() => sorted.map(() => list.name), [sorted, list.name]);
+  const previewPageNumbers = useMemo(() => sorted.map(() => 0), [sorted]);
+
+  const activeChips = useMemo(() => {
+    const chips: Array<{ id: string; label: string; onClear: () => void }> = [];
+    if (search.trim())
+      chips.push({ id: 'search', label: `"${search.trim()}"`, onClear: () => setSearch('') });
+    if (colorFilter.size > 0) {
+      const map: Record<string, string> = {
+        W: 'White',
+        U: 'Blue',
+        B: 'Black',
+        R: 'Red',
+        G: 'Green',
+        C: 'Colorless',
+      };
+      chips.push({
+        id: 'color',
+        label: `Color: ${[...colorFilter]
+          .map((k) => map[k] ?? k)
+          .join(colorMode === 'all' ? ' + ' : ', ')}`,
+        onClear: () => setColorFilter(new Set()),
+      });
+    }
+    const exprChip = (
+      id: string,
+      prefix: string,
+      expr: ChipExpression,
+      clear: () => void,
+      transform?: (v: string) => string
+    ) => {
+      if (!isExpressionEmpty(expr))
+        chips.push({ id, label: `${prefix}: ${exprLabel(expr, transform)}`, onClear: clear });
+    };
+    exprChip('rarity', 'Rarity', rarityExpr, () => setRarityExpr(EMPTY_EXPR));
+    exprChip('supertype', 'Supertype', supertypeExpr, () => setSupertypeExpr(EMPTY_EXPR));
+    exprChip('type', 'Type', typesExpr, () => setTypesExpr(EMPTY_EXPR));
+    exprChip('subtype', 'Subtype', subtypeExpr, () => setSubtypeExpr(EMPTY_EXPR));
+    exprChip('oracle', 'Text', oracleExpr, () => setOracleExpr(EMPTY_EXPR));
+    exprChip('oracleTag', 'Tags', oracleTagExpr, () => setOracleTagExpr(EMPTY_EXPR), cardTagLabel);
+    if (scryfallQuery) {
+      chips.push({
+        id: 'scryfallQuery',
+        label: `Scryfall: ${scryfallQuery.query}`,
+        onClear: () => setScryfallQuery(undefined),
+      });
+    }
+    exprChip('legality', 'Legal in', legalityExpr, () => setLegalityExpr(EMPTY_EXPR));
+    exprChip('layout', 'Layout', layoutExpr, () => setLayoutExpr(EMPTY_EXPR));
+    exprChip('treatment', 'Treatment', treatmentExpr, () => setTreatmentExpr(EMPTY_EXPR));
+    exprChip('border', 'Border', borderExpr, () => setBorderExpr(EMPTY_EXPR));
+    if (setFilter.size > 0)
+      chips.push({
+        id: 'set',
+        label: `Set: ${[...setFilter].join(', ')}`,
+        onClear: () => setSetFilter(new Set()),
+      });
+    if (cmcMin !== undefined || cmcMax !== undefined) {
+      const label =
+        cmcMin !== undefined && cmcMax !== undefined
+          ? `Mana value: ${cmcMin}–${cmcMax}`
+          : cmcMin !== undefined
+            ? `Mana value: ≥ ${cmcMin}`
+            : `Mana value: ≤ ${cmcMax}`;
+      chips.push({
+        id: 'cmc',
+        label,
+        onClear: () => {
+          setCmcMin(undefined);
+          setCmcMax(undefined);
+        },
+      });
+    }
+    return chips;
+  }, [
+    search,
+    colorFilter,
+    colorMode,
+    rarityExpr,
+    supertypeExpr,
+    typesExpr,
+    subtypeExpr,
+    oracleExpr,
+    oracleTagExpr,
+    scryfallQuery,
+    legalityExpr,
+    layoutExpr,
+    treatmentExpr,
+    borderExpr,
+    setFilter,
+    cmcMin,
+    cmcMax,
+  ]);
+
+  const clearAll = () => {
+    setSearch('');
+    setSupertypeExpr(EMPTY_EXPR);
+    setTypesExpr(EMPTY_EXPR);
+    setSubtypeExpr(EMPTY_EXPR);
+    setColorFilter(new Set());
+    setColorMode('any');
+    setRarityExpr(EMPTY_EXPR);
+    setOracleExpr(EMPTY_EXPR);
+    setOracleTagExpr(EMPTY_EXPR);
+    setScryfallQuery(undefined);
+    setLegalityExpr(EMPTY_EXPR);
+    setLayoutExpr(EMPTY_EXPR);
+    setTreatmentExpr(EMPTY_EXPR);
+    setBorderExpr(EMPTY_EXPR);
+    setSetFilter(new Set());
+    setCmcMin(undefined);
+    setCmcMax(undefined);
+  };
+
+  const pickSort = (next: SortField) => {
+    if (next === sortKey) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else {
+      setSortKey(next);
+      setSortDir(DEFAULT_DIR.get(next) ?? 'asc');
+    }
+  };
+
+  // Grid caption line 1 — echoes the active sort key's value so any ordering
+  // is legible in grid view. Lists have no import/edit timestamps, so it's
+  // rank for the EDHREC sort and the card's market price otherwise (pinned
+  // USD, matching the price sort and the list rows).
+  const captionFor = (r: EnrichedListRow): string => {
+    if (sortKey === 'edhrec') {
+      return r.card.edhrecRank != null ? `#${r.card.edhrecRank.toLocaleString('en-US')}` : '—';
+    }
+    return formatMoney(r.card.purchasePrice, { currency: 'USD', zeroAsDash: true });
+  };
+
+  const handleEditConfirm = (sel: PrintingSelection) => {
+    if (!editing) return;
+    void updateListEntry(list.id, editing.id, {
+      scryfallId: sel.card.id,
+      setCode: (sel.card.set || '').toUpperCase(),
+      collectorNumber: sel.card.collector_number || '',
+      finish: sel.finish,
+    });
+    setEditing(null);
+  };
+
+  const tracking = isTrackingList(list);
+  // Compact becomes the shared card table from tablet width up, as it does on
+  // Collection and a binder page. The target-price column only exists where
+  // the editor does: a want list. A dynamic list's rows are owned collection
+  // copies and a tracking list already catalogues them, so neither shows it.
+  const wideEnoughForTable = useMediaQuery('(min-width: 768px)');
+  const isTable = view === 'compact' && wideEnoughForTable;
+  const tablePreset = dynamic || tracking ? LIST_TABLE_COLUMNS : LIST_TABLE_COLUMNS_WITH_TARGET;
+  // Cond and Lang go unless some row actually deviates — same rule as a
+  // binder. A want list of unowned printings has neither to report.
+  const tableColumns = useMemo(
+    () =>
+      visibleColumns(
+        tablePreset,
+        sorted.map((r) => r.card)
+      ),
+    [tablePreset, sorted]
+  );
+
+  // Cross-references the entry against the collection by the same
+  // oracleId/name match the header cost stat uses, so the two never disagree.
+  // On a want list, unowned is the default state (no badge); on a tracking
+  // list it's the anomaly worth flagging — the card slipped out of the
+  // collection since it was catalogued.
+  const ownedBadge = (entry: ListEntry) => {
+    const ownedQty = ownedCountForEntry(entry, ownedCards);
+    if (ownedQty === 0) {
+      return tracking ? <VerdictBadge tone="warn" label="Not owned" /> : undefined;
+    }
+    const fullyCovered = ownedQty >= entry.quantity;
+    return (
+      <VerdictBadge
+        verdict="owned"
+        label={fullyCovered ? undefined : `Owned ×${ownedQty}`}
+        title={
+          entry.quantity > 1
+            ? tracking
+              ? `You own ${ownedQty} of ${entry.quantity}`
+              : `You own ${ownedQty} of the ${entry.quantity} you want`
+            : undefined
+        }
+      />
+    );
+  };
+
+  // One entry menu for the rows and the grid tiles alike; `tile` only moves it
+  // to the card's corner (CardRowMenu's two variants, for list entries).
+  const rowMenu = (entry: ListEntry, variant: 'row' | 'tile' = 'row') => (
+    <OverflowMenu
+      ariaLabel={`Actions for ${entry.name}`}
+      className={variant === 'tile' ? 'collection-grid-menu' : undefined}
+      triggerClassName={variant === 'tile' ? 'collection-grid-menu-btn' : undefined}
+      contextHost={variant === 'tile' ? '.collection-grid-cell' : '.collection-list-row'}
+      items={[
+        {
+          label: 'Add one',
+          onClick: () =>
+            void updateListEntry(list.id, entry.id, { quantity: Math.min(99, entry.quantity + 1) }),
+        },
+        ...(entry.quantity > 1
+          ? [
+              {
+                label: 'Remove one',
+                onClick: () =>
+                  void updateListEntry(list.id, entry.id, { quantity: entry.quantity - 1 }),
+              },
+            ]
+          : []),
+        { label: 'Edit printing', onClick: () => setEditing(entry) },
+        // A tracking list catalogues cards already owned — "moving" one would
+        // mint a duplicate copy.
+        ...(tracking
+          ? []
+          : [
+              {
+                label: 'Move to collection',
+                onClick: () => void moveListEntryToCollection(list.id, entry.id),
+              },
+            ]),
+        {
+          label: 'Remove',
+          onClick: () => void removeListEntry(list.id, entry.id),
+          danger: true,
+        },
+      ]}
+    />
+  );
+
+  const activeCount = activeChips.length;
+
+  return (
+    <>
+      <div className="collection-toolbar-row">
+        <SearchPill
+          value={search}
+          onChange={setSearch}
+          placeholder="Search this list"
+          ariaLabel="Search this list"
+          // Only steer these keys into the Scryfall results below while that
+          // panel is actually open — otherwise this box just filters the
+          // owned-row table above, which has no arrow-key nav of its own.
+          inputProps={scryfallOpen ? { onKeyDown: resultsKeyDown } : undefined}
+          trailing={
+            <CollectionFiltersDialog
+              supertypeExpr={supertypeExpr}
+              setSupertypeExpr={setSupertypeExpr}
+              typesExpr={typesExpr}
+              setTypesExpr={setTypesExpr}
+              subtypeExpr={subtypeExpr}
+              setSubtypeExpr={setSubtypeExpr}
+              subtypeSuggestions={[]}
+              colorFilter={colorFilter}
+              setColorFilter={setColorFilter}
+              colorMode={colorMode}
+              setColorMode={setColorMode}
+              colorOptions={COLOR_FILTERS}
+              rarityExpr={rarityExpr}
+              setRarityExpr={setRarityExpr}
+              rarities={RARITIES}
+              oracleExpr={oracleExpr}
+              setOracleExpr={setOracleExpr}
+              oracleTagExpr={oracleTagExpr}
+              setOracleTagExpr={setOracleTagExpr}
+              scryfallQuery={scryfallQuery}
+              setScryfallQuery={setScryfallQuery}
+              legalityExpr={legalityExpr}
+              setLegalityExpr={setLegalityExpr}
+              layoutExpr={layoutExpr}
+              setLayoutExpr={setLayoutExpr}
+              treatmentExpr={treatmentExpr}
+              setTreatmentExpr={setTreatmentExpr}
+              borderExpr={borderExpr}
+              setBorderExpr={setBorderExpr}
+              setFilter={setFilter}
+              setSetFilter={setSetFilter}
+              cmcMin={cmcMin}
+              setCmcMin={setCmcMin}
+              cmcMax={cmcMax}
+              setCmcMax={setCmcMax}
+              activeCount={activeCount}
+            />
+          }
+        />
+      </div>
+
+      <FilterChipsRow chips={activeChips} onClearAll={clearAll} />
+
+      <div className="card-list-summary-line card-list-controls-sticky">
+        <div className="card-list-summary-actions">
+          {activeCount > 0 && sorted.length < rows.length && (
+            <span className="card-list-result-count" aria-live="polite">
+              {sorted.length.toLocaleString()} of {rows.length.toLocaleString()} cards
+            </span>
+          )}
+          <SortMenu<SortField>
+            ariaLabel="Sort by"
+            value={sortKey}
+            dir={sortDir}
+            options={SORT_MENU_OPTIONS}
+            onChange={pickSort}
+          />
+          {!isNarrow && <ViewModeToggle value={view} onChange={setView} options={VIEW_OPTIONS} />}
+          {!isNarrow && view === 'grid' && (
+            <ZoomControl
+              zoom={effectiveZoom}
+              width={gridWidth}
+              max={ZOOM_MAX}
+              onChange={setGridZoom}
+            />
+          )}
+          {!isNarrow && view === 'grid' && (
+            <ToolbarPopover
+              label="Details"
+              icon={<Captions width={14} height={14} strokeWidth={1.8} aria-hidden />}
+            >
+              {() => <GridCaptionList prefs={captionPrefs} onChange={setCaptionPrefs} />}
+            </ToolbarPopover>
+          )}
+          {/* Lists reuses CardRow's collection glyph set (TypeIcon, FoilBadge,
+              RarityBadge) — mount the Key at the trailing end of the toolbar so
+              those glyphs are explained, same as collection/binder surfaces. */}
+          {!isNarrow && <Legend context="collection" variant="pill" align="right" />}
+          {/* ≤640px: layout, card size, Details and the symbol key collapse
+              into one "View" popover so the sticky toolbar stays a single row
+              — the same panel the collection uses. See STYLE_GUIDE "Toolbars
+              & action rows". */}
+          {isNarrow && (
+            <ToolbarPopover
+              label="View"
+              icon={<Eye width={14} height={14} strokeWidth={1.8} aria-hidden />}
+              haspopup="dialog"
+              panelRole="dialog"
+              panelAriaLabel="View options"
+              panelClassName="toolbar-popover-panel toolbar-popover-panel--fixed view-popover-panel"
+            >
+              {() => (
+                <ViewPopoverPanel<'list' | 'compact' | 'grid'>
+                  view={view}
+                  setView={setView}
+                  options={VIEW_OPTIONS}
+                  ariaLabel="List view mode"
+                  zoom={effectiveZoom}
+                  zoomMax={ZOOM_MAX_NARROW}
+                  gridWidth={gridWidth}
+                  onZoomChange={setGridZoom}
+                  captionPrefs={captionPrefs}
+                  onCaptionPrefsChange={setCaptionPrefs}
+                />
+              )}
+            </ToolbarPopover>
+          )}
+        </div>
+      </div>
+
+      {loading && loadingLong && (
+        <div className="discover-decks-error" role="alert">
+          <span>This is taking longer than usual.</span>
+          {onRetry && (
+            <Button onClick={onRetry} className="discover-decks-error-retry">
+              Retry
+            </Button>
+          )}
+        </div>
+      )}
+
+      {loading ? (
+        view === 'grid' ? (
+          <SkeletonGrid count={Math.min(Math.max(list.entries.length, 6), 18)} style={gridStyle} />
+        ) : (
+          <SkeletonRows count={Math.min(Math.max(list.entries.length, 3), 10)} />
+        )
+      ) : sorted.length === 0 ? (
+        <EmptyState
+          tagline={
+            rows.length > 0
+              ? 'No cards match your filters.'
+              : dynamic
+                ? 'Nothing in your collection matches this rule yet.'
+                : 'No cards in this list yet.'
+          }
+          actions={
+            rows.length > 0 && (
+              <Button variant="link" onClick={clearAll}>
+                Clear filters
+              </Button>
+            )
+          }
+        />
+      ) : view === 'grid' ? (
+        <div
+          ref={gridRef}
+          className={`list-entries-grid grid-${zoomBucket(effectiveZoom)}`}
+          style={gridStyle}
+          role="region"
+          aria-label={`${list.name} cards`}
+        >
+          {sorted.map((r, i) => (
+            <CardGridCell
+              key={r.card.copyId}
+              card={r.card}
+              qty={r.entry.quantity}
+              size={zoomBucket(effectiveZoom)}
+              caption={captionPrefs.sortValue ? captionFor(r) : null}
+              setLabel={gridSetLabel(r.card, captionPrefs)}
+              onActivate={() => setPreviewIndex(i)}
+              menu={dynamic ? undefined : rowMenu(r.entry, 'tile')}
+            />
+          ))}
+        </div>
+      ) : (
+        <CardTableFrame columns={tableColumns} framed={isTable}>
+          {isTable && (
+            <CardTableHead<SortField>
+              columns={tableColumns}
+              sortFor={TABLE_SORTS}
+              sortKey={sortKey}
+              sortDir={sortDir}
+              onSort={pickSort}
+              dirLabel={(k, d) => sortDirectionLabel(k, d)}
+            />
+          )}
+          <div
+            className={`collection-list${isTable ? ' is-table' : view === 'compact' ? ' is-compact' : ''}`}
+            role="region"
+            aria-label={`${list.name} cards`}
+          >
+            {sorted.map((r, i) => (
+              <CardRow
+                key={r.card.copyId}
+                card={r.card}
+                qty={r.entry.quantity}
+                columns={isTable ? tableColumns : undefined}
+                allocations={[]}
+                onActivate={() => setPreviewIndex(i)}
+                isLastRow={i === sorted.length - 1}
+                priceTitle="Market price for this printing"
+                pricePending={isRefreshingPrices && !((r.card.purchasePrice ?? 0) > 0)}
+                menu={dynamic ? undefined : rowMenu(r.entry)}
+                ownedBadge={dynamic ? undefined : ownedBadge(r.entry)}
+                targetPriceSlot={
+                  // A want list is what target price means — a tracking list
+                  // already catalogues owned cards, and a dynamic list's rows
+                  // are owned collection copies (see isTrackingList).
+                  dynamic || tracking ? undefined : (
+                    <ListEntryTargetPrice
+                      entry={r.entry}
+                      onSave={(patch) => void updateListEntry(list.id, r.entry.id, patch)}
+                    />
+                  )
+                }
+              />
+            ))}
+          </div>
+        </CardTableFrame>
+      )}
+
+      {!dynamic &&
+        search.trim().length >= 2 &&
+        (scryfallOpen ? (
+          <InlineCardSearch
+            ref={resultsRef}
+            query={search.trim()}
+            onClose={() => setScryfallOpen(false)}
+            onAdd={addToList}
+            onActiveChange={onActiveChange}
+          />
+        ) : (
+          <button
+            type="button"
+            className="collection-list-scryfall collection-list-scryfall--standalone"
+            aria-label={`Search Scryfall for ${search.trim()}`}
+            onClick={() => setScryfallOpen(true)}
+          >
+            <span className="collection-list-scryfall-icon">
+              <Search width={18} height={18} strokeWidth={2} aria-hidden />
+            </span>
+            <span className="collection-list-scryfall-text">
+              <span className="collection-list-scryfall-title">Search Scryfall</span>
+              <span className="collection-list-scryfall-sub">for "{search.trim()}"</span>
+            </span>
+          </button>
+        ))}
+
+      {previewIndex !== null && previewCards[previewIndex] && (
+        <CardPreview
+          source="collection"
+          cards={previewCards}
+          index={previewIndex}
+          binderName={list.name}
+          sectionLabels={previewSectionLabels}
+          pageNumbers={previewPageNumbers}
+          totalPages={0}
+          getStackQty={(i) => sorted[i]?.entry.quantity ?? 1}
+          onIndexChange={setPreviewIndex}
+          onClose={() => setPreviewIndex(null)}
+        />
+      )}
+
+      {editing && (
+        <CardEditDialog
+          cardName={editing.name}
+          currentScryfallId={editing.scryfallId}
+          currentFinish={editing.finish}
+          onConfirm={handleEditConfirm}
+          onCancel={() => setEditing(null)}
+        />
+      )}
+    </>
+  );
+}

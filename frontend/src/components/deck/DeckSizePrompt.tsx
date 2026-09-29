@@ -8,7 +8,7 @@ import { useCardThumb } from '@/lib/cards/card-thumbs';
 import { WhyBreakdown } from './WhyBreakdown';
 import type { WhyFactor } from '@/lib/coach/why-factors';
 import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
-import type { CardPreviewAction } from '../CardPreview';
+import type { CardPreviewAction } from '@/components/card/CardPreview';
 import { Button } from '@/components/shared/Button';
 
 export interface SizePromptOption {

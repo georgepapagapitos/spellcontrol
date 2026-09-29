@@ -22,7 +22,7 @@ vi.mock('../store/auth', () => ({
     }),
 }));
 
-vi.mock('../components/FriendsManagement', () => ({
+vi.mock('@/components/social/FriendsManagement', () => ({
   FriendsManagement: () => <div data-testid="friends-management-stub" />,
 }));
 

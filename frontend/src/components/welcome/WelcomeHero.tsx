@@ -2,7 +2,7 @@ import './WelcomeHero.css';
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, FlaskConical, Import, Swords } from 'lucide-react';
-import { SearchPill } from '../SearchPill';
+import { SearchPill } from '@/components/search/SearchPill';
 import { useCardThumb } from '@/lib/cards/card-thumbs';
 import { markEverVisited } from '@/lib/home/first-run';
 import { track } from '@/lib/util/analytics';

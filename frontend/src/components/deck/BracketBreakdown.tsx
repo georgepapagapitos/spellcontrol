@@ -1,7 +1,7 @@
 import './BracketBreakdown.css';
 import { useMemo, type JSX, type ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
-import { InfoTip } from '../InfoTip';
+import { InfoTip } from '@/components/overlays/InfoTip';
 import { SegmentedControl } from '../shared/form';
 import type {
   BracketEstimation,

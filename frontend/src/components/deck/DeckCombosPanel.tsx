@@ -17,8 +17,8 @@ import {
   type EdhrecComboStat,
 } from '@/lib/deck-analysis/edhrec-combo-overlay';
 import type { ComboMatch } from '../../types/combos';
-import { CardPreview } from '../CardPreview';
-import { Tabs } from '../Tabs';
+import { CardPreview } from '@/components/card/CardPreview';
+import { Tabs } from '@/components/overlays/Tabs';
 import { ComboRow } from './ComboRow';
 import { Button } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';

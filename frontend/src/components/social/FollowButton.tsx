@@ -4,7 +4,7 @@ import { useAuth } from '../../store/auth';
 import { toast } from '../../store/toasts';
 import { followUser, unfollowUser } from '@/lib/social/brewers-client';
 import { userMessage } from '@/lib/util/user-error';
-import { GuestActionPopover } from '../GuestActionPopover';
+import { GuestActionPopover } from './GuestActionPopover';
 import { Button } from '../shared/Button';
 
 interface Props {

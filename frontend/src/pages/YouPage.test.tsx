@@ -95,14 +95,14 @@ vi.mock('@/lib/ai/ai-review', async (importOriginal) => ({
   fetchAiStatus: vi.fn(() => Promise.reject(new Error('offline'))),
 }));
 vi.mock('@/lib/account/reset-app-cache', () => ({ resetAppCacheAndReload: vi.fn() }));
-vi.mock('../components/OfflineModeSettings', () => ({
+vi.mock('@/components/settings/OfflineModeSettings', () => ({
   OfflineModeSettings: () => null,
 }));
-vi.mock('../components/SyncIndicator', () => ({
+vi.mock('@/components/account/SyncIndicator', () => ({
   SyncIndicator: () => null,
 }));
 // Has its own dedicated test file (ProfileEditor.test.tsx).
-vi.mock('../components/ProfileEditor', () => ({
+vi.mock('@/components/profile/ProfileEditor', () => ({
   ProfileEditor: () => null,
 }));
 vi.mock('@/lib/account/themes', () => ({

@@ -76,7 +76,7 @@ describe('density tiers (T135)', () => {
     ['pages/cube/cube.css', '.cube-collab-friend-row'],
     ['styles/deck-builder-card-list.css', '.deck-row-menu-item'],
     ['styles/deck-builder-editor.css', '.deck-editor-overflow-item'],
-    ['components/PlanShelfModal.css', '.plan-shelf-row'],
+    ['components/binder/PlanShelfModal.css', '.plan-shelf-row'],
   ])('%s %s stands at the tier row height', (file, selector) => {
     expect(decls(readSrc(file), selector)).toMatch(/(^|;)\s*min-height:\s*var\(--row-h\)/);
   });

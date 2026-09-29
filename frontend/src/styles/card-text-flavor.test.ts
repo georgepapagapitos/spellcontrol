@@ -21,7 +21,7 @@ import { dirname, join } from 'node:path';
 const srcRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (...p: string[]) =>
   readFileSync(join(srcRoot, ...p), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
-const details = read('components', 'CardDetails.css');
+const details = read('components', 'card', 'CardDetails.css');
 const preview = read('styles', 'footer-card-preview.css');
 
 /** Declarations of the first rule whose selector list is exactly `selector`. */

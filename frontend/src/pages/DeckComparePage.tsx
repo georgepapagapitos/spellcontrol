@@ -1,14 +1,14 @@
 import './DeckComparePage.css';
 import { useMemo, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { BackLink } from '../components/BackLink';
+import { BackLink } from '@/components/app-shell/BackLink';
 import { useDecksStore, type Deck } from '../store/decks';
 import type { ScryfallCard } from '@/deck-builder/types';
-import { SelectMenu, type SelectOption } from '../components/SelectMenu';
+import { SelectMenu, type SelectOption } from '@/components/overlays/SelectMenu';
 import { BracketVerdictStrip } from '../components/deck/BracketVerdictStrip';
 import { MeterBar, StackedBar } from '../components/shared/MeterBar';
 import { Chip } from '../components/shared/Chip';
-import { InfoTip } from '../components/InfoTip';
+import { InfoTip } from '@/components/overlays/InfoTip';
 import { DiffGroup } from '../components/deck/DiffCardRow';
 import { diffDecks, type DeckDiff } from '@/lib/deck/deck-diff';
 import { formatRelativeTime } from '@/lib/util/format-time';

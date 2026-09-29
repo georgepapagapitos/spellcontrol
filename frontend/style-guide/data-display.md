@@ -10,7 +10,7 @@ where every section lives.
 
 ## Charts (line / trend)
 
-First instance: the Breakdown drawer's Value section (`components/ValueTrend.tsx`).
+First instance: the Breakdown drawer's Value section (`components/collection/ValueTrend.tsx`).
 Any future line/trend chart follows the same specs (horizontal bars stay on
 `MeterBar`/`StackedBar` — this section is for plotted charts):
 
@@ -119,7 +119,7 @@ stat-tile delta convention:
   solid accent dot, `aria-hidden` with the delta text (plus an `.sr-only`
   prefix) as the accessible content. Render nothing below two data points —
   no empty state. A full plotted chart instead follows § Charts (line /
-  trend); reference: `components/ValueTrend.tsx`.
+  trend); reference: `components/collection/ValueTrend.tsx`.
 
 ## Radar / polar charts
 
