@@ -11,9 +11,9 @@ import {
   WIPE_QUALITY_SYMMETRIC_PENALTY,
   WIPE_QUALITY_COLLATERAL_BASE,
   WIPE_QUALITY_COLLATERAL_SCALE,
-  SYNERGY_SCORE_POINTS,
+  SYNERGY_STRENGTH_POINTS,
 } from './cardPicking';
-import { synergyScore } from './synergyLift';
+import { synergyStrength } from './synergyLift';
 import { BracketGuard, bracketCeilings } from './bracketGuard';
 import type { EDHRECCard, ScryfallCard } from '@/deck-builder/types';
 import { isOneSidedWipe, getWipeScope, type RoleKey } from '@/deck-builder/services/tagger/client';
@@ -122,7 +122,7 @@ function priorityBeforeE510(card: EDHRECCard, brewLevel: number): number {
   return card.inclusion * inclusionMul + newCardBoost;
 }
 
-const ratioTerm = (card: EDHRECCard) => SYNERGY_SCORE_POINTS * synergyScore(card);
+const ratioTerm = (card: EDHRECCard) => SYNERGY_STRENGTH_POINTS * synergyStrength(card);
 
 describe('calculateCardPriority', () => {
   it('(a) never scores a card the old formula ranked below its old priority, at any dial stop', () => {
@@ -138,14 +138,14 @@ describe('calculateCardPriority', () => {
   });
 
   it('keeps Skullclamp-shaped cores (64% vs 29%) exactly where they were', () => {
-    // Half its ratio reading (15 x 1.13 / 2 = 8.5) is below the old theme term
-    // (0.347 x 50 = 17.4), which stays the floor.
+    // Half its ratio reading (30 x 0.72 / 2 = 10.8) is below the old theme
+    // term (0.347 x 50 = 17.4), which stays the floor.
     expect(ratioTerm(SKULLCLAMP) / 2).toBeLessThan(SKULLCLAMP.synergy! * 50);
     expect(calculateCardPriority(SKULLCLAMP)).toBeCloseTo(priorityBeforeE510(SKULLCLAMP, 0.5), 10);
   });
 
   it('lifts an old-tier card whose ratio reads higher than its subtraction', () => {
-    // Protean Hulk: 45.9% vs 4.4%, 10.5×: 15 × 3.39 = 51 against the old 41.5.
+    // Protean Hulk: 45.9% vs 4.4%, 10.5x: 30 x 1.56 = 47 against the old 41.5.
     expect(calculateCardPriority(PROTEAN_HULK)).toBeCloseTo(
       ratioTerm(PROTEAN_HULK) + PROTEAN_HULK.inclusion,
       10
@@ -155,14 +155,27 @@ describe('calculateCardPriority', () => {
     );
   });
 
-  it('(b) ranks a 12%-vs-1% card above a 40%-vs-20% card at Balanced', () => {
-    // The old formula gave neither a synergy term: 41.9 beat 12.5 on play rate.
-    expect(priorityBeforeE510(TRAGIC_SLIP, 0.5)).toBeGreaterThan(
-      priorityBeforeE510(ERADICATOR_VALKYRIE, 0.5)
+  it('(b) no longer buries a 12%-vs-1% card: a positive term where it had none', () => {
+    // Eradicator Valkyrie (+0.11, 12.4x its colours) sat under the old +0.3
+    // bar, so the old formula gave it no synergy term at all.
+    expect(priorityBeforeE510(ERADICATOR_VALKYRIE, 0.5)).toBeCloseTo(
+      ERADICATOR_VALKYRIE.inclusion,
+      10
     );
-    expect(calculateCardPriority(ERADICATOR_VALKYRIE)).toBeGreaterThan(
-      calculateCardPriority(TRAGIC_SLIP)
+    expect(ratioTerm(ERADICATOR_VALKYRIE)).toBeGreaterThan(10);
+    expect(calculateCardPriority(ERADICATOR_VALKYRIE)).toBeCloseTo(
+      ERADICATOR_VALKYRIE.inclusion + ratioTerm(ERADICATOR_VALKYRIE),
+      10
     );
+    // And it ranks higher than before at every stop past Staples, most at Synergy.
+    for (const b of [0.25, 0.5, 0.75, 1]) {
+      expect(calculateCardPriority(ERADICATOR_VALKYRIE, b)).toBeGreaterThan(
+        priorityBeforeE510(ERADICATOR_VALKYRIE, b)
+      );
+    }
+    expect(
+      calculateCardPriority(ERADICATOR_VALKYRIE, 1) - priorityBeforeE510(ERADICATOR_VALKYRIE, 1)
+    ).toBeGreaterThan(25);
   });
 
   it('has no cliff below the old tier: a +0.28 card gets its full ratio term', () => {
@@ -171,7 +184,7 @@ describe('calculateCardPriority', () => {
       ratioTerm(OVERGROWTH),
       10
     );
-    expect(ratioTerm(OVERGROWTH)).toBeGreaterThan(40);
+    expect(ratioTerm(OVERGROWTH)).toBeGreaterThan(25);
   });
 
   it('pulls a card the commander’s players avoid below its play rate, only below the old tier', () => {
@@ -181,14 +194,15 @@ describe('calculateCardPriority', () => {
   });
 
   it('is never negative, however hard a card is avoided', () => {
-    // Cultivate's ratio term (15 x log2 0.38 = -21) outweighs its 15.7% play
-    // rate. Budget convergence shortlists by `priority >= best x band`, which
-    // picked nothing (and crashed) when the best candidate went negative.
-    expect(ratioTerm(CULTIVATE) + CULTIVATE.inclusion).toBeLessThan(0);
+    // At full Synergy, Cultivate's amplified term (30 x -0.22 x 2.2 = -14.6)
+    // outweighs its damped 15.7% play rate (3.9). Budget convergence
+    // shortlists by `priority >= best x band`, which picked nothing (and
+    // crashed a live build) when the best candidate went negative.
+    expect(ratioTerm(CULTIVATE) * 2.2 + CULTIVATE.inclusion * 0.25).toBeLessThan(0);
     for (const c of ALL_ROWS) {
       for (const b of DIAL) expect(calculateCardPriority(c, b)).toBeGreaterThanOrEqual(0);
     }
-    expect(calculateCardPriority(CULTIVATE)).toBe(0);
+    expect(calculateCardPriority(CULTIVATE, 1)).toBe(0);
   });
 
   it('falls back to inclusion for a row with no synergy, plus a new-card boost', () => {
@@ -198,7 +212,8 @@ describe('calculateCardPriority', () => {
   });
 
   it('keeps the theme-list floor and the half-weight theme term', () => {
-    // Spore Frog: the old term (0.70 × 50 = 35) beats half its ratio (28).
+    // Spore Frog: half its ratio reading (30 x 2.86 / 2 = 43) beats the old
+    // term (0.70 x 50 = 35).
     expect(calculateCardPriority(SPORE_FROG)).toBeCloseTo(
       100 + Math.max(SPORE_FROG.synergy! * 50, ratioTerm(SPORE_FROG) / 2) + SPORE_FROG.inclusion,
       10
@@ -218,7 +233,7 @@ describe('calculateCardPriority — Staples <-> Synergy dial', () => {
     for (const c of ALL_ROWS) {
       expect(calculateCardPriority(c, 0)).toBeCloseTo(c.inclusion * 2, 10);
     }
-    // So at Staples the 40%-vs-20% card is back on top.
+    // So at Staples the 40%-vs-20% card leads on play rate alone.
     expect(calculateCardPriority(TRAGIC_SLIP, 0)).toBeGreaterThan(
       calculateCardPriority(ERADICATOR_VALKYRIE, 0)
     );
@@ -312,7 +327,7 @@ describe('mergeWithAllNonLand', () => {
   it('threads the Staples <-> Brew dial into its sort', () => {
     const pool = [SOL_RING, RAZAKETH];
     // Balanced (default): Sol Ring's play rate (85%) beats Razaketh's 13% plus
-    // its ratio term (9.9x its colours: 15 x 3.3 = 50 points).
+    // its ratio term (9.9x its colours, strength 0.44: 13 points).
     expect(mergeWithAllNonLand(pool, []).map((c) => c.name)).toEqual([
       'Sol Ring',
       'Razaketh, the Foulblooded',

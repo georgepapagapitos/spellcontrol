@@ -3,13 +3,12 @@ import type { EDHRECCard } from '@/deck-builder/types';
 import { parseEdhrecResponse } from '@/deck-builder/services/edhrec/client';
 import {
   readSynergy,
-  synergyScore,
+  synergyStrength,
   isSignatureSynergy,
   isAntiSynergy,
-  bySynergyScore,
+  bySynergyStrength,
   SYNERGY_PRIOR_DECKS,
   BASELINE_FLOOR_PCT,
-  SUPPORT_FULL_PCT,
 } from './synergyLift';
 
 // Every row below is a real EDHREC cardview (json.edhrec.com, cached
@@ -80,29 +79,24 @@ describe('readSynergy', () => {
     expect(haruspex.strength).toBeCloseTo(1.847, 3);
     expect(elder.strength).toBeCloseTo(1.288, 3);
     expect(haruspex.strength).toBeGreaterThan(elder.strength);
-    // Both past the 10% support line, so the score is the ratio alone.
-    expect(haruspex.score).toBeCloseTo(Math.log2(haruspex.lift), 10);
-    expect(elder.score).toBeCloseTo(Math.log2(elder.lift), 10);
   });
 
-  it('scores 12% vs 1% well above 40% vs 20%; the subtraction said the opposite', () => {
-    expect(TRAGIC_SLIP.synergy!).toBeGreaterThan(ERADICATOR_VALKYRIE.synergy!);
+  it('reads 12% vs 1% as strongly as 40% vs 20%, where the subtraction ranked it far lower', () => {
+    // +0.11 vs +0.23 by subtraction; 12.4x vs 2.2x by ratio. Strength weighs
+    // the ratio by play rate and lands them level (0.45 vs 0.49).
+    expect(TRAGIC_SLIP.synergy!).toBeGreaterThan(ERADICATOR_VALKYRIE.synergy! * 2);
     const valkyrie = readSynergy(ERADICATOR_VALKYRIE)!;
     const slip = readSynergy(TRAGIC_SLIP)!;
-    expect(valkyrie.score).toBeCloseTo(3.635, 2);
-    expect(slip.score).toBeCloseTo(1.16, 2);
-    // The KL strength can't tell them apart (0.45 vs 0.49): that's why it
-    // defines the signature tier and doesn't rank.
-    expect(Math.abs(valkyrie.strength - slip.strength)).toBeLessThan(0.05);
+    expect(valkyrie.lift).toBeGreaterThan(slip.lift * 5);
+    expect(valkyrie.strength).toBeCloseTo(0.451, 3);
+    expect(slip.strength).toBeCloseTo(0.486, 3);
   });
 
-  it('scales the ratio down below the 10% support line (the Hyper Focus guard)', () => {
+  it('keeps a card few decks play small, however big its ratio (the Hyper Focus guard)', () => {
+    // Enchanted River's Grasp: 1.5% of Tuvasa decks, 1.5x its colours.
     const r = readSynergy(ENCHANTED_RIVERS_GRASP)!;
-    expect(r.shrunkPct).toBeLessThan(SUPPORT_FULL_PCT);
-    expect(r.score).toBeCloseTo((r.shrunkPct / SUPPORT_FULL_PCT) * Math.log2(r.lift), 10);
-    // Below the line the score is exactly strength × 10.
-    expect(r.score).toBeCloseTo(r.strength * 10, 10);
-    expect(r.score).toBeLessThan(0.1);
+    expect(r.lift).toBeGreaterThan(1);
+    expect(r.strength).toBeLessThan(0.01);
   });
 
   it('barely shrinks a large page (22,305 decks)', () => {
@@ -169,7 +163,7 @@ describe('readSynergy', () => {
     expect(isSignatureSynergy(SILENCE)).toBe(true);
   });
 
-  it('is null for a row with no synergy, and the score reads 0', () => {
+  it('is null for a row with no synergy, and strength reads 0', () => {
     const synthesized: EDHRECCard = {
       name: 'Arcane Signet',
       sanitized: 'arcane-signet',
@@ -178,7 +172,7 @@ describe('readSynergy', () => {
       num_decks: 0,
     };
     expect(readSynergy(synthesized)).toBeNull();
-    expect(synergyScore(synthesized)).toBe(0);
+    expect(synergyStrength(synthesized)).toBe(0);
     expect(isSignatureSynergy(synthesized)).toBe(false);
     expect(isAntiSynergy(synthesized)).toBe(false);
   });
@@ -265,17 +259,16 @@ describe('isAntiSynergy', () => {
     expect(isAntiSynergy(row('Field of the Dead', 1, 15, -0.030424772813395964))).toBe(false);
   });
 
-  it('reads avoidance as a negative score and strength', () => {
+  it('reads avoidance as negative strength', () => {
     expect(readSynergy(CULTIVATE)!.strength).toBeCloseTo(-0.221, 3);
-    expect(synergyScore(CULTIVATE)).toBeCloseTo(Math.log2(0.377), 2);
-    expect(synergyScore(HEROIC_INTERVENTION)).toBeLessThan(0);
+    expect(synergyStrength(HEROIC_INTERVENTION)).toBeLessThan(0);
   });
 });
 
-describe('bySynergyScore', () => {
-  it('orders by the ratio-first score, not by the subtraction', () => {
+describe('bySynergyStrength', () => {
+  it('orders by strength, not by the subtraction', () => {
     const sorted = [SAKURA_TRIBE_ELDER, BLOOD_ARTIST, SPORE_FROG, GRIM_HARUSPEX, SOL_RING].sort(
-      bySynergyScore
+      bySynergyStrength
     );
     expect(sorted.map((c) => c.name)).toEqual([
       'Spore Frog',

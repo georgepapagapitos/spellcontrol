@@ -39,36 +39,34 @@
 //
 // 3. Irrelevance. A card 3% of this commander's decks play, against a 0.3%
 //    baseline, has a big ratio and nobody plays it. That is the exact failure
-//    that killed Hyper Focus (E230): it promoted the least-played cards.
+//    that killed Hyper Focus (E230): it promoted the least-played cards. So
+//    the reading ranks by the lift weighted by how much the card is played:
 //
-// Two readings come out of the shrunk ratio, for two jobs:
+//      strength = (shrunkPct / 100) × log2(lift)
 //
-//   score    = support × log2(lift),  support = min(1, shrunkPct / 10%)
-//   strength = (shrunkPct / 100) × log2(lift)
+//    This is the card's term of the KL divergence between the commander's
+//    card distribution and its colours', "played a lot AND played far more
+//    than the colours", the same rate × lift shape as the validated E71
+//    card-page lift score (liftSynergy.ts edgeScore). It is negative when the
+//    commander's players avoid a card (lift < 1), zero at lift 1.
 //
-// `score` RANKS (calculateCardPriority, the hidden-gem tail, the Coach gap
-// pick). Once a card is in at least SUPPORT_FULL_PCT of the commander's decks
-// it is a real choice of that player base, and it ranks by its ratio alone:
-// 12% vs 1% (log2 12 = 3.6) now clearly outranks 40% vs 20% (log2 2 = 1).
-// Below that play rate the ratio is scaled down linearly, so a 3%-played card
-// can't ride a big ratio past real cards (the Hyper Focus guard).
-//
-// `strength` DEFINES a signature card (isSignatureSynergy). It is the card's
-// term of the KL divergence between the commander's card distribution and its
-// colours', "played a lot AND played far more than the colours", the same
-// rate × lift shape as the validated E71 card-page lift score (liftSynergy.ts
-// edgeScore). It can't rank for the promote job: it reads 12% vs 1% (0.43)
-// and 40% vs 20% (0.40) as equals.
-//
-// Both are negative when the commander's players avoid a card (lift < 1) and
-// zero at lift 1.
+// What strength does and doesn't do to the brief's case: 12% vs 1% (+0.11)
+// and 40% vs 20% (+0.20) read about the same (0.43 vs 0.40). Neither
+// outranks the other on it; the 12% card is no longer buried (the old
+// formula gave it nothing below +0.3), and play rate still separates them at
+// Balanced. A ratio-dominant reading (log2 lift at full weight above 10% play
+// rate) was built and measured on the LIVE_GEN panels, 2026-09-29: it put
+// 12% vs 1% first, and shipped decks paid for it with the Hyper Focus trade
+// (avg-deck overlap 68.1 → 64.8 on the standard panel, the added cards' median
+// play rate 20.9% against 27.6% for the cards they replaced). This reading
+// kept overlap at 68.7 and the added/removed play rates level (26.0 / 26.5).
 //
 // Worked values from live EDHREC rows (Meren of Clan Nel Toth, 22,305 decks):
-//   Spore Frog          75.6% vs  5.5%  lift 13.8   score 3.79  strength 2.86
-//   Grim Haruspex       49.4% vs  3.7%  lift 13.3   score 3.74  strength 1.85
-//   Sakura-Tribe Elder  83.0% vs 28.3%  lift  2.9   score 1.55  strength 1.29
-//   Blood Artist        54.5% vs 21.1%  lift  2.6   score 1.37  strength 0.75
-//   Heroic Intervention 17.0% vs 32.1%  lift  0.53  score −0.92 strength −0.16
+//   Spore Frog          75.6% vs  5.5%  lift 13.8   strength 2.86
+//   Grim Haruspex       49.4% vs  3.7%  lift 13.3   strength 1.85
+//   Sakura-Tribe Elder  83.0% vs 28.3%  lift  2.9   strength 1.29
+//   Blood Artist        54.5% vs 21.1%  lift  2.6   strength 0.75
+//   Heroic Intervention 17.0% vs 32.1%  lift  0.53  strength −0.16
 import type { EDHRECCard } from '@/deck-builder/types';
 
 /**
@@ -113,15 +111,6 @@ export const SYNERGY_PRIOR_DECKS = 5;
  *  lists bottom out near 1-5% inclusion; below 1% a baseline is "the colours
  *  don't play it", and dividing by 0.1% vs 0.9% measures obscurity, not fit. */
 export const BASELINE_FLOOR_PCT = 1;
-
-/**
- * Play rate (percent of the commander's decks, shrunk) at which a card's
- * ratio counts in full for ranking. The same 10% the hidden-gem surface
- * already uses as its line between a real choice and the low-inclusion tail
- * (hiddenGems.ts GEM_INCLUSION_CEILING); below it `score` scales linearly
- * with play rate, which below the line is `strength` × 10 exactly.
- */
-export const SUPPORT_FULL_PCT = 10;
 
 /**
  * The old signature bar, EDHREC synergy above +0.3 (30 points more played
@@ -178,9 +167,8 @@ export interface SynergyReading {
   shrunkPct: number;
   /** shrunkPct / baselinePct. 1 = plays it like its colours. */
   lift: number;
-  /** min(1, shrunkPct / SUPPORT_FULL_PCT) × log2(lift): the ranking signal. */
-  score: number;
-  /** (shrunkPct / 100) × log2(lift): the signature test's signal. */
+  /** (shrunkPct / 100) × log2(lift): the ranking signal, and the ratio half
+   *  of the signature test. */
   strength: number;
 }
 
@@ -201,7 +189,7 @@ function sampleDecksOf(card: SynergyFields): number | null {
 /**
  * Read a row's synergy as a ratio. Null when the row carries no synergy (a
  * synthesized pool row, a fallback card), which every caller treats as "no
- * evidence either way" (score 0, lift 1).
+ * evidence either way" (strength 0, lift 1).
  */
 export function readSynergy(card: SynergyFields): SynergyReading | null {
   const synergy = card.synergy;
@@ -218,28 +206,18 @@ export function readSynergy(card: SynergyFields): SynergyReading | null {
         (sampleDecks + SYNERGY_PRIOR_DECKS);
   // shrunkPct can only be 0 when the row itself says 0% and there's no
   // sample to shrink with; log2(0) would be −∞, so read that as "not played"
-  // (score and strength 0): a 0% row has nothing to rank.
+  // (strength 0): a 0% row has nothing to rank.
   if (shrunkPct <= 0) {
-    return {
-      commanderPct,
-      baselinePct,
-      sampleDecks,
-      shrunkPct: 0,
-      lift: 0,
-      score: 0,
-      strength: 0,
-    };
+    return { commanderPct, baselinePct, sampleDecks, shrunkPct: 0, lift: 0, strength: 0 };
   }
   const lift = shrunkPct / baselinePct;
-  const bits = Math.log2(lift);
-  const score = Math.min(1, shrunkPct / SUPPORT_FULL_PCT) * bits;
-  const strength = (shrunkPct / 100) * bits;
-  return { commanderPct, baselinePct, sampleDecks, shrunkPct, lift, score, strength };
+  const strength = (shrunkPct / 100) * Math.log2(lift);
+  return { commanderPct, baselinePct, sampleDecks, shrunkPct, lift, strength };
 }
 
 /** The ranking signal alone; 0 when the row carries no synergy. */
-export function synergyScore(card: SynergyFields): number {
-  return readSynergy(card)?.score ?? 0;
+export function synergyStrength(card: SynergyFields): number {
+  return readSynergy(card)?.strength ?? 0;
 }
 
 /**
@@ -262,7 +240,7 @@ export function isAntiSynergy(card: SynergyFields): boolean {
   );
 }
 
-/** Descending-score comparator for synergy-ordered lists. */
-export function bySynergyScore(a: SynergyFields, b: SynergyFields): number {
-  return synergyScore(b) - synergyScore(a);
+/** Descending-strength comparator for synergy-ordered lists. */
+export function bySynergyStrength(a: SynergyFields, b: SynergyFields): number {
+  return synergyStrength(b) - synergyStrength(a);
 }
