@@ -13,7 +13,7 @@
 // already-extracted helper modules automatically. Pure helpers (getCardPrice,
 // getFrontFaceTypeLine, isMdfcLand, isChannelLand, parseSetFromQuery,
 // CHANNEL_LANDS) are kept real via importActual.
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type {
   ScryfallCard,
   EDHRECCard,
@@ -246,7 +246,36 @@ vi.mock('./deckGeneration/phaseLandSqueezeReconcile', async (orig) => {
   return { ...actual, applyLandSqueezeReconcile: vi.fn(actual.applyLandSqueezeReconcile) };
 });
 
+// E508: every deck any test in this file generates is recorded (with the
+// context it was built from) and run through the committed invariant
+// checker in afterEach below, so the golden fixtures double as an always-on
+// invariant sweep. The wrapper calls the real generateDeck unchanged.
+const invariantRuns = vi.hoisted(
+  () => [] as Array<{ ctx: GenerationContext; deck: GeneratedDeck }>
+);
+vi.mock('./deckGenerator', async (orig) => {
+  const actual = await orig<typeof import('./deckGenerator')>();
+  return {
+    ...actual,
+    generateDeck: async (ctx: GenerationContext) => {
+      // Snapshot the settings at call time: a test may mutate ctx afterward.
+      const snapshot = { ...ctx, customization: { ...ctx.customization } };
+      const deck = await actual.generateDeck(ctx);
+      invariantRuns.push({ ctx: snapshot, deck });
+      return deck;
+    },
+  };
+});
+
 import { generateDeck, clearGenerationCache } from './deckGenerator';
+import type { GenerationContext } from './deckGeneration/state';
+import type { GeneratedDeck } from '@/deck-builder/types';
+import {
+  checkDeckInvariants,
+  formatViolations,
+  hardViolations,
+  type InvariantCheck,
+} from './deckInvariants';
 import {
   searchCards,
   getCardsByNames,
@@ -327,6 +356,40 @@ function project(deck: Awaited<ReturnType<typeof generateDeck>>) {
 
 beforeEach(() => {
   clearGenerationCache();
+  invariantRuns.length = 0;
+});
+
+// E508: what the invariant checker finds on main today, pinned by test name
+// and check with the evidence. A pinned check must still fire (a fix fails
+// the test until its entry is deleted); anything unpinned fails outright.
+const KNOWN_INVARIANT_FAILURES: Record<string, { checks: InvariantCheck[]; why: string }> = {
+  // Fixture artifact, not a generator bug on real data: this test's
+  // searchCards mock answers EVERY query with 60 owned creatures, including
+  // landGenerator's merit widen (`t:land (...) -t:basic`), which trusts the
+  // query to return lands and seats Owned_32..Owned_56 in categories.lands.
+  // Real Scryfall scopes that query. Same mechanism as the two pinned cases
+  // in deckGenerator.settings.test.ts.
+  'fills an owned-only deck from the collection (no outside cards) when owned cards suffice': {
+    checks: ['spell-in-land-slot'],
+    why: 'searchCards mock ignores the t:land query of landGenerator',
+  },
+};
+
+afterEach(({ task }) => {
+  const pinned = new Set(KNOWN_INVARIANT_FAILURES[task.name]?.checks ?? []);
+  const fired = new Set<InvariantCheck>();
+  for (const { ctx, deck } of invariantRuns) {
+    const hard = hardViolations(checkDeckInvariants(deck, ctx));
+    for (const x of hard) fired.add(x.check);
+    const unexpected = hard.filter((x) => !pinned.has(x.check));
+    expect(formatViolations(unexpected), `${task.name}: deck invariants`).toBe('');
+  }
+  for (const check of pinned) {
+    expect(
+      fired.has(check),
+      `${task.name}: pinned "${check}" no longer fires; delete its KNOWN_INVARIANT_FAILURES entry`
+    ).toBe(true);
+  }
 });
 
 describe('generateDeck — golden master', () => {

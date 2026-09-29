@@ -238,6 +238,12 @@ vi.mock('@/deck-builder/services/tagger/client', async (orig) => ({
 
 import { generateDeck, clearGenerationCache } from './deckGenerator';
 import {
+  checkDeckInvariants,
+  formatViolations,
+  hardViolations,
+  type InvariantCheck,
+} from './deckInvariants';
+import {
   getCardPrice,
   searchCards,
   getGameChangerNames,
@@ -392,6 +398,50 @@ function assertInvariants(
     expect(deck.categories.lands.length).toBe(0);
   } else {
     expect(deck.categories.lands.length).toBeGreaterThanOrEqual(1);
+  }
+}
+
+// E508: the committed deck-invariant checker (deckInvariants.ts, the port of
+// the live stress scanner) runs over every deck this matrix builds, so a
+// setting leak fails CI instead of waiting for a hand-run sweep.
+//
+// KNOWN_INVARIANT_FAILURES pins what fires on main today, by case and check,
+// with the evidence. A pinned check must STILL fire (so a fix that clears it
+// fails here until the entry is deleted), and nothing unpinned may fire.
+const KNOWN_INVARIANT_FAILURES: Record<string, { checks: InvariantCheck[]; why: string }> = {
+  // Fixture artifact, not a generator bug on real data: the searchCards mock
+  // these two cases install returns the same pool for EVERY query, including
+  // landGenerator's merit widen (`t:land (...) -t:basic`), which trusts the
+  // query to return lands and seats what comes back in categories.lands.
+  // Real Scryfall scopes that query. Verified 2026-09-29: a mock that answers
+  // `t:land` with [] clears this, and then the typed Scryfall fill trusts its
+  // own type query the same way (Utility Land seated in creatures). Clearing
+  // it needs a query-aware mock, or the two consumers re-checking the front
+  // face so a mis-scoped search can't mis-seat a card.
+  'mtgFormat paupercommander': {
+    checks: ['spell-in-land-slot'],
+    why: 'searchCards mock ignores the t:land query of landGenerator',
+  },
+  'generationMode oracle-role + permanentsOnly (no instants/sorceries)': {
+    checks: ['spell-in-land-slot'],
+    why: 'searchCards mock ignores the t:land query of landGenerator',
+  },
+};
+
+function expectDeckInvariants(
+  caseName: string,
+  deck: Awaited<ReturnType<typeof generateDeck>>,
+  ctx: GenerationContext
+) {
+  const hard = hardViolations(checkDeckInvariants(deck, ctx));
+  const pinned = new Set(KNOWN_INVARIANT_FAILURES[caseName]?.checks ?? []);
+  const unexpected = hard.filter((x) => !pinned.has(x.check));
+  expect(formatViolations(unexpected), caseName).toBe('');
+  for (const check of pinned) {
+    expect(
+      hard.some((x) => x.check === check),
+      `${caseName}: pinned "${check}" no longer fires; delete its KNOWN_INVARIANT_FAILURES entry`
+    ).toBe(true);
   }
 }
 
@@ -900,6 +950,9 @@ describe('generateDeck — settings matrix (offline stress)', () => {
       const deck = await generateDeck(ctx);
       assertInvariants(deck, ctx.customization, ctx);
       tc.extra?.(deck, ctx);
+      // After `extra`: several cases restore their searchCards/fetch mocks
+      // there, and a failure here must not leak a mock into the next case.
+      expectDeckInvariants(tc.name, deck, ctx);
     } finally {
       clearGenerationCache();
     }
@@ -910,9 +963,11 @@ describe('generateDeck — settings matrix (offline stress)', () => {
   // gated on it), so a bugged or stale feed could ship a banned card.
   // Creature_2 is stamped legalities.commander: 'banned'.
   it('a Scryfall-banned card from the EDHREC pool is filtered out', async () => {
-    const deck = await generateDeck(baseContext());
+    const ctx = baseContext();
+    const deck = await generateDeck(ctx);
     const names = allCards(deck).map((c) => c.name);
     expect(names).not.toContain('Creature_2');
+    expectDeckInvariants('a Scryfall-banned card from the EDHREC pool is filtered out', deck, ctx);
     clearGenerationCache();
   });
 });
