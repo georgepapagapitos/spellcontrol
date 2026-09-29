@@ -74,7 +74,7 @@ its store and its backend domain. Start here:
 | Cube                                          | `pages/cube/`, `lib/cube/`, `store/cube.ts`                                                                                                 |
 | Friends, pods, trades                         | `pages/Friend*`, `pages/Pod*`, `pages/TradesPage.tsx`, `components/trade/`, `lib/social/`, `lib/trade/`, `backend/src/{friends,pods}/`      |
 | Share links                                   | `components/share/`, `pages/SharedView.tsx`, `backend/src/shares/`                                                                          |
-| Scanner                                       | `components/CardScanner.tsx`, `lib/scanner/`                                                                                                |
+| Scanner                                       | `components/scanner/CardScanner.tsx`, `lib/scanner/`                                                                                                |
 | Sync & offline                                | `lib/sync/`, `lib/offline/`, `backend/src/routes/sync.ts`                                                                                   |
 | AI review, refine, rules Q&A                  | `lib/ai/`, `backend/src/ai/`                                                                                                                |
 

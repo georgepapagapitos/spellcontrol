@@ -11,7 +11,7 @@ import type { BeaconRows } from '@/lib/account/admin-api';
 // network (AdminPanel) and the wipe path are stubbed.
 const listEventsMock = vi.fn<() => Promise<BeaconRows>>();
 vi.mock('@/lib/account/admin-api', () => ({ listEvents: () => listEventsMock() }));
-vi.mock('../components/AdminPanel', () => ({ AdminPanel: () => null }));
+vi.mock('@/components/admin/AdminPanel', () => ({ AdminPanel: () => null }));
 vi.mock('@/lib/sync', () => ({ stopSyncAndWipeLocal: vi.fn() }));
 
 const empty: BeaconRows = { events: [], errors: [], vitals: [] };

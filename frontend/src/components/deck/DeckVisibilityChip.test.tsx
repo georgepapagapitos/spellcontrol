@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('@/lib/social/use-deck-visibility', () => ({
   useDeckVisibility: () => ({ visibility: 'private', refetch: vi.fn() }),
 }));
-vi.mock('../ShareDialog', () => ({ ShareDialog: () => null }));
+vi.mock('@/components/share/ShareDialog', () => ({ ShareDialog: () => null }));
 
 import { DeckVisibilityChip } from './DeckVisibilityChip';
 

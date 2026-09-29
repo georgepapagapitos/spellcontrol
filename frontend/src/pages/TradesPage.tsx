@@ -1,14 +1,14 @@
 import './TradesPage.css';
-import { PageHeader } from '@/components/PageHeader';
-import { SocialHubTabs } from '../components/SocialHubTabs';
+import { PageHeader } from '@/components/app-shell/PageHeader';
+import { SocialHubTabs } from '@/components/social/SocialHubTabs';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSignInPath } from '@/lib/account/sign-in-path';
 import { useAuth } from '../store/auth';
 import { toast } from '../store/toasts';
-import { ConfirmDialog } from '../components/ConfirmDialog';
+import { ConfirmDialog } from '@/components/overlays/ConfirmDialog';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { SearchPill } from '../components/SearchPill';
+import { SearchPill } from '@/components/search/SearchPill';
 import { TradeOfferList } from '../components/trade/TradeOfferList';
 import {
   clearTradeHistory,

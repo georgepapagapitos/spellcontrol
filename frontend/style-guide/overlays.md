@@ -115,7 +115,7 @@ calc(100vw - 4rem)) }`) — the two-class form outweighs the shell rule
     reads the card, and it carries current Oracle wording. It just doesn't
     lead. Played in, Rulings and Legalities open by default, and the two that
     fetch wait for the card to settle first.
-  - **Played in** (`components/PlayedInSection.tsx`, E519) lists the
+  - **Played in** (`components/card/PlayedInSection.tsx`, E519) lists the
     commanders EDHREC sees the card played under: the card's own rate across
     decks that can play it, the Top commanders (five, then Show all) and New
     commanders, each row reading "In N% of its Nk decks" over a `MeterBar`
@@ -306,7 +306,7 @@ var(--overlay-sheet) }` in `binder-card-management.css`. A new sheet on this
   reload, and Forward/Back never re-triggering a stale one),
   `src/lib/overlays/overlay-layer.test.tsx`'s "Back-button integration" block (the
   real wiring, incl. nested layers, a StrictMode double-invoke, and the
-  non-dismissable case), and `src/components/CardPreview.test.tsx`'s
+  non-dismissable case), and `src/components/card/CardPreview.test.tsx`'s
   "Back-button integration" block (a real `BrowserRouter`, proving
   react-router never sees a route change, that a context pill's
   close-and-navigate never triggers a stray back, and the coordinator's

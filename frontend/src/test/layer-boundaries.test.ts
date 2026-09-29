@@ -108,7 +108,7 @@ describe('brokenRule', () => {
     expect(brokenRule('components/shared/A.tsx', 'components/deck/B.tsx')).toBe(
       'a shared primitive imports a feature folder'
     );
-    expect(brokenRule('components/shared/A.tsx', 'components/Modal.tsx')).toBeNull();
+    expect(brokenRule('components/shared/A.tsx', 'components/overlays/Modal.tsx')).toBeNull();
     expect(brokenRule('pages/A.tsx', 'pages/cube/B.tsx')).toBeNull();
     expect(brokenRule('components/A.tsx', 'lib/b.ts')).toBeNull();
     expect(brokenRule('pages/A.tsx', 'components/B.tsx')).toBeNull();

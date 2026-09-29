@@ -40,7 +40,7 @@ import { SetSymbol } from '../shared/SetSymbol';
 import { ManaCost } from '../ManaCost';
 import { countedRoleOf } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import { FoilBadge } from '../FoilBadge';
-import { InfoTip } from '../InfoTip';
+import { InfoTip } from '@/components/overlays/InfoTip';
 import { ToolbarPopover } from '../shared/ToolbarPopover';
 import { ComboBadge } from './ComboBadge';
 import {

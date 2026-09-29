@@ -68,7 +68,7 @@ vi.mock('./lib/deep-links', () => ({
 // Layout owns nav chrome (Header/MobileTabBar/etc.) — irrelevant to route
 // resolution and each piece has its own tests, so stub to just the Outlet
 // the "*" route renders through.
-vi.mock('./components/Layout', () => ({
+vi.mock('@/components/app-shell/Layout', () => ({
   Layout: () => (
     <div data-testid="layout">
       <Outlet />

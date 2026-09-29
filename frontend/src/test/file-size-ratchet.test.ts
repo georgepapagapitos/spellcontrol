@@ -28,10 +28,10 @@ const MAX_LINES = 1000;
 const SLACK = 200;
 
 const CEILINGS: Record<string, number> = {
-  'components/BinderEditor.tsx': 1800,
-  'components/CardListTable.tsx': 2700,
-  'components/CardPreview.tsx': 1200,
-  'components/CardScanner.tsx': 1300,
+  'components/binder/BinderEditor.tsx': 1800,
+  'components/collection/CardListTable.tsx': 2700,
+  'components/card/CardPreview.tsx': 1200,
+  'components/scanner/CardScanner.tsx': 1300,
   'components/deck/CardSearchPanel.tsx': 2000,
   'components/deck/CoachFeed.tsx': 1100,
   'components/deck/CommanderSearch.tsx': 1300,
@@ -43,7 +43,7 @@ const CEILINGS: Record<string, number> = {
   'components/play/OnlineGameView.tsx': 1200,
   'components/play/OnlineLobby.tsx': 1300,
   'components/trade/TradeComposer.tsx': 1100,
-  'components/UploadPanel.tsx': 1300,
+  'components/import/UploadPanel.tsx': 1300,
   'deck-builder/services/cardFacts/parse.ts': 2000,
   'deck-builder/services/deckBuilder/bracketFit.ts': 1200,
   'deck-builder/services/deckBuilder/commanderDeckAnalysis.ts': 1200,

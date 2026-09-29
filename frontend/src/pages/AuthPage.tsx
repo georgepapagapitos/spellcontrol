@@ -7,7 +7,7 @@ import { fetchProviders, googleSignInUrl } from '@/lib/account/auth-api';
 import { preventFocusSteal } from '@/lib/util/keyboard';
 import { markEverVisited } from '@/lib/home/first-run';
 import { toast } from '../store/toasts';
-import { Tabs } from '../components/Tabs';
+import { Tabs } from '@/components/overlays/Tabs';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
 

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { Button } from '../../components/shared/Button';
-import { SaveToListDialog } from '../../components/SaveToListDialog';
+import { SaveToListDialog } from '@/components/lists/SaveToListDialog';
 import { CubeLoadingBlock, CubeErrorBlock } from './shared';
 import { useCollectionStore } from '../../store/collection';
 import { useToastsStore } from '../../store/toasts';

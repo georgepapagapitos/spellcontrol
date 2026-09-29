@@ -29,7 +29,7 @@ vi.mock('@/lib/cards/card-tags', () => ({
 }));
 
 const searchQueries: string[] = [];
-vi.mock('../components/InlineCardSearch', () => ({
+vi.mock('@/components/search/InlineCardSearch', () => ({
   InlineCardSearch: ({ query }: { query: string }) => {
     searchQueries.push(query);
     return <div data-testid="results">{query}</div>;

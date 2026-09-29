@@ -10,7 +10,7 @@ import { allocationSummary, cardAllRoles, frontFaceMana } from './deck-display-r
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { Button, IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
-import { RulesTextParagraphs } from '@/components/RulesText';
+import { RulesTextParagraphs } from '@/components/card/RulesText';
 import { classifyInclusion } from '@/lib/deck-analysis/inclusion-label';
 import type { ComboMatch } from '@/types/combos';
 

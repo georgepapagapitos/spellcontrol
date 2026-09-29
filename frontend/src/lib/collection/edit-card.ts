@@ -1,6 +1,6 @@
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '@/types/index';
-import type { PrintingSelection } from '@/components/CardEditDialog';
+import type { PrintingSelection } from '@/components/collection/CardEditDialog';
 import { getCurrency } from './currency';
 import { formatMoney } from './format-money';
 

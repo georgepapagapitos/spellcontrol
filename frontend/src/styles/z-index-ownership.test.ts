@@ -84,7 +84,7 @@ describe('z-index ownership', () => {
     // The panel sits on --z-portal-popover, which also clears --z-overlay
     // (see OverflowMenu.stacking.test.ts for why it has to).
     expect(value('portal-popover')).toBeGreaterThan(value('popover'));
-    expect(readFileSync(join(srcRoot, 'components/OverflowMenu.css'), 'utf8')).toMatch(
+    expect(readFileSync(join(srcRoot, 'components/overlays/OverflowMenu.css'), 'utf8')).toMatch(
       /\.overflow-menu-popover\s*\{[^}]*z-index:\s*var\(--z-portal-popover\)/
     );
   });

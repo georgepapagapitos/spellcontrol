@@ -4,14 +4,14 @@ import { Navigate, useParams } from 'react-router-dom';
 import { useAuth } from '../store/auth';
 import { getSyncState, hasSyncError, onSyncedChange } from '@/lib/sync';
 import { useDocumentTitle } from '@/lib/util/use-document-title';
-import { AddCardSheet } from '../components/AddCardSheet';
-import { PageHeader } from '../components/PageHeader';
-import { BackLink } from '../components/BackLink';
+import { AddCardSheet } from '@/components/binder/AddCardSheet';
+import { PageHeader } from '@/components/app-shell/PageHeader';
+import { BackLink } from '@/components/app-shell/BackLink';
 import { EmptyState } from '../components/shared/EmptyState';
 import { Chip } from '../components/shared/Chip';
 
 const BinderCardEditor = lazy(() =>
-  import('../components/BinderCardEditor').then((m) => ({ default: m.BinderCardEditor }))
+  import('@/components/binder/BinderCardEditor').then((m) => ({ default: m.BinderCardEditor }))
 );
 import { useCollectionStore } from '../store/collection';
 import { materializeBinders } from '@/lib/binder/materialize';
@@ -19,18 +19,18 @@ import { findRedundantPins } from '@/lib/binder/binder-pin-dissolve';
 import { useBinderLayoutInputs } from '@/lib/binder/use-binder-layout-inputs';
 import { buildQtyByPrintingKey } from '@/lib/search/sorting';
 import { useDebouncedValue } from '@/lib/util/use-debounced-value';
-import { BinderTabs } from '../components/BinderTabs';
-import { BinderDriftBanner } from '../components/BinderDriftBanner';
-import { BinderView } from '../components/BinderView';
-import { BinderListView } from '../components/BinderListView';
-import { BinderVolumesSheet } from '../components/BinderVolumesSheet';
+import { BinderTabs } from '@/components/binder/BinderTabs';
+import { BinderDriftBanner } from '@/components/binder/BinderDriftBanner';
+import { BinderView } from '@/components/binder/BinderView';
+import { BinderListView } from '@/components/binder/BinderListView';
+import { BinderVolumesSheet } from '@/components/binder/BinderVolumesSheet';
 import { volumesFor, hasMultipleVolumes } from '@/lib/binder/binder-volumes';
-import { SearchPill } from '../components/SearchPill';
+import { SearchPill } from '@/components/search/SearchPill';
 import { FilterChipsRow } from '../components/shared/FilterChipsRow';
-import { type BinderViewControls, type BinderViewMode } from '../components/BinderSummaryBar';
+import { type BinderViewControls, type BinderViewMode } from '@/components/binder/BinderSummaryBar';
 import { useStoredView } from '@/lib/util/use-stored-view';
-import { ShareDialog } from '../components/ShareDialog';
-import { useBinderActions } from '../components/use-binder-actions';
+import { ShareDialog } from '@/components/share/ShareDialog';
+import { useBinderActions } from '@/components/binder/use-binder-actions';
 import { CardName } from '@/components/shared/CardName';
 import { Button } from '@/components/shared/Button';
 import { areAllGroupsEmpty } from '@/lib/binder/rules';

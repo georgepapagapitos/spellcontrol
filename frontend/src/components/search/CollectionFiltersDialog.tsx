@@ -1,0 +1,878 @@
+import { ListFilter, X } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
+import type { ChipExpression, Condition, MaterializedBinder, ScryfallQueryRule } from '@/types/index';
+import type { SetMap } from '@/lib/api';
+import { Modal } from '@/components/overlays/Modal';
+import { SetFilterPicker, setMapToOptions } from './SetFilterPicker';
+import { ColorPip } from '@/components/shared/ManaSymbol';
+import { ColorMatchModeToggle } from '@/components/shared/ColorMatchModeToggle';
+import { Field, SwitchRow } from '@/components/shared/form';
+import { countMatchingRows, type FilterableRow } from '@/lib/search/collection-filter';
+import { compileExpression, compileFilter, isExpressionEmpty } from '@/lib/binder/rules';
+import {
+  collectionFiltersToFilterGroup,
+  deriveBinderName,
+  hasStructuredFilter,
+} from '@/lib/search/collection-filters-to-binder';
+import { FILTER_FIELD_GROUPS, type FilterFieldGroup } from '@/lib/search/filter-fields';
+import type { ColorMatchMode } from '@/lib/cards/colors';
+import { ChipExpressionBuilder } from './ChipExpressionBuilder';
+import { TypeLineExpressionBuilder } from './TypeLineExpressionBuilder';
+import { FilterFieldEditor, NumberRangeInput } from './FilterFieldEditor';
+import { useCollectionStore } from '@/store/collection';
+import { Button, IconButton } from '@/components/shared/Button';
+import { Count } from '@/components/shared/Count';
+
+/** The picker's registry groups this dialog actually sections by — every one
+ *  except 'Advanced' (its one field, Scryfall query, renders under Text; see
+ *  FilterFieldEditor's `dialogGroupOf`). Derived from the registry, not
+ *  retyped as a second "Identity, Cost, Text, Printing, Value & play" list. */
+type DialogFieldGroup = Exclude<FilterFieldGroup, 'Advanced'>;
+const DIALOG_FIELD_GROUPS = FILTER_FIELD_GROUPS.filter(
+  (g): g is DialogFieldGroup => g !== 'Advanced'
+);
+
+const EMPTY_EXPR: ChipExpression = { chips: [], joiners: [] };
+
+const CONDITIONS: { value: Condition; label: string }[] = [
+  { value: 'nm', label: 'Near Mint' },
+  { value: 'lp', label: 'Lightly Played' },
+  { value: 'mp', label: 'Moderately Played' },
+  { value: 'hp', label: 'Heavily Played' },
+  { value: 'damaged', label: 'Damaged' },
+];
+
+interface Props {
+  supertypeExpr: ChipExpression;
+  setSupertypeExpr: (next: ChipExpression) => void;
+  typesExpr: ChipExpression;
+  setTypesExpr: (next: ChipExpression) => void;
+  subtypeExpr: ChipExpression;
+  setSubtypeExpr: (next: ChipExpression) => void;
+  subtypeSuggestions: string[];
+
+  colorFilter: Set<string>;
+  setColorFilter: (next: Set<string>) => void;
+  /** OR ('any', default) vs AND ('all') across the selected color pips. */
+  colorMode: ColorMatchMode;
+  setColorMode: (next: ColorMatchMode) => void;
+  colorOptions: Array<{ key: string; label: string }>;
+
+  rarityExpr: ChipExpression;
+  setRarityExpr: (next: ChipExpression) => void;
+  rarities: readonly string[];
+
+  /**
+   * Free-text oracle (rules) text search. Substring match, IS / IS NOT
+   * per chip, AND/OR between chips — so "draw a card" AND "{T}" composes.
+   */
+  oracleExpr: ChipExpression;
+  setOracleExpr: (next: ChipExpression) => void;
+
+  /**
+   * Oracle tag (Scryfall otag) filter — collection-page-only. Matches against
+   * `card.tags` decorated from the bundled tagger snapshot. The deck-editor
+   * card search omits these props (its cards aren't tag-decorated) so the row
+   * disappears, same pattern as Finish/Binder.
+   */
+  oracleTagExpr?: ChipExpression;
+  setOracleTagExpr?: (next: ChipExpression) => void;
+
+  /**
+   * Free-text Scryfall query snapshot-resolved to oracle ids. Omitted by
+   * surfaces that should not hit the live Scryfall search API from filters.
+   */
+  scryfallQuery?: ScryfallQueryRule;
+  setScryfallQuery?: (next: ScryfallQueryRule | undefined) => void;
+
+  legalityExpr: ChipExpression;
+  setLegalityExpr: (next: ChipExpression) => void;
+
+  layoutExpr: ChipExpression;
+  setLayoutExpr: (next: ChipExpression) => void;
+
+  treatmentExpr: ChipExpression;
+  setTreatmentExpr: (next: ChipExpression) => void;
+
+  borderExpr: ChipExpression;
+  setBorderExpr: (next: ChipExpression) => void;
+
+  /**
+   * Finish + condition describe the *physical copy* owned, so they're
+   * collection-page-only — the deck-editor card search omits these props
+   * and the sections disappear (same pattern as the Binder section).
+   */
+  finishExpr?: ChipExpression;
+  setFinishExpr?: (next: ChipExpression) => void;
+  conditionExpr?: ChipExpression;
+  setConditionExpr?: (next: ChipExpression) => void;
+
+  /**
+   * Printed-language filter — collection-page-only (physical-copy field,
+   * same convention as Condition). `languages` is derived from what's
+   * actually in the user's collection, not a fixed enum — see CardListTable.
+   */
+  languageExpr?: ChipExpression;
+  setLanguageExpr?: (next: ChipExpression) => void;
+  languages?: Array<{ value: string; label: string }>;
+
+  /**
+   * Binder section is collection-page-only. The deck-editor card search
+   * doesn't have a binder concept, so it omits all three of these props
+   * and the Binder section disappears entirely.
+   */
+  binderExpr?: ChipExpression;
+  setBinderExpr?: (next: ChipExpression) => void;
+  binders?: MaterializedBinder[];
+  /** Force-hide binder section even when state is wired (binder-scoped views). */
+  hideBinderFilter?: boolean;
+
+  /**
+   * Content facets that need Scryfall fields not every consumer carries. Default
+   * true (collection cards are fully enriched); shared views pass false because
+   * the slim public payload lacks oracleText / legalities / frameEffects /
+   * borderColor. Forwarded to FilterFieldEditor.
+   */
+  showOracleText?: boolean;
+  showLegality?: boolean;
+  showTreatment?: boolean;
+  showBorder?: boolean;
+  /** Layout and Set need `layout` / `setCode` on the card. A friend's
+   *  collection payload carries neither (public card facts only), so its
+   *  browser hides both rows rather than offering facets that match nothing. */
+  showLayout?: boolean;
+  showSet?: boolean;
+
+  setFilter: Set<string>;
+  setSetFilter: (next: Set<string>) => void;
+  setMap?: SetMap;
+
+  /**
+   * Price range filter — collection-page-only. purchasePrice === 0 means
+   * "no price recorded" and is always excluded from price-constrained results.
+   * Either bound is optional: min-only = "≥ X", max-only = "≤ X".
+   */
+  priceMin?: number;
+  setPriceMin?: (v: number | undefined) => void;
+  priceMax?: number;
+  setPriceMax?: (v: number | undefined) => void;
+
+  /**
+   * Mana value (CMC) range filter — collection-page-only. cmc === undefined
+   * means unknown and is always excluded from CMC-constrained results.
+   * Either bound is optional: min-only = "≥ X", max-only = "≤ X".
+   */
+  cmcMin?: number;
+  setCmcMin?: (v: number | undefined) => void;
+  cmcMax?: number;
+  setCmcMax?: (v: number | undefined) => void;
+
+  /**
+   * "Group printings" toggle is collection-page-only — the deck editor
+   * doesn't render rows per printing, so the option is meaningless and
+   * the section just disappears when these are absent.
+   */
+  groupPrintings?: boolean;
+  setGroupPrintings?: (next: boolean) => void;
+
+  /**
+   * Tradeable-surplus filter — collection-page-only (needs deck/cube
+   * allocation data the deck-editor card search doesn't have). Omit both
+   * props to hide the section entirely, same convention as groupPrintings.
+   */
+  surplusOnly?: boolean;
+  setSurplusOnly?: (next: boolean) => void;
+
+  /**
+   * Proxy filter — same optional-pair convention as surplusOnly/groupPrintings:
+   * omit both props to hide the section entirely.
+   */
+  proxyOnly?: boolean;
+  setProxyOnly?: (next: boolean) => void;
+
+  /**
+   * The rows the page is filtering. Optional so callers that don't have them
+   * (or don't want the cost) simply get no count, as before.
+   */
+  rows?: readonly FilterableRow[];
+  surplusByName?: ReadonlySet<string> | Map<string, unknown>;
+  /** The page's search box — outside this dialog, but narrows the same list. */
+  searchTerm?: string;
+  activeCount: number;
+}
+
+/**
+ * Centered modal dialog that hosts every collection filter — type line,
+ * color, rarity, binder, set, plus the group-printings option. Triggered
+ * by the filter icon in the search pill; renders into a portal so it
+ * overlays the whole app (backdrop + scroll lock).
+ *
+ * Edits stay local until **Apply** — picking chips, flipping joiners,
+ * toggling colors etc. all mutate draft state inside the dialog. The
+ * committed filters only change when the user explicitly applies.
+ * **Clear** wipes the draft but leaves the dialog open. The close × /
+ * backdrop click / Escape all dismiss without committing.
+ *
+ * Why deferred application: live-applying every keystroke caused the
+ * card list to thrash and re-sort behind the dialog, which was both
+ * distracting and slow on large collections.
+ */
+export function CollectionFiltersDialog(props: Props) {
+  const [open, setOpen] = useState(false);
+  const hasActive = props.activeCount > 0;
+
+  return (
+    <>
+      <button
+        type="button"
+        className="filter-popover-btn"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-label={hasActive ? `Filters (${props.activeCount} active)` : 'Filters'}
+        title="Filters"
+        onClick={() => setOpen(true)}
+      >
+        <ListFilter width={16} height={16} strokeWidth={2} aria-hidden />
+        <Count
+          className="collection-filters-badge"
+          tone="accent"
+          value={props.activeCount}
+          placement="corner"
+        />
+      </button>
+      {open &&
+        createPortal(<DialogBody {...props} onClose={() => setOpen(false)} />, document.body)}
+    </>
+  );
+}
+
+/**
+ * The mounted-while-open body. Splitting this out lets `useState`
+ * initializers seed the draft from current props on each open — no
+ * effect-driven sync needed, no stale draft after close+reopen.
+ */
+function DialogBody({
+  supertypeExpr,
+  setSupertypeExpr,
+  typesExpr,
+  setTypesExpr,
+  subtypeExpr,
+  setSubtypeExpr,
+  subtypeSuggestions,
+  colorFilter,
+  setColorFilter,
+  colorMode,
+  setColorMode,
+  colorOptions,
+  rarityExpr,
+  setRarityExpr,
+  rarities,
+  oracleExpr,
+  setOracleExpr,
+  oracleTagExpr,
+  setOracleTagExpr,
+  scryfallQuery,
+  setScryfallQuery,
+  legalityExpr,
+  setLegalityExpr,
+  layoutExpr,
+  setLayoutExpr,
+  treatmentExpr,
+  setTreatmentExpr,
+  borderExpr,
+  setBorderExpr,
+  finishExpr,
+  setFinishExpr,
+  conditionExpr,
+  setConditionExpr,
+  languageExpr,
+  setLanguageExpr,
+  languages,
+  binderExpr,
+  setBinderExpr,
+  binders,
+  hideBinderFilter,
+  showOracleText = true,
+  showLegality = true,
+  showTreatment = true,
+  showBorder = true,
+  showLayout = true,
+  showSet = true,
+  setFilter,
+  setSetFilter,
+  setMap,
+  priceMin,
+  setPriceMin,
+  priceMax,
+  setPriceMax,
+  cmcMin,
+  setCmcMin,
+  cmcMax,
+  setCmcMax,
+  groupPrintings,
+  setGroupPrintings,
+  surplusOnly,
+  setSurplusOnly,
+  proxyOnly,
+  setProxyOnly,
+  rows,
+  surplusByName,
+  searchTerm,
+  onClose,
+}: Props & { onClose: () => void }) {
+  // Draft state — seeded once from props on mount; this component is
+  // remounted on every dialog open, so the snapshot stays fresh.
+  const [draftSuper, setDraftSuper] = useState<ChipExpression>(supertypeExpr);
+  const [draftTypes, setDraftTypes] = useState<ChipExpression>(typesExpr);
+  const [draftSubtype, setDraftSubtype] = useState<ChipExpression>(subtypeExpr);
+  const [draftColor, setDraftColor] = useState<Set<string>>(() => new Set(colorFilter));
+  const [draftColorMode, setDraftColorMode] = useState<ColorMatchMode>(colorMode);
+  const [draftRarity, setDraftRarity] = useState<ChipExpression>(rarityExpr);
+  const [draftOracle, setDraftOracle] = useState<ChipExpression>(oracleExpr);
+  const [draftOracleTag, setDraftOracleTag] = useState<ChipExpression>(oracleTagExpr ?? EMPTY_EXPR);
+  const [draftScryfallQuery, setDraftScryfallQuery] = useState<ScryfallQueryRule | undefined>(
+    scryfallQuery
+  );
+  const [draftLegality, setDraftLegality] = useState<ChipExpression>(legalityExpr);
+  const [draftLayout, setDraftLayout] = useState<ChipExpression>(layoutExpr);
+  const [draftTreatment, setDraftTreatment] = useState<ChipExpression>(treatmentExpr);
+  const [draftBorder, setDraftBorder] = useState<ChipExpression>(borderExpr);
+  const [draftFinish, setDraftFinish] = useState<ChipExpression>(finishExpr ?? EMPTY_EXPR);
+  const [draftCondition, setDraftCondition] = useState<ChipExpression>(conditionExpr ?? EMPTY_EXPR);
+  const [draftLanguage, setDraftLanguage] = useState<ChipExpression>(languageExpr ?? EMPTY_EXPR);
+  // Binder + groupPrintings are optional surfaces (collection-page only).
+  // When the parent doesn't wire them up, the draft stays at its harmless
+  // default and the section just doesn't render.
+  const [draftBinder, setDraftBinder] = useState<ChipExpression>(binderExpr ?? EMPTY_EXPR);
+  const [draftSet, setDraftSet] = useState<Set<string>>(() => new Set(setFilter));
+  const [draftPriceMin, setDraftPriceMin] = useState<number | undefined>(priceMin);
+  const [draftPriceMax, setDraftPriceMax] = useState<number | undefined>(priceMax);
+  const [draftCmcMin, setDraftCmcMin] = useState<number | undefined>(cmcMin);
+  const [draftCmcMax, setDraftCmcMax] = useState<number | undefined>(cmcMax);
+  const [draftGroup, setDraftGroup] = useState<boolean>(groupPrintings ?? true);
+  const [draftSurplusOnly, setDraftSurplusOnly] = useState<boolean>(surplusOnly ?? false);
+  const [draftProxyOnly, setDraftProxyOnly] = useState<boolean>(proxyOnly ?? false);
+
+  const setOptions = useMemo(() => setMapToOptions(setMap), [setMap]);
+
+  const showBinder = binderExpr !== undefined && !hideBinderFilter;
+  const showOracleTags = oracleTagExpr !== undefined;
+  const showScryfallQuery = setScryfallQuery !== undefined;
+  const showOptions = groupPrintings !== undefined;
+  const showSurplus = setSurplusOnly !== undefined;
+  const showProxy = setProxyOnly !== undefined;
+  const showFinish = finishExpr !== undefined;
+  const showCondition = conditionExpr !== undefined;
+  const showLanguage = languageExpr !== undefined;
+  const showPrice = setPriceMin !== undefined || setPriceMax !== undefined;
+  const showCmc = setCmcMin !== undefined || setCmcMax !== undefined;
+
+  const draftHasAny =
+    draftSuper.chips.length > 0 ||
+    draftTypes.chips.length > 0 ||
+    draftSubtype.chips.length > 0 ||
+    draftColor.size > 0 ||
+    draftRarity.chips.length > 0 ||
+    draftOracle.chips.length > 0 ||
+    (showOracleTags && draftOracleTag.chips.length > 0) ||
+    (showScryfallQuery && draftScryfallQuery !== undefined) ||
+    draftLegality.chips.length > 0 ||
+    draftLayout.chips.length > 0 ||
+    draftTreatment.chips.length > 0 ||
+    draftBorder.chips.length > 0 ||
+    (showFinish && draftFinish.chips.length > 0) ||
+    (showCondition && draftCondition.chips.length > 0) ||
+    (showLanguage && draftLanguage.chips.length > 0) ||
+    (showBinder && draftBinder.chips.length > 0) ||
+    draftSet.size > 0 ||
+    (showPrice && (draftPriceMin !== undefined || draftPriceMax !== undefined)) ||
+    (showCmc && (draftCmcMin !== undefined || draftCmcMax !== undefined)) ||
+    (showOptions && !draftGroup) ||
+    (showSurplus && draftSurplusOnly) ||
+    (showProxy && draftProxyOnly);
+
+  // Assemble the current draft chip state into a BinderFilter so FilterFieldEditor
+  // can read it as a unified value. The patch handler routes each key back to its
+  // individual draft setter. Rarity, Price, CMC, and color remain separate: rarity
+  // uses the caller-supplied `rarities` options list; price/CMC are conditional.
+  const draftAsFilter: import('@/types/index').BinderFilter = {
+    oracleChips: draftOracle,
+    ...(showOracleTags ? { oracleTagChips: draftOracleTag } : {}),
+    ...(showScryfallQuery ? { scryfallQuery: draftScryfallQuery } : {}),
+    legalities: draftLegality,
+    layouts: draftLayout,
+    treatments: draftTreatment,
+    borderColors: draftBorder,
+    ...(showFinish ? { finishes: draftFinish } : {}),
+  };
+
+  // Live match count over the DRAFT, using the same predicate the page runs.
+  // Without it you set filters against 11,500 cards and pressed Apply blind,
+  // then read the result behind you — and if it came back zero, reopened the
+  // dialog to work out which field did it.
+  const draftMatchCount = useMemo(() => {
+    if (!rows) return null;
+    const f: import('@/types/index').BinderFilter = { ...draftAsFilter };
+    if (!isExpressionEmpty(draftSuper)) f.supertypeChips = draftSuper;
+    if (!isExpressionEmpty(draftTypes)) f.typeTokenChips = draftTypes;
+    if (!isExpressionEmpty(draftSubtype)) f.subtypeChips = draftSubtype;
+    if (!isExpressionEmpty(draftRarity)) f.rarities = draftRarity;
+    if (draftSet.size > 0) f.setCodes = [...draftSet].map((c) => c.toUpperCase());
+    if (draftPriceMin !== undefined) f.priceMin = draftPriceMin;
+    if (draftPriceMax !== undefined) f.priceMax = draftPriceMax;
+    if (draftCmcMin !== undefined) f.cmcMin = draftCmcMin;
+    if (draftCmcMax !== undefined) f.cmcMax = draftCmcMax;
+    // The page's search box is outside this dialog but narrows the same list,
+    // so the count has to honour it or it won't match what Apply produces.
+    const trimmed = searchTerm?.trim();
+    if (trimmed) f.nameContains = trimmed;
+    return countMatchingRows(rows, {
+      matchFilter: compileFilter(f),
+      binder: isExpressionEmpty(draftBinder) ? null : compileExpression(draftBinder),
+      colors: draftColor,
+      colorMode: draftColorMode,
+      condition: isExpressionEmpty(draftCondition) ? null : compileExpression(draftCondition),
+      language: isExpressionEmpty(draftLanguage) ? null : compileExpression(draftLanguage),
+      surplusOnly: draftSurplusOnly,
+      surplusByName,
+      proxyOnly: draftProxyOnly,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    rows,
+    surplusByName,
+    searchTerm,
+    draftOracle,
+    draftOracleTag,
+    draftScryfallQuery,
+    draftLegality,
+    draftLayout,
+    draftTreatment,
+    draftBorder,
+    draftFinish,
+    draftSuper,
+    draftTypes,
+    draftSubtype,
+    draftRarity,
+    draftSet,
+    draftPriceMin,
+    draftPriceMax,
+    draftCmcMin,
+    draftCmcMax,
+    draftBinder,
+    draftColor,
+    draftColorMode,
+    draftCondition,
+    draftLanguage,
+    draftSurplusOnly,
+    draftProxyOnly,
+  ]);
+
+  const handleFilterPatch = (p: Partial<import('@/types/index').BinderFilter>) => {
+    if (p.oracleChips !== undefined) setDraftOracle(p.oracleChips);
+    if (p.oracleTagChips !== undefined) setDraftOracleTag(p.oracleTagChips);
+    if ('scryfallQuery' in p) setDraftScryfallQuery(p.scryfallQuery);
+    if (p.legalities !== undefined) setDraftLegality(p.legalities);
+    if (p.layouts !== undefined) setDraftLayout(p.layouts);
+    if (p.treatments !== undefined) setDraftTreatment(p.treatments);
+    if (p.borderColors !== undefined) setDraftBorder(p.borderColors);
+    if (p.finishes !== undefined) setDraftFinish(p.finishes);
+  };
+
+  const toggleDraftColor = (c: string) => {
+    setDraftColor((prev) => {
+      const next = new Set(prev);
+      if (next.has(c)) next.delete(c);
+      else next.add(c);
+      return next;
+    });
+  };
+
+  const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
+
+  // What "Save as a binder…" seeds from — the DRAFT, not the applied filters,
+  // so it captures whatever is on screen even before Apply. Condition,
+  // language and binder membership can't map to a binder rule (no physical-
+  // copy or membership concept there); collectionFiltersToFilterGroup flags
+  // those, and BinderEditor's own seed note explains the gap.
+  const saveAsBinderInput = {
+    colorFilter: draftColor,
+    colorMode: draftColorMode,
+    proxyOnly: showProxy && draftProxyOnly,
+    surplusOnly: showSurplus && draftSurplusOnly,
+    supertypeExpr: draftSuper,
+    typesExpr: draftTypes,
+    subtypeExpr: draftSubtype,
+    rarityExpr: draftRarity,
+    oracleExpr: draftOracle,
+    oracleTagExpr: draftOracleTag,
+    scryfallQuery: draftScryfallQuery,
+    legalityExpr: draftLegality,
+    layoutExpr: draftLayout,
+    treatmentExpr: draftTreatment,
+    borderExpr: draftBorder,
+    finishExpr: draftFinish,
+    conditionExpr: draftCondition,
+    languageExpr: draftLanguage,
+    binderExpr: draftBinder,
+    setFilter: draftSet,
+    priceMin: draftPriceMin,
+    priceMax: draftPriceMax,
+    cmcMin: draftCmcMin,
+    cmcMax: draftCmcMax,
+    search: searchTerm ?? '',
+  };
+  const canSaveAsBinder = hasStructuredFilter(saveAsBinderInput);
+  const saveAsBinder = () => {
+    const { group, flagged } = collectionFiltersToFilterGroup(saveAsBinderInput);
+    const name = deriveBinderName(saveAsBinderInput);
+    setEditingBinder('new', { name, groups: [group], flagged });
+    onClose();
+  };
+
+  // Whether this dialog shows anything at all for a registry group — the
+  // only per-group fact this file hand-keeps; which fields land in which
+  // group, and their order, comes from lib/search/filter-fields.ts.
+  const dialogGroupVisible = (g: DialogFieldGroup): boolean => {
+    switch (g) {
+      case 'Identity':
+        return true; // Type line, Color — always on.
+      case 'Cost':
+        return showCmc;
+      case 'Text':
+        return showOracleText || showOracleTags || showScryfallQuery;
+      case 'Printing':
+        return true; // Rarity is always on.
+      case 'Value & play':
+        return true; // Format defaults on.
+    }
+  };
+
+  // Shared props for every FilterFieldEditor call below — only `group`
+  // differs, so a field that moves group in the registry doesn't also need
+  // its props moved from one call to another.
+  const filterFieldEditorProps = {
+    value: draftAsFilter,
+    onPatch: handleFilterPatch,
+    showOracleTags,
+    showScryfallQuery,
+    showFinish,
+    showOracleText,
+    showLegality,
+    showTreatment,
+    showBorder,
+    showLayout,
+    variant: 'dialog' as const,
+  };
+
+  const renderDialogGroup = (g: DialogFieldGroup) => {
+    switch (g) {
+      case 'Identity':
+        return (
+          <>
+            <Field label="Type line">
+              <TypeLineExpressionBuilder
+                supertypeExpr={draftSuper}
+                setSupertypeExpr={setDraftSuper}
+                typesExpr={draftTypes}
+                setTypesExpr={setDraftTypes}
+                subtypeExpr={draftSubtype}
+                setSubtypeExpr={setDraftSubtype}
+                subtypeSuggestions={subtypeSuggestions}
+              />
+            </Field>
+            <Field
+              label={
+                <span className="collection-filters-color-label">
+                  Color
+                  <ColorMatchModeToggle mode={draftColorMode} onChange={setDraftColorMode} />
+                </span>
+              }
+            >
+              <div className="color-filter-row" role="group" aria-label="Filter by color">
+                {colorOptions.map((c) => {
+                  const active = draftColor.has(c.key);
+                  return (
+                    <IconButton
+                      className={`color-filter-btn${active ? ' is-active' : ''}`}
+                      key={c.key}
+                      onClick={() => toggleDraftColor(c.key)}
+                      aria-pressed={active}
+                      label={c.label}
+                      icon={<ColorPip color={c.key} pip="lg" />}
+                    />
+                  );
+                })}
+              </div>
+            </Field>
+          </>
+        );
+      case 'Cost':
+        return (
+          showCmc && (
+            <Field label="Mana value">
+              <NumberRangeInput
+                min={draftCmcMin}
+                max={draftCmcMax}
+                step={1}
+                onMinChange={setDraftCmcMin}
+                onMaxChange={setDraftCmcMax}
+              />
+            </Field>
+          )
+        );
+      case 'Text':
+        return <FilterFieldEditor {...filterFieldEditorProps} group="Text" />;
+      case 'Printing':
+        // Rarity, then Set (single-valued fields — a card has one rarity,
+        // lives in one binder. The AND/OR joiner pills still render for
+        // visual consistency with the type-line rows, but flipping to AND
+        // between two values is unsatisfiable — the evaluator just returns
+        // no matches, which is technically correct. Defaults OR).
+        return (
+          <>
+            <Field label="Rarity">
+              <ChipExpressionBuilder
+                value={draftRarity}
+                onChange={setDraftRarity}
+                options={rarities.map((r) => ({
+                  value: r,
+                  label: r.charAt(0).toUpperCase() + r.slice(1),
+                }))}
+                defaultJoiner="OR"
+                lockJoiner="OR"
+                placeholder="Add rarity…"
+              />
+            </Field>
+            {showSet && (
+              <Field label="Set">
+                <SetFilterPicker options={setOptions} value={draftSet} onChange={setDraftSet} />
+              </Field>
+            )}
+            <FilterFieldEditor {...filterFieldEditorProps} group="Printing" />
+          </>
+        );
+      case 'Value & play':
+        return (
+          <>
+            {showPrice && (
+              <Field label="Price">
+                <NumberRangeInput
+                  min={draftPriceMin}
+                  max={draftPriceMax}
+                  step={0.01}
+                  onMinChange={setDraftPriceMin}
+                  onMaxChange={setDraftPriceMax}
+                />
+              </Field>
+            )}
+            <FilterFieldEditor {...filterFieldEditorProps} group="Value & play" />
+          </>
+        );
+    }
+  };
+
+  const apply = () => {
+    setSupertypeExpr(draftSuper);
+    setTypesExpr(draftTypes);
+    setSubtypeExpr(draftSubtype);
+    setColorFilter(draftColor);
+    setColorMode(draftColorMode);
+    setRarityExpr(draftRarity);
+    setOracleExpr(draftOracle);
+    if (showOracleTags) setOracleTagExpr?.(draftOracleTag);
+    if (showScryfallQuery) setScryfallQuery?.(draftScryfallQuery);
+    setLegalityExpr(draftLegality);
+    setLayoutExpr(draftLayout);
+    setTreatmentExpr(draftTreatment);
+    setBorderExpr(draftBorder);
+    if (showFinish) setFinishExpr?.(draftFinish);
+    if (showCondition) setConditionExpr?.(draftCondition);
+    if (showLanguage) setLanguageExpr?.(draftLanguage);
+    if (showBinder) setBinderExpr?.(draftBinder);
+    setSetFilter(draftSet);
+    if (showPrice) {
+      setPriceMin?.(draftPriceMin);
+      setPriceMax?.(draftPriceMax);
+    }
+    if (showCmc) {
+      setCmcMin?.(draftCmcMin);
+      setCmcMax?.(draftCmcMax);
+    }
+    if (showOptions) setGroupPrintings?.(draftGroup);
+    if (showSurplus) setSurplusOnly?.(draftSurplusOnly);
+    if (showProxy) setProxyOnly?.(draftProxyOnly);
+    onClose();
+  };
+
+  const clearDraft = () => {
+    setDraftSuper(EMPTY_EXPR);
+    setDraftTypes(EMPTY_EXPR);
+    setDraftSubtype(EMPTY_EXPR);
+    setDraftColor(new Set());
+    setDraftColorMode('any');
+    setDraftRarity(EMPTY_EXPR);
+    setDraftOracle(EMPTY_EXPR);
+    setDraftOracleTag(EMPTY_EXPR);
+    setDraftScryfallQuery(undefined);
+    setDraftLegality(EMPTY_EXPR);
+    setDraftLayout(EMPTY_EXPR);
+    setDraftTreatment(EMPTY_EXPR);
+    setDraftBorder(EMPTY_EXPR);
+    setDraftFinish(EMPTY_EXPR);
+    setDraftCondition(EMPTY_EXPR);
+    setDraftLanguage(EMPTY_EXPR);
+    setDraftBinder(EMPTY_EXPR);
+    setDraftSet(new Set());
+    setDraftPriceMin(undefined);
+    setDraftPriceMax(undefined);
+    setDraftCmcMin(undefined);
+    setDraftCmcMax(undefined);
+    setDraftGroup(true);
+    setDraftSurplusOnly(false);
+    setDraftProxyOnly(false);
+  };
+
+  return (
+    // The shared Modal supplies the backdrop, entrance/exit motion, focus
+    // trap, Escape handling, and body scroll lock — this component only
+    // styles the panel (UX-201 retired the bespoke root/backdrop/pop).
+    <Modal
+      onClose={onClose}
+      label="Collection filters"
+      className="collection-filters-dialog"
+      backdropClassName="modal-backdrop--over-sheet"
+    >
+      <header className="collection-filters-dialog-header">
+        <span className="collection-filters-dialog-title">Filters</span>
+        <IconButton
+          variant="quiet"
+          onClick={onClose}
+          title="Close without applying"
+          label="Close filters without applying"
+          icon={<X width={20} height={20} strokeWidth={1.8} />}
+        />
+      </header>
+
+      <div className="collection-filters-dialog-body">
+        {/* One section per registry group, in registry order — the same
+            groups AND order the Add-condition picker uses. Only
+            `dialogGroupVisible` (below) is hand-kept per group ("does this
+            dialog show anything here at all"); the order and membership
+            come from lib/search/filter-fields.ts. */}
+        {DIALOG_FIELD_GROUPS.filter((g) => dialogGroupVisible(g)).map((groupName) => (
+          <section key={groupName} className="collection-filters-group">
+            <h3 className="form-section-heading">{groupName}</h3>
+            {renderDialogGroup(groupName)}
+          </section>
+        ))}
+
+        {/* Physical-copy / membership fields (Condition, Language, Binder)
+            plus the three on/off settings — none of these describe the
+            CARD, so none has a registry group. They used to be four
+            separate uppercase headings (Condition, Language, Binder each
+            alone, then Surplus/Proxy/Options as three more); one heading
+            now, and the three settings are switch rows (config-surface kit,
+            T139) instead of checkboxes. */}
+        {(showCondition ||
+          showLanguage ||
+          showBinder ||
+          showSurplus ||
+          showProxy ||
+          showOptions) && (
+          <section className="collection-filters-group">
+            <h3 className="form-section-heading">This copy</h3>
+            {showCondition && (
+              <Field label="Condition">
+                <ChipExpressionBuilder
+                  value={draftCondition}
+                  onChange={setDraftCondition}
+                  options={CONDITIONS}
+                  defaultJoiner="OR"
+                  lockJoiner="OR"
+                  placeholder="Add condition…"
+                />
+              </Field>
+            )}
+            {showLanguage && (
+              <Field label="Language">
+                <ChipExpressionBuilder
+                  value={draftLanguage}
+                  onChange={setDraftLanguage}
+                  options={languages ?? []}
+                  defaultJoiner="OR"
+                  lockJoiner="OR"
+                  placeholder="Add language…"
+                />
+              </Field>
+            )}
+            {showBinder && (
+              <Field label="Binder">
+                <ChipExpressionBuilder
+                  value={draftBinder}
+                  onChange={setDraftBinder}
+                  options={[
+                    ...(binders ?? []).map((b) => ({ value: b.def.name, label: b.def.name })),
+                    { value: '__uncategorized', label: 'Uncategorized' },
+                  ]}
+                  defaultJoiner="OR"
+                  lockJoiner="OR"
+                  placeholder="Add binder…"
+                />
+              </Field>
+            )}
+            {showSurplus && (
+              <SwitchRow
+                label="Tradeable surplus only"
+                hint="Copies not in any deck or cube, beyond your first kept copy. Basic lands excluded."
+                checked={draftSurplusOnly}
+                onChange={setDraftSurplusOnly}
+              />
+            )}
+            {showProxy && (
+              <SwitchRow
+                label="Proxies only"
+                checked={draftProxyOnly}
+                onChange={setDraftProxyOnly}
+              />
+            )}
+            {showOptions && (
+              <SwitchRow label="Group printings" checked={draftGroup} onChange={setDraftGroup} />
+            )}
+          </section>
+        )}
+      </div>
+
+      <footer className="collection-filters-dialog-footer">
+        <div className="collection-filters-dialog-footer-start">
+          <Button onClick={clearDraft} disabled={!draftHasAny}>
+            Clear
+          </Button>
+          {canSaveAsBinder && (
+            <Button
+              variant="link"
+              onClick={saveAsBinder}
+              className="collection-filters-dialog-save-as-binder"
+            >
+              Save as a binder…
+            </Button>
+          )}
+        </div>
+        {draftMatchCount !== null && (
+          <span
+            className={`collection-filters-dialog-count${draftMatchCount === 0 ? ' is-empty' : ''}`}
+            aria-live="polite"
+          >
+            {draftMatchCount === 0
+              ? 'No cards match'
+              : `${draftMatchCount.toLocaleString()} ${draftMatchCount === 1 ? 'card' : 'cards'}`}
+          </span>
+        )}
+        <Button variant="primary" onClick={apply}>
+          Apply
+        </Button>
+      </footer>
+    </Modal>
+  );
+}

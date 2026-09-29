@@ -3,8 +3,8 @@ import { ChevronDown, LayoutGrid, List, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import './TagsPage.css';
-import { SearchPill } from '../components/SearchPill';
-import { InlineCardSearch, type InlineCardSearchView } from '../components/InlineCardSearch';
+import { SearchPill } from '@/components/search/SearchPill';
+import { InlineCardSearch, type InlineCardSearchView } from '@/components/search/InlineCardSearch';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import {
   cardTagLabel,

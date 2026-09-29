@@ -1,14 +1,14 @@
 import './PodsIndexPage.css';
-import { PageHeader } from '@/components/PageHeader';
-import { SocialHubTabs } from '../components/SocialHubTabs';
+import { PageHeader } from '@/components/app-shell/PageHeader';
+import { SocialHubTabs } from '@/components/social/SocialHubTabs';
 import { useCallback, useEffect, useId, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSignInPath } from '@/lib/account/sign-in-path';
 import { Plus } from 'lucide-react';
 import { useAuth } from '../store/auth';
 import { toast } from '../store/toasts';
-import { Modal } from '../components/Modal';
-import { UserAvatar } from '../components/UserAvatar';
+import { Modal } from '@/components/overlays/Modal';
+import { UserAvatar } from '@/components/profile/UserAvatar';
 import { EmptyState } from '../components/shared/EmptyState';
 import { useAnimatedNumber } from '@/lib/util/use-animated-number';
 import { listFriends, type Friend } from '@/lib/social/friends-client';

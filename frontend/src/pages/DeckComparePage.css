@@ -66,7 +66,7 @@
  * The primary "pick two decks" empty uses the shared .empty-state pattern
  * (STYLE_GUIDE § Voice & copy). `.deck-compare-empty-hint` (the concise
  * single-line notice) and `.deck-compare-summary` live in
- * components/ConflictPanel.css — the sync-conflict panel (mounted by Layout,
+ * components/account/ConflictPanel.css — the sync-conflict panel (mounted by Layout,
  * so always loaded) reuses both, and this page is a lazy chunk it can't
  * depend on. */
 

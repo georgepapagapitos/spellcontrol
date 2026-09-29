@@ -45,13 +45,13 @@ import { FORMAT_OPTIONS, MAX_LOCAL_PLAYERS, gameFormatLabel } from '@/lib/play/g
 import { useAuth } from '../../store/auth';
 import { usePlayStore } from '../../store/play';
 import { toast } from '../../store/toasts';
-import { Modal } from '../Modal';
-import { OverflowMenu } from '../OverflowMenu';
-import { ConfirmDialog } from '../ConfirmDialog';
-import { NightPoll, formatSlot } from '../NightPoll';
+import { Modal } from '@/components/overlays/Modal';
+import { OverflowMenu } from '@/components/overlays/OverflowMenu';
+import { ConfirmDialog } from '@/components/overlays/ConfirmDialog';
+import { NightPoll, formatSlot } from './NightPoll';
 import { TonightTrades } from './TonightTrades';
 import { Field, SwitchRow, SegmentedControl, ChoiceList } from '../shared/form';
-import { SelectMenu } from '../SelectMenu';
+import { SelectMenu } from '@/components/overlays/SelectMenu';
 import './GameNights.css';
 
 import { userMessage } from '@/lib/util/user-error';

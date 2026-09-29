@@ -1,0 +1,523 @@
+import { useCallback, useMemo, useState } from 'react';
+import '@/styles/binder-grid-slots.css';
+import { formatLocationSpan } from '@/lib/binder/card-locations';
+import { hasMultipleVolumes, pageVolume, type Volume } from '@/lib/binder/binder-volumes';
+import type { EnrichedCard, MaterializedBinder } from '@/types/index';
+import { CardRowMenu } from '@/components/collection/CardRowMenu';
+import { CardPreview } from '@/components/card/CardPreview';
+import { useBinderCardPreview } from './use-binder-card-preview';
+import { CardEditDialog, type PrintingSelection } from '@/components/collection/CardEditDialog';
+import { ColorPip } from '@/components/shared/ManaSymbol';
+import { CardRow } from '@/components/shared/CardRow';
+import { SectionHeaderBar } from '@/components/shared/SectionHeaderBar';
+import {
+  BINDER_TABLE_COLUMNS,
+  CardTableFrame,
+  CardTableHead,
+  visibleColumns,
+} from '@/components/shared/CardTable';
+import { useMediaQuery } from '@/lib/util/use-media-query';
+import {
+  buildEditedCards,
+  isNoOpCardEdit,
+  stackCopies,
+  stackDetailMix,
+  printingStubFromEnriched,
+} from '@/lib/collection/edit-card';
+import { useCollectionStore } from '@/store/collection';
+import { useToastsStore } from '@/store/toasts';
+import { BinderSummaryBar, type BinderViewControls } from './BinderSummaryBar';
+import { BinderPagePreview } from './BinderPagePreview';
+import { useAllocations, type AllocationInfo } from '@/lib/collection/allocations';
+import { useCubeListings } from '@/lib/cube/cube-listings';
+import { sectionHeading } from '@/lib/binder/section-heading';
+import { printingFinishKey } from '@/lib/collection/collection-mutations';
+
+interface Props {
+  binder: MaterializedBinder;
+  /** Layout + display preferences for the shared control row. */
+  controls: BinderViewControls;
+  /**
+   * When the page-level groupPrintings flag is on, the materializer feeds
+   * one card per unique (scryfallId × foil); the qty for each surviving
+   * copy lives here keyed by copyId. If undefined, every row is a single
+   * physical copy (qty 1).
+   */
+  qtyByCopyId?: Map<string, number>;
+  /** 'detail' = thumbnail + multi-line meta. 'compact' = text-only single line. */
+  density?: 'detail' | 'compact';
+  /**
+   * This binder's volumes, from BinderPage's UNFILTERED pass. `binder` can be
+   * the search-narrowed pass, which drops pages and would renumber volumes.
+   */
+  volumes?: Volume[] | null;
+}
+
+/**
+ * A section's tally. Both numbers matter in a binder: the card count is how
+ * many sleeves the section fills, the unique count how many distinct printings
+ * — a playset of Path to Exile is four of one. They're only shown apart when
+ * they differ.
+ */
+function sectionMeta(totalQty: number, uniqueRows: number): string {
+  const cards = `${totalQty} ${totalQty === 1 ? 'card' : 'cards'}`;
+  return totalQty === uniqueRows ? cards : `${cards} · ${uniqueRows} unique`;
+}
+
+interface Row {
+  key: string;
+  card: EnrichedCard;
+  qty: number;
+  /** First page number this card lands on inside its section. */
+  pageNum: number;
+  /** Every pocket this row's copies fill, for its location chip. */
+  spots: { pageNum: number; slot: number }[];
+}
+
+/**
+ * List view for a single binder that PRESERVES the section grouping the
+ * binder's sort produces — same color / type / cmc headers as the page
+ * grid view. Sister to CardListTable, but binder-scoped: rows live under
+ * their section header instead of being globally sorted into a flat list.
+ */
+export function BinderListView({
+  binder,
+  controls,
+  qtyByCopyId,
+  density = 'detail',
+  volumes = null,
+}: Props) {
+  const isCompact = density === 'compact';
+  // Compact becomes the shared card table from tablet width up, exactly as
+  // Collection's does — same row component, same columns, same widths. Below
+  // that the columns don't fit and compact stays the text-only flow row.
+  // Binder order is rule-driven (the SortPopover above owns it), so the
+  // header labels its columns without offering click-to-sort.
+  const wideEnoughForTable = useMediaQuery('(min-width: 768px)');
+  const isTable = isCompact && wideEnoughForTable;
+  const isGrouped = !!qtyByCopyId;
+  const allCards = useCollectionStore((s) => s.cards);
+  const replaceAllCards = useCollectionStore((s) => s.replaceAllCards);
+  const updateBinder = useCollectionStore((s) => s.updateBinder);
+  const isRefreshingPrices = useCollectionStore((s) => s.isRefreshingPrices);
+  const pushToast = useToastsStore((s) => s.push);
+  const sortEditable = binder.def.mode !== 'manual' && !binder.def.manualOrder?.length;
+  const allocations = useAllocations();
+  const cubeListingsFor = useCubeListings();
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const [editingCard, setEditingCard] = useState<EnrichedCard | null>(null);
+  // True when editing a single physical copy vs the whole printing stack:
+  // always so in ungrouped view, and when "Change one copy's printing" splits
+  // one copy off a grouped 2+ stack.
+  const [editingSingle, setEditingSingle] = useState(false);
+  const openEdit = (card: EnrichedCard, single: boolean) => {
+    setEditingCard(card);
+    setEditingSingle(single);
+  };
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [pagesStartIndex, setPagesStartIndex] = useState<number | null>(null);
+
+  // Why a card is here, Move to binder and Set cover: the same preview the
+  // page grid gives (use-binder-card-preview.tsx).
+  const cardPreview = useBinderCardPreview(binder);
+
+  /**
+   * Deck allocations for a row. Ungrouped rows stand for exactly one
+   * physical copy, so we look up that single copyId. Grouped rows stand in
+   * for every copy of (scryfallId, foil), so we aggregate.
+   */
+  const allocationsFor = (card: EnrichedCard, qty = qtyOf(card)): AllocationInfo[] => {
+    if (!isGrouped && qty <= 1) {
+      const a = allocations.get(card.copyId);
+      return a ? [a] : [];
+    }
+    const out: AllocationInfo[] = [];
+    for (const c of allCards) {
+      if (c.scryfallId !== card.scryfallId || c.foil !== card.foil) continue;
+      const a = allocations.get(c.copyId);
+      if (a) out.push(a);
+    }
+    return out;
+  };
+
+  // Flat page list for "Browse pages" — opens the BinderPagePreview at
+  // the first page; same carousel the grid view uses.
+  const flatPages = useMemo(
+    () =>
+      binder.sections.flatMap((s) =>
+        s.pages.map((page) => ({ pageNum: page.pageNum, slots: page.slots }))
+      ),
+    [binder.sections]
+  );
+  // Merged (packed/continuous) sections stamp each page with its own group
+  // labels; prefer those over the section-wide join, matching BinderView.
+  const flatPageLabels = useMemo(
+    () => binder.sections.flatMap((s) => s.pages.map((p) => p.labels?.join(' · ') ?? s.label)),
+    [binder.sections]
+  );
+  // Present only once the binder outgrows its own fixed capacity — see
+  // lib/binder/binder-volumes.ts. `null` (no capacity) and a single-volume binder
+  // both leave this undefined, so the page viewer never shows "Vol 1".
+  const flatVolumeLabels = useMemo(
+    () =>
+      hasMultipleVolumes(volumes)
+        ? flatPages.map((p) => {
+            const v = pageVolume(volumes, p.pageNum);
+            return v ? `Vol ${v}` : '';
+          })
+        : undefined,
+    [volumes, flatPages]
+  );
+
+  // Build rows per section. The binder is materialized physically — one
+  // card per copy, so page numbers and totals are the real binder — and the
+  // LIST collapses identical adjacent copies into one row with a ×N badge:
+  // seven "Mountain SLD #2418" rows say nothing seven times. Identical
+  // printings always sort adjacent (they tie on every field), so a run is
+  // exactly one printing's stack; the row keeps the first copy's page. When
+  // the page grid's "Group printings" mode is on the materializer has
+  // already collapsed to one card per (scryfallId × foil) and `qtyByCopyId`
+  // carries the totals instead.
+  const flat = useMemo(() => {
+    const cards: EnrichedCard[] = [];
+    const sectionLabels: string[] = [];
+    const pageNumbers: number[] = [];
+    const qtys: number[] = [];
+    const qtyByCopy = new Map<string, number>();
+    const sectionRows: { sectionKey: string; rows: Row[] }[] = [];
+    for (const section of binder.sections) {
+      const cardToSpot = new Map<EnrichedCard, { pageNum: number; slot: number }>();
+      for (const page of section.pages) {
+        page.slots.forEach((slot, i) => {
+          if (slot && !cardToSpot.has(slot))
+            cardToSpot.set(slot, { pageNum: page.pageNum, slot: i + 1 });
+        });
+      }
+      const rows: Row[] = [];
+      section.cards.forEach((card, idx) => {
+        const prev = rows[rows.length - 1];
+        const spot = cardToSpot.get(card);
+        if (!qtyByCopyId && prev && printingFinishKey(prev.card) === printingFinishKey(card)) {
+          prev.qty += 1;
+          if (spot) prev.spots.push(spot);
+          return;
+        }
+        rows.push({
+          // copyId is unique per physical copy; in grouped mode it's the
+          // surviving representative, also unique. Fallback for safety.
+          key: card.copyId ?? `${section.key}-${idx}`,
+          card,
+          qty: qtyByCopyId?.get(card.copyId) ?? 1,
+          pageNum: spot?.pageNum ?? 0,
+          spots: spot ? [spot] : [],
+        });
+      });
+      sectionRows.push({ sectionKey: section.key, rows });
+      rows.forEach((r) => {
+        const i = section.cards.indexOf(r.card);
+        cards.push(r.card);
+        sectionLabels.push(section.cardLabels?.[i] ?? section.label);
+        pageNumbers.push(r.pageNum);
+        qtys.push(r.qty);
+        qtyByCopy.set(r.card.copyId, r.qty);
+      });
+    }
+    return { cards, sectionLabels, pageNumbers, qtys, qtyByCopy, sectionRows };
+  }, [binder, qtyByCopyId]);
+  const qtyOf = (card: EnrichedCard) => flat.qtyByCopy.get(card.copyId) ?? 1;
+
+  // Cond, Lang and Notes earn their tracks only if some copy on this page has
+  // something to put in them — otherwise the binder spends three columns, one
+  // of them two `fr` wide, saying NM / EN / nothing a thousand times over.
+  const columns = useMemo(() => visibleColumns(BINDER_TABLE_COLUMNS, flat.cards), [flat.cards]);
+
+  const toggle = (key: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const editingQty = useMemo(() => {
+    if (!editingCard) return 0;
+    return allCards.filter(
+      (c) => c.scryfallId === editingCard.scryfallId && c.foil === editingCard.foil
+    ).length;
+  }, [editingCard, allCards]);
+  // Only meaningful for a grouped (stacked) edit — a single-copy edit is
+  // trivially uniform. Mirrors the exact scryfallId+finish match
+  // buildEditedCards edits by.
+  const editingMixedDetails = useMemo(() => {
+    if (!editingCard || editingSingle) return undefined;
+    return stackDetailMix(stackCopies(allCards, editingCard));
+  }, [editingCard, editingSingle, allCards]);
+
+  const handleEditConfirm = (selection: PrintingSelection) => {
+    if (!editingCard) return;
+    // Single-copy edit re-points just this one copy, leaving siblings on the old
+    // printing — that's how a stack of identical printings gets split.
+    const copyId = editingSingle ? editingCard.copyId : undefined;
+    if (isNoOpCardEdit(editingCard, selection, editingQty, copyId)) {
+      setEditingCard(null);
+      return;
+    }
+    const prevCards = allCards;
+    const cardName = editingCard.name;
+    replaceAllCards(buildEditedCards(editingCard, selection, allCards, copyId));
+    pushToast({
+      message: `Updated ${cardName}.`,
+      tone: 'success',
+      actionLabel: 'Undo',
+      onAction: () => replaceAllCards(prevCards),
+    });
+    setEditingCard(null);
+  };
+
+  // Map each visible row to its index in the flat preview array.
+  const previewIndexFor = useMemo(() => {
+    const map = new Map<string, number>();
+    let i = 0;
+    for (const sec of flat.sectionRows) {
+      for (const r of sec.rows) {
+        map.set(`${sec.sectionKey}:${r.key}`, i);
+        i++;
+      }
+    }
+    return map;
+  }, [flat]);
+
+  // Tap a card inside the page-grid preview → walk the binder's flat
+  // card list from the matching index. Same shape BinderView's
+  // resolveCard returns.
+  const resolveCard = useCallback(
+    (card: EnrichedCard) => {
+      const idx = flat.cards.findIndex(
+        (c) => c.scryfallId === card.scryfallId && c.foil === card.foil
+      );
+      if (idx === -1) return null;
+      return {
+        cards: flat.cards,
+        index: idx,
+        sectionLabels: flat.sectionLabels,
+        pageNumbers: flat.pageNumbers,
+        totalPages: binder.totalPages,
+      };
+    },
+    [flat, binder.totalPages]
+  );
+
+  const allCollapsed =
+    flat.sectionRows.length > 0 &&
+    flat.sectionRows.every(({ sectionKey }) => collapsed.has(sectionKey));
+  const expandAll = () => setCollapsed(new Set());
+  const collapseAll = () => setCollapsed(new Set(flat.sectionRows.map((s) => s.sectionKey)));
+
+  // The phone sort sheet's "Your first sections" preview — real section
+  // labels and the page each starts on, from this same materialized binder.
+  const firstSortSections = binder.sections
+    .slice(0, 4)
+    .map((sec) => ({ label: sec.label, page: sec.pages[0]?.pageNum ?? 1 }));
+
+  return (
+    <>
+      <BinderSummaryBar
+        binderName={binder.def.name}
+        onBrowsePages={flatPages.length > 0 ? () => setPagesStartIndex(0) : undefined}
+        sort={
+          sortEditable
+            ? {
+                sorts: binder.def.sorts,
+                valueOrders: binder.def.sortValueOrders ?? {},
+                onSortsChange: (next) => updateBinder(binder.def.id, { sorts: next }),
+                onValueOrdersChange: (next) =>
+                  updateBinder(binder.def.id, { sortValueOrders: next }),
+                firstSections: firstSortSections,
+                totalSections: binder.sections.length,
+                totalPages: binder.totalPages,
+              }
+            : undefined
+        }
+        collapse={
+          flat.sectionRows.length > 1
+            ? { allCollapsed, onToggle: allCollapsed ? expandAll : collapseAll }
+            : undefined
+        }
+        controls={controls}
+      />
+      <CardTableFrame columns={columns} framed={isTable}>
+        {isTable && <CardTableHead columns={columns} />}
+        {flat.sectionRows.map(({ sectionKey, rows }, sectionIdx) => {
+          const section = binder.sections.find((s) => s.key === sectionKey);
+          if (!section) return null;
+          const isCollapsed = collapsed.has(sectionKey);
+          const headerId = `binder-list-section-${sectionKey}`;
+          const panelId = `binder-list-panel-${sectionKey}`;
+          const totalQty = rows.reduce((s, r) => s + r.qty, 0);
+          return (
+            <div
+              key={sectionKey}
+              className={
+                isTable
+                  ? 'binder-table-group'
+                  : `binder-section binder-section--list${isCompact ? ' binder-section--compact' : ''}`
+              }
+            >
+              {isTable ? (
+                // In the table the divider is a ROW of the table, not a bar
+                // floating above a separate box — same bar Collection's
+                // grouped list uses, so the two can't drift apart again.
+                <SectionHeaderBar
+                  className="collection-list-section-header binder-table-section"
+                  id={headerId}
+                  controls={panelId}
+                  pipSlot={section.pip ? <ColorPip color={section.key} pip="lg" /> : undefined}
+                  label={sectionHeading(section.cardLabels, section.label)}
+                  title={section.label}
+                  count={totalQty}
+                  meta={sectionMeta(totalQty, rows.length)}
+                  collapsed={isCollapsed}
+                  onToggle={() => toggle(sectionKey)}
+                />
+              ) : (
+                <button
+                  type="button"
+                  id={headerId}
+                  className={`section-header section-header-toggle ${isCollapsed ? 'collapsed' : ''}`}
+                  onClick={() => toggle(sectionKey)}
+                  aria-expanded={!isCollapsed}
+                  aria-controls={panelId}
+                >
+                  <span className="section-chevron" aria-hidden="true">
+                    ▾
+                  </span>
+                  {section.pip && <ColorPip color={section.key} pip="lg" />}
+                  <span className="section-title" title={section.label}>
+                    {sectionHeading(section.cardLabels, section.label)}
+                  </span>
+                  <span className="section-meta">{sectionMeta(totalQty, rows.length)}</span>
+                </button>
+              )}
+              {!isCollapsed && (
+                <div
+                  id={panelId}
+                  role="region"
+                  aria-labelledby={headerId}
+                  className={`collection-list${isTable ? ' is-table' : isCompact ? ' is-compact' : ''}`}
+                >
+                  {rows.map((r, rowIdx) => (
+                    <CardRow
+                      key={r.key}
+                      card={r.card}
+                      qty={r.qty}
+                      // Only the very last row in the slab drops its divider;
+                      // a section's last row still needs one, because a group
+                      // row follows it.
+                      isLastRow={
+                        isTable &&
+                        sectionIdx === flat.sectionRows.length - 1 &&
+                        rowIdx === rows.length - 1
+                      }
+                      columns={isTable ? columns : undefined}
+                      allocations={allocationsFor(r.card, r.qty)}
+                      cubeListings={cubeListingsFor(r.card.name)}
+                      location={formatLocationSpan(r.spots, {
+                        volume: r.spots[0] ? pageVolume(volumes, r.spots[0].pageNum) : undefined,
+                      })}
+                      pricePending={isRefreshingPrices && !((r.card.purchasePrice ?? 0) > 0)}
+                      onActivate={() => {
+                        const idx = previewIndexFor.get(`${sectionKey}:${r.key}`);
+                        if (idx !== undefined) setPreviewIndex(idx);
+                      }}
+                      menu={
+                        <CardRowMenu
+                          card={r.card}
+                          onEditCard={() => openEdit(r.card, r.qty === 1)}
+                          onSplitCopy={r.qty >= 2 ? () => openEdit(r.card, true) : undefined}
+                          currentBinder={{
+                            id: binder.def.id,
+                            name: binder.def.name,
+                            color: binder.def.color,
+                          }}
+                        />
+                      }
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </CardTableFrame>
+
+      {previewIndex !== null && (
+        <CardPreview
+          source="binder"
+          cards={flat.cards}
+          index={previewIndex}
+          binderName={binder.def.name}
+          sectionLabels={flat.sectionLabels}
+          pageNumbers={flat.pageNumbers}
+          totalPages={binder.totalPages}
+          getStackAllocations={(i) => allocationsFor(flat.cards[i])}
+          getStackCubeListings={(i) => (flat.cards[i] ? cubeListingsFor(flat.cards[i].name) : [])}
+          getStackQty={(i) => flat.qtys[i] ?? 1}
+          getActions={(i) => cardPreview.getCardActions(flat.cards[i])}
+          renderPanelMeta={(i) => cardPreview.renderCardMeta(flat.cards[i])}
+          onIndexChange={setPreviewIndex}
+          onClose={() => setPreviewIndex(null)}
+          onEdit={(c) => {
+            setPreviewIndex(null);
+            openEdit(c, qtyOf(c) === 1);
+          }}
+        />
+      )}
+
+      {editingCard && (
+        <CardEditDialog
+          cardName={editingCard.name}
+          currentScryfallId={editingCard.scryfallId}
+          fallbackCard={printingStubFromEnriched(editingCard)}
+          currentFinish={editingCard.finish ?? (editingCard.foil ? 'foil' : 'nonfoil')}
+          quantity={editingSingle ? undefined : editingQty}
+          singleCopy={editingSingle}
+          details={{
+            condition: editingCard.condition,
+            language: editingCard.language,
+            notes: editingCard.notes,
+            altered: editingCard.altered,
+            proxy: editingCard.proxy,
+            misprint: editingCard.misprint,
+            acquiredPrice: editingCard.acquiredPrice,
+            priceOverride: editingCard.priceOverride,
+          }}
+          mixedDetails={editingMixedDetails}
+          onConfirm={handleEditConfirm}
+          onCancel={() => setEditingCard(null)}
+        />
+      )}
+
+      {pagesStartIndex !== null && (
+        <BinderPagePreview
+          pages={flatPages}
+          pageLabels={flatPageLabels}
+          volumeLabels={flatVolumeLabels}
+          startPageIndex={pagesStartIndex}
+          pocketSize={binder.effectivePocketSize}
+          binderName={binder.def.name}
+          resolveCard={resolveCard}
+          qtyByCopyId={qtyByCopyId}
+          getCardActions={cardPreview.getCardActions}
+          renderCardMeta={cardPreview.renderCardMeta}
+          onClose={() => setPagesStartIndex(null)}
+          onEditCard={(c) => {
+            setPagesStartIndex(null);
+            openEdit(c, qtyOf(c) === 1);
+          }}
+        />
+      )}
+      {cardPreview.sheet}
+    </>
+  );
+}

@@ -26,7 +26,7 @@ vi.mock('../../store/cube', () => ({
   useCubeStore: (sel: (s: unknown) => unknown) => sel({ saved: [] }),
 }));
 vi.mock('@/lib/trade/trade-preview', () => ({ resolveTradePreview: vi.fn() }));
-vi.mock('../CardPreview', () => ({ CardPreview: () => null }));
+vi.mock('@/components/card/CardPreview', () => ({ CardPreview: () => null }));
 
 import { TradeAcceptDialog, type AcceptChoice } from './TradeAcceptDialog';
 

@@ -1,4 +1,4 @@
-import { Modal } from '../Modal';
+import { Modal } from '@/components/overlays/Modal';
 import { haptics } from '@/lib/util/haptics';
 import { Button } from '@/components/shared/Button';
 

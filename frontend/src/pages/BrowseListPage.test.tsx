@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BrowseFilters, BrowseListId, BrowsePage } from '@/lib/discover/browse-lists';
-import type { CardPreviewAction } from '@/components/CardPreview';
+import type { CardPreviewAction } from '@/components/card/CardPreview';
 import type { CarouselEntry } from '@/components/deck/useCardCarousel';
 import { useCollectionStore } from '@/store/collection';
 import { pending } from '@/test/pending';

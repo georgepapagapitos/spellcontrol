@@ -4,7 +4,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, relative } from 'node:path';
 
-// Guard for the boxed <Tabs> strip (components/Tabs.tsx, `fitted` /
+// Guard for the boxed <Tabs> strip (components/overlays/Tabs.tsx, `fitted` /
 // `scrollable`). The `className` a consumer passes lands on the `.sc-tabs`
 // element ITSELF — the box that paints the strip's background + border and
 // whose own 0.2rem padding keeps the active pill inset. A consumer rule that

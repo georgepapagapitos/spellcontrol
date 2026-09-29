@@ -33,7 +33,7 @@ import { PowerHero } from '../deck/PowerHero';
 import { WinConditionPanel } from '../deck/WinConditionPanel';
 import { ForkedFromBadge } from '../deck/ForkedFromBadge';
 import { DeckHero } from '../deck/DeckHero';
-import { Tabs } from '../Tabs';
+import { Tabs } from '@/components/overlays/Tabs';
 import { ReportDialog } from './ReportDialog';
 import { CopyDeckButton } from './CopyDeckButton';
 import { useAuth } from '../../store/auth';

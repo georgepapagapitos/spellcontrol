@@ -5,7 +5,7 @@ import { ArrowRight } from 'lucide-react';
 import '@/styles/deck-builder-customizer.css';
 import '@/styles/deck-builder-commander-profile.css';
 import './BrewBuildPage.css';
-import { BackLink } from '../components/BackLink';
+import { BackLink } from '@/components/app-shell/BackLink';
 import { useDeckBuilderStore } from '@/deck-builder/store';
 import { CommanderSearch } from '../components/deck/CommanderSearch';
 import { ChosenColorPicker } from '../components/deck/ChosenColorPicker';

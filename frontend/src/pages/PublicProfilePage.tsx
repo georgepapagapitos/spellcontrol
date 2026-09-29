@@ -16,9 +16,9 @@ import {
 } from '@/lib/social/profile-client';
 import type { PublicCollection } from '@/lib/social/shared-types';
 import type { CollectionVisibility } from '@/lib/account/auth-api';
-import { Tabs, type TabItem } from '../components/Tabs';
+import { Tabs, type TabItem } from '@/components/overlays/Tabs';
 import { SharedCollectionView } from '../components/share/SharedCollectionView';
-import { CollectionVisibilityDialog } from '../components/CollectionVisibilityDialog';
+import { CollectionVisibilityDialog } from '@/components/collection/CollectionVisibilityDialog';
 import type { PublicProfile, PublicProfileDeck } from '@/lib/social/profile-client';
 import { DeckLibrary, type LibraryDeck } from '../components/decks/DeckLibrary';
 import './PublicProfilePage.css';

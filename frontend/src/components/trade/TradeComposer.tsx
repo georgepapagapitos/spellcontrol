@@ -1,9 +1,9 @@
 import './TradeComposer.css';
 import { useId, useMemo, useState, type ReactNode } from 'react';
 import { ChevronDown, Minus, Plus, X } from 'lucide-react';
-import { Modal } from '../Modal';
+import { Modal } from '@/components/overlays/Modal';
 import { Chip } from '../shared/Chip';
-import { SearchPill } from '../SearchPill';
+import { SearchPill } from '@/components/search/SearchPill';
 import { buildFriendSearch } from '@/lib/social/friend-search';
 import { getCardTags, useCardTagsReady } from '@/lib/cards/card-tags';
 import { useCollectionStore } from '../../store/collection';
