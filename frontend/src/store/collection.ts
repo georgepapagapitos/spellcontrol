@@ -343,6 +343,16 @@ interface CollectionState {
    */
   loadSampleBinders: (importResponse: UploadResponse | null) => Promise<string[]>;
   createBinder: (input: BinderInput) => BinderDef;
+  /**
+   * Creates several binders in ONE store operation — the plan-a-shelf
+   * planner's whole point (board E496): a shelf's worth of binders lands as
+   * one sync-safe write with correct sequential positions, not N separate
+   * `createBinder` calls that would each re-render/re-persist. `inputs`'
+   * own `position` fields are ignored; positions are always
+   * `existing binder count + index`, so the new binders land AFTER every
+   * binder the user already has (which keep first-match-wins priority).
+   */
+  createBinders: (inputs: BinderInput[]) => BinderDef[];
   updateBinder: (id: string, input: Partial<BinderInput>) => void;
   /** Stamps a snapshot of the binder's current membership + volatile field
    *  values (price, edhrecRank) so the next view can diff against it and
@@ -1773,6 +1783,25 @@ export const useCollectionStore = create<CollectionState>()(
         };
         set((s) => ({ binders: [...s.binders, created], activeTab: created.id }));
         track('binder_created');
+        return created;
+      },
+
+      createBinders: (inputs) => {
+        if (inputs.length === 0) return [];
+        const now = Date.now();
+        const startPosition = get().binders.length;
+        const created: BinderDef[] = inputs.map((input, i) => ({
+          ...input,
+          id: newBinderId(),
+          position: startPosition + i,
+          createdAt: now,
+          updatedAt: now,
+        }));
+        set((s) => ({
+          binders: [...s.binders, ...created],
+          activeTab: created[0]?.id ?? s.activeTab,
+        }));
+        for (let i = 0; i < created.length; i++) track('binder_created');
         return created;
       },
 

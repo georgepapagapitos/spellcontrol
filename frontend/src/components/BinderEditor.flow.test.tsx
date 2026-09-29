@@ -15,6 +15,15 @@ import { useCollectionStore } from '../store/collection';
 import { useToastsStore } from '../store/toasts';
 import { BinderEditor } from './BinderEditor';
 
+// The chooser's "Plan a shelf" lead tile (E496) navigates away from the
+// editor entirely, so it needs react-router-dom's useNavigate — not
+// otherwise exercised by these tests, which render BinderEditor with no
+// Router ancestor.
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  return { ...actual, useNavigate: () => vi.fn() };
+});
+
 // Offline: the Scryfall catalogs and the oracle-tag snapshot are network
 // loads the editor starts on open. Neither is what these tests are about.
 vi.mock('../lib/scryfall-catalog', () => ({

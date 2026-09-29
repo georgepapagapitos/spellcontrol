@@ -67,6 +67,8 @@ const MATERIALIZE_ALLOWLIST: Record<string, string> = {
   'lib/cube/pull-list.ts': 'fed by CubePullList from useBinderLayoutInputs',
   'lib/binder-moves.ts': "the store's price-refresh move notice, outside React",
   'lib/binder-counts.ts': 'fed by BinderEditor from useBinderLayoutInputs, plus the unsaved draft',
+  'lib/shelf-plan.ts':
+    'fed by PlanShelfModal from useBinderLayoutInputs, plus a batch of unsaved draft binders (E496)',
   'pages/BinderPage.tsx': 'reads useBinderLayoutInputs',
   'pages/BindersIndexPage.tsx': 'reads useBinderLayoutInputs',
   'pages/CollectionPage.tsx': 'reads useBinderLayoutInputs',

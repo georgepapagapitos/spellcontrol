@@ -1,0 +1,231 @@
+/* Plan a shelf (E496): a whole-collection multi-binder planner. A bottom
+   sheet on phones, a centered dialog above (STYLE_GUIDE § Overlays, Pattern
+   B, same as BinderVolumesSheet). Row/checkbox visuals reuse the app's one
+   checkbox appearance (`.plan-shelf-row-check input[type='checkbox']` is
+   grouped into `import-upload.css`'s shared selector list) rather than
+   inventing another; section headings are the form kit's
+   `.form-section-heading`, the same role the binder editor's blocks use. */
+
+.plan-shelf-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.plan-shelf-empty {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.plan-shelf-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* The section's own gap spaces the heading, not the kit's trailing margin. */
+.plan-shelf-section > .form-section-heading {
+  margin: 0;
+}
+
+.plan-shelf-rows {
+  /* The row lays itself out against the list's width, not the viewport's:
+     the dialog is capped on desktop and full width as a phone sheet. */
+  container-type: inline-size;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* One line per row: check · swatch · name and order · count and pages, then
+   Move up / Move down on a pull-out row (an implicit fifth column, so a split
+   row carries no empty track). Rows stand at the tier row height. */
+.plan-shelf-row {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  /* A pull-out row's reorder pair is a fifth item: flow it into an implicit
+     column on the same line. Row flow put it on a second line, doubling the
+     row's height on a phone. */
+  grid-auto-flow: column;
+  grid-auto-columns: auto;
+  align-items: center;
+  column-gap: var(--space-2);
+  min-height: var(--row-h);
+  padding: var(--space-1) 0;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.plan-shelf-row:last-child {
+  border-bottom: 0;
+}
+
+/* An unchecked row stays legible (its count is still what checking it would
+   give) but reads as excluded — never full opacity loss, which would hide
+   the very number the row exists to show. */
+.plan-shelf-row.is-off {
+  opacity: 0.55;
+}
+
+.plan-shelf-row-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  min-width: 1.25rem;
+  cursor: pointer;
+}
+
+@media (pointer: coarse) {
+  .plan-shelf-row-check {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+.plan-shelf-row-check--fixed {
+  color: var(--text-muted);
+  cursor: default;
+}
+
+/* A hairline ring so the darkest pips (Black) still read on a dark surface. */
+.plan-shelf-row-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+.plan-shelf-row-text {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.plan-shelf-row-name {
+  color: var(--text-primary);
+  font-size: var(--text-base);
+}
+
+.plan-shelf-row.is-empty .plan-shelf-row-meta {
+  font-style: italic;
+}
+
+.plan-shelf-row-figures {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+/* Fixed minimums so counts and page totals line up down a section. */
+.plan-shelf-row-count {
+  min-width: 6ch;
+  text-align: right;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.plan-shelf-row-pages {
+  min-width: 9ch;
+  text-align: right;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.plan-shelf-row-reorder {
+  display: flex;
+}
+
+/* A narrow list (the phone sheet): the name and its order stack in the text
+   column, the count sits over its pages, and everything else stays on the
+   row's one line, so the row stays at the tier height. */
+@container (max-width: 34rem) {
+  .plan-shelf-row-text {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .plan-shelf-row-name,
+  .plan-shelf-row-meta {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .plan-shelf-row-sep {
+    display: none;
+  }
+
+  .plan-shelf-row-meta {
+    font-size: var(--text-xs);
+  }
+
+  .plan-shelf-row-figures {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0;
+  }
+
+  .plan-shelf-row-count,
+  .plan-shelf-row-pages {
+    min-width: 0;
+  }
+}
+
+.plan-shelf-summary {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+}
+
+/* The shelf picture: one spine per physical book, standing on a plank. */
+.plan-shelf-shelf {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-0-5);
+  height: 56px;
+  padding: 0 var(--space-1);
+  border-bottom: 2px solid var(--border-strong);
+  flex: none;
+}
+
+.plan-shelf-shelf i {
+  display: block;
+  width: 8px;
+  border-radius: 2px 2px 0 0;
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+.plan-shelf-totals {
+  min-width: 0;
+}
+
+.plan-shelf-totals strong {
+  display: block;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.plan-shelf-totals-hint {
+  margin: var(--space-1) 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+@media (max-width: 599px) {
+  /* A long shelf wraps its caption under the picture instead of squeezing
+     the totals into a sliver beside it. */
+  .plan-shelf-summary {
+    flex-wrap: wrap;
+  }
+}
