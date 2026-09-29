@@ -53,6 +53,7 @@ import {
 import { userMessage } from '@/lib/user-error';
 import { Button, IconButton } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
+import { PROXY_HINT } from '@/lib/shared-copy';
 
 // Per-format column/line examples for the import-source InfoTip (E130 —
 // discoverability for the 5 bare text links, which named the tools but
@@ -986,7 +987,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
             )}
             <SwitchRow
               label="Mark all as proxies"
-              hint="Proxies count as owned but have no market value."
+              hint={PROXY_HINT}
               checked={markAsProxies}
               onChange={setMarkAsProxies}
               disabled={isLoading}
