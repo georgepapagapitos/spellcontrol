@@ -162,20 +162,20 @@ export function Header() {
               ariaLabel="Account menu"
               align="right"
               items={[
-                // Profile and Settings are `?section=` jumps into /you that
-                // land their promised heading at the top of the viewport (see
-                // YouPage's SECTION_HEADING_IDS). Public profile is the page
-                // everyone else sees; the Share links list it replaced is gone
-                // (board T136), since visibility is set on each thing itself.
+                // Profile and Settings open their own You sections (T173):
+                // Settings means the preferences, so it opens Appearance. Public
+                // profile is the page everyone else sees; the Share links list
+                // it replaced is gone (board T136), since visibility is set on
+                // each thing itself.
                 {
                   label: 'Profile',
                   icon: UserRound,
-                  onClick: () => navigate('/you?section=profile'),
+                  onClick: () => navigate('/you/profile'),
                 },
                 {
                   label: 'Settings',
                   icon: Settings,
-                  onClick: () => navigate('/you?section=settings'),
+                  onClick: () => navigate('/you/appearance'),
                 },
                 ...(user?.username
                   ? [
@@ -192,13 +192,13 @@ export function Header() {
           ) : (
             <>
               {/* A guest has no avatar menu, so this gear is the desktop's
-                  only door to /you — the same "Settings" jump the menu's
-                  item makes (the Preferences tier: theme, typeface,
-                  currency, backup all work without an account). Without it
-                  a signed-out desktop user could reach those only by URL. */}
+                  only door to /you — the same Settings item the menu has,
+                  opening Appearance (every preference and data tool works
+                  without an account). Without it a signed-out desktop user
+                  could reach those only by URL. */}
               <NavLink
                 viewTransition
-                to="/you?section=settings"
+                to="/you/appearance"
                 className={({ isActive }) =>
                   isActive ? 'site-nav-settings active' : 'site-nav-settings'
                 }

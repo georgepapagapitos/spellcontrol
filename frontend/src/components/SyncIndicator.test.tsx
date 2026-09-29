@@ -377,7 +377,7 @@ describe('HeaderSyncIndicator', () => {
     vi.spyOn(sync, 'isOnline').mockReturnValue(false);
     renderHeaderIndicator();
     const link = screen.getByRole('link');
-    expect(link.getAttribute('href')).toBe('/you?section=account');
+    expect(link.getAttribute('href')).toBe('/you/account');
     // The pill's promise names what you get, not the page's old name.
     expect(link.getAttribute('title')).not.toMatch(/Settings/);
   });

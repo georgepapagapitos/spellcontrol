@@ -128,10 +128,10 @@ function LegacyCubeRedirect() {
   return <Navigate to={id ? `/decks/cube/${id}` : '/decks/cube'} replace />;
 }
 
-/** `/settings` is the You page's old address; the header sync pill, the
- *  auto-link banner and the backend's OAuth link callback still use it. The
- *  query string has to survive the forward — `/settings?linked=google` is how
- *  the "Google account linked." toast reaches the page, and a bare
+/** `/settings` is the You page's old address; the backend's OAuth link
+ *  callback and old bookmarks still use it. The query string has to survive
+ *  the forward — `/settings?linked=google` is how the "Google account
+ *  linked." toast reaches the Account section, and a bare
  *  `<Navigate to="/you">` silently dropped it. */
 function SettingsRedirect() {
   const { search } = useLocation();
@@ -382,7 +382,8 @@ export default function App() {
             <Route path="/search" element={<SearchPage />} />
             <Route path="/search/top/:list" element={<BrowseListPage />} />
             <Route path="/tags" element={<TagsPage />} />
-            <Route path="/you" element={<YouPage />} />
+            {/* `/you` is the hub; each section is `/you/<id>` (pages/you/sections.ts). */}
+            <Route path="/you/:section?" element={<YouPage />} />
             <Route path="/friends" element={<FriendsPage />} />
             <Route path="/friends/:friendId" element={<FriendHubPage />} />
             <Route path="/trades" element={<TradesPage />} />

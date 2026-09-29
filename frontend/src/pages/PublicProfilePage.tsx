@@ -388,11 +388,7 @@ function PublicProfilePageInner({ username }: { username: string }) {
                   // Your own profile: the way back to the editor on /you replaces
                   // Report (nobody reports themselves). Closes the round trip the
                   // Profile card's "public profile" link opens.
-                  <Button
-                    variant="link"
-                    to="/you?section=profile"
-                    className="public-profile-report-btn"
-                  >
+                  <Button variant="link" to="/you/profile" className="public-profile-report-btn">
                     Edit profile
                   </Button>
                 ) : (

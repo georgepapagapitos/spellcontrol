@@ -1,31 +1,30 @@
 // @vitest-environment happy-dom
 /**
- * UX-332 / UX-335 — Settings page trust copy and InfoTips.
+ * The You page (T173): `/you` is a hub of sections, each its own route.
  *
  * Verifies:
- *  - UX-332: guest-state account card explains that local data merges on sign-in.
- *  - UX-335: InfoTip for "deck allocations" renders;
- *  - w7-you-ia: the page's tier hierarchy (Identity → Preferences → Your data)
- *    and the Friends pointer row that replaced the inline FriendsManagement
- *    mount now that Friends lives at its own /friends route.
- *  - you-page: the hero says "You" (the tab's word) for guest and player
- *    alike, with a meta line that names only what that reader will find;
- *    every `?section=` door lands its promised heading, and the landing is
- *    re-pinned while late cards above it are still arriving.
+ *  - the hub: identity first, then the section rows grouped, with a guest
+ *    seeing only what works without an account;
+ *  - a phone opens one section per page with a way back; a desktop keeps the
+ *    list beside the open section and marks it;
+ *  - every old `?section=` link and the Google link callback land on the
+ *    section that now holds what they pointed at;
+ *  - each section's own behaviour (sign-in methods, backup and restore,
+ *    the disabled-action reasons, the allocations InfoTip, Help).
  */
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Minimal store mocks so YouPage can render without real stores. auth is a
-// mutable hoisted object (not a fixed factory) so the new "Profile renders
-// first" case below can flip to an authed user without disturbing the
-// existing guest-state assertions, which reset it via afterEach.
+// mutable hoisted object so a test can flip to an authed user; beforeEach
+// resets it to a guest.
 const { authState } = vi.hoisted(() => ({
   authState: {
     user: null as { username: string; id: string; role?: string } | null,
     status: 'guest' as 'guest' | 'authed',
     error: null as string | null,
+    profile: null as { displayName?: string | null; avatarImageUrl?: string | null } | null,
     logout: vi.fn(),
     deleteAccount: vi.fn(),
     acknowledgeAutoLink: vi.fn(),
@@ -39,9 +38,8 @@ vi.mock('../store/theme', () => ({
   useThemeStore: (selector: (s: Record<string, unknown>) => unknown) =>
     selector({ theme: 'default', setTheme: vi.fn() }),
 }));
-// Mutable (not a fixed factory) like authState above — the restore-backup
-// tests need to flip cards/binders between empty and non-empty to exercise
-// both branches of the confirm gate.
+// Mutable like authState: the backup tests flip cards/binders between empty
+// and non-empty to exercise both branches of each gate.
 const { collectionState } = vi.hoisted(() => ({
   collectionState: {
     cards: [] as unknown[],
@@ -103,10 +101,7 @@ vi.mock('../components/OfflineModeSettings', () => ({
 vi.mock('../components/SyncIndicator', () => ({
   SyncIndicator: () => null,
 }));
-// Has its own dedicated test file (ProfileEditor.test.tsx) — stub it here so
-// this file stays scoped to YouPage's own structure (section order, copy,
-// InfoTips). FriendsManagement no longer mounts on this page at all (it
-// moved to FriendsPage.test.tsx along with the Pods-link tests).
+// Has its own dedicated test file (ProfileEditor.test.tsx).
 vi.mock('../components/ProfileEditor', () => ({
   ProfileEditor: () => null,
 }));
@@ -114,315 +109,214 @@ vi.mock('../lib/themes', () => ({
   THEMES: [{ id: 'default', name: 'Default', guild: 'None', swatch: ['#000', '#fff'] }],
 }));
 
-import { SECTION_HEADING_IDS, YouPage } from './YouPage';
+import { YouPage } from './YouPage';
+import { LEGACY_SECTION_ROUTES } from './you/sections';
 
-function renderYouPage(initialPath = '/') {
+function LocationProbe() {
+  const { pathname, search } = useLocation();
+  return <output data-testid="location">{pathname + search}</output>;
+}
+
+function renderYouPage(initialPath = '/you') {
   return render(
     <MemoryRouter initialEntries={[initialPath]}>
-      <YouPage />
+      <Routes>
+        <Route path="/you/:section?" element={<YouPage />} />
+      </Routes>
+      <LocationProbe />
     </MemoryRouter>
   );
 }
 
-beforeAll(() => {
-  // happy-dom doesn't implement scrollIntoView; the `?section=` deep-link
-  // effect (via scrollToHeading) calls it when the param matches.
-  Element.prototype.scrollIntoView = vi.fn();
-});
+const location = () => screen.getByTestId('location').textContent;
+
+function signIn() {
+  authState.user = { username: 'alice', id: 'u1' };
+  authState.status = 'authed';
+}
+
+/** Answers every media query as a phone (`desktop: false`) or a ≥1024px window. */
+function setViewport(desktop: boolean) {
+  vi.spyOn(window, 'matchMedia').mockImplementation(
+    (query: string) =>
+      ({
+        matches: desktop && query === '(min-width: 1024px)',
+        media: query,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }) as unknown as MediaQueryList
+  );
+}
+const asDesktop = () => setViewport(true);
 
 beforeEach(() => {
+  // happy-dom's window is 1024px wide, which would make every test a desktop.
+  setViewport(false);
   authState.user = null;
   authState.status = 'guest';
+  authState.profile = null;
   collectionState.cards = [];
   collectionState.binders = [];
   vi.mocked(collectionState.restoreFromBackup).mockClear();
 });
 
 afterEach(() => {
-  vi.mocked(Element.prototype.scrollIntoView).mockClear();
+  vi.restoreAllMocks();
 });
 
-describe('UX-332 — Settings account card honesty copy', () => {
-  it('explains that local data merges on sign-in when the user is not signed in', () => {
+describe('T173 — the hub', () => {
+  it('is titled "You" and never "Settings"', () => {
     renderYouPage();
-    // The guest-state row should mention that local cards will be added to the account.
+    expect(screen.getByRole('heading', { level: 1, name: 'You' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Settings' })).toBeNull();
+  });
+
+  it('shows a guest the sign-in card and only the sections that work without an account', () => {
+    renderYouPage();
+    expect(screen.getByText('Not signed in')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Sign in to sync' })).toBeTruthy();
+    const nav = screen.getByRole('navigation', { name: 'You' });
+    const groups = within(nav)
+      .getAllByRole('heading', { level: 2 })
+      .map((h) => h.textContent);
+    expect(groups).toEqual(['Preferences', 'Your data', 'Help']);
+    expect(within(nav).queryByRole('link', { name: /Profile/ })).toBeNull();
+    expect(within(nav).queryByRole('link', { name: /Friends/ })).toBeNull();
+  });
+
+  it('gives a player their account group first, and a link from their name to Profile', async () => {
+    signIn();
+    authState.profile = { displayName: 'Alice' };
+    renderYouPage();
+    const nav = screen.getByRole('navigation', { name: 'You' });
+    const groups = within(nav)
+      .getAllByRole('heading', { level: 2 })
+      .map((h) => h.textContent);
+    expect(groups).toEqual(['Account', 'Preferences', 'Your data', 'Help']);
+    expect(
+      within(nav)
+        .getByRole('link', { name: /Alice.*@alice/ })
+        .getAttribute('href')
+    ).toBe('/you/profile');
+    expect(
+      within(nav)
+        .getByRole('link', { name: /^Account/ })
+        .getAttribute('href')
+    ).toBe('/you/account');
+    // Friends is its own page; the row points there with a count.
+    const friends = within(nav).getByRole('link', { name: /Friends/ });
+    expect(friends.getAttribute('href')).toBe('/friends');
+    await waitFor(() => expect(friends.textContent).toContain('0 friends'));
+  });
+
+  it('shows each preference row with its current value', () => {
+    renderYouPage();
+    const nav = screen.getByRole('navigation', { name: 'You' });
+    expect(within(nav).getByRole('link', { name: /Appearance.*Default/ })).toBeTruthy();
+    expect(within(nav).getByRole('link', { name: /Prices.*USD/ })).toBeTruthy();
+  });
+
+  it('shows the AI row only when the backend offers AI, with its On/Off', async () => {
+    const { fetchAiStatus } = await import('../lib/ai-review');
+    vi.mocked(fetchAiStatus).mockResolvedValueOnce({ optIn: true, used: 1, limit: 10 });
+    signIn();
+    renderYouPage();
+    const nav = screen.getByRole('navigation', { name: 'You' });
+    expect(await within(nav).findByRole('link', { name: /AI.*On/ })).toBeTruthy();
+  });
+
+  it('hides the AI row when the status is unavailable', async () => {
+    signIn();
+    renderYouPage();
+    const { fetchAiStatus } = await import('../lib/ai-review');
+    await waitFor(() => expect(fetchAiStatus).toHaveBeenCalled());
+    const nav = screen.getByRole('navigation', { name: 'You' });
+    expect(within(nav).queryByRole('link', { name: /^AI/ })).toBeNull();
+  });
+});
+
+describe('T173 — a section is its own page', () => {
+  it('on a phone, opens with its own title and a way back to You', () => {
+    renderYouPage('/you/appearance');
+    expect(screen.getByRole('heading', { level: 1, name: 'Appearance' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'You' }).getAttribute('href')).toBe('/you');
+    expect(screen.queryByRole('navigation', { name: 'You' })).toBeNull();
+  });
+
+  it('on a desktop, keeps the list beside the open section and marks it', () => {
+    asDesktop();
+    renderYouPage('/you/prices');
+    const nav = screen.getByRole('navigation', { name: 'You' });
+    expect(
+      within(nav)
+        .getByRole('link', { name: /Prices/ })
+        .getAttribute('aria-current')
+    ).toBe('page');
+    expect(screen.getByRole('heading', { level: 1, name: 'Prices' })).toBeTruthy();
+  });
+
+  it('on a desktop, /you opens Profile for a player', () => {
+    asDesktop();
+    signIn();
+    renderYouPage('/you');
+    expect(screen.getByRole('heading', { level: 1, name: 'Profile' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'View your public profile' })).toBeTruthy();
+  });
+
+  it('on a desktop, /you opens Appearance for a guest, who has no profile', () => {
+    asDesktop();
+    renderYouPage('/you');
+    expect(screen.getByRole('heading', { level: 1, name: 'Appearance' })).toBeTruthy();
+  });
+
+  it('sends an unknown section back to the hub', () => {
+    renderYouPage('/you/bogus');
+    expect(location()).toBe('/you');
+  });
+
+  it("sends a guest's Profile link to the sign-in card", () => {
+    renderYouPage('/you/profile');
+    expect(location()).toBe('/you/account');
     expect(screen.getByText(/sign in to sync it to your account/i)).toBeTruthy();
   });
 });
 
-describe('UX-335 — Settings InfoTips', () => {
-  it('renders the allocations InfoTip trigger', () => {
-    renderYouPage();
-    // The InfoTip's aria-label is "What is deck allocations?"
-    const tip = screen.getByRole('button', { name: /what is deck allocations/i });
-    expect(tip).toBeTruthy();
-  });
-});
-
-describe('w7-you-ia — tier hierarchy', () => {
-  it('orders Identity → Preferences → Your data, with Profile first and Friends inside Identity', () => {
-    authState.user = { username: 'alice', id: 'u1' };
-    authState.status = 'authed';
-    const { container } = renderYouPage();
-
-    const headings = Array.from(container.querySelectorAll('h2')).map((h) => h.textContent);
-    const idx = (text: string) => headings.indexOf(text);
-
-    expect(idx('Identity')).toBe(0);
-    expect(idx('Profile')).toBeGreaterThan(idx('Identity'));
-    expect(idx('Account')).toBeGreaterThan(idx('Profile'));
-    expect(idx('Friends')).toBeGreaterThan(idx('Account'));
-    expect(idx('Preferences')).toBeGreaterThan(idx('Friends'));
-    expect(idx('Appearance')).toBeGreaterThan(idx('Preferences'));
-    expect(idx('Your data')).toBeGreaterThan(idx('Appearance'));
-    expect(idx('Collection')).toBeGreaterThan(idx('Your data'));
-    expect(idx('Danger zone')).toBeGreaterThan(idx('Collection'));
+describe('T173 — old links land on the section that holds what they pointed at', () => {
+  it.each(Object.entries(LEGACY_SECTION_ROUTES))('?section=%s → /you/%s', (legacy, target) => {
+    signIn();
+    renderYouPage(`/you?section=${legacy}`);
+    expect(location()).toBe(`/you/${target}`);
   });
 
-  it('every group keeps a visible heading — none fall back to sr-only', () => {
-    authState.user = { username: 'alice', id: 'u1' };
-    authState.status = 'authed';
-    const { container } = renderYouPage();
+  it('drops an unrecognized ?section= and stays on the hub', () => {
+    renderYouPage('/you?section=bogus');
+    expect(location()).toBe('/you');
+  });
 
-    const groupHeadings = container.querySelectorAll(
-      'h2.settings-section-header, h2.settings-tier-header'
+  it('carries the Google link result to Account, which toasts once and clears it', async () => {
+    signIn();
+    const { toast } = await import('../store/toasts');
+    renderYouPage('/you?linked=google');
+    await waitFor(() => expect(location()).toBe('/you/account'));
+    expect(toast.show).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'Google account linked.' })
     );
-    expect(groupHeadings.length).toBeGreaterThan(0);
-    groupHeadings.forEach((h) => expect(h.className).not.toContain('sr-only'));
   });
 });
 
-describe('w7-you-ia — Friends pointer', () => {
-  it('links to /friends with a summary, not the full FriendsManagement UI', () => {
-    authState.user = { username: 'alice', id: 'u1' };
-    authState.status = 'authed';
-    renderYouPage();
-
-    const link = screen.getByRole('link', { name: /manage friends/i });
-    expect(link.getAttribute('href')).toBe('/friends');
-    // The old inline mount rendered a 4-tab strip; that must be gone from /you.
-    expect(screen.queryByRole('tablist')).toBeNull();
-  });
-
-  it('is absent for guests', () => {
-    renderYouPage();
-    expect(screen.queryByRole('link', { name: /manage friends/i })).toBeNull();
+describe('T173 — Profile', () => {
+  it('links the public profile and holds the username editor', () => {
+    signIn();
+    renderYouPage('/you/profile');
+    expect(
+      screen.getByRole('link', { name: 'View your public profile' }).getAttribute('href')
+    ).toBe('/u/alice');
+    expect(screen.getByRole('heading', { name: 'Username' })).toBeTruthy();
   });
 });
 
-describe('you-page — hero copy', () => {
-  it('is titled "You" for a guest, with no Profile card', () => {
-    renderYouPage();
-    expect(screen.getByRole('heading', { level: 1, name: 'You' })).toBeTruthy();
-    expect(screen.queryByRole('heading', { name: 'Profile' })).toBeNull();
-  });
-
-  it('is titled "You" for a signed-in player, with a Profile card', () => {
-    authState.user = { username: 'alice', id: 'u1' };
-    authState.status = 'authed';
-    renderYouPage();
-    expect(screen.getByRole('heading', { level: 1, name: 'You' })).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'Profile' })).toBeTruthy();
-  });
-
-  it('links the Profile card to the public profile', () => {
-    authState.user = { username: 'alice', id: 'u1' };
-    authState.status = 'authed';
-    renderYouPage();
-    const link = screen.getByRole('link', { name: 'public profile' });
-    expect(link.getAttribute('href')).toBe('/u/alice');
-  });
-
-  it('never calls the page Settings', () => {
-    authState.user = { username: 'alice', id: 'u1' };
-    authState.status = 'authed';
-    renderYouPage();
-    expect(screen.queryByRole('heading', { name: 'Settings' })).toBeNull();
-    // The Danger zone's backup hint names the control, not a page called
-    // Settings. It once named "Export full collection", a row that never had
-    // a button of that name.
-    expect(screen.getByText('Download a backup first.')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Download backup' })).toBeTruthy();
-  });
-});
-
-describe('you-page — every door lands its promised heading', () => {
-  // The hand-written list below checks focus for a few doors; this checks
-  // that every door in the map has a heading to land on at all. `admin`
-  // pointed at a heading the page never rendered, so the link did nothing.
-  it.each(Object.entries(SECTION_HEADING_IDS))(
-    '?section=%s has a rendered target (#%s)',
-    async (_section, id) => {
-      // Two cards render only once their fetch answers.
-      const { fetchIdentities } = await import('../lib/auth-api');
-      vi.mocked(fetchIdentities).mockResolvedValueOnce({
-        password: true,
-        google: null,
-        email: null,
-        emailVerified: false,
-        pendingEmail: null,
-        notifyEmail: true,
-      });
-      const { fetchAiStatus } = await import('../lib/ai-review');
-      vi.mocked(fetchAiStatus).mockResolvedValueOnce({ optIn: false, used: 0, limit: 10 });
-      authState.user = { username: 'alice', id: 'u1' };
-      authState.status = 'authed';
-      renderYouPage();
-      await waitFor(() => expect(document.getElementById(id)).not.toBeNull());
-    }
-  );
-
-  const signedInDoors: Array<[string, string]> = [
-    ['profile', 'Profile'],
-    ['account', 'Account'],
-    ['settings', 'Preferences'],
-    ['sharing', 'Profile'],
-    ['danger', 'Danger zone'],
-  ];
-
-  it.each(signedInDoors)('?section=%s focuses the "%s" heading', async (section, heading) => {
-    authState.user = { username: 'alice', id: 'u1' };
-    authState.status = 'authed';
-    renderYouPage(`/?section=${section}`);
-    const target = screen.getByRole('heading', { name: heading });
-    await waitFor(() => expect(document.activeElement).toBe(target));
-    expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
-  });
-
-  it('?section=account lands the guest on the Not signed in card', async () => {
-    renderYouPage('/?section=account');
-    const target = screen.getByRole('heading', { name: 'Account' });
-    await waitFor(() => expect(document.activeElement).toBe(target));
-    expect(screen.getByRole('link', { name: 'Sign in to sync' })).toBeTruthy();
-  });
-});
-
-describe('you-page — the landing is re-pinned while late cards arrive', () => {
-  type ResizeCb = () => void;
-  let callbacks: ResizeCb[];
-  let disconnects: number;
-  const OriginalResizeObserver = globalThis.ResizeObserver;
-
-  beforeEach(() => {
-    callbacks = [];
-    disconnects = 0;
-    class FakeResizeObserver {
-      constructor(cb: ResizeCb) {
-        callbacks.push(cb);
-      }
-      observe() {}
-      unobserve() {}
-      disconnect() {
-        disconnects += 1;
-      }
-    }
-    globalThis.ResizeObserver = FakeResizeObserver as unknown as typeof ResizeObserver;
-  });
-
-  afterEach(() => {
-    globalThis.ResizeObserver = OriginalResizeObserver;
-  });
-
-  it('scrolls the target again on a layout change, without moving focus a second time', async () => {
-    authState.user = { username: 'alice', id: 'u1' };
-    authState.status = 'authed';
-    renderYouPage('/?section=appearance');
-    const heading = screen.getByRole('heading', { name: 'Appearance' });
-    await waitFor(() => expect(document.activeElement).toBe(heading));
-    expect(callbacks).toHaveLength(1);
-    const scrolls = vi.mocked(Element.prototype.scrollIntoView).mock.calls.length;
-
-    // Move focus the way a fast user would, then let a card above grow.
-    screen.getByRole('button', { name: 'Sign out' }).focus();
-    act(() => callbacks[0]());
-
-    expect(vi.mocked(Element.prototype.scrollIntoView).mock.calls.length).toBe(scrolls + 1);
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Sign out' }));
-  });
-
-  it('?section=sign-in announces the Sign-in methods card on the pass that first finds it', async () => {
-    const { fetchIdentities } = await import('../lib/auth-api');
-    vi.mocked(fetchIdentities).mockResolvedValueOnce({
-      password: true,
-      google: null,
-      email: null,
-      emailVerified: false,
-      pendingEmail: null,
-      notifyEmail: true,
-    });
-    authState.user = { username: 'alice', id: 'u1' };
-    authState.status = 'authed';
-    renderYouPage('/?section=sign-in');
-    // Mount: the card isn't there yet, so nothing scrolled and nothing took focus.
-    expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
-    const target = await screen.findByRole('heading', { name: 'Sign-in methods' });
-    expect(callbacks).toHaveLength(1);
-    act(() => callbacks[0]());
-    expect(document.activeElement).toBe(target);
-    // A second layout change re-pins but leaves focus where it is.
-    screen.getByRole('button', { name: 'Sign out' }).focus();
-    act(() => callbacks[0]());
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Sign out' }));
-  });
-
-  it('stops re-pinning as soon as the user starts interacting', async () => {
-    authState.user = { username: 'alice', id: 'u1' };
-    authState.status = 'authed';
-    renderYouPage('/?section=appearance');
-    await waitFor(() => expect(callbacks).toHaveLength(1));
-    const before = disconnects;
-    act(() => {
-      window.dispatchEvent(new Event('pointerdown'));
-    });
-    expect(disconnects).toBeGreaterThan(before);
-  });
-
-  it('does not observe at all without a section param', () => {
-    renderYouPage('/');
-    expect(callbacks).toHaveLength(0);
-  });
-});
-
-describe('w3-header-avatar-menu — ?section= deep link', () => {
-  it('scrolls and focuses the Appearance heading for ?section=appearance', async () => {
-    renderYouPage('/?section=appearance');
-    const heading = screen.getByRole('heading', { name: 'Appearance' });
-    await waitFor(() => expect(document.activeElement).toBe(heading));
-    expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
-  });
-
-  it('an old ?section=sharing link lands on Profile, now the Sharing group is gone', async () => {
-    authState.user = { username: 'alice', id: 'u1' };
-    authState.status = 'authed';
-    renderYouPage('/?section=sharing');
-    const heading = screen.getByRole('heading', { name: 'Profile' });
-    await waitFor(() => expect(document.activeElement).toBe(heading));
-  });
-
-  it('is a no-op with no section param', () => {
-    renderYouPage('/');
-    expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
-  });
-
-  it('is a no-op for an unrecognized section value', () => {
-    renderYouPage('/?section=bogus');
-    expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
-  });
-});
-
-describe('T117 — Help & guides', () => {
-  it('links to the static guides index', () => {
-    renderYouPage();
-    const link = screen.getByRole('link', { name: 'Open guides' });
-    expect(link.getAttribute('href')).toBe('/guides/');
-  });
-});
-
-describe('T117 — Sign-in methods: Password and Email rows', () => {
-  beforeEach(() => {
-    authState.user = { username: 'alice', id: 'u1' };
-    authState.status = 'authed';
-  });
+describe('Account — sign-in methods, notifications, this device', () => {
+  beforeEach(signIn);
 
   async function mockIdentitiesOnce(overrides: {
     password?: boolean;
@@ -442,15 +336,31 @@ describe('T117 — Sign-in methods: Password and Email rows', () => {
     });
   }
 
+  it('explains to a guest that local data syncs on sign-in', () => {
+    authState.user = null;
+    authState.status = 'guest';
+    renderYouPage('/you/account');
+    expect(screen.getByText(/sign in to sync it to your account/i)).toBeTruthy();
+  });
+
+  it('orders sign-in methods, notifications, this device, then Delete account', async () => {
+    await mockIdentitiesOnce({ password: true });
+    const { container } = renderYouPage('/you/account');
+    await screen.findByRole('heading', { name: 'Sign-in methods' });
+    const headings = Array.from(container.querySelectorAll('h2')).map((h) => h.textContent);
+    expect(headings).toEqual(['Sign-in methods', 'Notifications', 'This device', 'Delete account']);
+    expect(screen.getByRole('button', { name: 'Sign out' })).toBeTruthy();
+  });
+
   it('offers "Set password" for a passwordless account', async () => {
     await mockIdentitiesOnce({ password: false });
-    renderYouPage('/?section=sign-in');
+    renderYouPage('/you/account');
     expect(await screen.findByRole('button', { name: 'Set password' })).toBeTruthy();
   });
 
   it('offers "Change password" once the account has one', async () => {
     await mockIdentitiesOnce({ password: true });
-    renderYouPage('/?section=sign-in');
+    renderYouPage('/you/account');
     expect(await screen.findByRole('button', { name: 'Change password' })).toBeTruthy();
   });
 
@@ -458,7 +368,7 @@ describe('T117 — Sign-in methods: Password and Email rows', () => {
     await mockIdentitiesOnce({ password: false });
     const { updatePassword } = await import('../lib/auth-api');
     vi.mocked(updatePassword).mockResolvedValueOnce(undefined);
-    renderYouPage('/?section=sign-in');
+    renderYouPage('/you/account');
 
     fireEvent.click(await screen.findByRole('button', { name: 'Set password' }));
     const dialog = screen.getByRole('dialog');
@@ -493,7 +403,7 @@ describe('T117 — Sign-in methods: Password and Email rows', () => {
       emailVerified: false,
       pendingEmail: null,
     });
-    renderYouPage('/?section=sign-in');
+    renderYouPage('/you/account');
     expect(await screen.findByText('Not set')).toBeTruthy();
     expect(
       screen.getByText('Add a verified email so you can reset your password if you get locked out.')
@@ -509,7 +419,7 @@ describe('T117 — Sign-in methods: Password and Email rows', () => {
     });
     const { resendEmailVerification } = await import('../lib/auth-api');
     vi.mocked(resendEmailVerification).mockResolvedValueOnce(undefined);
-    renderYouPage('/?section=sign-in');
+    renderYouPage('/you/account');
 
     expect(await screen.findByText(/Pending verification, alice@example\.com/)).toBeTruthy();
     expect(
@@ -531,7 +441,7 @@ describe('T117 — Sign-in methods: Password and Email rows', () => {
       emailVerified: true,
       pendingEmail: null,
     });
-    renderYouPage('/?section=sign-in');
+    renderYouPage('/you/account');
     expect(await screen.findByText('alice@example.com')).toBeTruthy();
     expect(
       screen.queryByText(
@@ -541,21 +451,21 @@ describe('T117 — Sign-in methods: Password and Email rows', () => {
     expect(screen.getByRole('button', { name: 'Change' })).toBeTruthy();
   });
 
-  it('T117 — Email notifications switch is disabled without a verified email', async () => {
+  it('disables the Email notifications switch without a verified email', async () => {
     await mockIdentitiesOnce({ email: null, emailVerified: false, notifyEmail: true });
-    renderYouPage('/?section=sign-in');
+    renderYouPage('/you/account');
     const offSwitch = await screen.findByRole('switch', { name: 'Email notifications' });
     expect(offSwitch.hasAttribute('disabled')).toBe(true);
     expect(screen.getByText('Needs a verified email.')).toBeTruthy();
   });
 
-  it('T117 — Email notifications switch is enabled and toggles with a verified email', async () => {
+  it('toggles Email notifications with a verified email', async () => {
     await mockIdentitiesOnce({
       email: 'alice@example.com',
       emailVerified: true,
       notifyEmail: true,
     });
-    renderYouPage('/?section=sign-in');
+    renderYouPage('/you/account');
     const onSwitch = await screen.findByRole('switch', { name: 'Email notifications' });
     expect(onSwitch.hasAttribute('disabled')).toBe(false);
     expect(onSwitch.getAttribute('aria-checked')).toBe('true');
@@ -570,7 +480,7 @@ describe('T117 — Sign-in methods: Password and Email rows', () => {
     await mockIdentitiesOnce({ email: null, emailVerified: false, pendingEmail: null });
     const { requestEmailChange } = await import('../lib/auth-api');
     vi.mocked(requestEmailChange).mockResolvedValueOnce({ pendingEmail: 'alice@example.com' });
-    renderYouPage('/?section=sign-in');
+    renderYouPage('/you/account');
 
     fireEvent.click(await screen.findByRole('button', { name: 'Add' }));
     expect(screen.getByRole('heading', { name: 'Add an email' })).toBeTruthy();
@@ -586,42 +496,52 @@ describe('T117 — Sign-in methods: Password and Email rows', () => {
 describe('T173 — a disabled data action says what turns it on', () => {
   const button = (name: string) => screen.getByRole('button', { name }) as HTMLButtonElement;
 
-  it('gives every greyed-out action a reason on an empty account', () => {
-    renderYouPage('/');
+  it('gives backup, export and delete a reason on an empty account', () => {
+    renderYouPage('/you/data');
     expect(button('Download backup').disabled).toBe(true);
     expect(screen.getByText('Needs cards, a binder or a deck.')).toBeTruthy();
     expect(button('Export').disabled).toBe(true);
-    expect(button('Refresh prices').disabled).toBe(true);
+    expect(button('Delete collection').disabled).toBe(true);
     expect(screen.getAllByText('Needs cards in your collection.')).toHaveLength(2);
+  });
+
+  it('gives Refresh prices a reason on an empty collection', () => {
+    renderYouPage('/you/prices');
+    expect(button('Refresh prices').disabled).toBe(true);
+    expect(screen.getByText('Needs cards in your collection.')).toBeTruthy();
+  });
+
+  it('gives Repair a reason without cards and a deck', () => {
+    renderYouPage('/you/storage');
     expect(button('Repair').disabled).toBe(true);
     expect(screen.getByText('Needs cards and a deck.')).toBeTruthy();
   });
 
   it('lets a backup carry binders even before any card exists', () => {
     collectionState.binders = [{ id: 'b1' }];
-    renderYouPage('/');
+    renderYouPage('/you/data');
     expect(button('Download backup').disabled).toBe(false);
     expect(button('Export').disabled).toBe(true);
   });
 
   it('drops the reasons once there are cards', () => {
     collectionState.cards = [{ copyId: 'c1' }];
-    renderYouPage('/');
+    renderYouPage('/you/data');
     expect(button('Export').disabled).toBe(false);
     expect(screen.queryByText('Needs cards in your collection.')).toBeNull();
   });
 });
 
-describe('T153 — restore backup and clear collection live in Settings', () => {
-  it('offers Restore from a backup file in the Collection section', () => {
-    renderYouPage('/');
+describe('Backup & export — restore and delete', () => {
+  it('offers Restore from a backup file', () => {
+    renderYouPage('/you/data');
     expect(screen.getByText('Restore from a backup file')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Restore…' })).toBeTruthy();
   });
 
-  it('nags before restoring over a non-empty collection', () => {
+  it('asks before restoring over a non-empty collection', () => {
     collectionState.cards = [{ copyId: 'c1' }];
-    renderYouPage('/');
+    renderYouPage('/you/data');
     fireEvent.click(screen.getByRole('button', { name: 'Restore…' }));
     expect(screen.getByRole('heading', { name: 'Restore backup?' })).toBeTruthy();
     expect(collectionState.restoreFromBackup).not.toHaveBeenCalled();
@@ -629,8 +549,8 @@ describe('T153 — restore backup and clear collection live in Settings', () => 
     expect(screen.queryByRole('heading', { name: 'Restore backup?' })).toBeNull();
   });
 
-  it('does not nag on an empty collection', () => {
-    renderYouPage('/');
+  it('does not ask on an empty collection', () => {
+    renderYouPage('/you/data');
     fireEvent.click(screen.getByRole('button', { name: 'Restore…' }));
     expect(screen.queryByRole('heading', { name: 'Restore backup?' })).toBeNull();
   });
@@ -641,7 +561,7 @@ describe('T153 — restore backup and clear collection live in Settings', () => 
       throw new Error('bad json');
     });
     const { toast } = await import('../store/toasts');
-    renderYouPage('/');
+    renderYouPage('/you/data');
     const fileInput = document.querySelector('input[type="file"][accept*="json"]') as HTMLElement;
     const file = new File(['not json'], 'backup.json', { type: 'application/json' });
     fireEvent.change(fileInput, { target: { files: [file] } });
@@ -653,10 +573,46 @@ describe('T153 — restore backup and clear collection live in Settings', () => 
     );
   });
 
-  it('exists alongside "Delete entire collection" in the Danger zone (the old "Clear all")', () => {
+  it('keeps "Delete entire collection" with a backup reminder that names a real button', () => {
     collectionState.cards = [{ copyId: 'c1' }];
-    renderYouPage('/');
+    renderYouPage('/you/data');
     expect(screen.getByText('Delete entire collection')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Delete collection' })).toBeTruthy();
+    // It once named "Export full collection", a row with no button of that name.
+    expect(screen.getByText('Download a backup first.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Download backup' })).toBeTruthy();
+  });
+});
+
+describe('Storage and Help', () => {
+  it('renders the allocations InfoTip trigger', () => {
+    renderYouPage('/you/storage');
+    expect(screen.getByRole('button', { name: /what is deck allocations/i })).toBeTruthy();
+  });
+
+  it('links to the static guides index and both legal pages', () => {
+    renderYouPage('/you/help');
+    expect(screen.getByRole('link', { name: 'Open guides' }).getAttribute('href')).toBe('/guides/');
+    expect(screen.getByRole('link', { name: 'Read policy' }).getAttribute('href')).toBe(
+      '/privacy.html'
+    );
+    expect(screen.getByRole('link', { name: 'Read terms' }).getAttribute('href')).toBe(
+      '/terms.html'
+    );
+  });
+});
+
+describe('AI', () => {
+  it('holds the consent switch when the backend offers AI', async () => {
+    const { fetchAiStatus } = await import('../lib/ai-review');
+    vi.mocked(fetchAiStatus).mockResolvedValueOnce({ optIn: false, used: 0, limit: 10 });
+    signIn();
+    renderYouPage('/you/ai');
+    expect(await screen.findByRole('switch', { name: 'AI deck analysis' })).toBeTruthy();
+  });
+
+  it('tells a guest to sign in', () => {
+    renderYouPage('/you/ai');
+    expect(screen.getByText('Sign in to use AI deck analysis.')).toBeTruthy();
   });
 });

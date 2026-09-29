@@ -32,7 +32,7 @@ export function AutoLinkBanner() {
         <Button
           onClick={() => {
             void acknowledge();
-            navigate('/you?section=sign-in');
+            navigate('/you/account');
           }}
         >
           Manage sign-in methods

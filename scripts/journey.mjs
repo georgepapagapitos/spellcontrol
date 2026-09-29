@@ -848,7 +848,16 @@ async function main() {
         '/friends',
         '/trades',
         '/pods',
+        // `/you` is a hub and each section its own page (T173): every one
+        // is visited, since a phone renders each alone.
         '/you',
+        '/you/profile',
+        '/you/account',
+        '/you/appearance',
+        '/you/prices',
+        '/you/data',
+        '/you/storage',
+        '/you/help',
         '/settings',
         '/search?q=sol+ring',
         // The Search landing's browse rails, and each list in full (E520).

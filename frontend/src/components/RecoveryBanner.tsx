@@ -27,7 +27,7 @@ export function RecoveryBanner() {
       <div className="recovery-banner-text">
         <strong>Confirm your email.</strong> It's the only way back in if you forget your password.
       </div>
-      <Button variant="primary" to="/you?section=sign-in">
+      <Button variant="primary" to="/you/account">
         Confirm email
       </Button>
     </div>
