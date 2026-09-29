@@ -244,7 +244,7 @@ export function AppendDeckDialog({ deck, onClose }: Props) {
                 <ul className="import-deck-unresolved-list">
                   {newIssues.map((issue) => (
                     <li key={`${issue.slotId}-${issue.issue}`}>
-                      {issue.cardName} — {issue.detail}
+                      {issue.cardName}: {issue.detail}
                     </li>
                   ))}
                 </ul>

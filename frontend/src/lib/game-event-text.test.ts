@@ -77,7 +77,7 @@ describe('describeGameEvent', () => {
   it('end (with a winner)', () => {
     expect(describeGameEvent(row('end', { targetSeat: 0 }), seatName)).toEqual({
       target: 'Alice',
-      action: 'wins — game ended',
+      action: 'wins the game',
     });
   });
 

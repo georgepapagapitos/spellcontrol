@@ -44,7 +44,7 @@ const SKIP_FILE =
   /(\.test\.tsx?$|\.d\.ts$|\/fixtures?\/|__fixtures__|__snapshots__|\.stories\.|\/src\/test\/)/;
 
 const COPY_PROPS =
-  /^(title|aria-label|aria-description|placeholder|label|hint|tagline|message|description|body|heading|subtitle|caption|tooltip|confirmLabel|cancelLabel|actionLabel|emptyText|helper|text|summary|reason|note|alt|blurb)$/;
+  /^(title|aria-label|aria-description|placeholder|label|hint|tagline|message|description|body|heading|subtitle|caption|tooltip|confirmLabel|cancelLabel|actionLabel|emptyText|helper|text|summary|reason|note|alt|blurb|action|detail)$/;
 const LOG_CALLEE = /^(console\.|logger?\.|debug\b|warn\b|log\b|trace\b|reportError\b)/;
 
 type Rule = [id: string, test: (text: string, kind: string) => boolean, why: string];
@@ -146,6 +146,19 @@ function enclosingTag(n: ts.Node): string | null {
   return null;
 }
 
+function isBetweenExpressions(n: ts.JsxText): boolean {
+  const p = n.parent;
+  if (!ts.isJsxElement(p) && !ts.isJsxFragment(p)) return false;
+  const kids = p.children.filter((c) => !(ts.isJsxText(c) && c.text.trim() === ''));
+  const i = kids.indexOf(n);
+  return (
+    i > 0 &&
+    i < kids.length - 1 &&
+    ts.isJsxExpression(kids[i - 1]) &&
+    ts.isJsxExpression(kids[i + 1])
+  );
+}
+
 interface Violation {
   file: string;
   line: number;
@@ -213,6 +226,9 @@ function scan(file: string): Violation[] {
     }
     if (ts.isJsxText(n)) {
       const t = n.text.replace(/\s+/g, ' ').trim();
+      // `{name} — {detail}`: a bare em-dash between two expressions is a
+      // prose separator, not the lone unknown-value placeholder.
+      if (t === '—' && isBetweenExpressions(n)) check(n, 'jsx', `{…} — {…}`);
       if (t.length >= 2 && /[a-zA-Z]/.test(t)) {
         const tag = enclosingTag(n);
         check(n, tag === 'Button' || tag === 'button' ? 'jsx:button' : 'jsx', t);
@@ -249,6 +265,10 @@ function scan(file: string): Violation[] {
       const t = n.head.text + n.templateSpans.map((s) => '{…}' + s.literal.text).join('');
       if (looksLikeCopy(t.replace(/\{…\}/g, 'X')) && /[a-zA-Z]{3,}/.test(t) && !insideLogCall(n))
         check(n, 'tpl', t);
+      // looksLikeCopy drops a template with braces and no end punctuation, which
+      // is exactly the `${card}: counters stepped up — ${tally}` log-line shape.
+      else if (/\s—\s/.test(t) && /[a-zA-Z]{3,}/.test(t) && !insideLogCall(n))
+        out.push({ file: rel, line: line(n), rule: 'EMDASH', kind: 'tpl', text: t.slice(0, 120) });
     }
     ts.forEachChild(n, visit);
   };

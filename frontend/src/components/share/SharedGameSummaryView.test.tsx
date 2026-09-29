@@ -68,7 +68,7 @@ describe('SharedGameSummaryView', () => {
 
     expect(screen.getByRole('heading', { level: 2, name: 'Notable moments' })).toBeTruthy();
     expect(screen.getByText('Bob eliminated')).toBeTruthy();
-    expect(screen.getByText('Alice wins — game ended')).toBeTruthy();
+    expect(screen.getByText('Alice wins the game')).toBeTruthy();
   });
 
   it('shows the no-declared-winner header variant when winnerSeat is null', () => {
