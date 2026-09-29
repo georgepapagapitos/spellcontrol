@@ -148,7 +148,8 @@ describe('Legend (context-aware symbol key)', () => {
     renderLegend('collection');
     openKey();
     const inertSamples = document.querySelectorAll('.legend-glyph[inert]');
-    expect(inertSamples.length).toBe(3); // deck badge + cube badge + binder badge
+    // deck badge + physical cube badge + listed cube badge + binder badge
+    expect(inertSamples.length).toBe(4);
   });
 
   // Placement: the popover is PORTALED to <body> and positioned fixed from

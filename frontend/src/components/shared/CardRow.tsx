@@ -8,6 +8,7 @@ import {
 import { Check } from 'lucide-react';
 import type { Condition, EnrichedCard } from '../../types';
 import type { AllocationInfo } from '../../lib/allocations';
+import type { CubeListing } from '../../lib/cube-listings';
 import { FoilBadge } from '../FoilBadge';
 import { DeckBadge } from '../DeckBadge';
 import { BinderBadge } from '../BinderBadge';
@@ -60,6 +61,8 @@ interface CardRowProps {
   qty: number;
   /** Deck allocations for the DeckBadge (caller resolves grouped vs single). */
   allocations: AllocationInfo[];
+  /** Cubes that list this card without holding a copy (the dashed cube badge). */
+  cubeListings?: CubeListing[];
   /** The per-row action menu (`CardRowMenu`) — props differ per surface. */
   menu: ReactNode;
   /** Click / Enter / Space on the row (preview, or toggle in select mode). */
@@ -138,6 +141,7 @@ export function CardRow({
   card,
   qty,
   allocations,
+  cubeListings,
   menu,
   onActivate,
   binders,
@@ -212,7 +216,7 @@ export function CardRow({
             <CardName card={card} />
             {card.foil && <FoilBadge card={card} />}
             <ProxyBadge card={card} />
-            <DeckBadge allocations={allocations} />
+            <DeckBadge allocations={allocations} listedIn={cubeListings} />
             {ownedBadge}
           </span>
         </div>
@@ -312,7 +316,7 @@ export function CardRow({
           <CardName card={card} />
           {card.foil && <FoilBadge card={card} />}
           <ProxyBadge card={card} />
-          <DeckBadge allocations={allocations} />
+          <DeckBadge allocations={allocations} listedIn={cubeListings} />
           <BinderBadge binders={binders ?? []} />
           {ownedBadge}
         </div>

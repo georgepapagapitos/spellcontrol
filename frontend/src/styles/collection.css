@@ -1167,6 +1167,14 @@ i.ss.set-symbol--mythic {
   letter-spacing: 0.02em;
 }
 
+/* A cube lists the card but holds no copy (a draft cube, or a physical cube's
+   unreserved pick): the same violet chip drawn hollow and dashed, the style
+   guide's mark for "no physical home". The copy stays available. */
+.card-list-deck-badge--listed {
+  background: transparent;
+  border: 1px dashed color-mix(in srgb, var(--deck-color, var(--accent)) 60%, transparent);
+}
+
 /* "In a binder" indicator. Same chip as the deck badge so they read as
    a set; the binder's own color appears as the swatch dot so different
    binders are still distinguishable at a glance. */
@@ -1516,6 +1524,15 @@ i.ss.set-symbol--mythic {
 
 :where(.art-badge[data-identity='many']) {
   border-color: color-mix(in srgb, var(--art-scrim-text) 55%, transparent);
+}
+
+/* A cube lists the card but holds no copy (DeckBadge's listed kind): hollow,
+   not filled, since nothing of the owner's is in the sleeve. The scrim and
+   its light glyph stay legible on any art; the dashed ring in the cube's
+   colour is the row chip's dashed outline, and the style guide's mark for
+   "no physical home". */
+:where(.art-badge[data-identity='listed']) {
+  border: 1.5px dashed var(--identity-color, var(--accent));
 }
 
 /* A single owner is a link or a button: it lifts and brightens, keeping its
