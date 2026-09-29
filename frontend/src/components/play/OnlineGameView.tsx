@@ -1,4 +1,4 @@
-import { Clock, Compass, Crown, Undo2 } from 'lucide-react';
+import { Clock, Compass, Crown, Headphones, Undo2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DesignationKind, GameAction, GamePlayer, GameState } from '../../lib/game-state';
 import { cmdDamageKey, nextHostSeat } from '../../lib/game-state';
@@ -25,6 +25,7 @@ import './OnlineGameView.css';
 
 import { userMessage } from '@/lib/user-error';
 import { Button } from '@/components/shared/Button';
+import { voiceLinkLabel } from '@/lib/voice-link';
 
 // Mirrors playtest's TakebackConsentPrompt grace window (see its module doc):
 // native long-poll can drop a request's own terminal frame, so the banner
@@ -197,14 +198,26 @@ export function OnlineGameView({ game, errorMessage, onEnd, onLeave, onRematch }
             />
           )}
         </div>
-        {game.status !== 'finished' && (
+        {(game.status !== 'finished' || game.voiceUrl) && (
           <div className="ogv-header-actions">
-            {onEnd && (
+            {/* Stays through a finished game: the table is still in the call. */}
+            {game.voiceUrl && (
+              <Button
+                href={game.voiceUrl}
+                target="_blank"
+                rel="noreferrer noopener"
+                icon={<Headphones width={14} height={14} strokeWidth={1.8} />}
+                className="ogv-header-btn"
+              >
+                {voiceLinkLabel(game.voiceUrl)}
+              </Button>
+            )}
+            {game.status !== 'finished' && onEnd && (
               <Button onClick={onEnd} className="ogv-header-btn">
                 End
               </Button>
             )}
-            {onLeave && (
+            {game.status !== 'finished' && onLeave && (
               <Button onClick={handleLeave} className="ogv-header-btn">
                 Leave
               </Button>
