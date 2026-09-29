@@ -368,31 +368,47 @@ function PublicProfilePageInner({ username }: { username: string }) {
             <h1 className="public-profile-name">{heading}</h1>
             {handle && <p className="public-profile-handle">{handle}</p>}
             {profile.bio && <p className="public-profile-bio">{profile.bio}</p>}
-            <p className="public-profile-joined">
-              Joined {joined}
-              {' · '}
-              {profile.isOwner ? (
-                // Your own profile: the way back to the editor on /you replaces
-                // Report (nobody reports themselves). Closes the round trip the
-                // Profile card's "public profile" link opens.
+            {profile.isOfficial ? (
+              // The house account: nobody's member, and nothing to report or
+              // edit. Its line says what it is and opens the full shelf, which
+              // has the search and filters this page doesn't.
+              <p className="public-profile-joined">
+                Official account{' · '}
                 <Button
                   variant="link"
-                  to="/you?section=profile"
+                  to="/decks/discover?source=precons"
                   className="public-profile-report-btn"
                 >
-                  Edit profile
+                  Browse all {profile.deckCount} precons
                 </Button>
-              ) : (
-                <Button
-                  variant="link"
-                  aria-label="Report this profile"
-                  onClick={() => setReporting(true)}
-                  className="public-profile-report-btn"
-                >
-                  Report
-                </Button>
-              )}
-            </p>
+              </p>
+            ) : (
+              <p className="public-profile-joined">
+                Joined {joined}
+                {' · '}
+                {profile.isOwner ? (
+                  // Your own profile: the way back to the editor on /you replaces
+                  // Report (nobody reports themselves). Closes the round trip the
+                  // Profile card's "public profile" link opens.
+                  <Button
+                    variant="link"
+                    to="/you?section=profile"
+                    className="public-profile-report-btn"
+                  >
+                    Edit profile
+                  </Button>
+                ) : (
+                  <Button
+                    variant="link"
+                    aria-label="Report this profile"
+                    onClick={() => setReporting(true)}
+                    className="public-profile-report-btn"
+                  >
+                    Report
+                  </Button>
+                )}
+              </p>
+            )}
           </div>
         </header>
 

@@ -83,6 +83,7 @@ interface DeckPublicationRow {
   copy_count: number;
   username: string;
   display_name: string | null;
+  is_official: boolean;
 }
 
 /**
@@ -99,7 +100,7 @@ async function loadPublicDeckPage(slug: string): Promise<PublicDeckPage | null> 
   const pub = (
     await pool.query<DeckPublicationRow>(
       `SELECT dp.deck_id, dp.user_id, dp.slug, dp.published_at, dp.updated_at,
-              dp.view_count, dp.copy_count, u.username, u.display_name
+              dp.view_count, dp.copy_count, u.username, u.display_name, u.is_official
          FROM deck_publications dp
          JOIN users u ON u.id = dp.user_id
         WHERE dp.slug = $1 AND dp.unpublished_at IS NULL
@@ -131,6 +132,7 @@ async function loadPublicDeckPage(slug: string): Promise<PublicDeckPage | null> 
     updatedAt: Number(pub.updated_at),
     viewCount: pub.view_count,
     copyCount: pub.copy_count,
+    official: pub.is_official,
     deck,
   };
   deckPublicationCache.set(slug, page);
@@ -223,6 +225,7 @@ interface PublicUserRow {
   created_at: string;
   profile_hidden_at: string | null;
   collection_visibility: string | null;
+  is_official: boolean;
 }
 
 /**
@@ -240,13 +243,15 @@ async function loadPublicUserProfile(username: string): Promise<PublicUserProfil
   const user = (
     await pool.query<PublicUserRow>(
       `SELECT id, username, display_name, bio, avatar_card_name, avatar_image_url,
-              created_at, profile_hidden_at, collection_visibility
+              created_at, profile_hidden_at, collection_visibility, is_official
          FROM users WHERE username = $1`,
       [username]
     )
   ).rows[0];
   if (!user) return null;
 
+  // The house account lists newest precon first. Its updated_at moves with
+  // every price refresh, which would shuffle the page for no reason.
   const [decksResult, countResult] = await Promise.all([
     pool.query<PublicDeckSummaryRow>(
       `SELECT slug, deck_name, format, commander_name, og_art_crop, color_identity,
@@ -254,7 +259,7 @@ async function loadPublicUserProfile(username: string): Promise<PublicUserProfil
               updated_at
          FROM deck_publications
         WHERE user_id = $1 AND unpublished_at IS NULL
-        ORDER BY updated_at DESC
+        ORDER BY ${user.is_official ? 'published_at' : 'updated_at'} DESC
         LIMIT ${MAX_PROFILE_DECKS}`,
       [user.id]
     ),
@@ -274,6 +279,7 @@ async function loadPublicUserProfile(username: string): Promise<PublicUserProfil
     memberSince: Number(user.created_at),
     profileHiddenAt: user.profile_hidden_at === null ? null : Number(user.profile_hidden_at),
     collectionVisibility: parseCollectionVisibility(user.collection_visibility),
+    isOfficial: user.is_official,
     // True total, not decks.length — the 200 cap means those diverge for a
     // heavy publisher.
     deckCount: Number(countResult.rows[0].count),
@@ -323,6 +329,7 @@ publicRouter.get(
       avatarCardName: profile.avatarCardName,
       avatarImageUrl: profile.avatarImageUrl,
       joinedAt: profile.memberSince,
+      isOfficial: profile.isOfficial,
       isOwner,
       moderationHidden,
       deckCount: profile.deckCount,

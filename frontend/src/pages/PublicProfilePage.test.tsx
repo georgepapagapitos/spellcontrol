@@ -135,6 +135,20 @@ describe('PublicProfilePage — brand-bar action', () => {
   });
 });
 
+describe('PublicProfilePage — the house account', () => {
+  it('says it is official and opens the full precons shelf instead of Report', async () => {
+    fetchPublicProfileMock.mockResolvedValue(
+      profile({ isOfficial: true, deckCount: 197, displayName: 'SpellControl' })
+    );
+    renderProfile();
+    const browse = await screen.findByRole('link', { name: 'Browse all 197 precons' });
+    expect(browse.getAttribute('href')).toBe('/decks/discover?source=precons');
+    expect(screen.getByText(/Official account/)).toBeTruthy();
+    expect(screen.queryByText(/Joined/)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Report this profile' })).toBeNull();
+  });
+});
+
 describe('PublicProfilePage — a handle that moved', () => {
   it('replaces the URL with the account current handle instead of 404ing', async () => {
     fetchPublicProfileMock.mockImplementation((username: string) =>

@@ -73,6 +73,7 @@ import { getSetMap, getSetCards, SetNotFoundError } from './sets';
 import { parseImport } from './parsers';
 import type { ImportRow, ImportFormat, Finish, Condition } from './parsers/types';
 import { resolveDeckRows } from './deck-import';
+import { mtgjsonPreconSource, syncPrecons } from './precons/seed';
 import {
   ImportTooLargeError,
   MAX_NOTES_LENGTH,
@@ -1249,6 +1250,26 @@ function scheduleComboIngest(): void {
 }
 
 /**
+ * Publishes and refreshes the house account's precons (precons/seed.ts). No
+ * recency guard of its own: every stored deck carries when it was last
+ * resolved, so a run on a fresh boot only does the work that is actually due
+ * (new precons, plus a bounded slice of stale ones).
+ */
+function schedulePreconSeed(): void {
+  const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+  const source = mtgjsonPreconSource(cache);
+  const tick = async () => {
+    try {
+      await syncPrecons(source);
+    } catch (err) {
+      logger.error('[precons] schedule tick failed:', err);
+    }
+  };
+  void tick();
+  setInterval(() => void tick(), TWENTY_FOUR_HOURS);
+}
+
+/**
  * Kicks off the commander-popularity aggregate rollup (social program W4) —
  * line-for-line mirror of scheduleComboIngest above. Skips when a successful
  * run finished within the last 20h so a redeploy doesn't immediately
@@ -1418,6 +1439,13 @@ async function start() {
     // Comprehensive Rules for the AI rules Q&A (E261) — ~1MB text, quarterly
     // updates, skipped entirely when the published URL hasn't moved.
     afterBoot('rules ingest', 45_000, scheduleRulesIngest);
+  }
+
+  if (process.env.PRECON_SEED_DISABLED !== '1') {
+    // After the Scryfall bulk ingest has had its head start: the first run
+    // resolves a few hundred decks, which should hit the local card cache
+    // rather than send hundreds of live Scryfall requests.
+    afterBoot('precon seed', 300_000, schedulePreconSeed);
   }
 
   if (process.env.RETENTION_DISABLED !== '1') {

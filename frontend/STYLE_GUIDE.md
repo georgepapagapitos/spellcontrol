@@ -588,6 +588,15 @@ until more than one person is behind it. Views are anonymous, so they are
 counted once per viewer per day and may be shown or sorted on by the user, but
 never feed a curated list.
 
+**Content the app seeds lives on its own shelf and says so.** The precons are
+published by one house account (`users.is_official`), never by invented
+players. They get their own rail (`PreconsRail`) and their own view
+(`/decks/discover?source=precons`), and stay out of the community grid, every
+ranking, commander stats, user search and friend requests. On Discover the rail
+sits under the community grid, because players' decks are that page's content.
+A precon's byline names what it is ("Commander precon · Listed by SpellControl")
+rather than crediting the house account as the deck's builder.
+
 **A filtered-to-zero empty state's own "reset" button must not repeat a
 nearby `SearchPill`'s built-in label.** `SearchPill` already renders its own
 inline `×` labelled "Clear search" whenever its box has text — exactly the

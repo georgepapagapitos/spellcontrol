@@ -175,6 +175,7 @@ function PublicDeckPageInner({ slug }: { slug: string }) {
         deckId: payload.deck.id,
         viewCount: payload.viewCount,
         copyCount: payload.copyCount,
+        official: payload.official,
       }}
       ownership={lens?.perCard}
     />

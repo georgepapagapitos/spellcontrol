@@ -119,7 +119,8 @@ export async function createTestEnv(): Promise<TestEnv> {
       notify_email BOOLEAN NOT NULL DEFAULT true,
       username_changed_at BIGINT,
       collection_visibility TEXT DEFAULT 'public',
-      sessions_valid_after BIGINT
+      sessions_valid_after BIGINT,
+      is_official BOOLEAN NOT NULL DEFAULT false
     );
     CREATE UNIQUE INDEX users_email_idx ON users(email);
     CREATE TABLE username_history (

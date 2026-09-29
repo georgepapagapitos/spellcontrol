@@ -43,6 +43,12 @@ vi.mock('react-router-dom', async (importOriginal) => {
 // Hermetic art resolution for the hero + both live rails' tiles.
 vi.mock('../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
+// The precons rail has its own test (PreconsRail.test.tsx); stubbed so this
+// file's listing mock only answers the community rails.
+vi.mock('../components/PreconsRail', () => ({
+  PreconsRail: () => <div data-testid="precons-rail" />,
+}));
+
 const { mockListDiscoverDecks } = vi.hoisted(() => ({ mockListDiscoverDecks: vi.fn() }));
 // Named-export-complete: DiscoverDeckTile (mounted by FreshDecksRail) also
 // pulls LikeButton/BookmarkButton, which import the like/bookmark client fns
@@ -186,6 +192,15 @@ describe('WelcomePage hero', () => {
 // ============================================================
 // Fresh public decks rail — ghost-town gating
 // ============================================================
+
+describe('WelcomePage precons rail', () => {
+  it('shows the precons even when there are too few community decks for their rails', async () => {
+    mockListDiscoverDecks.mockResolvedValue({ decks: [], page: 1, hasMore: false });
+    renderWelcome();
+    expect(await screen.findByTestId('precons-rail')).toBeTruthy();
+    expect(screen.queryByText('Fresh public decks')).toBeNull();
+  });
+});
 
 describe('WelcomePage fresh-decks rail', () => {
   it('renders the rail and its tiles once >= 3 fresh decks return', async () => {

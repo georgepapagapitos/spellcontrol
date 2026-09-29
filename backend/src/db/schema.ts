@@ -101,6 +101,11 @@ export const users = pgTable('users', {
    * `revokeSessions`). NULL = never revoked.
    */
   sessionsValidAfter: bigint('sessions_valid_after', { mode: 'number' }),
+  /**
+   * The house account the app publishes precons as (precons/official-account.ts).
+   * Its decks stay out of every ranking that counts people.
+   */
+  isOfficial: boolean('is_official').notNull().default(false),
 });
 
 /**

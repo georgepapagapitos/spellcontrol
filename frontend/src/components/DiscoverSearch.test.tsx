@@ -78,7 +78,7 @@ describe('DiscoverSearch', () => {
     const input = getInput();
     fireEvent.focus(input);
     fireEvent.change(input, { target: { value: 'zzz' } });
-    await waitFor(() => expect(mockSearchCommanders).toHaveBeenCalledWith('zzz'));
+    await waitFor(() => expect(mockSearchCommanders).toHaveBeenCalledWith('zzz', 'community'));
     expect(screen.queryByRole('listbox')).toBeNull();
     fireEvent.keyDown(input, { key: 'ArrowDown' });
     expect(input.getAttribute('aria-activedescendant')).toBeNull();

@@ -231,6 +231,22 @@ describe('SharedDeckSurface', () => {
     expect(screen.getByRole('button', { name: 'Report this deck' })).toBeTruthy();
   });
 
+  it('credits a precon to what it is, not to the house account as its builder', () => {
+    render(
+      <MemoryRouter>
+        <SharedDeckSurface
+          data={makeDeck({ ownerUsername: 'spellcontrol', ownerDisplayName: 'SpellControl' })}
+          sourceKey="s"
+          publicMeta={{ slug: 's', deckId: 'deck-1', viewCount: 0, copyCount: 0, official: true }}
+        />
+      </MemoryRouter>
+    );
+    const byline = screen.getByRole('link', { name: 'Listed by SpellControl: view profile' });
+    expect(byline.textContent).toBe('Commander precon · Listed by SpellControl');
+    expect(byline.getAttribute('href')).toBe('/u/spellcontrol');
+    expect(screen.queryByText(/Shared by/)).toBeNull();
+  });
+
   it('wears the same hero the owner\u2019s deck page does', () => {
     // The visitor used to get a plain caption + title block while the owner got
     // the art-backed hero with the format/commander/count meta line \u2014 the same

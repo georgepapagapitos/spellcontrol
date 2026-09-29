@@ -411,7 +411,8 @@ describe('runRollup (db)', () => {
       CREATE TABLE users (
         id TEXT PRIMARY KEY,
         username TEXT NOT NULL UNIQUE,
-        created_at BIGINT NOT NULL
+        created_at BIGINT NOT NULL,
+        is_official BOOLEAN NOT NULL DEFAULT false
       );
       CREATE TABLE user_decks (
         user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -527,5 +528,24 @@ describe('runRollup (db)', () => {
     await runRollup();
     const stats = await pool.query("SELECT * FROM commander_stats WHERE commander_key = 'cmd-z'");
     expect(stats.rows).toHaveLength(0);
+  });
+
+  it("leaves the house account's precons out of commander stats", async () => {
+    await pool.query(
+      `INSERT INTO users (id, username, created_at, is_official) VALUES ('house', 'house', $1, true)`,
+      [Date.now()]
+    );
+    for (let i = 0; i < 3; i++) {
+      await seedPublishedDeck({
+        userId: 'house',
+        deckId: `precon-${i}`,
+        commanderOracleId: 'cmd-x',
+      });
+    }
+    await runRollup();
+    const stats = await pool.query(
+      "SELECT deck_count FROM commander_stats WHERE commander_key = 'cmd-x'"
+    );
+    expect(stats.rows[0].deck_count).toBe(5);
   });
 });

@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import { requireAuth, normalizeUsername, resolveDisplayLabel } from '../auth';
 import { getDb, getPool } from '../db';
 import { users } from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { getScryfallCache } from '../scryfall-cache';
 import { areFriends, listFriendIds } from '../friends/relations';
 import { summarizeCardUse } from '../friends/card-use';
@@ -288,10 +288,12 @@ friendsRouter.post(
     const db = getDb();
 
     // Look up the target user
+    // The house account can't be befriended; it isn't a person. Same 404 as
+    // an unknown name, since user search doesn't list it either.
     const targetRows = await db
       .select({ id: users.id, username: users.username, displayName: users.displayName })
       .from(users)
-      .where(eq(users.username, username))
+      .where(and(eq(users.username, username), eq(users.isOfficial, false)))
       .limit(1);
 
     if (targetRows.length === 0) {
