@@ -109,9 +109,12 @@ export function DeckCurvePhases({
   const [groupSheet, setGroupSheet] = useState<{ title: string; tally: CardTally[] } | null>(null);
 
   // Open the grouped overview sheet for a set of cards (already a CardTally[]).
-  const showTally = (tally: CardTally[], title: string) => {
+  // `keepOrder` keeps the caller's order (the by-colour column groups by colour).
+  const showTally = (tally: CardTally[], title: string, keepOrder = false) => {
     if (tally.length === 0) return;
-    const sorted = [...tally].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+    const sorted = keepOrder
+      ? tally
+      : [...tally].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
     setGroupSheet({ title, tally: sorted });
   };
 
@@ -250,47 +253,53 @@ export function DeckCurvePhases({
                 {effectiveMode === 'color' && bucket ? (
                   // Stacked bar. DOM order W..colorless; CSS column-reverse puts
                   // W at the baseline so the stack reads bottom→top W,U,B,R,G,
-                  // gold, colorless. Each color segment is independently tappable.
-                  <div className="deck-curve-phases-bar-stack" style={{ height: `${heightPct}%` }}>
-                    {SEGMENT_ORDER.filter((k) => (bucket[k] ?? 0) > 0).map(
-                      (segKey, idx, visible) => {
-                        const segCount = bucket[segKey] ?? 0;
-                        const isTop = idx === visible.length - 1;
-                        const isBottom = idx === 0;
-                        const segCards = interactive
-                          ? cards.filter((c) => categorize(c) === segKey)
-                          : [];
-                        const style = {
-                          flexGrow: segCount,
-                          background: segmentColor(segKey),
-                        } as React.CSSProperties;
-                        const cls = `deck-curve-phases-seg${
-                          isTop ? ' deck-curve-phases-seg-top' : ''
-                        }${isBottom ? ' deck-curve-phases-seg-bottom' : ''}`;
-                        const aria = `Show the ${segCount} ${SEGMENT_LABEL[segKey].toLowerCase()} ${
-                          segCount === 1 ? 'card' : 'cards'
-                        } at mana value ${slot.label}`;
-
-                        return segCards.length > 0 ? (
-                          <button
+                  // gold, colorless. The segments are DATA only: a 1-card colour
+                  // is a 6px sliver, and stacked slivers cannot each be a 24px
+                  // target (WCAG 2.5.8). The whole column is the one target (the
+                  // same overlay as count mode) and opens the sheet of every card
+                  // at this mana value, already grouped by colour.
+                  <>
+                    <div
+                      className="deck-curve-phases-bar-stack"
+                      style={{ height: `${heightPct}%` }}
+                    >
+                      {SEGMENT_ORDER.filter((k) => (bucket[k] ?? 0) > 0).map(
+                        (segKey, idx, visible) => (
+                          <span
                             key={segKey}
-                            type="button"
-                            className={`${cls} deck-curve-phases-seg-btn`}
-                            style={style}
-                            onClick={() =>
-                              showTally(
-                                segCards,
-                                `${SEGMENT_LABEL[segKey]} · ${slot.label} mana value`
-                              )
+                            className={`deck-curve-phases-seg${
+                              idx === visible.length - 1 ? ' deck-curve-phases-seg-top' : ''
+                            }${idx === 0 ? ' deck-curve-phases-seg-bottom' : ''}`}
+                            style={
+                              {
+                                flexGrow: bucket[segKey] ?? 0,
+                                background: segmentColor(segKey),
+                              } as React.CSSProperties
                             }
-                            aria-label={aria}
+                            aria-hidden="true"
                           />
-                        ) : (
-                          <span key={segKey} className={cls} style={style} aria-hidden="true" />
-                        );
-                      }
+                        )
+                      )}
+                    </div>
+                    {interactive && (
+                      <button
+                        type="button"
+                        className="deck-curve-phases-bar-hit"
+                        onClick={() =>
+                          showTally(
+                            [...cards].sort(
+                              (x, y) =>
+                                SEGMENT_ORDER.indexOf(categorize(x)) -
+                                SEGMENT_ORDER.indexOf(categorize(y))
+                            ),
+                            `${slot.label} mana value`,
+                            true
+                          )
+                        }
+                        aria-label={`Show the ${slot.count} cards at mana value ${slot.label}`}
+                      />
                     )}
-                  </div>
+                  </>
                 ) : interactive ? (
                   /* The bar renders the DATA; a transparent overlay covering the
                      whole track is the TARGET. They used to be the same element,
@@ -379,6 +388,7 @@ export function DeckCurvePhases({
               <span
                 className={`deck-curve-phases-grade deck-curve-phases-grade-${phase.grade.replace(/ /g, '-')}`}
                 aria-label={`${phase.label}: ${phase.grade}`}
+                role="img"
               >
                 {phase.grade}
               </span>

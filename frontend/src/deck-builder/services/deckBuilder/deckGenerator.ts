@@ -124,6 +124,7 @@ import { sameType } from '@/lib/card-matching';
 import { resolveMultiCopyCards } from './multiCopy';
 import { generateLands, CHANNEL_LAND_BOOST, MDFC_LAND_BOOST } from './landGenerator';
 import { resolveManaPhilosophy } from './manaPhilosophy';
+import { assertCommandersEligible, commanderPreviewNote } from './commanderEligibility';
 import {
   pickEdhrecTypePass,
   bumpRoleAndSubtypeCounts,
@@ -1159,6 +1160,19 @@ export function hasExilePayoffIdentity(card: ScryfallCard): boolean {
  * printing-upgrade and fallback fills in lockstep with what was actually fetched.
  */
 export async function generateDeck(context: GenerationContext): Promise<GeneratedDeck> {
+  // E530: an illegal commander refuses to build, naming why, before any fetch.
+  // A previewed one builds, and the deck says it isn't legal until it releases.
+  assertCommandersEligible(context);
+  const deck = await generateDeckForMode(context);
+  const previewNote = commanderPreviewNote(
+    context.commander,
+    context.partnerCommander,
+    context.customization.mtgFormat
+  );
+  return previewNote ? { ...deck, commanderPreviewNote: previewNote } : deck;
+}
+
+async function generateDeckForMode(context: GenerationContext): Promise<GeneratedDeck> {
   const mode = context.customization.generationMode ?? 'edhrec';
   // PDH always sources from the Scryfall alt-pool (EDHREC has no data for
   // non-legendary uncommon commanders), so it takes the force-live path even
@@ -4644,7 +4658,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // categories.lands, drifting from the per-card role fields it's supposed to
   // mirror). `currentRoleCounts` itself stays untouched — it's still the live
   // counter driving in-flight picking/fixup decisions during generation.
-  const finalRoleCounts = computeRoleCounts(nonLandCards).roleCounts;
+  const finalRoleRecount = computeRoleCounts(nonLandCards);
+  const finalRoleCounts = finalRoleRecount.roleCounts;
   const stats = await finalStatsPhase(state, saltIndex);
   const { bracketEstimation, deckGrade } = computeGradeAndBracket({
     allCardNames: allDeckCardNames,
@@ -5013,48 +5028,19 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     roleCounts: roleTargets ? { ...finalRoleCounts } : undefined,
     roleTargets: roleTargets ? { ...roleTargets } : undefined,
     roleTargetBreakdown,
+    // E528: the subtype breakdowns come from the same recount as roleCounts
+    // (computeRoleCounts over the nonland buckets), the one the deck page
+    // runs once the tagger loads. They used to tally the pick-time
+    // card.*Subtype stamps across every category, lands included, so the
+    // stored numbers (card-advantage 22 on Krenko) jumped to the live ones
+    // (5) the moment the tagger arrived.
     ...(roleTargets
-      ? (() => {
-          const rampSub: Record<string, number> = {
-            'mana-producer': 0,
-            'mana-rock': 0,
-            'cost-reducer': 0,
-            ramp: 0,
-          };
-          const removalSub: Record<string, number> = {
-            counterspell: 0,
-            bounce: 0,
-            'spot-removal': 0,
-            removal: 0,
-          };
-          const boardwipeSub: Record<string, number> = { 'bounce-wipe': 0, boardwipe: 0 };
-          const cardDrawSub: Record<string, number> = {
-            tutor: 0,
-            wheel: 0,
-            cantrip: 0,
-            'card-draw': 0,
-            'card-advantage': 0,
-          };
-          for (const cards of Object.values(categories)) {
-            for (const card of cards) {
-              if (card.rampSubtype)
-                rampSub[card.rampSubtype] = (rampSub[card.rampSubtype] || 0) + 1;
-              if (card.removalSubtype)
-                removalSub[card.removalSubtype] = (removalSub[card.removalSubtype] || 0) + 1;
-              if (card.boardwipeSubtype)
-                boardwipeSub[card.boardwipeSubtype] =
-                  (boardwipeSub[card.boardwipeSubtype] || 0) + 1;
-              if (card.cardDrawSubtype)
-                cardDrawSub[card.cardDrawSubtype] = (cardDrawSub[card.cardDrawSubtype] || 0) + 1;
-            }
-          }
-          return {
-            rampSubtypeCounts: rampSub,
-            removalSubtypeCounts: removalSub,
-            boardwipeSubtypeCounts: boardwipeSub,
-            cardDrawSubtypeCounts: cardDrawSub,
-          };
-        })()
+      ? {
+          rampSubtypeCounts: finalRoleRecount.rampSubtypeCounts,
+          removalSubtypeCounts: finalRoleRecount.removalSubtypeCounts,
+          boardwipeSubtypeCounts: finalRoleRecount.boardwipeSubtypeCounts,
+          cardDrawSubtypeCounts: finalRoleRecount.cardDrawSubtypeCounts,
+        }
       : {}),
     swapCandidates,
     deckScore,

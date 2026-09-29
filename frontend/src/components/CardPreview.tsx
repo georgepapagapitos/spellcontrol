@@ -720,7 +720,7 @@ export function CardPreview({
         {words && <span className="card-preview-context-words">{words}</span>}
         {pills}
         {qty > 1 && (
-          <span className="card-preview-qty" aria-label={`${qty} copies`}>
+          <span className="card-preview-qty" aria-label={`${qty} copies`} role="img">
             <span aria-hidden>×</span>
             {qty}
           </span>

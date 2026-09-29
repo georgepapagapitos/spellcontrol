@@ -49,7 +49,7 @@ export function conditionLabel(condition: Condition): string {
 export function ConditionChip({ condition }: { condition: Condition }) {
   const label = conditionLabel(condition);
   return (
-    <span className="card-list-condition" title={label} aria-label={label}>
+    <span className="card-list-condition" title={label} aria-label={label} role="img">
       {conditionShort(condition)}
     </span>
   );
@@ -197,7 +197,7 @@ export function CardRow({
       : undefined;
     const money = (amount: number) =>
       pricePending ? (
-        <span className="collection-list-price-pending" aria-label="Price updating">
+        <span className="collection-list-price-pending" aria-label="Price updating" role="img">
           —
         </span>
       ) : (
@@ -379,7 +379,11 @@ export function CardRow({
             title={pricePending ? 'Updating price…' : priceTitle}
           >
             {pricePending ? (
-              <span className="collection-list-price-pending" aria-label="Price updating">
+              <span
+                className="collection-list-price-pending"
+                aria-label="Price updating"
+                role="img"
+              >
                 —
               </span>
             ) : (

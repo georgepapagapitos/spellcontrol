@@ -132,6 +132,7 @@ function OwnerBadge({
       style={style}
       title={label}
       aria-label={label}
+      role="img"
     >
       <Icon width={11} height={11} strokeWidth={2} aria-hidden />
       {multi && (

@@ -224,7 +224,7 @@ export function CollectionPage() {
             ]}
             meta={
               <>
-                <span aria-label="Collection totals">
+                <span aria-label="Collection totals" role="group">
                   {displayCardCount.toLocaleString()} {collectionCardCount === 1 ? 'card' : 'cards'}{' '}
                   ·{' '}
                   {(isRefreshingPrices && priceRefreshProgress) ||

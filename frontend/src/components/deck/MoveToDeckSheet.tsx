@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { type JSX, useId, useState } from 'react';
 import { X, ChevronLeft } from 'lucide-react';
 import './MoveToDeckSheet.css';
@@ -79,7 +80,7 @@ export function MoveToDeckSheet({
 
   const confirmDisabled = outcome === 'replace' && !replacement;
 
-  return (
+  return createPortal(
     <div
       className="card-picker-root move-deck-root"
       onClick={(e) => {
@@ -195,6 +196,7 @@ export function MoveToDeckSheet({
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

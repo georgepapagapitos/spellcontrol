@@ -37,9 +37,10 @@
 // (macOS app bundles, Linux /usr/bin). puppeteer-core drives Chrome over CDP
 // and Firefox over WebDriver BiDi; no browser download.
 import { mkdir, writeFile } from 'node:fs/promises';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import puppeteer from 'puppeteer-core';
+import { TIERS, executable } from './journey-browser.mjs';
 
 // Expected sample-pack card count, read straight from the source constant
 // (not re-typed here) so it can't drift from lib/samples.ts.
@@ -63,33 +64,6 @@ const SETTLE_MS = Number(opt('--settle', 1500));
 // backend's ADMIN_USERNAMES so the walk also covers /admin (admin-only route);
 // re-runs against the same DB sign in instead of registering.
 const USERNAME = opt('--username', null);
-
-const TIERS = {
-  phone: { width: 390, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
-  desktop: { width: 1440, height: 900, deviceScaleFactor: 1 },
-};
-
-function executable() {
-  const env = BROWSER === 'firefox' ? process.env.JOURNEY_FIREFOX : process.env.JOURNEY_CHROME;
-  if (env) return env;
-  const candidates =
-    BROWSER === 'firefox'
-      ? [
-          '/Applications/Firefox.app/Contents/MacOS/firefox',
-          '/usr/bin/firefox',
-          '/snap/bin/firefox',
-        ]
-      : [
-          '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-          '/usr/bin/google-chrome',
-          '/usr/bin/google-chrome-stable',
-          '/usr/bin/chromium-browser',
-          '/usr/bin/chromium',
-        ];
-  const found = candidates.find((c) => existsSync(c));
-  if (!found) throw new Error(`no ${BROWSER} binary found; set JOURNEY_${BROWSER.toUpperCase()}`);
-  return found;
-}
 
 /**
  * Console noise that is not a defect of ours: the browser's own "Failed to
@@ -462,6 +436,12 @@ const TOUCHING_BY_DESIGN = new Set([
   'div.playtest-board › div.playtest-trackers | div.playtest-main',
   'div.playtest-board › div.playtest-main | div.playtest-hand',
 ]);
+/** Parents whose children are a divided stack: each child carries its own
+ *  padding and a hairline top border, so they meet at the divider by design. */
+const TOUCHING_BY_DESIGN_PARENTS = [
+  // The card-preview sheet's sections (footer-card-preview.css .card-preview-sec).
+  'div.card-preview-panel-inner',
+];
 /**
  * The primary control rows, which must stay ONE row at phone width.
  *
@@ -620,8 +600,11 @@ function undersizedTouchTargets() {
  * them and the nightly said nothing.
  *
  * Only real overlap counts: a control nested inside another interactive
- * element (a row that is itself a button, a label around its input) shares
- * space by design, and is skipped.
+ * element (a label around its input) shares space by design, and is skipped.
+ * So is a stretched cover: a tile or row's primary button laid absolutely over
+ * its whole container, with the container's other controls stacked above it
+ * (#2553, which replaced rows that were themselves buttons). The controls on
+ * top are meant to win their own area; the cover keeps the rest.
  */
 function overlappingTouchTargets() {
   const sel = 'button,a[href],input,select,textarea,[role="button"],[role="tab"],[role="switch"]';
@@ -644,6 +627,20 @@ function overlappingTouchTargets() {
     return false;
   };
   const interactive = (el) => !!el && !!el.closest && !!el.closest(sel);
+  /** `el` fills its parent as an absolute cover, and `other` sits in that parent. */
+  const layeredOver = (el, other) => {
+    const parent = el.parentElement;
+    if (!parent || !parent.contains(other)) return false;
+    if (getComputedStyle(el).position !== 'absolute') return false;
+    const a = el.getBoundingClientRect();
+    const b = parent.getBoundingClientRect();
+    return (
+      Math.abs(a.left - b.left) <= 1 &&
+      Math.abs(a.top - b.top) <= 1 &&
+      Math.abs(a.right - b.right) <= 1 &&
+      Math.abs(a.bottom - b.bottom) <= 1
+    );
+  };
   const key = (el) => {
     const first = String(el.className || '')
       .trim()
@@ -679,6 +676,7 @@ function overlappingTouchTargets() {
       if (!interactive(hit) || !other || other === el) continue;
       if (other.contains(el) || el.contains(other)) continue;
       if (pinned(other)) continue;
+      if (layeredOver(el, other)) continue;
       const line = `${key(el)} loses its ${edge} edge to ${key(other)}`;
       if (seen.has(line)) continue;
       seen.add(line);
@@ -765,7 +763,7 @@ async function main() {
   await mkdir(OUT, { recursive: true });
   const browser = await puppeteer.launch({
     browser: BROWSER,
-    executablePath: executable(),
+    executablePath: executable(BROWSER),
     headless: true,
     protocolTimeout: 300_000,
     args:
@@ -831,7 +829,11 @@ async function main() {
         const touching = [
           ...new Map(
             (await page.evaluate(touchingSiblings))
-              .filter((t) => !TOUCHING_BY_DESIGN.has(t.key))
+              .filter(
+                (t) =>
+                  !TOUCHING_BY_DESIGN.has(t.key) &&
+                  !TOUCHING_BY_DESIGN_PARENTS.some((p) => t.key.startsWith(`${p} › `))
+              )
               .map((t) => [`${t.key} — ${t.detail}`, t])
           ).keys(),
         ];
@@ -1079,7 +1081,15 @@ async function main() {
         // sheet open is what puts it through the axe theme sweep. A real
         // mouse click on a non-commander row, then the handle steps it to
         // full so the lower sections (Swap this card) are laid out too.
+        // "View my deck" closes the build report with an exit animation; a tap
+        // before it is gone lands on the sheet, not the row.
+        await page
+          .waitForFunction(() => !document.querySelector('.build-report-sheet'), {
+            timeout: 15_000,
+          })
+          .catch(() => {});
         await page.waitForSelector('.deck-section-rows .deck-row-name', { timeout: 30_000 });
+        await sleep(SETTLE_MS);
         const rowAt = await page.evaluate(() => {
           const lists = [...document.querySelectorAll('.deck-section-rows')];
           const el = (lists[1] ?? lists[0])?.querySelector('.deck-row-name');
@@ -1088,7 +1098,10 @@ async function main() {
           const r = el.getBoundingClientRect();
           return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
         });
-        if (rowAt) await page.mouse.click(rowAt.x, rowAt.y);
+        // A phone taps: a mouse click in a touch-emulated page is not what
+        // any phone user sends.
+        if (rowAt && tierName === 'phone') await page.touchscreen.tap(rowAt.x, rowAt.y);
+        else if (rowAt) await page.mouse.click(rowAt.x, rowAt.y);
         const opened = await page
           .waitForSelector('.card-preview-panel', { timeout: 15_000 })
           .then(() => true)
@@ -1236,11 +1249,14 @@ async function main() {
           // rule). Before the redesign the close button covered the mana cost
           // on phones and a landscape phone got a 100 × 139 card.
           await assertPage(rec, 'card preview geometry', async () => {
-            await page.evaluate(() =>
-              [...document.querySelectorAll('.app-main [role=button]')]
-                .find((e) => e.querySelector('img'))
-                ?.click()
-            );
+            // The tile's primary button opens the card (#2553 moved it off
+            // the tile, which was itself a role=button); either takes the click.
+            await page.evaluate(() => {
+              const tile = [...document.querySelectorAll('.app-main .collection-grid-item')].find(
+                (e) => e.querySelector('img')
+              );
+              (tile?.querySelector('.collection-grid-open') ?? tile)?.click();
+            });
             await page.waitForSelector('.card-preview-slide.is-active .card-preview-image-frame', {
               timeout: 15_000,
             });

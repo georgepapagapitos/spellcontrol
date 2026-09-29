@@ -53,6 +53,8 @@
   border: 1px solid var(--accent);
   border-radius: 999px;
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   color: var(--text-primary);
   font-size: var(--text-xs);
   cursor: pointer;

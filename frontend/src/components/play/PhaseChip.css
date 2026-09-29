@@ -52,6 +52,8 @@ button.ogv-phase-chip--tappable {
 
 button.ogv-phase-chip--tappable:not(:disabled):active {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
 }
 
 button.ogv-phase-chip--tappable:disabled {

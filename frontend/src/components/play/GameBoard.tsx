@@ -1175,11 +1175,13 @@ function PlayerPanel({
               className="player-panel-tapzone is-top"
               {...tapHandlers(1)}
               aria-label={stepLabel(1)}
+              aria-hidden="true"
             />
             <div
               className="player-panel-tapzone is-bottom"
               {...tapHandlers(-1)}
               aria-label={stepLabel(-1)}
+              aria-hidden="true"
             />
           </>
         ) : (
@@ -1188,11 +1190,13 @@ function PlayerPanel({
               className="player-panel-tapzone is-left"
               {...tapHandlers(-1)}
               aria-label={stepLabel(-1)}
+              aria-hidden="true"
             />
             <div
               className="player-panel-tapzone is-right"
               {...tapHandlers(1)}
               aria-label={stepLabel(1)}
+              aria-hidden="true"
             />
           </>
         )}
@@ -1218,7 +1222,7 @@ function PlayerPanel({
                   local board seat 0 is "host" only by construction, and the ★
                   read as a mark on one player. */}
               {player.isHost && game.mode !== 'local' && (
-                <span className="player-panel-host" aria-label="host">
+                <span className="player-panel-host" aria-label="host" role="img">
                   ★
                 </span>
               )}
@@ -1600,8 +1604,18 @@ function CmdSplitHalf({
       <div className="pp-cmd-half-fill" aria-hidden="true" />
       {/* Own zones, not the panel's: a panel-wide zone would swallow both
           halves and send every tap to the primary commander. */}
-      <div className="pp-cmd-half-zone is-minus" {...handlers(-1)} aria-label={stepLabel(-1)} />
-      <div className="pp-cmd-half-zone is-plus" {...handlers(1)} aria-label={stepLabel(1)} />
+      <div
+        className="pp-cmd-half-zone is-minus"
+        {...handlers(-1)}
+        aria-label={stepLabel(-1)}
+        aria-hidden="true"
+      />
+      <div
+        className="pp-cmd-half-zone is-plus"
+        {...handlers(1)}
+        aria-label={stepLabel(1)}
+        aria-hidden="true"
+      />
       <span className="pp-cmd-half-name" title={name}>
         {name}
       </span>

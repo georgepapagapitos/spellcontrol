@@ -71,6 +71,18 @@ export interface TradeResolvedActivityItem {
   occurredAt: number;
 }
 
+/** A brewer the viewer follows published a deck. Its own bucket, never in
+ *  `recent`: it is feed content and must not move the nav badge. */
+export interface FollowedDeckPublishedActivityItem {
+  type: 'followed_deck_published';
+  id: string;
+  slug: string;
+  deckName: string;
+  brewerUsername: string;
+  brewerDisplayName: string | null;
+  occurredAt: number;
+}
+
 export type RecentActivityItem =
   | DirectShareActivityItem
   | FeedbackActivityItem
@@ -88,6 +100,9 @@ export interface ActivityResponse {
   actionRequired: ActionRequiredItem[];
   /** Shares, feedback, likes, and answered trades, merged newest-first. */
   recent: RecentActivityItem[];
+  /** Decks published in the last 7 days by brewers the viewer follows, newest
+   *  first. Never counted in the nav badge. Absent from an older backend. */
+  following?: FollowedDeckPublishedActivityItem[];
 }
 
 async function readError(res: Response, fallback: string): Promise<string> {

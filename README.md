@@ -204,7 +204,7 @@ The online Commander table (`backend/src/routes/games.ts`, `frontend/src/store/p
 
 All `/api/*` endpoints sit behind helmet and per-endpoint rate limiters.
 
-The table below documents the collection-import, auth, and sync core. The rest of the surface is mounted per domain in `backend/src/server.ts` — one router each for `activity`, `admin`, `aggregates`, `ai`, `combos`, `discover`, `edhrec`, `feedback`, `friends`, `game-nights`, `game-results`, `games`, `offline`, `pods`, `public`, `publications`, `reports`, `scanner`, `shares`, `tonight-trades`, `trades`, and `users` — with routes defined in the matching `backend/src/<domain>/` module.
+The table below documents the collection-import, auth, and sync core. The rest of the surface is mounted per domain in `backend/src/server.ts` — one router each for `activity`, `admin`, `aggregates`, `ai`, `brewers` (mounted at `/api/public/brewers`), `combos`, `discover`, `edhrec`, `feedback`, `follows`, `friends`, `game-nights`, `game-results`, `games`, `offline`, `pods`, `public`, `publications`, `reports`, `scanner`, `shares`, `tonight-trades`, `trades`, and `users` — with routes defined in the matching `backend/src/<domain>/` module.
 
 | Method   | Path                         | Purpose                                                                                             |
 | -------- | ---------------------------- | --------------------------------------------------------------------------------------------------- |

@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { Check } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useCollectionStore } from '../store/collection';
@@ -78,7 +79,7 @@ export function AddToBinderSheet({ card, currentBinderId, onClose }: Props) {
   const headerLabel = currentBinderId ? 'Moving' : 'Adding';
   const dialogLabel = currentBinderId ? 'Move to binder' : 'Add to binder';
 
-  return (
+  return createPortal(
     <div
       className="card-picker-root"
       onClick={(e) => {
@@ -151,7 +152,11 @@ export function AddToBinderSheet({ card, currentBinderId, onClose }: Props) {
                       {currentBinderId ? 'Moved' : 'Added'}
                     </span>
                   ) : isCurrent ? (
-                    <span className="add-to-binder-current" aria-label="Already in this binder">
+                    <span
+                      className="add-to-binder-current"
+                      aria-label="Already in this binder"
+                      role="img"
+                    >
                       Already here
                     </span>
                   ) : (
@@ -176,6 +181,7 @@ export function AddToBinderSheet({ card, currentBinderId, onClose }: Props) {
           <Button onClick={() => beginClose()}>Cancel</Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

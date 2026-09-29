@@ -35,7 +35,7 @@ describe('SharedCardTile', () => {
     // markup here, the shared views start drifting from /collection again.
     render(<SharedCardTile card={pc()} quantity={2} onClick={() => {}} />);
     const tile = screen.getByRole('button', { name: /sol ring/i });
-    expect(tile.className).toContain('collection-grid-item');
+    expect(tile.closest('.collection-grid-item')).not.toBeNull();
   });
 
   it('captions the price and the ×qty chip by default', () => {

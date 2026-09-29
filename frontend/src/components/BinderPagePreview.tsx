@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { Boxes, Layers, X } from 'lucide-react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
@@ -178,7 +179,7 @@ export function BinderPagePreview({
   const where = currentVolume ? `${currentVolume} · ${pagePos}` : pagePos;
   const currentLabel = pageLabels[selected] ?? '';
 
-  return (
+  return createPortal(
     <>
       <div
         className={`binder-pages-backdrop${isClosing ? ' is-closing' : ''}`}
@@ -303,7 +304,8 @@ export function BinderPagePreview({
           }
         />
       )}
-    </>
+    </>,
+    document.body
   );
 }
 

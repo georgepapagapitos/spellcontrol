@@ -61,6 +61,8 @@
     var(--accent-light) 50%,
     var(--surface) 70%
   );
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   background-size: 200% 100%;
   animation: skeleton-shimmer 1.4s ease-in-out infinite;
 }

@@ -40,12 +40,16 @@
 @media (hover: hover) and (pointer: fine) {
   .playtest-reaction-picker__emote:hover {
     background: var(--accent-light);
+    --text-muted: var(--text-muted-tint);
+    --text-secondary: var(--text-secondary-tint);
     border-color: var(--accent);
   }
 }
 
 .playtest-reaction-picker__emote:active {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
 }
 
 @keyframes playtest-reaction-picker-in {

@@ -282,7 +282,7 @@ function FilterGroupCard({
             you change a condition to watch this number move. */}
         <span
           className="filter-group-count"
-          aria-live="polite"
+          role="status"
           aria-label={
             badgeCount === null
               ? `Rule ${index + 1} has no conditions yet`

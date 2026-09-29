@@ -29,6 +29,8 @@ import { publicRouter } from './routes/public';
 import { reportsRouter } from './routes/reports';
 import { discoverRouter } from './routes/discover';
 import { activityRouter } from './routes/activity';
+import { followsRouter } from './routes/follows';
+import { brewersRouter } from './routes/brewers';
 import { aiRouter } from './routes/ai';
 import { eventsRouter } from './routes/events';
 import { edhrecRouter } from './routes/edhrec';
@@ -121,7 +123,9 @@ export async function createTestEnv(): Promise<TestEnv> {
       username_changed_at BIGINT,
       collection_visibility TEXT DEFAULT 'public',
       sessions_valid_after BIGINT,
-      is_official BOOLEAN NOT NULL DEFAULT false
+      is_official BOOLEAN NOT NULL DEFAULT false,
+      pinned_deck_slug TEXT,
+      show_game_record BOOLEAN NOT NULL DEFAULT false
     );
     CREATE UNIQUE INDEX users_email_idx ON users(email);
     CREATE TABLE username_history (
@@ -521,6 +525,14 @@ export async function createTestEnv(): Promise<TestEnv> {
       ON deck_publications (like_count DESC) WHERE unpublished_at IS NULL;
     CREATE INDEX deck_publications_commander_prefix_idx
       ON deck_publications (lower(commander_name) text_pattern_ops) WHERE unpublished_at IS NULL;
+    CREATE TABLE user_follows (
+      follower_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      followee_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at BIGINT NOT NULL,
+      PRIMARY KEY (follower_id, followee_id),
+      CHECK (follower_id <> followee_id)
+    );
+    CREATE INDEX user_follows_followee_idx ON user_follows (followee_id, created_at DESC);
     CREATE TABLE deck_likes (
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       slug TEXT NOT NULL,
@@ -644,7 +656,9 @@ export async function createTestEnv(): Promise<TestEnv> {
   app.use('/api/tonight-trades', tonightTradesRouter);
   app.use('/api/trades', tradesRouter);
   app.use('/api/publications', publicationsRouter);
+  app.use('/api/public/brewers', brewersRouter);
   app.use('/api/public', publicRouter);
+  app.use('/api/follows', followsRouter);
   app.use('/api/reports', reportsRouter);
   app.use('/api/discover', discoverRouter);
   app.use('/api/activity', activityRouter);

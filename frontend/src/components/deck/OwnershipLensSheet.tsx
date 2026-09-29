@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useMemo } from 'react';
 import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
 import { useSheetExit } from '../../lib/use-sheet-exit';
@@ -67,7 +68,7 @@ export function OwnershipLensSheet({ id, lens, missingCardPrices, onClose }: Pro
   const hasMissing = lens.missingCardNames.length > 0;
   const hasOwnedSummary = binderRows.length > 0 || uncategorizedCount > 0;
 
-  return (
+  return createPortal(
     <div
       className="card-picker-root"
       role="presentation"
@@ -143,6 +144,7 @@ export function OwnershipLensSheet({ id, lens, missingCardPrices, onClose }: Pro
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

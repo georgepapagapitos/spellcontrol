@@ -42,6 +42,8 @@
 
 .playtest-dice-grid button:active {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   border-color: var(--accent);
   color: var(--accent);
 }

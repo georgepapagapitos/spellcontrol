@@ -455,6 +455,8 @@
 
 .play-history-format {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   color: var(--text-primary);
   border-radius: 999px;
   padding: var(--space-0-5) var(--space-2);

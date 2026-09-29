@@ -89,6 +89,7 @@ export function BinderBadge({ binders, onSelect, nonInteractive, placement = 'ro
         style={oneStyle(unique[0].color || 'var(--accent)')}
         title={label}
         aria-label={label}
+        role="img"
       >
         {glyph}
       </span>
@@ -118,6 +119,7 @@ export function BinderBadge({ binders, onSelect, nonInteractive, placement = 'ro
       className="card-list-binder-badge card-list-binder-badge--multi"
       title={label}
       aria-label={label}
+      role="img"
     >
       {glyph}
       <span className="card-list-deck-badge-count" aria-hidden>

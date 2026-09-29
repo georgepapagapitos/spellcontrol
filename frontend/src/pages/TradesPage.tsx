@@ -76,7 +76,12 @@ function matchesQuery(offer: TradeOffer, query: string): boolean {
 
 function TradesSkeleton() {
   return (
-    <div className="trades-skeleton" aria-label="Loading your trades" aria-busy="true">
+    <div
+      className="trades-skeleton"
+      aria-label="Loading your trades"
+      role="status"
+      aria-busy="true"
+    >
       <span className="trades-skeleton-bar" />
       <span className="trades-skeleton-bar" />
       <span className="trades-skeleton-bar" />

@@ -314,6 +314,7 @@ export function DeckIdentityCard({
                   <div
                     className="deck-analysis-skeleton-bar deck-identity-card-skeleton"
                     aria-label="Build health loading…"
+                    role="status"
                   />
                   <p className="deck-identity-card-foot">Analyzing this deck…</p>
                 </>

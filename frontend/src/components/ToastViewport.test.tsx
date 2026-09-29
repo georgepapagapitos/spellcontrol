@@ -36,7 +36,8 @@ function endLeave(el: Element) {
 }
 
 function toastElements(): HTMLElement[] {
-  return screen.queryAllByRole('status');
+  // The live region is the message inside each li; the toast is its li.
+  return screen.queryAllByRole('status').map((el) => el.closest('li')!);
 }
 
 beforeEach(() => {

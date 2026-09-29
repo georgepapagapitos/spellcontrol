@@ -816,7 +816,12 @@ function TradeSide({
           )}
         </p>
       ) : loading ? (
-        <div className="trade-side-skeleton" aria-label={`Loading ${title}`} aria-busy="true" />
+        <div
+          className="trade-side-skeleton"
+          aria-label={`Loading ${title}`}
+          role="status"
+          aria-busy="true"
+        />
       ) : results.length === 0 ? (
         <p className="trade-side-note" role="status">
           {emptyResults}

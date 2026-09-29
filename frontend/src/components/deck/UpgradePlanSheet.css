@@ -251,6 +251,8 @@
 .upgrade-plan-row.is-new {
   box-shadow: inset 3px 0 var(--accent);
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
 }
 
 .upgrade-plan-row.is-dropped .deck-card-row {

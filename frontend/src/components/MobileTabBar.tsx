@@ -117,7 +117,7 @@ export function MobileTabBar() {
         <span className="mobile-tab-bar-glyph">
           <Users {...ICON_PROPS} />
           {hasActiveGame && (
-            <span className="mobile-tab-bar-game-dot" aria-label="game in progress" />
+            <span className="mobile-tab-bar-game-dot" aria-label="game in progress" role="img" />
           )}
         </span>
         <span className="mobile-tab-bar-label">Play</span>

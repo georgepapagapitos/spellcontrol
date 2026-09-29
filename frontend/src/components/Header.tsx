@@ -65,7 +65,7 @@ export function Header() {
           >
             <span>Collection</span>
             {cardCount > 0 && (
-              <span className="site-nav-count" aria-label={`${cardCount} cards`}>
+              <span className="site-nav-count" aria-label={`${cardCount} cards`} role="img">
                 {formatCount(cardCount)}
               </span>
             )}
@@ -77,7 +77,7 @@ export function Header() {
           >
             <span>Decks</span>
             {deckCount > 0 && (
-              <span className="site-nav-count" aria-label={`${deckCount} decks`}>
+              <span className="site-nav-count" aria-label={`${deckCount} decks`} role="img">
                 {formatCount(deckCount)}
               </span>
             )}
@@ -88,7 +88,9 @@ export function Header() {
             className={({ isActive }) => (isActive ? 'site-nav-link active' : 'site-nav-link')}
           >
             <span>Play</span>
-            {hasActiveGame && <span className="site-nav-game-dot" aria-label="game in progress" />}
+            {hasActiveGame && (
+              <span className="site-nav-game-dot" aria-label="game in progress" role="img" />
+            )}
           </NavLink>
           {/* The social cluster's front door. /friends, /trades, /pods and
               /friends/:id were a four-page cluster with no top-level entry —

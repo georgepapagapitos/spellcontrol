@@ -1,5 +1,6 @@
 import { normalizeForSearch, normalizeScryfallQuery } from '../normalize-search';
 import type { SlimCard } from './types';
+import { canBeCommanderByType } from '@spellcontrol/binder-routing';
 
 /**
  * Tiny offline Scryfall-query interpreter. Covers the subset the deck builder
@@ -345,12 +346,8 @@ function parseColorWord(word: string): Set<string> {
 function matchIs(card: QueryCard, value: string): boolean {
   switch (value) {
     case 'commander':
-      // Legendary creature OR legendary planeswalker that says "can be your commander"
-      return (
-        /Legendary/i.test(card.typeLine) &&
-        (/Creature/i.test(card.typeLine) ||
-          (card.oracleText ?? '').toLowerCase().includes('can be your commander'))
-      );
+      // The app's one CR 903.3 type rule, shared with binders and the deck builder.
+      return canBeCommanderByType(card.typeLine, card.oracleText ?? '');
     case 'mdfc':
       return card.layout === 'modal_dfc';
     case 'split':

@@ -195,11 +195,9 @@ describe('DeckCurvePhases', () => {
     expect(container.querySelectorAll('.deck-curve-phases-bar-fill').length).toBeGreaterThan(0);
   });
 
-  it('makes each color segment a drill-down button with a descriptive aria label', () => {
-    // CMC 2 has 10 blue + 4 gold in the bucket; per-segment cards are filtered
-    // to that color category from cardsByCmc by the same 0/1/2+ rule.
-    // Only color_identity matters for the segment categorization; cast the
-    // partial Scryfall objects to the carousel's card shape for the fixture.
+  it('makes each by-color column ONE drill-down button; segments are not targets', () => {
+    // Stacked slivers cannot each be a 24px target (WCAG 2.5.8), so the column
+    // is the target and the sheet it opens is grouped by colour.
     const cardsByCmc = {
       2: [
         { name: 'Counterspell', count: 1, card: { color_identity: ['U'] } as ScryfallCard },
@@ -210,7 +208,7 @@ describe('DeckCurvePhases', () => {
         },
       ],
     };
-    render(
+    const { container } = render(
       <DeckCurvePhases
         manaCurve={manaCurve}
         averageCmc={3.1}
@@ -218,10 +216,10 @@ describe('DeckCurvePhases', () => {
         cardsByCmc={cardsByCmc}
       />
     );
-    const blueSeg = screen.getByRole('button', {
-      name: /Show the 10 blue cards at mana value 2/i,
-    });
-    fireEvent.click(blueSeg);
+    expect(container.querySelectorAll('.deck-curve-phases-seg-btn').length).toBe(0);
+    expect(container.querySelectorAll('button.deck-curve-phases-seg').length).toBe(0);
+    fireEvent.click(screen.getByRole('button', { name: /Show the \d+ cards at mana value 2/i }));
+    expect(screen.getByText('Counterspell')).toBeTruthy();
   });
 });
 

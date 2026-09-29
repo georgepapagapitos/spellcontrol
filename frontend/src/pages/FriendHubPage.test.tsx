@@ -191,7 +191,7 @@ describe('FriendHubPage — Collection browser', () => {
 
     const panel = document.getElementById('friend-hub-panel-collection')!;
     const tile = await within(panel).findByRole('button', { name: /sol ring/i });
-    expect(tile.className).toContain('collection-grid-item');
+    expect(tile.closest('.collection-grid-item')).not.toBeNull();
     expect(tile.getAttribute('aria-label')).not.toMatch(/quantity/i);
   });
 

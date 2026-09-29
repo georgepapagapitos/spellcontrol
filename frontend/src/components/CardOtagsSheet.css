@@ -42,6 +42,8 @@
   border: 1px solid var(--border);
   border-radius: 999px;
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   color: var(--text-primary);
   font-size: var(--text-xs);
   text-decoration: none;

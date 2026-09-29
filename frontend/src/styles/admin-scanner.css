@@ -149,6 +149,8 @@
 }
 .admin-deck-link.is-active {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   color: var(--accent);
 }
 .admin-deck-name {
@@ -210,6 +212,8 @@
 @media (hover: hover) and (pointer: fine) {
   .admin-raw-actions button:hover {
     background: var(--accent-light);
+    --text-muted: var(--text-muted-tint);
+    --text-secondary: var(--text-secondary-tint);
     color: var(--accent);
   }
 }
@@ -872,6 +876,8 @@
 }
 .scan-row.is-selected {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
 }
 .scan-row-main {
   position: relative;

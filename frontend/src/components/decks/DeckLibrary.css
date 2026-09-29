@@ -59,6 +59,21 @@
   border-radius: 0;
 }
 
+/* The owner's pinned deck: one tile, wider than the grid's 260px columns and
+   with a taller banner, above the grid. It is the same tile, not a new family. */
+.decks-index-list.is-grid.deck-library-featured {
+  grid-template-columns: minmax(0, 34rem);
+  margin-bottom: var(--space-4);
+}
+
+.decks-index-card.public-profile-tile.is-featured .public-profile-tile-banner {
+  aspect-ratio: 2 / 1;
+}
+
+.decks-index-card.public-profile-tile.is-featured .decks-index-card-name {
+  font-size: var(--text-lg);
+}
+
 /* Theme-invariant on-art scrim — same always-dark-over-art rationale as the
    card-preview panel (CardDetails.css) and DiscoverDeckTile.css's identical
    overlay: legibility over unpredictable art can't follow the theme swap
