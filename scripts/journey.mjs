@@ -730,16 +730,27 @@ async function main() {
       let deckHref = null;
       await visit('/decks/new');
       if (tierName === VIEWPORTS[0]) {
-        // Commander is the default format: pick the first suggested commander,
-        // then "Start blank" (the commander only, every card by hand).
-        await page.waitForSelector('.commander-result-card', { timeout: 60_000 });
+        // T168: /decks/new is a start page of doors, not a form. "Generate a
+        // deck" is the featured door and opens the commander finder at
+        // /decks/new/generate. Pick the first suggested commander, then
+        // "Start blank" (the commander only, every card by hand).
+        await clickText(page, /^Generate a deck/, { timeout: 30_000 });
+        await page.waitForFunction(() => location.pathname === '/decks/new/generate', {
+          timeout: 30_000,
+        });
+        // The loading skeleton shares the `.commander-result-card` class (a
+        // bare <span>, CommanderSearch.tsx) with the real result (a
+        // <button>) so the grid never jumps size while EDHREC's trending
+        // fetch is in flight — scope to the button or a slow fetch lets
+        // waitForSelector resolve on the skeleton and the click do nothing.
+        await page.waitForSelector('button.commander-result-card', { timeout: 60_000 });
         const pickedCommander = await page.evaluate(
           () =>
             document
-              .querySelector('.commander-result-card .commander-result-name')
+              .querySelector('button.commander-result-card .commander-result-name')
               ?.textContent?.trim() ?? null
         );
-        await page.evaluate(() => document.querySelector('.commander-result-card')?.click());
+        await page.evaluate(() => document.querySelector('button.commander-result-card')?.click());
         await clickText(page, /^Start blank$/, { timeout: 60_000 });
         await page.waitForFunction(() => /^\/decks\/deck_/.test(location.pathname), {
           timeout: 60_000,
@@ -777,10 +788,12 @@ async function main() {
         // sheet is the one surface no route reaches (router state opens it
         // once), and it is where the AI panel sat flush against the report
         // (#1887). EDHREC drafts the 100; the picker above already depends
-        // on EDHREC, so this adds no new dependency, only time.
-        await visit('/decks/new', '/decks/new (generate)');
-        await page.waitForSelector('.commander-result-card', { timeout: 60_000 });
-        await page.evaluate(() => document.querySelector('.commander-result-card')?.click());
+        // on EDHREC, so this adds no new dependency, only time. The door was
+        // already exercised above, so this pass goes straight to the
+        // generator by its own route.
+        await visit('/decks/new/generate?format=commander', '/decks/new/generate');
+        await page.waitForSelector('button.commander-result-card', { timeout: 60_000 });
+        await page.evaluate(() => document.querySelector('button.commander-result-card')?.click());
         await clickText(page, /^Generate deck$/, { timeout: 60_000 });
         await page.waitForSelector('.build-report-sheet', { timeout: 240_000 });
         await sleep(SETTLE_MS);
