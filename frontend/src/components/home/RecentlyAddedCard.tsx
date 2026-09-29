@@ -9,6 +9,7 @@ import {
   isRecentPartialImport,
   latestImport,
 } from '../../lib/home-signals';
+import { readArrivalWatchlists } from '../../lib/arrival-watchlist';
 import { useCardThumb } from '../../lib/card-thumbs';
 import { useAnimatedNumber } from '../../lib/use-animated-number';
 import { dayKey, formatDayKey } from '../../lib/value-history';
@@ -32,8 +33,9 @@ function FanThumb({ name, owned }: { name: string; owned?: string }) {
  * whose headline summed each deck's count — a card that fits three decks was
  * counted three times, so "326 new" was never a number of cards. Here the
  * figure is the import's own card count, the fan is cards from that import
- * (the copies you hold, owned art first), and the list names the decks that
- * have new cards that fit. The per-deck number also sits on each deck's tile
+ * (the copies you hold, owned art first), and the list names the decks whose
+ * coach wants some of the new cards, each linking to that deck's new-arrivals
+ * sheet (lib/arrival-watchlist.ts). The per-deck number also sits on each deck's tile
  * in Your decks, where it belongs to the deck. No import yet: nothing.
  *
  * Nor when the latest import is over a month old or is (nearly) the whole
@@ -71,9 +73,14 @@ export function RecentlyAddedCard() {
     () => new Map(importHistory.map((e) => [e.id, e.addedAt])),
     [importHistory]
   );
+  const [watchlists] = useState(readArrivalWatchlists);
   const fits = useMemo(
-    () => aggregateNewArrivalDecks(decks, collectionCards, addedAtByImportId).slice(0, FIT_LIMIT),
-    [decks, collectionCards, addedAtByImportId]
+    () =>
+      aggregateNewArrivalDecks(decks, collectionCards, addedAtByImportId, watchlists).slice(
+        0,
+        FIT_LIMIT
+      ),
+    [decks, collectionCards, addedAtByImportId, watchlists]
   );
 
   const { display: displayCount } = useAnimatedNumber(latest?.count ?? 0);
@@ -111,9 +118,9 @@ export function RecentlyAddedCard() {
               {fits.map(({ deck, count }) => (
                 <li key={deck.id}>
                   <Link
-                    to={`/decks/${deck.id}`}
+                    to={`/decks/${deck.id}?arrivals=1`}
                     className="home-added-fit"
-                    aria-label={`Open deck: ${deck.name}, ${count} new card${count === 1 ? '' : 's'} that fit`}
+                    aria-label={`Review ${count} new card${count === 1 ? '' : 's'} for ${deck.name}`}
                   >
                     <span className="home-added-fit-name">{deck.name}</span>
                     <span className="home-added-fit-count">{count} fit</span>

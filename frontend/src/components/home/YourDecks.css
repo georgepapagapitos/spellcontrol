@@ -4,9 +4,36 @@
 
 /* "+N new cards": state on the art's top-left corner (§ Card corner ribbons —
    state on the left). An on-art plate, so it takes the scrim pair, never a
-   themed tone token (§ E155). */
-.home-deck-arrivals {
-  pointer-events: none;
+   themed tone token (§ E155). It is its own link to the deck's new-arrivals
+   sheet, a sibling of the tile's link (a link can't nest in one), pinned over
+   the art the way the decks index pins its ⋮ (§ Index tiles). */
+.home-deck-arrivals-link {
+  position: absolute;
+  top: var(--space-1-5);
+  left: var(--space-1-5);
+  z-index: 1;
+  display: inline-flex;
+  border-radius: 999px;
+  text-decoration: none;
+}
+
+/* The plate is ~20px tall; the hit area reaches past it so a thumb on the
+   badge opens the sheet, not the deck. */
+.home-deck-arrivals-link::before {
+  content: '';
+  position: absolute;
+  inset: calc(-1 * var(--space-2));
+}
+
+.home-deck-arrivals-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .home-deck-arrivals-link:hover .home-deck-arrivals {
+    text-decoration: underline;
+  }
 }
 
 .home-deck-commander {

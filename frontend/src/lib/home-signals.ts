@@ -14,6 +14,7 @@ import type { ImportHistoryEntry } from './local-cards';
 import { fitsColorIdentity } from './deck-validation';
 import { computeDrift } from './binder-drift';
 import type { ArrivalCandidateCard, ArrivalDeckSlot, NewArrivalsInput } from './new-arrivals';
+import type { ArrivalWatchlists } from './arrival-watchlist';
 
 // ── New arrivals ─────────────────────────────────────────────────────────
 // Reimplemented rather than imported from new-arrivals.ts: these are
@@ -121,63 +122,51 @@ export function hasNewArrivals(input: NewArrivalsInput): boolean {
   return false;
 }
 
-/** Cap on per-deck sample names fed into Home's overlapping thumb fan — a
- *  handful is plenty of visual variety; the card itself dedupes/caps the
- *  combined fan across decks at 5. */
-const MAX_SAMPLE_NAMES = 3;
-
-/** Same byName grouping as `computeNewArrivals`, summed to a qty instead of
- *  built into ranked `ArrivalRow`s — plus the qualifying names themselves
- *  (most-recently-acquired first), so Home's thumb fan has real card art to
- *  resolve instead of just a count. */
-function qualifyingArrivals(
+/** The deck page's "N new arrivals": `computeNewArrivals`'s rows, narrowed to
+ *  the names the coach wants (lib/arrival-watchlist.ts). A row is one card
+ *  name however many copies you hold, so this counts names, not copies. */
+function qualifyingArrivalNames(
   deck: DeckLike,
+  wanted: ReadonlySet<string>,
   collectionCards: readonly ArrivalCandidateCard[],
   addedAtByImportId: ReadonlyMap<string, number>
-): { qty: number; sampleNames: string[] } {
+): Set<string> {
   const ctx = buildArrivalContext(deck);
-  const byName = new Map<string, { qty: number; acquiredAt: number }>();
+  const newest = new Map<string, number>();
   for (const card of collectionCards) {
+    if (!wanted.has(card.name.toLowerCase())) continue;
     if (!isEligibleArrival(card, ctx)) continue;
     const at = acquiredAt(card, addedAtByImportId);
-    const existing = byName.get(card.name);
-    if (existing) {
-      existing.qty += 1;
-      if (at > existing.acquiredAt) existing.acquiredAt = at;
-    } else {
-      byName.set(card.name, { qty: 1, acquiredAt: at });
-    }
+    if (at > (newest.get(card.name) ?? -Infinity)) newest.set(card.name, at);
   }
-  let qty = 0;
-  const qualifying: Array<{ name: string; acquiredAt: number }> = [];
-  for (const [name, entry] of byName) {
-    if (entry.acquiredAt <= ctx.windowStart) continue;
-    qty += entry.qty;
-    qualifying.push({ name, acquiredAt: entry.acquiredAt });
-  }
-  qualifying.sort((a, b) => b.acquiredAt - a.acquiredAt);
-  return { qty, sampleNames: qualifying.slice(0, MAX_SAMPLE_NAMES).map((q) => q.name) };
+  const names = new Set<string>();
+  for (const [name, at] of newest) if (at > ctx.windowStart) names.add(name);
+  return names;
 }
 
 /**
- * New-arrival counts for the most recently updated decks, for Home's deck
- * cards. Reuses the same eligibility guards as `hasNewArrivals`, summed to a
- * per-deck qty instead of short-circuited to a boolean. Only decks with at
- * least one qualifying arrival are returned.
+ * Per-deck new-arrival counts for Home's deck tiles and Recently added, equal
+ * to the count the deck page shows for the same deck. A deck with no recorded
+ * watchlist (never opened on this browser) is skipped: Home can't narrow its
+ * arrivals, and the raw count is the one that read as random. Only decks with
+ * at least one qualifying arrival are returned.
  */
 export function aggregateNewArrivalDecks(
   decks: Deck[],
   collectionCards: readonly ArrivalCandidateCard[],
   addedAtByImportId: ReadonlyMap<string, number>,
+  watchlists: ArrivalWatchlists,
   // ponytail: 20-deck cap — a power user's older, untouched decks won't
   // surface arrivals on Home (unaffected inside the deck itself); raise this
   // if it ever undercounts in practice.
   limit = 20
-): Array<{ deck: Deck; count: number; sampleNames: string[] }> {
+): Array<{ deck: Deck; count: number }> {
   const recent = [...decks].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, limit);
-  const out: Array<{ deck: Deck; count: number; sampleNames: string[] }> = [];
+  const out: Array<{ deck: Deck; count: number }> = [];
   for (const deck of recent) {
-    const { qty, sampleNames } = qualifyingArrivals(
+    const wanted = watchlists[deck.id];
+    if (!wanted || wanted.size === 0) continue;
+    const names = qualifyingArrivalNames(
       {
         commander: deck.commander,
         partnerCommander: deck.partnerCommander,
@@ -186,10 +175,11 @@ export function aggregateNewArrivalDecks(
         deckUpdatedAt: deck.updatedAt,
         lastArrivalReviewAt: deck.lastArrivalReviewAt,
       },
+      wanted,
       collectionCards,
       addedAtByImportId
     );
-    if (qty > 0) out.push({ deck, count: qty, sampleNames });
+    if (names.size > 0) out.push({ deck, count: names.size });
   }
   return out;
 }
