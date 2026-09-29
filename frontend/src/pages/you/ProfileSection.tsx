@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { ProfileEditor } from '@/components/ProfileEditor';
+import { ProfileFeaturedSettings } from '@/components/profile/ProfileFeaturedSettings';
 import { UsernameEditor } from '@/components/UsernameEditor';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 
@@ -17,6 +18,9 @@ export function ProfileSection({ username }: { username: string }) {
         }
       >
         <ProfileEditor />
+      </SettingsSection>
+      <SettingsSection id="settings-featured-title" title="On your profile">
+        <ProfileFeaturedSettings />
       </SettingsSection>
       <SettingsSection id="settings-username-title" title="Username">
         <UsernameEditor />

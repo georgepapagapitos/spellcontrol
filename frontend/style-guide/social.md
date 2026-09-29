@@ -198,3 +198,36 @@ differentiator slot where Archidekt shows tags.
 still a genuinely separate sibling `<Link>` — never nested inside the tile's
 main link (nesting `<a>` inside `<a>` is invalid HTML and would double-fire
 navigation). List view keeps the plain-text "by username" caption.
+
+## Profiles (`/u/:username`, T175)
+
+A profile answers "what does this person brew?" before it lists their decks.
+Top to bottom: header (banner, identity, stat line, follow), the Brews most and
+Game record panels, then the deck library.
+
+- **Banner source order**: the pinned deck's art, else the top commander's
+  art, else no banner at all. Never an empty grey box. The box reserves its
+  aspect ratio (16 / 5, capped at 14rem; 5 / 2 on a phone) so it holds its
+  size before the image loads. The image is decorative (`alt=""`, lazy) under
+  an always-dark `--art-scrim` gradient, in both themes. No text sits on it;
+  the avatar overlaps its lower edge with a ring in the page background.
+  A moderator-hidden profile gets no banner, stats or panels.
+- **Stat line**: decks, followers and following are plain counts (a new
+  brewer reads "0 followers", which is true). Likes and copies received are
+  people counts, not clicks, and pass through `formatSocialCount`, so they
+  disappear below the floor instead of reading "0 likes". Plain text, not links.
+- **Follow vs Friends**: Follow is a one-way toggle (`FollowButton`, shared
+  with other surfaces); "Friends" is a separate, quiet label chip beside it,
+  because friendship is mutual and its own relationship. Follow is hidden on
+  your own profile and on a hidden one; the official account can be followed.
+  A guest tap opens the same sign-in popover as Like and Bookmark.
+- **Pinned deck**: the same deck tile, larger and with a "Pinned" badge, above
+  the grid while nothing is searched or filtered; once the viewer narrows the
+  list it is an ordinary tile so a search still finds it. It never shows twice.
+- **Brews most**: up to three commanders (art thumb, name, deck count) that
+  open Discover filtered to that commander, plus a stacked colour bar with
+  `ColorPip` counts. Renders nothing for a brewer with no live decks.
+- **Game record** is opt-in (off by default, You > Profile > On your profile):
+  games, wins, win rate and the most-played deck. Nothing renders when off.
+- Panels sit side by side from about 45rem, one column on a phone. Controls
+  keep the 44px coarse-pointer floor.

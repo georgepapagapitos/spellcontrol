@@ -265,3 +265,112 @@ describe('PublicProfilePage — a stranger reaching a profile with no public dec
     expect(screen.queryByRole('link', { name: 'Go to your decks' })).toBeNull();
   });
 });
+
+describe('PublicProfilePage — banner, stats, follow and what they brew (T175)', () => {
+  const rich = (over: Partial<PublicProfile> = {}) =>
+    profile({
+      deckCount: 2,
+      followerCount: 12,
+      followingCount: 3,
+      stats: { likesReceived: 40, copiesReceived: 2 },
+      decks: [
+        deck({ slug: 'a', name: 'Atraxa Deck', commanderImage: 'a.jpg', commanderName: 'Atraxa' }),
+        deck({
+          slug: 'b',
+          name: 'Korvold Deck',
+          commanderImage: 'k.jpg',
+          commanderName: 'Korvold',
+        }),
+      ],
+      topCommanders: [{ name: 'Atraxa', image: 'top.jpg', deckCount: 2 }],
+      colorSpread: { W: 1, U: 1, B: 2, R: 0, G: 2, C: 0 },
+      ...over,
+    });
+  const bannerSrc = () => document.querySelector('.public-profile-banner img')?.getAttribute('src');
+
+  it('shows the stat line, hiding likes and copies below the social-proof floor', async () => {
+    fetchPublicProfileMock.mockResolvedValue(rich());
+    renderProfile();
+    const stats = await screen.findByRole('list', { name: 'Profile stats' });
+    expect(stats.textContent).toContain('2 decks');
+    expect(stats.textContent).toContain('12 followers');
+    expect(stats.textContent).toContain('3 following');
+    expect(stats.textContent).toContain('40 likes');
+    expect(stats.textContent).not.toContain('copies');
+  });
+
+  it('takes the banner from the pinned deck, else the top commander, else none', async () => {
+    fetchPublicProfileMock.mockResolvedValue(rich({ pinnedDeckSlug: 'b' }));
+    const first = renderProfile();
+    await screen.findByRole('list', { name: 'Profile stats' });
+    expect(bannerSrc()).toBe('k.jpg');
+    first.unmount();
+
+    fetchPublicProfileMock.mockResolvedValue(rich());
+    const second = renderProfile();
+    await screen.findByRole('list', { name: 'Profile stats' });
+    expect(bannerSrc()).toBe('top.jpg');
+    second.unmount();
+
+    fetchPublicProfileMock.mockResolvedValue(rich({ topCommanders: [] }));
+    renderProfile();
+    await screen.findByRole('list', { name: 'Profile stats' });
+    expect(document.querySelector('.public-profile-banner')).toBeNull();
+  });
+
+  it('leads with the pinned deck as a featured tile, once', async () => {
+    fetchPublicProfileMock.mockResolvedValue(rich({ pinnedDeckSlug: 'b' }));
+    renderProfile();
+    const featured = await screen.findByRole('list', { name: 'Pinned deck' });
+    expect(featured.textContent).toContain('Korvold Deck');
+    expect(screen.getAllByText('Korvold Deck')).toHaveLength(1);
+  });
+
+  it('lists top commanders linking to Discover, and the colour spread', async () => {
+    fetchPublicProfileMock.mockResolvedValue(rich());
+    renderProfile();
+    const link = await screen.findByRole('link', { name: /Atraxa\s*2 decks/ });
+    expect(link.getAttribute('href')).toBe('/decks/discover?commander=Atraxa');
+    expect(screen.getByRole('list', { name: 'Decks by color' })).toBeTruthy();
+  });
+
+  it('renders no Brews panel and no game record for an empty brewer', async () => {
+    fetchPublicProfileMock.mockResolvedValue(profile());
+    renderProfile();
+    await screen.findByRole('list', { name: 'Profile stats' });
+    expect(screen.queryByText('Brews most')).toBeNull();
+    expect(screen.queryByText('Game record')).toBeNull();
+  });
+
+  it('shows the game record only when the owner opted in', async () => {
+    fetchPublicProfileMock.mockResolvedValue(
+      rich({ gameRecord: { games: 8, wins: 3, mostPlayed: { name: 'Atraxa Deck', slug: 'a' } } })
+    );
+    renderProfile();
+    expect(await screen.findByText('Game record')).toBeTruthy();
+    expect(screen.getByText('38%')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Atraxa Deck' }).getAttribute('href')).toBe('/d/a');
+  });
+
+  it('shows Follow to a visitor with a Friends mark, and neither on your own profile', async () => {
+    fetchPublicProfileMock.mockResolvedValue(rich({ viewerIsFriend: true }));
+    const first = renderProfile();
+    expect(await screen.findByRole('button', { name: 'Follow alice' })).toBeTruthy();
+    expect(screen.getByText('Friends')).toBeTruthy();
+    first.unmount();
+
+    fetchPublicProfileMock.mockResolvedValue(rich({ isOwner: true }));
+    renderProfile();
+    await screen.findByRole('list', { name: 'Profile stats' });
+    expect(screen.queryByRole('button', { name: 'Follow alice' })).toBeNull();
+  });
+
+  it('shows nothing but identity on a moderator-hidden profile', async () => {
+    fetchPublicProfileMock.mockResolvedValue(rich({ isOwner: true, moderationHidden: true }));
+    renderProfile();
+    await screen.findByText(/hidden by a moderator/);
+    expect(screen.queryByRole('list', { name: 'Profile stats' })).toBeNull();
+    expect(screen.queryByText('Brews most')).toBeNull();
+    expect(document.querySelector('.public-profile-banner')).toBeNull();
+  });
+});
