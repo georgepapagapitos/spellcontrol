@@ -81,6 +81,13 @@ export function useLinkDrop(
       // Without this the browser refuses the drop (and navigates to the link).
       e.preventDefault();
       e.dataTransfer!.dropEffect = 'copy';
+      // A drag can be over the window without a dragenter this hook saw: the
+      // watchdog cleared it during a pause, or the enter was never delivered.
+      // dragover is the proof it's here, so it restores the overlay too.
+      if (depth === 0) {
+        depth = 1;
+        setDragging(true);
+      }
       window.clearTimeout(silence);
       silence = window.setTimeout(clear, DRAGOVER_SILENCE_MS);
     };

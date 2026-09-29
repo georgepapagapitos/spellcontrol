@@ -173,6 +173,27 @@ describe('useLinkDrop', () => {
     expect(result.current).toBe(false);
   });
 
+  it('comes back on dragover when the enter was missed or the watchdog fired mid-drag', () => {
+    const { result } = renderHook(() => useLinkDrop(vi.fn()));
+
+    // No dragenter at all (a real browser run showed a drag after a cancelled
+    // one arriving without one): the first dragover shows it.
+    drag('dragover', LINK);
+    expect(result.current).toBe(true);
+
+    // The drag paused past the watchdog, then moved again.
+    act(() => {
+      vi.advanceTimersByTime(DRAGOVER_SILENCE_MS + 1);
+    });
+    expect(result.current).toBe(false);
+    drag('dragover', LINK);
+    expect(result.current).toBe(true);
+
+    // And one leave still clears it, since the restored depth is one.
+    drag('dragleave', LINK);
+    expect(result.current).toBe(false);
+  });
+
   it('does nothing while disabled, and drops a stale drag when it turns off', () => {
     const onDrop = vi.fn();
     const { result, rerender } = renderHook(({ disabled }) => useLinkDrop(onDrop, { disabled }), {
