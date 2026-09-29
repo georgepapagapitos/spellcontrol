@@ -166,7 +166,14 @@ export interface EDHRECCard {
   primary_type: string;
   inclusion: number; // Percentage of decks that include this card
   num_decks: number; // Number of decks with this card
-  synergy?: number; // Synergy score (-1 to 1)
+  /** E510: decks on this page that could play the card (EDHREC's
+   *  `potential_decks`), the sample size behind `inclusion`. Absent on rows
+   *  the app synthesizes; see synergyLift.ts for how that's read. */
+  potential_decks?: number;
+  /** EDHREC synergy as a FRACTION (-1 to 1): this page's play rate minus its
+   *  colour identity's, so the colours' rate in percent is
+   *  `inclusion − synergy × 100`. Read it as a ratio via synergyLift.ts. */
+  synergy?: number;
   // Track if this card came from a high-priority synergy list
   isThemeSynergyCard?: boolean; // true if from highsynergycards, topcards, gamechangers
   isNewCard?: boolean; // true if from the newcards list (gets a small relevancy boost)

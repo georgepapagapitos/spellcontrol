@@ -213,6 +213,33 @@ describe('computeHiddenGems — similar signal', () => {
   });
 });
 
+describe('computeHiddenGems — tail order (E510)', () => {
+  // Real Meren of Clan Nel Toth rows (22,305 decks), both under the gem
+  // ceiling. Survival of the Fittest: 8.3% vs 1.9% in the colours (+0.0632,
+  // 4.3x). Pattern of Rebirth: 7.3% vs 1.1% (+0.0629, 7.0x). The subtraction
+  // ranked Survival first; the ratio-weighted strength ranks Pattern first.
+  const survival = eCard('Survival of the Fittest', (1841 / 22305) * 100, {
+    num_decks: 1841,
+    potential_decks: 22305,
+    synergy: 0.06317453142065647,
+  });
+  const pattern = eCard('Pattern of Rebirth', (1639 / 22305) * 100, {
+    num_decks: 1639,
+    potential_decks: 22305,
+    synergy: 0.06291867195325013,
+  });
+
+  it('reads the low-inclusion tail strongest ratio first', async () => {
+    const resolve = resolverFor([]);
+    await computeHiddenGems({
+      ...baseOpts,
+      edhrecData: edhrec([survival, pattern]),
+      resolveCards: resolve,
+    });
+    expect(resolve).toHaveBeenCalledWith(['Pattern of Rebirth', 'Survival of the Fittest']);
+  });
+});
+
 describe('computeHiddenGems — axis signal', () => {
   // Real oracle text: three sac producers make the aristocrats axis live with
   // zero payoffs, so a payoff candidate completes the scarcer side.
