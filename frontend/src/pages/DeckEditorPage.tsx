@@ -3351,6 +3351,9 @@ export function DeckEditorPage() {
                 hasMissingSlots ? () => void handleCheapestPrintings() : undefined
               }
               onMatchCopies={hasCopyMismatches ? () => void handleMatchMyCopies() : undefined}
+              onPrintProxies={
+                hasPullSlots ? () => navigate(`/decks/${deck.id}/proxies`) : undefined
+              }
               onUndo={!isDesktop && canUndoEdit ? () => undoEdit(deck.id) : undefined}
               onRedo={!isDesktop && canRedoEdit ? () => redoEdit(deck.id) : undefined}
               undoLabel={undoEditLabel}
@@ -4203,6 +4206,7 @@ function DeckEditorOverflowMenu({
   onPullList,
   onCheapestPrintings,
   onMatchCopies,
+  onPrintProxies,
   onUndo,
   onRedo,
   undoLabel,
@@ -4241,6 +4245,8 @@ function DeckEditorOverflowMenu({
   onCheapestPrintings?: () => void;
   /** Present only when an owned slot's printing differs from its copy's. */
   onMatchCopies?: () => void;
+  /** Opens the printable proxy sheet. Present only when the deck has cards. */
+  onPrintProxies?: () => void;
   /** Present only when there's an edit to undo; carries the action label. */
   onUndo?: () => void;
   /** Present only when there's an edit to redo; carries the action label. */
@@ -4313,6 +4319,7 @@ function DeckEditorOverflowMenu({
     onPlaytest && { key: 'playtest', label: 'Playtest', onClick: onPlaytest },
     onTokens && { key: 'tokens', label: 'Tokens to prep', onClick: onTokens },
     onPullList && { key: 'pull-list', label: 'Pull list', onClick: onPullList },
+    onPrintProxies && { key: 'proxies', label: 'Print proxies', onClick: onPrintProxies },
   ].filter((r): r is Row => !!r);
   const textTools: Row[] = [
     { key: 'paste', label: 'Paste cards', onClick: onImport },

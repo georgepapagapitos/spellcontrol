@@ -60,6 +60,7 @@ const DeckGeneratePage = lazyPage(() => import('./pages/DeckGeneratePage'), 'Dec
 const BrewBuildPage = lazyPage(() => import('./pages/BrewBuildPage'), 'BrewBuildPage');
 const DeckEditorPage = lazyPage(() => import('./pages/DeckEditorPage'), 'DeckEditorPage');
 const DeckComparePage = lazyPage(() => import('./pages/DeckComparePage'), 'DeckComparePage');
+const ProxySheetPage = lazyPage(() => import('./pages/ProxySheetPage'), 'ProxySheetPage');
 const CubeIndexPage = lazyPage(() => import('./pages/CubeIndexPage'), 'CubeIndexPage');
 const CubeChooserPage = lazyPage(() => import('./pages/cube/CubeChooserPage'), 'CubeChooserPage');
 const CubeImportPage = lazyPage(() => import('./pages/cube/CubeImportPage'), 'CubeImportPage');
@@ -391,6 +392,7 @@ export default function App() {
             <Route path="/decks/cube/new/collection" element={<CubeBuildPage />} />
             <Route path="/decks/cube/:id" element={<CubeDetailPage />} />
             <Route path="/decks/:id" element={<DeckEditorPage />} />
+            <Route path="/decks/:id/proxies" element={<ProxySheetPage />} />
             <Route path="/decks/:id/playtest" element={<PlaytestPage />} />
             <Route path="/decks/:id/playtest/log" element={<PlaytestLogPage />} />
             <Route path="/play" element={<PlayPage />} />
