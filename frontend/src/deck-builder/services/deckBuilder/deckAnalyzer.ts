@@ -410,8 +410,7 @@ export function getRolesGrade(roleDeficits: RoleDeficit[]): GradeResult {
     roleDeficits[0]
   );
 
-  if (totalDeficit === 0)
-    return { letter: 'A', message: 'All roles on target. A well-balanced deck.' };
+  if (totalDeficit === 0) return { letter: 'A', message: 'All roles on target.' };
   if (totalDeficit <= 3 && maxSingleDeficit <= 2)
     return {
       letter: 'B',
@@ -429,7 +428,7 @@ export function getRolesGrade(roleDeficits: RoleDeficit[]): GradeResult {
     };
   return {
     letter: 'F',
-    message: `Deck is severely unbalanced. Missing ${totalDeficit} role cards.`,
+    message: `Roles are far off target. Missing ${totalDeficit} cards.`,
   };
 }
 
@@ -442,8 +441,8 @@ const ROLE_FLAVOR: Record<
   ramp: {
     noun: 'ramp',
     okMsg: 'your deck should consistently accelerate ahead of curve.',
-    whyItMatters: "you'll fall behind on mana while opponents pull ahead",
-    excessHint: 'extra slots could go toward threats or interaction',
+    whyItMatters: "you'll fall behind on mana",
+    excessHint: 'those slots could be threats or interaction',
     zeroMsg:
       "No ramp at all. You'll be stuck playing one land per turn while opponents pull ahead. Even the fastest decks run mana rocks or dorks to keep up.",
   },
@@ -451,23 +450,23 @@ const ROLE_FLAVOR: Record<
     noun: 'removal',
     okMsg: 'you have plenty of answers for key threats at the table.',
     whyItMatters: "opponents' biggest threats will go unchecked",
-    excessHint: 'you might be answering threats instead of building your own board',
+    excessHint: "you're answering more than you're building",
     zeroMsg:
       "No removal at all. You have no way to deal with an opponent's key combo piece, threatening commander, or game-winning enchantment. Interaction is non-negotiable in Commander.",
   },
   boardwipe: {
     noun: 'board wipe',
     okMsg: 'you have reset buttons for when opponents go wide.',
-    whyItMatters: "you'll struggle to recover when opponents flood the board",
-    excessHint: 'too many resets can stall your own board development',
+    whyItMatters: "you can't recover from a wide board",
+    excessHint: 'too many resets stall your own board',
     zeroMsg:
       "No board wipes. If even one opponent builds a wide board, you'll have no way to reset. A single well-timed wipe can turn a losing game around.",
   },
   cardDraw: {
     noun: 'card draw',
     okMsg: 'your hand should stay stocked through the mid-to-late game.',
-    whyItMatters: "you'll be topdecking while opponents still have full hands",
-    excessHint: 'drawing cards is great, but you need things worth casting too',
+    whyItMatters: "you'll be topdecking early",
+    excessHint: 'you need cards worth casting too',
     zeroMsg:
       "No card draw at all. You'll empty your hand by turn 5-6 and be topdecking the rest of the game while opponents refuel. Card advantage is how you stay in the game.",
   },
@@ -509,9 +508,9 @@ export function getManaGrade(
 
   let message: string;
   if (allGood) {
-    message = 'Mana base is solid across the board.';
+    message = 'Mana base is solid.';
   } else if (letter === 'A' || letter === 'B') {
-    message = `Looking good. Give ${weakest.label.toLowerCase()} a small bump.`;
+    message = `Mana base is good. Improve ${weakest.label.toLowerCase()}.`;
   } else {
     message = `${weakest.label} is the weak spot.`;
   }
@@ -580,11 +579,11 @@ export function getCurveGrade(phases: CurvePhaseAnalysis[]): GradeResult {
   const shape = curveShapeFromAvgCmc(avgCmc) ?? 'uneven';
 
   const messages: Record<string, string> = {
-    A: 'Excellent curve. Plays on time consistently.',
+    A: 'Excellent curve. You play on time.',
     B: 'Good curve with minor gaps.',
-    C: `Curve is a bit ${shape}, and may stall early.`,
+    C: `Curve is a bit ${shape}. Expect some slow turns.`,
     D: `Curve is ${shape}. Expect awkward turns.`,
-    F: 'Poor curve. Likely to miss plays or waste mana often.',
+    F: 'Poor curve. Expect missed plays and wasted mana.',
   };
 
   return { letter, message: messages[letter] || messages.F };
@@ -1009,7 +1008,7 @@ export function getDeckSummaryData(analysis: DeckAnalysis, deckExcess?: number):
   let headline: string;
 
   if (deckExcess && deckExcess > 0) {
-    headline = `${deckExcess} cards over target. The weakest fits are listed below.`;
+    headline = `${deckExcess} cards over target. Cut the weakest fits.`;
   } else {
     // Identify strong roles (met target without crowding it out) — excludes
     // anything already called out as overbuilt below, so the same role never
@@ -1093,7 +1092,7 @@ export function getDeckSummaryData(analysis: DeckAnalysis, deckExcess?: number):
           : ''
       }`;
     } else {
-      headline = 'Balanced across the board.';
+      headline = 'Balanced.';
     }
   }
 
@@ -1151,7 +1150,7 @@ export function getDeckSummaryData(analysis: DeckAnalysis, deckExcess?: number):
         label: 'Lands',
         tab: 'lands',
         text: `have ${currentLands}, want ${adjustedSuggestion}`,
-        hint: "you'll miss land drops and fall behind on tempo",
+        hint: "you'll miss land drops",
       });
     }
     for (const rd of excesses) {
@@ -1180,7 +1179,7 @@ export function getDeckSummaryData(analysis: DeckAnalysis, deckExcess?: number):
       label: 'Curve',
       tab: 'curve',
       text: `avg mana value is ${avgCmc.toFixed(1)}, too many expensive spells`,
-      hint: "you'll be sitting on uncastable hands while opponents develop their boards",
+      hint: "you'll hold uncastable hands",
     });
   } else if (curveShape === 'bottom-heavy') {
     noteItems.push({
@@ -1188,7 +1187,7 @@ export function getDeckSummaryData(analysis: DeckAnalysis, deckExcess?: number):
       label: 'Curve',
       tab: 'curve',
       text: `avg mana value is ${avgCmc.toFixed(1)}, skews very low`,
-      hint: "you'll run out of gas in the late game when opponents play their haymakers",
+      hint: "you'll run out of gas late",
     });
   }
 
@@ -1230,12 +1229,14 @@ const COLOR_BASIC_NAME: Record<string, string> = {
   R: 'Mountain',
   G: 'Forest',
 };
+const basicWord = (c: string) => (COLOR_WORD[c] ?? c).toLowerCase();
 const COLOR_WORD: Record<string, string> = {
   W: 'White',
   U: 'Blue',
   B: 'Black',
   R: 'Red',
   G: 'Green',
+  C: 'Colorless',
 };
 
 // "Search your library for a basic land" in oracle text (front face too) —
@@ -1606,8 +1607,8 @@ export function computeOptimizeSwaps(
         name,
         reason:
           cutCount > 1
-            ? `Oversupplied basic: cut ${cutCount} (${g.color} has more basics than its share of mana pips)`
-            : `Oversupplied basic (${g.color} has more basics than its share of mana pips)`,
+            ? `Too many ${basicWord(g.color)} basics: cut ${cutCount}`
+            : `Too many ${basicWord(g.color)} basics`,
         reasonCategory: 'oversupplied-basic',
         inclusion: null,
         cmc: 0,
@@ -1681,7 +1682,7 @@ export function computeOptimizeSwaps(
         const art = /^[AEIOU]/.test(shortBasic) ? 'an' : 'a';
         removalCandidates.push({
           name: overBasic,
-          reason: `Swap for ${art} ${shortBasic}: ${COLOR_WORD[worstOver.color] ?? worstOver.color} has more basics than its pips need`,
+          reason: `Swap for ${art} ${shortBasic}. Too many ${basicWord(worstOver.color)} basics.`,
           reasonCategory: 'color-rebalance',
           inclusion: null,
           cmc: 0,
@@ -2180,25 +2181,25 @@ export function analyzeDeck(
   let verdictMessage: string;
   if (currentLands < landFloor - 3) {
     verdict = 'critically-low';
-    verdictMessage = `Running ${currentLands} lands is dangerously low. You're likely to miss land drops and fall behind. Consider adding ${adjustedSuggestion - currentLands}+ lands.`;
+    verdictMessage = `${currentLands} lands is too few. You'll miss land drops. Add ${adjustedSuggestion - currentLands}+ lands.`;
   } else if (landDelta <= -3) {
     verdict = 'low';
     verdictMessage = hasDecentRamp
-      ? `${currentLands} lands is ${Math.abs(landDelta)} below suggested (${adjustedSuggestion}). Your ${rampCount} ramp pieces help, but you may still stumble on mana.`
-      : `${currentLands} lands is risky with only ${rampCount} ramp cards. Consider adding ${Math.abs(landDelta)} lands.`;
+      ? `${currentLands} lands is ${Math.abs(landDelta)} below the suggested ${adjustedSuggestion}. Your ${rampCount} ramp pieces cover some of it.`
+      : `${currentLands} lands with only ${rampCount} ramp cards is too few. Add ${Math.abs(landDelta)} lands.`;
   } else if (landDelta < 0) {
     verdict = 'slightly-low';
     verdictMessage = hasStrongRamp
-      ? `${currentLands} lands with ${rampCount} ramp pieces (${manaProducerCount} producers). Your mana base can support this.`
-      : `${currentLands} lands is a touch light. Adding ${Math.abs(landDelta)} more would improve consistency.`;
+      ? `${currentLands} lands with ${rampCount} ramp pieces and ${manaProducerCount} producers is enough.`
+      : `${currentLands} lands is a touch light. Add ${Math.abs(landDelta)} more.`;
   } else if (landDelta > 3) {
     verdict = 'high';
-    verdictMessage = `${currentLands} lands is ${landDelta} above the suggestion (${adjustedSuggestion}). You could cut a few for more spells.`;
+    verdictMessage = `${currentLands} lands is ${landDelta} above the suggested ${adjustedSuggestion}. Cut a few for more spells.`;
   } else {
     verdict = 'ok';
     verdictMessage = hasStrongRamp
       ? `${currentLands} lands with ${rampCount} ramp pieces: solid mana base.`
-      : `${currentLands} lands looks good for this deck.`;
+      : `${currentLands} lands is right for this deck.`;
   }
 
   // Count taplands for tempo analysis
@@ -2599,17 +2600,17 @@ export function analyzeDeck(
     msGrade = 'C';
     msMessage =
       msEarly < threshB.early
-        ? `${msTotal} ramp but only ${msEarly} early pieces, slow to accelerate.`
-        : `${msTotal} ramp is decent. A couple more would smooth things out.`;
+        ? `${msTotal} ramp but only ${msEarly} early pieces. Acceleration is slow.`
+        : `${msTotal} ramp is decent. Add a couple more.`;
   } else if (msTotal >= threshD) {
     msGrade = 'D';
-    msMessage = `Only ${msTotal} ramp cards. This deck will fall behind.`;
+    msMessage = `Only ${msTotal} ramp cards. Expect to fall behind.`;
   } else {
     msGrade = 'F';
     msMessage =
       msTotal === 0
-        ? 'No ramp cards. This deck has no acceleration.'
-        : `Only ${msTotal} ramp card${msTotal > 1 ? 's' : ''}. This deck will struggle to keep pace.`;
+        ? 'No ramp cards.'
+        : `Only ${msTotal} ramp card${msTotal > 1 ? 's' : ''}. Expect to fall well behind.`;
   }
 
   const manaSources: ManaSourcesAnalysis = {
@@ -2841,24 +2842,24 @@ export function analyzeDeck(
   } else if (fixingScore >= 70) {
     fixingGrade = 'B';
     fixingGradeMessage = weakColorName
-      ? `Solid base. ${weakColorName[0].toUpperCase() + weakColorName.slice(1)} is slightly underrepresented (${weakColorSources} sources).`
-      : `Solid base with minor distribution imbalance.`;
+      ? `Solid base. ${weakColorName[0].toUpperCase() + weakColorName.slice(1)} is a little light at ${weakColorSources} sources.`
+      : `Solid base. Sources are slightly uneven.`;
   } else if (fixingScore >= 50) {
     fixingGrade = 'C';
     fixingGradeMessage = weakColorName
       ? `${weakColorName[0].toUpperCase() + weakColorName.slice(1)} only has ${weakColorSources} sources for ${pipDemand[weakestColor!] || 0} pips of demand.`
-      : `Source distribution doesn't match pip demand well.`;
+      : `Sources don't match pip demand.`;
   } else if (fixingScore >= 30) {
     fixingGrade = 'D';
     fixingGradeMessage = weakColorName
       ? `${weakColorName[0].toUpperCase() + weakColorName.slice(1)} has just ${weakColorSources} source${weakColorSources !== 1 ? 's' : ''}. Most ${weakColorName} spells will be hard to cast on curve.`
-      : `Multiple colors lack the sources to cast spells reliably.`;
+      : `Several colors are short on sources.`;
   } else {
     fixingGrade = 'F';
     fixingGradeMessage =
       minSourceCount === 0
         ? `At least one color has zero sources. Those spells are uncastable.`
-        : `Too few sources across the board (worst: ${minSourceCount}). Consider more dual lands and mana rocks.`;
+        : `Too few sources overall (worst color: ${minSourceCount}). Add dual lands and mana rocks.`;
   }
 
   // Build fixing recommendations: non-land mana fixers from EDHREC candidates

@@ -97,7 +97,7 @@ export function computeStrategyFromEngine(input: StrategyEngineInput | null | un
   const balanceScore = Math.min(1, balance / ENGINE_BALANCE_TARGET);
 
   const value = Math.round((densityScore * 0.6 + balanceScore * 0.4) * 100);
-  const surface = `${engineCards} of ${nonLandCount} non-land cards drive your ${primaryLabel} engine (${p} producer${p === 1 ? '' : 's'} / ${o} payoff${o === 1 ? '' : 's'}).`;
+  const surface = `${engineCards} of ${nonLandCount} non-land cards drive your ${primaryLabel} engine: ${p} producer${p === 1 ? '' : 's'}, ${o} payoff${o === 1 ? '' : 's'}.`;
   return { value, surface, bandLabel: bandFor(value) };
 }
 

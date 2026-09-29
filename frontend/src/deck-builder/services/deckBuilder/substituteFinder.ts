@@ -299,7 +299,7 @@ function buildSubstituteFactors(
   }
   if (cand.subtypeMatch && usedSubtype) {
     out.push({
-      text: `Same ${humanizeSubtype(usedSubtype)}: fills the slot like-for-like`,
+      text: `Same ${humanizeSubtype(usedSubtype)}`,
       tone: 'pro',
     });
   }

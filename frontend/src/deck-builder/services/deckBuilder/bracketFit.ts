@@ -612,7 +612,7 @@ function computeDownshiftPlanWithTarget(
     {
       items: comboQueue.map((c) => c.piece),
       signal: 'combo',
-      reason: () => `Breaks an infinite combo that floors the deck above Bracket ${target}.`,
+      reason: () => `Infinite combo puts the deck above Bracket ${target}.`,
     },
     {
       items: staxQueue,
@@ -622,7 +622,7 @@ function computeDownshiftPlanWithTarget(
     {
       items: extraTurnQueue,
       signal: 'extra-turn',
-      reason: () => `Extra-turn chain pushes past Bracket ${target}.`,
+      reason: () => `Extra-turn chain puts the deck above Bracket ${target}.`,
     },
   ];
 
@@ -638,17 +638,13 @@ function computeDownshiftPlanWithTarget(
   if (stillAbove()) {
     for (const name of fastManaQueue) {
       if (!stillAbove()) break;
-      cut(
-        name,
-        `Fast mana adds power density that lifts the deck above Bracket ${target}.`,
-        'fast-mana'
-      );
+      cut(name, `Fast mana puts the deck above Bracket ${target}.`, 'fast-mana');
     }
   }
   if (stillAbove()) {
     for (const name of tutorQueue) {
       if (!stillAbove()) break;
-      cut(name, `Tutors raise consistency past Bracket ${target}.`, 'tutor');
+      cut(name, `Tutors put the deck above Bracket ${target}.`, 'tutor');
     }
   }
 
@@ -686,7 +682,7 @@ function computeDownshiftPlanWithTarget(
 
   const summary = achievable
     ? `Cut ${cutMoves.length} card${cutMoves.length === 1 ? '' : 's'} to reach Bracket ${target}.`
-    : `Best effort: ${cutMoves.length} cut${cutMoves.length === 1 ? '' : 's'} (still Bracket ${finalEstimate.bracket}).`;
+    : `Best effort: ${cutMoves.length} cut${cutMoves.length === 1 ? '' : 's'}. Still Bracket ${finalEstimate.bracket}.`;
 
   return {
     direction: 'too-strong',
@@ -897,7 +893,7 @@ function computeUpshiftPlanWithTarget(
         imageUrl: poolCard?.image_uris?.[0]?.normal,
         isGameChanger: poolCard?.isGameChanger,
       },
-      `Completes a combo. Adding this single card finishes a known infinite, a deterministic jump toward Bracket ${target}.`,
+      `Completes an infinite combo. Moves the deck toward Bracket ${target}.`,
       'upshift-combo',
       asComplete
     );
@@ -929,7 +925,7 @@ function computeUpshiftPlanWithTarget(
           imageUrl: c.image_uris?.[0]?.normal,
           isGameChanger: true,
         },
-        `Game Changer the deck lacks. The most direct way to raise it toward Bracket ${target}.`,
+        `Game Changer the deck lacks. Moves it toward Bracket ${target}.`,
         'upshift-gc'
       );
     }
@@ -951,7 +947,7 @@ function computeUpshiftPlanWithTarget(
           typeLine: g.typeLine,
           imageUrl: g.imageUrl,
         },
-        `Popular high-power inclusion for this commander. Rarely moves the bracket on its own, but tightens the deck toward Bracket ${target}.`,
+        `Popular pick for this commander. A small step toward Bracket ${target}.`,
         'upshift-fill'
       );
       filled++;
@@ -1043,9 +1039,9 @@ function computeUpshiftPlanWithTarget(
   let note: string | undefined;
   if (ceiling) {
     note =
-      'Already at the build ceiling. Bracket 5 is mindset and metagame, not more cards. Showing combo-completion opportunities only.';
+      'At the build ceiling. Bracket 5 is about the table, not more cards. Showing combo completions only.';
   } else if (offlineDegraded && moves.length === 0) {
-    note = 'Connect to EDHREC for power-up suggestions. No card pool is available offline.';
+    note = 'No power-up suggestions offline. Reconnect to load them.';
   } else if (!achievable) {
     note = `Couldn't reach Bracket ${target}. Still Bracket ${currentEstimate.bracket} after every available add.`;
   }
@@ -1053,10 +1049,10 @@ function computeUpshiftPlanWithTarget(
   const verb = pairedCount > 0 ? 'Swap in' : 'Add';
   const summary =
     moves.length === 0
-      ? `No concrete adds available${offlineDegraded ? ' offline' : ''}.`
+      ? `No adds available${offlineDegraded ? ' offline' : ''}.`
       : achievable
         ? `${verb} ${moves.length} card${moves.length === 1 ? '' : 's'} to reach Bracket ${target}.`
-        : `Best effort: ${verb.toLowerCase()} ${moves.length} card${moves.length === 1 ? '' : 's'} (still Bracket ${currentEstimate.bracket}).`;
+        : `Best effort: ${verb.toLowerCase()} ${moves.length} card${moves.length === 1 ? '' : 's'}. Still Bracket ${currentEstimate.bracket}.`;
 
   return {
     direction: 'too-weak',
@@ -1116,11 +1112,11 @@ export function buildBracketFitPlan(
     return {
       ...base,
       targetBracket: 1,
-      summary: 'Exhibition (Bracket 1) is a theme-first build, not a power level you tune down to.',
+      summary: 'Exhibition is a theme-first build, not a power level.',
       note:
         detected <= EXHIBITION_TUNES_TO
-          ? 'Your deck already sits at the Core (Bracket 2) floor. Exhibition is a theme-first build, not a lower power level.'
-          : 'These cuts bring the deck down to the Core (Bracket 2) floor. Exhibition is a theme-first build, not a lower power level.',
+          ? 'Your deck is already at Bracket 2, the Core floor.'
+          : 'These cuts bring the deck to Bracket 2, the Core floor.',
     };
   }
 

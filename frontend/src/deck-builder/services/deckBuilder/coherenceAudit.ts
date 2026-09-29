@@ -133,7 +133,7 @@ function landSanityFindings(input: CoherenceAuditInput): CoherenceFinding[] {
           kind: 'land-sanity',
           severity: 'warn',
           card: land.name,
-          message: 'It fetches only basic lands, but the deck runs none to find.',
+          message: 'It fetches basic lands, but the deck has none.',
           basicFixColor: bestBasicFixColor(manabase),
         });
       }
@@ -148,7 +148,7 @@ function landSanityFindings(input: CoherenceAuditInput): CoherenceFinding[] {
           kind: 'land-sanity',
           severity: 'warn',
           card: land.name,
-          message: `It fetches ${articleFor(wanted)} ${wanted}, but the deck has no land of ${req.colors.length === 1 ? 'that basic type' : 'either basic type'} for it to find.`,
+          message: `It fetches ${articleFor(wanted)} ${wanted}, but the deck has no ${req.colors.length === 1 ? 'land of that type' : 'land of either type'}.`,
           basicFixColor: bestBasicFixColor(manabase, req.colors),
         });
       }
@@ -195,11 +195,11 @@ function landSanityFindings(input: CoherenceAuditInput): CoherenceFinding[] {
       message:
         share === 0
           ? sharesCommander
-            ? 'No creature here shares a creature type with your commander. Its bonus never triggers.'
+            ? 'No creature shares a type with your commander. The bonus never triggers.'
             : 'No creature type repeats in this deck. Its chosen type covers almost nothing.'
           : sharesCommander
-            ? `Only ${sharing} of ${creatures.length} creatures share a creature type with your commander. Its bonus will rarely trigger.`
-            : `Its chosen creature type covers at most ${sharing} of ${creatures.length} creatures. The mana will often be stuck.`,
+            ? `Only ${sharing} of ${creatures.length} creatures share a type with your commander. The bonus rarely triggers.`
+            : `Its chosen type covers at most ${sharing} of ${creatures.length} creatures. The mana is often stuck.`,
     });
   }
 
@@ -229,7 +229,7 @@ function landSanityFindings(input: CoherenceAuditInput): CoherenceFinding[] {
           kind: 'land-sanity',
           severity: 'info',
           card: land.name,
-          message: `Colorless-only land while ${COLOR_WORDS[shortColor]} sources run short. ${Article} ${BASIC_NAMES[shortColor]} would serve the manabase better.`,
+          message: `Colorless-only land while ${COLOR_WORDS[shortColor]} sources run short. ${Article} ${BASIC_NAMES[shortColor]} fits better.`,
           basicFixColor: shortColor,
         });
       }
@@ -269,13 +269,13 @@ export function auditDeckCoherence(input: CoherenceAuditInput): CoherenceFinding
       findings.push({
         kind: 'win-condition',
         severity: 'warn',
-        message: 'No clear way to win. Nothing in the 99 finishes the game yet.',
+        message: 'No clear way to win. Nothing in the 99 finishes the game.',
       });
     } else if (winCon.secondary.length === 0 && winCon.primary) {
       findings.push({
         kind: 'win-condition',
         severity: 'info',
-        message: `Single win path: ${winCon.primary.label}. A backup finisher would make the deck more resilient.`,
+        message: `Single win path: ${winCon.primary.label}. Add a backup finisher.`,
       });
     }
   }

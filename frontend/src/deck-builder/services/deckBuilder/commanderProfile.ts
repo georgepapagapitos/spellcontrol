@@ -785,7 +785,7 @@ function pickPrimaryArchetype(abilities: CommanderAbility[]): Archetype {
 function buildSummary(name: string, abilities: CommanderAbility[]): string {
   const short = name.includes(',') ? name.split(',')[0].trim() : name;
   if (abilities.length === 0) {
-    return `${short} has a unique line of text. Pick the themes you want to lean into below.`;
+    return `${short} has a unique line of text. Pick your themes below.`;
   }
   const phrases: Record<CommanderKeyword, string> = {
     etb: 'abuse enters-the-battlefield triggers',

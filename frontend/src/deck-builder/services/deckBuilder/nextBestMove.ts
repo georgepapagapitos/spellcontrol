@@ -179,8 +179,7 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
       id: 'no-win-condition',
       tier: 1,
       title: 'Define a win condition',
-      detail:
-        'This deck has no clear path to victory yet. Add a combo, an alt-win plan (infect, mill), or lean harder into one synergy.',
+      detail: 'No clear way to win yet. Add a combo, an alt-win plan or one more win synergy.',
       navigateTo: 'power',
     });
   }
@@ -192,7 +191,7 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
       id: 'size-over',
       tier: 1,
       title: `Trim ${excess} card${excess === 1 ? '' : 's'}`,
-      detail: `Your deck has ${cardCount} cards, ${excess} over the ${deckTarget}-card target. Cut your weakest ${excess === 1 ? 'card' : 'cards'} to make the deck legal.`,
+      detail: `Your deck has ${cardCount} cards, ${excess} over the ${deckTarget}-card target. Cut your weakest ${excess === 1 ? 'card' : 'cards'}.`,
       navigateTo: 'deck',
     });
   } else if (excess < 0) {
@@ -201,7 +200,7 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
       id: 'size-under',
       tier: 1,
       title: `Add ${short} card${short === 1 ? '' : 's'}`,
-      detail: `Your deck has ${cardCount} cards, ${short} under the ${deckTarget}-card target. Fill the remaining ${short === 1 ? 'slot' : 'slots'} to complete the deck.`,
+      detail: `Your deck has ${cardCount} cards, ${short} under the ${deckTarget}-card target. Fill the remaining ${short === 1 ? 'slot' : 'slots'}.`,
       navigateTo: 'deck',
     });
   }
@@ -218,7 +217,7 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
         id: 'land-count',
         tier: 2,
         title: `Add ${delta} lands`,
-        detail: `Add ${delta} lands to reach ~${suggested} for this curve. Basics are fine.`,
+        detail: `Add ${delta} lands to reach ~${suggested} for this curve. Basics work.`,
         navigateTo: 'stats',
       });
     } else if (delta <= -2) {
@@ -226,7 +225,7 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
         id: 'land-count',
         tier: 2,
         title: `Trim ${-delta} lands`,
-        detail: `Trim ${-delta} lands to ~${suggested} for this curve. Swap them for spells to cut flood draws.`,
+        detail: `Trim ${-delta} lands to ~${suggested} for this curve. Swap them for spells.`,
         navigateTo: 'stats',
       });
     }
@@ -274,7 +273,7 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
           id: 'curve',
           tier: 2,
           title: 'Fix the curve',
-          detail: `${sub.surface} Adjust the mana curve to fill the underweight phase.`,
+          detail: `${sub.surface} Add cards to the light phase.`,
           navigateTo: SUBSCORE_VIEW.curve,
         });
         continue;
@@ -302,9 +301,9 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
           cardName: gap?.name,
           detail: gap
             ? owns
-              ? `${sub.surface} You own ${gap.name}. It fits your strategy (${Math.round(gap.inclusion)}% of builds run it).`
-              : `${sub.surface} Add ${gap.name}. It fits your strategy (${Math.round(gap.inclusion)}% of builds run it).`
-            : `${sub.surface} Add more on-theme cards to lean into your strategy.`,
+              ? `${sub.surface} You own ${gap.name}, played in ${Math.round(gap.inclusion)}% of builds like this.`
+              : `${sub.surface} Add ${gap.name}, played in ${Math.round(gap.inclusion)}% of builds like this.`
+            : `${sub.surface} Add more on-theme cards.`,
           navigateTo: SUBSCORE_VIEW.strategy,
           focus: 'upgrade',
         });
@@ -336,7 +335,7 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
       if (ownedOnly && !alreadyOwns) continue;
       const detail = alreadyOwns
         ? `You already own ${missingName}. Add it to complete ${partnerStr} → ${produces}.`
-        : `Completes ${partnerStr} → ${produces}. Add ${missingName} to finish the combo.`;
+        : `Completes ${partnerStr} → ${produces}. Add ${missingName}.`;
       moves.push({
         id: `combo-${match.combo.id}`,
         tier: 3,
