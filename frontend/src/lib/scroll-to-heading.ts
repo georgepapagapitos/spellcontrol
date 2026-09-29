@@ -37,3 +37,35 @@ export function scrollToHeading(id: string, opts: { focus?: boolean } = {}): boo
   el.focus({ preventScroll: true });
   return true;
 }
+
+/**
+ * Route-arrival focus for the app shell: moves focus to the new page's `<h1>`
+ * inside `container` so a screen-reader user isn't left wherever focus last
+ * was. A page that already put the caret in one of its own fields (Card
+ * search's autofocused box) keeps it: the field was the page's deliberate
+ * arrival target, and taking it back to the heading made that autofocus a
+ * no-op on every in-app navigation.
+ *
+ * Returns whether arrival is settled (heading focused, or the page holds
+ * focus), so a caller waiting on a lazy route can stop watching.
+ */
+export function focusArrivalHeading(container: HTMLElement): boolean {
+  const active = document.activeElement;
+  if (
+    active &&
+    container.contains(active) &&
+    active.matches('input, textarea, select, [contenteditable="true"]')
+  ) {
+    return true;
+  }
+  const heading = container.querySelector<HTMLElement>('h1');
+  if (!heading) return false;
+  heading.tabIndex = -1;
+  // Same recognized exception as scrollToHeading (base-layout.css): this is a
+  // programmatic arrival focus, not a tabbed-to control, so the browser's raw
+  // default ring is suppressed rather than reading as a rendering glitch on
+  // every route change.
+  heading.classList.add('scroll-heading-target');
+  heading.focus({ preventScroll: true });
+  return true;
+}
