@@ -23,6 +23,7 @@ import { authRouter } from './routes/auth';
 import { adminRouter } from './routes/admin';
 import { syncRouter } from './routes/sync';
 import { gamesRouter } from './routes/games';
+import { sweepDiscordTables } from './games/discord-tables';
 import { warnIfMultiMachine } from './fly-topology';
 import { gameResultsRouter } from './routes/game-results';
 import { combosRouter } from './routes/combos';
@@ -63,6 +64,7 @@ import { getMatcher } from './scanner/matcher';
 import { lastSuccessfulIngestAt, runScheduledIngest } from './combos/ingest';
 import { scheduleRulesIngest } from './rules/ingest';
 import { scheduleRetentionSweep } from './retention';
+import { isDiscordConfigured } from './discord';
 import { lastSuccessfulRollupAt, runScheduledRollup } from './aggregates/rollup';
 import { recountDeckCopies } from './publications/copies';
 import {
@@ -1460,6 +1462,19 @@ async function start() {
 
   if (process.env.RETENTION_DISABLED !== '1') {
     afterBoot('retention sweep', 75_000, scheduleRetentionSweep);
+  }
+
+  // Discord tables: removes voice channels whose game has gone. A no-op until
+  // the DISCORD_* env vars are set (see discord.ts).
+  if (isDiscordConfigured()) {
+    afterBoot('discord table sweep', 90_000, () => {
+      const tick = () =>
+        void sweepDiscordTables()
+          .then((n) => n > 0 && logger.info(`[discord] swept ${n} table channel(s)`))
+          .catch((err) => logger.warn('[discord] table sweep failed', err));
+      tick();
+      setInterval(tick, 10 * 60 * 1000).unref();
+    });
   }
 
   // Passive uptime monitor (E266): only armed when the ping URL secret is set.
