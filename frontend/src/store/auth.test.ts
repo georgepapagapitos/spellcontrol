@@ -12,6 +12,8 @@ const EMPTY_PROFILE: Profile = {
   avatarCardId: null,
   avatarCardName: null,
   avatarImageUrl: null,
+  pinnedDeckSlug: null,
+  showGameRecord: false,
 };
 
 beforeEach(() => {

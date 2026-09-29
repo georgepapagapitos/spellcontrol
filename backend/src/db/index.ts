@@ -930,5 +930,20 @@ export async function ensureSchema(): Promise<void> {
     -- app itself publishes as. Its decks stay out of everything that counts
     -- people (trending, commander stats, the community grid, user search).
     ALTER TABLE users ADD COLUMN IF NOT EXISTS is_official BOOLEAN NOT NULL DEFAULT false;
+    -- Brewers (T175): the deck a profile pins to its top (a deck_publications
+    -- slug, checked live at read time), and the opt-in for showing a game
+    -- record on the profile. Off by default; nothing is shown until chosen.
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS pinned_deck_slug TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS show_game_record BOOLEAN NOT NULL DEFAULT false;
+    -- One-way follow, alongside the mutual friends table. Gives a feed and a
+    -- count and nothing else (collection, trades and pods stay friends-only).
+    CREATE TABLE IF NOT EXISTS user_follows (
+      follower_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      followee_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at BIGINT NOT NULL,
+      PRIMARY KEY (follower_id, followee_id),
+      CHECK (follower_id <> followee_id)
+    );
+    CREATE INDEX IF NOT EXISTS user_follows_followee_idx ON user_follows (followee_id, created_at DESC);
   `);
 }

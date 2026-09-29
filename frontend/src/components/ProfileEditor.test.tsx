@@ -31,6 +31,8 @@ const PROFILE: Profile = {
   avatarCardId: null,
   avatarCardName: null,
   avatarImageUrl: null,
+  pinnedDeckSlug: null,
+  showGameRecord: false,
 };
 
 function asInput(el: HTMLElement): HTMLInputElement | HTMLTextAreaElement {
@@ -73,6 +75,8 @@ describe('ProfileEditor', () => {
       avatarCardId: MOCK_PICK.cardId,
       avatarCardName: MOCK_PICK.cardName,
       avatarImageUrl: MOCK_PICK.imageUrl,
+      pinnedDeckSlug: null,
+      showGameRecord: false,
     });
     render(<ProfileEditor />);
 

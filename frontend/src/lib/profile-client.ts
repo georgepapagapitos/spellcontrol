@@ -19,6 +19,22 @@ export interface PublicProfileDeck {
   updatedAt: number;
 }
 
+export type ProfileColor = 'W' | 'U' | 'B' | 'R' | 'G' | 'C';
+
+export interface ProfileTopCommander {
+  name: string;
+  /** Art crop of their newest live deck for it. */
+  image: string | null;
+  deckCount: number;
+}
+
+/** Finished PvP games (co-op excluded) from the canonical game record. */
+export interface ProfileGameRecord {
+  games: number;
+  wins: number;
+  mostPlayed: { name: string; slug: string | null } | null;
+}
+
 export interface PublicProfile {
   username: string;
   displayName: string | null;
@@ -32,6 +48,22 @@ export interface PublicProfile {
   moderationHidden: boolean;
   deckCount: number;
   decks: PublicProfileDeck[];
+  followerCount: number;
+  followingCount: number;
+  /** Per viewer: false for a guest and on your own profile. */
+  viewerFollows: boolean;
+  viewerIsFriend: boolean;
+  /** People, never clicks: distinct other accounts that liked a live deck, and
+   *  other accounts' live copies of them. */
+  stats: { likesReceived: number; copiesReceived: number };
+  /** Up to three, most live decks first. */
+  topCommanders: ProfileTopCommander[];
+  /** Live decks carrying each colour; a colourless deck counts under C. */
+  colorSpread: Record<ProfileColor, number>;
+  /** Only while still a live publication of theirs. */
+  pinnedDeckSlug: string | null;
+  /** Null unless the owner turned it on. */
+  gameRecord: ProfileGameRecord | null;
   /** The Collection tab (board T136). `canView` is decided per viewer on the
    *  server; `visibility` is the owner's choice (null = never chose). */
   collection?: { visibility: 'public' | 'friends' | 'private' | null; canView: boolean };

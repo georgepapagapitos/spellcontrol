@@ -12,6 +12,8 @@
  */
 
 import type { PublicDeck } from '../shares/projections';
+import type { BaseRails } from '../brewers/rails';
+import type { ColorSpread, GameRecord, ProfileStats, TopCommander } from '../brewers/profile-stats';
 
 export interface PublicDeckPage {
   slug: string;
@@ -63,6 +65,13 @@ export interface PublicUserProfile {
   isOfficial: boolean;
   deckCount: number;
   decks: PublicDeckSummary[];
+  /** Viewer-agnostic numbers (T175). Follower counts are per request instead. */
+  stats: ProfileStats;
+  topCommanders: TopCommander[];
+  colorSpread: ColorSpread;
+  pinnedDeckSlug: string | null;
+  /** Null unless the owner opted in. */
+  gameRecord: GameRecord | null;
 }
 
 interface CacheEntry<T> {
@@ -122,6 +131,8 @@ export class LruTtlCache<T> {
 
 export const deckPublicationCache: LruTtlCache<PublicDeckPage> = new LruTtlCache<PublicDeckPage>();
 export const publicUserCache: LruTtlCache<PublicUserProfile> = new LruTtlCache<PublicUserProfile>();
+/** The viewer-agnostic Brewers rails, under one key. */
+export const brewerRailsCache: LruTtlCache<BaseRails> = new LruTtlCache<BaseRails>(60_000, 2);
 
 /** Drop a slug from the deck-page cache. Call after unpublish or account
  *  deletion so the next reader sees the 404 immediately rather than waiting
