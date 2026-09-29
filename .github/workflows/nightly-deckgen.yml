@@ -1,0 +1,106 @@
+# Nightly deck generation (E508).
+#
+# CI's generator suites run over mocked EDHREC/Scryfall fixtures, and a mock
+# cannot drift. This runs the real thing every night, in two parts:
+#
+# 1. Schema canary (sourceSchema.live.test.ts): one EDHREC commander page, one
+#    commander x theme page, one card page, and one Scryfall /cards/named and
+#    /cards/collection call, through the app's own clients and parsers. It
+#    fails naming the field that went missing. On 2026-07-12 EDHREC renamed
+#    fields and every generation silently fell back to the no-EDHREC path in
+#    production (#1145); nothing threw, because the parsers default a missing
+#    field to 0.
+# 2. The settings stress panel (__fixtures__/stress-panel.json, 100 rows:
+#    partners, backgrounds, colorless and five-color, Brawl 60, PDH, 40-card,
+#    collection modes, budgets, brackets, rarity, must-includes and bans,
+#    themes, era/art/function modes, impossible combos) through the live
+#    harness with LIVE_GEN_STRICT=1, so any HARD invariant from
+#    deckInvariants.ts fails the run. Dumps + summary.json are uploaded
+#    whether it passes or fails.
+#
+# Sizing (measured 2026-09-29 on a cold cache, 2 req/s Scryfall limit): a
+# stress row takes 15-40 s and ~30 Scryfall requests, so the whole panel runs
+# in well under an hour. Every row runs every night; there is no rotation.
+# If the panel grows past what fits in timeout-minutes, rotate with the
+# harness's LIVE_GEN_SHARD=k/n (k = day of year mod n) and say so here.
+#
+# No HTTP cache, on purpose: LIVE_GEN_HTTP_CACHE would replay yesterday's
+# responses and hide exactly the drift this job exists to catch.
+#
+# Not a required check (it runs on a schedule, not on PRs). A red run is a
+# board row with the failing rows from summary.json attached.
+name: Nightly deck generation
+
+on:
+  schedule:
+    - cron: '41 6 * * *' # daily, 06:41 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-deckgen
+  cancel-in-progress: true
+
+jobs:
+  deckgen:
+    name: Schema canary + stress panel
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    # NODE_ENV=production is set per step, never here: at job level it would
+    # reach build-shared's and the frontend's `npm ci`, which then skip
+    # devDependencies (typescript, vitest) and fail. See the Nightly journey's
+    # NODE_ENV note for the same trap.
+    steps:
+      # No LFS: the scanner embeddings are the only LFS object, and nothing
+      # here touches the scanner.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build shared packages
+        uses: ./.github/actions/build-shared
+
+      - name: Install
+        run: npm ci --prefix frontend --no-audit --no-fund
+
+      # import.meta.env.DEV must be false or the clients call the dev-server
+      # proxy paths (/edhrec-api, /scryfall-api), which only Vite serves: both
+      # the canary and the harness need NODE_ENV=production AND --mode
+      # production (see deckGenerator.live.test.ts's header). LIVE_GEN also
+      # lifts src/test/setup.ts's network guard.
+      - name: Schema canary (EDHREC + Scryfall)
+        working-directory: frontend
+        env:
+          NODE_ENV: production
+          LIVE_GEN: '1'
+        run: >-
+          ./node_modules/.bin/vitest run --mode production
+          src/deck-builder/services/deckBuilder/sourceSchema.live.test.ts
+
+      - name: Stress panel (strict)
+        working-directory: frontend
+        env:
+          NODE_ENV: production
+          LIVE_GEN: '1'
+          LIVE_GEN_PANEL: stress
+          LIVE_GEN_STRICT: '1'
+          LIVE_GEN_OUTDIR: ${{ runner.temp }}/deckgen
+        run: >-
+          ./node_modules/.bin/vitest run --mode production --disableConsoleIntercept
+          src/deck-builder/services/deckBuilder/deckGenerator.live.test.ts
+
+      - name: Upload dumps and summary
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: deckgen-${{ github.run_id }}
+          path: ${{ runner.temp }}/deckgen
+          if-no-files-found: warn
+          retention-days: 14

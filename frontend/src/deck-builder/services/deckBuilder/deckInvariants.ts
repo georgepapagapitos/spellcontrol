@@ -5,9 +5,9 @@
 // This module is that scanner, ported check for check, plus the checks it
 // lacked, each grounded in a bug that shipped:
 //
-//   face-name-collision / face-name-impostor (#2157): Scryfall's `!"Brainstorm"`
-//     also matched Harmonized Trio // Brainstorm, and decks shipped the
-//     impostor in place of the card they asked for (sometimes twice).
+//   face-name-impostor / face-name-collision (#2157): Scryfall's
+//     `!"Brainstorm"` also matched Harmonized Trio // Brainstorm, and decks
+//     shipped the impostor in place of the card they asked for.
 //   land-in-spell-slot / land-count (E485): repair phases seated utility lands
 //     (Karn's Bastion, Eldrazi Temple) into spell slots and shipped decks over
 //     their tuned land count.
@@ -91,11 +91,22 @@ export interface InvariantContext {
   customization: Customization;
   collectionNames?: ReadonlySet<string>;
   /**
-   * Every name the generator could have asked Scryfall for by name: the
-   * EDHREC pool it read, plus must-includes. Enables `face-name-impostor`,
-   * which needs to know that "Brainstorm" was wanted to tell that
-   * "Harmonized Trio // Brainstorm" was not. A name missing from this set can
-   * only hide an impostor, never invent one, so a partial pool is safe.
+   * Name lookups observed at the Scryfall boundary: requested name → the name
+   * of the card the lookup answered with. The generator does not record what
+   * name it picked a card under, so this is the only EXACT evidence of the
+   * #2157 mechanism: a lookup for "Brainstorm" answered with Harmonized Trio
+   * // Brainstorm. A seated card that some lookup produced for one of its
+   * LATER faces is a HARD `face-name-impostor`. The live harness records it
+   * from its fetch stub; callers without it get only the SOFT heuristic below.
+   */
+  nameResolutions?: Iterable<readonly [requested: string, resolved: string]>;
+  /**
+   * The names the generator could have asked for by name: the EDHREC pool it
+   * read, plus must-includes. Without `nameResolutions` this is a heuristic:
+   * a multi-face card whose own names were never requested, sitting where one
+   * of its later faces was, is PROBABLY an impostor. A legitimate Scryfall
+   * search fill can seat the same card (Harmonized Trio under a $1 price cap
+   * that priced Brainstorm out), so it is SOFT.
    */
   requestedNames?: Iterable<string>;
 }
@@ -334,8 +345,12 @@ export function checkDeckInvariants(
   }
 
   // 2b. face-name collision (#2157): one face name carried by two different
-  // cards. Harmonized Trio // Brainstorm seated next to Brainstorm is the
-  // same name picked twice, once resolved to the impostor.
+  // cards. SOFT, because it is also a legal, deliberate pair: outside the
+  // stack an adventure/prepare card is named by its main face only, and
+  // EDHREC recommends Studious First-Year // Rampant Growth (21% on Wilson,
+  // 2026-09-29) right next to Rampant Growth. It turns HARD only with proof
+  // that one was fetched in place of the other (face-name-impostor below) or
+  // when both are the same card (singleton above).
   const faceOwners = new Map<string, { face: string; fronts: Set<string> }>();
   for (const card of cards) {
     if (isBasic(card)) continue;
@@ -356,21 +371,48 @@ export function checkDeckInvariants(
       ),
     ];
     add(
-      'HARD',
+      'SOFT',
       'face-name-collision',
       `the name "${face}" is seated on ${holders.length} different cards: ${holders.join(' | ')}`
     );
   }
 
-  // 2c. face-name impostor: a multi-face card whose own names were never
-  // requested, seated where one of its LATER faces was.
+  // 2c. face-name impostor: a multi-face card seated where one of its LATER
+  // faces was asked for. Exact (HARD) from observed lookups; a heuristic
+  // (SOFT) from the requested-name pool alone.
+  const seatedFronts = new Set(cards.map((c) => normalizeCardName(frontFaceName(c.name))));
+  const impostorFlagged = new Set<ScryfallCard>();
+  if (ctx.nameResolutions) {
+    const askedFor = new Map<string, string[]>(); // resolved card name -> requested names
+    for (const [requested, resolved] of ctx.nameResolutions) {
+      askedFor.set(resolved, [...(askedFor.get(resolved) ?? []), requested]);
+    }
+    for (const card of cards) {
+      const faces = faceNames(card);
+      if (faces.length < 2) continue;
+      const own = new Set([normalizeCardName(card.name), normalizeCardName(faces[0])]);
+      const later = new Set(faces.slice(1).map(normalizeCardName));
+      const asked = (askedFor.get(card.name) ?? []).find((r) => {
+        const key = normalizeCardName(r);
+        return !own.has(key) && later.has(key);
+      });
+      if (asked) {
+        impostorFlagged.add(card);
+        add(
+          'HARD',
+          'face-name-impostor',
+          `a lookup for "${asked}" was answered with ${card.name}, and that card is seated`
+        );
+      }
+    }
+  }
   const mustIncludeNames = [...(cz.mustIncludeCards ?? []), ...(cz.tempMustIncludeCards ?? [])];
   if (ctx.requestedNames) {
     const requested = new Set<string>();
     for (const n of ctx.requestedNames) requested.add(normalizeCardName(n));
     for (const n of mustIncludeNames) requested.add(normalizeCardName(n));
-    const seatedFronts = new Set(cards.map((c) => normalizeCardName(frontFaceName(c.name))));
     for (const card of cards) {
+      if (impostorFlagged.has(card)) continue;
       const faces = faceNames(card);
       if (faces.length < 2) continue;
       if (requested.has(normalizeCardName(card.name))) continue;
@@ -380,9 +422,9 @@ export function checkDeckInvariants(
       // face-name collision above; report each defect once.
       if (wanted && !seatedFronts.has(normalizeCardName(wanted))) {
         add(
-          'HARD',
+          'SOFT',
           'face-name-impostor',
-          `${card.name} is seated, but only its face "${wanted}" was ever requested`
+          `${card.name} is seated, but only its face "${wanted}" was requested (possible impostor)`
         );
       }
     }

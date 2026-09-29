@@ -21,6 +21,14 @@
 // committed public/ snapshots, mirroring liftSynergy.eval.test.ts) — every
 // other fetch goes out for real, with a User-Agent header merged in (Scryfall
 // 400s on Node's default UA; EDHREC doesn't care).
+//
+// E508: every deck is run through the committed invariant checker
+// (deckInvariants.ts). The violations land in each dump (`invariants`) and in
+// summary.json (`violations`, `hard`, `soft`), and are printed at the end.
+// LIVE_GEN_STRICT=1 makes the run FAIL on any HARD violation (the nightly
+// workflow sets it). LIVE_GEN_PANEL=stress runs the committed 100-row
+// settings stress panel (__fixtures__/stress-panel.json); LIVE_GEN_SHARD=k/n
+// keeps rows whose index is k mod n, so a nightly can rotate through it.
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -43,8 +51,21 @@ import { getScryfallStats, resetScryfallStats, type ScryfallStats } from '@/lib/
 import { validateCardRole, getCardTags } from '@/deck-builder/services/tagger/client';
 import {
   fetchCommanderData,
+  fetchCommanderThemeData,
   fetchPartnerCommanderData,
+  fetchPartnerThemeData,
 } from '@/deck-builder/services/edhrec/client';
+import { countedRoleOf } from './commanderDeckAnalysis';
+import {
+  checkDeckInvariants,
+  checkGenerationOutcome,
+  formatViolations,
+  hardViolations,
+  normalizeCardName,
+  type InvariantViolation,
+} from './deckInvariants';
+import { frontFaceName } from '@/lib/card-text';
+import { choosesColorBeforeGame, withChosenColor } from '@/deck-builder/lib/partnerUtils';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = process.env.LIVE_GEN_OUTDIR ?? join(tmpdir(), 'spellcontrol-live-gen');
@@ -177,6 +198,68 @@ function customization(overrides: Partial<Customization> = {}): Customization {
   };
 }
 
+// ---- Name-lookup evidence (E508, #2157) --------------------------------------
+//
+// The generator never records which name it picked a card under, so the only
+// exact evidence of a face-name impostor is at the Scryfall boundary: a lookup
+// for "Brainstorm" answered with Harmonized Trio // Brainstorm. Only the
+// lookups whose answer the client hands back AS the requested card count:
+// /cards/named (getCardByName returns whatever it answers) and the single-name
+// search (cached under the requested name). /cards/collection does not: the
+// client keys each answer by the card's OWN name (admitResolvedCard), so a
+// mismatched answer never stands in for the name that was asked. That matters
+// because Scryfall does answer mismatched there: probed 2026-09-29, a batch
+// holding both "Studious First-Year" and "Rampant Growth" returns Studious
+// First-Year // Rampant Growth for both identifiers (and the same for
+// Harmonized Trio / Brainstorm), while "Rampant Growth" alone returns the real
+// card. Recorded for the whole run: the client caches these answers, so later
+// decks reuse them and the evidence must outlive the deck that fetched it.
+const NAME_RESOLUTIONS = new Map<string, [string, string]>();
+
+function recordResolution(requested: string, resolved: string): void {
+  const want = normalizeCardName(requested);
+  if (want === normalizeCardName(resolved) || want === normalizeCardName(frontFaceName(resolved)))
+    return;
+  NAME_RESOLUTIONS.set(`${requested}\u0000${resolved}`, [requested, resolved]);
+}
+
+function recordNameResolutions(url: string, body: string): void {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return;
+  }
+  if (parsed.hostname !== 'api.scryfall.com') return;
+  let json: unknown;
+  try {
+    json = JSON.parse(body);
+  } catch {
+    return;
+  }
+  if (parsed.pathname === '/cards/named') {
+    const exact = parsed.searchParams.get('exact');
+    const name = (json as { name?: string }).name;
+    if (exact && name) recordResolution(exact, name);
+    return;
+  }
+  if (parsed.pathname === '/cards/search') {
+    // The single-name cheapest-printing search: `!"Name" -is:digital …`. The
+    // client keeps an exact or front-face hit when there is one and only
+    // falls back to every hit when there is none — exactly the case where an
+    // impostor can be seated, so only that case is evidence.
+    const q = parsed.searchParams.get('q') ?? '';
+    const m = /^!"([^"]+)"(?![^]*!")/.exec(q);
+    const data = (json as { data?: Array<{ name: string }> }).data ?? [];
+    if (!m || data.length === 0) return;
+    const want = normalizeCardName(m[1]);
+    const exact = data.some(
+      (c) => normalizeCardName(c.name) === want || normalizeCardName(frontFaceName(c.name)) === want
+    );
+    if (!exact) for (const c of data) recordResolution(m[1], c.name);
+  }
+}
+
 // ---- Network stub: real fetch for everything except the two static assets --
 
 let realFetch: typeof fetch;
@@ -205,13 +288,19 @@ beforeAll(async () => {
       ...(init?.headers as Record<string, string> | undefined),
       'User-Agent': 'SpellControl-DeckGen-EvalHarness/1.0',
     };
-    if (!HTTP_CACHE_DIR) return realFetch(input, { ...init, headers });
+    const isScryfall = url.includes('api.scryfall.com');
+    if (!HTTP_CACHE_DIR) {
+      const res = await realFetch(input, { ...init, headers });
+      if (isScryfall && res.ok) recordNameResolutions(url, await res.clone().text());
+      return res;
+    }
     const key = createHash('sha1')
       .update(`${init?.method ?? 'GET'} ${url} ${typeof init?.body === 'string' ? init.body : ''}`)
       .digest('hex');
     const file = join(HTTP_CACHE_DIR, `${key}.json`);
     if (existsSync(file)) {
       const hit = JSON.parse(readFileSync(file, 'utf8')) as { status: number; body: string };
+      if (isScryfall && hit.status === 200) recordNameResolutions(url, hit.body);
       return new Response(hit.body, { status: hit.status });
     }
     const res = await realFetch(input, { ...init, headers });
@@ -220,6 +309,7 @@ beforeAll(async () => {
     if (res.ok || res.status === 404) {
       const body = await res.text();
       writeFileSync(file, JSON.stringify({ status: res.status, body }));
+      if (isScryfall && res.ok) recordNameResolutions(url, body);
       return new Response(body, { status: res.status });
     }
     return res;
@@ -240,6 +330,18 @@ interface RunSpec {
    *  when LIVE_GEN_COLLECTION is unset, so one spec file can mix collection and
    *  no-collection rows. */
   collection?: boolean;
+  /** A theme to build with (stress/niche rows). */
+  themeName?: string;
+  themeSlug?: string;
+  /** The row's correct outcome is a refusal: generation must throw an error
+   *  whose first line contains this text (an impossible filter, an illegal
+   *  commander). Building a deck anyway is then a HARD violation. */
+  expectedError?: string;
+  /** W/U/B/R/G for a choose-a-color commander (The Prismatic Piper, Clara
+   *  Oswald, Faceless One). The app will not build until one is chosen and
+   *  then stamps it onto the card (withChosenColor), so the harness does the
+   *  same and refuses a chooser row without one. */
+  chosenColor?: string;
 }
 
 const BASE_COMMANDERS = [
@@ -460,19 +562,41 @@ const POPULAR_THEMED_RUNS: NicheSpec[] = [
 
 /**
  * LIVE_GEN_PANEL swaps the panel: `niche` = E221's thin-pool panel,
- * `popular` = E228's floored-weight no-harm panel, unset = the standard runs.
+ * `popular` = E228's floored-weight no-harm panel, `stress` = the committed
+ * 100-row settings stress panel (E508), unset = the standard runs.
  */
 // LIVE_GEN_SPEC=<file.json>: an arbitrary panel — a JSON array of RunSpec rows
 // ({commanderName, variant, overrides?, partnerName?, themeName?+themeSlug?,
-// collection?}). The settings stress sweep drives ~50 rows through here without
-// committing a new hardcoded panel per sweep.
-const PANEL: RunSpec[] = process.env.LIVE_GEN_SPEC
+// collection?, expectedError?}). Wins over LIVE_GEN_PANEL.
+function stressPanel(): RunSpec[] {
+  return JSON.parse(
+    readFileSync(resolve(here, '__fixtures__', 'stress-panel.json'), 'utf8')
+  ) as RunSpec[];
+}
+const FULL_PANEL: RunSpec[] = process.env.LIVE_GEN_SPEC
   ? (JSON.parse(readFileSync(resolve(process.env.LIVE_GEN_SPEC), 'utf8')) as RunSpec[])
   : process.env.LIVE_GEN_PANEL === 'niche'
     ? NICHE_RUNS
     : process.env.LIVE_GEN_PANEL === 'popular'
       ? POPULAR_THEMED_RUNS
-      : RUNS;
+      : process.env.LIVE_GEN_PANEL === 'stress'
+        ? stressPanel()
+        : RUNS;
+
+// LIVE_GEN_SHARD=k/n: keep the rows whose panel index is k mod n. The nightly
+// workflow rotates k by day so every stress row runs at least once per n
+// nights without any one night paying for all of them. A malformed value
+// throws rather than silently running the whole panel.
+function shardOf(panel: RunSpec[], raw: string | undefined): RunSpec[] {
+  if (!raw) return panel;
+  const m = /^(\d+)\/(\d+)$/.exec(raw.trim());
+  if (!m || Number(m[2]) < 1 || Number(m[1]) >= Number(m[2])) {
+    throw new Error(`LIVE_GEN_SHARD must be "k/n" with 0 <= k < n, got "${raw}"`);
+  }
+  const [k, n] = [Number(m[1]), Number(m[2])];
+  return panel.filter((_, i) => i % n === k);
+}
+const PANEL: RunSpec[] = shardOf(FULL_PANEL, process.env.LIVE_GEN_SHARD);
 
 function slugify(name: string, variant: string): string {
   const base = name
@@ -514,7 +638,12 @@ function projectCard(card: ScryfallCard, deck: GeneratedDeck) {
     price_eur: getCardPrice(card, 'EUR'),
     oracle_text_snippet: oracleTextOf(card).slice(0, 140),
     edhrec_inclusion: deck.cardInclusionMap?.[card.name] ?? null,
+    // `role` is any role the card's text supports (validateCardRole joins
+    // every face); `countedRole` is the ONE role roleCounts counts it under
+    // (countedRoleOf: front face, never a land). Read countedRole to check a
+    // roleCounts number.
     role: validateCardRole(card),
+    countedRole: countedRoleOf(card),
     tags: getCardTags(card.name),
   };
 }
@@ -584,6 +713,10 @@ interface SummaryEntry {
    */
   scryfall?: ScryfallStats;
   error?: string;
+  /** E508: deckInvariants.ts over this deck (or its error), HARD first. */
+  hard?: number;
+  soft?: number;
+  violations?: InvariantViolation[];
 }
 
 const summaries: SummaryEntry[] = [];
@@ -612,15 +745,30 @@ describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
       const slug = slugify(spec.commanderName, spec.variant);
       const entry: SummaryEntry = { slug, commander: spec.commanderName, variant: spec.variant };
       const t0 = Date.now();
+      let deckViolations: InvariantViolation[] = [];
       try {
         clearGenerationCache();
         resetScryfallStats();
-        const commander = await getCardByName(spec.commanderName);
+        let commander = await getCardByName(spec.commanderName);
         if (!commander)
           throw new Error(`getCardByName returned nothing for "${spec.commanderName}"`);
-        const partnerCommander = spec.partnerName ? await getCardByName(spec.partnerName) : null;
+        let partnerCommander = spec.partnerName ? await getCardByName(spec.partnerName) : null;
         if (spec.partnerName && !partnerCommander)
           throw new Error(`getCardByName returned nothing for partner "${spec.partnerName}"`);
+        // A choose-a-color commander has an empty Scryfall identity; the app
+        // blocks the build until a color is picked and stamps it on the card
+        // (DeckGeneratePage's colorReady + the store's setChosenColor).
+        if (choosesColorBeforeGame(commander) || choosesColorBeforeGame(partnerCommander)) {
+          if (!spec.chosenColor) {
+            throw new Error(
+              `row needs chosenColor: ${spec.commanderName} chooses a color, and the app won't build without one`
+            );
+          }
+          if (choosesColorBeforeGame(commander))
+            commander = withChosenColor(commander, spec.chosenColor);
+          if (partnerCommander && choosesColorBeforeGame(partnerCommander))
+            partnerCommander = withChosenColor(partnerCommander, spec.chosenColor);
+        }
         const colorIdentity = [
           ...new Set([...commander.color_identity, ...(partnerCommander?.color_identity ?? [])]),
         ];
@@ -660,11 +808,11 @@ describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
           // is what state.ts requires to populate selectedThemesWithSlugs);
           // the standard panel stays theme-less exactly as before.
           selectedThemes:
-            'themeSlug' in spec
+            spec.themeSlug && spec.themeName
               ? [
                   {
-                    name: (spec as NicheSpec).themeName,
-                    slug: (spec as NicheSpec).themeSlug,
+                    name: spec.themeName,
+                    slug: spec.themeSlug,
                     source: 'edhrec' as const,
                     isSelected: true,
                   },
@@ -690,15 +838,25 @@ describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
         // (routeCardByType — a creature wipe sits in `creatures`), so a bucket
         // like boardWipes can be empty while the deck has wipes; two iter-19
         // blind critics misread exactly that as "zero board wipes". This is
-        // roleCounts with names, lands excluded to match computeRoleCounts.
+        // roleCounts with names: the same countedRoleOf computeRoleCounts
+        // uses, over the same nonland buckets (it read validateCardRole until
+        // E508, which joins every face and so disagreed on transforming DFCs).
         const roleCardNames: Record<string, string[]> = {};
         for (const [cat, cards] of Object.entries(decklist)) {
           if (cat === 'lands') continue;
           for (const c of cards) {
-            if (!c.role) continue;
-            (roleCardNames[c.role] ??= []).push(c.name);
+            if (!c.countedRole) continue;
+            (roleCardNames[c.countedRole] ??= []).push(c.name);
           }
         }
+
+        // E508: the committed invariant checker over the real deck, with the
+        // name-lookup evidence recorded at the fetch boundary.
+        deckViolations = checkDeckInvariants(deck, {
+          ...ctx,
+          nameResolutions: [...NAME_RESOLUTIONS.values()],
+          requestedNames: await requestedPoolNames(spec, commander, partnerCommander, custom),
+        });
 
         // Every string field on the deck whose key ends in "Note" — dynamic
         // so a newly added disclosure automatically shows up in future scans
@@ -747,6 +905,11 @@ describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
           allNotes,
           buildReport,
           cardRelevancy: buildCardRelevancy(deck),
+          invariants: {
+            hard: hardViolations(deckViolations).length,
+            soft: deckViolations.length - hardViolations(deckViolations).length,
+            violations: deckViolations,
+          },
         };
 
         writeFileSync(join(OUT_DIR, `${slug}.json`), JSON.stringify(output, null, 2));
@@ -770,10 +933,27 @@ describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
           `[deckGen-live] ${slug}: ${entry.scryfall.requests} scryfall requests, ` +
             `${entry.scryfall.throttled} × 429, ${entry.scryfall.cooldownMs}ms parked`
         );
+        const violations = [
+          ...deckViolations,
+          ...checkGenerationOutcome({
+            error: entry.error,
+            generationSeconds: entry.generationSeconds,
+            expectedError: spec.expectedError,
+          }),
+        ].sort((a, b) => (a.level === b.level ? 0 : a.level === 'HARD' ? -1 : 1));
+        entry.hard = hardViolations(violations).length;
+        entry.soft = violations.length - entry.hard;
+        entry.violations = violations;
+        if (entry.hard > 0) {
+          console.log(
+            `[deckGen-live] ${slug} HARD:\n${formatViolations(hardViolations(violations))}`
+          );
+        }
         summaries.push(entry);
       }
       // Never fail the run over one bad commander — the point is the dump,
-      // errors are captured in summary.json instead.
+      // errors are captured in summary.json instead. LIVE_GEN_STRICT fails
+      // the summary step below, once every row has run.
       expect(true).toBe(true);
     },
     600_000
@@ -802,6 +982,72 @@ describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
         `${totals.gaveUp} gave up, ${Math.round(totals.cooldownMs / 1000)}s parked`
     );
 
+    // E508: the invariant verdict, per check and per deck.
+    const byCheck = new Map<string, { hard: number; soft: number }>();
+    for (const s of summaries) {
+      for (const x of s.violations ?? []) {
+        const row = byCheck.get(x.check) ?? { hard: 0, soft: 0 };
+        if (x.level === 'HARD') row.hard++;
+        else row.soft++;
+        byCheck.set(x.check, row);
+      }
+    }
+    const hardLines = summaries.flatMap((s) =>
+      hardViolations(s.violations ?? []).map((x) => `${s.slug}: ${x.check}: ${x.detail}`)
+    );
+    console.log(
+      `[deckGen-live] INVARIANTS over ${summaries.length} decks: ` +
+        `${hardLines.length} HARD, ` +
+        `${summaries.reduce((n, s) => n + (s.soft ?? 0), 0)} SOFT` +
+        [...byCheck]
+          .sort(([a], [b]) => (a < b ? -1 : 1))
+          .map(([check, n]) => `\n  ${check}: ${n.hard} HARD, ${n.soft} SOFT`)
+          .join('')
+    );
+
     expect(summaries.length).toBe(ACTIVE_RUNS.length);
+    if (process.env.LIVE_GEN_STRICT === '1') {
+      expect(hardLines.join('\n'), 'LIVE_GEN_STRICT: HARD invariant violations').toBe('');
+    }
   });
 });
+
+/**
+ * Every name the generator could have asked Scryfall for by name on this row:
+ * the EDHREC pages it read (base, the budget/bracket page, the theme page).
+ * Feeds the SOFT impostor heuristic; the exact HARD check comes from
+ * NAME_RESOLUTIONS. Scryfall-sourced modes (era, art, function, PDH) pick by
+ * search, not by name, so they get none.
+ */
+async function requestedPoolNames(
+  spec: RunSpec,
+  commander: ScryfallCard,
+  partner: ScryfallCard | null,
+  custom: Customization
+): Promise<string[] | undefined> {
+  if ((custom.generationMode ?? 'edhrec') !== 'edhrec') return undefined;
+  if (custom.mtgFormat === 'paupercommander') return undefined;
+  const budget = custom.budgetOption !== 'any' ? custom.budgetOption : undefined;
+  const bracket = custom.targetBracket !== 'all' ? custom.targetBracket : undefined;
+  const page = (b?: typeof budget, t?: typeof bracket) =>
+    partner
+      ? fetchPartnerCommanderData(commander.name, partner.name, b, t)
+      : fetchCommanderData(commander.name, b, t);
+  const pages = [page()];
+  if (budget || bracket) pages.push(page(budget, bracket));
+  if (spec.themeSlug) {
+    pages.push(
+      partner
+        ? fetchPartnerThemeData(commander.name, partner.name, spec.themeSlug, budget, bracket)
+        : fetchCommanderThemeData(commander.name, spec.themeSlug, budget, bracket)
+    );
+  }
+  const names = new Set<string>();
+  for (const result of await Promise.allSettled(pages)) {
+    if (result.status !== 'fulfilled') continue;
+    for (const c of [...result.value.cardlists.allNonLand, ...result.value.cardlists.lands]) {
+      names.add(c.name);
+    }
+  }
+  return names.size > 0 ? [...names] : undefined;
+}

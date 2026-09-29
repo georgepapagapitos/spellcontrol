@@ -307,27 +307,54 @@ describe('count and singleton', () => {
 });
 
 describe('face names (#2157)', () => {
-  it('flags Brainstorm seated next to Harmonized Trio // Brainstorm', () => {
+  it('notes Brainstorm next to Harmonized Trio // Brainstorm (SOFT: a legal pair on its own)', () => {
     const cats = cleanCategories();
     swap(cats, 'Forest', card('Harmonized Trio // Brainstorm'), 'creatures');
     const v = checkDeckInvariants(assemble(cats), context());
     const hit = v.find((x) => x.check === 'face-name-collision');
-    expect(hit?.level).toBe('HARD');
+    expect(hit?.level).toBe('SOFT');
     expect(hit?.detail).toBe(
       'the name "Brainstorm" is seated on 2 different cards: Harmonized Trio // Brainstorm | Brainstorm'
     );
   });
 
-  it('flags the impostor when only its back face was ever requested', () => {
+  it('HARD when an observed lookup for "Brainstorm" answered with the seated Trio', () => {
+    const cats = cleanCategories();
+    swap(cats, 'Brainstorm', card('Harmonized Trio // Brainstorm'), 'creatures');
+    const v = checkDeckInvariants(
+      assemble(cats),
+      context({
+        nameResolutions: new Map([
+          ['Brainstorm', 'Harmonized Trio // Brainstorm'],
+          // A front-face or spelling resolution is the normal case.
+          ['Harmonized Trio', 'Harmonized Trio // Brainstorm'],
+          ['counterspell', 'Counterspell'],
+        ]),
+      })
+    );
+    expect(v.filter((x) => x.check === 'face-name-impostor')).toEqual([
+      {
+        level: 'HARD',
+        check: 'face-name-impostor',
+        detail:
+          'a lookup for "Brainstorm" was answered with Harmonized Trio // Brainstorm, and that card is seated',
+      },
+    ]);
+  });
+
+  it('SOFT when only the requested-name pool suggests it (a search fill can seat it legitimately)', () => {
     const cats = cleanCategories();
     swap(cats, 'Brainstorm', card('Harmonized Trio // Brainstorm'), 'creatures');
     const v = checkDeckInvariants(
       assemble(cats),
       context({ requestedNames: [...SPELLS] }) // asked for "Brainstorm", never "Harmonized Trio"
     );
-    expect(v.find((x) => x.check === 'face-name-impostor')?.detail).toBe(
-      'Harmonized Trio // Brainstorm is seated, but only its face "Brainstorm" was ever requested'
-    );
+    expect(v.find((x) => x.check === 'face-name-impostor')).toEqual({
+      level: 'SOFT',
+      check: 'face-name-impostor',
+      detail:
+        'Harmonized Trio // Brainstorm is seated, but only its face "Brainstorm" was requested (possible impostor)',
+    });
   });
 
   it('accepts the card when its own front face was requested', () => {
