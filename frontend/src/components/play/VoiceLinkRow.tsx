@@ -2,8 +2,10 @@ import { Headphones } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { GameAction, GameState } from '../../lib/game-state';
 import { Button } from '@/components/shared/Button';
+import { DiscordMark } from '@/components/shared/DiscordMark';
 import { getDiscordTablesEnabled, openDiscordTable } from '@/lib/games-api';
 import { userMessage } from '@/lib/user-error';
+import { isDiscordLink, voiceLinkLabel } from '@/lib/voice-link';
 
 /**
  * Where the table is talking. A link the host pastes, or a Discord table the
@@ -64,10 +66,19 @@ export function VoiceLinkRow({
   const openDiscord = async () => {
     setOpening(true);
     setError(null);
+    // One press takes the host into the call. The tab opens now, inside the
+    // click, because a browser blocks a window opened after the await; it is
+    // pointed at the invite once the server answers.
+    const tab = window.open('', '_blank');
     try {
       const url = await openDiscordTable(game.code);
       dispatch({ type: 'settings', patch: { voiceUrl: url } });
+      if (tab) {
+        tab.opener = null;
+        tab.location.href = url;
+      }
     } catch (err) {
+      tab?.close();
       setError(userMessage(err, "Couldn't open a Discord table. Try again in a moment."));
     } finally {
       setOpening(false);
@@ -98,13 +109,28 @@ export function VoiceLinkRow({
         }}
         aria-describedby={error ? 'lobby-voice-error' : undefined}
       />
-      {discordEnabled && !saved && (
+      {/* The host joins from here too, rather than copying their own link. */}
+      {saved && (
         <div className="lobby-voice-discord">
           <Button
-            icon={<Headphones width={14} height={14} strokeWidth={1.8} />}
-            disabled={opening}
-            onClick={() => void openDiscord()}
+            href={saved}
+            target="_blank"
+            rel="noreferrer noopener"
+            icon={
+              isDiscordLink(saved) ? (
+                <DiscordMark />
+              ) : (
+                <Headphones width={14} height={14} strokeWidth={1.8} />
+              )
+            }
           >
+            {voiceLinkLabel(saved)}
+          </Button>
+        </div>
+      )}
+      {discordEnabled && !saved && (
+        <div className="lobby-voice-discord">
+          <Button icon={<DiscordMark />} disabled={opening} onClick={() => void openDiscord()}>
             {opening ? 'Opening a Discord table…' : 'Open a Discord table'}
           </Button>
           <p className="lobby-voice-hint">

@@ -1,4 +1,5 @@
 import { Clock, Compass, Crown, Headphones, Undo2 } from 'lucide-react';
+import { DiscordMark } from '@/components/shared/DiscordMark';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DesignationKind, GameAction, GamePlayer, GameState } from '../../lib/game-state';
 import { cmdDamageKey, nextHostSeat } from '../../lib/game-state';
@@ -25,7 +26,7 @@ import './OnlineGameView.css';
 
 import { userMessage } from '@/lib/user-error';
 import { Button } from '@/components/shared/Button';
-import { voiceLinkLabel } from '@/lib/voice-link';
+import { isDiscordLink, voiceLinkLabel } from '@/lib/voice-link';
 
 // Mirrors playtest's TakebackConsentPrompt grace window (see its module doc):
 // native long-poll can drop a request's own terminal frame, so the banner
@@ -206,7 +207,13 @@ export function OnlineGameView({ game, errorMessage, onEnd, onLeave, onRematch }
                 href={game.voiceUrl}
                 target="_blank"
                 rel="noreferrer noopener"
-                icon={<Headphones width={14} height={14} strokeWidth={1.8} />}
+                icon={
+                  isDiscordLink(game.voiceUrl) ? (
+                    <DiscordMark />
+                  ) : (
+                    <Headphones width={14} height={14} strokeWidth={1.8} />
+                  )
+                }
                 className="ogv-header-btn"
               >
                 {voiceLinkLabel(game.voiceUrl)}
