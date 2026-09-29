@@ -221,7 +221,6 @@ describe('DeckCustomizer — collection controls', () => {
       />
     );
     expect(screen.getByText(/about 60% owned/)).toBeTruthy();
-    expect(screen.getByText(/outside your collection/)).toBeTruthy();
   });
 });
 

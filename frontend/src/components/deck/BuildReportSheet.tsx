@@ -107,7 +107,6 @@ export function BuildReportSheet({
             />
           </div>
           <h2 className="build-report-sheet-heading">Your deck is ready</h2>
-          <p className="build-report-sheet-subheading">Here's how it matches what you asked for.</p>
         </div>
         <div className="build-report-sheet-body">
           <BuildReportPanel

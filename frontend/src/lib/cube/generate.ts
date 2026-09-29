@@ -875,7 +875,7 @@ export function generateCube(
     const target = LEGEND_TARGET[size];
     gaps.push({
       severity: 'short',
-      text: `Only ${legends.length} legendary creatures are eligible, ${target - legends.length} short of the ${target}-commander target. Own more legends to fill it out.`,
+      text: `Only ${legends.length} legendary creatures are eligible, ${target - legends.length} short of the ${target}-commander target.`,
     });
   }
 

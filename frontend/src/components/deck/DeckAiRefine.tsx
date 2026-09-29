@@ -429,10 +429,10 @@ export function DeckAiRefine({
         title={title}
         blurb={
           isReplace
-            ? `Judge whether the card you're adding earns a slot, and which card to cut for it. Turning this on sends this deck's card names, its computed stats and the card you're adding to Anthropic. Nothing is sent until you press an AI button, ${status.limit} a day. Your collection is never sent, and you can turn it back off in Settings.`
+            ? `Judge whether the card you're adding earns a slot, and which card to cut for it. Turning this on sends this deck's card names, computed stats and the card you're adding to Anthropic. Nothing is sent until you press an AI button. Your collection is never sent. Turn it off any time in Settings.`
             : isSuggestions
-              ? `Weigh the suggestions on this tab against the deck and pick the few worth making. Turning this on sends this deck's card names, its computed stats and those candidates to Anthropic. Nothing is sent until you press an AI button, ${status.limit} a day. Your collection is never sent, and you can turn it back off in Settings.`
-              : `Weigh the candidates the coach already found and suggest a few swaps. Turning this on sends this deck's card names, its computed stats and those candidates to Anthropic. Nothing is sent until you press an AI button, ${status.limit} a day. Your collection is never sent, and you can turn it back off in Settings.`
+              ? `Weigh the suggestions on this tab against the deck and pick the few worth making. Turning this on sends this deck's card names, computed stats and those candidates to Anthropic. Nothing is sent until you press an AI button. Your collection is never sent. Turn it off any time in Settings.`
+              : `Weigh the candidates the coach already found and suggest a few swaps. Turning this on sends this deck's card names, computed stats and those candidates to Anthropic. Nothing is sent until you press an AI button. Your collection is never sent. Turn it off any time in Settings.`
         }
         onDismiss={() => setInviteDismissed(true)}
       />
@@ -615,18 +615,18 @@ export function DeckAiRefine({
         <div className="deck-ai-idle">
           <p className="deck-ai-idle-text">
             {isReplace
-              ? `Judges whether ${incoming} earns a slot, and what to cut if it does. Never names a card outside the deck.`
+              ? `Judges whether ${incoming} earns a slot, and what to cut if it does.`
               : isSuggestions
                 ? `Picks the few of these ${pool.length} suggestions worth making${
                     fromCopy ? `,${fromCopy}` : ''
-                  }, never a card the coach hasn't already found.`
+                  }.`
                 : pool.length === 0
-                  ? 'Once the coach has candidates for this deck, it weighs them and suggests a few swaps.'
+                  ? 'Suggests swaps once the coach has candidates.'
                   : /* Deliberately says "this deck", not "what the generator
                        built": since #1673 the Coach mount is no longer gated to
                        generated decks, and this same string renders on
                        hand-built ones, where a generator never existed. */
-                    `Suggests a few changes${fromCopy}, chosen from the ${pool.length} candidates the coach already found.`}
+                    `Suggests a few changes${fromCopy} from the ${pool.length} candidates the coach found.`}
           </p>
           <div className="deck-ai-idle-actions">
             <Button variant="primary" onClick={run} disabled={remaining === 0 || pool.length === 0}>

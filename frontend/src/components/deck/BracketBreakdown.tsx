@@ -56,35 +56,32 @@ const {
 } = SOFT_SCORE;
 
 const HARD_FLOOR_TIP =
-  'A hard floor sets the lowest bracket this deck can be. Game Changers, mass land denial, infinite combos, stax and extra turns each set one. Cutting those cards is the only way down.';
+  'A hard floor is the lowest bracket the deck can be. Game Changers, mass land denial, infinite combos, stax and extra turns each set one. Cut those cards to go lower.';
 // One consolidated explainer for the power signal — intro + every signal —
 // so the four rows don't each need their own info icon (which read as clutter).
 const SOFT_SCORE_TIP: ReactNode = (
   <>
     <p className="info-tip-lead">
-      The power signal (0–100) can only push your bracket <strong>up</strong> from the hard floor,
-      never below it. It's built from five signals:
+      The power signal (0–100) can raise your bracket <strong>above</strong> the hard floor, never
+      below it. Five signals add to it:
     </p>
     <ul className="info-tip-list">
       <li>
-        <strong>Fast mana</strong>: rocks/rituals that make more mana than they cost (Mana Vault,
-        Chrome Mox). Sol Ring is exempt as a precon staple. 8 pts each, max 40.
+        <strong>Fast mana</strong>: rocks and rituals that make more mana than they cost. Sol Ring
+        is exempt. 8 pts each, max 40.
       </li>
       <li>
-        <strong>Tutors</strong>: cards that search your library for anything (Demonic Tutor). They
-        make the deck consistent. 5 pts each, max 25.
+        <strong>Tutors</strong>: cards that search your library for anything. 5 pts each, max 25.
       </li>
       <li>
-        <strong>Low curve</strong>: a low average mana value gets your plan online sooner; below 3.5
-        earns up to 20 pts.
+        <strong>Low curve</strong>: an average mana value below 3.5 earns up to 20 pts.
       </li>
       <li>
-        <strong>Interaction</strong>: removal, counterspells and board wipes; more answers = a more
-        resilient deck. Up to 15 pts.
+        <strong>Interaction</strong>: removal, counterspells and board wipes. Up to 15 pts.
       </li>
       <li>
-        <strong>Combo engines</strong>: complete combos that set no floor, like a loop that draws
-        your library. Combos through the same card count once. 10 pts each, max 20.
+        <strong>Combo engines</strong>: complete combos that set no floor. Combos through the same
+        card count once. 10 pts each, max 20.
       </li>
     </ul>
   </>
@@ -602,8 +599,8 @@ export function BracketBreakdown({
           <div className="bracket-breakdown-loops">
             <p className="bracket-breakdown-footnote">
               {loops.length === 1
-                ? 'This combo sets no floor: Commander Spellbook rates it fine at Bracket 2, or it takes more than two cards. It adds to the power signal as a combo engine.'
-                : `These ${loops.length} combos set no floor: Commander Spellbook rates them fine at Bracket 2, or they take more than two cards. They add to the power signal as combo engines.`}
+                ? 'This combo sets no floor: Commander Spellbook rates it fine at Bracket 2, or it takes more than two cards. It adds to the power signal.'
+                : `These ${loops.length} combos set no floor: Commander Spellbook rates them fine at Bracket 2, or they take more than two cards. They add to the power signal.`}
             </p>
             <ul className="bracket-breakdown-loop-list">
               {loops.map((cards) => (
@@ -619,8 +616,8 @@ export function BracketBreakdown({
               {lowPowerCombos === 1
                 ? '1 more combo is in the deck, but'
                 : `${lowPowerCombos} more combos are in the deck, but`}{' '}
-              Commander Spellbook rates {lowPowerCombos === 1 ? 'it' : 'them'} fine at Bracket 2
-              (they loop without ending the game, or finish it slowly), so no floor.
+              Commander Spellbook rates {lowPowerCombos === 1 ? 'it' : 'them'} fine at Bracket 2, so
+              no floor.
             </p>
           )
         )}
@@ -683,7 +680,7 @@ export function BracketBreakdown({
           <ChevronDown width={14} height={14} strokeWidth={1.8} aria-hidden />
         </summary>
         <p className="bracket-breakdown-signal-lede">
-          Fast mana, tutors, a low curve, interaction and combo engines each add points.
+          Five signals add points.
           <InfoTip label="the power signal" text={SOFT_SCORE_TIP} wide />
         </p>
         <div className="deck-bracket-table" role="table" aria-label="Power signal">
@@ -779,8 +776,7 @@ export function BracketBreakdown({
         </div>
       </details>
       <p className="bracket-breakdown-footnote">
-        Estimated from the card list alone. Pilot skill and what your table plays aren&rsquo;t in
-        it, so treat it as the start of the Rule 0 talk.
+        Estimated from the card list alone. Use it to start the Rule 0 talk.
       </p>
       {tableSlot}
       {isOwner && !combosUncounted && (

@@ -169,7 +169,7 @@ export function AppendDeckDialog({ deck, onClose }: Props) {
         {!online && (
           <p className="append-deck-offline" role="status">
             <WifiOff width={14} height={14} strokeWidth={1.8} aria-hidden />
-            You're offline. Reconnect to paste a list. Everything else still works.
+            You're offline. Reconnect to paste a list.
           </p>
         )}
 
@@ -190,8 +190,7 @@ export function AppendDeckDialog({ deck, onClose }: Props) {
           <>
             <p className="import-deck-hint">
               Paste a decklist, one card per line. A <strong>Sideboard</strong> header routes to
-              sideboard, <strong>Maybeboard</strong> to Considering. Everything else goes to the
-              mainboard.
+              sideboard, <strong>Maybeboard</strong> to Considering.
             </p>
             <textarea
               className="paste-textarea import-textarea"
@@ -298,10 +297,6 @@ export function AppendDeckDialog({ deck, onClose }: Props) {
                   </div>
                 ) : !showCommanderSearch ? (
                   <>
-                    <p className="import-deck-hint">
-                      This deck has no commander yet. Pick one from the pasted cards, or skip and
-                      set it later.
-                    </p>
                     <ul className="import-deck-commander-list">
                       {decision.candidates.map((card) => (
                         <li key={card.id}>

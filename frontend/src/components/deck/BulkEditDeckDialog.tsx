@@ -221,10 +221,7 @@ export function BulkEditDeckDialog({ deck, onClose, mode = 'edit' }: Props) {
           <>
             <p className="import-deck-hint">
               {mode === 'resync' ? (
-                <>
-                  Paste the updated list from Moxfield, Archidekt, or anywhere else. It's diffed
-                  against this deck. Review the changes before you save.
-                </>
+                <>Paste the updated list from Moxfield, Archidekt, or anywhere else.</>
               ) : (
                 <>
                   Edit the whole decklist as <strong>qty name</strong> lines, one per row.
@@ -239,8 +236,7 @@ export function BulkEditDeckDialog({ deck, onClose, mode = 'edit' }: Props) {
             {divergedSinceSync && (
               <div className="import-deck-warning" role="alert">
                 <div className="import-deck-warning-title">Edited since the last sync</div>
-                You've changed this deck locally since it last synced. If your paste doesn't include
-                those edits, they'll show as removed below. Check the diff before saving.
+                Edits you made here since then show as removed if your paste doesn't include them.
               </div>
             )}
             {fetchError && (
@@ -257,10 +253,7 @@ export function BulkEditDeckDialog({ deck, onClose, mode = 'edit' }: Props) {
             )}
             {emptyError && (
               <div className="error-banner" role="alert">
-                <span>
-                  Nothing to save. The list is empty. Add a commander or a card, or close this
-                  dialog.
-                </span>
+                <span>The list is empty. Add a card or a commander to save.</span>
                 <IconButton
                   variant="quiet"
                   className="banner-dismiss"
@@ -293,8 +286,7 @@ export function BulkEditDeckDialog({ deck, onClose, mode = 'edit' }: Props) {
             {plan.commanderMissing && (
               <div className="import-deck-warning" role="alert">
                 <div className="import-deck-warning-title">Commander is missing</div>
-                This format needs a commander. Go back and put one in the Commander section before
-                saving.
+                This format needs a commander. Add one before saving.
               </div>
             )}
 
@@ -311,7 +303,6 @@ export function BulkEditDeckDialog({ deck, onClose, mode = 'edit' }: Props) {
                 <WifiOff width={14} height={14} strokeWidth={1.8} aria-hidden />
                 You're offline. {offlineNames.length} new card
                 {offlineNames.length === 1 ? '' : 's'} couldn't be resolved and will be skipped.
-                Everything else in this edit still applies.
               </p>
             )}
 
@@ -319,7 +310,7 @@ export function BulkEditDeckDialog({ deck, onClose, mode = 'edit' }: Props) {
               <div className="import-deck-warning">
                 <div className="import-deck-warning-title">
                   {fetchErrorNames.length} card{fetchErrorNames.length === 1 ? '' : 's'} couldn't be
-                  fetched. The card service was unreachable and they'll be skipped:
+                  fetched and will be skipped:
                 </div>
                 <ul className="import-deck-unresolved-list">
                   {fetchErrorNames.map((name) => (

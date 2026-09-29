@@ -92,8 +92,8 @@ export function assemblyClockTip(): JSX.Element {
         until the win path is fully cast. A tutor still has to cast what it finds.
       </span>
       <span className="info-tip-lead">
-        Colors, rituals and opponents aren&apos;t modeled, and every draw spell counts as two cards.
-        It&apos;s a goldfish estimate, not a promise.
+        Colors, rituals and opponents aren&apos;t modeled. It&apos;s a goldfish estimate, not a
+        promise.
       </span>
     </>
   );
@@ -261,9 +261,6 @@ export function WinConditionPanel({
     return (
       <section className="win-con-panel" aria-label="Win condition analysis">
         <p className="win-con-headline">Win condition unclear until combos are counted</p>
-        <p className="win-con-empty">
-          A combo may be how this deck wins, so this waits for the combo check.
-        </p>
         {taggedSection}
         {carousel.preview}
       </section>
@@ -276,10 +273,10 @@ export function WinConditionPanel({
     const loops = analysis.loopsWithoutPayoff ?? 0;
     const emptyCopy =
       loops === 0
-        ? 'This deck has no dominant path to victory yet. Add a combo, a damage plan, or a synergy engine to give it one.'
+        ? 'No dominant path to victory yet. Add a combo, a damage plan, or a synergy engine.'
         : loops === 1
-          ? "The combo in this deck doesn't end the game on its own. Add a payoff for it, a damage plan, or a synergy engine to give the deck a way to win."
-          : `The ${loops} combos in this deck don't end the game on their own. Add a payoff for one of them, a damage plan, or a synergy engine to give the deck a way to win.`;
+          ? "The combo in this deck doesn't end the game on its own. Add a payoff for it, a damage plan, or a synergy engine."
+          : `The ${loops} combos in this deck don't end the game on their own. Add a payoff for one of them, a damage plan, or a synergy engine.`;
     return (
       <section className="win-con-panel" aria-label="Win condition analysis">
         <p className="win-con-headline win-con-headline--warn">

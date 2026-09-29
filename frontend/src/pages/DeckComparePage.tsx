@@ -267,29 +267,6 @@ const COLOR_NAME: Record<string, string> = {
   G: 'Green',
 };
 
-const ROLE_TIP = (
-  <>
-    <span className="info-tip-lead">What each role means</span>
-    <ul className="info-tip-list">
-      <li>
-        <strong>Lands</strong>: your mana base.
-      </li>
-      <li>
-        <strong>Ramp</strong>: cards that add extra mana to speed you up.
-      </li>
-      <li>
-        <strong>Card advantage</strong>: cards that draw or make more cards.
-      </li>
-      <li>
-        <strong>Spot removal</strong>: kills or neutralizes a single threat.
-      </li>
-      <li>
-        <strong>Board wipes</strong>: clear many things at once.
-      </li>
-    </ul>
-  </>
-);
-
 export function DeckComparePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const decks = useDecksStore((s) => s.decks);
@@ -399,10 +376,7 @@ export function DeckComparePage() {
           </div>
 
           {!diff || !deckA || !deckB || !manaA || !manaB || !phasesA || !phasesB ? (
-            <EmptyState
-              tagline="Pick two decks to compare."
-              hint="Select decks above, or open any deck and tap Compare from its menu."
-            />
+            <EmptyState tagline="Pick two decks to compare." />
           ) : (
             <CompareBody
               deckA={deckA}
@@ -505,9 +479,7 @@ function CompareBody({
         <h2 id="dcp-cards-heading" className="deck-compare-section-title">
           Which cards differ
         </h2>
-        {identical ? (
-          <p className="deck-compare-empty-hint">Every card matches, copy for copy.</p>
-        ) : (
+        {identical ? null : (
           <>
             <DiffGroup
               key={`${pairKey}-added`}
@@ -564,13 +536,7 @@ function CompareBody({
           )}
 
           {diff.stats.taggerReady && roleRows.length > 0 && (
-            <CompareGroup
-              title={
-                <>
-                  What the cards do <InfoTip label="card roles" wide text={ROLE_TIP} />
-                </>
-              }
-            >
+            <CompareGroup title="What the cards do">
               {roleRows.map((role) => (
                 <CompareRow key={role.key} label={role.label} a={role.delta.a} b={role.delta.b} />
               ))}
@@ -655,9 +621,6 @@ function CompareBody({
                   <li>
                     <strong>Sources that make it</strong>: lands, rocks and mana creatures that can
                     produce it.
-                  </li>
-                  <li>
-                    Sources well under the cards needing them is the usual sign of shaky mana.
                   </li>
                 </ul>
               </>

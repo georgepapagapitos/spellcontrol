@@ -297,7 +297,7 @@ export function CubeShoppingList({ target, loadPool }: Props) {
     return (
       <EmptyState
         tagline="Nothing you could buy beats what's in the cube."
-        hint="Every eligible card in your collection already outranks what's on the market for its slot. Check back after your collection or the cube signal changes."
+        hint="Every eligible card you own already outranks what's on the market."
       />
     );
   }

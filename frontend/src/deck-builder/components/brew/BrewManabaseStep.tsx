@@ -81,8 +81,7 @@ export function BrewManabaseStep({ onAccept }: BrewManabaseStepProps): JSX.Eleme
       <header className="brew-slot-header">
         <h2 id="brew-manabase-heading">Manabase</h2>
         <p className="brew-slot-purpose">
-          A land base built from your color pips, using the nonbasics EDHREC players actually run.
-          Tweak the count or take it as-is.
+          Built from your color pips and the nonbasics EDHREC players run.
         </p>
       </header>
 

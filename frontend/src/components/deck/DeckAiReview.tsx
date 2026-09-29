@@ -254,7 +254,7 @@ export function DeckAiReview({
     return (
       <DeckAiConsent
         title="Read the deck"
-        blurb={`Writes what this deck is trying to do, and the structural problems the statistics can't show. Turning this on sends this deck's card names and computed stats to Anthropic. Nothing is sent until you press an AI button, ${status.limit} readings a day. Your collection is never sent, and you can turn it back off in Settings.`}
+        blurb={`Writes what this deck is trying to do, and the structural problems the statistics can't show. Turning this on sends this deck's card names and computed stats to Anthropic. Nothing is sent until you press an AI button. Your collection is never sent. Turn it off any time in Settings.`}
         onDismiss={() => setInviteDismissed(true)}
       />
     );
@@ -388,13 +388,12 @@ export function DeckAiReview({
       {phase === 'idle' && !review && history !== null && (
         <div className="deck-ai-idle">
           <p className="deck-ai-idle-text">
-            What is this deck trying to do, and where does it break? Written for this exact list.
+            What is this deck trying to do, and where does it break?
             {scope === 'owned'
               ? ' Fixes come from cards you own.'
               : scope === 'uncommitted'
                 ? ' Fixes come from copies you own that no other deck uses.'
-                : ''}{' '}
-            Nothing is sent until you ask.
+                : ''}
           </p>
           <div className="deck-ai-idle-actions">
             <Button variant="primary" onClick={read} disabled={remaining === 0}>

@@ -189,7 +189,7 @@ export function DeckFeedbackSheet({ deck, onClose }: Props) {
 
         {isGuest ? (
           <div className="card-picker-empty">
-            Feedback links need an account, so responses stay tied to you.{' '}
+            Feedback links need an account.{' '}
             <Link to={signInHref} onClick={onClose}>
               Sign in
             </Link>{' '}
@@ -229,9 +229,7 @@ export function DeckFeedbackSheet({ deck, onClose }: Props) {
               </p>
             )}
             {responses && responses.length === 0 && (
-              <p className="deck-feedback-empty">
-                No responses yet. Share the link with your pod or post it with your deck.
-              </p>
+              <p className="deck-feedback-empty">No responses yet.</p>
             )}
             {responses?.map((response) => (
               <article key={response.id} className="deck-feedback-response">

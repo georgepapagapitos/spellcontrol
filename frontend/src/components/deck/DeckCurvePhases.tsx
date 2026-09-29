@@ -179,9 +179,6 @@ export function DeckCurvePhases({
               label="avg mana value"
               text={
                 <>
-                  <span className="info-tip-lead">
-                    Average mana value (the typical mana to cast a card)
-                  </span>
                   <ul className="info-tip-list">
                     <li>
                       <strong>lean</strong>: cheap deck (avg under 2.8); plays out early
@@ -364,7 +361,7 @@ export function DeckCurvePhases({
                   </li>
                   <li>The number is how many cards fall in that phase.</li>
                   <li>The band is how close that phase's share is to a healthy Commander curve.</li>
-                  <li>A guideline, not a verdict. Off target can be just what you want.</li>
+                  <li>A guideline, not a verdict.</li>
                 </ul>
               </>
             }

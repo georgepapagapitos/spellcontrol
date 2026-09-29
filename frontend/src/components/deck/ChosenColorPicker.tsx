@@ -62,7 +62,7 @@ export function ChosenColorPicker({
       <p className="format-pill-hint">
         {chosen
           ? `${name} is ${COLORS.find((c) => c.key === chosen)?.name.toLowerCase()}, so the deck can run ${COLORS.find((c) => c.key === chosen)?.name.toLowerCase()} cards.`
-          : `${name} becomes the color you choose before the game. Pick one to build the deck in it.`}
+          : 'Pick the color to build in.'}
       </p>
     </section>
   );

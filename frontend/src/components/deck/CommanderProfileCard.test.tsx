@@ -26,7 +26,7 @@ describe('CommanderProfileCard', () => {
     const { container } = render(<CommanderProfileCard profile={makeProfile()} />);
     const footer = container.querySelector('.cmdr-profile-footer')?.textContent ?? '';
     expect(footer).toMatch(/^Reads as: Spellslinger/);
-    expect(footer).toMatch(/refined at build time/);
+    expect(footer).toMatch(/from card text/);
     expect(footer).not.toMatch(/Detected archetype/);
   });
 

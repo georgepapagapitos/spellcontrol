@@ -739,8 +739,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                         disabled={isLoading}
                       />
                       <span>
-                        <strong>Separate decks</strong>: one deck per file. You'll review and can
-                        change each deck's name, format, and commander before anything is saved.
+                        <strong>Separate decks</strong>: one deck per file.
                       </span>
                     </label>
                     <label className="import-deck-batch-mode">
@@ -759,9 +758,8 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                   </fieldset>
                 )}
                 <p className="import-deck-hint">
-                  Click <strong>Upload files</strong> again or drop more to add to this list
-                  {batchFiles.length >= MAX_FILES ? ` (${MAX_FILES} max reached)` : ''}. Nothing is
-                  saved yet. Files are parsed for review when you continue.
+                  Upload or drop more files to add to this list
+                  {batchFiles.length >= MAX_FILES ? ` (${MAX_FILES} max reached)` : ''}.
                 </p>
               </div>
             ) : (
@@ -826,7 +824,6 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                         className="import-link-btn"
                         onClick={handleFetchLink}
                         disabled={isLoading || linkBusy || !linkUrl.trim()}
-                        title="Fetch the list from this link"
                         icon={
                           linkBusy ? (
                             <span className="spinner" />
@@ -895,8 +892,8 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
           <>
             <div className="import-deck-review-summary">
               <span>
-                Parsed <strong>{drafts.length}</strong> file{drafts.length === 1 ? '' : 's'}. Review
-                each deck below. Nothing is saved until you create them.
+                Parsed <strong>{drafts.length}</strong> file{drafts.length === 1 ? '' : 's'}.
+                Nothing is saved until you create them.
               </span>
             </div>
             <ul className="import-deck-summary-list">
@@ -1080,7 +1077,6 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                   </div>
                 ) : commanderCandidates.length > 0 && !showCommanderSearch ? (
                   <>
-                    <p className="import-deck-hint">Select a commander from the imported cards.</p>
                     <ul className="import-deck-commander-list">
                       {commanderCandidates.map((card) => (
                         <li key={card.id}>
@@ -1155,7 +1151,6 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
             <Button
               onClick={handlePickDrive}
               disabled={isLoading || driveBusy}
-              title="Browse Google Drive for a decklist"
               icon={
                 driveBusy ? (
                   <span className="spinner" />

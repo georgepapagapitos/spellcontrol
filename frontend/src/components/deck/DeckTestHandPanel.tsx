@@ -473,7 +473,7 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
                   placement="row"
                   onClick={handleDraw}
                   disabled={!canDraw}
-                  title={canDraw ? 'Draw one more card from the library' : 'Library is empty'}
+                  title={canDraw ? undefined : 'Library is empty'}
                   icon={<Plus width={14} height={14} strokeWidth={1.8} />}
                 >
                   Draw
@@ -482,7 +482,6 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
                   placement="row"
                   variant="primary"
                   onClick={handleDeal}
-                  title="Reshuffle and deal a fresh opening hand"
                   icon={<Shuffle width={14} height={14} strokeWidth={1.8} />}
                 >
                   Deal another hand
@@ -574,7 +573,6 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
                     placement="row"
                     onClick={handleSimulate}
                     disabled={simulating}
-                    title="Re-sample: deal a fresh 1,000 hands"
                     icon={<Dices width={14} height={14} strokeWidth={1.8} />}
                   >
                     {simulating ? 'Simulating…' : 'Re-run'}

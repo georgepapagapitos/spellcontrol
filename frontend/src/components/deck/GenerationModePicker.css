@@ -1,16 +1,3 @@
-.gen-mode-intro {
-  margin: 0 0 var(--space-3);
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  line-height: 1.5;
-}
-
-.gen-mode-intro em {
-  font-style: normal;
-  color: var(--text-primary);
-  font-weight: 600;
-}
-
 .gen-mode-offline {
   display: flex;
   align-items: center;

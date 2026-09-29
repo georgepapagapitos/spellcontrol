@@ -73,7 +73,7 @@ export function SavedDecksPage() {
   return (
     <>
       <div className="decks-index-page">
-        <PageHeader title="Saved" meta="Decks you've bookmarked from Discover." />
+        <PageHeader title="Saved" />
         <DecksHubTabs />
 
         {!isAuthed ? (

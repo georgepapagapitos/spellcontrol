@@ -208,9 +208,7 @@ export const DeckAnalysisPanel = forwardRef<DeckAnalysisPanelHandle, Props>(
 
 function DiagnosisSection({ analysis }: { analysis: DeckAnalysisResult }) {
   if (!analysis.taggerReady) {
-    return (
-      <p className="deck-combos-empty">Loading role data. Verdicts will appear in a moment.</p>
-    );
+    return <p className="deck-combos-empty">Loading role data…</p>;
   }
   return (
     <section className="deck-analysis-diagnosis">

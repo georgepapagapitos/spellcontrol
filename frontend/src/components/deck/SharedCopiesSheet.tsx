@@ -59,7 +59,7 @@ export function SharedCopiesSheet({
             </h2>
             <p className="shared-copies-sub">
               These cards are in <strong>{deckName}</strong>'s list, but their copies are committed
-              elsewhere. A physical copy can only be in one deck. Pull one in when you want it here.
+              to other decks.
             </p>
           </div>
           <IconButton

@@ -19,7 +19,7 @@ const AI_SCOPE_OPTIONS: ReadonlyArray<{ value: AiScope; label: string; hint: str
   {
     value: 'any',
     label: 'Any card',
-    hint: 'The whole card pool, including cards you would have to buy.',
+    hint: 'Includes cards you would have to buy.',
   },
   { value: 'owned', label: 'Cards you own', hint: 'Only your collection. Nothing to buy.' },
   {

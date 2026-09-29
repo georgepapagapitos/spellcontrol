@@ -640,7 +640,7 @@ describe('legend shortfall gap (board #12, PR3)', () => {
     expect(shortGap).toBeDefined();
     expect(shortGap!.severity).toBe('short');
     expect(shortGap!.text).toBe(
-      'Only 0 legendary creatures are eligible, 100 short of the 100-commander target. Own more legends to fill it out.'
+      'Only 0 legendary creatures are eligible, 100 short of the 100-commander target.'
     );
 
     // The same pool built as limited never mentions legends at all.

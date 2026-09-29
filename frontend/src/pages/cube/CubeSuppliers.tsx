@@ -87,8 +87,8 @@ export function CubeSuppliers({
         ))}
       </ul>
       <p className="cube-suppliers-note">
-        A card supplied by more than one of you counts for each. Rebuilding updates these counts; a
-        saved cube keeps the counts from when it was last built.
+        A card supplied by more than one of you counts for each. A saved cube keeps the counts from
+        its last build.
       </p>
     </div>
   );

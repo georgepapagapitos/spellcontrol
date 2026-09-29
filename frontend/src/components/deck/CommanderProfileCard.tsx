@@ -62,8 +62,7 @@ export function CommanderProfileCard({ profile }: CommanderProfileCardProps) {
         )}
 
         <p className="cmdr-profile-footer">
-          Reads as: <strong>{ARCHETYPE_LABEL[primaryArchetype]}</strong>, from card text; refined at
-          build time.
+          Reads as: <strong>{ARCHETYPE_LABEL[primaryArchetype]}</strong>, from card text.
         </p>
       </div>
     </section>

@@ -525,8 +525,7 @@ export function BuildReportPanel({
         <details className="build-report-subs">
           <summary>
             Used <strong>{collectionSubstitutions.length}</strong> owned card
-            {collectionSubstitutions.length === 1 ? '' : 's'} in place of staples you don't own: why
-            these cards?
+            {collectionSubstitutions.length === 1 ? '' : 's'} in place of staples you don't own
           </summary>
           <ul className="build-report-subs-list">
             {collectionSubstitutions.map((s) => (
@@ -545,8 +544,7 @@ export function BuildReportPanel({
         <details className="build-report-subs">
           <summary>
             <strong>{synergyFills.length}</strong> card
-            {synergyFills.length === 1 ? '' : 's'} had no EDHREC data for this commander: why
-            they're here
+            {synergyFills.length === 1 ? '' : 's'} had no EDHREC data for this commander
           </summary>
           <ul className="build-report-subs-list">
             {synergyFills.map((f) => (
@@ -568,7 +566,7 @@ export function BuildReportPanel({
         <details className="build-report-subs">
           <summary>
             <strong>{packagePicks.length}</strong> pick{packagePicks.length === 1 ? '' : 's'} from
-            outside EDHREC's list for this commander, played alongside cards in this deck
+            outside EDHREC's list for this commander
           </summary>
           <ul className="build-report-subs-list">
             {packagePicks.map((p) => (
@@ -786,8 +784,8 @@ export function BuildReportPanel({
       {committedExcluded != null && committedExcluded > 0 && collectionStrategy === 'available' && (
         <p className="build-report-conflict-note">
           Skipped <strong>{committedExcluded}</strong> card
-          {committedExcluded === 1 ? '' : 's'} in these colors. Every copy is already committed
-          elsewhere. Switch collection mode to "Only my cards" to include them.
+          {committedExcluded === 1 ? '' : 's'} in these colors, all committed to other decks. Switch
+          collection mode to "Only my cards" to include them.
         </p>
       )}
 
