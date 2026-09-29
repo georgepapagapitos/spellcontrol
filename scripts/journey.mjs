@@ -462,6 +462,12 @@ const TOUCHING_BY_DESIGN = new Set([
   'div.playtest-board › div.playtest-trackers | div.playtest-main',
   'div.playtest-board › div.playtest-main | div.playtest-hand',
 ]);
+/** Parents whose children are a divided stack: each child carries its own
+ *  padding and a hairline top border, so they meet at the divider by design. */
+const TOUCHING_BY_DESIGN_PARENTS = [
+  // The card-preview sheet's sections (footer-card-preview.css .card-preview-sec).
+  'div.card-preview-panel-inner',
+];
 /**
  * The primary control rows, which must stay ONE row at phone width.
  *
@@ -620,8 +626,11 @@ function undersizedTouchTargets() {
  * them and the nightly said nothing.
  *
  * Only real overlap counts: a control nested inside another interactive
- * element (a row that is itself a button, a label around its input) shares
- * space by design, and is skipped.
+ * element (a label around its input) shares space by design, and is skipped.
+ * So is a stretched cover: a tile or row's primary button laid absolutely over
+ * its whole container, with the container's other controls stacked above it
+ * (#2553, which replaced rows that were themselves buttons). The controls on
+ * top are meant to win their own area; the cover keeps the rest.
  */
 function overlappingTouchTargets() {
   const sel = 'button,a[href],input,select,textarea,[role="button"],[role="tab"],[role="switch"]';
@@ -644,6 +653,20 @@ function overlappingTouchTargets() {
     return false;
   };
   const interactive = (el) => !!el && !!el.closest && !!el.closest(sel);
+  /** `el` fills its parent as an absolute cover, and `other` sits in that parent. */
+  const layeredOver = (el, other) => {
+    const parent = el.parentElement;
+    if (!parent || !parent.contains(other)) return false;
+    if (getComputedStyle(el).position !== 'absolute') return false;
+    const a = el.getBoundingClientRect();
+    const b = parent.getBoundingClientRect();
+    return (
+      Math.abs(a.left - b.left) <= 1 &&
+      Math.abs(a.top - b.top) <= 1 &&
+      Math.abs(a.right - b.right) <= 1 &&
+      Math.abs(a.bottom - b.bottom) <= 1
+    );
+  };
   const key = (el) => {
     const first = String(el.className || '')
       .trim()
@@ -679,6 +702,7 @@ function overlappingTouchTargets() {
       if (!interactive(hit) || !other || other === el) continue;
       if (other.contains(el) || el.contains(other)) continue;
       if (pinned(other)) continue;
+      if (layeredOver(el, other)) continue;
       const line = `${key(el)} loses its ${edge} edge to ${key(other)}`;
       if (seen.has(line)) continue;
       seen.add(line);
@@ -831,7 +855,11 @@ async function main() {
         const touching = [
           ...new Map(
             (await page.evaluate(touchingSiblings))
-              .filter((t) => !TOUCHING_BY_DESIGN.has(t.key))
+              .filter(
+                (t) =>
+                  !TOUCHING_BY_DESIGN.has(t.key) &&
+                  !TOUCHING_BY_DESIGN_PARENTS.some((p) => t.key.startsWith(`${p} › `))
+              )
               .map((t) => [`${t.key} — ${t.detail}`, t])
           ).keys(),
         ];
@@ -1079,7 +1107,15 @@ async function main() {
         // sheet open is what puts it through the axe theme sweep. A real
         // mouse click on a non-commander row, then the handle steps it to
         // full so the lower sections (Swap this card) are laid out too.
+        // "View my deck" closes the build report with an exit animation; a tap
+        // before it is gone lands on the sheet, not the row.
+        await page
+          .waitForFunction(() => !document.querySelector('.build-report-sheet'), {
+            timeout: 15_000,
+          })
+          .catch(() => {});
         await page.waitForSelector('.deck-section-rows .deck-row-name', { timeout: 30_000 });
+        await sleep(SETTLE_MS);
         const rowAt = await page.evaluate(() => {
           const lists = [...document.querySelectorAll('.deck-section-rows')];
           const el = (lists[1] ?? lists[0])?.querySelector('.deck-row-name');
@@ -1088,7 +1124,10 @@ async function main() {
           const r = el.getBoundingClientRect();
           return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
         });
-        if (rowAt) await page.mouse.click(rowAt.x, rowAt.y);
+        // A phone taps: a mouse click in a touch-emulated page is not what
+        // any phone user sends.
+        if (rowAt && tierName === 'phone') await page.touchscreen.tap(rowAt.x, rowAt.y);
+        else if (rowAt) await page.mouse.click(rowAt.x, rowAt.y);
         const opened = await page
           .waitForSelector('.card-preview-panel', { timeout: 15_000 })
           .then(() => true)
@@ -1236,11 +1275,14 @@ async function main() {
           // rule). Before the redesign the close button covered the mana cost
           // on phones and a landscape phone got a 100 × 139 card.
           await assertPage(rec, 'card preview geometry', async () => {
-            await page.evaluate(() =>
-              [...document.querySelectorAll('.app-main [role=button]')]
-                .find((e) => e.querySelector('img'))
-                ?.click()
-            );
+            // The tile's primary button opens the card (#2553 moved it off
+            // the tile, which was itself a role=button); either takes the click.
+            await page.evaluate(() => {
+              const tile = [...document.querySelectorAll('.app-main .collection-grid-item')].find(
+                (e) => e.querySelector('img')
+              );
+              (tile?.querySelector('.collection-grid-open') ?? tile)?.click();
+            });
             await page.waitForSelector('.card-preview-slide.is-active .card-preview-image-frame', {
               timeout: 15_000,
             });
