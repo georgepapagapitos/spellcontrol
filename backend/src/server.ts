@@ -14,6 +14,7 @@ import { DB_PATH, getScryfallCache, buildPriceRefreshPayload } from './scryfall-
 import { resolveOracleFacts, ORACLE_REQUEST_LIMIT, type OracleRequest } from './oracle-facts';
 import { closeDb, ensureSchema, getPool } from './db';
 import { backfillResultsFromUserGames } from './games/backfill-results';
+import { backfillPublicationColors } from './publications/backfill-colors';
 import { testAwareLimiter } from './route-utils';
 import { parseMarkAllAsProxies } from './import-proxy-flag';
 import { fetchImportLink, ImportLinkError } from './import-link';
@@ -1402,6 +1403,9 @@ async function start() {
   // One-shot fold of the old per-user game history into game_results, gated
   // by app_migrations — see games/backfill-results.ts.
   await backfillResultsFromUserGames(getPool());
+  // One-shot: publications written before a non-commander deck's colors came
+  // from its cards — see publications/backfill-colors.ts.
+  await backfillPublicationColors(getPool());
   await promoteAdminsAtBoot();
   // Copy counts are derived from live copies (publications/copies.ts). Recount
   // on boot so the counts left by the old anonymous copy beacon are replaced
