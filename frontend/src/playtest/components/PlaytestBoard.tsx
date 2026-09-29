@@ -46,7 +46,7 @@ import type {
   Zone,
 } from '@/lib/playtest';
 import type { ScryfallCard } from '@/deck-builder/types';
-import { useDecksStore } from '@/store/decks';
+import { effectiveBracket, useDecksStore } from '@/store/decks';
 import { effectiveMulliganType, usePlaytestStore } from '../store';
 
 /** The table's mulligan rule, said once in the opening-hand takeover. Same
@@ -261,6 +261,8 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   const setOnDraw = usePlaytestStore((s) => s.setOnDraw);
   const resistanceLevel = usePlaytestStore((s) => s.resistanceLevel);
   const setResistanceLevel = usePlaytestStore((s) => s.setResistanceLevel);
+  const resistanceOptions = usePlaytestStore((s) => s.resistanceOptions);
+  const setResistanceOptions = usePlaytestStore((s) => s.setResistanceOptions);
   const lastResistanceEvent = usePlaytestStore((s) => s.lastResistanceEvent);
   const lastSessionRecord = usePlaytestStore((s) => s.lastSessionRecord);
   // Solo Horde (E387 PR 5) — see lib/horde-solo.ts and horde-view.ts. Never
@@ -3767,7 +3769,14 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       {showResistancePicker && (
         <ResistancePicker
           level={resistanceLevel}
-          onSelect={setResistanceLevel}
+          options={resistanceOptions}
+          bracket={deck ? (effectiveBracket(deck) ?? null) : null}
+          onSave={(level, options) => {
+            // Options first: re-arming at a new level reads them from the
+            // store, and a level that didn't change keeps its opponent.
+            setResistanceOptions(options);
+            if (level !== resistanceLevel) setResistanceLevel(level);
+          }}
           onClose={() => setShowResistancePicker(false)}
         />
       )}
