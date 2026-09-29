@@ -321,7 +321,7 @@
   font-size: var(--text-xs);
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--tracking-overline);
   margin: var(--space-4) 0 var(--space-1-5);
 }
 
@@ -613,7 +613,7 @@
   font-size: var(--text-xs);
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--tracking-overline);
   margin: 0;
 }
 
