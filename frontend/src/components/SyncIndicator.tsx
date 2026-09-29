@@ -11,6 +11,7 @@ import {
 } from '../lib/sync';
 import { formatRelativeTime } from '../lib/format-time';
 import { useAuth } from '../store/auth';
+import { offlineSavedLine } from '../lib/shared-copy';
 
 // Sync-badge options: 45s "just now" threshold (label stabilizes quickly —
 // the header isn't a second-by-second timer) + no months/years tier
@@ -66,7 +67,7 @@ export function SyncIndicator() {
   if (!online) {
     const detail =
       pending > 0
-        ? `Offline. ${pending} change${pending === 1 ? '' : 's'} saved on this device, will sync when you reconnect.`
+        ? `Offline. ${offlineSavedLine(pending)}`
         : 'Offline. Changes are saved on this device.';
     return (
       <span

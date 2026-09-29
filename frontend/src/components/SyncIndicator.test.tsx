@@ -151,7 +151,7 @@ describe('SyncIndicator', () => {
     renderIndicator();
     const el = screen.getByText('Offline');
     expect(el).toBeTruthy();
-    expect(el.getAttribute('title')).toMatch(/3 changes saved on this device/);
+    expect(el.getAttribute('title')).toMatch(/3 changes saved here until you reconnect/);
   });
 
   it('Offline outranks a sync error and an active syncing state', () => {

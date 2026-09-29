@@ -98,7 +98,6 @@ export function SharedCubeView({ data, action }: Props) {
         <SharedEmptyState
           empty={data.cards.length === 0}
           emptyTagline="This cube is empty."
-          emptyHint="The owner hasn't added any cards to it yet."
           filteredTagline="No cards match your search."
           onClearSearch={search ? () => setSearch('') : undefined}
         />
