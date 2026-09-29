@@ -398,12 +398,7 @@ export function SettingsSheet({
       )}
       <SheetSection title="Clock strip">
         <div>
-          <SwitchRow
-            label="Game timer"
-            hint="Shows how long the game has run."
-            checked={gameTimerEnabled}
-            onChange={setGameTimerEnabled}
-          />
+          <SwitchRow label="Game timer" checked={gameTimerEnabled} onChange={setGameTimerEnabled} />
           <SwitchRow
             label="Turn tracker"
             hint="Marks the active seat and who's next."
@@ -439,19 +434,9 @@ export function SettingsSheet({
           {/* Hidden where the browser can't do it (iOS Safari, a mouse
               pointer): a switch that silently fails is worse than none. */}
           {fullscreenSupported && (
-            <SwitchRow
-              label="Full screen"
-              hint="Hides the browser bars."
-              checked={isFullscreen}
-              onChange={onToggleFullscreen}
-            />
+            <SwitchRow label="Full screen" checked={isFullscreen} onChange={onToggleFullscreen} />
           )}
-          <SwitchRow
-            label="Haptic feedback"
-            hint="Vibrates on taps, undo and lethal hits."
-            checked={hapticsEnabled}
-            onChange={setHaptics}
-          />
+          <SwitchRow label="Haptic feedback" checked={hapticsEnabled} onChange={setHaptics} />
         </div>
       </SheetSection>
     </BoardSheet>
