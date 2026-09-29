@@ -227,23 +227,6 @@
   color: var(--on-accent);
 }
 
-/* Suggestions tab — per-row availability badge. "Available" = a free copy you
-   can field tonight (accent); "In a deck" = owned but all copies are claimed
-   elsewhere (warn); "Unowned" = buy it (muted, shows price when known). */
-.card-search-avail {
-  color: var(--accent);
-  font-weight: 600;
-}
-
-.card-search-claimed {
-  color: var(--warn-text);
-  font-weight: 600;
-}
-
-.card-search-unowned {
-  color: var(--text-muted);
-}
-
 /* The card a one-away combo needs, e.g. "Completes: Infinite mana". */
 .card-search-combo {
   color: var(--text-secondary);

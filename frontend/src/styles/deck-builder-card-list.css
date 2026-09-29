@@ -1845,3 +1845,23 @@
     min-height: 44px;
   }
 }
+
+/* Availability labels from lib/deck-change.ts (OWNERSHIP_BADGE), shown in the
+   deck editor, the add-cards search and the public deck views. "Available" =
+   a free copy you can field tonight (accent); "In a deck" / "In a cube" =
+   owned but every copy is claimed elsewhere (warn); "Unowned" = buy it
+   (muted). They live in this global sheet, not deck-builder-card-search.css,
+   because that sheet loads only with the pages that render the search panel. */
+.card-search-avail {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.card-search-claimed {
+  color: var(--warn-text);
+  font-weight: 600;
+}
+
+.card-search-unowned {
+  color: var(--text-muted);
+}

@@ -118,6 +118,7 @@ import {
 import { DECK_NAME_MAX } from '@/lib/deck-name';
 import { rankReplacementCuts } from '@/lib/intelligent-cuts';
 import { buildSwapAlternativeFactors, type WhyFactor } from '@/lib/why-factors';
+import '../styles/deck-builder-card-search.css';
 import { computeAddFit } from '@/lib/card-fit';
 import { toClockCard } from '@/lib/hand-classify';
 import { useEdhrecComboOverlay } from '@/lib/edhrec-combo-overlay';

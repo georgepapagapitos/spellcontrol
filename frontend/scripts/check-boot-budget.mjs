@@ -46,12 +46,18 @@
 // PLACEMENT map names it alongside the row/tile variants, so any chunk that
 // can mount CardRowMenu needs it, and OverflowMenu.tsx is already in that
 // closure. Measured 61.37.
+// CSS went 62 → 61 on 2026-09-29: deck-builder-card-search.css now ships with
+// the deck editor (CardSearchPanel, DeckEditorPage) and
+// deck-builder-binders-index.css with the binders index, lists and combos
+// pages. Their three shared availability-label rules moved to
+// deck-builder-card-list.css, which stays global. Measured 59.52; before/after
+// shots of every page they style were pixel-identical.
 import { readFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const BUDGET_KB = { js: 410, css: 62 };
+export const BUDGET_KB = { js: 410, css: 61 };
 
 const dist = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 // Vite emits multi-line <link> tags; a line-based scan misses them.

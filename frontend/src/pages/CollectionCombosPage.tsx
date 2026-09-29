@@ -37,6 +37,7 @@ import {
 } from '../lib/combo-filters';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
+import '../styles/deck-builder-binders-index.css';
 
 type Tab = 'complete' | 'oneAway';
 

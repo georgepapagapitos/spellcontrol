@@ -60,6 +60,7 @@ import { CardName } from '@/components/shared/CardName';
 import { Button, IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 import { Surface } from '@/components/shared/Surface';
+import '../../styles/deck-builder-card-search.css';
 /** Legal in the deck's format (`legalityKey`), or no legality data to say otherwise. */
 function isFormatLegal(c: EnrichedCard, legalityKey: string): boolean {
   const legality = c.legalities?.[legalityKey];

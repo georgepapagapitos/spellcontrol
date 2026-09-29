@@ -40,6 +40,7 @@ import type { ListDef, ListKind } from '../types';
 import { useAwaitingFirstPull } from '../lib/use-awaiting-first-pull';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
+import '../styles/deck-builder-binders-index.css';
 
 type ListSortField = 'order' | 'name' | 'entries';
 type SortDir = 'asc' | 'desc';

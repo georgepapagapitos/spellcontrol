@@ -3,10 +3,11 @@ import { MeterBar } from '../../components/shared/MeterBar';
 import { OwnershipBadge } from '../../components/deck/OwnershipBadge';
 import { VerdictBadge } from '../../components/deck/VerdictBadge';
 import { SelectMenu } from '../../components/SelectMenu';
-import { SegmentedControl } from '../../components/shared/form';
+import { SegmentedControl, SwitchRow } from '../../components/shared/form';
 import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
-import { useCubeStore } from '../../store/cube';
+import { useCubeStore, type CubePickSlot } from '../../store/cube';
+import { bindCubeCopies } from '../../lib/bind-cube-copies';
 import {
   buildAllocationMap,
   compareCopyPreference,
@@ -14,7 +15,7 @@ import {
 } from '../../lib/allocations';
 import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
 import { CUBE_SIZES, sizeInfo, type ColorBucket, type CubeSize } from '../../lib/cube/targets';
-import type { GeneratedCube } from '../../lib/cube/generate';
+import type { GeneratedCube, Pick } from '../../lib/cube/generate';
 import type { Ownership } from '../../lib/cube/import';
 import { isLegendCandidate, LEGEND_TARGET } from '../../lib/cube/legend';
 import type { CubeFormat } from '../../lib/cube/play-format';
@@ -529,4 +530,48 @@ export function CubeErrorBlock({ error, onRetry }: { error: string; onRetry: () 
       </Button>
     </div>
   );
+}
+
+/**
+ * The "Physical cube" choice in a cube's save dialog, off by default: a saved
+ * cube claims nothing until you ask it to, the same contract as the list's
+ * "Mark physical". One component so every save path says it the same way.
+ */
+export function PhysicalCubeSwitch({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: (next: boolean) => void;
+}) {
+  return (
+    <SwitchRow
+      label="Physical cube"
+      hint="Reserves one of your copies of each card, so decks stop counting them as free. You can unmark it any time."
+      checked={checked}
+      onChange={onChange}
+    />
+  );
+}
+
+/**
+ * Bind a cube's picks for a physical save. Reads live store state at save
+ * time, like "Mark physical", so a copy another deck claimed since the build
+ * is never double-claimed. A draft save binds nothing.
+ */
+export function picksForSave(picks: Pick[], physical: boolean): CubePickSlot[] {
+  if (!physical) return [];
+  return bindCubeCopies(
+    picks,
+    useCollectionStore.getState().cards,
+    useDecksStore.getState().decks,
+    useCubeStore.getState().saved.filter((c) => c.isPhysical)
+  );
+}
+
+/** The save toast: says how many copies a physical save reserved. */
+export function savedCubeMessage(name: string, physical: boolean, slots: CubePickSlot[]): string {
+  if (!physical) return `Saved "${name}"`;
+  const reserved = slots.filter((p) => p.allocatedCopyId).length;
+  return `Saved "${name}" and reserved ${reserved} of ${slots.length} cards`;
 }

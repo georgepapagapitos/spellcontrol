@@ -1907,12 +1907,29 @@ i.ss.set-symbol--mythic {
 }
 
 .collection-list-name {
+  display: flex;
+  align-items: center;
+  min-width: 0;
   font-size: var(--text-base);
   color: var(--text-primary);
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+}
+
+/* Only the name truncates (cards-collection.md "Only the long tail
+   truncates"). The line used to be one ellipsis box with the badges inline,
+   so a long name on a phone clipped every deck, cube and binder badge after
+   it. Now the name is the one shrinking item, floored so it never falls to a
+   couple of letters, and the badges keep their size. Guard:
+   styles/collection-list-name-badges.test.ts. */
+.collection-list-name > * {
+  flex-shrink: 0;
+}
+
+.collection-list-name > .collection-list-name-text {
+  flex-shrink: 1;
+  min-width: min(6ch, 100%);
 }
 
 .collection-list-meta {

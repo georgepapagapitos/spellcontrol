@@ -470,6 +470,15 @@ trading one out, not by squeezing:
 | **Compact** (32px) | **<768px:** name · type glyph · rarity chip · set code · mana · qty · value. **≥768px it is the table** (below): qty · name (glyph + rarity chip + name + foil/proxy/deck badges) · set · # · condition · language · binder · notes · mana · price · total, under a sticky sortable header                                                                                                                                                                                                              |
 | **Grid** (tile)    | art + qty badge + corner deck/binder badges + the **"Details" caption plate** under the card (price/sort-value line + rarity-tinted `SetSymbol` · set code · CN; per-line toggleable, default on). That set line carries the printing identity, so while it shows, the on-card **rarity chip** and duplicate-name **set-code chip** are suppressed; with it off both return — rarity top-right on every tile, the set chip bottom-left only when the same card name has >1 printing in the current rows |
 
+**A row's name line: only the name truncates.** In list, compact and
+the table, `.collection-list-name` is a flex row. The card name sits in its
+own `.collection-list-name-text card-name-chip-text` span, the one item that
+shrinks, floored at `min(6ch, 100%)` so it never falls to a couple of
+letters. Every badge after it (foil, proxy, deck, cube, listed, binder) keeps
+its size. It used to be one ellipsis box with the badges inline, so on a
+phone a long name clipped every badge after it. Guard:
+`styles/collection-list-name-badges.test.ts`.
+
 **Where a card lives: three cube-and-deck badges, one chip.** `DeckBadge` is
 the one "where is it" chip, in three kinds. A **deck** holds a copy: the deck's
 color and the Layers glyph. A **physical cube** holds a copy: violet

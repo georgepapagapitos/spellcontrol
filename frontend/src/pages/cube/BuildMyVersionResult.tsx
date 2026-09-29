@@ -18,7 +18,15 @@ import type { BuildMyVersionResult as BuildMyVersionData } from '../../lib/cube/
 import type { CubeCobraCard, ImportedCube } from '../../lib/cube/import';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '../../types';
-import { cubeCardToEnriched, pickToPreviewCard, pickThumb, type CopyFor } from './shared';
+import {
+  cubeCardToEnriched,
+  pickToPreviewCard,
+  pickThumb,
+  PhysicalCubeSwitch,
+  picksForSave,
+  savedCubeMessage,
+  type CopyFor,
+} from './shared';
 import { Button } from '../../components/shared/Button';
 
 /** Why a card got no substitute — the same bucket/color language `buildMyVersion`
@@ -88,17 +96,21 @@ export function BuildMyVersionResult({
   const [preview, setPreview] = useState<PreviewState>(null);
 
   const [saveOpen, setSaveOpen] = useState(false);
+  const [savePhysical, setSavePhysical] = useState(false);
   const handleSave = useCallback(
     (name: string) => {
-      const id = saveDirectly(name, result.cube.size, result.cube, false, [], {
+      // Every card of "my version" is one you own (kept or swapped in), so a
+      // physical save can reserve all of them that aren't in a deck already.
+      const picks = picksForSave(result.cube.picks, savePhysical);
+      const id = saveDirectly(name, result.cube.size, result.cube, savePhysical, picks, {
         synergyLevel: 0,
         filters: DEFAULT_POOL_FILTERS,
       });
       setSaveOpen(false);
-      pushToast({ message: `Saved "${name}"`, tone: 'success' });
+      pushToast({ message: savedCubeMessage(name, savePhysical, picks), tone: 'success' });
       navigate(`/decks/cube/${id}`);
     },
-    [saveDirectly, result.cube, pushToast, navigate]
+    [saveDirectly, result.cube, savePhysical, pushToast, navigate]
   );
 
   // Everything the build didn't keep: every swap's original plus every
@@ -333,7 +345,9 @@ export function BuildMyVersionResult({
           confirmLabel="Save"
           onSubmit={handleSave}
           onCancel={() => setSaveOpen(false)}
-        />
+        >
+          <PhysicalCubeSwitch checked={savePhysical} onChange={setSavePhysical} />
+        </NameInputDialog>
       )}
       {listOpen && (
         <SaveToListDialog
