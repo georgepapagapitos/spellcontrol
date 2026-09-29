@@ -11,7 +11,9 @@ import {
   WIPE_QUALITY_SYMMETRIC_PENALTY,
   WIPE_QUALITY_COLLATERAL_BASE,
   WIPE_QUALITY_COLLATERAL_SCALE,
+  SYNERGY_STRENGTH_POINTS,
 } from './cardPicking';
+import { synergyStrength } from './synergyLift';
 import { BracketGuard, bracketCeilings } from './bracketGuard';
 import type { EDHRECCard, ScryfallCard } from '@/deck-builder/types';
 import { isOneSidedWipe, getWipeScope, type RoleKey } from '@/deck-builder/services/tagger/client';
@@ -48,69 +50,151 @@ function sc(overrides: Partial<ScryfallCard> = {}): ScryfallCard {
 
 afterEach(() => vi.restoreAllMocks());
 
+// Real EDHREC rows (json.edhrec.com, cached 2026-09-29), built the way
+// edhrec/client.ts parseCard builds them: `n` = num_decks, `N` =
+// potential_decks, synergy verbatim. Meren of Clan Nel Toth unless noted.
+function edhrecRow(
+  name: string,
+  n: number,
+  N: number,
+  synergy: number,
+  overrides: Partial<EDHRECCard> = {}
+): EDHRECCard {
+  return ec({
+    name,
+    inclusion: (n / N) * 100,
+    num_decks: n,
+    potential_decks: N,
+    synergy,
+    ...overrides,
+  });
+}
+// highsynergycards list
+const SPORE_FROG = edhrecRow('Spore Frog', 16855, 22305, 0.7009745070406005, {
+  isThemeSynergyCard: true,
+});
+const GRIM_HARUSPEX = edhrecRow('Grim Haruspex', 11022, 22305, 0.4571132790947646, {
+  isThemeSynergyCard: true,
+});
+const SAKURA_TRIBE_ELDER = edhrecRow('Sakura-Tribe Elder', 18523, 22305, 0.5470536716623432, {
+  isThemeSynergyCard: true,
+});
+// creatures / sorceries / mana artifacts lists
+const PROTEAN_HULK = edhrecRow('Protean Hulk', 10245, 22305, 0.4153820889704169);
+const RAZAKETH = edhrecRow('Razaketh, the Foulblooded', 2967, 22305, 0.11960339495693278);
+const SOL_RING = edhrecRow('Sol Ring', 19037, 22305, 0.06115836069838243);
+// Sythis, Harvest's Hand
+const OVERGROWTH = edhrecRow('Overgrowth', 4519, 14250, 0.28031627345224963);
+const RELIQUARY_TOWER = edhrecRow('Reliquary Tower', 8495, 14250, 0.315);
+const CULTIVATE = edhrecRow('Cultivate', 2238, 14250, -0.25957261349878713);
+
+const term = (card: EDHRECCard) => SYNERGY_STRENGTH_POINTS * synergyStrength(card);
+
 describe('calculateCardPriority', () => {
-  it('gives theme-synergy cards the dominant 100+ boost', () => {
-    const themed = calculateCardPriority(
-      ec({ isThemeSynergyCard: true, synergy: 0.5, inclusion: 5 })
+  it('gives theme-synergy cards the dominant 100+ boost plus half the synergy term', () => {
+    const themed = calculateCardPriority(SPORE_FROG);
+    expect(themed).toBeCloseTo(100 + term(SPORE_FROG) / 2 + SPORE_FROG.inclusion, 10);
+    expect(themed).toBeGreaterThan(calculateCardPriority(SOL_RING));
+  });
+
+  it('adds the full synergy term to a non-theme card', () => {
+    expect(calculateCardPriority(PROTEAN_HULK)).toBeCloseTo(
+      term(PROTEAN_HULK) + PROTEAN_HULK.inclusion,
+      10
     );
-    const staple = calculateCardPriority(ec({ inclusion: 90 }));
-    expect(themed).toBeGreaterThan(staple);
-    expect(themed).toBe(100 + 0.5 * 50 + 5);
+    // 45.9% vs 4.4% in the colours: strength 1.55, about 47 points.
+    expect(term(PROTEAN_HULK)).toBeCloseTo(46.6, 0);
   });
 
-  it('weights high-synergy (>0.3) non-theme cards by synergy*100', () => {
-    expect(calculateCardPriority(ec({ synergy: 0.6, inclusion: 10 }))).toBe(0.6 * 100 + 10);
+  it('has no cliff at synergy 0.3 (E510)', () => {
+    // The old formula: +0.28 scored nothing, +0.315 scored 31.5 points.
+    // Now Overgrowth (8.6x its colours) outscores Reliquary Tower (2.1x).
+    expect(calculateCardPriority(OVERGROWTH) - OVERGROWTH.inclusion).toBeCloseTo(29.5, 0);
+    expect(calculateCardPriority(RELIQUARY_TOWER) - RELIQUARY_TOWER.inclusion).toBeCloseTo(19.4, 0);
+    // Either side of the old threshold, where the old formula jumped 30
+    // points, priority now moves by under 2.
+    const withSynergy = (synergy: number) => ({ ...OVERGROWTH, synergy });
+    expect(
+      Math.abs(
+        calculateCardPriority(withSynergy(0.301)) - calculateCardPriority(withSynergy(0.299))
+      )
+    ).toBeLessThan(2);
   });
 
-  it('falls back to inclusion for low-synergy cards, plus a new-card boost', () => {
-    expect(calculateCardPriority(ec({ synergy: 0.1, inclusion: 20 }))).toBe(20);
-    expect(calculateCardPriority(ec({ synergy: 0.1, inclusion: 20, isNewCard: true }))).toBe(45);
+  it('pulls a card the commander’s players avoid below its play rate', () => {
+    // Cultivate in Sythis: 15.7% vs 41.7% in the colours.
+    expect(calculateCardPriority(CULTIVATE)).toBeLessThan(CULTIVATE.inclusion);
+  });
+
+  it('falls back to inclusion for a row with no synergy, plus a new-card boost', () => {
+    const synthesized = ec({ name: 'Arcane Signet', inclusion: 20, num_decks: 0 });
+    expect(calculateCardPriority(synthesized)).toBe(20);
+    expect(calculateCardPriority({ ...synthesized, isNewCard: true })).toBe(45);
   });
 });
 
 describe('calculateCardPriority — Staples <-> Synergy dial', () => {
-  const theme = ec({ isThemeSynergyCard: true, synergy: 0.5, inclusion: 5 });
-  const highSynergy = ec({ synergy: 0.6, inclusion: 10 });
-  const plain = ec({ synergy: 0.1, inclusion: 20 });
-
   it('brewLevel=0.5 (Balanced) is byte-identical to omitting the param', () => {
-    for (const c of [theme, highSynergy, plain]) {
+    for (const c of [SPORE_FROG, PROTEAN_HULK, SOL_RING, CULTIVATE]) {
       expect(calculateCardPriority(c, 0.5)).toBe(calculateCardPriority(c));
     }
   });
 
   it('Staples (0) ranks by play rate alone: no synergy term, no theme-list floor', () => {
-    expect(calculateCardPriority(theme, 0)).toBe(5 * 2);
-    expect(calculateCardPriority(highSynergy, 0)).toBe(10 * 2);
-    expect(calculateCardPriority(plain, 0)).toBe(20 * 2);
+    for (const c of [SPORE_FROG, PROTEAN_HULK, SOL_RING, CULTIVATE]) {
+      expect(calculateCardPriority(c, 0)).toBeCloseTo(c.inclusion * 2, 10);
+    }
   });
 
   it('Synergy (1) leads with synergy and keeps play rate as a small tie-breaker', () => {
-    expect(calculateCardPriority(theme, 1)).toBeCloseTo(100 + 0.5 * 50 * 2.2 + 5 * 0.25);
-    expect(calculateCardPriority(highSynergy, 1)).toBeCloseTo(0.6 * 100 * 2.2 + 10 * 0.25);
-    expect(calculateCardPriority(plain, 1)).toBeCloseTo(20 * 0.25);
+    expect(calculateCardPriority(SPORE_FROG, 1)).toBeCloseTo(
+      100 + (term(SPORE_FROG) * 2.2) / 2 + SPORE_FROG.inclusion * 0.25,
+      10
+    );
+    expect(calculateCardPriority(PROTEAN_HULK, 1)).toBeCloseTo(
+      term(PROTEAN_HULK) * 2.2 + PROTEAN_HULK.inclusion * 0.25,
+      10
+    );
   });
 
   it('halfway stops sit between Balanced and the ends', () => {
-    expect(calculateCardPriority(theme, 0.25)).toBeCloseTo(50 + 0.5 * 50 * 0.5 + 5 * 1.5);
-    expect(calculateCardPriority(highSynergy, 0.75)).toBeCloseTo(0.6 * 100 * 1.6 + 10 * 0.625);
+    expect(calculateCardPriority(SPORE_FROG, 0.25)).toBeCloseTo(
+      50 + (term(SPORE_FROG) * 0.5) / 2 + SPORE_FROG.inclusion * 1.5,
+      10
+    );
+    expect(calculateCardPriority(PROTEAN_HULK, 0.75)).toBeCloseTo(
+      term(PROTEAN_HULK) * 1.6 + PROTEAN_HULK.inclusion * 0.625,
+      10
+    );
   });
 
-  it('is monotonic: a high-synergy card gains ground on a same-inclusion no-synergy card as brewLevel rises', () => {
-    const synergyCard = ec({ synergy: 0.6, inclusion: 20 });
-    const noSynergyCard = ec({ synergy: 0, inclusion: 20 });
+  it('Balanced keeps the played staple, Synergy takes the ratio pick', () => {
+    // Sakura-Tribe Elder: 83% vs 28% (2.9x). Grim Haruspex: 49% vs 3.7% (13x).
+    expect(calculateCardPriority(SAKURA_TRIBE_ELDER)).toBeGreaterThan(
+      calculateCardPriority(GRIM_HARUSPEX)
+    );
+    expect(calculateCardPriority(GRIM_HARUSPEX, 1)).toBeGreaterThan(
+      calculateCardPriority(SAKURA_TRIBE_ELDER, 1)
+    );
+  });
+
+  it('is monotonic: a synergy card gains ground on a same-inclusion no-synergy card as brewLevel rises', () => {
+    const noSynergy = ec({
+      name: 'Arcane Signet',
+      inclusion: PROTEAN_HULK.inclusion,
+      num_decks: 0,
+    });
     let prevGap = -Infinity;
     for (const b of [0, 0.25, 0.5, 0.75, 1]) {
-      const gap = calculateCardPriority(synergyCard, b) - calculateCardPriority(noSynergyCard, b);
+      const gap = calculateCardPriority(PROTEAN_HULK, b) - calculateCardPriority(noSynergy, b);
       expect(gap).toBeGreaterThan(prevGap);
       prevGap = gap;
     }
   });
 
   it('never lets a genuinely dead card beat a staple that is also the best synergy pick, even at full Brew', () => {
-    const staplePlusSynergy = ec({ isThemeSynergyCard: true, synergy: 0.9, inclusion: 90 });
     const deadCard = ec({ synergy: 0, inclusion: 10, isNewCard: true }); // best-case dead card
-    expect(calculateCardPriority(staplePlusSynergy, 1)).toBeGreaterThan(
+    expect(calculateCardPriority(SPORE_FROG, 1)).toBeGreaterThan(
       calculateCardPriority(deadCard, 1)
     );
   });
@@ -127,12 +211,16 @@ describe('calculateCardPriority — Staples <-> Synergy dial', () => {
 });
 
 describe('isHighSynergyCard', () => {
-  it('is true for theme cards or synergy above 0.3', () => {
+  it('is true for theme-list cards and signature cards', () => {
     expect(isHighSynergyCard(ec({ isThemeSynergyCard: true }))).toBe(true);
-    expect(isHighSynergyCard(ec({ synergy: 0.31 }))).toBe(true);
+    expect(isHighSynergyCard(PROTEAN_HULK)).toBe(true);
+    // +0.28 but 8.6x its colours: a Sythis signature card the old threshold missed.
+    expect(isHighSynergyCard(OVERGROWTH)).toBe(true);
   });
-  it('is false at or below the 0.3 synergy threshold with no theme flag', () => {
-    expect(isHighSynergyCard(ec({ synergy: 0.3 }))).toBe(false);
+  it('is false for a colour staple the commander merely plays more, and for no synergy', () => {
+    // +0.315 but only 2.1x its colours: the old threshold's false positive.
+    expect(isHighSynergyCard(RELIQUARY_TOWER)).toBe(false);
+    expect(isHighSynergyCard(SOL_RING)).toBe(false);
     expect(isHighSynergyCard(ec({}))).toBe(false);
   });
 });
@@ -150,16 +238,19 @@ describe('mergeWithAllNonLand', () => {
   });
 
   it('threads the Staples <-> Brew dial into its sort', () => {
-    const pool = [
-      ec({ name: 'Staple', inclusion: 60, synergy: 0 }),
-      ec({ name: 'Deep cut', inclusion: 5, synergy: 0.31 }),
-    ];
-    // Balanced (default): the staple's raw inclusion (60) beats the deep
-    // cut's synergy*100+inclusion (31+5=36).
-    expect(mergeWithAllNonLand(pool, []).map((c) => c.name)).toEqual(['Staple', 'Deep cut']);
-    // Full Synergy: damped inclusion (15) loses to amplified synergy+inclusion
-    // (68.2+1.25) — the dial actually reorders the pool.
-    expect(mergeWithAllNonLand(pool, [], 1).map((c) => c.name)).toEqual(['Deep cut', 'Staple']);
+    const pool = [SOL_RING, RAZAKETH];
+    // Balanced (default): Sol Ring's play rate (85%) beats Razaketh's 13% plus
+    // its synergy term (9.9x its colours, strength 0.44: 13 points).
+    expect(mergeWithAllNonLand(pool, []).map((c) => c.name)).toEqual([
+      'Sol Ring',
+      'Razaketh, the Foulblooded',
+    ]);
+    // Full Synergy: damped play rate (21) loses to the amplified synergy term
+    // (29 + 3): the dial actually reorders the pool.
+    expect(mergeWithAllNonLand(pool, [], 1).map((c) => c.name)).toEqual([
+      'Razaketh, the Foulblooded',
+      'Sol Ring',
+    ]);
   });
 });
 

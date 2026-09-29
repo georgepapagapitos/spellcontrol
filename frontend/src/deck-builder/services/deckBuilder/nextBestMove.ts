@@ -1,5 +1,6 @@
 import type { PlanScore, SubScoreKey } from './planScore';
 import type { GapAnalysisCard } from '@/deck-builder/types';
+import { synergyStrength, bySynergyStrength } from './synergyLift';
 import type { DeckView } from '@/components/deck/DeckDisplay';
 import type { ComboMatch } from '@/types/combos';
 import type { WinConditionAnalysis } from '@/deck-builder/services/winConditions/types';
@@ -132,20 +133,28 @@ function gapForRole(
 
 /** Highest-synergy gap card whose name isn't already claimed — preferring one
  *  the player already owns (owned-first) among the positive-synergy candidates.
- *  Under `ownedOnly`, restricted to owned candidates only. */
+ *  Under `ownedOnly`, restricted to owned candidates only. "Highest synergy"
+ *  is the ratio-weighted strength (E510, synergyLift.ts), not EDHREC's
+ *  subtraction, so a card the commander plays 12x as often as its colours
+ *  isn't buried under one it plays 2x as often. */
 function topSynergyGap(
   gapAnalysis: GapAnalysisCard[] | undefined,
   used: Set<string>,
   ownedNames?: Set<string>,
   ownedOnly?: boolean
 ): GapAnalysisCard | undefined {
+  // ponytail: GapAnalysisCard carries no deck count, so this reads the
+  // strength unshrunk; add potential_decks to GapAnalysisCard to shrink a
+  // thin commander's gap suggestions like the generator does.
   const positive =
     gapAnalysis
       ?.filter(
         (g) =>
-          g.synergy > 0 && !used.has(g.name) && (!ownedOnly || (ownedNames?.has(g.name) ?? false))
+          synergyStrength(g) > 0 &&
+          !used.has(g.name) &&
+          (!ownedOnly || (ownedNames?.has(g.name) ?? false))
       )
-      .sort((a, b) => b.synergy - a.synergy) ?? [];
+      .sort(bySynergyStrength) ?? [];
   return positive.find((g) => ownedNames?.has(g.name)) ?? positive[0];
 }
 

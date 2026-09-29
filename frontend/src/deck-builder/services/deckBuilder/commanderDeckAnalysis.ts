@@ -51,7 +51,8 @@ import { loadCardSimilar, getSimilarRank } from './cardSimilar';
 import { computePlanScore, type PlanScore, type StrategyEngineInput } from './planScore';
 import { computeMisfits, summarizeMisfits, type MisfitSummary } from './cardFit';
 import { buildCostPlan, type CostPlan } from './costAnalyzer';
-import { frontFaceName } from '@/lib/card-text';
+import { frontFaceName, getByCardName } from '@/lib/card-text';
+import { isSignatureSynergy } from './synergyLift';
 import { analyzeDeckSynergy, isLoadBearing, type DeckSynergy } from '../synergy/deckSynergy';
 import {
   buildSynergyAnalysis,
@@ -867,8 +868,14 @@ export async function analyzeCommanderDeck(
     let liftSeedCount = 0;
     try {
       const edhrecByName = new Map(edhrecData.cardlists.allNonLand.map((c) => [c.name, c]));
+      // Signature cards by the shared E510 predicate; a deck card is looked up
+      // by getByCardName so a DFC's full name finds EDHREC's front-face row.
       const highSynergyNames = params.cards
-        .filter((c) => c.isThemeSynergyCard || (edhrecByName.get(c.name)?.synergy ?? 0) > 0.3)
+        .filter((c) => {
+          if (c.isThemeSynergyCard) return true;
+          const pooled = getByCardName(edhrecByName, c.name);
+          return pooled != null && isSignatureSynergy(pooled);
+        })
         .map((c) => c.name)
         .slice(0, 4);
       const seeds = [

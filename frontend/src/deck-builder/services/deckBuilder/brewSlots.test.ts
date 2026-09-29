@@ -48,6 +48,30 @@ describe('bucketForSlot', () => {
     expect(bucketForSlot(c, null)).toBe('theme');
   });
 
+  it('routes an untagged signature card to theme by ratio, not by the subtraction (E510)', () => {
+    // Real Sythis, Harvest's Hand rows (14,250 decks). Overgrowth: 31.7% vs
+    // 3.7% in the colours (+0.28, 8.6x). Reliquary Tower: 59.6% vs 28.1%
+    // (+0.315, 2.1x). The old `synergy > 0.3` bucketed them the other way.
+    const overgrowth = card({
+      name: 'Overgrowth',
+      primary_type: 'Enchantment',
+      inclusion: (4519 / 14250) * 100,
+      num_decks: 4519,
+      potential_decks: 14250,
+      synergy: 0.28031627345224963,
+    });
+    const tower = card({
+      name: 'Reliquary Tower',
+      primary_type: 'Land',
+      inclusion: (8495 / 14250) * 100,
+      num_decks: 8495,
+      potential_decks: 14250,
+      synergy: 0.315,
+    });
+    expect(bucketForSlot(overgrowth, null)).toBe('theme');
+    expect(bucketForSlot(tower, null)).toBe('flex');
+  });
+
   it('routes a plain untagged card to flex', () => {
     const c = card({ name: 'Filler', inclusion: 15 });
     expect(bucketForSlot(c, null)).toBe('flex');
