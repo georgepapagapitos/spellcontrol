@@ -112,8 +112,12 @@ export interface TopListKey {
 
 export type TopListQueryResult = { ok: true; key: TopListKey } | { ok: false; error: string };
 
-function isOneOf<T extends string>(values: readonly T[], v: unknown): v is T {
-  return typeof v === 'string' && (values as readonly string[]).includes(v);
+/** The allowlist's own value equal to `v`, or `undefined`. Returns the
+ *  constant rather than narrowing `v`, so no request string ever reaches an
+ *  EDHREC path: a narrowed `v` is still the request's value, and CodeQL's
+ *  request-forgery check (alert 175) rightly can't see an `includes()` guard. */
+function pickOne<T extends string>(values: readonly T[], v: unknown): T | undefined {
+  return values.find((allowed) => allowed === v);
 }
 
 /** `undefined` when absent, the string when a single value, `false` for an
@@ -137,13 +141,14 @@ export function normalizeColors(raw: string): string | null | false {
 /** Validates the request's query into a list key. Every EDHREC fetch goes
  *  through a key built here, never through the raw query. */
 export function parseTopListQuery(query: Record<string, unknown>): TopListQueryResult {
-  const kind = single(query.kind);
-  if (!isOneOf(TOP_LIST_KINDS, kind)) {
+  const kind = pickOne(TOP_LIST_KINDS, single(query.kind));
+  if (!kind) {
     return { ok: false, error: 'Choose a list: commanders, cards or salt.' };
   }
 
   const periodRaw = single(query.period);
-  if (periodRaw === false || (periodRaw !== undefined && !isOneOf(TOP_LIST_PERIODS, periodRaw))) {
+  const periodPicked = pickOne(TOP_LIST_PERIODS, periodRaw);
+  if (periodRaw === false || (periodRaw !== undefined && !periodPicked)) {
     return { ok: false, error: 'Period must be week, month or year.' };
   }
 
@@ -153,10 +158,11 @@ export function parseTopListQuery(query: Record<string, unknown>): TopListQueryR
   if (colors === false) return { ok: false, error: 'Colors must be WUBRG letters, or C.' };
 
   const typeRaw = single(query.type);
-  if (typeRaw === false || (typeRaw !== undefined && !isOneOf(TOP_CARD_TYPES, typeRaw))) {
+  const typePicked = pickOne(TOP_CARD_TYPES, typeRaw);
+  if (typeRaw === false || (typeRaw !== undefined && !typePicked)) {
     return { ok: false, error: `Type must be one of: ${TOP_CARD_TYPES.join(', ')}.` };
   }
-  const type = typeRaw ?? null;
+  const type = typePicked ?? null;
 
   if (kind === 'salt') {
     if (colors !== null || type !== null) {
@@ -169,9 +175,7 @@ export function parseTopListQuery(query: Record<string, unknown>): TopListQueryR
   }
   // Colour and type pages are 2-year lists (see the header comment).
   const period: TopListPeriod =
-    colors !== null || type !== null
-      ? 'year'
-      : ((periodRaw as TopListPeriod | undefined) ?? 'week');
+    colors !== null || type !== null ? 'year' : (periodPicked ?? 'week');
   return { ok: true, key: { kind, period, colors, type } };
 }
 

@@ -101,6 +101,41 @@ describe('parseTopListQuery', () => {
   ])('rejects %j', (q) => {
     expect(rejects(q)).toMatch(/\.$/);
   });
+
+  // Request forgery guard (CodeQL alert 175): no request string may shape the
+  // EDHREC path. Anything that is not an exact allowlist value is refused, and
+  // every key that parses maps to one of a closed set of pages.
+  it.each([['week/../../admin'], ['../week'], ['week '], ['WEEK'], ['week%2F..'], ['week\u0000']])(
+    'refuses the period %j',
+    (period) => {
+      expect(rejects({ kind: 'cards', period })).toMatch(/\.$/);
+      expect(rejects({ kind: 'commanders', period })).toMatch(/\.$/);
+    }
+  );
+
+  it('refuses a type or kind that is not exactly an allowlist value', () => {
+    expect(rejects({ kind: 'cards', type: '../lands' })).toMatch(/\.$/);
+    expect(rejects({ kind: 'cards', type: 'Lands' })).toMatch(/\.$/);
+    expect(rejects({ kind: 'Cards' })).toMatch(/\.$/);
+    expect(rejects({ kind: 'cards/../salt' })).toMatch(/\.$/);
+  });
+
+  it('maps every key that parses to one of a closed set of EDHREC pages', () => {
+    const paths = new Set<string>();
+    for (const kind of ['commanders', 'cards', 'salt']) {
+      for (const period of [undefined, 'week', 'month', 'year']) {
+        for (const colors of [undefined, 'C', ...allColourSubsets()]) {
+          for (const type of [undefined, ...TOP_CARD_TYPES]) {
+            const r = parseTopListQuery({ kind, period, colors, type });
+            if (r.ok) paths.add(edhrecPathFor(r.key));
+          }
+        }
+      }
+    }
+    for (const path of paths) expect(path).toMatch(/^\/pages\/(commanders|top)\/[a-z-]+\.json$/);
+    // 3 period pages × 2 kinds, 32 colour pages × 2 kinds, 10 type pages, salt.
+    expect(paths.size).toBe(3 * 2 + 32 * 2 + TOP_CARD_TYPES.length + 1);
+  });
 });
 
 describe('normalizeColors', () => {
