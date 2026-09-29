@@ -181,4 +181,53 @@ describe('SectionHeader', () => {
       'home-your-decks'
     );
   });
+  it('as a header: leading, the heading wrapped with what follows it, then bare tools', () => {
+    const { container } = render(
+      <SectionHeader
+        as="header"
+        className="deck-section-header"
+        level={3}
+        variant="overline"
+        titleClassName="deck-section-title"
+        titleTabIndex={-1}
+        title="Creatures"
+        leading={<span className="deck-section-icon" />}
+        titleWrapClassName="deck-section-title-row"
+        titleAfter={<div className="deck-section-gauge" />}
+        tools={<span className="deck-section-subtotal">$4</span>}
+      />
+    );
+    const row = container.firstElementChild!;
+    expect(row.tagName).toBe('HEADER');
+    expect([...row.children].map((c) => c.className)).toEqual([
+      'deck-section-icon',
+      'deck-section-title-row',
+      'deck-section-subtotal',
+    ]);
+    expect([...row.children[1].children].map((c) => c.className)).toEqual([
+      'deck-section-title',
+      'deck-section-gauge',
+    ]);
+    const h = screen.getByRole('heading', { level: 3, name: 'Creatures' });
+    expect(h.getAttribute('tabindex')).toBe('-1');
+    expect(h.getAttribute('data-heading')).toBe('overline');
+  });
+
+  it('as a header stays the row when nothing sits beside the title', () => {
+    const { container } = render(
+      <SectionHeader
+        as="header"
+        id="past-head"
+        className="trades-section-head"
+        titleClassName="trades-section-title"
+        title="Past"
+        tools={false}
+      />
+    );
+    const row = container.firstElementChild!;
+    expect(row.tagName).toBe('HEADER');
+    expect(row.className).toBe('trades-section-head');
+    expect([...row.children].map((c) => c.className)).toEqual(['trades-section-title']);
+    expect(row.firstElementChild!.id).toBe('past-head');
+  });
 });

@@ -6,8 +6,16 @@ import type { ReactNode } from 'react';
  *
  * With nothing beside the title it is only the heading, so a section that
  * has no meta or tools gets no wrapper row. With either, the heading sits in
- * a row: the title, then `meta` (a count or a sub-line, rendered as given),
- * then `tools` in their own group at the end.
+ * a row: `leading` (a collapse toggle, a glyph), the title, then `meta` (a
+ * count or a sub-line, rendered as given), then `tools` in their own group at
+ * the end, or straight into the row as its last items when there is no
+ * `toolsClassName` to give the group.
+ *
+ * `as="header"` makes the row the section's `<header>`, and a header is
+ * always the row: it stays one element whether or not anything sits beside
+ * the title, so a tool that comes and goes never changes its layout.
+ * `titleAfter` follows the heading (a gauge, which a heading can't hold), and
+ * `titleWrapClassName` wraps the two as one cell of the row.
  *
  * `variant` is the heading's role, painted once in base-layout.css: a
  * `title` (serif, --text-lg, Home's reference) or an `overline` (a small
@@ -23,8 +31,18 @@ export interface SectionHeaderProps {
   level?: 2 | 3 | 4;
   /** The heading's role: a section title (default) or an overline label. */
   variant?: 'title' | 'overline';
+  /** The row's element. A `header` is always rendered as the row. */
+  as?: 'div' | 'header';
   className?: string;
   titleClassName?: string;
+  /** -1 makes the heading a programmatic focus target outside the tab order. */
+  titleTabIndex?: -1;
+  /** Right after the heading, e.g. a gauge (a heading holds phrasing only). */
+  titleAfter?: ReactNode;
+  /** Wraps the heading and `titleAfter` as one cell of the row. */
+  titleWrapClassName?: string;
+  /** Ahead of the heading: a collapse toggle, a section glyph. */
+  leading?: ReactNode;
   meta?: ReactNode;
   tools?: ReactNode;
   toolsClassName?: string;
@@ -35,26 +53,46 @@ export function SectionHeader({
   id,
   level = 2,
   variant = 'title',
+  as: Row = 'div',
   className,
   titleClassName,
+  titleTabIndex,
+  titleAfter,
+  titleWrapClassName,
+  leading,
   meta,
   tools,
   toolsClassName,
 }: SectionHeaderProps) {
   const H = `h${level}` as const;
-  if (!meta && !tools)
-    return (
-      <H id={id} className={className ?? titleClassName} data-heading={variant}>
-        {title}
-      </H>
-    );
+  const row = Row === 'header' || !!(meta || tools || leading || titleAfter || titleWrapClassName);
+  const heading = (
+    <H
+      id={id}
+      className={row ? titleClassName : (className ?? titleClassName)}
+      tabIndex={titleTabIndex}
+      data-heading={variant}
+    >
+      {title}
+    </H>
+  );
+  if (!row) return heading;
   return (
-    <div className={className}>
-      <H id={id} className={titleClassName} data-heading={variant}>
-        {title}
-      </H>
+    <Row className={className}>
+      {leading}
+      {titleWrapClassName ? (
+        <div className={titleWrapClassName}>
+          {heading}
+          {titleAfter}
+        </div>
+      ) : (
+        <>
+          {heading}
+          {titleAfter}
+        </>
+      )}
       {meta}
-      {tools && <div className={toolsClassName}>{tools}</div>}
-    </div>
+      {tools && (toolsClassName ? <div className={toolsClassName}>{tools}</div> : tools)}
+    </Row>
   );
 }

@@ -35,6 +35,7 @@ import { PartnerHeaderButton, LegalityBadge, RoleBadge } from './deck-display-ic
 import { IconButton } from '@/components/shared/Button';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ArtBadge } from '@/components/shared/ArtBadge';
+import { SectionHeader } from '@/components/shared/SectionHeader';
 
 /** Section chrome around one card (0.85rem of padding a side) and the gap
  *  between columns, in px at a 16px root — the two numbers the CSS spends on
@@ -273,44 +274,56 @@ export function DeckCardGrid({
               : undefined
         }
       >
-        <header className="deck-section-header">
-          {onToggleSection && !stacks && (
-            <IconButton
-              className="deck-section-collapse"
-              aria-expanded={!collapsed}
-              aria-controls={listId}
-              onClick={() => onToggleSection(g.title)}
-              label={`${collapsed ? 'Expand' : 'Collapse'} ${g.title}`}
-              icon={
-                <ChevronDown
-                  width={14}
-                  height={14}
-                  strokeWidth={2}
-                  className="deck-section-collapse-icon"
+        <SectionHeader
+          as="header"
+          className="deck-section-header"
+          level={3}
+          variant="overline"
+          leading={
+            <>
+              {onToggleSection && !stacks && (
+                <IconButton
+                  className="deck-section-collapse"
+                  aria-expanded={!collapsed}
+                  aria-controls={listId}
+                  onClick={() => onToggleSection(g.title)}
+                  label={`${collapsed ? 'Expand' : 'Collapse'} ${g.title}`}
+                  icon={
+                    <ChevronDown
+                      width={14}
+                      height={14}
+                      strokeWidth={2}
+                      className="deck-section-collapse-icon"
+                    />
+                  }
                 />
-              }
-            />
-          )}
-          {/* Stacks drop the type glyph: the column is already a wall of
+              )}
+              {/* Stacks drop the type glyph: the column is already a wall of
                   card art, and a header that has to sit above it stays
                   readable as words alone. */}
-          {!stacks && (
-            <span className="deck-section-icon">
-              <SectionIcon icon={g.icon} />
-            </span>
-          )}
-          {/* A <div> (MeterBar's root) can't nest inside <h3> — phrasing
-                  content only — so the gauge is a sibling of the heading,
-                  both wrapped as the single grid-column-occupying title cell. */}
-          <div className="deck-section-title-row">
-            <h3 className="deck-section-title">
+              {!stacks && (
+                <span className="deck-section-icon">
+                  <SectionIcon icon={g.icon} />
+                </span>
+              )}
+            </>
+          }
+          titleClassName="deck-section-title"
+          title={
+            <>
               {g.title}{' '}
               <span className="deck-section-count">
                 ({count}
                 {g.target !== undefined ? ` / ${g.target}` : ''})
               </span>
-            </h3>
-            {g.target !== undefined && (
+            </>
+          }
+          // A <div> (MeterBar's root) can't nest inside <h3> (phrasing
+          // content only), so the gauge follows the heading and the two are
+          // wrapped as the header's one title cell.
+          titleWrapClassName="deck-section-title-row"
+          titleAfter={
+            g.target !== undefined && (
               <MeterBar
                 value={count}
                 max={Math.max(g.target, count)}
@@ -319,15 +332,19 @@ export function DeckCardGrid({
                 label={`${g.title}: ${count} of ${g.target}`}
                 className="deck-section-gauge"
               />
-            )}
-          </div>
-          {showSubtotal && (
-            <span className="deck-section-subtotal">{formatMoney(subtotal, { currency })}</span>
-          )}
-          {g.icon === 'commander' && onEditPartner && (
-            <PartnerHeaderButton hasPartner={!!hasPartner} onClick={onEditPartner} />
-          )}
-        </header>
+            )
+          }
+          tools={
+            <>
+              {showSubtotal && (
+                <span className="deck-section-subtotal">{formatMoney(subtotal, { currency })}</span>
+              )}
+              {g.icon === 'commander' && onEditPartner && (
+                <PartnerHeaderButton hasPartner={!!hasPartner} onClick={onEditPartner} />
+              )}
+            </>
+          }
+        />
         {emptyLine ? (
           <EmptyState compact className="deck-section-empty" id={listId} hidden={collapsed}>
             {emptyLine}

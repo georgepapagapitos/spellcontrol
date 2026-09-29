@@ -20,6 +20,7 @@ import {
 import { userMessage } from '@/lib/user-error';
 import { Button } from '@/components/shared/Button';
 import { Count } from '@/components/shared/Count';
+import { SectionHeader } from '@/components/shared/SectionHeader';
 /**
  * `/trades` — every offer the viewer is party to, both directions, one place.
  *
@@ -265,24 +266,38 @@ function TradesPageBody() {
           const rows = visible.filter(group.match);
           return (
             <section className="trades-section" key={group.id} aria-labelledby={`${group.id}-head`}>
-              <div className="trades-section-head">
-                <h2 className="trades-section-title" id={`${group.id}-head`}>
-                  {group.title}
-                  {/* aria-hidden like .friends-nav-link-badge: a bare "3" in the
+              <SectionHeader
+                as="header"
+                className="trades-section-head"
+                variant="overline"
+                id={`${group.id}-head`}
+                titleClassName="trades-section-title"
+                title={
+                  <>
+                    {group.title}
+                    {/* aria-hidden like .friends-nav-link-badge: a bare "3" in the
                       section's accessible name reads as noise, and the row count
                       is already carried by the list itself. */}
-                  <Count className="trades-section-count" value={rows.length} placement="inline" />
-                </h2>
-                {group.id === 'past' && rows.length > 0 && (
-                  <Button
-                    variant="link"
-                    onClick={() => setClearing(true)}
-                    className="trades-section-action"
-                  >
-                    Clear history
-                  </Button>
-                )}
-              </div>
+                    <Count
+                      className="trades-section-count"
+                      value={rows.length}
+                      placement="inline"
+                    />
+                  </>
+                }
+                tools={
+                  group.id === 'past' &&
+                  rows.length > 0 && (
+                    <Button
+                      variant="link"
+                      onClick={() => setClearing(true)}
+                      className="trades-section-action"
+                    >
+                      Clear history
+                    </Button>
+                  )
+                }
+              />
               {rows.length === 0 ? (
                 // Per-group empty — one compact line. The page-level empty
                 // state above owns the full tagline/hint treatment
