@@ -1,6 +1,7 @@
 import { Notebook } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { IconButton } from '@/components/shared/Button';
+import { ArtBadge } from '@/components/shared/ArtBadge';
 
 export interface BinderInfo {
   id: string;
@@ -26,6 +27,12 @@ interface Props {
    * `onSelect`; tooltip and accessible name are unchanged.
    */
   nonInteractive?: boolean;
+  /**
+   * `art` for a mark on card art (a grid tile's corner cluster): the on-art
+   * identity disc, filled with the binder's colour, with no count.
+   * `row` (default) is the tinted chip beside a name.
+   */
+  placement?: 'row' | 'art';
 }
 
 /**
@@ -33,7 +40,7 @@ interface Props {
  * `onSelect`, if given). Multiple → unlinked badge with a tooltip listing
  * every binder name (mirrors DeckBadge).
  */
-export function BinderBadge({ binders, onSelect, nonInteractive }: Props) {
+export function BinderBadge({ binders, onSelect, nonInteractive, placement = 'row' }: Props) {
   const navigate = useNavigate();
   if (binders.length === 0) return null;
 
@@ -41,6 +48,7 @@ export function BinderBadge({ binders, onSelect, nonInteractive }: Props) {
   const byId = new Map<string, BinderInfo>();
   for (const b of binders) byId.set(b.id, b);
   const unique = [...byId.values()];
+  const art = placement === 'art';
 
   const summary = unique.map((b) => b.name).join(', ');
   const label =
@@ -48,32 +56,52 @@ export function BinderBadge({ binders, onSelect, nonInteractive }: Props) {
       ? `In binder: ${unique[0].name}`
       : `In ${unique.length} binders: ${summary}`;
 
+  // One binder: its colour. On art it fills the identity disc; on a row it
+  // tints the chip.
+  const oneStyle = (color: string): React.CSSProperties =>
+    art
+      ? ({ '--identity-color': color } as React.CSSProperties)
+      : ({ '--binder-color': color, color } as React.CSSProperties);
+  const glyph = <Notebook width={12} height={12} strokeWidth={2} aria-hidden />;
+
+  // A marker with no action, on art: the plate. Several binders have no one
+  // colour, so they stay on the neutral scrim (the plate's `many`), and the count
+  // stays in the tooltip.
+  if (art && (unique.length > 1 || nonInteractive)) {
+    const many = unique.length > 1;
+    return (
+      <ArtBadge
+        className="identity-mark"
+        data-identity={many ? 'many' : 'one'}
+        style={many ? undefined : oneStyle(unique[0].color || 'var(--accent)')}
+        title={label}
+        label={label}
+      >
+        {glyph}
+      </ArtBadge>
+    );
+  }
+
   if (unique.length === 1 && nonInteractive) {
-    const color = unique[0].color || 'var(--accent)';
     return (
       <span
         className="card-list-binder-badge"
-        style={{ '--binder-color': color, color } as React.CSSProperties}
+        style={oneStyle(unique[0].color || 'var(--accent)')}
         title={label}
         aria-label={label}
       >
-        <Notebook width={12} height={12} strokeWidth={2} aria-hidden />
+        {glyph}
       </span>
     );
   }
 
   if (unique.length === 1) {
     const b = unique[0];
-    const color = b.color || 'var(--accent)';
     return (
       <IconButton
-        className="card-list-binder-badge"
-        style={
-          {
-            '--binder-color': color,
-            color,
-          } as React.CSSProperties
-        }
+        className={art ? 'art-badge identity-mark' : 'card-list-binder-badge'}
+        data-identity={art ? 'one' : undefined}
+        style={oneStyle(b.color || 'var(--accent)')}
         onClick={(e) => {
           e.stopPropagation();
           if (onSelect) onSelect(b);
@@ -91,7 +119,7 @@ export function BinderBadge({ binders, onSelect, nonInteractive }: Props) {
       title={label}
       aria-label={label}
     >
-      <Notebook width={12} height={12} strokeWidth={2} aria-hidden />
+      {glyph}
       <span className="card-list-deck-badge-count" aria-hidden>
         {unique.length}
       </span>

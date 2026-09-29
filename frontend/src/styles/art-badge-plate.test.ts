@@ -66,7 +66,7 @@ describe('badges on card art are one plate (T166)', () => {
   }));
 
   it('the plate is defined once, in collection.css', () => {
-    const owners = all.filter(({ css }) => /:where\(\.art-badge:not\(/.test(css));
+    const owners = all.filter(({ css }) => /:where\(\.art-badge\)\s*\{/.test(css));
     expect(owners.map((o) => o.file)).toEqual(['styles/collection.css']);
   });
 

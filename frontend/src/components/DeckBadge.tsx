@@ -1,6 +1,7 @@
 import { Layers, Boxes } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { AllocationInfo } from '../lib/allocations';
+import { ArtBadge } from '@/components/shared/ArtBadge';
 
 interface Props {
   /** All allocations (deck and/or cube) covering this row's copies. Empty → no badge. */
@@ -12,6 +13,12 @@ interface Props {
    * Tooltip and accessible name are unchanged; only the navigation goes.
    */
   nonInteractive?: boolean;
+  /**
+   * `art` for a mark on card art (a grid tile's corner cluster): the on-art
+   * identity disc, filled with the owner's colour, with no count.
+   * `row` (default) is the tinted chip beside a name.
+   */
+  placement?: 'row' | 'art';
 }
 
 /**
@@ -25,36 +32,44 @@ function OwnerBadge({
   kind,
   owners,
   nonInteractive,
+  placement,
 }: {
   kind: 'deck' | 'cube';
   owners: AllocationInfo[];
   nonInteractive?: boolean;
+  placement: 'row' | 'art';
 }) {
   if (owners.length === 0) return null;
   const Icon = kind === 'cube' ? Boxes : Layers;
   const noun = kind === 'cube' ? 'cube' : 'deck';
   const plural = kind === 'cube' ? 'cubes' : 'decks';
   const names = owners.map((o) => o.ownerName).join(', ');
-  const label =
-    owners.length === 1
-      ? `In ${noun}: ${owners[0].ownerName}`
-      : `In ${owners.length} ${plural}: ${names}`;
+  const multi = owners.length > 1;
+  const art = placement === 'art';
+  const label = multi
+    ? `In ${owners.length} ${plural}: ${names}`
+    : `In ${noun}: ${owners[0].ownerName}`;
   const color =
     kind === 'cube'
       ? 'var(--cube-color)'
-      : owners.length === 1
-        ? owners[0].ownerColor || 'var(--accent)'
-        : 'var(--accent)';
-  const style = { '--deck-color': color } as React.CSSProperties;
+      : multi
+        ? 'var(--accent)'
+        : owners[0].ownerColor || 'var(--accent)';
+  // On art, several owners have no one colour, so the plate's `many` gives
+  // them the neutral scrim rather than passing the accent off as a deck's.
+  const style = (
+    art ? (multi ? undefined : { '--identity-color': color }) : { '--deck-color': color }
+  ) as React.CSSProperties | undefined;
 
-  if (owners.length === 1 && !nonInteractive) {
+  if (!multi && !nonInteractive) {
     const to =
       owners[0].href ??
       (kind === 'cube' ? `/decks/cube/${owners[0].ownerId}` : `/decks/${owners[0].ownerId}`);
     return (
       <Link
         to={to}
-        className="card-list-deck-badge"
+        className={art ? 'art-badge identity-mark' : 'card-list-deck-badge'}
+        data-identity={art ? 'one' : undefined}
         style={style}
         title={label}
         aria-label={label}
@@ -65,9 +80,24 @@ function OwnerBadge({
     );
   }
 
+  // On art the mark is the plate, and it never carries the count: the
+  // thumbnail keeps one glyph, and the names are in the tooltip and the
+  // accessible name.
+  if (art)
+    return (
+      <ArtBadge
+        className="identity-mark"
+        data-identity={multi ? 'many' : 'one'}
+        style={style}
+        title={label}
+        label={label}
+      >
+        <Icon width={11} height={11} strokeWidth={2} aria-hidden />
+      </ArtBadge>
+    );
+
   // The count rides along only when there's more than one owner to count —
   // a lone non-interactive badge is the same marker as the link, minus the link.
-  const multi = owners.length > 1;
   return (
     <span
       className={
@@ -93,7 +123,7 @@ function OwnerBadge({
  * card can have copies in both). Deduped per owner so one deck/cube never
  * repeats.
  */
-export function DeckBadge({ allocations, nonInteractive }: Props) {
+export function DeckBadge({ allocations, nonInteractive, placement = 'row' }: Props) {
   if (allocations.length === 0) return null;
   const dedupe = (kind: 'deck' | 'cube'): AllocationInfo[] => {
     const m = new Map<string, AllocationInfo>();
@@ -102,8 +132,18 @@ export function DeckBadge({ allocations, nonInteractive }: Props) {
   };
   return (
     <>
-      <OwnerBadge kind="deck" owners={dedupe('deck')} nonInteractive={nonInteractive} />
-      <OwnerBadge kind="cube" owners={dedupe('cube')} nonInteractive={nonInteractive} />
+      <OwnerBadge
+        kind="deck"
+        owners={dedupe('deck')}
+        nonInteractive={nonInteractive}
+        placement={placement}
+      />
+      <OwnerBadge
+        kind="cube"
+        owners={dedupe('cube')}
+        nonInteractive={nonInteractive}
+        placement={placement}
+      />
     </>
   );
 }

@@ -8,9 +8,10 @@
   position: relative;
 }
 
-/* Icon-only "in a deck" badge pinned to the bottom-right of an allocated
-   slot, matching the deck/binder badge placement on the Collection grid
-   so both surfaces read the same. Slot is too narrow to fit a deck name
+/* Icon-only "in a deck" mark pinned to the bottom-right of an allocated
+   slot, where the Collection grid pins its marks, so both surfaces read the
+   same. Its paint is the identity disc (collection.css): the deck's colour
+   under a light glyph. Slot is too narrow to fit a deck name
    legibly, so the full name is exposed via the title attribute (and
    aria-label) instead. Sized as a fraction of the slot width so it
    scales with zoom. */
@@ -24,14 +25,7 @@
   min-height: 12px;
   max-width: 22px;
   max-height: 22px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  background: var(--deck-color, var(--accent));
-  color: var(--on-accent);
-  text-decoration: none;
-  box-shadow: var(--shadow-raised);
+  padding: 0;
   pointer-events: auto;
 }
 
@@ -39,18 +33,6 @@
   display: block;
   width: 60%;
   height: 60%;
-}
-
-.slot-deck-badge:focus-visible {
-  filter: brightness(1.1);
-  outline: 2px solid var(--deck-color, var(--accent));
-  outline-offset: 2px;
-}
-@media (hover: hover) and (pointer: fine) {
-  .slot-deck-badge:hover {
-    filter: brightness(1.1);
-    outline: none;
-  }
 }
 
 /* Badge itself stays a small dot at slot scale (12-22px); the tap target

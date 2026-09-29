@@ -368,15 +368,12 @@
   line-height: 1;
 }
 
-.deck-card-grid-badges .card-list-binder-badge {
-  margin-left: 0;
+/* The binder mark's paint is the identity plate (collection.css). */
+.deck-card-grid-badges .identity-mark {
   padding: var(--space-1);
-  background: var(--art-scrim);
-  border: 1px solid color-mix(in srgb, var(--binder-color, var(--accent)) 55%, transparent);
-  box-shadow: var(--shadow-raised);
 }
 
-.deck-card-grid-badges .card-list-binder-badge svg {
+.deck-card-grid-badges .identity-mark svg {
   width: 13px;
   height: 13px;
 }
@@ -395,7 +392,7 @@
   font-size: 0.72rem;
 }
 
-.deck-card-grid.grid-2x .deck-card-grid-badges .card-list-binder-badge svg {
+.deck-card-grid.grid-2x .deck-card-grid-badges .identity-mark svg {
   width: 16px;
   height: 16px;
 }
@@ -408,7 +405,7 @@
   font-size: 0.82rem;
 }
 
-.deck-card-grid.grid-3x .deck-card-grid-badges .card-list-binder-badge svg {
+.deck-card-grid.grid-3x .deck-card-grid-badges .identity-mark svg {
   width: 20px;
   height: 20px;
 }

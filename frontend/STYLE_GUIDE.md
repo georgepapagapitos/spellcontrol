@@ -813,7 +813,8 @@ and the convergence PRs then give each shape one look.
 - Anything on card art is `ArtBadge`, pinned by `corner`
   (`top-start | top-end | bottom-start | bottom-end`). An icon-only one takes
   `label`, its accessible name. It is always the scrim plate
-  (§ On-art scrims), never accent.
+  (§ On-art scrims), never accent. The one fill is an identity mark (a
+  deck, cube or binder), which takes its owner's colour.
 - A count bubble is `Count`, `placement` `inline` or `corner`. It renders
   nothing at zero and is `aria-hidden`: the control it sits in says the
   number in words. A plain text count ("12 cards") is not a bubble and stays
@@ -1690,6 +1691,17 @@ Moxfield/Archidekt dark-slate genre, so hold new surfaces to it:
   is its own: a set code's mono uppercase, the owned-of badge's filled
   warn/err status, a size tier that scales with the card. Never an accent
   fill on art. Guard: `styles/art-badge-plate.test.ts`.
+  **Identity marks are the one fill (2026-09-28, user ruling).** A deck,
+  cube or binder mark on art (`DeckBadge` / `BinderBadge`
+  `placement="art"`, the binder pocket's deck mark and its hover preview)
+  is the plate's shape filled with the owner's colour under a light glyph
+  (`data-identity="one"`). It says whose card this is, and a colour disc
+  says it at 12px, on the card's black frame and on a dimmed pocket. A
+  coloured glyph on the scrim was specimened and rejected: a purple deck
+  vanished. Several owners have no one colour, so they stay on the scrim
+  with its light glyph (`data-identity="many"`), and art never carries the
+  count (the tooltip and the accessible name do). Rows keep the tinted
+  chip. Guard: `styles/identity-mark-plate.test.ts`.
 - **Rarity as standalone text uses the ink tokens (E151), never literals or
   the chip palette.** On a themed surface (the card tooltip):
   `--rarity-{mythic,rare,uncommon}-ink` — deep inks on paper, auto-flipped to
