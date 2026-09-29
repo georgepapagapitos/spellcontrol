@@ -1,7 +1,7 @@
 /* Tonight's trades sheet (w5-tonight-trades). Reuses .game-night-dialog,
    .game-night-attendee-group(-title), .game-night-count, .field-checkbox,
-   .empty-state(-tagline/-hint), .friend-hub-radar-strip, and RadarCardTile's
-   own styling from FriendHubPage.css — only the pieces unique to this sheet
+   .empty-state(-tagline/-hint), and RadarCardTile with its strip
+   (components/trade/RadarCardTile.css). Only the pieces unique to this sheet
    get new rules here.
 
    ponytail: no .tonight-trades-dialog sizing rule here despite the class
