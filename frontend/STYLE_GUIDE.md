@@ -516,12 +516,27 @@ meaning)`, no `(not X)`. A count qualifier `(4 of 10)` is fine. Placeholders
     coherence findings, gap notes and swap reasons: one clause for WHAT,
     optionally one short sentence for WHY, never a clause narrating HOW the
     engine decided. Several issues render as several short lines, never one
-    semicolon-joined sentence.
+    semicolon-joined sentence. The E505 pass (2026-09-29) cut the same tails
+    from hundreds of them:
+    - **A defence of the claim.** "Kept 2 payoffs the deck can't feed yet.
+      ~~Nothing stronger qualified.~~", "Already in your collection. ~~No
+      purchase needed.~~", "Your deck is light on ramp. ~~This closes the
+      gap.~~"
+    - **The engine as narrator.** "on this build", "this time", "vs
+      baseline", "picked on synergy, not just play-rate".
+    - **A hedge where a verdict belongs** (rule 15). "may stall early"
+      becomes "Expect some slow turns.", "Consider adding 3 lands" becomes
+      "Add 3 lands."
+    - **A locked action says what happened, then the fixed tail.** "You saw a
+      new hand. That can't be taken back.", never the rules model behind it.
+    - A `detail` string a caller wraps ("{card}: {detail}.") ends without a
+      period, and a color in generated text is a word, never a raw letter.
 18. **Shared facts are shared strings.** A fact stated on more than one surface
     (ownership status = "committed to another deck", the hand verdict
     `Keepable` / `Mulligan`, `Bracket N · Label` via `formatBracketLabel()`, the
     build-health words `Dialed in` / `Needs work`) is one constant, not
-    independently authored prose per file.
+    independently authored prose per file. A fact with no better home goes
+    in `lib/shared-copy.ts` (`PROXY_HINT`, `aiConsentBlurb()`).
 19. **Plain words over precise ones.** Write what the player sees happen, not
     the property the engine guarantees. "Sections share a page when they fit
     whole. None is split." was accurate and unreadable ("None" reads as an

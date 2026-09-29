@@ -156,7 +156,7 @@ export function useBuildTimeNudge(args: {
         id: `combo-${completed.combo.id}`,
         kind: 'combo',
         headline: `${cardName} completes a combo`,
-        detail: produces ? `${pieces} — ${produces}` : pieces,
+        detail: produces ? `${pieces}: ${produces}` : pieces,
       });
       return;
     }

@@ -335,7 +335,7 @@ describe('applyBudgetConvergence', () => {
       const result = await applyBudgetConvergence(state, baseCtx({ deckBudget: 20 }));
       const pricey = result.repairs.find((r) => r.cut === 'Pricey Card');
       expect(pricey?.reason).toBe(
-        'Saves $27.00: similar card type; swapped a protection/free-interaction piece to fit your budget'
+        'Saves $27.00: similar card type. Cut a protection/free-interaction piece to fit your budget.'
       );
     } finally {
       vi.mocked(isProtectionPiece).mockReturnValue(false);
@@ -366,7 +366,7 @@ describe('applyBudgetConvergence', () => {
       const result = await applyBudgetConvergence(state, baseCtx({ deckBudget: 20 }));
       const pricey = result.repairs.find((r) => r.cut === 'Pricey Card');
       expect(pricey?.reason).toBe(
-        'Saves $27.00: similar card type; swapped a free-interaction piece to fit your budget'
+        'Saves $27.00: similar card type. Cut a free-interaction piece to fit your budget.'
       );
     } finally {
       vi.mocked(isFreeInteraction).mockReturnValue(false);
@@ -683,7 +683,7 @@ describe('applyBudgetConvergence', () => {
     );
     expect(result.applied).toBe(0);
     expect(result.residualReason).toBe(
-      'every remaining card is a must-include, combo piece, or otherwise protected, with no cheaper equivalent'
+      'every remaining card is protected or has no cheaper equivalent'
     );
   });
 
@@ -694,9 +694,7 @@ describe('applyBudgetConvergence', () => {
       baseCtx({ deckBudget: 1, cardAllowed: () => false })
     );
     expect(result.applied).toBe(0);
-    expect(result.residualReason).toBe(
-      'no cheaper legal alternative could be found for the remaining cards'
-    );
+    expect(result.residualReason).toBe('no cheaper alternative for the remaining cards');
   });
 
   it('does not word the residual reason as if partial progress happened, even at 0 swaps', async () => {
@@ -750,7 +748,7 @@ describe('applyBudgetConvergence', () => {
     const result = await applyBudgetConvergence(state, baseCtx({ deckBudget: 20 }));
     const pricey = result.repairs.find((r) => r.cut === 'Pricey Card');
     expect(pricey?.reason).toBe(
-      'Saves $27.00: similar card type; swapped a synergy engine piece to fit your budget'
+      'Saves $27.00: similar card type. Cut a synergy engine piece to fit your budget.'
     );
     vi.mocked(isLoadBearing).mockReturnValue(false);
   });
@@ -890,6 +888,6 @@ describe('applyBudgetConvergence', () => {
     const result = await applyBudgetConvergence(state, baseCtx({ deckBudget: 1 }));
     expect(result.residualReason).toBeDefined();
     expect(result.residualReason).toContain('Mystery Card');
-    expect(result.residualReason).toContain('no price data');
+    expect(result.residualReason).toContain('no price data and');
   });
 });

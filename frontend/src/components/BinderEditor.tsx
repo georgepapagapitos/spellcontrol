@@ -77,6 +77,7 @@ import type {
 import { userMessage } from '@/lib/user-error';
 import { Button, IconButton } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
+import { PROXY_HINT } from '@/lib/shared-copy';
 const EMPTY_FILTER: BinderFilter = {};
 const newGroup = (): BinderFilterGroup => ({ filter: {} });
 
@@ -1638,7 +1639,7 @@ export function BinderEditor() {
 
               <SwitchRow
                 label="Mark all as proxies"
-                hint="Proxies count as owned but have no market value."
+                hint={PROXY_HINT}
                 checked={importAsProxies}
                 onChange={setImportAsProxies}
                 disabled={saving}

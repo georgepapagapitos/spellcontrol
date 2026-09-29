@@ -188,7 +188,7 @@ describe('nonboFindings — tensions (info)', () => {
     const findings = nonboFindings([relic], invested('graveyard'));
     expect(findings).toHaveLength(1);
     expect(findings[0].severity).toBe('info');
-    expect(findings[0].message).toContain('loses its fuel');
+    expect(findings[0].message).toContain('starves the');
   });
 
   it('emits one finding per card — the hard nonbo outranks the wipe tension', () => {

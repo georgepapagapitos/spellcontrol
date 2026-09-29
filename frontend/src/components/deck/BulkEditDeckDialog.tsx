@@ -360,7 +360,7 @@ export function BulkEditDeckDialog({ deck, onClose, mode = 'edit' }: Props) {
                 <ul className="import-deck-unresolved-list">
                   {plan.legalityIssues.map((issue) => (
                     <li key={`${issue.slotId}-${issue.issue}`}>
-                      {issue.cardName} — {issue.detail}
+                      {issue.cardName}: {issue.detail}
                     </li>
                   ))}
                 </ul>

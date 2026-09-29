@@ -278,7 +278,7 @@ async function buildHistoricalPool(
         dataSource: 'historical',
         detail: `year<=${year}`,
         relaxedNote:
-          bump > 0 ? `Too few cards from ${requested}. Expanded the range to ${year}.` : undefined,
+          bump > 0 ? `Too few cards from ${requested}. Range now goes to ${year}.` : undefined,
       };
     }
   }

@@ -114,26 +114,25 @@ export const SHORTCUT_GROUP_LABEL: Record<ShortcutGroup, string> = {
  * this one sentence says so instead of a second copy of five rows that could
  * never be rebound apart from the first.
  */
-export const CARD_GROUP_HELP =
-  'These act on the card under the pointer, or on every selected card when there is a selection.';
+export const CARD_GROUP_HELP = 'Acts on the card under the pointer, or on every selected card.';
 
 // In EDHPlay's order within each section; this table's own additions come
 // last in the section they belong to.
 export const SHORTCUTS: readonly ShortcutDef[] = [
   // ── Global actions ────────────────────────────────────────────────────
-  { id: 'pass-turn', key: 'space', label: 'Pass the turn, or next turn solo', group: 'global' },
+  { id: 'pass-turn', key: 'space', label: 'Pass the turn', group: 'global' },
   { id: 'draw', key: 'd', label: 'Draw a card', group: 'global' },
   { id: 'untap-all', key: 'u', label: 'Untap all', group: 'global' },
   {
     id: 'size-up',
     key: '=',
-    label: 'Bigger cards; with a card targeted, a +1/+1 counter',
+    label: 'Bigger cards, or +1/+1 on a targeted card',
     group: 'global',
   },
   {
     id: 'size-down',
     key: '-',
-    label: 'Smaller cards; with a card targeted, a −1/−1 counter',
+    label: 'Smaller cards, or −1/−1 on a targeted card',
     group: 'global',
   },
   { id: 'mana', key: 'm', label: 'Show or hide the mana pool', group: 'global' },
@@ -158,7 +157,7 @@ export const SHORTCUTS: readonly ShortcutDef[] = [
   {
     id: 'arrows-clear',
     key: '',
-    label: 'Remove every arrow you drew (online)',
+    label: 'Clear your arrows (online)',
     group: 'global',
     optional: true,
   },
@@ -184,7 +183,7 @@ export const SHORTCUTS: readonly ShortcutDef[] = [
     group: 'global',
   },
   { id: 'next-turn', key: 'shift+n', label: 'Next turn', group: 'global' },
-  { id: 'undo', key: 'mod+z', label: 'Undo (take back)', group: 'global' },
+  { id: 'undo', key: 'mod+z', label: 'Undo', group: 'global' },
   {
     id: 'stack-resolve',
     key: '',
@@ -198,14 +197,14 @@ export const SHORTCUTS: readonly ShortcutDef[] = [
   { id: 'transform', key: 'f', label: 'Flip (double-faced cards)', group: 'card' },
   { id: 'face-down', key: 'z', label: 'Turn face down or face up', group: 'card' },
   { id: 'clone', key: 'x', label: 'Make a token copy', group: 'card' },
-  { id: 'reveal', key: 'r', label: 'Reveal it from your hand', group: 'card' },
+  { id: 'reveal', key: 'r', label: 'Reveal from your hand', group: 'card' },
   { id: 'to-hand', key: 'h', label: 'Move to hand', group: 'card' },
   { id: 'to-graveyard', key: 'g', label: 'Move to graveyard', group: 'card' },
   { id: 'to-exile', key: 'e', label: 'Move to exile', group: 'card' },
-  { id: 'to-battlefield', key: 'a', label: 'Move to the battlefield', group: 'card' },
+  { id: 'to-battlefield', key: 'a', label: 'Move to battlefield', group: 'card' },
   { id: 'to-library-top', key: 'l', label: 'Move to top of library', group: 'card' },
   { id: 'to-library-bottom', key: 'b', label: 'Move to bottom of library', group: 'card' },
-  { id: 'arrow', key: 'w', label: 'Draw an arrow from it (online)', group: 'card' },
+  { id: 'arrow', key: 'w', label: 'Draw an arrow (online)', group: 'card' },
   { id: 'stack-add', key: 'k', label: 'Add to the stack', group: 'card' },
   { id: 'stack-copy', key: 'shift+k', label: 'Copy onto the stack', group: 'card' },
   { id: 'counters', key: 'j', label: 'Open counters', group: 'card' },
@@ -233,7 +232,7 @@ export const SHORTCUTS: readonly ShortcutDef[] = [
       ({
         id: `focus-${n}`,
         key: String(n),
-        label: `Look at player ${n}’s board (online)`,
+        label: `Look at player ${n}'s board (online)`,
         group: 'players',
         optional: true,
       }) as ShortcutDef

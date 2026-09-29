@@ -333,15 +333,15 @@ export function buildLandCountNote(params: {
     : `for ${/^[AEIOU]/i.test(label) ? 'an' : 'a'} ${label} deck`;
   const deliveredClause =
     params.finalLandCount !== params.resolvedLandCount && !params.deliveredByPoolExhaustion
-      ? ` Delivered ${params.finalLandCount} after post-tune deck adjustments.`
+      ? ` Delivered ${params.finalLandCount} after later adjustments.`
       : '';
   const nonBasicClause =
     params.effectiveNonBasicLandCount != null &&
     params.nonBasicLandCount != null &&
     params.effectiveNonBasicLandCount > params.nonBasicLandCount
-      ? ` Nonbasic land budget raised to ${params.effectiveNonBasicLandCount} to match the higher land count.`
+      ? ` Nonbasic land budget raised to ${params.effectiveNonBasicLandCount} to match.`
       : '';
-  return `Auto-tuned to ${params.resolvedLandCount} lands ${archetypeText} (${params.edhrecRampCount} ramp slots, avg CMC ${params.finalAvgCmc.toFixed(1)}).${deliveredClause}${nonBasicClause} Set an explicit count under Customize to override.`;
+  return `Auto-tuned to ${params.resolvedLandCount} lands ${archetypeText}: ${params.edhrecRampCount} ramp slots, avg CMC ${params.finalAvgCmc.toFixed(1)}.${deliveredClause}${nonBasicClause} Set a count under Customize to override.`;
 }
 
 /**
@@ -378,7 +378,7 @@ export function buildEdhrecCoverageNote(
     numDecks === null
       ? `Couldn't load EDHREC data for ${commanderLabel}`
       : `EDHREC has no decks for ${commanderLabel} yet`;
-  return `${lead}, so this deck is built from card function and how widely each card is played in Commander overall, not from what other players run with it.`;
+  return `${lead}. Built from card function and overall Commander play instead.`;
 }
 
 /**
@@ -442,9 +442,9 @@ export function buildPoolExhaustionNote(params: {
     ? 'your collection'
     : params.hasScryfallQuery
       ? 'your Scryfall filter'
-      : 'your budget, price, rarity, or bracket settings';
+      : 'your budget and card limits';
   const spellWord = params.finalNonLandCount === 1 ? 'spell' : 'spells';
-  return `The card pool ran out after ${params.finalNonLandCount} ${spellWord}. ${excess} slot${excess === 1 ? '' : 's'} got filled with basic lands because ${cause} left too few cards to choose from.`;
+  return `Ran out of cards after ${params.finalNonLandCount} ${spellWord}. ${excess} slot${excess === 1 ? ' is a basic land' : 's are basic lands'} because ${cause} left too few cards to choose from.`;
 }
 
 /**
@@ -490,7 +490,7 @@ export function buildOverBudgetNote(params: {
   const tail = params.residualReason
     ? `. ${params.residualReason.charAt(0).toUpperCase()}${params.residualReason.slice(1)}.`
     : params.comboBudgetSkipCount > 0
-      ? '. Some combo upgrades were skipped to stay as close as possible.'
+      ? '. Some combo upgrades were skipped for budget.'
       : '.';
   return `${subject} ${sym}${params.finalTotal.toFixed(2)}, ${sym}${over.toFixed(2)} over your ${sym}${params.deckBudget} budget${substitutionClause}${tail}`;
 }
@@ -568,7 +568,7 @@ export function buildRoleCapOverflowNote(
   const total = entries.reduce((s, [, n]) => s + n, 0);
   if (total === 0) return undefined;
   const [dominantRole] = entries.sort((a, b) => b[1] - a[1]);
-  return `${total} card${total === 1 ? '' : 's'} pushed past its role cap. The ${ROLE_DISPLAY[dominantRole[0]]} pool was thin. See Overbuilt roles below for the full total.`;
+  return `${total} card${total === 1 ? '' : 's'} went past a role cap. The ${ROLE_DISPLAY[dominantRole[0]]} pool was thin. See Overbuilt roles for the total.`;
 }
 
 /**
@@ -688,7 +688,7 @@ export function buildBracketPriceDisclosureNote(params: {
   if (typeof targetBracket !== 'number' || targetBracket > 2) return undefined;
   if (finalTotal <= BRACKET_PRICE_DISCLOSURE_THRESHOLD) return undefined;
   const sym = currency === 'EUR' ? '€' : '$';
-  return `Bracket ${targetBracket} constrains power, not price. This build optimizes card quality (${sym}${finalTotal.toFixed(2)}). Set a budget to cap cost.`;
+  return `Bracket ${targetBracket} limits power, not price. The deck totals ${sym}${finalTotal.toFixed(2)}. Set a budget to cap cost.`;
 }
 
 /**
@@ -708,7 +708,7 @@ export function buildGameChangerBracketConflictNote(
   if (targetBracket !== 4 && targetBracket !== 5) return undefined;
   if (maxGameChangers === Infinity) return undefined;
   const limitText = maxGameChangers === 0 ? 'zero' : `${maxGameChangers}`;
-  return `Bracket ${targetBracket} allows unlimited Game Changers, but your Game Changer limit caps this deck at ${limitText}. Raise the limit under Customize to use the bracket's full allowance.`;
+  return `Bracket ${targetBracket} allows unlimited Game Changers, but your Game Changer limit caps this deck at ${limitText}. Raise it under Customize.`;
 }
 
 /**
@@ -779,7 +779,7 @@ export function countFinalWipeAsymmetry(
  */
 export function buildQualifiedPayoffGateNote(overflowCount: number): string | undefined {
   if (overflowCount <= 0) return undefined;
-  return `Kept ${overflowCount} payoff${overflowCount === 1 ? '' : 's'} the deck can't fully feed yet. Nothing stronger qualified.`;
+  return `Kept ${overflowCount} payoff${overflowCount === 1 ? '' : 's'} the deck can't fully feed yet.`;
 }
 
 /**
@@ -1017,7 +1017,7 @@ export function buildComboUpsideNotes(
  * flagshipSeatings) are layered on top of this at report-assembly time
  * (buildReport.ts), since those arrays are only finalized after generation.
  */
-export const THIN_POOL_FILL_LABEL = 'Filled in by a broader card search for this slot';
+export const THIN_POOL_FILL_LABEL = 'Filled by a broader card search';
 
 /**
  * E282: narrow the similar-commander pool injections to what actually shipped
@@ -1040,7 +1040,7 @@ export function summarizeSeatedSimilarPool(
     note:
       `${names.length} card${names.length === 1 ? '' : 's'} you own came from similar commanders' decks (${who})` +
       (ownedOnPage != null
-        ? `, because only ${ownedOnPage} cards you own appear on this commander's page.`
+        ? `. Only ${ownedOnPage} of your cards are on this commander's page.`
         : '.'),
     provenance: `From similar commanders' decks (${who})`,
   };
@@ -1067,8 +1067,8 @@ export function buildThinPoolFillNote(params: {
     .sort((a, b) => params.liftScoreOf(a.name) - params.liftScoreOf(b.name) || rank(b) - rank(a))
     .slice(0, 5)
     .map((c) => c.name);
-  const slots = fills.length === 1 ? '1 slot was' : `${fills.length} slots were`;
-  return `${slots} filled from your collection outside this commander's EDHREC data. Weakest first: ${weakest.join(', ')}. Coach can suggest swaps.`;
+  const slots = fills.length === 1 ? '1 slot' : `${fills.length} slots`;
+  return `${slots} came from your collection outside this commander's EDHREC data. Weakest first: ${weakest.join(', ')}. Coach can suggest swaps.`;
 }
 
 export function assembleCardProvenance(params: {
@@ -1170,7 +1170,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     throw new Error(
       isPdh
         ? 'Pauper Commander builds need an internet connection. Reconnect and try again.'
-        : 'The alternative generators need an internet connection. Reconnect, or switch to Standard (EDHREC) mode.'
+        : 'Alternative modes need an internet connection. Reconnect, or switch to Standard (EDHREC) mode.'
     );
   }
 
@@ -1578,7 +1578,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           logger.warn(
             `[DeckGen] Must-include card "${name}" skipped (rarity "${card.rarity}" exceeds max "${maxRarity}")`
           );
-          noteSkip(name, `rarity "${card.rarity}" exceeds your max-rarity cap`);
+          noteSkip(name, `rarity "${card.rarity}" is over your max rarity`);
           continue;
         }
       }
@@ -1588,7 +1588,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         logger.warn(
           `[DeckGen] Must-include card "${name}" skipped (CMC ${card.cmc} exceeds max ${maxCmc})`
         );
-        noteSkip(name, `mana value ${card.cmc} exceeds the ${maxCmc} cap`);
+        noteSkip(name, `mana value ${card.cmc} is over the ${maxCmc} cap`);
         continue;
       }
 

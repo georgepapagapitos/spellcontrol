@@ -143,7 +143,7 @@ function SuggestionTile({
       >
         <span className="engine-suggestion-name">{suggestion.cardName}</span>
         <span className="engine-suggestion-reason">
-          Adds a {sideWord} — {suggestion.reason}
+          Adds a {sideWord}: {suggestion.reason}
         </span>
         <span className="engine-suggestion-meta">
           {classifyInclusion(suggestion.inclusion).label}

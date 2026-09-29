@@ -23,6 +23,7 @@ import { userMessage } from '@/lib/user-error';
 import { Button, IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 import { Surface } from '@/components/shared/Surface';
+import { aiConsentBlurb } from '@/lib/shared-copy';
 interface DeckAiRefineProps {
   deckId: string;
   format: DeckFormat;
@@ -429,10 +430,19 @@ export function DeckAiRefine({
         title={title}
         blurb={
           isReplace
-            ? `Judge whether the card you're adding earns a slot, and which card to cut for it. Turning this on sends this deck's card names, computed stats and the card you're adding to Anthropic. Nothing is sent until you press an AI button. Your collection is never sent. Turn it off any time in Settings.`
+            ? aiConsentBlurb(
+                "Judge whether the card you're adding earns a slot, and which card to cut for it.",
+                "this deck's card names, computed stats and the card you're adding"
+              )
             : isSuggestions
-              ? `Weigh the suggestions on this tab against the deck and pick the few worth making. Turning this on sends this deck's card names, computed stats and those candidates to Anthropic. Nothing is sent until you press an AI button. Your collection is never sent. Turn it off any time in Settings.`
-              : `Weigh the candidates the coach already found and suggest a few swaps. Turning this on sends this deck's card names, computed stats and those candidates to Anthropic. Nothing is sent until you press an AI button. Your collection is never sent. Turn it off any time in Settings.`
+              ? aiConsentBlurb(
+                  'Weigh the suggestions on this tab against the deck and pick the few worth making.',
+                  "this deck's card names, computed stats and those candidates"
+                )
+              : aiConsentBlurb(
+                  'Weigh the candidates the coach already found and suggest a few swaps.',
+                  "this deck's card names, computed stats and those candidates"
+                )
         }
         onDismiss={() => setInviteDismissed(true)}
       />

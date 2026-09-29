@@ -199,7 +199,7 @@ function buildReason(
   pick: Candidate,
   fixesShort: string[]
 ): string {
-  const lead = pick.owned ? '' : 'Worth picking up. ';
+  const lead = pick.owned ? '' : 'Not owned. ';
   if (fixesShort.length > 0) {
     const names = fixesShort.map((c) => COLOR_NAME[c] ?? c).join(' and ');
     return `${lead}Adds ${names} fixing you're short on, over ${out.card.name}.`;

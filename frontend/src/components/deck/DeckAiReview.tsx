@@ -28,6 +28,7 @@ import { userMessage } from '@/lib/user-error';
 import { Button } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 import { Surface } from '@/components/shared/Surface';
+import { aiConsentBlurb } from '@/lib/shared-copy';
 interface DeckAiReviewProps {
   deckId: string;
   format: DeckFormat;
@@ -254,7 +255,10 @@ export function DeckAiReview({
     return (
       <DeckAiConsent
         title="Read the deck"
-        blurb={`Writes what this deck is trying to do, and the structural problems the statistics can't show. Turning this on sends this deck's card names and computed stats to Anthropic. Nothing is sent until you press an AI button. Your collection is never sent. Turn it off any time in Settings.`}
+        blurb={aiConsentBlurb(
+          "Writes what this deck is trying to do, and the structural problems the statistics can't show.",
+          "this deck's card names and computed stats"
+        )}
         onDismiss={() => setInviteDismissed(true)}
       />
     );

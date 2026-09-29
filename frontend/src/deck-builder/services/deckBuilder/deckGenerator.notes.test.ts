@@ -132,7 +132,7 @@ describe('buildLandCountNote', () => {
       finalAvgCmc: 3.4,
     });
     expect(note).toContain('Auto-tuned to 36 lands');
-    expect(note).toContain('Delivered 40 after post-tune deck adjustments');
+    expect(note).toContain('Delivered 40 after later adjustments');
   });
 
   it('still reconciles curve stats to FINAL state, not auto-tune-time values', () => {
@@ -148,7 +148,7 @@ describe('buildLandCountNote', () => {
     });
     expect(note).toContain('Auto-tuned to 36 lands');
     expect(note).toContain('avg CMC 3.4');
-    expect(note).toContain('Delivered 35 after post-tune deck adjustments');
+    expect(note).toContain('Delivered 35 after later adjustments');
   });
 
   it('formats CMC to one decimal place', () => {
@@ -177,7 +177,7 @@ describe('buildLandCountNote', () => {
       nonBasicLandCount: 15,
       effectiveNonBasicLandCount: 17,
     });
-    expect(note).toContain('Nonbasic land budget raised to 17 to match the higher land count');
+    expect(note).toContain('Nonbasic land budget raised to 17 to match');
   });
 
   it('says nothing about the nonbasic budget when the scaling never fired (values equal)', () => {
@@ -297,7 +297,7 @@ describe('buildPoolExhaustionNote', () => {
       hasScryfallQuery: true,
       hasCollectionNames: false,
     });
-    expect(note).toContain('The card pool ran out after 1 spell.');
+    expect(note).toContain('Ran out of cards after 1 spell.');
     expect(note).toContain('61 slots');
     expect(note).toContain('your Scryfall filter');
   });
@@ -324,7 +324,7 @@ describe('buildPoolExhaustionNote', () => {
       hasScryfallQuery: false,
       hasCollectionNames: false,
     });
-    expect(note).toContain('your budget, price, rarity, or bracket settings');
+    expect(note).toContain('your budget and card limits');
   });
 });
 
@@ -371,7 +371,7 @@ describe('buildThinPoolFillNote (E282)', () => {
       cardProvenance: prov(names),
       liftScoreOf: (n) => (n === 'G' ? 0 : n === 'A' ? 50 : 10),
     });
-    expect(note).toContain('7 slots were filled from your collection');
+    expect(note).toContain('7 slots came from your collection');
     // G has no lift link → first; then the highest (worst) global rank among the 10-lift cards, F..B; A (lift 50) never makes the five.
     expect(note).toContain('Weakest first: G, F, E, D, C.');
     expect(note).not.toContain('A,');
@@ -384,7 +384,7 @@ describe('buildThinPoolFillNote (E282)', () => {
         cardProvenance: prov(['Only']),
         liftScoreOf: () => 0,
       })
-    ).toContain('1 slot was filled');
+    ).toContain('1 slot came from your collection');
   });
 });
 
@@ -511,7 +511,7 @@ describe('buildOverBudgetNote', () => {
         convergedSwapCount: 0,
       });
       expect(note).toBe(
-        'Deck totals $60.00, $10.00 over your $50 budget. Some combo upgrades were skipped to stay as close as possible.'
+        'Deck totals $60.00, $10.00 over your $50 budget. Some combo upgrades were skipped for budget.'
       );
     });
   });
@@ -599,7 +599,7 @@ describe('buildRoleCapOverflowNote (E77 iter-4 round 3 — narrow escape-hatch-o
   it('scopes the claim to escape-hatch admissions, not the total role overshoot', () => {
     const note = buildRoleCapOverflowNote({ ramp: 1 });
     expect(note).not.toMatch(/kept over its role target/i);
-    expect(note).toContain('pushed past its role cap');
+    expect(note).toContain('went past a role cap');
   });
 
   it('points at Overbuilt roles for the full accounting instead of implying this IS the total', () => {
@@ -841,7 +841,7 @@ describe('buildBracketPriceDisclosureNote (E110 — disclosure-only)', () => {
 
   it('fires for a casual-bracket ask, no budget, high total', () => {
     expect(buildBracketPriceDisclosureNote(base)).toBe(
-      'Bracket 2 constrains power, not price. This build optimizes card quality ($582.00). Set a budget to cap cost.'
+      'Bracket 2 limits power, not price. The deck totals $582.00. Set a budget to cap cost.'
     );
   });
 
@@ -1689,7 +1689,7 @@ describe('assembleCardProvenance', () => {
       comboFloorAdd: null,
       themeNames: [],
     });
-    expect(result['Filler Card']).toBe('Filled in by a broader card search for this slot');
+    expect(result['Filler Card']).toBe('Filled by a broader card search');
   });
 
   it('falls back to the Scryfall-fill reason when cardInclusionMap is entirely absent (alt-generator modes)', () => {
@@ -1702,7 +1702,7 @@ describe('assembleCardProvenance', () => {
       comboFloorAdd: null,
       themeNames: [],
     });
-    expect(result['Oracle Role Pick']).toBe('Filled in by a broader card search for this slot');
+    expect(result['Oracle Role Pick']).toBe('Filled by a broader card search');
   });
 });
 
@@ -1713,7 +1713,7 @@ describe('buildEdhrecCoverageNote', () => {
   it('says so when EDHREC has a page but no decks', () => {
     const note = buildEdhrecCoverageNote("La'An Noonien-Singh, Security", 0);
     expect(note).toContain("EDHREC has no decks for La'An Noonien-Singh, Security yet");
-    expect(note).toContain('not from what other players run');
+    expect(note).toContain('Built from card function and overall Commander play instead.');
   });
 
   it('says so when no EDHREC data could be loaded at all', () => {

@@ -101,7 +101,7 @@ export async function dialSeedPhase(
     if (!avg) {
       return {
         reasons,
-        note: `Couldn't load EDHREC's average deck for ${label}, so this build favored the most-played cards instead.`,
+        note: `Couldn't load EDHREC's average deck for ${label}. Favored the most-played cards instead.`,
       };
     }
     const core = brew > 0;
@@ -114,11 +114,9 @@ export async function dialSeedPhase(
       : `In EDHREC's average ${commander.name} deck`;
     describe = (present, total) =>
       (core
-        ? `Started from the ${total} cards played in over half of EDHREC's ${label} decks: ${present} are in this one.`
-        : `Started from EDHREC's average${page} deck for ${label}: ${present} of its ${total} spells are in this one.`) +
-      (present < total
-        ? ' The rest were over your settings or lost their slot to the land count.'
-        : '');
+        ? `Started from the ${total} cards in over half of EDHREC's ${label} decks. ${present} are in this one.`
+        : `Started from EDHREC's average${page} deck for ${label}. ${present} of its ${total} spells are in this one.`) +
+      (present < total ? ' The rest hit your settings or lost their slot to lands.' : '');
   } else {
     const [minSynergy, max] = brew >= 1 ? SYNERGY_SEED.full : SYNERGY_SEED.lean;
     names = pool
@@ -126,9 +124,8 @@ export async function dialSeedPhase(
       .sort((a, b) => (b.synergy ?? 0) - (a.synergy ?? 0))
       .slice(0, max)
       .map((c) => c.name);
-    reason = `One of the cards ${commander.name} decks play far more than other decks do`;
-    describe = (present) =>
-      `Built around ${present} of ${label}'s highest-synergy cards, the ones its decks play far more than other decks in its colors.`;
+    reason = `High-synergy card for ${commander.name}`;
+    describe = (present) => `Built around ${present} of ${label}'s highest-synergy cards.`;
   }
   if (names.length === 0) return { reasons };
 

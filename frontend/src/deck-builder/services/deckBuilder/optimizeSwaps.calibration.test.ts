@@ -282,7 +282,7 @@ describe('computeOptimizeSwaps — oversupplied-basic cuts (E71 Phase 5)', () =>
     const swaps = runLandOptimize(cards);
     const island = swaps.removals.find((r) => r.name === 'Island');
     expect(island?.reasonCategory).toBe('oversupplied-basic');
-    expect(island?.reason).toContain('Oversupplied basic');
+    expect(island?.reason).toContain('Too many blue basics');
     expect(swaps.removals.some((r) => r.name === 'Forest')).toBe(false);
     expect(swaps.removals.some((r) => r.name === 'Command Beacon')).toBe(false);
   });

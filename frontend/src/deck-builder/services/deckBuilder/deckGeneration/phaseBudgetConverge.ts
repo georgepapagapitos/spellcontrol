@@ -575,7 +575,7 @@ export async function applyBudgetConvergence(
           ? 'similar card type'
           : 'cheaper alternative';
     const base = `Saves ${sym}${savings.toFixed(2)}: ${bucket}`;
-    return softLabel ? `${base}; swapped ${softLabel} to fit your budget` : base;
+    return softLabel ? `${base}. Cut ${softLabel} to fit your budget.` : base;
   };
 
   let applied = 0;
@@ -675,8 +675,8 @@ export async function applyBudgetConvergence(
   });
   const baseResidualReason =
     remainingUnprotectedPriced.length === 0
-      ? 'every remaining card is a must-include, combo piece, or otherwise protected, with no cheaper equivalent'
-      : 'no cheaper legal alternative could be found for the remaining cards';
+      ? 'every remaining card is protected or has no cheaper equivalent'
+      : 'no cheaper alternative for the remaining cards';
   // Flag rather than silently understate: a must-include with no price data
   // is summed as $0 above (totalNow has no real number to use), so the
   // reported total is a floor, not the true total, whenever this fires.
@@ -688,7 +688,7 @@ export async function applyBudgetConvergence(
   const unpricedTail = unpriced.length > 3 ? `, and ${unpriced.length - 3} more` : '';
   const residualReason =
     unpriced.length > 0
-      ? `${baseResidualReason}; ${unpriced.length} card${unpriced.length === 1 ? '' : 's'} with no price data (${unpricedNames}${unpricedTail}) ${unpriced.length === 1 ? "isn't" : "aren't"} reflected in the total above`
+      ? `${baseResidualReason}. ${unpriced.length} card${unpriced.length === 1 ? ' has' : 's have'} no price data and ${unpriced.length === 1 ? "isn't" : "aren't"} in the total: ${unpricedNames}${unpricedTail}`
       : baseResidualReason;
 
   return { applied, finalTotal, repairs, residualReason };

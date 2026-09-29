@@ -293,7 +293,7 @@ export function useDeckGeneration({
         if (collectionNames.size === 0) {
           setError(
             customization.collectionStrategy === 'available'
-              ? 'All your cards are committed to other decks. Free up copies or switch to "Only my cards" mode.'
+              ? 'All your cards are committed to other decks. Free up copies or switch to "Only my cards".'
               : customization.collectionStrategy === 'prefer'
                 ? 'Your collection is empty. Import cards on the Collection page to prioritize cards you own.'
                 : 'Your collection is empty. Import cards on the Collection page to build with only your cards.'

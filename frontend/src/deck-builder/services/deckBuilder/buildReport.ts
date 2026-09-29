@@ -42,19 +42,19 @@ export function buildArchetypeNote(params: {
       base = `Built as ${label}, from your ${params.firstThemeName ?? label} theme pick.`;
       break;
     case 'edhrec-dominant':
-      base = `Built as ${label}, from EDHREC's dominant theme for this commander.`;
+      base = `Built as ${label}, from EDHREC's top theme for this commander.`;
       break;
     case 'neutral':
-      base = `Built as balanced ${label}. No single theme dominates this commander's EDHREC data.`;
+      base = `Built as balanced ${label}. EDHREC shows no dominant theme.`;
       break;
     case 'oracle-text':
       base = params.isLowConfidence
-        ? `Built as ${label}, read from the commander's card text. No EDHREC theme data confirms it.`
-        : `Built as ${label}, from a read of the commander's card text.`;
+        ? `Built as ${label}, from the commander's card text. EDHREC has no theme data.`
+        : `Built as ${label}, from the commander's card text.`;
       break;
   }
   const multiClause = params.multiThemeSelected
-    ? ` Role targets follow ${params.firstThemeName}; every theme you picked still shapes the pool.`
+    ? ` Role targets follow ${params.firstThemeName}. Your other themes still shape the pool.`
     : '';
   return base + multiClause;
 }
@@ -196,9 +196,7 @@ export function assembleBuildReport(input: {
   }
   const annotateDisplacedAdds = <T extends { added: string; reason: string }>(repairs: T[]): T[] =>
     repairs.map((r) =>
-      finalNames.has(r.added)
-        ? r
-        : { ...r, reason: `${r.reason} (${r.added} was later displaced before the final deck.)` }
+      finalNames.has(r.added) ? r : { ...r, reason: `${r.reason} ${r.added} was cut later.` }
     );
 
   // Flagship seatings are add-claiming records too (E161 gate round 2: the
@@ -251,10 +249,10 @@ export function assembleBuildReport(input: {
           const used = `${ownedCount} ${ownedCount === 1 ? 'was' : 'were'} used`;
           report.ownedPercentGapNote =
             eligible != null && eligible < ownedTargetCount
-              ? `You asked for ${target}% owned cards, but only ${eligible} of your ` +
-                `cards fit this commander's colors. ${used} and the rest came from recommendations.`
+              ? `You asked for ${target}% owned cards, but only ${eligible} of ` +
+                `your cards fit this commander's colors. ${used}.`
               : `You asked for ${target}% owned cards and got ${report.ownedPercentActual}%. ` +
-                'Your other cards that fit are over your card limits or would overfill a role like ramp or removal.';
+                'The rest of your cards hit your limits or a role cap.';
         }
       }
     }
@@ -362,7 +360,7 @@ export function assembleBuildReport(input: {
     PROTECTION_MOTIVATED_ARCHETYPES.includes(generated.detectedArchetype)
   ) {
     report.protectionZeroNote =
-      'No protection for your one big threat. A Voltron deck usually wants insurance like Heroic Intervention or Swiftfoot Boots.';
+      'No protection for your one big threat. Voltron wants protection like Heroic Intervention or Swiftfoot Boots.';
   }
 
   // Coaching: cards that are owned but all copies are committed to other decks.

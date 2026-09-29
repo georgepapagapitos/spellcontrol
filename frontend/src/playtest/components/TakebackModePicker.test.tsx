@@ -12,9 +12,7 @@ import { TakebackModePicker } from './TakebackModePicker';
 describe('TakebackModePicker — online/offline description', () => {
   it('describes Ask as immediate when solo (no table to ask)', () => {
     render(<TakebackModePicker mode="ask" onSelect={() => {}} onClose={() => {}} online={false} />);
-    expect(
-      screen.getByText(/nobody to ask, so this takes back immediately, like Free/)
-    ).toBeTruthy();
+    expect(screen.getByText(/nobody to ask, so this acts like Free/)).toBeTruthy();
     expect(screen.queryByText(/need everyone's OK/)).toBeNull();
   });
 

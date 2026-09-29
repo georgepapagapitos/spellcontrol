@@ -44,8 +44,8 @@ export const TAKEBACK_MODE_LABEL: Record<TakebackMode, string> = {
 };
 
 export const TAKEBACK_MODE_DESCRIPTION: Record<TakebackMode, string> = {
-  ask: "Steps the table already saw need everyone's OK before you take them back.",
-  free: 'Steps the table already saw apply the moment you take them back, no asking. Hidden information is still never returned to anyone.',
+  ask: "Steps the table saw need everyone's OK to take back.",
+  free: 'Steps the table saw take back at once. Hidden information never returns.',
   off: 'No takebacks for you this game.',
 };
 
@@ -151,7 +151,7 @@ export function resolveTakebackPlan(
   return mode === 'free' ? 'apply' : 'request';
 }
 
-const GENERIC_UNTRACKED_SUMMARY = 'a quick adjustment (tap, counter, sticker, or reposition)';
+const GENERIC_UNTRACKED_SUMMARY = 'a quick adjustment';
 
 /** Human text for what a takeback of `entry` would undo — falls back to a
  *  generic phrase for the action types the visible journal omits (see the

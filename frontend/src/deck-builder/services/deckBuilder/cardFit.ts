@@ -124,7 +124,7 @@ export function computeMisfits(inputs: MisfitInputs): Misfit[] {
         reasons.push({
           kind: 'inclusion-absent',
           label: "Not played in this commander's decks",
-          detail: 'Card has no inclusion data on EDHREC for this commander',
+          detail: 'No EDHREC inclusion data for this commander',
         });
       }
     } else if (incl < INCLUSION_LOW) {
@@ -141,7 +141,7 @@ export function computeMisfits(inputs: MisfitInputs): Misfit[] {
         reasons.push({
           kind: 'synergy-absent',
           label: 'No commander synergy data',
-          detail: "Card isn't on this commander's EDHREC page",
+          detail: "Not on this commander's EDHREC page",
         });
       }
     } else if (syn <= SYNERGY_LOW) {

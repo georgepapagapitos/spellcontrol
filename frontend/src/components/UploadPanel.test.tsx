@@ -305,7 +305,7 @@ describe('UploadPanel "mark all as proxies" toggle', () => {
     // The explainer is always-visible text (Field/SwitchRow contract), not an
     // InfoTip nested inside a <label> — the InfoTip pattern muddles the
     // label's accessible name and steals its click.
-    expect(screen.getByText('Proxies count as owned but have no market value.')).toBeTruthy();
+    expect(screen.getByText('Counts as owned, with no market value.')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /marking an import as proxies/i })).toBeNull();
   });
 

@@ -202,9 +202,7 @@ function buildRawLogEntries(
 
     case 'SET_HAND_REVEALED': {
       if (next === current) return []; // already in that mode
-      const text = action.revealed
-        ? 'Playing with the hand revealed'
-        : 'Stopped revealing the hand';
+      const text = action.revealed ? 'Revealing the hand' : 'Stopped revealing the hand';
       return [{ turn, kind: 'reveal', text }];
     }
 
@@ -234,9 +232,9 @@ function buildRawLogEntries(
       if (action.reveal === 'none' && was !== 'top' && was !== 'all') return [];
       const text =
         action.reveal === 'top'
-          ? 'Playing with the top card of the library revealed'
+          ? 'Revealing the top card of the library'
           : action.reveal === 'all'
-            ? 'Revealed the library'
+            ? 'Revealing the library'
             : 'Stopped revealing the library';
       return [{ turn, kind: 'reveal', text }];
     }
@@ -270,7 +268,7 @@ function buildRawLogEntries(
         {
           turn,
           kind: action.mode === 'surveil' ? 'mill' : 'scry',
-          text: `${verb} ${looked}` + (parts.length ? ` — ${parts.join(', ')}` : '') + then,
+          text: `${verb} ${looked}` + (parts.length ? `: ${parts.join(', ')}` : '') + then,
         },
       ];
     }
@@ -306,7 +304,7 @@ function buildRawLogEntries(
             {
               turn,
               kind: 'zone-move',
-              text: `${loc.card.name} left the battlefield (ceased to exist)`,
+              text: `${loc.card.name} ceased to exist`,
               cardName: loc.card.name,
               from: loc.from,
               to: action.to,
@@ -427,7 +425,7 @@ function buildRawLogEntries(
         {
           turn,
           kind: 'card-counter',
-          text: `${after.card.name}: counters ${verb}${tally ? ` — ${tally}` : ' to none'}`,
+          text: `${after.card.name}: counters ${verb}${tally ? `, ${tally}` : ' to none'}`,
           cardName: after.card.name,
         },
       ];
@@ -506,7 +504,7 @@ function buildRawLogEntries(
             {
               turn,
               kind: 'face',
-              text: `A face-down card turned face up: ${after.card.name}`,
+              text: `${after.card.name} turned face up`,
               cardName: after.card.name,
             },
           ];

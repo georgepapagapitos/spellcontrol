@@ -26,19 +26,19 @@ describe('buildSwapAlternativeFactors', () => {
 
   it('only emits a synergy line when positive, and threads the commander name', () => {
     expect(
-      buildSwapAlternativeFactors({ owned: true, synergy: 0 }).some((f) => /synergy/.test(f.text))
+      buildSwapAlternativeFactors({ owned: true, synergy: 0 }).some((f) => /Synergy/.test(f.text))
     ).toBe(false);
     const f = buildSwapAlternativeFactors({ owned: true, synergy: 0.12, commanderName: 'Atraxa' });
-    expect(f.some((x) => /synergy with Atraxa/.test(x.text))).toBe(true);
+    expect(f.some((x) => /Synergy with Atraxa/.test(x.text))).toBe(true);
   });
 
   // EDHREC's synergy is a -1..1 fraction (client.ts passes it through), so a
   // real 0.12 must read "+12%". Rounding it bare printed "+0%" on every card.
   it('reads synergy as a fraction: 0.12 is +12%, and a sliver never prints +0%', () => {
     const f = buildSwapAlternativeFactors({ owned: true, synergy: 0.12 });
-    expect(f.find((x) => /synergy/.test(x.text))?.text).toContain('(+12%)');
+    expect(f.find((x) => /Synergy/.test(x.text))?.text).toContain('(+12%)');
     const gap = buildGapAddFactors({ inclusion: 40, synergy: 0.31, owned: false });
-    expect(gap.find((x) => /Overperforms/.test(x.text))?.text).toContain('+31% vs baseline');
+    expect(gap.find((x) => /Played more/.test(x.text))?.text).toContain('(+31%)');
     const sliver = buildSwapAlternativeFactors({ owned: true, synergy: 0.004 });
     expect(sliver.some((x) => /\+0%/.test(x.text))).toBe(false);
   });
@@ -90,19 +90,19 @@ describe('buildGapAddFactors', () => {
 
   it('only emits synergy when positive and owned as a bonus', () => {
     const f = buildGapAddFactors({ inclusion: 10, synergy: -0.03, owned: true });
-    expect(f.some((x) => /Overperforms/.test(x.text))).toBe(false);
+    expect(f.some((x) => /Played more/.test(x.text))).toBe(false);
     expect(f.some((x) => /Already in your collection/.test(x.text) && x.tone === 'pro')).toBe(true);
     expect(f.some((x) => /fringe/.test(x.text))).toBe(true);
   });
 
   it('adds the Theme-dial line only when brewFavored is true', () => {
     const notFavored = buildGapAddFactors({ inclusion: 10, owned: false });
-    expect(notFavored.some((x) => /dialed toward Theme/.test(x.text))).toBe(false);
+    expect(notFavored.some((x) => /though few decks play it/.test(x.text))).toBe(false);
 
     const favored = buildGapAddFactors({ inclusion: 10, owned: false, brewFavored: true });
-    expect(favored.some((x) => /dialed toward Theme/.test(x.text) && x.tone === 'neutral')).toBe(
-      true
-    );
+    expect(
+      favored.some((x) => /though few decks play it/.test(x.text) && x.tone === 'neutral')
+    ).toBe(true);
   });
 });
 
@@ -135,7 +135,7 @@ describe('buildOptimizeFactors', () => {
     expect(excess[0].text).toMatch(/oversupplied on Ramp/);
     expect(excess.some((x) => /Lightly played/.test(x.text) && x.tone === 'pro')).toBe(true);
     const offPkg = buildOptimizeFactors('cut', { reasonCategory: 'off-package' });
-    expect(offPkg[0].text).toMatch(/No co-play ties/);
+    expect(offPkg[0].text).toMatch(/Nothing else here plays with it/);
   });
 
   it('interprets add categories: role fill, mana fix, flex land, curve phase', () => {
@@ -149,15 +149,15 @@ describe('buildOptimizeFactors', () => {
       /also a spell/
     );
     expect(buildOptimizeFactors('add', { reasonCategory: 'curve:early' })[0].text).toMatch(
-      /quiet phase of your curve/
+      /gap in your curve/
     );
   });
 
   it('frames a color-rebalance as a paired swap on both sides', () => {
     const cut = buildOptimizeFactors('cut', { reasonCategory: 'color-rebalance' });
     const add = buildOptimizeFactors('add', { reasonCategory: 'color-rebalance' });
-    expect(cut[0].text).toMatch(/swap, not a loss/i);
-    expect(add[0].text).toMatch(/net-zero land count/);
+    expect(cut[0].text).toMatch(/spare basic/i);
+    expect(add[0].text).toMatch(/Land count stays the same/);
   });
 
   it('handles unknown categories and null inclusion without fabricating lines', () => {
@@ -262,7 +262,9 @@ describe('buildCrossDeckMoveFactors', () => {
     expect(factors[0]).toMatchObject({ tone: 'pro' });
     expect(factors[0].text).toMatch(/Aristocrats/);
     expect(factors[0].text).toMatch(/Sacrifice/);
-    expect(factors.some((f) => /Lifegain/.test(f.text) && /generic value/.test(f.text))).toBe(true);
+    expect(factors.some((f) => /Lifegain/.test(f.text) && /Not part of any/.test(f.text))).toBe(
+      true
+    );
   });
 
   it('still notes the donor side even with no named axis', () => {

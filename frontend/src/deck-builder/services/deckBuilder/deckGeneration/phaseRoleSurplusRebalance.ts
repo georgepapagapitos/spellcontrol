@@ -297,10 +297,9 @@ function buildConversionReason(params: {
   addedPrice: number;
   currency: 'USD' | 'EUR';
 }): string {
-  const roleLabel = ROLE_LABEL[params.role];
-  const nonboClause = params.nonbo
-    ? ` ${params.cutName} also worked against the deck's own plan (flagged as a nonbo).`
-    : '';
+  const label = ROLE_LABEL[params.role];
+  const roleLabel = label.charAt(0).toUpperCase() + label.slice(1);
+  const nonboClause = params.nonbo ? ` ${params.cutName} was also flagged as a nonbo.` : '';
   const sym = params.currency === 'EUR' ? '€' : '$';
   const priceClause =
     params.addedPrice - params.cutPrice > DISCLOSE_PRICE_DELTA
@@ -318,7 +317,7 @@ function buildConversionReason(params: {
   // Same-role swap: context for WHY this role's slots are under scrutiny at
   // all, without claiming this specific swap resolves the overage (it can't:
   // evicting and re-adding the same role nets to zero count change).
-  const contextClause = `${roleLabel} is over cap (${params.have}/${params.target}). This swap upgrades a slot within the role. It doesn't reduce the count.`;
+  const contextClause = `${roleLabel} is over cap (${params.have}/${params.target}). This swap upgrades a slot in the role. The count stays.`;
   return `${contextClause}${nonboClause} ${addedClause}`;
 }
 

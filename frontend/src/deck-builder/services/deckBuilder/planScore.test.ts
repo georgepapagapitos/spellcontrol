@@ -104,7 +104,7 @@ describe('computeStrategyFromEngine', () => {
     });
     expect(s.partial).toBeUndefined();
     expect(s.value).toBe(100);
-    expect(s.surface).toMatch(/10 producers \/ 8 payoffs/);
+    expect(s.surface).toMatch(/10 producers, 8 payoffs/);
   });
 
   it('penalizes a payoff-starved engine via the balance term', () => {

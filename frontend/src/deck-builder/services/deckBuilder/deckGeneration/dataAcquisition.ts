@@ -220,8 +220,8 @@ export function buildBracketPoolFallbackNote(
   // the exact pre-existing sentence so old snapshots/copy don't drift; only a
   // genuine fetch failure appends the distinction (a thrown fetch never got
   // to prove itself thin — it just never resolved).
-  const causeSuffix = cause === 'fetch-failed' ? " (the page couldn't be fetched)" : '';
-  return `EDHREC has too little data on ${missingLabel} for ${subject}. Built from ${usedLabel} instead, with ${bracketPhrase} card permissions kept${causeSuffix}.`;
+  const causeSuffix = cause === 'fetch-failed' ? " The page couldn't be fetched." : '';
+  return `EDHREC has too little data on ${missingLabel} for ${subject}. Built from ${usedLabel} instead, keeping ${bracketPhrase} card permissions.${causeSuffix}`;
 }
 
 /**
@@ -248,7 +248,7 @@ export async function retryOnce<T>(fn: () => Promise<T>, isOk?: (value: T) => bo
  *  the #1 cause of a "random-looking" deck out of an RNG-free generator. */
 export function buildTaggerIntegrityNote(taggerAvailable: boolean): string | undefined {
   if (taggerAvailable) return undefined;
-  return 'Role targets and balance limits went unenforced on this build. Regenerate to retry with full data.';
+  return 'Role targets and balance limits were not applied. Regenerate to retry.';
 }
 
 /** S1 generation-integrity disclosure: the EDHREC combo fetch genuinely
@@ -261,7 +261,7 @@ export function buildComboIntegrityNote(
   comboCountSetting: number
 ): string | undefined {
   if (!fetchFailed || comboCountSetting <= 0) return undefined;
-  return 'Combo detection and combo seeding were skipped on this build.';
+  return 'Combo detection was skipped.';
 }
 
 /** S1 generation-integrity disclosure: the EDHREC substitute-ranking index
@@ -273,7 +273,7 @@ export function buildSubstituteIntegrityNote(
   collectionMode: boolean
 ): string | undefined {
   if (substituteIndexAvailable || !collectionMode) return undefined;
-  return 'Replacement picks used a simpler heuristic this time.';
+  return 'Replacement picks used a simpler ranking.';
 }
 
 // ---- Fast regeneration cache ----

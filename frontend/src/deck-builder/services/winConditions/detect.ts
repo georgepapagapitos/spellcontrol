@@ -573,7 +573,7 @@ export function detectWinConditions(input: WinConditionInput): WinConditionAnaly
     candidates.push({
       category: 'combat',
       label: 'Combat / aggro',
-      summary: `${creatureCount} creature${creatureCount === 1 ? '' : 's'}, generic combat plan`,
+      summary: `${creatureCount} creature${creatureCount === 1 ? '' : 's'} for combat`,
       evidence: [],
       score: Math.min(creatureCount, 10),
     });

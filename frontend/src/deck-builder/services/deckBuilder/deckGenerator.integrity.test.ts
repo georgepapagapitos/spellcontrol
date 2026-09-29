@@ -66,7 +66,7 @@ describe('retryOnce', () => {
 describe('buildTaggerIntegrityNote', () => {
   it('fires when tagger data is unavailable', () => {
     const note = buildTaggerIntegrityNote(false);
-    expect(note).toContain('Role targets and balance limits went unenforced');
+    expect(note).toContain('Role targets and balance limits were not applied');
     expect(note).toContain('Regenerate to retry');
   });
 
@@ -78,7 +78,7 @@ describe('buildTaggerIntegrityNote', () => {
 describe('buildComboIntegrityNote', () => {
   it('fires only when the fetch genuinely failed AND combo seeding was requested', () => {
     const note = buildComboIntegrityNote(true, 2);
-    expect(note).toContain('Combo detection and combo seeding were skipped');
+    expect(note).toContain('Combo detection was skipped');
   });
 
   it('is absent when the fetch failed but the user asked for no combo seeding', () => {
@@ -93,7 +93,7 @@ describe('buildComboIntegrityNote', () => {
 describe('buildSubstituteIntegrityNote', () => {
   it('fires only when the index is unavailable AND the build is collection-constrained', () => {
     const note = buildSubstituteIntegrityNote(false, true);
-    expect(note).toContain('Replacement picks used a simpler heuristic');
+    expect(note).toContain('Replacement picks used a simpler ranking');
   });
 
   it('is absent when the index is unavailable but the build is not collection-constrained', () => {

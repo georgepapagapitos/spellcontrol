@@ -73,10 +73,10 @@ export function analyzeDeckSynergy(cards: CardLike[]): DeckSynergy {
   for (const s of axes) {
     if (s.total < INVEST_THRESHOLD) continue;
     if (s.producers.length >= LOPSIDED_MIN && s.payoffs.length === 0) {
-      warnings.push(`${s.label}: ${s.producers.length} producers but no payoff to reward them.`);
+      warnings.push(`${s.label}: ${s.producers.length} producers but no payoff.`);
     } else if (s.payoffs.length >= LOPSIDED_MIN && s.producers.length <= 1) {
       warnings.push(
-        `${s.label}: ${s.payoffs.length} payoffs but only ${s.producers.length} producer${s.producers.length === 1 ? '' : 's'} to feed them.`
+        `${s.label}: ${s.payoffs.length} payoffs but only ${s.producers.length} producer${s.producers.length === 1 ? '' : 's'}.`
       );
     }
   }
@@ -84,7 +84,7 @@ export function analyzeDeckSynergy(cards: CardLike[]): DeckSynergy {
   const top = axes[0];
   const headline =
     invested.length === 0
-      ? 'No clear producer/payoff engine detected.'
+      ? 'No clear engine yet.'
       : `Primary engine: ${top.label} (${top.producers.length} producers / ${top.payoffs.length} payoffs).`;
 
   return { axes, invested, warnings, headline };

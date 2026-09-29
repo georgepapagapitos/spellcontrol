@@ -1044,7 +1044,9 @@ describe('applyRoleSurplusRebalance', () => {
       expect(result.conversions).toHaveLength(1);
       expect(result.conversions[0].added).toBe('Payoff');
       expect(result.conversions[0].reason).toMatch(/over cap/);
-      expect(result.conversions[0].reason).not.toMatch(/doesn't reduce the count/);
+      // ROLE_LABEL is lowercase; the reason opens a sentence, so it's capitalized.
+      expect(result.conversions[0].reason).toMatch(/^[A-Z]/);
+      expect(result.conversions[0].reason).not.toMatch(/The count stays/);
     });
 
     it('labels a same-role swap as an upgrade, never as fixing the overage', () => {
@@ -1062,7 +1064,7 @@ describe('applyRoleSurplusRebalance', () => {
       expect(result.conversions).toHaveLength(1);
       expect(result.conversions[0].added).toBe('Ramp Payoff');
       expect(result.conversions[0].reason).toMatch(/Upgraded to Ramp Payoff/);
-      expect(result.conversions[0].reason).toMatch(/doesn't reduce the count/);
+      expect(result.conversions[0].reason).toMatch(/The count stays/);
     });
 
     it('caps same-role upgrades at MAX_SAME_ROLE_UPGRADES even with plenty of surplus left', () => {

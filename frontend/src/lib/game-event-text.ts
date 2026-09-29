@@ -57,7 +57,7 @@ export function describeGameEvent(
       return { action: 'Game started' };
     case 'end':
       return row.targetSeat != null
-        ? { target: seatName(row.targetSeat), action: 'wins — game ended' }
+        ? { target: seatName(row.targetSeat), action: 'wins the game' }
         : { action: 'Game ended' };
     case 'reset':
       return { action: 'Game reset' };

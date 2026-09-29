@@ -125,21 +125,21 @@ export function computeBrewRoleTargets(
 function slotPurpose(key: BrewSlotKey, target: number, themeLabel?: string): string {
   switch (key) {
     case 'ramp':
-      return `Commander decks want mana ahead of curve: rocks, dorks, and land ramp. Most tables run about ${target}.`;
+      return `Rocks, dorks and land ramp put you ahead on mana. Most decks run about ${target}.`;
     case 'cardDraw':
-      return `Card advantage keeps your hand full after wipes and removal wars. Aim for around ${target}.`;
+      return `Card draw keeps your hand full after wipes. Aim for about ${target}.`;
     case 'removal':
-      return `Spot removal answers one problem permanent at a time. A typical build runs about ${target}.`;
+      return `Spot removal answers one threat at a time. Most decks run about ${target}.`;
     case 'boardwipe':
-      return `Board wipes reset a game that's gotten away from you. A few go a long way: around ${target}.`;
+      return `Board wipes reset a game that got away from you. Aim for about ${target}.`;
     case 'theme':
       return themeLabel
-        ? `The ${themeLabel} package: the cards that make this deck feel like itself.`
-        : `Your commander's signature synergy: the cards that make this deck feel like itself.`;
+        ? `The ${themeLabel} package. The cards that define this deck.`
+        : `Your commander's signature synergy. The cards that define this deck.`;
     case 'finishers':
-      return `The cards that actually win the game: your finishers and wincons.`;
+      return `Finishers and wincons: the cards that win the game.`;
     case 'flex':
-      return `Flex slots: utility, value, and anything else worth a seat in the 99.`;
+      return `Flex slots for utility and value.`;
   }
 }
 

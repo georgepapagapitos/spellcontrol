@@ -89,7 +89,7 @@ describe('buildRoleDeficitNotes', () => {
     expect(notes![0]).toContain(`Assassin's Trophy (54% of decks)`);
     expect(notes![0]).toContain('Beast Within (41%)');
     expect(notes![0]).not.toContain('Third Option'); // top-2 only, ranked by inclusion desc
-    expect(notes![0]).toMatch(/lost out to stronger synergy picks/);
+    expect(notes![0]).toMatch(/lost out to stronger picks/);
   });
 
   it('discloses a thin pool with no further options to offer', () => {
@@ -99,7 +99,7 @@ describe('buildRoleDeficitNotes', () => {
 
     expect(notes).toHaveLength(1);
     expect(notes![0]).toBe(
-      'Board wipe shipped 0 of its 2-card target. The EDHREC pool had no further board wipe to offer.'
+      'Board wipe shipped 0 of its 2-card target. EDHREC had no more board wipe.'
     );
   });
 

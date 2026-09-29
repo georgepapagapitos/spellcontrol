@@ -17,6 +17,7 @@ import { userMessage } from '@/lib/user-error';
 import { Button, IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 import { X } from 'lucide-react';
+import { PROXY_HINT } from '@/lib/shared-copy';
 /** True when a printing's availability means the user owns at least one copy. */
 function isOwnedAvailability(a: ChangeOwnership): boolean {
   return a === 'owned' || a === 'in-other-deck' || a === 'in-cube';
@@ -71,7 +72,7 @@ type CardFlag = 'altered' | 'proxy' | 'misprint';
 
 const FLAG_OPTIONS: { key: CardFlag; label: string; hint?: string }[] = [
   { key: 'altered', label: 'Altered' },
-  { key: 'proxy', label: 'Proxy', hint: "Doesn't count toward your collection's market value." },
+  { key: 'proxy', label: 'Proxy', hint: PROXY_HINT },
   { key: 'misprint', label: 'Misprint' },
 ];
 

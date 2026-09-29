@@ -268,8 +268,8 @@ export function applyFlagshipSeating(
       added: candidate.name,
       reason:
         `${candidate.name} is a top ${ctx.themeLabel} card` +
-        (typeof inclusion === 'number' ? ` (${inclusion.toFixed(1)}% of decks)` : '') +
-        `. Worth a seat over a weaker cut.`,
+        (typeof inclusion === 'number' ? `, in ${inclusion.toFixed(1)}% of decks` : '') +
+        '.',
     });
   }
 

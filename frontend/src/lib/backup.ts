@@ -172,17 +172,13 @@ export function parseBackup(raw: string): Backup {
   const obj = json as Record<string, unknown>;
 
   if (obj.format !== BACKUP_FORMAT) {
-    throw new Error(
-      "This doesn't look like a SpellControl backup file. Expected an export from this app."
-    );
+    throw new Error("This isn't a SpellControl backup file.");
   }
   if (typeof obj.version !== 'number') {
     throw new Error('Backup is missing a version number.');
   }
   if (obj.version > BACKUP_VERSION) {
-    throw new Error(
-      `Backup was made with a newer version of the app (v${obj.version}). Update the app and try again.`
-    );
+    throw new Error(`That backup is from a newer version (v${obj.version}). Update and try again.`);
   }
 
   const binders = Array.isArray(obj.binders)
@@ -196,7 +192,7 @@ export function parseBackup(raw: string): Backup {
       : null;
 
   if (collection && !Array.isArray(collection.cards)) {
-    throw new Error("Backup collection is malformed (cards isn't a list).");
+    throw new Error('Backup collection is malformed.');
   }
 
   // Absent on a v1 backup (or a binder-scoped export) — undefined means

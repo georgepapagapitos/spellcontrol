@@ -431,7 +431,7 @@ describe('buildNextBestMoves', () => {
       const moves = buildNextBestMoves(base({ landAdvice: { count: 40, suggested: 37 } }));
       expect(moves).toHaveLength(1);
       expect(moves[0].title).toBe('Trim 3 lands');
-      expect(moves[0].detail).toContain('flood');
+      expect(moves[0].detail).toContain('Swap them for spells');
     });
 
     it('stays quiet within ±1 of the suggestion and when advice is absent', () => {

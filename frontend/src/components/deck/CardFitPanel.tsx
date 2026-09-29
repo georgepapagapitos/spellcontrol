@@ -139,7 +139,7 @@ export function CardFitPanel({
           <li className="card-fit-signal">
             <span className="card-fit-signal-label">Curve</span>
             <span className="card-fit-signal-value">
-              Mana value {curve.cmc} —{' '}
+              Mana value {curve.cmc},{' '}
               {curve.nonlandAtCmc === 0
                 ? 'no other nonland cards here'
                 : `${curve.nonlandAtCmc} other ${curve.nonlandAtCmc === 1 ? 'card' : 'cards'} at this mana value`}
@@ -149,7 +149,7 @@ export function CardFitPanel({
             <li className="card-fit-signal">
               <span className="card-fit-signal-label">Role</span>
               <span className="card-fit-signal-value">
-                {role.label} —{' '}
+                {role.label},{' '}
                 {role.countInDeck === 0
                   ? 'new role for this deck'
                   : `${role.countInDeck} already in the deck`}
