@@ -56,18 +56,18 @@ function countCards(pages: readonly BinderPage[]): number {
  *
  * **Cutting rule** (the user's own words, board E494: "split it into multiple
  * binders"): a volume takes whole sections for as long as they fit in what's
- * left of it. The first section that would overflow the remaining space
- * closes the volume instead of splitting it — UNLESS the volume is still
- * empty, meaning the section alone is bigger than a whole volume, in which
- * case it's cut at a page boundary (never mid-page, matching the app's
- * existing "a section always owns whole pages" invariant one level up) and
- * continues into the next volume(s).
+ * left of it. A section that would overflow the remaining space but fits whole
+ * in a fresh volume closes the current one instead of being split. A section
+ * bigger than a whole volume is split regardless, so it fills the current
+ * volume first and continues into the next at a page boundary (never
+ * mid-page, matching the "a section always owns whole pages" invariant one
+ * level up). So a binder never needs more books than necessary because of a
+ * big section: 43 pages at 40 a book are 2 volumes, whatever comes first.
  *
- * This ordered, non-reordering, non-splitting-when-avoidable approach can
- * leave a volume under-full (a big section forces an early cut even though a
- * later, smaller section would have fit in the space left behind) — a
- * deliberate simplicity trade-off, the same one `packGroups` in
- * `materialize.ts` already makes for merging sections onto shared pages.
+ * A volume can still end under-full when a section that fits whole in a fresh
+ * volume doesn't fit in what's left: that keeps the section in one book, a
+ * deliberate trade-off, the same one `packGroups` in `materialize.ts` makes
+ * for merging sections onto shared pages.
  *
  * **Caller contract**: pass `sections` from an UNFILTERED materialize pass
  * (`search: ''`). A search-filtered pass drops non-matching pages and cards
@@ -108,16 +108,18 @@ export function planVolumes(
     while (remaining > 0) {
       if (volPages === 0) firstLabel = section.label;
       const spaceLeft = capacityPages - volPages;
-      if (remaining > spaceLeft && volPages > 0) {
-        // Doesn't fit, and the current volume already holds an earlier
-        // section: close it here rather than splitting this section across
-        // the cut, then re-evaluate against a fresh, empty volume.
+      if (remaining > spaceLeft && volPages > 0 && remaining <= capacityPages) {
+        // Doesn't fit here but would fit whole in a fresh volume, and this
+        // volume already holds an earlier section: close it rather than
+        // splitting this section across the cut.
         flush();
         continue;
       }
       // Either the rest of the section fits in what's left of this volume, or
-      // the volume is still empty and the section alone overflows a whole
-      // volume — take as many whole pages as fit (never a partial page).
+      // it is bigger than a whole volume and gets split anyway. Then it fills
+      // this volume first: closing early there only strands the space (a
+      // 2-page section before a 41-page one made 3 books of a 43-page binder
+      // at 40 pages a book). Take as many whole pages as fit, never a partial.
       const take = Math.min(remaining, spaceLeft);
       const slice = section.pages.slice(offset, offset + take);
       if (volPages === 0) volFirstPage = slice[0]!.pageNum;
