@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
+import '@/styles/binder-grid-slots.css';
 import { formatLocationSpan } from '../lib/card-locations';
 import { hasMultipleVolumes, pageVolume, type Volume } from '../lib/binder-volumes';
 import type { EnrichedCard, MaterializedBinder } from '../types';

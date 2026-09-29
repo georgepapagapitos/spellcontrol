@@ -33,7 +33,8 @@ function ruleBody(css: string, selector: string): string {
 }
 
 describe('settings-card-body children keep their intrinsic width', () => {
-  const css = readFileSync(join(here, 'settings-sync.css'), 'utf8');
+  // .settings-card-body moved to settings-page.css (boot CSS split, 2026-09-28).
+  const css = readFileSync(join(here, 'settings-page.css'), 'utf8');
 
   it('the card body is the column flexbox this guard exists for', () => {
     const body = ruleBody(css, '.settings-card-body');

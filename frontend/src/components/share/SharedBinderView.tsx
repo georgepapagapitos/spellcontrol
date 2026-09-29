@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import '@/styles/binder-grid-slots.css';
 import { AlignJustify, LayoutGrid, List as ListIcon } from 'lucide-react';
 import type { PublicBinder, PublicCard } from '../../lib/shared-types';
 import { normalizeForSearch } from '../../lib/normalize-search';

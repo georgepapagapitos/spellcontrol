@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import '@/styles/binder-grid-slots.css';
 import { useCollectionStore } from '../store/collection';
 import type {
   BinderPage,
