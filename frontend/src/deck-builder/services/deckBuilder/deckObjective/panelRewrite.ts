@@ -19,7 +19,7 @@
  * objective's layered graph (layering.test.ts).
  */
 import type { DeckCategory, DetectedCombo, ScryfallCard } from '@/deck-builder/types';
-import { getByCardName } from '@/lib/card-text';
+import { getByCardName } from '@/lib/cards/card-text';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 import { getCardTags, validateCardRole } from '@/deck-builder/services/tagger/client';
 import { computeRoleCounts, countProtectionPieces, countedRoleOf } from '../commanderDeckAnalysis';

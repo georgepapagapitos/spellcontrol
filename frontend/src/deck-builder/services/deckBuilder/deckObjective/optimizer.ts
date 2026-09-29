@@ -36,7 +36,7 @@
  * because it makes the result depend on the machine.
  */
 import type { ScryfallCard } from '@/deck-builder/types';
-import { frontFaceName } from '@/lib/card-text';
+import { frontFaceName } from '@/lib/cards/card-text';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 import { normalizeCardName } from '../cardIdentity';
 import { cardIneligibility, checkConstraints } from './constraints';

@@ -24,7 +24,7 @@
  * generator's pick-priority scale, which does not convert 1:1).
  */
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
-import { frontFaceName } from '@/lib/card-text';
+import { frontFaceName } from '@/lib/cards/card-text';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { CardNote, ObjectiveContext } from '../types';
 import { isBasicLand, isLandCard } from '../context';

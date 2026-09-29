@@ -31,7 +31,7 @@ import type { DetectedCombo, ScryfallCard } from '@/deck-builder/types';
 import { countsAsRole } from '@/deck-builder/services/cardFacts';
 import { detectWinConditions } from '@/deck-builder/services/winConditions/detect';
 import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
-import { simulateAssemblyClock, type ClockCard } from '@/lib/opening-hand-sim';
+import { simulateAssemblyClock, type ClockCard } from '@/lib/mana-sim/opening-hand-sim';
 import type { CardNote, ObjectiveContext, ObjectiveDeck } from '../types';
 import { alignToSlots } from './mana';
 import { deckNameKeys, nameKeys, nonLandCards, pct, type TermFn } from './shared';
