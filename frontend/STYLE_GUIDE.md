@@ -2219,7 +2219,7 @@ aria-label="Loading" aria-busy="true">` and mark the list itself
   byte-for-byte unchanged. Find rules by feature name: `tokens.css` (the only
   `:root` token block), `base-layout.css`, `import-upload.css`, `forms-banners.css`,
   `binder-hero.css`, `search-controls.css`, `stats-breakdown.css`, `tabs.css`,
-  `binder-grid-slots.css`, `tooltip-legend.css`, `feedback-spinner.css`,
+  `tooltip-legend.css`, `feedback-spinner.css`,
   `binder-nav.css`, `modals-dialogs.css`, `binder-rules-editor.css`,
   `footer-card-preview.css`, `responsive-nav.css`,
   `collection.css`, `auth.css`, `settings-sync.css`, `binder-card-management.css`,
@@ -2251,7 +2251,14 @@ aria-label="Loading" aria-busy="true">` and mark the list itself
   `-customizer` and `-commander-profile` by `DeckGeneratePage` + `BrewBuildPage`;
   `-combos-list` by the editor + `CollectionCombosPage`; `-import-dialog` by the
   decks index + new-deck + editor; `admin-scanner.css` by `CardScanner`,
-  `AdminPage` and `YouPage`. A sheet is page-local only when **every** chunk
+  `AdminPage` and `YouPage`; `binder-grid-slots.css` (the binder card grid:
+  sections, pages, slots, foil ring) by `BinderView`/`BinderListView`
+  (`BinderPage`) and `SharedBinderView` (the `/s/:token` share view);
+  `settings-page.css` (the `/settings` + `/admin` page body — sections, rows,
+  theme + typeface grid, danger zone, split out of `settings-sync.css`, which
+  keeps the header gear link, avatar trigger, sync-status pill and
+  mobile-tab-bar dot — app-shell chrome that renders on every route) by
+  `YouPage` and `AdminPage`. A sheet is page-local only when **every** chunk
   that renders one of its classes imports it — `css-chunk-ownership.test.ts`
   fails otherwise — and when nothing that stays global overrides its selectors
   by order (a page chunk's sheet loads _after_ everything in `main.tsx`; that is

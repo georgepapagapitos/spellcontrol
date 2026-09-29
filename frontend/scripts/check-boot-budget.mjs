@@ -30,12 +30,28 @@
 // its first open (Layout lazy-loads BinderEditor), so BinderEditor.css, the
 // chooser, preview column and Pages pictures included, left the boot path.
 // Measured 63 with the new chooser styles in.
+// CSS went 64 → 62 on 2026-09-28: two more boot-only sheets left main.tsx.
+// binder-grid-slots.css (the binder card grid: sections, pages, slots, foil
+// ring) now loads with BinderView/BinderListView (BinderPage) and
+// SharedBinderView (the /s/:token share view) — the only chunks that render
+// it. settings-sync.css split in two: the /settings + /admin page body
+// (sections, rows, theme + typeface grid, danger zone) moved to a new
+// settings-page.css loaded by YouPage and AdminPage; the header gear link,
+// avatar trigger, sync-status pill and mobile-tab-bar dot — app-shell chrome
+// that renders on every route — stayed put, along with a few rules that would
+// otherwise have shifted per-file counts the layout/tracking ratchet guards
+// freeze (.settings-share-kind, .settings-tier-header, .settings-row and its
+// ≤520px overrides). .slot-menu (binder-grid-slots.css) moved to
+// components/OverflowMenu.css instead of the binder chunk: CardRowMenu's
+// PLACEMENT map names it alongside the row/tile variants, so any chunk that
+// can mount CardRowMenu needs it, and OverflowMenu.tsx is already in that
+// closure. Measured 61.37.
 import { readFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const BUDGET_KB = { js: 410, css: 64 };
+export const BUDGET_KB = { js: 410, css: 62 };
 
 const dist = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 // Vite emits multi-line <link> tags; a line-based scan misses them.

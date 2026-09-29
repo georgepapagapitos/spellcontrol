@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 // Admin + scanner sheet: shared with YouPage and CardScanner, off the boot payload (E265).
 import '@/styles/admin-scanner.css';
+// Settings/admin page body: shared with YouPage, off the boot payload.
+import '@/styles/settings-page.css';
 import { useAuth } from '../store/auth';
 import { useCollectionStore } from '../store/collection';
 import { AdminPanel } from '../components/AdminPanel';

@@ -1,4 +1,8 @@
 import { Layers, Boxes } from 'lucide-react';
+// Binder card grid: sections, pages, slots, foil ring. Co-located here (not
+// just in BinderView/BinderListView) so BinderEditorPreview/-Strip (a
+// separate lazy chunk from BinderPage) also gets it.
+import '@/styles/binder-grid-slots.css';
 import { useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';

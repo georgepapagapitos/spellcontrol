@@ -6,6 +6,8 @@ import { Eye, EyeOff } from 'lucide-react';
 import { preventFocusSteal } from '../lib/keyboard';
 // Admin + scanner sheet: shared with AdminPage and CardScanner, off the boot payload (E265).
 import '@/styles/admin-scanner.css';
+// Settings/admin page body: shared with AdminPage, off the boot payload.
+import '@/styles/settings-page.css';
 import { useSignInPath } from '../lib/sign-in-path';
 import { useAuth } from '../store/auth';
 import { useThemeStore } from '../store/theme';

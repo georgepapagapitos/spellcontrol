@@ -59,6 +59,18 @@
   outline-offset: 2px;
 }
 
+/* The pocket variant's wrapper (CardRowMenu.tsx PLACEMENT.pocket), placed
+   here rather than styles/binder-grid-slots.css: this component is already
+   in every chunk that can mount CardRowMenu, and moving binder-grid-slots.css
+   off the boot path would otherwise leave the pocket ⋮ unstyled anywhere
+   CardRowMenu is used outside the binder page. */
+.slot-menu {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  z-index: 3;
+}
+
 /* Coarse-pointer floor on BOTH axes. The width half came from a trigger that
    measured 34×44 inside a 44px row; the pod hub's header trigger sits beside a
    36px button and measured 44×20 at phone width — a probe 18px above or below

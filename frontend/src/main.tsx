@@ -14,7 +14,9 @@ import './styles/binder-hero.css';
 import './styles/search-controls.css';
 import './styles/stats-breakdown.css';
 import './styles/tabs.css';
-import './styles/binder-grid-slots.css';
+// binder-grid-slots.css moved out: only BinderView/BinderListView (BinderPage)
+// and SharedBinderView (the /s/:token share view) render its classes, so it
+// now loads with those chunks instead of every boot (boot CSS split).
 import './styles/tooltip-legend.css';
 import './styles/feedback-spinner.css';
 import './styles/binder-nav.css';

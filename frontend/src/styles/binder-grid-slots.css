@@ -306,12 +306,11 @@
   min-width: 0;
 }
 
-.slot-menu {
-  position: absolute;
-  top: 3px;
-  right: 3px;
-  z-index: 3;
-}
+/* .slot-menu (the pocket ⋮'s wrapper) lives in components/OverflowMenu.css,
+   not here: CardRowMenu.tsx's PLACEMENT map names it alongside the row/tile
+   variants, so every chunk that can mount CardRowMenu (most of the app, via
+   CardGridCell/CardRow) needs it — OverflowMenu.tsx is already in that
+   closure, so co-locating it there costs nothing extra. */
 
 @media (hover: hover) and (pointer: fine) {
   .slot-cell:hover .collection-grid-menu-btn {

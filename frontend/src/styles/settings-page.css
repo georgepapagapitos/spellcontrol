@@ -1,0 +1,394 @@
+/* settings-page.css — split out of settings-sync.css (boot CSS split, 2026-09-28).
+   The /settings and /admin page body: sections, rows, theme + typeface grid,
+   danger zone. Header chrome (gear link, avatar trigger, sync-status pill,
+   price-refresh toast, mobile-tab-bar sync dot), the shared .pill-btn-danger
+   Button variant, and .settings-share-kind / .settings-tier-header (their raw
+   letter-spacing is frozen per file by tracking-ratchet.test.ts) stay in
+   settings-sync.css. Loaded by YouPage.tsx and AdminPage.tsx (the only chunks
+   that render these classes) instead of main.tsx. */
+
+/* Settings page — full route at /settings. Stacked sections with the
+   same card aesthetic used elsewhere (binder cards, breakdown cards). */
+.settings-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* The page groups several cards under one tier in a bare wrapper (Account +
+   Sign-in methods + Friends; the Your-data cards). The wrapper is the host of
+   those cards, so it declares the same gap the page does — without it the
+   cards sat flush against each other (caught by the journey's
+   touching-siblings check on its first run). */
+.settings-page > div:not([class]) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.settings-page-hero {
+  margin-bottom: var(--space-2);
+}
+
+.settings-card {
+  padding: var(--space-4) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.settings-card-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.settings-card-title {
+  margin: 0;
+  /* Section titles are --font-serif (the .deck-combos-title family) per
+     STYLE_GUIDE Typography — --font-mono is data/numerals only. */
+  font-family: var(--font-serif);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-overline);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.settings-card-hint {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.settings-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* .settings-row itself (the base rule) and its two ≤520px overrides live in
+   settings-sync.css, not here: moving them shifts an off-tier `@media
+   (max-width: 520px)` breakpoint between files, which layout-ratchet.test.ts
+   freezes per file; its baseline is off-limits while another change is in
+   flight against it. */
+
+.settings-card-body > .settings-row:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.settings-row-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.settings-row-label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-overline);
+  margin-bottom: var(--space-0-5);
+}
+
+.settings-row-value {
+  color: var(--text-primary);
+  font-size: var(--text-base);
+  font-weight: 500;
+}
+
+/* Inline flex so an InfoTip icon can sit right after the label text. */
+.settings-row-value--with-tip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.settings-row-hint {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin-top: var(--space-0-5);
+}
+
+/* Groups 2+ buttons in one `actions` slot (e.g. "Export CSV" + "Download
+   backup") as one flex item, so `.settings-row`'s space-between keeps a
+   single gap against the text instead of spreading each button to the edge. */
+.settings-row-action-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.settings-row-meta {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-top: var(--space-1);
+}
+
+.settings-row-meta code {
+  font-family: var(--font-mono, monospace);
+  font-size: var(--text-xs);
+  background: var(--surface-raised);
+  padding: 0 0.3em;
+  border-radius: 3px;
+}
+
+.settings-row-actions {
+  display: flex;
+  gap: var(--space-1-5);
+  flex-shrink: 0;
+}
+
+.settings-row-error {
+  color: var(--err-text);
+}
+
+.settings-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  cursor: pointer;
+  user-select: none;
+}
+
+.settings-toggle input[type='checkbox'] {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.settings-progress {
+  position: relative;
+  height: 6px;
+  margin-top: var(--space-1-5);
+  background: var(--surface-raised);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.settings-progress > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--accent);
+  transition: width var(--motion-fast) linear;
+}
+
+.card-art-placeholder {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2-5) var(--space-3);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.card-art-placeholder-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1-5);
+  font-weight: 600;
+}
+
+.card-art-placeholder-mana {
+  font-family: var(--font-mono, monospace);
+  color: var(--text-muted);
+}
+
+.card-art-placeholder-type {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.card-art-placeholder-text {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+}
+
+.settings-theme-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  /* <fieldset> reset: drop its default border and the min-content sizing quirk. */
+  border: 0;
+  min-inline-size: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: var(--space-2);
+}
+
+/* The radio is the accessible control; the label tile is the visual. Hide the
+   native input but keep it focusable so keyboard selection works. */
+.settings-theme-radio {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.settings-theme-option {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    'swatch name'
+    'swatch guild';
+  align-items: center;
+  gap: var(--space-0-5) var(--space-2-5);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .settings-theme-option:hover {
+    border-color: var(--accent);
+  }
+}
+
+.settings-theme-option.is-active {
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+
+.settings-theme-swatch {
+  grid-area: swatch;
+  width: 1.65rem;
+  height: 1.65rem;
+  border-radius: 50%;
+  border: 0.5px solid var(--border-strong);
+}
+
+.settings-theme-name {
+  grid-area: name;
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.settings-theme-guild {
+  grid-area: guild;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+/* ── Typeface picker (components/TypeSetPicker.tsx) ────────────────────────
+   Reuses the theme picker's tile wholesale; only the swatch changes, from a
+   color disc to a live "Aa" specimen. Each tile carries its own
+   `data-typeset`, and styles/typesets.css scopes the font tokens by that
+   attribute rather than to :root, so every tile renders in the set it offers
+   — the picker previews rather than describes. */
+.settings-typeset-swatch {
+  display: grid;
+  place-items: center;
+  /* Wider than the theme picker's circle: a two-letter specimen needs the
+     room, and these display faces vary a lot in width. */
+  width: 2.4rem;
+  height: 2.1rem;
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  font-family: var(--font-display);
+  /* Display faces are used at weight 400 app-wide — several ship a single cut
+     and the browser synthesizes a smeared faux-bold otherwise. */
+  font-weight: 400;
+  font-size: var(--text-md);
+  line-height: 1;
+  color: var(--text-primary);
+}
+
+.settings-typeset-name {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--text-md);
+}
+
+/* Hint renders in the set's own body face, so a tile previews the
+   display/body pairing rather than just the title face. Overrides the theme
+   tile's --font-mono. */
+.settings-typeset-hint {
+  font-family: var(--font-serif);
+  line-height: 1.35;
+}
+
+/* Hints are full sentences and wrap to different line counts per set, so the
+   theme tile's centered alignment is what keeps a row from reading ragged —
+   the specimen stays optically tied to its name whether the hint runs one
+   line or three. (An `align-items: start` version of this floated the short
+   hints away from their specimen.) Only the extra row height differs. */
+.settings-typeset-option {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+/* A `?section=` deep link scrolls its heading to the scrollport's top edge
+   (scrollIntoView ignores the container's padding), which left the landed
+   heading flush against the header on desktop and the screen edge on a
+   phone. Every heading the link map can target gets the same margin, so
+   the tier, group and card landings all sit one step in. */
+.settings-page .settings-tier-header,
+.settings-page .settings-section-header,
+.settings-page .settings-card-title {
+  scroll-margin-top: var(--space-4);
+}
+
+/* Section header — a visual chapter-break label between groups of settings
+   cards. Mono uppercase, secondary color, no card chrome. */
+.settings-section-header {
+  margin: var(--space-4) 0 var(--space-1-5);
+  /* Section titles are --font-serif (the .deck-combos-title family) per
+     STYLE_GUIDE Typography — --font-mono is data/numerals only. */
+}
+
+/* About footer — legal/attribution text demoted from a full card to quiet
+   fine-print below the Danger zone. No card chrome, muted color. */
+.settings-page-about {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2) 0 var(--space-4);
+}
+
+.settings-page-about p {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.settings-page-about a {
+  color: var(--text-secondary);
+}
+
+.settings-page-about a:focus-visible {
+  color: var(--accent);
+}
+@media (hover: hover) and (pointer: fine) {
+  .settings-page-about a:hover {
+    color: var(--accent);
+  }
+}
+
+/* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover.
+   The tile is a <label> wrapping a visually-hidden radio, so focus lands on the
+   input; surface the ring on the tile via :has(). */
+.settings-theme-option:focus-visible,
+.settings-theme-option:has(.settings-theme-radio:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
