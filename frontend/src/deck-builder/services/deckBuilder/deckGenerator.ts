@@ -122,6 +122,7 @@ import {
 } from './substituteFinder';
 import { sameType } from '@/lib/card-matching';
 import { resolveOwnedCards } from './ownedCardResolution';
+import { pageInclusionOf, weakestFirst } from './ownedShareEviction';
 import {
   finalDeckMembership,
   gapsOutsideDeck,
@@ -4018,6 +4019,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
 
     const inclusionByName = new Map<string, number>();
     for (const ec of edhrecNonLand) inclusionByName.set(ec.name, ec.inclusion);
+    const inclusionOf = pageInclusionOf(inclusionByName);
 
     // Swap one owned card in for an unowned one. `preferEvict` names the card
     // it was matched against (an owned substitute's staple); otherwise the
@@ -4058,15 +4060,14 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
             : sameKind.length > 0
               ? sameKind
               : swappable;
-      evictPool.sort(
-        (a, b) => (inclusionByName.get(a.name) ?? -1) - (inclusionByName.get(b.name) ?? -1)
-      );
+      // Weakest first, a double-faced card by its front face (ownedShareEviction.ts).
+      const evictOrder = weakestFirst(evictPool, inclusionOf);
       // Role cap only guards a role-CROSSING swap (same-role is net-zero).
       const target = wantedRole ? (roleTargets?.[wantedRole] ?? 0) : 0;
       const roleFull = strictRole
         ? target > 0 && (currentRoleCounts[wantedRole!] ?? 0) >= target
         : isOverRoleCap(card, roleTargets, currentRoleCounts);
-      const evicted = evictPool.find((c) => validateCardRole(c) === wantedRole || !roleFull);
+      const evicted = evictOrder.find((c) => validateCardRole(c) === wantedRole || !roleFull);
       if (!evicted) return false;
 
       // Remove the evicted unowned card (mirrors phaseBudgetConverge's removeCard).
@@ -4121,7 +4122,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         unownedWithRole.push({
           name: c.name,
           price: null,
-          inclusion: inclusionByName.get(c.name) ?? 0,
+          inclusion: Math.max(0, inclusionOf(c.name)),
           synergy: 0,
           typeLine: getFrontFaceTypeLine(c),
           cmc: c.cmc,
