@@ -3093,33 +3093,36 @@ describe('the table voice link', () => {
       .send({ baseVersion: version, actions: [{ type: 'settings', patch: { voiceUrl } }] });
   }
 
-  it('takes an https link', async () => {
+  it('takes a Discord invite', async () => {
     const { hostCookie, code, version } = await hostGame('voice_ok');
     const res = await setVoice(hostCookie, code, version, 'https://discord.gg/example');
     expect(res.status).toBe(200);
     expect(res.body.game.voiceUrl).toBe('https://discord.gg/example');
   });
 
-  // The link is rendered for every other seat to click, so a scheme that can
-  // run code is one player handing the pod a script.
-  it('refuses anything that is not https', async () => {
+  // Discord or nothing. The link is rendered for every other seat to click,
+  // so anything looser is one player handing the pod a link of their choosing.
+  it('refuses anything but a discord.gg invite', async () => {
     const { hostCookie, code, version } = await hostGame('voice_scheme');
-    for (const bad of ['javascript:alert(1)', 'http://discord.gg/x', 'data:text/html,<b>x']) {
+    for (const bad of [
+      'javascript:alert(1)',
+      'http://discord.gg/x1',
+      'data:text/html,<b>x</b>',
+      'https://meet.google.com/abc',
+      'https://discord.gg.evil.com/abc',
+      'https://discord.gg/abc?x=https://evil.com',
+      'come to discord',
+      `https://discord.gg/${'x'.repeat(100)}`,
+      42,
+    ]) {
       const res = await setVoice(hostCookie, code, version, bad);
-      expect(res.status, bad).toBe(400);
+      expect(res.status, String(bad)).toBe(400);
     }
-  });
-
-  it('refuses text that is not a URL, and a link past the length cap', async () => {
-    const { hostCookie, code, version } = await hostGame('voice_junk');
-    expect((await setVoice(hostCookie, code, version, 'come to discord')).status).toBe(400);
-    const long = `https://example.com/${'x'.repeat(2100)}`;
-    expect((await setVoice(hostCookie, code, version, long)).status).toBe(400);
   });
 
   it('clears back to nothing', async () => {
     const { hostCookie, code, version } = await hostGame('voice_clear');
-    const set = await setVoice(hostCookie, code, version, 'https://meet.example.com/abc');
+    const set = await setVoice(hostCookie, code, version, 'https://discord.gg/abc');
     const cleared = await setVoice(hostCookie, code, set.body.game.version, null);
     expect(cleared.status).toBe(200);
     expect(cleared.body.game.voiceUrl).toBe(null);
