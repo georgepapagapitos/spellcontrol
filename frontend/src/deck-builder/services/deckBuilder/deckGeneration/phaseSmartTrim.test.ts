@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { ScryfallCard } from '@/deck-builder/types';
+import type { RoleKey } from '@/deck-builder/services/tagger/client';
 
 vi.mock('@/deck-builder/services/tagger/client', () => ({
   getCardRole: () => null,
@@ -8,7 +9,7 @@ vi.mock('@/deck-builder/services/tagger/client', () => ({
   isFreeInteraction: () => false,
 }));
 
-import { smartTrimPhase } from './phaseSmartTrim';
+import { computeTrimResistance, smartTrimPhase } from './phaseSmartTrim';
 import type { GenerationState } from './state';
 
 function card(name: string, isMustInclude = false): ScryfallCard {
@@ -131,6 +132,29 @@ describe('smartTrimPhase', () => {
     smartTrimPhase(state, { targetDeckSize: 1, landTarget: 0, roleTargets: null });
     const names = allCards(state).map((c) => c.name);
     expect(names).toEqual(['Locked']);
+  });
+
+  it('keeps a staple rock the type passes picked, with no isStapleRock flag', () => {
+    // E510's panels: once a ranking change let Sol Ring arrive as an ordinary
+    // pick, the flag was never set and the trim cut it from Atraxa and Sythis.
+    // Every other phase protects STAPLE_ROCK_NAMES by name; so does this one.
+    const state = makeState();
+    state.categories.ramp = [card('Sol Ring')];
+    state.categories.creatures = [card('Best'), card('Middle')];
+    smartTrimPhase(state, { targetDeckSize: 2, landTarget: 0, roleTargets: null });
+    const names = allCards(state).map((c) => c.name);
+    expect(names).toContain('Sol Ring');
+    expect(names).toHaveLength(2);
+  });
+
+  it('protects a staple rock by name exactly as much as by the flag', () => {
+    const flagged = { ...card('Arcane Signet'), isStapleRock: true } as ScryfallCard;
+    const byName = card('Arcane Signet');
+    const plain = card('Mind Stone');
+    const r = (c: ScryfallCard) =>
+      computeTrimResistance(c, 0, 1, 'ramp', new Set(), null, {} as Record<RoleKey, number>);
+    expect(r(byName)).toBe(r(flagged));
+    expect(r(byName)).toBeGreaterThan(r(plain));
   });
 
   it('respects the land-trim budget — never cuts a non-must-include land below the target', () => {
