@@ -301,7 +301,7 @@ export function applyComboFloor(state: GenerationState, ctx: ComboFloorContext):
     updated.unshift(seededDetected);
   }
 
-  const producesText = best.combo.results.length > 0 ? ` (${best.combo.results.join(', ')})` : '';
+  const producesText = best.combo.results.length > 0 ? `: ${best.combo.results.join(', ')}` : '';
   return {
     detectedCombos: updated.length > 0 ? updated : undefined,
     seeded: true,

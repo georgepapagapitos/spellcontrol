@@ -754,7 +754,7 @@ const CASES: Case[] = [
       const names = allCards(deck).map((c) => c.name);
       expect(names).not.toContain('Ruby Medallion');
       expect(names).toContain('Filler Rock 1');
-      expect(deck.thinPoolFillNote).toContain('2 slots were filled from your collection');
+      expect(deck.thinPoolFillNote).toContain('2 slots came from your collection');
       expect(deck.thinPoolFillNote).toContain('Filler Rock');
       vi.mocked(searchCards)
         .mockReset()

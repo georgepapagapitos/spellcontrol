@@ -368,7 +368,7 @@ export function comboIntegrityAuditPhase(
         repairs.push({
           cut: weak.card.name,
           added: missing.name,
-          reason: `Swapped in ${missing.name}. Completes the ${dc.cards.join(' + ')} combo${dc.results[0] ? ` (${dc.results[0]})` : ''}.`,
+          reason: `Swapped in ${missing.name}. Completes the ${dc.cards.join(' + ')} combo${dc.results[0] ? `: ${dc.results[0]}` : ''}.`,
         });
       }
       if (ok) {

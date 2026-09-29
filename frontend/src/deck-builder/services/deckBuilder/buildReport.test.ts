@@ -188,7 +188,7 @@ describe('assembleBuildReport', () => {
     });
 
     expect(report.ownedPercentGapNote).toBe(
-      "You asked for 100% owned cards, but only 3 of your cards fit this commander's colors. 1 was used and the rest came from recommendations."
+      "You asked for 100% owned cards, but only 3 of your cards fit this commander's colors. 1 was used."
     );
   });
 
@@ -236,7 +236,7 @@ describe('assembleBuildReport', () => {
     });
 
     expect(report.ownedPercentGapNote).toBe(
-      'You asked for 50% owned cards and got 20%. Your other cards that fit are over your card limits or would overfill a role like ramp or removal.'
+      'You asked for 50% owned cards and got 20%. The rest of your cards hit your limits or a role cap.'
     );
   });
 
@@ -937,7 +937,7 @@ describe('assembleBuildReport', () => {
         selectedThemes: [theme('Aristocrats'), theme('Lifegain')],
       });
       expect(report.archetypeNote).toMatch(
-        /Role targets follow Aristocrats; every theme you picked still shapes the pool\./
+        /Role targets follow Aristocrats\. Your other themes still shape the pool\./
       );
     });
 
@@ -964,7 +964,7 @@ describe('buildArchetypeNote', () => {
       isLowConfidence: false,
       multiThemeSelected: false,
     });
-    expect(note).toBe("Built as Enchantress, from EDHREC's dominant theme for this commander.");
+    expect(note).toBe("Built as Enchantress, from EDHREC's top theme for this commander.");
   });
 
   it('names the split-strategy reason for the neutral tier', () => {
@@ -974,9 +974,7 @@ describe('buildArchetypeNote', () => {
       isLowConfidence: false,
       multiThemeSelected: false,
     });
-    expect(note).toBe(
-      "Built as balanced Goodstuff. No single theme dominates this commander's EDHREC data."
-    );
+    expect(note).toBe('Built as balanced Goodstuff. EDHREC shows no dominant theme.');
   });
 
   it('softens the copy for a low-confidence oracle-text read', () => {
@@ -986,7 +984,7 @@ describe('buildArchetypeNote', () => {
       isLowConfidence: true,
       multiThemeSelected: false,
     });
-    expect(note).toMatch(/No EDHREC theme data confirms it/);
+    expect(note).toMatch(/EDHREC has no theme data/);
   });
 
   it('states the oracle-text read plainly when not low-confidence', () => {
@@ -996,7 +994,7 @@ describe('buildArchetypeNote', () => {
       isLowConfidence: false,
       multiThemeSelected: false,
     });
-    expect(note).toBe("Built as Voltron, from a read of the commander's card text.");
+    expect(note).toBe("Built as Voltron, from the commander's card text.");
   });
 });
 
@@ -1018,7 +1016,7 @@ describe('E161: displaced-add honesty (stale swap records)', () => {
       collectionNames: new Set(),
     });
     expect(report.coherenceRepairs?.[0].reason).toBe(
-      'swapped for Phyrexian Altar, which completes 4 near-miss combos. (Phyrexian Altar was later displaced before the final deck.)'
+      'swapped for Phyrexian Altar, which completes 4 near-miss combos. Phyrexian Altar was cut later.'
     );
     expect(report.cardProvenance?.['Phyrexian Altar']).toBeUndefined();
     expect(report.cardProvenance?.['Kept Card']).toBe('EDHREC staple for this commander');
@@ -1059,7 +1057,7 @@ describe('E161: displaced-add honesty (stale swap records)', () => {
       collectionNames: new Set(),
     });
     expect(report.flagshipSeatings?.[0].reason).toBe(
-      'reserved a seat for it. (Relentless Assault was later displaced before the final deck.)'
+      'reserved a seat for it. Relentless Assault was cut later.'
     );
     expect(report.cardProvenance?.['Relentless Assault']).toBeUndefined();
   });
@@ -1116,7 +1114,7 @@ describe('E167: fixupRepairs disclosure (post-gen fixup pass)', () => {
       collectionNames: new Set(),
     });
     expect(report.fixupRepairs?.[0].reason).toBe(
-      `${fixupRepair.reason} (Arcane Signet was later displaced before the final deck.)`
+      `${fixupRepair.reason} Arcane Signet was cut later.`
     );
     expect(report.cardProvenance?.['Arcane Signet']).toBeUndefined();
   });

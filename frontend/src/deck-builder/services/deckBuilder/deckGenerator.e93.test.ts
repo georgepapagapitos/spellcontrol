@@ -148,7 +148,7 @@ describe('buildBracketPoolFallbackNote', () => {
     expect(note).toContain('Mr. House, President and CEO + Die Roll');
     expect(note).toContain('bracket-5 (cEDH)');
     expect(note).toMatch(/Built from .*bracket-5 \(cEDH\).* instead/);
-    expect(note).toContain('card permissions kept');
+    expect(note).toContain('card permissions');
   });
 
   it('names the theme page when bracket is dropped but the theme is kept', () => {
@@ -160,7 +160,7 @@ describe('buildBracketPoolFallbackNote', () => {
       'Die Roll'
     );
     expect(note).toContain('Built from the main Die Roll page instead');
-    expect(note).toContain('bracket-5 (cEDH) card permissions kept');
+    expect(note).toContain('keeping bracket-5 (cEDH) card permissions');
   });
 
   it('has no theme phrase when no theme was selected', () => {
@@ -187,7 +187,7 @@ describe('buildBracketPoolFallbackNote', () => {
       'Die Roll',
       'fetch-failed'
     );
-    expect(note).toContain("(the page couldn't be fetched)");
+    expect(note).toContain("The page couldn't be fetched.");
   });
 
   it('adds no cause phrase for a genuinely thin page (matches the no-cause copy)', () => {

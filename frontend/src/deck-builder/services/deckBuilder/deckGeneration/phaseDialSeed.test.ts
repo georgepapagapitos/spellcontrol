@@ -101,7 +101,7 @@ describe('dialSeedPhase', () => {
     // The note counts the final deck: one seed later lost its slot.
     const note = result.describe!((n) => n !== 'Fringe Goblin' && n !== 'Pricey Goblin');
     expect(note).toMatch(/2 of its 4 spells are in this one/);
-    expect(note).toMatch(/The rest were over your settings/);
+    expect(note).toMatch(/The rest hit your settings/);
   });
 
   it('Leaning staples seats only cards in over half of decks', async () => {
