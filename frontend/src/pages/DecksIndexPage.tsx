@@ -817,7 +817,7 @@ export function DecksIndexPage() {
                         : ''
                     }`}
                     /* `--deck-color` drives both the resting left-border accent
-                   and the full hover-border tint via CSS. */
+                   and the hover ring every index tile shares (base-layout.css). */
                     style={{ ['--deck-color' as string]: deck.color }}
                     {...selectInteraction(sel.selectMode, selected, () => sel.toggle(deck.id))}
                   >
