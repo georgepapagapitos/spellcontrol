@@ -435,7 +435,15 @@ export function DiscoverDecksPage() {
 
         {/* Below the community grid, not above it: players' decks are this
             page's content, and precons fill in until there are more of them. */}
-        {!precons && <PreconsRail filters={filters} />}
+        {!precons && (
+          <PreconsRail
+            filters={filters}
+            viewAllTo={`/decks/discover?${new URLSearchParams([
+              ...discoverFiltersToSearchParams(filters),
+              ['source', 'precons'],
+            ]).toString()}`}
+          />
+        )}
       </div>
     </>
   );

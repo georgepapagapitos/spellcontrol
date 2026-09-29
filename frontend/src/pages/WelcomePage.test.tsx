@@ -193,6 +193,15 @@ describe('WelcomePage hero', () => {
 // Fresh public decks rail — ghost-town gating
 // ============================================================
 
+describe('WelcomePage precons rail', () => {
+  it('shows the precons even when there are too few community decks for their rails', async () => {
+    mockListDiscoverDecks.mockResolvedValue({ decks: [], page: 1, hasMore: false });
+    renderWelcome();
+    expect(await screen.findByTestId('precons-rail')).toBeTruthy();
+    expect(screen.queryByText('Fresh public decks')).toBeNull();
+  });
+});
+
 describe('WelcomePage fresh-decks rail', () => {
   it('renders the rail and its tiles once >= 3 fresh decks return', async () => {
     mockListDiscoverDecks.mockResolvedValue({

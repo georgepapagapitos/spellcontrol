@@ -75,13 +75,20 @@ describe('PreconsRail', () => {
     );
   });
 
-  it('narrows with the page filters and carries them into View all', async () => {
+  it('narrows with the page filters, and View all goes where the page says', async () => {
     mockListDiscoverDecks.mockResolvedValue({
       decks: [precon('a', 'Heavenly Inferno (2011)')],
       page: 1,
       hasMore: false,
     });
-    renderRail({ ...NO_DISCOVER_FILTERS, query: 'kaalia', colors: ['R'] });
+    render(
+      <MemoryRouter>
+        <PreconsRail
+          filters={{ ...NO_DISCOVER_FILTERS, query: 'kaalia', colors: ['R'] }}
+          viewAllTo="/decks/discover?q=kaalia&colors=R&source=precons"
+        />
+      </MemoryRouter>
+    );
 
     await waitFor(() => expect(screen.getByText('Heavenly Inferno (2011)')).toBeTruthy());
     expect(mockListDiscoverDecks).toHaveBeenCalledWith(

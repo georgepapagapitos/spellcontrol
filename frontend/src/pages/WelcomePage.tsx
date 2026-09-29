@@ -43,7 +43,7 @@
  * they left running. Door 5 defers to AuthPage's own completion handlers, so
  * abandoning /auth without finishing still reshows the welcome next boot.
  */
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { LogIn, Layers, Wand2, SlidersHorizontal, Swords } from 'lucide-react';
 import { useLoadSamples } from '../lib/use-load-samples';
@@ -51,8 +51,16 @@ import { markEverVisited } from '../lib/first-run';
 import { track } from '../lib/analytics';
 import { WelcomeHero } from '../components/welcome/WelcomeHero';
 import { FreshDecksRail } from '../components/welcome/FreshDecksRail';
+import { DiscoverTileSkeleton } from '../components/DiscoverDeckTile';
+import { SwipeRow } from '../components/shared/SwipeRow';
 import { TrendingRail } from '../components/aggregates/TrendingRail';
-import { PreconsRail } from '../components/PreconsRail';
+
+// Lazy: see PreconsRail's note on the boot chunk. Its fallback mirrors the
+// rail's own loading state from pieces already in this chunk, under this
+// page's rail class, so the lazy load never shifts the page.
+const PreconsRail = lazy(() =>
+  import('../components/PreconsRail').then((m) => ({ default: m.PreconsRail }))
+);
 import './WelcomePage.css';
 import { Button } from '@/components/shared/Button';
 
@@ -123,7 +131,19 @@ export function WelcomePage() {
         {/* Real, recognisable decks for a first visit, whatever the size of
             the community so far. Not gated on the rails above: they wait
             for players, and precons are there from day one. */}
-        <PreconsRail />
+        <Suspense
+          fallback={
+            <section className="welcome-fresh-rail" aria-busy="true">
+              <SwipeRow className="decks-index-list is-grid" columns={6} aria-hidden="true">
+                {Array.from({ length: 6 }, (_, i) => (
+                  <DiscoverTileSkeleton key={i} view="grid" />
+                ))}
+              </SwipeRow>
+            </section>
+          }
+        >
+          <PreconsRail />
+        </Suspense>
 
         <section className="welcome-alt-start" aria-label="Other ways to start">
           <div className="welcome-doors">
