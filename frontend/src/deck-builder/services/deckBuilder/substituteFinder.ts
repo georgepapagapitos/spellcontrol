@@ -35,6 +35,11 @@ export interface SubstituteCandidate {
   cmc?: number;
   /** Type line (`EnrichedCard.typeLine` / `ScryfallCard.type_line`), for type-overlap closeness. */
   typeLine?: string;
+  /** The owned printing's Scryfall id (`EnrichedCard.scryfallId`): generation
+   *  resolves an owned card by it, so a look-alike name can't stand in for it. */
+  scryfallId?: string;
+  /** Oracle id (`EnrichedCard.oracleId`), checked against the resolved card. */
+  oracleId?: string;
 }
 
 /** A candidate fits when its whole color identity sits inside the deck's (mirrors `fitsColorIdentity`). */

@@ -29,7 +29,7 @@ import {
 } from '../cardPicking';
 import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
 import { nonboFindings } from '../nonbo';
-import { getLiftIndex } from './liftPools';
+import { getLiftIndex, liftersInDeck } from './liftPools';
 import { STAPLE_ROCK_NAMES } from './phaseStapleManaRocks';
 import type { BudgetTracker } from '../budgetTracker';
 import type { BracketGuard } from '../bracketGuard';
@@ -809,7 +809,10 @@ export function applyRoleSurplusRebalance(
       runningTotal += priceOf(replacement) - evictedPrice;
       conversionsApplied++;
 
-      const liftedBy = getLiftIndex(state).get(replacement.name.toLowerCase())?.liftedBy;
+      const liftedBy = liftersInDeck(
+        getLiftIndex(state).get(replacement.name.toLowerCase())?.liftedBy,
+        state
+      );
       conversions.push({
         cut: candidate.card.name,
         added: replacement.name,
@@ -959,7 +962,10 @@ export function applyRoleSurplusRebalance(
       runningTotal += priceOf(replacement) - donorPrice;
       conversionsApplied++;
 
-      const liftedBy = getLiftIndex(state).get(replacement.name.toLowerCase())?.liftedBy;
+      const liftedBy = liftersInDeck(
+        getLiftIndex(state).get(replacement.name.toLowerCase())?.liftedBy,
+        state
+      );
       conversions.push({
         cut: donor.card.name,
         added: replacement.name,
