@@ -1,13 +1,13 @@
 // @vitest-environment happy-dom
+import { useState } from 'react';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AiFeaturesSettings } from './AiFeaturesSettings';
+import type { AiStatus } from '../../lib/ai-review';
 
-const fetchAiStatusMock = vi.fn();
 const setAiOptInMock = vi.fn();
 
 vi.mock('../../lib/ai-review', () => ({
-  fetchAiStatus: () => fetchAiStatusMock(),
   setAiOptIn: (enabled: boolean) => setAiOptInMock(enabled),
 }));
 
@@ -15,32 +15,30 @@ vi.mock('../../store/toasts', () => ({
   toast: { show: vi.fn() },
 }));
 
+/** The You page owns the status; this stands in for it. */
+function Host({ initial }: { initial: AiStatus }) {
+  const [status, setStatus] = useState(initial);
+  return <AiFeaturesSettings status={status} onStatusChange={setStatus} />;
+}
+
+const OFF = { optIn: false, used: 0, limit: 5 } as AiStatus;
+
 describe('AiFeaturesSettings', () => {
   beforeEach(() => {
-    fetchAiStatusMock.mockReset();
     setAiOptInMock.mockReset();
   });
 
-  it('renders nothing while the feature is unconfigured', async () => {
-    fetchAiStatusMock.mockResolvedValue(null);
-    const { container } = render(<AiFeaturesSettings />);
-    await waitFor(() => expect(fetchAiStatusMock).toHaveBeenCalled());
-    expect(container.firstChild).toBeNull();
-  });
-
-  it('renders a switch that reflects the current opt-in state', async () => {
-    fetchAiStatusMock.mockResolvedValue({ optIn: false, used: 0, limit: 5 });
-    render(<AiFeaturesSettings />);
-    const row = await screen.findByRole('switch', { name: 'AI deck analysis' });
+  it('renders a switch that reflects the current opt-in state', () => {
+    render(<Host initial={OFF} />);
+    const row = screen.getByRole('switch', { name: 'AI deck analysis' });
     expect(row.getAttribute('aria-checked')).toBe('false');
     expect(screen.getByText('Off.')).toBeTruthy();
   });
 
-  it('toggling the switch calls setAiOptIn and updates the checked state', async () => {
-    fetchAiStatusMock.mockResolvedValue({ optIn: false, used: 0, limit: 5 });
+  it('toggling the switch calls setAiOptIn and hands the new status up', async () => {
     setAiOptInMock.mockResolvedValue(true);
-    render(<AiFeaturesSettings />);
-    const row = await screen.findByRole('switch', { name: 'AI deck analysis' });
+    render(<Host initial={OFF} />);
+    const row = screen.getByRole('switch', { name: 'AI deck analysis' });
 
     fireEvent.click(row);
     expect(setAiOptInMock).toHaveBeenCalledWith(true);
@@ -49,11 +47,10 @@ describe('AiFeaturesSettings', () => {
   });
 
   it('disables the switch and shows a saving hint while the request is in flight', async () => {
-    fetchAiStatusMock.mockResolvedValue({ optIn: false, used: 0, limit: 5 });
     let resolveOptIn: (v: boolean) => void = () => {};
     setAiOptInMock.mockReturnValue(new Promise<boolean>((resolve) => (resolveOptIn = resolve)));
-    render(<AiFeaturesSettings />);
-    const row = await screen.findByRole('switch', { name: 'AI deck analysis' });
+    render(<Host initial={OFF} />);
+    const row = screen.getByRole('switch', { name: 'AI deck analysis' });
 
     fireEvent.click(row);
     expect(row.hasAttribute('disabled')).toBe(true);

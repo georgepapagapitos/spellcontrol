@@ -2360,7 +2360,7 @@ must follow goes in the core.
   - [Full-viewport centered pages (scroll, don't clip)](style-guide/app-shell.md#full-viewport-centered-pages-scroll-dont-clip)
   - [First-run welcome / landing screen (UX-331, pass 2c "welcome storefront")](style-guide/app-shell.md#first-run-welcome--landing-screen-ux-331-pass-2c-welcome-storefront)
   - [Guest gates — every "Sign in" door carries `returnTo`](style-guide/app-shell.md#guest-gates--every-sign-in-door-carries-returnto)
-  - [The You page — one page, one name, precise doors](style-guide/app-shell.md#the-you-page--one-page-one-name-precise-doors)
+  - [The You page — a hub of sections, one name, precise doors](style-guide/app-shell.md#the-you-page--a-hub-of-sections-one-name-precise-doors)
   - [Command palette (⌘K) — desktop-only by design](style-guide/app-shell.md#command-palette-k--desktop-only-by-design)
   - [Keyboard shortcuts — discoverability pattern (UX-334)](style-guide/app-shell.md#keyboard-shortcuts--discoverability-pattern-ux-334)
 - **[Cards, collection & binders](style-guide/cards-collection.md)**: Card rows and tables, the collection hub, binders, import review and card-level terminology.

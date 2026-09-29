@@ -155,7 +155,7 @@ describe('Header — guest', () => {
   it('renders a Settings gear to the Preferences tier of /you — the desktop guest door', () => {
     renderHeader();
     const gear = screen.getByRole('link', { name: 'Settings' });
-    expect(gear.getAttribute('href')).toBe('/you?section=settings');
+    expect(gear.getAttribute('href')).toBe('/you/appearance');
   });
 });
 
@@ -188,20 +188,20 @@ describe('Header — authed avatar menu', () => {
 
   // Three doors, one page: each menu item is a `?section=` jump so the
   // heading it promised lands at the top of the viewport (YouPage pins it).
-  it('Profile navigates to /you?section=profile', () => {
+  it('Profile navigates to /you/profile', () => {
     signIn();
     renderHeader();
     fireEvent.click(screen.getByRole('button', { name: /account menu/i }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Profile' }));
-    expect(navigateMock).toHaveBeenCalledWith('/you?section=profile');
+    expect(navigateMock).toHaveBeenCalledWith('/you/profile');
   });
 
-  it('Settings navigates to /you?section=settings', () => {
+  it('Settings navigates to /you/appearance', () => {
     signIn();
     renderHeader();
     fireEvent.click(screen.getByRole('button', { name: /account menu/i }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Settings' }));
-    expect(navigateMock).toHaveBeenCalledWith('/you?section=settings');
+    expect(navigateMock).toHaveBeenCalledWith('/you/appearance');
   });
 
   it('Public profile navigates to the page everyone else sees', () => {

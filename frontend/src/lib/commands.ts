@@ -239,7 +239,7 @@ export function buildCommands({
         group: 'AI',
         hint: 'You',
         keywords: ['beta', 'opt in', 'readings', 'quota'],
-        run: () => go('/you?section=ai'),
+        run: () => go('/you/ai'),
       }
     );
   }

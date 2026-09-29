@@ -1,42 +1,30 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { SettingsSection } from './SettingsSection';
-import { SectionHeader } from '../shared/SectionHeader';
 import { SwitchRow } from '../shared/form';
-import { fetchAiStatus, setAiOptIn, type AiStatus } from '../../lib/ai-review';
+import { setAiOptIn, type AiStatus } from '../../lib/ai-review';
 import { toast } from '../../store/toasts';
 
 import { userMessage } from '@/lib/user-error';
 /**
  * The single global AI consent toggle (T96) — not a per-feature matrix.
- * Renders nothing when the backend doesn't have the feature configured or
- * the user is signed out; consent itself is enforced server-side, this is
- * just the switch.
+ * The You page fetches the status (its hub row shows On/Off, and hides when
+ * the backend has no AI configured) and hands it down. Consent itself is
+ * enforced server-side; this is just the switch.
  */
-export function AiFeaturesSettings() {
-  const [status, setStatus] = useState<AiStatus | null>(null);
+export function AiFeaturesSettings({
+  status,
+  onStatusChange,
+}: {
+  status: AiStatus;
+  onStatusChange: (next: AiStatus) => void;
+}) {
   const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetchAiStatus()
-      .then((s) => {
-        if (!cancelled) setStatus(s);
-      })
-      .catch(() => {
-        /* unavailable — render nothing */
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  if (!status) return null;
 
   const toggle = async () => {
     setBusy(true);
     try {
       const optIn = await setAiOptIn(!status.optIn);
-      setStatus({ ...status, optIn });
+      onStatusChange({ ...status, optIn });
     } catch (err) {
       toast.show({
         message: userMessage(err, "Couldn't update the AI setting. Try again."),
@@ -47,32 +35,24 @@ export function AiFeaturesSettings() {
   };
 
   return (
-    <div role="group" aria-labelledby="settings-ai-group-title">
-      <SectionHeader
-        title="AI features"
-        id="settings-ai-group-title"
-        titleClassName="settings-section-header"
-        variant="overline"
+    <SettingsSection
+      id="settings-ai-title"
+      title="Deck analysis"
+      hint="When you press an AI button, that deck's card names and stats go to Anthropic. Your collection is never sent."
+    >
+      <SwitchRow
+        label="AI deck analysis"
+        hint={
+          busy
+            ? 'Saving…'
+            : status.optIn
+              ? `${status.limit} requests per day · used today: ${status.used}.`
+              : 'Off.'
+        }
+        checked={status.optIn}
+        onChange={() => void toggle()}
+        disabled={busy}
       />
-      <SettingsSection
-        id="settings-ai-title"
-        title="Read the deck"
-        hint="Sends this deck to Anthropic for analysis: card names and your deck's stats. Your collection is never sent."
-      >
-        <SwitchRow
-          label="AI deck analysis"
-          hint={
-            busy
-              ? 'Saving…'
-              : status.optIn
-                ? `${status.limit} requests per day · used today: ${status.used}.`
-                : 'Off.'
-          }
-          checked={status.optIn}
-          onChange={() => void toggle()}
-          disabled={busy}
-        />
-      </SettingsSection>
-    </div>
+    </SettingsSection>
   );
 }

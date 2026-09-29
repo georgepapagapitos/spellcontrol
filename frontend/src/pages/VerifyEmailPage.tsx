@@ -113,8 +113,8 @@ export default function VerifyEmailPage() {
         ) : null}
 
         {phase !== 'verifying' ? (
-          <Link to={username ? '/you' : '/auth'} className="auth-back">
-            {username ? 'Back to Settings' : 'Back to sign in'}
+          <Link to={username ? '/you/account' : '/auth'} className="auth-back">
+            {username ? 'Back to Account' : 'Back to sign in'}
           </Link>
         ) : null}
       </Surface>

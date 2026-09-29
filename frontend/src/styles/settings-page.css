@@ -2,32 +2,15 @@
    The /settings and /admin page body: sections, rows, theme + typeface grid,
    danger zone. Header chrome (gear link, avatar trigger, sync-status pill,
    price-refresh toast, mobile-tab-bar sync dot), the shared .pill-btn-danger
-   Button variant, and .settings-share-kind / .settings-tier-header (their raw
-   letter-spacing is frozen per file by tracking-ratchet.test.ts) stay in
-   settings-sync.css. Loaded by YouPage.tsx and AdminPage.tsx (the only chunks
+   Button variant, and .settings-share-kind stay in settings-sync.css. Loaded by YouPage.tsx and AdminPage.tsx (the only chunks
    that render these classes) instead of main.tsx. */
 
-/* Settings page — full route at /settings. Stacked sections with the
+/* The You page (/you, /you/<section>) and /admin. Stacked sections with the
    same card aesthetic used elsewhere (binder cards, breakdown cards). */
 .settings-page {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-}
-
-/* The page groups several cards under one tier in a bare wrapper (Account +
-   Sign-in methods + Friends; the Your-data cards). The wrapper is the host of
-   those cards, so it declares the same gap the page does — without it the
-   cards sat flush against each other (caught by the journey's
-   touching-siblings check on its first run). */
-.settings-page > div:not([class]) {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
-.settings-page-hero {
-  margin-bottom: var(--space-2);
 }
 
 .settings-card {
@@ -121,93 +104,10 @@
   justify-content: flex-end;
 }
 
-.settings-row-meta {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  margin-top: var(--space-1);
-}
-
-.settings-row-meta code {
-  font-family: var(--font-mono, monospace);
-  font-size: var(--text-xs);
-  background: var(--surface-raised);
-  padding: 0 0.3em;
-  border-radius: 3px;
-}
-
 .settings-row-actions {
   display: flex;
   gap: var(--space-1-5);
   flex-shrink: 0;
-}
-
-.settings-row-error {
-  color: var(--err-text);
-}
-
-.settings-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1-5);
-  cursor: pointer;
-  user-select: none;
-}
-
-.settings-toggle input[type='checkbox'] {
-  width: 1.1rem;
-  height: 1.1rem;
-}
-
-.settings-progress {
-  position: relative;
-  height: 6px;
-  margin-top: var(--space-1-5);
-  background: var(--surface-raised);
-  border-radius: 999px;
-  overflow: hidden;
-}
-
-.settings-progress > span {
-  position: absolute;
-  inset: 0 auto 0 0;
-  background: var(--accent);
-  transition: width var(--motion-fast) linear;
-}
-
-.card-art-placeholder {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  padding: var(--space-2-5) var(--space-3);
-  background: var(--surface-raised);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  font-size: var(--text-sm);
-  color: var(--text-primary);
-}
-
-.card-art-placeholder-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-1-5);
-  font-weight: 600;
-}
-
-.card-art-placeholder-mana {
-  font-family: var(--font-mono, monospace);
-  color: var(--text-muted);
-}
-
-.card-art-placeholder-type {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-}
-
-.card-art-placeholder-text {
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
-  white-space: pre-wrap;
 }
 
 .settings-theme-grid {
@@ -218,8 +118,17 @@
   border: 0;
   min-inline-size: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  /* Two across on a phone: eleven one-per-row tiles were a thousand pixels
+     of scroll for a choice made once (T173). */
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 8.5rem), 1fr));
   gap: var(--space-2);
+}
+
+/* Past a phone the tile can afford its guild on one line ("White / Blue"). */
+@media (min-width: 600px) {
+  .settings-theme-grid {
+    grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
+  }
 }
 
 /* The radio is the accessible control; the label tile is the visual. Hide the
@@ -242,9 +151,9 @@
     'swatch name'
     'swatch guild';
   align-items: center;
-  gap: var(--space-0-5) var(--space-2-5);
+  gap: var(--space-0-5) var(--space-2);
   width: 100%;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-2-5);
   background: var(--surface);
   border: 0.5px solid var(--border);
   border-radius: var(--radius);
@@ -336,15 +245,11 @@
   grid-template-columns: auto minmax(0, 1fr);
 }
 
-/* A `?section=` deep link scrolls its heading to the scrollport's top edge
-   (scrollIntoView ignores the container's padding), which left the landed
-   heading flush against the header on desktop and the screen edge on a
-   phone. Every heading the link map can target gets the same margin, so
-   the tier, group and card landings all sit one step in. */
-.settings-page .settings-tier-header,
-.settings-page .settings-section-header,
-.settings-page .settings-card-title {
-  scroll-margin-top: var(--space-4);
+/* A type set's name is a display face at --text-md, too wide for the theme
+   grid's two-across phone tiles ("Workshop" broke mid-word), so this grid
+   keeps one tile per row until there is room for two whole names. */
+.settings-typeset-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr));
 }
 
 /* Section header — a visual chapter-break label between groups of settings
@@ -355,13 +260,163 @@
      STYLE_GUIDE Typography — --font-mono is data/numerals only. */
 }
 
-/* About footer — legal/attribution text demoted from a full card to quiet
-   fine-print below the Danger zone. No card chrome, muted color. */
+/* ── You hub (T173) ─────────────────────────────────────────────────────────
+   `/you` is a list of sections, each its own page (pages/you/). A phone
+   shows the list or one section; a desktop shows the list beside the open
+   section. The list is hairline rows under overline headers (STYLE_GUIDE
+   § Layout system, Surfaces: a list is never a bordered card of bordered
+   rows), in the switch row's shape: label, value on the right, chevron. */
+.you-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+.you-nav-group .settings-section-header {
+  margin: 0 0 var(--space-1);
+}
+
+.you-nav-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.you-nav-list > li + li {
+  border-top: 0.5px solid var(--border);
+}
+
+.you-nav-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--row-h);
+  padding: var(--space-2) var(--space-1);
+  color: var(--text-primary);
+  text-decoration: none;
+  border-radius: var(--radius);
+}
+
+.you-nav-row > svg:first-child {
+  flex: none;
+  color: var(--text-muted);
+}
+
+.you-nav-row-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--text-base);
+}
+
+.you-nav-row-value {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.you-nav-row-chevron {
+  flex: none;
+  color: var(--text-muted);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .you-nav-row:hover .you-nav-row-label,
+  .you-identity-body--link:hover .you-identity-name {
+    color: var(--accent);
+  }
+}
+
+.you-nav-row:focus-visible,
+.you-identity-body--link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Who you are, above the list: the avatar is the door to Profile. */
+.you-identity {
+  padding: var(--space-3) var(--space-4);
+}
+
+.you-identity-body {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.you-identity-body > svg:first-child {
+  flex: none;
+  color: var(--text-muted);
+}
+
+.you-identity-text {
+  display: flex;
+  flex: 1 1 8rem;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.you-identity-name {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  overflow-wrap: anywhere;
+}
+
+.you-identity-handle {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.you-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* Desktop: the list stays beside the section it opened, and the open row is
+   marked in the accent the way a current nav item is. The pane is capped so
+   a settings row's label and its button stay within one glance. */
+.you-layout {
+  display: grid;
+  grid-template-columns: 17rem minmax(0, 48rem);
+  gap: var(--space-8);
+  align-items: start;
+}
+
+.you-pane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.you-layout .you-nav-row-chevron {
+  display: none;
+}
+
+.you-layout .you-nav-row[aria-current='page'] {
+  color: var(--accent);
+  background: var(--accent-light);
+}
+
+.you-layout .you-nav-row[aria-current='page'] > svg:first-child {
+  color: var(--accent);
+}
+
+/* Legal/attribution fine print under Help & about's About card. No card
+   chrome, muted color. */
 .settings-page-about {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  padding: var(--space-2) 0 var(--space-4);
+  padding-top: var(--space-1);
 }
 
 .settings-page-about p {

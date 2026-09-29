@@ -1,9 +1,8 @@
 /* settings-sync.css — split from global.css (#refactor).
    Header settings gear link + sync-status indicator pill + the .pill-btn-danger
    Button variant + the mobile-tab-bar sync dot — the app-shell chrome pieces
-   that render on every route — plus .settings-share-kind and
-   .settings-tier-header (kept here, not moved, to avoid shifting a raw
-   letter-spacing declaration across files; see the note by each). The rest
+   that render on every route — plus .settings-share-kind (kept here, not
+   moved; see the note by it). The rest
    of the /settings + /admin page body (sections, rows, theme grid, danger
    zone) moved to settings-page.css, loaded by those two page chunks instead
    of here (boot CSS split, 2026-09-28). */
@@ -282,11 +281,9 @@
   }
 }
 
-/* .settings-share-kind and .settings-tier-header stay here rather than
-   settings-page.css (their only user) — moving them shifts a raw
-   (non-token) letter-spacing declaration between files, which
-   tracking-ratchet.test.ts freezes per file; its baseline is off-limits
-   while another change is in flight against it. */
+/* .settings-share-kind (AdminPanel) stayed here beside the old tier header,
+   whose raw letter-spacing tracking-ratchet.test.ts froze per file. The tier
+   header is gone (T173); this rule can move to settings-page.css on its own. */
 .settings-share-kind {
   display: inline-block;
   padding: 0.05rem var(--space-2);
@@ -297,23 +294,6 @@
   font-weight: 600;
   margin-right: var(--space-1-5);
   vertical-align: middle;
-}
-
-/* Tier header — one level up from .settings-section-header (settings-page.css),
-   marking one of the page's few top-level tiers (Identity / Preferences /
-   Your data) so the page reads as a hierarchy instead of 9 flat peers.
-   Larger + a top hairline to read as a bigger break than the group headers
-   nested under it. */
-.settings-tier-header {
-  margin: var(--space-5) 0 0;
-  padding-top: var(--space-4);
-  border-top: 0.5px solid var(--border);
-  font-family: var(--font-serif);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-size: var(--text-sm);
-  color: var(--text-primary);
-  font-weight: 600;
 }
 
 /* Reuse pill-btn for the action buttons; just add a danger variant for
