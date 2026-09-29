@@ -29,7 +29,7 @@ vi.mock('../components/ConfirmDialog', () => ({ ConfirmDialog: () => null }));
 vi.mock('../components/DeckFiltersPopover', () => ({ DeckFiltersPopover: () => null }));
 vi.mock('../lib/deck-validation', () => ({
   effectiveDeckColors: () => [],
-  deckColorFrequency: () => [],
+  deckDisplayColors: () => [],
   validateDeckZones: () => ({ deck: [], sideboardOnly: [] }),
   countFlaggedCards: () => 0,
 }));

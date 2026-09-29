@@ -15,6 +15,7 @@ import {
   validateGeneratedDeck,
   effectiveDeckColors,
   deckColorFrequency,
+  deckDisplayColors,
   countFlaggedCards,
 } from './deck-validation';
 import { DECK_FORMAT_CONFIGS, getDeckFormatConfig } from '../deck-builder/lib/constants/archetypes';
@@ -371,6 +372,35 @@ describe('effectiveDeckColors', () => {
       cards: [slot(card({ color_identity: [] }), 'a')],
     });
     expect(colors.size).toBe(0);
+  });
+});
+
+describe('deckDisplayColors', () => {
+  it("puts a commander deck's identity in WUBRG order, ignoring card counts", () => {
+    expect(
+      deckDisplayColors({
+        commander: card({ color_identity: ['G', 'B', 'W'] }),
+        partnerCommander: null,
+        cards: [
+          slot(card({ color_identity: ['G'] }), 'a'),
+          slot(card({ color_identity: ['G'] }), 'b'),
+        ],
+      })
+    ).toEqual(['W', 'B', 'G']);
+  });
+
+  it('puts a commanderless deck most-used color first, ties in WUBRG order', () => {
+    expect(
+      deckDisplayColors({
+        commander: null,
+        partnerCommander: null,
+        cards: [
+          slot(card({ color_identity: ['R'] }), 'a'),
+          slot(card({ color_identity: ['R', 'U'] }), 'b'),
+          slot(card({ color_identity: ['W'] }), 'c'),
+        ],
+      })
+    ).toEqual(['R', 'W', 'U']);
   });
 });
 
