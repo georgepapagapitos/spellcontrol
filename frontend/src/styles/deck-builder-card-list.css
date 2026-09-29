@@ -709,13 +709,7 @@
 }
 
 .deck-section-title {
-  font-family: var(--font-serif);
-  font-size: var(--text-sm);
-  font-weight: 700;
   margin: 0;
-  color: var(--text-primary);
-  letter-spacing: var(--tracking-overline);
-  text-transform: uppercase;
 }
 
 .deck-section-count {
