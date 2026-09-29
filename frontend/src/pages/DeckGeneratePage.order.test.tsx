@@ -55,6 +55,7 @@ const krenko = {
   color_identity: ['R'],
   type_line: 'Legendary Creature — Goblin Warrior',
   oracle_text: '{T}: Create X 1/1 red Goblin creature tokens.',
+  legalities: { commander: 'legal' },
 } as unknown as ScryfallCard;
 
 const before = (a: Element, b: Element) =>

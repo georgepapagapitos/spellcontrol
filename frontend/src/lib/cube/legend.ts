@@ -28,6 +28,7 @@ import {
   type CubeCard,
 } from './core';
 import type { CubeSize } from './targets';
+import { canBeCommanderByType } from '@spellcontrol/binder-routing';
 
 /** A legend's colour identity, at the granularity the section is organized by:
  *  a single colour, one of the ten two-colour pairs, or 'other' for anything
@@ -40,8 +41,6 @@ export interface LegendPick {
   identity: LegendIdentity;
   reason: string;
 }
-
-const CAN_BE_COMMANDER_RE = /can be your commander/i;
 
 /** The two fields the classifier actually reads — narrower than `CubeCard` so
  *  the build page can call it straight on a collection-cache `EnrichedCard`
@@ -125,16 +124,14 @@ export function legendKindLabel(c: LegendClassifiable): 'Partner' | 'Background'
   return null;
 }
 
-/** Commander-eligible: a legendary creature, or oracle text carrying the
- *  "can be your commander" pattern (backgrounds, and the few planeswalkers/
- *  battles Wizards made commander-legal — Daretti, Freyalise, Minsc & Boo).
- *  Pure and oracle-data-only, same shape as `formatExclusion` — testable
- *  without a live pool. `format === 'commander'` never excludes anything
- *  (see ./play-format), so no exclusion check is needed here. */
+/** Commander-eligible by type: the app's one CR 903.3 rule
+ *  (`canBeCommanderByType`: a legendary creature, Vehicle or Spacecraft with
+ *  a power/toughness box, or "can be your commander"). Pure and
+ *  oracle-data-only, same shape as `formatExclusion` — testable without a
+ *  live pool. `format === 'commander'` never excludes anything (see
+ *  ./play-format), so no exclusion check is needed here. */
 export function isLegendCandidate(c: LegendClassifiable): boolean {
-  const typeLine = c.typeLine ?? '';
-  if (/\blegendary\b/i.test(typeLine) && /\bcreature\b/i.test(typeLine)) return true;
-  return CAN_BE_COMMANDER_RE.test(c.oracleText ?? '');
+  return canBeCommanderByType(c.typeLine ?? '', c.oracleText ?? '');
 }
 
 /** This legend's identity bucket — mono/pair/other, same basis `pairOf` uses

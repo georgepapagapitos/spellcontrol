@@ -440,7 +440,8 @@
     "variant": "pdh-illegal-commander",
     "overrides": {
       "mtgFormat": "paupercommander"
-    }
+    },
+    "expectedError": "isn't an uncommon creature, so it can't lead a Pauper Commander deck"
   },
   {
     "commanderName": "Krenko, Mob Boss",
@@ -484,8 +485,9 @@
     "variant": "niche"
   },
   {
-    "commanderName": "Lutri, the Spellchaser",
-    "variant": "banned-commander"
+    "commanderName": "Rofellos, Llanowar Emissary",
+    "variant": "banned-commander",
+    "expectedError": "Rofellos, Llanowar Emissary is banned in Commander."
   },
   {
     "commanderName": "Giada, Font of Hope",
@@ -537,9 +539,9 @@
   {
     "commanderName": "The Prismatic Piper",
     "variant": "choose-color-partner",
-    "partnerName": "Kenrith, the Returned King",
+    "partnerName": "Kraum, Ludevic's Opus",
     "overrides": {},
-    "chosenColor": "R"
+    "chosenColor": "G"
   },
   {
     "commanderName": "Clara Oswald",
@@ -611,7 +613,8 @@
   {
     "commanderName": "Llanowar Elves",
     "variant": "not-legendary",
-    "overrides": {}
+    "overrides": {},
+    "expectedError": "Llanowar Elves isn't a legendary creature, so it can't be your commander"
   },
   {
     "commanderName": "Seven of Nine",

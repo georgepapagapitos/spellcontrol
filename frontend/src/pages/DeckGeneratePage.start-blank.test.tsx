@@ -74,6 +74,7 @@ const KRENKO = {
   name: 'Krenko, Mob Boss',
   color_identity: ['R'],
   type_line: 'Legendary Creature — Goblin Warrior',
+  legalities: { commander: 'legal' },
 };
 
 function renderPage() {

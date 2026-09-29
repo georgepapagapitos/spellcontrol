@@ -6,173 +6,33 @@
 // Fully offline (same 3 mocked client boundaries as the golden test). Run
 // this file in isolation — never the full suite alongside
 // deckGenerator.live.test.ts's network panel.
+// The fixture universe lives in __fixtures__/settings-universe.ts.
 import { describe, it, expect, vi } from 'vitest';
 import type {
   ScryfallCard,
-  EDHRECCard,
   EDHRECCommanderData,
-  EDHRECCommanderStats,
   Customization,
   GenerationMode,
 } from '@/deck-builder/types';
 import type { GenerationContext } from './deckGeneration/state';
-
-// ---- Fixture universe -----------------------------------------------------
-
-interface Enrich {
-  rarity: string;
-  usd: string | null;
-  games: string[];
-  legalities: { commander: string; paupercommander: string };
-}
-
-// Deterministic per-index rarity/price/arena/PDH-legality so settings have real, varied material to filter against.
-function enrich(i: number): Enrich {
-  const rarity = (['common', 'uncommon', 'rare', 'mythic'] as const)[i % 4];
-  const priceByRarity: Record<string, number> = {
-    common: 0.1 + (i % 6) * 0.3,
-    uncommon: 1 + (i % 6) * 0.5,
-    rare: 4 + (i % 6) * 1.5,
-    mythic: 20 + (i % 6) * 6,
-  };
-  const usd = i % 11 === 0 ? null : priceByRarity[rarity].toFixed(2);
-  const games = i % 5 === 0 ? ['paper'] : ['paper', 'arena'];
-  // Scryfall stamps paupercommander at ORACLE level ("ever printed at
-  // common") — model that as common/uncommon being PDH-legal, same rule
-  // deckFilters.ts's notPauperCommanderLegal relies on.
-  const paupercommander = rarity === 'common' || rarity === 'uncommon' ? 'legal' : 'not_legal';
-  return { rarity, usd, games, legalities: { commander: 'legal', paupercommander } };
-}
-
-function mkSC(name: string, typeLine: string, cmc: number, i = 0): ScryfallCard {
-  const e = enrich(i);
-  return {
-    id: `id-${name}`,
-    oracle_id: `oracle-${name}`,
-    name,
-    mana_cost: cmc > 0 ? `{${cmc}}{G}` : '',
-    cmc,
-    type_line: typeLine,
-    oracle_text: '',
-    colors: typeLine.includes('Land') ? [] : ['G'],
-    color_identity: ['G'],
-    keywords: [],
-    rarity: e.rarity,
-    set: 'tst',
-    set_name: 'Test Set',
-    games: e.games,
-    prices: { usd: e.usd },
-    legalities: e.legalities,
-  };
-}
-
-function mkEC(name: string, primaryType: string, inclusion: number): EDHRECCard {
-  return { name, sanitized: name, primary_type: primaryType, inclusion, num_decks: 1000 };
-}
-
-function buildPool() {
-  const scMap = new Map<string, ScryfallCard>();
-  const add = (n: string, t: string, c: number, i: number) => {
-    scMap.set(n, mkSC(n, t, c, i));
-    return n;
-  };
-  const gen = (prefix: string, type: string, count: number, cmcOf: (i: number) => number) =>
-    Array.from({ length: count }, (_, i) => {
-      const n = `${prefix}_${i + 1}`;
-      add(n, type, cmcOf(i), i);
-      return mkEC(n, prefix, 90 - i);
-    });
-
-  const creatures = gen('Creature', 'Creature', 40, (i) => (i % 7) + 1); // reaches cmc 7 for high-CMC coverage
-  const instants = gen('Instant', 'Instant', 15, (i) => (i % 4) + 1);
-  const sorceries = gen('Sorcery', 'Sorcery', 15, (i) => (i % 4) + 2);
-  const artifacts = gen('Artifact', 'Artifact', 15, (i) => (i % 3) + 1);
-  const enchantments = gen('Enchantment', 'Enchantment', 15, (i) => (i % 4) + 2);
-  const planeswalkers = gen('Planeswalker', 'Planeswalker', 4, (i) => i + 3);
-  const lands = Array.from({ length: 30 }, (_, i) => {
-    const n = `Utility Land ${i + 1}`;
-    add(n, 'Land', 0, i);
-    return mkEC(n, 'Land', 70 - i);
-  });
-
-  // Legality-in-name-only card the EDHREC mock still recommends — probes
-  // whether the generator independently rechecks commander legality.
-  scMap.get('Creature_2')!.legalities.commander = 'banned';
-
-  // Off-color card, reachable ONLY via mustIncludeCards (never EDHREC-recommended for mono-G).
-  scMap.set('Offcolor Bolt', {
-    ...mkSC('Offcolor Bolt', 'Instant', 1, 0),
-    colors: ['U'],
-    color_identity: ['U'],
-  });
-
-  const allNonLand = [
-    ...creatures,
-    ...instants,
-    ...sorceries,
-    ...artifacts,
-    ...enchantments,
-    ...planeswalkers,
-  ];
-  return {
-    scMap,
-    cardlists: {
-      creatures,
-      instants,
-      sorceries,
-      artifacts,
-      enchantments,
-      planeswalkers,
-      lands,
-      allNonLand,
-    },
-  };
-}
-
-const POOL = buildPool();
-const onColor = (c: ScryfallCard) => c.color_identity.every((ci) => ci === 'G');
-// PDH-legal on-color pool for the alt-generator sourcing path (buildOraclePool);
-// the searchCards mock returns raw arrays regardless of query, so it must
-// pre-filter color identity itself (real Scryfall search does this server-side).
-const PDH_POOL = [...POOL.scMap.values()].filter(
-  (c) => c.legalities.paupercommander === 'legal' && onColor(c)
-);
-// On-color non-instant/sorcery pool for the oracle-role permanents-only facets.
-const PERMANENT_POOL = [...POOL.scMap.values()].filter(
-  (c) => !/instant|sorcery/i.test(c.type_line) && !c.type_line.includes('Land') && onColor(c)
-);
-// High-inclusion, on-color, legal cards — near-certain top picks, so forcing
-// them into getGameChangerNames gives the bracket/GC ceilings something to cap.
-const GC_NAMES = new Set(['Creature_1', 'Creature_3', 'Creature_5']);
-
-const STATS: EDHRECCommanderStats = {
-  avgPrice: 100,
-  numDecks: 5000,
-  deckSize: 99,
-  manaCurve: { 1: 8, 2: 14, 3: 14, 4: 10, 5: 7, 6: 5 },
-  typeDistribution: {
-    creature: 30,
-    instant: 8,
-    sorcery: 7,
-    artifact: 8,
-    enchantment: 6,
-    land: 37,
-    planeswalker: 2,
-    battle: 0,
-  },
-  landDistribution: { basic: 12, nonbasic: 25, total: 37 },
-};
-
-function edhrecData(): EDHRECCommanderData {
-  return { themes: [], stats: STATS, cardlists: POOL.cardlists, similarCommanders: [] };
-}
-
-const COMMANDER = mkSC('Test Commander', 'Legendary Creature — Elf', 4, 2); // rare, priced, legal
-const PARTNER = {
-  ...mkSC('Test Partner', 'Legendary Creature — Elf', 3, 6),
-  color_identity: ['U'],
-};
-const FOREST = mkSC('Forest', 'Basic Land — Forest', 0, 0);
+import {
+  COMMANDER,
+  FOREST,
+  GC_NAMES,
+  PARTNER,
+  PDH_POOL,
+  PERMANENT_POOL,
+  POOL,
+  STATS,
+  baseContext,
+  customization,
+  deadReducerData,
+  edhrecData,
+  mkEC,
+  mkSC,
+  realCard,
+  withPartner,
+} from './__fixtures__/settings-universe';
 
 // ---- Module mocks -----------------------------------------------------------
 
@@ -212,29 +72,36 @@ vi.mock('@/deck-builder/services/scryfall/client', async (orig) => {
   };
 });
 
-vi.mock('@/deck-builder/services/tagger/client', async (orig) => ({
-  ...(await orig<typeof import('@/deck-builder/services/tagger/client')>()),
-  loadTaggerData: vi.fn(async () => {}),
-  hasTaggerData: vi.fn(() => false),
-  getCardRole: vi.fn(() => null),
-  getCardSubtype: vi.fn(() => null),
-  isTapland: vi.fn(() => false),
-  isProtectionPiece: vi.fn(() => false),
-  isFreeInteraction: vi.fn(() => false),
-  isUntapProducer: vi.fn(() => false),
-  isBlinkProducer: vi.fn(() => false),
-  isExileProducer: vi.fn(() => false),
-  isExtraCombatPiece: vi.fn(() => false),
-  isOneSidedWipe: vi.fn(() => false),
-  isExtraTurn: vi.fn(() => false),
-  getWipeScope: vi.fn(() => ({
-    creatures: false,
-    artifacts: false,
-    enchantments: false,
-    planeswalkers: false,
-    all: false,
-  })),
-}));
+vi.mock('@/deck-builder/services/tagger/client', async (orig) => {
+  const actual = await orig<typeof import('@/deck-builder/services/tagger/client')>();
+  return {
+    ...actual,
+    loadTaggerData: vi.fn(async () => {}),
+    hasTaggerData: vi.fn(() => false),
+    getCardRole: vi.fn(() => null),
+    getCardSubtype: vi.fn(() => null),
+    // The real functions (no tagger data loaded here), as spies one case
+    // re-points to model a loaded tagger (E528).
+    validateCardRole: vi.fn(actual.validateCardRole),
+    getCardDrawSubtype: vi.fn(actual.getCardDrawSubtype),
+    isTapland: vi.fn(() => false),
+    isProtectionPiece: vi.fn(() => false),
+    isFreeInteraction: vi.fn(() => false),
+    isUntapProducer: vi.fn(() => false),
+    isBlinkProducer: vi.fn(() => false),
+    isExileProducer: vi.fn(() => false),
+    isExtraCombatPiece: vi.fn(() => false),
+    isOneSidedWipe: vi.fn(() => false),
+    isExtraTurn: vi.fn(() => false),
+    getWipeScope: vi.fn(() => ({
+      creatures: false,
+      artifacts: false,
+      enchantments: false,
+      planeswalkers: false,
+      all: false,
+    })),
+  };
+});
 
 import { generateDeck, clearGenerationCache } from './deckGenerator';
 import {
@@ -250,62 +117,15 @@ import {
 } from '@/deck-builder/services/scryfall/client';
 import type { ScryfallSearchResponse } from '@/deck-builder/types';
 import { fetchCommanderData } from '@/deck-builder/services/edhrec/client';
+import {
+  getCardDrawSubtype,
+  hasTaggerData,
+  validateCardRole,
+} from '@/deck-builder/services/tagger/client';
+import { CommanderIneligibleError, formatReleaseDate } from './commanderEligibility';
 
 function searchResult(data: ScryfallCard[]): ScryfallSearchResponse {
   return { object: 'list', total_cards: data.length, has_more: false, data };
-}
-
-// ---- Customization / context factories (copied from the golden harness) ---
-
-function customization(overrides: Partial<Customization> = {}): Customization {
-  return {
-    deckFormat: 99,
-    landCount: 37,
-    nonBasicLandCount: 25,
-    bannedCards: [],
-    banLists: [],
-    mustIncludeCards: [],
-    tempBannedCards: [],
-    tempMustIncludeCards: [],
-    maxCardPrice: null,
-    deckBudget: null,
-    budgetOption: 'any',
-    gameChangerLimit: 'unlimited',
-    targetBracket: 'all',
-    maxRarity: null,
-    tinyLeaders: false,
-    ignoreOwnedBudget: false,
-    ignoreOwnedRarity: false,
-    collectionMode: false,
-    collectionStrategy: 'full',
-    collectionOwnedPercent: 75,
-    arenaOnly: false,
-    scryfallQuery: '',
-    comboCount: 1,
-    balancedRoles: true,
-    currency: 'USD',
-    appliedExcludeLists: [],
-    appliedIncludeLists: [],
-    tempoAutoDetect: true,
-    tempoPacing: 'balanced',
-    saltTolerance: 2,
-    generationMode: 'edhrec',
-    artThemeTag: '',
-    historicalYear: 2005,
-    permanentsOnly: false,
-    brewLevel: 0.5,
-    ...overrides,
-  };
-}
-
-function baseContext(): GenerationContext {
-  return {
-    commander: COMMANDER,
-    partnerCommander: null,
-    colorIdentity: ['G'],
-    customization: customization(),
-    selectedThemes: [],
-  };
 }
 
 // ---- Invariant checker ------------------------------------------------------
@@ -498,6 +318,21 @@ function simCommanderData(): EDHRECCommanderData {
 
 const CASES: Case[] = [
   { name: 'baseline' },
+  {
+    name: 'EDHREC recommends cost reducers for colors the deck cannot cast (E524)',
+    setup: () => {
+      vi.mocked(fetchCommanderData).mockImplementation(async () => deadReducerData());
+    },
+    extra: (deck) => {
+      // Restore first, so a failure below can't leak the page into later cases.
+      vi.mocked(fetchCommanderData)
+        .mockReset()
+        .mockImplementation(async () => edhrecData());
+      const names = allCards(deck).map((c) => c.name);
+      expect(names).not.toContain('Ruby Medallion');
+      expect(names).not.toContain("Hazoret's Monument");
+    },
+  },
   { name: 'deckBudget 20', customize: { deckBudget: 20 } },
   {
     name: 'deckBudget 5000 + budgetOption expensive',
@@ -689,12 +524,23 @@ const CASES: Case[] = [
     },
   },
   { name: 'permanentsOnly (no-op outside oracle-role mode)', customize: { permanentsOnly: true } },
-  { name: 'deckFormat 60 + mtgFormat brawl', customize: { deckFormat: 60, mtgFormat: 'brawl' } },
+  {
+    name: 'deckFormat 60 + mtgFormat brawl',
+    customize: { deckFormat: 60, mtgFormat: 'brawl' },
+    // E530: a Brawl build refuses a commander not legal in Brawl, so this
+    // one carries the brawl legality a real Brawl commander has.
+    ctx: (ctx) => {
+      ctx.commander = { ...COMMANDER, legalities: { ...COMMANDER.legalities, brawl: 'legal' } };
+    },
+  },
   { name: 'deckFormat 40', customize: { deckFormat: 40, landCount: 16, nonBasicLandCount: 6 } },
   {
     name: 'partnerCommander (union identity, 98 cards)',
+    // E530: a second commander must pair with the first, so both carry the
+    // Partner keyword, as Thrasios and Tymna do.
     ctx: (ctx) => {
-      ctx.partnerCommander = PARTNER;
+      ctx.commander = withPartner(COMMANDER);
+      ctx.partnerCommander = withPartner(PARTNER);
       ctx.colorIdentity = ['G', 'U'];
     },
   },
@@ -850,6 +696,8 @@ const CASES: Case[] = [
     name: 'mtgFormat paupercommander',
     ctx: (ctx) => {
       ctx.customization = { ...ctx.customization, mtgFormat: 'paupercommander' };
+      // E530: Pauper Commander builds around an uncommon creature.
+      ctx.commander = { ...COMMANDER, rarity: 'uncommon' };
     },
     setup: () => {
       vi.mocked(searchCards).mockImplementation(async () => searchResult(PDH_POOL));
@@ -969,5 +817,76 @@ describe('generateDeck — settings matrix (offline stress)', () => {
     expect(names).not.toContain('Creature_2');
     expectDeckInvariants('a Scryfall-banned card from the EDHREC pool is filtered out', deck, ctx);
     clearGenerationCache();
+  });
+
+  // E528: the tagger answers getCardDrawSubtype with 'card-advantage' for any
+  // card outside its draw tags (tutor/wheel/cantrip/draw), and
+  // stampRoleSubtypes stamps every subtype on every pick for the secondary
+  // badges. The stored breakdown used to tally those stamps across every
+  // category, lands included (Krenko: card-advantage 22, live recount 5).
+  // It must be the recount the deck page runs once the tagger loads; the
+  // HARD report-subtypes invariant compares the two.
+  it('stores the subtype breakdown the live recount computes, not the pick-time stamps', async () => {
+    // A loaded tagger, as far as this deck is concerned: the artifacts are
+    // ramp, and the draw-subtype lookup answers the way the real one does
+    // for a card in none of its draw tags.
+    const actual = await vi.importActual<typeof import('@/deck-builder/services/tagger/client')>(
+      '@/deck-builder/services/tagger/client'
+    );
+    vi.mocked(hasTaggerData).mockReturnValue(true);
+    vi.mocked(validateCardRole).mockImplementation((c) =>
+      c.name.startsWith('Artifact_') ? 'ramp' : null
+    );
+    vi.mocked(getCardDrawSubtype).mockImplementation(() => 'card-advantage');
+    const ctx = baseContext();
+    try {
+      const deck = await generateDeck(ctx);
+      const stamped = allCards(deck).filter((c) => c.cardDrawSubtype === 'card-advantage').length;
+      expect(deck.cardDrawSubtypeCounts).toBeDefined();
+      expect(deck.cardDrawSubtypeCounts!['card-advantage'] ?? 0).toBeLessThan(stamped);
+      expectDeckInvariants('stored subtype breakdown', deck, ctx);
+    } finally {
+      vi.mocked(getCardDrawSubtype).mockReset().mockImplementation(actual.getCardDrawSubtype);
+      vi.mocked(validateCardRole).mockReset().mockImplementation(actual.validateCardRole);
+      vi.mocked(hasTaggerData).mockReset().mockReturnValue(false);
+      clearGenerationCache();
+    }
+  });
+
+  // E530, USER RULING 2026-09-29: an illegal commander refuses before any
+  // fetch, naming why. The real Llanowar Elves is no legendary creature.
+  it('refuses an illegal commander before fetching anything', async () => {
+    vi.mocked(fetchCommanderData).mockClear();
+    const ctx = { ...baseContext(), commander: realCard('Llanowar Elves') };
+    const run = generateDeck(ctx);
+    await expect(run).rejects.toBeInstanceOf(CommanderIneligibleError);
+    await expect(run).rejects.toThrow(
+      "Llanowar Elves isn't a legendary creature, so it can't be your commander."
+    );
+    expect(fetchCommanderData).not.toHaveBeenCalled();
+  });
+
+  // USER RULING (second pass): a previewed commander, not legal only because
+  // it hasn't released, builds and the deck says when it becomes legal.
+  it('builds a previewed commander and discloses it', async () => {
+    const preview: ScryfallCard = {
+      ...COMMANDER,
+      legalities: { ...COMMANDER.legalities, commander: 'not_legal' },
+      released_at: '2099-06-01',
+    };
+    const ctx = { ...baseContext(), commander: preview };
+    try {
+      const deck = await generateDeck(ctx);
+      expect(deck.commanderPreviewNote).toBe(
+        `Test Commander isn't legal until ${formatReleaseDate('2099-06-01')}.`
+      );
+      assertInvariants(deck, ctx.customization, ctx);
+      expectDeckInvariants('builds a previewed commander and discloses it', deck, ctx);
+      expect(
+        checkDeckInvariants(deck, ctx).filter((x) => x.check === 'commander-legality')
+      ).toEqual([expect.objectContaining({ level: 'SOFT' })]);
+    } finally {
+      clearGenerationCache();
+    }
   });
 });

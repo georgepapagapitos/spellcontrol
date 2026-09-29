@@ -4,6 +4,22 @@
 import type { ScryfallCard, DeckCategory, DeckStats } from '@/deck-builder/types';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 
+/**
+ * A card's mana value, read off the front face when the card carries none
+ * at the top level. Scryfall's reversible printings (the Secret Lair "Krark's
+ * Thumb // Krark's Thumb" layout) keep cmc, type line and text on each face
+ * only, so `card.cmc` is undefined and a curve bucketed on it shipped a "NaN"
+ * key (E527). Never NaN: a card with no mana value anywhere counts as 0,
+ * like a land.
+ */
+export function cardManaValue(card: ScryfallCard): number {
+  if (Number.isFinite(card.cmc)) return card.cmc;
+  // Scryfall sends a per-face cmc on reversible cards; the face type doesn't
+  // model it because no other layout has one.
+  const faceCmc = (card.card_faces?.[0] as { cmc?: number } | undefined)?.cmc;
+  return typeof faceCmc === 'number' && Number.isFinite(faceCmc) ? faceCmc : 0;
+}
+
 // Calculate deck statistics
 export function calculateStats(categories: Record<DeckCategory, ScryfallCard[]>): DeckStats {
   const allCards = Object.values(categories).flat();
@@ -18,12 +34,12 @@ export function calculateStats(categories: Record<DeckCategory, ScryfallCard[]>)
   // Mana curve
   const manaCurve: Record<number, number> = {};
   nonLandCards.forEach((card) => {
-    const cmc = Math.min(Math.floor(card.cmc), 7); // Cap at 7+
+    const cmc = Math.min(Math.floor(cardManaValue(card)), 7); // Cap at 7+
     manaCurve[cmc] = (manaCurve[cmc] || 0) + 1;
   });
 
   // Average CMC
-  const totalCmc = nonLandCards.reduce((sum, card) => sum + card.cmc, 0);
+  const totalCmc = nonLandCards.reduce((sum, card) => sum + cardManaValue(card), 0);
   const averageCmc = nonLandCards.length > 0 ? totalCmc / nonLandCards.length : 0;
 
   // Color distribution — CARD count by Scryfall `colors` (color identity),

@@ -140,6 +140,7 @@ export function assembleBuildReport(input: {
 
   // Archetype-aware land count auto-tune disclosure (undefined when the user
   // set land count explicitly, or the default 37 was already the right call).
+  if (generated.commanderPreviewNote) report.commanderPreviewNote = generated.commanderPreviewNote;
   if (generated.landCountNote) report.landCountNote = generated.landCountNote;
   if (generated.poolExhaustionNote) report.poolExhaustionNote = generated.poolExhaustionNote;
   if (generated.thinPoolFillNote) report.thinPoolFillNote = generated.thinPoolFillNote;
