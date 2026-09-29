@@ -1090,8 +1090,6 @@
   color: var(--art-scrim-text);
   font-size: var(--text-xs);
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 /* ── Sticky suggestion tally — keeps the path to submit in reach ──────── */

@@ -399,8 +399,6 @@
   background: var(--surface-raised);
   color: var(--text-muted);
   font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
   font-weight: 600;
   margin-right: var(--space-1-5);
   vertical-align: middle;

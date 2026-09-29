@@ -81,8 +81,6 @@
   background: var(--foil-chip-bg);
   color: var(--foil-chip-text);
   font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
   vertical-align: 1px;
 }
 
