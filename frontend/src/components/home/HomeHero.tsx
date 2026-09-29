@@ -95,19 +95,16 @@ function HeroChecklist({ greeting }: { greeting: string }) {
   const steps = [
     {
       label: 'Add your collection',
-      hint: 'Paste a list, upload a file or scan',
       href: '/collection?add=list',
       done: false,
     },
     {
       label: 'Build your first binder',
-      hint: 'Rules sort your cards for you',
       href: '/collection/binders',
       done: binderCount > 0,
     },
     {
       label: 'Make a deck',
-      hint: 'From scratch, or start from a draft',
       href: '/decks/new',
       done: deckCount > 0,
     },
@@ -143,10 +140,7 @@ function HeroChecklist({ greeting }: { greeting: string }) {
                   <span className="home-hero-step-mark" aria-hidden="true">
                     {i + 1}
                   </span>
-                  <span className="home-hero-step-text">
-                    {step.label}
-                    <span className="home-hero-step-hint">{step.hint}</span>
-                  </span>
+                  <span className="home-hero-step-text">{step.label}</span>
                   <ChevronRight
                     className="home-hero-step-chevron"
                     width={16}

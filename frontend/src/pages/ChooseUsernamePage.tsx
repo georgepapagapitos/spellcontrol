@@ -85,9 +85,7 @@ export default function ChooseUsernamePage() {
     <main className="auth-page">
       <Surface as="div" variant="framed" className="auth-card">
         <h1 className="auth-title">Pick a username</h1>
-        <p className="auth-subtitle">
-          This is how you&apos;ll appear in SpellControl. It doesn&apos;t have to match your email.
-        </p>
+        <p className="auth-subtitle">This is how you&apos;ll appear to other players.</p>
 
         <form onSubmit={handleCreate} className="auth-form">
           <label className="auth-field">
@@ -147,7 +145,7 @@ export default function ChooseUsernamePage() {
             <form onSubmit={handleLink} className="auth-form">
               <p className="auth-subtitle">
                 Already have a <strong>{takenName}</strong> account? Enter its password to link
-                Google to it instead of creating a new account.
+                Google to it.
               </p>
               <label className="auth-field">
                 <span>Password for {takenName}</span>

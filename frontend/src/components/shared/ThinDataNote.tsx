@@ -45,7 +45,7 @@ export function ThinDataNote({
   if (!isThinSample(sampleSize)) return null;
   return (
     <p className={`thin-data-note${className ? ` ${className}` : ''}`}>
-      Based on only {sampleSize!.toLocaleString()} {noun}. Treat this as a hunch, not a stat.
+      Based on only {sampleSize!.toLocaleString()} {noun}.
     </p>
   );
 }

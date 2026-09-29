@@ -468,15 +468,7 @@ export function YouPage() {
           all say so, and the first tier is who you are. Settings is the part
           below Identity, not the page's name. The meta line names only what
           this reader will actually find: a guest has no Profile card. */}
-      <PageHeader
-        title="You"
-        className="settings-page-hero"
-        meta={
-          username
-            ? 'Profile, account, appearance, and data tools.'
-            : 'Account, appearance, and data tools.'
-        }
-      />
+      <PageHeader title="You" className="settings-page-hero" />
 
       {/* ═══ Identity — who you are ══════════════════════════════════════ */}
       <h2 id="settings-identity-tier-title" className="settings-tier-header">
@@ -493,18 +485,14 @@ export function YouPage() {
                 Shown on your{' '}
                 <Link className="text-link" to={`/u/${username}`}>
                   public profile
-                </Link>{' '}
-                and anywhere you appear to other players.
+                </Link>
+                .
               </>
             }
           >
             <ProfileEditor />
           </SettingsSection>
-          <SettingsSection
-            id="settings-username-title"
-            title="Username"
-            hint="Your handle, separate from your display name. Changing it moves your profile address."
-          >
+          <SettingsSection id="settings-username-title" title="Username">
             <UsernameEditor />
           </SettingsSection>
         </div>
@@ -524,7 +512,7 @@ export function YouPage() {
           ) : (
             <SettingsRow
               label="Not signed in"
-              hint="Everything is saved on this device. Sign in to back it up and sync the cards here into your account."
+              hint="Saved on this device. Sign in to sync it to your account."
               actions={
                 <Button variant="primary" placement="row" to={signInHref}>
                   Sign in to sync
@@ -535,11 +523,7 @@ export function YouPage() {
         </SettingsSection>
 
         {username && identities && (
-          <SettingsSection
-            id="settings-signin-title"
-            title="Sign-in methods"
-            hint="Add another way to sign in, or remove one. You always need at least one."
-          >
+          <SettingsSection id="settings-signin-title" title="Sign-in methods">
             <SettingsRow
               label="Password"
               hint={identities.password ? 'Set' : 'Not set'}
@@ -586,8 +570,8 @@ export function YouPage() {
               label="Email notifications"
               hint={
                 identities.emailVerified
-                  ? 'Get emailed for new friend requests, trade offers, and game-night invites.'
-                  : 'Add a verified email above to get these.'
+                  ? 'Friend requests, trade offers, and game-night invites.'
+                  : 'Needs a verified email.'
               }
               checked={identities.notifyEmail}
               onChange={() => void handleToggleNotifyEmail()}
@@ -634,11 +618,7 @@ export function YouPage() {
           titleClassName="settings-section-header"
           variant="overline"
         />
-        <SettingsSection
-          id="settings-appearance-title"
-          title="Theme"
-          hint="Theme re-skins the whole app. Obsidian is true black, for OLED screens."
-        >
+        <SettingsSection id="settings-appearance-title" title="Theme">
           <fieldset className="settings-theme-grid" aria-label="Choose theme">
             {THEMES.map((t) => (
               <label
@@ -667,11 +647,7 @@ export function YouPage() {
           </fieldset>
         </SettingsSection>
 
-        <SettingsSection
-          id="settings-typeface-title"
-          title="Typeface"
-          hint="A set changes every face at once: titles, body, labels, and numerals, picked to go together. Independent of theme."
-        >
+        <SettingsSection id="settings-typeface-title" title="Typeface">
           <TypeSetPicker />
         </SettingsSection>
       </div>
@@ -686,7 +662,7 @@ export function YouPage() {
         <SettingsSection
           id="settings-collection-prefs-title"
           title="Price currency"
-          hint="Show card prices and collection value in USD (TCGplayer) or EUR (Cardmarket)."
+          hint="USD prices come from TCGplayer, EUR from Cardmarket."
         >
           <SegmentedControl<Currency>
             ariaLabel="Price currency"
@@ -710,38 +686,10 @@ export function YouPage() {
       </h2>
 
       <div>
-        <SettingsSection
-          id="settings-collection-title"
-          title="Collection"
-          hint="Back up and keep card data fresh. Exports are JSON files you can re-import later."
-        >
+        <SettingsSection id="settings-collection-title" title="Collection">
           <SettingsRow
-            value={
-              <>
-                Export full collection
-                <InfoTip
-                  label="binders, lists, and decks"
-                  wide
-                  text={
-                    <>
-                      <strong>Binders</strong> sort your cards by rules you set: color, set, rarity,
-                      and more.
-                      <br />
-                      <br />
-                      <strong>Lists</strong> are named groups: want lists, tracking lists, or
-                      rule-driven dynamic lists.
-                      <br />
-                      <br />
-                      The JSON backup includes binders, lists, and every deck; restoring one returns
-                      all of it. Export is cards only, one row per copy, as a SpellControl, Moxfield
-                      or Archidekt CSV or an Arena text list.
-                    </>
-                  }
-                />
-              </>
-            }
-            valueWithTip
-            hint="Download a JSON backup (every card, binder, list, and deck) or a cards-only file for another tool."
+            value="Export full collection"
+            hint="A backup keeps everything. Export is cards only, for other tools."
             actions={
               <div className="settings-row-action-group">
                 <Button
@@ -760,7 +708,7 @@ export function YouPage() {
 
           <SettingsRow
             value="Restore from a backup file"
-            hint="Replaces your current collection, binders, and decks with a JSON backup's contents."
+            hint="Replaces your current collection, binders, and decks."
             actions={
               <Button onClick={handlePickRestore} disabled={restoreBusy}>
                 {restoreBusy ? 'Restoring…' : 'Restore…'}
@@ -772,7 +720,7 @@ export function YouPage() {
             value="Refresh card prices"
             hint={
               <>
-                Re-fetch {currency} prices from Scryfall for every card in your collection.
+                Fetches {currency} prices from Scryfall.
                 {pricesUpdated && ` Last updated ${pricesUpdated}.`}
               </>
             }
@@ -792,12 +740,11 @@ export function YouPage() {
                 Repair deck allocations
                 <InfoTip
                   label="deck allocations"
-                  text="An allocation links a deck slot to one physical copy, so owning two copies of a card doesn't leave it ambiguous which deck claims which. Repair re-runs the match after edits or re-imports."
+                  text="Each deck slot reserves one of your physical copies. Repair redoes that match after edits or re-imports."
                 />
               </>
             }
             valueWithTip
-            hint="Re-map each deck's reserved copies after edits or re-imports."
             actions={
               <Button
                 onClick={handleRepairAllocations}
@@ -820,14 +767,10 @@ export function YouPage() {
 
         <OfflineModeSettings />
 
-        <SettingsSection
-          id="settings-troubleshooting-title"
-          title="Troubleshooting"
-          hint="For when the app feels stuck on an old version after an update."
-        >
+        <SettingsSection id="settings-troubleshooting-title" title="Troubleshooting">
           <SettingsRow
             value="Reset app cache"
-            hint="Reloads the app from the server. Your decks, collection, and binders aren't touched."
+            hint="Reloads the app. Your data isn't touched."
             actions={
               <Button onClick={() => setResetCacheOpen(true)} disabled={resetCacheBusy}>
                 {resetCacheBusy ? 'Resetting…' : 'Reset cache'}
@@ -837,14 +780,9 @@ export function YouPage() {
         </SettingsSection>
 
         <SettingsSection id="settings-help-title" title="Help">
-          <SettingsRow
-            value="Rules reference"
-            hint="Keywords, the glossary, and every rule by number from the Comprehensive Rules."
-            actions={<Button to="/rules">Open rules</Button>}
-          />
+          <SettingsRow value="Rules reference" actions={<Button to="/rules">Open rules</Button>} />
           <SettingsRow
             value="Help & guides"
-            hint="Import walkthroughs, binder setup, and format comparisons."
             actions={
               <Button href="/guides/" onClick={() => track('guide_cta')}>
                 Open guides
@@ -866,7 +804,7 @@ export function YouPage() {
             Danger zone
           </h2>
           <p className="settings-card-hint">
-            Irreversible actions. Make a backup first: Collection → Export full collection.
+            Make a backup first: Collection → Export full collection.
           </p>
         </header>
         <div className="settings-card-body">
@@ -874,8 +812,7 @@ export function YouPage() {
             <div className="settings-row-text">
               <div className="settings-row-value">Delete entire collection</div>
               <div className="settings-row-hint">
-                Removes every card and import-history entry. Binder definitions stay, with nothing
-                left to match against.
+                Removes every card and import-history entry. Binders stay, but empty.
               </div>
             </div>
             <Button variant="danger" onClick={() => setWipeOpen(true)} disabled={cardCount === 0}>
@@ -922,7 +859,7 @@ export function YouPage() {
       {unlinkOpen && (
         <ConfirmDialog
           title="Unlink Google?"
-          body="You can re-link any time. Your account and data stay intact, and only the Google sign-in shortcut is removed."
+          body="Your account and data stay. You can link Google again any time."
           confirmLabel={unlinkBusy ? 'Unlinking…' : 'Unlink'}
           danger
           onConfirm={() => void handleUnlinkGoogle()}
@@ -993,7 +930,7 @@ export function YouPage() {
       {resetCacheOpen && (
         <ConfirmDialog
           title="Reset app cache?"
-          body="Clears the cached app bundles and reloads to fetch the latest version. Your decks, collection, and binders are kept."
+          body="Reloads the app to fetch the latest version. Your data is kept."
           confirmLabel="Reset cache"
           onConfirm={() => void handleResetAppCache()}
           onCancel={() => setResetCacheOpen(false)}
@@ -1248,9 +1185,7 @@ function EmailModal({ currentEmail, onClose, onSaved }: EmailModalProps) {
       <h2 id="email-modal-title" className="choice-dialog-title">
         {currentEmail ? 'Change email' : 'Add an email'}
       </h2>
-      <p className="choice-dialog-body">
-        We'll send a link to confirm this address before it's saved to your account.
-      </p>
+      <p className="choice-dialog-body">We'll send a link to confirm this address.</p>
       <form onSubmit={(e) => void handleSubmit(e)} className="auth-form">
         <label className="auth-field">
           <span>Email</span>

@@ -58,14 +58,12 @@ export function DeleteCollectionDialog({ onClose }: { onClose: () => void }) {
         {isFinal ? (
           <>
             This removes <strong>{count.toLocaleString()}</strong> {noun} and the import history.
-            Your binders stay defined but will be empty. The toast that follows is the only way to
-            undo it.
+            Binders stay but will be empty. Undo is only in the toast that follows.
           </>
         ) : (
           <>
-            You're about to remove all <strong>{count.toLocaleString()}</strong> {noun} from your
-            collection. Binder definitions and decks are kept, but decks will lose their physical
-            copy assignments.
+            This removes all <strong>{count.toLocaleString()}</strong> {noun}. Binders and decks are
+            kept, but decks lose their copy assignments.
           </>
         )}
       </p>

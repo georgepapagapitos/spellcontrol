@@ -36,8 +36,8 @@ export function UncategorizedSheet({ cards, onClose }: Props) {
         {total.toLocaleString()} {noun} in no binder
       </h2>
       <p className="choice-dialog-body">
-        No binder's rules match {total === 1 ? 'this card' : 'these cards'}, so{' '}
-        {total === 1 ? 'it has' : 'they have'} no page yet. Make a binder for them:
+        No binder's rules match {total === 1 ? 'this card' : 'these cards'}. Make a binder for{' '}
+        {total === 1 ? 'it' : 'them'}:
       </p>
       <div className="choice-dialog-options">
         {suggestions.map((s, i) => (
@@ -62,8 +62,9 @@ export function UncategorizedSheet({ cards, onClose }: Props) {
         >
           <span className="choice-dialog-option-title">Everything else</span>
           <span className="choice-dialog-option-desc">
-            No rules, last in line: {total === 1 ? 'this card' : `all ${total.toLocaleString()}`}{' '}
-            and anything your binders pass on later.
+            No rules, last in line: catches{' '}
+            {total === 1 ? 'this card' : `all ${total.toLocaleString()}`} and anything else your
+            binders pass on.
           </span>
         </button>
       </div>

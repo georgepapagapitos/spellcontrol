@@ -27,9 +27,7 @@ export function ColorMatchModeToggle({ mode, onChange, className }: ColorMatchMo
         className={`chip-joiner ${all ? 'and' : 'or'}`}
         onClick={() => onChange(all ? 'any' : 'all')}
         title={
-          all
-            ? 'AND: cards in exactly these colors and no others. Click for OR.'
-            : 'OR: cards showing any selected color match. Click for AND.'
+          all ? 'AND: only these colors. Click for OR.' : 'OR: any selected color. Click for AND.'
         }
         aria-label={
           all

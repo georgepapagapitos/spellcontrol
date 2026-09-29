@@ -156,10 +156,7 @@ export function ChipExpressionBuilder(props: Props) {
                 {joiners[i - 1] ?? 'OR'}
               </button>
             )}
-            <span
-              className={`chip-builder-chip ${c.negate ? 'is-not' : 'is'}`}
-              title="Click IS / IS NOT to toggle"
-            >
+            <span className={`chip-builder-chip ${c.negate ? 'is-not' : 'is'}`}>
               <button
                 type="button"
                 className="chip-builder-toggle"

@@ -39,8 +39,7 @@ export function RemoveCopiesDialog({ cardName, total, onConfirm, onCancel }: Pro
         Remove {cardName}
       </h2>
       <p className="choice-dialog-body">
-        You own {total} {total === 1 ? 'copy' : 'copies'} of this printing. How many should be
-        removed?
+        You own {total} {total === 1 ? 'copy' : 'copies'} of this printing.
       </p>
       <div className="card-edit-qty">
         <span className="card-edit-qty-label">Copies to remove</span>
@@ -81,9 +80,7 @@ export function RemoveCopiesDialog({ cardName, total, onConfirm, onCancel }: Pro
           </button>
         </div>
         {qty >= total && (
-          <span className="card-edit-qty-warn">
-            This removes every copy of this printing from your collection
-          </span>
+          <span className="card-edit-qty-warn">This removes every copy of this printing.</span>
         )}
       </div>
       <div className="choice-dialog-actions">

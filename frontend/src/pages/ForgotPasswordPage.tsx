@@ -42,7 +42,7 @@ export default function ForgotPasswordPage() {
           <>
             <p className="auth-subtitle" role="status">
               If an account uses that email, we've sent a link to reset the password. Check your
-              inbox (and spam folder).
+              spam folder too.
             </p>
             <Button variant="primary" to="/auth" className="auth-submit">
               Back to sign in
@@ -50,9 +50,7 @@ export default function ForgotPasswordPage() {
           </>
         ) : (
           <>
-            <p className="auth-subtitle">
-              Enter the email on your account and we'll send a link to reset your password.
-            </p>
+            <p className="auth-subtitle">Enter your account email and we'll send a reset link.</p>
             <form onSubmit={handleSubmit} className="auth-form">
               <label className="auth-field">
                 <span>Email</span>

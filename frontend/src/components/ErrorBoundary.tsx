@@ -36,7 +36,7 @@ export class ErrorBoundary extends Component<Props, State> {
         <div className="error-boundary-page">
           <Surface as="div" variant="framed" className="error-boundary-card" role="alert">
             <h1 className="auth-title">A new version is ready</h1>
-            <p className="auth-subtitle">Reload to open this page in it.</p>
+            <p className="auth-subtitle">Reload to open this page.</p>
             <div className="error-boundary-actions">
               <Button variant="primary" onClick={() => window.location.reload()}>
                 Reload page
@@ -55,9 +55,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 logger.error above for debugging; this stays a fixed,
                 honest line regardless of what actually threw. */}
             <h1 className="auth-title">Something went wrong</h1>
-            <p className="auth-subtitle">
-              Your data on this device is safe. Try again, or reload if that doesn't help.
-            </p>
+            <p className="auth-subtitle">Your data on this device is safe.</p>
             <div className="error-boundary-actions">
               <Button variant="primary" onClick={() => this.setState({ error: null })}>
                 Retry

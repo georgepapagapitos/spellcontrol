@@ -160,7 +160,7 @@ export default function AuthPage() {
         <h1 className="auth-title">SpellControl</h1>
         <p className="auth-subtitle">
           {mode === 'login'
-            ? 'Sign in to sync your collection across devices.'
+            ? 'Sign in to sync across devices.'
             : 'Create an account to sync across devices.'}
         </p>
 
@@ -237,8 +237,7 @@ export default function AuthPage() {
                 maxLength={254}
               />
               <span className="auth-field-hint">
-                Where a reset link goes if you forget your password. It is the only way back into
-                your account.
+                For password resets. It's your only way back in.
               </span>
             </label>
           ) : null}

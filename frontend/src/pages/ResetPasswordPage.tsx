@@ -59,9 +59,7 @@ export default function ResetPasswordPage() {
       <main className="auth-page">
         <Surface as="div" variant="framed" className="auth-card">
           <h1 className="auth-title">That link isn't valid</h1>
-          <p className="auth-subtitle">
-            This reset link is missing its token. Request a new one to continue.
-          </p>
+          <p className="auth-subtitle">This reset link is incomplete. Request a new one.</p>
           <Button variant="primary" to="/forgot-password" className="auth-submit">
             Request a new link
           </Button>
@@ -74,7 +72,6 @@ export default function ResetPasswordPage() {
     <main className="auth-page">
       <Surface as="div" variant="framed" className="auth-card">
         <h1 className="auth-title">Choose a new password</h1>
-        <p className="auth-subtitle">Pick a new password for your account.</p>
 
         <form onSubmit={handleSubmit} className="auth-form">
           <label className="auth-field">
