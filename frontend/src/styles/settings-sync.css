@@ -280,7 +280,7 @@
      STYLE_GUIDE Typography — --font-mono is data/numerals only. */
   font-family: var(--font-serif);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: var(--tracking-overline);
   font-size: var(--text-sm);
   color: var(--text-secondary);
   font-weight: 600;
@@ -323,7 +323,7 @@
   font-size: var(--text-xs);
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-overline);
   margin-bottom: var(--space-0-5);
 }
 

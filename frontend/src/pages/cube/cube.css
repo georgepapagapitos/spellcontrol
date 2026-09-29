@@ -117,7 +117,7 @@
   font-size: var(--text-sm);
   color: var(--text-primary);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-overline);
 }
 .cube-saved-list {
   list-style: none;
@@ -331,7 +331,7 @@
   font-size: var(--text-sm);
   color: var(--text-primary);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-overline);
 }
 .cube-commanders-empty {
   margin: 0;
@@ -554,7 +554,7 @@
   font-size: var(--text-sm);
   color: var(--text-primary);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-overline);
 }
 .cube-legend {
   list-style: none;
@@ -596,7 +596,7 @@
   font-size: var(--text-sm);
   color: var(--text-primary);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-overline);
 }
 .cube-draftability {
   display: inline-flex;
@@ -765,7 +765,7 @@
   font-size: var(--text-xs);
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-overline);
 }
 .cube-health-rows {
   list-style: none;
@@ -1578,7 +1578,7 @@
   font-size: var(--text-sm);
   color: var(--text-primary);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-overline);
 }
 .cube-supplier-list {
   list-style: none;
@@ -1657,7 +1657,7 @@
 .section-head-rule h4 {
   font-family: var(--font-serif);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-overline);
   font-size: var(--text-xs);
   color: var(--text-muted);
   margin: 0;
@@ -2075,7 +2075,7 @@
   padding-left: var(--space-5);
   font-size: var(--text-xs);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-overline);
   color: var(--text-muted);
 }
 

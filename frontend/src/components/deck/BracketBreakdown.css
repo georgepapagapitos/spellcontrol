@@ -20,7 +20,7 @@
   font-weight: 600;
   color: var(--text-primary);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-overline);
 }
 
 /* The "ⓘ" info affordance beside these headings is the shared <InfoTip>
@@ -335,7 +335,7 @@
   font-size: var(--text-xs);
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-overline);
   color: var(--text-secondary);
 }
 
@@ -374,7 +374,7 @@
   font-weight: 600;
   color: var(--text-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-overline);
 }
 
 .deck-bracket-total-value {

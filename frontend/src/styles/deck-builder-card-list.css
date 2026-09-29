@@ -714,7 +714,7 @@
   font-weight: 700;
   margin: 0;
   color: var(--text-primary);
-  letter-spacing: 0.08em;
+  letter-spacing: var(--tracking-overline);
   text-transform: uppercase;
 }
 
@@ -1635,7 +1635,7 @@
   padding: 0 var(--space-2);
   font-size: var(--text-xs);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-overline);
   color: var(--text-muted);
 }
 
@@ -1673,7 +1673,7 @@
 .deck-card-menu-new-label {
   font-size: var(--text-xs);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-overline);
   color: var(--text-muted);
 }
 
