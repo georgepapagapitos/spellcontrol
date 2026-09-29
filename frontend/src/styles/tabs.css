@@ -100,7 +100,7 @@
   color: var(--text-muted);
   font-family: var(--font-mono);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--tracking-overline);
   white-space: nowrap;
 }
 

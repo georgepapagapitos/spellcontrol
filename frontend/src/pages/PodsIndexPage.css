@@ -37,7 +37,7 @@
   font-weight: 700;
   color: var(--text-primary);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--tracking-overline);
 }
 
 /* ── Invited list — always single-column full-width rows at every

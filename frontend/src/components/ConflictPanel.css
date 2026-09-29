@@ -21,7 +21,7 @@
   margin: 0;
   font-size: var(--text-xs);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-overline);
   color: var(--text-muted);
 }
 
