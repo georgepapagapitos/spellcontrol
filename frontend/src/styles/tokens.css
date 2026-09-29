@@ -153,6 +153,8 @@
        --shadow-tooltip  a popover/menu/dropdown/flyout anchored to a trigger
        --shadow-card     a resting card-like surface (auth/welcome panels,
                           a thumbnail lifted off its grid)
+       --shadow-card-hover  an index tile under the pointer or keyboard focus
+                          (§ Index tiles), one step up from its resting card
        --shadow-modal    a dialog/takeover that suspends the page under it
        --shadow-sheet    a bottom sheet or dock rising from a screen edge
      Ring/focus outlines (`0 0 0 Npx var(...)`), inset bevels/hairlines, and
@@ -166,6 +168,7 @@
   --shadow-sheet: 0 -8px 32px rgba(0, 0, 0, 0.22);
   /* Lightest elevation tier — centered card surfaces (auth/welcome/onboarding). */
   --shadow-card: 0 4px 16px rgb(0 0 0 / 8%);
+  --shadow-card-hover: 0 8px 24px rgb(0 0 0 / 22%);
   --overlay: rgba(0, 0, 0, 0.6);
   /* On-art overlay scrim — theme-invariant (sits on card images, not UI). */
   --art-scrim: rgba(0, 0, 0, 0.75);
