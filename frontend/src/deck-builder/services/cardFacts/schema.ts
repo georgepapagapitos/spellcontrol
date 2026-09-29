@@ -243,6 +243,9 @@ export const ROLE_SUBS = [
   'extra-combat',
   'drain',
   'mass-steal',
+  // Keep new values LAST: the codec stores indices into this list, so an
+  // append leaves every existing record's encoding unchanged.
+  'extra-turn',
 ] as const;
 export type RoleSub = (typeof ROLE_SUBS)[number];
 

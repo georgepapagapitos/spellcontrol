@@ -157,6 +157,43 @@ describe('flows', () => {
   });
 });
 
+describe('the E513 gaps', () => {
+  it('Blot Out: an exile edict is primary removal of the chosen permanent', () => {
+    const f = extractCardFacts(TEST_CARDS['Blot Out']);
+    expect(counted(f)).toEqual(['removal']);
+    expect(role(f, 'removal')).toMatchObject({ tier: 'primary', speed: 'instant' });
+    expect(f.interaction).toEqual([
+      expect.objectContaining({
+        mode: 'exile',
+        hits: ['creature', 'planeswalker'],
+        scope: 'single',
+        side: 'opponents',
+      }),
+    ]);
+  });
+
+  it('an extra turn for you is a finisher, and Time Warp is cast on yourself', () => {
+    for (const name of ['Temporal Trespass', 'Time Warp']) {
+      const f = extractCardFacts(TEST_CARDS[name]);
+      expect(role(f, 'finisher'), name).toMatchObject({ tier: 'primary', sub: 'extra-turn' });
+      expect(f.strengths['finisher/extra-turn'], name).toBe(1);
+    }
+  });
+
+  it("an opponent's extra turn is no finisher, and a symmetric exile tax is no removal", () => {
+    expect(role(extractCardFacts(TEST_CARDS['Eon Frolicker']), 'finisher')).toBeUndefined();
+    const descent = extractCardFacts(TEST_CARDS['Descent into Madness']);
+    expect(role(descent, 'removal')).toBeUndefined();
+    expect(descent.interaction).toEqual([]);
+  });
+
+  it('a player exiling cards from a graveyard is not an edict (Living Death stays a wipe)', () => {
+    const f = facts('Living Death');
+    expect(f.interaction.some((i) => i.mode === 'exile')).toBe(false);
+    expect(role(f, 'boardwipe')).toMatchObject({ tier: 'primary' });
+  });
+});
+
 describe('strengths', () => {
   it('Butcher of Malakir: a Grave Pact first, fodder for itself, a big flier', () => {
     const f = extractCardFacts(TEST_CARDS['Butcher of Malakir']);

@@ -183,6 +183,26 @@
       "edhrec_rank": 2439
     },
     {
+      "id": "a8bc7912-e201-468a-b251-140205cb741c",
+      "oracle_id": "09cc8709-fe10-472a-b05c-e89f3523018d",
+      "name": "Austere Command",
+      "mana_cost": "{4}{W}{W}",
+      "cmc": 6,
+      "type_line": "Sorcery",
+      "oracle_text": "Choose two —\n• Destroy all artifacts.\n• Destroy all enchantments.\n• Destroy all creatures with mana value 3 or less.\n• Destroy all creatures with mana value 4 or greater.",
+      "colors": ["W"],
+      "color_identity": ["W"],
+      "keywords": [],
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "msc",
+      "set_name": "Marvel Super Heroes Commander",
+      "prices": { "usd": "0.35", "eur": "0.41" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
+      "games": ["paper", "mtgo"],
+      "edhrec_rank": 171
+    },
+    {
       "id": "2d19a474-b008-4088-8a31-333c0b2d9d65",
       "oracle_id": "f5c5f64c-6911-430c-a825-b32b96d39c7d",
       "name": "Beetleback Chief",
@@ -877,6 +897,46 @@
       "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "not_legal" },
       "games": ["paper"],
       "edhrec_rank": 9
+    },
+    {
+      "id": "f11d7311-4066-4a5d-ba28-9857fa707a0b",
+      "oracle_id": "8164b1e8-3350-465e-8a17-75f57d326344",
+      "name": "Exsanguinate",
+      "mana_cost": "{X}{B}{B}",
+      "cmc": 2,
+      "type_line": "Sorcery",
+      "oracle_text": "Each opponent loses X life. You gain life equal to the life lost this way.",
+      "colors": ["B"],
+      "color_identity": ["B"],
+      "keywords": [],
+      "rarity": "uncommon",
+      "layout": "normal",
+      "set": "fdn",
+      "set_name": "Foundations",
+      "prices": { "usd": "0.45", "eur": "0.34" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
+      "games": ["paper", "arena", "mtgo"],
+      "edhrec_rank": 277
+    },
+    {
+      "id": "114d2180-093b-4838-97ad-badbc8ee50b0",
+      "oracle_id": "4eb813fd-2d5a-4b02-8193-662681ef4e7d",
+      "name": "Farewell",
+      "mana_cost": "{4}{W}{W}",
+      "cmc": 6,
+      "type_line": "Sorcery",
+      "oracle_text": "Choose one or more —\n• Exile all artifacts.\n• Exile all creatures.\n• Exile all enchantments.\n• Exile all graveyards.",
+      "colors": ["W"],
+      "color_identity": ["W"],
+      "keywords": [],
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "mkc",
+      "set_name": "Murders at Karlov Manor Commander",
+      "prices": { "usd": "6.16", "eur": "3.94" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
+      "games": ["paper", "mtgo"],
+      "edhrec_rank": 175
     },
     {
       "id": "f7f3dd95-bd14-4e0f-a388-444f9cf1b0dc",
@@ -1789,6 +1849,26 @@
       "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
       "games": ["paper", "mtgo"],
       "edhrec_rank": 1023
+    },
+    {
+      "id": "36fb6ee3-bd54-4e5b-b055-c2c42515c162",
+      "oracle_id": "96230edf-568a-47dd-b877-9d92aa58fac8",
+      "name": "Nevinyrral's Disk",
+      "mana_cost": "{4}",
+      "cmc": 4,
+      "type_line": "Artifact",
+      "oracle_text": "This artifact enters tapped.\n{1}, {T}: Destroy all artifacts, creatures, and enchantments.",
+      "colors": [],
+      "color_identity": [],
+      "keywords": [],
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "cmm",
+      "set_name": "Commander Masters",
+      "prices": { "usd": "1.70", "eur": "0.39" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "not_legal" },
+      "games": ["paper", "mtgo"],
+      "edhrec_rank": 2025
     },
     {
       "id": "7c024bae-5631-4e20-ac69-df392ac9e109",
@@ -2714,6 +2794,26 @@
       "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
       "games": ["paper", "mtgo", "arena"],
       "edhrec_rank": 95
+    },
+    {
+      "id": "f69d77d1-5980-436c-bf48-790939b069aa",
+      "oracle_id": "30a0a6c2-1fbb-4784-ab96-22611d57e62c",
+      "name": "Torment of Hailfire",
+      "mana_cost": "{X}{B}{B}",
+      "cmc": 2,
+      "type_line": "Sorcery",
+      "oracle_text": "Repeat the following process X times. Each opponent loses 3 life unless that player sacrifices a nonland permanent of their choice or discards a card.",
+      "colors": ["B"],
+      "color_identity": ["B"],
+      "keywords": [],
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "hou",
+      "set_name": "Hour of Devastation",
+      "prices": { "usd": "35.39", "eur": "28.50" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
+      "games": ["paper", "mtgo"],
+      "edhrec_rank": 623
     },
     {
       "id": "de5afccc-8d42-4bd6-b068-b9ea2361655e",
@@ -5218,6 +5318,14 @@
         "lowSample": false
       },
       {
+        "name": "Austere Command",
+        "lift": 1.1480477898270045,
+        "coPlayPct": 5,
+        "numDecks": 884,
+        "potentialDecks": 18802,
+        "lowSample": false
+      },
+      {
         "name": "Blasphemous Act",
         "lift": 1.1433269882096941,
         "coPlayPct": 26,
@@ -5375,6 +5483,14 @@
         "coPlayPct": 10,
         "numDecks": 8656,
         "potentialDecks": 85039,
+        "lowSample": false
+      },
+      {
+        "name": "Farewell",
+        "lift": 0.6065447071312894,
+        "coPlayPct": 4,
+        "numDecks": 815,
+        "potentialDecks": 18802,
         "lowSample": false
       },
       {
@@ -5561,6 +5677,14 @@
         "coPlayPct": 13,
         "numDecks": 9032,
         "potentialDecks": 71904,
+        "lowSample": false
+      },
+      {
+        "name": "Nevinyrral's Disk",
+        "lift": 4.4804087764362635,
+        "coPlayPct": 3,
+        "numDecks": 4015,
+        "potentialDecks": 136342,
         "lowSample": false
       },
       {
@@ -5945,6 +6069,22 @@
         "coPlayPct": 63,
         "numDecks": 85752,
         "potentialDecks": 136342,
+        "lowSample": false
+      },
+      {
+        "name": "Austere Command",
+        "lift": 0.9484779042297768,
+        "coPlayPct": 8,
+        "numDecks": 3823,
+        "potentialDecks": 46012,
+        "lowSample": false
+      },
+      {
+        "name": "Farewell",
+        "lift": 0.93140255096762,
+        "coPlayPct": 9,
+        "numDecks": 4027,
+        "potentialDecks": 46012,
         "lowSample": false
       },
       {
@@ -6334,6 +6474,14 @@
         "lowSample": false
       },
       {
+        "name": "Torment of Hailfire",
+        "lift": 2.696118683257871,
+        "coPlayPct": 11,
+        "numDecks": 23801,
+        "potentialDecks": 210174,
+        "lowSample": false
+      },
+      {
         "name": "Living Death",
         "lift": 2.572181497475936,
         "coPlayPct": 14,
@@ -6462,11 +6610,27 @@
         "lowSample": false
       },
       {
+        "name": "Austere Command",
+        "lift": 1.68015668118554,
+        "coPlayPct": 12,
+        "numDecks": 4605,
+        "potentialDecks": 37855,
+        "lowSample": false
+      },
+      {
         "name": "Undergrowth Stadium",
         "lift": 1.4226561004523435,
         "coPlayPct": 34,
         "numDecks": 20348,
         "potentialDecks": 59372,
+        "lowSample": false
+      },
+      {
+        "name": "Exsanguinate",
+        "lift": 1.3464387532058364,
+        "coPlayPct": 10,
+        "numDecks": 21562,
+        "potentialDecks": 210174,
         "lowSample": false
       },
       {

@@ -142,6 +142,8 @@ export const TERM_KEYS = [
   'synergy',
   'lift',
   'nonbo',
+  'winline',
+  'ownership',
 ] as const;
 export type TermKey = (typeof TERM_KEYS)[number];
 

@@ -15,6 +15,7 @@ import {
   type FactsInputCard,
 } from '@/deck-builder/services/cardFacts';
 import { isExtraTurn } from '@/deck-builder/services/tagger/client';
+import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 import { isMassLandDenialFloor, isStaxPiece } from '../bracketEstimator';
 import { readSynergy } from '../synergyLift';
 import {
@@ -72,6 +73,34 @@ export const DEFAULT_SIM_GAMES = 4000;
  * way the format does.)
  */
 export const OFF_PAGE_TRUST = 0.5;
+
+/**
+ * Price-adjusted play rate: what STRONGER decks of this commander play.
+ *
+ * A page's inclusion averages every deck built for the commander, most of
+ * them on a budget, so a premium card reads low for its price, not its power
+ * (Smothering Tithe 23% on Edgar Markov's page, The One Ring 9%). The same
+ * commander's bracket-4 ("optimized") page says how far: fit over 17
+ * commanders (the LIVE_GEN panel's, 4,222 cards on both pages, 2026-09-29),
+ *
+ *   optimized% ≈ PRICE_A × page% + PRICE_B × page% × log10(1 + price)
+ *
+ * a = 0.788, b = 0.467; the price slope b/a is 0.59 (bootstrap over
+ * commanders 0.49-0.76). Held out one commander at a time, the price term
+ * beat a uniform rescaling on 17 of 17, cutting squared error 39% overall.
+ * So a card's quality is its page rate scaled by PRICE_A + PRICE_B ×
+ * log10(1 + price): Tithe reads 33% on Edgar, Cordial Vampire stays 82%, and a
+ * $1 card keeps about its page rate. Capped at 1. Budget and collection
+ * builds are unaffected where it matters: the budget constraint and the
+ * ownership term price the card; this term only says what it is worth.
+ *
+ * (The first proposal was a blend with a commander-independent prior, the
+ * page inclusion of cards of similar global EDHREC rank. Against the same
+ * bracket-4 pages its best weight was −0.04, 95% CI −0.08 to 0.00: stronger
+ * decks do not drift toward format-wide popularity, they drift toward price.)
+ */
+export const PRICE_A = 0.788;
+export const PRICE_B = 0.467;
 export const OFF_PAGE_PEERS = 25;
 /** Floor used when a context has no page rows at all (a fallback pile). */
 export const EMPTY_PAGE_FLOOR_PCT = 1;
@@ -216,6 +245,18 @@ export function createObjectiveContext(input: ObjectiveContextInput): ObjectiveC
     return f;
   };
 
+  const currency = input.customization.currency ?? 'USD';
+  const priceFactor = (card: ScryfallCard): { f: number; usd: number | null } => {
+    const price = parseFloat(getCardPrice(card, currency) ?? '');
+    const usd = Number.isFinite(price) && price > 0 ? price : null;
+    return { f: PRICE_A + PRICE_B * Math.log10(1 + (usd ?? 0)), usd };
+  };
+  const priced = (pct: number, card: ScryfallCard) => {
+    const { f, usd } = priceFactor(card);
+    const q = Math.min(1, (pct / 100) * f);
+    return { q, text: usd === null ? 'no price' : `${usd.toFixed(2)} ${currency}` };
+  };
+
   const qualityCache = new Map<string, CardQuality>();
   const qualityOf = (card: ScryfallCard): CardQuality => {
     const hit = qualityCache.get(card.name);
@@ -225,12 +266,13 @@ export function createObjectiveContext(input: ObjectiveContextInput): ObjectiveC
     if (isBasicLand(card)) {
       read = { q: 0, source: 'basic', inclusionPct: null, strength: null, note: 'basic land' };
     } else if (row && row.inclusion > 0) {
+      const { q, text } = priced(row.inclusion, card);
       read = {
-        q: row.inclusion / 100,
+        q,
         source: 'page',
         inclusionPct: row.inclusion,
         strength: strengthOf(row),
-        note: `${round(row.inclusion)}% of this page's decks`,
+        note: `${round(row.inclusion)}% of this page's decks, ${round(q * 100)}% price-adjusted (${text})`,
       };
     } else {
       const rank =
@@ -241,15 +283,16 @@ export function createObjectiveContext(input: ObjectiveContextInput): ObjectiveC
         peer == null
           ? pageFloorPct
           : pageFloorPct + OFF_PAGE_TRUST * Math.max(0, peer - pageFloorPct);
+      const { q, text } = priced(pct, card);
       read = {
-        q: pct / 100,
+        q,
         source: 'off-page',
         inclusionPct: null,
         strength: null,
         note:
           peer == null
-            ? `off-page: read at the page floor, ${round(pageFloorPct)}%`
-            : `off-page: read at ${round(pct)}% (page floor ${round(pageFloorPct)}%, on-page cards near its EDHREC rank ${rank} average ${round(peer)}%)`,
+            ? `off-page: read at the page floor, ${round(pageFloorPct)}%, ${round(q * 100)}% price-adjusted (${text})`
+            : `off-page: read at ${round(pct)}% (page floor ${round(pageFloorPct)}%, on-page cards near its EDHREC rank ${rank} average ${round(peer)}%), ${round(q * 100)}% price-adjusted (${text})`,
       };
     }
     qualityCache.set(card.name, read);

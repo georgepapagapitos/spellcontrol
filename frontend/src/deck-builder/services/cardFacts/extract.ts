@@ -401,6 +401,22 @@ function roleCandidates(
         case 'extra-combat':
           push({ role: 'finisher', sub: 'extra-combat', sentence });
           break;
+        case 'extra-turn': {
+          // An extra turn closes games the way an extra combat does, but only
+          // yours: "take an extra turn" (Temporal Trespass) or "target player
+          // takes" (Time Warp, cast on yourself). The parser reads any other
+          // subject as yours too, so the text decides: an opponent's turn
+          // (Eon Frolicker, Emrakul's "that player") or a contest's winner
+          // (Timesifter) is not a finisher.
+          const raw = a.raw.toLowerCase();
+          const othersTurn =
+            /\b(?:target opponent|each opponent|an opponent|that player|the player who)\b[^.]*\btakes? an extra turn\b/.test(
+              raw
+            );
+          const yours = e.who === 'you' || /\btarget player takes? an extra turn\b/.test(raw);
+          if (yours && !othersTurn) push({ role: 'finisher', sub: 'extra-turn', sentence });
+          break;
+        }
         case 'lose-life':
           // An X spell that drains (Exsanguinate). An X that counts something
           // on the board (Jovial Evil) is not a finisher.

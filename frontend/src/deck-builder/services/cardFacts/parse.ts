@@ -1177,6 +1177,30 @@ export function parseSentence(s: string, ctx: SentenceCtx): EffectSig[] {
         );
     }
   }
+  // An edict that exiles: "Target opponent exiles a creature or planeswalker
+  // they control with the greatest mana value ..." (Blot Out). The player
+  // exiles from their own board, so the object is a permanent they control.
+  for (const m of s.matchAll(
+    new RegExp(
+      `\\b${SUBJECT} exiles? (a|an|one|two|three|x|\\d+) ([^.]*?)\\b(?:they|he or she) controls?\\b`,
+      'g'
+    )
+  )) {
+    const who = subjectPolarity(m[1]);
+    // "Each player exiles ..." hits your own board too (Descent into Madness):
+    // a symmetric tax, not an answer.
+    if (who === 'you' || who === 'each') continue;
+    const hits = hitsOf(m[3]);
+    if (!hits.length) continue;
+    add(
+      eff('exile', objectOfHits(hits), who === 'any' ? 'opp' : who, {
+        hits,
+        scope: 'single',
+        amount: parseCount(m[2]),
+        limits: limitsOf(m[3]),
+      })
+    );
+  }
   if (
     /\bchooses? [^.]*and sacrifices? the rest\b/.test(s) &&
     !out.some((e) => e.verb === 'sacrifice' && e.scope === 'mass')
