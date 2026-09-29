@@ -380,7 +380,12 @@ meanwhile.
   ([§ Toolbars](style-guide/components.md#toolbars--action-rows-responsive), search beside its list) and one door, which is `Button variant="link"` with a trailing chevron (T135: one link style app-wide, no bespoke door class). The meta hides on a
   phone before anything wraps. **Built** as `SectionHeader` (T166): Home's
   `.home-section-head` is the reference markup; a section with no meta or
-  tools gets only its heading. Its `variant` is the heading's role, painted
+  tools gets only its heading. A section's own `<header>` is `as="header"`,
+  which is always the row, so a tool that comes and goes (Trades' Clear
+  history) never changes it; `leading` holds what sits ahead of the title
+  (the deck list's collapse chevron and type glyph), `titleAfter` what
+  follows it that a heading can't hold (the category gauge), and tools with
+  no `toolsClassName` sit in the row as its last items. Its `variant` is the heading's role, painted
   once in `styles/base-layout.css`: a `title` (serif, `--text-lg`, 700) or an
   `overline` (a small uppercase serif label above its rows, at
   `--tracking-overline`). A family keeps its spacing, never the type. New

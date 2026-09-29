@@ -68,6 +68,7 @@ import { CardName } from '@/components/shared/CardName';
 import { IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { SectionHeader } from '@/components/shared/SectionHeader';
 
 // ── Category section ──────────────────────────────────────────────────────
 export function CategorySection({
@@ -288,45 +289,58 @@ export function CategorySection({
 
   return (
     <section className={`deck-section${collapsed ? ' is-collapsed' : ''}`}>
-      <header className="deck-section-header">
-        {/* The header itself is not the toggle: it already hosts headerAction
-            (the partner control), and a button inside a button is invalid.
-            The chevron matches the per-row printings disclosure below. */}
-        {onToggleCollapsed && (
-          <IconButton
-            className="deck-section-collapse"
-            aria-expanded={!collapsed}
-            aria-controls={listId}
-            onClick={onToggleCollapsed}
-            label={`${collapsed ? 'Expand' : 'Collapse'} ${title}`}
-            icon={
-              <ChevronDown
-                width={14}
-                height={14}
-                strokeWidth={2}
-                className="deck-section-collapse-icon"
+      <SectionHeader
+        as="header"
+        className="deck-section-header"
+        level={3}
+        variant="overline"
+        // The header itself is not the toggle: it already hosts headerAction
+        // (the partner control), and a button inside a button is invalid.
+        // The chevron matches the per-row printings disclosure below.
+        leading={
+          <>
+            {onToggleCollapsed && (
+              <IconButton
+                className="deck-section-collapse"
+                aria-expanded={!collapsed}
+                aria-controls={listId}
+                onClick={onToggleCollapsed}
+                label={`${collapsed ? 'Expand' : 'Collapse'} ${title}`}
+                icon={
+                  <ChevronDown
+                    width={14}
+                    height={14}
+                    strokeWidth={2}
+                    className="deck-section-collapse-icon"
+                  />
+                }
               />
-            }
-          />
-        )}
-        <span className="deck-section-icon">
-          <SectionIcon icon={icon} />
-        </span>
-        {/* A <div> (MeterBar's root) can't nest inside <h3> — phrasing content
-            only — so the gauge is a sibling of the heading, both wrapped
-            together as the single grid-column-occupying title cell. */}
-        <div className="deck-section-title-row">
-          {/* tabIndex=-1: not in tab order, but a programmatic focus target —
-              the qty stepper's decrement-to-zero focus handoff falls back
-              here when the row it removes has no sibling row left. */}
-          <h3 className="deck-section-title" tabIndex={-1}>
+            )}
+            <span className="deck-section-icon">
+              <SectionIcon icon={icon} />
+            </span>
+          </>
+        }
+        titleClassName="deck-section-title"
+        // Not in tab order, but a programmatic focus target: the qty
+        // stepper's decrement-to-zero focus handoff falls back here when the
+        // row it removes has no sibling row left.
+        titleTabIndex={-1}
+        title={
+          <>
             {title}{' '}
             <span className="deck-section-count">
               ({count}
               {target !== undefined ? ` / ${target}` : ''})
             </span>
-          </h3>
-          {target !== undefined && (
+          </>
+        }
+        // A <div> (MeterBar's root) can't nest inside <h3> (phrasing content
+        // only), so the gauge follows the heading and the two are wrapped as
+        // the header's one title cell.
+        titleWrapClassName="deck-section-title-row"
+        titleAfter={
+          target !== undefined && (
             <MeterBar
               value={count}
               max={Math.max(target, count)}
@@ -335,13 +349,17 @@ export function CategorySection({
               label={`${title}: ${count} of ${target}`}
               className="deck-section-gauge"
             />
-          )}
-        </div>
-        {showPrefs.price && rows.length > 0 && (
-          <span className="deck-section-subtotal">{formatMoney(subtotal, { currency })}</span>
-        )}
-        {headerAction}
-      </header>
+          )
+        }
+        tools={
+          <>
+            {showPrefs.price && rows.length > 0 && (
+              <span className="deck-section-subtotal">{formatMoney(subtotal, { currency })}</span>
+            )}
+            {headerAction}
+          </>
+        }
+      />
       {/* An empty pile says so in the list's place, once the last row's exit
           animation (still in `entries`) has played out. */}
       {empty && entries.length === 0 ? (

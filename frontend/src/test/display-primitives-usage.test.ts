@@ -168,10 +168,6 @@ const FALSE_FRIEND =
   'PERMANENT: named like a badge or pill but not one (a spinner, an avatar glyph, an input container, a paragraph with a link, a skeleton bar)';
 const LAYOUT_WRAPPER =
   'PERMANENT: the layout wrapper holding a verdict Chip and its reason, not a badge itself';
-const HEADER_ROW =
-  'PERMANENT: a <header> row with a collapse toggle and glyph ahead of the title; SectionHeader renders only a div row or a heading (T166 W5)';
-const ALWAYS_ROW =
-  'PERMANENT: the row wraps whether or not its one tool renders, and the tool is a bare sibling, which SectionHeader does not produce (T166 W5)';
 
 type Entry = { count: number; why: string };
 
@@ -207,12 +203,7 @@ const ALLOWED: Record<Shape, Record<string, Entry>> = {
     'playtest/components/ZoneViewerModal.tsx': { count: 2, why: BOARD_CHROME },
   },
   rawSurface: {},
-  rawSectionHead: {
-    'components/deck/CommanderOpenSlot.tsx': { count: 1, why: HEADER_ROW },
-    'components/deck/DeckCardGrid.tsx': { count: 1, why: HEADER_ROW },
-    'components/deck/DeckMainboardRow.tsx': { count: 1, why: HEADER_ROW },
-    'pages/TradesPage.tsx': { count: 1, why: ALWAYS_ROW },
-  },
+  rawSectionHead: {},
 };
 
 const HOW: Record<Shape, string> = {

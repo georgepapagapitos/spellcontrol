@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import { Button } from '@/components/shared/Button';
+import { SectionHeader } from '@/components/shared/SectionHeader';
 import { SectionIcon } from './deck-display-icons';
 import './CommanderOpenSlot.css';
 
@@ -15,16 +16,25 @@ export function CommanderOpenSlot({ onChoose }: { onChoose: () => void }) {
   const titleId = useId();
   return (
     <section className="deck-section commander-open-slot" aria-labelledby={titleId}>
-      <header className="deck-section-header">
-        <span className="deck-section-icon">
-          <SectionIcon icon="commander" />
-        </span>
-        <div className="deck-section-title-row">
-          <h3 id={titleId} className="deck-section-title">
+      <SectionHeader
+        as="header"
+        className="deck-section-header"
+        level={3}
+        variant="overline"
+        id={titleId}
+        titleClassName="deck-section-title"
+        titleWrapClassName="deck-section-title-row"
+        leading={
+          <span className="deck-section-icon">
+            <SectionIcon icon="commander" />
+          </span>
+        }
+        title={
+          <>
             Commander <span className="deck-section-count">(0)</span>
-          </h3>
-        </div>
-      </header>
+          </>
+        }
+      />
       <div className="commander-open-slot-row">
         <span className="commander-open-slot-ghost" aria-hidden />
         <div className="commander-open-slot-body">
