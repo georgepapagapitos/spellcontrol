@@ -82,6 +82,8 @@ const TradesPage = lazyPage(() => import('./pages/TradesPage'), 'TradesPage');
 const PodsIndexPage = lazyPage(() => import('./pages/PodsIndexPage'), 'PodsIndexPage');
 const PodHubPage = lazyPage(() => import('./pages/PodHubPage'), 'PodHubPage');
 // Utility / public
+// Component catalog (T176 W3): lazy, unlinked, noindex. See pages/CatalogPage.tsx.
+const CatalogPage = lazyPage(() => import('./pages/CatalogPage'), 'CatalogPage');
 const SearchPage = lazyPage(() => import('./pages/SearchPage'), 'SearchPage');
 const BrowseListPage = lazyPage(() => import('./pages/BrowseListPage'), 'BrowseListPage');
 const TagsPage = lazyPage(() => import('./pages/TagsPage'), 'TagsPage');
@@ -314,6 +316,7 @@ export default function App() {
           />
           {/* Legacy onboarding path → single canonical landing URL. */}
           <Route path="/welcome" element={<Navigate to="/" replace />} />
+          <Route path="/dev/catalog" element={<CatalogPage />} />
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/auth/choose-username" element={<ChooseUsernamePage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
