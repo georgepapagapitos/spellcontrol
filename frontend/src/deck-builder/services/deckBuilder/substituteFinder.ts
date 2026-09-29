@@ -387,11 +387,33 @@ export function buildSubstitutionPlan(
 }
 
 /**
+ * A second ranker for the Coach lane (E517 v2, services/substitutes): it
+ * re-orders the candidates this finder already gated and adds grounded
+ * reasons. It never adds or removes a candidate.
+ */
+export interface OptionsReranker {
+  /** `names` best-first, or null to keep this finder's order for `missing`. */
+  rank(
+    missing: GapAnalysisCard,
+    names: readonly string[]
+  ): {
+    order: readonly string[];
+    /** The row's factors: v2's merged with the finder's own (`v1`). */
+    factorsFor(name: string, v1: readonly WhyFactor[] | undefined): WhyFactor[];
+  } | null;
+}
+
+export interface SubstitutionOptionsOptions extends SubstituteFinderOptions {
+  /** Re-rank each staple's owned candidates (the suggestion surfaces only). */
+  rerank?: OptionsReranker | null;
+}
+
+/**
  * Like {@link buildSubstitutionPlan}, but each primary row carries up to
  * `topN - 1` ranked `alternatives` — other owned cards that fill the same staple
  * — for the Coach "N other owned options" expander. Deck generation keeps using
  * the greedy single-pick `buildSubstitutionPlan`; this is the feed-only,
- * compare-on-demand variant.
+ * compare-on-demand variant, and the only one `opts.rerank` reaches.
  *
  * Two passes, so an alternative is never a card already chosen as another
  * staple's primary (which would imply applying the same physical copy twice):
@@ -403,7 +425,7 @@ export function buildSubstitutionOptions(
   ownedPool: readonly SubstituteCandidate[],
   deckNames: ReadonlySet<string>,
   identity: string[],
-  opts: SubstituteFinderOptions = {},
+  opts: SubstitutionOptionsOptions = {},
   topN = 3
 ): SubstitutionPlan {
   const rows: SubstituteRow[] = [];
@@ -411,7 +433,7 @@ export function buildSubstitutionOptions(
   const claimed = new Set<string>();
   const ranking = new Map<
     string,
-    { missing: GapAnalysisCard; ranked: RankedCandidate[]; role: RoleKey; roleLabel: string }
+    { ranked: RankedCandidate[]; row: (cand: RankedCandidate) => SubstituteRow }
   >();
 
   // Pass 1: greedy primaries (each owned card claimed by at most one staple).
@@ -422,9 +444,18 @@ export function buildSubstitutionOptions(
       unmatched.push(missing.name);
       continue;
     }
-    rows.push(toRow(missing, r.role, r.roleLabel, r.ranked[0]));
-    claimed.add(r.ranked[0].card.name);
-    ranking.set(missing.name, { missing, ...r });
+    const v2 = opts.rerank?.rank(
+      missing,
+      r.ranked.map((c) => c.card.name)
+    );
+    const ranked = v2 ? reorder(r.ranked, v2.order) : r.ranked;
+    const row = (cand: RankedCandidate): SubstituteRow => {
+      const base = toRow(missing, r.role, r.roleLabel, cand);
+      return v2 ? { ...base, whyFactors: v2.factorsFor(cand.card.name, base.whyFactors) } : base;
+    };
+    rows.push(row(ranked[0]));
+    claimed.add(ranked[0].card.name);
+    ranking.set(missing.name, { ranked, row });
   }
 
   // Pass 2: alternatives = the staple's remaining ranked candidates, minus any
@@ -436,9 +467,18 @@ export function buildSubstitutionOptions(
       .slice(1)
       .filter((c) => !claimed.has(c.card.name))
       .slice(0, Math.max(0, topN - 1))
-      .map((c) => toRow(r.missing, r.role, r.roleLabel, c));
+      .map(r.row);
     if (alts.length > 0) row.alternatives = alts;
   }
 
   return { rows, unmatched };
+}
+
+/** `ranked` in `order`'s order; a candidate `order` leaves out keeps its place after the rest. */
+function reorder(ranked: RankedCandidate[], order: readonly string[]): RankedCandidate[] {
+  const pos = new Map(order.map((name, i) => [name, i]));
+  return ranked
+    .map((c, i) => ({ c, key: pos.get(c.card.name) ?? order.length + i }))
+    .sort((a, b) => a.key - b.key)
+    .map((x) => x.c);
 }

@@ -59,6 +59,7 @@ import {
   findOwnedSubstitute,
   buildSubstitutionPlan,
   buildSubstitutionOptions,
+  type OptionsReranker,
   type SubstituteCandidate,
 } from './substituteFinder';
 
@@ -328,5 +329,71 @@ describe('buildSubstitutionOptions', () => {
         expect(used).not.toContain(alt.usedName);
       }
     }
+  });
+
+  // E517: v2 re-ranks the Coach lane's candidates; it never changes which cards qualify.
+  describe('with a v2 re-ranker', () => {
+    const pool = [
+      owned({ name: 'Mind Stone', colorIdentity: [], cmc: 2 }),
+      owned({ name: 'Worn Powerstone', colorIdentity: [], cmc: 3 }),
+      owned({ name: 'Rampant Growth', colorIdentity: [], cmc: 2, typeLine: 'Sorcery' }),
+    ];
+    const staple = missing({ name: 'Talisman of Dominance', role: 'ramp', cmc: 2 });
+    const names = (p: ReturnType<typeof buildSubstitutionOptions>) => [
+      p.rows[0].usedName,
+      ...(p.rows[0].alternatives ?? []).map((a) => a.usedName),
+    ];
+    const reversed: OptionsReranker = {
+      rank: (_missing, candidates) => ({
+        order: [...candidates].reverse(),
+        factorsFor: (name, v1) => [{ text: `v2 for ${name}`, tone: 'pro' }, ...(v1 ?? [])],
+      }),
+    };
+
+    it('takes its order and merges its reasons, over the same candidates', () => {
+      const v1 = buildSubstitutionOptions([staple], pool, new Set<string>(), DIMIR);
+      const v2 = buildSubstitutionOptions([staple], pool, new Set<string>(), DIMIR, {
+        rerank: reversed,
+      });
+      expect(names(v2)).toEqual([...names(v1)].reverse());
+      expect(v2.rows[0].whyFactors?.[0].text).toBe(`v2 for ${v2.rows[0].usedName}`);
+      // The finder's own factors survive under v2's.
+      expect(v2.rows[0].whyFactors?.length).toBeGreaterThan(1);
+    });
+
+    it('keeps the finder order when the re-ranker declines', () => {
+      const declines: OptionsReranker = { rank: () => null };
+      expect(
+        buildSubstitutionOptions([staple], pool, new Set<string>(), DIMIR, { rerank: declines })
+      ).toEqual(buildSubstitutionOptions([staple], pool, new Set<string>(), DIMIR));
+    });
+
+    it('never offers one staple the card claimed as another staple primary', () => {
+      const plan = buildSubstitutionOptions(
+        [staple, missing({ name: 'Dimir Signet', role: 'ramp', cmc: 2 })],
+        pool,
+        new Set<string>(),
+        DIMIR,
+        { rerank: reversed }
+      );
+      const used = plan.rows.map((r) => r.usedName);
+      expect(new Set(used).size).toBe(used.length);
+      for (const row of plan.rows)
+        for (const alt of row.alternatives ?? []) expect(used).not.toContain(alt.usedName);
+    });
+
+    it('keeps a candidate the re-ranker leaves out, after the ones it ordered', () => {
+      const lastOnly: OptionsReranker = {
+        rank: (_missing, candidates) => ({
+          order: [candidates[candidates.length - 1]],
+          factorsFor: (_name, v1) => [...(v1 ?? [])],
+        }),
+      };
+      const v1 = names(buildSubstitutionOptions([staple], pool, new Set<string>(), DIMIR, {}, 5));
+      const v2 = names(
+        buildSubstitutionOptions([staple], pool, new Set<string>(), DIMIR, { rerank: lastOnly }, 5)
+      );
+      expect(v2).toEqual([v1[v1.length - 1], ...v1.slice(0, -1)]);
+    });
   });
 });

@@ -125,6 +125,8 @@ import { useEdhrecComboOverlay } from '@/lib/edhrec-combo-overlay';
 import { CardFitPanel } from '../components/deck/CardFitPanel';
 import { SwapThisCard } from '../components/deck/SwapThisCard';
 import { SimilarCardsStrip } from '../components/deck/SimilarCardsStrip';
+import { useSubstituteRanking } from '../components/deck/useSubstituteRanking';
+import * as substitutesV2 from '@/deck-builder/services/substitutes/surfaces';
 import { classifyCandidate, analyzeDeck } from '../lib/deck-analysis';
 import { useTaggerReady } from '../lib/use-tagger-ready';
 import { heroBracketReadout } from '../lib/format-bracket-label';
@@ -1240,6 +1242,8 @@ export function DeckEditorPage() {
     }
     return [...byName.values()];
   }, [collectionCards]);
+  // E517: v2 re-ranks the owned alternatives once its card facts load (the Coach tab asks).
+  const substitutesReady = useSubstituteRanking(view === 'tune');
   const substitutionPlan = useMemo(() => {
     if (!deck || !DECK_FORMAT_CONFIGS[deck.format].hasCommander) return null;
     const gap = deck.gapAnalysis;
@@ -1256,8 +1260,9 @@ export function DeckEditorPage() {
     // single-pick buildSubstitutionPlan).
     return buildSubstitutionOptions(missingStaples, ownedPool, deckNames, commanderColorIdentity, {
       inclusionByName,
+      rerank: substitutesReady ? substitutesV2.ownedAlternativesReranker([...deckNames]) : null,
     });
-  }, [deck, ownedNames, ownedPool, commanderColorIdentity]);
+  }, [deck, ownedNames, ownedPool, commanderColorIdentity, substitutesReady]);
 
   // Strong on-color duals for the deck's colors, fetched live for the
   // "Re-analyze lands" tool's acquire rows (duals worth getting, not just ones
@@ -2438,22 +2443,25 @@ export function DeckEditorPage() {
     // Each alternative is a real swap (this card → the alternative), so the row
     // shows the trade: the focused card dimmed on the left, the alternative
     // coming in. The apply path still reads the incoming name (`onSwap`).
-    const alternatives = sortOwnedFirst(
-      gaps.map((g) => {
-        const ownership = ownershipFor(g.name);
-        return {
-          ...toSwapAgainst(fromGapCard(g, ownership), card.name),
-          // Each same-role alternative gets its own grounded "why this over the
-          // others" — replaces the six identical "{role} staple" reason lines.
-          whyFactors: buildSwapAlternativeFactors({
-            inclusion: g.inclusion,
-            synergy: g.synergy,
-            owned: ownership === 'owned',
-            roleLabel: g.roleLabel,
-            commanderName: deck.commander?.name,
-          }),
-        };
-      })
+    const built = gaps.map((g) => {
+      const ownership = ownershipFor(g.name);
+      return {
+        ...toSwapAgainst(fromGapCard(g, ownership), card.name),
+        // Each same-role alternative gets its own grounded "why this over the
+        // others" — replaces the six identical "{role} staple" reason lines.
+        whyFactors: buildSwapAlternativeFactors({
+          inclusion: g.inclusion,
+          synergy: g.synergy,
+          owned: ownership === 'owned',
+          roleLabel: g.roleLabel,
+          commanderName: deck.commander?.name,
+        }),
+      };
+    });
+    // E517: owned first, then by how well each replaces this card (v2), else by play rate.
+    const alternatives = (
+      substitutesV2.rankSwapAlternatives(card.name, role, built, [...deckCardNames]) ??
+      sortOwnedFirst(built)
     ).slice(0, 6);
     return (
       <SwapThisCard
