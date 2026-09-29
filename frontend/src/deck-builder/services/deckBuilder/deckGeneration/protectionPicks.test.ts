@@ -7,7 +7,7 @@ import {
   commanderMustSurvive,
   isSurvivalPiece,
   makeProtectionAdmits,
-  protectionAdmitsFor,
+  rankSurvivalPieces,
   PROTECTION_PICK_CAP,
 } from './protectionPicks';
 
@@ -132,40 +132,48 @@ describe('isSurvivalPiece', () => {
   );
 });
 
-describe('protectionAdmitsFor', () => {
+describe('rankSurvivalPieces / makeProtectionAdmits', () => {
   const cardMap = new Map(
     [GREAVES, BOOTS, HEROIC, FIERCE_GUARDIANSHIP, ALLOSAURUS_SHEPHERD].map((c) => [c.name, c])
   );
-  // Lathril, Blade of the Elves's page.
-  const lathrilPool = [
+  // Lathril, Blade of the Elves's page. Selfless Safewright (30.5%) sits in
+  // the creature pool, which the first pass sees alone.
+  const lathrilPage = [
     ec('Lightning Greaves', 34.4),
     ec('Swiftfoot Boots', 36.0),
     ec('Heroic Intervention', 50.9),
     ec('Allosaurus Shepherd', 31.2),
   ];
+  const admits = (seated: ScryfallCard[]) => [
+    ...(makeProtectionAdmits(true, lathrilPage, cardMap, () => seated)?.() ?? []),
+  ];
 
-  it('promotes the highest-inclusion pieces, at most PROTECTION_PICK_CAP', () => {
-    const admits = protectionAdmitsFor(lathrilPool, cardMap, []);
+  it('ranks the whole page and keeps the top PROTECTION_PICK_CAP', () => {
     expect(PROTECTION_PICK_CAP).toBe(2);
-    expect([...admits]).toEqual(['Heroic Intervention', 'Swiftfoot Boots']);
+    expect(rankSurvivalPieces(lathrilPage, cardMap)).toEqual([
+      'Heroic Intervention',
+      'Swiftfoot Boots',
+    ]);
   });
 
-  it('counts pieces already seated and never re-admits one', () => {
-    expect([...protectionAdmitsFor(lathrilPool, cardMap, [HEROIC])]).toEqual(['Swiftfoot Boots']);
-    expect(protectionAdmitsFor(lathrilPool, cardMap, [HEROIC, GREAVES]).size).toBe(0);
+  it('admits the ranked pieces not yet seated, until the deck holds the cap', () => {
+    expect(admits([])).toEqual(['Heroic Intervention', 'Swiftfoot Boots']);
+    expect(admits([HEROIC])).toEqual(['Swiftfoot Boots']);
+    expect(admits([HEROIC, GREAVES])).toEqual([]);
   });
 
   it('ignores a spell-protection piece in the seated count', () => {
-    expect(protectionAdmitsFor(lathrilPool, cardMap, [FIERCE_GUARDIANSHIP]).size).toBe(2);
+    expect(admits([FIERCE_GUARDIANSHIP])).toHaveLength(2);
   });
 
-  it('skips a piece this page barely plays', () => {
-    // Meren of Clan Nel Toth: Swiftfoot Boots 18.8%.
-    expect(protectionAdmitsFor([ec('Swiftfoot Boots', 18.8)], cardMap, []).size).toBe(0);
+  it('skips a piece the page barely plays', () => {
+    // Swiftfoot Boots on Krenko, Mob Boss's Budget page: 28.3%; on Atraxa,
+    // Praetors' Voice's Exhibition page: 8.0%.
+    expect(rankSurvivalPieces([ec('Swiftfoot Boots', 8.0)], cardMap)).toEqual([]);
+    expect(rankSurvivalPieces([ec('Swiftfoot Boots', 28.3)], cardMap)).toEqual(['Swiftfoot Boots']);
   });
 
   it('is off for a commander that need not survive', () => {
-    expect(makeProtectionAdmits(false, cardMap, () => [])).toBeUndefined();
-    expect(makeProtectionAdmits(true, cardMap, () => [])?.(lathrilPool).size).toBe(2);
+    expect(makeProtectionAdmits(false, lathrilPage, cardMap, () => [])).toBeUndefined();
   });
 });

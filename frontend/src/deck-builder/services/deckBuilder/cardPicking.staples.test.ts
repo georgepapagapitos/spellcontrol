@@ -5,6 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { pickFromPrefetchedWithCurve, type RoleCapConfig } from './cardPicking';
 import { computeRoleBoosts } from './categorize';
+import { BudgetTracker } from './budgetTracker';
 import type { EDHRECCard, ScryfallCard } from '@/deck-builder/types';
 import type { RoleKey } from '@/deck-builder/services/tagger/client';
 
@@ -66,6 +67,7 @@ interface PassOpts {
   currentCurve?: Record<number, number>;
   brewLevel?: number;
   admitFirst?: ReadonlySet<string>;
+  budgetTracker?: BudgetTracker;
 }
 
 // The live type pass's argument order (typePassPick.ts's pickEdhrecTypePass).
@@ -93,7 +95,7 @@ function pass(o: PassOpts): string[] {
     { value: 0 },
     null,
     null,
-    null,
+    o.budgetTracker ?? null,
     undefined,
     boosts,
     'USD',
@@ -121,13 +123,20 @@ function pass(o: PassOpts): string[] {
 describe('staples are never held back by a role cap (E532 a)', () => {
   // Yuriko, the Tiger's Shadow at bracket 4, the planeswalker pass: draw sat
   // at 22 on a target of 18 (cap 18 + 4), removal at 8 on 7 (cap 9).
-  function yurikoPlaneswalkerPass(stapleOverflowCounts: Partial<Record<RoleKey, number>>) {
+  function yurikoPlaneswalkerPass(
+    stapleOverflowCounts: Partial<Record<RoleKey, number>>,
+    budgetTracker?: BudgetTracker
+  ) {
     return pass({
       pool: [
         ec('Kaito, Bane of Nightmares', 54.9, 'Planeswalker', 0.5),
         ec('Jace, the Mind Sculptor', 5.6, 'Planeswalker', 0.04),
       ],
-      cards: [KAITO, JACE],
+      // Placeholder prices: the budget case needs a price to pace spending.
+      cards: [
+        { ...KAITO, prices: { usd: '1.50' } },
+        { ...JACE, prices: { usd: '3.00' } },
+      ],
       count: 1,
       expectedType: 'Planeswalker',
       roleCap: {
@@ -140,6 +149,7 @@ describe('staples are never held back by a role cap (E532 a)', () => {
         overflowCounts: {},
         stapleOverflowCounts,
       },
+      budgetTracker,
     });
   }
 
@@ -152,18 +162,28 @@ describe('staples are never held back by a role cap (E532 a)', () => {
     yurikoPlaneswalkerPass(counts);
     expect(counts).toEqual({ cardDraw: 1 });
   });
+
+  it('holds the cap under a deck budget, where a card past it is money to claw back', () => {
+    expect(yurikoPlaneswalkerPass({}, new BudgetTracker(400, 60, 'USD'))).toEqual([
+      'Jace, the Mind Sculptor',
+    ]);
+  });
 });
 
 describe('staples go before role-deficit ordering (E532 b)', () => {
   // Krenko, Mob Boss, the artifact pass with ramp at 5 of 12: the deficit
   // boost lifts a 20% rock (Mind Stone) above the 49% Lightning Greaves.
-  const krenkoArtifactPass = (brewLevel?: number) =>
+  const krenkoArtifactPass = (brewLevel?: number, budgetTracker?: BudgetTracker) =>
     pass({
       pool: [
         ec('Lightning Greaves', 49.0, 'Artifact', 0.16),
         ec('Mind Stone', 20.3, 'Artifact', -0.1),
       ],
-      cards: [LIGHTNING_GREAVES, MIND_STONE],
+      // Placeholder prices: the budget case needs a price to pace spending.
+      cards: [
+        { ...LIGHTNING_GREAVES, prices: { usd: '3.40' } },
+        { ...MIND_STONE, prices: { usd: '0.45' } },
+      ],
       count: 1,
       expectedType: 'Artifact',
       roleCap: {
@@ -172,6 +192,7 @@ describe('staples go before role-deficit ordering (E532 b)', () => {
         currentRoleCounts: { ramp: 5, removal: 12, boardwipe: 1, cardDraw: 9 },
       },
       brewLevel,
+      budgetTracker,
     });
 
   it('seats Lightning Greaves (49%) over a boosted Mind Stone (20.3%)', () => {
@@ -180,6 +201,10 @@ describe('staples go before role-deficit ordering (E532 b)', () => {
 
   it('leaves the Synergy end of the dial to role and synergy ordering', () => {
     expect(krenkoArtifactPass(1)).toEqual(['Mind Stone']);
+  });
+
+  it('leaves a deck budget to role ordering: pick order is spending order there', () => {
+    expect(krenkoArtifactPass(0.5, new BudgetTracker(50, 60, 'USD'))).toEqual(['Mind Stone']);
   });
 });
 

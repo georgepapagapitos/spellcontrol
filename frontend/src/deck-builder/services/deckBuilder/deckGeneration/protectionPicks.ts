@@ -22,10 +22,11 @@ import { getCombinedOracleText, type CommanderProfile } from '../commanderProfil
 export const PROTECTION_PICK_CAP = 2;
 
 /** EDHREC inclusion (%) a piece needs on this commander's page to be promoted:
- *  the page has to show players protect this commander with it. */
+ *  the page has to show players protect this commander with it. 15 keeps the
+ *  18-20% pieces that had reached Meren and Yuriko decks through conversions. */
 // ponytail: flat floor. A per-page relative bar (the page's own top piece) if
 // thin pages promote pieces nobody plays there.
-export const PROTECTION_PICK_MIN_INCLUSION = 20;
+export const PROTECTION_PICK_MIN_INCLUSION = 15;
 
 // A value engine that repeats while the commander stays on the battlefield: a
 // trigger ("whenever", "at the beginning of") or an activated ability
@@ -66,37 +67,47 @@ export function commanderMustSurvive(
 }
 
 /**
- * The survival pieces a type pass tries first: the highest-inclusion ones in
- * `pool` at PROTECTION_PICK_MIN_INCLUSION or more, as many as the deck still
- * has room for under PROTECTION_PICK_CAP (counting pieces already seated,
- * staples included).
+ * The survival pieces worth promoting: the PROTECTION_PICK_CAP highest-
+ * inclusion ones on the whole page (every type pool), at
+ * PROTECTION_PICK_MIN_INCLUSION or more. Ranked page-wide, not per pass: the
+ * creature pass runs first, so a per-pass pick spent Lathril's second slot on
+ * Selfless Safewright (30.5%) before Swiftfoot Boots (36%) was ever seen.
  */
-export function protectionAdmitsFor(
-  pool: readonly EDHRECCard[],
-  cardMap: ReadonlyMap<string, ScryfallCard>,
-  seated: readonly ScryfallCard[]
-): Set<string> {
-  const room = PROTECTION_PICK_CAP - seated.filter(isSurvivalPiece).length;
-  if (room <= 0) return new Set();
-  const seatedNames = new Set(seated.map((c) => c.name));
-  return new Set(
-    pool
-      .filter((c) => {
-        const card = cardMap.get(c.name);
-        if (!card || seatedNames.has(card.name)) return false;
-        return c.inclusion >= PROTECTION_PICK_MIN_INCLUSION && isSurvivalPiece(card);
-      })
-      .sort((a, b) => b.inclusion - a.inclusion)
-      .slice(0, room)
-      .map((c) => c.name)
-  );
+export function rankSurvivalPieces(
+  candidates: readonly EDHRECCard[],
+  cardMap: ReadonlyMap<string, ScryfallCard>
+): string[] {
+  const best = new Map<string, number>();
+  for (const c of candidates) {
+    const card = cardMap.get(c.name);
+    if (!card || c.inclusion < PROTECTION_PICK_MIN_INCLUSION || !isSurvivalPiece(card)) continue;
+    best.set(c.name, Math.max(best.get(c.name) ?? 0, c.inclusion));
+  }
+  return [...best]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, PROTECTION_PICK_CAP)
+    .map(([name]) => name);
 }
 
-/** The TypePassContext hook: undefined (no promotion) unless the commander must survive. */
+/**
+ * The TypePassContext hook: the ranked pieces not yet seated, while the deck
+ * holds fewer than PROTECTION_PICK_CAP survival pieces (staples and organic
+ * picks included). Undefined (no promotion) unless the commander must survive.
+ * A ranked piece a hard gate rejects (price, rarity) just leaves its slot to
+ * the ordinary picks.
+ */
 export function makeProtectionAdmits(
   mustSurvive: boolean,
+  candidates: readonly EDHRECCard[],
   cardMap: ReadonlyMap<string, ScryfallCard>,
   seated: () => readonly ScryfallCard[]
-): ((pool: EDHRECCard[]) => ReadonlySet<string>) | undefined {
-  return mustSurvive ? (pool) => protectionAdmitsFor(pool, cardMap, seated()) : undefined;
+): (() => ReadonlySet<string>) | undefined {
+  if (!mustSurvive) return undefined;
+  const ranked = rankSurvivalPieces(candidates, cardMap);
+  return () => {
+    const deck = seated();
+    if (deck.filter(isSurvivalPiece).length >= PROTECTION_PICK_CAP) return new Set();
+    const seatedNames = new Set(deck.map((c) => c.name));
+    return new Set(ranked.filter((name) => !seatedNames.has(name)));
+  };
 }

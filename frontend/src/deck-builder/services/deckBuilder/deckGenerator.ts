@@ -2751,6 +2751,14 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       roleCapStapleCounts,
       protectionAdmits: makeProtectionAdmits(
         commanderMustSurvive([commander, partnerCommander ?? commander], commanderProfile),
+        [
+          creaturePool,
+          instantPool,
+          sorceryPool,
+          artifactPool,
+          enchantmentPool,
+          planeswalkerPool,
+        ].flat(),
         cardMap,
         () => Object.entries(categories).flatMap(([cat, cards]) => (cat === 'lands' ? [] : cards))
       ),

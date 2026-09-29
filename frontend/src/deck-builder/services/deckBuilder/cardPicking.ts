@@ -24,10 +24,11 @@ import {
 /**
  * The staple bar: a card in this share (%) of the commander's own EDHREC decks
  * is part of how the deck is played, not a choice among substitutes. Such a
- * card may break the curve, is never held back by a role cap, and (at the
- * Balanced/Staples end of the dial) is tried before role-deficit ordering
- * decides the rest of a type pass (E532). Role boosts reach 150+ points, so
- * without the tier a 25% ramp spell outranks a 55% roleless payoff.
+ * card may break the curve and, without a deck budget, is never held back by a
+ * role cap and (at the Balanced/Staples end of the dial) is tried before
+ * role-deficit ordering decides the rest of a type pass (E532). Role boosts
+ * reach 150+ points, so without the tier a 25% ramp spell outranks a 55%
+ * roleless payoff.
  */
 export const STAPLE_INCLUSION_BAR = 40;
 
@@ -635,9 +636,12 @@ export function pickFromPrefetchedWithCurve(
   };
   // A staple is never held back (E532: Kaito, Bane of Nightmares at 54.9% was
   // skipped on card draw while a 5.6% Jace passed on removal); its admission
-  // past the cap is counted in stapleOverflowCounts below.
+  // past the cap is counted in stapleOverflowCounts below. Not under a deck
+  // budget: a card past its cap is money a later phase has to claw back, and
+  // on Meren at $100 that ended $7.45 over after 20 substitutions.
+  const capExempt = (c: EDHRECCard) => !budgetTracker && isStaple(c);
   const roleCapBlocks = (edhrecCard: EDHRECCard): boolean =>
-    !allowCapOverflow && !isStaple(edhrecCard) && atRoleCap(edhrecCard);
+    !allowCapOverflow && !capExempt(edhrecCard) && atRoleCap(edhrecCard);
 
   // Filter and sort ALL candidates by priority (synergy + combo + owned-first bias)
   const allCandidates = edhrecCards
@@ -874,11 +878,14 @@ export function pickFromPrefetchedWithCurve(
   // boosts promoted. Role boosts still order the cards within this tier and
   // everything below it. Staples stay out of the tier where another ordering
   // is the user's or the design's call: toward the Synergy end of the dial,
-  // under 'prefer' (the owned boost decides near-ties, E122), and for board
-  // wipes (the one-sided/collateral tie-breaks decide those, E109/E112).
+  // under 'prefer' (the owned boost decides near-ties, E122), for board wipes
+  // (the one-sided/collateral tie-breaks decide those, E109/E112), and under a
+  // deck budget, where pick order is spending order: staples first spent the
+  // budget on play rate and budget convergence then cut the cheap role cards
+  // (all three budget decks on the E532 panel came out worse).
   // ponytail: a price-sanity pair straddling the bar (E80) is ordered by the
   // tier, not by price. Fold the tie-break in if a live deck shows one.
-  const stapleTier = brewLevel <= 0.5 && !preferOwned;
+  const stapleTier = brewLevel <= 0.5 && !preferOwned && !budgetTracker;
   const firstTier = allCandidates.filter(
     (c) =>
       !!admitFirst?.has(c.name) ||
