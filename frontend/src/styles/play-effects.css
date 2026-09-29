@@ -433,6 +433,8 @@
   background: var(--accent-light);
   --text-muted: var(--text-muted-tint);
   --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   color: var(--accent);
   border-color: var(--accent);
   /* Always-dark panel (per-player life-keypad cover, fixed gradient bg
@@ -445,6 +447,8 @@
     background: var(--accent-light);
     --text-muted: var(--text-muted-tint);
     --text-secondary: var(--text-secondary-tint);
+    --accent: var(--accent-tint);
+    --accent-hover: var(--accent-hover-tint);
     color: var(--accent);
     border-color: var(--accent);
   }
@@ -502,6 +506,8 @@
   background: var(--accent-light);
   --text-muted: var(--text-muted-tint);
   --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   border-color: var(--accent);
   color: var(--accent);
   /* Always-dark keypad cover — white ring, same ruling as .life-keypad-close. */
@@ -513,6 +519,8 @@
     background: var(--accent-light);
     --text-muted: var(--text-muted-tint);
     --text-secondary: var(--text-secondary-tint);
+    --accent: var(--accent-tint);
+    --accent-hover: var(--accent-hover-tint);
     border-color: var(--accent);
     color: var(--accent);
   }
@@ -683,6 +691,8 @@
   background: var(--accent-light);
   --text-muted: var(--text-muted-tint);
   --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   box-shadow: 0 0 0 2px var(--accent-light);
 }
 

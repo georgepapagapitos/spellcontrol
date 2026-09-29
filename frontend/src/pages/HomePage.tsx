@@ -6,6 +6,7 @@ import { PriceMoversCard } from '../components/home/PriceMoversCard';
 import { RecentlyAddedCard } from '../components/home/RecentlyAddedCard';
 import { YourCardsCard } from '../components/home/YourCardsCard';
 import { AroundTheTable } from '../components/home/AroundTheTable';
+import { FollowedBrewersCard } from '../components/home/FollowedBrewersCard';
 import { DiscoverRow } from '../components/home/DiscoverRow';
 import { useGameNights } from '../components/play/GameNights';
 import { useActivity } from '../lib/use-activity';
@@ -56,6 +57,7 @@ export function HomePage() {
         recent={activity.recent}
         activityLoading={activity.loading}
       />
+      <FollowedBrewersCard items={activity.following} loading={activity.loading} />
       <DiscoverRow />
     </div>
   );

@@ -9,7 +9,8 @@ import { ColorPip } from '../shared/ManaSymbol';
 import { useCardThumb } from '../../lib/card-thumbs';
 import { deckCoverArt } from '../../lib/deck-cover';
 import { formatRelativeTime } from '../../lib/format-time';
-import { effectiveDeckColors } from '../../lib/deck-validation';
+import { deckDisplayColors } from '../../lib/deck-validation';
+import { ColorIdentityBar } from '../shared/ColorIdentityBar';
 import { aggregateNewArrivalDecks } from '../../lib/home-signals';
 import { readArrivalWatchlists } from '../../lib/arrival-watchlist';
 import { readHomeShape, rememberHomeShape } from '../../lib/home-shape';
@@ -22,7 +23,6 @@ import { SectionHeader } from '../shared/SectionHeader';
 import { SwipeRow } from '@/components/shared/SwipeRow';
 
 const RECENT_LIMIT = 5;
-const WUBRG = ['W', 'U', 'B', 'R', 'G'];
 /** home-shape slot: how many tiles the section showed last visit (0 = none). */
 const SHAPE_SLOT = 'your-decks';
 
@@ -31,7 +31,7 @@ function DeckTile({ deck, arrivals }: { deck: Deck; arrivals: number }) {
   const direct = deckCoverArt(deck);
   const resolved = useCardThumb(direct ? undefined : commander?.name, 'art_crop');
   const art = direct ?? resolved;
-  const colors = [...effectiveDeckColors(deck)].sort((a, b) => WUBRG.indexOf(a) - WUBRG.indexOf(b));
+  const colors = deckDisplayColors(deck);
   const format = DECK_FORMAT_CONFIGS[deck.format]?.label ?? deck.format;
   const edited = formatRelativeTime(deck.updatedAt);
   const label = `Open deck: ${deck.name}, ${format}, edited ${edited}`;
@@ -59,6 +59,7 @@ function DeckTile({ deck, arrivals }: { deck: Deck; arrivals: number }) {
             )}
           </span>
         )}
+        <ColorIdentityBar colors={colors} />
         <div className="decks-index-card-body">
           <div className="decks-index-card-name">
             <span>{deck.name}</span>

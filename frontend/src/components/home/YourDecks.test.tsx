@@ -227,6 +227,52 @@ describe('YourDecks', () => {
     expect(tile.style.getPropertyValue('--deck-color')).toBe('#ff0000');
   });
 
+  // #2532 put the strip on every deck grid but Home, whose tile is its own
+  // markup; the same deck had a strip on My Decks and none here.
+  const segs = (tile: Element | null) =>
+    [...(tile?.querySelectorAll('.color-identity-bar-seg') ?? [])].map((s) =>
+      s.className.replace(/.*--/, '')
+    );
+
+  it("wears the color-identity strip in the commander's WUBRG order", () => {
+    setStore([
+      makeDeck({
+        id: 'a',
+        name: 'A',
+        commander: commander({ name: 'Gruul Commander', color_identity: ['G', 'R'] }),
+      }),
+    ]);
+    const { container } = renderSection();
+    expect(segs(container.querySelector('.decks-index-card'))).toEqual(['r', 'g']);
+  });
+
+  it('orders a commanderless deck strip most-used color first, as My Decks does', () => {
+    const card = (name: string, color_identity: string[]) => ({
+      card: commander({ name, color_identity }),
+      quantity: 1,
+    });
+    setStore([
+      makeDeck({
+        id: 'a',
+        name: 'A',
+        format: 'pauper',
+        cards: [
+          card('x', ['G']),
+          card('y', ['B', 'G']),
+          card('z', ['G']),
+        ] as unknown as Deck['cards'],
+      }),
+    ]);
+    const { container } = renderSection();
+    expect(segs(container.querySelector('.decks-index-card'))).toEqual(['g', 'b']);
+  });
+
+  it('gives a colorless deck one neutral segment, never an empty strip', () => {
+    setStore([makeDeck({ id: 'a', name: 'A' })]);
+    const { container } = renderSection();
+    expect(segs(container.querySelector('.decks-index-card'))).toEqual(['c']);
+  });
+
   it('searches your decks from its own search box', () => {
     setStore([makeDeck({ id: 'a', name: 'A' })]);
     renderSection();

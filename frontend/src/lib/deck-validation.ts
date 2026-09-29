@@ -106,6 +106,27 @@ export function deckColorFrequency(deck: {
   return counts;
 }
 
+const WUBRG = ['W', 'U', 'B', 'R', 'G'];
+
+/**
+ * A deck's colors in the order its tiles show them (pips and the identity
+ * strip): most-used first for a deck without a commander, WUBRG for a
+ * commander deck, where every identity color counts the same. One order, so
+ * a deck reads the same on Home and on My Decks.
+ */
+export function deckDisplayColors(deck: {
+  commander: ScryfallCard | null;
+  partnerCommander: ScryfallCard | null;
+  cards: DeckCard[];
+  sideboard?: DeckCard[];
+}): string[] {
+  const freq = deck.commander || deck.partnerCommander ? null : deckColorFrequency(deck);
+  return [...effectiveDeckColors(deck)].sort(
+    (a, b) =>
+      (freq ? (freq.get(b) ?? 0) - (freq.get(a) ?? 0) : 0) || WUBRG.indexOf(a) - WUBRG.indexOf(b)
+  );
+}
+
 /** Unique card-name count across legality issues — for summary badges. */
 export function countFlaggedCards(issues: LegalityIssue[]): number {
   return new Set(issues.map((i) => i.cardName)).size;

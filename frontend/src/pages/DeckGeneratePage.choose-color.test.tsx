@@ -55,6 +55,7 @@ const piper = {
   type_line: 'Legendary Creature — Shapeshifter',
   oracle_text:
     'If The Prismatic Piper is your commander, choose a color before the game begins. The Prismatic Piper is the chosen color.\nPartner (You can have two commanders if both have partner.)',
+  legalities: { commander: 'legal' },
 };
 
 describe('DeckGeneratePage choose-a-color commander', () => {

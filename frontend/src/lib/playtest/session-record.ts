@@ -160,7 +160,9 @@ export function countResistanceEvents(log: readonly GameLogEntry[]): ResistanceE
   let wipesSurvived = 0;
   for (const entry of log) {
     if (entry.kind !== 'resistance') continue;
-    if (entry.text.includes('the board is wiped')) wipesSurvived++;
+    // An overloaded Cyclonic Rift (E533) is a wipe that goes to hand.
+    if (entry.text.includes('the board is wiped') || entry.text.includes('board returns to hand'))
+      wipesSurvived++;
     else if (entry.text.includes('is countered')) counters++;
     else if (entry.text.includes('is destroyed')) removals++;
     else if (entry.text.includes('returned to hand')) bounces++;

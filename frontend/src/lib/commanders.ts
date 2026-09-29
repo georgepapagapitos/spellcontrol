@@ -11,18 +11,25 @@ import { isCommanderEligibleFrom } from '@spellcontrol/binder-routing';
  * `ScryfallCard` type, which the zero-dep package can't reference. It
  * delegates to the same core so the two definitions cannot drift.
  */
-export { isCommanderEligibleFrom, isCommanderEligible } from '@spellcontrol/binder-routing';
+export {
+  canBeCommanderByType,
+  isCommanderEligibleFrom,
+  isCommanderEligible,
+} from '@spellcontrol/binder-routing';
 
 /**
- * True if the card is a legal commander: a legendary creature (or a card
- * whose text declares "can be your commander") that is legal in the
+ * True if the card is a legal commander: the shared CR 903.3 type rule
+ * (canBeCommanderByType: a legendary creature, Vehicle or Spacecraft with a
+ * power/toughness box, or "can be your commander") and legal in the
  * Commander format on Scryfall.
  */
 export function isValidCommander(card: ScryfallCard): boolean {
   const typeLine = card.type_line ?? card.card_faces?.[0]?.type_line ?? '';
   const oracleText =
     card.oracle_text ?? card.card_faces?.map((f) => f.oracle_text ?? '').join(' ') ?? '';
-  return isCommanderEligibleFrom(typeLine, oracleText, card.legalities?.commander);
+  return isCommanderEligibleFrom(typeLine, oracleText, card.legalities?.commander, {
+    power: card.power ?? card.card_faces?.[0]?.power,
+  });
 }
 
 /**

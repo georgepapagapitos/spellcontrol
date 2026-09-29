@@ -365,3 +365,23 @@ export async function leaveGame(code: string): Promise<{ deleted?: boolean; game
   });
   return handleResponse<{ deleted?: boolean; game?: GameState }>(res);
 }
+
+/** Whether the server can open Discord tables (the DISCORD_* env is set). */
+export async function getDiscordTablesEnabled(): Promise<boolean> {
+  const res = await authedFetch('/api/games/discord');
+  const data = await handleResponse<{ enabled: boolean }>(res);
+  return data.enabled;
+}
+
+/**
+ * Host only: open (or reopen) this table's voice channel in the SpellControl
+ * Discord. Returns the invite link; the caller stores it as the table's
+ * `voiceUrl` through the ordinary settings action.
+ */
+export async function openDiscordTable(code: string): Promise<string> {
+  const res = await authedFetch(`/api/games/${encodeURIComponent(code)}/discord`, {
+    method: 'POST',
+  });
+  const data = await handleResponse<{ url: string }>(res);
+  return data.url;
+}

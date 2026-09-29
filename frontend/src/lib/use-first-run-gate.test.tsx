@@ -49,6 +49,7 @@ describe('isFirstRunExempt', () => {
     ['/gn/some-token', true],
     ['/gn/s/some-series-token', true],
     ['/decks/discover', true],
+    ['/decks/discover/brewers', true],
     ['/collection', false],
     ['/decks', false],
     ['/', true],

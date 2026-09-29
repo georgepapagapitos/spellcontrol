@@ -27,6 +27,15 @@ export interface Friend {
   friendedAt: number;
   /** Unique cards (by oracle id) in the friend's collection. */
   cardCount: number;
+  /** A peek at their public profile (backend friends/peek.ts): what the
+   *  friend row shows beside the name. Absent from an older backend, and
+   *  empty (0 decks) for a friend with nothing published. */
+  avatarImageUrl?: string | null;
+  deckCount?: number;
+  /** Art crop of their pinned, most-liked or newest deck. */
+  bannerImage?: string | null;
+  topColors?: string[];
+  topCommander?: string | null;
 }
 
 async function readError(res: Response, fallback: string): Promise<string> {

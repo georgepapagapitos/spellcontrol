@@ -1,0 +1,61 @@
+/* SuggestedBrewers: a compact strip of brewer cards under the Friends and
+   Following panels when both are nearly empty. Scrolls sideways with snap
+   (the same edge fade as the Brewers tab rails). */
+
+.suggested-brewers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+  min-width: 0;
+}
+
+.suggested-brewers-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.suggested-brewers-head > :last-child {
+  margin-inline-start: auto;
+}
+
+.suggested-brewers-track {
+  display: flex;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-1) 0;
+  list-style: none;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+}
+
+.suggested-brewers-track::-webkit-scrollbar {
+  display: none;
+}
+
+.suggested-brewers-track > .brewer-card {
+  flex: 0 0 min(15rem, 72%);
+  scroll-snap-align: start;
+}
+
+.suggested-brewers-track[data-overflow='end'] {
+  mask-image: linear-gradient(to right, #000 calc(100% - var(--space-6)), transparent);
+}
+
+.suggested-brewers-track[data-overflow='start'] {
+  mask-image: linear-gradient(to left, #000 calc(100% - var(--space-6)), transparent);
+}
+
+.suggested-brewers-track[data-overflow='both'] {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 var(--space-6),
+    #000 calc(100% - var(--space-6)),
+    transparent
+  );
+}

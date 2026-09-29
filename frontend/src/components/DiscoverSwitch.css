@@ -1,0 +1,9 @@
+/* DiscoverSwitch: the Decks | Brewers switch under Discover's hub strip, and
+   the tabpanel both pages hang their content in. The panel re-creates the
+   page column's rhythm (`.decks-index-page` gaps its direct children). */
+.discover-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--host-gap, var(--space-4));
+  min-width: 0;
+}

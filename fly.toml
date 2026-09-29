@@ -15,6 +15,11 @@ primary_region = "ord"
   # V8 old-space cap. Matches the docker-compose value — gives the Scryfall
   # oracle-bulk slim + gzip job headroom without OOM-ing the 1GB VM.
   NODE_OPTIONS = "--max-old-space-size=1536"
+  # Discord tables (backend/src/discord.ts): the SpellControl server and the
+  # "Tables" category the per-game voice channels go in. Not secrets; the bot
+  # token is (DISCORD_BOT_TOKEN, a Fly secret).
+  DISCORD_GUILD_ID = "1554594475924398100"
+  DISCORD_TABLES_CATEGORY_ID = "1554595474647027763"
 
 # ⚠️ ONE machine, by construction. The Scryfall SQLite cache lives on the
 # volume below (volumes are per-machine), and the online table's realtime

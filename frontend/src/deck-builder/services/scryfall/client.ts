@@ -7,6 +7,8 @@ import type {
   GetCardsByNamesOptions,
 } from './card-repository';
 import { getPartnerType, getPartnerWithName } from '@/deck-builder/lib/partnerUtils';
+import { isPlayableCard, resolveReversiblePrinting } from '@/deck-builder/lib/printingLayouts';
+export { isPlayableCard };
 import { offlineGetCardByName, offlineGetCardsByNames, offlineSearchCards } from '@/lib/offline';
 import { offlineDataAvailable, useOfflineStore } from '@/store/offline';
 import { frontFaceName } from '@/lib/card-text';
@@ -107,25 +109,6 @@ export function parseSetFromQuery(scryfallQuery: string): string | undefined {
   if (!scryfallQuery) return undefined;
   const match = scryfallQuery.match(/\b(?:set|s|e|edition):["']?([a-zA-Z0-9_]+)["']?/i);
   return match ? match[1].toLowerCase() : undefined;
-}
-
-// Scryfall layouts that aren't real game pieces (art cards, tokens, emblems, etc.).
-// These can sneak in via /cards/collection with a set preference or via the
-// `unique=prints` upgrade search when a treatment filter (e.g. is:full-art) matches
-// an art-series printing — they have legalities.commander === 'not_legal' and would
-// otherwise be flagged after the deck is generated.
-const NON_PLAYABLE_LAYOUTS = new Set([
-  'art_series',
-  'token',
-  'double_faced_token',
-  'emblem',
-  'scheme',
-  'planar',
-  'vanguard',
-]);
-
-export function isPlayableCard(card: ScryfallCard): boolean {
-  return !card.layout || !NON_PLAYABLE_LAYOUTS.has(card.layout);
 }
 
 /**
@@ -1361,7 +1344,8 @@ async function liveUpgradeCardPrintings(
         // Skip art-series and other non-playable layouts — `unique=prints` includes them,
         // and they often match treatment filters like is:full-art / frame:extendedart.
         const matchMap = new Map<string, ScryfallCard>();
-        for (const card of data.data) {
+        // E527: an art filter often matches a reversible SLD printing; seat the card it prints.
+        for (const card of data.data.map(resolveReversiblePrinting)) {
           if (!isPlayableCard(card)) continue;
           const frontName = frontFaceName(card.name);
           if (!matchMap.has(card.name) && !matchMap.has(frontName)) {

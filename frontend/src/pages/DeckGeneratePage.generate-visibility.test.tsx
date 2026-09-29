@@ -59,7 +59,13 @@ vi.mock('../lib/use-deck-generation', () => ({
     return {
       // A picked commander: the visibility choice and the build bar only
       // render once there is one to build around.
-      commander: { id: 'krenko', name: 'Krenko, Mob Boss', color_identity: ['R'] },
+      commander: {
+        id: 'krenko',
+        name: 'Krenko, Mob Boss',
+        color_identity: ['R'],
+        type_line: 'Legendary Creature — Goblin Warrior',
+        legalities: { commander: 'legal' },
+      },
       partnerCommander: null,
       setPartnerCommander: () => {},
       colorIdentity: [],

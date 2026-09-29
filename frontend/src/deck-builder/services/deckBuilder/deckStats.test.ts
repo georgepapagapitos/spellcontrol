@@ -1,6 +1,24 @@
 import { describe, it, expect } from 'vitest';
-import { calculateStats } from './deckStats';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { calculateStats, cardManaValue } from './deckStats';
 import type { ScryfallCard, DeckCategory } from '@/deck-builder/types';
+
+// E527: the real Secret Lair reversible printing the art-theme-goblin row
+// seated. Scryfall gives it no top-level cmc; each face carries cmc 2.
+const KRARKS_THUMB_SLD = (
+  JSON.parse(
+    readFileSync(
+      resolve(
+        dirname(fileURLToPath(import.meta.url)),
+        '__fixtures__',
+        'commander-cards.fixture.json'
+      ),
+      'utf8'
+    )
+  ) as { cards: ScryfallCard[] }
+).cards.find((c) => c.name === "Krark's Thumb // Krark's Thumb")!;
 
 function makeCard(overrides: Partial<ScryfallCard> = {}): ScryfallCard {
   return {
@@ -149,5 +167,29 @@ describe('calculateStats', () => {
     const curveTotal = Object.values(stats.manaCurve).reduce((s, n) => s + n, 0);
     expect(curveTotal).toBe(1);
     expect(stats.manaCurve[2]).toBeUndefined();
+  });
+
+  it('buckets a card with no top-level mana value by its front face, never as NaN (E527)', () => {
+    expect(KRARKS_THUMB_SLD.cmc).toBeUndefined();
+    const stats = calculateStats(
+      categories({ synergy: [KRARKS_THUMB_SLD], creatures: [makeCard({ cmc: 4 })] })
+    );
+    expect(stats.manaCurve).toEqual({ 2: 1, 4: 1 });
+    expect(stats.averageCmc).toBe(3);
+  });
+});
+
+describe('cardManaValue', () => {
+  it('reads the top-level mana value first', () => {
+    expect(cardManaValue(makeCard({ cmc: 5 }))).toBe(5);
+    expect(cardManaValue(makeCard({ cmc: 0 }))).toBe(0);
+  });
+
+  it("reads a reversible printing's front face", () => {
+    expect(cardManaValue(KRARKS_THUMB_SLD)).toBe(2);
+  });
+
+  it('is 0, not NaN, for a card with no mana value anywhere', () => {
+    expect(cardManaValue(makeCard({ cmc: undefined as unknown as number }))).toBe(0);
   });
 });

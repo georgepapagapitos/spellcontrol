@@ -70,7 +70,7 @@ import type { DeckFormat } from '../deck-builder/types';
 import { DECK_FORMAT_CONFIGS } from '../deck-builder/lib/constants/archetypes';
 import {
   effectiveDeckColors,
-  deckColorFrequency,
+  deckDisplayColors,
   validateDeckZones,
   countFlaggedCards,
 } from '../lib/deck-validation';
@@ -83,7 +83,6 @@ import { userMessage } from '@/lib/user-error';
 import { Button } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 import { Surface } from '@/components/shared/Surface';
-const COLOR_ORDER = ['W', 'U', 'B', 'R', 'G'] as const;
 
 // Stable empty-set reference for guests/pre-bootstrap — avoids allocating a
 // fresh Set every render for a case that never has any public decks.
@@ -773,23 +772,7 @@ export function DecksIndexPage() {
                 const totalCards =
                   (deck.commander ? 1 : 0) + (deck.partnerCommander ? 1 : 0) + deck.cards.length;
                 const art = deckCoverArt(deck);
-                const colors = effectiveDeckColors(deck);
-                // For non-commander decks sort by how often each color shows up in
-                // the cards; commander decks fall through to WUBRG order since
-                // every color in the identity is "equally used" from a pip
-                // perspective.
-                const freq =
-                  deck.commander || deck.partnerCommander ? null : deckColorFrequency(deck);
-                const colorIdentity = Array.from(colors).sort((a, b) => {
-                  if (freq) {
-                    const diff = (freq.get(b) ?? 0) - (freq.get(a) ?? 0);
-                    if (diff !== 0) return diff;
-                  }
-                  return (
-                    COLOR_ORDER.indexOf(a as (typeof COLOR_ORDER)[number]) -
-                    COLOR_ORDER.indexOf(b as (typeof COLOR_ORDER)[number])
-                  );
-                });
+                const colorIdentity = deckDisplayColors(deck);
                 const themes = deck.generationContext?.selectedThemes ?? [];
                 const formatCfg = DECK_FORMAT_CONFIGS[deck.format];
                 // Judged on the deck's own zones, the same as the deck page:

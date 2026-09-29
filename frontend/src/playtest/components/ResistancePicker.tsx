@@ -1,39 +1,80 @@
 import { useState } from 'react';
-import { Check } from 'lucide-react';
 import './ResistancePicker.css';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useSheetExit } from '@/lib/use-sheet-exit';
 import {
+  ChoiceList,
+  Disclosure,
+  Field,
+  SegmentedControl,
+  SwitchRow,
+} from '@/components/shared/form';
+import {
+  FIRST_TURN_CHOICES,
+  levelForBracket,
   loadLastResistanceLevel,
+  RESISTANCE_EFFECT_COPY,
+  RESISTANCE_EFFECTS,
   RESISTANCE_LEVELS,
   RESISTANCE_LEVEL_DESCRIPTION,
   RESISTANCE_LEVEL_LABEL,
+  summarizeEffects,
+  type ResistanceEffect,
   type ResistanceLevel,
+  type ResistanceOptions,
 } from '../lib/resistance';
 import { Button } from '@/components/shared/Button';
 
 interface Props {
   level: ResistanceLevel;
-  onSelect(level: ResistanceLevel): void;
+  options: ResistanceOptions;
+  /** The deck's bracket (stated, else estimated), or null when unknown. Tags
+   *  the level that fits it. */
+  bracket: number | null;
+  onSave(level: ResistanceLevel, options: ResistanceOptions): void;
   onClose(): void;
 }
 
+const ALL_ON = Object.fromEntries(RESISTANCE_EFFECTS.map((e) => [e, true])) as Record<
+  ResistanceEffect,
+  boolean
+>;
+
 /**
- * Difficulty picker for "Resistance" (E142) — replaces the old on/off toggle.
- * A radiogroup of the four levels, each with a one-line plain-language
- * description; picking one applies it immediately and closes. When currently
- * off, the device's last-used level (localStorage) gets initial keyboard
- * focus so re-enabling defaults to it — one Enter press away.
+ * Resistance setup (E142, E533). The level is the main job and always open;
+ * while it's on, timing and answers sit in two `Disclosure` rows that state
+ * their value, since most people keep the defaults (STYLE_GUIDE § Config
+ * surfaces). Edits are a draft until Save, so trying levels doesn't re-arm
+ * the opponent or write a log line per tap.
  */
-export function ResistancePicker({ level, onSelect, onClose }: Props) {
+export function ResistancePicker({ level, options, bracket, onSave, onClose }: Props) {
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
   useLockBodyScroll();
   const [lastUsed] = useState(loadLastResistanceLevel);
+  const [draftLevel, setDraftLevel] = useState(level);
+  const [draft, setDraft] = useState(options);
 
-  function select(next: ResistanceLevel) {
-    onSelect(next);
+  const fits = levelForBracket(bracket);
+  const noAnswers = RESISTANCE_EFFECTS.every((e) => !draft.effects[e]);
+
+  function tagFor(l: ResistanceLevel): string | null {
+    if (fits !== null) return l === fits ? `Fits bracket ${bracket}` : null;
+    return level === 'off' && l === lastUsed ? 'Last used' : null;
+  }
+
+  function setEffect(effect: ResistanceEffect, on: boolean) {
+    setDraft((d) => ({ ...d, effects: { ...d.effects, [effect]: on } }));
+  }
+
+  function save() {
+    onSave(draftLevel, draft);
     beginClose();
   }
+
+  const gameChangersHint =
+    bracket !== null && bracket < 3
+      ? `Cyclonic Rift, Force of Will and Fierce Guardianship. Off by default at bracket ${bracket}.`
+      : 'Cyclonic Rift, Force of Will and Fierce Guardianship. Off by default below bracket 3.';
 
   return (
     <div className="card-picker-root">
@@ -44,60 +85,93 @@ export function ResistancePicker({ level, onSelect, onClose }: Props) {
         className={`card-picker-sheet playtest-resistance-picker${isClosing ? ' is-closing' : ''}`}
         role="dialog"
         aria-modal="true"
-        aria-label="Resistance difficulty"
+        aria-labelledby="resistance-picker-title"
         onAnimationEnd={onAnimationEnd}
       >
         <div className="card-picker-handle" aria-hidden />
         <div className="card-picker-header">
-          <h2 className="card-picker-title">Resistance</h2>
+          <h2 id="resistance-picker-title" className="card-picker-title">
+            Resistance
+          </h2>
           <p className="playtest-resistance-picker__intro">
-            A simulated opponent that occasionally counters, removes, or wipes your plays.
+            Simulated opponents answer your plays, so you see how the deck holds up at a real table.
           </p>
         </div>
-        {/* Already native radios — the wrapper just needed to be a real
-            fieldset instead of a div carrying role="radiogroup". */}
-        <fieldset className="playtest-resistance-picker__list" aria-label="Difficulty">
-          {RESISTANCE_LEVELS.map((l) => {
-            const active = l === level;
-            const isLastUsed = level === 'off' && l === lastUsed;
-            return (
-              <label
-                key={l}
-                className={`playtest-resistance-picker__row${active ? ' is-active' : ''}`}
-              >
-                <input
-                  type="radio"
-                  name="resistance-level"
-                  checked={active}
-                  autoFocus={isLastUsed}
-                  onChange={() => select(l)}
-                />
-                <span className="playtest-resistance-picker__row-text">
-                  <span className="playtest-resistance-picker__row-label">
+        <div className="playtest-resistance-picker__body">
+          <ChoiceList
+            ariaLabel="Difficulty"
+            value={draftLevel}
+            onChange={setDraftLevel}
+            options={RESISTANCE_LEVELS.map((l) => {
+              const tag = tagFor(l);
+              return {
+                value: l,
+                label: (
+                  <>
                     {RESISTANCE_LEVEL_LABEL[l]}
-                    {isLastUsed && (
-                      <span className="playtest-resistance-picker__row-tag">Last used</span>
-                    )}
-                  </span>
-                  <span className="playtest-resistance-picker__row-desc">
-                    {RESISTANCE_LEVEL_DESCRIPTION[l]}
-                  </span>
-                </span>
-                {active && (
-                  <Check
-                    className="playtest-resistance-picker__row-check"
-                    aria-hidden
-                    width={18}
-                    height={18}
-                    strokeWidth={2}
+                    {tag && <span className="playtest-resistance-picker__tag">{tag}</span>}
+                  </>
+                ),
+                hint: RESISTANCE_LEVEL_DESCRIPTION[l],
+              };
+            })}
+          />
+
+          {draftLevel !== 'off' && (
+            <div className="playtest-resistance-picker__groups">
+              <Disclosure title="Timing" summary={`From turn ${draft.firstTurn}`}>
+                <Field
+                  label="First answer on turn"
+                  hint="Nothing happens before this turn. Few tables have an answer up on turns 1 and 2."
+                >
+                  <SegmentedControl
+                    ariaLabel="First answer on turn"
+                    fill
+                    value={draft.firstTurn}
+                    onChange={(firstTurn) => setDraft((d) => ({ ...d, firstTurn }))}
+                    options={FIRST_TURN_CHOICES.map((t) => ({ value: t, label: String(t) }))}
                   />
+                </Field>
+              </Disclosure>
+
+              <Disclosure
+                title="Answers"
+                summary={`${summarizeEffects(draft.effects)}${draft.gameChangers ? ' · Game Changers' : ''}`}
+              >
+                <div className="playtest-resistance-picker__switches">
+                  {RESISTANCE_EFFECTS.map((e) => (
+                    <SwitchRow
+                      key={e}
+                      label={RESISTANCE_EFFECT_COPY[e].label}
+                      hint={RESISTANCE_EFFECT_COPY[e].hint}
+                      checked={draft.effects[e]}
+                      onChange={(on) => setEffect(e, on)}
+                    />
+                  ))}
+                  <SwitchRow
+                    label="Game Changers"
+                    hint={gameChangersHint}
+                    checked={draft.gameChangers}
+                    onChange={(gameChangers) => setDraft((d) => ({ ...d, gameChangers }))}
+                  />
+                </div>
+                {noAnswers && (
+                  <div className="playtest-resistance-picker__warning" role="status">
+                    <span>With every answer off, nobody does anything.</span>
+                    <Button onClick={() => setDraft((d) => ({ ...d, effects: ALL_ON }))}>
+                      Turn all on
+                    </Button>
+                  </div>
                 )}
-              </label>
-            );
-          })}
-        </fieldset>
+              </Disclosure>
+            </div>
+          )}
+        </div>
         <div className="card-picker-footer">
-          <Button onClick={() => beginClose()}>Close</Button>
+          <Button onClick={() => beginClose()}>Cancel</Button>
+          <Button variant="primary" onClick={save}>
+            Save
+          </Button>
         </div>
       </div>
     </div>
