@@ -3,8 +3,8 @@ import type { PocketSize } from '../types';
 /** Page-filling mode labels, shared with `BinderEditor`'s Pages disclosure. */
 export const PACK_LABEL: Record<string, string> = {
   false: 'New page per section',
-  true: 'Fit whole sections',
-  continuous: 'No gaps',
+  true: 'Keep sections whole',
+  continuous: 'Fill every pocket',
 };
 
 /**

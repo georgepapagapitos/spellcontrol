@@ -1184,7 +1184,7 @@ export function BinderEditor() {
                         onSortsChange={setSorts}
                         onValueOrdersChange={setSortValueOrders}
                       />
-                      {groups.length >= 2 ? (
+                      {groups.length >= 2 && (
                         <Field label="Section headers come from">
                           <SegmentedControl
                             ariaLabel="Section headers come from"
@@ -1196,10 +1196,6 @@ export function BinderEditor() {
                             onChange={setSectionMode}
                           />
                         </Field>
-                      ) : (
-                        <p className="form-field-hint">
-                          With two or more rules, section headers can follow the rules instead.
-                        </p>
                       )}
                     </Disclosure>
                     <Disclosure title="Pages" summary={pagesSummary}>
@@ -1213,51 +1209,39 @@ export function BinderEditor() {
                               {
                                 value: false,
                                 label: PACK_LABEL.false,
-                                hint: 'Every section starts on a fresh page.',
+                                hint: 'Leaves room after each section for new cards.',
                               },
                               {
                                 value: true,
                                 label: PACK_LABEL.true,
-                                hint: 'Sections share a page when they fit whole. None is split.',
+                                hint: "Sections share pages, but one that won't fit starts a new page.",
                               },
                               {
                                 value: 'continuous',
                                 label: PACK_LABEL.continuous,
-                                hint: 'No empty pockets. Adding a card later shifts everything after it, so it suits closed sets like a Secret Lair drop.',
+                                hint: "A new card shifts everything after it, so it suits sets that won't grow.",
                               },
                             ]}
                             onChange={setPackSections}
                           />
                         </Field>
                       )}
-                      {sectionMode !== 'group' &&
-                        (sorts.length > 1 ? (
-                          <Field
-                            label="Page breaks"
-                            hint={
-                              pageBreakDepth <= 1
-                                ? 'Each section header starts a new page; deeper sorts order cards within it.'
-                                : `Each new ${sortFieldLabel(sorts[pageBreakDepth - 1]?.field).toLowerCase()} starts its own page. Empty pockets are accepted.`
-                            }
-                          >
-                            <SelectMenu
-                              ariaLabel="Page breaks"
-                              value={pageBreakDepth}
-                              onChange={(v) => setPageBreakDepth(v as number)}
-                              options={Array.from({ length: sorts.length }, (_, i) => ({
-                                value: i + 1,
-                                label:
-                                  i === 0
-                                    ? 'Section headers only'
-                                    : `Each ${sortFieldLabel(sorts[i]?.field).toLowerCase()} too`,
-                              }))}
-                            />
-                          </Field>
-                        ) : (
-                          <p className="form-field-hint">
-                            Add a second sort in Order to break pages at a deeper level.
-                          </p>
-                        ))}
+                      {sectionMode !== 'group' && sorts.length > 1 && (
+                        <Field label="Page breaks">
+                          <SelectMenu
+                            ariaLabel="Page breaks"
+                            value={pageBreakDepth}
+                            onChange={(v) => setPageBreakDepth(v as number)}
+                            options={Array.from({ length: sorts.length }, (_, i) => ({
+                              value: i + 1,
+                              label:
+                                i === 0
+                                  ? 'Section headers only'
+                                  : `Each ${sortFieldLabel(sorts[i]?.field).toLowerCase()} too`,
+                            }))}
+                          />
+                        </Field>
+                      )}
                     </Disclosure>
                   </div>
 

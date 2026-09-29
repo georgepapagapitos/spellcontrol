@@ -59,8 +59,10 @@ describe('formatPagesSummary', () => {
       sectionsFromRules: false,
     };
     expect(formatPagesSummary({ ...base, packSections: false })).toContain('New page per section');
-    expect(formatPagesSummary({ ...base, packSections: true })).toContain('Fit whole sections');
-    expect(formatPagesSummary({ ...base, packSections: 'continuous' })).toContain('No gaps');
+    expect(formatPagesSummary({ ...base, packSections: true })).toContain('Keep sections whole');
+    expect(formatPagesSummary({ ...base, packSections: 'continuous' })).toContain(
+      'Fill every pocket'
+    );
   });
 
   it('singular "sheet" for a one-sheet capacity', () => {

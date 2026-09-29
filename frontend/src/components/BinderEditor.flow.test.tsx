@@ -218,7 +218,7 @@ describe('Order and Pages are collapsed rows that state their value', () => {
     fireEvent.click(pages);
     expect(screen.getByRole('radio', { name: '12-pocket' })).toHaveProperty('checked', true);
     expect(screen.getByRole('switch', { name: 'Double-sided sheets' })).toBeTruthy();
-    expect(screen.getByRole('radio', { name: /Fit whole sections/ })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: /Keep sections whole/ })).toBeTruthy();
   });
 
   it('a pocket change in Pages persists on save', () => {
