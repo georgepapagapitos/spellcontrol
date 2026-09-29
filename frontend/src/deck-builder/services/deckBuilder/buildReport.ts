@@ -13,7 +13,7 @@ import { isRoleExcess } from './deckAnalyzer';
 import { countProtectionPieces } from './commanderDeckAnalysis';
 import { ARCHETYPE_LABEL } from './strategyVocabulary';
 import { AXES } from '@/deck-builder/services/synergy/axes';
-import type { ArchetypeEvidence } from '@/deck-builder/types';
+import type { ArchetypeEvidence } from './roleTargets';
 
 const AXIS_LABEL = new Map(AXES.map((a) => [a.key, a.label]));
 

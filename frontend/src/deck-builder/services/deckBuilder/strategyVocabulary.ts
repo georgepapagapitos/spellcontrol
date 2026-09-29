@@ -67,7 +67,8 @@ export const THEME_TO_ARCHETYPE: Record<string, Archetype> = {
   // Reanimator / Graveyard
   reanimator: Archetype.REANIMATOR,
   graveyard: Archetype.REANIMATOR,
-  mill: Archetype.REANIMATOR,
+  // "mill" is ruled non-strategy (NON_STRATEGY_THEMES): E511 found EDHREC's
+  // Mill tag is mostly opponent mill, which the Reanimator role model misreads.
   dredge: Archetype.REANIMATOR,
   flashback: Archetype.REANIMATOR,
 
@@ -274,7 +275,6 @@ export const THEME_TO_AXES: Record<string, readonly AxisKey[]> = {
   lifedrain: [],
   reanimator: ['graveyard'],
   graveyard: ['graveyard'],
-  mill: ['mill', 'graveyard'],
   dredge: ['graveyard'],
   flashback: ['graveyard'],
   landfall: ['landfall'],
@@ -397,7 +397,7 @@ export const THEME_TO_AXES: Record<string, readonly AxisKey[]> = {
 
 /** Why an EDHREC tag names no strategy. */
 export type NonStrategyReason =
-  'resource' | 'flavor' | 'keyword' | 'mechanic' | 'package' | 'format';
+  'resource' | 'flavor' | 'keyword' | 'mechanic' | 'package' | 'format' | 'unmodeled';
 
 /**
  * EDHREC tags that name no deck strategy, with the reason. They map to no
@@ -557,6 +557,12 @@ export const NON_STRATEGY_THEMES: Record<string, NonStrategyReason> = {
   'umori companion': 'format',
   'value vintage': 'format',
   'zirda companion': 'format',
+  // A strategy no archetype models. EDHREC's Mill tag (checked 2026-09-29) is
+  // mostly opponent mill: Consuming Aberration, Maddening Cacophony, Fractured
+  // Sanity and Ruin Crab lead its high-synergy list, The Wise Mothman, Captain
+  // N'ghathrod and Phenax its commanders. Reanimator's role model would build
+  // a deck-out deck as a graveyard deck. Self-Mill stays Reanimator.
+  mill: 'unmodeled',
 };
 
 /** Why a tag names no strategy, or undefined when it names one (or is unknown). */
@@ -635,7 +641,9 @@ export const AXIS_TO_ARCHETYPE: Record<AxisKey, Archetype> = {
   energy: Archetype.MIDRANGE,
   auras: Archetype.VOLTRON,
   discard: Archetype.GOODSTUFF,
-  mill: Archetype.REANIMATOR,
+  // Opponent mill: a deck-out plan no archetype models (self-mill is the
+  // graveyard axis), so it says nothing sharper than the fallback.
+  mill: Archetype.GOODSTUFF,
   monarch: Archetype.MIDRANGE,
   poison: Archetype.AGGRO,
   cycling: Archetype.MIDRANGE,

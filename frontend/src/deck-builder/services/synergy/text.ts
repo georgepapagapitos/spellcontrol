@@ -270,10 +270,11 @@ export function hasCreatureAnthem(oracle: string): boolean {
   return /(?:other )?creature tokens? you control get \+/.test(oracle);
 }
 
-/** Scales with your board ("for each creature", "equal to the number of creatures"). */
+/** Scales with your board ("for each creature", "equal to the number of creatures").
+ *  A count narrowed to "the chosen type" (Banner of Kinship) is typal, not go-wide. */
 export function scalesWithCreatures(oracle: string): boolean {
   return (
-    /for each creature you control/.test(oracle) ||
+    /for each creature you control(?! of the chosen type)/.test(oracle) ||
     /equal to the number of creatures you control/.test(oracle) ||
     /\+1\/\+1 counter on each creature you control/.test(oracle)
   );

@@ -8,6 +8,7 @@ import {
   axisMassFrom,
   engineLeader,
   isEngineContender,
+  nonStrategyReason,
   readEngine,
   themeArchetype,
   themeAxes,
@@ -47,7 +48,7 @@ const EXPECTED_THEME_TO_ARCHETYPE: Record<string, Archetype> = {
   lifedrain: Archetype.ARISTOCRATS,
   reanimator: Archetype.REANIMATOR,
   graveyard: Archetype.REANIMATOR,
-  mill: Archetype.REANIMATOR,
+  // mill: Archetype.REANIMATOR was re-ruled non-strategy by E511 (opponent mill).
   dredge: Archetype.REANIMATOR,
   flashback: Archetype.REANIMATOR,
   landfall: Archetype.LANDFALL,
@@ -256,6 +257,58 @@ const mass = (axis: AxisMass['axis'], producers: number, payoffs: number): AxisM
   axis,
   producers,
   payoffs,
+});
+
+describe('mill: opponent mill is not a graveyard deck (E511)', () => {
+  const corpus = (name: string) => {
+    const c = CORPUS.find((x) => x.name === name);
+    if (!c) throw new Error(`no corpus card ${name}`);
+    return c;
+  };
+  const read = (names: string[]) =>
+    readEngine(
+      axisMassFrom(
+        names.flatMap((n) => {
+          const cs = classifyCard(corpus(n));
+          return [
+            ...cs.producers.map((p) => ({
+              axis: p.axis,
+              side: 'producer' as const,
+              reason: p.reason,
+              weight: 1,
+            })),
+            ...cs.payoffs.map((o) => ({
+              axis: o.axis,
+              side: 'payoff' as const,
+              reason: o.reason,
+              weight: 1,
+            })),
+          ];
+        })
+      )
+    );
+
+  it("rules EDHREC's Mill tag a strategy no archetype models, and keeps Self-Mill Reanimator", () => {
+    expect(themeArchetype('Mill')).toBeUndefined();
+    expect(nonStrategyReason('Mill')).toBe('unmodeled');
+    expect(themeAxes('Mill')).toEqual([]);
+    expect(themeArchetype('Self-Mill')).toBe(Archetype.REANIMATOR);
+    expect(themeAxes('Self-Mill')).toEqual(['graveyard']);
+  });
+
+  it('never reads an opponent-mill engine as Reanimator', () => {
+    // Real Oracle text: every card mills an opponent (or every player).
+    const deck = read([
+      'Glimpse the Unthinkable',
+      'Hedron Crab',
+      'Ruin Crab',
+      'Consuming Aberration',
+      'Mesmeric Orb',
+    ]);
+    expect(AXIS_TO_ARCHETYPE.mill).toBe(Archetype.GOODSTUFF);
+    expect(deck.ranked.some((r) => r.archetype === Archetype.REANIMATOR)).toBe(false);
+    expect(deck.decisive).toBeUndefined();
+  });
 });
 
 describe('readEngine: one rule for a finished list and the average deck', () => {

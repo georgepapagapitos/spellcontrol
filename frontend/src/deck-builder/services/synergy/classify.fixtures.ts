@@ -3691,4 +3691,14 @@ export const CORPUS: CorpusCard[] = [
     // token producer and fodder, not a reward for sacrificing.
     expect: { producers: ['sacrifice', 'tokens'], payoffs: [] },
   },
+  {
+    name: 'Banner of Kinship',
+    type_line: 'Artifact',
+    keywords: [],
+    oracle_text:
+      'As this artifact enters, choose a creature type. This artifact enters with a fellowship counter on it for each creature you control of the chosen type.\nCreatures you control of the chosen type get +1/+1 for each fellowship counter on this artifact.',
+    // Trap: "for each creature you control of the chosen type" counts a tribe,
+    // not the whole board, so it is no tokens payoff.
+    expect: { producers: ['tribal'], payoffs: ['tribal'] },
+  },
 ];

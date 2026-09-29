@@ -421,6 +421,24 @@ export function readCardEvidence(input: {
   return { read: readEngine(weightedAxisMass(weighted)), coverage: resolved / total };
 }
 
+/**
+ * Fetch the card text for the commander's own EDHREC pool and read it
+ * (`readCardEvidence`). Undefined for any other pool, where inclusion is
+ * synthetic or absent, and when there is no pool.
+ */
+export async function loadCardEvidence(input: {
+  commanders: readonly CardLike[];
+  data: EDHRECCommanderData | null | undefined;
+  source: DeckDataSource | null | undefined;
+  fetchCards: (names: string[]) => Promise<ReadonlyMap<string, CardLike>>;
+}): Promise<CardEvidence | undefined> {
+  if (!input.data || !isCommanderEdhrecPool(input.source)) return undefined;
+  const pool = cardEvidencePool(input.data);
+  if (pool.length === 0) return undefined;
+  const cards = await input.fetchCards(pool.map((e) => e.name));
+  return readCardEvidence({ commanders: input.commanders, pool, cards });
+}
+
 // ─── Build-archetype decision ───────────────────────────────────────
 
 /**
@@ -464,9 +482,18 @@ function hintStands(hint: EdhrecThemeHint, evidence: CardEvidence | undefined): 
 
 /** The deciding engine for the disclosure: the busiest real engine among the
  *  leader's axes, as expected counts. */
-function evidenceOf(leader: ArchetypeMass): BuildArchetypeDecision['evidence'] {
+function evidenceOf(leader: ArchetypeMass): ArchetypeEvidence {
   const lead = leader.axes.find(isInvestedAxis) ?? leader.axes[0];
   return { axis: lead.axis, producers: lead.producers, payoffs: lead.payoffs };
+}
+
+/** The engine that decided a `card-evidence` archetype: one synergy axis's
+ *  producer and payoff weight in the commander's average deck (expected
+ *  counts, so fractional). */
+export interface ArchetypeEvidence {
+  axis: AxisKey;
+  producers: number;
+  payoffs: number;
 }
 
 export interface BuildArchetypeDecision {
@@ -481,7 +508,7 @@ export interface BuildArchetypeDecision {
   isLowConfidence: boolean;
   /** For `card-evidence`: the engine that decided, as expected counts in the
    *  average deck. */
-  evidence?: { axis: AxisKey; producers: number; payoffs: number };
+  evidence?: ArchetypeEvidence;
 }
 
 export function decideBuildArchetype(input: {
@@ -500,7 +527,7 @@ export function decideBuildArchetype(input: {
 
   let fallback: Archetype;
   let provenance: ArchetypeProvenance;
-  let evidence: BuildArchetypeDecision['evidence'];
+  let evidence: ArchetypeEvidence | undefined;
   if (decisive) {
     fallback = decisive.archetype;
     provenance = 'card-evidence';

@@ -142,8 +142,8 @@ export const EDHREC_TAGS: EdhrecTagRow[] = [
     slug: 'mill',
     decks: 49075,
     list: 'themes',
-    archetype: 'reanimator',
-    axes: ['mill', 'graveyard'],
+    ruling: 'unmodeled',
+    axes: [],
   },
   {
     name: 'Treasure',

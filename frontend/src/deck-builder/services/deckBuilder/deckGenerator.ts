@@ -47,10 +47,8 @@ import {
 import {
   getDynamicRoleTargets,
   estimatePacingFromStats,
-  cardEvidencePool,
   decideBuildArchetype,
-  isCommanderEdhrecPool,
-  readCardEvidence,
+  loadCardEvidence,
   isBoardCentricPlan,
 } from './roleTargets';
 import { buildCommanderProfile } from './commanderProfile';
@@ -1880,35 +1878,19 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     (!!partnerCommander && isExtraCombatPiece(partnerCommander)) ||
     commanderProfile.abilities.some((a) => a.keyword === 'attack-trigger');
 
-  // E511: the build's archetype comes from the cards. The average deck for
-  // this commander (its EDHREC pool weighted by inclusion, plus the commander
-  // itself) is read with the same engine rule the deck page applies to a
-  // finished list; EDHREC's theme list is a hint that picks between engines
-  // the cards leave comparable. Precedence lives in decideBuildArchetype. The
-  // card text is fetched with the pool fetch's arena option, so the later
-  // batch fetch reads these same cards from the cache; no set filter, since
-  // oracle text is the same in every printing.
-  const evidencePool =
-    state.edhrecData && isCommanderEdhrecPool(state.dataSource)
-      ? cardEvidencePool(state.edhrecData)
-      : [];
-  const cardEvidence =
-    evidencePool.length > 0
-      ? readCardEvidence({
-          commanders: partnerCommander ? [commander, partnerCommander] : [commander],
-          pool: evidencePool,
-          cards: await getCardsByNames(
-            evidencePool.map((e) => e.name),
-            undefined,
-            undefined,
-            { arenaOnly }
-          ),
-        })
-      : undefined;
+  // E511: the build's archetype comes from the cards (the commander's EDHREC
+  // pool weighted by inclusion), with EDHREC's themes as a hint; precedence
+  // lives in decideBuildArchetype. Fetched with the pool fetch's arena
+  // option, so the later batch fetch reads these cards from the cache.
   const archetypeDecision = decideBuildArchetype({
     selectedThemes: context.selectedThemes,
     edhrecThemes: state.edhrecData?.themes,
-    cardEvidence,
+    cardEvidence: await loadCardEvidence({
+      commanders: partnerCommander ? [commander, partnerCommander] : [commander],
+      data: state.edhrecData,
+      source: state.dataSource,
+      fetchCards: (names) => getCardsByNames(names, undefined, undefined, { arenaOnly }),
+    }),
     oracleTextArchetype: commanderProfile.primaryArchetype,
   });
   const archetypeFallback = archetypeDecision.fallback;
