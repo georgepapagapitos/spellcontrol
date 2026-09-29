@@ -28,6 +28,10 @@ import {
 export * from './schema';
 export { similarityTags, jaccard, mostSimilar } from './similarity';
 
+// ponytail: one file for the whole universe (5.8 MB raw, 1.27 MB brotli, ~20 ms
+// to parse); random oracle ids are ~half the compressed bytes, so a
+// core/detail split saves little. Shard by oracle-id prefix if the universe
+// or the record grows enough that a deck-builder cold load feels it.
 const FACTS_URL = (import.meta.env.VITE_CARD_FACTS_URL as string | undefined) ?? '/card-facts.json';
 
 interface Loaded {
