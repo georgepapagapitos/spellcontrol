@@ -125,7 +125,8 @@ describe('staples are never held back by a role cap (E532 a)', () => {
   // at 22 on a target of 18 (cap 18 + 4), removal at 8 on 7 (cap 9).
   function yurikoPlaneswalkerPass(
     stapleOverflowCounts: Partial<Record<RoleKey, number>>,
-    budgetTracker?: BudgetTracker
+    budgetTracker?: BudgetTracker,
+    cardDraw = 22
   ) {
     return pass({
       pool: [
@@ -145,7 +146,7 @@ describe('staples are never held back by a role cap (E532 a)', () => {
           ['Jace, the Mind Sculptor', 'removal'],
         ]),
         roleTargets: { ramp: 9, removal: 7, boardwipe: 2, cardDraw: 18 },
-        currentRoleCounts: { ramp: 8, removal: 8, boardwipe: 3, cardDraw: 22 },
+        currentRoleCounts: { ramp: 8, removal: 8, boardwipe: 3, cardDraw },
         overflowCounts: {},
         stapleOverflowCounts,
       },
@@ -161,6 +162,12 @@ describe('staples are never held back by a role cap (E532 a)', () => {
     const counts: Partial<Record<RoleKey, number>> = {};
     yurikoPlaneswalkerPass(counts);
     expect(counts).toEqual({ cardDraw: 1 });
+  });
+
+  it('stops at a second tolerance band, so the cap still means something', () => {
+    // 18 + 2 x 4: past it, the staple waits like any other card.
+    expect(yurikoPlaneswalkerPass({}, undefined, 26)).toEqual(['Jace, the Mind Sculptor']);
+    expect(yurikoPlaneswalkerPass({}, undefined, 25)).toEqual(['Kaito, Bane of Nightmares']);
   });
 
   it('holds the cap under a deck budget, where a card past it is money to claw back', () => {

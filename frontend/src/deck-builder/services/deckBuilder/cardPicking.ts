@@ -626,20 +626,23 @@ export function pickFromPrefetchedWithCurve(
   // to satisfy a soft target).
   const capSkipped: EDHRECCard[] = [];
   let allowCapOverflow = false;
-  const atRoleCap = (edhrecCard: EDHRECCard): boolean => {
+  // `bands` tolerance bands above target: 1 is the cap, 2 the staple ceiling.
+  const atRoleCap = (edhrecCard: EDHRECCard, bands = 1): boolean => {
     if (!roleCapConfig || !liveRoleCounts) return false;
     const role = roleCapConfig.cardRoleMap.get(edhrecCard.name);
     if (!role) return false;
     const target = roleCapConfig.roleTargets[role] ?? 0;
     if (target <= 0) return false;
-    return (liveRoleCounts[role] ?? 0) >= target + roleCapTolerance(target);
+    return (liveRoleCounts[role] ?? 0) >= target + bands * roleCapTolerance(target);
   };
-  // A staple is never held back (E532: Kaito, Bane of Nightmares at 54.9% was
-  // skipped on card draw while a 5.6% Jace passed on removal); its admission
-  // past the cap is counted in stapleOverflowCounts below. Not under a deck
-  // budget: a card past its cap is money a later phase has to claw back, and
-  // on Meren at $100 that ended $7.45 over after 20 substitutions.
-  const capExempt = (c: EDHRECCard) => !budgetTracker && isStaple(c);
+  // A staple passes the cap (E532: Kaito, Bane of Nightmares at 54.9% was
+  // skipped on card draw while a 5.6% Jace passed on removal), up to a second
+  // tolerance band so the cap still means something: the settings stress panel
+  // showed ramp at 24 on a target of 14 when staples had no ceiling. Its
+  // admission past the cap is counted in stapleOverflowCounts below. Not under
+  // a deck budget: a card past its cap is money a later phase has to claw
+  // back, and on Meren at $100 that ended $7.45 over after 20 substitutions.
+  const capExempt = (c: EDHRECCard) => !budgetTracker && isStaple(c) && !atRoleCap(c, 2);
   const roleCapBlocks = (edhrecCard: EDHRECCard): boolean =>
     !allowCapOverflow && !capExempt(edhrecCard) && atRoleCap(edhrecCard);
 
