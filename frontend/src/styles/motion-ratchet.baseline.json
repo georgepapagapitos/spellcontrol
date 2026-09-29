@@ -7,7 +7,7 @@
   "components/deck/CommanderReadiness.css": 1,
   "components/deck/DeckAiReview.css": 3,
   "components/deck/DeckCardRow.css": 2,
-  "components/deck/DeckCurvePhases.css": 2,
+  "components/deck/DeckCurvePhases.css": 1,
   "components/deck/DeckHoverPeek.css": 1,
   "components/deck/EnginePanel.css": 1,
   "components/deck/GenerationModePicker.css": 1,

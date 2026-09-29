@@ -17,6 +17,11 @@
   /* Match the read-only .deck-row-qty cell (the section's shared qty
      column) so qty→badge and badge→name gaps look balanced. */
   width: var(--deck-qty-col, 1.4rem);
+  /* WCAG 2.5.8: a narrow column left the box at 22.4px. Grow it to 24px
+     leftward (text stays right-aligned, so the digit doesn't move) and hand the
+     growth back as negative margin so the row layout is unchanged. */
+  min-width: 24px;
+  margin-left: min(0px, calc(var(--deck-qty-col, var(--space-5)) - var(--space-5)));
   text-align: right;
   padding: 0.05rem var(--space-0-5);
   border-radius: var(--radius);
