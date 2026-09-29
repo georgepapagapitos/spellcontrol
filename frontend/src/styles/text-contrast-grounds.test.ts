@@ -1,13 +1,20 @@
 /// <reference types="node" />
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { contrastRatio } from '../lib/ink';
 
 // Contrast guards for the grounds themes-contrast.test.ts does not reach
 // (a11y sweep 2026-09: --text-muted measured 4.16:1 on a selected choice card
 // in dimir, and two `opacity` rules dropped text to 3.97:1 / 4.0:1).
+//
+// The accent tint (--accent-light) lifts its ground so far that muted, and in
+// golgari/gruul/dimir/orzhov even secondary, fall below AA on it. Raising the
+// global --text-muted to cover that flattened muted into secondary on every
+// dark-theme page, so the tint gets its own pair instead: --text-muted-tint
+// and --text-secondary-tint, which every rule painting the tint points the two
+// roles at.
 const here = dirname(fileURLToPath(import.meta.url));
 const read = (rel: string) => readFileSync(join(here, rel), 'utf8');
 const themesCss = read('themes.css');
@@ -28,6 +35,8 @@ interface Theme {
   grounds: Record<string, string>;
   muted: string;
   secondary: string;
+  mutedTint: string;
+  secondaryTint: string;
   accent: string;
   accentAlpha: number;
 }
@@ -39,12 +48,14 @@ function themes(): Theme[] {
   while ((m = re.exec(themesCss))) {
     const tok = (n: string) => m![2].match(new RegExp(`--${n}:[ ]*(#[0-9a-fA-F]{6})`))?.[1];
     const tint = m[2].match(/--accent-light:\s*color-mix\(in srgb,\s*(#[0-9a-fA-F]{6})\s+(\d+)%/);
-    const [bg, surface, raised, muted, secondary] = [
+    const [bg, surface, raised, muted, secondary, mutedTint, secondaryTint] = [
       'bg',
       'surface',
       'surface-raised',
       'text-muted',
       'text-secondary',
+      'text-muted-tint',
+      'text-secondary-tint',
     ].map(tok);
     if (!bg || !surface || !raised || !muted || !secondary || !tint) continue;
     out.push({
@@ -52,6 +63,8 @@ function themes(): Theme[] {
       grounds: { bg, surface, 'surface-raised': raised },
       muted,
       secondary,
+      mutedTint: mutedTint ?? '',
+      secondaryTint: secondaryTint ?? '',
       accent: tint[1],
       accentAlpha: Number(tint[2]) / 100,
     });
@@ -65,22 +78,55 @@ describe('text on the accent-tinted selected ground', () => {
   // `.choice-option.is-selected`, `.settings-theme-option.is-active` and kin
   // paint --accent-light over whichever ground the card sits on.
   for (const t of all) {
-    it(`${t.name}: --text-muted and --text-secondary clear AA on --accent-light over every ground`, () => {
+    it(`${t.name}: the on-tint pair clears AA on --accent-light over every ground`, () => {
+      expect(t.mutedTint, `${t.name} declares no --text-muted-tint`).toMatch(/^#/);
+      expect(t.secondaryTint, `${t.name} declares no --text-secondary-tint`).toMatch(/^#/);
       for (const [where, ground] of Object.entries(t.grounds)) {
         const tinted = mix(t.accent, t.accentAlpha, ground);
-        for (const [tokenName, fg] of [
-          ['text-muted', t.muted],
-          ['text-secondary', t.secondary],
-        ]) {
-          const ratio = contrastRatio(fg, tinted);
+        const muted = contrastRatio(t.mutedTint, tinted);
+        const secondary = contrastRatio(t.secondaryTint, tinted);
+        for (const [tokenName, ratio] of [
+          ['text-muted-tint', muted],
+          ['text-secondary-tint', secondary],
+        ] as const) {
           expect(
             ratio,
             `${t.name} --${tokenName} on accent-light over --${where} = ${ratio.toFixed(2)}`
           ).toBeGreaterThanOrEqual(AA);
         }
+        // The pair keeps a visible step, so a selected tile keeps its hierarchy.
+        expect(
+          secondary - muted,
+          `${t.name} on-tint secondary ${secondary.toFixed(2)} vs muted ${muted.toFixed(2)} over --${where}`
+        ).toBeGreaterThanOrEqual(0.3);
       }
     });
   }
+});
+
+// Every rule that paints the tint as a background must hand its text the
+// on-tint pair; a new tinted rule without it would show muted text at ~3.3:1.
+describe('every rule painting --accent-light re-points muted and secondary', () => {
+  const srcDir = join(here, '..');
+  const files = (dir: string): string[] =>
+    readdirSync(dir).flatMap((n) => {
+      const p = join(dir, n);
+      return statSync(p).isDirectory() ? files(p) : p.endsWith('.css') ? [p] : [];
+    });
+  it('declares --text-muted and --text-secondary as the tint pair', () => {
+    const missing: string[] = [];
+    for (const file of files(srcDir)) {
+      const css = readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+      for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        if (!/background(?:-color|-image)?\s*:[^;]*var\(--accent-light\)/.test(m[2])) continue;
+        const ok =
+          /--text-muted:\s*var\(--text-muted-tint\)/.test(m[2]) &&
+          /--text-secondary:\s*var\(--text-secondary-tint\)/.test(m[2]);
+        if (!ok) missing.push(`${relative(srcDir, file)}: ${m[1].trim().split('\n').pop()}`);
+      }
+    }
+    expect(missing).toEqual([]);
+  });
 });
 
 // `opacity` on a text-bearing element blends the text toward its ground, so no

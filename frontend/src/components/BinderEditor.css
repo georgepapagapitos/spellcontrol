@@ -224,6 +224,8 @@
 .binder-pocket-tiles .segmented-option.is-selected {
   border-color: var(--accent);
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   box-shadow: none;
 }
 
@@ -553,6 +555,8 @@
   margin-bottom: var(--space-4);
   border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
   background: linear-gradient(100deg, var(--accent-light), transparent 70%), var(--surface-raised);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
 }
 
 .binder-start-shelf {

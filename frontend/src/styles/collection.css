@@ -295,6 +295,8 @@
   gap: var(--space-1);
   padding: var(--space-0-5) var(--space-0-5) var(--space-0-5) var(--space-2);
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   color: var(--accent);
   border-radius: 999px;
   font-size: var(--text-xs);
@@ -394,6 +396,8 @@
 
 .set-filter-result.is-highlight {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   color: var(--accent);
 }
 

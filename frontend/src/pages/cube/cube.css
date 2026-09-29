@@ -1121,6 +1121,8 @@
    reads as "kept" at a glance, in addition to the "Locked" pill. */
 .cube-row-locked {
   background: linear-gradient(90deg, var(--accent-light), transparent 60%);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
 }
 /* The clickable row nests a real <button> (a11y: an `<li role="button">` is
    a non-interactive element carrying an interactive role) — the row (li)
@@ -1226,6 +1228,8 @@
   padding: 2px var(--space-2);
   border-radius: 999px;
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   border: 1px solid transparent;
   font-size: var(--text-xs);
   color: var(--accent);
@@ -1470,6 +1474,8 @@
 .cube-collab-friend-row.checked {
   border-color: var(--accent);
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
 }
 
 .cube-collab-friend-row.disabled {

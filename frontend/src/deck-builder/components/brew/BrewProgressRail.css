@@ -40,6 +40,8 @@
 
 .brew-rail-step.is-active {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   border-color: var(--accent);
   color: var(--text-primary);
   font-weight: 600;

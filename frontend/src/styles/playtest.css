@@ -180,6 +180,8 @@ body:has(.playtest-page, .horde-table-page) {
   .playtest-resistance-banner__dismiss:hover {
     color: var(--text-primary);
     background: var(--accent-light);
+    --text-muted: var(--text-muted-tint);
+    --text-secondary: var(--text-secondary-tint);
   }
 }
 
@@ -242,6 +244,8 @@ body:has(.playtest-page, .horde-table-page) {
   .playtest-takeback-pending__cancel:hover {
     color: var(--text-primary);
     background: var(--accent-light);
+    --text-muted: var(--text-muted-tint);
+    --text-secondary: var(--text-secondary-tint);
     border-color: var(--accent);
   }
 }
@@ -406,6 +410,8 @@ body:has(.playtest-hold-banner) .playtest-takeback-consent {
   .playtest-session-summary__dismiss:hover {
     color: var(--text-primary);
     background: var(--accent-light);
+    --text-muted: var(--text-muted-tint);
+    --text-secondary: var(--text-secondary-tint);
   }
 }
 
@@ -915,6 +921,8 @@ body[data-felt='slate'] {
 
 .playtest-hand.is-over {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
 }
 
 .playtest-hand__label {
@@ -1604,6 +1612,8 @@ button.playtest-card-pt__value--editable:focus-visible {
 }
 .playtest-zone-card__primary:active {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -1899,6 +1909,8 @@ button.playtest-card-pt__value--editable:focus-visible {
 
 .playtest-ctx-action:active:not(:disabled) {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
 }
 
 /* A row that does nothing right now (a card with no counters, an empty pile)
@@ -2175,6 +2187,8 @@ button.playtest-card-pt__value--editable:focus-visible {
 .playtest-ctx-sticker-add button:enabled:active,
 .playtest-ctx-sticker button:active {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -3549,6 +3563,8 @@ button.playtest-card-pt__value--editable:focus-visible {
 
 .playtest-corner-btn.is-primary {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   border-color: var(--accent);
   color: var(--accent);
   font-weight: 600;
@@ -3569,6 +3585,8 @@ button.playtest-card-pt__value--editable:focus-visible {
   padding: 0 var(--space-1-5);
   border-radius: 999px;
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   color: var(--accent);
   font-size: var(--text-xs);
   font-weight: 700;

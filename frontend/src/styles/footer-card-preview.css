@@ -741,6 +741,10 @@
   --text-primary: rgba(255, 255, 255, 0.92);
   --text-secondary: rgba(255, 255, 255, 0.7);
   --text-muted: rgba(255, 255, 255, 0.55);
+  /* The on-tint ramp (tokens.css): a tinted rule in here must not pick up a
+     light theme's paper inks. */
+  --text-muted-tint: rgba(255, 255, 255, 0.7);
+  --text-secondary-tint: rgba(255, 255, 255, 0.82);
   --border: rgba(255, 255, 255, 0.15);
   --border-strong: rgba(255, 255, 255, 0.25);
   --surface: rgba(255, 255, 255, 0.05);
