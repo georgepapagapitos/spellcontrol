@@ -18,7 +18,7 @@ vi.mock('../lib/api/combos', () => ({
 }));
 vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 vi.mock('@/lib/sync', () => ({ getSyncState: () => 'ready', onSyncedChange: () => () => {} }));
-vi.mock('../components/CardPreview', () => ({ CardPreview: () => null }));
+vi.mock('@/components/card/CardPreview', () => ({ CardPreview: () => null }));
 
 // One commander-eligible legend (UB) so the host-commander line has something
 // to find, plus a plain creature that must not qualify.

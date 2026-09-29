@@ -2,7 +2,7 @@
    (.friends-signin-*), the load-error row (.friends-error, -retry), and the
    quiet inline empty line (.friends-empty).
 
-   These started life in components/FriendsManagement.css and were reused by
+   These started life in components/social/FriendsManagement.css and were reused by
    name from FriendHubPage, TradesPage and PodsIndexPage. That worked while
    every page shipped in one bundle; once the app was code-split by hub
    (#1713) each of those pages became its own lazy chunk, and a direct load of

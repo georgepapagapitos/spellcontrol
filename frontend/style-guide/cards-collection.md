@@ -345,7 +345,7 @@ cards, withhold rows for a few different reasons, and need a repair) gets
 **one review card, not one banner per outcome.** The pre-E130 `UploadPanel`
 stacked up to four separately-bordered banners (success, binder-routing,
 fetch-errors, unresolved-names) after a single import — reference
-implementation is `components/UploadPanel.tsx`'s `.import-review` container
+implementation is `components/import/UploadPanel.tsx`'s `.import-review` container
 and `UnresolvedNameRow`:
 
 - **One container** (`.import-review`, `--radius-lg`, `--surface` bg) with a
@@ -422,7 +422,7 @@ with per-import delete, a "Restore backup" file picker, and a "Clear all"
 that wiped the whole collection. None of those are about the import in
 progress, so they moved off the panel entirely:
 
-- **Import history** is `components/ImportHistorySheet.tsx`, a card-picker
+- **Import history** is `components/import/ImportHistorySheet.tsx`, a card-picker
   sheet reachable from Collection's ⋮ menu ("Import history"), not the add
   flow. Its delete confirm states the truth about Undo — `deleteImports()`
   always follows with a toast offering one, so the old copy ("This can't be
@@ -437,7 +437,7 @@ progress, so they moved off the panel entirely:
   flow: the last, `danger` item in Collection's ⋮ (the collection is its own
   index, so this is the whole-library rule's "one home"; it hides with the
   other admin items on an empty collection) and You › Backup & export. Both
-  render `components/DeleteCollectionDialog.tsx`: two steps, because a bulk
+  render `components/collection/DeleteCollectionDialog.tsx`: two steps, because a bulk
   wipe of thousands of rows is not the one-item delete that skips its
   confirm. The final step names the Undo toast instead of "This can't be
   undone", since `clearCards()` always offers one.
@@ -624,7 +624,7 @@ modal-backdrop--over-sheet`, and their menus portal to `<body>` anyway.
 ### Copy details: finish, condition, language (T153, 2026-09-26)
 
 Every surface that makes or edits one physical copy picks its details with the
-same controls, from `components/CopyControls` plus the kit:
+same controls, from `components/card/CopyControls` plus the kit:
 
 - **Finish is `FinishControl`**: a `fill` `SegmentedControl` with each finish's
   price under its name. Non-foil and foil always show (etched only when the
@@ -1049,4 +1049,4 @@ in `lib/discover/browse-lists.ts`; a new list is a row there, not a new page.
   own. The colour row has no AND/OR chip: an EDHREC colour list is one exact
   identity ([§ Color pip rows](#color-pip-rows--andor-match-mode-chip)).
 - **An unknown list is a broken link**: `/search/top/<anything else>` renders
-  the app's "Page not found." state (`components/NotFoundPage`).
+  the app's "Page not found." state (`pages/NotFoundPage`).

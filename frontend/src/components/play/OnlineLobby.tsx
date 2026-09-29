@@ -1,8 +1,8 @@
 import { Check, Copy, Crown, Shuffle, UserRound, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ConfirmDialog } from '../ConfirmDialog';
-import { SelectMenu } from '../SelectMenu';
-import { VisibilityChoice } from '../VisibilityChoice';
+import { ConfirmDialog } from '@/components/overlays/ConfirmDialog';
+import { SelectMenu } from '@/components/overlays/SelectMenu';
+import { VisibilityChoice } from '@/components/share/VisibilityChoice';
 import { DeckPicker, SeatPips, Stepper } from './SetupControls';
 import type { PickedDeck } from './DeckPickerDialog';
 import { deckBoardPath, starterFileName } from '@/lib/play/starter-decks';

@@ -47,7 +47,7 @@ body {
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
-  /* Containing block for the native Scan FAB (components/ScanFab.tsx): it is
+  /* Containing block for the native Scan FAB (components/scanner/ScanFab.tsx): it is
      position:absolute against this stable 100dvh box rather than
      position:fixed, so the URL-bar shift this layout dodges can't reach it. */
   position: relative;

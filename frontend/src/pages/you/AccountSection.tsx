@@ -5,7 +5,7 @@ import { preventFocusSteal } from '@/lib/util/keyboard';
 import { useSignInPath } from '@/lib/account/sign-in-path';
 import { useAuth } from '@/store/auth';
 import { toast } from '@/store/toasts';
-import { Modal } from '@/components/Modal';
+import { Modal } from '@/components/overlays/Modal';
 import {
   fetchIdentities,
   googleLinkUrl,
@@ -16,8 +16,8 @@ import {
   updatePassword,
   type MyIdentities,
 } from '@/lib/account/auth-api';
-import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { SyncIndicator } from '@/components/SyncIndicator';
+import { ConfirmDialog } from '@/components/overlays/ConfirmDialog';
+import { SyncIndicator } from '@/components/account/SyncIndicator';
 import { getPendingCount } from '@/lib/sync';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsRow } from '@/components/settings/SettingsRow';

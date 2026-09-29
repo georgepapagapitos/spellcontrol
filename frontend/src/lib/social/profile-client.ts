@@ -65,7 +65,7 @@ export interface PublicProfile {
   /** Null unless the owner turned it on. */
   gameRecord: ProfileGameRecord | null;
   /** The Collection tab (board T136). `canView` is decided per viewer on the
-   *  server; `visibility` is the owner's choice (null = never chose). */
+   *  server; `visibility` is the setting in force (never chose = friends). */
   collection?: { visibility: 'public' | 'friends' | 'private' | null; canView: boolean };
 }
 

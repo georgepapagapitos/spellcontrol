@@ -31,7 +31,7 @@ vi.mock('@/lib/discover/discover-client', () => ({
 // The precons rail has its own test (PreconsRail.test.tsx). Stubbed here so
 // the page's listing mock only answers the community grid, and so these tests
 // can see where the page mounts it and with which filters.
-vi.mock('../components/PreconsRail', () => ({
+vi.mock('@/components/decks/PreconsRail', () => ({
   PreconsRail: ({ filters }: { filters?: { query: string | null } }) => (
     <div data-testid="precons-rail" data-query={filters?.query ?? ''} />
   ),

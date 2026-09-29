@@ -1,6 +1,6 @@
 import './TradeAcceptDialog.css';
 import { useId, useMemo, useState } from 'react';
-import { Modal } from '../Modal';
+import { Modal } from '@/components/overlays/Modal';
 import { useCardThumb } from '@/lib/cards/card-thumbs';
 import { formatMoney } from '@/lib/collection/format-money';
 import { PrintingChoices } from './PrintingChoices';

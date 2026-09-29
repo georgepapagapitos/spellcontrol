@@ -383,7 +383,7 @@ describe('UX-321 — CounterRow tap-and-hold wiring (hook shape)', () => {
 // We test the Tabs component directly with the expected props shape,
 // since PlayPage is too heavy to render in this env.
 
-import { Tabs } from '../../components/Tabs';
+import { Tabs } from '@/components/overlays/Tabs';
 
 describe('Rider — OnlineSetup Host/Join: shared Tabs keyboard nav', () => {
   it('renders a tablist with Host and Join tabs', () => {

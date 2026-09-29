@@ -570,15 +570,18 @@ describe('a profile Collection tab (T136)', () => {
     expect((await collection('coll-priv-owner', o)).status).toBe(200);
   });
 
-  it('an account that never chose keeps its old promise: no quantities or prices, even to a friend', async () => {
+  it('an account that never chose reads as friends-only: friends see it all, strangers nothing', async () => {
     const o = await owner('coll-null-owner', null);
     const friend = await makeUser('coll-null-friend');
+    const stranger = await makeUser('coll-null-stranger');
     await befriend(o, 'coll-null-owner', friend, 'coll-null-friend');
-    expect((await collection('coll-null-owner', friend)).status).toBe(404);
+    expect((await collection('coll-null-owner', friend)).status).toBe(200);
+    expect((await collection('coll-null-owner', stranger)).status).toBe(404);
+    expect((await collection('coll-null-owner')).status).toBe(404);
     const profile = await request(app)
       .get('/api/public/users/coll-null-owner')
       .set('Cookie', friend);
-    expect(profile.body.collection).toEqual({ visibility: null, canView: false });
+    expect(profile.body.collection).toEqual({ visibility: 'friends', canView: true });
   });
 
   it('a moderator-hidden account shows its collection to nobody else', async () => {

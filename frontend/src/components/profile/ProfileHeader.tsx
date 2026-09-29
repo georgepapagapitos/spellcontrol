@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Users } from 'lucide-react';
-import { UserAvatar } from '../UserAvatar';
+import { UserAvatar } from './UserAvatar';
 import { Button } from '../shared/Button';
 import { Chip } from '../shared/Chip';
 import { FollowButton } from '../social/FollowButton';

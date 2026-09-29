@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { Button } from '../shared/Button';
-import { DiscoverDeckTile, DiscoverTileSkeleton } from '../DiscoverDeckTile';
+import { DiscoverDeckTile, DiscoverTileSkeleton } from '@/components/decks/DiscoverDeckTile';
 // The rail header borrows HomeCard's header/view-all family. HomePage is lazy,
 // so this chunk (main) has to load the stylesheet itself.
 import '../home/HomeCard.css';

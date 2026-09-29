@@ -1,6 +1,6 @@
 import { EmptyState } from '../components/shared/EmptyState';
-import { CollectionHubTabs } from '@/components/CollectionHubTabs';
-import { PageHeader } from '@/components/PageHeader';
+import { CollectionHubTabs } from '@/components/collection/CollectionHubTabs';
+import { PageHeader } from '@/components/app-shell/PageHeader';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import {
@@ -39,15 +39,15 @@ import {
   useSldDrops,
   type SldDropsIndex,
 } from '@/lib/cards/sld-drops';
-import { SelectMenu, type SelectOption } from '../components/SelectMenu';
-import { SearchPill } from '../components/SearchPill';
+import { SelectMenu, type SelectOption } from '@/components/overlays/SelectMenu';
+import { SearchPill } from '@/components/search/SearchPill';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { scryfallToEnrichedCard } from '@/lib/cards/scryfall-to-enriched';
 import { useCollectionStore } from '../store/collection';
 import { useToastsStore } from '../store/toasts';
-import { CardPreview } from '../components/CardPreview';
+import { CardPreview } from '@/components/card/CardPreview';
 import { RarityBadge } from '../components/shared/RarityBadge';
-import { Tabs } from '../components/Tabs';
+import { Tabs } from '@/components/overlays/Tabs';
 import { MeterBar } from '../components/shared/MeterBar';
 import { useSealMoment } from '../components/shared/SealMoment';
 import { CardName } from '@/components/shared/CardName';

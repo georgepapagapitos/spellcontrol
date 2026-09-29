@@ -6,7 +6,7 @@
  * `backend/src/shares/projections.ts`), so a name that reaches a title, an
  * `og:title` or a profile tile can't be longer than one someone could type.
  * The two constants are paired the way `DISPLAY_NAME_MAX` already is across
- * `components/ProfileEditor.tsx` and `backend/src/auth.ts`.
+ * `components/profile/ProfileEditor.tsx` and `backend/src/auth.ts`.
  *
  * The cap belongs on every input a deck can be named from — the editor's
  * rename field and the import dialog's per-file name — not on the stored

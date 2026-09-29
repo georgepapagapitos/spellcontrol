@@ -151,7 +151,7 @@ const STEPPER =
 /** Files still to migrate, with their current counts. Lower as each wave lands. */
 const ALLOWED: Record<Shape, Record<string, number | { count: number; why: string }>> = {
   rawClass: {
-    'components/SelectMenu.tsx': { count: 1, why: TOOLBAR_FAMILY },
+    'components/overlays/SelectMenu.tsx': { count: 1, why: TOOLBAR_FAMILY },
     'components/shared/ToolbarPopover.tsx': { count: 1, why: TOOLBAR_FAMILY },
     'components/Legend.tsx': { count: 1, why: TOOLBAR_FAMILY },
     'pages/DeckEditorPage.tsx': { count: 3, why: RADIO_FACE },
@@ -162,10 +162,10 @@ const ALLOWED: Record<Shape, Record<string, number | { count: number; why: strin
     'components/trade/TradeAcceptDialog.tsx': { count: 1, why: CARD_ART },
     'components/trade/TradeComposer.tsx': { count: 2, why: CARD_ART },
     'playtest/components/CardCounters.tsx': { count: 1, why: BOARD_CHROME },
-    'components/CardEditDialog.tsx': { count: 2, why: STEPPER },
-    'components/PrintingPicker.tsx': { count: 2, why: STEPPER },
-    'components/ProductSearchPanel.tsx': { count: 2, why: STEPPER },
-    'components/RemoveCopiesDialog.tsx': { count: 2, why: STEPPER },
+    'components/collection/CardEditDialog.tsx': { count: 2, why: STEPPER },
+    'components/card/PrintingPicker.tsx': { count: 2, why: STEPPER },
+    'components/import/ProductSearchPanel.tsx': { count: 2, why: STEPPER },
+    'components/collection/RemoveCopiesDialog.tsx': { count: 2, why: STEPPER },
     'components/play/GameBoard.tsx': { count: 2, why: BOARD_CHROME },
     'components/play/horde/HordeDamageSheet.tsx': { count: 2, why: BOARD_CHROME },
     'components/play/LayoutEditor.tsx': { count: 3, why: BOARD_CHROME },
@@ -174,18 +174,18 @@ const ALLOWED: Record<Shape, Record<string, number | { count: number; why: strin
     'components/play/SetupControls.tsx': { count: 2, why: BOARD_CHROME },
   },
   rawChip: {
-    'components/CardOtagsSheet.tsx': { count: 1, why: NAV_LINK },
-    'components/ChipExpressionBuilder.tsx': { count: 1, why: STRUCTURE },
+    'components/card/CardOtagsSheet.tsx': { count: 1, why: NAV_LINK },
+    'components/search/ChipExpressionBuilder.tsx': { count: 1, why: STRUCTURE },
     'components/deck/BracketBreakdown.tsx': { count: 1, why: STRUCTURE },
     'components/deck/GenerationModePicker.tsx': { count: 2, why: CHOICE },
     // 6 labels + 5 plain spans now carrying the shared `.filter-chip` face
     // (T152 W8k) — the color chip's span stays sr-only, no shared class.
-    'components/DiscoverFiltersPopover.tsx': { count: 11, why: CHOICE },
+    'components/decks/DiscoverFiltersPopover.tsx': { count: 11, why: CHOICE },
     'components/browse/BrowseListFilters.tsx': { count: 2, why: CHOICE },
     'components/play/GameBoard.tsx': { count: 5, why: BOARD_CHROME },
     'components/play/OnlineGameView.tsx': { count: 4, why: BOARD_CHROME },
     'components/play/PhaseChip.tsx': { count: 2, why: BOARD_CHROME },
-    'components/SortValueOrderEditor.tsx': { count: 1, why: STRUCTURE },
+    'components/search/SortValueOrderEditor.tsx': { count: 1, why: STRUCTURE },
     'components/trade/TradeOfferList.tsx': { count: 1, why: CARD_ART },
     'playtest/components/CardStatusStrip.tsx': { count: 2, why: BOARD_CHROME },
     'playtest/components/LifeStrip.tsx': { count: 2, why: BOARD_CHROME },

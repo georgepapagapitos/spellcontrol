@@ -8,8 +8,8 @@ import {
   RulesReferenceFoot,
   useRulesBundle,
   type RulesReferenceTab,
-} from '../components/RulesReference';
-import { Tabs } from '../components/Tabs';
+} from '@/components/rules/RulesReference';
+import { Tabs } from '@/components/overlays/Tabs';
 // The answer's skeleton, inline error and card chips reuse the review panel's
 // classes by name; this page is its own lazy chunk, so it has to load the
 // stylesheet it borrows from (css-chunk-ownership.test.ts).

@@ -2,7 +2,7 @@ import type { JSX } from 'react';
 import './PowerHero.css';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import { bracketLabel } from '@/deck-builder/services/deckBuilder/bracketEstimator';
-import { SelectMenu, type SelectOption } from '../SelectMenu';
+import { SelectMenu, type SelectOption } from '@/components/overlays/SelectMenu';
 import { useAnimatedNumber } from '@/lib/util/use-animated-number';
 import { Button } from '@/components/shared/Button';
 

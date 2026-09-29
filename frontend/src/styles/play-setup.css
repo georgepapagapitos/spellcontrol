@@ -20,8 +20,8 @@
   gap: var(--space-4);
 }
 
-/* The Play header is components/PageHeader.tsx. The Local/Online/History
-   strip under it is the shared <Tabs> primitive (components/Tabs.tsx);
+/* The Play header is components/app-shell/PageHeader.tsx. The Local/Online/History
+   strip under it is the shared <Tabs> primitive (components/overlays/Tabs.tsx);
    only the in-progress dot is Play-specific. */
 .play-tab-dot {
   width: 0.45rem;

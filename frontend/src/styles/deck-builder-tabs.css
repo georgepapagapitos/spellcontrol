@@ -1,7 +1,7 @@
-/* deck-builder-tabs.css — Shared <Tabs> primitive (components/Tabs.tsx): boxed/scrollable/underline variants + sliding indicator.
+/* deck-builder-tabs.css — Shared <Tabs> primitive (components/overlays/Tabs.tsx): boxed/scrollable/underline variants + sliding indicator.
  * Byte-identical contiguous slice of the former monolithic deck-builder.css (E28; method #634/#637).
  * Original lines 5417-5933. Import order in main.tsx is load-bearing — see STYLE_GUIDE "CSS file layout". */
-/* ── Shared <Tabs> primitive (components/Tabs.tsx) ──────────────────────────
+/* ── Shared <Tabs> primitive (components/overlays/Tabs.tsx) ──────────────────────────
    Visual heir of .deck-combos-tabs; the combos/analysis panels now render it.
    `--fitted` keeps the equal-width 2-tab look; `--scrollable` lets a longer
    strip scroll horizontally (the deck-stats analysis surface). */

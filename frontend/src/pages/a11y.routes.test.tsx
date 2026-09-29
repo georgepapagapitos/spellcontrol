@@ -82,13 +82,13 @@ vi.mock('@tanstack/react-virtual', () => ({
   }),
 }));
 
-import { Layout } from '../components/Layout';
+import { Layout } from '@/components/app-shell/Layout';
 import { useAuth } from '../store/auth';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import { HomePage } from './HomePage';
 import { CollectionPage } from './CollectionPage';
-import { CollectionHubLayout } from '../components/CollectionHubLayout';
+import { CollectionHubLayout } from '@/components/collection/CollectionHubLayout';
 import { BindersIndexPage } from './BindersIndexPage';
 import { ListsPage } from './ListsPage';
 import { CollectionCombosPage } from './CollectionCombosPage';

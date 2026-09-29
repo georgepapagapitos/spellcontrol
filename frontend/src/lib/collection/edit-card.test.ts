@@ -8,7 +8,7 @@ import {
 } from './edit-card';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '@/types/index';
-import type { PrintingSelection } from '@/components/CardEditDialog';
+import type { PrintingSelection } from '@/components/collection/CardEditDialog';
 
 const sc = (prices: Record<string, string | null>): ScryfallCard =>
   ({

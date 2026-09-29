@@ -1,5 +1,5 @@
 import { useId, useState } from 'react';
-import { Modal } from '../Modal';
+import { Modal } from '@/components/overlays/Modal';
 import { toast } from '../../store/toasts';
 import { submitReport, type ReportKind } from '@/lib/social/report-client';
 import './ReportDialog.css';

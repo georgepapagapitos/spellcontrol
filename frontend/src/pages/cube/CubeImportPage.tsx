@@ -1,6 +1,6 @@
 import './cube.css';
-import { BackLink } from '../../components/BackLink';
-import { PageHeader } from '../../components/PageHeader';
+import { BackLink } from '@/components/app-shell/BackLink';
+import { PageHeader } from '@/components/app-shell/PageHeader';
 import { ImportCube } from './ImportCube';
 
 /**

@@ -14,8 +14,8 @@ import {
 } from 'lucide-react';
 import { HomeCard } from './HomeCard';
 import { CalendarLeaf } from './CalendarLeaf';
-import { UserAvatar } from '../UserAvatar';
-import { formatSlot } from '../NightPoll';
+import { UserAvatar } from '@/components/profile/UserAvatar';
+import { formatSlot } from '@/components/play/NightPoll';
 import { useAuth } from '../../store/auth';
 import { toast } from '../../store/toasts';
 import { upcomingGameNights } from '@/lib/home/home-signals';

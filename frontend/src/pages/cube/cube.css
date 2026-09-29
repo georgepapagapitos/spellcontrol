@@ -77,7 +77,7 @@
 /* Picker + its own note travel together so the note stays under the options
    it describes when the controls become a row. Format is a SegmentedControl
    (2 short options), size a SelectMenu (6 options) — both from
-   components/shared/form / components/SelectMenu (STYLE_GUIDE § Config
+   components/shared/form / components/overlays/SelectMenu (STYLE_GUIDE § Config
    surfaces, "by option count"). Format sits first (board #12 PR2): a paired
    config block, size's own note reads differently once Commander is picked
    (see CubeSizePicker). */

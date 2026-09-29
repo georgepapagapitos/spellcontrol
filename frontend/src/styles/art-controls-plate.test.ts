@@ -11,7 +11,7 @@ import { dirname, join } from 'node:path';
 // pale name bar and the mana cost and could not be found.
 //
 // Read off disk: CSS `?raw` imports come back empty under this setup.
-const components = join(dirname(fileURLToPath(import.meta.url)), '..', 'components');
+const components = join(dirname(fileURLToPath(import.meta.url)), '..', 'components', 'decks');
 
 function rule(file: string, selector: string): string {
   const css = readFileSync(join(components, file), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');

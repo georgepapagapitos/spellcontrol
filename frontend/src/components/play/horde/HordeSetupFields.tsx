@@ -1,5 +1,5 @@
 import { Check } from 'lucide-react';
-import { SelectMenu } from '../../SelectMenu';
+import { SelectMenu } from '@/components/overlays/SelectMenu';
 import { Stepper } from '../SetupControls';
 import { SwitchRow } from '../../shared/form';
 import { HordeTile } from './HordeTile';

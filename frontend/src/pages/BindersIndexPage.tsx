@@ -8,7 +8,7 @@ import {
   Trash2,
   Upload,
 } from 'lucide-react';
-import { CollectionHubTabs } from '@/components/CollectionHubTabs';
+import { CollectionHubTabs } from '@/components/collection/CollectionHubTabs';
 import { Chip } from '@/components/shared/Chip';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { usePanelCascade, panelCascadeClass } from '@/lib/util/use-panel-cascade';
@@ -23,15 +23,15 @@ import { volumesFor, hasMultipleVolumes } from '@/lib/binder/binder-volumes';
 import { useBinderLayoutInputs } from '@/lib/binder/use-binder-layout-inputs';
 import { formatMoney } from '@/lib/collection/format-money';
 import { inkOn } from '@/lib/util/ink';
-import { useConfirm } from '@/components/use-confirm';
-import { Modal } from '../components/Modal';
-import { SortMenu, type SortMenuOption } from '../components/SortMenu';
+import { useConfirm } from '@/components/overlays/use-confirm';
+import { Modal } from '@/components/overlays/Modal';
+import { SortMenu, type SortMenuOption } from '@/components/search/SortMenu';
 import { ViewModeToggle } from '../components/ViewModeToggle';
-import { SearchPill } from '../components/SearchPill';
+import { SearchPill } from '@/components/search/SearchPill';
 import { FilterChipsRow } from '../components/shared/FilterChipsRow';
-import { OverflowMenu, type OverflowMenuItem } from '../components/OverflowMenu';
-import { PageHeader } from '../components/PageHeader';
-import { InfoTip } from '../components/InfoTip';
+import { OverflowMenu, type OverflowMenuItem } from '@/components/overlays/OverflowMenu';
+import { PageHeader } from '@/components/app-shell/PageHeader';
+import { InfoTip } from '@/components/overlays/InfoTip';
 import { EmptyState } from '../components/shared/EmptyState';
 import { Surface } from '../components/shared/Surface';
 import {
@@ -39,17 +39,17 @@ import {
   BulkSelectBar,
   SelectCheck,
   selectInteraction,
-} from '../components/BulkSelectBar';
+} from '@/components/app-shell/BulkSelectBar';
 import { selectedCountLabel, useSelection } from '@/lib/util/use-selection';
 import { useDebouncedValue } from '@/lib/util/use-debounced-value';
-import { BinderExportDialog } from '../components/BinderExportDialog';
-import { PlanShelfModal } from '../components/PlanShelfModal';
-import { UncategorizedSheet } from '../components/UncategorizedSheet';
-import { ShareDialog } from '../components/ShareDialog';
-import { useBinderActions } from '../components/use-binder-actions';
+import { BinderExportDialog } from '@/components/binder/BinderExportDialog';
+import { PlanShelfModal } from '@/components/binder/PlanShelfModal';
+import { UncategorizedSheet } from '@/components/binder/UncategorizedSheet';
+import { ShareDialog } from '@/components/share/ShareDialog';
+import { useBinderActions } from '@/components/binder/use-binder-actions';
 import { importText } from '@/lib/api';
 import { sampleCardsAsCsv, SAMPLE_BINDERS, SAMPLE_CARDS } from '@/lib/binder/samples';
-import { ProgressBar } from '../components/ProgressBar';
+import { ProgressBar } from '@/components/import/ProgressBar';
 
 import { userMessage } from '@/lib/util/user-error';
 import { useAwaitingFirstPull } from '@/lib/sync/use-awaiting-first-pull';

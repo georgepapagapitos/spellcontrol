@@ -21,7 +21,7 @@ import { readHomeShape, rememberHomeShape } from '@/lib/home/home-shape';
 import { Count } from '../shared/Count';
 import type { ActionRequiredItem } from '@/lib/social/activity-client';
 import type { GameNight } from '@/lib/play/game-nights-api';
-import { formatSlot } from '../NightPoll';
+import { formatSlot } from '@/components/play/NightPoll';
 import { CalendarLeaf } from './CalendarLeaf';
 import { useBinderReviewCount } from './use-binder-review-count';
 

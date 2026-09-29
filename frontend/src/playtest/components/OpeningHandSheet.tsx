@@ -5,7 +5,7 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import { scryfallToEnrichedCard } from '@/lib/cards/scryfall-to-enriched';
 import { isKeepableHand } from '@/lib/mana-sim/opening-hand-sim';
 import { isLand, toSimCard } from '@/lib/mana-sim/hand-classify';
-import { CardPreview } from '@/components/CardPreview';
+import { CardPreview } from '@/components/card/CardPreview';
 import { useLongPress } from '@/lib/util/use-long-press';
 import { useMediaQuery } from '@/lib/util/use-media-query';
 import type { PlaytestPhase } from '../store';

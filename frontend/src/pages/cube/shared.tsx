@@ -2,7 +2,7 @@ import { useMemo, type KeyboardEvent } from 'react';
 import { MeterBar } from '../../components/shared/MeterBar';
 import { OwnershipBadge } from '../../components/deck/OwnershipBadge';
 import { VerdictBadge } from '../../components/deck/VerdictBadge';
-import { SelectMenu } from '../../components/SelectMenu';
+import { SelectMenu } from '@/components/overlays/SelectMenu';
 import { SegmentedControl, SwitchRow } from '../../components/shared/form';
 import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';

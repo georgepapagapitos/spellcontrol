@@ -18,7 +18,7 @@ import { HordeHalf } from '../../playtest/components/horde/HordeHalf';
 import { useHordeReplay } from '../../playtest/hooks/use-horde-replay';
 import { measureHordeRect } from '../../playtest/lib/horde-view';
 import type { Rect } from '../../playtest/lib/auto-place';
-import { ConfirmDialog } from '../ConfirmDialog';
+import { ConfirmDialog } from '@/components/overlays/ConfirmDialog';
 import { coopResultLabel } from '@/lib/horde/horde-records';
 import { GameRecap } from './GameRecap';
 import { PhaseChip } from './PhaseChip';

@@ -145,7 +145,7 @@ describe('the ambient friend collection honours the choice', () => {
     expect(closed.body).toMatchObject({ cards: [], collectionPrivate: true, fullView: false });
   });
 
-  it('an account that never chose keeps the card-level view, with no full view', async () => {
+  it('an account that never chose reads as friends-only: a friend gets the full view', async () => {
     const owner = await makeUser('cv-null-owner');
     const friend = await makeUser('cv-null-friend');
     await befriend(owner, 'cv-null-owner', friend, 'cv-null-friend');
@@ -154,7 +154,7 @@ describe('the ambient friend collection honours the choice', () => {
       .get(`/api/friends/${owner.id}/collection`)
       .set('Cookie', friend.cookie);
     expect(res.status).toBe(200);
-    expect(res.body.fullView).toBe(false);
+    expect(res.body.fullView).toBe(true);
     expect(res.body).not.toHaveProperty('collectionPrivate');
   });
 });

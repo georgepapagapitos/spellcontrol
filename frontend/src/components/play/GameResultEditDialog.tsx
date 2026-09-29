@@ -1,5 +1,5 @@
 import { useId, useState } from 'react';
-import { Modal } from '../Modal';
+import { Modal } from '@/components/overlays/Modal';
 import { DeckPicker, SeatPips } from './SetupControls';
 import type { PickedDeck } from './DeckPickerDialog';
 import type { GameResultEdit } from '@/lib/play/game-results-client';

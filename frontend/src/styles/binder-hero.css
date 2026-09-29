@@ -16,7 +16,7 @@
   }
 }
 
-/* PageHeader (components/PageHeader.tsx, STYLE_GUIDE § Layout system): text
+/* PageHeader (components/app-shell/PageHeader.tsx, STYLE_GUIDE § Layout system): text
    on the left, actions on the right, stacked on phones so the primary gets a
    full-width touch target. Which actions are visible is decided in the
    component, not here, so no page re-implements the ⋮ fold. */

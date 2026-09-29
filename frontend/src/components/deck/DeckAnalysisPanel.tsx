@@ -34,9 +34,9 @@ import { buildCardImageIndex, buildCardIndex } from '@/lib/deck-analysis/deck-ca
 import { useCardThumb } from '@/lib/cards/card-thumbs';
 import { classifyInclusion } from '@/lib/deck-analysis/inclusion-label';
 import type { EnrichedCard } from '../../types';
-import { CardPreview } from '../CardPreview';
-import { Tabs } from '../Tabs';
-import { SelectMenu, type SelectOption } from '../SelectMenu';
+import { CardPreview } from '@/components/card/CardPreview';
+import { Tabs } from '@/components/overlays/Tabs';
+import { SelectMenu, type SelectOption } from '@/components/overlays/SelectMenu';
 import { OwnershipBadge } from './OwnershipBadge';
 import { Chip } from '@/components/shared/Chip';
 import { Surface } from '@/components/shared/Surface';

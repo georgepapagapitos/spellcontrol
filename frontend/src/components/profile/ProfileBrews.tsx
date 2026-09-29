@@ -47,45 +47,61 @@ function ColorSpread({ spread }: { spread: PublicProfile['colorSpread'] }) {
   );
 }
 
+/** A commander only says something about a brewer once they've built it twice. */
+const MIN_REPEAT_DECKS = 2;
+
 /**
- * "Brews most": their top commanders (each opens Discover filtered to it) and
- * the colours their decks lean on. Renders nothing for a brewer with no live
- * decks, so an empty shelf never wears an empty panel.
+ * What a brewer's decks lean on: the colours across every live deck, and the
+ * commanders they keep coming back to. A commander built once is left out
+ * (with 17 one-off decks, "top 3" is an arbitrary three), so the commander
+ * row only shows when something repeats. Renders nothing for a brewer with
+ * no live decks, so an empty shelf never wears an empty panel.
  */
 export function ProfileBrews({ profile }: { profile: PublicProfile }) {
-  const { topCommanders, colorSpread } = profile;
+  const { colorSpread, deckCount } = profile;
+  const repeated = profile.topCommanders.filter((c) => c.deckCount >= MIN_REPEAT_DECKS);
   const hasColors = COLOR_ORDER.some((c) => colorSpread[c] > 0);
-  if (topCommanders.length === 0 && !hasColors) return null;
+  if (repeated.length === 0 && !hasColors) return null;
   return (
     <section className="profile-brews" aria-labelledby="profile-brews-title">
-      <h2 id="profile-brews-title" className="profile-panel-title">
-        Brews most
-      </h2>
-      {topCommanders.length > 0 && (
-        <ul className="profile-brews-commanders">
-          {topCommanders.map((c) => (
-            <li key={c.name}>
-              <Link
-                className="profile-brews-commander"
-                to={`/decks/discover?commander=${encodeURIComponent(c.name)}`}
-              >
-                {c.image ? (
-                  <img className="profile-brews-thumb" src={c.image} alt="" loading="lazy" />
-                ) : (
-                  <span className="profile-brews-thumb" aria-hidden="true" />
-                )}
-                <span className="profile-brews-commander-text">
-                  <span className="profile-brews-commander-name">{c.name}</span>
-                  <span className="profile-brews-commander-count">
-                    {formatCount(c.deckCount)} {c.deckCount === 1 ? 'deck' : 'decks'}
-                  </span>
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className="profile-brews-heading">
+        <h2 id="profile-brews-title" className="profile-panel-title">
+          Colors
+        </h2>
+        {hasColors && (
+          <p className="profile-brews-caption">
+            Decks per color, across {formatCount(deckCount)} {deckCount === 1 ? 'deck' : 'decks'}
+          </p>
+        )}
+      </div>
       <ColorSpread spread={colorSpread} />
+      {repeated.length > 0 && (
+        <>
+          <h3 className="profile-brews-subtitle">Most-built commanders</h3>
+          <ul className="profile-brews-commanders">
+            {repeated.map((c) => (
+              <li key={c.name}>
+                <Link
+                  className="profile-brews-commander"
+                  to={`/decks/discover?commander=${encodeURIComponent(c.name)}`}
+                >
+                  {c.image ? (
+                    <img className="profile-brews-thumb" src={c.image} alt="" loading="lazy" />
+                  ) : (
+                    <span className="profile-brews-thumb" aria-hidden="true" />
+                  )}
+                  <span className="profile-brews-commander-text">
+                    <span className="profile-brews-commander-name">{c.name}</span>
+                    <span className="profile-brews-commander-count">
+                      {formatCount(c.deckCount)} decks
+                    </span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
     </section>
   );
 }

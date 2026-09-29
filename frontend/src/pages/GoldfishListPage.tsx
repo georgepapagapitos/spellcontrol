@@ -1,5 +1,5 @@
 import { useCallback, useId, useState } from 'react';
-import { PageHeader } from '@/components/PageHeader';
+import { PageHeader } from '@/components/app-shell/PageHeader';
 import { useNavigate } from 'react-router-dom';
 import { importDeckText } from '@/lib/api';
 import { userMessage } from '@/lib/util/user-error';

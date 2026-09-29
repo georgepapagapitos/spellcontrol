@@ -19,9 +19,9 @@ import { configureAxe } from 'vitest-axe';
 import * as matchers from 'vitest-axe/matchers';
 import type { AxeMatchers } from 'vitest-axe/matchers';
 import type { EnrichedCard } from '../types';
-import { Modal } from './Modal';
-import { OverflowMenu } from './OverflowMenu';
-import { Tabs } from './Tabs';
+import { Modal } from '@/components/overlays/Modal';
+import { OverflowMenu } from '@/components/overlays/OverflowMenu';
+import { Tabs } from '@/components/overlays/Tabs';
 
 expect.extend(matchers);
 
@@ -56,8 +56,8 @@ vi.mock('@tanstack/react-virtual', () => ({
   }),
 }));
 
-import { CardListTable } from './CardListTable';
-import { ShortcutRegistryProvider } from './shortcut-registry';
+import { CardListTable } from '@/components/collection/CardListTable';
+import { ShortcutRegistryProvider } from '@/components/app-shell/shortcut-registry';
 
 /**
  * Component-scoped axe run:

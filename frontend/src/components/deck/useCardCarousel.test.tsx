@@ -26,7 +26,7 @@ type WiredGetActions = ((i: number) => unknown[]) | undefined;
 const previewCards = vi.fn<(cards: EnrichedCard[]) => void>();
 const previewIndex = vi.fn<(index: number) => void>();
 const previewGetActions = vi.fn<(getActions: WiredGetActions) => void>();
-vi.mock('@/components/CardPreview', () => ({
+vi.mock('@/components/card/CardPreview', () => ({
   CardPreview: ({
     cards,
     index,
