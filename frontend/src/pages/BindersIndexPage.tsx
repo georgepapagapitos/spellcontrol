@@ -53,6 +53,7 @@ import { ProgressBar } from '../components/ProgressBar';
 import { userMessage } from '@/lib/user-error';
 import { useAwaitingFirstPull } from '../lib/use-awaiting-first-pull';
 import { Button } from '@/components/shared/Button';
+import '../styles/deck-builder-binders-index.css';
 type BinderSortField = 'position' | 'name' | 'cards' | 'pages';
 type SortDir = 'asc' | 'desc';
 type BindersViewMode = 'grid' | 'list' | 'compact';
