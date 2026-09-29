@@ -826,9 +826,12 @@ async function main() {
         deckHref && `${deckHref}?view=tune`,
         deckHref && `${deckHref}/playtest`,
         '/play',
-        '/play?tab=online',
-        '/play?tab=nights',
-        '/play?tab=history',
+        // The sections are routes (E375). `?tab=` still opens its tab, but
+        // this list kept visiting it after #2099 (2026-09-21) and shot the
+        // Play home each time.
+        '/play/online',
+        '/play/nights',
+        '/play/history',
         '/friends',
         '/trades',
         '/pods',

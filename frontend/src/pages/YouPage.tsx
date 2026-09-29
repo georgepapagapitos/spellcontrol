@@ -490,8 +490,11 @@ export function YouPage() {
             title="Profile"
             hint={
               <>
-                Shown on your <Link to={`/u/${username}`}>public profile</Link> and anywhere you
-                appear to other players.
+                Shown on your{' '}
+                <Link className="text-link" to={`/u/${username}`}>
+                  public profile
+                </Link>{' '}
+                and anywhere you appear to other players.
               </>
             }
           >
