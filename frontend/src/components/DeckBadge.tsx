@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import type { AllocationInfo } from '../lib/allocations';
 import type { CubeListing } from '../lib/cube-listings';
 import { ArtBadge } from '@/components/shared/ArtBadge';
+import './DeckBadge.css';
 
 interface Props {
   /** All allocations (deck and/or cube) covering this row's copies. Empty → no badge. */

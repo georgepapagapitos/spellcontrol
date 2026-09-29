@@ -1,0 +1,21 @@
+/* DeckBadge's listed kind: a cube lists the card but holds no copy (a draft
+   cube, or a physical cube's pick it had no free copy for). Co-located so it
+   ships with DeckBadge's own chunk instead of the render-blocking boot sheet,
+   which sits at its budget. Each selector outranks the rule it amends, since
+   this sheet's order against collection.css is not fixed. */
+
+/* Row: the violet chip drawn hollow and dashed, the style guide's mark for
+   "no physical home". The copy stays available. */
+.card-list-deck-badge.card-list-deck-badge--listed {
+  background: transparent;
+  border: 1px dashed color-mix(in srgb, var(--deck-color, var(--accent)) 60%, transparent);
+}
+
+/* On art: hollow, not the filled identity disc, since nothing of the owner's
+   is in the sleeve. The scrim and its light glyph stay legible on any art;
+   the ring goes dashed in the cube's violet. The paint owner is
+   :where(.art-badge[data-identity]) in collection.css. */
+.art-badge[data-identity='listed'] {
+  border-style: dashed;
+  border-color: var(--identity-color, var(--accent));
+}
