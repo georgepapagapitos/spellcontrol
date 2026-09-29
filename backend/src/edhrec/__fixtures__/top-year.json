@@ -1,0 +1,35 @@
+{
+  "header": "Top Cards (Past 2 Years)",
+  "container": {
+    "json_dict": {
+      "cardlists": [
+        {
+          "tag": "past2years",
+          "header": "Past 2 Years",
+          "cardviews": [
+            {
+              "id": "8ee443cc-e17a-493b-9c93-1f9e141a30e4",
+              "name": "Sol Ring",
+              "sanitized": "sol-ring",
+              "slug": "sol-ring",
+              "url": "/cards/sol-ring",
+              "num_decks": 8456145,
+              "potential_decks": 10153350,
+              "trend_zscore": 0.3699121096232041
+            },
+            {
+              "id": "c6b6117c-faab-4bbb-b851-07bd8061ef03",
+              "name": "Arcane Signet",
+              "sanitized": "arcane-signet",
+              "slug": "arcane-signet",
+              "url": "/cards/arcane-signet",
+              "num_decks": 7284767,
+              "potential_decks": 10153350,
+              "trend_zscore": -1.0133946760416197
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

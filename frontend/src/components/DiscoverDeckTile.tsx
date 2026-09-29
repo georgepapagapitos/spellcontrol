@@ -6,6 +6,7 @@ import { Chip } from './shared/Chip';
 import { MeterBar } from './shared/MeterBar';
 import { UserAvatar } from './UserAvatar';
 import { useCardThumb } from '../lib/card-thumbs';
+import { scryfallArtCrop } from '../lib/offline/slim-to-scryfall';
 import { formatMoney } from '../lib/format-money';
 import { formatSocialCount } from '../lib/social-proof';
 import { formatRelativeTime } from '../lib/format-time';
@@ -15,6 +16,7 @@ import { bracketLabel } from '../deck-builder/services/deckBuilder/bracketEstima
 import { bracketBadgeWithEstimate, bracketAriaWithEstimate } from '../lib/format-bracket-label';
 import { LikeButton } from './LikeButton';
 import { BookmarkButton } from './BookmarkButton';
+import { ColorIdentityBar } from './shared/ColorIdentityBar';
 import { Surface } from './shared/Surface';
 import type { DeckFormat } from '../deck-builder/types';
 import type { DiscoverDeck } from '../lib/discover-client';
@@ -118,8 +120,10 @@ export function DiscoverDeckTile({ deck, view, buildablePercent = null, onUnsave
   // so the last resort is the deck's own cover art (`ogArtCrop` — #2449's
   // "every deck gets cover art": the owner's pick, else the commander, else
   // the deck's signature card) rather than the colorless swatch (E482).
-  const direct = deck.commanderImageNormal ?? undefined;
-  const resolved = useCardThumb(direct ? undefined : (deck.commanderName ?? undefined), 'normal');
+  // The art crop, as every other deck tile shows: the full card put the
+  // printed title bar at the top of the banner, under the quick actions.
+  const direct = deck.commanderImageNormal ? scryfallArtCrop(deck.commanderImageNormal) : undefined;
+  const resolved = useCardThumb(direct ? undefined : (deck.commanderName ?? undefined), 'art_crop');
   const thumb = direct ?? resolved ?? deck.ogArtCrop ?? undefined;
   const social = socialLine(deck);
   const isGrid = view === 'grid';
@@ -177,16 +181,7 @@ export function DiscoverDeckTile({ deck, view, buildablePercent = null, onUnsave
             />
           )
         )}
-        {isGrid && (
-          <span className="discover-tile-colorbar" aria-hidden="true">
-            {(deck.colorIdentity.length > 0 ? deck.colorIdentity : ['C']).map((c, i) => (
-              <span
-                key={`${c}-${i}`}
-                className={`discover-tile-colorbar-seg discover-tile-colorbar-seg--${c.toLowerCase()}`}
-              />
-            ))}
-          </span>
-        )}
+        {isGrid && <ColorIdentityBar colors={deck.colorIdentity} />}
         <div className="decks-index-card-body">
           <div className="decks-index-card-name">
             <span>{deck.name}</span>

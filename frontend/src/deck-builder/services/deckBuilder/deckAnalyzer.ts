@@ -434,41 +434,22 @@ export function getRolesGrade(roleDeficits: RoleDeficit[]): GradeResult {
 
 // ─── Per-Role Verdict Messages ─────────────────────────────────────
 
-const ROLE_FLAVOR: Record<
-  string,
-  { noun: string; okMsg: string; whyItMatters: string; excessHint: string; zeroMsg: string }
-> = {
+const ROLE_FLAVOR: Record<string, { whyItMatters: string; excessHint: string }> = {
   ramp: {
-    noun: 'ramp',
-    okMsg: 'your deck should consistently accelerate ahead of curve.',
     whyItMatters: "you'll fall behind on mana",
     excessHint: 'those slots could be threats or interaction',
-    zeroMsg:
-      "No ramp at all. You'll be stuck playing one land per turn while opponents pull ahead. Even the fastest decks run mana rocks or dorks to keep up.",
   },
   removal: {
-    noun: 'removal',
-    okMsg: 'you have plenty of answers for key threats at the table.',
     whyItMatters: "opponents' biggest threats will go unchecked",
     excessHint: "you're answering more than you're building",
-    zeroMsg:
-      "No removal at all. You have no way to deal with an opponent's key combo piece, threatening commander, or game-winning enchantment. Interaction is non-negotiable in Commander.",
   },
   boardwipe: {
-    noun: 'board wipe',
-    okMsg: 'you have reset buttons for when opponents go wide.',
     whyItMatters: "you can't recover from a wide board",
     excessHint: 'too many resets stall your own board',
-    zeroMsg:
-      "No board wipes. If even one opponent builds a wide board, you'll have no way to reset. A single well-timed wipe can turn a losing game around.",
   },
   cardDraw: {
-    noun: 'card draw',
-    okMsg: 'your hand should stay stocked through the mid-to-late game.',
     whyItMatters: "you'll be topdecking early",
     excessHint: 'you need cards worth casting too',
-    zeroMsg:
-      "No card draw at all. You'll empty your hand by turn 5-6 and be topdecking the rest of the game while opponents refuel. Card advantage is how you stay in the game.",
   },
 };
 

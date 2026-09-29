@@ -238,10 +238,11 @@ describe('you-page — hero copy', () => {
     authState.status = 'authed';
     renderYouPage();
     expect(screen.queryByRole('heading', { name: 'Settings' })).toBeNull();
-    // The Danger zone's backup hint names the card, not a page called Settings.
-    expect(
-      screen.getByText(/Make a backup first: Collection → Export full collection/)
-    ).toBeTruthy();
+    // The Danger zone's backup hint names the control, not a page called
+    // Settings. It once named "Export full collection", a row that never had
+    // a button of that name.
+    expect(screen.getByText('Download a backup first.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Download backup' })).toBeTruthy();
   });
 });
 
@@ -515,7 +516,11 @@ describe('T117 — Sign-in methods: Password and Email rows', () => {
       screen.getByText('Add a verified email so you can reset your password if you get locked out.')
     ).toBeTruthy();
     // A mistyped address must be correctable while it is still pending.
-    expect(screen.getByRole('button', { name: 'Change' })).toBeTruthy();
+    const change = screen.getByRole('button', { name: 'Change' });
+    // Both buttons sit in one action group. As bare siblings, the row's
+    // space-between spread them across the row with Resend in the middle.
+    expect(change.parentElement?.classList.contains('settings-row-action-group')).toBe(true);
+    expect(screen.getByRole('button', { name: 'Resend' }).parentElement).toBe(change.parentElement);
     fireEvent.click(screen.getByRole('button', { name: 'Resend' }));
     await waitFor(() => expect(resendEmailVerification).toHaveBeenCalled());
   });
@@ -575,6 +580,35 @@ describe('T117 — Sign-in methods: Password and Email rows', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send verification link' }));
 
     await waitFor(() => expect(requestEmailChange).toHaveBeenCalledWith('alice@example.com'));
+  });
+});
+
+describe('T173 — a disabled data action says what turns it on', () => {
+  const button = (name: string) => screen.getByRole('button', { name }) as HTMLButtonElement;
+
+  it('gives every greyed-out action a reason on an empty account', () => {
+    renderYouPage('/');
+    expect(button('Download backup').disabled).toBe(true);
+    expect(screen.getByText('Needs cards, a binder or a deck.')).toBeTruthy();
+    expect(button('Export').disabled).toBe(true);
+    expect(button('Refresh prices').disabled).toBe(true);
+    expect(screen.getAllByText('Needs cards in your collection.')).toHaveLength(2);
+    expect(button('Repair').disabled).toBe(true);
+    expect(screen.getByText('Needs cards and a deck.')).toBeTruthy();
+  });
+
+  it('lets a backup carry binders even before any card exists', () => {
+    collectionState.binders = [{ id: 'b1' }];
+    renderYouPage('/');
+    expect(button('Download backup').disabled).toBe(false);
+    expect(button('Export').disabled).toBe(true);
+  });
+
+  it('drops the reasons once there are cards', () => {
+    collectionState.cards = [{ copyId: 'c1' }];
+    renderYouPage('/');
+    expect(button('Export').disabled).toBe(false);
+    expect(screen.queryByText('Needs cards in your collection.')).toBeNull();
   });
 });
 

@@ -69,15 +69,22 @@ function renderTile(
 }
 
 describe('DiscoverDeckTile — grid art banner', () => {
-  it("shows the deck's own commander printing and skips the by-name lookup", () => {
+  // The art crop, as every other deck tile shows. The full card put its
+  // printed title bar at the top of the banner, under the quick actions.
+  it("shows the art crop of the deck's own commander printing, skipping the by-name lookup", () => {
     useCardThumbMock.mockReturnValue('https://cdn.example/default-printing.jpg');
     const { container } = renderTile({
       commanderImageNormal: 'https://cards.scryfall.io/normal/sld.jpg',
     });
 
     const img = container.querySelector('.discover-tile-banner .decks-index-card-art');
-    expect(img?.getAttribute('src')).toBe('https://cards.scryfall.io/normal/sld.jpg');
-    expect(useCardThumbMock).toHaveBeenLastCalledWith(undefined, 'normal');
+    expect(img?.getAttribute('src')).toBe('https://cards.scryfall.io/art_crop/sld.jpg');
+    expect(useCardThumbMock).toHaveBeenLastCalledWith(undefined, 'art_crop');
+  });
+
+  it('looks the commander up by name as an art crop when the deck has no printing', () => {
+    renderTile();
+    expect(useCardThumbMock).toHaveBeenLastCalledWith("Atraxa, Praetors' Voice", 'art_crop');
   });
 
   it('renders the commander art as a lazy-loaded banner image when a thumb resolves', () => {
@@ -124,19 +131,19 @@ describe('DiscoverDeckTile — grid art banner', () => {
     useCardThumbMock.mockReturnValue(undefined);
     const { container } = renderTile({ colorIdentity: ['W', 'U'] });
 
-    const segs = container.querySelectorAll('.discover-tile-colorbar-seg');
+    const segs = container.querySelectorAll('.color-identity-bar-seg');
     expect(segs.length).toBe(2);
-    expect(segs[0].className).toContain('discover-tile-colorbar-seg--w');
-    expect(segs[1].className).toContain('discover-tile-colorbar-seg--u');
+    expect(segs[0].className).toContain('color-identity-bar-seg--w');
+    expect(segs[1].className).toContain('color-identity-bar-seg--u');
   });
 
   it('renders a single neutral segment for a colorless deck instead of an empty bar', () => {
     useCardThumbMock.mockReturnValue(undefined);
     const { container } = renderTile({ colorIdentity: [] });
 
-    const segs = container.querySelectorAll('.discover-tile-colorbar-seg');
+    const segs = container.querySelectorAll('.color-identity-bar-seg');
     expect(segs.length).toBe(1);
-    expect(segs[0].className).toContain('discover-tile-colorbar-seg--c');
+    expect(segs[0].className).toContain('color-identity-bar-seg--c');
   });
 
   // ============================================================
@@ -253,7 +260,7 @@ describe('DiscoverDeckTile — list view stays the pre-v2 compact row', () => {
     const { container } = renderTile({ ownerUsername: 'alice' }, 'list');
 
     expect(screen.getByText('by alice')).toBeTruthy();
-    expect(container.querySelector('.discover-tile-colorbar')).toBeFalsy();
+    expect(container.querySelector('.color-identity-bar')).toBeFalsy();
     expect(container.querySelector('.discover-tile-open-pill')).toBeFalsy();
     expect(container.querySelector('.discover-tile-banner-stats')).toBeFalsy();
   });

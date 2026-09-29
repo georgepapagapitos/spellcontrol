@@ -11,6 +11,7 @@ import { deckCoverArt } from '../../lib/deck-cover';
 import { formatRelativeTime } from '../../lib/format-time';
 import { effectiveDeckColors } from '../../lib/deck-validation';
 import { aggregateNewArrivalDecks } from '../../lib/home-signals';
+import { readArrivalWatchlists } from '../../lib/arrival-watchlist';
 import { readHomeShape, rememberHomeShape } from '../../lib/home-shape';
 import { useAwaitingFirstPull } from '../../lib/use-awaiting-first-pull';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
@@ -33,14 +34,7 @@ function DeckTile({ deck, arrivals }: { deck: Deck; arrivals: number }) {
   const colors = [...effectiveDeckColors(deck)].sort((a, b) => WUBRG.indexOf(a) - WUBRG.indexOf(b));
   const format = DECK_FORMAT_CONFIGS[deck.format]?.label ?? deck.format;
   const edited = formatRelativeTime(deck.updatedAt);
-  const label = [
-    `Open deck: ${deck.name}`,
-    format,
-    `edited ${edited}`,
-    arrivals > 0 ? `${arrivals} new card${arrivals === 1 ? '' : 's'} that fit` : null,
-  ]
-    .filter(Boolean)
-    .join(', ');
+  const label = `Open deck: ${deck.name}, ${format}, edited ${edited}`;
 
   return (
     <Surface
@@ -65,17 +59,6 @@ function DeckTile({ deck, arrivals }: { deck: Deck; arrivals: number }) {
             )}
           </span>
         )}
-        {arrivals > 0 && (
-          <ArtBadge
-            className="home-deck-arrivals"
-            corner="top-start"
-            tone="success"
-            aria-hidden="true"
-          >
-            <Sparkles width={12} height={12} strokeWidth={2} />+{arrivals} new card
-            {arrivals === 1 ? '' : 's'}
-          </ArtBadge>
-        )}
         <div className="decks-index-card-body">
           <div className="decks-index-card-name">
             <span>{deck.name}</span>
@@ -98,6 +81,18 @@ function DeckTile({ deck, arrivals }: { deck: Deck; arrivals: number }) {
           </div>
         </div>
       </Link>
+      {arrivals > 0 && (
+        <Link
+          to={`/decks/${deck.id}?arrivals=1`}
+          className="home-deck-arrivals-link"
+          aria-label={`Review ${arrivals} new card${arrivals === 1 ? '' : 's'} for ${deck.name}`}
+        >
+          <ArtBadge className="home-deck-arrivals" tone="success">
+            <Sparkles width={12} height={12} strokeWidth={2} aria-hidden="true" />+{arrivals} new
+            card{arrivals === 1 ? '' : 's'}
+          </ArtBadge>
+        </Link>
+      )}
     </Surface>
   );
 }
@@ -108,9 +103,9 @@ function DeckTile({ deck, arrivals }: { deck: Deck; arrivals: number }) {
  * it was a list of 2.5rem full-card scans with a Commander badge on every
  * row. The five most recently edited, a row that swipes below desktop.
  *
- * A deck with cards you added since you last edited it carries "+N new
- * cards" on its art. That count used to be summed across decks into one
- * figure in a separate card; it belongs to the deck.
+ * A deck with new cards its coach wants carries "+N new cards" on its art,
+ * a link to the deck's new-arrivals sheet with those same N cards in it
+ * (lib/arrival-watchlist.ts). The count is per deck, never summed.
  *
  * No decks: nothing. The hero's checklist and Waiting on you already invite
  * the first one, so an empty section here would say it a third time.
@@ -127,15 +122,16 @@ export function YourDecks() {
     () => [...decks].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, RECENT_LIMIT),
     [decks]
   );
+  const [watchlists] = useState(readArrivalWatchlists);
   const arrivals = useMemo(() => {
     const addedAtByImportId = new Map(importHistory.map((e) => [e.id, e.addedAt]));
     return new Map(
-      aggregateNewArrivalDecks(decks, collectionCards, addedAtByImportId).map((r) => [
+      aggregateNewArrivalDecks(decks, collectionCards, addedAtByImportId, watchlists).map((r) => [
         r.deck.id,
         r.count,
       ])
     );
-  }, [decks, collectionCards, importHistory]);
+  }, [decks, collectionCards, importHistory, watchlists]);
 
   // `hydrated` only covers the local IndexedDB read. On a device that has
   // never cached this account that read finds nothing, so without the second

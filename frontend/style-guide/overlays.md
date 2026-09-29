@@ -110,11 +110,25 @@ calc(100vw - 4rem)) }`) — the two-class form outweighs the shell rule
     section follows the source**: deck → In this deck (`renderPanelMeta`),
     search → the printing picker (`renderPanelExtra`), collection/binder →
     Your copy, playtest → Rules text with Rulings open. After the lead the
-    order is fixed: Rules text, Printing, Rulings, Legalities. **Rules text
-    stays in the panel on purpose.** It is how a screen reader reads the card,
-    and it carries current Oracle wording. It just doesn't lead. Rulings and
-    Legalities open by default, and rulings wait for the card to settle before
-    fetching.
+    order is fixed: Rules text, Played in, Printing, Rulings, Legalities.
+    **Rules text stays in the panel on purpose.** It is how a screen reader
+    reads the card, and it carries current Oracle wording. It just doesn't
+    lead. Played in, Rulings and Legalities open by default, and the two that
+    fetch wait for the card to settle first.
+  - **Played in** (`components/PlayedInSection.tsx`, E519) lists the
+    commanders EDHREC sees the card played under: the card's own rate across
+    decks that can play it, the Top commanders (five, then Show all) and New
+    commanders, each row reading "In N% of its Nk decks" over a `MeterBar`
+    with an Owned marker for the viewer's own collection. A row opens that
+    commander in a preview of its own, stacked on this one, whose Build a
+    deck action leaves for the generator. It renders nothing when EDHREC has
+    no page for the card or the device is offline, a Retry line when the
+    fetch fails, and never in the playtest inspector. It ends with View on
+    EDHREC (see STYLE_GUIDE § Third-party numbers name their source).
+  - **A preview can open a preview.** The one stacked above answers keys and
+    Back first (it is the topmost overlay layer), and a `role="presentation"`
+    wrapper stops its touch and click events before they reach the sheet
+    below, the rule the keyword popover already follows.
   - **Actions are labelled rects on the panel**, never pills floating over the
     scrim. Owner/management actions (`overflow: true`, e.g. Remove from deck)
     go in the row's ⋮. Flip / Turn act on the image, so they sit **on the
@@ -670,10 +684,18 @@ row and a felt-menu row, not a settings row. EDHPlay's Preferences draws the
 same line.
 
 - **An on/off preference is a full-width `role="switch"` row**: the link row's
-  shape, the label with one line under it saying what On does
-  (`aria-describedby`), and `On` / `Off` where a link row shows its value, in
-  the accent when on. Not a segmented Off | On pair: two buttons for one bit
-  cost twice the width and read as a choice between equals.
+  shape, the label, and `On` / `Off` where a link row shows its value, in the
+  accent when on. Not a segmented Off | On pair: two buttons for one bit cost
+  twice the width and read as a choice between equals.
+- **A switch gets a line under its label only when the label doesn't already
+  say what On does** (voice rule 20, 2026-09-29). "Turn tracker" could mean a
+  timer or a log, "Minimalist mode" names nothing, and "Low life warning"
+  hides its threshold, so each keeps one line (`aria-describedby`). "Game
+  timer", "Full screen" and "Haptic feedback" say it themselves and carry
+  none. Rows of mixed height are fine: the switch and its value still line up
+  on the right. A line under every switch taught the eye to skip them all,
+  including the ones that mattered. `BoardSheets.test.tsx` lists which
+  switches carry a line, so a new one has to pick a side.
 - **Changes apply as you make them.** No Save button: the sheet sits over the
   table so you can watch the change land.
 - **An option that only means something online appears only online.** The turn

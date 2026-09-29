@@ -63,6 +63,8 @@ const mockDeck = {
 // this file's tests, which all expect the default (hydrated, deck present).
 let mockDecks: (typeof mockDeck)[] = [mockDeck];
 let mockHydrated = true;
+// The viewer's collection by copy id; the printing-action tests bind copies.
+let mockCollectionById = new Map<string, { copyId: string; name: string; scryfallId: string }>();
 
 vi.mock('../store/decks', () => ({
   useDecksStore: (
@@ -161,8 +163,19 @@ vi.mock('../lib/use-binder-layout-inputs', () => ({
 }));
 vi.mock('../lib/use-binder-by-copy', () => ({ useBinderByCopyId: () => new Map() }));
 
+const mockPushToast = vi.fn();
 vi.mock('../store/toasts', () => ({
-  useToastsStore: (sel: (s: { push: () => void }) => unknown) => sel({ push: vi.fn() }),
+  useToastsStore: (sel: (s: { push: () => void }) => unknown) => sel({ push: mockPushToast }),
+}));
+
+// The two ⋮ printing actions: the planners stay real (they decide which rows
+// show), the async runners are stubbed so each test picks the outcome.
+const mockApplyCheapest = vi.fn();
+const mockApplyMatch = vi.fn();
+vi.mock('@/lib/deck-printing-actions', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/deck-printing-actions')>()),
+  applyCheapestPrintings: (...args: unknown[]) => mockApplyCheapest(...args),
+  applyMatchMyCopies: (...args: unknown[]) => mockApplyMatch(...args),
 }));
 
 // ── Heavy component / lib stubs ─────────────────────────────────────────────
@@ -265,7 +278,9 @@ vi.mock('../lib/allocations', () => ({
   pickCollectionCopy: () => null,
   bindableFinishesByPrinting: () => new Map(),
   findStealableCopy: () => null,
-  useCollectionByCopyId: () => new Map(),
+  useCollectionByCopyId: () => mockCollectionById,
+  classifyAllocation: (id: string | null, byId?: Map<string, unknown>) =>
+    id ? (byId?.has(id) ? 'allocated' : 'orphan') : 'unowned',
 }));
 vi.mock('../deck-builder/services/deckBuilder/substituteFinder', () => ({
   buildSubstitutionPlan: () => [],
@@ -613,6 +628,121 @@ describe('DeckEditorPage — ⋮ menu sectioning + Export de-dup (E181)', () => 
     expect(deckActions?.textContent).toContain('Duplicate');
     expect(deckActions?.textContent).toContain('Primer');
     expect(deckActions?.textContent).toContain('Get feedback');
+  });
+
+  describe('printing actions', () => {
+    const deckActionsText = () => {
+      fireEvent.click(screen.getByLabelText('Deck actions'));
+      return (
+        screen.getByText('Deck actions').closest('.deck-editor-overflow-section')?.textContent ?? ''
+      );
+    };
+    const bindAtraxa = (scryfallId: string) => {
+      (mockDeck as { commanderAllocatedCopyId: string | null }).commanderAllocatedCopyId = 'cp1';
+      mockCollectionById = new Map([['cp1', { copyId: 'cp1', name: 'Atraxa', scryfallId }]]);
+    };
+    afterEach(() => {
+      mockDeck.commanderAllocatedCopyId = null;
+      mockCollectionById = new Map();
+    });
+
+    it('offers cheapest printings while a card has no owned copy', () => {
+      renderEditor();
+      const text = deckActionsText();
+      expect(text).toContain('Cheapest printings for missing');
+      expect(text).not.toContain('Match my copies');
+    });
+
+    it('offers Match my copies when a bound copy is another printing', () => {
+      bindAtraxa('other-printing');
+      renderEditor();
+      const text = deckActionsText();
+      expect(text).toContain('Match my copies');
+      expect(text).not.toContain('Cheapest printings for missing');
+    });
+
+    const clickRow = async (name: string) => {
+      fireEvent.click(screen.getByLabelText('Deck actions'));
+      fireEvent.click(screen.getByRole('menuitem', { name }));
+      await vi.waitFor(() => expect(mockPushToast).toHaveBeenCalled());
+      return mockPushToast.mock.calls[0][0] as {
+        message: string;
+        tone: string;
+        actionLabel?: string;
+      };
+    };
+
+    it('toasts what the cheapest pass changed, with Undo', async () => {
+      mockPushToast.mockClear();
+      mockApplyCheapest.mockResolvedValue({ changed: 2, saved: 3.5, unresolved: 0 });
+      renderEditor();
+      const toast = await clickRow('Cheapest printings for missing');
+      expect(mockApplyCheapest).toHaveBeenCalledWith('deck-1', expect.any(String));
+      expect(toast.message).toMatch(/^Switched 2 printings\. Missing cards cost .3\.50 less$/);
+      expect(toast).toMatchObject({ tone: 'success', actionLabel: 'Undo' });
+    });
+
+    it('says so plainly when no missing card has a cheaper printing', async () => {
+      mockPushToast.mockClear();
+      mockApplyCheapest.mockResolvedValue({ changed: 0, saved: 0, unresolved: 0 });
+      renderEditor();
+      const toast = await clickRow('Cheapest printings for missing');
+      expect(toast).toMatchObject({
+        message: 'No cheaper printings for your missing cards',
+        tone: 'info',
+      });
+    });
+
+    it('reports a failed lookup as an error, not as nothing to change', async () => {
+      mockPushToast.mockClear();
+      mockApplyCheapest.mockResolvedValue({ changed: 0, saved: 0, unresolved: 3 });
+      renderEditor();
+      expect(await clickRow('Cheapest printings for missing')).toMatchObject({
+        message: "Couldn't look up cheaper printings.",
+        tone: 'error',
+      });
+    });
+
+    it('names being offline when the lookup cannot run', async () => {
+      const { PrintingLookupOfflineError } = await import('@/lib/deck-printing-actions');
+      mockPushToast.mockClear();
+      mockApplyCheapest.mockRejectedValue(new PrintingLookupOfflineError());
+      renderEditor();
+      expect(await clickRow('Cheapest printings for missing')).toMatchObject({
+        message: "You're offline. Reconnect to look up printings.",
+        tone: 'error',
+      });
+    });
+
+    it('toasts the matched count with Undo, and an error when none resolved', async () => {
+      bindAtraxa('other-printing');
+      mockPushToast.mockClear();
+      mockApplyMatch.mockResolvedValueOnce({ changed: 1, unresolved: 0 });
+      renderEditor();
+      expect(await clickRow('Match my copies')).toMatchObject({
+        message: 'Matched 1 card to your copies',
+        tone: 'success',
+        actionLabel: 'Undo',
+      });
+
+      mockPushToast.mockClear();
+      mockApplyMatch.mockRejectedValueOnce(new Error('network'));
+      fireEvent.click(screen.getByLabelText('Deck actions'));
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Match my copies' }));
+      await vi.waitFor(() => expect(mockPushToast).toHaveBeenCalled());
+      expect(mockPushToast.mock.calls[0][0]).toMatchObject({
+        message: "Couldn't look up your copies' printings.",
+        tone: 'error',
+      });
+    });
+
+    it('shows neither when every card is its bound copy', () => {
+      bindAtraxa('c1');
+      renderEditor();
+      const text = deckActionsText();
+      expect(text).not.toContain('Match my copies');
+      expect(text).not.toContain('Cheapest printings for missing');
+    });
   });
 
   it('every menu row clears the 44px coarse-pointer floor, not just Bulk edit', () => {

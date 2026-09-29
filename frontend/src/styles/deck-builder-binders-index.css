@@ -219,7 +219,6 @@
   position: relative;
   /* Sleeve matte (T53) — same treatment as .decks-index-card. */
   border-left: 4px solid var(--binder-color, var(--accent));
-  transition: border-color var(--motion-fast) ease;
 }
 
 /* Lift the card above its siblings while its 3-dot popover is open so
@@ -227,17 +226,6 @@
    instead of slipping behind them. */
 .binders-index-card:has(.binders-index-card-menu-btn[aria-expanded='true']) {
   z-index: var(--z-dropdown);
-}
-
-/* On hover, every side of the border tints to the binder's chosen color so
-   the card visually "lights up" in its own theme — not the global accent.
-   No transform on hover — that 1px lift was reading as a layout shift
-   between adjacent cards in the list. Border-color alone is enough
-   feedback and matches the Decks index card behavior. */
-@media (hover: hover) and (pointer: fine) {
-  .binders-index-card:hover {
-    border-color: var(--binder-color, var(--accent));
-  }
 }
 
 .binders-index-card-link {

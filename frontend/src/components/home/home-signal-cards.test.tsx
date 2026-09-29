@@ -24,6 +24,7 @@ vi.mock('../../lib/card-thumbs', () => ({ useCardThumb: mockUseCardThumb }));
 
 import { PriceMoversCard } from './PriceMoversCard';
 import { RecentlyAddedCard } from './RecentlyAddedCard';
+import { rememberArrivalWatchlist } from '../../lib/arrival-watchlist';
 import { useBinderReviewCount } from './use-binder-review-count';
 import { getLatestMovers, dayKey } from '../../lib/value-history';
 import { useDecksStore } from '../../store/decks';
@@ -277,6 +278,7 @@ describe('RecentlyAddedCard', () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(10_000);
+    localStorage.clear();
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -324,7 +326,10 @@ describe('RecentlyAddedCard', () => {
     expect(imgs).toEqual(['my-sol-ring.png', 'looked-up.png']);
   });
 
-  it('lists the decks with new cards that fit, linking each', () => {
+  // Only cards the deck's coach wants count, the same cards the deck page's
+  // new-arrivals sheet lists; the link opens that sheet.
+  it("lists the decks whose coach wants a new card, linking to the deck's sheet", () => {
+    rememberArrivalWatchlist('atraxa', new Set(['sol ring']), ['atraxa']);
     const deck = makeDeck({ id: 'atraxa', name: 'Atraxa Superfriends', updatedAt: 1000 });
     stores({
       decks: [deck],
@@ -336,11 +341,20 @@ describe('RecentlyAddedCard', () => {
       ],
     });
     renderIn(<RecentlyAddedCard />);
-    const link = screen.getByRole('link', {
-      name: 'Open deck: Atraxa Superfriends, 2 new cards that fit',
+    const link = screen.getByRole('link', { name: 'Review 1 new card for Atraxa Superfriends' });
+    expect(link.getAttribute('href')).toBe('/decks/atraxa?arrivals=1');
+    expect(screen.getByText('1 fit')).toBeTruthy();
+  });
+
+  it('lists no deck that was never opened on this browser', () => {
+    const deck = makeDeck({ id: 'atraxa', name: 'Atraxa Superfriends', updatedAt: 1000 });
+    stores({
+      decks: [deck],
+      importHistory: [importEntry('imp', 2, 5000)],
+      cards: [candidate({ name: 'Sol Ring', updatedAt: 2000 }), ...earlier(20)],
     });
-    expect(link.getAttribute('href')).toBe('/decks/atraxa');
-    expect(screen.getByText('2 fit')).toBeTruthy();
+    renderIn(<RecentlyAddedCard />);
+    expect(screen.queryByText(/fit$/)).toBeNull();
   });
 });
 

@@ -845,6 +845,30 @@ references. Rules:
   #843) and never hit `api.scryfall.com?format=image`.
 - Covers are **decorative**: `alt=""` + `aria-hidden`; the tile's name text is
   the accessible label.
+- **A badge on the cover that names a count goes where the count is.** Home's
+  "+N new cards" was a label the click fell through, so it opened the deck
+  and the N cards were nowhere on screen. A badge like that is its own link,
+  a sibling of the tile's link (a link can't nest inside one), pinned over
+  the art the way the ⋮ is, with a hit area past the ~20px plate and its own
+  accessible name ("Review 2 new cards for Krenko"). Its destination shows
+  exactly the counted items, so the number on the badge and the number where
+  it lands are the same one. `.home-deck-arrivals-link` is the reference.
+- **The cover is the art crop, never the full card.** Discover showed the
+  commander's full card, so its printed title bar sat at the top of the
+  banner and the quick actions covered it. Every deck tile shows the same
+  crop (`deckCoverArt`, or `scryfallArtCrop` on a printing's URL).
+- **One hover for every tile, defined once** (`base-layout.css`, Index
+  tiles). A tile that opens a deck or a binder, on any surface and in any
+  view, answers the pointer the same way: its frame rings 1px in the tile's
+  own colour (`--tile-color`: the deck's or binder's colour, else accent)
+  and lifts to `--shadow-card-hover`, and in grid its cover art zooms to
+  1.03, clipped by the tile's link at the art's corners. Keyboard focus on
+  the tile's link gets the same answer. Reduced motion keeps the ring and
+  the lift and drops the zoom and the transitions. A family adds only what
+  is its own, such as Discover's quick actions fading in; it never restyles
+  the frame or moves the cover. The hover used to be three behaviours, and
+  the decks and binders one tinted a border that #2486 had removed, so for a
+  day it did nothing. Guard: `styles/index-tile-hover.test.ts`.
 
 ### The meta line under a tile/row name is ONE flex row
 

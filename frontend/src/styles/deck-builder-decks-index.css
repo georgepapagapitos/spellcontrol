@@ -317,7 +317,6 @@
      scrim/stats/hover-zoom contracts a sheen would fight. */
   border-left: 3px solid var(--deck-color, var(--accent));
   overflow: visible;
-  transition: border-color var(--motion-fast) ease;
 }
 
 /* Lift the card above its siblings while its 3-dot popover is open so
@@ -325,14 +324,6 @@
    instead of slipping behind them. Mirrors the binders-index card. */
 .decks-index-card:has(.decks-index-card-menu-btn[aria-expanded='true']) {
   z-index: var(--z-dropdown);
-}
-
-/* On hover, every side of the border tints to the deck's chosen color so
-   the card visually "lights up" in its own theme — not the global accent. */
-@media (hover: hover) and (pointer: fine) {
-  .decks-index-card:hover {
-    border-color: var(--deck-color, var(--accent));
-  }
 }
 
 .decks-index-card-link {

@@ -57,43 +57,6 @@
   white-space: nowrap;
 }
 
-/* ── Segmented color-identity bar (grid only) ─────────────────────────────
-   Directly under the banner — one equal-width flat segment per color in
-   colorIdentity, using the exact backgrounds ColorPip/ManaSymbol already
-   paint for a solid WUBRG pip (mana-font's `.ms-cost.ms-<letter>` circle
-   fill — node_modules/mana-font/css/mana.css — since ColorPip always
-   renders with the `cost` treatment). Colorless gets a single neutral
-   segment (mana-font's own `.ms-cost` base gray, which has no letter-
-   specific override either) instead of an empty bar. aria-hidden: the
-   tile's aria-label already states the color identity in text. */
-.discover-tile-colorbar {
-  display: flex;
-  height: 4px;
-}
-
-.discover-tile-colorbar-seg {
-  flex: 1;
-}
-
-.discover-tile-colorbar-seg--w {
-  background: var(--mtg-w);
-}
-.discover-tile-colorbar-seg--u {
-  background: var(--mtg-u);
-}
-.discover-tile-colorbar-seg--b {
-  background: var(--mtg-b);
-}
-.discover-tile-colorbar-seg--r {
-  background: var(--mtg-r);
-}
-.discover-tile-colorbar-seg--g {
-  background: var(--mtg-g);
-}
-.discover-tile-colorbar-seg--c {
-  background: var(--mtg-colorless);
-}
-
 /* ── List-only stats/buildable (unchanged pre-v2 design) ──────────────── */
 
 .discover-tile-stats {
@@ -200,12 +163,24 @@
   gap: var(--space-1);
   padding: var(--space-1) var(--space-2);
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.35);
-  color: #fff;
+  /* The scrim plate its Like/Bookmark neighbours sit on (§ On-art scrims). */
+  background: var(--art-scrim);
+  color: var(--art-scrim-text);
+  box-shadow: var(--shadow-raised);
   font-size: var(--text-xs);
   font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
+}
+
+/* Touch: the Like/Bookmark discs stay 1.9rem but each takes a 44px target
+   from an ::after (LikeButton.css), so the discs need at least 13.6px
+   between them or the two targets overlap and a tap between them hits
+   whichever paints last. --space-4 is the first step that clears it. */
+@media (pointer: coarse) {
+  .decks-index-list.is-grid .tile-actions {
+    gap: var(--space-4);
+  }
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -231,23 +206,9 @@
   }
 }
 
-/* Clip the hover art-zoom to the card's rounded shape. Safe to hard-set
-   (rather than rely on cascade order) because no discover tile renders a
-   popover that needs to escape the card yet — .decks-index-card's own
-   overflow: visible exists only for its ⋮ popover, which this tile does
-   not have this PR. Revisit if a future corner action needs to overflow. */
-.decks-index-card.discover-tile {
-  overflow: hidden;
-}
-
+/* The tile's hover (ring, lift, art zoom) is every index tile's, in
+   base-layout.css (§ Index tiles). Only the quick actions are Discover's. */
 @media (hover: hover) and (pointer: fine) {
-  .discover-tile .decks-index-card-art {
-    transition: transform var(--motion-base) var(--ease-out-soft);
-  }
-  .discover-tile:hover .decks-index-card-art {
-    transform: scale(1.03);
-  }
-
   /* Quick-actions reveal (grid only) — Open/Like/Bookmark fade in on
      hover/focus-within instead of sitting on the art permanently. Touch
      devices never match this query, so .tile-actions keeps its
@@ -353,7 +314,6 @@
   .discover-tile-skeleton-bar {
     animation: none;
   }
-  .discover-tile .decks-index-card-art,
   .decks-index-list.is-grid .discover-tile .tile-actions {
     transition: none;
   }

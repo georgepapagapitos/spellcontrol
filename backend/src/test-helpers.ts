@@ -31,6 +31,7 @@ import { discoverRouter } from './routes/discover';
 import { activityRouter } from './routes/activity';
 import { aiRouter } from './routes/ai';
 import { eventsRouter } from './routes/events';
+import { edhrecRouter } from './routes/edhrec';
 
 /**
  * Returns the Postgres connection string for tests. vitest.global-setup.ts
@@ -582,6 +583,13 @@ export async function createTestEnv(): Promise<TestEnv> {
       PRIMARY KEY (commander_key, oracle_id)
     );
     CREATE INDEX commander_card_inclusion_rank_idx ON commander_card_inclusion(commander_key, rank);
+    CREATE TABLE edhrec_top_lists (
+      list_key TEXT PRIMARY KEY,
+      entries JSONB NOT NULL,
+      source_url TEXT NOT NULL,
+      fetched_at BIGINT NOT NULL,
+      checked_at BIGINT NOT NULL
+    );
     CREATE TABLE event_counts (
       day DATE NOT NULL,
       name TEXT NOT NULL,
@@ -623,6 +631,7 @@ export async function createTestEnv(): Promise<TestEnv> {
   app.use('/api/game-results', gameResultsRouter);
   app.use('/api/combos', combosRouter);
   app.use('/api/aggregates', aggregatesRouter);
+  app.use('/api/edhrec', edhrecRouter);
   app.use('/api/shares', sharesRouter);
   app.use('/api/feedback', feedbackRouter);
   app.use('/api/offline', offlineRouter);

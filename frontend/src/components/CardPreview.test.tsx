@@ -64,6 +64,13 @@ vi.mock('../lib/comprehensive-rules', async (importOriginal) => ({
     }),
 }));
 
+// "Played in" asks EDHREC; a stand-in shows where it lands and what it was given.
+vi.mock('./PlayedInSection', () => ({
+  PlayedInSection: ({ name }: { name: string }) => (
+    <section data-testid="played-in">Played in {name}</section>
+  ),
+}));
+
 const fetchMock = vi.fn();
 
 import { CardPreview } from './CardPreview';
@@ -797,5 +804,31 @@ describe('CardPreview — Back-button integration (E481)', () => {
     expect(backSpy).not.toHaveBeenCalled();
     await screen.findByText('binder page');
     backSpy.mockRestore();
+  });
+});
+
+describe('CardPreview Played in section', () => {
+  it('sits between the rules text and the printing', async () => {
+    renderPreview(mk({ name: 'Sol Ring' }));
+    const section = await screen.findByTestId('played-in');
+    expect(section.textContent).toBe('Played in Sol Ring');
+    const headings = [...document.body.querySelectorAll('h3, [data-testid="played-in"]')].map(
+      (el) => (el.getAttribute('data-testid') === 'played-in' ? 'Played in' : el.textContent)
+    );
+    expect(headings.indexOf('Played in')).toBe(headings.indexOf('Rules text') + 1);
+    expect(headings.indexOf('Printing')).toBe(headings.indexOf('Played in') + 1);
+  });
+
+  it('keys on the card name, so a name-only placeholder still gets one', async () => {
+    renderPreview(mk({ name: 'Arcane Signet', scryfallId: '' }));
+    expect((await screen.findByTestId('played-in')).textContent).toBe('Played in Arcane Signet');
+  });
+
+  it('is left out of the playtest inspector', async () => {
+    renderPreview(mk({ name: 'Sol Ring' }), { source: 'playtest' });
+    await screen.findByText('Rules text');
+    // Give the lazy section every chance to appear.
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.queryByTestId('played-in')).toBeNull();
   });
 });

@@ -168,14 +168,18 @@ describe('YourDecks', () => {
     expect(link.getAttribute('href')).toBe('/decks/atraxa');
   });
 
-  it("puts a deck's new-card count on its tile, in the label and on the art", () => {
+  // The badge used to be a label the click fell through, so "+2 new cards"
+  // opened the deck and never showed the 2 cards. It links to the sheet.
+  it("puts a deck's new-card count on its art as a link to those cards", () => {
     arrivals.rows = [{ deck: { id: 'a' }, count: 42 }];
     setStore([makeDeck({ id: 'a', name: 'Anthraxa' })]);
     const { container } = renderSection();
-    expect(
-      screen.getByRole('link', { name: /Open deck: Anthraxa, .*, 42 new cards that fit/ })
-    ).toBeTruthy();
+    const badge = screen.getByRole('link', { name: 'Review 42 new cards for Anthraxa' });
+    expect(badge.getAttribute('href')).toBe('/decks/a?arrivals=1');
     expect(container.querySelector('.home-deck-arrivals')?.textContent).toBe('+42 new cards');
+    expect(screen.getByRole('link', { name: /^Open deck: Anthraxa, / }).getAttribute('href')).toBe(
+      '/decks/a'
+    );
   });
 
   it("renders the commander's art crop straight from the card object, no CDN lookup", () => {
