@@ -37,17 +37,13 @@
 
 .trades-section-title {
   /* Joins the .pods-index-section-title / .deck-combos-title family
-     (STYLE_GUIDE "Shape language" — section titles). */
+     (STYLE_GUIDE "Shape language" — section titles); type comes from the
+     overline plate (base-layout.css), painted by SectionHeader's
+     data-heading="overline". */
   margin: 0;
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  font-family: var(--font-serif);
-  font-size: var(--text-sm);
-  font-weight: 700;
-  color: var(--text-primary);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-overline);
 }
 
 .trades-group-empty {

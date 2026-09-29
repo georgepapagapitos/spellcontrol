@@ -30,6 +30,8 @@ const FAMILIES = [
   'friend-hub-section-head',
   'pod-hub-section-head',
   'shared-cube-section-head',
+  'deck-section-title',
+  'trades-section-title',
 ];
 
 const TYPE = [
