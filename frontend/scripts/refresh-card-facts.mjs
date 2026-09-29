@@ -78,6 +78,12 @@ const [extract, codec, schema] = await importSrc(
 const llmPath = option('--llm');
 const reviews = llmPath ? JSON.parse(await readFile(llmPath, 'utf8')) : null;
 const llm = reviews ? (await importSrc('deck-builder/services/cardFacts/llm.ts'))[0] : null;
+if (reviews && reviews.promptVersion !== llm.PROMPT_VERSION) {
+  console.error(
+    `[card-facts] ${llmPath} was answered under ${reviews.promptVersion}; the current prompt is ${llm.PROMPT_VERSION}. Rerun card-facts-llm.mjs.`
+  );
+  process.exit(1);
+}
 
 console.log(`[card-facts] Extracting from ${bulk.file}`);
 const facts = [];
@@ -136,7 +142,15 @@ if (collisions.length)
     collisions.slice(0, 10)
   );
 
-const body = `${JSON.stringify(snapshot)}\n`;
+// Written in Prettier's own format: the pre-commit hook runs Prettier over
+// staged JSON, so anything else would be rewritten on commit and a rebuild
+// would no longer match the committed bytes. (~1 s; brotli size unchanged
+// within 4%.)
+const prettier = await import('prettier');
+const body = await prettier.format(JSON.stringify(snapshot), {
+  ...(await prettier.resolveConfig(DEST)),
+  filepath: DEST,
+});
 await writeAtomic(DEST, body);
 const withRole = facts.filter((f) => f.roles.some((r) => r.tier !== 'incidental')).length;
 console.log(

@@ -103,17 +103,22 @@
  *     interaction, flows and strengths, with the committed `tagger-tags.json`
  *     as corroboration only.
  *  3. The optional LLM pass (`scripts/card-facts-llm.mjs`, llm.ts) reviews a
- *     card's deterministic roles and interaction in a strict JSON schema;
- *     answers are cached per oracle id + model + prompt version, and
- *     `refresh-card-facts.mjs --llm <cache>` merges them with `src: ['llm']`.
- *     It has run only on the pilot; the full run waits on approval.
+ *     card's deterministic roles, interaction and flows in a strict JSON
+ *     schema; answers are cached per oracle id + model + prompt version, and
+ *     `refresh-card-facts.mjs --llm <cache>` merges them under the `tiers`
+ *     policy: the review may reorder primary and secondary on roles the parser
+ *     read, nothing else (llm.ts says why). It has run only on the 300-card
+ *     pilot; the committed snapshot is deterministic (`meta.llm` is null) and
+ *     the full run waits on approval.
  *  4. `codec.ts` packs every record into a compact, self-describing form (the
  *     file carries its own vocabularies). `meta` records the bulk file and its
  *     updated_at, the tagger snapshot date, the extractor version, the LLM
  *     model + prompt version (or null) and the seeds. `generatedAt` is the bulk
  *     feed's updated_at, never the wall clock: the same inputs give a
  *     byte-identical file, and the build round-trips every record before
- *     writing.
+ *     writing. The file is written in Prettier's format (the pre-commit hook
+ *     formats staged JSON), so a rebuild matches the committed bytes:
+ *     32,116 cards, 5.8 MB raw, 1.27 MB brotli.
  *  5. The accessor (index.ts) fetches the snapshot lazily on first use. It is
  *     never imported from the app entry; only deck-builder code may load it.
  *
