@@ -1,5 +1,5 @@
 import './PlayHome.css';
-import { CalendarDays, KeyRound, Radio, Swords, Users } from 'lucide-react';
+import { CalendarDays, ChevronRight, KeyRound, Radio, Swords, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { GameNight } from '../../lib/game-nights-api';
 import type { GameRecord, GameState } from '../../lib/game-state';
@@ -9,10 +9,7 @@ import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
 
 export type PlayHomeTarget =
-  | { tab: 'local' }
-  | { tab: 'online'; mode?: 'host' | 'join' | 'browse' }
-  | { tab: 'nights' }
-  | { tab: 'history' };
+  { tab: 'local' } | { tab: 'online'; mode?: 'host' | 'join' | 'browse' };
 
 interface Props {
   local: GameState | null;
@@ -138,13 +135,15 @@ export function PlayHome({
               <CalendarDays width={16} height={16} strokeWidth={2} aria-hidden />
               Next game night
             </h2>
-            <button
-              type="button"
-              className="play-home-card-link"
-              onClick={() => go({ tab: 'nights' })}
+            {/* A section's door: one link style app-wide (§ Layout system,
+                Section header), a real link to the tab's route. */}
+            <Button
+              variant="link"
+              to="/play/nights"
+              iconEnd={<ChevronRight width={14} height={14} strokeWidth={1.8} />}
             >
               {nextNight ? 'All nights' : 'Plan one'}
-            </button>
+            </Button>
           </header>
           {nightsLoading && nights.length === 0 ? (
             <p className="play-home-muted">Loading…</p>
@@ -181,13 +180,13 @@ export function PlayHome({
             Recent games
           </h2>
           {history.length > 0 && (
-            <button
-              type="button"
-              className="play-home-card-link"
-              onClick={() => go({ tab: 'history' })}
+            <Button
+              variant="link"
+              to="/play/history"
+              iconEnd={<ChevronRight width={14} height={14} strokeWidth={1.8} />}
             >
               All games
-            </button>
+            </Button>
           )}
         </header>
         {record && (

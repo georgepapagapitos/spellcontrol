@@ -81,6 +81,14 @@ describe('density tiers (T135)', () => {
     expect(decls(readSrc(file), selector)).toMatch(/(^|;)\s*min-height:\s*var\(--row-h\)/);
   });
 
+  it('an icon-only toolbar pill is never narrower than the control height', () => {
+    // Select and the deck list's ⋯ hide their label on a phone and measured
+    // 36 and 38px wide against the 44px floor (2026-09-28 audit matrix).
+    const pill = decls(read('deck-builder-display.css'), '.toolbar-pill');
+    expect(pill).toMatch(/min-width:\s*var\(--control-h\)/);
+    expect(pill).toMatch(/justify-content:\s*center/);
+  });
+
   it('long card lists keep their own density, not the tier row', () => {
     expect(decls(read('deck-builder-card-list.css'), '.deck-row')).not.toMatch(/var\(--row-h\)/);
     expect(decls(read('collection.css'), '.collection-table-row')).not.toMatch(/var\(--row-h\)/);

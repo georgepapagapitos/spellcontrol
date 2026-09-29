@@ -175,6 +175,12 @@ describe('PlayPage tabs', () => {
     expect(screen.queryByText('New local game')).toBeNull();
   });
 
+  it('opens the tab an old ?tab= address names (pre-E375 links and bookmarks)', () => {
+    renderPage('/play?tab=history');
+    expect(screen.getByRole('tab', { name: 'History' }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByText('No games yet.')).toBeTruthy();
+  });
+
   it('honors the /play/:section route for the initial tab', () => {
     renderPage('/play/history');
     expect(screen.getByRole('tab', { name: 'History' }).getAttribute('aria-selected')).toBe('true');

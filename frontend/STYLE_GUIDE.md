@@ -769,6 +769,10 @@ W8j retired nine of those: `.card-rulings-retry`, `.link-button`, and their
 kin). Because a link button sits inside text, its 44px touch floor is a
 centred `::after` ghost, never a `min-height` that would push the sentence or
 table row apart on a phone (`styles/inline-control-touch-floor.test.ts`).
+A plain navigation that is part of a sentence's words ("Shown on your public
+profile", "Browse by tag when…") stays a router `<Link>` with `.text-link`:
+the button's side padding opens a gap on either side of the words, and
+`.text-link` carries only the same ghost (2026-09-28).
 Combinations no stylesheet defines (`row` + `link`, `toolbar` + `primary`)
 don't compile.
 `.btn-sm`, `.btn-secondary` and `.btn-quiet` were never defined anywhere, so

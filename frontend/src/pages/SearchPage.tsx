@@ -121,7 +121,7 @@ export function SearchPage() {
         <p className="search-page-sub">
           Look up any card: art, oracle text, rulings, printings, and prices. You don't need to own
           it.{' '}
-          <Link className="search-page-tags-link" to="/tags">
+          <Link className="search-page-tags-link text-link" to="/tags">
             Browse by tag
           </Link>{' '}
           when you know what a card should do but not what it's called.

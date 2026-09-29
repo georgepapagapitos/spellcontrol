@@ -150,7 +150,17 @@ export function PlayPage() {
   // deriving `tab` fresh every render (instead of the old mount-only
   // useState) fixes browser back/forward across Play's tabs for free.
   const { section } = useParams<{ section?: string }>();
-  const tab: Tab = section && TABS.has(section) ? (section as Tab) : 'home';
+  // The pre-E375 address, `/play?tab=nights`, still arrives from bookmarks
+  // and old links (the nightly journey kept visiting it and shot the Play
+  // home three times over). It renders its tab at once, and the mount effect
+  // below moves the address to the real route.
+  const legacyTab = section ? null : params.get('tab');
+  const tab: Tab =
+    section && TABS.has(section)
+      ? (section as Tab)
+      : legacyTab && TABS.has(legacyTab)
+        ? (legacyTab as Tab)
+        : 'home';
   const setTab = (t: Tab) => {
     navigate(t === 'home' ? '/play' : `/play/${t}`);
   };
@@ -170,6 +180,18 @@ export function PlayPage() {
   // link) is honored literally, not redirected away from again.
   useEffect(() => {
     if (section) return;
+    if (legacyTab && TABS.has(legacyTab)) {
+      const rest = new URLSearchParams(params);
+      rest.delete('tab');
+      const query = rest.toString();
+      navigate(
+        `${legacyTab === 'home' ? '/play' : `/play/${legacyTab}`}${query ? `?${query}` : ''}`,
+        {
+          replace: true,
+        }
+      );
+      return;
+    }
     if (params.get('new') === '1') return;
     if (local && boardVisible) {
       navigate('/play/local', { replace: true });
