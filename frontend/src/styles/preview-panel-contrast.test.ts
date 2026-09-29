@@ -173,3 +173,54 @@ describe('card-preview panel: text, status and accent clear AA in every theme', 
     });
   }
 });
+
+// The context pill (a binder, deck or cube the card is in) is painted in that
+// container's OWN colour, which is any hex a user picks. Raw, its label read
+// 3.51:1 on its own tint (the Red preset). The label is the colour lifted
+// toward white; this reads the percentages from the CSS and holds every preset
+// and a sweep of the RGB cube at AA, on the panel and a row, resting and on
+// hover/focus (the stronger tint).
+describe('card-preview context pill: any container colour reads', () => {
+  const at = panelCss.indexOf('.card-preview-context-pill {');
+  const rule = panelCss.slice(at, panelCss.indexOf('\n}', at)).replace(/\/\*[\s\S]*?\*\//g, '');
+  const pct = (re: RegExp, what: string) => {
+    const m = rule.match(re);
+    expect(m, `pill ${what} is not the expected color-mix`).toBeTruthy();
+    return Number(m![1]) / 100;
+  };
+  const hoverAt = panelCss.indexOf('.card-preview-context-pill:focus-visible {');
+  const hoverRule = panelCss.slice(hoverAt, panelCss.indexOf('}', hoverAt));
+  const presets = [
+    ...readFileSync(join(here, '../lib/preset-colors.ts'), 'utf8').matchAll(
+      /hex: '(#[0-9a-f]{6})'/gi
+    ),
+  ].map((m) => hex(m[1]));
+
+  it('reads every preset colour', () => expect(presets.length).toBeGreaterThan(5));
+  it('clears AA for every preset and the RGB cube', () => {
+    const ink = pct(
+      /\bcolor:\s*color-mix\(in srgb, var\(--pill-color[^)]*\)\) (\d+)%, white\)/,
+      'color'
+    );
+    const rest = pct(
+      /background:\s*color-mix\(in srgb, var\(--pill-color[^)]*\)\) (\d+)%, transparent\)/,
+      'background'
+    );
+    const hover = Number(hoverRule.match(/(\d+)%, transparent\)/)![1]) / 100;
+    const colours: RGB[] = [...presets];
+    for (let r = 0; r <= 255; r += 51)
+      for (let g = 0; g <= 255; g += 51) for (let b = 0; b <= 255; b += 51) colours.push([r, g, b]);
+    const panelBg = hex(PANEL_BG);
+    const row = over(parseColor(panel['surface-raised']), panelBg);
+    const failures: string[] = [];
+    for (const c of colours) {
+      const label = mix(c, ink, [255, 255, 255]);
+      for (const [where, ground] of Object.entries({ panel: panelBg, row }))
+        for (const alpha of [rest, hover]) {
+          const r = contrast(label, mix(c, alpha, ground));
+          if (!(r >= AA)) failures.push(`rgb(${c}) on ${where} at ${alpha}: ${r.toFixed(2)}`);
+        }
+    }
+    expect(failures).toEqual([]);
+  });
+});

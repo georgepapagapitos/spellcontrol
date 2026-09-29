@@ -973,7 +973,11 @@
   border-radius: 999px;
   background: color-mix(in srgb, var(--pill-color, var(--accent)) 18%, transparent);
   border: 1px solid color-mix(in srgb, var(--pill-color, var(--accent)) 45%, transparent);
-  color: var(--pill-color, var(--accent));
+  /* The label is the binder's own hue lifted toward white: a binder colour is
+     any hex a user picks, and raw it read 3.51:1 on its own tint here (Red).
+     At 40% it clears 5.6:1 for every colour, black included, on the panel and
+     a row, resting or hovered. Guard: preview-panel-contrast.test.ts. */
+  color: color-mix(in srgb, var(--pill-color, var(--accent)) 40%, white);
   font-size: var(--text-xs);
   font-weight: 600;
   line-height: 1.5;

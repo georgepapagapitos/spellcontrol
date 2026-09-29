@@ -1,5 +1,5 @@
 import { logger } from '@/lib/logger';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 // Admin + scanner sheet: shared with YouPage and CardScanner, off the boot payload (E265).
 import '@/styles/admin-scanner.css';
@@ -291,7 +291,7 @@ export function AdminPage() {
       {tab === 'overview' && (
         <section className="admin-section">
           <h2>Snapshot</h2>
-          <table className="admin-table">
+          <ScrollTable label="Snapshot" className="admin-table">
             <tbody>
               <tr>
                 <th>Total physical copies (collection)</th>
@@ -363,7 +363,7 @@ export function AdminPage() {
                 </td>
               </tr>
             </tbody>
-          </table>
+          </ScrollTable>
           {(overview.orphan > 0 || overview.nameMismatch > 0 || doubleClaimCount > 0) && (
             <p className="admin-warn">
               Found {overview.orphan} orphan, {overview.nameMismatch} name-mismatched, and{' '}
@@ -399,7 +399,10 @@ export function AdminPage() {
                 </button>
                 {remapResult && <span className="admin-sub">{remapResult}</span>}
               </div>
-              <table className="admin-table admin-table--dense">
+              <ScrollTable
+                label="Fixable printing slots"
+                className="admin-table admin-table--dense"
+              >
                 <thead>
                   <tr>
                     <th>Deck</th>
@@ -421,7 +424,7 @@ export function AdminPage() {
                       </tr>
                     ))}
                 </tbody>
-              </table>
+              </ScrollTable>
             </>
           )}
           {stuckCount > 0 && (
@@ -437,7 +440,10 @@ export function AdminPage() {
                 would be to steal a copy out of another deck, which you don&apos;t want. Safe to
                 ignore; listed for transparency.
               </p>
-              <table className="admin-table admin-table--dense">
+              <ScrollTable
+                label="Slots on another printing"
+                className="admin-table admin-table--dense"
+              >
                 <thead>
                   <tr>
                     <th>Deck</th>
@@ -459,7 +465,7 @@ export function AdminPage() {
                       </tr>
                     ))}
                 </tbody>
-              </table>
+              </ScrollTable>
             </details>
           )}
         </section>
@@ -557,6 +563,27 @@ export function AdminPage() {
   );
 }
 
+/**
+ * A wide admin table scrolls sideways inside its own region. The region takes
+ * keyboard focus and a name, so a keyboard user can scroll it and a screen
+ * reader announces what it is (axe scrollable-region-focusable, WCAG 2.1.1).
+ */
+function ScrollTable({
+  label,
+  className,
+  children,
+}: {
+  label: string;
+  className: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="admin-table-scroll" role="region" aria-label={label} tabIndex={0}>
+      <table className={className}>{children}</table>
+    </div>
+  );
+}
+
 function DeckDetail({
   deck,
   collectionByCopyId,
@@ -627,7 +654,7 @@ function DeckDetail({
         {rows.length} total slots · {rows.length - orphans - mismatches - unowned} allocated ·{' '}
         {orphans} orphan · {mismatches} name-mismatch · {unowned} unowned
       </p>
-      <table className="admin-table admin-table--dense">
+      <ScrollTable label={`${deck.name} slots`} className="admin-table admin-table--dense">
         <thead>
           <tr>
             <th>Zone</th>
@@ -661,7 +688,7 @@ function DeckDetail({
             </tr>
           ))}
         </tbody>
-      </table>
+      </ScrollTable>
     </div>
   );
 }
@@ -692,7 +719,7 @@ function StorageTab({
         server except through a normal sync.
       </p>
       <h3>Imports</h3>
-      <table className="admin-table admin-table--dense">
+      <ScrollTable label="Imports" className="admin-table admin-table--dense">
         <thead>
           <tr>
             <th>When</th>
@@ -713,7 +740,7 @@ function StorageTab({
             </tr>
           ))}
         </tbody>
-      </table>
+      </ScrollTable>
 
       <h3>Maintenance</h3>
       <p className="admin-sub">
@@ -806,7 +833,7 @@ function sumBy(rows: EventCountRow[], key: (r: EventCountRow) => string): [strin
 
 function CountTable({ caption, rows }: { caption: string; rows: [string, number][] }) {
   return (
-    <table className="admin-table">
+    <ScrollTable label={caption} className="admin-table">
       <caption>{caption}</caption>
       <tbody>
         {rows.length === 0 && (
@@ -821,7 +848,7 @@ function CountTable({ caption, rows }: { caption: string; rows: [string, number]
           </tr>
         ))}
       </tbody>
-    </table>
+    </ScrollTable>
   );
 }
 
@@ -890,7 +917,7 @@ function ErrorTable({ rows }: { rows: ErrorCountRow[] }) {
   const grouped = groupErrors(rows).slice(0, 50);
   const total = rows.reduce((n, r) => n + r.count, 0);
   return (
-    <table className="admin-table admin-table--dense">
+    <ScrollTable label="Client errors" className="admin-table admin-table--dense">
       <caption>
         Client errors ({total.toLocaleString()} in 30 days, {grouped.length} distinct)
       </caption>
@@ -921,7 +948,7 @@ function ErrorTable({ rows }: { rows: ErrorCountRow[] }) {
           </tr>
         ))}
       </tbody>
-    </table>
+    </ScrollTable>
   );
 }
 
@@ -973,7 +1000,7 @@ function VitalsTable({ rows }: { rows: VitalCountRow[] }) {
   const summary = summarizeVitals(rows);
   const pct = (n: number, of: number) => `${Math.round((n / of) * 100)}%`;
   return (
-    <table className="admin-table admin-table--dense">
+    <ScrollTable label="Core Web Vitals" className="admin-table admin-table--dense">
       <caption>Web vitals by path (failing at p75 first)</caption>
       <thead>
         <tr>
@@ -1004,6 +1031,6 @@ function VitalsTable({ rows }: { rows: VitalCountRow[] }) {
           </tr>
         ))}
       </tbody>
-    </table>
+    </ScrollTable>
   );
 }
