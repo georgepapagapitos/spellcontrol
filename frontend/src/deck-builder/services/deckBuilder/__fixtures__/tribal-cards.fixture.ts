@@ -1,5 +1,5 @@
 // Real Scryfall Oracle text and type lines (default printings, 2026-09),
-// the cards E511's tribal package-boost tests read.
+// the cards E511's tribal engine tests read.
 import type { ScryfallCard } from '@/deck-builder/types';
 
 type Printed = Pick<ScryfallCard, 'name' | 'type_line' | 'oracle_text' | 'keywords' | 'card_faces'>;
@@ -308,6 +308,139 @@ const RAW: Printed[] = [
     oracle_text:
       "Flying, haste\nWhenever Klauth attacks, add X mana in any combination of colors, where X is the total power of attacking creatures. Spend this mana only to cast spells. Until end of turn, you don't lose this mana as steps and phases end.",
     keywords: ['Flying', 'Haste'],
+  },
+  {
+    name: 'Wilhelt, the Rotcleaver',
+    type_line: 'Legendary Creature — Zombie Warrior',
+    oracle_text:
+      "Whenever another Zombie you control dies, if it didn't have decayed, create a 2/2 black Zombie creature token with decayed. (It can't block. When it attacks, sacrifice it at end of combat.)\nAt the beginning of your end step, you may sacrifice a Zombie. If you do, draw a card.",
+    keywords: [],
+  },
+  {
+    name: 'Varina, Lich Queen',
+    type_line: 'Legendary Creature — Zombie Wizard',
+    oracle_text:
+      'Whenever you attack with one or more Zombies, draw that many cards, then discard that many cards. You gain that much life.\n{2}, Exile two cards from your graveyard: Create a tapped 2/2 black Zombie creature token.',
+    keywords: [],
+  },
+  {
+    name: 'Death Baron',
+    type_line: 'Creature — Zombie Wizard',
+    oracle_text:
+      'Skeletons you control and other Zombies you control get +1/+1 and have deathtouch. (Any amount of damage they deal to a creature is enough to destroy it.)',
+    keywords: [],
+  },
+  {
+    name: 'Diregraf Captain',
+    type_line: 'Creature — Zombie Soldier',
+    oracle_text:
+      'Deathtouch\nOther Zombie creatures you control get +1/+1.\nWhenever another Zombie you control dies, target opponent loses 1 life.',
+    keywords: ['Deathtouch'],
+  },
+  {
+    name: 'Lord of the Accursed',
+    type_line: 'Creature — Zombie',
+    oracle_text:
+      'Other Zombies you control get +1/+1.\n{1}{B}, {T}: All Zombies gain menace until end of turn.',
+    keywords: [],
+  },
+  {
+    name: 'Cryptbreaker',
+    type_line: 'Creature — Zombie',
+    oracle_text:
+      '{1}{B}, {T}, Discard a card: Create a 2/2 black Zombie creature token.\nTap three untapped Zombies you control: You draw a card and lose 1 life.',
+    keywords: [],
+  },
+  {
+    name: 'Gray Merchant of Asphodel',
+    type_line: 'Creature — Zombie',
+    oracle_text:
+      'When this creature enters, each opponent loses X life, where X is your devotion to black. You gain life equal to the life lost this way. (Each {B} in the mana costs of permanents you control counts toward your devotion to black.)',
+    keywords: [],
+  },
+  {
+    name: 'Undead Warchief',
+    type_line: 'Creature — Zombie',
+    oracle_text:
+      'Zombie spells you cast cost {1} less to cast.\nZombie creatures you control get +2/+1.',
+    keywords: [],
+  },
+  {
+    name: 'Cemetery Reaper',
+    type_line: 'Creature — Zombie',
+    oracle_text:
+      'Other Zombie creatures you control get +1/+1.\n{2}{B}, {T}: Exile target creature card from a graveyard. Create a 2/2 black Zombie creature token.',
+    keywords: [],
+  },
+  {
+    name: 'Champion of the Perished',
+    type_line: 'Creature — Zombie',
+    oracle_text:
+      'Whenever another Zombie you control enters, put a +1/+1 counter on this creature.',
+    keywords: [],
+  },
+  {
+    name: 'Gravecrawler',
+    type_line: 'Creature — Zombie',
+    oracle_text:
+      "This creature can't block.\nYou may cast this card from your graveyard as long as you control a Zombie.",
+    keywords: [],
+  },
+  {
+    name: 'Relentless Dead',
+    type_line: 'Creature — Zombie',
+    oracle_text:
+      "Menace (This creature can't be blocked except by two or more creatures.)\nWhen this creature dies, you may pay {B}. If you do, return it to its owner's hand.\nWhen this creature dies, you may pay {X}. If you do, return another target Zombie creature card with mana value X from your graveyard to the battlefield.",
+    keywords: ['Menace'],
+  },
+  {
+    name: 'Diregraf Colossus',
+    type_line: 'Creature — Zombie Giant',
+    oracle_text:
+      'This creature enters with a +1/+1 counter on it for each Zombie card in your graveyard.\nWhenever you cast a Zombie spell, create a tapped 2/2 black Zombie creature token.',
+    keywords: [],
+  },
+  {
+    name: 'Gisa, Glorious Resurrector',
+    type_line: 'Legendary Creature — Human Wizard',
+    oracle_text:
+      "If a creature an opponent controls would die, exile it instead.\nAt the beginning of your upkeep, put all creature cards exiled with Gisa onto the battlefield under your control. They gain decayed. (A creature with decayed can't block. When it attacks, sacrifice it at end of combat.)",
+    keywords: [],
+  },
+  {
+    name: 'Dragonstorm Globe',
+    type_line: 'Artifact',
+    oracle_text:
+      'Each Dragon you control enters with an additional +1/+1 counter on it.\n{T}: Add one mana of any color.',
+    keywords: [],
+  },
+  {
+    name: 'Sivitri, Dragon Master',
+    type_line: 'Legendary Planeswalker — Sivitri',
+    oracle_text:
+      "+1: Until your next turn, creatures can't attack you or planeswalkers you control unless their controller pays 2 life for each of those creatures.\n−3: Search your library for a Dragon card, reveal it, put it into your hand, then shuffle.\n−7: Destroy all non-Dragon creatures.\nSivitri, Dragon Master can be your commander.",
+    keywords: [],
+  },
+  {
+    name: 'Headless Rider',
+    type_line: 'Creature — Zombie',
+    oracle_text:
+      'Whenever this creature or another nontoken Zombie you control dies, create a 2/2 black Zombie creature token.',
+    keywords: [],
+  },
+  {
+    name: 'Tomb Tyrant',
+    type_line: 'Creature — Zombie Noble',
+    oracle_text:
+      'Other Zombies you control get +1/+1.\n{2}{B}, {T}, Sacrifice a creature: Return a Zombie creature card at random from your graveyard to the battlefield. Activate only during your turn and only if there are at least three Zombie creature cards in your graveyard.',
+    keywords: [],
+  },
+  {
+    name: "Liliana's Mastery",
+    type_line: 'Enchantment',
+    oracle_text:
+      'Zombies you control get +1/+1.\nWhen this enchantment enters, create two 2/2 black Zombie creature tokens.',
+    keywords: [],
   },
 ];
 

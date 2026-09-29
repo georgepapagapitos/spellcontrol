@@ -461,18 +461,105 @@ const superfriends: SynergyAxis = {
   },
 };
 
-// The two typal reasons that name a tribe. `typalReasonType` reads the tribe
-// back, so an engine read can tell a Ninja engine from an Elf one.
+// The typal reasons that name a tribe. `typalReasonType` reads the tribe back,
+// so an engine read can tell a Ninja engine from an Elf one.
 const TYPAL_FINDS = 'finds ';
 const TYPAL_REWARDS = 'rewards your ';
+const TYPAL_MEMBER = 'one of your ';
 
 /** The creature type a tribal reason names ("rewards your Ninjas" → "Ninja"),
  *  or undefined for type-agnostic typal support ("chooses a creature type"). */
 export function typalReasonType(reason: string): string | undefined {
-  for (const prefix of [TYPAL_REWARDS, TYPAL_FINDS]) {
+  for (const prefix of [TYPAL_REWARDS, TYPAL_FINDS, TYPAL_MEMBER]) {
     if (reason.startsWith(prefix)) return resolveCreatureType(reason.slice(prefix.length));
   }
   return undefined;
+}
+
+// ── Tribe members as tribal fuel (E511) ──────────────────────────────────────
+// A card is read on its own, so the tribal axis's producers are type-agnostic
+// enablers and its payoffs the cards that name a tribe. The tribe's real fuel,
+// the Zombies in a Zombie deck, never classify: every creature has a type. So
+// a card SET adds its members of the tribes its typal cards name as producers,
+// with the reason "one of your Zombies". Members confirm an engine the text
+// shows but never invent one: their weight is capped at the weight of the
+// cards whose payoffs name those tribes, so a stray Human payoff doesn't turn
+// twenty Humans into a typal engine. One rule, used by every set-level read:
+// analyzeDeckSynergy (the deck page, coherence findings), the generator's
+// average-deck read, and packageBoost's tally.
+
+/** One card of a set, with its axis roles and its weight in the read. */
+export interface TribalSetEntry {
+  card: {
+    type_line?: string;
+    keywords?: string[];
+    card_faces?: Array<{ type_line?: string }>;
+  };
+  weight: number;
+  producers: ReadonlyArray<{ axis: AxisKey; reason: string }>;
+  payoffs: ReadonlyArray<{ axis: AxisKey; reason: string }>;
+}
+
+/** A creature (or kindred card) of one of `tribes`, read off its front face,
+ *  or a changeling, which is every creature type. The matched tribe, if any. */
+export function tribeMembership(
+  card: TribalSetEntry['card'],
+  tribes: ReadonlySet<string>
+): string | undefined {
+  if (tribes.size === 0) return undefined;
+  const typeLine = (card.card_faces?.[0]?.type_line ?? card.type_line ?? '').toLowerCase();
+  const [types, subtypes = ''] = typeLine.split(/\s[—–]\s/);
+  if (!/\b(?:creature|kindred|tribal)\b/.test(types)) return undefined;
+  const sorted = [...tribes].sort();
+  if ((card.keywords ?? []).some((k) => k.toLowerCase() === 'changeling')) return sorted[0];
+  const words = ` ${subtypes.trim()} `;
+  return sorted.find((tribe) => words.includes(` ${tribe.toLowerCase()} `));
+}
+
+export interface TribalMembership {
+  /** Tribes the set's typal cards name. */
+  tribes: Set<string>;
+  /** Members to count as tribal producers: set index, tribe, and the weight
+   *  each counts at. In set order, members take their full weight until the
+   *  cap runs out, so the total is exactly min(members, cap). */
+  members: Array<{ index: number; tribe: string; weight: number }>;
+  /** The reason a member producer carries ("one of your Zombies"). */
+  reasonFor: (tribe: string) => string;
+}
+
+export function tribalMembership(entries: readonly TribalSetEntry[]): TribalMembership {
+  const tribes = new Set<string>();
+  for (const e of entries) {
+    for (const role of [...e.producers, ...e.payoffs]) {
+      if (role.axis !== 'tribal') continue;
+      const tribe = typalReasonType(role.reason);
+      if (tribe) tribes.add(tribe);
+    }
+  }
+  let payoffWeight = 0;
+  const candidates: Array<{ index: number; tribe: string; weight: number }> = [];
+  entries.forEach((e, index) => {
+    if (!(e.weight > 0)) return;
+    const names = (role: { axis: AxisKey; reason: string }) =>
+      role.axis === 'tribal' && typalReasonType(role.reason) !== undefined;
+    if (e.payoffs.some(names)) payoffWeight += e.weight;
+    if (e.producers.some((p) => p.axis === 'tribal')) return;
+    const tribe = tribeMembership(e.card, tribes);
+    if (tribe) candidates.push({ index, tribe, weight: e.weight });
+  });
+  let remaining = payoffWeight;
+  const members: TribalMembership['members'] = [];
+  for (const c of candidates) {
+    const weight = Math.min(c.weight, remaining);
+    if (weight <= 0) break;
+    members.push({ ...c, weight });
+    remaining -= weight;
+  }
+  return {
+    tribes,
+    members,
+    reasonFor: (tribe) => `${TYPAL_MEMBER}${creatureTypePlurals(tribe)[0]}`,
+  };
 }
 
 const tribal: SynergyAxis = {

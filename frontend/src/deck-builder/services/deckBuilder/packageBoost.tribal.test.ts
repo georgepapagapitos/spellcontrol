@@ -8,10 +8,11 @@ import { classifyCard } from '@/deck-builder/services/synergy/classify';
 import {
   clearPackageBoostCache,
   computePackageBoosts,
-  isTribeMember,
   packageFitAxes,
   tallyAxisInvestment,
 } from './packageBoost';
+import { tribeMembership } from '@/deck-builder/services/synergy/axes';
+import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
 import { TRIBAL_CARDS } from './__fixtures__/tribal-cards.fixture';
 
 const card = (name: string): ScryfallCard => {
@@ -129,25 +130,75 @@ describe.each(Object.entries(DECKS))('tribal package boost: %s', (_, deck) => {
       expect({ name, boost: boosts.get(name) ?? 0 }).toEqual({ name, boost: 0 });
   });
 
-  it("still boosts a lord that names the deck's tribe while payoffs are the scarce side", () => {
-    // A deck of the tribe with few payoffs: the commander and bare members.
-    const members = picked.filter((c) => classifyCard(c).payoffs.length === 0);
-    const investment = tallyAxisInvestment(members, [commander]);
-    const tribal = investment.get('tribal')!;
-    expect(tribal.payoffs).toBeLessThan(tribal.producers);
-    expect(
-      packageFitAxes(card(deck.lord), investment).find((a) => a.axis === 'tribal')?.boost ?? 0
-    ).toBeGreaterThan(0);
+  it('never boosts any card on the tribal axis, lords included', () => {
+    // The Sivitri case: Sivitri's Dragon tutor plus capped members tipped the
+    // axis payoff-scarce and Dragonstorm Globe displaced a combo piece.
+    const investment = tallyAxisInvestment(picked, [commander]);
+    for (const name of [deck.lord, 'Dragonstorm Globe', ...TYPE_AGNOSTIC_SUPPORT]) {
+      expect({
+        name,
+        tribal: packageFitAxes(card(name), investment).some((a) => a.axis === 'tribal'),
+      }).toEqual({ name, tribal: false });
+    }
   });
 });
 
-describe('isTribeMember', () => {
+describe('the members rule is one definition (E511)', () => {
+  const zombies = [
+    'Wilhelt, the Rotcleaver',
+    'Varina, Lich Queen',
+    'Death Baron',
+    'Diregraf Captain',
+    'Lord of the Accursed',
+    'Cryptbreaker',
+    'Gray Merchant of Asphodel',
+    'Undead Warchief',
+    'Cemetery Reaper',
+    'Champion of the Perished',
+    'Gravecrawler',
+    'Relentless Dead',
+    'Diregraf Colossus',
+    'Headless Rider',
+    'Tomb Tyrant',
+    "Liliana's Mastery",
+  ].map(card);
+
+  it('a Zombie deck is not reported as short of producers', () => {
+    const synergy = analyzeDeckSynergy(zombies);
+    const tribal = synergy.axes.find((a) => a.axis === 'tribal')!;
+    expect(tribal.producers.length).toBeGreaterThanOrEqual(tribal.payoffs.length);
+    expect(synergy.warnings.filter((w) => w.startsWith('Tribal'))).toEqual([]);
+    expect(tribal.producers.some((p) => p.reason === 'one of your Zombies')).toBe(true);
+  });
+
+  it('the deck page and the tally count the same members', () => {
+    const synergy = analyzeDeckSynergy(zombies);
+    const deck = synergy.axes.find((a) => a.axis === 'tribal')!;
+    const tally = tallyAxisInvestment(zombies, []).get('tribal')!;
+    expect(tally.producers).toBe(deck.producers.length);
+    expect(tally.payoffs).toBe(deck.payoffs.length);
+  });
+
+  it('a stray payoff never turns a tribe into an engine', () => {
+    // One Dragon payoff among eleven Dragons adds at most one member.
+    const dragons = [
+      "Dragonlord's Servant",
+      'Goldspan Dragon',
+      'Terror of the Peaks',
+      'Old Gnawbone',
+    ].map(card);
+    const tribal = analyzeDeckSynergy(dragons).axes.find((a) => a.axis === 'tribal')!;
+    expect(tribal.producers.length).toBeLessThanOrEqual(tribal.payoffs.length);
+  });
+});
+
+describe('tribeMembership', () => {
   const elf = new Set(['Elf']);
   it('reads the front face type line and treats changelings as every type', () => {
-    expect(isTribeMember(card('Llanowar Elves'), elf)).toBe(true);
-    expect(isTribeMember(card('Changeling Outcast'), elf)).toBe(true);
-    expect(isTribeMember(card('Goblin Lackey'), elf)).toBe(false);
-    expect(isTribeMember(card("Vanquisher's Banner"), elf)).toBe(false);
-    expect(isTribeMember(card('Llanowar Elves'), new Set())).toBe(false);
+    expect(tribeMembership(card('Llanowar Elves'), elf)).toBe('Elf');
+    expect(tribeMembership(card('Changeling Outcast'), elf)).toBe('Elf');
+    expect(tribeMembership(card('Goblin Lackey'), elf)).toBeUndefined();
+    expect(tribeMembership(card("Vanquisher's Banner"), elf)).toBeUndefined();
+    expect(tribeMembership(card('Llanowar Elves'), new Set())).toBeUndefined();
   });
 });

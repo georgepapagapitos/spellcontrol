@@ -23,7 +23,7 @@
  */
 import type { ScryfallCard } from '@/deck-builder/types';
 import { classifyCard, type CardSynergy } from '@/deck-builder/services/synergy/classify';
-import { typalReasonType, type AxisKey } from '@/deck-builder/services/synergy/axes';
+import { tribalMembership, type AxisKey } from '@/deck-builder/services/synergy/axes';
 import { typeLineProducerAxes } from './synergyDependency';
 import { violatesUserCaps, type UserCapsConfig } from './deckFilters';
 
@@ -58,43 +58,10 @@ export interface AxisInvestment {
   tribes?: readonly string[];
 }
 
-// ── Tribal membership (E511) ─────────────────────────────────────────────────
-// The tribal axis reads a card by its text, so its producers are the
-// type-agnostic enablers (Banners, changelings, "choose a creature type") and
-// its payoffs the cards that name a tribe. The tribe's real fuel, the Elves in
-// an Elf deck, never classify as producers: every creature has a type. Left
-// alone, a typal deck full of lords always reads producer-scarce and the
-// scarce-side boost pushes Banners over staples. So the tally counts the
-// deck's creatures of the tribes its typal cards name (and changelings, which
-// are every type) as producers, like E135's type-line artifacts, and the boost
-// only ever goes to a card that names one of those tribes.
-
-/** The creature types the typal cards among `cards` name ("rewards your Elves"). */
-function namedTribes(cards: readonly ScryfallCard[]): Set<string> {
-  const tribes = new Set<string>();
-  for (const card of cards) {
-    const c = classified(card);
-    for (const role of [...c.producers, ...c.payoffs]) {
-      if (role.axis !== 'tribal') continue;
-      const tribe = typalReasonType(role.reason);
-      if (tribe) tribes.add(tribe);
-    }
-  }
-  return tribes;
-}
-
-/** A creature (or kindred card) of one of `tribes`, read off its front face,
- *  or a changeling, which is every creature type. */
-export function isTribeMember(card: ScryfallCard, tribes: ReadonlySet<string>): boolean {
-  if (tribes.size === 0) return false;
-  const typeLine = (card.card_faces?.[0]?.type_line ?? card.type_line ?? '').toLowerCase();
-  const [types, subtypes = ''] = typeLine.split(/\s[—–]\s/);
-  if (!/\b(?:creature|kindred|tribal)\b/.test(types)) return false;
-  if ((card.keywords ?? []).some((k) => k.toLowerCase() === 'changeling')) return true;
-  const words = ` ${subtypes.trim()} `;
-  for (const tribe of tribes) if (words.includes(` ${tribe.toLowerCase()} `)) return true;
-  return false;
-}
+// E511: the tally counts the deck's tribe members as tribal fuel by the
+// shared capped rule (tribalMembership in synergy/axes.ts, the one
+// analyzeDeckSynergy uses), so every reader sees the same tribal balance. The
+// scarce-side boost skips the tribal axis entirely (see packageFitAxes).
 
 /**
  * Per-axis producer/payoff investment of the deck so far. Commanders weigh
@@ -105,7 +72,6 @@ export function tallyAxisInvestment(
   commanders: readonly ScryfallCard[]
 ): Map<AxisKey, AxisInvestment> {
   const tally = new Map<AxisKey, AxisInvestment>();
-  const tribes = namedTribes([...commanders, ...picked]);
   const bump = (axis: AxisKey, side: 'producers' | 'payoffs', weight: number) => {
     const entry = tally.get(axis) ?? { producers: 0, payoffs: 0 };
     entry[side] += weight;
@@ -122,16 +88,19 @@ export function tallyAxisInvestment(
     for (const axis of typeLineProducerAxes(card)) {
       if (!classifiedProducerAxes.has(axis)) bump(axis, 'producers', weight);
     }
-    // E511: a member of the deck's tribe is that tribe's fuel.
-    if (!classifiedProducerAxes.has('tribal') && isTribeMember(card, tribes)) {
-      bump('tribal', 'producers', weight);
-    }
     for (const p of c.payoffs) bump(p.axis, 'payoffs', weight);
   };
-  for (const c of commanders) add(c, COMMANDER_WEIGHT);
-  for (const c of picked) add(c, 1);
+  const weighted = [
+    ...commanders.map((card) => ({ card, weight: COMMANDER_WEIGHT })),
+    ...picked.map((card) => ({ card, weight: 1 })),
+  ];
+  for (const { card, weight } of weighted) add(card, weight);
+  const membership = tribalMembership(
+    weighted.map(({ card, weight }) => ({ card, weight, ...classified(card) }))
+  );
+  for (const m of membership.members) bump('tribal', 'producers', m.weight);
   const tribal = tally.get('tribal');
-  if (tribal) tribal.tribes = [...tribes].sort();
+  if (tribal) tribal.tribes = [...membership.tribes].sort();
   return tally;
 }
 
@@ -157,22 +126,23 @@ export function packageFitAxes(
 ): PackageFitAxis[] {
   const c = classified(card);
   const out: PackageFitAxis[] = [];
-  const consider = (axis: AxisKey, side: 'producers' | 'payoffs', reason: string) => {
+  const consider = (axis: AxisKey, side: 'producers' | 'payoffs') => {
     const inv = investment.get(axis);
     if (!inv || inv.producers + inv.payoffs < LIVE_MIN) return;
-    // E511: on the tribal axis only a card that names the deck's tribe earns
-    // the boost. Type-agnostic support (Banners, changelings) can't be checked
-    // against the tribe from its text, so it never jumps a staple on it.
-    if (axis === 'tribal') {
-      const tribe = typalReasonType(reason);
-      if (!tribe || !inv.tribes?.includes(tribe)) return;
-    }
+    // E511: no scarce-side boost on the tribal axis. Its producer side is the
+    // tribe's members, which card text can't see, so the balance the boost
+    // reads is an artifact of the reader either way: without members a lord
+    // deck reads producer-scarce and Banners jump staples; with them (capped
+    // at the payoffs) any tribe finder tips it payoff-scarce and a lord jumps
+    // a combo piece (Sivitri: Dragonstorm Globe over Mox Amber). The typal
+    // engine is assembled by the typal pool and theme pages instead.
+    if (axis === 'tribal') return;
     const scarce = inv[side];
     const abundant = side === 'payoffs' ? inv.producers : inv.payoffs;
     if (scarce < abundant) out.push({ axis, boost: axisBoost(scarce, abundant) });
   };
-  for (const p of c.payoffs) consider(p.axis, 'payoffs', p.reason);
-  for (const p of c.producers) consider(p.axis, 'producers', p.reason);
+  for (const p of c.payoffs) consider(p.axis, 'payoffs');
+  for (const p of c.producers) consider(p.axis, 'producers');
   return out;
 }
 

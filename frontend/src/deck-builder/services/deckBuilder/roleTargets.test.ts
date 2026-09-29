@@ -335,9 +335,10 @@ describe('card evidence: the average deck, read like a finished list', () => {
     });
     const axes = new Map(ev!.read.ranked.flatMap((r) => r.axes.map((a) => [a.axis, a])));
     // Krenko (weight 1): tokens producer and tribal payoff. Goblin King (0.5):
-    // tribal payoff. Secure the Wastes (0.2): tokens producer.
+    // tribal payoff. Secure the Wastes (0.2): tokens producer. Both Goblins
+    // are also the tribe's members, capped at the 1.5 payoff weight.
     expect(axes.get('tokens')).toMatchObject({ producers: 1.2, payoffs: 0 });
-    expect(axes.get('tribal')).toMatchObject({ producers: 0, payoffs: 1.5 });
+    expect(axes.get('tribal')).toMatchObject({ producers: 1.5, payoffs: 1.5 });
     expect(ev!.coverage).toBe(1);
   });
 

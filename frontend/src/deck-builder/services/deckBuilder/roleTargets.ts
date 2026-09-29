@@ -13,7 +13,7 @@ import {
 import type { Pacing } from './pacingDetector';
 import { getCardRole, type RoleKey } from '@/deck-builder/services/tagger/client';
 import { classifyCard } from '@/deck-builder/services/synergy/classify';
-import type { AxisKey } from '@/deck-builder/services/synergy/axes';
+import { tribalMembership, type AxisKey } from '@/deck-builder/services/synergy/axes';
 import type { CardLike } from '@/deck-builder/services/synergy/text';
 import { getByCardName } from '@/lib/card-text';
 import {
@@ -27,6 +27,7 @@ import {
   themeAxes,
   type ArchetypeMass,
   type AxisMass,
+  type EngineEntry,
   type EngineRead,
 } from './strategyVocabulary';
 
@@ -323,25 +324,35 @@ export interface WeightedCard {
  * expected counts in an average deck.
  */
 export function weightedAxisMass(cards: readonly WeightedCard[]): AxisMass[] {
-  return axisMassFrom(
-    cards.flatMap(({ card, weight }) => {
-      const cs = classifyCard(card);
-      return [
-        ...cs.producers.map((p) => ({
-          axis: p.axis,
-          side: 'producer' as const,
-          reason: p.reason,
-          weight,
-        })),
-        ...cs.payoffs.map((o) => ({
-          axis: o.axis,
-          side: 'payoff' as const,
-          reason: o.reason,
-          weight,
-        })),
-      ];
-    })
+  const classified = cards.map(({ card }) => classifyCard(card));
+  const entries: EngineEntry[] = cards.flatMap(({ weight }, i) => [
+    ...classified[i].producers.map((p) => ({
+      axis: p.axis,
+      side: 'producer' as const,
+      reason: p.reason,
+      weight,
+    })),
+    ...classified[i].payoffs.map((o) => ({
+      axis: o.axis,
+      side: 'payoff' as const,
+      reason: o.reason,
+      weight,
+    })),
+  ]);
+  // E511: members of the tribes the set's typal cards name are tribal fuel,
+  // by the same capped rule analyzeDeckSynergy applies to a finished list.
+  const membership = tribalMembership(
+    cards.map(({ card, weight }, i) => ({ card, weight, ...classified[i] }))
   );
+  for (const m of membership.members) {
+    entries.push({
+      axis: 'tribal',
+      side: 'producer',
+      reason: membership.reasonFor(m.tribe),
+      weight: m.weight,
+    });
+  }
+  return axisMassFrom(entries);
 }
 
 /** One card of the commander's EDHREC pool with its inclusion, in percent. */
