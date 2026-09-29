@@ -3,12 +3,13 @@ import type { EDHRECCard } from '@/deck-builder/types';
 import { parseEdhrecResponse } from '@/deck-builder/services/edhrec/client';
 import {
   readSynergy,
-  synergyStrength,
+  synergyScore,
   isSignatureSynergy,
   isAntiSynergy,
-  bySynergyStrength,
+  bySynergyScore,
   SYNERGY_PRIOR_DECKS,
   BASELINE_FLOOR_PCT,
+  SUPPORT_FULL_PCT,
 } from './synergyLift';
 
 // Every row below is a real EDHREC cardview (json.edhrec.com, cached
@@ -53,6 +54,13 @@ const SILENCE = row('Silence', 9679, 11589, 0.6525598666824483);
 const PLAINS = row('Plains', 2075, 11589, -0.5844551346667248);
 // The Tenth Doctor // Rose Tyler: a colour baseline below the floor (0.3%).
 const JENNY = row('Jenny, Generated Anomaly', 757, 5642, 0.1311878059711292);
+// Gisa, Glorious Resurrector (1,638 decks): the brief's two shapes, live.
+// Eradicator Valkyrie 12.5% vs 1.0% (+0.11, 12x); Tragic Slip 41.9% vs 18.7%
+// (+0.23, 2.2x).
+const ERADICATOR_VALKYRIE = row('Eradicator Valkyrie', 204, 1638, 0.11460148181266158);
+const TRAGIC_SLIP = row('Tragic Slip', 687, 1638, 0.2322126487214503);
+// Tuvasa the Sunlit: a card in 1.5% of the commander's decks.
+const ENCHANTED_RIVERS_GRASP = row("Enchanted River's Grasp", 16, 1068, 0.012271937980734057);
 
 describe('readSynergy', () => {
   it('recovers the colour-identity baseline from inclusion − synergy × 100', () => {
@@ -72,6 +80,29 @@ describe('readSynergy', () => {
     expect(haruspex.strength).toBeCloseTo(1.847, 3);
     expect(elder.strength).toBeCloseTo(1.288, 3);
     expect(haruspex.strength).toBeGreaterThan(elder.strength);
+    // Both past the 10% support line, so the score is the ratio alone.
+    expect(haruspex.score).toBeCloseTo(Math.log2(haruspex.lift), 10);
+    expect(elder.score).toBeCloseTo(Math.log2(elder.lift), 10);
+  });
+
+  it('scores 12% vs 1% well above 40% vs 20%; the subtraction said the opposite', () => {
+    expect(TRAGIC_SLIP.synergy!).toBeGreaterThan(ERADICATOR_VALKYRIE.synergy!);
+    const valkyrie = readSynergy(ERADICATOR_VALKYRIE)!;
+    const slip = readSynergy(TRAGIC_SLIP)!;
+    expect(valkyrie.score).toBeCloseTo(3.635, 2);
+    expect(slip.score).toBeCloseTo(1.16, 2);
+    // The KL strength can't tell them apart (0.45 vs 0.49): that's why it
+    // defines the signature tier and doesn't rank.
+    expect(Math.abs(valkyrie.strength - slip.strength)).toBeLessThan(0.05);
+  });
+
+  it('scales the ratio down below the 10% support line (the Hyper Focus guard)', () => {
+    const r = readSynergy(ENCHANTED_RIVERS_GRASP)!;
+    expect(r.shrunkPct).toBeLessThan(SUPPORT_FULL_PCT);
+    expect(r.score).toBeCloseTo((r.shrunkPct / SUPPORT_FULL_PCT) * Math.log2(r.lift), 10);
+    // Below the line the score is exactly strength × 10.
+    expect(r.score).toBeCloseTo(r.strength * 10, 10);
+    expect(r.score).toBeLessThan(0.1);
   });
 
   it('barely shrinks a large page (22,305 decks)', () => {
@@ -138,7 +169,7 @@ describe('readSynergy', () => {
     expect(isSignatureSynergy(SILENCE)).toBe(true);
   });
 
-  it('is null for a row with no synergy, and strength reads 0', () => {
+  it('is null for a row with no synergy, and the score reads 0', () => {
     const synthesized: EDHRECCard = {
       name: 'Arcane Signet',
       sanitized: 'arcane-signet',
@@ -147,7 +178,7 @@ describe('readSynergy', () => {
       num_decks: 0,
     };
     expect(readSynergy(synthesized)).toBeNull();
-    expect(synergyStrength(synthesized)).toBe(0);
+    expect(synergyScore(synthesized)).toBe(0);
     expect(isSignatureSynergy(synthesized)).toBe(false);
     expect(isAntiSynergy(synthesized)).toBe(false);
   });
@@ -179,29 +210,36 @@ describe('readSynergy', () => {
 });
 
 describe('isSignatureSynergy (the shared replacement for synergy > 0.3)', () => {
-  it('re-selects by ratio: Overgrowth (8.6×) is a Sythis signature card, Reliquary Tower (2.1×) is not', () => {
-    // The old threshold said the opposite: +0.28 misses it, +0.315 clears it.
+  it('adds by ratio: Overgrowth (+0.28 but 8.6×) joins the Sythis tier the old bar missed', () => {
     expect(OVERGROWTH.synergy!).toBeLessThan(0.3);
-    expect(RELIQUARY_TOWER.synergy!).toBeGreaterThan(0.3);
     expect(isSignatureSynergy(OVERGROWTH)).toBe(true);
-    expect(isSignatureSynergy(RELIQUARY_TOWER)).toBe(false);
   });
 
-  it('keeps Meren’s signature package', () => {
-    for (const card of [SPORE_FROG, GRIM_HARUSPEX, SAKURA_TRIBE_ELDER]) {
+  it('never drops a card the old bar marked: every real row above +0.3 stays in', () => {
+    const rows = [
+      SPORE_FROG,
+      GRIM_HARUSPEX,
+      SAKURA_TRIBE_ELDER,
+      BLOOD_ARTIST,
+      RELIQUARY_TOWER,
+      POWER_CONDUIT,
+      JHOIRAS_FAMILIAR,
+      GRAVE_BETRAYAL,
+      LYRA,
+      SILENCE,
+    ];
+    for (const card of rows) {
+      expect(card.synergy!).toBeGreaterThan(0.3);
       expect(isSignatureSynergy(card)).toBe(true);
     }
+    // Reliquary Tower (+0.315, 2.1×) and Jhoira's Familiar (12 of 15 decks,
+    // shrunk lift 1.95) fail the ratio half and stay in on the old bar.
+    expect(readSynergy(JHOIRAS_FAMILIAR)!.lift).toBeLessThan(2);
   });
 
   it('does not call a colour staple a signature card', () => {
     expect(isSignatureSynergy(SOL_RING)).toBe(false);
-    expect(isSignatureSynergy(BLOOD_ARTIST)).toBe(false);
-  });
-
-  it('needs the commander to play it at least twice as often as its colours', () => {
-    // 12 of 15 decks vs 35% in the colours: shrunk lift 1.95.
-    expect(readSynergy(JHOIRAS_FAMILIAR)!.lift).toBeLessThan(2);
-    expect(isSignatureSynergy(JHOIRAS_FAMILIAR)).toBe(false);
+    expect(isSignatureSynergy(TRAGIC_SLIP)).toBe(false);
   });
 });
 
@@ -227,16 +265,17 @@ describe('isAntiSynergy', () => {
     expect(isAntiSynergy(row('Field of the Dead', 1, 15, -0.030424772813395964))).toBe(false);
   });
 
-  it('reads avoidance as negative strength', () => {
-    expect(synergyStrength(CULTIVATE)).toBeCloseTo(-0.221, 3);
-    expect(synergyStrength(HEROIC_INTERVENTION)).toBeLessThan(0);
+  it('reads avoidance as a negative score and strength', () => {
+    expect(readSynergy(CULTIVATE)!.strength).toBeCloseTo(-0.221, 3);
+    expect(synergyScore(CULTIVATE)).toBeCloseTo(Math.log2(0.377), 2);
+    expect(synergyScore(HEROIC_INTERVENTION)).toBeLessThan(0);
   });
 });
 
-describe('bySynergyStrength', () => {
-  it('orders by strength, not by the subtraction', () => {
+describe('bySynergyScore', () => {
+  it('orders by the ratio-first score, not by the subtraction', () => {
     const sorted = [SAKURA_TRIBE_ELDER, BLOOD_ARTIST, SPORE_FROG, GRIM_HARUSPEX, SOL_RING].sort(
-      bySynergyStrength
+      bySynergyScore
     );
     expect(sorted.map((c) => c.name)).toEqual([
       'Spore Frog',

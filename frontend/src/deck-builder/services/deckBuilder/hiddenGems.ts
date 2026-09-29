@@ -26,7 +26,7 @@ import { frontFaceName } from '@/lib/card-text';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { fitsColorIdentity, notCommanderLegal } from './deckFilters';
 import { tallyAxisInvestment, packageFitAxes } from './packageBoost';
-import { synergyStrength, bySynergyStrength } from './synergyLift';
+import { synergyScore, bySynergyScore } from './synergyLift';
 import { AXES } from '@/deck-builder/services/synergy/axes';
 
 /** A card at/above this EDHREC inclusion % is a staple, not a hidden gem. */
@@ -192,18 +192,18 @@ export async function computeHiddenGems(opts: ComputeHiddenGemsOptions): Promise
 
   // Axis-only candidate source — the commander page's low-inclusion tail,
   // synergy-leaning first: played more here than in the commander's colours,
-  // strongest ratio-weighted reading first (E510, synergyLift.ts).
+  // highest ratio-first synergy score first (E510, synergyLift.ts).
   // These earn a row only if the axis check below finds real engine fit;
   // lift/similar candidates get the axis check too, as confirming evidence.
   const tail = edhrecData.cardlists.allNonLand
     .filter(
       (c) =>
         c.inclusion < GEM_INCLUSION_CEILING &&
-        synergyStrength(c) > 0 &&
+        synergyScore(c) > 0 &&
         !excluded.has(c.name.toLowerCase()) &&
         !isBasicLandName(c.name)
     )
-    .sort(bySynergyStrength)
+    .sort(bySynergyScore)
     .slice(0, TAIL_CAP);
 
   const namesToResolve = [

@@ -4,7 +4,7 @@ import { logger } from '@/lib/logger';
 import type { ScryfallCard, EDHRECCard, MaxRarity, CollectionStrategy } from '@/deck-builder/types';
 import { getCardPrice, getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { hasCurveRoom } from './curveUtils';
-import { isSignatureSynergy, synergyStrength } from './synergyLift';
+import { isSignatureSynergy, synergyScore, LEGACY_SIGNATURE_SYNERGY } from './synergyLift';
 import { BudgetTracker } from './budgetTracker';
 import type { BracketGuard } from './bracketGuard';
 import { matchesExpectedType, roleCapTolerance, ROLE_CAP_HATCH_MAX_PER_PASS } from './categorize';
@@ -209,33 +209,38 @@ export function pickFromPrefetched(
 export function isHighSynergyCard(card: EDHRECCard): boolean {
   // Card is from highsynergycards, topcards, newcards, or gamechangers lists
   if (card.isThemeSynergyCard) return true;
-  // Or is a signature card for this commander (E510: the shared predicate
-  // that replaced `synergy > 0.3`, see synergyLift.ts)
+  // Or is a signature card for this commander (E510: the shared predicate,
+  // the old `synergy > 0.3` bar OR the ratio test, see synergyLift.ts)
   return isSignatureSynergy(card);
 }
 
-// E510: points per unit of synergy strength (synergyLift.ts: shrunk play
-// rate × log2 of its ratio to the colours' rate). Calibrated so the median
-// signature card scores what it scored under the old subtraction: over 90
-// cached EDHREC pages, the median of (100 × synergy) / strength across the
-// 2,648 rows with synergy > 0.3 is 29.5. A median signature card (strength
-// ~1.5) keeps its ~44 points; the ranking inside the tier moves toward ratio.
-export const SYNERGY_STRENGTH_POINTS = 30;
+// E510: points per unit of synergy score (synergyLift.ts: log2 of the shrunk
+// play rate's ratio to the colours' rate, scaled down below 10% play rate).
+// Calibrated on the old term: over 90 cached EDHREC pages, the median of
+// (100 × synergy) / score across the 2,648 rows with synergy > 0.3 is 14.6.
+export const SYNERGY_SCORE_POINTS = 15;
 
 // Staples <-> Synergy dial: reweights calculateCardPriority's inclusion vs
 // synergy terms. 0 = Staples, 0.5 = Balanced (default), 1 = Synergy. Every
 // term is piecewise-linear through its Balanced value at 0.5.
 //
-// The synergy term (E510) is CONTINUOUS in synergy strength:
+// The synergy term (E510) reads the ratio, and only ever PROMOTES a card the
+// old subtraction already ranked:
 //
-//   synergyTerm = SYNERGY_STRENGTH_POINTS × strength × synergyMultiplier
+//   ratioTerm = SYNERGY_SCORE_POINTS × score           (continuous)
+//   non-theme, synergy > 0.3:  max(synergy × 100, ratioTerm)
+//   non-theme, otherwise:      ratioTerm
+//   theme-list card:           max(synergy × 50, ratioTerm / 2)
+//   all times synergyMultiplier(brewLevel)
 //
-// It is 0 at lift 1 (the commander plays a card like its colours do), grows
-// with log2 of the ratio weighted by how much the card is played, and goes
-// negative when the commander's players avoid a card (lift < 1). The old
-// formula jumped at synergy 0.3: a card at +0.29 scored nothing and one at
-// +0.31 gained 31 points. Theme-list cards keep their list floor and take
-// half the term, as before (they were synergy × 50 against × 100).
+// The old term (synergy × 100 above +0.3, synergy × 50 on a theme-list card)
+// is a floor, so no card the old formula ranked scores lower. Below the old
+// tier the term is the continuous ratio reading: a 12%-vs-1% card (+0.11,
+// once worth nothing) now gains ~54 points and outranks a 40%-vs-20% card
+// (+0.20, ~15 points), and a card the commander's players avoid (lift < 1)
+// goes negative. The one jump left is at +0.3, where the old floor starts; it
+// is max(0, 30 − ratioTerm), zero for any card whose ratio already reads 30
+// points (lift ≥ 4 at 10%+ play rate), where the old jump was always 30.
 //
 // The ends are deliberately strong. The first version (1.5x/0.4x inclusion,
 // 0.4x/1.6x synergy, theme-list floor untouched) measured almost no movement
@@ -266,23 +271,26 @@ function themeListFloor(brewLevel: number): number {
 // Calculate a priority score for EDHREC cards
 // High synergy cards (from theme) should be prioritized over generic high-inclusion cards
 export function calculateCardPriority(card: EDHRECCard, brewLevel: number = 0.5): number {
+  const synergy = card.synergy ?? 0;
   const inclusion = card.inclusion;
   const inclusionMul = inclusionMultiplier(brewLevel);
-  const synergyTerm =
-    synergyStrength(card) * SYNERGY_STRENGTH_POINTS * synergyMultiplier(brewLevel);
+  const synergyMul = synergyMultiplier(brewLevel);
+  const ratioTerm = synergyScore(card) * SYNERGY_SCORE_POINTS;
 
   // Cards from theme synergy lists (highsynergycards, topcards, etc.) get top priority
   if (card.isThemeSynergyCard) {
     // Theme synergy cards get a big boost: 100 + half the synergy term + inclusion
     // This ensures they're prioritized over regular high-inclusion cards
-    return themeListFloor(brewLevel) + synergyTerm / 2 + inclusion * inclusionMul;
+    const themeTerm = Math.max(synergy * 50, ratioTerm / 2);
+    return themeListFloor(brewLevel) + themeTerm * synergyMul + inclusion * inclusionMul;
   }
 
   // New cards get a small relevancy boost to compensate for having fewer total decks,
   // but not enough to override established staples with high inclusion/synergy
   const newCardBoost = card.isNewCard ? 25 : 0;
 
-  return synergyTerm + inclusion * inclusionMul + newCardBoost;
+  const term = synergy > LEGACY_SIGNATURE_SYNERGY ? Math.max(synergy * 100, ratioTerm) : ratioTerm;
+  return term * synergyMul + inclusion * inclusionMul + newCardBoost;
 }
 
 // Owned-first ('prefer' strategy): a bounded boost so owned cards win ties and

@@ -39,24 +39,36 @@
 //
 // 3. Irrelevance. A card 3% of this commander's decks play, against a 0.3%
 //    baseline, has a big ratio and nobody plays it. That is the exact failure
-//    that killed Hyper Focus (E230): it promoted the least-played cards. So
-//    the score the generator ranks by is not the lift alone but the lift
-//    weighted by how much the card is played:
+//    that killed Hyper Focus (E230): it promoted the least-played cards.
 //
-//      strength = (shrunkPct / 100) × log2(lift)
+// Two readings come out of the shrunk ratio, for two jobs:
 //
-//    This is the card's term of the KL divergence between the commander's
-//    card distribution and its colours' — "played a lot AND played far more
-//    than the colours" — and the same rate × lift shape as the validated E71
-//    card-page lift score (liftSynergy.ts edgeScore). It is negative when the
-//    commander's players avoid a card (lift < 1), zero at lift 1.
+//   score    = support × log2(lift),  support = min(1, shrunkPct / 10%)
+//   strength = (shrunkPct / 100) × log2(lift)
+//
+// `score` RANKS (calculateCardPriority, the hidden-gem tail, the Coach gap
+// pick). Once a card is in at least SUPPORT_FULL_PCT of the commander's decks
+// it is a real choice of that player base, and it ranks by its ratio alone:
+// 12% vs 1% (log2 12 = 3.6) now clearly outranks 40% vs 20% (log2 2 = 1).
+// Below that play rate the ratio is scaled down linearly, so a 3%-played card
+// can't ride a big ratio past real cards (the Hyper Focus guard).
+//
+// `strength` DEFINES a signature card (isSignatureSynergy). It is the card's
+// term of the KL divergence between the commander's card distribution and its
+// colours', "played a lot AND played far more than the colours", the same
+// rate × lift shape as the validated E71 card-page lift score (liftSynergy.ts
+// edgeScore). It can't rank for the promote job: it reads 12% vs 1% (0.43)
+// and 40% vs 20% (0.40) as equals.
+//
+// Both are negative when the commander's players avoid a card (lift < 1) and
+// zero at lift 1.
 //
 // Worked values from live EDHREC rows (Meren of Clan Nel Toth, 22,305 decks):
-//   Spore Frog         75.6% vs  5.5%  lift 13.8  strength 2.86
-//   Grim Haruspex      49.4% vs  3.7%  lift 13.3  strength 1.85
-//   Sakura-Tribe Elder 83.0% vs 28.3%  lift  2.9  strength 1.29
-//   Blood Artist       54.5% vs 21.1%  lift  2.6  strength 0.75
-//   Heroic Intervention 17.0% vs 32.1% lift  0.53 strength −0.16
+//   Spore Frog          75.6% vs  5.5%  lift 13.8   score 3.79  strength 2.86
+//   Grim Haruspex       49.4% vs  3.7%  lift 13.3   score 3.74  strength 1.85
+//   Sakura-Tribe Elder  83.0% vs 28.3%  lift  2.9   score 1.55  strength 1.29
+//   Blood Artist        54.5% vs 21.1%  lift  2.6   score 1.37  strength 0.75
+//   Heroic Intervention 17.0% vs 32.1%  lift  0.53  score −0.92 strength −0.16
 import type { EDHRECCard } from '@/deck-builder/types';
 
 /**
@@ -103,19 +115,33 @@ export const SYNERGY_PRIOR_DECKS = 5;
 export const BASELINE_FLOOR_PCT = 1;
 
 /**
- * Signature card ("this commander asks for it"): strength at or above this,
- * with the commander playing it at least twice as often as its colours.
- *
- * Replaces the scattered `synergy > 0.3` threshold. 0.9 keeps the signature
- * set about the same size (2,820 rows vs 2,648 over the 90 cached pages) so
- * every consumer's tier keeps its prevalence, while it re-selects by ratio:
- * 88% of the old set stays, the cards that leave are colour staples the commander
- * merely plays more (Marsh Flats in Atraxa, 77% vs 43%), and the cards that
- * join are specific ones a subtraction under-read (Overgrowth in Sythis, 32%
- * vs 3.7%; Pestilence Rats in Karumonix, 31% vs 1.8%).
+ * Play rate (percent of the commander's decks, shrunk) at which a card's
+ * ratio counts in full for ranking. The same 10% the hidden-gem surface
+ * already uses as its line between a real choice and the low-inclusion tail
+ * (hiddenGems.ts GEM_INCLUSION_CEILING); below it `score` scales linearly
+ * with play rate, which below the line is `strength` × 10 exactly.
+ */
+export const SUPPORT_FULL_PCT = 10;
+
+/**
+ * The old signature bar, EDHREC synergy above +0.3 (30 points more played
+ * than in the colours). Kept as half of the signature test so nothing it
+ * marked drops out, and calculateCardPriority keeps its old priority as a
+ * floor for these cards.
+ */
+export const LEGACY_SIGNATURE_SYNERGY = 0.3;
+
+/**
+ * The ratio half of the signature test: strength at or above this, with the
+ * commander playing the card at least twice as often as its colours. It ADDS
+ * the specific cards a subtraction under-reads (Overgrowth in Sythis, 32% vs
+ * 3.7%, +0.28; Pestilence Rats in Karumonix, 31% vs 1.8%, +0.29). 0.9 is the
+ * bar that, on its own, would keep the signature set the size of the old one
+ * (2,820 rows vs 2,648 over the 90 cached pages); unioned with the old bar the
+ * tier grows by the 480 rows only the ratio sees.
  */
 export const SIGNATURE_STRENGTH = 0.9;
-/** A signature card is played at least twice as often as in its colours. */
+/** A ratio-signature card is played at least twice as often as in its colours. */
 export const SIGNATURE_MIN_LIFT = 2;
 
 /**
@@ -152,7 +178,9 @@ export interface SynergyReading {
   shrunkPct: number;
   /** shrunkPct / baselinePct. 1 = plays it like its colours. */
   lift: number;
-  /** (shrunkPct / 100) × log2(lift): the ranking signal. */
+  /** min(1, shrunkPct / SUPPORT_FULL_PCT) × log2(lift): the ranking signal. */
+  score: number;
+  /** (shrunkPct / 100) × log2(lift): the signature test's signal. */
   strength: number;
 }
 
@@ -173,7 +201,7 @@ function sampleDecksOf(card: SynergyFields): number | null {
 /**
  * Read a row's synergy as a ratio. Null when the row carries no synergy (a
  * synthesized pool row, a fallback card), which every caller treats as "no
- * evidence either way" (strength 0, lift 1).
+ * evidence either way" (score 0, lift 1).
  */
 export function readSynergy(card: SynergyFields): SynergyReading | null {
   const synergy = card.synergy;
@@ -190,26 +218,38 @@ export function readSynergy(card: SynergyFields): SynergyReading | null {
         (sampleDecks + SYNERGY_PRIOR_DECKS);
   // shrunkPct can only be 0 when the row itself says 0% and there's no
   // sample to shrink with; log2(0) would be −∞, so read that as "not played"
-  // (strength 0): a 0% row has nothing to rank.
+  // (score and strength 0): a 0% row has nothing to rank.
   if (shrunkPct <= 0) {
-    return { commanderPct, baselinePct, sampleDecks, shrunkPct: 0, lift: 0, strength: 0 };
+    return {
+      commanderPct,
+      baselinePct,
+      sampleDecks,
+      shrunkPct: 0,
+      lift: 0,
+      score: 0,
+      strength: 0,
+    };
   }
   const lift = shrunkPct / baselinePct;
-  const strength = (shrunkPct / 100) * Math.log2(lift);
-  return { commanderPct, baselinePct, sampleDecks, shrunkPct, lift, strength };
+  const bits = Math.log2(lift);
+  const score = Math.min(1, shrunkPct / SUPPORT_FULL_PCT) * bits;
+  const strength = (shrunkPct / 100) * bits;
+  return { commanderPct, baselinePct, sampleDecks, shrunkPct, lift, score, strength };
 }
 
 /** The ranking signal alone; 0 when the row carries no synergy. */
-export function synergyStrength(card: SynergyFields): number {
-  return readSynergy(card)?.strength ?? 0;
+export function synergyScore(card: SynergyFields): number {
+  return readSynergy(card)?.score ?? 0;
 }
 
 /**
- * The shared "signature card" predicate — the one definition behind every
+ * The shared "signature card" predicate: the one definition behind every
  * place that used to ask `synergy > 0.3` (the generator's high-synergy tier,
- * Brew's theme slot, Coach's lift seeds).
+ * Brew's theme slot, Coach's lift seeds). A UNION, so it only ever adds:
+ * the old bar, or the ratio test.
  */
 export function isSignatureSynergy(card: SynergyFields): boolean {
+  if ((card.synergy ?? 0) > LEGACY_SIGNATURE_SYNERGY) return true;
   const r = readSynergy(card);
   return r != null && r.strength >= SIGNATURE_STRENGTH && r.lift >= SIGNATURE_MIN_LIFT;
 }
@@ -222,7 +262,7 @@ export function isAntiSynergy(card: SynergyFields): boolean {
   );
 }
 
-/** Descending-strength comparator for synergy-ordered lists. */
-export function bySynergyStrength(a: SynergyFields, b: SynergyFields): number {
-  return synergyStrength(b) - synergyStrength(a);
+/** Descending-score comparator for synergy-ordered lists. */
+export function bySynergyScore(a: SynergyFields, b: SynergyFields): number {
+  return synergyScore(b) - synergyScore(a);
 }
