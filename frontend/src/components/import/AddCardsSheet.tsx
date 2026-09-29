@@ -24,11 +24,15 @@ import type { ScryfallCard } from '@/deck-builder/types';
 /** Density tier boundary (STYLE_GUIDE § Layout system): desktop >=1024px gets
  *  the two-pane Search workbench; phone/tablet keep the single-column sheet. */
 const DESKTOP_QUERY = '(min-width: 1024px)';
-const CardScanner = lazy(() => import('@/components/scanner/CardScanner').then((m) => ({ default: m.CardScanner })));
+const CardScanner = lazy(() =>
+  import('@/components/scanner/CardScanner').then((m) => ({ default: m.CardScanner }))
+);
 // Lazy so its admin-scanner.css classes stay out of this page's eager chunk
 // (css-chunk-ownership.test.ts) — the sheet carries that stylesheet itself.
 const ScannerSettingsSheet = lazy(() =>
-  import('@/components/scanner/ScannerSettingsSheet').then((m) => ({ default: m.ScannerSettingsSheet }))
+  import('@/components/scanner/ScannerSettingsSheet').then((m) => ({
+    default: m.ScannerSettingsSheet,
+  }))
 );
 // Same reason: the Add-list review reuses the scanner's own sheets, whose
 // classes live in admin-scanner.css too.

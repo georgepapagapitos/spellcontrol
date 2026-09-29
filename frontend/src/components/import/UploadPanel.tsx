@@ -33,7 +33,9 @@ import { Modal } from '@/components/overlays/Modal';
 import { useCanScan } from '@/lib/scanner/use-can-scan';
 import { useSealMoment } from '@/components/shared/SealMoment';
 
-const CardScanner = lazy(() => import('@/components/scanner/CardScanner').then((m) => ({ default: m.CardScanner })));
+const CardScanner = lazy(() =>
+  import('@/components/scanner/CardScanner').then((m) => ({ default: m.CardScanner }))
+);
 import { ProgressBar } from './ProgressBar';
 import { StagedFileList } from './StagedFileList';
 import { ImportRoutingSummary } from './ImportRoutingSummary';

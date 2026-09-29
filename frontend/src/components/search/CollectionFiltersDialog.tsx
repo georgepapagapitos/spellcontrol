@@ -1,7 +1,12 @@
 import { ListFilter, X } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import type { ChipExpression, Condition, MaterializedBinder, ScryfallQueryRule } from '@/types/index';
+import type {
+  ChipExpression,
+  Condition,
+  MaterializedBinder,
+  ScryfallQueryRule,
+} from '@/types/index';
 import type { SetMap } from '@/lib/api';
 import { Modal } from '@/components/overlays/Modal';
 import { SetFilterPicker, setMapToOptions } from './SetFilterPicker';

@@ -47,7 +47,10 @@ describe('hub tab strips sit under the page header', () => {
   });
 
   it('the Collection layout route no longer renders a strip over its pages', () => {
-    const code = read('components/collection/CollectionHubLayout.tsx').replace(/\/\*[\s\S]*?\*\//g, '');
+    const code = read('components/collection/CollectionHubLayout.tsx').replace(
+      /\/\*[\s\S]*?\*\//g,
+      ''
+    );
     expect(code).not.toMatch(/<(HubTabsNav|CollectionHubTabs)\b/);
   });
 });

@@ -8,7 +8,13 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, it, expect, vi } from 'vitest';
-import type { BinderPage, BinderSection, EnrichedCard, MaterializedBinder, Volume } from '@/types/index';
+import type {
+  BinderPage,
+  BinderSection,
+  EnrichedCard,
+  MaterializedBinder,
+  Volume,
+} from '@/types/index';
 
 vi.mock('@/store/collection', () => ({
   useCollectionStore: (selector: (s: Record<string, unknown>) => unknown) =>

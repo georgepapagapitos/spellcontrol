@@ -66,7 +66,13 @@ import { colorPickFilter } from '@/lib/binder/binder-templates';
 import { BinderLadder } from './BinderLadder';
 import { BinderEditorPreview } from './BinderEditorPreview';
 import { BinderEditorPreviewStrip } from './BinderEditorPreviewStrip';
-import { ChoiceList, Disclosure, Field, SegmentedControl, SwitchRow } from '@/components/shared/form';
+import {
+  ChoiceList,
+  Disclosure,
+  Field,
+  SegmentedControl,
+  SwitchRow,
+} from '@/components/shared/form';
 import './BinderEditor.css';
 
 import type {
