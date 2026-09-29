@@ -71,7 +71,7 @@ export function BinderEditorPreviewStrip({ binder, loading, binderName }: Props)
     return (
       <div className="binder-editor-preview-strip is-placeholder">
         <EmptyState compact className="binder-editor-preview-strip-empty" as="p">
-          Nothing to preview. No cards match here yet.
+          No cards match here yet.
         </EmptyState>
       </div>
     );

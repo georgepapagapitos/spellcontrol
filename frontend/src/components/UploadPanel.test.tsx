@@ -305,9 +305,7 @@ describe('UploadPanel "mark all as proxies" toggle', () => {
     // The explainer is always-visible text (Field/SwitchRow contract), not an
     // InfoTip nested inside a <label> — the InfoTip pattern muddles the
     // label's accessible name and steals its click.
-    expect(
-      screen.getByText(/Proxy copies count as owned in your collection and binders/)
-    ).toBeTruthy();
+    expect(screen.getByText('Proxies count as owned but have no market value.')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /marking an import as proxies/i })).toBeNull();
   });
 
@@ -578,7 +576,7 @@ describe('UploadPanel Google Drive picker', () => {
     const warning = await screen.findByText(/You already imported/);
     expect(warning.closest('.import-reimport-warning')?.textContent).toContain(PRIOR.name);
     expect(warning.closest('.import-reimport-warning')?.textContent).toContain(
-      'Open Options below to replace instead'
+      'Replace it in Options instead'
     );
   });
 });

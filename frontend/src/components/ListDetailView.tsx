@@ -551,13 +551,7 @@ export function ListDetailView({
   const ownedBadge = (entry: ListEntry) => {
     const ownedQty = ownedCountForEntry(entry, ownedCards);
     if (ownedQty === 0) {
-      return tracking ? (
-        <VerdictBadge
-          tone="warn"
-          label="Not owned"
-          title="This card isn't in your collection right now"
-        />
-      ) : undefined;
+      return tracking ? <VerdictBadge tone="warn" label="Not owned" /> : undefined;
     }
     const fullyCovered = ownedQty >= entry.quantity;
     return (
@@ -767,7 +761,7 @@ export function ListDetailView({
             rows.length > 0
               ? 'No cards match your filters.'
               : dynamic
-                ? "Nothing in your collection matches this list's rule yet. New imports that match will appear here automatically."
+                ? 'Nothing in your collection matches this rule yet.'
                 : 'No cards in this list yet.'
           }
           actions={

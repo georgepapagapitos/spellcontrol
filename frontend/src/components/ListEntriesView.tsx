@@ -139,7 +139,7 @@ export function ListEntriesView({ list }: Props) {
                   dynamic
                   <InfoTip
                     label="dynamic list"
-                    text="Rule-driven. Matching cards from your collection appear here automatically."
+                    text="Cards from your collection that match its rule."
                   />
                 </span>
               </>
@@ -148,10 +148,7 @@ export function ListEntriesView({ list }: Props) {
                 {' · '}
                 <span>
                   tracking
-                  <InfoTip
-                    label="tracking list"
-                    text="Catalogues cards you own. Never treated as a want list."
-                  />
+                  <InfoTip label="tracking list" text="Cards you own. Never counted as wants." />
                 </span>
                 {list.entries.length > 0 &&
                   !loading &&
@@ -182,7 +179,7 @@ export function ListEntriesView({ list }: Props) {
                         ` (+${cost.unpricedCount.toLocaleString()} unpriced)`}
                       <InfoTip
                         label="cost to complete"
-                        text="Scryfall market price for everything on this list you don't already own."
+                        text="Scryfall market price for everything here you don't own."
                       />
                     </span>
                   )}

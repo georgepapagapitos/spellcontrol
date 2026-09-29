@@ -336,7 +336,7 @@ export function ListsPage() {
       ) : lists.length === 0 ? (
         <EmptyState
           tagline="No lists yet."
-          hint="A wishlist, a trade pile, or a rule that keeps itself current. Lists never touch your collection, binders, or decks."
+          hint="A wishlist, a trade pile, or a rule that keeps itself current. Lists never touch your collection."
           actions={
             <>
               <Button variant="primary" onClick={handleCreate}>
@@ -478,8 +478,8 @@ export function ListsPage() {
                   onChange={() => setCreateKind('want')}
                 />
                 <span>
-                  <strong>Want list</strong>: cards to acquire. Shows a cost to complete, and
-                  friends who have a card show up in your trade radar.
+                  <strong>Want list</strong>: cards to acquire. Shows a cost to complete and which
+                  friends have them.
                 </span>
               </label>
               <label className="name-input-mode">
@@ -490,8 +490,8 @@ export function ListsPage() {
                   onChange={() => setCreateKind('tracking')}
                 />
                 <span>
-                  <strong>Tracking list</strong>: a hand-picked set of cards you own, like every
-                  eligible commander across your binders. Never treated as wants.
+                  <strong>Tracking list</strong>: cards you own, like every commander across your
+                  binders. Never counted as wants.
                 </span>
               </label>
             </fieldset>

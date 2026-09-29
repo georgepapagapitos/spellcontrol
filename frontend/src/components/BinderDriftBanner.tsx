@@ -36,30 +36,26 @@ const celebratedBinderCleared = new Set<string>();
 const DRIFT_TIP = (
   <>
     <p className="info-tip-lead">
-      <strong>To file</strong> lists the cards that changed binder since this binder last matched
-      the one on your shelf. Rule matches shift as prices, EDHREC rank, and format legality change,
-      even without you touching anything.
+      <strong>To file</strong> lists cards that changed binder since this one last matched your
+      shelf.
     </p>
     <ul className="info-tip-list">
       <li>
-        <strong>Incoming (binder → here):</strong> cards that now file to this binder. The left side
-        of each group is where the cardboard sits now, so you know which binder to pull it from.{' '}
-        <strong>Added it</strong> means you've physically slotted the card in;{' '}
-        <strong>Don't add</strong> excludes it (it re-files to wherever it would land next).
+        <strong>Incoming (binder → here):</strong> cards that now file here.{' '}
+        <strong>Added it</strong> means you've slotted the card in; <strong>Don't add</strong>{' '}
+        excludes it.
       </li>
       <li>
-        <strong>Outgoing (here → binder):</strong> cards that no longer file here, grouped by where
-        they're headed. <strong>Moved it</strong> means you've physically re-filed the card;{' '}
-        <strong>Keep it here</strong> pins it back into this binder.
+        <strong>Outgoing (here → binder):</strong> cards that no longer file here.{' '}
+        <strong>Moved it</strong> means you've re-filed the card; <strong>Keep it here</strong> pins
+        it back.
       </li>
       <li>
-        <strong>One move, one confirmation:</strong> a card moving between two binders shows in both
-        queues, as outgoing in one and incoming in the other. Confirming it in either binder checks
-        off the matching row in the other. You never file the same move twice.
+        <strong>One move, one confirmation:</strong> confirming a card in either binder checks it
+        off in both.
       </li>
       <li>
-        <strong>All filed</strong> means "the binder on my shelf matches this one now." It checks
-        off everything in one go, and the list counts from there.
+        <strong>All filed</strong> checks off everything at once.
       </li>
     </ul>
   </>
@@ -433,9 +429,7 @@ function AddedGroupBlock({
         )}
       </div>
       {isImport && (
-        <p className="binder-drift-group-note">
-          Newly imported, so they file here by rule. Confirm once you have slotted them in.
-        </p>
+        <p className="binder-drift-group-note">Newly imported, so they file here by rule.</p>
       )}
       <ul className="binder-drift-queue-list" id={listId} hidden={!showRows}>
         {group.rows.map((row) => (

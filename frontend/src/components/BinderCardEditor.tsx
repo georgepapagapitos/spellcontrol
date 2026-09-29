@@ -287,9 +287,7 @@ function CardsTab({
   if (activeCards.length === 0 && excludedCards.length === 0) {
     return (
       <p className="binder-card-editor-empty">
-        {query
-          ? `No cards match “${query}”`
-          : 'No cards yet. Use “Add cards” to add cards from your collection.'}
+        {query ? `No cards match “${query}”` : 'No cards yet. Use “Add cards” to pick some.'}
       </p>
     );
   }
@@ -416,11 +414,7 @@ function OrderTab({
             rules are paused (only added cards show). This is only the order. */}
         <SwitchRow
           label="Custom order"
-          hint={
-            isManualOrder
-              ? 'Drag cards to rearrange. New cards go after your ordered list.'
-              : "Cards follow this binder's sort. Turn on to drag cards into place."
-          }
+          hint={isManualOrder ? 'New cards go last.' : undefined}
           checked={isManualOrder}
           onChange={() => onToggleManualOrder()}
         />

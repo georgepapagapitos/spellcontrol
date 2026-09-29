@@ -89,7 +89,7 @@ export function ImportHistorySheet({ onClose }: Props) {
                         className="import-history-check"
                         title={
                           selectable
-                            ? 'Select this import to delete'
+                            ? undefined
                             : 'This import predates per-import delete. Clear your collection in Settings to remove it.'
                         }
                       >

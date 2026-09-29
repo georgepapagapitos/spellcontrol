@@ -838,12 +838,7 @@ function DialogBody({
               />
             )}
             {showOptions && (
-              <SwitchRow
-                label="Group printings"
-                hint="Combine identical printings of a card into one row."
-                checked={draftGroup}
-                onChange={setDraftGroup}
-              />
+              <SwitchRow label="Group printings" checked={draftGroup} onChange={setDraftGroup} />
             )}
           </section>
         )}

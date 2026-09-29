@@ -225,7 +225,7 @@ export function BindersIndexPage() {
   const handleDeleteAll = useCallback(async () => {
     const ok = await confirm({
       title: `Delete all ${binders.length} binders?`,
-      body: `Every binder definition will be removed. Your cards fall back to the Uncategorized view. You can undo from the toast.`,
+      body: `Every binder will be removed and your cards fall back to Uncategorized. You can undo from the toast.`,
       confirmLabel: 'Delete all binders',
       danger: true,
     });
@@ -248,7 +248,7 @@ export function BindersIndexPage() {
     const ids = Array.from(sel.selected);
     const ok = await confirm({
       title: `Delete ${ids.length} selected binder${ids.length === 1 ? '' : 's'}?`,
-      body: `Their cards route to your other binders. Anything that no longer matches falls back to the Collection view. You can undo from the toast.`,
+      body: `Their cards move to your other binders, or to the Collection view. You can undo from the toast.`,
       confirmLabel: 'Delete binders',
       danger: true,
     });
@@ -399,7 +399,7 @@ export function BindersIndexPage() {
         cards.length === 0 ? (
           <EmptyState
             tagline="No binders yet."
-            hint="Binders sort your collection by rule. Import it first, or try the samples to see how."
+            hint="Import your collection first, or try the samples."
             actions={
               <>
                 <Button variant="primary" to="/collection">
@@ -414,7 +414,7 @@ export function BindersIndexPage() {
         ) : (
           <EmptyState
             tagline="Build your first binder."
-            hint="A binder is a rule that catches cards from your collection: one per deck, format, or theme."
+            hint="A binder is a rule that catches cards from your collection."
             actions={
               <>
                 <Button variant="primary" onClick={() => setPlanShelfOpen(true)}>
@@ -470,17 +470,9 @@ export function BindersIndexPage() {
                       </p>
                       <ul className="info-tip-list">
                         <li>
-                          A card lands in exactly one binder: the first one, top to bottom, whose
-                          rules match it.
+                          A binder further down only sees the cards every binder above passed on.
                         </li>
-                        <li>
-                          A binder further down only ever sees the cards every binder above it
-                          passed on.
-                        </li>
-                        <li>
-                          Reorder from a row's ⋮ menu (Move up / Move down). You'll get a toast
-                          showing how many cards moved.
-                        </li>
+                        <li>Reorder from a row's ⋮ menu (Move up / Move down).</li>
                       </ul>
                     </>
                   }
@@ -713,8 +705,8 @@ function SamplesIntroDialog({
       </h2>
       <p className="choice-dialog-body">
         {bindersOnly
-          ? `This creates ${SAMPLE_BINDERS.length} sample binders that show off the rule system. They filter your existing collection. No extra cards are added.`
-          : `This will create ${SAMPLE_BINDERS.length} sample binders that show off the rule system, plus a starter pack of ${SAMPLE_CARDS.length} cards so each binder has visible matches.`}
+          ? `Adds ${SAMPLE_BINDERS.length} sample binders. They filter your existing collection and add no cards.`
+          : `Adds ${SAMPLE_BINDERS.length} sample binders and a starter pack of ${SAMPLE_CARDS.length} cards.`}
       </p>
       <ul className="samples-intro-list">
         {SAMPLE_BINDERS.map((s) => (
@@ -727,14 +719,14 @@ function SamplesIntroDialog({
         <strong>Removing samples later:</strong>
       </p>
       <ul className="samples-intro-list">
-        <li>Each sample binder has Delete in its card menu. That removes just that binder.</li>
+        <li>Delete a sample binder from its card menu.</li>
         {!bindersOnly && (
           <li>
             The bundled cards land in{' '}
             <Link to="/collection" className="link-warn">
               Collection → Import history
             </Link>{' '}
-            as "Sample: starter pack". Tick its checkbox and Delete selected to remove them.
+            as "Sample: starter pack". Select it and delete to remove them.
           </li>
         )}
       </ul>

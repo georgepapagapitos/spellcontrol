@@ -290,9 +290,7 @@ export function ScannerQueueSheet({
               <div className="scanner-sheet-empty">
                 <Camera width={32} height={32} strokeWidth={1.6} aria-hidden />
                 <p className="scanner-sheet-empty-title">No cards scanned yet</p>
-                <p className="scanner-sheet-empty-hint">
-                  Point the camera at a card. Each one you scan lands here.
-                </p>
+                <p className="scanner-sheet-empty-hint">Each card you scan lands here.</p>
                 <Button
                   icon={<Plus width={14} height={14} strokeWidth={1.8} />}
                   onClick={() => setMode('search')}
@@ -625,7 +623,6 @@ function BulkEdit({
       <div className="modal-header scanner-sheet-head">
         <div className="scanner-sheet-heading">
           <h2 id="scanner-bulk-title">Edit {countLabel(count)}</h2>
-          <span className="scanner-sheet-sub">Changes apply to every selected card</span>
         </div>
         <IconButton
           variant="quiet"
@@ -650,7 +647,7 @@ function BulkEdit({
               onFinish(f);
             }}
           />
-          <p className="form-field-hint">A card with no foil printing stays Normal.</p>
+          <p className="form-field-hint">A card with no foil printing stays Non-foil.</p>
         </div>
         <div className="scanner-edit-field">
           <span className="form-field-label">Condition</span>

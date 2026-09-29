@@ -78,7 +78,6 @@ export function SortPresetList({
                 <ChevronRight width={14} height={14} strokeWidth={1.8} aria-hidden />
               </span>
             ),
-            hint: 'Pick and order the fields yourself',
           },
         ]}
       />
@@ -123,7 +122,6 @@ export function SortPresetChips({
       <Chip
         className={`sort-preset-chip${isFields ? ' is-selected' : ''}`}
         pressed={isFields}
-        title="Pick and order the fields yourself"
         icon={isFields ? <Check width={12} height={12} strokeWidth={2} /> : undefined}
         onClick={onChooseFields}
       >

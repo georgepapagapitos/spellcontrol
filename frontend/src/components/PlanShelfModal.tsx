@@ -261,13 +261,9 @@ export function PlanShelfModal({ onClose }: { onClose: () => void }) {
       </div>
       <div className="modal-body plan-shelf-body">
         {noCollection ? (
-          <p className="plan-shelf-empty">
-            Import your collection first. A shelf is planned from the cards you own.
-          </p>
+          <p className="plan-shelf-empty">Import your collection first.</p>
         ) : allFiled ? (
-          <p className="plan-shelf-empty">
-            Every card you own already has a binder. Nothing is left to plan a shelf from.
-          </p>
+          <p className="plan-shelf-empty">Every card you own already has a binder.</p>
         ) : (
           <>
             <section className="plan-shelf-section">
@@ -286,10 +282,7 @@ export function PlanShelfModal({ onClose }: { onClose: () => void }) {
 
             <section className="plan-shelf-section">
               <h3 className="form-section-heading">Pull these out first</h3>
-              <p className="form-field-hint">
-                They go at the front of the shelf, so they take their cards before the split below
-                does.
-              </p>
+              <p className="form-field-hint">They go first, ahead of the split below.</p>
               <ul className="plan-shelf-rows">
                 {pullOutRows.map((row, i) => (
                   <Row
@@ -332,8 +325,8 @@ export function PlanShelfModal({ onClose }: { onClose: () => void }) {
                 </strong>
                 <p className="plan-shelf-totals-hint">
                   {splitsIntoVolumes
-                    ? `Rows over ${DEFAULT_PLAN_CAPACITY.toLocaleString()} cards split into volumes. Raise the size later in each binder's Pages settings.`
-                    : `Each binder holds ${DEFAULT_PLAN_CAPACITY.toLocaleString()} cards, 9 to a page. A row with nothing left for it isn't created.`}
+                    ? `Rows over ${DEFAULT_PLAN_CAPACITY.toLocaleString()} cards split into volumes.`
+                    : `Each binder holds ${DEFAULT_PLAN_CAPACITY.toLocaleString()} cards, 9 to a page.`}
                 </p>
                 {binders.length > 0 && (
                   <p className="plan-shelf-totals-hint">

@@ -93,9 +93,7 @@ describe('PlanShelfModal', () => {
 
   it('an empty collection gets an honest empty state, no picker', () => {
     renderModal();
-    expect(
-      screen.getByText('Import your collection first. A shelf is planned from the cards you own.')
-    ).toBeTruthy();
+    expect(screen.getByText('Import your collection first.')).toBeTruthy();
     expect(screen.queryByRole('radio', { name: /By color/ })).toBeFalsy();
     // No dead "Create 0 binders": the way forward is importing.
     expect(screen.queryByRole('button', { name: /Create/ })).toBeFalsy();
@@ -199,11 +197,7 @@ describe('PlanShelfModal', () => {
     useCollectionStore.setState({ cards: bigPile(), binders: [catchAll] });
     renderModal();
     await waitFor(() =>
-      expect(
-        screen.getByText(
-          'Every card you own already has a binder. Nothing is left to plan a shelf from.'
-        )
-      ).toBeTruthy()
+      expect(screen.getByText('Every card you own already has a binder.')).toBeTruthy()
     );
     expect(screen.queryByRole('radio', { name: /By color/ })).toBeFalsy();
     expect(screen.queryByRole('button', { name: /Create/ })).toBeFalsy();

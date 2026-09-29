@@ -133,12 +133,6 @@
   outline-offset: 2px;
 }
 
-.binder-editor-preview-hint {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-}
-
 .binder-editor-preview-empty {
   margin: 0;
   color: var(--text-muted);

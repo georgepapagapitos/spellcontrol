@@ -127,7 +127,6 @@ export function ScannerEditSheet({
                     {FINISH_LABELS[entry.finish]} · {conditionLabel(condition)}
                   </p>
                   {owned > 0 && <p className="scanner-edit-owned">You own {owned} already</p>}
-                  <p className="scanner-edit-meta">Tap the card to see it full size.</p>
                 </div>
               )}
             </div>

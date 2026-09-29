@@ -314,7 +314,7 @@ describe('CollectionPage – Delete collection from ⋮', () => {
 
     // The store offers Undo from its toast, so the final step must not claim otherwise.
     expect(screen.getByRole('heading', { name: 'Last chance: delete everything?' })).toBeTruthy();
-    expect(screen.getByText(/only way to undo it/)).toBeTruthy();
+    expect(screen.getByText(/Undo is only in the toast that follows/)).toBeTruthy();
     expect(screen.queryByText(/can't be undone/)).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Delete everything' }));
 

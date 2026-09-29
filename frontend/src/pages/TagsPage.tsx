@@ -113,8 +113,7 @@ export function TagsPage() {
       <header className="tags-page-head">
         <h1>Browse by tag</h1>
         <p className="tags-page-sub">
-          Find cards by what they do, not what they're called. Pick a function to see every card
-          that does it. No commander required.
+          Find cards by what they do. Pick a function to see every card with it.
         </p>
       </header>
 
@@ -191,7 +190,6 @@ export function TagsPage() {
             <div className="tags-page-status" role="alert">
               <p>Couldn't load the tag list.</p>
               <p>
-                The tag snapshot ships with the app, so this is usually a one-off.{' '}
                 <button type="button" className="tags-retry" onClick={() => void ensureCardTags()}>
                   Retry
                 </button>
@@ -274,7 +272,7 @@ export function TagsPage() {
         unknown.length === 0 && (
           <EmptyState
             tagline="Pick a tag to see what it finds."
-            hint="Combine tags to narrow: “sweeper” plus “instant speed” is a much shorter list."
+            hint="Combine tags to narrow the list, like “sweeper” plus “instant speed”."
           />
         )
       )}

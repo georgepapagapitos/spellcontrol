@@ -197,14 +197,12 @@ export function CollectionPage() {
                       label: 'Export',
                       icon: Download,
                       opensDialog: true,
-                      title: 'Download your collection for another tool',
                       onClick: () => setExportOpen(true),
                     },
                     {
                       label: 'Share',
                       icon: Share2,
                       opensDialog: true,
-                      title: 'Choose who can see your collection',
                       onClick: () => setShareOpen(true),
                     },
                     {

@@ -112,7 +112,7 @@ export function BinderView({
     return (
       <EmptyState
         tagline="No cards match this binder's rules."
-        hint="Loosen a rule or add another match group, and cards from your collection file in here."
+        hint="Loosen a rule to catch more cards."
         actions={
           <Button variant="primary" onClick={() => setEditingBinder(active.def.id)}>
             Binder rules

@@ -299,8 +299,7 @@ export function BinderStartChooser({
           <span className="binder-start-shelf-text">
             <span className="binder-start-tile-label">Organize my whole collection</span>
             <span className="binder-start-tile-desc">
-              A set of binders that covers everything, by color, by set or by value. You pick which
-              to keep.
+              Binders that cover everything. You pick which to keep.
             </span>
           </span>
           <span className="binder-start-shelf-cta">Plan a shelf</span>
@@ -359,9 +358,7 @@ export function BinderStartChooser({
             onClick={() => onPick({ kind: 'import' })}
           >
             <span className="binder-start-tile-label">From a list</span>
-            <span className="binder-start-tile-desc">
-              Paste a list or upload CSV files. Cards are added and kept in your order.
-            </span>
+            <span className="binder-start-tile-desc">Paste a list or upload CSV files.</span>
           </button>
         </div>
       </div>

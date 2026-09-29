@@ -74,9 +74,7 @@ export function ScannerSettingsSheet({
             ]}
             onChange={(defaultFinish) => s.set({ defaultFinish })}
           />
-          <p className="form-field-hint">
-            Opening a box of foils? Set Foil once. A card with no foil printing stays Non-foil.
-          </p>
+          <p className="form-field-hint">A card with no foil printing stays Non-foil.</p>
         </div>
         <ConditionControl
           value={s.defaultCondition}
@@ -102,7 +100,6 @@ export function ScannerSettingsSheet({
             />
             <SwitchRow
               label="Show the running total"
-              hint="The value of everything scanned so far, beside the card count."
               checked={s.showTotal}
               onChange={(showTotal) => s.set({ showTotal })}
             />

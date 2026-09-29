@@ -76,7 +76,7 @@ describe('BinderEditorPreviewStrip', () => {
       totalPages: 0,
     };
     render(<BinderEditorPreviewStrip binder={empty} loading={false} binderName="Draft" />);
-    expect(screen.getByText(/nothing to preview/i)).toBeTruthy();
+    expect(screen.getByText(/no cards match here/i)).toBeTruthy();
   });
 
   it('summarizes pages, the first section and capacity', () => {

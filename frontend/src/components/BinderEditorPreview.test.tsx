@@ -76,7 +76,7 @@ describe('BinderEditorPreview', () => {
       totalPages: 0,
     };
     render(<BinderEditorPreview binder={empty} loading={false} />);
-    expect(screen.getByText(/nothing to preview/i)).toBeTruthy();
+    expect(screen.getByText(/no cards match here/i)).toBeTruthy();
   });
 
   it('renders the first spread of pages, stats and the sections list', () => {

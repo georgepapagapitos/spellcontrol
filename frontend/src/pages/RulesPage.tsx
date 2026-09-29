@@ -138,10 +138,7 @@ export function RulesPage() {
     <div className="rules-page">
       <header className="rules-page-header">
         <h1 className="rules-page-heading">Rules</h1>
-        <p className="rules-page-sub">
-          Look up a keyword, a glossary term, or a rule by number in the official Comprehensive
-          Rules.
-        </p>
+        <p className="rules-page-sub">Search the Comprehensive Rules by keyword or rule number.</p>
       </header>
 
       <Tabs<PageTab>
@@ -316,7 +313,7 @@ function RulesAsk({ seed }: { seed?: string }) {
         <RulesAskHeader />
         <DeckAiConsent
           title="Ask a rules question"
-          blurb={`AI answers Magic rules questions, grounded in the Comprehensive Rules and the cards involved, and cites its sources. Turning this on sends your question to Anthropic when you press Ask. You get ${status.limit} uses a day, shared across AI features, and can turn it off anytime in Settings.`}
+          blurb={`AI answers rules questions from the Comprehensive Rules and the cards involved, with citations. Turning this on sends your question to Anthropic when you press Ask. You get ${status.limit} uses a day, shared across AI features. Turn it off anytime in Settings.`}
         />
       </div>
     );
@@ -497,8 +494,7 @@ function RulesAskHeader() {
         <AiMarker label="AI-written" />
       </h2>
       <p className="rules-page-sub">
-        Ask how an interaction works. Answers are grounded in the Comprehensive Rules and the exact
-        text of the cards involved, and cite the rules they rely on.
+        Ask how an interaction works. Answers cite the rules and the cards involved.
       </p>
     </header>
   );
