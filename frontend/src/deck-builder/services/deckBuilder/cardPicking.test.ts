@@ -180,6 +180,17 @@ describe('calculateCardPriority', () => {
     expect(calculateCardPriority(HEROIC_INTERVENTION)).toBeLessThan(HEROIC_INTERVENTION.inclusion);
   });
 
+  it('is never negative, however hard a card is avoided', () => {
+    // Cultivate's ratio term (15 x log2 0.38 = -21) outweighs its 15.7% play
+    // rate. Budget convergence shortlists by `priority >= best x band`, which
+    // picked nothing (and crashed) when the best candidate went negative.
+    expect(ratioTerm(CULTIVATE) + CULTIVATE.inclusion).toBeLessThan(0);
+    for (const c of ALL_ROWS) {
+      for (const b of DIAL) expect(calculateCardPriority(c, b)).toBeGreaterThanOrEqual(0);
+    }
+    expect(calculateCardPriority(CULTIVATE)).toBe(0);
+  });
+
   it('falls back to inclusion for a row with no synergy, plus a new-card boost', () => {
     const synthesized = ec({ name: 'Arcane Signet', inclusion: 20, num_decks: 0 });
     expect(calculateCardPriority(synthesized)).toBe(20);

@@ -238,7 +238,7 @@ export const SYNERGY_SCORE_POINTS = 15;
 // tier the term is the continuous ratio reading: a 12%-vs-1% card (+0.11,
 // once worth nothing) now gains ~54 points and outranks a 40%-vs-20% card
 // (+0.20, ~15 points), and a card the commander's players avoid (lift < 1)
-// goes negative. The one jump left is at +0.3, where the old floor starts; it
+// takes a negative term (the priority itself is floored at 0). The one jump left is at +0.3, where the old floor starts; it
 // is max(0, 30 − ratioTerm), zero for any card whose ratio already reads 30
 // points (lift ≥ 4 at 10%+ play rate), where the old jump was always 30.
 //
@@ -290,7 +290,13 @@ export function calculateCardPriority(card: EDHRECCard, brewLevel: number = 0.5)
   const newCardBoost = card.isNewCard ? 25 : 0;
 
   const term = synergy > LEGACY_SIGNATURE_SYNERGY ? Math.max(synergy * 100, ratioTerm) : ratioTerm;
-  return term * synergyMul + inclusion * inclusionMul + newCardBoost;
+  // Floored at 0: an avoided card's negative term can sink it to the bottom
+  // of the pool, never below zero. Priority was never negative before E510,
+  // and callers lean on that: budget convergence shortlists by
+  // `priority >= best × PRIORITY_BAND`, which selects nothing when the best
+  // candidate is negative (it crashed a live Krenko $50 build), and the
+  // land-squeeze and surplus phases divide by a pool's mean priority.
+  return Math.max(0, term * synergyMul + inclusion * inclusionMul + newCardBoost);
 }
 
 // Owned-first ('prefer' strategy): a bounded boost so owned cards win ties and
