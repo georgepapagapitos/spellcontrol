@@ -1,5 +1,9 @@
 import { getPool } from '../db';
-import { invalidateDeckPublicationCache, invalidatePublicUserCache } from './cache';
+import {
+  brewerRailsCache,
+  invalidateDeckPublicationCache,
+  invalidatePublicUserCache,
+} from './cache';
 import { invalidateShareContext } from '../shares/context';
 
 /**
@@ -21,6 +25,8 @@ export async function purgeUserPublicCaches(userId: string): Promise<void> {
   ]);
   for (const { slug } of pubs.rows) invalidateDeckPublicationCache(slug);
   for (const { token } of tokens.rows) invalidateShareContext(token);
+  // The Brewers rails name accounts too (a hidden or deleted one must leave them).
+  brewerRailsCache.clear();
   await invalidatePublicUserCacheById(userId);
 }
 

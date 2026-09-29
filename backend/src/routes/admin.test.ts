@@ -515,6 +515,8 @@ describe('POST /api/admin/users/:id/clear-profile', () => {
       avatarCardId: null,
       avatarCardName: null,
       avatarImageUrl: null,
+      pinnedDeckSlug: null,
+      showGameRecord: false,
     });
   });
 });

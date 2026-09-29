@@ -144,6 +144,8 @@ describe('GET /api/auth/me', () => {
       avatarCardId: null,
       avatarCardName: null,
       avatarImageUrl: null,
+      pinnedDeckSlug: null,
+      showGameRecord: false,
     });
   });
 });
@@ -246,6 +248,8 @@ describe('PATCH /api/auth/profile', () => {
       avatarCardId: avatar.cardId,
       avatarCardName: avatar.cardName,
       avatarImageUrl: avatar.imageUrl,
+      pinnedDeckSlug: null,
+      showGameRecord: false,
     });
 
     const me = await request(app).get('/api/auth/me').set('Cookie', cookie);
