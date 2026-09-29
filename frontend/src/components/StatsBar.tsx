@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { ChevronRight, X } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
@@ -241,7 +242,7 @@ function SharedCopiesSheet({ rows, onClose }: { rows: SharedCopyRow[]; onClose: 
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
   const dismiss = () => beginClose();
 
-  return (
+  return createPortal(
     <div
       className="card-picker-root"
       role="presentation"
@@ -284,7 +285,8 @@ function SharedCopiesSheet({ rows, onClose }: { rows: SharedCopyRow[]; onClose: 
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -296,7 +298,7 @@ function CloseToDoneSheet({ rows, onClose }: { rows: CloseToDoneRow[]; onClose: 
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
   const dismiss = () => beginClose();
 
-  return (
+  return createPortal(
     <div
       className="card-picker-root"
       role="presentation"
@@ -335,7 +337,8 @@ function CloseToDoneSheet({ rows, onClose }: { rows: CloseToDoneRow[]; onClose: 
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -571,7 +574,7 @@ function StatsDrawer({
     [sortedRows, groupBy]
   );
 
-  return (
+  return createPortal(
     <div className="stats-drawer-root">
       <div
         className={`stats-drawer-backdrop${isClosing ? ' is-closing' : ''}`}
@@ -743,6 +746,7 @@ function StatsDrawer({
       {closeToDoneSheetOpen && (
         <CloseToDoneSheet rows={closeToDoneRows} onClose={() => setCloseToDoneSheetOpen(false)} />
       )}
-    </div>
+    </div>,
+    document.body
   );
 }

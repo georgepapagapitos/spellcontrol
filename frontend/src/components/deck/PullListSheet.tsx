@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { type JSX, useCallback, useId, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
@@ -120,7 +121,7 @@ export function PullListSheet({
           ? `All ${totalQty} pulled.`
           : `${pulledQty} of ${totalQty} pulled.`;
 
-  return (
+  return createPortal(
     <div
       className="card-picker-root pull-list-root"
       onClick={(e) => {
@@ -247,6 +248,7 @@ export function PullListSheet({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

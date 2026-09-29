@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import './DeckSizePrompt.css';
 import { type JSX, type ReactNode, useMemo, useState } from 'react';
 import { ArrowLeftRight, Plus } from 'lucide-react';
@@ -209,7 +210,7 @@ export function DeckSizePrompt({
     { instantAt: '(min-width: 1024px)' }
   );
 
-  return (
+  return createPortal(
     <div
       className="card-picker-root"
       onClick={(e) => {
@@ -316,6 +317,7 @@ export function DeckSizePrompt({
             exactly the bug this line retires. */}
         {carousel.preview}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -89,14 +89,14 @@ describe('CtxMenuShell', () => {
 
   it('closes when the backdrop is clicked, not the menu body', () => {
     const onClose = vi.fn();
-    const { container, getByRole } = render(
+    const { getByRole } = render(
       <CtxMenuShell x={10} y={10} title="Brago" variant="floating" onClose={onClose}>
         {items()}
       </CtxMenuShell>
     );
     fireEvent.click(getByRole('menu'));
     expect(onClose).not.toHaveBeenCalled();
-    fireEvent.click(container.querySelector('.ctx-menu__backdrop')!);
+    fireEvent.click(document.querySelector('.ctx-menu__backdrop')!);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
@@ -111,7 +111,7 @@ describe('CtxMenuShell', () => {
         </CtxMenuShell>
       </>
     );
-    const backdrop = container.querySelector('.ctx-menu__backdrop')!;
+    const backdrop = document.querySelector('.ctx-menu__backdrop')!;
     const felt = container.querySelector('[data-testid="felt"]')!;
     // happy-dom does no layout, so say what is stacked at the point.
     document.elementsFromPoint = vi.fn(() => [backdrop, felt]);
@@ -154,7 +154,7 @@ describe('CtxMenuShell', () => {
     const { container, getByText } = render(<Harness />);
     fireEvent.click(getByText('Step 0'));
     expect(getByText('Step 1')).toBeTruthy();
-    const backdrop = container.querySelector('.ctx-menu__backdrop')!;
+    const backdrop = document.querySelector('.ctx-menu__backdrop')!;
     document.elementsFromPoint = vi.fn(() => [
       backdrop,
       container.querySelector('[data-testid="card"]')!,
