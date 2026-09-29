@@ -845,6 +845,14 @@ references. Rules:
   #843) and never hit `api.scryfall.com?format=image`.
 - Covers are **decorative**: `alt=""` + `aria-hidden`; the tile's name text is
   the accessible label.
+- **A badge on the cover that names a count goes where the count is.** Home's
+  "+N new cards" was a label the click fell through, so it opened the deck
+  and the N cards were nowhere on screen. A badge like that is its own link,
+  a sibling of the tile's link (a link can't nest inside one), pinned over
+  the art the way the ⋮ is, with a hit area past the ~20px plate and its own
+  accessible name ("Review 2 new cards for Krenko"). Its destination shows
+  exactly the counted items, so the number on the badge and the number where
+  it lands are the same one. `.home-deck-arrivals-link` is the reference.
 
 ### The meta line under a tile/row name is ONE flex row
 

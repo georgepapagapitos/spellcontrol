@@ -164,6 +164,11 @@ import { BuildReportSheet } from '../components/deck/BuildReportSheet';
 import { isBuildReportSeen } from '../lib/build-report-seen';
 import type { ComboMatch, ComboSeedContext } from '../types/combos';
 import { computeNewArrivals, type ArrivalsByType } from '../lib/new-arrivals';
+import {
+  coachWantedNames,
+  narrowArrivals,
+  rememberArrivalWatchlist,
+} from '../lib/arrival-watchlist';
 import { BackLink } from '../components/BackLink';
 import { ColorPicker } from '../components/ColorPicker';
 import { Modal } from '../components/Modal';
@@ -261,6 +266,7 @@ export function DeckEditorPage() {
   // folds them in so a copy in a cube reads as committed (not free for a deck).
   const savedCubes = useCubeStore((s) => s.saved);
   const importHistory = useCollectionStore((s) => s.importHistory);
+  const collectionHydrating = useCollectionStore((s) => s.hydrating);
   // BinderPage's decorated cards (tags, Secret Lair drops, release dates, each
   // only when a binder uses it), so every binder answer on this page agrees
   // with the binder view.
@@ -502,14 +508,22 @@ export function DeckEditorPage() {
   // E458: same one-shot pattern for the upgrade plan ("Plan upgrades" on a
   // freshly added precon lands on `?view=tune&plan=1`).
   const [planOpen, setPlanOpen] = useState(() => searchParams.get('plan') === '1');
+  // Same one-shot pattern for Home's "+N new cards" badge (`?arrivals=1`),
+  // which lands on the new-arrivals sheet with those cards in it.
+  const [arrivalsDeepLink] = useState(() => searchParams.get('arrivals') === '1');
 
   useEffect(() => {
-    if (searchParams.get('export') === '1' || searchParams.get('plan') === '1') {
+    if (
+      searchParams.get('export') === '1' ||
+      searchParams.get('plan') === '1' ||
+      searchParams.get('arrivals') === '1'
+    ) {
       // Strip the params from the URL without adding a history entry so a
       // refresh — or a later bookmarked visit — doesn't re-open the dialog.
       const next = new URLSearchParams(searchParams);
       next.delete('export');
       next.delete('plan');
+      next.delete('arrivals');
       setSearchParams(next, { replace: true });
     }
     // Run only once on mount — the param value is already captured in state.
@@ -1323,28 +1337,40 @@ export function DeckEditorPage() {
         : [],
     [deck, substitutionPlan, landUpgrades, deckCardNames, aiScope, ownedNames]
   );
-  // New arrivals, tailored to THIS deck: only cards the coach already
-  // recommends for it (the refine pool — gaps, synergy, substitutes, hidden
-  // gems, land upgrades) or that finish a one-away combo. The raw arrivals are
-  // "in colour identity, acquired since the deck last changed", which on any
-  // real import reads as random — every red card you bought lit up a Krenko
-  // deck. lib/new-arrivals.ts keeps the raw form: Home's arrivals signal wants
-  // it, so the narrowing lives here, at the one deck-scoped consumer.
-  const coachArrivals = useMemo<ArrivalsByType>(() => {
-    const wanted = new Set<string>();
-    for (const p of refinePool) wanted.add(p.name.toLowerCase());
-    for (const m of mainboardComboData?.oneAway ?? []) {
-      if (m.missingOracleIds.length !== 1) continue;
-      const piece = m.combo.cards.find((c) => c.oracleId === m.missingOracleIds[0]);
-      if (piece) wanted.add(piece.cardName.toLowerCase());
-    }
-    const out: ArrivalsByType = {};
-    for (const [bucket, rows] of Object.entries(arrivalsByType)) {
-      const kept = rows.filter((r) => wanted.has(r.name.toLowerCase()));
-      if (kept.length > 0) out[bucket as keyof ArrivalsByType] = kept;
-    }
-    return out;
-  }, [arrivalsByType, refinePool, mainboardComboData]);
+  // New arrivals, tailored to THIS deck: only cards the coach recommends for
+  // it or that finish a one-away combo (lib/arrival-watchlist.ts says which
+  // lanes, and why not the owned-only ones). The raw arrivals are "in colour
+  // identity, acquired since the deck last changed", which on any real import
+  // reads as random: every red card you bought lit up a Krenko deck.
+  const coachWanted = useMemo(
+    () =>
+      coachWantedNames(
+        {
+          gaps: deck?.gapAnalysis,
+          synergy: deck?.synergyAnalysis?.suggestions,
+          hiddenGems: deck?.hiddenGems,
+        },
+        mainboardComboData?.oneAway
+      ),
+    [deck?.gapAnalysis, deck?.synergyAnalysis, deck?.hiddenGems, mainboardComboData]
+  );
+  const coachArrivals = useMemo(
+    () => narrowArrivals(arrivalsByType, coachWanted),
+    [arrivalsByType, coachWanted]
+  );
+  // The wanted list is what Home's "+N new cards" narrows by, so Home and this
+  // page count the same cards (lib/arrival-watchlist.ts). Recorded only once
+  // every input has landed: a list taken mid-load (collection still
+  // hydrating, combos still fetching) is short, and Home would under-count.
+  const arrivalsSettled = !collectionHydrating && !comboData.loading;
+  const deckIdForWatch = deck?.id;
+  // Joined so the selector returns a primitive: other decks' edits don't
+  // re-render this page, only a deck being added or deleted.
+  const liveDeckIds = useDecksStore((s) => s.decks.map((d) => d.id).join(','));
+  useEffect(() => {
+    if (!deckIdForWatch || !arrivalsSettled) return;
+    rememberArrivalWatchlist(deckIdForWatch, coachWanted, liveDeckIds.split(','));
+  }, [deckIdForWatch, arrivalsSettled, coachWanted, liveDeckIds]);
   // Same-role re-roll index for the AI panel's swap rows — built from the engine
   // pool so a re-roll never needs another model call.
   //
@@ -3389,6 +3415,7 @@ export function DeckEditorPage() {
             ownedOracleIds={ownedOracleIdSet}
             landUpgradeCount={landUpgrades.length}
             arrivalsByType={coachArrivals}
+            autoOpenArrivals={arrivalsDeepLink && arrivalsSettled}
             existingCardCounts={existingCardCounts}
             ownershipFor={ownershipFor}
             onMarkArrivalsReviewed={() => markArrivalsReviewed(deck.id)}

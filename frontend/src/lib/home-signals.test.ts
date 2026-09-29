@@ -182,63 +182,64 @@ describe('hasNewArrivals', () => {
 });
 
 describe('aggregateNewArrivalDecks', () => {
-  it('returns an empty array for zero decks', () => {
-    expect(aggregateNewArrivalDecks([], [], new Map())).toEqual([]);
+  const wants = (id: string, ...names: string[]) => ({
+    [id]: new Set(names.map((n) => n.toLowerCase())),
   });
 
-  it('sums qualifying owned qty for a deck, deduping printings by name', () => {
+  it('returns an empty array for zero decks', () => {
+    expect(aggregateNewArrivalDecks([], [], new Map(), {})).toEqual([]);
+  });
+
+  // The raw count lit every red deck up for any red card you bought. A deck
+  // Home has no coach list for gets no badge rather than that number.
+  it('skips a deck with no recorded watchlist', () => {
     const deck = makeDeck({ id: 'a', updatedAt: BASE_TIME });
-    const collectionCards = [
+    const cards = [candidate({ name: 'Sol Ring', updatedAt: BASE_TIME + 1000 })];
+    expect(aggregateNewArrivalDecks([deck], cards, new Map(), {})).toEqual([]);
+  });
+
+  it("counts only arrivals the deck's coach wants", () => {
+    const deck = makeDeck({ id: 'a', updatedAt: BASE_TIME });
+    const cards = [
+      candidate({ name: 'Sol Ring', updatedAt: BASE_TIME + 1000 }),
+      candidate({ name: 'Random Red Card', updatedAt: BASE_TIME + 1000 }),
+    ];
+    expect(aggregateNewArrivalDecks([deck], cards, new Map(), wants('a', 'Sol Ring'))).toEqual([
+      { deck, count: 1 },
+    ]);
+  });
+
+  it('counts cards, not copies, as the deck page does', () => {
+    const deck = makeDeck({ id: 'a', updatedAt: BASE_TIME });
+    const cards = [
+      candidate({ name: 'Sol Ring', updatedAt: BASE_TIME - 1000 }),
       candidate({ name: 'Sol Ring', updatedAt: BASE_TIME + 1000 }),
       candidate({ name: 'Sol Ring', updatedAt: BASE_TIME + 2000 }),
     ];
-    const result = aggregateNewArrivalDecks([deck], collectionCards, new Map());
-    expect(result).toEqual([{ deck, count: 2, sampleNames: ['Sol Ring'] }]);
+    expect(aggregateNewArrivalDecks([deck], cards, new Map(), wants('a', 'Sol Ring'))).toEqual([
+      { deck, count: 1 },
+    ]);
   });
 
   it('excludes a deck with zero qualifying arrivals', () => {
     const deck = makeDeck({ id: 'a', updatedAt: BASE_TIME + 5000 });
-    const collectionCards = [candidate({ name: 'Sol Ring', updatedAt: BASE_TIME + 1000 })];
-    expect(aggregateNewArrivalDecks([deck], collectionCards, new Map())).toEqual([]);
+    const cards = [candidate({ name: 'Sol Ring', updatedAt: BASE_TIME + 1000 })];
+    expect(aggregateNewArrivalDecks([deck], cards, new Map(), wants('a', 'Sol Ring'))).toEqual([]);
   });
 
-  it('skips ineligible candidates (basic land) mixed in with a qualifying one', () => {
+  it('skips a wanted basic land', () => {
     const deck = makeDeck({ id: 'a', updatedAt: BASE_TIME });
-    const collectionCards = [
+    const cards = [
       candidate({ name: 'Forest', typeLine: 'Basic Land — Forest', updatedAt: BASE_TIME + 1000 }),
-      candidate({ name: 'Sol Ring', updatedAt: BASE_TIME + 1000 }),
     ];
-    const result = aggregateNewArrivalDecks([deck], collectionCards, new Map());
-    expect(result).toEqual([{ deck, count: 1, sampleNames: ['Sol Ring'] }]);
-  });
-
-  it('counts every owned copy toward qty even when only some printings are newly acquired', () => {
-    const deck = makeDeck({ id: 'a', updatedAt: BASE_TIME });
-    const collectionCards = [
-      candidate({ name: 'Sol Ring', updatedAt: BASE_TIME - 1000 }),
-      candidate({ name: 'Sol Ring', updatedAt: BASE_TIME - 1000 }),
-      candidate({ name: 'Sol Ring', updatedAt: BASE_TIME + 1000 }),
-    ];
-    const result = aggregateNewArrivalDecks([deck], collectionCards, new Map());
-    expect(result).toEqual([{ deck, count: 3, sampleNames: ['Sol Ring'] }]);
-  });
-
-  it('sorts sampleNames most-recently-acquired first and caps at 3', () => {
-    const deck = makeDeck({ id: 'a', updatedAt: BASE_TIME });
-    const collectionCards = [
-      candidate({ name: 'Oldest', updatedAt: BASE_TIME + 1000 }),
-      candidate({ name: 'Middle', updatedAt: BASE_TIME + 2000 }),
-      candidate({ name: 'Newest', updatedAt: BASE_TIME + 3000 }),
-      candidate({ name: 'Fourth', updatedAt: BASE_TIME + 4000 }),
-    ];
-    const result = aggregateNewArrivalDecks([deck], collectionCards, new Map());
-    expect(result).toEqual([{ deck, count: 4, sampleNames: ['Fourth', 'Newest', 'Middle'] }]);
+    expect(aggregateNewArrivalDecks([deck], cards, new Map(), wants('a', 'Forest'))).toEqual([]);
   });
 
   it('truncates to the `limit` most-recently-updated decks', () => {
     const decks = Array.from({ length: 25 }, (_, i) => makeDeck({ id: `deck-${i}`, updatedAt: i }));
-    const collectionCards = [candidate({ name: 'Sol Ring', updatedAt: 1_000_000 })];
-    const result = aggregateNewArrivalDecks(decks, collectionCards, new Map(), 20);
+    const watch = Object.fromEntries(decks.map((d) => [d.id, new Set(['sol ring'])]));
+    const cards = [candidate({ name: 'Sol Ring', updatedAt: 1_000_000 })];
+    const result = aggregateNewArrivalDecks(decks, cards, new Map(), watch, 20);
     expect(result).toHaveLength(20);
     const ids = result.map((r) => r.deck.id);
     expect(ids).not.toContain('deck-0');
