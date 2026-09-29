@@ -39,17 +39,17 @@ export const DEFAULT_WEIGHTS: Readonly<Record<TermKey, number>> = Object.freeze(
 /** Fixed goldfish seed: every deck scored in one context sees the same shuffles. */
 export const DEFAULT_SIM_SEED = 20260929;
 /**
- * 4,000 games (130-180 ms per deck, most of a score's time). Measured on the
- * 15 standard-panel pairs over five seeds: at 1,000 games the mana term's
- * treatment − baseline delta had a standard deviation of 0.39
- * card-equivalents, as large as many whole-deck deltas, because mana-sim
- * orders the library by name, so two decks that differ by one card share no
- * shuffles (no common random numbers). At 4,000 it is 0.19, and the mana term
- * is the only source of seed noise in the total.
+ * 4,000 games (130-180 ms per deck, most of a score's time). The mana term
+ * is the only source of seed noise in the total. Measured as the standard
+ * deviation, over five seeds, of the mana term's treatment − baseline delta:
+ *
+ * - 15 standard-panel pairs, library in name order: 0.39 card-equivalents at
+ *   1,000 games, 0.19 at 4,000 (a card between the two swapped names moves,
+ *   so the two decks share no shuffles);
+ * - all 59 E509 + E510 pairs at 4,000 games: 0.238 in name order, 0.155 with
+ *   the library in the deck's slot order and a per-game seed (terms/mana.ts,
+ *   mana-sim's gameSeed), which gives a 1:1 swap common random numbers.
  */
-// ponytail: independent games per deck, ~0.2 card-equivalents of noise on a
-// delta — a slot-aligned library order in mana-sim would restore common
-// random numbers for 1:1 swaps before a local search leans on this term.
 export const DEFAULT_SIM_GAMES = 4000;
 
 /**
