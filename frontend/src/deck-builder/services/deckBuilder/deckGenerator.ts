@@ -1885,8 +1885,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // itself) is read with the same engine rule the deck page applies to a
   // finished list; EDHREC's theme list is a hint that picks between engines
   // the cards leave comparable. Precedence lives in decideBuildArchetype. The
-  // card text is fetched with the pool fetch's own options, so the later
-  // batch fetch reads these same cards from the cache.
+  // card text is fetched with the pool fetch's arena option, so the later
+  // batch fetch reads these same cards from the cache; no set filter, since
+  // oracle text is the same in every printing.
   const evidencePool =
     state.edhrecData && isCommanderEdhrecPool(state.dataSource)
       ? cardEvidencePool(state.edhrecData)
