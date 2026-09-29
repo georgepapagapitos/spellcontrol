@@ -52,6 +52,8 @@ export default defineConfig({
         // parse it as a module and logs a harmless "Excluding it from
         // coverage" warning. Exclude it explicitly so CI output stays quiet.
         'src/parsers/fixtures/**',
+        // Same for the EDHREC response fixtures (cut from real pages).
+        'src/edhrec/__fixtures__/**',
       ],
       thresholds: { statements: 80, branches: 80, functions: 80, lines: 80 },
     },

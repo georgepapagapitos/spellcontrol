@@ -14,6 +14,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import type { GameResultParticipant } from '../games/result-types';
 import type { GameEvent, GameSummary } from '@spellcontrol/game-core';
+import type { TopListEntry } from '../edhrec/top-lists';
 
 export const users = pgTable('users', {
   id: text('id').primaryKey(),
@@ -1158,6 +1159,19 @@ export const commanderCardInclusion = pgTable(
   })
 );
 
+/**
+ * EDHREC's top lists, one row per list key (edhrec/top-lists.ts
+ * `listKeyString`). A refreshable cache served by GET /api/edhrec/top:
+ * `fetchedAt` is the last good copy, `checkedAt` the last refresh attempt.
+ */
+export const edhrecTopLists = pgTable('edhrec_top_lists', {
+  listKey: text('list_key').primaryKey(),
+  entries: jsonb('entries').notNull().$type<TopListEntry[]>(),
+  sourceUrl: text('source_url').notNull(),
+  fetchedAt: bigint('fetched_at', { mode: 'number' }).notNull(),
+  checkedAt: bigint('checked_at', { mode: 'number' }).notNull(),
+});
+
 export const eventCounts = pgTable(
   'event_counts',
   {
@@ -1203,4 +1217,5 @@ export type ContentReportRow = typeof contentReports.$inferSelect;
 export type AggregateRollupRunRow = typeof aggregateRollupRuns.$inferSelect;
 export type CommanderStatsRow = typeof commanderStats.$inferSelect;
 export type CommanderCardInclusionRow = typeof commanderCardInclusion.$inferSelect;
+export type EdhrecTopListRow = typeof edhrecTopLists.$inferSelect;
 export type EventCountRow = typeof eventCounts.$inferSelect;
