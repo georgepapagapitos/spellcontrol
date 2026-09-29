@@ -12,7 +12,9 @@
  * class, the search traded fourteen of Meren's Swamps for utility lands), and
  * 2:2 swaps that seat both missing pieces of a two-piece combo from the
  * context's combo set.
- * Protected: the commander (never in the 99), must-includes, and `locks`.
+ * Protected: the commander (never in the 99), must-includes, the staple rocks
+ * every phase of the generator protects by name (Sol Ring, Arcane Signet), and
+ * `locks`.
  *
  * Search: first-improvement hill climbing, cheapest-to-judge first.
  *  1. Every removable card's loss and every candidate's gain are read with the
@@ -35,6 +37,7 @@
  */
 import type { ScryfallCard } from '@/deck-builder/types';
 import { frontFaceName } from '@/lib/card-text';
+import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 import { normalizeCardName } from '../cardIdentity';
 import { cardIneligibility, checkConstraints } from './constraints';
 import { isBasicLand, isLandCard } from './context';
@@ -84,7 +87,8 @@ export interface SwapReason {
 export interface AppliedSwap {
   out: string[];
   in: string[];
-  kind: 'improve' | 'combo' | 'escape';
+  /** repair: taken because it breaks a hard constraint less, whatever it costs. */
+  kind: 'improve' | 'combo' | 'escape' | 'repair';
   /** Total change in the score (full, with the simulations). */
   delta: number;
   /** Each term's contribution change. */
@@ -116,8 +120,18 @@ const DEFAULTS = {
   comboPairs: true,
   timeBudgetMs: 600_000,
 };
+/**
+ * The generator's name-protected staple rocks (deckGeneration/
+ * phaseStapleManaRocks.ts STAPLE_ROCK_NAMES; a test pins the two lists
+ * equal). Copied, not imported: the objective never reaches the generator
+ * (layering.test.ts).
+ */
+export const STAPLE_ROCKS: readonly string[] = ['Sol Ring', 'Arcane Signet'];
+
 /** A pair is scored in full once its fast gain reaches this share of `minGain`. */
 const FAST_GATE = 0.5;
+/** Constraint checks allowed per shortlist slot before a step gives up. */
+const CHECKS_PER_SLOT = 25;
 
 const key = (name: string) => normalizeCardName(frontFaceName(name));
 
@@ -190,10 +204,26 @@ export function optimizeDeck(
   const opts = { ...DEFAULTS, ...options };
   const t0 = Date.now();
   const cz = baseCtx.customization;
+  // A staple rock yields to the user's ownership rule only where an unowned
+  // one must break it: owned-only builds and a 100% owned share (E509 ruling
+  // (a): Sol Ring is correctly absent there, and only must-includes may break
+  // the share). Under a lower share the generator keeps them, and so does the
+  // search. Combo-sourced temporary must-includes are the generator's
+  // bookkeeping, skipped silently by design (deckInvariants), so they are
+  // not protected.
+  const strategy = cz.collectionStrategy ?? 'full';
+  const ownershipBinds =
+    !!baseCtx.ownedNames &&
+    cz.collectionMode !== false &&
+    (strategy === 'full' ||
+      strategy === 'available' ||
+      (strategy === 'partial' && (cz.collectionOwnedPercent ?? 0) >= 100));
+  const stapleProtected = STAPLE_ROCKS.filter(
+    (n) =>
+      !ownershipBinds || baseCtx.ownedNames!.has(n) || baseCtx.ownedNames!.has(frontFaceName(n))
+  );
   const protectedKeys = new Set(
-    [...(cz.mustIncludeCards ?? []), ...(cz.tempMustIncludeCards ?? []), ...(opts.locks ?? [])].map(
-      key
-    )
+    [...(cz.mustIncludeCards ?? []), ...stapleProtected, ...(opts.locks ?? [])].map(key)
   );
   const commanderKeys = new Set(seed.commanders.map((c) => key(c.name)));
 
@@ -330,8 +360,36 @@ export function optimizeDeck(
         });
       }
     }
+    const curInfeasible = infeasibility(currentScore);
+    // Constraints come first, as in compareScores: while the deck breaks one,
+    // moves that take out a card a violation names (an unowned card in an
+    // owned-only build, a Game Changer over the bracket's ceiling), or that
+    // trade an unowned card for an owned one under an owned share, or a dearer
+    // card for a cheaper one over budget, are judged before any other.
+    const repairs = (m: Move): boolean => {
+      if (curInfeasible === 0) return false;
+      for (const v of currentScore.violations) {
+        const outs = m.out.map((i) => current.cards[i]);
+        if (outs.some((c) => v.cards.includes(c.name))) return true;
+        if (v.check === 'owned-share' && ctx.ownedNames) {
+          const owned = (c: ScryfallCard) =>
+            ctx.ownedNames!.has(c.name) || ctx.ownedNames!.has(frontFaceName(c.name));
+          // The share is over NONLAND cards: a land swap can't move it.
+          if (outs.some((c) => !isLandCard(c) && !owned(c)) && m.in.every(owned)) return true;
+        }
+        if (v.check === 'budget') {
+          const currency = cz.currency ?? 'USD';
+          const cost = (cards: ScryfallCard[]) =>
+            cards.reduce((s, c) => s + (parseFloat(getCardPrice(c, currency) ?? '') || 0), 0);
+          if (cost(m.in) < cost(outs)) return true;
+        }
+      }
+      return false;
+    };
+    const repairFirst = new Map(moves.map((m) => [m, repairs(m)]));
     moves.sort(
       (a, b) =>
+        Number(repairFirst.get(b)) - Number(repairFirst.get(a)) ||
         b.estimate - a.estimate ||
         a.in
           .map((c) => c.name)
@@ -343,13 +401,20 @@ export function optimizeDeck(
     // 3. Judge the best candidates exactly, cheapest first.
     let applied: { move: Move; score: ObjectiveScore; kind: AppliedSwap['kind'] } | null = null;
     let bestTried: { move: Move; score: ObjectiveScore } | null = null;
-    const curInfeasible = infeasibility(currentScore);
-    for (const move of moves.slice(0, opts.shortlist)) {
+    // The shortlist counts FEASIBLE moves: under a budget the best-estimated
+    // pairs are often the ones that break it, and skipping them must not use
+    // up the step. The constraint checks themselves are capped.
+    let judged = 0;
+    let checked = 0;
+    for (const move of moves) {
+      if (judged >= opts.shortlist || checked >= opts.shortlist * CHECKS_PER_SLOT) break;
       if (evaluations.full >= opts.maxEvaluations || Date.now() - t0 > opts.timeBudgetMs) break;
       const next = applyMove(current, move);
+      checked++;
       const violations = checkConstraints(next, ctx);
       const nextInfeasible = violations.reduce((s, v) => s + v.magnitude, 0);
       if (nextInfeasible > curInfeasible) continue;
+      judged++;
       const fastGain = fast(next) - fastNow;
       const repairs = nextInfeasible < curInfeasible;
       if (!repairs && fastGain < FAST_GATE * opts.minGain) {
@@ -358,7 +423,7 @@ export function optimizeDeck(
       const score = full(next);
       if (!bestTried || compareScores(score, bestTried.score) > 0) bestTried = { move, score };
       if (repairs || score.total - currentScore.total >= opts.minGain) {
-        applied = { move, score, kind: move.kind };
+        applied = { move, score, kind: repairs ? 'repair' : move.kind };
         break;
       }
     }
@@ -369,7 +434,13 @@ export function optimizeDeck(
       }
     }
     if (!applied) {
-      stoppedBy = 'local-optimum';
+      // A step cut short by a budget found nothing yet; it is not an optimum.
+      stoppedBy =
+        evaluations.full >= opts.maxEvaluations
+          ? 'max-evaluations'
+          : Date.now() - t0 > opts.timeBudgetMs
+            ? 'time'
+            : 'local-optimum';
       break;
     }
 

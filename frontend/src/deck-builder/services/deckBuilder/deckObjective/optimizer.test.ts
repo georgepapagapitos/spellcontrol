@@ -4,7 +4,9 @@
 // cut Skullclamp and Sheoldred), Meren's real page and combo set.
 import { describe, expect, it } from 'vitest';
 import { checkConstraints } from './index';
-import { optimizeDeck } from './optimizer';
+import { cardIneligibility } from './constraints';
+import { STAPLE_ROCKS, optimizeDeck } from './optimizer';
+import { STAPLE_ROCK_NAMES } from '../deckGeneration/phaseStapleManaRocks';
 import { BASELINE, FIX, TREATMENT, card, cards, merenCtx } from './__fixtures__/objectiveFixture';
 
 const SMALL = { maxSwaps: 3, maxEvaluations: 40, shortlist: 12, escapes: 0 };
@@ -69,5 +71,72 @@ describe('optimizeDeck', () => {
     });
     expect(r.swaps[0]).toMatchObject({ kind: 'combo' });
     expect(r.swaps[0].in.sort()).toEqual(['Hermit Druid', "Thassa's Oracle"]);
+  });
+
+  it('never adds a card it cannot price under a budget', () => {
+    const budget = merenCtx({
+      customization: { deckFormat: 99, currency: 'USD', deckBudget: 100 },
+    });
+    const unpriced = { ...card('Grave Pact'), prices: { usd: null, eur: null } };
+    expect(cardIneligibility(unpriced, budget)).toBe('no price under a budget');
+    expect(cardIneligibility(card('Grave Pact'), budget)).toBeNull();
+    expect(cardIneligibility(unpriced, merenCtx())).toBeNull();
+  });
+
+  it("protects the generator's staple rocks, and its list is the generator's", () => {
+    expect([...STAPLE_ROCK_NAMES].sort()).toEqual([...STAPLE_ROCKS].sort());
+    for (const s of result.swaps) expect(s.out).not.toContain('Sol Ring');
+  });
+
+  it('repairs a broken constraint first: an unowned card leaves an owned-only build', () => {
+    const owned = new Set([
+      ...BASELINE.cards.map((c) => c.name).filter((n) => n !== 'Skullclamp'),
+      'Grave Pact',
+      'Pitiless Plunderer',
+    ]);
+    const c = merenCtx({
+      customization: {
+        deckFormat: 99,
+        currency: 'USD',
+        collectionMode: true,
+        collectionStrategy: 'full',
+      },
+      ownedNames: owned,
+    });
+    expect(checkConstraints(BASELINE, c).map((v) => v.check)).toEqual(['collection']);
+    const r = optimizeDeck(BASELINE, cards('Grave Pact', 'Pitiless Plunderer', 'Counterspell'), c, {
+      ...SMALL,
+      maxSwaps: 1,
+    });
+    expect(r.swaps[0]).toMatchObject({ out: ['Skullclamp'], kind: 'repair' });
+    expect(r.score.violations).toEqual([]);
+  });
+
+  it('repairs an owned share with a spell, since lands do not count toward it', () => {
+    // Everything owned but Skullclamp and one land; a 100% owned share.
+    const land = BASELINE.cards.find(
+      (c) => /Land/.test(c.type_line) && !/Basic/.test(c.type_line)
+    )!;
+    const owned = new Set([
+      ...BASELINE.cards.map((c) => c.name).filter((n) => n !== 'Skullclamp' && n !== land.name),
+      'Grave Pact',
+      'Command Tower',
+    ]);
+    const c = merenCtx({
+      customization: {
+        deckFormat: 99,
+        currency: 'USD',
+        collectionMode: true,
+        collectionStrategy: 'partial',
+        collectionOwnedPercent: 100,
+      },
+      ownedNames: owned,
+    });
+    expect(checkConstraints(BASELINE, c).map((v) => v.check)).toEqual(['owned-share']);
+    const r = optimizeDeck(BASELINE, cards('Grave Pact', 'Command Tower'), c, {
+      ...SMALL,
+      maxSwaps: 1,
+    });
+    expect(r.swaps[0]).toMatchObject({ out: ['Skullclamp'], in: ['Grave Pact'], kind: 'repair' });
   });
 });

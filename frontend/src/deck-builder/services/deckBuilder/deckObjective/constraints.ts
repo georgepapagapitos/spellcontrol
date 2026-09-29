@@ -41,13 +41,22 @@ function priceOf(card: ScryfallCard, currency: 'USD' | 'EUR'): number | null {
 
 /**
  * Owned share of the NONLAND cards, the basis the partial-owned target is set
- * on (deckInvariants check 18). Null when there is no collection.
+ * on (deckInvariants check 18). A must-include counts as owned: the user's
+ * own pick is the one card that may break the share (E509 ruling). Null when
+ * there is no collection.
  */
 export function ownedShare(deck: ObjectiveDeck, ctx: ObjectiveContext): number | null {
   if (!ctx.ownedNames) return null;
   const spells = deck.cards.filter((c) => !isLandCard(c));
   if (spells.length === 0) return 100;
-  return (100 * spells.filter((c) => owns(ctx.ownedNames, c)).length) / spells.length;
+  const must = new Set(
+    [...(ctx.customization.mustIncludeCards ?? [])].map((n) => normalizeCardName(n))
+  );
+  const counted = (c: ScryfallCard) =>
+    owns(ctx.ownedNames, c) ||
+    must.has(normalizeCardName(c.name)) ||
+    must.has(normalizeCardName(frontFaceName(c.name)));
+  return (100 * spells.filter(counted).length) / spells.length;
 }
 
 /**
@@ -83,14 +92,14 @@ export function cardIneligibility(card: ScryfallCard, ctx: ObjectiveContext): st
     exceedsMaxRarity(card, cz.maxRarity)
   )
     return `above ${cz.maxRarity}`;
-  if (cz.maxCardPrice != null) {
+  const budgetExempt = isOwnedBudgetExempt(card.name, ownedSet, !!(cz.ignoreOwnedBudget && owned));
+  if ((cz.maxCardPrice != null || cz.deckBudget) && !budgetExempt) {
     const p = priceOf(card, cz.currency ?? 'USD');
-    if (
-      p !== null &&
-      p > cz.maxCardPrice &&
-      !isOwnedBudgetExempt(card.name, ownedSet, !!(cz.ignoreOwnedBudget && owned))
-    )
-      return 'over the card price cap';
+    // With money on the line a card with no price can't be counted, so it
+    // can't be added (deckFilters.exceedsMaxPrice rules the same): read as
+    // free, it would slip past every budget.
+    if (p === null) return 'no price under a budget';
+    if (cz.maxCardPrice != null && p > cz.maxCardPrice) return 'over the card price cap';
   }
   if (cz.arenaOnly && !card.games?.includes('arena')) return 'not on Arena';
   if (cz.tinyLeaders && !isLandCard(card) && (card.cmc ?? 0) > 3) return 'mana value over 3';
@@ -257,8 +266,8 @@ export function checkConstraints(
 
   if (cz.deckBudget) {
     let spend = 0;
+    // Basics count too, as the invariant checker and the deck's total do.
     for (const c of cards) {
-      if (isBasicLand(c)) continue;
       if (isOwnedBudgetExempt(c.name, ownedSet, ignoreOwnedBudget)) continue;
       spend += priceOf(c, currency) ?? 0;
     }
@@ -366,15 +375,16 @@ export function checkConstraints(
       });
     }
   } else if (owned && cz.collectionMode !== false && strategy === 'partial') {
+    // At least N% owned, exactly (E509 ruling): the invariant checker's
+    // 5-point tolerance judges a finished build's report; a search moving one
+    // card at a time can hold the line itself.
     const share = ownedShare(deck, ctx) ?? 100;
-    // The invariant checker's 5-point tolerance: the target is a share of
-    // ~65 spells, so one card is ~1.5 points.
-    const target = (cz.collectionOwnedPercent ?? 0) - 5;
-    if (share < target) {
+    const target = cz.collectionOwnedPercent ?? 0;
+    if (share < target - 1e-9) {
       const spells = deck.cards.filter((c) => !isLandCard(c)).length;
       add({
         check: 'owned-share',
-        magnitude: Math.ceil(((target - share) / 100) * spells),
+        magnitude: Math.ceil(((target - share) / 100) * spells - 1e-9),
         cards: [],
         detail: `owned share ${share.toFixed(1)}% < ${target}%`,
       });

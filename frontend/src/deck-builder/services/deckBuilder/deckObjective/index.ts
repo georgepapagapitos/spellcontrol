@@ -80,7 +80,7 @@ export {
   DEFAULT_WEIGHTS,
   toFactsInput,
 } from './context';
-export { checkConstraints, ownedShare } from './constraints';
+export { cardIneligibility, checkConstraints, ownedShare } from './constraints';
 
 export const TERMS: Readonly<Record<TermKey, TermFn>> = {
   quality: qualityTerm,
