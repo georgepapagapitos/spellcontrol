@@ -75,6 +75,8 @@
   .playtest-hold-banner__release:hover {
     color: var(--text-primary);
     background: var(--accent-light);
+    --text-muted: var(--text-muted-tint);
+    --text-secondary: var(--text-secondary-tint);
     border-color: var(--accent);
   }
 }

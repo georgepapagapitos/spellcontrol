@@ -506,6 +506,8 @@
   font-weight: 700;
   color: var(--accent);
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   border-radius: var(--radius);
 }
 

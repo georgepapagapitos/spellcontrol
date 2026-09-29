@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import './CardFitPanel.css';
 import { type JSX } from 'react';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
@@ -110,7 +111,7 @@ export function CardFitPanel({
       ]
     : report.rankedCuts;
 
-  return (
+  return createPortal(
     <div
       className="card-picker-root"
       onClick={(e) => {
@@ -199,6 +200,7 @@ export function CardFitPanel({
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

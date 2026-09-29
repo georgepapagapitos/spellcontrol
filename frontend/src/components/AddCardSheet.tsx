@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { AddCardSearchPanel } from './AddCardSearchPanel';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useSheetExit } from '../lib/use-sheet-exit';
@@ -32,7 +33,7 @@ export function AddCardSheet({ binderId, binderName, onClose }: Props) {
 
   const title = binderId ? `Add card to ${binderName ?? 'binder'}` : 'Add card to collection';
 
-  return (
+  return createPortal(
     <div
       className="card-picker-root"
       onClick={(e) => {
@@ -64,6 +65,7 @@ export function AddCardSheet({ binderId, binderName, onClose }: Props) {
           <Button onClick={() => beginClose()}>Done</Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

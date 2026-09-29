@@ -47,12 +47,16 @@
 
 .commander-search-item:focus-visible {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
 @media (hover: hover) and (pointer: fine) {
   .commander-search-item:hover {
     background: var(--accent-light);
+    --text-muted: var(--text-muted-tint);
+    --text-secondary: var(--text-secondary-tint);
     outline: none;
   }
 }
@@ -441,12 +445,13 @@
   transform: scale(1.05);
 }
 
+/* Focus is an outline OUTSIDE the selection ring, never the same ring: a
+   keyboard user on an already-selected pip otherwise sees no change at all.
+   Guard: styles/focus-distinct-from-selection.test.ts. */
 .commander-color-pip:focus-visible {
-  outline: none;
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
   opacity: 1;
-  box-shadow:
-    0 0 0 2px var(--accent),
-    0 0 0 4px var(--surface);
 }
 
 .commander-search-error {
@@ -483,6 +488,8 @@
 .partner-toggle.active {
   border-color: var(--accent);
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
 }
 
 .partner-toggle-checkbox {
@@ -548,6 +555,8 @@
   font-weight: 600;
   color: var(--accent);
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   border-radius: 999px;
   padding: var(--space-0-5) var(--space-2);
   white-space: nowrap;

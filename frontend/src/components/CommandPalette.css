@@ -94,6 +94,8 @@
 .cmdk-option[data-active='true'] {
   color: var(--accent);
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
 }
 
 /* The variable-length name is the shrinkable side (min-width: 0 so the

@@ -61,6 +61,8 @@
   border-color: var(--accent);
   color: var(--accent);
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
 }
 
 /* ── Layout picker: the "Custom…" tile ── */
@@ -195,6 +197,8 @@
 
 .cle-cell.is-over {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   border-style: solid;
   border-color: var(--accent);
 }
@@ -277,6 +281,8 @@
   border-color: var(--accent);
   color: var(--accent);
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
 }
 
 .cle-controls {

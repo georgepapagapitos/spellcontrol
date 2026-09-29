@@ -343,6 +343,10 @@ export interface Profile {
   avatarCardId: string | null;
   avatarCardName: string | null;
   avatarImageUrl: string | null;
+  /** Deck pinned atop the public profile; null unless still one of your live public decks. */
+  pinnedDeckSlug: string | null;
+  /** Opt-in: show a game record on the public profile. Off by default. */
+  showGameRecord: boolean;
 }
 
 /** A freshly-picked avatar, pre-derived client-side (see AvatarPickerSheet). */
@@ -414,6 +418,9 @@ export async function updateProfile(patch: {
   displayName?: string | null;
   bio?: string | null;
   avatar?: AvatarPatch | null;
+  /** One of your own live public decks, or null to unpin. */
+  pinnedDeckSlug?: string | null;
+  showGameRecord?: boolean;
 }): Promise<Profile> {
   const res = await authedFetch('/api/auth/profile', {
     method: 'PATCH',

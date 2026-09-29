@@ -164,6 +164,8 @@ The backend reads:
 
 ## Architecture
 
+For a map of the code (where each kind of module lives, the layer rules, and where new code goes) see [ARCHITECTURE.md](ARCHITECTURE.md).
+
 The repo is a monorepo with five packages: `backend/`, `frontend/`, and three shared ones — `packages/game-core/`, `packages/binder-routing/`, and `packages/deck-metrics/`.
 
 **Backend** — Node + Express 5 + TypeScript. Postgres (via Drizzle) stores user accounts and synced state. A SQLite cache (via better-sqlite3) holds Scryfall card data with a 7-day TTL. Format-specific parsers in `src/parsers/` handle import detection and normalization.
@@ -202,7 +204,7 @@ The online Commander table (`backend/src/routes/games.ts`, `frontend/src/store/p
 
 All `/api/*` endpoints sit behind helmet and per-endpoint rate limiters.
 
-The table below documents the collection-import, auth, and sync core. The rest of the surface is mounted per domain in `backend/src/server.ts` — one router each for `activity`, `admin`, `aggregates`, `ai`, `combos`, `discover`, `edhrec`, `feedback`, `friends`, `game-nights`, `game-results`, `games`, `offline`, `pods`, `public`, `publications`, `reports`, `scanner`, `shares`, `tonight-trades`, `trades`, and `users` — with routes defined in the matching `backend/src/<domain>/` module.
+The table below documents the collection-import, auth, and sync core. The rest of the surface is mounted per domain in `backend/src/server.ts` — one router each for `activity`, `admin`, `aggregates`, `ai`, `brewers` (mounted at `/api/public/brewers`), `combos`, `discover`, `edhrec`, `feedback`, `follows`, `friends`, `game-nights`, `game-results`, `games`, `offline`, `pods`, `public`, `publications`, `reports`, `scanner`, `shares`, `tonight-trades`, `trades`, and `users` — with routes defined in the matching `backend/src/<domain>/` module.
 
 | Method   | Path                         | Purpose                                                                                             |
 | -------- | ---------------------------- | --------------------------------------------------------------------------------------------------- |

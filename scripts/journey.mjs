@@ -20,6 +20,12 @@
 // width — see undersizedTouchTargets below for why that one is reported rather
 // than gated, and what has to be true before it becomes a gate.
 //
+// With --a11y it also runs axe-core (WCAG 2.2 A/AA) on every screen, and on
+// desktop re-runs its color-contrast rule under every theme and every type
+// set: a colour that clears AA in one theme can vanish in another (the
+// card-preview panel's "Ramp" pill read 1.08:1 in the light guilds only).
+// Report-only for now, written to a11y.json; see axeSweep below.
+//
 // Any of the first six fails the run. Screenshots + report.json land in
 // --out. Run by .github/workflows/nightly-journey.yml against a production
 // build served by the backend; locally:
@@ -109,6 +115,257 @@ const THIRD_PARTY =
   /https:\/\/([a-z0-9-]+\.)*(scryfall\.(com|io)|edhrec\.com|fonts\.(gstatic|googleapis)\.com)\//;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// ── Accessibility sweep (--a11y) ─────────────────────────────────────────
+// Report-only while the baseline is burned down: a screen's violations land in
+// its record and in a11y.json, and never fail the run. Turn it into a gate
+// (fold `a11y` into rec.fail) once a nightly run reports zero.
+const A11Y = argv.includes('--a11y');
+const src = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
+const AXE_SRC = A11Y ? src('../frontend/node_modules/axe-core/axe.min.js') : '';
+// Read the registries rather than re-typing them, so a new theme or type set
+// is swept the day it lands.
+const THEMES = [
+  ...src('../frontend/src/lib/themes.ts').matchAll(/id: '([a-z]+)',[^}]*?scheme: '(light|dark)'/g),
+].map((m) => ({ id: m[1], scheme: m[2] }));
+const TYPESETS = [
+  ...src('../frontend/src/lib/typesets.ts').matchAll(/id: '([a-z]+)',[^}]*?href: (null|'[^']+')/g),
+].map((m) => ({ id: m[1], href: m[2] === 'null' ? null : m[2].slice(1, -1) }));
+const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
+
+/**
+ * axe on the current screen: the full WCAG A/AA rule set in the theme the app
+ * booted in, then (when `sweep`) color-contrast alone under each theme and
+ * each type set. Only contrast depends on the palette; a type set changes the
+ * size and weight that decide axe's large-text threshold, and it swaps the
+ * faces, so it gets the same rule.
+ *
+ * Transitions and animations are frozen first: the theme swap fades colours
+ * over --motion-*, and axe reading mid-fade reports a colour no one sees.
+ */
+async function axeSweep(page, sweep) {
+  if (!(await page.evaluate(() => !!window.axe))) await page.evaluate(AXE_SRC);
+  const run = (rules) =>
+    page.evaluate(
+      async ({ rules, tags }) => {
+        const r = await window.axe.run(document, {
+          runOnly: rules ? { type: 'rule', values: rules } : { type: 'tag', values: tags },
+          resultTypes: ['violations'],
+        });
+        return r.violations.map((v) => ({
+          id: v.id,
+          impact: v.impact,
+          help: v.help,
+          count: v.nodes.length,
+          nodes: v.nodes.slice(0, 12).map((n) => ({
+            target: n.target.join(' '),
+            html: n.html.slice(0, 160),
+            summary: (n.failureSummary ?? '').split('\n').slice(1).join(' ').slice(0, 240),
+          })),
+        }));
+      },
+      { rules, tags: WCAG_TAGS }
+    );
+  const apply = (attrs, href) =>
+    page.evaluate(
+      async ({ attrs, href }) => {
+        if (!document.getElementById('journey-a11y-freeze')) {
+          const st = document.createElement('style');
+          st.id = 'journey-a11y-freeze';
+          st.textContent =
+            '*,*::before,*::after{transition:none!important;animation:none!important}';
+          document.head.append(st);
+        }
+        const de = document.documentElement;
+        for (const [k, v] of Object.entries(attrs)) de.setAttribute(k, v);
+        if (href !== undefined) {
+          // Mirrors store/typeset.ts applyTypeSet: the default set is bundled.
+          let link = document.getElementById('typeset-fonts');
+          if (!href) link?.remove();
+          else {
+            if (!link) {
+              link = Object.assign(document.createElement('link'), {
+                id: 'typeset-fonts',
+                rel: 'stylesheet',
+              });
+              document.head.append(link);
+            }
+            if (link.getAttribute('href') !== href) {
+              await new Promise((res) => {
+                link.onload = link.onerror = res;
+                link.setAttribute('href', href);
+              });
+            }
+          }
+        }
+        await document.fonts?.ready;
+        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      },
+      { attrs, href }
+    );
+
+  const original = await page.evaluate(() => {
+    const de = document.documentElement;
+    return {
+      attrs: {
+        'data-theme': de.getAttribute('data-theme') ?? '',
+        'data-scheme': de.getAttribute('data-scheme') ?? '',
+        'data-typeset': de.getAttribute('data-typeset') ?? '',
+      },
+      href: document.getElementById('typeset-fonts')?.getAttribute('href') ?? null,
+    };
+  });
+  await apply({});
+  const out = { base: await run(null), themes: {}, typesets: {} };
+  if (sweep) {
+    for (const t of THEMES) {
+      await apply({ 'data-theme': t.id, 'data-scheme': t.scheme });
+      out.themes[t.id] = await run(['color-contrast']);
+    }
+    await apply({
+      'data-theme': original.attrs['data-theme'],
+      'data-scheme': original.attrs['data-scheme'],
+    });
+    for (const t of TYPESETS) {
+      await apply({ 'data-typeset': t.id }, t.href);
+      out.typesets[t.id] = await run(['color-contrast']);
+    }
+    await apply(original.attrs, original.href);
+  }
+  await page.evaluate(() => document.getElementById('journey-a11y-freeze')?.remove());
+  return out;
+}
+
+/**
+ * Keyboard walk (--a11y, desktop): real Tab presses through the screen, up to
+ * TAB_STOPS stops. axe checks names and roles, but not whether a keyboard user
+ * can SEE where they are, and 81 `outline: none` rules in src/ each have to be
+ * paired with a replacement ring. For every stop this records:
+ *
+ *   - no-ring: nothing about the element, its pseudo-elements or its parent
+ *     (a :focus-within ring) differs between focused and blurred;
+ *   - invisible: focus landed on something with no box or off-screen-hidden;
+ *   - stuck: Tab stopped moving (a trap), or the stop repeated early.
+ *
+ * Blur-and-refocus keeps the keyboard modality, so :focus-visible still
+ * matches on the refocus and the walk resumes from the same element.
+ */
+const TAB_STOPS = 40;
+async function keyboardWalk(page) {
+  // Freeze transitions for the walk: a ring that animates in reads the same
+  // mid-fade on focus and on blur (the blur reverses from the current value),
+  // so every animated ring would report as missing.
+  await page.evaluate(() => {
+    const st = document.createElement('style');
+    st.id = 'journey-kbd-freeze';
+    st.textContent = '*,*::before,*::after{transition:none!important;animation:none!important}';
+    document.head.append(st);
+    document.activeElement?.blur?.();
+    window.scrollTo(0, 0);
+  });
+  const findings = [];
+  const seen = new Map();
+  let last = null;
+  for (let i = 0; i < TAB_STOPS; i++) {
+    await page.keyboard.press('Tab');
+    await sleep(60);
+    const stop = await page.evaluate(() => {
+      const el = document.activeElement;
+      if (!el || el === document.body) return null;
+      // Identity, not description: two deck tiles for one commander, or two
+      // unlabelled radios in a row, describe the same and are not a trap.
+      window.__journeyStops ??= new WeakMap();
+      if (!window.__journeyStops.has(el)) {
+        window.__journeyStopN = (window.__journeyStopN ?? 0) + 1;
+        window.__journeyStops.set(el, window.__journeyStopN);
+      }
+      const key = window.__journeyStops.get(el);
+      const hidden = (node) => {
+        const r = node.getBoundingClientRect();
+        const cs = getComputedStyle(node);
+        return (
+          r.width < 2 ||
+          r.height < 2 ||
+          cs.visibility === 'hidden' ||
+          cs.opacity === '0' ||
+          r.bottom < 0 ||
+          r.right < 0 ||
+          r.left > innerWidth + 1
+        );
+      };
+      // A visually hidden native input (a styled radio or checkbox) draws its
+      // ring on its label: judge the label it hands focus to instead.
+      const label = hidden(el) ? [...(el.labels ?? [])].find((l) => !hidden(l)) : undefined;
+      const target = label ?? el;
+      const props = [
+        'outline-style',
+        'outline-width',
+        'outline-color',
+        'box-shadow',
+        'border-top-color',
+        'border-bottom-color',
+        'background-color',
+        'color',
+        'text-decoration-line',
+        'opacity',
+        'transform',
+      ];
+      const snap = () => {
+        const read = (node, pseudo) => {
+          if (!node) return '';
+          const cs = getComputedStyle(node, pseudo);
+          return props.map((k) => cs.getPropertyValue(k)).join('|');
+        };
+        const nodes = [target, target.parentElement, target.parentElement?.parentElement];
+        // A label's ring is often drawn by a sibling span (`input:focus-visible + span`).
+        // Not the input itself: its UA outline on a 1px clipped box is no ring.
+        if (label) nodes.push(...[...label.children].filter((c) => c !== el));
+        return nodes.flatMap((n) => [read(n), read(n, '::before'), read(n, '::after')]).join('#');
+      };
+      const describe = () => {
+        const cls =
+          typeof target.className === 'string' ? target.className.trim().split(/\s+/)[0] : '';
+        const name = (el.getAttribute('aria-label') ?? (label ?? el).textContent ?? '')
+          .trim()
+          .slice(0, 40);
+        return `${target.tagName.toLowerCase()}${cls ? '.' + cls : ''} "${name}"`;
+      };
+      const focused = snap();
+      el.blur();
+      const blurred = snap();
+      el.focus({ preventScroll: true });
+      return { key, id: describe(), invisible: !label && hidden(el), ring: focused !== blurred };
+    });
+    if (!stop) {
+      // Tab left the document (wrapped to the browser chrome): the walk is done.
+      if (i > 0) break;
+      continue;
+    }
+    if (stop.key === last) {
+      findings.push({ kind: 'stuck', el: stop.id });
+      break;
+    }
+    last = stop.key;
+    const n = (seen.get(stop.key) ?? 0) + 1;
+    seen.set(stop.key, n);
+    if (n > 1) break; // wrapped around to the start: every stop was visited
+    if (stop.invisible) findings.push({ kind: 'invisible', el: stop.id });
+    else if (!stop.ring) findings.push({ kind: 'no-ring', el: stop.id });
+  }
+  await page.evaluate(() => {
+    document.activeElement?.blur?.();
+    document.getElementById('journey-kbd-freeze')?.remove();
+  });
+  return findings;
+}
+
+/** Nodes failing on this screen, across the base run and every sweep. */
+const a11yNodeCount = (a) =>
+  !a
+    ? 0
+    : [a.base, ...Object.values(a.themes), ...Object.values(a.typesets)]
+        .flat()
+        .reduce((n, v) => n + v.count, 0) + (a.keyboard?.length ?? 0);
 
 /**
  * Stacked siblings that touch — zero gap between two blocks of content.
@@ -205,6 +462,12 @@ const TOUCHING_BY_DESIGN = new Set([
   'div.playtest-board › div.playtest-trackers | div.playtest-main',
   'div.playtest-board › div.playtest-main | div.playtest-hand',
 ]);
+/** Parents whose children are a divided stack: each child carries its own
+ *  padding and a hairline top border, so they meet at the divider by design. */
+const TOUCHING_BY_DESIGN_PARENTS = [
+  // The card-preview sheet's sections (footer-card-preview.css .card-preview-sec).
+  'div.card-preview-panel-inner',
+];
 /**
  * The primary control rows, which must stay ONE row at phone width.
  *
@@ -363,8 +626,11 @@ function undersizedTouchTargets() {
  * them and the nightly said nothing.
  *
  * Only real overlap counts: a control nested inside another interactive
- * element (a row that is itself a button, a label around its input) shares
- * space by design, and is skipped.
+ * element (a label around its input) shares space by design, and is skipped.
+ * So is a stretched cover: a tile or row's primary button laid absolutely over
+ * its whole container, with the container's other controls stacked above it
+ * (#2553, which replaced rows that were themselves buttons). The controls on
+ * top are meant to win their own area; the cover keeps the rest.
  */
 function overlappingTouchTargets() {
   const sel = 'button,a[href],input,select,textarea,[role="button"],[role="tab"],[role="switch"]';
@@ -387,6 +653,20 @@ function overlappingTouchTargets() {
     return false;
   };
   const interactive = (el) => !!el && !!el.closest && !!el.closest(sel);
+  /** `el` fills its parent as an absolute cover, and `other` sits in that parent. */
+  const layeredOver = (el, other) => {
+    const parent = el.parentElement;
+    if (!parent || !parent.contains(other)) return false;
+    if (getComputedStyle(el).position !== 'absolute') return false;
+    const a = el.getBoundingClientRect();
+    const b = parent.getBoundingClientRect();
+    return (
+      Math.abs(a.left - b.left) <= 1 &&
+      Math.abs(a.top - b.top) <= 1 &&
+      Math.abs(a.right - b.right) <= 1 &&
+      Math.abs(a.bottom - b.bottom) <= 1
+    );
+  };
   const key = (el) => {
     const first = String(el.className || '')
       .trim()
@@ -422,6 +702,7 @@ function overlappingTouchTargets() {
       if (!interactive(hit) || !other || other === el) continue;
       if (other.contains(el) || el.contains(other)) continue;
       if (pinned(other)) continue;
+      if (layeredOver(el, other)) continue;
       const line = `${key(el)} loses its ${edge} edge to ${key(other)}`;
       if (seen.has(line)) continue;
       seen.add(line);
@@ -574,7 +855,11 @@ async function main() {
         const touching = [
           ...new Map(
             (await page.evaluate(touchingSiblings))
-              .filter((t) => !TOUCHING_BY_DESIGN.has(t.key))
+              .filter(
+                (t) =>
+                  !TOUCHING_BY_DESIGN.has(t.key) &&
+                  !TOUCHING_BY_DESIGN_PARENTS.some((p) => t.key.startsWith(`${p} › `))
+              )
               .map((t) => [`${t.key} — ${t.detail}`, t])
           ).keys(),
         ];
@@ -594,6 +879,9 @@ async function main() {
         // Overlapping targets DO fail — see overlappingTouchTargets.
         const overlapping =
           tierName === 'phone' ? await page.evaluate(overlappingTouchTargets) : [];
+        // Axe runs last among the probes: it swaps themes and restores them.
+        const a11y = A11Y ? await axeSweep(page, tierName === 'desktop') : null;
+        if (a11y) a11y.keyboard = tierName === 'desktop' ? await keyboardWalk(page) : [];
         const errs = consoleErrors.filter((e) => !IGNORED_CONSOLE.test(e));
         const file = `${slug(label)}__${tierName}.png`;
         await page.screenshot({ path: path.join(OUT, file) }).catch(() => {});
@@ -610,6 +898,7 @@ async function main() {
           wrapped,
           smallTargets,
           overlapping,
+          a11y,
           file,
         };
         rec.fail =
@@ -624,6 +913,7 @@ async function main() {
         console.log(
           `${rec.fail ? 'FAIL' : ' ok '} ${BROWSER.padEnd(7)} ${tierName.padEnd(7)} ${label.padEnd(36)} ` +
             `overflow=${rec.overflow} empty=${rec.emptyBody} errors=${errs.length} touching=${touching.length} wrapped=${wrapped.length} small=${smallTargets.length} overlapping=${overlapping.length}` +
+            (A11Y ? ` a11y=${a11yNodeCount(a11y)}` : '') +
             (rec.landed !== label.split('?')[0] && !label.includes('{')
               ? ` landed=${rec.landed}`
               : '')
@@ -809,6 +1099,54 @@ async function main() {
           };
         });
         await clickText(page, /^View my deck$/, { within: '.build-report-sheet button' });
+
+        // --- The card-preview sheet, open on an in-deck card. No route
+        // reaches it, and it is an always-dark island that remaps the theme's
+        // tokens: a remap that missed --surface left the "Ramp" pill in it
+        // invisible in the light themes only (#2551). Recording it with the
+        // sheet open is what puts it through the axe theme sweep. A real
+        // mouse click on a non-commander row, then the handle steps it to
+        // full so the lower sections (Swap this card) are laid out too.
+        // "View my deck" closes the build report with an exit animation; a tap
+        // before it is gone lands on the sheet, not the row.
+        await page
+          .waitForFunction(() => !document.querySelector('.build-report-sheet'), {
+            timeout: 15_000,
+          })
+          .catch(() => {});
+        await page.waitForSelector('.deck-section-rows .deck-row-name', { timeout: 30_000 });
+        await sleep(SETTLE_MS);
+        const rowAt = await page.evaluate(() => {
+          const lists = [...document.querySelectorAll('.deck-section-rows')];
+          const el = (lists[1] ?? lists[0])?.querySelector('.deck-row-name');
+          if (!el) return null;
+          el.scrollIntoView({ block: 'center' });
+          const r = el.getBoundingClientRect();
+          return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+        });
+        // A phone taps: a mouse click in a touch-emulated page is not what
+        // any phone user sends.
+        if (rowAt && tierName === 'phone') await page.touchscreen.tap(rowAt.x, rowAt.y);
+        else if (rowAt) await page.mouse.click(rowAt.x, rowAt.y);
+        const opened = await page
+          .waitForSelector('.card-preview-panel', { timeout: 15_000 })
+          .then(() => true)
+          .catch(() => false);
+        if (opened) {
+          for (let i = 0; i < 2; i++) {
+            await page.evaluate(() => document.querySelector('.card-preview-handle')?.click());
+            await sleep(400);
+          }
+          await sleep(SETTLE_MS);
+        }
+        const previewRec = await record('/decks/{deck} (card preview)');
+        await assertPage(previewRec, 'card preview opens from a deck row', async () => ({
+          ok: opened,
+          expected: '.card-preview-panel',
+          observed: opened ? '.card-preview-panel' : null,
+        }));
+        await page.keyboard.press('Escape');
+        await sleep(400);
       } else {
         await visit('/decks');
         deckHref = await page.evaluate(
@@ -937,11 +1275,14 @@ async function main() {
           // rule). Before the redesign the close button covered the mana cost
           // on phones and a landscape phone got a 100 × 139 card.
           await assertPage(rec, 'card preview geometry', async () => {
-            await page.evaluate(() =>
-              [...document.querySelectorAll('.app-main [role=button]')]
-                .find((e) => e.querySelector('img'))
-                ?.click()
-            );
+            // The tile's primary button opens the card (#2553 moved it off
+            // the tile, which was itself a role=button); either takes the click.
+            await page.evaluate(() => {
+              const tile = [...document.querySelectorAll('.app-main .collection-grid-item')].find(
+                (e) => e.querySelector('img')
+              );
+              (tile?.querySelector('.collection-grid-open') ?? tile)?.click();
+            });
             await page.waitForSelector('.card-preview-slide.is-active .card-preview-image-frame', {
               timeout: 15_000,
             });
@@ -1087,6 +1428,7 @@ async function main() {
     await browser.close();
   }
   const failed = results.filter((r) => r.fail);
+  if (A11Y) await writeA11yReport(results);
   await writeFile(
     path.join(OUT, 'report.json'),
     JSON.stringify({ base: BASE, browser: BROWSER, results }, null, 2)
@@ -1098,6 +1440,65 @@ async function main() {
         : '')
   );
   process.exit(failed.length ? 1 : 0);
+}
+
+/**
+ * One row per (rule, element), however many screens, themes and type sets it
+ * failed on: the same pill failing on 40 screens in 4 themes is one fix.
+ */
+async function writeA11yReport(results) {
+  const rows = new Map();
+  const add = (rec, where, v) => {
+    for (const n of v.nodes) {
+      const key = `${v.id} ${n.target}`;
+      const row = rows.get(key) ?? {
+        rule: v.id,
+        impact: v.impact,
+        help: v.help,
+        target: n.target,
+        html: n.html,
+        summary: n.summary,
+        screens: new Set(),
+        where: new Set(),
+      };
+      row.screens.add(`${rec.viewport} ${rec.label}`);
+      row.where.add(where);
+      rows.set(key, row);
+    }
+  };
+  for (const rec of results) {
+    if (!rec.a11y) continue;
+    for (const v of rec.a11y.base) add(rec, 'boot theme', v);
+    for (const [t, vs] of Object.entries(rec.a11y.themes))
+      for (const v of vs) add(rec, `theme:${t}`, v);
+    for (const [t, vs] of Object.entries(rec.a11y.typesets))
+      for (const v of vs) add(rec, `typeset:${t}`, v);
+    for (const k of rec.a11y.keyboard ?? [])
+      add(rec, 'keyboard', {
+        id: `keyboard-${k.kind}`,
+        impact: 'serious',
+        help:
+          k.kind === 'no-ring'
+            ? 'Keyboard focus shows no visible indicator'
+            : k.kind === 'invisible'
+              ? 'Keyboard focus lands on an element the user cannot see'
+              : 'Tab stops moving (keyboard trap)',
+        nodes: [{ target: k.el, html: '', summary: '' }],
+      });
+  }
+  const list = [...rows.values()]
+    .map((r) => ({ ...r, screens: [...r.screens], where: [...r.where] }))
+    .sort((a, b) => b.screens.length * b.where.length - a.screens.length * a.where.length);
+  await writeFile(path.join(OUT, 'a11y.json'), JSON.stringify(list, null, 2));
+  const byRule = {};
+  for (const r of list) byRule[r.rule] = (byRule[r.rule] ?? 0) + 1;
+  console.log(
+    `\na11y: ${list.length} failing elements (report-only): ` +
+      Object.entries(byRule)
+        .sort((a, b) => b[1] - a[1])
+        .map(([k, n]) => `${k} ${n}`)
+        .join(', ')
+  );
 }
 
 main().catch((err) => {

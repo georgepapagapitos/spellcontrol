@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import './ImportHistorySheet.css';
@@ -52,7 +53,7 @@ export function ImportHistorySheet({ onClose }: Props) {
     setConfirming(false);
   };
 
-  return (
+  return createPortal(
     <div
       className="card-picker-root"
       onClick={(e) => {
@@ -145,7 +146,8 @@ export function ImportHistorySheet({ onClose }: Props) {
           onCancel={() => setConfirming(false)}
         />
       )}
-    </div>
+    </div>,
+    document.body
   );
 }
 

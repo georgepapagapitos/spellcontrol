@@ -528,6 +528,8 @@
   border-color: var(--accent);
   color: var(--accent);
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -536,6 +538,8 @@
     border-color: var(--accent);
     color: var(--accent);
     background: var(--accent-light);
+    --text-muted: var(--text-muted-tint);
+    --text-secondary: var(--text-secondary-tint);
     outline: none;
   }
 }
@@ -1265,6 +1269,8 @@
 
 .deck-row.is-selected {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
 }
 
 /* ── Manual reorder (E172) ────────────────────────────────────────────
@@ -1477,6 +1483,8 @@
 
 .deck-row:focus-visible {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   cursor: pointer;
   outline: 2px solid var(--accent);
   outline-offset: -2px;
@@ -1484,6 +1492,8 @@
 @media (hover: hover) and (pointer: fine) {
   .deck-row:hover {
     background: var(--accent-light);
+    --text-muted: var(--text-muted-tint);
+    --text-secondary: var(--text-secondary-tint);
     cursor: pointer;
     outline: none;
   }
@@ -1791,6 +1801,8 @@
 @media (hover: hover) and (pointer: fine) {
   .deck-row-menu-item:hover:not(:disabled) {
     background: var(--accent-light);
+    --text-muted: var(--text-muted-tint);
+    --text-secondary: var(--text-secondary-tint);
   }
 }
 

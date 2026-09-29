@@ -151,6 +151,8 @@
 .toolbar-pill.open {
   border-color: var(--accent);
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
 }
 
 .toolbar-pill-label {
@@ -271,12 +273,16 @@
 
 .toolbar-popover-item:focus-visible {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
 @media (hover: hover) and (pointer: fine) {
   .toolbar-popover-item:hover {
     background: var(--accent-light);
+    --text-muted: var(--text-muted-tint);
+    --text-secondary: var(--text-secondary-tint);
     outline: none;
   }
 }
@@ -358,6 +364,8 @@
 
 .sort-menu-reverse:focus-visible {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
@@ -365,6 +373,8 @@
 @media (hover: hover) and (pointer: fine) {
   .sort-menu-reverse:hover {
     background: var(--accent-light);
+    --text-muted: var(--text-muted-tint);
+    --text-secondary: var(--text-secondary-tint);
     outline: none;
   }
 }
@@ -384,6 +394,8 @@
 .deck-toolbar-select-toggle[aria-pressed='true'] {
   border-color: var(--accent);
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   color: var(--accent);
 }
 
@@ -403,6 +415,8 @@
   padding: var(--space-2) var(--space-3);
   margin-bottom: var(--space-2);
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   border: 0.5px solid var(--accent);
   border-radius: var(--radius);
 }
@@ -532,6 +546,8 @@
 
 .deck-role-legend-trigger:focus-visible {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   color: var(--text-primary);
   outline: 2px solid var(--accent);
   outline-offset: -2px;
@@ -539,6 +555,8 @@
 @media (hover: hover) and (pointer: fine) {
   .deck-role-legend-trigger:hover {
     background: var(--accent-light);
+    --text-muted: var(--text-muted-tint);
+    --text-secondary: var(--text-secondary-tint);
     color: var(--text-primary);
     outline: none;
   }
@@ -586,6 +604,8 @@
   margin: 0 -0.35rem;
   padding: var(--space-0-5) var(--space-1-5);
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   border-radius: var(--radius);
   font-weight: 600;
 }

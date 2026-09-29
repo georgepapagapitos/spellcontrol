@@ -161,15 +161,21 @@ describe('buildNextBestMoves', () => {
     expect(moves.find((m) => m.tier === 2)?.id).toBe('roles-removal');
   });
 
-  it('uses the highest-synergy gap for a weak strategy sub-score', () => {
+  it('uses the strongest-synergy gap for a weak strategy sub-score, read as a ratio (E510)', () => {
+    // Real Sythis, Harvest's Hand rows. Reliquary Tower: 59.6% vs 28.1% in the
+    // colours (+0.315, 2.1x). Overgrowth: 31.7% vs 3.7% (+0.280, 8.6x). The
+    // subtraction picked the tower; the ratio picks the enchantress card.
     const moves = buildNextBestMoves(
       base({
-        gapAnalysis: [gap('Low', { synergy: 0.5 }), gap('High', { synergy: 3 })],
+        gapAnalysis: [
+          gap('Reliquary Tower', { inclusion: 59.614, synergy: 0.315 }),
+          gap('Overgrowth', { inclusion: 31.712, synergy: 0.28031627345224963 }),
+        ],
         planScore: plan({ strategy: sub(40) }),
       })
     );
     const strat = moves.find((m) => m.id === 'strategy');
-    expect(strat?.cardName).toBe('High');
+    expect(strat?.cardName).toBe('Overgrowth');
     expect(strat?.focus).toBe('upgrade');
   });
 

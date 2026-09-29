@@ -22,6 +22,7 @@ import { binderCoverArt } from '../lib/binder-cover';
 import { volumesFor, hasMultipleVolumes } from '../lib/binder-volumes';
 import { useBinderLayoutInputs } from '../lib/use-binder-layout-inputs';
 import { formatMoney } from '../lib/format-money';
+import { inkOn } from '../lib/ink';
 import { useConfirm } from '../lib/use-confirm';
 import { Modal } from '../components/Modal';
 import { SortMenu, type SortMenuOption } from '../components/SortMenu';
@@ -500,7 +501,10 @@ export function BindersIndexPage() {
                       ? ` ${panelCascadeClass(idx, cascade.animating)}`
                       : ''
                   }`}
-                  style={{ ['--binder-color' as string]: b.def.color }}
+                  style={{
+                    ['--binder-color' as string]: b.def.color,
+                    ['--binder-ink' as string]: inkOn(b.def.color),
+                  }}
                   {...selectInteraction(sel.selectMode, selected, () => sel.toggle(b.def.id))}
                 >
                   {sel.selectMode && <SelectCheck checked={selected} />}

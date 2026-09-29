@@ -17,7 +17,6 @@ import {
 import { useAuth } from '../store/auth';
 import { useCollectionStore } from '../store/collection';
 import { useAwaitingFirstPull } from '../lib/use-awaiting-first-pull';
-import { formatMoney } from '../lib/format-money';
 import { getFriendShares, type FriendShareRow } from '../lib/share-client';
 import { formatIdentity } from '../lib/display-name';
 import { fetchH2H, type H2HResponse } from '../lib/game-results-client';
@@ -39,6 +38,7 @@ import {
 import { listTrades, subscribeTradesChanged, type TradeOffer } from '../lib/trades-client';
 import { TradeComposer } from '../components/trade/TradeComposer';
 import { TradeOfferList } from '../components/trade/TradeOfferList';
+import { RadarCardTile } from '../components/trade/RadarCardTile';
 import { isTrackingList } from '../lib/lists';
 import { useCardThumb } from '../lib/card-thumbs';
 import { resolveFriendPreview } from '../lib/friend-preview';
@@ -1057,50 +1057,6 @@ export function FriendHubPage() {
         />
       )}
     </div>
-  );
-}
-
-/** One want-list card the friend owns: thumbnail (CDN via useCardThumb, never
- *  the throttled Scryfall API), name, and which list wants it + target price.
- *  Exported for reuse by TonightTrades.tsx (w5-tonight-trades) — assumes a
- *  list-item context (`<li>`) it doesn't provide itself, so callers wrap it
- *  in their own `<ul>`. */
-export function RadarCardTile({ match }: { match: TradeRadarMatch }) {
-  const thumb = useCardThumb(match.name, 'small');
-  const subParts = [
-    match.listNames.length > 1
-      ? `${match.listNames[0]} +${match.listNames.length - 1}`
-      : match.listNames[0],
-  ];
-  // Target prices render in the currency they were ENTERED in (never converted
-  // or relabeled to the viewer's display currency) — see ListEntry.currency.
-  if (match.targetPrice !== undefined)
-    subParts.push(
-      `${formatMoney(match.targetPrice, { currency: match.currency ?? 'USD' })} target`
-    );
-  const sub = subParts.join(' · ');
-  return (
-    <li className="friend-hub-radar-card">
-      {thumb ? (
-        <img
-          className="friend-hub-radar-thumb"
-          src={thumb}
-          alt=""
-          aria-hidden
-          loading="lazy"
-          draggable={false}
-        />
-      ) : (
-        <span className="friend-hub-radar-thumb is-placeholder" aria-hidden />
-      )}
-      <span className="friend-hub-radar-name" title={match.name}>
-        {match.name}
-        {match.quantity > 1 && <span className="friend-hub-radar-qty"> ×{match.quantity}</span>}
-      </span>
-      <span className="friend-hub-radar-sub" title={sub}>
-        {sub}
-      </span>
-    </li>
   );
 }
 

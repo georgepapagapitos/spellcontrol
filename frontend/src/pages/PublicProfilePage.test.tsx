@@ -41,6 +41,15 @@ function profile(overrides: Partial<PublicProfile> = {}): PublicProfile {
     moderationHidden: false,
     deckCount: 0,
     decks: [],
+    followerCount: 0,
+    followingCount: 0,
+    viewerFollows: false,
+    viewerIsFriend: false,
+    stats: { likesReceived: 0, copiesReceived: 0 },
+    topCommanders: [],
+    colorSpread: { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 },
+    pinnedDeckSlug: null,
+    gameRecord: null,
     ...overrides,
   };
 }

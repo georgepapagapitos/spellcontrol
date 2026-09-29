@@ -7,6 +7,7 @@
 import type { EDHRECCard, EDHRECCommanderData } from '@/deck-builder/types';
 import { getCardRole, type RoleKey } from '@/deck-builder/services/tagger/client';
 import { calculateCardPriority, OWNED_PRIORITY_BOOST } from './cardPicking';
+import { isSignatureSynergy } from './synergyLift';
 import {
   getBaseRoleTargets,
   computeEdhrecRoleTargets,
@@ -75,7 +76,7 @@ function edhrecPrice(_card: EDHRECCard): string | null {
 export function bucketForSlot(card: EDHRECCard, role: RoleKey | null): BrewSlotKey {
   if (role) return role;
   if (card.isGameChanger) return 'finishers';
-  if (card.isThemeSynergyCard || (card.synergy ?? 0) > 0.3) return 'theme';
+  if (card.isThemeSynergyCard || isSignatureSynergy(card)) return 'theme';
   return 'flex';
 }
 

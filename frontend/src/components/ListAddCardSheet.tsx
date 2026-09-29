@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useState } from 'react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Finish, ListDef } from '../types';
@@ -40,7 +41,7 @@ export function ListAddCardSheet({ list, initialQuery = '', onClose }: Props) {
 
   const title = `Add card to ${list.name}`;
 
-  return (
+  return createPortal(
     <div
       className="card-picker-root"
       onClick={(e) => {
@@ -87,6 +88,7 @@ export function ListAddCardSheet({ list, initialQuery = '', onClose }: Props) {
           <Button onClick={() => beginClose()}>Done</Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

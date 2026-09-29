@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { Check } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useCollectionStore } from '../store/collection';
@@ -98,7 +99,7 @@ export function BulkMoveToBinderSheet({ copyIds, cards, currentBinderByCopyId, o
 
   const count = copyIds.length;
 
-  return (
+  return createPortal(
     <div
       className="card-picker-root"
       onClick={(e) => {
@@ -184,6 +185,7 @@ export function BulkMoveToBinderSheet({ copyIds, cards, currentBinderByCopyId, o
           <Button onClick={() => beginClose()}>Cancel</Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

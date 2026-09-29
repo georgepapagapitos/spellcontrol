@@ -940,6 +940,8 @@
   .feedback-row-main:hover,
   .feedback-add-result:not(:disabled):hover {
     background: var(--accent-light);
+    --text-muted: var(--text-muted-tint);
+    --text-secondary: var(--text-secondary-tint);
   }
 }
 
@@ -1208,6 +1210,8 @@
 .feedback-bracket.is-active {
   border-color: var(--accent);
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
 }
 
 .feedback-error {

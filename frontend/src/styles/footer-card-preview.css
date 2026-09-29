@@ -730,13 +730,24 @@
      (DeckCardRow, SimilarCardsStrip, SwapThisCard, DeckCardPreviewMeta) — reads
      correctly without each one hand-rolling white-alpha. In the dark app theme
      these tokens are already light, so this is a no-op there; it fixes the
-     dark-on-dark leak that only showed in light themes. --accent is left alone
-     (saturated, readable on dark, and load-bearing for pills / focus rings). */
+     dark-on-dark leak that only showed in light themes.
+
+     Every ground a descendant paints goes with the text: remapping the text but
+     not --surface left each label pill and outline button (`.verdict-chip`,
+     `.deck-card-row-act.is-cut`) on the light theme's paper, so a neutral
+     "Ramp" pill rendered 55%-white on near-white. The status and accent hues
+     are remapped for light schemes in the block below.
+     Guard: styles/preview-panel-contrast.test.ts. */
   --text-primary: rgba(255, 255, 255, 0.92);
   --text-secondary: rgba(255, 255, 255, 0.7);
   --text-muted: rgba(255, 255, 255, 0.55);
+  /* The on-tint ramp (tokens.css): a tinted rule in here must not pick up a
+     light theme's paper inks. */
+  --text-muted-tint: rgba(255, 255, 255, 0.7);
+  --text-secondary-tint: rgba(255, 255, 255, 0.82);
   --border: rgba(255, 255, 255, 0.15);
   --border-strong: rgba(255, 255, 255, 0.25);
+  --surface: rgba(255, 255, 255, 0.05);
   --surface-raised: rgba(255, 255, 255, 0.1);
   /* --bg is remapped for one specific reason: the shared form-control rule in
      styles/forms-banners.css (`select, input[type='text'], …`) is the only
@@ -747,6 +758,30 @@
      white-alpha fill, one step below --surface-raised so a field still reads
      as inset against the panel's raised blocks. */
   --bg: rgba(255, 255, 255, 0.06);
+  /* The accent is text here too (accent pills, hover labels), and the panel's
+     raised rows are lighter than any theme's own surface: a light guild's deep
+     dye fell to 2:1 and even Rakdos's dark-theme red to 2.95:1. The on-art
+     accent keeps the guild's hue mixed toward white, so the button it fills
+     takes dark text. */
+  --accent: var(--art-scrim-accent);
+  --accent-hover: color-mix(in srgb, var(--art-scrim-accent) 85%, white);
+  --accent-light: color-mix(in srgb, var(--art-scrim-accent) 18%, transparent);
+  --on-accent: #14151d;
+}
+
+/* A light theme's status hues are deep inks tuned for paper; on this dark
+   panel they drop to 2-3:1. Point them at the on-art set (tokens.css, E155),
+   which is tuned for an always-dark ground. A dark scheme's status values are
+   the :root ones, already tuned for dark. */
+[data-scheme='light'] .card-preview-panel {
+  --success: var(--art-scrim-success);
+  --info: var(--art-scrim-info);
+  --warn-text: var(--art-scrim-warn);
+  --warn-bg: #3a2f18;
+  --warn-border: #8a6820;
+  --err-text: var(--art-scrim-err);
+  --err-bg: #3a1d1f;
+  --err-border: #8a3838;
 }
 
 .card-preview-panel[data-stop='half'] {

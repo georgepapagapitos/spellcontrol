@@ -922,6 +922,8 @@
   height: 4.5rem;
   border-radius: 50%;
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   color: var(--accent);
 }
 
@@ -1171,6 +1173,8 @@
   border-color: var(--accent);
   color: var(--accent);
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
 }
 /* Ring only on genuine keyboard focus — not a mouse-opened popover
    (.is-open above shares the color treatment but stays ring-free). */
@@ -1183,6 +1187,8 @@
     border-color: var(--accent);
     color: var(--accent);
     background: var(--accent-light);
+    --text-muted: var(--text-muted-tint);
+    --text-secondary: var(--text-secondary-tint);
     outline: none;
   }
 }
@@ -1230,6 +1236,8 @@
   border-color: var(--accent);
   color: var(--accent);
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
 }
 /* Ring only on genuine keyboard focus — not a mouse-opened popover
    (.is-open above shares the color treatment but stays ring-free). */
@@ -1242,6 +1250,8 @@
     border-color: var(--accent);
     color: var(--accent);
     background: var(--accent-light);
+    --text-muted: var(--text-muted-tint);
+    --text-secondary: var(--text-secondary-tint);
     outline: none;
   }
 }
@@ -1366,6 +1376,8 @@
    AddCardSearchPanel's SearchPill; Enter adds this row). */
 .inline-card-search-row.active {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
@@ -1665,6 +1677,8 @@
 
 .inline-card-search-printing.is-selected {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   color: var(--text-primary);
 }
 

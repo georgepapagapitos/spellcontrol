@@ -175,6 +175,8 @@
   height: 40px;
   border-radius: var(--radius);
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   color: var(--accent);
   margin-bottom: var(--space-3);
 }

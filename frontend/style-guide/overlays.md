@@ -186,6 +186,17 @@ var(--overlay-sheet) }` in `binder-card-management.css`. A new sheet on this
   (reference: `ConfirmDialog.tsx`). Hand-rolled `.modal-backdrop` dialogs are
   also discouraged — route through `<Modal>` so the exit animation, focus-trap,
   and Escape handling come for free (see [§ Motion](../STYLE_GUIDE.md#motion)).
+- **An overlay root portals to `<body>`.** A sheet, drawer or dialog root is
+  `position: fixed` with a z-index, and both only hold where it renders.
+  Inline, it inherits every ancestor's stacking context: "View card tags"
+  from a collection grid card opened inside `.collection-grid-cell`
+  (`z-index: 0`), so every later card painted over the sheet. The component
+  that renders `.card-picker-root`, `.modal-backdrop`, `.stats-drawer-root`,
+  the binder page viewer, the deck context menu or the hover peek returns
+  `createPortal(…, document.body)`, as `<Modal>` does. The play table and the
+  playtest board are exempt: their overlays mount at the top of a
+  full-viewport fixed surface, and the board sheets must stay in the rotated
+  seat. `src/test/overlay-roots-portal-to-body.test.ts` fails an inline root.
 - **An overlay that can't portal still answers Escape.**
   The game board's in-panel covers (seat menu, counters, life keypad), its
   hub sheets and the custom layout editor render in place —

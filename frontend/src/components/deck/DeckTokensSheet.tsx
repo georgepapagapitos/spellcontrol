@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { type JSX, useId, useState } from 'react';
 import { X } from 'lucide-react';
 import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
@@ -34,7 +35,7 @@ export function DeckTokensSheet({
 
   const selected = tokens.find((t) => tokenId(t) === openId) ?? null;
 
-  return (
+  return createPortal(
     <div
       className="card-picker-root deck-tokens-root"
       onClick={(e) => {
@@ -117,6 +118,7 @@ export function DeckTokensSheet({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useSignInPath } from '../../lib/sign-in-path';
@@ -165,7 +166,7 @@ export function DeckFeedbackSheet({ deck, onClose }: Props) {
 
   const deckCards = useDecksStore((s) => s.decks.find((d) => d.id === deck.id)?.cards ?? []);
 
-  return (
+  return createPortal(
     <div
       className="card-picker-root"
       onClick={(e) => {
@@ -329,6 +330,7 @@ export function DeckFeedbackSheet({ deck, onClose }: Props) {
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

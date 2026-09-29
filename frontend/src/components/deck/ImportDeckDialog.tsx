@@ -18,9 +18,8 @@ import {
   commanderEligibleFor,
   commanderCandidatesFor,
   partnerCandidatesFor,
-  PartnerImportPicker,
-  ImportParseSummary,
-} from './import-deck-shared';
+} from '@/lib/deck-import-format';
+import { PartnerImportPicker, ImportParseSummary } from './import-deck-shared';
 import {
   googlePickerAvailable,
   isCancelled,

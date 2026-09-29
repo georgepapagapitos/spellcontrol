@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useMemo, useState } from 'react';
 import { useCollectionStore } from '../store/collection';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
@@ -66,7 +67,7 @@ export function CardPickerSheet({ binderId, allCards, currentBoundSet, onClose }
     });
   };
 
-  return (
+  return createPortal(
     <div
       className="card-picker-root"
       onClick={(e) => {
@@ -132,6 +133,7 @@ export function CardPickerSheet({ binderId, allCards, currentBoundSet, onClose }
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

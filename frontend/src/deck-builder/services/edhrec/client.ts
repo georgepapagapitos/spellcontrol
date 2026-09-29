@@ -341,6 +341,11 @@ function parseCard(raw: RawEDHRECCard, tagHint?: string): EDHRECCard {
     primary_type: primaryType,
     inclusion: inclusionPercent, // Now a percentage (0-100)
     num_decks: raw.num_decks || 0,
+    // E510: the sample size behind `inclusion`, for synergyLift.ts's
+    // shrinkage. Only a real count is kept; the `|| 1` above is a divide guard.
+    ...(raw.potential_decks && raw.potential_decks > 0
+      ? { potential_decks: raw.potential_decks }
+      : {}),
     synergy: raw.synergy,
     isThemeSynergyCard,
     isNewCard,

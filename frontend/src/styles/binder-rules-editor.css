@@ -896,6 +896,8 @@
 
 .chip-joiner.and {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -1117,11 +1119,15 @@
 
 .chip-suggest-item.active {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   color: var(--text-primary);
 }
 @media (hover: hover) and (pointer: fine) {
   .chip-suggest-item:hover {
     background: var(--accent-light);
+    --text-muted: var(--text-muted-tint);
+    --text-secondary: var(--text-secondary-tint);
     color: var(--text-primary);
   }
 }
@@ -1221,6 +1227,8 @@
 .sort-preset-chip.is-selected {
   border-color: var(--accent);
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   color: var(--accent);
 }
 
