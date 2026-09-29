@@ -298,6 +298,13 @@
   color: var(--err-text);
 }
 
+/* The fix link takes the row's ink too: --accent is not chosen against the
+   status tints (3.65:1 on Rakdos's warn tint). */
+.deck-identity-card-check.is-warn .btn-link,
+.deck-identity-card-check.is-fail .btn-link {
+  color: var(--text-primary);
+}
+
 .deck-identity-card-check.is-warn .deck-identity-card-check-label,
 .deck-identity-card-check.is-fail .deck-identity-card-check-label,
 .deck-identity-card-check.is-warn .deck-identity-card-check-detail,

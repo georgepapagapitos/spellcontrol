@@ -1,3 +1,4 @@
+import { contrastRatio, inkOn } from '../lib/ink';
 import { PRESET_COLORS } from '../lib/preset-colors';
 import './UserAvatar.css';
 
@@ -21,42 +22,7 @@ function hash(input: string): number {
   return h >>> 0;
 }
 
-function hexToRgb(hex: string): [number, number, number] {
-  const n = parseInt(hex.slice(1), 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-}
-
-function relativeLuminance(hex: string): number {
-  const [r, g, b] = hexToRgb(hex).map((c) => {
-    const s = c / 255;
-    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
-  });
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-
-/** WCAG 2.x contrast ratio between two colors (1:1 to 21:1). */
-export function contrastRatio(hexA: string, hexB: string): number {
-  const a = relativeLuminance(hexA);
-  const b = relativeLuminance(hexB);
-  const [lighter, darker] = a > b ? [a, b] : [b, a];
-  return (lighter + 0.05) / (darker + 0.05);
-}
-
-const FALLBACK_DARK_TEXT = '#000000';
-const FALLBACK_LIGHT_TEXT = '#ffffff';
-
-/**
- * Pick whichever of near-black/white clears more contrast against `bg`.
- * Naively hardcoding white fails WCAG AA (4.5:1) for the lighter PRESET_COLORS
- * entries (Gold, Gray, Brown, Pink measure 2.6-3.7:1 against white); picking
- * per-background instead clears 4.5:1 against every current entry — asserted
- * in UserAvatar.test.tsx, not just described.
- */
-export function fallbackTextColor(bg: string): string {
-  const dark = contrastRatio(bg, FALLBACK_DARK_TEXT);
-  const light = contrastRatio(bg, FALLBACK_LIGHT_TEXT);
-  return dark >= light ? FALLBACK_DARK_TEXT : FALLBACK_LIGHT_TEXT;
-}
+export { contrastRatio, inkOn as fallbackTextColor };
 
 /**
  * Shared avatar primitive for the social program: a circular card-art image,
@@ -77,7 +43,7 @@ export function UserAvatar({ imageUrl, name, size = 32 }: Props) {
   }
 
   const bg = PRESET_COLORS[hash(name) % PRESET_COLORS.length].hex;
-  const color = fallbackTextColor(bg);
+  const color = inkOn(bg);
   // Array.from splits on code points, so an emoji or astral-plane letter
   // isn't cut into a lone surrogate half.
   const initial = (Array.from(name.trim())[0] ?? '?').toUpperCase();
