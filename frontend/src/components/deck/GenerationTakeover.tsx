@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useCardThumb } from '@/lib/cards/card-thumbs';
-import { CardThumb } from '../CardThumb';
-import { ProgressBar } from '../ProgressBar';
+import { CardThumb } from '@/components/card/CardThumb';
+import { ProgressBar } from '@/components/import/ProgressBar';
 import { SealBurst } from '../shared/SealBurst';
 import './GenerationTakeover.css';
 

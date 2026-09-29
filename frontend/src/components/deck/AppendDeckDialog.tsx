@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { WifiOff, Download, X } from 'lucide-react';
-import { Modal } from '../Modal';
-import { ProgressBar } from '../ProgressBar';
+import { Modal } from '@/components/overlays/Modal';
+import { ProgressBar } from '@/components/import/ProgressBar';
 import { importDeckText } from '@/lib/api';
 import { useDecksStore, type Deck } from '../../store/decks';
 import { useCollectionStore } from '../../store/collection';

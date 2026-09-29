@@ -237,7 +237,7 @@ describe('PublicProfilePage — the Collection tab (T136)', () => {
     );
     fetchProfileCollectionMock.mockResolvedValue(COLLECTION);
     renderProfile('/u/alice?tab=collection');
-    expect(await screen.findByText(/Your friends see which cards you own/)).toBeTruthy();
+    expect(await screen.findByText(/Only your friends can see your collection here/)).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Change' })).toBeTruthy();
     // The note shows before the collection's fetch has settled; the owner
     // sees their own cards under it too.
@@ -326,19 +326,36 @@ describe('PublicProfilePage — banner, stats, follow and what they brew (T175)'
     expect(screen.getAllByText('Korvold Deck')).toHaveLength(1);
   });
 
-  it('lists top commanders linking to Discover, and the colour spread', async () => {
+  it('lists repeated commanders linking to Discover, under the colour spread', async () => {
     fetchPublicProfileMock.mockResolvedValue(rich());
     renderProfile();
     const link = await screen.findByRole('link', { name: /Atraxa\s*2 decks/ });
     expect(link.getAttribute('href')).toBe('/decks/discover?commander=Atraxa');
     expect(screen.getByRole('list', { name: 'Decks by color' })).toBeTruthy();
+    expect(screen.getByText('Decks per color, across 2 decks')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Most-built commanders' })).toBeTruthy();
   });
 
-  it('renders no Brews panel and no game record for an empty brewer', async () => {
+  it('leaves out commanders built only once, keeping the colors', async () => {
+    fetchPublicProfileMock.mockResolvedValue(
+      rich({
+        topCommanders: [
+          { name: 'Ulamog', image: 'u.jpg', deckCount: 1 },
+          { name: 'Zada', image: 'z.jpg', deckCount: 1 },
+        ],
+      })
+    );
+    renderProfile();
+    expect(await screen.findByRole('heading', { name: 'Colors' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Most-built commanders' })).toBeNull();
+    expect(screen.queryByRole('link', { name: /Ulamog/ })).toBeNull();
+  });
+
+  it('renders no Colors panel and no game record for an empty brewer', async () => {
     fetchPublicProfileMock.mockResolvedValue(profile());
     renderProfile();
     await screen.findByRole('list', { name: 'Profile stats' });
-    expect(screen.queryByText('Brews most')).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Colors' })).toBeNull();
     expect(screen.queryByText('Game record')).toBeNull();
   });
 
@@ -373,7 +390,7 @@ describe('PublicProfilePage — banner, stats, follow and what they brew (T175)'
     renderProfile();
     await screen.findByText(/hidden by a moderator/);
     expect(screen.queryByRole('list', { name: 'Profile stats' })).toBeNull();
-    expect(screen.queryByText('Brews most')).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Colors' })).toBeNull();
     expect(document.querySelector('.public-profile-banner')).toBeNull();
   });
 });

@@ -1,0 +1,190 @@
+import { useEffect, useMemo, useState } from 'react';
+import type { BinderFilter, BinderFilterGroup, ListDef } from '@/types/index';
+import { useCollectionStore } from '@/store/collection';
+import { cleanFilter } from '@/lib/search/clean-filter';
+import { areAllGroupsEmpty } from '@/lib/binder/rules';
+import { dynamicListCount } from '@/lib/collection/dynamic-list';
+import { useCardsWithTags, groupsUseTags } from '@/lib/cards/card-tags';
+import { fetchTypeSuggestions, fetchOracleSuggestions } from '@/lib/cards/scryfall-catalog';
+import { Modal } from '@/components/overlays/Modal';
+import { FilterGroupList, cloneChips, validateGroups } from '@/components/search/FilterGroupEditor';
+import './ListRuleEditor.css';
+import { X } from 'lucide-react';
+import { Button, IconButton } from '@/components/shared/Button';
+
+interface Props {
+  list: ListDef;
+  onClose: () => void;
+}
+
+const newGroup = (): BinderFilterGroup => ({ filter: {} });
+
+/**
+ * Rule editor for a dynamic list — the binder editor's `FilterGroupList`
+ * (OR-of-groups, live match counts) on the same editor-sheet pattern as
+ * BinderEditor (config-surface kit, board T139): the shared `Modal` supplies
+ * the backdrop, focus trap, body-scroll lock and Escape (through the overlay
+ * stack, so a nested popover's Escape closes only the popover), and a bottom
+ * sheet on phone via `modal-backdrop--sheet`. Minus every binder-only concern
+ * (capacity, routing order, pockets). Saving cleans each group via
+ * `cleanFilter` (same persistence hygiene as binders) and writes the rule to
+ * the store; membership everywhere else recomputes live.
+ */
+export function ListRuleEditor({ list, onClose }: Props) {
+  const cards = useCollectionStore((s) => s.cards);
+  const setListRule = useCollectionStore((s) => s.setListRule);
+  const [groups, setGroups] = useState<BinderFilterGroup[]>(() =>
+    list.rule && list.rule.length > 0
+      ? list.rule.map((g) => ({ ...g, filter: { ...g.filter } }))
+      : [newGroup()]
+  );
+  const [autofocusIdx, setAutofocusIdx] = useState<number | null>(null);
+
+  // Same inputs the binder editor feeds FilterGroupList: owned sets for the
+  // set picker, catalog+collection suggestions for type/oracle chips, and
+  // tag-decorated cards so a draft oracle-tag rule counts correctly.
+  const ownedSets = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of cards) {
+      const code = c.setCode.toUpperCase();
+      if (!map.has(code)) map.set(code, c.setName || code);
+    }
+    return Array.from(map.entries())
+      .map(([code, label]) => ({ code, label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [cards]);
+
+  const [typeSuggestions, setTypeSuggestions] = useState<string[]>([]);
+  const [oracleSuggestions, setOracleSuggestions] = useState<string[]>([]);
+  useEffect(() => {
+    const collectionTokens = new Set<string>();
+    for (const c of cards) {
+      if (!c.typeLine) continue;
+      for (const tok of c.typeLine.split(/[\s——]+/)) {
+        const t = tok.trim();
+        if (t) collectionTokens.add(t);
+      }
+    }
+    let cancelled = false;
+    fetchTypeSuggestions().then((catalog) => {
+      if (cancelled) return;
+      setTypeSuggestions(
+        [...new Set([...catalog, ...collectionTokens])].sort((a, b) => a.localeCompare(b))
+      );
+    });
+    fetchOracleSuggestions().then((catalog) => {
+      if (!cancelled) setOracleSuggestions(catalog);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // Suggestions seed once per open — not on every collection mutation.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const taggedCards = useCardsWithTags(cards, groupsUseTags(groups));
+  const matchCount = useMemo(() => dynamicListCount(taggedCards, groups), [taggedCards, groups]);
+  // This sheet mounts the same NumberRangeInputs as the binder modal but never
+  // ran the modal's range validation, so a min > max or a NaN saved silently
+  // here and was refused two clicks away in the other editor.
+  const rangeError = useMemo(() => validateGroups(groups), [groups]);
+  const canSave = !areAllGroupsEmpty(groups) && rangeError === null;
+
+  const updateGroup = (idx: number, patch: (g: BinderFilterGroup) => BinderFilterGroup) =>
+    setGroups((prev) => prev.map((g, i) => (i === idx ? patch(g) : g)));
+
+  const save = () => {
+    if (!canSave) return;
+    const cleaned = groups
+      .map((g) => ({ ...(g.name ? { name: g.name } : {}), filter: cleanFilter(g.filter) }))
+      .filter((g) => Object.keys(g.filter).length > 0);
+    setListRule(list.id, cleaned);
+    onClose();
+  };
+
+  return (
+    <Modal
+      onClose={onClose}
+      className="modal"
+      backdropClassName="modal-backdrop--sheet"
+      labelledBy="list-rule-editor-title"
+    >
+      <div className="modal-header">
+        <h2 id="list-rule-editor-title">Rule for {list.name}</h2>
+        <IconButton
+          variant="quiet"
+          onClick={onClose}
+          label="Close"
+          icon={<X width={20} height={20} strokeWidth={1.8} />}
+        />
+      </div>
+
+      <div className="modal-body">
+        <FilterGroupList
+          groups={groups}
+          cards={taggedCards}
+          ownedSets={ownedSets}
+          typeSuggestions={typeSuggestions}
+          oracleSuggestions={oracleSuggestions}
+          autofocusIdx={autofocusIdx}
+          clearAutofocus={() => setAutofocusIdx(null)}
+          onPatchFilter={(idx, p: Partial<BinderFilter>) =>
+            updateGroup(idx, (g) => ({ ...g, filter: { ...g.filter, ...p } }))
+          }
+          onSetName={(idx, name) => updateGroup(idx, (g) => ({ ...g, name }))}
+          onAdd={() =>
+            setGroups((prev) => {
+              setAutofocusIdx(prev.length);
+              return [...prev, newGroup()];
+            })
+          }
+          onDuplicate={(idx) =>
+            setGroups((prev) => {
+              const src = prev[idx];
+              const copy: BinderFilterGroup = {
+                name: src.name ? `${src.name} (copy)` : undefined,
+                // `cloneChips` exists so a duplicate doesn't share mutable
+                // chip/array refs with its original. The binder editor used
+                // it; this one shallow-spread, leaving every ChipExpression
+                // and setCodes array shared between the two groups.
+                filter: { ...src.filter, ...cloneChips(src.filter) },
+              };
+              setAutofocusIdx(idx + 1);
+              return [...prev.slice(0, idx + 1), copy, ...prev.slice(idx + 1)];
+            })
+          }
+          onRemove={(idx) =>
+            setGroups((prev) =>
+              prev.length === 1 ? [newGroup()] : prev.filter((_, i) => i !== idx)
+            )
+          }
+          emptyGroupMatchesNothing
+        />
+      </div>
+
+      <div className="modal-footer list-rule-editor-footer">
+        {/* Say WHY Save is off. A disabled button with no reason beside it is
+            the same dead end as no validation at all. */}
+        {rangeError ? (
+          <span className="list-rule-editor-error" role="alert">
+            {rangeError}
+          </span>
+        ) : (
+          <span
+            className={`list-rule-editor-count${matchCount === 0 ? ' is-zero' : ''}`}
+            aria-live="polite"
+          >
+            Matches <strong>{matchCount.toLocaleString()}</strong>{' '}
+            {matchCount === 1 ? 'card' : 'cards'} in your collection
+          </span>
+        )}
+        <Button onClick={onClose} className="list-rule-editor-cancel">
+          Cancel
+        </Button>
+        <Button variant="primary" disabled={!canSave} onClick={save}>
+          Save rule
+        </Button>
+      </div>
+    </Modal>
+  );
+}

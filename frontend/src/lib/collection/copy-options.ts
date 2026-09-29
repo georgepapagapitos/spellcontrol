@@ -1,4 +1,4 @@
-import type { SelectOption } from '@/components/SelectMenu';
+import type { SelectOption } from '@/components/overlays/SelectMenu';
 
 /**
  * The per-copy condition and language vocabularies, shared by every surface

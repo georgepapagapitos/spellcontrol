@@ -24,7 +24,7 @@ vi.mock('../store/decks', () => ({
 vi.mock('../components/deck/ImportDeckDialog', () => ({
   ImportDeckDialog: ({ format }: { format: string }) => <div>import dialog for {format}</div>,
 }));
-vi.mock('../components/ProductSearchDialog', () => ({
+vi.mock('@/components/import/ProductSearchDialog', () => ({
   ProductSearchDialog: () => <div>product dialog</div>,
 }));
 

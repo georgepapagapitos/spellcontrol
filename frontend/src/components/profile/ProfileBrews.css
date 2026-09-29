@@ -1,4 +1,4 @@
-/* "Brews most" and "Game record" panels on /u/:username.
+/* "Colors" (with most-built commanders) and "Game record" panels on /u/:username.
    See style-guide/social.md § Profiles. */
 
 .public-profile-panels {
@@ -27,6 +27,25 @@
   font-family: var(--font-display);
   font-size: var(--text-lg);
   font-weight: 400;
+}
+
+.profile-brews-heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.profile-brews-caption {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.profile-brews-subtitle {
+  margin: var(--space-2) 0 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: 600;
 }
 
 .profile-brews-commanders {

@@ -6,7 +6,7 @@ import { pending } from '@/test/pending';
 
 // Stub AddCardsSheet so opening it doesn't mount the full modal stack
 // (CardScanner, UploadPanel, etc.) — mirrors CollectionPage.test.tsx.
-vi.mock('../components/AddCardsSheet', () => ({
+vi.mock('@/components/import/AddCardsSheet', () => ({
   AddCardsSheet: ({ onClose }: { onClose: () => void }) => (
     <div data-testid="add-cards-sheet">
       <button onClick={onClose}>Close</button>

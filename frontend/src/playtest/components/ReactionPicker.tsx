@@ -11,7 +11,7 @@ type PanelPos = { top?: number; bottom?: number; left?: number; right?: number }
 /**
  * Online-only send affordance: a single trigger that opens a compact row of
  * the six whitelisted reaction emotes, one tap away. Mirrors
- * `components/OverflowMenu`'s trigger+portal+placement shape (§ Toolbars &
+ * `components/overlays/OverflowMenu`'s trigger+portal+placement shape (§ Toolbars &
  * action rows) rather than reinventing popover mechanics, but the panel body
  * is a grid of emote buttons instead of a menu list. Renders nothing outside
  * an online, seated game — see `useOnlineSignals`.

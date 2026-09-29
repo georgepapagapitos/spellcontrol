@@ -11,7 +11,7 @@ where every section lives.
 ## Tabs / view switchers
 
 - Page-level "distinct views" switcher → the `underline` variant of
-  `components/Tabs.tsx` (accent underline tracks the active tab). It reads
+  `components/overlays/Tabs.tsx` (accent underline tracks the active tab). It reads
   unambiguously as tabs; the soft nav-pill look of the site and section nav
   (`.site-nav-link`, `HubTabsNav`) does **not**, and stays there.
 - **The accent cover dye marks the CURRENT tab of the primary nav only; a
@@ -36,7 +36,7 @@ where every section lives.
   whose last tab is cut off flat at the viewport edge reads as the end of
   the list — the fade is what says "more". Every strip on the primitive
   gets it for free; don't hand-roll a per-page gradient.
-- All tabbed surfaces go through the shared `components/Tabs.tsx` primitive
+- All tabbed surfaces go through the shared `components/overlays/Tabs.tsx` primitive
   (roving tabindex, arrow-key nav, `role=tablist`/`tab`/`tabpanel`). Don't
   hand-roll a tab strip. **This applies inside overlays, sheets, modals, editor
   panels, and admin/debug pages too** — an internal audience does not exempt a
@@ -255,7 +255,7 @@ report. When you write that idiom, write the third line too.
    heroes: Decks / Collection / Binders).
    - Keep the **primary CTA labelled and always visible.**
    - Collapse the **secondary actions into a `⋮` overflow at `≤600px`** using the
-     shared `components/OverflowMenu.tsx` (kebab + popover, outside-click/Esc
+     shared `components/overlays/OverflowMenu.tsx` (kebab + popover, outside-click/Esc
      close; opens from its own wrapper — for **virtualized rows** use
      `CardRowMenu` instead, which portals out of the clipping row). The Decks
      hero is the reference: New deck stays a labelled pill, Import deck + Add
@@ -1165,7 +1165,7 @@ the chain editor it already showed.
 Where sort is one **pill in a toolbar** rather than a row editor, the rulings
 above still hold — the direction control just moves _inside the menu_, because
 these rows are width-budgeted and CI-guarded (§ Toolbars & action rows). Use
-**`components/SortMenu.tsx`**; don't re-assemble it from `SelectMenu` +
+**`components/search/SortMenu.tsx`**; don't re-assemble it from `SelectMenu` +
 `SortDirArrow`. Seven toolbars each carried that same boilerplate, and the
 arrow they rendered was a passive status glyph you had no way to act on.
 
@@ -1471,7 +1471,7 @@ on dismiss.
 ## Info tooltips
 
 When a label needs a plain-language explainer for a concept not everyone knows
-(jargon, a scoring formula), use the shared **`components/InfoTip.tsx`** — a
+(jargon, a scoring formula), use the shared **`components/overlays/InfoTip.tsx`** — a
 small `ⓘ` icon button beside the label with a portal tooltip. Don't hand-roll a
 tooltip; reuse this so they behave identically everywhere.
 
@@ -1518,7 +1518,7 @@ explanation in a hover title.
 ### Keywords in card rules text (2026-09-27)
 
 A card's rules text links its keywords to what the rules say they do. Render
-rules text through `components/RulesText.tsx` (`RulesTextLine` with
+rules text through `components/card/RulesText.tsx` (`RulesTextLine` with
 `useRulesText`, or `RulesTextParagraphs`), never by splitting `oracle_text`
 yourself. That gives reminder text its printed-card italic and every keyword its
 link, on every surface at once.
@@ -1551,7 +1551,7 @@ link, on every surface at once.
 ### Flavor text in card rules text (2026-09-28)
 
 Flavor is set apart the way the printed card sets it apart, in `CardText`
-(`components/CardDetails.tsx`), so the card preview and the playtest Card info
+(`components/card/CardDetails.tsx`), so the card preview and the playtest Card info
 dialog get it together. Guarded by `styles/card-text-flavor.test.ts`.
 
 - **Italic means flavor or reminder text, nothing else.** That's what it means

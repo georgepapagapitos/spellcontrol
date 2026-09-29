@@ -34,7 +34,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, Crown } from 'lucide-react';
 import { CardGridCell } from '../../components/shared/CardGridCell';
-import { CardPreview } from '../../components/CardPreview';
+import { CardPreview } from '@/components/card/CardPreview';
 import { MeterBar } from '../../components/shared/MeterBar';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '../../types';

@@ -52,9 +52,9 @@ describe('filter-chip family stays unified (T152 W8k)', () => {
     ['styles/deck-builder-card-search.css', '.card-search-filter-chip'],
     ['components/deck/CoachFeed.css', '.coach-feed-filter-chip'],
     ['styles/deck-builder-deck-extras.css', '.deck-role-bar-chip'],
-    ['components/ProductSearchPanel.css', '.product-type-chip'],
+    ['components/import/ProductSearchPanel.css', '.product-type-chip'],
     ['styles/deck-builder-combos-list.css', '.deck-combos-filter-pill'],
-    ['components/DiscoverFiltersPopover.css', '.discover-filter-chip > span'],
+    ['components/decks/DiscoverFiltersPopover.css', '.discover-filter-chip > span'],
   ];
 
   for (const [file, selector] of RETIRED) {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CollectionHubTabs } from '@/components/CollectionHubTabs';
-import { PageHeader } from '@/components/PageHeader';
+import { CollectionHubTabs } from '@/components/collection/CollectionHubTabs';
+import { PageHeader } from '@/components/app-shell/PageHeader';
 // Shared with the deck editor; ships with the two chunks, not the boot payload (E265).
 import '@/styles/deck-builder-combos-list.css';
 import type { ComboMatch } from '../types/combos';
@@ -11,10 +11,10 @@ import { buildCardImageIndex, buildCardIndex } from '@/lib/deck-analysis/deck-ca
 import { useDeckCombos } from '@/lib/deck-analysis/use-deck-combos';
 import { searchCombos } from '../lib/api/combos';
 import type { ComboSearchResult } from '../lib/offline';
-import { CardPreview } from '../components/CardPreview';
-import { Tabs } from '../components/Tabs';
-import { SearchPill } from '../components/SearchPill';
-import { ComboFiltersPopover } from '../components/ComboFiltersPopover';
+import { CardPreview } from '@/components/card/CardPreview';
+import { Tabs } from '@/components/overlays/Tabs';
+import { SearchPill } from '@/components/search/SearchPill';
+import { ComboFiltersPopover } from '@/components/collection/ComboFiltersPopover';
 import { FilterChipsRow, type FilterChipDescriptor } from '../components/shared/FilterChipsRow';
 import { colorChipLabel } from '@/lib/search/filter-summary';
 import { ComboRow } from '../components/deck/ComboRow';

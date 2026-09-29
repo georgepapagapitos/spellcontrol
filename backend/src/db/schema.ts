@@ -93,7 +93,7 @@ export const users = pgTable('users', {
   /**
    * Who can see the collection (board T136): 'public' | 'friends' |
    * 'private'. NULL means the owner never chose (every account from before
-   * this shipped): friends see which cards, never quantities or prices.
+   * this shipped), read as 'friends' by `storedCollectionVisibility`.
    */
   collectionVisibility: text('collection_visibility').default('public'),
   /**

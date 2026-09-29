@@ -1,9 +1,9 @@
 import './BrowseListFilters.css';
 // The popover's sections and radio chips are Discover's filter popover's own.
-import '../DiscoverFiltersPopover.css';
+import '@/components/decks/DiscoverFiltersPopover.css';
 import { useId } from 'react';
 import { ListFilter } from 'lucide-react';
-import { SelectMenu } from '@/components/SelectMenu';
+import { SelectMenu } from '@/components/overlays/SelectMenu';
 import { Button } from '@/components/shared/Button';
 import { ColorIdentityPicker } from '@/components/shared/ColorIdentityPicker';
 import { SegmentedControl } from '@/components/shared/form';

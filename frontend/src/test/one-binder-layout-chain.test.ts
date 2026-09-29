@@ -50,7 +50,7 @@ const GATE_ALLOWLIST: Record<string, string> = {
   'lib/cards/card-release-dates.ts': 'defines bindersUseReleaseDates',
   'store/collection.ts':
     "the store's price-refresh move notice runs outside React and cannot call a hook",
-  'components/ScannerQueueSheet.tsx':
+  'components/scanner/ScannerQueueSheet.tsx':
     'decorates the pending Add list rows, not the collection, to predict their binder',
 };
 

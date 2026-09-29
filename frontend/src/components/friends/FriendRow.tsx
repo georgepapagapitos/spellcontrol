@@ -1,8 +1,8 @@
 import './FriendRow.css';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeftRight, UserRound, UserMinus } from 'lucide-react';
-import { OverflowMenu } from '../OverflowMenu';
-import { UserAvatar } from '../UserAvatar';
+import { OverflowMenu } from '@/components/overlays/OverflowMenu';
+import { UserAvatar } from '@/components/profile/UserAvatar';
 import { ColorIdentityBar } from '../shared/ColorIdentityBar';
 import { Surface } from '../shared/Surface';
 import type { Friend } from '@/lib/social/friends-client';

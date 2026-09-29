@@ -29,21 +29,21 @@ primitives directory.
 
 ### Card surfaces
 
-| Reach for                                                         | Instead of                    | Ruling                                                                                                                            |
-| ----------------------------------------------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `components/shared/CardGridCell`                                  | a bespoke grid tile           | [§ Card row information hierarchy](style-guide/cards-collection.md#card-row-information-hierarchy) · § Index tiles wear cover art |
-| `components/shared/CardRow`                                       | a bespoke list row            | [§ Card row information hierarchy](style-guide/cards-collection.md#card-row-information-hierarchy)                                |
-| `components/CardThumb` + `lib/cards/card-thumbs` (`useCardThumb`) | a raw Scryfall image URL      | [§ Card art peek](style-guide/overlays.md#card-art-peek--hover--touch-long-press-e129)                                            |
-| `components/CardPreview`                                          | a second card-detail view     | [§ Card art peek](style-guide/overlays.md#card-art-peek--hover--touch-long-press-e129) — there is exactly one card view           |
-| `components/shared/ManaSymbol` (`ColorPip`)                       | a bare `mana-font` class      | [§ Symbol key / Legend](style-guide/cards-collection.md#symbol-key--legend)                                                       |
-| `components/ManaCost`                                             | mapping a mana string by hand | [§ Card-stat terminology](style-guide/cards-collection.md#card-stat-terminology-mana-value--mana-cost--price)                     |
-| `components/shared/SetSymbol`                                     | a bare `keyrune` class        | [§ Symbol key / Legend](style-guide/cards-collection.md#symbol-key--legend)                                                       |
+| Reach for                                                              | Instead of                    | Ruling                                                                                                                            |
+| ---------------------------------------------------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `components/shared/CardGridCell`                                       | a bespoke grid tile           | [§ Card row information hierarchy](style-guide/cards-collection.md#card-row-information-hierarchy) · § Index tiles wear cover art |
+| `components/shared/CardRow`                                            | a bespoke list row            | [§ Card row information hierarchy](style-guide/cards-collection.md#card-row-information-hierarchy)                                |
+| `components/card/CardThumb` + `lib/cards/card-thumbs` (`useCardThumb`) | a raw Scryfall image URL      | [§ Card art peek](style-guide/overlays.md#card-art-peek--hover--touch-long-press-e129)                                            |
+| `components/card/CardPreview`                                          | a second card-detail view     | [§ Card art peek](style-guide/overlays.md#card-art-peek--hover--touch-long-press-e129) — there is exactly one card view           |
+| `components/shared/ManaSymbol` (`ColorPip`)                            | a bare `mana-font` class      | [§ Symbol key / Legend](style-guide/cards-collection.md#symbol-key--legend)                                                       |
+| `components/ManaCost`                                                  | mapping a mana string by hand | [§ Card-stat terminology](style-guide/cards-collection.md#card-stat-terminology-mana-value--mana-cost--price)                     |
+| `components/shared/SetSymbol`                                          | a bare `keyrune` class        | [§ Symbol key / Legend](style-guide/cards-collection.md#symbol-key--legend)                                                       |
 
 ### Controls & chrome
 
 | Reach for                                                      | Instead of                                           | Ruling                                                                                                                      |
 | -------------------------------------------------------------- | ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `components/PageHeader`                                        | a hand-built `.binder-hero`                          | § Layout system                                                                                                             |
+| `components/app-shell/PageHeader`                              | a hand-built `.binder-hero`                          | § Layout system                                                                                                             |
 | `components/shared/Button` (`Button`)                          | a raw `className="btn …"`                            | § Shape language — Buttons are a primitive                                                                                  |
 | `components/shared/Button` (`IconButton`)                      | a `<button>` holding only a glyph                    | § Shape language — Buttons are a primitive                                                                                  |
 | `lib/util/icon-scale` (`ICON_SCALE`)                           | a one-off `lucide-react` size/strokeWidth pair       | § Icon scale                                                                                                                |
@@ -56,16 +56,16 @@ primitives directory.
 | `components/shared/SwipeRow`                                   | a hand-built horizontal tile row                     | § Layout system — A row of tiles                                                                                            |
 | `components/shared/ColorIdentityPicker`                        | a hand-built WUBRG + colorless pip row               | [§ Color pip rows](style-guide/cards-collection.md#color-pip-rows--andor-match-mode-chip)                                   |
 | `components/shared/SectionHeader`                              | a hand-built `-section-head` row                     | § Layout system — Section header                                                                                            |
-| `components/SearchPill`                                        | a bare `<input type="search">`                       | [§ Toolbars & action rows](style-guide/components.md#toolbars--action-rows-responsive) · § Responsive (keep `min-width: 0`) |
-| `components/SelectMenu`                                        | a restyled `<select>`                                | [§ Toolbars & action rows](style-guide/components.md#toolbars--action-rows-responsive)                                      |
-| `components/OverflowMenu`                                      | a hand-rolled `⋮` popover                            | [§ Toolbars & action rows](style-guide/components.md#toolbars--action-rows-responsive)                                      |
+| `components/search/SearchPill`                                 | a bare `<input type="search">`                       | [§ Toolbars & action rows](style-guide/components.md#toolbars--action-rows-responsive) · § Responsive (keep `min-width: 0`) |
+| `components/overlays/SelectMenu`                               | a restyled `<select>`                                | [§ Toolbars & action rows](style-guide/components.md#toolbars--action-rows-responsive)                                      |
+| `components/overlays/OverflowMenu`                             | a hand-rolled `⋮` popover                            | [§ Toolbars & action rows](style-guide/components.md#toolbars--action-rows-responsive)                                      |
 | `components/shared/CtxMenuShell`                               | a hand-rolled right-click menu                       | § Verbs (menus)                                                                                                             |
 | `lib/overlays/use-menu-keyboard`                               | a bespoke `role="menu"` key handler                  | § Verbs (menus)                                                                                                             |
 | `components/shared/InlineRename`                               | a bespoke input-swap rename flow                     | § Verbs (rename)                                                                                                            |
 | `OverflowMenu` `contextHost` (+ `lib/overlays/context-menu`)   | an `onContextMenu` on an item                        | § Verbs (menus)                                                                                                             |
 | `components/shared/ToolbarPopover`                             | a second portal-popover impl                         | [§ Toolbars & action rows](style-guide/components.md#toolbars--action-rows-responsive)                                      |
 | `components/shared/ViewPopoverPanel`                           | letting a phone toolbar wrap rows                    | [§ Toolbars & action rows](style-guide/components.md#toolbars--action-rows-responsive)                                      |
-| `components/Tabs`                                              | bespoke tab markup                                   | [§ Tabs / view switchers](style-guide/components.md#tabs--view-switchers)                                                   |
+| `components/overlays/Tabs`                                     | bespoke tab markup                                   | [§ Tabs / view switchers](style-guide/components.md#tabs--view-switchers)                                                   |
 | `components/ViewModeToggle`                                    | a bespoke layout switcher                            | [§ View-mode toggle option order](style-guide/cards-collection.md#view-mode-toggle-option-order-richest--sparsest)          |
 | `components/shared/FilterChipsRow`                             | a bespoke active-filter row                          | [§ Tag chips](style-guide/components.md#tag-chips-e171)                                                                     |
 | `components/shared/form` (`SwitchRow`)                         | a checkbox for an on/off setting                     | [§ Config surfaces](style-guide/components.md#config-surfaces-t139)                                                         |
@@ -86,26 +86,26 @@ primitives directory.
   containing block, which is how the share dialog once opened clipped inside
   the deck hero with a backdrop that dimmed only that card.
 
-| Reach for                                                           | Instead of                           | Ruling                                                                  |
-| ------------------------------------------------------------------- | ------------------------------------ | ----------------------------------------------------------------------- |
-| `components/Modal`                                                  | a bespoke `position: fixed` layer    | § Overlays — hand-rolled `.modal-backdrop` dialogs are the anti-pattern |
-| `lib/overlays/use-sheet-exit` + `lib/overlays/use-lock-body-scroll` | hand-rolled open/close + scroll lock | § Overlays                                                              |
-| `lib/overlays/use-escape-key`                                       | a bare `keydown` listener            | § Overlays                                                              |
-| `components/ConfirmDialog` / `components/use-confirm`               | `window.confirm`                     | § Overlays                                                              |
+| Reach for                                                               | Instead of                           | Ruling                                                                  |
+| ----------------------------------------------------------------------- | ------------------------------------ | ----------------------------------------------------------------------- |
+| `components/overlays/Modal`                                             | a bespoke `position: fixed` layer    | § Overlays — hand-rolled `.modal-backdrop` dialogs are the anti-pattern |
+| `lib/overlays/use-sheet-exit` + `lib/overlays/use-lock-body-scroll`     | hand-rolled open/close + scroll lock | § Overlays                                                              |
+| `lib/overlays/use-escape-key`                                           | a bare `keydown` listener            | § Overlays                                                              |
+| `components/overlays/ConfirmDialog` / `components/overlays/use-confirm` | `window.confirm`                     | § Overlays                                                              |
 
 ### Feedback, state & identity
 
 | Reach for                                                   | Instead of                                            | Ruling                                                                                                                 |
 | ----------------------------------------------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | `components/shared/MeterBar`                                | a hand-rolled bar track                               | [§ Bars & meters](style-guide/data-display.md#bars--meters) — **never hand-roll a track**                              |
-| `components/InfoTip`                                        | inline hand-holding prose                             | [§ Info tooltips](style-guide/components.md#info-tooltips)                                                             |
+| `components/overlays/InfoTip`                               | inline hand-holding prose                             | [§ Info tooltips](style-guide/components.md#info-tooltips)                                                             |
 | `components/shared/EmptyState`                              | hand-rolled `.empty-state`/`.empty-state-tagline` JSX | [§ Empty states](style-guide/components.md#empty-states-e182)                                                          |
 | `components/share/SharedEmptyState`                         | a bare `<p>` in a share/friend view                   | [§ Empty states](style-guide/components.md#empty-states-e182)                                                          |
 | `components/share/SharedShell` (`LoadingView`, `ErrorView`) | a bare `Loading…` / a dead-end error on a public page | § Verbs (loading, empty, error)                                                                                        |
 | `components/shared/ThinDataNote`                            | inventing a sample-size caveat                        | [§ Deck-analysis band words](style-guide/decks.md#deck-analysis-band-words)                                            |
 | `components/deck/VerdictBadge`                              | a bespoke pass/fail pill                              | [§ Verdict badges](style-guide/decks.md#verdict-badges) · § One scoring vocabulary                                     |
 | `components/shared/SealBurst` / `SealMoment`                | confetti                                              | [§ Completion moments (the seal)](style-guide/app-shell.md#completion-moments-the-seal)                                |
-| `components/UserAvatar`                                     | a bespoke initials circle                             | § Icon scale                                                                                                           |
+| `components/profile/UserAvatar`                             | a bespoke initials circle                             | § Icon scale                                                                                                           |
 | `playtest/components/OpponentRail`                          | a bespoke multiplayer sidebar                         | [§ Opponent rail — never hide a seat](style-guide/overlays.md#opponent-rail--never-hide-a-seat)                        |
 | `playtest/components/OpponentQuadrant`                      | a bespoke opponent board panel                        | [§ Desktop table with opponents: 2x2, not a rail](style-guide/overlays.md#desktop-table-with-opponents-2x2-not-a-rail) |
 
@@ -330,7 +330,7 @@ meanwhile.
   every tier.** One meta line under the title. At most two visible actions
   (primary + one secondary) plus a `⋮` for the rest. The tab bar sits directly
   under the header, never above the title and never beside it. With art, the
-  header follows [§ Page hero art](style-guide/app-shell.md#page-hero-art--phones-get-the-art-not-a-downgrade). **Built:** `components/PageHeader` owns the
+  header follows [§ Page hero art](style-guide/app-shell.md#page-hero-art--phones-get-the-art-not-a-downgrade). **Built:** `components/app-shell/PageHeader` owns the
   action rule. A page passes its actions as a list (one `primary`, any
   secondaries, `menuOnly` for destructive ones) and never decides visibility
   itself: the primary is always shown, wider than a phone the first secondary
@@ -1248,7 +1248,7 @@ must be checked at 360px.
 ### Type sets — the user-selectable typeface axis
 
 `lib/account/typesets.ts` + `styles/typesets.css` + the picker in
-`components/TypeSetPicker.tsx`. A set is a `data-typeset="<id>"` attribute on
+`components/settings/TypeSetPicker.tsx`. A set is a `data-typeset="<id>"` attribute on
 `<html>`, exactly parallel to a theme's `data-theme`, and the two axes compose
 freely: **a set touches only the four type tokens, a theme only color tokens.**
 Rulings:

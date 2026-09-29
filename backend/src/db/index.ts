@@ -916,8 +916,8 @@ export async function ensureSchema(): Promise<void> {
     ALTER TABLE users ADD COLUMN IF NOT EXISTS notify_email BOOLEAN NOT NULL DEFAULT true;
     -- Who can see the collection (board T136): 'public' | 'friends' |
     -- 'private'. Added WITHOUT a default, so every existing account stays
-    -- NULL = "never chose" (friends see which cards, never quantities or
-    -- prices, as before) rather than being made public retroactively. The
+    -- NULL = "never chose" rather than being made public retroactively; the
+    -- app reads NULL as 'friends' (collections/visibility.ts). The
     -- default is set afterwards, so only accounts created from now on start
     -- public. Both statements are idempotent on every boot.
     ALTER TABLE users ADD COLUMN IF NOT EXISTS collection_visibility TEXT;

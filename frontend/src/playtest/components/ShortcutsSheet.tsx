@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
-import { Modal } from '@/components/Modal';
+import { Modal } from '@/components/overlays/Modal';
 import {
   CARD_GROUP_HELP,
   SHORTCUTS,

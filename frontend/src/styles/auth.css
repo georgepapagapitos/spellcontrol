@@ -84,7 +84,7 @@
   font-size: var(--text-sm);
 }
 
-/* The mode switcher is the shared <Tabs> primitive (components/Tabs.tsx,
+/* The mode switcher is the shared <Tabs> primitive (components/overlays/Tabs.tsx,
    `fitted` variant); this hook only positions it inside the card. */
 .auth-tabs {
   margin-bottom: var(--space-4);

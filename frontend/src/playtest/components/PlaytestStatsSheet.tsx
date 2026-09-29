@@ -25,8 +25,8 @@ import { loadSessionHistory } from '@/lib/playtest/session-history';
 import { computeSessionAggregates, MIN_SESSIONS_FOR_STATS } from '@/lib/playtest/session-record';
 import { MeterBar, StackedBar } from '@/components/shared/MeterBar';
 import { ColorPip, TypeIcon } from '@/components/shared/ManaSymbol';
-import { Tabs, type TabItem } from '@/components/Tabs';
-import { InfoTip } from '@/components/InfoTip';
+import { Tabs, type TabItem } from '@/components/overlays/Tabs';
+import { InfoTip } from '@/components/overlays/InfoTip';
 import { assemblyClockTip, isKillClock } from '@/components/deck/WinConditionPanel';
 import { Button } from '@/components/shared/Button';
 

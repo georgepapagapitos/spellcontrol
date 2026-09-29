@@ -1,7 +1,7 @@
-import '../components/FriendsManagement.css';
-import { PageHeader } from '@/components/PageHeader';
-import { FriendsManagement } from '../components/FriendsManagement';
-import { SocialHubTabs } from '../components/SocialHubTabs';
+import '@/components/social/FriendsManagement.css';
+import { PageHeader } from '@/components/app-shell/PageHeader';
+import { FriendsManagement } from '@/components/social/FriendsManagement';
+import { SocialHubTabs } from '@/components/social/SocialHubTabs';
 
 /**
  * `/friends` — a real destination, not a settings section. The Trades / Pods

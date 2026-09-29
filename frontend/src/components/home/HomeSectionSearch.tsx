@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Search } from 'lucide-react';
-import { SearchPill } from '../SearchPill';
+import { SearchPill } from '@/components/search/SearchPill';
 import { IconButton } from '@/components/shared/Button';
 
 interface Props {

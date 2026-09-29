@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const layout = readFileSync(join(here, '..', 'components', 'Layout.tsx'), 'utf8');
+const layout = readFileSync(join(here, '..', 'components', 'app-shell', 'Layout.tsx'), 'utf8');
 const css = readFileSync(join(here, 'base-layout.css'), 'utf8');
 
 /**

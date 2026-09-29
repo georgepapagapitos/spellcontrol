@@ -1,5 +1,5 @@
 import { useRef, useState, type KeyboardEvent } from 'react';
-import type { CardSearchResultsHandle } from '@/components/CardSearchResults';
+import type { CardSearchResultsHandle } from '@/components/search/CardSearchResults';
 import type { ScryfallCard } from '@/deck-builder/types';
 
 interface UseResultsKeysOptions {

@@ -1,7 +1,7 @@
 import './DeckFormatSheet.css';
 import { useId, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
-import { Modal } from '../Modal';
+import { Modal } from '@/components/overlays/Modal';
 import { Button, IconButton } from '../shared/Button';
 import { ChoiceList } from '../shared/form';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';

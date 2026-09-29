@@ -52,7 +52,7 @@ describe('overlay scroll containment', () => {
     ['styles/binder-card-management.css', '.card-picker-list'],
     ['styles/binder-card-management.css', '.add-card-sheet-body'],
     ['styles/play-layout-editor.css', '.cle'],
-    ['components/AvatarPickerSheet.css', '.avatar-picker-body'],
+    ['components/profile/AvatarPickerSheet.css', '.avatar-picker-body'],
     // The shared trade printing chooser (composer + accept dialog) — capped and
     // scrolled because a real collection holds 59 printings of Mountain.
     ['components/trade/PrintingChoices.css', '.printing-choices'],
@@ -276,7 +276,7 @@ describe('coarse-pointer touch floor', () => {
     ['components/trade/TradeOfferList.css', '.trade-offer-who'],
     // The /friends page doors (Trades, Pods). `.site-nav-link` is 32.8px
     // app-wide; these two are lifted in-place, scoped to that row.
-    ['components/FriendsManagement.css', '.friends-page-links .site-nav-link'],
+    ['components/social/FriendsManagement.css', '.friends-page-links .site-nav-link'],
     // EVERY empty-state CTA, app-wide — most of them anchors, which is why
     // this floor was silently dead above 1024px until `.btn` stopped computing
     // `display: inline` (measured 29px). Lives beside `.empty-state` itself,
@@ -333,7 +333,7 @@ describe('coarse-pointer touch floor', () => {
     // ── Polish-pass sweep: free-standing controls measured under 44px on a
     // coarse pointer by the route walk (320–768px, touch emulation). Inline
     // and dense-row controls ghost; everything else grows its box.
-    ['components/InfoTip.css', '.info-tip-btn::after'],
+    ['components/overlays/InfoTip.css', '.info-tip-btn::after'],
     ['components/shared/ColorMatchModeToggle.css', '.color-mode-toggle .chip-joiner::after'],
     ['styles/play-panel-menus.css', '.seat-menu-row input'],
     ['styles/search-controls.css', '.search-pill'],
@@ -359,8 +359,8 @@ describe('coarse-pointer touch floor', () => {
     ['styles/footer-card-preview.css', '.card-preview-action'],
     ['styles/footer-card-preview.css', '.card-preview-art-btn'],
     ['styles/footer-card-preview.css', '.card-preview-handle'],
-    ['components/CardRulings.css', '.card-rulings-toggle'],
-    ['components/CardDetails.css', '.card-disc-toggle'],
+    ['components/card/CardRulings.css', '.card-rulings-toggle'],
+    ['components/card/CardDetails.css', '.card-disc-toggle'],
     ['styles/binder-card-management.css', '.add-to-binder-btn'],
     ['components/deck/DeckSizePrompt.css', '.deck-size-prompt-showall'],
     ['components/deck/NextBestMove.css', '.next-best-move-add'],
@@ -386,7 +386,7 @@ describe('coarse-pointer touch floor', () => {
   // let the pod hub's header trigger ship at 44×20 (playtest batch 9), and the
   // generic check below is satisfied by either axis — so this one names both.
   it('.overflow-menu-trigger takes the 44px coarse floor on both axes', () => {
-    const found = blocks(read('components/OverflowMenu.css'), '.overflow-menu-trigger');
+    const found = blocks(read('components/overlays/OverflowMenu.css'), '.overflow-menu-trigger');
     expect(found.some((b) => /min-width:\s*(?:44px|2\.75rem)/.test(b))).toBe(true);
     expect(found.some((b) => /min-height:\s*(?:44px|2\.75rem)/.test(b))).toBe(true);
   });

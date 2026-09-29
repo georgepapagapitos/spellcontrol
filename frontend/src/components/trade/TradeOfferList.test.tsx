@@ -64,7 +64,7 @@ vi.mock('../../store/cube', () => ({
 // The carousel itself is covered by CardPreview.test; here we only care that
 // the chip opens it, with the whole offer and on the right slide.
 const previewProps = vi.fn();
-vi.mock('../CardPreview', () => ({
+vi.mock('@/components/card/CardPreview', () => ({
   CardPreview: (props: { cards: { name: string }[]; index: number }) => {
     previewProps(props);
     return <div data-testid="preview">{props.cards[props.index]?.name}</div>;

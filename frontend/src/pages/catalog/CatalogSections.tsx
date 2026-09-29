@@ -41,9 +41,9 @@ import { CardName } from '@/components/shared/CardName';
 import { CardRow, ConditionChip } from '@/components/shared/CardRow';
 import { CardGridCell } from '@/components/shared/CardGridCell';
 import { SwipeRow } from '@/components/shared/SwipeRow';
-import { Tabs } from '@/components/Tabs';
-import { SelectMenu } from '@/components/SelectMenu';
-import { OverflowMenu } from '@/components/OverflowMenu';
+import { Tabs } from '@/components/overlays/Tabs';
+import { SelectMenu } from '@/components/overlays/SelectMenu';
+import { OverflowMenu } from '@/components/overlays/OverflowMenu';
 import type { EnrichedCard } from '@/types';
 
 const noop = () => {};

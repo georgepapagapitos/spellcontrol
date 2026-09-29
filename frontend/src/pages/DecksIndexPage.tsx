@@ -26,34 +26,34 @@ import { useStoredSort } from '@/lib/util/use-stored-sort';
 import { useStoredView } from '@/lib/util/use-stored-view';
 import { deckCoverArt } from '@/lib/deck/deck-cover';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { DecksHubTabs } from '../components/DecksHubTabs';
-import { PageHeader } from '../components/PageHeader';
+import { DecksHubTabs } from '@/components/decks/DecksHubTabs';
+import { PageHeader } from '@/components/app-shell/PageHeader';
 import { useDecksStore } from '../store/decks';
 import { formatRelativeTime } from '@/lib/util/format-time';
 import { useAwaitingFirstPull } from '@/lib/sync/use-awaiting-first-pull';
 import { ImportDeckDialog } from '../components/deck/ImportDeckDialog';
-import { ProductSearchDialog } from '../components/ProductSearchDialog';
+import { ProductSearchDialog } from '@/components/import/ProductSearchDialog';
 import { DeckPickerDialog } from '../components/play/DeckPickerDialog';
 import { deckBoardPath } from '@/lib/play/starter-decks';
-import { ConfirmDialog } from '../components/ConfirmDialog';
-import { SortMenu, type SortMenuOption } from '../components/SortMenu';
+import { ConfirmDialog } from '@/components/overlays/ConfirmDialog';
+import { SortMenu, type SortMenuOption } from '@/components/search/SortMenu';
 import { ColorIdentityBar } from '../components/shared/ColorIdentityBar';
 import { ColorPip } from '../components/shared/ManaSymbol';
 import { colorSelectionMatches, type ColorMatchMode } from '@/lib/cards/colors';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ViewModeToggle } from '../components/ViewModeToggle';
-import { SearchPill } from '../components/SearchPill';
-import { DeckFiltersPopover } from '../components/DeckFiltersPopover';
+import { SearchPill } from '@/components/search/SearchPill';
+import { DeckFiltersPopover } from '@/components/decks/DeckFiltersPopover';
 import { FilterChipsRow, type FilterChipDescriptor } from '../components/shared/FilterChipsRow';
 import { colorChipLabel } from '@/lib/search/filter-summary';
-import { OverflowMenu, type OverflowMenuItem } from '../components/OverflowMenu';
-import { InfoTip } from '../components/InfoTip';
+import { OverflowMenu, type OverflowMenuItem } from '@/components/overlays/OverflowMenu';
+import { InfoTip } from '@/components/overlays/InfoTip';
 import {
   SelectToggle,
   BulkSelectBar,
   SelectCheck,
   selectInteraction,
-} from '../components/BulkSelectBar';
+} from '@/components/app-shell/BulkSelectBar';
 import { selectedCountLabel, useSelection } from '@/lib/util/use-selection';
 import { useDebouncedValue } from '@/lib/util/use-debounced-value';
 import { useCollectionStore } from '../store/collection';
@@ -74,7 +74,7 @@ import {
   validateDeckZones,
   countFlaggedCards,
 } from '@/lib/deck/deck-validation';
-import { ShareDialog } from '../components/ShareDialog';
+import { ShareDialog } from '@/components/share/ShareDialog';
 import { listMyPublications, publishDeck, unpublishDeck } from '@/lib/social/publications-client';
 import { toast } from '../store/toasts';
 import { useAuth } from '../store/auth';

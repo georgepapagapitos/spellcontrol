@@ -5,7 +5,7 @@ import { buildAxisTally } from '@/deck-builder/services/synergy/axisTally';
 import { selectRadarAxes, radarLayout } from '@/lib/deck-analysis/playstyle-radar';
 import { useCardCarousel, tallyToEntries } from './useCardCarousel';
 import { CardGroupSheet } from './CardGroupSheet';
-import { InfoTip } from '@/components/InfoTip';
+import { InfoTip } from '@/components/overlays/InfoTip';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { CardTally } from './useCardCarousel';
 import type { AxisSummary } from '@/deck-builder/services/synergy/deckSynergy';

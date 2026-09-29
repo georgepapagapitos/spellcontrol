@@ -11,7 +11,7 @@ import { buildTonightTrades } from '@/lib/trade/tonight-trades';
 import type { TradeRadarMatch } from '@/lib/trade/trade-radar';
 import { useAuth } from '../../store/auth';
 import { toast } from '../../store/toasts';
-import { Modal } from '../Modal';
+import { Modal } from '@/components/overlays/Modal';
 import { RadarCardTile } from '../trade/RadarCardTile';
 import './TonightTrades.css';
 

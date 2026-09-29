@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
-import { ProfileEditor } from '@/components/ProfileEditor';
+import { ProfileEditor } from '@/components/profile/ProfileEditor';
 import { ProfileFeaturedSettings } from '@/components/profile/ProfileFeaturedSettings';
-import { UsernameEditor } from '@/components/UsernameEditor';
+import { UsernameEditor } from '@/components/profile/UsernameEditor';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 
 /** What other players see: display name, bio and avatar, then the username. */

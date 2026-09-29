@@ -23,7 +23,7 @@
  * a library we do not want in a screenshot (ShareQrCode, CardTable, InlineRename).
  */
 import { useEffect, useState } from 'react';
-import { SelectMenu } from '@/components/SelectMenu';
+import { SelectMenu } from '@/components/overlays/SelectMenu';
 import { THEMES, isValidTheme } from '@/lib/account/themes';
 import { TYPESETS, isValidTypeSet } from '@/lib/account/typesets';
 import { useDocumentTitle } from '@/lib/util/use-document-title';

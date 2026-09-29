@@ -45,7 +45,7 @@ vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
 // The precons rail has its own test (PreconsRail.test.tsx); stubbed so this
 // file's listing mock only answers the community rails.
-vi.mock('../components/PreconsRail', () => ({
+vi.mock('@/components/decks/PreconsRail', () => ({
   PreconsRail: () => <div data-testid="precons-rail" />,
 }));
 

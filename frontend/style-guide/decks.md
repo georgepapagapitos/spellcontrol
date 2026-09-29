@@ -1465,7 +1465,7 @@ Model-written text always says so. The rulings:
   without AI the sheet is exactly today's sheet.
 - **Rules is a place, and the sheet is its quick look** (settled 2026-09-19).
   `/rules` is the Rules hub: Keywords / Glossary / Rules (the offline
-  Comprehensive Rules, `components/RulesReference.tsx`, the same lists the
+  Comprehensive Rules, `components/rules/RulesReference.tsx`, the same lists the
   sheet shows) plus an Ask tab that self-hides without AI. Section and search
   live in the URL (`?tab=`, `?q=`) so a rule lookup is a linkable address.
   Its doors are utility-shaped, never a fifth primary tab: the header's

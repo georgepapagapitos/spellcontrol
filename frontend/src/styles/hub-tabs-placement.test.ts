@@ -39,7 +39,7 @@ describe('hub tab strips sit under the page header', () => {
   });
 
   it('detail pages carry no hub strip', () => {
-    for (const file of ['pages/BinderPage.tsx', 'components/ListEntriesView.tsx']) {
+    for (const file of ['pages/BinderPage.tsx', 'components/lists/ListEntriesView.tsx']) {
       expect(read(file), file).not.toMatch(/HubTabs|HubTabsNav/);
     }
     // SetsPage holds the index AND a set's detail page: one strip, the index's.
@@ -47,7 +47,10 @@ describe('hub tab strips sit under the page header', () => {
   });
 
   it('the Collection layout route no longer renders a strip over its pages', () => {
-    const code = read('components/CollectionHubLayout.tsx').replace(/\/\*[\s\S]*?\*\//g, '');
+    const code = read('components/collection/CollectionHubLayout.tsx').replace(
+      /\/\*[\s\S]*?\*\//g,
+      ''
+    );
     expect(code).not.toMatch(/<(HubTabsNav|CollectionHubTabs)\b/);
   });
 });
