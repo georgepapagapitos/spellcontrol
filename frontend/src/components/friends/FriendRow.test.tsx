@@ -3,7 +3,8 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import type { Friend } from '@/lib/friends-client';
-import { FriendRow, friendPeekLine } from './FriendRow';
+import { FriendRow } from './FriendRow';
+import { friendPeekLine } from '@/lib/social/friend-peek';
 
 function friend(over: Partial<Friend> = {}): Friend {
   return {

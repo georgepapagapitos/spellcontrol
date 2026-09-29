@@ -73,9 +73,9 @@ beforeEach(() => {
 describe('PeopleSearch', () => {
   it('links to Find brewers beside the box, and shows nothing until you search', () => {
     renderSearch();
-    expect(
-      screen.getByRole('link', { name: /find brewers to follow/i }).getAttribute('href')
-    ).toBe('/decks/discover/brewers');
+    expect(screen.getByRole('link', { name: /find brewers to follow/i }).getAttribute('href')).toBe(
+      '/decks/discover/brewers'
+    );
     expect(screen.queryByRole('list', { name: 'Search results' })).toBeNull();
   });
 

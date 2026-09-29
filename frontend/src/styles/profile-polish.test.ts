@@ -42,7 +42,9 @@ function media(css: string, query: string): string {
 describe('profile polish (T175)', () => {
   it('the pinned deck spans the row on desktop, art left and details right', () => {
     const desktop = media(read('components/decks/DeckLibrary.css'), 'min-width: 1024px');
-    expect(desktop).toMatch(/deck-library-featured\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/);
+    expect(desktop).toMatch(
+      /deck-library-featured\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/
+    );
     expect(desktop).toMatch(/is-featured \.decks-index-card-link\s*\{[^}]*display:\s*grid/);
     expect(desktop).toMatch(/is-featured \.decks-index-card-body\s*\{[^}]*grid-column:\s*2/);
   });

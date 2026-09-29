@@ -538,7 +538,11 @@ describe('GET /api/friends', () => {
       avatarImageUrl: null,
     });
     // A friend who has published nothing reads as an empty peek, not a 500.
-    expect(byName['gf-peek-dana']).toMatchObject({ deckCount: 0, bannerImage: null, topColors: [] });
+    expect(byName['gf-peek-dana']).toMatchObject({
+      deckCount: 0,
+      bannerImage: null,
+      topColors: [],
+    });
   });
 
   it('prefers a friend’s display name when set', async () => {

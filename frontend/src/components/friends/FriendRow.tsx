@@ -8,15 +8,7 @@ import { Surface } from '../shared/Surface';
 import type { Friend } from '@/lib/friends-client';
 import { formatIdentity } from '@/lib/display-name';
 import { formatRelativeTime } from '@/lib/format-time';
-
-/** "3 decks · Brews Atraxa", or the honest "No public decks yet". */
-export function friendPeekLine(friend: Friend): string {
-  const decks = friend.deckCount ?? 0;
-  if (decks === 0) return 'No public decks yet';
-  const parts = [`${decks} ${decks === 1 ? 'deck' : 'decks'}`];
-  if (friend.topCommander) parts.push(`Brews ${friend.topCommander}`);
-  return parts.join(' · ');
-}
+import { friendPeekLine } from '@/lib/social/friend-peek';
 
 interface Props {
   friend: Friend;
@@ -91,7 +83,12 @@ export function FriendRow({ friend, busy, onRemove }: Props) {
 /** Fixed-geometry loading placeholder: the same box as {@link FriendRow}. */
 export function FriendRowSkeleton() {
   return (
-    <Surface as="li" variant="sleeve" className="friend-row friend-row--skeleton" aria-hidden="true">
+    <Surface
+      as="li"
+      variant="sleeve"
+      className="friend-row friend-row--skeleton"
+      aria-hidden="true"
+    >
       <span className="friend-row-avatar-skel" />
       <span className="friend-row-body">
         <span className="friend-row-bar" />

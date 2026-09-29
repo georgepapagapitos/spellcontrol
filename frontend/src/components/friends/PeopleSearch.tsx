@@ -113,9 +113,7 @@ export function PeopleSearch({ friends, incoming, outgoing, following, onChanged
     if (term.length === 0 || (forced === null && term.length < MIN_QUERY)) return;
     let cancelled = false;
     Promise.allSettled([
-      HANDLE_QUERY.test(term.toLowerCase())
-        ? searchUsers(term)
-        : Promise.resolve<FriendUser[]>([]),
+      HANDLE_QUERY.test(term.toLowerCase()) ? searchUsers(term) : Promise.resolve<FriendUser[]>([]),
       // The brewer directory answers nothing under two characters.
       term.length < MIN_QUERY ? Promise.resolve<BrewerCard[]>([]) : searchBrewers(term),
     ]).then(([users, brewers]) => {
