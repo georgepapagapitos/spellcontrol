@@ -31,11 +31,6 @@ const OPTIONS: { value: CollectionVisibility; label: string; hint: string }[] = 
   },
 ];
 
-/** An account from before T136 that never chose. Its friends have always
- *  seen which cards it owns, never how many or what they're worth. */
-const NEVER_CHOSE_HINT =
-  "Right now your friends can see which cards you own, but not how many or what they're worth. Pick who can see your collection.";
-
 /**
  * Who can see your collection (board T136): Public / Friends / Private, one
  * choice applied the moment it's picked, stored on the account. The same
@@ -54,7 +49,8 @@ export function CollectionVisibilityDialog({
   const isGuest = useAuth((s) => s.status === 'guest');
   const username = useAuth((s) => s.user?.username);
   const signInHref = useSignInPath();
-  // undefined = loading; null = never chose.
+  // undefined = loading; null = couldn't load (nothing shown as picked). An
+  // account that never chose comes back as 'friends' from the server.
   const [current, setCurrent] = useState<CollectionVisibility | null | undefined>(undefined);
   const [busy, setBusy] = useState<CollectionVisibility | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -130,10 +126,9 @@ export function CollectionVisibilityDialog({
         </p>
       ) : (
         <>
-          {current === null && <p className="choice-dialog-body">{NEVER_CHOSE_HINT}</p>}
           <VisibilityChoice
             ariaLabel="Who can see your collection"
-            value={(current ?? '__never_chose__') as CollectionVisibility}
+            value={(current ?? '__unknown__') as CollectionVisibility}
             options={OPTIONS}
             busyValue={busy}
             disabled={!!busy}

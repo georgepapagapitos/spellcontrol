@@ -55,12 +55,12 @@ describe('CollectionVisibilityDialog', () => {
     expect(setMock).not.toHaveBeenCalled();
   });
 
-  it('an account that never chose sees nothing picked, and what friends see today', async () => {
+  it('with no setting to show, nothing is picked and no old promise is made', async () => {
     fetchMock.mockResolvedValue(null);
     renderDialog();
     await screen.findByRole('radio', { name: byLabel('Private') });
     expect(screen.getAllByRole('radio').some((r) => (r as HTMLInputElement).checked)).toBe(false);
-    expect(screen.getByText(/not how many or what they're worth/)).toBeTruthy();
+    expect(screen.queryByText(/not how many or what they're worth/)).toBeNull();
   });
 
   it('applies a pick at once and says so to the page', async () => {
