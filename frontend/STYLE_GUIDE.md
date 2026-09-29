@@ -522,6 +522,19 @@ meaning)`, no `(not X)`. A count qualifier `(4 of 10)` is fine. Placeholders
     `Keepable` / `Mulligan`, `Bracket N · Label` via `formatBracketLabel()`, the
     build-health words `Dialed in` / `Needs work`) is one constant, not
     independently authored prose per file.
+19. **Plain words over precise ones.** Write what the player sees happen, not
+    the property the engine guarantees. "Sections share a page when they fit
+    whole. None is split." was accurate and unreadable ("None" reads as an
+    option name). "Sections share pages, but one that won't fit starts a new
+    page" says the same thing. For an option, the hint names the trade-off
+    that picks it over its siblings ("Leaves room after each section for new
+    cards"), not a restatement of its label.
+20. **A hint earns its place.** No hint when the label and options already say
+    it: a `Page breaks` select offering "Each set too" needs no "Each new set
+    starts its own page" under it. No hint for a control that isn't shown
+    ("Add a second sort to break pages deeper", "With two or more rules…"):
+    when the condition is met the control appears, and until then the line is
+    noise the player has to parse to learn it doesn't apply.
 
 **Model-tells checklist** (run over any new copy before it ships):
 
@@ -534,6 +547,8 @@ meaning)`, no `(not X)`. A count qualifier `(4 of 10)` is fine. Placeholders
 - Is there a sibling string (the other branch, the adjacent dialog) that should match?
 - Filled with a real name and count, does it still fit a phone row?
 - Would a `title=` survive on touch? If not, it's a caption or an InfoTip.
+- Read cold by someone who's never opened this screen, does it make sense?
+- Delete the hint: does the player lose anything?
 
 **Primary empty states are two parts: tagline + hint.** A short tagline naming
 the state ("No decks yet."), then ONE hint sentence giving the reason and the
