@@ -71,6 +71,7 @@ import { Count } from '@/components/shared/Count';
 import { FilterChipsRow, type FilterChipDescriptor } from '@/components/shared/FilterChipsRow';
 import { SegmentedControl } from '@/components/shared/form';
 import { RulesTextParagraphs } from '@/components/RulesText';
+import { CommanderPickArt } from './CommanderPickArt';
 
 /**
  * Resolves the commander-picker platform-deck-count badge (social W4) for a
@@ -854,18 +855,7 @@ export function CommanderSearch({
     const playstyleMatches = classifyCommanderPlaystyles(value).slice(0, 3);
     return (
       <div className="commander-pick">
-        <img
-          className="commander-pick-art"
-          src={
-            value.image_uris?.normal ??
-            value.card_faces?.[0]?.image_uris?.normal ??
-            value.image_uris?.large ??
-            value.image_uris?.art_crop ??
-            value.card_faces?.[0]?.image_uris?.art_crop
-          }
-          alt=""
-          aria-hidden="true"
-        />
+        <CommanderPickArt card={value} label="Commander" />
         <div className="commander-pick-body">
           <div className="commander-pick-headline">
             <span className="commander-pick-name">{value.name}</span>

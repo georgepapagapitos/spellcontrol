@@ -3,7 +3,10 @@
    One centred, width-bounded stage: the commander card (plus its partner) lit
    by a blurred copy of its own art, beside a single column carrying the name,
    the live step, the bar and the phase timeline. Nothing stretches to the
-   panel edge, so a wide desktop reads as one composition, not a strip. */
+   panel edge, so a wide desktop reads as one composition, not a strip.
+   The card scales with the panel's width (cqi) and is capped by the viewport
+   height (dvh), so it grows on a large desktop and still fits a short laptop
+   screen without scrolling. */
 
 .gen-takeover {
   position: relative;
@@ -14,6 +17,7 @@
   border-radius: var(--radius-lg);
   overflow: hidden;
   isolation: isolate;
+  container-type: inline-size;
   background: var(--surface-raised);
   animation: fade-in var(--motion-base) var(--ease-out-soft) both;
 }
@@ -37,7 +41,7 @@
 .gen-takeover-stage {
   position: relative;
   width: 100%;
-  max-width: 54rem;
+  max-width: 76rem;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -48,6 +52,7 @@
 @media (min-width: 600px) {
   .gen-takeover-stage {
     flex-direction: row;
+    justify-content: center;
     gap: var(--space-8);
     padding: var(--space-8) var(--space-7);
   }
@@ -103,11 +108,16 @@
 
 @media (min-width: 600px) {
   .gen-takeover-card {
-    width: min(15rem, 30vw);
+    width: min(clamp(11rem, 32cqi, 26rem), 44dvh);
   }
 
   .gen-takeover-cards.is-pair .gen-takeover-card {
-    width: min(12rem, 22vw);
+    width: min(clamp(9rem, 22cqi, 19rem), 34dvh);
+  }
+
+  /* The column stops at a readable measure; the stage centres the pair. */
+  .gen-takeover-body {
+    max-width: 36rem;
   }
 }
 
@@ -256,6 +266,21 @@
   border: solid var(--surface-raised);
   border-width: 0 1.5px 1.5px 0;
   transform: translateY(-1px) rotate(45deg);
+}
+
+/* A wide panel lifts the type with the card, so the column keeps pace. It
+   sits after the base rules because it overrides them. */
+@container (min-width: 64rem) {
+  .gen-takeover-commander {
+    font-size: var(--text-3xl);
+  }
+
+  .gen-takeover-step,
+  .gen-takeover-percent,
+  .gen-takeover-flavor,
+  .gen-takeover-phase {
+    font-size: var(--text-base);
+  }
 }
 
 @keyframes gen-takeover-pulse {

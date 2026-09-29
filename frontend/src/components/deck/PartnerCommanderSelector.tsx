@@ -9,6 +9,7 @@ import { fetchPartnerPopularity } from '@/deck-builder/services/edhrec/client';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { useCollectionStore } from '../../store/collection';
 import { OwnershipBadge } from './OwnershipBadge';
+import { CommanderPickArt } from './CommanderPickArt';
 import { SearchPill } from '../SearchPill';
 import { ManaCost } from '../ManaCost';
 
@@ -180,18 +181,7 @@ export function PartnerCommanderSelector({ commander, partner, onSelect, collect
           </p>
         )}
         <div className="commander-pick">
-          <img
-            className="commander-pick-art"
-            src={
-              partner.image_uris?.normal ??
-              front?.image_uris?.normal ??
-              partner.image_uris?.large ??
-              partner.image_uris?.art_crop ??
-              front?.image_uris?.art_crop
-            }
-            alt=""
-            aria-hidden="true"
-          />
+          <CommanderPickArt card={partner} label="Partner" />
           <div className="commander-pick-body">
             <div className="commander-pick-headline">
               <span className="commander-pick-name">{partner.name}</span>
