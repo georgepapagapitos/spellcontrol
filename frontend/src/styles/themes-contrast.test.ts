@@ -159,3 +159,35 @@ describe('prefers-contrast: more remap is an improvement everywhere', () => {
     });
   }
 });
+
+/**
+ * `--accent` is TEXT all over the app, not only a fill: accent-toned label
+ * pills, link-styled buttons, the hover colour of every outline button. The
+ * header's "accent vs surface ≥ 3:1" is the non-text (WCAG 1.4.11) floor, and
+ * three themes sat between the two (Simic 4.28 on bg, Izzet 4.38 and Rakdos
+ * 4.04 on surface-raised), so accent text there failed AA. Text needs 4.5:1,
+ * and the hover colour is the same text one pointer-move later.
+ */
+describe('accent as text clears AA', () => {
+  const blocks = [...themesCss.matchAll(/\[data-theme='([a-z]+)'\]\s*\{([^}]*)\}/g)];
+  for (const t of collectThemes()) {
+    const block = blocks.find((m) => m[1] === t.name)![2];
+    for (const token of ['accent', 'accent-hover']) {
+      it(`${t.name}: --${token} on bg/surface/surface-raised`, () => {
+        const ink = tokenIn(block, token);
+        expect(ink, `${t.name} declares no --${token}`).toBeTruthy();
+        for (const [where, ground] of Object.entries({
+          bg: t.bg,
+          surface: t.surface,
+          'surface-raised': t.surfaceRaised,
+        })) {
+          const ratio = contrast(ink!, ground);
+          expect(
+            ratio,
+            `${t.name} --${token} on --${where} = ${ratio.toFixed(2)}`
+          ).toBeGreaterThanOrEqual(AA);
+        }
+      });
+    }
+  }
+});

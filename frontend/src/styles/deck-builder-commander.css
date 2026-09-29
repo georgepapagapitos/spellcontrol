@@ -441,12 +441,13 @@
   transform: scale(1.05);
 }
 
+/* Focus is an outline OUTSIDE the selection ring, never the same ring: a
+   keyboard user on an already-selected pip otherwise sees no change at all.
+   Guard: styles/focus-distinct-from-selection.test.ts. */
 .commander-color-pip:focus-visible {
-  outline: none;
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
   opacity: 1;
-  box-shadow:
-    0 0 0 2px var(--accent),
-    0 0 0 4px var(--surface);
 }
 
 .commander-search-error {

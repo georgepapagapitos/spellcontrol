@@ -4,7 +4,7 @@ import {
   commanderCandidatesFor,
   commanderEligibleFor,
   partnerCandidatesFor,
-} from '../components/deck/import-deck-shared';
+} from './deck-import-format';
 import {
   buildAllocationMap,
   allocateCardsForImport,
