@@ -368,6 +368,47 @@ describe('ScryfallCache.getCheapestByName', () => {
     expect(cache.getCheapestByName('Arena')?.id).toBe('id-arena');
   });
 
+  // Marvel's `mar` #63 prints Dauthi Voidwalker as "Widow-Making Infiltrator"
+  // (the real flavor-names snapshot entry, not a made-up one). It was the
+  // cheapest printing, so a list line reading "1 Dauthi Voidwalker" imported
+  // a crossover printing the player had never heard of.
+  function marvelDauthi(usd: string): void {
+    cache.setMany([
+      {
+        id: 'id-mar',
+        name: 'Dauthi Voidwalker',
+        rarity: 'rare',
+        set: 'mar',
+        set_name: 'Marvel Universe',
+        collector_number: '63',
+        prices: { usd },
+      },
+    ]);
+    cache.setLookups([{ key: 'ns:dauthi voidwalker|mar', scryfallId: 'id-mar' }]);
+  }
+
+  it('with avoidRenamed, passes over a renamed printing when a plain one exists', () => {
+    marvelDauthi('0.50');
+    printing('id-h1r', 'Dauthi Voidwalker', 'h1r', { usd: '8.00' });
+
+    // A price question may buy any printing.
+    expect(cache.getCheapestByName('Dauthi Voidwalker')?.id).toBe('id-mar');
+    expect(
+      cache.getCheapestByName('Dauthi Voidwalker', undefined, 'usd', { avoidRenamed: true })?.id
+    ).toBe('id-h1r');
+    // The browser's lookup route is the name-only path an import takes.
+    expect(cache.lookupCards(['Dauthi Voidwalker'], []).byName['Dauthi Voidwalker']?.id).toBe(
+      'id-h1r'
+    );
+  });
+
+  it('with avoidRenamed, still returns a renamed printing when it is the only one', () => {
+    marvelDauthi('0.50');
+    expect(
+      cache.getCheapestByName('Dauthi Voidwalker', undefined, 'usd', { avoidRenamed: true })?.id
+    ).toBe('id-mar');
+  });
+
   it('matches case-insensitively and on the front face of a split name', () => {
     printing('id-a', 'Fire', 'apc', { usd: '1.00' });
     expect(cache.getCheapestByName('fire')?.id).toBe('id-a');

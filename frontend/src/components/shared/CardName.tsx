@@ -6,6 +6,12 @@ export interface CardNameProps {
   card: PrintingNameFields;
   /** Oracle name on its own line under the printed one, for a header with the height for it. */
   stacked?: boolean;
+  /**
+   * Lead with the oracle name and keep the printed one after it, quieter. A
+   * decklist is read by the name the rules and every other tool use; a
+   * collection or binder leads with what is on the card in your hand.
+   */
+  oracleFirst?: boolean;
 }
 
 /**
@@ -19,9 +25,18 @@ export interface CardNameProps {
  * before the printed name does. Every other card renders as its bare name, with
  * no wrapper at all.
  */
-export function CardName({ card, stacked }: CardNameProps): JSX.Element {
+export function CardName({ card, stacked, oracleFirst }: CardNameProps): JSX.Element {
   const flavor = flavorNameOf(card);
   if (!flavor) return <>{card.name}</>;
+  if (oracleFirst) {
+    return (
+      <span className="card-name is-oracle-first" title={flavor}>
+        <span className="card-name-oracle">{card.name}</span>
+        <span className="card-name-sep">, </span>
+        <span className="card-name-printed">{flavor}</span>
+      </span>
+    );
+  }
   return (
     <span className={stacked ? 'card-name is-stacked' : 'card-name'} title={card.name}>
       <span className="card-name-printed">{flavor}</span>

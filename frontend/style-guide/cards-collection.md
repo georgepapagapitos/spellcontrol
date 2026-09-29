@@ -172,7 +172,8 @@ Secret Lair and the rest. The ruling:
 
 - **Sort by the printed name.** `printedName(card)` from
   `@spellcontrol/binder-routing` (flavor name, else oracle name). The engine's
-  Name sort, A–Z sections, deck rows and the shared views all read it.
+  Name sort, A–Z sections and the shared views read it. Deck rows do not: see
+  the decklist amendment below.
 - **Search matches either name.** `nameMatchesNormalized(card, q)`, never a
   bare `normalizeForSearch(card.name)` on a card that has a printing.
 - **Label with `<CardName card={…} />`.** It leads with the printed name and
@@ -184,6 +185,16 @@ Secret Lair and the rest. The ruling:
 - **Exports, deck checks and anything oracle-level keep the oracle name.**
   Other tools do not resolve flavor names, and a row grouped by oracle name
   (trades, friends' collections, EDHREC data) has no single printing to name.
+- **Amendment, 2026-09-29: a decklist leads with the oracle name.** Deck rows
+  and the printed decklist render `<CardName card={row} oracleFirst />` and
+  sort by `row.name`. A deck is read by the name the rules use, and the stored
+  printing is not always one the player chose: an import picked Marvel's
+  "Widow-Making Infiltrator" for a plain `1 Dauthi Voidwalker` because it was
+  the cheapest printing. Pass the `row`, never `row.card`: the row's set and
+  collector number come from the owned copy when one is allocated, so the
+  name agrees with the art beside it. A name-only lookup
+  (`/api/cards/lookup`) skips renamed printings whenever a plain one exists.
+  Collection, binder and search surfaces still lead with the printed name.
 
 ## Binder pages — a page labels itself; a header never repeats it
 

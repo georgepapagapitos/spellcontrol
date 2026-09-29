@@ -39,6 +39,22 @@
   font-weight: 400;
 }
 
+/* A decklist leads with the oracle name: same two halves, roles swapped. */
+.card-name.is-oracle-first .card-name-oracle {
+  flex: 0 0 auto;
+  max-width: 100%;
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+.card-name.is-oracle-first .card-name-printed {
+  flex: 1 1 4em;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: 400;
+}
+
 .card-name.is-stacked {
   flex-direction: column;
   flex-wrap: nowrap;

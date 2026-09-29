@@ -23,11 +23,7 @@ import { rolesForCard, ROLE_TITLES, type RoleKey } from '../../lib/role-badges';
 import { stampedRole } from '@/deck-builder/services/tagger/client';
 import { effectiveSortIndex } from '@/lib/deck-reorder';
 import type { DeckDisplayCard } from './DeckDisplay';
-import {
-  nameMatchesNormalized,
-  normalizeForSearch,
-  printedName,
-} from '@spellcontrol/binder-routing';
+import { nameMatchesNormalized, normalizeForSearch } from '@spellcontrol/binder-routing';
 
 /**
  * Resolves a card's EDHREC inclusion % against the deck's `cardInclusionMap`,
@@ -619,9 +615,10 @@ export const SORT_DEFAULT_DIR: Record<SortMode, 'asc' | 'desc'> = {
   custom: 'asc',
 };
 
-// Rows sort by the name printed on their card (a flavor-named printing files
-// under its flavor name), matching what the row shows.
-const byName = (a: Row, b: Row): number => printedName(a.card).localeCompare(printedName(b.card));
+// Rows sort by the oracle name, matching what the row leads with
+// (`CardName oracleFirst`): a decklist files Dauthi Voidwalker under D even
+// when the stored printing is renamed.
+const byName = (a: Row, b: Row): number => a.name.localeCompare(b.name);
 
 export function sortRows(rows: Row[], mode: SortMode, dir: 'asc' | 'desc'): Row[] {
   const sorted = [...rows];
