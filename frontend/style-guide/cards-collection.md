@@ -986,12 +986,14 @@ in `lib/browse-lists.ts`; a new list is a row there, not a new page.
   browser. Game Changers, bans and new commanders are Scryfall searches
   (`is:gamechanger`, `banned:commander`, first printings by release date),
   because they are properties of the cards, not of what people play.
-- **Every EDHREC number names EDHREC and links to it**, with how old our copy
-  is: "Data from EDHREC · updated 3 hours ago" under a list page, and one
-  sources line under the rails that also credits Scryfall. When EDHREC
-  couldn't be reached the backend serves its last copy, and the line says so
-  ("EDHREC couldn't be reached, so this list is from 2 days ago") rather than
-  passing it off as today's.
+- **Every EDHREC number names EDHREC and links to it**
+  ([§ Third-party numbers name their source](../STYLE_GUIDE.md#third-party-numbers-name-their-source)),
+  with how old our copy is: "Data from EDHREC · updated 3 hours ago" under a
+  list page, linked to that list's page there, and one sources line under the
+  rails that links each list's name to its own page at EDHREC or Scryfall.
+  When EDHREC couldn't be reached the backend serves its last copy, and the
+  line says so ("EDHREC couldn't be reached, so this list is from 2 days
+  ago") rather than passing it off as today's.
 - **The tile is `CardGridCell` with `printing={false}`.** A browse list names a
   card, and EDHREC counts every printing as one, so the tile carries no rarity
   mark and no set line. Its one caption is what the list ranks by: "20k decks"

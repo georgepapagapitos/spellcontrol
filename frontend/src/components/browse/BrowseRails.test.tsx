@@ -202,14 +202,19 @@ describe('BrowseRails', () => {
     expect(screen.queryByText('Popular and new card lists need a connection.')).toBeNull();
   });
 
-  it('names its sources and how old the EDHREC lists are', async () => {
+  it('names its sources, linking each list to its own page there', async () => {
     renderRails();
-    const line = await screen.findByText(/Popularity and salt from/);
+    const line = await screen.findByText(/from EDHREC/);
     await waitFor(() => expect(line.textContent).toContain('updated 3 hours ago'));
-    expect(within(line).getByRole('link', { name: 'EDHREC' }).getAttribute('href')).toBe(
-      'https://edhrec.com'
+    expect(within(line).getByRole('link', { name: 'Top commanders' }).getAttribute('href')).toBe(
+      'https://edhrec.com/commanders/week'
     );
-    expect(within(line).getByRole('link', { name: 'Scryfall' })).toBeTruthy();
+    expect(within(line).getByRole('link', { name: 'salt scores' }).getAttribute('href')).toBe(
+      'https://edhrec.com/top/salt'
+    );
+    expect(within(line).getByRole('link', { name: 'bans' }).getAttribute('href')).toBe(
+      'https://scryfall.com/search?q=banned%3Acommander'
+    );
   });
 
   it("says so when EDHREC couldn't be reached and the lists are older", async () => {
@@ -220,7 +225,7 @@ describe('BrowseRails', () => {
       return p;
     });
     renderRails();
-    const line = await screen.findByText(/Popularity and salt from/);
+    const line = await screen.findByText(/from EDHREC/);
     await waitFor(() =>
       expect(line.textContent).toContain(
         "which couldn't be reached, so its lists are from 2 days ago"

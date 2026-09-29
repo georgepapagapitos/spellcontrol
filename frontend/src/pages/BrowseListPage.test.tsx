@@ -91,7 +91,7 @@ describe('BrowseListPage', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Top commanders' })).toBeTruthy();
     expect(screen.getByText('The commanders most built on EDHREC this week.')).toBeTruthy();
     expect(
-      await screen.findByRole('button', { name: 'Ygra, Eater of All, 5.0k decks' })
+      await screen.findByRole('button', { name: 'Ygra, Eater of All, 5k decks' })
     ).toBeTruthy();
     const source = screen.getByText(/Data from/);
     expect(source.textContent).toBe('Data from EDHREC · updated 2 hours ago');
@@ -189,7 +189,7 @@ describe('BrowseListPage', () => {
 
     const [entries, tapped] = h.open.mock.calls[0];
     expect(tapped).toBe('Jace, Multiverse Architect');
-    expect(entries.map((e: CarouselEntry) => e.label)).toEqual(['5.0k decks', '5.0k decks']);
+    expect(entries.map((e: CarouselEntry) => e.label)).toEqual(['5k decks', '5k decks']);
 
     const [build] = h.getActions!(entries[1], 1);
     expect(build).toMatchObject({ label: 'Build a deck', closesPreview: true });

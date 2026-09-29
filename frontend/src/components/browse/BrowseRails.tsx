@@ -169,9 +169,30 @@ function BrowseRail({
   );
 }
 
-/** The sources line under the rails: who each list's numbers belong to, and
- *  how old our copy of EDHREC's lists is (the oldest of them, so the line
- *  never makes a list sound fresher than it is). */
+/** Each list's own page at its source, for the sources line (STYLE_GUIDE
+ *  § Third-party numbers name their source: link the matching page, not the
+ *  site's home). The EDHREC ones are the week lists the rails show. */
+const SOURCE_PAGES: Record<BrowseListId, string> = {
+  commanders: 'https://edhrec.com/commanders/week',
+  cards: 'https://edhrec.com/top/week',
+  salt: 'https://edhrec.com/top/salt',
+  'game-changers': 'https://scryfall.com/search?q=is%3Agamechanger',
+  banned: 'https://scryfall.com/search?q=banned%3Acommander',
+  'new-commanders': 'https://scryfall.com/search?q=is%3Acommander+not%3Areprint&order=released',
+};
+
+function SourceLink({ id, children }: { id: BrowseListId; children: string }) {
+  return (
+    <a href={SOURCE_PAGES[id]} target="_blank" rel="noopener noreferrer" className="text-link">
+      {children}
+    </a>
+  );
+}
+
+/** The sources line under the rails: whose numbers each list shows, each
+ *  list linked to its own page there, and how old our copy of EDHREC's lists
+ *  is (the oldest of them, so the line never makes a list sound fresher than
+ *  it is). */
 function BrowseSources({ edhrec }: { edhrec: EdhrecProvenance[] }) {
   const oldest = edhrec.reduce<EdhrecProvenance | null>(
     (acc, p) => (!acc || p.fetchedAt < acc.fetchedAt ? p : acc),
@@ -181,24 +202,16 @@ function BrowseSources({ edhrec }: { edhrec: EdhrecProvenance[] }) {
   const when = oldest ? formatRelativeTime(oldest.fetchedAt, { verbose: true }) : null;
   return (
     <p className="browse-source browse-rails-sources">
-      Popularity and salt from{' '}
-      <a href="https://edhrec.com" target="_blank" rel="noopener noreferrer" className="text-link">
-        EDHREC
-      </a>
+      <SourceLink id="commanders">Top commanders</SourceLink>,{' '}
+      <SourceLink id="cards">top cards</SourceLink> and{' '}
+      <SourceLink id="salt">salt scores</SourceLink> from EDHREC
       {when &&
         (stale
           ? `, which couldn't be reached, so its lists are from ${when}`
           : `, updated ${when}`)}
-      . Game Changers, bans and new commanders from{' '}
-      <a
-        href="https://scryfall.com"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-link"
-      >
-        Scryfall
-      </a>
-      .
+      . <SourceLink id="game-changers">Game Changers</SourceLink>,{' '}
+      <SourceLink id="banned">bans</SourceLink> and{' '}
+      <SourceLink id="new-commanders">new commanders</SourceLink> from Scryfall.
     </p>
   );
 }
