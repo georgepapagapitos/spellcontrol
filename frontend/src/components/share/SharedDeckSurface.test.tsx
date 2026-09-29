@@ -231,6 +231,31 @@ describe('SharedDeckSurface', () => {
     expect(screen.getByRole('button', { name: 'Report this deck' })).toBeTruthy();
   });
 
+  it("offers the generator on a precon's commander, and only on a precon", () => {
+    const kaalia = makeDeck({
+      ownerUsername: 'spellcontrol',
+      commander: { name: 'Kaalia of the Vast', type_line: 'Legendary Creature' },
+    });
+    const meta = { slug: 's', deckId: 'deck-1', viewCount: 0, copyCount: 0 };
+    const { unmount } = render(
+      <MemoryRouter>
+        <SharedDeckSurface data={kaalia} sourceKey="s" publicMeta={{ ...meta, official: true }} />
+      </MemoryRouter>
+    );
+    expect(screen.getByRole('link', { name: 'Generate your own' }).getAttribute('href')).toBe(
+      '/decks/new/generate?commander=Kaalia%20of%20the%20Vast'
+    );
+    unmount();
+
+    // A player's deck is their build to copy, not a starting point we pitch.
+    render(
+      <MemoryRouter>
+        <SharedDeckSurface data={kaalia} sourceKey="s" publicMeta={meta} />
+      </MemoryRouter>
+    );
+    expect(screen.queryByRole('link', { name: 'Generate your own' })).toBeNull();
+  });
+
   it('credits a precon to what it is, not to the house account as its builder', () => {
     render(
       <MemoryRouter>

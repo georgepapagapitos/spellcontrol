@@ -10,7 +10,7 @@ import '@/styles/deck-builder-combos-list.css';
 import '@/styles/deck-builder-row-qty.css';
 import '@/styles/deck-builder-analysis-panel.css';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Pencil, Swords } from 'lucide-react';
+import { Pencil, Swords, Wand2 } from 'lucide-react';
 import type { PublicDeck } from '../../lib/shared-types';
 import { publicDeckToDeck } from '../../lib/public-deck-to-deck';
 import { formatIdentity } from '../../lib/display-name';
@@ -330,6 +330,17 @@ export function SharedDeckSurface({ data, sourceKey, publicMeta, ownership, lead
                 lands in your own decks, editable, like any deck you made. */}
             {!isOwnDeck && (mainboardCount > 0 || data.sideboard.length > 0) && (
               <CopyDeckButton data={data} variant="header" slug={publicMeta?.slug} />
+            )}
+            {/* A precon is a starting point, not anyone's build: offer the
+                generator on its commander, tuned to the visitor's collection
+                and bracket, beside taking the list as printed. */}
+            {publicMeta?.official && deck.commander && (
+              <Button
+                to={`/decks/new/generate?commander=${encodeURIComponent(deck.commander.name)}`}
+                icon={<Wand2 width={16} height={16} strokeWidth={2} />}
+              >
+                Generate your own
+              </Button>
             )}
             {/* Viewing your OWN published deck. You get the visitor's view on
                 purpose — it's the only way to see what you're actually
