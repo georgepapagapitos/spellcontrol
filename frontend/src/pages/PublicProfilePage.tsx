@@ -77,7 +77,12 @@ function ResponsiveAvatar({ imageUrl, name }: { imageUrl: string | null; name: s
 
 function ProfileSkeleton() {
   return (
-    <div className="shared-view public-profile-view" aria-busy="true" aria-label="Loading profile">
+    <div
+      className="shared-view public-profile-view"
+      aria-busy="true"
+      aria-label="Loading profile"
+      role="status"
+    >
       <header className="public-profile-header">
         <span className="public-profile-skeleton public-profile-skeleton-avatar" />
         <div className="public-profile-header-text">
@@ -226,6 +231,7 @@ function ProfileCollection({
           className="public-profile-skeleton public-profile-collection-skeleton"
           aria-busy="true"
           aria-label="Loading collection"
+          role="status"
         />
       ) : current.error ? (
         <p className="public-profile-collection-note" role="alert">

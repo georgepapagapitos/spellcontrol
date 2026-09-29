@@ -74,7 +74,7 @@ export function SyncIndicator() {
         className="sync-indicator sync-indicator-offline"
         title={detail}
         aria-label={detail}
-        aria-live="polite"
+        role="status"
       >
         Offline
       </span>
@@ -92,7 +92,7 @@ export function SyncIndicator() {
         className="sync-indicator sync-indicator-syncing"
         title={detail}
         aria-label={detail}
-        aria-live="polite"
+        role="status"
       >
         <span className="sync-indicator-spinner" aria-hidden="true" />
         Saving {current}/{progress.total}…
@@ -115,7 +115,7 @@ export function SyncIndicator() {
         className="sync-indicator sync-indicator-error"
         title="Retrying. Changes are saved on this device."
         aria-label="Sync failed, retrying"
-        aria-live="polite"
+        role="status"
       >
         Sync failed
       </span>
@@ -129,7 +129,7 @@ export function SyncIndicator() {
         className="sync-indicator sync-indicator-pending"
         title={detail}
         aria-label={detail}
-        aria-live="polite"
+        role="status"
       >
         <span className="sync-indicator-spinner" aria-hidden="true" />
         Saving…
@@ -144,6 +144,7 @@ export function SyncIndicator() {
         className="sync-indicator sync-indicator-ready"
         title={`Last synced ${rel}`}
         aria-label={`Last synced ${rel}`}
+        role="img"
       >
         <span className="sync-indicator-check" aria-hidden="true">
           &#10003;

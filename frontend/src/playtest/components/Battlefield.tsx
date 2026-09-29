@@ -113,11 +113,11 @@ export function Battlefield({
     <div
       ref={setNodeRef}
       className="playtest-battlefield"
-      aria-label="Battlefield"
-      // Decorative from an interaction standpoint: neither gesture the felt
-      // carries is the only way to reach what it does — Escape clears a
-      // selection from the keyboard, and the card menu (right-click, or
-      // long-press on touch) acts on one without a box ever being drawn.
+      // Pointer surface, no label: a name on presentation is contradictory
+      // (and dropped). Neither gesture the felt carries is the only way to
+      // reach what it does — Escape clears a selection from the keyboard, and
+      // the card menu (right-click, or long-press on touch) acts on one
+      // without a box ever being drawn.
       role="presentation"
       // Clicking bare felt clears the selection — the standard
       // click-away-to-deselect gesture. Cards stop their own clicks from

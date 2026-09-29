@@ -30,6 +30,7 @@ export function CardPtBox({ pt }: { pt: PtDisplay }) {
       // One label, not two numbers read out separately — a screen reader
       // should say "3 by 4", which is how the board is read aloud at a table.
       aria-label={`${pt.power} by ${pt.toughness}`}
+      role="img"
     >
       {/* Two boxes rather than "4/4": at the smallest card tier the slash
           costs a character's width and reads as noise, and the pair is what
@@ -137,7 +138,7 @@ export const PlaytestCardFace = memo(
           </span>
         )}
         {faceDown ? (
-          <div className="playtest-card__back" aria-label="Face-down card" />
+          <div className="playtest-card__back" aria-label="Face-down card" role="img" />
         ) : src && !imgError ? (
           <img
             src={src}

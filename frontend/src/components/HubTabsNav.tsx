@@ -81,6 +81,7 @@ export function HubTabsNav({ ariaLabel, tabs }: { ariaLabel: string; tabs: HubTa
             <span
               className="site-nav-count"
               aria-label={countNoun ? `${count} ${countNoun}` : String(count)}
+              role="img"
             >
               {formatCount(count)}
             </span>

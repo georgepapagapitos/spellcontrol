@@ -704,6 +704,7 @@ function DeckCardRow({
           <span
             className={`deck-row-qty${row.status !== 'allocated' ? ' deck-row-qty-missing' : ''}`}
             aria-label={allocationAriaLabel(row, { editable: false })}
+            role="img"
             title={allocationTitle(row, { editable: false })}
           >
             {row.qty}
@@ -775,7 +776,11 @@ function DeckCardRow({
               who hasn't touched the feature. Editing lives in the card
               preview panel (the single per-card view), not here. */}
           {row.tags.length > 0 && (
-            <span className="deck-row-tags" aria-label={`Tags: ${row.tags.join(', ')}`}>
+            <span
+              className="deck-row-tags"
+              aria-label={`Tags: ${row.tags.join(', ')}`}
+              role="group"
+            >
               {row.tags.map((t) => (
                 <Chip key={t} className="deck-row-tag-chip">
                   {t}
@@ -808,6 +813,7 @@ function DeckCardRow({
                 className="deck-row-synergy"
                 title={`Synergy with your commander:\n• ${synergyReasons.join('\n• ')}${provenanceReason ? `\n\nWhy it's here: ${provenanceReason}` : ''}`}
                 aria-label={`Synergy: ${synergyReasons.join('; ')}`}
+                role="img"
               >
                 <span className="deck-row-synergy-icon" aria-hidden>
                   ✦
@@ -826,6 +832,7 @@ function DeckCardRow({
                     className="deck-row-inclusion"
                     title={`${info.pct}% of EDHREC decks with this commander run this card${provenanceReason ? `\n\nWhy it's here: ${provenanceReason}` : ''}`}
                     aria-label={`EDHREC inclusion ${info.pct} percent`}
+                    role="img"
                   >
                     {info.pct}%
                   </span>

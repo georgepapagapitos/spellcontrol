@@ -110,7 +110,7 @@ export function CardPtBadges({ card, bf, onAdjustPT }: Props) {
     const label = side === 'power' ? 'Power' : 'Toughness';
     if (base[side] === null) {
       return (
-        <span className="playtest-card-pt__value" aria-label={`${label} ${shown}`}>
+        <span className="playtest-card-pt__value" aria-label={`${label} ${shown}`} role="img">
           {shown}
         </span>
       );

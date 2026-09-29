@@ -379,6 +379,7 @@ export function DeckCurvePhases({
               <span
                 className={`deck-curve-phases-grade deck-curve-phases-grade-${phase.grade.replace(/ /g, '-')}`}
                 aria-label={`${phase.label}: ${phase.grade}`}
+                role="img"
               >
                 {phase.grade}
               </span>

@@ -1319,6 +1319,7 @@ function RangeSlider({
             <span
               className="deck-customizer-slider-suggested"
               aria-label="Matches EDHREC suggestion"
+              role="img"
             >
               <Check width={12} height={12} strokeWidth={2} aria-hidden />
               suggested

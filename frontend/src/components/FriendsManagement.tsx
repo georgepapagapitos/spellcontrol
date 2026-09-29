@@ -429,8 +429,8 @@ export function FriendsManagement() {
         {searchResults !== null && (
           <ul className="friends-search-results" aria-label="Search results">
             {searchResults.length === 0 ? (
-              <li className="friends-empty" role="status">
-                No users found for &ldquo;{query}&rdquo;.
+              <li className="friends-empty">
+                <span role="status">No users found for &ldquo;{query}&rdquo;.</span>
               </li>
             ) : (
               searchResults.map((user) => {

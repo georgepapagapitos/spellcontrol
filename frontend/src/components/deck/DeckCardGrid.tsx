@@ -465,6 +465,7 @@ export function DeckCardGrid({
                           className="deck-card-grid-missing"
                           title={allocationSummary(row)}
                           aria-label={allocationSummary(row)}
+                          role="img"
                         />
                       ))}
                     {(() => {

@@ -55,7 +55,7 @@ export function CardStatusStrip({ card, bf, attachedToName, tax = 0 }: CardStatu
   if (chips.length === 0 && stickers.length === 0) return null;
 
   return (
-    <div className="card-status-strip" aria-label="Board state">
+    <div className="card-status-strip" aria-label="Board state" role="group">
       {chips.map((c) => (
         <span key={c.key} className={`card-status-chip card-status-chip--${c.tone}`}>
           {c.text}

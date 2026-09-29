@@ -365,6 +365,7 @@ export function OpeningHandSheet({
               ? 'Hand: tap to select, long-press to preview'
               : 'Opening hand: tap to preview'
           }
+          role="group"
         >
           {orderedHand.map((c, i) => {
             const idx = bottomIndex(c.id);

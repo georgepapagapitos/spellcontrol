@@ -532,7 +532,7 @@ function QueueRow({
     <li className="binder-drift-queue-row">
       <span className="binder-drift-card-name">{row.name}</span>
       {qty > 1 && (
-        <span className="binder-drift-queue-qty" aria-label={`${qty} copies`}>
+        <span className="binder-drift-queue-qty" aria-label={`${qty} copies`} role="img">
           ×{qty}
         </span>
       )}

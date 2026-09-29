@@ -189,7 +189,7 @@ export function ComboRow({
     <li className="deck-combos-row expanded">
       {/* ── Result headline — the "what does this do?" answer, always visible ── */}
       {combo.produces.length > 0 && (
-        <div className="deck-combos-produces" aria-label="Result">
+        <div className="deck-combos-produces" aria-label="Result" role="group">
           <Zap
             className="deck-combos-produces-icon"
             width={14}
@@ -243,6 +243,7 @@ export function ComboRow({
                 ? 'One card away'
                 : `${missingCount} cards away`
           }
+          role="img"
         >
           {missingCount > 0 || (needsTemplate && !templatesSatisfied) ? (
             <AlertTriangle width={14} height={14} strokeWidth={1.8} aria-hidden />
@@ -260,6 +261,7 @@ export function ComboRow({
       <p
         className="deck-combos-piece-count"
         aria-label={`${presentCount} of ${totalCount} pieces ${whereLabel}${showOwnedAside ? ' · own the missing piece' : ''}`}
+        role="group"
       >
         <span className="deck-combos-piece-count-have">{presentCount}</span>
         <span className="deck-combos-piece-count-sep">
@@ -578,6 +580,7 @@ function ColorIdentityPips({ identity }: { identity: string }) {
     <span
       className="deck-combos-pips"
       aria-label={`Color identity: ${colors.join('').toUpperCase()}`}
+      role="img"
     >
       {colors.map((c) => (
         <ColorPip key={c} color={c} pip={false} className="deck-combos-pip" />

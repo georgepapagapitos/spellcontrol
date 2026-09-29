@@ -48,7 +48,7 @@ export function TurnTimes({ game }: { game: GameState }) {
                 style={{ ['--fill' as never]: longest > 0 ? ms / longest : 0 }}
               />
             </span>
-            <span className="turn-times-value" aria-label={describeClock(ms)}>
+            <span className="turn-times-value" aria-label={describeClock(ms)} role="img">
               {formatClock(ms)}
             </span>
           </li>
