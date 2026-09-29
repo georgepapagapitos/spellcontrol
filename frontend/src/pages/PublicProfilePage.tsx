@@ -31,12 +31,10 @@ const NOT_FOUND_MESSAGE = "This profile doesn't exist.";
 type ProfileTab = 'decks' | 'collection';
 
 /** The owner's own line above their Collection tab: who else sees it. */
-const OWNER_COLLECTION_NOTE: Record<CollectionVisibility | 'never', string> = {
+const OWNER_COLLECTION_NOTE: Record<CollectionVisibility, string> = {
   public: 'Anyone can see your collection here.',
   friends: 'Only your friends can see your collection here.',
   private: 'Only you can see your collection.',
-  never:
-    "Only you can see it here. Your friends see which cards you own, not how many or what they're worth.",
 };
 const SKELETON_TILE_COUNT = 6;
 
@@ -213,7 +211,7 @@ function ProfileCollection({
     <>
       {isOwner && (
         <p className="public-profile-collection-note">
-          {OWNER_COLLECTION_NOTE[visibility ?? 'never']}{' '}
+          {OWNER_COLLECTION_NOTE[visibility ?? 'friends']}{' '}
           <Button variant="link" onClick={() => setChanging(true)}>
             Change
           </Button>

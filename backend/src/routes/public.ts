@@ -8,7 +8,7 @@ import { ORIGIN, type ShareLandingMeta, type ShareLandingResult } from '../share
 import { projectCollection, projectDeck, type PublicDeck } from '../shares/projections';
 import { stampSharePrices } from '../shares/context';
 import { loadProfileExtras } from '../brewers/profile-stats';
-import { canViewFullCollection, parseCollectionVisibility } from '../collections/visibility';
+import { canViewFullCollection, storedCollectionVisibility } from '../collections/visibility';
 import {
   deckPublicationCache,
   publicUserCache,
@@ -287,7 +287,7 @@ async function loadPublicUserProfile(username: string): Promise<PublicUserProfil
     avatarImageUrl: user.avatar_image_url,
     memberSince: Number(user.created_at),
     profileHiddenAt: user.profile_hidden_at === null ? null : Number(user.profile_hidden_at),
-    collectionVisibility: parseCollectionVisibility(user.collection_visibility),
+    collectionVisibility: storedCollectionVisibility(user.collection_visibility),
     isOfficial: user.is_official,
     // True total, not decks.length — the 200 cap means those diverge for a
     // heavy publisher.
@@ -387,8 +387,8 @@ publicRouter.get(
       gameRecord: profile.gameRecord,
       decks: moderationHidden ? [] : profile.decks,
       collection: {
-        // The owner's own choice, for their "who can see this" note; null
-        // means never chose.
+        // The setting in force, for the owner's "who can see this" note
+        // (never chose reads as friends; storedCollectionVisibility).
         visibility: profile.collectionVisibility,
         canView:
           !moderationHidden &&

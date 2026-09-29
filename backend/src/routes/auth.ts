@@ -51,7 +51,7 @@ import {
 } from '../oauth/google';
 import { logger } from '../logger';
 import { getDb, getPool } from '../db';
-import { parseCollectionVisibility } from '../collections/visibility';
+import { parseCollectionVisibility, storedCollectionVisibility } from '../collections/visibility';
 import { authIdentities, authTokens, users } from '../db/schema';
 import { purgeUserPublicCaches } from '../publications/purge';
 import { resolveLivePin } from '../brewers/profile-stats';
@@ -784,8 +784,8 @@ authRouter.get('/me', sessionLimiter, async (req: Request, res: Response) => {
     .limit(1);
   res.json({
     user,
-    // Who can see the collection (board T136); null = never chose.
-    collectionVisibility: parseCollectionVisibility(row[0]?.collectionVisibility),
+    // Who can see the collection (board T136); never chose reads as friends.
+    collectionVisibility: storedCollectionVisibility(row[0]?.collectionVisibility),
     autoLinkedAt: row[0]?.autoLinkedAt ?? null,
     // Server truth for the inbox/friend-request unseen badges (T117) — see
     // POST /api/users/me/inbox-seen.
