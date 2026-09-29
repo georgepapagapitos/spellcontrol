@@ -17,7 +17,8 @@
 //      pages, deck-builder/components, playtest/components).
 //   2. no UI folder imports from pages/.
 //   3. components/shared/ imports no feature folder: no components/<x>/ other
-//      than shared/, and neither deck-builder/components nor
+//      than shared/ and overlays/ (Modal, SelectMenu, OverflowMenu, Tabs: the
+//      overlay primitives), and neither deck-builder/components nor
 //      playtest/components.
 //
 // FIXING A FAILURE. Move the thing being imported DOWN: a helper a component
@@ -29,6 +30,12 @@
 // (lib/deck/, lib/binder/, lib/util/, ...), none at the top level. ARCHITECTURE.md
 // lists the folders; a module that fits none of them is a new folder's first
 // file, named after the product area it serves.
+//
+// A fifth does the same for components/: a component lives in its area's
+// folder (collection/, binder/, card/, app-shell/, ...). The root holds only
+// ROOT_COMPONENTS, the display pieces components/shared/ itself renders. Each
+// belongs in shared/ once it has a /dev/catalog specimen (catalog-coverage
+// requires one), so the list only shrinks.
 
 import { describe, it, expect } from 'vitest';
 import { relative, sep } from 'node:path';
@@ -59,13 +66,27 @@ function brokenRule(from: string, to: string): string | null {
     const feature =
       (to.startsWith('components/') &&
         /^components\/[^/]+\//.test(to) &&
-        !to.startsWith('components/shared/')) ||
+        !to.startsWith('components/shared/') &&
+        !to.startsWith('components/overlays/')) ||
       to.startsWith('deck-builder/components/') ||
       to.startsWith('playtest/components/');
     if (feature) return 'a shared primitive imports a feature folder';
   }
   return null;
 }
+
+// The components/ root: what components/shared/ renders and has not yet
+// absorbed. Shrink only.
+const ROOT_COMPONENTS = new Set([
+  'components/BinderBadge.tsx',
+  'components/DeckBadge.tsx',
+  'components/FoilBadge.tsx',
+  'components/Legend.tsx',
+  'components/ManaCost.tsx',
+  'components/SortDirArrow.tsx',
+  'components/ViewModeToggle.tsx',
+  'components/ZoomControl.tsx',
+]);
 
 describe('layer boundaries', () => {
   const files = sourceFiles();
@@ -94,6 +115,19 @@ describe('layer boundaries', () => {
       loose,
       'A module sits at the top of lib/. Put it in the domain folder it serves ' +
         '(ARCHITECTURE.md lists them), or start a new one.'
+    ).toEqual([]);
+  });
+
+  it('keeps every component in an area folder', () => {
+    const inRoot = files.map(rel).filter((f) => /^components\/[^/]+$/.test(f));
+    expect(
+      inRoot.filter((f) => !ROOT_COMPONENTS.has(f)),
+      'A component sits at the top of components/. Put it in the area folder it ' +
+        'serves (ARCHITECTURE.md lists them).'
+    ).toEqual([]);
+    expect(
+      [...ROOT_COMPONENTS].filter((f) => !inRoot.includes(f)),
+      'These left the components/ root. Delete them from ROOT_COMPONENTS.'
     ).toEqual([]);
   });
 });

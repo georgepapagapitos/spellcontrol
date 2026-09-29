@@ -47,7 +47,7 @@ describe('form kit field controls', () => {
   });
 
   it('uses fill for both copy controls', () => {
-    const controls = readFileSync(join(src, 'components', 'CopyControls.tsx'), 'utf8');
+    const controls = readFileSync(join(src, 'components', 'card', 'CopyControls.tsx'), 'utf8');
     expect(controls.match(/<SegmentedControl<[^>]+>\s+fill/g)).toHaveLength(2);
   });
 });

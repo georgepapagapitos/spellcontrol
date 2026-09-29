@@ -18,7 +18,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const srcDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const srcDir = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 function cssFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {

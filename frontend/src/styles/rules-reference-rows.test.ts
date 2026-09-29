@@ -5,9 +5,9 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const ref = readFileSync(join(here, '..', 'components', 'RulesReference.css'), 'utf8');
+const ref = readFileSync(join(here, '..', 'components', 'rules', 'RulesReference.css'), 'utf8');
 const page = readFileSync(join(here, '..', 'pages', 'RulesPage.css'), 'utf8');
-const tsx = readFileSync(join(here, '..', 'components', 'RulesReference.tsx'), 'utf8');
+const tsx = readFileSync(join(here, '..', 'components', 'rules', 'RulesReference.tsx'), 'utf8');
 
 /**
  * The Comprehensive Rules reference is a dictionary, and its two lists have to

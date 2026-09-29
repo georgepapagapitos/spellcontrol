@@ -118,7 +118,7 @@ const componentsDir = dirname(fileURLToPath(import.meta.url));
 const read = (f: string) => readFileSync(join(componentsDir, '..', f), 'utf8');
 
 describe('guard: every card grid renders the shared tile', () => {
-  it.each([['CardListTable.tsx'], ['ListDetailView.tsx'], ['../pages/cube/CubeResult.tsx']])(
+  it.each([['collection/CardListTable.tsx'], ['lists/ListDetailView.tsx'], ['../pages/cube/CubeResult.tsx']])(
     '%s uses CardGridCell',
     (file) => {
       expect(
@@ -130,7 +130,7 @@ describe('guard: every card grid renders the shared tile', () => {
 
   it('lists no longer ships a private grid tile', () => {
     expect(
-      read('ListDetailView.tsx'),
+      read('lists/ListDetailView.tsx'),
       'The bespoke .list-entries-grid-cell tile is gone; only the skeleton placeholder keeps that class'
     ).not.toMatch(/className="list-entries-grid-cell"/);
   });

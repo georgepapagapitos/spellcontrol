@@ -25,7 +25,7 @@ function cssFiles(dir: string): string[] {
 
 describe('Scan button clearance', () => {
   it('mounts the Scan button outside the scroll region', () => {
-    const layout = readFileSync(join(srcRoot, 'components', 'Layout.tsx'), 'utf8');
+    const layout = readFileSync(join(srcRoot, 'components', 'app-shell', 'Layout.tsx'), 'utf8');
     const mainClose = layout.indexOf('</main>');
     const fab = layout.indexOf('<ScanFab');
     expect(mainClose).toBeGreaterThan(-1);
