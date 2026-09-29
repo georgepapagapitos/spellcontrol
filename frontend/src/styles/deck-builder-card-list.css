@@ -1481,7 +1481,7 @@
   text-align: right;
 }
 
-.deck-row:focus-visible {
+.deck-row:has(> .deck-row-open:focus-visible) {
   background: var(--accent-light);
   --text-muted: var(--text-muted-tint);
   --text-secondary: var(--text-secondary-tint);
@@ -1499,8 +1499,43 @@
   }
 }
 
-.deck-row:focus-visible {
+.deck-row:has(> .deck-row-open:focus-visible) {
   box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* The row's one primary control: a button stretched over the whole row, so
+   the <li> stays a plain box that may hold buttons (a button cannot hold
+   controls). The ring goes on the row (above), not the button. The row's own
+   controls are positioned so they paint over it and stay clickable; the
+   row's text and chips are not, so a tap on them falls through to it. */
+.deck-row {
+  position: relative;
+}
+
+.deck-row > .deck-row-open {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.deck-row > .deck-row-open:focus-visible {
+  outline: none;
+}
+
+.deck-row
+  :is(
+    .deck-row-qty-edit,
+    .deck-row-qty-input,
+    .deck-row-drag-handle,
+    .deck-row-printings-toggle,
+    .deck-row-hovermeta
+  ) {
+  position: relative;
 }
 
 .deck-row-name {

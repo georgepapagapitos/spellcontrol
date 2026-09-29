@@ -65,6 +65,9 @@ function renderDeck(props: Partial<DeckDisplayProps> = {}) {
 
 const rowFor = (container: HTMLElement, name: string) =>
   container.querySelector(`.deck-row[data-peek-name="${name}"]`) as HTMLElement;
+// A row's tap target is the button stretched over it, not the <li>.
+const openFor = (container: HTMLElement, name: string) =>
+  rowFor(container, name).querySelector('.deck-row-open') as HTMLElement;
 
 describe('deck card menu', () => {
   beforeEach(() => {
@@ -354,8 +357,8 @@ describe('deck card menu', () => {
       onBulkRemove: vi.fn(),
     });
     fireEvent.click(getByRole('button', { name: 'Select' }));
-    fireEvent.click(rowFor(container, 'Brago'));
-    fireEvent.click(rowFor(container, 'Bear'));
+    fireEvent.click(openFor(container, 'Brago'));
+    fireEvent.click(openFor(container, 'Bear'));
 
     const bar = getByRole('region', { name: 'Bulk actions' });
     const barLabels = within(bar)
@@ -382,7 +385,7 @@ describe('deck card menu', () => {
       onBulkMove: vi.fn(),
     });
     fireEvent.click(getByRole('button', { name: 'Select' }));
-    fireEvent.click(rowFor(container, 'Brago'));
+    fireEvent.click(openFor(container, 'Brago'));
     fireEvent.contextMenu(rowFor(container, 'Bear'), { clientX: 30, clientY: 30 });
     expect(getByRole('menu', { name: 'Bear' })).toBeTruthy();
   });
