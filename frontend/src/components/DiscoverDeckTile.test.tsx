@@ -10,14 +10,14 @@
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
-import type { DiscoverDeck } from '../lib/discover-client';
+import type { DiscoverDeck } from '@/lib/discover/discover-client';
 
 const { useCardThumbMock } = vi.hoisted(() => ({ useCardThumbMock: vi.fn() }));
-vi.mock('../lib/card-thumbs', () => ({ useCardThumb: useCardThumbMock }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: useCardThumbMock }));
 
 // Named-export-complete: LikeButton/BookmarkButton (rendered by every tile)
 // import these from the same module.
-vi.mock('../lib/discover-client', () => ({
+vi.mock('@/lib/discover/discover-client', () => ({
   likeDeck: vi.fn(),
   unlikeDeck: vi.fn(),
   bookmarkDeck: vi.fn(),

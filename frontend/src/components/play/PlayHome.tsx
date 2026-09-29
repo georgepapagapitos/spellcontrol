@@ -1,13 +1,13 @@
 import './PlayHome.css';
 import { CalendarDays, ChevronRight, KeyRound, Radio, Swords, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import type { GameNight } from '../../lib/game-nights-api';
-import type { GameRecord, GameState } from '../../lib/game-state';
-import { gameFormatLabel } from '../../lib/game-formats';
+import type { GameNight } from '@/lib/play/game-nights-api';
+import type { GameRecord, GameState } from '@/lib/play/game-state';
+import { gameFormatLabel } from '@/lib/play/game-formats';
 import { aggregateDeckRecords } from '../../store/play';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
-import { ONLINE_PLAY_HINT, TABLE_PLAY_HINT } from '@/lib/shared-copy';
+import { ONLINE_PLAY_HINT, TABLE_PLAY_HINT } from '@/lib/util/shared-copy';
 
 export type PlayHomeTarget =
   { tab: 'local' } | { tab: 'online'; mode?: 'host' | 'join' | 'browse' };

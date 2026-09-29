@@ -1,13 +1,13 @@
 import './CommanderResultCard.css';
-import { formatCount } from '@/lib/format-count';
+import { formatCount } from '@/lib/util/format-count';
 import type { ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
-import { useCardThumb } from '../../lib/card-thumbs';
+import { useCardThumb } from '@/lib/cards/card-thumbs';
 import { ColorPip } from '../shared/ManaSymbol';
 import { Chip } from '../shared/Chip';
 import { MeterBar } from '../shared/MeterBar';
-import type { ReadinessScore } from '../../lib/commander-readiness';
-import type { MatchReason } from '../../lib/commander-finder';
+import type { ReadinessScore } from '@/lib/deck/commander-readiness';
+import type { MatchReason } from '@/lib/deck/commander-finder';
 
 interface Props {
   name: string;

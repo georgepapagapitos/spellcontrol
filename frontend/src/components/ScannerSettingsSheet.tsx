@@ -4,9 +4,9 @@ import { IconButton } from './shared/Button';
 import { SelectMenu } from './SelectMenu';
 import { Field, SegmentedControl, SwitchRow } from './shared/form';
 import { ConditionControl } from './CopyControls';
-import { FINISH_LABELS } from '../lib/scanner-feedback';
-import { LANGUAGE_OPTIONS } from '../lib/copy-options';
-import { useScannerSettings } from '../lib/scanner-settings';
+import { FINISH_LABELS } from '@/lib/scanner/scanner-feedback';
+import { LANGUAGE_OPTIONS } from '@/lib/collection/copy-options';
+import { useScannerSettings } from '@/lib/scanner/scanner-settings';
 import { SCANNER_SHEET_BACKDROP } from './ScannerQueueSheet';
 // Its `.scanner-*` classes live here (shared with the scanner's own sheets).
 // Imported directly so this sheet carries its stylesheet wherever it's

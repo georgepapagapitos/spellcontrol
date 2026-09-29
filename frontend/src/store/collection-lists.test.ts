@@ -1,11 +1,11 @@
 // @vitest-environment happy-dom
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { flushSync } from '../lib/sync';
+import { flushSync } from '@/lib/sync';
 import { useCollectionStore } from './collection';
 import { useDecksStore } from './decks';
 import { useToastsStore } from './toasts';
-import { clearCollection, loadCollection } from '../lib/local-cards';
+import { clearCollection, loadCollection } from '@/lib/sync/local-cards';
 import type { EnrichedCard } from '../types';
 
 function enriched(copyId: string, scryfallId: string): EnrichedCard {

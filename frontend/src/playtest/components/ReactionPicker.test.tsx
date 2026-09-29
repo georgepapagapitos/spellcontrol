@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { usePlayStore } from '@/store/play';
 import { useAuth } from '@/store/auth';
-import { createGameState, makePlayer } from '@/lib/game-state';
+import { createGameState, makePlayer } from '@/lib/play/game-state';
 import { usePlaytestStore } from '../store';
 import { ReactionPicker } from './ReactionPicker';
 import { REACTION_EMOTES, REACTION_LABEL } from '../lib/table-signals';

@@ -12,7 +12,7 @@ import type { OpponentSeat } from './OpponentRail';
 // Art resolution is `useCardThumb`'s own contract (and its own tests); here it
 // only needs to return SOMETHING so `PlaytestCardFace` has a `src` and
 // publishes its `data-preview-id`.
-vi.mock('@/lib/card-thumbs', () => ({
+vi.mock('@/lib/cards/card-thumbs', () => ({
   useCardThumb: (name?: string) => (name ? `https://cards.example/${name}.jpg` : undefined),
 }));
 

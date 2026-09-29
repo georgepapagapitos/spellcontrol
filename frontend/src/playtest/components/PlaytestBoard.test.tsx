@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, render, screen, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { applyAction, createPlaytestState } from '@/lib/playtest';
-import type { GameState } from '@/lib/game-state';
+import type { GameState } from '@/lib/play/game-state';
 import { usePlayStore } from '@/store/play';
 import { usePlaytestStore } from '../store';
 import { buildTestHorde } from '../lib/horde-solo.fixtures';
@@ -52,7 +52,7 @@ vi.mock('@dnd-kit/core', async (orig) => {
 });
 
 // Art resolution for the quadrants' cards — see OpponentQuadrant.test.tsx.
-vi.mock('@/lib/card-thumbs', () => ({
+vi.mock('@/lib/cards/card-thumbs', () => ({
   useCardThumb: (name?: string) => (name ? `https://cards.example/${name}.jpg` : undefined),
   cachedCardThumb: (name: string) => `https://cards.example/${name}.jpg`,
 }));

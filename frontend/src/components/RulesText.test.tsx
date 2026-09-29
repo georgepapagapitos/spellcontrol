@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { RulesTextParagraphs } from './RulesText';
 import { useRulesReferenceStore } from '../store/rules-reference';
-import { KEYWORD_GLOSSARY_URL } from '../lib/keyword-glossary';
+import { KEYWORD_GLOSSARY_URL } from '@/lib/cards/keyword-glossary';
 
 // Shaped like the generated glossary file, which tests never read.
 const GLOSSARY = {

@@ -1,4 +1,4 @@
-import { rarityTint, type RarityTint } from '@/lib/set-symbols';
+import { rarityTint, type RarityTint } from '@/lib/cards/set-symbols';
 
 /**
  * Accessible rarity cue — a letter chip (C/U/R/M) tinted by rarity. The

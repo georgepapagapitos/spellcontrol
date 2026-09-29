@@ -6,7 +6,7 @@
 // the whole run instead of one per call site.
 import type { LiftEntry } from '@/deck-builder/types';
 import { fetchCardLiftPool } from '@/deck-builder/services/edhrec/client';
-import { frontFaceName } from '@/lib/card-text';
+import { frontFaceName } from '@/lib/cards/card-text';
 import { buildLiftIndex } from '../liftSynergy';
 import type { GenerationState } from './state';
 

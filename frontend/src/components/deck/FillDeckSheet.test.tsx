@@ -6,7 +6,7 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import type { Deck } from '../../store/decks';
 
 const buildFill = vi.fn();
-vi.mock('@/lib/fill-deck', () => ({ buildFill: (...a: unknown[]) => buildFill(...a) }));
+vi.mock('@/lib/coach/fill-deck', () => ({ buildFill: (...a: unknown[]) => buildFill(...a) }));
 
 import { FillDeckSheet } from './FillDeckSheet';
 

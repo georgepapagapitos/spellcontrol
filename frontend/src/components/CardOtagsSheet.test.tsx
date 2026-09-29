@@ -13,7 +13,7 @@ const renderSheet = (ui: ReactElement) => render(<MemoryRouter>{ui}</MemoryRoute
 const readyRef = { value: true };
 const errorRef = { value: false };
 const ensureCardTags = vi.fn();
-vi.mock('../lib/card-tags', () => ({
+vi.mock('@/lib/cards/card-tags', () => ({
   useCardTagsReady: () => readyRef.value,
   useCardTagsError: () => errorRef.value,
   ensureCardTags: () => ensureCardTags(),

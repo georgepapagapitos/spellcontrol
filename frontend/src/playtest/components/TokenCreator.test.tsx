@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import type { DeckToken } from '@/lib/deck-tokens';
+import type { DeckToken } from '@/lib/deck/deck-tokens';
 import type { TokenOption } from '@/deck-builder/services/scryfall/client';
 import { TokenCreator } from './TokenCreator';
 
@@ -18,7 +18,7 @@ vi.mock('@/deck-builder/services/scryfall/client', () => ({
   resolveTokenOption,
 }));
 
-vi.mock('@/lib/use-lock-body-scroll', () => ({ useLockBodyScroll: () => {} }));
+vi.mock('@/lib/overlays/use-lock-body-scroll', () => ({ useLockBodyScroll: () => {} }));
 
 function open(onCreate = vi.fn()) {
   render(<TokenCreator deckCards={[]} onCreate={onCreate} onClose={vi.fn()} />);

@@ -30,15 +30,15 @@ const syncMock = vi.hoisted(() => ({
   state: 'syncing' as 'idle' | 'syncing' | 'ready',
   error: false,
 }));
-vi.mock('../lib/sync', () => ({
+vi.mock('@/lib/sync', () => ({
   getSyncState: () => syncMock.state,
   hasSyncError: () => syncMock.error,
   onSyncedChange: () => () => {},
 }));
 
 // Keep the page light: this is about the redirect decision, not rendering.
-vi.mock('../lib/allocations', () => ({ useAllocations: () => new Map() }));
-vi.mock('../lib/materialize', () => ({ materializeBinders: () => ({ binders: [] }) }));
+vi.mock('@/lib/collection/allocations', () => ({ useAllocations: () => new Map() }));
+vi.mock('@/lib/binder/materialize', () => ({ materializeBinders: () => ({ binders: [] }) }));
 
 import { BinderPage } from './BinderPage';
 import { useCollectionStore } from '../store/collection';

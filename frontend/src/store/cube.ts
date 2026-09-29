@@ -1,8 +1,8 @@
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/util/logger';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { safeLocalStorage } from '@/lib/safe-local-storage';
-import { isApplyingServer } from '../lib/applying-server';
+import { safeLocalStorage } from '@/lib/util/safe-local-storage';
+import { isApplyingServer } from '@/lib/sync/applying-server';
 import { toast } from './toasts';
 // `bucketOf` from the leaf module, never `./cube/generate`: this store loads at
 // boot, and a value import of the generator drags it (targets, refiner,
@@ -11,7 +11,7 @@ import { bucketOf, type CubeCard } from '../lib/cube/core';
 import type { GeneratedCube, Pick } from '../lib/cube/generate';
 import type { ColorBucket, CubeSize } from '../lib/cube/targets';
 import type { PoolFilters } from '../lib/cube/pool-filters';
-import { rebindCubePicks } from '../lib/bind-cube-copies';
+import { rebindCubePicks } from '@/lib/cube/bind-cube-copies';
 // Type-only — erased at compile time, so this does NOT create the value-level
 // cycle collection.ts -> cube.ts -> collection.ts (see import-cycles.test.ts).
 // The store stays a dumb setter otherwise: no store-value cross-imports.
@@ -443,7 +443,7 @@ export const useCubeStore = create<CubeState>()(
 useCubeStore.subscribe((state, prev) => {
   if (state.saved === prev.saved) return;
   if (isApplyingServer()) return;
-  void import('../lib/sync')
+  void import('@/lib/sync')
     .then((s) => s.persistCubesState(state.saved))
     // Best-effort, but a swallowed rejection means an IDB write silently
     // stopped happening and the change never reached the sync queue —

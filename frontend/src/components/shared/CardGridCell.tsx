@@ -1,8 +1,8 @@
 import { useState, type ReactNode } from 'react';
 import { Check } from 'lucide-react';
 import type { EnrichedCard } from '../../types';
-import { classifyFoil } from '../../lib/foil-style';
-import { useCardThumb } from '../../lib/card-thumbs';
+import { classifyFoil } from '@/lib/cards/foil-style';
+import { useCardThumb } from '@/lib/cards/card-thumbs';
 import { ProxyBadge } from './ProxyBadge';
 import { PriceOverrideBadge } from './PriceOverrideBadge';
 import { RarityBadge } from './RarityBadge';
@@ -118,7 +118,7 @@ interface CardGridCellProps {
   card: EnrichedCard;
   /** Copies this tile stands for; the ×qty chip shows only when >1. */
   qty: number;
-  /** Zoom bucket from lib/grid-zoom's `zoomBucket` → the `grid-<size>` class. */
+  /** Zoom bucket from lib/util/grid-zoom's `zoomBucket` → the `grid-<size>` class. */
   size: '1x' | '2x' | '3x';
   /** Click / Enter / Space on the tile (preview, or toggle in select mode). */
   onActivate: () => void;

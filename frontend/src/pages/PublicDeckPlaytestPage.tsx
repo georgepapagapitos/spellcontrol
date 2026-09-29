@@ -7,13 +7,13 @@ import {
   ShareAuthRequiredError,
   ShareForbiddenError,
   ShareNotFoundError,
-} from '../lib/share-client';
-import type { PublicDeck } from '../lib/shared-types';
-import { publicDeckToDeck } from '../lib/public-deck-to-deck';
+} from '@/lib/social/share-client';
+import type { PublicDeck } from '@/lib/social/shared-types';
+import { publicDeckToDeck } from '@/lib/social/public-deck-to-deck';
 import { PlaytestSession } from '@/playtest/components/PlaytestSession';
 import { NotFoundView, ErrorView, LoadingView } from '../components/share/SharedShell';
-import { useDocumentTitle } from '../lib/use-document-title';
-import { userMessage } from '@/lib/user-error';
+import { useDocumentTitle } from '@/lib/util/use-document-title';
+import { userMessage } from '@/lib/util/user-error';
 import '@/styles/playtest.css';
 
 type LoadState =
@@ -33,7 +33,7 @@ type LoadState =
  * Trying out a deck is the single most useful thing a shared link can offer a
  * reader, and it's what every comparable site lets you do. The session runs
  * entirely on the visitor's device: the payload is adapted by
- * `lib/public-deck-to-deck.ts` and handed to the SAME `PlaytestSession` the
+ * `lib/social/public-deck-to-deck.ts` and handed to the SAME `PlaytestSession` the
  * owner's own playtest uses, marked `external` so the playtest store never
  * tries (and fails) to resolve the deck out of the viewer's decks store.
  *

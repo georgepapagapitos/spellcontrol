@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import type { PublicCube, PublicCubeCard } from '../../lib/shared-types';
-import { normalizeForSearch } from '../../lib/normalize-search';
-import { formatIdentity } from '../../lib/display-name';
+import type { PublicCube, PublicCubeCard } from '@/lib/social/shared-types';
+import { normalizeForSearch } from '@/lib/search/normalize-search';
+import { formatIdentity } from '@/lib/social/display-name';
 import { SearchPill } from '../SearchPill';
 import { SharedEmptyState } from './SharedEmptyState';
 import { SectionHeader } from '../shared/SectionHeader';

@@ -12,20 +12,20 @@ import type {
   SubScore,
   SubScoreKey,
 } from '@/deck-builder/services/deckBuilder/planScore';
-import { getCommanderStats, type CommanderStats } from '@/lib/aggregates-client';
+import { getCommanderStats, type CommanderStats } from '@/lib/discover/aggregates-client';
 
 // Stub the CDN thumb resolver. Rendering the card calls `useCardThumb(commanderName)`,
 // which schedules a fire-and-forget `getCardsByNames` fetch (card-thumbs.ts) that, with
 // no network in the test, logs `[Scryfall] Collection batch failed` *after* the test ends —
 // racing vitest's worker teardown into `EnvironmentTeardownError: Closing rpc while
 // "onUserConsoleLog" was pending`. Stubbing the hook removes the async fetch at the source.
-vi.mock('@/lib/card-thumbs', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/lib/card-thumbs')>()),
+vi.mock('@/lib/cards/card-thumbs', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/cards/card-thumbs')>()),
   useCardThumb: () => undefined,
 }));
 
 // Commander-popularity stat's own fetch — stubbed per-test below.
-vi.mock('@/lib/aggregates-client', () => ({ getCommanderStats: vi.fn() }));
+vi.mock('@/lib/discover/aggregates-client', () => ({ getCommanderStats: vi.fn() }));
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 

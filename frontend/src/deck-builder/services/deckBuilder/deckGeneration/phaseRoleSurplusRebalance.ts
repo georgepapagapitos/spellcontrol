@@ -15,7 +15,7 @@ import {
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
 import { getCardPrice, getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
-import { frontFaceName, getByCardName } from '@/lib/card-text';
+import { frontFaceName, getByCardName } from '@/lib/cards/card-text';
 import { stampRoleSubtypes, routeCardByType, roleCapTolerance } from '../categorize';
 import { computeRoleCounts, countedRoleOf } from '../commanderDeckAnalysis';
 import { computeLiftPickBoosts } from '../packageBoost';

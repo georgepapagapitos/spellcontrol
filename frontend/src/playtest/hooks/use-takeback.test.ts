@@ -4,8 +4,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { PlaytestCard } from '@/lib/playtest';
 import { usePlaytestStore } from '../store';
 import { usePlayStore } from '@/store/play';
-import type { GameRequest } from '@/lib/games-api';
-import { makePlayer } from '@/lib/game-state';
+import type { GameRequest } from '@/lib/play/games-api';
+import { makePlayer } from '@/lib/play/game-state';
 import { useTakeback } from './use-takeback';
 import type { OnlineTable } from './use-online-table';
 

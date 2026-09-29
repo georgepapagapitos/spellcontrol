@@ -1,6 +1,6 @@
 /* ── Reaction picker popover — co-located styles ─────────────────────────
  * Portaled to <body> (see ReactionPicker.tsx doc comment); positioned via
- * lib/popover-placement, same mechanism as OverflowMenu. */
+ * lib/overlays/popover-placement, same mechanism as OverflowMenu. */
 
 .playtest-reaction-picker {
   display: flex;

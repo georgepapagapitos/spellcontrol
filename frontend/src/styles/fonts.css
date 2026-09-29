@@ -4,7 +4,7 @@
    runtime by store/typeset.ts, so a user on a non-default set never pays for
    these twice. Self-hosting removes two third-party origins from the
    critical path of every first visit. Keep the family names in lockstep with
-   DEFAULT_TYPESET in lib/typesets.ts and the `--font-*` fallbacks in
+   DEFAULT_TYPESET in lib/account/typesets.ts and the `--font-*` fallbacks in
    styles/tokens.css. Files + OFL notice live in public/fonts/. */
 
 @font-face {

@@ -12,20 +12,20 @@ import { useAuth } from '../../store/auth';
 import { DEFAULT_POOL_FILTERS, type PoolFilters } from '../../lib/cube/pool-filters';
 import { SelectMenu } from '../../components/SelectMenu';
 import { InfoTip } from '../../components/InfoTip';
-import { formatMoney } from '../../lib/format-money';
-import { useCurrency, type Currency } from '../../lib/currency';
+import { formatMoney } from '@/lib/collection/format-money';
+import { useCurrency, type Currency } from '@/lib/collection/currency';
 import { Link } from 'react-router-dom';
 import { getCardsByNames } from '../../deck-builder/services/scryfall/client';
 import { useOwnedCubePool } from '../../lib/cube/use-owned-pool';
 import { fetchCubeOracle } from '../../lib/cube/oracle';
 import { formatExclusion } from '../../lib/cube/play-format';
 import { synergyTags } from '../../lib/cube/synergy-tags';
-import { getCardTags } from '../../lib/card-tags';
+import { getCardTags } from '@/lib/cards/card-tags';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { CubeSize } from '../../lib/cube/targets';
 import { generateCubeAsync, type CubeProgress } from '../../lib/cube/generate-async';
 import { toCubeCobraList } from '../../lib/cube/format';
-import { useAwaitingFirstPull } from '../../lib/use-awaiting-first-pull';
+import { useAwaitingFirstPull } from '@/lib/sync/use-awaiting-first-pull';
 import {
   useOwnershipFor,
   CubeEmptyState,
@@ -47,10 +47,10 @@ import {
   fetchFriendCollection,
   type FriendCard,
 } from '../../lib/cube/pool';
-import { listFriends, type Friend } from '../../lib/friends-client';
+import { listFriends, type Friend } from '@/lib/social/friends-client';
 import { CubeResult } from './CubeResult';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '../../components/shared/Button';
 
 const PRICE_CEILINGS: (number | null)[] = [null, 1, 2, 5, 10];

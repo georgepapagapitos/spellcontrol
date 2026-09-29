@@ -19,25 +19,29 @@ import { SelectMenu, type SelectOption } from '../components/SelectMenu';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { FilterChipsRow, type FilterChipDescriptor } from '../components/shared/FilterChipsRow';
-import { colorChipLabel } from '../lib/filter-summary';
+import { colorChipLabel } from '@/lib/search/filter-summary';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import { BRACKET_LABELS } from '@/deck-builder/services/deckBuilder/bracketEstimator';
-import { listDiscoverDecks, type DiscoverDeck, type DiscoverSortKey } from '../lib/discover-client';
+import {
+  listDiscoverDecks,
+  type DiscoverDeck,
+  type DiscoverSortKey,
+} from '@/lib/discover/discover-client';
 import {
   parseDiscoverFiltersFromSearchParams,
   discoverFiltersToSearchParams,
   DISCOVER_BUDGET_LABELS,
   NO_DISCOVER_FILTERS,
   type DiscoverFilters,
-} from '../lib/discover-filters';
-import { computeBuildablePercent } from '../lib/discover-buildable';
-import { useStoredSort } from '../lib/use-stored-sort';
-import { useStoredView } from '../lib/use-stored-view';
-import { useDocumentTitle } from '../lib/use-document-title';
+} from '@/lib/discover/discover-filters';
+import { computeBuildablePercent } from '@/lib/discover/discover-buildable';
+import { useStoredSort } from '@/lib/util/use-stored-sort';
+import { useStoredView } from '@/lib/util/use-stored-view';
+import { useDocumentTitle } from '@/lib/util/use-document-title';
 import { useAuth } from '../store/auth';
 import { useCollectionStore } from '../store/collection';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 type DiscoverSortField = DiscoverSortKey | 'buildable';
 

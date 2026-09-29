@@ -2,21 +2,21 @@ import { ListFilter, X } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import type { ChipExpression, Condition, MaterializedBinder, ScryfallQueryRule } from '../types';
-import type { SetMap } from '../lib/api';
+import type { SetMap } from '@/lib/api';
 import { Modal } from './Modal';
 import { SetFilterPicker, setMapToOptions } from './SetFilterPicker';
 import { ColorPip } from './shared/ManaSymbol';
 import { ColorMatchModeToggle } from './shared/ColorMatchModeToggle';
 import { Field, SwitchRow } from './shared/form';
-import { countMatchingRows, type FilterableRow } from '../lib/collection-filter';
-import { compileExpression, compileFilter, isExpressionEmpty } from '../lib/rules';
+import { countMatchingRows, type FilterableRow } from '@/lib/search/collection-filter';
+import { compileExpression, compileFilter, isExpressionEmpty } from '@/lib/binder/rules';
 import {
   collectionFiltersToFilterGroup,
   deriveBinderName,
   hasStructuredFilter,
-} from '../lib/collection-filters-to-binder';
-import { FILTER_FIELD_GROUPS, type FilterFieldGroup } from '../lib/filter-fields';
-import type { ColorMatchMode } from '../lib/colors';
+} from '@/lib/search/collection-filters-to-binder';
+import { FILTER_FIELD_GROUPS, type FilterFieldGroup } from '@/lib/search/filter-fields';
+import type { ColorMatchMode } from '@/lib/cards/colors';
 import { ChipExpressionBuilder } from './ChipExpressionBuilder';
 import { TypeLineExpressionBuilder } from './TypeLineExpressionBuilder';
 import { FilterFieldEditor, NumberRangeInput } from './FilterFieldEditor';
@@ -533,7 +533,7 @@ function DialogBody({
 
   // Whether this dialog shows anything at all for a registry group — the
   // only per-group fact this file hand-keeps; which fields land in which
-  // group, and their order, comes from lib/filter-fields.ts.
+  // group, and their order, comes from lib/search/filter-fields.ts.
   const dialogGroupVisible = (g: DialogFieldGroup): boolean => {
     switch (g) {
       case 'Identity':
@@ -760,7 +760,7 @@ function DialogBody({
             groups AND order the Add-condition picker uses. Only
             `dialogGroupVisible` (below) is hand-kept per group ("does this
             dialog show anything here at all"); the order and membership
-            come from lib/filter-fields.ts. */}
+            come from lib/search/filter-fields.ts. */}
         {DIALOG_FIELD_GROUPS.filter((g) => dialogGroupVisible(g)).map((groupName) => (
           <section key={groupName} className="collection-filters-group">
             <h3 className="form-section-heading">{groupName}</h3>

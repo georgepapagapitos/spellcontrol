@@ -11,7 +11,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-vi.mock('../lib/auth-api', () => ({
+vi.mock('@/lib/account/auth-api', () => ({
   fetchProviders: vi.fn(() => Promise.resolve({ google: false })),
   googleSignInUrl: vi.fn(() => 'https://example.test/oauth'),
 }));
@@ -42,7 +42,7 @@ vi.mock('../store/toasts', () => ({
   toast: { show: (...args: unknown[]) => toastShow(...args) },
 }));
 
-vi.mock('../lib/first-run', () => ({ markEverVisited: vi.fn() }));
+vi.mock('@/lib/home/first-run', () => ({ markEverVisited: vi.fn() }));
 
 // react-router navigate mock.
 const mockNavigate = vi.fn();

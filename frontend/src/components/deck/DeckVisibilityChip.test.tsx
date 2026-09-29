@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('../../lib/use-deck-visibility', () => ({
+vi.mock('@/lib/social/use-deck-visibility', () => ({
   useDeckVisibility: () => ({ visibility: 'private', refetch: vi.fn() }),
 }));
 vi.mock('../ShareDialog', () => ({ ShareDialog: () => null }));

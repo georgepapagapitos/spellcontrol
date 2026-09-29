@@ -1,5 +1,5 @@
-import { logger } from '@/lib/logger';
-import { BASIC_LAND_NAMES } from '@/lib/allocations';
+import { logger } from '@/lib/util/logger';
+import { BASIC_LAND_NAMES } from '@/lib/collection/allocations';
 import type {
   ScryfallCard,
   DeckCategory,
@@ -32,7 +32,7 @@ import {
 import { getBaseRoleTargets as getRoleTargets } from './roleTargets';
 import { estimateBracket, type BracketEstimation } from './bracketEstimator';
 import { scoreRecommendation, type ScoringContext } from './deckAnalyzer';
-import { frontFaceName } from '@/lib/card-text';
+import { frontFaceName } from '@/lib/cards/card-text';
 
 export interface EnrichResult {
   categories: Record<DeckCategory, ScryfallCard[]>;

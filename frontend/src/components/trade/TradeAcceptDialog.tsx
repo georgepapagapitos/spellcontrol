@@ -1,11 +1,11 @@
 import './TradeAcceptDialog.css';
 import { useId, useMemo, useState } from 'react';
 import { Modal } from '../Modal';
-import { useCardThumb } from '../../lib/card-thumbs';
-import { formatMoney } from '../../lib/format-money';
+import { useCardThumb } from '@/lib/cards/card-thumbs';
+import { formatMoney } from '@/lib/collection/format-money';
 import { PrintingChoices } from './PrintingChoices';
-import { useBinderByCopyId } from '../../lib/use-binder-by-copy';
-import { resolveTradePreview } from '../../lib/trade-preview';
+import { useBinderByCopyId } from '@/lib/binder/use-binder-by-copy';
+import { resolveTradePreview } from '@/lib/trade/trade-preview';
 import { TradePreviewCarousel, type TradePreviewState } from './TradePreviewCarousel';
 import { toast } from '../../store/toasts';
 import {
@@ -18,8 +18,8 @@ import {
   type OwnedTradeLine,
   type PrintingCounts,
   type PrintingGroup,
-} from '../../lib/trade-picker';
-import type { TradeCard } from '../../lib/trades-client';
+} from '@/lib/trade/trade-picker';
+import type { TradeCard } from '@/lib/trade/trades-client';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
 

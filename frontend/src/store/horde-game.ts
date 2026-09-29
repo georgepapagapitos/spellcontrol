@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { safeLocalStorage } from '@/lib/safe-local-storage';
+import { safeLocalStorage } from '@/lib/util/safe-local-storage';
 import { applyAction, type PlaytestCard, type PlaytestState } from '@/lib/playtest';
 import { type Rect } from '@/playtest/lib/auto-place';
 import {
@@ -23,7 +23,7 @@ import {
   type HordeReveal,
   type HordeSettings,
 } from '@/lib/horde';
-import { genId } from '@/lib/id';
+import { genId } from '@/lib/util/id';
 import { toast } from '@/store/toasts';
 import {
   createGameState,
@@ -31,7 +31,7 @@ import {
   makePlayer,
   type GameRecord,
   type GameState,
-} from '@/lib/game-state';
+} from '@/lib/play/game-state';
 import { usePlayStore } from '@/store/play';
 
 export interface HordeSurvivor {

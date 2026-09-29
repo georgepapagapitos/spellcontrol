@@ -3,10 +3,10 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BuildReport } from '@/deck-builder/types';
 import { BuildReportSheet } from './BuildReportSheet';
-import { isBuildReportSeen } from '@/lib/build-report-seen';
+import { isBuildReportSeen } from '@/lib/deck/build-report-seen';
 
 // Stub CDN hook so tests don't fire real network requests.
-vi.mock('@/lib/card-thumbs', () => ({
+vi.mock('@/lib/cards/card-thumbs', () => ({
   useCardThumb: () => undefined,
 }));
 

@@ -17,40 +17,40 @@ import {
   X,
 } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import type { GameAction, GamePlayer, GameState } from '../../lib/game-state';
-import { cmdDamageKey, nextActiveSeat } from '../../lib/game-state';
-import { genId } from '../../lib/id';
-import type { EmptyCell, SeatSlot } from '../../lib/board-layouts';
+import type { GameAction, GamePlayer, GameState } from '@/lib/play/game-state';
+import { cmdDamageKey, nextActiveSeat } from '@/lib/play/game-state';
+import { genId } from '@/lib/util/id';
+import type { EmptyCell, SeatSlot } from '@/lib/play/board-layouts';
 import {
   isCustomLayout,
   resolveLayout,
   seamSatellite,
   turnOrderOf,
   undoButtonParams,
-} from '../../lib/board-layouts';
-import { paletteForSeat } from '../../lib/seat-palette';
-import { useAnimatedNumber } from '../../lib/use-animated-number';
-import { useFloatingDelta } from '../../lib/use-floating-delta';
-import { haptics } from '../../lib/haptics';
-import { suppressNativeContextMenu } from '../../lib/suppress-context-menu';
-import { useWakeLock } from '../../lib/use-wake-lock';
-import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
-import { useBackgroundInert } from '../../lib/use-background-inert';
-import { useFullscreen } from '../../lib/use-fullscreen';
-import { useBoardKeepStill } from '../../lib/use-board-keep-still';
-import { capture, clearUndo, peekLabel, popRestore, runSuppressed } from '../../lib/undo-stack';
-import { useCardThumb } from '../../lib/card-thumbs';
+} from '@/lib/play/board-layouts';
+import { paletteForSeat } from '@/lib/play/seat-palette';
+import { useAnimatedNumber } from '@/lib/util/use-animated-number';
+import { useFloatingDelta } from '@/lib/play/use-floating-delta';
+import { haptics } from '@/lib/util/haptics';
+import { suppressNativeContextMenu } from '@/lib/play/suppress-context-menu';
+import { useWakeLock } from '@/lib/util/use-wake-lock';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useBackgroundInert } from '@/lib/overlays/use-background-inert';
+import { useFullscreen } from '@/lib/util/use-fullscreen';
+import { useBoardKeepStill } from '@/lib/play/use-board-keep-still';
+import { capture, clearUndo, peekLabel, popRestore, runSuppressed } from '@/lib/play/undo-stack';
+import { useCardThumb } from '@/lib/cards/card-thumbs';
 import { scryfallArtCrop } from '../../lib/offline/slim-to-scryfall';
-import { cmdDamageFillRatio, cmdDamageToLethal } from '../../lib/cmd-damage';
-import { highRoll as rollHighRoll, type HighRollResult } from '../../lib/game-tools';
-import { seatCounters } from '../../lib/game-state';
+import { cmdDamageFillRatio, cmdDamageToLethal } from '@/lib/play/cmd-damage';
+import { highRoll as rollHighRoll, type HighRollResult } from '@/lib/play/game-tools';
+import { seatCounters } from '@/lib/play/game-state';
 import { usePlayStore } from '../../store/play';
-import { HOLD_JUMP } from '../../lib/hold-ramp';
-import { useTapAndHold } from '../../lib/tap-and-hold';
+import { HOLD_JUMP } from '@/lib/play/hold-ramp';
+import { useTapAndHold } from '@/lib/play/tap-and-hold';
 import { LifeKeypad } from './LifeKeypad';
 import { SeatMenu } from './SeatMenu';
 import { ConfirmDialog } from '../ConfirmDialog';
-import { hasSeenBoardGestures } from '../../lib/board-gestures-seen';
+import { hasSeenBoardGestures } from '@/lib/play/board-gestures-seen';
 import { BoardGestureHint } from './BoardGestureHint';
 import { BoardHubMenu, type HubPetal } from './BoardHubMenu';
 import { GameClock } from './GameClock';
@@ -208,7 +208,7 @@ export function GameBoard({
   // once `.game-board-rotator` carries the counter-rotation. Only code that
   // reads raw screen-space pointer coordinates (tap zones, swipes, the hub
   // ring's petal math) needs this value explicitly — see the STYLE_GUIDE
-  // ruling and `lib/use-board-keep-still.ts`.
+  // ruling and `lib/play/use-board-keep-still.ts`.
   const boardRotation = useBoardKeepStill();
 
   // Keep the screen awake while a game is in progress (real-table use: the

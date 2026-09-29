@@ -15,18 +15,18 @@ vi.mock('../../store/collection', () => ({
 }));
 
 const awaiting = vi.hoisted(() => ({ value: false }));
-vi.mock('../../lib/use-awaiting-first-pull', () => ({
+vi.mock('@/lib/sync/use-awaiting-first-pull', () => ({
   useAwaitingFirstPull: () => awaiting.value,
 }));
 
 const arrivals = vi.hoisted(() => ({ rows: [] as Array<{ deck: { id: string }; count: number }> }));
-vi.mock('../../lib/home-signals', () => ({
+vi.mock('@/lib/home/home-signals', () => ({
   aggregateNewArrivalDecks: () => arrivals.rows,
 }));
 
 const mockUseCardThumb = vi.hoisted(() => vi.fn(() => undefined as string | undefined));
-vi.mock('../../lib/card-thumbs', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../lib/card-thumbs')>();
+vi.mock('@/lib/cards/card-thumbs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/cards/card-thumbs')>();
   return { ...actual, useCardThumb: mockUseCardThumb };
 });
 

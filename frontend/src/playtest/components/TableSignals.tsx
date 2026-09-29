@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { usePlayStore } from '@/store/play';
-import { paletteForIndex } from '@/lib/seat-palette';
+import { paletteForIndex } from '@/lib/play/seat-palette';
 import { useOnlineSignals } from '../hooks/use-online-signals';
 import {
   REACTION_LABEL,

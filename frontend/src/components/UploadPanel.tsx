@@ -1,9 +1,9 @@
 import { Camera, ChevronDown, ChevronRight, Cloud, Link2, Upload, X } from 'lucide-react';
 import { Suspense, lazy, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { formatRelativeTime } from '../lib/format-time';
-import { haptics } from '../lib/haptics';
-import { usePushProgress } from '../lib/use-push-progress';
-import type { PushProgress } from '../lib/sync';
+import { formatRelativeTime } from '@/lib/util/format-time';
+import { haptics } from '@/lib/util/haptics';
+import { usePushProgress } from '@/lib/sync/use-push-progress';
+import type { PushProgress } from '@/lib/sync';
 import { useCollectionStore, type ImportMode } from '../store/collection';
 import {
   fetchImportLink,
@@ -11,26 +11,26 @@ import {
   importRows,
   importText,
   type ImportProgressCallback,
-} from '../lib/api';
+} from '@/lib/api';
 import type { UploadResponse } from '../types';
 import type { ScryfallCard } from '@/deck-builder/types';
-import { useConfirm } from '../lib/use-confirm';
+import { useConfirm } from './use-confirm';
 import {
   findPriorImports,
   findContentReimportMatch,
   type ContentReimportMatch,
-} from '../lib/reimport';
-import { prettyImportName } from '../lib/import-history-name';
-import { summarizeImportRouting } from '../lib/import-routing';
+} from '@/lib/import-export/reimport';
+import { prettyImportName } from '@/lib/import-export/import-history-name';
+import { summarizeImportRouting } from '@/lib/import-export/import-routing';
 import {
   mergeImportResults,
   removeUnresolvedName,
   importReviewHeadline,
   fetchErrorMessage,
-} from '../lib/import-review';
-import { useBinderLayoutInputs } from '../lib/use-binder-layout-inputs';
+} from '@/lib/import-export/import-review';
+import { useBinderLayoutInputs } from '@/lib/binder/use-binder-layout-inputs';
 import { Modal } from './Modal';
-import { useCanScan } from '../lib/use-can-scan';
+import { useCanScan } from '@/lib/scanner/use-can-scan';
 import { useSealMoment } from './shared/SealMoment';
 
 const CardScanner = lazy(() => import('./CardScanner').then((m) => ({ default: m.CardScanner })));
@@ -40,20 +40,20 @@ import { ImportRoutingSummary } from './ImportRoutingSummary';
 import { InlineCardSearch } from './InlineCardSearch';
 import { InfoTip } from './InfoTip';
 import { ChoiceList, Disclosure, Field, SwitchRow } from './shared/form';
-import { mergeStagedFiles, stagedFilesNotice } from '../lib/staged-files';
-import { useFileDrop } from '../lib/use-file-drop';
-import { useResultsKeys } from '../lib/use-results-keys';
+import { mergeStagedFiles, stagedFilesNotice } from '@/lib/import-export/staged-files';
+import { useFileDrop } from '@/lib/import-export/use-file-drop';
+import { useResultsKeys } from '@/lib/search/use-results-keys';
 import {
   googlePickerAvailable,
   isCancelled,
   pickFromGoogleDrive,
   warmGooglePicker,
-} from '../lib/google-picker';
+} from '@/lib/import-export/google-picker';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button, IconButton } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
-import { PROXY_HINT } from '@/lib/shared-copy';
+import { PROXY_HINT } from '@/lib/util/shared-copy';
 
 // Per-format column/line examples for the import-source InfoTip (E130 —
 // discoverability for the 5 bare text links, which named the tools but
@@ -212,7 +212,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
         : 'Add to collection';
   const optionsSummary = markAsProxies ? `${modeSummary} · Proxies on` : modeSummary;
 
-  // Soft, name-based re-import signal (lib/reimport.ts): an incoming staged
+  // Soft, name-based re-import signal (lib/import-export/reimport.ts): an incoming staged
   // file shares a name with something already in history. Paste/scan use
   // synthetic labels the matcher ignores, so this only ever fires for a real
   // file. The strong, content-based signal is `findContentReimportMatch`,

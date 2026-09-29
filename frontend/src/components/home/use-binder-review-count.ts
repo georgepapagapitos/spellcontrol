@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useCollectionStore } from '../../store/collection';
-import { useBinderLayoutInputs } from '../../lib/use-binder-layout-inputs';
-import { materializeBinders } from '../../lib/materialize';
-import { aggregateBinderReviewCount } from '../../lib/home-signals';
+import { useBinderLayoutInputs } from '@/lib/binder/use-binder-layout-inputs';
+import { materializeBinders } from '@/lib/binder/materialize';
+import { aggregateBinderReviewCount } from '@/lib/home/home-signals';
 
 export interface BinderReview {
   /** Cards waiting to be filed across every binder. */

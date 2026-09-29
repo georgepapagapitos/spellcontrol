@@ -2,8 +2,8 @@ import { ArrowDown, ArrowUp, Pencil, Share2, Trash2, type LucideIcon } from 'luc
 import { useCallback } from 'react';
 import { useCollectionStore } from '../store/collection';
 import { toast } from '../store/toasts';
-import { diffMembershipByDefs } from '../lib/binder-moves';
-import { useBinderLayoutInputs } from '../lib/use-binder-layout-inputs';
+import { diffMembershipByDefs } from '@/lib/binder/binder-moves';
+import { useBinderLayoutInputs } from '@/lib/binder/use-binder-layout-inputs';
 import type { BinderDef } from '../types';
 
 /** One row of a binder's menu, in the shape both OverflowMenu and PageHeader take. */

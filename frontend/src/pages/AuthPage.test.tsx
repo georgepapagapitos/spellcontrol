@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('../lib/auth-api', () => ({
+vi.mock('@/lib/account/auth-api', () => ({
   fetchProviders: vi.fn(() => Promise.resolve({ google: false })),
   googleSignInUrl: vi.fn(() => 'https://example.test/oauth'),
 }));

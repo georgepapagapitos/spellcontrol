@@ -3,18 +3,18 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { useAuth } from '../../store/auth';
 import { useToastsStore } from '../../store/toasts';
-import type { Profile } from '../../lib/auth-api';
+import type { Profile } from '@/lib/account/auth-api';
 
 const { updateProfileMock, fetchPublicProfileMock } = vi.hoisted(() => ({
   updateProfileMock: vi.fn(),
   fetchPublicProfileMock: vi.fn(),
 }));
-vi.mock('../../lib/auth-api', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../lib/auth-api')>()),
+vi.mock('@/lib/account/auth-api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/account/auth-api')>()),
   updateProfile: updateProfileMock,
 }));
-vi.mock('../../lib/profile-client', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../lib/profile-client')>()),
+vi.mock('@/lib/social/profile-client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/social/profile-client')>()),
   fetchPublicProfile: fetchPublicProfileMock,
 }));
 

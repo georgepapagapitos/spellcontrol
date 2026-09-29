@@ -1,4 +1,4 @@
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/util/logger';
 import type { ScryfallCard, ScryfallSearchResponse } from '@/deck-builder/types';
 import type {
   CardRepository,
@@ -11,11 +11,11 @@ import { isPlayableCard, resolveReversiblePrinting } from '@/deck-builder/lib/pr
 export { isPlayableCard };
 import { offlineGetCardByName, offlineGetCardsByNames, offlineSearchCards } from '@/lib/offline';
 import { offlineDataAvailable, useOfflineStore } from '@/store/offline';
-import { frontFaceName } from '@/lib/card-text';
-import { normalizeScryfallQuery } from '@/lib/normalize-search';
-import { scryfallFetch, scryfallRequest, scryfallErrorMessage } from '@/lib/scryfall-fetch';
-import { apiUrl } from '@/lib/api-base';
-import type { ScryfallCardRef } from '@/lib/scryfall-card-link';
+import { frontFaceName } from '@/lib/cards/card-text';
+import { normalizeScryfallQuery } from '@/lib/search/normalize-search';
+import { scryfallFetch, scryfallRequest, scryfallErrorMessage } from '@/lib/cards/scryfall-fetch';
+import { apiUrl } from '@/lib/api/api-base';
+import type { ScryfallCardRef } from '@/lib/cards/scryfall-card-link';
 import { persistCard, readCachedCards } from './cache';
 import { HARDCODED_GAME_CHANGERS as SHARED_GAME_CHANGERS } from '@spellcontrol/deck-metrics';
 
@@ -198,7 +198,7 @@ export async function searchTokens(query: string): Promise<TokenOption[]> {
 
 /**
  * Resolve the full face of a token named in a deck's token list
- * (`lib/deck-tokens`), which carries a name and a type line but no art.
+ * (`lib/deck/deck-tokens`), which carries a name and a type line but no art.
  * Matches on the type line where one is given so "Token Creature — Bird"
  * does not come back as an enchantment that happens to share the name.
  */
@@ -272,12 +272,12 @@ export function commanderFinderSupportsRegex(): boolean {
 }
 
 /**
- * The commander finder's search: `query` (built by lib/commander-finder, with
+ * The commander finder's search: `query` (built by lib/deck/commander-finder, with
  * no base clause) against every commander, or every uncommon creature for
  * Pauper Commander, most-played first. One page of up to 175 with the total,
  * so the finder can say "532 commanders" while showing the top of the list.
  * An empty query browses the whole pool by popularity. The query goes out as
- * built: lib/commander-finder already normalized the part the player typed.
+ * built: lib/deck/commander-finder already normalized the part the player typed.
  */
 export async function searchCommanderFinder(
   query: string,
@@ -1663,7 +1663,7 @@ export function getCardImageUrl(
  * Returns the price string or null if no price is available.
  */
 // Non-snow basics only — deliberately NOT the canonical land-identity set in
-// lib/allocations. Snow-Covered basics carry a real market price, so they must
+// lib/collection/allocations. Snow-Covered basics carry a real market price, so they must
 // fall through to their actual `prices`, not the $0.05 basic floor below.
 const ZERO_PRICE_BASICS = new Set(['Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 'Wastes']);
 

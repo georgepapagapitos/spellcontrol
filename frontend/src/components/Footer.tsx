@@ -4,8 +4,8 @@
  */
 import { Link } from 'react-router-dom';
 import { useAuth } from '../store/auth';
-import { useShortcutRegistry } from '../lib/shortcut-registry';
-import { track } from '../lib/analytics';
+import { useShortcutRegistry } from './shortcut-registry';
+import { track } from '@/lib/util/analytics';
 import { Chip } from '@/components/shared/Chip';
 
 export function Footer() {

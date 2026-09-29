@@ -2,7 +2,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { SwapThisCard } from './SwapThisCard';
-import { toSwapAgainst, type Change } from '@/lib/deck-change';
+import { toSwapAgainst, type Change } from '@/lib/coach/deck-change';
 
 // The page hands SwapThisCard real swap Changes (the focused card → an
 // alternative), so each row renders the trade. Build them the same way.

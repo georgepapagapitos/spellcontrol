@@ -7,7 +7,7 @@ import type { ScryfallCard } from '@/deck-builder/types';
 
 // useCardThumb hits the thumbnail CDN resolver; stub it so the row renders the
 // placeholder art and the test stays offline.
-vi.mock('../../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
 const EMPTY_INDEX: CardImageIndex = { byOracle: new Map(), byName: new Map() };
 

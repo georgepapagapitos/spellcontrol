@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import { DeckBadge } from './DeckBadge';
-import { makeDeckAllocationInfo } from '../lib/allocations';
+import { makeDeckAllocationInfo } from '@/lib/collection/allocations';
 
 function renderBadge(ui: React.ReactElement) {
   return render(<MemoryRouter>{ui}</MemoryRouter>);

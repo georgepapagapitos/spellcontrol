@@ -79,7 +79,7 @@ describe('deck-name inputs are capped', () => {
     expect(
       offenders,
       'A deck name typed longer than DECK_NAME_MAX is a name the page then cuts ' +
-        'on its own (E342). Import `DECK_NAME_MAX` from `@/lib/deck-name`.'
+        'on its own (E342). Import `DECK_NAME_MAX` from `@/lib/deck/deck-name`.'
     ).toEqual([]);
   });
 });

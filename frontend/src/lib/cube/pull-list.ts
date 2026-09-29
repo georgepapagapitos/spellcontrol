@@ -1,7 +1,7 @@
-import { materializeBinders } from '../materialize';
+import { materializeBinders } from '@/lib/binder/materialize';
 import type { CubePickSlot } from '../../store/cube';
 import type { BinderDef, EnrichedCard } from '../../types';
-import type { SetMap } from '../api';
+import type { SetMap } from '@/lib/api';
 
 /**
  * Pull-list-by-binder for a physical cube: where each reserved copy sits —
@@ -9,7 +9,7 @@ import type { SetMap } from '../api';
  * the user's own order, then page, then slot).
  *
  * Placement is computed with `materializeBinders` (the memoized shim in
- * `lib/materialize.ts`), NOT re-derived, so a row can never disagree with
+ * `lib/binder/materialize.ts`), NOT re-derived, so a row can never disagree with
  * what the Binders page itself shows. The call this mirrors is
  * `BinderPage.tsx`'s live view:
  *   materializeBinders(cards, binders, { search: '', allocatedCopyIds, setMap, qtyByPrintingKey })

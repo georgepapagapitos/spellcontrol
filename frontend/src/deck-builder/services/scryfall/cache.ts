@@ -20,7 +20,7 @@
  * must only cost us the network request we would have made anyway.
  */
 import { openDB, type IDBPDatabase } from 'idb';
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/util/logger';
 import type { ScryfallCard } from '@/deck-builder/types';
 
 const DB_NAME = 'spellcontrol-scryfall-cache';

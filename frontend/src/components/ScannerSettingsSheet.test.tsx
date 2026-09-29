@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { ScannerSettingsSheet } from './ScannerSettingsSheet';
-import { useScannerSettings } from '../lib/scanner-settings';
+import { useScannerSettings } from '@/lib/scanner/scanner-settings';
 
 const RESET = {
   defaultFinish: 'nonfoil' as const,

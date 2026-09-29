@@ -16,7 +16,7 @@
 //
 // Pool queries always run against the LIVE Scryfall API (the generator sets the
 // force-live flag): the offline query parser can't evaluate otag:/arttag:/year.
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/util/logger';
 import { isDeadInIdentity } from './deckFilters';
 import { resolveReversiblePrinting } from '@/deck-builder/lib/printingLayouts';
 import {

@@ -2,8 +2,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { BrewerCard } from '@/lib/brewers-client';
-import type { Friend } from '@/lib/friends-client';
+import type { BrewerCard } from '@/lib/social/brewers-client';
+import type { Friend } from '@/lib/social/friends-client';
 
 const { mockUsers, mockBrewers, mockSend, mockAccept } = vi.hoisted(() => ({
   mockUsers: vi.fn(),
@@ -11,12 +11,12 @@ const { mockUsers, mockBrewers, mockSend, mockAccept } = vi.hoisted(() => ({
   mockSend: vi.fn(),
   mockAccept: vi.fn(),
 }));
-vi.mock('@/lib/friends-client', () => ({
+vi.mock('@/lib/social/friends-client', () => ({
   searchUsers: mockUsers,
   sendFriendRequest: mockSend,
   acceptRequest: mockAccept,
 }));
-vi.mock('@/lib/brewers-client', () => ({
+vi.mock('@/lib/social/brewers-client', () => ({
   searchBrewers: mockBrewers,
   followUser: vi.fn(),
   unfollowUser: vi.fn(),

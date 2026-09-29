@@ -1,7 +1,7 @@
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { RecommendedCard } from './deckAnalyzer';
 import { getCardPrice, getCardImageUrl } from '@/deck-builder/services/scryfall/client';
-import { primaryTypeOf } from '@/lib/card-matching';
+import { primaryTypeOf } from '@/lib/coach/card-matching';
 import { stampedRole } from '@/deck-builder/services/tagger/client';
 
 /**
@@ -55,7 +55,7 @@ export interface BuildCostPlanOptions {
 /**
  * Basic lands are protected from swap suggestions (no cheaper equivalent matters).
  * Local, non-snow set by design — not the canonical land-identity set in
- * lib/allocations (snow basics already swap-protect via other rules here).
+ * lib/collection/allocations (snow basics already swap-protect via other rules here).
  */
 const PROTECTED_BASICS = new Set(['Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 'Wastes']);
 

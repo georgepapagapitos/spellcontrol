@@ -1,5 +1,5 @@
-import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/use-sheet-exit';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
 import type { PlaytestCard } from '@/lib/playtest';
 import './horde-sheets.css';
 import { Button } from '@/components/shared/Button';

@@ -9,7 +9,7 @@ const { followMock, unfollowMock } = vi.hoisted(() => ({
   followMock: vi.fn(),
   unfollowMock: vi.fn(),
 }));
-vi.mock('../../lib/brewers-client', () => ({
+vi.mock('@/lib/social/brewers-client', () => ({
   followUser: followMock,
   unfollowUser: unfollowMock,
 }));

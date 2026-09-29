@@ -2,12 +2,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useAuth } from '../store/auth';
-import { UsernameChangeError } from '../lib/auth-api';
+import { UsernameChangeError } from '@/lib/account/auth-api';
 import { useToastsStore } from '../store/toasts';
 
 const changeUsernameMock = vi.fn<(username: string) => Promise<unknown>>();
-vi.mock('../lib/auth-api', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../lib/auth-api')>();
+vi.mock('@/lib/account/auth-api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/account/auth-api')>();
   return { ...actual, changeUsername: (u: string) => changeUsernameMock(u) };
 });
 

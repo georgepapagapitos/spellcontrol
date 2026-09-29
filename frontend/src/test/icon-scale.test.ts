@@ -37,13 +37,13 @@ import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import ts from 'typescript';
-import { ICON_SCALE } from '../lib/icon-scale';
+import { ICON_SCALE } from '@/lib/util/icon-scale';
 
 const ROOT = path.resolve(__dirname, '..');
 const SKIP_FILE = /(\.test\.tsx?$|\.d\.ts$|\/fixtures?\/|__fixtures__|__snapshots__|\.stories\.)/;
 
 // size -> canonical strokeWidth, read from the one home of the scale so the
-// guard and lib/icon-scale.ts cannot disagree.
+// guard and lib/util/icon-scale.ts cannot disagree.
 const SCALE: Record<string, string> = Object.fromEntries(
   Object.values(ICON_SCALE).map(({ size, stroke }) => [String(size), String(stroke)])
 );
@@ -69,10 +69,10 @@ const FILE_ALLOWLIST = [
   'pages/ListsPage.tsx',
   'pages/cube/CubeCommanders.tsx',
   'lib/cube/',
-  'lib/allocations',
-  'lib/collection-insights.ts',
-  'lib/home-signals.ts',
-  'lib/format-money.ts',
+  'lib/collection/allocations',
+  'lib/collection/collection-insights.ts',
+  'lib/home/home-signals.ts',
+  'lib/collection/format-money.ts',
 ];
 
 // Specific (file, tag, size) sites left deliberately off-scale. Keyed loosely

@@ -12,7 +12,7 @@
  * client-rendered) can't expose to crawlers. Returning guests and authed
  * users skip it (App routes them straight to /collection).
  *
- * The first-run gate (lib/first-run.ts / use-first-run-gate.ts) sends a
+ * The first-run gate (lib/home/first-run.ts / use-first-run-gate.ts) sends a
  * fresh guest here — to the welcome storefront at `/`, not `/auth` — leaving
  * sign-in as one of this page's own doors (below) rather than a forced stop.
  *
@@ -46,9 +46,9 @@
 import { lazy, Suspense, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { LogIn, Layers, Wand2, SlidersHorizontal, Swords } from 'lucide-react';
-import { useLoadSamples } from '../lib/use-load-samples';
-import { markEverVisited } from '../lib/first-run';
-import { track } from '../lib/analytics';
+import { useLoadSamples } from '@/lib/home/use-load-samples';
+import { markEverVisited } from '@/lib/home/first-run';
+import { track } from '@/lib/util/analytics';
 import { WelcomeHero } from '../components/welcome/WelcomeHero';
 import { FreshDecksRail } from '../components/welcome/FreshDecksRail';
 import { DiscoverTileSkeleton } from '../components/DiscoverDeckTile';

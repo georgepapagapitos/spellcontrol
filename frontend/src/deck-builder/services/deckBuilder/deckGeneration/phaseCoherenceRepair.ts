@@ -1,4 +1,4 @@
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/util/logger';
 import type {
   CoherenceRepair,
   DeckCategory,
@@ -8,7 +8,7 @@ import type {
   ScryfallCard,
 } from '@/deck-builder/types';
 import { type GenerationState, markBanned } from './state';
-import { frontFaceName, getByCardName } from '@/lib/card-text';
+import { frontFaceName, getByCardName } from '@/lib/cards/card-text';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import {
   getCardRole,

@@ -5,7 +5,7 @@ import { DiscoverDeckTile, DiscoverTileSkeleton } from '../DiscoverDeckTile';
 // The rail header borrows HomeCard's header/view-all family. HomePage is lazy,
 // so this chunk (main) has to load the stylesheet itself.
 import '../home/HomeCard.css';
-import { listDiscoverDecks, type DiscoverDeck } from '../../lib/discover-client';
+import { listDiscoverDecks, type DiscoverDeck } from '@/lib/discover/discover-client';
 import { SwipeRow } from '../shared/SwipeRow';
 
 /** Below this many fresh decks, the rail renders nothing rather than a

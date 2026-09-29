@@ -6,15 +6,15 @@ import { Button } from '@/components/shared/Button';
 import { useDecksStore, type Deck } from '../../store/decks';
 import { useCollectionStore } from '../../store/collection';
 import { ColorPip } from '../shared/ManaSymbol';
-import { useCardThumb } from '../../lib/card-thumbs';
-import { deckCoverArt } from '../../lib/deck-cover';
-import { formatRelativeTime } from '../../lib/format-time';
-import { deckDisplayColors } from '../../lib/deck-validation';
+import { useCardThumb } from '@/lib/cards/card-thumbs';
+import { deckCoverArt } from '@/lib/deck/deck-cover';
+import { formatRelativeTime } from '@/lib/util/format-time';
+import { deckDisplayColors } from '@/lib/deck/deck-validation';
 import { ColorIdentityBar } from '../shared/ColorIdentityBar';
-import { aggregateNewArrivalDecks } from '../../lib/home-signals';
-import { readArrivalWatchlists } from '../../lib/arrival-watchlist';
-import { readHomeShape, rememberHomeShape } from '../../lib/home-shape';
-import { useAwaitingFirstPull } from '../../lib/use-awaiting-first-pull';
+import { aggregateNewArrivalDecks } from '@/lib/home/home-signals';
+import { readArrivalWatchlists } from '@/lib/coach/arrival-watchlist';
+import { readHomeShape, rememberHomeShape } from '@/lib/home/home-shape';
+import { useAwaitingFirstPull } from '@/lib/sync/use-awaiting-first-pull';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import { HomeSectionSearch } from './HomeSectionSearch';
 import { ArtBadge } from '@/components/shared/ArtBadge';
@@ -106,7 +106,7 @@ function DeckTile({ deck, arrivals }: { deck: Deck; arrivals: number }) {
  *
  * A deck with new cards its coach wants carries "+N new cards" on its art,
  * a link to the deck's new-arrivals sheet with those same N cards in it
- * (lib/arrival-watchlist.ts). The count is per deck, never summed.
+ * (lib/coach/arrival-watchlist.ts). The count is per deck, never summed.
  *
  * No decks: nothing. The hero's checklist and Waiting on you already invite
  * the first one, so an empty section here would say it a third time.

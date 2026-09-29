@@ -2,7 +2,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
-import type { Friend } from '@/lib/friends-client';
+import type { Friend } from '@/lib/social/friends-client';
 import { FriendRow } from './FriendRow';
 import { friendPeekLine } from '@/lib/social/friend-peek';
 

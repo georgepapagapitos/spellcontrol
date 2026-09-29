@@ -1,7 +1,7 @@
 import type { JSX } from 'react';
 import { ChevronRight, Gauge, Trophy, X, Zap } from 'lucide-react';
 import './BuildTimeCoachStrip.css';
-import type { BuildTimeNudge, BuildTimeNudgeKind } from '../../lib/use-build-time-nudge';
+import type { BuildTimeNudge, BuildTimeNudgeKind } from '@/lib/coach/use-build-time-nudge';
 import { IconButton } from '@/components/shared/Button';
 
 const KIND_ICON: Record<BuildTimeNudgeKind, JSX.Element> = {

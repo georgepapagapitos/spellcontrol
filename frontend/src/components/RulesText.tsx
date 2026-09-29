@@ -1,8 +1,8 @@
 import './RulesText.css';
 import { useId } from 'react';
 import { createPortal } from 'react-dom';
-import { useRulesText, type KeywordGloss, type OracleSegment } from '@/lib/keyword-glossary';
-import { useAnchoredPanel } from '@/lib/use-anchored-panel';
+import { useRulesText, type KeywordGloss, type OracleSegment } from '@/lib/cards/keyword-glossary';
+import { useAnchoredPanel } from '@/lib/overlays/use-anchored-panel';
 import { useRulesReferenceStore } from '@/store/rules-reference';
 import { Button } from './shared/Button';
 import { MagicText } from './deck/MagicText';

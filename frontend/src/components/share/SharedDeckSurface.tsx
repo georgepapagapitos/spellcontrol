@@ -11,19 +11,19 @@ import '@/styles/deck-builder-row-qty.css';
 import '@/styles/deck-builder-analysis-panel.css';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Pencil, Swords, Wand2 } from 'lucide-react';
-import type { PublicDeck } from '../../lib/shared-types';
-import { publicDeckToDeck } from '../../lib/public-deck-to-deck';
-import { formatIdentity } from '../../lib/display-name';
-import { formatCount } from '../../lib/format-count';
-import { renderMarkdownLite } from '../../lib/markdown-lite';
-import { buildWinConditionSummary } from '../../lib/win-condition-summary';
-import { toClockCard } from '../../lib/hand-classify';
-import { formatMoney } from '../../lib/format-money';
-import { useCurrency } from '../../lib/currency';
-import { deckCoverArt } from '../../lib/deck-cover';
-import { deckValue } from '../../lib/deck-value';
+import type { PublicDeck } from '@/lib/social/shared-types';
+import { publicDeckToDeck } from '@/lib/social/public-deck-to-deck';
+import { formatIdentity } from '@/lib/social/display-name';
+import { formatCount } from '@/lib/util/format-count';
+import { renderMarkdownLite } from '@/lib/util/markdown-lite';
+import { buildWinConditionSummary } from '@/lib/deck-analysis/win-condition-summary';
+import { toClockCard } from '@/lib/mana-sim/hand-classify';
+import { formatMoney } from '@/lib/collection/format-money';
+import { useCurrency } from '@/lib/collection/currency';
+import { deckCoverArt } from '@/lib/deck/deck-cover';
+import { deckValue } from '@/lib/deck/deck-value';
 import { effectiveBracket } from '../../store/decks';
-import { bracketTextWithEstimate } from '../../lib/format-bracket-label';
+import { bracketTextWithEstimate } from '@/lib/deck-analysis/format-bracket-label';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
 import { DeckDisplay, type DeckView } from '../deck/DeckDisplay';
@@ -38,9 +38,9 @@ import { ReportDialog } from './ReportDialog';
 import { CopyDeckButton } from './CopyDeckButton';
 import { useAuth } from '../../store/auth';
 import { useCollectionStore } from '../../store/collection';
-import { useDeckCombos } from '../../lib/use-deck-combos';
-import { partitionCombosByZone } from '../../lib/combo-zone-partition';
-import type { ChangeOwnership } from '../../lib/deck-change';
+import { useDeckCombos } from '@/lib/deck-analysis/use-deck-combos';
+import { partitionCombosByZone } from '@/lib/deck-analysis/combo-zone-partition';
+import type { ChangeOwnership } from '@/lib/coach/deck-change';
 import type { CardOwnership } from './SharedCardTile';
 import { bracketReasons, bracketBorderline } from '@spellcontrol/deck-metrics';
 import { Button } from '@/components/shared/Button';
@@ -394,7 +394,7 @@ export function SharedDeckSurface({ data, sourceKey, publicMeta, ownership, lead
         {data.forkedFrom && <ForkedFromBadge forkedFrom={data.forkedFrom} />}
       </DeckHero>
       {data.primer && (
-        // renderMarkdownLite is escape-then-transform (see lib/markdown-lite.ts):
+        // renderMarkdownLite is escape-then-transform (see lib/util/markdown-lite.ts):
         // the whole string is HTML-entity-escaped before any tag is generated,
         // so the only tags it can ever emit are p/strong/em/ul/li — safe to
         // hand straight to dangerouslySetInnerHTML.

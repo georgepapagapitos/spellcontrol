@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Download, X } from 'lucide-react';
-import { canShare, openShareSheet } from '@/lib/web-share';
+import { canShare, openShareSheet } from '@/lib/util/web-share';
 import { Modal } from './Modal';
 import { SelectMenu } from './SelectMenu';
 import { toast } from '../store/toasts';
-import { useCurrencyStore } from '../lib/currency';
+import { useCurrencyStore } from '@/lib/collection/currency';
 import type { EnrichedCard } from '../types';
 import {
   COLLECTION_EXPORT_FORMATS,
@@ -14,7 +14,7 @@ import {
   readStoredCollectionExportFormat,
   writeStoredCollectionExportFormat,
   type CollectionExportFormat,
-} from '../lib/collection-export';
+} from '@/lib/import-export/collection-export';
 import { Button, IconButton } from '@/components/shared/Button';
 import { CopyButton } from '@/components/shared/CopyButton';
 

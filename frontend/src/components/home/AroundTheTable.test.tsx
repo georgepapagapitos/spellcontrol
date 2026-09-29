@@ -3,9 +3,9 @@ import { render, screen, waitFor, fireEvent, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { ComponentProps } from 'react';
-import type { GameNight, NightOption } from '../../lib/game-nights-api';
-import type { RecentActivityItem } from '../../lib/activity-client';
-import type { FriendActivityItem } from '../../lib/friends-client';
+import type { GameNight, NightOption } from '@/lib/play/game-nights-api';
+import type { RecentActivityItem } from '@/lib/social/activity-client';
+import type { FriendActivityItem } from '@/lib/social/friends-client';
 
 const authState = vi.hoisted(() => ({ status: 'authed' as 'authed' | 'guest' }));
 vi.mock('../../store/auth', () => ({
@@ -13,13 +13,13 @@ vi.mock('../../store/auth', () => ({
 }));
 
 const mockGetFriendsActivity = vi.hoisted(() => vi.fn());
-vi.mock('../../lib/friends-client', () => ({
+vi.mock('@/lib/social/friends-client', () => ({
   getFriendsActivity: mockGetFriendsActivity,
 }));
 
 const mockRsvpGameNight = vi.hoisted(() => vi.fn());
-vi.mock('../../lib/game-nights-api', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../lib/game-nights-api')>();
+vi.mock('@/lib/play/game-nights-api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/play/game-nights-api')>();
   return { ...actual, rsvpGameNight: mockRsvpGameNight };
 });
 

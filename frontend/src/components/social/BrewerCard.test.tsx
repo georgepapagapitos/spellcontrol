@@ -2,8 +2,8 @@
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
-import type { BrewerCard as BrewerCardData } from '@/lib/brewers-client';
-import { brewerStatsLine } from '@/lib/brewer-stats';
+import type { BrewerCard as BrewerCardData } from '@/lib/social/brewers-client';
+import { brewerStatsLine } from '@/lib/social/brewer-stats';
 import { BrewerCard, BrewerCardSkeleton } from './BrewerCard';
 
 function brewer(over: Partial<BrewerCardData> = {}): BrewerCardData {

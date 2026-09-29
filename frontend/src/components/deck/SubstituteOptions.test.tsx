@@ -2,11 +2,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { SubstituteOptions } from './SubstituteOptions';
-import type { Change } from '@/lib/deck-change';
+import type { Change } from '@/lib/coach/deck-change';
 
 // Stub the thumbnail network leaf so the nested DeckCardRows don't reach out
 // (avoids the post-teardown fetch flake).
-vi.mock('@/lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
 const alt = (name: string): Change => ({
   id: `collection:Cultivate:${name}`,

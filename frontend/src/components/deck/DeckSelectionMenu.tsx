@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { CtxMenuShell } from '@/components/shared/CtxMenuShell';
-import { normalizeTagText } from '../../lib/deck-tags';
-import { useMediaQuery } from '../../lib/use-media-query';
+import { normalizeTagText } from '@/lib/deck/deck-tags';
+import { useMediaQuery } from '@/lib/util/use-media-query';
 
 /** A move the selection can make; the bulk bar renders the same list. */
 export interface DeckBulkAction {

@@ -2,14 +2,14 @@ import './DiscoverFiltersPopover.css';
 import { createPortal } from 'react-dom';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import { BRACKET_LABELS } from '@/deck-builder/services/deckBuilder/bracketEstimator';
-import { FILTER_COLOR_OPTIONS } from '@/lib/colors';
-import { useAnchoredPanel } from '@/lib/use-anchored-panel';
+import { FILTER_COLOR_OPTIONS } from '@/lib/cards/colors';
+import { useAnchoredPanel } from '@/lib/overlays/use-anchored-panel';
 import {
   DISCOVER_BUDGET_LABELS,
   DISCOVER_COLOR_ORDER,
   type DiscoverBudgetKey,
   type DiscoverFilters,
-} from '@/lib/discover-filters';
+} from '@/lib/discover/discover-filters';
 import type { DeckFormat } from '@/deck-builder/types';
 import { ColorPip } from './shared/ManaSymbol';
 import { FilterTrigger } from './shared/FilterTrigger';

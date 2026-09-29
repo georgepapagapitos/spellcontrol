@@ -9,7 +9,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
 import { OwnershipLensStrip } from './OwnershipLensStrip';
-import type { OwnershipLens } from '../../lib/ownership-lens';
+import type { OwnershipLens } from '@/lib/collection/ownership-lens';
 
 function lensWith(missing: string[]): OwnershipLens {
   return {

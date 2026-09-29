@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { CardThumb } from './CardThumb';
 import { PrintingPicker, type AddExtras } from './PrintingPicker';
-import { imageFromCard } from '../lib/card-thumbs';
+import { imageFromCard } from '@/lib/cards/card-thumbs';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Finish } from '../types';
 import './AddCardInspector.css';

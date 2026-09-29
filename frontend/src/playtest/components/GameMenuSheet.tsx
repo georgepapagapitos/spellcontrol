@@ -1,8 +1,8 @@
 import { X, type LucideIcon } from 'lucide-react';
 import { useId } from 'react';
 import './GameMenuSheet.css';
-import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/use-sheet-exit';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
 import { IconButton } from '@/components/shared/Button';
 
 /** One row of the drawer: an icon, what it does, and how it stands. */

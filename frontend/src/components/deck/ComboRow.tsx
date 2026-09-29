@@ -13,12 +13,12 @@ import {
 } from 'lucide-react';
 import { resolveComboTemplates } from '@spellcontrol/deck-metrics';
 import type { ScryfallCard } from '@/deck-builder/types';
-import { useCardThumb } from '../../lib/card-thumbs';
-import { getCardTags, isKnownCardTag, useCardTagsReady } from '../../lib/card-tags';
+import { useCardThumb } from '@/lib/cards/card-thumbs';
+import { getCardTags, isKnownCardTag, useCardTagsReady } from '@/lib/cards/card-tags';
 import { ColorPip } from '../shared/ManaSymbol';
-import type { EdhrecComboStat } from '../../lib/edhrec-combo-overlay';
+import type { EdhrecComboStat } from '@/lib/deck-analysis/edhrec-combo-overlay';
 import type { ComboMatch } from '../../types/combos';
-import { formatMoney } from '../../lib/format-money';
+import { formatMoney } from '@/lib/collection/format-money';
 import { MagicText } from './MagicText';
 import { OwnershipBadge } from './OwnershipBadge';
 import { Chip } from '@/components/shared/Chip';

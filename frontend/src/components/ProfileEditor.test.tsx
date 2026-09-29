@@ -2,8 +2,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { useAuth } from '../store/auth';
-import * as authApi from '../lib/auth-api';
-import type { AvatarPatch, Profile } from '../lib/auth-api';
+import * as authApi from '@/lib/account/auth-api';
+import type { AvatarPatch, Profile } from '@/lib/account/auth-api';
 import { toast } from '../store/toasts';
 
 // AvatarPickerSheet has its own dependency chain (collection store, live

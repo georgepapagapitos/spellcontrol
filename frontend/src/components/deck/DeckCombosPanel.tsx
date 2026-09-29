@@ -2,20 +2,20 @@ import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef, useState
 import { CheckCircle2, ChevronDown, ChevronUp, Circle, Sparkles } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { getCardByName } from '@/deck-builder/services/scryfall/client';
-import { useCollapsedPref } from '../../lib/use-collapsed-pref';
+import { useCollapsedPref } from '@/lib/util/use-collapsed-pref';
 import { useComboPreview } from './use-combo-preview';
-import { buildCardImageIndex, buildCardIndex } from '../../lib/deck-card-index';
+import { buildCardImageIndex, buildCardIndex } from '@/lib/deck-analysis/deck-card-index';
 import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
-import { buildAllocationMap, pickCollectionCopy } from '../../lib/allocations';
-import { useDeckCombos } from '../../lib/use-deck-combos';
-import { partitionCombosByZone } from '../../lib/combo-zone-partition';
-import { comboPayoffScore } from '../../lib/combo-payoff';
+import { buildAllocationMap, pickCollectionCopy } from '@/lib/collection/allocations';
+import { useDeckCombos } from '@/lib/deck-analysis/use-deck-combos';
+import { partitionCombosByZone } from '@/lib/deck-analysis/combo-zone-partition';
+import { comboPayoffScore } from '@/lib/deck-analysis/combo-payoff';
 import {
   comboNameKey,
   useEdhrecComboOverlay,
   type EdhrecComboStat,
-} from '../../lib/edhrec-combo-overlay';
+} from '@/lib/deck-analysis/edhrec-combo-overlay';
 import type { ComboMatch } from '../../types/combos';
 import { CardPreview } from '../CardPreview';
 import { Tabs } from '../Tabs';

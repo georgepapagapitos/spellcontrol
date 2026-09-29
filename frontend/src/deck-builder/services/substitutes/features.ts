@@ -16,7 +16,7 @@
  * injected through `FeatureSources`, so tests and the offline eval run the
  * exact code the app runs.
  */
-import { frontFaceName, getByCardName } from '@/lib/card-text';
+import { frontFaceName, getByCardName } from '@/lib/cards/card-text';
 import { FACT_ROLES, countsAsRole, type CardFacts, type FactRole } from '../cardFacts/schema';
 import { jaccard, similarityTags, weightedJaccard } from '../cardFacts/similarity';
 

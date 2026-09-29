@@ -1,7 +1,7 @@
 import './ValueSparkline.css';
 import { useEffect, useRef, useState } from 'react';
-import { formatMoney } from '../../lib/format-money';
-import { daysBetween, formatDayKey, type ValuePoint } from '../../lib/value-history';
+import { formatMoney } from '@/lib/collection/format-money';
+import { daysBetween, formatDayKey, type ValuePoint } from '@/lib/collection/value-history';
 
 /** Fallback when the box can't be measured (test DOMs). */
 const HEIGHT = 48;

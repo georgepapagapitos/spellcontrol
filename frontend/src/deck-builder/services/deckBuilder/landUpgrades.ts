@@ -19,8 +19,8 @@
  */
 import type { ScryfallCard } from '@/deck-builder/types';
 import { landPowerScore } from './landPower';
-import { fitsColorIdentity } from '@/lib/deck-validation';
-import { producedManaColors, isManaSourceType } from '@/lib/mana-sources';
+import { fitsColorIdentity } from '@/lib/deck/deck-validation';
+import { producedManaColors, isManaSourceType } from '@/lib/deck-analysis/mana-sources';
 import { weightedColorDemand, colorSourceCounts, fetchableBasicColors } from './manabaseMath';
 import { isColorShort, shortfallThresholdsForCurve } from './colorShortfall';
 

@@ -2,7 +2,7 @@ import { Copy, ExternalLink, Link2, Search, Share2, Sparkles } from 'lucide-reac
 import { useNavigate } from 'react-router-dom';
 import { OverflowMenu, type OverflowMenuItem } from './OverflowMenu';
 import { toast } from '../store/toasts';
-import { copyToClipboard } from '@/lib/clipboard';
+import { copyToClipboard } from '@/lib/util/clipboard';
 
 /** One rule, keyword or glossary term, as the things you can do with it. */
 export interface RulesEntry {

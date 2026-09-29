@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { hostDroppableId } from '../lib/zones';
 import type { BattlefieldCard, PlaytestCard } from '@/lib/playtest';
-import { useLongPress } from '@/lib/use-long-press';
+import { useLongPress } from '@/lib/util/use-long-press';
 import { PlaytestCardFace } from './PlaytestCardFace';
 
 interface Props {

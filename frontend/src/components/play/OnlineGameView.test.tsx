@@ -9,9 +9,9 @@
  */
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { GameAction, GamePhase, GamePlayer, GameState } from '../../lib/game-state';
-import { createGameState, makePlayer } from '../../lib/game-state';
-import type { GameRequest } from '../../lib/games-api';
+import type { GameAction, GamePhase, GamePlayer, GameState } from '@/lib/play/game-state';
+import { createGameState, makePlayer } from '@/lib/play/game-state';
+import type { GameRequest } from '@/lib/play/games-api';
 import { loadHordeDeck, resolveHordeSettings } from '../../lib/horde';
 
 const dispatchOnline = vi.fn(async () => {});
@@ -42,7 +42,7 @@ vi.mock('../../store/auth', () => ({
     selector({ user: mockAuthUserId.current ? { id: mockAuthUserId.current } : null }),
 }));
 
-vi.mock('../../lib/haptics', () => ({
+vi.mock('@/lib/util/haptics', () => ({
   haptics: { tap: vi.fn(), lethal: vi.fn(), warning: vi.fn(), success: vi.fn(), bump: vi.fn() },
 }));
 
@@ -50,7 +50,7 @@ vi.mock('../../lib/haptics', () => ({
 // controls capture/peekLabel/popRestore directly instead of depending on the
 // real module-level stack (which is keyed by game id and would otherwise
 // leak state between tests since every test here reuses id 'game-test').
-vi.mock('../../lib/undo-stack', () => ({
+vi.mock('@/lib/play/undo-stack', () => ({
   capture: vi.fn(),
   clearUndo: vi.fn(),
   peekLabel: vi.fn(() => null),
@@ -59,7 +59,7 @@ vi.mock('../../lib/undo-stack', () => ({
 }));
 
 import { OnlineGameView } from './OnlineGameView';
-import { capture, clearUndo, peekLabel, popRestore } from '../../lib/undo-stack';
+import { capture, clearUndo, peekLabel, popRestore } from '@/lib/play/undo-stack';
 
 function makeTestPlayer(overrides: Partial<GamePlayer> = {}): GamePlayer {
   return {

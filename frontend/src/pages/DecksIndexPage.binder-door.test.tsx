@@ -10,7 +10,7 @@ import 'fake-indexeddb/auto';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MIN_COLLECTION_SIZE } from '../lib/commander-readiness';
+import { MIN_COLLECTION_SIZE } from '@/lib/deck/commander-readiness';
 
 let mockCards: unknown[] = [];
 vi.mock('../store/collection', () => ({
@@ -27,7 +27,7 @@ vi.mock('../components/ProductSearchDialog', () => ({ ProductSearchDialog: () =>
 vi.mock('../components/ShareDialog', () => ({ ShareDialog: () => null }));
 vi.mock('../components/ConfirmDialog', () => ({ ConfirmDialog: () => null }));
 vi.mock('../components/DeckFiltersPopover', () => ({ DeckFiltersPopover: () => null }));
-vi.mock('../lib/deck-validation', () => ({
+vi.mock('@/lib/deck/deck-validation', () => ({
   effectiveDeckColors: () => [],
   deckDisplayColors: () => [],
   validateDeckZones: () => ({ deck: [], sideboardOnly: [] }),

@@ -14,13 +14,13 @@ const searchState: { results: ScryfallCard[]; loading: boolean; error: string | 
   loading: false,
   error: null,
 };
-vi.mock('../lib/use-search-cards', () => ({ useSearchCards: () => searchState }));
+vi.mock('@/lib/search/use-search-cards', () => ({ useSearchCards: () => searchState }));
 
 let aiState: { optIn: boolean; used: number; limit: number } | null = null;
-vi.mock('../lib/use-ai-status', () => ({ useAiStatus: () => aiState }));
+vi.mock('@/lib/ai/use-ai-status', () => ({ useAiStatus: () => aiState }));
 
 let canScanState = false;
-vi.mock('../lib/use-can-scan', () => ({ useCanScan: () => canScanState }));
+vi.mock('@/lib/scanner/use-can-scan', () => ({ useCanScan: () => canScanState }));
 
 const opened: { entries: { name: string }[]; tapped: string }[] = [];
 vi.mock('./deck/useCardCarousel', () => ({

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { TYPESETS } from '../lib/typesets';
+import { TYPESETS } from '@/lib/account/typesets';
 import { useTypeSetStore } from '../store/typeset';
 
 /**

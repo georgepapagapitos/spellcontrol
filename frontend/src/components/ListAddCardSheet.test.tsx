@@ -11,7 +11,7 @@ const h = vi.hoisted(() => ({
   onActiveChange: undefined as ((card: unknown) => void) | undefined,
 }));
 
-vi.mock('../lib/use-lock-body-scroll', () => ({ useLockBodyScroll: () => {} }));
+vi.mock('@/lib/overlays/use-lock-body-scroll', () => ({ useLockBodyScroll: () => {} }));
 
 vi.mock('../store/collection', () => ({
   useCollectionStore: (selector: (s: { addListEntry: typeof h.addListEntry }) => unknown) =>

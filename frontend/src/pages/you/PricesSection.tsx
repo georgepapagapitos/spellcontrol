@@ -1,12 +1,12 @@
 import { useMemo } from 'react';
 import { useCollectionStore } from '@/store/collection';
 import { toast } from '@/store/toasts';
-import { formatPricedDate, newestPricedAt } from '@/lib/price-freshness';
-import { useCurrencyStore, type Currency } from '@/lib/currency';
+import { formatPricedDate, newestPricedAt } from '@/lib/collection/price-freshness';
+import { useCurrencyStore, type Currency } from '@/lib/collection/currency';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsRow } from '@/components/settings/SettingsRow';
 import { SegmentedControl } from '@/components/shared/form';
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 import { NEEDS_CARDS } from './sections';
 

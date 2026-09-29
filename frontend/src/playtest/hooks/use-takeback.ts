@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePlaytestStore } from '../store';
 import { usePlayStore } from '@/store/play';
-import { haptics } from '@/lib/haptics';
+import { haptics } from '@/lib/util/haptics';
 import {
   readTakeback,
   resolveTakebackMode,
@@ -13,10 +13,10 @@ import {
   type TakebackPlan,
 } from '../lib/takeback';
 import type { RewindVerdict } from '@/lib/playtest/rewind';
-import type { GameRequest } from '@/lib/games-api';
+import type { GameRequest } from '@/lib/play/games-api';
 import type { OnlineTable } from './use-online-table';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 export interface TakebackStatus {
   mode: TakebackMode;
   setMode(mode: TakebackMode): void;

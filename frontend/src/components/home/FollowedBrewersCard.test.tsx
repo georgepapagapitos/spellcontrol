@@ -2,7 +2,7 @@
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
-import type { FollowedDeckPublishedActivityItem } from '@/lib/activity-client';
+import type { FollowedDeckPublishedActivityItem } from '@/lib/social/activity-client';
 import { FollowedBrewersCard } from './FollowedBrewersCard';
 
 function item(n: number): FollowedDeckPublishedActivityItem {

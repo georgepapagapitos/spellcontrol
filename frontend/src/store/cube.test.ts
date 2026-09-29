@@ -1,10 +1,10 @@
 // @vitest-environment happy-dom
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { flushSync } from '../lib/sync';
+import { flushSync } from '@/lib/sync';
 import { useCubeStore, type CubePickSlot, type SavedCube } from './cube';
 import { useToastsStore } from './toasts';
-import { migrateLegacyCubes } from '../lib/sync';
+import { migrateLegacyCubes } from '@/lib/sync';
 import {
   bucketOf,
   generateCube,
@@ -14,8 +14,8 @@ import {
 } from '../lib/cube/generate';
 import type { EnrichedCard } from '../types';
 import type { Deck } from './decks';
-import * as queue from '../lib/mutation-queue';
-import * as estore from '../lib/entity-store';
+import * as queue from '@/lib/sync/mutation-queue';
+import * as estore from '@/lib/sync/entity-store';
 
 function makeCube(size: 360 | 540 = 360): GeneratedCube {
   return {

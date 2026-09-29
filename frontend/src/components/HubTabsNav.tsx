@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { formatCount } from '@/lib/format-count';
+import { formatCount } from '@/lib/util/format-count';
 
 export interface HubTab {
   to: string;

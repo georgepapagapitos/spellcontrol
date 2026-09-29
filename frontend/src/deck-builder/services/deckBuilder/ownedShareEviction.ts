@@ -6,7 +6,7 @@
  * card read as unlisted (-1) and was the first eviction victim, whatever its
  * real inclusion.
  */
-import { getByCardName } from '@/lib/card-text';
+import { getByCardName } from '@/lib/cards/card-text';
 
 /** A card's page inclusion by name, the front face for a double-faced card
  *  (getByCardName's rule); -1 when the page doesn't list it. */

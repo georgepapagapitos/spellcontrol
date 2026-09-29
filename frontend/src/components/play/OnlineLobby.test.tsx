@@ -7,19 +7,19 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
-import type { GamePlayer, GameState } from '../../lib/game-state';
+import type { GamePlayer, GameState } from '@/lib/play/game-state';
 import type { Deck } from '../../store/decks';
-import { applyAction, createGameState, makePlayer } from '../../lib/game-state';
+import { applyAction, createGameState, makePlayer } from '@/lib/play/game-state';
 import { resolveHordeSettings, HORDE_CATALOG } from '@/lib/horde';
 import { HORDE_BAN_LIST } from '@/lib/horde/ban-list';
 
-vi.mock('../../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
 const gamesApi = vi.hoisted(() => ({
   getDiscordTablesEnabled: vi.fn(async () => false),
   openDiscordTable: vi.fn(async (_code: string) => ''),
 }));
-vi.mock('@/lib/games-api', () => gamesApi);
+vi.mock('@/lib/play/games-api', () => gamesApi);
 
 import { OnlineLobby } from './OnlineLobby';
 import { levelSummary } from './horde/HordeSetupFields';

@@ -37,10 +37,10 @@ vi.mock('../store/auth', () => ({
 }));
 
 const { mockMarkInboxSeen } = vi.hoisted(() => ({ mockMarkInboxSeen: vi.fn() }));
-vi.mock('../lib/use-inbox', async (importOriginal) => {
+vi.mock('@/lib/social/use-inbox', async (importOriginal) => {
   // Keep the real countUnseen/useInboxSeenAt (the requests-tab unseen pill,
   // T117, is built on them) — only useInbox/markInboxSeen are stubbed.
-  const actual = await importOriginal<typeof import('../lib/use-inbox')>();
+  const actual = await importOriginal<typeof import('@/lib/social/use-inbox')>();
   return {
     ...actual,
     useInbox: () => inboxState,
@@ -64,7 +64,7 @@ const STUB_FRIEND = {
 };
 
 const { mockGetFriendsActivity } = vi.hoisted(() => ({ mockGetFriendsActivity: vi.fn() }));
-vi.mock('../lib/friends-client', () => ({
+vi.mock('@/lib/social/friends-client', () => ({
   searchUsers: vi.fn(() => Promise.resolve([])),
   sendFriendRequest: vi.fn(),
   acceptRequest: vi.fn(),
@@ -77,8 +77,8 @@ vi.mock('../lib/friends-client', () => ({
 }));
 
 // The Following tab, the brewer-directory half of the search and the suggested
-// strip all read lib/brewers-client; stubbed so no test reaches the network.
-vi.mock('../lib/brewers-client', () => ({
+// strip all read lib/social/brewers-client; stubbed so no test reaches the network.
+vi.mock('@/lib/social/brewers-client', () => ({
   fetchFollowing: vi.fn(() => Promise.resolve([])),
   fetchBrewerRails: vi.fn(() =>
     Promise.resolve({
@@ -95,7 +95,7 @@ vi.mock('../lib/brewers-client', () => ({
 }));
 
 import { FriendsManagement } from './FriendsManagement';
-import { fetchFollowing, fetchBrewerRails } from '../lib/brewers-client';
+import { fetchFollowing, fetchBrewerRails } from '@/lib/social/brewers-client';
 import {
   searchUsers,
   sendFriendRequest,
@@ -105,7 +105,7 @@ import {
   removeFriend,
   listFriends,
   listRequests,
-} from '../lib/friends-client';
+} from '@/lib/social/friends-client';
 
 const NO_RAILS = {
   newest: [],

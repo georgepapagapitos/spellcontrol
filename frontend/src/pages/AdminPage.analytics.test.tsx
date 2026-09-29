@@ -5,14 +5,14 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { AdminPage } from './AdminPage';
 import { useAuth } from '../store/auth';
-import type { BeaconRows } from '../lib/admin-api';
+import type { BeaconRows } from '@/lib/account/admin-api';
 
 // Only the Analytics tab's own fetch is exercised; the rest of the page's
 // network (AdminPanel) and the wipe path are stubbed.
 const listEventsMock = vi.fn<() => Promise<BeaconRows>>();
-vi.mock('../lib/admin-api', () => ({ listEvents: () => listEventsMock() }));
+vi.mock('@/lib/account/admin-api', () => ({ listEvents: () => listEventsMock() }));
 vi.mock('../components/AdminPanel', () => ({ AdminPanel: () => null }));
-vi.mock('../lib/sync', () => ({ stopSyncAndWipeLocal: vi.fn() }));
+vi.mock('@/lib/sync', () => ({ stopSyncAndWipeLocal: vi.fn() }));
 
 const empty: BeaconRows = { events: [], errors: [], vitals: [] };
 

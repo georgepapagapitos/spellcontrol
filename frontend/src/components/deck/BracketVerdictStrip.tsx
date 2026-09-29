@@ -1,7 +1,7 @@
 import type { JSX } from 'react';
 import './BracketVerdictStrip.css';
 import { VerdictBadge, type VerdictTone } from './VerdictBadge';
-import { EXHIBITION_BRACKET_NOTE } from '@/lib/format-bracket-label';
+import { EXHIBITION_BRACKET_NOTE } from '@/lib/deck-analysis/format-bracket-label';
 
 export interface BracketVerdictStripProps {
   /** The deck's stated bracket (the owner's override), or null/undefined on Auto. */

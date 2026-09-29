@@ -6,8 +6,8 @@ import { MemoryRouter } from 'react-router-dom';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { DeckDisplay, type DeckDisplayCard, type DeckDisplayProps } from './DeckDisplay';
 
-vi.mock('@/lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
-vi.mock('@/lib/use-tagger-ready', () => ({ useTaggerReady: () => false }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/use-tagger-ready', () => ({ useTaggerReady: () => false }));
 
 // The menu picks its variant off a media query; happy-dom has no real
 // matchMedia, so pin the desktop (floating) form for these assertions.

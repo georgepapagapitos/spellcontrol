@@ -6,28 +6,28 @@ import {
   getCardByNameResilient,
   getCardsByRefs,
 } from '@/deck-builder/services/scryfall/client';
-import { isScryfallLink, parseScryfallCardRefs } from '../../lib/scryfall-card-link';
+import { isScryfallLink, parseScryfallCardRefs } from '@/lib/cards/scryfall-card-link';
 import { ManaCost } from '../ManaCost';
 import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
 import { useCubeStore } from '../../store/cube';
-import { buildAllocationMap, pickCollectionCopy } from '../../lib/allocations';
-import { classifyInclusion } from '../../lib/inclusion-label';
-import { getCommanderStats } from '../../lib/aggregates-client';
-import { buildCollectionSearch, compareResults, type AddSort } from '../../lib/deck-add-search';
+import { buildAllocationMap, pickCollectionCopy } from '@/lib/collection/allocations';
+import { classifyInclusion } from '@/lib/deck-analysis/inclusion-label';
+import { getCommanderStats } from '@/lib/discover/aggregates-client';
+import { buildCollectionSearch, compareResults, type AddSort } from '@/lib/search/deck-add-search';
 import {
   ensureCardTags,
   getCardTags,
   useCardTagsError,
   useCardTagsReady,
-} from '../../lib/card-tags';
-import { imageFromCard, useCardThumb } from '../../lib/card-thumbs';
+} from '@/lib/cards/card-tags';
+import { imageFromCard, useCardThumb } from '@/lib/cards/card-thumbs';
 import { InfoTip } from '../InfoTip';
 import { useToastsStore } from '../../store/toasts';
-import { useSetMap } from '../../lib/api';
-import { fetchTypeSuggestions } from '../../lib/scryfall-catalog';
-import { parseTypeLine, SUPERTYPES, TYPES } from '../../lib/card-types';
-import { colorSelectionMatches, type ColorMatchMode } from '../../lib/colors';
+import { useSetMap } from '@/lib/api';
+import { fetchTypeSuggestions } from '@/lib/cards/scryfall-catalog';
+import { parseTypeLine, SUPERTYPES, TYPES } from '@/lib/cards/card-types';
+import { colorSelectionMatches, type ColorMatchMode } from '@/lib/cards/colors';
 import {
   compileExpression,
   effectiveTreatments,
@@ -36,30 +36,30 @@ import {
   legalityMatchesExpression,
   setMatchesExpression,
   substringMatchesExpression,
-} from '../../lib/rules';
+} from '@/lib/binder/rules';
 import { CollectionFiltersDialog } from '../CollectionFiltersDialog';
 import { SelectMenu, type SelectOption } from '../SelectMenu';
-import type { FilterableRow } from '../../lib/collection-filter';
+import type { FilterableRow } from '@/lib/search/collection-filter';
 import { BinderBadge, type BinderInfo } from '../BinderBadge';
 import { SearchPill } from '../SearchPill';
 import { Tabs, type TabItem } from '../Tabs';
 import { WedgeHintStrip } from './WedgeHintStrip';
 import { DeckAnalysisSkeleton } from './DeckAnalysisSkeleton';
-import { dismissBinderHint, shouldShowBinderHint } from '../../lib/wedge-hints';
+import { dismissBinderHint, shouldShowBinderHint } from '@/lib/home/wedge-hints';
 import type { ChipExpression, EnrichedCard } from '../../types';
 import type { GapAnalysisCard, HiddenGemRow } from '@/deck-builder/types';
 import { hiddenGemReason } from '@/deck-builder/services/deckBuilder/hiddenGems';
 import type { ComboMatch } from '@/types/combos';
-import { OWNERSHIP_BADGE, type ChangeOwnership } from '../../lib/deck-change';
+import { OWNERSHIP_BADGE, type ChangeOwnership } from '@/lib/coach/deck-change';
 import {
   buildSuggestionRows,
   type SuggestionRow,
   type SuggestionFilter,
-} from '../../lib/deck-suggestions';
+} from '@/lib/coach/deck-suggestions';
 import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
 import type { CardPreviewAction } from '../CardPreview';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { printedName } from '@spellcontrol/binder-routing';
 import { CardName } from '@/components/shared/CardName';
 import { Button, IconButton } from '@/components/shared/Button';
@@ -496,7 +496,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
   const [visibleCount, setVisibleCount] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Binder-location discovery hint (see lib/wedge-hints.ts) — dismissed
+  // Binder-location discovery hint (see lib/home/wedge-hints.ts) — dismissed
   // locally so it disappears immediately on click without waiting on a
   // re-render triggered by nothing; the localStorage write in
   // dismissBinderHint() makes the "never again" part durable.

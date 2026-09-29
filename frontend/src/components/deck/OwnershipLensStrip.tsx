@@ -1,10 +1,10 @@
 import { useId, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useSignInPath } from '../../lib/sign-in-path';
+import { useSignInPath } from '@/lib/account/sign-in-path';
 import { ChevronRight } from 'lucide-react';
 import './OwnershipLensStrip.css';
-import type { OwnershipLens } from '../../lib/ownership-lens';
-import { formatMoney } from '../../lib/format-money';
+import type { OwnershipLens } from '@/lib/collection/ownership-lens';
+import { formatMoney } from '@/lib/collection/format-money';
 import { OwnershipLensSheet } from './OwnershipLensSheet';
 
 interface Props {
@@ -18,7 +18,7 @@ interface Props {
  * One-row summary + sheet for the ownership lens (w1-ownership-lens) — the
  * social program's flagship differentiator: cross-references a public deck's
  * cards against the SIGNED-IN VIEWER's own collection, entirely client-side
- * (see lib/ownership-lens.ts). Follows the Index-page insight-strip pattern
+ * (see lib/collection/ownership-lens.ts). Follows the Index-page insight-strip pattern
  * (STYLE_GUIDE UX-334): one-row summary that opens a sheet on tap, never
  * displacing the deck content below it.
  *

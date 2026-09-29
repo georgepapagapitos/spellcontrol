@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../store/auth';
 import { toast } from '../../store/toasts';
-import { updateProfile, type Profile } from '../../lib/auth-api';
-import { fetchPublicProfile, type PublicProfileDeck } from '../../lib/profile-client';
-import { userMessage } from '../../lib/user-error';
+import { updateProfile, type Profile } from '@/lib/account/auth-api';
+import { fetchPublicProfile, type PublicProfileDeck } from '@/lib/social/profile-client';
+import { userMessage } from '@/lib/util/user-error';
 import { SelectMenu, type SelectOption } from '../SelectMenu';
 import { Field, SwitchRow } from '../shared/form';
 

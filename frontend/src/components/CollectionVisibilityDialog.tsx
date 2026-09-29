@@ -2,14 +2,14 @@ import { useEffect, useState } from 'react';
 import { Modal } from './Modal';
 import { VisibilityChoice } from './VisibilityChoice';
 import { useAuth } from '../store/auth';
-import { useSignInPath } from '../lib/sign-in-path';
+import { useSignInPath } from '@/lib/account/sign-in-path';
 import {
   fetchCollectionVisibility,
   setCollectionVisibility,
   type CollectionVisibility,
-} from '../lib/auth-api';
-import { profileCollectionUrl } from '../lib/profile-client';
-import { userMessage } from '@/lib/user-error';
+} from '@/lib/account/auth-api';
+import { profileCollectionUrl } from '@/lib/social/profile-client';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 import { CopyButton } from '@/components/shared/CopyButton';
 

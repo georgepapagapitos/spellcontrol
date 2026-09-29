@@ -1,7 +1,7 @@
 import type { ComponentPropsWithRef, ReactElement } from 'react';
 import { Check, Clipboard } from 'lucide-react';
 import { Button, IconButton, type ButtonVariant } from './Button';
-import { useCopyFeedback } from '@/lib/use-copy-feedback';
+import { useCopyFeedback } from '@/lib/util/use-copy-feedback';
 
 /**
  * The in-place half of the copy-confirmation rule (STYLE_GUIDE § Verbs —
@@ -11,7 +11,7 @@ import { useCopyFeedback } from '@/lib/use-copy-feedback';
  * region. A failed copy toasts an error instead of swapping.
  *
  * For a control this doesn't fit (a bespoke non-`Button` trigger), reach for
- * `useCopyFeedback` (`lib/use-copy-feedback.ts`) directly instead of
+ * `useCopyFeedback` (`lib/util/use-copy-feedback.ts`) directly instead of
  * re-deriving this behaviour by hand.
  */
 

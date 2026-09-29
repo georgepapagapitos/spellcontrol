@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useSignInPath } from '../lib/sign-in-path';
+import { useSignInPath } from '@/lib/account/sign-in-path';
 import {
   fetchPublicShare,
   ShareAuthRequiredError,
   ShareForbiddenError,
   ShareNotFoundError,
-} from '../lib/share-client';
-import type { PublicShareResponse } from '../lib/shared-types';
-import { useDocumentTitle } from '../lib/use-document-title';
+} from '@/lib/social/share-client';
+import type { PublicShareResponse } from '@/lib/social/shared-types';
+import { useDocumentTitle } from '@/lib/util/use-document-title';
 import { SharedCollectionView } from '../components/share/SharedCollectionView';
 import { SharedBinderView } from '../components/share/SharedBinderView';
 import { SharedDeckSurface } from '../components/share/SharedDeckSurface';
@@ -19,7 +19,7 @@ import { DeckFeedbackView } from '../components/share/DeckFeedbackView';
 import { SharedGameSummaryView } from '../components/share/SharedGameSummaryView';
 import { CopyCubeButton } from '../components/share/CopyCubeButton';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 /** Tab title per share kind — every kind but `collection` carries its own
  *  owner-given name; `collection` has none, so it falls back to the same

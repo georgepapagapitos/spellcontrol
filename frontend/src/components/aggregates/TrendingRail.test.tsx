@@ -5,7 +5,7 @@ import { describe, expect, it, vi, afterEach, beforeEach } from 'vitest';
 import { pending } from '@/test/pending';
 
 const mockUseCardThumb = vi.hoisted(() => vi.fn(() => undefined as string | undefined));
-vi.mock('../../lib/card-thumbs', () => ({ useCardThumb: mockUseCardThumb }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: mockUseCardThumb }));
 
 import { TrendingRail, type TrendingDeck } from './TrendingRail';
 

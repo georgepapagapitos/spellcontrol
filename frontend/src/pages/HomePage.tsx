@@ -9,7 +9,7 @@ import { AroundTheTable } from '../components/home/AroundTheTable';
 import { FollowedBrewersCard } from '../components/home/FollowedBrewersCard';
 import { DiscoverRow } from '../components/home/DiscoverRow';
 import { useGameNights } from '../components/play/GameNights';
-import { useActivity } from '../lib/use-activity';
+import { useActivity } from '@/lib/social/use-activity';
 import { useAuth } from '../store/auth';
 
 /**

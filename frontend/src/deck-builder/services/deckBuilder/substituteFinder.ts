@@ -6,7 +6,7 @@ import {
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
 import { getSimilarRank } from './cardSimilar';
-import type { WhyFactor } from '@/lib/why-factors';
+import type { WhyFactor } from '@/lib/coach/why-factors';
 
 /**
  * Owned-substitute finder — for a recommended-but-missing staple, find a card

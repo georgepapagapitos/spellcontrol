@@ -1,6 +1,6 @@
 import './FoilBadge.css';
 import { type JSX } from 'react';
-import { classifyFoil, FOIL_LABEL, type FoilClassifiable } from '@/lib/foil-style';
+import { classifyFoil, FOIL_LABEL, type FoilClassifiable } from '@/lib/cards/foil-style';
 
 /**
  * The one canonical foil indicator — a small "F" chip on an iridescent

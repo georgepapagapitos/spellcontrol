@@ -3,12 +3,12 @@
 // deckGenerator.ts so they can be unit-tested in isolation.
 import type { ScryfallCard, MaxRarity, CollectionStrategy } from '@/deck-builder/types';
 import { getCardPrice, getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
-import { fitsColorIdentity as fitsColorIdentitySet } from '@/lib/deck-validation';
+import { fitsColorIdentity as fitsColorIdentitySet } from '@/lib/deck/deck-validation';
 import { cardManaValue } from './deckStats';
 
 // The generator's identity gate: the card's color identity fits within the
 // deck's, AND the card does something in that identity (isDeadInIdentity).
-// The identity rule itself lives in lib/deck-validation.ts (the more general
+// The identity rule itself lives in lib/deck/deck-validation.ts (the more general
 // home, shared with the post-save legality gate) so generation-time filtering
 // and validation can't drift apart (E128). The dead-card half is generation
 // only: Ruby Medallion is legal in mono-green, it just never discounts a

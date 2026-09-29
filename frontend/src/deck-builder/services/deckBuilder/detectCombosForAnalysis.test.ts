@@ -8,7 +8,7 @@ let tagsLoaded = false;
 const ensureCardTags = vi.fn(async () => {
   tagsLoaded = true;
 });
-vi.mock('@/lib/card-tags', () => ({
+vi.mock('@/lib/cards/card-tags', () => ({
   ensureCardTags: () => ensureCardTags(),
   isKnownCardTag: (tag: string) => tagsLoaded && tag === 'mana-rock',
   getCardTags: (name: string) => (tagsLoaded && name === 'Mind Stone' ? ['mana-rock'] : []),

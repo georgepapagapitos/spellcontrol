@@ -2,7 +2,7 @@ import type { LucideIcon } from 'lucide-react';
 import type { CSSProperties, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { OverflowMenu } from '@/components/OverflowMenu';
-import { useMediaQuery } from '@/lib/use-media-query';
+import { useMediaQuery } from '@/lib/util/use-media-query';
 import { Button, buttonClass } from './shared/Button';
 
 export interface PageHeaderAction {

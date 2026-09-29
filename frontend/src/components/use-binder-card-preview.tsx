@@ -41,7 +41,7 @@ export function useBinderCardPreview(binder: MaterializedBinder | undefined): {
           onClick: () => setMoving(card),
         },
       ];
-      // The override for the index tile's cover art (lib/binder-cover.ts),
+      // The override for the index tile's cover art (lib/binder/binder-cover.ts),
       // only for cards that have art to show.
       if (card.imageNormal) {
         const isCover = coverScryfallId === card.scryfallId;

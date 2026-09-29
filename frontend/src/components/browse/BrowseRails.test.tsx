@@ -2,7 +2,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { BrowseListId, BrowsePage } from '@/lib/browse-lists';
+import type { BrowseListId, BrowsePage } from '@/lib/discover/browse-lists';
 import { useCollectionStore } from '@/store/collection';
 import { pending } from '@/test/pending';
 import type { EnrichedCard } from '@/types';
@@ -12,8 +12,8 @@ const h = vi.hoisted(() => ({
   open: vi.fn(),
 }));
 
-vi.mock('@/lib/browse-lists', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/lib/browse-lists')>()),
+vi.mock('@/lib/discover/browse-lists', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/discover/browse-lists')>()),
   loadBrowseList: h.loadBrowseList,
 }));
 // The preview is the carousel's own business (useCardCarousel's tests); here
@@ -21,7 +21,7 @@ vi.mock('@/lib/browse-lists', async (importOriginal) => ({
 vi.mock('@/components/deck/useCardCarousel', () => ({
   useCardCarousel: () => ({ open: h.open, preview: null }),
 }));
-vi.mock('@/lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
 import { BrowseRails } from './BrowseRails';
 

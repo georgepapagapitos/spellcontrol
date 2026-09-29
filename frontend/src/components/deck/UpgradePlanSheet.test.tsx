@@ -2,10 +2,10 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { UpgradePlanSheet, type UpgradePlanSheetProps } from './UpgradePlanSheet';
-import type { Change } from '@/lib/deck-change';
-import type { UpgradePlanTools } from '@/lib/upgrade-plan-tools';
+import type { Change } from '@/lib/coach/deck-change';
+import type { UpgradePlanTools } from '@/lib/coach/upgrade-plan-tools';
 
-vi.mock('@/lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 const carouselOpen = vi.fn();
 vi.mock('./useCardCarousel', () => ({
   useCardCarousel: () => ({ open: carouselOpen, preview: null }),
@@ -25,7 +25,7 @@ vi.mock('./use-missing-prices', () => ({
   }),
 }));
 const media = { wide: true };
-vi.mock('@/lib/use-media-query', () => ({ useMediaQuery: () => media.wide }));
+vi.mock('@/lib/util/use-media-query', () => ({ useMediaQuery: () => media.wide }));
 
 const add = (name: string, extra: Partial<Change> = {}): Change => ({
   id: `fill-gaps:${name}`,

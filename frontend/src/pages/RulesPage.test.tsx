@@ -19,7 +19,7 @@ vi.mock('../components/deck/useCardCarousel', () => ({
 const aiState: { status: { optIn: boolean; used: number; limit: number } | null } = {
   status: { optIn: true, used: 0, limit: 10 },
 };
-vi.mock('../lib/use-ai-status', () => ({
+vi.mock('@/lib/ai/use-ai-status', () => ({
   useAiStatus: () => aiState.status,
   noteAiSpend: vi.fn(),
   noteAiExhausted: vi.fn(),
@@ -27,8 +27,8 @@ vi.mock('../lib/use-ai-status', () => ({
 
 const requestRulesAnswer = vi.fn();
 const fetchRulesHistory = vi.fn();
-vi.mock('../lib/ai-rules', async (importOriginal) => {
-  const mod = await importOriginal<typeof import('../lib/ai-rules')>();
+vi.mock('@/lib/ai/ai-rules', async (importOriginal) => {
+  const mod = await importOriginal<typeof import('@/lib/ai/ai-rules')>();
   return {
     ...mod,
     requestRulesAnswer: (...args: unknown[]) => requestRulesAnswer(...args),
@@ -50,8 +50,8 @@ beforeEach(() => {
   fetchRulesHistory.mockReset().mockResolvedValue({ questions: [] });
 });
 
-vi.mock('../lib/comprehensive-rules', async (importOriginal) => {
-  const mod = await importOriginal<typeof import('../lib/comprehensive-rules')>();
+vi.mock('@/lib/cards/comprehensive-rules', async (importOriginal) => {
+  const mod = await importOriginal<typeof import('@/lib/cards/comprehensive-rules')>();
   return {
     ...mod,
     loadRulesBundle: () =>

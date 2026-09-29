@@ -23,7 +23,7 @@ import {
   readManifest,
 } from './db';
 import { matchesQuery, parseQuery, queryUsesOtag } from './scryfall-query';
-import { ensureCardTags, getCardTags, isCardTagsReady } from '../card-tags';
+import { ensureCardTags, getCardTags, isCardTagsReady } from '@/lib/cards/card-tags';
 import { slimToScryfall } from './slim-to-scryfall';
 import type { OfflineCombo, OfflineManifest, SlimCard } from './types';
 

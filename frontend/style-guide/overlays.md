@@ -65,7 +65,7 @@ calc(100vw - 4rem)) }`) — the two-class form outweighs the shell rule
   the full width at every tier.
 - **Every host with its own query input beside `CardSearchResults` (directly,
   or through `InlineCardSearch`'s forwarded ref) wires the same ↑/↓/Enter nav
-  through the shared `lib/use-results-keys.ts` hook (T159/E457) — `AddCardSearchPanel`,
+  through the shared `lib/search/use-results-keys.ts` hook (T159/E457) — `AddCardSearchPanel`,
   `/search`, the list "Add card" sheet, a list's own Scryfall panel, and the
   import review's per-name repair search all use it.** ↑/↓ moves the active
   row, Enter adds its own shown printing (decision B); both pass through
@@ -202,7 +202,7 @@ var(--overlay-sheet) }` in `binder-card-management.css`. A new sheet on this
   hub sheets and the custom layout editor render in place —
   the seat menu inherits its panel's rotation, the menu rises from the
   board's own edge — so they can't be a `<Modal>`. They use
-  `lib/use-overlay-dismiss.ts` (`useOverlayDismiss(onClose, panelRef)`):
+  `lib/overlays/use-overlay-dismiss.ts` (`useOverlayDismiss(onClose, panelRef)`):
   the same shared layer stack, topmost-only Escape, Tab trap and focus
   restoration, no exit animation. A new in-place overlay
   takes this hook; it never hand-rolls a keydown listener again.
@@ -255,7 +255,7 @@ var(--overlay-sheet) }` in `binder-card-management.css`. A new sheet on this
   overlay stack Escape does, never a second mechanism: `useOverlayLayer`'s
   optional second argument (`dismiss`) opts a layer in and reports back
   whether the close was ACCEPTED (a Modal's `dismissable={false}` refuses, so
-  it returns `false`; everything else always accepts). `lib/overlay-history.ts`
+  it returns `false`; everything else always accepts). `lib/overlays/overlay-history.ts`
   owns the history mechanics — one history entry, same URL, marking the
   CURRENT entry while any opted-in layer is open (a nested open reuses the
   same marked entry rather than pushing another). A Back press first closes
@@ -297,14 +297,14 @@ var(--overlay-sheet) }` in `binder-card-management.css`. A new sheet on this
   `ToolbarPopover`, `CtxMenuShell`) deliberately do NOT participate.** They
   open and close constantly and their items routinely navigate; a history
   entry per dropdown open isn't worth it, and Escape already closes them the
-  same way it always has. Pinned by `src/lib/overlay-history.test.ts`'s
+  same way it always has. Pinned by `src/lib/overlays/overlay-history.test.ts`'s
   numbered "acceptance sequences" (the mechanics, against fake hooks,
   counting presses through all eight of: close-then-leave, ✕-then-leave,
   ✕-then-navigate-then-land-then-leave, two nested closing in order then
   leaving, the non-dismissable re-arm, the close-then-navigate race in both
   same-tick and later-microtask/timeout orderings, a marker surviving a
   reload, and Forward/Back never re-triggering a stale one),
-  `src/lib/overlay-layer.test.tsx`'s "Back-button integration" block (the
+  `src/lib/overlays/overlay-layer.test.tsx`'s "Back-button integration" block (the
   real wiring, incl. nested layers, a StrictMode double-invoke, and the
   non-dismissable case), and `src/components/CardPreview.test.tsx`'s
   "Back-button integration" block (a real `BrowserRouter`, proving
@@ -1338,7 +1338,7 @@ input gestures:
 - **Desktop hover** (`useDeckHoverPeek`) — capability-gated to
   `(hover: hover) and (pointer: fine)`, cursor- or row-anchored. Unchanged by
   this section; documented above under [§ Info tooltips](components.md#info-tooltips)' "reveal model" note.
-- **Touch long-press** (`useTouchPeek`, `frontend/src/lib/use-touch-peek.ts`)
+- **Touch long-press** (`useTouchPeek`, `frontend/src/lib/overlays/use-touch-peek.ts`)
   — 500ms stationary hold (the same `useLongPress` primitive the playtest
   opening hand uses for its own preview gesture) opens the same box; release,
   a second touch, or ~6px of movement (scroll intent) dismisses it. **Tap

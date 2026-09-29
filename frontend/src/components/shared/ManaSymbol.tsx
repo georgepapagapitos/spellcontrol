@@ -1,6 +1,6 @@
-import { colorGlyph } from '@/lib/mana-symbols';
-import { typeIcon } from '@/lib/card-types';
-import { joinClasses } from '@/lib/join-classes';
+import { colorGlyph } from '@/lib/cards/mana-symbols';
+import { typeIcon } from '@/lib/cards/card-types';
+import { joinClasses } from '@/lib/util/join-classes';
 
 /**
  * Pip sizing — maps onto the existing `.color-pip-mana` CSS treatment (the

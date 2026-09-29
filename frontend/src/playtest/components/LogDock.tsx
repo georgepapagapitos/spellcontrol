@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Copy, ExternalLink, Moon, Sunrise, Swords, Wand, X } from 'lucide-react';
-import { GAME_PHASES, type GamePhase } from '@/lib/game-state';
+import { GAME_PHASES, type GamePhase } from '@/lib/play/game-state';
 import './LogDock.css';
 import {
   formatLogForClipboard,

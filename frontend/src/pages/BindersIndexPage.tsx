@@ -11,19 +11,19 @@ import {
 import { CollectionHubTabs } from '@/components/CollectionHubTabs';
 import { Chip } from '@/components/shared/Chip';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { usePanelCascade, panelCascadeClass } from '../lib/use-panel-cascade';
-import { useStoredSort } from '../lib/use-stored-sort';
-import { useStoredView } from '../lib/use-stored-view';
+import { usePanelCascade, panelCascadeClass } from '@/lib/util/use-panel-cascade';
+import { useStoredSort } from '@/lib/util/use-stored-sort';
+import { useStoredView } from '@/lib/util/use-stored-view';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
-import { materializeBinders } from '../lib/materialize';
-import { computeDrift } from '../lib/binder-drift';
-import { binderCoverArt } from '../lib/binder-cover';
-import { volumesFor, hasMultipleVolumes } from '../lib/binder-volumes';
-import { useBinderLayoutInputs } from '../lib/use-binder-layout-inputs';
-import { formatMoney } from '../lib/format-money';
-import { inkOn } from '../lib/ink';
-import { useConfirm } from '../lib/use-confirm';
+import { materializeBinders } from '@/lib/binder/materialize';
+import { computeDrift } from '@/lib/binder/binder-drift';
+import { binderCoverArt } from '@/lib/binder/binder-cover';
+import { volumesFor, hasMultipleVolumes } from '@/lib/binder/binder-volumes';
+import { useBinderLayoutInputs } from '@/lib/binder/use-binder-layout-inputs';
+import { formatMoney } from '@/lib/collection/format-money';
+import { inkOn } from '@/lib/util/ink';
+import { useConfirm } from '@/components/use-confirm';
 import { Modal } from '../components/Modal';
 import { SortMenu, type SortMenuOption } from '../components/SortMenu';
 import { ViewModeToggle } from '../components/ViewModeToggle';
@@ -40,19 +40,19 @@ import {
   SelectCheck,
   selectInteraction,
 } from '../components/BulkSelectBar';
-import { selectedCountLabel, useSelection } from '../lib/use-selection';
-import { useDebouncedValue } from '../lib/use-debounced-value';
+import { selectedCountLabel, useSelection } from '@/lib/util/use-selection';
+import { useDebouncedValue } from '@/lib/util/use-debounced-value';
 import { BinderExportDialog } from '../components/BinderExportDialog';
 import { PlanShelfModal } from '../components/PlanShelfModal';
 import { UncategorizedSheet } from '../components/UncategorizedSheet';
 import { ShareDialog } from '../components/ShareDialog';
 import { useBinderActions } from '../components/use-binder-actions';
-import { importText } from '../lib/api';
-import { sampleCardsAsCsv, SAMPLE_BINDERS, SAMPLE_CARDS } from '../lib/samples';
+import { importText } from '@/lib/api';
+import { sampleCardsAsCsv, SAMPLE_BINDERS, SAMPLE_CARDS } from '@/lib/binder/samples';
 import { ProgressBar } from '../components/ProgressBar';
 
-import { userMessage } from '@/lib/user-error';
-import { useAwaitingFirstPull } from '../lib/use-awaiting-first-pull';
+import { userMessage } from '@/lib/util/user-error';
+import { useAwaitingFirstPull } from '@/lib/sync/use-awaiting-first-pull';
 import { Button } from '@/components/shared/Button';
 import '../styles/deck-builder-binders-index.css';
 type BinderSortField = 'position' | 'name' | 'cards' | 'pages';
@@ -165,7 +165,7 @@ export function BindersIndexPage() {
   }, [materialized, cards, importHistory]);
 
   // Cover art per binder — an explicit cover card if the user set one, else
-  // the most valuable card (see lib/binder-cover.ts). Keyed off `materialized`
+  // the most valuable card (see lib/binder/binder-cover.ts). Keyed off `materialized`
   // so search keystrokes don't re-scan every binder's cards.
   const coverArts = useMemo(
     () => new Map(materialized.map((b) => [b.def.id, binderCoverArt(b)])),

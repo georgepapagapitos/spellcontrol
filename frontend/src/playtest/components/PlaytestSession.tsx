@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useConfirm } from '@/lib/use-confirm';
+import { useConfirm } from '@/components/use-confirm';
 import {
   clearPlaytestSnapshot,
   fingerprintDeck,
@@ -10,7 +10,7 @@ import {
 } from '@/lib/playtest/session-snapshot';
 import type { Deck } from '@/store/decks';
 import { deckToPlaytestInit } from '@/playtest/lib/deck-to-playtest';
-import { useCollectionByCopyId } from '@/lib/allocations';
+import { useCollectionByCopyId } from '@/lib/collection/allocations';
 import { usePlaytestStore, flushPendingPlaytestSnapshot, tryRecordSession } from '@/playtest/store';
 import { PlaytestBoard } from '@/playtest/components/PlaytestBoard';
 import { usePrintedBodies } from '@/playtest/hooks/use-printed-bodies';
@@ -24,7 +24,7 @@ export interface PlaytestBackTarget {
 
 interface Props {
   /** The deck to goldfish. Either one of the viewer's own (from the decks
-   *  store) or a shared/public deck adapted by `lib/public-deck-to-deck.ts` —
+   *  store) or a shared/public deck adapted by `lib/social/public-deck-to-deck.ts` —
    *  this component does not care which, and must not reach into any store to
    *  find out. */
   deck: Deck;

@@ -1,11 +1,11 @@
 import { useId, useState } from 'react';
 import { useAuth } from '../store/auth';
-import { changeUsername, UsernameChangeError } from '../lib/auth-api';
+import { changeUsername, UsernameChangeError } from '@/lib/account/auth-api';
 import { toast } from '../store/toasts';
 import { Modal } from './Modal';
 import './UsernameEditor.css';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 
 const USERNAME_MAX = 32;

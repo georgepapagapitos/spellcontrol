@@ -4,7 +4,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { act, cleanup, render, renderHook, screen } from '@testing-library/react';
 import { useBinderCardPreview } from './use-binder-card-preview';
 import { useCollectionStore } from '../store/collection';
-import { materializeBinders } from '../lib/materialize';
+import { materializeBinders } from '@/lib/binder/materialize';
 import type { BinderDef, EnrichedCard } from '../types';
 
 const rock = {

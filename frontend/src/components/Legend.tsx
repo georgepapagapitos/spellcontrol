@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { computePopoverPlacement, getSafeViewport } from '@/lib/popover-placement';
-import { TYPE_ORDER } from '@/lib/card-types';
-import { ROLE_BADGE_BY_TONE } from '@/lib/role-badges';
-import type { RarityTint } from '@/lib/set-symbols';
+import { computePopoverPlacement, getSafeViewport } from '@/lib/overlays/popover-placement';
+import { TYPE_ORDER } from '@/lib/cards/card-types';
+import { ROLE_BADGE_BY_TONE } from '@/lib/deck-analysis/role-badges';
+import type { RarityTint } from '@/lib/cards/set-symbols';
 import { TypeIcon } from './shared/ManaSymbol';
 import { SetSymbol } from './shared/SetSymbol';
 import { FoilBadge } from './FoilBadge';
 import { DeckBadge } from './DeckBadge';
-import { makeDeckAllocationInfo } from '@/lib/allocations';
+import { makeDeckAllocationInfo } from '@/lib/collection/allocations';
 import { BinderBadge } from './BinderBadge';
 import { ConditionChip } from './shared/CardRow';
-import { CONDITION_OPTIONS } from '../lib/copy-options';
+import { CONDITION_OPTIONS } from '@/lib/collection/copy-options';
 import type { Condition } from '@/types';
 import { Chip } from '@/components/shared/Chip';
 

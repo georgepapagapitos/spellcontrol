@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { groupBadgeCount, validateGroups, validateRanges } from './FilterGroupEditor';
-import { isFilterEmpty } from '../lib/rules';
+import { isFilterEmpty } from '@/lib/binder/rules';
 import type { BinderFilter } from '../types';
 
 describe('validateRanges', () => {

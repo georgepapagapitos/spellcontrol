@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { Bookmark } from 'lucide-react';
 import { useAuth } from '../store/auth';
 import { toast } from '../store/toasts';
-import { bookmarkDeck, unbookmarkDeck } from '../lib/discover-client';
+import { bookmarkDeck, unbookmarkDeck } from '@/lib/discover/discover-client';
 import { GuestActionPopover } from './GuestActionPopover';
 import { IconButton } from '@/components/shared/Button';
 

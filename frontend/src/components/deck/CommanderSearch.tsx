@@ -23,13 +23,13 @@ import {
   isPdhCommanderCandidate,
   MIN_COLLECTION_SIZE,
   type ReadinessScore,
-} from '../../lib/commander-readiness';
+} from '@/lib/deck/commander-readiness';
 import {
   classifyCommanderPlaystyles,
   classifyOwnedCommanderPlaystyles,
   playstyleById,
   PLAYSTYLES,
-} from '../../lib/commander-playstyle-index';
+} from '@/lib/deck/commander-playstyle-index';
 import {
   buildScryfallQuery,
   colorComboName,
@@ -48,10 +48,10 @@ import {
   type FinderSort,
   type FinderSource,
   type Relaxation,
-} from '../../lib/commander-finder';
-import { buildCollectionSearch } from '../../lib/deck-add-search';
-import { useDebouncedValue } from '../../lib/use-debounced-value';
-import { useMediaQuery } from '../../lib/use-media-query';
+} from '@/lib/deck/commander-finder';
+import { buildCollectionSearch } from '@/lib/search/deck-add-search';
+import { useDebouncedValue } from '@/lib/util/use-debounced-value';
+import { useMediaQuery } from '@/lib/util/use-media-query';
 import { CommanderReadiness } from './CommanderReadiness';
 import { CommanderResultCard } from './CommanderResultCard';
 import type { EnrichedCard } from '../../types';
@@ -60,11 +60,11 @@ import { ColorIdentityPicker } from '../shared/ColorIdentityPicker';
 import { SearchPill } from '../SearchPill';
 import { SelectMenu } from '../SelectMenu';
 import { InfoTip } from '../InfoTip';
-import { buildCommanderKey } from '../../lib/commander-key';
-import { getCommanderStatsBatch, type CommanderStats } from '../../lib/aggregates-client';
-import { getCurrency } from '@/lib/currency';
-import { formatMoney } from '@/lib/format-money';
-import { userMessage } from '@/lib/user-error';
+import { buildCommanderKey } from '@/lib/deck/commander-key';
+import { getCommanderStatsBatch, type CommanderStats } from '@/lib/discover/aggregates-client';
+import { getCurrency } from '@/lib/collection/currency';
+import { formatMoney } from '@/lib/collection/format-money';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 import { Count } from '@/components/shared/Count';

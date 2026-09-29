@@ -1,6 +1,6 @@
 import './PriceOverrideBadge.css';
 import type { JSX } from 'react';
-import { getCurrency } from '../../lib/currency';
+import { getCurrency } from '@/lib/collection/currency';
 
 export interface PriceOverrideBadgeProps {
   card: { priceOverride?: number; priceOverrideCurrency?: string };
@@ -20,7 +20,7 @@ export interface PriceOverrideBadgeProps {
  *   - dormant (`.is-dormant`, dimmed): the override is set but recorded in
  *     the OTHER currency. There's no FX conversion in this app (EUR is
  *     Cardmarket's own quote, not a USD conversion — see `applyPrices` in
- *     `lib/card-prices.ts`), so the price shown is the real market price,
+ *     `lib/collection/card-prices.ts`), so the price shown is the real market price,
  *     not the override. The dim chip + title tell the user why, rather than
  *     the override silently vanishing with no explanation.
  */

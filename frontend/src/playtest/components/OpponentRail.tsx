@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
-import { joinClasses } from '@/lib/join-classes';
-import { useCardThumb } from '@/lib/card-thumbs';
-import { paletteForIndex } from '@/lib/seat-palette';
+import { joinClasses } from '@/lib/util/join-classes';
+import { useCardThumb } from '@/lib/cards/card-thumbs';
+import { paletteForIndex } from '@/lib/play/seat-palette';
 import type { PublicBattlefieldCard, PublicBoard } from '@/lib/playtest/projection';
 import { DESIGNATIONS } from '../lib/designations';
 import { useNewCardIds } from '../hooks/use-new-card-ids';

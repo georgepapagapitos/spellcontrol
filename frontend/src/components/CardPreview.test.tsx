@@ -7,7 +7,7 @@ import type { EnrichedCard } from '../types';
 
 // Pending for the test's lifetime — the panel falls back to its text-only set
 // line, and the test avoids an un-acted setState after teardown.
-vi.mock('../lib/api', async () => {
+vi.mock('@/lib/api', async () => {
   const { pending } = await import('@/test/pending');
   return { getSetMap: () => pending({}) };
 });
@@ -45,12 +45,12 @@ const rulingsMock = vi.fn(async () => [
     source: 'wotc',
   },
 ]);
-vi.mock('../lib/card-rulings', () => ({ fetchCardRulings: () => rulingsMock() }));
+vi.mock('@/lib/cards/card-rulings', () => ({ fetchCardRulings: () => rulingsMock() }));
 
 // The rules sheet a keyword opens reads the rules bundle; a fixture, never the
 // generated file.
-vi.mock('../lib/comprehensive-rules', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../lib/comprehensive-rules')>()),
+vi.mock('@/lib/cards/comprehensive-rules', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/cards/comprehensive-rules')>()),
   loadRulesBundle: () =>
     Promise.resolve({
       meta: { effective: 'April 17, 2026', source: 'test' },
@@ -76,7 +76,7 @@ const fetchMock = vi.fn();
 import { CardPreview } from './CardPreview';
 import { RulesReferenceSheet } from './RulesReferenceSheet';
 import { useRulesReferenceStore } from '../store/rules-reference';
-import { KEYWORD_GLOSSARY_URL } from '../lib/keyword-glossary';
+import { KEYWORD_GLOSSARY_URL } from '@/lib/cards/keyword-glossary';
 
 beforeAll(() => {
   // happy-dom has no layout: stub the scroll/observe APIs the carousel uses.

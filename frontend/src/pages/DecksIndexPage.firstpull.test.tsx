@@ -22,14 +22,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  * Every pre-existing test for this page starts with the store populated or with
  * sync already 'ready', so none of them could reach this window. This drives it
  * directly, and is the page-level half of the guard (the hook's own unit tests
- * live in lib/use-awaiting-first-pull.test.tsx).
+ * live in lib/sync/use-awaiting-first-pull.test.tsx).
  */
 
 const syncMock = vi.hoisted(() => ({
   state: 'syncing' as 'idle' | 'syncing' | 'ready',
   error: false,
 }));
-vi.mock('../lib/sync', () => ({
+vi.mock('@/lib/sync', () => ({
   getSyncState: () => syncMock.state,
   hasSyncError: () => syncMock.error,
   onSyncedChange: () => () => {},

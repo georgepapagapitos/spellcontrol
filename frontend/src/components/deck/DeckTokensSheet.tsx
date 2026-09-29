@@ -1,9 +1,9 @@
 import { createPortal } from 'react-dom';
 import { type JSX, useId, useState } from 'react';
 import { X } from 'lucide-react';
-import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
-import { useEscapeKey } from '../../lib/use-escape-key';
-import type { DeckToken } from '@/lib/deck-tokens';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useEscapeKey } from '@/lib/overlays/use-escape-key';
+import type { DeckToken } from '@/lib/deck/deck-tokens';
 import './DeckTokensSheet.css';
 import { IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';

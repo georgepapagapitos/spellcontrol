@@ -11,7 +11,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuth } from '../../store/auth';
-import type { PublishResult } from '../../lib/publications-client';
+import type { PublishResult } from '@/lib/social/publications-client';
 import type { DeckImportResponse } from '../../types';
 
 const navigateMock = vi.fn();
@@ -25,29 +25,29 @@ vi.mock('../../store/decks', () => ({
 }));
 
 const buildDeckFromResultMock = vi.fn((..._args: unknown[]) => 'new-deck-id');
-vi.mock('../../lib/build-deck-from-import', () => ({
+vi.mock('@/lib/import-export/build-deck-from-import', () => ({
   useBuildDeckFromImport: () => buildDeckFromResultMock,
 }));
 
 const importDeckTextMock = vi.fn<() => Promise<DeckImportResponse>>();
-vi.mock('../../lib/api', () => ({
+vi.mock('@/lib/api', () => ({
   importDeckText: () => importDeckTextMock(),
   importDeckFile: vi.fn(),
 }));
 
-vi.mock('../../lib/sync', () => ({
+vi.mock('@/lib/sync', () => ({
   isOnline: () => true,
   onSyncedChange: () => () => {},
 }));
 
 const updateProfileMock = vi.fn();
-vi.mock('../../lib/auth-api', () => ({
+vi.mock('@/lib/account/auth-api', () => ({
   updateProfile: (patch: { displayName: string }) => updateProfileMock(patch),
 }));
 
 const publishDeckMock = vi.fn<() => Promise<PublishResult>>();
-vi.mock('../../lib/publications-client', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../lib/publications-client')>();
+vi.mock('@/lib/social/publications-client', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/social/publications-client')>();
   return {
     ...actual,
     publishDeck: () => publishDeckMock(),
@@ -56,7 +56,7 @@ vi.mock('../../lib/publications-client', async (importOriginal) => {
 });
 
 const createShareMock = vi.fn();
-vi.mock('../../lib/share-client', () => ({
+vi.mock('@/lib/social/share-client', () => ({
   createShare: (input: unknown) => createShareMock(input),
 }));
 

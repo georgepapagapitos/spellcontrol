@@ -1,6 +1,6 @@
-import { isClockPaused, type GameState } from '../../lib/game-state';
-import { describeClock, formatClock, msToNextSecond, seatTurnTotals } from '../../lib/game-clock';
-import { useNow } from '../../lib/use-now';
+import { isClockPaused, type GameState } from '@/lib/play/game-state';
+import { describeClock, formatClock, msToNextSecond, seatTurnTotals } from '@/lib/play/game-clock';
+import { useNow } from '@/lib/util/use-now';
 
 /**
  * How long each seat has held the turn, longest first.

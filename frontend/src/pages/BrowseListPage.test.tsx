@@ -2,7 +2,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { BrowseFilters, BrowseListId, BrowsePage } from '@/lib/browse-lists';
+import type { BrowseFilters, BrowseListId, BrowsePage } from '@/lib/discover/browse-lists';
 import type { CardPreviewAction } from '@/components/CardPreview';
 import type { CarouselEntry } from '@/components/deck/useCardCarousel';
 import { useCollectionStore } from '@/store/collection';
@@ -16,8 +16,8 @@ const h = vi.hoisted(() => ({
   navigate: vi.fn(),
 }));
 
-vi.mock('@/lib/browse-lists', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/lib/browse-lists')>()),
+vi.mock('@/lib/discover/browse-lists', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/discover/browse-lists')>()),
   loadBrowseList: h.loadBrowseList,
 }));
 vi.mock('@/components/deck/useCardCarousel', () => ({
@@ -29,7 +29,7 @@ vi.mock('@/components/deck/useCardCarousel', () => ({
     return { open: h.open, preview: null };
   },
 }));
-vi.mock('@/lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 vi.mock('react-router-dom', async (importOriginal) => ({
   ...(await importOriginal<typeof import('react-router-dom')>()),
   useNavigate: () => h.navigate,

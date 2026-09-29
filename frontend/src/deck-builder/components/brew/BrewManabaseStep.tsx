@@ -2,7 +2,7 @@ import { useMemo, useState, type JSX } from 'react';
 import { ArrowRight } from 'lucide-react';
 import './BrewManabaseStep.css';
 import '@/styles/deck-builder-skeleton.css';
-import { useCardThumb } from '@/lib/card-thumbs';
+import { useCardThumb } from '@/lib/cards/card-thumbs';
 import { useBrewStore } from '@/deck-builder/store/brew';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { Button } from '@/components/shared/Button';

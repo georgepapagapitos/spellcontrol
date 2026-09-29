@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { addToast } from '../lib/toast-stack';
-import { genId } from '../lib/id';
+import { addToast } from '@/lib/overlays/toast-stack';
+import { genId } from '@/lib/util/id';
 
 export type ToastTone = 'info' | 'success' | 'warn' | 'error';
 

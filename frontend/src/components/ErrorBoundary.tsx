@@ -1,9 +1,9 @@
-import { reportError } from '@/lib/analytics';
-import { logger } from '@/lib/logger';
+import { reportError } from '@/lib/util/analytics';
+import { logger } from '@/lib/util/logger';
 import { Component, type ReactNode } from 'react';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
-import { isChunkLoadError, reloadForNewBuild } from '@/lib/chunk-reload';
+import { isChunkLoadError, reloadForNewBuild } from '@/lib/util/chunk-reload';
 
 interface Props {
   children: ReactNode;

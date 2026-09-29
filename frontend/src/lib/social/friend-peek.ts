@@ -1,4 +1,4 @@
-import type { Friend } from '../friends-client';
+import type { Friend } from './friends-client';
 
 /** "3 decks · Brews Atraxa", or the honest "No public decks yet". */
 export function friendPeekLine(friend: Friend): string {

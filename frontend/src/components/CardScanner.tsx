@@ -1,4 +1,4 @@
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/util/logger';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 // Scanner + admin sheet ships with this lazy chunk (and AdminPage / YouPage), not the boot payload (E265).
@@ -15,12 +15,12 @@ import {
   Settings,
   X,
 } from 'lucide-react';
-import { focusInto, restoreFocus, trapTab, useOverlayLayer } from '../lib/overlay-layer';
-import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
-import { useWakeLock } from '../lib/use-wake-lock';
-import { getCardById } from '../lib/api';
-import { formatMoney } from '../lib/format-money';
-import { haptics } from '../lib/haptics';
+import { focusInto, restoreFocus, trapTab, useOverlayLayer } from '@/lib/overlays/overlay-layer';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useWakeLock } from '@/lib/util/use-wake-lock';
+import { getCardById } from '@/lib/api';
+import { formatMoney } from '@/lib/collection/format-money';
+import { haptics } from '@/lib/util/haptics';
 import {
   CONDITIONS,
   FINISH_LABELS,
@@ -30,22 +30,22 @@ import {
   priceTier,
   pulseValueHaptic,
   type CardValueTier,
-} from '../lib/scanner-feedback';
+} from '@/lib/scanner/scanner-feedback';
 import { conditionLabel, conditionShort } from './shared/CardRow';
 import { SegmentedControl } from './shared/form';
 import { Button, IconButton } from './shared/Button';
 import { Count } from './shared/Count';
 import { SelectMenu } from './SelectMenu';
-import { detectCardBox } from '../lib/scanner-detect';
+import { detectCardBox } from '@/lib/scanner/scanner-detect';
 import { prewarm, scan } from '../lib/scanner/scan';
 import type { Point } from '../lib/scanner/detect';
 import { ScannerQueueSheet } from './ScannerQueueSheet';
 import { ScannerEditSheet } from './ScannerEditSheet';
 import { ScannerSettingsSheet } from './ScannerSettingsSheet';
-import { rekeyedId, useScanQueue, useScanQueueStore } from '../lib/use-scan-queue';
+import { rekeyedId, useScanQueue, useScanQueueStore } from '@/lib/scanner/use-scan-queue';
 import { useCollectionStore } from '../store/collection';
-import { entriesToImportCsv } from '../lib/scan-import';
-import { useScannerSettings } from '../lib/scanner-settings';
+import { entriesToImportCsv } from '@/lib/scanner/scan-import';
+import { useScannerSettings } from '@/lib/scanner/scanner-settings';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Condition, Finish } from '../types';
 

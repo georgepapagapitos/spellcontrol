@@ -1,4 +1,4 @@
-import { apiUrl } from '../api-base';
+import { apiUrl } from '@/lib/api/api-base';
 import type { CubeCard } from './generate';
 import { byQuality } from './generate';
 import { cubeRole } from '@/deck-builder/services/tagger/client';
