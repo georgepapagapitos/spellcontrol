@@ -43,6 +43,7 @@ import {
   computeGradeAndBracket,
   computeRoleCounts,
   buildInclusionIndex,
+  lookupInclusion,
 } from './commanderDeckAnalysis';
 import {
   getDynamicRoleTargets,
@@ -91,7 +92,9 @@ import {
   isHighSynergyCard,
   PRICE_SANITY_RATIO,
   PRICE_SANITY_INCLUSION_BAND,
+  STAPLE_INCLUSION_BAR,
 } from './cardPicking';
+import { commanderMustSurvive, makeProtectionAdmits } from './deckGeneration/protectionPicks';
 import {
   categorizeCards,
   stampRoleSubtypes,
@@ -561,15 +564,24 @@ const ROLE_DISPLAY: Record<RoleKey, string> = {
  * final count well past this number, and `roleExcesses` (Overbuilt roles)
  * is the full accounting for that. Wording must never read as "the total is
  * N" when Overbuilt roles can show a larger one for the same role.
+ * `stapleCounts` (E532) are staples the pick loop never holds back.
  */
 export function buildRoleCapOverflowNote(
-  counts: Partial<Record<RoleKey, number>>
+  counts: Partial<Record<RoleKey, number>>,
+  stapleCounts: Partial<Record<RoleKey, number>> = {}
 ): string | undefined {
   const entries = (Object.entries(counts) as [RoleKey, number][]).filter(([, n]) => n > 0);
-  const total = entries.reduce((s, [, n]) => s + n, 0);
+  const thin = entries.reduce((s, [, n]) => s + n, 0);
+  const staples = Object.values(stapleCounts).reduce((s: number, n) => s + (n ?? 0), 0);
+  const total = thin + staples;
   if (total === 0) return undefined;
   const [dominantRole] = entries.sort((a, b) => b[1] - a[1]);
-  return `${total} card${total === 1 ? '' : 's'} went past a role cap. The ${ROLE_DISPLAY[dominantRole[0]]} pool was thin. See Overbuilt roles for the total.`;
+  const thinClause = thin > 0 ? ` The ${ROLE_DISPLAY[dominantRole[0]]} pool was thin.` : '';
+  const allStaples = total === 1 ? "It's" : "They're";
+  const who = staples === total ? allStaples : `${staples} ${staples === 1 ? 'is' : 'are'}`;
+  const stapleClause =
+    staples > 0 ? ` ${who} in ${STAPLE_INCLUSION_BAR}% or more of this commander's decks.` : '';
+  return `${total} card${total === 1 ? '' : 's'} went past a role cap.${thinClause}${stapleClause} See Overbuilt roles for the total.`;
 }
 
 /**
@@ -2122,9 +2134,16 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // to the format-legal pool the way the Scryfall searches are, so every
   // phase reusing this gate (coherence repair, flagship seating, bracket/
   // budget convergence, role-surplus rebalance) gets the check for free.
+  // E532: the card's inclusion on this commander's page exempts a staple.
+  const pageInclusion = state.edhrecData ? buildInclusionIndex(state.edhrecData) : new Map();
   const isCardAllowedBySynergyDependencies = (card: ScryfallCard) =>
     !notLegalForFormat(card, state.cfg.mtgFormat) &&
-    !isUnsupportedSynergyPayoff(card, dependencySupportCards(), dependencyCommanderCount);
+    !isUnsupportedSynergyPayoff(
+      card,
+      dependencySupportCards(),
+      dependencyCommanderCount,
+      lookupInclusion(pageInclusion, card.name)
+    );
 
   // EDHREC lift pools (E71 slice 2): fetch intent-anchored seeds once, before
   // any card is picked, so every re-rank/tie-break point below (EDHREC picks,
@@ -2170,6 +2189,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // substitutes) increments this so ONE build-report note can disclose it
   // (see roleCapOverflowNote below), instead of firing invisibly.
   const roleCapOverflowCounts: Partial<Record<RoleKey, number>> = {};
+  const roleCapStapleCounts: Partial<Record<RoleKey, number>> = {};
   // E80: unordered name-pairs the price-sanity tie-break actually decided
   // (see pickFromPrefetchedWithCurve's priceSanityDecided doc) — aggregated
   // across every type pass so ONE build-report note can disclose it.
@@ -2728,6 +2748,12 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       currentRoleCounts,
       currentSubtypeCounts,
       roleCapOverflowCounts,
+      roleCapStapleCounts,
+      protectionAdmits: makeProtectionAdmits(
+        commanderMustSurvive([commander, partnerCommander ?? commander], commanderProfile),
+        cardMap,
+        () => Object.entries(categories).flatMap(([cat, cards]) => (cat === 'lands' ? [] : cards))
+      ),
       preferAsymmetricWipes,
       wipeAsymmetryDecided,
       isOneSidedWipe,
@@ -4815,7 +4841,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // Role-cap escape-hatch disclosure (E77 iter-4 round 2) — aggregated across
   // every gated path over the whole generation; undefined when the cap was
   // never actually breached.
-  const roleCapOverflowNote = buildRoleCapOverflowNote(roleCapOverflowCounts);
+  const roleCapOverflowNote = buildRoleCapOverflowNote(roleCapOverflowCounts, roleCapStapleCounts);
 
   // Pick-time displacement disclosure (E160) — the deficit-direction
   // counterpart to roleCapOverflowNote above. Runs AFTER every composition

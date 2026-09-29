@@ -607,6 +607,17 @@ describe('buildRoleCapOverflowNote (E77 iter-4 round 3 — narrow escape-hatch-o
     expect(note).toContain('Overbuilt roles');
     expect(note).not.toMatch(/\btotal (role )?overshoot\b/i);
   });
+
+  // E532: a staple is never held back by a role cap. That is not a thin pool,
+  // so the note names the real reason for those cards.
+  it('names staples as staples, never as a thin pool', () => {
+    expect(buildRoleCapOverflowNote({}, { cardDraw: 1 })).toBe(
+      "1 card went past a role cap. It's in 40% or more of this commander's decks. See Overbuilt roles for the total."
+    );
+    expect(buildRoleCapOverflowNote({ ramp: 2 }, { cardDraw: 1 })).toBe(
+      "3 cards went past a role cap. The ramp pool was thin. 1 is in 40% or more of this commander's decks. See Overbuilt roles for the total."
+    );
+  });
 });
 
 describe('resolvePriceSanity (E80 — ships as the default, not opt-in)', () => {

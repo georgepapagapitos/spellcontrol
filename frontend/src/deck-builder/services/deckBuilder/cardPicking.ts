@@ -22,6 +22,16 @@ import {
 } from './deckFilters';
 
 /**
+ * The staple bar: a card in this share (%) of the commander's own EDHREC decks
+ * is part of how the deck is played, not a choice among substitutes. Such a
+ * card may break the curve, is never held back by a role cap, and (at the
+ * Balanced/Staples end of the dial) is tried before role-deficit ordering
+ * decides the rest of a type pass (E532). Role boosts reach 150+ points, so
+ * without the tier a 25% ramp spell outranks a 55% roleless payoff.
+ */
+export const STAPLE_INCLUSION_BAR = 40;
+
+/**
  * Hard role-cap gate for the primary pick loop (E77 iter-4). Distinct from
  * the soft `computeRoleBoosts` over-target penalty (still priority noise a
  * high-synergy/combo score can drown out) — this is an actual skip once a
@@ -42,6 +52,9 @@ export interface RoleCapConfig {
    *  the escape hatch admits an over-cap card, so the build report can
    *  disclose it in one aggregate note (never silent). */
   overflowCounts?: Partial<Record<RoleKey, number>>;
+  /** E532: staples (STAPLE_INCLUSION_BAR) admitted while their role was
+   *  already at cap, disclosed next to overflowCounts (never silent). */
+  stapleOverflowCounts?: Partial<Record<RoleKey, number>>;
   /** E109 board-centric wipe-asymmetry preference: when set, a boardwipe-role
    *  candidate that spares the caller's own board (isOneSidedWipe,
    *  tagger/client.ts) is always tried before a symmetric one — see
@@ -593,10 +606,15 @@ export function pickFromPrefetchedWithCurve(
    *  checked commander legality at all (notCommanderLegal was only wired
    *  into the lift-picks/PDH paths), so a banned card in the EDHREC pool
    *  could ship. */
-  mtgFormat?: string
+  mtgFormat?: string,
+  /** E532: names tried first with the staples and allowed past the curve
+   *  (protectionPicks.ts: at most two protection pieces for a commander that
+   *  must survive). Every other gate still applies. */
+  admitFirst?: ReadonlySet<string>
 ): ScryfallCard[] {
   const result: ScryfallCard[] = [];
   const preferOwned = collectionStrategy === 'prefer';
+  const isStaple = (c: EDHRECCard) => c.inclusion >= STAPLE_INCLUSION_BAR;
 
   // Live-updating clone of the role-cap snapshot (see RoleCapConfig doc) —
   // undefined when balanced roles isn't active, matching the existing
@@ -607,14 +625,19 @@ export function pickFromPrefetchedWithCurve(
   // to satisfy a soft target).
   const capSkipped: EDHRECCard[] = [];
   let allowCapOverflow = false;
-  const roleCapBlocks = (edhrecCard: EDHRECCard): boolean => {
-    if (!roleCapConfig || !liveRoleCounts || allowCapOverflow) return false;
+  const atRoleCap = (edhrecCard: EDHRECCard): boolean => {
+    if (!roleCapConfig || !liveRoleCounts) return false;
     const role = roleCapConfig.cardRoleMap.get(edhrecCard.name);
     if (!role) return false;
     const target = roleCapConfig.roleTargets[role] ?? 0;
     if (target <= 0) return false;
     return (liveRoleCounts[role] ?? 0) >= target + roleCapTolerance(target);
   };
+  // A staple is never held back (E532: Kaito, Bane of Nightmares at 54.9% was
+  // skipped on card draw while a 5.6% Jace passed on removal); its admission
+  // past the cap is counted in stapleOverflowCounts below.
+  const roleCapBlocks = (edhrecCard: EDHRECCard): boolean =>
+    !allowCapOverflow && !isStaple(edhrecCard) && atRoleCap(edhrecCard);
 
   // Filter and sort ALL candidates by priority (synergy + combo + owned-first bias)
   const allCandidates = edhrecCards
@@ -726,7 +749,7 @@ export function pickFromPrefetchedWithCurve(
       // reach this pool-based picker) once the role is at target+tolerance.
       // Stashed for the escape-hatch replay below rather than lost outright.
       if (roleCapBlocks(edhrecCard)) {
-        capSkipped.push(edhrecCard);
+        if (!capSkipped.includes(edhrecCard)) capSkipped.push(edhrecCard);
         continue;
       }
 
@@ -796,9 +819,10 @@ export function pickFromPrefetchedWithCurve(
           ownedPicked < ownedTarget;
         if (
           !isHighSynergyCard(edhrecCard) &&
-          edhrecCard.inclusion < 40 &&
+          !isStaple(edhrecCard) &&
           comboBoost < 100 &&
-          !ownedQuotaShort
+          !ownedQuotaShort &&
+          !admitFirst?.has(edhrecCard.name)
         ) {
           continue;
         }
@@ -818,6 +842,15 @@ export function pickFromPrefetchedWithCurve(
       if (!ownedExempt) budgetTracker?.deductCard(scryfallCard);
       if (liveRoleCounts && roleCapConfig) {
         const role = roleCapConfig.cardRoleMap.get(edhrecCard.name);
+        if (
+          role &&
+          !allowCapOverflow &&
+          roleCapConfig.stapleOverflowCounts &&
+          atRoleCap(edhrecCard)
+        ) {
+          roleCapConfig.stapleOverflowCounts[role] =
+            (roleCapConfig.stapleOverflowCounts[role] ?? 0) + 1;
+        }
         if (role) {
           liveRoleCounts[role] = (liveRoleCounts[role] ?? 0) + 1;
           // Every card reaching this point during the Phase-5 replay was
@@ -836,6 +869,22 @@ export function pickFromPrefetchedWithCurve(
       }
     }
   };
+
+  // Phase 0 (E532): staples and the admitFirst names go before anything role
+  // boosts promoted. Role boosts still order the cards within this tier and
+  // everything below it. Staples stay out of the tier where another ordering
+  // is the user's or the design's call: toward the Synergy end of the dial,
+  // under 'prefer' (the owned boost decides near-ties, E122), and for board
+  // wipes (the one-sided/collateral tie-breaks decide those, E109/E112).
+  // ponytail: a price-sanity pair straddling the bar (E80) is ordered by the
+  // tier, not by price. Fold the tie-break in if a live deck shows one.
+  const stapleTier = brewLevel <= 0.5 && !preferOwned;
+  const firstTier = allCandidates.filter(
+    (c) =>
+      !!admitFirst?.has(c.name) ||
+      (stapleTier && isStaple(c) && roleCapConfig?.cardRoleMap.get(c.name) !== 'boardwipe')
+  );
+  processCards(firstTier, true);
 
   // Phase 1: Process HIGH SYNERGY cards first (these are the theme cards!)
   // Need type check since high-synergy Unknown cards should match expected type

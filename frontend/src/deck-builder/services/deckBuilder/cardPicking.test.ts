@@ -912,13 +912,15 @@ describe('role-cap gate (E77 iter-4)', () => {
     );
   }
 
+  // Every inclusion below sits under STAPLE_INCLUSION_BAR (40): a staple is
+  // never capped (E532, see the describe block for that below).
   it('caps a surplus role once at target+tolerance, freeing the slot for a role-null payoff', () => {
     const cards = [
-      ec({ name: 'Ramp1', inclusion: 90, primary_type: 'Creature' }),
-      ec({ name: 'Ramp2', inclusion: 85, primary_type: 'Creature' }),
-      ec({ name: 'Ramp3', inclusion: 80, primary_type: 'Creature' }),
-      ec({ name: 'Ramp4', inclusion: 75, primary_type: 'Creature' }), // would be picked #4 on pure priority
-      ec({ name: 'Payoff', inclusion: 50, primary_type: 'Creature' }), // role-null, lowest priority
+      ec({ name: 'Ramp1', inclusion: 39, primary_type: 'Creature' }),
+      ec({ name: 'Ramp2', inclusion: 38, primary_type: 'Creature' }),
+      ec({ name: 'Ramp3', inclusion: 37, primary_type: 'Creature' }),
+      ec({ name: 'Ramp4', inclusion: 36, primary_type: 'Creature' }), // would be picked #4 on pure priority
+      ec({ name: 'Payoff', inclusion: 20, primary_type: 'Creature' }), // role-null, lowest priority
     ];
     const cardRoleMap = new Map<string, RoleKey>([
       ['Ramp1', 'ramp'],
@@ -944,11 +946,11 @@ describe('role-cap gate (E77 iter-4)', () => {
 
   it('escape hatch: admits over-cap candidates rather than shipping the pass short', () => {
     const cards = [
-      ec({ name: 'Ramp1', inclusion: 90, primary_type: 'Creature' }),
-      ec({ name: 'Ramp2', inclusion: 85, primary_type: 'Creature' }),
-      ec({ name: 'Ramp3', inclusion: 80, primary_type: 'Creature' }),
-      ec({ name: 'Ramp4', inclusion: 75, primary_type: 'Creature' }),
-      ec({ name: 'Ramp5', inclusion: 70, primary_type: 'Creature' }),
+      ec({ name: 'Ramp1', inclusion: 39, primary_type: 'Creature' }),
+      ec({ name: 'Ramp2', inclusion: 38, primary_type: 'Creature' }),
+      ec({ name: 'Ramp3', inclusion: 37, primary_type: 'Creature' }),
+      ec({ name: 'Ramp4', inclusion: 36, primary_type: 'Creature' }),
+      ec({ name: 'Ramp5', inclusion: 35, primary_type: 'Creature' }),
     ];
     const cardRoleMap = new Map<string, RoleKey>(cards.map((c) => [c.name, 'ramp']));
     // No role-null candidate exists to fill the freed slots — the pass MUST
@@ -960,13 +962,13 @@ describe('role-cap gate (E77 iter-4)', () => {
 
   it('escape-hatch ceiling: admits at most ROLE_CAP_HATCH_MAX_PER_PASS over-cap candidates, then finishes short (iter-6 Slice B)', () => {
     const cards = [
-      ec({ name: 'Ramp1', inclusion: 95, primary_type: 'Creature' }),
-      ec({ name: 'Ramp2', inclusion: 90, primary_type: 'Creature' }),
-      ec({ name: 'Ramp3', inclusion: 85, primary_type: 'Creature' }),
-      ec({ name: 'Ramp4', inclusion: 80, primary_type: 'Creature' }),
-      ec({ name: 'Ramp5', inclusion: 75, primary_type: 'Creature' }),
-      ec({ name: 'Ramp6', inclusion: 70, primary_type: 'Creature' }),
-      ec({ name: 'Ramp7', inclusion: 65, primary_type: 'Creature' }),
+      ec({ name: 'Ramp1', inclusion: 39, primary_type: 'Creature' }),
+      ec({ name: 'Ramp2', inclusion: 38, primary_type: 'Creature' }),
+      ec({ name: 'Ramp3', inclusion: 37, primary_type: 'Creature' }),
+      ec({ name: 'Ramp4', inclusion: 36, primary_type: 'Creature' }),
+      ec({ name: 'Ramp5', inclusion: 35, primary_type: 'Creature' }),
+      ec({ name: 'Ramp6', inclusion: 34, primary_type: 'Creature' }),
+      ec({ name: 'Ramp7', inclusion: 33, primary_type: 'Creature' }),
     ];
     const cardRoleMap = new Map<string, RoleKey>(cards.map((c) => [c.name, 'ramp']));
     // 3 admitted under cap (target=1, tolerance=2 -> cap=3); Ramp4-7 are all
