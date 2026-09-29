@@ -243,4 +243,38 @@ describe('admitFirst: a protection piece for a commander that must survive (E532
       'Lightning Greaves',
     ]);
   });
+
+  it('an admitted piece goes before the staples, not among them', () => {
+    // Meren of Clan Nel Toth's Aristocrats page: Skullclamp 67.2%, Swiftfoot
+    // Boots 18.8%. Sorted by priority inside the tier, the staple took the
+    // pass's last slot and Boots never reached the deck.
+    const skullclamp = sc(
+      'Skullclamp',
+      1,
+      'Artifact — Equipment',
+      'Equipped creature gets +1/-1.\nWhenever equipped creature dies, draw two cards.\nEquip {1}'
+    );
+    const boots = sc(
+      'Swiftfoot Boots',
+      2,
+      'Artifact — Equipment',
+      "Equipped creature has hexproof and haste. (It can't be the target of spells or abilities your opponents control. It can attack and {T} no matter when it came under your control.)\nEquip {1} ({1}: Attach to target creature you control. Equip only as a sorcery.)"
+    );
+    const picked = pass({
+      pool: [
+        ec('Skullclamp', 67.2, 'Artifact', 0.4),
+        ec('Swiftfoot Boots', 18.8, 'Artifact', -0.04),
+      ],
+      cards: [skullclamp, boots],
+      count: 1,
+      expectedType: 'Artifact',
+      roleCap: {
+        cardRoleMap: new Map<string, RoleKey>([['Skullclamp', 'cardDraw']]),
+        roleTargets: { ramp: 11, removal: 11, boardwipe: 2, cardDraw: 10 },
+        currentRoleCounts: { ramp: 11, removal: 11, boardwipe: 2, cardDraw: 6 },
+      },
+      admitFirst: new Set(['Swiftfoot Boots']),
+    });
+    expect(picked).toEqual(['Swiftfoot Boots']);
+  });
 });

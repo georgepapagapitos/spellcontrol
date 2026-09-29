@@ -874,9 +874,9 @@ export function pickFromPrefetchedWithCurve(
     }
   };
 
-  // Phase 0 (E532): staples and the admitFirst names go before anything role
-  // boosts promoted. Role boosts still order the cards within this tier and
-  // everything below it. Staples stay out of the tier where another ordering
+  // Phase 0 (E532): the admitFirst names, then staples, go before anything
+  // role boosts promoted. Role boosts still order the staples and everything
+  // below them. Staples stay out of the tier where another ordering
   // is the user's or the design's call: toward the Synergy end of the dial,
   // under 'prefer' (the owned boost decides near-ties, E122), for board wipes
   // (the one-sided/collateral tie-breaks decide those, E109/E112), and under a
@@ -886,12 +886,17 @@ export function pickFromPrefetchedWithCurve(
   // ponytail: a price-sanity pair straddling the bar (E80) is ordered by the
   // tier, not by price. Fold the tie-break in if a live deck shows one.
   const stapleTier = brewLevel <= 0.5 && !preferOwned && !budgetTracker;
-  const firstTier = allCandidates.filter(
+  // The admitFirst names lead: sorted among the staples, an 18.8% Swiftfoot
+  // Boots lost Meren's last artifact slot to them and never reached the deck.
+  const admitted = allCandidates.filter((c) => !!admitFirst?.has(c.name));
+  const staples = allCandidates.filter(
     (c) =>
-      !!admitFirst?.has(c.name) ||
-      (stapleTier && isStaple(c) && roleCapConfig?.cardRoleMap.get(c.name) !== 'boardwipe')
+      stapleTier &&
+      isStaple(c) &&
+      !admitFirst?.has(c.name) &&
+      roleCapConfig?.cardRoleMap.get(c.name) !== 'boardwipe'
   );
-  processCards(firstTier, true);
+  processCards([...admitted, ...staples], true);
 
   // Phase 1: Process HIGH SYNERGY cards first (these are the theme cards!)
   // Need type check since high-synergy Unknown cards should match expected type
