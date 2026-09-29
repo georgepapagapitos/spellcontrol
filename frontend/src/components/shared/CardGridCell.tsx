@@ -137,7 +137,7 @@ interface CardGridCellProps {
   ariaExtra?: string;
   /**
    * The card's ⋮ (a `CardRowMenu variant="tile"`). A sibling of the tile, not
-   * a child: the tile is itself role="button". Revealed on hover or focus
+   * a child: the tile's own button must not hold a control. Revealed on hover or focus
    * under a fine pointer and always shown under a coarse one; a right-click
    * on the cell opens the same menu (STYLE_GUIDE § Verbs — Menus).
    */
@@ -194,34 +194,34 @@ export function CardGridCell({
   return (
     <div className={`collection-grid-cell${menu && !selectMode ? ' has-menu' : ''}`}>
       <div
-        role="button"
-        tabIndex={0}
-        aria-pressed={selectMode ? selected : undefined}
         className={`collection-grid-item grid-${size}${foilClass}${
           selectMode ? ' is-selectable' : ''
         }${selected ? ' is-selected' : ''}`}
-        onClick={onActivate}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            onActivate();
-          }
-        }}
-        aria-label={`${printedName(card)}${hideQty ? '' : `, quantity ${qty}`}${card.foil ? ', foil' : ''}${
-          card.proxy ? ', proxy' : ''
-        }${card.priceOverride !== undefined ? ', manually priced' : ''}${
-          caption && caption !== '—' ? `, ${caption}` : ''
-        }${setLabel ? `, ${setLabel}` : ''}${ariaExtra ?? ''}${
-          selectMode ? (selected ? ', selected' : ', not selected') : ''
-        }`}
       >
+        {/* The tile holds controls (identity links, the binder mark), and a
+            button cannot hold controls (axe nested-interactive), so the tile is
+            plain and this button is stretched over it (collection.css
+            .collection-grid-open); the marks sit above it. */}
+        <button
+          type="button"
+          className="collection-grid-open"
+          aria-pressed={selectMode ? selected : undefined}
+          onClick={onActivate}
+          aria-label={`${printedName(card)}${hideQty ? '' : `, quantity ${qty}`}${card.foil ? ', foil' : ''}${
+            card.proxy ? ', proxy' : ''
+          }${card.priceOverride !== undefined ? ', manually priced' : ''}${
+            caption && caption !== '—' ? `, ${caption}` : ''
+          }${setLabel ? `, ${setLabel}` : ''}${ariaExtra ?? ''}${
+            selectMode ? (selected ? ', selected' : ', not selected') : ''
+          }`}
+        />
         {selectMode && (
           <span className="collection-grid-check" data-checked={selected} aria-hidden>
             {selected && <Check width={14} height={14} strokeWidth={1.8} />}
           </span>
         )}
         {art ? (
-          <img src={art} alt={printedName(card)} loading="lazy" className="collection-grid-img" />
+          <img src={art} alt="" loading="lazy" className="collection-grid-img" />
         ) : (
           <div className="collection-grid-placeholder">
             <CardName card={card} />

@@ -129,7 +129,7 @@ export function DiscoverFiltersPopover({ filters, onChange, hideBudget }: Props)
 
             <fieldset className="discover-filters-section">
               <legend className="discover-filters-legend">Colors</legend>
-              <div className="discover-filters-chips" aria-label="Filter by color">
+              <div className="discover-filters-chips" aria-label="Filter by color" role="group">
                 {FILTER_COLOR_OPTIONS.map((c) => (
                   <label
                     key={c.key}

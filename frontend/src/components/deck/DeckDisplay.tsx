@@ -1894,7 +1894,12 @@ export function DeckDisplay({
                 page hero does NOT already say — card count, value and bracket
                 ride the hero on every tab and every width, so repeating them
                 here was the same number twice on one screen. */}
-            <div ref={statStripRef} className="deck-stat-strip" aria-label="Deck at a glance">
+            <div
+              ref={statStripRef}
+              className="deck-stat-strip"
+              aria-label="Deck at a glance"
+              role="group"
+            >
               {/* The checks verdict leads, the way a deck site's header says
                   "Legal" first. It is also the phone's way down to the stats
                   under a long one-column list. */}

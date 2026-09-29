@@ -13,6 +13,7 @@ const SPA_ROOTS = new Set([
   'collection',
   'd',
   'decks',
+  'dev', // /dev/catalog, the component catalog (noindex, robots-disallowed)
   'forgot-password',
   'friends',
   'gn',

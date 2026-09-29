@@ -554,6 +554,7 @@ function RolesPanel({
                         <span
                           title={`${(it.want as number) - it.value} short of target`}
                           aria-label="below target"
+                          role="img"
                         >
                           {' '}
                           ▾

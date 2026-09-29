@@ -131,7 +131,7 @@ function HandStatsSection({
       {Object.keys(stats.colorBreakdown).length > 0 && (
         <div className="playtest-stats-row" style={{ alignItems: 'flex-start' }}>
           <span className="playtest-stats-row__label">Land colors</span>
-          <div className="playtest-stats-colors" aria-label="Land color breakdown">
+          <div className="playtest-stats-colors" aria-label="Land color breakdown" role="group">
             {COLOR_ORDER.filter((c) => stats.colorBreakdown[c]).map((color) => (
               <span key={color} className="playtest-stats-color-item">
                 <ColorPip color={color} aria-hidden />
@@ -148,7 +148,7 @@ function HandStatsSection({
           <p className="playtest-stats-section-title" style={{ marginTop: '0.5rem' }}>
             Spell CMC
           </p>
-          <div className="playtest-stats-histogram" aria-label="CMC distribution">
+          <div className="playtest-stats-histogram" aria-label="CMC distribution" role="group">
             {CMC_LABELS.map((label, i) =>
               stats.cmcBuckets[i] > 0 ? (
                 <div key={label} className="playtest-stats-histogram__row">
@@ -310,7 +310,7 @@ function DeckStatsSection({
       <p className="playtest-stats-section-title" style={{ marginTop: '0.5rem' }}>
         Zone sizes
       </p>
-      <div className="playtest-stats-zones" aria-label="Zone sizes">
+      <div className="playtest-stats-zones" aria-label="Zone sizes" role="group">
         <span className="playtest-stats-zone-pill">
           <span className="playtest-stats-zone-pill__count">{sessionStats.libraryCount}</span>
           <span>Library</span>
@@ -561,7 +561,11 @@ function SimulateSection({ deck }: { deck: Deck | undefined }) {
           <p className="playtest-stats-section-title" style={{ marginTop: 'var(--space-3)' }}>
             Opening-hand land count
           </p>
-          <div className="playtest-stats-histogram" aria-label="Land count distribution">
+          <div
+            className="playtest-stats-histogram"
+            aria-label="Land count distribution"
+            role="group"
+          >
             {batch.landHistogram.map((count, lands) =>
               count > 0 ? (
                 <div key={lands} className="playtest-stats-histogram__row">
@@ -588,7 +592,7 @@ function SimulateSection({ deck }: { deck: Deck | undefined }) {
           <p className="playtest-stats-section-title" style={{ marginTop: 'var(--space-3)' }}>
             On-curve odds, turns 1–5
           </p>
-          <div className="playtest-stats-histogram" aria-label="Land-drop curve">
+          <div className="playtest-stats-histogram" aria-label="Land-drop curve" role="group">
             {batch.curve.onCurveRate.slice(1).map((rate, i) => (
               <div key={i} className="playtest-stats-histogram__row">
                 <span className="playtest-stats-histogram__bucket" aria-hidden>

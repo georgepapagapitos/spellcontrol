@@ -250,7 +250,7 @@ function RoleRow({ role }: { role: RoleHealth }) {
       <header className="deck-analysis-role-header">
         <Icon width={14} height={14} aria-hidden />
         <span className="deck-analysis-role-label">{role.label}</span>
-        <span className="deck-analysis-role-count" aria-label={`${role.count} cards`}>
+        <span className="deck-analysis-role-count" aria-label={`${role.count} cards`} role="group">
           {role.count}
           <span className="deck-analysis-role-target">
             {' / '}
@@ -635,7 +635,7 @@ function SuggestionsSection({
         </ul>
       )}
 
-      <p className="deck-analysis-suggest-hint" aria-label={`Deck ${deckId.slice(0, 6)}`}>
+      <p className="deck-analysis-suggest-hint">
         {themeSlug
           ? `${themes.find((t) => t.slug === themeSlug)?.name ?? themeSlug} picks, matched to your deck.`
           : "EDHREC's top cards for this commander, matched to your deck."}

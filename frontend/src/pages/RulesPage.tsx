@@ -369,7 +369,7 @@ function RulesAsk({ seed }: { seed?: string }) {
 
         {/* Starters, only while there's nothing else on the page to read. */}
         {phase === 'idle' && !answer && history !== null && (
-          <div className="rules-samples" aria-label="Example questions">
+          <div className="rules-samples" aria-label="Example questions" role="group">
             {SAMPLE_QUESTIONS.map((sample) => (
               <button
                 key={sample}

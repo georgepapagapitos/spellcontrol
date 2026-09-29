@@ -111,7 +111,12 @@ describe('BrowseRails', () => {
     useCollectionStore.setState({ cards: [{ name: 'banned 2' } as EnrichedCard] });
     renderRails();
     const tile = await screen.findByRole('button', { name: 'banned 2, in your collection' });
-    expect(within(tile).getByRole('img', { name: 'In your collection' })).toBeTruthy();
+    // The mark sits beside the tile's button, not inside it (a button cannot hold controls).
+    expect(
+      within(tile.closest<HTMLElement>('.collection-grid-item')!).getByRole('img', {
+        name: 'In your collection',
+      })
+    ).toBeTruthy();
     expect(screen.getByRole('button', { name: 'banned 1' })).toBeTruthy();
   });
 

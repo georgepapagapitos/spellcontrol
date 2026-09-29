@@ -47,6 +47,7 @@ export function CardText({ card, detail }: { card: EnrichedCard; detail: Scryfal
             <div
               className="card-text-stat"
               aria-label={f.pt ? `Power/toughness ${f.pt}` : `Loyalty ${f.loyalty}`}
+              role="img"
             >
               {f.pt ?? `Loyalty ${f.loyalty}`}
             </div>

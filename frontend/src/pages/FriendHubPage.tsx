@@ -622,6 +622,7 @@ export function FriendHubPage() {
           <div
             className="friend-hub-h2h-skeleton"
             aria-label="Loading head-to-head record"
+            role="status"
             aria-busy="true"
           />
         ) : (
@@ -658,6 +659,7 @@ export function FriendHubPage() {
               <div
                 className="friend-hub-radar-skeleton"
                 aria-label="Checking your want lists"
+                role="img"
                 aria-busy="true"
               />
             ) : radar.length === 0 ? (
@@ -709,6 +711,7 @@ export function FriendHubPage() {
               <div
                 className="friend-hub-radar-skeleton"
                 aria-label={`Checking ${who}'s want lists`}
+                role="img"
                 aria-busy="true"
               />
             ) : wantRadar.length === 0 ? (
@@ -815,6 +818,7 @@ export function FriendHubPage() {
           <div
             className="friend-hub-collection-skeleton"
             aria-label={`Loading ${who}'s decks`}
+            role="status"
             aria-busy="true"
           />
         ) : (
@@ -860,6 +864,7 @@ export function FriendHubPage() {
           <div
             className="friend-hub-collection-skeleton"
             aria-label={`Loading ${who}'s collection`}
+            role="status"
             aria-busy="true"
           />
         ) : (
@@ -1007,6 +1012,7 @@ export function FriendHubPage() {
           <div
             className="friend-hub-collection-skeleton"
             aria-label={`Loading trades with ${who}`}
+            role="status"
             aria-busy="true"
           />
         ) : (
