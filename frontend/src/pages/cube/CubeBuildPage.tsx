@@ -301,9 +301,16 @@ export function CubeBuildPage() {
   }, []);
 
   const [saveOpen, setSaveOpen] = useState(false);
-  // Off by default: a saved cube claims nothing until you ask it to, the same
-  // contract as the list's "Mark physical".
+  // Follows the pool the cube drew from, set each time the dialog opens: a cube
+  // built from Available or Spares only is made of copies no deck holds, so it
+  // saves physical and reserves them. Otherwise it would only list names, and
+  // every printing of a card would read as being in the cube. Everything I own
+  // may draw copies decks already hold, so that saves as a draft.
   const [savePhysical, setSavePhysical] = useState(false);
+  const openSave = () => {
+    setSavePhysical(filters.source !== 'all');
+    setSaveOpen(true);
+  };
   const [enrichedMap, setEnrichedMap] = useState<Map<string, ScryfallCard>>(new Map());
 
   const generate = useCallback(async () => {
@@ -566,7 +573,7 @@ export function CubeBuildPage() {
               <CubeResult
                 cube={cube}
                 onCopy={copyList}
-                onSave={() => setSaveOpen(true)}
+                onSave={openSave}
                 loaded={null}
                 ownershipFor={ownershipFor}
                 committedFor={committedFor}

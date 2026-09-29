@@ -533,9 +533,9 @@ export function CubeErrorBlock({ error, onRetry }: { error: string; onRetry: () 
 }
 
 /**
- * The "Physical cube" choice in a cube's save dialog, off by default: a saved
- * cube claims nothing until you ask it to, the same contract as the list's
- * "Mark physical". One component so every save path says it the same way.
+ * The "Physical cube" choice in a cube's save dialog. The build page turns it
+ * on when the pool was Available or Spares only; other save paths start it
+ * off. One component so every save path says it the same way.
  */
 export function PhysicalCubeSwitch({
   checked,
