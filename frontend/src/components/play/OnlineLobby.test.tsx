@@ -5,7 +5,7 @@
  * the art resolver — a network path — and the router, for the board link.
  */
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import type { GamePlayer, GameState } from '../../lib/game-state';
 import type { Deck } from '../../store/decks';
@@ -14,6 +14,12 @@ import { resolveHordeSettings, HORDE_CATALOG } from '@/lib/horde';
 import { HORDE_BAN_LIST } from '@/lib/horde/ban-list';
 
 vi.mock('../../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+
+const gamesApi = vi.hoisted(() => ({
+  getDiscordTablesEnabled: vi.fn(async () => false),
+  openDiscordTable: vi.fn(async (_code: string) => ''),
+}));
+vi.mock('@/lib/games-api', () => gamesApi);
 
 import { OnlineLobby } from './OnlineLobby';
 import { levelSummary } from './horde/HordeSetupFields';
@@ -502,6 +508,56 @@ describe('watchers and the voice link', () => {
     const link = screen.getByRole('link', { name: 'Join the call' });
     expect(link.getAttribute('href')).toBe('https://meet.example.com/abc');
     expect(link.getAttribute('rel')).toContain('noopener');
+  });
+
+  it('names Discord when the link is a Discord one', () => {
+    const game = { ...table(2), voiceUrl: 'https://discord.gg/abc' };
+    renderLobby(game, 'u1');
+    expect(screen.getByRole('link', { name: 'Join on Discord' })).toBeTruthy();
+  });
+});
+
+describe('Discord tables', () => {
+  beforeEach(() => {
+    gamesApi.getDiscordTablesEnabled.mockReset().mockResolvedValue(false);
+    gamesApi.openDiscordTable.mockReset();
+  });
+  afterEach(cleanup);
+
+  it('stays hidden when the server has no Discord set up', async () => {
+    renderLobby(table(2), 'u0');
+    await waitFor(() => expect(gamesApi.getDiscordTablesEnabled).toHaveBeenCalled());
+    expect(screen.queryByRole('button', { name: 'Open a Discord table' })).toBeNull();
+  });
+
+  it('opens a table and stores its invite as the voice link', async () => {
+    gamesApi.getDiscordTablesEnabled.mockResolvedValue(true);
+    gamesApi.openDiscordTable.mockResolvedValue('https://discord.gg/inv');
+    const dispatch = renderLobby(table(2), 'u0');
+    fireEvent.click(await screen.findByRole('button', { name: 'Open a Discord table' }));
+    await waitFor(() =>
+      expect(dispatch).toHaveBeenCalledWith({
+        type: 'settings',
+        patch: { voiceUrl: 'https://discord.gg/inv' },
+      })
+    );
+    expect(gamesApi.openDiscordTable).toHaveBeenCalledWith('ABCD');
+  });
+
+  it('says so when Discord does not answer', async () => {
+    gamesApi.getDiscordTablesEnabled.mockResolvedValue(true);
+    gamesApi.openDiscordTable.mockRejectedValue(new Error('Discord did not answer.'));
+    const dispatch = renderLobby(table(2), 'u0');
+    fireEvent.click(await screen.findByRole('button', { name: 'Open a Discord table' }));
+    expect((await screen.findByRole('alert')).textContent).toContain('Discord did not answer');
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it('is gone once the table has a voice link', async () => {
+    gamesApi.getDiscordTablesEnabled.mockResolvedValue(true);
+    renderLobby({ ...table(2), voiceUrl: 'https://discord.gg/inv' }, 'u0');
+    await waitFor(() => expect(gamesApi.getDiscordTablesEnabled).toHaveBeenCalled());
+    expect(screen.queryByRole('button', { name: 'Open a Discord table' })).toBeNull();
   });
 });
 
