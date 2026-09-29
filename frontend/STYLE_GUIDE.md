@@ -1724,8 +1724,12 @@ Moxfield/Archidekt dark-slate genre, so hold new surfaces to it:
   coloured glyph on the scrim was specimened and rejected: a purple deck
   vanished. Several owners have no one colour, so they stay on the scrim
   with its light glyph (`data-identity="many"`), and art never carries the
-  count (the tooltip and the accessible name do). Rows keep the tinted
-  chip. Guard: `styles/identity-mark-plate.test.ts`.
+  count (the tooltip and the accessible name do). A cube that only
+  **lists** the card holds no copy, so its mark is hollow, not filled: the
+  scrim and its light glyph with a dashed ring in the cube's violet
+  (`data-identity="listed"`, E503). The glyph stays light, so it reads where a
+  purple glyph did not. Rows keep the tinted chip. Guard:
+  `styles/identity-mark-plate.test.ts`.
 - **Rarity as standalone text uses the ink tokens (E151), never literals or
   the chip palette.** On a themed surface (the card tooltip):
   `--rarity-{mythic,rare,uncommon}-ink` — deep inks on paper, auto-flipped to

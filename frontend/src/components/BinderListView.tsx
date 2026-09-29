@@ -28,6 +28,7 @@ import { useToastsStore } from '../store/toasts';
 import { BinderSummaryBar, type BinderViewControls } from './BinderSummaryBar';
 import { BinderPagePreview } from './BinderPagePreview';
 import { useAllocations, type AllocationInfo } from '../lib/allocations';
+import { useCubeListings } from '../lib/cube-listings';
 import { sectionHeading } from '../lib/section-heading';
 import { printingFinishKey } from '../lib/collection-mutations';
 
@@ -90,6 +91,7 @@ export function BinderListView({ binder, controls, qtyByCopyId, density = 'detai
   const pushToast = useToastsStore((s) => s.push);
   const sortEditable = binder.def.mode !== 'manual' && !binder.def.manualOrder?.length;
   const allocations = useAllocations();
+  const cubeListingsFor = useCubeListings();
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [editingCard, setEditingCard] = useState<EnrichedCard | null>(null);
   // True when editing a single physical copy vs the whole printing stack:
@@ -408,6 +410,7 @@ export function BinderListView({ binder, controls, qtyByCopyId, density = 'detai
                       }
                       columns={isTable ? columns : undefined}
                       allocations={allocationsFor(r.card, r.qty)}
+                      cubeListings={cubeListingsFor(r.card.name)}
                       location={formatLocationSpan(r.spots, {
                         volume: r.spots[0] ? pageVolume(volumes, r.spots[0].pageNum) : undefined,
                       })}
@@ -447,6 +450,7 @@ export function BinderListView({ binder, controls, qtyByCopyId, density = 'detai
           pageNumbers={flat.pageNumbers}
           totalPages={binder.totalPages}
           getStackAllocations={(i) => allocationsFor(flat.cards[i])}
+          getStackCubeListings={(i) => (flat.cards[i] ? cubeListingsFor(flat.cards[i].name) : [])}
           getStackQty={(i) => flat.qtys[i] ?? 1}
           getActions={(i) => cardPreview.getCardActions(flat.cards[i])}
           renderPanelMeta={(i) => cardPreview.renderCardMeta(flat.cards[i])}

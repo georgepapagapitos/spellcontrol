@@ -3,11 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import './cube.css';
 import { BackLink } from '../../components/BackLink';
 import { PageHeader } from '../../components/PageHeader';
-import { Disclosure } from '../../components/shared/form';
+import { Disclosure, SwitchRow } from '../../components/shared/form';
 import { NameInputDialog } from '../../components/NameInputDialog';
 import { useCollectionStore } from '../../store/collection';
 import { useToastsStore } from '../../store/toasts';
 import { useCubeStore } from '../../store/cube';
+import { useDecksStore } from '../../store/decks';
+import { bindCubeCopies } from '../../lib/bind-cube-copies';
 import { useAuth } from '../../store/auth';
 import { DEFAULT_POOL_FILTERS, type PoolFilters } from '../../lib/cube/pool-filters';
 import { SelectMenu } from '../../components/SelectMenu';
@@ -299,6 +301,9 @@ export function CubeBuildPage() {
   }, []);
 
   const [saveOpen, setSaveOpen] = useState(false);
+  // Off by default: a saved cube claims nothing until you ask it to, the same
+  // contract as the list's "Mark physical".
+  const [savePhysical, setSavePhysical] = useState(false);
   const [enrichedMap, setEnrichedMap] = useState<Map<string, ScryfallCard>>(new Map());
 
   const generate = useCallback(async () => {
@@ -420,16 +425,33 @@ export function CubeBuildPage() {
 
   const handleSave = (name: string) => {
     const suppliers = supplierMap.size > 0 ? Object.fromEntries(supplierMap) : undefined;
+    // Bind against live store state read at save time, like "Mark physical",
+    // so a copy another deck claimed since the build is never double-claimed.
+    const picks =
+      savePhysical && cube
+        ? bindCubeCopies(
+            cube.picks,
+            useCollectionStore.getState().cards,
+            useDecksStore.getState().decks,
+            useCubeStore.getState().saved.filter((c) => c.isPhysical)
+          )
+        : [];
     const id = cubeStore.saveCurrent(
       name,
-      false,
-      [],
+      savePhysical,
+      picks,
       { synergyLevel: priority, filters },
       suppliers
     );
     setSaveOpen(false);
     if (!id) return;
-    pushToast({ message: `Saved "${name}"`, tone: 'success' });
+    const reserved = picks.filter((p) => p.allocatedCopyId).length;
+    pushToast({
+      message: savePhysical
+        ? `Saved "${name}" and reserved ${reserved} of ${picks.length} cards`
+        : `Saved "${name}"`,
+      tone: 'success',
+    });
     navigate(`/decks/cube/${id}`);
   };
 
@@ -581,7 +603,14 @@ export function CubeBuildPage() {
               confirmLabel="Save"
               onSubmit={handleSave}
               onCancel={() => setSaveOpen(false)}
-            />
+            >
+              <SwitchRow
+                label="Physical cube"
+                hint="Reserves one of your copies of each card, like sleeving them into the cube, so decks stop counting them as free. You can unmark it any time."
+                checked={savePhysical}
+                onChange={setSavePhysical}
+              />
+            </NameInputDialog>
           )}
         </div>
       )}

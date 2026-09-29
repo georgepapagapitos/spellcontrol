@@ -283,3 +283,51 @@ describe('CubeBuildPage — friends as a pool source', () => {
     expect(saved.suppliers?.['lb-oracle']).toEqual(['Alex']);
   });
 });
+
+describe('CubeBuildPage — saving as a physical cube (E503)', () => {
+  async function buildAndOpenSave() {
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: /Build cube/ }));
+    await screen.findByRole('button', { name: 'Save cube' });
+    fireEvent.click(screen.getByRole('button', { name: 'Save cube' }));
+    fireEvent.change(screen.getByLabelText('Cube name'), { target: { value: 'Shelf cube' } });
+  }
+
+  it('saves a draft by default: nothing reserved', async () => {
+    await buildAndOpenSave();
+    const toggle = screen.getByRole('switch', { name: 'Physical cube' });
+    expect(toggle.getAttribute('aria-checked')).toBe('false');
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(useCubeStore.getState().saved).toHaveLength(1));
+    const saved = useCubeStore.getState().saved[0];
+    expect(saved.isPhysical).toBe(false);
+    expect(saved.picks).toEqual([]);
+  });
+
+  it('the Physical cube switch reserves a free copy of each card at save time', async () => {
+    await buildAndOpenSave();
+    // A deck takes the only Sol Ring after the build ran, while the dialog is
+    // open: the save must read live state and leave that copy alone.
+    const solRing = useCollectionStore.getState().cards.find((c) => c.name === 'Sol Ring')!;
+    useDecksStore.setState({
+      decks: [
+        {
+          id: 'd1',
+          name: 'Deck',
+          cards: [{ card: solRing, quantity: 1, allocatedCopyId: solRing.copyId }],
+        } as unknown as ReturnType<typeof useDecksStore.getState>['decks'][number],
+      ],
+    });
+    fireEvent.click(screen.getByRole('switch', { name: 'Physical cube' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(useCubeStore.getState().saved).toHaveLength(1));
+    const saved = useCubeStore.getState().saved[0];
+    expect(saved.isPhysical).toBe(true);
+    const bound = new Map(saved.picks.map((p) => [p.card.name, p.allocatedCopyId]));
+    expect(bound.get('Sol Ring')).toBeNull();
+    expect(bound.get('Arcane Signet')).toBeTruthy();
+    expect(bound.get('Swords to Plowshares')).toBeTruthy();
+  });
+});

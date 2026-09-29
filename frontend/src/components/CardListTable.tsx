@@ -54,6 +54,7 @@ import { DeckBadge } from './DeckBadge';
 import { Legend } from './Legend';
 import { BinderBadge, type BinderInfo } from './BinderBadge';
 import { useAllocations, computeSurplusByName, type AllocationInfo } from '../lib/allocations';
+import { useCubeListings } from '../lib/cube-listings';
 import type { CollectionFilterJump } from '../lib/collection-insights';
 import { ViewModeToggle } from './ViewModeToggle';
 import { ZoomControl } from './ZoomControl';
@@ -700,6 +701,9 @@ export function CardListTable({
   // can run in the same filter pass as the binder/color/condition post-checks.
   const allCards = useCollectionStore((s) => s.cards);
   const allocations = useAllocations();
+  // Cubes that list a card without holding a copy (draft cubes, and a physical
+  // cube's unreserved picks): the dashed cube badge, never an allocation.
+  const cubeListingsFor = useCubeListings();
   // Card names with unallocated copies beyond the keep floor — the
   // "tradeable surplus" predicate. Computed over the full collection (not
   // just `cards`/`cardsForMatch`, which can be a binder-scoped subset) so a
@@ -2339,6 +2343,9 @@ export function CardListTable({
           totalPages={0}
           getStackBinders={(i) => displayRows[i]?.binders ?? []}
           getStackAllocations={(i) => (displayRows[i] ? allocationsFor(displayRows[i].card) : [])}
+          getStackCubeListings={(i) =>
+            displayRows[i] ? cubeListingsFor(displayRows[i].card.name) : []
+          }
           getStackQty={(i) => displayRows[i]?.qty ?? 1}
           onIndexChange={setPreviewIndex}
           onClose={() => setPreviewIndex(null)}
@@ -2500,7 +2507,11 @@ export function CardListTable({
                       }
                       badges={
                         <>
-                          <DeckBadge allocations={allocationsFor(r.card)} placement="art" />
+                          <DeckBadge
+                            allocations={allocationsFor(r.card)}
+                            listedIn={cubeListingsFor(r.card.name)}
+                            placement="art"
+                          />
                           <BinderBadge binders={r.binders} placement="art" />
                         </>
                       }
@@ -2577,6 +2588,7 @@ export function CardListTable({
                   card={r.card}
                   qty={r.qty}
                   allocations={allocationsFor(r.card)}
+                  cubeListings={cubeListingsFor(r.card.name)}
                   binders={r.binders}
                   surplusCount={surplusOnly ? surplusByName.get(r.card.name) : undefined}
                   setName={r.card.setName || setMap?.[r.card.setCode.toUpperCase()]?.name}

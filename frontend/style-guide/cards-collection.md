@@ -470,6 +470,23 @@ trading one out, not by squeezing:
 | **Compact** (32px) | **<768px:** name · type glyph · rarity chip · set code · mana · qty · value. **≥768px it is the table** (below): qty · name (glyph + rarity chip + name + foil/proxy/deck badges) · set · # · condition · language · binder · notes · mana · price · total, under a sticky sortable header                                                                                                                                                                                                              |
 | **Grid** (tile)    | art + qty badge + corner deck/binder badges + the **"Details" caption plate** under the card (price/sort-value line + rarity-tinted `SetSymbol` · set code · CN; per-line toggleable, default on). That set line carries the printing identity, so while it shows, the on-card **rarity chip** and duplicate-name **set-code chip** are suppressed; with it off both return — rarity top-right on every tile, the set chip bottom-left only when the same card name has >1 printing in the current rows |
 
+**Where a card lives: three cube-and-deck badges, one chip.** `DeckBadge` is
+the one "where is it" chip, in three kinds. A **deck** holds a copy: the deck's
+color and the Layers glyph. A **physical cube** holds a copy: violet
+`--cube-color` and the Boxes glyph. A cube **lists** the card but holds no copy
+(a draft cube, a physical cube's pick it had no free copy for, or its
+commanders): the same violet Boxes mark drawn **hollow and dashed**, the "no
+physical home" mark the Uncategorized chip already uses. In a row that is a
+dashed chip; on art it is the scrim with a dashed violet ring
+(`data-identity="listed"`, STYLE_GUIDE § On-art scrims). A listing is not a
+claim. It comes from `lib/cube-listings.ts`, by card name, and never enters the
+allocation map, so a listed copy stays available to decks and binders. The
+dashed badge reads "Listed in cube: <name>", links to the cube, and sits beside
+any deck badge rather than replacing it. The card preview's context line
+carries the same three as pills, and the Key has an entry for each. The binder
+page grid (`CardSlot`) shows only real claims, since it answers "is this copy
+in its pocket" and a listing never moves a copy.
+
 **Table density (compact view, ≥768px) — the Moxfield-style collection table.**
 Compact is not a fourth view mode: from tablet width up the same `compact`
 setting renders `CardRow` in `table` mode — one grid cell per column on the

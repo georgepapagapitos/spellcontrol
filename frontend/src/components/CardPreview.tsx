@@ -46,6 +46,7 @@ import { useSwipeDownDismiss } from '../lib/use-swipe-down-dismiss';
 import { useSheetExit } from '../lib/use-sheet-exit';
 import { nextStop, useSheetStops, type SheetStop } from '../lib/use-sheet-stops';
 import type { AllocationInfo } from '../lib/allocations';
+import type { CubeListing } from '../lib/cube-listings';
 import type { BinderInfo } from './BinderBadge';
 import { CardName } from '@/components/shared/CardName';
 import { IconButton } from '@/components/shared/Button';
@@ -108,6 +109,9 @@ interface Props {
    * from.
    */
   getStackAllocations?: (i: number) => AllocationInfo[];
+  /** Cubes that list the card at index `i` without holding a copy: a draft
+   *  cube, or a physical cube's unreserved picks. Shown as dashed cube pills. */
+  getStackCubeListings?: (i: number) => CubeListing[];
   /**
    * Grouped-row quantity for the card at index `i` (collection grid uses
    * this when rows roll up multiple copies of the same printing). Returning
@@ -223,6 +227,7 @@ export function CardPreview({
   currentDeckId,
   getStackBinders,
   getStackAllocations,
+  getStackCubeListings,
   getStackQty,
   getActions,
   onIndexChange,
@@ -680,6 +685,24 @@ export function CardPreview({
           <span>{c.ownerName}</span>
         </Link>
       )),
+      // A cube that only lists the card: same pill, hollow and dashed, since
+      // it holds no copy (DeckBadge's listed badge, the same ruling).
+      ...(getStackCubeListings?.(selected) ?? [])
+        .filter((l) => !cubeById.has(l.cubeId))
+        .map((l) => (
+          <Link
+            key={`cl-${l.cubeId}`}
+            to={`/decks/cube/${l.cubeId}`}
+            className="card-preview-context-pill card-preview-context-pill--cube card-preview-context-pill--listed"
+            style={{ '--pill-color': 'var(--cube-color)' } as React.CSSProperties}
+            onClick={onClose}
+            title={`Listed in cube: ${l.cubeName}`}
+            aria-label={`Listed in cube: ${l.cubeName}`}
+          >
+            <Boxes width={12} height={12} strokeWidth={2} aria-hidden />
+            <span>{l.cubeName}</span>
+          </Link>
+        )),
     ];
     if (!words && pills.length === 0 && qty <= 1) return null;
     return (

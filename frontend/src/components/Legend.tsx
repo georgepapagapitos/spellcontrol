@@ -255,6 +255,16 @@ export function LegendContent({ context }: { context: LegendContext }) {
           <Entry
             interactive
             glyph={
+              <DeckBadge
+                allocations={[]}
+                listedIn={[{ cubeId: 'legend-cube', cubeName: 'a cube' }]}
+              />
+            }
+            word="Listed in a cube, no copy reserved"
+          />
+          <Entry
+            interactive
+            glyph={
               <BinderBadge binders={[{ id: 'legend-sample', name: 'a binder', color: null }]} />
             }
             word="In a binder"

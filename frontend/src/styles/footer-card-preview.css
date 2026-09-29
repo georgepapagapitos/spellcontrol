@@ -970,6 +970,13 @@
   flex-shrink: 0;
 }
 
+/* A cube that lists the card but holds no copy: hollow and dashed, the same
+   ruling as the collection's listed cube badge. */
+.card-preview-context-pill--listed {
+  background: transparent;
+  border-style: dashed;
+}
+
 /* Actions: labelled rects (STYLE_GUIDE § Shape language), the owner/
    management ones folded into a ⋮ at the end. */
 .card-preview-actions {
