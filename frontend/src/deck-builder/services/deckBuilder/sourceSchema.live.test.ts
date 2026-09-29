@@ -43,6 +43,17 @@ const EDHREC = 'https://json.edhrec.com';
 const requests: string[] = [];
 let realFetch: typeof fetch;
 
+/** Whether a recorded request hit Scryfall's API at `path`, matched on the
+ *  parsed hostname and path rather than a substring of the URL. */
+function reachedScryfall(method: string, path: string): boolean {
+  return requests.some((r) => {
+    const [m, url] = r.split(' ', 2);
+    if (m !== method || !URL.canParse(url)) return false;
+    const parsed = new URL(url);
+    return parsed.hostname === 'api.scryfall.com' && parsed.pathname === path;
+  });
+}
+
 beforeAll(() => {
   realFetch = globalThis.fetch;
   vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -185,7 +196,7 @@ describe.skipIf(!process.env.LIVE_GEN)('source schema canary', () => {
   it('Scryfall /cards/named answers with the fields the generator reads', async () => {
     const card = await getCardByName(NAMED);
     expect(
-      requests.some((r) => r.includes('api.scryfall.com/cards/named')),
+      reachedScryfall('GET', '/cards/named'),
       'the named lookup never reached api.scryfall.com/cards/named'
     ).toBe(true);
     expectScryfallCard(card, NAMED);
@@ -194,7 +205,7 @@ describe.skipIf(!process.env.LIVE_GEN)('source schema canary', () => {
   it('Scryfall /cards/collection answers every name with oracle text, per face for an MDFC', async () => {
     const found = await getCardsByNames(COLLECTION);
     expect(
-      requests.some((r) => r.startsWith('POST') && r.includes('api.scryfall.com/cards/collection')),
+      reachedScryfall('POST', '/cards/collection'),
       'the batch lookup never reached POST api.scryfall.com/cards/collection'
     ).toBe(true);
     for (const name of COLLECTION) {

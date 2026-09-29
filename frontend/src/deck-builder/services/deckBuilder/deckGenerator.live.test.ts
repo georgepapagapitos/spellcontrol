@@ -288,7 +288,7 @@ beforeAll(async () => {
       ...(init?.headers as Record<string, string> | undefined),
       'User-Agent': 'SpellControl-DeckGen-EvalHarness/1.0',
     };
-    const isScryfall = url.includes('api.scryfall.com');
+    const isScryfall = URL.canParse(url) && new URL(url).hostname === 'api.scryfall.com';
     if (!HTTP_CACHE_DIR) {
       const res = await realFetch(input, { ...init, headers });
       if (isScryfall && res.ok) recordNameResolutions(url, await res.clone().text());
