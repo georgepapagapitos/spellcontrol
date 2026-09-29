@@ -233,6 +233,8 @@
 
 .play-stepper-btn:focus-visible {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   color: var(--accent);
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -240,6 +242,8 @@
 @media (hover: hover) and (pointer: fine) {
   .play-stepper-btn:hover:not(:disabled) {
     background: var(--accent-light);
+    --text-muted: var(--text-muted-tint);
+    --text-secondary: var(--text-secondary-tint);
     color: var(--accent);
     outline: none;
   }
@@ -443,6 +447,8 @@
 
 .play-setup-seat-deck-add:focus-visible {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   border-color: var(--accent);
   color: var(--accent);
   outline: 2px solid var(--accent);
@@ -451,6 +457,8 @@
 @media (hover: hover) and (pointer: fine) {
   .play-setup-seat-deck-add:hover {
     background: var(--accent-light);
+    --text-muted: var(--text-muted-tint);
+    --text-secondary: var(--text-secondary-tint);
     border-color: var(--accent);
     color: var(--accent);
     outline: none;
@@ -521,6 +529,8 @@
 
 .play-setup-roster-add:focus-visible {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   border-color: var(--accent);
   color: var(--accent);
   outline: 2px solid var(--accent);
@@ -529,6 +539,8 @@
 @media (hover: hover) and (pointer: fine) {
   .play-setup-roster-add:hover {
     background: var(--accent-light);
+    --text-muted: var(--text-muted-tint);
+    --text-secondary: var(--text-secondary-tint);
     border-color: var(--accent);
     color: var(--accent);
     outline: none;
@@ -619,6 +631,8 @@
   gap: var(--space-3);
   flex-wrap: wrap;
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   border: 0.5px solid var(--accent);
   border-radius: var(--radius-lg);
   padding: var(--space-3) var(--space-4);

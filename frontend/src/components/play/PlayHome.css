@@ -20,6 +20,8 @@
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   border: 1px solid var(--accent);
   border-radius: var(--radius-lg);
 }

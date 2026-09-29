@@ -141,6 +141,19 @@ describe('card-preview panel: text, status and accent clear AA in every theme', 
           if (r < AA) failures.push(`--${ink} on ${where}: ${r.toFixed(2)}`);
         }
       }
+      // A tinted (selected) block inside the panel: --accent-light is the
+      // panel accent at 18%, and every rule painting it re-points muted and
+      // secondary at the on-tint pair (styles/text-contrast-grounds.test.ts).
+      expect(resolve('accent-light')).toBe(
+        'color-mix(in srgb, var(--art-scrim-accent) 18%, transparent)'
+      );
+      for (const [where, under] of Object.entries({ panel: panelBg, row })) {
+        const tinted = mix(accent, 0.18, under);
+        for (const t of ['text-muted-tint', 'text-secondary-tint', 'text-primary']) {
+          const r = contrast(over(parseColor(resolve(t)), tinted), tinted);
+          if (r < AA) failures.push(`--${t} on the accent tint over ${where}: ${r.toFixed(2)}`);
+        }
+      }
       // The Add / Swap in button fills with --accent and writes --on-accent.
       const onAccent = contrast(hex(resolve('on-accent')), accent);
       if (onAccent < AA) failures.push(`--on-accent on --accent: ${onAccent.toFixed(2)}`);

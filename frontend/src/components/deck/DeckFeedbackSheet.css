@@ -216,6 +216,8 @@
 @media (hover: hover) and (pointer: fine) {
   .deck-feedback-verdict:hover {
     background: var(--accent-light);
+    --text-muted: var(--text-muted-tint);
+    --text-secondary: var(--text-secondary-tint);
   }
 }
 

@@ -71,6 +71,8 @@
 @media (hover: hover) and (pointer: fine) {
   .section-header-toggle:hover {
     background: var(--accent-light);
+    --text-muted: var(--text-muted-tint);
+    --text-secondary: var(--text-secondary-tint);
   }
 }
 

@@ -54,6 +54,8 @@
 .playtest-resistance-picker__row.is-active {
   border-color: var(--accent);
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
 }
 
 .playtest-resistance-picker__row:has(input:focus-visible) {

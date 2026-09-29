@@ -209,6 +209,8 @@
   .playtest-game-menu__item:hover {
     border-color: var(--border);
     background: var(--accent-light);
+    --text-muted: var(--text-muted-tint);
+    --text-secondary: var(--text-secondary-tint);
   }
 
   .playtest-game-menu__item:hover .playtest-game-menu__item-icon {

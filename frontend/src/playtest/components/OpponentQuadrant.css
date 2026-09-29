@@ -22,6 +22,8 @@
   background:
     radial-gradient(circle at 30% 30%, var(--accent-light), transparent 60%),
     radial-gradient(circle at 70% 70%, var(--accent-light), transparent 60%), var(--bg);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
 }
 
 .opponent-quadrant__inner {

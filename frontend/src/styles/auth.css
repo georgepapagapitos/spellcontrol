@@ -75,6 +75,8 @@
   margin: -12px 0 var(--space-4);
   padding: var(--space-2) var(--space-3);
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
   border-radius: var(--radius);
   color: var(--accent);
   font-size: var(--text-sm);

@@ -129,6 +129,8 @@
   color: var(--accent);
   border-color: var(--accent-light);
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
 }
 
 .sync-indicator-local {

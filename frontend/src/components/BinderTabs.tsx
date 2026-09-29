@@ -2,6 +2,7 @@ import { Download } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
+import { inkOn } from '../lib/ink';
 import type { MaterializedBinder } from '../types';
 import { BinderExportDialog } from './BinderExportDialog';
 import { Chip } from './shared/Chip';
@@ -112,6 +113,8 @@ export function BinderTabs({ binders }: Props) {
                         borderColor: b.def.color,
                         // Mobile underline-tab style picks this up via CSS var.
                         ['--binder-color' as string]: b.def.color,
+                        // The label sits on the binder's own fill: ink by its luminance.
+                        ['--binder-ink' as string]: inkOn(b.def.color),
                       }
                     : {
                         borderLeftColor: b.def.color,

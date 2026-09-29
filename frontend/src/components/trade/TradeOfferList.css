@@ -138,6 +138,8 @@
   color: var(--accent);
   border-color: var(--accent);
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
 }
 
 .trade-offer-status.is-declined,
