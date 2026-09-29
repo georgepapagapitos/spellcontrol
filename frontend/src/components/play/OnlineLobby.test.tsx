@@ -521,8 +521,14 @@ describe('Discord tables', () => {
   beforeEach(() => {
     gamesApi.getDiscordTablesEnabled.mockReset().mockResolvedValue(false);
     gamesApi.openDiscordTable.mockReset();
+    tab = { opener: {}, location: { href: '' }, close: vi.fn() };
+    vi.spyOn(window, 'open').mockReturnValue(tab as unknown as Window);
   });
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
+  let tab: { opener: unknown; location: { href: string }; close: ReturnType<typeof vi.fn> };
 
   it('stays hidden when the server has no Discord set up', async () => {
     renderLobby(table(2), 'u0');
@@ -534,7 +540,10 @@ describe('Discord tables', () => {
     gamesApi.getDiscordTablesEnabled.mockResolvedValue(true);
     gamesApi.openDiscordTable.mockResolvedValue('https://discord.gg/inv');
     const dispatch = renderLobby(table(2), 'u0');
-    fireEvent.click(await screen.findByRole('button', { name: 'Open a Discord table' }));
+    const open = await screen.findByRole('button', { name: 'Open a Discord table' });
+    // Discord's own mark, so the button says which app it opens.
+    expect(open.querySelector('svg path[fill="#5865F2"]')).not.toBeNull();
+    fireEvent.click(open);
     await waitFor(() =>
       expect(dispatch).toHaveBeenCalledWith({
         type: 'settings',
@@ -542,6 +551,10 @@ describe('Discord tables', () => {
       })
     );
     expect(gamesApi.openDiscordTable).toHaveBeenCalledWith('ABCD');
+    // Opened inside the click, then sent to the invite: no copy and paste.
+    expect(window.open).toHaveBeenCalledWith('', '_blank');
+    expect(tab.location.href).toBe('https://discord.gg/inv');
+    expect(tab.opener).toBe(null);
   });
 
   it('says so when Discord does not answer', async () => {
@@ -551,6 +564,7 @@ describe('Discord tables', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Open a Discord table' }));
     expect((await screen.findByRole('alert')).textContent).toContain('Discord did not answer');
     expect(dispatch).not.toHaveBeenCalled();
+    expect(tab.close).toHaveBeenCalled();
   });
 
   it('is gone once the table has a voice link', async () => {
@@ -558,6 +572,13 @@ describe('Discord tables', () => {
     renderLobby({ ...table(2), voiceUrl: 'https://discord.gg/inv' }, 'u0');
     await waitFor(() => expect(gamesApi.getDiscordTablesEnabled).toHaveBeenCalled());
     expect(screen.queryByRole('button', { name: 'Open a Discord table' })).toBeNull();
+  });
+
+  it('gives the host the link to join, not just the field', async () => {
+    renderLobby({ ...table(2), voiceUrl: 'https://discord.gg/inv' }, 'u0');
+    const join = await screen.findByRole('link', { name: 'Join on Discord' });
+    expect(join.getAttribute('href')).toBe('https://discord.gg/inv');
+    expect(join.querySelector('svg path[fill="#5865F2"]')).not.toBeNull();
   });
 });
 
