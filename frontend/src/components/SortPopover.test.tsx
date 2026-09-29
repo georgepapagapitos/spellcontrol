@@ -67,6 +67,13 @@ describe('SortPopover — desktop: anchored popover', () => {
     expect(within(panel).getByText('Sections')).toBeTruthy();
   });
 
+  it('"Choose fields" moves focus to the chain\'s first field picker (E506)', () => {
+    setup([{ field: 'name', dir: 'asc' }]);
+    fireEvent.click(screen.getByRole('button', { name: /change sort order/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Choose fields/ }));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Sort 1 field' }));
+  });
+
   it('picking a preset applies its chain immediately', () => {
     const { onSortsChange } = setup([{ field: 'name', dir: 'asc' }]);
     fireEvent.click(screen.getByRole('button', { name: /change sort order/i }));

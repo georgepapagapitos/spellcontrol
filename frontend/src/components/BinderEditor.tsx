@@ -11,6 +11,7 @@ import { NEW_BINDER_DEFAULT_SORTS, SORT_FIELDS, SORT_PRESETS } from '../lib/sort
 import { useAnchoredPanel } from '../lib/use-anchored-panel';
 import { SortEditor } from './SortEditor';
 import { SortPresetChips } from './SortPresets';
+import { focusFirstSortField } from '../lib/sort-field-focus';
 import { sortOrderSummaryLabel } from '../lib/sort-order-label';
 import { areAllGroupsEmpty } from '../lib/rules';
 import {
@@ -362,6 +363,8 @@ export function BinderEditor() {
   const [placeAboveId, setPlaceAboveId] = useState<string | null>(null);
   const [importPasteText, setImportPasteText] = useState('');
   const importFileRef = useRef<HTMLInputElement>(null);
+  // The Order section's chips + chain, so "Choose fields" can reach the chain.
+  const orderRef = useRef<HTMLDivElement>(null);
   const [importFiles_, setImportFiles] = useState<File[]>([]);
   /** "These are all proxies" toggle for the binder-import UI. */
   const [importAsProxies, setImportAsProxies] = useState(false);
@@ -1482,17 +1485,21 @@ export function BinderEditor() {
 
                   <div className="binder-editor-settings">
                     <Disclosure title="Order" summary={orderSummary}>
-                      <SortPresetChips
-                        sorts={sorts}
-                        onPick={(preset) => setSorts(preset.sorts)}
-                        onChooseFields={() => {}}
-                      />
-                      <SortEditor
-                        sorts={sorts}
-                        valueOrders={sortValueOrders}
-                        onSortsChange={setSorts}
-                        onValueOrdersChange={setSortValueOrders}
-                      />
+                      <div ref={orderRef} className="binder-editor-order">
+                        <SortPresetChips
+                          sorts={sorts}
+                          onPick={(preset) => setSorts(preset.sorts)}
+                          // The chain sits right below: move to its first
+                          // field picker (E506; it was a dead chip).
+                          onChooseFields={() => focusFirstSortField(orderRef.current)}
+                        />
+                        <SortEditor
+                          sorts={sorts}
+                          valueOrders={sortValueOrders}
+                          onSortsChange={setSorts}
+                          onValueOrdersChange={setSortValueOrders}
+                        />
+                      </div>
                       <Field label="Section headers come from">
                         <ChoiceList
                           ariaLabel="Section headers come from"

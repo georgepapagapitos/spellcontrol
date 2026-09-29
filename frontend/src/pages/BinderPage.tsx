@@ -471,6 +471,7 @@ export function BinderPage() {
         <BinderView
           binders={materialized}
           driftBinders={driftBinders}
+          volumes={activeVolumes}
           controls={controls}
           qtyByCopyId={qtyByCopyId}
           showImages={showImages}
@@ -509,6 +510,7 @@ export function BinderPage() {
                 controls={controls}
                 qtyByCopyId={qtyByCopyId}
                 density={view === 'compact' ? 'compact' : 'detail'}
+                volumes={activeVolumes}
               />
             </>
           );

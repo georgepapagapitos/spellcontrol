@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { formatLocationSpan } from '../lib/card-locations';
-import { volumesFor, hasMultipleVolumes, pageVolume } from '../lib/binder-volumes';
+import { hasMultipleVolumes, pageVolume, type Volume } from '../lib/binder-volumes';
 import type { EnrichedCard, MaterializedBinder } from '../types';
 import { CardRowMenu } from './CardRowMenu';
 import { CardPreview } from './CardPreview';
@@ -45,6 +45,11 @@ interface Props {
   qtyByCopyId?: Map<string, number>;
   /** 'detail' = thumbnail + multi-line meta. 'compact' = text-only single line. */
   density?: 'detail' | 'compact';
+  /**
+   * This binder's volumes, from BinderPage's UNFILTERED pass. `binder` can be
+   * the search-narrowed pass, which drops pages and would renumber volumes.
+   */
+  volumes?: Volume[] | null;
 }
 
 /**
@@ -74,7 +79,13 @@ interface Row {
  * grid view. Sister to CardListTable, but binder-scoped: rows live under
  * their section header instead of being globally sorted into a flat list.
  */
-export function BinderListView({ binder, controls, qtyByCopyId, density = 'detail' }: Props) {
+export function BinderListView({
+  binder,
+  controls,
+  qtyByCopyId,
+  density = 'detail',
+  volumes = null,
+}: Props) {
   const isCompact = density === 'compact';
   // Compact becomes the shared card table from tablet width up, exactly as
   // Collection's does — same row component, same columns, same widths. Below
@@ -146,7 +157,6 @@ export function BinderListView({ binder, controls, qtyByCopyId, density = 'detai
   // Present only once the binder outgrows its own fixed capacity — see
   // lib/binder-volumes.ts. `null` (no capacity) and a single-volume binder
   // both leave this undefined, so the page viewer never shows "Vol 1".
-  const volumes = useMemo(() => volumesFor(binder), [binder]);
   const flatVolumeLabels = useMemo(
     () =>
       hasMultipleVolumes(volumes)
