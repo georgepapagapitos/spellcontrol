@@ -4,12 +4,14 @@ import { fileURLToPath } from 'node:url';
 import { TYPESETS, DEFAULT_TYPESET, isValidTypeSet, typeSetHref } from './typesets';
 
 const read = (rel: string) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8');
-const indexHtml = () => read('../../index.html');
+const indexHtml = () => read('../../../index.html');
 
 /** The stylesheet that declares a set's faces: the bundled styles/fonts.css
  *  for the default, public/fonts/typeset-<id>.css for every other set. */
 const faceSheet = (id: string) =>
-  id === DEFAULT_TYPESET ? read('../styles/fonts.css') : read(`../../public${typeSetHref(id)}`);
+  id === DEFAULT_TYPESET
+    ? read('../../styles/fonts.css')
+    : read(`../../../public${typeSetHref(id)}`);
 /** Families a stylesheet declares an @font-face for. */
 const familiesOf = (css: string): string[] => [
   ...new Set([...css.matchAll(/font-family: '([^']+)'/g)].map((m) => m[1])),
@@ -45,7 +47,7 @@ describe('typesets', () => {
   });
 
   it("every face a set's tokens name first is declared by that set's stylesheet", () => {
-    const typesets = read('../styles/typesets.css');
+    const typesets = read('../../styles/typesets.css');
     for (const t of TYPESETS) {
       const block = typesets.match(
         new RegExp(String.raw`\[data-typeset='${t.id}'\] \{([^}]*)\}`)
@@ -71,7 +73,7 @@ describe('typesets', () => {
     // resets font-size-adjust to none instead of inheriting it. A rule on body
     // alone left every <button> label ~12% smaller than an <a> with the same
     // classes beside it (Almanac, E433).
-    const rules = [...read('../styles/typesets.css').matchAll(/([^{}]+)\{([^}]*)\}/g)].filter(
+    const rules = [...read('../../styles/typesets.css').matchAll(/([^{}]+)\{([^}]*)\}/g)].filter(
       ([, , body]) => body.includes('font-size-adjust')
     );
     expect(rules.length).toBeGreaterThan(0);

@@ -63,7 +63,7 @@ describe('safeLocalStorage', () => {
  * Horde table's damage sheet stuck open that way). Fix a failure by passing
  * `safeLocalStorage` instead. */
 describe('persist stores never use raw localStorage', () => {
-  const srcDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+  const srcDir = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
   function walk(dir: string): string[] {
     return readdirSync(dir).flatMap((name) => {

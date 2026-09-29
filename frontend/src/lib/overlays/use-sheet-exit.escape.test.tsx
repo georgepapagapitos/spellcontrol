@@ -141,7 +141,7 @@ const OWN_ESCAPE: Record<string, string> = {
     "the search input clears its query first and preventDefaults, so the hook's close waits for the next Escape",
 };
 
-const SRC = join(__dirname, '..');
+const SRC = join(__dirname, '..', '..');
 function walk(dir: string, out: string[] = []): string[] {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
     const p = join(dir, e.name);

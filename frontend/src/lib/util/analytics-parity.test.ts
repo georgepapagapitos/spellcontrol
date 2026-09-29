@@ -31,7 +31,7 @@ import { dirname, join } from 'node:path';
 const here = dirname(fileURLToPath(import.meta.url));
 const analytics = readFileSync(join(here, 'analytics.ts'), 'utf8');
 const events = readFileSync(
-  join(here, '..', '..', '..', 'backend', 'src', 'routes', 'events.ts'),
+  join(here, '..', '..', '..', '..', 'backend', 'src', 'routes', 'events.ts'),
   'utf8'
 );
 

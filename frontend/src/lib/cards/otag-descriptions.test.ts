@@ -8,6 +8,7 @@ const snapshotPath = join(
   dirname(fileURLToPath(import.meta.url)),
   '..',
   '..',
+  '..',
   'public',
   'tagger-tags.json'
 );

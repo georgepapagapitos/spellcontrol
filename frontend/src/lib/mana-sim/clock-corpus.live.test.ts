@@ -95,10 +95,10 @@ describe.skipIf(!ENABLED)('assembly clock — live corpus eval', () => {
   beforeAll(async () => {
     mkdirSync(OUT_DIR, { recursive: true });
     const taggerData = JSON.parse(
-      readFileSync(resolve(here, '..', '..', 'public', 'tagger-tags.json'), 'utf8')
+      readFileSync(resolve(here, '..', '..', '..', 'public', 'tagger-tags.json'), 'utf8')
     );
     const cardSimilarData = JSON.parse(
-      readFileSync(resolve(here, '..', '..', 'public', 'card-similar.json'), 'utf8')
+      readFileSync(resolve(here, '..', '..', '..', 'public', 'card-similar.json'), 'utf8')
     );
     realFetch = globalThis.fetch;
     vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
