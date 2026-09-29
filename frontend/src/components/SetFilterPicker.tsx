@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { X } from 'lucide-react';
-import type { SetMap } from '../lib/api';
+import type { SetMap } from '@/lib/api';
 import { Chip } from '@/components/shared/Chip';
 import { IconButton } from '@/components/shared/Button';
 

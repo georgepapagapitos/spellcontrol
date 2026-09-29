@@ -9,7 +9,7 @@ import { useToastsStore } from '../store/toasts';
 import { useAuth } from '../store/auth';
 import type { BinderDef, EnrichedCard } from '../types';
 
-vi.mock('../lib/use-lock-body-scroll', () => ({ useLockBodyScroll: () => {} }));
+vi.mock('@/lib/overlays/use-lock-body-scroll', () => ({ useLockBodyScroll: () => {} }));
 
 let n = 0;
 function card(

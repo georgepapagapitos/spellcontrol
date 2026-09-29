@@ -32,7 +32,7 @@ const { authState, activityState } = vi.hoisted(() => ({
 vi.mock('../store/auth', () => ({
   useAuth: (selector: (s: typeof authState) => unknown) => selector(authState),
 }));
-vi.mock('../lib/use-activity', () => ({
+vi.mock('@/lib/social/use-activity', () => ({
   useActivity: () => activityState,
 }));
 vi.mock('../store/collection', () => ({

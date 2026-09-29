@@ -11,7 +11,7 @@
  * constraint or doesn't.
  */
 import type { ScryfallCard } from '@/deck-builder/types';
-import { frontFaceName } from '@/lib/card-text';
+import { frontFaceName } from '@/lib/cards/card-text';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 import {
   constrainsToCollection,

@@ -1,5 +1,5 @@
 import { type JSX, useMemo, useState } from 'react';
-import { COLOR_INFO } from '../../lib/colors';
+import { COLOR_INFO } from '@/lib/cards/colors';
 import { useCardCarousel, tallyToEntries, type CardTally } from './useCardCarousel';
 import { CardGroupSheet } from './CardGroupSheet';
 import type { CurveColorBucket } from './deck-mana-types';

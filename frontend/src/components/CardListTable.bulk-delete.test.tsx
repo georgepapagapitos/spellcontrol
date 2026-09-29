@@ -13,13 +13,13 @@ import type { EnrichedCard } from '../types';
 import { useCollectionStore } from '../store/collection';
 import { useToastsStore } from '../store/toasts';
 
-vi.mock('../lib/local-cards', async (importActual) => ({
-  ...(await importActual<typeof import('../lib/local-cards')>()),
+vi.mock('@/lib/sync/local-cards', async (importActual) => ({
+  ...(await importActual<typeof import('@/lib/sync/local-cards')>()),
   saveCollection: async () => {},
 }));
 
 // Auto-accept the delete confirmation; the dialog itself is not under test.
-vi.mock('../lib/use-confirm', () => ({
+vi.mock('./use-confirm', () => ({
   useConfirm: () => ({ confirm: async () => true, dialog: null }),
 }));
 
@@ -45,7 +45,7 @@ vi.mock('./CardPreview', () => ({
 }));
 
 import { CardListTable } from './CardListTable';
-import { ShortcutRegistryProvider } from '../lib/shortcut-registry';
+import { ShortcutRegistryProvider } from './shortcut-registry';
 
 function mk(o: Partial<EnrichedCard> = {}): EnrichedCard {
   return {

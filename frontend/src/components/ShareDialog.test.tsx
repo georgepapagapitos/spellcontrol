@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { useAuth } from '../store/auth';
-import type { ShareKind, ShareRow } from '../lib/shared-types';
+import type { ShareKind, ShareRow } from '@/lib/social/shared-types';
 
 const {
   createShareMock,
@@ -23,19 +23,19 @@ const {
   listFriendsMock: vi.fn(),
 }));
 
-vi.mock('../lib/share-client', () => ({
+vi.mock('@/lib/social/share-client', () => ({
   createShare: (input: unknown) => createShareMock(input),
   listShares: () => listSharesMock(),
   revokeShare: (token: string) => revokeShareMock(token),
   shareUrl: (token: string) => `https://spellcontrol.com/s/${token}`,
 }));
-vi.mock('../lib/publications-client', () => ({
+vi.mock('@/lib/social/publications-client', () => ({
   getPublication: (deckId: string) => getPublicationMock(deckId),
   publishDeck: (deckId: string) => publishDeckMock(deckId),
   unpublishDeck: (deckId: string) => unpublishDeckMock(deckId),
   publicationUrl: (slug: string) => `https://spellcontrol.com/d/${slug}`,
 }));
-vi.mock('../lib/friends-client', () => ({ listFriends: () => listFriendsMock() }));
+vi.mock('@/lib/social/friends-client', () => ({ listFriends: () => listFriendsMock() }));
 
 const fireSealMock = vi.fn();
 vi.mock('./shared/SealMoment', () => ({

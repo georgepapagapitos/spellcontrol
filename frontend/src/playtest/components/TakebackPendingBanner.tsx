@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom';
-import type { GameRequest } from '@/lib/games-api';
+import type { GameRequest } from '@/lib/play/games-api';
 
 interface Props {
   request: GameRequest;

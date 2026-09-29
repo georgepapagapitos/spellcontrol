@@ -1,4 +1,4 @@
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/util/logger';
 import type { ScryfallCard, GapAnalysisCard } from '@/deck-builder/types';
 import { buildInclusionIndex, lookupInclusion } from '../commanderDeckAnalysis';
 import { BASIC_LAND_NAMES } from '../landGenerator';

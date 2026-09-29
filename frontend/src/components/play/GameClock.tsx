@@ -1,5 +1,5 @@
 import { ChevronRight, Pause, Play } from 'lucide-react';
-import { isClockPaused, type GameAction, type GameState } from '../../lib/game-state';
+import { isClockPaused, type GameAction, type GameState } from '@/lib/play/game-state';
 import {
   clockView,
   describeClock,
@@ -7,9 +7,9 @@ import {
   gameElapsed,
   msToNextSecond,
   turnElapsed,
-} from '../../lib/game-clock';
-import { haptics } from '../../lib/haptics';
-import { useNow } from '../../lib/use-now';
+} from '@/lib/play/game-clock';
+import { haptics } from '@/lib/util/haptics';
+import { useNow } from '@/lib/util/use-now';
 
 /**
  * The table clock: an edge strip along the board's bottom (2026-09-24 ruling

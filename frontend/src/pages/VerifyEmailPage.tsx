@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../store/auth';
-import { verifyEmail, resendEmailVerification } from '../lib/auth-api';
-import { userMessage } from '@/lib/user-error';
+import { verifyEmail, resendEmailVerification } from '@/lib/account/auth-api';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
 

@@ -7,13 +7,13 @@ import { SegmentedControl, SwitchRow } from '../../components/shared/form';
 import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
 import { useCubeStore, type CubePickSlot } from '../../store/cube';
-import { bindCubeCopies } from '../../lib/bind-cube-copies';
+import { bindCubeCopies } from '@/lib/cube/bind-cube-copies';
 import {
   buildAllocationMap,
   compareCopyPreference,
   type AllocationInfo,
-} from '../../lib/allocations';
-import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
+} from '@/lib/collection/allocations';
+import { scryfallToEnrichedCard } from '@/lib/cards/scryfall-to-enriched';
 import { CUBE_SIZES, sizeInfo, type ColorBucket, type CubeSize } from '../../lib/cube/targets';
 import type { GeneratedCube, Pick } from '../../lib/cube/generate';
 import type { Ownership } from '../../lib/cube/import';
@@ -533,9 +533,9 @@ export function CubeErrorBlock({ error, onRetry }: { error: string; onRetry: () 
 }
 
 /**
- * The "Physical cube" choice in a cube's save dialog, off by default: a saved
- * cube claims nothing until you ask it to, the same contract as the list's
- * "Mark physical". One component so every save path says it the same way.
+ * The "Physical cube" choice in a cube's save dialog. The build page turns it
+ * on when the pool was Available or Spares only; other save paths start it
+ * off. One component so every save path says it the same way.
  */
 export function PhysicalCubeSwitch({
   checked,

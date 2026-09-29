@@ -5,25 +5,25 @@ import { ProfileHeader } from '../components/profile/ProfileHeader';
 import { ProfileBrews, ProfileGameRecordPanel } from '../components/profile/ProfileBrews';
 import { ReportDialog } from '../components/share/ReportDialog';
 import { EmptyState } from '../components/shared/EmptyState';
-import { formatIdentity, standaloneIdentity } from '../lib/display-name';
-import { formatSocialCount } from '../lib/social-proof';
-import { formatRelativeTime } from '../lib/format-time';
+import { formatIdentity, standaloneIdentity } from '@/lib/social/display-name';
+import { formatSocialCount } from '@/lib/social/social-proof';
+import { formatRelativeTime } from '@/lib/util/format-time';
 import {
   fetchProfileCollection,
   fetchPublicProfile,
   ProfileNotFoundError,
   ProfileRenamedError,
-} from '../lib/profile-client';
-import type { PublicCollection } from '../lib/shared-types';
-import type { CollectionVisibility } from '../lib/auth-api';
+} from '@/lib/social/profile-client';
+import type { PublicCollection } from '@/lib/social/shared-types';
+import type { CollectionVisibility } from '@/lib/account/auth-api';
 import { Tabs, type TabItem } from '../components/Tabs';
 import { SharedCollectionView } from '../components/share/SharedCollectionView';
 import { CollectionVisibilityDialog } from '../components/CollectionVisibilityDialog';
-import type { PublicProfile, PublicProfileDeck } from '../lib/profile-client';
+import type { PublicProfile, PublicProfileDeck } from '@/lib/social/profile-client';
 import { DeckLibrary, type LibraryDeck } from '../components/decks/DeckLibrary';
 import './PublicProfilePage.css';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
 const NOT_FOUND_MESSAGE = "This profile doesn't exist.";

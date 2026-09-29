@@ -1,7 +1,7 @@
 import { Check } from 'lucide-react';
 import './DesignationsPicker.css';
-import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/use-sheet-exit';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
 import type { Designation } from '@/lib/playtest';
 import { Button } from '@/components/shared/Button';
 

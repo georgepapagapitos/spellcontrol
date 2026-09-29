@@ -11,10 +11,10 @@
  */
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { GamePlayer, GameState } from '../../lib/game-state';
-import { createGameState, makePlayer } from '../../lib/game-state';
+import type { GamePlayer, GameState } from '@/lib/play/game-state';
+import { createGameState, makePlayer } from '@/lib/play/game-state';
 
-vi.mock('../../lib/haptics', () => ({
+vi.mock('@/lib/util/haptics', () => ({
   haptics: { tap: vi.fn(), lethal: vi.fn(), warning: vi.fn(), success: vi.fn(), bump: vi.fn() },
 }));
 vi.mock('../../store/play', () => {

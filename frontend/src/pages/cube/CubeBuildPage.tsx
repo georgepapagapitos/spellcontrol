@@ -12,20 +12,20 @@ import { useAuth } from '../../store/auth';
 import { DEFAULT_POOL_FILTERS, type PoolFilters } from '../../lib/cube/pool-filters';
 import { SelectMenu } from '../../components/SelectMenu';
 import { InfoTip } from '../../components/InfoTip';
-import { formatMoney } from '../../lib/format-money';
-import { useCurrency, type Currency } from '../../lib/currency';
+import { formatMoney } from '@/lib/collection/format-money';
+import { useCurrency, type Currency } from '@/lib/collection/currency';
 import { Link } from 'react-router-dom';
 import { getCardsByNames } from '../../deck-builder/services/scryfall/client';
 import { useOwnedCubePool } from '../../lib/cube/use-owned-pool';
 import { fetchCubeOracle } from '../../lib/cube/oracle';
 import { formatExclusion } from '../../lib/cube/play-format';
 import { synergyTags } from '../../lib/cube/synergy-tags';
-import { getCardTags } from '../../lib/card-tags';
+import { getCardTags } from '@/lib/cards/card-tags';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { CubeSize } from '../../lib/cube/targets';
 import { generateCubeAsync, type CubeProgress } from '../../lib/cube/generate-async';
 import { toCubeCobraList } from '../../lib/cube/format';
-import { useAwaitingFirstPull } from '../../lib/use-awaiting-first-pull';
+import { useAwaitingFirstPull } from '@/lib/sync/use-awaiting-first-pull';
 import {
   useOwnershipFor,
   CubeEmptyState,
@@ -47,10 +47,10 @@ import {
   fetchFriendCollection,
   type FriendCard,
 } from '../../lib/cube/pool';
-import { listFriends, type Friend } from '../../lib/friends-client';
+import { listFriends, type Friend } from '@/lib/social/friends-client';
 import { CubeResult } from './CubeResult';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '../../components/shared/Button';
 
 const PRICE_CEILINGS: (number | null)[] = [null, 1, 2, 5, 10];
@@ -301,9 +301,16 @@ export function CubeBuildPage() {
   }, []);
 
   const [saveOpen, setSaveOpen] = useState(false);
-  // Off by default: a saved cube claims nothing until you ask it to, the same
-  // contract as the list's "Mark physical".
+  // Follows the pool the cube drew from, set each time the dialog opens: a cube
+  // built from Available or Spares only is made of copies no deck holds, so it
+  // saves physical and reserves them. Otherwise it would only list names, and
+  // every printing of a card would read as being in the cube. Everything I own
+  // may draw copies decks already hold, so that saves as a draft.
   const [savePhysical, setSavePhysical] = useState(false);
+  const openSave = () => {
+    setSavePhysical(filters.source !== 'all');
+    setSaveOpen(true);
+  };
   const [enrichedMap, setEnrichedMap] = useState<Map<string, ScryfallCard>>(new Map());
 
   const generate = useCallback(async () => {
@@ -566,7 +573,7 @@ export function CubeBuildPage() {
               <CubeResult
                 cube={cube}
                 onCopy={copyList}
-                onSave={() => setSaveOpen(true)}
+                onSave={openSave}
                 loaded={null}
                 ownershipFor={ownershipFor}
                 committedFor={committedFor}

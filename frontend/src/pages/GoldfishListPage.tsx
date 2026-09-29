@@ -2,9 +2,13 @@ import { useCallback, useId, useState } from 'react';
 import { PageHeader } from '@/components/PageHeader';
 import { useNavigate } from 'react-router-dom';
 import { importDeckText } from '@/lib/api';
-import { userMessage } from '@/lib/user-error';
-import { useDocumentTitle } from '@/lib/use-document-title';
-import { importToDeck, pastedDeckLocalId, pastedListToken } from '@/lib/import-to-deck';
+import { userMessage } from '@/lib/util/user-error';
+import { useDocumentTitle } from '@/lib/util/use-document-title';
+import {
+  importToDeck,
+  pastedDeckLocalId,
+  pastedListToken,
+} from '@/lib/import-export/import-to-deck';
 import { PlaytestSession } from '@/playtest/components/PlaytestSession';
 import { toast } from '@/store/toasts';
 import type { Deck } from '@/store/decks';

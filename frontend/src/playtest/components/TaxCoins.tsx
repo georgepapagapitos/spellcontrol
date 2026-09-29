@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { Coins } from 'lucide-react';
 import type { PlaytestCard } from '@/lib/playtest';
-import { useLongPress } from '@/lib/use-long-press';
+import { useLongPress } from '@/lib/util/use-long-press';
 import { commanderTaxAmount } from '../lib/zones';
 
 interface Props {

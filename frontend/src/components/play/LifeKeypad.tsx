@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
-import { useOverlayDismiss } from '../../lib/use-overlay-dismiss';
+import { useOverlayDismiss } from '@/lib/overlays/use-overlay-dismiss';
 import { IconButton } from '@/components/shared/Button';
 
 interface Props {

@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HomeCard } from './HomeCard';
-import { readHomeShape } from '../../lib/home-shape';
+import { readHomeShape } from '@/lib/home/home-shape';
 
 type Props = Partial<Parameters<typeof HomeCard>[0]>;
 

@@ -18,7 +18,7 @@
  * text on bg/surface/surface-raised (they colour labels, not only fills).
  *
  * Only semantic UI tokens are overridden here. Mana pip colors live in
- * lib/colors.ts; rarity colors live in :root in tokens.css. Both are
+ * lib/cards/colors.ts; rarity colors live in :root in tokens.css. Both are
  * MTG-canonical and intentionally never themed so card data and
  * warnings always read consistently.
  */
@@ -37,6 +37,8 @@
   --text-muted: #565e74;
   --text-muted-tint: #4f576c;
   --text-secondary-tint: #464e68;
+  --accent-tint: #35568e;
+  --accent-hover-tint: #3d5786;
   --accent: #35568e;
   --accent-hover: #46679f;
   --accent-light: color-mix(in srgb, #35568e 16%, transparent);
@@ -55,6 +57,8 @@
   --text-muted: #7a5d3c;
   --text-muted-tint: #6f5335;
   --text-secondary-tint: #694a2d;
+  --accent-tint: #a32f17;
+  --accent-hover-tint: #962914;
   --accent: #b03018;
   --accent-hover: #962914;
   --accent-light: color-mix(in srgb, #b03018 14%, transparent);
@@ -73,6 +77,8 @@
   --text-muted: #5c6945;
   --text-muted-tint: #515e3d;
   --text-secondary-tint: #495634;
+  --accent-tint: #39642b;
+  --accent-hover-tint: #366129;
   --accent: #3f7230;
   --accent-hover: #366129;
   --accent-light: color-mix(in srgb, #3f7230 16%, transparent);
@@ -91,6 +97,8 @@
   --text-muted: #4d685f;
   --text-muted-tint: #425d55;
   --text-secondary-tint: #3a554f;
+  --accent-tint: #166352;
+  --accent-hover-tint: #13614f;
   --accent: #16725d;
   --accent-hover: #13614f;
   --accent-light: color-mix(in srgb, #16725d 16%, transparent);
@@ -111,6 +119,8 @@
   --text-muted: #8993ab;
   --text-muted-tint: #9fa7bb;
   --text-secondary-tint: #abb2c5;
+  --accent-tint: #91a7dd;
+  --accent-hover-tint: #8fa8e8;
   --accent: #7391da;
   --accent-hover: #8fa8e8;
   --accent-light: color-mix(in srgb, #7391da 18%, transparent);
@@ -129,6 +139,8 @@
   --text-muted: #999879;
   --text-muted-tint: #b5b396;
   --text-secondary-tint: #c0bea4;
+  --accent-tint: #a9ba73;
+  --accent-hover-tint: #abc46a;
   --accent: #93ad52;
   --accent-hover: #abc46a;
   --accent-light: color-mix(in srgb, #93ad52 18%, transparent);
@@ -147,6 +159,8 @@
   --text-muted: #ab9278;
   --text-muted-tint: #c5b096;
   --text-secondary-tint: #d1bba0;
+  --accent-tint: #8fc464;
+  --accent-hover-tint: #a8da7c;
   --accent: #8fc464;
   --accent-hover: #a8da7c;
   --accent-light: color-mix(in srgb, #8fc464 18%, transparent);
@@ -165,6 +179,8 @@
   --text-muted: #95a0c0;
   --text-muted-tint: #9da7c6;
   --text-secondary-tint: #a7b2d5;
+  --accent-tint: #f38b7a;
+  --accent-hover-tint: #fb876e;
   --accent: #fa6646;
   --accent-hover: #ff7758;
   --accent-light: color-mix(in srgb, #fa6646 18%, transparent);
@@ -183,6 +199,8 @@
   --text-muted: #9c9287;
   --text-muted-tint: #aea597;
   --text-secondary-tint: #bbb0a1;
+  --accent-tint: #d4ad48;
+  --accent-hover-tint: #e6c25e;
   --accent: #d4ad48;
   --accent-hover: #e6c25e;
   --accent-light: color-mix(in srgb, #d4ad48 16%, transparent);
@@ -201,6 +219,8 @@
   --text-muted: #a68681;
   --text-muted-tint: #b39590;
   --text-secondary-tint: #c19e99;
+  --accent-tint: #e67e77;
+  --accent-hover-tint: #ef7a73;
   --accent: #e55c54;
   --accent-hover: #f1615a;
   --accent-light: color-mix(in srgb, #e55c54 18%, transparent);
@@ -224,6 +244,8 @@
   --text-muted: #a0a0a8;
   --text-muted-tint: #a0a0a8;
   --text-secondary-tint: #b0b0b8;
+  --accent-tint: #7d9bf0;
+  --accent-hover-tint: #94aef5;
   --accent: #7d9bf0;
   --accent-hover: #94aef5;
   --accent-light: color-mix(in srgb, #7d9bf0 18%, transparent);
@@ -237,7 +259,7 @@
  * errors stay legible.
  *
  * Scoped by `data-scheme`, which the theme store sets on <html> alongside
- * `data-theme` from each theme's `scheme` field in lib/themes.ts — a new
+ * `data-theme` from each theme's `scheme` field in lib/account/themes.ts — a new
  * theme needs no edits here.
  */
 [data-scheme='light'] {

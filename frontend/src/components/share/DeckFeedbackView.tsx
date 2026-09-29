@@ -1,14 +1,14 @@
 import { useId, useMemo, useRef, useState } from 'react';
 import { LayoutGrid, List as ListIcon, Plus, Scissors, Undo2 } from 'lucide-react';
-import type { PublicCard, PublicDeck } from '../../lib/shared-types';
-import { deckBucketFor, DECK_BUCKET_ORDER } from '../../lib/shared-grouping';
-import { normalizeForSearch } from '../../lib/normalize-search';
-import { useSearchCards } from '../../lib/use-search-cards';
-import { submitFeedback, type DraftSuggestion } from '../../lib/feedback-client';
-import { imageFromCard } from '../../lib/card-thumbs';
-import { formatIdentity } from '../../lib/display-name';
-import { renderMarkdownLite } from '../../lib/markdown-lite';
-import { publicCardToEnriched, deckCardToPublicCard } from '../../lib/shared-filter';
+import type { PublicCard, PublicDeck } from '@/lib/social/shared-types';
+import { deckBucketFor, DECK_BUCKET_ORDER } from '@/lib/social/shared-grouping';
+import { normalizeForSearch } from '@/lib/search/normalize-search';
+import { useSearchCards } from '@/lib/search/use-search-cards';
+import { submitFeedback, type DraftSuggestion } from '@/lib/social/feedback-client';
+import { imageFromCard } from '@/lib/cards/card-thumbs';
+import { formatIdentity } from '@/lib/social/display-name';
+import { renderMarkdownLite } from '@/lib/util/markdown-lite';
+import { publicCardToEnriched, deckCardToPublicCard } from '@/lib/social/shared-filter';
 import { useAuth } from '../../store/auth';
 import { CardPreview, type CardPreviewAction } from '../CardPreview';
 import { ManaCost } from '../ManaCost';
@@ -19,7 +19,7 @@ import { SharedCardTile } from './SharedCardTile';
 import { useSharedFilters } from './use-shared-filters';
 import type { ScryfallCard } from '@/deck-builder/types';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 interface Props {
@@ -316,7 +316,7 @@ export function DeckFeedbackView({ data, token }: Props) {
       </header>
 
       {data.primer && (
-        // renderMarkdownLite is escape-then-transform (see lib/markdown-lite.ts):
+        // renderMarkdownLite is escape-then-transform (see lib/util/markdown-lite.ts):
         // the whole string is HTML-entity-escaped before any tag is generated,
         // so the only tags it can ever emit are p/strong/em/ul/li — safe to
         // hand straight to dangerouslySetInnerHTML.

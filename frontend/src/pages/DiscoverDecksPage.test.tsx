@@ -10,7 +10,7 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import type { EnrichedCard, BinderDef } from '../types';
-import type { DiscoverDeck } from '../lib/discover-client';
+import type { DiscoverDeck } from '@/lib/discover/discover-client';
 
 const { mockListDiscoverDecks, mockSearchCommanders } = vi.hoisted(() => ({
   mockListDiscoverDecks: vi.fn(),
@@ -19,7 +19,7 @@ const { mockListDiscoverDecks, mockSearchCommanders } = vi.hoisted(() => ({
 // Named-export-complete: DiscoverDeckTile now also mounts LikeButton/
 // BookmarkButton, which import the like/bookmark client fns from this same
 // module — an incomplete mock would leave them undefined.
-vi.mock('../lib/discover-client', () => ({
+vi.mock('@/lib/discover/discover-client', () => ({
   listDiscoverDecks: mockListDiscoverDecks,
   searchCommanders: mockSearchCommanders,
   likeDeck: vi.fn(),
@@ -40,7 +40,7 @@ vi.mock('../components/PreconsRail', () => ({
 // The tile resolves commander art via useCardThumb (a batched network fetch)
 // — stubbed so the test stays hermetic and only exercises this page's own
 // fetch/branch logic, not card-art resolution.
-vi.mock('../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
 let authStatus: 'guest' | 'authed' = 'guest';
 vi.mock('../store/auth', () => ({

@@ -8,6 +8,7 @@ import { getDb, getPool } from '../db';
 import { gameSessions } from '../db/schema';
 import { areFriends, listFriendIds } from '../friends/relations';
 import { persistGameResult } from '../games/persist-result';
+import { discordStatus, openDiscordTable, releaseDiscordTable } from '../games/discord-tables';
 import {
   applyAction,
   createGameState,
@@ -413,6 +414,7 @@ function resolveRequest(code: string, req: StoredRequest, status: StoredRequest[
 
 /** Notifies every subscriber for a deleted session so clients notice immediately. */
 function broadcastGameDeleted(code: string): void {
+  releaseDiscordTable(code);
   const subs = subscribers.get(code);
   if (subs) {
     for (const sub of subs) sub.onDeleted();
@@ -1338,6 +1340,9 @@ gamesRouter.post('/', createLimiter, requireAuth, async (req: Request, res: Resp
  * shipping the whole game state out of the database on every 2.5s tick. That
  * fast path carries no game data, so it stays ahead of the seat check.
  */
+// Ahead of GET /:code, which would otherwise read "discord" as a game code.
+gamesRouter.get('/discord', readLimiter, requireAuth, discordStatus);
+
 gamesRouter.get('/:code', readLimiter, requireAuth, async (req: Request, res: Response) => {
   const code = String(req.params.code).toUpperCase();
   const db = getDb();
@@ -2470,6 +2475,8 @@ gamesRouter.patch('/:code', writeLimiter, requireAuth, async (req: Request, res:
   broadcastGameState(code, next);
   res.json({ game: next });
 });
+
+gamesRouter.post('/:code/discord', createLimiter, requireAuth, openDiscordTable);
 
 /**
  * POST /api/games/:code/leave — leave the game. In the lobby the seat goes;

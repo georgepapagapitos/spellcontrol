@@ -24,12 +24,12 @@ import {
   CUSTOMIZABLE_VALUE_ORDER_FIELDS,
   resolveValueOrder,
   getValueLabel,
-} from '../lib/sorting';
+} from '@/lib/search/sorting';
 import { SelectMenu } from './SelectMenu';
 import { SortValueOrderEditor } from './SortValueOrderEditor';
 import { OverflowMenu, type OverflowMenuItem } from './OverflowMenu';
 import { ColorPip } from './shared/ManaSymbol';
-import { useMediaQuery } from '../lib/use-media-query';
+import { useMediaQuery } from '@/lib/util/use-media-query';
 import type { SortDir, SortEntry, SortField } from '../types';
 import { Button, IconButton } from '@/components/shared/Button';
 import { SegmentedControl, type Option } from './shared/form';

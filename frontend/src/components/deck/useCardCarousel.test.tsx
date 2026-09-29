@@ -5,7 +5,7 @@ import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
 import { useCollectionStore } from '@/store/collection';
 import { useToastsStore } from '@/store/toasts';
 import { getCardByNameResilient, getOwnedPrinting } from '@/deck-builder/services/scryfall/client';
-import { scryfallToEnrichedCard } from '@/lib/scryfall-to-enriched';
+import { scryfallToEnrichedCard } from '@/lib/cards/scryfall-to-enriched';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard, Finish } from '@/types';
 

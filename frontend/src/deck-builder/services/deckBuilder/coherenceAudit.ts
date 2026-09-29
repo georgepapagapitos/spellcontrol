@@ -16,9 +16,9 @@ import type { DetectedCombo, ManabaseSummary, ScryfallCard } from '@/deck-builde
 import { classifyCard } from '@/deck-builder/services/synergy/classify';
 import { AXES } from '@/deck-builder/services/synergy/axes';
 import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
-import { producedManaColors } from '@/lib/mana-sources';
-import { BASIC_LAND_NAMES } from '@/lib/allocations';
-import { frontFaceName } from '@/lib/card-text';
+import { producedManaColors } from '@/lib/deck-analysis/mana-sources';
+import { BASIC_LAND_NAMES } from '@/lib/collection/allocations';
+import { frontFaceName } from '@/lib/cards/card-text';
 import { detectWinConditions } from '@/deck-builder/services/winConditions/detect';
 import { unsupportedPayoffAxes } from './synergyDependency';
 import { answerCoverageFindings } from './answerCoverage';

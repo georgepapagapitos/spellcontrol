@@ -1,5 +1,5 @@
 import { Notebook } from 'lucide-react';
-import { explainPlacement } from '../lib/binder-why';
+import { explainPlacement } from '@/lib/binder/binder-why';
 import type { BinderDef, EnrichedCard, MaterializedBinder } from '../types';
 import './BinderCardWhy.css';
 

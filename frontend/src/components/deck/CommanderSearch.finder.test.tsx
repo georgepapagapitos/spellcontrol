@@ -13,8 +13,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '../../types';
 
-vi.mock('../../lib/card-thumbs', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../lib/card-thumbs')>()),
+vi.mock('@/lib/cards/card-thumbs', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/cards/card-thumbs')>()),
   useCardThumb: () => undefined,
 }));
 
@@ -153,7 +153,7 @@ vi.mock('@/deck-builder/services/scryfall/client', () => ({
   getOwnedPrinting: (id: string, n: string) => getOwnedPrinting(id, n),
   getCardPrice: () => '2.40',
 }));
-vi.mock('../../lib/aggregates-client', () => ({
+vi.mock('@/lib/discover/aggregates-client', () => ({
   getCommanderStatsBatch: vi.fn(async () => new Map()),
 }));
 

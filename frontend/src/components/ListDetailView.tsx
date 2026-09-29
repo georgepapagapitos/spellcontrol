@@ -11,15 +11,15 @@ import type {
   SortDir,
   SortField,
 } from '../types';
-import type { SortContext } from '../lib/sorting';
-import { compileFilter, cardMatchesCompiled, isExpressionEmpty } from '../lib/rules';
-import { sortCards, printingKey, sortDirectionLabel } from '../lib/sorting';
-import { colorSelectionMatches, getColorKey, type ColorMatchMode } from '../lib/colors';
-import { cardTagLabel } from '../lib/card-tags';
-import { useCardsWithTags } from '../lib/card-tags';
-import type { EnrichedListRow } from '../lib/use-enriched-list-entries';
-import { ownedCountForEntry, isTrackingList } from '../lib/lists';
-import { useResultsKeys } from '../lib/use-results-keys';
+import type { SortContext } from '@/lib/search/sorting';
+import { compileFilter, cardMatchesCompiled, isExpressionEmpty } from '@/lib/binder/rules';
+import { sortCards, printingKey, sortDirectionLabel } from '@/lib/search/sorting';
+import { colorSelectionMatches, getColorKey, type ColorMatchMode } from '@/lib/cards/colors';
+import { cardTagLabel } from '@/lib/cards/card-tags';
+import { useCardsWithTags } from '@/lib/cards/card-tags';
+import type { EnrichedListRow } from '@/lib/collection/use-enriched-list-entries';
+import { ownedCountForEntry, isTrackingList } from '@/lib/collection/lists';
+import { useResultsKeys } from '@/lib/search/use-results-keys';
 import { useCollectionStore } from '../store/collection';
 import { CollectionFiltersDialog } from './CollectionFiltersDialog';
 import { SearchPill } from './SearchPill';
@@ -36,7 +36,7 @@ import {
   visibleColumns,
   type CardTableCol,
 } from './shared/CardTable';
-import { useMediaQuery } from '../lib/use-media-query';
+import { useMediaQuery } from '@/lib/util/use-media-query';
 import {
   CardGridCell,
   GridCaptionList,
@@ -49,8 +49,8 @@ import { ViewPopoverPanel } from './shared/ViewPopoverPanel';
 import { CardPreview } from './CardPreview';
 import { OverflowMenu } from './OverflowMenu';
 import { InlineCardSearch } from './InlineCardSearch';
-import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
-import { formatMoney } from '../lib/format-money';
+import { scryfallToEnrichedCard } from '@/lib/cards/scryfall-to-enriched';
+import { formatMoney } from '@/lib/collection/format-money';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
 import { ListEntryTargetPrice } from './ListEntryTargetPrice';
 import { VerdictBadge } from './deck/VerdictBadge';
@@ -63,8 +63,8 @@ import {
   zoomBucket,
   zoomMinCol,
   zoomTier,
-} from '../lib/grid-zoom';
-import { useElementWidth } from '../lib/use-element-width';
+} from '@/lib/util/grid-zoom';
+import { useElementWidth } from '@/lib/util/use-element-width';
 import { Button } from '@/components/shared/Button';
 
 const GRID_SIZE_KEY = 'mtg-lists-grid-size';

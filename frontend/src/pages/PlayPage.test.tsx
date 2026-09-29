@@ -7,15 +7,15 @@ import { PlayPage } from './PlayPage';
 import { usePlayStore } from '../store/play';
 import { useAuth } from '../store/auth';
 import { HORDE_BAN_LIST } from '../lib/horde/ban-list';
-import type { GameRecord } from '../lib/game-state';
-import { createGameState, makePlayer } from '../lib/game-state';
+import type { GameRecord } from '@/lib/play/game-state';
+import { createGameState, makePlayer } from '@/lib/play/game-state';
 import { useHordeGameStore } from '../store/horde-game';
 
 // Signed in, the History tab reads the server record and the leaderboard;
 // neither is under test here, and an offline read must leave the persisted
 // list on screen — which is exactly what a rejection exercises.
-vi.mock('../lib/game-results-client', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../lib/game-results-client')>();
+vi.mock('@/lib/play/game-results-client', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/play/game-results-client')>();
   return {
     ...actual,
     fetchMyResults: vi.fn(() => Promise.reject(new Error('offline'))),
@@ -35,7 +35,7 @@ vi.mock('../components/play/GameNights', async (importOriginal) => {
 });
 
 // The people a signed-in table can seat: two friends and one pod.
-vi.mock('../lib/friends-client', () => ({
+vi.mock('@/lib/social/friends-client', () => ({
   listFriends: vi.fn(() =>
     Promise.resolve([
       { id: 'u-bob', username: 'bob', displayName: 'Bobby', friendedAt: 1, cardCount: 0 },
@@ -49,8 +49,8 @@ vi.mock('../lib/friends-client', () => ({
 const searchProducts = vi.fn();
 const fetchProductCommanderSummary = vi.fn();
 const fetchProduct = vi.fn();
-vi.mock('../lib/api', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../lib/api')>();
+vi.mock('@/lib/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/api')>();
   return {
     ...actual,
     searchProducts: (...args: unknown[]) => searchProducts(...args),
@@ -59,7 +59,7 @@ vi.mock('../lib/api', async (importOriginal) => {
   };
 });
 
-vi.mock('../lib/pods-client', () => ({
+vi.mock('@/lib/social/pods-client', () => ({
   listPods: vi.fn(() =>
     Promise.resolve([
       {

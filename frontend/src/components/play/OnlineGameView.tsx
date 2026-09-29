@@ -1,16 +1,17 @@
-import { Clock, Compass, Crown, Undo2 } from 'lucide-react';
+import { Clock, Compass, Crown, Headphones, Undo2 } from 'lucide-react';
+import { DiscordMark } from '@/components/shared/DiscordMark';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { DesignationKind, GameAction, GamePlayer, GameState } from '../../lib/game-state';
-import { cmdDamageKey, nextHostSeat } from '../../lib/game-state';
-import type { GameRequest } from '../../lib/games-api';
-import { paletteForIndex } from '../../lib/seat-palette';
-import { useAnimatedNumber } from '../../lib/use-animated-number';
-import { useFloatingDelta } from '../../lib/use-floating-delta';
-import { haptics } from '../../lib/haptics';
-import { capture, clearUndo, peekLabel, popRestore, runSuppressed } from '../../lib/undo-stack';
-import { cmdDamageFillRatio, cmdDamageToLethal } from '../../lib/cmd-damage';
-import { HOLD_JUMP } from '../../lib/hold-ramp';
-import { useTapAndHold } from '../../lib/tap-and-hold';
+import type { DesignationKind, GameAction, GamePlayer, GameState } from '@/lib/play/game-state';
+import { cmdDamageKey, nextHostSeat } from '@/lib/play/game-state';
+import type { GameRequest } from '@/lib/play/games-api';
+import { paletteForIndex } from '@/lib/play/seat-palette';
+import { useAnimatedNumber } from '@/lib/util/use-animated-number';
+import { useFloatingDelta } from '@/lib/play/use-floating-delta';
+import { haptics } from '@/lib/util/haptics';
+import { capture, clearUndo, peekLabel, popRestore, runSuppressed } from '@/lib/play/undo-stack';
+import { cmdDamageFillRatio, cmdDamageToLethal } from '@/lib/play/cmd-damage';
+import { HOLD_JUMP } from '@/lib/play/hold-ramp';
+import { useTapAndHold } from '@/lib/play/tap-and-hold';
 import { useAuth } from '../../store/auth';
 import { usePlayStore } from '../../store/play';
 import { HordeHalf } from '../../playtest/components/horde/HordeHalf';
@@ -18,13 +19,14 @@ import { useHordeReplay } from '../../playtest/hooks/use-horde-replay';
 import { measureHordeRect } from '../../playtest/lib/horde-view';
 import type { Rect } from '../../playtest/lib/auto-place';
 import { ConfirmDialog } from '../ConfirmDialog';
-import { coopResultLabel } from '../../lib/horde-records';
+import { coopResultLabel } from '@/lib/horde/horde-records';
 import { GameRecap } from './GameRecap';
 import { PhaseChip } from './PhaseChip';
 import './OnlineGameView.css';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
+import { isDiscordLink, voiceLinkLabel } from '@/lib/play/voice-link';
 
 // Mirrors playtest's TakebackConsentPrompt grace window (see its module doc):
 // native long-poll can drop a request's own terminal frame, so the banner
@@ -197,14 +199,32 @@ export function OnlineGameView({ game, errorMessage, onEnd, onLeave, onRematch }
             />
           )}
         </div>
-        {game.status !== 'finished' && (
+        {(game.status !== 'finished' || game.voiceUrl) && (
           <div className="ogv-header-actions">
-            {onEnd && (
+            {/* Stays through a finished game: the table is still in the call. */}
+            {game.voiceUrl && (
+              <Button
+                href={game.voiceUrl}
+                target="_blank"
+                rel="noreferrer noopener"
+                icon={
+                  isDiscordLink(game.voiceUrl) ? (
+                    <DiscordMark />
+                  ) : (
+                    <Headphones width={14} height={14} strokeWidth={1.8} />
+                  )
+                }
+                className="ogv-header-btn"
+              >
+                {voiceLinkLabel(game.voiceUrl)}
+              </Button>
+            )}
+            {game.status !== 'finished' && onEnd && (
               <Button onClick={onEnd} className="ogv-header-btn">
                 End
               </Button>
             )}
-            {onLeave && (
+            {game.status !== 'finished' && onLeave && (
               <Button onClick={handleLeave} className="ogv-header-btn">
                 Leave
               </Button>

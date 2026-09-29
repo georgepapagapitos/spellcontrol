@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useDecksStore } from '@/store/decks';
-import { useDocumentTitle } from '@/lib/use-document-title';
+import { useDocumentTitle } from '@/lib/util/use-document-title';
 import {
   fingerprintDeck,
   loadPlaytestSnapshot,

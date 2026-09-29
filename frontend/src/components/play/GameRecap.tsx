@@ -1,5 +1,5 @@
-import type { GameState } from '../../lib/game-state';
-import { buildGameRecap } from '../../lib/game-recap';
+import type { GameState } from '@/lib/play/game-state';
+import { buildGameRecap } from '@/lib/play/game-recap';
 import './GameRecap.css';
 
 /**

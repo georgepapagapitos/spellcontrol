@@ -1,0 +1,31 @@
+/* FollowingPanel: brewer rows with the Follow toggle beside each card. */
+
+.following-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.following-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.following-item > .brewer-card {
+  flex: 1;
+  min-width: 0;
+}
+
+.following-item > .follow-button {
+  flex: none;
+}
+
+@media (pointer: coarse) {
+  .following-item > .follow-button {
+    min-height: 44px;
+  }
+}

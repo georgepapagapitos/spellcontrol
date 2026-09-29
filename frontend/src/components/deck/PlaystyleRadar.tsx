@@ -2,7 +2,7 @@ import { type JSX, useMemo, useState } from 'react';
 import './PlaystyleRadar.css';
 import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
 import { buildAxisTally } from '@/deck-builder/services/synergy/axisTally';
-import { selectRadarAxes, radarLayout } from '@/lib/playstyle-radar';
+import { selectRadarAxes, radarLayout } from '@/lib/deck-analysis/playstyle-radar';
 import { useCardCarousel, tallyToEntries } from './useCardCarousel';
 import { CardGroupSheet } from './CardGroupSheet';
 import { InfoTip } from '@/components/InfoTip';

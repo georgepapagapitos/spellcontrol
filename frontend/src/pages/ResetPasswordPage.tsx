@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../store/auth';
-import { preventFocusSteal } from '../lib/keyboard';
+import { preventFocusSteal } from '@/lib/util/keyboard';
 import { toast } from '../store/toasts';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';

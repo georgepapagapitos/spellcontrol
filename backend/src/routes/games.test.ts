@@ -1,9 +1,10 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest';
 import request from 'supertest';
 import http, { type Server } from 'node:http';
 import type { Pool } from 'pg';
 import { createTestEnv, extractSessionCookie } from '../test-helpers';
 import { isUniqueViolation, SIGNAL_EMOTES } from './games';
+import { sweepDiscordTables } from '../games/discord-tables';
 
 describe('isUniqueViolation (F20 join-code race guard)', () => {
   it('matches only a Postgres 23505 error', () => {
@@ -3122,6 +3123,143 @@ describe('the table voice link', () => {
     const cleared = await setVoice(hostCookie, code, set.body.game.version, null);
     expect(cleared.status).toBe(200);
     expect(cleared.body.game.voiceUrl).toBe(null);
+  });
+});
+
+describe('Discord tables', () => {
+  const GUILD = 'guild-1';
+  const CATEGORY = 'cat-1';
+  let channels: Array<{ id: string; name: string; type: number; parent_id: string | null }>;
+  let deleted: string[];
+  let failing: boolean;
+  const realFetch = globalThis.fetch;
+
+  // A stand-in for the four Discord REST calls discord.ts makes; anything that
+  // isn't discord.com goes to the real fetch.
+  function installFakeDiscord() {
+    channels = [{ id: 'other', name: 'Table ZZZZ', type: 2, parent_id: 'elsewhere' }];
+    deleted = [];
+    failing = false;
+    process.env.DISCORD_BOT_TOKEN = 'bot-token';
+    process.env.DISCORD_GUILD_ID = GUILD;
+    process.env.DISCORD_TABLES_CATEGORY_ID = CATEGORY;
+    vi.stubGlobal('fetch', async (input: string | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (!url.startsWith('https://discord.com/api/v10')) return realFetch(input, init);
+      if (failing) return new Response('down', { status: 500 });
+      const path = url.slice('https://discord.com/api/v10'.length);
+      const method = init?.method ?? 'GET';
+      if (method === 'GET' && path === `/guilds/${GUILD}/channels`) {
+        return Response.json(channels);
+      }
+      if (method === 'POST' && path === `/guilds/${GUILD}/channels`) {
+        const body = JSON.parse(String(init!.body));
+        const ch = { id: `ch-${channels.length}`, ...body };
+        channels.push(ch);
+        return Response.json(ch);
+      }
+      const invite = path.match(/^\/channels\/(.+)\/invites$/);
+      if (method === 'POST' && invite) return Response.json({ code: `inv-${invite[1]}` });
+      const del = path.match(/^\/channels\/(.+)$/);
+      if (method === 'DELETE' && del) {
+        deleted.push(del[1]);
+        channels = channels.filter((c) => c.id !== del[1]);
+        return new Response(null, { status: 204 });
+      }
+      return new Response('unexpected', { status: 404 });
+    });
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    delete process.env.DISCORD_BOT_TOKEN;
+    delete process.env.DISCORD_GUILD_ID;
+    delete process.env.DISCORD_TABLES_CATEGORY_ID;
+  });
+
+  async function hostGame(tag: string) {
+    const hostCookie = await registerAndGetCookie(tag);
+    const created = await request(app).post('/api/games').set('Cookie', hostCookie).send({});
+    return { hostCookie, code: created.body.game.code as string };
+  }
+
+  const open = (cookie: string, code: string) =>
+    request(app).post(`/api/games/${code}/discord`).set('Cookie', cookie).send({});
+
+  it('reports whether it is set up', async () => {
+    const cookie = await registerAndGetCookie('dc_status');
+    const off = await request(app).get('/api/games/discord').set('Cookie', cookie);
+    expect(off.body).toEqual({ enabled: false });
+    installFakeDiscord();
+    const on = await request(app).get('/api/games/discord').set('Cookie', cookie);
+    expect(on.body).toEqual({ enabled: true });
+  });
+
+  it('answers 503 when not set up', async () => {
+    const { hostCookie, code } = await hostGame('dc_off');
+    expect((await open(hostCookie, code)).status).toBe(503);
+  });
+
+  it('opens one voice channel per table under the category, and reuses it', async () => {
+    installFakeDiscord();
+    const { hostCookie, code } = await hostGame('dc_open');
+    const first = await open(hostCookie, code);
+    expect(first.status).toBe(200);
+    expect(first.body.url).toMatch(/^https:\/\/discord\.gg\/inv-/);
+    const again = await open(hostCookie, code);
+    expect(again.body.url).toBe(first.body.url);
+    const mine = channels.filter((c) => c.name === `Table ${code}`);
+    expect(mine).toHaveLength(1);
+    expect(mine[0]).toMatchObject({ type: 2, parent_id: CATEGORY });
+  });
+
+  it('is the host’s to open, and a stranger gets the unknown-code 404', async () => {
+    installFakeDiscord();
+    const { code } = await hostGame('dc_host');
+    const guest = await registerAndGetCookie('dc_guest');
+    expect((await open(guest, code)).status).toBe(404);
+    await request(app).post(`/api/games/${code}/join`).set('Cookie', guest).send({});
+    expect((await open(guest, code)).status).toBe(403);
+    expect(channels.some((c) => c.name === `Table ${code}`)).toBe(false);
+  });
+
+  it('answers 502 rather than throwing when Discord is down', async () => {
+    installFakeDiscord();
+    failing = true;
+    const { hostCookie, code } = await hostGame('dc_down');
+    expect((await open(hostCookie, code)).status).toBe(502);
+  });
+
+  it('removes the channel when the table ends', async () => {
+    installFakeDiscord();
+    const { hostCookie, code } = await hostGame('dc_close');
+    await open(hostCookie, code);
+    const id = channels.find((c) => c.name === `Table ${code}`)!.id;
+    await request(app).post(`/api/games/${code}/leave`).set('Cookie', hostCookie).send({});
+    await vi.waitFor(() => expect(deleted).toContain(id));
+  });
+
+  it('sweeps channels whose game is gone, finished or idle, and nothing outside the category', async () => {
+    installFakeDiscord();
+    const live = await hostGame('dc_sweep_live');
+    const idle = await hostGame('dc_sweep_idle');
+    await open(live.hostCookie, live.code);
+    await open(idle.hostCookie, idle.code);
+    await pool.query('UPDATE game_sessions SET updated_at = $1 WHERE code = $2', [
+      Date.now() - 4 * 60 * 60 * 1000,
+      idle.code,
+    ]);
+    channels.push({ id: 'gone', name: 'Table QQQQ', type: 2, parent_id: CATEGORY });
+    channels.push({ id: 'lounge', name: 'Lounge', type: 2, parent_id: CATEGORY });
+
+    const removed = await sweepDiscordTables();
+    const names = channels.map((c) => c.name);
+    expect(names).toContain(`Table ${live.code}`);
+    expect(names).not.toContain(`Table ${idle.code}`);
+    expect(names).not.toContain('Table QQQQ');
+    expect(names).toContain('Lounge');
+    expect(names).toContain('Table ZZZZ');
+    expect(removed).toBeGreaterThanOrEqual(2);
   });
 });
 

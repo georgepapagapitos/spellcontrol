@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 const mockUseActivity = vi.fn();
-vi.mock('../lib/use-activity', () => ({
+vi.mock('@/lib/social/use-activity', () => ({
   useActivity: () => mockUseActivity(),
 }));
 

@@ -1,6 +1,6 @@
 import { openDB, type IDBPDatabase } from 'idb';
 import type { OfflineCombo, OfflineManifest, SlimCard } from './types';
-import { frontFaceName } from '../card-text';
+import { frontFaceName } from '@/lib/cards/card-text';
 
 /**
  * Dedicated IndexedDB database for the offline oracle/combo snapshot.

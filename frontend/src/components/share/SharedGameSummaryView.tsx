@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Trophy } from 'lucide-react';
-import type { PublicGameResultShare } from '../../lib/shared-types';
-import { describeGameEvent, formatGameEventSentence } from '../../lib/game-event-text';
-import { formatRelativeTime } from '../../lib/format-time';
+import type { PublicGameResultShare } from '@/lib/social/shared-types';
+import { describeGameEvent, formatGameEventSentence } from '@/lib/play/game-event-text';
+import { formatRelativeTime } from '@/lib/util/format-time';
 import { ReportDialog } from './ReportDialog';
 import './SharedGameSummaryView.css';
 import { Button } from '@/components/shared/Button';

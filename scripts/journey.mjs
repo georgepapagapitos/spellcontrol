@@ -24,9 +24,9 @@
 // desktop re-runs its color-contrast rule under every theme and every type
 // set: a colour that clears AA in one theme can vanish in another (the
 // card-preview panel's "Ramp" pill read 1.08:1 in the light guilds only).
-// Report-only for now, written to a11y.json; see axeSweep below.
+// A finding fails the screen, with the details in a11y.json; see axeSweep.
 //
-// Any of the first six fails the run. Screenshots + report.json land in
+// Any of the first six fails the run, and so does an a11y finding under --a11y. Screenshots + report.json land in
 // --out. Run by .github/workflows/nightly-journey.yml against a production
 // build served by the backend; locally:
 //
@@ -43,9 +43,9 @@ import puppeteer from 'puppeteer-core';
 import { TIERS, executable } from './journey-browser.mjs';
 
 // Expected sample-pack card count, read straight from the source constant
-// (not re-typed here) so it can't drift from lib/samples.ts.
+// (not re-typed here) so it can't drift from lib/binder/samples.ts.
 const SAMPLE_CARD_COUNT = (
-  readFileSync(new URL('../frontend/src/lib/samples.ts', import.meta.url), 'utf8').match(
+  readFileSync(new URL('../frontend/src/lib/binder/samples.ts', import.meta.url), 'utf8').match(
     /\{ name:/g
   ) ?? []
 ).length;
@@ -91,19 +91,23 @@ const THIRD_PARTY =
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ── Accessibility sweep (--a11y) ─────────────────────────────────────────
-// Report-only while the baseline is burned down: a screen's violations land in
-// its record and in a11y.json, and never fail the run. Turn it into a gate
-// (fold `a11y` into rec.fail) once a nightly run reports zero.
+// A gate: any finding fails the screen. It ran report-only until the
+// 2026-09-29 burn-down (142 failing elements to 0) and a clean nightly, so a
+// new finding is a regression, and its row in a11y.json says what and where.
 const A11Y = argv.includes('--a11y');
 const src = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const AXE_SRC = A11Y ? src('../frontend/node_modules/axe-core/axe.min.js') : '';
 // Read the registries rather than re-typing them, so a new theme or type set
 // is swept the day it lands.
 const THEMES = [
-  ...src('../frontend/src/lib/themes.ts').matchAll(/id: '([a-z]+)',[^}]*?scheme: '(light|dark)'/g),
+  ...src('../frontend/src/lib/account/themes.ts').matchAll(
+    /id: '([a-z]+)',[^}]*?scheme: '(light|dark)'/g
+  ),
 ].map((m) => ({ id: m[1], scheme: m[2] }));
 const TYPESETS = [
-  ...src('../frontend/src/lib/typesets.ts').matchAll(/id: '([a-z]+)',[^}]*?href: (null|'[^']+')/g),
+  ...src('../frontend/src/lib/account/typesets.ts').matchAll(
+    /id: '([a-z]+)',[^}]*?href: (null|'[^']+')/g
+  ),
 ].map((m) => ({ id: m[1], href: m[2] === 'null' ? null : m[2].slice(1, -1) }));
 const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
@@ -435,6 +439,9 @@ const TOUCHING_BY_DESIGN = new Set([
   // rail are edge-attached to the play surface by design.
   'div.playtest-board › div.playtest-trackers | div.playtest-main',
   'div.playtest-board › div.playtest-main | div.playtest-hand',
+  // The card-preview sheet's own header over its scrolling body: a dialog's
+  // head and body meet at the edge (desktop layout; the phone sheet differs).
+  'div.card-preview-panel › div.card-preview-head | div.card-preview-panel-inner',
 ]);
 /** Parents whose children are a divided stack: each child carries its own
  *  padding and a hairline top border, so they meet at the divider by design. */
@@ -882,7 +889,8 @@ async function main() {
           errs.length > 0 ||
           touching.length > 0 ||
           wrapped.length > 0 ||
-          overlapping.length > 0;
+          overlapping.length > 0 ||
+          a11yNodeCount(a11y) > 0;
         results.push(rec);
         console.log(
           `${rec.fail ? 'FAIL' : ' ok '} ${BROWSER.padEnd(7)} ${tierName.padEnd(7)} ${label.padEnd(36)} ` +
@@ -903,6 +911,7 @@ async function main() {
       // --- Guest: the marketing landing, a guide, and a route nobody owns.
       await visit('/');
       await visit('/decks/discover');
+      await visit('/decks/discover/brewers');
       await visit('/this-route-does-not-exist');
 
       // --- Sign up once (the second viewport signs in to the same account).
@@ -1410,7 +1419,7 @@ async function main() {
   console.log(
     `\n${BROWSER}: ${results.length} screens, ${failed.length} failed` +
       (failed.length
-        ? `\n${failed.map((r) => `  - ${r.viewport} ${r.label}: ${r.emptyBody ? 'empty body; ' : ''}${r.overflow ? `overflow ${r.overflow}px; ` : ''}${!r.title ? 'no title; ' : ''}${r.touching.length ? `touching ${r.touching.join(', ')}; ` : ''}${r.wrapped?.length ? `${r.wrapped.join(', ')}; ` : ''}${r.smallTargets?.length ? `under 44px: ${r.smallTargets.join(', ')}; ` : ''}${r.consoleErrors.join(' | ')}`).join('\n')}`
+        ? `\n${failed.map((r) => `  - ${r.viewport} ${r.label}: ${r.emptyBody ? 'empty body; ' : ''}${r.overflow ? `overflow ${r.overflow}px; ` : ''}${!r.title ? 'no title; ' : ''}${r.touching.length ? `touching ${r.touching.join(', ')}; ` : ''}${r.wrapped?.length ? `${r.wrapped.join(', ')}; ` : ''}${r.smallTargets?.length ? `under 44px: ${r.smallTargets.join(', ')}; ` : ''}${a11yNodeCount(r.a11y) ? `a11y ${a11yNodeCount(r.a11y)} (see a11y.json); ` : ''}${r.consoleErrors.join(' | ')}`).join('\n')}`
         : '')
   );
   process.exit(failed.length ? 1 : 0);
@@ -1467,7 +1476,7 @@ async function writeA11yReport(results) {
   const byRule = {};
   for (const r of list) byRule[r.rule] = (byRule[r.rule] ?? 0) + 1;
   console.log(
-    `\na11y: ${list.length} failing elements (report-only): ` +
+    `\na11y: ${list.length} failing elements: ` +
       Object.entries(byRule)
         .sort((a, b) => b[1] - a[1])
         .map(([k, n]) => `${k} ${n}`)

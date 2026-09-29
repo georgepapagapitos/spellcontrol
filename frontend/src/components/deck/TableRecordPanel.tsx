@@ -2,7 +2,7 @@ import './TableRecordPanel.css';
 import { type JSX, useMemo } from 'react';
 import { useAuth } from '../../store/auth';
 import { aggregateDeckRecords, usePlayStore } from '../../store/play';
-import { aggregateMatchupRecords } from '@/lib/matchup-records';
+import { aggregateMatchupRecords } from '@/lib/play/matchup-records';
 import { StackedBar } from '../shared/MeterBar';
 import { Button } from '@/components/shared/Button';
 

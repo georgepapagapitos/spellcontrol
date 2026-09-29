@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useCardThumb } from '@/lib/card-thumbs';
+import { useCardThumb } from '@/lib/cards/card-thumbs';
 import { CardThumb } from '../CardThumb';
 import { ProgressBar } from '../ProgressBar';
 import { SealBurst } from '../shared/SealBurst';

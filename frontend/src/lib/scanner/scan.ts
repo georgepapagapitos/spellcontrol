@@ -14,8 +14,8 @@
 // on-device pHash. `navigator.onLine === false` short-circuits to fallback
 // without even trying — saves the timeout on a known-offline device.
 
-import { logger } from '../logger';
-import { apiUrl } from '../api-base';
+import { logger } from '@/lib/util/logger';
+import { apiUrl } from '@/lib/api/api-base';
 import { loadOpenCv } from './opencv-loader';
 import { detectAndWarpCard, type Point } from './detect';
 import { hashCanvas, cropArtRegion, cropFullArtRegion } from './phash';

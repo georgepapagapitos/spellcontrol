@@ -4,12 +4,12 @@
  * `exitOnUnmount` correctly — unlike GameBoard.fullscreen.test.tsx (which
  * mocks the hook to isolate the "first gesture" wiring), this uses the REAL
  * hook so a regression in either GameBoard's usage or the hook's own
- * ownership tracking (lib/use-fullscreen.test.ts) would show up here too.
+ * ownership tracking (lib/util/use-fullscreen.test.ts) would show up here too.
  */
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { GamePlayer, GameState } from '../../lib/game-state';
-import { createGameState, makePlayer } from '../../lib/game-state';
+import type { GamePlayer, GameState } from '@/lib/play/game-state';
+import { createGameState, makePlayer } from '@/lib/play/game-state';
 
 function seat(n: number, name: string): GamePlayer {
   return makePlayer({ id: `p${n}`, userId: null, seat: n, name, startingLife: 40 });
@@ -47,20 +47,20 @@ vi.mock('../../store/play', () => {
   return { usePlayStore };
 });
 
-vi.mock('../../lib/haptics', () => ({
+vi.mock('@/lib/util/haptics', () => ({
   haptics: { tap: vi.fn(), lethal: vi.fn(), warning: vi.fn(), success: vi.fn(), bump: vi.fn() },
 }));
-vi.mock('../../lib/use-wake-lock', () => ({ useWakeLock: vi.fn() }));
-vi.mock('../../lib/undo-stack', () => ({
+vi.mock('@/lib/util/use-wake-lock', () => ({ useWakeLock: vi.fn() }));
+vi.mock('@/lib/play/undo-stack', () => ({
   capture: vi.fn(),
   clearUndo: vi.fn(),
   peekLabel: vi.fn(() => null),
   popRestore: vi.fn(() => []),
   runSuppressed: vi.fn((fn: () => void) => fn()),
 }));
-vi.mock('../../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
-// The REAL lib/use-fullscreen.ts — not mocked, unlike GameBoard.fullscreen.test.tsx.
+// The REAL lib/util/use-fullscreen.ts — not mocked, unlike GameBoard.fullscreen.test.tsx.
 import { GameBoard } from './GameBoard';
 
 function installMatchMedia(matches: boolean) {

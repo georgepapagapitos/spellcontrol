@@ -2,7 +2,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { DeckCardRow } from './DeckCardRow';
-import type { Change } from '@/lib/deck-change';
+import type { Change } from '@/lib/coach/deck-change';
 
 function add(over: Partial<Change> = {}): Change {
   return {

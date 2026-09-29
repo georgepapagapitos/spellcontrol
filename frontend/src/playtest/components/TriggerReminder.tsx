@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
-import type { GamePhase } from '@/lib/game-state';
-import { useEscapeKey } from '@/lib/use-escape-key';
+import type { GamePhase } from '@/lib/play/game-state';
+import { useEscapeKey } from '@/lib/overlays/use-escape-key';
 import { BEAT_LABEL, firesAt, type TriggerHit } from '../lib/triggers';
 import './TriggerReminder.css';
 import { IconButton } from '@/components/shared/Button';

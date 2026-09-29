@@ -1,0 +1,216 @@
+/**
+ * Pure mana/composition computation for a deck — curve, average CMC, color
+ * demand vs. production, type breakdown, and the per-bucket card drill-downs.
+ *
+ * Lifted verbatim from DeckDisplay.tsx (the averageCmc / manaCurve / colorDist /
+ * manaProduction / typeBreakdown / drill-down useMemos plus its private
+ * classifyType + tallyNames helpers) so DeckDisplay can delegate to it AND the
+ * deck-compare page can render the exact same numbers. Keeping one
+ * implementation is the whole point — the compare view must agree with the deck
+ * editor for the same deck. Pure: depends only on the card array + commanders.
+ */
+import type { ScryfallCard } from '@/deck-builder/types';
+import type { CardTally } from '@/components/deck/useCardCarousel';
+import type { CurveColorBucket, DeckManaData } from '@/components/deck/deck-mana-types';
+import { producedManaColors, isManaSourceType, deckColorIdentity } from './mana-sources';
+
+export type { DeckManaData };
+
+// Type classification — first matching group wins; default Artifact mirrors the
+// deck editor. Order matters (e.g. "Artifact Creature" → Creature).
+const CLASSIFY_PRIORITY = [
+  'Land',
+  'Creature',
+  'Planeswalker',
+  'Battle',
+  'Sorcery',
+  'Instant',
+  'Artifact',
+  'Enchantment',
+] as const;
+export type TypeGroup = (typeof CLASSIFY_PRIORITY)[number];
+
+/** Plural display label for a TypeGroup ("Land" → "Lands") — the deck section
+ *  headers stay singular ("Land (12)"), but the new-arrivals chip/sheet reads
+ *  naturally pluralized ("New arrivals — Lands"). One shared map so both
+ *  surfaces agree. */
+export const TYPE_GROUP_PLURAL: Record<TypeGroup, string> = {
+  Planeswalker: 'Planeswalkers',
+  Creature: 'Creatures',
+  Artifact: 'Artifacts',
+  Enchantment: 'Enchantments',
+  Instant: 'Instants',
+  Sorcery: 'Sorceries',
+  Battle: 'Battles',
+  Land: 'Lands',
+};
+
+function effectiveTypeLine(card: ScryfallCard): string {
+  return card.type_line || card.card_faces?.[0]?.type_line || '';
+}
+
+/** Leading card type ("Creature", "Land", …); default Artifact. Shared with
+ *  DeckDisplay so the editor and compare view classify identically. */
+export function classifyType(card: ScryfallCard): TypeGroup {
+  const tl = effectiveTypeLine(card).toLowerCase();
+  for (const group of CLASSIFY_PRIORITY) {
+    if (tl.includes(group.toLowerCase())) return group;
+  }
+  return 'Artifact';
+}
+
+/**
+ * Classify a raw typeLine string into a playtest permanent-type bucket.
+ * Returns lowercase: 'creature' | 'planeswalker' | 'land' | 'artifact' |
+ * 'enchantment' | 'other'. Used by the battlefield stats panel where creature
+ * wins over other types for dual-type cards (e.g. "Artifact Creature").
+ */
+export function classifyTypeLine(typeLine: string | undefined): string {
+  const tl = (typeLine ?? '').toLowerCase();
+  if (tl.includes('creature')) return 'creature';
+  if (tl.includes('planeswalker')) return 'planeswalker';
+  if (tl.includes('land')) return 'land';
+  if (tl.includes('artifact')) return 'artifact';
+  if (tl.includes('enchantment')) return 'enchantment';
+  return 'other';
+}
+
+/** Collapse a list of cards to unique name → copy count (keeping one
+ *  representative card object so the drill-down carousel renders without
+ *  re-fetching), sorted by count desc then name. */
+export function tallyNames(
+  cards: ScryfallCard[]
+): Array<{ name: string; count: number; card: ScryfallCard }> {
+  const m = new Map<string, { count: number; card: ScryfallCard }>();
+  for (const c of cards) {
+    const e = m.get(c.name);
+    if (e) e.count += 1;
+    else m.set(c.name, { count: 1, card: c });
+  }
+  return [...m.entries()]
+    .map(([name, { count, card }]) => ({ name, count, card }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+}
+
+/**
+ * Check only the front face (before any "//") so spell//land MDFCs (e.g.
+ * "Valakut Awakening // Valakut Stoneforge") are treated as spells in the
+ * curve — matching the same front-face convention used by deck-analysis.ts's
+ * `bucketType()`.
+ */
+const isLand = (card: ScryfallCard) =>
+  effectiveTypeLine(card).split('//')[0].toLowerCase().includes('land');
+
+/**
+ * Build a deck's full mana/composition data from its flat card list.
+ *
+ * `allCards` is every card incl. commander(s) (the same flat array DeckDisplay
+ * uses); `commander`/`partnerCommander` are passed separately so mana-source
+ * production can be clamped to the deck's color identity (Command Tower etc.).
+ */
+export function buildManaData(
+  allCards: readonly ScryfallCard[],
+  commander: ScryfallCard | null,
+  partnerCommander?: ScryfallCard | null
+): DeckManaData {
+  // Curve + average CMC (nonland only), plus the per-color split behind the
+  // stacked "By color" curve: 0 colors → colorless, exactly 1 → that color,
+  // 2+ → gold. The same rule as DeckCurvePhases' per-card `categorize`, so a
+  // segment's count matches the cards its tap opens.
+  const manaCurve: Record<number, number> = {};
+  const curveByColor: Record<number, CurveColorBucket> = {};
+  const nonLand = allCards.filter((c) => !isLand(c));
+  for (const c of nonLand) {
+    const cmc = Math.min(7, Math.round(c.cmc ?? 0));
+    manaCurve[cmc] = (manaCurve[cmc] ?? 0) + 1;
+    const ci = (c.color_identity ?? []).filter((k): k is 'W' | 'U' | 'B' | 'R' | 'G' =>
+      'WUBRG'.includes(k)
+    );
+    const key = ci.length === 0 ? 'colorless' : ci.length === 1 ? ci[0] : 'gold';
+    const bucket = (curveByColor[cmc] ??= { W: 0, U: 0, B: 0, R: 0, G: 0, gold: 0, colorless: 0 });
+    bucket[key] += 1;
+  }
+  const averageCmc =
+    nonLand.length === 0 ? 0 : nonLand.reduce((s, c) => s + (c.cmc ?? 0), 0) / nonLand.length;
+
+  // Color demand — nonland cards counted per color in their identity.
+  const colorCounts: Record<string, number> = { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 };
+  let colorTotal = 0;
+  for (const c of nonLand) {
+    const ci = c.color_identity ?? [];
+    if (ci.length === 0) {
+      colorCounts.C += 1;
+      colorTotal += 1;
+      continue;
+    }
+    for (const k of ci) {
+      colorCounts[k] = (colorCounts[k] ?? 0) + 1;
+      colorTotal += 1;
+    }
+  }
+  const colorDist = { counts: colorCounts, total: colorTotal };
+
+  // Mana production — only permanents that make mana (lands/rocks/dorks),
+  // clamped to the deck's color identity.
+  const prodCounts: Record<string, number> = { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 };
+  const sources: Record<string, ScryfallCard[]> = { W: [], U: [], B: [], R: [], G: [], C: [] };
+  const identity = deckColorIdentity(allCards, [commander, partnerCommander]);
+  let totalSources = 0;
+  for (const c of allCards) {
+    if (!isManaSourceType(c)) continue;
+    const colors = producedManaColors(c, identity);
+    if (colors.length === 0) continue;
+    totalSources += 1;
+    for (const k of colors) {
+      prodCounts[k] = (prodCounts[k] ?? 0) + 1;
+      (sources[k] ??= []).push(c);
+    }
+  }
+  const sourcesByColor = Object.fromEntries(
+    Object.entries(sources).map(([k, v]) => [k, tallyNames(v)])
+  );
+  const manaProduction = { counts: prodCounts, total: totalSources, sourcesByColor };
+
+  // Type breakdown (spans every card).
+  const typeBreakdown: Record<TypeGroup, number> = {
+    Land: 0,
+    Creature: 0,
+    Planeswalker: 0,
+    Battle: 0,
+    Sorcery: 0,
+    Instant: 0,
+    Artifact: 0,
+    Enchantment: 0,
+  };
+  for (const c of allCards) typeBreakdown[classifyType(c)] += 1;
+
+  // Per-bucket card lists powering the drill-down carousels. Curve/color exclude
+  // lands + bucket at 7+ like the counts above; types span every card.
+  const byCmc: Record<number, ScryfallCard[]> = {};
+  const byType: Record<string, ScryfallCard[]> = {};
+  const byColor: Record<string, ScryfallCard[]> = {};
+  for (const c of allCards) {
+    if (!isLand(c)) {
+      const cmc = Math.min(7, Math.round(c.cmc ?? 0));
+      (byCmc[cmc] ??= []).push(c);
+      const ci = c.color_identity ?? [];
+      if (ci.length === 0) (byColor.C ??= []).push(c);
+      else for (const k of ci) (byColor[k] ??= []).push(c);
+    }
+    (byType[classifyType(c)] ??= []).push(c);
+  }
+  const tally = (m: Record<string | number, ScryfallCard[]>) =>
+    Object.fromEntries(Object.entries(m).map(([k, v]) => [k, tallyNames(v)]));
+
+  return {
+    manaCurve,
+    curveByColor,
+    averageCmc,
+    colorDist,
+    manaProduction,
+    typeBreakdown,
+    cardsByCmc: tally(byCmc) as Record<number, CardTally[]>,
+    cardsByType: tally(byType),
+    cardsByColor: tally(byColor),
+  };
+}

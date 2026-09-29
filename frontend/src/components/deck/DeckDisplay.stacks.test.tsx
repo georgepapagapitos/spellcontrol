@@ -11,7 +11,7 @@ import { DeckDisplay, type DeckDisplayCard } from './DeckDisplay';
 import { packStacks, stackLayout } from './DeckCardGrid';
 import { readStoredViewMode } from './deck-display-rows';
 
-vi.mock('@/lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
 function card(name: string, type_line: string): ScryfallCard {
   return {

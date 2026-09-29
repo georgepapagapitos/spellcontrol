@@ -14,7 +14,7 @@ import { SortPopover, type SortPreviewSection } from './SortPopover';
 import { ViewModeToggle, type ViewModeOption } from './ViewModeToggle';
 import { Legend, LegendContent } from './Legend';
 import { ToolbarPopover } from './shared/ToolbarPopover';
-import { useMediaQuery } from '../lib/use-media-query';
+import { useMediaQuery } from '@/lib/util/use-media-query';
 import { Button, buttonClass } from '@/components/shared/Button';
 import { Count } from '@/components/shared/Count';
 

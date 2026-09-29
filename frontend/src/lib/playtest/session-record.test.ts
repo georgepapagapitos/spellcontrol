@@ -177,6 +177,32 @@ describe('countResistanceEvents', () => {
     });
   });
 
+  it('counts an overloaded Cyclonic Rift as a wipe, and attacks or discard as none of the four', () => {
+    // The exact strings resistance.ts writes (E533); the classifier reads
+    // nothing else.
+    const log = [
+      entry({
+        kind: 'resistance',
+        text: 'Opponent overloads Cyclonic Rift: your board returns to hand',
+      }),
+      entry({ kind: 'resistance', text: 'Opponent attacks: you lose 6 life' }),
+      entry({
+        kind: 'resistance',
+        text: 'Opponent casts Hymn to Tourach: you discard Sol Ring and Island at random',
+      }),
+      entry({
+        kind: 'resistance',
+        text: 'Hypnotic Specter connects: you discard Island at random',
+      }),
+    ];
+    expect(countResistanceEvents(log)).toEqual({
+      counters: 0,
+      removals: 0,
+      bounces: 0,
+      wipesSurvived: 1,
+    });
+  });
+
   it('ignores non-resistance entries', () => {
     const log = [entry({ kind: 'draw', text: 'Drew 1 card' })];
     expect(countResistanceEvents(log)).toEqual({

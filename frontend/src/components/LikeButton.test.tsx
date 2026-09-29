@@ -9,7 +9,7 @@ const { likeDeckMock, unlikeDeckMock } = vi.hoisted(() => ({
   likeDeckMock: vi.fn(),
   unlikeDeckMock: vi.fn(),
 }));
-vi.mock('../lib/discover-client', () => ({
+vi.mock('@/lib/discover/discover-client', () => ({
   likeDeck: likeDeckMock,
   unlikeDeck: unlikeDeckMock,
 }));

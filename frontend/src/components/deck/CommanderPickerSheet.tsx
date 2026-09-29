@@ -5,7 +5,7 @@ import { Modal } from '../Modal';
 import { IconButton } from '@/components/shared/Button';
 import { CommanderSearch } from './CommanderSearch';
 import { CommanderResultCard } from './CommanderResultCard';
-import { commanderCandidatesFor } from '@/lib/deck-import-format';
+import { commanderCandidatesFor } from '@/lib/import-export/deck-import-format';
 import './CommanderPickerSheet.css';
 
 /**

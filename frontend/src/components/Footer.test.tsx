@@ -8,7 +8,7 @@ vi.mock('../store/auth', () => ({
   useAuth: (sel: (s: { user: { role?: string } | null }) => unknown) =>
     sel({ user: role ? { role } : null }),
 }));
-vi.mock('../lib/shortcut-registry', () => ({
+vi.mock('./shortcut-registry', () => ({
   useShortcutRegistry: () => ({ show: vi.fn() }),
 }));
 

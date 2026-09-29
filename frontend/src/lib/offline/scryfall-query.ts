@@ -1,4 +1,4 @@
-import { normalizeForSearch, normalizeScryfallQuery } from '../normalize-search';
+import { normalizeForSearch, normalizeScryfallQuery } from '@/lib/search/normalize-search';
 import type { SlimCard } from './types';
 import { canBeCommanderByType } from '@spellcontrol/binder-routing';
 
@@ -195,7 +195,7 @@ const WUBRG = ['W', 'U', 'B', 'R', 'G'] as const;
 
 /**
  * Structural subset of {@link SlimCard} the matcher reads — lets other card
- * shapes (e.g. the collection's EnrichedCard, adapted in lib/deck-add-search)
+ * shapes (e.g. the collection's EnrichedCard, adapted in lib/search/deck-add-search)
  * run the same query engine without carrying the full slim payload.
  */
 export interface QueryCard {

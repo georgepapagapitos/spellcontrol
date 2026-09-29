@@ -16,7 +16,7 @@ import {
 import './SetsPage.css';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Finish } from '../types';
-import { fetchPrintings, getSetCards, useSetMap, type SetMap } from '../lib/api';
+import { fetchPrintings, getSetCards, useSetMap, type SetMap } from '@/lib/api';
 import {
   CARD_SEARCH_MIN_CHARS,
   SET_SORT_LABEL,
@@ -31,18 +31,18 @@ import {
   type SetGridRow,
   type SetProgress,
   type SetSortKey,
-} from '../lib/set-completion';
+} from '@/lib/cards/set-completion';
 import {
   SLD_CODE,
   SLD_UNASSIGNED,
   dropsForNumber,
   useSldDrops,
   type SldDropsIndex,
-} from '../lib/sld-drops';
+} from '@/lib/cards/sld-drops';
 import { SelectMenu, type SelectOption } from '../components/SelectMenu';
 import { SearchPill } from '../components/SearchPill';
 import { ViewModeToggle } from '../components/ViewModeToggle';
-import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
+import { scryfallToEnrichedCard } from '@/lib/cards/scryfall-to-enriched';
 import { useCollectionStore } from '../store/collection';
 import { useToastsStore } from '../store/toasts';
 import { CardPreview } from '../components/CardPreview';

@@ -297,6 +297,8 @@
   background: var(--accent-light);
   --text-muted: var(--text-muted-tint);
   --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   color: var(--accent);
   border-radius: 999px;
   font-size: var(--text-xs);
@@ -398,6 +400,8 @@
   background: var(--accent-light);
   --text-muted: var(--text-muted-tint);
   --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   color: var(--accent);
 }
 
@@ -2665,7 +2669,7 @@ i.ss.set-symbol--mythic {
   display: grid;
 
   /* Zoom-driven min column width — ListDetailView sets both vars inline per
-     zoom step (lib/grid-zoom.ts ladders); the mobile ladder takes over
+     zoom step (lib/util/grid-zoom.ts ladders); the mobile ladder takes over
      ≤1024px. min(…, 100%) keeps a big step from overflowing a narrow
      container (it clamps to one full-width column instead). Same pattern as
      .deck-card-grid / the collection grid. */

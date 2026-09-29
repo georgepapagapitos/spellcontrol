@@ -3,7 +3,7 @@ import { useRef, useState } from 'react';
 import { Heart } from 'lucide-react';
 import { useAuth } from '../store/auth';
 import { toast } from '../store/toasts';
-import { likeDeck, unlikeDeck } from '../lib/discover-client';
+import { likeDeck, unlikeDeck } from '@/lib/discover/discover-client';
 import { GuestActionPopover } from './GuestActionPopover';
 import { IconButton } from '@/components/shared/Button';
 

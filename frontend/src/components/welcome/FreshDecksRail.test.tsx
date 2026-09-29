@@ -10,12 +10,12 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { pending } from '@/test/pending';
-import type { DiscoverDeck } from '../../lib/discover-client';
+import type { DiscoverDeck } from '@/lib/discover/discover-client';
 
 const { mockListDiscoverDecks } = vi.hoisted(() => ({ mockListDiscoverDecks: vi.fn() }));
 // Named-export-complete: DiscoverDeckTile also mounts LikeButton/BookmarkButton,
 // which import the like/bookmark client fns from this same module.
-vi.mock('../../lib/discover-client', () => ({
+vi.mock('@/lib/discover/discover-client', () => ({
   listDiscoverDecks: mockListDiscoverDecks,
   likeDeck: vi.fn(),
   unlikeDeck: vi.fn(),
@@ -23,7 +23,7 @@ vi.mock('../../lib/discover-client', () => ({
   unbookmarkDeck: vi.fn(),
 }));
 
-vi.mock('../../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
 import { FreshDecksRail } from './FreshDecksRail';
 

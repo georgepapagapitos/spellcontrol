@@ -11,8 +11,8 @@ import { useCardCarousel, tallyToEntries } from './useCardCarousel';
 import { CardGroupSheet } from './CardGroupSheet';
 import type { CardAnnotation } from './CardGroupSheet';
 import type { CardTally } from './useCardCarousel';
-import { useCardThumb } from '@/lib/card-thumbs';
-import { classifyInclusion } from '@/lib/inclusion-label';
+import { useCardThumb } from '@/lib/cards/card-thumbs';
+import { classifyInclusion } from '@/lib/deck-analysis/inclusion-label';
 import { StackedBar } from '../shared/MeterBar';
 
 export interface EnginePanelProps {

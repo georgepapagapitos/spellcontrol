@@ -22,7 +22,7 @@ vi.mock('../store/decks', () => ({
 vi.mock('../store/auth', () => ({
   useAuth: <T,>(selector: (s: { status: string }) => T): T => selector({ status: 'authed' }),
 }));
-vi.mock('../lib/sync', () => ({ isOnline: () => true, onSyncedChange: () => () => {} }));
+vi.mock('@/lib/sync', () => ({ isOnline: () => true, onSyncedChange: () => () => {} }));
 vi.mock('@/deck-builder/services/edhrec/client', () => ({
   fetchCommanderData: () => Promise.resolve(null),
   fetchPartnerCommanderData: () => Promise.resolve(null),

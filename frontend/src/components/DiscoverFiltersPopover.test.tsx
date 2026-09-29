@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { NO_DISCOVER_FILTERS, type DiscoverFilters } from '@/lib/discover-filters';
+import { NO_DISCOVER_FILTERS, type DiscoverFilters } from '@/lib/discover/discover-filters';
 import { DiscoverFiltersPopover } from './DiscoverFiltersPopover';
 
 /** Stateful harness — mirrors how DiscoverDecksPage actually wires this

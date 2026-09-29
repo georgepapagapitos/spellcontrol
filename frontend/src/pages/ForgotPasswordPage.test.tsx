@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 const { mockForgotPassword } = vi.hoisted(() => ({ mockForgotPassword: vi.fn() }));
-vi.mock('../lib/auth-api', () => ({ forgotPassword: mockForgotPassword }));
+vi.mock('@/lib/account/auth-api', () => ({ forgotPassword: mockForgotPassword }));
 
 import ForgotPasswordPage from './ForgotPasswordPage';
 

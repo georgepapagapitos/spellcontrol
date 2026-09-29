@@ -63,7 +63,7 @@ export interface NextBestMoveInput {
    *  tells you to go buy a card while you've asked to see owned moves only. */
   ownedOnly?: boolean;
   /** Curve-derived land-count advice — the lands RoleHealth from
-   *  lib/deck-analysis when its Karsten suggestion applied (commander deck,
+   *  lib/deck-analysis/deck-analysis when its Karsten suggestion applied (commander deck,
    *  tagger ready, stable nonland sample). Absent → no land-count move. */
   landAdvice?: { count: number; suggested: number };
 }
@@ -216,7 +216,7 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
 
   // ── Tier 2: mana base — land count vs the deck's own curve ──────────────
   // `suggested` is Karsten's formula computed from the real deck (see
-  // lib/deck-analysis). Within ±1 is healthy; only a 2+ land gap earns a
+  // lib/deck-analysis/deck-analysis). Within ±1 is healthy; only a 2+ land gap earns a
   // hero slot so a one-land quibble never displaces a sharper move.
   if (input.landAdvice) {
     const { count, suggested } = input.landAdvice;

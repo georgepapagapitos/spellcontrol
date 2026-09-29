@@ -3,16 +3,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { DeckFeedbackView } from './DeckFeedbackView';
-import type { PublicDeck } from '../../lib/shared-types';
+import type { PublicDeck } from '@/lib/social/shared-types';
 
 const submitFeedback = vi.hoisted(() => vi.fn());
-vi.mock('../../lib/feedback-client', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../lib/feedback-client')>()),
+vi.mock('@/lib/social/feedback-client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/social/feedback-client')>()),
   submitFeedback,
 }));
 
 // Keep the add-search inert — network-driven and not under test here.
-vi.mock('../../lib/use-search-cards', () => ({
+vi.mock('@/lib/search/use-search-cards', () => ({
   useSearchCards: () => ({ results: [], loading: false, error: null }),
 }));
 

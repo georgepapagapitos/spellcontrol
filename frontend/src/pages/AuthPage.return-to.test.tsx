@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('../lib/auth-api', () => ({
+vi.mock('@/lib/account/auth-api', () => ({
   fetchProviders: vi.fn(() => Promise.resolve({ google: false })),
   googleSignInUrl: vi.fn(() => 'https://example.test/oauth'),
 }));
@@ -23,7 +23,7 @@ vi.mock('../store/auth', () => ({
 vi.mock('../store/toasts', () => ({ toast: { show: vi.fn() } }));
 
 const markEverVisited = vi.fn();
-vi.mock('../lib/first-run', () => ({ markEverVisited: () => markEverVisited() }));
+vi.mock('@/lib/home/first-run', () => ({ markEverVisited: () => markEverVisited() }));
 
 const mockNavigate = vi.fn();
 let search = '';

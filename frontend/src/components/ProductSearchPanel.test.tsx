@@ -19,7 +19,7 @@ vi.mock('react-router-dom', async (importOriginal) => {
 
 const searchProductsMock = vi.fn<(query: string, type?: string) => Promise<ProductSummary[]>>();
 const fetchProductMock = vi.fn<(fileName: string) => Promise<ProductResolveResponse>>();
-vi.mock('../lib/api', () => ({
+vi.mock('@/lib/api', () => ({
   searchProducts: (query: string, type?: string) => searchProductsMock(query, type),
   fetchProduct: (fileName: string) => fetchProductMock(fileName),
   useSetMap: () => undefined,
@@ -27,7 +27,7 @@ vi.mock('../lib/api', () => ({
 }));
 
 const buildDeckMock = vi.fn(() => 'new-deck-id');
-vi.mock('../lib/build-deck-from-import', () => ({
+vi.mock('@/lib/import-export/build-deck-from-import', () => ({
   useBuildDeckFromImport: () => buildDeckMock,
 }));
 

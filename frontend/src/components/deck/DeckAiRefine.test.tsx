@@ -6,15 +6,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import type { ScryfallCard } from '@/deck-builder/types';
-import type { Change } from '@/lib/deck-change';
+import type { Change } from '@/lib/coach/deck-change';
 import { DeckAiRefine } from './DeckAiRefine';
-import { __resetAiStatus } from '../../lib/use-ai-status';
+import { __resetAiStatus } from '@/lib/ai/use-ai-status';
 
 const openCarousel = vi.fn();
 vi.mock('./useCardCarousel', () => ({
   useCardCarousel: () => ({ open: openCarousel, preview: null }),
 }));
-vi.mock('../../lib/deck-analysis', () => ({
+vi.mock('@/lib/deck-analysis/deck-analysis', () => ({
   analyzeDeck: () => ({
     totalNonCommander: 99,
     expectedSize: 99,
@@ -36,7 +36,7 @@ vi.mock('../../lib/deck-analysis', () => ({
     taggerReady: true,
   }),
 }));
-vi.mock('@/lib/use-tagger-ready', () => ({ useTaggerReady: () => true }));
+vi.mock('@/lib/cards/use-tagger-ready', () => ({ useTaggerReady: () => true }));
 
 function card(name: string): ScryfallCard {
   return { id: name, oracle_id: `o-${name}`, name } as ScryfallCard;

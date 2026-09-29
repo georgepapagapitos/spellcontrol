@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { WifiOff, Download, X } from 'lucide-react';
 import { Modal } from '../Modal';
 import { ProgressBar } from '../ProgressBar';
-import { importDeckText } from '../../lib/api';
+import { importDeckText } from '@/lib/api';
 import { useDecksStore, type Deck } from '../../store/decks';
 import { useCollectionStore } from '../../store/collection';
 import { useDeckHistoryStore } from '../../store/deck-history';
@@ -10,8 +10,8 @@ import {
   buildAppendPlan,
   appendPartnerCandidatesFor,
   type AppendPlan,
-} from '../../lib/append-deck-import';
-import { validateDeckZones, type LegalityIssue } from '../../lib/deck-validation';
+} from '@/lib/import-export/append-deck-import';
+import { validateDeckZones, type LegalityIssue } from '@/lib/deck/deck-validation';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { DeckImportResponse } from '../../types';
@@ -20,7 +20,7 @@ import { CommanderSearch } from './CommanderSearch';
 import { getCardImageUrl } from '@/deck-builder/services/scryfall/client';
 import './AppendDeckDialog.css';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button, IconButton } from '@/components/shared/Button';
 interface Props {
   deck: Deck;

@@ -8,10 +8,10 @@ import {
   rsvpGameNight,
   type GameNight,
   type TonightTradeAttendee,
-} from '../../lib/game-nights-api';
+} from '@/lib/play/game-nights-api';
 
-vi.mock('../../lib/game-nights-api', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../lib/game-nights-api')>();
+vi.mock('@/lib/play/game-nights-api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/play/game-nights-api')>();
   return { ...actual, fetchTonightTrades: vi.fn(), rsvpGameNight: vi.fn() };
 });
 

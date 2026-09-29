@@ -4,7 +4,7 @@ import { StackedBar } from '../../components/shared/MeterBar';
 import { CardPreview } from '../../components/CardPreview';
 import type { EnrichedCard } from '../../types';
 import type { ScryfallCard } from '@/deck-builder/types';
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { getCardsByNames } from '../../deck-builder/services/scryfall/client';
 import {
   fetchCubeCobraCube,

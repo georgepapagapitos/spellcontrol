@@ -226,6 +226,8 @@
   background: var(--accent-light);
   --text-muted: var(--text-muted-tint);
   --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   box-shadow: none;
 }
 
@@ -557,6 +559,8 @@
   background: linear-gradient(100deg, var(--accent-light), transparent 70%), var(--surface-raised);
   --text-muted: var(--text-muted-tint);
   --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
 }
 
 .binder-start-shelf {

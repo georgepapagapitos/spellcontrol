@@ -1,7 +1,7 @@
 import { useId } from 'react';
-import { AI_BUDGET_CEILING, isCollectionScope, type AiScope } from '../../lib/ai-scope';
-import { currencySymbol, useCurrency } from '../../lib/currency';
-import { useAiStatus } from '../../lib/use-ai-status';
+import { AI_BUDGET_CEILING, isCollectionScope, type AiScope } from '@/lib/ai/ai-scope';
+import { currencySymbol, useCurrency } from '@/lib/collection/currency';
+import { useAiStatus } from '@/lib/ai/use-ai-status';
 import './AiSourcesControl.css';
 
 /**

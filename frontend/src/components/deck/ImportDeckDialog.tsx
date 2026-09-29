@@ -3,10 +3,10 @@ import { Upload, Download, ChevronRight, Cloud, Link2, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../Modal';
 import { ProgressBar } from '../ProgressBar';
-import { fetchImportLink, importDeckText, importDeckFile } from '../../lib/api';
+import { fetchImportLink, importDeckText, importDeckFile } from '@/lib/api';
 import { useDecksStore } from '../../store/decks';
-import { buildAllocationMap, type AllocationInfo } from '../../lib/allocations';
-import { useBuildDeckFromImport } from '../../lib/build-deck-from-import';
+import { buildAllocationMap, type AllocationInfo } from '@/lib/collection/allocations';
+import { useBuildDeckFromImport } from '@/lib/import-export/build-deck-from-import';
 import { CommanderSearch } from './CommanderSearch';
 import { getCardImageUrl } from '@/deck-builder/services/scryfall/client';
 import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
@@ -18,15 +18,15 @@ import {
   commanderEligibleFor,
   commanderCandidatesFor,
   partnerCandidatesFor,
-} from '@/lib/deck-import-format';
+} from '@/lib/import-export/deck-import-format';
 import { PartnerImportPicker, ImportParseSummary } from './import-deck-shared';
 import {
   googlePickerAvailable,
   isCancelled,
   pickFromGoogleDrive,
   warmGooglePicker,
-} from '../../lib/google-picker';
-import { usePublishOnCreate, type PublishOutcome } from '../../lib/use-publish-on-create';
+} from '@/lib/import-export/google-picker';
+import { usePublishOnCreate, type PublishOutcome } from '@/lib/social/use-publish-on-create';
 import { VisibilityChoice } from '../VisibilityChoice';
 import { SelectMenu, type SelectOption } from '../SelectMenu';
 
@@ -35,10 +35,10 @@ import {
   mergeStagedFiles,
   stagedFilesNotice,
   stripExtension,
-} from '../../lib/staged-files';
+} from '@/lib/import-export/staged-files';
 
-import { DECK_NAME_MAX } from '@/lib/deck-name';
-import { userMessage } from '@/lib/user-error';
+import { DECK_NAME_MAX } from '@/lib/deck/deck-name';
+import { userMessage } from '@/lib/util/user-error';
 import { Button, IconButton } from '@/components/shared/Button';
 interface Props {
   onClose: () => void;

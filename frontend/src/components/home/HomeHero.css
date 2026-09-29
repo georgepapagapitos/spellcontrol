@@ -459,7 +459,7 @@ a.home-hero-step:focus-visible {
 /* Pending value / scale lines (E277): the same box as the resolved line,
    with a shimmer bar where the figure goes — the label text is real so the
    plates are already the right size. Only rendered when the last visit had
-   the line (lib/home-shape); an nbsp keeps the exact line height. */
+   the line (lib/home/home-shape); an nbsp keeps the exact line height. */
 .home-hero-value--loading .home-hero-value-amount,
 .home-hero-stats--loading .home-hero-stat-value,
 .home-hero-caption--loading .home-hero-caption-tape,

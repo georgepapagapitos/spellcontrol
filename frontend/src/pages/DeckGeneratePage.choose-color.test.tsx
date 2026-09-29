@@ -20,7 +20,7 @@ vi.mock('../store/decks', () => ({
 vi.mock('../store/auth', () => ({
   useAuth: <T,>(selector: (s: { status: string }) => T): T => selector({ status: 'authed' }),
 }));
-vi.mock('../lib/sync', () => ({ isOnline: () => true, onSyncedChange: () => () => {} }));
+vi.mock('@/lib/sync', () => ({ isOnline: () => true, onSyncedChange: () => () => {} }));
 
 // Setting a commander makes useDeckGeneration pre-fetch EDHREC data ( see the
 // "Pre-fetch the EDHREC land suggestion" effect in use-deck-generation.ts).

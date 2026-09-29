@@ -3,14 +3,14 @@
  * F10: the board is a fixed full-screen overlay that isn't portaled, so
  * without a focus trap Tab walks past its last control into whatever the
  * board covers (the app's nav links, the Play page's own tabs). This pins
- * `useBackgroundInert` (lib/use-background-inert.ts) doing that job for both
+ * `useBackgroundInert` (lib/overlays/use-background-inert.ts) doing that job for both
  * GameBoard itself and the win celebration it renders on top of its own
  * seats. Mock harness mirrors GameBoard.hub.test.tsx.
  */
 import { render, screen, fireEvent } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { GamePlayer, GameState } from '../../lib/game-state';
-import { createGameState, makePlayer } from '../../lib/game-state';
+import type { GamePlayer, GameState } from '@/lib/play/game-state';
+import { createGameState, makePlayer } from '@/lib/play/game-state';
 
 function seat(n: number, name: string, over: Partial<GamePlayer> = {}): GamePlayer {
   return {
@@ -51,13 +51,13 @@ vi.mock('../../store/play', () => {
   return { usePlayStore };
 });
 
-vi.mock('../../lib/haptics', () => ({
+vi.mock('@/lib/util/haptics', () => ({
   haptics: { tap: vi.fn(), lethal: vi.fn(), warning: vi.fn(), success: vi.fn(), bump: vi.fn() },
 }));
 
-vi.mock('../../lib/use-wake-lock', () => ({ useWakeLock: vi.fn() }));
+vi.mock('@/lib/util/use-wake-lock', () => ({ useWakeLock: vi.fn() }));
 
-vi.mock('../../lib/undo-stack', () => ({
+vi.mock('@/lib/play/undo-stack', () => ({
   capture: vi.fn(),
   clearUndo: vi.fn(),
   peekLabel: vi.fn(() => null),
@@ -65,10 +65,10 @@ vi.mock('../../lib/undo-stack', () => ({
   runSuppressed: vi.fn((fn: () => void) => fn()),
 }));
 
-vi.mock('../../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
-vi.mock('../../lib/game-tools', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../lib/game-tools')>();
+vi.mock('@/lib/play/game-tools', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/play/game-tools')>();
   return { ...actual, highRoll: vi.fn() };
 });
 

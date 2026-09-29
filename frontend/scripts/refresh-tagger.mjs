@@ -19,7 +19,7 @@
 //
 // NOTE: the tag vocabulary below is a contract with three consumers —
 // deck-builder/services/tagger/client.ts (role + subtype lookup),
-// lib/card-tags.ts (binder-rule reverse index) and lib/otag-descriptions.ts
+// lib/cards/card-tags.ts (binder-rule reverse index) and lib/cards/otag-descriptions.ts
 // (per-tag copy, pinned by otag-descriptions.test.ts). Adding or renaming a tag
 // is a deliberate change that touches all three; don't do it incidentally here.
 

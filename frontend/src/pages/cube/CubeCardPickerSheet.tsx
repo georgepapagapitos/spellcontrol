@@ -2,7 +2,7 @@ import { useId, useState } from 'react';
 import { X, Search } from 'lucide-react';
 import { Modal } from '../../components/Modal';
 import { CardPreview } from '../../components/CardPreview';
-import { useCardThumb } from '../../lib/card-thumbs';
+import { useCardThumb } from '@/lib/cards/card-thumbs';
 import type { CubeCard } from '../../lib/cube/core';
 import { cubeCardToEnriched } from './shared';
 import { Button, IconButton } from '../../components/shared/Button';

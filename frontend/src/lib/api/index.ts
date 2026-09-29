@@ -1,0 +1,411 @@
+import { useEffect, useState } from 'react';
+import type {
+  DeckImportResponse,
+  FetchErrorRow,
+  ProductCommanderSummary,
+  ProductResolveResponse,
+  ProductSummary,
+  UploadResponse,
+} from '@/types/index';
+import type { ScryfallCard } from '@/deck-builder/types';
+import { handleResponse, fetchWithAbortTimeout } from './fetch-utils';
+import { chunkImportText } from './import-chunker';
+import { mergeUploadResponses } from './merge-upload-responses';
+
+import { userMessage } from '@/lib/util/user-error';
+const TIMEOUT_MS = 120_000;
+const IMPORT_CHUNK_SIZE = 500;
+/**
+ * How many import chunks we upload at once. Concurrency overlaps the per-chunk
+ * round trips (each chunk does its own server-side Scryfall resolution), cutting
+ * wall-clock on large imports. Kept modest so we don't fan out so hard that the
+ * backend trips Scryfall's rate limit; the server-side cache + 429 backoff absorb
+ * the rest.
+ */
+const IMPORT_CHUNK_CONCURRENCY = 3;
+
+// Retry transient network failures on import-chunk uploads. Each entry is the
+// delay before the next attempt; an empty array would mean no retry. Tests run
+// with zero delays so the suite stays fast.
+const IMPORT_RETRY_DELAYS_MS: readonly number[] =
+  import.meta.env.MODE === 'test' ? [0, 0] : [1500, 4000];
+
+const sleep = (ms: number) =>
+  ms <= 0 ? Promise.resolve() : new Promise<void>((r) => setTimeout(r, ms));
+
+interface NetworkError extends Error {
+  isNetworkError: true;
+}
+
+function isNetworkError(err: unknown): err is NetworkError {
+  return err instanceof Error && (err as Partial<NetworkError>).isNetworkError === true;
+}
+
+// Transient server/gateway statuses worth retrying: rate limiting (429) and the
+// "try again shortly" 5xx family — Fly cold-start/restart, gateway hiccups, or
+// an upstream Scryfall 503/429 forwarded through /api/import. A plain 4xx
+// (bad parse, oversize body) is the client's fault and still surfaces at once.
+function isRetryableStatus(err: unknown): boolean {
+  const status = (err as { status?: number } | undefined)?.status;
+  return status === 429 || status === 502 || status === 503 || status === 504;
+}
+
+function fetchWithTimeout(url: string, opts: RequestInit): Promise<Response> {
+  return fetchWithAbortTimeout(
+    url,
+    opts,
+    TIMEOUT_MS,
+    'The request timed out. Try importing a smaller batch.'
+  ).catch((err: unknown) => {
+    // fetchWithAbortTimeout rethrows AbortError as the timeout message above.
+    // Any other rejection is a network-level failure — DNS, connection reset,
+    // TLS, the browser killing a long-running fetch (mobile tab suspension,
+    // cellular handoff). Tag it so the import-chunk caller knows it's retryable.
+    if (err instanceof Error && err.message.startsWith('The request timed out')) throw err;
+    const e: NetworkError = Object.assign(
+      new Error("The server isn't responding. Give it a moment and try again."),
+      { isNetworkError: true as const }
+    );
+    throw e;
+  });
+}
+
+export interface ImportProgress {
+  /** 1-indexed chunk currently being uploaded. */
+  chunkIndex: number;
+  /** Total number of chunks. 1 means the file fit in a single request. */
+  totalChunks: number;
+}
+
+export type ImportProgressCallback = (progress: ImportProgress) => void;
+
+async function postImportChunk(text: string, proxy?: boolean): Promise<UploadResponse> {
+  const response = await fetchWithTimeout('/api/import', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(proxy ? { text, proxy: true } : { text }),
+  });
+  const data = await handleResponse<UploadResponse>(response);
+  // Deploy-skew guard: a native app can run against a backend that predates
+  // the fetchErrors/malformedRows/skippedUnownedRows/clampedRows fields (Fly
+  // deploys lag main) — normalize so `.length`/arithmetic never see undefined.
+  return {
+    ...data,
+    fetchErrors: data.fetchErrors ?? [],
+    malformedRows: data.malformedRows ?? [],
+    skippedUnownedRows: data.skippedUnownedRows ?? 0,
+    clampedRows: data.clampedRows ?? 0,
+  };
+}
+
+async function postImportChunkWithRetry(text: string, proxy?: boolean): Promise<UploadResponse> {
+  let lastErr: unknown;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await postImportChunk(text, proxy);
+    } catch (err) {
+      lastErr = err;
+      // Retry transient network failures and transient server statuses
+      // (429/502/503/504). A plain 4xx (parse error, oversize body) surfaces
+      // immediately — retrying it would just fail again.
+      if (
+        (!isNetworkError(err) && !isRetryableStatus(err)) ||
+        attempt >= IMPORT_RETRY_DELAYS_MS.length
+      )
+        break;
+      await sleep(IMPORT_RETRY_DELAYS_MS[attempt]);
+    }
+  }
+  throw lastErr;
+}
+
+/**
+ * Import via pasted text or a file's text contents.
+ *
+ * Big collections (1k+ rows) are split into chunks of {@link IMPORT_CHUNK_SIZE}
+ * lines and uploaded with up to {@link IMPORT_CHUNK_CONCURRENCY} in flight at
+ * once. Each chunk gets its own retry budget so a transient network failure (tab
+ * suspended, cellular handoff, NAT timeout) only restarts that one chunk instead
+ * of the whole import. Header rows in CSV/TSV/ManaBox files are preserved in every
+ * chunk so each is independently parseable.
+ *
+ * **Atomicity contract** (relied on by UploadPanel and any future caller):
+ * the function either resolves with the merged UploadResponse for ALL
+ * chunks, or throws. Successful intermediate chunks are accumulated only
+ * in this function's local `responses` array — they MUST NOT be exposed
+ * to the caller on a later chunk's failure, and the backend `/api/import`
+ * route is stateless (no per-chunk server-side persistence) so a partial
+ * upload leaves no orphaned state on either side. Callers (UploadPanel)
+ * therefore only need to call `importCards()` once with the resolved
+ * response and don't need to roll back on failure.
+ */
+export async function importText(
+  text: string,
+  onProgress?: ImportProgressCallback,
+  proxy?: boolean
+): Promise<UploadResponse> {
+  const chunks = chunkImportText(text, IMPORT_CHUNK_SIZE);
+  if (chunks.length === 1) {
+    onProgress?.({ chunkIndex: 1, totalChunks: 1 });
+    return postImportChunkWithRetry(text, proxy);
+  }
+
+  // Upload chunks with bounded concurrency. Results are kept in input order so the
+  // merge is deterministic; progress reports the number completed so far. Atomicity:
+  // any chunk failure rejects the whole import and the partial `responses` array is
+  // never exposed (the backend is stateless across chunks, so nothing to roll back).
+  const responses: UploadResponse[] = new Array(chunks.length);
+  let completed = 0;
+  let nextChunk = 0;
+
+  const worker = async (): Promise<void> => {
+    for (let i = nextChunk++; i < chunks.length; i = nextChunk++) {
+      try {
+        responses[i] = await postImportChunkWithRetry(chunks[i], proxy);
+      } catch (err) {
+        const message = userMessage(err, "The server didn't respond. Try the import again.");
+        throw new Error(
+          `Couldn't finish the import (batch ${i + 1} of ${chunks.length}). ${message}`
+        );
+      }
+      completed++;
+      onProgress?.({ chunkIndex: completed, totalChunks: chunks.length });
+    }
+  };
+
+  const workerCount = Math.min(IMPORT_CHUNK_CONCURRENCY, chunks.length);
+  await Promise.all(Array.from({ length: workerCount }, worker));
+  return mergeUploadResponses(responses);
+}
+
+/**
+ * Import via file upload. Reads the file as text and dispatches to
+ * {@link importText} so chunked imports work uniformly on web and native.
+ * The backend's multipart route still exists but only the text-JSON path is
+ * exercised from the client now — chunkable, retry-friendly, and consistent
+ * across platforms (a multipart bridge proved unreliable
+ * anyway).
+ */
+export async function importFile(
+  file: File,
+  onProgress?: ImportProgressCallback,
+  proxy?: boolean
+): Promise<UploadResponse> {
+  return importText(await file.text(), onProgress, proxy);
+}
+
+/**
+ * Resolve a Google Sheets / Drive share link to its file text.
+ *
+ * The server does the fetching (Google's export endpoints send no CORS headers)
+ * and returns the text plus the file's real name, so the caller can stage it as
+ * an ordinary `File` and reuse the whole existing import path unchanged.
+ */
+export async function fetchImportLink(url: string): Promise<{ text: string; name: string }> {
+  const response = await fetchWithTimeout('/api/import/link', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url }),
+  });
+  return handleResponse<{ text: string; name: string }>(response);
+}
+
+/**
+ * Retry a degraded import by POSTing the server's withheld `fetchErrors` rows
+ * back verbatim as `{ rows }` — no re-parse, so quantity/printing/finish
+ * survive. Small payloads (only the failed bucket), so no chunking; the same
+ * transient-failure retry budget as text chunks still applies.
+ */
+export async function importRows(rows: FetchErrorRow[]): Promise<UploadResponse> {
+  let lastErr: unknown;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const response = await fetchWithTimeout('/api/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rows }),
+      });
+      const data = await handleResponse<UploadResponse>(response);
+      return {
+        ...data,
+        fetchErrors: data.fetchErrors ?? [],
+        malformedRows: data.malformedRows ?? [],
+        skippedUnownedRows: data.skippedUnownedRows ?? 0,
+        clampedRows: data.clampedRows ?? 0,
+      };
+    } catch (err) {
+      lastErr = err;
+      if (
+        (!isNetworkError(err) && !isRetryableStatus(err)) ||
+        attempt >= IMPORT_RETRY_DELAYS_MS.length
+      )
+        break;
+      await sleep(IMPORT_RETRY_DELAYS_MS[attempt]);
+    }
+  }
+  throw lastErr;
+}
+
+export interface SetSummary {
+  code: string;
+  name: string;
+  iconSvgUri: string;
+  releasedAt: string;
+  /** Cards in the set per Scryfall (0 = unknown on older cached backends). */
+  cardCount?: number;
+}
+export type SetMap = Record<string, SetSummary>;
+
+let setMapPromise: Promise<SetMap> | null = null;
+
+/** Fetches the Scryfall set list (cached per page-load). Resolves to a map keyed by uppercase set code. */
+export function getSetMap(): Promise<SetMap> {
+  if (!setMapPromise) {
+    setMapPromise = fetchWithTimeout('/api/sets', { method: 'GET' })
+      .then((r) => handleResponse<{ sets: SetMap }>(r))
+      .then((j) => j.sets)
+      .catch((err) => {
+        setMapPromise = null;
+        throw err;
+      });
+  }
+  return setMapPromise;
+}
+
+/** React hook that resolves the set map once per mount (cached globally). */
+export function useSetMap(): SetMap | undefined {
+  const [map, setMap] = useState<SetMap | undefined>(undefined);
+  useEffect(() => {
+    let cancelled = false;
+    getSetMap()
+      .then((m) => {
+        if (!cancelled) setMap(m);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return map;
+}
+
+const setCardsPromises = new Map<string, Promise<ScryfallCard[]>>();
+
+/**
+ * Every printing in one set, collector-number order (cached per page-load).
+ * Backed by `/api/sets/:code/cards`; the server pages through Scryfall, so a
+ * cold large set can take a while — the shared 120s timeout covers it.
+ */
+export function getSetCards(code: string): Promise<ScryfallCard[]> {
+  const key = code.toLowerCase();
+  let p = setCardsPromises.get(key);
+  if (!p) {
+    p = fetchWithTimeout(`/api/sets/${encodeURIComponent(key)}/cards`, { method: 'GET' })
+      .then((r) => handleResponse<{ cards: ScryfallCard[] }>(r))
+      .then((j) => j.cards)
+      .catch((err) => {
+        setCardsPromises.delete(key);
+        throw err;
+      });
+    setCardsPromises.set(key, p);
+  }
+  return p;
+}
+
+/** Import a deck from pasted text. Returns ScryfallCard objects grouped by section. */
+export async function importDeckText(text: string): Promise<DeckImportResponse> {
+  const response = await fetchWithTimeout('/api/import-deck', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  });
+  const data = await handleResponse<DeckImportResponse>(response);
+  // Deploy-skew guard — see postImportChunk.
+  return { ...data, fetchErrors: data.fetchErrors ?? [] };
+}
+
+/**
+ * Searches the MTGJSON product catalog (T17). `type` filters by MTGJSON product
+ * type (e.g. "Commander Deck"). Returns lightweight summaries for the picker.
+ */
+export async function searchProducts(query: string, type?: string): Promise<ProductSummary[]> {
+  const params = new URLSearchParams();
+  if (query) params.set('q', query);
+  if (type) params.set('type', type);
+  const response = await fetchWithTimeout(`/api/products?${params.toString()}`, { method: 'GET' });
+  const data = await handleResponse<{ products: ProductSummary[] }>(response);
+  return data.products;
+}
+
+/** Resolves a single product's full decklist (playable deck + physical extras). */
+export async function fetchProduct(fileName: string): Promise<ProductResolveResponse> {
+  const response = await fetchWithTimeout(`/api/products/${encodeURIComponent(fileName)}`, {
+    method: 'GET',
+  });
+  const data = await handleResponse<ProductResolveResponse>(response);
+  // Deploy-skew guard — see postImportChunk.
+  return {
+    ...data,
+    fetchErrors: data.fetchErrors ?? [],
+    deck: { ...data.deck, fetchErrors: data.deck.fetchErrors ?? [] },
+  };
+}
+
+/**
+ * Compact commander preview (name + colors + small image) for a product, used to
+ * lazily enrich search rows. Resolves only the commander, not the whole deck.
+ * Returns null for products with no commander.
+ */
+export async function fetchProductCommanderSummary(
+  fileName: string
+): Promise<ProductCommanderSummary | null> {
+  const response = await fetchWithTimeout(`/api/products/${encodeURIComponent(fileName)}/summary`, {
+    method: 'GET',
+  });
+  const data = await handleResponse<{ commander: ProductCommanderSummary | null }>(response);
+  return data.commander;
+}
+
+/** Import a deck from a file upload. Returns ScryfallCard objects grouped by section. */
+export async function importDeckFile(file: File): Promise<DeckImportResponse> {
+  // Same as importFile — read text and post JSON. Deck imports are small
+  // (one deck, ~100 rows) so chunking isn't needed; we still go through the
+  // text path for consistency across platforms.
+  return importDeckText(await file.text());
+}
+
+/**
+ * Fetch all printings of a card. Pass `oracleId` whenever the card is in
+ * hand: a name can't find a token's printings (see the backend's
+ * `fetchPrintings`), so without it a token's picker came back empty.
+ */
+export async function fetchPrintings(
+  cardName: string,
+  set?: string,
+  oracleId?: string
+): Promise<ScryfallCard[]> {
+  const encoded = encodeURIComponent(cardName);
+  const params = new URLSearchParams();
+  if (set) params.set('set', set);
+  if (oracleId) params.set('oracle', oracleId);
+  const query = params.size > 0 ? `?${params}` : '';
+  const response = await fetchWithTimeout(`/api/cards/${encoded}/printings${query}`, {
+    method: 'GET',
+  });
+  const data = await handleResponse<{ printings: ScryfallCard[] }>(response);
+  return data.printings;
+}
+
+/**
+ * Fetch a single card by Scryfall id. Used by the v2 camera scanner to
+ * resolve the matcher's UUID output into a renderable ScryfallCard.
+ * Cache-backed on the server so repeated scans don't fan out to Scryfall.
+ * Returns null when the server says Scryfall doesn't know the id.
+ */
+export async function getCardById(id: string): Promise<ScryfallCard | null> {
+  const response = await fetchWithTimeout(`/api/cards/by-id/${encodeURIComponent(id)}`, {
+    method: 'GET',
+  });
+  const data = await handleResponse<{ card: ScryfallCard | null }>(response);
+  return data.card;
+}

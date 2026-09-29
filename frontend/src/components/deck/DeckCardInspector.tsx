@@ -3,15 +3,15 @@ import { ImageOff, Pin } from 'lucide-react';
 import './DeckCardInspector.css';
 import { ManaCost } from '../ManaCost';
 import { BinderBadge, type BinderInfo } from '../BinderBadge';
-import { formatMoney } from '../../lib/format-money';
-import { ROLE_TITLES } from '../../lib/role-badges';
+import { formatMoney } from '@/lib/collection/format-money';
+import { ROLE_TITLES } from '@/lib/deck-analysis/role-badges';
 import type { CurrencyCode, Row } from './deck-display-rows';
 import { allocationSummary, cardAllRoles, frontFaceMana } from './deck-display-rows';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { Button, IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 import { RulesTextParagraphs } from '@/components/RulesText';
-import { classifyInclusion } from '@/lib/inclusion-label';
+import { classifyInclusion } from '@/lib/deck-analysis/inclusion-label';
 import type { ComboMatch } from '@/types/combos';
 
 export interface DeckCardInspectorCard {

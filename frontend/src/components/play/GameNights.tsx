@@ -8,7 +8,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSignInPath } from '../../lib/sign-in-path';
+import { useSignInPath } from '@/lib/account/sign-in-path';
 import {
   cancelGameNight,
   createGameNight,
@@ -36,12 +36,12 @@ import {
   NIGHT_VENUES,
   type NightVenue,
   STATUS_LABELS,
-} from '../../lib/game-nights-api';
+} from '@/lib/play/game-nights-api';
 import { CalendarPlus, ChevronDown, ChevronRight } from 'lucide-react';
-import { downloadIcs, googleCalendarUrl, type CalendarEvent } from '../../lib/calendar-links';
-import { mapsSearchUrl, searchPlaces } from '../../lib/place-search';
-import { listFriends, sendFriendRequest, type Friend } from '../../lib/friends-client';
-import { FORMAT_OPTIONS, MAX_LOCAL_PLAYERS, gameFormatLabel } from '../../lib/game-formats';
+import { downloadIcs, googleCalendarUrl, type CalendarEvent } from '@/lib/play/calendar-links';
+import { mapsSearchUrl, searchPlaces } from '@/lib/play/place-search';
+import { listFriends, sendFriendRequest, type Friend } from '@/lib/social/friends-client';
+import { FORMAT_OPTIONS, MAX_LOCAL_PLAYERS, gameFormatLabel } from '@/lib/play/game-formats';
 import { useAuth } from '../../store/auth';
 import { usePlayStore } from '../../store/play';
 import { toast } from '../../store/toasts';
@@ -54,11 +54,11 @@ import { Field, SwitchRow, SegmentedControl, ChoiceList } from '../shared/form';
 import { SelectMenu } from '../SelectMenu';
 import './GameNights.css';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button, buttonClass } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 import { CopyButton } from '@/components/shared/CopyButton';
-import { copyToClipboard } from '@/lib/clipboard';
+import { copyToClipboard } from '@/lib/util/clipboard';
 import { Surface } from '@/components/shared/Surface';
 /** Loading placeholder — two `.game-night-card` shells (real chrome, so the
  *  silhouette can't drift from the loaded card) with shimmering bars standing

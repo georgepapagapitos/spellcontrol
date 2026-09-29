@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/use-sheet-exit';
-import { usePressRepeat } from '@/lib/use-press-repeat';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
+import { usePressRepeat } from '@/lib/play/use-press-repeat';
 import { PlaytestCardFace } from '@/playtest/components/PlaytestCardFace';
 import { bossTickPhrase } from '@/lib/horde';
 import type { HordeDamageResult } from '@/store/horde-game';

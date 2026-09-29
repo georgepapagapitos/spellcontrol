@@ -502,6 +502,49 @@ describe('GET /api/friends', () => {
     expect(bobFriends.body.friends).toHaveLength(0);
   });
 
+  it('carries a peek of each friend’s public decks: count, art, colours, commander', async () => {
+    const alice = await makeUser('gf-peek-alice');
+    const carol = await makeUser('gf-peek-carol');
+    const dana = await makeUser('gf-peek-dana');
+    for (const [a, b] of [
+      [alice, 'gf-peek-carol'],
+      [carol, 'gf-peek-alice'],
+      [alice, 'gf-peek-dana'],
+      [dana, 'gf-peek-alice'],
+    ] as const) {
+      await request(app).post('/api/friends/requests').set('Cookie', a).send({ username: b });
+    }
+    const { rows } = await pool.query<{ id: string }>(
+      `SELECT id FROM users WHERE username = 'gf-peek-carol'`
+    );
+    await pool.query(
+      `INSERT INTO deck_publications
+         (user_id, deck_id, slug, deck_name, format, commander_name, og_art_crop, color_identity,
+          like_count, published_at, updated_at)
+       VALUES ($1, 'peek-deck', 'peek-deck', 'Peek', 'commander', 'Atraxa', 'https://img/atraxa.jpg',
+               '["W","U"]'::jsonb, 0, 1, 1)`,
+      [rows[0].id]
+    );
+
+    const res = await request(app).get('/api/friends').set('Cookie', alice);
+    const byName = Object.fromEntries(
+      (res.body.friends as { username: string }[]).map((f) => [f.username, f])
+    ) as Record<string, Record<string, unknown>>;
+    expect(byName['gf-peek-carol']).toMatchObject({
+      deckCount: 1,
+      bannerImage: 'https://img/atraxa.jpg',
+      topColors: ['W', 'U'],
+      topCommander: 'Atraxa',
+      avatarImageUrl: null,
+    });
+    // A friend who has published nothing reads as an empty peek, not a 500.
+    expect(byName['gf-peek-dana']).toMatchObject({
+      deckCount: 0,
+      bannerImage: null,
+      topColors: [],
+    });
+  });
+
   it('prefers a friend’s display name when set', async () => {
     const alice = await makeUser('gf-dn-alice');
     const carol = await makeUser('gf-dn-carol');

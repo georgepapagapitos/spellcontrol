@@ -12,8 +12,8 @@ import type {
 import { autocompleteCardName, getBanList } from '@/deck-builder/services/scryfall/client';
 import { constrainsToCollection } from '@/deck-builder/services/deckBuilder/deckFilters';
 import { normalizeManaPhilosophy } from '@/deck-builder/services/deckBuilder/manaPhilosophy';
-import { currencySymbol } from '@/lib/currency';
-import { buildAvailableCollection } from '../../lib/collection-availability';
+import { currencySymbol } from '@/lib/collection/currency';
+import { buildAvailableCollection } from '@/lib/collection/collection-availability';
 import { SearchPill } from '../SearchPill';
 import { InfoTip } from '../InfoTip';
 import { StackedBar } from '../shared/MeterBar';
@@ -21,13 +21,13 @@ import { Field, SwitchRow, ChoiceList, Disclosure } from '../shared/form';
 import { SelectMenu } from '../SelectMenu';
 import { IconButton } from '../shared/Button';
 import { Chip } from '../shared/Chip';
-import { useSearchCards } from '../../lib/use-search-cards';
+import { useSearchCards } from '@/lib/search/use-search-cards';
 import { useDeckBuilderStore } from '@/deck-builder/store';
 import { useCollectionStore } from '../../store/collection';
 import { useCubeStore } from '../../store/cube';
 import { useDecksStore } from '../../store/decks';
-import { EXHIBITION_BRACKET_NOTE } from '@/lib/format-bracket-label';
-import { useCollapsedPref } from '../../lib/use-collapsed-pref';
+import { EXHIBITION_BRACKET_NOTE } from '@/lib/deck-analysis/format-bracket-label';
+import { useCollapsedPref } from '@/lib/util/use-collapsed-pref';
 
 type Update = (patch: Partial<Customization>) => void;
 

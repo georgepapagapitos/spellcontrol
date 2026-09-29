@@ -1,4 +1,4 @@
-import { usePullToRefresh, PTR_THRESHOLD, PTR_MAX } from '@/lib/use-pull-to-refresh';
+import { usePullToRefresh, PTR_THRESHOLD, PTR_MAX } from '@/lib/util/use-pull-to-refresh';
 import './PullToRefresh.css';
 
 /**

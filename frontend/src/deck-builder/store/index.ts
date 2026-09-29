@@ -1,4 +1,4 @@
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/util/logger';
 import { create } from 'zustand';
 import type {
   AppState,
@@ -9,7 +9,7 @@ import type {
   ThemeResult,
   DeckHistoryEntry,
 } from '@/deck-builder/types';
-import { getCurrency, useCurrencyStore } from '@/lib/currency';
+import { getCurrency, useCurrencyStore } from '@/lib/collection/currency';
 import { swapCard } from '@/deck-builder/services/deckBuilder/cardSwap';
 import { choosesColorBeforeGame, withChosenColor } from '@/deck-builder/lib/partnerUtils';
 

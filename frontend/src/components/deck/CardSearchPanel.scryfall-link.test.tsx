@@ -10,12 +10,14 @@ import { CardSearchPanel } from './CardSearchPanel';
 import { useCollectionStore } from '../../store/collection';
 import type { ScryfallCard } from '@/deck-builder/types';
 
-vi.mock('../../lib/card-thumbs', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../lib/card-thumbs')>()),
+vi.mock('@/lib/cards/card-thumbs', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/cards/card-thumbs')>()),
   useCardThumb: () => undefined,
 }));
-vi.mock('../../lib/api', () => ({ useSetMap: () => ({}) }));
-vi.mock('../../lib/aggregates-client', () => ({ getCommanderStats: () => Promise.resolve(null) }));
+vi.mock('@/lib/api', () => ({ useSetMap: () => ({}) }));
+vi.mock('@/lib/discover/aggregates-client', () => ({
+  getCommanderStats: () => Promise.resolve(null),
+}));
 
 const SOL_RING_ID = '6d5537da-112e-4ea8-9e4e-8a5ec1a8b2c4';
 const SOL_RING = {

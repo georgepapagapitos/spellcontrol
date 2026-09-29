@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { foilSeed } from '@/lib/foil-style';
+import { foilSeed } from '@/lib/cards/foil-style';
 
 /**
  * The foil engine's three overlay layers (holographic.css): spectrum shine,

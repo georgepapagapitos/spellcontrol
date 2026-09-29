@@ -1,6 +1,6 @@
 import { ChevronDown } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { fetchCardRulings, type Ruling } from '../lib/card-rulings';
+import { fetchCardRulings, type Ruling } from '@/lib/cards/card-rulings';
 import { Button } from '@/components/shared/Button';
 import './CardRulings.css';
 

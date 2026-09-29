@@ -1,7 +1,7 @@
 import { Layers, Boxes } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import type { AllocationInfo } from '../lib/allocations';
-import type { CubeListing } from '../lib/cube-listings';
+import type { AllocationInfo } from '@/lib/collection/allocations';
+import type { CubeListing } from '@/lib/cube/cube-listings';
 import { ArtBadge } from '@/components/shared/ArtBadge';
 import './DeckBadge.css';
 

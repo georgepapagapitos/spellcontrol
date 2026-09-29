@@ -1,12 +1,12 @@
 // @vitest-environment happy-dom
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { flushSync } from '../lib/sync';
+import { flushSync } from '@/lib/sync';
 
 // Wrap local-cards so persistence stays real by default but the hydrate
 // error path can be forced per-test (ESM named exports aren't reassignable).
-vi.mock('../lib/local-cards', async (importActual) => {
-  const actual = await importActual<typeof import('../lib/local-cards')>();
+vi.mock('@/lib/sync/local-cards', async (importActual) => {
+  const actual = await importActual<typeof import('@/lib/sync/local-cards')>();
   return {
     ...actual,
     saveCollection: vi.fn(actual.saveCollection),
@@ -18,13 +18,17 @@ vi.mock('../lib/local-cards', async (importActual) => {
 import { useCollectionStore } from './collection';
 import { useDecksStore } from './decks';
 import { useToastsStore } from './toasts';
-import { useScannerSettings } from '../lib/scanner-settings';
-import { saveCollection, loadCollection, clearCollection } from '../lib/local-cards';
-import { _resetForTests as resetPriceCache } from '../lib/card-prices';
-import { useCurrencyStore } from '../lib/currency';
-import { captureCollectionSnapshot } from '../lib/collection-snapshot';
-import { materializeBinders } from '../lib/materialize';
-import { clearValueHistory, getValueHistory, recordValueSnapshot } from '../lib/value-history';
+import { useScannerSettings } from '@/lib/scanner/scanner-settings';
+import { saveCollection, loadCollection, clearCollection } from '@/lib/sync/local-cards';
+import { _resetForTests as resetPriceCache } from '@/lib/collection/card-prices';
+import { useCurrencyStore } from '@/lib/collection/currency';
+import { captureCollectionSnapshot } from '@/lib/collection/collection-snapshot';
+import { materializeBinders } from '@/lib/binder/materialize';
+import {
+  clearValueHistory,
+  getValueHistory,
+  recordValueSnapshot,
+} from '@/lib/collection/value-history';
 import type { BinderDef, BinderInput, EnrichedCard, ListEntry, UploadResponse } from '../types';
 
 function enriched(

@@ -66,10 +66,10 @@ import { bootstrapTheme } from './store/theme';
 import { bootstrapTypeSet } from './store/typeset';
 import { loadTaggerData } from './deck-builder/services/tagger/client';
 import { loadCardSimilar } from './deck-builder/services/deckBuilder/cardSimilar';
-import { registerPwa } from './lib/register-pwa';
-import { initKeyboardLayer } from './lib/keyboard';
-import { installErrorReporting, startVitals } from './lib/analytics';
-import { hasEverVisited } from './lib/first-run';
+import { registerPwa } from '@/lib/util/register-pwa';
+import { initKeyboardLayer } from '@/lib/util/keyboard';
+import { installErrorReporting, startVitals } from '@/lib/util/analytics';
+import { hasEverVisited } from '@/lib/home/first-run';
 
 // First, so an exception anywhere in the boot below is counted too.
 installErrorReporting();

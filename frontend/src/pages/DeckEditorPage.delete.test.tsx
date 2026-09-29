@@ -15,7 +15,7 @@ import type { BuildReport } from '@/deck-builder/types';
 
 // Stub the thumbnail network leaf so the nested DeckCardRows don't reach out
 // (avoids the post-teardown fetch flake).
-vi.mock('@/lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
 // DeckEditorPage calls useEdhrecComboOverlay ITSELF (page line ~846) — mocking
 // DeckCombosPanel below does not cover it. Unstubbed, its effect fires two
@@ -27,8 +27,8 @@ vi.mock('@/lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
 // post-afterAll console writes to this file, all EDHREC. It is also the file
 // CI named in all three teardown-flake failures (2026-07-16/08-04/08-07).
 // The hook has only two consumers, so stubbing it here is bounded.
-vi.mock('@/lib/edhrec-combo-overlay', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/lib/edhrec-combo-overlay')>()),
+vi.mock('@/lib/deck-analysis/edhrec-combo-overlay', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/deck-analysis/edhrec-combo-overlay')>()),
   useEdhrecComboOverlay: () => ({}),
 }));
 
@@ -153,7 +153,7 @@ vi.mock('../store/collection', () => ({
 
 // The binder chain (tags, Secret Lair drops, release dates, allocations, set
 // data) reads the same empty collection as the store mock above.
-vi.mock('../lib/use-binder-layout-inputs', () => ({
+vi.mock('@/lib/binder/use-binder-layout-inputs', () => ({
   useBinderLayoutInputs: () => ({
     cards: [],
     binders: [],
@@ -161,7 +161,7 @@ vi.mock('../lib/use-binder-layout-inputs', () => ({
     setMap: undefined,
   }),
 }));
-vi.mock('../lib/use-binder-by-copy', () => ({ useBinderByCopyId: () => new Map() }));
+vi.mock('@/lib/binder/use-binder-by-copy', () => ({ useBinderByCopyId: () => new Map() }));
 
 const mockPushToast = vi.fn();
 vi.mock('../store/toasts', () => ({
@@ -172,8 +172,8 @@ vi.mock('../store/toasts', () => ({
 // show), the async runners are stubbed so each test picks the outcome.
 const mockApplyCheapest = vi.fn();
 const mockApplyMatch = vi.fn();
-vi.mock('@/lib/deck-printing-actions', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/lib/deck-printing-actions')>()),
+vi.mock('@/lib/deck/deck-printing-actions', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/deck/deck-printing-actions')>()),
   applyCheapestPrintings: (...args: unknown[]) => mockApplyCheapest(...args),
   applyMatchMyCopies: (...args: unknown[]) => mockApplyMatch(...args),
 }));
@@ -258,22 +258,22 @@ vi.mock('../components/deck/BuildReportSheet', () => ({
     </div>
   ),
 }));
-vi.mock('../lib/build-report-seen', () => ({
+vi.mock('@/lib/deck/build-report-seen', () => ({
   isBuildReportSeen: vi.fn(() => false),
   markBuildReportSeen: vi.fn(),
 }));
 vi.mock('../components/deck/PartnerCommanderSelector', () => ({
   PartnerCommanderSelector: () => <div />,
 }));
-vi.mock('../lib/materialize', () => ({ materializeBinders: () => ({ binders: [] }) }));
-vi.mock('../lib/use-deck-combos', () => ({ useDeckCombos: () => ({ combos: [] }) }));
-vi.mock('../lib/use-commander-bracket-analysis', () => ({
+vi.mock('@/lib/binder/materialize', () => ({ materializeBinders: () => ({ binders: [] }) }));
+vi.mock('@/lib/deck-analysis/use-deck-combos', () => ({ useDeckCombos: () => ({ combos: [] }) }));
+vi.mock('@/lib/deck-analysis/use-commander-bracket-analysis', () => ({
   useCommanderBracketAnalysis: () => ({ status: 'ready', retry: () => {} }),
 }));
-vi.mock('../lib/use-undo-redo-keyboard', () => ({
+vi.mock('@/lib/deck/use-undo-redo-keyboard', () => ({
   useUndoRedoKeyboard: () => {},
 }));
-vi.mock('../lib/allocations', () => ({
+vi.mock('@/lib/collection/allocations', () => ({
   buildAllocationMap: () => new Map(),
   pickCollectionCopy: () => null,
   bindableFinishesByPrinting: () => new Map(),
@@ -298,24 +298,24 @@ vi.mock('../deck-builder/services/tagger/client', () => ({
 vi.mock('../deck-builder/services/deckBuilder/costAnalyzer', () => ({
   filterCostPlanByOwnership: () => [],
 }));
-vi.mock('../lib/deck-analysis', () => ({
+vi.mock('@/lib/deck-analysis/deck-analysis', () => ({
   classifyCandidate: () => 'neutral',
   // Land-count advice memo — empty roles ⇒ no advice, keeps the hero quiet.
   analyzeDeck: () => ({ roles: [] }),
 }));
-vi.mock('../lib/intelligent-cuts', () => ({
+vi.mock('@/lib/coach/intelligent-cuts', () => ({
   rankReplacementCuts: () => [],
 }));
-vi.mock('../lib/card-fit', () => ({
+vi.mock('@/lib/coach/card-fit', () => ({
   computeAddFit: () => null,
 }));
 vi.mock('../deck-builder/services/winConditions/types', () => ({}));
-vi.mock('../lib/commanders', () => ({ isValidCommander: () => true }));
+vi.mock('@/lib/deck/commanders', () => ({ isValidCommander: () => true }));
 vi.mock('@/deck-builder/lib/partnerUtils', () => ({
   areValidPartners: () => false,
   canHavePartner: () => false,
 }));
-vi.mock('@/lib/deck-change', () => ({
+vi.mock('@/lib/coach/deck-change', () => ({
   fromGapCard: () => null,
   sortOwnedFirst: () => [],
 }));
@@ -414,8 +414,8 @@ vi.mock('@/deck-builder/lib/constants/archetypes', () => ({
 
 // E412: records the deck list each cross-deck scan receives.
 const crossDeckScans: number[] = [];
-vi.mock('@/lib/cross-deck-moves', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/lib/cross-deck-moves')>()),
+vi.mock('@/lib/coach/cross-deck-moves', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/coach/cross-deck-moves')>()),
   findCrossDeckMoves: (decks: unknown[]) => {
     crossDeckScans.push(decks.length);
     return [];
@@ -460,8 +460,8 @@ function atWidth(px: number) {
 }
 
 let mockSyncState: 'idle' | 'syncing' | 'ready' = 'idle';
-vi.mock('../lib/sync', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../lib/sync')>()),
+vi.mock('@/lib/sync', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/sync')>()),
   getSyncState: () => mockSyncState,
   onSyncedChange: () => () => {},
 }));
@@ -704,7 +704,7 @@ describe('DeckEditorPage — ⋮ menu sectioning + Export de-dup (E181)', () => 
     });
 
     it('names being offline when the lookup cannot run', async () => {
-      const { PrintingLookupOfflineError } = await import('@/lib/deck-printing-actions');
+      const { PrintingLookupOfflineError } = await import('@/lib/deck/deck-printing-actions');
       mockPushToast.mockClear();
       mockApplyCheapest.mockRejectedValue(new PrintingLookupOfflineError());
       renderEditor();

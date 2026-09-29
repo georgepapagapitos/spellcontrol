@@ -1,7 +1,7 @@
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import type { CommanderProfile } from '@/deck-builder/services/deckBuilder/commanderProfile';
 import { ARCHETYPE_LABEL } from '@/deck-builder/services/deckBuilder/strategyVocabulary';
-import { useCollapsedPref } from '../../lib/use-collapsed-pref';
+import { useCollapsedPref } from '@/lib/util/use-collapsed-pref';
 
 interface CommanderProfileCardProps {
   profile: CommanderProfile;

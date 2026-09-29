@@ -2,7 +2,7 @@ import { useId, useState, type JSX } from 'react';
 import { ChevronDown } from 'lucide-react';
 import './SubstituteOptions.css';
 import { DeckCardRow } from './DeckCardRow';
-import type { Change } from '@/lib/deck-change';
+import type { Change } from '@/lib/coach/deck-change';
 
 export interface SubstituteOptionsProps {
   /** Ranked owned alternatives that fill the same missing staple as the primary. */

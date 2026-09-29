@@ -13,7 +13,7 @@ import { DeckDisplay, type DeckDisplayCard } from './DeckDisplay';
 // Stub the thumbnail network leaf so nested DeckCardRows don't reach out
 // (avoids the post-teardown fetch flake — same stub as the other DeckDisplay
 // test suites).
-vi.mock('@/lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
 function card(name: string): ScryfallCard {
   return {

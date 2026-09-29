@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 
-vi.mock('../lib/use-lock-body-scroll', () => ({ useLockBodyScroll: () => {} }));
+vi.mock('@/lib/overlays/use-lock-body-scroll', () => ({ useLockBodyScroll: () => {} }));
 
 vi.mock('../store/collection', () => ({
   useCollectionStore: (selector: (s: Record<string, unknown>) => unknown) =>

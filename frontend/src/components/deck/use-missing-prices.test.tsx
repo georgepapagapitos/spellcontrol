@@ -8,7 +8,7 @@ vi.mock('@/deck-builder/services/scryfall/client', () => ({
   getCardsByNames: (names: string[]) => getCardsByNames(names),
   getCardPrice: (card: unknown, currency: string) => getCardPrice(card, currency),
 }));
-vi.mock('../../lib/currency', () => ({ getCurrency: () => 'USD' }));
+vi.mock('@/lib/collection/currency', () => ({ getCurrency: () => 'USD' }));
 
 import { useMissingCardPrices } from './use-missing-prices';
 

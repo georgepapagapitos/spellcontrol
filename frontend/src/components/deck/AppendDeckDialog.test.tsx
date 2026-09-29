@@ -11,7 +11,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { useDecksStore, UNTITLED_DECK_NAME, type Deck } from '@/store/decks';
 import { useDeckHistoryStore } from '@/store/deck-history';
-import { setApplyingServer } from '@/lib/applying-server';
+import { setApplyingServer } from '@/lib/sync/applying-server';
 import type { DeckImportResponse } from '@/types';
 
 // The decks store persists every write through lib/sync; counting those calls

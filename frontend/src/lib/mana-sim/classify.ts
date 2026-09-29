@@ -16,8 +16,8 @@
  */
 
 import type { ScryfallCard } from '@/deck-builder/types';
-import { producedManaColors } from '../mana-sources';
-import type { SimCard } from '../opening-hand-sim';
+import { producedManaColors } from '@/lib/deck-analysis/mana-sources';
+import type { SimCard } from './opening-hand-sim';
 import { maskOf, parseManaCost } from './cost';
 import {
   ANY_COLOR,

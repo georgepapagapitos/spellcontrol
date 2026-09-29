@@ -32,6 +32,8 @@
   background: var(--accent-light);
   --text-muted: var(--text-muted-tint);
   --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
 }
 
 /* City's Blessing locks once achieved — a good state, not an unavailable

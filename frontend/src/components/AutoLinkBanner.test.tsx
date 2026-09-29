@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AutoLinkBanner } from './AutoLinkBanner';
 import { useAuth } from '../store/auth';
-import * as authApi from '../lib/auth-api';
+import * as authApi from '@/lib/account/auth-api';
 
 function renderBanner() {
   return render(

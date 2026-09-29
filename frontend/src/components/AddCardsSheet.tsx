@@ -1,14 +1,14 @@
 import { Camera, Package, Search, Settings, Upload, X } from 'lucide-react';
 import { Suspense, lazy, useId, useMemo, useState, type ReactNode } from 'react';
-import { useCanScan } from '../lib/use-can-scan';
-import { useMediaQuery } from '../lib/use-media-query';
-import { importEntries, importScannedCards } from '../lib/scan-import';
-import { fetchErrorMessage } from '../lib/import-review';
-import { summarizeImportRouting } from '../lib/import-routing';
-import { useBinderLayoutInputs } from '../lib/use-binder-layout-inputs';
-import { formatMoney } from '../lib/format-money';
+import { useCanScan } from '@/lib/scanner/use-can-scan';
+import { useMediaQuery } from '@/lib/util/use-media-query';
+import { importEntries, importScannedCards } from '@/lib/scanner/scan-import';
+import { fetchErrorMessage } from '@/lib/import-export/import-review';
+import { summarizeImportRouting } from '@/lib/import-export/import-routing';
+import { useBinderLayoutInputs } from '@/lib/binder/use-binder-layout-inputs';
+import { formatMoney } from '@/lib/collection/format-money';
 import { useCollectionStore } from '../store/collection';
-import { rekeyedId, useScanQueue } from '../lib/use-scan-queue';
+import { rekeyedId, useScanQueue } from '@/lib/scanner/use-scan-queue';
 import { AddCardSearchPanel } from './AddCardSearchPanel';
 import { AddCardInspector } from './AddCardInspector';
 import { UploadPanel } from './UploadPanel';
@@ -17,7 +17,7 @@ import { ImportRoutingSummary } from './ImportRoutingSummary';
 import { Modal } from './Modal';
 import { Tabs } from './Tabs';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button, IconButton } from '@/components/shared/Button';
 import type { ScryfallCard } from '@/deck-builder/types';
 

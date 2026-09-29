@@ -1,4 +1,4 @@
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/util/logger';
 import { getCardByName } from '@/deck-builder/services/scryfall/client';
 import { getCardRole } from '@/deck-builder/services/tagger/client';
 import {

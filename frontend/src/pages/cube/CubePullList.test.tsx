@@ -13,7 +13,7 @@ const syncMock = vi.hoisted(() => ({
   state: 'ready' as 'idle' | 'syncing' | 'ready',
   error: false,
 }));
-vi.mock('../../lib/sync', () => ({
+vi.mock('@/lib/sync', () => ({
   getSyncState: () => syncMock.state,
   hasSyncError: () => syncMock.error,
   onSyncedChange: () => () => {},

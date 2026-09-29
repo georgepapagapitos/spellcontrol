@@ -15,8 +15,8 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('../lib/sync', async (importActual) => ({
-  ...(await importActual<typeof import('../lib/sync')>()),
+vi.mock('@/lib/sync', async (importActual) => ({
+  ...(await importActual<typeof import('@/lib/sync')>()),
   getSyncState: () => 'ready',
   hasSyncError: () => false,
   onSyncedChange: () => () => {},
@@ -27,7 +27,7 @@ import { BindersIndexPage } from './BindersIndexPage';
 import { useCollectionStore } from '../store/collection';
 import { useAuth } from '../store/auth';
 import { useToastsStore } from '../store/toasts';
-import { printingFinishKey } from '../lib/collection-mutations';
+import { printingFinishKey } from '@/lib/collection/collection-mutations';
 import type { BinderDef, EnrichedCard } from '../types';
 
 function card(n: number, rarity: string): EnrichedCard {

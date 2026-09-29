@@ -7,7 +7,7 @@
 // customization.landCount, selectedThemes) from the page — it just doesn't
 // own or mutate any of that.
 import { create } from 'zustand';
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/util/logger';
 import type { EDHRECCommanderData, ScryfallCard } from '@/deck-builder/types';
 import type { RoleKey } from '@/deck-builder/services/tagger/client';
 import { getCardRole } from '@/deck-builder/services/tagger/client';

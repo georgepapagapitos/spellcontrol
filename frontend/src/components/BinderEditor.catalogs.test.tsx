@@ -12,7 +12,7 @@ import { BinderEditor } from './BinderEditor';
 
 const fetchTypeSuggestions = vi.hoisted(() => vi.fn(async () => ['Creature', 'Elf']));
 const fetchOracleSuggestions = vi.hoisted(() => vi.fn(async () => ['draw a card']));
-vi.mock('../lib/scryfall-catalog', () => ({ fetchTypeSuggestions, fetchOracleSuggestions }));
+vi.mock('@/lib/cards/scryfall-catalog', () => ({ fetchTypeSuggestions, fetchOracleSuggestions }));
 
 describe('BinderEditor catalog loading', () => {
   beforeEach(() => {

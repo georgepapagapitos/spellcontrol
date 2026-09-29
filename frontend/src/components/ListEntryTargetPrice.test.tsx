@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import type { ListEntry } from '../types';
-import { useCurrencyStore } from '../lib/currency';
+import { useCurrencyStore } from '@/lib/collection/currency';
 import { ListEntryTargetPrice } from './ListEntryTargetPrice';
 
 const entry: ListEntry = {

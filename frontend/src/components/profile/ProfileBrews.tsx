@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom';
 import { ColorPip } from '../shared/ManaSymbol';
 import { StackedBar, type StackedBarSegment } from '../shared/MeterBar';
-import { formatCount } from '../../lib/format-count';
-import type { ProfileColor, ProfileGameRecord, PublicProfile } from '../../lib/profile-client';
+import { formatCount } from '@/lib/util/format-count';
+import type { ProfileColor, ProfileGameRecord, PublicProfile } from '@/lib/social/profile-client';
 import './ProfileBrews.css';
 
 const COLOR_ORDER: ProfileColor[] = ['W', 'U', 'B', 'R', 'G', 'C'];

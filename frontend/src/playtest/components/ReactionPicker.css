@@ -1,6 +1,6 @@
 /* ── Reaction picker popover — co-located styles ─────────────────────────
  * Portaled to <body> (see ReactionPicker.tsx doc comment); positioned via
- * lib/popover-placement, same mechanism as OverflowMenu. */
+ * lib/overlays/popover-placement, same mechanism as OverflowMenu. */
 
 .playtest-reaction-picker {
   display: flex;
@@ -42,6 +42,8 @@
     background: var(--accent-light);
     --text-muted: var(--text-muted-tint);
     --text-secondary: var(--text-secondary-tint);
+    --accent: var(--accent-tint);
+    --accent-hover: var(--accent-hover-tint);
     border-color: var(--accent);
   }
 }
@@ -50,6 +52,8 @@
   background: var(--accent-light);
   --text-muted: var(--text-muted-tint);
   --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
 }
 
 @keyframes playtest-reaction-picker-in {

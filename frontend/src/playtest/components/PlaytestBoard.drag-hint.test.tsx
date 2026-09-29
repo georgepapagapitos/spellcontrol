@@ -22,7 +22,7 @@ vi.mock('@/deck-builder/services/scryfall/client', async (orig) => ({
   searchTokens: async () => [],
   resolveTokenOption: async () => null,
 }));
-vi.mock('@/lib/card-thumbs', () => ({
+vi.mock('@/lib/cards/card-thumbs', () => ({
   useCardThumb: () => undefined,
   cachedCardThumb: () => undefined,
 }));

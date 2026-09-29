@@ -3,7 +3,7 @@ import type { Deck } from './decks';
 
 /**
  * One deck whose push was rejected as stale (E170). `applyPushResult`
- * (lib/sync.ts) captures the local edit's Deck snapshot BEFORE it overwrites
+ * (lib/sync/index.ts) captures the local edit's Deck snapshot BEFORE it overwrites
  * the IDB row with the server's version — that's the only chance to grab the
  * data the user is about to lose — and pushes it here so a real diff panel
  * can offer a recovery choice instead of a bare "kept the server version"

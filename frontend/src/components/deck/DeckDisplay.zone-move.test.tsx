@@ -8,7 +8,7 @@ import { DeckDisplay, type DeckDisplayCard } from './DeckDisplay';
 
 // Stub the thumbnail network leaf so the nested DeckCardRows don't reach out
 // (avoids the post-teardown fetch flake).
-vi.mock('@/lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
 // Quantity-grouped rows move copies across zones. A stacked row offers both
 // "move one copy" and "move all N copies"; a 1-of offers a single plain item.

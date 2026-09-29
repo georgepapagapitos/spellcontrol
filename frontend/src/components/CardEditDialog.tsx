@@ -1,23 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ScryfallCard } from '@/deck-builder/types';
-import { fetchPrintings, getSetMap, type SetMap } from '../lib/api';
-import { currencySymbol, useCurrency } from '../lib/currency';
-import { formatMoney } from '../lib/format-money';
-import { FINISH_LABELS } from '../lib/scanner-feedback';
-import type { ChangeOwnership } from '../lib/deck-change';
+import { fetchPrintings, getSetMap, type SetMap } from '@/lib/api';
+import { currencySymbol, useCurrency } from '@/lib/collection/currency';
+import { formatMoney } from '@/lib/collection/format-money';
+import { FINISH_LABELS } from '@/lib/scanner/scanner-feedback';
+import type { ChangeOwnership } from '@/lib/coach/deck-change';
 import type { Condition, Finish } from '../types';
 import { Modal } from './Modal';
 import { SearchPill } from './SearchPill';
 import { SelectMenu } from './SelectMenu';
 import { ConditionControl } from './CopyControls';
-import { LANGUAGE_OPTIONS } from '../lib/copy-options';
+import { LANGUAGE_OPTIONS } from '@/lib/collection/copy-options';
 import { Field, SegmentedControl, SwitchRow } from './shared/form';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button, IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 import { X } from 'lucide-react';
-import { PROXY_HINT } from '@/lib/shared-copy';
+import { PROXY_HINT } from '@/lib/util/shared-copy';
 /** True when a printing's availability means the user owns at least one copy. */
 function isOwnedAvailability(a: ChangeOwnership): boolean {
   return a === 'owned' || a === 'in-other-deck' || a === 'in-cube';

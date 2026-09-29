@@ -6,8 +6,8 @@ import { ChevronRight } from 'lucide-react';
 import { Button } from './shared/Button';
 import { SwipeRow } from './shared/SwipeRow';
 import { DiscoverDeckTile, DiscoverTileSkeleton } from './DiscoverDeckTile';
-import { listDiscoverDecks, type DiscoverDeck } from '../lib/discover-client';
-import type { DiscoverFilters } from '../lib/discover-filters';
+import { listDiscoverDecks, type DiscoverDeck } from '@/lib/discover/discover-client';
+import type { DiscoverFilters } from '@/lib/discover/discover-filters';
 
 const RAIL_SIZE = 6;
 const SHELF = '/decks/discover?source=precons';

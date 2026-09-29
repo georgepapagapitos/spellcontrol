@@ -1,6 +1,6 @@
 // Multi-copy card pipeline ("A deck can have any number of cards named ...").
 // Self-contained; extracted verbatim from deckGenerator.ts.
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/util/logger';
 import type { ScryfallCard, MaxRarity, CollectionStrategy } from '@/deck-builder/types';
 import {
   fetchMultiCopyCardNames,

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import './PlaytestStatsSheet.css';
 import { Hourglass, Loader2 } from 'lucide-react';
-import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/use-sheet-exit';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
 import type { PlaytestState } from '@/lib/playtest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Deck } from '@/store/decks';
@@ -11,7 +11,7 @@ import {
   computeBattlefieldStats,
   computeDeckStats,
   toHandSimCards,
-} from '@/lib/playtest-stats';
+} from '@/playtest/lib/playtest-stats';
 import {
   isKeepableHand,
   simulateAssemblyClock,
@@ -19,8 +19,8 @@ import {
   simulateOpeningHands,
   type AssemblyClockResult,
   type LandDropCurveResult,
-} from '@/lib/opening-hand-sim';
-import { toClockCard, toSimCard } from '@/lib/hand-classify';
+} from '@/lib/mana-sim/opening-hand-sim';
+import { toClockCard, toSimCard } from '@/lib/mana-sim/hand-classify';
 import { loadSessionHistory } from '@/lib/playtest/session-history';
 import { computeSessionAggregates, MIN_SESSIONS_FOR_STATS } from '@/lib/playtest/session-record';
 import { MeterBar, StackedBar } from '@/components/shared/MeterBar';

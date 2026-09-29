@@ -63,6 +63,8 @@
   background: var(--accent-light);
   --text-muted: var(--text-muted-tint);
   --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
 }
 
 /* ── Layout picker: the "Custom…" tile ── */
@@ -199,6 +201,8 @@
   background: var(--accent-light);
   --text-muted: var(--text-muted-tint);
   --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   border-style: solid;
   border-color: var(--accent);
 }
@@ -283,6 +287,8 @@
   background: var(--accent-light);
   --text-muted: var(--text-muted-tint);
   --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
 }
 
 .cle-controls {

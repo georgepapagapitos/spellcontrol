@@ -20,7 +20,7 @@ import { OverflowMenu } from './OverflowMenu';
 import { DeckBadge } from './DeckBadge';
 import { DeckDisplay, type DeckDisplayCard } from './deck/DeckDisplay';
 
-vi.mock('@/lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
 const runAxe = configureAxe({
   rules: {

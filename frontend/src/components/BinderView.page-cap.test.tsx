@@ -27,7 +27,7 @@ vi.mock('../store/toasts', () => ({
   useToastsStore: (selector: (s: Record<string, unknown>) => unknown) =>
     selector({ push: vi.fn() }),
 }));
-vi.mock('../lib/allocations', () => ({ useAllocations: () => new Map() }));
+vi.mock('@/lib/collection/allocations', () => ({ useAllocations: () => new Map() }));
 vi.mock('./CardPreview', () => ({ CardPreview: () => null }));
 vi.mock('./CardEditDialog', () => ({ CardEditDialog: () => null }));
 vi.mock('./BinderPagePreview', () => ({ BinderPagePreview: () => null }));

@@ -4,17 +4,17 @@ import { Modal } from '../Modal';
 import { SearchPill } from '../SearchPill';
 import { Tabs } from '../Tabs';
 import { ManaCost } from '../ManaCost';
-import { deckPickerLabels } from '../../lib/deck-picker-labels';
-import { searchStarterDecks, starterDeckLocalId } from '../../lib/starter-decks';
+import { deckPickerLabels } from '@/lib/play/deck-picker-labels';
+import { searchStarterDecks, starterDeckLocalId } from '@/lib/play/starter-decks';
 import {
   colorIdentityCost,
   colorIdentityLabel,
   ensureProductCommander,
   useProductCommander,
-} from '../../lib/use-product-commander';
-import { userMessage } from '../../lib/user-error';
+} from '@/lib/import-export/use-product-commander';
+import { userMessage } from '@/lib/util/user-error';
 import { effectiveBracket, type Deck } from '../../store/decks';
-import { bracketTextWithEstimate } from '../../lib/format-bracket-label';
+import { bracketTextWithEstimate } from '@/lib/deck-analysis/format-bracket-label';
 import type { ProductSummary } from '../../types';
 import { IconButton } from '@/components/shared/Button';
 import './DeckPickerDialog.css';

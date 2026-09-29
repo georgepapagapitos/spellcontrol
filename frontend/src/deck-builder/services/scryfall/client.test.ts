@@ -40,7 +40,7 @@ import {
   upgradeCardPrintings,
   validateScryfallFilter,
 } from './client';
-import { resetScryfallRateLimit } from '@/lib/scryfall-fetch';
+import { resetScryfallRateLimit } from '@/lib/cards/scryfall-fetch';
 
 // The Scryfall limiter is a module singleton with a shared cooldown. A test that
 // serves `Retry-After: 60` under fake timers would otherwise leave a cooldown

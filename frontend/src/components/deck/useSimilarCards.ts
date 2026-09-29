@@ -13,19 +13,17 @@
  *      re-scored by the same similarity function. Network-backed, owned cards
  *      excluded (they're the job of pass 1).
  *
- * Both passes share one scorer, so the two lists rank by the same rules. The
+ * Both passes share one scorer, so the two lists rank by the same rules:
+ * substitute ranking v2 (services/substitutes, E517) once its card facts have
+ * loaded, the synergy-axis scorer in `lib/coach/similar-cards` before that or when
+ * the focused card isn't in the facts snapshot. The
  * effect is cancellable — flipping the carousel to another card abandons any
  * in-flight resolution/search. All the network/tagger glue lives here (an
- * un-gated component-tree hook); the pure scoring lives in `lib/similar-cards`.
+ * un-gated component-tree hook); the pure scoring lives in `lib/coach/similar-cards`.
  */
 import { useEffect, useMemo, useState } from 'react';
-import {
-  computeSimilarCards,
-  primaryType,
-  type SimilarCandidate,
-  type SimilarInput,
-} from '@/lib/similar-cards';
-import type { ChangeOwnership } from '@/lib/deck-change';
+import { computeSimilarCards, primaryType, type SimilarInput } from '@/lib/coach/similar-cards';
+import type { ChangeOwnership } from '@/lib/coach/deck-change';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '@/types';
 import { classifyCard } from '@/deck-builder/services/synergy/classify';
@@ -34,6 +32,8 @@ import type { AxisKey } from '@/deck-builder/services/synergy/axes';
 import type { AxisSide } from '@/deck-builder/services/synergy/suggest';
 import { getCardsByNames, searchCards } from '@/deck-builder/services/scryfall/client';
 import { loadTaggerData, getCardRole } from '@/deck-builder/services/tagger/client';
+import { prepareSubstituteRanking } from '@/deck-builder/services/substitutes';
+import { rankSimilarCards, type RankedSimilar } from '@/deck-builder/services/substitutes/surfaces';
 
 export interface UseSimilarCardsArgs {
   /** The focused, full deck card (carries oracle text). */
@@ -55,8 +55,8 @@ export interface UseSimilarCardsArgs {
 }
 
 export interface UseSimilarCardsResult {
-  owned: SimilarCandidate[];
-  discovery: SimilarCandidate[];
+  owned: RankedSimilar[];
+  discovery: RankedSimilar[];
   loading: boolean;
 }
 
@@ -123,15 +123,26 @@ export function useSimilarCards({
     void (async () => {
       // Clear stale results + show loading the moment the focused card changes.
       setResult({ owned: [], discovery: [], loading: true });
+      // v2's card facts download alongside the resolves below; ranking waits
+      // for them once, and falls back to the axis scorer if they can't load.
+      const factsLoaded = prepareSubstituteRanking().catch(() => false);
       await loadTaggerData().catch(() => null);
       if (cancelled) return;
 
       const targetRole = getCardRole(target.name);
       const targetForScore = { card: target, role: targetRole };
+      const rank = async (pool: SimilarInput[]): Promise<RankedSimilar[]> => {
+        await factsLoaded;
+        const opts = { identity, maxResults: RESULTS_PER_LIST };
+        return (
+          rankSimilarCards(target, pool, { ...opts, deckNames: deckCardNames }) ??
+          computeSimilarCards(targetForScore, pool, opts)
+        );
+      };
       const ownedNames = new Set(ownedPrefilter.map((c) => c.name.toLowerCase()));
 
       // ── Pass 1: owned ──
-      let owned: SimilarCandidate[] = [];
+      let owned: RankedSimilar[] = [];
       if (ownedPrefilter.length > 0) {
         // Pool-sized resolve (every owned candidate): skip the per-card price
         // tail — see GetCardsByNamesOptions.priceTail.
@@ -154,10 +165,8 @@ export function useSimilarCards({
             role: getCardRole(c.name),
           });
         }
-        owned = computeSimilarCards(targetForScore, pool, {
-          identity,
-          maxResults: RESULTS_PER_LIST,
-        });
+        owned = await rank(pool);
+        if (cancelled) return;
       }
 
       // ── Pass 2: discovery (axis searches over the broader pool) ──
@@ -177,7 +186,7 @@ export function useSimilarCards({
         }
       }
 
-      let discovery: SimilarCandidate[] = [];
+      let discovery: RankedSimilar[] = [];
       if (queries.length > 0) {
         const responses = await Promise.all(
           queries.map((q) => searchCards(q, identity, {}).catch(() => null))
@@ -206,10 +215,7 @@ export function useSimilarCards({
           inclusion: inclusionMap[c.name],
           role: getCardRole(c.name),
         }));
-        discovery = computeSimilarCards(targetForScore, pool, {
-          identity,
-          maxResults: RESULTS_PER_LIST,
-        });
+        discovery = await rank(pool);
       }
 
       if (!cancelled) setResult({ owned, discovery, loading: false });

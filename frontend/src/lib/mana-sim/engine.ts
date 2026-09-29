@@ -3,7 +3,7 @@
  * mechanics.
  */
 
-import { isKeepableHand, librarySeed } from '../opening-hand-sim';
+import { isKeepableHand, librarySeed } from './opening-hand-sim';
 import { mulberry32, shuffle } from '../playtest/rng';
 import { gameSeed } from './game-seed';
 import {

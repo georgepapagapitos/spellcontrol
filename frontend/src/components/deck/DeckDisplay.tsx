@@ -1,4 +1,4 @@
-import type { ClockCard } from '@/lib/opening-hand-sim';
+import type { ClockCard } from '@/lib/mana-sim/opening-hand-sim';
 import { CircleAlert, Layers, Pencil, Search, Tag as TagIcon, Trash2, X } from 'lucide-react';
 import {
   Fragment,
@@ -9,9 +9,9 @@ import {
   useState,
   type CSSProperties,
 } from 'react';
-import { useOverflowEdges } from '@/lib/use-overflow-edges';
-import { useCurrency } from '@/lib/currency';
-import { isKeyboardContextMenu, keepsBrowserMenu } from '@/lib/context-menu';
+import { useOverflowEdges } from '@/lib/util/use-overflow-edges';
+import { useCurrency } from '@/lib/collection/currency';
+import { isKeyboardContextMenu, keepsBrowserMenu } from '@/lib/overlays/context-menu';
 import { createPortal } from 'react-dom';
 import type {
   ScryfallCard,
@@ -21,13 +21,13 @@ import type {
   BuildReport,
   Archetype,
 } from '@/deck-builder/types';
-import { collectDeckTags } from '@/lib/deck-tags';
+import { collectDeckTags } from '@/lib/deck/deck-tags';
 import { DeckTagManager } from './DeckTagManager';
 import { ConfirmDialog } from '../ConfirmDialog';
-import { buildManaData, tallyNames } from '@/lib/build-mana-data';
+import { buildManaData, tallyNames } from '@/lib/deck-analysis/build-mana-data';
 import { useProducedMana } from './use-produced-mana';
-import { useBanList } from '@/lib/use-ban-list';
-import { scrollToHeading } from '@/lib/scroll-to-heading';
+import { useBanList } from '@/lib/deck/use-ban-list';
+import { scrollToHeading } from '@/lib/util/scroll-to-heading';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import {
   validateDeckZones,
@@ -39,7 +39,7 @@ import {
   COMMANDER_SLOT_ID,
   PARTNER_COMMANDER_SLOT_ID,
   type LegalityIssue,
-} from '../../lib/deck-validation';
+} from '@/lib/deck/deck-validation';
 import { useSealMoment } from '../shared/SealMoment';
 import { DeckExportDialog } from '../shared/DeckExportDialog';
 import {
@@ -47,12 +47,12 @@ import {
   readStoredExportFormat,
   writeStoredExportFormat,
   type ExportFormat,
-} from '@/lib/deck-export';
+} from '@/lib/import-export/deck-export';
 import { toast } from '../../store/toasts';
-import { haptics } from '../../lib/haptics';
+import { haptics } from '@/lib/util/haptics';
 import type { DeckCard, DeckZone } from '../../store/decks';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
-import { formatMoney } from '../../lib/format-money';
+import { formatMoney } from '@/lib/collection/format-money';
 import { InfoTip } from '../InfoTip';
 import { CardPreview, type CardPreviewAction } from '../CardPreview';
 import { CardPreviewContext } from '../CardPreviewContext';
@@ -60,25 +60,25 @@ import { DeckCardPreviewMeta } from './DeckCardPreviewMeta';
 import { BuyListDialog } from './BuyListDialog';
 import { DeckHoverPeek } from './DeckHoverPeek';
 import { useDeckHoverPeek } from './use-deck-hover-peek';
-import { useTouchPeek } from '@/lib/use-touch-peek';
+import { useTouchPeek } from '@/lib/overlays/use-touch-peek';
 import {
   buildAllocationMap,
   classifyAllocation,
   type AllocationInfo,
   type AllocationStatus,
-} from '../../lib/allocations';
-import { useTaggerReady } from '@/lib/use-tagger-ready';
+} from '@/lib/collection/allocations';
+import { useTaggerReady } from '@/lib/cards/use-tagger-ready';
 
 import { useDecksStore } from '../../store/decks';
 import { useCubeStore } from '../../store/cube';
-import { useRarityCorrections } from '../../lib/use-rarity-corrections';
+import { useRarityCorrections } from '@/lib/deck/use-rarity-corrections';
 import type { EnrichedCard } from '../../types';
 import { type BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
-import type { LaneId, ChangeOwnership } from '@/lib/deck-change';
+import type { LaneId, ChangeOwnership } from '@/lib/coach/deck-change';
 import { useCardCarousel, tallyToEntries } from './useCardCarousel';
 import { NewArrivalsSheet } from './NewArrivalsSheet';
 import { CommanderOpenSlot } from './CommanderOpenSlot';
-import type { ArrivalsByType } from '@/lib/new-arrivals';
+import type { ArrivalsByType } from '@/lib/coach/new-arrivals';
 import type { ComboMatch } from '@/types/combos';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import {
@@ -95,13 +95,13 @@ import {
   resolveAutoArchetype,
 } from '@/deck-builder/services/deckBuilder/deckIdentity';
 import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
-import { ROLE_TITLES, type RoleKey } from '../../lib/role-badges';
-import { clampZoom, readStoredZoom } from '@/lib/grid-zoom';
-import { useElementWidth } from '@/lib/use-element-width';
-import { useMediaQuery } from '@/lib/use-media-query';
+import { ROLE_TITLES, type RoleKey } from '@/lib/deck-analysis/role-badges';
+import { clampZoom, readStoredZoom } from '@/lib/util/grid-zoom';
+import { useElementWidth } from '@/lib/util/use-element-width';
+import { useMediaQuery } from '@/lib/util/use-media-query';
 
 import { type BinderInfo } from '../BinderBadge';
-import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
+import { scryfallToEnrichedCard } from '@/lib/cards/scryfall-to-enriched';
 import { ToolbarPopover } from '../shared/ToolbarPopover';
 import {
   resolveInclusionPct,
@@ -471,7 +471,7 @@ export interface DeckDisplayProps {
   /**
    * Per-category "new arrivals" (E140) — collection cards acquired since the
    * deck was last updated/reviewed, bucketed by classifyType and ranked. The
-   * page computes this (see `lib/new-arrivals.ts`) so DeckDisplay just renders
+   * page computes this (see `lib/coach/new-arrivals.ts`) so DeckDisplay just renders
    * the "✦ N new" header chip per section and the review sheet on tap.
    * Omitted (e.g. read-only/shared views) → no chip anywhere.
    */
@@ -510,7 +510,7 @@ export interface DeckDisplayProps {
   onBulkEditTag?: (zone: DeckZone, slotIds: string[], tag: string, add: boolean) => void;
   /**
    * Manual drag reorder (E172), list view only. DeckDisplay computes the
-   * fractional sortIndex itself (pure — see lib/deck-reorder.ts) and hands
+   * fractional sortIndex itself (pure — see lib/deck/deck-reorder.ts) and hands
    * off the already-computed value; the host just persists it. Omitted →
    * the 'custom' sort option still shows but drag handles never render.
    */
@@ -711,7 +711,7 @@ export function DeckDisplay({
   } | null>(null);
   const openCardMenu = (zone: DeckZone) => (row: Row, e: React.MouseEvent) => {
     // A field, selected text, a link or a Shift+right-click keeps the
-    // browser's own menu (lib/context-menu), and so does a card with nothing
+    // browser's own menu (lib/overlays/context-menu), and so does a card with nothing
     // to do (a read-only shared deck).
     if (keepsBrowserMenu(e.nativeEvent)) return;
     if (

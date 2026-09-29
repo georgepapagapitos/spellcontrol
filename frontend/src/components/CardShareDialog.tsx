@@ -4,7 +4,7 @@ import { Modal } from './Modal';
 import { toast } from '../store/toasts';
 import './CardShareDialog.css';
 import { Button } from '@/components/shared/Button';
-import { copyToClipboard } from '@/lib/clipboard';
+import { copyToClipboard } from '@/lib/util/clipboard';
 
 interface Props {
   /** Card name — titles the dialog and names the downloaded file. */

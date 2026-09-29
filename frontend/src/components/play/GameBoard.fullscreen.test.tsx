@@ -1,13 +1,13 @@
 // @vitest-environment happy-dom
 /**
  * The board offers fullscreen on the first tap, touch devices only (see
- * lib/use-fullscreen.ts for the hook itself — this covers only the "first
+ * lib/util/use-fullscreen.ts for the hook itself — this covers only the "first
  * gesture on the board" wiring in GameBoard).
  */
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { GamePlayer, GameState } from '../../lib/game-state';
-import { createGameState, makePlayer } from '../../lib/game-state';
+import type { GamePlayer, GameState } from '@/lib/play/game-state';
+import { createGameState, makePlayer } from '@/lib/play/game-state';
 
 function seat(n: number, name: string): GamePlayer {
   return makePlayer({ id: `p${n}`, userId: null, seat: n, name, startingLife: 40 });
@@ -45,21 +45,21 @@ vi.mock('../../store/play', () => {
   return { usePlayStore };
 });
 
-vi.mock('../../lib/haptics', () => ({
+vi.mock('@/lib/util/haptics', () => ({
   haptics: { tap: vi.fn(), lethal: vi.fn(), warning: vi.fn(), success: vi.fn(), bump: vi.fn() },
 }));
-vi.mock('../../lib/use-wake-lock', () => ({ useWakeLock: vi.fn() }));
-vi.mock('../../lib/undo-stack', () => ({
+vi.mock('@/lib/util/use-wake-lock', () => ({ useWakeLock: vi.fn() }));
+vi.mock('@/lib/play/undo-stack', () => ({
   capture: vi.fn(),
   clearUndo: vi.fn(),
   peekLabel: vi.fn(() => null),
   popRestore: vi.fn(() => []),
   runSuppressed: vi.fn((fn: () => void) => fn()),
 }));
-vi.mock('../../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
 const enter = vi.fn();
-vi.mock('../../lib/use-fullscreen', () => ({
+vi.mock('@/lib/util/use-fullscreen', () => ({
   useFullscreen: () => ({
     supported: true,
     isFullscreen: false,

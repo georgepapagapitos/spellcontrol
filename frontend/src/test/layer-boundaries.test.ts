@@ -22,9 +22,13 @@
 //
 // FIXING A FAILURE. Move the thing being imported DOWN: a helper a component
 // and a lib module both need goes in lib/; a hook that renders UI belongs in
-// components/, not lib/. Never add a new edge to ALLOWED. The list below is
-// the debt that existed when the guard landed (2026-09-29, board T176); it may
-// only shrink, and the stale check fails until a fixed edge is deleted from it.
+// components/, not lib/. There is no allowlist: the count reached zero with
+// the lib/ regroup (board T176), so keep it zero.
+//
+// A fourth rule keeps lib/ navigable: every module lives in a domain folder
+// (lib/deck/, lib/binder/, lib/util/, ...), none at the top level. ARCHITECTURE.md
+// lists the folders; a module that fits none of them is a new folder's first
+// file, named after the product area it serves.
 
 import { describe, it, expect } from 'vitest';
 import { relative, sep } from 'node:path';
@@ -63,13 +67,6 @@ function brokenRule(from: string, to: string): string | null {
   return null;
 }
 
-// `from -> to`, src-relative. Shrink only.
-const ALLOWED = new Set<string>([
-  // A hook that renders a dialog: it belongs in components/ and moves there
-  // with the lib/ regroup (T176 W4).
-  'lib/use-confirm.tsx -> components/ConfirmDialog.tsx',
-]);
-
 describe('layer boundaries', () => {
   const files = sourceFiles();
   const edges = files.flatMap((f) => valueImports(f).map((t) => [rel(f), rel(t)] as const));
@@ -83,20 +80,20 @@ describe('layer boundaries', () => {
     expect(edges.length).toBeGreaterThan(2000);
   });
 
-  it('adds no new upward import', () => {
-    const fresh = broken.filter((b) => !ALLOWED.has(b.edge));
+  it('has no upward import', () => {
     expect(
-      fresh.map((b) => `  ${b.edge}   (${b.rule})`),
+      broken.map((b) => `  ${b.edge}   (${b.rule})`),
       'An import points UP a layer. Move the shared piece down (see the header of ' +
-        'src/test/layer-boundaries.test.ts); do not add it to ALLOWED.'
+        'src/test/layer-boundaries.test.ts).'
     ).toEqual([]);
   });
 
-  it('keeps ALLOWED free of edges that are already fixed', () => {
-    const live = new Set(broken.map((b) => b.edge));
+  it('keeps every lib/ module in a domain folder', () => {
+    const loose = files.map(rel).filter((f) => /^lib\/[^/]+$/.test(f));
     expect(
-      [...ALLOWED].filter((e) => !live.has(e)),
-      'These edges no longer exist. Delete them from ALLOWED so the ratchet holds.'
+      loose,
+      'A module sits at the top of lib/. Put it in the domain folder it serves ' +
+        '(ARCHITECTURE.md lists them), or start a new one.'
     ).toEqual([]);
   });
 });

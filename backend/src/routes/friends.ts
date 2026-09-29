@@ -6,6 +6,7 @@ import { and, eq } from 'drizzle-orm';
 import { getScryfallCache } from '../scryfall-cache';
 import { areFriends, listFriendIds } from '../friends/relations';
 import { summarizeCardUse } from '../friends/card-use';
+import { loadFriendPeeks } from '../friends/peek';
 import { parseCollectionVisibility } from '../collections/visibility';
 import { resolveShareLabels } from '../shares/labels';
 import { asRecord, pickLegalities } from '../shares/projections';
@@ -74,12 +75,14 @@ friendsRouter.get('/', requireAuth, friendReadLimiter, async (req: Request, res:
     [callerId]
   );
 
+  const peeks = await loadFriendPeeks(result.rows.map((r) => r.id));
   const friends = result.rows.map((r) => ({
     id: r.id,
     username: r.username,
     displayName: r.display_name,
     friendedAt: Number(r.accepted_at),
     cardCount: Number(r.card_count),
+    ...peeks.get(r.id)!,
   }));
 
   res.json({ friends });

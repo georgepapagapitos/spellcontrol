@@ -367,7 +367,7 @@
    sides carry a running total. The give side is exact (real copies, already
    priced by applyPrices); the ask side is a FLOOR the caller labels "from",
    because a friend's collection is oracle-level and nobody knows which printing
-   is coming until they accept. See lib/trade-value.ts. */
+   is coming until they accept. See lib/trade/trade-value.ts. */
 .trade-side-value {
   margin-left: auto;
   font-size: var(--text-sm);

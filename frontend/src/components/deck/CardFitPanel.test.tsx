@@ -2,9 +2,9 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { CardFitPanel } from './CardFitPanel';
-import type { AddFitReport } from '@/lib/card-fit';
+import type { AddFitReport } from '@/lib/coach/card-fit';
 import type { ScryfallCard } from '@/deck-builder/types';
-import type { RankedCut } from '@/lib/intelligent-cuts';
+import type { RankedCut } from '@/lib/coach/intelligent-cuts';
 
 function scry(name: string, over: Partial<ScryfallCard> = {}): ScryfallCard {
   return {

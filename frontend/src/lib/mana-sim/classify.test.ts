@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ScryfallCard } from '@/deck-builder/types';
-import { cardCmc, isLand } from '../hand-classify';
+import { cardCmc, isLand } from './hand-classify';
 import { classifyManaCard } from './classify';
 import fixture from './__fixtures__/cards.fixture.json';
 import { card } from './__fixtures__/decks';

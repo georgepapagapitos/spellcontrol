@@ -7,13 +7,13 @@ import { useCallback, useContext, useEffect, useLayoutEffect, useRef, useState }
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import type { EnrichedCard } from '../types';
-import { isLand } from '../lib/colors';
-import { truncateLongWords } from '../lib/slot-text';
-import { getSafeViewport } from '../lib/popover-placement';
+import { isLand } from '@/lib/cards/colors';
+import { truncateLongWords } from '@/lib/binder/slot-text';
+import { getSafeViewport } from '@/lib/overlays/popover-placement';
 import { CardPreviewContext } from './CardPreviewContext';
-import { getSetMap, type SetMap } from '../lib/api';
-import { formatMoney } from '../lib/format-money';
-import { useAllocations } from '../lib/allocations';
+import { getSetMap, type SetMap } from '@/lib/api';
+import { formatMoney } from '@/lib/collection/format-money';
+import { useAllocations } from '@/lib/collection/allocations';
 import { PriceOverrideBadge } from './shared/PriceOverrideBadge';
 import { ArtBadge } from '@/components/shared/ArtBadge';
 

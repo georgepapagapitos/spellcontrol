@@ -18,11 +18,11 @@ vi.mock('../store/auth', () => ({
   useAuth: (selector: (s: { status: string }) => unknown) => selector(authState),
 }));
 
-vi.mock('../lib/friends-client', () => ({
+vi.mock('@/lib/social/friends-client', () => ({
   listFriends: vi.fn(() => Promise.resolve([])),
 }));
 
-vi.mock('../lib/pods-client', () => ({
+vi.mock('@/lib/social/pods-client', () => ({
   listPods: vi.fn(() => Promise.resolve([])),
   createPod: vi.fn(),
   invitePodMembers: vi.fn(() => Promise.resolve({ invited: [] })),
@@ -31,7 +31,7 @@ vi.mock('../lib/pods-client', () => ({
 }));
 
 import { PodsIndexPage } from './PodsIndexPage';
-import { listFriends } from '../lib/friends-client';
+import { listFriends } from '@/lib/social/friends-client';
 import {
   acceptPodInvite,
   createPod,
@@ -39,7 +39,7 @@ import {
   invitePodMembers,
   listPods,
   type Pod,
-} from '../lib/pods-client';
+} from '@/lib/social/pods-client';
 import { toast } from '../store/toasts';
 
 function renderPage() {

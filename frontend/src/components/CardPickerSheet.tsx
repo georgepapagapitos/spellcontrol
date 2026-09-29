@@ -1,9 +1,9 @@
 import { createPortal } from 'react-dom';
 import { useMemo, useState } from 'react';
 import { useCollectionStore } from '../store/collection';
-import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
-import { useSheetExit } from '../lib/use-sheet-exit';
-import { normalizeForSearch } from '../lib/normalize-search';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
+import { normalizeForSearch } from '@/lib/search/normalize-search';
 import type { EnrichedCard } from '../types';
 import { FoilBadge } from './FoilBadge';
 import { SearchPill } from './SearchPill';

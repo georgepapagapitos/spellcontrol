@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import type { NightOption } from '../lib/game-nights-api';
+import type { NightOption } from '@/lib/play/game-nights-api';
 import './NightPoll.css';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 /** Mirrors the backend MAX_OPTIONS cap — hide the suggest form once full. */
 const POLL_MAX = 8;

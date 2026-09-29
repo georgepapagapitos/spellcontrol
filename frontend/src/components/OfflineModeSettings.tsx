@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 import { useOfflineStore } from '@/store/offline';
 import type { DownloadPhase } from '@/lib/offline';
-import { formatBytes } from '@/lib/format-bytes';
-import { formatRelativeTime } from '@/lib/format-time';
+import { formatBytes } from '@/lib/util/format-bytes';
+import { formatRelativeTime } from '@/lib/util/format-time';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
 

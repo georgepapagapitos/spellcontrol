@@ -10,23 +10,23 @@ import {
   undoLabel as undoLabelCore,
   redoLabel as redoLabelCore,
   type History,
-} from '../lib/deck-history-core';
-import { haptics } from '../lib/haptics';
+} from '@/lib/deck/deck-history-core';
+import { haptics } from '@/lib/util/haptics';
 import { useDecksStore, type Deck } from './decks';
 
 /**
  * In-memory undo/redo history for deck editing.
  *
  * Each undoable user action is recorded as a before/after snapshot of the
- * affected deck (the pure stack logic lives in `lib/deck-history-core.ts`).
+ * affected deck (the pure stack logic lives in `lib/deck/deck-history-core.ts`).
  * Undo/redo restore a snapshot via the decks store's `replaceDeck`, which
  * persists one upsert through the normal sync queue — under last-write-wins
  * that restored row is the compensating mutation, so no special sync plumbing
- * is needed (see `lib/sync.ts`).
+ * is needed (see `lib/sync/index.ts`).
  *
  * History is **ephemeral**: it lives only in memory, is never persisted or
  * synced, and is dropped for a deck when a server pull rewrites that deck's row
- * (`invalidate`, called from `lib/sync.ts`) — at which point the local
+ * (`invalidate`, called from `lib/sync/index.ts`) — at which point the local
  * snapshots are stale and replaying them would clobber the remote edit.
  *
  * Recording is **explicit** (callers wrap user actions in `record` / `begin`+

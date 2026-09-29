@@ -21,8 +21,8 @@ import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/brac
 // network in the test, logs `[Scryfall] Collection batch failed` *after* the test ends —
 // racing vitest's worker teardown into `EnvironmentTeardownError: Closing rpc while
 // "onUserConsoleLog" was pending`. Stubbing the hook removes the async fetch at the source.
-vi.mock('@/lib/card-thumbs', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/lib/card-thumbs')>()),
+vi.mock('@/lib/cards/card-thumbs', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/cards/card-thumbs')>()),
   useCardThumb: () => undefined,
 }));
 
