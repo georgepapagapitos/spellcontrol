@@ -745,6 +745,8 @@
      light theme's paper inks. */
   --text-muted-tint: rgba(255, 255, 255, 0.7);
   --text-secondary-tint: rgba(255, 255, 255, 0.82);
+  --accent-tint: color-mix(in srgb, var(--art-scrim-accent) 85%, white);
+  --accent-hover-tint: color-mix(in srgb, var(--art-scrim-accent) 70%, white);
   --border: rgba(255, 255, 255, 0.15);
   --border-strong: rgba(255, 255, 255, 0.25);
   --surface: rgba(255, 255, 255, 0.05);

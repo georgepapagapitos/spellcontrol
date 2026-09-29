@@ -39,6 +39,11 @@
      styles/text-contrast-grounds.test.ts. */
   --text-muted-tint: #4f576c;
   --text-secondary-tint: #464e68;
+  /* Accent text on the tint: the guild accent fails AA on its own tint in
+     most themes, so tinted rules re-point --accent / --accent-hover here too.
+     Filled controls keep --on-accent ≥ 4.5:1 on these (same guard). */
+  --accent-tint: #35568e;
+  --accent-hover-tint: #3d5786;
 
   --accent: #35568e;
   --accent-hover: #46679f;

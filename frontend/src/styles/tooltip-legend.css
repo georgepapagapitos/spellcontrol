@@ -361,6 +361,8 @@ hr {
   background: var(--accent-light);
   --text-muted: var(--text-muted-tint);
   --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   border: 1px solid var(--accent);
   color: var(--accent-hover);
   padding: var(--space-2-5) var(--space-4);

@@ -530,6 +530,8 @@
   background: var(--accent-light);
   --text-muted: var(--text-muted-tint);
   --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -540,6 +542,8 @@
     background: var(--accent-light);
     --text-muted: var(--text-muted-tint);
     --text-secondary: var(--text-secondary-tint);
+    --accent: var(--accent-tint);
+    --accent-hover: var(--accent-hover-tint);
     outline: none;
   }
 }
@@ -1271,6 +1275,8 @@
   background: var(--accent-light);
   --text-muted: var(--text-muted-tint);
   --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
 }
 
 /* ── Manual reorder (E172) ────────────────────────────────────────────
@@ -1485,6 +1491,8 @@
   background: var(--accent-light);
   --text-muted: var(--text-muted-tint);
   --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   cursor: pointer;
   outline: 2px solid var(--accent);
   outline-offset: -2px;
@@ -1494,6 +1502,8 @@
     background: var(--accent-light);
     --text-muted: var(--text-muted-tint);
     --text-secondary: var(--text-secondary-tint);
+    --accent: var(--accent-tint);
+    --accent-hover: var(--accent-hover-tint);
     cursor: pointer;
     outline: none;
   }
@@ -1845,6 +1855,8 @@
     background: var(--accent-light);
     --text-muted: var(--text-muted-tint);
     --text-secondary: var(--text-secondary-tint);
+    --accent: var(--accent-tint);
+    --accent-hover: var(--accent-hover-tint);
   }
 }
 

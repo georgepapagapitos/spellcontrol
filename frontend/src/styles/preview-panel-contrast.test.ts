@@ -153,6 +153,18 @@ describe('card-preview panel: text, status and accent clear AA in every theme', 
           const r = contrast(over(parseColor(resolve(t)), tinted), tinted);
           if (r < AA) failures.push(`--${t} on the accent tint over ${where}: ${r.toFixed(2)}`);
         }
+        // The panel's accent pair is the on-art accent mixed further toward
+        // white. Anything else fails loudly: an unresolved value would read NaN
+        // and slip past a `< AA` check.
+        for (const t of ['accent-tint', 'accent-hover-tint']) {
+          const m = resolve(t).match(
+            /^color-mix\(in srgb, var\(--art-scrim-accent\) (\d+)%, white\)$/
+          );
+          expect(m, `panel --${t} is not an on-art accent mix: ${resolve(t)}`).toBeTruthy();
+          const ink = mix(accent, Number(m![1]) / 100, [255, 255, 255]);
+          const r = contrast(ink, tinted);
+          if (!(r >= AA)) failures.push(`--${t} on the accent tint over ${where}: ${r.toFixed(2)}`);
+        }
       }
       // The Add / Swap in button fills with --accent and writes --on-accent.
       const onAccent = contrast(hex(resolve('on-accent')), accent);

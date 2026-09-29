@@ -307,6 +307,8 @@ button.playtest-log-dock__phase {
   background: var(--accent-light);
   --text-muted: var(--text-muted-tint);
   --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
 }
 
 @media (hover: hover) and (pointer: fine) {

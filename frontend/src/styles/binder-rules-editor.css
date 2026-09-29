@@ -898,6 +898,8 @@
   background: var(--accent-light);
   --text-muted: var(--text-muted-tint);
   --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -1121,6 +1123,8 @@
   background: var(--accent-light);
   --text-muted: var(--text-muted-tint);
   --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   color: var(--text-primary);
 }
 @media (hover: hover) and (pointer: fine) {
@@ -1128,6 +1132,8 @@
     background: var(--accent-light);
     --text-muted: var(--text-muted-tint);
     --text-secondary: var(--text-secondary-tint);
+    --accent: var(--accent-tint);
+    --accent-hover: var(--accent-hover-tint);
     color: var(--text-primary);
   }
 }
@@ -1229,6 +1235,8 @@
   background: var(--accent-light);
   --text-muted: var(--text-muted-tint);
   --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   color: var(--accent);
 }
 

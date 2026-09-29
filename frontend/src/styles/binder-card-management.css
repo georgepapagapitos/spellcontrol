@@ -924,6 +924,8 @@
   background: var(--accent-light);
   --text-muted: var(--text-muted-tint);
   --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   color: var(--accent);
 }
 
@@ -1175,6 +1177,8 @@
   background: var(--accent-light);
   --text-muted: var(--text-muted-tint);
   --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
 }
 /* Ring only on genuine keyboard focus — not a mouse-opened popover
    (.is-open above shares the color treatment but stays ring-free). */
@@ -1189,6 +1193,8 @@
     background: var(--accent-light);
     --text-muted: var(--text-muted-tint);
     --text-secondary: var(--text-secondary-tint);
+    --accent: var(--accent-tint);
+    --accent-hover: var(--accent-hover-tint);
     outline: none;
   }
 }
@@ -1238,6 +1244,8 @@
   background: var(--accent-light);
   --text-muted: var(--text-muted-tint);
   --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
 }
 /* Ring only on genuine keyboard focus — not a mouse-opened popover
    (.is-open above shares the color treatment but stays ring-free). */
@@ -1252,6 +1260,8 @@
     background: var(--accent-light);
     --text-muted: var(--text-muted-tint);
     --text-secondary: var(--text-secondary-tint);
+    --accent: var(--accent-tint);
+    --accent-hover: var(--accent-hover-tint);
     outline: none;
   }
 }
@@ -1378,6 +1388,8 @@
   background: var(--accent-light);
   --text-muted: var(--text-muted-tint);
   --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
@@ -1679,6 +1691,8 @@
   background: var(--accent-light);
   --text-muted: var(--text-muted-tint);
   --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   color: var(--text-primary);
 }
 
