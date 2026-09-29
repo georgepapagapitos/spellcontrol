@@ -162,8 +162,6 @@
 .rules-ref-badge {
   font-size: var(--text-xs);
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
   line-height: 1;
 }
 .rules-ref-badge[data-tone='accent'] {

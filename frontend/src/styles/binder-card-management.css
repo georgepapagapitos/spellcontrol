@@ -692,8 +692,6 @@
   border-radius: 999px;
   border: 0.5px solid var(--border);
   color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
   margin-left: var(--space-1-5);
   vertical-align: middle;
 }

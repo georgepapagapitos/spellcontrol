@@ -278,7 +278,7 @@ export function CardSlot({ card, showImage }: Props) {
               <span className={`tooltip-rarity rarity-${(card.rarity || '').toLowerCase()}`}>
                 {card.rarity}
               </span>
-              {card.foil && <span className="tooltip-foil">foil</span>}
+              {card.foil && <span className="tooltip-foil">Foil</span>}
               {' · '}
               {formatMoney(card.purchasePrice)}
               <PriceOverrideBadge card={card} />

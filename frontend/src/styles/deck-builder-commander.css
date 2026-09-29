@@ -342,11 +342,6 @@
   flex: 0 0 auto;
 }
 
-.commander-pick-stat-label {
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
 .commander-pick-stat-value {
   font-weight: 700;
   color: var(--text-primary);

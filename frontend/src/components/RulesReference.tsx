@@ -331,7 +331,7 @@ function KeywordList({
                   className="rules-ref-badge"
                   tone={k.kind === 'ability' ? 'accent' : 'neutral'}
                 >
-                  {k.kind}
+                  {k.kind === 'ability' ? 'Ability' : 'Action'}
                 </Chip>
                 <span className="rules-ref-keyword-rule">{k.rule}</span>
               </button>
