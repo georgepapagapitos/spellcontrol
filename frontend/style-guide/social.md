@@ -160,6 +160,13 @@ unrelated part of the tree, and aren't what a solid pip actually renders
 on screen): W `#f0f2c0`, U `#b5cde3`, B `#aca29a`, R `#db8664`, G `#93b483`.
 Colorless renders a single neutral segment (mana-font's own `.ms-cost` base
 gray, `#beb9b2`) instead of an empty bar — never omit the bar entirely.
+It is one primitive, `ColorIdentityBar` (`components/shared/`), and every
+deck tile in a grid wears it: the owner's own index, Discover and a profile
+or friend's library (2026-09-29, user ruling). It used to be two copy-pasted
+families and absent from My Decks, so one deck had a strip on Discover and
+none in its owner's list. List and compact views leave it off. Its colors
+come in the order the tile's pips use: most-used first for a deck without
+a commander, the commander's identity otherwise.
 
 **Hover quick-actions** (grid + `@media (hover: hover) and (pointer: fine)`
 strictly — never on touch): an "Open" pill plus the relocated Like/Bookmark
