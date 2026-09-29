@@ -115,7 +115,27 @@ function toResult(row: EdhrecTopListRow, stale: boolean): TopListResult {
   return { entries: row.entries, fetchedAt: row.fetchedAt, stale, sourceUrl: row.sourceUrl };
 }
 
-export async function getTopList(key: TopListKey, now = Date.now()): Promise<TopListResult> {
+/** One load per list at a time: the stored-copy read AND any fetch it starts.
+ *  refresh()'s own `inflight` map is not enough for a cold list (E523): two
+ *  requests could both read "no row", the first fetch, store and clear its
+ *  inflight entry, and only then the second reach refresh() and fetch again.
+ *  A joiner shares the first caller's result, including its `now`. */
+const loading = new Map<string, Promise<TopListResult>>();
+
+export function getTopList(key: TopListKey, now = Date.now()): Promise<TopListResult> {
+  const listKey = listKeyString(key);
+  const running = loading.get(listKey);
+  if (running) return running;
+  const run = load(key, now);
+  loading.set(listKey, run);
+  void run.then(
+    () => loading.delete(listKey),
+    () => loading.delete(listKey)
+  );
+  return run;
+}
+
+async function load(key: TopListKey, now: number): Promise<TopListResult> {
   const [row] = await getDb()
     .select()
     .from(edhrecTopLists)
