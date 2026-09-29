@@ -471,7 +471,9 @@ export function BinderEditor() {
   // initialized for, and re-init whenever any of them changes while the modal
   // is open. Tracking editingBinderSeed ensures re-opening 'new' with a fresh
   // seed (e.g. "Save as binder" with different filters) re-seeds name+groups.
-  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  // Starts closed, not at `isOpen`: Layout loads this editor lazily on its
+  // first open, so it can mount already open and must still seed its form.
+  const [prevIsOpen, setPrevIsOpen] = useState(false);
   const [prevExisting, setPrevExisting] = useState(existing);
   const [prevSeed, setPrevSeed] = useState(editingBinderSeed);
   if (prevIsOpen !== isOpen || prevExisting !== existing || prevSeed !== editingBinderSeed) {

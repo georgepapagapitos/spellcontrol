@@ -1,10 +1,9 @@
-import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Outlet, useLocation, useNavigationType } from 'react-router-dom';
 import { Header } from './Header';
 import { MobileTabBar } from './MobileTabBar';
 import { ScanFab } from './ScanFab';
 import { Footer } from './Footer';
-import { BinderEditor } from './BinderEditor';
 import { ToastViewport } from './ToastViewport';
 import { ConflictPanel } from './ConflictPanel';
 import { KeyboardShortcutsOverlay } from './KeyboardShortcutsOverlay';
@@ -16,6 +15,27 @@ import { isTouchDevice } from '../lib/platform';
 import { PullToRefresh } from './PullToRefresh';
 import { refreshNow } from '../lib/sync';
 import { useDocumentTitle } from '../lib/use-document-title';
+import { useCollectionStore } from '../store/collection';
+
+// The binder editor (and its stylesheet) loads on its first open, not at boot:
+// it is the largest dialog in the app and a first-time visitor never opens it
+// (§ Boot payload is budgeted). Once loaded it stays mounted, so its closing
+// animation and closed-state bookkeeping work as before.
+const BinderEditor = lazy(() =>
+  import('./BinderEditor').then((m) => ({ default: m.BinderEditor }))
+);
+
+function LazyBinderEditor() {
+  const open = useCollectionStore((s) => s.editingBinder !== null);
+  const [loaded, setLoaded] = useState(open);
+  if (open && !loaded) setLoaded(true);
+  if (!loaded) return null;
+  return (
+    <Suspense fallback={null}>
+      <BinderEditor />
+    </Suspense>
+  );
+}
 
 /** Route→label map for the app's primary hub destinations. Sub-routes (e.g.
  * `/decks/:id`) inherit their hub's title until/unless they set a more
@@ -202,7 +222,7 @@ function LayoutShell() {
             >
               <Outlet />
             </Suspense>
-            <BinderEditor />
+            <LazyBinderEditor />
             <Footer />
           </div>
         </ScrollContainerContext.Provider>
