@@ -29,6 +29,18 @@ ul.swipe-row[data-swipe-row] > li {
   }
 }
 
+/* Portrait card tiles: two and a peek on a phone, four and a peek on a
+   tablet (SwipeRow's `tile="card"`). */
+ul.swipe-row[data-swipe-row][data-tile='card'] > li {
+  flex-basis: 40%;
+}
+
+@media (min-width: 600px) {
+  ul.swipe-row[data-swipe-row][data-tile='card'] > li {
+    flex-basis: 22%;
+  }
+}
+
 @media (min-width: 1024px) {
   ul.swipe-row[data-swipe-row] {
     display: grid;

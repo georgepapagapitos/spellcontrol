@@ -1,0 +1,7 @@
+/* Where a browse list's numbers come from (EdhrecSource.tsx, and the Search
+   landing's sources line). */
+.browse-source {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}

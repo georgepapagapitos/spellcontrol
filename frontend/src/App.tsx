@@ -1,7 +1,6 @@
 import { logger } from '@/lib/logger';
 import { lazy, Suspense, useEffect, useRef, type ComponentType } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { EmptyState } from '@/components/shared/EmptyState';
 import { Layout } from './components/Layout';
 import { CollectionHubLayout } from './components/CollectionHubLayout';
 // Eager pages — the entry surfaces a first paint lands on. WelcomePage is the
@@ -30,7 +29,7 @@ import { useFirstRunGate } from './lib/use-first-run-gate';
 import { useTradeSettlement } from './lib/use-trade-settlement';
 import { hasEverVisited } from './lib/first-run';
 import { setUsageSuppressed, track } from './lib/analytics';
-import { Button } from '@/components/shared/Button';
+import { NotFoundPage } from '@/components/NotFoundPage';
 
 /** Named-export adapter for React.lazy (every page below exports by name). */
 function lazyPage<K extends string, T extends Record<K, ComponentType>>(
@@ -60,6 +59,7 @@ const DeckGeneratePage = lazyPage(() => import('./pages/DeckGeneratePage'), 'Dec
 const BrewBuildPage = lazyPage(() => import('./pages/BrewBuildPage'), 'BrewBuildPage');
 const DeckEditorPage = lazyPage(() => import('./pages/DeckEditorPage'), 'DeckEditorPage');
 const DeckComparePage = lazyPage(() => import('./pages/DeckComparePage'), 'DeckComparePage');
+const ProxySheetPage = lazyPage(() => import('./pages/ProxySheetPage'), 'ProxySheetPage');
 const CubeIndexPage = lazyPage(() => import('./pages/CubeIndexPage'), 'CubeIndexPage');
 const CubeChooserPage = lazyPage(() => import('./pages/cube/CubeChooserPage'), 'CubeChooserPage');
 const CubeImportPage = lazyPage(() => import('./pages/cube/CubeImportPage'), 'CubeImportPage');
@@ -83,6 +83,7 @@ const PodsIndexPage = lazyPage(() => import('./pages/PodsIndexPage'), 'PodsIndex
 const PodHubPage = lazyPage(() => import('./pages/PodHubPage'), 'PodHubPage');
 // Utility / public
 const SearchPage = lazyPage(() => import('./pages/SearchPage'), 'SearchPage');
+const BrowseListPage = lazyPage(() => import('./pages/BrowseListPage'), 'BrowseListPage');
 const TagsPage = lazyPage(() => import('./pages/TagsPage'), 'TagsPage');
 const RulesPage = lazyPage(() => import('./pages/RulesPage'), 'RulesPage');
 const AdminPage = lazyPage(() => import('./pages/AdminPage'), 'AdminPage');
@@ -127,33 +128,14 @@ function LegacyCubeRedirect() {
   return <Navigate to={id ? `/decks/cube/${id}` : '/decks/cube'} replace />;
 }
 
-/** `/settings` is the You page's old address; the header sync pill, the
- *  auto-link banner and the backend's OAuth link callback still use it. The
- *  query string has to survive the forward — `/settings?linked=google` is how
- *  the "Google account linked." toast reaches the page, and a bare
+/** `/settings` is the You page's old address; the backend's OAuth link
+ *  callback and old bookmarks still use it. The query string has to survive
+ *  the forward — `/settings?linked=google` is how the "Google account
+ *  linked." toast reaches the Account section, and a bare
  *  `<Navigate to="/you">` silently dropped it. */
 function SettingsRedirect() {
   const { search } = useLocation();
   return <Navigate to={`/you${search}`} replace />;
-}
-
-/** An unmatched in-Layout route (typo, stale link, dead deep link) used to
- *  silently redirect to Home/Collection with zero feedback. Render an actual
- *  state instead, so a bad link reads as a bad link, not a random landing. */
-function NotFoundPage({ homePath }: { homePath: string }) {
-  const homeLabel = homePath === '/home' ? 'Home' : 'Collection';
-  return (
-    <EmptyState
-      taglineAs="h1"
-      tagline="Page not found."
-      hint="That link is broken or the page has moved."
-      actions={
-        <Button variant="primary" to={homePath}>
-          Go to {homeLabel}
-        </Button>
-      }
-    />
-  );
 }
 
 export default function App() {
@@ -391,14 +373,17 @@ export default function App() {
             <Route path="/decks/cube/new/collection" element={<CubeBuildPage />} />
             <Route path="/decks/cube/:id" element={<CubeDetailPage />} />
             <Route path="/decks/:id" element={<DeckEditorPage />} />
+            <Route path="/decks/:id/proxies" element={<ProxySheetPage />} />
             <Route path="/decks/:id/playtest" element={<PlaytestPage />} />
             <Route path="/decks/:id/playtest/log" element={<PlaytestLogPage />} />
             <Route path="/play" element={<PlayPage />} />
             <Route path="/play/:section" element={<PlayPage />} />
             <Route path="/rules" element={<RulesPage />} />
             <Route path="/search" element={<SearchPage />} />
+            <Route path="/search/top/:list" element={<BrowseListPage />} />
             <Route path="/tags" element={<TagsPage />} />
-            <Route path="/you" element={<YouPage />} />
+            {/* `/you` is the hub; each section is `/you/<id>` (pages/you/sections.ts). */}
+            <Route path="/you/:section?" element={<YouPage />} />
             <Route path="/friends" element={<FriendsPage />} />
             <Route path="/friends/:friendId" element={<FriendHubPage />} />
             <Route path="/trades" element={<TradesPage />} />

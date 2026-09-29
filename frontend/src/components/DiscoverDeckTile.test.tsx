@@ -69,15 +69,22 @@ function renderTile(
 }
 
 describe('DiscoverDeckTile — grid art banner', () => {
-  it("shows the deck's own commander printing and skips the by-name lookup", () => {
+  // The art crop, as every other deck tile shows. The full card put its
+  // printed title bar at the top of the banner, under the quick actions.
+  it("shows the art crop of the deck's own commander printing, skipping the by-name lookup", () => {
     useCardThumbMock.mockReturnValue('https://cdn.example/default-printing.jpg');
     const { container } = renderTile({
       commanderImageNormal: 'https://cards.scryfall.io/normal/sld.jpg',
     });
 
     const img = container.querySelector('.discover-tile-banner .decks-index-card-art');
-    expect(img?.getAttribute('src')).toBe('https://cards.scryfall.io/normal/sld.jpg');
-    expect(useCardThumbMock).toHaveBeenLastCalledWith(undefined, 'normal');
+    expect(img?.getAttribute('src')).toBe('https://cards.scryfall.io/art_crop/sld.jpg');
+    expect(useCardThumbMock).toHaveBeenLastCalledWith(undefined, 'art_crop');
+  });
+
+  it('looks the commander up by name as an art crop when the deck has no printing', () => {
+    renderTile();
+    expect(useCardThumbMock).toHaveBeenLastCalledWith("Atraxa, Praetors' Voice", 'art_crop');
   });
 
   it('renders the commander art as a lazy-loaded banner image when a thumb resolves', () => {

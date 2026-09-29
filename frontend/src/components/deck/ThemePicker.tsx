@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { fetchCommanderThemes } from '@/deck-builder/services/edhrec/client';
 import type { EDHRECTheme } from '@/deck-builder/types';
+import { formatCount } from '@/lib/format-count';
 import { Button } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 
@@ -160,10 +161,4 @@ function ThemePickerList({
       </div>
     </section>
   );
-}
-
-function formatCount(n: number): string {
-  if (!Number.isFinite(n)) return '0';
-  if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`;
-  return String(n);
 }

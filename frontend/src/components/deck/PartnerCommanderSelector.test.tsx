@@ -87,7 +87,7 @@ describe('PartnerCommanderSelector', () => {
     const items = await screen.findAllByRole('option');
     // The popular partner ranks first despite coming second from Scryfall.
     expect(items[0].textContent).toContain('Popular Partner');
-    expect(screen.getByText('5.0k decks')).toBeTruthy();
+    expect(screen.getByText('5k decks')).toBeTruthy();
 
     fireEvent.click(items[0]);
     expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ name: 'Popular Partner' }));

@@ -1,0 +1,82 @@
+{
+  "header": "Top Commanders (Past Week)",
+  "container": {
+    "json_dict": {
+      "cardlists": [
+        {
+          "tag": "pastweek",
+          "header": "Past Week",
+          "cardviews": [
+            {
+              "id": "55cd03d9-2535-4cf3-a8b2-1418e1190f4a",
+              "name": "Jace, Multiverse Architect",
+              "sanitized": "jace-multiverse-architect",
+              "slug": "jace-multiverse-architect",
+              "url": "/commanders/jace-multiverse-architect",
+              "num_decks": 3357,
+              "potential_decks": 0,
+              "rank": 1,
+              "trend_zscore": 50.91603838786996
+            },
+            {
+              "id": "c7f2c2d5-e052-49e8-b5de-712858c2ea78",
+              "name": "Y'shtola, Night's Blessed",
+              "sanitized": "yshtola-nights-blessed",
+              "slug": "yshtola-nights-blessed",
+              "url": "/commanders/yshtola-nights-blessed",
+              "num_decks": 2097,
+              "potential_decks": 0,
+              "rank": 2,
+              "trend_zscore": 0.23616104795047402
+            },
+            {
+              "id": "6529d399-677e-45a6-ac3e-12a0b10f6c37",
+              "name": "Tam, the Possibility",
+              "sanitized": "tam-the-possibility",
+              "slug": "tam-the-possibility",
+              "url": "/commanders/tam-the-possibility",
+              "num_decks": 1952,
+              "potential_decks": 0,
+              "rank": 3,
+              "trend_zscore": 7.827144837854767
+            },
+            {
+              "id": "328df403-7428-4b17-bdd1-9759fc0f32d8",
+              "name": "Frodo, Adventurous Hobbit // Sam, Loyal Attendant",
+              "sanitized": "frodo-adventurous-hobbit-sam-loyal-attendant",
+              "slug": "frodo-adventurous-hobbit-sam-loyal-attendant",
+              "url": "/commanders/frodo-adventurous-hobbit-sam-loyal-attendant",
+              "cards": [
+                {
+                  "name": "Frodo, Adventurous Hobbit",
+                  "url": "frodo-adventurous-hobbit"
+                },
+                {
+                  "name": "Sam, Loyal Attendant",
+                  "url": "sam-loyal-attendant"
+                }
+              ],
+              "is_partner": true,
+              "names": ["Frodo, Adventurous Hobbit", "Sam, Loyal Attendant"],
+              "num_decks": 1140,
+              "potential_decks": 0,
+              "rank": 20,
+              "trend_zscore": 0.7766908974328013
+            },
+            {
+              "id": "42bbedc1-6b83-46b4-8b3b-a4e05ce77d87",
+              "name": "Ms. Bumbleflower",
+              "sanitized": "ms-bumbleflower",
+              "slug": "ms-bumbleflower",
+              "url": "/commanders/ms-bumbleflower",
+              "num_decks": 1128,
+              "potential_decks": 0,
+              "rank": 21,
+              "trend_zscore": 0.0032589684282945293
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

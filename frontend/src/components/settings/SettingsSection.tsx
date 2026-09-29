@@ -2,8 +2,7 @@ import type { ReactNode } from 'react';
 import { Surface } from '@/components/shared/Surface';
 
 interface SettingsSectionProps {
-  /** Heading id — register in YouPage's `SECTION_HEADING_IDS` if it should
-      also be a `?section=` scroll/focus target. */
+  /** Heading id, for the section's `aria-labelledby`. */
   id: string;
   title: string;
   hint?: ReactNode;

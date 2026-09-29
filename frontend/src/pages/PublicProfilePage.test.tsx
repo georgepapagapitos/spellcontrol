@@ -130,7 +130,7 @@ describe('PublicProfilePage — brand-bar action', () => {
     fetchPublicProfileMock.mockResolvedValue(profile({ isOwner: true }));
     renderProfile();
     const edit = await screen.findByRole('link', { name: 'Edit profile' });
-    expect(edit.getAttribute('href')).toBe('/you?section=profile');
+    expect(edit.getAttribute('href')).toBe('/you/profile');
     expect(screen.queryByRole('button', { name: 'Report this profile' })).toBeNull();
   });
 });

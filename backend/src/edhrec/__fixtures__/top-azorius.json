@@ -1,0 +1,107 @@
+{
+  "header": "Top Azorius Cards",
+  "container": {
+    "json_dict": {
+      "cardlists": [
+        {
+          "tag": "topcards",
+          "header": "Top Cards",
+          "cardviews": [
+            {
+              "id": "454ed9c8-3ec1-4b65-bf3f-29a186742aed",
+              "name": "Talisman of Progress",
+              "sanitized": "talisman-of-progress",
+              "slug": "talisman-of-progress",
+              "url": "/cards/talisman-of-progress",
+              "num_decks": 596979,
+              "potential_decks": 2323999,
+              "trend_zscore": 4.3356014006019
+            },
+            {
+              "id": "af690536-b0bc-4d85-8bb8-f6856b9f927b",
+              "name": "Azorius Signet",
+              "sanitized": "azorius-signet",
+              "slug": "azorius-signet",
+              "url": "/cards/azorius-signet",
+              "num_decks": 457542,
+              "potential_decks": 2323999,
+              "trend_zscore": 0.3670610703392263
+            },
+            {
+              "id": "5d6b5054-2224-4f68-9d82-3ed17c5dacc4",
+              "name": "Dovin's Veto",
+              "sanitized": "dovins-veto",
+              "slug": "dovins-veto",
+              "url": "/cards/dovins-veto",
+              "num_decks": 441119,
+              "potential_decks": 2323999,
+              "trend_zscore": 1.6501058054687587
+            }
+          ]
+        },
+        {
+          "tag": "creatures",
+          "header": "Creatures",
+          "cardviews": [
+            {
+              "id": "50bc0f5b-7421-45b9-af85-86dd9821b7d8",
+              "name": "Soulherder",
+              "sanitized": "soulherder",
+              "slug": "soulherder",
+              "url": "/cards/soulherder",
+              "num_decks": 95890,
+              "potential_decks": 2323999,
+              "trend_zscore": -0.45536672125600935
+            },
+            {
+              "id": "add7d3ce-aa58-4da0-8c2a-cfd01c3a8975",
+              "name": "King T'Challa",
+              "sanitized": "king-tchalla",
+              "slug": "king-tchalla",
+              "url": "/cards/king-tchalla",
+              "cards": [
+                {
+                  "name": "King T'Challa",
+                  "url": "king-tchalla"
+                },
+                {
+                  "name": "Black Panther, Hope Enduring",
+                  "url": "king-tchalla"
+                }
+              ],
+              "num_decks": 24337,
+              "potential_decks": 632798,
+              "trend_zscore": 4.772945294868336
+            }
+          ]
+        },
+        {
+          "tag": "instants",
+          "header": "Instants",
+          "cardviews": [
+            {
+              "id": "5d6b5054-2224-4f68-9d82-3ed17c5dacc4",
+              "name": "Dovin's Veto",
+              "sanitized": "dovins-veto",
+              "slug": "dovins-veto",
+              "url": "/cards/dovins-veto",
+              "num_decks": 441119,
+              "potential_decks": 2323999,
+              "trend_zscore": 1.6501058054687587
+            },
+            {
+              "id": "619c620d-1920-40d1-98d4-df5607f84d26",
+              "name": "Momentary Blink",
+              "sanitized": "momentary-blink",
+              "slug": "momentary-blink",
+              "url": "/cards/momentary-blink",
+              "num_decks": 60088,
+              "potential_decks": 2323999,
+              "trend_zscore": -0.3341942045020649
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

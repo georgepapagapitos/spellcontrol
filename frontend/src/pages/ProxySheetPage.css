@@ -1,0 +1,234 @@
+/* Print proxies (/decks/:id/proxies). Two halves:
+   - on screen, scaled page previews under the controls;
+   - in print, `.proxy-print` (portalled to <body>) at true card size.
+   Everything here loads with the page's own chunk, never on the boot path. */
+
+.proxy-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-block: var(--space-4);
+}
+
+.proxy-sheet-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 36rem;
+}
+
+.proxy-sheet-hint,
+.proxy-sheet-progress-text {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.proxy-sheet-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: 36rem;
+}
+
+/* ── Page previews ─────────────────────────────────────────────────────── */
+.proxy-sheet-pages {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The sheet's own proportions (195 × 267 mm: cards plus crop marks). */
+.proxy-sheet-page {
+  aspect-ratio: 195 / 267;
+  padding: 1.5% 1.5%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+}
+
+.proxy-sheet-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+}
+
+.proxy-sheet-tile {
+  position: relative;
+  aspect-ratio: 63 / 88;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.proxy-sheet-tile img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* The shared shimmer bar (deck-builder-skeleton.css), stretched over the
+   tile. The image stays hidden until it loads, so a half-drawn image never
+   reads as the card. */
+.proxy-sheet-tile .proxy-sheet-tile-shimmer {
+  position: absolute;
+  inset: 0;
+  height: auto;
+}
+
+.proxy-sheet-tile.is-loading img {
+  opacity: 0;
+}
+
+.proxy-sheet-tile-failed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: 100%;
+  padding: var(--space-2);
+  border: 1px dashed var(--err-border);
+  border-radius: var(--radius);
+  text-align: center;
+}
+
+.proxy-sheet-tile-name {
+  font-size: var(--text-xs);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.proxy-sheet-tile-note {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+/* ── Loading skeleton (the shared shimmer bar, sized to what's coming) ─── */
+.proxy-sheet .proxy-sheet-skeleton-title {
+  width: 40%;
+  height: 2rem;
+}
+
+.proxy-sheet .proxy-sheet-skeleton-controls {
+  width: min(100%, 36rem);
+  height: 6rem;
+}
+
+.proxy-sheet-skeleton-pages {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+  gap: var(--space-4);
+}
+
+.proxy-sheet .proxy-sheet-skeleton-page {
+  height: auto;
+  aspect-ratio: 195 / 267;
+}
+
+/* ── Print ─────────────────────────────────────────────────────────────── */
+.proxy-print {
+  display: none;
+}
+
+@media print {
+  /* Every selector that reaches outside the sheet is keyed on the portal
+     being a child of <body>, so none of it applies once the page unmounts
+     (this stylesheet stays loaded after navigating away). The shell is a
+     100dvh box with `overflow: hidden`; printed from inside it the sheet
+     would stop after one page, so it prints from beside it instead. */
+  html:has(> body > .proxy-print),
+  body:has(> .proxy-print) {
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    background: #fff;
+  }
+
+  body:has(> .proxy-print) > #root,
+  body:has(> .proxy-print) > :not(.proxy-print) {
+    display: none;
+  }
+
+  /* print.css hides `body *` for its checklists; the sheet opts back in. */
+  .proxy-print,
+  .proxy-print * {
+    visibility: visible;
+  }
+
+  .proxy-print {
+    display: block;
+    color: #000;
+    background: #fff;
+  }
+
+  /* 189 × 264 mm of cards, plus 3 mm each side and 0.75 mm top and bottom
+     for the crop marks. Chrome fits no more than about 266.3 mm of height on
+     Letter inside 5 mm margins (measured with printToPDF), so a 267 mm box
+     spilled a blank page after the last sheet. 265.5 mm clears it; A4 has
+     room to spare. proxy-sheet-print.test.ts holds the numbers together. */
+  .proxy-print-page {
+    position: relative;
+    width: 195mm;
+    height: 265.5mm;
+    margin: 0 auto;
+    overflow: hidden;
+    break-inside: avoid;
+    break-after: page;
+  }
+
+  .proxy-print-page:last-child {
+    break-after: auto;
+  }
+
+  .proxy-print-grid {
+    position: absolute;
+    top: 0.75mm;
+    left: 3mm;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: repeat(3, 63mm);
+    grid-auto-rows: 88mm;
+  }
+
+  .proxy-print-card {
+    display: block;
+    width: 63mm;
+    height: 88mm;
+    object-fit: cover;
+  }
+
+  .proxy-print-blank {
+    box-sizing: border-box;
+    padding: 6mm 4mm;
+    border: 0.3mm solid #000;
+    font-size: 11pt;
+    text-align: center;
+  }
+
+  /* Crop marks: one hairline per cut, under the cards, so only the part in
+     the margin (and between rounded corners) shows. Borders, not
+     backgrounds: browsers drop backgrounds when printing by default. */
+  .proxy-print-tick {
+    position: absolute;
+    border: 0 solid #000;
+  }
+
+  .proxy-print-tick.is-col {
+    top: 0;
+    bottom: 0;
+    left: calc(3mm + var(--edge) * 63mm);
+    border-left-width: 0.1mm;
+  }
+
+  .proxy-print-tick.is-row {
+    right: 0;
+    left: 0;
+    top: calc(0.75mm + var(--edge) * 88mm);
+    border-top-width: 0.1mm;
+  }
+}

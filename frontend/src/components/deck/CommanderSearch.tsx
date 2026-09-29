@@ -56,7 +56,7 @@ import { CommanderReadiness } from './CommanderReadiness';
 import { CommanderResultCard } from './CommanderResultCard';
 import type { EnrichedCard } from '../../types';
 import { ManaCost } from '../ManaCost';
-import { ColorPip } from '../shared/ManaSymbol';
+import { ColorIdentityPicker } from '../shared/ColorIdentityPicker';
 import { SearchPill } from '../SearchPill';
 import { SelectMenu } from '../SelectMenu';
 import { InfoTip } from '../InfoTip';
@@ -65,7 +65,7 @@ import { getCommanderStatsBatch, type CommanderStats } from '../../lib/aggregate
 import { getCurrency } from '@/lib/currency';
 import { formatMoney } from '@/lib/format-money';
 import { userMessage } from '@/lib/user-error';
-import { Button, IconButton } from '@/components/shared/Button';
+import { Button } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 import { Count } from '@/components/shared/Count';
 import { FilterChipsRow, type FilterChipDescriptor } from '@/components/shared/FilterChipsRow';
@@ -157,16 +157,6 @@ interface RemoteResult {
   error?: string;
 }
 
-const COLORS = ['W', 'U', 'B', 'R', 'G', 'C'] as const;
-const COLOR_LABEL: Record<string, string> = {
-  W: 'White',
-  U: 'Blue',
-  B: 'Black',
-  R: 'Red',
-  G: 'Green',
-  C: 'Colorless',
-};
-
 // "In my collection" keeps the old "Commanders I own" key, so a returning
 // player lands where they left off.
 const SOURCE_KEY = 'commander-search-owned-only';
@@ -244,46 +234,6 @@ const playstyleLabels = (ids: readonly string[]): string[] =>
     const p = playstyleById(id);
     return p ? [p.label] : [];
   });
-
-/** The WUBRG + colorless filter. Colorless can't combine with a color. */
-function ColorPips({
-  colors,
-  onChange,
-}: {
-  colors: ReadonlySet<string>;
-  onChange: (next: Set<string>) => void;
-}) {
-  return (
-    <div className="commander-color-filter">
-      {COLORS.map((c) => {
-        const active = colors.has(c);
-        return (
-          <IconButton
-            className={`commander-color-pip${active ? ' active' : ''}`}
-            key={c}
-            aria-pressed={active}
-            onClick={() => {
-              const next = new Set(colors);
-              if (next.has(c)) {
-                next.delete(c);
-              } else {
-                next.add(c);
-                if (c === 'C') {
-                  for (const other of [...next]) if (other !== 'C') next.delete(other);
-                } else {
-                  next.delete('C');
-                }
-              }
-              onChange(next);
-            }}
-            label={COLOR_LABEL[c]}
-            icon={<ColorPip color={c} pip={false} />}
-          />
-        );
-      })}
-    </div>
-  );
-}
 
 /**
  * The commander finder: one search box and one result list, narrowed by
@@ -980,7 +930,7 @@ export function CommanderSearch({
           Colors
         </span>
         <div className="commander-finder-control" role="group" aria-labelledby={`${baseId}-colors`}>
-          <ColorPips colors={colors} onChange={setColors} />
+          <ColorIdentityPicker colors={colors} onChange={setColors} />
           {comboName && <span className="commander-finder-combo">{comboName}</span>}
           {colors.size > 0 && !colors.has('C') && (
             <SegmentedControl

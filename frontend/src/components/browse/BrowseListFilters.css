@@ -1,0 +1,28 @@
+/* A browse list's filters (BrowseListFilters.tsx). Wider than a phone they
+   are one row that wraps between controls, never inside one; a phone keeps
+   the period in the row and the rest in the Filters popover. */
+.browse-list-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+}
+
+.browse-list-colors .commander-color-filter,
+.discover-filters-section .commander-color-filter {
+  justify-content: flex-start;
+}
+
+/* The reason the period's greyed options can't be picked, beside them. */
+.browse-list-hint {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.browse-list-filters-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}

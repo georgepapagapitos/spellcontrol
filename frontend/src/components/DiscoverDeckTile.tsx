@@ -6,6 +6,7 @@ import { Chip } from './shared/Chip';
 import { MeterBar } from './shared/MeterBar';
 import { UserAvatar } from './UserAvatar';
 import { useCardThumb } from '../lib/card-thumbs';
+import { scryfallArtCrop } from '../lib/offline/slim-to-scryfall';
 import { formatMoney } from '../lib/format-money';
 import { formatSocialCount } from '../lib/social-proof';
 import { formatRelativeTime } from '../lib/format-time';
@@ -119,8 +120,10 @@ export function DiscoverDeckTile({ deck, view, buildablePercent = null, onUnsave
   // so the last resort is the deck's own cover art (`ogArtCrop` — #2449's
   // "every deck gets cover art": the owner's pick, else the commander, else
   // the deck's signature card) rather than the colorless swatch (E482).
-  const direct = deck.commanderImageNormal ?? undefined;
-  const resolved = useCardThumb(direct ? undefined : (deck.commanderName ?? undefined), 'normal');
+  // The art crop, as every other deck tile shows: the full card put the
+  // printed title bar at the top of the banner, under the quick actions.
+  const direct = deck.commanderImageNormal ? scryfallArtCrop(deck.commanderImageNormal) : undefined;
+  const resolved = useCardThumb(direct ? undefined : (deck.commanderName ?? undefined), 'art_crop');
   const thumb = direct ?? resolved ?? deck.ogArtCrop ?? undefined;
   const social = socialLine(deck);
   const isGrid = view === 'grid';

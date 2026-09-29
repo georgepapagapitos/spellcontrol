@@ -101,6 +101,7 @@ import { DeckGeneratePage } from './DeckGeneratePage';
 import { PlayPage } from './PlayPage';
 import { RulesPage } from './RulesPage';
 import { SearchPage } from './SearchPage';
+import { BrowseListPage } from './BrowseListPage';
 import { TagsPage } from './TagsPage';
 import { YouPage } from './YouPage';
 import { FriendsPage } from './FriendsPage';
@@ -112,6 +113,7 @@ import { CubeIndexPage } from './CubeIndexPage';
 import { CubeChooserPage } from './cube/CubeChooserPage';
 import { DeckComparePage } from './DeckComparePage';
 import { DeckEditorPage } from './DeckEditorPage';
+import { ProxySheetPage } from './ProxySheetPage';
 import { PodHubPage } from './PodHubPage';
 import { FriendHubPage } from './FriendHubPage';
 import { PublicDeckPage } from './PublicDeckPage';
@@ -211,6 +213,11 @@ const CASES: RouteCase[] = [
   { path: '/play', routes: <Route path="/play" element={<PlayPage />} />, ready: /Play/ },
   { path: '/rules', routes: <Route path="/rules" element={<RulesPage />} />, ready: /rules/i },
   { path: '/search', routes: <Route path="/search" element={<SearchPage />} />, ready: /search/i },
+  {
+    path: '/search/top/cards',
+    routes: <Route path="/search/top/:list" element={<BrowseListPage />} />,
+    ready: /top cards/i,
+  },
   { path: '/tags', routes: <Route path="/tags" element={<TagsPage />} />, ready: /tag/i },
   {
     path: '/you',
@@ -254,6 +261,12 @@ const CASES: RouteCase[] = [
     seedDeck: true,
     routes: <Route path="/decks/:id" element={<DeckEditorPage />} />,
     ready: /Add cards/,
+  },
+  {
+    path: '/decks/DECK/proxies',
+    seedDeck: true,
+    routes: <Route path="/decks/:id/proxies" element={<ProxySheetPage />} />,
+    ready: /Nothing to print/,
   },
   {
     path: '/auth',
@@ -353,7 +366,9 @@ describe('a11y (axe): full routes at phone width', () => {
           commander: null,
           cards: [],
         });
-        path = `/decks/${typeof deck === 'string' ? deck : (deck as { id: string }).id}`;
+        const id = typeof deck === 'string' ? deck : (deck as { id: string }).id;
+        // `/decks/DECK/proxies` opens the seeded deck's own sub-route.
+        path = c.path.replace('DECK', id);
       }
       render(
         <MemoryRouter initialEntries={[path]}>

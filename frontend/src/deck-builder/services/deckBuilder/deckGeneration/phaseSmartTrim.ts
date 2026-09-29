@@ -7,6 +7,7 @@ import {
 } from '@/deck-builder/services/tagger/client';
 import type { GenerationState } from './state';
 import { countAllCards } from './state';
+import { STAPLE_ROCK_NAMES } from './phaseStapleManaRocks';
 import {
   MUST_INCLUDE_BOOST,
   LAND_PROTECTION_BOOST,
@@ -47,7 +48,10 @@ export function computeTrimResistance(
   if (card.isMustInclude) {
     resistance += MUST_INCLUDE_BOOST;
   }
-  if (card.isStapleRock) {
+  // By NAME as well as the flag, like every other phase: `isStapleRock` only
+  // marks a rock the staple phase force-included, so a Sol Ring the type
+  // passes picked on their own carried no flag and Smart Trim could cut it.
+  if (card.isStapleRock || STAPLE_ROCK_NAMES.has(card.name)) {
     resistance += STAPLE_PROTECTION_BOOST;
   }
   if (isProtectionPiece(card)) {

@@ -13,6 +13,7 @@ import { frontFaceName } from '@/lib/card-text';
 import { normalizeScryfallQuery } from '@/lib/normalize-search';
 import { scryfallFetch, scryfallRequest, scryfallErrorMessage } from '@/lib/scryfall-fetch';
 import { apiUrl } from '@/lib/api-base';
+import type { ScryfallCardRef } from '@/lib/scryfall-card-link';
 import { persistCard, readCachedCards } from './cache';
 import { HARDCODED_GAME_CHANGERS as SHARED_GAME_CHANGERS } from '@spellcontrol/deck-metrics';
 
@@ -639,6 +640,31 @@ export async function getCardById(id: string): Promise<ScryfallCard> {
 }
 
 /**
+ * Fetch a single card by set code and collector number (live API only): the
+ * shape of a scryfall.com card-page link (`/card/{set}/{number}/…`), which
+ * names one exact printing the same way an id does. Same request path, cache
+ * and playability gate as `getCardById`; the result is also cached under its
+ * id, so a later id lookup of the same printing is free.
+ */
+export async function getCardBySetAndNumber(set: string, number: string): Promise<ScryfallCard> {
+  const setCode = set.toLowerCase();
+  const key = `printing:${setCode}/${number}`;
+  await primeFromDisk([key]);
+  const cached = cardCache.get(key);
+  if (cached) return freshCopy(cached);
+
+  const card = await scryfallFetch<ScryfallCard>(
+    `/cards/${encodeURIComponent(setCode)}/${encodeURIComponent(number)}`
+  );
+  if (!isPlayableCard(card)) {
+    throw new Error(`That printing of ${card.name} can't be played. Try another printing.`);
+  }
+  cardCache.set(key, card);
+  cardCache.set(card.id, card);
+  return freshCopy(card);
+}
+
+/**
  * Resolve the full card for the *specific* printing the user owns — used when
  * selecting a commander from one's collection so the deck reflects the physical
  * copy (printing + finish), not the cheapest printing.
@@ -741,6 +767,36 @@ export async function getCardsByIds(ids: string[]): Promise<Map<string, Scryfall
     }
   }
   return result;
+}
+
+/**
+ * Resolve Scryfall card references (from `parseScryfallCardRefs`: a dropped or
+ * pasted link) to their exact printings, in order. Several ids go through the
+ * batched `getCardsByIds`; any it misses (or all of them when offline card
+ * data is on, where that batch is empty) fall back to `getCardById`, whose
+ * error says why. Live-only like both: a ref that can't be had is skipped and
+ * the first failure comes back as `error`, so a caller that got nothing can
+ * say why.
+ */
+export async function getCardsByRefs(
+  refs: ScryfallCardRef[]
+): Promise<{ cards: ScryfallCard[]; error: unknown }> {
+  const ids = refs.flatMap((r) => ('id' in r ? [r.id] : []));
+  const batched = ids.length > 1 ? await getCardsByIds(ids) : new Map<string, ScryfallCard>();
+  const cards: ScryfallCard[] = [];
+  let error: unknown = null;
+  for (const ref of refs) {
+    try {
+      cards.push(
+        'id' in ref
+          ? (batched.get(ref.id) ?? (await getCardById(ref.id)))
+          : await getCardBySetAndNumber(ref.set, ref.number)
+      );
+    } catch (e) {
+      error ??= e;
+    }
+  }
+  return { cards, error };
 }
 
 /**

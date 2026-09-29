@@ -11,7 +11,7 @@ export const PROXY_HINT = 'Counts as owned, with no market value.';
  * privacy facts every AI surface states the same way.
  */
 export function aiConsentBlurb(purpose: string, sends: string): string {
-  return `${purpose} Turning this on sends ${sends} to Anthropic. Nothing is sent until you press an AI button. Your collection is never sent. Turn it off any time in Settings.`;
+  return `${purpose} Turning this on sends ${sends} to Anthropic. Nothing is sent until you press an AI button. Your collection is never sent. Turn it off any time in You › AI.`;
 }
 
 /** Changes kept on this device while offline: the sync toast and the sync pill. */
