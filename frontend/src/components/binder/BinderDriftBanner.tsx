@@ -28,7 +28,7 @@ import { Button } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 
 /** Binder ids whose drift-cleared moment already played this app-open —
- *  mirrors `celebratedDeckComplete` in DeckDisplay.tsx's module-level-Set
+ *  mirrors `celebratedDeckComplete` in use-deck-complete-moment.ts's module-level-Set
  *  pattern, so drift reappearing and re-clearing in the same session (a
  *  price refresh, a second import) doesn't replay the seal. */
 const celebratedBinderCleared = new Set<string>();
