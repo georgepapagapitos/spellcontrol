@@ -255,7 +255,7 @@ describe('assembleBuildReport', () => {
     });
 
     expect(report.ownedPercentGapNote).toBe(
-      'You asked for 50% owned cards and got 20%. The rest of your cards hit your limits or a role cap.'
+      'You asked for 50% owned cards and got 20%. The rest of your cards hit your limits, hit a role cap, or would have replaced a staple.'
     );
   });
 
