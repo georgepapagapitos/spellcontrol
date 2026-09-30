@@ -4601,7 +4601,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   let wholeDeckSearch: WholeDeckSearchResult | undefined;
   if (customization.wholeDeckSearch) {
     const { wholeDeckSearchPhase } = await import('./deckGeneration/phaseWholeDeckSearch');
-    wholeDeckSearch = wholeDeckSearchPhase(state, {
+    wholeDeckSearch = await wholeDeckSearchPhase(state, {
       roleTargets,
       pacing: resolvedPacing,
       detectedCombos,
@@ -4609,6 +4609,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       isSaltBlocked,
       cardAllowed: isCardAllowedBySynergyDependencies,
       maxCmc,
+      resolveOwned,
     });
     if (wholeDeckSearch.swaps.length)
       detectedCombos = refreshComboCompleteness(detectedCombos, state);

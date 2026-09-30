@@ -196,13 +196,17 @@ describe('optimizeDeck', () => {
     expect(r.score.violations).toEqual([]);
   });
 
-  it('takes the least damaging repair, not the first one found', () => {
-    // Swiftfoot Boots is not owned in an owned-only build; three owned cards could take its slot.
+  it('fills the slot a repair empties, with the least damaging card of that slot', () => {
+    // Swiftfoot Boots is not owned in an owned-only build. Soul Net and Grave
+    // Pact could take the slot; the owned protection pieces are judged first.
+    const inDeck = new Set(BASELINE.cards.map((c) => c.name));
+    const protection = ['Heroic Intervention', 'Lightning Greaves'].filter((n) => !inDeck.has(n));
+    const others = ['Soul Net', 'Grave Pact'];
+    expect(protection.length).toBeGreaterThan(0);
     const owned = new Set([
       ...BASELINE.cards.map((c) => c.name).filter((n) => n !== 'Swiftfoot Boots'),
-      'Soul Net',
-      'Heroic Intervention',
-      'Grave Pact',
+      ...protection,
+      ...others,
     ]);
     const c = merenCtx({
       customization: {
@@ -213,11 +217,15 @@ describe('optimizeDeck', () => {
       },
       ownedNames: owned,
     });
-    const ins = cards('Soul Net', 'Heroic Intervention', 'Grave Pact');
-    const r = optimizeDeck(BASELINE, ins, c, { ...SMALL, maxSwaps: 0, maxEvaluations: 40 });
+    const r = optimizeDeck(BASELINE, cards(...others, ...protection), c, {
+      ...SMALL,
+      maxSwaps: 0,
+      maxEvaluations: 40,
+    });
     const repair = r.swaps.find((s) => s.kind === 'repair')!;
     expect(repair.out).toEqual(['Swiftfoot Boots']);
-    // Every alternative repair scores no better than the one taken.
+    expect(protection).toContain(repair.in[0]);
+    // Among the cards of that slot, none scores better than the one taken.
     const i = BASELINE.cards.findIndex((x) => x.name === 'Swiftfoot Boots');
     const slots = { ...c, slotOrder: BASELINE.cards.map((x) => x.name) };
     const scoreWith = (name: string) =>
@@ -229,7 +237,13 @@ describe('optimizeDeck', () => {
         slots
       ).total;
     const taken = scoreWith(repair.in[0]);
-    for (const alt of ['Soul Net', 'Heroic Intervention', 'Grave Pact'])
-      expect(taken, alt).toBeGreaterThanOrEqual(scoreWith(alt) - 1e-9);
+    for (const alt of protection) expect(taken, alt).toBeGreaterThanOrEqual(scoreWith(alt) - 1e-9);
+  });
+
+  it('brings a repair-only card in to repair, never to improve', () => {
+    // The first card the search brings in to improve the deck, marked repair-only.
+    const first = result.swaps.find((s) => s.kind === 'improve')!.in[0];
+    const r = optimizeDeck(TREATMENT, pool(), ctx, { ...SMALL, repairOnly: new Set([first]) });
+    for (const s of r.swaps) expect(s.in).not.toContain(first);
   });
 });

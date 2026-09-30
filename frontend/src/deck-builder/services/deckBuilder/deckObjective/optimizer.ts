@@ -52,6 +52,7 @@ import { normalizeCardName } from '../cardIdentity';
 import { cardIneligibility, checkConstraints } from './constraints';
 import { isBasicLand, isLandCard } from './context';
 import { reasonProblem } from './reasonCheck';
+import { protectionValue } from './terms/interaction';
 import { TERMS, compareScores, infeasibility, scoreDeck, termDeltas } from './index';
 import {
   countRoles,
@@ -95,6 +96,13 @@ export interface OptimizeOptions {
   timeBudgetMs?: number;
   /** The trust region's settings, or false to search without it (the first gate's search). */
   trust?: TrustOptions | false;
+  /**
+   * Candidates that may come in only to repair a broken constraint: the rest
+   * of an owned collection, fetched so an unowned card in an owned-only build
+   * has an owned replacement. They carry no page evidence for this commander,
+   * so they don't compete with the page's cards for an improving swap.
+   */
+  repairOnly?: ReadonlySet<string>;
 }
 
 export interface SwapReason {
@@ -133,6 +141,19 @@ export interface OptimizeResult {
   evaluations: { fast: number; full: number };
   stoppedBy: 'local-optimum' | 'max-swaps' | 'max-evaluations' | 'time' | 'no-candidates';
   ms: number;
+}
+
+/**
+ * The slot a card fills, as a repair reads it: its counted role, or
+ * 'protection' for a protection piece (the report counts no such role, and an
+ * owned-only build's Swiftfoot Boots is the card most often repaired).
+ */
+export function repairSlotOf(
+  card: ScryfallCard,
+  ctx: Pick<ObjectiveContext, 'factsOf'>,
+  roleOf: (card: ScryfallCard) => string | null
+): string | null {
+  return roleOf(card) ?? (protectionValue(card, ctx.factsOf(card)) > 0 ? 'protection' : null);
 }
 
 /** Swaps a deck. Five: a finished deck needs a few corrections, not a rebuild. */
@@ -478,9 +499,25 @@ export function optimizeDeck(
       return false;
     };
     const repairFirst = new Map(moves.map((m) => [m, repairs(m)]));
+    // A repair fills the slot it empties when it can: a card of the same
+    // counted role first (an owned removal spell for an unowned Swords to
+    // Plowshares, an owned protection piece for Swiftfoot Boots), judged
+    // before any other replacement.
+    const slotOf = (c: ScryfallCard) => repairSlotOf(c, ctx, roleOf);
+    const sameRole = new Map(
+      moves.map((m) => [
+        m,
+        repairFirst.get(m)! &&
+          m.out.every((i, j) => {
+            const r = slotOf(current.cards[i]);
+            return r !== null && m.in[j] !== undefined && slotOf(m.in[j]) === r;
+          }),
+      ])
+    );
     moves.sort(
       (a, b) =>
         Number(repairFirst.get(b)) - Number(repairFirst.get(a)) ||
+        Number(sameRole.get(b)) - Number(sameRole.get(a)) ||
         b.estimate - a.estimate ||
         a.in
           .map((c) => c.name)
@@ -497,7 +534,7 @@ export function optimizeDeck(
     // them must not use up the step. The checks themselves are capped.
     let judged = 0;
     let checked = 0;
-    let bestRepair: { move: Move; score: ObjectiveScore } | null = null;
+    let bestRepair: { move: Move; score: ObjectiveScore; matched: boolean } | null = null;
     let repairsSeen = 0;
     for (const move of moves) {
       if (judged >= opts.shortlist || checked >= opts.shortlist * CHECKS_PER_SLOT) break;
@@ -508,6 +545,8 @@ export function optimizeDeck(
       const nextInfeasible = violations.reduce((s, v) => s + v.magnitude, 0);
       if (nextInfeasible > curInfeasible) continue;
       const isRepair = nextInfeasible < curInfeasible;
+      if (!isRepair && opts.repairOnly && move.in.some((c) => opts.repairOnly!.has(c.name)))
+        continue;
       let required = opts.minGain;
       if (trust) {
         const verdict = trustVerdict(
@@ -534,8 +573,13 @@ export function optimizeDeck(
         // A repair is forced, so it is the least damaging one: the best of
         // the first REPAIR_CHOICES that fix the break, not the first found
         // (Swiftfoot Boots in an owned-only row went to Soul Net that way).
-        if (!bestRepair || compareScores(score, bestRepair.score) > 0) {
-          bestRepair = { move, score };
+        const matched = sameRole.get(move)!;
+        if (
+          !bestRepair ||
+          Number(matched) - Number(bestRepair.matched) > 0 ||
+          (matched === bestRepair.matched && compareScores(score, bestRepair.score) > 0)
+        ) {
+          bestRepair = { move, score, matched };
         }
         if (++repairsSeen >= REPAIR_CHOICES) break;
         continue;
