@@ -18,7 +18,8 @@ const read = (rel: string) => readFileSync(join(srcRoot, rel), 'utf8');
 const stripComments = (code: string) =>
   code.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
-const HUB_PAGES: Array<[string, 'collection' | 'decks' | 'social']> = [
+const HUB_PAGES: Array<[string, 'collection' | 'decks' | 'play' | 'social']> = [
+  ['pages/PlayPage.tsx', 'play'],
   ['pages/CollectionPage.tsx', 'collection'],
   ['pages/BindersIndexPage.tsx', 'collection'],
   ['pages/ListsPage.tsx', 'collection'],
@@ -54,7 +55,7 @@ describe('hub pages', () => {
     const offenders = tsxFiles(srcRoot)
       .filter((f) => !/(HubPage|HubTabs|HubTabsNav)\.tsx$/.test(f))
       .filter((f) =>
-        /<(Collection|Decks|Social)HubTabs\b|<HubTabsNav\b/.test(
+        /<(Collection|Decks|Play|Social)HubTabs\b|<HubTabsNav\b/.test(
           stripComments(readFileSync(f, 'utf8'))
         )
       )
@@ -64,7 +65,7 @@ describe('hub pages', () => {
 
   it('HubPage puts nothing between the header and the strip, and no meta line in the header', () => {
     const code = stripComments(read('components/app-shell/HubPage.tsx'));
-    expect(code).toMatch(/<PageHeader[\s\S]*?compactPrimary\s*\/>\s*<Tabs \/>/);
+    expect(code).toMatch(/<PageHeader[\s\S]*?compactPrimary\s*\/>\s*<Tabs\b[^>]*\/>/);
     expect(code).not.toMatch(/<PageHeader[^>]*\bmeta=/);
   });
 
@@ -111,6 +112,7 @@ describe('hub strip CSS', () => {
       ['pages/SetsPage.css', '.sets-page'],
       ['pages/TradesPage.css', '.trades-page'],
       ['pages/PodsIndexPage.css', '.pods-index-page'],
+      ['styles/play-setup.css', '.play-page'],
     ]) {
       const css = read(file).replace(/\/\*[\s\S]*?\*\//g, '');
       const block = new RegExp(`\\${selector}\\s*\\{([^}]*)\\}`).exec(css)?.[1] ?? '';
@@ -130,6 +132,7 @@ describe('hub strip CSS', () => {
       'sets-page',
       'trades-page',
       'pods-index-page',
+      'play-page',
     ];
     for (const [file, css] of allCss) {
       for (const root of roots) {
