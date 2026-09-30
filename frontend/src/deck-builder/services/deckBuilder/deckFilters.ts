@@ -2,7 +2,11 @@
 // Pure functions — no shared state, no side effects. Extracted verbatim from
 // deckGenerator.ts so they can be unit-tested in isolation.
 import type { ScryfallCard, MaxRarity, CollectionStrategy } from '@/deck-builder/types';
-import { getCardPrice, getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
+import {
+  getCardPrice,
+  getFrontFaceTypeLine,
+  isMdfcLand,
+} from '@/deck-builder/services/scryfall/client';
 import { fitsColorIdentity as fitsColorIdentitySet } from '@/lib/deck/deck-validation';
 import { cardManaValue } from './deckStats';
 
@@ -24,6 +28,21 @@ export function fitsColorIdentity(card: ScryfallCard, commanderColors: string[])
   return (
     fitsColorIdentitySet(card, new Set(commanderColors)) && !isDeadInIdentity(card, commanderColors)
   );
+}
+
+// Slot fit (E525): which bucket a fetched card may be seated in, decided by
+// the card's FRONT face, never by the query or pool that produced it. A card
+// whose front is a land is a land drop: Scryfall's `t:creature` also matches
+// Dryad Arbor and Westvale Abbey // Ormendahl (a creature back face), and
+// EDHREC's nonland lists carry utility lands (Nykthos, Nesting Grounds), so a
+// spell-slot fill that trusted its source seated lands and shipped the deck
+// over its planned land count. A spell // land MDFC fits either slot.
+const FRONT_LAND = /\bLand\b/;
+export function fitsSpellSlot(card: ScryfallCard): boolean {
+  return !FRONT_LAND.test(getFrontFaceTypeLine(card));
+}
+export function fitsLandSlot(card: ScryfallCard): boolean {
+  return !fitsSpellSlot(card) || isMdfcLand(card);
 }
 
 // Check if a card exceeds the max price limit

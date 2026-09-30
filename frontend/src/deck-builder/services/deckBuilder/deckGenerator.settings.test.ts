@@ -228,25 +228,7 @@ function assertInvariants(
 // KNOWN_INVARIANT_FAILURES pins what fires on main today, by case and check,
 // with the evidence. A pinned check must STILL fire (so a fix that clears it
 // fails here until the entry is deleted), and nothing unpinned may fire.
-const KNOWN_INVARIANT_FAILURES: Record<string, { checks: InvariantCheck[]; why: string }> = {
-  // Fixture artifact, not a generator bug on real data: the searchCards mock
-  // these two cases install returns the same pool for EVERY query, including
-  // landGenerator's merit widen (`t:land (...) -t:basic`), which trusts the
-  // query to return lands and seats what comes back in categories.lands.
-  // Real Scryfall scopes that query. Verified 2026-09-29: a mock that answers
-  // `t:land` with [] clears this, and then the typed Scryfall fill trusts its
-  // own type query the same way (Utility Land seated in creatures). Clearing
-  // it needs a query-aware mock, or the two consumers re-checking the front
-  // face so a mis-scoped search can't mis-seat a card.
-  'mtgFormat paupercommander': {
-    checks: ['spell-in-land-slot'],
-    why: 'searchCards mock ignores the t:land query of landGenerator',
-  },
-  'generationMode oracle-role + permanentsOnly (no instants/sorceries)': {
-    checks: ['spell-in-land-slot'],
-    why: 'searchCards mock ignores the t:land query of landGenerator',
-  },
-};
+const KNOWN_INVARIANT_FAILURES: Record<string, { checks: InvariantCheck[]; why: string }> = {};
 
 function expectDeckInvariants(
   caseName: string,

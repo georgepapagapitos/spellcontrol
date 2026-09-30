@@ -505,15 +505,22 @@ describe('lands (E485)', () => {
     });
   });
 
-  it('leaves a small undisclosed drift SOFT, and any disclosed drift SOFT', () => {
+  it('makes any undisclosed drift HARD, one land included, and any disclosed drift SOFT', () => {
     const base = assemble(cleanCategories());
     const planned = (lands: number, extra: Partial<GeneratedDeck> = {}) =>
       checkDeckInvariants(
         { ...base, composition: { ...base.composition!, lands }, ...extra },
         context()
       ).find((x) => x.check === 'land-count');
-    expect(planned(62)?.level).toBe('SOFT');
-    expect(planned(62)?.detail).toContain('rounding band');
+    // E529: the old 3-land "rounding" band hid padding for a spell shortfall.
+    expect(planned(63)).toEqual({
+      level: 'HARD',
+      check: 'land-count',
+      detail: '64 lands delivered vs a planned 63 (undisclosed)',
+    });
+    expect(planned(62, { poolExhaustionNote: 'Ran out of cards after 35 spells.' })?.level).toBe(
+      'SOFT'
+    );
     expect(planned(58)?.level).toBe('HARD');
     expect(planned(58, { poolExhaustionNote: 'Ran out of cards after 35 spells.' })?.level).toBe(
       'SOFT'
