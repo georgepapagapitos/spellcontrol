@@ -2,12 +2,12 @@ import { useMemo } from 'react';
 import { Boxes, Link as LinkIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import './cube.css';
-import { BackLink } from '../../components/BackLink';
-import { PageHeader } from '../../components/PageHeader';
+import { BackLink } from '@/components/app-shell/BackLink';
+import { PageHeader } from '@/components/app-shell/PageHeader';
 import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
 import { useCubeStore } from '../../store/cube';
-import { buildAvailableCollection } from '../../lib/collection-availability';
+import { buildAvailableCollection } from '@/lib/collection/collection-availability';
 
 /**
  * `/decks/cube/new` — the start chooser (STYLE_GUIDE § Config surfaces: "a new

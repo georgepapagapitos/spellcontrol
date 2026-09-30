@@ -13,6 +13,7 @@ import { tokensFromParts } from '../card-tokens';
 import { SCRYFALL_USER_AGENT } from '../scryfall';
 import { NON_PLAYABLE_LAYOUTS, fetchScryfallBulkEntry } from '../scryfall-bulk';
 import { pipeForwardingErrors } from '../stream-utils';
+import { HARDCODED_GAME_CHANGERS } from '@spellcontrol/deck-metrics';
 
 /**
  * Superset of the backend's ScryfallCard type — Scryfall's oracle_cards bulk
@@ -86,76 +87,11 @@ interface ScryfallSearchNameOnly {
   has_more: boolean;
 }
 
-/**
- * Official Commander Game Changers list (Feb 9, 2026 — 53 cards). Mirrors
- * `HARDCODED_GAME_CHANGERS` in frontend/src/deck-builder/services/scryfall/client.ts
- * (kept verbatim, not imported — the backend can't reach into frontend source).
- * Used as a floor when the live `is:gamechanger` query fails or returns partial
- * results, so a Scryfall outage during the daily bulk build doesn't silently
- * zero out every card's flag.
- */
-const HARDCODED_GAME_CHANGERS: ReadonlySet<string> = new Set([
-  // White
-  'Drannith Magistrate',
-  'Enlightened Tutor',
-  'Farewell',
-  'Humility',
-  "Serra's Sanctum",
-  'Smothering Tithe',
-  "Teferi's Protection",
-  // Blue
-  'Consecrated Sphinx',
-  'Cyclonic Rift',
-  'Fierce Guardianship',
-  'Force of Will',
-  'Gifts Ungiven',
-  'Intuition',
-  'Mystical Tutor',
-  'Narset, Parter of Veils',
-  'Rhystic Study',
-  "Thassa's Oracle",
-  // Black
-  'Ad Nauseam',
-  "Bolas's Citadel",
-  'Braids, Cabal Minion',
-  'Demonic Tutor',
-  'Imperial Seal',
-  'Necropotence',
-  'Opposition Agent',
-  'Orcish Bowmasters',
-  'Tergrid, God of Fright',
-  'Vampiric Tutor',
-  // Red
-  'Gamble',
-  "Jeska's Will",
-  'Underworld Breach',
-  // Green
-  'Biorhythm',
-  'Crop Rotation',
-  "Gaea's Cradle",
-  'Natural Order',
-  'Seedborn Muse',
-  'Survival of the Fittest',
-  'Worldly Tutor',
-  // Multicolor
-  'Aura Shards',
-  'Coalition Victory',
-  'Grand Arbiter Augustin IV',
-  'Notion Thief',
-  // Colorless / Lands
-  'Ancient Tomb',
-  'Chrome Mox',
-  'Field of the Dead',
-  'Glacial Chasm',
-  'Grim Monolith',
-  "Lion's Eye Diamond",
-  'Mana Vault',
-  "Mishra's Workshop",
-  'Mox Diamond',
-  'Panoptic Mirror',
-  'The One Ring',
-  'The Tabernacle at Pendrell Vale',
-]);
+// The official Game Changers list is @spellcontrol/deck-metrics'
+// HARDCODED_GAME_CHANGERS: a floor under the live `is:gamechanger` query, so a
+// Scryfall outage during the daily bulk build doesn't silently zero out every
+// card's flag. This file used to carry its own copy, which had drifted from
+// the shared list on one name (a double-faced card flagged only by front face).
 
 /**
  * Live paginated fetch of every `is:gamechanger` card name from Scryfall,

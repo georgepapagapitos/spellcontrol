@@ -65,7 +65,7 @@ calc(100vw - 4rem)) }`) — the two-class form outweighs the shell rule
   the full width at every tier.
 - **Every host with its own query input beside `CardSearchResults` (directly,
   or through `InlineCardSearch`'s forwarded ref) wires the same ↑/↓/Enter nav
-  through the shared `lib/use-results-keys.ts` hook (T159/E457) — `AddCardSearchPanel`,
+  through the shared `lib/search/use-results-keys.ts` hook (T159/E457) — `AddCardSearchPanel`,
   `/search`, the list "Add card" sheet, a list's own Scryfall panel, and the
   import review's per-name repair search all use it.** ↑/↓ moves the active
   row, Enter adds its own shown printing (decision B); both pass through
@@ -115,7 +115,7 @@ calc(100vw - 4rem)) }`) — the two-class form outweighs the shell rule
     reads the card, and it carries current Oracle wording. It just doesn't
     lead. Played in, Rulings and Legalities open by default, and the two that
     fetch wait for the card to settle first.
-  - **Played in** (`components/PlayedInSection.tsx`, E519) lists the
+  - **Played in** (`components/card/PlayedInSection.tsx`, E519) lists the
     commanders EDHREC sees the card played under: the card's own rate across
     decks that can play it, the Top commanders (five, then Show all) and New
     commanders, each row reading "In N% of its Nk decks" over a `MeterBar`
@@ -186,12 +186,23 @@ var(--overlay-sheet) }` in `binder-card-management.css`. A new sheet on this
   (reference: `ConfirmDialog.tsx`). Hand-rolled `.modal-backdrop` dialogs are
   also discouraged — route through `<Modal>` so the exit animation, focus-trap,
   and Escape handling come for free (see [§ Motion](../STYLE_GUIDE.md#motion)).
+- **An overlay root portals to `<body>`.** A sheet, drawer or dialog root is
+  `position: fixed` with a z-index, and both only hold where it renders.
+  Inline, it inherits every ancestor's stacking context: "View card tags"
+  from a collection grid card opened inside `.collection-grid-cell`
+  (`z-index: 0`), so every later card painted over the sheet. The component
+  that renders `.card-picker-root`, `.modal-backdrop`, `.stats-drawer-root`,
+  the binder page viewer, the deck context menu or the hover peek returns
+  `createPortal(…, document.body)`, as `<Modal>` does. The play table and the
+  playtest board are exempt: their overlays mount at the top of a
+  full-viewport fixed surface, and the board sheets must stay in the rotated
+  seat. `src/test/overlay-roots-portal-to-body.test.ts` fails an inline root.
 - **An overlay that can't portal still answers Escape.**
   The game board's in-panel covers (seat menu, counters, life keypad), its
   hub sheets and the custom layout editor render in place —
   the seat menu inherits its panel's rotation, the menu rises from the
   board's own edge — so they can't be a `<Modal>`. They use
-  `lib/use-overlay-dismiss.ts` (`useOverlayDismiss(onClose, panelRef)`):
+  `lib/overlays/use-overlay-dismiss.ts` (`useOverlayDismiss(onClose, panelRef)`):
   the same shared layer stack, topmost-only Escape, Tab trap and focus
   restoration, no exit animation. A new in-place overlay
   takes this hook; it never hand-rolls a keydown listener again.
@@ -244,7 +255,7 @@ var(--overlay-sheet) }` in `binder-card-management.css`. A new sheet on this
   overlay stack Escape does, never a second mechanism: `useOverlayLayer`'s
   optional second argument (`dismiss`) opts a layer in and reports back
   whether the close was ACCEPTED (a Modal's `dismissable={false}` refuses, so
-  it returns `false`; everything else always accepts). `lib/overlay-history.ts`
+  it returns `false`; everything else always accepts). `lib/overlays/overlay-history.ts`
   owns the history mechanics — one history entry, same URL, marking the
   CURRENT entry while any opted-in layer is open (a nested open reuses the
   same marked entry rather than pushing another). A Back press first closes
@@ -286,16 +297,16 @@ var(--overlay-sheet) }` in `binder-card-management.css`. A new sheet on this
   `ToolbarPopover`, `CtxMenuShell`) deliberately do NOT participate.** They
   open and close constantly and their items routinely navigate; a history
   entry per dropdown open isn't worth it, and Escape already closes them the
-  same way it always has. Pinned by `src/lib/overlay-history.test.ts`'s
+  same way it always has. Pinned by `src/lib/overlays/overlay-history.test.ts`'s
   numbered "acceptance sequences" (the mechanics, against fake hooks,
   counting presses through all eight of: close-then-leave, ✕-then-leave,
   ✕-then-navigate-then-land-then-leave, two nested closing in order then
   leaving, the non-dismissable re-arm, the close-then-navigate race in both
   same-tick and later-microtask/timeout orderings, a marker surviving a
   reload, and Forward/Back never re-triggering a stale one),
-  `src/lib/overlay-layer.test.tsx`'s "Back-button integration" block (the
+  `src/lib/overlays/overlay-layer.test.tsx`'s "Back-button integration" block (the
   real wiring, incl. nested layers, a StrictMode double-invoke, and the
-  non-dismissable case), and `src/components/CardPreview.test.tsx`'s
+  non-dismissable case), and `src/components/card/CardPreview.test.tsx`'s
   "Back-button integration" block (a real `BrowserRouter`, proving
   react-router never sees a route change, that a context pill's
   close-and-navigate never triggers a stray back, and the coordinator's
@@ -700,6 +711,31 @@ same line.
   table so you can watch the change land.
 - **An option that only means something online appears only online.** The turn
   alert is absent in solo playtest, where nobody passes the turn to you.
+
+### Resistance arms an opponent, so it commits on Save (2026-09-29, E533)
+
+The Resistance sheet opens from a Table settings row but doesn't follow that
+sheet's apply-as-you-go rule. Picking a level arms a fresh opponent and writes
+a log line. That's a game event, not a look you watch land, so the sheet is a
+draft with Cancel and Save, the same as "Fight a horde". Trying three levels
+before settling must not leave three announcements in the log.
+
+- **The level is the main job and is always open** (`ChoiceList`, one line
+  under each level). The level that fits the deck's bracket carries a "Fits
+  bracket N" label chip: 1 and 2 → Casual, 3 → Standard, 4 and 5 → Ruthless.
+  With no bracket known, the chip falls back to "Last used". It never picks
+  a level for you. Off stays Off until you choose.
+- **Timing and Answers are `Disclosure` rows that state their value** ("From
+  turn 3", "All 6 · Game Changers"), shown only while a level other than Off
+  is picked. Most people keep the defaults.
+- **Game Changers follows the deck, not the device.** It defaults on from
+  bracket 3 up, the line the bracket rules draw, and is set again each new
+  game. Timing and answers are device preferences.
+- **Every answer off is a warning with its fix** ("Turn all on"), not a
+  silently idle opponent.
+- **A resumed game keeps the rules it started under.** A snapshot saved before
+  E533 has no options and resumes on `LEGACY_RESISTANCE_OPTIONS` (answers from
+  turn 1, no attacks or discard). Never backfill it with the new defaults.
 
 ### The table's look is per-device, never table-wide (2026-09-20, E347)
 
@@ -1302,7 +1338,7 @@ input gestures:
 - **Desktop hover** (`useDeckHoverPeek`) — capability-gated to
   `(hover: hover) and (pointer: fine)`, cursor- or row-anchored. Unchanged by
   this section; documented above under [§ Info tooltips](components.md#info-tooltips)' "reveal model" note.
-- **Touch long-press** (`useTouchPeek`, `frontend/src/lib/use-touch-peek.ts`)
+- **Touch long-press** (`useTouchPeek`, `frontend/src/lib/overlays/use-touch-peek.ts`)
   — 500ms stationary hold (the same `useLongPress` primitive the playtest
   opening hand uses for its own preview gesture) opens the same box; release,
   a second touch, or ~6px of movement (scroll intent) dismisses it. **Tap

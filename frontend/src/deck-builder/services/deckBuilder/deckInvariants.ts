@@ -27,8 +27,10 @@ import type {
   ScryfallCard,
 } from '@/deck-builder/types';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
-import { frontFaceName } from '@/lib/card-text';
+import { frontFaceName } from '@/lib/cards/card-text';
 import { computeRoleCounts } from './commanderDeckAnalysis';
+import { commanderIneligibility, commanderPreviewNote } from './commanderEligibility';
+import { cardManaValue } from './deckStats';
 import {
   constrainsToCollection,
   exceedsMaxRarity,
@@ -37,7 +39,6 @@ import {
   isOwnedRarityExempt,
 } from './deckFilters';
 import { bracketCeilings } from './bracketGuard';
-import { POOL_EXHAUSTION_LAND_THRESHOLD } from './deckGenerator';
 
 export type InvariantLevel = 'HARD' | 'SOFT';
 
@@ -49,6 +50,7 @@ export type InvariantCheck =
   | 'identity'
   | 'dead-in-identity'
   | 'commander-in-99'
+  | 'commander-legality'
   | 'legality'
   | 'banned'
   | 'must-include'
@@ -109,6 +111,9 @@ export interface InvariantContext {
    * that priced Brainstorm out), so it is SOFT.
    */
   requestedNames?: Iterable<string>;
+  /** "Today", for the previewed-commander check. Defaults to now; tests pin
+   *  it so a card's release date can't flip their answer. */
+  now?: Date;
 }
 
 // ── Name helpers ────────────────────────────────────────────────────────────
@@ -456,6 +461,30 @@ export function checkDeckInvariants(
     if (byFront.has(key)) add('HARD', 'commander-in-99', `${who.name} is also in the 99`);
   }
 
+  // 4b. commander legality (E530). The generator refuses an illegal command
+  // zone at its entry, so a deck built around one got past that gate. A
+  // previewed commander builds by ruling, but only with its disclosure: SOFT
+  // when the deck carries the note, HARD when it doesn't.
+  if (commander) {
+    const problem = commanderIneligibility(commander, partner, cz.mtgFormat, ctx.now);
+    if (problem) {
+      add(
+        'HARD',
+        'commander-legality',
+        `a deck was built for an illegal command zone (${problem.reason}): ${problem.message}`
+      );
+    }
+    const preview = commanderPreviewNote(commander, partner, cz.mtgFormat, ctx.now);
+    if (preview) {
+      const disclosed = deck.commanderPreviewNote === preview;
+      add(
+        disclosed ? 'SOFT' : 'HARD',
+        'commander-legality',
+        `previewed commander: ${preview}` + (disclosed ? ' (disclosed)' : ' (undisclosed)')
+      );
+    }
+  }
+
   // 5. legality by format. A forced user pick is honored, but only when the
   // deck says so; otherwise it is a silent illegal card like any other.
   const legalityKey = LEGALITY_KEY[cz.mtgFormat ?? 'commander'] ?? 'commander';
@@ -612,7 +641,8 @@ export function checkDeckInvariants(
   if (cz.tinyLeaders) {
     for (const card of cards) {
       if (frontIsLand(card)) continue;
-      if ((card.cmc ?? 0) > 3) add('HARD', 'tiny-leaders', `${card.name} cmc ${card.cmc} > 3`);
+      const mv = cardManaValue(card);
+      if (mv > 3) add('HARD', 'tiny-leaders', `${card.name} cmc ${mv} > 3`);
     }
   }
 
@@ -674,10 +704,9 @@ export function checkDeckInvariants(
 
   // 17. delivered land count vs the plan the generator built to
   // (composition.lands: the resolved auto-tune or clamped request), counting
-  // a land parked in a spell slot as the land it is. A move away from the
-  // plan needs a note, except within POOL_EXHAUSTION_LAND_THRESHOLD, which
-  // the generator documents as land-generation rounding and never discloses:
-  // that band stays SOFT so it is visible without failing the build.
+  // a land parked in a spell slot as the land it is. Any move away from the
+  // plan needs a note (E529: a 1-3 land "rounding" band once hid padding;
+  // land generation delivers its planned count exactly).
   const planned = deck.composition?.lands;
   if (planned !== undefined) {
     const delivered = lands.length + landsInSpellSlots.length;
@@ -687,16 +716,11 @@ export function checkDeckInvariants(
         !!deck.poolExhaustionNote ||
         (deck.collectionShortfall ?? 0) > 0 ||
         (deck.filterShortfall ?? 0) > 0;
-      const withinRounding = Math.abs(delivered - planned) <= POOL_EXHAUSTION_LAND_THRESHOLD;
       add(
-        disclosed || withinRounding ? 'SOFT' : 'HARD',
+        disclosed ? 'SOFT' : 'HARD',
         'land-count',
         `${delivered} lands delivered vs a planned ${planned}` +
-          (disclosed
-            ? ' (disclosed)'
-            : withinRounding
-              ? ` (undisclosed, inside the generator's ${POOL_EXHAUSTION_LAND_THRESHOLD}-land rounding band)`
-              : ' (undisclosed)')
+          (disclosed ? ' (disclosed)' : ' (undisclosed)')
       );
     }
   }
@@ -764,32 +788,43 @@ export function checkDeckInvariants(
     }
     // The subtype tallies stand in on the deck page until the tagger loads,
     // then the live recount replaces them: a mismatch is a visible jump.
+    // HARD since E528 made the generator store this very recount.
     for (const field of SUBTYPE_FIELDS) {
       const stored = deck[field];
       if (!stored) continue;
       const a = nonZero(stored);
       const b = nonZero(recount[field]);
       if (!sameCounts(a, b)) {
-        add('SOFT', 'report-subtypes', `${field} ${fmtCounts(a)} vs recount ${fmtCounts(b)}`);
+        add('HARD', 'report-subtypes', `${field} ${fmtCounts(a)} vs recount ${fmtCounts(b)}`);
       }
     }
   }
 
   // 21. stats truth: recomputed exactly as calculateStats defines them
-  // (land-ness by lands-bucket membership).
+  // (land-ness by lands-bucket membership, a card's mana value by
+  // cardManaValue). A non-number anywhere in the stats is wrong on its face,
+  // whatever the recount says (E527 shipped a "NaN" curve bucket).
   if (deck.stats.totalCards !== cards.length) {
     add('HARD', 'stats', `stats.totalCards ${deck.stats.totalCards} != ${cards.length} seated`);
   }
+  if (!Number.isFinite(deck.stats.averageCmc)) {
+    add('HARD', 'stats', `stats.averageCmc is ${deck.stats.averageCmc}`);
+  }
+  for (const [bucket, n] of Object.entries(deck.stats.manaCurve ?? {})) {
+    if (!/^\d+$/.test(bucket) || !Number.isFinite(n)) {
+      add('HARD', 'stats', `stats.manaCurve has a bad entry "${bucket}": ${n}`);
+    }
+  }
   if (nonLandBucket.length > 0) {
     // calculateStats rounds to two decimals; so does the recount.
-    const raw = nonLandBucket.reduce((s, c) => s + (c.cmc ?? 0), 0) / nonLandBucket.length;
+    const raw = nonLandBucket.reduce((s, c) => s + cardManaValue(c), 0) / nonLandBucket.length;
     const avg = Math.round(raw * 100) / 100;
     if (Math.abs(avg - deck.stats.averageCmc) > 1e-9) {
       add('HARD', 'stats', `stats.averageCmc ${deck.stats.averageCmc} != recomputed ${avg}`);
     }
     const curve: Record<string, number> = {};
     for (const c of nonLandBucket) {
-      const k = String(Math.min(Math.floor(c.cmc ?? 0), 7));
+      const k = String(Math.min(Math.floor(cardManaValue(c)), 7));
       curve[k] = (curve[k] ?? 0) + 1;
     }
     const shippedCurve = nonZero(deck.stats.manaCurve as Record<string, number>);

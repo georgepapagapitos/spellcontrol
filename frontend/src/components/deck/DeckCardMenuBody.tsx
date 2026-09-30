@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ChevronRight, ChevronLeft, Check } from 'lucide-react';
-import { normalizeTagText } from '../../lib/deck-tags';
+import { normalizeTagText } from '@/lib/deck/deck-tags';
 import {
   deckCardActions,
   tagPickActions,

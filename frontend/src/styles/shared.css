@@ -298,7 +298,7 @@
 }
 
 /* ── Deck primer (markdown-lite rendered strategy notes) ─────────────────
-   Content comes from lib/markdown-lite.ts, which only ever emits
+   Content comes from lib/util/markdown-lite.ts, which only ever emits
    p/strong/em/ul/li — style exactly those five tags. */
 .shared-deck-primer {
   margin: 0 0 var(--space-4);
@@ -940,6 +940,10 @@
   .feedback-row-main:hover,
   .feedback-add-result:not(:disabled):hover {
     background: var(--accent-light);
+    --text-muted: var(--text-muted-tint);
+    --text-secondary: var(--text-secondary-tint);
+    --accent: var(--accent-tint);
+    --accent-hover: var(--accent-hover-tint);
   }
 }
 
@@ -1208,6 +1212,10 @@
 .feedback-bracket.is-active {
   border-color: var(--accent);
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
 }
 
 .feedback-error {

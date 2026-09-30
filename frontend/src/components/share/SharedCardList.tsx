@@ -1,12 +1,12 @@
 import { useMemo } from 'react';
-import type { PublicCard } from '../../lib/shared-types';
-import { publicCardToEnriched } from '../../lib/shared-filter';
+import type { PublicCard } from '@/lib/social/shared-types';
+import { publicCardToEnriched } from '@/lib/social/shared-filter';
 import { BinderBadge } from '../BinderBadge';
 import { CardRow } from '../shared/CardRow';
 import { CardTableFrame, CardTableHead, SHARED_TABLE_COLUMNS } from '../shared/CardTable';
-import { useMediaQuery } from '../../lib/use-media-query';
+import { useMediaQuery } from '@/lib/util/use-media-query';
 import { ownedAriaSuffix, SPARE_TITLE, type CardOwnership } from './SharedCardTile';
-import type { AllocationInfo } from '../../lib/allocations-core';
+import type { AllocationInfo } from '@/lib/collection/allocations-core';
 
 export interface SharedCardListItem {
   /** Stable React key (printing+finish, or section-local index). */

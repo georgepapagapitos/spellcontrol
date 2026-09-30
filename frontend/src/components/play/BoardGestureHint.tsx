@@ -1,6 +1,6 @@
 import { useRef } from 'react';
-import { markBoardGesturesSeen } from '../../lib/board-gestures-seen';
-import { useOverlayDismiss } from '../../lib/use-overlay-dismiss';
+import { markBoardGesturesSeen } from '@/lib/play/board-gestures-seen';
+import { useOverlayDismiss } from '@/lib/overlays/use-overlay-dismiss';
 
 export type BoardGestureId = 'tap' | 'hold' | 'number' | 'toward' | 'away' | 'pass';
 

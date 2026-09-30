@@ -10,7 +10,7 @@ where every section lives.
 
 ## Charts (line / trend)
 
-First instance: the Breakdown drawer's Value section (`components/ValueTrend.tsx`).
+First instance: the Breakdown drawer's Value section (`components/collection/ValueTrend.tsx`).
 Any future line/trend chart follows the same specs (horizontal bars stay on
 `MeterBar`/`StackedBar` — this section is for plotted charts):
 
@@ -103,7 +103,7 @@ stat-tile delta convention:
   neutral — color only the money segment, never the whole line.
 - **Be honest about the window.** "this week" only when the data actually
   spans ~a week and is current; a gappy or stale log names the baseline date
-  instead ("since Jun 7" via `lib/value-history.ts` `formatDayKey`).
+  instead ("since Jun 7" via `lib/collection/value-history.ts` `formatDayKey`).
 - **A collection change is not a market move.** When cards were added or
   removed inside the window, the headline delta speaks for prices alone
   ("+$45 from prices this week") and the cards part follows as its own phrase
@@ -119,7 +119,7 @@ stat-tile delta convention:
   solid accent dot, `aria-hidden` with the delta text (plus an `.sr-only`
   prefix) as the accessible content. Render nothing below two data points —
   no empty state. A full plotted chart instead follows § Charts (line /
-  trend); reference: `components/ValueTrend.tsx`.
+  trend); reference: `components/collection/ValueTrend.tsx`.
 
 ## Radar / polar charts
 
@@ -149,5 +149,5 @@ animation: none }` gate. No continuous or looping animation.
 - **Color:** the value polygon uses `var(--accent)` fill (low opacity) +
   accent stroke — it's about axes, not card colors. WUBRG pips are not used.
 - **Bespoke, never MeterBar.** Radar geometry belongs in
-  `lib/playstyle-radar.ts` + the co-located component; `radarLayout` is the
+  `lib/deck-analysis/playstyle-radar.ts` + the co-located component; `radarLayout` is the
   single geometry source.

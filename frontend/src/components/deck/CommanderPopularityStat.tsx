@@ -1,6 +1,6 @@
 import './CommanderPopularityStat.css';
 import type { JSX } from 'react';
-import { InfoTip } from '@/components/InfoTip';
+import { InfoTip } from '@/components/overlays/InfoTip';
 import { ThinDataNote } from '@/components/shared/ThinDataNote';
 
 export interface CommanderPopularityStatProps {

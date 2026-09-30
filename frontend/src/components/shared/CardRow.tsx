@@ -7,8 +7,8 @@ import {
 } from 'react';
 import { Check } from 'lucide-react';
 import type { Condition, EnrichedCard } from '../../types';
-import type { AllocationInfo } from '../../lib/allocations';
-import type { CubeListing } from '../../lib/cube-listings';
+import type { AllocationInfo } from '@/lib/collection/allocations';
+import type { CubeListing } from '@/lib/cube/cube-listings';
 import { FoilBadge } from '../FoilBadge';
 import { DeckBadge } from '../DeckBadge';
 import { BinderBadge } from '../BinderBadge';
@@ -17,11 +17,11 @@ import { PriceOverrideBadge } from './PriceOverrideBadge';
 import { RarityBadge } from './RarityBadge';
 import { ManaCost } from '../ManaCost';
 import { TypeIcon } from './ManaSymbol';
-import { CONDITION_OPTIONS, LANGUAGE_OPTIONS } from '../../lib/copy-options';
-import { getCardType } from '../../lib/card-types';
-import { getColorKey, COLOR_INFO } from '../../lib/colors';
-import { formatMoney } from '../../lib/format-money';
-import { useCardThumb } from '../../lib/card-thumbs';
+import { CONDITION_OPTIONS, LANGUAGE_OPTIONS } from '@/lib/collection/copy-options';
+import { getCardType } from '@/lib/cards/card-types';
+import { getColorKey, COLOR_INFO } from '@/lib/cards/colors';
+import { formatMoney } from '@/lib/collection/format-money';
+import { useCardThumb } from '@/lib/cards/card-thumbs';
 import { CARD_TABLE_COLUMNS, type CardTableCol } from './CardTable';
 import { CardName } from '@/components/shared/CardName';
 
@@ -49,7 +49,7 @@ export function conditionLabel(condition: Condition): string {
 export function ConditionChip({ condition }: { condition: Condition }) {
   const label = conditionLabel(condition);
   return (
-    <span className="card-list-condition" title={label} aria-label={label}>
+    <span className="card-list-condition" title={label} aria-label={label} role="img">
       {conditionShort(condition)}
     </span>
   );
@@ -197,7 +197,7 @@ export function CardRow({
       : undefined;
     const money = (amount: number) =>
       pricePending ? (
-        <span className="collection-list-price-pending" aria-label="Price updating">
+        <span className="collection-list-price-pending" aria-label="Price updating" role="img">
           —
         </span>
       ) : (
@@ -379,7 +379,11 @@ export function CardRow({
             title={pricePending ? 'Updating price…' : priceTitle}
           >
             {pricePending ? (
-              <span className="collection-list-price-pending" aria-label="Price updating">
+              <span
+                className="collection-list-price-pending"
+                aria-label="Price updating"
+                role="img"
+              >
                 —
               </span>
             ) : (

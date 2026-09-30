@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { useDocumentTitle } from '../../lib/use-document-title';
+import { useDocumentTitle } from '@/lib/util/use-document-title';
 import { Button } from '@/components/shared/Button';
 
 interface Props {

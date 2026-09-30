@@ -6,7 +6,8 @@ import { and, eq } from 'drizzle-orm';
 import { getScryfallCache } from '../scryfall-cache';
 import { areFriends, listFriendIds } from '../friends/relations';
 import { summarizeCardUse } from '../friends/card-use';
-import { parseCollectionVisibility } from '../collections/visibility';
+import { loadFriendPeeks } from '../friends/peek';
+import { storedCollectionVisibility } from '../collections/visibility';
 import { resolveShareLabels } from '../shares/labels';
 import { asRecord, pickLegalities } from '../shares/projections';
 import { extractListingFields } from '../publications/listing-fields';
@@ -74,12 +75,14 @@ friendsRouter.get('/', requireAuth, friendReadLimiter, async (req: Request, res:
     [callerId]
   );
 
+  const peeks = await loadFriendPeeks(result.rows.map((r) => r.id));
   const friends = result.rows.map((r) => ({
     id: r.id,
     username: r.username,
     displayName: r.display_name,
     friendedAt: Number(r.accepted_at),
     cardCount: Number(r.card_count),
+    ...peeks.get(r.id)!,
   }));
 
   res.json({ friends });
@@ -615,8 +618,8 @@ friendsRouter.get(
     if (!target) return;
 
     // 2. Private means private, friends included (board T136). "Never chose"
-    //    (NULL) keeps the ambient card-level view friends always had.
-    const vis = parseCollectionVisibility(
+    //    (NULL) reads as friends-only, so a friend gets the full view.
+    const vis = storedCollectionVisibility(
       (
         await pool.query<{ collection_visibility: string | null }>(
           `SELECT collection_visibility FROM users WHERE id = $1`,
@@ -769,7 +772,9 @@ friendsRouter.get(
       ownerUsername: target.username,
       ownerDisplayName: target.displayName,
       cards,
-      fullView: vis === 'public' || vis === 'friends',
+      // Not private (returned above), so public or friends-only: both open
+      // the full view to a friend.
+      fullView: true,
     };
 
     // Gzipped by hand, like /api/cards/oracle-facts: there is no compression

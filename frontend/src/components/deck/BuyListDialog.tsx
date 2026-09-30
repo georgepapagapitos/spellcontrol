@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Download, ExternalLink, X } from 'lucide-react';
-import { Modal } from '../Modal';
-import { formatMoney } from '../../lib/format-money';
+import { Modal } from '@/components/overlays/Modal';
+import { formatMoney } from '@/lib/collection/format-money';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 import type { CardTally } from './useCardCarousel';
 import './BuyListDialog.css';

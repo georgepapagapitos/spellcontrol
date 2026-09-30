@@ -1,16 +1,16 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import type { PublicCard } from '../../lib/shared-types';
+import type { PublicCard } from '@/lib/social/shared-types';
 import type { ChipExpression } from '../../types';
-import type { SetMap } from '../../lib/api';
-import { CollectionFiltersDialog } from '../CollectionFiltersDialog';
-import { useCardTagsReady } from '../../lib/card-tags';
-import type { ColorMatchMode } from '../../lib/colors';
-import { isExpressionEmpty } from '../../lib/rules';
+import type { SetMap } from '@/lib/api';
+import { CollectionFiltersDialog } from '@/components/search/CollectionFiltersDialog';
+import { useCardTagsReady } from '@/lib/cards/card-tags';
+import type { ColorMatchMode } from '@/lib/cards/colors';
+import { isExpressionEmpty } from '@/lib/binder/rules';
 import {
   countActiveSharedFilters,
   makeSharedMatcher,
   type SharedFilterState,
-} from '../../lib/shared-filter';
+} from '@/lib/social/shared-filter';
 
 const EMPTY_EXPR: ChipExpression = { chips: [], joiners: [] };
 

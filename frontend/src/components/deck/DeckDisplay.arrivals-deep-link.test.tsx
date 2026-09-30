@@ -4,14 +4,14 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { ScryfallCard } from '@/deck-builder/types';
-import type { ArrivalsByType } from '@/lib/new-arrivals';
+import type { ArrivalsByType } from '@/lib/coach/new-arrivals';
 import { DeckDisplay } from './DeckDisplay';
 
 // Home's "+N new cards" badge used to open the deck and stop there, so the N
 // cards were nowhere on screen. It lands on `?arrivals=1`, and the page asks
 // DeckDisplay to open the new-arrivals sheet once its rows have loaded.
 
-vi.mock('@/lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
 const card = {
   id: 'sf-1',

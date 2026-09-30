@@ -15,7 +15,7 @@ import 'fake-indexeddb/auto';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PublishResult } from '../lib/publications-client';
+import type { PublishResult } from '@/lib/social/publications-client';
 
 const navigateMock = vi.fn();
 vi.mock('react-router-dom', async (importOriginal) => {
@@ -32,11 +32,11 @@ vi.mock('../store/auth', () => ({
   useAuth: <T,>(selector: (s: { status: string }) => T): T => selector({ status: 'authed' }),
 }));
 
-vi.mock('../lib/sync', () => ({ isOnline: () => true, onSyncedChange: () => () => {} }));
+vi.mock('@/lib/sync', () => ({ isOnline: () => true, onSyncedChange: () => () => {} }));
 
 const publishDeckMock = vi.fn<() => Promise<PublishResult>>();
-vi.mock('../lib/publications-client', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../lib/publications-client')>();
+vi.mock('@/lib/social/publications-client', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/social/publications-client')>();
   return {
     ...actual,
     publishDeck: () => publishDeckMock(),
@@ -52,14 +52,20 @@ type OnCreated = (
 
 let capturedOnCreated: OnCreated | undefined;
 let capturedVisibility: string | undefined;
-vi.mock('../lib/use-deck-generation', () => ({
+vi.mock('@/lib/deck/use-deck-generation', () => ({
   useDeckGeneration: (opts: { onCreated?: OnCreated; initialVisibility?: string }) => {
     capturedOnCreated = opts.onCreated;
     capturedVisibility = opts.initialVisibility;
     return {
       // A picked commander: the visibility choice and the build bar only
       // render once there is one to build around.
-      commander: { id: 'krenko', name: 'Krenko, Mob Boss', color_identity: ['R'] },
+      commander: {
+        id: 'krenko',
+        name: 'Krenko, Mob Boss',
+        color_identity: ['R'],
+        type_line: 'Legendary Creature — Goblin Warrior',
+        legalities: { commander: 'legal' },
+      },
       partnerCommander: null,
       setPartnerCommander: () => {},
       colorIdentity: [],

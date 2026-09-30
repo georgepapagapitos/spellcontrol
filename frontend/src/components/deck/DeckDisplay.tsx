@@ -1,5 +1,4 @@
-import type { ClockCard } from '@/lib/opening-hand-sim';
-import { CircleAlert, Layers, Pencil, Search, Tag as TagIcon, Trash2, X } from 'lucide-react';
+import { CircleAlert, Layers, Search } from 'lucide-react';
 import {
   Fragment,
   useCallback,
@@ -9,113 +8,73 @@ import {
   useState,
   type CSSProperties,
 } from 'react';
-import { useOverflowEdges } from '@/lib/use-overflow-edges';
-import { useCurrency } from '@/lib/currency';
-import { isKeyboardContextMenu, keepsBrowserMenu } from '@/lib/context-menu';
+import { useOverflowEdges } from '@/lib/util/use-overflow-edges';
+import { useCurrency } from '@/lib/collection/currency';
+import { isKeyboardContextMenu, keepsBrowserMenu } from '@/lib/overlays/context-menu';
 import { createPortal } from 'react-dom';
-import type {
-  ScryfallCard,
-  DeckCategory,
-  DeckFormat,
-  ThemeResult,
-  BuildReport,
-  Archetype,
-} from '@/deck-builder/types';
-import { collectDeckTags } from '@/lib/deck-tags';
+import type { ScryfallCard } from '@/deck-builder/types';
+import { collectDeckTags } from '@/lib/deck/deck-tags';
 import { DeckTagManager } from './DeckTagManager';
-import { ConfirmDialog } from '../ConfirmDialog';
-import { buildManaData, tallyNames } from '@/lib/build-mana-data';
+import { ConfirmDialog } from '@/components/overlays/ConfirmDialog';
+import { buildManaData } from '@/lib/deck-analysis/build-mana-data';
 import { useProducedMana } from './use-produced-mana';
-import { useBanList } from '@/lib/use-ban-list';
-import { scrollToHeading } from '@/lib/scroll-to-heading';
+import { useBanList } from '@/lib/deck/use-ban-list';
+import { scrollToHeading } from '@/lib/util/scroll-to-heading';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import {
-  validateDeckZones,
   validateDeckSize,
   validateSideboardSize,
   sideboardLimit,
   countFlaggedCards,
-  effectiveDeckColors,
-  COMMANDER_SLOT_ID,
-  PARTNER_COMMANDER_SLOT_ID,
   type LegalityIssue,
-} from '../../lib/deck-validation';
-import { useSealMoment } from '../shared/SealMoment';
+} from '@/lib/deck/deck-validation';
 import { DeckExportDialog } from '../shared/DeckExportDialog';
 import {
   buildExport,
   readStoredExportFormat,
   writeStoredExportFormat,
   type ExportFormat,
-} from '@/lib/deck-export';
-import { toast } from '../../store/toasts';
-import { haptics } from '../../lib/haptics';
-import type { DeckCard, DeckZone } from '../../store/decks';
-import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
-import { formatMoney } from '../../lib/format-money';
-import { InfoTip } from '../InfoTip';
-import { CardPreview, type CardPreviewAction } from '../CardPreview';
-import { CardPreviewContext } from '../CardPreviewContext';
+} from '@/lib/import-export/deck-export';
+import type { DeckZone } from '../../store/decks';
+import { CardPreview } from '@/components/card/CardPreview';
+import { CardPreviewContext } from '@/components/binder/CardPreviewContext';
 import { DeckCardPreviewMeta } from './DeckCardPreviewMeta';
 import { BuyListDialog } from './BuyListDialog';
 import { DeckHoverPeek } from './DeckHoverPeek';
 import { useDeckHoverPeek } from './use-deck-hover-peek';
-import { useTouchPeek } from '@/lib/use-touch-peek';
-import {
-  buildAllocationMap,
-  classifyAllocation,
-  type AllocationInfo,
-  type AllocationStatus,
-} from '../../lib/allocations';
-import { useTaggerReady } from '@/lib/use-tagger-ready';
+import { useTouchPeek } from '@/lib/overlays/use-touch-peek';
+import { useTaggerReady } from '@/lib/cards/use-tagger-ready';
 
 import { useDecksStore } from '../../store/decks';
 import { useCubeStore } from '../../store/cube';
-import { useRarityCorrections } from '../../lib/use-rarity-corrections';
-import type { EnrichedCard } from '../../types';
-import { type BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
-import type { LaneId, ChangeOwnership } from '@/lib/deck-change';
+import { useRarityCorrections } from '@/lib/deck/use-rarity-corrections';
 import { useCardCarousel, tallyToEntries } from './useCardCarousel';
 import { NewArrivalsSheet } from './NewArrivalsSheet';
 import { CommanderOpenSlot } from './CommanderOpenSlot';
-import type { ArrivalsByType } from '@/lib/new-arrivals';
-import type { ComboMatch } from '@/types/combos';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import {
   buildValidationChecklist,
   summarizeValidation,
 } from '@/deck-builder/services/deckBuilder/validationChecklist';
-import type { PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
-import {
-  buildCommanderProfile,
-  whyCardMatches,
-} from '@/deck-builder/services/deckBuilder/commanderProfile';
+import { buildCommanderProfile } from '@/deck-builder/services/deckBuilder/commanderProfile';
 import {
   deriveDeckIdentity,
   resolveAutoArchetype,
 } from '@/deck-builder/services/deckBuilder/deckIdentity';
 import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
-import { ROLE_TITLES, type RoleKey } from '../../lib/role-badges';
-import { clampZoom, readStoredZoom } from '@/lib/grid-zoom';
-import { useElementWidth } from '@/lib/use-element-width';
-import { useMediaQuery } from '@/lib/use-media-query';
+import { ROLE_TITLES, type RoleKey } from '@/lib/deck-analysis/role-badges';
+import { clampZoom, readStoredZoom } from '@/lib/util/grid-zoom';
+import { useElementWidth } from '@/lib/util/use-element-width';
+import { useMediaQuery } from '@/lib/util/use-media-query';
 
-import { type BinderInfo } from '../BinderBadge';
-import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
 import { ToolbarPopover } from '../shared/ToolbarPopover';
 import {
   resolveInclusionPct,
-  priceOf,
   readStoredViewMode,
   readStoredCollapsedSections,
   writeStoredCollapsedSections,
   readStoredShowPrefs,
   readStoredGroupBy,
-  frontFaceImage,
-  backFaceImage,
-  frontFaceImageLarge,
-  backFaceImageLarge,
-  colorKeyOf,
   buildRows,
   SORT_DEFAULT_DIR,
   findClaimedBy,
@@ -148,13 +107,25 @@ import { DeckSelectionMenu, type DeckBulkAction } from './DeckSelectionMenu';
 import { hasCardActions, type DeckCardActionCtx } from './deck-card-actions';
 import { DeckAnalysisView } from './DeckAnalysisView';
 import { CardName } from '@/components/shared/CardName';
-import { Button, buttonClass, IconButton } from '@/components/shared/Button';
-import { Chip } from '@/components/shared/Chip';
-
-/** Deck ids whose completion moment already played this app-open — an edit
- *  that re-crosses the complete boundary doesn't re-celebrate (mirrors the
- *  consumedRevealKeys registry's once-per-session semantics). */
-const celebratedDeckComplete = new Set<string>();
+import { Button, buttonClass } from '@/components/shared/Button';
+import type { DeckDisplayProps, AnalysisTabId, DeckView } from './deck-display-types';
+import {
+  titlesUnder,
+  buildCrossDeckCtx,
+  buildCommanderRows,
+  validateDisplayedZones,
+  buildSynergyByName,
+  summarizeMissing,
+  countClaimedElsewhere,
+  buildMissingTally,
+  buildFlatIndex,
+  buildInspectorCard,
+  bindersForRow,
+  allocationsForRow,
+} from './deck-display-derive';
+import { buildCardMenuCtx, buildBulkActions, buildPreviewActions } from './deck-display-actions';
+import { useDeckCompleteMoment } from './use-deck-complete-moment';
+import { DeckStatStrip, DeckBulkBar, DeckRoleBar, DeckEmptyState } from './DeckDisplayBands';
 
 const GRID_SIZE_STORAGE_KEY = 'mtg-decks-grid-size';
 // The card inspector (DeckCardInspector) is the desktop card preview: any
@@ -166,356 +137,14 @@ const GRID_SIZE_STORAGE_KEY = 'mtg-decks-grid-size';
 // pointer) the row thumbnail, click→carousel and touch long-press peek carry it.
 const INSPECTOR_QUERY = '(min-width: 1024px) and (hover: hover) and (pointer: fine)';
 
-/** The collapsed-section keys under one prefix, with the prefix stripped. */
-function titlesUnder(keys: Set<string>, prefix: string): Set<string> {
-  return new Set([...keys].filter((k) => k.startsWith(prefix)).map((k) => k.slice(prefix.length)));
-}
-
-// ── Props ─────────────────────────────────────────────────────────────────
-export interface DeckDisplayCard {
-  /** Persisted slot id; when present, used for remove. Generated decks pre-save can omit this. */
-  slotId?: string;
-  card: ScryfallCard;
-  /** scryfallId of the specific collection copy claimed by this slot, if any. */
-  allocatedCopyId?: string | null;
-  /** Unix ms when this slot was added. Absent on cards predating the field. */
-  addedAt?: number;
-  /** User tags (E171) — see the `tags` doc on `DeckCard` for the
-   *  sticky-override contract (`undefined` = untouched, `[]` = edited/cleared). */
-  tags?: string[];
-  /** Manual drag-order position (E172) — see the doc on `DeckCard`. */
-  sortIndex?: number;
-}
-
-export interface DeckDisplayProps {
-  title: string;
-  /** When set, the card-preview's "In deck" chip is suppressed for this deck. */
-  deckId?: string;
-  format?: DeckFormat;
-  commander: ScryfallCard | null;
-  partnerCommander?: ScryfallCard | null;
-  /** The deck's selected themes (generated decks); refines the identity strip's
-   *  archetype to reflect stated intent. Omitted for manual/imported decks. */
-  selectedThemes?: ThemeResult[];
-  commanderAllocatedCopyId?: string | null;
-  partnerCommanderAllocatedCopyId?: string | null;
-  cards: DeckDisplayCard[];
-  sideboard?: DeckDisplayCard[];
-  /**
-   * Considering (E122) — park-candidates distinct from the format sideboard.
-   * Rendered as its own subordinate, collapsible zone below the sideboard
-   * section (list view only, matching the sideboard's own scope). Never
-   * folded into `cards`/`sideboard` — excluded from stats/legality/mana
-   * analysis by construction (nothing here reads it for those).
-   */
-  considering?: DeckDisplayCard[];
-  /** Optional grade/bracket — if provided, renders in the stats and toolbar. */
-  bracketEstimation?: BracketEstimation;
-  /** Actual deck cards by name — lets bracket-breakdown card previews show the
-   *  deck's printing instead of the default printing fetched by name. */
-  deckCardsByName?: ReadonlyMap<string, ScryfallCard>;
-  /** User-pinned bracket (1–5); when set it overrides the auto estimate. */
-  bracketOverride?: 1 | 2 | 3 | 4 | 5 | null;
-  /** The estimate was made before the combo match answered, so it is a floor
-   *  (combos only raise a bracket). See useCommanderBracketAnalysis. */
-  bracketMissesCombos?: boolean;
-  /** Set/clear the manual bracket override. Passing null reverts to auto. */
-  onSetBracketOverride?: (bracket: 1 | 2 | 3 | 4 | 5 | null) => void;
-  /** Mainboard, one entry per copy: lets the Bracket judgment quote the combo clock. */
-  clockLibrary?: readonly ClockCard[];
-  /** The Bracket panel's "At the table" read (owner only). */
-  bracketTableSlot?: React.ReactNode;
-  /** User-pinned archetype; when set it overrides the derived identity headline. */
-  archetypeOverride?: Archetype | null;
-  /** Set/clear the manual archetype override. Passing null reverts to auto. */
-  onSetArchetypeOverride?: (archetype: Archetype | null) => void;
-  deckGrade?: { letter: string; headline: string };
-  /** 0-100 PlanScore (strategy/roles/curve/cardFit); kept live by the analysis hook. */
-  planScore?: PlanScore;
-  /** EDHREC's own sample size for this commander (its `numDecks`); kept live
-   *  by the analysis hook alongside planScore. Feeds CommanderPopularityStat
-   *  (social W4) in DeckIdentityCard. */
-  edhrecNumDecks?: number | null;
-  /** Mean EDHREC salt score across non-land cards (generated decks only). */
-  averageSalt?: number;
-  saltiestCards?: Array<{ name: string; salt: number }>;
-  /** Role counts from the generator (only present on generated decks). */
-  roleCounts?: Record<string, number>;
-  /** Target role counts (balanced-roles generation); drives have/want display. */
-  roleTargets?: Record<string, number>;
-  /** Target counts per DeckCategory bucket (generated decks only) — feeds the
-   *  category-view section gauges (E124). Snapshotted at generation, never
-   *  recomputed. */
-  categoryTargets?: Partial<Record<DeckCategory, number>>;
-  /** Post-generation fill+flag report (set at generation only). */
-  buildReport?: BuildReport;
-  /**
-   * EDHREC inclusion rate per card name (0–100), persisted by the analysis
-   * hook on generated commander decks. When present, each card row shows a
-   * subtle inclusion-% chip. Absent for manual/unanalyzed decks.
-   */
-  cardInclusionMap?: Record<string, number>;
-  /**
-   * Every combo (in-deck or one-away) each in-deck card participates in,
-   * keyed by oracle id — computed once by the caller from the same
-   * `useDeckCombos` data DeckCombosPanel already renders (E216-scoped
-   * matcher; see use-deck-combos.ts), never a second match. Drives the
-   * inline row-level "CB"/"CB2" superscript badge; omit/empty to render no
-   * badges at all.
-   */
-  combosByOracle?: Map<string, ComboMatch[]>;
-  rampSubtypeCounts?: Record<string, number>;
-  removalSubtypeCounts?: Record<string, number>;
-  boardwipeSubtypeCounts?: Record<string, number>;
-  cardDrawSubtypeCounts?: Record<string, number>;
-  /** Editing callback. When provided, each row gets a remove option in its menu. */
-  onRemoveCard?: (slotId: string) => void;
-  onRemoveSideboardCard?: (slotId: string) => void;
-  onRemoveConsideringCard?: (slotId: string) => void;
-  /** Move one or more copies of a stacked row across zones, as one undo entry. */
-  onMoveToSideboard?: (slotIds: string[]) => void;
-  onMoveToMainboard?: (slotIds: string[]) => void;
-  /** Mainboard row menu action: park one or more copies in Considering (E122). */
-  onMoveToConsidering?: (slotIds: string[]) => void;
-  /** Considering row menu action: move one or more copies back to the mainboard. */
-  onMoveFromConsidering?: (slotIds: string[]) => void;
-  /**
-   * Editing callback for the qty cell. When provided, the qty chip becomes
-   * a clickable target that swaps to a numeric input on click; committing
-   * the value diffs against the current count and adds/removes slots in
-   * bulk. Also drives the +/− stepper flanking the chip (non-singleton
-   * cards only — see `getMaxCopies`): pass `{ relative: true }` and `qty`
-   * becomes a delta (±1) instead of an absolute target, so two rapid taps
-   * can't drop an update to a stale closed-over count. Host owns batching
-   * (e.g. one undo toast per edit). Zone-aware (E175) — `zone` says which of
-   * the deck's three card arrays the edit targets, so passing this through to
-   * a sideboard/considering section can never silently touch the mainboard.
-   */
-  onSetQty?: (
-    zone: DeckZone,
-    card: ScryfallCard,
-    qty: number,
-    opts?: { relative?: boolean }
-  ) => void;
-  /** When provided, each row gets an "Edit printing" option in its menu. */
-  onEditCard?: (slotId: string, card: ScryfallCard) => void;
-  /** When provided, eligible rows get a "Make commander" option in their menu. */
-  onMakeCommander?: (slotId: string, card: ScryfallCard) => void;
-  /** Predicate that gates the "Make commander" menu item per card. */
-  canMakeCommander?: (card: ScryfallCard) => boolean;
-  /** When provided, eligible rows get a "Make partner" option in their menu. */
-  onMakePartner?: (slotId: string, card: ScryfallCard) => void;
-  /** Predicate that gates the "Make partner" menu item per card (e.g. the card
-   *  is a legal partner for the current commander). */
-  canMakePartner?: (card: ScryfallCard) => boolean;
-  /** When provided, the commander row's menu offers "Change commander",
-   *  which opens the commander picker (E465). */
-  onChangeCommander?: () => void;
-  /** When provided, deck rows offer "Use as deck cover" (deck-card-actions). */
-  cover?: DeckCardActionCtx['cover'];
-  /** When provided, the Commander section header shows an "Add/Edit partner"
-   *  control that opens the partner picker. Pass only when the commander can
-   *  actually have a partner. */
-  onEditPartner?: () => void;
-  /**
-   * When provided, eligible rows get a "Move to another deck…" option that
-   * reallocates a physical copy out of this deck. Suppressed for the partner
-   * commander row (the commander has no portable list slot). Pass only when
-   * there's at least one other deck to move into.
-   */
-  onMoveToAnotherDeck?: (card: ScryfallCard) => void;
-  /**
-   * When provided, a row holding an owned physical copy gets a "Release copy"
-   * option that frees the copy back to the collection (the slot stays in the
-   * deck as a card you still need) — for when you want the card for something
-   * else, not a deck.
-   */
-  onReleaseCopy?: (card: ScryfallCard) => void;
-  /**
-   * When provided, an unowned row whose every owned copy is in OTHER decks gets
-   * a "Use my copy" option that pulls a copy in (routes through the explicit
-   * steal-confirm flow).
-   */
-  onUseOwnCopy?: (card: ScryfallCard) => void;
-  /**
-   * Open the Shared-copies review for cards this deck wants whose copies are in
-   * other decks. Drives the neutral "N cards also in your other decks · Review"
-   * banner — pulling a copy in is a conscious per-card choice in the sheet, never
-   * a bulk grab. When omitted, the banner is not shown.
-   */
-  onReviewShared?: () => void;
-  /** Lookup of owned cards by scryfallId, for allocation badges + status. */
-  collectionByCopyId?: Map<string, EnrichedCard>;
-  /** Binder(s) each collection copy is filed in, keyed by copyId — drives
-   *  the grid card's binder-membership badge. */
-  binderByCopyId?: Map<string, BinderInfo[]>;
-  /**
-   * Optional parent-controlled state for the Export dialog. When both
-   * are provided, the parent owns the open state — useful for opening
-   * Export from outside the toolbar (e.g. a page-level action sheet).
-   * When omitted, DeckDisplay manages the dialog internally.
-   */
-  exportOpen?: boolean;
-  onExportOpenChange?: (open: boolean) => void;
-  /** When provided, the in-deck search shows a "Search Scryfall for X"
-   *  trigger (query ≥ 2 chars) that hands the query off to the host's
-   *  add panel — so adding a card not in the deck starts from the same
-   *  search bar, mirroring the collection page. */
-  onAddFromSearch?: (query: string) => void;
-  /**
-   * Folded-in analysis panels (Combos / EDHREC suggestions). The page builds
-   * these so they keep their own data fetching; DeckDisplay slots them into the
-   * Power / Improve tabs. (Test hand stays a separate standalone panel.)
-   */
-  combosSlot?: React.ReactNode;
-  /** CoachFeed slot — unified Coach tab surface (NBM + Improve + Cost + Bracket
-   *  Fit). Replaces the old improveSlot/nextBestMoveSlot/costSlot/bracketFitSlot.
-   *  Built by the page (owns all data + handlers). */
-  coachFeedSlot?: React.ReactNode;
-  /** Engine *diagnostics* (axis-balance bars + warnings), rendered on the Power
-   *  tab. */
-  engineSlot?: React.ReactNode;
-  /** Win-condition detection panel, rendered on the Power tab. */
-  winConditionSlot?: React.ReactNode;
-  /** Power-tab verdict hero (bracket + gameplan), rendered atop the Power view. */
-  powerHeroSlot?: React.ReactNode;
-  /** Opt-in AI review (T96) — rendered at the end of the Stats tab. */
-  aiReviewSlot?: React.ReactNode;
-  /** Table Record panel (real tracked W/L + head-to-head), rendered on the
-   *  Stats tab. Built by the page (owns its own store reads). */
-  tableRecordSlot?: React.ReactNode;
-  /**
-   * In-context "Swap this card": for an in-deck card at `slotId`, return the
-   * role-scoped replacement section rendered in the card-preview panel. `close`
-   * dismisses the preview after a swap commits (the previewed card is gone).
-   * Returns null when there's nothing to offer (e.g. commander, untagged role).
-   */
-  renderSwapSuggestions?: (
-    card: ScryfallCard,
-    slotId: string,
-    close: () => void
-  ) => React.ReactNode;
-  /**
-   * In-context "Similar cards" section, rendered below the swap suggestions for
-   * an in-deck card: owned look-alikes from the collection, then broader
-   * discovery. Same `(card, slotId, close)` shape as `renderSwapSuggestions`.
-   */
-  renderSimilarCards?: (card: ScryfallCard, slotId: string, close: () => void) => React.ReactNode;
-  /**
-   * Which page-top view is active. `deck` shows the card-list editing surface;
-   * the analysis ids show that view full-width (the card list is hidden). The
-   * hub tab bar lives in the page (`DeckEditorPage`), which owns this state.
-   */
-  activeView?: DeckView;
-  /** False when the page shows no view tabs (a lone Deck view), so this is
-   *  not labelled as a tab panel. */
-  tabbed?: boolean;
-  /** Reveal the standalone Test hand panel — surfaced in the Deck-view toolbar. */
-  onShowTestHand?: () => void;
-  /** Opens the add-cards sheet — used by the empty-deck state's CTA (E182). */
-  onAddCards?: () => void;
-  /**
-   * Opens the commander picker (E465). Commander formats only: the empty
-   * command zone renders as an open slot whose Choose button calls this, and
-   * the empty-deck state offers it beside Add cards.
-   */
-  onChooseCommander?: () => void;
-  /**
-   * UX-310: whether the async commander-deck analysis is still in-flight for
-   * the first time. When 'pending', the Coach and Power tabs render skeleton
-   * placeholders instead of blank space. 'ready' (default) renders
-   * normally — slots that are undefined simply don't appear. E162: 'error'
-   * means the first analysis attempt failed/stalled (EDHREC unreachable, the
-   * commander isn't indexed yet, …) — renders a failure message + retry
-   * affordance instead of skeletoning forever.
-   */
-  analysisState?: 'pending' | 'ready' | 'error';
-  /**
-   * UX-311: deep-link from a StatsHero shortfall line to the Coach filter that
-   * addresses it. The page switches to the Coach tab and activates the matching
-   * filter chip. Only passed for commander decks that have a full analysis result.
-   */
-  onNavigateToTune?: (lane: LaneId) => void;
-  /** E162: retries a failed/stalled first analysis. Passed only when analysisState is 'error'. */
-  onRetryAnalysis?: () => void;
-  /**
-   * The persisted analysis was computed without EDHREC (unreachable / this
-   * commander isn't indexed) — bracket + win conditions are real, but
-   * grade/plan score/gap/optimize/cost lanes are absent. Drives a small
-   * retryable notice where that content would otherwise be.
-   */
-  edhrecMissing?: boolean;
-  /**
-   * Session-scoped reveal key for score animations. When non-null, plays the
-   * 0→target reveal tween on first delivery; null/undefined suppresses the reveal.
-   * Computed by the page from deck.id + gradeBracketSignature.
-   */
-  scoreRevealKey?: string | null;
-  /** One-tap add on a Build Report suggestion row (synergyFills/packagePicks).
-   *  Omitted → the rows stay read-only prose. */
-  onAddSuggestedCard?: (cardName: string) => void;
-  /** Open slots in an under-size Commander deck, and the "Fill the rest"
-   *  sheet that fills them. Both set only when there's something to fill. */
-  openSlots?: number;
-  onFill?: () => void;
-  /** Card names with an add in flight from a Build Report row (exact case,
-   *  mirrors the Coach/NBM `busyNames` convention). */
-  addingSuggestedCardNames?: ReadonlySet<string>;
-  /** Live Spellbook one-away combos for the Build Report section (E78-P4). */
-  oneAwayCombos?: ComboMatch[];
-  /** Owned oracle ids — ranks owned-missing-piece combos first. */
-  ownedOracleIds?: ReadonlySet<string>;
-  /** Stronger owned lands the merit-based engine found → the Mana base
-   *  "Re-analyze lands" CTA on the Stats tab. */
-  landUpgradeCount?: number;
-  /**
-   * Per-category "new arrivals" (E140) — collection cards acquired since the
-   * deck was last updated/reviewed, bucketed by classifyType and ranked. The
-   * page computes this (see `lib/new-arrivals.ts`) so DeckDisplay just renders
-   * the "✦ N new" header chip per section and the review sheet on tap.
-   * Omitted (e.g. read-only/shared views) → no chip anywhere.
-   */
-  arrivalsByType?: ArrivalsByType;
-  /** Exact-case in-deck names → count (mainboard + sideboard) — feeds the
-   *  open sheet's live "Added" row state. */
-  existingCardCounts?: ReadonlyMap<string, number>;
-  /** Allocation-aware ownership per card name — badges the arrivals sheet's rows
-   *  (E246). Omitted (read-only/shared views) → no badges. */
-  ownershipFor?: (name: string) => ChangeOwnership;
-  /** Stamp deck.lastArrivalReviewAt (silent) — fired once the sheet closes. */
-  onMarkArrivalsReviewed?: () => void;
-  /** Open the new-arrivals sheet once, as soon as it has rows — Home's
-   *  "+N new cards" badge lands here (`?arrivals=1`). The host sets it only
-   *  after every arrivals input has loaded, since the sheet freezes its rows
-   *  when it opens. */
-  autoOpenArrivals?: boolean;
-  /**
-   * User tags (E171). All three optional — omitted (e.g. a read-only/shared
-   * view) means tags still DISPLAY (chips render from `cards`/`sideboard`/
-   * `considering`'s own `tags` field) but the editor and tag manager don't
-   * render any controls.
-   */
-  onSetCardTags?: (zone: DeckZone, slotIds: string[], tags: string[]) => void;
-  onRenameDeckTag?: (from: string, to: string) => void;
-  onRemoveDeckTag?: (tag: string) => void;
-  /**
-   * Multi-select bulk operations (E172). All optional — when omitted, the
-   * "Select" toolbar toggle doesn't render at all (mirrors how the tag props
-   * above gate the tag editor). Each fires exactly once per confirmed bulk
-   * action, whatever the selection size — the host wraps it in one store
-   * write + one undo entry.
-   */
-  onBulkRemove?: (zone: DeckZone, slotIds: string[]) => void;
-  onBulkMove?: (slotIds: string[], from: DeckZone, to: DeckZone) => void;
-  onBulkEditTag?: (zone: DeckZone, slotIds: string[], tag: string, add: boolean) => void;
-  /**
-   * Manual drag reorder (E172), list view only. DeckDisplay computes the
-   * fractional sortIndex itself (pure — see lib/deck-reorder.ts) and hands
-   * off the already-computed value; the host just persists it. Omitted →
-   * the 'custom' sort option still shows but drag handles never render.
-   */
-  onReorder?: (zone: DeckZone, slotIds: string[], sortIndex: number) => void;
-}
+// Props and view ids live in ./deck-display-types; re-exported so every
+// importer of this module keeps its path.
+export type {
+  DeckDisplayCard,
+  DeckDisplayProps,
+  AnalysisTabId,
+  DeckView,
+} from './deck-display-types';
 
 // ── Main component ────────────────────────────────────────────────────────
 export function DeckDisplay({
@@ -711,7 +340,7 @@ export function DeckDisplay({
   } | null>(null);
   const openCardMenu = (zone: DeckZone) => (row: Row, e: React.MouseEvent) => {
     // A field, selected text, a link or a Shift+right-click keeps the
-    // browser's own menu (lib/context-menu), and so does a card with nothing
+    // browser's own menu (lib/overlays/context-menu), and so does a card with nothing
     // to do (a read-only shared deck).
     if (keepsBrowserMenu(e.nativeEvent)) return;
     if (
@@ -825,21 +454,10 @@ export function DeckDisplay({
   // as "claimed elsewhere" against itself.
   const allDecks = useDecksStore((s) => s.decks);
   const savedCubes = useCubeStore((s) => s.saved);
-  const crossDeck: CrossDeckCtx = useMemo(() => {
-    if (!collectionByCopyId) return {};
-    const copiesByName = new Map<string, EnrichedCard[]>();
-    for (const copy of collectionByCopyId.values()) {
-      const key = copy.name.toLowerCase();
-      const list = copiesByName.get(key);
-      if (list) list.push(copy);
-      else copiesByName.set(key, [copy]);
-    }
-    const others = deckId ? allDecks.filter((d) => d.id !== deckId) : allDecks;
-    // Physical cubes are always "other" (a cube is never the deck being viewed),
-    // so a copy committed to a cube reads as claimed-elsewhere here too.
-    const otherDeckAllocations = buildAllocationMap(others, savedCubes);
-    return { copiesByName, otherDeckAllocations };
-  }, [collectionByCopyId, allDecks, savedCubes, deckId]);
+  const crossDeck: CrossDeckCtx = useMemo(
+    () => buildCrossDeckCtx(collectionByCopyId, allDecks, savedCubes, deckId),
+    [collectionByCopyId, allDecks, savedCubes, deckId]
+  );
 
   const claimedByForName = useCallback(
     (cardName: string) => findClaimedBy(cardName, crossDeck),
@@ -848,69 +466,29 @@ export function DeckDisplay({
 
   // Commander rows are synthetic so they always render first; their slot
   // ids are blank because remove is not allowed on the commander.
-  const commanderRows: Row[] = useMemo(() => {
-    const rows: Row[] = [];
-    const push = (c: ScryfallCard, allocatedCopyId?: string | null, isPartner = false) => {
-      const owned = allocatedCopyId ? collectionByCopyId?.get(allocatedCopyId) : undefined;
-      const status: AllocationStatus = classifyAllocation(
-        allocatedCopyId ?? null,
+  const commanderRows: Row[] = useMemo(
+    () =>
+      buildCommanderRows({
+        commander,
+        partnerCommander,
+        commanderAllocatedCopyId,
+        partnerCommanderAllocatedCopyId,
         collectionByCopyId,
-        {
-          cardName: c.name,
-          copiesByName: crossDeck.copiesByName,
-          allocations: crossDeck.otherDeckAllocations,
-        }
-      );
-      rows.push({
-        name: c.name,
-        qty: 1,
-        card: c,
-        printings: [],
-        cmc: c.cmc ?? 0,
-        price: priceOf(c, currency),
-        colorKey: colorKeyOf(c),
-        addedAt: 0,
-        slotIds: [],
-        allocatedCopyIds: allocatedCopyId ? [allocatedCopyId] : [],
-        status,
-        allocatedQty: status === 'allocated' ? 1 : 0,
-        unownedQty: status === 'unowned' ? 1 : 0,
-        orphanQty: status === 'orphan' ? 1 : 0,
-        claimedElsewhereQty: status === 'claimed-elsewhere' ? 1 : 0,
-        claimedBy: status === 'claimed-elsewhere' ? claimedByForName(c.name) : undefined,
-        imageNormal: owned?.imageNormal ?? frontFaceImage(c),
-        imageNormalBack: owned?.imageNormalBack ?? backFaceImage(c),
-        imageLarge: owned?.imageLarge ?? frontFaceImageLarge(c),
-        imageLargeBack: owned?.imageLargeBack ?? backFaceImageLarge(c),
-        foil: owned?.foil ?? false,
-        finish: owned?.finish ?? 'nonfoil',
-        finishes: owned?.finishes,
-        promoTypes: owned?.promoTypes,
-        frameEffects: owned?.frameEffects,
-        setCode: owned?.setCode || c.set || '',
-        setName: owned?.setName || c.set_name,
-        collectorNumber: owned?.collectorNumber || c.collector_number || '',
-        isPartner,
-        legalitySlotKey: isPartner ? PARTNER_COMMANDER_SLOT_ID : COMMANDER_SLOT_ID,
-        // Commanders have no deck slot to tag (E171 is a mainboard/side/
-        // considering concept) — always untouched/untagged.
-        tags: [],
-        tagsEdited: false,
-      });
-    };
-    if (commander) push(commander, commanderAllocatedCopyId);
-    if (partnerCommander) push(partnerCommander, partnerCommanderAllocatedCopyId, true);
-    return rows;
-  }, [
-    commander,
-    partnerCommander,
-    commanderAllocatedCopyId,
-    partnerCommanderAllocatedCopyId,
-    collectionByCopyId,
-    crossDeck,
-    claimedByForName,
-    currency,
-  ]);
+        crossDeck,
+        claimedByForName,
+        currency,
+      }),
+    [
+      commander,
+      partnerCommander,
+      commanderAllocatedCopyId,
+      partnerCommanderAllocatedCopyId,
+      collectionByCopyId,
+      crossDeck,
+      claimedByForName,
+      currency,
+    ]
+  );
 
   // Whether the bundled tagger data (role classification) has loaded —
   // gates category-view grouping below, same source as the role-filter bar's
@@ -991,23 +569,18 @@ export function DeckDisplay({
   // "can't be played" note, inflate the flagged count or badge a mainboard
   // row. Sideboard rows still get their own badge (`sideboardIssues`).
   const bannedNames = useBanList(formatConfig.legalityKey);
-  const { deck: legalityIssues, sideboardOnly: sideboardIssues } = useMemo(() => {
-    const mainDeckCards: DeckCard[] = cards.map((c) => ({
-      slotId: c.slotId ?? '',
-      card: c.card,
-      allocatedCopyId: c.allocatedCopyId ?? null,
-    }));
-    const sideDeckCards: DeckCard[] = sideboard.map((c) => ({
-      slotId: c.slotId ?? '',
-      card: c.card,
-      allocatedCopyId: c.allocatedCopyId ?? null,
-    }));
-    return validateDeckZones(mainDeckCards, sideDeckCards, formatConfig, {
-      commander,
-      partnerCommander: partnerCommander ?? null,
-      bannedNames: bannedNames ?? undefined,
-    });
-  }, [cards, sideboard, formatConfig, commander, partnerCommander, bannedNames]);
+  const { deck: legalityIssues, sideboardOnly: sideboardIssues } = useMemo(
+    () =>
+      validateDisplayedZones({
+        cards,
+        sideboard,
+        formatConfig,
+        commander,
+        partnerCommander,
+        bannedNames,
+      }),
+    [cards, sideboard, formatConfig, commander, partnerCommander, bannedNames]
+  );
 
   const illegalCardNames = useMemo(
     () => [
@@ -1056,41 +629,7 @@ export function DeckDisplay({
   // observed while mounted (never on opening an already-complete deck), and
   // once per deck per app-open (the module-level set), so re-cross edits
   // don't re-celebrate.
-  const { fire: fireSealMoment, moment: sealMoment } = useSealMoment();
-  const prevDeckComplete = useRef<boolean | null>(null);
-  useEffect(() => {
-    const complete =
-      cards.length > 0 &&
-      cards.length === formatConfig.mainboardSize &&
-      flaggedCardCount === 0 &&
-      !sideboardSizeWarning;
-    if (
-      prevDeckComplete.current === false &&
-      complete &&
-      deckId &&
-      !celebratedDeckComplete.has(deckId)
-    ) {
-      celebratedDeckComplete.add(deckId);
-      const colors = [
-        ...effectiveDeckColors({
-          commander: commander ?? null,
-          partnerCommander: partnerCommander ?? null,
-          cards: cards.map((c) => ({
-            slotId: c.slotId ?? '',
-            card: c.card,
-            allocatedCopyId: c.allocatedCopyId ?? null,
-          })),
-        }),
-      ];
-      fireSealMoment(colors);
-      haptics.success();
-      toast.show({
-        message: `Deck complete, legal for ${formatConfig.label}`,
-        tone: 'success',
-      });
-    }
-    prevDeckComplete.current = complete;
-  }, [
+  const sealMoment = useDeckCompleteMoment({
     cards,
     flaggedCardCount,
     sideboardSizeWarning,
@@ -1098,8 +637,7 @@ export function DeckDisplay({
     deckId,
     commander,
     partnerCommander,
-    fireSealMoment,
-  ]);
+  });
 
   const visibleGroups = useMemo(
     () => applyFilterSort(groups, search, sort, sortDir),
@@ -1178,18 +716,10 @@ export function DeckDisplay({
 
   // "Why this card" synergy reasons, keyed by card name. Computed from the
   // commander's parsed ability profile so each row can explain its fit.
-  const synergyByName = useMemo<Map<string, string[]>>(() => {
-    const map = new Map<string, string[]>();
-    if (!commanderProfile || commanderProfile.abilities.length === 0) return map;
-    for (const dc of cards) {
-      const card = dc.card;
-      if (getFrontFaceTypeLine(card).toLowerCase().includes('land')) continue;
-      if (map.has(card.name)) continue;
-      const reasons = whyCardMatches(card, commanderProfile);
-      if (reasons.length > 0) map.set(card.name, reasons);
-    }
-    return map;
-  }, [commanderProfile, cards]);
+  const synergyByName = useMemo<Map<string, string[]>>(
+    () => buildSynergyByName(commanderProfile, cards),
+    [commanderProfile, cards]
+  );
 
   // Per-card pick provenance (S2 — "why is this here"), keyed by card name.
   // Set only on decks generated after this shipped; absent (undefined) for
@@ -1208,46 +738,23 @@ export function DeckDisplay({
   // Missing summary — cards in the deck that aren't allocated to a collection
   // copy (i.e. status !== 'allocated'). Surfaces buy-list info inline so we
   // don't need a separate banner above the deck.
-  const missing = useMemo(() => {
-    if (!collectionByCopyId) return { count: 0, price: 0 };
-    let count = 0;
-    let price = 0;
-    for (const dc of cards) {
-      const status = classifyAllocation(dc.allocatedCopyId ?? null, collectionByCopyId);
-      if (status === 'allocated') continue;
-      count += 1;
-      price += priceOf(dc.card, currency);
-    }
-    return { count, price };
-  }, [cards, collectionByCopyId, currency]);
+  const missing = useMemo(
+    () => summarizeMissing(cards, collectionByCopyId, currency),
+    [cards, collectionByCopyId, currency]
+  );
   // Owned-but-elsewhere count — mainboard cards you own where every copy is in
   // another deck. Drives the "Use my copies (N)" resolver banner. Uses the same
   // cross-deck context as the per-row chips so the number matches the rows.
-  const claimedElsewhereCount = useMemo(() => {
-    if (!crossDeck.copiesByName || !crossDeck.otherDeckAllocations) return 0;
-    let n = 0;
-    for (const dc of cards) {
-      const status = classifyAllocation(dc.allocatedCopyId ?? null, collectionByCopyId, {
-        cardName: dc.card.name,
-        copiesByName: crossDeck.copiesByName,
-        allocations: crossDeck.otherDeckAllocations,
-      });
-      if (status === 'claimed-elsewhere') n += 1;
-    }
-    return n;
-  }, [cards, collectionByCopyId, crossDeck]);
+  const claimedElsewhereCount = useMemo(
+    () => countClaimedElsewhere(cards, collectionByCopyId, crossDeck),
+    [cards, collectionByCopyId, crossDeck]
+  );
   // Tally of the unallocated (missing) cards — the tappable "missing" stat opens
   // a carousel of these so the count doubles as a shopping list.
-  const missingTally = useMemo(() => {
-    if (!collectionByCopyId) return tallyNames([]);
-    const list: ScryfallCard[] = [];
-    for (const dc of cards) {
-      const status = classifyAllocation(dc.allocatedCopyId ?? null, collectionByCopyId);
-      if (status === 'allocated') continue;
-      list.push(dc.card);
-    }
-    return tallyNames(list);
-  }, [cards, collectionByCopyId]);
+  const missingTally = useMemo(
+    () => buildMissingTally(cards, collectionByCopyId),
+    [cards, collectionByCopyId]
+  );
   // Every new-arrival row across categories, best fit first — feeds the
   // "N new arrivals" stat and the sheet it opens.
   const arrivalRows = useMemo(
@@ -1387,57 +894,16 @@ export function DeckDisplay({
     [visibleGroups, visibleSideboardGroups, visibleConsideringGroups]
   );
   const rarityCorrections = useRarityCorrections(previewCards);
-  const flat = useMemo(() => {
-    const enrichedCards: EnrichedCard[] = [];
-    const labels: string[] = [];
-    const rows: Row[] = [];
-    const zones: DeckZone[] = [];
-    const indexByName = new Map<string, number>();
-    // Mainboard first, then sideboard, then considering — so the carousel +
-    // hover-peek resolve those cards too (same inspect path as the
-    // mainboard). A name only in one zone maps to that zone's entry; a name
-    // in more than one keeps the earliest zone's (first wins).
-    const pushGroups = (groups: typeof visibleGroups, zone: DeckZone) => {
-      // Tag groupBy is NOT a partition (E171) — a multi-tagged row can appear
-      // in more than one of `groups`. Dedupe within this zone's pass so the
-      // carousel never repeats the same card as consecutive slides. The other
-      // three lenses (including 'stack') do partition, so this is a no-op
-      // there rather than a second behaviour to keep in step.
-      const pushedThisZone = new Set<string>();
-      for (const g of groups) {
-        for (const row of g.rows) {
-          if (pushedThisZone.has(row.name)) continue;
-          pushedThisZone.add(row.name);
-          if (!indexByName.has(row.name)) indexByName.set(row.name, enrichedCards.length);
-          rows.push(row);
-          zones.push(zone);
-          enrichedCards.push(
-            scryfallToEnrichedCard(row.card, {
-              frontImageOverride: row.imageNormal,
-              backImageOverride: row.imageNormalBack,
-              sourceFormat: 'deck-builder',
-              overrides: {
-                foil: row.foil,
-                finish: row.finish,
-                finishes: row.finishes,
-                promoTypes: row.promoTypes,
-                frameEffects: row.frameEffects,
-                setCode: row.setCode,
-                setName: row.setName,
-                collectorNumber: row.collectorNumber,
-                rarity: row.card.oracle_id ? rarityCorrections.get(row.card.oracle_id) : undefined,
-              },
-            })
-          );
-          labels.push(g.title);
-        }
-      }
-    };
-    pushGroups(visibleGroups, 'cards');
-    pushGroups(visibleSideboardGroups, 'sideboard');
-    pushGroups(visibleConsideringGroups, 'considering');
-    return { cards: enrichedCards, labels, rows, zones, indexByName };
-  }, [visibleGroups, visibleSideboardGroups, visibleConsideringGroups, rarityCorrections]);
+  const flat = useMemo(
+    () =>
+      buildFlatIndex(
+        visibleGroups,
+        visibleSideboardGroups,
+        visibleConsideringGroups,
+        rarityCorrections
+      ),
+    [visibleGroups, visibleSideboardGroups, visibleConsideringGroups, rarityCorrections]
+  );
 
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   // Hover tracking for the card inspector: which row the pointer (or keyboard
@@ -1525,56 +991,14 @@ export function DeckDisplay({
   // The selection's moves and Remove: the bulk bar's buttons and the menu a
   // right-click on a selected card opens, from one list (T162). Tagging is the
   // bar's Tag popover and the menu's two tag pages, over the same handler.
-  const bulkActions: DeckBulkAction[] = selection
-    ? [
-        ...(onBulkMove && selection.zone === 'cards' && hasSideboard
-          ? [
-              {
-                key: 'sideboard',
-                label: 'Move to sideboard',
-                run: () => {
-                  onBulkMove([...selection.keys], 'cards', 'sideboard');
-                  setSelection(null);
-                },
-              },
-            ]
-          : []),
-        ...(onBulkMove && selection.zone === 'cards'
-          ? [
-              {
-                key: 'considering',
-                label: 'Move to considering',
-                run: () => {
-                  onBulkMove([...selection.keys], 'cards', 'considering');
-                  setSelection(null);
-                },
-              },
-            ]
-          : []),
-        ...(onBulkMove && selection.zone !== 'cards'
-          ? [
-              {
-                key: 'mainboard',
-                label: 'Move to mainboard',
-                run: () => {
-                  onBulkMove([...selection.keys], selection.zone, 'cards');
-                  setSelection(null);
-                },
-              },
-            ]
-          : []),
-        ...(onBulkRemove
-          ? [
-              {
-                key: 'remove',
-                label: 'Remove',
-                danger: true,
-                run: () => setConfirmBulkRemove(true),
-              },
-            ]
-          : []),
-      ]
-    : [];
+  const bulkActions: DeckBulkAction[] = buildBulkActions({
+    selection,
+    hasSideboard,
+    onBulkMove,
+    onBulkRemove,
+    setSelection,
+    setConfirmBulkRemove,
+  });
   const selectionTitle = selection
     ? `${selection.keys.size} ${selection.keys.size === 1 ? 'card' : 'cards'} selected`
     : '';
@@ -1632,86 +1056,59 @@ export function DeckDisplay({
   const inspectorActive = useMediaQuery(INSPECTOR_QUERY);
   const [pinnedName, setPinnedName] = useState<string | null>(null);
   const hoverKey = hoverPeek.lastPeek;
-  const inspectorCard = useMemo<DeckCardInspectorCard | null>(() => {
-    if (!inspectorActive) return null;
-    const name = pinnedName ?? hoverKey?.name ?? commander?.name;
-    if (!name) return null;
-    const i = flat.indexByName.get(name);
-    if (i === undefined) return null;
-    const row = flat.rows[i];
-    const enriched = flat.cards[i];
-    // Same copy → binder resolution the grid badge does: dedupe by binder id
-    // across every allocated copy this aggregated row covers.
-    const binders: BinderInfo[] = [];
-    if (binderByCopyId) {
-      const seen = new Set<string>();
-      for (const cid of row.allocatedCopyIds) {
-        for (const b of binderByCopyId.get(cid) ?? []) {
-          if (!seen.has(b.id)) {
-            seen.add(b.id);
-            binders.push(b);
-          }
-        }
-      }
-    }
-    return {
+  const inspectorCard = useMemo<DeckCardInspectorCard | null>(
+    () =>
+      buildInspectorCard({
+        inspectorActive,
+        pinnedName,
+        hoverKey,
+        commander,
+        flat,
+        binderByCopyId,
+        synergyByName,
+        combosByOracle,
+        cardInclusionMap,
+      }),
+    [
+      inspectorActive,
+      pinnedName,
+      hoverKey,
+      commander,
+      flat,
+      binderByCopyId,
+      synergyByName,
+      combosByOracle,
+      cardInclusionMap,
+    ]
+  );
+  const cardMenuCtx = (row: Row, zone: DeckZone): DeckCardActionCtx =>
+    buildCardMenuCtx({
       row,
-      // A printing sub-row carries its own art; honor it while following the
-      // pointer, but a pinned card resolves by name like the carousel does.
-      imageUrl:
-        (pinnedName ? undefined : hoverKey?.img) || enriched?.imageLarge || enriched?.imageNormal,
-      binders,
-      synergyReasons: synergyByName.get(name),
-      combos: row.card.oracle_id ? combosByOracle?.get(row.card.oracle_id) : undefined,
-      inclusionPct: resolveInclusionPct(cardInclusionMap, row),
-    };
-  }, [
-    inspectorActive,
-    pinnedName,
-    hoverKey,
-    commander,
-    flat,
-    binderByCopyId,
-    synergyByName,
-    combosByOracle,
-    cardInclusionMap,
-  ]);
-  const cardMenuCtx = (row: Row, zone: DeckZone): DeckCardActionCtx => ({
-    row,
-    isSingleton: formatConfig.isSingleton,
-    moveZone: zone === 'cards' ? (hasSideboard ? 'sideboard' : undefined) : 'mainboard',
-    onEditCard,
-    onSetQty: onSetQtyForZone(zone),
-    // Out-zone rows get their own remover and their own way back. Both were
-    // `undefined` for anything but `cards` while the out-zone was list-only and
-    // took these as CategorySection props; the stacks lens reaches them through
-    // this menu instead, and a pile you cannot empty is a dead end.
-    onRemoveCard:
-      zone === 'cards'
-        ? onRemoveCard
-        : zone === 'sideboard'
-          ? onRemoveSideboardCard
-          : onRemoveConsideringCard,
-    onMoveToZone:
-      zone === 'cards'
-        ? hasSideboard
-          ? onMoveToSideboard
-          : undefined
-        : zone === 'sideboard'
-          ? onMoveToMainboard
-          : onMoveFromConsidering,
-    onMoveToConsidering: zone === 'cards' ? onMoveToConsidering : undefined,
-    onUseOwnCopy,
-    onMoveToAnotherDeck,
-    onReleaseCopy,
-    onMakeCommander,
-    canMakeCommander,
-    onMakePartner,
-    canMakePartner,
-    onChangeCommander: zone === 'cards' ? onChangeCommander : undefined,
-    cover: zone === 'cards' ? cover : undefined,
-    onSetRowTags: onSetCardTags ? (slotIds, tags) => onSetCardTags(zone, slotIds, tags) : undefined,
-  });
+      zone,
+      isSingleton: formatConfig.isSingleton,
+      hasSideboard,
+      onSetQty: onSetQtyForZone(zone),
+      handlers: {
+        onEditCard,
+        onRemoveCard,
+        onRemoveSideboardCard,
+        onRemoveConsideringCard,
+        onMoveToSideboard,
+        onMoveToMainboard,
+        onMoveToConsidering,
+        onMoveFromConsidering,
+        onUseOwnCopy,
+        onMoveToAnotherDeck,
+        onReleaseCopy,
+        onMakeCommander,
+        canMakeCommander,
+        onMakePartner,
+        canMakePartner,
+        onChangeCommander,
+        cover,
+        onSetCardTags,
+      },
+    });
 
   const renderListSection = (g: TypedGroup) => (
     <CategorySection
@@ -1889,96 +1286,21 @@ export function DeckDisplay({
             page-top hub tab bar in DeckEditorPage switches between them. */}
         {activeView === 'deck' ? (
           <>
-            {/* Deck-tab metrics, glanceable while editing the list. Each reads
-                as a metric: a bold value over a small muted label. Only what the
-                page hero does NOT already say — card count, value and bracket
-                ride the hero on every tab and every width, so repeating them
-                here was the same number twice on one screen. */}
-            <div ref={statStripRef} className="deck-stat-strip" aria-label="Deck at a glance">
-              {/* The checks verdict leads, the way a deck site's header says
-                  "Legal" first. It is also the phone's way down to the stats
-                  under a long one-column list. */}
-              <button
-                type="button"
-                className={`deck-stat deck-stat-btn deck-stat-health deck-stat-health--${health.tone}`}
-                onClick={scrollToDeckStats}
-                aria-label={`Deck checks: ${health.label}. ${health.reason} Show deck stats.`}
-              >
-                <span className="deck-stat-value">{health.label}</span>
-                <span className="deck-stat-label">deck checks</span>
-              </button>
-              <span className="deck-stat">
-                <span className="deck-stat-value">{manaData.averageCmc.toFixed(2)}</span>
-                {/* A phone fits the strip on one line with the short label. */}
-                <span className="deck-stat-label">
-                  <span className="deck-stat-label-long">avg mana value</span>
-                  <span className="deck-stat-label-short" aria-hidden>
-                    avg MV
-                  </span>
-                </span>
-              </span>
-              {identity && (
-                <span className="deck-stat">
-                  <span className="deck-stat-value">{identity.archetypeLabel}</span>
-                  <span className="deck-stat-label">plays as</span>
-                </span>
-              )}
-              {missing.count > 0 &&
-                (missingTally.length > 0 ? (
-                  <button
-                    type="button"
-                    className="deck-stat deck-stat-missing deck-stat-btn"
-                    onClick={() => setBuyListOpen(true)}
-                    aria-label={`Open the buy list for the ${missing.count} missing cards`}
-                  >
-                    <span className="deck-stat-value">{missing.count}</span>
-                    <span className="deck-stat-label">
-                      missing
-                      <span className="deck-stat-label-long">
-                        {' '}
-                        ({formatMoney(missing.price, { currency })})
-                      </span>
-                    </span>
-                  </button>
-                ) : (
-                  <span className="deck-stat deck-stat-missing">
-                    <span className="deck-stat-value">{missing.count}</span>
-                    <span className="deck-stat-label">
-                      missing
-                      <span className="deck-stat-label-long">
-                        {' '}
-                        ({formatMoney(missing.price, { currency })})
-                      </span>
-                    </span>
-                  </span>
-                ))}
-              {onFill && !!openSlots && (
-                <button
-                  type="button"
-                  className="deck-stat deck-stat-btn"
-                  onClick={onFill}
-                  aria-label={`Fill the ${openSlots} open ${openSlots === 1 ? 'slot' : 'slots'} around your cards`}
-                >
-                  <span className="deck-stat-value">{openSlots}</span>
-                  <span className="deck-stat-label">
-                    open {openSlots === 1 ? 'slot' : 'slots'} · fill
-                  </span>
-                </button>
-              )}
-              {arrivalRows.length > 0 && (
-                <button
-                  type="button"
-                  className="deck-stat deck-stat-new deck-stat-btn"
-                  onClick={() => setArrivalsOpen(true)}
-                  aria-label={`Review ${arrivalRows.length} new ${arrivalRows.length === 1 ? 'card' : 'cards'} in your collection that fit this deck`}
-                >
-                  <span className="deck-stat-value">{arrivalRows.length}</span>
-                  <span className="deck-stat-label">
-                    new {arrivalRows.length === 1 ? 'arrival' : 'arrivals'}
-                  </span>
-                </button>
-              )}
-            </div>
+            <DeckStatStrip
+              stripRef={statStripRef}
+              health={health}
+              onHealthClick={scrollToDeckStats}
+              averageCmc={manaData.averageCmc}
+              identity={identity}
+              missing={missing}
+              hasMissingCards={missingTally.length > 0}
+              currency={currency}
+              onOpenBuyList={() => setBuyListOpen(true)}
+              openSlots={openSlots}
+              onFill={onFill}
+              arrivalCount={arrivalRows.length}
+              onOpenArrivals={() => setArrivalsOpen(true)}
+            />
             {statCarousel.preview}
 
             <DeckToolbar
@@ -2004,60 +1326,15 @@ export function DeckDisplay({
               onToggleSelectMode={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
             />
 
-            {/* Bulk-action bar (E172) — replaces nothing, sits directly under
-                the toolbar only while selecting. Actions are zone-contextual:
-                which buttons render depends on which zone the current
-                selection is in (mainboard/sideboard/considering each have a
-                different legal destination set). */}
             {selectMode && (
-              <div className="deck-bulk-bar" role="region" aria-label="Bulk actions">
-                <span className="deck-bulk-count">
-                  {selection ? selectionTitle : 'Select cards'}
-                </span>
-                {bulkActions
-                  .filter((a) => !a.danger)
-                  .map((a) => (
-                    <Button key={a.key} onClick={a.run} className="deck-bulk-btn">
-                      {a.label}
-                    </Button>
-                  ))}
-                {selection && onBulkEditTag && (
-                  <ToolbarPopover
-                    label="Tag"
-                    icon={<TagIcon width={14} height={14} strokeWidth={2} aria-hidden />}
-                  >
-                    {(close) => (
-                      <BulkTagPopoverBody
-                        existingTags={deckTags.map((t) => t.tag)}
-                        onAdd={(tag) => {
-                          onBulkEditTag(selection.zone, [...selection.keys], tag, true);
-                          close();
-                        }}
-                        onRemove={(tag) => {
-                          onBulkEditTag(selection.zone, [...selection.keys], tag, false);
-                          close();
-                        }}
-                      />
-                    )}
-                  </ToolbarPopover>
-                )}
-                {bulkActions
-                  .filter((a) => a.danger)
-                  .map((a) => (
-                    <Button
-                      key={a.key}
-                      variant="danger"
-                      onClick={a.run}
-                      className="deck-bulk-btn"
-                      icon={<Trash2 width={14} height={14} strokeWidth={2} />}
-                    >
-                      {a.label}
-                    </Button>
-                  ))}
-                <Button onClick={exitSelectMode} className="deck-bulk-done">
-                  Done
-                </Button>
-              </div>
+              <DeckBulkBar
+                selection={selection}
+                selectionTitle={selectionTitle}
+                bulkActions={bulkActions}
+                deckTagNames={deckTags.map((t) => t.tag)}
+                onBulkEditTag={onBulkEditTag}
+                onDone={exitSelectMode}
+              />
             )}
 
             {confirmBulkRemove && selection && onBulkRemove && (
@@ -2100,96 +1377,19 @@ export function DeckDisplay({
               </div>
             )}
 
-            {/* Role-filter bar — how the deck's roles balance, and a one-tap
-                lens: an active role keeps every row in place but dims the rest,
-                so matching cards pop without the layout reshuffling. */}
             {roleFilterEntries.length > 0 && (
-              <div
-                ref={roleBarRef}
-                className="deck-role-bar"
-                role="toolbar"
-                aria-label="Role filter"
-              >
-                {roleFilterEntries.map(([key, count]) => (
-                  <Chip
-                    key={key}
-                    className="filter-chip deck-role-bar-chip"
-                    pressed={activeRoleFilter === key}
-                    onClick={() => setRoleFilter((cur) => (cur === key ? null : key))}
-                    trailing={<span className="deck-role-bar-count">{count}</span>}
-                  >
-                    {ROLE_TITLES[key]}
-                  </Chip>
-                ))}
-                {activeRoleFilter && (
-                  <button
-                    type="button"
-                    className="deck-role-bar-clear"
-                    onClick={() => setRoleFilter(null)}
-                    aria-label={`Clear the ${ROLE_TITLES[activeRoleFilter]} role filter`}
-                  >
-                    <X width={12} height={12} strokeWidth={2.2} aria-hidden />
-                    Clear
-                  </button>
-                )}
-                <InfoTip
-                  label="role filter"
-                  text={
-                    <p className="info-tip-lead">
-                      Each card counts once, under its main role. Tap a chip to spotlight those
-                      cards.
-                    </p>
-                  }
-                />
-              </div>
+              <DeckRoleBar
+                barRef={roleBarRef}
+                entries={roleFilterEntries}
+                active={activeRoleFilter}
+                setRoleFilter={setRoleFilter}
+              />
             )}
 
             <div className="deck-display-body">
               <div className="deck-display-main">
-                {/* E182: a brand-new deck (no commander, no cards) previously
-                    rendered a fully interactive toolbar over a blank
-                    .deck-card-list — this is the manual builder's first
-                    impression, so it needs its own state rather than empty
-                    space. Reuses the insight-strip idiom (one row,
-                    --surface-raised) instead of a bespoke illustration.
-                    A commander-format deck with no commander yet (E465) is
-                    not blocked on one: adding comes first (it's the primary),
-                    and choosing the commander is the second door beside it,
-                    opening the same picker as the command zone's open slot. */}
                 {visibleGroups.length === 0 && (
-                  <div className="deck-empty-state">
-                    <span className="deck-empty-state-icon" aria-hidden>
-                      <Search width={18} height={18} strokeWidth={2} />
-                    </span>
-                    <div className="deck-empty-state-body">
-                      <p className="deck-empty-state-headline">This deck is empty.</p>
-                      <p className="deck-empty-state-detail">
-                        {chooseCommander
-                          ? 'Add cards, or choose a commander first.'
-                          : 'Open Add cards to start your list.'}
-                      </p>
-                    </div>
-                    <div
-                      className={
-                        chooseCommander
-                          ? 'deck-empty-state-actions deck-empty-state-actions--pair'
-                          : 'deck-empty-state-actions'
-                      }
-                    >
-                      <Button
-                        variant="primary"
-                        onClick={() => onAddCards?.()}
-                        className="deck-empty-state-action"
-                      >
-                        Add cards
-                      </Button>
-                      {chooseCommander && (
-                        <Button onClick={chooseCommander} className="deck-empty-state-action">
-                          Choose a commander
-                        </Button>
-                      )}
-                    </div>
-                  </div>
+                  <DeckEmptyState chooseCommander={chooseCommander} onAddCards={onAddCards} />
                 )}
                 {/* The Roles lens is a strict PARTITION: `classifyCardCategory`
                     files each card under exactly one heading, type first, so the
@@ -2503,66 +1703,20 @@ export function DeckDisplay({
             }}
             getStackBinders={(i) => {
               const r = flat.rows[i];
-              if (!r || !binderByCopyId) return [];
-              const seen = new Set<string>();
-              const out: BinderInfo[] = [];
-              for (const cid of r.allocatedCopyIds) {
-                for (const b of binderByCopyId.get(cid) ?? []) {
-                  if (!seen.has(b.id)) {
-                    seen.add(b.id);
-                    out.push(b);
-                  }
-                }
-              }
-              return out;
+              return r ? bindersForRow(r, binderByCopyId) : [];
             }}
             getStackAllocations={(i) => {
               const r = flat.rows[i];
-              if (!r || !crossDeck.otherDeckAllocations) return [];
-              const seen = new Set<string>();
-              const out: AllocationInfo[] = [];
-              for (const cid of r.allocatedCopyIds) {
-                const a = crossDeck.otherDeckAllocations.get(cid);
-                // Dedupe on ownerId, not the legacy deckId alias — every cube
-                // claim shares deckId='' and would otherwise collapse to one.
-                if (a && !seen.has(a.ownerId)) {
-                  seen.add(a.ownerId);
-                  out.push(a);
-                }
-              }
-              return out;
+              return r ? allocationsForRow(r, crossDeck.otherDeckAllocations) : [];
             }}
-            getActions={(i) => {
-              const r = flat.rows[i];
-              if (!r) return [];
-              const acts: CardPreviewAction[] = [];
-              const slotId = r.slotIds[0];
-              if (onEditCard && slotId) {
-                acts.push({
-                  key: 'edit',
-                  label: 'Edit',
-                  icon: <Pencil width={18} height={18} strokeWidth={2} aria-hidden />,
-                  onClick: () => {
-                    setPreviewIndex(null);
-                    onEditCard(slotId, r.card);
-                  },
-                });
-              }
-              if (onRemoveCard && r.slotIds.length > 0) {
-                acts.push({
-                  key: 'delete',
-                  label: 'Remove from deck',
-                  danger: true,
-                  overflow: true,
-                  icon: <Trash2 width={18} height={18} strokeWidth={2} aria-hidden />,
-                  onClick: () => {
-                    setPreviewIndex(null);
-                    onRemoveCard(r.slotIds[r.slotIds.length - 1]);
-                  },
-                });
-              }
-              return acts;
-            }}
+            getActions={(i) =>
+              buildPreviewActions({
+                row: flat.rows[i],
+                onEditCard,
+                onRemoveCard,
+                closePreview: () => setPreviewIndex(null),
+              })
+            }
           />
         )}
         {buyListOpen && (
@@ -2680,79 +1834,6 @@ export function DeckDisplay({
   );
 }
 
-// Bulk-tag popover body (E172) — a text input to add a new tag to the whole
-// selection, plus the deck's existing tags as one-tap chips (add). There's no
-// per-selected-card "which of these already has it" reconciliation here —
-// bulkEditTag's add/remove is idempotent per slot either way, so offering
-// every deck tag as an "add" chip is always safe, just sometimes a no-op for
-// cards that already carry it.
-function BulkTagPopoverBody({
-  existingTags,
-  onAdd,
-  onRemove,
-}: {
-  existingTags: string[];
-  onAdd: (tag: string) => void;
-  onRemove: (tag: string) => void;
-}) {
-  const [draft, setDraft] = useState('');
-  const commit = () => {
-    const tag = draft.trim();
-    if (tag) onAdd(tag);
-    setDraft('');
-  };
-  return (
-    <div className="deck-bulk-tag-popover">
-      <div className="deck-bulk-tag-input-row">
-        <input
-          type="text"
-          className="deck-bulk-tag-input"
-          placeholder="New tag…"
-          value={draft}
-          maxLength={40}
-          aria-label="New tag name"
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              commit();
-            }
-          }}
-        />
-        <Button variant="primary" onClick={commit} className="deck-bulk-tag-add">
-          Add
-        </Button>
-      </div>
-      {existingTags.length > 0 && (
-        <ul className="deck-bulk-tag-chip-list" aria-label="Existing tags">
-          {existingTags.map((tag) => (
-            <li key={tag}>
-              <Chip
-                className="deck-bulk-tag-chip"
-                onClick={() => onAdd(tag)}
-                title={`Add "${tag}" to selection`}
-              >
-                {tag}
-              </Chip>
-              <IconButton
-                className="deck-bulk-tag-chip-remove"
-                onClick={() => onRemove(tag)}
-                label={`Remove "${tag}" from selection`}
-                icon={<X width={11} height={11} strokeWidth={2.4} />}
-              />
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-// ── Analysis views ─────────────────────────────────────────────────────────
-/** The page-top analysis view ids. (Test hand is a separate standalone panel,
- *  not a view — goldfishing is a distinct activity.) */
-export type AnalysisTabId = 'stats' | 'power' | 'tune';
-
 const VIEW_HEADINGS: Record<DeckView, string> = {
   deck: 'Deck',
   stats: 'Deck stats',
@@ -2768,7 +1849,3 @@ export const DECK_STATS_HEADING_ID = 'deck-stats-heading';
 export function scrollToDeckStats() {
   scrollToHeading(DECK_STATS_HEADING_ID);
 }
-
-/** The full page-top view set: the card-list editing surface plus the analysis
- *  views. `DeckEditorPage` owns this state and renders the hub tab bar. */
-export type DeckView = 'deck' | AnalysisTabId;

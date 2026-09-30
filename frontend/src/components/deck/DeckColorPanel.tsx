@@ -1,5 +1,5 @@
 import { type JSX, useState } from 'react';
-import { COLOR_INFO, colorIdentityWords } from '../../lib/colors';
+import { COLOR_INFO, colorIdentityWords } from '@/lib/cards/colors';
 import { ColorPip } from '../shared/ManaSymbol';
 import { DeckColorBalance } from './DeckColorBalance';
 import { useCardCarousel, tallyToEntries, type CardTally } from './useCardCarousel';

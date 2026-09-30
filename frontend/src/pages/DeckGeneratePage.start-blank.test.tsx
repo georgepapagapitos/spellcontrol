@@ -10,7 +10,7 @@ import 'fake-indexeddb/auto';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PublishResult } from '../lib/publications-client';
+import type { PublishResult } from '@/lib/social/publications-client';
 
 const navigateMock = vi.fn();
 vi.mock('react-router-dom', async (importOriginal) => {
@@ -29,14 +29,14 @@ vi.mock('../store/auth', () => ({
   useAuth: <T,>(selector: (s: { status: string }) => T): T => selector({ status: authStatus }),
 }));
 
-vi.mock('../lib/sync', () => ({
+vi.mock('@/lib/sync', () => ({
   isOnline: () => true,
   onSyncedChange: () => () => {},
 }));
 
 const publishDeckMock = vi.fn<() => Promise<PublishResult>>();
-vi.mock('../lib/publications-client', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../lib/publications-client')>();
+vi.mock('@/lib/social/publications-client', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/social/publications-client')>();
   return {
     ...actual,
     publishDeck: () => publishDeckMock(),
@@ -45,7 +45,7 @@ vi.mock('../lib/publications-client', async (importOriginal) => {
 });
 
 const createShareMock = vi.fn();
-vi.mock('../lib/share-client', () => ({
+vi.mock('@/lib/social/share-client', () => ({
   createShare: (input: unknown) => createShareMock(input),
 }));
 
@@ -74,6 +74,7 @@ const KRENKO = {
   name: 'Krenko, Mob Boss',
   color_identity: ['R'],
   type_line: 'Legendary Creature — Goblin Warrior',
+  legalities: { commander: 'legal' },
 };
 
 function renderPage() {

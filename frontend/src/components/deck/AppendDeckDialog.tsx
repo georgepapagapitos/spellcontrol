@@ -1,17 +1,18 @@
 import { useCallback, useMemo, useState } from 'react';
 import { WifiOff, Download, X } from 'lucide-react';
-import { Modal } from '../Modal';
-import { ProgressBar } from '../ProgressBar';
-import { importDeckText } from '../../lib/api';
+import { Modal } from '@/components/overlays/Modal';
+import { ProgressBar } from '@/components/import/ProgressBar';
+import { importDeckText } from '@/lib/api';
 import { useDecksStore, type Deck } from '../../store/decks';
+import { useCubeStore } from '../../store/cube';
 import { useCollectionStore } from '../../store/collection';
 import { useDeckHistoryStore } from '../../store/deck-history';
 import {
   buildAppendPlan,
   appendPartnerCandidatesFor,
   type AppendPlan,
-} from '../../lib/append-deck-import';
-import { validateDeckZones, type LegalityIssue } from '../../lib/deck-validation';
+} from '@/lib/import-export/append-deck-import';
+import { validateDeckZones, type LegalityIssue } from '@/lib/deck/deck-validation';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { DeckImportResponse } from '../../types';
@@ -20,7 +21,7 @@ import { CommanderSearch } from './CommanderSearch';
 import { getCardImageUrl } from '@/deck-builder/services/scryfall/client';
 import './AppendDeckDialog.css';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button, IconButton } from '@/components/shared/Button';
 interface Props {
   deck: Deck;
@@ -85,14 +86,16 @@ export function AppendDeckDialog({ deck, onClose }: Props) {
   }, [isLoading, runImport]);
 
   const collectionCards = useCollectionStore((s) => s.cards);
+  const cubes = useCubeStore((s) => s.saved);
 
   const plan: AppendPlan | null = useMemo(() => {
     if (!result) return null;
     return buildAppendPlan(deck, result, chosenCommander, chosenPartner, {
       decks,
+      cubes,
       collectionCards,
     });
-  }, [result, deck, chosenCommander, chosenPartner, decks, collectionCards]);
+  }, [result, deck, chosenCommander, chosenPartner, decks, cubes, collectionCards]);
 
   // Legality check scoped to just what THIS paste would add — a deck that
   // already had an issue before pasting shouldn't get re-reported here.

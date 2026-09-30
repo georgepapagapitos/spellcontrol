@@ -1,12 +1,12 @@
 import './CommanderReadiness.css';
-import { InfoTip } from '../InfoTip';
+import { InfoTip } from '@/components/overlays/InfoTip';
 import { MeterBar } from '../shared/MeterBar';
-import type { ReadinessScore } from '../../lib/commander-readiness';
+import type { ReadinessScore } from '@/lib/deck/commander-readiness';
 
 /**
  * Collection-readiness readout for a commander: an explainable bar answering
  * "how many of this commander's top staples do you already own?". Pure
- * presentation over a `ReadinessScore` (computed by `lib/commander-readiness`).
+ * presentation over a `ReadinessScore` (computed by `lib/deck/commander-readiness`).
  *
  * `score === undefined` → loading skeleton (the EDHREC staple list is still
  * streaming in); `score.available === false` → unavailable note (offline / EDHREC

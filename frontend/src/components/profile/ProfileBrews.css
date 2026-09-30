@@ -1,0 +1,152 @@
+/* "Colors" (with most-built commanders) and "Game record" panels on /u/:username.
+   See style-guide/social.md § Profiles. */
+
+.public-profile-panels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: var(--space-4);
+}
+
+.public-profile-panels:empty {
+  display: none;
+}
+
+.profile-brews,
+.profile-record {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.profile-panel-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 400;
+}
+
+.profile-brews-heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.profile-brews-caption {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.profile-brews-subtitle {
+  margin: var(--space-2) 0 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.profile-brews-commanders {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.profile-brews-commander {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 44px;
+  padding: var(--space-1);
+  border-radius: var(--radius);
+  color: inherit;
+  text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .profile-brews-commander:hover {
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
+  }
+}
+
+.profile-brews-thumb {
+  flex-shrink: 0;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: var(--radius);
+  object-fit: cover;
+  background: var(--border);
+}
+
+.profile-brews-commander-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.profile-brews-commander-name {
+  overflow: hidden;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-brews-commander-count {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.profile-brews-colors {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.profile-brews-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.profile-brews-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-variant-numeric: tabular-nums;
+}
+
+.profile-record-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-6);
+  margin: 0;
+}
+
+.profile-record-stats dt {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.profile-record-stats dd {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-variant-numeric: tabular-nums;
+}
+
+.profile-record-most {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}

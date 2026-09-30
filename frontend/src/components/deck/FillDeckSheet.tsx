@@ -1,12 +1,13 @@
+import { createPortal } from 'react-dom';
 import './FillDeckSheet.css';
 import { type JSX, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
-import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/use-sheet-exit';
-import { imageFromCard } from '@/lib/card-thumbs';
-import { buildFill, type FillResult } from '@/lib/fill-deck';
-import { userMessage } from '@/lib/user-error';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
+import { imageFromCard } from '@/lib/cards/card-thumbs';
+import { buildFill, type FillResult } from '@/lib/coach/fill-deck';
+import { userMessage } from '@/lib/util/user-error';
 import { MeterBar } from '../shared/MeterBar';
 import type { Deck } from '../../store/decks';
 import { Button } from '@/components/shared/Button';
@@ -144,7 +145,7 @@ export function FillDeckSheet({
 
   const additions = phase.kind === 'review' ? phase.result.plan.additions : [];
 
-  return (
+  return createPortal(
     <div
       className="card-picker-root"
       onClick={(e) => {
@@ -302,6 +303,7 @@ export function FillDeckSheet({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

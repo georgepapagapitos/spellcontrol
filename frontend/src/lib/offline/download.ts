@@ -1,7 +1,7 @@
 import { readManifest, replaceOracleCards, writeManifest } from './db';
 import { importCombos } from './combos-import';
 import type { OfflineManifest, SlimCard } from './types';
-import { apiUrl } from '../api-base';
+import { apiUrl } from '@/lib/api/api-base';
 
 export type DownloadPhase =
   | 'idle'

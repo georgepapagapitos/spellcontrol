@@ -21,10 +21,10 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ArrowLeft, ArrowRight, Hand, Minus, Plus, Undo2 } from 'lucide-react';
-import { SelectMenu } from '@/components/SelectMenu';
+import { SelectMenu } from '@/components/overlays/SelectMenu';
 import './ScrySheet.css';
-import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/use-sheet-exit';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
 import type { PlaytestCard, ScryMode } from '@/lib/playtest';
 import { Button, IconButton } from '@/components/shared/Button';
 
@@ -482,6 +482,7 @@ function SortableScryCard({
         {...attributes}
         {...listeners}
         aria-label={`${card.name}, ${columnLabel}, position ${position} of ${total}`}
+        role="group"
       >
         <ScryCardFace card={card} />
       </div>

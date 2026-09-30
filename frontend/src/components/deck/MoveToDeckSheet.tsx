@@ -1,15 +1,16 @@
+import { createPortal } from 'react-dom';
 import { type JSX, useId, useState } from 'react';
 import { X, ChevronLeft } from 'lucide-react';
 import './MoveToDeckSheet.css';
-import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
-import { useSheetExit } from '../../lib/use-sheet-exit';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
 import { ColorPip } from '../shared/ManaSymbol';
-import { effectiveDeckColors } from '@/lib/deck-validation';
-import { deckCoverArt } from '@/lib/deck-cover';
+import { effectiveDeckColors } from '@/lib/deck/deck-validation';
+import { deckCoverArt } from '@/lib/deck/deck-cover';
 import { useDecksStore, type Deck } from '@/store/decks';
 import { DonorOutcomeInline } from './DonorOutcomeInline';
-import type { DonorOutcome } from '@/lib/allocations';
-import type { ChangeOwnership } from '@/lib/deck-change';
+import type { DonorOutcome } from '@/lib/collection/allocations';
+import type { ChangeOwnership } from '@/lib/coach/deck-change';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '@/types';
 import { Button, IconButton } from '@/components/shared/Button';
@@ -79,7 +80,7 @@ export function MoveToDeckSheet({
 
   const confirmDisabled = outcome === 'replace' && !replacement;
 
-  return (
+  return createPortal(
     <div
       className="card-picker-root move-deck-root"
       onClick={(e) => {
@@ -195,6 +196,7 @@ export function MoveToDeckSheet({
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -93,7 +93,7 @@ export const users = pgTable('users', {
   /**
    * Who can see the collection (board T136): 'public' | 'friends' |
    * 'private'. NULL means the owner never chose (every account from before
-   * this shipped): friends see which cards, never quantities or prices.
+   * this shipped), read as 'friends' by `storedCollectionVisibility`.
    */
   collectionVisibility: text('collection_visibility').default('public'),
   /**
@@ -107,6 +107,10 @@ export const users = pgTable('users', {
    * Its decks stay out of every ranking that counts people.
    */
   isOfficial: boolean('is_official').notNull().default(false),
+  /** Slug of the deck pinned atop the profile (T175); validated live at read. */
+  pinnedDeckSlug: text('pinned_deck_slug'),
+  /** Opt-in: show a game record on the public profile. Off by default. */
+  showGameRecord: boolean('show_game_record').notNull().default(false),
 });
 
 /**
@@ -1198,6 +1202,28 @@ export type ComboCardRow = typeof comboCards.$inferSelect;
 export type ComboIngestRunRow = typeof comboIngestRuns.$inferSelect;
 export type ShareRow = typeof shares.$inferSelect;
 export type DeckFeedbackRow = typeof deckFeedback.$inferSelect;
+/**
+ * One-way follow (T175). Distinct from `friendships` (mutual): a follow gives
+ * the follower a feed and the followee a count, nothing else. The CHECK in
+ * ensureSchema forbids following yourself.
+ */
+export const userFollows = pgTable(
+  'user_follows',
+  {
+    followerId: text('follower_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    followeeId: text('followee_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.followerId, t.followeeId] }),
+    followeeIdx: index('user_follows_followee_idx').on(t.followeeId, t.createdAt),
+  })
+);
+
 export type GameNightRow = typeof gameNights.$inferSelect;
 export type GameNightSeriesRow = typeof gameNightSeries.$inferSelect;
 export type GameNightInviteRow = typeof gameNightInvites.$inferSelect;
@@ -1211,6 +1237,7 @@ export type PodMemberRow = typeof podMembers.$inferSelect;
 export type GameResultRow = typeof gameResults.$inferSelect;
 export type GameResultHiddenRow = typeof gameResultHidden.$inferSelect;
 export type DeckPublicationRow = typeof deckPublications.$inferSelect;
+export type UserFollowRow = typeof userFollows.$inferSelect;
 export type DeckLikeRow = typeof deckLikes.$inferSelect;
 export type DeckBookmarkRow = typeof deckBookmarks.$inferSelect;
 export type ContentReportRow = typeof contentReports.$inferSelect;

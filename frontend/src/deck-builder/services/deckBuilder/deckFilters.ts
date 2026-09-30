@@ -2,15 +2,47 @@
 // Pure functions — no shared state, no side effects. Extracted verbatim from
 // deckGenerator.ts so they can be unit-tested in isolation.
 import type { ScryfallCard, MaxRarity, CollectionStrategy } from '@/deck-builder/types';
-import { getCardPrice, getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
-import { fitsColorIdentity as fitsColorIdentitySet } from '@/lib/deck-validation';
+import {
+  getCardPrice,
+  getFrontFaceTypeLine,
+  isMdfcLand,
+} from '@/deck-builder/services/scryfall/client';
+import { fitsColorIdentity as fitsColorIdentitySet } from '@/lib/deck/deck-validation';
+import { cardManaValue } from './deckStats';
 
-// Check if a card's color identity fits within the commander's color identity.
-// Thin array-signature wrapper — the actual rule lives in lib/deck-validation.ts
-// (the more general home, shared with the post-save legality gate) so
-// generation-time filtering and validation can't drift apart (E128).
+// The generator's identity gate: the card's color identity fits within the
+// deck's, AND the card does something in that identity (isDeadInIdentity).
+// The identity rule itself lives in lib/deck/deck-validation.ts (the more general
+// home, shared with the post-save legality gate) so generation-time filtering
+// and validation can't drift apart (E128). The dead-card half is generation
+// only: Ruby Medallion is legal in mono-green, it just never discounts a
+// spell there, so validation must accept a deck that has one.
+//
+// E524: every generation pick path already runs this gate, so folding the
+// dead-card check in here covers them all at once. The EDHREC pick, the role
+// rebalance swap and the rest each gated on identity alone, and The Prismatic
+// Piper (chosen green) shipped Ruby Medallion and Hazoret's Monument off a
+// page that mixes every color its players chose. `commanderColors` is the
+// EFFECTIVE identity, a choose-a-color commander's chosen color included.
 export function fitsColorIdentity(card: ScryfallCard, commanderColors: string[]): boolean {
-  return fitsColorIdentitySet(card, new Set(commanderColors));
+  return (
+    fitsColorIdentitySet(card, new Set(commanderColors)) && !isDeadInIdentity(card, commanderColors)
+  );
+}
+
+// Slot fit (E525): which bucket a fetched card may be seated in, decided by
+// the card's FRONT face, never by the query or pool that produced it. A card
+// whose front is a land is a land drop: Scryfall's `t:creature` also matches
+// Dryad Arbor and Westvale Abbey // Ormendahl (a creature back face), and
+// EDHREC's nonland lists carry utility lands (Nykthos, Nesting Grounds), so a
+// spell-slot fill that trusted its source seated lands and shipped the deck
+// over its planned land count. A spell // land MDFC fits either slot.
+const FRONT_LAND = /\bLand\b/;
+export function fitsSpellSlot(card: ScryfallCard): boolean {
+  return !FRONT_LAND.test(getFrontFaceTypeLine(card));
+}
+export function fitsLandSlot(card: ScryfallCard): boolean {
+  return !fitsSpellSlot(card) || isMdfcLand(card);
 }
 
 // Check if a card exceeds the max price limit
@@ -80,15 +112,27 @@ const COLOR_WORDS: Record<string, string> = {
 /**
  * E282: a colorless card whose payoff names a color the deck can't cast —
  * "Red spells you cast cost {1} less" (Ruby Medallion) in mono-white — is
- * legal by color identity and dead on the table. The EDHREC pool never
- * recommends one, so only the owned-collection fill paths (typed Scryfall
- * fill, owned-substitute tier) can reach it; they gate on this.
+ * legal by color identity and dead on the table. Any pool can offer one: an
+ * EDHREC page mixes every deck its players built, and a choose-a-color
+ * commander's page (The Prismatic Piper) mixes every color they chose (E524).
+ * `fitsColorIdentity` above runs this, so every pick path is gated.
+ *
+ * A reducer that names several colors ("White spells and black spells you
+ * cast cost {1} less", Stormscape Familiar) is dead only when the deck casts
+ * none of them: in a black deck it still discounts half its spells.
  */
 export function isDeadInIdentity(card: ScryfallCard, colorIdentity: readonly string[]): boolean {
   const texts = [card.oracle_text, ...(card.card_faces ?? []).map((f) => f.oracle_text)];
   for (const text of texts) {
-    const m = /\b(white|blue|black|red|green)\b[^.\n]*\byou cast cost\b/i.exec(text ?? '');
-    if (m && !colorIdentity.includes(COLOR_WORDS[m[1].toLowerCase()])) return true;
+    for (const sentence of (text ?? '').split(/[.\n]/)) {
+      const m = /^(.*?)\byou cast cost\b/i.exec(sentence);
+      if (!m) continue;
+      // "Nonred"/"non-red" names every OTHER color: not a payoff for red.
+      const named = [...m[1].matchAll(/(?<!non-?)\b(white|blue|black|red|green)\b/gi)].map(
+        (c) => COLOR_WORDS[c[1].toLowerCase()]
+      );
+      if (named.length > 0 && !named.some((c) => colorIdentity.includes(c))) return true;
+    }
   }
   return false;
 }
@@ -104,7 +148,9 @@ export function exceedsCmcCap(card: ScryfallCard, maxCmc: number | null): boolea
   if (maxCmc === null) return false;
   // Lands are never filtered by CMC (use front face for MDFCs)
   if (getFrontFaceTypeLine(card).toLowerCase().includes('land')) return false;
-  return card.cmc > maxCmc;
+  // cardManaValue, not card.cmc: a reversible printing has no top-level cmc,
+  // and `undefined > 3` is false, so it slipped past Tiny Leaders (E527).
+  return cardManaValue(card) > maxCmc;
 }
 
 // Check if a card is banned/not legal in Commander. EDHREC/lift-derived pools

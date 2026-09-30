@@ -4,18 +4,18 @@ import './SavedDecksPage.css';
 import './DiscoverDecksPage.css';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { DecksHubTabs } from '../components/DecksHubTabs';
-import { PageHeader } from '../components/PageHeader';
+import { DecksHubTabs } from '@/components/decks/DecksHubTabs';
+import { PageHeader } from '@/components/app-shell/PageHeader';
 import {
   DiscoverDeckTile,
   DiscoverTileSkeleton,
   DISCOVER_SKELETON_COUNT,
-} from '../components/DiscoverDeckTile';
+} from '@/components/decks/DiscoverDeckTile';
 import { useAuth } from '../store/auth';
-import { listBookmarkedDecks, type DiscoverDeck } from '../lib/discover-client';
+import { listBookmarkedDecks, type DiscoverDeck } from '@/lib/discover/discover-client';
 import { EmptyState } from '../components/shared/EmptyState';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 /**
  * /decks/saved — the caller's own bookmarked decks (w2-likes-bookmarks). No

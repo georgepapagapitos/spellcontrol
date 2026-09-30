@@ -3,7 +3,7 @@ import { fetchSaltIndex } from '@/deck-builder/services/edhrec/client';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { calculateStats } from '../deckStats';
 import type { GenerationState } from './state';
-import { frontFaceName } from '@/lib/card-text';
+import { frontFaceName } from '@/lib/cards/card-text';
 
 // Calculate final deck stats + salt stats. Verbatim extraction from
 // generateDeck: `categories` -> `state.categories`. `saltIndex` is passed in

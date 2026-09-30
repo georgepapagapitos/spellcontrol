@@ -1,7 +1,7 @@
 import type { JSX } from 'react';
 import './SwapThisCard.css';
 import { DeckCardRow } from './DeckCardRow';
-import type { Change } from '@/lib/deck-change';
+import type { Change } from '@/lib/coach/deck-change';
 
 export interface SwapThisCardProps {
   /** The in-deck card being looked at (the swap-out target). */

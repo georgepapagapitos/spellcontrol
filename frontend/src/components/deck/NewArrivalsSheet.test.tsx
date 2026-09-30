@@ -1,11 +1,11 @@
 // @vitest-environment happy-dom
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { ArrivalRow } from '@/lib/new-arrivals';
-import type { ChangeOwnership } from '@/lib/deck-change';
+import type { ArrivalRow } from '@/lib/coach/new-arrivals';
+import type { ChangeOwnership } from '@/lib/coach/deck-change';
 import { NewArrivalsSheet } from './NewArrivalsSheet';
 
-vi.mock('@/lib/card-thumbs', () => ({ useCardThumb: () => null }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => null }));
 
 const rows: ArrivalRow[] = [
   { name: 'Free Copy', card: { name: 'Free Copy' }, qty: 1, score: 1 },

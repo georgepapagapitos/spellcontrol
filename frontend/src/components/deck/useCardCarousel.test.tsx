@@ -5,7 +5,7 @@ import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
 import { useCollectionStore } from '@/store/collection';
 import { useToastsStore } from '@/store/toasts';
 import { getCardByNameResilient, getOwnedPrinting } from '@/deck-builder/services/scryfall/client';
-import { scryfallToEnrichedCard } from '@/lib/scryfall-to-enriched';
+import { scryfallToEnrichedCard } from '@/lib/cards/scryfall-to-enriched';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard, Finish } from '@/types';
 
@@ -26,7 +26,7 @@ type WiredGetActions = ((i: number) => unknown[]) | undefined;
 const previewCards = vi.fn<(cards: EnrichedCard[]) => void>();
 const previewIndex = vi.fn<(index: number) => void>();
 const previewGetActions = vi.fn<(getActions: WiredGetActions) => void>();
-vi.mock('@/components/CardPreview', () => ({
+vi.mock('@/components/card/CardPreview', () => ({
   CardPreview: ({
     cards,
     index,

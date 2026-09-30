@@ -1,10 +1,10 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Tabs } from '../../components/Tabs';
+import { Tabs } from '@/components/overlays/Tabs';
 import { StackedBar } from '../../components/shared/MeterBar';
-import { CardPreview } from '../../components/CardPreview';
+import { CardPreview } from '@/components/card/CardPreview';
 import type { EnrichedCard } from '../../types';
 import type { ScryfallCard } from '@/deck-builder/types';
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { getCardsByNames } from '../../deck-builder/services/scryfall/client';
 import {
   fetchCubeCobraCube,

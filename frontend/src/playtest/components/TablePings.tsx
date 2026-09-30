@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { paletteForIndex } from '@/lib/seat-palette';
+import { paletteForIndex } from '@/lib/play/seat-palette';
 import type { TablePing } from '../hooks/use-table-pings';
 import { opponentPreviewId } from './OpponentQuadrant';
 import './TablePings.css';

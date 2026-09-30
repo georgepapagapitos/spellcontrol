@@ -1,7 +1,7 @@
 import './H2HSummary.css';
 import { StackedBar } from '../shared/MeterBar';
-import { formatIdentity } from '../../lib/display-name';
-import type { H2HResponse } from '../../lib/game-results-client';
+import { formatIdentity } from '@/lib/social/display-name';
+import type { H2HResponse } from '@/lib/play/game-results-client';
 
 /**
  * Shared "You X – Y @friend over N games" summary bar + deck-matchup table.

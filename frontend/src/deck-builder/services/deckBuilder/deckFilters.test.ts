@@ -1,4 +1,7 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   fitsColorIdentity,
   exceedsMaxPrice,
@@ -15,6 +18,8 @@ import {
   notLegalForFormat,
   violatesUserCaps,
   userCapsWithoutPrice,
+  fitsLandSlot,
+  fitsSpellSlot,
   type UserCapsConfig,
 } from './deckFilters';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -50,7 +55,34 @@ describe('fitsColorIdentity', () => {
   it('fails when the card has a color outside the commander identity', () => {
     expect(fitsColorIdentity(makeCard({ color_identity: ['W', 'R'] }), ['W', 'B'])).toBe(false);
   });
+
+  // E524, the real cards the live stress panel seated: The Prismatic Piper
+  // (chosen green) shipped both reducers off an EDHREC page that mixes every
+  // color its players chose, through pick paths that gated on this alone.
+  it('fails a colorless cost reducer for a color the deck cannot cast', () => {
+    expect(fitsColorIdentity(real('Ruby Medallion'), ['G'])).toBe(false);
+    expect(fitsColorIdentity(real("Hazoret's Monument"), ['G'])).toBe(false);
+    expect(fitsColorIdentity(real('Ruby Medallion'), ['W'])).toBe(false);
+  });
+
+  it('passes the same reducers in a deck that casts their color', () => {
+    expect(fitsColorIdentity(real('Ruby Medallion'), ['R'])).toBe(true);
+    expect(fitsColorIdentity(real("Hazoret's Monument"), ['R', 'G'])).toBe(true);
+  });
 });
+
+const REAL_CARDS = new Map<string, ScryfallCard>();
+for (const file of ['commander-cards.fixture.json', 'invariant-cards.fixture.json']) {
+  const { cards } = JSON.parse(
+    readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '__fixtures__', file), 'utf8')
+  ) as { cards: ScryfallCard[] };
+  for (const c of cards) REAL_CARDS.set(c.name, c);
+}
+function real(name: string): ScryfallCard {
+  const c = REAL_CARDS.get(name);
+  if (!c) throw new Error(`no fixture card named ${name}`);
+  return c;
+}
 
 describe('isDeadInIdentity (E282)', () => {
   const rubyMedallion = makeCard({
@@ -85,6 +117,55 @@ describe('isDeadInIdentity (E282)', () => {
       ],
     } as Partial<ScryfallCard>);
     expect(isDeadInIdentity(dfc, ['U'])).toBe(true);
+  });
+
+  it('keeps a reducer that names several colors while the deck casts any of them', () => {
+    // "White spells and black spells you cast cost {1} less to cast."
+    const familiar = real('Stormscape Familiar');
+    expect(isDeadInIdentity(familiar, ['U'])).toBe(true);
+    expect(isDeadInIdentity(familiar, ['U', 'B'])).toBe(false);
+    expect(isDeadInIdentity(familiar, ['W', 'U'])).toBe(false);
+  });
+
+  it('never reads "non<color>" as a payoff for that color', () => {
+    expect(
+      isDeadInIdentity(makeCard({ oracle_text: 'Nonred spells you cast cost {1} more.' }), ['G'])
+    ).toBe(false);
+    expect(
+      isDeadInIdentity(makeCard({ oracle_text: 'Non-red spells you cast cost {1} more.' }), ['G'])
+    ).toBe(false);
+  });
+});
+
+// E525: seating follows the card's front face, not the query that found it.
+describe('fitsSpellSlot / fitsLandSlot (E525)', () => {
+  it.each([
+    // Scryfall's `t:creature` returns all three; each is a land drop.
+    ['Dryad Arbor', false, true],
+    ['Westvale Abbey // Ormendahl, Profane Prince', false, true],
+    ['Hostile Hostel // Creeping Inn', false, true],
+    // EDHREC's nonland lists carry these; still lands.
+    ['Nykthos, Shrine to Nyx', false, true],
+    ['Seat of the Synod', false, true],
+    // A spell // land MDFC fits either slot.
+    ["Emeria's Call // Emeria, Shattered Skyclave", true, true],
+    ['Sink into Stupor // Soporific Springs', true, true],
+    // `t:land` returns a transform card whose back face is a land: a spell.
+    ["Legion's Landing // Adanto, the First Fort", true, false],
+    ['Llanowar Elves', true, false],
+    ['Bonecrusher Giant // Stomp', true, false],
+  ])('%s: spell slot %s, land slot %s', (name, spell, land) => {
+    expect(fitsSpellSlot(real(name))).toBe(spell);
+    expect(fitsLandSlot(real(name))).toBe(land);
+  });
+});
+
+describe('exceedsCmcCap on a reversible printing (E527)', () => {
+  it("caps the real Secret Lair Krark's Thumb by its front-face mana value", () => {
+    const thumb = real("Krark's Thumb // Krark's Thumb");
+    expect(thumb.cmc).toBeUndefined();
+    expect(exceedsCmcCap(thumb, 1)).toBe(true);
+    expect(exceedsCmcCap(thumb, 3)).toBe(false);
   });
 });
 

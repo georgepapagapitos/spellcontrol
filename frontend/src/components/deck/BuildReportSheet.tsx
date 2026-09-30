@@ -1,12 +1,12 @@
 import { useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
-import { useSheetExit } from '@/lib/use-sheet-exit';
-import { useCardThumb } from '@/lib/card-thumbs';
+import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
+import { useCardThumb } from '@/lib/cards/card-thumbs';
 import { BuildReportPanel } from './BuildReportPanel';
 import type { BuildReport } from '@/deck-builder/types';
 import type { ComboMatch, ComboSeedContext } from '@/types/combos';
-import { markBuildReportSeen } from '@/lib/build-report-seen';
+import { markBuildReportSeen } from '@/lib/deck/build-report-seen';
 import './BuildReportSheet.css';
 import { Button, IconButton } from '@/components/shared/Button';
 

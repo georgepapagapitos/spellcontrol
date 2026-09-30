@@ -1,10 +1,10 @@
 import { type JSX, useCallback, useRef, useState } from 'react';
 import { getCardByNameResilient, getOwnedPrinting } from '@/deck-builder/services/scryfall/client';
-import { scryfallToEnrichedCard } from '@/lib/scryfall-to-enriched';
+import { scryfallToEnrichedCard } from '@/lib/cards/scryfall-to-enriched';
 import { useCollectionStore } from '@/store/collection';
 import type { EnrichedCard, Finish } from '@/types';
 import type { ScryfallCard } from '@/deck-builder/types';
-import { CardPreview, type CardPreviewAction } from '@/components/CardPreview';
+import { CardPreview, type CardPreviewAction } from '@/components/card/CardPreview';
 
 /**
  * Best owned "shimmer" finish for a card the player has in their collection.

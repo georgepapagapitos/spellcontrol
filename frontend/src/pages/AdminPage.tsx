@@ -1,5 +1,5 @@
-import { logger } from '@/lib/logger';
-import { useEffect, useMemo, useState } from 'react';
+import { logger } from '@/lib/util/logger';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 // Admin + scanner sheet: shared with YouPage and CardScanner, off the boot payload (E265).
 import '@/styles/admin-scanner.css';
@@ -7,16 +7,18 @@ import '@/styles/admin-scanner.css';
 import '@/styles/settings-page.css';
 import { useAuth } from '../store/auth';
 import { useCollectionStore } from '../store/collection';
-import { AdminPanel } from '../components/AdminPanel';
-import { useConfirm } from '../lib/use-confirm';
-import { stopSyncAndWipeLocal } from '../lib/sync';
-import { Tabs } from '../components/Tabs';
+import { AdminPanel } from '@/components/admin/AdminPanel';
+import { useConfirm } from '@/components/overlays/use-confirm';
+import { stopSyncAndWipeLocal } from '@/lib/sync';
+import { Tabs } from '@/components/overlays/Tabs';
 import { useDecksStore, type Deck } from '../store/decks';
+import { useCubeStore } from '../store/cube';
+import { remapAllAllocations } from '@/lib/cube/remap-cube-allocations';
 import {
   buildAllocationMap,
   findSuboptimalPrintings,
   useCollectionByCopyId,
-} from '../lib/allocations';
+} from '@/lib/collection/allocations';
 import type { EnrichedCard } from '../types';
 import {
   listEvents,
@@ -24,12 +26,12 @@ import {
   type ErrorCountRow,
   type EventCountRow,
   type VitalCountRow,
-} from '../lib/admin-api';
-import { formatRelativeTime } from '../lib/format-time';
-import { userMessage } from '../lib/user-error';
+} from '@/lib/account/admin-api';
+import { formatRelativeTime } from '@/lib/util/format-time';
+import { userMessage } from '@/lib/util/user-error';
 import { toast } from '../store/toasts';
 import { Button } from '@/components/shared/Button';
-import { copyToClipboard } from '@/lib/clipboard';
+import { copyToClipboard } from '@/lib/util/clipboard';
 
 type Tab = 'analytics' | 'users' | 'overview' | 'decks' | 'storage' | 'raw';
 
@@ -63,10 +65,10 @@ export function AdminPage() {
   const deleteAllBinders = useCollectionStore((s) => s.deleteAllBinders);
   const decks = useDecksStore((s) => s.decks);
   const deleteAllDecks = useDecksStore((s) => s.deleteAllDecks);
-  const remapAllocations = useDecksStore((s) => s.remapAllocations);
+  const savedCubes = useCubeStore((s) => s.saved);
 
   const [tab, setTab] = useState<Tab>('analytics');
-  // First-party beacon counters (lib/analytics + /api/admin/events), fetched
+  // First-party beacon counters (lib/util/analytics + /api/admin/events), fetched
   // once when the tab is first opened. null = not loaded yet.
   const [events, setEvents] = useState<BeaconRows | null>(null);
   const [eventsError, setEventsError] = useState<string | null>(null);
@@ -101,18 +103,18 @@ export function AdminPage() {
   // invariant was only checkable via a dev-only console warning.
   const { allocationMap, doubleClaimCount } = useMemo(() => {
     let collisions = 0;
-    const map = buildAllocationMap(decks, undefined, () => {
+    const map = buildAllocationMap(decks, savedCubes, () => {
       collisions++;
     });
     return { allocationMap: map, doubleClaimCount: collisions };
-  }, [decks]);
+  }, [decks, savedCubes]);
 
   // Slots bound to a wrong printing when the preferred printing is owned.
   // Single highest-signal allocation bug class — every other audit (orphan,
   // double-claim, name mismatch) is covered by the existing rows above.
   const suboptimalPrintings = useMemo(
-    () => (hydrating ? [] : findSuboptimalPrintings(decks, cards)),
-    [decks, cards, hydrating]
+    () => (hydrating ? [] : findSuboptimalPrintings(decks, cards, savedCubes)),
+    [decks, cards, savedCubes, hydrating]
   );
   const fixableCount = useMemo(
     () => suboptimalPrintings.filter((r) => r.preferredFree).length,
@@ -291,7 +293,7 @@ export function AdminPage() {
       {tab === 'overview' && (
         <section className="admin-section">
           <h2>Snapshot</h2>
-          <table className="admin-table">
+          <ScrollTable label="Snapshot" className="admin-table">
             <tbody>
               <tr>
                 <th>Total physical copies (collection)</th>
@@ -363,7 +365,7 @@ export function AdminPage() {
                 </td>
               </tr>
             </tbody>
-          </table>
+          </ScrollTable>
           {(overview.orphan > 0 || overview.nameMismatch > 0 || doubleClaimCount > 0) && (
             <p className="admin-warn">
               Found {overview.orphan} orphan, {overview.nameMismatch} name-mismatched, and{' '}
@@ -380,11 +382,12 @@ export function AdminPage() {
                 <button
                   onClick={() => {
                     const before = suboptimalPrintings.filter((r) => r.preferredFree).length;
-                    remapAllocations(cards);
+                    remapAllAllocations(cards);
                     // decks store mutated synchronously — recompute against it.
                     const after = findSuboptimalPrintings(
                       useDecksStore.getState().decks,
-                      cards
+                      cards,
+                      useCubeStore.getState().saved
                     ).filter((r) => r.preferredFree).length;
                     const healed = before - after;
                     setRemapResult(
@@ -399,7 +402,10 @@ export function AdminPage() {
                 </button>
                 {remapResult && <span className="admin-sub">{remapResult}</span>}
               </div>
-              <table className="admin-table admin-table--dense">
+              <ScrollTable
+                label="Fixable printing slots"
+                className="admin-table admin-table--dense"
+              >
                 <thead>
                   <tr>
                     <th>Deck</th>
@@ -421,7 +427,7 @@ export function AdminPage() {
                       </tr>
                     ))}
                 </tbody>
-              </table>
+              </ScrollTable>
             </>
           )}
           {stuckCount > 0 && (
@@ -437,7 +443,10 @@ export function AdminPage() {
                 would be to steal a copy out of another deck, which you don&apos;t want. Safe to
                 ignore; listed for transparency.
               </p>
-              <table className="admin-table admin-table--dense">
+              <ScrollTable
+                label="Slots on another printing"
+                className="admin-table admin-table--dense"
+              >
                 <thead>
                   <tr>
                     <th>Deck</th>
@@ -459,7 +468,7 @@ export function AdminPage() {
                       </tr>
                     ))}
                 </tbody>
-              </table>
+              </ScrollTable>
             </details>
           )}
         </section>
@@ -541,7 +550,7 @@ export function AdminPage() {
             await wipeThisDevice();
           }}
           onRerunRemap={() => {
-            remapAllocations(cards);
+            remapAllAllocations(cards);
           }}
         />
       )}
@@ -553,6 +562,27 @@ export function AdminPage() {
       <p className="admin-sub admin-footer-note">
         <Link to="/collection">← back to collection</Link>
       </p>
+    </div>
+  );
+}
+
+/**
+ * A wide admin table scrolls sideways inside its own region. The region takes
+ * keyboard focus and a name, so a keyboard user can scroll it and a screen
+ * reader announces what it is (axe scrollable-region-focusable, WCAG 2.1.1).
+ */
+function ScrollTable({
+  label,
+  className,
+  children,
+}: {
+  label: string;
+  className: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="admin-table-scroll" role="region" aria-label={label} tabIndex={0}>
+      <table className={className}>{children}</table>
     </div>
   );
 }
@@ -627,7 +657,7 @@ function DeckDetail({
         {rows.length} total slots · {rows.length - orphans - mismatches - unowned} allocated ·{' '}
         {orphans} orphan · {mismatches} name-mismatch · {unowned} unowned
       </p>
-      <table className="admin-table admin-table--dense">
+      <ScrollTable label={`${deck.name} slots`} className="admin-table admin-table--dense">
         <thead>
           <tr>
             <th>Zone</th>
@@ -661,7 +691,7 @@ function DeckDetail({
             </tr>
           ))}
         </tbody>
-      </table>
+      </ScrollTable>
     </div>
   );
 }
@@ -692,7 +722,7 @@ function StorageTab({
         server except through a normal sync.
       </p>
       <h3>Imports</h3>
-      <table className="admin-table admin-table--dense">
+      <ScrollTable label="Imports" className="admin-table admin-table--dense">
         <thead>
           <tr>
             <th>When</th>
@@ -713,7 +743,7 @@ function StorageTab({
             </tr>
           ))}
         </tbody>
-      </table>
+      </ScrollTable>
 
       <h3>Maintenance</h3>
       <p className="admin-sub">
@@ -806,7 +836,7 @@ function sumBy(rows: EventCountRow[], key: (r: EventCountRow) => string): [strin
 
 function CountTable({ caption, rows }: { caption: string; rows: [string, number][] }) {
   return (
-    <table className="admin-table">
+    <ScrollTable label={caption} className="admin-table">
       <caption>{caption}</caption>
       <tbody>
         {rows.length === 0 && (
@@ -821,7 +851,7 @@ function CountTable({ caption, rows }: { caption: string; rows: [string, number]
           </tr>
         ))}
       </tbody>
-    </table>
+    </ScrollTable>
   );
 }
 
@@ -890,7 +920,7 @@ function ErrorTable({ rows }: { rows: ErrorCountRow[] }) {
   const grouped = groupErrors(rows).slice(0, 50);
   const total = rows.reduce((n, r) => n + r.count, 0);
   return (
-    <table className="admin-table admin-table--dense">
+    <ScrollTable label="Client errors" className="admin-table admin-table--dense">
       <caption>
         Client errors ({total.toLocaleString()} in 30 days, {grouped.length} distinct)
       </caption>
@@ -921,7 +951,7 @@ function ErrorTable({ rows }: { rows: ErrorCountRow[] }) {
           </tr>
         ))}
       </tbody>
-    </table>
+    </ScrollTable>
   );
 }
 
@@ -973,7 +1003,7 @@ function VitalsTable({ rows }: { rows: VitalCountRow[] }) {
   const summary = summarizeVitals(rows);
   const pct = (n: number, of: number) => `${Math.round((n / of) * 100)}%`;
   return (
-    <table className="admin-table admin-table--dense">
+    <ScrollTable label="Core Web Vitals" className="admin-table admin-table--dense">
       <caption>Web vitals by path (failing at p75 first)</caption>
       <thead>
         <tr>
@@ -1004,6 +1034,6 @@ function VitalsTable({ rows }: { rows: VitalCountRow[] }) {
           </tr>
         ))}
       </tbody>
-    </table>
+    </ScrollTable>
   );
 }

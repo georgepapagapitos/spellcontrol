@@ -20,6 +20,7 @@ import type { GameLogEntry } from './game-log';
 import {
   RESISTANCE_LEVELS,
   type ResistanceLevel,
+  type ResistanceOptions,
   type ResistanceState,
 } from '@/playtest/lib/resistance';
 import type { Deck } from '@/store/decks';
@@ -38,6 +39,10 @@ export interface PlaytestSnapshot {
    *  legacy `resistance: boolean` instead — see `normalizeResistanceLevel`. */
   resistanceLevel: ResistanceLevel;
   resistanceState: ResistanceState | null;
+  /** E533: the player's timing and answer choices. Optional on the wire: a
+   *  snapshot saved before it resumes on `LEGACY_RESISTANCE_OPTIONS` (the
+   *  store's `hydrate` does the normalizing, field by field). */
+  resistanceOptions?: ResistanceOptions;
   /** Reducer state minus `past` (the undo stack — too big, not persisted). */
   state: Omit<PlaytestState, 'past'>;
   /** Event journal (E140). Optional on the wire — a snapshot saved before this

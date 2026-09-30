@@ -116,6 +116,21 @@ describe('BuildReportPanel', () => {
     expect(screen.getByText('Brew dial leaned toward deep cuts')).toBeTruthy();
   });
 
+  // E530: a previewed commander builds, and the report flags it.
+  it('flags a previewed commander up front', () => {
+    const { container } = render(
+      <BuildReportPanel
+        report={makeReport({
+          commanderPreviewNote: "Seven of Nine isn't legal until Nov 13, 2026.",
+        })}
+      />
+    );
+    const flags = container.querySelectorAll('.build-report-flag');
+    expect([...flags].map((f) => f.textContent)).toEqual([
+      "Seven of Nine isn't legal until Nov 13, 2026.",
+    ]);
+  });
+
   it('omits the brew-dial note when unset (Balanced default)', () => {
     const { container } = render(<BuildReportPanel report={makeReport()} />);
     expect(container.textContent).not.toContain('Brew dial');

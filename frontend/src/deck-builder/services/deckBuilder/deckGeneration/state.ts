@@ -33,8 +33,8 @@ import type {
 import type { RoleKey } from '@/deck-builder/services/tagger/client';
 import type { SubstituteCandidate } from '@/deck-builder/services/deckBuilder/substituteFinder';
 import { parseSetFromQuery } from '@/deck-builder/services/scryfall/client';
-import { frontFaceName } from '@/lib/card-text';
-import type { BasicPrintingAvail } from '@/lib/collection-availability';
+import { frontFaceName } from '@/lib/cards/card-text';
+import type { BasicPrintingAvail } from '@/lib/collection/collection-availability';
 
 export interface GenerationContext {
   commander: ScryfallCard;

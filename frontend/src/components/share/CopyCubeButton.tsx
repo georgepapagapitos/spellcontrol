@@ -1,8 +1,8 @@
 import { Copy } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { copySharedCube } from '../../lib/copy-shared-cube';
+import { copySharedCube } from '@/lib/social/copy-shared-cube';
 import { toast } from '../../store/toasts';
-import type { PublicCube } from '../../lib/shared-types';
+import type { PublicCube } from '@/lib/social/shared-types';
 import { Button } from '@/components/shared/Button';
 
 interface Props {

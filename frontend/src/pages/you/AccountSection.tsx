@@ -1,11 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
-import { preventFocusSteal } from '@/lib/keyboard';
-import { useSignInPath } from '@/lib/sign-in-path';
+import { preventFocusSteal } from '@/lib/util/keyboard';
+import { useSignInPath } from '@/lib/account/sign-in-path';
 import { useAuth } from '@/store/auth';
 import { toast } from '@/store/toasts';
-import { Modal } from '@/components/Modal';
+import { Modal } from '@/components/overlays/Modal';
 import {
   fetchIdentities,
   googleLinkUrl,
@@ -15,14 +15,14 @@ import {
   unlinkGoogle,
   updatePassword,
   type MyIdentities,
-} from '@/lib/auth-api';
-import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { SyncIndicator } from '@/components/SyncIndicator';
+} from '@/lib/account/auth-api';
+import { ConfirmDialog } from '@/components/overlays/ConfirmDialog';
+import { SyncIndicator } from '@/components/account/SyncIndicator';
 import { getPendingCount } from '@/lib/sync';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsRow } from '@/components/settings/SettingsRow';
 import { SwitchRow } from '@/components/shared/form';
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
 

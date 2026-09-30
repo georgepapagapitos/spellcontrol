@@ -14,7 +14,7 @@
 
 /* ── Header ────────────────────────────────────────────────────────────── */
 
-.public-profile-header {
+.public-profile-header-row {
   display: flex;
   align-items: center;
   gap: var(--space-4);
@@ -134,6 +134,19 @@
   height: 1rem;
 }
 
+.public-profile-skeleton-banner {
+  width: 100%;
+  aspect-ratio: 16 / 5;
+  border-radius: var(--radius-lg);
+}
+
+.public-profile-skeleton-bar--stats {
+  width: 16rem;
+  max-width: 70vw;
+  height: 1rem;
+  margin-top: var(--space-2);
+}
+
 .public-profile-skeleton-tile {
   height: 220px;
   overflow: hidden;
@@ -171,7 +184,7 @@
 }
 
 @media (max-width: 599px) {
-  .public-profile-header {
+  .public-profile-header-row {
     flex-direction: column;
     text-align: center;
   }

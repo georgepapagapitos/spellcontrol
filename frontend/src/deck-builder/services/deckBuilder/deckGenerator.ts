@@ -1,5 +1,5 @@
-import { logger } from '@/lib/logger';
-import { formatMoney } from '@/lib/format-money';
+import { logger } from '@/lib/util/logger';
+import { formatMoney } from '@/lib/collection/format-money';
 import type {
   ScryfallCard,
   GeneratedDeck,
@@ -71,6 +71,7 @@ import {
   notLegalForFormat,
   violatesUserCaps,
   userCapsWithoutPrice,
+  fitsSpellSlot,
 } from './deckFilters';
 import {
   calculateTargetCounts,
@@ -119,10 +120,18 @@ import {
   type SubstituteCandidate,
   type SubstituteRow,
 } from './substituteFinder';
-import { sameType } from '@/lib/card-matching';
+import { sameType } from '@/lib/coach/card-matching';
+import { resolveOwnedCards } from './ownedCardResolution';
+import { pageInclusionOf, weakestFirst } from './ownedShareEviction';
+import {
+  finalDeckMembership,
+  gapsOutsideDeck,
+  survivingSubstitutionRows,
+} from './finalDeckDisclosure';
 import { resolveMultiCopyCards } from './multiCopy';
 import { generateLands, CHANNEL_LAND_BOOST, MDFC_LAND_BOOST } from './landGenerator';
 import { resolveManaPhilosophy } from './manaPhilosophy';
+import { assertCommandersEligible, commanderPreviewNote } from './commanderEligibility';
 import {
   pickEdhrecTypePass,
   bumpRoleAndSubtypeCounts,
@@ -196,7 +205,7 @@ import {
   PROTECTION_PIECE_BOOST,
   FREE_INTERACTION_BOOST,
 } from './deckGeneration/trimResistanceConstants';
-import { frontFaceName } from '@/lib/card-text';
+import { frontFaceName } from '@/lib/cards/card-text';
 
 // Re-exported so existing consumers keep importing from here (stable public API).
 export { calculateStats } from './deckStats';
@@ -408,11 +417,6 @@ export function buildLandCountClampNote(
   return `${lead}, but this deck size ${clause}.${deliveredClause}`;
 }
 
-// A land-count delta this small is routine land-generation rounding (color-
-// balance splits, MDFC handling), not pool exhaustion — see
-// buildPoolExhaustionNote.
-export const POOL_EXHAUSTION_LAND_THRESHOLD = 3;
-
 /**
  * Root-cause-honest disclosure for pool exhaustion (LIVE-CONFIRMED three
  * ways: an invalid Scryfall filter, a thin owned-only pool, and a plain
@@ -425,8 +429,8 @@ export const POOL_EXHAUSTION_LAND_THRESHOLD = 3;
  * ran. Comparing the FINAL delivered land count against `targets.lands` (the
  * pre-generation plan — fixed once by calculateTargetCounts and never
  * mutated afterward) catches the excess regardless of which phase produced
- * it. Undefined when the excess is at/under POOL_EXHAUSTION_LAND_THRESHOLD
- * (routine rounding, not exhaustion).
+ * it. Every extra land is disclosed (E529): the old 3-land "rounding" band
+ * hid real padding, since land generation delivers its planned count exactly.
  */
 export function buildPoolExhaustionNote(params: {
   plannedLandCount: number;
@@ -436,7 +440,7 @@ export function buildPoolExhaustionNote(params: {
   hasCollectionNames: boolean;
 }): string | undefined {
   const excess = params.finalLandCount - params.plannedLandCount;
-  if (excess <= POOL_EXHAUSTION_LAND_THRESHOLD) return undefined;
+  if (excess <= 0) return undefined;
   const cause = params.hasCollectionNames
     ? 'your collection'
     : params.hasScryfallQuery
@@ -1158,6 +1162,19 @@ export function hasExilePayoffIdentity(card: ScryfallCard): boolean {
  * printing-upgrade and fallback fills in lockstep with what was actually fetched.
  */
 export async function generateDeck(context: GenerationContext): Promise<GeneratedDeck> {
+  // E530: an illegal commander refuses to build, naming why, before any fetch.
+  // A previewed one builds, and the deck says it isn't legal until it releases.
+  assertCommandersEligible(context);
+  const deck = await generateDeckForMode(context);
+  const previewNote = commanderPreviewNote(
+    context.commander,
+    context.partnerCommander,
+    context.customization.mtgFormat
+  );
+  return previewNote ? { ...deck, commanderPreviewNote: previewNote } : deck;
+}
+
+async function generateDeckForMode(context: GenerationContext): Promise<GeneratedDeck> {
   const mode = context.customization.generationMode ?? 'edhrec';
   // PDH always sources from the Scryfall alt-pool (EDHREC has no data for
   // non-legendary uncommon commanders), so it takes the force-live path even
@@ -2099,6 +2116,21 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // to the format-legal pool the way the Scryfall searches are, so every
   // phase reusing this gate (coherence repair, flagship seating, bracket/
   // budget convergence, role-surplus rebalance) gets the check for free.
+  // Owned cards by collection name, resolved by printing id and verified to
+  // be the card the collection names (ownedCardResolution.ts). A canonical
+  // name the collection spells another way (a front face only, another
+  // language) joins the owned-name set, so ownership checks see the card that
+  // ships under it; the names are the same owned cards.
+  const resolveOwned = async (names: string[]): Promise<Map<string, ScryfallCard>> => {
+    const pool = new Map((context.collectionPool ?? []).map((e) => [e.name, e]));
+    const entries = names.map((n) => pool.get(n) ?? { name: n, colorIdentity: [] });
+    const { byName, aliases } = await resolveOwnedCards(entries, {
+      arenaOnly,
+      ownedNames: context.collectionNames,
+    });
+    for (const alias of aliases) context.collectionNames?.add(alias);
+    return byName;
+  };
   const isCardAllowedBySynergyDependencies = (card: ScryfallCard) =>
     !notLegalForFormat(card, state.cfg.mtgFormat) &&
     !isUnsupportedSynergyPayoff(card, dependencySupportCards(), dependencyCommanderCount);
@@ -3451,7 +3483,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         if (filled >= shortage) break;
 
         const scryfallCard = fillCardMap.get(edhrecCard.name);
-        if (!scryfallCard) continue;
+        if (!scryfallCard || !fitsSpellSlot(scryfallCard)) continue; // E525: allNonLand holds lands
 
         if (!isCardAllowedBySynergyDependencies(scryfallCard)) continue;
         if (!fitsColorIdentity(scryfallCard, colorIdentity)) continue;
@@ -3512,7 +3544,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           if (usedNames.has(edhrecCard.name)) continue;
 
           const scryfallCard = fillCardMap.get(edhrecCard.name);
-          if (!scryfallCard) continue;
+          if (!scryfallCard || !fitsSpellSlot(scryfallCard)) continue;
 
           if (!isCardAllowedBySynergyDependencies(scryfallCard)) continue;
           if (!fitsColorIdentity(scryfallCard, colorIdentity)) continue;
@@ -3601,6 +3633,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     // escape hatch below rather than silently over-filling the role.
     const ownedCapSkipped: ScryfallCard[] = [];
     const addOwnedCard = (card: ScryfallCard, allowCapOverflow = false): boolean => {
+      if (!fitsSpellSlot(card)) return false; // E525: these fill spell slots
       if (!allowCapOverflow && isOverRoleCap(card, roleTargets, currentRoleCounts)) {
         ownedCapSkipped.push(card);
         return false;
@@ -3658,12 +3691,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         });
         const chosen = plan.rows.slice(0, need);
         if (chosen.length > 0) {
-          const fetched = await getCardsByNames(
-            chosen.map((r) => r.usedName),
-            undefined,
-            undefined,
-            { arenaOnly }
-          );
+          const fetched = await resolveOwned(chosen.map((r) => r.usedName));
           for (const row of chosen) {
             const card = fetched.get(row.usedName);
             if (!card || usedNames.has(card.name)) continue;
@@ -3979,6 +4007,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
 
     const inclusionByName = new Map<string, number>();
     for (const ec of edhrecNonLand) inclusionByName.set(ec.name, ec.inclusion);
+    const inclusionOf = pageInclusionOf(inclusionByName);
 
     // Swap one owned card in for an unowned one. `preferEvict` names the card
     // it was matched against (an owned substitute's staple); otherwise the
@@ -3992,7 +4021,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       preferEvict?: string,
       strictRole = false
     ): boolean => {
-      if (usedNames.has(card.name)) return false;
+      if (usedNames.has(card.name) || !fitsSpellSlot(card)) return false; // E525
       if (!fitsColorIdentity(card, colorIdentity) || isDeadInIdentity(card, colorIdentity)) {
         return false;
       }
@@ -4019,15 +4048,14 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
             : sameKind.length > 0
               ? sameKind
               : swappable;
-      evictPool.sort(
-        (a, b) => (inclusionByName.get(a.name) ?? -1) - (inclusionByName.get(b.name) ?? -1)
-      );
+      // Weakest first, a double-faced card by its front face (ownedShareEviction.ts).
+      const evictOrder = weakestFirst(evictPool, inclusionOf);
       // Role cap only guards a role-CROSSING swap (same-role is net-zero).
       const target = wantedRole ? (roleTargets?.[wantedRole] ?? 0) : 0;
       const roleFull = strictRole
         ? target > 0 && (currentRoleCounts[wantedRole!] ?? 0) >= target
         : isOverRoleCap(card, roleTargets, currentRoleCounts);
-      const evicted = evictPool.find((c) => validateCardRole(c) === wantedRole || !roleFull);
+      const evicted = evictOrder.find((c) => validateCardRole(c) === wantedRole || !roleFull);
       if (!evicted) return false;
 
       // Remove the evicted unowned card (mirrors phaseBudgetConverge's removeCard).
@@ -4082,7 +4110,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         unownedWithRole.push({
           name: c.name,
           price: null,
-          inclusion: inclusionByName.get(c.name) ?? 0,
+          inclusion: Math.max(0, inclusionOf(c.name)),
           synergy: 0,
           typeLine: getFrontFaceTypeLine(c),
           cmc: c.cmc,
@@ -4095,12 +4123,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         inclusionByName,
       });
       if (plan.rows.length > 0) {
-        const fetched = await getCardsByNames(
-          plan.rows.map((r) => r.usedName),
-          undefined,
-          undefined,
-          { arenaOnly }
-        );
+        const fetched = await resolveOwned(plan.rows.map((r) => r.usedName));
         for (const row of plan.rows) {
           if (deficit <= 0) break;
           const card = fetched.get(row.usedName);
@@ -4115,13 +4138,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     if (deficit > 0) {
       const rest = unseated();
       if (rest.length > 0) {
-        const fetched = await getCardsByNames(
-          rest.map((c) => c.name),
-          undefined,
-          undefined,
-          { arenaOnly }
-        );
-        const ranked = [...fetched.values()].sort(
+        const fetched = await resolveOwned(rest.map((c) => c.name));
+        const ranked = [...new Set(fetched.values())].sort(
           (a, b) => (a.edhrec_rank ?? Infinity) - (b.edhrec_rank ?? Infinity)
         );
         for (const card of ranked) {
@@ -4635,7 +4653,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // categories.lands, drifting from the per-card role fields it's supposed to
   // mirror). `currentRoleCounts` itself stays untouched — it's still the live
   // counter driving in-flight picking/fixup decisions during generation.
-  const finalRoleCounts = computeRoleCounts(nonLandCards).roleCounts;
+  const finalRoleRecount = computeRoleCounts(nonLandCards);
+  const finalRoleCounts = finalRoleRecount.roleCounts;
   const stats = await finalStatsPhase(state, saltIndex);
   const { bracketEstimation, deckGrade } = computeGradeAndBracket({
     allCardNames: allDeckCardNames,
@@ -4772,8 +4791,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // WHICH cards came from outside their collection.
   const collectionRelaxedNamesList = [...relaxedNames].filter((n) => finalNames.has(n));
   collectionRelaxedCount = collectionRelaxedNamesList.length;
-  // Keep only substitutions whose owned card survived the audit/fixup passes.
-  const survivingSubstitutions = substitutionRows.filter((r) => finalNames.has(r.usedName));
+  // Substitutions and gaps against the final deck (finalDeckDisclosure.ts).
+  const inFinalDeck = finalDeckMembership(finalNames);
+  const survivingSubstitutions = survivingSubstitutionRows(substitutionRows, inFinalDeck);
 
   // Bounded to the final deck (not the whole lift index) so the build report
   // only explains cards actually in the deck.
@@ -4943,7 +4963,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     categories,
     stats,
     usedThemes,
-    gapAnalysis,
+    gapAnalysis: gapsOutsideDeck(gapAnalysis, inFinalDeck),
     packagePicks: liftPicks?.packagePicks,
     liftPicksNote: liftPicks?.liftPicksNote,
     manabase,
@@ -5004,48 +5024,19 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     roleCounts: roleTargets ? { ...finalRoleCounts } : undefined,
     roleTargets: roleTargets ? { ...roleTargets } : undefined,
     roleTargetBreakdown,
+    // E528: the subtype breakdowns come from the same recount as roleCounts
+    // (computeRoleCounts over the nonland buckets), the one the deck page
+    // runs once the tagger loads. They used to tally the pick-time
+    // card.*Subtype stamps across every category, lands included, so the
+    // stored numbers (card-advantage 22 on Krenko) jumped to the live ones
+    // (5) the moment the tagger arrived.
     ...(roleTargets
-      ? (() => {
-          const rampSub: Record<string, number> = {
-            'mana-producer': 0,
-            'mana-rock': 0,
-            'cost-reducer': 0,
-            ramp: 0,
-          };
-          const removalSub: Record<string, number> = {
-            counterspell: 0,
-            bounce: 0,
-            'spot-removal': 0,
-            removal: 0,
-          };
-          const boardwipeSub: Record<string, number> = { 'bounce-wipe': 0, boardwipe: 0 };
-          const cardDrawSub: Record<string, number> = {
-            tutor: 0,
-            wheel: 0,
-            cantrip: 0,
-            'card-draw': 0,
-            'card-advantage': 0,
-          };
-          for (const cards of Object.values(categories)) {
-            for (const card of cards) {
-              if (card.rampSubtype)
-                rampSub[card.rampSubtype] = (rampSub[card.rampSubtype] || 0) + 1;
-              if (card.removalSubtype)
-                removalSub[card.removalSubtype] = (removalSub[card.removalSubtype] || 0) + 1;
-              if (card.boardwipeSubtype)
-                boardwipeSub[card.boardwipeSubtype] =
-                  (boardwipeSub[card.boardwipeSubtype] || 0) + 1;
-              if (card.cardDrawSubtype)
-                cardDrawSub[card.cardDrawSubtype] = (cardDrawSub[card.cardDrawSubtype] || 0) + 1;
-            }
-          }
-          return {
-            rampSubtypeCounts: rampSub,
-            removalSubtypeCounts: removalSub,
-            boardwipeSubtypeCounts: boardwipeSub,
-            cardDrawSubtypeCounts: cardDrawSub,
-          };
-        })()
+      ? {
+          rampSubtypeCounts: finalRoleRecount.rampSubtypeCounts,
+          removalSubtypeCounts: finalRoleRecount.removalSubtypeCounts,
+          boardwipeSubtypeCounts: finalRoleRecount.boardwipeSubtypeCounts,
+          cardDrawSubtypeCounts: finalRoleRecount.cardDrawSubtypeCounts,
+        }
       : {}),
     swapCandidates,
     deckScore,

@@ -5,8 +5,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { AiSourcesControl } from './AiSourcesControl';
-import { __resetAiStatus } from '../../lib/use-ai-status';
-import { useCurrencyStore } from '../../lib/currency';
+import { __resetAiStatus } from '@/lib/ai/use-ai-status';
+import { useCurrencyStore } from '@/lib/collection/currency';
 
 function stubStatus(optIn: boolean) {
   vi.stubGlobal(

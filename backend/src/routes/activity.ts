@@ -98,6 +98,22 @@ export interface TradeResolvedActivityItem {
   occurredAt: number;
 }
 
+/**
+ * A brewer the caller follows published a deck. Deliberately its own bucket
+ * (`following` in the response), NOT a `recent` kind: `recent` items feed the
+ * nav badge and have no seen-state, so a busy followee would pin the badge on
+ * for a week. This is feed content only and is never counted.
+ */
+export interface FollowedDeckPublishedActivityItem {
+  type: 'followed_deck_published';
+  id: string;
+  slug: string;
+  deckName: string;
+  brewerUsername: string;
+  brewerDisplayName: string | null;
+  occurredAt: number;
+}
+
 export type RecentActivityItem =
   | DirectShareActivityItem
   | FeedbackActivityItem
@@ -347,10 +363,42 @@ async function loadTradeResolved(callerId: string): Promise<TradeResolvedActivit
   }));
 }
 
+/** Live decks published in the last 7 days by accounts the caller follows
+ *  (a moderator-hidden account is left out, like everywhere public). */
+async function loadFollowedPublished(
+  callerId: string
+): Promise<FollowedDeckPublishedActivityItem[]> {
+  const { rows } = await getPool().query<{
+    slug: string;
+    deck_name: string;
+    published_at: string;
+    username: string;
+    display_name: string | null;
+  }>(
+    `SELECT dp.slug, dp.deck_name, dp.published_at, u.username, u.display_name
+       FROM user_follows f
+       JOIN users u ON u.id = f.followee_id AND u.profile_hidden_at IS NULL
+       JOIN deck_publications dp ON dp.user_id = f.followee_id AND dp.unpublished_at IS NULL
+      WHERE f.follower_id = $1 AND dp.published_at > $2
+      ORDER BY dp.published_at DESC
+      LIMIT $3`,
+    [callerId, Date.now() - LIKE_WINDOW_MS, RECENT_SOURCE_CAP]
+  );
+  return rows.map((r) => ({
+    type: 'followed_deck_published',
+    id: `followed_deck_published:${r.slug}`,
+    slug: r.slug,
+    deckName: r.deck_name,
+    brewerUsername: r.username,
+    brewerDisplayName: r.display_name,
+    occurredAt: Number(r.published_at),
+  }));
+}
+
 activityRouter.get('/', requireAuth, activityReadLimiter, async (req: Request, res: Response) => {
   const callerId = req.user!.id;
 
-  const [friendRequests, tradeOffers, directShares, feedback, deckLiked, tradeResolved] =
+  const [friendRequests, tradeOffers, directShares, feedback, deckLiked, tradeResolved, following] =
     await Promise.all([
       loadActionRequired(callerId),
       loadTradeOffers(callerId),
@@ -358,6 +406,7 @@ activityRouter.get('/', requireAuth, activityReadLimiter, async (req: Request, r
       loadFeedback(callerId),
       loadDeckLiked(callerId),
       loadTradeResolved(callerId),
+      loadFollowedPublished(callerId),
     ]);
 
   const actionRequired: ActionRequiredItem[] = [...friendRequests, ...tradeOffers].sort(
@@ -373,5 +422,5 @@ activityRouter.get('/', requireAuth, activityReadLimiter, async (req: Request, r
     .sort((a, b) => b.occurredAt - a.occurredAt)
     .slice(0, RECENT_TOTAL_CAP);
 
-  res.json({ actionRequired, recent });
+  res.json({ actionRequired, recent, following });
 });

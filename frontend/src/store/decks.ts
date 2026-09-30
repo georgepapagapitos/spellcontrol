@@ -1,10 +1,10 @@
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/util/logger';
 import { useSyncExternalStore } from 'react';
 import { create } from 'zustand';
-import { isApplyingServer } from '../lib/applying-server';
-import { track } from '../lib/analytics';
-import { isApplyingAnalysis } from '../lib/applying-analysis';
-import type { AiScope } from '../lib/ai-scope';
+import { isApplyingServer } from '@/lib/sync/applying-server';
+import { track } from '@/lib/util/analytics';
+import { isApplyingAnalysis } from '@/lib/sync/applying-analysis';
+import type { AiScope } from '@/lib/ai/ai-scope';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type {
   ScryfallCard,
@@ -31,15 +31,16 @@ import {
   compareCopyPreference,
   makeDeckAllocationInfo,
   type AllocationInfo,
-} from '../lib/allocations-core';
-import { createIndexedDbStorage } from '../lib/idb-storage';
-import { withTagAdded, withTagRemoved } from '../lib/deck-tags';
+} from '@/lib/collection/allocations-core';
+import { createIndexedDbStorage } from '@/lib/util/idb-storage';
+import { withTagAdded, withTagRemoved } from '@/lib/deck/deck-tags';
 
 const decksIdbStorage = createIndexedDbStorage('spellcontrol-decks');
-import { pickRandomPresetColor } from './../lib/preset-colors';
+import { pickRandomPresetColor } from '@/lib/util/preset-colors';
 import type { EnrichedCard } from '../types';
+import type { SavedCube } from './cube';
 import { toast } from './toasts';
-import { genId } from '../lib/id';
+import { genId } from '@/lib/util/id';
 
 /**
  * Persisted deck shape. Stores full ScryfallCard payloads so a saved deck
@@ -86,7 +87,7 @@ export interface DeckCard {
   /**
    * Manual drag-order position (E172), only meaningful when the deck view's
    * sort mode is 'custom'. `undefined` ("never dragged") sorts by `addedAt`
-   * instead — see `lib/deck-reorder.ts` for the fractional-index math. A
+   * instead — see `lib/deck/deck-reorder.ts` for the fractional-index math. A
    * drag writes this on ONE row only; every other row's ordering is derived,
    * never rewritten.
    */
@@ -233,7 +234,7 @@ export interface Deck {
    * `detectWinConditions`, so it can't move the engine's own scoring. Set
    * only via the panel's per-card toggle (user-confirmed, never automatic).
    * Absent = no tags. Additive, whole-row-synced like `primer` — no
-   * per-field whitelist exists for decks (see `persistKind` in lib/sync.ts).
+   * per-field whitelist exists for decks (see `persistKind` in lib/sync/index.ts).
    */
   winConTags?: string[];
   /**
@@ -305,15 +306,15 @@ export interface Deck {
   /**
    * When the "new arrivals" review (E140) was last dismissed for this deck.
    * Together with `updatedAt`, the later of the two is the window start for
-   * "acquired since" — see `lib/new-arrivals.ts`. Absent = never reviewed.
+   * "acquired since" — see `lib/coach/new-arrivals.ts`. Absent = never reviewed.
    */
   lastArrivalReviewAt?: number;
   /**
-   * Long-form strategy notes, rendered via `lib/markdown-lite.ts` on
+   * Long-form strategy notes, rendered via `lib/util/markdown-lite.ts` on
    * SharedDeckView/DeckFeedbackView (and the future `/d/` page). Edited
    * through `DeckPrimerSheet`; absent = never written. An additive,
    * whole-row-synced field like every other Deck field — no per-field
-   * whitelist exists for decks (see `persistKind` in lib/sync.ts).
+   * whitelist exists for decks (see `persistKind` in lib/sync/index.ts).
    */
   primer?: string;
   /**
@@ -566,8 +567,12 @@ interface DecksState {
   replaceCards(deckId: string, cards: DeckCard[]): void;
 
   /** Re-match all deck allocations against a new collection. Called when the
-   *  collection is replaced so allocatedCopyIds stay valid. */
-  remapAllocations(newCollection: EnrichedCard[]): void;
+   *  collection is replaced so allocatedCopyIds stay valid. `physicalCubes`
+   *  is the saved-cube list: a copy a physical cube holds is never handed to
+   *  a deck slot that needs a new copy. Run `remapAllAllocations`
+   *  (lib/cube/remap-cube-allocations) rather than this alone, so the cubes
+   *  are re-matched after. */
+  remapAllocations(newCollection: EnrichedCard[], physicalCubes: readonly SavedCube[]): void;
 }
 
 // Local-mutation token (E177) — a plain module-level counter per deck id,
@@ -607,7 +612,7 @@ export function useLocalMutationToken(deckId: string): number {
  * changes, undo/redo replay). Bumping the local-mutation token here — rather
  * than each mutator repeating the bump — is what makes "never bumped from a
  * server-apply/hydration path" true by construction: `rehydrateStoresFromIdb`
- * (lib/sync.ts) sets `decks` directly via `setState`, bypassing every mutator
+ * (lib/sync/index.ts) sets `decks` directly via `setState`, bypassing every mutator
  * and thus `touch()` entirely. (The one exception is `remapAllocations`,
  * whose own write is a system pointer-repair rather than a direct user edit —
  * it calls `touchNoToken` below instead.)
@@ -1111,7 +1116,7 @@ export const useDecksStore = create<DecksState>()(
           decks: s.decks.map((d) => (d.id === deckId ? touch({ ...d, cards }) : d)),
         })),
 
-      remapAllocations: (newCollection) =>
+      remapAllocations: (newCollection, physicalCubes) =>
         set((s) => {
           // Stability rule: if a slot's current allocatedCopyId still exists
           // in the new collection and isn't already claimed by an earlier slot,
@@ -1244,7 +1249,7 @@ export const useDecksStore = create<DecksState>()(
             // Considering claims a physical copy too (mirrors sideboard) so a
             // card parked here can't be double-bound by another deck's slot —
             // but it never participates in the cross-deck steal/donor system
-            // (see lib/allocations.ts DonorZone), which stays mainboard/sideboard
+            // (see lib/collection/allocations.ts DonorZone), which stays mainboard/sideboard
             // only. This loop is the passive bookkeeping half only.
             for (const c of deck.considering ?? []) {
               const slotId = c.slotId;
@@ -1315,6 +1320,20 @@ export const useDecksStore = create<DecksState>()(
               removeFromFree(current);
             } else {
               needsPick.push(slot);
+            }
+          }
+
+          // A copy a physical cube holds is not free. A slot that already held
+          // it keeps it (pass 1 above; the deck wins, and the cube remap that
+          // runs next gives the cube another copy or a gap), but passes 2-4
+          // never hand one out. Without this, any collection edit or sync
+          // could quietly move a cube's copy into a deck.
+          for (const cube of physicalCubes) {
+            if (!cube.isPhysical) continue;
+            for (const pick of cube.picks ?? []) {
+              if (!pick.allocatedCopyId || allocated.has(pick.allocatedCopyId)) continue;
+              const copy = byCopyId.get(pick.allocatedCopyId);
+              if (copy && copy.name === pick.card.name) removeFromFree(copy);
             }
           }
 
@@ -1439,7 +1458,7 @@ export const useDecksStore = create<DecksState>()(
           // NOTE (E133): a self-heal used to run here too, but this hook is
           // dead weight — `partialize: () => ({})` below means nothing ever
           // writes to this legacy zustand-persist IDB anymore, and
-          // `deleteLegacyDatabasesOnce()` (lib/sync.ts, called before every
+          // `deleteLegacyDatabasesOnce()` (lib/sync/index.ts, called before every
           // boot's rehydrate) deletes the underlying `spellcontrol-decks` DB,
           // so `state.decks` here is always whatever the empty persisted blob
           // resolves to. Healing now happens once, centrally, in the
@@ -1447,7 +1466,7 @@ export const useDecksStore = create<DecksState>()(
           // sync.ts's rehydrateStoresFromIdb sets real decks onto the store.
         }
       },
-      // Synced data lives in entity-store now and is rehydrated by `lib/sync.ts`.
+      // Synced data lives in entity-store now and is rehydrated by `lib/sync/index.ts`.
       // Persist nothing so zustand-persist no longer races with the sync-driven
       // rehydrate on boot. The persist middleware stays in place so legacy
       // `migrate` continues to run on the old IDB rows during the one boot
@@ -1620,7 +1639,7 @@ export function withAllocationHealDeferred(fn: () => void): void {
  * the decks array — a manual mutation, `remapAllocations`, deck-history
  * undo/redo replay (`replaceDeck`), the cross-deck-move undo path, delete-deck
  * undo, or a cross-device sync rehydrate (`rehydrateStoresFromIdb` in
- * lib/sync.ts, which sets two independent per-row LWW deck blobs onto the
+ * lib/sync/index.ts, which sets two independent per-row LWW deck blobs onto the
  * store with no cross-deck dedupe) — funnels through zustand's `setState`,
  * so this one subscriber is the single chokepoint that enforces "no copyId is
  * claimed by two deck slots" by construction, instead of every call site
@@ -1666,7 +1685,7 @@ useDecksStore.subscribe((state, prev) => {
   // Analysis writes (bracket/grade/gap) are derived/cached data — skip sync so
   // merely opening a deck doesn't enqueue a full persistDecksState for all decks.
   if (isApplyingAnalysis()) return;
-  void import('../lib/sync')
+  void import('@/lib/sync')
     .then((sync) => sync.persistDecksState(state.decks))
     // See store/cube.ts — a swallowed persist rejection is invisible data loss.
     .catch((err) => logger.warn('[store] Failed to persist decks:', err));

@@ -258,6 +258,10 @@
   .choice-dialog-option:hover {
     border-color: var(--accent);
     background: var(--accent-light);
+    --text-muted: var(--text-muted-tint);
+    --text-secondary: var(--text-secondary-tint);
+    --accent: var(--accent-tint);
+    --accent-hover: var(--accent-hover-tint);
   }
 }
 
@@ -292,6 +296,10 @@
 .choice-dialog-option-active {
   border-color: var(--accent);
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   cursor: default;
 }
 
@@ -976,6 +984,10 @@
 .card-edit-printing-row.is-active {
   border-color: var(--accent);
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   color: var(--text-primary);
 }
 
@@ -1091,6 +1103,10 @@
 
 .card-edit-owned-toggle[aria-pressed='true'] {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   border-color: var(--accent);
   color: var(--accent);
 }

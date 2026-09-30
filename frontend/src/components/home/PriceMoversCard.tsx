@@ -2,9 +2,9 @@ import './PriceMoversCard.css';
 import { useEffect, useMemo, useState } from 'react';
 import { TrendingUp } from 'lucide-react';
 import { useCollectionStore } from '../../store/collection';
-import { useCurrency } from '../../lib/currency';
-import { formatMoney } from '../../lib/format-money';
-import { useCardThumb } from '../../lib/card-thumbs';
+import { useCurrency } from '@/lib/collection/currency';
+import { formatMoney } from '@/lib/collection/format-money';
+import { useCardThumb } from '@/lib/cards/card-thumbs';
 import {
   dayKey,
   daysBetween,
@@ -12,7 +12,7 @@ import {
   getLatestMovers,
   onValueHistoryChange,
   type MoverRecord,
-} from '../../lib/value-history';
+} from '@/lib/collection/value-history';
 import { HomeCard } from './HomeCard';
 
 const DISPLAY_LIMIT = 4;

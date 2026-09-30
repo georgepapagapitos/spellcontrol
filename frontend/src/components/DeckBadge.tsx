@@ -1,7 +1,7 @@
 import { Layers, Boxes } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import type { AllocationInfo } from '../lib/allocations';
-import type { CubeListing } from '../lib/cube-listings';
+import type { AllocationInfo } from '@/lib/collection/allocations';
+import type { CubeListing } from '@/lib/cube/cube-listings';
 import { ArtBadge } from '@/components/shared/ArtBadge';
 import './DeckBadge.css';
 
@@ -132,6 +132,7 @@ function OwnerBadge({
       style={style}
       title={label}
       aria-label={label}
+      role="img"
     >
       <Icon width={11} height={11} strokeWidth={2} aria-hidden />
       {multi && (

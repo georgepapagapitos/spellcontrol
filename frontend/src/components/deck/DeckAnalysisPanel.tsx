@@ -10,7 +10,7 @@ import {
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Gauge, Plus } from 'lucide-react';
 import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
 import { getCardByName } from '@/deck-builder/services/scryfall/client';
-import { useCollapsedPref } from '@/lib/use-collapsed-pref';
+import { useCollapsedPref } from '@/lib/util/use-collapsed-pref';
 import {
   fetchCommanderData,
   fetchCommanderThemeData,
@@ -18,30 +18,30 @@ import {
   fetchPartnerThemeData,
 } from '@/deck-builder/services/edhrec/client';
 import type { EDHRECCard, EDHRECTheme } from '@/deck-builder/types';
-import { useTaggerReady } from '@/lib/use-tagger-ready';
+import { useTaggerReady } from '@/lib/cards/use-tagger-ready';
 import {
   analyzeDeck,
   classifyCandidate,
   type DeckAnalysisResult,
   type RoleHealth,
-} from '../../lib/deck-analysis';
+} from '@/lib/deck-analysis/deck-analysis';
 import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
 import { useCubeStore } from '../../store/cube';
-import { buildAllocationMap, pickCollectionCopy } from '../../lib/allocations';
-import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
-import { buildCardImageIndex, buildCardIndex } from '../../lib/deck-card-index';
-import { useCardThumb } from '../../lib/card-thumbs';
-import { classifyInclusion } from '../../lib/inclusion-label';
+import { buildAllocationMap, pickCollectionCopy } from '@/lib/collection/allocations';
+import { scryfallToEnrichedCard } from '@/lib/cards/scryfall-to-enriched';
+import { buildCardImageIndex, buildCardIndex } from '@/lib/deck-analysis/deck-card-index';
+import { useCardThumb } from '@/lib/cards/card-thumbs';
+import { classifyInclusion } from '@/lib/deck-analysis/inclusion-label';
 import type { EnrichedCard } from '../../types';
-import { CardPreview } from '../CardPreview';
-import { Tabs } from '../Tabs';
-import { SelectMenu, type SelectOption } from '../SelectMenu';
+import { CardPreview } from '@/components/card/CardPreview';
+import { Tabs } from '@/components/overlays/Tabs';
+import { SelectMenu, type SelectOption } from '@/components/overlays/SelectMenu';
 import { OwnershipBadge } from './OwnershipBadge';
 import { Chip } from '@/components/shared/Chip';
 import { Surface } from '@/components/shared/Surface';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 export interface DeckAnalysisPanelHandle {
   /** Expand the panel, scroll it into view, and focus the diagnosis header. */
   reveal(): void;
@@ -250,7 +250,7 @@ function RoleRow({ role }: { role: RoleHealth }) {
       <header className="deck-analysis-role-header">
         <Icon width={14} height={14} aria-hidden />
         <span className="deck-analysis-role-label">{role.label}</span>
-        <span className="deck-analysis-role-count" aria-label={`${role.count} cards`}>
+        <span className="deck-analysis-role-count" aria-label={`${role.count} cards`} role="group">
           {role.count}
           <span className="deck-analysis-role-target">
             {' / '}
@@ -635,7 +635,7 @@ function SuggestionsSection({
         </ul>
       )}
 
-      <p className="deck-analysis-suggest-hint" aria-label={`Deck ${deckId.slice(0, 6)}`}>
+      <p className="deck-analysis-suggest-hint">
         {themeSlug
           ? `${themes.find((t) => t.slug === themeSlug)?.name ?? themeSlug} picks, matched to your deck.`
           : "EDHREC's top cards for this commander, matched to your deck."}

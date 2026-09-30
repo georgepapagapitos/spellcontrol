@@ -2,11 +2,11 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { SharedCardTile } from './SharedCardTile';
-import type { PublicCard } from '../../lib/shared-types';
+import type { PublicCard } from '@/lib/social/shared-types';
 
 // The tile resolves art by name through the card cache when the projection
 // carries no image; the network is not the subject here.
-vi.mock('../../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
 function pc(over: Partial<PublicCard> = {}): PublicCard {
   return {
@@ -35,7 +35,7 @@ describe('SharedCardTile', () => {
     // markup here, the shared views start drifting from /collection again.
     render(<SharedCardTile card={pc()} quantity={2} onClick={() => {}} />);
     const tile = screen.getByRole('button', { name: /sol ring/i });
-    expect(tile.className).toContain('collection-grid-item');
+    expect(tile.closest('.collection-grid-item')).not.toBeNull();
   });
 
   it('captions the price and the ×qty chip by default', () => {

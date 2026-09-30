@@ -22,7 +22,7 @@ vi.mock('../store/decks', () => ({
 vi.mock('../store/auth', () => ({
   useAuth: <T,>(selector: (s: { status: string }) => T): T => selector({ status: 'authed' }),
 }));
-vi.mock('../lib/sync', () => ({ isOnline: () => true, onSyncedChange: () => () => {} }));
+vi.mock('@/lib/sync', () => ({ isOnline: () => true, onSyncedChange: () => () => {} }));
 vi.mock('@/deck-builder/services/edhrec/client', () => ({
   fetchCommanderData: () => Promise.resolve(null),
   fetchPartnerCommanderData: () => Promise.resolve(null),
@@ -55,6 +55,7 @@ const krenko = {
   color_identity: ['R'],
   type_line: 'Legendary Creature — Goblin Warrior',
   oracle_text: '{T}: Create X 1/1 red Goblin creature tokens.',
+  legalities: { commander: 'legal' },
 } as unknown as ScryfallCard;
 
 const before = (a: Element, b: Element) =>

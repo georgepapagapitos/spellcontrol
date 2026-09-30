@@ -1,6 +1,6 @@
-import { isClockPaused, type GameState } from '../../lib/game-state';
-import { describeClock, formatClock, msToNextSecond, seatTurnTotals } from '../../lib/game-clock';
-import { useNow } from '../../lib/use-now';
+import { isClockPaused, type GameState } from '@/lib/play/game-state';
+import { describeClock, formatClock, msToNextSecond, seatTurnTotals } from '@/lib/play/game-clock';
+import { useNow } from '@/lib/util/use-now';
 
 /**
  * How long each seat has held the turn, longest first.
@@ -48,7 +48,7 @@ export function TurnTimes({ game }: { game: GameState }) {
                 style={{ ['--fill' as never]: longest > 0 ? ms / longest : 0 }}
               />
             </span>
-            <span className="turn-times-value" aria-label={describeClock(ms)}>
+            <span className="turn-times-value" aria-label={describeClock(ms)} role="img">
               {formatClock(ms)}
             </span>
           </li>

@@ -1,10 +1,10 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useAuth } from './auth';
-import * as authApi from '../lib/auth-api';
-import type { Profile } from '../lib/auth-api';
-import * as sync from '../lib/sync';
-import { hasEverVisited } from '../lib/first-run';
+import * as authApi from '@/lib/account/auth-api';
+import type { Profile } from '@/lib/account/auth-api';
+import * as sync from '@/lib/sync';
+import { hasEverVisited } from '@/lib/home/first-run';
 
 const EMPTY_PROFILE: Profile = {
   displayName: null,
@@ -12,6 +12,8 @@ const EMPTY_PROFILE: Profile = {
   avatarCardId: null,
   avatarCardName: null,
   avatarImageUrl: null,
+  pinnedDeckSlug: null,
+  showGameRecord: false,
 };
 
 beforeEach(() => {

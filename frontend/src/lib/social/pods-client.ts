@@ -1,0 +1,302 @@
+import { apiUrl } from '@/lib/api/api-base';
+
+export type PodMemberStatus = 'invited' | 'member';
+
+export interface Pod {
+  id: string;
+  name: string;
+  ownerUserId: string;
+  ownerUsername: string;
+  createdAt: number;
+  myStatus: PodMemberStatus;
+  memberCount: number;
+}
+
+async function readError(res: Response, fallback: string): Promise<string> {
+  try {
+    const body = (await res.json()) as { error?: string };
+    return body?.error ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+export async function listPods(): Promise<Pod[]> {
+  const res = await fetch(apiUrl('/api/pods'), { credentials: 'include' });
+  if (!res.ok) {
+    throw new Error(
+      await readError(res, "Couldn't load your pods. Check your connection and try again.")
+    );
+  }
+  const body = (await res.json()) as { pods: Pod[] };
+  return body.pods;
+}
+
+export async function createPod(name: string): Promise<Pod> {
+  const res = await fetch(apiUrl('/api/pods'), {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) {
+    throw new Error(await readError(res, "Couldn't create the pod. Try again."));
+  }
+  const body = (await res.json()) as { pod: Pod };
+  return body.pod;
+}
+
+/** Invite friends to an existing pod — the create flow's optional invite
+ *  step, and reused unchanged by the pod hub page's "Invite more" control. */
+export async function invitePodMembers(
+  podId: string,
+  userIds: string[]
+): Promise<{ invited: string[] }> {
+  const res = await fetch(apiUrl(`/api/pods/${encodeURIComponent(podId)}/invites`), {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userIds }),
+  });
+  if (!res.ok) {
+    throw new Error(await readError(res, "Couldn't send those invites. Try again."));
+  }
+  return (await res.json()) as { invited: string[] };
+}
+
+export async function acceptPodInvite(podId: string): Promise<void> {
+  const res = await fetch(apiUrl(`/api/pods/${encodeURIComponent(podId)}/accept`), {
+    method: 'POST',
+    credentials: 'include',
+  });
+  if (!res.ok) {
+    throw new Error(await readError(res, "Couldn't accept the invite. Try again."));
+  }
+}
+
+export async function declinePodInvite(podId: string): Promise<void> {
+  const res = await fetch(apiUrl(`/api/pods/${encodeURIComponent(podId)}/decline`), {
+    method: 'POST',
+    credentials: 'include',
+  });
+  if (!res.ok && res.status !== 204) {
+    throw new Error(await readError(res, "Couldn't decline the invite. Try again."));
+  }
+}
+
+export async function leavePod(podId: string): Promise<void> {
+  const res = await fetch(apiUrl(`/api/pods/${encodeURIComponent(podId)}/members/me`), {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+  if (!res.ok && res.status !== 204) {
+    throw new Error(await readError(res, "Couldn't leave the pod. Try again."));
+  }
+}
+
+/** Pods awaiting the caller's reply — computed client-side from the
+ *  already-fetched `GET /api/pods` response, the same shape as
+ *  GameNights.tsx's own `pendingInviteCount`. Feeds the "Pods" nav badge. */
+export function pendingPodInviteCount(pods: Pod[]): number {
+  return pods.filter((p) => p.myStatus === 'invited').length;
+}
+
+/** Thrown by getPod() on 404 — the same stealth 404 the server returns for a
+ *  bad id and for a caller with no row on a real pod alike. */
+export class PodNotFoundError extends Error {
+  constructor() {
+    super('Pod not found.');
+    this.name = 'PodNotFoundError';
+  }
+}
+
+export interface PodMember {
+  userId: string;
+  username: string;
+  status: PodMemberStatus;
+  joinedAt: number | null;
+}
+
+/** GET /api/pods/:id — the hub page's full detail, roster included. */
+export interface PodDetail {
+  id: string;
+  name: string;
+  ownerUserId: string;
+  ownerUsername: string;
+  createdAt: number;
+  myStatus: PodMemberStatus;
+  members: PodMember[];
+}
+
+export async function getPod(id: string): Promise<PodDetail> {
+  const res = await fetch(apiUrl(`/api/pods/${encodeURIComponent(id)}`), {
+    credentials: 'include',
+  });
+  if (res.status === 404) {
+    throw new PodNotFoundError();
+  }
+  if (!res.ok) {
+    throw new Error(
+      await readError(res, "Couldn't load this pod. Check your connection and try again.")
+    );
+  }
+  return (await res.json()) as PodDetail;
+}
+
+/** Owner-only rename. Returns the server-trimmed name (not just the caller's
+ *  input) so the hub page reflects exactly what was stored. */
+export async function renamePod(id: string, name: string): Promise<string> {
+  const res = await fetch(apiUrl(`/api/pods/${encodeURIComponent(id)}`), {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) {
+    throw new Error(await readError(res, "Couldn't rename the pod. Try again."));
+  }
+  const body = (await res.json()) as { pod: Pod };
+  return body.pod.name;
+}
+
+/** Owner-only hard delete. */
+export async function deletePod(id: string): Promise<void> {
+  const res = await fetch(apiUrl(`/api/pods/${encodeURIComponent(id)}`), {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+  if (!res.ok && res.status !== 204) {
+    throw new Error(await readError(res, "Couldn't delete the pod. Try again."));
+  }
+}
+
+/** Owner-only removal of a member (or a still-pending invitee) by id. */
+export async function removePodMember(id: string, userId: string): Promise<void> {
+  const res = await fetch(
+    apiUrl(`/api/pods/${encodeURIComponent(id)}/members/${encodeURIComponent(userId)}`),
+    { method: 'DELETE', credentials: 'include' }
+  );
+  if (!res.ok && res.status !== 204) {
+    throw new Error(await readError(res, "Couldn't remove that member. Try again."));
+  }
+}
+
+/** One seat in a pod's shared-history game. `userId`/`username` are always
+ *  null here — the server nulls every seat's account identity before this
+ *  ever reaches the client (see backend/src/routes/pod-stats.ts); only the
+ *  in-game `name` is safe to render. */
+export interface PodGameParticipant {
+  seat: number;
+  userId: null;
+  username: null;
+  name: string;
+  deckId: string | null;
+  deckName: string | null;
+  commander: string | null;
+  colorIdentity: string[];
+  finalLife: number;
+  eliminated: boolean;
+}
+
+/** GET /api/pods/:id/games response row. Deliberately carries no account
+ *  identity at all: the server projects this through an allowlist that omits
+ *  the game's `winnerUserId` and its join `code` outright (see
+ *  backend/src/routes/pod-stats.ts). Resolve the winner's display name via
+ *  `winnerSeat` against `participants`. */
+export interface PodGameResult {
+  sessionId: string;
+  format: string;
+  startingLife: number;
+  winnerSeat: number | null;
+  startedAt: number | null;
+  endedAt: number;
+  durationMs: number;
+  participants: PodGameParticipant[];
+}
+
+export async function fetchPodGames(id: string): Promise<PodGameResult[]> {
+  const res = await fetch(apiUrl(`/api/pods/${encodeURIComponent(id)}/games`), {
+    credentials: 'include',
+  });
+  if (!res.ok) {
+    throw new Error(
+      await readError(res, "Couldn't load the pod's game history. Try again in a moment.")
+    );
+  }
+  const body = (await res.json()) as { games: PodGameResult[] };
+  return body.games;
+}
+
+/** One row of GET /api/pods/:id/leaderboard — already sorted by the server
+ *  (wins desc, then win rate desc). */
+export interface PodStanding {
+  userId: string;
+  username: string;
+  played: number;
+  wins: number;
+  winRate: number;
+  /**
+   * Games carrying a derived summary — the denominator for the three fields
+   * below, and deliberately NOT `played`: games recorded before summaries
+   * existed are absent data. **`ratedGames === 0` renders as "—", never as
+   * 0**, or a pod's whole pre-summary history reads as "nobody ever drew
+   * first blood".
+   */
+  ratedGames: number;
+  /** Mean finishing position over rated games. Null when none produced one. */
+  avgPlacement: number | null;
+  /** Games where they drew first blood. */
+  firstBlood: number;
+  /** Eliminations credited to them (turn-marker heuristic). */
+  kos: number;
+}
+
+/**
+ * The pod's superlatives. Every field is null until the pod has games carrying
+ * the relevant data — `archenemy` in particular stays null for a pod that
+ * never passes turns, since KO credit is turn-marker derived. Render a null as
+ * absent, not as a zero.
+ */
+export interface PodRecords {
+  firstBlood: { userId: string; username: string; games: number; rate: number } | null;
+  mostKos: { userId: string; username: string; kos: number } | null;
+  /**
+   * Best win rate when on the play. Null until someone clears the server's
+   * small-sample floor on recorded starts — a pod that never taps the
+   * first-player tool never earns this one at all, which is absent data and
+   * must read as absent.
+   */
+  onThePlay: { userId: string; username: string; wins: number; starts: number } | null;
+  archenemy: {
+    killerId: string;
+    killerName: string;
+    victimId: string;
+    victimName: string;
+    kos: number;
+  } | null;
+}
+
+export interface PodLeaderboard {
+  standings: PodStanding[];
+  records: PodRecords;
+}
+
+const NO_RECORDS: PodRecords = {
+  firstBlood: null,
+  mostKos: null,
+  onThePlay: null,
+  archenemy: null,
+};
+
+export async function fetchPodLeaderboard(id: string): Promise<PodLeaderboard> {
+  const res = await fetch(apiUrl(`/api/pods/${encodeURIComponent(id)}/leaderboard`), {
+    credentials: 'include',
+  });
+  if (!res.ok) {
+    throw new Error(await readError(res, "Couldn't load the leaderboard. Try again in a moment."));
+  }
+  const body = (await res.json()) as Partial<PodLeaderboard>;
+  // `records` is absent when talking to a backend that predates it — treat
+  // that as "no superlatives", the same as a pod that hasn't earned any.
+  return { standings: body.standings ?? [], records: body.records ?? NO_RECORDS };
+}

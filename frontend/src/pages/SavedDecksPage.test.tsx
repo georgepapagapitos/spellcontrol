@@ -9,20 +9,20 @@ import { render, screen, waitFor, fireEvent, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { useAuth } from '../store/auth';
-import type { DiscoverDeck } from '../lib/discover-client';
+import type { DiscoverDeck } from '@/lib/discover/discover-client';
 
 const { listBookmarkedDecksMock, unbookmarkDeckMock } = vi.hoisted(() => ({
   listBookmarkedDecksMock: vi.fn(),
   unbookmarkDeckMock: vi.fn(),
 }));
-vi.mock('../lib/discover-client', () => ({
+vi.mock('@/lib/discover/discover-client', () => ({
   listBookmarkedDecks: listBookmarkedDecksMock,
   unbookmarkDeck: unbookmarkDeckMock,
   bookmarkDeck: vi.fn(),
   likeDeck: vi.fn(),
   unlikeDeck: vi.fn(),
 }));
-vi.mock('../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
 import { SavedDecksPage } from './SavedDecksPage';
 

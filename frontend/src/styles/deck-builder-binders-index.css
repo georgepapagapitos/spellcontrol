@@ -24,7 +24,7 @@
   }
 }
 
-/* The page header is components/PageHeader.tsx; its layout lives in
+/* The page header is components/app-shell/PageHeader.tsx; its layout lives in
    binder-hero.css. Don't redefine it here. */
 
 .binders-index-subtitle {
@@ -165,14 +165,15 @@
   border-top-right-radius: 0;
 }
 
-/* Name is the colored header band. White text + shadow stays legible
-   on any user-chosen binder color (pale gold through dark purple).
+/* Name is the colored header band. Its ink is picked from the band's own
+   colour (--binder-ink, see lib/util/ink.ts), so it stays legible on any
+   user-chosen binder color (pale gold through dark purple); an uncoloured
+   tile falls back to the accent and its --on-accent pair.
    Right padding clears the absolutely-positioned 3-dot menu: the button, its
    inset from the edge, and a gap. */
 .binders-index-list.is-grid .binders-index-card-name {
   background: var(--binder-color, var(--accent));
-  color: #fff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+  color: var(--binder-ink, var(--on-accent));
   font-size: var(--text-lg);
   padding: var(--space-3) calc(var(--menu-btn) + var(--space-2) + var(--space-1)) var(--space-3)
     var(--space-4);

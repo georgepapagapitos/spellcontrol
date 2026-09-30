@@ -1,0 +1,239 @@
+/* BrewerCard: art banner, overlapping avatar, identity, stats, top commander,
+   colour bar. One link for the whole card. See style-guide/social.md
+   Brewer cards and the Brewers tab. */
+
+.brewer-card {
+  --brewer-avatar: 56px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+}
+
+.brewer-card--featured {
+  --brewer-avatar: 72px;
+}
+
+.brewer-card--row {
+  --brewer-avatar: 44px;
+}
+
+.brewer-card-link {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.brewer-card-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* The banner's frame. It is not clipped, so the avatar can hang over its
+   lower edge; the banner inside clips the art. */
+.brewer-card-media {
+  position: relative;
+  display: block;
+}
+
+/* Reserved 16:9 box: the size never waits for the image. */
+.brewer-card-banner {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: var(--surface-raised);
+}
+
+.brewer-card-art,
+.brewer-card-fallback {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* The same flat accent field the deck tiles fall back to. */
+.brewer-card-fallback {
+  background: var(--accent);
+}
+
+/* Always-dark scrim at the banner foot (STYLE_GUIDE § On-art scrims): it
+   seats the avatar's ring on any art, in both themes. */
+.brewer-card-banner::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 45%;
+  background: linear-gradient(to top, var(--art-scrim), transparent);
+  pointer-events: none;
+}
+
+.brewer-card--skeleton .brewer-card-banner::after {
+  content: none;
+}
+
+.brewer-card-avatar {
+  position: absolute;
+  bottom: 0;
+  inset-inline-start: var(--space-3);
+  display: block;
+  line-height: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px var(--surface-raised);
+  transform: translateY(50%);
+}
+
+.brewer-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  /* clears the lower half of the avatar that hangs over the banner */
+  padding: calc(var(--space-3) + var(--brewer-avatar) / 2) var(--space-3) var(--space-3);
+}
+
+.brewer-card-name {
+  overflow: hidden;
+  font-size: var(--text-base);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.brewer-card-handle,
+.brewer-card-stats,
+.brewer-card-commander {
+  overflow: hidden;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.brewer-card-stats {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .brewer-card-link:hover .brewer-card-name {
+    text-decoration: underline;
+  }
+}
+
+.brewer-card .color-identity-bar {
+  margin-top: auto;
+}
+
+/* ── Featured: banner left, body right on wide; stacked on a phone ───── */
+
+.brewer-card--featured .brewer-card-name {
+  font-size: var(--text-lg);
+}
+
+@media (min-width: 600px) {
+  .brewer-card--featured .brewer-card-link {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    grid-template-rows: 1fr auto;
+  }
+
+  .brewer-card--featured .brewer-card-media {
+    grid-row: 1 / 3;
+  }
+
+  .brewer-card--featured .brewer-card-banner {
+    height: 100%;
+    aspect-ratio: auto;
+    min-height: 13rem;
+  }
+
+  /* Over the art, not straddling its edge (the banner meets the card edge). */
+  .brewer-card--featured .brewer-card-avatar {
+    bottom: var(--space-3);
+    transform: none;
+  }
+
+  .brewer-card--featured .brewer-card-body {
+    align-self: center;
+    padding: var(--space-4);
+  }
+
+  .brewer-card--featured .color-identity-bar {
+    grid-column: 2;
+  }
+}
+
+/* ── Row: avatar left of the text, no banner ─────────────────────────── */
+
+.brewer-card--row .brewer-card-link {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  min-height: 3.5rem;
+}
+
+.brewer-card--row .brewer-card-avatar {
+  position: static;
+  flex-shrink: 0;
+  transform: none;
+  box-shadow: none;
+}
+
+.brewer-card--row .brewer-card-body {
+  padding: 0;
+}
+
+/* ── Skeleton: the same boxes, no content ────────────────────────────── */
+
+.brewer-card-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--surface-raised) 25%,
+    var(--border) 50%,
+    var(--surface-raised) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer calc(var(--motion-drawer) * 3) ease-in-out infinite;
+}
+
+.brewer-card--skeleton .brewer-card-body {
+  gap: var(--space-2);
+  /* real cards carry name, handle-or-stats and commander lines */
+  min-height: 6.5rem;
+}
+
+.brewer-card--row.brewer-card--skeleton {
+  min-height: 3.5rem;
+}
+
+.brewer-card--row.brewer-card--skeleton .brewer-card-body {
+  padding: var(--space-3);
+}
+
+.brewer-card-bar {
+  display: block;
+  width: 70%;
+  height: 0.75rem;
+  border-radius: var(--radius);
+}
+
+.brewer-card-bar--short {
+  width: 45%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brewer-card-shimmer {
+    animation: none;
+  }
+}

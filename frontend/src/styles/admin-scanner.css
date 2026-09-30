@@ -42,15 +42,21 @@
   margin: var(--space-5) 0 var(--space-1-5);
   font-size: var(--text-base);
 }
-.admin-table {
-  width: 100%;
-  /* Internal admin tool: some sections (allocations, raw collection rows)
-     run wider than a phone viewport. Scroll the table itself rather than
-     letting it force horizontal scroll on the whole page (the 320px
-     no-overflow floor still applies even to an internal-only surface). */
-  display: block;
+/* Internal admin tool: some sections (allocations, raw collection rows) run
+   wider than a phone viewport. The table scrolls inside its own region rather
+   than forcing horizontal scroll on the whole page (the 320px no-overflow
+   floor still applies even to an internal-only surface). The region is
+   focusable (AdminPage ScrollTable), so a keyboard can scroll it too. */
+.admin-table-scroll {
   overflow-x: auto;
   overflow-y: hidden;
+}
+.admin-table-scroll:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.admin-table {
+  width: 100%;
   border-collapse: collapse;
   font-size: var(--text-sm);
 }
@@ -149,6 +155,10 @@
 }
 .admin-deck-link.is-active {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   color: var(--accent);
 }
 .admin-deck-name {
@@ -210,6 +220,10 @@
 @media (hover: hover) and (pointer: fine) {
   .admin-raw-actions button:hover {
     background: var(--accent-light);
+    --text-muted: var(--text-muted-tint);
+    --text-secondary: var(--text-secondary-tint);
+    --accent: var(--accent-tint);
+    --accent-hover: var(--accent-hover-tint);
     color: var(--accent);
   }
 }
@@ -872,6 +886,10 @@
 }
 .scan-row.is-selected {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
 }
 .scan-row-main {
   position: relative;

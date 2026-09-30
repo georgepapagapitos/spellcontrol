@@ -1,4 +1,4 @@
-import { apiUrl } from '../api-base';
+import { apiUrl } from '@/lib/api/api-base';
 import {
   getOfflineDataStats,
   readManifest,
@@ -6,7 +6,7 @@ import {
   writeStandaloneCombosVersion,
 } from './db';
 import { importCombos } from './combos-import';
-import { logger } from '../logger';
+import { logger } from '@/lib/util/logger';
 
 /**
  * Ensure the global combo dataset is cached in the device-local offline DB so

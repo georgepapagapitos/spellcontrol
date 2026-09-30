@@ -1,0 +1,65 @@
+import { Modal } from './Modal';
+import { haptics } from '@/lib/util/haptics';
+import { Button } from '@/components/shared/Button';
+
+interface Props {
+  title: string;
+  body: string;
+  confirmLabel?: string;
+  /** Defaults to "Cancel"; override for a two-option choice that isn't a veto
+   *  (e.g. "Start fresh" alongside a "Resume" confirm). */
+  cancelLabel?: string;
+  danger?: boolean;
+  /** Backdrop class, e.g. `modal-backdrop--over-sheet` for a confirm raised
+   *  from inside the full-screen scanner, which sits above the modal tier. */
+  backdropClassName?: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+export function ConfirmDialog({
+  title,
+  body,
+  confirmLabel = 'Confirm',
+  cancelLabel = 'Cancel',
+  danger = false,
+  backdropClassName,
+  onConfirm,
+  onCancel,
+}: Props) {
+  return (
+    <Modal
+      onClose={onCancel}
+      labelledBy="confirm-dialog-title"
+      backdropClassName={backdropClassName}
+    >
+      <h2 id="confirm-dialog-title" className="choice-dialog-title">
+        {title}
+      </h2>
+      <p className="choice-dialog-body">{body}</p>
+      <div className="choice-dialog-actions">
+        {/* A destructive confirm defaults to the safe choice: Cancel takes
+            focus, so a reflexive Enter/Space on the dialog that just appeared
+            backs out instead of destroying. Benign confirms keep the confirm
+            button focused — matching the platform convention for alerts. */}
+        <Button onClick={onCancel} autoFocus={danger}>
+          {cancelLabel}
+        </Button>
+        <Button
+          variant={danger ? 'danger' : 'primary'}
+          onClick={() => {
+            // Destructive confirms get the warning cue at the moment of
+            // commitment, mirroring Play's semantics (mulligan buzzes on the
+            // press that destroys, not on the mere possibility). Benign
+            // confirms (danger=false) stay silent.
+            if (danger) haptics.warning();
+            onConfirm();
+          }}
+          autoFocus={!danger}
+        >
+          {confirmLabel}
+        </Button>
+      </div>
+    </Modal>
+  );
+}

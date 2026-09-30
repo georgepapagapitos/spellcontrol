@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
-import { flushSync } from 'react-dom';
+import { createPortal, flushSync } from 'react-dom';
 import './CtxMenuShell.css';
-import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
-import { useMenuKeyboard } from '@/lib/use-menu-keyboard';
-import { useSheetExit } from '@/lib/use-sheet-exit';
-import { getSafeViewport } from '@/lib/popover-placement';
-import { markMenuTarget } from '@/lib/context-menu';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useMenuKeyboard } from '@/lib/overlays/use-menu-keyboard';
+import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
+import { getSafeViewport } from '@/lib/overlays/popover-placement';
+import { markMenuTarget } from '@/lib/overlays/context-menu';
 import { Button } from '@/components/shared/Button';
 
 /** Every role a row inside this shell can carry — a plain action, a toggle,
@@ -147,7 +147,7 @@ export function CtxMenuShell({
   }, [variant, clamped, contentKey]);
 
   if (variant === 'sheet') {
-    return (
+    return createPortal(
       <div className="card-picker-root">
         {/* The backdrop fully covers the root (both `inset: 0`), so it — not
             root — is what a "click outside the sheet" actually lands on. */}
@@ -171,11 +171,12 @@ export function CtxMenuShell({
             <Button onClick={() => beginClose()}>Close</Button>
           </div>
         </div>
-      </div>
+      </div>,
+      document.body
     );
   }
 
-  return (
+  return createPortal(
     <>
       <div
         className="ctx-menu__backdrop"
@@ -218,6 +219,7 @@ export function CtxMenuShell({
       >
         {children}
       </div>
-    </>
+    </>,
+    document.body
   );
 }

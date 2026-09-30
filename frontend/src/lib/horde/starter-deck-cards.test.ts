@@ -5,7 +5,7 @@ import { useStarterDeckCardNames } from './starter-deck-cards';
 import type { DeckImportResponse, ProductResolveResponse } from '../../types';
 
 const fetchProduct = vi.fn();
-vi.mock('../api', () => ({
+vi.mock('@/lib/api', () => ({
   fetchProduct: (...args: unknown[]) => fetchProduct(...args),
 }));
 

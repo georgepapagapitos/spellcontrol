@@ -1,6 +1,6 @@
 // EDHREC card-pool selection: priority scoring and the two prefetched-map
 // pickers (flat + curve-aware). Extracted verbatim from deckGenerator.ts.
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/util/logger';
 import type { ScryfallCard, EDHRECCard, MaxRarity, CollectionStrategy } from '@/deck-builder/types';
 import { getCardPrice, getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { hasCurveRoom } from './curveUtils';
@@ -19,6 +19,7 @@ import {
   notOnArena,
   exceedsCmcCap,
   notLegalForFormat,
+  fitsSpellSlot,
 } from './deckFilters';
 
 /**
@@ -732,6 +733,9 @@ export function pickFromPrefetchedWithCurve(
 
       const scryfallCard = cardMap.get(edhrecCard.name);
       if (!scryfallCard) continue;
+      // E525: every caller seats the result in a spell slot, and a pool's
+      // type label can't keep a land out (Dryad Arbor is a Creature to it).
+      if (!fitsSpellSlot(scryfallCard)) continue;
       if (cardAllowed && !cardAllowed(scryfallCard)) continue;
       if (notLegalForFormat(scryfallCard, mtgFormat)) continue;
 

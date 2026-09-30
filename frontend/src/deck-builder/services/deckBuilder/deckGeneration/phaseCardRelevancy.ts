@@ -1,4 +1,4 @@
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/util/logger';
 import type {
   EDHRECCard,
   ScryfallCard,
@@ -14,7 +14,7 @@ import {
 import { scoreRecommendation, type ScoringContext } from '../deckAnalyzer';
 import { BASIC_LAND_NAMES, CHANNEL_LAND_BOOST, MDFC_LAND_BOOST } from '../landGenerator';
 import type { GenerationState } from './state';
-import { frontFaceName } from '@/lib/card-text';
+import { frontFaceName } from '@/lib/cards/card-text';
 
 // Display floor for in-deck cards absent from this commander's EDHREC snapshot
 // (owned-collection backfill, off-snapshot printing, etc.) — a role-tagged

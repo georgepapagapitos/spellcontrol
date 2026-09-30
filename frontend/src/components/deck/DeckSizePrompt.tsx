@@ -1,13 +1,14 @@
+import { createPortal } from 'react-dom';
 import './DeckSizePrompt.css';
 import { type JSX, type ReactNode, useMemo, useState } from 'react';
 import { ArrowLeftRight, Plus } from 'lucide-react';
-import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/use-sheet-exit';
-import { useCardThumb } from '@/lib/card-thumbs';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
+import { useCardThumb } from '@/lib/cards/card-thumbs';
 import { WhyBreakdown } from './WhyBreakdown';
-import type { WhyFactor } from '@/lib/why-factors';
+import type { WhyFactor } from '@/lib/coach/why-factors';
 import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
-import type { CardPreviewAction } from '../CardPreview';
+import type { CardPreviewAction } from '@/components/card/CardPreview';
 import { Button } from '@/components/shared/Button';
 
 export interface SizePromptOption {
@@ -209,7 +210,7 @@ export function DeckSizePrompt({
     { instantAt: '(min-width: 1024px)' }
   );
 
-  return (
+  return createPortal(
     <div
       className="card-picker-root"
       onClick={(e) => {
@@ -316,6 +317,7 @@ export function DeckSizePrompt({
             exactly the bug this line retires. */}
         {carousel.preview}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

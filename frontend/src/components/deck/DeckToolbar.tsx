@@ -18,16 +18,16 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { LegendContent } from '../Legend';
-import { OverflowMenu } from '../OverflowMenu';
-import { SearchPill } from '../SearchPill';
-import { SelectMenu } from '../SelectMenu';
-import { SortMenu, type SortMenuOption } from '../SortMenu';
+import { OverflowMenu } from '@/components/overlays/OverflowMenu';
+import { SearchPill } from '@/components/search/SearchPill';
+import { SelectMenu } from '@/components/overlays/SelectMenu';
+import { SortMenu, type SortMenuOption } from '@/components/search/SortMenu';
 import { ViewModeToggle as SharedViewModeToggle } from '../ViewModeToggle';
 import { ZoomControl } from '../ZoomControl';
-import { ZOOM_MAX, ZOOM_MAX_NARROW } from '@/lib/grid-zoom';
-import { ROLE_BADGE_BY_TONE, ROLE_BADGE_GROUPS } from '../../lib/role-badges';
+import { ZOOM_MAX, ZOOM_MAX_NARROW } from '@/lib/util/grid-zoom';
+import { ROLE_BADGE_BY_TONE, ROLE_BADGE_GROUPS } from '@/lib/deck-analysis/role-badges';
 import { ToolbarPopover } from '../shared/ToolbarPopover';
-import { useElementWidth } from '@/lib/use-element-width';
+import { useElementWidth } from '@/lib/util/use-element-width';
 import type { DeckGroupBy, DeckViewMode, ShowPrefs, SortMode } from './deck-display-rows';
 import { Button, buttonClass } from '@/components/shared/Button';
 

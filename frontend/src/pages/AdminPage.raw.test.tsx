@@ -8,16 +8,16 @@ import { useAuth } from '../store/auth';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import { useToastsStore } from '../store/toasts';
-import type { BeaconRows } from '../lib/admin-api';
+import type { BeaconRows } from '@/lib/account/admin-api';
 
 // Only the Raw JSON / Local data tabs are exercised here; Analytics and
 // AdminPanel's own network are stubbed (mirrors AdminPage.analytics.test.tsx).
 const listEventsMock = vi.fn<() => Promise<BeaconRows>>(() =>
   Promise.resolve({ events: [], errors: [], vitals: [] })
 );
-vi.mock('../lib/admin-api', () => ({ listEvents: () => listEventsMock() }));
-vi.mock('../components/AdminPanel', () => ({ AdminPanel: () => null }));
-vi.mock('../lib/sync', () => ({ stopSyncAndWipeLocal: vi.fn() }));
+vi.mock('@/lib/account/admin-api', () => ({ listEvents: () => listEventsMock() }));
+vi.mock('@/components/admin/AdminPanel', () => ({ AdminPanel: () => null }));
+vi.mock('@/lib/sync', () => ({ stopSyncAndWipeLocal: vi.fn() }));
 
 const writeText = vi.fn(async () => {});
 const toastMessages = () => useToastsStore.getState().toasts.map((t) => t.message);

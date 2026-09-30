@@ -1,9 +1,9 @@
 import { useCallback, useState } from 'react';
 import { getCardByName } from '@/deck-builder/services/scryfall/client';
-import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
+import { scryfallToEnrichedCard } from '@/lib/cards/scryfall-to-enriched';
 import type { EnrichedCard } from '../../types';
 import type { ComboCardRef } from '../../types/combos';
-import type { buildCardIndex } from '../../lib/deck-card-index';
+import type { buildCardIndex } from '@/lib/deck-analysis/deck-card-index';
 
 type CardIndex = ReturnType<typeof buildCardIndex>;
 

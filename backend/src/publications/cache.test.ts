@@ -98,10 +98,15 @@ describe('LruTtlCache<PublicUserProfile>', () => {
       avatarImageUrl: null,
       memberSince: 0,
       profileHiddenAt: null,
-      collectionVisibility: null,
+      collectionVisibility: 'friends',
       isOfficial: false,
       deckCount: 0,
       decks: [],
+      stats: { likesReceived: 0, copiesReceived: 0 },
+      topCommanders: [],
+      colorSpread: { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 },
+      pinnedDeckSlug: null,
+      gameRecord: null,
     };
     cache.set('alice', profile, 0);
     expect(cache.get('alice', 0)).toBe(profile);

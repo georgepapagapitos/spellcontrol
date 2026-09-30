@@ -129,7 +129,7 @@
  * substitutes.fixtures.ts (graded, role-conditioned substitute rows) back the
  * functional-similarity eval in scripts/card-facts-eval.mjs.
  */
-import { frontFaceName } from '@/lib/card-text';
+import { frontFaceName } from '@/lib/cards/card-text';
 import type { AxisKey } from '../synergy/axes';
 
 /** Bump when the record shape or any vocabulary below changes meaning. */

@@ -1,6 +1,6 @@
 import { Coins, Minus, Plus, Target } from 'lucide-react';
 import { useId, useState } from 'react';
-import type { GameAction, GameState } from '../../lib/game-state';
+import type { GameAction, GameState } from '@/lib/play/game-state';
 import {
   DIE_PRESETS,
   describeRoll,
@@ -8,8 +8,8 @@ import {
   pickFirstPlayer,
   rollDice,
   type CoinSide,
-} from '../../lib/game-tools';
-import { haptics } from '../../lib/haptics';
+} from '@/lib/play/game-tools';
+import { haptics } from '@/lib/util/haptics';
 import { Button, IconButton } from '@/components/shared/Button';
 import { BoardSheet, SheetSection } from './BoardSheets';
 

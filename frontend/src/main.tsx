@@ -2,7 +2,8 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
-import { ErrorBoundary } from './components/ErrorBoundary';
+import { ErrorBoundary } from '@/components/app-shell/ErrorBoundary';
+import { installCubeClaimHeal } from '@/lib/cube/remap-cube-allocations';
 // Split from the former styles/global.css — imported in original cascade order
 // so the split is a pure file-organization change (no behavior change).
 import './styles/fonts.css';
@@ -66,10 +67,10 @@ import { bootstrapTheme } from './store/theme';
 import { bootstrapTypeSet } from './store/typeset';
 import { loadTaggerData } from './deck-builder/services/tagger/client';
 import { loadCardSimilar } from './deck-builder/services/deckBuilder/cardSimilar';
-import { registerPwa } from './lib/register-pwa';
-import { initKeyboardLayer } from './lib/keyboard';
-import { installErrorReporting, startVitals } from './lib/analytics';
-import { hasEverVisited } from './lib/first-run';
+import { registerPwa } from '@/lib/util/register-pwa';
+import { initKeyboardLayer } from '@/lib/util/keyboard';
+import { installErrorReporting, startVitals } from '@/lib/util/analytics';
+import { hasEverVisited } from '@/lib/home/first-run';
 
 // First, so an exception anywhere in the boot below is counted too.
 installErrorReporting();
@@ -110,6 +111,10 @@ void registerPwa();
 const docEl = document.documentElement;
 docEl.classList.add('icons-pending');
 void import('./styles/icon-fonts-async').finally(() => docEl.classList.remove('icons-pending'));
+
+// One copy is claimed once across decks and physical cubes: release a cube
+// claim a sync or an undo brought in on a copy a deck holds (E542).
+installCubeClaimHeal();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

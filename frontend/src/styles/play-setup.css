@@ -20,8 +20,8 @@
   gap: var(--space-4);
 }
 
-/* The Play header is components/PageHeader.tsx. The Local/Online/History
-   strip under it is the shared <Tabs> primitive (components/Tabs.tsx);
+/* The Play header is components/app-shell/PageHeader.tsx. The Local/Online/History
+   strip under it is the shared <Tabs> primitive (components/overlays/Tabs.tsx);
    only the in-progress dot is Play-specific. */
 .play-tab-dot {
   width: 0.45rem;
@@ -233,6 +233,10 @@
 
 .play-stepper-btn:focus-visible {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   color: var(--accent);
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -240,6 +244,10 @@
 @media (hover: hover) and (pointer: fine) {
   .play-stepper-btn:hover:not(:disabled) {
     background: var(--accent-light);
+    --text-muted: var(--text-muted-tint);
+    --text-secondary: var(--text-secondary-tint);
+    --accent: var(--accent-tint);
+    --accent-hover: var(--accent-hover-tint);
     color: var(--accent);
     outline: none;
   }
@@ -443,6 +451,10 @@
 
 .play-setup-seat-deck-add:focus-visible {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   border-color: var(--accent);
   color: var(--accent);
   outline: 2px solid var(--accent);
@@ -451,6 +463,10 @@
 @media (hover: hover) and (pointer: fine) {
   .play-setup-seat-deck-add:hover {
     background: var(--accent-light);
+    --text-muted: var(--text-muted-tint);
+    --text-secondary: var(--text-secondary-tint);
+    --accent: var(--accent-tint);
+    --accent-hover: var(--accent-hover-tint);
     border-color: var(--accent);
     color: var(--accent);
     outline: none;
@@ -521,6 +537,10 @@
 
 .play-setup-roster-add:focus-visible {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   border-color: var(--accent);
   color: var(--accent);
   outline: 2px solid var(--accent);
@@ -529,6 +549,10 @@
 @media (hover: hover) and (pointer: fine) {
   .play-setup-roster-add:hover {
     background: var(--accent-light);
+    --text-muted: var(--text-muted-tint);
+    --text-secondary: var(--text-secondary-tint);
+    --accent: var(--accent-tint);
+    --accent-hover: var(--accent-hover-tint);
     border-color: var(--accent);
     color: var(--accent);
     outline: none;
@@ -619,6 +643,10 @@
   gap: var(--space-3);
   flex-wrap: wrap;
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   border: 0.5px solid var(--accent);
   border-radius: var(--radius-lg);
   padding: var(--space-3) var(--space-4);

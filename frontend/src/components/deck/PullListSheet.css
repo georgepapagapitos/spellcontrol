@@ -157,6 +157,10 @@
   font-variant-numeric: tabular-nums;
   color: var(--accent-hover);
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   border-radius: 999px;
   padding: 0.05rem var(--space-1-5);
 }

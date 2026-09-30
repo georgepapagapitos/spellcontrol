@@ -16,7 +16,7 @@
   }
 }
 
-/* PageHeader (components/PageHeader.tsx, STYLE_GUIDE § Layout system): text
+/* PageHeader (components/app-shell/PageHeader.tsx, STYLE_GUIDE § Layout system): text
    on the left, actions on the right, stacked on phones so the primary gets a
    full-width touch target. Which actions are visible is decided in the
    component, not here, so no page re-implements the ⋮ fold. */
@@ -283,6 +283,10 @@
   font-family: var(--font-mono);
   color: var(--accent-hover);
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   border: 0.5px solid var(--accent);
   border-radius: var(--radius);
   padding: var(--space-2) var(--space-3);
@@ -441,6 +445,10 @@
   font-variant-numeric: tabular-nums;
   color: var(--accent-hover);
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   border-radius: 999px;
   padding: 0.05rem var(--space-1-5);
 }
@@ -554,6 +562,10 @@
 
 .pill-btn:focus-visible {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   border-color: var(--accent);
   color: var(--accent);
   outline: 2px solid var(--accent);
@@ -562,6 +574,10 @@
 @media (hover: hover) and (pointer: fine) {
   .pill-btn:hover {
     background: var(--accent-light);
+    --text-muted: var(--text-muted-tint);
+    --text-secondary: var(--text-secondary-tint);
+    --accent: var(--accent-tint);
+    --accent-hover: var(--accent-hover-tint);
     border-color: var(--accent);
     color: var(--accent);
     outline: none;

@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, beforeAll } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
-import { applyAction, createGameState, makePlayer, type GameState } from '@/lib/game-state';
+import { applyAction, createGameState, makePlayer, type GameState } from '@/lib/play/game-state';
 import { loadHordeDeck, resolveHordeSettings, type HordeDeckDef } from '@/lib/horde';
 import { useHordeReplay } from './use-horde-replay';
 

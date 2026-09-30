@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { fetchCommanderThemes } from '@/deck-builder/services/edhrec/client';
 import type { EDHRECTheme } from '@/deck-builder/types';
-import { formatCount } from '@/lib/format-count';
+import { formatCount } from '@/lib/util/format-count';
 import { Button } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 

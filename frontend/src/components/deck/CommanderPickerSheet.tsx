@@ -1,11 +1,11 @@
 import { useId, useMemo } from 'react';
 import { X } from 'lucide-react';
 import type { DeckFormat, ScryfallCard } from '@/deck-builder/types';
-import { Modal } from '../Modal';
+import { Modal } from '@/components/overlays/Modal';
 import { IconButton } from '@/components/shared/Button';
 import { CommanderSearch } from './CommanderSearch';
 import { CommanderResultCard } from './CommanderResultCard';
-import { commanderCandidatesFor } from '@/lib/deck-import-format';
+import { commanderCandidatesFor } from '@/lib/import-export/deck-import-format';
 import './CommanderPickerSheet.css';
 
 /**

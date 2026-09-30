@@ -6,7 +6,7 @@ import { dirname, join } from 'node:path';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const css = readFileSync(join(here, 'admin-scanner.css'), 'utf8');
-const scanner = readFileSync(join(here, '..', 'components', 'CardScanner.tsx'), 'utf8');
+const scanner = readFileSync(join(here, '..', 'components', 'scanner', 'CardScanner.tsx'), 'utf8');
 
 /**
  * The scanner crops each capture by mapping on-screen rects back into video

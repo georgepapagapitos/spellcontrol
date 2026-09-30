@@ -7,15 +7,15 @@ import { PlayPage } from './PlayPage';
 import { usePlayStore } from '../store/play';
 import { useAuth } from '../store/auth';
 import { HORDE_BAN_LIST } from '../lib/horde/ban-list';
-import type { GameRecord } from '../lib/game-state';
-import { createGameState, makePlayer } from '../lib/game-state';
+import type { GameRecord } from '@/lib/play/game-state';
+import { createGameState, makePlayer } from '@/lib/play/game-state';
 import { useHordeGameStore } from '../store/horde-game';
 
 // Signed in, the History tab reads the server record and the leaderboard;
 // neither is under test here, and an offline read must leave the persisted
 // list on screen — which is exactly what a rejection exercises.
-vi.mock('../lib/game-results-client', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../lib/game-results-client')>();
+vi.mock('@/lib/play/game-results-client', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/play/game-results-client')>();
   return {
     ...actual,
     fetchMyResults: vi.fn(() => Promise.reject(new Error('offline'))),
@@ -35,7 +35,7 @@ vi.mock('../components/play/GameNights', async (importOriginal) => {
 });
 
 // The people a signed-in table can seat: two friends and one pod.
-vi.mock('../lib/friends-client', () => ({
+vi.mock('@/lib/social/friends-client', () => ({
   listFriends: vi.fn(() =>
     Promise.resolve([
       { id: 'u-bob', username: 'bob', displayName: 'Bobby', friendedAt: 1, cardCount: 0 },
@@ -49,8 +49,8 @@ vi.mock('../lib/friends-client', () => ({
 const searchProducts = vi.fn();
 const fetchProductCommanderSummary = vi.fn();
 const fetchProduct = vi.fn();
-vi.mock('../lib/api', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../lib/api')>();
+vi.mock('@/lib/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/api')>();
   return {
     ...actual,
     searchProducts: (...args: unknown[]) => searchProducts(...args),
@@ -59,7 +59,15 @@ vi.mock('../lib/api', async (importOriginal) => {
   };
 });
 
-vi.mock('../lib/pods-client', () => ({
+// The Discord status is a network read; each test says what it answers.
+const discordStatus = vi.hoisted(() => ({
+  value: { enabled: false, inviteUrl: null as string | null },
+}));
+vi.mock('@/lib/play/use-discord-status', () => ({
+  useDiscordStatus: () => discordStatus.value,
+}));
+
+vi.mock('@/lib/social/pods-client', () => ({
   listPods: vi.fn(() =>
     Promise.resolve([
       {
@@ -1154,5 +1162,36 @@ describe('History — a co-op Horde game', () => {
     expect(screen.getByRole('dialog', { name: 'Start a new Horde fight?' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Start the rematch' }));
     expect(rematch).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Discord on the Play page', () => {
+  afterEach(() => {
+    discordStatus.value = { enabled: false, inviteUrl: null };
+    useAuth.setState({ user: null, status: 'guest', profile: null });
+  });
+
+  it('links the community server when the server has an invite', () => {
+    discordStatus.value = { enabled: true, inviteUrl: 'https://discord.gg/sQdxhWhwae' };
+    renderPage('/play');
+    const link = screen.getByRole('link', { name: 'Join the SpellControl Discord' });
+    expect(link.getAttribute('href')).toBe('https://discord.gg/sQdxhWhwae');
+    expect(link.getAttribute('rel')).toContain('noopener');
+  });
+
+  it('shows no Discord link without an invite', () => {
+    renderPage('/play');
+    expect(screen.queryByRole('link', { name: /Discord/ })).toBeNull();
+  });
+
+  // A looking-for-game post links here: the form opens with its code in.
+  it('opens the join form filled in from ?code=', () => {
+    useAuth.setState({
+      user: { id: 'me', username: 'georg', role: 'user' },
+      status: 'authed',
+      profile: null,
+    });
+    renderPage('/play/online?mode=join&code=tk7t');
+    expect((screen.getByLabelText('Join code') as HTMLInputElement).value).toBe('TK7T');
   });
 });

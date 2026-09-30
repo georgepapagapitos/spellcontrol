@@ -8,6 +8,10 @@
 # error, console error, horizontal overflow, empty body, or missing title.
 # Screenshots + report.json are uploaded whether it passes or fails.
 #
+# The same job then photographs /dev/catalog (every shared primitive in every
+# state) in every theme and every type set, phone and desktop, and compares the crops with the
+# previous scheduled run's (T176 W3). See the "Component catalog" steps below.
+#
 # Not a required check (it runs on a schedule, not on PRs). A red run is a
 # defect to file on the board, with the screenshot attached.
 name: Nightly journey
@@ -19,6 +23,8 @@ on:
 
 permissions:
   contents: read
+  # Read the previous night's catalog-shots artifact (the diff baseline).
+  actions: read
 
 concurrency:
   group: nightly-journey
@@ -28,7 +34,7 @@ jobs:
   journey:
     name: Chrome + Firefox journey
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 50
 
     services:
       postgres:
@@ -129,14 +135,61 @@ jobs:
           psql -h localhost -U spellcontrol -d spellcontrol -c "UPDATE users SET role = 'admin', email = 'journeyadmin@example.com', email_verified = true WHERE username = 'journeyadmin'"
 
       # --a11y: axe on every screen plus a contrast sweep of every theme and
-      # type set and a keyboard Tab walk (desktop). Report-only for now:
-      # findings land in journey-chrome/a11y.json and never fail the run.
+      # type set and a keyboard Tab walk (desktop). A finding fails the run;
+      # journey-chrome/a11y.json names the rule, element and screens.
       - name: Journey in Chrome (phone + desktop)
         run: node scripts/journey.mjs --base http://localhost:3737 --browser chrome --username journeyadmin --a11y --out journey-chrome
 
       - name: Journey in Firefox (desktop)
         if: always()
         run: node scripts/journey.mjs --base http://localhost:3737 --browser firefox --viewports desktop --username journeyadmin --out journey-firefox
+
+      # ── Component catalog visual diff (T176 W3) ─────────────────────────
+      # /dev/catalog renders every shared primitive in every state. One crop per
+      # section per (theme, type set) pair per viewport is compared with the previous
+      # scheduled run on main. The baseline is that run's uploaded artifact, not
+      # a file in git (no PNG baselines in the repo). It is picked by artifact
+      # existence, not run conclusion, so a night that FAILS on a change still
+      # becomes the next night's baseline: one red run per pixel change, then
+      # green again. A red run here means "a primitive looks different than it
+      # did yesterday": check the catalog-diff artifact and either accept it
+      # (an intended restyle) or file a board row.
+      - name: Photograph the component catalog
+        if: always()
+        run: node scripts/catalog-shots.mjs --base http://localhost:3737 --browser chrome --out catalog-shots
+
+      - name: Fetch the previous catalog shots
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p catalog-baseline
+          prev=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" --jq "[.artifacts[] | select((.name | startswith(\"catalog-shots-\")) and (.expired | not) and .workflow_run.head_branch == \"main\" and (.workflow_run.id != $GITHUB_RUN_ID))] | sort_by(.created_at) | last | .name // empty")
+          if [ -z "$prev" ]; then echo "no earlier catalog-shots artifact; nothing to compare"; exit 0; fi
+          run_id=${prev#catalog-shots-}
+          gh run download "$run_id" --name "$prev" --dir catalog-baseline
+
+      - name: Compare the catalog with the previous run
+        id: catalog_diff
+        if: always()
+        run: node scripts/catalog-diff.mjs --baseline catalog-baseline --current catalog-shots --out catalog-diff
+
+      - name: Upload the catalog shots (next night's baseline)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: catalog-shots-${{ github.run_id }}
+          path: catalog-shots
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Upload the catalog diffs
+        if: always() && steps.catalog_diff.outcome == 'failure'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: catalog-diff-${{ github.run_id }}
+          path: catalog-diff
+          retention-days: 14
 
       - name: Upload screenshots and reports
         if: always()

@@ -5,34 +5,34 @@ import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest';
 import { pending } from '@/test/pending';
 import type { Deck } from '../../store/decks';
 import type { EnrichedCard, BinderDef } from '../../types';
-import type { ArrivalCandidateCard } from '../../lib/new-arrivals';
+import type { ArrivalCandidateCard } from '@/lib/coach/new-arrivals';
 
-vi.mock('../../lib/value-history', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../lib/value-history')>();
+vi.mock('@/lib/collection/value-history', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/collection/value-history')>();
   return { ...actual, getLatestMovers: vi.fn() };
 });
 vi.mock('../../store/decks', () => ({ useDecksStore: vi.fn() }));
 vi.mock('../../store/collection', () => ({ useCollectionStore: vi.fn() }));
-vi.mock('../../lib/allocations', () => ({ useAllocations: vi.fn() }));
-vi.mock('../../lib/api', () => ({ useSetMap: vi.fn() }));
-vi.mock('../../lib/materialize', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../lib/materialize')>();
+vi.mock('@/lib/collection/allocations', () => ({ useAllocations: vi.fn() }));
+vi.mock('@/lib/api', () => ({ useSetMap: vi.fn() }));
+vi.mock('@/lib/binder/materialize', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/binder/materialize')>();
   return { materializeBinders: vi.fn(actual.materializeBinders) };
 });
 const mockUseCardThumb = vi.hoisted(() => vi.fn(() => undefined as string | undefined));
-vi.mock('../../lib/card-thumbs', () => ({ useCardThumb: mockUseCardThumb }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: mockUseCardThumb }));
 
 import { PriceMoversCard } from './PriceMoversCard';
 import { RecentlyAddedCard } from './RecentlyAddedCard';
-import { rememberArrivalWatchlist } from '../../lib/arrival-watchlist';
+import { rememberArrivalWatchlist } from '@/lib/coach/arrival-watchlist';
 import { useBinderReviewCount } from './use-binder-review-count';
-import { getLatestMovers, dayKey } from '../../lib/value-history';
+import { getLatestMovers, dayKey } from '@/lib/collection/value-history';
 import { useDecksStore } from '../../store/decks';
 import { useCollectionStore } from '../../store/collection';
-import { useAllocations } from '../../lib/allocations';
-import { useSetMap } from '../../lib/api';
-import { materializeBinders } from '../../lib/materialize';
-import { printingFinishKey } from '../../lib/collection-mutations';
+import { useAllocations } from '@/lib/collection/allocations';
+import { useSetMap } from '@/lib/api';
+import { materializeBinders } from '@/lib/binder/materialize';
+import { printingFinishKey } from '@/lib/collection/collection-mutations';
 
 const mockGetLatestMovers = getLatestMovers as unknown as ReturnType<typeof vi.fn>;
 const mockUseDecksStore = useDecksStore as unknown as ReturnType<typeof vi.fn>;

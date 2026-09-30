@@ -276,6 +276,10 @@
 .deck-customizer-group-reset:focus-visible {
   color: var(--accent);
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -283,6 +287,10 @@
   .deck-customizer-group-reset:hover {
     color: var(--accent);
     background: var(--accent-light);
+    --text-muted: var(--text-muted-tint);
+    --text-secondary: var(--text-secondary-tint);
+    --accent: var(--accent-tint);
+    --accent-hover: var(--accent-hover-tint);
     outline: none;
   }
 }
@@ -577,6 +585,10 @@ button.option-card:focus-visible,
 
 .option-card.active {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -607,6 +619,10 @@ button.option-card:focus-visible,
 .option-card-editing {
   border-color: var(--accent);
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
 }
 
 .option-card-input {
@@ -678,6 +694,10 @@ button.option-card:focus-visible,
 
 .preset-pill.active {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   border-color: var(--accent);
   color: var(--accent);
   font-weight: 600;
@@ -792,12 +812,20 @@ button.option-card:focus-visible,
 
 .deck-customizer-autocomplete-item:focus-visible {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
 @media (hover: hover) and (pointer: fine) {
   .deck-customizer-autocomplete-item:hover {
     background: var(--accent-light);
+    --text-muted: var(--text-muted-tint);
+    --text-secondary: var(--text-secondary-tint);
+    --accent: var(--accent-tint);
+    --accent-hover: var(--accent-hover-tint);
     outline: none;
   }
 }

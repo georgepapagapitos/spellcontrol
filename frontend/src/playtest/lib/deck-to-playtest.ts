@@ -3,7 +3,7 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import type { PlaytestCard, PlaytestInit } from '@/lib/playtest';
 import type { EnrichedCard } from '@/types';
 import { playtestLifeConfig } from '@/lib/playtest';
-import { imageFromCard } from '@/lib/card-thumbs';
+import { imageFromCard } from '@/lib/cards/card-thumbs';
 import { getCardBackFaceUrl, isDoubleFacedCard } from '@/deck-builder/services/scryfall/client';
 
 function instanceId(slotId: string, copy: number): string {

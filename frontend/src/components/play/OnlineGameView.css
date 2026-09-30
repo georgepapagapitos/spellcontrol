@@ -399,6 +399,10 @@
 
 .ogv-life-step:active:not(:disabled) {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
 }
 
 .ogv-life-step-count {
@@ -644,6 +648,10 @@
   transform-origin: left;
   transform: scaleX(var(--fill, 0));
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   pointer-events: none;
   z-index: 0;
 }

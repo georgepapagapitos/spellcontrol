@@ -7,11 +7,11 @@ import type { GameLogEntry } from '@/lib/playtest/game-log';
 import { usePlayStore } from '@/store/play';
 import { usePlaytestStore } from '../store';
 import { useAuth } from '@/store/auth';
-import { applyAction, createGameState, makePlayer, type GameState } from '@/lib/game-state';
+import { applyAction, createGameState, makePlayer, type GameState } from '@/lib/play/game-state';
 import { toast } from '@/store/toasts';
 
-vi.mock('@/lib/games-board', () => ({ publishBoard: vi.fn(), cancelBoardPublish: vi.fn() }));
-import { publishBoard } from '@/lib/games-board';
+vi.mock('@/lib/play/games-board', () => ({ publishBoard: vi.fn(), cancelBoardPublish: vi.fn() }));
+import { publishBoard } from '@/lib/play/games-board';
 import { useOnlineTable } from './use-online-table';
 
 const mockPublish = vi.mocked(publishBoard);

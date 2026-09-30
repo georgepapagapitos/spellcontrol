@@ -37,13 +37,13 @@ import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import ts from 'typescript';
-import { ICON_SCALE } from '../lib/icon-scale';
+import { ICON_SCALE } from '@/lib/util/icon-scale';
 
 const ROOT = path.resolve(__dirname, '..');
 const SKIP_FILE = /(\.test\.tsx?$|\.d\.ts$|\/fixtures?\/|__fixtures__|__snapshots__|\.stories\.)/;
 
 // size -> canonical strokeWidth, read from the one home of the scale so the
-// guard and lib/icon-scale.ts cannot disagree.
+// guard and lib/util/icon-scale.ts cannot disagree.
 const SCALE: Record<string, string> = Object.fromEntries(
   Object.values(ICON_SCALE).map(({ size, stroke }) => [String(size), String(stroke)])
 );
@@ -55,12 +55,16 @@ const SCALE: Record<string, string> = Object.fromEntries(
 const FILE_ALLOWLIST = [
   'components/deck/DeckCardGrid.tsx',
   'components/deck/DeckDisplay.tsx',
+  'components/deck/DeckDisplayBands.tsx',
   'components/deck/DeckMainboardRow.tsx',
   'components/deck/deck-display-icons.tsx',
   'components/deck/deck-display-rows.ts',
   'components/shared/EmptyState.tsx',
-  'components/StatsBar.tsx',
-  'components/CardListTable.tsx',
+  'components/collection/StatsBar.tsx',
+  'components/collection/CardListTable.tsx',
+  'components/collection/CardListControls.tsx',
+  'components/collection/CardListVirtualRows.tsx',
+  'components/collection/card-list-table-config.tsx',
   'components/home/',
   'pages/CollectionPage.tsx',
   'pages/HomePage.tsx',
@@ -69,10 +73,10 @@ const FILE_ALLOWLIST = [
   'pages/ListsPage.tsx',
   'pages/cube/CubeCommanders.tsx',
   'lib/cube/',
-  'lib/allocations',
-  'lib/collection-insights.ts',
-  'lib/home-signals.ts',
-  'lib/format-money.ts',
+  'lib/collection/allocations',
+  'lib/collection/collection-insights.ts',
+  'lib/home/home-signals.ts',
+  'lib/collection/format-money.ts',
 ];
 
 // Specific (file, tag, size) sites left deliberately off-scale. Keyed loosely
@@ -81,10 +85,10 @@ const FILE_ALLOWLIST = [
 const SITE_ALLOWLIST = new Set<string>([
   // Miniature badge sized to a binder-slot overlay at variable grid density,
   // not a role-governed action icon.
-  'components/BinderPagePreview.tsx::Boxes::9',
-  'components/BinderPagePreview.tsx::Layers::9',
-  'components/CardSlot.tsx::Boxes::9',
-  'components/CardSlot.tsx::Layers::9',
+  'components/binder/BinderPagePreview.tsx::Boxes::9',
+  'components/binder/BinderPagePreview.tsx::Layers::9',
+  'components/binder/CardSlot.tsx::Boxes::9',
+  'components/binder/CardSlot.tsx::Layers::9',
   // Empty/error-state illustrative mark, paired with a caption.
   'components/deck/DeckCardInspector.tsx::ImageOff::22',
   'components/deck/DeckHoverPeek.tsx::ImageOff::22',
@@ -97,9 +101,9 @@ const SITE_ALLOWLIST = new Set<string>([
   'components/play/OnlineLobby.tsx::UserRound::22',
   // Large camera/scan CTA and scanner-overlay glyphs (STYLE_GUIDE calls out
   // the scanner overlay by name as a deliberate-large exception).
-  'components/AddCardsSheet.tsx::Camera::36',
-  'components/CardScanner.tsx::LoaderCircle::34',
-  'components/ScannerQueueSheet.tsx::Camera::32',
+  'components/import/AddCardsSheet.tsx::Camera::36',
+  'components/scanner/CardScanner.tsx::LoaderCircle::34',
+  'components/scanner/ScannerQueueSheet.tsx::Camera::32',
   // Large stat-emphasis glyph in a game sheet.
   'components/play/BoardSheets.tsx::ChartLine::40',
   // Device-rotate prompt hero glyph.

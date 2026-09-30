@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/util/logger';
 import { useCollectionStore } from '@/store/collection';
 import { useDecksStore } from '@/store/decks';
+import { remapAllAllocations } from '@/lib/cube/remap-cube-allocations';
 import { toast } from '@/store/toasts';
-import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { InfoTip } from '@/components/InfoTip';
-import { OfflineModeSettings } from '@/components/OfflineModeSettings';
-import { resetAppCacheAndReload } from '@/lib/reset-app-cache';
+import { ConfirmDialog } from '@/components/overlays/ConfirmDialog';
+import { InfoTip } from '@/components/overlays/InfoTip';
+import { OfflineModeSettings } from '@/components/settings/OfflineModeSettings';
+import { resetAppCacheAndReload } from '@/lib/account/reset-app-cache';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsRow } from '@/components/settings/SettingsRow';
 import { Button } from '@/components/shared/Button';
@@ -15,14 +16,13 @@ import { Button } from '@/components/shared/Button';
 export function StorageSection() {
   const cards = useCollectionStore((s) => s.cards);
   const deckCount = useDecksStore((s) => s.decks.length);
-  const remapAllocations = useDecksStore((s) => s.remapAllocations);
   const [resetCacheOpen, setResetCacheOpen] = useState(false);
   const [resetCacheBusy, setResetCacheBusy] = useState(false);
   const canRepair = cards.length > 0 && deckCount > 0;
 
   function handleRepairAllocations() {
     if (!canRepair) return;
-    remapAllocations(cards);
+    remapAllAllocations(cards);
     toast.show({ message: 'Deck allocations repaired.', tone: 'success' });
   }
 

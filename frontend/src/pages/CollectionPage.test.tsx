@@ -6,12 +6,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Stub heavy dependencies so the test stays lightweight and focused on the
 // deep-link / sheet-open behaviour, not on data rendering.
-vi.mock('../lib/allocations', () => ({ useAllocations: () => new Map() }));
-vi.mock('../lib/api', () => ({ useSetMap: () => new Map() }));
-vi.mock('../lib/materialize', () => ({
+vi.mock('@/lib/collection/allocations', () => ({ useAllocations: () => new Map() }));
+vi.mock('@/lib/api', () => ({ useSetMap: () => new Map() }));
+vi.mock('@/lib/binder/materialize', () => ({
   materializeBinders: () => ({ binders: [] }),
 }));
-vi.mock('../components/CardListTable', () => ({
+vi.mock('@/components/collection/CardListTable', () => ({
   CardListTable: ({
     onAddCards,
     filterJump,
@@ -25,20 +25,20 @@ vi.mock('../components/CardListTable', () => ({
     </div>
   ),
 }));
-vi.mock('../components/StatsBar', () => ({
+vi.mock('@/components/collection/StatsBar', () => ({
   StatsBar: ({ open }: { open: boolean }) => (open ? <div data-testid="stats-drawer" /> : null),
 }));
-vi.mock('../components/ShareDialog', () => ({ ShareDialog: () => null }));
+vi.mock('@/components/share/ShareDialog', () => ({ ShareDialog: () => null }));
 // Controllable sync state so we can exercise the fresh-device "loading your
 // collection" branch without standing up the real sync engine.
 const syncMock = vi.hoisted(() => ({ state: 'idle' as 'idle' | 'syncing' | 'ready' }));
-vi.mock('../lib/sync', () => ({
+vi.mock('@/lib/sync', () => ({
   getSyncState: () => syncMock.state,
   onSyncedChange: () => () => {},
 }));
 // Stub AddCardsSheet to expose its initialTab/initialQuery for assertion
 // without rendering the full modal stack (CardScanner, UploadPanel, etc.).
-vi.mock('../components/AddCardsSheet', () => ({
+vi.mock('@/components/import/AddCardsSheet', () => ({
   AddCardsSheet: ({
     initialTab,
     initialQuery,

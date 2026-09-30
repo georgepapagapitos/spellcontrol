@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { Button } from '../../components/shared/Button';
-import { SaveToListDialog } from '../../components/SaveToListDialog';
+import { SaveToListDialog } from '@/components/lists/SaveToListDialog';
 import { CubeLoadingBlock, CubeErrorBlock } from './shared';
 import { useCollectionStore } from '../../store/collection';
 import { useToastsStore } from '../../store/toasts';
-import { useCurrency } from '@/lib/currency';
-import { formatMoney } from '../../lib/format-money';
-import { userMessage } from '@/lib/user-error';
-import { isTrackingList } from '../../lib/lists';
-import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
+import { useCurrency } from '@/lib/collection/currency';
+import { formatMoney } from '@/lib/collection/format-money';
+import { userMessage } from '@/lib/util/user-error';
+import { isTrackingList } from '@/lib/collection/lists';
+import { scryfallToEnrichedCard } from '@/lib/cards/scryfall-to-enriched';
 import { getCardsByNames, getCardPrice } from '../../deck-builder/services/scryfall/client';
 import type { CardFetchProgress } from '@/deck-builder/services/scryfall/card-repository';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -27,7 +27,7 @@ import { fetchCubeOracle } from '../../lib/cube/oracle';
 import { namesToCubePool } from '../../lib/cube/pool';
 import { formatExclusion } from '../../lib/cube/play-format';
 import type { RarityCap } from '../../lib/cube/pool-filters';
-import { ensureCardTags, getCardTags, isCardTagsFailed } from '@/lib/card-tags';
+import { ensureCardTags, getCardTags, isCardTagsFailed } from '@/lib/cards/card-tags';
 
 /** How many popular-by-cube-signal names to fetch oracle facts for — a bound
  *  generous enough that ownership/format filtering still leaves a real list,

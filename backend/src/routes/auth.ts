@@ -51,9 +51,10 @@ import {
 } from '../oauth/google';
 import { logger } from '../logger';
 import { getDb, getPool } from '../db';
-import { parseCollectionVisibility } from '../collections/visibility';
+import { parseCollectionVisibility, storedCollectionVisibility } from '../collections/visibility';
 import { authIdentities, authTokens, users } from '../db/schema';
 import { purgeUserPublicCaches } from '../publications/purge';
+import { resolveLivePin } from '../brewers/profile-stats';
 import { sendMail } from '../mail';
 
 /**
@@ -775,14 +776,16 @@ authRouter.get('/me', sessionLimiter, async (req: Request, res: Response) => {
       avatarCardName: users.avatarCardName,
       avatarImageUrl: users.avatarImageUrl,
       collectionVisibility: users.collectionVisibility,
+      pinnedDeckSlug: users.pinnedDeckSlug,
+      showGameRecord: users.showGameRecord,
     })
     .from(users)
     .where(eq(users.id, user.id))
     .limit(1);
   res.json({
     user,
-    // Who can see the collection (board T136); null = never chose.
-    collectionVisibility: parseCollectionVisibility(row[0]?.collectionVisibility),
+    // Who can see the collection (board T136); never chose reads as friends.
+    collectionVisibility: storedCollectionVisibility(row[0]?.collectionVisibility),
     autoLinkedAt: row[0]?.autoLinkedAt ?? null,
     // Server truth for the inbox/friend-request unseen badges (T117) — see
     // POST /api/users/me/inbox-seen.
@@ -798,6 +801,8 @@ authRouter.get('/me', sessionLimiter, async (req: Request, res: Response) => {
       avatarCardId: row[0]?.avatarCardId ?? null,
       avatarCardName: row[0]?.avatarCardName ?? null,
       avatarImageUrl: row[0]?.avatarImageUrl ?? null,
+      pinnedDeckSlug: await resolveLivePin(user.id, row[0]?.pinnedDeckSlug ?? null),
+      showGameRecord: row[0]?.showGameRecord ?? false,
     },
   });
 });
@@ -832,6 +837,8 @@ authRouter.patch('/profile', profileLimiter, requireAuth, async (req: Request, r
     avatarCardId: string | null;
     avatarCardName: string | null;
     avatarImageUrl: string | null;
+    pinnedDeckSlug: string | null;
+    showGameRecord: boolean;
   }> = {};
 
   if ('displayName' in body) {
@@ -882,6 +889,26 @@ authRouter.patch('/profile', profileLimiter, requireAuth, async (req: Request, r
     }
   }
 
+  if ('pinnedDeckSlug' in body) {
+    if (body.pinnedDeckSlug === null) {
+      updates.pinnedDeckSlug = null;
+    } else if (
+      typeof body.pinnedDeckSlug === 'string' &&
+      (await resolveLivePin(req.user!.id, body.pinnedDeckSlug)) !== null
+    ) {
+      updates.pinnedDeckSlug = body.pinnedDeckSlug;
+    } else {
+      return res.status(400).json({ error: 'Pin one of your own public decks.' });
+    }
+  }
+
+  if ('showGameRecord' in body) {
+    if (typeof body.showGameRecord !== 'boolean') {
+      return res.status(400).json({ error: 'Show game record must be on or off.' });
+    }
+    updates.showGameRecord = body.showGameRecord;
+  }
+
   const db = getDb();
   if (Object.keys(updates).length > 0) {
     await db.update(users).set(updates).where(eq(users.id, req.user!.id));
@@ -898,6 +925,8 @@ authRouter.patch('/profile', profileLimiter, requireAuth, async (req: Request, r
       avatarCardId: users.avatarCardId,
       avatarCardName: users.avatarCardName,
       avatarImageUrl: users.avatarImageUrl,
+      pinnedDeckSlug: users.pinnedDeckSlug,
+      showGameRecord: users.showGameRecord,
     })
     .from(users)
     .where(eq(users.id, req.user!.id))
@@ -909,6 +938,8 @@ authRouter.patch('/profile', profileLimiter, requireAuth, async (req: Request, r
       avatarCardId: rows[0]?.avatarCardId ?? null,
       avatarCardName: rows[0]?.avatarCardName ?? null,
       avatarImageUrl: rows[0]?.avatarImageUrl ?? null,
+      pinnedDeckSlug: await resolveLivePin(req.user!.id, rows[0]?.pinnedDeckSlug ?? null),
+      showGameRecord: rows[0]?.showGameRecord ?? false,
     },
   });
 });

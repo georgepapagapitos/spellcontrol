@@ -7,7 +7,7 @@ import 'fake-indexeddb/auto';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useCurrencyStore } from '../lib/currency';
+import { useCurrencyStore } from '@/lib/collection/currency';
 
 // ── Store stubs ─────────────────────────────────────────────────────────────
 let mockDecks: unknown[] = [];
@@ -23,13 +23,13 @@ vi.mock('../store/auth', () => ({
 
 // ── Heavy component stubs (mirrors DecksIndexPage.publicbadge.test.tsx) ─────
 vi.mock('../components/deck/ImportDeckDialog', () => ({ ImportDeckDialog: () => null }));
-vi.mock('../components/ProductSearchDialog', () => ({ ProductSearchDialog: () => null }));
-vi.mock('../components/ShareDialog', () => ({ ShareDialog: () => null }));
-vi.mock('../components/ConfirmDialog', () => ({ ConfirmDialog: () => null }));
-vi.mock('../components/DeckFiltersPopover', () => ({ DeckFiltersPopover: () => null }));
-vi.mock('../lib/deck-validation', () => ({
+vi.mock('@/components/import/ProductSearchDialog', () => ({ ProductSearchDialog: () => null }));
+vi.mock('@/components/share/ShareDialog', () => ({ ShareDialog: () => null }));
+vi.mock('@/components/overlays/ConfirmDialog', () => ({ ConfirmDialog: () => null }));
+vi.mock('@/components/decks/DeckFiltersPopover', () => ({ DeckFiltersPopover: () => null }));
+vi.mock('@/lib/deck/deck-validation', () => ({
   effectiveDeckColors: () => [],
-  deckColorFrequency: () => [],
+  deckDisplayColors: () => [],
   validateDeckZones: () => ({ deck: [], sideboardOnly: [] }),
   countFlaggedCards: () => 0,
 }));

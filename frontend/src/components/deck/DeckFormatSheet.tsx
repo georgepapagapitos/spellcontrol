@@ -1,12 +1,12 @@
 import './DeckFormatSheet.css';
 import { useId, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
-import { Modal } from '../Modal';
+import { Modal } from '@/components/overlays/Modal';
 import { Button, IconButton } from '../shared/Button';
 import { ChoiceList } from '../shared/form';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import type { DeckFormat } from '@/deck-builder/types';
-import { convertDeckFormat, describeFormatSwitch } from '@/lib/convert-deck-format';
+import { convertDeckFormat, describeFormatSwitch } from '@/lib/deck/convert-deck-format';
 import { useDecksStore, type Deck } from '@/store/decks';
 import { useDeckHistoryStore } from '@/store/deck-history';
 import { useToastsStore } from '@/store/toasts';

@@ -266,6 +266,7 @@ export function Hand({ cards, fan = false, onCardMenu, onCardPreview, revealedId
           : undefined
       }
       aria-label="Hand"
+      role="group"
     >
       {!fan && <span className="playtest-hand__label">Hand ({cards.length})</span>}
       <div className="playtest-hand__cards" style={handSize}>

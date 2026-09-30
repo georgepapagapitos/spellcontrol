@@ -3,18 +3,21 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import { BRACKET_LABELS } from '@/deck-builder/services/deckBuilder/bracketEstimator';
-import { bracketBadgeWithEstimate, bracketAriaWithEstimate } from '@/lib/format-bracket-label';
+import {
+  bracketBadgeWithEstimate,
+  bracketAriaWithEstimate,
+} from '@/lib/deck-analysis/format-bracket-label';
 import type { DeckFormat } from '@/deck-builder/types';
-import { NO_DISCOVER_FILTERS, type DiscoverFilters } from '../../lib/discover-filters';
-import { DiscoverFiltersPopover } from '../DiscoverFiltersPopover';
-import { SearchPill } from '../SearchPill';
-import { SortMenu, type SortMenuOption } from '../SortMenu';
+import { NO_DISCOVER_FILTERS, type DiscoverFilters } from '@/lib/discover/discover-filters';
+import { DiscoverFiltersPopover } from './DiscoverFiltersPopover';
+import { SearchPill } from '@/components/search/SearchPill';
+import { SortMenu, type SortMenuOption } from '@/components/search/SortMenu';
 import { SharedEmptyState } from '../share/SharedEmptyState';
 import { ColorIdentityBar } from '../shared/ColorIdentityBar';
 import { ColorPip } from '../shared/ManaSymbol';
 import { Chip } from '../shared/Chip';
 import { Surface } from '../shared/Surface';
-import { usePanelCascade, panelCascadeClass } from '../../lib/use-panel-cascade';
+import { usePanelCascade, panelCascadeClass } from '@/lib/util/use-panel-cascade';
 import { ArtBadge } from '@/components/shared/ArtBadge';
 
 /**
@@ -92,6 +95,7 @@ export function DeckLibrary({
   emptyHint,
   header,
   cascadeKey = null,
+  pinnedId = null,
 }: {
   decks: LibraryDeck[];
   ariaLabel: string;
@@ -107,6 +111,13 @@ export function DeckLibrary({
    * result — otherwise every keystroke would re-run the animation.
    */
   cascadeKey?: string | null;
+  /**
+   * The deck the owner pinned. While nothing is searched or filtered it leads
+   * as a larger "Pinned" tile above the grid (and is left out of the grid so
+   * it never shows twice); once the viewer narrows the list it is an ordinary
+   * tile, so a search still finds it.
+   */
+  pinnedId?: string | null;
 }) {
   const cascade = usePanelCascade(cascadeKey ?? null);
   const [search, setSearch] = useState('');
@@ -161,6 +172,9 @@ export function DeckLibrary({
     filters.colors.length > 0 ||
     filters.brackets.length > 0;
 
+  const featured = !narrowed && pinnedId ? (filtered.find((d) => d.id === pinnedId) ?? null) : null;
+  const gridDecks = featured ? filtered.filter((d) => d !== featured) : filtered;
+
   return (
     <div className="deck-library">
       <div className="deck-library-controls">
@@ -183,6 +197,12 @@ export function DeckLibrary({
 
       {header}
 
+      {featured && (
+        <ul className="decks-index-list is-grid deck-library-featured" aria-label="Pinned deck">
+          <DeckLibraryTile deck={featured} index={0} animating={cascade.animating} featured />
+        </ul>
+      )}
+
       {filtered.length === 0 ? (
         <div role="status">
           <SharedEmptyState
@@ -200,9 +220,9 @@ export function DeckLibrary({
             }
           />
         </div>
-      ) : (
+      ) : gridDecks.length === 0 ? null : (
         <ul className="decks-index-list is-grid deck-library-grid" aria-label={ariaLabel}>
-          {filtered.map((deck, i) => (
+          {gridDecks.map((deck, i) => (
             <DeckLibraryTile key={deck.id} deck={deck} index={i} animating={cascade.animating} />
           ))}
         </ul>
@@ -220,10 +240,12 @@ function DeckLibraryTile({
   deck,
   index,
   animating,
+  featured = false,
 }: {
   deck: LibraryDeck;
   index: number;
   animating: boolean;
+  featured?: boolean;
 }) {
   const colors = deck.colorIdentity.slice(0, 5);
   const cascadeCls = panelCascadeClass(index, animating);
@@ -252,11 +274,16 @@ function DeckLibraryTile({
       as="li"
       variant="sleeve"
       className={`decks-index-card public-profile-tile deck-library-tile${
-        cascadeCls ? ` ${cascadeCls}` : ''
-      }`}
+        featured ? ' is-featured' : ''
+      }${cascadeCls ? ` ${cascadeCls}` : ''}`}
     >
       <Link to={deck.href} className="decks-index-card-link" aria-label={label}>
         <span className="public-profile-tile-banner">
+          {featured && (
+            <ArtBadge className="deck-library-tile-badge" corner="top-start">
+              Pinned
+            </ArtBadge>
+          )}
           {deck.commanderImage ? (
             <img
               className="decks-index-card-art"

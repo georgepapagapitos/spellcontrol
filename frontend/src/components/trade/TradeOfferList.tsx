@@ -2,11 +2,11 @@ import './TradeOfferList.css';
 import { useId, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, X } from 'lucide-react';
-import { UserAvatar } from '../UserAvatar';
-import { useCardThumb } from '../../lib/card-thumbs';
-import { formatMoney } from '../../lib/format-money';
-import { formatRelativeTime } from '../../lib/format-time';
-import { splitSideValue, useFloorPrices } from '../../lib/trade-value';
+import { UserAvatar } from '@/components/profile/UserAvatar';
+import { useCardThumb } from '@/lib/cards/card-thumbs';
+import { formatMoney } from '@/lib/collection/format-money';
+import { formatRelativeTime } from '@/lib/util/format-time';
+import { splitSideValue, useFloorPrices } from '@/lib/trade/trade-value';
 import { toast } from '../../store/toasts';
 import {
   acceptTrade,
@@ -16,20 +16,20 @@ import {
   TradeConflictError,
   type TradeCard,
   type TradeOffer,
-} from '../../lib/trades-client';
+} from '@/lib/trade/trades-client';
 import { useCollectionStore } from '../../store/collection';
 import {
   groupOwnedForTrade,
   groupByPrinting,
   toTradeCard,
   type OwnedTradeLine,
-} from '../../lib/trade-picker';
-import { settleTrade } from '../../lib/use-trade-settlement';
-import { resolveTradePreview } from '../../lib/trade-preview';
+} from '@/lib/trade/trade-picker';
+import { settleTrade } from '@/lib/trade/use-trade-settlement';
+import { resolveTradePreview } from '@/lib/trade/trade-preview';
 import { TradePreviewCarousel, type TradePreviewState } from './TradePreviewCarousel';
-import { formatLocation, useCardLocations, type CardLocation } from '../../lib/card-locations';
+import { formatLocation, useCardLocations, type CardLocation } from '@/lib/binder/card-locations';
 import { TradeAcceptDialog, type AcceptChoice } from './TradeAcceptDialog';
-import { useConfirm } from '../../lib/use-confirm';
+import { useConfirm } from '@/components/overlays/use-confirm';
 import { Button, IconButton } from '@/components/shared/Button';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Surface } from '@/components/shared/Surface';

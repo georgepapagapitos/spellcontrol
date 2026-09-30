@@ -28,15 +28,15 @@ vi.mock('../components/deck/ImportDeckDialog', () => ({
     </div>
   ),
 }));
-vi.mock('../components/ProductSearchDialog', () => ({
+vi.mock('@/components/import/ProductSearchDialog', () => ({
   ProductSearchDialog: ({ onClose }: { onClose: () => void }) => (
     <div data-testid="product-dialog">
       <button onClick={onClose}>Close</button>
     </div>
   ),
 }));
-vi.mock('../components/ShareDialog', () => ({ ShareDialog: () => null }));
-vi.mock('../components/ConfirmDialog', () => ({
+vi.mock('@/components/share/ShareDialog', () => ({ ShareDialog: () => null }));
+vi.mock('@/components/overlays/ConfirmDialog', () => ({
   ConfirmDialog: ({
     title,
     onConfirm,
@@ -53,10 +53,10 @@ vi.mock('../components/ConfirmDialog', () => ({
     </div>
   ),
 }));
-vi.mock('../components/DeckFiltersPopover', () => ({ DeckFiltersPopover: () => null }));
-vi.mock('../lib/deck-validation', () => ({
+vi.mock('@/components/decks/DeckFiltersPopover', () => ({ DeckFiltersPopover: () => null }));
+vi.mock('@/lib/deck/deck-validation', () => ({
   effectiveDeckColors: () => [],
-  deckColorFrequency: () => [],
+  deckDisplayColors: () => [],
   validateDeckZones: () => ({ deck: [], sideboardOnly: [] }),
   countFlaggedCards: () => 0,
 }));

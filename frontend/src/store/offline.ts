@@ -1,4 +1,4 @@
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/util/logger';
 import { create } from 'zustand';
 import {
   clearOfflineData,

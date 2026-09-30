@@ -14,9 +14,9 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@/lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
-vi.mock('@/lib/edhrec-combo-overlay', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/lib/edhrec-combo-overlay')>()),
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/deck-analysis/edhrec-combo-overlay', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/deck-analysis/edhrec-combo-overlay')>()),
   useEdhrecComboOverlay: () => ({}),
 }));
 
@@ -186,13 +186,13 @@ vi.mock('../components/deck/DeckAiRefine', () => ({ DeckAiRefine: () => null }))
 vi.mock('../components/deck/PartnerCommanderSelector', () => ({
   PartnerCommanderSelector: () => <div />,
 }));
-vi.mock('../lib/materialize', () => ({ materializeBinders: () => ({ binders: [] }) }));
-vi.mock('../lib/use-deck-combos', () => ({ useDeckCombos: () => ({ combos: [] }) }));
-vi.mock('../lib/use-commander-bracket-analysis', () => ({
+vi.mock('@/lib/binder/materialize', () => ({ materializeBinders: () => ({ binders: [] }) }));
+vi.mock('@/lib/deck-analysis/use-deck-combos', () => ({ useDeckCombos: () => ({ combos: [] }) }));
+vi.mock('@/lib/deck-analysis/use-commander-bracket-analysis', () => ({
   useCommanderBracketAnalysis: () => ({ status: 'ready', retry: () => {} }),
 }));
-vi.mock('../lib/use-undo-redo-keyboard', () => ({ useUndoRedoKeyboard: () => {} }));
-vi.mock('../lib/use-binder-layout-inputs', () => ({
+vi.mock('@/lib/deck/use-undo-redo-keyboard', () => ({ useUndoRedoKeyboard: () => {} }));
+vi.mock('@/lib/binder/use-binder-layout-inputs', () => ({
   useBinderLayoutInputs: () => ({
     cards: [],
     binders: [],
@@ -200,7 +200,7 @@ vi.mock('../lib/use-binder-layout-inputs', () => ({
     setMap: undefined,
   }),
 }));
-vi.mock('../lib/use-binder-by-copy', () => ({ useBinderByCopyId: () => new Map() }));
+vi.mock('@/lib/binder/use-binder-by-copy', () => ({ useBinderByCopyId: () => new Map() }));
 // Owned-copy claiming: the add path must ask for a copy of the EXACT printing.
 const mockPlanCardAdd = vi.fn((_name: string, _id?: string) => ({
   kind: 'bind' as const,
@@ -209,7 +209,7 @@ const mockPlanCardAdd = vi.fn((_name: string, _id?: string) => ({
 const mockPickCollectionCopy = vi.fn((_name: string, ..._rest: unknown[]) => ({
   copyId: 'copy-sol-sld',
 }));
-vi.mock('../lib/allocations', () => ({
+vi.mock('@/lib/collection/allocations', () => ({
   buildAllocationMap: () => new Map(),
   pickCollectionCopy: (name: string, ...rest: unknown[]) => mockPickCollectionCopy(name, ...rest),
   planCardAdd: (name: string, id?: string) => mockPlanCardAdd(name, id),
@@ -238,17 +238,17 @@ vi.mock('../deck-builder/services/tagger/client', async (importOriginal) => ({
 vi.mock('../deck-builder/services/deckBuilder/costAnalyzer', () => ({
   filterCostPlanByOwnership: () => [],
 }));
-vi.mock('@/lib/deck-change', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/lib/deck-change')>()),
+vi.mock('@/lib/coach/deck-change', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/coach/deck-change')>()),
   fromGapCard: () => null,
   sortOwnedFirst: () => [],
 }));
-vi.mock('../lib/deck-analysis', () => ({
+vi.mock('@/lib/deck-analysis/deck-analysis', () => ({
   classifyCandidate: () => 'neutral',
   analyzeDeck: () => ({ roles: [] }),
 }));
-vi.mock('../lib/intelligent-cuts', () => ({ rankReplacementCuts: () => [] }));
-vi.mock('../lib/card-fit', () => ({ computeAddFit: () => null }));
+vi.mock('@/lib/coach/intelligent-cuts', () => ({ rankReplacementCuts: () => [] }));
+vi.mock('@/lib/coach/card-fit', () => ({ computeAddFit: () => null }));
 const lookup = vi.hoisted(() => ({
   getCardsByRefs: vi.fn(),
   getCardByName: vi.fn(),
@@ -260,8 +260,8 @@ vi.mock('@/deck-builder/services/scryfall/client', () => ({
   getOwnedPrinting: () => Promise.resolve(null),
   searchCards: () => Promise.resolve({ data: [] }),
 }));
-vi.mock('../lib/sync', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../lib/sync')>()),
+vi.mock('@/lib/sync', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/sync')>()),
   getSyncState: () => 'idle',
   onSyncedChange: () => () => {},
 }));

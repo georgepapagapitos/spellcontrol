@@ -10,7 +10,7 @@ import 'fake-indexeddb/auto';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MIN_COLLECTION_SIZE } from '../lib/commander-readiness';
+import { MIN_COLLECTION_SIZE } from '@/lib/deck/commander-readiness';
 
 let mockCards: unknown[] = [];
 vi.mock('../store/collection', () => ({
@@ -23,13 +23,13 @@ vi.mock('../store/decks', () => ({
   ) => sel({ decks: [], deleteDeck: vi.fn(), deleteAllDecks: vi.fn() }),
 }));
 vi.mock('../components/deck/ImportDeckDialog', () => ({ ImportDeckDialog: () => null }));
-vi.mock('../components/ProductSearchDialog', () => ({ ProductSearchDialog: () => null }));
-vi.mock('../components/ShareDialog', () => ({ ShareDialog: () => null }));
-vi.mock('../components/ConfirmDialog', () => ({ ConfirmDialog: () => null }));
-vi.mock('../components/DeckFiltersPopover', () => ({ DeckFiltersPopover: () => null }));
-vi.mock('../lib/deck-validation', () => ({
+vi.mock('@/components/import/ProductSearchDialog', () => ({ ProductSearchDialog: () => null }));
+vi.mock('@/components/share/ShareDialog', () => ({ ShareDialog: () => null }));
+vi.mock('@/components/overlays/ConfirmDialog', () => ({ ConfirmDialog: () => null }));
+vi.mock('@/components/decks/DeckFiltersPopover', () => ({ DeckFiltersPopover: () => null }));
+vi.mock('@/lib/deck/deck-validation', () => ({
   effectiveDeckColors: () => [],
-  deckColorFrequency: () => [],
+  deckDisplayColors: () => [],
   validateDeckZones: () => ({ deck: [], sideboardOnly: [] }),
   countFlaggedCards: () => 0,
 }));

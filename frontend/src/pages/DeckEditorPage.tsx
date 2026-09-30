@@ -1,17 +1,14 @@
-import { MoreVertical, Play, Plus, Redo2, RefreshCw, Undo2, X } from 'lucide-react';
-import { canRegenerate, regenerateHref, regenerateState } from '../lib/regenerate-prefill';
+import { RefreshCw } from 'lucide-react';
+import { canRegenerate, regenerateHref, regenerateState } from '@/lib/deck/regenerate-prefill';
 import {
-  type ReactNode,
   useCallback,
   useDeferredValue,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   useSyncExternalStore,
 } from 'react';
-import { createPortal } from 'react-dom';
 // Editor-only stylesheets ship with this chunk, not the boot payload (E265).
 import '@/styles/deck-builder-editor.css';
 import '@/styles/deck-builder-test-hand.css';
@@ -19,22 +16,19 @@ import '@/styles/deck-builder-combos-list.css';
 import '@/styles/deck-builder-row-qty.css';
 import '@/styles/deck-builder-import-dialog.css';
 import '@/styles/deck-builder-analysis-panel.css';
-import { useMenuKeyboard } from '../lib/use-menu-keyboard';
-import { useDocumentTitle } from '../lib/use-document-title';
-import { useMediaQuery } from '../lib/use-media-query';
-import { computePopoverPlacement, getSafeViewport } from '../lib/popover-placement';
-import { haptics } from '../lib/haptics';
-import { deckCoverArt } from '../lib/deck-cover';
+import { useDocumentTitle } from '@/lib/util/use-document-title';
+import { useMediaQuery } from '@/lib/util/use-media-query';
+import { haptics } from '@/lib/util/haptics';
+import { deckCoverArt } from '@/lib/deck/deck-cover';
 import { pickDeckCover } from '@spellcontrol/deck-metrics';
-import { useBinderLayoutInputs } from '../lib/use-binder-layout-inputs';
-import { useBinderByCopyId } from '../lib/use-binder-by-copy';
+import { useBinderLayoutInputs } from '@/lib/binder/use-binder-layout-inputs';
+import { useBinderByCopyId } from '@/lib/binder/use-binder-by-copy';
 import { useLocation, useNavigate, useParams, useSearchParams, Navigate } from 'react-router-dom';
 import {
   useDecksStore,
   commanderShortName,
   effectiveBracket,
   withAllocationHealDeferred,
-  type Deck,
   type DeckZone,
 } from '../store/decks';
 import { useCubeStore } from '../store/cube';
@@ -47,44 +41,38 @@ import {
   type DeckView,
   scrollToDeckStats,
 } from '../components/deck/DeckDisplay';
-import { Tabs, type TabBadge } from '../components/Tabs';
+import { Tabs, type TabBadge } from '@/components/overlays/Tabs';
 import {
   bracketLabel,
   bracketReasons,
   bracketBorderline,
 } from '@/deck-builder/services/deckBuilder/bracketEstimator';
-import { formatMoney } from '../lib/format-money';
-import { deckValue } from '../lib/deck-value';
-import { useCurrency } from '../lib/currency';
-import { buildCommanderKey } from '../lib/commander-key';
+import { formatMoney } from '@/lib/collection/format-money';
+import { deckValue } from '@/lib/deck/deck-value';
+import { useCurrency } from '@/lib/collection/currency';
+import { buildCommanderKey } from '@/lib/deck/commander-key';
 import type { BinderInfo } from '../components/BinderBadge';
 import { CardSearchPanel, type CardSearchPanelHandle } from '../components/deck/CardSearchPanel';
 import { BuildTimeCoachStrip } from '../components/deck/BuildTimeCoachStrip';
-import { useBuildTimeNudge } from '../lib/use-build-time-nudge';
+import { useBuildTimeNudge } from '@/lib/coach/use-build-time-nudge';
 import { WedgeHintStrip } from '../components/deck/WedgeHintStrip';
-import { dismissResyncHint, shouldShowResyncHint } from '../lib/wedge-hints';
+import { dismissResyncHint, shouldShowResyncHint } from '@/lib/home/wedge-hints';
 import { DeckCombosPanel, type DeckCombosPanelHandle } from '../components/deck/DeckCombosPanel';
 import { DeckAnalysisPanel } from '../components/deck/DeckAnalysisPanel';
 import { DeckAiReview } from '../components/deck/DeckAiReview';
 import { DeckAiRefine } from '../components/deck/DeckAiRefine';
 import { AiSourcesControl } from '../components/deck/AiSourcesControl';
-import { isCollectionScope, type AiScope } from '../lib/ai-scope';
-import { buildRefinePool } from '../lib/ai-refine';
-import { buildAlternativeIndex } from '../lib/refine-alternatives';
+import { isCollectionScope, type AiScope } from '@/lib/ai/ai-scope';
+import { buildRefinePool } from '@/lib/ai/ai-refine';
+import { buildAlternativeIndex } from '@/lib/ai/refine-alternatives';
 import { constrainsToCollection } from '@/deck-builder/services/deckBuilder/deckFilters';
-import { DeckTestHandPanel } from '../components/deck/DeckTestHandPanel';
 import { DeckTokensSheet } from '../components/deck/DeckTokensSheet';
 import { DeckPrimerSheet } from '../components/deck/DeckPrimerSheet';
 import { AppendDeckDialog } from '../components/deck/AppendDeckDialog';
 import { BulkEditDeckDialog } from '../components/deck/BulkEditDeckDialog';
-import { ForkedFromBadge } from '../components/deck/ForkedFromBadge';
-import { DeckVisibilityChip } from '../components/deck/DeckVisibilityChip';
-import { DeckFormatLink } from '../components/deck/DeckFormatLink';
-import { DeckHero } from '../components/deck/DeckHero';
-import { InlineRename } from '@/components/shared/InlineRename';
 import { DeckPublishNudge } from '../components/deck/DeckPublishNudge';
 import { useSealMoment } from '../components/shared/SealMoment';
-import { shouldCelebrateFirstPublish } from '../lib/first-publish-celebration';
+import { shouldCelebrateFirstPublish } from '@/lib/social/first-publish-celebration';
 import { PullListSheet } from '../components/deck/PullListSheet';
 import { useDeckTokens } from '../components/deck/use-deck-tokens';
 import { PowerHero } from '../components/deck/PowerHero';
@@ -114,31 +102,34 @@ import {
   type Change,
   type LaneId,
   type ChangeOwnership,
-} from '@/lib/deck-change';
-import { DECK_NAME_MAX } from '@/lib/deck-name';
-import { rankReplacementCuts } from '@/lib/intelligent-cuts';
-import { buildSwapAlternativeFactors, type WhyFactor } from '@/lib/why-factors';
+} from '@/lib/coach/deck-change';
+import { rankReplacementCuts } from '@/lib/coach/intelligent-cuts';
+import { buildSwapAlternativeFactors, type WhyFactor } from '@/lib/coach/why-factors';
 import '../styles/deck-builder-card-search.css';
-import { computeAddFit } from '@/lib/card-fit';
-import { toClockCard } from '@/lib/hand-classify';
-import { useEdhrecComboOverlay } from '@/lib/edhrec-combo-overlay';
+import { computeAddFit } from '@/lib/coach/card-fit';
+import { toClockCard } from '@/lib/mana-sim/hand-classify';
+import { useEdhrecComboOverlay } from '@/lib/deck-analysis/edhrec-combo-overlay';
 import { CardFitPanel } from '../components/deck/CardFitPanel';
 import { SwapThisCard } from '../components/deck/SwapThisCard';
 import { SimilarCardsStrip } from '../components/deck/SimilarCardsStrip';
-import { classifyCandidate, analyzeDeck } from '../lib/deck-analysis';
-import { useTaggerReady } from '../lib/use-tagger-ready';
-import { heroBracketReadout } from '../lib/format-bracket-label';
-import { findCrossDeckMoves, type CrossDeckMove } from '../lib/cross-deck-moves';
+import { useSubstituteRanking } from '../components/deck/useSubstituteRanking';
+import * as substitutesV2 from '@/deck-builder/services/substitutes/surfaces';
+import { classifyCandidate, analyzeDeck } from '@/lib/deck-analysis/deck-analysis';
+import { useTaggerReady } from '@/lib/cards/use-tagger-ready';
+import { heroBracketReadout } from '@/lib/deck-analysis/format-bracket-label';
+import { findCrossDeckMoves, type CrossDeckMove } from '@/lib/coach/cross-deck-moves';
 import { loadTaggerData, hasTaggerData } from '@/deck-builder/services/tagger/client';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
-import { useDeckCombos } from '../lib/use-deck-combos';
-import { partitionCombosByZone, toMainboardComboData } from '../lib/combo-zone-partition';
-import { buildWinConditionSummary } from '../lib/win-condition-summary';
-import { useCommanderBracketAnalysis } from '../lib/use-commander-bracket-analysis';
-import { useUndoRedoKeyboard } from '../lib/use-undo-redo-keyboard';
-import { useRegisterShortcuts } from '../lib/shortcut-registry';
-import { useSheetExit } from '../lib/use-sheet-exit';
-import { CardEditDialog, type PrintingSelection } from '../components/CardEditDialog';
+import { useDeckCombos } from '@/lib/deck-analysis/use-deck-combos';
+import {
+  partitionCombosByZone,
+  toMainboardComboData,
+} from '@/lib/deck-analysis/combo-zone-partition';
+import { buildWinConditionSummary } from '@/lib/deck-analysis/win-condition-summary';
+import { useCommanderBracketAnalysis } from '@/lib/deck-analysis/use-commander-bracket-analysis';
+import { useUndoRedoKeyboard } from '@/lib/deck/use-undo-redo-keyboard';
+import { useRegisterShortcuts } from '@/components/app-shell/shortcut-registry';
+import { CardEditDialog, type PrintingSelection } from '@/components/collection/CardEditDialog';
 import {
   buildAllocationMap,
   pickCollectionCopy,
@@ -152,97 +143,69 @@ import {
   type DonorOutcome,
   type DonorZone,
   type StealableCopy,
-} from '../lib/allocations';
-import { planQtyChange } from '../lib/deck-qty';
-import { deckColorIdentity, fitsColorIdentity, getMaxCopies } from '../lib/deck-validation';
-import { ConfirmDialog } from '../components/ConfirmDialog';
+} from '@/lib/collection/allocations';
+import { planQtyChange } from '@/lib/deck/deck-qty';
+import { deckColorIdentity, fitsColorIdentity, getMaxCopies } from '@/lib/deck/deck-validation';
+import { ConfirmDialog } from '@/components/overlays/ConfirmDialog';
 import { SharedCopiesSheet } from '../components/deck/SharedCopiesSheet';
 import { DeckFeedbackSheet } from '../components/deck/DeckFeedbackSheet';
 import { MovePrintingPrompt } from '../components/deck/MovePrintingPrompt';
 import { MoveToDeckSheet } from '../components/deck/MoveToDeckSheet';
 import { BuildReportSheet } from '../components/deck/BuildReportSheet';
-import { isBuildReportSeen } from '../lib/build-report-seen';
+import { isBuildReportSeen } from '@/lib/deck/build-report-seen';
 import type { ComboMatch, ComboSeedContext } from '../types/combos';
-import { computeNewArrivals, type ArrivalsByType } from '../lib/new-arrivals';
+import { computeNewArrivals, type ArrivalsByType } from '@/lib/coach/new-arrivals';
 import {
   coachWantedNames,
   narrowArrivals,
   rememberArrivalWatchlist,
-} from '../lib/arrival-watchlist';
-import { BackLink } from '../components/BackLink';
-import { ColorPicker } from '../components/ColorPicker';
-import { Modal } from '../components/Modal';
-import { isValidCommander, isPdhCommanderEligible } from '../lib/commanders';
+} from '@/lib/coach/arrival-watchlist';
+import { Modal } from '@/components/overlays/Modal';
+import { isValidCommander, isPdhCommanderEligible } from '@/lib/deck/commanders';
 import { areValidPartners, canHavePartner } from '@/deck-builder/lib/partnerUtils';
 import { PartnerCommanderSelector } from '../components/deck/PartnerCommanderSelector';
 import { useToastsStore } from '../store/toasts';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Finish } from '../types';
 import { computeLandUpgrades } from '@/deck-builder/services/deckBuilder/landUpgrades';
-import { buildUpgradePlanTools } from '@/lib/upgrade-plan-tools';
-import { applyUpgradePlan, type PlanStep } from '@/lib/apply-upgrade-plan';
+import { buildUpgradePlanTools } from '@/lib/coach/upgrade-plan-tools';
+import { applyUpgradePlan, type PlanStep } from '@/lib/coach/apply-upgrade-plan';
 import {
   applyCheapestPrintings,
   applyMatchMyCopies,
   copyMismatches,
   missingSlots,
   PrintingLookupOfflineError,
-} from '@/lib/deck-printing-actions';
-import { logger } from '@/lib/logger';
-import { useSearchCards } from '@/lib/use-search-cards';
+} from '@/lib/deck/deck-printing-actions';
+import { logger } from '@/lib/util/logger';
+import { useSearchCards } from '@/lib/search/use-search-cards';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import {
   getCardByName,
   getCardsByRefs,
   getOwnedPrinting,
-  searchCards,
 } from '../deck-builder/services/scryfall/client';
-import { parseScryfallCardRefs } from '@/lib/scryfall-card-link';
-import { useLinkDrop } from '@/lib/use-link-drop';
-import { userMessage } from '@/lib/user-error';
-
-// Fetch strong on-color fixing lands for the "Re-analyze lands" tool's acquire
-// rows (duals the user may not own yet). The deck's identity letters are passed
-// as the search hook's query string; this parses them back into a color filter.
-// edhrec order surfaces the popular duals first, bounded by the hook's limit.
-// Module-level (stable ref) as useSearchCards requires. Basics excluded; the
-// merit engine ranks and filters what's returned.
-const fetchFixingLands = (identityKey: string): Promise<ScryfallCard[]> =>
-  searchCards('t:land -t:basic', identityKey.split(''), { order: 'edhrec' }).then((r) => r.data);
+import { parseScryfallCardRefs } from '@/lib/cards/scryfall-card-link';
+import { userMessage } from '@/lib/util/user-error';
 import { getSyncState, onSyncedChange } from '@/lib/sync';
 import { printedName } from '@spellcontrol/binder-routing';
-import { Button, IconButton } from '@/components/shared/Button';
+import { Button } from '@/components/shared/Button';
 import { EmptyState } from '@/components/shared/EmptyState';
-
-/** Functional role key → display label (the four roles the tagger classifies). */
-const ROLE_LABEL: Record<string, string> = {
-  ramp: 'Ramp',
-  removal: 'Removal',
-  boardwipe: 'Board wipes',
-  cardDraw: 'Card advantage',
-};
-
-/** Shortcut items contributed to the registry under the "Deck editor" section. */
-const DECK_EDITOR_SHORTCUTS = [
-  { keys: ['/'], description: 'Open card search' },
-  { keys: ['a'], description: 'Open Coach tab (suggestions)' },
-  { keys: ['c'], description: 'Open Power tab with combos' },
-  { keys: ['Cmd/Ctrl+Z'], description: 'Undo last edit' },
-  { keys: ['Cmd/Ctrl+Shift+Z'], description: 'Redo last edit' },
-];
-
-// "Owned only" Coach toggle — persisted here (the page owns the state) so both
-// the feed and the Next-best-move hero, which is built upstream, share it.
-const OWNED_ONLY_KEY = 'spellcontrol-improve-owned-only';
-/** Stable initial value for the deferred cross-deck scan (a fresh [] would re-render). */
-const NO_DECKS: Deck[] = [];
-function readOwnedOnly(): boolean {
-  try {
-    return window.localStorage.getItem(OWNED_ONLY_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
+import {
+  DECK_EDITOR_SHORTCUTS,
+  NO_DECKS,
+  OWNED_ONLY_KEY,
+  ROLE_LABEL,
+  fetchFixingLands,
+  readOwnedOnly,
+} from './deck-editor/deck-editor-helpers';
+import { DeckEditorCardPickerSheet } from './deck-editor/DeckEditorCardPickerSheet';
+import { AddZoneToggle } from './deck-editor/AddZoneToggle';
+import { DeckTestHandSheet } from './deck-editor/DeckTestHandSheet';
+import { ReplaceCommanderDialog } from './deck-editor/ReplaceCommanderDialog';
+import { DeckEditorHero } from './deck-editor/DeckEditorHero';
+import { DeckEditorOverflowMenu } from './deck-editor/DeckEditorOverflowMenu';
+import { DeckScryfallDropOverlay } from './deck-editor/DeckScryfallDropOverlay';
 
 export function DeckEditorPage() {
   const { id } = useParams<{ id: string }>();
@@ -343,7 +306,7 @@ export function DeckEditorPage() {
   const collectionById = useCollectionByCopyId();
 
   // New arrivals (E140) — importId -> import batch's addedAt, for the
-  // acquired-at resolution (see lib/new-arrivals.ts). Mirrors CardListTable's
+  // acquired-at resolution (see lib/coach/new-arrivals.ts). Mirrors CardListTable's
   // dateAdded sort context.
   const addedAtByImportId = useMemo(
     () => new Map(importHistory.map((e) => [e.id, e.addedAt])),
@@ -762,7 +725,7 @@ export function DeckEditorPage() {
   const [appendOpen, setAppendOpen] = useState(false);
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [resyncOpen, setResyncOpen] = useState(false);
-  // Deck re-sync discovery hint (see lib/wedge-hints.ts) — same
+  // Deck re-sync discovery hint (see lib/home/wedge-hints.ts) — same
   // dismiss-locally-then-persist shape as the binder hint in CardSearchPanel.
   const [resyncHintDismissed, setResyncHintDismissed] = useState(false);
   const hasPullSlots =
@@ -1240,6 +1203,8 @@ export function DeckEditorPage() {
     }
     return [...byName.values()];
   }, [collectionCards]);
+  // E517: v2 re-ranks the owned alternatives once its card facts load (the Coach tab asks).
+  const substitutesReady = useSubstituteRanking(view === 'tune');
   const substitutionPlan = useMemo(() => {
     if (!deck || !DECK_FORMAT_CONFIGS[deck.format].hasCommander) return null;
     const gap = deck.gapAnalysis;
@@ -1256,8 +1221,9 @@ export function DeckEditorPage() {
     // single-pick buildSubstitutionPlan).
     return buildSubstitutionOptions(missingStaples, ownedPool, deckNames, commanderColorIdentity, {
       inclusionByName,
+      rerank: substitutesReady ? substitutesV2.ownedAlternativesReranker([...deckNames]) : null,
     });
-  }, [deck, ownedNames, ownedPool, commanderColorIdentity]);
+  }, [deck, ownedNames, ownedPool, commanderColorIdentity, substitutesReady]);
 
   // Strong on-color duals for the deck's colors, fetched live for the
   // "Re-analyze lands" tool's acquire rows (duals worth getting, not just ones
@@ -1366,7 +1332,7 @@ export function DeckEditorPage() {
     [deck, substitutionPlan, landUpgrades, deckCardNames, aiScope, ownedNames]
   );
   // New arrivals, tailored to THIS deck: only cards the coach recommends for
-  // it or that finish a one-away combo (lib/arrival-watchlist.ts says which
+  // it or that finish a one-away combo (lib/coach/arrival-watchlist.ts says which
   // lanes, and why not the owned-only ones). The raw arrivals are "in colour
   // identity, acquired since the deck last changed", which on any real import
   // reads as random: every red card you bought lit up a Krenko deck.
@@ -1387,7 +1353,7 @@ export function DeckEditorPage() {
     [arrivalsByType, coachWanted]
   );
   // The wanted list is what Home's "+N new cards" narrows by, so Home and this
-  // page count the same cards (lib/arrival-watchlist.ts). Recorded only once
+  // page count the same cards (lib/coach/arrival-watchlist.ts). Recorded only once
   // every input has landed: a list taken mid-load (collection still
   // hydrating, combos still fetching) is short, and Home would under-count.
   const arrivalsSettled = !collectionHydrating && !comboData.loading;
@@ -1462,7 +1428,7 @@ export function DeckEditorPage() {
   }, [deck, currency]);
 
   // The deck's cover behind the hero, the same face its index tile wears
-  // (lib/deck-cover). Undefined only for a deck with no art at all; the hero
+  // (lib/deck/deck-cover). Undefined only for a deck with no art at all; the hero
   // then keeps its plain color-border look.
   const heroArt = useMemo(() => (deck ? deckCoverArt(deck) : undefined), [deck]);
   // The card menu's "Use as deck cover". `chosen` is only the pick while that
@@ -1649,51 +1615,7 @@ export function DeckEditorPage() {
   const renderAddPanelContent = (close: () => void) => (
     <>
       <div className="card-picker-handle" aria-hidden />
-      {/* Unconditional (unlike the old sideboard-only gate): Considering
-          applies to every format, so the toggle always offers it even
-          when this format has no real sideboard. Native radio semantics
-          (STYLE_GUIDE "exclusive-value picker" ruling — a hidden radio
-          input stretched over a styled label, mirroring
-          .settings-currency-toggle) rather than aria-pressed buttons, so
-          exclusivity + arrow-key group nav come from the browser. */}
-      <fieldset className="deck-editor-zone-toggle" aria-label="Add cards to">
-        <label className="deck-editor-zone-toggle-option">
-          <input
-            type="radio"
-            name="deck-editor-add-zone"
-            value="main"
-            checked={addZone === 'main'}
-            onChange={() => setAddZone('main')}
-          />
-          <span className={`btn btn-sm${addZone === 'main' ? ' btn-primary' : ''}`}>Mainboard</span>
-        </label>
-        {formatConfig && formatConfig.sideboardSize > 0 && (
-          <label className="deck-editor-zone-toggle-option">
-            <input
-              type="radio"
-              name="deck-editor-add-zone"
-              value="side"
-              checked={addZone === 'side'}
-              onChange={() => setAddZone('side')}
-            />
-            <span className={`btn btn-sm${addZone === 'side' ? ' btn-primary' : ''}`}>
-              Sideboard
-            </span>
-          </label>
-        )}
-        <label className="deck-editor-zone-toggle-option">
-          <input
-            type="radio"
-            name="deck-editor-add-zone"
-            value="considering"
-            checked={addZone === 'considering'}
-            onChange={() => setAddZone('considering')}
-          />
-          <span className={`btn btn-sm${addZone === 'considering' ? ' btn-primary' : ''}`}>
-            Considering
-          </span>
-        </label>
-      </fieldset>
+      <AddZoneToggle addZone={addZone} setAddZone={setAddZone} formatConfig={formatConfig} />
       {/* Build-time coach nudge (E169 Half B) — strictly mainboard-only:
           an add to sideboard/considering doesn't touch the mainboard
           signature the combo/bracket/win-condition engines analyze, so
@@ -2438,22 +2360,25 @@ export function DeckEditorPage() {
     // Each alternative is a real swap (this card → the alternative), so the row
     // shows the trade: the focused card dimmed on the left, the alternative
     // coming in. The apply path still reads the incoming name (`onSwap`).
-    const alternatives = sortOwnedFirst(
-      gaps.map((g) => {
-        const ownership = ownershipFor(g.name);
-        return {
-          ...toSwapAgainst(fromGapCard(g, ownership), card.name),
-          // Each same-role alternative gets its own grounded "why this over the
-          // others" — replaces the six identical "{role} staple" reason lines.
-          whyFactors: buildSwapAlternativeFactors({
-            inclusion: g.inclusion,
-            synergy: g.synergy,
-            owned: ownership === 'owned',
-            roleLabel: g.roleLabel,
-            commanderName: deck.commander?.name,
-          }),
-        };
-      })
+    const built = gaps.map((g) => {
+      const ownership = ownershipFor(g.name);
+      return {
+        ...toSwapAgainst(fromGapCard(g, ownership), card.name),
+        // Each same-role alternative gets its own grounded "why this over the
+        // others" — replaces the six identical "{role} staple" reason lines.
+        whyFactors: buildSwapAlternativeFactors({
+          inclusion: g.inclusion,
+          synergy: g.synergy,
+          owned: ownership === 'owned',
+          roleLabel: g.roleLabel,
+          commanderName: deck.commander?.name,
+        }),
+      };
+    });
+    // E517: owned first, then by how well each replaces this card (v2), else by play rate.
+    const alternatives = (
+      substitutesV2.rankSwapAlternatives(card.name, role, built, [...deckCardNames]) ??
+      sortOwnedFirst(built)
     ).slice(0, 6);
     return (
       <SwapThisCard
@@ -2576,7 +2501,7 @@ export function DeckEditorPage() {
   };
 
   // ⋮ Deck actions: printing swaps that never touch a copy binding, each one
-  // write and one undo entry (lib/deck-printing-actions).
+  // write and one undo entry (lib/deck/deck-printing-actions).
   const printingLookupFailed = (err: unknown, fallback: string) => {
     if (!(err instanceof PrintingLookupOfflineError)) logger.warn('[Printings] lookup failed', err);
     pushToast({
@@ -2931,7 +2856,7 @@ export function DeckEditorPage() {
   // of the deck's three card arrays this edit targets — previously
   // hard-wired to `deck.cards`, which meant the mainboard stepper could
   // never be safely reused for sideboard/considering rows without risking a
-  // silent cross-zone mutation. `planQtyChange` (lib/deck-qty.ts) is the pure
+  // silent cross-zone mutation. `planQtyChange` (lib/deck/deck-qty.ts) is the pure
   // diff; the add/remove itself is ONE store write via bulkAddCards/
   // bulkRemoveCards regardless of how many copies change (never loop
   // per-card store actions — each would fire its own sync push). Bulk
@@ -3272,194 +3197,56 @@ export function DeckEditorPage() {
     <div className="deck-editor-page">
       {sealMoment}
       {showPublishNudge && <DeckPublishNudge deckId={deck.id} />}
-      <DeckHero
+      <DeckEditorHero
+        deck={deck}
         art={heroArt}
-        color={deck.color}
-        back={<BackLink to="/decks" label="All decks" />}
-        title={
-          // Identity is the header (STYLE_GUIDE § Config surfaces): name and
-          // colour are a colour dot and an inline name field together, one
-          // editing surface — so the explicit Done stays (unlike a plain
-          // rename, blur can't close this: picking a colour swatch keeps
-          // focus put on purpose, InlineRename's own mousedown guard).
-          <h1 className="deck-editor-title">
-            {/* renameLabel carries the deck's own name (not a bare "Rename
-                deck") so a screen-reader user tabbing straight to this
-                button hears which deck, not just the verb. */}
-            <InlineRename
-              value={deck.name}
-              onCommit={handleCommitRename}
-              editing={renaming}
-              onEditingChange={setRenaming}
-              label="Deck name"
-              renameLabel={`Rename ${deck.name}`}
-              maxLength={DECK_NAME_MAX}
-              className="deck-editor-name binder-hero-name"
-              inputClassName="deck-editor-name-input"
-              editClassName="deck-editor-hero-edit"
-              doneLabel="Done"
-            >
-              <div className="deck-editor-hero-edit-color">
-                <span className="deck-editor-hero-edit-label">Color</span>
-                <ColorPicker
-                  value={deck.color}
-                  onChange={(hex) => updateDeck(deck.id, { color: hex })}
-                  ariaLabel="Deck color"
-                />
-              </div>
-            </InlineRename>
-          </h1>
+        formatConfig={formatConfig}
+        heroTotals={heroTotals}
+        bracketValue={bracketValue}
+        heroBracket={heroBracket}
+        commanderColorIdentity={commanderColorIdentity}
+        renaming={renaming}
+        setRenaming={setRenaming}
+        onCommitRename={handleCommitRename}
+        updateDeck={updateDeck}
+        isDesktop={isDesktop}
+        isPhone={isPhone}
+        undoEdit={undoEdit}
+        redoEdit={redoEdit}
+        canUndoEdit={canUndoEdit}
+        canRedoEdit={canRedoEdit}
+        undoEditLabel={undoEditLabel}
+        redoEditLabel={redoEditLabel}
+        showAddPanel={showAddPanel}
+        onToggleAddPanel={handleToggleAddPanel}
+        overflowMenu={
+          <DeckEditorOverflowMenu
+            onDuplicate={handleDuplicate}
+            onDelete={handleDelete}
+            onImport={() => setAppendOpen(true)}
+            onBulkEdit={() => setBulkEditOpen(true)}
+            onResync={() => setResyncOpen(true)}
+            onFeedback={() => setFeedbackOpen(true)}
+            onPrimer={() => setPrimerOpen(true)}
+            onBuildReport={deck.buildReport ? () => setShowBuildReport(true) : undefined}
+            onRegenerate={
+              canRegenerate(deck)
+                ? () => navigate(regenerateHref(deck), { state: regenerateState(deck) })
+                : undefined
+            }
+            onPlaytest={isPhone ? () => navigate(`/decks/${deck.id}/playtest`) : undefined}
+            onTokens={deckTokens.length > 0 ? () => setTokensOpen(true) : undefined}
+            onPullList={hasPullSlots ? () => setPullListOpen(true) : undefined}
+            onCheapestPrintings={hasMissingSlots ? () => void handleCheapestPrintings() : undefined}
+            onMatchCopies={hasCopyMismatches ? () => void handleMatchMyCopies() : undefined}
+            onPrintProxies={hasPullSlots ? () => navigate(`/decks/${deck.id}/proxies`) : undefined}
+            onUndo={!isDesktop && canUndoEdit ? () => undoEdit(deck.id) : undefined}
+            onRedo={!isDesktop && canRedoEdit ? () => redoEdit(deck.id) : undefined}
+            undoLabel={undoEditLabel}
+            redoLabel={redoEditLabel}
+          />
         }
-        meta={
-          <>
-            {/* The format is a link to its own sheet, like sharing at the
-                    line's end: a value here that can change opens where it
-                    changes (E465). */}
-            {formatConfig && <DeckFormatLink deck={deck} />}
-            {/* The deck's totals. The sideboard and considering counts are
-                    also the way INTO those zones: each links to the out-zone at
-                    the foot of the deck body, which is why the toolbar no longer
-                    carries a separate "Not in deck" jump. One fact in one place,
-                    with the affordance on the fact rather than beside it. */}
-            <span className="deck-hero-totals">
-              {formatConfig ? '\u00A0· ' : ''}
-              {heroTotals.count}
-              {'\u00A0'}
-              {heroTotals.count === 1 ? 'card' : 'cards'}
-              {'\u00A0· '}
-              {formatMoney(heroTotals.value)}
-              {heroTotals.sideboard > 0 && (
-                <>
-                  {'\u00A0· '}
-                  <a
-                    href="#deck-outzone"
-                    className="deck-hero-outzone-link"
-                    aria-label={`${heroTotals.sideboard} in the sideboard. Jump to the cards not in the deck.`}
-                  >
-                    {`+${heroTotals.sideboard}\u00A0sideboard`}
-                  </a>
-                </>
-              )}
-              {heroTotals.considering > 0 && (
-                <>
-                  {'\u00A0· '}
-                  <a
-                    href="#deck-outzone"
-                    className="deck-hero-outzone-link"
-                    aria-label={`${heroTotals.considering} being considered. Jump to the cards not in the deck.`}
-                  >
-                    {`+${heroTotals.considering}\u00A0considering`}
-                  </a>
-                </>
-              )}
-            </span>
-            {/* Bracket — glanceable on every view (it left the feature strip).
-                    The hero is the one place the Deck tab states it, so a stated
-                    bracket the Estimate disagrees with carries the Estimate here
-                    ("Bracket 2 · est. 4", § Bracket: the owner's word); the deck
-                    stats under the list no longer repeat either. */}
-            {bracketValue != null && (
-              <span className="deck-hero-bracket" aria-label={heroBracket?.aria}>
-                {`\u00A0· ${heroBracket?.text.replace(/ /g, '\u00A0')}`}
-              </span>
-            )}
-            {/* Sharing is a fact about the deck, so it is the meta line's last
-                segment; the status itself opens ShareDialog. */}
-            {'\u00A0· '}
-            <DeckVisibilityChip
-              deckId={deck.id}
-              deckName={deck.name}
-              colorIdentity={commanderColorIdentity}
-            />
-          </>
-        }
-        actions={
-          <>
-            {isDesktop && (
-              <>
-                <IconButton
-                  variant="secondary"
-                  className="deck-editor-action-btn deck-editor-icon-btn"
-                  onClick={() => undoEdit(deck.id)}
-                  disabled={!canUndoEdit}
-                  title={canUndoEdit ? `Undo: ${undoEditLabel} (Ctrl/Cmd+Z)` : 'Nothing to undo'}
-                  label={canUndoEdit ? `Undo ${undoEditLabel}` : 'Nothing to undo'}
-                  icon={<Undo2 width={14} height={14} strokeWidth={1.8} />}
-                />
-                <IconButton
-                  variant="secondary"
-                  className="deck-editor-action-btn deck-editor-icon-btn"
-                  onClick={() => redoEdit(deck.id)}
-                  disabled={!canRedoEdit}
-                  title={
-                    canRedoEdit ? `Redo: ${redoEditLabel} (Ctrl/Cmd+Shift+Z)` : 'Nothing to redo'
-                  }
-                  label={canRedoEdit ? `Redo ${redoEditLabel}` : 'Nothing to redo'}
-                  icon={<Redo2 width={14} height={14} strokeWidth={1.8} />}
-                />
-              </>
-            )}
-            {!isPhone && (
-              <Button
-                to={`/decks/${deck.id}/playtest`}
-                className="deck-editor-action-btn"
-                icon={<Play width={14} height={14} strokeWidth={1.8} />}
-              >
-                Playtest
-              </Button>
-            )}
-            <Button
-              variant="primary"
-              onClick={handleToggleAddPanel}
-              aria-expanded={showAddPanel}
-              title="Add cards (press / to focus search)"
-              className="deck-editor-action-btn deck-editor-add-btn"
-              icon={
-                showAddPanel ? (
-                  <X width={14} height={14} strokeWidth={1.8} />
-                ) : (
-                  <Plus width={14} height={14} strokeWidth={1.8} />
-                )
-              }
-            >
-              {showAddPanel ? 'Hide cards panel' : 'Add cards'}
-            </Button>
-            {/* Tokens, Pull list, Duplicate and Delete (UX-316: destructive
-                actions live here, never inline) are all in the ⋮. */}
-            <DeckEditorOverflowMenu
-              onDuplicate={handleDuplicate}
-              onDelete={handleDelete}
-              onImport={() => setAppendOpen(true)}
-              onBulkEdit={() => setBulkEditOpen(true)}
-              onResync={() => setResyncOpen(true)}
-              onFeedback={() => setFeedbackOpen(true)}
-              onPrimer={() => setPrimerOpen(true)}
-              onBuildReport={deck.buildReport ? () => setShowBuildReport(true) : undefined}
-              onRegenerate={
-                canRegenerate(deck)
-                  ? () => navigate(regenerateHref(deck), { state: regenerateState(deck) })
-                  : undefined
-              }
-              onPlaytest={isPhone ? () => navigate(`/decks/${deck.id}/playtest`) : undefined}
-              onTokens={deckTokens.length > 0 ? () => setTokensOpen(true) : undefined}
-              onPullList={hasPullSlots ? () => setPullListOpen(true) : undefined}
-              onCheapestPrintings={
-                hasMissingSlots ? () => void handleCheapestPrintings() : undefined
-              }
-              onMatchCopies={hasCopyMismatches ? () => void handleMatchMyCopies() : undefined}
-              onPrintProxies={
-                hasPullSlots ? () => navigate(`/decks/${deck.id}/proxies`) : undefined
-              }
-              onUndo={!isDesktop && canUndoEdit ? () => undoEdit(deck.id) : undefined}
-              onRedo={!isDesktop && canRedoEdit ? () => redoEdit(deck.id) : undefined}
-              undoLabel={undoEditLabel}
-              redoLabel={redoEditLabel}
-            />
-          </>
-        }
-      >
-        {deck.forkedFrom && <ForkedFromBadge forkedFrom={deck.forkedFrom} />}
-      </DeckHero>
+      />
 
       {/* Page-top distinct-view tabs (Deck · Power · Coach; Power/Coach appear
           only with analysis extras), mirroring the Collection hub. Sticky so it
@@ -3875,29 +3662,7 @@ export function DeckEditorPage() {
           is a distinct activity, opened on demand from the Deck-view toolbar so
           it's never pinned inline or in a tab. */}
       {showTestHand && (
-        <DeckEditorCardPickerSheet
-          label="Test hand"
-          className="deck-test-hand-sheet"
-          onClose={() => setShowTestHand(false)}
-        >
-          {(dismiss) => (
-            <>
-              <div className="card-picker-handle" aria-hidden />
-              <div className="deck-test-hand-sheet-header">
-                <h2 className="deck-test-hand-sheet-title">Test hand</h2>
-                <IconButton
-                  variant="quiet"
-                  onClick={dismiss}
-                  label="Close test hand"
-                  icon={<X width={18} height={18} strokeWidth={2} />}
-                />
-              </div>
-              <div className="deck-test-hand-sheet-body">
-                <DeckTestHandPanel embedded deckId={deck.id} />
-              </div>
-            </>
-          )}
-        </DeckEditorCardPickerSheet>
+        <DeckTestHandSheet deckId={deck.id} onClose={() => setShowTestHand(false)} />
       )}
 
       {/* Add cards — a breakpoint-aware overlay (bottom sheet on mobile,
@@ -3993,41 +3758,23 @@ export function DeckEditorPage() {
       )}
 
       {makeCommanderTarget && deck.commander && (
-        <Modal onClose={() => setMakeCommanderTarget(null)} labelledBy="make-commander-title">
-          <h2 id="make-commander-title" className="choice-dialog-title">
-            Make {makeCommanderTarget.card.name} the commander?
-          </h2>
-          <p className="choice-dialog-body">
-            <strong>{deck.commander.name}</strong> is currently the commander. What should happen to
-            it?
-          </p>
-          <div className="choice-dialog-actions">
-            <Button onClick={() => setMakeCommanderTarget(null)}>Cancel</Button>
-            <Button onClick={() => handleConfirmMakeCommander(false)}>Remove from deck</Button>
-            <Button variant="primary" onClick={() => handleConfirmMakeCommander(true)} autoFocus>
-              Keep in deck
-            </Button>
-          </div>
-        </Modal>
+        <ReplaceCommanderDialog
+          which="commander"
+          incoming={makeCommanderTarget.card.name}
+          current={deck.commander.name}
+          onCancel={() => setMakeCommanderTarget(null)}
+          onConfirm={handleConfirmMakeCommander}
+        />
       )}
 
       {makePartnerTarget && deck.partnerCommander && (
-        <Modal onClose={() => setMakePartnerTarget(null)} labelledBy="make-partner-title">
-          <h2 id="make-partner-title" className="choice-dialog-title">
-            Make {makePartnerTarget.card.name} the partner commander?
-          </h2>
-          <p className="choice-dialog-body">
-            <strong>{deck.partnerCommander.name}</strong> is currently the partner. What should
-            happen to it?
-          </p>
-          <div className="choice-dialog-actions">
-            <Button onClick={() => setMakePartnerTarget(null)}>Cancel</Button>
-            <Button onClick={() => handleConfirmMakePartner(false)}>Remove from deck</Button>
-            <Button variant="primary" onClick={() => handleConfirmMakePartner(true)} autoFocus>
-              Keep in deck
-            </Button>
-          </div>
-        </Modal>
+        <ReplaceCommanderDialog
+          which="partner"
+          incoming={makePartnerTarget.card.name}
+          current={deck.partnerCommander.name}
+          onCancel={() => setMakePartnerTarget(null)}
+          onConfirm={handleConfirmMakePartner}
+        />
       )}
 
       {showCommanderPicker && formatConfig?.hasCommander && (
@@ -4244,332 +3991,6 @@ export function DeckEditorPage() {
 
       {/* Suppress unused-import lint */}
       <span hidden>{updateDeck.name}</span>
-    </div>
-  );
-}
-
-/**
- * The editor's drop target for cards dragged in from Scryfall (useLinkDrop): a
- * full-window veil naming the zone the card lands in, shown while a link drag
- * is over the window and while the drop is looked up. Purely visual
- * (aria-hidden, pointer-events off); the toast after the drop is the
- * announcement.
- */
-function DeckScryfallDropOverlay({
-  zoneLabel,
-  onDropText,
-}: {
-  zoneLabel: string;
-  onDropText: (text: string) => Promise<void>;
-}) {
-  const [finding, setFinding] = useState(false);
-  const dragging = useLinkDrop((text) => {
-    setFinding(true);
-    void onDropText(text).finally(() => setFinding(false));
-  });
-  if (!dragging && !finding) return null;
-  return (
-    <div className="deck-link-drop" aria-hidden="true">
-      <p className="deck-link-drop-message">
-        <Plus width={20} height={20} strokeWidth={1.8} aria-hidden />
-        {dragging ? `Drop to add to ${zoneLabel}` : 'Finding the card on Scryfall…'}
-      </p>
-    </div>
-  );
-}
-
-function DeckEditorCardPickerSheet({
-  label,
-  className,
-  onClose,
-  children,
-}: {
-  label: string;
-  className: string;
-  onClose: () => void;
-  children: (dismiss: () => void) => ReactNode;
-}) {
-  // Escape, the backdrop and every child close go through the hook's
-  // beginClose, which is instant on desktop (the panel has no exit keyframe).
-  const {
-    isClosing,
-    beginClose: dismiss,
-    onAnimationEnd,
-  } = useSheetExit(onClose, 'binder-sheet-slide-out', { instantAt: '(min-width: 1024px)' });
-
-  return (
-    <div
-      className="card-picker-root"
-      role="presentation"
-      onClick={(e) => {
-        e.stopPropagation();
-        if (e.target === e.currentTarget) dismiss();
-      }}
-    >
-      <div
-        className={`card-picker-sheet ${className}${isClosing ? ' is-closing' : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-label={label}
-        onAnimationEnd={onAnimationEnd}
-      >
-        {children(dismiss)}
-      </div>
-    </div>
-  );
-}
-
-function DeckEditorOverflowMenu({
-  onDuplicate,
-  onDelete,
-  onImport,
-  onBulkEdit,
-  onResync,
-  onFeedback,
-  onPrimer,
-  onBuildReport,
-  onRegenerate,
-  onPlaytest,
-  onTokens,
-  onPullList,
-  onCheapestPrintings,
-  onMatchCopies,
-  onPrintProxies,
-  onUndo,
-  onRedo,
-  undoLabel,
-  redoLabel,
-}: {
-  onDuplicate: () => void;
-  onDelete: () => void;
-  /** Opens the paste-into-this-deck dialog (E168 slice 2): kebab-only at
-   *  every breakpoint, no separate toolbar button. Export is the deck
-   *  toolbar's (its ⋯ on a wide row, its kebab on a phone). */
-  onImport: () => void;
-  /** Opens the text/bulk-edit dialog (E168 slice 4) — same kebab-only,
-   *  every-breakpoint placement as onImport. */
-  onBulkEdit: () => void;
-  /** Opens the same dialog in resync mode (E173) — paste-and-diff against an
-   *  external list-of-record (Moxfield, Archidekt, …), kebab-only like
-   *  onBulkEdit/onImport. */
-  onResync: () => void;
-  /** Opens the Feedback Tool sheet (mint link + review responses). */
-  onFeedback: () => void;
-  /** Opens the primer (strategy notes) editor sheet. */
-  onPrimer: () => void;
-  /** Reopens the one-shot generation Build Report (B6-06). Present only when
-   *  the deck has one — a hand-built deck never got one to reopen. */
-  onBuildReport?: () => void;
-  /** Rebuild with this deck's own settings, landing on the compare diff.
-   *  Present only on a generated deck, the one kind with settings to replay;
-   *  it used to live only in the decks index's tile menu. */
-  onRegenerate?: () => void;
-  onPlaytest?: () => void;
-  /** Present only when the deck makes tokens. */
-  onTokens?: () => void;
-  /** Present only when the deck has cards to pull. */
-  onPullList?: () => void;
-  /** Present only when the deck has a missing card (no owned copy bound). */
-  onCheapestPrintings?: () => void;
-  /** Present only when an owned slot's printing differs from its copy's. */
-  onMatchCopies?: () => void;
-  /** Opens the printable proxy sheet. Present only when the deck has cards. */
-  onPrintProxies?: () => void;
-  /** Present only when there's an edit to undo; carries the action label. */
-  onUndo?: () => void;
-  /** Present only when there's an edit to redo; carries the action label. */
-  onRedo?: () => void;
-  undoLabel?: string | null;
-  redoLabel?: string | null;
-}) {
-  // Portal + fixed-position placement (B6-02): the panel used to be
-  // `position: absolute; right: 0` inside a wrapper no wider than the 44px
-  // kebab button, so a right-aligned panel wider than that wrapper computed a
-  // negative `left` and clipped off the left edge of the viewport at 360px.
-  // Portaling to <body> and computing coordinates from the trigger's real
-  // screen position (same primitives as OverflowMenu/SelectMenu/ToolbarPopover)
-  // clamps it into the safe viewport regardless of the wrapper's own width.
-  // useMenuKeyboard also replaces the hand-rolled mousedown/Escape listeners
-  // with real menu semantics (B6-13): arrow-key nav, Home/End, Escape/Tab
-  // return focus to the trigger, pointerdown (not mousedown) dismiss.
-  const [open, setOpen] = useState(false);
-  const [panelPos, setPanelPos] = useState<{
-    top?: number;
-    bottom?: number;
-    left?: number;
-    right?: number;
-  } | null>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-
-  const { closeAndReturnFocus } = useMenuKeyboard({
-    open,
-    onClose: () => setOpen(false),
-    panelRef,
-    triggerRef: buttonRef,
-  });
-
-  useLayoutEffect(() => {
-    if (!open || !panelRef.current || !buttonRef.current) return;
-    const anchorRect = buttonRef.current.getBoundingClientRect();
-    const panelRect = panelRef.current.getBoundingClientRect();
-    const placement = computePopoverPlacement(
-      anchorRect,
-      { width: panelRect.width, height: panelRect.height },
-      getSafeViewport(),
-      'right',
-      4
-    );
-    setPanelPos({
-      top: placement.top,
-      bottom: placement.bottom,
-      left: placement.left,
-      right: placement.right,
-    });
-  }, [open]);
-
-  const handleToggle = () => {
-    if (!open && buttonRef.current) {
-      const r = buttonRef.current.getBoundingClientRect();
-      setPanelPos({ top: r.bottom + 4, right: Math.max(8, window.innerWidth - r.right) });
-    }
-    setOpen((v) => !v);
-  };
-
-  // Sectioned groups (E181): a flat 12-13 row list read as an undifferentiated
-  // wall. Undo/Redo stay unlabelled at top (existing convention) and Delete
-  // stays last (STYLE_GUIDE UX-316 — destructive actions live in this menu);
-  // everything else buckets into labelled clusters. Each row is `{ key, label,
-  // onClick }` so a whole section can be built + filtered in one line instead
-  // of ~10 near-identical <button> blocks.
-  type Row = { key: string; label: string; onClick: () => void };
-  const quickActions: Row[] = [
-    onPlaytest && { key: 'playtest', label: 'Playtest', onClick: onPlaytest },
-    onTokens && { key: 'tokens', label: 'Tokens to prep', onClick: onTokens },
-    onPullList && { key: 'pull-list', label: 'Pull list', onClick: onPullList },
-    onPrintProxies && { key: 'proxies', label: 'Print proxies', onClick: onPrintProxies },
-  ].filter((r): r is Row => !!r);
-  const textTools: Row[] = [
-    { key: 'paste', label: 'Paste cards', onClick: onImport },
-    { key: 'bulk-edit', label: 'Bulk edit', onClick: onBulkEdit },
-    { key: 'resync', label: 'Resync from a list', onClick: onResync },
-  ];
-  const deckActions: Row[] = [
-    { key: 'duplicate', label: 'Duplicate', onClick: onDuplicate },
-    { key: 'primer', label: 'Primer', onClick: onPrimer },
-    { key: 'feedback', label: 'Get feedback', onClick: onFeedback },
-    onBuildReport && { key: 'build-report', label: 'Build report', onClick: onBuildReport },
-    onRegenerate && { key: 'regenerate', label: 'Regenerate', onClick: onRegenerate },
-    onCheapestPrintings && {
-      key: 'cheapest-printings',
-      label: 'Cheapest printings for missing',
-      onClick: onCheapestPrintings,
-    },
-    onMatchCopies && { key: 'match-copies', label: 'Match my copies', onClick: onMatchCopies },
-  ].filter((r): r is Row => !!r);
-
-  const renderRow = (row: Row) => (
-    <button
-      key={row.key}
-      type="button"
-      role="menuitem"
-      className="deck-editor-overflow-item"
-      onClick={() => {
-        closeAndReturnFocus();
-        row.onClick();
-      }}
-    >
-      {row.label}
-    </button>
-  );
-
-  const renderSection = (label: string, rows: Row[]) =>
-    rows.length > 0 && (
-      <div className="deck-editor-overflow-section" key={label}>
-        <div className="deck-editor-overflow-label">{label}</div>
-        {rows.map(renderRow)}
-      </div>
-    );
-
-  return (
-    <div className="deck-editor-overflow">
-      <IconButton
-        className="deck-editor-overflow-btn"
-        ref={buttonRef}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={handleToggle}
-        label="Deck actions"
-        icon={<MoreVertical width={20} height={20} strokeWidth={1.8} />}
-      />
-      {open &&
-        panelPos &&
-        createPortal(
-          <div
-            ref={panelRef}
-            className="deck-editor-overflow-panel"
-            role="menu"
-            style={{
-              position: 'fixed',
-              top: panelPos.top,
-              bottom: panelPos.bottom,
-              left: panelPos.left,
-              right: panelPos.right,
-            }}
-          >
-            {onUndo && (
-              <button
-                type="button"
-                role="menuitem"
-                className="deck-editor-overflow-item"
-                onClick={() => {
-                  closeAndReturnFocus();
-                  onUndo();
-                }}
-              >
-                Undo{undoLabel ? ` ${undoLabel}` : ''}
-              </button>
-            )}
-            {onRedo && (
-              <button
-                type="button"
-                role="menuitem"
-                className="deck-editor-overflow-item"
-                onClick={() => {
-                  closeAndReturnFocus();
-                  onRedo();
-                }}
-              >
-                Redo{redoLabel ? ` ${redoLabel}` : ''}
-              </button>
-            )}
-            {(onUndo || onRedo) && (
-              <div className="deck-editor-overflow-divider" role="separator" aria-hidden />
-            )}
-            {quickActions.length > 0 && (
-              <>
-                {renderSection('Quick actions', quickActions)}
-                <div className="deck-editor-overflow-divider" role="separator" aria-hidden />
-              </>
-            )}
-            {renderSection('Text tools', textTools)}
-            <div className="deck-editor-overflow-divider" role="separator" aria-hidden />
-            {renderSection('Deck actions', deckActions)}
-            <div className="deck-editor-overflow-divider" role="separator" aria-hidden />
-            <button
-              type="button"
-              role="menuitem"
-              className="deck-editor-overflow-item deck-editor-overflow-item--danger"
-              onClick={() => {
-                closeAndReturnFocus();
-                onDelete();
-              }}
-            >
-              Delete
-            </button>
-          </div>,
-          document.body
-        )}
     </div>
   );
 }

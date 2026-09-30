@@ -3,14 +3,17 @@ import './BuildReportPanel.css';
 import { AlertOctagon, Check, Loader2, Plus, Sparkles } from 'lucide-react';
 import type { BuildReport, DeckDataSource, GenerationMode } from '@/deck-builder/types';
 import type { ComboMatch, ComboSeedContext } from '@/types/combos';
-import { ROLE_TITLES, type RoleKey } from '@/lib/role-badges';
-import { comboPayoffScore } from '@/lib/combo-payoff';
+import { ROLE_TITLES, type RoleKey } from '@/lib/deck-analysis/role-badges';
+import { comboPayoffScore } from '@/lib/deck-analysis/combo-payoff';
 import { VerdictBadge } from './VerdictBadge';
 import { OwnershipBadge } from './OwnershipBadge';
 import { ColorPip } from '@/components/shared/ManaSymbol';
 import { THIN_SAMPLE_FLOOR } from '@/components/shared/ThinDataNote';
-import { InfoTip } from '../InfoTip';
-import { EXHIBITION_BRACKET_NOTE, formatBracketLabel } from '@/lib/format-bracket-label';
+import { InfoTip } from '@/components/overlays/InfoTip';
+import {
+  EXHIBITION_BRACKET_NOTE,
+  formatBracketLabel,
+} from '@/lib/deck-analysis/format-bracket-label';
 import { Button, IconButton } from '@/components/shared/Button';
 
 const COLOR_WORDS: Record<string, string> = {
@@ -202,6 +205,7 @@ export function BuildReportPanel({
     generationMode,
     generationModeDetail,
     generationNote,
+    commanderPreviewNote,
     archetypeNote,
     landCountNote,
     poolExhaustionNote,
@@ -307,6 +311,10 @@ export function BuildReportPanel({
           {note}
         </p>
       ))}
+
+      {/* E530: a previewed commander builds, and the report says it isn't
+          legal yet, beside the other flags a player must not miss. */}
+      {commanderPreviewNote && <p className="build-report-flag">{commanderPreviewNote}</p>}
 
       {generationMode && generationMode !== 'edhrec' && (
         <p className="build-report-line build-report-method">
@@ -824,7 +832,11 @@ export function BuildReportPanel({
             {roleGaps.map((g) => (
               <li key={g.role} className="build-report-gap">
                 <span className="build-report-gap-label">{humanizeRole(g.role)}</span>
-                <span className="build-report-gap-count" aria-label={`${g.have} of ${g.want}`}>
+                <span
+                  className="build-report-gap-count"
+                  aria-label={`${g.have} of ${g.want}`}
+                  role="group"
+                >
                   {g.have}
                   <span className="build-report-gap-target">
                     {' / '}
@@ -849,7 +861,11 @@ export function BuildReportPanel({
             {roleExcesses.map((g) => (
               <li key={g.role} className="build-report-gap">
                 <span className="build-report-gap-label">{humanizeRole(g.role)}</span>
-                <span className="build-report-gap-count" aria-label={`${g.have} of ${g.want}`}>
+                <span
+                  className="build-report-gap-count"
+                  aria-label={`${g.have} of ${g.want}`}
+                  role="group"
+                >
                   {g.have}
                   <span className="build-report-gap-target">
                     {' / '}

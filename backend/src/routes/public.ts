@@ -7,7 +7,8 @@ import { getPool } from '../db';
 import { ORIGIN, type ShareLandingMeta, type ShareLandingResult } from '../shares/og';
 import { projectCollection, projectDeck, type PublicDeck } from '../shares/projections';
 import { stampSharePrices } from '../shares/context';
-import { canViewFullCollection, parseCollectionVisibility } from '../collections/visibility';
+import { loadProfileExtras } from '../brewers/profile-stats';
+import { canViewFullCollection, storedCollectionVisibility } from '../collections/visibility';
 import {
   deckPublicationCache,
   publicUserCache,
@@ -226,6 +227,8 @@ interface PublicUserRow {
   profile_hidden_at: string | null;
   collection_visibility: string | null;
   is_official: boolean;
+  pinned_deck_slug: string | null;
+  show_game_record: boolean;
 }
 
 /**
@@ -243,7 +246,8 @@ async function loadPublicUserProfile(username: string): Promise<PublicUserProfil
   const user = (
     await pool.query<PublicUserRow>(
       `SELECT id, username, display_name, bio, avatar_card_name, avatar_image_url,
-              created_at, profile_hidden_at, collection_visibility, is_official
+              created_at, profile_hidden_at, collection_visibility, is_official,
+              pinned_deck_slug, show_game_record
          FROM users WHERE username = $1`,
       [username]
     )
@@ -252,7 +256,7 @@ async function loadPublicUserProfile(username: string): Promise<PublicUserProfil
 
   // The house account lists newest precon first. Its updated_at moves with
   // every price refresh, which would shuffle the page for no reason.
-  const [decksResult, countResult] = await Promise.all([
+  const [decksResult, countResult, extras] = await Promise.all([
     pool.query<PublicDeckSummaryRow>(
       `SELECT slug, deck_name, format, commander_name, og_art_crop, color_identity,
               bracket, estimated_bracket, card_count, view_count, copy_count, published_at,
@@ -267,6 +271,11 @@ async function loadPublicUserProfile(username: string): Promise<PublicUserProfil
       `SELECT COUNT(*) FROM deck_publications WHERE user_id = $1 AND unpublished_at IS NULL`,
       [user.id]
     ),
+    loadProfileExtras({
+      id: user.id,
+      pinnedDeckSlug: user.pinned_deck_slug,
+      showGameRecord: user.show_game_record,
+    }),
   ]);
 
   const profile: PublicUserProfile = {
@@ -278,15 +287,50 @@ async function loadPublicUserProfile(username: string): Promise<PublicUserProfil
     avatarImageUrl: user.avatar_image_url,
     memberSince: Number(user.created_at),
     profileHiddenAt: user.profile_hidden_at === null ? null : Number(user.profile_hidden_at),
-    collectionVisibility: parseCollectionVisibility(user.collection_visibility),
+    collectionVisibility: storedCollectionVisibility(user.collection_visibility),
     isOfficial: user.is_official,
     // True total, not decks.length — the 200 cap means those diverge for a
     // heavy publisher.
     deckCount: Number(countResult.rows[0].count),
     decks: decksResult.rows.map(toDeckSummary),
+    ...extras,
   };
   publicUserCache.set(username, profile);
   return profile;
+}
+
+/**
+ * The per-viewer half of a profile: follower and following counts (two indexed
+ * COUNTs) and whether the signed-in viewer follows / is friends with them.
+ * Kept out of the cached profile so a follow reflects immediately.
+ */
+async function loadSocialCounts(profileId: string, viewerId: string | null) {
+  const pool = getPool();
+  const other = viewerId && viewerId !== profileId ? viewerId : null;
+  const [followers, following, viewer] = await Promise.all([
+    pool.query<{ n: string }>(`SELECT COUNT(*) AS n FROM user_follows WHERE followee_id = $1`, [
+      profileId,
+    ]),
+    pool.query<{ n: string }>(`SELECT COUNT(*) AS n FROM user_follows WHERE follower_id = $1`, [
+      profileId,
+    ]),
+    other
+      ? pool.query<{ follows: boolean; friend: boolean }>(
+          `SELECT EXISTS(SELECT 1 FROM user_follows WHERE follower_id = $1 AND followee_id = $2) AS follows,
+                  EXISTS(SELECT 1 FROM friendships
+                          WHERE status = 'accepted'
+                            AND ((requester_id = $1 AND addressee_id = $2)
+                              OR (requester_id = $2 AND addressee_id = $1))) AS friend`,
+          [other, profileId]
+        )
+      : null,
+  ]);
+  return {
+    followerCount: Number(followers.rows[0].n),
+    followingCount: Number(following.rows[0].n),
+    viewerFollows: viewer?.rows[0].follows ?? false,
+    viewerIsFriend: viewer?.rows[0].friend ?? false,
+  };
 }
 
 /**
@@ -322,6 +366,8 @@ publicRouter.get(
     }
 
     const moderationHidden = isOwner && profile.profileHiddenAt !== null;
+    // Per request, never cached: a follow or unfollow shows at once.
+    const social = await loadSocialCounts(profile.id, req.user?.id ?? null);
     res.json({
       username: profile.username,
       displayName: profile.displayName,
@@ -333,10 +379,16 @@ publicRouter.get(
       isOwner,
       moderationHidden,
       deckCount: profile.deckCount,
+      ...social,
+      stats: profile.stats,
+      topCommanders: profile.topCommanders,
+      colorSpread: profile.colorSpread,
+      pinnedDeckSlug: profile.pinnedDeckSlug,
+      gameRecord: profile.gameRecord,
       decks: moderationHidden ? [] : profile.decks,
       collection: {
-        // The owner's own choice, for their "who can see this" note; null
-        // means never chose.
+        // The setting in force, for the owner's "who can see this" note
+        // (never chose reads as friends; storedCollectionVisibility).
         visibility: profile.collectionVisibility,
         canView:
           !moderationHidden &&

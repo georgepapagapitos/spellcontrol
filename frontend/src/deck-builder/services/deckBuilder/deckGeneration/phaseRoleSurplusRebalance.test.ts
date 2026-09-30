@@ -327,6 +327,31 @@ describe('applyRoleSurplusRebalance', () => {
     expect(remainingRamp).toHaveLength(7);
   });
 
+  it('names only lifters still in the deck (E509 salvage)', () => {
+    // krenko-mob-boss-budget50 on main: "Converted to Swiftfoot Boots, lifted
+    // by ... Goblin King, Goblin Chieftain" in a deck running neither.
+    const state = makeState();
+    addRampCards(state, 8);
+    const seed = scryfallCard('Goblin Warchief');
+    state.categories.creatures.push(seed);
+    state.usedNames.add(seed.name);
+    state.edhrecData = {
+      cardlists: { allNonLand: [edhrecCard('Swiftfoot Boots', 90)] },
+    } as unknown as GenerationState['edhrecData'];
+    state.liftIndexCache = {
+      size: state.liftSeedPools.size,
+      index: new Map([
+        ['swiftfoot boots', { clusterScore: 9, liftedBy: ['Goblin King', 'Goblin Warchief'] }],
+      ]),
+    };
+    const roleTargets = { ramp: 5, removal: 0, boardwipe: 0, cardDraw: 0 };
+    const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+    expect(result.conversions).toHaveLength(1);
+    expect(result.conversions[0].reason).toContain('lifted by Goblin Warchief.');
+    expect(result.conversions[0].reason).not.toContain('Goblin King');
+  });
+
   // E112/E113 coordination fix: when the boardwipe role is rationed, the wipes
   // that SURVIVE must be the low-collateral / one-sided ones — not whichever
   // has the highest raw EDHREC priority. Before this fix, E113's count-cut

@@ -9,14 +9,14 @@ import { DeckDisplay, type DeckDisplayCard, type DeckDisplayProps } from './Deck
 // Stub the thumbnail network leaf so nested DeckCardRows don't reach out
 // (avoids the post-teardown fetch flake — same stub as the other DeckDisplay
 // test suites).
-vi.mock('@/lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
 // Controllable tagger-readiness — mirrors both the real hook's contract
 // (false until tagger data loads) and the role lookup Sol Ring resolves
 // through once "loaded", so the re-bucket-once test can flip a REAL
 // classification result, not just a flag with no effect.
 let taggerReady = false;
-vi.mock('@/lib/use-tagger-ready', () => ({ useTaggerReady: () => taggerReady }));
+vi.mock('@/lib/cards/use-tagger-ready', () => ({ useTaggerReady: () => taggerReady }));
 vi.mock('@/deck-builder/services/tagger/client', () => ({
   validateCardRole: (card: { name: string }) =>
     taggerReady && card.name === 'Sol Ring' ? 'ramp' : null,

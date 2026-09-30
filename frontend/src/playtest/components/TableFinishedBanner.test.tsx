@@ -7,7 +7,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { usePlayStore } from '@/store/play';
-import { applyAction, createGameState, makePlayer, type GameState } from '@/lib/game-state';
+import { applyAction, createGameState, makePlayer, type GameState } from '@/lib/play/game-state';
 import { TableFinishedBanner } from './TableFinishedBanner';
 
 const navigateMock = vi.fn();
@@ -18,7 +18,7 @@ vi.mock('react-router-dom', async (importOriginal) => {
 
 // leaveOnline() calls the games HTTP API best-effort — mock it so "Leave
 // table" doesn't fire a real network request in the test.
-vi.mock('@/lib/games-api', () => ({
+vi.mock('@/lib/play/games-api', () => ({
   leaveGame: vi.fn().mockResolvedValue(undefined),
 }));
 

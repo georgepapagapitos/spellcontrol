@@ -1,7 +1,7 @@
 import './BracketBreakdown.css';
 import { useMemo, type JSX, type ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
-import { InfoTip } from '../InfoTip';
+import { InfoTip } from '@/components/overlays/InfoTip';
 import { SegmentedControl } from '../shared/form';
 import type {
   BracketEstimation,
@@ -15,21 +15,21 @@ import {
   softScorePoints,
   SOFT_SCORE,
 } from '@/deck-builder/services/deckBuilder/bracketEstimator';
-import { formatBracketLabel } from '@/lib/format-bracket-label';
-import { bracketPodLine } from '@/lib/bracket-pod-line';
-import { canShare, openShareSheet } from '@/lib/web-share';
+import { formatBracketLabel } from '@/lib/deck-analysis/format-bracket-label';
+import { bracketPodLine } from '@/lib/deck-analysis/bracket-pod-line';
+import { canShare, openShareSheet } from '@/lib/util/web-share';
 import {
   CLOCK_EARLY_TURN,
   clockShare,
   librarySeed,
   simulateAssemblyClock,
   type ClockCard,
-} from '@/lib/opening-hand-sim';
+} from '@/lib/mana-sim/opening-hand-sim';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { useCardCarousel } from './useCardCarousel';
 import { MeterBar } from '../shared/MeterBar';
 import { Chip } from '../shared/Chip';
-import { imageFromCard } from '@/lib/card-thumbs';
+import { imageFromCard } from '@/lib/cards/card-thumbs';
 import { scryfallArtCrop } from '@/lib/offline/slim-to-scryfall';
 import { Button } from '@/components/shared/Button';
 import { CopyButton } from '@/components/shared/CopyButton';

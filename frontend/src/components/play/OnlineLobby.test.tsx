@@ -5,15 +5,25 @@
  * the art resolver — a network path — and the router, for the board link.
  */
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
-import type { GamePlayer, GameState } from '../../lib/game-state';
+import type { GamePlayer, GameState } from '@/lib/play/game-state';
 import type { Deck } from '../../store/decks';
-import { applyAction, createGameState, makePlayer } from '../../lib/game-state';
+import { applyAction, createGameState, makePlayer } from '@/lib/play/game-state';
 import { resolveHordeSettings, HORDE_CATALOG } from '@/lib/horde';
 import { HORDE_BAN_LIST } from '@/lib/horde/ban-list';
 
-vi.mock('../../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
+
+const { OFF, ON } = vi.hoisted(() => ({
+  OFF: { enabled: false, inviteUrl: null as string | null },
+  ON: { enabled: true, inviteUrl: null as string | null },
+}));
+const gamesApi = vi.hoisted(() => ({
+  getDiscordStatus: vi.fn(async () => OFF),
+  openDiscordTable: vi.fn(async (_code: string) => ''),
+}));
+vi.mock('@/lib/play/games-api', () => gamesApi);
 
 import { OnlineLobby } from './OnlineLobby';
 import { levelSummary } from './horde/HordeSetupFields';
@@ -476,24 +486,10 @@ describe('watchers and the voice link', () => {
     expect(screen.queryByText('Private')).toBeNull();
   });
 
-  it('saves a voice link on Enter', () => {
-    const dispatch = renderLobby(table(2), 'u0');
-    const field = screen.getByLabelText('Voice link');
-    fireEvent.change(field, { target: { value: 'https://discord.gg/example' } });
-    fireEvent.keyDown(field, { key: 'Enter' });
-    expect(dispatch).toHaveBeenCalledWith({
-      type: 'settings',
-      patch: { voiceUrl: 'https://discord.gg/example' },
-    });
-  });
-
-  it('refuses a link that could run code, before the round trip', () => {
-    const dispatch = renderLobby(table(2), 'u0');
-    const field = screen.getByLabelText('Voice link');
-    fireEvent.change(field, { target: { value: 'javascript:alert(1)' } });
-    fireEvent.blur(field);
-    expect(dispatch).not.toHaveBeenCalled();
-    expect(screen.getByRole('alert').textContent).toContain('https');
+  // Discord or nothing: the host no longer pastes a link of their own.
+  it('offers the host no field to paste a voice link', () => {
+    renderLobby(table(2), 'u0');
+    expect(screen.queryByRole('textbox', { name: /voice/i })).toBeNull();
   });
 
   it('gives everyone else the link as something to open', () => {
@@ -502,6 +498,77 @@ describe('watchers and the voice link', () => {
     const link = screen.getByRole('link', { name: 'Join the call' });
     expect(link.getAttribute('href')).toBe('https://meet.example.com/abc');
     expect(link.getAttribute('rel')).toContain('noopener');
+  });
+
+  it('names Discord when the link is a Discord one', () => {
+    const game = { ...table(2), voiceUrl: 'https://discord.gg/abc' };
+    renderLobby(game, 'u1');
+    expect(screen.getByRole('link', { name: 'Join on Discord' })).toBeTruthy();
+  });
+});
+
+describe('Discord tables', () => {
+  beforeEach(() => {
+    gamesApi.getDiscordStatus.mockReset().mockResolvedValue(OFF);
+    gamesApi.openDiscordTable.mockReset();
+    tab = { opener: {}, location: { href: '' }, close: vi.fn() };
+    vi.spyOn(window, 'open').mockReturnValue(tab as unknown as Window);
+  });
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
+  let tab: { opener: unknown; location: { href: string }; close: ReturnType<typeof vi.fn> };
+
+  it('stays hidden when the server has no Discord set up', async () => {
+    renderLobby(table(2), 'u0');
+    await waitFor(() => expect(gamesApi.getDiscordStatus).toHaveBeenCalled());
+    expect(screen.queryByRole('button', { name: 'Open a Discord table' })).toBeNull();
+  });
+
+  it('opens a table and stores its invite as the voice link', async () => {
+    gamesApi.getDiscordStatus.mockResolvedValue(ON);
+    gamesApi.openDiscordTable.mockResolvedValue('https://discord.gg/inv');
+    const dispatch = renderLobby(table(2), 'u0');
+    const open = await screen.findByRole('button', { name: 'Open a Discord table' });
+    // Discord's own mark, so the button says which app it opens.
+    expect(open.querySelector('svg path[fill="#5865F2"]')).not.toBeNull();
+    fireEvent.click(open);
+    await waitFor(() =>
+      expect(dispatch).toHaveBeenCalledWith({
+        type: 'settings',
+        patch: { voiceUrl: 'https://discord.gg/inv' },
+      })
+    );
+    expect(gamesApi.openDiscordTable).toHaveBeenCalledWith('ABCD');
+    // Opened inside the click, then sent to the invite: no copy and paste.
+    expect(window.open).toHaveBeenCalledWith('', '_blank');
+    expect(tab.location.href).toBe('https://discord.gg/inv');
+    expect(tab.opener).toBe(null);
+  });
+
+  it('says so when Discord does not answer', async () => {
+    gamesApi.getDiscordStatus.mockResolvedValue(ON);
+    gamesApi.openDiscordTable.mockRejectedValue(new Error('Discord did not answer.'));
+    const dispatch = renderLobby(table(2), 'u0');
+    fireEvent.click(await screen.findByRole('button', { name: 'Open a Discord table' }));
+    expect((await screen.findByRole('alert')).textContent).toContain('Discord did not answer');
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(tab.close).toHaveBeenCalled();
+  });
+
+  it('is gone once the table has a voice link', async () => {
+    gamesApi.getDiscordStatus.mockResolvedValue(ON);
+    renderLobby({ ...table(2), voiceUrl: 'https://discord.gg/inv' }, 'u0');
+    await waitFor(() => expect(gamesApi.getDiscordStatus).toHaveBeenCalled());
+    expect(screen.queryByRole('button', { name: 'Open a Discord table' })).toBeNull();
+  });
+
+  it('gives the host the link to join', async () => {
+    renderLobby({ ...table(2), voiceUrl: 'https://discord.gg/inv' }, 'u0');
+    const join = await screen.findByRole('link', { name: 'Join on Discord' });
+    expect(join.getAttribute('href')).toBe('https://discord.gg/inv');
+    expect(join.querySelector('svg path[fill="#5865F2"]')).not.toBeNull();
   });
 });
 
@@ -531,11 +598,10 @@ describe('Horde (co-op) lobby — the rail', () => {
     expect(screen.queryByText('Commander damage')).toBeNull();
     expect(screen.queryByText('Poison counters')).toBeNull();
     expect(screen.queryByText('Starting player')).toBeNull();
-    // Mulligan, Turn timer, Visibility and Voice link all stay.
+    // Mulligan, Turn timer and Visibility all stay.
     expect(screen.getByText('Mulligan')).toBeTruthy();
     expect(screen.getByRole('switch', { name: /Turn timer/ })).toBeTruthy();
     expect(screen.getByText('Visibility')).toBeTruthy();
-    expect(screen.getByLabelText('Voice link')).toBeTruthy();
   });
 
   it('same rows for a non-host viewer', () => {

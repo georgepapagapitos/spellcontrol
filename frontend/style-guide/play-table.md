@@ -666,7 +666,7 @@ exactly` and `clockwise seat order` both iterate `layoutsForCount` for
 ## Play board: the hub ring and its table moments (2026-09-24)
 
 Lotus parity group 2 (`BoardHubMenu.tsx`, `GameBoard.tsx`'s High Roll section,
-`lib/use-fullscreen.ts`). The hub was a direct shortcut to the game menu;
+`lib/util/use-fullscreen.ts`). The hub was a direct shortcut to the game menu;
 tapping it now opens a fan of labelled petals first, Lotus's radial menu.
 
 ⛔ **Superseded in part by "the hub ring's keys, dock and sheets" below
@@ -700,7 +700,7 @@ and the fullscreen rulings (the manual toggle is now a Settings switch).
   has room on every side (true for every layout this app's fixed 2-column
   board can produce — only a seam's row varies, its column is always
   centred) and let two of them nearly touch. `hubPetalPositions`
-  (`lib/board-hub-layout.ts`) now tries a full circle first — 72° apart for
+  (`lib/play/board-hub-layout.ts`) now tries a full circle first — 72° apart for
   five, starting straight up — at the largest radius that clears every
   petal's own angle (exact per-angle geometry, not a coarse four-direction
   guess: a full circle whose specific angles never point due left/right
@@ -745,7 +745,7 @@ e.currentTarget`, mirrors the win celebration's backdrop) so a
   dismiss-tap can't fall through to a life change, and every panel's life
   taps disable for the moment's duration regardless of whose seat is
   showing the roll. It dismisses on a tap, on Escape, or after four seconds.
-  Ties re-roll only the tied seats (`highRoll` in `lib/game-tools.ts`) and
+  Ties re-roll only the tied seats (`highRoll` in `lib/play/game-tools.ts`) and
   the winner is recorded through the exact same `settings`/`pass-turn`
   dispatch pair the quiet "First player" tool already uses, so both routes
   feed one on-the-play stat. The two tools stay separate on purpose: High
@@ -754,7 +754,7 @@ e.currentTarget`, mirrors the win celebration's backdrop) so a
   them into one code path would save a few lines at the cost of blurring two
   moments the rest of this section treats as different in kind.
 - **Fullscreen is offered, never forced, and only where a gesture can ask for
-  it.** `lib/use-fullscreen.ts` gates on `document.fullscreenEnabled` AND
+  it.** `lib/util/use-fullscreen.ts` gates on `document.fullscreenEnabled` AND
   `(pointer: coarse)` — a mouse user already owns their window, and an
   unsupported browser (iOS Safari among them) gets a hook that quietly does
   nothing rather than a menu item that fails silently when tapped. The board
@@ -1105,7 +1105,7 @@ accidental bump change what's rendered.
   overlay except `ConfirmDialog` in `.game-board-rotator`
   (`play-board.css`). Under `(orientation: landscape) and (max-height:
 500px) and (pointer: coarse)` — the same "phone on its side" query
-  `RotatePrompt` uses — `data-board-rot` (set by `lib/use-board-keep-still.ts`'s
+  `RotatePrompt` uses — `data-board-rot` (set by `lib/play/use-board-keep-still.ts`'s
   `useBoardKeepStill()`, reading `screen.orientation.type`) drives a CSS
   `rotate(90deg)` / `rotate(-90deg)`, and the rotator's own local width/height
   are swapped via `cqw`/`cqh` container-query units (`.game-board` becomes a

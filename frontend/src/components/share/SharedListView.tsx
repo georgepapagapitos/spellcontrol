@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
-import type { PublicList, PublicListEntry } from '../../lib/shared-types';
-import { normalizeForSearch } from '../../lib/normalize-search';
-import { formatMoney } from '../../lib/format-money';
-import { formatIdentity } from '../../lib/display-name';
-import { SearchPill } from '../SearchPill';
+import type { PublicList, PublicListEntry } from '@/lib/social/shared-types';
+import { normalizeForSearch } from '@/lib/search/normalize-search';
+import { formatMoney } from '@/lib/collection/format-money';
+import { formatIdentity } from '@/lib/social/display-name';
+import { SearchPill } from '@/components/search/SearchPill';
 import { SortDirArrow } from '../SortDirArrow';
 import { SharedEmptyState } from './SharedEmptyState';
 import { nameMatchesNormalized, printedName } from '@spellcontrol/binder-routing';

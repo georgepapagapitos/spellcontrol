@@ -6,15 +6,15 @@
  * the boot long task at a phone's CPU).
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { pickCollectionCopy } from '../lib/allocations-core';
-import { setApplyingServer } from '../lib/applying-server';
+import { pickCollectionCopy } from '@/lib/collection/allocations-core';
+import { setApplyingServer } from '@/lib/sync/applying-server';
 import type { EnrichedCard } from '../types';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { useDecksStore, type Deck, type DeckCard } from './decks';
 
-vi.mock('../lib/sync', () => ({ persistDecksState: vi.fn().mockResolvedValue(undefined) }));
-vi.mock('../lib/allocations-core', async (importOriginal) => {
-  const m = await importOriginal<typeof import('../lib/allocations-core')>();
+vi.mock('@/lib/sync', () => ({ persistDecksState: vi.fn().mockResolvedValue(undefined) }));
+vi.mock('@/lib/collection/allocations-core', async (importOriginal) => {
+  const m = await importOriginal<typeof import('@/lib/collection/allocations-core')>();
   return { ...m, pickCollectionCopy: vi.fn(m.pickCollectionCopy) };
 });
 
@@ -72,7 +72,7 @@ describe('remapAllocations fresh pick (E276)', () => {
       enriched('c3', 'Llanowar Elves'),
       enriched('c4', 'Forest'),
     ];
-    useDecksStore.getState().remapAllocations(collection);
+    useDecksStore.getState().remapAllocations(collection, []);
 
     const calls = vi.mocked(pickCollectionCopy).mock.calls;
     expect(calls.length).toBeGreaterThan(0);

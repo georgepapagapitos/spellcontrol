@@ -24,9 +24,9 @@
 // desktop re-runs its color-contrast rule under every theme and every type
 // set: a colour that clears AA in one theme can vanish in another (the
 // card-preview panel's "Ramp" pill read 1.08:1 in the light guilds only).
-// Report-only for now, written to a11y.json; see axeSweep below.
+// A finding fails the screen, with the details in a11y.json; see axeSweep.
 //
-// Any of the first six fails the run. Screenshots + report.json land in
+// Any of the first six fails the run, and so does an a11y finding under --a11y. Screenshots + report.json land in
 // --out. Run by .github/workflows/nightly-journey.yml against a production
 // build served by the backend; locally:
 //
@@ -37,14 +37,15 @@
 // (macOS app bundles, Linux /usr/bin). puppeteer-core drives Chrome over CDP
 // and Firefox over WebDriver BiDi; no browser download.
 import { mkdir, writeFile } from 'node:fs/promises';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import puppeteer from 'puppeteer-core';
+import { TIERS, executable } from './journey-browser.mjs';
 
 // Expected sample-pack card count, read straight from the source constant
-// (not re-typed here) so it can't drift from lib/samples.ts.
+// (not re-typed here) so it can't drift from lib/binder/samples.ts.
 const SAMPLE_CARD_COUNT = (
-  readFileSync(new URL('../frontend/src/lib/samples.ts', import.meta.url), 'utf8').match(
+  readFileSync(new URL('../frontend/src/lib/binder/samples.ts', import.meta.url), 'utf8').match(
     /\{ name:/g
   ) ?? []
 ).length;
@@ -63,33 +64,6 @@ const SETTLE_MS = Number(opt('--settle', 1500));
 // backend's ADMIN_USERNAMES so the walk also covers /admin (admin-only route);
 // re-runs against the same DB sign in instead of registering.
 const USERNAME = opt('--username', null);
-
-const TIERS = {
-  phone: { width: 390, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
-  desktop: { width: 1440, height: 900, deviceScaleFactor: 1 },
-};
-
-function executable() {
-  const env = BROWSER === 'firefox' ? process.env.JOURNEY_FIREFOX : process.env.JOURNEY_CHROME;
-  if (env) return env;
-  const candidates =
-    BROWSER === 'firefox'
-      ? [
-          '/Applications/Firefox.app/Contents/MacOS/firefox',
-          '/usr/bin/firefox',
-          '/snap/bin/firefox',
-        ]
-      : [
-          '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-          '/usr/bin/google-chrome',
-          '/usr/bin/google-chrome-stable',
-          '/usr/bin/chromium-browser',
-          '/usr/bin/chromium',
-        ];
-  const found = candidates.find((c) => existsSync(c));
-  if (!found) throw new Error(`no ${BROWSER} binary found; set JOURNEY_${BROWSER.toUpperCase()}`);
-  return found;
-}
 
 /**
  * Console noise that is not a defect of ours: the browser's own "Failed to
@@ -117,19 +91,23 @@ const THIRD_PARTY =
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ── Accessibility sweep (--a11y) ─────────────────────────────────────────
-// Report-only while the baseline is burned down: a screen's violations land in
-// its record and in a11y.json, and never fail the run. Turn it into a gate
-// (fold `a11y` into rec.fail) once a nightly run reports zero.
+// A gate: any finding fails the screen. It ran report-only until the
+// 2026-09-29 burn-down (142 failing elements to 0) and a clean nightly, so a
+// new finding is a regression, and its row in a11y.json says what and where.
 const A11Y = argv.includes('--a11y');
 const src = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const AXE_SRC = A11Y ? src('../frontend/node_modules/axe-core/axe.min.js') : '';
 // Read the registries rather than re-typing them, so a new theme or type set
 // is swept the day it lands.
 const THEMES = [
-  ...src('../frontend/src/lib/themes.ts').matchAll(/id: '([a-z]+)',[^}]*?scheme: '(light|dark)'/g),
+  ...src('../frontend/src/lib/account/themes.ts').matchAll(
+    /id: '([a-z]+)',[^}]*?scheme: '(light|dark)'/g
+  ),
 ].map((m) => ({ id: m[1], scheme: m[2] }));
 const TYPESETS = [
-  ...src('../frontend/src/lib/typesets.ts').matchAll(/id: '([a-z]+)',[^}]*?href: (null|'[^']+')/g),
+  ...src('../frontend/src/lib/account/typesets.ts').matchAll(
+    /id: '([a-z]+)',[^}]*?href: (null|'[^']+')/g
+  ),
 ].map((m) => ({ id: m[1], href: m[2] === 'null' ? null : m[2].slice(1, -1) }));
 const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
@@ -461,7 +439,16 @@ const TOUCHING_BY_DESIGN = new Set([
   // rail are edge-attached to the play surface by design.
   'div.playtest-board › div.playtest-trackers | div.playtest-main',
   'div.playtest-board › div.playtest-main | div.playtest-hand',
+  // The card-preview sheet's own header over its scrolling body: a dialog's
+  // head and body meet at the edge (desktop layout; the phone sheet differs).
+  'div.card-preview-panel › div.card-preview-head | div.card-preview-panel-inner',
 ]);
+/** Parents whose children are a divided stack: each child carries its own
+ *  padding and a hairline top border, so they meet at the divider by design. */
+const TOUCHING_BY_DESIGN_PARENTS = [
+  // The card-preview sheet's sections (footer-card-preview.css .card-preview-sec).
+  'div.card-preview-panel-inner',
+];
 /**
  * The primary control rows, which must stay ONE row at phone width.
  *
@@ -620,8 +607,11 @@ function undersizedTouchTargets() {
  * them and the nightly said nothing.
  *
  * Only real overlap counts: a control nested inside another interactive
- * element (a row that is itself a button, a label around its input) shares
- * space by design, and is skipped.
+ * element (a label around its input) shares space by design, and is skipped.
+ * So is a stretched cover: a tile or row's primary button laid absolutely over
+ * its whole container, with the container's other controls stacked above it
+ * (#2553, which replaced rows that were themselves buttons). The controls on
+ * top are meant to win their own area; the cover keeps the rest.
  */
 function overlappingTouchTargets() {
   const sel = 'button,a[href],input,select,textarea,[role="button"],[role="tab"],[role="switch"]';
@@ -644,6 +634,20 @@ function overlappingTouchTargets() {
     return false;
   };
   const interactive = (el) => !!el && !!el.closest && !!el.closest(sel);
+  /** `el` fills its parent as an absolute cover, and `other` sits in that parent. */
+  const layeredOver = (el, other) => {
+    const parent = el.parentElement;
+    if (!parent || !parent.contains(other)) return false;
+    if (getComputedStyle(el).position !== 'absolute') return false;
+    const a = el.getBoundingClientRect();
+    const b = parent.getBoundingClientRect();
+    return (
+      Math.abs(a.left - b.left) <= 1 &&
+      Math.abs(a.top - b.top) <= 1 &&
+      Math.abs(a.right - b.right) <= 1 &&
+      Math.abs(a.bottom - b.bottom) <= 1
+    );
+  };
   const key = (el) => {
     const first = String(el.className || '')
       .trim()
@@ -679,6 +683,7 @@ function overlappingTouchTargets() {
       if (!interactive(hit) || !other || other === el) continue;
       if (other.contains(el) || el.contains(other)) continue;
       if (pinned(other)) continue;
+      if (layeredOver(el, other)) continue;
       const line = `${key(el)} loses its ${edge} edge to ${key(other)}`;
       if (seen.has(line)) continue;
       seen.add(line);
@@ -765,7 +770,7 @@ async function main() {
   await mkdir(OUT, { recursive: true });
   const browser = await puppeteer.launch({
     browser: BROWSER,
-    executablePath: executable(),
+    executablePath: executable(BROWSER),
     headless: true,
     protocolTimeout: 300_000,
     args:
@@ -831,7 +836,11 @@ async function main() {
         const touching = [
           ...new Map(
             (await page.evaluate(touchingSiblings))
-              .filter((t) => !TOUCHING_BY_DESIGN.has(t.key))
+              .filter(
+                (t) =>
+                  !TOUCHING_BY_DESIGN.has(t.key) &&
+                  !TOUCHING_BY_DESIGN_PARENTS.some((p) => t.key.startsWith(`${p} › `))
+              )
               .map((t) => [`${t.key} — ${t.detail}`, t])
           ).keys(),
         ];
@@ -880,7 +889,8 @@ async function main() {
           errs.length > 0 ||
           touching.length > 0 ||
           wrapped.length > 0 ||
-          overlapping.length > 0;
+          overlapping.length > 0 ||
+          a11yNodeCount(a11y) > 0;
         results.push(rec);
         console.log(
           `${rec.fail ? 'FAIL' : ' ok '} ${BROWSER.padEnd(7)} ${tierName.padEnd(7)} ${label.padEnd(36)} ` +
@@ -901,6 +911,7 @@ async function main() {
       // --- Guest: the marketing landing, a guide, and a route nobody owns.
       await visit('/');
       await visit('/decks/discover');
+      await visit('/decks/discover/brewers');
       await visit('/this-route-does-not-exist');
 
       // --- Sign up once (the second viewport signs in to the same account).
@@ -1079,7 +1090,15 @@ async function main() {
         // sheet open is what puts it through the axe theme sweep. A real
         // mouse click on a non-commander row, then the handle steps it to
         // full so the lower sections (Swap this card) are laid out too.
+        // "View my deck" closes the build report with an exit animation; a tap
+        // before it is gone lands on the sheet, not the row.
+        await page
+          .waitForFunction(() => !document.querySelector('.build-report-sheet'), {
+            timeout: 15_000,
+          })
+          .catch(() => {});
         await page.waitForSelector('.deck-section-rows .deck-row-name', { timeout: 30_000 });
+        await sleep(SETTLE_MS);
         const rowAt = await page.evaluate(() => {
           const lists = [...document.querySelectorAll('.deck-section-rows')];
           const el = (lists[1] ?? lists[0])?.querySelector('.deck-row-name');
@@ -1088,7 +1107,10 @@ async function main() {
           const r = el.getBoundingClientRect();
           return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
         });
-        if (rowAt) await page.mouse.click(rowAt.x, rowAt.y);
+        // A phone taps: a mouse click in a touch-emulated page is not what
+        // any phone user sends.
+        if (rowAt && tierName === 'phone') await page.touchscreen.tap(rowAt.x, rowAt.y);
+        else if (rowAt) await page.mouse.click(rowAt.x, rowAt.y);
         const opened = await page
           .waitForSelector('.card-preview-panel', { timeout: 15_000 })
           .then(() => true)
@@ -1236,11 +1258,14 @@ async function main() {
           // rule). Before the redesign the close button covered the mana cost
           // on phones and a landscape phone got a 100 × 139 card.
           await assertPage(rec, 'card preview geometry', async () => {
-            await page.evaluate(() =>
-              [...document.querySelectorAll('.app-main [role=button]')]
-                .find((e) => e.querySelector('img'))
-                ?.click()
-            );
+            // The tile's primary button opens the card (#2553 moved it off
+            // the tile, which was itself a role=button); either takes the click.
+            await page.evaluate(() => {
+              const tile = [...document.querySelectorAll('.app-main .collection-grid-item')].find(
+                (e) => e.querySelector('img')
+              );
+              (tile?.querySelector('.collection-grid-open') ?? tile)?.click();
+            });
             await page.waitForSelector('.card-preview-slide.is-active .card-preview-image-frame', {
               timeout: 15_000,
             });
@@ -1394,7 +1419,7 @@ async function main() {
   console.log(
     `\n${BROWSER}: ${results.length} screens, ${failed.length} failed` +
       (failed.length
-        ? `\n${failed.map((r) => `  - ${r.viewport} ${r.label}: ${r.emptyBody ? 'empty body; ' : ''}${r.overflow ? `overflow ${r.overflow}px; ` : ''}${!r.title ? 'no title; ' : ''}${r.touching.length ? `touching ${r.touching.join(', ')}; ` : ''}${r.wrapped?.length ? `${r.wrapped.join(', ')}; ` : ''}${r.smallTargets?.length ? `under 44px: ${r.smallTargets.join(', ')}; ` : ''}${r.consoleErrors.join(' | ')}`).join('\n')}`
+        ? `\n${failed.map((r) => `  - ${r.viewport} ${r.label}: ${r.emptyBody ? 'empty body; ' : ''}${r.overflow ? `overflow ${r.overflow}px; ` : ''}${!r.title ? 'no title; ' : ''}${r.touching.length ? `touching ${r.touching.join(', ')}; ` : ''}${r.wrapped?.length ? `${r.wrapped.join(', ')}; ` : ''}${r.smallTargets?.length ? `under 44px: ${r.smallTargets.join(', ')}; ` : ''}${a11yNodeCount(r.a11y) ? `a11y ${a11yNodeCount(r.a11y)} (see a11y.json); ` : ''}${r.consoleErrors.join(' | ')}`).join('\n')}`
         : '')
   );
   process.exit(failed.length ? 1 : 0);
@@ -1451,7 +1476,7 @@ async function writeA11yReport(results) {
   const byRule = {};
   for (const r of list) byRule[r.rule] = (byRule[r.rule] ?? 0) + 1;
   console.log(
-    `\na11y: ${list.length} failing elements (report-only): ` +
+    `\na11y: ${list.length} failing elements: ` +
       Object.entries(byRule)
         .sort((a, b) => b[1] - a[1])
         .map(([k, n]) => `${k} ${n}`)

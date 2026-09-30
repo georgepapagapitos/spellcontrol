@@ -15,12 +15,12 @@ import {
 import { useAuth } from '@/store/auth';
 import { useThemeStore } from '@/store/theme';
 import { useTypeSetStore } from '@/store/typeset';
-import { useCurrencyStore } from '@/lib/currency';
-import { useSignInPath } from '@/lib/sign-in-path';
-import { THEMES } from '@/lib/themes';
-import { TYPESETS } from '@/lib/typesets';
-import type { AiStatus } from '@/lib/ai-review';
-import { UserAvatar } from '@/components/UserAvatar';
+import { useCurrencyStore } from '@/lib/collection/currency';
+import { useSignInPath } from '@/lib/account/sign-in-path';
+import { THEMES } from '@/lib/account/themes';
+import { TYPESETS } from '@/lib/account/typesets';
+import type { AiStatus } from '@/lib/ai/ai-review';
+import { UserAvatar } from '@/components/profile/UserAvatar';
 import { Button } from '@/components/shared/Button';
 import { SectionHeader } from '@/components/shared/SectionHeader';
 import { Surface } from '@/components/shared/Surface';

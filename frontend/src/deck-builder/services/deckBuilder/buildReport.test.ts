@@ -88,6 +88,24 @@ describe('assembleBuildReport', () => {
     expect(report.dataSource).toBe('theme+bracket');
   });
 
+  // E530: the previewed-commander disclosure reaches the persisted report.
+  it('carries the previewed-commander note', () => {
+    const note = "Seven of Nine isn't legal until Nov 13, 2026.";
+    const report = assembleBuildReport({
+      generated: makeGenerated({ commanderPreviewNote: note }),
+      customization: makeCustomization(),
+      collectionNames: new Set(),
+    });
+    expect(report.commanderPreviewNote).toBe(note);
+    expect(
+      assembleBuildReport({
+        generated: makeGenerated(),
+        customization: makeCustomization(),
+        collectionNames: new Set(),
+      }).commanderPreviewNote
+    ).toBeUndefined();
+  });
+
   it('defaults estimatedBracket to Core (2) and dataSource to base when absent', () => {
     const report = assembleBuildReport({
       generated: makeGenerated(),

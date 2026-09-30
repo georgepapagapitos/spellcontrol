@@ -27,7 +27,7 @@ import type { EnrichedCard } from '../types';
 
 // Stub the thumbnail network leaf so nested card rows don't reach out (avoids
 // the post-teardown fetch flake — same stub as the other DeckDisplay suites).
-vi.mock('@/lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
 // Render every virtual row in tests (same stub as CardListTable.viewpopover.test.tsx).
 vi.mock('@tanstack/react-virtual', () => ({
@@ -47,15 +47,15 @@ vi.mock('@tanstack/react-virtual', () => ({
   }),
 }));
 
-vi.mock('./CardPreview', () => ({
+vi.mock('@/components/card/CardPreview', () => ({
   CardPreview: () => <div data-testid="card-preview" />,
 }));
 
 import { DeckDisplay, type DeckDisplayCard } from './deck/DeckDisplay';
-import { CardListTable } from './CardListTable';
-import { ListDetailView } from './ListDetailView';
-import { BinderSummaryBar } from './BinderSummaryBar';
-import { ShortcutRegistryProvider } from '../lib/shortcut-registry';
+import { CardListTable } from '@/components/collection/CardListTable';
+import { ListDetailView } from '@/components/lists/ListDetailView';
+import { BinderSummaryBar } from '@/components/binder/BinderSummaryBar';
+import { ShortcutRegistryProvider } from '@/components/app-shell/shortcut-registry';
 import type { ListDef } from '../types';
 
 const STYLE_GUIDE_POINTER =

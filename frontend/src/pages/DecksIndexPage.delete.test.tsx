@@ -34,12 +34,12 @@ vi.mock('../store/auth', () => ({
 
 // Keep the page light — mirrors DecksIndexPage.value.test.tsx's stub set.
 vi.mock('../components/deck/ImportDeckDialog', () => ({ ImportDeckDialog: () => null }));
-vi.mock('../components/ProductSearchDialog', () => ({ ProductSearchDialog: () => null }));
-vi.mock('../components/ShareDialog', () => ({ ShareDialog: () => null }));
-vi.mock('../components/DeckFiltersPopover', () => ({ DeckFiltersPopover: () => null }));
-vi.mock('../lib/deck-validation', () => ({
+vi.mock('@/components/import/ProductSearchDialog', () => ({ ProductSearchDialog: () => null }));
+vi.mock('@/components/share/ShareDialog', () => ({ ShareDialog: () => null }));
+vi.mock('@/components/decks/DeckFiltersPopover', () => ({ DeckFiltersPopover: () => null }));
+vi.mock('@/lib/deck/deck-validation', () => ({
   effectiveDeckColors: () => [],
-  deckColorFrequency: () => [],
+  deckDisplayColors: () => [],
   validateDeckZones: () => ({ deck: [], sideboardOnly: [] }),
   countFlaggedCards: () => 0,
 }));

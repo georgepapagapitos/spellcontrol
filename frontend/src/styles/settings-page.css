@@ -175,6 +175,10 @@
 .settings-theme-option.is-active {
   border-color: var(--accent);
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
 }
 
 .settings-theme-swatch {
@@ -198,7 +202,7 @@
   font-family: var(--font-mono);
 }
 
-/* ── Typeface picker (components/TypeSetPicker.tsx) ────────────────────────
+/* ── Typeface picker (components/settings/TypeSetPicker.tsx) ────────────────────────
    Reuses the theme picker's tile wholesale; only the swatch changes, from a
    color disc to a live "Aa" specimen. Each tile carries its own
    `data-typeset`, and styles/typesets.css scopes the font tokens by that
@@ -404,6 +408,10 @@
 .you-layout .you-nav-row[aria-current='page'] {
   color: var(--accent);
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
 }
 
 .you-layout .you-nav-row[aria-current='page'] > svg:first-child {

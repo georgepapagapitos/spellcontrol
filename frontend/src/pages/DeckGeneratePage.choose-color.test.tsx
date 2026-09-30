@@ -20,7 +20,7 @@ vi.mock('../store/decks', () => ({
 vi.mock('../store/auth', () => ({
   useAuth: <T,>(selector: (s: { status: string }) => T): T => selector({ status: 'authed' }),
 }));
-vi.mock('../lib/sync', () => ({ isOnline: () => true, onSyncedChange: () => () => {} }));
+vi.mock('@/lib/sync', () => ({ isOnline: () => true, onSyncedChange: () => () => {} }));
 
 // Setting a commander makes useDeckGeneration pre-fetch EDHREC data ( see the
 // "Pre-fetch the EDHREC land suggestion" effect in use-deck-generation.ts).
@@ -55,6 +55,7 @@ const piper = {
   type_line: 'Legendary Creature — Shapeshifter',
   oracle_text:
     'If The Prismatic Piper is your commander, choose a color before the game begins. The Prismatic Piper is the chosen color.\nPartner (You can have two commanders if both have partner.)',
+  legalities: { commander: 'legal' },
 };
 
 describe('DeckGeneratePage choose-a-color commander', () => {

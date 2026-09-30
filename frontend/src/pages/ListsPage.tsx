@@ -8,36 +8,36 @@ import {
   SlidersHorizontal,
   Trash2,
 } from 'lucide-react';
-import { CollectionHubTabs } from '@/components/CollectionHubTabs';
-import { PageHeader } from '@/components/PageHeader';
+import { CollectionHubTabs } from '@/components/collection/CollectionHubTabs';
+import { PageHeader } from '@/components/app-shell/PageHeader';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { getCardsByNames } from '@/deck-builder/services/scryfall/client';
 import { useCollectionStore } from '../store/collection';
-import { useConfirm } from '../lib/use-confirm';
-import { useStoredSort } from '../lib/use-stored-sort';
-import { useStoredView } from '../lib/use-stored-view';
-import { useDebouncedValue } from '../lib/use-debounced-value';
-import { SortMenu, type SortMenuOption } from '../components/SortMenu';
+import { useConfirm } from '@/components/overlays/use-confirm';
+import { useStoredSort } from '@/lib/util/use-stored-sort';
+import { useStoredView } from '@/lib/util/use-stored-view';
+import { useDebouncedValue } from '@/lib/util/use-debounced-value';
+import { SortMenu, type SortMenuOption } from '@/components/search/SortMenu';
 import { ViewModeToggle } from '../components/ViewModeToggle';
-import { SearchPill } from '../components/SearchPill';
-import { OverflowMenu, type OverflowMenuItem } from '../components/OverflowMenu';
+import { SearchPill } from '@/components/search/SearchPill';
+import { OverflowMenu, type OverflowMenuItem } from '@/components/overlays/OverflowMenu';
 import { EmptyState } from '@/components/shared/EmptyState';
 import {
   SelectToggle,
   BulkSelectBar,
   SelectCheck,
   selectInteraction,
-} from '../components/BulkSelectBar';
-import { selectedCountLabel, useSelection } from '../lib/use-selection';
-import { ListEntriesView } from '../components/ListEntriesView';
-import { ShareDialog } from '../components/ShareDialog';
-import { NameInputDialog } from '../components/NameInputDialog';
-import { dynamicListCount } from '../lib/dynamic-list';
-import { isTrackingList } from '../lib/lists';
-import { useCardsWithTags, groupsUseTags } from '../lib/card-tags';
+} from '@/components/app-shell/BulkSelectBar';
+import { selectedCountLabel, useSelection } from '@/lib/util/use-selection';
+import { ListEntriesView } from '@/components/lists/ListEntriesView';
+import { ShareDialog } from '@/components/share/ShareDialog';
+import { NameInputDialog } from '@/components/overlays/NameInputDialog';
+import { dynamicListCount } from '@/lib/collection/dynamic-list';
+import { isTrackingList } from '@/lib/collection/lists';
+import { useCardsWithTags, groupsUseTags } from '@/lib/cards/card-tags';
 import type { ListDef, ListKind } from '../types';
-import { useAwaitingFirstPull } from '../lib/use-awaiting-first-pull';
+import { useAwaitingFirstPull } from '@/lib/sync/use-awaiting-first-pull';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
 import '../styles/deck-builder-binders-index.css';

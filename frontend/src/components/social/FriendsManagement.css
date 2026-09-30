@@ -1,0 +1,188 @@
+/* FriendsPage.css — /friends route */
+
+/* `scrollToHeading` (lib/util/scroll-to-heading.ts) focuses this non-interactive
+   heading on a `?tab=` deep link so sighted users land in the right place and
+   screen readers get the announcement. It's not a control, so it gets no
+   `:focus-visible` ring pairing — suppress the raw default outline rather
+   than let it read as a rendering glitch. ponytail: local fix pending W1a's
+   shared scroll-anchor class (B8-01) — drop this once that class covers
+   `#friends-page-heading-title` too. */
+#friends-page-heading-title:focus {
+  outline: none;
+}
+
+.friends-page-links {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+@media (pointer: coarse) {
+  /* `.site-nav-link` is 32.8px tall app-wide. Scoped to this row rather than
+     lifted on the shared primitive: these two are standalone page doors with
+     room to grow, where the site header's nav links sit in a fixed-height bar
+     that a global floor would resize. Grows the real box (not an ::after
+     ghost) — side by side, the crowded axis is horizontal, and the gap above
+     keeps the boxes from meeting. */
+  .friends-page-links .site-nav-link {
+    min-height: 44px;
+  }
+}
+
+/* Shared primary/secondary identity text — reused wherever a row shows a
+   user's display name with @username as a secondary line underneath. */
+.friends-identity-text {
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.friends-identity-handle {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Tabs panel area ─────────────────────────────────────────────────────── */
+.friends-tabs-area {
+  margin-top: var(--space-4);
+}
+
+.friends-panel {
+  margin-top: var(--space-3);
+}
+
+/* ── Requests panel ──────────────────────────────────────────────────────── */
+.friends-requests-section {
+  margin-bottom: var(--space-5);
+}
+
+.friends-requests-section:last-child {
+  margin-bottom: 0;
+}
+
+.friends-requests-section-title {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-overline);
+  color: var(--text-muted);
+  margin: 0 0 var(--space-2);
+}
+
+.friends-request-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.friends-request-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.friends-request-name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.friends-request-name .friends-identity-text {
+  font-weight: 500;
+}
+
+.friends-request-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+/* Empty / error / skeleton / guest-gate states: styles/social-shared.css. */
+/* ── Inbox (directed shares) ─────────────────────────────────────────────── */
+.friends-inbox-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.friends-inbox-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.friends-inbox-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.friends-inbox-text {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.friends-inbox-from,
+.friends-inbox-label {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.friends-inbox-time {
+  margin-top: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+/* ── Activity (new-from-friends) ─────────────────────────────────────────── */
+/* Structure/typography reuse .friends-inbox-* verbatim (row shape, from/label
+   text, timestamp) — only the anchor-specific resets + hover/focus are new,
+   since the whole row is now the link rather than a trailing "View" button. */
+.friends-activity-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.friends-activity-link {
+  text-decoration: none;
+  color: inherit;
+  transition: background var(--motion-fast);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .friends-activity-link:hover {
+    background: var(--surface);
+  }
+}
+
+.friends-activity-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

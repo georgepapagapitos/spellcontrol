@@ -64,7 +64,7 @@
   display: grid;
 
   /* Zoom-driven min column width — DeckCardGrid sets both vars inline per
-     zoom step (lib/grid-zoom.ts ladders); the mobile ladder takes over
+     zoom step (lib/util/grid-zoom.ts ladders); the mobile ladder takes over
      ≤1024px. min(…, 100%) keeps a big step from overflowing a narrow
      container (it clamps to one full-width column instead). The
      grid-1x/2x/3x classes below are coarse zoom buckets that only scale
@@ -528,6 +528,10 @@
   border-color: var(--accent);
   color: var(--accent);
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -536,6 +540,10 @@
     border-color: var(--accent);
     color: var(--accent);
     background: var(--accent-light);
+    --text-muted: var(--text-muted-tint);
+    --text-secondary: var(--text-secondary-tint);
+    --accent: var(--accent-tint);
+    --accent-hover: var(--accent-hover-tint);
     outline: none;
   }
 }
@@ -1265,6 +1273,10 @@
 
 .deck-row.is-selected {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
 }
 
 /* ── Manual reorder (E172) ────────────────────────────────────────────
@@ -1475,8 +1487,12 @@
   text-align: right;
 }
 
-.deck-row:focus-visible {
+.deck-row:has(> .deck-row-open:focus-visible) {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   cursor: pointer;
   outline: 2px solid var(--accent);
   outline-offset: -2px;
@@ -1484,13 +1500,52 @@
 @media (hover: hover) and (pointer: fine) {
   .deck-row:hover {
     background: var(--accent-light);
+    --text-muted: var(--text-muted-tint);
+    --text-secondary: var(--text-secondary-tint);
+    --accent: var(--accent-tint);
+    --accent-hover: var(--accent-hover-tint);
     cursor: pointer;
     outline: none;
   }
 }
 
-.deck-row:focus-visible {
+.deck-row:has(> .deck-row-open:focus-visible) {
   box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* The row's one primary control: a button stretched over the whole row, so
+   the <li> stays a plain box that may hold buttons (a button cannot hold
+   controls). The ring goes on the row (above), not the button. The row's own
+   controls are positioned so they paint over it and stay clickable; the
+   row's text and chips are not, so a tap on them falls through to it. */
+.deck-row {
+  position: relative;
+}
+
+.deck-row > .deck-row-open {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.deck-row > .deck-row-open:focus-visible {
+  outline: none;
+}
+
+.deck-row
+  :is(
+    .deck-row-qty-edit,
+    .deck-row-qty-input,
+    .deck-row-drag-handle,
+    .deck-row-printings-toggle,
+    .deck-row-hovermeta
+  ) {
+  position: relative;
 }
 
 .deck-row-name {
@@ -1580,6 +1635,12 @@
   color: var(--text-secondary);
   line-height: 0;
   cursor: pointer;
+  /* WCAG 2.5.8: the 0.875rem glyph + padding measured 18px. The box is 24px
+     for a fine pointer; the negative margin hands the extra 3px a side back so
+     the row's layout (and height) stays what it was. */
+  min-width: 24px;
+  min-height: 24px;
+  margin: -3px;
 }
 
 /* Coarse-pointer floor (STYLE_GUIDE § Responsive): a 0.875rem glyph with
@@ -1591,6 +1652,7 @@
 @media (pointer: coarse) {
   .deck-row-menu-trigger {
     position: relative;
+    margin: 0;
   }
   .deck-row-menu-trigger::after {
     content: '';
@@ -1791,6 +1853,10 @@
 @media (hover: hover) and (pointer: fine) {
   .deck-row-menu-item:hover:not(:disabled) {
     background: var(--accent-light);
+    --text-muted: var(--text-muted-tint);
+    --text-secondary: var(--text-secondary-tint);
+    --accent: var(--accent-tint);
+    --accent-hover: var(--accent-hover-tint);
   }
 }
 
@@ -1908,7 +1974,7 @@
   }
 }
 
-/* Availability labels from lib/deck-change.ts (OWNERSHIP_BADGE), shown in the
+/* Availability labels from lib/coach/deck-change.ts (OWNERSHIP_BADGE), shown in the
    deck editor, the add-cards search and the public deck views. "Available" =
    a free copy you can field tonight (accent); "In a deck" / "In a cube" =
    owned but every copy is claimed elsewhere (warn); "Unowned" = buy it

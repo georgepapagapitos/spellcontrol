@@ -5,9 +5,9 @@ import { CoachFeed, type CoachFeedProps } from './CoachFeed';
 import type { GapAnalysisCard } from '@/deck-builder/types';
 import type { CostPlan } from '@/deck-builder/services/deckBuilder/costAnalyzer';
 import type { ComboMatch } from '@/types/combos';
-import type { CrossDeckMove } from '@/lib/cross-deck-moves';
+import type { CrossDeckMove } from '@/lib/coach/cross-deck-moves';
 
-vi.mock('@/lib/card-thumbs', () => ({
+vi.mock('@/lib/cards/card-thumbs', () => ({
   useCardThumb: () => undefined,
 }));
 const carouselOpen = vi.fn();

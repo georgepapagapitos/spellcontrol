@@ -7,8 +7,8 @@ import { CommanderResultCard } from './CommanderResultCard';
 // deck-count badge — this covers the new prop plus a small baseline, not a
 // full backfill.
 
-vi.mock('../../lib/card-thumbs', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../lib/card-thumbs')>()),
+vi.mock('@/lib/cards/card-thumbs', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/cards/card-thumbs')>()),
   useCardThumb: () => undefined,
 }));
 

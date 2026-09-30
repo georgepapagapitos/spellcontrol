@@ -1,4 +1,4 @@
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/util/logger';
 import type { EDHRECCommanderStats } from '@/deck-builder/types';
 import type { Pacing } from '@/deck-builder/types';
 import { Archetype } from '@/deck-builder/types';

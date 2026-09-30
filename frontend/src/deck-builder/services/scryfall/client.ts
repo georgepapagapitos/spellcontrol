@@ -1,4 +1,4 @@
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/util/logger';
 import type { ScryfallCard, ScryfallSearchResponse } from '@/deck-builder/types';
 import type {
   CardRepository,
@@ -7,13 +7,15 @@ import type {
   GetCardsByNamesOptions,
 } from './card-repository';
 import { getPartnerType, getPartnerWithName } from '@/deck-builder/lib/partnerUtils';
+import { isPlayableCard, resolveReversiblePrinting } from '@/deck-builder/lib/printingLayouts';
+export { isPlayableCard };
 import { offlineGetCardByName, offlineGetCardsByNames, offlineSearchCards } from '@/lib/offline';
 import { offlineDataAvailable, useOfflineStore } from '@/store/offline';
-import { frontFaceName } from '@/lib/card-text';
-import { normalizeScryfallQuery } from '@/lib/normalize-search';
-import { scryfallFetch, scryfallRequest, scryfallErrorMessage } from '@/lib/scryfall-fetch';
-import { apiUrl } from '@/lib/api-base';
-import type { ScryfallCardRef } from '@/lib/scryfall-card-link';
+import { frontFaceName } from '@/lib/cards/card-text';
+import { normalizeScryfallQuery } from '@/lib/search/normalize-search';
+import { scryfallFetch, scryfallRequest, scryfallErrorMessage } from '@/lib/cards/scryfall-fetch';
+import { apiUrl } from '@/lib/api/api-base';
+import type { ScryfallCardRef } from '@/lib/cards/scryfall-card-link';
 import { persistCard, readCachedCards } from './cache';
 import { HARDCODED_GAME_CHANGERS as SHARED_GAME_CHANGERS } from '@spellcontrol/deck-metrics';
 
@@ -109,25 +111,6 @@ export function parseSetFromQuery(scryfallQuery: string): string | undefined {
   return match ? match[1].toLowerCase() : undefined;
 }
 
-// Scryfall layouts that aren't real game pieces (art cards, tokens, emblems, etc.).
-// These can sneak in via /cards/collection with a set preference or via the
-// `unique=prints` upgrade search when a treatment filter (e.g. is:full-art) matches
-// an art-series printing — they have legalities.commander === 'not_legal' and would
-// otherwise be flagged after the deck is generated.
-const NON_PLAYABLE_LAYOUTS = new Set([
-  'art_series',
-  'token',
-  'double_faced_token',
-  'emblem',
-  'scheme',
-  'planar',
-  'vanguard',
-]);
-
-export function isPlayableCard(card: ScryfallCard): boolean {
-  return !card.layout || !NON_PLAYABLE_LAYOUTS.has(card.layout);
-}
-
 /**
  * Resolve token art for a playtest token by its display name (e.g. "Soldier"
  * out of a preset like "Soldier 1/1"). Token layouts are excluded from
@@ -215,7 +198,7 @@ export async function searchTokens(query: string): Promise<TokenOption[]> {
 
 /**
  * Resolve the full face of a token named in a deck's token list
- * (`lib/deck-tokens`), which carries a name and a type line but no art.
+ * (`lib/deck/deck-tokens`), which carries a name and a type line but no art.
  * Matches on the type line where one is given so "Token Creature — Bird"
  * does not come back as an enchantment that happens to share the name.
  */
@@ -289,12 +272,12 @@ export function commanderFinderSupportsRegex(): boolean {
 }
 
 /**
- * The commander finder's search: `query` (built by lib/commander-finder, with
+ * The commander finder's search: `query` (built by lib/deck/commander-finder, with
  * no base clause) against every commander, or every uncommon creature for
  * Pauper Commander, most-played first. One page of up to 175 with the total,
  * so the finder can say "532 commanders" while showing the top of the list.
  * An empty query browses the whole pool by popularity. The query goes out as
- * built: lib/commander-finder already normalized the part the player typed.
+ * built: lib/deck/commander-finder already normalized the part the player typed.
  */
 export async function searchCommanderFinder(
   query: string,
@@ -1361,7 +1344,8 @@ async function liveUpgradeCardPrintings(
         // Skip art-series and other non-playable layouts — `unique=prints` includes them,
         // and they often match treatment filters like is:full-art / frame:extendedart.
         const matchMap = new Map<string, ScryfallCard>();
-        for (const card of data.data) {
+        // E527: an art filter often matches a reversible SLD printing; seat the card it prints.
+        for (const card of data.data.map(resolveReversiblePrinting)) {
           if (!isPlayableCard(card)) continue;
           const frontName = frontFaceName(card.name);
           if (!matchMap.has(card.name) && !matchMap.has(frontName)) {
@@ -1679,7 +1663,7 @@ export function getCardImageUrl(
  * Returns the price string or null if no price is available.
  */
 // Non-snow basics only — deliberately NOT the canonical land-identity set in
-// lib/allocations. Snow-Covered basics carry a real market price, so they must
+// lib/collection/allocations. Snow-Covered basics carry a real market price, so they must
 // fall through to their actual `prices`, not the $0.05 basic floor below.
 const ZERO_PRICE_BASICS = new Set(['Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 'Wastes']);
 

@@ -22,17 +22,17 @@ vi.mock('../store/auth', () => ({
     }),
 }));
 
-vi.mock('../components/FriendsManagement', () => ({
+vi.mock('@/components/social/FriendsManagement', () => ({
   FriendsManagement: () => <div data-testid="friends-management-stub" />,
 }));
 
-vi.mock('../lib/pods-client', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../lib/pods-client')>();
+vi.mock('@/lib/social/pods-client', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/social/pods-client')>();
   return { ...actual, listPods: vi.fn(() => Promise.resolve([])) };
 });
 
 import { FriendsPage } from './FriendsPage';
-import { listPods, type Pod } from '../lib/pods-client';
+import { listPods, type Pod } from '@/lib/social/pods-client';
 
 function renderPage() {
   return render(

@@ -3,11 +3,11 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../store/auth';
 import { useCollectionStore } from '../store/collection';
-import { fetchProviders, googleSignInUrl } from '../lib/auth-api';
-import { preventFocusSteal } from '../lib/keyboard';
-import { markEverVisited } from '../lib/first-run';
+import { fetchProviders, googleSignInUrl } from '@/lib/account/auth-api';
+import { preventFocusSteal } from '@/lib/util/keyboard';
+import { markEverVisited } from '@/lib/home/first-run';
 import { toast } from '../store/toasts';
-import { Tabs } from '../components/Tabs';
+import { Tabs } from '@/components/overlays/Tabs';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
 

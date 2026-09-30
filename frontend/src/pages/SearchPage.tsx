@@ -3,13 +3,13 @@ import { AlignJustify, HelpCircle, LayoutGrid, List } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import './SearchPage.css';
-import { SearchPill } from '../components/SearchPill';
-import { InlineCardSearch, type InlineCardSearchView } from '../components/InlineCardSearch';
+import { SearchPill } from '@/components/search/SearchPill';
+import { InlineCardSearch, type InlineCardSearchView } from '@/components/search/InlineCardSearch';
 import { BrowseRails } from '../components/browse/BrowseRails';
 import { ViewModeToggle } from '../components/ViewModeToggle';
-import { useCollapsedPref } from '../lib/use-collapsed-pref';
-import { useResultsKeys } from '../lib/use-results-keys';
-import { useStoredView } from '../lib/use-stored-view';
+import { useCollapsedPref } from '@/lib/util/use-collapsed-pref';
+import { useResultsKeys } from '@/lib/search/use-results-keys';
+import { useStoredView } from '@/lib/util/use-stored-view';
 import { offlineDataAvailable, useOfflineStore } from '../store/offline';
 
 // Don't autofocus on touch — the soft keyboard would cover the landing copy

@@ -1,6 +1,6 @@
 // Scryfall-search fallback fill: used when EDHREC pools can't satisfy a slot
 // target. Extracted verbatim from deckGenerator.ts.
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/util/logger';
 import type { ScryfallCard, MaxRarity, CollectionStrategy } from '@/deck-builder/types';
 import { searchCards, commanderSearchIdentity } from '@/deck-builder/services/scryfall/client';
 import { BudgetTracker } from './budgetTracker';
@@ -15,8 +15,10 @@ import {
   notOnArena,
   exceedsCmcCap,
   notLegalForFormat,
+  fitsLandSlot,
+  fitsSpellSlot,
 } from './deckFilters';
-import { frontFaceName } from '@/lib/card-text';
+import { frontFaceName } from '@/lib/cards/card-text';
 import { buildSynergyFingerprint, synergyScore } from './synergyFingerprint';
 import type { BracketGuard } from './bracketGuard';
 import { validateCardRole, type RoleKey } from '@/deck-builder/services/tagger/client';
@@ -101,7 +103,11 @@ export async function fillWithScryfall(
   // (E-arena-leak follow-up). Optional/undefined falls back to commander
   // legality (notLegalForFormat's own default) — safe for every existing
   // caller that doesn't thread it.
-  mtgFormat?: string
+  mtgFormat?: string,
+  // Which bucket the caller seats the result in (E525). The query can't
+  // decide it: `t:creature` also returns a land whose back face is a
+  // creature, and `t:land` returns a spell whose back face is a land.
+  slot: 'spell' | 'land' = 'spell'
 ): Promise<ScryfallCard[]> {
   if (count <= 0) return [];
 
@@ -145,6 +151,7 @@ export async function fillWithScryfall(
     for (const card of response.data) {
       if (usedNames.has(card.name)) continue; // Commander format is always singleton
       if (bannedCards.has(card.name)) continue; // Skip banned cards
+      if (!(slot === 'land' ? fitsLandSlot(card) : fitsSpellSlot(card))) continue;
       if (isDeadInIdentity(card, colorIdentity)) continue; // E282: off-color payoff (a medallion in the wrong color)
       if (cardAllowed && !cardAllowed(card)) continue;
       if (constrainsToCollection(collectionStrategy) && notInCollection(card.name, collectionNames))

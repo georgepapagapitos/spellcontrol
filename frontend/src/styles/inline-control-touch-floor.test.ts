@@ -23,7 +23,7 @@ const CASES: Array<[file: string, selector: string]> = [
   // A plain link in a sentence, which keeps the prose look.
   ['styles/forms-banners.css', '.text-link'],
   // A keyword in a card's rules text, which opens what the rule says.
-  ['components/RulesText.css', '.keyword-term'],
+  ['components/card/RulesText.css', '.keyword-term'],
 ];
 
 describe('inline controls meet the coarse touch floor', () => {

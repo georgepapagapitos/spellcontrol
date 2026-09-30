@@ -224,8 +224,12 @@
 }
 
 /* ── Combo-check placeholder (async one-away combos still loading) ── */
-.next-best-move-row.is-loading {
-  opacity: 0.75;
+/* Dimmed by colour, not row opacity, which blended the detail text under 4.5:1. */
+.next-best-move-row.is-loading .next-best-move-title {
+  color: var(--text-secondary);
+}
+.next-best-move-row.is-loading .next-best-move-detail {
+  color: var(--text-muted);
 }
 
 .next-best-move-spinner {

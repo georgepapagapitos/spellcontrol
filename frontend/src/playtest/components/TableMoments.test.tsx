@@ -6,11 +6,11 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { usePlayStore } from '@/store/play';
-import { applyAction, createGameState, makePlayer, type GameState } from '@/lib/game-state';
+import { applyAction, createGameState, makePlayer, type GameState } from '@/lib/play/game-state';
 import { TableMoments } from './TableMoments';
 import type { OnlineTable } from '../hooks/use-online-table';
 
-vi.mock('@/lib/haptics', () => ({
+vi.mock('@/lib/util/haptics', () => ({
   haptics: {
     tap: vi.fn(),
     success: vi.fn(),
@@ -20,7 +20,7 @@ vi.mock('@/lib/haptics', () => ({
     bump: vi.fn(),
   },
 }));
-import { haptics } from '@/lib/haptics';
+import { haptics } from '@/lib/util/haptics';
 
 /** Forces the win ceremony's dismiss paths to resolve synchronously instead
  *  of waiting on a CSS `animationend` (happy-dom doesn't drive real CSS

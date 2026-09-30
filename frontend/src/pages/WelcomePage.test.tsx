@@ -4,12 +4,12 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import type { UploadResponse } from '../types';
-import type { DiscoverDeck } from '../lib/discover-client';
+import type { DiscoverDeck } from '@/lib/discover/discover-client';
 
 // --- Module mocks (declared before lazy imports) ---
 
 const importTextMock = vi.fn<(text: string) => Promise<UploadResponse>>();
-vi.mock('../lib/api', () => ({
+vi.mock('@/lib/api', () => ({
   importText: (text: string) => importTextMock(text),
   useSetMap: () => new Map(),
 }));
@@ -41,11 +41,11 @@ vi.mock('react-router-dom', async (importOriginal) => {
 });
 
 // Hermetic art resolution for the hero + both live rails' tiles.
-vi.mock('../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
 // The precons rail has its own test (PreconsRail.test.tsx); stubbed so this
 // file's listing mock only answers the community rails.
-vi.mock('../components/PreconsRail', () => ({
+vi.mock('@/components/decks/PreconsRail', () => ({
   PreconsRail: () => <div data-testid="precons-rail" />,
 }));
 
@@ -53,7 +53,7 @@ const { mockListDiscoverDecks } = vi.hoisted(() => ({ mockListDiscoverDecks: vi.
 // Named-export-complete: DiscoverDeckTile (mounted by FreshDecksRail) also
 // pulls LikeButton/BookmarkButton, which import the like/bookmark client fns
 // from this same module.
-vi.mock('../lib/discover-client', () => ({
+vi.mock('@/lib/discover/discover-client', () => ({
   listDiscoverDecks: mockListDiscoverDecks,
   likeDeck: vi.fn(),
   unlikeDeck: vi.fn(),
@@ -62,7 +62,7 @@ vi.mock('../lib/discover-client', () => ({
 }));
 
 import { WelcomePage } from './WelcomePage';
-import { hasEverVisited, markEverVisited } from '../lib/first-run';
+import { hasEverVisited, markEverVisited } from '@/lib/home/first-run';
 
 // ---
 

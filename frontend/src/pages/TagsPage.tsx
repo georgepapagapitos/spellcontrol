@@ -3,8 +3,8 @@ import { ChevronDown, LayoutGrid, List, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import './TagsPage.css';
-import { SearchPill } from '../components/SearchPill';
-import { InlineCardSearch, type InlineCardSearchView } from '../components/InlineCardSearch';
+import { SearchPill } from '@/components/search/SearchPill';
+import { InlineCardSearch, type InlineCardSearchView } from '@/components/search/InlineCardSearch';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import {
   cardTagLabel,
@@ -14,10 +14,10 @@ import {
   useCardTagsError,
   useCardTagsReady,
   isKnownCardTag,
-} from '../lib/card-tags';
-import { describeOtag } from '../lib/otag-descriptions';
-import { parseTagParam, searchTags, tagsToQuery } from '../lib/tag-explorer';
-import { useStoredView } from '../lib/use-stored-view';
+} from '@/lib/cards/card-tags';
+import { describeOtag } from '@/lib/cards/otag-descriptions';
+import { parseTagParam, searchTags, tagsToQuery } from '@/lib/cards/tag-explorer';
+import { useStoredView } from '@/lib/util/use-stored-view';
 import { Chip } from '@/components/shared/Chip';
 
 /** Rendered tag rows. The corpus is ~4,500 tags — far past what's browsable,

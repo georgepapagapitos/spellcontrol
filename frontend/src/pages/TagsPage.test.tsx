@@ -9,7 +9,7 @@ import { TagsPage } from './TagsPage';
 const readyRef = { value: true };
 const errorRef = { value: false };
 const ensureCardTags = vi.fn();
-vi.mock('../lib/card-tags', () => ({
+vi.mock('@/lib/cards/card-tags', () => ({
   useCardTagsReady: () => readyRef.value,
   useCardTagsError: () => errorRef.value,
   ensureCardTags: () => ensureCardTags(),
@@ -29,7 +29,7 @@ vi.mock('../lib/card-tags', () => ({
 }));
 
 const searchQueries: string[] = [];
-vi.mock('../components/InlineCardSearch', () => ({
+vi.mock('@/components/search/InlineCardSearch', () => ({
   InlineCardSearch: ({ query }: { query: string }) => {
     searchQueries.push(query);
     return <div data-testid="results">{query}</div>;

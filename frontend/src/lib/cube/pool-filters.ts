@@ -1,6 +1,6 @@
 import type { EnrichedCard } from '@/types';
-import { getCardTags } from '@/lib/card-tags';
-import { isBasicLandName } from '@/lib/allocations-core';
+import { getCardTags } from '@/lib/cards/card-tags';
+import { isBasicLandName } from '@/lib/collection/allocations-core';
 import { formatExclusion, type CubeFormat } from './play-format';
 
 /**

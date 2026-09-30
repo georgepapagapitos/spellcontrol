@@ -7,7 +7,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PlaytestCard, PlaytestState } from '@/lib/playtest';
 import { usePlaytestStore, flushPendingPlaytestSnapshot } from './store';
-import { createResistanceState, resistanceRespond, RESISTANCE_PRESETS } from './lib/resistance';
+import {
+  createResistanceState,
+  DEFAULT_RESISTANCE_OPTIONS,
+  LEGACY_RESISTANCE_OPTIONS,
+  loadResistanceOptions,
+  resistanceRespond,
+  RESISTANCE_PRESETS,
+  RESISTANCE_PRESSURE,
+  saveResistanceOptions,
+  type ResistanceOptions,
+} from './lib/resistance';
 import { useDecksStore, type Deck } from '@/store/decks';
 import { fingerprintDeck, loadPlaytestSnapshot } from '@/lib/playtest/session-snapshot';
 import { loadSessionHistory } from '@/lib/playtest/session-history';
@@ -17,7 +27,7 @@ import { buildHordeLibrary, resolveHordeSettings, type HordeSettings } from '@/l
 const STANDARD = RESISTANCE_PRESETS.standard;
 
 // The decks-store sync subscriber (E133) fire-and-forgets a dynamic
-// `import('../lib/sync')` on every `decks` change; mock it the same way
+// `import('@/lib/sync')` on every `decks` change; mock it the same way
 // `store/decks.test.ts` does so seeding a deck here can't touch the network.
 vi.mock('@/lib/sync', () => ({
   persistDecksState: vi.fn().mockResolvedValue(undefined),
@@ -95,6 +105,9 @@ function store() {
 beforeEach(() => {
   store().teardown();
   store().setFreeMulligan(false);
+  // The Resistance suites below pin the pre-E533 mechanics (answers from
+  // turn 1, no attacks or discard); the E533 suite sets its own options.
+  saveResistanceOptions(LEGACY_RESISTANCE_OPTIONS);
 });
 
 // A dispatch anywhere below can schedule the module-level snapshot debounce
@@ -382,6 +395,125 @@ describe('playtest store — resistance mode', () => {
     expect(store().resistanceState).toEqual(createResistanceState(store().state!.rngSeed));
     expect(store().resistanceState!.wipesUsed).toBe(0);
     expect(store().lastResistanceEvent).toBeNull();
+  });
+});
+
+describe('Resistance options (E533)', () => {
+  const attackOnly: ResistanceOptions = {
+    ...DEFAULT_RESISTANCE_OPTIONS,
+    firstTurn: 1,
+    effects: {
+      counter: false,
+      destroy: false,
+      bounce: false,
+      wipe: false,
+      attack: true,
+      discard: false,
+    },
+  };
+
+  it('a new game takes timing from the device and Game Changers from the bracket', () => {
+    saveResistanceOptions({ ...DEFAULT_RESISTANCE_OPTIONS, firstTurn: 4 });
+    useDecksStore.setState({
+      decks: [
+        makeDeck({ id: 'b4', bracketOverride: 4 }),
+        makeDeck({ id: 'b2', bracketOverride: 2 }),
+        makeDeck({ id: 'unknown' }),
+      ],
+    });
+    store().init('b4', { library: threatLibrary(), seed: 1 });
+    expect(store().resistanceOptions).toEqual({
+      ...DEFAULT_RESISTANCE_OPTIONS,
+      firstTurn: 4,
+      gameChangers: true,
+    });
+    store().init('b2', { library: threatLibrary(), seed: 1 });
+    expect(store().resistanceOptions.gameChangers).toBe(false);
+    store().init('unknown', { library: threatLibrary(), seed: 1 });
+    expect(store().resistanceOptions.gameChangers).toBe(false);
+  });
+
+  it('changing options keeps the armed opponent and saves timing for next time', () => {
+    store().init('deck-1', { library: threatLibrary(), seed: 42 });
+    store().setResistanceLevel('standard');
+    const opponent = { seed: 7, wipesUsed: 1, responsesThisTurn: 0 };
+    usePlaytestStore.setState({ resistanceState: opponent });
+
+    store().setResistanceOptions({ ...DEFAULT_RESISTANCE_OPTIONS, firstTurn: 5 });
+    expect(store().resistanceState).toBe(opponent);
+    expect(store().resistanceLevel).toBe('standard');
+    expect(store().resistanceOptions.firstTurn).toBe(5);
+    expect(loadResistanceOptions(false).firstTurn).toBe(5);
+  });
+
+  it('holds every answer until the first-answer turn', () => {
+    saveResistanceOptions({ ...DEFAULT_RESISTANCE_OPTIONS, firstTurn: 3 });
+    store().init('deck-1', { library: threatLibrary(), seed: 42 });
+    store().setResistanceLevel('ruthless');
+    usePlaytestStore.setState({ resistanceState: createResistanceState(findSeedFor('counter')) });
+    const played = store().state!.zones.hand[0];
+    store().dispatch({ type: 'MOVE_TO_BATTLEFIELD', cardId: played.id, x: 10, y: 10 });
+    expect(store().state!.battlefield.map((b) => b.card.id)).toEqual([played.id]);
+    expect(store().lastResistanceEvent).toBeNull();
+  });
+
+  it('an attack between turns costs life, can be undone, and keeps the trail aligned', () => {
+    saveResistanceOptions(attackOnly);
+    store().init('deck-1', { library: threatLibrary(), seed: 42, life: 40 });
+    store().setResistanceLevel('standard');
+    let seed = 1;
+    while (
+      resistanceRespond(
+        createResistanceState(seed),
+        { kind: 'turnStart', turn: 2 },
+        { battlefield: [], hand: store().state!.zones.hand, startingLife: 40 },
+        STANDARD,
+        attackOnly,
+        RESISTANCE_PRESSURE.standard
+      ).response?.effect !== 'attack'
+    )
+      seed++;
+    usePlaytestStore.setState({ resistanceState: createResistanceState(seed) });
+
+    store().dispatch({ type: 'NEXT_TURN' });
+    const life = store().state!.life;
+    expect(life).toBeLessThan(40);
+    expect(store().lastResistanceEvent?.message).toBe(
+      `Opponent attacks: you lose ${40 - life} life`
+    );
+    expect(store().rewindTrail).toHaveLength(store().state!.past.length);
+    expect(store().resistancePast).toHaveLength(store().state!.past.length);
+
+    store().dispatch({ type: 'UNDO' });
+    expect(store().state!.life).toBe(40);
+  });
+
+  it('a game saved before E533 resumes on the legacy model; a newer one on its own', () => {
+    const base = {
+      fingerprint: '1:1',
+      savedAt: 0,
+      phase: 'playing' as const,
+      mulliganCount: 0,
+      resistanceLevel: 'standard' as const,
+      resistanceState: createResistanceState(5),
+      state: {
+        zones: { library: [], hand: [], graveyard: [], exile: [], sideboard: [], command: [] },
+        battlefield: [],
+        rngSeed: 5,
+        turn: 4,
+        commanderTax: {},
+        life: 40,
+        startingLife: 40,
+        monarch: false,
+        initiative: false,
+        citysBlessing: false,
+      },
+      gameLog: [],
+    };
+    store().hydrate('deck-old', base);
+    expect(store().resistanceOptions).toEqual(LEGACY_RESISTANCE_OPTIONS);
+    store().hydrate('deck-new', { ...base, resistanceOptions: attackOnly });
+    expect(store().resistanceOptions).toEqual(attackOnly);
   });
 });
 

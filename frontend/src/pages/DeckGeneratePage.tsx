@@ -5,7 +5,7 @@ import { Zap } from 'lucide-react';
 import '@/styles/deck-builder-customizer.css';
 import '@/styles/deck-builder-commander-profile.css';
 import './DeckGeneratePage.css';
-import { BackLink } from '../components/BackLink';
+import { BackLink } from '@/components/app-shell/BackLink';
 import { useDeckBuilderStore } from '@/deck-builder/store';
 import { CommanderSearch } from '../components/deck/CommanderSearch';
 import { CommanderProfileCard } from '../components/deck/CommanderProfileCard';
@@ -16,20 +16,22 @@ import { GenerationModePicker } from '../components/deck/GenerationModePicker';
 import { GenerationTakeover } from '../components/deck/GenerationTakeover';
 import { ChosenColorPicker, colorChooserOf } from '../components/deck/ChosenColorPicker';
 import { choosesColorBeforeGame, chosenColorOf } from '@/deck-builder/lib/partnerUtils';
-import { useDeckGeneration } from '../lib/use-deck-generation';
-import { useGenerationTakeoverExit } from '../lib/use-generation-takeover-exit';
-import { imageFromCard } from '@/lib/card-thumbs';
+import { useDeckGeneration } from '@/lib/deck/use-deck-generation';
+import { useGenerationTakeoverExit } from '@/lib/deck/use-generation-takeover-exit';
+import { imageFromCard } from '@/lib/cards/card-thumbs';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
-import { buildAllocationMap, pickCollectionCopy } from '../lib/allocations';
-import { usePublishOnCreate, type PublishOutcome } from '../lib/use-publish-on-create';
-import { VisibilityChoice } from '../components/VisibilityChoice';
+import { useCubeStore } from '../store/cube';
+import { buildAllocationMap, pickCollectionCopy } from '@/lib/collection/allocations';
+import { usePublishOnCreate, type PublishOutcome } from '@/lib/social/use-publish-on-create';
+import { VisibilityChoice } from '@/components/share/VisibilityChoice';
 import type { ScryfallCard, DeckFormat, EDHRECTheme, Customization } from '@/deck-builder/types';
 import type { ComboSeedContext } from '../types/combos';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import { Button } from '@/components/shared/Button';
-import { parseDeckFormat } from '../lib/deck-format-param';
+import { parseDeckFormat } from '@/lib/deck/deck-format-param';
 import { getCardByName } from '@/deck-builder/services/scryfall/client';
+import { commanderIneligibility } from '@/deck-builder/services/deckBuilder/commanderEligibility';
 
 /**
  * Router-state seed for a build. Two shapes share it:
@@ -210,6 +212,13 @@ export function DeckGeneratePage() {
   // chosen, so both build buttons wait for it.
   const colorChooser = colorChooserOf(commander, partnerCommander);
   const colorReady = !colorChooser || chosenColorOf(colorChooser) !== null;
+  // E530: a commander this format won't accept (Llanowar Elves, Atraxa in
+  // Pauper Commander, a pair that can't partner) holds both buttons and says
+  // why, the same answer the generator's entry would throw.
+  const ineligible = commander
+    ? commanderIneligibility(commander, partnerCommander, customization.mtgFormat)
+    : null;
+  const buildReady = colorReady && !ineligible;
 
   // Reset the deck-builder store on mount so opening the generator after
   // creating a deck always starts at a blank commander search — the store is
@@ -287,8 +296,8 @@ export function DeckGeneratePage() {
 
   // ── Start blank: this commander, no cards ──────────────────────────────
   const handleStartBlank = useCallback(async () => {
-    if (!commander || !colorReady) return;
-    const allocationMap = buildAllocationMap(decks);
+    if (!commander || !buildReady) return;
+    const allocationMap = buildAllocationMap(decks, useCubeStore.getState().saved);
     const commanderAlloc =
       pickCollectionCopy(commander.name, collectionCards, allocationMap, commander.id)?.copyId ??
       null;
@@ -330,7 +339,7 @@ export function DeckGeneratePage() {
     canPublish,
     publishAfterCreate,
     shareWithFriendsAfterCreate,
-    colorReady,
+    buildReady,
   ]);
 
   // A format with no commander has nothing to generate: the start page is
@@ -542,12 +551,12 @@ export function DeckGeneratePage() {
           <p className="deck-generate-hint">{generateHint}</p>
 
           <div className="deck-generate-bar" role="group" aria-label="Build this deck">
-            <p
-              className={`deck-generate-bar-summary${colorChooser && !colorReady ? ' is-blocking' : ''}`}
-            >
-              {colorChooser && !colorReady
-                ? `Choose ${colorChooser.name.split(' // ')[0]}'s color above to build.`
-                : summary}
+            <p className={`deck-generate-bar-summary${buildReady ? '' : ' is-blocking'}`}>
+              {ineligible
+                ? ineligible.message
+                : colorChooser && !colorReady
+                  ? `Choose ${colorChooser.name.split(' // ')[0]}'s color above to build.`
+                  : summary}
             </p>
             {error && (
               <div className="error-banner deck-builder-error deck-generate-bar-error" role="alert">
@@ -557,14 +566,14 @@ export function DeckGeneratePage() {
             <div className="deck-generate-bar-actions">
               <Button
                 onClick={() => void handleStartBlank()}
-                disabled={isBuilding || publishing || !colorReady}
+                disabled={isBuilding || publishing || !buildReady}
               >
                 {publishing ? 'Creating…' : 'Start blank'}
               </Button>
               <Button
                 variant="primary"
                 onClick={build}
-                disabled={isBuilding || publishing || !modeReady || !colorReady}
+                disabled={isBuilding || publishing || !modeReady || !buildReady}
               >
                 {isBuilding ? 'Building…' : publishing ? 'Publishing…' : generateLabel}
               </Button>

@@ -1,6 +1,6 @@
 import './MeterBar.css';
 import type { CSSProperties, JSX } from 'react';
-import { joinClasses } from '@/lib/join-classes';
+import { joinClasses } from '@/lib/util/join-classes';
 
 /**
  * MeterBar / StackedBar — THE shared horizontal bar-track primitives.

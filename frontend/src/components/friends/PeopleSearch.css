@@ -1,0 +1,138 @@
+/* PeopleSearch: the find-people box and its merged results. */
+
+.people-search {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.people-search .search-pill {
+  width: 100%;
+}
+
+.people-search-browse {
+  align-self: flex-start;
+}
+
+.people-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.people-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-lg);
+  min-width: 0;
+}
+
+.people-row-link {
+  flex: 1 1 10rem;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.people-row-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .people-row-link:hover .people-row-name {
+    color: var(--accent);
+  }
+}
+
+.people-row-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.people-row-name {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.people-row-handle {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.people-row-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* A status, not a control: no border, no fill, no hover. */
+.people-row-state {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  padding-inline: var(--space-2);
+  white-space: nowrap;
+}
+
+@media (pointer: coarse) {
+  .people-row-actions .pill-btn,
+  .people-row-actions .follow-button {
+    min-height: 44px;
+  }
+}
+
+.people-row--skeleton {
+  min-height: 3.5rem;
+}
+
+.people-skel-avatar,
+.people-skel-bar {
+  display: block;
+  background: linear-gradient(
+    90deg,
+    var(--surface-raised) 25%,
+    var(--border) 50%,
+    var(--surface-raised) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer calc(var(--motion-drawer) * 3) ease-in-out infinite;
+}
+
+.people-skel-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+
+.people-skel-bar {
+  width: 40%;
+  height: 0.9rem;
+  border-radius: var(--radius);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .people-skel-avatar,
+  .people-skel-bar {
+    animation: none;
+  }
+}

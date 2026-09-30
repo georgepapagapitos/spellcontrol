@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { paletteForIndex, SEAT_PALETTE_COUNT } from '../lib/seat-palette';
+import { paletteForIndex, SEAT_PALETTE_COUNT } from '@/lib/play/seat-palette';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const board = readFileSync(join(here, 'play-board.css'), 'utf8');

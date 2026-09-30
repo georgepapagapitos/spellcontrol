@@ -15,12 +15,14 @@ import { CardSearchPanel } from './CardSearchPanel';
 import { useCollectionStore } from '../../store/collection';
 import type { EnrichedCard } from '../../types';
 
-vi.mock('../../lib/card-thumbs', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../lib/card-thumbs')>()),
+vi.mock('@/lib/cards/card-thumbs', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/cards/card-thumbs')>()),
   useCardThumb: () => undefined,
 }));
-vi.mock('../../lib/api', () => ({ useSetMap: () => ({}) }));
-vi.mock('../../lib/aggregates-client', () => ({ getCommanderStats: () => Promise.resolve(null) }));
+vi.mock('@/lib/api', () => ({ useSetMap: () => ({}) }));
+vi.mock('@/lib/discover/aggregates-client', () => ({
+  getCommanderStats: () => Promise.resolve(null),
+}));
 vi.mock('@/deck-builder/services/scryfall/client', () => ({
   searchCards: () => Promise.resolve({ data: [] }),
   getCardByNameResilient: () => Promise.resolve(null),

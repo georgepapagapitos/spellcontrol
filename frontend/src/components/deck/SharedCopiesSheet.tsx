@@ -1,9 +1,10 @@
+import { createPortal } from 'react-dom';
 import { type JSX, useId } from 'react';
 import { X, Layers, Boxes } from 'lucide-react';
 import './SharedCopiesSheet.css';
-import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
-import { useEscapeKey } from '../../lib/use-escape-key';
-import type { ContestedCard } from '@/lib/allocations';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useEscapeKey } from '@/lib/overlays/use-escape-key';
+import type { ContestedCard } from '@/lib/collection/allocations';
 import { Button, IconButton } from '@/components/shared/Button';
 
 export interface SharedCopiesSheetProps {
@@ -36,7 +37,7 @@ export function SharedCopiesSheet({
   useLockBodyScroll();
   useEscapeKey(onClose);
 
-  return (
+  return createPortal(
     <div
       className="card-picker-root shared-copies-root"
       onClick={(e) => {
@@ -107,6 +108,7 @@ export function SharedCopiesSheet({
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

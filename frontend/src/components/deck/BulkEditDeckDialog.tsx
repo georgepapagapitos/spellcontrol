@@ -1,15 +1,16 @@
 import { useCallback, useMemo, useState } from 'react';
 import { WifiOff, X } from 'lucide-react';
-import { Modal } from '../Modal';
+import { Modal } from '@/components/overlays/Modal';
 // Reuses AppendDeckDialog's offline / nothing-to-add notes by name.
 import './AppendDeckDialog.css';
-import { ProgressBar } from '../ProgressBar';
-import { importDeckText } from '../../lib/api';
+import { ProgressBar } from '@/components/import/ProgressBar';
+import { importDeckText } from '@/lib/api';
 import { useDecksStore, useLocalMutationToken, type Deck } from '../../store/decks';
+import { useCubeStore } from '../../store/cube';
 import { useCollectionStore } from '../../store/collection';
 import { useDeckHistoryStore } from '../../store/deck-history';
-import { useCollectionByCopyId } from '../../lib/allocations';
-import { buildExport } from '../../lib/deck-export';
+import { useCollectionByCopyId } from '@/lib/collection/allocations';
+import { buildExport } from '@/lib/import-export/deck-export';
 import {
   parseBulkEditText,
   findPendingNames,
@@ -18,15 +19,15 @@ import {
   summarizeAllocationImpact,
   type ParsedBulkEdit,
   type BulkEditPlan,
-} from '../../lib/deck-bulk-edit';
+} from '@/lib/deck/deck-bulk-edit';
 import { DiffGroup } from './DiffCardRow';
-import { formatRelativeTime } from '../../lib/format-time';
+import { formatRelativeTime } from '@/lib/util/format-time';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { useOnline } from './import-deck-shared';
 import './BulkEditDeckDialog.css';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button, IconButton } from '@/components/shared/Button';
 interface Props {
   deck: Deck;
@@ -49,7 +50,7 @@ type Step = 'input' | 'resolving' | 'review';
 /**
  * Text/bulk-edit view (E168 slice 4, the last one) — edit the whole decklist
  * as "qty name" lines and commit as one replace. The reconciliation
- * (allocatedCopyId preservation) lives in lib/deck-bulk-edit.ts; this dialog
+ * (allocatedCopyId preservation) lives in lib/deck/deck-bulk-edit.ts; this dialog
  * is just the parse → resolve-new-names → review → commit flow around it.
  * `mode="resync"` (E173) reuses this same flow for "refresh from an external
  * list" — see the Props doc above.
@@ -143,13 +144,15 @@ export function BulkEditDeckDialog({ deck, onClose, mode = 'edit' }: Props) {
     }
   }, [text, deck, online]);
 
+  const cubes = useCubeStore((s) => s.saved);
   const plan: BulkEditPlan | null = useMemo(() => {
     if (!parsed || step !== 'review') return null;
     return buildBulkEditPlan(deck, parsed, resolvedByName, formatConfig, {
       decks,
+      cubes,
       collectionCards,
     });
-  }, [parsed, step, deck, resolvedByName, formatConfig, decks, collectionCards]);
+  }, [parsed, step, deck, resolvedByName, formatConfig, decks, cubes, collectionCards]);
 
   // Genuinely-unmatched names: unresolved minus the ones we know are just a
   // retryable network hiccup (those get their own banner + Retry button).

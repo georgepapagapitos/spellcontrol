@@ -67,7 +67,7 @@ export const DECK_FORMAT_CONFIGS: Record<DeckFormat, DeckFormatConfig> = {
     /* Scryfall's paupercommander legality is oracle-level ("ever printed at
        common"), so downshifts (Chainer's Edict, Command Tower, Arcane Signet)
        validate correctly. Commander-zone eligibility is DERIVED instead —
-       see lib/commanders.ts:isPdhCommanderEligible. */
+       see lib/deck/commanders.ts:isPdhCommanderEligible. */
     legalityKey: 'paupercommander',
     supportsGeneration: true,
   },

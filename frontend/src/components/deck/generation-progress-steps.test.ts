@@ -44,7 +44,7 @@ const PAIR =
 
 const emitted = [
   ...sourceFiles(path.join(SRC, 'deck-builder/services')),
-  path.join(SRC, 'lib/use-deck-generation.ts'),
+  path.join(SRC, 'lib/deck/use-deck-generation.ts'),
 ].flatMap((file) =>
   [...fs.readFileSync(file, 'utf8').matchAll(PAIR)].map((m) => ({
     file: path.relative(SRC, file),

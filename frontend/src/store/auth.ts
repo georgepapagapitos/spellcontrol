@@ -1,11 +1,11 @@
 import { create } from 'zustand';
-import * as authApi from '../lib/auth-api';
-import type { AuthUser, Profile } from '../lib/auth-api';
-import { flushSync, stopSyncAndWipeLocal } from '../lib/sync';
-import { markEverVisited } from '../lib/first-run';
-import { track } from '../lib/analytics';
+import * as authApi from '@/lib/account/auth-api';
+import type { AuthUser, Profile } from '@/lib/account/auth-api';
+import { flushSync, stopSyncAndWipeLocal } from '@/lib/sync';
+import { markEverVisited } from '@/lib/home/first-run';
+import { track } from '@/lib/util/analytics';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 export type AuthStatus = 'unknown' | 'loading' | 'authed' | 'guest';
 
 // Remember the signed-in identity locally so being OFFLINE doesn't look like

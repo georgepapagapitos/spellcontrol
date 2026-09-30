@@ -8,7 +8,7 @@ import type { ProductSummary } from '../../types';
 const searchProducts = vi.fn();
 const fetchProductCommanderSummary = vi.fn();
 
-vi.mock('../../lib/api', () => ({
+vi.mock('@/lib/api', () => ({
   searchProducts: (...args: unknown[]) => searchProducts(...args),
   fetchProductCommanderSummary: (...args: unknown[]) => fetchProductCommanderSummary(...args),
 }));

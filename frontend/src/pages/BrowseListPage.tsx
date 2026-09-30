@@ -1,12 +1,12 @@
 import './BrowseListPage.css';
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { BackLink } from '@/components/BackLink';
-import { NotFoundPage } from '@/components/NotFoundPage';
-import { PageHeader } from '@/components/PageHeader';
+import { BackLink } from '@/components/app-shell/BackLink';
+import { NotFoundPage } from './NotFoundPage';
+import { PageHeader } from '@/components/app-shell/PageHeader';
 import { BrowseListFilters } from '@/components/browse/BrowseListFilters';
 import { BrowseTile, BrowseTileSkeleton } from '@/components/browse/BrowseTile';
-import { useOwnedNames } from '@/lib/use-owned-names';
+import { useOwnedNames } from '@/lib/discover/use-owned-names';
 import { EdhrecSource } from '@/components/browse/EdhrecSource';
 import { useBrowsePreview } from '@/components/browse/use-browse-preview';
 import { Button } from '@/components/shared/Button';
@@ -22,11 +22,11 @@ import {
   type BrowseItem,
   type BrowseListDef,
   type EdhrecProvenance,
-} from '@/lib/browse-lists';
-import { colorComboName } from '@/lib/commander-finder';
-import { EDHREC_TOP_TYPES, type EdhrecTopPeriod } from '@/lib/edhrec-top';
-import { useDocumentTitle } from '@/lib/use-document-title';
-import { userMessage } from '@/lib/user-error';
+} from '@/lib/discover/browse-lists';
+import { colorComboName } from '@/lib/deck/commander-finder';
+import { EDHREC_TOP_TYPES, type EdhrecTopPeriod } from '@/lib/discover/edhrec-top';
+import { useDocumentTitle } from '@/lib/util/use-document-title';
+import { userMessage } from '@/lib/util/user-error';
 import { useAuth } from '@/store/auth';
 
 const SKELETON_TILES = 18;

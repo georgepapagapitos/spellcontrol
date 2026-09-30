@@ -204,7 +204,7 @@ The online Commander table (`backend/src/routes/games.ts`, `frontend/src/store/p
 
 All `/api/*` endpoints sit behind helmet and per-endpoint rate limiters.
 
-The table below documents the collection-import, auth, and sync core. The rest of the surface is mounted per domain in `backend/src/server.ts` — one router each for `activity`, `admin`, `aggregates`, `ai`, `combos`, `discover`, `edhrec`, `feedback`, `friends`, `game-nights`, `game-results`, `games`, `offline`, `pods`, `public`, `publications`, `reports`, `scanner`, `shares`, `tonight-trades`, `trades`, and `users` — with routes defined in the matching `backend/src/<domain>/` module.
+The table below documents the collection-import, auth, and sync core. The rest of the surface is mounted per domain in `backend/src/server.ts` — one router each for `activity`, `admin`, `aggregates`, `ai`, `brewers` (mounted at `/api/public/brewers`), `combos`, `discover`, `edhrec`, `feedback`, `follows`, `friends`, `game-nights`, `game-results`, `games`, `offline`, `pods`, `public`, `publications`, `reports`, `scanner`, `shares`, `tonight-trades`, `trades`, and `users` — with routes defined in the matching `backend/src/<domain>/` module.
 
 | Method   | Path                         | Purpose                                                                                             |
 | -------- | ---------------------------- | --------------------------------------------------------------------------------------------------- |
@@ -233,14 +233,14 @@ The table below documents the collection-import, auth, and sync core. The rest o
 
 - Cache TTL — `TTL_MS` in [backend/src/cache.ts](backend/src/cache.ts)
 - Scryfall batch size, batch concurrency, and inter-batch delay — top of [backend/src/scryfall.ts](backend/src/scryfall.ts) (`BATCH_SIZE`, `BATCH_CONCURRENCY`, `REQUEST_DELAY_MS`)
-- Import chunk size and client upload concurrency — top of [frontend/src/lib/api.ts](frontend/src/lib/api.ts) (`IMPORT_CHUNK_SIZE`, `IMPORT_CHUNK_CONCURRENCY`)
+- Import chunk size and client upload concurrency — top of [frontend/src/lib/api/index.ts](frontend/src/lib/api/index.ts) (`IMPORT_CHUNK_SIZE`, `IMPORT_CHUNK_CONCURRENCY`)
 - Scryfall bulk ingest flush size — `FLUSH_AT` in [backend/src/scryfall-bulk.ts](backend/src/scryfall-bulk.ts)
 - Rate limits — `importLimiter` and `priceLimiter` in [backend/src/server.ts](backend/src/server.ts)
-- AI "Budget picks" per-card ceiling (same number in USD or EUR, checked in the player's display currency) — `BUDGET_CEILING` in [backend/src/ai/deck-review.ts](backend/src/ai/deck-review.ts) (mirrored for the label as `AI_BUDGET_CEILING` in [frontend/src/lib/ai-scope.ts](frontend/src/lib/ai-scope.ts))
+- AI "Budget picks" per-card ceiling (same number in USD or EUR, checked in the player's display currency) — `BUDGET_CEILING` in [backend/src/ai/deck-review.ts](backend/src/ai/deck-review.ts) (mirrored for the label as `AI_BUDGET_CEILING` in [frontend/src/lib/ai/ai-scope.ts](frontend/src/lib/ai/ai-scope.ts))
 - AI model list price used by the admin panel's spend estimate (USD per million tokens: input, output, cache write, cache read) — `AI_USD_PER_MTOK` next to `AI_MODEL` in [backend/src/ai/client.ts](backend/src/ai/client.ts); change the two together
-- Default sorts for new binders — `NEW_BINDER_DEFAULT_SORTS` in [frontend/src/lib/sorting.ts](frontend/src/lib/sorting.ts)
+- Default sorts for new binders — `NEW_BINDER_DEFAULT_SORTS` in [frontend/src/lib/search/sorting.ts](frontend/src/lib/search/sorting.ts)
 - Sticky price margin (reviewed cards don't leave a binder for a within-margin price wobble) — `PRICE_STICKINESS_MARGIN` in [packages/binder-routing/src/rules.ts](packages/binder-routing/src/rules.ts)
-- Default EDHREC top-N — `DEFAULT_EDHREC_TOP_N` in [frontend/src/components/BinderEditor.tsx](frontend/src/components/BinderEditor.tsx)
+- Default EDHREC top-N — `DEFAULT_EDHREC_TOP_N` in [frontend/src/components/binder/BinderEditor.tsx](frontend/src/components/binder/BinderEditor.tsx)
 - Commander-aggregate rollup thresholds (min sample sizes, budget bucket boundaries, top-card cap) — top of [backend/src/aggregates/rollup.ts](backend/src/aggregates/rollup.ts)
 - EDHREC top-list freshness (refresh after 24h, retry a failing refresh every 15 min) — `FRESH_MS`, `RETRY_MS` in [backend/src/edhrec/top-store.ts](backend/src/edhrec/top-store.ts)
 - Backend port — `PORT` env var (default `3737`)

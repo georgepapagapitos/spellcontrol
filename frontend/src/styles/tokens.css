@@ -12,7 +12,7 @@
 :root {
   /* ── Semantic UI tokens (fallback) ────────────────────────────────────── */
   /* Themes in styles/themes.css override these via [data-theme="..."].
-     Mana pip colors live in lib/colors.ts and rarity colors below — those
+     Mana pip colors live in lib/cards/colors.ts and rarity colors below — those
      are MTG-canonical and never themed. */
 
   /* Fallback color-scheme — themes override per-guild. Pinned to light so
@@ -31,6 +31,19 @@
   /* Muted text — WCAG AA (≥4.5:1) against bg/surface/surface-raised; verified by
      themes-contrast.test.ts. Mirrors the azorius (default light) theme. */
   --text-muted: #565e74;
+  /* The same two roles on the accent tint (--accent-light), which lifts the
+     ground so far that muted and even secondary fall below AA on it in most
+     themes. Every rule that paints the tint re-points --text-muted and
+     --text-secondary at these, so a selected tile keeps its hierarchy and
+     clears 4.5:1 while the rest of the page keeps its own ramp. Guard:
+     styles/text-contrast-grounds.test.ts. */
+  --text-muted-tint: #4f576c;
+  --text-secondary-tint: #464e68;
+  /* Accent text on the tint: the guild accent fails AA on its own tint in
+     most themes, so tinted rules re-point --accent / --accent-hover here too.
+     Filled controls keep --on-accent ≥ 4.5:1 on these (same guard). */
+  --accent-tint: #35568e;
+  --accent-hover-tint: #3d5786;
 
   --accent: #35568e;
   --accent-hover: #46679f;
@@ -138,7 +151,7 @@
   --icon-gap: 0.4rem;
 
   /* Gutter between cards in every card grid. Must equal `GRID_GAP_PX`
-     (lib/grid-zoom.ts): the collection grid computes its column count in JS
+     (lib/util/grid-zoom.ts): the collection grid computes its column count in JS
      while the deck/list grids let CSS `auto-fill` do it, and the two only
      agree if they use the same gap. They didn't (8/10px vs 0.65rem), which
      rendered the same zoom step as 4 columns in one grid and 3 in another. */
@@ -329,7 +342,7 @@
   --vh-safe: calc(100dvh - var(--safe-top) - var(--safe-bottom));
 
   /* ── Keyboard inset ───────────────────────────────────────────────────────
-     Pixels the on-screen keyboard occupies, published by lib/keyboard.ts.
+     Pixels the on-screen keyboard occupies, published by lib/util/keyboard.ts.
      ~0 on browsers honoring
      interactive-widget=resizes-content; the real gap on iOS Safari. Surfaces
      pinned to the bottom edge (sheets, the toast viewport) dock at

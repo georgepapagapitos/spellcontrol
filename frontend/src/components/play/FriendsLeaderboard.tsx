@@ -2,17 +2,17 @@ import { Fragment, useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { StackedBar } from '../shared/MeterBar';
 import { Button } from '../shared/Button';
-import { formatIdentity } from '../../lib/display-name';
+import { formatIdentity } from '@/lib/social/display-name';
 import { H2HSummary } from './H2HSummary';
 import {
   fetchLeaderboard,
   fetchH2H,
   type LeaderboardEntry,
   type H2HResponse,
-} from '../../lib/game-results-client';
+} from '@/lib/play/game-results-client';
 import './FriendsLeaderboard.css';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 /**
  * Server-authoritative "Friends leaderboard": W/L over every game you and a
  * friend both sat in — at the table or online, one record per game —

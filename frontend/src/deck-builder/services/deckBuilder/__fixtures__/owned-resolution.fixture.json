@@ -1,0 +1,159 @@
+{
+  "_source": "Real Scryfall card objects (captured from the LIVE_GEN HTTP cache, 2026-09-29), trimmed to the fields generation reads.",
+  "cards": [
+    {
+      "name": "Brainstorm",
+      "type_line": "Instant",
+      "oracle_text": "Draw three cards, then put two cards from your hand on top of your library in any order.",
+      "mana_cost": "{U}",
+      "cmc": 1.0,
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "legal",
+        "brawl": "legal"
+      },
+      "rarity": "common",
+      "edhrec_rank": 72,
+      "oracle_id": "36cd2364-d113-47d1-b2c4-b088d9eb88dd",
+      "prices": {
+        "usd": "1.06",
+        "usd_foil": null,
+        "eur": "2.41"
+      },
+      "games": ["paper", "mtgo"],
+      "set": "frc"
+    },
+    {
+      "name": "Fable of the Mirror-Breaker // Reflection of Kiki-Jiki",
+      "type_line": "Enchantment — Saga // Enchantment Creature — Goblin Shaman",
+      "cmc": 3.0,
+      "color_identity": ["R"],
+      "keywords": ["Transform", "Treasure"],
+      "layout": "transform",
+      "card_faces": [
+        {
+          "name": "Fable of the Mirror-Breaker",
+          "type_line": "Enchantment — Saga",
+          "oracle_text": "(As this Saga enters and after your draw step, add a lore counter.)\nI — Create a 2/2 red Goblin Shaman creature token with \"Whenever this token attacks, create a Treasure token.\"\nII — You may discard up to two cards. If you do, draw that many cards.\nIII — Exile this Saga, then return it to the battlefield transformed under your control.",
+          "mana_cost": "{2}{R}"
+        },
+        {
+          "name": "Reflection of Kiki-Jiki",
+          "type_line": "Enchantment Creature — Goblin Shaman",
+          "oracle_text": "{1}, {T}: Create a token that's a copy of another target nonlegendary creature you control, except it has haste. Sacrifice it at the beginning of the next end step.",
+          "mana_cost": ""
+        }
+      ],
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      },
+      "rarity": "rare",
+      "edhrec_rank": 1751,
+      "oracle_id": "c0957e5e-c71b-439c-931c-9f55d2f76ace",
+      "prices": {
+        "usd": "6.15",
+        "usd_foil": "6.72",
+        "eur": "8.58"
+      },
+      "games": ["paper", "mtgo", "arena"],
+      "set": "neo"
+    },
+    {
+      "name": "Harmonized Trio // Brainstorm",
+      "type_line": "Creature — Merfolk Bard Wizard // Instant",
+      "mana_cost": "{U} // {U}",
+      "cmc": 1.0,
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": ["Prepared"],
+      "layout": "prepare",
+      "card_faces": [
+        {
+          "name": "Harmonized Trio",
+          "type_line": "Creature — Merfolk Bard Wizard",
+          "oracle_text": "{T}, Tap two untapped creatures you control: This creature becomes prepared. (While it's prepared, you may cast a copy of its spell. Doing so unprepares it.)",
+          "mana_cost": "{U}"
+        },
+        {
+          "name": "Brainstorm",
+          "type_line": "Instant",
+          "oracle_text": "Draw three cards, then put two cards from your hand on top of your library in any order.",
+          "mana_cost": "{U}"
+        }
+      ],
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      },
+      "rarity": "rare",
+      "edhrec_rank": 4781,
+      "oracle_id": "f6036065-7196-44d4-8a27-2199f0e1a03c",
+      "prices": {
+        "usd": "0.74",
+        "usd_foil": "0.84",
+        "eur": "0.43"
+      },
+      "games": ["paper", "mtgo", "arena"],
+      "set": "sos"
+    },
+    {
+      "name": "Krenko, Mob Boss",
+      "type_line": "Legendary Creature — Goblin Warrior",
+      "oracle_text": "{T}: Create X 1/1 red Goblin creature tokens, where X is the number of Goblins you control.",
+      "mana_cost": "{2}{R}{R}",
+      "cmc": 4.0,
+      "colors": ["R"],
+      "color_identity": ["R"],
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      },
+      "rarity": "rare",
+      "edhrec_rank": 1088,
+      "oracle_id": "68418069-f615-40ef-ae0d-764192acae00",
+      "prices": {
+        "usd": "3.61",
+        "usd_foil": "3.27",
+        "eur": "1.68"
+      },
+      "games": ["paper", "arena", "mtgo"],
+      "set": "fdn"
+    },
+    {
+      "name": "Talrand, Sky Summoner",
+      "type_line": "Legendary Creature — Merfolk Wizard",
+      "oracle_text": "Whenever you cast an instant or sorcery spell, create a 2/2 blue Drake creature token with flying.",
+      "mana_cost": "{2}{U}{U}",
+      "cmc": 4.0,
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      },
+      "rarity": "rare",
+      "edhrec_rank": 790,
+      "oracle_id": "ea1eb902-a23c-44ff-9169-19baf71de238",
+      "prices": {
+        "usd": "1.88",
+        "usd_foil": null,
+        "eur": "0.56"
+      },
+      "games": ["paper", "mtgo"],
+      "set": "otc"
+    }
+  ]
+}

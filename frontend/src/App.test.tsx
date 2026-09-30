@@ -35,11 +35,11 @@ vi.mock('./store/auth', () => ({
   useAuth: (selector: (s: typeof authState) => unknown) => selector(authState),
 }));
 
-vi.mock('./lib/first-run', () => ({
+vi.mock('@/lib/home/first-run', () => ({
   hasEverVisited: () => hasEverVisitedMock(),
 }));
 
-vi.mock('./lib/use-first-run-gate', () => ({
+vi.mock('@/lib/home/use-first-run-gate', () => ({
   useFirstRunGate: () => {},
 }));
 
@@ -50,7 +50,7 @@ vi.mock('./store/collection', () => {
   return { useCollectionStore };
 });
 
-vi.mock('./lib/sync', () => ({
+vi.mock('@/lib/sync', () => ({
   startSync: vi.fn().mockResolvedValue(undefined),
   hydrateLocal: vi.fn().mockResolvedValue(undefined),
   backfillOracleIds: vi.fn().mockResolvedValue(undefined),
@@ -68,7 +68,7 @@ vi.mock('./lib/deep-links', () => ({
 // Layout owns nav chrome (Header/MobileTabBar/etc.) — irrelevant to route
 // resolution and each piece has its own tests, so stub to just the Outlet
 // the "*" route renders through.
-vi.mock('./components/Layout', () => ({
+vi.mock('@/components/app-shell/Layout', () => ({
   Layout: () => (
     <div data-testid="layout">
       <Outlet />

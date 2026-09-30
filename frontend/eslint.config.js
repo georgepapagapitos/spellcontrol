@@ -46,28 +46,38 @@ export default [
       // and touch floors; the audit matrix measures the rendered result.
       ...jsxA11y.flatConfigs.recommended.rules,
       // Sheets and dialogs focus their first field on open on purpose; the
-      // overlay layer (lib/overlay-layer.ts) restores focus on close. The
+      // overlay layer (lib/overlays/overlay-layer.ts) restores focus on close. The
       // rule is an opinion about page loads, not about opened dialogs.
       'jsx-a11y/no-autofocus': 'off',
       // `role="list"` on a `<ul>` is deliberate: Safari/VoiceOver drops the
       // list semantics of any list styled `list-style: none`, and every
       // list here is. The explicit role restores them.
       'jsx-a11y/no-redundant-roles': ['error', { ul: ['list'], ol: ['list'] }],
+      // A labelled `role="region"` that scrolls must take focus, or a keyboard
+      // user cannot scroll it (WCAG 2.1.1; axe scrollable-region-focusable).
+      // The rule's default allows only tabpanel; region joins it, nothing else.
+      'jsx-a11y/no-noninteractive-tabindex': [
+        'error',
+        { tags: [], roles: ['tabpanel', 'region'], allowExpressionValues: true },
+      ],
       'react/react-in-jsx-scope': 'off',
       'react/prop-types': 'off',
       // Apostrophes in user-facing copy stay readable in source; the rule
       // only enforces HTML-entity escaping which buys us nothing here.
       'react/no-unescaped-entities': 'off',
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
-      // Route all logging through src/lib/logger so debug chatter stays out of
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      ],
+      // Route all logging through src/lib/util/logger so debug chatter stays out of
       // the production browser console; warn/error still surface in the field.
       'no-console': 'error',
     },
   },
   {
     // The logger wrapper is the one place console.* is allowed.
-    files: ['src/lib/logger.ts'],
+    files: ['src/lib/util/logger.ts'],
     rules: { 'no-console': 'off' },
   },
   {

@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useMenuKeyboard } from '@/lib/use-menu-keyboard';
-import { computePopoverPlacement, getSafeViewport } from '@/lib/popover-placement';
+import { useMenuKeyboard } from '@/lib/overlays/use-menu-keyboard';
+import { computePopoverPlacement, getSafeViewport } from '@/lib/overlays/popover-placement';
 import { useOnlineSignals } from '../hooks/use-online-signals';
 import { REACTION_EMOTES, REACTION_LABEL } from '../lib/table-signals';
 import './ReactionPicker.css';
@@ -11,7 +11,7 @@ type PanelPos = { top?: number; bottom?: number; left?: number; right?: number }
 /**
  * Online-only send affordance: a single trigger that opens a compact row of
  * the six whitelisted reaction emotes, one tap away. Mirrors
- * `components/OverflowMenu`'s trigger+portal+placement shape (§ Toolbars &
+ * `components/overlays/OverflowMenu`'s trigger+portal+placement shape (§ Toolbars &
  * action rows) rather than reinventing popover mechanics, but the panel body
  * is a grid of emote buttons instead of a menu list. Renders nothing outside
  * an online, seated game — see `useOnlineSignals`.

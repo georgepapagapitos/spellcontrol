@@ -11,13 +11,13 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import { useCollectionStore } from '../../store/collection';
 import { OwnershipBadge } from './OwnershipBadge';
 import { CommanderPickArt } from './CommanderPickArt';
-import { SearchPill } from '../SearchPill';
+import { SearchPill } from '@/components/search/SearchPill';
 import { ManaCost } from '../ManaCost';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
-import { RulesTextParagraphs } from '@/components/RulesText';
+import { RulesTextParagraphs } from '@/components/card/RulesText';
 interface Props {
   /** The primary commander — drives which partners are legal. */
   commander: ScryfallCard;

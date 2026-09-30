@@ -48,6 +48,12 @@ const ALLOWLIST = new Set([
   // only reveals the card's ⋮, and .collection-grid-menu-btn:focus-visible
   // both rings and reveals it for keyboard users.
   '.collection-grid-cell',
+  // The row and the grid tile are plain boxes now; their stretched
+  // .deck-row-open / .collection-grid-open button takes focus and the ring is
+  // drawn on the box via :has(> …:focus-visible), which this class-set check
+  // can't see.
+  '.deck-row',
+  '.collection-grid-item',
   // A binder pocket's cell, same shape: its hover only reveals the ⋮, whose
   // .collection-grid-menu-btn:focus-visible rings and reveals it.
   '.slot-cell',
@@ -98,6 +104,11 @@ function subset(a: Set<string>, b: Set<string>): boolean {
 // subjectively. Keep this allowlist short; each entry needs its own
 // justification comment naming the real replacement.
 const NO_VISIBLE_OUTLINE_ALLOWLIST = new Set<string>([
+  '.deck-row > .deck-row-open', // stretched-button row (DeckMainboardRow) and
+  '.collection-grid-open', // stretched-button tile (CardGridCell): the button
+  // covers its whole row/tile, so the real ring is drawn on that box through
+  // `:has(> …:focus-visible)` (deck-builder-card-list.css, collection.css),
+  // where a ring on the button would sit inside the tile's own clip.
   '.binder-start-tile--color .binder-start-tile-body', // stretched-button tile
   // (BinderStartChooser's One color): the button's ::after covers the whole
   // tile so the pips can sit on top of it, and the 2px accent ring is drawn on

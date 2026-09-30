@@ -1,5 +1,5 @@
-import { Modal } from '../Modal';
-import { haptics } from '../../lib/haptics';
+import { Modal } from '@/components/overlays/Modal';
+import { haptics } from '@/lib/util/haptics';
 import { Button } from '@/components/shared/Button';
 
 interface Props {

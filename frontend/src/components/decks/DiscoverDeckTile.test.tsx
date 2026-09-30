@@ -1,0 +1,313 @@
+// @vitest-environment happy-dom
+/**
+ * DiscoverDeckTile — dedicated unit coverage for the tile-system-v2 art-
+ * banner branches (grid view): banner art vs fallback color banner, on-art
+ * overlay stats thresholding, the segmented color-identity bar (incl. the
+ * colorless fallback segment), and the buildable-vs-value-vs-omitted footer.
+ * Previously only exercised indirectly through DiscoverDecksPage.test.tsx /
+ * SavedDecksPage.test.tsx; this file is the component's own.
+ */
+import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { describe, expect, it, vi } from 'vitest';
+import type { DiscoverDeck } from '@/lib/discover/discover-client';
+
+const { useCardThumbMock } = vi.hoisted(() => ({ useCardThumbMock: vi.fn() }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: useCardThumbMock }));
+
+// Named-export-complete: LikeButton/BookmarkButton (rendered by every tile)
+// import these from the same module.
+vi.mock('@/lib/discover/discover-client', () => ({
+  likeDeck: vi.fn(),
+  unlikeDeck: vi.fn(),
+  bookmarkDeck: vi.fn(),
+  unbookmarkDeck: vi.fn(),
+}));
+
+import { DiscoverDeckTile, type DiscoverTileView } from './DiscoverDeckTile';
+
+function makeDeck(overrides: Partial<DiscoverDeck> = {}): DiscoverDeck {
+  return {
+    slug: 'atraxa-superfriends-ab12',
+    name: 'Atraxa Superfriends',
+    ownerUsername: 'alice',
+    ownerDisplayName: null,
+    ownerAvatarUrl: null,
+    format: 'commander',
+    commanderName: "Atraxa, Praetors' Voice",
+    commanderImageNormal: null,
+    colorIdentity: ['W', 'U', 'B', 'G'],
+    bracket: 3,
+    estimatedBracket: null,
+    estimatedValueUsd: 245,
+    viewCount: 340,
+    copyCount: 12,
+    likeCount: 8,
+    // Fixed "2h ago" rather than a live Date.now() offset, so the recency
+    // assertion below can't flake across a slow test run.
+    publishedAt: Date.now() - 2 * 60 * 60 * 1000,
+    cardOracleIds: [],
+    likedByViewer: false,
+    bookmarkedByViewer: false,
+    ogArtCrop: null,
+    ...overrides,
+  };
+}
+
+function renderTile(
+  deckOverrides: Partial<DiscoverDeck> = {},
+  view: DiscoverTileView = 'grid',
+  otherProps: Partial<Omit<React.ComponentProps<typeof DiscoverDeckTile>, 'deck' | 'view'>> = {}
+) {
+  return render(
+    <MemoryRouter>
+      <ul>
+        <DiscoverDeckTile deck={makeDeck(deckOverrides)} view={view} {...otherProps} />
+      </ul>
+    </MemoryRouter>
+  );
+}
+
+describe('DiscoverDeckTile — grid art banner', () => {
+  // The art crop, as every other deck tile shows. The full card put its
+  // printed title bar at the top of the banner, under the quick actions.
+  it("shows the art crop of the deck's own commander printing, skipping the by-name lookup", () => {
+    useCardThumbMock.mockReturnValue('https://cdn.example/default-printing.jpg');
+    const { container } = renderTile({
+      commanderImageNormal: 'https://cards.scryfall.io/normal/sld.jpg',
+    });
+
+    const img = container.querySelector('.discover-tile-banner .decks-index-card-art');
+    expect(img?.getAttribute('src')).toBe('https://cards.scryfall.io/art_crop/sld.jpg');
+    expect(useCardThumbMock).toHaveBeenLastCalledWith(undefined, 'art_crop');
+  });
+
+  it('looks the commander up by name as an art crop when the deck has no printing', () => {
+    renderTile();
+    expect(useCardThumbMock).toHaveBeenLastCalledWith("Atraxa, Praetors' Voice", 'art_crop');
+  });
+
+  it('renders the commander art as a lazy-loaded banner image when a thumb resolves', () => {
+    useCardThumbMock.mockReturnValue('https://cdn.example/atraxa.jpg');
+    const { container } = renderTile();
+
+    const img = container.querySelector('.discover-tile-banner .decks-index-card-art');
+    expect(img).toBeTruthy();
+    expect(img?.getAttribute('src')).toBe('https://cdn.example/atraxa.jpg');
+    expect(img?.getAttribute('alt')).toBe('');
+    expect(img?.getAttribute('loading')).toBe('lazy');
+    expect(container.querySelector('.decks-index-card-banner')).toBeFalsy();
+  });
+
+  it('falls back to the color-pip banner when no commander art resolves', () => {
+    useCardThumbMock.mockReturnValue(undefined);
+    const { container } = renderTile();
+
+    expect(container.querySelector('.discover-tile-banner .decks-index-card-banner')).toBeTruthy();
+    expect(container.querySelector('.decks-index-card-art')).toBeFalsy();
+  });
+
+  it('overlays views/copies/recency on the banner, thresholding views/copies exactly like the list stats line', () => {
+    useCardThumbMock.mockReturnValue(undefined);
+    const { container } = renderTile({ viewCount: 340, copyCount: 12 });
+
+    const stats = container.querySelector('.discover-tile-banner-stats');
+    expect(stats?.textContent).toContain('340 views');
+    expect(stats?.textContent).toContain('12 copies');
+    expect(stats?.textContent).toMatch(/2h ago/);
+  });
+
+  it('hides views/copies below the public-count floor but still shows recency (never a bare empty overlay)', () => {
+    useCardThumbMock.mockReturnValue(undefined);
+    const { container } = renderTile({ viewCount: 2, copyCount: 0 });
+
+    const stats = container.querySelector('.discover-tile-banner-stats');
+    expect(stats?.textContent).not.toContain('views');
+    expect(stats?.textContent).not.toContain('copies');
+    expect(stats?.textContent).toMatch(/2h ago/);
+  });
+
+  it('renders one segment per color-identity color, using the WUBRG segment classes', () => {
+    useCardThumbMock.mockReturnValue(undefined);
+    const { container } = renderTile({ colorIdentity: ['W', 'U'] });
+
+    const segs = container.querySelectorAll('.color-identity-bar-seg');
+    expect(segs.length).toBe(2);
+    expect(segs[0].className).toContain('color-identity-bar-seg--w');
+    expect(segs[1].className).toContain('color-identity-bar-seg--u');
+  });
+
+  it('renders a single neutral segment for a colorless deck instead of an empty bar', () => {
+    useCardThumbMock.mockReturnValue(undefined);
+    const { container } = renderTile({ colorIdentity: [] });
+
+    const segs = container.querySelectorAll('.color-identity-bar-seg');
+    expect(segs.length).toBe(1);
+    expect(segs[0].className).toContain('color-identity-bar-seg--c');
+  });
+
+  // ============================================================
+  // A deck with no commander (any non-Commander format) — E482. Was a flat
+  // colourless swatch: no image, and no visible colour pips (colorIdentity
+  // is always [] for a non-Commander deck; see backend deckColorIdentity).
+  // ============================================================
+
+  it("falls back to the deck's cover art (ogArtCrop) when there is no commander art at all", () => {
+    useCardThumbMock.mockReturnValue(undefined);
+    const { container } = renderTile({
+      format: 'pauper',
+      commanderName: null,
+      commanderImageNormal: null,
+      colorIdentity: [],
+      ogArtCrop: 'https://cards.scryfall.io/art_crop/pauper-cover.jpg',
+    });
+
+    const img = container.querySelector('.discover-tile-banner .decks-index-card-art');
+    expect(img?.getAttribute('src')).toBe('https://cards.scryfall.io/art_crop/pauper-cover.jpg');
+    expect(container.querySelector('.decks-index-card-banner')).toBeFalsy();
+  });
+
+  // A no-commander deck's colorIdentity is empty because the listing only
+  // derives colours from a commander, not because the deck is colourless: a
+  // mono-white Pauper deck must never wear a colorless pip.
+  it('shows no colour claim in the swatch when a no-commander deck has no known colours', () => {
+    useCardThumbMock.mockReturnValue(undefined);
+    const { container } = renderTile({
+      format: 'pauper',
+      commanderName: null,
+      commanderImageNormal: null,
+      colorIdentity: [],
+      ogArtCrop: null,
+    });
+
+    expect(container.querySelector('.decks-index-card-art')).toBeFalsy();
+    expect(container.querySelector('.decks-index-card-banner-pips')).toBeFalsy();
+  });
+
+  it('still shows the real WUBRG pips in the swatch when colorIdentity is set but no art resolves', () => {
+    useCardThumbMock.mockReturnValue(undefined);
+    const { container } = renderTile({ colorIdentity: ['W', 'U'], ogArtCrop: null });
+
+    const pips = container.querySelector('.decks-index-card-banner-pips');
+    expect(pips?.querySelectorAll('.ms').length).toBe(2);
+  });
+
+  it('shows the buildable meter (not the value) in the footer when buildablePercent is set', () => {
+    useCardThumbMock.mockReturnValue(undefined);
+    const { container } = renderTile({ estimatedValueUsd: 245 }, 'grid', { buildablePercent: 82 });
+
+    expect(screen.getByText('82% buildable')).toBeTruthy();
+    expect(container.querySelector('.discover-tile-value-footer')).toBeFalsy();
+  });
+
+  it('falls back to the estimated value when buildablePercent is null but a value exists', () => {
+    useCardThumbMock.mockReturnValue(undefined);
+    const { container } = renderTile({ estimatedValueUsd: 245 }, 'grid', {
+      buildablePercent: null,
+    });
+
+    expect(container.querySelector('.discover-tile-value-footer')?.textContent).toBe('$245.00');
+    expect(screen.queryByText(/buildable/)).toBeFalsy();
+  });
+
+  it('omits the footer row entirely when both buildablePercent and value are unknown (no empty shell)', () => {
+    useCardThumbMock.mockReturnValue(undefined);
+    const { container } = renderTile({ estimatedValueUsd: null }, 'grid', {
+      buildablePercent: null,
+    });
+
+    expect(container.querySelector('.discover-tile-footer')).toBeFalsy();
+  });
+
+  it('renders the owner as an avatar + display name link, and a mouse-only Open pill', () => {
+    useCardThumbMock.mockReturnValue(undefined);
+    const { container } = renderTile({ ownerUsername: 'alice' });
+
+    const owner = screen.getByRole('link', { name: 'By alice' });
+    expect(owner.getAttribute('href')).toBe('/u/alice');
+    expect(container.querySelector('.discover-tile-owner .user-avatar')).toBeTruthy();
+
+    const openPill = container.querySelector('.discover-tile-open-pill');
+    expect(openPill).toBeTruthy();
+    expect(openPill?.getAttribute('aria-hidden')).toBe('true');
+    expect(openPill?.getAttribute('tabindex')).toBe('-1');
+  });
+
+  it('prefers ownerDisplayName over the bare username once set', () => {
+    useCardThumbMock.mockReturnValue(undefined);
+    renderTile({ ownerUsername: 'alice', ownerDisplayName: 'Alice Cooper' });
+    expect(screen.getByRole('link', { name: 'By Alice Cooper' })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'By alice' })).toBeNull();
+  });
+
+  it('renders the real avatar image once ownerAvatarUrl is set (no longer a hardcoded null fallback)', () => {
+    useCardThumbMock.mockReturnValue(undefined);
+    const { container } = renderTile({
+      ownerUsername: 'alice',
+      ownerAvatarUrl: 'https://cards.scryfall.io/art_crop/x.jpg',
+    });
+    const img = container.querySelector(
+      '.discover-tile-owner .user-avatar-img'
+    ) as HTMLImageElement;
+    expect(img).toBeTruthy();
+    expect(img.getAttribute('src')).toBe('https://cards.scryfall.io/art_crop/x.jpg');
+  });
+});
+
+describe('DiscoverDeckTile — list view stays the pre-v2 compact row', () => {
+  it('renders the plain-text owner caption, no color bar, and no Open pill', () => {
+    useCardThumbMock.mockReturnValue(undefined);
+    const { container } = renderTile({ ownerUsername: 'alice' }, 'list');
+
+    expect(screen.getByText('by alice')).toBeTruthy();
+    expect(container.querySelector('.color-identity-bar')).toBeFalsy();
+    expect(container.querySelector('.discover-tile-open-pill')).toBeFalsy();
+    expect(container.querySelector('.discover-tile-banner-stats')).toBeFalsy();
+  });
+
+  it('prefers ownerDisplayName in the caption too, matching the grid view', () => {
+    useCardThumbMock.mockReturnValue(undefined);
+    renderTile({ ownerUsername: 'alice', ownerDisplayName: 'Alice Cooper' }, 'list');
+
+    expect(screen.getByText('by Alice Cooper')).toBeTruthy();
+    expect(screen.queryByText('by alice')).toBeNull();
+  });
+
+  it('keeps the original price + views/copies/likes stats line in the body', () => {
+    useCardThumbMock.mockReturnValue(undefined);
+    const { container } = renderTile({ estimatedValueUsd: 245, likeCount: 8 }, 'list');
+
+    const stats = container.querySelector('.discover-tile-stats');
+    expect(stats?.textContent).toContain('$245.00');
+    expect(stats?.textContent).toContain('340 views');
+    expect(stats?.textContent).toContain('8 likes');
+  });
+});
+
+describe('DiscoverDeckTile — bracket badge carries the estimate (2026-09-24 ruling)', () => {
+  it('shows only the stated tier word when no estimate differs', () => {
+    useCardThumbMock.mockReturnValue(undefined);
+    const { container } = renderTile({ bracket: 3, estimatedBracket: null });
+
+    expect(container.querySelector('.decks-index-card-meta')?.textContent).toContain('Upgraded');
+    expect(container.querySelector('.decks-index-card-meta')?.textContent).not.toContain('est.');
+  });
+
+  it('adds "· est. <tier>" to the badge and the accessible name when the estimate differs', () => {
+    useCardThumbMock.mockReturnValue(undefined);
+    const { container } = renderTile({ bracket: 2, estimatedBracket: 4 });
+
+    expect(container.querySelector('.decks-index-card-meta')?.textContent).toContain(
+      'Core · est. Optimized'
+    );
+    const link = container.querySelector('.discover-tile-link');
+    expect(link?.getAttribute('aria-label')).toContain('Bracket 2 stated, estimate 4');
+  });
+
+  it('omits the estimate when it equals the stated bracket', () => {
+    useCardThumbMock.mockReturnValue(undefined);
+    const { container } = renderTile({ bracket: 3, estimatedBracket: 3 });
+
+    expect(container.querySelector('.decks-index-card-meta')?.textContent).not.toContain('est.');
+  });
+});

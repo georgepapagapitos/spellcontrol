@@ -2,10 +2,10 @@ import { useMemo, useState } from 'react';
 import { Printer } from 'lucide-react';
 import type { SavedCube } from '../../store/cube';
 import { useCollectionStore } from '../../store/collection';
-import { useBinderLayoutInputs } from '../../lib/use-binder-layout-inputs';
-import { formatLocation } from '../../lib/card-locations';
-import { useAwaitingFirstPull } from '../../lib/use-awaiting-first-pull';
-import { safeLocalStorage } from '../../lib/safe-local-storage';
+import { useBinderLayoutInputs } from '@/lib/binder/use-binder-layout-inputs';
+import { formatLocation } from '@/lib/binder/card-locations';
+import { useAwaitingFirstPull } from '@/lib/sync/use-awaiting-first-pull';
+import { safeLocalStorage } from '@/lib/util/safe-local-storage';
 import {
   buildCubePullList,
   isPullableGroupKind,

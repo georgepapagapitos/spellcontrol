@@ -10,8 +10,8 @@ import {
 } from '@dnd-kit/core';
 import { useId, useMemo, useRef, useState } from 'react';
 import { X } from 'lucide-react';
-import type { GameLayout, GameState } from '../../lib/game-state';
-import type { BoardLayout, TurnOrder } from '../../lib/board-layouts';
+import type { GameLayout, GameState } from '@/lib/play/game-state';
+import type { BoardLayout, TurnOrder } from '@/lib/play/board-layouts';
 import {
   encodeCustomLayout,
   isCustomLayout,
@@ -19,7 +19,7 @@ import {
   layoutsForCount,
   resolveLayout,
   turnOrderOf,
-} from '../../lib/board-layouts';
+} from '@/lib/play/board-layouts';
 import {
   applyPlacement,
   deriveSeam,
@@ -27,10 +27,10 @@ import {
   rangeFree,
   rangeFreeRows,
   type Placement,
-} from '../../lib/custom-layout';
-import { paletteForIndex } from '../../lib/seat-palette';
+} from '@/lib/play/custom-layout';
+import { paletteForIndex } from '@/lib/play/seat-palette';
 import { FacingArrow } from './FacingArrow';
-import { useOverlayDismiss } from '../../lib/use-overlay-dismiss';
+import { useOverlayDismiss } from '@/lib/overlays/use-overlay-dismiss';
 import { Button, IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 
@@ -349,7 +349,7 @@ export function CustomLayoutEditor({
         </DndContext>
 
         {placedCount < count && (
-          <div className="cle-tray" aria-label="Unplaced seats">
+          <div className="cle-tray" aria-label="Unplaced seats" role="group">
             <span className="cle-label">Tap a seat, then a cell</span>
             <div className="cle-tray-chips">
               {placements.map((p, i) =>
@@ -368,7 +368,7 @@ export function CustomLayoutEditor({
         )}
 
         {sel && (
-          <div className="cle-controls" aria-label="Selected seat">
+          <div className="cle-controls" aria-label="Selected seat" role="group">
             <span className="cle-controls-name">
               {game.players[selected!]?.name ?? `Seat ${selected! + 1}`}
             </span>

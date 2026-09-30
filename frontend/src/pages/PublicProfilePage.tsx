@@ -1,28 +1,29 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { NotFoundView, ErrorView } from '../components/share/SharedShell';
-import { UserAvatar } from '../components/UserAvatar';
+import { ProfileHeader } from '../components/profile/ProfileHeader';
+import { ProfileBrews, ProfileGameRecordPanel } from '../components/profile/ProfileBrews';
 import { ReportDialog } from '../components/share/ReportDialog';
 import { EmptyState } from '../components/shared/EmptyState';
-import { formatIdentity, standaloneIdentity } from '../lib/display-name';
-import { formatSocialCount } from '../lib/social-proof';
-import { formatRelativeTime } from '../lib/format-time';
+import { formatIdentity, standaloneIdentity } from '@/lib/social/display-name';
+import { formatSocialCount } from '@/lib/social/social-proof';
+import { formatRelativeTime } from '@/lib/util/format-time';
 import {
   fetchProfileCollection,
   fetchPublicProfile,
   ProfileNotFoundError,
   ProfileRenamedError,
-} from '../lib/profile-client';
-import type { PublicCollection } from '../lib/shared-types';
-import type { CollectionVisibility } from '../lib/auth-api';
-import { Tabs, type TabItem } from '../components/Tabs';
+} from '@/lib/social/profile-client';
+import type { PublicCollection } from '@/lib/social/shared-types';
+import type { CollectionVisibility } from '@/lib/account/auth-api';
+import { Tabs, type TabItem } from '@/components/overlays/Tabs';
 import { SharedCollectionView } from '../components/share/SharedCollectionView';
-import { CollectionVisibilityDialog } from '../components/CollectionVisibilityDialog';
-import type { PublicProfile, PublicProfileDeck } from '../lib/profile-client';
+import { CollectionVisibilityDialog } from '@/components/collection/CollectionVisibilityDialog';
+import type { PublicProfile, PublicProfileDeck } from '@/lib/social/profile-client';
 import { DeckLibrary, type LibraryDeck } from '../components/decks/DeckLibrary';
 import './PublicProfilePage.css';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
 const NOT_FOUND_MESSAGE = "This profile doesn't exist.";
@@ -30,12 +31,10 @@ const NOT_FOUND_MESSAGE = "This profile doesn't exist.";
 type ProfileTab = 'decks' | 'collection';
 
 /** The owner's own line above their Collection tab: who else sees it. */
-const OWNER_COLLECTION_NOTE: Record<CollectionVisibility | 'never', string> = {
+const OWNER_COLLECTION_NOTE: Record<CollectionVisibility, string> = {
   public: 'Anyone can see your collection here.',
   friends: 'Only your friends can see your collection here.',
   private: 'Only you can see your collection.',
-  never:
-    "Only you can see it here. Your friends see which cards you own, not how many or what they're worth.",
 };
 const SKELETON_TILE_COUNT = 6;
 
@@ -54,35 +53,23 @@ function pageHeading(profile: Pick<PublicProfile, 'username' | 'displayName'>): 
   };
 }
 
-/**
- * `size={72}` (≤600px) / `96` (601–1023px) / `128` (≥1024px) — three fixed
- * instances toggled by CSS `display`, not a resize-driven re-render (`UserAvatar`
- * bakes `size` into inline styles, so only a discrete swap can vary it via CSS).
- */
-function ResponsiveAvatar({ imageUrl, name }: { imageUrl: string | null; name: string }) {
-  return (
-    <>
-      <span className="public-profile-avatar public-profile-avatar-sm">
-        <UserAvatar imageUrl={imageUrl} name={name} size={72} />
-      </span>
-      <span className="public-profile-avatar public-profile-avatar-md">
-        <UserAvatar imageUrl={imageUrl} name={name} size={96} />
-      </span>
-      <span className="public-profile-avatar public-profile-avatar-lg">
-        <UserAvatar imageUrl={imageUrl} name={name} size={128} />
-      </span>
-    </>
-  );
-}
-
 function ProfileSkeleton() {
   return (
-    <div className="shared-view public-profile-view" aria-busy="true" aria-label="Loading profile">
+    <div
+      className="shared-view public-profile-view"
+      aria-busy="true"
+      aria-label="Loading profile"
+      role="status"
+    >
       <header className="public-profile-header">
-        <span className="public-profile-skeleton public-profile-skeleton-avatar" />
-        <div className="public-profile-header-text">
-          <span className="public-profile-skeleton public-profile-skeleton-bar public-profile-skeleton-bar--name" />
-          <span className="public-profile-skeleton public-profile-skeleton-bar public-profile-skeleton-bar--handle" />
+        <span className="public-profile-skeleton public-profile-skeleton-banner" />
+        <div className="public-profile-header-row">
+          <span className="public-profile-skeleton public-profile-skeleton-avatar" />
+          <div className="public-profile-header-text">
+            <span className="public-profile-skeleton public-profile-skeleton-bar public-profile-skeleton-bar--name" />
+            <span className="public-profile-skeleton public-profile-skeleton-bar public-profile-skeleton-bar--handle" />
+            <span className="public-profile-skeleton public-profile-skeleton-bar public-profile-skeleton-bar--stats" />
+          </div>
         </div>
       </header>
       <ul className="decks-index-list is-grid" aria-hidden="true">
@@ -125,7 +112,15 @@ function tileStatsLine(deck: PublicProfileDeck): string {
   return parts.join(' · ');
 }
 
-function DeckGrid({ decks, username }: { decks: PublicProfileDeck[]; username: string }) {
+function DeckGrid({
+  decks,
+  username,
+  pinnedSlug,
+}: {
+  decks: PublicProfileDeck[];
+  username: string;
+  pinnedSlug: string | null;
+}) {
   // The tiles, cascade and (new) search/sort/filters all live in the shared
   // `DeckLibrary` — the same component the friend hub's Decks tab renders, so
   // a person's shelf reads identically whether you are their friend or a
@@ -161,6 +156,7 @@ function DeckGrid({ decks, username }: { decks: PublicProfileDeck[]; username: s
       // rather than a single static page key — each profile's grid is different
       // data, so browsing from one to another should cascade again.
       cascadeKey={decks.length > 0 ? `public-profile:${username}` : null}
+      pinnedId={pinnedSlug}
     />
   );
 }
@@ -215,7 +211,7 @@ function ProfileCollection({
     <>
       {isOwner && (
         <p className="public-profile-collection-note">
-          {OWNER_COLLECTION_NOTE[visibility ?? 'never']}{' '}
+          {OWNER_COLLECTION_NOTE[visibility ?? 'friends']}{' '}
           <Button variant="link" onClick={() => setChanging(true)}>
             Change
           </Button>
@@ -226,6 +222,7 @@ function ProfileCollection({
           className="public-profile-skeleton public-profile-collection-skeleton"
           aria-busy="true"
           aria-label="Loading collection"
+          role="status"
         />
       ) : current.error ? (
         <p className="public-profile-collection-note" role="alert">
@@ -351,7 +348,11 @@ function PublicProfilePageInner({ username }: { username: string }) {
       <EmptyState tagline={`${heading} hasn't shared any decks yet.`} />
     )
   ) : (
-    <DeckGrid decks={profile.decks} username={profile.username} />
+    <DeckGrid
+      decks={profile.decks}
+      username={profile.username}
+      pinnedSlug={profile.pinnedDeckSlug}
+    />
   );
   const joined = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(
     new Date(profile.joinedAt)
@@ -360,51 +361,19 @@ function PublicProfilePageInner({ username }: { username: string }) {
   return (
     <>
       <div className="shared-view public-profile-view">
-        <header className="public-profile-header">
-          <ResponsiveAvatar imageUrl={profile.avatarImageUrl} name={heading} />
-          <div className="public-profile-header-text">
-            <h1 className="public-profile-name">{heading}</h1>
-            {handle && <p className="public-profile-handle">{handle}</p>}
-            {profile.bio && <p className="public-profile-bio">{profile.bio}</p>}
-            {profile.isOfficial ? (
-              // The house account: nobody's member, and nothing to report or
-              // edit. Its line says what it is and opens the full shelf, which
-              // has the search and filters this page doesn't.
-              <p className="public-profile-joined">
-                Official account{' · '}
-                <Button
-                  variant="link"
-                  to="/decks/discover?source=precons"
-                  className="public-profile-report-btn"
-                >
-                  Browse all {profile.deckCount} precons
-                </Button>
-              </p>
-            ) : (
-              <p className="public-profile-joined">
-                Joined {joined}
-                {' · '}
-                {profile.isOwner ? (
-                  // Your own profile: the way back to the editor on /you replaces
-                  // Report (nobody reports themselves). Closes the round trip the
-                  // Profile card's "public profile" link opens.
-                  <Button variant="link" to="/you/profile" className="public-profile-report-btn">
-                    Edit profile
-                  </Button>
-                ) : (
-                  <Button
-                    variant="link"
-                    aria-label="Report this profile"
-                    onClick={() => setReporting(true)}
-                    className="public-profile-report-btn"
-                  >
-                    Report
-                  </Button>
-                )}
-              </p>
-            )}
+        <ProfileHeader
+          profile={profile}
+          heading={heading}
+          handle={handle}
+          joined={joined}
+          onReport={() => setReporting(true)}
+        />
+        {!profile.moderationHidden && (
+          <div className="public-profile-panels">
+            <ProfileBrews profile={profile} />
+            {profile.gameRecord && <ProfileGameRecordPanel record={profile.gameRecord} />}
           </div>
-        </header>
+        )}
 
         {canViewCollection ? (
           <>

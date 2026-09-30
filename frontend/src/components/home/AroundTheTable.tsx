@@ -14,23 +14,23 @@ import {
 } from 'lucide-react';
 import { HomeCard } from './HomeCard';
 import { CalendarLeaf } from './CalendarLeaf';
-import { UserAvatar } from '../UserAvatar';
-import { formatSlot } from '../NightPoll';
+import { UserAvatar } from '@/components/profile/UserAvatar';
+import { formatSlot } from '@/components/play/NightPoll';
 import { useAuth } from '../../store/auth';
 import { toast } from '../../store/toasts';
-import { upcomingGameNights } from '../../lib/home-signals';
+import { upcomingGameNights } from '@/lib/home/home-signals';
 import {
   rsvpGameNight,
   STATUS_LABELS,
   type GameNight,
   type RsvpStatus,
-} from '../../lib/game-nights-api';
-import { getFriendsActivity, type FriendActivityItem } from '../../lib/friends-client';
-import type { RecentActivityItem } from '../../lib/activity-client';
-import { formatIdentity } from '../../lib/display-name';
-import { formatRelativeTime } from '../../lib/format-time';
-import { signInPath } from '../../lib/sign-in-path';
-import { userMessage } from '@/lib/user-error';
+} from '@/lib/play/game-nights-api';
+import { getFriendsActivity, type FriendActivityItem } from '@/lib/social/friends-client';
+import type { RecentActivityItem } from '@/lib/social/activity-client';
+import { formatIdentity } from '@/lib/social/display-name';
+import { formatRelativeTime } from '@/lib/util/format-time';
+import { signInPath } from '@/lib/account/sign-in-path';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 
 const ROW_LIMIT = 3;

@@ -71,6 +71,10 @@
 @media (hover: hover) and (pointer: fine) {
   .section-header-toggle:hover {
     background: var(--accent-light);
+    --text-muted: var(--text-muted-tint);
+    --text-secondary: var(--text-secondary-tint);
+    --accent: var(--accent-tint);
+    --accent-hover: var(--accent-hover-tint);
   }
 }
 
@@ -306,7 +310,7 @@
   min-width: 0;
 }
 
-/* .slot-menu (the pocket ⋮'s wrapper) lives in components/OverflowMenu.css,
+/* .slot-menu (the pocket ⋮'s wrapper) lives in components/overlays/OverflowMenu.css,
    not here: CardRowMenu.tsx's PLACEMENT map names it alongside the row/tile
    variants, so every chunk that can mount CardRowMenu (most of the app, via
    CardGridCell/CardRow) needs it — OverflowMenu.tsx is already in that

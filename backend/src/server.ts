@@ -23,6 +23,7 @@ import { authRouter } from './routes/auth';
 import { adminRouter } from './routes/admin';
 import { syncRouter } from './routes/sync';
 import { gamesRouter } from './routes/games';
+import { sweepDiscordTables } from './games/discord-tables';
 import { warnIfMultiMachine } from './fly-topology';
 import { gameResultsRouter } from './routes/game-results';
 import { combosRouter } from './routes/combos';
@@ -56,11 +57,16 @@ import { eventsRouter, recentErrorCount } from './routes/events';
 import { sitemapHandler } from './sitemap';
 import { isSpaRoute } from './spa-routes';
 import { activityRouter } from './routes/activity';
+import { followsRouter } from './routes/follows';
+import { brewersRouter } from './routes/brewers';
 import { aiRouter } from './routes/ai';
 import { getMatcher } from './scanner/matcher';
 import { lastSuccessfulIngestAt, runScheduledIngest } from './combos/ingest';
 import { scheduleRulesIngest } from './rules/ingest';
 import { scheduleRetentionSweep } from './retention';
+import { isDiscordConfigured, lfgChannelId } from './discord';
+import { nudgeLfgPosts, syncLfgPosts } from './games/discord-lfg';
+import { onGameChange } from './games/live-registry';
 import { lastSuccessfulRollupAt, runScheduledRollup } from './aggregates/rollup';
 import { recountDeckCopies } from './publications/copies';
 import {
@@ -323,7 +329,9 @@ app.use('/api/pods', podStatsRouter);
 app.use('/api/tonight-trades', tonightTradesRouter);
 app.use('/api/trades', tradesRouter);
 app.use('/api/publications', publicationsRouter);
+app.use('/api/public/brewers', brewersRouter);
 app.use('/api/public', publicRouter);
+app.use('/api/follows', followsRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/discover', discoverRouter);
 app.use('/api/activity', activityRouter);
@@ -1456,6 +1464,29 @@ async function start() {
 
   if (process.env.RETENTION_DISABLED !== '1') {
     afterBoot('retention sweep', 75_000, scheduleRetentionSweep);
+  }
+
+  // Discord tables: removes voice channels whose game has gone. A no-op until
+  // the DISCORD_* env vars are set (see discord.ts).
+  if (isDiscordConfigured()) {
+    afterBoot('discord table sweep', 90_000, () => {
+      const tick = () =>
+        void sweepDiscordTables()
+          .then((n) => n > 0 && logger.info(`[discord] swept ${n} table channel(s)`))
+          .catch((err) => logger.warn('[discord] table sweep failed', err));
+      tick();
+      setInterval(tick, 10 * 60 * 1000).unref();
+    });
+  }
+
+  // Open public tables posted to #looking-for-game (games/discord-lfg.ts).
+  // Game changes nudge a pass; the 5-minute pass re-reads the channel itself.
+  if (lfgChannelId()) {
+    afterBoot('discord looking-for-game posts', 95_000, () => {
+      onGameChange(nudgeLfgPosts);
+      void syncLfgPosts(true);
+      setInterval(() => void syncLfgPosts(true), 5 * 60 * 1000).unref();
+    });
   }
 
   // Passive uptime monitor (E266): only armed when the ping URL secret is set.

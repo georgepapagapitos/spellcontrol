@@ -9,7 +9,7 @@ import 'fake-indexeddb/auto';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { OwnedPublication } from '../lib/publications-client';
+import type { OwnedPublication } from '@/lib/social/publications-client';
 
 // ── Store stubs ─────────────────────────────────────────────────────────────
 let mockDecks: unknown[] = [];
@@ -25,19 +25,19 @@ vi.mock('../store/auth', () => ({
 }));
 
 const listMyPublicationsMock = vi.fn<() => Promise<OwnedPublication[]>>();
-vi.mock('../lib/publications-client', () => ({
+vi.mock('@/lib/social/publications-client', () => ({
   listMyPublications: () => listMyPublicationsMock(),
 }));
 
 // ── Heavy component stubs (mirrors DecksIndexPage.emptystate.test.tsx) ──────
 vi.mock('../components/deck/ImportDeckDialog', () => ({ ImportDeckDialog: () => null }));
-vi.mock('../components/ProductSearchDialog', () => ({ ProductSearchDialog: () => null }));
-vi.mock('../components/ShareDialog', () => ({ ShareDialog: () => null }));
-vi.mock('../components/ConfirmDialog', () => ({ ConfirmDialog: () => null }));
-vi.mock('../components/DeckFiltersPopover', () => ({ DeckFiltersPopover: () => null }));
-vi.mock('../lib/deck-validation', () => ({
+vi.mock('@/components/import/ProductSearchDialog', () => ({ ProductSearchDialog: () => null }));
+vi.mock('@/components/share/ShareDialog', () => ({ ShareDialog: () => null }));
+vi.mock('@/components/overlays/ConfirmDialog', () => ({ ConfirmDialog: () => null }));
+vi.mock('@/components/decks/DeckFiltersPopover', () => ({ DeckFiltersPopover: () => null }));
+vi.mock('@/lib/deck/deck-validation', () => ({
   effectiveDeckColors: () => [],
-  deckColorFrequency: () => [],
+  deckDisplayColors: () => [],
   validateDeckZones: () => ({ deck: [], sideboardOnly: [] }),
   countFlaggedCards: () => 0,
 }));

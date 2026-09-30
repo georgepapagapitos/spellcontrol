@@ -12,6 +12,8 @@
  */
 
 import type { PublicDeck } from '../shares/projections';
+import type { BaseRails } from '../brewers/rails';
+import type { ColorSpread, GameRecord, ProfileStats, TopCommander } from '../brewers/profile-stats';
 
 export interface PublicDeckPage {
   slug: string;
@@ -56,13 +58,20 @@ export interface PublicUserProfile {
   /** Internal only, like `id` — the route derives `moderationHidden` (and
    *  the stranger-facing 404) from this per request; never echoed as-is. */
   profileHiddenAt: number | null;
-  /** `users.collection_visibility`; null = the owner never chose. The route
+  /** `users.collection_visibility` as it applies (never chose = friends). The route
    *  decides per viewer whether the Collection tab opens. */
-  collectionVisibility: 'public' | 'friends' | 'private' | null;
+  collectionVisibility: 'public' | 'friends' | 'private';
   /** The house account (precons/official-account.ts). */
   isOfficial: boolean;
   deckCount: number;
   decks: PublicDeckSummary[];
+  /** Viewer-agnostic numbers (T175). Follower counts are per request instead. */
+  stats: ProfileStats;
+  topCommanders: TopCommander[];
+  colorSpread: ColorSpread;
+  pinnedDeckSlug: string | null;
+  /** Null unless the owner opted in. */
+  gameRecord: GameRecord | null;
 }
 
 interface CacheEntry<T> {
@@ -122,6 +131,8 @@ export class LruTtlCache<T> {
 
 export const deckPublicationCache: LruTtlCache<PublicDeckPage> = new LruTtlCache<PublicDeckPage>();
 export const publicUserCache: LruTtlCache<PublicUserProfile> = new LruTtlCache<PublicUserProfile>();
+/** The viewer-agnostic Brewers rails, under one key. */
+export const brewerRailsCache: LruTtlCache<BaseRails> = new LruTtlCache<BaseRails>(60_000, 2);
 
 /** Drop a slug from the deck-page cache. Call after unpublish or account
  *  deletion so the next reader sees the 404 immediately rather than waiting

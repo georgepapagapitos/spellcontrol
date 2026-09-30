@@ -26,21 +26,21 @@ import {
   useSortable,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { useListFlip, prefersReducedMotion } from '@/lib/use-list-flip';
-import { reorderIndexForMove } from '@/lib/deck-reorder';
-import { classifyInclusion, OFFMETA_TOOLTIP } from '@/lib/inclusion-label';
-import { setSymbolTitle } from '@/lib/set-symbols';
+import { useListFlip, prefersReducedMotion } from '@/lib/util/use-list-flip';
+import { reorderIndexForMove } from '@/lib/deck/deck-reorder';
+import { classifyInclusion, OFFMETA_TOOLTIP } from '@/lib/deck-analysis/inclusion-label';
+import { setSymbolTitle } from '@/lib/cards/set-symbols';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { ComboMatch } from '@/types/combos';
-import type { LegalityIssue } from '../../lib/deck-validation';
-import { getRoleBadge, type RoleKey } from '../../lib/role-badges';
-import { formatMoney } from '../../lib/format-money';
+import type { LegalityIssue } from '@/lib/deck/deck-validation';
+import { getRoleBadge, type RoleKey } from '@/lib/deck-analysis/role-badges';
+import { formatMoney } from '@/lib/collection/format-money';
 import { MeterBar } from '../shared/MeterBar';
 import { SetSymbol } from '../shared/SetSymbol';
 import { ManaCost } from '../ManaCost';
 import { countedRoleOf } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import { FoilBadge } from '../FoilBadge';
-import { InfoTip } from '../InfoTip';
+import { InfoTip } from '@/components/overlays/InfoTip';
 import { ToolbarPopover } from '../shared/ToolbarPopover';
 import { ComboBadge } from './ComboBadge';
 import {
@@ -554,7 +554,7 @@ function DeckCardRow({
     const control = target?.querySelector<HTMLElement>('.deck-row-qty-edit');
     (
       control ??
-      target ??
+      target?.querySelector<HTMLElement>('.deck-row-open') ??
       li.closest('.deck-section')?.querySelector<HTMLElement>('.deck-section-title')
     )?.focus();
   };
@@ -596,9 +596,9 @@ function DeckCardRow({
     (selected ? ' is-selected' : '') +
     (rowIsDragging ? ' is-dragging' : '');
 
-  // Select mode reroutes the whole-row tap/Enter/Space from "open preview"
-  // to "toggle selection" — the row's existing click/keyboard contract,
-  // just pointed at a different handler, so nothing about the carousel or
+  // Select mode reroutes the whole-row tap/Enter/Space (the stretched open
+  // button's click) from "open preview" to "toggle selection" — the same
+  // contract, just pointed at a different handler, so nothing about the carousel or
   // the row's own buttons (which already stopPropagation) needs to change.
   const rowActivate = selectMode && onToggleSelected ? onToggleSelected : onClick;
 
@@ -633,31 +633,30 @@ function DeckCardRow({
       <li
         className={rowClass}
         data-peek-name={row.name}
-        onClick={leaving ? undefined : rowActivate}
         onContextMenu={leaving || !onRowContextMenu ? undefined : (e) => onRowContextMenu(row, e)}
-        role={leaving ? undefined : 'button'}
-        tabIndex={leaving ? -1 : 0}
         aria-hidden={leaving ? true : undefined}
-        aria-pressed={!leaving && selectMode ? !!selected : undefined}
-        aria-label={
-          !leaving && selectMode
-            ? `${row.name}${selected ? ', selected' : ', not selected'}`
-            : undefined
-        }
         ref={setLiRef}
         style={leavingStyle}
         onAnimationEnd={leaving ? onLeavingAnimationEnd : undefined}
-        onKeyDown={
-          leaving
-            ? undefined
-            : (e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  rowActivate();
-                }
-              }
-        }
       >
+        {/* The row holds controls (qty, printings, the ⋮), and a button cannot
+            hold controls (axe nested-interactive), so the row is a plain <li>
+            and this button is stretched over it (deck-builder-card-list.css
+            .deck-row-open); the controls sit above it. The title stands in for
+            the name and type-line tooltips it now covers. */}
+        {!leaving && (
+          <button
+            type="button"
+            className="deck-row-open"
+            onClick={rowActivate}
+            aria-pressed={selectMode ? !!selected : undefined}
+            aria-label={
+              selectMode ? `${row.name}${selected ? ', selected' : ', not selected'}` : row.name
+            }
+            title={`${row.name}
+${row.card.type_line}`}
+          />
+        )}
         {selectMode && (
           <span className="deck-row-select-check" data-checked={!!selected} aria-hidden>
             {selected && <Check width={13} height={13} strokeWidth={3} />}
@@ -704,6 +703,7 @@ function DeckCardRow({
           <span
             className={`deck-row-qty${row.status !== 'allocated' ? ' deck-row-qty-missing' : ''}`}
             aria-label={allocationAriaLabel(row, { editable: false })}
+            role="img"
             title={allocationTitle(row, { editable: false })}
           >
             {row.qty}
@@ -775,7 +775,11 @@ function DeckCardRow({
               who hasn't touched the feature. Editing lives in the card
               preview panel (the single per-card view), not here. */}
           {row.tags.length > 0 && (
-            <span className="deck-row-tags" aria-label={`Tags: ${row.tags.join(', ')}`}>
+            <span
+              className="deck-row-tags"
+              aria-label={`Tags: ${row.tags.join(', ')}`}
+              role="group"
+            >
               {row.tags.map((t) => (
                 <Chip key={t} className="deck-row-tag-chip">
                   {t}
@@ -808,6 +812,7 @@ function DeckCardRow({
                 className="deck-row-synergy"
                 title={`Synergy with your commander:\n• ${synergyReasons.join('\n• ')}${provenanceReason ? `\n\nWhy it's here: ${provenanceReason}` : ''}`}
                 aria-label={`Synergy: ${synergyReasons.join('; ')}`}
+                role="img"
               >
                 <span className="deck-row-synergy-icon" aria-hidden>
                   ✦
@@ -826,6 +831,7 @@ function DeckCardRow({
                     className="deck-row-inclusion"
                     title={`${info.pct}% of EDHREC decks with this commander run this card${provenanceReason ? `\n\nWhy it's here: ${provenanceReason}` : ''}`}
                     aria-label={`EDHREC inclusion ${info.pct} percent`}
+                    role="img"
                   >
                     {info.pct}%
                   </span>

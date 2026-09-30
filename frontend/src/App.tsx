@@ -1,8 +1,8 @@
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/util/logger';
 import { lazy, Suspense, useEffect, useRef, type ComponentType } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Layout } from './components/Layout';
-import { CollectionHubLayout } from './components/CollectionHubLayout';
+import { Layout } from '@/components/app-shell/Layout';
+import { CollectionHubLayout } from '@/components/collection/CollectionHubLayout';
 // Eager pages — the entry surfaces a first paint lands on. WelcomePage is the
 // marketing landing (guest-fresh "/") and the auth pair is where the first-run
 // gate sends a brand-new install. Everything else is lazy — including HomePage:
@@ -21,15 +21,15 @@ const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
 const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage'));
 import { useAuth } from './store/auth';
 import { useCollectionStore } from './store/collection';
-import { startSync, hydrateLocal } from './lib/sync';
-import { setAppNavigator } from './lib/navigate-bridge';
-import { AutoLinkBanner } from './components/AutoLinkBanner';
-import { RecoveryBanner } from './components/RecoveryBanner';
-import { useFirstRunGate } from './lib/use-first-run-gate';
-import { useTradeSettlement } from './lib/use-trade-settlement';
-import { hasEverVisited } from './lib/first-run';
-import { setUsageSuppressed, track } from './lib/analytics';
-import { NotFoundPage } from '@/components/NotFoundPage';
+import { startSync, hydrateLocal } from '@/lib/sync';
+import { setAppNavigator } from '@/lib/util/navigate-bridge';
+import { AutoLinkBanner } from '@/components/account/AutoLinkBanner';
+import { RecoveryBanner } from '@/components/account/RecoveryBanner';
+import { useFirstRunGate } from '@/lib/home/use-first-run-gate';
+import { useTradeSettlement } from '@/lib/trade/use-trade-settlement';
+import { hasEverVisited } from '@/lib/home/first-run';
+import { setUsageSuppressed, track } from '@/lib/util/analytics';
+import { NotFoundPage } from '@/pages/NotFoundPage';
 
 /** Named-export adapter for React.lazy (every page below exports by name). */
 function lazyPage<K extends string, T extends Record<K, ComponentType>>(
@@ -52,6 +52,10 @@ const CollectionCombosPage = lazyPage(
 const SetsPage = lazyPage(() => import('./pages/SetsPage'), 'SetsPage');
 // Decks hub
 const DecksIndexPage = lazyPage(() => import('./pages/DecksIndexPage'), 'DecksIndexPage');
+const DiscoverBrewersPage = lazyPage(
+  () => import('./pages/DiscoverBrewersPage'),
+  'DiscoverBrewersPage'
+);
 const DiscoverDecksPage = lazyPage(() => import('./pages/DiscoverDecksPage'), 'DiscoverDecksPage');
 const SavedDecksPage = lazyPage(() => import('./pages/SavedDecksPage'), 'SavedDecksPage');
 const DeckNewPage = lazyPage(() => import('./pages/DeckNewPage'), 'DeckNewPage');
@@ -82,6 +86,8 @@ const TradesPage = lazyPage(() => import('./pages/TradesPage'), 'TradesPage');
 const PodsIndexPage = lazyPage(() => import('./pages/PodsIndexPage'), 'PodsIndexPage');
 const PodHubPage = lazyPage(() => import('./pages/PodHubPage'), 'PodHubPage');
 // Utility / public
+// Component catalog (T176 W3): lazy, unlinked, noindex. See pages/CatalogPage.tsx.
+const CatalogPage = lazyPage(() => import('./pages/CatalogPage'), 'CatalogPage');
 const SearchPage = lazyPage(() => import('./pages/SearchPage'), 'SearchPage');
 const BrowseListPage = lazyPage(() => import('./pages/BrowseListPage'), 'BrowseListPage');
 const TagsPage = lazyPage(() => import('./pages/TagsPage'), 'TagsPage');
@@ -159,7 +165,7 @@ export default function App() {
     setUsageSuppressed(isAdmin);
   }, [isAdmin]);
 
-  // First-party, cookieless page-view counter (lib/analytics). Path only,
+  // First-party, cookieless page-view counter (lib/util/analytics). Path only,
   // ids/tokens collapsed client-side, so the server holds nothing per-person.
   // Held until auth resolves, so an admin's first view of a session isn't
   // counted before we know who they are; bootstrap always lands on 'authed'
@@ -210,7 +216,7 @@ export default function App() {
     // Same hydration gating: backfill oracleId on pre-oracleId cards so combos
     // and the Scryfall-query binder rule can join on it. One-shot per device,
     // local-only (no push) — see backfillOracleIds.
-    void import('./lib/sync').then((s) => s.backfillOracleIds());
+    void import('@/lib/sync').then((s) => s.backfillOracleIds());
   }, [hydrating, hasCards]);
 
   // Pull the server snapshot once per authed user. The ref prevents a re-pull
@@ -314,6 +320,7 @@ export default function App() {
           />
           {/* Legacy onboarding path → single canonical landing URL. */}
           <Route path="/welcome" element={<Navigate to="/" replace />} />
+          <Route path="/dev/catalog" element={<CatalogPage />} />
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/auth/choose-username" element={<ChooseUsernamePage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -349,6 +356,7 @@ export default function App() {
 
             <Route path="/decks" element={<DecksIndexPage />} />
             <Route path="/decks/discover" element={<DiscoverDecksPage />} />
+            <Route path="/decks/discover/brewers" element={<DiscoverBrewersPage />} />
             <Route path="/decks/saved" element={<SavedDecksPage />} />
             <Route path="/decks/new" element={<DeckNewPage />} />
             <Route path="/decks/new/generate" element={<DeckGeneratePage />} />

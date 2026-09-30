@@ -1,0 +1,915 @@
+/* BinderEditor.css — the binder editor's own layout (board T139). The form
+   pieces themselves (switch rows, segmented controls, disclosures) come from
+   components/shared/form.css; this file only arranges them. */
+
+/* The Order section's chips and chain share one wrapper (so "Choose fields"
+   can reach the chain); keep the Disclosure body's own spacing between them. */
+.binder-editor-order {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* ── Header: the binder's identity, edited in place ────────────────────── */
+.binder-editor-header {
+  gap: var(--space-2);
+  padding-block: var(--space-3);
+}
+
+/* Size, colour and states now come from the shared .icon-btn look
+   (IconButton variant="quiet"); this class only nudges it flush with the
+   header's left edge. */
+.binder-editor-back {
+  margin-left: calc(var(--space-2) * -1);
+}
+
+.binder-color-dot {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: flex-end;
+  justify-content: flex-end;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  background: var(--dot-color);
+  box-shadow: 0 0 0 1px var(--border-strong);
+  cursor: pointer;
+}
+
+/* The chevron badge says "this opens something" without a word. */
+.binder-color-dot > svg {
+  margin: 0 -6px -6px 0;
+  padding: 1px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  box-sizing: content-box;
+}
+
+.binder-color-panel {
+  z-index: var(--z-portal-popover);
+  width: min(20rem, calc(100vw - 1.5rem));
+  padding: var(--space-3);
+}
+
+/* Two classes: the global input[type='text'] box rule outweighs one. The
+   dashed underline stays visible so a touch user, who never hovers, can
+   still tell the title is editable. */
+.binder-editor-header .binder-editor-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: var(--space-1) 0;
+  border: 0;
+  border-bottom: 1px dashed var(--border);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+}
+
+.binder-editor-header .binder-editor-name::placeholder {
+  color: var(--text-muted);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .binder-color-dot:hover {
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+
+  .binder-editor-header .binder-editor-name:hover {
+    border-bottom-color: var(--border-strong);
+  }
+}
+
+.binder-editor-header .binder-editor-name:focus {
+  border-bottom-color: var(--accent);
+}
+
+.binder-editor-header .binder-editor-name:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.binder-color-dot:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* A text field grows on touch; a caret can't live on a ghost (E321). */
+@media (pointer: coarse) {
+  .binder-editor-header .binder-editor-name {
+    min-height: 44px;
+  }
+
+  .binder-color-dot::after {
+    content: '';
+    position: absolute;
+    inset: -8px;
+  }
+}
+
+/* ── Body ───────────────────────────────────────────────────────────────── */
+.binder-editor-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  /* The two-column split below is a property of the MODAL's own width, not
+     the viewport — the modal is width-capped (--wide below), so a viewport
+     media query would fire at the wrong widths on a narrow desktop window
+     (feedback_container_query_not_viewport_in_capped_panels). */
+  container-type: inline-size;
+}
+
+/* The rules editor widens for the preview column (E493) — only while step
+   'rules' is showing it; the start chooser and import screens keep the
+   shared 720px default. */
+.modal.binder-editor.binder-editor--wide {
+  max-width: 1120px;
+}
+
+.binder-editor-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-5);
+}
+
+.binder-editor-main {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+@container (min-width: 860px) {
+  .binder-editor-columns {
+    grid-template-columns: minmax(0, 1fr) 20rem;
+  }
+}
+
+.binder-editor-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.binder-editor-cards > .form-section-heading {
+  margin-bottom: 0;
+}
+
+.binder-seed-note,
+.binder-editor-note {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+/* Manual mode: the rules stay visible but inert until switched back. */
+.binder-editor-paused {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.binder-editor-warn {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin: 0;
+}
+
+.binder-editor-warn > span {
+  flex: 1 1 16rem;
+}
+
+.binder-capacity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.binder-capacity-count {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+/* ── Pages as pictures (E494/E473): pocket tiles ───────────────────────── */
+/* Still the kit's SegmentedControl (native radios), laid out as three tiles
+   that read like pages, with a ChoiceList row's selected look. The kit styles
+   every span inside an option, so the tile's own spans are reset here. */
+.binder-pocket-tiles .segmented {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: 100%;
+  gap: var(--space-2);
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.binder-pocket-tiles .segmented-option {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.binder-pocket-tiles .segmented-option.is-selected {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
+  box-shadow: none;
+}
+
+.binder-pocket-tiles .segmented-option > span {
+  flex: 1;
+  min-height: 0;
+  padding: var(--space-3) var(--space-1);
+  white-space: normal;
+}
+
+.binder-pocket-tiles .binder-pocket-tile,
+.binder-pocket-tiles .binder-pocket-tile span {
+  min-height: 0;
+  padding: 0;
+}
+
+.binder-pocket-tiles .binder-pocket-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  width: 100%;
+  text-align: center;
+}
+
+/* The pocket grid: card-shaped pockets, 2, 3 or 4 across. */
+.binder-pocket-tiles .binder-pocket-glyph {
+  display: grid;
+  grid-template-columns: repeat(var(--pocket-cols), 0.625rem);
+  gap: 2px;
+  margin-bottom: var(--space-1);
+}
+
+.binder-pocket-glyph > i {
+  aspect-ratio: 63 / 88;
+  border-radius: 1px;
+  background: var(--border-strong);
+}
+
+.binder-pocket-tiles .is-selected .binder-pocket-glyph > i {
+  background: var(--accent);
+}
+
+.binder-pocket-tiles .binder-pocket-tile-n {
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.binder-pocket-tiles .binder-pocket-tile-caption {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: 400;
+  line-height: 1.25;
+}
+
+/* ── Holds: capacity, and what it comes to in sheets ───────────────────── */
+/* Five options share a fill track, so the track needs a real width: sized to
+   its content it gave each option ~45px and "No limit" ran into "360". */
+.binder-holds {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+  max-width: 30rem;
+}
+
+.binder-holds-count {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.binder-holds-count .rule-number-input {
+  width: 6rem;
+}
+
+.binder-holds-count-n {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* ── When a section ends: the fill pictogram ───────────────────────────── */
+/* Two tiny 9-pocket pages (decorative, aria-hidden). The three section
+   colours are mana colours, as in the mockup: they only need to differ. */
+.choice-option-label:has(.binder-fill-pic) {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.binder-fill-pic {
+  display: inline-flex;
+  flex: none;
+  gap: var(--space-1);
+}
+
+.binder-fill-pic-page {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  width: 1.625rem;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: var(--bg);
+}
+
+.binder-fill-pic-page > i {
+  aspect-ratio: 63 / 88;
+  border-radius: 1px;
+}
+
+.binder-fill-pic-pocket--a {
+  background: var(--mtg-u);
+}
+
+.binder-fill-pic-pocket--b {
+  background: var(--mtg-r);
+}
+
+.binder-fill-pic-pocket--c {
+  background: var(--mtg-g);
+}
+
+.binder-fill-pic-pocket--e {
+  outline: 1px dashed var(--border);
+  outline-offset: -1px;
+}
+
+/* ── The editor's over-capacity answer ──────────────────────────────────── */
+/* A normal shelving state, not a warning (§ Binder views, Volumes): neutral
+   text, the volumes as a compact list, and the fix as a plain button. */
+.binder-editor-volumes-answer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.binder-editor-volumes-fact {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.binder-editor-volumes-list {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  column-gap: var(--space-3);
+  row-gap: var(--space-0-5);
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+/* Each row keeps its listitem role (no display: contents) and lines its
+   three facts up with the other rows through the list's own columns. */
+.binder-editor-volumes-list > li {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+}
+
+.binder-editor-volumes-index {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.binder-editor-volumes-spine {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Import ─────────────────────────────────────────────────────────────── */
+.binder-import-drop {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+}
+
+.binder-import-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* ── Footer: the answer beside the button ──────────────────────────────── */
+.binder-editor-footer {
+  align-items: center;
+}
+
+.binder-editor-result {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  margin-right: auto;
+  line-height: 1.3;
+}
+
+.binder-editor-result strong {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.binder-editor-result-n {
+  font-family: var(--font-mono);
+}
+
+.binder-editor-result small {
+  overflow: hidden;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Amber at zero (STYLE_GUIDE § Rule & filter editors). */
+.binder-editor-result.is-zero strong {
+  color: var(--warn-text);
+}
+
+/* ── Start: what goes in it ─────────────────────────────────────────────── */
+.binder-start {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.binder-start-title {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.binder-start-sub {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* Tiles are grouped by job (E495: Pull out a pile / One slice / Deck-building
+   pools), each its own labelled grid, so a section header never reads as
+   just another tile. */
+.binder-start-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.binder-start-group-title {
+  margin: 0;
+}
+
+.binder-start-group--dash {
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border);
+}
+
+.binder-start-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+/* No group leaves a lone tile on a row of its own. A group's tile count
+   (data-count) picks its columns: a 4-tile group (Pull out a pile) is one row
+   of 4 once the dialog is wide enough for four readable tiles, and 2 by 2
+   below that; never 3 + 1. The container queries further down cover the
+   narrower widths. */
+.binder-start-tiles[data-count='2'],
+.binder-start-tiles[data-count='4'] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@container (min-width: 44rem) {
+  .binder-start-tiles[data-count='4'] {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* A sleeve (§ Layout system): raised surface, no outline until it is the
+   one under the pointer or the keyboard. */
+.binder-start-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-0-5);
+  min-height: 88px;
+  padding: var(--space-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--motion-fast);
+}
+
+/* The lead tile (E496, Plan a shelf): a full row above the job groups, tinted
+   with the accent so it reads as the bigger door, with a shelf of spines on
+   the left and the action named on the right. */
+.binder-start-tile--shelf {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-4);
+  width: 100%;
+  min-height: 0;
+  margin-bottom: var(--space-4);
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  background: linear-gradient(100deg, var(--accent-light), transparent 70%), var(--surface-raised);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
+}
+
+.binder-start-shelf {
+  display: flex;
+  flex: none;
+  align-items: flex-end;
+  gap: var(--space-0-5);
+  height: 44px;
+}
+
+.binder-start-shelf i {
+  display: block;
+  width: 12px;
+  border-radius: 2px 2px 1px 1px;
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+.binder-start-shelf-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-0-5);
+  min-width: 0;
+}
+
+.binder-start-shelf-cta {
+  flex: none;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .binder-start-tile--shelf:hover {
+    border-color: var(--accent);
+  }
+}
+
+.binder-start-tile--shelf:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* A narrow dialog: the action drops under the text; the shelf stays. */
+@container (max-width: 34rem) {
+  .binder-start-tile--shelf {
+    flex-wrap: wrap;
+    gap: var(--space-3);
+  }
+
+  .binder-start-shelf-cta {
+    flex-basis: 100%;
+    text-align: center;
+  }
+}
+
+.binder-start-tile-label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.binder-start-tile-desc {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.binder-start-tile-order {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* A standing overlap note (Mana rocks ⊂ Ramp) — separate from the live
+   would-land count below it, which only speaks once an overlapping binder
+   actually exists. */
+.binder-start-tile-overlap {
+  font-size: var(--text-xs);
+  color: var(--warn-text);
+}
+
+.binder-start-tile-count {
+  margin-top: auto;
+  padding-top: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+/* The gap explanation — only present when the would-land count differs from
+   the raw match ("of 102 that match; 47 are in Commanders"). Sits right under
+   the primary would-land line, quieter than it. */
+.binder-start-tile-count-secondary {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* Blank, Everything else and From a list start without a preset: drawn as
+   open slots so they read as different from the templates above them. */
+.binder-start-tile--alt {
+  border: 1px dashed var(--border-strong);
+  background: transparent;
+}
+
+/* One color (E473/E495): title, then the pips, then order and count, like
+   every other tile. Radios can't nest inside a <button>, so the tile's button
+   holds order and count and its ::after stretches over the whole tile: a
+   click anywhere but a pip creates the binder, and the pips sit above that
+   layer so choosing a color never also creates it. */
+.binder-start-tile--color {
+  position: relative;
+  cursor: default;
+}
+
+.binder-start-tile--color .binder-start-tile-body {
+  flex: 1;
+}
+
+.binder-start-tile--color .binder-start-tile-body::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+}
+
+.binder-start-color-pips {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: var(--space-1);
+  margin: var(--space-1) 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.binder-start-color-pip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  padding: var(--space-0-5);
+  cursor: pointer;
+  opacity: 0.55;
+}
+
+.binder-start-color-pip input {
+  /* Native radio, visually replaced by the pip: present for keyboard/AT,
+     invisible so the pip itself carries the selected look. */
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.binder-start-color-pip:has(input:checked) {
+  opacity: 1;
+}
+
+.binder-start-color-pip:has(input:checked) .ms {
+  box-shadow: 0 0 0 2px var(--accent);
+  border-radius: 50%;
+}
+
+.binder-start-color-pip:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* A 44px box per pip on touch. Seven of those need more width than a tile
+   has in a multi-column grid, so the row may wrap there; the boxes' own
+   padding does the spacing. */
+@media (pointer: coarse) {
+  .binder-start-color-pips {
+    flex-wrap: wrap;
+    gap: 0;
+  }
+
+  .binder-start-color-pip {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+.binder-start-tile-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-0-5);
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .binder-start-tile:hover,
+  .binder-start-tile--color:has(.binder-start-tile-body:hover) {
+    border-color: var(--accent);
+  }
+}
+
+.binder-start-tile:focus-visible,
+.binder-start-tile-body:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The one-color tile's button covers the tile, so its focus ring does too. */
+.binder-start-tile--color .binder-start-tile-body:focus-visible {
+  outline: none;
+}
+
+.binder-start-tile--color .binder-start-tile-body:focus-visible::after {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@container (max-width: 34rem) {
+  .binder-start-tiles,
+  .binder-start-tiles[data-count] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Two columns and an odd count: the last tile takes the whole row rather
+     than sitting alone beside a gap. */
+  .binder-start-tiles[data-count='3'] > :last-child {
+    grid-column: 1 / -1;
+  }
+
+  .binder-start-tile--wide {
+    grid-column: 1 / -1;
+    min-height: 0;
+  }
+}
+
+/* Phone width: one column, each tile compacted to two lines so a dozen tiles
+   across three groups scroll rather than each burning a full card's height.
+   Line one is the name with the would-land count at its right; line two is
+   the order, then how many matched in all when that differs. The description
+   is the thing that goes: the name, order and counts still answer "what is
+   this and what will it look like", and the full sentence is one tap away in
+   the rules editor after picking. */
+@container (max-width: 26rem) {
+  .binder-start-tiles,
+  .binder-start-tiles[data-count] {
+    grid-template-columns: 1fr;
+  }
+
+  .binder-start-tiles[data-count='3'] > :last-child {
+    grid-column: auto;
+  }
+
+  .binder-start-tile,
+  .binder-start-tile-body {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: var(--space-2);
+    min-height: 44px;
+  }
+
+  .binder-start-tile-desc {
+    display: none;
+  }
+
+  .binder-start-tile-order,
+  .binder-start-tile-count {
+    flex: 0 1 auto;
+    margin-top: 0;
+    padding-top: 0;
+  }
+
+  /* Line one: name, count pushed right. The empty ::after is a full-width
+     flex item, so everything ordered after it starts line two. */
+  button.binder-start-tile > .binder-start-tile-label {
+    order: 1;
+    flex: 1 1 auto;
+  }
+
+  button.binder-start-tile > .binder-start-tile-count {
+    order: 2;
+    margin-left: auto;
+    text-align: right;
+  }
+
+  button.binder-start-tile::after {
+    content: '';
+    order: 3;
+    flex-basis: 100%;
+  }
+
+  button.binder-start-tile > .binder-start-tile-order,
+  button.binder-start-tile > .binder-start-tile-count-secondary {
+    order: 4;
+  }
+
+  button.binder-start-tile > .binder-start-tile-overlap {
+    order: 5;
+    flex: 1 0 100%;
+  }
+
+  /* The "of N that match; M are in …" line is a sentence that wraps on a
+     phone, so it takes its own line under the order instead of trailing it
+     after a separator dot that the wrap left dangling. */
+  button.binder-start-tile > .binder-start-tile-count-secondary {
+    order: 5;
+    flex: 1 0 100%;
+  }
+
+  /* One color keeps its column: name, pips, then order and count. */
+  .binder-start-tile--color {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .binder-start-tile--color .binder-start-tile-order::after {
+    content: ' \00b7';
+  }
+
+  .binder-start-tile--color .binder-start-tile-count-secondary {
+    flex: 1 0 100%;
+  }
+}
+
+/* ── Phone: a bottom sheet ──────────────────────────────────────────────── */
+@media (max-width: 599px) {
+  /* The sheet backdrop pads the dialog for the home indicator; here the
+     footer is the bottom edge, so it takes that inset instead. */
+  .modal-backdrop.modal-backdrop--sheet > .modal.binder-editor {
+    padding-bottom: 0;
+  }
+
+  .binder-editor .binder-editor-footer {
+    padding-bottom: calc(var(--space-4) + var(--safe-bottom));
+    border-radius: 0;
+  }
+
+  /* Cancel leaves the phone footer: the ×, the backdrop and the back gesture
+     all dismiss, and the row needs its width for the answer. */
+  .binder-editor-footer .binder-editor-cancel {
+    display: none;
+  }
+}

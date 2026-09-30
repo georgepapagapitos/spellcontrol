@@ -75,7 +75,7 @@ export interface ListEntry {
   quantity: number;
   note?: string;
   /** Optional per-entry target price. Also drives the T117 price-target
-   *  alert (`lib/price-alerts.ts`), matched against this entry's own
+   *  alert (`lib/collection/price-alerts.ts`), matched against this entry's own
    *  printing (`scryfallId`/`finish`). */
   targetPrice?: number;
   /**

@@ -2,23 +2,24 @@ import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef, useState
 import { CheckCircle2, ChevronDown, ChevronUp, Circle, Sparkles } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { getCardByName } from '@/deck-builder/services/scryfall/client';
-import { useCollapsedPref } from '../../lib/use-collapsed-pref';
+import { useCollapsedPref } from '@/lib/util/use-collapsed-pref';
 import { useComboPreview } from './use-combo-preview';
-import { buildCardImageIndex, buildCardIndex } from '../../lib/deck-card-index';
+import { buildCardImageIndex, buildCardIndex } from '@/lib/deck-analysis/deck-card-index';
 import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
-import { buildAllocationMap, pickCollectionCopy } from '../../lib/allocations';
-import { useDeckCombos } from '../../lib/use-deck-combos';
-import { partitionCombosByZone } from '../../lib/combo-zone-partition';
-import { comboPayoffScore } from '../../lib/combo-payoff';
+import { useCubeStore } from '../../store/cube';
+import { buildAllocationMap, pickCollectionCopy } from '@/lib/collection/allocations';
+import { useDeckCombos } from '@/lib/deck-analysis/use-deck-combos';
+import { partitionCombosByZone } from '@/lib/deck-analysis/combo-zone-partition';
+import { comboPayoffScore } from '@/lib/deck-analysis/combo-payoff';
 import {
   comboNameKey,
   useEdhrecComboOverlay,
   type EdhrecComboStat,
-} from '../../lib/edhrec-combo-overlay';
+} from '@/lib/deck-analysis/edhrec-combo-overlay';
 import type { ComboMatch } from '../../types/combos';
-import { CardPreview } from '../CardPreview';
-import { Tabs } from '../Tabs';
+import { CardPreview } from '@/components/card/CardPreview';
+import { Tabs } from '@/components/overlays/Tabs';
 import { ComboRow } from './ComboRow';
 import { Button } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
@@ -89,7 +90,8 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
 ) {
   const collection = useCollectionStore((s) => s.cards);
   const decks = useDecksStore((s) => s.decks);
-  const allocations = useMemo(() => buildAllocationMap(decks), [decks]);
+  const savedCubes = useCubeStore((s) => s.saved);
+  const allocations = useMemo(() => buildAllocationMap(decks, savedCubes), [decks, savedCubes]);
 
   const ownedOracleIdSet = useMemo(() => {
     const ids = new Set<string>();

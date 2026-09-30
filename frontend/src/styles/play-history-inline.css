@@ -296,7 +296,7 @@
 
 /* `.pp-seat` is a marker class for panels using the fallback palette. The
    actual color values are set inline by GameBoard.tsx via
-   paletteForSeat(gameId, seat) — see frontend/src/lib/seat-palette.ts. We
+   paletteForSeat(gameId, seat) — see frontend/src/lib/play/seat-palette.ts. We
    don't define defaults here because the panel's own base rule already
    supplies a neutral slate that the inline vars then override. */
 
@@ -455,6 +455,10 @@
 
 .play-history-format {
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   color: var(--text-primary);
   border-radius: 999px;
   padding: var(--space-0-5) var(--space-2);

@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Swords } from 'lucide-react';
 import './PlaytestLogSheet.css';
-import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/use-sheet-exit';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
 import { formatLogForClipboard, groupLogByTurn, type GameLogEntry } from '@/lib/playtest/game-log';
-import { Tabs } from '@/components/Tabs';
+import { Tabs } from '@/components/overlays/Tabs';
 import type { TickerItem } from '@/store/play';
 import { TickerLine } from './TableTicker';
 import { TableChat } from './TableChat';

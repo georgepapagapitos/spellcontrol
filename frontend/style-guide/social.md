@@ -68,7 +68,7 @@ raw `{1}{W}` text); sort headers use the shared `SortDirArrow`.
 
 ### Visibility is one choice, not a link to manage (board T136)
 
-Who can see a thing is one control, `components/VisibilityChoice.tsx` (a
+Who can see a thing is one control, `components/share/VisibilityChoice.tsx` (a
 `ChoiceList` under the hood), applied the moment it's picked: **Public /
 Friends / Private**, or **Anyone with the link / Friends / Private** for a
 kind with no public page of its own. Every option's hint stays visible, not
@@ -161,12 +161,14 @@ on screen): W `#f0f2c0`, U `#b5cde3`, B `#aca29a`, R `#db8664`, G `#93b483`.
 Colorless renders a single neutral segment (mana-font's own `.ms-cost` base
 gray, `#beb9b2`) instead of an empty bar — never omit the bar entirely.
 It is one primitive, `ColorIdentityBar` (`components/shared/`), and every
-deck tile in a grid wears it: the owner's own index, Discover and a profile
-or friend's library (2026-09-29, user ruling). It used to be two copy-pasted
-families and absent from My Decks, so one deck had a strip on Discover and
-none in its owner's list. List and compact views leave it off. Its colors
-come in the order the tile's pips use: most-used first for a deck without
-a commander, the commander's identity otherwise.
+deck tile in a grid wears it: the owner's own index, Home's Your decks row,
+Discover and a profile or friend's library (2026-09-29, user ruling). It used
+to be two copy-pasted families and absent from My Decks, so one deck had a
+strip on Discover and none in its owner's list; Home's row, which draws its
+own tile, missed it again. List and compact views leave it off. Its colors
+come in the order the tile's pips use, from `deckDisplayColors`
+(`lib/deck/deck-validation.ts`): most-used first for a deck without a commander,
+the commander's identity in WUBRG order otherwise.
 
 **Hover quick-actions** (grid + `@media (hover: hover) and (pointer: fine)`
 strictly — never on touch): an "Open" pill plus the relocated Like/Bookmark
@@ -198,3 +200,129 @@ differentiator slot where Archidekt shows tags.
 still a genuinely separate sibling `<Link>` — never nested inside the tile's
 main link (nesting `<a>` inside `<a>` is invalid HTML and would double-fire
 navigation). List view keeps the plain-text "by username" caption.
+
+## Profiles (`/u/:username`, T175)
+
+A profile answers "what does this person brew?" before it lists their decks.
+Top to bottom: header (banner, identity, stat line, follow), the Colors and
+Game record panels, then the deck library.
+
+- **Banner source order**: the pinned deck's art, else the top commander's
+  art, else no banner at all. Never an empty grey box. The box reserves its
+  aspect ratio (16 / 5, capped at 14rem; 5 / 2 on a phone) so it holds its
+  size before the image loads. The image is decorative (`alt=""`, lazy) under
+  an always-dark `--art-scrim` gradient, in both themes. No text sits on it;
+  the avatar overlaps its lower edge with a ring in the page background.
+  A moderator-hidden profile gets no banner, stats or panels.
+- **Stat line**: decks, followers and following are plain counts (a new
+  brewer reads "0 followers", which is true). Likes and copies received are
+  people counts, not clicks, and pass through `formatSocialCount`, so they
+  disappear below the floor instead of reading "0 likes". Plain text, not links.
+- **Follow vs Friends**: Follow is a one-way toggle (`FollowButton`, shared
+  with other surfaces); "Friends" is a separate, quiet label chip beside it,
+  because friendship is mutual and its own relationship. Follow is hidden on
+  your own profile and on a hidden one; the official account can be followed.
+  A guest tap opens the same sign-in popover as Like and Bookmark.
+- **Pinned deck**: the same deck tile, larger and with a "Pinned" badge, above
+  the grid while nothing is searched or filtered; once the viewer narrows the
+  list it is an ordinary tile so a search still finds it. It never shows twice.
+- **Colors** (was "Brews most", renamed 2026-09-29 after the user asked what
+  it meant): a stacked colour bar with `ColorPip` counts under a plain
+  "Colors" heading and a caption saying what the numbers count ("Decks per
+  color, across 17 decks"). A panel heading names what it shows; never a
+  clever label that needs decoding. Below it, **Most-built commanders** lists
+  only commanders in two or more of their decks, each opening Discover
+  filtered to it. A commander built once says nothing about the brewer (17
+  one-off decks made "top 3" an arbitrary three), so with no repeats the row
+  is absent. Renders nothing for a brewer with no live decks.
+- **Game record** is opt-in (off by default, You > Profile > On your profile):
+  games, wins, win rate and the most-played deck. Nothing renders when off.
+- Panels sit side by side from about 45rem, one column on a phone. Controls
+  keep the 44px coarse-pointer floor.
+
+## Brewer cards and the Brewers tab (T175)
+
+**Brewers is a view of Discover, not a hub tab.** `/decks/discover/brewers` sits
+under the same hub strip as Discover, and `DiscoverSwitch` (`Decks | Brewers`,
+the `underline` variant of `Tabs`, per § Tabs / view switchers) sits under it on
+both pages so it never moves. Both pages hang their content in `DiscoverPanel`,
+the tabpanel the switch controls. Precons stay under Decks (`?source=precons`).
+
+**`BrewerCard`** (`components/social/`) is the one brewer tile. Three variants:
+`card` (16:9 art banner, avatar straddling its lower edge, name, `@handle`,
+"N decks · N followers", "Brews <commander>", `ColorIdentityBar`), `row`
+(no banner, for search results and lists) and `featured` (the spotlight: stacked
+on a phone, banner beside body from 600px). The whole card is one link to
+`/u/:username`, named by identity, stats and commander; there is no Follow
+button on it (Follow lives on the profile). The banner is the art crop the
+server picked; without one it takes the same flat accent field as a deck tile.
+The scrim under the avatar is `--art-scrim`, always dark in both themes.
+Followers pass the `social-proof` floor (`formatSocialCount`), so a brewer with
+four followers reads "3 decks", never "4 followers". `BrewerCardSkeleton` has
+the same boxes.
+
+**A rail under its people floor renders nothing.** The server sends `[]`; the
+page draws no heading and no empty card. If every rail and the spotlight are
+empty, one empty state invites the viewer to publish a deck. Rail order:
+"Brewing your commanders" (signed in), "Newest brewers", "Most liked brewers",
+"Most followed brewers"; the spotlight leads them all.
+
+**Rails scroll on a phone and grid when wide.** Below 1024px a rail is a snapping
+sideways scroller that fades its overflowing edge (`useOverflowEdges`); from
+1024px the same cards lay out as a grid, so a mouse never needs a horizontal
+wheel. (`SnapCarousel` is the centred card-preview carousel and is not a rail.)
+
+**Search replaces the rails.** Two characters minimum, debounced 300ms; under two
+the rails stay. Results are `row` cards; states are skeleton rows, "No brewers
+match “…”", and the shared `.discover-decks-error` strip with Retry.
+
+## Friends page (`/friends`, T175)
+
+The page shows people, not usernames. Top to bottom: the find-people box, the
+tab strip (`Friends | Following | Requests | Inbox | Activity`), the active
+panel, then, only when there are fewer than three friends and follows combined,
+a strip of brewers to meet.
+
+- **A friend row is a person** (`components/friends/FriendRow`): avatar, name,
+  `@handle`, a peek at what they brew ("3 decks · Brews Atraxa", or the honest
+  "No public decks yet"), "Friends since …", and from 600px the art of one of
+  their decks with its colour bar. The whole identity is one link to
+  `/u/:username`; everything else lives in a `⋮` beside it, outside the link.
+  Friends are accepted mutuals, so the avatar and public deck count are fine to
+  show. The peek comes from `GET /api/friends` (backend `friends/peek.ts`,
+  the same projection as `BrewerCard`).
+- **No "View shared" button.** The friend hub (`/friends/:id`: head-to-head,
+  trades, what they shared with you) is in the row's menu as "Trades, games and
+  shared"; the profile is the row itself and "View profile". The hub earns its
+  place only for what the profile lacks, so it is a menu item, not a headline.
+- **Remove is a menu item, danger-toned, and asks first.** A friendship can't be
+  undone from the UI (both sides lose friends-only shares), so the confirm
+  dialog stays; there is no undo toast because there is nothing to restore.
+- **Following is a tab**, `BrewerCard` `row` cards, each with the `FollowButton`
+  beside it (a sibling, never inside the card's link). Unfollowing leaves the row
+  as "Follow" until the list next loads, so a mis-tap is one tap to undo. Empty:
+  "You aren't following anyone yet." with a Find brewers action.
+- **Find people is one box.** As you type (300ms, two characters; Enter searches
+  at once, even one character) it asks the handle search (any account, deck or
+  not) and the brewer directory (name or handle; accounts with a live deck) and
+  merges them by handle. Rows link to the profile, with Add friend for anyone
+  and Follow for brewers only (Follow is the row's filled button when both show;
+  Add friend goes secondary). Friendship state is derived from the lists the page
+  already holds ("Friends", "Request sent"). A name with a space skips the handle
+  search, which would 400. One directory failing never blocks the other.
+  "Find brewers to follow" sits under the box.
+- **Suggested brewers are an insight surface**: shared-commander brewers first,
+  else the newest, six cards in the rail scroller. They render nothing when
+  empty or failed (no skeleton, no error), only after friends and follows have
+  both answered, and never while the load error shows.
+- **Home gets "New from brewers you follow"**: deck (to `/d/:slug`), "by brewer"
+  (to the profile) and relative time, at most four rows, last seven days. It rides
+  the activity fetch, is deliberately not in the nav badge count, and renders
+  nothing when empty.
+- **Profile rulings that landed with it.** The pinned deck spans the grid row from
+  1024px as a wide feature (art left, details right); below that it stays the
+  stacked tile. "Friends" beside Follow is a flat status label (tinted, no border,
+  no pill, no pointer), so it cannot be mistaken for a button. On a phone the
+  stat line is one row of equal columns, value over label, never wrapped
+  sentences that orphan the last stat. The Brewers tab's header reads
+  "Find brewers to follow and see what they build."

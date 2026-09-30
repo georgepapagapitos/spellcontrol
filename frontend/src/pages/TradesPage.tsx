@@ -1,23 +1,23 @@
 import './TradesPage.css';
-import { PageHeader } from '@/components/PageHeader';
-import { SocialHubTabs } from '../components/SocialHubTabs';
+import { PageHeader } from '@/components/app-shell/PageHeader';
+import { SocialHubTabs } from '@/components/social/SocialHubTabs';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSignInPath } from '../lib/sign-in-path';
+import { useSignInPath } from '@/lib/account/sign-in-path';
 import { useAuth } from '../store/auth';
 import { toast } from '../store/toasts';
-import { ConfirmDialog } from '../components/ConfirmDialog';
+import { ConfirmDialog } from '@/components/overlays/ConfirmDialog';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { SearchPill } from '../components/SearchPill';
+import { SearchPill } from '@/components/search/SearchPill';
 import { TradeOfferList } from '../components/trade/TradeOfferList';
 import {
   clearTradeHistory,
   listTrades,
   subscribeTradesChanged,
   type TradeOffer,
-} from '../lib/trades-client';
+} from '@/lib/trade/trades-client';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 import { Count } from '@/components/shared/Count';
 import { SectionHeader } from '@/components/shared/SectionHeader';
@@ -76,7 +76,12 @@ function matchesQuery(offer: TradeOffer, query: string): boolean {
 
 function TradesSkeleton() {
   return (
-    <div className="trades-skeleton" aria-label="Loading your trades" aria-busy="true">
+    <div
+      className="trades-skeleton"
+      aria-label="Loading your trades"
+      role="status"
+      aria-busy="true"
+    >
       <span className="trades-skeleton-bar" />
       <span className="trades-skeleton-bar" />
       <span className="trades-skeleton-bar" />

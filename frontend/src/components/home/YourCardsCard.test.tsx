@@ -8,12 +8,12 @@ import type { EnrichedCard } from '../../types';
 vi.mock('../../store/decks', () => ({ useDecksStore: vi.fn() }));
 vi.mock('../../store/collection', () => ({ useCollectionStore: vi.fn() }));
 vi.mock('../../store/cube', () => ({ useCubeStore: vi.fn() }));
-vi.mock('../../lib/allocations', () => ({ useAllocations: vi.fn() }));
+vi.mock('@/lib/collection/allocations', () => ({ useAllocations: vi.fn() }));
 
 import { useDecksStore } from '../../store/decks';
 import { useCollectionStore } from '../../store/collection';
 import { useCubeStore } from '../../store/cube';
-import { useAllocations } from '../../lib/allocations';
+import { useAllocations } from '@/lib/collection/allocations';
 import { YourCardsCard } from './YourCardsCard';
 
 const mockDecks = vi.mocked(useDecksStore);

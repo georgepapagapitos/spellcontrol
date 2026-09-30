@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { fetchProduct } from '../api';
-import { importToDeck } from '../import-to-deck';
-import { starterDeckLocalId } from '../starter-decks';
+import { fetchProduct } from '@/lib/api';
+import { importToDeck } from '@/lib/import-export/import-to-deck';
+import { starterDeckLocalId } from '@/lib/play/starter-decks';
 
 /**
  * Card names for the Horde ban-list check when a seat plays a starter deck

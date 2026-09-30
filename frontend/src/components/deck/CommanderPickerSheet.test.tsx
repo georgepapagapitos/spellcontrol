@@ -4,8 +4,8 @@ import { describe, expect, it, vi } from 'vitest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { CommanderPickerSheet } from './CommanderPickerSheet';
 
-vi.mock('../../lib/card-thumbs', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../lib/card-thumbs')>()),
+vi.mock('@/lib/cards/card-thumbs', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/cards/card-thumbs')>()),
   useCardThumb: () => undefined,
 }));
 

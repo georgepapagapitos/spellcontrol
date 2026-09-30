@@ -1,9 +1,12 @@
 // Land base generation: non-basic land selection (EDHREC + Scryfall fallback),
 // channel/MDFC/tapland pacing boosts, and pip-proportional basics.
 // Extracted verbatim from deckGenerator.ts.
-import { logger } from '@/lib/logger';
-import { BASIC_LAND_NAMES } from '@/lib/allocations';
-import { planBasicPrintings, type BasicPrintingAvail } from '@/lib/collection-availability';
+import { logger } from '@/lib/util/logger';
+import { BASIC_LAND_NAMES } from '@/lib/collection/allocations';
+import {
+  planBasicPrintings,
+  type BasicPrintingAvail,
+} from '@/lib/collection/collection-availability';
 import type {
   EDHRECCard,
   ScryfallCard,
@@ -30,8 +33,9 @@ import { pickFromPrefetched } from './cardPicking';
 import { fillWithScryfall, type FillHardGates } from './scryfallFill';
 import {
   constrainsToCollection,
+  fitsLandSlot,
+  isOwnedBudgetExempt,
   notInCollection,
-  notLegalForFormat,
   violatesUserCaps,
 } from './deckFilters';
 import {
@@ -40,7 +44,7 @@ import {
   colorsNeedingSources,
   WUBRG,
 } from './manabaseMath';
-import { producedManaColors } from '@/lib/mana-sources';
+import { producedManaColors } from '@/lib/deck-analysis/mana-sources';
 import { landPowerScore } from './landPower';
 import { computeManaPhilosophyBoosts } from './manaPhilosophy';
 
@@ -49,7 +53,7 @@ import { computeManaPhilosophyBoosts } from './manaPhilosophy';
 export const COLOR_DEMAND_BOOST_MAX = 25;
 
 // Basic land names to filter out from EDHREC suggestions — canonical set lives
-// in lib/allocations; re-exported here so existing './landGenerator' importers
+// in lib/collection/allocations; re-exported here so existing './landGenerator' importers
 // keep working.
 export { BASIC_LAND_NAMES };
 
@@ -371,20 +375,23 @@ export async function generateLands(
       const sc = landCardMap.get(c.name);
       return (
         !sc ||
-        !violatesUserCaps(
-          sc,
-          {
-            maxRarity,
-            maxCmc,
-            arenaOnly,
-            maxCardPrice,
-            currency,
-            mtgFormat,
-            ignoreOwnedRarity,
-            ignoreOwnedBudget,
-          },
-          collectionNames
-        )
+        // E525: the merit widen trusted its `t:land` query and EDHREC's list
+        // its own label; the card's front face decides.
+        (fitsLandSlot(sc) &&
+          !violatesUserCaps(
+            sc,
+            {
+              maxRarity,
+              maxCmc,
+              arenaOnly,
+              maxCardPrice,
+              currency,
+              mtgFormat,
+              ignoreOwnedRarity,
+              ignoreOwnedBudget,
+            },
+            collectionNames
+          ))
       );
     });
     const nonBasics = pickFromPrefetched(
@@ -448,7 +455,8 @@ export async function generateLands(
       undefined,
       undefined,
       gates,
-      mtgFormat
+      mtgFormat,
+      'land'
     );
     lands.push(...moreLands);
   }
@@ -467,9 +475,29 @@ export async function generateLands(
   ) {
     try {
       const commandTower = await getCardByName('Command Tower', arenaOnly);
-      if (!notLegalForFormat(commandTower, mtgFormat)) {
+      // E526: a named pick clears the same caps as every other land pick.
+      // It checked legality alone and shipped at $0.56 under a $0.50 cap.
+      const ownedExempt = isOwnedBudgetExempt('Command Tower', collectionNames, ignoreOwnedBudget);
+      const blocked =
+        !!gates?.isSaltBlocked?.('Command Tower') ||
+        violatesUserCaps(
+          commandTower,
+          {
+            maxRarity,
+            maxCmc,
+            arenaOnly,
+            maxCardPrice: budgetTracker?.getEffectiveCap(maxCardPrice) ?? maxCardPrice,
+            currency,
+            mtgFormat,
+            ignoreOwnedRarity,
+            ignoreOwnedBudget,
+          },
+          collectionNames
+        );
+      if (!blocked) {
         lands.push(commandTower);
         usedNames.add('Command Tower');
+        if (!ownedExempt) budgetTracker?.deductCard(commandTower);
       }
     } catch {
       // Ignore if not found

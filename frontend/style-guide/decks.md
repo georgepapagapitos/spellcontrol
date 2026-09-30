@@ -82,7 +82,7 @@ card lands in a deck's mainboard from the add-cards sheet, the deck editor can
 surface one nudge — "this card just completed a combo", "this card just gave
 the deck a win condition", "the bracket estimate just moved" — as a one-row
 strip inside that same sheet (`components/deck/BuildTimeCoachStrip.tsx` +
-`lib/use-build-time-nudge.ts`). It follows every UX-334 ground rule (one row,
+`lib/coach/use-build-time-nudge.ts`). It follows every UX-334 ground rule (one row,
 full-width, `min-height: 44px` on coarse pointers, **zero visible signal →
 render nothing**, never a permanent fixture, never displaces the card list
 below it) but differs on the one point that matters most:
@@ -134,7 +134,7 @@ below it) but differs on the one point that matters most:
 
 A budget and a goal in, the best swaps that fit out, for any Commander deck
 (imported, hand-built, generated). `components/deck/UpgradePlanSheet.tsx` over
-the pure `lib/upgrade-plan.ts`.
+the pure `lib/coach/upgrade-plan.ts`.
 
 - **It spends over the Coach feed's own list** (`buildCoachChanges` →
   `rankCoachMoves`), so the plan and the feed never disagree about what a
@@ -204,7 +204,7 @@ the pure `lib/upgrade-plan.ts`.
   set/number), owned-copy claiming for that printing, one undoable edit, the
   "Added X" toast, the copy-limit refusal, the off-color note, and the
   replace-when-full prompt on a full deck (whose ways out keep the printing).
-- **The drop target is the whole window** (`lib/use-link-drop.ts`), shown by a
+- **The drop target is the whole window** (`lib/import-export/use-link-drop.ts`), shown by a
   `.deck-link-drop` veil naming the zone: "Drop to add to Mainboard". It is
   aria-hidden and pointer-events: none (the toast is the announcement), has no
   entry animation (so it appears and leaves instantly), and says "Finding the
@@ -361,7 +361,7 @@ what it did to the curve meant switching tabs every time.
   resolve to the Deck tab and scroll to the section once the deck has loaded.
   The param is left in the URL on purpose: rewriting it is a navigation, and
   `Layout`'s scroll reset on navigation cancels the scroll. In-app jumps go
-  through `scrollToDeckStats` (built on `lib/scroll-to-heading.ts`).
+  through `scrollToDeckStats` (built on `lib/util/scroll-to-heading.ts`).
 - **The identity card repeats nothing the hero says.** It has no art band,
   commander or deck name, format, bracket, brand mark, or curve sparkline
   (the Mana curve panel sits right below it).
@@ -660,8 +660,8 @@ re-deriving diff markup a second time.
   "Show N more" toggle — a diff of a 100-card deck must not dump 100 rows
   inline.
 - A new diff surface reuses `DiffGroup`/`DiffCardRow` against whatever
-  `CardDelta[]`/`CardListDiff` it computes (`lib/deck-diff.ts`'s
-  `diffDeckCards` for a deck-vs-deck compare; `lib/deck-bulk-edit.ts`'s
+  `CardDelta[]`/`CardListDiff` it computes (`lib/deck/deck-diff.ts`'s
+  `diffDeckCards` for a deck-vs-deck compare; `lib/deck/deck-bulk-edit.ts`'s
   `buildResyncCardDiff` for a deck-vs-pasted-list resync, which — unlike
   `diffDeckCards` — counts every zone, not just commander + mainboard, since
   a resync's paste can silently drop a sideboard/considering card). Only the
@@ -764,7 +764,7 @@ piece, a Scryfall role-fill, a collection substitution, or an off-meta synergy
 pick, not because "the generator glitched." Every surface that shows an
 inclusion % (`DeckCardRow`, `DeckDisplay`, `DeckCardPreviewMeta`,
 `EnginePanel`, `CoachFeed`, `DeckAnalysisPanel`, `CardSearchPanel`) routes
-through the shared `classifyInclusion` (`lib/inclusion-label.ts`), which
+through the shared `classifyInclusion` (`lib/deck-analysis/inclusion-label.ts`), which
 treats `0`, `undefined`, and `null` as the exact same "no play-rate evidence"
 state: **never** render "0%"/"In 0% of decks", and never go silently blank
 where a percentage would otherwise appear (blank reads as forgotten data;
@@ -794,7 +794,7 @@ one question and made you pick which. Rulings:
   player learns the box reads rules text; the syntax hint appears only once
   they type.
 - **A playstyle is one rules-text pattern shared by both engines.** Each entry
-  in `lib/commander-playstyle-index.ts` carries an `oracle` regex source that
+  in `lib/deck/commander-playstyle-index.ts` carries an `oracle` regex source that
   Scryfall runs as `o:/…/` and the local classifier runs as a JS RegExp, so a
   commander Scryfall returns for a playstyle is always classified under it
   locally too. Typal has no pattern and uses `otag:typal` plus a local "names
@@ -806,7 +806,7 @@ one question and made you pick which. Rulings:
   or "Aristocrats" gets explained on touch.
 - **In my collection is local, instant and offline**, over the rules text and
   type line every owned row already carries, through the same engine as the
-  add-cards panel (`lib/deck-add-search.ts`). It never asks for a color first.
+  add-cards panel (`lib/search/deck-add-search.ts`). It never asks for a color first.
 - **One coverage number.** "How much of this deck do you own" is readiness
   (top EDHREC staples owned): a "You own N%" fact on every tile, and under the
   **Most of the deck owned** sort a `MeterBar` with "You own 52 of its 90
@@ -938,7 +938,7 @@ They are two different facts and the copy never blurs them into one:
   the Estimate riding along, a stated number can hide what the list actually
   estimates. Same "only when they differ" rule as the owner's page: on Auto
   there's nothing to disambiguate. Two compact forms, one shared formatter
-  each (`frontend/src/lib/format-bracket-label.ts`):
+  each (`frontend/src/lib/deck-analysis/format-bracket-label.ts`):
   - **Badge form** (`bracketBadgeWithEstimate`) — bare tier words, no
     "Bracket N" prefix, matching the existing `deck-format-badge`/
     `deck-bracket-badge` convention: "Core · est. Optimized". Tight tile
@@ -981,13 +981,13 @@ the rest, so the panel labels which is which:
   deck's Bracket: it is the stated-bracket control, not a second feedback
   system, so the hero reacts per the ruling above. Owner only.
 - **Tell your pod** closes the panel for the owner: one copyable sentence
-  (`lib/bracket-pod-line.ts`) with the bracket, Game Changers by name, the
+  (`lib/deck-analysis/bracket-pod-line.ts`) with the bracket, Game Changers by name, the
   deciding combo, land denial, extra turns, and what the deck does NOT run.
   It speaks in the owner's voice once they state a bracket the estimate
   disagrees with. Copy confirms with the app's toast; Share only where
   `canShare()`.
 - **At the table** sits above the pod line for the owner (`BracketTableRead`,
-  `lib/table-read.ts`): tracked wins against an even share (one over the pod
+  `lib/play/table-read.ts`): tracked wins against an even share (one over the pod
   size, per decided game), the even share ticked on a `MeterBar`. Below 10
   games it says how many more give a read, and never guesses. Twice an even
   share reads "may play above the tables you take it to", half or less
@@ -1132,7 +1132,7 @@ own line at the right.
   not a whole card shrunk to 42px. The swap panels keep the card.
 - **Synergy is a chip, only above zero:** `Synergy +34%` in the accent
   `VerdictBadge`. EDHREC's synergy is a −1..1 fraction; `synergyPct` in
-  `lib/why-factors.ts` is the one conversion. Printing it rounded bare put a
+  `lib/coach/why-factors.ts` is the one conversion. Printing it rounded bare put a
   green "+0% synergy" on every row.
 - **The rows name the commander by its short name** ("Sram", not "Sram,
   Senior Edificer"), so the played-in line holds one line in its column.
@@ -1168,9 +1168,30 @@ tappable disclosure under the reason line.
   `CardFitPanel` audition cuts, and the full-deck `DeckSizePrompt` options all
   feed it the same `whyFactors`, so the explanation reads identically everywhere.
 
+**Substitute reasons are fixed vocabulary (E517).** The owned alternatives,
+Swap this card and Similar cards rows take their factors from
+`services/substitutes/reasons.ts`, and every line reads off a fact the ranker
+scored:
+
+- `Same effect: {trigger}, {effect}` (pro, first) when the two cards share a
+  trigger and effect aimed at the same player: "Same effect: whenever a
+  creature you control dies, each opponent sacrifices a creature". The words
+  come from the replaced card's own facts; a tuple with no phrasing reads
+  `Same effect as {card}`, never a paraphrase.
+- `Pays off your {engine} engine: N cards feed it` / `Feeds your {engine}
+engine: N cards pay it off` (pro) when at least 3 deck cards support the link.
+  `{engine}` is the synergy axis's name, lower-cased ("sacrifice").
+- `A common substitute for {card} on EDHREC` (pro), the collection lane's
+  existing line, reused verbatim.
+- What the substitute gives up, as cons: `Hits creatures only`, `Sorcery
+speed`, `Costs 2 more`, `Watches opponents' creatures, not yours`. Their
+  mirror images are pros: `Instant speed`, `Costs 1 less`, `Same mana cost`.
+
+Pros lead, the lane's own factors sit in the middle, cons close the list.
+
 ### Tiered ordering
 
-The ranker (`lib/coach-rank.ts`) orders moves in three tiers, then by
+The ranker (`lib/coach/coach-rank.ts`) orders moves in three tiers, then by
 `deltaScore` / `inclusion`, owned-first within each tier:
 
 | Tier                        | Trigger                                                      | Examples                                        |
@@ -1204,7 +1225,7 @@ tier) sits above the feed. Rules:
 
 **Cross-cutting toggles join the same row, styled identically, but stay out
 of the lane set (E64).** "Off-meta" (spicy/off-the-beaten-path picks,
-`lib/inclusion-label.ts`'s `classifyInclusion(...).kind === 'offmeta'`) can
+`lib/deck-analysis/inclusion-label.ts`'s `classifyInclusion(...).kind === 'offmeta'`) can
 appear in _any_ lane, not one of them, so it isn't a `FilterId` — it's an
 independent boolean that narrows whichever lane is active, the same
 relationship "Owned only" already has to the lane set. It reuses
@@ -1249,8 +1270,14 @@ collapsed by default, that expands the ranked alternatives as nested
   staple's alternative (no implying you can apply the same copy twice);
   `buildSubstitutionOptions` enforces this. Applying any option removes every
   feed row naming that card on the next render (the live `deckNames` filter).
-- **No fabricated "% match".** The owned-substitute similarity heuristic tops out
-  at ~0.44 nDCG@5, so rank order carries fit — never a false-precision percentage.
+- **No fabricated "% match".** Substitute ranking v2 (E517,
+  `services/substitutes`) orders the options. Its score is a fitted sum with no
+  unit, and held out it reaches nDCG@5 0.79 against hand grades, far from
+  certain. Rank order carries fit, the Why disclosure carries the reasons, and
+  no surface shows the score or a percentage.
+- **The ranking only reorders.** v2 never adds or drops an owned option: the
+  role gate, colour identity and the land rule decide which cards qualify, so
+  a row can only move, never appear from nowhere.
 
 ### Apply feedback
 
@@ -1438,7 +1465,7 @@ Model-written text always says so. The rulings:
   without AI the sheet is exactly today's sheet.
 - **Rules is a place, and the sheet is its quick look** (settled 2026-09-19).
   `/rules` is the Rules hub: Keywords / Glossary / Rules (the offline
-  Comprehensive Rules, `components/RulesReference.tsx`, the same lists the
+  Comprehensive Rules, `components/rules/RulesReference.tsx`, the same lists the
   sheet shows) plus an Ask tab that self-hides without AI. Section and search
   live in the URL (`?tab=`, `?q=`) so a rule lookup is a linkable address.
   Its doors are utility-shaped, never a fifth primary tab: the header's

@@ -11,10 +11,10 @@ vi.mock('react-router-dom', async (importOriginal) => {
 
 // Hermetic art resolution — always "resolved" so the caption branch renders
 // deterministically regardless of which pool card today's day-key picks.
-vi.mock('../../lib/card-thumbs', () => ({ useCardThumb: () => 'https://example.com/art.jpg' }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => 'https://example.com/art.jpg' }));
 
 import { WelcomeHero } from './WelcomeHero';
-import { hasEverVisited } from '../../lib/first-run';
+import { hasEverVisited } from '@/lib/home/first-run';
 
 const onTrySamplesMock = vi.fn();
 

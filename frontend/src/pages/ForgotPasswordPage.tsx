@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { forgotPassword } from '../lib/auth-api';
-import { userMessage } from '@/lib/user-error';
+import { forgotPassword } from '@/lib/account/auth-api';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
 

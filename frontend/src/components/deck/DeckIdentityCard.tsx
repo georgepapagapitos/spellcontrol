@@ -8,16 +8,16 @@ import {
   type SubScoreKey,
   type PlanScore,
 } from '@/deck-builder/services/deckBuilder/planScore';
-import { buildCommanderKey } from '@/lib/commander-key';
-import { getCommanderStats } from '@/lib/aggregates-client';
+import { buildCommanderKey } from '@/lib/deck/commander-key';
+import { getCommanderStats } from '@/lib/discover/aggregates-client';
 import { CommanderPopularityStat } from './CommanderPopularityStat';
 import type {
   CheckStatus,
   ValidationResult,
 } from '@/deck-builder/services/deckBuilder/validationChecklist';
-import type { LaneId } from '@/lib/deck-change';
-import { InfoTip } from '@/components/InfoTip';
-import { SelectMenu, type SelectOption } from '@/components/SelectMenu';
+import type { LaneId } from '@/lib/coach/deck-change';
+import { InfoTip } from '@/components/overlays/InfoTip';
+import { SelectMenu, type SelectOption } from '@/components/overlays/SelectMenu';
 import { MeterBar } from '@/components/shared/MeterBar';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
@@ -314,6 +314,7 @@ export function DeckIdentityCard({
                   <div
                     className="deck-analysis-skeleton-bar deck-identity-card-skeleton"
                     aria-label="Build health loading…"
+                    role="status"
                   />
                   <p className="deck-identity-card-foot">Analyzing this deck…</p>
                 </>

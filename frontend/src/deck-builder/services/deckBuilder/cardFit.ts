@@ -1,7 +1,7 @@
 import type { ScryfallCard, GapAnalysisCard } from '@/deck-builder/types';
 import { getCardRole, type RoleKey } from '@/deck-builder/services/tagger/client';
 import { getFrontFaceTypeLine, isMdfcLand } from '@/deck-builder/services/scryfall/client';
-import { isBasicLandName } from '@/lib/allocations';
+import { isBasicLandName } from '@/lib/collection/allocations';
 
 // ── Thresholds ──────────────────────────────────────────────────────────────
 const INCLUSION_LOW = 5; // %

@@ -1,5 +1,5 @@
 // Shared with DeckNewPage / DeckEditorPage; ships with those chunks, not the boot payload (E265).
-import { canRegenerate, regenerateHref, regenerateState } from '../lib/regenerate-prefill';
+import { canRegenerate, regenerateHref, regenerateState } from '@/lib/deck/regenerate-prefill';
 import '@/styles/deck-builder-import-dialog.css';
 import {
   AlignJustify,
@@ -21,69 +21,68 @@ import {
   Wand2,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { usePanelCascade, panelCascadeClass } from '../lib/use-panel-cascade';
-import { useStoredSort } from '../lib/use-stored-sort';
-import { useStoredView } from '../lib/use-stored-view';
-import { deckCoverArt } from '../lib/deck-cover';
+import { usePanelCascade, panelCascadeClass } from '@/lib/util/use-panel-cascade';
+import { useStoredSort } from '@/lib/util/use-stored-sort';
+import { useStoredView } from '@/lib/util/use-stored-view';
+import { deckCoverArt } from '@/lib/deck/deck-cover';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { DecksHubTabs } from '../components/DecksHubTabs';
-import { PageHeader } from '../components/PageHeader';
+import { DecksHubTabs } from '@/components/decks/DecksHubTabs';
+import { PageHeader } from '@/components/app-shell/PageHeader';
 import { useDecksStore } from '../store/decks';
-import { formatRelativeTime } from '../lib/format-time';
-import { useAwaitingFirstPull } from '../lib/use-awaiting-first-pull';
+import { formatRelativeTime } from '@/lib/util/format-time';
+import { useAwaitingFirstPull } from '@/lib/sync/use-awaiting-first-pull';
 import { ImportDeckDialog } from '../components/deck/ImportDeckDialog';
-import { ProductSearchDialog } from '../components/ProductSearchDialog';
+import { ProductSearchDialog } from '@/components/import/ProductSearchDialog';
 import { DeckPickerDialog } from '../components/play/DeckPickerDialog';
-import { deckBoardPath } from '../lib/starter-decks';
-import { ConfirmDialog } from '../components/ConfirmDialog';
-import { SortMenu, type SortMenuOption } from '../components/SortMenu';
+import { deckBoardPath } from '@/lib/play/starter-decks';
+import { ConfirmDialog } from '@/components/overlays/ConfirmDialog';
+import { SortMenu, type SortMenuOption } from '@/components/search/SortMenu';
 import { ColorIdentityBar } from '../components/shared/ColorIdentityBar';
 import { ColorPip } from '../components/shared/ManaSymbol';
-import { colorSelectionMatches, type ColorMatchMode } from '../lib/colors';
+import { colorSelectionMatches, type ColorMatchMode } from '@/lib/cards/colors';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ViewModeToggle } from '../components/ViewModeToggle';
-import { SearchPill } from '../components/SearchPill';
-import { DeckFiltersPopover } from '../components/DeckFiltersPopover';
+import { SearchPill } from '@/components/search/SearchPill';
+import { DeckFiltersPopover } from '@/components/decks/DeckFiltersPopover';
 import { FilterChipsRow, type FilterChipDescriptor } from '../components/shared/FilterChipsRow';
-import { colorChipLabel } from '../lib/filter-summary';
-import { OverflowMenu, type OverflowMenuItem } from '../components/OverflowMenu';
-import { InfoTip } from '../components/InfoTip';
+import { colorChipLabel } from '@/lib/search/filter-summary';
+import { OverflowMenu, type OverflowMenuItem } from '@/components/overlays/OverflowMenu';
+import { InfoTip } from '@/components/overlays/InfoTip';
 import {
   SelectToggle,
   BulkSelectBar,
   SelectCheck,
   selectInteraction,
-} from '../components/BulkSelectBar';
-import { selectedCountLabel, useSelection } from '../lib/use-selection';
-import { useDebouncedValue } from '../lib/use-debounced-value';
+} from '@/components/app-shell/BulkSelectBar';
+import { selectedCountLabel, useSelection } from '@/lib/util/use-selection';
+import { useDebouncedValue } from '@/lib/util/use-debounced-value';
 import { useCollectionStore } from '../store/collection';
-import { MIN_COLLECTION_SIZE } from '../lib/commander-readiness';
-import { useAllocations } from '../lib/allocations';
-import { useSetMap } from '../lib/api';
-import { useBinderLayoutInputs } from '../lib/use-binder-layout-inputs';
-import { buildBinderPlacement, buildPullList, isPullableKind } from '../lib/pull-list';
-import { deckValue } from '../lib/deck-value';
-import { useCurrency } from '../lib/currency';
-import { formatMoney } from '../lib/format-money';
+import { MIN_COLLECTION_SIZE } from '@/lib/deck/commander-readiness';
+import { useAllocations } from '@/lib/collection/allocations';
+import { useSetMap } from '@/lib/api';
+import { useBinderLayoutInputs } from '@/lib/binder/use-binder-layout-inputs';
+import { buildBinderPlacement, buildPullList, isPullableKind } from '@/lib/collection/pull-list';
+import { deckValue } from '@/lib/deck/deck-value';
+import { useCurrency } from '@/lib/collection/currency';
+import { formatMoney } from '@/lib/collection/format-money';
 import type { Deck, DeckSource } from '../store/decks';
 import type { DeckFormat } from '../deck-builder/types';
 import { DECK_FORMAT_CONFIGS } from '../deck-builder/lib/constants/archetypes';
 import {
   effectiveDeckColors,
-  deckColorFrequency,
+  deckDisplayColors,
   validateDeckZones,
   countFlaggedCards,
-} from '../lib/deck-validation';
-import { ShareDialog } from '../components/ShareDialog';
-import { listMyPublications, publishDeck, unpublishDeck } from '../lib/publications-client';
+} from '@/lib/deck/deck-validation';
+import { ShareDialog } from '@/components/share/ShareDialog';
+import { listMyPublications, publishDeck, unpublishDeck } from '@/lib/social/publications-client';
 import { toast } from '../store/toasts';
 import { useAuth } from '../store/auth';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 import { Surface } from '@/components/shared/Surface';
-const COLOR_ORDER = ['W', 'U', 'B', 'R', 'G'] as const;
 
 // Stable empty-set reference for guests/pre-bootstrap — avoids allocating a
 // fresh Set every render for a case that never has any public decks.
@@ -378,7 +377,7 @@ export function DecksIndexPage() {
 
   const [showImport, setShowImport] = useState(false);
   // The command palette's "Import deck" lands here with `{ openImport: true }`
-  // in location state (lib/commands.ts). Derived from the current location
+  // in location state (lib/search/commands.ts). Derived from the current location
   // rather than read once at mount, because the palette can fire while this
   // page is already open. Closing drops the flag from history, so Back
   // doesn't reopen the dialog.
@@ -773,23 +772,7 @@ export function DecksIndexPage() {
                 const totalCards =
                   (deck.commander ? 1 : 0) + (deck.partnerCommander ? 1 : 0) + deck.cards.length;
                 const art = deckCoverArt(deck);
-                const colors = effectiveDeckColors(deck);
-                // For non-commander decks sort by how often each color shows up in
-                // the cards; commander decks fall through to WUBRG order since
-                // every color in the identity is "equally used" from a pip
-                // perspective.
-                const freq =
-                  deck.commander || deck.partnerCommander ? null : deckColorFrequency(deck);
-                const colorIdentity = Array.from(colors).sort((a, b) => {
-                  if (freq) {
-                    const diff = (freq.get(b) ?? 0) - (freq.get(a) ?? 0);
-                    if (diff !== 0) return diff;
-                  }
-                  return (
-                    COLOR_ORDER.indexOf(a as (typeof COLOR_ORDER)[number]) -
-                    COLOR_ORDER.indexOf(b as (typeof COLOR_ORDER)[number])
-                  );
-                });
+                const colorIdentity = deckDisplayColors(deck);
                 const themes = deck.generationContext?.selectedThemes ?? [];
                 const formatCfg = DECK_FORMAT_CONFIGS[deck.format];
                 // Judged on the deck's own zones, the same as the deck page:
@@ -897,6 +880,7 @@ export function DecksIndexPage() {
                               className="decks-index-card-pull"
                               title={`${pull.pullable} of ${pull.total} cards have a free copy to pull from your binders`}
                               aria-label={`${pull.pullable} of ${pull.total} cards pullable from your binders`}
+                              role="img"
                             >
                               {pull.pullable} of {pull.total} pullable
                             </span>
@@ -904,7 +888,11 @@ export function DecksIndexPage() {
                         </div>
                         <div className="decks-index-card-meta">
                           {colorIdentity.length > 0 && (
-                            <span className="decks-index-card-pips" aria-label="Color identity">
+                            <span
+                              className="decks-index-card-pips"
+                              aria-label="Color identity"
+                              role="group"
+                            >
                               {colorIdentity.map((c) => (
                                 <ColorPip key={c} color={c} />
                               ))}

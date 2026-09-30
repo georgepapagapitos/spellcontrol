@@ -6,17 +6,12 @@
 // the checks are proven against the data the generator actually sees:
 // Harmonized Trio // Brainstorm is the real impostor from #2157, Karn's
 // Bastion the real land from E485.
+//
+// The commander checks (E524 chosen colors, E530 legality and previews) live
+// in deckInvariants.commander.test.ts; both files share
+// __fixtures__/invariant-deck.ts.
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import type {
-  Customization,
-  DeckCategory,
-  GeneratedDeck,
-  ScryfallCard,
-} from '@/deck-builder/types';
-import { loadTaggerData } from '@/deck-builder/services/tagger/client';
+import type { GeneratedDeck } from '@/deck-builder/types';
 import { computeRoleCounts } from './commanderDeckAnalysis';
 import { calculateStats } from './deckStats';
 import {
@@ -27,215 +22,24 @@ import {
   formatViolations,
   hardViolations,
   normalizeCardName,
-  type InvariantCheck,
-  type InvariantContext,
-  type InvariantViolation,
 } from './deckInvariants';
+import {
+  COMMANDER,
+  SPELLS,
+  assemble,
+  card,
+  checks,
+  cleanCategories,
+  commanderCard,
+  context,
+  customization,
+  loadTaggerSnapshot,
+  swap,
+} from './__fixtures__/invariant-deck';
 
-const here = dirname(fileURLToPath(import.meta.url));
-const CARDS = new Map<string, ScryfallCard>(
-  (
-    JSON.parse(
-      readFileSync(resolve(here, '__fixtures__', 'invariant-cards.fixture.json'), 'utf8')
-    ) as { cards: ScryfallCard[] }
-  ).cards.map((c) => [c.name, c])
-);
-
-/** A fresh copy of a real card (checks never mutate, but tests do). */
-function card(name: string, patch: Partial<ScryfallCard> = {}): ScryfallCard {
-  const c = CARDS.get(name);
-  if (!c) throw new Error(`no fixture card named ${name}`);
-  return { ...structuredClone(c), ...patch };
-}
-
-beforeAll(async () => {
-  const data = JSON.parse(
-    readFileSync(resolve(here, '__fixtures__', 'tagger-tags.fixture.json'), 'utf8')
-  );
-  vi.stubGlobal('fetch', async () => ({ ok: true, status: 200, json: async () => data }));
-  if (!(await loadTaggerData())) throw new Error('tagger data failed to load');
-});
+beforeAll(loadTaggerSnapshot);
 
 afterAll(() => vi.unstubAllGlobals());
-
-// ---- A clean Tatyova (UG) deck -------------------------------------------------
-
-const COMMANDER = 'Tatyova, Benthic Druid';
-
-const SPELLS = [
-  'Brainstorm',
-  'Counterspell',
-  'Cultivate',
-  'Llanowar Elves',
-  'Beast Within',
-  'Elvish Mystic',
-  'Ponder',
-  'Preordain',
-  'Rampant Growth',
-  'Harmonize',
-  'Evolution Sage',
-  "Tamiyo's Safekeeping",
-  "Kodama's Reach",
-  'Aetherize',
-  'Mystic Snake',
-  'Growth Spiral',
-  "Nature's Lore",
-  'Three Visits',
-  'Farseek',
-  'Explore',
-  'Exploration',
-  'Oracle of Mul Daya',
-  'Tireless Provisioner',
-  'Frantic Search',
-  'Mulldrifter',
-  'Hullbreaker Horror',
-  'Evacuation',
-  'Pongify',
-  'Rapid Hybridization',
-  'Negate',
-  'Arcane Denial',
-  'Sol Ring',
-  'Arcane Signet',
-  'Mana Reflection',
-  'Plasm Capture',
-];
-
-const NONBASIC_LANDS = ['Command Tower', "Karn's Bastion", 'Eldrazi Temple'];
-
-function customization(overrides: Partial<Customization> = {}): Customization {
-  return {
-    deckFormat: 99,
-    landCount: 64,
-    nonBasicLandCount: 3,
-    bannedCards: [],
-    banLists: [],
-    mustIncludeCards: [],
-    tempBannedCards: [],
-    tempMustIncludeCards: [],
-    maxCardPrice: null,
-    deckBudget: null,
-    budgetOption: 'any',
-    gameChangerLimit: 'unlimited',
-    targetBracket: 'all',
-    maxRarity: null,
-    tinyLeaders: false,
-    ignoreOwnedBudget: false,
-    ignoreOwnedRarity: false,
-    collectionMode: false,
-    collectionStrategy: 'full',
-    collectionOwnedPercent: 75,
-    arenaOnly: false,
-    scryfallQuery: '',
-    comboCount: 1,
-    balancedRoles: true,
-    currency: 'USD',
-    appliedExcludeLists: [],
-    appliedIncludeLists: [],
-    tempoAutoDetect: true,
-    tempoPacing: 'balanced',
-    saltTolerance: 2,
-    generationMode: 'edhrec',
-    artThemeTag: '',
-    historicalYear: 2005,
-    permanentsOnly: false,
-    brewLevel: 0.5,
-    ...overrides,
-  };
-}
-
-function emptyCategories(): Record<DeckCategory, ScryfallCard[]> {
-  return {
-    lands: [],
-    ramp: [],
-    cardDraw: [],
-    singleRemoval: [],
-    boardWipes: [],
-    creatures: [],
-    synergy: [],
-    utility: [],
-  };
-}
-
-/**
- * Assemble a GeneratedDeck whose report fields (stats, roleCounts) are
- * computed the way the generator computes them, so a clean deck is clean and
- * each test breaks exactly one thing.
- */
-function assemble(
-  categories: Record<DeckCategory, ScryfallCard[]>,
-  extra: Partial<GeneratedDeck> = {}
-): GeneratedDeck {
-  const nonLand = (Object.entries(categories) as [DeckCategory, ScryfallCard[]][])
-    .filter(([cat]) => cat !== 'lands')
-    .flatMap(([, cards]) => cards);
-  const recount = computeRoleCounts(nonLand);
-  return {
-    commander: card(COMMANDER),
-    partnerCommander: null,
-    categories,
-    stats: calculateStats(categories),
-    composition: {
-      lands: categories.lands.length,
-      ramp: 0,
-      cardDraw: 0,
-      singleRemoval: 0,
-      boardWipes: 0,
-      creatures: 0,
-      synergy: 0,
-      utility: 0,
-    },
-    // Targets equal to the counts: a clean deck is on target in every role.
-    roleTargets: { ...recount.roleCounts },
-    roleCounts: { ...recount.roleCounts },
-    gameChangerNames: ['Cyclonic Rift', 'Rhystic Study', "Thassa's Oracle"],
-    ...extra,
-  };
-}
-
-function cleanCategories(): Record<DeckCategory, ScryfallCard[]> {
-  const cats = emptyCategories();
-  for (const name of SPELLS) {
-    const c = card(name);
-    (/\bCreature\b/.test(c.type_line) ? cats.creatures : cats.synergy).push(c);
-  }
-  for (const name of NONBASIC_LANDS) cats.lands.push(card(name));
-  // 99 - 35 spells - 3 nonbasics = 61 basics.
-  for (let i = 0; i < 31; i++) cats.lands.push(card('Forest'));
-  for (let i = 0; i < 30; i++) cats.lands.push(card('Island'));
-  return cats;
-}
-
-function context(overrides: Partial<InvariantContext> = {}): InvariantContext {
-  return {
-    commander: card(COMMANDER),
-    partnerCommander: null,
-    colorIdentity: ['G', 'U'],
-    customization: customization(),
-    ...overrides,
-  };
-}
-
-function checks(v: InvariantViolation[], level?: 'HARD' | 'SOFT'): InvariantCheck[] {
-  return v.filter((x) => !level || x.level === level).map((x) => x.check);
-}
-
-/** Replace the first seated card named `name` with `replacement`. */
-function swap(
-  cats: Record<DeckCategory, ScryfallCard[]>,
-  name: string,
-  replacement: ScryfallCard,
-  into?: DeckCategory
-): void {
-  for (const list of Object.values(cats)) {
-    const i = list.findIndex((c) => c.name === name);
-    if (i >= 0) {
-      list.splice(i, 1);
-      (into ? cats[into] : list).push(replacement);
-      return;
-    }
-  }
-  throw new Error(`${name} is not seated`);
-}
 
 describe('checkDeckInvariants — a clean deck', () => {
   it('reports no violation at all for a legal, honest 99', () => {
@@ -701,15 +505,22 @@ describe('lands (E485)', () => {
     });
   });
 
-  it('leaves a small undisclosed drift SOFT, and any disclosed drift SOFT', () => {
+  it('makes any undisclosed drift HARD, one land included, and any disclosed drift SOFT', () => {
     const base = assemble(cleanCategories());
     const planned = (lands: number, extra: Partial<GeneratedDeck> = {}) =>
       checkDeckInvariants(
         { ...base, composition: { ...base.composition!, lands }, ...extra },
         context()
       ).find((x) => x.check === 'land-count');
-    expect(planned(62)?.level).toBe('SOFT');
-    expect(planned(62)?.detail).toContain('rounding band');
+    // E529: the old 3-land "rounding" band hid padding for a spell shortfall.
+    expect(planned(63)).toEqual({
+      level: 'HARD',
+      check: 'land-count',
+      detail: '64 lands delivered vs a planned 63 (undisclosed)',
+    });
+    expect(planned(62, { poolExhaustionNote: 'Ran out of cards after 35 spells.' })?.level).toBe(
+      'SOFT'
+    );
     expect(planned(58)?.level).toBe('HARD');
     expect(planned(58, { poolExhaustionNote: 'Ran out of cards after 35 spells.' })?.level).toBe(
       'SOFT'
@@ -806,11 +617,29 @@ describe('report truth (E166)', () => {
     expect(checks(checkDeckInvariants(deck, context()), 'HARD')).toContain('report-roles');
   });
 
-  it('flags subtype tallies that will jump when the live recount replaces them (SOFT)', () => {
+  // E528: HARD now that the generator stores this very recount.
+  it('flags subtype tallies that will jump when the live recount replaces them', () => {
     const deck = { ...assemble(cleanCategories()), rampSubtypeCounts: { 'mana-rock': 40 } };
     expect(
       checkDeckInvariants(deck, context()).find((x) => x.check === 'report-subtypes')?.level
-    ).toBe('SOFT');
+    ).toBe('HARD');
+  });
+
+  it('accepts subtype tallies equal to the recount', () => {
+    const cats = cleanCategories();
+    const nonLand = Object.entries(cats)
+      .filter(([cat]) => cat !== 'lands')
+      .flatMap(([, cards]) => cards);
+    const recount = computeRoleCounts(nonLand);
+    const deck = assemble(cats, {
+      rampSubtypeCounts: recount.rampSubtypeCounts,
+      removalSubtypeCounts: recount.removalSubtypeCounts,
+      boardwipeSubtypeCounts: recount.boardwipeSubtypeCounts,
+      cardDrawSubtypeCounts: recount.cardDrawSubtypeCounts,
+    });
+    // The snapshot tags real subtypes on this deck, so the check has teeth.
+    expect(Object.keys(recount.rampSubtypeCounts).length).toBeGreaterThan(0);
+    expect(checks(checkDeckInvariants(deck, context()))).not.toContain('report-subtypes');
   });
 
   it('flags stats that do not describe the seated cards', () => {
@@ -828,6 +657,25 @@ describe('report truth (E166)', () => {
       context()
     );
     expect(v.filter((x) => x.check === 'stats').length).toBe(3);
+  });
+
+  // E527: the live art-theme-goblin row seated the real Secret Lair
+  // reversible Krark's Thumb, which has no top-level cmc, and the curve
+  // shipped a "NaN" bucket.
+  it('counts a reversible printing by its front face, and flags a NaN curve bucket', () => {
+    const cats = cleanCategories();
+    swap(cats, 'Negate', commanderCard("Krark's Thumb // Krark's Thumb"));
+    const deck = assemble(cats);
+    expect(checks(checkDeckInvariants(deck, context()))).not.toContain('stats');
+    const nan = checkDeckInvariants(
+      {
+        ...deck,
+        stats: { ...deck.stats, manaCurve: { ...deck.stats.manaCurve, NaN: 1 } as never },
+      },
+      context()
+    ).filter((x) => x.check === 'stats');
+    expect(nan.map((x) => x.detail)).toContain('stats.manaCurve has a bad entry "NaN": 1');
+    expect(nan.every((x) => x.level === 'HARD')).toBe(true);
   });
 
   it('flags roles far over target as SOFT', () => {

@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { ColorPip } from '@/components/shared/ManaSymbol';
-import { useLongPress } from '@/lib/use-long-press';
+import { useLongPress } from '@/lib/util/use-long-press';
 import { MANA_COLORS, MANA_COLOR_LABEL, type ManaColor } from '@/lib/playtest';
 
 interface Props {

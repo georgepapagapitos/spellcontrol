@@ -1,0 +1,212 @@
+{
+  "about": "Rule-defined cases built from real cards. Each starts from a real precon that reads Bracket 2 with no floor (Necron Dynasties, 40K 2022), adds real cards in place of Swamps, and states the bracket the rule gives. `authority: official` cases follow the Commander Brackets text; `authority: heuristic` cases pin a SpellControl rule the official text leaves open, so a change to that rule shows up here as a decision rather than as drift.",
+  "base": "NecronDynasties_40K",
+  "sources": {
+    "rc-2025-02": "https://magic.wizards.com/en/news/announcements/introducing-commander-brackets-beta",
+    "rc-2025-10": "https://magic.wizards.com/en/news/announcements/commander-brackets-beta-update-october-21-2025",
+    "rc-2026-02": "https://magic.wizards.com/en/news/announcements/commander-brackets-beta-update-february-9-2026",
+    "spellbook": "https://commanderspellbook.com/",
+    "ruling-2026-09-23": "SpellControl ruling of 2026-09-23 (project memory: bracket precon calibration): commander plus at most two other cards floors at Bracket 4, matching Commander Spellbook's Ruthless rating"
+  },
+  "cases": [
+    {
+      "id": "baseline",
+      "add": [],
+      "expected": 2,
+      "authority": "official",
+      "source": "rc-2025-02",
+      "rule": "No Game Changer, two-card infinite, mass land denial or extra turns: Core is the landing point (\"The power level of the average modern-day preconstructed deck sits here\")."
+    },
+    {
+      "id": "gc-1",
+      "add": ["Rhystic Study"],
+      "expected": 3,
+      "authority": "official",
+      "source": "rc-2025-02",
+      "rule": "Core: \"No cards from the Game Changers list.\" Upgraded: \"Up to three cards from the Game Changers list.\""
+    },
+    {
+      "id": "gc-3",
+      "add": ["Rhystic Study", "Smothering Tithe", "Cyclonic Rift"],
+      "expected": 3,
+      "authority": "official",
+      "source": "rc-2025-02",
+      "rule": "Upgraded allows up to three Game Changers."
+    },
+    {
+      "id": "gc-4",
+      "add": ["Rhystic Study", "Smothering Tithe", "Cyclonic Rift", "Teferi's Protection"],
+      "expected": 4,
+      "authority": "official",
+      "source": "rc-2025-02",
+      "rule": "A fourth Game Changer is over Upgraded's limit; Optimized has none."
+    },
+    {
+      "id": "gc-mdfc-full-name",
+      "add": ["Tergrid, God of Fright // Tergrid's Lantern"],
+      "expected": 3,
+      "authority": "official",
+      "source": "rc-2026-02",
+      "rule": "Tergrid is on the list; a deck names it by its full Scryfall name, as every card source in the app does."
+    },
+    {
+      "id": "mld-armageddon",
+      "add": ["Armageddon"],
+      "expected": 4,
+      "authority": "official",
+      "source": "rc-2025-02",
+      "rule": "\"You should not expect to see these cards [mass land denial] anywhere in Brackets 1-3.\""
+    },
+    {
+      "id": "mld-ravages",
+      "add": ["Ravages of War"],
+      "expected": 4,
+      "authority": "official",
+      "source": "rc-2025-02",
+      "rule": "Mass land denial is excluded from Brackets 1-3."
+    },
+    {
+      "id": "extra-turns-2",
+      "add": ["Time Warp", "Temporal Manipulation"],
+      "expected": 2,
+      "authority": "official",
+      "source": "rc-2025-02",
+      "rule": "Core: \"Extra-turn cards should only appear in low quantities and are not intended to be chained in succession or looped.\""
+    },
+    {
+      "id": "extra-turns-3",
+      "add": ["Time Warp", "Temporal Manipulation", "Capture of Jingzhou"],
+      "expected": 3,
+      "authority": "heuristic",
+      "source": "rc-2025-02",
+      "rule": "The text gives no count for \"low quantities\". SpellControl reads three or more as a deliberate extra-turn theme (Bracket 3); an actual chain is a Spellbook combo and floors through the combo rule."
+    },
+    {
+      "id": "extra-turns-loop",
+      "add": ["Time Sieve", "Thorin, Company's Leader"],
+      "expected": 4,
+      "authority": "official",
+      "source": "rc-2025-02",
+      "rule": "Extra turns \"not intended to be chained in succession or looped\" through Bracket 3; Time Sieve + Thorin is a two-card infinite-turns lock Commander Spellbook rates Ruthless."
+    },
+    {
+      "id": "combo-2card-ruthless",
+      "add": ["Kiki-Jiki, Mirror Breaker", "Zealous Conscripts"],
+      "expected": 4,
+      "authority": "official",
+      "source": "rc-2025-02",
+      "rule": "Upgraded: \"No intentional early-game two-card infinite combos.\" Commander Spellbook rates this one Ruthless, its call for combos that belong at Bracket 4 and up."
+    },
+    {
+      "id": "combo-2card-spicy-late",
+      "add": ["Sanguine Bond", "Exquisite Blood"],
+      "expected": 3,
+      "authority": "official",
+      "source": "rc-2025-02",
+      "rule": "Core: \"No intentional two-card infinite combos.\" Upgraded allows ones that come together late; Spellbook rates this Spicy and the list has no tutors or fast mana to speed it up."
+    },
+    {
+      "id": "combo-2card-spicy-fast",
+      "add": [
+        "Sanguine Bond",
+        "Exquisite Blood",
+        "Diabolic Tutor",
+        "Grim Tutor",
+        "Profane Tutor",
+        "Wishclaw Talisman",
+        "Scheming Symmetry",
+        "Increasing Ambition",
+        "Lotus Petal",
+        "Dark Ritual",
+        "Mox Amber"
+      ],
+      "expected": 4,
+      "authority": "heuristic",
+      "source": "rc-2025-02",
+      "rule": "The same Spicy combo with six tutors and three fast-mana pieces (none a Game Changer) can come together early, which Upgraded excludes. How much speed counts as early is SpellControl's acceleration model."
+    },
+    {
+      "id": "combo-2card-core-rated",
+      "add": ["Terror of the Peaks", "Rite of Replication"],
+      "expected": 2,
+      "authority": "official",
+      "source": "spellbook",
+      "rule": "The brackets leave each combo's call to classification; Commander Spellbook rates this one Core (fine at Bracket 2), and the floor follows its rating (E382)."
+    },
+    {
+      "id": "combo-2card-exhibition-rated",
+      "add": ["Approach of the Second Sun", "Farsight Ritual"],
+      "expected": 2,
+      "authority": "official",
+      "source": "spellbook",
+      "rule": "Commander Spellbook rates Approach of the Second Sun + Farsight Ritual Exhibition: no floor."
+    },
+    {
+      "id": "combo-commander",
+      "add": ["Curiosity"],
+      "commanders": ["Niv-Mizzet, Parun"],
+      "expected": 4,
+      "authority": "heuristic",
+      "source": "ruling-2026-09-23",
+      "rule": "The commander is always available, so the deck only has to draw one card; Commander Spellbook rates such combos Ruthless."
+    },
+    {
+      "id": "combo-3card-lone",
+      "add": ["Mikaeus, the Unhallowed", "Ashcloud Phoenix", "Blasting Station"],
+      "expected": 2,
+      "authority": "official",
+      "source": "rc-2025-02",
+      "rule": "The brackets restrict two-card infinite combos; a lone three-card line sets no floor (it adds combo-engine points to the power signal)."
+    },
+    {
+      "id": "combo-3card-two-lines",
+      "add": [
+        "Mikaeus, the Unhallowed",
+        "Ashcloud Phoenix",
+        "Blasting Station",
+        "Basking Broodscale",
+        "Heliod, Sun-Crowned",
+        "Verdant Sun's Avatar"
+      ],
+      "expected": 3,
+      "authority": "heuristic",
+      "source": "rc-2025-02",
+      "rule": "Two independent complete three-card infinites count as one two-card line (MULTI_CARD_COMBO_WEIGHT), which Core excludes."
+    },
+    {
+      "id": "stax-3",
+      "add": ["Sphere of Resistance", "Thorn of Amethyst", "Rule of Law"],
+      "expected": 3,
+      "authority": "heuristic",
+      "source": "rc-2025-10",
+      "rule": "Not in the bracket text. Three lock pieces read as a deliberate resource-denial plan (SpellControl rule)."
+    },
+    {
+      "id": "stax-5",
+      "add": [
+        "Sphere of Resistance",
+        "Thorn of Amethyst",
+        "Rule of Law",
+        "Null Rod",
+        "Cursed Totem"
+      ],
+      "expected": 4,
+      "authority": "heuristic",
+      "source": "rc-2025-10",
+      "rule": "Five lock pieces lock opponents out like land denial (SpellControl rule)."
+    }
+  ],
+  "probes": [
+    "Rhystic Study",
+    "Armageddon",
+    "Time Warp",
+    "Sphere of Resistance",
+    "Diabolic Tutor",
+    "Lotus Petal",
+    "Swords to Plowshares",
+    "Llanowar Elves",
+    "Grizzly Bears",
+    "Wastes"
+  ],
+  "probesAbout": "Stability scan probes: one real card per signal the estimator reads (Game Changer, land denial, extra turn, stax, tutor, fast mana, removal, ramp, a vanilla creature, a basic land). Each deck also gets every card that completes one of its one-away combos."
+}

@@ -62,7 +62,7 @@ vi.mock('../store/decks', () => ({
 vi.mock('../store/toasts', () => ({
   toast: { show: vi.fn() },
 }));
-vi.mock('../lib/auth-api', () => ({
+vi.mock('@/lib/account/auth-api', () => ({
   fetchIdentities: vi.fn(() => Promise.resolve(null)),
   googleLinkUrl: vi.fn(),
   requestGoogleLinkIntent: vi.fn(),
@@ -74,38 +74,38 @@ vi.mock('../lib/auth-api', () => ({
 }));
 // Backs both YouPage's own friend-count fetch and the shared
 // useFriendRequests() hook (which imports listRequests from this module too).
-vi.mock('../lib/friends-client', () => ({
+vi.mock('@/lib/social/friends-client', () => ({
   listFriends: vi.fn(() => Promise.resolve([])),
   listRequests: vi.fn(() => Promise.resolve({ incoming: [], outgoing: [] })),
 }));
 // Only the network call is stubbed — pendingPodInviteCount stays real (pure,
 // no side effects) so any badge math exercised elsewhere stays honest.
-vi.mock('../lib/pods-client', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../lib/pods-client')>();
+vi.mock('@/lib/social/pods-client', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/social/pods-client')>();
   return { ...actual, listPods: vi.fn(() => Promise.resolve([])) };
 });
-vi.mock('../lib/backup', () => ({
+vi.mock('@/lib/import-export/backup', () => ({
   buildBackup: vi.fn(),
   downloadBackup: vi.fn(),
   parseBackup: vi.fn(),
 }));
-vi.mock('../lib/sync', () => ({ getPendingCount: () => 0 }));
-vi.mock('../lib/ai-review', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../lib/ai-review')>()),
+vi.mock('@/lib/sync', () => ({ getPendingCount: () => 0 }));
+vi.mock('@/lib/ai/ai-review', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/ai/ai-review')>()),
   fetchAiStatus: vi.fn(() => Promise.reject(new Error('offline'))),
 }));
-vi.mock('../lib/reset-app-cache', () => ({ resetAppCacheAndReload: vi.fn() }));
-vi.mock('../components/OfflineModeSettings', () => ({
+vi.mock('@/lib/account/reset-app-cache', () => ({ resetAppCacheAndReload: vi.fn() }));
+vi.mock('@/components/settings/OfflineModeSettings', () => ({
   OfflineModeSettings: () => null,
 }));
-vi.mock('../components/SyncIndicator', () => ({
+vi.mock('@/components/account/SyncIndicator', () => ({
   SyncIndicator: () => null,
 }));
 // Has its own dedicated test file (ProfileEditor.test.tsx).
-vi.mock('../components/ProfileEditor', () => ({
+vi.mock('@/components/profile/ProfileEditor', () => ({
   ProfileEditor: () => null,
 }));
-vi.mock('../lib/themes', () => ({
+vi.mock('@/lib/account/themes', () => ({
   THEMES: [{ id: 'default', name: 'Default', guild: 'None', swatch: ['#000', '#fff'] }],
 }));
 
@@ -217,7 +217,7 @@ describe('T173 — the hub', () => {
   });
 
   it('shows the AI row only when the backend offers AI, with its On/Off', async () => {
-    const { fetchAiStatus } = await import('../lib/ai-review');
+    const { fetchAiStatus } = await import('@/lib/ai/ai-review');
     vi.mocked(fetchAiStatus).mockResolvedValueOnce({ optIn: true, used: 1, limit: 10 });
     signIn();
     renderYouPage();
@@ -228,7 +228,7 @@ describe('T173 — the hub', () => {
   it('hides the AI row when the status is unavailable', async () => {
     signIn();
     renderYouPage();
-    const { fetchAiStatus } = await import('../lib/ai-review');
+    const { fetchAiStatus } = await import('@/lib/ai/ai-review');
     await waitFor(() => expect(fetchAiStatus).toHaveBeenCalled());
     const nav = screen.getByRole('navigation', { name: 'You' });
     expect(within(nav).queryByRole('link', { name: /^AI/ })).toBeNull();
@@ -325,7 +325,7 @@ describe('Account — sign-in methods, notifications, this device', () => {
     pendingEmail?: string | null;
     notifyEmail?: boolean;
   }) {
-    const { fetchIdentities } = await import('../lib/auth-api');
+    const { fetchIdentities } = await import('@/lib/account/auth-api');
     vi.mocked(fetchIdentities).mockResolvedValueOnce({
       password: overrides.password ?? false,
       google: null,
@@ -366,7 +366,7 @@ describe('Account — sign-in methods, notifications, this device', () => {
 
   it('opens the password modal and submits the new password', async () => {
     await mockIdentitiesOnce({ password: false });
-    const { updatePassword } = await import('../lib/auth-api');
+    const { updatePassword } = await import('@/lib/account/auth-api');
     vi.mocked(updatePassword).mockResolvedValueOnce(undefined);
     renderYouPage('/you/account');
 
@@ -417,7 +417,7 @@ describe('Account — sign-in methods, notifications, this device', () => {
       emailVerified: false,
       pendingEmail: 'alice@example.com',
     });
-    const { resendEmailVerification } = await import('../lib/auth-api');
+    const { resendEmailVerification } = await import('@/lib/account/auth-api');
     vi.mocked(resendEmailVerification).mockResolvedValueOnce(undefined);
     renderYouPage('/you/account');
 
@@ -470,7 +470,7 @@ describe('Account — sign-in methods, notifications, this device', () => {
     expect(onSwitch.hasAttribute('disabled')).toBe(false);
     expect(onSwitch.getAttribute('aria-checked')).toBe('true');
 
-    const { setNotifyEmail } = await import('../lib/auth-api');
+    const { setNotifyEmail } = await import('@/lib/account/auth-api');
     fireEvent.click(onSwitch);
     expect(onSwitch.getAttribute('aria-checked')).toBe('false'); // optimistic
     await waitFor(() => expect(setNotifyEmail).toHaveBeenCalledWith(false));
@@ -478,7 +478,7 @@ describe('Account — sign-in methods, notifications, this device', () => {
 
   it('opens the email modal from "Add" and submits the address', async () => {
     await mockIdentitiesOnce({ email: null, emailVerified: false, pendingEmail: null });
-    const { requestEmailChange } = await import('../lib/auth-api');
+    const { requestEmailChange } = await import('@/lib/account/auth-api');
     vi.mocked(requestEmailChange).mockResolvedValueOnce({ pendingEmail: 'alice@example.com' });
     renderYouPage('/you/account');
 
@@ -556,7 +556,7 @@ describe('Backup & export — restore and delete', () => {
   });
 
   it('reads "Couldn\'t restore that backup", not the stale "import" copy, on failure', async () => {
-    const { parseBackup } = await import('../lib/backup');
+    const { parseBackup } = await import('@/lib/import-export/backup');
     vi.mocked(parseBackup).mockImplementationOnce(() => {
       throw new Error('bad json');
     });
@@ -604,7 +604,7 @@ describe('Storage and Help', () => {
 
 describe('AI', () => {
   it('holds the consent switch when the backend offers AI', async () => {
-    const { fetchAiStatus } = await import('../lib/ai-review');
+    const { fetchAiStatus } = await import('@/lib/ai/ai-review');
     vi.mocked(fetchAiStatus).mockResolvedValueOnce({ optIn: false, used: 0, limit: 10 });
     signIn();
     renderYouPage('/you/ai');

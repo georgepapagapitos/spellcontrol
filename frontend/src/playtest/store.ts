@@ -7,7 +7,7 @@ import {
   type PlaytestInit,
   type PlaytestState,
 } from '@/lib/playtest';
-import { cardsToBottom, type MulliganType } from '@/lib/game-state';
+import { cardsToBottom, type MulliganType } from '@/lib/play/game-state';
 import { appendLogEntries, buildLogEntries, type GameLogEntry } from '@/lib/playtest/game-log';
 import { classifyAction } from '@/lib/playtest/rewind';
 import {
@@ -34,15 +34,23 @@ import {
   type SessionAggregates,
 } from '@/lib/playtest/session-record';
 import { appendSessionRecord } from '@/lib/playtest/session-history';
-import { useDecksStore, type Deck } from '@/store/decks';
+import { effectiveBracket, useDecksStore, type Deck } from '@/store/decks';
 import {
   applyResistance,
   createResistanceState,
+  gameChangersForBracket,
+  LEGACY_RESISTANCE_OPTIONS,
+  loadResistanceOptions,
+  normalizeResistanceOptions,
   RESISTANCE_LEVEL_ANNOUNCE,
   RESISTANCE_PRESETS,
+  RESISTANCE_PRESSURE,
   saveLastResistanceLevel,
+  saveResistanceOptions,
   type ResistanceConfig,
   type ResistanceLevel,
+  type ResistanceOptions,
+  type ResistancePressure,
   type ResistanceState,
 } from './lib/resistance';
 import {
@@ -72,8 +80,18 @@ import {
 import { type Rect } from './lib/auto-place';
 import { toast } from '@/store/toasts';
 
-function configFor(level: ResistanceLevel): ResistanceConfig | null {
-  return level === 'off' ? null : RESISTANCE_PRESETS[level];
+function configFor(
+  level: ResistanceLevel
+): { config: ResistanceConfig; pressure: ResistancePressure } | null {
+  return level === 'off'
+    ? null
+    : { config: RESISTANCE_PRESETS[level], pressure: RESISTANCE_PRESSURE[level] };
+}
+
+/** A fresh game's Resistance options: the device's saved timing and answers,
+ *  with Game Changers following the deck's bracket (E533). */
+function freshResistanceOptions(deck: Deck | undefined): ResistanceOptions {
+  return loadResistanceOptions(gameChangersForBracket(deck ? effectiveBracket(deck) : null));
 }
 
 /**
@@ -200,6 +218,9 @@ interface PlaytestStore {
    *  'off' disables it; the other three levels are difficulty presets (E142). */
   resistanceLevel: ResistanceLevel;
   resistanceState: ResistanceState | null;
+  /** The player's timing and answer choices over the level's preset (E533).
+   *  Kept while Resistance is off, so turning it back on keeps them. */
+  resistanceOptions: ResistanceOptions;
   /**
    * Opponent bookkeeping snapshots aligned entry-for-entry with
    * `state.past` (newest first, same cap): `resistancePast[i]` is the
@@ -261,6 +282,10 @@ interface PlaytestStore {
   /** Switch difficulty (or turn it off); persists the choice as the device's
    *  "last used" preference and appends a game-log entry when armed. */
   setResistanceLevel(level: ResistanceLevel): void;
+  /** Change timing and answers without re-arming the opponent: the wipe
+   *  already spent stays spent. Saves timing and answers as the device's
+   *  preference (Game Changers stays per game). */
+  setResistanceOptions(options: ResistanceOptions): void;
   /** Turn the free-mulligan variant on/off; persists as a device preference. */
   setFreeMulligan(on: boolean): void;
   setTableMulliganType(type: MulliganType | null): void;
@@ -405,6 +430,7 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
   onDraw: false,
   resistanceLevel: 'off',
   resistanceState: null,
+  resistanceOptions: loadResistanceOptions(false),
   resistancePast: [],
   lastResistanceEvent: null,
   resistanceEventSeq: 0,
@@ -875,6 +901,9 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
       onDraw: false,
       resistanceLevel: 'off',
       resistanceState: null,
+      resistanceOptions: freshResistanceOptions(
+        externalDeck ?? useDecksStore.getState().decks.find((d) => d.id === deckId)
+      ),
       resistancePast: [],
       lastResistanceEvent: null,
       resistanceEventSeq: 0,
@@ -916,6 +945,12 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
       onDraw: false,
       resistanceLevel: snapshot.resistanceLevel,
       resistanceState: snapshot.resistanceState,
+      // A game saved before E533 carries no options: it resumes on the model
+      // it was playing (answers from turn 1, no attacks or discard).
+      resistanceOptions: normalizeResistanceOptions(
+        snapshot.resistanceOptions,
+        LEGACY_RESISTANCE_OPTIONS
+      ),
       resistancePast: [],
       lastResistanceEvent: null,
       resistanceEventSeq: 0,
@@ -1056,9 +1091,17 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
       const outcome = hordeOutcome(horde.board, life);
       return outcome ? { ...horde, phase: 'ended', outcome } : horde;
     };
-    const config = configFor(resistanceLevel);
-    if (config && resistanceState) {
-      const result = applyResistance(resistanceState, current, next, action, config);
+    const armed = configFor(resistanceLevel);
+    if (armed && resistanceState) {
+      const result = applyResistance(
+        resistanceState,
+        current,
+        next,
+        action,
+        armed.config,
+        get().resistanceOptions,
+        armed.pressure
+      );
       // Pair each new history entry with its before-state bookkeeping: the
       // player's action and the opponent's first move both predate the
       // response decision; later wipe moves carry the post-decision flags so
@@ -1084,25 +1127,17 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
           : entries;
       const newLog = appendLogEntries(gameLog, allEntries);
       // Every push this dispatch made needs its own classification: the
-      // player's own action, plus one per Resistance response target (each
-      // is a MOVE_TO_ZONE off the battlefield — same shape regardless of
-      // which card, so classifying a placeholder cardId is exactly the real
-      // classification without needing the per-target intermediate states
-      // `applyResistance` doesn't expose). Newest-first, matching `pairs`.
+      // player's own action, plus one per Resistance response action (a card
+      // moved off the battlefield or out of the hand, or a life change),
+      // each classified against the state it ran on. Newest-first, matching
+      // `pairs`.
       const primary = trailEntry(classifyAction(current, action), entries[0]?.text ?? null);
-      const responseTrail =
-        pushed > 1
-          ? Array<RewindTrailEntry>(pushed - 1).fill(
-              trailEntry(
-                classifyAction(current, {
-                  type: 'MOVE_TO_ZONE',
-                  cardId: '__resistance-response__',
-                  to: 'graveyard',
-                }),
-                result.message
-              )
-            )
-          : [];
+      const responseTrail: RewindTrailEntry[] = result.applied
+        .map(({ before, action: responseAction }) =>
+          trailEntry(classifyAction(before, responseAction), result.message)
+        )
+        .reverse()
+        .slice(0, Math.max(0, pushed - 1));
       const newTrail = pushed > 0 ? [...responseTrail, primary] : [];
       set({
         state: result.state,
@@ -1202,6 +1237,10 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
       resistancePast: Array<ResistanceState>(state?.past.length ?? 0).fill(fresh),
       gameLog: nextLog,
     });
+  },
+  setResistanceOptions(options) {
+    saveResistanceOptions(options);
+    set({ resistanceOptions: options });
   },
   setFreeMulligan(on) {
     saveFreeMulligan(on);
@@ -1370,8 +1409,17 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
 const SNAPSHOT_DEBOUNCE_MS = 400;
 
 function captureSnapshot(): { deckId: string; snapshot: PlaytestSnapshot } | null {
-  const { state, deckId, phase, mulliganCount, resistanceLevel, resistanceState, gameLog, horde } =
-    usePlaytestStore.getState();
+  const {
+    state,
+    deckId,
+    phase,
+    mulliganCount,
+    resistanceLevel,
+    resistanceState,
+    resistanceOptions,
+    gameLog,
+    horde,
+  } = usePlaytestStore.getState();
   if (!state || !deckId) return null;
   const deck = useDecksStore.getState().decks.find((d) => d.id === deckId);
   if (!deck) return null;
@@ -1385,6 +1433,7 @@ function captureSnapshot(): { deckId: string; snapshot: PlaytestSnapshot } | nul
       mulliganCount,
       resistanceLevel,
       resistanceState,
+      resistanceOptions,
       gameLog,
       state: rest,
       horde,

@@ -75,12 +75,16 @@
   margin: -12px 0 var(--space-4);
   padding: var(--space-2) var(--space-3);
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   border-radius: var(--radius);
   color: var(--accent);
   font-size: var(--text-sm);
 }
 
-/* The mode switcher is the shared <Tabs> primitive (components/Tabs.tsx,
+/* The mode switcher is the shared <Tabs> primitive (components/overlays/Tabs.tsx,
    `fitted` variant); this hook only positions it inside the card. */
 .auth-tabs {
   margin-bottom: var(--space-4);

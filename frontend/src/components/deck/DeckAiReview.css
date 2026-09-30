@@ -306,6 +306,10 @@
   height: var(--fix-marker);
   border-radius: 50%;
   background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
   color: var(--accent);
   font-size: var(--text-xs);
   font-weight: 700;

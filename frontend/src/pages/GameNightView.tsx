@@ -11,17 +11,17 @@ import {
   type NightRsvp,
   type PublicGameNight,
   type RsvpStatus,
-} from '../lib/game-nights-api';
-import { downloadIcs, googleCalendarUrl, type CalendarEvent } from '../lib/calendar-links';
-import { gameFormatLabel } from '../lib/game-formats';
-import { mapsSearchUrl } from '../lib/place-search';
+} from '@/lib/play/game-nights-api';
+import { downloadIcs, googleCalendarUrl, type CalendarEvent } from '@/lib/play/calendar-links';
+import { gameFormatLabel } from '@/lib/play/game-formats';
+import { mapsSearchUrl } from '@/lib/play/place-search';
 import { useAuth } from '../store/auth';
 import { ErrorView, LoadingView, NotFoundView, SharedShell } from '../components/share/SharedShell';
-import { NightPoll } from '../components/NightPoll';
-import { OverflowMenu } from '../components/OverflowMenu';
+import { NightPoll } from '@/components/play/NightPoll';
+import { OverflowMenu } from '@/components/overlays/OverflowMenu';
 import './GameNightView.css';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button, buttonClass } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 /** Mirrors the server's GRACE_MS (routes/game-nights.ts): a night takes

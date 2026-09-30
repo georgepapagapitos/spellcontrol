@@ -27,10 +27,10 @@ import { calculateCurvePercentages } from './curveUtils';
 import { isColorShort, shortfallThresholdsForCurve } from './colorShortfall';
 import { detectPacing, type Pacing } from './pacingDetector';
 import { PACING_CURVE_MULTIPLIERS } from './roleTargets';
-import { frontFaceName } from '@/lib/card-text';
+import { frontFaceName } from '@/lib/cards/card-text';
 import { getEdhrecCardPrice } from '@/deck-builder/lib/edhrecUtils';
-import { isBasicLandName } from '@/lib/allocations';
-import { producedManaColors } from '@/lib/mana-sources';
+import { isBasicLandName } from '@/lib/collection/allocations';
+import { producedManaColors } from '@/lib/deck-analysis/mana-sources';
 
 export interface RoleDeficit {
   role: string;
@@ -517,7 +517,7 @@ function getFlexGradeLetter(count: number): string {
   return 'F';
 }
 
-// Absolute avg-CMC curve-shape thresholds — mirrors lib/deck-analysis.ts's
+// Absolute avg-CMC curve-shape thresholds — mirrors lib/deck-analysis/deck-analysis.ts's
 // verdict bucketing so "top-heavy"/"skews low" language means the same
 // thing everywhere in the app, and — crucially — can never contradict the
 // avgCmc number printed right next to it. The shape word here used to come

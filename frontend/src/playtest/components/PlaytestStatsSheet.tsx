@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import './PlaytestStatsSheet.css';
 import { Hourglass, Loader2 } from 'lucide-react';
-import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/use-sheet-exit';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
 import type { PlaytestState } from '@/lib/playtest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Deck } from '@/store/decks';
@@ -11,7 +11,7 @@ import {
   computeBattlefieldStats,
   computeDeckStats,
   toHandSimCards,
-} from '@/lib/playtest-stats';
+} from '@/playtest/lib/playtest-stats';
 import {
   isKeepableHand,
   simulateAssemblyClock,
@@ -19,14 +19,14 @@ import {
   simulateOpeningHands,
   type AssemblyClockResult,
   type LandDropCurveResult,
-} from '@/lib/opening-hand-sim';
-import { toClockCard, toSimCard } from '@/lib/hand-classify';
+} from '@/lib/mana-sim/opening-hand-sim';
+import { toClockCard, toSimCard } from '@/lib/mana-sim/hand-classify';
 import { loadSessionHistory } from '@/lib/playtest/session-history';
 import { computeSessionAggregates, MIN_SESSIONS_FOR_STATS } from '@/lib/playtest/session-record';
 import { MeterBar, StackedBar } from '@/components/shared/MeterBar';
 import { ColorPip, TypeIcon } from '@/components/shared/ManaSymbol';
-import { Tabs, type TabItem } from '@/components/Tabs';
-import { InfoTip } from '@/components/InfoTip';
+import { Tabs, type TabItem } from '@/components/overlays/Tabs';
+import { InfoTip } from '@/components/overlays/InfoTip';
 import { assemblyClockTip, isKillClock } from '@/components/deck/WinConditionPanel';
 import { Button } from '@/components/shared/Button';
 
@@ -131,7 +131,7 @@ function HandStatsSection({
       {Object.keys(stats.colorBreakdown).length > 0 && (
         <div className="playtest-stats-row" style={{ alignItems: 'flex-start' }}>
           <span className="playtest-stats-row__label">Land colors</span>
-          <div className="playtest-stats-colors" aria-label="Land color breakdown">
+          <div className="playtest-stats-colors" aria-label="Land color breakdown" role="group">
             {COLOR_ORDER.filter((c) => stats.colorBreakdown[c]).map((color) => (
               <span key={color} className="playtest-stats-color-item">
                 <ColorPip color={color} aria-hidden />
@@ -148,7 +148,7 @@ function HandStatsSection({
           <p className="playtest-stats-section-title" style={{ marginTop: '0.5rem' }}>
             Spell CMC
           </p>
-          <div className="playtest-stats-histogram" aria-label="CMC distribution">
+          <div className="playtest-stats-histogram" aria-label="CMC distribution" role="group">
             {CMC_LABELS.map((label, i) =>
               stats.cmcBuckets[i] > 0 ? (
                 <div key={label} className="playtest-stats-histogram__row">
@@ -310,7 +310,7 @@ function DeckStatsSection({
       <p className="playtest-stats-section-title" style={{ marginTop: '0.5rem' }}>
         Zone sizes
       </p>
-      <div className="playtest-stats-zones" aria-label="Zone sizes">
+      <div className="playtest-stats-zones" aria-label="Zone sizes" role="group">
         <span className="playtest-stats-zone-pill">
           <span className="playtest-stats-zone-pill__count">{sessionStats.libraryCount}</span>
           <span>Library</span>
@@ -561,7 +561,11 @@ function SimulateSection({ deck }: { deck: Deck | undefined }) {
           <p className="playtest-stats-section-title" style={{ marginTop: 'var(--space-3)' }}>
             Opening-hand land count
           </p>
-          <div className="playtest-stats-histogram" aria-label="Land count distribution">
+          <div
+            className="playtest-stats-histogram"
+            aria-label="Land count distribution"
+            role="group"
+          >
             {batch.landHistogram.map((count, lands) =>
               count > 0 ? (
                 <div key={lands} className="playtest-stats-histogram__row">
@@ -588,7 +592,7 @@ function SimulateSection({ deck }: { deck: Deck | undefined }) {
           <p className="playtest-stats-section-title" style={{ marginTop: 'var(--space-3)' }}>
             On-curve odds, turns 1–5
           </p>
-          <div className="playtest-stats-histogram" aria-label="Land-drop curve">
+          <div className="playtest-stats-histogram" aria-label="Land-drop curve" role="group">
             {batch.curve.onCurveRate.slice(1).map((rate, i) => (
               <div key={i} className="playtest-stats-histogram__row">
                 <span className="playtest-stats-histogram__bucket" aria-hidden>

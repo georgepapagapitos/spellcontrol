@@ -1,0 +1,131 @@
+import { API_BASE_URL } from '@/lib/api/api-base';
+import { pollGame, type GameRequest, type GameSignal } from './games-api';
+import type { GameState } from './game-state';
+import type { PublicBoard } from '@/lib/playtest/projection';
+
+/** Minimum time between long-poll round-trips — see the floor in the loop below. */
+const MIN_CYCLE_MS = 250;
+
+export interface GameLongPollHandlers {
+  onState: (state: GameState) => void;
+  /** A published board — either a catch-up snapshot entry or one that resolved a held request. */
+  onBoard?: (seat: number, board: PublicBoard) => void;
+  /** A cross-seat request — either a catch-up snapshot entry or one that resolved a held poll. */
+  onRequest?: (request: GameRequest) => void;
+  /** A signal that resolved a held poll. No catch-up snapshot equivalent — see `GameSignal`'s doc comment. */
+  onSignal?: (signal: GameSignal) => void;
+  /** Fired after every successful round-trip, whether or not it carried a new state — signals the transport is alive. */
+  onHealthy?: () => void;
+  onError?: () => void;
+}
+
+/**
+ * True when this build must use long-poll instead of SSE for real-time game
+ * updates — i.e. when it targets a cross-origin backend.
+ *
+ * `EventSource` cannot send credentials cross-origin without CORS headers,
+ * and this backend sends none (see games-sse.ts), so an SSE request from a
+ * cross-origin build never connects. `typeof EventSource === 'undefined'` is
+ * not the signal — the constructor exists, it just fails to connect.
+ * `API_BASE_URL` (api-base.ts) is non-empty exactly when the build targets a
+ * cross-origin backend, so it's the real signal to key off, not a UA sniff.
+ */
+export function usesLongPoll(apiBaseUrl: string = API_BASE_URL): boolean {
+  return apiBaseUrl !== '';
+}
+
+/**
+ * Long-poll transport for `GET /api/games/:code/poll?since=<version>`
+ * (backend: routes/games.ts) — the native replacement for SSE (see
+ * `usesLongPoll`). Loops a held request indefinitely: each response either
+ * carries a fresh state (forwarded to `onState`) or `{ unchanged: true }`
+ * after the server's ~25s hold timeout, and either way the loop immediately
+ * re-issues with `getSince()`'s latest value — `getSince` is a getter
+ * (not a snapshot) so the loop always polls with the caller's current known
+ * version. A failed round-trip calls `onError` and stops the loop; the
+ * caller decides whether/when to retry (store/play.ts backs off and falls
+ * back to the 2.5s poll in the meantime).
+ *
+ * Returns a teardown function, matching `subscribeGameEvents`'s shape so
+ * store/play.ts can treat both transports uniformly.
+ */
+export function subscribeGameLongPoll(
+  code: string,
+  getSince: () => number,
+  handlers: GameLongPollHandlers
+): () => void {
+  let stopped = false;
+  let first = true;
+  const controller = new AbortController();
+  // The floor-the-cycle sleep below is a bare `setTimeout` with nothing
+  // awaiting cancellation — stop() used to only flip `stopped` and let this
+  // timer fire on its own up to MIN_CYCLE_MS later. Track it so stop() can
+  // resolve the wait immediately and clear the real timer, instead of
+  // leaving both dangling past teardown.
+  let cycleTimer: ReturnType<typeof setTimeout> | null = null;
+  let resolveCycle: (() => void) | null = null;
+
+  void (async function loop() {
+    while (!stopped) {
+      const startedAt = Date.now();
+      try {
+        // `catchUp` on the loop's first request only — see pollGame's doc
+        // comment for why a fresh subscriber needs it (their own `since` is
+        // already caught up after a join/host, so the ordinary staleness
+        // check would leave them held for up to ~25s before seeing boards).
+        const result = await pollGame(code, getSince(), controller.signal, first);
+        first = false;
+        if (stopped) return;
+        handlers.onHealthy?.();
+        if (result.game) handlers.onState(result.game);
+        if (result.boards) {
+          for (const { seat, board } of result.boards) {
+            handlers.onBoard?.(seat, board as PublicBoard);
+          }
+        }
+        if (result.board) {
+          handlers.onBoard?.(result.board.seat, result.board.board as PublicBoard);
+        }
+        if (result.requests) {
+          for (const req of result.requests) handlers.onRequest?.(req);
+        }
+        if (result.request) {
+          handlers.onRequest?.(result.request);
+        }
+        if (result.signal) {
+          handlers.onSignal?.(result.signal);
+        }
+      } catch {
+        if (stopped) return;
+        handlers.onError?.();
+        return;
+      }
+      // Floor the cycle time. A normal round-trip parks on the server for its
+      // full hold (~25s), so this is inert in the common case — but the server
+      // answers IMMEDIATELY whenever its version is ahead of `since`, and
+      // `since` stops advancing while the caller is mid-flush (store/play.ts's
+      // applyServerGameState skips adoption while a PATCH is in flight or
+      // actions are queued). Rapid life-tapping keeps that window open for a
+      // whole burst, so without a floor the loop re-issues instantly and
+      // burst-hammers the backend — enough to trip the 200/min read limiter
+      // and drop the transport to the 2.5s fallback exactly when the player is
+      // most active. Capping at ~4 req/s is imperceptible for real updates.
+      const elapsed = Date.now() - startedAt;
+      if (elapsed < MIN_CYCLE_MS) {
+        await new Promise<void>((resolve) => {
+          resolveCycle = resolve;
+          cycleTimer = setTimeout(resolve, MIN_CYCLE_MS - elapsed);
+        });
+        cycleTimer = null;
+        resolveCycle = null;
+      }
+    }
+  })();
+
+  return () => {
+    stopped = true;
+    controller.abort();
+    if (cycleTimer) clearTimeout(cycleTimer);
+    resolveCycle?.();
+  };
+}

@@ -1,18 +1,18 @@
 import './TradeComposer.css';
 import { useId, useMemo, useState, type ReactNode } from 'react';
 import { ChevronDown, Minus, Plus, X } from 'lucide-react';
-import { Modal } from '../Modal';
+import { Modal } from '@/components/overlays/Modal';
 import { Chip } from '../shared/Chip';
-import { SearchPill } from '../SearchPill';
-import { buildFriendSearch } from '../../lib/friend-search';
-import { getCardTags, useCardTagsReady } from '../../lib/card-tags';
+import { SearchPill } from '@/components/search/SearchPill';
+import { buildFriendSearch } from '@/lib/social/friend-search';
+import { getCardTags, useCardTagsReady } from '@/lib/cards/card-tags';
 import { useCollectionStore } from '../../store/collection';
-import { useCardThumb } from '../../lib/card-thumbs';
+import { useCardThumb } from '@/lib/cards/card-thumbs';
 import { toast } from '../../store/toasts';
-import { formatMoney } from '../../lib/format-money';
+import { formatMoney } from '@/lib/collection/format-money';
 import { PrintingChoices, describePrinting } from './PrintingChoices';
-import { useBinderByCopyId, type BinderRef } from '../../lib/use-binder-by-copy';
-import { useAllocations, computeSurplusByName } from '../../lib/allocations';
+import { useBinderByCopyId, type BinderRef } from '@/lib/binder/use-binder-by-copy';
+import { useAllocations, computeSurplusByName } from '@/lib/collection/allocations';
 import {
   groupOwnedForTrade,
   filterOwnedLines,
@@ -24,21 +24,21 @@ import {
   sumCopyValue,
   type OwnedTradeLine,
   type PrintingGroup,
-} from '../../lib/trade-picker';
-import { useFloorPrices } from '../../lib/trade-value';
-import { resolveTradePreview } from '../../lib/trade-preview';
+} from '@/lib/trade/trade-picker';
+import { useFloorPrices } from '@/lib/trade/trade-value';
+import { resolveTradePreview } from '@/lib/trade/trade-preview';
 import { TradePreviewCarousel, type TradePreviewState } from './TradePreviewCarousel';
 import {
   proposeTrade,
   MAX_TRADE_LINES_PER_SIDE,
   type TradeOffer,
   type TradeCard,
-} from '../../lib/trades-client';
+} from '@/lib/trade/trades-client';
 import type { EnrichedCard } from '../../types';
 import type { FriendCard } from '../../lib/cube/pool';
-import type { FriendWant } from '../../lib/friends-client';
+import type { FriendWant } from '@/lib/social/friends-client';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button, IconButton } from '@/components/shared/Button';
 /** How many picker results render before the list asks you to narrow down.
  *  A real collection is ~11.5k unique cards; the search filters the full set
@@ -816,7 +816,12 @@ function TradeSide({
           )}
         </p>
       ) : loading ? (
-        <div className="trade-side-skeleton" aria-label={`Loading ${title}`} aria-busy="true" />
+        <div
+          className="trade-side-skeleton"
+          aria-label={`Loading ${title}`}
+          role="status"
+          aria-busy="true"
+        />
       ) : results.length === 0 ? (
         <p className="trade-side-note" role="status">
           {emptyResults}

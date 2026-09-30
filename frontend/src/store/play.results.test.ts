@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import type { GameRecord, GameState } from '../lib/game-state';
-import type { PublicGameResult } from '../lib/game-results-client';
+import type { GameRecord, GameState } from '@/lib/play/game-state';
+import type { PublicGameResult } from '@/lib/play/game-results-client';
 
 /**
  * The unified results record, client side: a finished LOCAL game is queued
@@ -9,7 +9,7 @@ import type { PublicGameResult } from '../lib/game-results-client';
  * for a local game this account recorded.
  */
 
-vi.mock('../lib/games-api', () => ({
+vi.mock('@/lib/play/games-api', () => ({
   createGame: vi.fn(),
   getGame: vi.fn(),
   pollGame: vi.fn(),
@@ -21,13 +21,13 @@ vi.mock('../lib/games-api', () => ({
   cancelGameRequest: vi.fn(),
   sendGameSignal: vi.fn(),
 }));
-vi.mock('../lib/games-sse', () => ({ subscribeGameEvents: vi.fn(() => () => {}) }));
-vi.mock('../lib/games-longpoll', () => ({
+vi.mock('@/lib/play/games-sse', () => ({ subscribeGameEvents: vi.fn(() => () => {}) }));
+vi.mock('@/lib/play/games-longpoll', () => ({
   subscribeGameLongPoll: vi.fn(() => () => {}),
   usesLongPoll: vi.fn(() => false),
 }));
-vi.mock('../lib/game-results-client', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../lib/game-results-client')>();
+vi.mock('@/lib/play/game-results-client', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/play/game-results-client')>();
   return {
     ...actual,
     postLocalResult: vi.fn(),
@@ -46,7 +46,7 @@ import {
   deleteGameResult,
   patchGameResult,
   setGameResultHidden,
-} from '../lib/game-results-client';
+} from '@/lib/play/game-results-client';
 
 const mockPost = vi.mocked(postLocalResult);
 const mockFetchMine = vi.mocked(fetchMyResults);
