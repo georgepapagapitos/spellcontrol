@@ -171,7 +171,9 @@ function withStallTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  *        budding, and one-away combo pieces are recorded (`suggestionCards`).
  *        A generated deck is read against the EDHREC page it was built from
  *        (its themes, bracket and budget; `deckEdhrecSource`), not the
- *        commander's base page.
+ *        commander's base page. The cost plan reads each current card's play
+ *        rate off that page (it read 0%, so every swap classed as a drop-in)
+ *        and keeps utility lands; a complete combo's pieces are never misfits.
  */
 const ANALYSIS_ENGINE_VERSION = 'v22-coach-inputs';
 

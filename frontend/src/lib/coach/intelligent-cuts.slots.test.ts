@@ -14,7 +14,7 @@ import type { OptimizeCard } from '@/deck-builder/services/deckBuilder/deckAnaly
 import { loadTaggerData } from '@/deck-builder/services/tagger/client';
 import { COACH_CARDS } from '@/deck-builder/services/deckBuilder/__fixtures__/coach-cards.fixtures';
 import type { ComboMatch } from '@/types/combos';
-import { rankReplacementCuts, type CutCandidate } from './intelligent-cuts';
+import { missingStapleFloor, rankReplacementCuts, type CutCandidate } from './intelligent-cuts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const real = (name: string): ScryfallCard => ({ ...COACH_CARDS[name] });
@@ -139,15 +139,35 @@ describe('rankReplacementCuts — role balance', () => {
     expect(cutNames(cuts)).not.toContain('Harmonize');
   });
 
-  it('an add whose role is already met only swaps inside that role (T171 re-gate)', () => {
+  it('an add whose role is already met swaps inside that role first (T171 re-gate)', () => {
     // Removal 2/2: cutting Harmonize (draw, over its target of 0) would leave
-    // removal at 3/2. The only offer is a removal card.
+    // removal at 3/2, so the removal cards lead. Harmonize still follows: the
+    // prompt never dead-ends on a staple for a met role.
     const cuts = rankReplacementCuts({
       addCard: real('Beast Within'),
       deckCards: deck,
       analysis: { optimizeSwaps: { removals }, roleTargets: { removal: 2, cardDraw: 0 } },
     });
-    expect(cutNames(cuts)).toEqual(['Murder', 'Doom Blade']);
+    expect(cutNames(cuts).slice(0, 2)).toEqual(['Murder', 'Doom Blade']);
+    expect(cutNames(cuts)).toContain('Harmonize');
+  });
+
+  it('never offers a staple the analysis still lists as missing: it was just added (T171 re-gate)', () => {
+    // The persisted analysis predates the last apply: Doom Blade was one of the
+    // missing staples it listed, so the user just added it on Coach's advice.
+    const cuts = rankReplacementCuts({
+      addCard: real('Beast Within'),
+      deckCards: deck,
+      analysis: {
+        optimizeSwaps: { removals },
+        gapAnalysis: [
+          { name: 'Doom Blade', inclusion: 30 },
+          { name: 'Beast Within', inclusion: 40 },
+        ],
+      },
+    });
+    expect(cutNames(cuts)).not.toContain('Doom Blade');
+    expect(cutNames(cuts)[0]).toBe('Murder');
   });
 
   it('swaps like for like when the role is already met', () => {
@@ -171,6 +191,29 @@ describe('rankReplacementCuts — play rate', () => {
       },
     });
     expect(cutNames(cuts)).toEqual(['Murder']);
+  });
+
+  it('never offers an unflagged card Coach would suggest adding straight back (T171 re-gate)', () => {
+    // Counterspell at 20% is the least-played staple the deck is missing. Doom
+    // Blade at 30% would head that list once cut; Murder at 12% would not.
+    const cuts = rankReplacementCuts({
+      addCard: real('Beast Within'),
+      deckCards: slots(['Doom Blade', 'Murder']),
+      analysis: {
+        cardInclusionMap: { 'Doom Blade': 30, Murder: 12 },
+        gapAnalysis: [
+          { name: 'Beast Within', inclusion: 45 },
+          { name: 'Counterspell', inclusion: 20 },
+        ],
+      },
+    });
+    expect(cutNames(cuts)).toEqual(['Murder']);
+  });
+
+  it('reads the floor off played staples only: a 0% off-meta pick sets none', () => {
+    expect(missingStapleFloor([{ inclusion: 45 }, { inclusion: 20 }, { inclusion: 0 }])).toBe(20);
+    expect(missingStapleFloor([{ inclusion: 0 }])).toBeUndefined();
+    expect(missingStapleFloor(undefined)).toBeUndefined();
   });
 
   it('falls back to the least-played card when nothing is flagged or related', () => {

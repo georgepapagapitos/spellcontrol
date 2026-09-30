@@ -40,6 +40,7 @@ import { isChannelLand, isMdfcLand } from '../scryfall/client';
 import { weightedColorDemand, colorSourceCounts, fetchedBasicRequirement } from './manabaseMath';
 import { isColorShort, shortfallThresholdsForCurve } from './colorShortfall';
 import { countBasicFetchers } from './deckAnalyzer';
+import { isPremiumCard } from './premiumCards';
 
 /** Only cut plain lands below this merit — an untapped or checked dual never is. */
 const WEAK_LAND_CEILING = 50;
@@ -235,13 +236,18 @@ interface Candidate {
  * @param ownedNames      names of lands the user owns (owned → apply-now swap,
  *                        else → "acquire" suggestion; drives the prefer-owned tie-break)
  * @param manaCurve       the deck's mana curve, for pacing-aware shortfall detection
+ * @param inclusion       this commander's page play rates (`cardInclusionMap`): a
+ *                        premium land never goes out, as with every Coach cut
+ *                        (Path of Ancestry out for Reflecting Pool in Lathril
+ *                        elves, T171 re-gate)
  */
 export function computeLandUpgrades(
   deckCards: readonly ScryfallCard[],
   identity: ReadonlySet<string>,
   candidateLands: readonly ScryfallCard[],
   ownedNames: ReadonlySet<string> = new Set(),
-  manaCurve: Record<number, number> = {}
+  manaCurve: Record<number, number> = {},
+  inclusion: Readonly<Record<string, number>> = {}
 ): LandUpgradeMove[] {
   const currentLands = deckCards.filter(isLand);
   const nonLands = deckCards.filter((c) => !isLand(c));
@@ -288,6 +294,11 @@ export function computeLandUpgrades(
   const cutTargets = currentLands
     .map((c) => ({ card: c, score: landSlotMerit(c, identity), colors: sourceColors(c, identity) }))
     .filter((l) => cuttable(l.card, l.score))
+    .filter(
+      (l) =>
+        isBasicLandName(l.card.name) ||
+        !isPremiumCard(l.card, { inclusion: inclusion[l.card.name] })
+    )
     .sort((a, b) => a.score - b.score);
 
   const moves: LandUpgradeMove[] = [];

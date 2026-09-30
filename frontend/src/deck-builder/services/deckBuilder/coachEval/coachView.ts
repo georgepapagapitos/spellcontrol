@@ -178,7 +178,14 @@ export function buildCoachView(input: CoachViewInputs): CoachView {
   const candidateLands = landUpgradeCandidates(input.ownedLands, input.fixingLands);
   const landUpgrades =
     identity.length > 0
-      ? computeLandUpgrades(cards, new Set(identity), candidateLands, new Set(ownedNames))
+      ? computeLandUpgrades(
+          cards,
+          new Set(identity),
+          candidateLands,
+          new Set(ownedNames),
+          {},
+          analysis.cardInclusionMap
+        )
       : [];
 
   // CoachFeed `allChanges` → `ranked` (rank, dedupe adds by name, diversify).

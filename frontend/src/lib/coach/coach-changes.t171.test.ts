@@ -96,3 +96,69 @@ describe('buildCoachChanges — settings', () => {
     expect(changes.map((c) => c.name)).toEqual(['Swords to Plowshares']);
   });
 });
+
+// T171 re-gate: the budget lane swapped Undead Warchief (the Zombies deck's
+// lord) for Great Fierce Bee in a deck with no budget, and the next pass
+// suggested the Warchief straight back.
+describe('buildCoachChanges — budget swaps Coach would undo', () => {
+  const row = (currentName: string, currentInclusion: number, currentPrice = 2) => ({
+    id: currentName,
+    currentName,
+    currentPrice,
+    currentInclusion,
+    suggestionName: 'Great Fierce Bee',
+    suggestionPrice: 0.25,
+    suggestionInclusion: 25,
+    savings: currentPrice - 0.25,
+    confidence: 'drop-in' as const,
+    category: 'spell' as const,
+  });
+  const src = {
+    // The least-played staple the deck is missing sits at 30%.
+    gaps: [gap('Diregraf Captain', 'creature', 62), gap('Death Baron', 'creature', 30)],
+    synergy: [],
+    substitutes: [],
+    costPlan: {
+      currentTotal: 400,
+      minTotal: 390,
+      spellRows: [row('Undead Warchief', 37.5), row('Diregraf Colossus', 12)],
+      landRows: [],
+      protectedCount: 0,
+    },
+  };
+  const deck = new Set(['undead warchief', 'diregraf colossus']);
+  const budgetNames = (changes: ReturnType<typeof buildCoachChanges>) =>
+    changes.filter((c) => c.lane === 'budget').map((c) => c.inName);
+
+  it('never swaps out a card played at least as much as the least-played missing staple', () => {
+    expect(budgetNames(buildCoachChanges(src, () => 'unowned', deck))).toEqual([
+      'Diregraf Colossus',
+    ]);
+  });
+
+  it("keeps the swap when the deck's budget would hide the re-add", () => {
+    const underBudget = (c: { type: string; name: string }) =>
+      !(c.type === 'add' && c.name === 'Undead Warchief');
+    expect(
+      budgetNames(buildCoachChanges(src, () => 'unowned', deck, undefined, underBudget))
+    ).toEqual(['Undead Warchief', 'Diregraf Colossus']);
+  });
+
+  it('offers a swap that costs power only when the deck cannot afford the card it replaces', () => {
+    const sidegrade = { ...row('Noxious Ghoul', 8), confidence: 'sidegrade' as const };
+    const withSidegrade = {
+      ...src,
+      costPlan: { ...src.costPlan, spellRows: [sidegrade, row('Diregraf Colossus', 12)] },
+    };
+    const inDeck = new Set(['noxious ghoul', 'diregraf colossus']);
+    // No budget: a cheaper card that plays worse is not a move.
+    expect(budgetNames(buildCoachChanges(withSidegrade, () => 'unowned', inDeck))).toEqual([
+      'Diregraf Colossus',
+    ]);
+    // The budget can't carry the Ghoul: saving money is the point.
+    const overBudget = (c: { type: string; name: string }) => c.name !== 'Noxious Ghoul';
+    expect(
+      budgetNames(buildCoachChanges(withSidegrade, () => 'unowned', inDeck, undefined, overBudget))
+    ).toEqual(['Noxious Ghoul', 'Diregraf Colossus']);
+  });
+});

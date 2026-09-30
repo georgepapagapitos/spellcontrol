@@ -41,6 +41,7 @@ import { isPremiumCard } from '@/deck-builder/services/deckBuilder/premiumCards'
 import { isUtilityLand, landSlotMerit } from '@/deck-builder/services/deckBuilder/landUpgrades';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { isBasicLandName } from '@/lib/collection/allocations';
+import { frontFaceName } from '@/lib/cards/card-text';
 import {
   computeRoleCounts,
   countedRoleOf,
@@ -128,6 +129,22 @@ interface Flag {
 }
 
 /** Why a card was flagged as weak: the optimizer's reason, else the misfit's first. */
+const nameKey = (name: string): string => frontFaceName(name).toLowerCase();
+
+/**
+ * The play rate of the least-played staple the analysis lists as missing: a
+ * card played here at least that much would join the list the moment it's
+ * cut, and Coach would suggest adding it straight back. A 0% row (an off-meta
+ * pick) isn't listed for its play rate, so it sets no floor. Undefined when
+ * the list has no played staple.
+ */
+export function missingStapleFloor(
+  gaps: readonly { inclusion: number }[] | undefined
+): number | undefined {
+  const played = (gaps ?? []).map((g) => g.inclusion).filter((i) => i > 0);
+  return played.length > 0 ? Math.min(...played) : undefined;
+}
+
 function flagReasons(analysis: CutAnalysis, extra: OptimizeCard[]): Map<string, Flag> {
   const out = new Map<string, Flag>();
   for (const r of [...extra, ...(analysis.optimizeSwaps?.removals ?? [])]) {
@@ -154,7 +171,11 @@ function landCutReason(card: ScryfallCard, copies: number): string {
  * Rank in-deck cards as replacement cuts for `addCard`, best-first.
  *
  * Only cards of the incoming card's slot type (land or spell) are candidates,
- * and never a premium card or a combo piece.
+ * and never a premium card, a combo piece, a card whose role would drop below
+ * its target, a staple the analysis still lists as missing (just added), or an
+ * unflagged card played at least as much as the least-played missing staple
+ * (Coach would suggest adding it straight back).
+ * When the incoming card's role is already met, cards in that role come first.
  *
  * Spells, best → worst:
  *  1. Flagged weak AND shares the add's role or engine — a real, on-theme swap.
@@ -203,18 +224,30 @@ export function rankReplacementCuts({
     if ((counts[role] ?? 0) > targets[role]) return false; // over target: room to trim
     return role !== addCounted || addFillsGap;
   };
-  // An add whose role is already met swaps inside that role; any other cut
-  // pushes the role into surplus ("Fills Removal gap" applied at 12/12 left
-  // removal at 14/12 in the T171 re-gate).
+  // An add whose role is already met swaps inside that role first; a cut from
+  // another role pushes this one into surplus ("Fills Removal gap" applied at
+  // 12/12 left removal at 14/12 in the T171 re-gate). Another role's surplus
+  // card still follows, so the prompt never dead-ends.
   const addRoleMet = !!addCounted && targets?.[addCounted] !== undefined && !addFillsGap;
-  const unbalances = (card: ScryfallCard): boolean =>
-    opensGap(card) || (addRoleMet && countedRoleOf(card) !== addCounted);
+  const outOfRole = (card: ScryfallCard): number =>
+    addRoleMet && countedRoleOf(card) !== addCounted ? 1 : 0;
+  // A staple the analysis still lists as missing is in the deck now: the user
+  // just added it, most likely on Coach's advice. Offering it as the next cut
+  // undoes that move (a Bracket 4 Yuriko added Mockingbird, then the next add
+  // cut it, in the T171 re-gate).
+  const justAdded = new Set((analysis.gapAnalysis ?? []).map((g) => nameKey(g.name)));
+  // The least-played staple the analysis lists as missing. An unflagged card
+  // played here at least that much would join that list the moment it's cut,
+  // and Coach would suggest adding it straight back (the T171 re-gate's second
+  // pass re-suggested 32 such cuts, most of them 25 to 40% staples).
+  const gapFloor = missingStapleFloor(analysis.gapAnalysis);
 
   const eligible = deckCards.filter(({ card }) => {
     if (card.name === addCard.name) return false; // never offer to cut the card you're adding
     if (isLandSlot(card) !== addIsLand) return false;
     if (comboPieces.has(card.name.toLowerCase())) return false;
-    if (unbalances(card)) return false;
+    if (justAdded.has(nameKey(card.name))) return false;
+    if (opensGap(card)) return false;
     return !isPremiumCard(card, { inclusion: pageInclusion(card.name) });
   });
 
@@ -229,7 +262,12 @@ export function rankReplacementCuts({
   const investedAxes = new Set<string>(deckSyn.invested);
   const hasEngine = investedAxes.size > 0;
 
-  type Scored = RankedCut & { tier: number; relScore: number; inclusion: number };
+  type Scored = RankedCut & {
+    tier: number;
+    relScore: number;
+    inclusion: number;
+    outOfRole: number;
+  };
   const scored: Scored[] = [];
 
   for (const { slotId, card } of eligible) {
@@ -269,6 +307,8 @@ export function rankReplacementCuts({
       addInclusion !== undefined && (candInclusion === undefined || candInclusion < addInclusion);
     if (!flagReason && candInclusion !== undefined && addInclusion !== undefined && !playedLess)
       continue; // an unflagged card played here as much as the add stays
+    if (!flagReason && candInclusion !== undefined && gapFloor !== undefined)
+      if (candInclusion >= gapFloor) continue; // cut, it would head Coach's missing staples
 
     let tier: number;
     if (flagReason && (sameRole || sameAxis)) tier = 1;
@@ -301,10 +341,21 @@ export function rankReplacementCuts({
       inclusion,
     });
 
-    scored.push({ slotId, card, reason, related, factors, tier, relScore, inclusion });
+    scored.push({
+      slotId,
+      card,
+      reason,
+      related,
+      factors,
+      tier,
+      relScore,
+      inclusion,
+      outOfRole: outOfRole(card),
+    });
   }
 
   scored.sort((a, b) => {
+    if (a.outOfRole !== b.outOfRole) return a.outOfRole - b.outOfRole;
     if (a.tier !== b.tier) return a.tier - b.tier;
     // Related tiers favor the stronger relation first; tiers 3 and 5 are flat weakest-first lists.
     if (a.tier !== 3 && a.tier !== 5 && a.relScore !== b.relScore) return b.relScore - a.relScore;

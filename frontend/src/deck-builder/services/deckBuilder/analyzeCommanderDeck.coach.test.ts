@@ -177,6 +177,30 @@ describe('analyzeCommanderDeck — what Coach reads (T171)', () => {
     }
   });
 
+  // T171 re-gate: Altar of Dementia, added to finish a Krenko combo, came
+  // straight back as a Cuts-lane misfit on the next pass.
+  it('keeps the pieces of a combo the deck has out of the misfits', async () => {
+    const { analyzeCommanderDeck } = await import('./commanderDeckAnalysis');
+    const combo = {
+      comboId: 'aj-ms',
+      cards: ['Aetherjacket', 'Mind Stone'],
+      results: ['Infinite colorless mana'],
+      isComplete: true,
+      missingCards: [],
+      deckCount: 100,
+      bracket: null,
+      cardCount: 2,
+    };
+    const result = await analyzeCommanderDeck({
+      commander,
+      cards: deck,
+      deckSize: 99,
+      colorIdentity: ['B', 'U', 'W', 'G'],
+      detectedCombos: [combo],
+    });
+    expect((result?.misfits ?? []).map((m) => m.name)).not.toContain('Aetherjacket');
+  });
+
   it('stamps price and rarity on the gap staples and records the combo pieces', async () => {
     const { analyzeCommanderDeck } = await import('./commanderDeckAnalysis');
     const result = await analyzeCommanderDeck({
@@ -220,6 +244,28 @@ describe('analyzeCommanderDeck — what Coach reads (T171)', () => {
     expect((themed?.misfits ?? []).map((m) => m.name)).not.toContain('Diregraf Colossus');
     expect((themed?.optimizeSwaps?.removals ?? []).map((r) => r.name)).not.toContain(
       'Diregraf Colossus'
+    );
+  });
+
+  // T171 re-gate: the budget lane offered Jungle Hollow for Boseiju, "plays
+  // nearly the same". A utility land never makes way for a plain one.
+  it('keeps utility lands out of the cost plan', async () => {
+    const { analyzeCommanderDeck } = await import('./commanderDeckAnalysis');
+    const page = edhrecData(PAGE);
+    page.cardlists.lands = [{ ...row('Jungle Hollow', 30), primary_type: 'Land' }];
+    themeFetch.mockResolvedValueOnce(page);
+    const result = await analyzeCommanderDeck({
+      commander,
+      cards: [...deck, real('Takenuma, Abandoned Mire')],
+      deckSize: 99,
+      colorIdentity: ['B', 'U', 'W', 'G'],
+      edhrecSource: {
+        themes: [{ name: 'Zombies', slug: 'zombies', source: 'edhrec', isSelected: true }],
+      },
+    });
+    expect(result?.costPlan).toBeDefined();
+    expect(result?.costPlan?.landRows.map((r) => r.currentName)).not.toContain(
+      'Takenuma, Abandoned Mire'
     );
   });
 });

@@ -1250,6 +1250,14 @@ Goblin Lackey. Basics and owned cards the budget ignores are exempt. An add
 to a full deck assumes the least favourable cut: nothing freed for the
 budget, an owned card out for a partial deck's owned share.
 
+**A budget swap that costs power is shown only when the deck can't afford the
+card it replaces** (its settings would hide that card's re-add). With no budget,
+or room left in it, the Budget lane offers drop-ins only, and a drop-in never
+trades away a card Coach would suggest straight back or a utility land
+(`coach-changes.ts`, `costAnalyzer.ts`). The cost plan reads each current
+card's play rate off the deck's page: it used to read 0%, so every swap in the
+same curve slot claimed to "play nearly the same".
+
 When the settings empty the feed, the empty state says so instead of "This
 deck looks tuned": the tagline is "Nothing to coach within this deck's
 settings." and the hint names the one setting behind every hidden move, or
@@ -1275,7 +1283,8 @@ advice this rule retires.
 ### What Coach never offers to cut (T171)
 
 Every cut surface (the Cuts chip, the optimizer's removals, the misfits, the
-replace-when-full prompt, the budget lane's outgoing card) shares these floors:
+replace-when-full prompt, the budget lane's outgoing card) shares these floors,
+and a land swap never takes a premium land (Path of Ancestry in an elves deck):
 
 - **Premium cards** (`services/deckBuilder/premiumCards.ts`): a Game Changer
   by name as well as by stamp (an imported deck has no stamp), a staple mana
@@ -1286,9 +1295,19 @@ replace-when-full prompt, the budget lane's outgoing card) shares these floors:
 - **A card whose role is at or under its target**, unless the incoming card
   fills that same role and the role isn't short: a cut never opens a gap Coach
   would then ask to fill. And when the incoming card's own role is already
-  met, the cut comes from that role (a removal spell for a removal spell), so
-  a combo or synergy add never grows one surplus by draining another. This
-  holds on every path that adds a card, the hero's included.
+  met, cuts from that role come first (a removal spell for a removal spell),
+  so a combo or synergy add doesn't grow one surplus by draining another. A
+  surplus card from another role still follows, so the prompt never
+  dead-ends. This holds on every path that adds a card, the hero's included.
+- **A card the user just added.** A staple the analysis still lists as
+  missing is in the deck only because the user added it since, most likely
+  on Coach's advice; offering it as the next cut undoes that move.
+- **A card Coach would suggest adding straight back.** An unflagged card
+  played here at least as much as the least-played staple the analysis lists
+  as missing would join that list the moment it's cut. A budget swap keeps
+  such a card in play only when the deck's budget would hide the re-add. When
+  the replace prompt has nothing left to cut, it says "No suggestions. Pick a
+  card below." and the user picks from the whole deck.
 - **A combo piece** of a combo the deck has.
 
 The replace-when-full prompt also keeps the slot: **a land makes room for a

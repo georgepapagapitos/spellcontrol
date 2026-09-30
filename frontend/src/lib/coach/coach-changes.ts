@@ -20,11 +20,12 @@ import {
   type ChangeOwnership,
 } from './deck-change';
 import type { CrossDeckMove } from './cross-deck-moves';
+import { missingStapleFloor } from './intelligent-cuts';
 import type { GapAnalysisCard } from '@/deck-builder/types';
 import type { OptimizeSwaps } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
 import type { SynergySuggestion } from '@/deck-builder/services/synergy/suggest';
 import type { SubstituteRow } from '@/deck-builder/services/deckBuilder/substituteFinder';
-import type { CostPlan } from '@/deck-builder/services/deckBuilder/costAnalyzer';
+import type { CostPlan, CostSwapRow } from '@/deck-builder/services/deckBuilder/costAnalyzer';
 import type { BracketFitPlan } from '@/deck-builder/services/deckBuilder/bracketFit';
 import type { LandUpgradeMove } from '@/deck-builder/services/deckBuilder/landUpgrades';
 import type { MisfitSummary } from '@/deck-builder/services/deckBuilder/cardFit';
@@ -98,12 +99,15 @@ export interface CoachChangeSources {
  * `settingsFit` drops a move that breaks the deck's saved settings (price cap,
  * budget, rarity, collection strategy, Game Changer limit): see
  * deck-settings-fit.ts. Absent for a deck with nothing to respect.
+ * `readdFits` is the same check for a caller that applies it later itself
+ * (CoachFeed counts what the settings hide); it defaults to `settingsFit`.
  */
 export function buildCoachChanges(
   src: CoachChangeSources,
   resolveOwnership: (name: string) => ChangeOwnership,
   deckNames: Set<string>,
-  settingsFit?: (change: Change) => boolean
+  settingsFit?: (change: Change) => boolean,
+  readdFits: ((change: Change) => boolean) | undefined = settingsFit
 ): Change[] {
   const adds: Change[] = [
     ...src.gaps.map((g) => fromGapCard(g, resolveOwnership(g.name))),
@@ -115,9 +119,32 @@ export function buildCoachChanges(
   ];
 
   const allCostRows = [...(src.costPlan?.spellRows ?? []), ...(src.costPlan?.landRows ?? [])];
-  const costChanges: Change[] = allCostRows.map((row) =>
-    fromCostSwapRow(row, resolveOwnership(row.suggestionName))
-  );
+  // A budget swap is worth its cost in power only when the deck can't afford
+  // the card it replaces: the deck's settings would hide that card's re-add.
+  // Otherwise (no budget, or room left in it) only a drop-in stays, and never
+  // one that trades away a card Coach would suggest adding straight back (a
+  // card played here at least as much as the least-played missing staple).
+  // Undead Warchief went out for Great Fierce Bee in a Zombies Gisa with no
+  // budget, and the next pass suggested the Warchief back (T171 re-gate).
+  const gapFloor = missingStapleFloor(src.gaps);
+  const affordable = (row: CostSwapRow): boolean =>
+    !readdFits ||
+    readdFits(
+      fromGapCard(
+        {
+          name: row.currentName,
+          inclusion: row.currentInclusion,
+          price: String(row.currentPrice),
+        } as GapAnalysisCard,
+        resolveOwnership(row.currentName)
+      )
+    );
+  const worthIt = (row: CostSwapRow): boolean =>
+    !affordable(row) ||
+    (row.confidence === 'drop-in' && (gapFloor === undefined || row.currentInclusion < gapFloor));
+  const costChanges: Change[] = allCostRows
+    .filter(worthIt)
+    .map((row) => fromCostSwapRow(row, resolveOwnership(row.suggestionName)));
 
   const bracketChanges: Change[] = (src.bracketFit?.moves ?? []).map((m) => {
     if (m.type === 'swap' && m.inName) {

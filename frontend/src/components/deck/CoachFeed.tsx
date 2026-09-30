@@ -387,7 +387,9 @@ export function CoachFeed({
           crossDeckMoves,
         },
         resolveOwnership,
-        deckNames
+        deckNames,
+        undefined,
+        settingsBreak && ((c) => settingsBreak(c) === null)
       ),
     [
       gaps,
@@ -402,6 +404,7 @@ export function CoachFeed({
       crossDeckMoves,
       resolveOwnership,
       deckNames,
+      settingsBreak,
     ]
   );
   // A move that breaks the deck's own settings is not shown (and not planned).

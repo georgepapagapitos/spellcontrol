@@ -201,4 +201,15 @@ describe('computeLandUpgrades — real cards (T171)', () => {
       ['Swamp', 'Takenuma, Abandoned Mire'],
     ]);
   });
+
+  // T171 re-gate: Path of Ancestry went out for Reflecting Pool in a Lathril
+  // elves deck that plays it in over half its lists.
+  it("never swaps out a land this commander's decks play at the staple line", () => {
+    const deck = [real('Path of Ancestry'), real('Murder'), real('Harmonize')];
+    const pool = [real('Reflecting Pool')];
+    const swap = computeLandUpgrades(deck, BG, pool, new Set());
+    expect(swap.map((m) => m.outName)).toEqual(['Path of Ancestry']);
+    const onPage = { 'Path of Ancestry': 56 };
+    expect(computeLandUpgrades(deck, BG, pool, new Set(), {}, onPage)).toEqual([]);
+  });
 });

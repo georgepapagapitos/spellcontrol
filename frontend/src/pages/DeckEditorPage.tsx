@@ -1271,8 +1271,8 @@ export function DeckEditorPage() {
     const identity = new Set(commanderColorIdentity);
     if (!deck || identity.size === 0) return [];
     const owned = collectionLandsAsCards(collectionCards);
-    const candidates = landUpgradeCandidates(owned, fetchedFixingLands);
-    return computeLandUpgrades(deckCards, identity, candidates, ownedNames);
+    const pool = landUpgradeCandidates(owned, fetchedFixingLands);
+    return computeLandUpgrades(deckCards, identity, pool, ownedNames, {}, deck.cardInclusionMap);
   }, [deck, commanderColorIdentity, collectionCards, deckCards, fetchedFixingLands, ownedNames]);
 
   /**

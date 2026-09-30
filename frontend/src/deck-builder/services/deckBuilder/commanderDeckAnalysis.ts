@@ -49,6 +49,7 @@ import { loadCardSimilar, getSimilarRank } from './cardSimilar';
 import { computePlanScore, type PlanScore, type StrategyEngineInput } from './planScore';
 import { computeMisfits, summarizeMisfits, type MisfitSummary } from './cardFit';
 import { premiumNames } from './premiumCards';
+import { isUtilityLand } from './landUpgrades';
 import { fetchDeckEdhrecPage, type DeckEdhrecSource } from './deckEdhrecSource';
 import {
   enrichRecommendationPrices,
@@ -929,7 +930,13 @@ export async function analyzeCommanderDeck(
         blendedNames: params.archetypeBlendNames?.length
           ? new Set(params.archetypeBlendNames)
           : undefined,
-        protectedNames,
+        // A piece of a combo the deck has is never a misfit, as in every other
+        // Coach cut (Altar of Dementia, added to finish a Krenko combo, came
+        // straight back as a Cuts-lane misfit, T171 re-gate).
+        protectedNames: new Set([
+          ...protectedNames,
+          ...(params.detectedCombos ?? []).filter((c) => c.isComplete).flatMap((c) => c.cards),
+        ]),
         roleBalance: { roleOf: countedRoleOf, counts: roleCounts, targets: roleTargets },
       };
       misfits = summarizeMisfits(computeMisfits(misfitInputs));
@@ -992,13 +999,16 @@ export async function analyzeCommanderDeck(
         ...(params.detectedCombos?.flatMap((combo) => combo.cards) ?? []),
         ...synergyProtectedNames,
         ...protectedNames, // saving money never costs the deck a premium card
+        // A utility land never makes way for a plain one, as in the replace
+        // prompt (Boseiju out for Jungle Hollow, T171 re-gate).
+        ...params.cards.filter(isUtilityLand).map((c) => c.name),
       ]);
       costPlan = buildCostPlan(
         params.cards,
         params.commander.name,
         params.partnerCommander?.name,
         gradeBracket.analysis.recommendations,
-        { mustIncludeNames: budgetProtected }
+        { mustIncludeNames: budgetProtected, inclusionOf: (n) => cardInclusionMap[n] }
       );
     }
 
