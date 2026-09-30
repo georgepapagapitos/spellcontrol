@@ -240,6 +240,37 @@ describe('optimizeDeck', () => {
     for (const alt of protection) expect(taken, alt).toBeGreaterThanOrEqual(scoreWith(alt) - 1e-9);
   });
 
+  it('lets the role match pick the replacement, never the card that leaves', () => {
+    // A share one card short, with Sakura-Tribe Elder and Carrion Feeder
+    // unowned. An owned mana rock matches the Elder's role; the repair still
+    // takes out the card whose loss hurts least, not the Elder for a weaker rock.
+    const unowned = ['Sakura-Tribe Elder', 'Carrion Feeder'];
+    const spells = BASELINE.cards.filter((c) => !/Land/.test(c.type_line)).length;
+    const owned = new Set([
+      ...BASELINE.cards.map((c) => c.name).filter((n) => !unowned.includes(n)),
+      'Springleaf Drum',
+      'Soul Net',
+    ]);
+    const c = merenCtx({
+      customization: {
+        deckFormat: 99,
+        currency: 'USD',
+        collectionMode: true,
+        collectionStrategy: 'partial',
+        collectionOwnedPercent: ((spells - 1) / spells) * 100,
+      },
+      ownedNames: owned,
+    });
+    expect(checkConstraints(BASELINE, c).map((v) => v.check)).toEqual(['owned-share']);
+    const r = optimizeDeck(BASELINE, cards('Springleaf Drum', 'Soul Net'), c, {
+      ...SMALL,
+      maxSwaps: 0,
+    });
+    const repair = r.swaps.find((s) => s.kind === 'repair')!;
+    expect(repair.out).toEqual(['Carrion Feeder']);
+    expect(r.score.violations).toEqual([]);
+  });
+
   it('brings a repair-only card in to repair, never to improve', () => {
     // The first card the search brings in to improve the deck, marked repair-only.
     const first = result.swaps.find((s) => s.kind === 'improve')!.in[0];

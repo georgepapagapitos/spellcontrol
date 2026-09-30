@@ -499,10 +499,14 @@ export function optimizeDeck(
       return false;
     };
     const repairFirst = new Map(moves.map((m) => [m, repairs(m)]));
-    // A repair fills the slot it empties when it can: a card of the same
-    // counted role first (an owned removal spell for an unowned Swords to
-    // Plowshares, an owned protection piece for Swiftfoot Boots), judged
-    // before any other replacement.
+    // A repair fills the slot it empties when it can: once the least damaging
+    // repair has picked the card to take out, a card of that card's counted
+    // role (an owned removal spell for an unowned Swords to Plowshares, an
+    // owned protection piece for Swiftfoot Boots) replaces it if any does.
+    // Only the replacement is steered: which card leaves stays the least
+    // damaging choice (ranked first, a matching role would cut an unowned
+    // Sakura-Tribe Elder for a weaker owned rock under an owned share that any
+    // unowned card's exit repairs).
     const slotOf = (c: ScryfallCard) => repairSlotOf(c, ctx, roleOf);
     const sameRole = new Map(
       moves.map((m) => [
@@ -517,7 +521,6 @@ export function optimizeDeck(
     moves.sort(
       (a, b) =>
         Number(repairFirst.get(b)) - Number(repairFirst.get(a)) ||
-        Number(sameRole.get(b)) - Number(sameRole.get(a)) ||
         b.estimate - a.estimate ||
         a.in
           .map((c) => c.name)
@@ -534,7 +537,7 @@ export function optimizeDeck(
     // them must not use up the step. The checks themselves are capped.
     let judged = 0;
     let checked = 0;
-    let bestRepair: { move: Move; score: ObjectiveScore; matched: boolean } | null = null;
+    let bestRepair: { move: Move; score: ObjectiveScore } | null = null;
     let repairsSeen = 0;
     for (const move of moves) {
       if (judged >= opts.shortlist || checked >= opts.shortlist * CHECKS_PER_SLOT) break;
@@ -573,13 +576,8 @@ export function optimizeDeck(
         // A repair is forced, so it is the least damaging one: the best of
         // the first REPAIR_CHOICES that fix the break, not the first found
         // (Swiftfoot Boots in an owned-only row went to Soul Net that way).
-        const matched = sameRole.get(move)!;
-        if (
-          !bestRepair ||
-          Number(matched) - Number(bestRepair.matched) > 0 ||
-          (matched === bestRepair.matched && compareScores(score, bestRepair.score) > 0)
-        ) {
-          bestRepair = { move, score, matched };
+        if (!bestRepair || compareScores(score, bestRepair.score) > 0) {
+          bestRepair = { move, score };
         }
         if (++repairsSeen >= REPAIR_CHOICES) break;
         continue;
@@ -591,6 +589,22 @@ export function optimizeDeck(
         taken = { move, score, kind: move.kind };
         break;
       }
+    }
+    if (!taken && bestRepair && !sameRole.get(bestRepair.move)) {
+      const outs = bestRepair.move.out.join(',');
+      let bestMatched: { move: Move; score: ObjectiveScore } | null = null;
+      const same = moves.filter((m) => sameRole.get(m) && m.out.join(',') === outs);
+      for (const move of same.slice(0, REPAIR_CHOICES)) {
+        if (evaluations.full >= opts.maxEvaluations || Date.now() - t0 > opts.timeBudgetMs) break;
+        const next = applyMove(current, move);
+        const left = checkConstraints(next, ctx).reduce((n, v) => n + v.magnitude, 0);
+        if (left >= curInfeasible) continue;
+        const score = full(next);
+        if (!bestMatched || compareScores(score, bestMatched.score) > 0) {
+          bestMatched = { move, score };
+        }
+      }
+      if (bestMatched) bestRepair = bestMatched;
     }
     if (!taken && bestRepair) {
       taken = { move: bestRepair.move, score: bestRepair.score, kind: 'repair' };
