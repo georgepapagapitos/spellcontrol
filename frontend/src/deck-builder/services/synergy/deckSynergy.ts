@@ -7,6 +7,7 @@
  */
 import { classifyCard, type CardSynergy } from './classify';
 import { AXES, tribalMembership, type AxisKey } from './axes';
+import { typeAxisMembership } from './typeAxes';
 import type { CardLike } from './text';
 
 export interface AxisCard {
@@ -67,6 +68,14 @@ export function analyzeDeckSynergy(cards: CardLike[]): DeckSynergy {
       name: classified[m.index].name,
       reason: membership.reasonFor(m.tribe),
     });
+  }
+
+  // E531: the deck's enchantments, instants and sorceries, and lands are the
+  // producers of the axes that read them, capped at those axes' payoffs.
+  for (const m of typeAxisMembership(
+    cards.map((card, i) => ({ card, weight: 1, ...classified[i] }))
+  )) {
+    ensure(m.axis).producers.push({ name: classified[m.index].name, reason: m.reason });
   }
 
   const axes = [...byAxis.values()]
