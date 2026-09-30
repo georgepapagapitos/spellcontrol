@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { formatCount } from '@/lib/util/format-count';
+import './HubTabsNav.css';
 
 export interface HubTab {
   to: string;
