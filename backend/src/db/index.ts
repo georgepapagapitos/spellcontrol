@@ -948,5 +948,15 @@ export async function ensureSchema(): Promise<void> {
       CHECK (follower_id <> followee_id)
     );
     CREATE INDEX IF NOT EXISTS user_follows_followee_idx ON user_follows (followee_id, created_at DESC);
+    -- Daily card puzzle: one result per user per UTC day, first write wins.
+    CREATE TABLE IF NOT EXISTS daily_results (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      puzzle_date TEXT NOT NULL,
+      solved BOOLEAN NOT NULL,
+      guesses INTEGER NOT NULL,
+      created_at BIGINT NOT NULL,
+      PRIMARY KEY (user_id, puzzle_date)
+    );
+    CREATE INDEX IF NOT EXISTS daily_results_date_idx ON daily_results (puzzle_date);
   `);
 }

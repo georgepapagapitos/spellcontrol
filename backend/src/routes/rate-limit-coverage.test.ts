@@ -26,6 +26,7 @@ import { reportsRouter } from './reports';
 import { discoverRouter } from './discover';
 import { activityRouter } from './activity';
 import { followsRouter } from './follows';
+import { dailyRouter } from './daily';
 import { brewersRouter } from './brewers';
 import { aiRouter } from './ai';
 import { eventsRouter } from './events';
@@ -92,6 +93,7 @@ const ROUTERS: Array<[string, unknown]> = [
   ['discover', discoverRouter],
   ['activity', activityRouter],
   ['follows', followsRouter],
+  ['daily', dailyRouter],
   ['brewers', brewersRouter],
   ['ai', aiRouter],
   ['events', eventsRouter],

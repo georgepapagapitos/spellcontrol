@@ -73,6 +73,7 @@ primitives directory.
 | `components/shared/form` (`ChoiceList`)                        | a hint that rewrites per option                      | [§ Config surfaces](style-guide/components.md#config-surfaces-t139)                                                         |
 | `components/shared/form` (`Disclosure`)                        | a hand-rolled collapsible group                      | [§ Config surfaces](style-guide/components.md#config-surfaces-t139)                                                         |
 | `components/shared/form` (`Field`)                             | an uppercase `.field label`                          | [§ Config surfaces](style-guide/components.md#config-surfaces-t139)                                                         |
+| `components/shared/form.css` (`.form-input`)                   | a bare `<input>` / `<textarea>` in a `Field`         | [§ Config surfaces](style-guide/components.md#config-surfaces-t139)                                                         |
 
 ### Overlays
 

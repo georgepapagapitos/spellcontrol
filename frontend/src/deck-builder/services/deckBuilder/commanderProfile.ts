@@ -16,6 +16,7 @@
  */
 import { Archetype } from '@/deck-builder/types';
 import type { ScryfallCard } from '@/deck-builder/types';
+import { creatureTypePlurals, resolveCreatureType } from '@/deck-builder/services/synergy/text';
 
 // ─── Public types ────────────────────────────────────────────────────
 
@@ -217,42 +218,14 @@ export const KNOWN_TRIBES = new Set([
   'gorgon',
 ]);
 
-const TRIBE_TO_THEME: Record<string, string> = {
-  elf: 'elves',
-  goblin: 'goblins',
-  zombie: 'zombies',
-  vampire: 'vampires',
-  dragon: 'dragons',
-  angel: 'angels',
-  demon: 'demons',
-  wizard: 'wizards',
-  warrior: 'warriors',
-  rogue: 'rogues',
-  cleric: 'clerics',
-  soldier: 'soldiers',
-  knight: 'knights',
-  merfolk: 'merfolk',
-  spirit: 'spirits',
-  dinosaur: 'dinosaurs',
-  pirate: 'pirates',
-  cat: 'cats',
-  dog: 'dogs',
-  beast: 'beasts',
-  elemental: 'elementals',
-  sliver: 'slivers',
-  ally: 'allies',
-  human: 'humans',
-  faerie: 'faeries',
-  eldrazi: 'eldrazi',
-  horror: 'horrors',
-  insect: 'insects',
-  tyranid: 'tyranids',
-  hydra: 'hydras',
-  werewolf: 'werewolves',
-  wolf: 'wolves',
-  rat: 'rats',
-  squirrel: 'squirrels',
-};
+/**
+ * EDHREC's theme name for a tribe, the way its typal pages spell it: the
+ * type's plural, irregulars included ("dwarf" → "dwarves", "fungus" →
+ * "fungi", "kor" → "kor"). A naive "+s" suggested themes like "phoenixs".
+ */
+function tribeTheme(tribe: string): string {
+  return creatureTypePlurals(resolveCreatureType(tribe) ?? tribe)[0].toLowerCase();
+}
 
 function detectTribes(card: ScryfallCard): string[] {
   const tl = frontTypeLine(card).toLowerCase();
@@ -627,7 +600,7 @@ export function buildCommanderProfile(
   // Tribal detection from the commander's own creature subtypes.
   const tribes = [...new Set(sources.flatMap(detectTribes))];
   if (tribes.length > 0) {
-    const themeNames = [...new Set(tribes.map((t) => TRIBE_TO_THEME[t] ?? `${t}s`))];
+    const themeNames = [...new Set(tribes.map(tribeTheme))];
     abilities.push({
       keyword: 'tribal',
       label: 'Tribal',

@@ -6,7 +6,7 @@
  * never trims a strategy's own pieces). Pure + isomorphic.
  */
 import { classifyCard, type CardSynergy } from './classify';
-import { AXES, type AxisKey } from './axes';
+import { AXES, tribalMembership, type AxisKey } from './axes';
 import type { CardLike } from './text';
 
 export interface AxisCard {
@@ -53,11 +53,22 @@ export function analyzeDeckSynergy(cards: CardLike[]): DeckSynergy {
     return s;
   };
 
-  for (const card of cards) {
-    const cs = classifyCard(card);
+  const classified = cards.map((card) => classifyCard(card));
+  classified.forEach((cs) => {
     for (const p of cs.producers)
       ensure(p.axis).producers.push({ name: cs.name, reason: p.reason });
     for (const o of cs.payoffs) ensure(o.axis).payoffs.push({ name: cs.name, reason: o.reason });
+  });
+  // E511: the deck's members of the tribes its typal cards name are tribal
+  // fuel, capped at the cards those payoffs sit on (tribalMembership).
+  const membership = tribalMembership(
+    cards.map((card, i) => ({ card, weight: 1, ...classified[i] }))
+  );
+  for (const m of membership.members) {
+    ensure('tribal').producers.push({
+      name: classified[m.index].name,
+      reason: membership.reasonFor(m.tribe),
+    });
   }
 
   const axes = [...byAxis.values()]
