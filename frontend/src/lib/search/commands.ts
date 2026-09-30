@@ -1,7 +1,7 @@
 /**
  * The ⌘K command palette's command model and matcher.
  *
- * Deliberately NOT built on `components/shortcut-registry` — that registry holds
+ * Deliberately NOT built on `components/app-shell/shortcut-registry` — that registry holds
  * display data (`{keys, description}`) for the `?` overlay and has no handlers,
  * so there is nothing there to execute. This module owns the executable half.
  *

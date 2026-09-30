@@ -24,7 +24,7 @@
   }
 }
 
-/* The page header is components/PageHeader.tsx; its layout lives in
+/* The page header is components/app-shell/PageHeader.tsx; its layout lives in
    binder-hero.css. Don't redefine it here. */
 
 .binders-index-subtitle {

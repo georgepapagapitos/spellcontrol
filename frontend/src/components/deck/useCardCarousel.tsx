@@ -4,7 +4,7 @@ import { scryfallToEnrichedCard } from '@/lib/cards/scryfall-to-enriched';
 import { useCollectionStore } from '@/store/collection';
 import type { EnrichedCard, Finish } from '@/types';
 import type { ScryfallCard } from '@/deck-builder/types';
-import { CardPreview, type CardPreviewAction } from '@/components/CardPreview';
+import { CardPreview, type CardPreviewAction } from '@/components/card/CardPreview';
 
 /**
  * Best owned "shimmer" finish for a card the player has in their collection.

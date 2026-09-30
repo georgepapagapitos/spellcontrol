@@ -52,7 +52,7 @@ vi.mock('@/lib/trade/trade-preview', () => ({
 // CardPreview itself is covered by its own tests; here we only care that the
 // right slides opened at the right index, and that the action button works.
 const previewProps = vi.fn();
-vi.mock('../CardPreview', () => ({
+vi.mock('@/components/card/CardPreview', () => ({
   CardPreview: (props: {
     cards: { name: string }[];
     index: number;

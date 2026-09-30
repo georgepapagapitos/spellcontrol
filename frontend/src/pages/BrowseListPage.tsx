@@ -1,9 +1,9 @@
 import './BrowseListPage.css';
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { BackLink } from '@/components/BackLink';
-import { NotFoundPage } from '@/components/NotFoundPage';
-import { PageHeader } from '@/components/PageHeader';
+import { BackLink } from '@/components/app-shell/BackLink';
+import { NotFoundPage } from './NotFoundPage';
+import { PageHeader } from '@/components/app-shell/PageHeader';
 import { BrowseListFilters } from '@/components/browse/BrowseListFilters';
 import { BrowseTile, BrowseTileSkeleton } from '@/components/browse/BrowseTile';
 import { useOwnedNames } from '@/lib/discover/use-owned-names';

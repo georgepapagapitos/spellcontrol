@@ -206,8 +206,8 @@ export async function fetchIdentities(): Promise<MyIdentities> {
 /** Who can see a collection (board T136). */
 export type CollectionVisibility = 'public' | 'friends' | 'private';
 
-/** Your own collection's visibility; null = never chosen (an account from
- *  before T136, whose friends see which cards but not quantities or prices). */
+/** Your own collection's visibility. An account that never chose reads as
+ *  'friends' (the server decides); null only if the field is missing. */
 export async function fetchCollectionVisibility(): Promise<CollectionVisibility | null> {
   const res = await authedFetch('/api/auth/me', { method: 'GET' });
   const data = await handleResponse<{ collectionVisibility?: CollectionVisibility | null }>(res);

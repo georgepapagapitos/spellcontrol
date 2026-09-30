@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Modal } from '@/components/Modal';
+import { Modal } from '@/components/overlays/Modal';
 import { type SheetExitOptions, useSheetExit } from './use-sheet-exit';
 
 /**
@@ -135,9 +135,9 @@ describe('useSheetExit owns Escape', () => {
 
 /** Files that call useSheetExit and still handle Escape themselves, and why. */
 const OWN_ESCAPE: Record<string, string> = {
-  'components/CardPreview.tsx':
+  'components/card/CardPreview.tsx':
     'escape: false; a window capture-phase handler that defers to the share dialog and an open ⋮ menu',
-  'components/AvatarPickerSheet.tsx':
+  'components/profile/AvatarPickerSheet.tsx':
     "the search input clears its query first and preventDefaults, so the hook's close waits for the next Escape",
 };
 

@@ -482,24 +482,10 @@ describe('watchers and the voice link', () => {
     expect(screen.queryByText('Private')).toBeNull();
   });
 
-  it('saves a voice link on Enter', () => {
-    const dispatch = renderLobby(table(2), 'u0');
-    const field = screen.getByLabelText('Voice link');
-    fireEvent.change(field, { target: { value: 'https://discord.gg/example' } });
-    fireEvent.keyDown(field, { key: 'Enter' });
-    expect(dispatch).toHaveBeenCalledWith({
-      type: 'settings',
-      patch: { voiceUrl: 'https://discord.gg/example' },
-    });
-  });
-
-  it('refuses a link that could run code, before the round trip', () => {
-    const dispatch = renderLobby(table(2), 'u0');
-    const field = screen.getByLabelText('Voice link');
-    fireEvent.change(field, { target: { value: 'javascript:alert(1)' } });
-    fireEvent.blur(field);
-    expect(dispatch).not.toHaveBeenCalled();
-    expect(screen.getByRole('alert').textContent).toContain('https');
+  // Discord or nothing: the host no longer pastes a link of their own.
+  it('offers the host no field to paste a voice link', () => {
+    renderLobby(table(2), 'u0');
+    expect(screen.queryByRole('textbox', { name: /voice/i })).toBeNull();
   });
 
   it('gives everyone else the link as something to open', () => {
@@ -574,7 +560,7 @@ describe('Discord tables', () => {
     expect(screen.queryByRole('button', { name: 'Open a Discord table' })).toBeNull();
   });
 
-  it('gives the host the link to join, not just the field', async () => {
+  it('gives the host the link to join', async () => {
     renderLobby({ ...table(2), voiceUrl: 'https://discord.gg/inv' }, 'u0');
     const join = await screen.findByRole('link', { name: 'Join on Discord' });
     expect(join.getAttribute('href')).toBe('https://discord.gg/inv');
@@ -608,11 +594,10 @@ describe('Horde (co-op) lobby — the rail', () => {
     expect(screen.queryByText('Commander damage')).toBeNull();
     expect(screen.queryByText('Poison counters')).toBeNull();
     expect(screen.queryByText('Starting player')).toBeNull();
-    // Mulligan, Turn timer, Visibility and Voice link all stay.
+    // Mulligan, Turn timer and Visibility all stay.
     expect(screen.getByText('Mulligan')).toBeTruthy();
     expect(screen.getByRole('switch', { name: /Turn timer/ })).toBeTruthy();
     expect(screen.getByText('Visibility')).toBeTruthy();
-    expect(screen.getByLabelText('Voice link')).toBeTruthy();
   });
 
   it('same rows for a non-host viewer', () => {

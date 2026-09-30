@@ -1,6 +1,6 @@
 {
-  "components/CardOtagsSheet.css": 1,
-  "components/CopyControls.css": 1,
+  "components/card/CardOtagsSheet.css": 1,
+  "components/card/CopyControls.css": 1,
   "components/deck/BracketBreakdown.css": 2,
   "components/deck/BuildReportSheet.css": 2,
   "components/deck/CardFitPanel.css": 1,
@@ -20,7 +20,7 @@
   "components/play/GameRecap.css": 1,
   "components/play/GameResultEditDialog.css": 2,
   "components/play/OnlineGameView.css": 2,
-  "components/ProductSearchPanel.css": 1,
+  "components/import/ProductSearchPanel.css": 1,
   "components/welcome/WelcomeHero.css": 2,
   "deck-builder/components/brew/BrewRunningDeck.css": 1,
   "pages/cube/cube.css": 5,

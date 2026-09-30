@@ -57,9 +57,9 @@ import { CommanderResultCard } from './CommanderResultCard';
 import type { EnrichedCard } from '../../types';
 import { ManaCost } from '../ManaCost';
 import { ColorIdentityPicker } from '../shared/ColorIdentityPicker';
-import { SearchPill } from '../SearchPill';
-import { SelectMenu } from '../SelectMenu';
-import { InfoTip } from '../InfoTip';
+import { SearchPill } from '@/components/search/SearchPill';
+import { SelectMenu } from '@/components/overlays/SelectMenu';
+import { InfoTip } from '@/components/overlays/InfoTip';
 import { buildCommanderKey } from '@/lib/deck/commander-key';
 import { getCommanderStatsBatch, type CommanderStats } from '@/lib/discover/aggregates-client';
 import { getCurrency } from '@/lib/collection/currency';
@@ -70,7 +70,7 @@ import { Chip } from '@/components/shared/Chip';
 import { Count } from '@/components/shared/Count';
 import { FilterChipsRow, type FilterChipDescriptor } from '@/components/shared/FilterChipsRow';
 import { SegmentedControl } from '@/components/shared/form';
-import { RulesTextParagraphs } from '@/components/RulesText';
+import { RulesTextParagraphs } from '@/components/card/RulesText';
 import { CommanderPickArt } from './CommanderPickArt';
 
 /**

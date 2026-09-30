@@ -55,8 +55,8 @@ import {
   type SimResult,
 } from '@/lib/mana-sim/opening-hand-sim';
 import { cardCmc, isLand, toClockCard, toSimCard } from '@/lib/mana-sim/hand-classify';
-import { CardPreview } from '../CardPreview';
-import { InfoTip } from '../InfoTip';
+import { CardPreview } from '@/components/card/CardPreview';
+import { InfoTip } from '@/components/overlays/InfoTip';
 import { assemblyClockTip, isKillClock } from './WinConditionPanel';
 import { Chip } from '@/components/shared/Chip';
 import { Button } from '@/components/shared/Button';

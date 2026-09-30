@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import type { PublicCard } from '@/lib/social/shared-types';
 import type { ChipExpression } from '../../types';
 import type { SetMap } from '@/lib/api';
-import { CollectionFiltersDialog } from '../CollectionFiltersDialog';
+import { CollectionFiltersDialog } from '@/components/search/CollectionFiltersDialog';
 import { useCardTagsReady } from '@/lib/cards/card-tags';
 import type { ColorMatchMode } from '@/lib/cards/colors';
 import { isExpressionEmpty } from '@/lib/binder/rules';

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { RulesReferenceTab } from '../components/RulesReference';
+import type { RulesReferenceTab } from '@/components/rules/RulesReference';
 
 /** Where the sheet opens: a tab, its search, and optionally one keyword row already expanded. */
 export interface RulesReferenceTarget {

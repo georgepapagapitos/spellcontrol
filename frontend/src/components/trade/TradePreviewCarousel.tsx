@@ -1,4 +1,4 @@
-import { CardPreview, type CardPreviewAction } from '../CardPreview';
+import { CardPreview, type CardPreviewAction } from '@/components/card/CardPreview';
 import type { EnrichedCard } from '../../types';
 
 /** An open trade-side preview: the resolved slides and which one is showing. */

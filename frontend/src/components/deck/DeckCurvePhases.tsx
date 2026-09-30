@@ -5,7 +5,7 @@ import { CardGroupSheet } from './CardGroupSheet';
 import type { CurveColorBucket } from './deck-mana-types';
 import { gradeCurve } from '@/deck-builder/services/deckBuilder/curveGrading';
 import type { Pacing } from '@/deck-builder/services/deckBuilder/pacingDetector';
-import { InfoTip } from '@/components/InfoTip';
+import { InfoTip } from '@/components/overlays/InfoTip';
 import { SegmentedControl } from '@/components/shared/form';
 import './DeckCurvePhases.css';
 

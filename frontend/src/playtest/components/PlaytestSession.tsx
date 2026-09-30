@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useConfirm } from '@/components/use-confirm';
+import { useConfirm } from '@/components/overlays/use-confirm';
 import {
   clearPlaytestSnapshot,
   fingerprintDeck,

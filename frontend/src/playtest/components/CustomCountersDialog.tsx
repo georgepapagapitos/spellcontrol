@@ -1,6 +1,6 @@
 import { useId, useState } from 'react';
 import { ChevronDown, Plus, Trash2, X } from 'lucide-react';
-import { Modal } from '@/components/Modal';
+import { Modal } from '@/components/overlays/Modal';
 import {
   COUNTER_CATALOG,
   counterColor,

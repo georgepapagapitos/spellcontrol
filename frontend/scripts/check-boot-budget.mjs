@@ -42,7 +42,7 @@
 // otherwise have shifted per-file counts the layout/tracking ratchet guards
 // freeze (.settings-share-kind, .settings-tier-header, .settings-row and its
 // ≤520px overrides). .slot-menu (binder-grid-slots.css) moved to
-// components/OverflowMenu.css instead of the binder chunk: CardRowMenu's
+// components/overlays/OverflowMenu.css instead of the binder chunk: CardRowMenu's
 // PLACEMENT map names it alongside the row/tile variants, so any chunk that
 // can mount CardRowMenu needs it, and OverflowMenu.tsx is already in that
 // closure. Measured 61.37.

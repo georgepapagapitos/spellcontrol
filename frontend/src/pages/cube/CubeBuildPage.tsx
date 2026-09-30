@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './cube.css';
-import { BackLink } from '../../components/BackLink';
-import { PageHeader } from '../../components/PageHeader';
+import { BackLink } from '@/components/app-shell/BackLink';
+import { PageHeader } from '@/components/app-shell/PageHeader';
 import { Disclosure } from '../../components/shared/form';
-import { NameInputDialog } from '../../components/NameInputDialog';
+import { NameInputDialog } from '@/components/overlays/NameInputDialog';
 import { useCollectionStore } from '../../store/collection';
 import { useToastsStore } from '../../store/toasts';
 import { useCubeStore } from '../../store/cube';
 import { useAuth } from '../../store/auth';
 import { DEFAULT_POOL_FILTERS, type PoolFilters } from '../../lib/cube/pool-filters';
-import { SelectMenu } from '../../components/SelectMenu';
-import { InfoTip } from '../../components/InfoTip';
+import { SelectMenu } from '@/components/overlays/SelectMenu';
+import { InfoTip } from '@/components/overlays/InfoTip';
 import { formatMoney } from '@/lib/collection/format-money';
 import { useCurrency, type Currency } from '@/lib/collection/currency';
 import { Link } from 'react-router-dom';
@@ -301,9 +301,16 @@ export function CubeBuildPage() {
   }, []);
 
   const [saveOpen, setSaveOpen] = useState(false);
-  // Off by default: a saved cube claims nothing until you ask it to, the same
-  // contract as the list's "Mark physical".
+  // Follows the pool the cube drew from, set each time the dialog opens: a cube
+  // built from Available or Spares only is made of copies no deck holds, so it
+  // saves physical and reserves them. Otherwise it would only list names, and
+  // every printing of a card would read as being in the cube. Everything I own
+  // may draw copies decks already hold, so that saves as a draft.
   const [savePhysical, setSavePhysical] = useState(false);
+  const openSave = () => {
+    setSavePhysical(filters.source !== 'all');
+    setSaveOpen(true);
+  };
   const [enrichedMap, setEnrichedMap] = useState<Map<string, ScryfallCard>>(new Map());
 
   const generate = useCallback(async () => {
@@ -566,7 +573,7 @@ export function CubeBuildPage() {
               <CubeResult
                 cube={cube}
                 onCopy={copyList}
-                onSave={() => setSaveOpen(true)}
+                onSave={openSave}
                 loaded={null}
                 ownershipFor={ownershipFor}
                 committedFor={committedFor}

@@ -14,11 +14,11 @@ import { constrainsToCollection } from '@/deck-builder/services/deckBuilder/deck
 import { normalizeManaPhilosophy } from '@/deck-builder/services/deckBuilder/manaPhilosophy';
 import { currencySymbol } from '@/lib/collection/currency';
 import { buildAvailableCollection } from '@/lib/collection/collection-availability';
-import { SearchPill } from '../SearchPill';
-import { InfoTip } from '../InfoTip';
+import { SearchPill } from '@/components/search/SearchPill';
+import { InfoTip } from '@/components/overlays/InfoTip';
 import { StackedBar } from '../shared/MeterBar';
 import { Field, SwitchRow, ChoiceList, Disclosure } from '../shared/form';
-import { SelectMenu } from '../SelectMenu';
+import { SelectMenu } from '@/components/overlays/SelectMenu';
 import { IconButton } from '../shared/Button';
 import { Chip } from '../shared/Chip';
 import { useSearchCards } from '@/lib/search/use-search-cards';

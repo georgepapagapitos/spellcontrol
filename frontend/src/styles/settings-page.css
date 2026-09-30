@@ -202,7 +202,7 @@
   font-family: var(--font-mono);
 }
 
-/* ── Typeface picker (components/TypeSetPicker.tsx) ────────────────────────
+/* ── Typeface picker (components/settings/TypeSetPicker.tsx) ────────────────────────
    Reuses the theme picker's tile wholesale; only the swatch changes, from a
    color disc to a live "Aa" specimen. Each tile carries its own
    `data-typeset`, and styles/typesets.css scopes the font tokens by that

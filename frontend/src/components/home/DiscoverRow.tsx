@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ChevronRight, Compass } from 'lucide-react';
-import { DiscoverDeckTile } from '../DiscoverDeckTile';
+import { DiscoverDeckTile } from '@/components/decks/DiscoverDeckTile';
 import { listDiscoverDecks, type DiscoverDeck } from '@/lib/discover/discover-client';
 import { userMessage } from '@/lib/util/user-error';
 import { HomeSectionSearch } from './HomeSectionSearch';

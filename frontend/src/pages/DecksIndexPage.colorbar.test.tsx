@@ -21,10 +21,10 @@ vi.mock('../store/auth', () => ({
   useAuth: <T,>(selector: (s: { status: string }) => T): T => selector({ status: 'guest' }),
 }));
 vi.mock('../components/deck/ImportDeckDialog', () => ({ ImportDeckDialog: () => null }));
-vi.mock('../components/ProductSearchDialog', () => ({ ProductSearchDialog: () => null }));
-vi.mock('../components/ShareDialog', () => ({ ShareDialog: () => null }));
-vi.mock('../components/ConfirmDialog', () => ({ ConfirmDialog: () => null }));
-vi.mock('../components/DeckFiltersPopover', () => ({ DeckFiltersPopover: () => null }));
+vi.mock('@/components/import/ProductSearchDialog', () => ({ ProductSearchDialog: () => null }));
+vi.mock('@/components/share/ShareDialog', () => ({ ShareDialog: () => null }));
+vi.mock('@/components/overlays/ConfirmDialog', () => ({ ConfirmDialog: () => null }));
+vi.mock('@/components/decks/DeckFiltersPopover', () => ({ DeckFiltersPopover: () => null }));
 vi.mock('../deck-builder/services/scryfall/client', () => ({ getCardPrice: () => null }));
 
 import { DecksIndexPage } from './DecksIndexPage';

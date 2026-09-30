@@ -98,7 +98,7 @@ describe('LruTtlCache<PublicUserProfile>', () => {
       avatarImageUrl: null,
       memberSince: 0,
       profileHiddenAt: null,
-      collectionVisibility: null,
+      collectionVisibility: 'friends',
       isOfficial: false,
       deckCount: 0,
       decks: [],

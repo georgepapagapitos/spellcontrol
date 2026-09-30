@@ -68,7 +68,7 @@ raw `{1}{W}` text); sort headers use the shared `SortDirArrow`.
 
 ### Visibility is one choice, not a link to manage (board T136)
 
-Who can see a thing is one control, `components/VisibilityChoice.tsx` (a
+Who can see a thing is one control, `components/share/VisibilityChoice.tsx` (a
 `ChoiceList` under the hood), applied the moment it's picked: **Public /
 Friends / Private**, or **Anyone with the link / Friends / Private** for a
 kind with no public page of its own. Every option's hint stays visible, not
@@ -204,7 +204,7 @@ navigation). List view keeps the plain-text "by username" caption.
 ## Profiles (`/u/:username`, T175)
 
 A profile answers "what does this person brew?" before it lists their decks.
-Top to bottom: header (banner, identity, stat line, follow), the Brews most and
+Top to bottom: header (banner, identity, stat line, follow), the Colors and
 Game record panels, then the deck library.
 
 - **Banner source order**: the pinned deck's art, else the top commander's
@@ -226,9 +226,15 @@ Game record panels, then the deck library.
 - **Pinned deck**: the same deck tile, larger and with a "Pinned" badge, above
   the grid while nothing is searched or filtered; once the viewer narrows the
   list it is an ordinary tile so a search still finds it. It never shows twice.
-- **Brews most**: up to three commanders (art thumb, name, deck count) that
-  open Discover filtered to that commander, plus a stacked colour bar with
-  `ColorPip` counts. Renders nothing for a brewer with no live decks.
+- **Colors** (was "Brews most", renamed 2026-09-29 after the user asked what
+  it meant): a stacked colour bar with `ColorPip` counts under a plain
+  "Colors" heading and a caption saying what the numbers count ("Decks per
+  color, across 17 decks"). A panel heading names what it shows; never a
+  clever label that needs decoding. Below it, **Most-built commanders** lists
+  only commanders in two or more of their decks, each opening Discover
+  filtered to it. A commander built once says nothing about the brewer (17
+  one-off decks made "top 3" an arbitrary three), so with no repeats the row
+  is absent. Renders nothing for a brewer with no live decks.
 - **Game record** is opt-in (off by default, You > Profile > On your profile):
   games, wins, win rate and the most-played deck. Nothing renders when off.
 - Panels sit side by side from about 45rem, one column on a phone. Controls

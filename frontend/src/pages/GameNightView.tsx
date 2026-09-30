@@ -17,8 +17,8 @@ import { gameFormatLabel } from '@/lib/play/game-formats';
 import { mapsSearchUrl } from '@/lib/play/place-search';
 import { useAuth } from '../store/auth';
 import { ErrorView, LoadingView, NotFoundView, SharedShell } from '../components/share/SharedShell';
-import { NightPoll } from '../components/NightPoll';
-import { OverflowMenu } from '../components/OverflowMenu';
+import { NightPoll } from '@/components/play/NightPoll';
+import { OverflowMenu } from '@/components/overlays/OverflowMenu';
 import './GameNightView.css';
 
 import { userMessage } from '@/lib/util/user-error';

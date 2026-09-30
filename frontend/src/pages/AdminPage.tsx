@@ -7,10 +7,10 @@ import '@/styles/admin-scanner.css';
 import '@/styles/settings-page.css';
 import { useAuth } from '../store/auth';
 import { useCollectionStore } from '../store/collection';
-import { AdminPanel } from '../components/AdminPanel';
-import { useConfirm } from '@/components/use-confirm';
+import { AdminPanel } from '@/components/admin/AdminPanel';
+import { useConfirm } from '@/components/overlays/use-confirm';
 import { stopSyncAndWipeLocal } from '@/lib/sync';
-import { Tabs } from '../components/Tabs';
+import { Tabs } from '@/components/overlays/Tabs';
 import { useDecksStore, type Deck } from '../store/decks';
 import {
   buildAllocationMap,

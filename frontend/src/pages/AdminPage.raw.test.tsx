@@ -16,7 +16,7 @@ const listEventsMock = vi.fn<() => Promise<BeaconRows>>(() =>
   Promise.resolve({ events: [], errors: [], vitals: [] })
 );
 vi.mock('@/lib/account/admin-api', () => ({ listEvents: () => listEventsMock() }));
-vi.mock('../components/AdminPanel', () => ({ AdminPanel: () => null }));
+vi.mock('@/components/admin/AdminPanel', () => ({ AdminPanel: () => null }));
 vi.mock('@/lib/sync', () => ({ stopSyncAndWipeLocal: vi.fn() }));
 
 const writeText = vi.fn(async () => {});

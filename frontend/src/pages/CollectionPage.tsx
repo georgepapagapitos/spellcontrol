@@ -1,5 +1,5 @@
 import { BarChart3, Download, History, Plus, Share2, Trash2 } from 'lucide-react';
-import { CollectionHubTabs } from '@/components/CollectionHubTabs';
+import { CollectionHubTabs } from '@/components/collection/CollectionHubTabs';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAnimatedNumber } from '@/lib/util/use-animated-number';
@@ -10,15 +10,15 @@ import { materializeBinders } from '@/lib/binder/materialize';
 import { useBinderLayoutInputs } from '@/lib/binder/use-binder-layout-inputs';
 import { useAllocations } from '@/lib/collection/allocations';
 import { formatMoney } from '@/lib/collection/format-money';
-import { AddCardsSheet } from '../components/AddCardsSheet';
-import { PageHeader } from '../components/PageHeader';
-import { StatsBar } from '../components/StatsBar';
+import { AddCardsSheet } from '@/components/import/AddCardsSheet';
+import { PageHeader } from '@/components/app-shell/PageHeader';
+import { StatsBar } from '@/components/collection/StatsBar';
 import type { CollectionFilterJump } from '@/lib/collection/collection-insights';
-import { CardListTable } from '../components/CardListTable';
-import { CollectionVisibilityDialog } from '../components/CollectionVisibilityDialog';
-import { CollectionExportDialog } from '../components/CollectionExportDialog';
-import { ImportHistorySheet } from '../components/ImportHistorySheet';
-import { DeleteCollectionDialog } from '../components/DeleteCollectionDialog';
+import { CardListTable } from '@/components/collection/CardListTable';
+import { CollectionVisibilityDialog } from '@/components/collection/CollectionVisibilityDialog';
+import { CollectionExportDialog } from '@/components/collection/CollectionExportDialog';
+import { ImportHistorySheet } from '@/components/import/ImportHistorySheet';
+import { DeleteCollectionDialog } from '@/components/collection/DeleteCollectionDialog';
 import { Button } from '@/components/shared/Button';
 
 export function CollectionPage() {

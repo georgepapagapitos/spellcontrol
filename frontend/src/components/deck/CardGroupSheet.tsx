@@ -5,7 +5,7 @@ import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
 import { useSwipeDownDismiss } from '@/lib/overlays/use-swipe-down-dismiss';
 import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
 import { getCardImageUrl } from '@/deck-builder/services/scryfall/client';
-import { CardThumb } from '../CardThumb';
+import { CardThumb } from '@/components/card/CardThumb';
 import { ViewModeToggle } from '../ViewModeToggle';
 import { VerdictBadge } from './VerdictBadge';
 import type { VerdictTone } from './VerdictBadge';

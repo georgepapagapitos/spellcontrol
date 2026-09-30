@@ -1,5 +1,5 @@
 {
-  "components/BulkSelectBar.css": 2,
+  "components/app-shell/BulkSelectBar.css": 2,
   "components/deck/CardGroupSheet.css": 1,
   "components/deck/DeckColorBalance.css": 1,
   "components/deck/DeckCurvePhases.css": 1,

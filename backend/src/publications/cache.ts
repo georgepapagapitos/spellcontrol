@@ -58,9 +58,9 @@ export interface PublicUserProfile {
   /** Internal only, like `id` — the route derives `moderationHidden` (and
    *  the stranger-facing 404) from this per request; never echoed as-is. */
   profileHiddenAt: number | null;
-  /** `users.collection_visibility`; null = the owner never chose. The route
+  /** `users.collection_visibility` as it applies (never chose = friends). The route
    *  decides per viewer whether the Collection tab opens. */
-  collectionVisibility: 'public' | 'friends' | 'private' | null;
+  collectionVisibility: 'public' | 'friends' | 'private';
   /** The house account (precons/official-account.ts). */
   isOfficial: boolean;
   deckCount: number;

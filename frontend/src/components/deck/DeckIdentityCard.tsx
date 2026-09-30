@@ -16,8 +16,8 @@ import type {
   ValidationResult,
 } from '@/deck-builder/services/deckBuilder/validationChecklist';
 import type { LaneId } from '@/lib/coach/deck-change';
-import { InfoTip } from '@/components/InfoTip';
-import { SelectMenu, type SelectOption } from '@/components/SelectMenu';
+import { InfoTip } from '@/components/overlays/InfoTip';
+import { SelectMenu, type SelectOption } from '@/components/overlays/SelectMenu';
 import { MeterBar } from '@/components/shared/MeterBar';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';

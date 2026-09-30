@@ -1,6 +1,6 @@
 import { useId, type CSSProperties } from 'react';
 import { X } from 'lucide-react';
-import { Modal } from '@/components/Modal';
+import { Modal } from '@/components/overlays/Modal';
 import { SwitchRow } from '@/components/shared/form';
 import { FELTS, type SkinOption } from '../lib/table-skin';
 import { Button, IconButton } from '@/components/shared/Button';

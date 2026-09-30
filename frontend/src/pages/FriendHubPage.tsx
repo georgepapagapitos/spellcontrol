@@ -1,9 +1,9 @@
 import './FriendHubPage.css';
-import { PageHeader } from '@/components/PageHeader';
+import { PageHeader } from '@/components/app-shell/PageHeader';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useSignInPath } from '@/lib/account/sign-in-path';
-import { BackLink } from '../components/BackLink';
+import { BackLink } from '@/components/app-shell/BackLink';
 import {
   BookOpen,
   Box,
@@ -44,7 +44,7 @@ import { useCardThumb } from '@/lib/cards/card-thumbs';
 import { resolveFriendPreview } from '@/lib/social/friend-preview';
 import { fetchFriendDecks, type FriendDeck } from '@/lib/social/friend-decks-client';
 import { DeckLibrary, type LibraryDeck } from '../components/decks/DeckLibrary';
-import { CardPreview } from '../components/CardPreview';
+import { CardPreview } from '@/components/card/CardPreview';
 import { toast } from '../store/toasts';
 import type { EnrichedCard } from '../types';
 import {
@@ -56,9 +56,9 @@ import {
 import { getCardTags, useCardTagsReady } from '@/lib/cards/card-tags';
 import { friendPayloadCaps } from '@/lib/social/friend-search';
 import { H2HSummary } from '../components/play/H2HSummary';
-import { Tabs, type TabItem } from '../components/Tabs';
-import { SearchPill } from '../components/SearchPill';
-import { SortMenu, type SortMenuOption } from '../components/SortMenu';
+import { Tabs, type TabItem } from '@/components/overlays/Tabs';
+import { SearchPill } from '@/components/search/SearchPill';
+import { SortMenu, type SortMenuOption } from '@/components/search/SortMenu';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { useSharedFilters } from '../components/share/use-shared-filters';
 import { SharedCardTile } from '../components/share/SharedCardTile';

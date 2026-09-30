@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Navigate, useParams, useSearchParams } from 'react-router-dom';
-import { PageHeader } from '@/components/PageHeader';
-import { BackLink } from '@/components/BackLink';
+import { PageHeader } from '@/components/app-shell/PageHeader';
+import { BackLink } from '@/components/app-shell/BackLink';
 // Admin + scanner sheet: shared with AdminPage and CardScanner, off the boot payload (E265).
 import '@/styles/admin-scanner.css';
 // Settings/admin page body: shared with AdminPage, off the boot payload.

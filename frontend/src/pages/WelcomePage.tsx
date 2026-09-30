@@ -51,7 +51,7 @@ import { markEverVisited } from '@/lib/home/first-run';
 import { track } from '@/lib/util/analytics';
 import { WelcomeHero } from '../components/welcome/WelcomeHero';
 import { FreshDecksRail } from '../components/welcome/FreshDecksRail';
-import { DiscoverTileSkeleton } from '../components/DiscoverDeckTile';
+import { DiscoverTileSkeleton } from '@/components/decks/DiscoverDeckTile';
 import { SwipeRow } from '../components/shared/SwipeRow';
 import { TrendingRail } from '../components/aggregates/TrendingRail';
 
@@ -59,7 +59,7 @@ import { TrendingRail } from '../components/aggregates/TrendingRail';
 // rail's own loading state from pieces already in this chunk, under this
 // page's rail class, so the lazy load never shifts the page.
 const PreconsRail = lazy(() =>
-  import('../components/PreconsRail').then((m) => ({ default: m.PreconsRail }))
+  import('@/components/decks/PreconsRail').then((m) => ({ default: m.PreconsRail }))
 );
 import './WelcomePage.css';
 import { Button } from '@/components/shared/Button';

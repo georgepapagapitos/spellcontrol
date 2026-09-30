@@ -285,27 +285,22 @@ describe('CubeBuildPage — friends as a pool source', () => {
 });
 
 describe('CubeBuildPage — saving as a physical cube (E503)', () => {
-  async function buildAndOpenSave() {
+  async function buildAndOpenSave(source?: string) {
     renderPage();
+    if (source) {
+      fireEvent.click(screen.getByRole('button', { name: /Draw from/, expanded: false }));
+      fireEvent.click(screen.getByRole('button', { name: /^Cards/ }));
+      fireEvent.click(screen.getByRole('option', { name: source }));
+    }
     fireEvent.click(screen.getByRole('button', { name: /Build cube/ }));
     await screen.findByRole('button', { name: 'Save cube' });
     fireEvent.click(screen.getByRole('button', { name: 'Save cube' }));
     fireEvent.change(screen.getByLabelText('Cube name'), { target: { value: 'Shelf cube' } });
   }
 
-  it('saves a draft by default: nothing reserved', async () => {
-    await buildAndOpenSave();
-    const toggle = screen.getByRole('switch', { name: 'Physical cube' });
-    expect(toggle.getAttribute('aria-checked')).toBe('false');
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-
-    await waitFor(() => expect(useCubeStore.getState().saved).toHaveLength(1));
-    const saved = useCubeStore.getState().saved[0];
-    expect(saved.isPhysical).toBe(false);
-    expect(saved.picks).toEqual([]);
-  });
-
-  it('the Physical cube switch reserves a free copy of each card at save time', async () => {
+  // A cube drawn from free copies used to save as a draft, which lists names
+  // only: every printing of a card read as in the cube, and none was reserved.
+  it('a cube drawn from Available saves physical, reserving a free copy of each card', async () => {
     await buildAndOpenSave();
     // A deck takes the only Sol Ring after the build ran, while the dialog is
     // open: the save must read live state and leave that copy alone.
@@ -319,7 +314,8 @@ describe('CubeBuildPage — saving as a physical cube (E503)', () => {
         } as unknown as ReturnType<typeof useDecksStore.getState>['decks'][number],
       ],
     });
-    fireEvent.click(screen.getByRole('switch', { name: 'Physical cube' }));
+    const toggle = screen.getByRole('switch', { name: 'Physical cube' });
+    expect(toggle.getAttribute('aria-checked')).toBe('true');
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(useCubeStore.getState().saved).toHaveLength(1));
@@ -329,5 +325,32 @@ describe('CubeBuildPage — saving as a physical cube (E503)', () => {
     expect(bound.get('Sol Ring')).toBeNull();
     expect(bound.get('Arcane Signet')).toBeTruthy();
     expect(bound.get('Swords to Plowshares')).toBeTruthy();
+  });
+
+  it('a cube drawn from Spares only saves physical too', async () => {
+    await buildAndOpenSave('Spares only');
+    const toggle = screen.getByRole('switch', { name: 'Physical cube' });
+    expect(toggle.getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('a cube drawn from Everything I own saves a draft: nothing reserved', async () => {
+    await buildAndOpenSave('Everything I own');
+    const toggle = screen.getByRole('switch', { name: 'Physical cube' });
+    expect(toggle.getAttribute('aria-checked')).toBe('false');
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(useCubeStore.getState().saved).toHaveLength(1));
+    const saved = useCubeStore.getState().saved[0];
+    expect(saved.isPhysical).toBe(false);
+    expect(saved.picks).toEqual([]);
+  });
+
+  it('the switch can still save an Available cube as a draft', async () => {
+    await buildAndOpenSave();
+    fireEvent.click(screen.getByRole('switch', { name: 'Physical cube' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(useCubeStore.getState().saved).toHaveLength(1));
+    expect(useCubeStore.getState().saved[0].isPhysical).toBe(false);
   });
 });

@@ -10,9 +10,9 @@ import { formatIdentity } from '@/lib/social/display-name';
 import { renderMarkdownLite } from '@/lib/util/markdown-lite';
 import { publicCardToEnriched, deckCardToPublicCard } from '@/lib/social/shared-filter';
 import { useAuth } from '../../store/auth';
-import { CardPreview, type CardPreviewAction } from '../CardPreview';
+import { CardPreview, type CardPreviewAction } from '@/components/card/CardPreview';
 import { ManaCost } from '../ManaCost';
-import { SearchPill } from '../SearchPill';
+import { SearchPill } from '@/components/search/SearchPill';
 import { ViewModeToggle } from '../ViewModeToggle';
 import { SharedCardTile } from './SharedCardTile';
 

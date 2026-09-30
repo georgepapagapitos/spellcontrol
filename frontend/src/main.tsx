@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
-import { ErrorBoundary } from './components/ErrorBoundary';
+import { ErrorBoundary } from '@/components/app-shell/ErrorBoundary';
 // Split from the former styles/global.css — imported in original cascade order
 // so the split is a pure file-organization change (no behavior change).
 import './styles/fonts.css';

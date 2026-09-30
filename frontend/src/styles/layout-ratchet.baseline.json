@@ -1,7 +1,7 @@
 {
   "spacing": {},
   "breakpoints": {
-    "components/CardDetails.css": 1,
+    "components/card/CardDetails.css": 1,
     "components/deck/DeckAiReview.css": 1,
     "components/deck/DeckCurvePhases.css": 1,
     "components/deck/GenerationModePicker.css": 1,

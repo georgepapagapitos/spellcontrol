@@ -108,7 +108,7 @@ describe('index tiles share one hover (§ Index tiles)', () => {
 
   it('a family may still reveal its own controls on hover', () => {
     const discover = all.filter(
-      (r) => r.file === 'components/DiscoverDeckTile.css' && tileInState.test(r.selector)
+      (r) => r.file === 'components/decks/DiscoverDeckTile.css' && tileInState.test(r.selector)
     );
     expect(discover.some((r) => r.selector.endsWith('.tile-actions'))).toBe(true);
   });

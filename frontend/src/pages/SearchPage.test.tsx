@@ -15,7 +15,7 @@ const h = vi.hoisted(() => ({
 // scryfall client) — the syntax helper under test doesn't need any of it. The
 // keyboard-nav tests below need the ref handle and onActiveChange forwarded
 // the same way the real component does, so the mock wires those through too.
-vi.mock('../components/InlineCardSearch', () => ({
+vi.mock('@/components/search/InlineCardSearch', () => ({
   InlineCardSearch: forwardRef(function MockInlineCardSearch(
     props: { onActiveChange?: (card: unknown) => void },
     ref

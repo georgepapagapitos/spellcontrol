@@ -32,7 +32,7 @@ vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => 'https://img.exa
 // (Scryfall rulings, the share sheet, react-router Link…). Stub it here so
 // these tests exercise OpponentBoardModal's own inspect-wiring — which card
 // it hands off, at which index — without dragging all of that in.
-vi.mock('@/components/CardPreview', () => ({
+vi.mock('@/components/card/CardPreview', () => ({
   CardPreview: (props: { cards: Array<{ name: string }>; index: number }) => (
     <div data-testid="card-preview">{props.cards[props.index]?.name}</div>
   ),

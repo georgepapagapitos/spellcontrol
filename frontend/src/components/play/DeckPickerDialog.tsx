@@ -1,8 +1,8 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Dices, X } from 'lucide-react';
-import { Modal } from '../Modal';
-import { SearchPill } from '../SearchPill';
-import { Tabs } from '../Tabs';
+import { Modal } from '@/components/overlays/Modal';
+import { SearchPill } from '@/components/search/SearchPill';
+import { Tabs } from '@/components/overlays/Tabs';
 import { ManaCost } from '../ManaCost';
 import { deckPickerLabels } from '@/lib/play/deck-picker-labels';
 import { searchStarterDecks, starterDeckLocalId } from '@/lib/play/starter-decks';

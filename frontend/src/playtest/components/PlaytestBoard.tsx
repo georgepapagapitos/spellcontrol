@@ -21,7 +21,7 @@ import {
   Settings,
   Undo2,
 } from 'lucide-react';
-import { useConfirm } from '@/components/use-confirm';
+import { useConfirm } from '@/components/overlays/use-confirm';
 import { WedgeHintStrip } from '@/components/deck/WedgeHintStrip';
 import { dismissPlaytestDragHint, shouldShowPlaytestDragHint } from '@/lib/home/wedge-hints';
 import {
@@ -83,7 +83,7 @@ import { useHoverTarget } from '../hooks/use-hover-target';
 import { useTablePings } from '../hooks/use-table-pings';
 import { TablePings } from './TablePings';
 import { StackPanel, type StackPanelItem } from './StackPanel';
-import { isTypingTarget, useRegisterShortcuts } from '@/components/shortcut-registry';
+import { isTypingTarget, useRegisterShortcuts } from '@/components/app-shell/shortcut-registry';
 import { useOnlineTable } from '../hooks/use-online-table';
 import { useOnlineHorde } from '../hooks/use-online-horde';
 import { Button } from '@/components/shared/Button';
@@ -124,7 +124,7 @@ import { ZonePile } from './ZonePile';
 import { ZoneViewerModal } from './ZoneViewerModal';
 import { SEPARATOR, TableContextMenu, type MenuEntry } from './TableContextMenu';
 import { LogDock } from './LogDock';
-import { Modal } from '@/components/Modal';
+import { Modal } from '@/components/overlays/Modal';
 import { EndGameDialog } from '@/components/play/EndGameDialog';
 import { useRulesReferenceStore } from '@/store/rules-reference';
 import { GameMenuSheet, type GameMenuSection } from './GameMenuSheet';

@@ -1,9 +1,9 @@
 import './DiscoverBrewersPage.css';
 import { useEffect, useRef, useState } from 'react';
-import { DecksHubTabs } from '../components/DecksHubTabs';
-import { DiscoverPanel, DiscoverSwitch } from '../components/DiscoverSwitch';
-import { PageHeader } from '../components/PageHeader';
-import { SearchPill } from '../components/SearchPill';
+import { DecksHubTabs } from '@/components/decks/DecksHubTabs';
+import { DiscoverPanel, DiscoverSwitch } from '@/components/decks/DiscoverSwitch';
+import { PageHeader } from '@/components/app-shell/PageHeader';
+import { SearchPill } from '@/components/search/SearchPill';
 import { BrewerCard, BrewerCardSkeleton } from '../components/social/BrewerCard';
 import { Button } from '@/components/shared/Button';
 import { EmptyState } from '@/components/shared/EmptyState';

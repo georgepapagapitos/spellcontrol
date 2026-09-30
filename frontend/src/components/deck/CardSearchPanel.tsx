@@ -22,7 +22,7 @@ import {
   useCardTagsReady,
 } from '@/lib/cards/card-tags';
 import { imageFromCard, useCardThumb } from '@/lib/cards/card-thumbs';
-import { InfoTip } from '../InfoTip';
+import { InfoTip } from '@/components/overlays/InfoTip';
 import { useToastsStore } from '../../store/toasts';
 import { useSetMap } from '@/lib/api';
 import { fetchTypeSuggestions } from '@/lib/cards/scryfall-catalog';
@@ -37,12 +37,12 @@ import {
   setMatchesExpression,
   substringMatchesExpression,
 } from '@/lib/binder/rules';
-import { CollectionFiltersDialog } from '../CollectionFiltersDialog';
-import { SelectMenu, type SelectOption } from '../SelectMenu';
+import { CollectionFiltersDialog } from '@/components/search/CollectionFiltersDialog';
+import { SelectMenu, type SelectOption } from '@/components/overlays/SelectMenu';
 import type { FilterableRow } from '@/lib/search/collection-filter';
 import { BinderBadge, type BinderInfo } from '../BinderBadge';
-import { SearchPill } from '../SearchPill';
-import { Tabs, type TabItem } from '../Tabs';
+import { SearchPill } from '@/components/search/SearchPill';
+import { Tabs, type TabItem } from '@/components/overlays/Tabs';
 import { WedgeHintStrip } from './WedgeHintStrip';
 import { DeckAnalysisSkeleton } from './DeckAnalysisSkeleton';
 import { dismissBinderHint, shouldShowBinderHint } from '@/lib/home/wedge-hints';
@@ -57,7 +57,7 @@ import {
   type SuggestionFilter,
 } from '@/lib/coach/deck-suggestions';
 import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
-import type { CardPreviewAction } from '../CardPreview';
+import type { CardPreviewAction } from '@/components/card/CardPreview';
 
 import { userMessage } from '@/lib/util/user-error';
 import { printedName } from '@spellcontrol/binder-routing';

@@ -324,7 +324,7 @@ and is grandfathered; don't copy it).
   module-level `Set` keyed by the subject's id, checked-and-added around the
   `fire()` call** — see `celebratedDeckComplete` in
   `components/deck/DeckDisplay.tsx` and `celebratedBinderCleared` in
-  `components/BinderDriftBanner.tsx`. Prose alone let a second call site
+  `components/binder/BinderDriftBanner.tsx`. Prose alone let a second call site
   (the binder-cleared moment) ship without the guard, gated only by a
   component-local ref that replays on every clear within a session — a new
   call site should copy one of these two, not reinvent the guard.
@@ -727,7 +727,7 @@ server's `isOwner` flag decides, and nobody reports themselves.
 
 ## Command palette (⌘K) — desktop-only by design
 
-The palette (`components/CommandPalette.tsx`, model in `lib/search/commands.ts`) is
+The palette (`components/app-shell/CommandPalette.tsx`, model in `lib/search/commands.ts`) is
 reachable by **⌘K / Ctrl+K** anywhere outside a text input and is listed in
 the `?` shortcuts overlay. That is its whole entry surface: **no header
 button, no tab-bar trigger, no touch affordance**, on purpose. Its value is
@@ -743,7 +743,7 @@ action row ([§ Toolbars & action rows](components.md#toolbars--action-rows-resp
 **One global overlay, one registry.** The `?` key opens a single
 `KeyboardShortcutsOverlay` (a shared `Modal`) from anywhere outside a text
 input. Pages/components contribute their section via
-`useRegisterShortcuts(sectionTitle, shortcuts)` from `components/shortcut-registry`.
+`useRegisterShortcuts(sectionTitle, shortcuts)` from `components/app-shell/shortcut-registry`.
 The overlay renders all mounted sections in registration order ("Global" always
 first, since Layout mounts it first). Do NOT wire a local `?` listener in a
 page — the global listener in Layout handles it.
@@ -755,7 +755,7 @@ repeatedly (an infinite render loop).
 
 **Input guard.** The `?` key is suppressed when focus is inside any
 `<input>`, `<textarea>`, `<select>`, or `contentEditable`. The guard is
-`isTypingTarget` from `components/shortcut-registry`.
+`isTypingTarget` from `components/app-shell/shortcut-registry`.
 
 **Footer chip.** A `<button className="footer-shortcuts-chip">` in `Footer.tsx`
 calls `show()` from `useShortcutRegistry`. It is `display:none` by default and
