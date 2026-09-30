@@ -57,7 +57,7 @@ import { buildCommanderProfile } from './commanderProfile';
 import { ARCHETYPE_LABEL } from './strategyVocabulary';
 import { Archetype } from '@/deck-builder/types';
 import type { ArchetypeProvenance, Pacing, RoleTargetBreakdown } from '@/deck-builder/types';
-import type { WholeDeckSearchResult } from './deckGeneration/phaseWholeDeckSearch';
+import * as wholeDeckSearch from './deckGeneration/wholeDeckSearchStep';
 import { loadUserLists } from '@/deck-builder/hooks/useUserLists';
 import {
   fitsColorIdentity,
@@ -4616,25 +4616,16 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     }
   );
 
-  // Whole-deck search (E513): the last change to the list, before every note
-  // below; loaded only when customization.wholeDeckSearch asks for it.
-  let wholeDeckSearch: WholeDeckSearchResult | undefined;
-  if (customization.wholeDeckSearch) {
-    const { wholeDeckSearchPhase } = await import('./deckGeneration/phaseWholeDeckSearch');
-    wholeDeckSearch = await wholeDeckSearchPhase(state, {
-      roleTargets,
-      pacing: resolvedPacing,
-      detectedCombos,
-      scryfallCardMap,
-      isSaltBlocked,
-      cardAllowed: isCardAllowedBySynergyDependencies,
-      maxCmc,
-      resolveOwned,
-    });
-    if (wholeDeckSearch.swaps.length)
-      detectedCombos = refreshComboCompleteness(detectedCombos, state);
-  }
-
+  detectedCombos = await wholeDeckSearch.run(state, {
+    roleTargets,
+    pacing: resolvedPacing,
+    detectedCombos,
+    scryfallCardMap,
+    isSaltBlocked,
+    cardAllowed: isCardAllowedBySynergyDependencies,
+    maxCmc,
+    resolveOwned,
+  });
   // Emergent combo-completion disclosure: diff the truly-final detectedCombos
   // just refreshed above against the generation-start baseline captured
   // right after must-includes were seeded (state.baselineDetectedCombos) —
@@ -4952,9 +4943,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     themeNames: selectedThemesWithSlugs.map((t) => t.name),
     seedReasons: dialSeed.reasons,
   });
-  for (const swap of wholeDeckSearch?.swaps ?? [])
-    if (nonLandCards.some((c) => c.name === swap.added))
-      cardProvenance[swap.added] = `Swapped in by the whole-deck search for ${swap.cut}`;
+  wholeDeckSearch.stampProvenance(state, nonLandCards, cardProvenance);
   const thinPoolFillNote = ownedOnlyBuild
     ? buildThinPoolFillNote({ nonLandCards, cardProvenance, liftScoreOf })
     : undefined;
@@ -5025,9 +5014,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     manabase,
     coherenceFindings: coherenceFindings.length > 0 ? coherenceFindings : undefined,
     coherenceRepairs: coherenceRepairs.length > 0 ? coherenceRepairs : undefined,
-    ...(wholeDeckSearch?.swaps.length // no new key at all on a flag-off deck
-      ? { wholeDeckSearchSwaps: wholeDeckSearch.swaps, wholeDeckSearchNote: wholeDeckSearch.note }
-      : {}),
+    ...wholeDeckSearch.reportFields(state),
     fixupRepairs: fixupRepairs.length > 0 ? fixupRepairs : undefined,
     budgetRepairs: budgetRepairs.length > 0 ? budgetRepairs : undefined,
     surplusConversions: surplusConversions.length > 0 ? surplusConversions : undefined,

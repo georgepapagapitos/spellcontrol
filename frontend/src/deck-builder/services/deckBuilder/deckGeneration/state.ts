@@ -10,6 +10,7 @@
 // the values generateDeck computed at the top of its body). The remaining
 // fields are the mutable containers and mid-life "result" locals threaded
 // across phases, each initialized to exactly the value generateDeck used.
+import type { WholeDeckSearchResult } from './phaseWholeDeckSearch';
 import type {
   ScryfallCard,
   DeckCategory,
@@ -176,6 +177,8 @@ export interface GenerationState {
    *  the algorithm's own subsequent picks go on to complete. Undefined until
    *  that snapshot runs; never reassigned after. */
   baselineDetectedCombos?: DetectedCombo[];
+  /** E513: what the whole-deck search changed; unset when the flag is off. */
+  wholeDeckSearch?: WholeDeckSearchResult;
   gapAnalysis: GapAnalysisCard[] | undefined;
   deckScore: number | undefined;
   cardInclusionMap: Record<string, number> | undefined;
