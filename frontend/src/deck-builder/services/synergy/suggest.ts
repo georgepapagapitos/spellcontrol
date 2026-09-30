@@ -20,6 +20,8 @@ export interface SynergyNeed {
   label: string;
   /** The side of the engine the deck is short on. */
   side: AxisSide;
+  /** A budding axis (not invested): filling it starts an engine. */
+  budding?: boolean;
 }
 
 export interface SynergyCandidate {
@@ -36,6 +38,15 @@ export interface SynergySuggestion {
   /** Why it fits — straight from the classifier ("triggers when your creatures enter"). */
   reason: string;
   inclusion?: number;
+  /**
+   * The axis is only budding in this deck (a few cards, one side absent), not
+   * one it is invested in: the pick would start an engine, not feed the plan.
+   * Coach ranks these last.
+   */
+  budding?: boolean;
+  /** USD price and rarity, stamped by the manual-deck analysis (candidateCardData.ts). */
+  price?: string | null;
+  rarity?: string;
 }
 
 /** A side is "starved" when it's outnumbered ≥3:1 by the other (and ≥1 exists). */
@@ -64,8 +75,10 @@ export function deriveNeeds(deck: DeckSynergy): SynergyNeed[] {
       else if (o >= p * LOPSIDED_RATIO && p >= 1)
         needs.push({ axis: ax.axis, label: ax.label, side: 'producer' });
     } else if (ax.total >= BUDDING_MIN) {
-      if (p >= 2 && o === 0) needs.push({ axis: ax.axis, label: ax.label, side: 'payoff' });
-      else if (o >= 2 && p === 0) needs.push({ axis: ax.axis, label: ax.label, side: 'producer' });
+      if (p >= 2 && o === 0)
+        needs.push({ axis: ax.axis, label: ax.label, side: 'payoff', budding: true });
+      else if (o >= 2 && p === 0)
+        needs.push({ axis: ax.axis, label: ax.label, side: 'producer', budding: true });
     }
   }
   return needs;
@@ -125,6 +138,7 @@ export function suggestOffMeta(
         side: need.side,
         reason: hit.reason,
         inclusion: cand.inclusion,
+        ...(need.budding ? { budding: true } : {}),
       });
     }
     // Validated fills (real EDHREC inclusion) lead, most-validated first.

@@ -379,6 +379,9 @@ export interface GapAnalysisCard {
    *  backed by synergy or lift evidence AND the dial was leaned toward Brew
    *  when generated — see phaseGapAnalysis.ts. */
   brewFavored?: boolean;
+  /** Scryfall rarity, stamped by the manual-deck analysis (candidateCardData.ts)
+   *  so Coach can respect a rarity cap without resolving the card again. */
+  rarity?: string;
 }
 
 /**

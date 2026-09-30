@@ -24,7 +24,6 @@ import {
 import {
   getGameChangerNames,
   getCardsByNames,
-  getFrontFaceTypeLine,
   searchCards,
   commanderSearchIdentity,
 } from '@/deck-builder/services/scryfall/client';
@@ -40,7 +39,6 @@ import {
   type CurvePhaseAnalysis,
   type DeckAnalysis,
   type OptimizeSwaps,
-  type RecommendedCard,
   type SummaryItem,
 } from './deckAnalyzer';
 import { getDynamicRoleTargets } from './roleTargets';
@@ -50,6 +48,13 @@ import { computeHiddenGems } from './hiddenGems';
 import { loadCardSimilar, getSimilarRank } from './cardSimilar';
 import { computePlanScore, type PlanScore, type StrategyEngineInput } from './planScore';
 import { computeMisfits, summarizeMisfits, type MisfitSummary } from './cardFit';
+import { premiumNames } from './premiumCards';
+import {
+  enrichRecommendationPrices,
+  stampCandidateCardData,
+  type SuggestionCardData,
+} from './candidateCardData';
+import { loadCardFacts } from '@/deck-builder/services/cardFacts';
 import { buildCostPlan, type CostPlan } from './costAnalyzer';
 import { frontFaceName, getByCardName } from '@/lib/cards/card-text';
 import { isSignatureSynergy } from './synergyLift';
@@ -507,6 +512,9 @@ export interface CommanderDeckAnalysisResult extends GradeBracketResult {
    * analysis.
    */
   edhrecMissing?: boolean;
+  /** Price and rarity of each one-away combo's missing piece, for Coach's
+   *  settings check (the combo rows carry neither). */
+  suggestionCards?: Record<string, SuggestionCardData>;
 }
 
 export interface AnalyzeCommanderDeckParams {
@@ -539,70 +547,7 @@ export interface AnalyzeCommanderDeckParams {
   archetypeBlendNames?: string[];
 }
 
-const RECOMMENDATION_SUPERTYPE = /^(Legendary|Basic|Snow|Tribal|Kindred|World|Ongoing)\s+/i;
-
-/** First non-supertype word of a front-face type line ("Creature", "Land", …). */
-function derivePrimaryType(typeLine: string): string {
-  let t = typeLine.split('—')[0].trim();
-  while (RECOMMENDATION_SUPERTYPE.test(t)) t = t.replace(RECOMMENDATION_SUPERTYPE, '');
-  return t.split(/\s+/)[0] ?? '';
-}
-
-/**
- * EDHREC cardlist cards carry no price / cmc / primary_type — Scryfall fills
- * those only in the generator path, never in the manual-editor analysis. Left
- * unenriched, the Cost optimizer's candidate pool has no prices (→ zero swap
- * rows) and Optimize's curve-fill + cost confidence bands degrade (cmc
- * undefined → cmcDelta = Infinity). Backfill the gaps from Scryfall in place —
- * one batched, cache-backed `/cards/collection` call. Best-effort: on failure
- * the recommendations are left as-is (the prior behaviour).
- */
-export async function enrichRecommendationPrices(recs: RecommendedCard[]): Promise<void> {
-  const need = recs.filter(
-    (r) =>
-      r.price == null ||
-      r.cmc == null ||
-      !r.primaryType ||
-      r.primaryType === 'Unknown' ||
-      // Lands need producedColors so the budget land-fixing floor can compare
-      // candidates (the EDHREC pool doesn't carry it).
-      (!r.producedColors && (r.primaryType ?? '').includes('Land'))
-  );
-  if (need.length === 0) return;
-  try {
-    const cardMap = await getCardsByNames(
-      need.map((r) => r.name),
-      undefined,
-      undefined,
-      { priceTail: false }
-    );
-    const byName = new Map<string, ScryfallCard>();
-    for (const c of cardMap.values()) {
-      byName.set(c.name.toLowerCase(), c);
-      if (c.name.includes(' // ')) byName.set(frontFaceName(c.name).toLowerCase(), c);
-    }
-    for (const r of recs) {
-      const c = byName.get(r.name.toLowerCase());
-      if (!c) continue;
-      if (r.cmc == null && c.cmc != null) r.cmc = c.cmc;
-      if (!r.primaryType || r.primaryType === 'Unknown') {
-        const pt = derivePrimaryType(getFrontFaceTypeLine(c));
-        if (pt) r.primaryType = pt;
-      }
-      if (r.price == null) {
-        const usd = c.prices?.usd ?? c.prices?.usd_foil ?? undefined;
-        if (usd) r.price = usd;
-      }
-      // Backfill land color-fixing for the budget land-swap floor.
-      if (!r.producedColors && getFrontFaceTypeLine(c).toLowerCase().includes('land')) {
-        const colors = [...new Set((c.produced_mana ?? []).filter((m) => 'WUBRG'.includes(m)))];
-        if (colors.length > 0) r.producedColors = colors;
-      }
-    }
-  } catch (err) {
-    logger.warn('[CommanderDeckAnalysis] Recommendation price enrichment failed:', err);
-  }
-}
+export { enrichRecommendationPrices } from './candidateCardData';
 
 /** Cap on how many Scryfall hits per need feed the off-meta selector. */
 const ORACLE_HITS_PER_NEED = 40;
@@ -762,6 +707,7 @@ export async function analyzeCommanderDeck(
     // loadTaggerData is idempotent and de-duped, so in the common case (already
     // loaded) this resolves immediately.
     await loadTaggerData();
+    await scryfallBudget(loadCardFacts(), false); // premiumCards.ts reads the facts
 
     let edhrecData: EDHRECCommanderData;
     try {
@@ -834,6 +780,8 @@ export async function analyzeCommanderDeck(
       edhrecData,
       params.cards.map((c) => c.name)
     );
+    // Premium cards are never a Coach cut: not a misfit, not an optimizer removal.
+    const protectedNames = premiumNames(params.cards, (n) => cardInclusionMap[n], gameChangerNames);
 
     const allCardNames = [...params.cards.map((c) => c.name), params.commander.name];
     if (params.partnerCommander) allCardNames.push(params.partnerCommander.name);
@@ -974,6 +922,8 @@ export async function analyzeCommanderDeck(
         blendedNames: params.archetypeBlendNames?.length
           ? new Set(params.archetypeBlendNames)
           : undefined,
+        protectedNames,
+        roleBalance: { roleOf: countedRoleOf, counts: roleCounts, targets: roleTargets },
       };
       misfits = summarizeMisfits(computeMisfits(misfitInputs));
       planScore = computePlanScore({
@@ -1019,7 +969,7 @@ export async function analyzeCommanderDeck(
         new Set<string>(),
         params.detectedCombos,
         cardSynergyMap,
-        synergyProtectedNames,
+        new Set([...synergyProtectedNames, ...protectedNames]),
         // E71 Phase 4: lift co-play connectivity — protects package-connected
         // cards from the cutter and flags trusted no-link cards "off-package".
         liftIndex ? { index: liftIndex, seedCount: liftSeedCount } : undefined
@@ -1034,6 +984,7 @@ export async function analyzeCommanderDeck(
         ...params.cards.filter((c) => c.isMustInclude).map((c) => c.name),
         ...(params.detectedCombos?.flatMap((combo) => combo.cards) ?? []),
         ...synergyProtectedNames,
+        ...protectedNames, // saving money never costs the deck a premium card
       ]);
       costPlan = buildCostPlan(
         params.cards,
@@ -1096,6 +1047,26 @@ export async function analyzeCommanderDeck(
       logger.warn('[CommanderDeckAnalysis] Synergy analysis failed:', err);
       synergyAnalysis = buildSynergyAnalysis(deckSynergy, []);
     }
+
+    // Price + rarity of every card Coach may suggest (lib/coach/deck-settings-fit.ts).
+    const pageIndex = buildInclusionIndex(edhrecData);
+    const suggestionCards = await scryfallBudget(
+      stampCandidateCardData(
+        {
+          gaps: gapAnalysis,
+          additions: optimizeSwaps?.additions,
+          synergy: synergyAnalysis?.suggestions,
+          loose: (params.oneAwayCombos ?? []).flatMap((m) =>
+            m.combo.cards
+              .filter((c) => m.missingOracleIds.includes(c.oracleId))
+              .map((c) => c.cardName)
+          ),
+          inclusionOf: (name) => lookupInclusion(pageIndex, name),
+        },
+        (names) => getCardsByNames(names, undefined, undefined, { priceTail: false })
+      ),
+      {}
+    );
 
     // Win-condition detection — pure, composes existing signals (combos,
     // synergy axes, oracle text). Best-effort: failure leaves winConditions absent.
@@ -1168,6 +1139,7 @@ export async function analyzeCommanderDeck(
       synergyAnalysis,
       winConditions,
       bracketFit,
+      suggestionCards,
     };
   } catch (err) {
     logger.warn('[CommanderDeckAnalysis] Failed to analyze manual deck:', err);

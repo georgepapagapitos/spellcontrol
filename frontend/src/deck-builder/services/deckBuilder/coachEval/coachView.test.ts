@@ -93,6 +93,8 @@ function analysis(): CommanderDeckAnalysisResult {
     ],
     hiddenGems: [],
     cardInclusionMap: {},
+    // The hero only names a combo piece this commander's decks play.
+    suggestionCards: { 'Mox Amber': { price: '2.10', rarity: 'rare', inclusion: 18 } },
     optimizeSwaps: {
       additions: [],
       removals: [
@@ -133,8 +135,8 @@ describe('buildCoachView', () => {
     // Gap rows by play rate; the combo completion rides in the feed too.
     expect(feedNames.slice(0, 3)).toEqual(['Rhystic Study', 'Fact or Fiction', 'Burgeoning']);
     expect(feedNames).toContain('Mox Amber');
-    // Cut rows carry no delta, so rankCoachMoves orders them by play rate, highest first.
-    expect(view.cuts.map((r) => r.change.name)).toEqual(['Aetherize', 'Negate']);
+    // The Cuts chip reads weakest first: the least played here leads.
+    expect(view.cuts.map((r) => r.change.name)).toEqual(['Negate', 'Aetherize']);
     // The hero names the missing combo piece.
     expect(view.nbm.find((m) => m.cardName)?.cardName).toBe('Mox Amber');
     expect(view.roleCounts.cardDraw).toBeGreaterThan(0);

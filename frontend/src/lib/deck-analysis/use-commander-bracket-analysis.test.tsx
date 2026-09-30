@@ -49,7 +49,7 @@ function sig(
   bracketOverride?: 1 | 2 | 3 | 4 | 5 | null
 ): string {
   return [
-    'v20-dfc-pool-lookup',
+    'v21-coach-inputs',
     deck.commander?.name ?? '',
     deck.partnerCommander?.name ?? '',
     deck.cards

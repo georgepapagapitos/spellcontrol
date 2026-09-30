@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { computeLandUpgrades } from './landUpgrades';
+import { computeLandUpgrades, isUtilityLand, landSlotMerit } from './landUpgrades';
 import type { ScryfallCard } from '@/deck-builder/types';
+import { COACH_CARDS } from './__fixtures__/coach-cards.fixtures';
 
 const card = (p: Partial<ScryfallCard>): ScryfallCard =>
   ({ name: 'x', cmc: 2, ...p }) as ScryfallCard;
@@ -112,5 +113,92 @@ describe('computeLandUpgrades', () => {
       expect(m.addsColors).not.toContain('R');
       expect(m.addsColors).not.toContain('B');
     }
+  });
+});
+
+// Guard (T171 lane M): a land swap is a real upgrade for THIS deck. Lane L's
+// harness applied 97 land swaps that were downgrades: Evolving Wilds, Ash
+// Barrens, Escape Tunnel and the Panoramas came in, and Yavimaya, Castle
+// Garenbrig, Takenuma and Reliquary Tower went out. Real cards, Scryfall's
+// 2026-09-29 bulk.
+describe('computeLandUpgrades — real cards (T171)', () => {
+  const real = (name: string): ScryfallCard => ({ ...COACH_CARDS[name] });
+  const BG = new Set(['B', 'G']);
+  const G = new Set(['G']);
+  const spells = ['Murder', 'Harmonize', 'Beast Within', 'Doom Blade'].map(real);
+  const basicFetchers = ['Evolving Wilds', 'Escape Tunnel', 'Jund Panorama', 'Ash Barrens'];
+
+  it('never offers a land that only fetches a basic as the upgrade', () => {
+    const deck = [real('Swamp'), real('Swamp'), real('Forest'), real('Forest'), ...spells];
+    const moves = computeLandUpgrades(deck, BG, basicFetchers.map(real), new Set());
+    expect(moves).toEqual([]);
+  });
+
+  it('never cuts a utility land for a fixer', () => {
+    const utility = [
+      'Yavimaya, Cradle of Growth',
+      'Castle Garenbrig',
+      'Takenuma, Abandoned Mire',
+      'Reliquary Tower',
+    ].map(real);
+    for (const u of utility) expect(isUtilityLand(u), u.name).toBe(true);
+    const moves = computeLandUpgrades(
+      [...utility, ...spells],
+      BG,
+      [real('Overgrown Tomb'), real('Woodland Cemetery'), real('Command Tower')],
+      new Set()
+    );
+    expect(moves).toEqual([]);
+  });
+
+  it('swaps a land that only fetches a basic for an untapped dual', () => {
+    const deck = [real('Evolving Wilds'), real('Forest'), real('Swamp'), ...spells];
+    const moves = computeLandUpgrades(deck, BG, [real('Overgrown Tomb')], new Set());
+    expect(moves.map((m) => [m.outName, m.inName])).toContainEqual([
+      'Evolving Wilds',
+      'Overgrown Tomb',
+    ]);
+  });
+
+  it('reads the tapped sentence itself: Public Thoroughfare and Shimmerdrift Vale enter tapped', () => {
+    const deck = [real('Swamp'), real('Forest'), ...spells];
+    const tapped = computeLandUpgrades(
+      deck,
+      BG,
+      [real('Public Thoroughfare'), real('Shimmerdrift Vale'), real('Jungle Hollow')],
+      new Set()
+    );
+    expect(tapped).toEqual([]);
+    // A shockland's "If you don't, it enters tapped" is a condition.
+    const shock = computeLandUpgrades(deck, BG, [real('Overgrown Tomb')], new Set());
+    expect(shock).toHaveLength(1);
+  });
+
+  it('never offers mana it can only spend on some spells (Cavern of Souls)', () => {
+    const deck = [real('Forest'), real('Forest'), ...spells];
+    expect(computeLandUpgrades(deck, G, [real('Cavern of Souls')], new Set())).toEqual([]);
+  });
+
+  it('reads a land that fetches a basic as one basic, not every color it finds', () => {
+    expect(landSlotMerit(real('Evolving Wilds'), BG)).toBeLessThan(
+      landSlotMerit(real('Swamp'), BG)
+    );
+    expect(landSlotMerit(real('Overgrown Tomb'), BG)).toBeGreaterThan(
+      landSlotMerit(real('Golgari Rot Farm'), BG)
+    );
+  });
+
+  it('keeps two basics per basic fetcher in the deck', () => {
+    const deck = [real('Forest'), real('Forest'), real('Cultivate'), real('Murder')];
+    // Cultivate needs its basics: nothing to swap.
+    expect(computeLandUpgrades(deck, BG, [real('Overgrown Tomb')], new Set())).toEqual([]);
+  });
+
+  it('swaps a channel land in for the basic of its color', () => {
+    const deck = [real('Swamp'), real('Swamp'), real('Murder'), real('Harmonize')];
+    const moves = computeLandUpgrades(deck, BG, [real('Takenuma, Abandoned Mire')], new Set());
+    expect(moves.map((m) => [m.outName, m.inName])).toEqual([
+      ['Swamp', 'Takenuma, Abandoned Mire'],
+    ]);
   });
 });

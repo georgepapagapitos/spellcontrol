@@ -315,6 +315,38 @@ describe('CoachFeed', () => {
     expect(screen.getByText(/Nothing to coach/)).toBeTruthy();
   });
 
+  // T171 lane M: the deck's own settings hide the moves that break them, and
+  // an empty feed says which setting did it instead of calling the deck tuned.
+  it("hides moves the deck's settings rule out and names the setting when none are left", () => {
+    render(
+      <CoachFeed
+        {...makeProps({ costPlan: undefined, oneAwayCombos: [] })}
+        settingsBreak={(c) => (c.name === 'Cultivate' ? 'over-budget' : null)}
+      />
+    );
+    expect(screen.queryByText('Cultivate')).toBeNull();
+    expect(screen.getByText("Nothing to coach within this deck's settings.")).toBeTruthy();
+    expect(screen.getByText('Every suggestion would take the deck over its budget.')).toBeTruthy();
+    expect(screen.queryByText(/looks tuned/)).toBeNull();
+  });
+
+  it('falls back to a reason-agnostic line when several settings emptied the feed', () => {
+    render(
+      <CoachFeed
+        {...makeProps({ oneAwayCombos: [] })}
+        settingsBreak={(c) => (c.lane === 'budget' ? 'over-rarity' : 'unowned')}
+      />
+    );
+    expect(
+      screen.getByText("Every suggestion breaks one of this deck's build settings.")
+    ).toBeTruthy();
+  });
+
+  it('keeps the rows the settings allow', () => {
+    render(<CoachFeed {...makeProps()} settingsBreak={() => null} />);
+    expect(screen.getByText('Cultivate')).toBeTruthy();
+  });
+
   // ── PR-2: Fit? button ───────────────────────────────────────────────────
 
   it('Fit? button is present on add rows when onPreviewFit is provided', () => {

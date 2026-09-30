@@ -30,6 +30,50 @@ import type { LandUpgradeMove } from '@/deck-builder/services/deckBuilder/landUp
 import type { MisfitSummary } from '@/deck-builder/services/deckBuilder/cardFit';
 import type { ComboMatch } from '@/types/combos';
 
+/**
+ * The gap staples worth an owned substitute: role-bearing, not owned (an owned
+ * staple is simply added), and in a role the deck is short on. A substitute in
+ * a role already at its target was a lateral swap between two owned cards off
+ * the commander's page, and the next pass traded it straight back (T171 lane M
+ * measured 0.80 of the collection panel's applied moves reversed).
+ */
+export function staplesToSubstitute<T extends GapAnalysisCard>(
+  gaps: readonly T[],
+  ownedNames: ReadonlySet<string>,
+  roleCounts: Record<string, number>,
+  roleTargets: Record<string, number>
+): T[] {
+  return gaps.filter((g) => {
+    if (!g.role || ownedNames.has(g.name)) return false;
+    const target = roleTargets[g.role];
+    return target === undefined || (roleCounts[g.role] ?? 0) < target;
+  });
+}
+
+/**
+ * The one-away combos worth the Next-best-move hero: the missing piece is a
+ * card this commander's decks play (on its EDHREC page), most played first.
+ * A combo that only needs a generic card (Hullbreaker Horror with the Sol Ring
+ * every deck runs) led the hero for Atraxa, Muldrotha and Yuriko alike, and
+ * the next pass flagged the card it added (T171 lane M: 38 of the 74 off-plan
+ * moves left). `pieces` is the analysis' `suggestionCards`.
+ */
+export function onPlanCombos(
+  combos: ComboMatch[] | undefined,
+  pieces: Readonly<Record<string, { inclusion?: number }>> | undefined
+): ComboMatch[] | undefined {
+  if (!combos) return combos;
+  const pieceInclusion = (m: ComboMatch): number => {
+    const missing = m.combo.cards.filter((c) => m.missingOracleIds.includes(c.oracleId));
+    return Math.min(...missing.map((c) => pieces?.[c.cardName]?.inclusion ?? 0));
+  };
+  return combos
+    .map((m) => ({ m, inclusion: pieceInclusion(m) }))
+    .filter((x) => x.inclusion > 0)
+    .sort((a, b) => b.inclusion - a.inclusion)
+    .map((x) => x.m);
+}
+
 export interface CoachChangeSources {
   gaps: GapAnalysisCard[];
   optimize?: OptimizeSwaps;
@@ -50,11 +94,16 @@ export interface CoachChangeSources {
  * recompute on an apply, so this is what drops an applied row (and brings an
  * undone one back): adds need their card absent, cuts need it present, swaps
  * need the outgoing card present and the incoming card absent.
+ *
+ * `settingsFit` drops a move that breaks the deck's saved settings (price cap,
+ * budget, rarity, collection strategy, Game Changer limit): see
+ * deck-settings-fit.ts. Absent for a deck with nothing to respect.
  */
 export function buildCoachChanges(
   src: CoachChangeSources,
   resolveOwnership: (name: string) => ChangeOwnership,
-  deckNames: Set<string>
+  deckNames: Set<string>,
+  settingsFit?: (change: Change) => boolean
 ): Change[] {
   const adds: Change[] = [
     ...src.gaps.map((g) => fromGapCard(g, resolveOwnership(g.name))),
@@ -124,9 +173,11 @@ export function buildCoachChanges(
     ...moveChanges,
     ...[...mergedAdds, ...bracketAdds, ...comboChanges].filter(notMoved),
     ...swapsAndCuts,
-  ].filter((c) => {
-    if (c.type === 'add') return !inDeck(c.name);
-    if (c.type === 'cut') return inDeck(c.name);
-    return c.inName ? inDeck(c.inName) && !inDeck(c.name) : false;
-  });
+  ]
+    .filter((c) => {
+      if (c.type === 'add') return !inDeck(c.name);
+      if (c.type === 'cut') return inDeck(c.name);
+      return c.inName ? inDeck(c.inName) && !inDeck(c.name) : false;
+    })
+    .filter((c) => !settingsFit || settingsFit(c));
 }

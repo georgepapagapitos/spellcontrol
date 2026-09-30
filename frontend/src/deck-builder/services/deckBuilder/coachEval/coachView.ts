@@ -30,10 +30,12 @@ import { computeLandUpgrades } from '../landUpgrades';
 import { filterCostPlanByOwnership } from '../costAnalyzer';
 import { buildSubstitutionOptions, type SubstituteCandidate } from '../substituteFinder';
 import { ownedAlternativesReranker } from '@/deck-builder/services/substitutes/surfaces';
-import { buildCoachChanges } from '@/lib/coach/coach-changes';
+import { buildCoachChanges, onPlanCombos, staplesToSubstitute } from '@/lib/coach/coach-changes';
 import { rankCoachMoves, diversifyRankedMoves, type RankedMove } from '@/lib/coach/coach-rank';
-import type { ChangeOwnership } from '@/lib/coach/deck-change';
+import type { Change, ChangeOwnership } from '@/lib/coach/deck-change';
 import { buildSuggestionRows, type SuggestionRows } from '@/lib/coach/deck-suggestions';
+import { combosThatFit, gapsThatFit } from '@/lib/coach/deck-settings-fit';
+import { landUpgradeCandidates } from '@/lib/coach/land-candidates';
 import { analyzeDeck } from '@/lib/deck-analysis/deck-analysis';
 import { frontFaceName } from '@/lib/cards/card-text';
 
@@ -59,6 +61,8 @@ export interface CoachViewInputs {
   ownedOnly: boolean;
   /** Whether substitute ranking v2 has its card facts (the Coach tab loads them). */
   substitutesReady: boolean;
+  /** The page's `useCoachSettingsFit`: moves the deck's saved settings allow. */
+  settingsFit?: (change: Change) => boolean;
 }
 
 export interface CoachView {
@@ -149,7 +153,12 @@ export function buildCoachView(input: CoachViewInputs): CoachView {
   // DeckEditorPage `substitutionPlan`: missing role-bearing staples the user
   // doesn't own, each filled from the owned pool.
   const gaps: GapAnalysisCard[] = analysis.gapAnalysis ?? [];
-  const missingStaples = gaps.filter((g) => g.role && !ownedNames.has(g.name));
+  const missingStaples = staplesToSubstitute(
+    gaps,
+    ownedNames,
+    roleCounts,
+    analysis.roleTargets ?? {}
+  );
   const exactDeckNames = new Set(cards.map((c) => c.name));
   const substitutes =
     missingStaples.length > 0 && input.ownedPool.length > 0
@@ -166,13 +175,7 @@ export function buildCoachView(input: CoachViewInputs): CoachView {
     : undefined;
 
   // DeckEditorPage `landUpgrades`: owned unused lands + fetched duals.
-  const seen = new Set<string>();
-  const candidateLands: ScryfallCard[] = [];
-  for (const c of [...input.ownedLands, ...input.fixingLands]) {
-    if (seen.has(c.name)) continue;
-    seen.add(c.name);
-    candidateLands.push(c);
-  }
+  const candidateLands = landUpgradeCandidates(input.ownedLands, input.fixingLands);
   const landUpgrades =
     identity.length > 0
       ? computeLandUpgrades(cards, new Set(identity), candidateLands, new Set(ownedNames))
@@ -193,7 +196,8 @@ export function buildCoachView(input: CoachViewInputs): CoachView {
       crossDeckMoves: [],
     },
     ownershipFor,
-    deckNames
+    deckNames,
+    input.settingsFit
   );
   const all = rankCoachMoves(changes, {
     planScore: analysis.planScore,
@@ -233,10 +237,13 @@ export function buildCoachView(input: CoachViewInputs): CoachView {
     planScore: analysis.planScore,
     roleCounts,
     roleTargets: analysis.roleTargets ?? {},
-    gapAnalysis: analysis.gapAnalysis,
+    gapAnalysis: gapsThatFit(analysis.gapAnalysis, input.settingsFit, ownershipFor),
     cardCount: deckSize,
     deckTarget: COMMANDER_DECK_TARGET,
-    oneAwayCombos: input.combos.oneAway,
+    oneAwayCombos: onPlanCombos(
+      combosThatFit(input.combos.oneAway, input.settingsFit, ownershipFor),
+      analysis.suggestionCards
+    ),
     ownedNames: new Set(ownedNames),
     winConditions: analysis.winConditions,
     bracketFitHasMoves: (analysis.bracketFit?.moves.length ?? 0) > 0,

@@ -50,7 +50,7 @@ import { createGunzip } from 'node:zlib';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
-import type { EDHRECCommanderData, ScryfallCard } from '@/deck-builder/types';
+import type { Customization, EDHRECCommanderData, ScryfallCard } from '@/deck-builder/types';
 import type { ComboMatchResponse } from '@/types/combos';
 import {
   analyzeCommanderDeck,
@@ -73,10 +73,10 @@ import {
 import { getGameChangerNames, searchCards } from '@/deck-builder/services/scryfall/client';
 import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
 import { rankReplacementCuts } from '@/lib/coach/intelligent-cuts';
-import { buildComboOverlay } from '@/lib/deck-analysis/edhrec-combo-overlay';
 import { axisKeys } from '@/lib/coach/axis-overlap';
 import { frontFaceName } from '@/lib/cards/card-text';
 import { HARDCODED_GAME_CHANGERS } from '@spellcontrol/deck-metrics';
+import { coachDeckSettings, fitsSettings, settingsChecker } from '@/lib/coach/deck-settings-fit';
 import type { SubstituteCandidate } from '../substituteFinder';
 import { dumpPage, resolveName } from '../deckObjective/panelDump';
 import { synergyStrength } from '../synergyLift';
@@ -493,8 +493,29 @@ async function coachPass(dump: CoachDump, deck: EvalDeckState): Promise<CoachPas
     combos,
     ownedOnly: settings.collectionMode && (strategy === 'full' || strategy === 'available'),
     substitutesReady: true,
+    // DeckEditorPage `useCoachSettings`: the saved customization, no stated target.
+    settingsFit: fitsSettings(
+      settingsChecker(
+        coachDeckSettings({
+          generationContext: {
+            selectedThemes: [],
+            targetBracket: settings.targetBracket ?? 'all',
+            landCount: 0,
+            collectionMode: settings.collectionMode,
+            customization: dump.customization as Partial<Customization>,
+          },
+          bracketOverride: null,
+        }),
+        {
+          cards,
+          isOwned: (name) => settings.ownedNames.has(name),
+          full: cards.length >= 99 - (partner ? 1 : 0),
+          gameChangerNames: GAME_CHANGERS,
+          cardData: (name) => analysis.suggestionCards?.[name],
+        }
+      )
+    ),
   });
-  const overlay = buildComboOverlay(edhrecCombos, page?.stats?.numDecks ?? 0);
   const commanderNames = allNames.slice(0, partner ? 2 : 1);
   const env: ApplyEnv = {
     resolve: cardFor,
@@ -502,13 +523,13 @@ async function coachPass(dump: CoachDump, deck: EvalDeckState): Promise<CoachPas
       rankReplacementCuts({
         addCard,
         deckCards: current.map((card, i) => ({ slotId: String(i), card })),
-        // The persisted analysis: it doesn't recompute between quick applies.
-        removals: analysis.optimizeSwaps?.removals,
+        // The persisted analysis (DeckEditorPage passes the deck): it doesn't
+        // recompute between quick applies.
+        analysis,
         inDeckCombos: combosFromEdhrec(edhrecCombos, [
           ...commanderNames,
           ...current.map((c) => c.name),
         ]).inDeck,
-        comboOverlay: overlay,
       }).map((r) => ({ name: r.card.name, reason: r.reason })),
     bracketOf: (current) => {
       const names = [...commanderNames, ...current.map((c) => c.name)];

@@ -111,6 +111,20 @@ describe('suggestOffMeta', () => {
     expect(withQuota[0]).toBe("Cathars' Crusade");
   });
 
+  // T171 lane M: Coach ranks a pick that would start an engine below every
+  // on-plan move, so the suggestion says which kind it is.
+  it('marks a payoff for a budding engine, and only that', () => {
+    const budding = analyzeDeckSynergy(pick('Secure the Wastes', 'Hornet Queen', 'Grave Titan'));
+    expect(budding.invested).not.toContain('tokens');
+    const fills = suggestOffMeta(budding, [cand("Cathars' Crusade", 12)]);
+    expect(fills).toEqual([
+      expect.objectContaining({ cardName: "Cathars' Crusade", budding: true }),
+    ]);
+
+    const invested = suggestOffMeta(producerHeavyTokens(), [cand("Cathars' Crusade", 12)]);
+    expect(invested[0].budding).toBeUndefined();
+  });
+
   it('returns nothing when there are no needs', () => {
     const balanced = analyzeDeckSynergy(
       pick(

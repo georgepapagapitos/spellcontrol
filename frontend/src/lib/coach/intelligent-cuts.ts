@@ -15,21 +15,38 @@
  *   - **Same primary card type** (creature ↔ creature).
  *   - **Similar mana cost / color overlap** — weak tiebreaks.
  *
- * It reuses the optimizer's real per-card cut reason (`optimizeSwaps.removals`)
- * instead of "weak slot", and **never suggests cutting a card that's load-bearing
- * for an engine the deck is invested in** unless the card being added reinforces
- * that same engine (a true like-for-like swap).
+ * It reuses the Coach's real per-card cut reasons (the optimizer's removals and
+ * the cardFit misfits) instead of "weak slot", and never offers:
+ *   - a card of the other slot type: a land makes room for a land, a spell for
+ *     a spell (T171 lane L: 42 of 196 applied cuts traded a land for a spell or
+ *     the reverse, because the flag list was read whatever the incoming type);
+ *   - a premium card (premiumCards.ts) or a piece of a combo the deck has;
+ *   - a card whose role is at or under its target, unless the add fills that
+ *     same role and the role isn't short: a cut never opens a role gap, and an
+ *     add that fills a gap never trades away another card in the same role
+ *     (the collection panel's owned substitutes went in for a same-role cut,
+ *     and the next pass traded them straight back);
+ *   - a card load-bearing for an engine the deck is invested in, unless the
+ *     card being added reinforces that same engine (a true like-for-like swap).
  *
  * Pure & isomorphic-ish: only depends on the tagger/scryfall/synergy helpers.
  */
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { OptimizeCard } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
 import { ROLE_LABELS } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
+import type { MisfitSummary } from '@/deck-builder/services/deckBuilder/cardFit';
+import { isPremiumCard } from '@/deck-builder/services/deckBuilder/premiumCards';
+import { isUtilityLand, landSlotMerit } from '@/deck-builder/services/deckBuilder/landUpgrades';
+import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
+import { isBasicLandName } from '@/lib/collection/allocations';
+import {
+  computeRoleCounts,
+  countedRoleOf,
+} from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import type { ComboMatch } from '@/types/combos';
 import { analyzeDeckSynergy, type DeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
 import { axisKeys, axisJaccard, sharedAxisNames, axisLabel } from './axis-overlap';
 import { roleOf, primaryTypeOf, colorsOverlap } from './card-matching';
-import type { EdhrecComboOverlay } from '@/lib/deck-analysis/edhrec-combo-overlay';
 import { buildCutFactors, type WhyFactor } from './why-factors';
 
 // Re-exported so existing import sites (`card-fit`, tests) stay stable now that the
@@ -50,9 +67,21 @@ export interface RankedCut {
   /** True when this cut shares a role/type with the card being added — i.e. the
    *  swap reads as a genuine replacement, not just "cut your weakest card". */
   related: boolean;
-  /** Grounded, tone-tagged breakdown behind `reason` (combo-break caution,
-   *  relatedness, play-rate) for the tappable <WhyBreakdown> disclosure. */
+  /** Grounded, tone-tagged breakdown behind `reason` (relatedness, play-rate)
+   *  for the tappable <WhyBreakdown> disclosure. */
   factors: WhyFactor[];
+}
+
+/** The persisted analysis fields the ranker reads (a Deck carries all of them). */
+export interface CutAnalysis {
+  optimizeSwaps?: { removals: OptimizeCard[] };
+  misfits?: MisfitSummary[];
+  cardInclusionMap?: Record<string, number>;
+  /** Role targets: a cut never takes a role below its target (see below). */
+  roleTargets?: Record<string, number>;
+  /** The staples the deck is missing, with their play rate here: the incoming
+   *  card's inclusion when it is one of them. */
+  gapAnalysis?: { name: string; inclusion: number }[];
 }
 
 export interface RankReplacementCutsParams {
@@ -60,7 +89,10 @@ export interface RankReplacementCutsParams {
   addCard: ScryfallCard;
   /** In-deck cards eligible to cut (caller excludes the commander/partner). */
   deckCards: CutCandidate[];
-  /** Optimizer removal suggestions for this deck (`deck.optimizeSwaps?.removals`). */
+  /** The deck's persisted analysis: optimizer removals and misfits flag weak
+   *  slots, the inclusion map marks this commander's staples. */
+  analysis?: CutAnalysis;
+  /** Optimizer removals, for callers without a whole analysis (merged with it). */
   removals?: OptimizeCard[];
   /**
    * The deck's synergy engine analysis, for the load-bearing cut guard. Optional:
@@ -68,91 +100,117 @@ export interface RankReplacementCutsParams {
    * one to avoid re-classifying every card on a hot path.
    */
   deckSynergy?: DeckSynergy;
-  /** Fully assembled combos already present in the deck, for combo-piece cut protection. */
+  /** Fully assembled combos already present in the deck: their pieces are never offered. */
   inDeckCombos?: ComboMatch[];
-  /** E63 per-commander EDHREC combo stats, used to protect signature combos harder. */
-  comboOverlay?: EdhrecComboOverlay;
   /** Max suggestions to return (default 8). */
   limit?: number;
 }
 
-/** EDHREC-style inclusion proxy (0–100, higher = more played) for sort tiebreaks.
- *  Prefers the optimizer's inclusion, falls back to the analyzer's rank formula. */
-function inclusionOf(card: ScryfallCard, removal: OptimizeCard | undefined): number {
-  if (removal?.inclusion != null) return removal.inclusion;
+/** EDHREC-style inclusion proxy (0–100, higher = more played) for sort tiebreaks
+ *  when this commander's page doesn't list the card: the analyzer's rank formula. */
+function inclusionOf(card: ScryfallCard, pageInclusion: number | undefined): number {
+  if (pageInclusion != null) return pageInclusion;
   if (card.edhrec_rank != null) return Math.max(1, 100 - Math.floor(card.edhrec_rank / 100));
   return 50;
 }
 
-interface ComboCutProtection {
+/** A land slot: the front face is a land (an MDFC spell//land fills a spell slot). */
+function isLandSlot(card: ScryfallCard): boolean {
+  return getFrontFaceTypeLine(card).toLowerCase().includes('land');
+}
+
+interface Flag {
   reason: string;
-  strength: number;
+  /** The flagging engine's play rate for the card, when it had one. */
+  inclusion?: number;
 }
 
-function comboCutReason(match: ComboMatch): string {
-  const names = match.combo.cards
-    .map((c) => c.cardName)
-    .filter(Boolean)
-    .join(' + ');
-  const result = match.combo.produces[0];
-  return `Breaks combo: ${names}${result ? ` (${result})` : ''}`;
-}
-
-function comboProtectionStrength(match: ComboMatch, comboOverlay?: EdhrecComboOverlay): number {
-  const stat = comboOverlay?.get(
-    match.combo.cards
-      .map((c) => c.cardName.trim().toLowerCase())
-      .sort()
-      .join('|')
-  );
-  if (!stat) return 1 + Math.min(1.5, match.combo.popularity / 5000);
-  const prevalence = stat.percent == null ? 0 : Math.min(3, stat.percent / 2);
-  const rankBoost = Math.max(0, (25 - stat.rank) / 25);
-  return 2 + prevalence + rankBoost;
-}
-
-function buildComboCutProtection(
-  inDeckCombos: ComboMatch[],
-  comboOverlay?: EdhrecComboOverlay
-): Map<string, ComboCutProtection> {
-  const byName = new Map<string, ComboCutProtection>();
-  for (const match of inDeckCombos) {
-    const protection = {
-      reason: comboCutReason(match),
-      strength: comboProtectionStrength(match, comboOverlay),
-    };
-    for (const card of match.combo.cards) {
-      const key = card.cardName.toLowerCase();
-      const prev = byName.get(key);
-      if (!prev || protection.strength > prev.strength) byName.set(key, protection);
-    }
+/** Why a card was flagged as weak: the optimizer's reason, else the misfit's first. */
+function flagReasons(analysis: CutAnalysis, extra: OptimizeCard[]): Map<string, Flag> {
+  const out = new Map<string, Flag>();
+  for (const r of [...extra, ...(analysis.optimizeSwaps?.removals ?? [])]) {
+    const key = r.name.toLowerCase();
+    if (!out.has(key)) out.set(key, { reason: r.reason, inclusion: r.inclusion ?? undefined });
   }
-  return byName;
+  for (const m of analysis.misfits ?? []) {
+    const key = m.name.toLowerCase();
+    if (!out.has(key) && m.reasons[0])
+      out.set(key, { reason: m.reasons[0].label, inclusion: m.inclusion });
+  }
+  return out;
+}
+
+function landCutReason(card: ScryfallCard, copies: number): string {
+  if (isBasicLandName(card.name)) {
+    const plural = /s$/i.test(card.name) ? card.name : `${card.name}s`;
+    return copies > 1 ? `One of ${copies} ${plural}` : 'Basic land';
+  }
+  return 'Weakest land for this deck';
 }
 
 /**
  * Rank in-deck cards as replacement cuts for `addCard`, best-first.
  *
- * Tiers (best → worst):
- *  1. Optimizer-flagged AND related to the add  — a real, on-theme swap.
- *  2. Optimizer-flagged, not related            — a genuine weak slot (real reason).
- *  3. Related but not flagged                   — relevant, though a fine card.
- * Unflagged + unrelated cards are dropped here; the caller's "pick another card"
- * list still exposes every card. A card that's load-bearing for an engine the
- * deck is invested in is never suggested unless the add reinforces that engine.
+ * Only cards of the incoming card's slot type (land or spell) are candidates,
+ * and never a premium card or a combo piece.
+ *
+ * Spells, best → worst:
+ *  1. Flagged weak AND shares the add's role or engine — a real, on-theme swap.
+ *  2. Flagged weak AND the same card type.
+ *  3. Flagged weak, unrelated — a genuine weak slot (its real reason).
+ *  4. Unflagged but related — relevant, though a fine card.
+ *  5. Unflagged and unrelated, only when the incoming card is a staple played
+ *     more here than it: the least-played card here first.
+ * An unflagged card is never offered when it is played here at least as much
+ * as the card coming in (when both play rates are known): that trades a
+ * staple for a lesser card, and the next add would take the new card back
+ * out. The caller's "pick another card" list still exposes every card. A card
+ * that's load-bearing for an engine the deck is invested in is never suggested
+ * unless the add reinforces that engine.
+ *
+ * Lands: flagged lands first, then the weakest for this deck (`landSlotMerit`),
+ * the most-duplicated basic breaking ties. A land that does more than make mana
+ * (`isUtilityLand`) is never offered.
  */
 export function rankReplacementCuts({
   addCard,
   deckCards,
+  analysis = {},
   removals = [],
   deckSynergy,
   inDeckCombos = [],
-  comboOverlay,
   limit = 8,
 }: RankReplacementCutsParams): RankedCut[] {
-  const removalByName = new Map<string, OptimizeCard>();
-  for (const r of removals) removalByName.set(r.name.toLowerCase(), r);
-  const comboProtectionByName = buildComboCutProtection(inDeckCombos, comboOverlay);
+  const flagged = flagReasons(analysis, removals);
+  const gapInclusion = new Map((analysis.gapAnalysis ?? []).map((g) => [g.name, g.inclusion]));
+  const pageInclusion = (name: string): number | undefined =>
+    analysis.cardInclusionMap?.[name] ?? gapInclusion.get(name);
+  const addInclusion = pageInclusion(addCard.name);
+  const comboPieces = new Set(
+    inDeckCombos.flatMap((m) => m.combo.cards.map((c) => c.cardName.toLowerCase()))
+  );
+  const addIsLand = isLandSlot(addCard);
+  const targets = analysis.roleTargets;
+  const counts = targets ? computeRoleCounts(deckCards.map((d) => d.card)).roleCounts : {};
+  const addCounted = countedRoleOf(addCard);
+  const addFillsGap =
+    !!targets && !!addCounted && (counts[addCounted] ?? 0) < (targets[addCounted] ?? 0);
+  const opensGap = (card: ScryfallCard): boolean => {
+    const role = targets ? countedRoleOf(card) : null;
+    if (!role || targets?.[role] === undefined) return false;
+    if ((counts[role] ?? 0) > targets[role]) return false; // over target: room to trim
+    return role !== addCounted || addFillsGap;
+  };
+
+  const eligible = deckCards.filter(({ card }) => {
+    if (card.name === addCard.name) return false; // never offer to cut the card you're adding
+    if (isLandSlot(card) !== addIsLand) return false;
+    if (comboPieces.has(card.name.toLowerCase())) return false;
+    if (opensGap(card)) return false;
+    return !isPremiumCard(card, { inclusion: pageInclusion(card.name) });
+  });
+
+  if (addIsLand) return rankLandCuts(deckCards, eligible, flagged, limit);
 
   const addRole = roleOf(addCard);
   const addType = primaryTypeOf(addCard);
@@ -163,19 +221,12 @@ export function rankReplacementCuts({
   const investedAxes = new Set<string>(deckSyn.invested);
   const hasEngine = investedAxes.size > 0;
 
-  type Scored = RankedCut & {
-    tier: number;
-    relScore: number;
-    inclusion: number;
-    comboProtection: number;
-  };
+  type Scored = RankedCut & { tier: number; relScore: number; inclusion: number };
   const scored: Scored[] = [];
 
-  for (const { slotId, card } of deckCards) {
-    if (card.name === addCard.name) continue; // never offer to cut the card you're adding
-
-    const removal = removalByName.get(card.name.toLowerCase());
-    const cuttable = !!removal;
+  for (const { slotId, card } of eligible) {
+    const flag = flagged.get(card.name.toLowerCase());
+    const flagReason = flag?.reason;
 
     const cardAxes = axisKeys(card);
     const shared = sharedAxisNames(addAxes, cardAxes);
@@ -205,25 +256,33 @@ export function rankReplacementCuts({
       (colorClose ? 0.5 : 0) +
       (cmcClose ? 1 : 0);
 
-    let tier: number;
-    if (cuttable && related) tier = 1;
-    else if (cuttable) tier = 2;
-    else if (related) tier = 3;
-    else continue; // unflagged + unrelated → not a suggestion
+    const candInclusion = pageInclusion(card.name);
+    const playedLess =
+      addInclusion !== undefined && (candInclusion === undefined || candInclusion < addInclusion);
+    if (!flagReason && candInclusion !== undefined && addInclusion !== undefined && !playedLess)
+      continue; // an unflagged card played here as much as the add stays
 
-    const comboProtection = comboProtectionByName.get(card.name.toLowerCase());
-    const baseReason =
-      removal?.reason ??
+    let tier: number;
+    if (flagReason && (sameRole || sameAxis)) tier = 1;
+    else if (flagReason && sameType) tier = 2;
+    else if (flagReason) tier = 3;
+    else if (related) tier = 4;
+    else if (playedLess) tier = 5;
+    else continue; // unflagged + unrelated, no evidence the add is better → not a suggestion
+
+    const reason =
+      flagReason ??
       (sameAxis
         ? `Overlapping ${axisLabel(shared[0])}`
         : sameRole
           ? 'Overlapping role'
           : sameType
             ? 'Overlapping type'
-            : 'Similar cost');
-    const reason = comboProtection ? `${comboProtection.reason} - ${baseReason}` : baseReason;
+            : candInclusion === undefined
+              ? "Not played in this commander's decks"
+              : `Played in ${Math.round(candInclusion)}% of decklists`);
 
-    const inclusion = inclusionOf(card, removal);
+    const inclusion = candInclusion ?? inclusionOf(card, flag?.inclusion);
     const factors = buildCutFactors({
       sameAxis,
       axisLabel: sameAxis ? axisLabel(shared[0]) : undefined,
@@ -232,28 +291,15 @@ export function rankReplacementCuts({
       sameType,
       typeLabel: sameType ? addType : undefined,
       inclusion,
-      comboWarning: comboProtection?.reason,
     });
 
-    scored.push({
-      slotId,
-      card,
-      reason,
-      related,
-      factors,
-      tier,
-      relScore,
-      inclusion,
-      comboProtection: comboProtection?.strength ?? 0,
-    });
+    scored.push({ slotId, card, reason, related, factors, tier, relScore, inclusion });
   }
 
   scored.sort((a, b) => {
-    const aTier = a.tier + a.comboProtection;
-    const bTier = b.tier + b.comboProtection;
-    if (aTier !== bTier) return aTier - bTier;
-    // Tiers 1 & 3 favor stronger relation first; tier 2 is a flat weakest-first list.
-    if (a.tier !== 2 && a.relScore !== b.relScore) return b.relScore - a.relScore;
+    if (a.tier !== b.tier) return a.tier - b.tier;
+    // Related tiers favor the stronger relation first; tiers 3 and 5 are flat weakest-first lists.
+    if (a.tier !== 3 && a.tier !== 5 && a.relScore !== b.relScore) return b.relScore - a.relScore;
     return a.inclusion - b.inclusion; // weaker (less-played) cut wins ties
   });
 
@@ -263,5 +309,42 @@ export function rankReplacementCuts({
     reason,
     related,
     factors,
+  }));
+}
+
+function rankLandCuts(
+  deckCards: CutCandidate[],
+  eligible: CutCandidate[],
+  flagged: Map<string, Flag>,
+  limit: number
+): RankedCut[] {
+  // Judge each land's merit in the deck's own colors.
+  const identity = new Set(deckCards.flatMap(({ card }) => card.color_identity ?? []));
+  const copies = new Map<string, number>();
+  for (const { card } of eligible) copies.set(card.name, (copies.get(card.name) ?? 0) + 1);
+
+  const seen = new Set<string>();
+  const scored = eligible
+    .filter(({ card }) => !isUtilityLand(card))
+    .filter(({ card }) => (seen.has(card.name) ? false : (seen.add(card.name), true)))
+    .map(({ slotId, card }) => {
+      const flagReason = flagged.get(card.name.toLowerCase())?.reason;
+      return {
+        slotId,
+        card,
+        flagged: flagReason ? 0 : 1,
+        merit: landSlotMerit(card, identity),
+        copies: copies.get(card.name) ?? 1,
+        reason: flagReason ?? landCutReason(card, copies.get(card.name) ?? 1),
+      };
+    })
+    .sort((a, b) => a.flagged - b.flagged || a.merit - b.merit || b.copies - a.copies);
+
+  return scored.slice(0, limit).map(({ slotId, card, reason }) => ({
+    slotId,
+    card,
+    reason,
+    related: true,
+    factors: [],
   }));
 }

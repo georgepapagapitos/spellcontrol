@@ -1191,22 +1191,103 @@ Pros lead, the lane's own factors sit in the middle, cons close the list.
 
 ### Tiered ordering
 
-The ranker (`lib/coach/coach-rank.ts`) orders moves in three tiers, then by
-`deltaScore` / `inclusion`, owned-first within each tier:
+The ranker (`lib/coach/coach-rank.ts`) orders moves in three tiers, owned-first
+within each tier:
 
-| Tier                        | Trigger                                                      | Examples                                        |
-| --------------------------- | ------------------------------------------------------------ | ----------------------------------------------- |
-| **Tier 1 — severe deficit** | a gap/upgrade move whose target sub-score is < 60            | fill-gap adds when `roles` scores 45            |
-| **Tier 2 — quality**        | move targets the weakest `PlanScore` sub-score and it's < 75 | ramp gap when `roles` is the weakest signal     |
-| **Tier 3 — polish**         | everything else                                              | combo completions, budget swaps, bracket nudges |
+| Tier                        | Trigger                                                                | Examples                                      |
+| --------------------------- | ---------------------------------------------------------------------- | --------------------------------------------- |
+| **Tier 1 — severe deficit** | a gap/upgrade move whose target `roles` or `cardFit` sub-score is < 60 | a missing removal staple when `cardFit` is 55 |
+| **Tier 2 — quality**        | the move's target is the weakest `PlanScore` sub-score and it's < 75   | ramp gap when `roles` is the weakest signal   |
+| **Tier 3 — polish**         | everything else                                                        | combo completions, land swaps, budget swaps   |
+
+**A row is promoted by what it fixes, never by the lane that carries it**
+(T171, 2026-09-30). A missing staple targets `roles` (when it has a role) and
+`cardFit` (unfilled staples are `cardFit`'s gap term); an optimizer
+"Fills {role} gap" pick the same; an optimizer EDHREC pick `cardFit`; a
+synergy pick for an engine the deck is invested in `strategy`; an owned
+stand-in `roles`. A synergy pick for an engine the deck has only started
+(`budding`), a manabase add (mana, flex or color fix) and every land, budget
+and similar row target nothing and stay tier 3. The old lane mapping put every
+upgrade row on `cardFit`, so "rewards cycling" picks for Atraxa rode a low
+`cardFit` into tier 1 over the staples the deck was missing.
+
+**Within a tier:** owned before unowned, then rows that make the deck better
+before a budding-engine pick or a budget swap (a budget swap saves money, and
+its play rate is the cheaper card's, so it can't outrank a staple on that
+number), then EDHREC play rate high to low (the one signal every add lane
+shares). `deltaScore` only breaks ties: land swaps are the only rows that
+carry it, on their own scale, and sorting on it first put every land swap
+ahead of every staple.
+
+**The Cuts chip reads weakest first:** spell cuts before land tuning (a
+basic-for-basic rebalance is not a card the deck is worse for running), then
+play rate low to high, a card missing from the commander's page first.
 
 (Deck-size and missing-win-condition _structural_ alerts have no concrete card
 move, so they live in the NextBestMove headline above the feed, not as ranked
 rows.)
 
-Owned cards surface before unowned within each tier (the standing
-`sortOwnedFirst` rule). **No raw score numbers in the UI** — the ordering is
-felt, not displayed, to avoid implying false precision.
+**No raw score numbers in the UI** — the ordering is felt, not displayed, to
+avoid implying false precision.
+
+### The deck's own settings bound the feed (T171)
+
+A generated deck keeps its build settings (`generationContext.customization`):
+per-card price cap, budget, rarity cap, Game Changer limit, target bracket
+(the stated `bracketOverride` wins over the built one) and collection
+strategy. **A move that breaks one is not shown**, in the feed, the upgrade
+plan or the Next-best-move hero (`lib/coach/deck-settings-fit.ts`). The check
+reads the incoming card's price and rarity off the row (the analysis stamps
+both); data it doesn't have never hides a move. An add to a full deck assumes
+the least favourable cut: nothing freed for the budget, an owned card out for
+a partial deck's owned share.
+
+When the settings empty the feed, the empty state says so instead of "This
+deck looks tuned": the tagline is "Nothing to coach within this deck's
+settings." and the hint names the one setting behind every hidden move, or
+falls back to the reason-agnostic "Every suggestion breaks one of this deck's
+build settings." when it's several (Voice & copy rule 3).
+
+The hero's combo move names a missing piece this commander's decks play (on
+its EDHREC page, most played first): a combo that only needs a generic card
+(Hullbreaker Horror with the Sol Ring every deck runs) is not a next best move.
+
+### What Coach never offers to cut (T171)
+
+Every cut surface (the Cuts chip, the optimizer's removals, the misfits, the
+replace-when-full prompt, the budget lane's outgoing card) shares these floors:
+
+- **Premium cards** (`services/deckBuilder/premiumCards.ts`): a Game Changer
+  by name as well as by stamp (an imported deck has no stamp), a staple mana
+  rock, a staple of this commander (at least 40% of its decks), a spell among
+  the 100 most played in Commander, and, from the card facts, an efficient
+  tutor, protection piece, answer or board wipe (cheap, or free to cast).
+- **A card whose role is at or under its target**, unless the incoming card
+  fills that same role and the role isn't short: a cut never opens a gap Coach
+  would then ask to fill.
+- **A combo piece** of a combo the deck has.
+
+The replace-when-full prompt also keeps the slot: **a land makes room for a
+land, a spell for a spell** (the weakest land for this deck first, a utility
+land never), and an unflagged card is never offered when it is played here at
+least as much as the card coming in.
+
+### Land swaps are upgrades for this deck (T171)
+
+The land lane reads merit with `landSlotMerit`, not generation's
+`landPowerScore`: a land that only fetches a basic counts as one basic, tapped
+or not; a land that does more than make mana (channel, MDFC, legendary, a
+static rule, a repeatable non-mana ability, mana it can only spend on some
+spells) is never cut; an incoming land enters untapped or conditionally, makes
+more of the deck's colors, and never only fetches a basic. Basics the deck's
+own basic fetchers need stay.
+
+### Hidden gems fit this deck (T171)
+
+A gem needs a tie to this deck, not only general power: it completes an
+engine live in the deck's own cards (the synergy classifier, three or more on
+the axis), or this commander's decks play it more than others in its colors.
+Lift and similar alone filled the lane with fast mana any deck takes.
 
 ### Filter-chip row
 
@@ -1278,6 +1359,11 @@ collapsed by default, that expands the ranked alternatives as nested
 - **The ranking only reorders.** v2 never adds or drops an owned option: the
   role gate, colour identity and the land rule decide which cards qualify, so
   a row can only move, never appear from nowhere.
+- **A stand-in fills a short role, or it isn't offered** (T171). A missing
+  staple gets owned stand-ins only while its role is under target
+  (`staplesToSubstitute`): in a role already met, the stand-in was a lateral
+  swap between two owned cards off the commander's page, and the next pass
+  traded it straight back.
 
 ### Apply feedback
 

@@ -166,6 +166,12 @@ export interface Change {
   /** Engine axis completion — which half of which synergy axis this fills. */
   axis?: string;
   side?: 'producer' | 'payoff';
+  /** A synergy pick for an axis the deck has only started, not one it is built
+   *  around (SynergySuggestion.budding): ranked below every on-plan move. */
+  budding?: boolean;
+  /** Scryfall rarity of the incoming card, when the engine resolved it — what
+   *  a rarity-capped deck's settings are checked against. */
+  rarity?: string;
 
   /** Curve-phase filtering + type display. Both can be undefined (thin EDHREC schema). */
   cmc?: number;
@@ -250,11 +256,14 @@ export function fromSynergySuggestion(s: SynergySuggestion, ownership?: ChangeOw
       inclusion: s.inclusion,
     }),
     ownership,
+    deltaPrice: parsePrice(s.price ?? null) ?? undefined,
     inclusion: s.inclusion,
     isThemeSynergy: true,
     group: s.axisLabel,
     axis: s.axis,
     side: s.side,
+    budding: s.budding,
+    rarity: s.rarity,
   };
 }
 
@@ -292,6 +301,7 @@ export function fromGapCard(g: GapAnalysisCard, ownership?: ChangeOwnership): Ch
     cmc: g.cmc,
     typeLine: g.typeLine,
     imageUrl: g.imageUrl,
+    rarity: g.rarity,
   };
 }
 
@@ -383,6 +393,7 @@ export function fromOptimizeCard(
     cmc: o.cmc,
     typeLine: o.primaryType,
     imageUrl: o.imageUrl,
+    rarity: kind === 'add' ? o.rarity : undefined,
   };
 }
 
@@ -663,6 +674,7 @@ export function fromLandUpgradeMove(move: LandUpgradeMove, ownership: ChangeOwne
     deltaScore: move.inScore - move.outScore,
     cmc: move.inCard.cmc,
     typeLine: move.inCard.type_line,
+    rarity: move.inCard.rarity,
   };
 }
 

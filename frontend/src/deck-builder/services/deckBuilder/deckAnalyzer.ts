@@ -1247,6 +1247,7 @@ export interface OptimizeCard {
   reasonCategory: string; // grouping key for UI sections
   inclusion: number | null;
   price?: string;
+  rarity?: string; // stamped for additions by candidateCardData.ts
   role?: string;
   roleLabel?: string;
   imageUrl?: string;
