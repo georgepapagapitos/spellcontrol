@@ -48,7 +48,7 @@ const HUB_TITLES: Record<string, string> = {
   decks: 'Decks',
   play: 'Play',
   you: 'You',
-  friends: 'Friends',
+  friends: 'Social',
   trades: 'Trades',
   pods: 'Pods',
   search: 'Search',
