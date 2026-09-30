@@ -39,7 +39,6 @@ import {
   isOwnedRarityExempt,
 } from './deckFilters';
 import { bracketCeilings } from './bracketGuard';
-import { POOL_EXHAUSTION_LAND_THRESHOLD } from './deckGenerator';
 
 export type InvariantLevel = 'HARD' | 'SOFT';
 
@@ -705,10 +704,9 @@ export function checkDeckInvariants(
 
   // 17. delivered land count vs the plan the generator built to
   // (composition.lands: the resolved auto-tune or clamped request), counting
-  // a land parked in a spell slot as the land it is. A move away from the
-  // plan needs a note, except within POOL_EXHAUSTION_LAND_THRESHOLD, which
-  // the generator documents as land-generation rounding and never discloses:
-  // that band stays SOFT so it is visible without failing the build.
+  // a land parked in a spell slot as the land it is. Any move away from the
+  // plan needs a note (E529: a 1-3 land "rounding" band once hid padding;
+  // land generation delivers its planned count exactly).
   const planned = deck.composition?.lands;
   if (planned !== undefined) {
     const delivered = lands.length + landsInSpellSlots.length;
@@ -718,16 +716,11 @@ export function checkDeckInvariants(
         !!deck.poolExhaustionNote ||
         (deck.collectionShortfall ?? 0) > 0 ||
         (deck.filterShortfall ?? 0) > 0;
-      const withinRounding = Math.abs(delivered - planned) <= POOL_EXHAUSTION_LAND_THRESHOLD;
       add(
-        disclosed || withinRounding ? 'SOFT' : 'HARD',
+        disclosed ? 'SOFT' : 'HARD',
         'land-count',
         `${delivered} lands delivered vs a planned ${planned}` +
-          (disclosed
-            ? ' (disclosed)'
-            : withinRounding
-              ? ` (undisclosed, inside the generator's ${POOL_EXHAUSTION_LAND_THRESHOLD}-land rounding band)`
-              : ' (undisclosed)')
+          (disclosed ? ' (disclosed)' : ' (undisclosed)')
       );
     }
   }

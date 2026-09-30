@@ -18,6 +18,8 @@ import {
   notLegalForFormat,
   violatesUserCaps,
   userCapsWithoutPrice,
+  fitsLandSlot,
+  fitsSpellSlot,
   type UserCapsConfig,
 } from './deckFilters';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -132,6 +134,29 @@ describe('isDeadInIdentity (E282)', () => {
     expect(
       isDeadInIdentity(makeCard({ oracle_text: 'Non-red spells you cast cost {1} more.' }), ['G'])
     ).toBe(false);
+  });
+});
+
+// E525: seating follows the card's front face, not the query that found it.
+describe('fitsSpellSlot / fitsLandSlot (E525)', () => {
+  it.each([
+    // Scryfall's `t:creature` returns all three; each is a land drop.
+    ['Dryad Arbor', false, true],
+    ['Westvale Abbey // Ormendahl, Profane Prince', false, true],
+    ['Hostile Hostel // Creeping Inn', false, true],
+    // EDHREC's nonland lists carry these; still lands.
+    ['Nykthos, Shrine to Nyx', false, true],
+    ['Seat of the Synod', false, true],
+    // A spell // land MDFC fits either slot.
+    ["Emeria's Call // Emeria, Shattered Skyclave", true, true],
+    ['Sink into Stupor // Soporific Springs', true, true],
+    // `t:land` returns a transform card whose back face is a land: a spell.
+    ["Legion's Landing // Adanto, the First Fort", true, false],
+    ['Llanowar Elves', true, false],
+    ['Bonecrusher Giant // Stomp', true, false],
+  ])('%s: spell slot %s, land slot %s', (name, spell, land) => {
+    expect(fitsSpellSlot(real(name))).toBe(spell);
+    expect(fitsLandSlot(real(name))).toBe(land);
   });
 });
 
