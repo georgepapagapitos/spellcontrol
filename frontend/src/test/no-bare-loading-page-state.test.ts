@@ -30,7 +30,7 @@ const PAGES_DIR = path.resolve(__dirname, '../pages');
  *  and why none is the page's whole loading state. Keyed by file and count,
  *  not line: a line key broke on every unrelated edit above it. */
 const ALLOWLIST: Record<string, { count: number; reason: string }> = {
-  'PlayPage.tsx': {
+  'play/HistoryTab.tsx': {
     count: 1,
     reason:
       'the hidden-games sub-list inside an already-loaded history panel, not the page load — a small inline sub-panel placeholder (style-guide/components.md § Empty states)',
