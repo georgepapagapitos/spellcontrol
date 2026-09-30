@@ -1,4 +1,5 @@
 import { logger } from '@/lib/util/logger';
+import { STAPLE_ROCK_NAMES } from './phaseStapleManaRocks';
 import type { DeckCategory, DetectedCombo, EDHRECCard, ScryfallCard } from '@/deck-builder/types';
 import { markBanned, type GenerationState } from './state';
 import { frontFaceName, getByCardName } from '@/lib/cards/card-text';
@@ -146,6 +147,7 @@ export function applyBracketConvergence(
   const isProtected = (card: ScryfallCard): boolean =>
     mustIncludeNames.has(card.name.toLowerCase()) ||
     state.comboCardNames.has(card.name) ||
+    STAPLE_ROCK_NAMES.has(card.name) || // E537
     commanderNames.includes(card.name) ||
     isProtectionPiece(card) ||
     isFreeInteraction(card);

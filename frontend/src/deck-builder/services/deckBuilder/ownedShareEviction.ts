@@ -6,9 +6,17 @@
  * card read as unlisted (-1) and was the first eviction victim, whatever its
  * real inclusion.
  */
-import type { EDHRECCard, ScryfallCard } from '@/deck-builder/types';
+import type { ScryfallCard } from '@/deck-builder/types';
 import { getByCardName } from '@/lib/cards/card-text';
-import { isProtectionPiece, isFreeInteraction } from '@/deck-builder/services/tagger/client';
+import {
+  isProtectionPiece,
+  isFreeInteraction,
+  isOneSidedWipe,
+  getCardTags,
+  validateCardRole,
+} from '@/deck-builder/services/tagger/client';
+import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
+import { nonboFindings } from './nonbo';
 import { STAPLE_INCLUSION_BAR } from './cardPicking';
 import type { GenerationState } from './deckGeneration/state';
 import { achievableComboPieces } from './deckGeneration/comboLines';
@@ -39,14 +47,14 @@ export function weakestFirst<T extends { name: string }>(
  * is one of them the share stays short (the owned-share gap note says so). At
  * 100% the share is the user's rule and only must-includes hold.
  */
-export function ownedShareKeeper(
-  state: Pick<GenerationState, 'combos' | 'usedNames' | 'comboCardNames'>,
-  ownedPercent: number,
-  inclusionOf: (name: string) => number,
-  pool: readonly EDHRECCard[]
-): (card: ScryfallCard) => boolean {
+export function shareKeeper(
+  state: Pick<GenerationState, 'combos' | 'usedNames' | 'comboCardNames' | 'cfg' | 'edhrecData'>
+): (victim: ScryfallCard, candidate?: ScryfallCard) => boolean {
+  const ownedPercent = state.cfg.collectionOwnedPercent;
+  const pool = state.edhrecData?.cardlists.allNonLand ?? [];
+  const inclusionOf = pageInclusionOf(new Map(pool.map((c) => [c.name, c.inclusion])));
   const comboPieces = achievableComboPieces(state.combos, pool, (n) => state.usedNames.has(n));
-  return (card) =>
+  return (card, candidate) =>
     !!card.isMustInclude ||
     (ownedPercent < 100 &&
       (STAPLE_ROCK_NAMES.has(card.name) ||
@@ -54,5 +62,28 @@ export function ownedShareKeeper(
         comboPieces.has(card.name) ||
         state.comboCardNames.has(card.name) ||
         isProtectionPiece(card) ||
-        isFreeInteraction(card)));
+        getCardTags(card.name).includes('protection') ||
+        isFreeInteraction(card) ||
+        // E112: a one-sided wipe is not traded for a symmetric one.
+        (!!candidate &&
+          validateCardRole(candidate) === 'boardwipe' &&
+          isOneSidedWipe(card) &&
+          !isOneSidedWipe(candidate))));
+}
+
+/**
+ * An owned card the deck's own coherence audit would flag as a nonbo (E80: it
+ * opposes an axis the deck is invested in) is not seated as a stand-in.
+ */
+export function seatsAsNonbo(
+  card: ScryfallCard,
+  state: Pick<GenerationState, 'categories' | 'context'>
+): boolean {
+  const { commander, partnerCommander } = state.context;
+  const deck = Object.entries(state.categories)
+    .filter(([cat]) => cat !== 'lands')
+    .flatMap(([, cards]) => cards);
+  const commanders = [commander, partnerCommander].filter((c): c is ScryfallCard => !!c);
+  const invested = new Set(analyzeDeckSynergy([...commanders, ...deck]).invested);
+  return nonboFindings([card], invested).length > 0;
 }
