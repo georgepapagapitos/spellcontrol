@@ -13,7 +13,6 @@ export * from './panelDump';
 export * from './validation';
 export * from './optimizer';
 export * from './panelRewrite';
-export { analyseDeck } from './panelReport';
 export * from './trustRegion';
 export { completeCombos } from './constraints';
 export { setCardFactsSnapshot, hasCardFacts } from '@/deck-builder/services/cardFacts';

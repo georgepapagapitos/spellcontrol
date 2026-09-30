@@ -304,6 +304,7 @@ export async function loadPanelRuns(H, net, { panel, only, owned, bulk }) {
       customization: cz,
       edhrec: page.rows,
       roleTargets: dump.roleTargets ?? {},
+      roleOf: H.countedRoleOf,
       pacing: dump.detectedPacing,
       combos: H.combosOf(dump),
       liftPools: await liftPools(

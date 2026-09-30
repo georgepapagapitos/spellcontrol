@@ -96,6 +96,8 @@ interface Own {
   colors: string[];
   /** Printed toughness, null when not a number (a creature's "*"). */
   toughness: number | null;
+  /** Front-face type line, lowercased (for a "non-Elf" exception). */
+  typeLine: string;
 }
 
 /** What the wipe's own text narrows it to, beyond the fact's hit list. */
@@ -104,17 +106,36 @@ interface WipeText {
   shrink: number | null;
   /** "permanents of the color of your choice": the caster names a colour. */
   colourChoice: boolean;
+  /** "Non-Elf creatures get -2/-2" (Eyeblight Massacre): the creature type it spares. */
+  spares: string | null;
 }
 
 function wipeText(card: ScryfallCard): WipeText {
   const text = rulesText(card);
   const m = /\bgets? -(\d+)\/-\d+\b/i.exec(text);
+  const non = /\bnon-?([a-z]+) creatures?\b/i.exec(text);
   return {
     shrink: m ? Number(m[1]) : null,
     colourChoice:
       /\bof the colou?r of (?:your|its controller's) choice\b|\bchoose a colou?r\b/i.test(text),
+    // "Nonblack creatures" names a colour, "nontoken" a kind: only a creature
+    // type ("Non-Elf") spares part of the deck's own board.
+    spares: non && !NOT_A_TYPE.has(non[1].toLowerCase()) ? non[1].toLowerCase() : null,
   };
 }
+
+const NOT_A_TYPE = new Set([
+  'white',
+  'blue',
+  'black',
+  'red',
+  'green',
+  'token',
+  'legendary',
+  'artifact',
+  'attacking',
+  'blocking',
+]);
 
 /** The share of the deck's own nonland permanents one wipe mode hits. */
 function exposureOf(
@@ -133,6 +154,7 @@ function exposureOf(
     if (!o.types.some((t) => types.has(t))) continue;
     if (inBound && !inBound(o.mv)) continue;
     if (colour && !o.colors.includes(colour)) continue;
+    if (text.spares && o.typeLine.includes(text.spares)) continue;
     if (fact.mode === 'shrink' && text.shrink !== null && o.toughness !== null) {
       if (o.toughness > text.shrink) continue;
     }
@@ -199,6 +221,7 @@ export function ownBoard(
       tokens: facts.produces.some((p) => p.r === 'creature-token'),
       colors: face?.colors ?? c.colors ?? [],
       toughness: Number.isFinite(t) ? t : null,
+      typeLine: frontTypeLine(c).toLowerCase(),
     });
   }
   return out;

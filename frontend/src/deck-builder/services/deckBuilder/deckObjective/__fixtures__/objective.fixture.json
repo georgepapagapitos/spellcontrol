@@ -1256,6 +1256,26 @@
       "edhrec_rank": 277
     },
     {
+      "id": "00652c09-c50c-40da-8f0f-86b5cc3f6c26",
+      "oracle_id": "3b90dd70-798e-4dc4-99e7-b36d6823af2b",
+      "name": "Eyeblight Massacre",
+      "mana_cost": "{2}{B}{B}",
+      "cmc": 4,
+      "type_line": "Sorcery",
+      "oracle_text": "Non-Elf creatures get -2/-2 until end of turn.",
+      "colors": ["B"],
+      "color_identity": ["B"],
+      "keywords": [],
+      "rarity": "uncommon",
+      "layout": "normal",
+      "set": "khc",
+      "set_name": "Kaldheim Commander",
+      "prices": { "usd": "0.20", "eur": "0.16" },
+      "legalities": { "commander": "legal", "paupercommander": "legal", "brawl": "not_legal" },
+      "games": ["paper", "mtgo"],
+      "edhrec_rank": 12169
+    },
+    {
       "id": "114d2180-093b-4838-97ad-badbc8ee50b0",
       "oracle_id": "4eb813fd-2d5a-4b02-8193-662681ef4e7d",
       "name": "Farewell",

@@ -136,6 +136,8 @@ async function evaluatePair(pair, byName, rank, weights) {
     customization: cz,
     edhrec: page.rows,
     roleTargets: base.roleTargets ?? {},
+    // Roles counted the way the deck report (and the generation phase) counts them.
+    roleOf: H.countedRoleOf,
     pacing: base.detectedPacing,
     combos: H.combosOf(base, treat),
     liftPools: await liftPools(H, net, commanders, shared),

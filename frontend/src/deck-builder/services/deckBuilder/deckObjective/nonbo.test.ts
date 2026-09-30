@@ -109,6 +109,14 @@ describe('what a wipe actually reaches (the first optimizer gate)', () => {
     expect(wipeExposure(drown, ctx.factsOf(drown), big)).toBe(0);
   });
 
+  it('spares the creature type a "non-Elf" wipe names (Eyeblight Massacre in an elf deck)', () => {
+    const massacre = card('Eyeblight Massacre');
+    const elves = ownBoard(cards('Llanowar Elves', 'Elvish Mystic', 'Priest of Titania'), ctx);
+    const birds = ownBoard(cards('Birds of Paradise', 'Llanowar Elves'), ctx);
+    expect(wipeExposure(massacre, ctx.factsOf(massacre), elves)).toBe(0);
+    expect(wipeExposure(massacre, ctx.factsOf(massacre), birds)).toBeGreaterThan(0);
+  });
+
   it('never charges a transforming card for its back face', () => {
     const norn = card('Elesh Norn // The Argent Etchings');
     expect(wipeExposure(norn, ctx.factsOf(norn), ownBoard(BASELINE.cards, ctx))).toBeNull();

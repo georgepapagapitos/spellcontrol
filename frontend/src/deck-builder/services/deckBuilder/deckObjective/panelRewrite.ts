@@ -8,22 +8,22 @@
  * swapped-in cards projected like the harness projects a card), roleCounts
  * and roleCardNames (computeRoleCounts / countedRoleOf), stats (calculateStats),
  * the manabase summary, protectionCount, combo completeness and the bracket
- * estimate. The rest of the report is brought up to the final list by
- * panelReport.ts (recomputed where the generator's functions can run, kept
- * only while true where they can't), and a new note (`allNotes.optimizerNote`,
- * `buildReport.optimizerSwaps`) says what the search changed afterwards and
- * why, card by card.
+ * estimate. A note (`allNotes.optimizerNote`, `buildReport.optimizerSwaps`)
+ * says what the search changed and why, card by card.
+ *
+ * NOT FOR GATING. The rest of the report is the generator's, written for the
+ * deck before the swaps, and a rewrite can only guess at it: the second
+ * optimizer gate counted those stale fields as trust issues in most decks.
+ * A gate runs the search inside generation instead (customization
+ * .wholeDeckSearch, LIVE_GEN_OPTIMIZER=1), where the generator writes every
+ * note for the final list. This rewrite stays for the offline driver's quick
+ * look at what a search would change.
  *
  * Script-only (scripts/deck-objective-optimize.mjs through harness.ts): it
  * reaches the generator's analysis modules, so it stays out of the
  * objective's layered graph (layering.test.ts).
  */
-import type {
-  DeckCategory,
-  DetectedCombo,
-  EDHRECCommanderData,
-  ScryfallCard,
-} from '@/deck-builder/types';
+import type { DeckCategory, DetectedCombo, ScryfallCard } from '@/deck-builder/types';
 import { getByCardName } from '@/lib/cards/card-text';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 import { getCardTags, validateCardRole } from '@/deck-builder/services/tagger/client';
@@ -35,8 +35,7 @@ import { gameChangerNamesFor } from './constraints';
 import { isLandCard } from './context';
 import type { OptimizeResult } from './optimizer';
 import type { DumpCard, PanelDump } from './panelDump';
-import { refreshReport } from './panelReport';
-import type { ObjectiveContext, ObjectiveDeck } from './types';
+import type { ObjectiveContext } from './types';
 
 type Dump = PanelDump & Record<string, unknown>;
 
@@ -99,40 +98,11 @@ function bucketOf(card: ScryfallCard): DeckCategory {
   }
 }
 
-/**
- * A deck's cards in the dump's buckets: the generator's bucket for every
- * card the dump lists (its analysis reads ramp and lands by bucket), the
- * harness's projection for any other. Copies are matched one by one.
- */
-export function categoriesOf(
-  deck: ObjectiveDeck,
-  decklist: Record<string, Array<{ name: string }>>
-): Record<DeckCategory, ScryfallCard[]> {
-  const bucketFor = new Map<string, string[]>();
-  for (const [bucket, cards] of Object.entries(decklist))
-    for (const c of cards)
-      (bucketFor.get(c.name) ?? bucketFor.set(c.name, []).get(c.name)!).push(bucket);
-  const out = {} as Record<DeckCategory, ScryfallCard[]>;
-  for (const c of deck.cards) {
-    const bucket = (bucketFor.get(c.name)?.shift() as DeckCategory | undefined) ?? bucketOf(c);
-    (out[bucket] ??= []).push(c);
-  }
-  return out;
-}
-
-export interface RewriteExtras {
-  /** The generator's deck the search started from (for the report's deltas). */
-  seed?: ObjectiveDeck;
-  /** The EDHREC page the deck was built from, as the client returns it (for the grade). */
-  edhrecData?: EDHRECCommanderData | null;
-}
-
 export function rewriteDump(
   base: Dump,
   result: Pick<OptimizeResult, 'deck' | 'swaps' | 'score' | 'seedScore' | 'stoppedBy' | 'ms'> &
     Partial<Pick<OptimizeResult, 'undone'>>,
-  ctx: ObjectiveContext,
-  extras: RewriteExtras = {}
+  ctx: ObjectiveContext
 ): Dump {
   const dump = structuredClone(base) as Dump;
   const outs = result.swaps.flatMap((s) => s.out);
@@ -262,35 +232,13 @@ export function rewriteDump(
       ),
   }));
   dump.buildReport = report;
-  if (extras.seed) {
-    const inSeed = new Set([...extras.seed.commanders, ...extras.seed.cards].map((c) => c.name));
-    const baseCombos = ((base.detectedCombos as DetectedCombo[] | null) ?? []).map((c) => ({
-      ...c,
-      isComplete: c.cards.every((n) => inSeed.has(n)),
-    }));
-    refreshReport(
-      dump,
-      {
-        base: extras.seed,
-        final: result.deck,
-        baseCategories: categoriesOf(extras.seed, base.decklist),
-        finalCategories: categories,
-        baseCombos,
-        finalCombos: combos,
-        edhrecData: extras.edhrecData ?? null,
-      },
-      ctx
-    );
-  }
 
   const note =
     result.swaps.length === 0
       ? 'A whole-deck search checked this deck after generation and found no swap worth making.'
       : `After generation, a whole-deck search made ${result.swaps.length} swap${result.swaps.length === 1 ? '' : 's'}: ` +
         result.swaps.map((s) => `${s.in.join(' + ')} for ${s.out.join(' + ')}`).join('; ') +
-        (extras.seed
-          ? `. The counts, combos, findings and grade describe the deck after these swaps; notes on how it was generated describe the generator's choices. buildReport.optimizerSwaps gives each swap's reasons.`
-          : `. The other notes describe the generated deck before these swaps; buildReport.optimizerSwaps gives each swap's reasons.`);
+        `. The other notes describe the generated deck before these swaps; buildReport.optimizerSwaps gives each swap's reasons.`;
   dump.allNotes = { ...((dump.allNotes as Record<string, string>) ?? {}), optimizerNote: note };
   dump.optimizer = {
     scoreBefore: Math.round(result.seedScore.total * 100) / 100,

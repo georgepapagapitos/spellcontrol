@@ -1,9 +1,13 @@
 #!/usr/bin/env node
 // Runs the whole-deck search (deckObjective/optimizer.ts) on every generator
 // deck in a LIVE_GEN panel directory and writes the optimized decks as panel
-// dumps in the harness's own format (deckObjective/panelRewrite.ts), so a
-// ship gate (ship-gate.js, prescan.py) can compare optimizer output against
-// generator output unchanged.
+// dumps in the harness's own format (deckObjective/panelRewrite.ts), for a
+// quick offline look at what a search would change.
+//
+// NOT FOR GATING: a rewritten dump keeps the generator's notes for the deck
+// before the swaps. Gate the search with LIVE_GEN_OPTIMIZER=1 panels, where it
+// runs inside generation and the generator writes the report for the final
+// list (customization.wholeDeckSearch).
 //
 //   node scripts/deck-objective-optimize.mjs --panel <generator dumps> --out <dir>
 //
@@ -76,7 +80,7 @@ for (const d of runs) {
     // The trust region's role floors count roles the way the deck report does.
     trust: { roleOf: H.countedRoleOf },
   });
-  const out = H.rewriteDump(dump, result, ctx, { seed, edhrecData: d.page.data });
+  const out = H.rewriteDump(dump, result, ctx);
   writeFileSync(join(OUT, `${d.slug}.json`), JSON.stringify(out, null, 2));
   const line = {
     slug: d.slug,
