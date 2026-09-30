@@ -24,7 +24,6 @@ import type { PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
 import type { MisfitSummary } from '@/deck-builder/services/deckBuilder/cardFit';
 import type { OptimizeSwaps } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
 import type { CostPlan } from '@/deck-builder/services/deckBuilder/costAnalyzer';
-import type { SuggestionCardData } from '@/deck-builder/services/deckBuilder/candidateCardData';
 import type { SynergyAnalysis } from '@/deck-builder/services/synergy/analysis';
 import type { WinConditionAnalysis } from '@/deck-builder/services/winConditions/types';
 import {
@@ -190,9 +189,8 @@ export interface Deck {
    * the analysis hook, like roleTargets/gapAnalysis.
    */
   cardInclusionMap?: Record<string, number>;
-  /** Price and rarity of each one-away combo's missing piece, from the same
-   *  analysis: what Coach checks the deck's price and rarity settings against. */
-  suggestionCards?: Record<string, SuggestionCardData>;
+  /** One-away combo pieces' price and rarity (`SuggestionCardData`), for Coach's settings check. */
+  suggestionCards?: Record<string, { price: string | null; rarity?: string; inclusion?: number }>;
   /**
    * 0-100 PlanScore (4 weighted dimensions: strategy/roles/curve/cardFit) with
    * its sub-scores. Kept live by useCommanderBracketAnalysis (recomputed as
