@@ -1,6 +1,6 @@
 import { EmptyState } from '../components/shared/EmptyState';
-import { CollectionHubTabs } from '@/components/collection/CollectionHubTabs';
 import { PageHeader } from '@/components/app-shell/PageHeader';
+import { HubPage } from '@/components/app-shell/HubPage';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import {
@@ -356,18 +356,17 @@ function SetsIndex() {
   const cardResults = useMemo(() => searchCollectionCardSets(cards, query), [cards, query]);
 
   return (
-    <div className="sets-page">
-      <PageHeader
-        title="Sets"
-        meta={
-          progress.length === 0
-            ? undefined
-            : `${progress.length} ${progress.length === 1 ? 'set' : 'sets'} in your collection` +
-              (completeCount > 0 ? ` · ${completeCount} complete` : '')
-        }
-      />
-      <CollectionHubTabs />
-
+    <HubPage
+      hub="collection"
+      section="Sets"
+      className="sets-page"
+      intro={
+        progress.length === 0
+          ? undefined
+          : `${progress.length} ${progress.length === 1 ? 'set' : 'sets'} in your collection` +
+            (completeCount > 0 ? ` · ${completeCount} complete` : '')
+      }
+    >
       {progress.length === 0 ? (
         <EmptyState
           tagline="No sets to track yet."
@@ -432,7 +431,7 @@ function SetsIndex() {
           )}
         </>
       )}
-    </div>
+    </HubPage>
   );
 }
 
