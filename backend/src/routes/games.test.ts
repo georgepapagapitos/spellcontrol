@@ -3,7 +3,8 @@ import request from 'supertest';
 import http, { type Server } from 'node:http';
 import type { Pool } from 'pg';
 import { createTestEnv, extractSessionCookie } from '../test-helpers';
-import { isUniqueViolation, SIGNAL_EMOTES } from './games';
+import { isUniqueViolation } from '../games/sessions';
+import { SIGNAL_EMOTES } from '../games/live-registry';
 import { sweepDiscordTables } from '../games/discord-tables';
 
 describe('isUniqueViolation (F20 join-code race guard)', () => {
