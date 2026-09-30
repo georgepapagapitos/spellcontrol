@@ -1,6 +1,6 @@
 import { createGameState, makePlayer } from './state';
 import type { GameEvent, GameFormat, GamePlayer, GameState, TurnOrder } from './state';
-import { VALID_FORMATS } from '../routes/games';
+import { VALID_FORMATS } from './sessions';
 
 /**
  * Rebuild a finished LOCAL game from an untrusted POST body into a `GameState`
