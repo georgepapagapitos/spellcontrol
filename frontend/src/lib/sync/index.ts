@@ -16,7 +16,7 @@ import { clearAnalysisCache } from '@/lib/deck-analysis/deck-analysis-cache';
 import type { EntityKind } from './entity-store';
 import { applyPrices, setPrices, priceKey } from '@/lib/collection/card-prices';
 import { fetchOracleIds } from '@/lib/api/combos';
-import { remapCubeAllocations } from '@/lib/cube/remap-cube-allocations';
+import { remapAllAllocations } from '@/lib/cube/remap-cube-allocations';
 import { toast } from '@/store/toasts';
 import { conflictQueue, type DeckConflict } from '@/store/conflicts';
 import { recordDeckConflict } from './conflict-metrics';
@@ -1965,8 +1965,7 @@ async function rehydrateStoresFromIdb(): Promise<void> {
     // type is narrowed by applyPrices's generic to the price-relevant fields
     // only, but the underlying objects are full EnrichedCard rows.
     const cardsForRemap = cardData as unknown as EnrichedCard[];
-    useDecksStore.getState().remapAllocations(cardsForRemap);
-    remapCubeAllocations(cardsForRemap);
+    remapAllAllocations(cardsForRemap);
   }
 }
 

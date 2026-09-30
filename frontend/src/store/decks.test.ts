@@ -101,7 +101,7 @@ describe('remapAllocations', () => {
     const newCollection = [
       enriched({ copyId: 'new-copy-1', name: 'Sol Ring', scryfallId: 'sf-1' }),
     ];
-    useDecksStore.getState().remapAllocations(newCollection);
+    useDecksStore.getState().remapAllocations(newCollection, []);
 
     const deck = useDecksStore.getState().decks[0];
     expect(deck.cards[0].allocatedCopyId).toBe('new-copy-1');
@@ -116,7 +116,7 @@ describe('remapAllocations', () => {
       ],
     });
 
-    useDecksStore.getState().remapAllocations([]);
+    useDecksStore.getState().remapAllocations([], []);
 
     const deck = useDecksStore.getState().decks[0];
     expect(deck.cards[0].allocatedCopyId).toBeNull();
@@ -132,7 +132,7 @@ describe('remapAllocations', () => {
     });
 
     const newCollection = [enriched({ copyId: 'new-copy-1' })];
-    useDecksStore.getState().remapAllocations(newCollection);
+    useDecksStore.getState().remapAllocations(newCollection, []);
 
     const deck = useDecksStore.getState().decks[0];
     expect(deck.cards[0].allocatedCopyId).toBe('new-copy-1');
@@ -148,7 +148,7 @@ describe('remapAllocations', () => {
     });
 
     const newCollection = [enriched({ copyId: 'new-copy-1', name: 'Sol Ring' })];
-    useDecksStore.getState().remapAllocations(newCollection);
+    useDecksStore.getState().remapAllocations(newCollection, []);
 
     const deck = useDecksStore.getState().decks[0];
     expect(deck.cards[0].allocatedCopyId).toBeNull();
@@ -164,12 +164,12 @@ describe('remapAllocations', () => {
     });
 
     // Step 1: collection deleted — remap against empty nulls all allocations
-    useDecksStore.getState().remapAllocations([]);
+    useDecksStore.getState().remapAllocations([], []);
     expect(useDecksStore.getState().decks[0].cards[0].allocatedCopyId).toBeNull();
 
     // Step 2: new collection imported — should re-allocate
     const freshCollection = [enriched({ copyId: 'fresh-copy', name: 'Sol Ring' })];
-    useDecksStore.getState().remapAllocations(freshCollection);
+    useDecksStore.getState().remapAllocations(freshCollection, []);
     expect(useDecksStore.getState().decks[0].cards[0].allocatedCopyId).toBe('fresh-copy');
   });
 
@@ -189,7 +189,7 @@ describe('remapAllocations', () => {
     });
 
     const newCollection = [enriched({ copyId: 'only-copy', name: 'Sol Ring' })];
-    useDecksStore.getState().remapAllocations(newCollection);
+    useDecksStore.getState().remapAllocations(newCollection, []);
 
     const [d1, d2] = useDecksStore.getState().decks;
     expect(d1.cards[0].allocatedCopyId).toBe('only-copy');
@@ -209,7 +209,7 @@ describe('remapAllocations', () => {
       enriched({ copyId: 'cmr-copy', name: 'Sol Ring', scryfallId: 'sf-CMR', purchasePrice: 1 }),
       enriched({ copyId: 'one-copy', name: 'Sol Ring', scryfallId: 'sf-ONE', purchasePrice: 50 }),
     ];
-    useDecksStore.getState().remapAllocations(newCollection);
+    useDecksStore.getState().remapAllocations(newCollection, []);
 
     const deck = useDecksStore.getState().decks[0];
     expect(deck.cards[0].allocatedCopyId).toBe('one-copy');
@@ -231,7 +231,7 @@ describe('remapAllocations', () => {
       enriched({ copyId: 'new-cmd', name: 'Atraxa', scryfallId: 'sf-atraxa' }),
       enriched({ copyId: 'new-partner', name: 'Thrasios', scryfallId: 'sf-thrasios' }),
     ];
-    useDecksStore.getState().remapAllocations(newCollection);
+    useDecksStore.getState().remapAllocations(newCollection, []);
 
     const deck = useDecksStore.getState().decks[0];
     expect(deck.commanderAllocatedCopyId).toBe('new-cmd');
@@ -250,7 +250,7 @@ describe('remapAllocations', () => {
     const newCollection = [
       enriched({ copyId: 'new-sb', name: 'Swords to Plowshares', scryfallId: 'sf-stp' }),
     ];
-    useDecksStore.getState().remapAllocations(newCollection);
+    useDecksStore.getState().remapAllocations(newCollection, []);
 
     const deck = useDecksStore.getState().decks[0];
     expect(deck.sideboard[0].allocatedCopyId).toBe('new-sb');
@@ -268,7 +268,7 @@ describe('remapAllocations', () => {
     const newCollection = [
       enriched({ copyId: 'new-cn', name: 'Rhystic Study', scryfallId: 'sf-rhystic' }),
     ];
-    useDecksStore.getState().remapAllocations(newCollection);
+    useDecksStore.getState().remapAllocations(newCollection, []);
 
     const deck = useDecksStore.getState().decks[0];
     expect(deck.considering[0].allocatedCopyId).toBe('new-cn');
@@ -301,7 +301,7 @@ describe('remapAllocations', () => {
         setCode: 'CMR',
       }),
     ];
-    useDecksStore.getState().remapAllocations(collection);
+    useDecksStore.getState().remapAllocations(collection, []);
 
     expect(useDecksStore.getState().decks[0].cards[0].allocatedCopyId).toBe('right-printing-copy');
   });
@@ -332,7 +332,7 @@ describe('remapAllocations', () => {
         setCode: 'ECL',
       }),
     ];
-    useDecksStore.getState().remapAllocations(collection);
+    useDecksStore.getState().remapAllocations(collection, []);
 
     expect(useDecksStore.getState().decks[0].cards[0].allocatedCopyId).toBe('preferred-copy');
   });
@@ -350,7 +350,7 @@ describe('remapAllocations', () => {
     const collection = [
       enriched({ copyId: 'wrong-printing-copy', name: 'Plains', scryfallId: 'sf-other' }),
     ];
-    useDecksStore.getState().remapAllocations(collection);
+    useDecksStore.getState().remapAllocations(collection, []);
 
     expect(useDecksStore.getState().decks[0].cards[0].allocatedCopyId).toBe('wrong-printing-copy');
   });
@@ -371,7 +371,7 @@ describe('remapAllocations', () => {
       enriched({ copyId: 'pref', name: 'Plains', scryfallId: 'sf-preferred' }),
       enriched({ copyId: 'other', name: 'Plains', scryfallId: 'sf-other' }),
     ];
-    useDecksStore.getState().remapAllocations(collection);
+    useDecksStore.getState().remapAllocations(collection, []);
 
     const allocated = useDecksStore.getState().decks[0].cards.map((c) => c.allocatedCopyId);
     expect(allocated).toContain('pref');
@@ -393,7 +393,7 @@ describe('remapAllocations', () => {
       enriched({ copyId: 'other-copy', name: 'Sol Ring', purchasePrice: 0.01 }),
       enriched({ copyId: 'stable-copy', name: 'Sol Ring', purchasePrice: 5 }),
     ];
-    useDecksStore.getState().remapAllocations(collection);
+    useDecksStore.getState().remapAllocations(collection, []);
 
     const deck = useDecksStore.getState().decks[0];
     expect(deck.cards[0].allocatedCopyId).toBe('stable-copy');
@@ -411,7 +411,7 @@ describe('remapAllocations', () => {
     });
 
     const collection = [enriched({ copyId: 'stable-copy', name: 'Sol Ring' })];
-    useDecksStore.getState().remapAllocations(collection);
+    useDecksStore.getState().remapAllocations(collection, []);
 
     expect(useDecksStore.getState().decks[0].updatedAt).toBe(originalUpdatedAt);
   });
@@ -434,7 +434,7 @@ describe('remapAllocations', () => {
     });
 
     const collection = [enriched({ copyId: 'shared-copy', name: 'Sol Ring' })];
-    useDecksStore.getState().remapAllocations(collection);
+    useDecksStore.getState().remapAllocations(collection, []);
 
     const [d1, d2] = useDecksStore.getState().decks;
     expect(d2.cards[0].allocatedCopyId).toBe('shared-copy');
@@ -456,7 +456,7 @@ describe('remapAllocations', () => {
       enriched({ copyId: 'edited-copy', name: 'Manalith' }),
       enriched({ copyId: 'real-sr', name: 'Sol Ring' }),
     ];
-    useDecksStore.getState().remapAllocations(collection);
+    useDecksStore.getState().remapAllocations(collection, []);
 
     expect(useDecksStore.getState().decks[0].cards[0].allocatedCopyId).toBe('real-sr');
   });
@@ -476,9 +476,9 @@ describe('remapAllocations', () => {
     ];
     const b = [a[1], a[0]];
 
-    useDecksStore.getState().remapAllocations(a);
+    useDecksStore.getState().remapAllocations(a, []);
     const snapshot1 = useDecksStore.getState().decks[0];
-    useDecksStore.getState().remapAllocations(b);
+    useDecksStore.getState().remapAllocations(b, []);
     const snapshot2 = useDecksStore.getState().decks[0];
 
     expect(snapshot2.cards[0].allocatedCopyId).toBe('sr-copy');
@@ -505,7 +505,7 @@ describe('remapAllocations', () => {
       enriched({ copyId: 'new-sr', name: 'Sol Ring' }),
       enriched({ copyId: 'new-bolt', name: 'Lightning Bolt', scryfallId: 'sf-bolt' }),
     ];
-    useDecksStore.getState().remapAllocations(newCollection);
+    useDecksStore.getState().remapAllocations(newCollection, []);
 
     const [d1, d2] = useDecksStore.getState().decks;
     expect(d1.cards[0].allocatedCopyId).toBe('new-sr');
@@ -528,7 +528,7 @@ describe('remapAllocations', () => {
 describe('allocation invariants', () => {
   function assertInvariants(collection: EnrichedCard[]) {
     const { decks } = useDecksStore.getState();
-    const allocations = buildAllocationMap(decks);
+    const allocations = buildAllocationMap(decks, []);
     const collectionById = new Map(collection.map((c) => [c.copyId, c]));
 
     // Every claimed copyId exists in collection.
@@ -603,7 +603,7 @@ describe('allocation invariants', () => {
       enriched({ copyId: 'sr-one', name: 'Sol Ring', scryfallId: 'sf-sr-2', purchasePrice: 50 }),
       enriched({ copyId: 'bolt-1', name: 'Lightning Bolt', scryfallId: 'sf-bolt' }),
     ];
-    useDecksStore.getState().remapAllocations(v1);
+    useDecksStore.getState().remapAllocations(v1, []);
     assertInvariants(v1);
 
     // Each deck got the matching printing.
@@ -616,7 +616,7 @@ describe('allocation invariants', () => {
       ...v1,
       enriched({ copyId: 'sr-extra', name: 'Sol Ring', scryfallId: 'sf-sr-x', purchasePrice: 2 }),
     ];
-    useDecksStore.getState().remapAllocations(v2);
+    useDecksStore.getState().remapAllocations(v2, []);
     assertInvariants(v2);
     const [d1b, d2b] = useDecksStore.getState().decks;
     expect(d1b.cards[0].allocatedCopyId).toBe('sr-cmr');
@@ -625,14 +625,14 @@ describe('allocation invariants', () => {
     // Delete the copy d1 was bound to (simulates "delete import"). d1 must
     // rebind to a free copy; d2 must stay put.
     const v3 = v2.filter((c) => c.copyId !== 'sr-cmr');
-    useDecksStore.getState().remapAllocations(v3);
+    useDecksStore.getState().remapAllocations(v3, []);
     assertInvariants(v3);
     const [d1c, d2c] = useDecksStore.getState().decks;
     expect(d1c.cards[0].allocatedCopyId).toBe('sr-extra'); // only free Sol Ring
     expect(d2c.cards[0].allocatedCopyId).toBe('sr-one');
 
     // Clear the entire collection. Everything goes to null, no invariant break.
-    useDecksStore.getState().remapAllocations([]);
+    useDecksStore.getState().remapAllocations([], []);
     assertInvariants([]);
   });
 
@@ -650,7 +650,7 @@ describe('allocation invariants', () => {
       enriched({ copyId: 'a', name: 'Sol Ring' }),
       enriched({ copyId: 'b', name: 'Sol Ring' }),
     ];
-    useDecksStore.getState().remapAllocations(collection);
+    useDecksStore.getState().remapAllocations(collection, []);
     assertInvariants(collection);
 
     const deck = useDecksStore.getState().decks[0];
@@ -672,7 +672,7 @@ describe('allocation invariants', () => {
     });
 
     const collection = [enriched({ copyId: 'shared', name: 'Sol Ring', scryfallId: 'sf-1' })];
-    useDecksStore.getState().remapAllocations(collection);
+    useDecksStore.getState().remapAllocations(collection, []);
     assertInvariants(collection);
 
     const [d1, d2] = useDecksStore.getState().decks;
@@ -724,7 +724,7 @@ describe('allocation invariants', () => {
       }
 
       useDecksStore.setState({ decks });
-      useDecksStore.getState().remapAllocations(collection);
+      useDecksStore.getState().remapAllocations(collection, []);
 
       const out = useDecksStore.getState().decks;
       const seen = new Set<string>();
@@ -849,7 +849,7 @@ describe('allocation invariants', () => {
       } else {
         // reimport: brand-new copyIds, perturbed owned multiset, then remap.
         regenCollection();
-        useDecksStore.getState().remapAllocations(collection);
+        useDecksStore.getState().remapAllocations(collection, []);
 
         const decks = useDecksStore.getState().decks;
         const ownedById = new Map(collection.map((c) => [c.copyId, c]));
@@ -890,7 +890,7 @@ describe('allocation invariants', () => {
 
         // I3: a second remap on the identical collection is a no-op.
         const before = snapshotAllocs();
-        useDecksStore.getState().remapAllocations(collection);
+        useDecksStore.getState().remapAllocations(collection, []);
         expect(snapshotAllocs(), `step ${step}: remap not idempotent`).toEqual(before);
       }
     }
@@ -1096,7 +1096,10 @@ describe('local mutation token (E177)', () => {
 
     useDecksStore
       .getState()
-      .remapAllocations([enriched({ copyId: 'new-copy-1', name: 'Sol Ring', scryfallId: 'sf-1' })]);
+      .remapAllocations(
+        [enriched({ copyId: 'new-copy-1', name: 'Sol Ring', scryfallId: 'sf-1' })],
+        []
+      );
 
     expect(useDecksStore.getState().decks[0].cards[0].allocatedCopyId).toBe('new-copy-1');
     expect(getLocalMutationToken('d-tok-3')).toBe(before);

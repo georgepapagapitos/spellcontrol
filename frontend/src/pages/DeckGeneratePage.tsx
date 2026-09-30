@@ -21,6 +21,7 @@ import { useGenerationTakeoverExit } from '@/lib/deck/use-generation-takeover-ex
 import { imageFromCard } from '@/lib/cards/card-thumbs';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
+import { useCubeStore } from '../store/cube';
 import { buildAllocationMap, pickCollectionCopy } from '@/lib/collection/allocations';
 import { usePublishOnCreate, type PublishOutcome } from '@/lib/social/use-publish-on-create';
 import { VisibilityChoice } from '@/components/share/VisibilityChoice';
@@ -296,7 +297,7 @@ export function DeckGeneratePage() {
   // ── Start blank: this commander, no cards ──────────────────────────────
   const handleStartBlank = useCallback(async () => {
     if (!commander || !buildReady) return;
-    const allocationMap = buildAllocationMap(decks);
+    const allocationMap = buildAllocationMap(decks, useCubeStore.getState().saved);
     const commanderAlloc =
       pickCollectionCopy(commander.name, collectionCards, allocationMap, commander.id)?.copyId ??
       null;

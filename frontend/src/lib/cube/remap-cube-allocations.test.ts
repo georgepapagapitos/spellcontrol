@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { remapCubeAllocations } from './remap-cube-allocations';
+import {
+  installCubeClaimHeal,
+  remapAllAllocations,
+  remapCubeAllocations,
+} from './remap-cube-allocations';
 import { useCubeStore, type SavedCube, type CubePickSlot } from '@/store/cube';
 import { useDecksStore, type Deck } from '@/store/decks';
 import { setApplyingServer } from '@/lib/sync/applying-server';
@@ -156,5 +160,117 @@ describe('remapCubeAllocations', () => {
     setCubes([savedCube([slot('Sol Ring', 'gone', 'sf-1:nonfoil')])]);
     remapCubeAllocations([card({ copyId: 'shared', scryfallId: 'sf-1' })]);
     expect(currentPicks()[0].allocatedCopyId).toBeNull(); // cube could not steal the deck's copy
+  });
+});
+
+// A deck and a physical cube share one pool of copies (E542). These failed
+// before: the deck remap started from an empty claim set, so any collection
+// edit or sync could hand a cube's copy to a deck, and nothing released a
+// copy both held.
+describe('decks and physical cubes share one claim set (E542)', () => {
+  const flush = () => new Promise((r) => setTimeout(r, 0));
+  const solRingSlot = (allocatedCopyId: string | null) => ({
+    slotId: 's1',
+    card: { name: 'Sol Ring', id: 'sf-1' } as never,
+    allocatedCopyId,
+  });
+
+  beforeEach(async () => {
+    setApplyingServer(true);
+    installCubeClaimHeal();
+    useDecksStore.setState({ decks: [] });
+    useCubeStore.setState({ saved: [] });
+    await flush();
+  });
+  afterEach(() => {
+    setApplyingServer(false);
+    useCubeStore.setState({ saved: [] });
+    useDecksStore.setState({ decks: [] });
+  });
+
+  it('a deck slot needing a copy never takes the one a physical cube holds', () => {
+    setCubes([savedCube([slot('Sol Ring', 'cube-copy', 'sf-1:nonfoil')])]);
+    useDecksStore.setState({ decks: [deck({ cards: [solRingSlot(null)] })] });
+
+    remapAllAllocations([card({ copyId: 'cube-copy', scryfallId: 'sf-1' })]);
+
+    expect(useDecksStore.getState().decks[0].cards[0].allocatedCopyId).toBeNull();
+    expect(currentPicks()[0].allocatedCopyId).toBe('cube-copy');
+  });
+
+  it('a deck slot whose copy was deleted does not fall back onto the cube copy', () => {
+    setCubes([savedCube([slot('Sol Ring', 'cube-copy', 'sf-1:nonfoil')])]);
+    useDecksStore.setState({ decks: [deck({ cards: [solRingSlot('deleted-copy')] })] });
+
+    remapAllAllocations([card({ copyId: 'cube-copy', scryfallId: 'sf-1' })]);
+
+    expect(useDecksStore.getState().decks[0].cards[0].allocatedCopyId).toBeNull();
+    expect(currentPicks()[0].allocatedCopyId).toBe('cube-copy');
+  });
+
+  it('a free copy still goes to the deck while the cube keeps its own', () => {
+    setCubes([savedCube([slot('Sol Ring', 'cube-copy', 'sf-1:nonfoil')])]);
+    useDecksStore.setState({ decks: [deck({ cards: [solRingSlot(null)] })] });
+
+    remapAllAllocations([
+      card({ copyId: 'cube-copy', scryfallId: 'sf-1' }),
+      card({ copyId: 'free-copy', scryfallId: 'sf-1' }),
+    ]);
+
+    expect(useDecksStore.getState().decks[0].cards[0].allocatedCopyId).toBe('free-copy');
+    expect(currentPicks()[0].allocatedCopyId).toBe('cube-copy');
+  });
+
+  it('a copy both already hold stays with the deck; the cube is left a gap', () => {
+    setCubes([savedCube([slot('Sol Ring', 'shared', 'sf-1:nonfoil')])]);
+    useDecksStore.setState({ decks: [deck({ cards: [solRingSlot('shared')] })] });
+
+    remapAllAllocations([card({ copyId: 'shared', scryfallId: 'sf-1' })]);
+
+    expect(useDecksStore.getState().decks[0].cards[0].allocatedCopyId).toBe('shared');
+    expect(currentPicks()[0].allocatedCopyId).toBeNull();
+  });
+
+  it('a double claim arriving without a remap (a sync, an undo) heals: the cube releases', async () => {
+    setCubes([savedCube([slot('Sol Ring', 'shared', 'sf-1:nonfoil')])]);
+    useDecksStore.setState({ decks: [deck({ cards: [solRingSlot('shared')] })] });
+    await flush();
+
+    expect(useDecksStore.getState().decks[0].cards[0].allocatedCopyId).toBe('shared');
+    const pick = currentPicks()[0];
+    expect(pick.allocatedCopyId).toBeNull();
+    // The shadow stays, so the next remap can bind another copy of the printing.
+    expect(pick.printingFinishKey).toBe('sf-1:nonfoil');
+  });
+
+  it('two physical cubes claiming one copy heal to the first', async () => {
+    setCubes([
+      savedCube([slot('Sol Ring', 'shared', 'sf-1:nonfoil')], { id: 'a' }),
+      savedCube([slot('Sol Ring', 'shared', 'sf-1:nonfoil')], { id: 'b' }),
+    ]);
+    await flush();
+
+    const [a, b] = useCubeStore.getState().saved;
+    expect(a.picks[0].allocatedCopyId).toBe('shared');
+    expect(b.picks[0].allocatedCopyId).toBeNull();
+  });
+
+  it('a draft cube claims nothing, so a deck may take the copy it lists', async () => {
+    setCubes([savedCube([slot('Sol Ring', 'shared', null)], { isPhysical: false })]);
+    useDecksStore.setState({ decks: [deck({ cards: [solRingSlot(null)] })] });
+
+    remapAllAllocations([card({ copyId: 'shared', scryfallId: 'sf-1' })]);
+    await flush();
+
+    expect(useDecksStore.getState().decks[0].cards[0].allocatedCopyId).toBe('shared');
+  });
+
+  it('leaves the cube list untouched when nothing is contested', async () => {
+    setCubes([savedCube([slot('Sol Ring', 'cube-copy', 'sf-1:nonfoil')])]);
+    const before = useCubeStore.getState().saved;
+    useDecksStore.setState({ decks: [deck({ cards: [solRingSlot('other')] })] });
+    await flush();
+
+    expect(useCubeStore.getState().saved).toBe(before);
   });
 });

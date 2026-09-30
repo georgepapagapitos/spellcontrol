@@ -375,8 +375,12 @@ describe('bulk-cache isGameChanger flag (E108)', () => {
   it('falls back to the hardcoded RC list when the live search fails', async () => {
     // gameChangerNames: null → mockScryfallFetch throws on /cards/search,
     // simulating a Scryfall outage during the bulk build.
+    const tergrid = "Tergrid, God of Fright // Tergrid's Lantern";
     mockScryfallFetch(
-      [{ ...DEFAULT_BULK_CARD, id: 's-cyc', oracle_id: 'o-cyc', name: 'Cyclonic Rift' }],
+      [
+        { ...DEFAULT_BULK_CARD, id: 's-cyc', oracle_id: 'o-cyc', name: 'Cyclonic Rift' },
+        { ...DEFAULT_BULK_CARD, id: 's-ter', oracle_id: 'o-ter', name: tergrid },
+      ],
       null
     );
     const bulk = await getOracleBulk();
@@ -387,5 +391,9 @@ describe('bulk-cache isGameChanger flag (E108)', () => {
     // Cyclonic Rift is on the hardcoded fallback list, so the flag still lands
     // even though the live query never returned anything.
     expect(slims.find((c) => c.name === 'Cyclonic Rift')?.isGameChanger).toBe(true);
+    // A double-faced Game Changer arrives under its full name. The copy of the
+    // list this file used to keep had only the front face, so the fallback
+    // left Tergrid unflagged.
+    expect(slims.find((c) => c.name === tergrid)?.isGameChanger).toBe(true);
   });
 });

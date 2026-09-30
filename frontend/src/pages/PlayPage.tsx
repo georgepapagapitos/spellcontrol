@@ -500,6 +500,7 @@ export function PlayPage() {
                 defaultName={user?.username ?? ''}
                 hasActive={!!online}
                 initialMode={onlineMode}
+                initialCode={params.get('code') ?? undefined}
               />
             </>
           )}

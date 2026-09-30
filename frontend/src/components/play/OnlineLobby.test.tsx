@@ -15,8 +15,12 @@ import { HORDE_BAN_LIST } from '@/lib/horde/ban-list';
 
 vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
+const { OFF, ON } = vi.hoisted(() => ({
+  OFF: { enabled: false, inviteUrl: null as string | null },
+  ON: { enabled: true, inviteUrl: null as string | null },
+}));
 const gamesApi = vi.hoisted(() => ({
-  getDiscordTablesEnabled: vi.fn(async () => false),
+  getDiscordStatus: vi.fn(async () => OFF),
   openDiscordTable: vi.fn(async (_code: string) => ''),
 }));
 vi.mock('@/lib/play/games-api', () => gamesApi);
@@ -505,7 +509,7 @@ describe('watchers and the voice link', () => {
 
 describe('Discord tables', () => {
   beforeEach(() => {
-    gamesApi.getDiscordTablesEnabled.mockReset().mockResolvedValue(false);
+    gamesApi.getDiscordStatus.mockReset().mockResolvedValue(OFF);
     gamesApi.openDiscordTable.mockReset();
     tab = { opener: {}, location: { href: '' }, close: vi.fn() };
     vi.spyOn(window, 'open').mockReturnValue(tab as unknown as Window);
@@ -518,12 +522,12 @@ describe('Discord tables', () => {
 
   it('stays hidden when the server has no Discord set up', async () => {
     renderLobby(table(2), 'u0');
-    await waitFor(() => expect(gamesApi.getDiscordTablesEnabled).toHaveBeenCalled());
+    await waitFor(() => expect(gamesApi.getDiscordStatus).toHaveBeenCalled());
     expect(screen.queryByRole('button', { name: 'Open a Discord table' })).toBeNull();
   });
 
   it('opens a table and stores its invite as the voice link', async () => {
-    gamesApi.getDiscordTablesEnabled.mockResolvedValue(true);
+    gamesApi.getDiscordStatus.mockResolvedValue(ON);
     gamesApi.openDiscordTable.mockResolvedValue('https://discord.gg/inv');
     const dispatch = renderLobby(table(2), 'u0');
     const open = await screen.findByRole('button', { name: 'Open a Discord table' });
@@ -544,7 +548,7 @@ describe('Discord tables', () => {
   });
 
   it('says so when Discord does not answer', async () => {
-    gamesApi.getDiscordTablesEnabled.mockResolvedValue(true);
+    gamesApi.getDiscordStatus.mockResolvedValue(ON);
     gamesApi.openDiscordTable.mockRejectedValue(new Error('Discord did not answer.'));
     const dispatch = renderLobby(table(2), 'u0');
     fireEvent.click(await screen.findByRole('button', { name: 'Open a Discord table' }));
@@ -554,9 +558,9 @@ describe('Discord tables', () => {
   });
 
   it('is gone once the table has a voice link', async () => {
-    gamesApi.getDiscordTablesEnabled.mockResolvedValue(true);
+    gamesApi.getDiscordStatus.mockResolvedValue(ON);
     renderLobby({ ...table(2), voiceUrl: 'https://discord.gg/inv' }, 'u0');
-    await waitFor(() => expect(gamesApi.getDiscordTablesEnabled).toHaveBeenCalled());
+    await waitFor(() => expect(gamesApi.getDiscordStatus).toHaveBeenCalled());
     expect(screen.queryByRole('button', { name: 'Open a Discord table' })).toBeNull();
   });
 

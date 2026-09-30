@@ -111,7 +111,7 @@ function binder(over: Partial<BinderDef> = {}): BinderDef {
 describe('computeAllocationSplit', () => {
   it('splits bound vs idle, excluding basics from both', () => {
     const decks = [makeDeck({ cards: [deckCard(scryfallCard({ name: 'Sol Ring' }))] })];
-    const allocations = buildAllocationMap(decks);
+    const allocations = buildAllocationMap(decks, []);
     const cards = [
       owned({ name: 'Sol Ring', copyId: 'c1', purchasePrice: 2 }),
       owned({ name: 'Lightning Bolt', copyId: 'c2', purchasePrice: 1 }),
@@ -151,7 +151,7 @@ describe('computeSparesSummary', () => {
       owned({ name: 'Plains', copyId: 'c3' }),
       owned({ name: 'Plains', copyId: 'c4' }),
     ];
-    const allocations = new Map([['c1', [...buildAllocationMap(decks).values()][0]]]);
+    const allocations = new Map([['c1', [...buildAllocationMap(decks, []).values()][0]]]);
     // c1 is claimed, leaving c2 as the single unclaimed Sol Ring (no surplus)
     // and two unclaimed Plains (excluded by isBasicLandName regardless).
     expect(computeSparesSummary(cards, allocations)).toBeNull();

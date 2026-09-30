@@ -6,6 +6,7 @@ import './AppendDeckDialog.css';
 import { ProgressBar } from '@/components/import/ProgressBar';
 import { importDeckText } from '@/lib/api';
 import { useDecksStore, useLocalMutationToken, type Deck } from '../../store/decks';
+import { useCubeStore } from '../../store/cube';
 import { useCollectionStore } from '../../store/collection';
 import { useDeckHistoryStore } from '../../store/deck-history';
 import { useCollectionByCopyId } from '@/lib/collection/allocations';
@@ -143,13 +144,15 @@ export function BulkEditDeckDialog({ deck, onClose, mode = 'edit' }: Props) {
     }
   }, [text, deck, online]);
 
+  const cubes = useCubeStore((s) => s.saved);
   const plan: BulkEditPlan | null = useMemo(() => {
     if (!parsed || step !== 'review') return null;
     return buildBulkEditPlan(deck, parsed, resolvedByName, formatConfig, {
       decks,
+      cubes,
       collectionCards,
     });
-  }, [parsed, step, deck, resolvedByName, formatConfig, decks, collectionCards]);
+  }, [parsed, step, deck, resolvedByName, formatConfig, decks, cubes, collectionCards]);
 
   // Genuinely-unmatched names: unresolved minus the ones we know are just a
   // retryable network hiccup (those get their own banner + Retry button).
