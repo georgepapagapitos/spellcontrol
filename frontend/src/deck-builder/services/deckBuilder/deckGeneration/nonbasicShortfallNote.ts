@@ -17,8 +17,9 @@ export function buildNonbasicShortfallNote(params: {
   const nonbasic = params.lands.filter((c) => !c.type_line.includes('Basic')).length;
   const short = Math.min(params.targetNonBasic, params.lands.length) - nonbasic;
   if (short <= 0) return undefined;
-  const slots = short === 1 ? '1 nonbasic slot went' : `${short} nonbasic slots went`;
-  return `${slots} to a basic: no fitting land under the budget.`;
+  const slots =
+    short === 1 ? '1 nonbasic slot went to a basic' : `${short} nonbasic slots went to basics`;
+  return `${slots}: no fitting land under the budget.`;
 }
 
 /** `landCountNote` with the shortfall clause appended when there is one. */

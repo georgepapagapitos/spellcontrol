@@ -23,7 +23,7 @@ describe('buildNonbasicShortfallNote', () => {
       '1 nonbasic slot went to a basic: no fitting land under the budget.'
     );
     expect(buildNonbasicShortfallNote({ lands, targetNonBasic: 8, hasPriceCeiling: true })).toBe(
-      '2 nonbasic slots went to a basic: no fitting land under the budget.'
+      '2 nonbasic slots went to basics: no fitting land under the budget.'
     );
   });
 
