@@ -63,6 +63,8 @@ export interface TrustOptions {
   roleOf?: (card: ScryfallCard) => string | null;
   /** classCounts() of the deck the move is made in; without it the class floors are not checked. */
   classesNow?: Readonly<Record<string, number>>;
+  /** gameChangerCount() of the deck the move is made in; without it the bracket tier is not checked. */
+  gameChangersNow?: number;
   /**
    * Roles the generator's surplus rebalance trimmed, by the count each was
    * left at: the search may not raise them again (that would undo a
@@ -78,7 +80,19 @@ export type ProtectedClass =
   'combo piece' | 'combo tutor' | 'protection' | 'interaction land' | 'Game Changer' | 'staple';
 
 /** What bound a move: a protected class, a role floor or cap, or a class floor. */
-export type TrustBound = ProtectedClass | 'role floor' | 'role cap' | 'class floor';
+export type TrustBound =
+  ProtectedClass | 'role floor' | 'role cap' | 'class floor' | 'bracket tier';
+
+/** Game Changers at which the estimator floors a deck at bracket 4 (deck-metrics' hard floor). */
+export const BRACKET_4_GAME_CHANGERS = 4;
+
+const isGameChanger = (c: ScryfallCard, ctx: ObjectiveContext) =>
+  ctx.gameChangerNames.has(c.name) || ctx.gameChangerNames.has(c.name.split(' // ')[0]);
+
+/** How many Game Changers the deck holds. */
+export function gameChangerCount(deck: ObjectiveDeck, ctx: ObjectiveContext): number {
+  return deck.cards.filter((c) => isGameChanger(c, ctx)).length;
+}
 
 /** Classes that never leave outside a repair. */
 const STRICT: ReadonlySet<ProtectedClass> = new Set(['combo piece', 'combo tutor']);
@@ -270,6 +284,22 @@ export function trustVerdict(
       return {
         blocked: `${role} would fall to ${after} of target ${target}`,
         bound: 'role floor',
+        required,
+      };
+    }
+  }
+  // A deck built for "any" bracket keeps the power tier the generator gave it:
+  // the gate's Isshin and Sythis went from bracket 3 to 4 on one more Game
+  // Changer (Demonic Tutor, Serra's Sanctum) that no swap reason mentioned.
+  if (opts.gameChangersNow !== undefined && typeof ctx.customization.targetBracket !== 'number') {
+    const after =
+      opts.gameChangersNow +
+      ins.filter((c) => isGameChanger(c, ctx)).length -
+      outs.filter((c) => isGameChanger(c, ctx)).length;
+    if (opts.gameChangersNow < BRACKET_4_GAME_CHANGERS && after >= BRACKET_4_GAME_CHANGERS) {
+      return {
+        blocked: `it would make ${after} Game Changers, which reads as bracket 4`,
+        bound: 'bracket tier',
         required,
       };
     }

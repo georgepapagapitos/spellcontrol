@@ -107,6 +107,26 @@ describe('an opponent discarding (Waste Not read as a self-discard payoff)', () 
   });
 });
 
+describe('the power tier of an any-bracket deck (Isshin and Sythis went from bracket 3 to 4)', () => {
+  it('takes no swap that makes a fourth Game Changer', () => {
+    const ctx = merenCtx({
+      gameChangerNames: new Set(['Vampiric Tutor', 'Worldly Tutor', 'Skullclamp', 'Demonic Tutor']),
+    });
+    const now = BASELINE.cards.filter((c) => ctx.gameChangerNames.has(c.name)).length;
+    expect(now).toBe(3);
+    const v = judgeSwap(BASELINE, ['Dread Return'], [card('Demonic Tutor')], ctx);
+    expect(v.refusal).toMatch(/4 Game Changers/);
+    // A numeric target's own ceilings decide, not this rule.
+    const four = merenCtx({
+      gameChangerNames: ctx.gameChangerNames,
+      customization: { deckFormat: 99, currency: 'USD', targetBracket: 4 },
+    });
+    expect(
+      judgeSwap(BASELINE, ['Dread Return'], [card('Demonic Tutor')], four).refusal
+    ).not.toMatch(/4 Game Changers/);
+  });
+});
+
 describe('role caps (Ur-Dragon ramp went to 22 of cap 21)', () => {
   const ctx = merenCtx({ roleTargets: { ramp: 17, removal: 6, boardwipe: 3, cardDraw: 9 } });
   const roleOf = factsRoleOf(ctx);

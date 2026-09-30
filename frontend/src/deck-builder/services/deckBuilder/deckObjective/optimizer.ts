@@ -63,6 +63,7 @@ import { TERMS, compareScores, infeasibility, scoreDeck, termDeltas } from './in
 import {
   countRoles,
   factsRoleOf,
+  gameChangerCount,
   protectedCards,
   trustVerdict,
   type TrustOptions,
@@ -402,6 +403,7 @@ export function optimizeDeck(
     const protectedNow = trust ? protectedCards(current, ctx, trust.stapleBar) : new Map();
     const rolesNow = trust ? countRoles(current, roleOf) : {};
     const classesNow = trust ? classCounts(current, ctx) : {};
+    const gameChangersNow = trust ? gameChangerCount(current, ctx) : 0;
 
     // 1. What each removable card is worth here, and what each candidate would add.
     const removable = current.cards
@@ -570,7 +572,7 @@ export function optimizeDeck(
         ctx,
         protectedNow,
         opts.minGain,
-        { ...trust!, roleOf, classesNow, repair }
+        { ...trust!, roleOf, classesNow, gameChangersNow, repair }
       );
     for (const move of moves) {
       if (judged >= opts.shortlist || checked >= opts.shortlist * CHECKS_PER_SLOT) break;
@@ -878,6 +880,7 @@ export function judgeSwap(
         ...trust,
         roleOf,
         classesNow: classCounts(deck, ctx),
+        gameChangersNow: gameChangerCount(deck, ctx),
         repair: infeasibility(after) < infeasibility(before),
       }
     );
