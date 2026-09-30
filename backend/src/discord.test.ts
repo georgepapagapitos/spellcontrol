@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   closeTableChannel,
-  codeFromChannelName,
   isDiscordConfigured,
   tableChannelName,
+  tableTag,
+  tagFromChannelName,
 } from './discord';
 
 vi.mock('./logger', () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
@@ -16,8 +17,30 @@ afterEach(() => {
 });
 
 describe('table channel names', () => {
-  it('round-trips a game code', () => {
-    expect(codeFromChannelName(tableChannelName('TK7T'))).toBe('TK7T');
+  // Every member of the server sees every channel name, so a name that held
+  // the join code would open a private table to all of them.
+  it('never names a channel by its join code', () => {
+    process.env.DISCORD_BOT_TOKEN = 'secret';
+    for (const code of ['TK7T', 'ZVVU', '2345', 'ABCD']) {
+      const name = tableChannelName(code);
+      expect(name, code).toMatch(/^Table \d{5}$/);
+      expect(name, code).not.toContain(code);
+    }
+  });
+
+  it('is stable for a code, differs across codes, and depends on the secret', () => {
+    process.env.DISCORD_BOT_TOKEN = 'secret';
+    expect(tableTag('TK7T')).toBe(tableTag('TK7T'));
+    expect(tableTag('TK7T')).not.toBe(tableTag('TK7U'));
+    const withSecret = tableTag('TK7T');
+    process.env.DISCORD_BOT_TOKEN = 'another';
+    expect(tableTag('TK7T')).not.toBe(withSecret);
+  });
+
+  it('reads back the tag, and an old code-named channel so the sweep can clear it', () => {
+    process.env.DISCORD_BOT_TOKEN = 'secret';
+    expect(tagFromChannelName(tableChannelName('TK7T'))).toBe(tableTag('TK7T'));
+    expect(tagFromChannelName('Table ZVVU')).toBe('ZVVU');
   });
 
   // The sweep deletes whatever this recognises, so a channel a moderator made
@@ -28,10 +51,12 @@ describe('table channel names', () => {
       'Table',
       'Table tk7t',
       'Table TK7T2',
-      'table TK7T',
+      'Table 1234',
+      'Table 123456',
+      'table 12345',
       'Table TK-T',
     ]) {
-      expect(codeFromChannelName(name), name).toBe(null);
+      expect(tagFromChannelName(name), name).toBe(null);
     }
   });
 });
