@@ -40,8 +40,12 @@ const REPEATING_ENGINE = /\bwhenever\b|\bat the beginning of\b|\{[^}]+\}[^.:]*:/
 // commander: a live Lathril run spent a slot on Allosaurus Shepherd that way.
 const KEEPS_PERMANENT = /\b(hexproof|shroud|indestructible|protection from)\b|\bphases? out\b/;
 
-/** A protection piece that keeps the commander on the battlefield. */
+/** A protection piece that keeps the commander on the battlefield. Not a
+ *  planeswalker: a loyalty ability that phases something out is incidental,
+ *  and promoting Teferi, Master of Time (25%) took Sefris's one planeswalker
+ *  slot from Liliana, Death's Majesty (50%). */
 export function isSurvivalPiece(card: ScryfallCard): boolean {
+  if (/planeswalker/i.test(card.card_faces?.[0]?.type_line ?? card.type_line ?? '')) return false;
   return isProtectionPiece(card) && KEEPS_PERMANENT.test(getCombinedOracleText(card));
 }
 

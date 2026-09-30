@@ -3,6 +3,7 @@ import type { ScryfallCard, DetectedCombo, EDHRECCard } from '@/deck-builder/typ
 
 vi.mock('@/deck-builder/services/tagger/client', () => ({
   getCardRole: vi.fn(() => null),
+  validateCardRole: () => null,
   isProtectionPiece: () => false,
   isFreeInteraction: () => false,
 }));
@@ -410,5 +411,86 @@ describe('comboIntegrityAuditPhase', () => {
     });
 
     expect(state.currentRoleCounts.removal).toBe(0);
+  });
+});
+
+// E532 gate: the audit cut a piece of the very combo it was completing and
+// reported the combo complete. Real cards; inclusion from the E532 panel's
+// Atraxa, Praetors' Voice Planeswalkers and Sivitri, Dragon Master pages.
+describe('comboIntegrityAuditPhase never evicts a piece of the combo it completes', () => {
+  beforeEach(() => {
+    mockGetCardRole.mockReset();
+    mockGetCardRole.mockReturnValue(null);
+  });
+
+  it('completing a near-miss keeps the in-deck piece (Prologue to Phyresis)', () => {
+    const state = makeState();
+    const prologue = scryfallCard('Prologue to Phyresis', { type_line: 'Sorcery' });
+    const wanderer = scryfallCard('The Wanderer', { type_line: 'Legendary Planeswalker' });
+    const algorithm = scryfallCard('Expansion Algorithm', { type_line: 'Instant' });
+    state.categories.synergy = [prologue, wanderer];
+    state.usedNames = new Set([prologue.name, wanderer.name]);
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [
+          edhrecCard('Prologue to Phyresis', 12.9),
+          edhrecCard('The Wanderer', 15.3),
+          edhrecCard('Expansion Algorithm', 12.5),
+        ],
+      },
+    } as unknown as GenerationState['edhrecData'];
+    const detectedCombos = [
+      combo('1131-7873', ['Prologue to Phyresis', 'Expansion Algorithm'], ['Expansion Algorithm']),
+    ];
+
+    const { repairs, detectedCombos: after } = comboIntegrityAuditPhase(state, {
+      detectedCombos,
+      scryfallCardMap: new Map([[algorithm.name, algorithm]]),
+      budgetTracker: null,
+      bracketGuard: undefined,
+    });
+
+    expect(repairs).toEqual([
+      expect.objectContaining({ cut: 'The Wanderer', added: 'Expansion Algorithm' }),
+    ]);
+    expect(state.usedNames.has('Prologue to Phyresis')).toBe(true);
+    expect(after?.[0]).toEqual(expect.objectContaining({ isComplete: true, missingCards: [] }));
+  });
+
+  it('a multi-combo enabler keeps the partners it completes (Hullbreaker Horror + Mox Amber)', () => {
+    const state = makeState();
+    const moxAmber = scryfallCard('Mox Amber', { type_line: 'Legendary Artifact' });
+    const solRing = scryfallCard('Sol Ring', { type_line: 'Artifact' });
+    const frostkite = scryfallCard('Deceptive Frostkite');
+    const hullbreaker = scryfallCard('Hullbreaker Horror');
+    state.categories.ramp = [moxAmber, solRing];
+    state.categories.creatures = [frostkite];
+    state.usedNames = new Set([moxAmber.name, solRing.name, frostkite.name]);
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [
+          edhrecCard('Mox Amber', 5.5),
+          edhrecCard('Sol Ring', 93.2),
+          edhrecCard('Deceptive Frostkite', 33.3),
+          edhrecCard('Hullbreaker Horror', 8.2),
+        ],
+      },
+    } as unknown as GenerationState['edhrecData'];
+    const detectedCombos = [
+      combo('hb-amber', ['Hullbreaker Horror', 'Mox Amber'], ['Hullbreaker Horror']),
+      combo('hb-sol', ['Hullbreaker Horror', 'Sol Ring'], ['Hullbreaker Horror']),
+    ];
+
+    const { repairs } = comboIntegrityAuditPhase(state, {
+      detectedCombos,
+      scryfallCardMap: new Map([[hullbreaker.name, hullbreaker]]),
+      budgetTracker: null,
+      bracketGuard: undefined,
+    });
+
+    expect(repairs).toEqual([
+      expect.objectContaining({ cut: 'Deceptive Frostkite', added: 'Hullbreaker Horror' }),
+    ]);
+    expect(state.usedNames.has('Mox Amber')).toBe(true);
   });
 });

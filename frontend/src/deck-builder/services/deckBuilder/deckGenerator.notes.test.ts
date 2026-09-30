@@ -1625,6 +1625,25 @@ describe('assembleCardProvenance', () => {
     expect(result['Sol Ring']).toBe('Auto-included staple mana rock');
   });
 
+  // E532 gate (Muldrotha, the Gravetide): a type pass seats Sol Ring and
+  // Arcane Signet first as staples, before the auto-include flags them, and
+  // they read as "Cluster-lift pick".
+  it('names Sol Ring and Arcane Signet as staple rocks when a type pass seated them', () => {
+    const result = assembleCardProvenance({
+      nonLandCards: [sc('Sol Ring'), sc('Arcane Signet')],
+      cardInclusionMap: { 'Sol Ring': 86.2, 'Arcane Signet': 70.5 },
+      boostProvenance: new Map([
+        ['Sol Ring', 'Cluster-lift pick'],
+        ['Arcane Signet', 'Cluster-lift pick'],
+      ]),
+      wildcardsKept: [],
+      comboFloorAdd: null,
+      themeNames: [],
+    });
+    expect(result['Sol Ring']).toBe('Auto-included staple mana rock');
+    expect(result['Arcane Signet']).toBe('Auto-included staple mana rock');
+  });
+
   it('records the wildcard flex-slot reason', () => {
     const card = sc('Leftover Gem');
     const result = assembleCardProvenance({

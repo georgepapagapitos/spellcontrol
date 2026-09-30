@@ -72,8 +72,12 @@ export interface TypePassContext {
   roleCapOverflowCounts: Partial<Record<RoleKey, number>>;
   /** E532: staples admitted past a role cap (RoleCapConfig.stapleOverflowCounts). */
   roleCapStapleCounts: Partial<Record<RoleKey, number>>;
+  /** E532: combo-line pieces admitted past a role cap. */
+  roleCapComboCounts: Partial<Record<RoleKey, number>>;
   /** E532: survival pieces to try first (protectionPicks.ts). */
   protectionAdmits?: () => ReadonlySet<string>;
+  /** E532: pieces of the combo lines the pool can assemble (comboLines.ts). */
+  comboLinePieces?: ReadonlySet<string>;
   preferAsymmetricWipes: boolean;
   wipeAsymmetryDecided: Set<string>;
   isOneSidedWipe: (card: ScryfallCard) => boolean;
@@ -148,6 +152,7 @@ export function pickEdhrecTypePass(
           currentRoleCounts: ctx.currentRoleCounts,
           overflowCounts: ctx.roleCapOverflowCounts,
           stapleOverflowCounts: ctx.roleCapStapleCounts,
+          comboOverflowCounts: ctx.roleCapComboCounts,
           isOneSidedWipe: ctx.preferAsymmetricWipes ? ctx.isOneSidedWipe : undefined,
           wipeAsymmetryDecided: ctx.wipeAsymmetryDecided,
           getWipeScope: ctx.getWipeScope,
@@ -159,7 +164,8 @@ export function pickEdhrecTypePass(
     ctx.priceSanityDecided,
     ctx.brewLevel,
     ctx.mtgFormat,
-    ctx.protectionAdmits?.()
+    ctx.protectionAdmits?.(),
+    ctx.comboLinePieces
   );
 }
 

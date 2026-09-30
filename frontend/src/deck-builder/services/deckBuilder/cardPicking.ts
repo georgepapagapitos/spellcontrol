@@ -4,6 +4,12 @@ import { logger } from '@/lib/util/logger';
 import type { ScryfallCard, EDHRECCard, MaxRarity, CollectionStrategy } from '@/deck-builder/types';
 import { getCardPrice, getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { hasCurveRoom } from './curveUtils';
+import { dryRunSeats } from './stapleTier';
+import {
+  wipeAsymmetryTieBreak,
+  wipeScopeCollateralTieBreak,
+  wipeOwnBoardCollateral,
+} from './wipeTieBreaks';
 import { BudgetTracker } from './budgetTracker';
 import type { BracketGuard } from './bracketGuard';
 import { matchesExpectedType, roleCapTolerance, ROLE_CAP_HATCH_MAX_PER_PASS } from './categorize';
@@ -56,6 +62,8 @@ export interface RoleCapConfig {
   /** E532: staples (STAPLE_INCLUSION_BAR) admitted while their role was
    *  already at cap, disclosed next to overflowCounts (never silent). */
   stapleOverflowCounts?: Partial<Record<RoleKey, number>>;
+  /** E532: combo-line pieces the tier protected past a cap (see the tier). */
+  comboOverflowCounts?: Partial<Record<RoleKey, number>>;
   /** E109 board-centric wipe-asymmetry preference: when set, a boardwipe-role
    *  candidate that spares the caller's own board (isOneSidedWipe,
    *  tagger/client.ts) is always tried before a symmetric one — see
@@ -404,152 +412,14 @@ function priceSanityTieBreak(
   return priceA < priceB ? -1 : 1;
 }
 
-// E109 board-centric wipe-asymmetry preference: among two boardwipe-role
-// candidates, always try a one-sided wipe (isOneSidedWipe, tagger/client.ts
-// — spares the caster's own board) before a symmetric one, regardless of the
-// priority/inclusion gap between them. Deliberately unconditional (not
-// banded like priceSanityTieBreak above) — a capped additive boost (the
-// packageBoost.ts visibility-boost family) tops out well below the real
-// inclusion gap between a niche one-sided wipe and a top symmetric staple
-// (same "boost couldn't close a 20+ point gap" shape as E103's extra-combat
-// slice), so the comparator has to be the thing that actually wins the slot,
-// not a nudge that competes with it.
-//
-// `isOneSidedWipe` is injected (mirrors packageBoost.ts's `isProducer`
-// params for the untap/blink/exile/extra-combat visibility boosts) so this
-// module doesn't need a value import from tagger/client.ts; undefined
-// (the common case — every deck whose plan isn't board-centric) is a no-op.
-// Bounded by construction: only fires when both candidates already share the
-// 'boardwipe' role (never reorders across roles or touches a non-wipe card),
-// and only when their one-sidedness actually differs (two symmetric wipes,
-// or two one-sided wipes, fall through to ordinary priority). `decided`
-// records only the pairs where this actually flipped the outcome (mirrors
-// `priceSanityDecided`) — the build report's "N one-sided wipes preferred".
-function wipeAsymmetryTieBreak(
-  a: EDHRECCard,
-  b: EDHRECCard,
-  cardMap: Map<string, ScryfallCard>,
-  cardRoleMap: Map<string, RoleKey> | undefined,
-  isOneSidedWipe: ((card: ScryfallCard) => boolean) | undefined,
-  decided?: Set<string>
-): number {
-  if (!isOneSidedWipe || !cardRoleMap) return 0;
-  if (cardRoleMap.get(a.name) !== 'boardwipe' || cardRoleMap.get(b.name) !== 'boardwipe') return 0;
-
-  const cardA = cardMap.get(a.name);
-  const cardB = cardMap.get(b.name);
-  if (!cardA || !cardB) return 0;
-
-  const oneSidedA = isOneSidedWipe(cardA);
-  const oneSidedB = isOneSidedWipe(cardB);
-  if (oneSidedA === oneSidedB) return 0;
-
-  decided?.add([a.name, b.name].sort().join('|'));
-  return oneSidedA ? -1 : 1;
-}
-
-// E112 own-board scope-collateral preference: among two boardwipe-role
-// candidates that tied on wipeAsymmetryTieBreak above (both symmetric, or
-// both already one-sided), prefer whichever destroys/exiles less of the
-// deck's OWN non-creature permanent mass. Creatures are expected collateral
-// for nearly every wrath — the mismatch that actually hurts a plan is a wipe
-// that ALSO nukes the non-creature type the deck is heavy in (an
-// enchantress deck's own enchantments, an artifact deck's own rocks). Not
-// gated on the board-centric preference (unlike wipeAsymmetryTieBreak) — see
-// getWipeScope's doc field in RoleCapConfig above for why this is a
-// separate, always-on axis. `getWipeScope` already returns the empty scope
-// for a one-sided wipe, so this naturally scores it as zero collateral
-// without re-deriving that check here.
-// Exported for reuse: phaseRoleSurplusRebalance.ts's post-fill eviction
-// ordering needs the SAME collateral signal this comparator uses at pick
-// time (E112/E113 unification) — a low-collateral wipe shouldn't win the
-// pick-time slot only to be the first one evicted afterward on a signal
-// that ignores collateral entirely.
-export function wipeOwnBoardCollateral(
-  card: ScryfallCard,
-  getWipeScope: (card: ScryfallCard) => WipeScope,
-  deckTypeTargets: Record<string, number>
-): number {
-  const scope = getWipeScope(card);
-  const nonLandTotal = Object.values(deckTypeTargets).reduce((sum, v) => sum + v, 0) || 1;
-  const enchantmentShare = (deckTypeTargets.enchantment ?? 0) / nonLandTotal;
-  const artifactShare = (deckTypeTargets.artifact ?? 0) / nonLandTotal;
-  let collateral = 0;
-  if (scope.all || scope.enchantments) collateral += enchantmentShare;
-  if (scope.all || scope.artifacts) collateral += artifactShare;
-  return collateral;
-}
-
-// Exported for reuse: phaseRoleSurplusRebalance.ts folds this into its
-// post-fill eviction/replacement scoring for the boardwipe role specifically
-// (E112/E113 coordination fix). Root cause of the sythis/krenko regressions
-// this closes: wipeAsymmetryTieBreak/wipeScopeCollateralTieBreak above only
-// ever run when two boardwipe candidates are DIRECTLY compared in the SAME
-// pickFromPrefetchedWithCurve sort — they're silent once a wipe's fate is
-// decided by rationing elsewhere (the role-cap escape hatch admitting all of
-// them at pick time, then this pass's priority-only survival/replacement
-// scoring deciding which one survives). The same asymmetry+collateral
-// signal has to govern that decision too, or a low-quality high-inclusion
-// wipe (a splashy modal sweeper) can win the pick-time slot on raw priority
-// and then never get evicted because eviction ranking never looked at
-// quality at all.
-//
-// Deliberately NOT a capped nudge (packageBoost.ts's ~15-30 range) — same
-// "has to actually win the slot" rationale as wipeAsymmetryTieBreak's own doc.
-// Both quality axes are TIERS that dominate calculateCardPriority's ~0-250
-// range (plus a ~30 lift boost), so raw popularity can never keep a worse wipe:
-//  - asymmetry: a symmetric wipe is always worse to keep than a one-sided one
-//    (WIPE_QUALITY_SYMMETRIC_PENALTY).
-//  - own-board collateral: a wipe that ALSO nukes the deck's own enchantments /
-//    artifacts is always worse to keep than a clean same-asymmetry wipe. This
-//    MUST be a tier too, not a small scaled nudge — a splashy modal sweeper
-//    (Farewell, 16-26% incl) out-includes a clean Wrath (10%) by more than a
-//    share-scaled penalty could ever cover, so it would survive on raw
-//    popularity (the E103 "a small nudge can't close a 20-40pt inclusion gap"
-//    lesson, learned again the hard way in iter-15 r3). So any nonzero
-//    collateral clears a flat BASE tier at once, then a share-scaled term
-//    orders collateral-bearing wipes among themselves (more own-board mass
-//    threatened = worse).
-export const WIPE_QUALITY_SYMMETRIC_PENALTY = 1000;
-export const WIPE_QUALITY_COLLATERAL_BASE = 400;
-export const WIPE_QUALITY_COLLATERAL_SCALE = 200;
-
-export function wipeQualityPenalty(
-  card: ScryfallCard,
-  isOneSidedWipe: (card: ScryfallCard) => boolean,
-  getWipeScope: (card: ScryfallCard) => WipeScope,
-  deckTypeTargets: Record<string, number> | undefined
-): number {
-  let penalty = isOneSidedWipe(card) ? 0 : WIPE_QUALITY_SYMMETRIC_PENALTY;
-  if (deckTypeTargets) {
-    const collateral = wipeOwnBoardCollateral(card, getWipeScope, deckTypeTargets);
-    if (collateral > 0) {
-      penalty += WIPE_QUALITY_COLLATERAL_BASE + collateral * WIPE_QUALITY_COLLATERAL_SCALE;
-    }
-  }
-  return penalty;
-}
-
-function wipeScopeCollateralTieBreak(
-  a: EDHRECCard,
-  b: EDHRECCard,
-  cardMap: Map<string, ScryfallCard>,
-  cardRoleMap: Map<string, RoleKey> | undefined,
-  getWipeScope: ((card: ScryfallCard) => WipeScope) | undefined,
-  deckTypeTargets: Record<string, number> | undefined
-): number {
-  if (!getWipeScope || !cardRoleMap || !deckTypeTargets) return 0;
-  if (cardRoleMap.get(a.name) !== 'boardwipe' || cardRoleMap.get(b.name) !== 'boardwipe') return 0;
-
-  const cardA = cardMap.get(a.name);
-  const cardB = cardMap.get(b.name);
-  if (!cardA || !cardB) return 0;
-
-  const collateralA = wipeOwnBoardCollateral(cardA, getWipeScope, deckTypeTargets);
-  const collateralB = wipeOwnBoardCollateral(cardB, getWipeScope, deckTypeTargets);
-  if (collateralA === collateralB) return 0;
-  return collateralA < collateralB ? -1 : 1;
-}
+// Board-wipe tie-breaks (E109/E112/E113) live in wipeTieBreaks.ts.
+export {
+  wipeOwnBoardCollateral,
+  wipeQualityPenalty,
+  WIPE_QUALITY_SYMMETRIC_PENALTY,
+  WIPE_QUALITY_COLLATERAL_BASE,
+  WIPE_QUALITY_COLLATERAL_SCALE,
+} from './wipeTieBreaks';
 
 // Pick cards with curve awareness from pre-fetched map (no API calls)
 // Prioritizes high-synergy theme cards over generic high-inclusion cards
@@ -611,7 +481,10 @@ export function pickFromPrefetchedWithCurve(
   /** E532: names tried first with the staples and allowed past the curve
    *  (protectionPicks.ts: at most two protection pieces for a commander that
    *  must survive). Every other gate still applies. */
-  admitFirst?: ReadonlySet<string>
+  admitFirst?: ReadonlySet<string>,
+  /** E532: pieces of the combo lines this deck can assemble from its pool
+   *  (deckGenerator.ts's achievableComboPieces). */
+  comboLinePieces?: ReadonlySet<string>
 ): ScryfallCard[] {
   const result: ScryfallCard[] = [];
   const preferOwned = collectionStrategy === 'prefer';
@@ -642,7 +515,10 @@ export function pickFromPrefetchedWithCurve(
   // admission past the cap is counted in stapleOverflowCounts below. Not under
   // a deck budget: a card past its cap is money a later phase has to claw
   // back, and on Meren at $100 that ended $7.45 over after 20 substitutions.
-  const capExempt = (c: EDHRECCard) => !budgetTracker && isStaple(c) && !atRoleCap(c, 2);
+  // Combo pieces the tier protects (below) pass the cap the same way.
+  let protectedCombos = new Set<string>();
+  const capExempt = (c: EDHRECCard) =>
+    !budgetTracker && (isStaple(c) || protectedCombos.has(c.name)) && !atRoleCap(c, 2);
   const roleCapBlocks = (edhrecCard: EDHRECCard): boolean =>
     !allowCapOverflow && !capExempt(edhrecCard) && atRoleCap(edhrecCard);
 
@@ -849,14 +725,11 @@ export function pickFromPrefetchedWithCurve(
       if (!ownedExempt) budgetTracker?.deductCard(scryfallCard);
       if (liveRoleCounts && roleCapConfig) {
         const role = roleCapConfig.cardRoleMap.get(edhrecCard.name);
-        if (
-          role &&
-          !allowCapOverflow &&
-          roleCapConfig.stapleOverflowCounts &&
-          atRoleCap(edhrecCard)
-        ) {
-          roleCapConfig.stapleOverflowCounts[role] =
-            (roleCapConfig.stapleOverflowCounts[role] ?? 0) + 1;
+        const past = isStaple(edhrecCard)
+          ? roleCapConfig.stapleOverflowCounts
+          : roleCapConfig.comboOverflowCounts;
+        if (role && !allowCapOverflow && past && atRoleCap(edhrecCard)) {
+          past[role] = (past[role] ?? 0) + 1;
         }
         if (role) {
           liveRoleCounts[role] = (liveRoleCounts[role] ?? 0) + 1;
@@ -889,17 +762,74 @@ export function pickFromPrefetchedWithCurve(
   // ponytail: a price-sanity pair straddling the bar (E80) is ordered by the
   // tier, not by price. Fold the tie-break in if a live deck shows one.
   const stapleTier = brewLevel <= 0.5 && !preferOwned && !budgetTracker;
+  // A >=40% wipe leads only when the wipe tie-breaks would not rank a cleaner
+  // wipe ahead of it: it spares the deck's own board where that is asked for
+  // (E109) and costs none of its own permanents (E112). Toxic Deluge (42.9%
+  // on Obeka's Wheels page) was lost to a 14% Aetherize while wipes sat out.
+  const wipeMayLead = (c: EDHRECCard): boolean => {
+    if (roleCapConfig?.cardRoleMap.get(c.name) !== 'boardwipe') return true;
+    const card = cardMap.get(c.name);
+    if (!card) return false;
+    if (roleCapConfig.isOneSidedWipe && !roleCapConfig.isOneSidedWipe(card)) return false;
+    const { getWipeScope, deckTypeTargets } = roleCapConfig;
+    return !getWipeScope || !deckTypeTargets
+      ? true
+      : wipeOwnBoardCollateral(card, getWipeScope, deckTypeTargets) === 0;
+  };
   // The admitFirst names lead: sorted among the staples, an 18.8% Swiftfoot
   // Boots lost Meren's last artifact slot to them and never reached the deck.
   const admitted = allCandidates.filter((c) => !!admitFirst?.has(c.name));
   const staples = allCandidates.filter(
-    (c) =>
-      stapleTier &&
-      isStaple(c) &&
-      !admitFirst?.has(c.name) &&
-      roleCapConfig?.cardRoleMap.get(c.name) !== 'boardwipe'
+    (c) => stapleTier && isStaple(c) && !admitFirst?.has(c.name) && wipeMayLead(c)
   );
-  processCards([...admitted, ...staples], true);
+  // A staple takes a filler slot, never a combo slot. A piece of a combo line
+  // the pool can assemble, which this pass would have seated without the tier
+  // (the dry run replays its phases, role cap and curve gate), leads the tier
+  // and passes the cap like a staple. The E532 gate lost Hermit Druid +
+  // Thassa's Oracle, Karn + Mycosynth Lattice and Hullbreaker Horror + Mox
+  // Amber to staples without it.
+  if (staples.length > 0 && comboLinePieces?.size) {
+    const staticOk = (c: EDHRECCard, typeCheck: boolean): boolean => {
+      const card = cardMap.get(c.name);
+      if (!card || usedNames.has(c.name) || bracketGuard?.exceedsCeiling(c.name)) return false;
+      if (constrainsToCollection(collectionStrategy) && notInCollection(c.name, collectionNames))
+        return false;
+      if ((cardAllowed && !cardAllowed(card)) || notLegalForFormat(card, mtgFormat)) return false;
+      if (typeCheck && c.primary_type === 'Unknown' && expectedType)
+        if (!matchesExpectedType(getFrontFaceTypeLine(card), expectedType)) return false;
+      return (
+        fitsColorIdentity(card, colorIdentity) && !exceedsMaxPrice(card, maxCardPrice, currency)
+      );
+    };
+    const roleOf = (name: string) => roleCapConfig?.cardRoleMap.get(name);
+    const seats = dryRunSeats({
+      phases: [
+        [highSynergyCards, true],
+        [regularTypedCards, false],
+        [regularUnknownCards, true],
+      ],
+      count,
+      eligible: staticOk,
+      cardMap,
+      roleOf,
+      capOf: (role) => {
+        const target = roleCapConfig?.roleTargets[role] ?? 0;
+        return target > 0 ? target + roleCapTolerance(target) : undefined;
+      },
+      roleCounts: liveRoleCounts ?? { ramp: 0, removal: 0, boardwipe: 0, cardDraw: 0 },
+      curveTargets,
+      curveCounts: currentCurveCounts,
+      mayBreakCurve: (c) =>
+        !strictCurve &&
+        (isHighSynergyCard(c) || isStaple(c) || (comboPriorityBoost?.get(c.name) ?? 0) >= 100),
+      capExempt: (c) => comboLinePieces.has(c.name),
+    });
+    protectedCombos = new Set([...seats].filter((n) => comboLinePieces.has(n)));
+  }
+  const combos = allCandidates.filter(
+    (c) => protectedCombos.has(c.name) && !admitFirst?.has(c.name)
+  );
+  processCards([...combos, ...admitted, ...staples.filter((c) => !combos.includes(c))], true);
 
   // Phase 1: Process HIGH SYNERGY cards first (these are the theme cards!)
   // Need type check since high-synergy Unknown cards should match expected type

@@ -112,7 +112,7 @@ export function comboIntegrityAuditPhase(
         if (auditMustInclude.has(card.name.toLowerCase())) continue;
         if (completeComboCards.has(card.name)) continue;
         if (isProtectionPiece(card) || isFreeInteraction(card)) continue;
-        if (skipNames?.has(card.name)) continue;
+        if (skipNames?.has(card.name) || skipNames?.has(frontFaceName(card.name))) continue;
         if (state.cfg.ownedQuotaProtects?.(card.name)) continue;
         const incl = getByCardName(auditInclusion, card.name) ?? 0;
         if (!best || incl < best.incl) best = { card, category: cat, incl };
@@ -262,7 +262,13 @@ export function comboIntegrityAuditPhase(
       // cleared the enablerScore pre-filter (evaluated once, before ANY swap)
       // can go stale by the time we get here (E-strand-fix, see auditCanAdd).
       if (!auditCanAdd(card)) continue;
-      const weak = auditWeakest();
+      // Never evict a piece of a combo this enabler is about to complete.
+      const partners = new Set(
+        detectedCombos
+          .filter((dc) => enablerCombos.get(name)?.includes(dc.comboId))
+          .flatMap((dc) => dc.cards)
+      );
+      const weak = auditWeakest(partners);
       if (!weak) break;
       auditRemove(weak.card, weak.category);
       auditCommitAdd(card);
@@ -344,8 +350,11 @@ export function comboIntegrityAuditPhase(
       auditSwaps + trulyMissing.length <= MAX_AUDIT_SWAPS;
 
     if (canComplete) {
-      // Swap in the missing pieces by evicting the weakest non-essential cards
-      const evicted = new Set<string>();
+      // Swap in the missing pieces by evicting the weakest non-essential cards.
+      // The combo's own pieces are never the "weakest": on the E532 panel this
+      // branch cut Prologue to Phyresis to add Expansion Algorithm and Jeska's
+      // Will to add Wheel of Fortune, then reported both combos complete.
+      const evicted = new Set<string>(dc.cards);
       let ok = true;
       for (const missing of missingResolved) {
         if (usedNames.has(missing.name)) continue; // already in deck from a prior combo
