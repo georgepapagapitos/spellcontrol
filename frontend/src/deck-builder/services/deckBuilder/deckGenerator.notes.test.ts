@@ -626,6 +626,23 @@ describe('buildRoleCapOverflowNote (E77 iter-4 round 3 — narrow escape-hatch-o
     expect(note).toContain('Overbuilt roles');
     expect(note).not.toMatch(/\btotal (role )?overshoot\b/i);
   });
+
+  // E532: a staple is never held back by a role cap. That is not a thin pool,
+  // so the note names the real reason for those cards.
+  it('names staples as staples, never as a thin pool', () => {
+    expect(buildRoleCapOverflowNote({}, { cardDraw: 1 })).toBe(
+      "1 card went past a role cap. It's in 40% or more of this commander's decks. See Overbuilt roles for the total."
+    );
+    expect(buildRoleCapOverflowNote({ ramp: 2 }, { cardDraw: 1 })).toBe(
+      "3 cards went past a role cap. The ramp pool was thin. 1 is in 40% or more of this commander's decks. See Overbuilt roles for the total."
+    );
+  });
+
+  it('names a protected combo piece as one', () => {
+    expect(buildRoleCapOverflowNote({}, { cardDraw: 1 }, { ramp: 1 })).toBe(
+      "2 cards went past a role cap. 1 is in 40% or more of this commander's decks. 1 is part of a combo the deck can assemble. See Overbuilt roles for the total."
+    );
+  });
 });
 
 describe('resolvePriceSanity (E80 — ships as the default, not opt-in)', () => {
@@ -1631,6 +1648,25 @@ describe('assembleCardProvenance', () => {
       themeNames: [],
     });
     expect(result['Sol Ring']).toBe('Auto-included staple mana rock');
+  });
+
+  // E532 gate (Muldrotha, the Gravetide): a type pass seats Sol Ring and
+  // Arcane Signet first as staples, before the auto-include flags them, and
+  // they read as "Cluster-lift pick".
+  it('names Sol Ring and Arcane Signet as staple rocks when a type pass seated them', () => {
+    const result = assembleCardProvenance({
+      nonLandCards: [sc('Sol Ring'), sc('Arcane Signet')],
+      cardInclusionMap: { 'Sol Ring': 86.2, 'Arcane Signet': 70.5 },
+      boostProvenance: new Map([
+        ['Sol Ring', 'Cluster-lift pick'],
+        ['Arcane Signet', 'Cluster-lift pick'],
+      ]),
+      wildcardsKept: [],
+      comboFloorAdd: null,
+      themeNames: [],
+    });
+    expect(result['Sol Ring']).toBe('Auto-included staple mana rock');
+    expect(result['Arcane Signet']).toBe('Auto-included staple mana rock');
   });
 
   it('records the wildcard flex-slot reason', () => {

@@ -70,6 +70,17 @@ export interface TypePassContext {
   currentRoleCounts: Record<RoleKey, number>;
   currentSubtypeCounts: Record<string, number>;
   roleCapOverflowCounts: Partial<Record<RoleKey, number>>;
+  /** E532: staples admitted past a role cap (RoleCapConfig.stapleOverflowCounts). */
+  roleCapStapleCounts: Partial<Record<RoleKey, number>>;
+  /** E532: combo-line pieces admitted past a role cap. */
+  roleCapComboCounts: Partial<Record<RoleKey, number>>;
+  /** E532: survival pieces to try first (protectionPicks.ts). */
+  protectionAdmits?: () => ReadonlySet<string>;
+  /** E532: combo-line pieces the staple tier must not displace (set from
+   *  baselineComboSeats before the first pass). */
+  comboLinePieces?: ReadonlySet<string>;
+  /** E532 off, for baselineComboSeats' dry run. */
+  e532Off?: boolean;
   preferAsymmetricWipes: boolean;
   wipeAsymmetryDecided: Set<string>;
   isOneSidedWipe: (card: ScryfallCard) => boolean;
@@ -143,6 +154,8 @@ export function pickEdhrecTypePass(
           roleTargets: ctx.roleTargets,
           currentRoleCounts: ctx.currentRoleCounts,
           overflowCounts: ctx.roleCapOverflowCounts,
+          stapleOverflowCounts: ctx.roleCapStapleCounts,
+          comboOverflowCounts: ctx.roleCapComboCounts,
           isOneSidedWipe: ctx.preferAsymmetricWipes ? ctx.isOneSidedWipe : undefined,
           wipeAsymmetryDecided: ctx.wipeAsymmetryDecided,
           getWipeScope: ctx.getWipeScope,
@@ -153,8 +166,77 @@ export function pickEdhrecTypePass(
     ctx.getComboBoosts(),
     ctx.priceSanityDecided,
     ctx.brewLevel,
-    ctx.mtgFormat
+    ctx.mtgFormat,
+    ctx.protectionAdmits?.(),
+    ctx.comboLinePieces,
+    ctx.e532Off
   );
+}
+
+/**
+ * E532: the combo-line pieces (`linePieces`, comboLines.ts) the six passes
+ * seat when run as they were before E532: no staple tier, no staple cap pass,
+ * no survival pieces. A dry run on copies of every counter, so nothing it
+ * picks is kept. The real passes then protect exactly these pieces from the
+ * staple tier: a staple takes a filler slot, never a combo slot. Per-pass
+ * replays missed pieces whose slot a staple took in an earlier pass (Mox
+ * Amber on Sivitri was capped by ramp staples seated before its pass).
+ * Off under a deck budget, where the tier is off too.
+ *
+ * `baseline` makes the replay faithful: the dependency gate as it was before
+ * E532, and a place to seat the dry picks for the length of the run (package
+ * boosts and the dependency gate read the deck so far), cleared after.
+ */
+export interface DryRunHooks {
+  cardAllowed: (card: ScryfallCard) => boolean;
+  seat: (cards: ScryfallCard[]) => void;
+  unseat: () => void;
+}
+
+export function baselineComboSeats(
+  ctx: TypePassContext,
+  passes: [string, EDHRECCard[], number][],
+  linePieces: ReadonlySet<string>,
+  baseline: DryRunHooks
+): Set<string> {
+  const seated = new Set<string>();
+  if (linePieces.size === 0 || ctx.budgetTracker) return seated;
+  const dry: TypePassContext = {
+    ...ctx,
+    usedNames: new Set(ctx.usedNames),
+    currentCurveCounts: { ...ctx.currentCurveCounts },
+    currentRoleCounts: { ...ctx.currentRoleCounts },
+    currentSubtypeCounts: { ...ctx.currentSubtypeCounts },
+    gameChangerCount: { ...ctx.gameChangerCount },
+    bracketGuard: ctx.bracketGuard?.clone(),
+    roleCapOverflowCounts: {},
+    roleCapStapleCounts: {},
+    roleCapComboCounts: {},
+    priceSanityDecided: new Set(),
+    wipeAsymmetryDecided: new Set(),
+    protectionAdmits: undefined,
+    comboLinePieces: undefined,
+    e532Off: true,
+    isCardAllowedBySynergyDependencies: baseline.cardAllowed,
+    onProgress: undefined,
+  };
+  try {
+    for (const [type, pool, target] of passes) {
+      if (target <= 0 || pool.length === 0) continue;
+      const picked = pickEdhrecTypePass(dry, type, pool, target, '', 0);
+      baseline.seat(picked);
+      for (const card of picked) {
+        const role = dry.cardRoleMap.get(card.name);
+        if (role) dry.currentRoleCounts[role]++;
+        const st = dry.cardSubtypeMap.get(card.name);
+        if (st) dry.currentSubtypeCounts[st] = (dry.currentSubtypeCounts[st] ?? 0) + 1;
+        if (linePieces.has(card.name)) seated.add(card.name);
+      }
+    }
+  } finally {
+    baseline.unseat();
+  }
+  return seated;
 }
 
 /**
