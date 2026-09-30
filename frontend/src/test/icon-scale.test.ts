@@ -55,6 +55,7 @@ const SCALE: Record<string, string> = Object.fromEntries(
 const FILE_ALLOWLIST = [
   'components/deck/DeckCardGrid.tsx',
   'components/deck/DeckDisplay.tsx',
+  'components/deck/DeckDisplayBands.tsx',
   'components/deck/DeckMainboardRow.tsx',
   'components/deck/deck-display-icons.tsx',
   'components/deck/deck-display-rows.ts',
