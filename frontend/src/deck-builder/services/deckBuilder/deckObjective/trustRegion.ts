@@ -22,9 +22,14 @@
  *      commander's page (its price-adjusted inclusion, the quality prior),
  *      each protected card matched to its own incoming card, and a Game
  *      Changer only for another.
- * 2. Role floors. No swap takes ramp, draw, removal or wipes below the plan's
- *    target (or further below it), counted the way the deck report counts
- *    them (`roleOf`), so the report never shows a role the search emptied.
+ * 2. Role floors and caps. No swap takes ramp, draw, removal or wipes below
+ *    the plan's target (or further below it), or raises one past its cap
+ *    (the report's own: target + max(2, 20%)), counted the way the deck
+ *    report counts them (`roleOf`), so the report never shows a role the
+ *    search emptied or overfilled. A role the generator's surplus rebalance
+ *    trimmed (a disclosed conversion) is capped where the rebalance left it.
+ *    Class floors (classFloors.ts): the last answer of a kind, and any
+ *    protection piece, never leave unless one of the same class comes in.
  * 3. A margin that grows with the distance from the page: a swap must gain
  *    `minGain` plus DRIFT × how much less played the incoming cards are
  *    (Σ out-quality − Σ in-quality, when positive). A popular card gives way
@@ -33,7 +38,8 @@
 import type { ScryfallCard } from '@/deck-builder/types';
 import { getByCardName } from '@/lib/cards/card-text';
 import { countsAsRole, TIER_WEIGHT, type FactRole } from '@/deck-builder/services/cardFacts';
-import { viableCombos } from './constraints';
+import { completeCombos } from './constraints';
+import { classFloorProblem } from './classFloors';
 import { isBasicLand, isLandCard } from './context';
 import { protectionValue } from './terms/interaction';
 import { readTutors } from './terms/tutors';
@@ -55,10 +61,24 @@ export interface TrustOptions {
    * own card-facts reading (primary or secondary role, one per card).
    */
   roleOf?: (card: ScryfallCard) => string | null;
+  /** classCounts() of the deck the move is made in; without it the class floors are not checked. */
+  classesNow?: Readonly<Record<string, number>>;
+  /**
+   * Roles the generator's surplus rebalance trimmed, by the count each was
+   * left at: the search may not raise them again (that would undo a
+   * disclosed conversion, Rampant Growth for Wrathful Red Dragon).
+   */
+  roleCeilings?: Readonly<Record<string, number>>;
 }
+
+/** The report's role cap (deckInvariants check 19): the target plus 2 or 20%, whichever is more. */
+export const roleCap = (target: number) => target + Math.max(2, Math.ceil(0.2 * target));
 
 export type ProtectedClass =
   'combo piece' | 'combo tutor' | 'protection' | 'interaction land' | 'Game Changer' | 'staple';
+
+/** What bound a move: a protected class, a role floor or cap, or a class floor. */
+export type TrustBound = ProtectedClass | 'role floor' | 'role cap' | 'class floor';
 
 /** Classes that never leave outside a repair. */
 const STRICT: ReadonlySet<ProtectedClass> = new Set(['combo piece', 'combo tutor']);
@@ -76,7 +96,11 @@ export function protectedCards(
   stapleBar = STAPLE_BAR
 ): Map<string, Protection> {
   const out = new Map<string, Protection>();
-  const combos = viableCombos(deck, ctx);
+  // Every combo the deck completes, template lines included: the value terms
+  // credit only the ones known to work (viableCombos), but a piece of a line
+  // the deck may complete is no slot to spend (the gate's Umbral Mantle, a
+  // piece of four lines).
+  const combos = completeCombos(deck, ctx);
   for (const c of combos) {
     for (const n of c.cards) {
       const card = deck.cards.find((d) => d.name === n || d.name.split(' // ')[0] === n);
@@ -165,7 +189,7 @@ export interface TrustVerdict {
   /** Why the move is out of bounds, or null. */
   blocked: string | null;
   /** What bound it: a protected class or a role floor. */
-  bound: ProtectedClass | 'role floor' | null;
+  bound: TrustBound | null;
   /** The gain the move must reach. */
   required: number;
 }
@@ -207,13 +231,16 @@ export function trustVerdict(
     if (STRICT.has(p.cls)) {
       return { blocked: `${c.name} is ${p.why}`, bound: p.cls, required };
     }
-    const match = free.findIndex((x) => q(x) >= q(c) && (p.cls !== 'Game Changer' || isGc(x)));
+    // A Game Changer leaves only for another, whatever else it is: Fierce
+    // Guardianship is a protection piece first (its class above), and went out
+    // for a proliferate creature that way in the second gate.
+    const needsGc = isGc(c);
+    const match = free.findIndex((x) => q(x) >= q(c) && (!needsGc || isGc(x)));
     if (match < 0) {
       return {
-        blocked:
-          p.cls === 'Game Changer'
-            ? `${c.name} is a Game Changer, and no Game Changer played as often comes in`
-            : `${c.name} is ${p.why}, and nothing coming in is played as often`,
+        blocked: needsGc
+          ? `${c.name} is a Game Changer, and no Game Changer played as often comes in`
+          : `${c.name} is ${p.why}, and nothing coming in is played as often`,
         bound: p.cls,
         required,
       };
@@ -227,15 +254,29 @@ export function trustVerdict(
     if (!target) continue;
     const lose = outs.filter((c) => roleOf(c) === role).length;
     const gain = ins.filter((c) => roleOf(c) === role).length;
-    if (lose <= gain) continue;
-    const after = (rolesNow[role] ?? 0) - lose + gain;
-    if (after < target) {
+    const now = rolesNow[role] ?? 0;
+    const after = now - lose + gain;
+    if (gain > lose) {
+      const cap = Math.min(roleCap(target), opts.roleCeilings?.[role] ?? Infinity);
+      if (after > cap) {
+        return {
+          blocked: `${role} would rise to ${after}, past ${opts.roleCeilings?.[role] !== undefined && opts.roleCeilings[role] < roleCap(target) ? 'where the rebalance left it' : 'its cap'} of ${cap}`,
+          bound: 'role cap',
+          required,
+        };
+      }
+    }
+    if (lose > gain && after < target) {
       return {
         blocked: `${role} would fall to ${after} of target ${target}`,
         bound: 'role floor',
         required,
       };
     }
+  }
+  if (opts.classesNow) {
+    const problem = classFloorProblem(opts.classesNow, outs, ins, ctx);
+    if (problem) return { blocked: problem, bound: 'class floor', required };
   }
   return { blocked: null, bound: null, required };
 }

@@ -14,8 +14,13 @@
  *    equivalents, twice the goldfish's per-swap noise) plus a margin for
  *    every point of page popularity it gives up;
  *  - protected cards (combo pieces, their tutors, protection, Game
- *    Changers, staples) leave only for a card played at least as often;
- *  - no swap takes a role below its target;
+ *    Changers, staples) leave only for a card played at least as often, and
+ *    a Game Changer only for another;
+ *  - no swap takes a role below its target or past its cap, or takes the
+ *    last answer of a class (stack, creature, ...) or a protection piece
+ *    without one of the same class coming in;
+ *  - a repair of a broken constraint keeps to all of that when any repair
+ *    can, and brings in a card of the slot's role and tier before any other;
  *  - after the search, every swap is re-judged in the FINAL deck and undone
  *    when it no longer pays its margin there, and every swap's reasons are
  *    read from the final deck, so a reason never names a card a later swap
@@ -49,6 +54,7 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import { frontFaceName } from '@/lib/cards/card-text';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 import { normalizeCardName } from '../cardIdentity';
+import { classCounts } from './classFloors';
 import { cardIneligibility, checkConstraints } from './constraints';
 import { isBasicLand, isLandCard } from './context';
 import { reasonProblem } from './reasonCheck';
@@ -187,6 +193,10 @@ export const STAPLE_ROCKS: readonly string[] = ['Sol Ring', 'Arcane Signet'];
 const FAST_GATE = 0.5;
 /** Repairs of a broken constraint compared before the least damaging one is taken. */
 const REPAIR_CHOICES = 8;
+/** A repair's card comes in at least this share as played as the card it replaces, when one can. */
+const REPAIR_TIER = 0.5;
+/** Repairs kept aside because they leave the trust region, judged only when none stays inside it. */
+const FORCED_KEPT = 64;
 /** Constraint checks allowed per shortlist slot before a step gives up. */
 const CHECKS_PER_SLOT = 25;
 
@@ -391,6 +401,7 @@ export function optimizeDeck(
     const fastNow = fast(current);
     const protectedNow = trust ? protectedCards(current, ctx, trust.stapleBar) : new Map();
     const rolesNow = trust ? countRoles(current, roleOf) : {};
+    const classesNow = trust ? classCounts(current, ctx) : {};
 
     // 1. What each removable card is worth here, and what each candidate would add.
     const removable = current.cards
@@ -508,13 +519,21 @@ export function optimizeDeck(
     // Sakura-Tribe Elder for a weaker owned rock under an owned share that any
     // unowned card's exit repairs).
     const slotOf = (c: ScryfallCard) => repairSlotOf(c, ctx, roleOf);
+    const factsRole = factsRoleOf(ctx);
     const sameRole = new Map(
       moves.map((m) => [
         m,
         repairFirst.get(m)! &&
           m.out.every((i, j) => {
             const r = slotOf(current.cards[i]);
-            return r !== null && m.in[j] !== undefined && slotOf(m.in[j]) === r;
+            // The report's role counts Waste Not as ramp; its text adds mana only when
+            // an opponent discards, so the card's own facts have to agree.
+            return (
+              r !== null &&
+              m.in[j] !== undefined &&
+              slotOf(m.in[j]) === r &&
+              (r === 'protection' || factsRole(m.in[j]) === r)
+            );
           }),
       ])
     );
@@ -539,6 +558,20 @@ export function optimizeDeck(
     let checked = 0;
     let bestRepair: { move: Move; score: ObjectiveScore } | null = null;
     let repairsSeen = 0;
+    // Repairs that leave the trust region: the constraint is the user's, so
+    // one is taken when none stays inside it, never before.
+    const forced: Move[] = [];
+    let forcedRepair = false;
+    const judgeOf = (move: Move, repair: boolean) =>
+      trustVerdict(
+        rolesNow,
+        move.out.map((i) => current.cards[i]),
+        move.in,
+        ctx,
+        protectedNow,
+        opts.minGain,
+        { ...trust!, roleOf, classesNow, repair }
+      );
     for (const move of moves) {
       if (judged >= opts.shortlist || checked >= opts.shortlist * CHECKS_PER_SLOT) break;
       if (evaluations.full >= opts.maxEvaluations || Date.now() - t0 > opts.timeBudgetMs) break;
@@ -552,17 +585,11 @@ export function optimizeDeck(
         continue;
       let required = opts.minGain;
       if (trust) {
-        const verdict = trustVerdict(
-          rolesNow,
-          move.out.map((i) => current.cards[i]),
-          move.in,
-          ctx,
-          protectedNow,
-          opts.minGain,
-          { ...trust, roleOf, repair: isRepair }
-        );
+        const verdict = judgeOf(move, false);
         if (verdict.bound) {
-          refusals[verdict.bound] = (refusals[verdict.bound] ?? 0) + 1;
+          if (isRepair) {
+            if (forced.length < FORCED_KEPT) forced.push(move);
+          } else refusals[verdict.bound] = (refusals[verdict.bound] ?? 0) + 1;
           continue;
         }
         required = verdict.required;
@@ -584,27 +611,55 @@ export function optimizeDeck(
       }
       // While the deck breaks a constraint, only a repair is taken; past the
       // cap, nothing else is.
-      if (bestRepair || capped) continue;
+      if (bestRepair || capped || forced.length > 0) continue;
       if (score.total - currentScore.total >= required) {
         taken = { move, score, kind: move.kind };
         break;
       }
     }
-    if (!taken && bestRepair && !sameRole.get(bestRepair.move)) {
+    if (!taken && !bestRepair && forced.length > 0) {
+      // No repair keeps to the trust region: the least damaging one that
+      // doesn't, as before the region reached repairs.
+      forcedRepair = true;
+      let seen = 0;
+      for (const move of forced) {
+        if (evaluations.full >= opts.maxEvaluations || Date.now() - t0 > opts.timeBudgetMs) break;
+        const score = full(applyMove(current, move));
+        if (!bestRepair || compareScores(score, bestRepair.score) > 0) bestRepair = { move, score };
+        if (++seen >= REPAIR_CHOICES) break;
+      }
+    }
+    // The repair's card fills the slot it empties: a card of that slot's
+    // role, and of its tier (as played as the card it replaces, within
+    // REPAIR_TIER), before any other. Only the replacement is steered. Waste
+    // Not for Mana Vault (a rock for a card that pays off nothing here) and
+    // Leyline of Abundance for Dionus, Elvish Archdruid were the gate's.
+    const q = (c: ScryfallCard) => ctx.qualityOf(c).q;
+    const tierOk = (m: Move) =>
+      m.in.every((c, j) => q(c) >= REPAIR_TIER * q(current.cards[m.out[j]]));
+    const rank = (m: Move) => (sameRole.get(m) ? 2 : 0) + (tierOk(m) ? 1 : 0);
+    if (!taken && bestRepair && rank(bestRepair.move) < 3) {
       const outs = bestRepair.move.out.join(',');
       let bestMatched: { move: Move; score: ObjectiveScore } | null = null;
-      const same = moves.filter((m) => sameRole.get(m) && m.out.join(',') === outs);
-      for (const move of same.slice(0, REPAIR_CHOICES)) {
+      let tried = 0;
+      for (const move of moves) {
+        if (tried >= REPAIR_CHOICES) break;
+        if (!sameRole.get(move) || move.out.join(',') !== outs) continue;
         if (evaluations.full >= opts.maxEvaluations || Date.now() - t0 > opts.timeBudgetMs) break;
         const next = applyMove(current, move);
         const left = checkConstraints(next, ctx).reduce((n, v) => n + v.magnitude, 0);
         if (left >= curInfeasible) continue;
+        if (trust && !forcedRepair && judgeOf(move, false).bound) continue;
+        tried++;
         const score = full(next);
-        if (!bestMatched || compareScores(score, bestMatched.score) > 0) {
-          bestMatched = { move, score };
-        }
+        const beats =
+          !bestMatched ||
+          (tierOk(move) !== tierOk(bestMatched.move)
+            ? tierOk(move)
+            : compareScores(score, bestMatched.score) > 0);
+        if (beats) bestMatched = { move, score };
       }
-      if (bestMatched) bestRepair = bestMatched;
+      if (bestMatched && rank(bestMatched.move) > rank(bestRepair.move)) bestRepair = bestMatched;
     }
     if (!taken && bestRepair) {
       taken = { move: bestRepair.move, score: bestRepair.score, kind: 'repair' };
@@ -819,7 +874,12 @@ export function judgeSwap(
       ctx,
       protectedCards(deck, ctx, trust.stapleBar),
       minGain,
-      { ...trust, roleOf, repair: infeasibility(after) < infeasibility(before) }
+      {
+        ...trust,
+        roleOf,
+        classesNow: classCounts(deck, ctx),
+        repair: infeasibility(after) < infeasibility(before),
+      }
     );
     if (verdict.blocked) {
       return {

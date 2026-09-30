@@ -361,6 +361,12 @@ export const RESOURCES = [
   // (Viscera Seer). The sacrifice axis above also counts sacrificing a
   // Treasure or a land and triggers on an opponent's creature dying.
   'creature-death',
+  // An OPPONENT discarding (E513 round 2): Waste Not, Megrim, Tergrid punish
+  // it and Mind Rot, Duress make it. It is the discard axis's resource too,
+  // but a separate one: your own loot or rummage (Teferi, Master of Time)
+  // makes no opponent discard, so it must not feed a card that rewards one.
+  // `discard` stays the resource of YOUR discards (madness, Sneak Attack).
+  'opp-discard',
 ] as const;
 export type Resource = (typeof RESOURCES)[number];
 
@@ -384,6 +390,7 @@ export const RESOURCE_AXIS: Record<Resource, AxisKey | null> = {
   energy: 'energy',
   aura: 'auras',
   discard: 'discard',
+  'opp-discard': 'discard',
   mill: 'mill',
   monarch: 'monarch',
   poison: 'poison',
@@ -412,7 +419,8 @@ export const RESOURCE_AXIS: Record<Resource, AxisKey | null> = {
 /** The resource that stands for an axis (inverse of RESOURCE_AXIS). */
 export const AXIS_RESOURCE = Object.fromEntries(
   (Object.entries(RESOURCE_AXIS) as [Resource, AxisKey | null][])
-    .filter(([, axis]) => axis !== null)
+    // opp-discard shares the discard axis: the axis stands for `discard`.
+    .filter(([resource, axis]) => axis !== null && resource !== 'opp-discard')
     .map(([resource, axis]) => [axis, resource])
 ) as Record<AxisKey, Resource>;
 
