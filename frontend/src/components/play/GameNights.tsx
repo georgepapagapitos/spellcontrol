@@ -870,6 +870,7 @@ function PollDialog({
             <div key={i} className="game-night-dialog-option-row">
               <input
                 type="datetime-local"
+                className="form-input"
                 value={value}
                 aria-label={`Candidate time ${i + 1}`}
                 onChange={(e) =>
@@ -947,8 +948,10 @@ function NightDialog({
   const [placeOptions, setPlaceOptions] = useState<string[]>([]);
   const [placeOpen, setPlaceOpen] = useState(false);
   const [placeHighlight, setPlaceHighlight] = useState(0);
-  const placeWrapRef = useRef<HTMLLabelElement>(null);
+  const placeWrapRef = useRef<HTMLDivElement>(null);
   const placeListboxId = useId();
+  const placeInputId = useId();
+  const guestLabelId = useId();
   const [notes, setNotes] = useState(night?.notes ?? '');
   const [friendsFetch, setFriendsFetch] = useState<
     { status: 'loading' } | { status: 'error' } | { status: 'ready'; friends: Friend[] }
@@ -1304,6 +1307,7 @@ function NightDialog({
           <Field label="Title" htmlFor="game-night-title">
             <input
               id="game-night-title"
+              className="form-input"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               maxLength={80}
@@ -1346,6 +1350,7 @@ function NightDialog({
                 <div key={i} className="game-night-dialog-option-row">
                   <input
                     type="datetime-local"
+                    className="form-input"
                     value={value}
                     aria-label={`Candidate time ${i + 1}`}
                     onChange={(e) =>
@@ -1375,6 +1380,7 @@ function NightDialog({
             <Field label="When" htmlFor="game-night-when">
               <input
                 id="game-night-when"
+                className="form-input"
                 type="datetime-local"
                 value={whenInput}
                 onChange={(e) => setWhenInput(e.target.value)}
@@ -1406,58 +1412,62 @@ function NightDialog({
           {/* Combobox (SetFilterPicker pattern): typed text ALWAYS stands as-is;
             suggestions are real places from the geocoder, shown exactly as
             returned — no browser substring filtering hiding fuzzy matches. */}
-          <label className="game-night-dialog-field game-night-place-field" ref={placeWrapRef}>
-            <span>Where (optional)</span>
-            <input
-              value={location}
-              onChange={(e) => {
-                setLocation(e.target.value);
-                setPlaceOpen(true);
-              }}
-              onFocus={() => setPlaceOpen(true)}
-              onKeyDown={onPlaceKeyDown}
-              maxLength={120}
-              placeholder="Sam's place"
-              role="combobox"
-              aria-autocomplete="list"
-              aria-expanded={placeOpen && placeOptions.length > 0}
-              aria-controls={placeListboxId}
-              aria-activedescendant={
-                placeOpen && placeOptions.length > 0
-                  ? `${placeListboxId}-option-${Math.min(placeHighlight, placeOptions.length - 1)}`
-                  : undefined
-              }
-            />
-            {placeOpen && placeOptions.length > 0 && (
-              <ul
-                id={placeListboxId}
-                className="game-night-place-results"
-                role="listbox"
-                aria-label="Place suggestions"
-              >
-                {placeOptions.map((p, i) => (
-                  <li
-                    key={p}
-                    id={`${placeListboxId}-option-${i}`}
-                    role="option"
-                    aria-selected={i === placeHighlight}
-                    className={`game-night-place-result${i === placeHighlight ? ' is-highlight' : ''}`}
-                    onMouseEnter={() => setPlaceHighlight(i)}
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      pickPlace(p);
-                    }}
-                  >
-                    {p}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </label>
+          <div className="game-night-place-field" ref={placeWrapRef}>
+            <Field label="Where (optional)" htmlFor={placeInputId}>
+              <input
+                id={placeInputId}
+                className="form-input"
+                value={location}
+                onChange={(e) => {
+                  setLocation(e.target.value);
+                  setPlaceOpen(true);
+                }}
+                onFocus={() => setPlaceOpen(true)}
+                onKeyDown={onPlaceKeyDown}
+                maxLength={120}
+                placeholder="Sam's place"
+                role="combobox"
+                aria-autocomplete="list"
+                aria-expanded={placeOpen && placeOptions.length > 0}
+                aria-controls={placeListboxId}
+                aria-activedescendant={
+                  placeOpen && placeOptions.length > 0
+                    ? `${placeListboxId}-option-${Math.min(placeHighlight, placeOptions.length - 1)}`
+                    : undefined
+                }
+              />
+              {placeOpen && placeOptions.length > 0 && (
+                <ul
+                  id={placeListboxId}
+                  className="game-night-place-results"
+                  role="listbox"
+                  aria-label="Place suggestions"
+                >
+                  {placeOptions.map((p, i) => (
+                    <li
+                      key={p}
+                      id={`${placeListboxId}-option-${i}`}
+                      role="option"
+                      aria-selected={i === placeHighlight}
+                      className={`game-night-place-result${i === placeHighlight ? ' is-highlight' : ''}`}
+                      onMouseEnter={() => setPlaceHighlight(i)}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        pickPlace(p);
+                      }}
+                    >
+                      {p}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Field>
+          </div>
 
           <Field label="Notes (optional)" htmlFor="game-night-notes">
             <textarea
               id="game-night-notes"
+              className="form-input"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               maxLength={500}
@@ -1545,9 +1555,10 @@ function NightDialog({
                   : 'Each person gets their own link, no signup needed. It works on invite-only nights.'}
               </p>
               <div className="game-night-guest-invite-add">
-                <label className="game-night-dialog-field">
-                  <span>Who's it for?</span>
+                <Field label="Who's it for?" htmlFor={guestLabelId}>
                   <input
+                    id={guestLabelId}
+                    className="form-input"
                     type="text"
                     value={guestLabel}
                     maxLength={40}
@@ -1562,7 +1573,7 @@ function NightDialog({
                       }
                     }}
                   />
-                </label>
+                </Field>
                 <Button
                   disabled={minting || saving || guestLabel.trim() === ''}
                   onClick={() => void addGuestInvite()}
