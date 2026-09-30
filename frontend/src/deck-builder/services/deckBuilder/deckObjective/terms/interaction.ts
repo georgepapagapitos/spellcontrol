@@ -46,7 +46,7 @@ import {
   type Limit,
   type Speed,
 } from '@/deck-builder/services/cardFacts';
-import { isFreeInteraction, isProtectionPiece } from '@/deck-builder/services/tagger/client';
+import { isFreeInteraction, readsAsProtection } from '@/deck-builder/services/tagger/client';
 import type { CardNote } from '../types';
 import { isLandCard } from '../context';
 import {
@@ -209,7 +209,7 @@ export function answerValue(
 /** A protection piece's value (Lightning Greaves, Heroic Intervention, Fierce Guardianship). */
 export function protectionValue(card: ScryfallCard, facts: CardFacts): number {
   const fact = facts.roles.find((r) => r.role === 'protection' && countsAsRole(r));
-  if (!fact && !isProtectionPiece(card)) return 0;
+  if (!fact && !readsAsProtection(card)) return 0;
   // The tagger's flag, like the facts, is read against the text (Kaito Shizuki).
   if (protectsOnlyItself(card)) return 0;
   const speed = fact ? SPEED[fact.speed] : 1;

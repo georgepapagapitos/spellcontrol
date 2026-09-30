@@ -7,7 +7,13 @@ import { hasCurveRoom } from './curveUtils';
 import { wipeAsymmetryTieBreak, wipeScopeCollateralTieBreak } from './wipeTieBreaks';
 import { BudgetTracker } from './budgetTracker';
 import type { BracketGuard } from './bracketGuard';
-import { matchesExpectedType, roleCapTolerance, ROLE_CAP_HATCH_MAX_PER_PASS } from './categorize';
+import { matchesExpectedType, ROLE_CAP_HATCH_MAX_PER_PASS } from './categorize';
+import {
+  passesRoleCap,
+  roleCapLimit,
+  STAPLE_CEILING_BAND,
+  STAPLE_INCLUSION_BAR,
+} from './roleCapAllowance';
 import type { RoleKey, WipeScope } from '@/deck-builder/services/tagger/client';
 import {
   fitsColorIdentity,
@@ -32,7 +38,7 @@ import {
  * reach 150+ points, so without the tier a 25% ramp spell outranks a 55%
  * roleless payoff.
  */
-export const STAPLE_INCLUSION_BAR = 40;
+export { STAPLE_INCLUSION_BAR };
 
 /**
  * Hard role-cap gate for the primary pick loop (E77 iter-4). Distinct from
@@ -504,7 +510,7 @@ export function pickFromPrefetchedWithCurve(
     if (!role) return false;
     const target = roleCapConfig.roleTargets[role] ?? 0;
     if (target <= 0) return false;
-    return (liveRoleCounts[role] ?? 0) >= target + bands * roleCapTolerance(target);
+    return (liveRoleCounts[role] ?? 0) >= roleCapLimit(target, bands);
   };
   // A staple passes the cap (E532: Kaito, Bane of Nightmares at 54.9% was
   // skipped on card draw while a 5.6% Jace passed on removal), up to a second
@@ -517,7 +523,10 @@ export function pickFromPrefetchedWithCurve(
   // dry run behind them (e532Off) replays the passes as they were before E532.
   const protectedCombos = e532Off ? new Set<string>() : (comboLinePieces ?? new Set<string>());
   const capExempt = (c: EDHRECCard) =>
-    !e532Off && !budgetTracker && (isStaple(c) || protectedCombos.has(c.name)) && !atRoleCap(c, 2);
+    !e532Off &&
+    !budgetTracker &&
+    passesRoleCap(c.inclusion, protectedCombos.has(c.name)) &&
+    !atRoleCap(c, STAPLE_CEILING_BAND);
   const roleCapBlocks = (edhrecCard: EDHRECCard): boolean =>
     !allowCapOverflow && !capExempt(edhrecCard) && atRoleCap(edhrecCard);
 
