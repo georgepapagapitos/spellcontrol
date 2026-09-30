@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { planSettlement, describeSettlement } from './trade-settlement';
 import type { TradeCard } from './trades-client';
 import type { EnrichedCard } from '@/types/index';
+import { makeDeckAllocationInfo, type AllocationInfo } from '@/lib/collection/allocations-core';
 
 function owned(over: Partial<EnrichedCard> & { copyId: string; name: string }): EnrichedCard {
   return {
@@ -284,6 +285,70 @@ describe('planSettlement', () => {
     );
     expect(plan.remove).toEqual([{ copyId: 'a', name: 'Sol Ring' }]);
   });
+  describe('allocation-aware (E542)', () => {
+    const solLine = line({
+      oracleId: 'o-sol',
+      name: 'Sol Ring',
+      copies: [{ scryfallId: 'scry-c21', finish: 'nonfoil' }],
+    });
+    const heldBy = (copyId: string): Map<string, AllocationInfo> =>
+      new Map([[copyId, makeDeckAllocationInfo('d1', 'Atraxa', '#fff', 'Sol Ring')]]);
+
+    it('gives away the free copy, not the one a deck holds', () => {
+      // Copy A sits in a deck; B is an identical free copy. The trade hands
+      // over one Sol Ring, so B leaves and the deck keeps A.
+      const collection = [
+        owned({ copyId: 'a', name: 'Sol Ring', oracleId: 'o-sol', scryfallId: 'scry-c21' }),
+        owned({ copyId: 'b', name: 'Sol Ring', oracleId: 'o-sol', scryfallId: 'scry-c21' }),
+      ];
+      const plan = planSettlement([solLine], [], collection, heldBy('a'));
+      expect(plan.remove).toEqual([{ copyId: 'b', name: 'Sol Ring' }]);
+      expect(plan.released).toEqual([]);
+    });
+
+    it('keeps the free preference even when the claimed copy is cheaper', () => {
+      const collection = [
+        owned({
+          copyId: 'a',
+          name: 'Sol Ring',
+          oracleId: 'o-sol',
+          scryfallId: 'scry-c21',
+          purchasePrice: 1,
+        }),
+        owned({
+          copyId: 'b',
+          name: 'Sol Ring',
+          oracleId: 'o-sol',
+          scryfallId: 'scry-c21',
+          purchasePrice: 5,
+        }),
+      ];
+      const plan = planSettlement([solLine], [], collection, heldBy('a'));
+      expect(plan.remove).toEqual([{ copyId: 'b', name: 'Sol Ring' }]);
+    });
+
+    it('still hands over the named printing when only a deck holds it', () => {
+      // The trade named the C21 printing, so that physical card is what
+      // changed hands. A free copy of another printing stays behind, and the
+      // deck rebinds to it, so nothing is left without a copy.
+      const collection = [
+        owned({ copyId: 'a', name: 'Sol Ring', oracleId: 'o-sol', scryfallId: 'scry-c21' }),
+        owned({ copyId: 'b', name: 'Sol Ring', oracleId: 'o-sol', scryfallId: 'scry-lcc' }),
+      ];
+      const plan = planSettlement([solLine], [], collection, heldBy('a'));
+      expect(plan.remove).toEqual([{ copyId: 'a', name: 'Sol Ring' }]);
+      expect(plan.released).toEqual([]);
+    });
+
+    it('reports the holder when the only copy is claimed', () => {
+      const collection = [
+        owned({ copyId: 'a', name: 'Sol Ring', oracleId: 'o-sol', scryfallId: 'scry-c21' }),
+      ];
+      const plan = planSettlement([solLine], [], collection, heldBy('a'));
+      expect(plan.remove).toEqual([{ copyId: 'a', name: 'Sol Ring' }]);
+      expect(plan.released).toEqual([{ name: 'Sol Ring', ownerName: 'Atraxa' }]);
+    });
+  });
 });
 
 describe('describeSettlement', () => {
@@ -325,6 +390,8 @@ describe('describeSettlement', () => {
   });
 
   it('says so plainly when nothing moves', () => {
-    expect(describeSettlement({ remove: [], add: [], short: [] })).toBe('No collection changes');
+    expect(describeSettlement({ remove: [], add: [], short: [], released: [] })).toBe(
+      'No collection changes'
+    );
   });
 });

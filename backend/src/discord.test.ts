@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   closeTableChannel,
-  codeFromChannelName,
   isDiscordConfigured,
+  isTableChannelName,
+  lowestFreeTable,
   tableChannelName,
+  tableNumber,
 } from './discord';
 
 vi.mock('./logger', () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
@@ -16,22 +18,45 @@ afterEach(() => {
 });
 
 describe('table channel names', () => {
-  it('round-trips a game code', () => {
-    expect(codeFromChannelName(tableChannelName('TK7T'))).toBe('TK7T');
+  // Every member of the server sees every channel name, so a table is only
+  // ever a number: never its join code, which would open a private game to
+  // the whole server.
+  it('names a table by its number', () => {
+    expect(tableChannelName(1)).toBe('Table 1');
+    expect(tableNumber('Table 1')).toBe(1);
+    expect(tableNumber('Table 12')).toBe(12);
   });
 
-  // The sweep deletes whatever this recognises, so a channel a moderator made
-  // in the category must never parse as a table.
+  it('takes the lowest free number', () => {
+    expect(lowestFreeTable([])).toBe(1);
+    expect(lowestFreeTable(['Table 1', 'Table 3'])).toBe(2);
+    expect(lowestFreeTable(['Table 2', 'Table 1'])).toBe(3);
+    // An old code- or tag-named channel holds no number.
+    expect(lowestFreeTable(['Table ZVVU', 'Table 48213'])).toBe(1);
+  });
+
+  it('knows the old code- and tag-named channels as its own, so the sweep can clear them', () => {
+    for (const name of ['Table 1', 'Table 40', 'Table ZVVU', 'Table 48213']) {
+      expect(isTableChannelName(name), name).toBe(true);
+    }
+  });
+
+  // The sweep deletes what this recognises, so a channel a moderator made in
+  // the category must never read as a table.
   it('recognises nothing else', () => {
     for (const name of [
       'Lounge',
       'Table',
+      'Table 0',
+      'Table 01',
       'Table tk7t',
       'Table TK7T2',
-      'table TK7T',
+      'Table 123456',
+      'table 12',
       'Table TK-T',
+      'Table 1 overflow',
     ]) {
-      expect(codeFromChannelName(name), name).toBe(null);
+      expect(isTableChannelName(name), name).toBe(false);
     }
   });
 });

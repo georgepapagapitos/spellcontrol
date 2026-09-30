@@ -20,9 +20,6 @@ primary_region = "ord"
   # token is (DISCORD_BOT_TOKEN, a Fly secret).
   DISCORD_GUILD_ID = "1554594475924398100"
   DISCORD_TABLES_CATEGORY_ID = "1554595474647027763"
-  # The server's never-expiring invite, for the Play page's "Join the
-  # SpellControl Discord" link (lands in #rules).
-  DISCORD_INVITE_URL = "https://discord.gg/sQdxhWhwae"
   # Where the bot posts open public tables (games/discord-lfg.ts).
   DISCORD_LFG_CHANNEL_ID = "1554610602876469380"
 

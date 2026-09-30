@@ -1,4 +1,5 @@
 import type { EnrichedCard } from '@/types/index';
+import type { AllocationInfo } from '@/lib/collection/allocations-core';
 import type { TradeCard, TradeCopy } from './trades-client';
 
 /**
@@ -34,6 +35,17 @@ export interface SettlementShortfall {
   missing: number;
 }
 
+/**
+ * A copy a deck or physical cube held that the trade had to hand over, with no
+ * free copy of the card left to rebind to. The collection remap leaves that
+ * slot as a card still needed (the leave-gap outcome), and the settlement says
+ * so rather than letting a finished deck lose a card without a word.
+ */
+export interface SettlementRelease {
+  name: string;
+  ownerName: string;
+}
+
 export interface SettlementPlan {
   remove: SettlementRemoval[];
   add: SettlementAddition[];
@@ -44,6 +56,8 @@ export interface SettlementPlan {
    * than silently under-removing.
    */
   short: SettlementShortfall[];
+  /** Claimed copies that left with nothing free to replace them. */
+  released: SettlementRelease[];
 }
 
 /**
@@ -74,6 +88,11 @@ function matchScore(owned: EnrichedCard, oracleId: string, copy: TradeCopy): num
  * @param give   what this person hands over (their own side of the offer)
  * @param receive what they get (the counterparty's side, printings resolved)
  * @param owned  the person's current collection
+ * @param allocated copies decks and physical cubes hold (`buildAllocationMap`).
+ *   A free copy leaves before a claimed one of the same printing and finish,
+ *   so a trade never pulls a card out of a deck while an identical one sits in
+ *   a binder. Printing and finish still outrank it: when the named printing is
+ *   only in a deck, that is the card that physically changed hands.
  *
  * Idempotency is the caller's job and is easy to get right: re-running against
  * a collection the plan was already applied to yields a `remove` list that
@@ -85,7 +104,8 @@ function matchScore(owned: EnrichedCard, oracleId: string, copy: TradeCopy): num
 export function planSettlement(
   give: TradeCard[],
   receive: TradeCard[],
-  owned: EnrichedCard[]
+  owned: EnrichedCard[],
+  allocated: ReadonlyMap<string, AllocationInfo> = new Map()
 ): SettlementPlan {
   const remove: SettlementRemoval[] = [];
   const short: SettlementShortfall[] = [];
@@ -105,27 +125,12 @@ export function planSettlement(
     let missing = 0;
     for (const copy of wanted) {
       let best: EnrichedCard | null = null;
-      let bestScore = -1;
       for (const candidate of owned) {
         if (claimed.has(candidate.copyId)) continue;
-        const score = matchScore(candidate, card.oracleId, copy);
-        if (score < 0) continue;
-        // Equal scores tie-break CHEAPEST first — the same ruling copiesByValue
-        // applies to every automatic pick. It only matters on a degraded match
-        // (the pinned printing is gone, any copy of the card will do), where
-        // collection order could silently hand over the most valuable printing;
-        // an exact match ties only with identical copies, where it's a no-op.
-        if (
-          score > bestScore ||
-          (score === bestScore &&
-            best !== null &&
-            (candidate.purchasePrice || 0) < (best.purchasePrice || 0))
-        ) {
-          bestScore = score;
-          best = candidate;
-        }
+        if (matchScore(candidate, card.oracleId, copy) < 0) continue;
+        if (!best || prefer(candidate, best, card.oracleId, copy, allocated)) best = candidate;
       }
-      if (!best || bestScore < 0) {
+      if (!best) {
         missing += 1;
         continue;
       }
@@ -135,6 +140,23 @@ export function planSettlement(
     if (missing > 0) short.push({ name: card.name, missing });
   }
 
+  // Which claimed removals leave a slot with no copy. The remap rebinds a
+  // stripped slot to any free copy of the same name, so count what stays free
+  // after this plan and spend it on the claimed removals in order.
+  const released: SettlementRelease[] = [];
+  const freeLeft = new Map<string, number>();
+  for (const c of owned) {
+    if (claimed.has(c.copyId) || allocated.has(c.copyId)) continue;
+    freeLeft.set(c.name, (freeLeft.get(c.name) ?? 0) + 1);
+  }
+  for (const r of remove) {
+    const holder = allocated.get(r.copyId);
+    if (!holder) continue;
+    const spare = freeLeft.get(r.name) ?? 0;
+    if (spare > 0) freeLeft.set(r.name, spare - 1);
+    else released.push({ name: r.name, ownerName: holder.ownerName });
+  }
+
   const add: SettlementAddition[] = [];
   for (const card of receive) {
     for (const copy of card.copies) {
@@ -142,7 +164,33 @@ export function planSettlement(
     }
   }
 
-  return { remove, add, short };
+  return { remove, add, short, released };
+}
+
+/**
+ * Whether `a` should leave before `b`. Printing and finish come first (they
+ * are what physically changed hands), then a free copy over one a deck or cube
+ * holds, then condition, then cheapest: the same ruling copiesByValue applies
+ * to every automatic pick. Price only matters on a degraded match (the pinned
+ * printing is gone, any copy of the card will do), where collection order
+ * could silently hand over the most valuable printing.
+ */
+function prefer(
+  a: EnrichedCard,
+  b: EnrichedCard,
+  oracleId: string,
+  copy: TradeCopy,
+  allocated: ReadonlyMap<string, AllocationInfo>
+): boolean {
+  const aScore = matchScore(a, oracleId, copy);
+  const bScore = matchScore(b, oracleId, copy);
+  // Bit 0 of the score is condition; the rest is printing and finish.
+  if (aScore >> 1 !== bScore >> 1) return aScore > bScore;
+  const aFree = !allocated.has(a.copyId);
+  const bFree = !allocated.has(b.copyId);
+  if (aFree !== bFree) return aFree;
+  if (aScore !== bScore) return aScore > bScore;
+  return (a.purchasePrice || 0) < (b.purchasePrice || 0);
 }
 
 /** Human summary for the settlement toast. Counts copies, not card lines —

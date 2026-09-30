@@ -16,6 +16,7 @@ import {
   type AllocationInfo,
 } from '@/lib/collection/allocations';
 import { assembleBuildReport } from '@/deck-builder/services/deckBuilder/buildReport';
+import { snapshotGeneratedList } from './regenerate-edits';
 import { defaultNewDeckVisibility, type NewDeckVisibility } from './new-deck-visibility';
 
 /**
@@ -124,6 +125,12 @@ export function saveGeneratedDeck(
       generationMode: generated.generationMode ?? customization.generationMode,
       generationModeDetail: generated.generationModeDetail,
       customization: regenerateSettings(customization),
+      generatedList: snapshotGeneratedList(
+        cards,
+        commander,
+        partner,
+        customization.tempBannedCards ?? []
+      ),
     },
     roleCounts: generated.roleCounts,
     categoryTargets: generated.composition,

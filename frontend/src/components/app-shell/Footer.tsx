@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@/store/auth';
 import { useShortcutRegistry } from './shortcut-registry';
 import { track } from '@/lib/util/analytics';
+import { DISCORD_INVITE_URL } from '@/lib/util/community';
 import { Chip } from '@/components/shared/Chip';
 
 export function Footer() {
@@ -21,6 +22,12 @@ export function Footer() {
         {'. '}
         <a href="/guides/" onClick={() => track('guide_cta')}>
           Help &amp; guides
+        </a>
+        {' · '}
+        {/* The community server lives here, with the other site links, not as
+            a banner on a page: it's for people looking for it. */}
+        <a href={DISCORD_INVITE_URL} target="_blank" rel="noopener noreferrer">
+          Discord
         </a>
         {' · '}
         <a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a>

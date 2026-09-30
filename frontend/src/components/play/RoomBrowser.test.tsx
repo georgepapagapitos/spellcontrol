@@ -45,6 +45,9 @@ describe('RoomBrowser', () => {
     expect(await screen.findByText('No public games right now.')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Host a table' }));
     expect(onHostInstead).toHaveBeenCalledTimes(1);
+    // Nobody to play with here: the Discord is where the players are.
+    const discord = screen.getByRole('link', { name: 'Find players on Discord' });
+    expect(discord.getAttribute('href')).toBe('https://discord.gg/sQdxhWhwae');
   });
 
   it('shows a retry-capable error state on failure', async () => {
