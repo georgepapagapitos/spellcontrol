@@ -15,7 +15,7 @@ import { getCardRole, type RoleKey } from '@/deck-builder/services/tagger/client
 import { classifyCard } from '@/deck-builder/services/synergy/classify';
 import { tribalMembership, type AxisKey } from '@/deck-builder/services/synergy/axes';
 import type { CardLike } from '@/deck-builder/services/synergy/text';
-import { getByCardName } from '@/lib/card-text';
+import { getByCardName } from '@/lib/cards/card-text';
 import {
   axisMassFrom,
   engineLeader,
