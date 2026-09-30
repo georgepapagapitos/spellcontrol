@@ -4,6 +4,7 @@ import { Modal } from '@/components/overlays/Modal';
 import { ProgressBar } from '@/components/import/ProgressBar';
 import { importDeckText } from '@/lib/api';
 import { useDecksStore, type Deck } from '../../store/decks';
+import { useCubeStore } from '../../store/cube';
 import { useCollectionStore } from '../../store/collection';
 import { useDeckHistoryStore } from '../../store/deck-history';
 import {
@@ -85,14 +86,16 @@ export function AppendDeckDialog({ deck, onClose }: Props) {
   }, [isLoading, runImport]);
 
   const collectionCards = useCollectionStore((s) => s.cards);
+  const cubes = useCubeStore((s) => s.saved);
 
   const plan: AppendPlan | null = useMemo(() => {
     if (!result) return null;
     return buildAppendPlan(deck, result, chosenCommander, chosenPartner, {
       decks,
+      cubes,
       collectionCards,
     });
-  }, [result, deck, chosenCommander, chosenPartner, decks, collectionCards]);
+  }, [result, deck, chosenCommander, chosenPartner, decks, cubes, collectionCards]);
 
   // Legality check scoped to just what THIS paste would add — a deck that
   // already had an issue before pasting shouldn't get re-reported here.

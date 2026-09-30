@@ -124,7 +124,7 @@ function baseDeck(overrides: Partial<Deck> = {}): Deck {
   };
 }
 
-const ctxEmpty = { decks: [], collectionCards: [] as EnrichedCard[] };
+const ctxEmpty = { decks: [], cubes: [], collectionCards: [] as EnrichedCard[] };
 
 describe('resolveAppendCommanderDecision', () => {
   it('no-commander-in-paste: format has no commander slot', () => {
@@ -192,7 +192,11 @@ describe('buildAppendPlan', () => {
     const deck = baseDeck({
       cards: [{ slotId: 's1', card: sc('Sol Ring'), allocatedCopyId: 'c1' }],
     });
-    const ctx = { decks: [deck], collectionCards: [owned('Rhystic Study', 'copy-rhystic')] };
+    const ctx = {
+      decks: [deck],
+      cubes: [],
+      collectionCards: [owned('Rhystic Study', 'copy-rhystic')],
+    };
     const plan = buildAppendPlan(
       deck,
       result([sc('Rhystic Study'), sc('Mountain')]),
@@ -288,7 +292,7 @@ describe('buildAppendPlan', () => {
 
   it('never allocates the same physical copy twice within one paste', () => {
     const deck = baseDeck({ format: 'standard' });
-    const ctx = { decks: [deck], collectionCards: [owned('Lightning Bolt', 'copy-1')] };
+    const ctx = { decks: [deck], cubes: [], collectionCards: [owned('Lightning Bolt', 'copy-1')] };
     const plan = buildAppendPlan(
       deck,
       result([sc('Lightning Bolt'), sc('Lightning Bolt')]),
@@ -469,6 +473,7 @@ describe('append commit path — persists exactly once', () => {
     const pastedCards = Array.from({ length: 60 }, (_, i) => sc(`Test Card ${i}`, `id-${i}`));
     const plan = buildAppendPlan(deck, result(pastedCards), null, null, {
       decks: useDecksStore.getState().decks,
+      cubes: [],
       collectionCards: [],
     });
     expect(plan.addedCount).toBe(60);

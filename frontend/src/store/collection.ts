@@ -59,7 +59,7 @@ import {
 } from '@/lib/collection/value-history';
 import { bindersUseTags, decorateWithTags, ensureCardTags } from '@/lib/cards/card-tags';
 import { buildAllocationMap } from '@/lib/collection/allocations-core';
-import { remapCubeAllocations } from '@/lib/cube/remap-cube-allocations';
+import { remapAllAllocations } from '@/lib/cube/remap-cube-allocations';
 import { appNavigate } from '@/lib/util/navigate-bridge';
 import { findPriceTargetHits, filterNewPriceTargetHits } from '@/lib/collection/price-alerts';
 import { MAX_VISIBLE_TOASTS } from '@/lib/overlays/toast-stack';
@@ -424,13 +424,9 @@ function buildStored(s: {
 }
 
 function remapDeckAllocations(newCards: EnrichedCard[]): void {
-  const { decks, remapAllocations } = useDecksStore.getState();
-  if (decks.length > 0) {
-    remapAllocations(newCards);
-  }
-  // Physical cubes claim copies too — re-resolve their bindings on the same
-  // collection-replace so a reimport doesn't orphan them (no-op if none exist).
-  remapCubeAllocations(newCards);
+  // Decks, then physical cubes, so a reimport orphans neither and a deck
+  // never takes a copy a cube holds.
+  remapAllAllocations(newCards);
 }
 
 /**
