@@ -64,7 +64,9 @@ import { getMatcher } from './scanner/matcher';
 import { lastSuccessfulIngestAt, runScheduledIngest } from './combos/ingest';
 import { scheduleRulesIngest } from './rules/ingest';
 import { scheduleRetentionSweep } from './retention';
-import { isDiscordConfigured } from './discord';
+import { isDiscordConfigured, lfgChannelId } from './discord';
+import { nudgeLfgPosts, syncLfgPosts } from './games/discord-lfg';
+import { onGameChange } from './games/live-registry';
 import { lastSuccessfulRollupAt, runScheduledRollup } from './aggregates/rollup';
 import { recountDeckCopies } from './publications/copies';
 import {
@@ -1474,6 +1476,16 @@ async function start() {
           .catch((err) => logger.warn('[discord] table sweep failed', err));
       tick();
       setInterval(tick, 10 * 60 * 1000).unref();
+    });
+  }
+
+  // Open public tables posted to #looking-for-game (games/discord-lfg.ts).
+  // Game changes nudge a pass; the 5-minute pass re-reads the channel itself.
+  if (lfgChannelId()) {
+    afterBoot('discord looking-for-game posts', 95_000, () => {
+      onGameChange(nudgeLfgPosts);
+      void syncLfgPosts(true);
+      setInterval(() => void syncLfgPosts(true), 5 * 60 * 1000).unref();
     });
   }
 

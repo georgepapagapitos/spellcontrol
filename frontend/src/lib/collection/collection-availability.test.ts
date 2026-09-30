@@ -66,7 +66,8 @@ describe('buildAvailableCollection', () => {
       [
         deckWithClaim('Fully Claimed Card', 'claimed-copy'),
         deckWithClaim('Partly Claimed Card', 'partly-claimed-copy'),
-      ]
+      ],
+      []
     );
 
     expect([...available.names].sort()).toEqual(['Free Card', 'Partly Claimed Card']);
@@ -151,7 +152,8 @@ describe('buildBasicPrintingAvailability', () => {
         basic('Forest', 'fb-claimed', { scryfallId: 'sf-B', setCode: 'B', collectorNumber: '2' }),
         owned('Llanowar Elves', 'le-1'), // non-basic, ignored
       ],
-      [deckWithClaim('Forest', 'fb-claimed')]
+      [deckWithClaim('Forest', 'fb-claimed')],
+      []
     );
 
     const forest = map.get('Forest')!;

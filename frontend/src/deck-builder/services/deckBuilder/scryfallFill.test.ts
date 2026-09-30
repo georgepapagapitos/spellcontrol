@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ScryfallCard } from '@/deck-builder/types';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 // Preserve real pure helpers (getCardPrice/getFrontFaceTypeLine drive deckFilters);
 // only searchCards is stubbed so we can drive fillWithScryfall deterministically.
@@ -608,5 +611,98 @@ describe('fillWithScryfall qualified-payoff gate (E111)', () => {
     searchCards.mockResolvedValue({ data: [ayara] });
     const out = await fillWithScryfall('t:creature', [], 1, new Set());
     expect(out.map((c) => c.name)).toEqual(['Ayara, First of Locthwain']);
+  });
+});
+
+// E525: the stress row "meren query-lands" (scryfallQuery t:land) seated
+// Dryad Arbor, Westvale Abbey // Ormendahl and Hostile Hostel // Creeping Inn
+// in creatures: real Scryfall answers `t:creature t:land` with all three. The
+// land fill's `t:land` query also matches Legion's Landing, whose back face is
+// a land. The card's front face decides the slot, never the query.
+describe('fillWithScryfall seats by the front face (E525)', () => {
+  const REAL = new Map<string, ScryfallCard>(
+    (
+      JSON.parse(
+        readFileSync(
+          resolve(
+            dirname(fileURLToPath(import.meta.url)),
+            '__fixtures__',
+            'invariant-cards.fixture.json'
+          ),
+          'utf8'
+        )
+      ) as { cards: ScryfallCard[] }
+    ).cards.map((c) => [c.name, c])
+  );
+  const real = (name: string): ScryfallCard => structuredClone(REAL.get(name)!);
+  const WUBRG = ['W', 'U', 'B', 'R', 'G'];
+
+  it('never fills a spell slot with a card whose front face is a land', async () => {
+    searchCards.mockResolvedValue({
+      data: [
+        real('Dryad Arbor'),
+        real('Westvale Abbey // Ormendahl, Profane Prince'),
+        real('Hostile Hostel // Creeping Inn'),
+        real("Emeria's Call // Emeria, Shattered Skyclave"),
+        real('Llanowar Elves'),
+      ],
+    });
+    const out = await fillWithScryfall(
+      't:creature',
+      WUBRG,
+      5,
+      new Set(),
+      new Set(),
+      null,
+      null,
+      null,
+      null,
+      undefined,
+      'USD',
+      false,
+      't:land'
+    );
+    expect(out.map((c) => c.name)).toEqual([
+      "Emeria's Call // Emeria, Shattered Skyclave",
+      'Llanowar Elves',
+    ]);
+  });
+
+  it('fills a land slot with lands and spell // land MDFCs only', async () => {
+    searchCards.mockResolvedValue({
+      data: [
+        real("Legion's Landing // Adanto, the First Fort"),
+        real('Llanowar Elves'),
+        real('Seat of the Synod'),
+        real("Emeria's Call // Emeria, Shattered Skyclave"),
+      ],
+    });
+    const out = await fillWithScryfall(
+      't:land -t:basic',
+      WUBRG,
+      4,
+      new Set(),
+      new Set(),
+      null,
+      null,
+      null,
+      null,
+      undefined,
+      'USD',
+      false,
+      '',
+      'full',
+      false,
+      false,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      'land'
+    );
+    expect(out.map((c) => c.name)).toEqual([
+      'Seat of the Synod',
+      "Emeria's Call // Emeria, Shattered Skyclave",
+    ]);
   });
 });

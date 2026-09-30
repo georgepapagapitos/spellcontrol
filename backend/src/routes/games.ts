@@ -209,6 +209,9 @@ gamesRouter.post('/', createLimiter, requireAuth, async (req: Request, res: Resp
         createdAt: now,
         updatedAt: now,
       });
+      // Nobody is subscribed to a new table yet; this reaches the change
+      // listeners, so a public table is posted to Discord straight away.
+      broadcastGameState(code, state);
       res.status(201).json({ game: state });
       return;
     } catch (err) {

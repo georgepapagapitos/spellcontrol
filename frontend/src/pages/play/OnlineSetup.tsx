@@ -22,6 +22,7 @@ export function OnlineSetup({
   defaultName,
   hasActive,
   initialMode,
+  initialCode,
 }: {
   decks: Deck[];
   onHost: (opts: {
@@ -56,12 +57,21 @@ export function OnlineSetup({
   hasActive: boolean;
   /** Which form opens first — the dashboard's doors pick one. */
   initialMode?: 'host' | 'join' | 'browse';
+  /** A join code from the address (a Discord looking-for-game post links
+   *  `?mode=join&code=TK7T`), so the form opens filled in. */
+  initialCode?: string;
 }) {
   const [mode, setMode] = useState<'host' | 'join' | 'browse'>(initialMode ?? 'host');
   const [format, setFormat] = useState<GameFormat>('commander');
   const [name, setName] = useState(defaultName);
   const [deck, setDeck] = useState<PickedDeck | null>(null);
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState(
+    () =>
+      initialCode
+        ?.toUpperCase()
+        .replace(/[^A-Z0-9]/g, '')
+        .slice(0, 4) ?? ''
+  );
   // Identity/visibility for the TABLE, not the player — tuned at create,
   // unlike every rules field below which is left for the lobby to argue over.
   const [tableName, setTableName] = useState('');

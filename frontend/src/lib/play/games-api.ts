@@ -366,11 +366,17 @@ export async function leaveGame(code: string): Promise<{ deleted?: boolean; game
   return handleResponse<{ deleted?: boolean; game?: GameState }>(res);
 }
 
-/** Whether the server can open Discord tables (the DISCORD_* env is set). */
-export async function getDiscordTablesEnabled(): Promise<boolean> {
+export interface DiscordStatus {
+  /** The server can open Discord tables (the DISCORD_* env is set). */
+  enabled: boolean;
+  /** The SpellControl server's permanent invite, or null when unset. */
+  inviteUrl: string | null;
+}
+
+export async function getDiscordStatus(): Promise<DiscordStatus> {
   const res = await authedFetch('/api/games/discord');
-  const data = await handleResponse<{ enabled: boolean }>(res);
-  return data.enabled;
+  const data = await handleResponse<Partial<DiscordStatus>>(res);
+  return { enabled: data.enabled === true, inviteUrl: data.inviteUrl ?? null };
 }
 
 /**

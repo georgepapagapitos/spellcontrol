@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useDecksStore, type DeckSource, type DeckCard } from '@/store/decks';
 import { useCollectionStore } from '@/store/collection';
+import { useCubeStore } from '@/store/cube';
 import { defaultNewDeckVisibility, type NewDeckVisibility } from '@/lib/deck/new-deck-visibility';
 import {
   buildAllocationMap,
@@ -12,6 +13,7 @@ import {
 import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
 import type { DeckImportResponse, EnrichedCard } from '@/types/index';
 import type { Deck } from '@/store/decks';
+import type { SavedCube } from '@/store/cube';
 
 export interface SourceProduct {
   code: string;
@@ -65,11 +67,12 @@ export function buildDeckInputFromImport(
   commander: ScryfallCard | null,
   name: string,
   format: DeckFormat,
-  ctx: { decks: Deck[]; collectionCards: EnrichedCard[] },
+  ctx: { decks: Deck[]; cubes: readonly SavedCube[]; collectionCards: EnrichedCard[] },
   opts: BuildDeckOptions = {}
 ): BuiltDeckInput {
   const { partner = null, sourceProduct, source = 'manual' } = opts;
-  const claim = opts.claimed ?? new Map<string, AllocationInfo>(buildAllocationMap(ctx.decks));
+  const claim =
+    opts.claimed ?? new Map<string, AllocationInfo>(buildAllocationMap(ctx.decks, ctx.cubes));
 
   const allocate = (cardList: ScryfallCard[]): DeckCard[] =>
     allocateCardsForImport(cardList, ctx.collectionCards, claim);
@@ -154,6 +157,7 @@ export function useBuildDeckFromImport() {
       // into the collection first; a stale snapshot would allocate against the
       // pre-add collection and mark every card unowned (T17 bug).
       const decks = useDecksStore.getState().decks;
+      const cubes = useCubeStore.getState().saved;
       const collectionCards = useCollectionStore.getState().cards;
       return createDeck({
         ...buildDeckInputFromImport(
@@ -161,7 +165,7 @@ export function useBuildDeckFromImport() {
           commander,
           name,
           format,
-          { decks, collectionCards },
+          { decks, cubes, collectionCards },
           opts
         ),
         initialVisibility: opts.initialVisibility ?? defaultNewDeckVisibility(),

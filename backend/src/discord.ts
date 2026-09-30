@@ -135,3 +135,65 @@ export async function closeTableChannel(code: string): Promise<void> {
     logger.warn(`[discord] closing table ${code} failed`, err);
   }
 }
+
+/**
+ * The looking-for-game channel the bot posts open public tables in, or null
+ * when it isn't set (the posting is off; the tables above still work).
+ */
+export function lfgChannelId(): string | null {
+  return config() ? (process.env.DISCORD_LFG_CHANNEL_ID ?? null) : null;
+}
+
+/** The server's permanent invite, for the app's "Join the Discord" link. */
+export function communityInviteUrl(): string | null {
+  const url = process.env.DISCORD_INVITE_URL;
+  return url && /^https:\/\/discord\.gg\/[A-Za-z0-9-]+$/.test(url) ? url : null;
+}
+
+/** A Discord message, as much of it as the posting needs. */
+export interface ChannelMessage {
+  id: string;
+  author: { id: string };
+  embeds?: Array<{ footer?: { text?: string } }>;
+}
+
+let botUserId: string | null = null;
+
+/** The bot's own user id, so a listing keeps only the bot's messages. */
+export async function botId(): Promise<string> {
+  const cfg = config();
+  if (!cfg) throw new Error('Discord is not configured.');
+  botUserId ??= (await call<{ id: string }>(cfg, 'GET', '/users/@me')).id;
+  return botUserId;
+}
+
+/** The bot's recent messages in a channel (the newest 100 are plenty). */
+export async function listBotMessages(channelId: string): Promise<ChannelMessage[]> {
+  const cfg = config();
+  if (!cfg) return [];
+  const me = await botId();
+  const messages = await call<ChannelMessage[]>(
+    cfg,
+    'GET',
+    `/channels/${channelId}/messages?limit=100`
+  );
+  return messages.filter((m) => m.author.id === me);
+}
+
+export async function postMessage(channelId: string, body: unknown): Promise<string> {
+  const cfg = config();
+  if (!cfg) throw new Error('Discord is not configured.');
+  return (await call<{ id: string }>(cfg, 'POST', `/channels/${channelId}/messages`, body)).id;
+}
+
+export async function editMessage(channelId: string, id: string, body: unknown): Promise<void> {
+  const cfg = config();
+  if (!cfg) return;
+  await call(cfg, 'PATCH', `/channels/${channelId}/messages/${id}`, body);
+}
+
+export async function deleteMessage(channelId: string, id: string): Promise<void> {
+  const cfg = config();
+  if (!cfg) return;
+  await call(cfg, 'DELETE', `/channels/${channelId}/messages/${id}`);
+}

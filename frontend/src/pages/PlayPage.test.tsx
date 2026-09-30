@@ -59,6 +59,14 @@ vi.mock('@/lib/api', async (importOriginal) => {
   };
 });
 
+// The Discord status is a network read; each test says what it answers.
+const discordStatus = vi.hoisted(() => ({
+  value: { enabled: false, inviteUrl: null as string | null },
+}));
+vi.mock('@/lib/play/use-discord-status', () => ({
+  useDiscordStatus: () => discordStatus.value,
+}));
+
 vi.mock('@/lib/social/pods-client', () => ({
   listPods: vi.fn(() =>
     Promise.resolve([
@@ -1154,5 +1162,36 @@ describe('History — a co-op Horde game', () => {
     expect(screen.getByRole('dialog', { name: 'Start a new Horde fight?' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Start the rematch' }));
     expect(rematch).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Discord on the Play page', () => {
+  afterEach(() => {
+    discordStatus.value = { enabled: false, inviteUrl: null };
+    useAuth.setState({ user: null, status: 'guest', profile: null });
+  });
+
+  it('links the community server when the server has an invite', () => {
+    discordStatus.value = { enabled: true, inviteUrl: 'https://discord.gg/sQdxhWhwae' };
+    renderPage('/play');
+    const link = screen.getByRole('link', { name: 'Join the SpellControl Discord' });
+    expect(link.getAttribute('href')).toBe('https://discord.gg/sQdxhWhwae');
+    expect(link.getAttribute('rel')).toContain('noopener');
+  });
+
+  it('shows no Discord link without an invite', () => {
+    renderPage('/play');
+    expect(screen.queryByRole('link', { name: /Discord/ })).toBeNull();
+  });
+
+  // A looking-for-game post links here: the form opens with its code in.
+  it('opens the join form filled in from ?code=', () => {
+    useAuth.setState({
+      user: { id: 'me', username: 'georg', role: 'user' },
+      status: 'authed',
+      profile: null,
+    });
+    renderPage('/play/online?mode=join&code=tk7t');
+    expect((screen.getByLabelText('Join code') as HTMLInputElement).value).toBe('TK7T');
   });
 });

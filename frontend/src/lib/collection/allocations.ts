@@ -253,7 +253,8 @@ export interface SuboptimalPrinting {
  */
 export function findSuboptimalPrintings(
   decks: Deck[],
-  collection: EnrichedCard[]
+  collection: EnrichedCard[],
+  physicalCubes: readonly SavedCube[]
 ): SuboptimalPrinting[] {
   const byCopyId = new Map<string, EnrichedCard>();
   for (const c of collection) byCopyId.set(c.copyId, c);
@@ -265,7 +266,7 @@ export function findSuboptimalPrintings(
   // Which copies are currently claimed by some deck slot — used to tell
   // "fixable by remap" (a free preferred copy exists) from "stuck" (the
   // preferred printing is owned but every copy of it is allocated already).
-  const claimed = buildAllocationMap(decks);
+  const claimed = buildAllocationMap(decks, physicalCubes);
   const freePreferred = new Set<string>();
   for (const c of collection) {
     if (!claimed.has(c.copyId)) freePreferred.add(`${c.name} ${c.scryfallId}`);
@@ -423,7 +424,7 @@ export function findStealableCopy(
   decks: Deck[],
   excludeDeckId: string,
   preferredScryfallId?: string,
-  physicalCubes?: SavedCube[],
+  physicalCubes?: readonly SavedCube[],
   preferredFinish?: Finish
 ): StealableCopy | null {
   let owned = collection.filter((c) => c.name === cardName);
@@ -438,7 +439,7 @@ export function findStealableCopy(
     if (finishMatches.length > 0) owned = finishMatches;
   }
 
-  const allocations = buildAllocationMap(decks, physicalCubes);
+  const allocations = buildAllocationMap(decks, physicalCubes ?? []);
   // A free copy (of the preferred kind) exists → no steal needed; the normal
   // allocator binds it.
   if (owned.some((c) => !allocations.has(c.copyId))) return null;
@@ -511,7 +512,7 @@ export function planCardAdd(
   preferredScryfallId: string | undefined,
   collection: EnrichedCard[],
   decks: Deck[],
-  physicalCubes?: SavedCube[]
+  physicalCubes: readonly SavedCube[]
 ): AddPlan {
   // Including physicalCubes here is what stops an add from binding a copy that
   // already lives in a physical cube — a card can't be in two places at once.
@@ -544,7 +545,7 @@ export function listContestedCards(
   deck: Deck,
   collection: EnrichedCard[],
   decks: Deck[],
-  physicalCubes?: SavedCube[]
+  physicalCubes: readonly SavedCube[]
 ): ContestedCard[] {
   const out: ContestedCard[] = [];
   for (const slot of deck.cards) {
