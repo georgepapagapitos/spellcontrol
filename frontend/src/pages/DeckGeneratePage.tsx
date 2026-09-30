@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Zap } from 'lucide-react';
 // Generate-only stylesheets ship with this chunk, not the boot payload (E265).
@@ -29,6 +29,8 @@ import type { ScryfallCard, DeckFormat, EDHRECTheme, Customization } from '@/dec
 import type { ComboSeedContext } from '../types/combos';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import { Button } from '@/components/shared/Button';
+import { KeepEditsToggle } from '@/components/deck/KeepEditsToggle';
+import { keepEditsPatch, type DeckEdits } from '@/lib/deck/regenerate-edits';
 import { parseDeckFormat } from '@/lib/deck/deck-format-param';
 import { getCardByName } from '@/deck-builder/services/scryfall/client';
 import { commanderIneligibility } from '@/deck-builder/services/deckBuilder/commanderEligibility';
@@ -66,6 +68,9 @@ export interface GeneratePrefill {
   /** The source deck's full build settings (absent on older decks, which
    *  fall back to the three fields above). */
   customization?: Partial<Customization>;
+  /** What the player added and cut since the source deck was generated;
+   *  absent when there is nothing to carry. */
+  edits?: DeckEdits;
 }
 
 /** Router state /decks/new/generate reads. The format itself rides in `?format=`. */
@@ -254,6 +259,14 @@ export function DeckGeneratePage() {
         ...(prefill.collectionMode !== undefined && { collectionMode: prefill.collectionMode }),
         ...(prefill.mustIncludeCards?.length ? { mustIncludeCards: prefill.mustIncludeCards } : {}),
       });
+      // Keep-my-edits starts on: the regenerate carries what the player added
+      // and cut. Written after setCommander for the same reason as above.
+      if (prefill.edits) {
+        const { customization: now } = useDeckBuilderStore.getState();
+        updateCustomizationStore(
+          keepEditsPatch(now, prefill.edits, true, prefill.customization?.mustIncludeCards)
+        );
+      }
       // A replayed land count is the build's own, not a suggestion: without
       // this the EDHREC land pre-fill (use-deck-generation) overwrites it as
       // soon as the commander's page loads.
@@ -261,6 +274,16 @@ export function DeckGeneratePage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const [keepEdits, setKeepEdits] = useState(true);
+  const sourceEdits = prefill?.edits;
+  const toggleKeepEdits = (edits: DeckEdits, keep: boolean) => {
+    setKeepEdits(keep);
+    const { customization: now } = useDeckBuilderStore.getState();
+    updateCustomizationStore(
+      keepEditsPatch(now, edits, keep, prefill?.customization?.mustIncludeCards)
+    );
+  };
 
   // `?commander=<name>` (the Trending rail's "Build with …" tiles) lands with
   // that commander picked. The param is dropped once applied, so a later
@@ -449,6 +472,14 @@ export function DeckGeneratePage() {
           )}
           <p className="combo-seed-banner-hint">Pinned as must-includes.</p>
         </section>
+      )}
+
+      {sourceEdits && (
+        <KeepEditsToggle
+          edits={sourceEdits}
+          checked={keepEdits}
+          onChange={(keep) => toggleKeepEdits(sourceEdits, keep)}
+        />
       )}
 
       <section className="deck-builder-section">

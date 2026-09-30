@@ -283,4 +283,29 @@ describe('saveGeneratedDeck', () => {
       expect(saved).not.toHaveProperty(key);
     }
   });
+
+  // Regenerate carries the player's later edits, which needs the list as it was.
+  it('records the generated list so a later Regenerate can diff against it', () => {
+    const { createDeck, calls } = fakeCreateDeck();
+    const mountain = { ...scryfallCard('Mountain'), type_line: 'Basic Land — Mountain' };
+    saveGeneratedDeck(
+      generatedDeck({
+        commander: scryfallCard('Krenko, Mob Boss'),
+        categories: categories({
+          ramp: [scryfallCard('Sol Ring')],
+          lands: [mountain, mountain],
+        }),
+      }),
+      customization({ tempBannedCards: ['Arcane Signet'] }),
+      [],
+      [],
+      [],
+      createDeck
+    );
+    expect(calls[0].generationContext?.generatedList).toEqual({
+      cut: ['Arcane Signet'],
+      cards: ['Sol Ring'],
+      commanders: ['Krenko, Mob Boss'],
+    });
+  });
 });

@@ -259,7 +259,8 @@ export async function createTestEnv(): Promise<TestEnv> {
       state JSONB NOT NULL,
       version INTEGER NOT NULL DEFAULT 0,
       created_at BIGINT NOT NULL,
-      updated_at BIGINT NOT NULL
+      updated_at BIGINT NOT NULL,
+      discord_channel_id TEXT
     );
     CREATE TABLE combos (
       id TEXT PRIMARY KEY,

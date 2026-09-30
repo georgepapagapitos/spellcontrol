@@ -1,6 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { useAuth } from '@/store/auth';
 import { useCollectionStore } from '@/store/collection';
+import { useDecksStore } from '@/store/decks';
+import { useCubeStore } from '@/store/cube';
+import { buildAllocationMap } from '@/lib/collection/allocations-core';
 import { toast } from '@/store/toasts';
 import { getCardById } from '@/lib/api';
 import { getCardsByNames } from '@/deck-builder/services/scryfall/client';
@@ -83,7 +86,13 @@ async function applySettlement(offer: TradeOffer): Promise<boolean> {
   await waitForCollectionHydration();
   await waitForPullQuiescent();
   const store = useCollectionStore.getState();
-  const plan = planSettlement(offer.give, offer.receive, store.cards);
+  // Copies decks and physical cubes hold leave last, so a trade takes the free
+  // copy in the binder before it pulls one out of a deck (E542).
+  const allocated = buildAllocationMap(
+    useDecksStore.getState().decks,
+    useCubeStore.getState().saved
+  );
+  const plan = planSettlement(offer.give, offer.receive, store.cards, allocated);
 
   // Removals first, in one write: replaceAllCards is the store's own bulk path
   // (it exists for exactly this "compute the new array, persist once" case).
@@ -166,6 +175,18 @@ async function applySettlement(offer: TradeOffer): Promise<boolean> {
       message: `You no longer had ${plan.short
         .map((s) => s.name)
         .join(', ')}. Removed what was there instead.`,
+      tone: 'warn',
+    });
+  }
+  if (plan.released.length > 0) {
+    // The remap has already left each slot as a card still needed (the
+    // deck editor's leave-gap outcome); say which deck or cube lost it.
+    const owners = [...new Set(plan.released.map((r) => r.ownerName))];
+    toast.show({
+      message:
+        plan.released.length === 1
+          ? `${plan.released[0].name} left ${owners[0]}, which now needs a copy.`
+          : `${plan.released.map((r) => r.name).join(', ')} left ${owners.join(', ')}. Each needs a copy there now.`,
       tone: 'warn',
     });
   }

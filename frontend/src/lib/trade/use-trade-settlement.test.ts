@@ -4,6 +4,8 @@ import { renderHook } from '@testing-library/react';
 import type { EnrichedCard } from '@/types/index';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { TradeListing, TradeOffer } from './trades-client';
+import type { Deck } from '@/store/decks';
+import type { SavedCube } from '@/store/cube';
 
 const getCardByIdMock = vi.fn<(id: string) => Promise<ScryfallCard | null>>();
 vi.mock('@/lib/api', () => ({
@@ -31,6 +33,16 @@ vi.mock('@/store/auth', () => ({
 const toastShowMock = vi.fn();
 vi.mock('@/store/toasts', () => ({
   toast: { show: (input: unknown) => toastShowMock(input) },
+}));
+
+// Decks and cubes are read only for their claims; tests set these directly.
+let storeDecks: Deck[] = [];
+let storeCubes: SavedCube[] = [];
+vi.mock('@/store/decks', () => ({
+  useDecksStore: { getState: () => ({ decks: storeDecks }) },
+}));
+vi.mock('@/store/cube', () => ({
+  useCubeStore: { getState: () => ({ saved: storeCubes }) },
 }));
 
 const replaceAllCardsMock = vi.fn<(cards: EnrichedCard[]) => Promise<void>>();
@@ -136,6 +148,8 @@ beforeEach(() => {
   replaceAllCardsMock.mockResolvedValue(undefined);
   addCardMock.mockResolvedValue(['new-copy']);
   storeHydrating = false;
+  storeDecks = [];
+  storeCubes = [];
   storeListeners.clear();
   storeCards = [
     owned({ copyId: 'a', name: 'Sol Ring', oracleId: 'o-sol', scryfallId: 'scry-c21' }),
@@ -162,6 +176,49 @@ describe('settleTrade', () => {
     // The open offer lists are told to re-fetch so the row stops saying
     // "Adding to your collection…".
     expect(notifyTradesChangedMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('gives away the free copy, not the one a deck holds (E542)', async () => {
+    getCardByIdMock.mockResolvedValue({ id: 'scry-jud' } as ScryfallCard);
+    storeCards = [
+      owned({ copyId: 'a', name: 'Sol Ring', oracleId: 'o-sol', scryfallId: 'scry-c21' }),
+      owned({ copyId: 'b', name: 'Sol Ring', oracleId: 'o-sol', scryfallId: 'scry-c21' }),
+    ];
+    storeDecks = [
+      {
+        id: 'd1',
+        name: 'Atraxa',
+        color: '#fff',
+        cards: [{ slotId: 's1', card: { name: 'Sol Ring' }, allocatedCopyId: 'a' }],
+      } as unknown as Deck,
+    ];
+
+    await settleTrade(offer());
+
+    // The deck keeps copy A; the free copy B is the one that leaves.
+    expect(replaceAllCardsMock).toHaveBeenCalledWith([storeCards[0]]);
+    const messages = toastShowMock.mock.calls.map((c) => (c[0] as { message: string }).message);
+    expect(messages.some((m) => m.includes('needs a copy'))).toBe(false);
+  });
+
+  it('says which cube lost a card when its only copy was traded (E542)', async () => {
+    getCardByIdMock.mockResolvedValue({ id: 'scry-jud' } as ScryfallCard);
+    storeCubes = [
+      {
+        id: 'c1',
+        name: 'Vintage Cube',
+        isPhysical: true,
+        picks: [{ slotId: 'p1', card: { name: 'Sol Ring' }, allocatedCopyId: 'a' }],
+      } as unknown as SavedCube,
+    ];
+
+    await settleTrade(offer());
+
+    expect(replaceAllCardsMock).toHaveBeenCalledWith([]);
+    expect(toastShowMock).toHaveBeenCalledWith({
+      message: 'Sol Ring left Vintage Cube, which now needs a copy.',
+      tone: 'warn',
+    });
   });
 
   it('applies locally BEFORE telling the server', async () => {
