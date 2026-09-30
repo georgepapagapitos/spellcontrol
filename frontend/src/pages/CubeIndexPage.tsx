@@ -2,9 +2,7 @@ import { useState } from 'react';
 import { Boxes, Pencil, Plus, Share2, Trash2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import './cube/cube.css';
-import { DecksHubTabs } from '@/components/decks/DecksHubTabs';
-import { PageHeader } from '@/components/app-shell/PageHeader';
-import { BackLink } from '@/components/app-shell/BackLink';
+import { HubPage } from '@/components/app-shell/HubPage';
 import { OverflowMenu } from '@/components/overlays/OverflowMenu';
 import { ConfirmDialog } from '@/components/overlays/ConfirmDialog';
 import { ShareDialog } from '@/components/share/ShareDialog';
@@ -63,21 +61,17 @@ export function CubeIndexPage() {
   const physicalCount = saved.filter((c) => c.isPhysical).length;
 
   return (
-    <div className="cube-page">
-      <BackLink to="/decks" label="All decks" />
-      <PageHeader
-        title="Cubes"
-        meta={
-          saved.length > 0
-            ? `${saved.length.toLocaleString()} ${saved.length === 1 ? 'cube' : 'cubes'}${
-                physicalCount > 0 ? ` · ${physicalCount} physical` : ''
-              }`
-            : undefined
-        }
-        actions={[{ label: 'New cube', icon: Plus, primary: true, to: '/decks/cube/new' }]}
-      />
-      <DecksHubTabs />
-
+    <HubPage
+      hub="decks"
+      section="Cube"
+      // The cube count is on the tab.
+      intro={
+        physicalCount > 0
+          ? `${physicalCount.toLocaleString()} physical ${physicalCount === 1 ? 'cube' : 'cubes'}`
+          : undefined
+      }
+      actions={[{ label: 'New cube', icon: Plus, primary: true, to: '/decks/cube/new' }]}
+    >
       {saved.length === 0 && awaitingFirstPull ? (
         <div className="page-loader" role="status" aria-live="polite">
           <span className="spinner" aria-hidden="true" />
@@ -162,6 +156,6 @@ export function CubeIndexPage() {
           onCancel={() => setPhysicalTarget(null)}
         />
       )}
-    </div>
+    </HubPage>
   );
 }

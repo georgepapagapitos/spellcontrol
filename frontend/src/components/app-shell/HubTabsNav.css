@@ -1,0 +1,16 @@
+/* HubTabsNav's own rules. The strip itself is boot CSS (responsive-nav.css,
+   it shares .site-nav-link with the header); what only the strip uses lives
+   here, loaded with the hub pages' lazy chunks rather than at boot. */
+
+/* A tab with something running on it (HubTab.live: Play's Local and Online
+   with a game in progress). A superscript status badge, not trailing
+   punctuation: spaced off the label and raised so "Online●" doesn't read as
+   a typo. */
+.site-nav-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--warn-text);
+  margin-left: var(--space-1);
+  transform: translateY(-0.45em);
+}

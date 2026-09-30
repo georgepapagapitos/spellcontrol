@@ -1191,11 +1191,57 @@ async function main() {
         '/search/top/banned',
         '/tags',
         '/rules',
+        '/daily',
         `/u/${seeded.username}`,
         USERNAME && '/admin',
       ].filter(Boolean);
+      // Hub tabs stay put (T177): every tab of a hub renders one HubPage, so
+      // its strip must sit at the same place and width on each. It drifted
+      // before (Cube's narrow column and back link, Social's 640 vs 760px
+      // caps, meta lines on some tabs), which read as landing on a different
+      // page. Measured against the hub's first tab visited in this viewport.
+      const HUB_OF = {
+        '/collection': 'collection',
+        '/collection/binders': 'collection',
+        '/collection/lists': 'collection',
+        '/collection/sets': 'collection',
+        '/collection/combos': 'collection',
+        '/decks': 'decks',
+        '/decks/saved': 'decks',
+        '/decks/cube': 'decks',
+        '/play': 'play',
+        '/play/online': 'play',
+        '/play/nights': 'play',
+        '/play/history': 'play',
+        '/friends': 'social',
+        '/trades': 'social',
+        '/pods': 'social',
+      };
+      const hubStrip = {};
       for (const r of routes) {
         const rec = await visit(r);
+        const hub = HUB_OF[r];
+        if (hub) {
+          await assertPage(
+            rec,
+            `${hub} hub strip in the same place as ${hubStrip[hub]?.route ?? 'itself'}`,
+            async () => {
+              const observed = await page.evaluate(() => {
+                const b = document.querySelector('.collection-hub-tabs')?.getBoundingClientRect();
+                return b
+                  ? { x: Math.round(b.left), y: Math.round(b.top), w: Math.round(b.width) }
+                  : null;
+              });
+              hubStrip[hub] ??= { route: r, box: observed };
+              const expected = hubStrip[hub].box;
+              const ok =
+                !!observed &&
+                !!expected &&
+                ['x', 'y', 'w'].every((k) => Math.abs(observed[k] - expected[k]) <= 1);
+              return { ok, expected, observed };
+            }
+          );
+        }
         if (r === binderHref) {
           // The binder page viewer opens on a page you can see (2026-09-25).
           // A Secret Lair binder's long section line grew the viewer's auto

@@ -6,9 +6,8 @@ import { HubTabsNav } from '@/components/app-shell/HubTabsNav';
  * Cards / Binders / Lists / Combos / Sets. (Cube lives in the Decks hub: it's
  * a thing you build, not a thing you own; `/collection/cube` redirects there.)
  *
- * Rendered by each Collection INDEX page directly under its PageHeader
- * (STYLE_GUIDE § Layout system: title → meta → actions → tabs), the same way
- * DecksHubTabs and SocialHubTabs are. Detail pages (a binder, a list, a set)
+ * Rendered by HubPage on each Collection INDEX page, never by a page directly
+ * (STYLE_GUIDE § Layout system → Hub pages). Detail pages (a binder, a list, a set)
  * don't render it: their back link goes up a level and the main nav still
  * names the hub, so a third navigation row above their title bought nothing.
  *

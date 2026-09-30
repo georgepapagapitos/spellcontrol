@@ -1,6 +1,5 @@
 import './PodsIndexPage.css';
-import { PageHeader } from '@/components/app-shell/PageHeader';
-import { SocialHubTabs } from '@/components/social/SocialHubTabs';
+import { HubPage } from '@/components/app-shell/HubPage';
 import { useCallback, useEffect, useId, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSignInPath } from '@/lib/account/sign-in-path';
@@ -47,10 +46,8 @@ function PodsSkeleton() {
   );
 }
 
-/** Page body wrapped so the {@link SocialHubTabs} strip sits OUTSIDE the
- *  width-capped `.pods-index-page` root — full-bleed and sticky, exactly like the
- *  Collection and Decks hub strips — on every return path (guest gate
- *  included) without restructuring them. */
+/** Every return path of the body, guest gate included, is a HubPage, so the
+ *  Social header and strip never move between Friends, Trades and Pods. */
 export function PodsIndexPage() {
   return (
     <>
@@ -160,16 +157,14 @@ function PodsIndexPageBody() {
   // /friends). ──────────────────────────────────────────────────────────────
   if (status === 'guest') {
     return (
-      <div className="pods-index-page social-page-shell">
-        <PageHeader title="Pods" />
-        <SocialHubTabs />
+      <HubPage hub="social" section="Pods" className="pods-index-page">
         <div className="friends-signin-prompt">
           <p className="friends-signin-title">Sign in to set up your pod</p>
           <Button variant="primary" to={signInHref}>
             Sign in
           </Button>
         </div>
-      </div>
+      </HubPage>
     );
   }
 
@@ -180,10 +175,12 @@ function PodsIndexPageBody() {
   const isEmpty = !loading && invited.length === 0 && yours.length === 0;
 
   return (
-    <div className="pods-index-page social-page-shell">
-      <PageHeader title="Pods" meta="Your regular tables: games and trades in one place." />
-      <SocialHubTabs />
-
+    <HubPage
+      hub="social"
+      section="Pods"
+      className="pods-index-page"
+      intro="Your regular tables: games and trades in one place."
+    >
       {loadError && (
         <div className="friends-error" role="alert">
           <span>{loadError}</span>
@@ -274,7 +271,7 @@ function PodsIndexPageBody() {
       {createOpen && (
         <CreatePodDialog onClose={() => setCreateOpen(false)} onCreated={handleCreated} />
       )}
-    </div>
+    </HubPage>
   );
 }
 

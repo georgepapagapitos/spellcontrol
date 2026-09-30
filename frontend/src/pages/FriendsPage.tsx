@@ -1,7 +1,6 @@
 import '@/components/social/FriendsManagement.css';
-import { PageHeader } from '@/components/app-shell/PageHeader';
+import { HubPage } from '@/components/app-shell/HubPage';
 import { FriendsManagement } from '@/components/social/FriendsManagement';
-import { SocialHubTabs } from '@/components/social/SocialHubTabs';
 
 /**
  * `/friends` — a real destination, not a settings section. The Trades / Pods
@@ -13,12 +12,8 @@ import { SocialHubTabs } from '@/components/social/SocialHubTabs';
  */
 export function FriendsPage() {
   return (
-    <>
-      <div className="friends-page social-page-shell">
-        <PageHeader title="Social" titleId="friends-page-heading-title" />
-        <SocialHubTabs />
-        <FriendsManagement />
-      </div>
-    </>
+    <HubPage hub="social" section="Friends" titleId="friends-page-heading-title">
+      <FriendsManagement />
+    </HubPage>
   );
 }

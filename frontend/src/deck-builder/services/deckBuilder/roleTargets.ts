@@ -14,6 +14,7 @@ import type { Pacing } from './pacingDetector';
 import { getCardRole, type RoleKey } from '@/deck-builder/services/tagger/client';
 import { classifyCard } from '@/deck-builder/services/synergy/classify';
 import { tribalMembership, type AxisKey } from '@/deck-builder/services/synergy/axes';
+import { typeAxisMembership } from '@/deck-builder/services/synergy/typeAxes';
 import type { CardLike } from '@/deck-builder/services/synergy/text';
 import { getByCardName } from '@/lib/cards/card-text';
 import {
@@ -351,6 +352,12 @@ export function weightedAxisMass(cards: readonly WeightedCard[]): AxisMass[] {
       reason: membership.reasonFor(m.tribe),
       weight: m.weight,
     });
+  }
+  // E531: the same capped type-line rule for enchantress, spellslinger, landfall.
+  for (const m of typeAxisMembership(
+    cards.map(({ card, weight }, i) => ({ card, weight, ...classified[i] }))
+  )) {
+    entries.push({ axis: m.axis, side: 'producer', reason: m.reason, weight: m.weight });
   }
   return axisMassFrom(entries);
 }
