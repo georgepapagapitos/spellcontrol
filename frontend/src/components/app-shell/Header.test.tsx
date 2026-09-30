@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 /**
- * Header — desktop nav-links (Home/Collection/Decks/Play/Friends), the
+ * Header — desktop nav-links (Home/Collection/Decks/Play/Social), the
  * Search + Rules utility links, and the right cluster's authed-only avatar
  * account menu vs. the guest "Sign in" link. Rules is a link to the /rules
  * page here (the quick-look sheet stays on Play and the in-game menu).
@@ -89,27 +89,30 @@ describe('Header — nav links', () => {
   // /you redirect — leaving /friends, /trades, /pods and /friends/:id as the
   // app's only page cluster with no top-level door. This assertion used to
   // read `excludes Friends`; it is inverted deliberately, not by accident.
-  it('renders Home, Collection, Decks, Play and Friends', () => {
+  // The link reads "Social" (E558): it opens the hub holding Friends, Trades
+  // and Pods, and a primary nav link names its hub the way Collection and
+  // Decks do, while the hub's first tab keeps the section name.
+  it('renders Home, Collection, Decks, Play and Social', () => {
     renderHeader();
     expect(screen.getByRole('link', { name: /^home$/i })).toBeTruthy();
     expect(screen.getByRole('link', { name: /^collection$/i })).toBeTruthy();
     expect(screen.getByRole('link', { name: /^decks$/i })).toBeTruthy();
     expect(screen.getByRole('link', { name: /^play$/i })).toBeTruthy();
-    expect(screen.getByRole('link', { name: /^friends$/i }).getAttribute('href')).toBe('/friends');
+    expect(screen.getByRole('link', { name: /^social$/i }).getAttribute('href')).toBe('/friends');
   });
 
-  it('Friends has no waiting aria-label when nothing needs an answer', () => {
+  it('Social has no waiting aria-label when nothing needs an answer', () => {
     renderHeader();
-    expect(screen.getByRole('link', { name: /^friends$/i }).getAttribute('aria-label')).toBeNull();
+    expect(screen.getByRole('link', { name: /^social$/i }).getAttribute('aria-label')).toBeNull();
   });
 
-  it('Friends badges only the action-required subset, not the whole activity count', () => {
+  it('Social badges only the action-required subset, not the whole activity count', () => {
     // 5 notifications total, but only 2 are answerable on a social page —
     // the badge must show 2, or it sends users to /friends for a deck like.
     activityState.count = 5;
     activityState.actionRequired = [{ type: 'friend_request' }, { type: 'trade_offer' }];
     renderHeader();
-    expect(screen.getByRole('link', { name: 'Friends, 2 waiting on you' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Social, 2 waiting on you' })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Home, 5 notifications' })).toBeTruthy();
   });
 

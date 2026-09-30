@@ -25,7 +25,7 @@ export function Header() {
   const signInHref = useSignInPath();
   // One hook, one endpoint, two badges cut from the same bucket so they can
   // never disagree: Home carries the whole activity count (requests, trades,
-  // unseen directed shares, feedback, likes); Friends carries only the
+  // unseen directed shares, feedback, likes); Social carries only the
   // action-required subset — friend requests + trade offers, the two asks
   // that are actually answered on a social page. Same split FriendsPage
   // already uses for its own Trades door.
@@ -106,11 +106,11 @@ export function Header() {
             className={({ isActive }) => (isActive ? 'site-nav-link active' : 'site-nav-link')}
             aria-label={
               actionRequired.length > 0
-                ? `Friends, ${actionRequired.length} waiting on you`
+                ? `Social, ${actionRequired.length} waiting on you`
                 : undefined
             }
           >
-            <span>Friends</span>
+            <span>Social</span>
             <Count
               className="friends-nav-link-badge"
               tone="accent"

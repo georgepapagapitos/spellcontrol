@@ -62,6 +62,13 @@ Rakdos stays blood-black). Rulings:
   door reads off the shared `useActivity()` bucket** — the whole `count` on
   Home, the `actionRequired` subset on a social door — so two doors can never
   claim different numbers.
+- **A primary nav link names its hub, not the hub's first section.** The
+  link and the hub's page title carry the hub's name; the hub strip under the
+  title names the sections. Collection → Cards · Binders · Lists; Decks → My
+  decks · Discover; Social → Friends · Trades · Pods (the header link read
+  "Friends" until 2026-09-30, which named one of three destinations behind
+  it). The route may keep a section's path (`/friends`): a path is an
+  address, not a label.
 - **`--font-label` scope.** The condensed label face is for chrome, tab, and
   tape labels ONLY — always uppercase with letter-spacing (0.05–0.12em).
   Body/content text stays `--font-serif`; data stays `--font-mono`. Never set
@@ -213,7 +220,7 @@ Rulings:
   secondary sections). A `HomeCard` with `empty` renders
   `null` (the collapsed invitation row is retired, along with
   `.home-card--empty`). Every door those rows carried moved somewhere with
-  content: Plan a game night and Friends into the hero's ⋮, Find friends into
+  content: Plan a game night and Social into the hero's ⋮, Find friends into
   Around the table, the setup steps into the hero checklist and Waiting on
   you. Two sections keep **one quiet line** instead of vanishing, because
   they are ways out rather than insights: Around the table (with its two
@@ -243,7 +250,7 @@ Rulings:
   pill in every section head costs more than it earns.
 - **The hero's actions follow the action rule.** Add cards (filled, opens
   `AddCardsSheet`), New deck (outline), and a ⋮ (`OverflowMenu`) for Plan a
-  game night and Friends. 44 / 40 / 36px by tier, 44 on any coarse pointer.
+  game night and Social. 44 / 40 / 36px by tier, 44 on any coarse pointer.
 - **Rows vs tiles by the card's width, not the viewport.** Price movers
   switches from rows to card tiles at a 32rem container; Around the table's
   columns sit side by side from a 48rem container and stack with a hairline

@@ -63,7 +63,7 @@ beforeEach(() => {
 describe('FriendsPage', () => {
   it('renders the page heading and mounts FriendsManagement', () => {
     renderPage();
-    expect(screen.getByRole('heading', { name: 'Friends' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Social' })).toBeTruthy();
     expect(screen.getByTestId('friends-management-stub')).toBeTruthy();
   });
 
