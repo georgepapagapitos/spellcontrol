@@ -161,6 +161,28 @@
       "edhrec_rank": 122
     },
     {
+      "id": "4a1f905f-1d55-4d02-9d24-e58070793d3f",
+      "oracle_id": "abbcb153-0763-44c6-964f-b4ff0eb64257",
+      "name": "Atraxa, Grand Unifier",
+      "mana_cost": "{3}{G}{W}{U}{B}",
+      "cmc": 7,
+      "type_line": "Legendary Creature — Phyrexian Angel",
+      "oracle_text": "Flying, vigilance, deathtouch, lifelink\nWhen Atraxa enters, reveal the top ten cards of your library. For each card type, you may put a card of that type from among the revealed cards into your hand. Put the rest on the bottom of your library in a random order. (Artifact, battle, creature, enchantment, instant, land, planeswalker, and sorcery are card types.)",
+      "colors": ["B", "G", "U", "W"],
+      "color_identity": ["B", "G", "U", "W"],
+      "keywords": ["Deathtouch", "Flying", "Lifelink", "Vigilance"],
+      "power": "7",
+      "toughness": "7",
+      "rarity": "mythic",
+      "layout": "normal",
+      "set": "one",
+      "set_name": "Phyrexia: All Will Be One",
+      "prices": { "usd": "18.67", "eur": "21.74" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
+      "games": ["paper", "mtgo", "arena"],
+      "edhrec_rank": 3546
+    },
+    {
       "id": "d0d33d52-3d28-4635-b985-51e126289259",
       "oracle_id": "7e6b9b59-cd68-4e3c-827b-38833c92d6eb",
       "name": "Atraxa, Praetors' Voice",
@@ -544,6 +566,26 @@
       "edhrec_rank": 299
     },
     {
+      "id": "523414cb-f8db-407a-808a-01454e03d8b9",
+      "oracle_id": "28b46183-c62f-47b1-9fee-3ba148202cab",
+      "name": "Crop Rotation",
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "type_line": "Instant",
+      "oracle_text": "As an additional cost to cast this spell, sacrifice a land.\nSearch your library for a land card, put that card onto the battlefield, then shuffle.",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": [],
+      "rarity": "uncommon",
+      "layout": "normal",
+      "set": "dmr",
+      "set_name": "Dominaria Remastered",
+      "prices": { "usd": "3.74", "eur": "3.69" },
+      "legalities": { "commander": "legal", "paupercommander": "legal", "brawl": "legal" },
+      "games": ["paper", "mtgo"],
+      "edhrec_rank": 214
+    },
+    {
       "id": "11721b88-2654-482c-b9d4-80e54efdbf63",
       "oracle_id": "52a0dae4-2a95-487e-acd4-eabdb2d031e2",
       "name": "Crux of Fate",
@@ -668,6 +710,26 @@
       "edhrec_rank": 610
     },
     {
+      "id": "b4b36435-55b3-4615-8812-af41d4fc64d9",
+      "oracle_id": "ae120613-97d6-4393-b39d-c3e6c076f5d6",
+      "name": "Deflecting Swat",
+      "mana_cost": "{2}{R}",
+      "cmc": 3,
+      "type_line": "Instant",
+      "oracle_text": "If you control a commander, you may cast this spell without paying its mana cost.\nYou may choose new targets for target spell or ability.",
+      "colors": ["R"],
+      "color_identity": ["R"],
+      "keywords": [],
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "cmm",
+      "set_name": "Commander Masters",
+      "prices": { "usd": "73.18", "eur": "67.11" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "banned" },
+      "games": ["paper", "mtgo"],
+      "edhrec_rank": 74
+    },
+    {
       "id": "a24b4cb6-cebb-428b-8654-74347a6a8d63",
       "oracle_id": "82004860-e589-4e38-8d61-8c0210e4ea39",
       "name": "Demonic Tutor",
@@ -768,6 +830,26 @@
       "edhrec_rank": 538
     },
     {
+      "id": "4512357b-0d08-4996-9301-5853eae1ea64",
+      "oracle_id": "5c93ec85-f87f-4121-9fbf-61fd598d1e65",
+      "name": "Drown in Sorrow",
+      "mana_cost": "{1}{B}{B}",
+      "cmc": 3,
+      "type_line": "Sorcery",
+      "oracle_text": "All creatures get -2/-2 until end of turn. Scry 1. (Look at the top card of your library. You may put that card on the bottom.)",
+      "colors": ["B"],
+      "color_identity": ["B"],
+      "keywords": ["Scry"],
+      "rarity": "common",
+      "layout": "normal",
+      "set": "cmm",
+      "set_name": "Commander Masters",
+      "prices": { "usd": "0.23", "eur": "0.31" },
+      "legalities": { "commander": "legal", "paupercommander": "legal", "brawl": "not_legal" },
+      "games": ["paper", "mtgo"],
+      "edhrec_rank": 19702
+    },
+    {
       "id": "a577ba08-0aa8-45be-aa83-d5078770127c",
       "oracle_id": "41e2790d-49f5-4e98-b8d9-04179f47f13a",
       "name": "Edgar Markov",
@@ -788,6 +870,41 @@
       "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "not_legal" },
       "games": ["paper", "mtgo"],
       "edhrec_rank": 3155
+    },
+    {
+      "id": "d8999135-ddb1-4e4c-b885-e25f23dac3d3",
+      "oracle_id": "650ed75c-20b0-45b8-a4d4-813e0369aaf1",
+      "name": "Elesh Norn // The Argent Etchings",
+      "cmc": 4,
+      "type_line": "Legendary Creature — Phyrexian Praetor // Enchantment — Saga",
+      "color_identity": ["W"],
+      "keywords": ["Incubate", "Vigilance", "Transform"],
+      "rarity": "mythic",
+      "layout": "transform",
+      "set": "mom",
+      "set_name": "March of the Machine",
+      "card_faces": [
+        {
+          "name": "Elesh Norn",
+          "mana_cost": "{2}{W}{W}",
+          "type_line": "Legendary Creature — Phyrexian Praetor",
+          "oracle_text": "Vigilance\nWhenever a source an opponent controls deals damage to you or a permanent you control, that source's controller loses 2 life unless they pay {1}.\n{2}{W}, Sacrifice three other creatures: Exile Elesh Norn, then return it to the battlefield transformed under its owner's control. Activate only as a sorcery.",
+          "power": "3",
+          "toughness": "5",
+          "colors": ["W"]
+        },
+        {
+          "name": "The Argent Etchings",
+          "mana_cost": "",
+          "type_line": "Enchantment — Saga",
+          "oracle_text": "(As this Saga enters and after your draw step, add a lore counter.)\nI — Incubate 2 five times, then transform all Incubator tokens you control.\nII — Creatures you control get +1/+1 and gain double strike until end of turn.\nIII — Destroy all other permanents except for artifacts, lands, and Phyrexians. Exile this Saga, then return it to the battlefield (front face up).",
+          "colors": ["W"]
+        }
+      ],
+      "prices": { "usd": "7.90", "eur": "6.61" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
+      "games": ["paper", "mtgo", "arena"],
+      "edhrec_rank": 4160
     },
     {
       "id": "6040ba5e-7042-4095-9000-89bcb8ce1ea6",
@@ -834,6 +951,26 @@
       "legalities": { "commander": "legal", "paupercommander": "legal", "brawl": "legal" },
       "games": ["paper", "arena", "mtgo"],
       "edhrec_rank": 102
+    },
+    {
+      "id": "1c9675fb-1a89-420f-aea8-50e0642f549c",
+      "oracle_id": "c5229c17-b7be-4b05-b683-f2277edc4849",
+      "name": "Enlightened Tutor",
+      "mana_cost": "{W}",
+      "cmc": 1,
+      "type_line": "Instant",
+      "oracle_text": "Search your library for an artifact or enchantment card, reveal it, then shuffle and put that card on top.",
+      "colors": ["W"],
+      "color_identity": ["W"],
+      "keywords": [],
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "dmr",
+      "set_name": "Dominaria Remastered",
+      "prices": { "usd": "37.19", "eur": "30.06" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
+      "games": ["paper", "mtgo"],
+      "edhrec_rank": 123
     },
     {
       "id": "3caa9c55-5e3b-436b-84a9-b7ccebf63799",
@@ -1001,6 +1138,27 @@
       "games": ["paper", "mtgo", "arena"]
     },
     {
+      "id": "25b0b816-0583-44aa-9dc5-f3ff48993a51",
+      "oracle_id": "7c427c3d-ecd8-45ef-bebd-8f10f4a311db",
+      "name": "Gaea's Cradle",
+      "mana_cost": "",
+      "cmc": 0,
+      "type_line": "Legendary Land",
+      "oracle_text": "{T}: Add {G} for each creature you control.",
+      "colors": [],
+      "color_identity": ["G"],
+      "keywords": [],
+      "produced_mana": ["G"],
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "usg",
+      "set_name": "Urza's Saga",
+      "prices": { "usd": "1627.48", "eur": "1078.07" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "not_legal" },
+      "games": ["paper", "mtgo"],
+      "edhrec_rank": 444
+    },
+    {
       "id": "28e619e6-ecc1-49c3-8fa9-ce42becdb9ba",
       "oracle_id": "9a02a9a7-39d9-4763-85d3-747a0540b60b",
       "name": "Gilded Lotus",
@@ -1084,6 +1242,26 @@
       "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
       "games": ["paper"],
       "edhrec_rank": 4555
+    },
+    {
+      "id": "9d467e61-bbec-4cea-bd5d-f10555910c9d",
+      "oracle_id": "f0ab7166-9fcf-46e5-af2c-b7f628db4789",
+      "name": "Golgari Charm",
+      "mana_cost": "{B}{G}",
+      "cmc": 2,
+      "type_line": "Instant",
+      "oracle_text": "Choose one —\n• All creatures get -1/-1 until end of turn.\n• Destroy target enchantment.\n• Regenerate each creature you control.",
+      "colors": ["B", "G"],
+      "color_identity": ["B", "G"],
+      "keywords": ["Regenerate"],
+      "rarity": "uncommon",
+      "layout": "normal",
+      "set": "uma",
+      "set_name": "Ultimate Masters",
+      "prices": { "usd": "1.49", "eur": "1.30" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
+      "games": ["paper", "mtgo"],
+      "edhrec_rank": 1616
     },
     {
       "id": "8d03f6eb-a146-45e8-a8e0-a46ec0c20c1d",
@@ -1294,6 +1472,27 @@
       "edhrec_rank": 201
     },
     {
+      "id": "bc1bed72-2440-4364-a69f-a9d7c4fe3fea",
+      "oracle_id": "073169f2-da3a-4a93-8c01-b3fd8558d225",
+      "name": "Interplanar Beacon",
+      "mana_cost": "",
+      "cmc": 0,
+      "type_line": "Land",
+      "oracle_text": "Whenever you cast a planeswalker spell, you gain 1 life.\n{T}: Add {C}.\n{1}, {T}: Add two mana of different colors. Spend this mana only to cast planeswalker spells.",
+      "colors": [],
+      "color_identity": [],
+      "keywords": [],
+      "produced_mana": ["B", "C", "G", "R", "U", "W"],
+      "rarity": "uncommon",
+      "layout": "normal",
+      "set": "cmm",
+      "set_name": "Commander Masters",
+      "prices": { "usd": "0.21", "eur": "0.20" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
+      "games": ["paper", "mtgo"],
+      "edhrec_rank": 4280
+    },
+    {
       "id": "f3cc07cd-cc79-4745-b0b7-eade60175cc3",
       "oracle_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
       "name": "Island",
@@ -1312,6 +1511,71 @@
       "prices": { "usd": null, "eur": null },
       "legalities": { "commander": "legal", "paupercommander": "legal", "brawl": "legal" },
       "games": ["paper", "mtgo", "arena"]
+    },
+    {
+      "id": "a062a004-984e-4b62-960c-af7288f7a3e9",
+      "oracle_id": "65114758-9a75-43a7-96e8-0aa68faa6b24",
+      "name": "Isshin, Two Heavens as One",
+      "mana_cost": "{R}{W}{B}",
+      "cmc": 3,
+      "type_line": "Legendary Creature — Human Samurai",
+      "oracle_text": "If a creature attacking causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time.",
+      "colors": ["B", "R", "W"],
+      "color_identity": ["B", "R", "W"],
+      "keywords": [],
+      "power": "3",
+      "toughness": "4",
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "neo",
+      "set_name": "Kamigawa: Neon Dynasty",
+      "prices": { "usd": "3.94", "eur": "2.91" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
+      "games": ["paper", "mtgo", "arena"],
+      "edhrec_rank": 1469
+    },
+    {
+      "id": "99e0c371-1024-4432-9fd9-3bc29c8d38e4",
+      "oracle_id": "0fd114c4-092b-4e28-b0dc-ef529f3bc73e",
+      "name": "Jeska's Will",
+      "mana_cost": "{2}{R}",
+      "cmc": 3,
+      "type_line": "Sorcery",
+      "oracle_text": "Choose one. If you control a commander as you cast this spell, you may choose both instead.\n• Add {R} for each card in target opponent's hand.\n• Exile the top three cards of your library. You may play them this turn.",
+      "colors": ["R"],
+      "color_identity": ["R"],
+      "keywords": [],
+      "produced_mana": ["R"],
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "mkc",
+      "set_name": "Murders at Karlov Manor Commander",
+      "prices": { "usd": "41.84", "eur": "32.86" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
+      "games": ["paper", "mtgo"],
+      "edhrec_rank": 104
+    },
+    {
+      "id": "fa125071-ced8-4ccc-bbff-a2cbff13b9d2",
+      "oracle_id": "8959a147-75b1-4f4a-a699-cb354ff55e59",
+      "name": "Joraga Warcaller",
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "type_line": "Creature — Elf Warrior",
+      "oracle_text": "Multikicker {1}{G} (You may pay an additional {1}{G} any number of times as you cast this spell.)\nThis creature enters with a +1/+1 counter on it for each time it was kicked.\nOther Elf creatures you control get +1/+1 for each +1/+1 counter on this creature.",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": ["Multikicker"],
+      "power": "1",
+      "toughness": "1",
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "cma",
+      "set_name": "Commander Anthology",
+      "prices": { "usd": "12.53", "eur": "6.57" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "not_legal" },
+      "games": ["paper"],
+      "edhrec_rank": 4414
     },
     {
       "id": "d81c4b3f-81c2-403b-8a5d-c9415f73a1f9",
@@ -1346,6 +1610,27 @@
       "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
       "games": ["arena", "paper", "mtgo"],
       "edhrec_rank": 4029
+    },
+    {
+      "id": "2d35a710-3008-4e27-8afd-6e83329f9917",
+      "oracle_id": "ba48e067-f4d9-45b2-ade1-71cf8cda418c",
+      "name": "Kaito Shizuki",
+      "mana_cost": "{1}{U}{B}",
+      "cmc": 3,
+      "type_line": "Legendary Planeswalker — Kaito",
+      "oracle_text": "At the beginning of your end step, if Kaito entered this turn, he phases out.\n+1: Draw a card. Then discard a card unless you attacked this turn.\n−2: Create a 1/1 blue Ninja creature token with \"This token can't be blocked.\"\n−7: You get an emblem with \"Whenever a creature you control deals combat damage to a player, search your library for a blue or black creature card, put it onto the battlefield, then shuffle.\"",
+      "colors": ["B", "U"],
+      "color_identity": ["B", "U"],
+      "keywords": [],
+      "loyalty": "3",
+      "rarity": "mythic",
+      "layout": "normal",
+      "set": "neo",
+      "set_name": "Kamigawa: Neon Dynasty",
+      "prices": { "usd": "1.42", "eur": "1.65" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
+      "games": ["arena", "paper", "mtgo"],
+      "edhrec_rank": 6277
     },
     {
       "id": "ab56cedb-1bcd-48a5-8503-a8e324e236ad",
@@ -1412,6 +1697,28 @@
       "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
       "games": ["paper", "mtgo"],
       "edhrec_rank": 555
+    },
+    {
+      "id": "8d4e5480-a287-4a25-b855-a26dae555b1c",
+      "oracle_id": "9b568c34-ba0a-44a7-a0ee-bee3a37b3396",
+      "name": "Lathril, Blade of the Elves",
+      "mana_cost": "{2}{B}{G}",
+      "cmc": 4,
+      "type_line": "Legendary Creature — Elf Noble",
+      "oracle_text": "Menace (This creature can't be blocked except by two or more creatures.)\nWhenever Lathril deals combat damage to a player, create that many 1/1 green Elf Warrior creature tokens.\n{T}, Tap ten untapped Elves you control: Each opponent loses 10 life and you gain 10 life.",
+      "colors": ["B", "G"],
+      "color_identity": ["B", "G"],
+      "keywords": ["Menace"],
+      "power": "2",
+      "toughness": "3",
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "fdn",
+      "set_name": "Foundations",
+      "prices": { "usd": "1.70", "eur": "1.47" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
+      "games": ["paper", "arena", "mtgo"],
+      "edhrec_rank": 2006
     },
     {
       "id": "e16d52ca-f8de-4852-9bff-9d208e5f678f",
@@ -1810,6 +2117,26 @@
       "edhrec_rank": 1540
     },
     {
+      "id": "7afc4a15-5ff8-457a-aa62-803b2d78d912",
+      "oracle_id": "78826359-fe63-44ad-adc4-a17ffcd710e4",
+      "name": "Nature's Lore",
+      "mana_cost": "{1}{G}",
+      "cmc": 2,
+      "type_line": "Sorcery",
+      "oracle_text": "Search your library for a Forest card, put that card onto the battlefield, then shuffle.",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": [],
+      "rarity": "common",
+      "layout": "normal",
+      "set": "msc",
+      "set_name": "Marvel Super Heroes Commander",
+      "prices": { "usd": "2.04", "eur": "2.80" },
+      "legalities": { "commander": "legal", "paupercommander": "legal", "brawl": "not_legal" },
+      "games": ["paper", "mtgo"],
+      "edhrec_rank": 26
+    },
+    {
       "id": "4355ba23-de6a-4f18-baf4-82ae47cc2965",
       "oracle_id": "761ee6f9-b0fa-43c9-8d1f-9591ea18e52d",
       "name": "Necroblossom Snarl",
@@ -1871,6 +2198,26 @@
       "edhrec_rank": 2025
     },
     {
+      "id": "bbc99a51-1501-4525-a3cc-f48249b64bed",
+      "oracle_id": "713332c1-5bd8-400f-bfff-c1ca0697a043",
+      "name": "Opt",
+      "mana_cost": "{U}",
+      "cmc": 1,
+      "type_line": "Instant",
+      "oracle_text": "Scry 1. (Look at the top card of your library. You may put that card on the bottom.)\nDraw a card.",
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": ["Scry"],
+      "rarity": "common",
+      "layout": "normal",
+      "set": "tdc",
+      "set_name": "Tarkir: Dragonstorm Commander",
+      "prices": { "usd": "0.27", "eur": "0.19" },
+      "legalities": { "commander": "legal", "paupercommander": "legal", "brawl": "legal" },
+      "games": ["paper", "mtgo"],
+      "edhrec_rank": 218
+    },
+    {
       "id": "7c024bae-5631-4e20-ac69-df392ac9e109",
       "oracle_id": "ea5103f5-27e0-4eb1-902c-7f34652d6bf3",
       "name": "Orcish Bowmasters",
@@ -1891,6 +2238,27 @@
       "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
       "games": ["paper", "mtgo", "arena"],
       "edhrec_rank": 258
+    },
+    {
+      "id": "486d7edc-d983-41f0-8b78-c99aecd72996",
+      "oracle_id": "e9b6a394-691c-425a-9307-76d8edc7375e",
+      "name": "Otawara, Soaring City",
+      "mana_cost": "",
+      "cmc": 0,
+      "type_line": "Legendary Land",
+      "oracle_text": "{T}: Add {U}.\nChannel — {3}{U}, Discard this card: Return target artifact, creature, enchantment, or planeswalker to its owner's hand. This ability costs {1} less to activate for each legendary creature you control.",
+      "colors": [],
+      "color_identity": ["U"],
+      "keywords": ["Channel"],
+      "produced_mana": ["U"],
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "neo",
+      "set_name": "Kamigawa: Neon Dynasty",
+      "prices": { "usd": "26.05", "eur": "23.74" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
+      "games": ["paper", "mtgo", "arena"],
+      "edhrec_rank": 88
     },
     {
       "id": "ad7e18e2-c033-4b6c-86e8-d0e5cc824cfd",
@@ -1932,6 +2300,27 @@
       "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
       "games": ["paper", "mtgo"],
       "edhrec_rank": 15
+    },
+    {
+      "id": "95d9f93c-50a8-41a9-be98-d1900bf1c12f",
+      "oracle_id": "8d02b297-97c4-4379-9862-0a462400f66f",
+      "name": "Phyrexian Altar",
+      "mana_cost": "{3}",
+      "cmc": 3,
+      "type_line": "Artifact",
+      "oracle_text": "Sacrifice a creature: Add one mana of any color.",
+      "colors": [],
+      "color_identity": [],
+      "keywords": [],
+      "produced_mana": ["B", "G", "R", "U", "W"],
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "2x2",
+      "set_name": "Double Masters 2022",
+      "prices": { "usd": "58.22", "eur": "41.23" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "not_legal" },
+      "games": ["paper", "mtgo"],
+      "edhrec_rank": 310
     },
     {
       "id": "0b47f6d2-9f65-47a4-bfc4-15619befe53d",
@@ -2020,6 +2409,29 @@
       "games": ["paper", "mtgo", "arena"]
     },
     {
+      "id": "eb11921b-1b28-483f-a707-4de21a6daa31",
+      "oracle_id": "3a198a16-17b9-481e-b516-5bc945c7e247",
+      "name": "Priest of Titania",
+      "mana_cost": "{1}{G}",
+      "cmc": 2,
+      "type_line": "Creature — Elf Druid",
+      "oracle_text": "{T}: Add {G} for each Elf on the battlefield.",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": [],
+      "produced_mana": ["G"],
+      "power": "1",
+      "toughness": "1",
+      "rarity": "uncommon",
+      "layout": "normal",
+      "set": "mh3",
+      "set_name": "Modern Horizons 3",
+      "prices": { "usd": "1.77", "eur": "0.95" },
+      "legalities": { "commander": "legal", "paupercommander": "legal", "brawl": "legal" },
+      "games": ["paper", "mtgo", "arena"],
+      "edhrec_rank": 766
+    },
+    {
       "id": "69bf0bb7-3076-4dbf-a72e-4d91560be2fe",
       "oracle_id": "10180e2f-90c5-4d41-ba44-16b14948f923",
       "name": "Protean Hulk",
@@ -2040,6 +2452,26 @@
       "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "not_legal" },
       "games": ["paper", "mtgo"],
       "edhrec_rank": 2545
+    },
+    {
+      "id": "ccda5bda-5afd-4548-bd48-12c780bfa68b",
+      "oracle_id": "06692cd9-ac2f-4a32-8fd1-043ba3c0fe71",
+      "name": "Rapid Hybridization",
+      "mana_cost": "{U}",
+      "cmc": 1,
+      "type_line": "Instant",
+      "oracle_text": "Destroy target creature. It can't be regenerated. That creature's controller creates a 3/3 green Frog Lizard creature token.",
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": [],
+      "rarity": "uncommon",
+      "layout": "normal",
+      "set": "soc",
+      "set_name": "Secrets of Strixhaven Commander",
+      "prices": { "usd": "0.72", "eur": "1.31" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
+      "games": ["paper", "mtgo"],
+      "edhrec_rank": 208
     },
     {
       "id": "a4dfbac0-1849-41c5-853a-1fee108d0b01",
@@ -2230,6 +2662,28 @@
       "legalities": { "commander": "legal", "paupercommander": "legal", "brawl": "legal" },
       "games": ["paper", "mtgo"],
       "edhrec_rank": 1769
+    },
+    {
+      "id": "ac95b1c3-9eb2-4f80-bb32-72b36817d622",
+      "oracle_id": "ce19b337-9266-471d-bec3-49eb7f0e62ac",
+      "name": "Selfless Safewright",
+      "mana_cost": "{3}{G}{G}",
+      "cmc": 5,
+      "type_line": "Creature — Elf Warrior",
+      "oracle_text": "Flash\nConvoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)\nWhen this creature enters, choose a creature type. Other permanents you control of that type gain hexproof and indestructible until end of turn.",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": ["Flash", "Convoke"],
+      "power": "4",
+      "toughness": "2",
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "ecl",
+      "set_name": "Lorwyn Eclipsed",
+      "prices": { "usd": "1.09", "eur": "0.82" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
+      "games": ["paper", "arena", "mtgo"],
+      "edhrec_rank": 3964
     },
     {
       "id": "8b207a4a-47d1-4905-81d3-455c59bfd7da",
@@ -2573,6 +3027,26 @@
       "edhrec_rank": 12
     },
     {
+      "id": "2be8d24e-1370-4e85-90f2-66b6d6e9c4a4",
+      "oracle_id": "7a8baaf9-e21f-41a0-9f15-80764f6e5e68",
+      "name": "Sword of Truth and Justice",
+      "mana_cost": "{3}",
+      "cmc": 3,
+      "type_line": "Artifact — Equipment",
+      "oracle_text": "Equipped creature gets +2/+2 and has protection from white and from blue.\nWhenever equipped creature deals combat damage to a player, put a +1/+1 counter on a creature you control, then proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)\nEquip {2}",
+      "colors": [],
+      "color_identity": [],
+      "keywords": ["Proliferate", "Equip"],
+      "rarity": "mythic",
+      "layout": "normal",
+      "set": "mh1",
+      "set_name": "Modern Horizons",
+      "prices": { "usd": "33.77", "eur": "25.08" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
+      "games": ["paper", "mtgo"],
+      "edhrec_rank": 1692
+    },
+    {
       "id": "f7e12477-d59f-442b-a678-1be746d0b7be",
       "oracle_id": "b1544f21-7e98-461b-aed5-e748b0168c52",
       "name": "Swords to Plowshares",
@@ -2591,6 +3065,26 @@
       "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
       "games": ["paper", "mtgo"],
       "edhrec_rank": 11
+    },
+    {
+      "id": "6ada256f-2e55-4c1f-b4d3-d7b10b498956",
+      "oracle_id": "92eed395-62ca-4293-882b-8565c40daab5",
+      "name": "Sylvan Library",
+      "mana_cost": "{1}{G}",
+      "cmc": 2,
+      "type_line": "Enchantment",
+      "oracle_text": "At the beginning of your draw step, you may draw two additional cards. If you do, choose two cards in your hand drawn this turn. For each of those cards, pay 4 life or put the card on top of your library.",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": [],
+      "rarity": "mythic",
+      "layout": "normal",
+      "set": "dmr",
+      "set_name": "Dominaria Remastered",
+      "prices": { "usd": "29.00", "eur": "25.78" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
+      "games": ["paper", "mtgo"],
+      "edhrec_rank": 259
     },
     {
       "id": "443a4eac-f972-4027-aed4-552d4edc2ce1",
@@ -2676,6 +3170,48 @@
       "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
       "games": ["paper", "mtgo"],
       "edhrec_rank": 93
+    },
+    {
+      "id": "1be3ed47-072e-481a-b3d9-dc232ac4b24f",
+      "oracle_id": "ea1eb902-a23c-44ff-9169-19baf71de238",
+      "name": "Talrand, Sky Summoner",
+      "mana_cost": "{2}{U}{U}",
+      "cmc": 4,
+      "type_line": "Legendary Creature — Merfolk Wizard",
+      "oracle_text": "Whenever you cast an instant or sorcery spell, create a 2/2 blue Drake creature token with flying.",
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": [],
+      "power": "2",
+      "toughness": "2",
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "otc",
+      "set_name": "Outlaws of Thunder Junction Commander",
+      "prices": { "usd": "1.88", "eur": "0.56" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
+      "games": ["paper", "mtgo"],
+      "edhrec_rank": 790
+    },
+    {
+      "id": "483fa1cb-1e35-44f2-a143-98c0f107f5ca",
+      "oracle_id": "0d4ecdb1-ec90-497f-a7a4-1c68092b8757",
+      "name": "Teferi's Protection",
+      "mana_cost": "{2}{W}",
+      "cmc": 3,
+      "type_line": "Instant",
+      "oracle_text": "Until your next turn, your life total can't change and you gain protection from everything. All permanents you control phase out. (While they're phased out, they're treated as though they don't exist. They phase in before you untap during your untap step.)\nExile Teferi's Protection.",
+      "colors": ["W"],
+      "color_identity": ["W"],
+      "keywords": [],
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "2x2",
+      "set_name": "Double Masters 2022",
+      "prices": { "usd": "48.68", "eur": "37.46" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
+      "games": ["paper", "mtgo"],
+      "edhrec_rank": 109
     },
     {
       "id": "1ca36218-db87-4e44-8606-2a516504ed20",
@@ -2879,6 +3415,26 @@
       "edhrec_rank": 355
     },
     {
+      "id": "10e35711-aec9-4024-a2a6-9efff8c71df2",
+      "oracle_id": "44f3241f-af82-4f2e-b15d-7f279bf6e816",
+      "name": "Umbral Mantle",
+      "mana_cost": "{3}",
+      "cmc": 3,
+      "type_line": "Artifact — Equipment",
+      "oracle_text": "Equipped creature has \"{3}, {Q}: This creature gets +2/+2 until end of turn.\" ({Q} is the untap symbol.)\nEquip {0}",
+      "colors": [],
+      "color_identity": [],
+      "keywords": ["Equip"],
+      "rarity": "uncommon",
+      "layout": "normal",
+      "set": "shm",
+      "set_name": "Shadowmoor",
+      "prices": { "usd": "11.92", "eur": "6.03" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "not_legal" },
+      "games": ["paper", "mtgo"],
+      "edhrec_rank": 2296
+    },
+    {
       "id": "f25aa8aa-e2f7-4634-8a96-2082e76c6503",
       "oracle_id": "7c69f718-acc8-4851-8e5d-0cbaaa86192c",
       "name": "Undergrowth Stadium",
@@ -3047,6 +3603,26 @@
       "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "legal" },
       "games": ["paper", "mtgo", "arena"],
       "edhrec_rank": 415
+    },
+    {
+      "id": "dc468f97-08f7-4103-898f-b14fa61b99bc",
+      "oracle_id": "54748cb1-d92a-4212-ad76-417ee79b5ef1",
+      "name": "Wash Out",
+      "mana_cost": "{3}{U}",
+      "cmc": 4,
+      "type_line": "Sorcery",
+      "oracle_text": "Return all permanents of the color of your choice to their owners' hands.",
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": [],
+      "rarity": "uncommon",
+      "layout": "normal",
+      "set": "2x2",
+      "set_name": "Double Masters 2022",
+      "prices": { "usd": "0.40", "eur": "0.31" },
+      "legalities": { "commander": "legal", "paupercommander": "not_legal", "brawl": "not_legal" },
+      "games": ["paper", "mtgo"],
+      "edhrec_rank": 5375
     },
     {
       "id": "a8c6ee26-fa74-4859-9a94-89b476d218d2",
@@ -4752,6 +5328,7 @@
     "Carrion Feeder": 613,
     "Cauldron of Essence": 2193,
     "Command Tower": 2,
+    "Crop Rotation": 214,
     "Cultivate": 20,
     "Deathcap Glade": 345,
     "Deathrite Shaman": 610,
@@ -4764,6 +5341,7 @@
     "Eternal Witness": 119,
     "Exotic Orchard": 9,
     "Fleshbag Marauder": 808,
+    "Golgari Charm": 1616,
     "Golgari Germination": 8083,
     "Golgari Rot Farm": 335,
     "Grave Pact": 580,
@@ -4783,10 +5361,12 @@
     "Mikaeus, the Unhallowed": 1316,
     "Morbid Opportunist": 249,
     "Natural Order": 1540,
+    "Nature's Lore": 26,
     "Necroblossom Snarl": 532,
     "Necromancy": 1023,
     "Orcish Bowmasters": 258,
     "Overgrown Tomb": 71,
+    "Phyrexian Altar": 310,
     "Phyrexian Tower": 194,
     "Pitiless Plunderer": 225,
     "Plaguecrafter": 639,
@@ -4806,6 +5386,7 @@
     "Spore Frog": 1139,
     "Strionic Resonator": 600,
     "Swiftfoot Boots": 12,
+    "Sylvan Library": 259,
     "Syr Konrad, the Grim": 260,
     "Tainted Wood": 437,
     "Takenuma, Abandoned Mire": 244,
@@ -4861,7 +5442,6 @@
     "Acidic Slime": 1504,
     "Ancient Tomb": 68,
     "Myriad Landscape": 31,
-    "Crop Rotation": 214,
     "Windswept Heath": 45,
     "Bolas's Citadel": 271,
     "Sidisi, Undead Vizier": 2836,
@@ -4912,7 +5492,6 @@
     "Grim Haruspex": 1142,
     "Cabal Coffers": 198,
     "Beast Within": 25,
-    "Nature's Lore": 26,
     "Junji, the Midnight Sky": 1231,
     "Shifting Woodland": 360,
     "Dictate of Erebos": 1024,
@@ -4921,12 +5500,10 @@
     "Underground Mortuary": 480,
     "Rampant Growth": 27,
     "Jarad, Golgari Lich Lord": 1815,
-    "Phyrexian Altar": 310,
     "Yavimaya, Cradle of Growth": 78,
     "Nurturing Peatland": 1609,
     "Disciple of Bolas": 1517,
     "The Soul Stone": 916,
-    "Sylvan Library": 259,
     "Jarad's Orders": 5722,
     "Noxious Revival": 627,
     "Thought Vessel": 21,
@@ -4970,7 +5547,6 @@
     "Phyrexian Arena": 103,
     "Saw in Half": 581,
     "Polluted Delta": 36,
-    "Golgari Charm": 1616,
     "Dauthi Voidwalker": 392,
     "Rogue's Passage": 18,
     "Birthing Pod": 2051,
@@ -5106,6 +5682,14 @@
         "lift": 2.7370582459438033,
         "coPlayPct": 18,
         "numDecks": 14887,
+        "potentialDecks": 85039,
+        "lowSample": false
+      },
+      {
+        "name": "Phyrexian Altar",
+        "lift": 2.694136001829057,
+        "coPlayPct": 12,
+        "numDecks": 10507,
         "potentialDecks": 85039,
         "lowSample": false
       },
@@ -5398,6 +5982,14 @@
         "lowSample": false
       },
       {
+        "name": "Golgari Charm",
+        "lift": 0.9469151575141591,
+        "coPlayPct": 4,
+        "numDecks": 3728,
+        "potentialDecks": 85039,
+        "lowSample": false
+      },
+      {
         "name": "Doubling Season",
         "lift": 0.9374399054173119,
         "coPlayPct": 9,
@@ -5438,6 +6030,14 @@
         "lowSample": false
       },
       {
+        "name": "Crop Rotation",
+        "lift": 0.8319256837034822,
+        "coPlayPct": 8,
+        "numDecks": 6662,
+        "potentialDecks": 85039,
+        "lowSample": false
+      },
+      {
         "name": "Swiftfoot Boots",
         "lift": 0.8287999971635358,
         "coPlayPct": 16,
@@ -5450,6 +6050,14 @@
         "lift": 0.8130415363131555,
         "coPlayPct": 14,
         "numDecks": 11919,
+        "potentialDecks": 85039,
+        "lowSample": false
+      },
+      {
+        "name": "Nature's Lore",
+        "lift": 0.8071353422422856,
+        "coPlayPct": 23,
+        "numDecks": 19860,
         "potentialDecks": 85039,
         "lowSample": false
       },
@@ -5470,10 +6078,42 @@
         "lowSample": false
       },
       {
+        "name": "Deflecting Swat",
+        "lift": 0.7865165333923788,
+        "coPlayPct": 10,
+        "numDecks": 2345,
+        "potentialDecks": 23809,
+        "lowSample": false
+      },
+      {
+        "name": "Teferi's Protection",
+        "lift": 0.7305779119736223,
+        "coPlayPct": 10,
+        "numDecks": 1892,
+        "potentialDecks": 18802,
+        "lowSample": false
+      },
+      {
         "name": "Cyclonic Rift",
         "lift": 0.6345827614606827,
         "coPlayPct": 11,
         "numDecks": 4325,
+        "potentialDecks": 40786,
+        "lowSample": false
+      },
+      {
+        "name": "Sylvan Library",
+        "lift": 0.6265857286859153,
+        "coPlayPct": 5,
+        "numDecks": 4043,
+        "potentialDecks": 85039,
+        "lowSample": false
+      },
+      {
+        "name": "Otawara, Soaring City",
+        "lift": 0.624850681156153,
+        "coPlayPct": 7,
+        "numDecks": 2768,
         "potentialDecks": 40786,
         "lowSample": false
       },
@@ -5526,6 +6166,14 @@
         "lowSample": false
       },
       {
+        "name": "Gaea's Cradle",
+        "lift": 0.5114895603443733,
+        "coPlayPct": 3,
+        "numDecks": 2245,
+        "potentialDecks": 85039,
+        "lowSample": false
+      },
+      {
         "name": "Rhystic Study",
         "lift": 0.501646719331207,
         "coPlayPct": 10,
@@ -5547,6 +6195,14 @@
         "coPlayPct": 1,
         "numDecks": 496,
         "potentialDecks": 85039,
+        "lowSample": false
+      },
+      {
+        "name": "Enlightened Tutor",
+        "lift": 0.3572407903514472,
+        "coPlayPct": 5,
+        "numDecks": 851,
+        "potentialDecks": 18802,
         "lowSample": false
       },
       {
@@ -5792,6 +6448,14 @@
         "lowSample": false
       },
       {
+        "name": "Phyrexian Altar",
+        "lift": 2.9323791328635473,
+        "coPlayPct": 8,
+        "numDecks": 10839,
+        "potentialDecks": 136342,
+        "lowSample": false
+      },
+      {
         "name": "Liliana, Dreadhorde General",
         "lift": 2.8425739619491046,
         "coPlayPct": 6,
@@ -5861,6 +6525,14 @@
         "coPlayPct": 32,
         "numDecks": 23222,
         "potentialDecks": 71904,
+        "lowSample": false
+      },
+      {
+        "name": "Rapid Hybridization",
+        "lift": 1.927635046356839,
+        "coPlayPct": 16,
+        "numDecks": 11015,
+        "potentialDecks": 69911,
         "lowSample": false
       },
       {
@@ -6112,6 +6784,22 @@
         "lowSample": false
       },
       {
+        "name": "Teferi's Protection",
+        "lift": 0.8260454927609581,
+        "coPlayPct": 12,
+        "numDecks": 5551,
+        "potentialDecks": 46012,
+        "lowSample": false
+      },
+      {
+        "name": "Sylvan Library",
+        "lift": 0.8220475168702612,
+        "coPlayPct": 7,
+        "numDecks": 9795,
+        "potentialDecks": 136342,
+        "lowSample": false
+      },
+      {
         "name": "Rhystic Study",
         "lift": 0.799576958638732,
         "coPlayPct": 16,
@@ -6136,10 +6824,34 @@
         "lowSample": false
       },
       {
+        "name": "Otawara, Soaring City",
+        "lift": 0.7497055868003241,
+        "coPlayPct": 10,
+        "numDecks": 7185,
+        "potentialDecks": 69911,
+        "lowSample": false
+      },
+      {
+        "name": "Crop Rotation",
+        "lift": 0.7444305747273192,
+        "coPlayPct": 7,
+        "numDecks": 9963,
+        "potentialDecks": 136342,
+        "lowSample": false
+      },
+      {
         "name": "Worldly Tutor",
         "lift": 0.677563313804773,
         "coPlayPct": 8,
         "numDecks": 10537,
+        "potentialDecks": 136342,
+        "lowSample": false
+      },
+      {
+        "name": "Nature's Lore",
+        "lift": 0.6733789229781503,
+        "coPlayPct": 21,
+        "numDecks": 29282,
         "potentialDecks": 136342,
         "lowSample": false
       },
@@ -6152,11 +6864,35 @@
         "lowSample": false
       },
       {
+        "name": "Deflecting Swat",
+        "lift": 0.6659712834066517,
+        "coPlayPct": 10,
+        "numDecks": 1872,
+        "potentialDecks": 19137,
+        "lowSample": false
+      },
+      {
         "name": "Gilded Lotus",
         "lift": 0.6124355274802008,
         "coPlayPct": 1,
         "numDecks": 1389,
         "potentialDecks": 136342,
+        "lowSample": false
+      },
+      {
+        "name": "Jeska's Will",
+        "lift": 0.5550541967228758,
+        "coPlayPct": 5,
+        "numDecks": 889,
+        "potentialDecks": 19137,
+        "lowSample": false
+      },
+      {
+        "name": "Enlightened Tutor",
+        "lift": 0.5534457998283633,
+        "coPlayPct": 7,
+        "numDecks": 3307,
+        "potentialDecks": 46012,
         "lowSample": false
       },
       {
@@ -6173,6 +6909,14 @@
         "coPlayPct": 8,
         "numDecks": 5604,
         "potentialDecks": 69911,
+        "lowSample": false
+      },
+      {
+        "name": "Gaea's Cradle",
+        "lift": 0.45781991252132326,
+        "coPlayPct": 3,
+        "numDecks": 3783,
+        "potentialDecks": 136342,
         "lowSample": false
       },
       {
@@ -6430,6 +7174,14 @@
         "lift": 3.1131890827551416,
         "coPlayPct": 20,
         "numDecks": 41663,
+        "potentialDecks": 210174,
+        "lowSample": false
+      },
+      {
+        "name": "Phyrexian Altar",
+        "lift": 2.9744938209408427,
+        "coPlayPct": 17,
+        "numDecks": 36454,
         "potentialDecks": 210174,
         "lowSample": false
       },
@@ -6714,6 +7466,14 @@
         "lowSample": false
       },
       {
+        "name": "Sylvan Library",
+        "lift": 1.0344357282204213,
+        "coPlayPct": 8,
+        "numDecks": 4662,
+        "potentialDecks": 59372,
+        "lowSample": false
+      },
+      {
         "name": "Sol Ring",
         "lift": 1.0148228897427964,
         "coPlayPct": 86,
@@ -6778,6 +7538,14 @@
         "lowSample": false
       },
       {
+        "name": "Otawara, Soaring City",
+        "lift": 0.8419898010648387,
+        "coPlayPct": 12,
+        "numDecks": 4693,
+        "potentialDecks": 37560,
+        "lowSample": false
+      },
+      {
         "name": "Rhystic Study",
         "lift": 0.8328462895347424,
         "coPlayPct": 19,
@@ -6802,6 +7570,14 @@
         "lowSample": false
       },
       {
+        "name": "Nature's Lore",
+        "lift": 0.7371351025228383,
+        "coPlayPct": 21,
+        "numDecks": 12661,
+        "potentialDecks": 59372,
+        "lowSample": false
+      },
+      {
         "name": "Fierce Guardianship",
         "lift": 0.7125301897859969,
         "coPlayPct": 12,
@@ -6810,11 +7586,35 @@
         "lowSample": false
       },
       {
+        "name": "Teferi's Protection",
+        "lift": 0.7025678442572012,
+        "coPlayPct": 11,
+        "numDecks": 4001,
+        "potentialDecks": 37855,
+        "lowSample": false
+      },
+      {
         "name": "Command Tower",
         "lift": 0.6908964727937201,
         "coPlayPct": 57,
         "numDecks": 119913,
         "potentialDecks": 210174,
+        "lowSample": false
+      },
+      {
+        "name": "Jeska's Will",
+        "lift": 0.6855232620210416,
+        "coPlayPct": 8,
+        "numDecks": 3132,
+        "potentialDecks": 40728,
+        "lowSample": false
+      },
+      {
+        "name": "Deflecting Swat",
+        "lift": 0.6799034757342839,
+        "coPlayPct": 11,
+        "numDecks": 4625,
+        "potentialDecks": 40728,
         "lowSample": false
       },
       {

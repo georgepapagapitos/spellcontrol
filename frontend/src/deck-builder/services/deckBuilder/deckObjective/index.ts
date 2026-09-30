@@ -43,12 +43,15 @@
  *   nonbo        hard nonbos and qualified payoffs (coherence audit) and a
  *                graded cost for symmetric wipes on the deck's own board.
  *   winline      finishers and win combos, timed by the assembly clock.
- *   ownership    collection builds: buy cost at the strategy's dollar rate,
- *                plus an owned-card bonus under "Lean on mine".
+ *   ownership    collection builds: the price bar an unowned card must
+ *                clear, plus an owned-card bonus under "Lean on mine".
+ *   tutors       each tutor at the best card it can find in this deck.
+ *   engines      repeating card draw, apart from one-shot draw.
  *
  * Hard constraints (constraints.ts): size, singleton, identity, legality,
  * bans, must-includes, card price and budget, rarity, Tiny Leaders, Arena,
- * Game Changer limit, bracket ceilings, owned-only and owned-share.
+ * Game Changer limit, bracket ceilings and the combo floor, owned-only and
+ * owned-share.
  */
 import { checkConstraints } from './constraints';
 import { qualityTerm, signatureTerm } from './terms/quality';
@@ -61,6 +64,8 @@ import { liftTerm, synergyTerm } from './terms/synergy';
 import { nonboTerm } from './terms/nonbo';
 import { winlineTerm } from './terms/winline';
 import { ownershipTerm } from './terms/ownership';
+import { tutorsTerm } from './terms/tutors';
+import { enginesTerm } from './terms/engines';
 import { finishTerm, type TermFn } from './terms/shared';
 import {
   TERM_KEYS,
@@ -95,6 +100,8 @@ export const TERMS: Readonly<Record<TermKey, TermFn>> = {
   nonbo: nonboTerm,
   winline: winlineTerm,
   ownership: ownershipTerm,
+  tutors: tutorsTerm,
+  engines: enginesTerm,
 };
 
 /** Score a deck under a context. See the header for the contract. */

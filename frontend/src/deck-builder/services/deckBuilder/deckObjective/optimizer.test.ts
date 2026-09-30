@@ -5,7 +5,8 @@
 import { describe, expect, it } from 'vitest';
 import { checkConstraints } from './index';
 import { cardIneligibility } from './constraints';
-import { STAPLE_ROCKS, optimizeDeck } from './optimizer';
+import { MAX_SWAPS, MIN_GAIN, STAPLE_ROCKS, judgeSwap, optimizeDeck } from './optimizer';
+import { reasonProblem } from './reasonCheck';
 import { STAPLE_ROCK_NAMES } from '../deckGeneration/phaseStapleManaRocks';
 import { BASELINE, FIX, TREATMENT, card, cards, merenCtx } from './__fixtures__/objectiveFixture';
 
@@ -23,11 +24,37 @@ describe('optimizeDeck', () => {
     expect(result.score.total).toBeGreaterThan(result.seedScore.total);
     expect(result.swaps.length).toBeGreaterThan(0);
     for (const s of result.swaps) {
-      expect(s.delta).toBeGreaterThan(0);
+      // Every kept swap pays its margin in the FINAL deck, not just when made.
+      expect(s.delta).toBeGreaterThanOrEqual(MIN_GAIN);
       expect(s.in.length).toBe(s.out.length);
       expect(s.reasons.some((r) => s.in.includes(r.name))).toBe(true);
       expect(s.summary).toContain(s.in[0]);
     }
+  });
+
+  it('states only reasons the final deck and the cards bear out', () => {
+    for (const s of result.swaps) {
+      for (const r of s.reasons.filter((x) => s.in.includes(x.name))) {
+        expect(reasonProblem(r, result.deck, ctx), `${r.name}: ${r.note}`).toBeNull();
+      }
+    }
+  });
+
+  it('makes a few swaps by default, not a rebuild', () => {
+    const r = optimizeDeck(TREATMENT, pool(), ctx, { maxEvaluations: 60, shortlist: 12 });
+    expect(r.swaps.length).toBeLessThanOrEqual(MAX_SWAPS);
+  });
+
+  it("refuses a swap outside the trust region, which the first gate's rule took", () => {
+    // Meren's Mikaeus combos: Vampiric Tutor finds a piece, so it stays.
+    const legacy = judgeSwap(BASELINE, ['Vampiric Tutor'], [card('Grave Pact')], ctx, {
+      trust: false,
+      minGain: 0.1,
+    });
+    const now = judgeSwap(BASELINE, ['Vampiric Tutor'], [card('Grave Pact')], ctx);
+    expect(now.accepted).toBe(false);
+    expect(now.refusal).toMatch(/tutor that finds/);
+    expect(legacy.accepted).toBe(true);
   });
 
   it('puts back what the differ said was lost', () => {
@@ -71,6 +98,8 @@ describe('optimizeDeck', () => {
     });
     expect(r.swaps[0]).toMatchObject({ kind: 'combo' });
     expect(r.swaps[0].in.sort()).toEqual(['Hermit Druid', "Thassa's Oracle"]);
+    // The two cards it made room with were ones the trust region lets go.
+    for (const n of r.swaps[0].out) expect(['Vampiric Tutor', 'Worldly Tutor']).not.toContain(n);
   });
 
   it('never adds a card it cannot price under a budget', () => {
@@ -138,5 +167,32 @@ describe('optimizeDeck', () => {
       maxSwaps: 1,
     });
     expect(r.swaps[0]).toMatchObject({ out: ['Skullclamp'], in: ['Grave Pact'], kind: 'repair' });
+  });
+
+  it('repairs a broken constraint however many swaps it takes, beyond the swap cap', () => {
+    const extras = TREATMENT.cards.filter(
+      (c) => !BASELINE.cards.some((b) => b.name === c.name) && !/Land/.test(c.type_line)
+    );
+    const unowned = BASELINE.cards
+      .filter((c) => !/Land/.test(c.type_line) && !['Sol Ring', 'Arcane Signet'].includes(c.name))
+      .slice(0, 6)
+      .map((c) => c.name);
+    const owned = new Set([
+      ...BASELINE.cards.map((c) => c.name).filter((n) => !unowned.includes(n)),
+      ...extras.map((c) => c.name),
+    ]);
+    const c = merenCtx({
+      customization: {
+        deckFormat: 99,
+        currency: 'USD',
+        collectionMode: true,
+        collectionStrategy: 'full',
+      },
+      ownedNames: owned,
+    });
+    expect(extras.length).toBeGreaterThanOrEqual(6);
+    const r = optimizeDeck(BASELINE, extras, c, { ...SMALL, maxSwaps: 1, maxEvaluations: 60 });
+    expect(r.swaps.filter((s) => s.kind === 'repair').length).toBe(6);
+    expect(r.score.violations).toEqual([]);
   });
 });

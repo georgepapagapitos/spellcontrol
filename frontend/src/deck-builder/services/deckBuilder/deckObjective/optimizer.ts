@@ -1,34 +1,44 @@
 /**
- * The whole-deck search (E513, slice 2): start from a finished deck (the
- * generator's) and improve it one swap at a time, every swap judged against
- * the WHOLE deck by the objective, hard constraints enforced on every move.
- * Generation-inert: nothing in the generator calls it yet.
+ * The whole-deck search (E513): start from a finished deck (the generator's)
+ * and improve it a few swaps at a time, every swap judged against the WHOLE
+ * deck by the objective, hard constraints enforced on every move, and every
+ * move kept inside a trust region (trustRegion.ts). Generation-inert:
+ * nothing in the generator calls it yet.
  *
  *   optimizeDeck(seed, candidates, ctx, opts) → { deck, score, swaps, ... }
  *
+ * DO NO HARM. The first gate of this search (2026-09-29, the standard 15)
+ * regressed 13 decks: with 25 swaps a deck and a 0.1 margin, it found the
+ * cards the score misreads and traded them away. So now:
+ *  - at most MAX_SWAPS (5) swaps besides repairs, each gaining MIN_GAIN (0.3 card-
+ *    equivalents, twice the goldfish's per-swap noise) plus a margin for
+ *    every point of page popularity it gives up;
+ *  - protected cards (combo pieces, their tutors, protection, Game
+ *    Changers, staples) leave only for a card played at least as often;
+ *  - no swap takes a role below its target;
+ *  - after the search, every swap is re-judged in the FINAL deck and undone
+ *    when it no longer pays its margin there, and every swap's reasons are
+ *    read from the final deck, so a reason never names a card a later swap
+ *    removed.
+ *
  * Moves: 1:1 swaps within a slot class (a spell for a spell, a nonbasic land
  * for a nonbasic land, a basic for a basic, so the land count and the
- * nonbasic count the plan chose stay put: on a first run, with lands one
- * class, the search traded fourteen of Meren's Swamps for utility lands), and
- * 2:2 swaps that seat both missing pieces of a two-piece combo from the
- * context's combo set.
- * Protected: the commander (never in the 99), must-includes, the staple rocks
- * every phase of the generator protects by name (Sol Ring, Arcane Signet), and
- * `locks`.
+ * nonbasic count the plan chose stay put), and 2:2 swaps that seat both
+ * missing pieces of a two-piece combo from the context's combo set.
+ * Never moved: the commander (never in the 99), must-includes, the staple
+ * rocks every phase of the generator protects by name (Sol Ring, Arcane
+ * Signet), and `locks`.
  *
  * Search: first-improvement hill climbing, cheapest-to-judge first.
  *  1. Every removable card's loss and every candidate's gain are read with the
- *     FAST terms (all but the two simulated ones, mana and winline): the
- *     score of the deck without the card, and with the candidate added.
- *  2. Pairs are ranked by gain − loss, and the best SHORTLIST are checked
- *     exactly with the fast terms, in order; a pair that clears FAST_GATE is
- *     scored in full (both simulations, the library laid out in the current
- *     deck's slots, so the two decks play the same shuffled positions), and
- *     the first whose full gain clears `minGain` is applied.
- *  3. When nothing clears it (a local optimum), up to `escapes` times the best
- *     fully scored move that costs less than `escapeTolerance` is applied
- *     anyway, and the search goes on. A tabu list stops the next TABU_TENURE
- *     swaps from undoing a move. The best deck ever seen is returned.
+ *     FAST terms (all but the two simulated ones, mana and winline).
+ *  2. Pairs are ranked by gain − loss; the best `shortlist` inside the trust
+ *     region are checked with the fast terms, and a pair that clears FAST_GATE
+ *     of its margin is scored in full (both simulations, the library laid out
+ *     in the current deck's slots, so the two decks play the same shuffled
+ *     positions). The first whose full gain clears its margin is applied.
+ *  3. While the deck breaks a hard constraint, moves that repair it come
+ *     first and are taken whatever they cost (a constraint is the user's).
  *
  * Deterministic: every ordering breaks ties by name, the goldfish seeds are
  * the context's, and the budgets count evaluations, not milliseconds. The
@@ -41,7 +51,15 @@ import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 import { normalizeCardName } from '../cardIdentity';
 import { cardIneligibility, checkConstraints } from './constraints';
 import { isBasicLand, isLandCard } from './context';
+import { reasonProblem } from './reasonCheck';
 import { TERMS, compareScores, infeasibility, scoreDeck, termDeltas } from './index';
+import {
+  countRoles,
+  factsRoleOf,
+  protectedCards,
+  trustVerdict,
+  type TrustOptions,
+} from './trustRegion';
 import {
   TERM_KEYS,
   type ObjectiveContext,
@@ -57,15 +75,15 @@ export const FAST_TERMS: readonly TermKey[] = TERM_KEYS.filter((k) => !SLOW_TERM
 export interface OptimizeOptions {
   /** Card names that must stay (in addition to the customization's must-includes). */
   locks?: readonly string[];
-  /** Stop after this many applied swaps. Default 25. */
+  /** Stop after this many applied swaps, repairs of a broken constraint not counted. Default MAX_SWAPS. */
   maxSwaps?: number;
   /** Stop after this many FULL scores (the expensive evaluations). Default 300. */
   maxEvaluations?: number;
-  /** A move must gain at least this much, in card-equivalents. Default 0.1: above the mana term's per-swap noise with common random numbers. */
+  /** A move must gain at least this much, in card-equivalents. Default MIN_GAIN. */
   minGain?: number;
   /** Fast-judged pairs per step. Default 40. */
   shortlist?: number;
-  /** Local-optimum escapes. Default 2. */
+  /** Local-optimum escapes. Default 0 (a trust region doesn't wander). */
   escapes?: number;
   /** An escape may cost at most this much. Default 0.3. */
   escapeTolerance?: number;
@@ -75,6 +93,8 @@ export interface OptimizeOptions {
   comboPairs?: boolean;
   /** Safety cap in milliseconds. Default 10 minutes. */
   timeBudgetMs?: number;
+  /** The trust region's settings, or false to search without it (the first gate's search). */
+  trust?: TrustOptions | false;
 }
 
 export interface SwapReason {
@@ -89,11 +109,11 @@ export interface AppliedSwap {
   in: string[];
   /** repair: taken because it breaks a hard constraint less, whatever it costs. */
   kind: 'improve' | 'combo' | 'escape' | 'repair';
-  /** Total change in the score (full, with the simulations). */
+  /** What the swap is worth in the returned deck: its score minus the same deck with this swap undone. */
   delta: number;
-  /** Each term's contribution change. */
+  /** Each term's contribution change, read the same way. */
   terms: Record<TermKey, number>;
-  /** The per-card notes behind the change: what the cards in did, what the cards out had done. */
+  /** The per-card notes behind the change, read from the returned deck. */
   reasons: SwapReason[];
   /** One line. */
   summary: string;
@@ -104,17 +124,31 @@ export interface OptimizeResult {
   score: ObjectiveScore;
   seedScore: ObjectiveScore;
   swaps: AppliedSwap[];
+  /** Swaps the search made and then undid: the final deck no longer paid their margin. */
+  undone: Array<Pick<AppliedSwap, 'out' | 'in' | 'delta'> & { why: string }>;
+  /** Reasons dropped from kept swaps because the deck or the cards' text don't bear them out. */
+  unverified: Array<{ name: string; term: TermKey; note: string; problem: string }>;
+  /** Moves the trust region refused, by what it protected. */
+  refusals: Record<string, number>;
   evaluations: { fast: number; full: number };
   stoppedBy: 'local-optimum' | 'max-swaps' | 'max-evaluations' | 'time' | 'no-candidates';
   ms: number;
 }
 
+/** Swaps a deck. Five: a finished deck needs a few corrections, not a rebuild. */
+export const MAX_SWAPS = 5;
+/**
+ * The margin a swap must clear, in card-equivalents: about twice the mana
+ * term's standard deviation on a one-card swap with common random numbers
+ * (0.155, context.ts), so a swap is never taken on goldfish noise.
+ */
+export const MIN_GAIN = 0.3;
 const DEFAULTS = {
-  maxSwaps: 25,
+  maxSwaps: MAX_SWAPS,
   maxEvaluations: 300,
-  minGain: 0.1,
+  minGain: MIN_GAIN,
   shortlist: 40,
-  escapes: 2,
+  escapes: 0,
   escapeTolerance: 0.3,
   tabuTenure: 6,
   comboPairs: true,
@@ -128,7 +162,7 @@ const DEFAULTS = {
  */
 export const STAPLE_ROCKS: readonly string[] = ['Sol Ring', 'Arcane Signet'];
 
-/** A pair is scored in full once its fast gain reaches this share of `minGain`. */
+/** A pair is scored in full once its fast gain reaches this share of its margin. */
 const FAST_GATE = 0.5;
 /** Constraint checks allowed per shortlist slot before a step gives up. */
 const CHECKS_PER_SLOT = 25;
@@ -195,6 +229,21 @@ function summaryOf(swap: Omit<AppliedSwap, 'summary'>): string {
   return `${swap.in.join(' + ')} for ${swap.out.join(' + ')}: ${swap.delta >= 0 ? '+' : ''}${swap.delta.toFixed(2)} (${top.join(', ')})`;
 }
 
+/** The report's role counter, memoized by name (it is asked about the same cards every step). */
+function memoRoleOf(
+  roleOf: (card: ScryfallCard) => string | null
+): (card: ScryfallCard) => string | null {
+  const memo = new Map<string, string | null>();
+  return (card) => {
+    let r = memo.get(card.name);
+    if (r === undefined) {
+      r = roleOf(card);
+      memo.set(card.name, r);
+    }
+    return r;
+  };
+}
+
 export function optimizeDeck(
   seed: ObjectiveDeck,
   candidates: readonly ScryfallCard[],
@@ -202,6 +251,8 @@ export function optimizeDeck(
   options: OptimizeOptions = {}
 ): OptimizeResult {
   const opts = { ...DEFAULTS, ...options };
+  const trust = opts.trust === false ? null : (opts.trust ?? {});
+  const roleOf = memoRoleOf(trust?.roleOf ?? factsRoleOf(baseCtx));
   const t0 = Date.now();
   const cz = baseCtx.customization;
   // A staple rock yields to the user's ownership rule only where an unowned
@@ -246,9 +297,9 @@ export function optimizeDeck(
   });
   let ctx = withSlots(current);
   const evaluations = { fast: 0, full: 0 };
-  const full = (deck: ObjectiveDeck) => {
+  const full = (deck: ObjectiveDeck, c: ObjectiveContext = ctx) => {
     evaluations.full++;
-    return scoreDeck(deck, ctx);
+    return scoreDeck(deck, c);
   };
   const fast = (deck: ObjectiveDeck) => {
     evaluations.fast++;
@@ -258,7 +309,8 @@ export function optimizeDeck(
   const seedScore = full(current);
   let currentScore = seedScore;
   let best = { deck: current, score: currentScore };
-  const swaps: AppliedSwap[] = [];
+  const applied: Array<{ out: ScryfallCard[]; in: ScryfallCard[]; kind: AppliedSwap['kind'] }> = [];
+  const refusals: Record<string, number> = {};
   const tabuOut = new Map<string, number>(); // key -> swap index until which it can't leave
   const tabuIn = new Map<string, number>(); // key -> swap index until which it can't return
   let escapesLeft = opts.escapes;
@@ -266,7 +318,9 @@ export function optimizeDeck(
   if (pool.length === 0) stoppedBy = 'no-candidates';
 
   while (pool.length > 0) {
-    if (swaps.length >= opts.maxSwaps) {
+    // Repairs don't count: a broken constraint is fixed however many swaps
+    // it takes (an owned-only build can start six cards out of its pool).
+    if (applied.filter((a) => a.kind !== 'repair').length >= opts.maxSwaps) {
       stoppedBy = 'max-swaps';
       break;
     }
@@ -278,9 +332,11 @@ export function optimizeDeck(
       stoppedBy = 'time';
       break;
     }
-    const step = swaps.length;
+    const step = applied.length;
     const inDeck = new Set(current.cards.map((c) => key(c.name)));
     const fastNow = fast(current);
+    const protectedNow = trust ? protectedCards(current, ctx, trust.stapleBar) : new Map();
+    const rolesNow = trust ? countRoles(current, roleOf) : {};
 
     // 1. What each removable card is worth here, and what each candidate would add.
     const removable = current.cards
@@ -339,7 +395,8 @@ export function optimizeDeck(
       }
     }
     if (opts.comboPairs) {
-      const outs = outsByClass('spell');
+      // The two weakest spells the trust region lets go.
+      const outs = outsByClass('spell').filter(({ c }) => !protectedNow.has(c.name));
       for (const combo of baseCtx.combos ?? []) {
         if (combo.cards.length < 2) continue;
         const missing = combo.cards.filter(
@@ -363,9 +420,10 @@ export function optimizeDeck(
     const curInfeasible = infeasibility(currentScore);
     // Constraints come first, as in compareScores: while the deck breaks one,
     // moves that take out a card a violation names (an unowned card in an
-    // owned-only build, a Game Changer over the bracket's ceiling), or that
-    // trade an unowned card for an owned one under an owned share, or a dearer
-    // card for a cheaper one over budget, are judged before any other.
+    // owned-only build, a Game Changer over the bracket's ceiling, a combo
+    // piece over the bracket's floor), or that trade an unowned card for an
+    // owned one under an owned share, or a dearer card for a cheaper one over
+    // budget, are judged before any other.
     const repairs = (m: Move): boolean => {
       if (curInfeasible === 0) return false;
       for (const v of currentScore.violations) {
@@ -399,11 +457,11 @@ export function optimizeDeck(
     );
 
     // 3. Judge the best candidates exactly, cheapest first.
-    let applied: { move: Move; score: ObjectiveScore; kind: AppliedSwap['kind'] } | null = null;
+    let taken: { move: Move; score: ObjectiveScore; kind: AppliedSwap['kind'] } | null = null;
     let bestTried: { move: Move; score: ObjectiveScore } | null = null;
-    // The shortlist counts FEASIBLE moves: under a budget the best-estimated
-    // pairs are often the ones that break it, and skipping them must not use
-    // up the step. The constraint checks themselves are capped.
+    // The shortlist counts moves inside every bound: under a budget the
+    // best-estimated pairs are often the ones that break it, and skipping
+    // them must not use up the step. The checks themselves are capped.
     let judged = 0;
     let checked = 0;
     for (const move of moves) {
@@ -414,26 +472,41 @@ export function optimizeDeck(
       const violations = checkConstraints(next, ctx);
       const nextInfeasible = violations.reduce((s, v) => s + v.magnitude, 0);
       if (nextInfeasible > curInfeasible) continue;
+      const isRepair = nextInfeasible < curInfeasible;
+      let required = opts.minGain;
+      if (trust) {
+        const verdict = trustVerdict(
+          rolesNow,
+          move.out.map((i) => current.cards[i]),
+          move.in,
+          ctx,
+          protectedNow,
+          opts.minGain,
+          { ...trust, roleOf, repair: isRepair }
+        );
+        if (verdict.bound) {
+          refusals[verdict.bound] = (refusals[verdict.bound] ?? 0) + 1;
+          continue;
+        }
+        required = verdict.required;
+      }
       judged++;
       const fastGain = fast(next) - fastNow;
-      const repairs = nextInfeasible < curInfeasible;
-      if (!repairs && fastGain < FAST_GATE * opts.minGain) {
-        continue;
-      }
+      if (!isRepair && fastGain < FAST_GATE * required) continue;
       const score = full(next);
       if (!bestTried || compareScores(score, bestTried.score) > 0) bestTried = { move, score };
-      if (repairs || score.total - currentScore.total >= opts.minGain) {
-        applied = { move, score, kind: repairs ? 'repair' : move.kind };
+      if (isRepair || score.total - currentScore.total >= required) {
+        taken = { move, score, kind: isRepair ? 'repair' : move.kind };
         break;
       }
     }
-    if (!applied && escapesLeft > 0 && bestTried) {
+    if (!taken && escapesLeft > 0 && bestTried) {
       if (currentScore.total - bestTried.score.total <= opts.escapeTolerance) {
-        applied = { move: bestTried.move, score: bestTried.score, kind: 'escape' };
+        taken = { move: bestTried.move, score: bestTried.score, kind: 'escape' };
         escapesLeft--;
       }
     }
-    if (!applied) {
+    if (!taken) {
       // A step cut short by a budget found nothing yet; it is not an optimum.
       stoppedBy =
         evaluations.full >= opts.maxEvaluations
@@ -444,20 +517,11 @@ export function optimizeDeck(
       break;
     }
 
-    const outNames = applied.move.out.map((i) => current.cards[i].name);
-    const inNames = applied.move.in.map((c) => c.name);
-    const partial = {
-      out: outNames,
-      in: inNames,
-      kind: applied.kind,
-      delta: applied.score.total - currentScore.total,
-      terms: termDeltas(applied.score, currentScore),
-      reasons: reasonsFor(currentScore, applied.score, outNames, inNames),
-    };
-    swaps.push({ ...partial, summary: summaryOf(partial) });
-    for (const n of inNames) tabuOut.set(key(n), swaps.length + opts.tabuTenure);
-    for (const n of outNames) tabuIn.set(key(n), swaps.length + opts.tabuTenure);
-    current = applyMove(current, applied.move);
+    const outs = taken.move.out.map((i) => current.cards[i]);
+    applied.push({ out: outs, in: taken.move.in, kind: taken.kind });
+    for (const c of taken.move.in) tabuOut.set(key(c.name), applied.length + opts.tabuTenure);
+    for (const c of outs) tabuIn.set(key(c.name), applied.length + opts.tabuTenure);
+    current = applyMove(current, taken.move);
     // The new deck is the new slot reference: every next neighbour differs
     // from it in one position.
     ctx = withSlots(current);
@@ -465,35 +529,209 @@ export function optimizeDeck(
     if (compareScores(currentScore, best.score) > 0) best = { deck: current, score: currentScore };
   }
 
+  // The kept swaps: those that lead to the best deck (with no escapes, all).
+  let kept = applied.slice(0, keptUpTo(applied, seed, best.deck));
+  let deck = best.deck;
+
+  // 4. Every swap read in the FINAL deck: its worth there (the final deck
+  // against the same deck with that one swap undone) and its reasons, each
+  // re-checked against the deck and the cards' text (reasonCheck.ts). Under
+  // the trust region a swap is undone when, without the reasons that fail the
+  // check, it no longer pays its margin there (a later swap made it redundant,
+  // or it rested on a claim the cards don't bear out), until none does.
+  const undone: OptimizeResult['undone'] = [];
+  const undo = (d: ObjectiveDeck, s: (typeof kept)[number]): ObjectiveDeck => {
+    const cards = [...d.cards];
+    s.in.forEach((c, j) => {
+      const i = cards.findIndex((x) => x.name === c.name);
+      if (i >= 0) cards[i] = s.out[j];
+    });
+    return { commanders: d.commanders, cards };
+  };
+  const readSwaps = () => {
+    const c = withSlots(deck);
+    const now = full(deck, c);
+    return kept.map((s) => {
+      const without = undo(deck, s);
+      const then = full(without, c);
+      const outNames = s.out.map((x) => x.name);
+      const inNames = s.in.map((x) => x.name);
+      const all = reasonsFor(then, now, outNames, inNames);
+      // An incoming card's reason is about the final deck, an outgoing one's
+      // about the deck it left.
+      const problems = all.map((r) =>
+        reasonProblem(r, inNames.includes(r.name) ? deck : without, c)
+      );
+      const partial = {
+        out: outNames,
+        in: inNames,
+        kind: s.kind,
+        delta: now.total - then.total,
+        terms: termDeltas(now, then),
+        reasons: all.filter((_, i) => problems[i] === null),
+      };
+      return {
+        swap: { ...partial, summary: summaryOf(partial) } as AppliedSwap,
+        source: s,
+        without,
+        breaks: infeasibility(then) > infeasibility(now),
+        unverified: all
+          .map((r, i) => ({ r, problem: problems[i] }))
+          .filter((x): x is { r: SwapReason; problem: string } => x.problem !== null),
+      };
+    });
+  };
+  let read = readSwaps();
+  for (let changed = !!trust; changed && kept.length > 0;) {
+    changed = false;
+    for (const x of read) {
+      if (x.source.kind === 'repair' || x.breaks) continue;
+      const claimed = x.unverified.reduce((s, u) => s + u.r.value, 0);
+      if (x.swap.delta - claimed >= opts.minGain) continue;
+      undone.push({
+        out: x.swap.out,
+        in: x.swap.in,
+        delta: x.swap.delta,
+        why: x.unverified.length
+          ? `rests on ${x.unverified.map((u) => `${u.r.name}: ${u.problem}`).join('; ')}`
+          : `gains ${x.swap.delta.toFixed(2)} in the final deck`,
+      });
+      kept = kept.filter((k) => k !== x.source);
+      deck = x.without;
+      read = readSwaps();
+      changed = true;
+      break;
+    }
+  }
+  const swaps = read.map((x) => x.swap);
+  const unverified = read.flatMap((x) =>
+    x.unverified.map((u) => ({
+      name: u.r.name,
+      term: u.r.term,
+      note: u.r.note,
+      problem: u.problem,
+    }))
+  );
+
   // Report against the seed under ONE reference (the seed's slots).
-  const report = { ...baseCtx, slotOrder: seed.cards.map((c) => c.name) };
-  const finalSeed = scoreDeck(seed, report);
-  const finalBest = scoreDeck(best.deck, report);
+  const report = { ...baseCtx, slotOrder: seed.cards.map((x) => x.name) };
   return {
-    deck: best.deck,
-    score: finalBest,
-    seedScore: finalSeed,
-    swaps: swaps.slice(0, swapsUpTo(swaps, seed, best.deck)),
+    deck,
+    score: scoreDeck(deck, report),
+    seedScore: scoreDeck(seed, report),
+    swaps,
+    undone,
+    unverified,
+    refusals,
     evaluations,
     stoppedBy,
     ms: Date.now() - t0,
   };
 }
 
-/** The applied swaps that lead to the returned (best) deck: a prefix of all swaps. */
-function swapsUpTo(swaps: AppliedSwap[], seed: ObjectiveDeck, bestDeck: ObjectiveDeck): number {
+/** How many applied swaps lead to the returned (best) deck: a prefix of all swaps. */
+function keptUpTo(
+  applied: Array<{ out: ScryfallCard[]; in: ScryfallCard[] }>,
+  seed: ObjectiveDeck,
+  bestDeck: ObjectiveDeck
+): number {
   const target = bestDeck.cards
     .map((c) => c.name)
     .sort()
     .join('|');
   let names = seed.cards.map((c) => c.name);
   if (names.slice().sort().join('|') === target) return 0;
-  for (let i = 0; i < swaps.length; i++) {
-    for (let j = 0; j < swaps[i].out.length; j++) {
-      const at = names.indexOf(swaps[i].out[j]);
-      names = [...names.slice(0, at), swaps[i].in[j], ...names.slice(at + 1)];
+  for (let i = 0; i < applied.length; i++) {
+    for (let j = 0; j < applied[i].out.length; j++) {
+      const at = names.indexOf(applied[i].out[j].name);
+      names = [...names.slice(0, at), applied[i].in[j].name, ...names.slice(at + 1)];
     }
     if (names.slice().sort().join('|') === target) return i + 1;
   }
-  return swaps.length;
+  return applied.length;
+}
+
+export interface SwapJudgement {
+  /** Full score change, the library in `deck`'s slots. */
+  delta: number;
+  /** The gain the move had to reach (its margin). */
+  required: number;
+  accepted: boolean;
+  /** Why it was refused, when it was. */
+  refusal: string | null;
+  reasons: SwapReason[];
+}
+
+/**
+ * One swap judged on its own against `deck`, by the rule the search applies:
+ * a move is taken when it breaks no more hard constraints, stays inside the
+ * trust region, and gains its margin. `trust: false` with `minGain: 0.1` is
+ * the first gate's rule. The swap-label validation
+ * (scripts/deck-objective-swaps.mjs) replays a gate's swaps through this.
+ */
+export function judgeSwap(
+  deck: ObjectiveDeck,
+  outNames: readonly string[],
+  ins: readonly ScryfallCard[],
+  baseCtx: ObjectiveContext,
+  options: Pick<OptimizeOptions, 'minGain' | 'trust'> = {}
+): SwapJudgement {
+  const minGain = options.minGain ?? MIN_GAIN;
+  const trust = options.trust === false ? null : (options.trust ?? {});
+  const ctx = { ...baseCtx, slotOrder: deck.cards.map((c) => c.name) };
+  const idx: number[] = [];
+  for (const n of outNames) {
+    const i = deck.cards.findIndex((c, j) => c.name === n && !idx.includes(j));
+    if (i < 0) throw new Error(`judgeSwap: ${n} is not in the deck`);
+    idx.push(i);
+  }
+  const next = applyMove(deck, { out: idx, in: [...ins] });
+  const before = scoreDeck(deck, ctx);
+  const after = scoreDeck(next, ctx);
+  const delta = after.total - before.total;
+  const reasons = reasonsFor(
+    before,
+    after,
+    [...outNames],
+    ins.map((c) => c.name)
+  );
+  const worse = infeasibility(after) > infeasibility(before);
+  if (worse) {
+    const refusal = `breaks ${after.violations.map((v) => v.check).join(', ')}`;
+    return { delta, required: minGain, accepted: false, refusal, reasons };
+  }
+  let required = minGain;
+  if (trust) {
+    const roleOf = memoRoleOf(trust.roleOf ?? factsRoleOf(ctx));
+    const verdict = trustVerdict(
+      countRoles(deck, roleOf),
+      idx.map((i) => deck.cards[i]),
+      ins,
+      ctx,
+      protectedCards(deck, ctx, trust.stapleBar),
+      minGain,
+      { ...trust, roleOf, repair: infeasibility(after) < infeasibility(before) }
+    );
+    if (verdict.blocked) {
+      return {
+        delta,
+        required: verdict.required,
+        accepted: false,
+        refusal: verdict.blocked,
+        reasons,
+      };
+    }
+    required = verdict.required;
+    // As the search's final read: a claim the cards don't bear out doesn't count.
+    const bad = reasons.filter(
+      (r) => reasonProblem(r, ins.some((c) => c.name === r.name) ? next : deck, ctx) !== null
+    );
+    const claimed = bad.reduce((s, r) => s + r.value, 0);
+    if (bad.length && delta - claimed < required) {
+      const refusal = `rests on ${bad.map((r) => `${r.name} (${r.term})`).join(', ')}`;
+      return { delta, required, accepted: false, refusal, reasons };
+    }
+  }
+  const refusal = delta < required ? `gains ${delta.toFixed(2)} < ${required.toFixed(2)}` : null;
+  return { delta, required, accepted: refusal === null, refusal, reasons };
 }

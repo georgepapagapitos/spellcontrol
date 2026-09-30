@@ -18,6 +18,7 @@ import { isExtraTurn } from '@/deck-builder/services/tagger/client';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 import { isMassLandDenialFloor, isStaxPiece } from '../bracketEstimator';
 import { readSynergy } from '../synergyLift';
+import { readFacts } from './factsReading';
 import {
   TERM_KEYS,
   type CardQuality,
@@ -236,10 +237,11 @@ export function createObjectiveContext(input: ObjectiveContextInput): ObjectiveC
   // ── Memoized per-card reads, keyed by name (a name is one card) ─────────
   const factsOf = input.factsOf ?? defaultFactsOf;
   const factsCache = new Map<string, CardFacts>();
+  // Every term reads facts the card's own text bears out (factsReading.ts).
   const cachedFacts = (card: ScryfallCard): CardFacts => {
     let f = factsCache.get(card.name);
     if (!f) {
-      f = factsOf(card);
+      f = readFacts(card, factsOf(card));
       factsCache.set(card.name, f);
     }
     return f;

@@ -78,3 +78,39 @@ describe('graded symmetric wipes', () => {
     expect(wrath.note).toMatch(/hits \d+(\.\d)?% of the deck's own board/);
   });
 });
+
+describe('what a wipe actually reaches (the first optimizer gate)', () => {
+  it('reads "the color of your choice" as the colour the caster would name', () => {
+    // Talrand's own deck is mono-blue: Wash Out names another colour.
+    const talrand = {
+      commanders: [card('Talrand, Sky Summoner')],
+      cards: cards('Wash Out', 'Sol Ring', 'Rhystic Study'),
+    };
+    const own = ownBoard([...talrand.commanders, ...talrand.cards], ctx);
+    const wash = card('Wash Out');
+    expect(wipeExposure(wash, ctx.factsOf(wash), own)).toBe(0);
+  });
+
+  it('lets a charm cast a mode that wipes nothing', () => {
+    const own = ownBoard(BASELINE.cards, ctx);
+    const charm = card('Golgari Charm');
+    expect(wipeExposure(charm, ctx.factsOf(charm), own)).toBe(0);
+  });
+
+  it('kills only what a -N/-N reaches', () => {
+    // Drown in Sorrow's -2/-2 spares a 3-toughness board and kills a 1-toughness one.
+    const small = ownBoard(cards('Llanowar Elves', 'Elvish Mystic', 'Birds of Paradise'), ctx);
+    const big = ownBoard(
+      cards('Mikaeus, the Unhallowed', 'Craterhoof Behemoth', 'Grave Pact'),
+      ctx
+    );
+    const drown = card('Drown in Sorrow');
+    expect(wipeExposure(drown, ctx.factsOf(drown), small)).toBeGreaterThan(0.9);
+    expect(wipeExposure(drown, ctx.factsOf(drown), big)).toBe(0);
+  });
+
+  it('never charges a transforming card for its back face', () => {
+    const norn = card('Elesh Norn // The Argent Etchings');
+    expect(wipeExposure(norn, ctx.factsOf(norn), ownBoard(BASELINE.cards, ctx))).toBeNull();
+  });
+});

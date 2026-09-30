@@ -10,7 +10,7 @@
  * the objective judges a card list, and a list either keeps the user's
  * constraint or doesn't.
  */
-import type { ScryfallCard } from '@/deck-builder/types';
+import type { DetectedCombo, ScryfallCard } from '@/deck-builder/types';
 import { frontFaceName } from '@/lib/cards/card-text';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 import {
@@ -23,6 +23,7 @@ import {
   notLegalForFormat,
 } from '../deckFilters';
 import { bracketCeilings, type BracketCeilings } from '../bracketGuard';
+import { estimateBracket } from '../bracketEstimator';
 import { copyLimit, normalizeCardName } from '../cardIdentity';
 import type { ConstraintViolation, ObjectiveContext, ObjectiveDeck } from './types';
 import { isBasicLand, isLandCard } from './context';
@@ -121,6 +122,63 @@ function bracketCategory(name: string, ctx: ObjectiveContext): keyof BracketCeil
   if (ctx.tags.isExtraTurn(name)) return 'extraTurns';
   if (ctx.tags.isStaxPiece(name)) return 'stax';
   return null;
+}
+
+const key = (name: string) => normalizeCardName(name);
+
+/** Complete combos from the context's set: every named piece in the deck or the command zone. */
+export function completeCombos(deck: ObjectiveDeck, ctx: ObjectiveContext): DetectedCombo[] {
+  const keys = new Set(
+    [...deck.commanders, ...deck.cards].flatMap((c) => [key(c.name), key(frontFaceName(c.name))])
+  );
+  return (ctx.combos ?? []).filter(
+    (c) =>
+      c.cards.length >= 2 &&
+      c.cards.every((n) => keys.has(key(n)) || keys.has(key(frontFaceName(n))))
+  );
+}
+
+/**
+ * The Game Changer names the bracket estimator should match for this deck:
+ * the list names a double-faced card by its front face (Tergrid, God of
+ * Fright), the deck by its full name, and the estimator compares names as
+ * given, so a DFC Game Changer went uncounted in a rewritten dump.
+ */
+export function gameChangerNamesFor(deck: ObjectiveDeck, ctx: ObjectiveContext): Set<string> {
+  const names = new Set(ctx.gameChangerNames);
+  for (const c of [...deck.commanders, ...deck.cards]) {
+    if (ctx.gameChangerNames.has(frontFaceName(c.name))) names.add(c.name);
+  }
+  return names;
+}
+
+/** A combo hard floor above a numeric target bracket, as the bracket estimator reads the deck. */
+function comboFloor(deck: ObjectiveDeck, ctx: ObjectiveContext): ConstraintViolation | null {
+  const target = ctx.customization.targetBracket;
+  if (typeof target !== 'number' || target >= 4) return null;
+  const complete = completeCombos(deck, ctx);
+  if (complete.length === 0) return null;
+  const names = [...deck.commanders, ...deck.cards].map((c) => c.name);
+  const spells = deck.cards.filter((c) => !isLandCard(c));
+  const avg = spells.length ? spells.reduce((s, c) => s + (c.cmc ?? 0), 0) / spells.length : 0;
+  const estimate = estimateBracket(
+    names,
+    complete.map((c) => ({ ...c, isComplete: true })),
+    avg,
+    undefined,
+    undefined,
+    gameChangerNamesFor(deck, ctx),
+    deck.commanders.map((c) => c.name)
+  );
+  const over = estimate.hardFloors.filter((f) => f.bracket > target && /combo/i.test(f.reason));
+  if (over.length === 0) return null;
+  const top = Math.max(...over.map((f) => f.bracket));
+  return {
+    check: 'bracket-floor',
+    magnitude: top - target,
+    cards: [...new Set(complete.flatMap((c) => c.cards))],
+    detail: `${over.map((f) => f.reason).join('; ')} > bracket ${target}`,
+  };
 }
 
 export function checkConstraints(
@@ -355,6 +413,14 @@ export function checkConstraints(
       });
     }
   }
+
+  // The combo floor: a bracket 2 or 3 target is a promise about combos, and
+  // the per-card ceilings above can't see one (two ordinary cards make it).
+  // Read by the app's own estimator, so the objective and the bracket badge
+  // agree; in the first optimizer gate a bracket-2 Atraxa came out of the
+  // search with two complete two-card combos, reading bracket 3.
+  const floor = comboFloor(deck, ctx);
+  if (floor) add(floor);
 
   // Collection.
   const strategy = cz.collectionStrategy ?? 'full';

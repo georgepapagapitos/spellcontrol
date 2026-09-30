@@ -144,6 +144,8 @@ export const TERM_KEYS = [
   'nonbo',
   'winline',
   'ownership',
+  'tutors',
+  'engines',
 ] as const;
 export type TermKey = (typeof TERM_KEYS)[number];
 
@@ -185,6 +187,7 @@ export type ConstraintCheck =
   | 'arena'
   | 'game-changers'
   | 'bracket-ceiling'
+  | 'bracket-floor'
   | 'collection'
   | 'owned-share';
 

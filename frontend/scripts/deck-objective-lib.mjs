@@ -5,7 +5,7 @@
 // client, and full card records from Scryfall's oracle_cards bulk file.
 
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { FRONTEND, ensureBulk, streamBulk } from './card-facts-lib.mjs';
 
@@ -181,7 +181,7 @@ export async function pageRows(H, dump) {
     try {
       const data = await attempt();
       const rows = H.edhrecRowsFrom(data);
-      if (rows.size > 0) return { rows, fallback: i > 0 && i === attempts.length - 1 };
+      if (rows.size > 0) return { rows, data, fallback: i > 0 && i === attempts.length - 1 };
     } catch (e) {
       lastError = e;
     }
@@ -239,4 +239,83 @@ export async function resolveCards(H, { names, rankNames, required, bulkPath }) 
     .filter((n) => !byName.has(n) && !byName.has(front(n)));
   if (missing.length) throw new Error(`not in ${bulk.file}: ${missing.join(', ')}`);
   return { byName, rank, bulkFile: bulk.file };
+}
+
+const BASICS = { W: 'Plains', U: 'Island', B: 'Swamp', R: 'Mountain', G: 'Forest' };
+
+/**
+ * Every generator deck in a panel directory, ready to score or search: its
+ * dump and EDHREC page, the seed deck, the candidate pool (the page's cards,
+ * the owned cards for a collection build, the identity's basics) and the
+ * objective context built from the dump's own settings. One bulk pass for all.
+ */
+export async function loadPanelRuns(H, net, { panel, only, owned, bulk }) {
+  const files = readdirSync(panel)
+    .filter((f) => f.endsWith('.json') && f !== 'summary.json' && !f.startsWith('report'))
+    .filter((f) => !only || only.some((o) => f.includes(o)))
+    .sort();
+  const decks = [];
+  for (const f of files) {
+    const dump = JSON.parse(readFileSync(join(panel, f), 'utf8'));
+    decks.push({ slug: f.replace(/\.json$/, ''), dump, page: await pageRows(H, dump) });
+  }
+  const names = new Set(Object.values(BASICS));
+  const required = new Set();
+  const rankNames = new Set();
+  for (const d of decks) {
+    for (const n of [d.dump.commander, ...(d.dump.partner ? [d.dump.partner] : [])]) {
+      names.add(n);
+      required.add(n);
+    }
+    for (const c of H.dumpCards(d.dump)) {
+      names.add(c.name);
+      required.add(c.name);
+    }
+    for (const n of d.page.rows.keys()) {
+      names.add(n);
+      rankNames.add(n);
+    }
+    if (d.dump.customization.collectionMode) for (const n of owned) names.add(n);
+  }
+  const { byName, rank, bulkFile } = await resolveCards(H, {
+    names,
+    rankNames,
+    required,
+    bulkPath: bulk,
+  });
+  const runs = [];
+  for (const d of decks) {
+    const { dump, page } = d;
+    const seed = H.deckFromDump(dump, byName);
+    const commanders = seed.commanders.map((c) => c.name);
+    const cz = dump.customization;
+    const ownedNames = cz.collectionMode ? owned : undefined;
+    const candidateNames = new Set([
+      ...page.rows.keys(),
+      ...(ownedNames ? [...ownedNames] : []),
+      ...dump.colorIdentity.map((c) => BASICS[c]).filter(Boolean),
+    ]);
+    if (dump.colorIdentity.length === 0) candidateNames.add('Wastes');
+    const candidates = [...candidateNames]
+      .map((n) => H.resolveName(byName, n))
+      .filter((c) => c && c.legalities?.commander === 'legal');
+    const ctx = H.createObjectiveContext({
+      colorIdentity: dump.colorIdentity,
+      customization: cz,
+      edhrec: page.rows,
+      roleTargets: dump.roleTargets ?? {},
+      pacing: dump.detectedPacing,
+      combos: H.combosOf(dump),
+      liftPools: await liftPools(
+        H,
+        net,
+        commanders,
+        seed.cards.map((c) => c.name)
+      ),
+      globalRank: rank,
+      ownedNames,
+    });
+    runs.push({ ...d, seed, candidates, ctx, byName });
+  }
+  return { runs, bulkFile };
 }

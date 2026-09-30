@@ -15,20 +15,18 @@
 // the generator priced the cheapest printing it found). Deterministic.
 //
 // Options: --bulk, --http-cache, --live, --owned, --only (as the evaluator),
-//   --max-swaps <n> (25), --max-evals <n> (300), --min-gain <x> (0.1),
+//   --max-swaps <n> (5), --max-evals <n> (300), --min-gain <x> (0.3),
 //   --report <file> (default <out>/optimizer-report.json)
 
-import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import {
   DEFAULT_HTTP_CACHE,
   DEFAULT_OWNED,
   installNetwork,
-  liftPools,
   loadHarness,
-  pageRows,
+  loadPanelRuns,
   readOwned,
-  resolveCards,
 } from './deck-objective-lib.mjs';
 
 const argv = process.argv.slice(2);
@@ -61,80 +59,24 @@ const net = installNetwork({
 });
 const H = await loadHarness();
 const OWNED = readOwned(resolve(opt('--owned') ?? DEFAULT_OWNED));
-const BASICS = { W: 'Plains', U: 'Island', B: 'Swamp', R: 'Mountain', G: 'Forest' };
-
-const files = readdirSync(PANEL)
-  .filter((f) => f.endsWith('.json') && f !== 'summary.json')
-  .filter((f) => !ONLY || ONLY.some((o) => f.includes(o)))
-  .sort();
-const decks = [];
-for (const f of files) {
-  const dump = JSON.parse(readFileSync(join(PANEL, f), 'utf8'));
-  decks.push({ slug: f.replace(/\.json$/, ''), dump, page: await pageRows(H, dump) });
-}
-
-// One bulk pass for every deck: its cards, its page, its owned pool, basics.
-const names = new Set(Object.values(BASICS));
-const required = new Set();
-const rankNames = new Set();
-for (const d of decks) {
-  for (const n of [d.dump.commander, ...(d.dump.partner ? [d.dump.partner] : [])]) {
-    names.add(n);
-    required.add(n);
-  }
-  for (const c of H.dumpCards(d.dump)) {
-    names.add(c.name);
-    required.add(c.name);
-  }
-  for (const n of d.page.rows.keys()) {
-    names.add(n);
-    rankNames.add(n);
-  }
-  if (d.dump.customization.collectionMode) for (const n of OWNED) names.add(n);
-}
-const { byName, rank, bulkFile } = await resolveCards(H, {
-  names,
-  rankNames,
-  required,
-  bulkPath: opt('--bulk'),
+const { runs, bulkFile } = await loadPanelRuns(H, net, {
+  panel: PANEL,
+  only: ONLY,
+  owned: OWNED,
+  bulk: opt('--bulk'),
 });
-console.log(`[optimize] ${decks.length} decks from ${PANEL}; cards from ${bulkFile}`);
+console.log(`[optimize] ${runs.length} decks from ${PANEL}; cards from ${bulkFile}`);
 
 mkdirSync(OUT, { recursive: true });
 const report = [];
-for (const d of decks) {
-  const { dump, page } = d;
-  const seed = H.deckFromDump(dump, byName);
-  const commanders = seed.commanders.map((c) => c.name);
-  const cz = dump.customization;
-  const owned = cz.collectionMode ? OWNED : undefined;
-  const candidateNames = new Set([
-    ...page.rows.keys(),
-    ...(owned ? [...owned] : []),
-    ...dump.colorIdentity.map((c) => BASICS[c]).filter(Boolean),
-  ]);
-  if (dump.colorIdentity.length === 0) candidateNames.add('Wastes');
-  const candidates = [...candidateNames]
-    .map((n) => H.resolveName(byName, n))
-    .filter((c) => c && c.legalities?.commander === 'legal');
-  const ctx = H.createObjectiveContext({
-    colorIdentity: dump.colorIdentity,
-    customization: cz,
-    edhrec: page.rows,
-    roleTargets: dump.roleTargets ?? {},
-    pacing: dump.detectedPacing,
-    combos: H.combosOf(dump),
-    liftPools: await liftPools(
-      H,
-      net,
-      commanders,
-      seed.cards.map((c) => c.name)
-    ),
-    globalRank: rank,
-    ownedNames: owned,
+for (const d of runs) {
+  const { dump, seed, candidates, ctx } = d;
+  const result = H.optimizeDeck(seed, candidates, ctx, {
+    ...OPTIONS,
+    // The trust region's role floors count roles the way the deck report does.
+    trust: { roleOf: H.countedRoleOf },
   });
-  const result = H.optimizeDeck(seed, candidates, ctx, OPTIONS);
-  const out = H.rewriteDump(dump, result, ctx);
+  const out = H.rewriteDump(dump, result, ctx, { seed, edhrecData: d.page.data });
   writeFileSync(join(OUT, `${d.slug}.json`), JSON.stringify(out, null, 2));
   const line = {
     slug: d.slug,
@@ -143,12 +85,16 @@ for (const d of decks) {
     swaps: result.swaps.map((s) => ({
       summary: s.summary,
       kind: s.kind,
+      delta: s.delta,
       reasons: s.reasons
         .slice(0, 4)
         .map(
           (r) => `${r.name} ${r.term} ${r.value >= 0 ? '+' : ''}${r.value.toFixed(2)}: ${r.note}`
         ),
     })),
+    undone: result.undone,
+    refusals: result.refusals,
+    unverified: result.unverified,
     violations: result.score.violations,
     seedViolations: result.seedScore.violations,
     evaluations: result.evaluations,
@@ -166,12 +112,23 @@ for (const d of decks) {
     console.log(`  ${s.kind.padEnd(7)} ${s.summary}`);
     for (const r of s.reasons) console.log(`            ${r}`);
   }
+  for (const u of result.undone) console.log(`  undone  ${u.in.join(' + ')} for ${u.out.join(' + ')}: ${u.why}`);
+  if (Object.keys(result.refusals).length)
+    console.log(`  refused by the trust region: ${Object.entries(result.refusals).map(([k, n]) => `${k} ${n}`).join(', ')}`);
+  for (const u of result.unverified)
+    console.log(`  dropped reason ${u.name} (${u.term}): ${u.note}; ${u.problem}`);
   if (line.violations.length)
     console.log(`  ! still infeasible: ${line.violations.map((v) => v.check).join(', ')}`);
 }
 const reportFile = resolve(opt('--report') ?? join(OUT, 'optimizer-report.json'));
 writeFileSync(reportFile, JSON.stringify(report, null, 1));
 const total = report.reduce((s, r) => s + r.ms, 0);
+const deltas = report.flatMap((r) => r.swaps.map((s) => s.delta)).sort((a, b) => a - b);
+const q = (f) => (deltas.length ? deltas[Math.min(deltas.length - 1, Math.floor(f * deltas.length))].toFixed(2) : 'n/a');
+console.log(
+  `\n[optimize] swap gain in the final deck: n ${deltas.length}, min ${q(0)}, p25 ${q(0.25)}, median ${q(0.5)}, p75 ${q(0.75)}, max ${q(0.9999)}; ` +
+    `swaps per deck ${report.map((r) => r.swaps.length).join(' ')}`
+);
 console.log(
   `\n[optimize] ${report.length} decks, ${report.reduce((s, r) => s + r.swaps.length, 0)} swaps, ` +
     `${(total / 1000).toFixed(0)} s total (median ${(report.map((r) => r.ms).sort((a, b) => a - b)[report.length >> 1] / 1000).toFixed(1)} s); ` +

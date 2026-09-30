@@ -13,6 +13,9 @@ export * from './panelDump';
 export * from './validation';
 export * from './optimizer';
 export * from './panelRewrite';
+export { analyseDeck } from './panelReport';
+export * from './trustRegion';
+export { completeCombos } from './constraints';
 export { setCardFactsSnapshot, hasCardFacts } from '@/deck-builder/services/cardFacts';
 export { loadTaggerData, hasTaggerData } from '@/deck-builder/services/tagger/client';
 export {
@@ -24,3 +27,4 @@ export {
   formatCommanderNameForUrl,
 } from '@/deck-builder/services/edhrec/client';
 export { HARDCODED_GAME_CHANGERS } from '@spellcontrol/deck-metrics';
+export { countedRoleOf } from '../commanderDeckAnalysis';

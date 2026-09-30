@@ -33,6 +33,7 @@ import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy'
 import { nonboFindings, qualifiedTriggerFindings } from '../../nonbo';
 import type { CardNote, ObjectiveContext } from '../types';
 import { frontTypeLine } from '../context';
+import { rulesText } from '../factsReading';
 import { nonLandCards, pct, type TermFn } from './shared';
 
 export const HARD_NONBO = 1;
@@ -86,10 +87,38 @@ interface Own {
   types: string[];
   mv: number;
   tokens: boolean;
+  /** Front-face colours. */
+  colors: string[];
+  /** Printed toughness, null when not a number (a creature's "*"). */
+  toughness: number | null;
+}
+
+/** What the wipe's own text narrows it to, beyond the fact's hit list. */
+interface WipeText {
+  /** "-2/-2": only creatures of toughness this or less die. Null for -X/-X or no shrink. */
+  shrink: number | null;
+  /** "permanents of the color of your choice": the caster names a colour. */
+  colourChoice: boolean;
+}
+
+function wipeText(card: ScryfallCard): WipeText {
+  const text = rulesText(card);
+  const m = /\bgets? -(\d+)\/-\d+\b/i.exec(text);
+  return {
+    shrink: m ? Number(m[1]) : null,
+    colourChoice:
+      /\bof the colou?r of (?:your|its controller's) choice\b|\bchoose a colou?r\b/i.test(text),
+  };
 }
 
 /** The share of the deck's own nonland permanents one wipe mode hits. */
-function exposureOf(fact: InteractionFact, self: string, own: readonly Own[]): number {
+function exposureOf(
+  fact: InteractionFact,
+  self: string,
+  own: readonly Own[],
+  text: WipeText,
+  colour: string | null = null
+): number {
   const types = hitTypes(fact.hits);
   if (types.size === 0 || own.length === 0) return 0;
   const inBound = mvBound(fact);
@@ -98,9 +127,19 @@ function exposureOf(fact: InteractionFact, self: string, own: readonly Own[]): n
     if (o.name === self) continue;
     if (!o.types.some((t) => types.has(t))) continue;
     if (inBound && !inBound(o.mv)) continue;
+    if (colour && !o.colors.includes(colour)) continue;
+    if (fact.mode === 'shrink' && text.shrink !== null && o.toughness !== null) {
+      if (o.toughness > text.shrink) continue;
+    }
     hit += 1 + (o.tokens && types.has('creature') ? TOKEN_WEIGHT : 0);
   }
   return Math.min(1, hit / own.length);
+}
+
+/** The exposure at the colour the caster would name: the one the deck's board has least of. */
+function exposureRead(fact: InteractionFact, self: string, own: readonly Own[], text: WipeText) {
+  if (!text.colourChoice) return exposureOf(fact, self, own, text);
+  return Math.min(...['W', 'U', 'B', 'R', 'G'].map((c) => exposureOf(fact, self, own, text, c)));
 }
 
 /** A symmetric wipe's exposure at its kindest optional mode, or null when the card isn't one. */
@@ -119,14 +158,20 @@ export function wipeExposure(
     f.limits.includes('modal') || f.limits.includes('overload');
   const forced = wipes.filter((f) => !optional(f));
   const chosen = wipes.filter(optional);
+  // A mode that isn't a wipe (Golgari Charm's "destroy target enchantment",
+  // an overload spell's single target) lets the caster wipe nothing.
+  const otherMode =
+    facts.interaction.some((f) => optional(f) && !wipes.includes(f)) ||
+    facts.roles.some((r) => r.limits.includes('modal') && r.role !== 'boardwipe');
+  // "Destroy all ... except": the exception is usually the deck's own kind,
+  // and the fact doesn't say which, so no cost is claimed.
+  const exempt = (f: InteractionFact) => f.limits.includes('except');
+  const text = wipeText(card);
+  const read = (f: InteractionFact) => (exempt(f) ? 0 : exposureRead(f, card.name, own, text));
   // Forced effects all happen; among optional modes the caster takes the kindest.
-  const forcedCost = forced.length
-    ? Math.max(...forced.map((f) => exposureOf(f, card.name, own)))
-    : 0;
+  const forcedCost = forced.length ? Math.max(...forced.map(read)) : 0;
   const optionalCost =
-    chosen.length && forced.length === 0
-      ? Math.min(...chosen.map((f) => exposureOf(f, card.name, own)))
-      : 0;
+    chosen.length && forced.length === 0 && !otherMode ? Math.min(...chosen.map(read)) : 0;
   return Math.max(forcedCost, optionalCost);
 }
 
@@ -140,11 +185,15 @@ export function ownBoard(
     const facts = ctx.factsOf(c);
     const types = facts.types.filter((t) => t !== 'land' && t !== 'instant' && t !== 'sorcery');
     if (types.length === 0 || /\bLand\b/.test(frontTypeLine(c))) continue;
+    const face = c.card_faces?.[0];
+    const t = Number(face?.toughness ?? c.toughness);
     out.push({
       name: c.name,
       types,
       mv: facts.mv ?? c.cmc ?? 0,
       tokens: facts.produces.some((p) => p.r === 'creature-token'),
+      colors: face?.colors ?? c.colors ?? [],
+      toughness: Number.isFinite(t) ? t : null,
     });
   }
   return out;
