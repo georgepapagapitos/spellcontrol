@@ -107,11 +107,18 @@ describe('settingsBreak', () => {
     // Three of four spells owned (75%): Beast Within is the unowned one.
     const deck = deckOf(cheapDeck, ['Harmonize', 'Murder', 'Doom Blade']);
     expect(settingsBreak(gapRow('Swords to Plowshares'), s, deck)).toBeNull();
-    const cutFits = cutKeepsSettings(fitsSettings(settingsChecker(s, deck)), {
-      name: 'Swords to Plowshares',
-    })!;
+    const cutFits = cutKeepsSettings(
+      fitsSettings(settingsChecker(s, deck)),
+      real('Swords to Plowshares')
+    )!;
     expect(cutFits(real('Beast Within'))).toBe(true);
     expect(cutFits(real('Harmonize'))).toBe(false);
+    // A land coming in never touches the owned share.
+    const landFits = cutKeepsSettings(
+      fitsSettings(settingsChecker(s, deck)),
+      real('Overgrown Tomb')
+    )!;
+    expect(landFits(real('Harmonize'))).toBe(true);
   });
 
   it('holds the price cap and the budget, with the incoming price from the row', () => {

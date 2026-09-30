@@ -2182,7 +2182,7 @@ export function DeckEditorPage() {
             deckCards: deck.cards,
             analysis: deck,
             inDeckCombos: mainboardComboData?.inDeck,
-            keepsSettings: coachSettings.cutFits({ name: pendingAdd, card: addCard }),
+            keepsSettings: coachSettings.cutFits(addCard),
           });
           const suggested = ranked.map((r) =>
             toOpt({ slotId: r.slotId, card: r.card }, r.reason, r.factors)

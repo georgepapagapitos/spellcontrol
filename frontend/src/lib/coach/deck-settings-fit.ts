@@ -241,7 +241,7 @@ export function settingsChecker(
  */
 export function cutKeepsSettings(
   fit: ((change: Change) => boolean) | undefined,
-  add: { name: string; card?: ScryfallCard }
+  add: ScryfallCard
 ): ((cut: ScryfallCard) => boolean) | undefined {
   if (!fit) return undefined;
   return (cut) =>
@@ -250,7 +250,7 @@ export function cutKeepsSettings(
       type: 'swap',
       lane: 'similar',
       name: add.name,
-      card: add.card,
+      card: add,
       inName: cut.name,
     });
 }
@@ -268,10 +268,7 @@ export interface CoachSettingsHooks {
   /** The same as a keep-or-drop predicate. */
   fit: ((change: Change) => boolean) | undefined;
   /** The replace prompt's cut filter for an incoming card (`cutKeepsSettings`). */
-  cutFits: (add: {
-    name: string;
-    card?: ScryfallCard;
-  }) => ((cut: ScryfallCard) => boolean) | undefined;
+  cutFits: (add: ScryfallCard) => ((cut: ScryfallCard) => boolean) | undefined;
 }
 
 /** The deck page's check: the saved settings against the live deck and collection. */

@@ -177,6 +177,26 @@ describe('analyzeCommanderDeck — what Coach reads (T171)', () => {
     }
   });
 
+  // T171 round 3: Isshin's attack-trigger payoffs were cut as misfits and
+  // excess; a card that feeds the commander's own ability is its plan.
+  it("keeps the cards that feed the commander's ability out of every cut", async () => {
+    const { analyzeCommanderDeck } = await import('./commanderDeckAnalysis');
+    const plan = ['Battle Angels of Tyr', 'Drakuseth, Maw of Flames', 'Laelia, the Blade Reforged'];
+    const result = await analyzeCommanderDeck({
+      commander: real('Isshin, Two Heavens as One'),
+      cards: [...deck, ...plan.map(real)],
+      deckSize: 99,
+      colorIdentity: ['R', 'W', 'B'],
+    });
+    const cuts = [
+      ...(result?.misfits ?? []).map((m) => m.name),
+      ...(result?.optimizeSwaps?.removals ?? []).map((r) => r.name),
+    ];
+    // The rest of the deck still has cuts (Diregraf Colossus is off this page).
+    expect(cuts).toContain('Diregraf Colossus');
+    for (const name of plan) expect(cuts).not.toContain(name);
+  });
+
   // T171 re-gate: Altar of Dementia, added to finish a Krenko combo, came
   // straight back as a Cuts-lane misfit on the next pass.
   it('keeps the pieces of a combo the deck has out of the misfits', async () => {

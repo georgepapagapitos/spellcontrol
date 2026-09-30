@@ -10,7 +10,8 @@
  */
 import { classifyCard } from './classify';
 import type { CardLike } from './text';
-import { REASON, type AxisKey } from './axes';
+import type { AxisKey } from './axes';
+import { REASON } from './reasons';
 import type { AxisSummary, DeckSynergy } from './deckSynergy';
 import { BOARD_CENTRIC_CREATURE_DENSITY } from '../deckBuilder/roleTargets';
 
@@ -98,15 +99,17 @@ export interface SuggestOptions {
   offMetaQuota?: number;
 }
 
-/** Producers of the matching kind a narrow payoff needs before it is offered. */
-const ENABLING_PRODUCERS = 2;
+/** Producers of the matching kind a narrow payoff needs before it is offered:
+ *  the engine's own "budding, worth completing" bar. */
+const ENABLING_PRODUCERS = BUDDING_MIN;
 
 /**
  * Whether the deck enables a payoff's own condition (T171 round 3). Most
  * payoffs are enabled by any producer on their axis; a few need a narrower
  * one. Waste Not punishes an OPPONENT discarding and was offered to five
  * decks whose only discard was their own looting; a convoke card was offered
- * to decks with few creatures to tap.
+ * to decks with few creatures to tap; Interplanar Beacon, which pays off
+ * casting planeswalkers, replaced a Forest in decks running two of them.
  */
 function payoffEnabled(reason: string, axis: AxisSummary | undefined, deck: DeckSynergy): boolean {
   const producing = (why: string) =>
@@ -120,7 +123,8 @@ function payoffEnabled(reason: string, axis: AxisSummary | undefined, deck: Deck
     case REASON.convoke:
       return (deck.creatureShare ?? 0) >= BOARD_CENTRIC_CREATURE_DENSITY;
     default:
-      return true;
+      // A planeswalker payoff needs planeswalkers, not proliferate.
+      return axis?.axis !== 'superfriends' || producing(REASON.loyaltyEngine);
   }
 }
 

@@ -42,7 +42,7 @@ import {
   type SummaryItem,
 } from './deckAnalyzer';
 import { getDynamicRoleTargets } from './roleTargets';
-import { buildCommanderProfile } from './commanderProfile';
+import { buildCommanderProfile, whyCardMatches } from './commanderProfile';
 import { buildGapAnalysis } from './gapAnalysisBuilder';
 import { computeHiddenGems } from './hiddenGems';
 import { loadCardSimilar, getSimilarRank } from './cardSimilar';
@@ -792,6 +792,9 @@ export async function analyzeCommanderDeck(
     );
     // Premium cards are never a Coach cut: not a misfit, not an optimizer removal.
     const protectedNames = premiumNames(params.cards, (n) => cardInclusionMap[n], gameChangerNames);
+    // A card that feeds the commander's own ability is the deck's plan, not a cut (T171 round 3).
+    for (const c of params.cards)
+      if (whyCardMatches(c, commanderProfile).length > 0) protectedNames.add(c.name);
 
     const allCardNames = [...params.cards.map((c) => c.name), params.commander.name];
     if (params.partnerCommander) allCardNames.push(params.partnerCommander.name);

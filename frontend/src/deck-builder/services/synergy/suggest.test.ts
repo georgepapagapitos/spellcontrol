@@ -180,6 +180,20 @@ describe('suggestOffMeta — a payoff needs the deck to enable it', () => {
     ]);
   });
 
+  it('offers a planeswalker payoff only to a deck with planeswalkers to cast', () => {
+    // Two walkers and a proliferate card: Interplanar Beacon replaced a Forest.
+    const two = analyzeDeckSynergy(
+      ["Freyalise, Llanowar's Fury", 'Tyvar Kell', 'Contagion Clasp'].map(real)
+    );
+    expect(suggestOffMeta(two, [offPage('Interplanar Beacon')])).toEqual([]);
+    const three = analyzeDeckSynergy(
+      ["Freyalise, Llanowar's Fury", 'Tyvar Kell', 'Karn, the Great Creator'].map(real)
+    );
+    expect(suggestOffMeta(three, [offPage('Interplanar Beacon')]).map((s) => s.cardName)).toEqual([
+      'Interplanar Beacon',
+    ]);
+  });
+
   it('never reads a Saga that returns itself transformed as a blink engine', () => {
     const fable = real('Fable of the Mirror-Breaker // Reflection of Kiki-Jiki');
     const deck = analyzeDeckSynergy([fable]);

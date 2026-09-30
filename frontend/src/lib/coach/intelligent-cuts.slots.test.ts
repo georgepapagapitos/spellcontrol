@@ -190,6 +190,33 @@ describe('rankReplacementCuts — role balance', () => {
     expect(cuts[0].reason).toBe('Upgrade in ramp');
   });
 
+  it("never trades a card that feeds the commander's ability for one that doesn't (T171 round 3)", () => {
+    // Flawless Maneuver-style: an unrelated add took Drakuseth, an attack
+    // trigger Isshin doubles, as "Played in 13% of decklists".
+    const analysis = {
+      commander: real('Isshin, Two Heavens as One'),
+      cardInclusionMap: { 'Drakuseth, Maw of Flames': 13, Murder: 5 },
+      gapAnalysis: [
+        { name: 'Swords to Plowshares', inclusion: 55 },
+        { name: 'Battle Angels of Tyr', inclusion: 16 },
+      ],
+    };
+    const deckCards = slots(['Drakuseth, Maw of Flames', 'Murder']);
+    const forSwords = rankReplacementCuts({
+      addCard: real('Swords to Plowshares'),
+      deckCards,
+      analysis,
+    });
+    expect(cutNames(forSwords)).toEqual(['Murder']);
+    // Another attack-trigger payoff may replace it.
+    const forAngels = rankReplacementCuts({
+      addCard: real('Battle Angels of Tyr'),
+      deckCards,
+      analysis,
+    });
+    expect(cutNames(forAngels)).toContain('Drakuseth, Maw of Flames');
+  });
+
   it('never offers a cut the deck settings rule out', () => {
     const cuts = rankReplacementCuts({
       addCard: real('Beast Within'),

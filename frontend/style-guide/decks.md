@@ -1224,6 +1224,23 @@ is already at target is dropped, and a staple for a met role targets `cardFit`
 only, not `roles`: the analysis can predate the user's last edits, and a gap
 the deck has since filled is not a reason to promote anything (T171 re-gate).
 
+**A met role is not a gap to fill** (T171 round 3). A missing staple whose role
+is at or over its target isn't offered, unless it is a staple mana rock or a
+staple of this commander's page (40%): Sol Ring and Arcane Signet still come
+in, as an upgrade inside the role (see the cut floors below). Blasphemous Act
+reached a go-wide Isshin deck at 2 of 1 wipes as an "EDHREC staple" before
+this. **A deck that builds a board is offered no symmetric wipe**: Coach reads
+the generator's own rule (E109/E112, `isBoardCentricPlan` and
+`isOneSidedWipe`), so Ruinous Ultimatum can come in and Blasphemous Act can't
+(`services/deckBuilder/coachWipes.ts`).
+
+**An off-page Upgrade pick needs the deck to enable it.** A synergy payoff with
+no play rate on this commander's page is offered only when the deck makes its
+condition happen: a payoff for opponents discarding needs cards that make them
+discard, a payoff for your own discards needs looting, a convoke card needs a
+creature-dense deck. Waste Not reached five decks whose only discard was their
+own looting. A land search is never a card-advantage staple (Elven Passage).
+
 **The Cuts chip reads weakest first:** spell cuts before land tuning (a
 basic-for-basic rebalance is not a card the deck is worse for running), then
 play rate low to high, a card missing from the commander's page first.
@@ -1248,7 +1265,10 @@ budget or a per-card cap, a card with no price is not shown** (`unpriced`),
 since reading it as free is how a $50 deck was once handed an unpriced
 Goblin Lackey. Basics and owned cards the budget ignores are exempt. An add
 to a full deck assumes the least favourable cut: nothing freed for the
-budget, an owned card out for a partial deck's owned share.
+budget, and an owned card out for a partial deck's owned share only when every
+card in it is owned. With an unowned card in the deck, the replace prompt
+offers only cuts that keep the deck's settings (`cutKeepsSettings`), so a
+missing Arcane Signet isn't hidden from a 50%-owned deck sitting on its floor.
 
 **A budget swap that costs power is shown only when the deck can't afford the
 card it replaces** (its settings would hide that card's re-add). With no budget,
@@ -1294,11 +1314,24 @@ and a land swap never takes a premium land (Path of Ancestry in an elves deck):
   any tutor the bracket estimator counts, whatever it costs.
 - **A card whose role is at or under its target**, unless the incoming card
   fills that same role and the role isn't short: a cut never opens a gap Coach
-  would then ask to fill. And when the incoming card's own role is already
-  met, cuts from that role come first (a removal spell for a removal spell),
-  so a combo or synergy add doesn't grow one surplus by draining another. A
-  surplus card from another role still follows, so the prompt never
-  dead-ends. This holds on every path that adds a card, the hero's included.
+  would then ask to fill.
+- **Anything but a weaker card of the same role, for an add whose role is at
+  or over target** (T171 round 3). That add is an upgrade inside its role: the
+  cut is a strictly weaker card of the same counted role (played here less, or
+  flagged weak when the add's play rate is unknown), and the reason says
+  "Upgrade in ramp", never "Excess Ramp". Boros Signet once came in for Battle
+  Angels of Tyr as "Excess Ramp" and ramp stayed at 16 of 13. With no weaker
+  card in the role, there is no suggestion. This holds on every path that adds
+  a card, the hero's included.
+- **A plan card.** A card that feeds one of the commander's own abilities (an
+  attack trigger Isshin doubles, a tribe Lathril leads; the commander profile's
+  detectors) is never a misfit, an optimizer removal or a budget swap's
+  outgoing card, and the replace prompt offers it only for an incoming card
+  that feeds the commander too. A card whose card facts rank its counted role
+  below its primary one is never an excess cut or an in-role upgrade either
+  (`services/deckBuilder/incidentalRole.ts`). Battle Angels of Tyr counts as
+  ramp for its Treasure, but it is an Isshin payoff; the Signets are the
+  excess.
 - **A card the user just added.** A staple the analysis still lists as
   missing is in the deck only because the user added it since, most likely
   on Coach's advice; offering it as the next cut undoes that move.
@@ -1313,7 +1346,11 @@ and a land swap never takes a premium land (Path of Ancestry in an elves deck):
 The replace-when-full prompt also keeps the slot: **a land makes room for a
 land, a spell for a spell** (the weakest land for this deck first, a utility
 land never), and an unflagged card is never offered when it is played here at
-least as much as the card coming in.
+least as much as the card coming in, nor when swapping it out would break the
+deck's settings.
+
+A land swap's "Adds green fixing you're short on" comes from the deck's own
+manabase report (its `short` flag), so the two never disagree.
 
 ### Land swaps are upgrades for this deck (T171)
 

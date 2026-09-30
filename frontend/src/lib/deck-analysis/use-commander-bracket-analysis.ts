@@ -174,6 +174,10 @@ function withStallTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  *        commander's base page. The cost plan reads each current card's play
  *        rate off that page (it read 0%, so every swap classed as a drop-in)
  *        and keeps utility lands; a complete combo's pieces are never misfits.
+ *        A plan card whose role tag is incidental is never an excess cut, a
+ *        board-building deck is offered no symmetric wipe, a land search is
+ *        not a card-advantage staple, and an off-page synergy payoff needs
+ *        its condition in the deck.
  */
 const ANALYSIS_ENGINE_VERSION = 'v22-coach-inputs';
 

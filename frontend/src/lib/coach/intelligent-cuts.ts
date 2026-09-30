@@ -38,7 +38,10 @@ import type { OptimizeCard } from '@/deck-builder/services/deckBuilder/deckAnaly
 import { ROLE_LABELS } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
 import type { MisfitSummary } from '@/deck-builder/services/deckBuilder/cardFit';
 import { isPremiumCard } from '@/deck-builder/services/deckBuilder/premiumCards';
-import { buildCommanderProfile } from '@/deck-builder/services/deckBuilder/commanderProfile';
+import {
+  buildCommanderProfile,
+  whyCardMatches,
+} from '@/deck-builder/services/deckBuilder/commanderProfile';
 import { roleIsIncidental } from '@/deck-builder/services/deckBuilder/incidentalRole';
 import { isUtilityLand, landSlotMerit } from '@/deck-builder/services/deckBuilder/landUpgrades';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
@@ -246,6 +249,9 @@ export function rankReplacementCuts({
   const profile = analysis.commander
     ? buildCommanderProfile(analysis.commander, analysis.partnerCommander)
     : null;
+  const feedsCommander = (card: ScryfallCard): boolean =>
+    !!profile && whyCardMatches(card, profile).length > 0;
+  const addFeedsCommander = feedsCommander(addCard);
   const inRole = (card: ScryfallCard): boolean =>
     countedRoleOf(card) === addCounted && !roleIsIncidental(card, addCounted, profile);
   // A staple the analysis still lists as missing is in the deck now: the user
@@ -306,6 +312,10 @@ export function rankReplacementCuts({
     const loadBearing =
       hasEngine && [...cardAxes].some((k) => investedAxes.has(k.slice(0, k.indexOf(':'))));
     if (loadBearing && !sameAxis) continue;
+    // A card that feeds the commander's own ability goes only for another that
+    // does: Flawless Maneuver cut Drakuseth, an Isshin attack-trigger payoff,
+    // as "Played in 13% of decklists" (T171 round 3).
+    if (!addFeedsCommander && feedsCommander(card)) continue;
 
     // Axis overlap is the dominant relatedness signal (up to 6), then role, type,
     // color, cost. Mirrors the synergy-first weighting of the similar-cards scorer.

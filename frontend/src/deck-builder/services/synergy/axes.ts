@@ -7,6 +7,7 @@
  * Adding an axis is declarative: append to AXES. The framework is unchanged.
  */
 import type { ParsedCard } from './text';
+import { REASON } from './reasons';
 import {
   splitClauses,
   tokenCreation,
@@ -60,20 +61,6 @@ export interface SynergyAxis {
 }
 
 const has = (card: ParsedCard, kw: string) => card.keywords.includes(kw);
-
-/**
- * Reasons whose condition is narrower than their axis: a payoff that needs a
- * specific producer (or board) the axis alone doesn't promise. The off-meta
- * suggester checks the deck enables them (suggest.ts, T171 round 3).
- */
-export const REASON = {
-  convoke: 'has convoke',
-  forcesDiscards: 'forces discards',
-  loots: 'loots or rummages',
-  punishesOpponentDiscard: 'punishes opponents discarding',
-  rewardsYourDiscards: 'rewards your discards',
-  madness: 'madness',
-} as const;
 
 // ── Tokens (creature / go-wide) — noncreature tokens belong to the artifacts axis ──
 const CREATURE_TOKEN_KEYWORDS = ['fabricate', 'amass', 'embalm', 'eternalize', 'afterlife'];
@@ -434,7 +421,7 @@ const superfriends: SynergyAxis = {
     // counter-doublers (Doubling Season, Vorinclex) are deliberately *not* here —
     // their templating is "counters", not loyalty-specific, so they read as the
     // `counters` axis. Only loyalty-named or planeswalker-named text qualifies.
-    if (card.typeLine.includes('planeswalker')) return 'a loyalty engine';
+    if (card.typeLine.includes('planeswalker')) return REASON.loyaltyEngine;
     if (has(card, 'proliferate') || /\bproliferate\b/.test(card.oracle)) return 'proliferate';
     if (/(?:enters with|put|add)[^.]*loyalty counter/.test(card.oracle))
       return 'adds loyalty counters';
@@ -633,10 +620,8 @@ const tribal: SynergyAxis = {
 // ── Blink / flicker ──────────────────────────────────────────────────────────
 // A flicker exiles a permanent and returns it to the battlefield — that round
 // trip IS the mechanic. The producer is the flicker engine itself.
-// A card that exiles itself and returns transformed (Fable of the
-// Mirror-Breaker's chapter III, the Kamigawa Sagas) is transforming, not
-// flickering: it read as a blink engine and was suggested to Krenko as one
-// (T171 round 3).
+// A card that exiles itself and returns transformed (Fable of the Mirror-Breaker)
+// is transforming, not flickering (T171 round 3).
 const FLICKER_RETURN =
   /return (?:it|them|that card|those cards|that permanent) to the battlefield(?![^.]*\btransformed\b)/;
 

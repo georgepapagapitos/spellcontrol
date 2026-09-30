@@ -77,7 +77,7 @@ export function buildGapAnalysis(
     .map((c) => {
       // A land fills a land slot, not a spell role, and a land search isn't
       // card advantage (Elven Passage read as a "Card advantage staple").
-      const tagged = /land/i.test(c.primary_type ?? '') ? null : getCardRole(c.name);
+      const tagged = /\bland\b/i.test(c.primary_type ?? '') ? null : getCardRole(c.name);
       const role = (tagged === 'cardDraw' && drawsOnlyLands(c.name) ? null : tagged) || undefined;
       return {
         name: c.name,

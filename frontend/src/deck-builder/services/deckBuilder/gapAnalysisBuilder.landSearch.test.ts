@@ -15,6 +15,7 @@ const TAGS = {
     ramp: ['Cultivate'],
     'card-advantage': ['Harmonize'],
     draw: ['Harmonize'],
+    removal: ['Boseiju, Who Endures'],
   },
 };
 
@@ -28,11 +29,12 @@ const row = (name: string, primary_type: string, inclusion: number): EDHRECCard 
   ({ name, sanitized: name, primary_type, inclusion, num_decks: 0 }) as EDHRECCard;
 
 describe('buildGapAnalysis — land searches', () => {
-  it('never labels a land search as card advantage', () => {
+  it('never labels a land search as card advantage, nor a land with a spell role', () => {
     const page = {
       cardlists: {
         allNonLand: [
           row('Elven Passage', 'Land', 40),
+          row('Boseiju, Who Endures', 'Land', 45),
           row('Civic Wayfinder', 'Creature', 30),
           row('Cultivate', 'Sorcery', 50),
           row('Harmonize', 'Sorcery', 35),
@@ -44,6 +46,7 @@ describe('buildGapAnalysis — land searches', () => {
     );
     expect(roles).toEqual({
       'Elven Passage': null,
+      'Boseiju, Who Endures': null,
       'Civic Wayfinder': null,
       Cultivate: 'Ramp',
       Harmonize: 'Card advantage',
