@@ -8,11 +8,9 @@ import {
   buildIndex,
   buildPool,
   redactName,
-  extendSchedule,
-  daysAhead,
-  addDays,
-  HORIZON_DAYS,
-  REPEAT_GAP_DAYS,
+  poolEntry,
+  buildPoolFile,
+  buildNames,
   POOL_MAX_RANK,
 } from './refresh-daily-cards.mjs';
 
@@ -56,7 +54,7 @@ describe('isPlayablePrinting', () => {
 });
 
 describe('colorsOf', () => {
-  it('orders colours WUBRG and reads faces when the card has no top-level colours', () => {
+  it('orders colors WUBRG and reads faces when the card has no top-level colors', () => {
     expect(colorsOf({ colors: ['G', 'W', 'U'] })).toBe('WUG');
     expect(colorsOf({ card_faces: [{ colors: ['R'] }, { colors: ['W'] }] })).toBe('WR');
     expect(colorsOf({ colors: [] })).toBe('');
@@ -183,63 +181,41 @@ describe('buildPool', () => {
   });
 });
 
-function poolOf(n) {
-  return Array.from({ length: n }, (_, i) => ({
-    name: `Card ${i}`,
+describe('server snapshots', () => {
+  const card = {
+    name: 'Lightning Bolt',
     colors: 'R',
     mv: 1,
     typeLine: 'Instant',
-    oracleText: `Card ${i} deals damage.`,
-    edhrecRank: i + 1,
+    oracleText: 'Lightning Bolt deals 3 damage to any target.',
+    edhrecRank: 5,
     rarity: 'common',
-    released: '2000-01-01',
-    setName: 'Set',
+    released: '1993-08-05',
+    setName: 'Limited Edition Alpha',
     flavor: '',
-    art: '',
-  }));
-}
-
-describe('extendSchedule', () => {
-  it('fills today through the horizon, numbering from the epoch', () => {
-    const { epoch, puzzles, added } = extendSchedule(null, poolOf(600), '2026-10-01');
-    expect(epoch).toBe('2026-10-01');
-    expect(added).toBe(HORIZON_DAYS + 1);
-    expect(puzzles[0]).toMatchObject({ date: '2026-10-01', number: 1 });
-    expect(puzzles.at(-1)).toMatchObject({
-      date: addDays('2026-10-01', HORIZON_DAYS),
-      number: HORIZON_DAYS + 1,
-    });
-    expect(puzzles[0].rulesText).not.toMatch(/Card \d+/);
+    art: 'https://example.test/a.jpg',
+  };
+  it('poolEntry has no date or number and redacts the name', () => {
+    const e = poolEntry(card);
+    expect(e).not.toHaveProperty('date');
+    expect(e).not.toHaveProperty('number');
+    expect(e.rulesText).toBe('this card deals 3 damage to any target.');
+    expect(e.year).toBe(1993);
+    expect(e.rarity).toBe('common');
   });
-
-  it('never rewrites an existing day, past or future', () => {
-    const first = extendSchedule(null, poolOf(600), '2026-10-01');
-    const frozen = first.puzzles.find((p) => p.date === '2026-10-20');
-    const again = extendSchedule(first, poolOf(900).reverse(), '2026-10-10');
-    expect(again.epoch).toBe('2026-10-01');
-    expect(again.puzzles.find((p) => p.date === '2026-10-20')).toEqual(frozen);
-    expect(again.puzzles.find((p) => p.date === '2026-10-01')).toEqual(first.puzzles[0]);
-    expect(again.added).toBe(9);
+  it('buildPoolFile wraps entries', () => {
+    const f = buildPoolFile([card], 'now');
+    expect(f).toMatchObject({ version: 1, generatedAt: 'now' });
+    expect(f.cards).toHaveLength(1);
   });
-
-  it('picks the same answers from the same state', () => {
-    const a = extendSchedule(null, poolOf(600), '2026-10-01');
-    const b = extendSchedule(null, poolOf(600), '2026-10-01');
-    expect(a.puzzles.map((p) => p.name)).toEqual(b.puzzles.map((p) => p.name));
-  });
-
-  it(`doesn't repeat an answer within ${REPEAT_GAP_DAYS} days while the pool allows`, () => {
-    const { puzzles } = extendSchedule(null, poolOf(600), '2026-10-01');
-    expect(new Set(puzzles.map((p) => p.name)).size).toBe(puzzles.length);
-  });
-});
-
-describe('daysAhead', () => {
-  it('counts the days the schedule runs past today, 0 when it has run out', () => {
-    const { puzzles, epoch } = extendSchedule(null, poolOf(600), '2026-10-01');
-    const schedule = { epoch, puzzles };
-    expect(daysAhead(schedule, '2026-10-01')).toBe(HORIZON_DAYS);
-    expect(daysAhead(schedule, addDays('2026-10-01', HORIZON_DAYS + 1))).toBe(0);
-    expect(daysAhead(null, '2026-10-01')).toBe(0);
+  it('buildNames is sorted, unique and name-only', () => {
+    const idx = {
+      cards: [
+        ['B', 'R', 1, 'Instant', 0, 1993],
+        ['A', '', 0, 'Land', 0, 1994],
+        ['B', '', 0, 'X', 0, 1],
+      ],
+    };
+    expect(buildNames(idx, 'now')).toEqual({ version: 1, generatedAt: 'now', names: ['A', 'B'] });
   });
 });

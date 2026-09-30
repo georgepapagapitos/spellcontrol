@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { formatCount } from '@/lib/util/format-count';
+import './HubTabsNav.css';
 
 export interface HubTab {
   to: string;
@@ -12,6 +13,9 @@ export interface HubTab {
   count?: number;
   /** Plural noun for the count's screen-reader label, e.g. "cards" → "12 cards". */
   countNoun?: string;
+  /** Something is running on this tab (a game in progress): a dot beside the
+   *  label, and this text read after it, e.g. "game in progress". */
+  live?: string;
 }
 
 /**
@@ -41,7 +45,9 @@ export function HubTabsNav({ ariaLabel, tabs }: { ariaLabel: string; tabs: HubTa
   // Re-run on anything that moves the tabs, not just the route. The count
   // chips ("12K") arrive ASYNC — they widen the strip after first paint and
   // pushed the active tab back out of view when this only keyed on the route.
-  const layoutKey = tabs.map((t) => `${t.to}:${t.active ? 1 : 0}:${t.count ?? ''}`).join('|');
+  const layoutKey = tabs
+    .map((t) => `${t.to}:${t.active ? 1 : 0}:${t.count ?? ''}:${t.live ?? ''}`)
+    .join('|');
 
   // Keep the current tab visible. The strip is a horizontal scroller
   // (`overflow-x: auto`) and nothing was scrolling it, so on a 360px phone the
@@ -68,15 +74,19 @@ export function HubTabsNav({ ariaLabel, tabs }: { ariaLabel: string; tabs: HubTa
 
   return (
     <nav className="collection-hub-tabs" aria-label={ariaLabel} ref={navRef}>
-      {tabs.map(({ to, label, active, count, countNoun }) => (
+      {tabs.map(({ to, label, active, count, countNoun, live }) => (
         <Link
           key={to}
           to={to}
           ref={active ? activeRef : undefined}
           className={active ? 'site-nav-link active' : 'site-nav-link'}
           aria-current={active ? 'page' : undefined}
+          // One string, so the name reads "Local, game in progress"; a
+          // visually hidden suffix computes as "Local , game in progress".
+          aria-label={live ? `${label}, ${live}` : undefined}
         >
           <span>{label}</span>
+          {live && <span className="site-nav-dot" aria-hidden="true" />}
           {count !== undefined && count > 0 && (
             <span
               className="site-nav-count"

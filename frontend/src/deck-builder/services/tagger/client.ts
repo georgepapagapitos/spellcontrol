@@ -1,4 +1,5 @@
 import { logger } from '@/lib/util/logger';
+import { grantsToTargetText } from '../deckBuilder/protectionReading';
 import {
   checkRoleEvidence,
   isIncidentalRampByTags,
@@ -362,6 +363,30 @@ export function isProtectionPiece(card: {
   ).trim();
   if (!text) return false;
   return PROTECTION_EVIDENCE.test(text);
+}
+
+/**
+ * E555: every card that reads as protection: `isProtectionPiece`, plus a grant
+ * whose target is named in the sentence before ("Put a +1/+1 counter on target
+ * creature you control. It gains hexproof until end of turn." - Snakeskin
+ * Veil), read by protectionReading.ts, the reading the survival rule and the
+ * deck objective share. What the build report counts and the deck objective
+ * values. The generation phases that protect a piece from eviction still read
+ * `isProtectionPiece`: widening them moves compositions, which is its own
+ * ship-gated change.
+ */
+export function readsAsProtection(card: {
+  name: string;
+  oracle_text?: string;
+  card_faces?: Array<{ oracle_text?: string }>;
+}): boolean {
+  if (isProtectionPiece(card)) return true;
+  const text = (
+    card.oracle_text ??
+    card.card_faces?.map((f) => f.oracle_text ?? '').join(' ') ??
+    ''
+  ).trim();
+  return text !== '' && grantsToTargetText(text);
 }
 
 // Free-interaction / reflexive alt-cost pieces (iter-10 Slice A) — cards whose

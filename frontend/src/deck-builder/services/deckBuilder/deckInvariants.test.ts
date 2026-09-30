@@ -12,6 +12,7 @@
 // __fixtures__/invariant-deck.ts.
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { GeneratedDeck } from '@/deck-builder/types';
+import { roleCapLimit } from './roleCapAllowance';
 import { computeRoleCounts } from './commanderDeckAnalysis';
 import { calculateStats } from './deckStats';
 import {
@@ -685,6 +686,92 @@ describe('report truth (E166)', () => {
     expect(checkDeckInvariants(deck, context()).find((x) => x.check === 'roles')?.level).toBe(
       'SOFT'
     );
+  });
+});
+
+describe('roles over target: what E532 admits past the cap (E554)', () => {
+  // Real Tatyova cards, roles from the pinned tagger snapshot. `target` is
+  // chosen so the deck's ramp sits past the invariant's cap
+  // (target + max(2, ceil(0.2 target))) and, for the admitted cases, inside
+  // the staple ceiling (roleCapLimit(target, 2)).
+  const NOTE = "3 cards went past a role cap. They're in 40% or more of this commander's decks.";
+  const clean = () => assemble(cleanCategories());
+  const rampCount = () => clean().roleCounts!.ramp;
+  function targetFor(actual: number, pastCeiling = false): number {
+    for (let t = actual - 1; t > 0; t--) {
+      const cap = t + Math.max(2, Math.ceil(0.2 * t));
+      if (actual <= cap) continue;
+      if (actual <= roleCapLimit(t, 2) !== pastCeiling) return t;
+    }
+    throw new Error('no target');
+  }
+  const staples = () => {
+    const inclusion: Record<string, number> = {};
+    for (const c of Object.values(cleanCategories()).flat()) {
+      if (computeRoleCounts([c]).roleCounts.ramp) inclusion[c.name] = 55;
+    }
+    return inclusion;
+  };
+  const rolesFlag = (deck: GeneratedDeck) =>
+    checkDeckInvariants(deck, context()).find((x) => x.check === 'roles');
+
+  it('is not flagged for staples the cap let through, disclosed', () => {
+    const t = targetFor(rampCount());
+    const deck = assemble(cleanCategories(), {
+      roleTargets: { ramp: t },
+      cardInclusionMap: staples(),
+      roleCapOverflowNote: NOTE,
+    });
+    expect(rolesFlag(deck)).toBeUndefined();
+  });
+
+  it('is flagged when the overflow is not disclosed', () => {
+    const t = targetFor(rampCount());
+    const deck = assemble(cleanCategories(), {
+      roleTargets: { ramp: t },
+      cardInclusionMap: staples(),
+    });
+    expect(rolesFlag(deck)?.level).toBe('SOFT');
+  });
+
+  it('is flagged when no card past the cap is a staple or a combo piece', () => {
+    const t = targetFor(rampCount());
+    const deck = assemble(cleanCategories(), {
+      roleTargets: { ramp: t },
+      roleCapOverflowNote: NOTE,
+    });
+    expect(rolesFlag(deck)?.level).toBe('SOFT');
+  });
+
+  it('is flagged past the staple ceiling even when every card is a staple', () => {
+    const t = targetFor(rampCount(), true);
+    const deck = assemble(cleanCategories(), {
+      roleTargets: { ramp: t },
+      cardInclusionMap: staples(),
+      roleCapOverflowNote: NOTE,
+    });
+    expect(rolesFlag(deck)?.level).toBe('SOFT');
+  });
+
+  it('counts a piece of a combo the deck holds as a card the cap lets through', () => {
+    const t = targetFor(rampCount());
+    const rampNames = Object.keys(staples());
+    const combo = {
+      comboId: 'x',
+      cards: rampNames,
+      results: [],
+      isComplete: true,
+      missingCards: [],
+      deckCount: 100,
+      bracket: null,
+      cardCount: rampNames.length,
+    };
+    const deck = assemble(cleanCategories(), {
+      roleTargets: { ramp: t },
+      detectedCombos: [combo],
+      roleCapOverflowNote: NOTE,
+    });
+    expect(rolesFlag(deck)).toBeUndefined();
   });
 });
 

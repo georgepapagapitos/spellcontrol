@@ -19,7 +19,7 @@ import {
   getRemovalSubtype,
   getBoardwipeSubtype,
   getCardDrawSubtype,
-  isProtectionPiece,
+  readsAsProtection,
 } from '@/deck-builder/services/tagger/client';
 import {
   getGameChangerNames,
@@ -205,7 +205,7 @@ export function computeRoleCounts(cards: RoleCard[]): RoleCountResult {
  */
 export function countProtectionPieces(cards: RoleCard[]): number {
   return cards.filter(
-    (c) => !frontTypeLine(c).toLowerCase().includes('land') && isProtectionPiece(c)
+    (c) => !frontTypeLine(c).toLowerCase().includes('land') && readsAsProtection(c)
   ).length;
 }
 

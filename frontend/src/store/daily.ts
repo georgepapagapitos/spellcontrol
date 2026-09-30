@@ -7,14 +7,15 @@ import { MAX_GUESSES, mergeResults, previousDay, type DailyResult } from '@/lib/
 const KEEP_GUESS_DAYS = 14;
 
 interface DailyState {
-  /** Names guessed per UTC day, in order. The last one is the answer when solved. */
+  /** A guest's guesses per UTC day, in order (the server keeps a signed-in player's). */
   guesses: Record<string, string[]>;
   /** Finished puzzles, newest first, one per date. */
   results: DailyResult[];
-  /** Dates whose result the server hasn't confirmed yet (a guest's, or a failed post). */
+  /** A guest's finished days the account hasn't seen yet; posted after sign-in. */
   unposted: string[];
   addGuess: (date: string, name: string) => void;
-  finish: (date: string, result: Omit<DailyResult, 'date'>) => void;
+  /** `queue: false` when the server already recorded it (signed-in play). */
+  finish: (date: string, result: Omit<DailyResult, 'date'>, opts?: { queue?: boolean }) => void;
   /** Fold in the server's history. The server keeps the first result per day, so it wins. */
   adoptServerResults: (results: readonly DailyResult[]) => void;
   markPosted: (dates: readonly string[]) => void;
@@ -41,12 +42,13 @@ export const useDailyStore = create<DailyState>()(
         const kept = Object.fromEntries(Object.entries(guesses).filter(([d]) => d > oldest));
         set({ guesses: { ...kept, [date]: [...list, name] } });
       },
-      finish: (date, result) => {
+      finish: (date, result, opts) => {
         const { results, unposted } = get();
         if (results.some((r) => r.date === date)) return;
+        const queue = opts?.queue ?? true;
         set({
           results: mergeResults([{ date, ...result }], results),
-          unposted: unposted.includes(date) ? unposted : [...unposted, date],
+          unposted: !queue || unposted.includes(date) ? unposted : [...unposted, date],
         });
       },
       adoptServerResults: (server) => {

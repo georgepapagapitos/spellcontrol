@@ -57,7 +57,7 @@ export const signatureTerm: TermFn = (deck, ctx) => {
       value: v,
       note:
         read.strength >= 0
-          ? `plays ${round2(read.strength)} strength over its colours`
+          ? `plays ${round2(read.strength)} strength over its colors`
           : `this commander's players avoid it (strength ${round2(read.strength)})`,
     });
   }

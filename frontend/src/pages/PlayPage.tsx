@@ -23,8 +23,7 @@ import { EndGameDialog } from '@/components/play/EndGameDialog';
 import { OnlineGameView } from '@/components/play/OnlineGameView';
 import { OnlineLobby } from '@/components/play/OnlineLobby';
 import { ConfirmDialog } from '@/components/overlays/ConfirmDialog';
-import { Tabs } from '@/components/overlays/Tabs';
-import { PageHeader } from '@/components/app-shell/PageHeader';
+import { HubPage } from '@/components/app-shell/HubPage';
 import { GameNightsTab, pendingInviteCount, useGameNights } from '@/components/play/GameNights';
 import { FORMAT_OPTIONS, MIN_LOCAL_PLAYERS } from '@/lib/play/game-formats';
 import { deckBoardPath } from '@/lib/play/starter-decks';
@@ -43,6 +42,13 @@ import { HistoryTab } from './play/HistoryTab';
 import { blankPlayer } from './play/seat-players';
 type Tab = 'home' | 'local' | 'online' | 'nights' | 'history';
 const TABS: ReadonlySet<string> = new Set(['home', 'local', 'online', 'nights', 'history']);
+const SECTION_LABEL: Record<Tab, string> = {
+  home: 'Play',
+  local: 'Local',
+  online: 'Online',
+  nights: 'Game nights',
+  history: 'History',
+};
 
 export function PlayPage() {
   const [params, setParams] = useSearchParams();
@@ -273,53 +279,17 @@ export function PlayPage() {
   };
 
   return (
-    <div className="play-page">
-      <PageHeader
-        title="Play"
-        meta="Track a table in person, or play across devices with a join code."
-      />
-      <Tabs<Tab>
-        ariaLabel="Play sections"
-        variant="underline"
-        value={tab}
-        onChange={setTab}
-        tabs={[
-          { id: 'home', label: 'Play' },
-          {
-            id: 'local',
-            label: (
-              <>
-                Local
-                {local && <span className="play-tab-dot" aria-hidden="true" />}
-              </>
-            ),
-            ariaLabel: local ? 'Local, game in progress' : undefined,
-          },
-          {
-            id: 'online',
-            label: (
-              <>
-                Online
-                {online && <span className="play-tab-dot" aria-hidden="true" />}
-              </>
-            ),
-            ariaLabel: online ? 'Online, game in progress' : undefined,
-          },
-          {
-            id: 'nights',
-            label: 'Game nights',
-            count: inviteCount > 0 ? inviteCount : null,
-            ariaLabel:
-              inviteCount > 0 ? `Game nights, ${inviteCount} awaiting your reply` : undefined,
-          },
-          {
-            id: 'history',
-            label: 'History',
-            count: history.length > 0 ? history.length : null,
-          },
-        ]}
-      />
-
+    <HubPage
+      hub="play"
+      section={SECTION_LABEL[tab]}
+      className="play-page"
+      intro={
+        tab === 'home'
+          ? 'Track a table in person, or play across devices with a join code.'
+          : undefined
+      }
+      counts={{ '/play/nights': inviteCount }}
+    >
       {tab === 'home' && (
         <PlayHome
           local={local}
@@ -575,7 +545,7 @@ export function PlayPage() {
           onCancel={() => setPendingStart(null)}
         />
       )}
-    </div>
+    </HubPage>
   );
 }
 
