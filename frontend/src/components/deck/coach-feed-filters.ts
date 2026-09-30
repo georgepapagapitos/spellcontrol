@@ -60,6 +60,7 @@ const SETTINGS_EMPTY_HINT: Record<SettingsBreak, string> = {
   'over-budget': 'Every suggestion would take the deck over its budget.',
   'over-rarity': "Every suggestion is above this deck's rarity cap.",
   'over-game-changers': 'Every suggestion is a Game Changer past what this deck allows.',
+  unpriced: "No suggestion has a price to check against this deck's budget.",
 };
 
 /**

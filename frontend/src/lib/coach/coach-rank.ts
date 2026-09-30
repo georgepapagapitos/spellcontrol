@@ -141,7 +141,8 @@ export function rankCoachMoves(changes: Change[], ctx: CoachContext): RankedMove
       return c.ownership === 'owned' ? 2 : 3;
     }
 
-    const targets = changeTargets(c);
+    // A staple in a role the deck already fills is a quality swap, not a gap.
+    const targets = changeTargets(c).filter((k) => k !== 'roles' || !roleMet(c.role));
     if (targets.length === 0) return 3;
 
     // Tier 1: severe structural gap (< 60) for fill-gaps or upgrade.
@@ -173,7 +174,19 @@ export function rankCoachMoves(changes: Change[], ctx: CoachContext): RankedMove
     return [oRank, planBand(r.change), -incl, -dScore, r.change.name];
   }
 
-  const ranked: RankedMove[] = changes.map((c) => ({
+  // A role at or over its target. The persisted analysis doesn't recompute
+  // between applies, so the live counts decide.
+  const roleMet = (role: string | undefined): boolean =>
+    !!role &&
+    ctx.roleTargets[role] !== undefined &&
+    (ctx.roleCounts[role] ?? 0) >= ctx.roleTargets[role];
+  // "Fills {role} gap" is false once the role is met: the row goes (it comes
+  // back on the next analysis if the role falls short again).
+  const live = changes.filter(
+    (c) => !(c.lane === 'upgrade' && c.group?.startsWith('fills:') && roleMet(c.group.slice(6)))
+  );
+
+  const ranked: RankedMove[] = live.map((c) => ({
     change: c,
     tier: assignTier(c),
     isCut: c.type === 'cut' ? true : undefined,

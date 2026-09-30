@@ -139,6 +139,17 @@ describe('rankReplacementCuts — role balance', () => {
     expect(cutNames(cuts)).not.toContain('Harmonize');
   });
 
+  it('an add whose role is already met only swaps inside that role (T171 re-gate)', () => {
+    // Removal 2/2: cutting Harmonize (draw, over its target of 0) would leave
+    // removal at 3/2. The only offer is a removal card.
+    const cuts = rankReplacementCuts({
+      addCard: real('Beast Within'),
+      deckCards: deck,
+      analysis: { optimizeSwaps: { removals }, roleTargets: { removal: 2, cardDraw: 0 } },
+    });
+    expect(cutNames(cuts)).toEqual(['Murder', 'Doom Blade']);
+  });
+
   it('swaps like for like when the role is already met', () => {
     const cuts = rankReplacementCuts({
       addCard: real('Beast Within'),

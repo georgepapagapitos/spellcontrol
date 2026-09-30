@@ -72,9 +72,16 @@ function edhrecData(allNonLand: EDHRECCard[]): EDHRECCommanderData {
   };
 }
 
+// The Zombies theme page: Diregraf Colossus at 62.5% (Sefris, T171 re-gate).
+// The base page doesn't list it.
+const THEME_PAGE = [...PAGE, row('Diregraf Colossus', 62.5)];
+const themeFetch = vi.fn(async () => edhrecData(THEME_PAGE));
+
 vi.mock('@/deck-builder/services/edhrec/client', () => ({
   fetchCommanderData: vi.fn(async () => edhrecData(PAGE)),
   fetchPartnerCommanderData: vi.fn(async () => edhrecData(PAGE)),
+  fetchCommanderThemeData: () => themeFetch(),
+  fetchPartnerThemeData: () => themeFetch(),
   fetchCardLiftPool: vi.fn(async () => []),
 }));
 
@@ -123,6 +130,7 @@ const deck = [
   'Crib Swap',
   'Harmonize',
   'Mind Stone',
+  'Diregraf Colossus',
   'Forest',
   'Swamp',
 ].map(real);
@@ -185,5 +193,33 @@ describe('analyzeCommanderDeck — what Coach reads (T171)', () => {
       rarity: COACH_CARDS['Beast Within'].rarity,
       inclusion: 22,
     });
+  });
+
+  it('reads the theme page the deck was built from, so its staples stay', async () => {
+    const { analyzeCommanderDeck } = await import('./commanderDeckAnalysis');
+    const base = await analyzeCommanderDeck({
+      commander,
+      cards: deck,
+      deckSize: 99,
+      colorIdentity: ['B', 'U', 'W', 'G'],
+    });
+    // Read against the base page, the Zombie engine looks like a misfit.
+    expect((base?.misfits ?? []).map((m) => m.name)).toContain('Diregraf Colossus');
+
+    const themed = await analyzeCommanderDeck({
+      commander,
+      cards: deck,
+      deckSize: 99,
+      colorIdentity: ['B', 'U', 'W', 'G'],
+      edhrecSource: {
+        themes: [{ name: 'Zombies', slug: 'zombies', source: 'edhrec', isSelected: true }],
+      },
+    });
+    expect(themeFetch).toHaveBeenCalled();
+    expect(themed?.cardInclusionMap?.['Diregraf Colossus']).toBe(62.5);
+    expect((themed?.misfits ?? []).map((m) => m.name)).not.toContain('Diregraf Colossus');
+    expect((themed?.optimizeSwaps?.removals ?? []).map((r) => r.name)).not.toContain(
+      'Diregraf Colossus'
+    );
   });
 });

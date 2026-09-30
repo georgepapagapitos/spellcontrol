@@ -1219,6 +1219,11 @@ shares). `deltaScore` only breaks ties: land swaps are the only rows that
 carry it, on their own scale, and sorting on it first put every land swap
 ahead of every staple.
 
+**A role gap is read off the live deck.** A "Fills {role} gap" row whose role
+is already at target is dropped, and a staple for a met role targets `cardFit`
+only, not `roles`: the analysis can predate the user's last edits, and a gap
+the deck has since filled is not a reason to promote anything (T171 re-gate).
+
 **The Cuts chip reads weakest first:** spell cuts before land tuning (a
 basic-for-basic rebalance is not a card the deck is worse for running), then
 play rate low to high, a card missing from the commander's page first.
@@ -1238,9 +1243,12 @@ per-card price cap, budget, rarity cap, Game Changer limit, target bracket
 strategy. **A move that breaks one is not shown**, in the feed, the upgrade
 plan or the Next-best-move hero (`lib/coach/deck-settings-fit.ts`). The check
 reads the incoming card's price and rarity off the row (the analysis stamps
-both); data it doesn't have never hides a move. An add to a full deck assumes
-the least favourable cut: nothing freed for the budget, an owned card out for
-a partial deck's owned share.
+both); data it doesn't have never hides a move, except a price: **under a
+budget or a per-card cap, a card with no price is not shown** (`unpriced`),
+since reading it as free is how a $50 deck was once handed an unpriced
+Goblin Lackey. Basics and owned cards the budget ignores are exempt. An add
+to a full deck assumes the least favourable cut: nothing freed for the
+budget, an owned card out for a partial deck's owned share.
 
 When the settings empty the feed, the empty state says so instead of "This
 deck looks tuned": the tagline is "Nothing to coach within this deck's
@@ -1252,6 +1260,18 @@ The hero's combo move names a missing piece this commander's decks play (on
 its EDHREC page, most played first): a combo that only needs a generic card
 (Hullbreaker Horror with the Sol Ring every deck runs) is not a next best move.
 
+### Which EDHREC page Coach reads (T171 re-gate)
+
+Coach reads a generated deck against **the page it was built from**, not the
+commander's base page (`services/deckBuilder/deckEdhrecSource.ts`): its themes
+merged the way generation merges them, at its bracket and budget, following
+the rung `buildReport.dataSource` records (the build can ladder off a theme or
+a bracket). Every play rate Coach quotes ("Played in 62% of decklists"), the
+40% staple floor below and the role targets all come from that page. A
+hand-built deck, or a page that fails to load, reads the base page. On the
+base page a Zombies Gisa deck's 62% lords read as 0% misfits, which is the
+advice this rule retires.
+
 ### What Coach never offers to cut (T171)
 
 Every cut surface (the Cuts chip, the optimizer's removals, the misfits, the
@@ -1261,10 +1281,14 @@ replace-when-full prompt, the budget lane's outgoing card) shares these floors:
   by name as well as by stamp (an imported deck has no stamp), a staple mana
   rock, a staple of this commander (at least 40% of its decks), a spell among
   the 100 most played in Commander, and, from the card facts, an efficient
-  tutor, protection piece, answer or board wipe (cheap, or free to cast).
+  tutor, protection piece, answer or board wipe (cheap, or free to cast), and
+  any tutor the bracket estimator counts, whatever it costs.
 - **A card whose role is at or under its target**, unless the incoming card
   fills that same role and the role isn't short: a cut never opens a gap Coach
-  would then ask to fill.
+  would then ask to fill. And when the incoming card's own role is already
+  met, the cut comes from that role (a removal spell for a removal spell), so
+  a combo or synergy add never grows one surplus by draining another. This
+  holds on every path that adds a card, the hero's included.
 - **A combo piece** of a combo the deck has.
 
 The replace-when-full prompt also keeps the slot: **a land makes room for a

@@ -3,7 +3,11 @@
 // imported deck Path to Exile read as "Excess Removal" and Fierce
 // Guardianship, The One Ring and Imperial Seal as misfits. Real cards,
 // Scryfall's 2026-09-29 bulk.
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { loadTaggerData } from '@/deck-builder/services/tagger/client';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { setCardFactsSnapshot } from '@/deck-builder/services/cardFacts';
 import { COACH_CARDS, coachCardFactsSnapshot } from './__fixtures__/coach-cards.fixtures';
@@ -69,5 +73,30 @@ describe('premiumNames', () => {
       'Path to Exile',
       'The One Ring',
     ]);
+  });
+});
+
+// T171 re-gate: Scheming Symmetry (a tutor, rank 1838, a 1-drop the facts
+// parser misread) was cut from a Bracket 4 Yuriko. A tutor the bracket
+// estimator counts is premium at any cost; Diabolic Tutor (4 mana, rank 485)
+// is premium only through that rule.
+describe('premiumReason — tutors (tagger)', () => {
+  it('protects a tutor the bracket estimator counts', async () => {
+    expect(premiumReason(card('Diabolic Tutor'))).toBeNull();
+    const here = dirname(fileURLToPath(import.meta.url));
+    const data = JSON.parse(
+      readFileSync(resolve(here, '__fixtures__', 'tagger-tags.fixture.json'), 'utf8')
+    );
+    // The live snapshot (public/tagger-tags.json) tags it; the fixture predates it.
+    data.tags.tutor.push('Scheming Symmetry');
+    vi.stubGlobal('fetch', async () => ({ ok: true, status: 200, json: async () => data }));
+    try {
+      expect(await loadTaggerData()).toBeTruthy();
+      expect(premiumReason(card('Diabolic Tutor'))).toBe('tutor');
+      expect(premiumReason(card('Scheming Symmetry'))).toBe('tutor');
+      expect(premiumReason(card('Aetherjacket'))).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

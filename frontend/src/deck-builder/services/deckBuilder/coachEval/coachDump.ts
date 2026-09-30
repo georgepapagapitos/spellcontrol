@@ -23,6 +23,7 @@ import { isBasicLandName } from '@/lib/collection/allocations';
 import { countedRoleOf } from '../commanderDeckAnalysis';
 import { routeCardByType } from '../categorize';
 import { calculateStats } from '../deckStats';
+import { buildManabaseSummary } from '../manabaseMath';
 import {
   cardFromDump,
   deckFromDump,
@@ -137,6 +138,9 @@ function removeRow(decklist: Record<string, DumpCard[]>, name: string): DumpCard
   return null;
 }
 
+const frontTypeLine = (c: ScryfallCard): string =>
+  c.card_faces?.[0]?.type_line ?? c.type_line ?? '';
+
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
@@ -146,14 +150,28 @@ export interface CoachChecks {
   expectedCards: number;
   duplicates: string[];
   offIdentity: string[];
+  /** The deck's budget ask, with the priced total and every unpriced card. */
+  budget: {
+    deckBudget: number | null;
+    totalPriceUsd: number;
+    over: boolean;
+    unpriced: string[];
+  };
 }
 
-/** Size, singleton and identity over the advised decklist. */
+/** Size, singleton, identity and budget over the advised decklist. */
 export function coachChecks(dump: PanelDump): CoachChecks {
   const rows = flattenDecklist(dump.decklist);
   const counts = new Map<string, number>();
   for (const r of rows) counts.set(r.name, (counts.get(r.name) ?? 0) + 1);
   const identity = new Set(dump.colorIdentity);
+  const deckBudget =
+    ((dump.customization as Record<string, unknown> | undefined)?.deckBudget as number | null) ??
+    null;
+  const totalPriceUsd = round2(rows.reduce((s, r) => s + (Number(r.price_usd ?? 0) || 0), 0));
+  const unpriced = rows
+    .filter((r) => r.price_usd == null && !isBasicLandName(r.name))
+    .map((r) => r.name);
   return {
     totalCards: rows.length,
     expectedCards: 99 - (dump.partner ? 1 : 0),
@@ -161,6 +179,12 @@ export function coachChecks(dump: PanelDump): CoachChecks {
     offIdentity: rows
       .filter((r) => (r.color_identity ?? []).some((c) => !identity.has(c)))
       .map((r) => r.name),
+    budget: {
+      deckBudget,
+      totalPriceUsd,
+      over: deckBudget != null && (totalPriceUsd > deckBudget || unpriced.length > 0),
+      unpriced,
+    },
   };
 }
 
@@ -290,6 +314,12 @@ export function advisedDump(
       averageCmc: round2(stats.averageCmc),
       totalPriceUsd: round2(originalPrice + priceDelta),
     },
+    // The generator's own manabase report, over the advised deck.
+    manabase: buildManabaseSummary(
+      final.cards.filter((c) => /\bland\b/i.test(frontTypeLine(c))),
+      final.cards.filter((c) => !/\bland\b/i.test(frontTypeLine(c))),
+      new Set(original.colorIdentity)
+    ),
     cardRelevancy,
     allNotes: {
       ...((original.allNotes as Record<string, string> | undefined) ?? {}),

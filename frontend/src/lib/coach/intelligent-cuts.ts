@@ -26,6 +26,8 @@
  *     add that fills a gap never trades away another card in the same role
  *     (the collection panel's owned substitutes went in for a same-role cut,
  *     and the next pass traded them straight back);
+ *   - for an add whose role is already met, a card of any other role: the
+ *     swap stays inside the role instead of pushing it into surplus;
  *   - a card load-bearing for an engine the deck is invested in, unless the
  *     card being added reinforces that same engine (a true like-for-like swap).
  *
@@ -201,12 +203,18 @@ export function rankReplacementCuts({
     if ((counts[role] ?? 0) > targets[role]) return false; // over target: room to trim
     return role !== addCounted || addFillsGap;
   };
+  // An add whose role is already met swaps inside that role; any other cut
+  // pushes the role into surplus ("Fills Removal gap" applied at 12/12 left
+  // removal at 14/12 in the T171 re-gate).
+  const addRoleMet = !!addCounted && targets?.[addCounted] !== undefined && !addFillsGap;
+  const unbalances = (card: ScryfallCard): boolean =>
+    opensGap(card) || (addRoleMet && countedRoleOf(card) !== addCounted);
 
   const eligible = deckCards.filter(({ card }) => {
     if (card.name === addCard.name) return false; // never offer to cut the card you're adding
     if (isLandSlot(card) !== addIsLand) return false;
     if (comboPieces.has(card.name.toLowerCase())) return false;
-    if (opensGap(card)) return false;
+    if (unbalances(card)) return false;
     return !isPremiumCard(card, { inclusion: pageInclusion(card.name) });
   });
 

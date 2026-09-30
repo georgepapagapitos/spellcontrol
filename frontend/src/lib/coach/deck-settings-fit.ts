@@ -10,8 +10,9 @@
  * have had to skip. A move that breaks one of these settings is now not shown.
  *
  * The check reads the incoming card's price and rarity off the row (the
- * analysis stamps both: candidateCardData.ts). Data it doesn't have (a combo
- * piece's price) never hides a move. An add to a full deck displaces a card
+ * analysis stamps both: candidateCardData.ts). A missing rarity never hides a
+ * move; a missing price does when the deck has a price cap or a budget, since
+ * nothing shows the card fits it. An add to a full deck displaces a card
  * the user picks later, so the budget and owned-share checks assume the least
  * favorable one: nothing freed, an owned card out.
  */
@@ -59,7 +60,8 @@ export type SettingsBreak =
   | 'over-card-price'
   | 'over-budget'
   | 'over-rarity'
-  | 'over-game-changers';
+  | 'over-game-changers'
+  | 'unpriced';
 
 const RARITY_ORDER = ['common', 'uncommon', 'rare', 'mythic'];
 
@@ -132,7 +134,7 @@ function incomingPrice(
   out: ScryfallCard | undefined,
   data: SuggestionCardData | undefined
 ): number | undefined {
-  if (change.card) return usd(change.card);
+  if (change.card) return parsePrice(getCardPrice(change.card, 'USD')) ?? undefined;
   if (typeof change.deltaPrice !== 'number') return parsePrice(data?.price) ?? undefined;
   if (change.type === 'add') return change.deltaPrice;
   // A swap's delta is signed (the budget lane's is minus the savings).
@@ -184,6 +186,11 @@ export function settingsBreak(
 
   const free = settings.ignoreOwnedBudget && owned;
   const price = incomingPrice(change, out, data);
+  // Under a price cap or a budget, a card with no known price can't be shown
+  // to fit: an unpriced printing read as free let three shocklands into a $75
+  // deck (T171 re-gate). Basics are always affordable.
+  const priced = settings.maxCardPrice != null || settings.deckBudget != null;
+  if (priced && price === undefined && !free && !basic) return 'unpriced';
   if (price !== undefined && !free) {
     if (settings.maxCardPrice != null && price > settings.maxCardPrice) return 'over-card-price';
     if (settings.deckBudget != null) {

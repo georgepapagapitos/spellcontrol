@@ -111,6 +111,22 @@ describe('settingsBreak', () => {
     );
   });
 
+  it('hides a card with no price from a deck with a budget or a price cap (T171 re-gate)', () => {
+    // Overgrown Tomb's oracle printing carries no USD price; read as free, it
+    // took a $75 deck to about $92.
+    const unpriced = fromGapCard(
+      { name: 'Overgrown Tomb', price: null, inclusion: 40, synergy: 0, typeLine: 'Land' },
+      'unowned'
+    );
+    expect(settingsBreak(unpriced, { ...open, deckBudget: 75 }, deckOf(cheapDeck))).toBe(
+      'unpriced'
+    );
+    expect(settingsBreak(unpriced, { ...open, maxCardPrice: 10 }, deckOf(cheapDeck))).toBe(
+      'unpriced'
+    );
+    expect(settingsBreak(unpriced, { ...open, maxRarity: 'rare' }, deckOf(cheapDeck))).toBeNull();
+  });
+
   it('lets an owned card through the budget when owned cards are free', () => {
     const s = { ...open, deckBudget: 2, ignoreOwnedBudget: true };
     expect(settingsBreak(gapRow('The One Ring', true), s, deckOf(cheapDeck))).toBeNull();
@@ -172,7 +188,8 @@ describe('settingsBreak', () => {
           ? { price: COACH_CARDS['The One Ring'].prices?.usd ?? null }
           : undefined,
     };
-    expect(settingsBreak(row, s, deckOf(cheapDeck))).toBeNull(); // unknown price never hides
+    // Without the analysis' price, a price-capped deck can't show it fits.
+    expect(settingsBreak(row, s, deckOf(cheapDeck))).toBe('unpriced');
     expect(settingsBreak(row, s, deck)).toBe('over-card-price');
     const fit = fitsSettings(settingsChecker(s, deck));
     expect(combosThatFit([combo], fit, () => 'unowned')).toEqual([]);

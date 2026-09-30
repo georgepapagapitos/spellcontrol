@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Deck } from '@/store/decks';
 import type { ComboMatchResponse } from '@/types/combos';
+import { deckEdhrecSource } from '@/deck-builder/services/deckBuilder/deckEdhrecSource';
 import {
   analyzeCommanderDeck,
   detectCombosForAnalysis,
@@ -168,6 +169,9 @@ function withStallTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  *        optimizer removals, suggestion rows carry price and rarity for the
  *        deck's settings, synergy picks say when their engine is only
  *        budding, and one-away combo pieces are recorded (`suggestionCards`).
+ *        A generated deck is read against the EDHREC page it was built from
+ *        (its themes, bracket and budget; `deckEdhrecSource`), not the
+ *        commander's base page.
  */
 const ANALYSIS_ENGINE_VERSION = 'v22-coach-inputs';
 
@@ -371,6 +375,8 @@ export function useCommanderBracketAnalysis(args: Args): {
     // page by construction) and the Coach recommends cutting exactly what
     // generation deliberately added.
     const archetypeBlendNames = deck.buildReport?.archetypeBlendNames;
+    // A generated deck is read against the EDHREC page it was built from.
+    const edhrecSource = deckEdhrecSource(deck);
 
     const myReqId = ++reqIdRef.current;
     const timer = window.setTimeout(() => {
@@ -392,6 +398,7 @@ export function useCommanderBracketAnalysis(args: Args): {
             targetBracket,
             oneAwayCombos,
             archetypeBlendNames,
+            edhrecSource,
           })
         ),
         STALL_TIMEOUT_MS

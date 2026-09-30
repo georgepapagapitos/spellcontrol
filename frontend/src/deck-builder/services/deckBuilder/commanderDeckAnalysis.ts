@@ -49,6 +49,7 @@ import { loadCardSimilar, getSimilarRank } from './cardSimilar';
 import { computePlanScore, type PlanScore, type StrategyEngineInput } from './planScore';
 import { computeMisfits, summarizeMisfits, type MisfitSummary } from './cardFit';
 import { premiumNames } from './premiumCards';
+import { fetchDeckEdhrecPage, type DeckEdhrecSource } from './deckEdhrecSource';
 import {
   enrichRecommendationPrices,
   stampCandidateCardData,
@@ -545,6 +546,8 @@ export interface AnalyzeCommanderDeckParams {
    * that absence is why it was injected. Absent for manual / pre-E221 decks.
    */
   archetypeBlendNames?: string[];
+  /** The EDHREC page(s) a generated deck was built from; absent = the base page. */
+  edhrecSource?: DeckEdhrecSource;
 }
 
 export { enrichRecommendationPrices } from './candidateCardData';
@@ -711,9 +714,13 @@ export async function analyzeCommanderDeck(
 
     let edhrecData: EDHRECCommanderData;
     try {
-      edhrecData = params.partnerCommander
-        ? await fetchPartnerCommanderData(params.commander.name, params.partnerCommander.name)
-        : await fetchCommanderData(params.commander.name);
+      // The page the deck was built from (theme, bracket, budget), so every
+      // play rate Coach quotes is the one generation read (deckEdhrecSource.ts).
+      edhrecData = await fetchDeckEdhrecPage(
+        params.commander,
+        params.partnerCommander,
+        params.edhrecSource
+      );
     } catch (err) {
       // EDHREC unreachable / commander not indexed. estimateBracket, the
       // combo/curve/role signals it reads, and detectWinConditions are all
@@ -757,7 +764,7 @@ export async function analyzeCommanderDeck(
     const commanderProfile = buildCommanderProfile(params.commander, params.partnerCommander);
     const { targets: roleTargets } = getDynamicRoleTargets(
       params.deckSize,
-      undefined,
+      params.edhrecSource?.themes,
       edhrecData.stats,
       edhrecData,
       undefined,

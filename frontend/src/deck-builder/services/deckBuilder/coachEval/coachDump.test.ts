@@ -168,12 +168,31 @@ describe('advisedDump', () => {
     expect((out.cardRelevancy as Record<string, unknown>)['Rhystic Study']).toEqual({
       edhrecInclusionPct: 31.5,
     });
-    expect(out.coachChecks).toEqual({
+    expect(out.coachChecks).toMatchObject({
       totalCards: 99,
       expectedCards: 99,
       duplicates: [],
       offIdentity: [],
+      budget: { deckBudget: null, over: false },
     });
+    // The manabase report is recomputed over the advised deck (T171 re-gate:
+    // it used to carry the original's counts after three rocks were cut).
+    const manabase = out.manabase as { totalLands: number; lines: { color: string }[] };
+    expect(manabase.totalLands).toBe(cards.filter((c) => /Land/.test(c.type_line ?? '')).length);
+    expect(manabase.lines.map((l) => l.color).sort()).toEqual(['G', 'U']);
+  });
+
+  it('checks the budget, and an unpriced card fails it (T171 re-gate)', () => {
+    const dump = tatyovaDump();
+    dump.customization = { deckBudget: 1000 };
+    expect(coachChecks(dump).budget).toMatchObject({ deckBudget: 1000, over: false });
+    dump.decklist.synergy[0] = { ...dump.decklist.synergy[0], price_usd: null };
+    const checks = coachChecks(dump);
+    expect(checks.budget.over).toBe(true);
+    expect(checks.budget.unpriced).toEqual([dump.decklist.synergy[0].name]);
+    dump.customization = { deckBudget: 1 };
+    dump.decklist.synergy[0] = { ...dump.decklist.synergy[0], price_usd: '5' };
+    expect(coachChecks(dump).budget.over).toBe(true);
   });
 
   it('handles a card one move adds and a later move cuts again', () => {

@@ -16,6 +16,7 @@
  *  - a staple of this commander: on its EDHREC page at 40% or more;
  *  - a staple of the format: a spell among the 100 most played Commander
  *    cards (Scryfall's `edhrec_rank`);
+ *  - a tutor the bracket estimator counts (tagger), at any cost;
  *  - an efficient answer or piece of protection, from the card facts: a
  *    tutor at 2 mana or less, a protection spell or equipment at 2 or less,
  *    an instant-speed removal spell or counterspell at 2 or less, any of
@@ -31,6 +32,7 @@ import { HARDCODED_GAME_CHANGERS } from '@spellcontrol/deck-metrics';
 import { frontFaceName } from '@/lib/cards/card-text';
 import { getCardFacts } from '@/deck-builder/services/cardFacts';
 import { STAPLE_ROCK_NAMES } from './deckGeneration/phaseStapleManaRocks';
+import { isTutor } from './bracketEstimator';
 
 /** On this commander's EDHREC page at or above this share: a staple here. */
 export const COMMANDER_STAPLE_INCLUSION = 40;
@@ -105,6 +107,9 @@ export function premiumReason(card: ScryfallCard, ctx: PremiumContext = {}): Pre
   // 19), not that it is good here: the land engines judge lands on merit.
   if (!land && card.edhrec_rank != null && card.edhrec_rank <= FORMAT_STAPLE_RANK)
     return 'format-staple';
+  // A tutor the bracket estimator counts (the tagger's reading) is premium at
+  // any cost: Scheming Symmetry was cut from a Bracket 4 Yuriko (T171 re-gate).
+  if (!land && isTutor(card.name)) return 'tutor';
   return factsReason(card);
 }
 

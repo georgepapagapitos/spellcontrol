@@ -29,7 +29,7 @@ const planScore: PlanScore = {
 };
 const ctx: CoachContext = {
   planScore,
-  roleCounts: { ramp: 12, removal: 8, boardwipe: 3, cardDraw: 10 },
+  roleCounts: { ramp: 12, removal: 7, boardwipe: 3, cardDraw: 10 },
   roleTargets: { ramp: 12, removal: 8, boardwipe: 3, cardDraw: 10 },
   deckSize: 100,
   deckTarget: 100,
@@ -153,6 +153,28 @@ describe('rankCoachMoves (T171): promoted by what the row fixes', () => {
     };
     const order = rankCoachMoves([bastion, tomb, swords], tuned).map((r) => r.change.name);
     expect(order).toEqual(['Swords to Plowshares', 'Overgrown Tomb', "Karn's Bastion"]);
+  });
+});
+
+describe('rankCoachMoves (T171 re-gate): the live role counts decide a gap', () => {
+  const met: CoachContext = { ...ctx, roleCounts: { ...ctx.roleCounts, removal: 8 } };
+
+  it('drops a "Fills Removal gap" row once removal is at target', () => {
+    const names = rankCoachMoves([beastWithin, swords], met).map((r) => r.change.name);
+    expect(names).toEqual(['Swords to Plowshares']);
+  });
+
+  it('keeps a staple in a met role as a quality swap on cardFit, not a role gap', () => {
+    const tuned: CoachContext = {
+      ...met,
+      planScore: {
+        ...planScore,
+        subscores: { strategy: sub(85), roles: sub(50), curve: sub(85), cardFit: sub(85) },
+      },
+    };
+    // Roles at 50 would make a removal gap tier 1; removal is met, so it isn't one.
+    expect(rankCoachMoves([swords], tuned)[0].tier).toBe(3);
+    expect(rankCoachMoves([swords], { ...tuned, roleCounts: ctx.roleCounts })[0].tier).toBe(1);
   });
 });
 
