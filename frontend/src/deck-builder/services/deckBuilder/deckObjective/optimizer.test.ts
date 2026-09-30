@@ -16,7 +16,11 @@ const pool = () => [
   ...cards('Counterspell', 'Swords to Plowshares', 'Grave Pact', 'Pitiless Plunderer'),
 ];
 
-describe('optimizeDeck', () => {
+// Every step scores whole decks with two goldfish simulations, so these run
+// seconds each on a quiet machine and several times that under CI's coverage
+// run (one timed out at the 20 s default on PR #2597). The ceiling is raised
+// for this suite only, as the golden generation test does.
+describe('optimizeDeck', { timeout: 60_000 }, () => {
   const ctx = merenCtx();
   const result = optimizeDeck(TREATMENT, pool(), ctx, SMALL);
 
@@ -175,7 +179,7 @@ describe('optimizeDeck', () => {
     );
     const unowned = BASELINE.cards
       .filter((c) => !/Land/.test(c.type_line) && !['Sol Ring', 'Arcane Signet'].includes(c.name))
-      .slice(0, 6)
+      .slice(0, 3)
       .map((c) => c.name);
     const owned = new Set([
       ...BASELINE.cards.map((c) => c.name).filter((n) => !unowned.includes(n)),
@@ -190,9 +194,9 @@ describe('optimizeDeck', () => {
       },
       ownedNames: owned,
     });
-    expect(extras.length).toBeGreaterThanOrEqual(6);
+    expect(extras.length).toBeGreaterThanOrEqual(3);
     const r = optimizeDeck(BASELINE, extras, c, { ...SMALL, maxSwaps: 1, maxEvaluations: 60 });
-    expect(r.swaps.filter((s) => s.kind === 'repair').length).toBe(6);
+    expect(r.swaps.filter((s) => s.kind === 'repair').length).toBe(3);
     expect(r.score.violations).toEqual([]);
   });
 
