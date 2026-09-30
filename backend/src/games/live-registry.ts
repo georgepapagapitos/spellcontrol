@@ -4,6 +4,19 @@ import { releaseDiscordTable } from './discord-tables';
 import type { GameState } from './state';
 
 /**
+ * Called on every committed change (`state`) and deletion (null). A hook
+ * rather than an import, so a listener can depend on `sessions.ts`, which
+ * imports this file. The Discord looking-for-game posts register at boot.
+ */
+type ChangeListener = (code: string, state: GameState | null) => void;
+const changeListeners = new Set<ChangeListener>();
+
+export function onGameChange(fn: ChangeListener): () => void {
+  changeListeners.add(fn);
+  return () => changeListeners.delete(fn);
+}
+
+/**
  * Real-time fanout — in-process only. `/events` (SSE) and `/poll`
  * (long-poll, for native — see games-longpoll.ts on the client) both
  * register a `Subscriber` here, keyed by code; a mutating route calls
@@ -323,6 +336,9 @@ export function isUnanimouslyApproved(code: string, state: GameState, req: Store
  * quietly serving a removed player the game forever.
  */
 export function broadcastGameState(code: string, state: GameState): void {
+  // Ahead of the early return: a listener cares about every change, watched
+  // or not.
+  for (const fn of changeListeners) fn(code, state);
   const subs = subscribers.get(code);
   if (!subs || subs.size === 0) return;
   for (const sub of Array.from(subs)) {
@@ -379,6 +395,7 @@ export function resolveRequest(
 /** Notifies every subscriber for a deleted session so clients notice immediately. */
 export function broadcastGameDeleted(code: string): void {
   releaseDiscordTable(code);
+  for (const fn of changeListeners) fn(code, null);
   const subs = subscribers.get(code);
   if (subs) {
     for (const sub of subs) sub.onDeleted();
