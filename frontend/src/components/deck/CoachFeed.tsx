@@ -151,6 +151,8 @@ export interface CoachFeedProps {
   /** The saved setting a move breaks, or null (lib/coach/deck-settings-fit.ts). A
    *  move that breaks one is not shown; the empty state names the setting. */
   settingsBreak?: (change: Change) => SettingsBreak | null;
+  /** False for an add the replace prompt has no cut for: it ranks last (replace-cuts.ts). */
+  hasReplaceCut?: (change: Change) => boolean;
   /**
    * E458: the upgrade plan. The feed hosts it because the plan spends a
    * budget over this feed's own ranked list; the page owns the open flag (a
@@ -216,6 +218,7 @@ export function CoachFeed({
   onOwnedOnlyChange,
   aiAgrees,
   settingsBreak,
+  hasReplaceCut,
   upgradePlan,
 }: CoachFeedProps): JSX.Element {
   const busy = busyNames ?? new Set<string>();
@@ -425,8 +428,18 @@ export function CoachFeed({
       deckTarget,
       bracketOverridePresent,
       ownedNames,
+      hasReplaceCut,
     }),
-    [planScore, roleCounts, roleTargets, deckSize, deckTarget, bracketOverridePresent, ownedNames]
+    [
+      planScore,
+      roleCounts,
+      roleTargets,
+      deckSize,
+      deckTarget,
+      bracketOverridePresent,
+      ownedNames,
+      hasReplaceCut,
+    ]
   );
 
   // Rank, then dedupe add-type rows by card name keeping the highest-ranked

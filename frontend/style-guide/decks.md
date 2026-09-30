@@ -1241,6 +1241,15 @@ discard, a payoff for your own discards needs looting, a convoke card needs a
 creature-dense deck. Waste Not reached five decks whose only discard was their
 own looting. A land search is never a card-advantage staple (Elven Passage).
 
+**An add with nowhere to go ranks last** (T171 round 3). On a full deck, an add
+whose replace prompt has no suggested cut (every weaker card is a plan card,
+at its role target, or owned on a partial deck's floor) still shows and still
+says what it adds, but ranks below every row that has a cut or needs none,
+tiers included. The rank reads the prompt's own logic
+(`lib/coach/replace-cuts.ts`), so the two never disagree; the prompt then
+reads "No suggestions. Pick a card below." A combo completion keeps its place:
+its payoff is explicit, and the manual pick is enough.
+
 **The Cuts chip reads weakest first:** spell cuts before land tuning (a
 basic-for-basic rebalance is not a card the deck is worse for running), then
 play rate low to high, a card missing from the commander's page first.

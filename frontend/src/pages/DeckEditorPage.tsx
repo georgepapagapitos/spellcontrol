@@ -103,7 +103,7 @@ import {
   type LaneId,
   type ChangeOwnership,
 } from '@/lib/coach/deck-change';
-import { rankReplacementCuts } from '@/lib/coach/intelligent-cuts';
+import { useReplaceCuts } from '@/lib/coach/replace-cuts';
 import { onPlanCombos, staplesToSubstitute } from '@/lib/coach/coach-changes';
 import { combosThatFit, gapsThatFit, useCoachSettings } from '@/lib/coach/deck-settings-fit';
 import { collectionLandsAsCards, landUpgradeCandidates } from '@/lib/coach/land-candidates';
@@ -1124,6 +1124,8 @@ export function DeckEditorPage() {
 
   // Coach shows only moves the deck's saved settings allow (price, budget, rarity, …).
   const coachSettings = useCoachSettings(deck, ownedNames, mainboardLimit);
+  const combosInDeck = mainboardComboData?.inDeck;
+  const replaceCuts = useReplaceCuts(deck, combosInDeck, coachSettings.cutFits, mainboardLimit);
   // "Next best move" — the single highest-leverage change, derived from the
   // live PlanScore + role gaps + near-miss combos.
   const nextBestMoves = useMemo(() => {
@@ -2177,13 +2179,7 @@ export function DeckEditorPage() {
             (pendingAddCard?.forName === pendingAdd ? pendingAddCard.card : null);
           const addCard: ScryfallCard =
             resolvedAdd ?? ({ name: pendingAdd, type_line: '', cmc: 0 } as ScryfallCard);
-          const ranked = rankReplacementCuts({
-            addCard,
-            deckCards: deck.cards,
-            analysis: deck,
-            inDeckCombos: mainboardComboData?.inDeck,
-            keepsSettings: coachSettings.cutFits(addCard),
-          });
+          const ranked = replaceCuts.cutsFor(addCard);
           const suggested = ranked.map((r) =>
             toOpt({ slotId: r.slotId, card: r.card }, r.reason, r.factors)
           );
@@ -3600,6 +3596,7 @@ export function DeckEditorPage() {
                   ownedOnly={ownedOnly}
                   onOwnedOnlyChange={handleOwnedOnlyChange}
                   settingsBreak={coachSettings.check}
+                  hasReplaceCut={replaceCuts.hasCut}
                   aiAgrees={aiAgrees ?? undefined}
                   upgradePlan={
                     planAvailable

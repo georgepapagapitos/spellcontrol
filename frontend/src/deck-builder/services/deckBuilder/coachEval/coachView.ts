@@ -34,7 +34,8 @@ import { buildCoachChanges, onPlanCombos, staplesToSubstitute } from '@/lib/coac
 import { rankCoachMoves, diversifyRankedMoves, type RankedMove } from '@/lib/coach/coach-rank';
 import type { Change, ChangeOwnership } from '@/lib/coach/deck-change';
 import { buildSuggestionRows, type SuggestionRows } from '@/lib/coach/deck-suggestions';
-import { combosThatFit, gapsThatFit } from '@/lib/coach/deck-settings-fit';
+import { combosThatFit, cutKeepsSettings, gapsThatFit } from '@/lib/coach/deck-settings-fit';
+import { replaceCuts } from '@/lib/coach/replace-cuts';
 import { landUpgradeCandidates } from '@/lib/coach/land-candidates';
 import { analyzeDeck } from '@/lib/deck-analysis/deck-analysis';
 import { frontFaceName } from '@/lib/cards/card-text';
@@ -63,6 +64,8 @@ export interface CoachViewInputs {
   substitutesReady: boolean;
   /** The page's `useCoachSettingsFit`: moves the deck's saved settings allow. */
   settingsFit?: (change: Change) => boolean;
+  /** A card by name, for rows that carry none (the page reads its card cache). */
+  resolveCard?: (name: string) => ScryfallCard | undefined;
 }
 
 export interface CoachView {
@@ -205,7 +208,17 @@ export function buildCoachView(input: CoachViewInputs): CoachView {
     deckNames,
     input.settingsFit
   );
+  // CoachFeed `hasReplaceCut`: the page's replace prompt, on this deck.
+  const replace = replaceCuts({
+    deckCards: cards.map((card, i) => ({ slotId: String(i), card })),
+    analysis: { ...analysis, commander, partnerCommander: partner },
+    inDeckCombos: input.combos.inDeck,
+    cutFits: (add) => cutKeepsSettings(input.settingsFit, add),
+    full: cards.length >= COMMANDER_DECK_TARGET - 1 - (partner ? 1 : 0),
+    resolve: input.resolveCard,
+  });
   const all = rankCoachMoves(changes, {
+    hasReplaceCut: replace.hasCut,
     planScore: analysis.planScore,
     roleCounts,
     roleTargets: analysis.roleTargets ?? {},

@@ -77,7 +77,7 @@ import {
 } from '@/deck-builder/services/edhrec/client';
 import { getGameChangerNames, searchCards } from '@/deck-builder/services/scryfall/client';
 import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
-import { rankReplacementCuts } from '@/lib/coach/intelligent-cuts';
+import { replaceCuts } from '@/lib/coach/replace-cuts';
 import { axisKeys } from '@/lib/coach/axis-overlap';
 import { frontFaceName } from '@/lib/cards/card-text';
 import { isBasicLandName } from '@/lib/collection/allocations';
@@ -574,13 +574,14 @@ async function coachPass(dump: CoachDump, deck: EvalDeckState): Promise<CoachPas
     ownedOnly: settings.collectionMode && (strategy === 'full' || strategy === 'available'),
     substitutesReady: true,
     settingsFit: fitFor(cards),
+    resolveCard: cardFor,
   });
   const commanderNames = allNames.slice(0, partner ? 2 : 1);
   const env: ApplyEnv = {
     resolve: cardFor,
+    // DeckEditorPage `useReplaceCuts`, over the deck as it stands.
     rankCuts: (addCard, current) =>
-      rankReplacementCuts({
-        addCard,
+      replaceCuts({
         deckCards: current.map((card, i) => ({ slotId: String(i), card })),
         // The persisted analysis (DeckEditorPage passes the deck, commander
         // included): it doesn't recompute between quick applies.
@@ -589,8 +590,11 @@ async function coachPass(dump: CoachDump, deck: EvalDeckState): Promise<CoachPas
           ...commanderNames,
           ...current.map((c) => c.name),
         ]).inDeck,
-        keepsSettings: cutKeepsSettings(fitFor(current), addCard),
-      }).map((r) => ({ name: r.card.name, reason: r.reason })),
+        cutFits: (add) => cutKeepsSettings(fitFor(current), add),
+        full: true,
+      })
+        .cutsFor(addCard)
+        .map((r) => ({ name: r.card.name, reason: r.reason })),
     bracketOf: (current) => {
       const names = [...commanderNames, ...current.map((c) => c.name)];
       const nonLand = current.filter((c) => !/land/i.test(c.type_line ?? ''));

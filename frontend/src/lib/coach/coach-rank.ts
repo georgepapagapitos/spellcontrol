@@ -40,6 +40,13 @@ export interface CoachContext {
   deckTarget: number;
   bracketOverridePresent: boolean;
   ownedNames: Set<string>;
+  /**
+   * False for an add to a full deck whose replace prompt has no suggested cut
+   * (replace-cuts.ts, the prompt's own logic). Such a row ranks below every
+   * row that has a cut or needs none; a combo completion keeps its place, its
+   * payoff is explicit and the prompt's manual pick is enough.
+   */
+  hasReplaceCut?: (change: Change) => boolean;
 }
 
 export interface RankedMove {
@@ -105,6 +112,9 @@ function planBand(c: Change): number {
 
 /**
  * Rank a flat list of Changes into tier-ordered RankedMoves.
+ *
+ * An add the replace prompt has no cut for (`ctx.hasReplaceCut`) goes below
+ * every other row, tiers included; a combo completion is exempt.
  *
  * Within-tier order: owned < in-other-deck < unowned/undefined, then on-plan
  * before budding, then EDHREC inclusion descending (the one signal every add
@@ -208,7 +218,12 @@ export function rankCoachMoves(changes: Change[], ctx: CoachContext): RankedMove
   }));
 
   // Sort: tier ascending, then within-tier by the key above.
+  const stranded = (c: Change): number =>
+    c.lane !== 'combos' && ctx.hasReplaceCut && !ctx.hasReplaceCut(c) ? 1 : 0;
   ranked.sort((a, b) => {
+    const sa = stranded(a.change);
+    const sb = stranded(b.change);
+    if (sa !== sb) return sa - sb;
     if (a.tier !== b.tier) return a.tier - b.tier;
     const ak = withinTierKey(a);
     const bk = withinTierKey(b);
