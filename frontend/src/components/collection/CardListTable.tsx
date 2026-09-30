@@ -1,69 +1,32 @@
 import { EmptyState } from '@/components/shared/EmptyState';
-import {
-  AlignJustify,
-  Bookmark,
-  Captions,
-  CheckSquare,
-  ChevronsDownUp,
-  ChevronsUpDown,
-  Eye,
-  LayoutGrid,
-  Layers,
-  List as ListIconLucide,
-  ListPlus,
-  Plus,
-} from 'lucide-react';
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from 'react';
+import { Bookmark, ListPlus, Plus } from 'lucide-react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useScrollContainer } from '@/lib/util/scroll-container';
-import { formatMoney } from '@/lib/collection/format-money';
 import { applyPrices } from '@/lib/collection/card-prices';
 import type {
-  BinderFilter,
   ChipExpression,
   EnrichedCard,
   MaterializedBinder,
   ScryfallQueryRule,
   SortField,
-  SortDir,
 } from '@/types/index';
 import type { SetMap } from '@/lib/api';
 import { CardRowMenu } from './CardRowMenu';
 import type { OverflowMenuItem } from '@/components/overlays/OverflowMenu';
 import { CardPreview } from '@/components/card/CardPreview';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
-import { LANGUAGE_OPTIONS } from '@/lib/collection/copy-options';
 import { RemoveCopiesDialog } from './RemoveCopiesDialog';
 import { BulkMoveToBinderSheet } from '@/components/binder/BulkMoveToBinderSheet';
 import { useConfirm } from '@/components/overlays/use-confirm';
 import { removeCopiesOfPrinting, printingFinishKey } from '@/lib/collection/collection-mutations';
 import { useToastsStore } from '@/store/toasts';
 import { useRegisterShortcuts, isTypingTarget } from '@/components/app-shell/shortcut-registry';
-import { setSymbolTitle } from '@/lib/cards/set-symbols';
-import { DeckBadge } from '@/components/DeckBadge';
-import { Legend } from '@/components/Legend';
-import { BinderBadge, type BinderInfo } from '@/components/BinderBadge';
-import {
-  useAllocations,
-  computeSurplusByName,
-  type AllocationInfo,
-} from '@/lib/collection/allocations';
+import { useAllocations, computeSurplusByName } from '@/lib/collection/allocations';
 import { useCubeListings } from '@/lib/cube/cube-listings';
 import type { CollectionFilterJump } from '@/lib/collection/collection-insights';
-import { ViewModeToggle } from '@/components/ViewModeToggle';
-import { ZoomControl } from '@/components/ZoomControl';
 import {
-  ZOOM_MAX,
-  ZOOM_MAX_NARROW,
   GRID_GAP_PX,
   clampZoom,
   readStoredZoom,
@@ -72,16 +35,14 @@ import {
   zoomTier,
 } from '@/lib/util/grid-zoom';
 import { SearchPill } from '@/components/search/SearchPill';
-import { SelectMenu } from '@/components/overlays/SelectMenu';
 import { CollectionFiltersDialog } from '@/components/search/CollectionFiltersDialog';
 import { SaveToListDialog } from '@/components/lists/SaveToListDialog';
-import { useCardsWithTags, cardTagLabel } from '@/lib/cards/card-tags';
+import { useCardsWithTags } from '@/lib/cards/card-tags';
 import { useCardsWithReleaseDates } from '@/lib/cards/card-release-dates';
-import { SortMenu, type SortMenuOption } from '@/components/search/SortMenu';
 import { useMediaQuery } from '@/lib/util/use-media-query';
 import { useDebouncedValue } from '@/lib/util/use-debounced-value';
-import { sortCards, printingKey, sortDirectionLabel, type SortContext } from '@/lib/search/sorting';
-import { getSectionMeta, releaseDateOf } from '@spellcontrol/binder-routing';
+import { sortDirectionLabel } from '@/lib/search/sorting';
+import { getSectionMeta } from '@spellcontrol/binder-routing';
 import {
   groupRowsIntoSections,
   buildGridLayout,
@@ -90,7 +51,6 @@ import {
   type GridLayoutRow,
   type ListLayoutRow,
 } from '@/lib/collection/group-sections';
-import { readLocalStorage } from '@/lib/util/local-storage';
 import { type ColorMatchMode } from '@/lib/cards/colors';
 import { rowMatchesCollectionFilter } from '@/lib/search/collection-filter';
 import { useCollectionStore } from '@/store/collection';
@@ -99,27 +59,19 @@ import {
   deriveBinderName,
   hasStructuredFilter,
 } from '@/lib/search/collection-filters-to-binder';
-import { fetchTypeSuggestions } from '@/lib/cards/scryfall-catalog';
-import { parseTypeLine, SUPERTYPES, TYPES } from '@/lib/cards/card-types';
 import { CardRow } from '@/components/shared/CardRow';
 import { SectionHeaderBar } from '@/components/shared/SectionHeaderBar';
 import {
   CardTableFrame,
   CardTableHead,
   COLLECTION_TABLE_COLUMNS,
-  type CardTableCol,
 } from '@/components/shared/CardTable';
 import {
-  CardGridCell,
-  GridCaptionList,
   GRID_CAPTION_H,
   GRID_CAPTION_PLATE_PAD,
-  gridSetLabel,
   useGridCaptionPrefs,
 } from '@/components/shared/CardGridCell';
 import { FilterChipsRow, type FilterChipDescriptor } from '@/components/shared/FilterChipsRow';
-import { ToolbarPopover } from '@/components/shared/ToolbarPopover';
-import { ViewPopoverPanel } from '@/components/shared/ViewPopoverPanel';
 import {
   buildEditedCards,
   isNoOpCardEdit,
@@ -129,7 +81,41 @@ import {
 } from '@/lib/collection/edit-card';
 import { compileExpression, compileFilter, isExpressionEmpty } from '@/lib/binder/rules';
 import { Button } from '@/components/shared/Button';
-import { ArtBadge } from '@/components/shared/ArtBadge';
+import { CardListBulkToolbar } from './CardListBulkToolbar';
+import { CardListControls } from './CardListControls';
+import { CardListGridCell } from './CardListGridCell';
+import { CardListGridRows, CardListListHandoff, CardListListRows } from './CardListVirtualRows';
+import { buildActiveFilterChips } from './card-list-filter-chips';
+import { useAllocationsFor, useIsNarrow, useSubtypeSuggestions } from './card-list-table-hooks';
+import {
+  buildCardToBinder,
+  buildLanguageOptions,
+  buildMatchFilter,
+  buildRows,
+  gridCaptionFor,
+  sortRows,
+} from './card-list-table-derive';
+import {
+  COLLECTION_SHORTCUTS,
+  COLLECTION_TABLE_SORTS,
+  COLLECTION_VIEW_KEY,
+  COLOR_FILTERS,
+  GRID_SECTION_HEADER_H,
+  GRID_SIZE_KEY,
+  GROUP_KEY_TO_FIELD,
+  RARITIES,
+  ROW_HEIGHT_COMPACT,
+  ROW_HEIGHT_LIST,
+  SORT_FIELD_BY_KEY,
+  SORT_KEY_TO_FIELD,
+  loadCollapsedKeys,
+  persistCollapsedKeys,
+  readStoredCollectionView,
+  type GroupKey,
+  type Row,
+  type SortKey,
+  type ViewMode,
+} from './card-list-table-config';
 
 interface Props {
   cards: EnrichedCard[];
@@ -162,190 +148,6 @@ interface Props {
   filterJump?: CollectionFilterJump | null;
   onFilterJumpApplied?: () => void;
 }
-
-interface Row {
-  key: string;
-  card: EnrichedCard;
-  qty: number;
-  // Primary binder for this row — first copy seen. Drives section grouping
-  // and the move-to-binder menu's "currently in" anchor.
-  binderId: string | null;
-  binderName: string | null;
-  binderColor: string | null;
-  // All binders covering any of this row's copies, deduped by id. When
-  // grouping is off this is at most one entry; when grouping is on the
-  // badge surfaces every binder the stacked copies are in.
-  binders: BinderInfo[];
-}
-
-type ViewMode = 'grid' | 'list' | 'compact';
-
-const COLLECTION_VIEW_KEY = 'mtg-collection-view-mode';
-const GRID_SIZE_KEY = 'mtg-collection-grid-size';
-
-/** Shortcut items contributed to the registry under the "Collection" section.
- *  "Add cards" is a no-op on a scoped view (a single binder) where the caller
- *  doesn't pass `onAddCards` — same as the view toggles above it, which apply
- *  everywhere this table renders regardless of whether that's useful there. */
-const COLLECTION_SHORTCUTS = [
-  { keys: ['/'], description: 'Focus search' },
-  { keys: ['g'], description: 'Switch to grid view' },
-  { keys: ['l'], description: 'Switch to list view' },
-  { keys: ['c'], description: 'Switch to compact list' },
-  { keys: ['a'], description: 'Add cards' },
-];
-
-function readStoredCollectionView(): ViewMode {
-  try {
-    const v = localStorage.getItem(COLLECTION_VIEW_KEY);
-    if (v === 'grid' || v === 'list' || v === 'compact') return v;
-  } catch {
-    /* ignore */
-  }
-  // No explicit choice on record (E127) — default posture is card-forward
-  // grid. Only fires when nothing was ever persisted; an explicit list/
-  // compact choice above always wins.
-  return 'grid';
-}
-
-const VIEW_MODE_OPTIONS = [
-  {
-    value: 'grid' as const,
-    label: 'Grid view',
-    icon: <LayoutGrid width={14} height={14} strokeWidth={2} aria-hidden />,
-  },
-  {
-    value: 'list' as const,
-    label: 'List view (with thumbnails)',
-    icon: <ListIconLucide width={14} height={14} strokeWidth={2} aria-hidden />,
-  },
-  {
-    value: 'compact' as const,
-    label: 'Compact list (text only)',
-    icon: <AlignJustify width={14} height={14} strokeWidth={2} aria-hidden />,
-  },
-];
-
-type SortKey =
-  'name' | 'set' | 'rarity' | 'price' | 'edhrec' | 'qty' | 'cmc' | 'release' | 'added' | 'edited';
-
-const ROW_HEIGHT_LIST = 66;
-const ROW_HEIGHT_COMPACT = 32;
-// Which of the shared table's columns drive a sort here, and the sort key
-// each one sets. Columns absent from this map render as labels (the SortMenu
-// still covers every key, and is the phone path where the table doesn't
-// exist). The column ORDER and labels live in `shared/CardTable`, with the
-// matching cells — this file no longer restates them.
-const COLLECTION_TABLE_SORTS: Partial<Record<CardTableCol, SortKey>> = {
-  qty: 'qty',
-  name: 'name',
-  set: 'set',
-  mana: 'cmc',
-  price: 'price',
-};
-// Fixed height of a full-width "Group by" section header row in grid view.
-// Keep in sync with .collection-grid-section-header in styles/collection.css.
-const GRID_SECTION_HEADER_H = 40;
-
-const COLOR_FILTERS: Array<{ key: string; label: string }> = [
-  { key: 'W', label: 'White' },
-  { key: 'U', label: 'Blue' },
-  { key: 'B', label: 'Black' },
-  { key: 'R', label: 'Red' },
-  { key: 'G', label: 'Green' },
-  { key: 'C', label: 'Colorless' },
-];
-
-const RARITIES = ['mythic', 'rare', 'uncommon', 'common'] as const;
-
-const SORT_FIELDS: Array<{ key: SortKey; label: string; defaultDir: 'asc' | 'desc' }> = [
-  { key: 'name', label: 'Name', defaultDir: 'asc' },
-  { key: 'cmc', label: 'Mana value', defaultDir: 'asc' },
-  { key: 'price', label: 'Price', defaultDir: 'desc' },
-  { key: 'edhrec', label: 'EDHREC rank', defaultDir: 'asc' },
-  { key: 'qty', label: 'Quantity', defaultDir: 'desc' },
-  { key: 'rarity', label: 'Rarity', defaultDir: 'asc' },
-  { key: 'set', label: 'Set', defaultDir: 'asc' },
-  { key: 'release', label: 'Release date', defaultDir: 'desc' },
-  { key: 'added', label: 'Date added', defaultDir: 'desc' },
-  { key: 'edited', label: 'Last edited', defaultDir: 'desc' },
-];
-
-const SORT_KEY_TO_FIELD: Record<SortKey, SortField> = {
-  name: 'name',
-  set: 'setName',
-  rarity: 'rarity',
-  price: 'price',
-  edhrec: 'edhrec',
-  qty: 'quantity',
-  cmc: 'cmc',
-  release: 'setReleaseDate',
-  added: 'dateAdded',
-  edited: 'dateEdited',
-};
-
-const SORT_FIELD_BY_KEY: Record<SortKey, (typeof SORT_FIELDS)[number]> = SORT_FIELDS.reduce(
-  (acc, f) => {
-    acc[f.key] = f;
-    return acc;
-  },
-  {} as Record<SortKey, (typeof SORT_FIELDS)[number]>
-);
-
-// Direction wording comes from the shared per-field vocabulary rather than
-// being restated here — these keys already map onto the SortField union that
-// owns it, so "Newest first" / "Most played" stay one string app-wide.
-const SORT_MENU_OPTIONS: SortMenuOption<SortKey>[] = SORT_FIELDS.map((f) => ({
-  value: f.key,
-  label: f.label,
-  dirLabels: [
-    sortDirectionLabel(SORT_KEY_TO_FIELD[f.key], 'asc'),
-    sortDirectionLabel(SORT_KEY_TO_FIELD[f.key], 'desc'),
-  ],
-}));
-
-// "Group by" sections the visible rows under per-attribute headers, reusing the
-// binder-routing sectioning engine (getSectionMeta) so the buckets/labels/order
-// match how binders already section the same cards. Applies to all three views
-// (list/compact inline headers; grid full-width header rows via buildGridLayout).
-type GroupKey = 'none' | 'color' | 'type' | 'cmc' | 'rarity' | 'set';
-
-const GROUP_FIELDS: Array<{ key: GroupKey; label: string }> = [
-  { key: 'none', label: 'No grouping' },
-  { key: 'color', label: 'Color' },
-  { key: 'type', label: 'Type' },
-  { key: 'cmc', label: 'Mana value' },
-  { key: 'rarity', label: 'Rarity' },
-  { key: 'set', label: 'Set' },
-];
-
-// Map each group choice to the binder-routing SortField getSectionMeta keys off.
-// "set" uses setReleaseDate (not setName) so sections order chronologically;
-// setName returns order:0 for every set, leaving the order to alphabetical-by-key.
-const GROUP_KEY_TO_FIELD: Record<Exclude<GroupKey, 'none'>, SortField> = {
-  color: 'color',
-  type: 'type',
-  cmc: 'cmc',
-  rarity: 'rarity',
-  set: 'setReleaseDate',
-};
-
-// Per-group-field localStorage key for the set of collapsed section keys, so a
-// "Red" fold under Color grouping is remembered independently of a "Lands" fold
-// under Type grouping.
-const COLLAPSED_KEY_PREFIX = 'spellcontrol:collection:collapsed:';
-const loadCollapsedKeys = (g: GroupKey): Set<string> =>
-  g === 'none'
-    ? new Set()
-    : new Set(readLocalStorage<string[]>(COLLAPSED_KEY_PREFIX + g, JSON.parse, []));
-const persistCollapsedKeys = (g: GroupKey, keys: Set<string>) => {
-  if (g === 'none') return;
-  try {
-    localStorage.setItem(COLLAPSED_KEY_PREFIX + g, JSON.stringify([...keys]));
-  } catch {
-    /* ignore – SSR / private-browsing / quota errors */
-  }
-};
 
 export function CardListTable({
   cards,
@@ -418,16 +220,7 @@ export function CardListTable({
   // full-width column, so the reachable range is capped (without
   // overwriting the stored preference, so it returns when the user
   // resizes back up).
-  const [isNarrow, setIsNarrow] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches
-  );
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const mql = window.matchMedia('(max-width: 640px)');
-    const update = () => setIsNarrow(mql.matches);
-    mql.addEventListener('change', update);
-    return () => mql.removeEventListener('change', update);
-  }, []);
+  const isNarrow = useIsNarrow();
   const effectiveZoom = clampZoom(gridZoom, isNarrow);
   // Coarse bucket driving the cell-chrome scaling classes (badges, qty pill).
   const effectiveGridSize = zoomBucket(effectiveZoom);
@@ -480,60 +273,12 @@ export function CardListTable({
     chips: [],
     joiners: [],
   });
-  const [subtypeSuggestions, setSubtypeSuggestions] = useState<string[]>([]);
-
-  useEffect(() => {
-    // Fetch the full Scryfall type catalog for subtype autocomplete.
-    // Supertypes and primary Types are closed enums (rendered as
-    // dropdowns), so only the subtype row needs suggestions. We strip
-    // known supertypes/types from the catalog and merge in tokens from
-    // the user's actual collection so unusual entries (custom or fan
-    // sets) still surface.
-    const supertypeSet = new Set<string>(SUPERTYPES);
-    const typeSet = new Set<string>(TYPES);
-    const collectionSubtypeTokens = new Set<string>();
-    for (const c of cards) {
-      const { subtypes } = parseTypeLine(c.typeLine);
-      for (const s of subtypes) collectionSubtypeTokens.add(s);
-    }
-    // Cancelled on unmount: the catalog promise can outlive the component
-    // (flaked CI — a setState after vitest tore the DOM env down).
-    let cancelled = false;
-    fetchTypeSuggestions().then((catalog) => {
-      if (cancelled) return;
-      // Dedupe by lowercase key but prefer the version that has any
-      // capitals — the Scryfall catalog supplies canonical casing
-      // ("Angel") while parseTypeLine lowercases collection tokens
-      // ("angel"). Without this the autocomplete shows both spellings.
-      const byLower = new Map<string, string>();
-      for (const t of [...catalog, ...collectionSubtypeTokens]) {
-        const key = t.toLowerCase();
-        if (supertypeSet.has(key) || typeSet.has(key)) continue;
-        const existing = byLower.get(key);
-        if (!existing || (existing === key && t !== key)) {
-          byLower.set(key, t);
-        }
-      }
-      const merged = [...byLower.values()].sort((a, b) => a.localeCompare(b));
-      setSubtypeSuggestions(merged);
-    });
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const subtypeSuggestions = useSubtypeSuggestions(cards);
   // Language filter options — derived from what's actually in the user's
   // collection, not a fixed enum (LANGUAGE_OPTIONS is the full add-card
   // vocabulary, most of which a given collection never uses). Absent
   // language means English, mirroring CardRow's display-chip convention.
-  const languageOptions = useMemo(() => {
-    const codes = new Set<string>();
-    for (const c of cards) codes.add((c.language || 'en').toLowerCase());
-    return [...codes].sort().map((code) => ({
-      value: code,
-      label: String(LANGUAGE_OPTIONS.find((o) => o.value === code)?.label ?? code.toUpperCase()),
-    }));
-  }, [cards]);
+  const languageOptions = useMemo(() => buildLanguageOptions(cards), [cards]);
   const [rarityExpr, setRarityExpr] = useState<ChipExpression>({
     chips: [],
     joiners: [],
@@ -668,21 +413,7 @@ export function CardListTable({
   // registry so they appear under the "Collection" section automatically.
   useRegisterShortcuts('Collection', COLLECTION_SHORTCUTS);
 
-  const cardToBinder = useMemo(() => {
-    // Per-copy assignment — pinned and rule-matched cards are routed by
-    // copyId in materializeBinders, so we mirror that here. Falls back to
-    // printing+finish for old materialized cards without a copyId.
-    const map = new Map<string, { id: string; name: string; color: string }>();
-    for (const b of binders) {
-      for (const section of b.sections) {
-        for (const c of section.cards) {
-          const assignment = { id: b.def.id, name: b.def.name, color: b.def.color };
-          if (c.copyId && !map.has(c.copyId)) map.set(c.copyId, assignment);
-        }
-      }
-    }
-    return map;
-  }, [binders]);
+  const cardToBinder = useMemo(() => buildCardToBinder(binders), [binders]);
 
   // Decorate cards with Scryfall oracle tags only when the live filter uses a
   // tag chip — otherwise this is a zero-cost pass-through (the snapshot isn't
@@ -714,61 +445,10 @@ export function CardListTable({
     [allCards, allocations]
   );
 
-  const rows = useMemo<Row[]>(() => {
-    if (!groupPrintings) {
-      // One row per physical copy.
-      return cardsForMatch.map((card) => {
-        const assignment = cardToBinder.get(card.copyId) ?? null;
-        return {
-          // copyId is unique per physical copy — gives every row a
-          // stable key even when two share the same printing+foil.
-          key: card.copyId,
-          card,
-          qty: 1,
-          binderId: assignment?.id ?? null,
-          binderName: assignment?.name ?? null,
-          binderColor: assignment?.color ?? null,
-          binders: assignment ? [assignment] : [],
-        };
-      });
-    }
-    // Default: roll duplicate copies of the same printing into one row.
-    // Primary binder fields reflect the first assigned copy seen; the
-    // `binders` array aggregates every distinct binder across the stack so
-    // the badge can show all of them.
-    const grouped = new Map<string, Row & { binderIds: Set<string> }>();
-    for (const card of cardsForMatch) {
-      const key = `${card.scryfallId}:${card.finish ?? (card.foil ? 'foil' : 'nonfoil')}`;
-      const assignment = cardToBinder.get(card.copyId) ?? null;
-      const existing = grouped.get(key);
-      if (existing) {
-        existing.qty += 1;
-        if (assignment && !existing.binderIds.has(assignment.id)) {
-          existing.binderIds.add(assignment.id);
-          existing.binders.push(assignment);
-          if (!existing.binderId) {
-            existing.binderId = assignment.id;
-            existing.binderName = assignment.name;
-            existing.binderColor = assignment.color;
-          }
-        }
-      } else {
-        const binderIds = new Set<string>();
-        if (assignment) binderIds.add(assignment.id);
-        grouped.set(key, {
-          key,
-          card,
-          qty: 1,
-          binderId: assignment?.id ?? null,
-          binderName: assignment?.name ?? null,
-          binderColor: assignment?.color ?? null,
-          binders: assignment ? [assignment] : [],
-          binderIds,
-        });
-      }
-    }
-    return [...grouped.values()].map(({ binderIds: _ids, ...row }) => row);
-  }, [cardsForMatch, cardToBinder, groupPrintings]);
+  const rows = useMemo<Row[]>(
+    () => buildRows(cardsForMatch, cardToBinder, groupPrintings),
+    [cardsForMatch, cardToBinder, groupPrintings]
+  );
 
   // Binder membership and condition are collection-only post-checks that don't
   // map directly to BinderFilter fields, so they're compiled separately.
@@ -779,48 +459,51 @@ export function CardListTable({
   // Build a BinderFilter from all the non-collection-specific filter state and
   // let the engine handle matching — eliminates the 11 individual compilations
   // and the hand-rolled per-field checks from the old filtered useMemo.
-  const compiledMatchFilter = useMemo(() => {
-    const f: BinderFilter = {};
-    if (!isExpressionEmpty(supertypeExpr)) f.supertypeChips = supertypeExpr;
-    if (!isExpressionEmpty(typesExpr)) f.typeTokenChips = typesExpr;
-    if (!isExpressionEmpty(subtypeExpr)) f.subtypeChips = subtypeExpr;
-    if (!isExpressionEmpty(rarityExpr)) f.rarities = rarityExpr;
-    if (!isExpressionEmpty(oracleExpr)) f.oracleChips = oracleExpr;
-    if (!isExpressionEmpty(oracleTagExpr)) f.oracleTagChips = oracleTagExpr;
-    if (scryfallQuery) f.scryfallQuery = scryfallQuery;
-    if (!isExpressionEmpty(legalityExpr)) f.legalities = legalityExpr;
-    if (!isExpressionEmpty(layoutExpr)) f.layouts = layoutExpr;
-    if (!isExpressionEmpty(treatmentExpr)) f.treatments = treatmentExpr;
-    if (!isExpressionEmpty(borderExpr)) f.borderColors = borderExpr;
-    if (!isExpressionEmpty(finishExpr)) f.finishes = finishExpr;
-    if (setFilter.size > 0) f.setCodes = [...setFilter].map((s) => s.toUpperCase());
-    if (priceMin !== undefined) f.priceMin = priceMin;
-    if (priceMax !== undefined) f.priceMax = priceMax;
-    if (cmcMin !== undefined) f.cmcMin = cmcMin;
-    if (cmcMax !== undefined) f.cmcMax = cmcMax;
-    const trimmed = debouncedSearch.trim();
-    if (trimmed) f.nameContains = trimmed;
-    return compileFilter(f);
-  }, [
-    supertypeExpr,
-    typesExpr,
-    subtypeExpr,
-    rarityExpr,
-    oracleExpr,
-    oracleTagExpr,
-    scryfallQuery,
-    legalityExpr,
-    layoutExpr,
-    treatmentExpr,
-    borderExpr,
-    finishExpr,
-    setFilter,
-    priceMin,
-    priceMax,
-    cmcMin,
-    cmcMax,
-    debouncedSearch,
-  ]);
+  const compiledMatchFilter = useMemo(
+    () =>
+      compileFilter(
+        buildMatchFilter({
+          supertypeExpr,
+          typesExpr,
+          subtypeExpr,
+          rarityExpr,
+          oracleExpr,
+          oracleTagExpr,
+          scryfallQuery,
+          legalityExpr,
+          layoutExpr,
+          treatmentExpr,
+          borderExpr,
+          finishExpr,
+          setFilter,
+          priceMin,
+          priceMax,
+          cmcMin,
+          cmcMax,
+          debouncedSearch,
+        })
+      ),
+    [
+      supertypeExpr,
+      typesExpr,
+      subtypeExpr,
+      rarityExpr,
+      oracleExpr,
+      oracleTagExpr,
+      scryfallQuery,
+      legalityExpr,
+      layoutExpr,
+      treatmentExpr,
+      borderExpr,
+      finishExpr,
+      setFilter,
+      priceMin,
+      priceMax,
+      cmcMin,
+      cmcMax,
+      debouncedSearch,
+    ]
+  );
 
   // The predicate itself lives in lib/search/collection-filter so the Filters dialog
   // can run the identical thing over its DRAFT state for a live match count.
@@ -862,22 +545,10 @@ export function CardListTable({
     [importHistory]
   );
 
-  const sorted = useMemo(() => {
-    const field: SortField = SORT_KEY_TO_FIELD[sortKey];
-    const dir: SortDir = sortDir;
-    // Map row.qty into a printing-keyed table so the shared comparator's
-    // "quantity" sort uses the displayed (rolled-up or per-copy) qty.
-    const qtyByPrintingKey = new Map<string, number>();
-    for (const r of filtered) qtyByPrintingKey.set(printingKey(r.card), r.qty);
-    const ctx: SortContext = { setMap, qtyByPrintingKey, addedAtByImportId };
-    const sortedCards = sortCards(
-      filtered.map((r) => r.card),
-      [{ field, dir }],
-      ctx
-    );
-    const byCopyId = new Map(filtered.map((r) => [r.card.copyId, r]));
-    return sortedCards.map((c) => byCopyId.get(c.copyId)!).filter(Boolean) as Row[];
-  }, [filtered, sortKey, sortDir, setMap, addedAtByImportId]);
+  const sorted = useMemo(
+    () => sortRows(filtered, sortKey, sortDir, setMap, addedAtByImportId),
+    [filtered, sortKey, sortDir, setMap, addedAtByImportId]
+  );
 
   // "Group by" re-buckets the already-sorted rows under per-attribute section
   // headers. We stable-group `sorted` (within-group order = the user's sort) so
@@ -903,30 +574,7 @@ export function CardListTable({
   // otherwise the card's price (the one collector datum the art can't show).
   // Price is unit + pinned USD, matching the sort key and the list rows
   // (purchasePrice is USD-sourced; see CardRow).
-  const captionDate = (t: number | undefined): string =>
-    t
-      ? new Date(t).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-      : '—';
-  const captionFor = (r: Row): string => {
-    switch (sortKey) {
-      case 'added':
-        return captionDate(addedAtByImportId.get(r.card.importId ?? ''));
-      case 'edited':
-        return captionDate(r.card.updatedAt ?? addedAtByImportId.get(r.card.importId ?? ''));
-      case 'release': {
-        // The date the sort used, the printing's own, not its set's (every
-        // Secret Lair would otherwise read Dec 2, 2019).
-        const released = releaseDateOf(r.card, setMap);
-        // Parse as local midnight — a bare YYYY-MM-DD parses as UTC and can
-        // render a day early in negative-offset timezones.
-        return released ? captionDate(new Date(`${released}T00:00:00`).getTime()) : '—';
-      }
-      case 'edhrec':
-        return r.card.edhrecRank != null ? `#${r.card.edhrecRank.toLocaleString('en-US')}` : '—';
-      default:
-        return formatMoney(r.card.purchasePrice, { currency: 'USD', zeroAsDash: true });
-    }
-  };
+  const captionFor = (r: Row): string => gridCaptionFor(r, sortKey, addedAtByImportId, setMap);
 
   // Every section key in the current grouping, for the collapse-all/expand-all
   // toggle. Empty when ungrouped.
@@ -1279,33 +927,7 @@ export function CardListTable({
   const createList = useCollectionStore((s) => s.createList);
   const addListEntries = useCollectionStore((s) => s.addListEntries);
   const [saveToListOpen, setSaveToListOpen] = useState(false);
-  // Index allocations by printing (scryfallId + foil) once so per-row lookups
-  // stay O(1). Without this, allocationsFor scans allCards on every call —
-  // and we call it once per row when feeding the preview carousel.
-  const allocationsByPrinting = useMemo(() => {
-    if (!groupPrintings) return null;
-    const map = new Map<string, AllocationInfo[]>();
-    for (const c of allCards) {
-      const a = allocations.get(c.copyId);
-      if (!a) continue;
-      const key = `${c.scryfallId}:${c.foil ? 'foil' : 'nonfoil'}`;
-      const bucket = map.get(key);
-      if (bucket) bucket.push(a);
-      else map.set(key, [a]);
-    }
-    return map;
-  }, [groupPrintings, allCards, allocations]);
-  const allocationsFor = useCallback(
-    (c: EnrichedCard): AllocationInfo[] => {
-      if (!groupPrintings) {
-        const a = allocations.get(c.copyId);
-        return a ? [a] : [];
-      }
-      const key = `${c.scryfallId}:${c.foil ? 'foil' : 'nonfoil'}`;
-      return allocationsByPrinting?.get(key) ?? [];
-    },
-    [groupPrintings, allocations, allocationsByPrinting]
-  );
+  const allocationsFor = useAllocationsFor(groupPrintings, allCards, allocations);
 
   const pushToast = useToastsStore((s) => s.push);
 
@@ -1728,287 +1350,92 @@ export function CardListTable({
   // Each chip knows how to clear its own slice so × on a chip is surgical.
   // The chips are derived state; the single place that maps filter state →
   // human labels avoids scattering label strings across the JSX.
-  const activeFilterChips = useMemo<FilterChipDescriptor[]>(() => {
-    const chips: FilterChipDescriptor[] = [];
-
-    if (search.trim()) {
-      chips.push({
-        id: 'search',
-        label: `"${search.trim()}"`,
-        onClear: () => setSearch(''),
-      });
-    }
-    if (colorFilter.size > 0) {
-      const colorMap: Record<string, string> = {
-        W: 'White',
-        U: 'Blue',
-        B: 'Black',
-        R: 'Red',
-        G: 'Green',
-        C: 'Colorless',
-      };
-      // AND mode reads as an intersection — "White + Red" — vs OR's list.
-      const labels = [...colorFilter]
-        .map((k) => colorMap[k] ?? k)
-        .join(colorMode === 'all' ? ' + ' : ', ');
-      chips.push({
-        id: 'color',
-        label: `Color: ${labels}`,
-        onClear: () => setColorFilter(new Set()),
-      });
-    }
-    if (!isExpressionEmpty(rarityExpr)) {
-      const labels = rarityExpr.chips
-        .filter((c) => c.value.trim())
-        .map((c) => (c.negate ? `not ${c.value}` : c.value))
-        .join(', ');
-      chips.push({
-        id: 'rarity',
-        label: `Rarity: ${labels}`,
-        onClear: () => setRarityExpr(EMPTY_EXPR),
-      });
-    }
-    if (!isExpressionEmpty(supertypeExpr)) {
-      const labels = supertypeExpr.chips
-        .filter((c) => c.value.trim())
-        .map((c) => (c.negate ? `not ${c.value}` : c.value))
-        .join(', ');
-      chips.push({
-        id: 'supertype',
-        label: `Supertype: ${labels}`,
-        onClear: () => setSupertypeExpr(EMPTY_EXPR),
-      });
-    }
-    if (!isExpressionEmpty(typesExpr)) {
-      const labels = typesExpr.chips
-        .filter((c) => c.value.trim())
-        .map((c) => (c.negate ? `not ${c.value}` : c.value))
-        .join(', ');
-      chips.push({
-        id: 'type',
-        label: `Type: ${labels}`,
-        onClear: () => setTypesExpr(EMPTY_EXPR),
-      });
-    }
-    if (!isExpressionEmpty(subtypeExpr)) {
-      const labels = subtypeExpr.chips
-        .filter((c) => c.value.trim())
-        .map((c) => (c.negate ? `not ${c.value}` : c.value))
-        .join(', ');
-      chips.push({
-        id: 'subtype',
-        label: `Subtype: ${labels}`,
-        onClear: () => setSubtypeExpr(EMPTY_EXPR),
-      });
-    }
-    if (!isExpressionEmpty(oracleExpr)) {
-      const labels = oracleExpr.chips
-        .filter((c) => c.value.trim())
-        .map((c) => (c.negate ? `not "${c.value}"` : `"${c.value}"`))
-        .join(', ');
-      chips.push({
-        id: 'oracle',
-        label: `Text: ${labels}`,
-        onClear: () => setOracleExpr(EMPTY_EXPR),
-      });
-    }
-    if (!isExpressionEmpty(oracleTagExpr)) {
-      const labels = oracleTagExpr.chips
-        .filter((c) => c.value.trim())
-        .map((c) => (c.negate ? `not ${cardTagLabel(c.value)}` : cardTagLabel(c.value)))
-        .join(', ');
-      chips.push({
-        id: 'oracleTag',
-        label: `Tags: ${labels}`,
-        onClear: () => setOracleTagExpr(EMPTY_EXPR),
-      });
-    }
-    if (scryfallQuery) {
-      chips.push({
-        id: 'scryfallQuery',
-        label: `Scryfall: ${scryfallQuery.query}`,
-        onClear: () => setScryfallQuery(undefined),
-      });
-    }
-    if (!isExpressionEmpty(legalityExpr)) {
-      const labels = legalityExpr.chips
-        .filter((c) => c.value.trim())
-        .map((c) => c.value)
-        .join(', ');
-      chips.push({
-        id: 'legality',
-        label: `Legal in: ${labels}`,
-        onClear: () => setLegalityExpr(EMPTY_EXPR),
-      });
-    }
-    if (!isExpressionEmpty(layoutExpr)) {
-      const labels = layoutExpr.chips
-        .filter((c) => c.value.trim())
-        .map((c) => c.value)
-        .join(', ');
-      chips.push({
-        id: 'layout',
-        label: `Layout: ${labels}`,
-        onClear: () => setLayoutExpr(EMPTY_EXPR),
-      });
-    }
-    if (!isExpressionEmpty(treatmentExpr)) {
-      const labels = treatmentExpr.chips
-        .filter((c) => c.value.trim())
-        .map((c) => c.value)
-        .join(', ');
-      chips.push({
-        id: 'treatment',
-        label: `Treatment: ${labels}`,
-        onClear: () => setTreatmentExpr(EMPTY_EXPR),
-      });
-    }
-    if (!isExpressionEmpty(borderExpr)) {
-      const labels = borderExpr.chips
-        .filter((c) => c.value.trim())
-        .map((c) => c.value)
-        .join(', ');
-      chips.push({
-        id: 'border',
-        label: `Border: ${labels}`,
-        onClear: () => setBorderExpr(EMPTY_EXPR),
-      });
-    }
-    if (!isExpressionEmpty(finishExpr)) {
-      const labels = finishExpr.chips
-        .filter((c) => c.value.trim())
-        .map((c) => c.value)
-        .join(', ');
-      chips.push({
-        id: 'finish',
-        label: `Finish: ${labels}`,
-        onClear: () => setFinishExpr(EMPTY_EXPR),
-      });
-    }
-    if (!isExpressionEmpty(conditionExpr)) {
-      const labels = conditionExpr.chips
-        .filter((c) => c.value.trim())
-        .map((c) => c.value)
-        .join(', ');
-      chips.push({
-        id: 'condition',
-        label: `Condition: ${labels}`,
-        onClear: () => setConditionExpr(EMPTY_EXPR),
-      });
-    }
-    if (!isExpressionEmpty(languageExpr)) {
-      const labels = languageExpr.chips
-        .filter((c) => c.value.trim())
-        .map((c) => String(LANGUAGE_OPTIONS.find((o) => o.value === c.value)?.label ?? c.value))
-        .join(', ');
-      chips.push({
-        id: 'language',
-        label: `Language: ${labels}`,
-        onClear: () => setLanguageExpr(EMPTY_EXPR),
-      });
-    }
-    if (!isExpressionEmpty(binderExpr)) {
-      const labels = binderExpr.chips
-        .filter((c) => c.value.trim())
-        .map((c) => c.value)
-        .join(', ');
-      chips.push({
-        id: 'binder',
-        label: `Binder: ${labels}`,
-        onClear: () => setBinderExpr(EMPTY_EXPR),
-      });
-    }
-    if (setFilter.size > 0) {
-      const labels = [...setFilter].join(', ');
-      chips.push({
-        id: 'set',
-        label: `Set: ${labels}`,
-        onClear: () => setSetFilter(new Set()),
-      });
-    }
-    if (priceMin !== undefined || priceMax !== undefined) {
-      const label =
-        priceMin !== undefined && priceMax !== undefined
-          ? `Price: ${formatMoney(priceMin)}–${formatMoney(priceMax)}`
-          : priceMin !== undefined
-            ? `Price: ≥ ${formatMoney(priceMin)}`
-            : `Price: ≤ ${formatMoney(priceMax)}`;
-      chips.push({
-        id: 'price',
-        label,
-        onClear: () => {
-          setPriceMin(undefined);
-          setPriceMax(undefined);
-        },
-      });
-    }
-    if (cmcMin !== undefined || cmcMax !== undefined) {
-      const label =
-        cmcMin !== undefined && cmcMax !== undefined
-          ? `Mana value: ${cmcMin}–${cmcMax}`
-          : cmcMin !== undefined
-            ? `Mana value: ≥ ${cmcMin}`
-            : `Mana value: ≤ ${cmcMax}`;
-      chips.push({
-        id: 'cmc',
-        label,
-        onClear: () => {
-          setCmcMin(undefined);
-          setCmcMax(undefined);
-        },
-      });
-    }
-    if (!groupPrintings) {
-      chips.push({
-        id: 'groupPrintings',
-        label: 'All copies shown',
-        onClear: () => setGroupPrintings(true),
-      });
-    }
-    if (surplusOnly) {
-      chips.push({
-        id: 'surplus',
-        label: 'Surplus only',
-        onClear: () => setSurplusOnly(false),
-      });
-    }
-    if (proxyOnly) {
-      chips.push({
-        id: 'proxy',
-        label: 'Proxies only',
-        onClear: () => setProxyOnly(false),
-      });
-    }
-    return chips;
-  }, [
-    search,
-    colorFilter,
-    colorMode,
-    rarityExpr,
-    supertypeExpr,
-    typesExpr,
-    subtypeExpr,
-    oracleExpr,
-    oracleTagExpr,
-    scryfallQuery,
-    legalityExpr,
-    layoutExpr,
-    treatmentExpr,
-    borderExpr,
-    finishExpr,
-    conditionExpr,
-    languageExpr,
-    binderExpr,
-    setFilter,
-    priceMin,
-    priceMax,
-    cmcMin,
-    cmcMax,
-    surplusOnly,
-    proxyOnly,
-    groupPrintings,
-    EMPTY_EXPR,
-  ]);
+  const activeFilterChips = useMemo<FilterChipDescriptor[]>(
+    () =>
+      buildActiveFilterChips({
+        search,
+        colorFilter,
+        colorMode,
+        rarityExpr,
+        supertypeExpr,
+        typesExpr,
+        subtypeExpr,
+        oracleExpr,
+        oracleTagExpr,
+        scryfallQuery,
+        legalityExpr,
+        layoutExpr,
+        treatmentExpr,
+        borderExpr,
+        finishExpr,
+        conditionExpr,
+        languageExpr,
+        binderExpr,
+        setFilter,
+        priceMin,
+        priceMax,
+        cmcMin,
+        cmcMax,
+        surplusOnly,
+        proxyOnly,
+        groupPrintings,
+        EMPTY_EXPR,
+        setSearch,
+        setColorFilter,
+        setRarityExpr,
+        setSupertypeExpr,
+        setTypesExpr,
+        setSubtypeExpr,
+        setOracleExpr,
+        setOracleTagExpr,
+        setScryfallQuery,
+        setLegalityExpr,
+        setLayoutExpr,
+        setTreatmentExpr,
+        setBorderExpr,
+        setFinishExpr,
+        setConditionExpr,
+        setLanguageExpr,
+        setBinderExpr,
+        setSetFilter,
+        setPriceMin,
+        setPriceMax,
+        setCmcMin,
+        setCmcMax,
+        setGroupPrintings,
+        setSurplusOnly,
+        setProxyOnly,
+      }),
+    [
+      search,
+      colorFilter,
+      colorMode,
+      rarityExpr,
+      supertypeExpr,
+      typesExpr,
+      subtypeExpr,
+      oracleExpr,
+      oracleTagExpr,
+      scryfallQuery,
+      legalityExpr,
+      layoutExpr,
+      treatmentExpr,
+      borderExpr,
+      finishExpr,
+      conditionExpr,
+      languageExpr,
+      binderExpr,
+      setFilter,
+      priceMin,
+      priceMax,
+      cmcMin,
+      cmcMax,
+      surplusOnly,
+      proxyOnly,
+      groupPrintings,
+      EMPTY_EXPR,
+    ]
+  );
 
   // Selection copy count (for the "N rows · M copies" selection display).
   const selectedCopiesCount = useMemo(() => {
@@ -2152,162 +1579,44 @@ export function CardListTable({
           A control row (STYLE_GUIDE "Toolbars & action rows") → flex-wrap,
           never clips. The --z-popover tier matches the search bar so neither
           row "wins" against the other — they form one sticky stack. */}
-      <div ref={controlsRowRef} className="card-list-summary-line card-list-controls-sticky">
-        <div className="card-list-summary-actions">
-          {/* Result count — only when filters/search narrow the set */}
-          {(activeFilterCount > 0 || search.trim()) && sorted.length < rows.length && (
-            <span className="card-list-result-count" aria-live="polite">
-              {sorted.length.toLocaleString()} of {rows.length.toLocaleString()} cards
-            </span>
-          )}
-          {sorted.length > 0 && (
-            <Button
-              placement="toolbar"
-              className="card-list-select-toggle"
-              aria-pressed={selectMode}
-              // Idle label hides on phones (`.toolbar-label-compact`) — see
-              // SelectToggle in BulkSelectBar.tsx, same control, same reason.
-              aria-label={selectMode ? 'Done selecting' : 'Select'}
-              title={selectMode ? 'Done selecting' : 'Select'}
-              onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
-              icon={<CheckSquare width={14} height={14} strokeWidth={2} />}
-              labelClassName="toolbar-label-compact"
-            >
-              {selectMode ? 'Done' : 'Select'}
-            </Button>
-          )}
-          <SelectMenu<GroupKey>
-            ariaLabel="Group by"
-            value={groupKey}
-            options={GROUP_FIELDS.map((f) => ({
-              value: f.key,
-              label: f.label,
-              // On phones the trigger for the default state says what the
-              // control DOES rather than restating that nothing is set — the
-              // menu row still reads "No grouping", and the 43px saved is
-              // what keeps this toolbar on one row at 360px.
-              triggerLabel: isNarrow && f.key === 'none' ? 'Group' : undefined,
-            }))}
-            onChange={setGroupKey}
-            leadingIcon={<Layers width={14} height={14} strokeWidth={2} aria-hidden />}
-          />
-          {groupKey !== 'none' && allSectionKeys.length > 0 && (
-            <Button
-              placement="toolbar"
-              aria-pressed={allCollapsed}
-              onClick={toggleAllCollapsed}
-              title={allCollapsed ? 'Expand all groups' : 'Collapse all groups'}
-              aria-label={allCollapsed ? 'Expand all groups' : 'Collapse all groups'}
-              icon={
-                allCollapsed ? (
-                  <ChevronsUpDown width={14} height={14} strokeWidth={2} />
-                ) : (
-                  <ChevronsDownUp width={14} height={14} strokeWidth={2} />
-                )
-              }
-            >
-              {/* Icon-only on phones — the chevrons glyph + tooltip carry it,
-                  and the label is what pushed the grouped toolbar to a 2nd row. */}
-              {!isNarrow && <span>{allCollapsed ? 'Expand all' : 'Collapse all'}</span>}
-            </Button>
-          )}
-          <SortMenu
-            ariaLabel="Sort"
-            value={sortKey}
-            dir={sortDir}
-            options={SORT_MENU_OPTIONS}
-            onChange={toggleSort}
-          />
-          {!isNarrow && view === 'grid' && (
-            <ZoomControl
-              zoom={effectiveZoom}
-              width={gridWidth}
-              max={ZOOM_MAX}
-              onChange={setGridZoom}
-            />
-          )}
-          {!isNarrow && view === 'grid' && (
-            <ToolbarPopover
-              label="Details"
-              icon={<Captions width={14} height={14} strokeWidth={2} aria-hidden />}
-            >
-              {() => <GridCaptionList prefs={gridCaptionPrefs} onChange={setGridCaptionPrefs} />}
-            </ToolbarPopover>
-          )}
-          {!isNarrow && (
-            <ViewModeToggle<ViewMode>
-              ariaLabel="Collection view mode"
-              value={view}
-              onChange={setView}
-              options={VIEW_MODE_OPTIONS}
-            />
-          )}
-          {!isNarrow && <Legend context="collection" align="right" variant="pill" />}
-          {/* ≤640px: the display controls above (zoom, Details, layout, key)
-              collapse into one "View" popover so the sticky toolbar stays a
-              single row — see STYLE_GUIDE "Toolbars & action rows". Icon-only:
-              with the label it was 95px on a 344px row and the row wrapped,
-              which put this one control on a line of its own above the cards. */}
-          {isNarrow && (
-            <ToolbarPopover
-              icon={<Eye width={14} height={14} strokeWidth={2} aria-hidden />}
-              triggerAriaLabel="View options"
-              triggerTitle="View options"
-              haspopup="dialog"
-              panelRole="dialog"
-              panelAriaLabel="View options"
-              panelClassName="toolbar-popover-panel toolbar-popover-panel--fixed view-popover-panel"
-            >
-              {() => (
-                <ViewPopoverPanel<ViewMode>
-                  view={view}
-                  setView={setView}
-                  options={VIEW_MODE_OPTIONS}
-                  ariaLabel="Collection view mode"
-                  zoom={effectiveZoom}
-                  zoomMax={ZOOM_MAX_NARROW}
-                  gridWidth={gridWidth}
-                  onZoomChange={setGridZoom}
-                  captionPrefs={gridCaptionPrefs}
-                  onCaptionPrefsChange={setGridCaptionPrefs}
-                />
-              )}
-            </ToolbarPopover>
-          )}
-        </div>
-      </div>
+      <CardListControls
+        rowRef={controlsRowRef}
+        showResultCount={
+          (activeFilterCount > 0 || search.trim() !== '') && sorted.length < rows.length
+        }
+        sortedCount={sorted.length}
+        rowCount={rows.length}
+        selectMode={selectMode}
+        onToggleSelectMode={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
+        isNarrow={isNarrow}
+        groupKey={groupKey}
+        setGroupKey={setGroupKey}
+        hasSections={allSectionKeys.length > 0}
+        allCollapsed={allCollapsed}
+        toggleAllCollapsed={toggleAllCollapsed}
+        sortKey={sortKey}
+        sortDir={sortDir}
+        toggleSort={toggleSort}
+        view={view}
+        setView={setView}
+        effectiveZoom={effectiveZoom}
+        gridWidth={gridWidth}
+        setGridZoom={setGridZoom}
+        gridCaptionPrefs={gridCaptionPrefs}
+        setGridCaptionPrefs={setGridCaptionPrefs}
+      />
 
       {selectMode && (
-        <div className="card-list-bulk-toolbar" role="region" aria-label="Bulk actions">
-          <span className="card-list-bulk-count">
-            {selectedRowKeys.size > 0 ? bulkCountLabel : 'Select cards'}
-          </span>
-          <Button
-            placement="toolbar"
-            onClick={() => (allSelected ? clearSelection() : selectAll())}
-          >
-            {allSelected ? 'Deselect all' : `Select all (${sorted.length})`}
-          </Button>
-          {bulkActions.map((action) => (
-            <Button
-              key={action.label}
-              placement="toolbar"
-              variant={action.danger ? 'danger' : undefined}
-              disabled={selectedRowKeys.size === 0}
-              onClick={action.onClick}
-            >
-              {action.label}
-            </Button>
-          ))}
-          {selectedRowKeys.size > 0 && !allSelected && (
-            <Button placement="toolbar" onClick={clearSelection}>
-              Clear
-            </Button>
-          )}
-          <Button placement="toolbar" onClick={exitSelectMode} className="card-list-bulk-done">
-            Done
-          </Button>
-        </div>
+        <CardListBulkToolbar
+          selectedCount={selectedRowKeys.size}
+          countLabel={bulkCountLabel}
+          totalCount={sorted.length}
+          allSelected={allSelected}
+          actions={bulkActions}
+          onSelectAll={selectAll}
+          onClear={clearSelection}
+          onDone={exitSelectMode}
+        />
       )}
 
       {/* Sticky section overlay — floats below the sticky controls and swaps its
@@ -2391,132 +1700,43 @@ export function CardListTable({
             position: 'relative',
           }}
         >
-          {gridVirtualizer.getVirtualItems().map((virtualRow) => {
-            const layoutRow = gridLayout[virtualRow.index];
-            if (!layoutRow) return null;
-            if (layoutRow.kind === 'header') {
+          <CardListGridRows
+            virtualRows={gridVirtualizer.getVirtualItems()}
+            layout={gridLayout}
+            scrollMargin={scrollMargin}
+            cols={gridCols}
+            gap={GRID_GAP}
+            collapsedKeys={collapsedKeys}
+            onToggleSection={toggleCollapsed}
+            handoff={
+              showScryfall
+                ? { index: triggerIndex, query: handoffQuery, onAdd: (q) => onAddCards?.(q) }
+                : null
+            }
+            rowCount={displayRows.length}
+            renderCell={(idx) => {
+              const r = displayRows[idx];
               return (
-                <SectionHeaderBar
-                  key={virtualRow.key}
-                  className="collection-grid-section-header"
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: GRID_SECTION_HEADER_H,
-                    transform: `translateY(${virtualRow.start - scrollMargin}px)`,
-                  }}
-                  pip={layoutRow.meta.pip}
-                  label={layoutRow.meta.label}
-                  count={layoutRow.count}
-                  collapsed={collapsedKeys.has(layoutRow.meta.key)}
-                  onToggle={() => toggleCollapsed(layoutRow.meta.key)}
+                <CardListGridCell
+                  key={r.key}
+                  row={r}
+                  size={effectiveGridSize}
+                  caption={gridCaptionPrefs.sortValue ? captionFor(r) : null}
+                  captionPrefs={gridCaptionPrefs}
+                  selectMode={selectMode}
+                  selected={selectedRowKeys.has(r.key)}
+                  duplicateNames={duplicateNames}
+                  setMap={setMap}
+                  surplusOnly={surplusOnly}
+                  surplusByName={surplusByName}
+                  allocations={allocationsFor(r.card)}
+                  cubeListings={cubeListingsFor(r.card.name)}
+                  onActivate={() => (selectMode ? toggleRow(r.key) : setPreviewIndex(idx))}
+                  menu={cardMenu(r, 'tile')}
                 />
               );
-            }
-            return (
-              <div
-                key={virtualRow.key}
-                className="collection-grid-vrow"
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  transform: `translateY(${virtualRow.start - scrollMargin}px)`,
-                  display: 'grid',
-                  gridTemplateColumns: `repeat(${gridCols}, 1fr)`,
-                  gap: `${GRID_GAP}px`,
-                }}
-              >
-                {Array.from({ length: layoutRow.end - layoutRow.start }, (_, colIdx) => {
-                  const idx = layoutRow.start + colIdx;
-                  if (idx === triggerIndex && showScryfall) {
-                    return (
-                      <button
-                        key="add-handoff"
-                        type="button"
-                        className="collection-grid-item collection-grid-scryfall"
-                        onClick={() => onAddCards?.(handoffQuery)}
-                        aria-haspopup="dialog"
-                        aria-label={`Add “${handoffQuery}” to your collection…`}
-                      >
-                        <Plus width={26} height={26} strokeWidth={1.6} aria-hidden />
-                        <span className="collection-grid-scryfall-title">Add “{handoffQuery}”</span>
-                        <span className="collection-grid-scryfall-sub">to your collection…</span>
-                      </button>
-                    );
-                  }
-                  if (idx >= displayRows.length) return null;
-                  const r = displayRows[idx];
-                  const selected = selectedRowKeys.has(r.key);
-                  const setLabel = gridSetLabel(r.card, gridCaptionPrefs);
-                  // Two collection-only corner chips beside the ×qty badge: a
-                  // set code when the same name appears as several printings
-                  // (redundant while the set caption is on), and the surplus
-                  // count while the "Tradeable surplus" filter is active.
-                  const dupChip =
-                    setLabel === null && duplicateNames.has(r.card.name) ? (
-                      <ArtBadge
-                        className="collection-grid-set"
-                        title={setSymbolTitle({
-                          setCode: r.card.setCode,
-                          setName: r.card.setName || setMap?.[r.card.setCode.toUpperCase()]?.name,
-                          collectorNumber: r.card.collectorNumber,
-                          rarity: r.card.rarity,
-                        })}
-                      >
-                        {r.card.setCode.toUpperCase()}
-                      </ArtBadge>
-                    ) : null;
-                  const surplus = surplusOnly ? surplusByName.get(r.card.name) : undefined;
-                  const surplusChip = surplus ? (
-                    <ArtBadge
-                      className="collection-grid-surplus"
-                      title={`${surplus} unallocated ${
-                        surplus === 1 ? 'copy' : 'copies'
-                      } beyond your kept copy`}
-                    >
-                      {surplus} free
-                    </ArtBadge>
-                  ) : null;
-                  return (
-                    <CardGridCell
-                      key={r.key}
-                      card={r.card}
-                      qty={r.qty}
-                      size={effectiveGridSize}
-                      caption={gridCaptionPrefs.sortValue ? captionFor(r) : null}
-                      setLabel={setLabel}
-                      selectMode={selectMode}
-                      selected={selected}
-                      onActivate={() => (selectMode ? toggleRow(r.key) : setPreviewIndex(idx))}
-                      menu={cardMenu(r, 'tile')}
-                      cornerExtras={
-                        dupChip || surplusChip ? (
-                          <>
-                            {dupChip}
-                            {surplusChip}
-                          </>
-                        ) : null
-                      }
-                      badges={
-                        <>
-                          <DeckBadge
-                            allocations={allocationsFor(r.card)}
-                            listedIn={cubeListingsFor(r.card.name)}
-                            placement="art"
-                          />
-                          <BinderBadge binders={r.binders} placement="art" />
-                        </>
-                      }
-                    />
-                  );
-                })}
-              </div>
-            );
-          })}
+            }}
+          />
         </div>
       ) : sorted.length === 0 ? null : (
         <CardTableFrame columns={COLLECTION_TABLE_COLUMNS} selectMode={selectMode}>
@@ -2541,85 +1761,44 @@ export function CardListTable({
               position: 'relative',
             }}
           >
-            {listVirtualizer.getVirtualItems().map((virtualRow) => {
-              const item = listLayout[virtualRow.index];
-              if (!item) return null;
-              // Headers ride as their own measured virtual rows (mirroring the
-              // grid), so a collapsed section keeps a tappable header with no card
-              // rows below it. `measureElement` folds each row's real height into
-              // the offset, so a header row and a card row can differ in height
-              // without drift.
-              const rowBox = (children: ReactNode) => (
-                <div
-                  key={virtualRow.key}
-                  data-index={virtualRow.index}
-                  ref={listVirtualizer.measureElement}
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    transform: `translateY(${virtualRow.start - scrollMargin}px)`,
-                  }}
-                >
-                  {children}
-                </div>
-              );
-              if (item.kind === 'header') {
-                return rowBox(
-                  <SectionHeaderBar
-                    className="collection-list-section-header"
-                    pip={item.meta.pip}
-                    label={item.meta.label}
-                    count={item.count}
-                    collapsed={collapsedKeys.has(item.meta.key)}
-                    onToggle={() => toggleCollapsed(item.meta.key)}
+            <CardListListRows
+              virtualRows={listVirtualizer.getVirtualItems()}
+              layout={listLayout}
+              scrollMargin={scrollMargin}
+              measureElement={listVirtualizer.measureElement}
+              collapsedKeys={collapsedKeys}
+              onToggleSection={toggleCollapsed}
+              renderRow={(index) => {
+                const r = displayRows[index];
+                return (
+                  <CardRow
+                    card={r.card}
+                    qty={r.qty}
+                    allocations={allocationsFor(r.card)}
+                    cubeListings={cubeListingsFor(r.card.name)}
+                    binders={r.binders}
+                    surplusCount={surplusOnly ? surplusByName.get(r.card.name) : undefined}
+                    setName={r.card.setName || setMap?.[r.card.setCode.toUpperCase()]?.name}
+                    isLastRow={index === displayRows.length - 1}
+                    selectMode={selectMode}
+                    selected={selectedRowKeys.has(r.key)}
+                    columns={isTable ? COLLECTION_TABLE_COLUMNS : undefined}
+                    pricePending={
+                      (isRefreshingPrices || !pricesEverLoaded) &&
+                      !((r.card.purchasePrice ?? 0) > 0)
+                    }
+                    onActivate={() => (selectMode ? toggleRow(r.key) : setPreviewIndex(index))}
+                    menu={cardMenu(r, 'row')}
                   />
                 );
-              }
-              const r = displayRows[item.index];
-              const selected = selectedRowKeys.has(r.key);
-              return rowBox(
-                <CardRow
-                  card={r.card}
-                  qty={r.qty}
-                  allocations={allocationsFor(r.card)}
-                  cubeListings={cubeListingsFor(r.card.name)}
-                  binders={r.binders}
-                  surplusCount={surplusOnly ? surplusByName.get(r.card.name) : undefined}
-                  setName={r.card.setName || setMap?.[r.card.setCode.toUpperCase()]?.name}
-                  isLastRow={item.index === displayRows.length - 1}
-                  selectMode={selectMode}
-                  selected={selected}
-                  columns={isTable ? COLLECTION_TABLE_COLUMNS : undefined}
-                  pricePending={
-                    (isRefreshingPrices || !pricesEverLoaded) && !((r.card.purchasePrice ?? 0) > 0)
-                  }
-                  onActivate={() => (selectMode ? toggleRow(r.key) : setPreviewIndex(item.index))}
-                  menu={cardMenu(r, 'row')}
-                />
-              );
-            })}
+              }}
+            />
           </div>
         </CardTableFrame>
       )}
 
       {view !== 'grid' && showScryfall && (
-        <button
-          type="button"
-          className="collection-list-scryfall collection-list-scryfall--standalone"
-          aria-haspopup="dialog"
-          aria-label={`Add “${handoffQuery}” to your collection…`}
-          onClick={() => onAddCards?.(handoffQuery)}
-        >
-          <span className="collection-list-scryfall-icon">
-            <Plus width={18} height={18} strokeWidth={1.7} aria-hidden />
-          </span>
-          <span className="collection-list-scryfall-text">
-            <span className="collection-list-scryfall-title">Add “{handoffQuery}”</span>
-            <span className="collection-list-scryfall-sub">to your collection…</span>
-          </span>
-        </button>
+        <CardListListHandoff query={handoffQuery} onAdd={() => onAddCards?.(handoffQuery)} />
       )}
 
       {editingCard && (

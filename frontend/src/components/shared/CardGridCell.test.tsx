@@ -119,7 +119,7 @@ const read = (f: string) => readFileSync(join(componentsDir, '..', f), 'utf8');
 
 describe('guard: every card grid renders the shared tile', () => {
   it.each([
-    ['collection/CardListTable.tsx'],
+    ['collection/CardListGridCell.tsx'],
     ['lists/ListDetailView.tsx'],
     ['../pages/cube/CubeResult.tsx'],
   ])('%s uses CardGridCell', (file) => {
