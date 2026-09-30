@@ -1,8 +1,7 @@
 import './DiscoverBrewersPage.css';
 import { useEffect, useRef, useState } from 'react';
-import { DecksHubTabs } from '@/components/decks/DecksHubTabs';
 import { DiscoverPanel, DiscoverSwitch } from '@/components/decks/DiscoverSwitch';
-import { PageHeader } from '@/components/app-shell/PageHeader';
+import { HubPage } from '@/components/app-shell/HubPage';
 import { SearchPill } from '@/components/search/SearchPill';
 import { BrewerCard, BrewerCardSkeleton } from '../components/social/BrewerCard';
 import { Button } from '@/components/shared/Button';
@@ -239,9 +238,12 @@ export function DiscoverBrewersPage() {
   }
 
   return (
-    <div className="decks-index-page">
-      <PageHeader title="Discover" meta="Find brewers to follow and see what they build." />
-      <DecksHubTabs />
+    <HubPage
+      hub="decks"
+      section="Discover"
+      className="decks-index-page"
+      intro="Find brewers to follow and see what they build."
+    >
       <DiscoverSwitch value="brewers" />
       <DiscoverPanel section="brewers">
         <SearchPill
@@ -254,6 +256,6 @@ export function DiscoverBrewersPage() {
         />
         {body}
       </DiscoverPanel>
-    </div>
+    </HubPage>
   );
 }

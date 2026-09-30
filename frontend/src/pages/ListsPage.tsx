@@ -8,8 +8,7 @@ import {
   SlidersHorizontal,
   Trash2,
 } from 'lucide-react';
-import { CollectionHubTabs } from '@/components/collection/CollectionHubTabs';
-import { PageHeader } from '@/components/app-shell/PageHeader';
+import { HubPage } from '@/components/app-shell/HubPage';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { getCardsByNames } from '@/deck-builder/services/scryfall/client';
@@ -253,30 +252,28 @@ export function ListsPage() {
       : null;
 
   return (
-    <div className="binders-index-page">
-      <PageHeader
-        title="Lists"
-        meta={`${lists.length.toLocaleString()} ${lists.length === 1 ? 'list' : 'lists'}`}
-        menuLabel="More list actions"
-        actions={[
-          { label: 'New list', icon: Plus, primary: true, onClick: handleCreate },
-          { label: 'New dynamic list', icon: SlidersHorizontal, onClick: handleCreateDynamic },
-          ...(lists.length > 1
-            ? [
-                {
-                  label: 'Delete all lists',
-                  icon: Trash2,
-                  danger: true,
-                  menuOnly: true,
-                  opensDialog: true,
-                  onClick: () => void handleDeleteAll(),
-                },
-              ]
-            : []),
-        ]}
-      />
-      <CollectionHubTabs />
-
+    <HubPage
+      hub="collection"
+      section="Lists"
+      className="binders-index-page"
+      menuLabel="More list actions"
+      actions={[
+        { label: 'New list', icon: Plus, primary: true, onClick: handleCreate },
+        { label: 'New dynamic list', icon: SlidersHorizontal, onClick: handleCreateDynamic },
+        ...(lists.length > 1
+          ? [
+              {
+                label: 'Delete all lists',
+                icon: Trash2,
+                danger: true,
+                menuOnly: true,
+                opensDialog: true,
+                onClick: () => void handleDeleteAll(),
+              },
+            ]
+          : []),
+      ]}
+    >
       {lists.length > 0 && (
         <div className="binders-index-search-row">
           <SearchPill
@@ -499,6 +496,6 @@ export function ListsPage() {
           )}
         </NameInputDialog>
       )}
-    </div>
+    </HubPage>
   );
 }

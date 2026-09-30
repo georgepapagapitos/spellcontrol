@@ -1,6 +1,5 @@
 import './TradesPage.css';
-import { PageHeader } from '@/components/app-shell/PageHeader';
-import { SocialHubTabs } from '@/components/social/SocialHubTabs';
+import { HubPage } from '@/components/app-shell/HubPage';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSignInPath } from '@/lib/account/sign-in-path';
@@ -89,10 +88,8 @@ function TradesSkeleton() {
   );
 }
 
-/** Page body wrapped so the {@link SocialHubTabs} strip sits OUTSIDE the
- *  width-capped `.trades-page` root — full-bleed and sticky, exactly like the
- *  Collection and Decks hub strips — on every return path (guest gate
- *  included) without restructuring them. */
+/** Every return path of the body, guest gate included, is a HubPage, so the
+ *  Social header and strip never move between Friends, Trades and Pods. */
 export function TradesPage() {
   return (
     <>
@@ -157,9 +154,7 @@ function TradesPageBody() {
 
   if (status === 'guest') {
     return (
-      <div className="trades-page social-page-shell social-page-shell--wide">
-        <PageHeader title="Trades" />
-        <SocialHubTabs />
+      <HubPage hub="social" section="Trades" className="trades-page">
         <div className="friends-signin-prompt">
           <p className="friends-signin-title">Sign in to see your trades</p>
           <p className="friends-signin-body">
@@ -169,7 +164,7 @@ function TradesPageBody() {
             Sign in
           </Button>
         </div>
-      </div>
+      </HubPage>
     );
   }
 
@@ -218,13 +213,12 @@ function TradesPageBody() {
   }
 
   return (
-    <div className="trades-page social-page-shell social-page-shell--wide">
-      <PageHeader
-        title="Trades"
-        meta="Every offer you're part of, either way. Accepting settles both collections."
-      />
-      <SocialHubTabs />
-
+    <HubPage
+      hub="social"
+      section="Trades"
+      className="trades-page"
+      intro="Every offer you're part of, either way. Accepting settles both collections."
+    >
       {loadError && (
         <div className="friends-error" role="alert">
           <span>{loadError}</span>
@@ -347,6 +341,6 @@ function TradesPageBody() {
           onCancel={() => setClearing(false)}
         />
       )}
-    </div>
+    </HubPage>
   );
 }

@@ -13,20 +13,15 @@
    pattern. */
 
 /* ── Page shell ─────────────────────────────────────────────────────────── */
-/* The one content cap for the social hub. /friends, /friends/:id, /trades
-   and /pods each hand-wrote their own max-width, and the two without padding
-   sat 16px off the two with it, so the SocialHubTabs column shifted as you
-   moved between them. `width: 100%` is load-bearing next to the auto margins
-   (see the old .trades-page note). `--wide` is the Trades give/get layout. */
+/* The content cap for a friend's page (/friends/:id). The hub tabs
+   (/friends, /trades, /pods) are HubPage roots, which own their width
+   (.hub-page--social, binder-hero.css), so the strip can't shift between
+   them. `width: 100%` is load-bearing next to the auto margins. */
 .social-page-shell {
   width: 100%;
   max-width: 640px;
   margin-inline: auto;
   padding: var(--space-4);
-}
-
-.social-page-shell--wide {
-  max-width: 760px;
 }
 
 @media (max-width: 599px) {

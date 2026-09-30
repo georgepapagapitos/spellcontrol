@@ -63,7 +63,8 @@ beforeEach(() => {
 describe('FriendsPage', () => {
   it('renders the page heading and mounts FriendsManagement', () => {
     renderPage();
-    expect(screen.getByRole('heading', { name: 'Social' })).toBeTruthy();
+    // The hub's title, with the tab named for screen readers (HubPage).
+    expect(screen.getByRole('heading', { level: 1, name: 'Social: Friends' })).toBeTruthy();
     expect(screen.getByTestId('friends-management-stub')).toBeTruthy();
   });
 

@@ -343,13 +343,40 @@ meanwhile.
   Delete live in the `⋮` at every width. The meta line reads format · count
   · value · bracket · sharing; the commander is the art and the command
   zone's first row, so the meta line doesn't name it again, and sharing is
-  its last segment ("Sharing: Public"), not a boxed chip under the title. **Hub tabs, built:** each hub index
-  page renders its strip (`CollectionHubTabs`, `DecksHubTabs`,
-  `SocialHubTabs`) directly after its `PageHeader`; the pair owns its spacing
-  (8px header → tabs on every hub; hosts with a flex gap declare it as
-  `--host-gap` so it cancels instead of stacking). Detail pages (a binder, a
-  list, a set) render no hub strip: the back link goes up a level and the
-  main nav names the hub. Guard: `styles/hub-tabs-placement.test.ts`.
+  its last segment ("Sharing: Public"), not a boxed chip under the title. **Hub tabs, built:** see Hub pages below. The header
+  and strip own their spacing (8px header → tabs on every hub; hosts with a
+  flex gap declare it as `--host-gap` so it cancels instead of stacking).
+  Detail pages (a binder, a list, a set) render no hub strip: the back link
+  goes up a level and the main nav names the hub.
+- **Hub pages: the tabs never move.** Collection (Cards · Binders · Lists ·
+  Combos · Sets), Decks (My decks · Discover · Saved · Cube) and Social
+  (Friends · Trades · Pods) are one place each, and switching tabs changes
+  only what is under the strip. The title, the strip's position and its width
+  are identical on every tab of a hub, at every tier, loading or not. So:
+  - The title names the **hub**, not the tab ("Decks" on the Cube tab). The
+    underlined tab already says where you are; the `<h1>` carries the tab
+    name for screen readers ("Decks: Cube"), since a route change moves focus
+    to it.
+  - Nothing variable sits above the strip. No meta line: a count goes on the
+    tab as a count chip ("My decks 18"), and a tab's description or totals go
+    in the intro line directly under the strip. No back link: a tab is not a
+    page reached from a button.
+  - The header is one row of fixed height at every tier, so a tab with actions
+    and a tab without them put the strip at the same height. On a phone the
+    primary shows as its icon (label as its accessible name and tooltip)
+    rather than stacking full width under the title.
+  - One width per hub: Collection and Decks use the wide page, Social one
+    760px column. Content under the strip may be narrower, left-aligned with
+    it; it never moves the strip.
+  - A loading or guest state renders inside the hub page, under the strip,
+    never instead of it.
+
+  **Built:** `components/app-shell/HubPage` is the root of every hub page; a
+  page passes `hub`, `section`, its actions, an optional `intro` and its
+  content, and never renders `PageHeader` or a hub strip itself. Guards:
+  `styles/hub-tabs-placement.test.ts` (structure and CSS), and the nightly
+  journey measures the strip on every tab of each hub in a real browser.
+
 - **Toolbar: search grows, the order after it is fixed, and it never wraps.**
   What doesn't fit the width folds into one control (a sort/view pill on
   phone, a `⋯` pill wider up) instead of breaking onto a second row. A
@@ -2278,11 +2305,11 @@ menu), not N buttons × rows (the Admin users table injected 30 destructive tab 
 into `/you`). (4) An unmatched route renders "Page not found" inside the Layout with one
 CTA, never a silent redirect. (5) A page reached only via a button from its hub (not
 itself a hub tab) gets a `BackLink` to that hub, matching its siblings at the same depth
-(`/decks/new`, `/decks/new/brew`, `/decks/compare`, `/decks/cube`; `/decks/new/generate` backs to New deck). (6) Social hub pages
-share one content cap, the `.social-page-shell` class in `social-shared.css` (640px;
-`--wide` is 760px for the trade give/get layout), so a new page can't ship uncapped
-(`/pods` did) or a pixel off its siblings (Pods sat 16px left of Friends when each page
-hand-wrote its own cap and padding).
+(`/decks/new`, `/decks/new/brew`, `/decks/compare`; `/decks/new/generate` backs to New deck). A hub
+tab (`/decks/cube`) gets none: see § Layout system → Hub pages. (6) Social hub pages share
+one width through `HubPage` (§ Layout system → Hub pages); a friend's page uses the
+`.social-page-shell` cap in `social-shared.css`, so a new page can't ship uncapped
+(`/pods` did) or a pixel off its siblings.
 
 - **`role="status"` goes on a wrapper, never on a list.** A loading row of
   skeleton tiles is a `<ul>`, and ARIA does not allow `status` on a list
