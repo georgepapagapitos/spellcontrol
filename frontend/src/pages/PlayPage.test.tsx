@@ -110,29 +110,33 @@ function renderPage(initialEntry = '/play') {
   );
 }
 
+// Play's sections are routes, so its strip is the hub strip every other hub
+// wears (HubPage → PlayHubTabs): links, the current one marked aria-current.
+const tab = (name: string | RegExp) =>
+  within(screen.getByRole('navigation', { name: 'Play sections' })).getByRole('link', { name });
+const isCurrent = (name: string | RegExp) => tab(name).getAttribute('aria-current') === 'page';
+
 describe('PlayPage tabs', () => {
-  it('renders Local/Online/Game nights/History through the shared Tabs primitive', () => {
+  it('renders Play/Local/Online/Game nights/History as the shared hub strip', () => {
     const { container } = renderPage('/play/local');
-    const tablist = screen.getByRole('tablist', { name: 'Play sections' });
-    expect(tablist.classList.contains('sc-tabs')).toBe(true);
-    const tabs = screen.getAllByRole('tab');
-    expect(tabs.map((t) => t.textContent)).toEqual([
-      'Play',
-      'Local',
-      'Online',
-      'Game nights',
-      'History',
-    ]);
-    // No hand-rolled strip left behind.
-    expect(container.querySelector('.play-tabs')).toBeNull();
+    const nav = screen.getByRole('navigation', { name: 'Play sections' });
+    expect(nav.classList.contains('collection-hub-tabs')).toBe(true);
+    expect(
+      within(nav)
+        .getAllByRole('link')
+        .map((t) => t.textContent)
+    ).toEqual(['Play', 'Local', 'Online', 'Game nights', 'History']);
+    // The hub keeps its title; the tab is named for screen readers.
+    expect(screen.getByRole('heading', { level: 1, name: 'Play: Local' })).toBeTruthy();
+    // No hand-rolled or in-page switcher left behind.
+    expect(container.querySelector('.play-tabs, .sc-tabs[aria-label="Play sections"]')).toBeNull();
   });
 
-  it('defaults to the Play dashboard with roving tabindex', () => {
+  it('defaults to the Play dashboard', () => {
     renderPage();
-    const play = screen.getByRole('tab', { name: 'Play' });
-    expect(play.getAttribute('aria-selected')).toBe('true');
-    expect(play.getAttribute('tabindex')).toBe('0');
-    expect(screen.getByRole('tab', { name: 'Local' }).getAttribute('tabindex')).toBe('-1');
+    expect(isCurrent('Play')).toBe(true);
+    expect(isCurrent('Local')).toBe(false);
+    expect(screen.getByRole('heading', { level: 1, name: 'Play' })).toBeTruthy();
     // The dashboard's doors are the visible panel, not a form.
     expect(screen.getByRole('button', { name: /Track a table/ })).toBeTruthy();
     expect(screen.queryByText('New local game')).toBeNull();
@@ -150,16 +154,16 @@ describe('PlayPage tabs', () => {
       ],
     });
     const { unmount } = renderPage();
-    expect(screen.getByRole('tab', { name: /^Local/ }).getAttribute('aria-selected')).toBe('true');
+    expect(isCurrent(/^Local/)).toBe(true);
     unmount();
 
     usePlayStore.getState().hideBoard();
     renderPage();
-    expect(screen.getByRole('tab', { name: 'Play' }).getAttribute('aria-selected')).toBe('true');
+    expect(isCurrent('Play')).toBe(true);
     expect(screen.getByText('Alice · Bob')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Resume' }));
     expect(usePlayStore.getState().boardVisible).toBe(true);
-    expect(screen.getByRole('tab', { name: /^Local/ }).getAttribute('aria-selected')).toBe('true');
+    expect(isCurrent(/^Local/)).toBe(true);
     usePlayStore.getState().discardLocal();
   });
 
@@ -168,31 +172,49 @@ describe('PlayPage tabs', () => {
     renderPage();
     fireEvent.click(screen.getByRole('button', { name: /Track a table/ }));
     expect(screen.getByText('New local game')).toBeTruthy();
-    fireEvent.click(screen.getByRole('tab', { name: 'Play' }));
+    fireEvent.click(tab('Play'));
     // Signed out, the online doors lead to the sign-in state, not a form.
     fireEvent.click(screen.getByRole('button', { name: /Join with a code/ }));
-    expect(screen.getByRole('tab', { name: 'Online' }).getAttribute('aria-selected')).toBe('true');
+    expect(isCurrent('Online')).toBe(true);
     expect(screen.getByText('Online games need an account.')).toBeTruthy();
   });
 
   it('switches panels on tab click', () => {
     renderPage('/play/local');
-    fireEvent.click(screen.getByRole('tab', { name: 'History' }));
-    expect(screen.getByRole('tab', { name: 'History' }).getAttribute('aria-selected')).toBe('true');
+    fireEvent.click(tab('History'));
+    expect(isCurrent('History')).toBe(true);
     expect(screen.getByText('No games yet.')).toBeTruthy();
     expect(screen.queryByText('New local game')).toBeNull();
   });
 
   it('opens the tab an old ?tab= address names (pre-E375 links and bookmarks)', () => {
     renderPage('/play?tab=history');
-    expect(screen.getByRole('tab', { name: 'History' }).getAttribute('aria-selected')).toBe('true');
+    expect(isCurrent('History')).toBe(true);
     expect(screen.getByText('No games yet.')).toBeTruthy();
   });
 
   it('honors the /play/:section route for the initial tab', () => {
     renderPage('/play/history');
-    expect(screen.getByRole('tab', { name: 'History' }).getAttribute('aria-selected')).toBe('true');
+    expect(isCurrent('History')).toBe(true);
     expect(screen.getByText('No games yet.')).toBeTruthy();
+  });
+
+  it('marks a tab with a game in progress, in its name as well as the dot', () => {
+    usePlayStore.getState().startLocal({
+      format: 'commander',
+      startingLife: 40,
+      commanderDamageEnabled: true,
+      poisonEnabled: false,
+      players: [
+        { name: 'Alice', deckId: null, deckName: null, commander: null, colorIdentity: [] },
+        { name: 'Bob', deckId: null, deckName: null, commander: null, colorIdentity: [] },
+      ],
+    });
+    renderPage('/play/history');
+    const local = tab('Local, game in progress');
+    expect(local.querySelector('.site-nav-dot')).toBeTruthy();
+    expect(tab('Online').querySelector('.site-nav-dot')).toBeNull();
+    usePlayStore.getState().discardLocal();
   });
 });
 

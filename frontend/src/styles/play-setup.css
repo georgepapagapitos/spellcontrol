@@ -17,23 +17,12 @@
 .play-page {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  /* Also read by the hub tab strip (responsive-nav.css) to cancel it. */
+  --host-gap: var(--space-4);
+  gap: var(--host-gap);
 }
 
-/* The Play header is components/app-shell/PageHeader.tsx. The Local/Online/History
-   strip under it is the shared <Tabs> primitive (components/overlays/Tabs.tsx);
-   only the in-progress dot is Play-specific. */
-.play-tab-dot {
-  width: 0.45rem;
-  height: 0.45rem;
-  border-radius: 50%;
-  background: var(--warn-text);
-  display: inline-block;
-  /* A superscript status badge, not trailing punctuation — spaced off the
-     label and raised so "Online●" stops reading as a typo. */
-  margin-left: var(--space-1);
-  transform: translateY(-0.45em);
-}
+/* The Play header and strip are HubPage (components/app-shell/HubPage.tsx). */
 
 /* ── Setup forms ─────────────────────────────────────────────────────────── */
 

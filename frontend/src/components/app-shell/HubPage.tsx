@@ -1,14 +1,18 @@
 import type { ReactNode } from 'react';
 import { CollectionHubTabs } from '@/components/collection/CollectionHubTabs';
 import { DecksHubTabs } from '@/components/decks/DecksHubTabs';
+import { PlayHubTabs } from '@/components/play/PlayHubTabs';
 import { SocialHubTabs } from '@/components/social/SocialHubTabs';
 import { PageHeader, type PageHeaderAction } from './PageHeader';
 
-export type Hub = 'collection' | 'decks' | 'social';
+export type Hub = 'collection' | 'decks' | 'play' | 'social';
 
-const HUBS: Record<Hub, { title: string; Tabs: () => ReactNode }> = {
+type TabsProps = { counts?: Record<string, number> };
+
+const HUBS: Record<Hub, { title: string; Tabs: (p: TabsProps) => ReactNode }> = {
   collection: { title: 'Collection', Tabs: CollectionHubTabs },
   decks: { title: 'Decks', Tabs: DecksHubTabs },
+  play: { title: 'Play', Tabs: PlayHubTabs },
   social: { title: 'Social', Tabs: SocialHubTabs },
 };
 
@@ -24,6 +28,10 @@ interface Props {
    *  never above it, so it can't move the tabs. */
   intro?: ReactNode;
   introClassName?: string;
+  /** Live counts the page already holds, keyed by tab path, for a strip that
+   *  can't read them itself (Play's game-night invites come from the page's
+   *  own fetch). */
+  counts?: Record<string, number>;
   /** The page's own root class, for its gap and content styles. */
   className?: string;
   children?: ReactNode;
@@ -47,6 +55,7 @@ export function HubPage({
   menuLabel,
   intro,
   introClassName,
+  counts,
   className,
   children,
 }: Props) {
@@ -71,7 +80,7 @@ export function HubPage({
         menuLabel={menuLabel}
         compactPrimary
       />
-      <Tabs />
+      <Tabs counts={counts} />
       {intro && (
         <p
           className={`binder-hero-meta hub-page-intro${introClassName ? ` ${introClassName}` : ''}`}
