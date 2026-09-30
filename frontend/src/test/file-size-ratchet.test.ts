@@ -60,7 +60,7 @@ const CEILINGS: Record<string, number> = {
   'pages/DecksIndexPage.tsx': 1100,
   'pages/FriendHubPage.tsx': 1200,
   'pages/PlayPage.tsx': 2400,
-  'playtest/components/PlaytestBoard.tsx': 4100,
+  'playtest/components/PlaytestBoard.tsx': 2700,
   'playtest/store.ts': 1500,
   'store/collection.ts': 2100,
   'store/decks.ts': 1700,

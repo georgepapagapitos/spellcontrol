@@ -197,7 +197,7 @@ const ALLOWED: Record<Shape, Record<string, Entry>> = {
     'components/play/OnlineGameView.tsx': { count: 6, why: BOARD_CHROME },
     'playtest/components/LifeStrip.tsx': { count: 6, why: BOARD_CHROME },
     'playtest/components/OpeningHandSheet.tsx': { count: 1, why: BOARD_CHROME },
-    'playtest/components/PlaytestBoard.tsx': { count: 1, why: BOARD_CHROME },
+    'playtest/components/board/TableCornerActions.tsx': { count: 1, why: BOARD_CHROME },
     'playtest/components/PlaytestStatsSheet.tsx': { count: 4, why: BOARD_CHROME },
     'playtest/components/TableTicker.tsx': { count: 1, why: BOARD_CHROME },
     'playtest/components/ZoneViewerModal.tsx': { count: 2, why: BOARD_CHROME },
