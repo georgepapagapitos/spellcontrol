@@ -1,33 +1,35 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { SearchPill } from '@/components/search/SearchPill';
 import { Button } from '@/components/shared/Button';
-import type { DailyCardIndex } from '@/lib/daily/cards-index';
+import type { DailyNames } from '@/lib/daily/names';
 
 interface Props {
-  index: DailyCardIndex | null;
-  /** Names already guessed today: suggested but marked, and refused. */
+  names: DailyNames | null;
+  /** Names already guessed today: suggested but marked. */
   guessed: readonly string[];
   disabled?: boolean;
-  onGuess: (name: string) => void;
+  /** Resolves to null when the guess counted, or the sentence saying why not. */
+  onGuess: (name: string) => Promise<string | null>;
 }
 
 /**
  * The guess box: a combobox over every card name (not just likely answers, so
  * the list gives nothing away). Same wiring as DiscoverSearch: nothing is
- * highlighted until an arrow key, Enter takes the highlight or else an exact
- * name, Escape closes the list.
+ * highlighted until an arrow key, Enter takes the highlight or else the typed
+ * name, Escape closes the list. The server decides whether a name counts.
  */
-export function GuessInput({ index, guessed, disabled, onGuess }: Props) {
+export function GuessInput({ names, guessed, disabled, onGuess }: Props) {
   const [text, setText] = useState('');
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(-1);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const listboxId = useId();
   const errorId = useId();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const results = index && open ? index.suggest(text) : [];
+  const results = names && open ? names.suggest(text) : [];
   const showListbox = results.length > 0;
   const activeIndex = showListbox && highlight >= 0 ? Math.min(highlight, results.length - 1) : -1;
 
@@ -40,22 +42,24 @@ export function GuessInput({ index, guessed, disabled, onGuess }: Props) {
     return () => document.removeEventListener('mousedown', onDocDown);
   }, [open]);
 
-  const submit = (raw: string) => {
-    if (!index) return;
-    const card = index.get(raw);
-    if (!card) {
-      setError(raw.trim() ? 'No card by that name. Pick one from the list.' : 'Type a card name.');
+  const submit = async (raw: string) => {
+    const name = raw.trim();
+    if (busy) return;
+    if (!name) {
+      setError('Type a card name.');
       return;
     }
-    if (guessed.includes(card.name)) {
-      setError(`You've already guessed ${card.name}.`);
+    setBusy(true);
+    setOpen(false);
+    const problem = await onGuess(name);
+    setBusy(false);
+    if (problem) {
+      setError(problem);
       return;
     }
     setError(null);
     setText('');
-    setOpen(false);
     setHighlight(-1);
-    onGuess(card.name);
     inputRef.current?.focus();
   };
 
@@ -70,12 +74,13 @@ export function GuessInput({ index, guessed, disabled, onGuess }: Props) {
       setHighlight((h) => (h <= 0 ? results.length - 1 : h - 1));
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      submit(activeIndex >= 0 ? results[activeIndex]! : text);
+      void submit(activeIndex >= 0 ? results[activeIndex]! : text);
     } else if (e.key === 'Escape') {
       setOpen(false);
     }
   };
 
+  const off = disabled || !names;
   return (
     <div className="daily-guess" ref={wrapperRef}>
       <div className="daily-guess-row">
@@ -90,7 +95,7 @@ export function GuessInput({ index, guessed, disabled, onGuess }: Props) {
             setHighlight(-1);
             setError(null);
           }}
-          placeholder={index ? 'Type a card name' : 'Loading card names…'}
+          placeholder={names ? 'Type a card name' : 'Loading card names…'}
           ariaLabel="Card name"
           hideClear
           inputProps={{
@@ -102,14 +107,15 @@ export function GuessInput({ index, guessed, disabled, onGuess }: Props) {
               activeIndex >= 0 ? `${listboxId}-option-${activeIndex}` : undefined,
             'aria-invalid': error ? true : undefined,
             'aria-describedby': error ? errorId : undefined,
-            disabled: disabled || !index,
+            'aria-busy': busy || undefined,
+            disabled: off,
             autoComplete: 'off',
             spellCheck: false,
             onFocus: () => setOpen(true),
             onKeyDown,
           }}
         />
-        <Button variant="primary" onClick={() => submit(text)} disabled={disabled || !index}>
+        <Button variant="primary" onClick={() => void submit(text)} disabled={off || busy}>
           Guess
         </Button>
       </div>
@@ -126,7 +132,7 @@ export function GuessInput({ index, guessed, disabled, onGuess }: Props) {
               onMouseEnter={() => setHighlight(i)}
               onMouseDown={(e) => {
                 e.preventDefault();
-                submit(name);
+                void submit(name);
               }}
             >
               <span className="daily-guess-option-name">{name}</span>

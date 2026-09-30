@@ -4,7 +4,7 @@ import type { DailyStats } from '@/lib/daily/stats';
 
 /**
  * Your record: four numbers, then how many guesses your solves took. The row
- * for today's solve is marked in words as well as colour.
+ * for today's solve is marked in words as well as color.
  */
 export function DailyStatsPanel({
   stats,

@@ -128,6 +128,9 @@ COPY --from=build /app/backend/dist ./backend/dist
 # .github/workflows/scanner-ingest.yml — the workflow runs the ingest
 # scripts and opens a PR with the regenerated artifacts.
 COPY backend/data/scanner ./backend/data/scanner
+# Daily card puzzle answer pool + scoring index (routes/daily.ts reads these at
+# runtime; the answer is picked server-side and never shipped to the browser).
+COPY backend/data/daily ./backend/data/daily
 # Fail the build loudly if card-embeddings.bin came in as a Git-LFS pointer
 # (~133 bytes) instead of the real 28 MB binary — a missing `lfs: true` on the
 # deploy checkout otherwise ships a stub that bricks the scanner matcher at boot.
