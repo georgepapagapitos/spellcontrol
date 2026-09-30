@@ -127,7 +127,8 @@ import {
 } from './substituteFinder';
 import { sameType } from '@/lib/coach/card-matching';
 import { resolveOwnedCards } from './ownedCardResolution';
-import { pageInclusionOf, weakestFirst } from './ownedShareEviction';
+import { pageInclusionOf, weakestFirst, keepsOwnedShareSlot } from './ownedShareEviction';
+import { withNonbasicShortfall } from './deckGeneration/nonbasicShortfallNote';
 import {
   finalDeckMembership,
   gapsOutsideDeck,
@@ -4052,7 +4053,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       if (violatesUserCaps(card, state.cfg, collectionNames)) return false;
 
       const swappable = nonLandNow().filter(
-        (c) => !collectionNames.has(c.name) && !c.isMustInclude
+        (c) => !collectionNames.has(c.name) && !keepsOwnedShareSlot(c, collectionOwnedPercent)
       );
       if (swappable.length === 0) return false;
       const wantedRole = validateCardRole(card);
@@ -4125,7 +4126,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     if (deficit > 0 && poolFits.length > 0) {
       const unownedWithRole: GapAnalysisCard[] = [];
       for (const c of nonLandNow()) {
-        if (collectionNames.has(c.name) || c.isMustInclude) continue;
+        if (collectionNames.has(c.name) || keepsOwnedShareSlot(c, collectionOwnedPercent)) continue;
         const role = getCardRole(c.name);
         if (!role) continue;
         unownedWithRole.push({
@@ -4759,6 +4760,13 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         : undefined
     );
   }
+
+  landCountNote = withNonbasicShortfall(
+    landCountNote,
+    categories.lands,
+    effectiveNonBasicLandCount,
+    customization
+  );
 
   // Budget honesty: recompute the real final total over the FINAL deck (post
   // combo-floor/fixup/coherence-repair/bracket-convergence swaps) — the early

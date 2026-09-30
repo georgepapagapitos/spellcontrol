@@ -627,7 +627,8 @@ export function checkDeckInvariants(
     add(
       'SOFT',
       'nonbasic',
-      `${nonbasicLands} nonbasic lands vs customization.nonBasicLandCount ${cz.nonBasicLandCount}`
+      `${nonbasicLands} nonbasic lands vs customization.nonBasicLandCount ${cz.nonBasicLandCount}` +
+        (deck.landCountNote?.includes('nonbasic slot') ? ' (disclosed)' : '')
     );
   }
 
