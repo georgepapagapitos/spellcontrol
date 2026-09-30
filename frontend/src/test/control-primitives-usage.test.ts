@@ -154,7 +154,7 @@ const ALLOWED: Record<Shape, Record<string, number | { count: number; why: strin
     'components/overlays/SelectMenu.tsx': { count: 1, why: TOOLBAR_FAMILY },
     'components/shared/ToolbarPopover.tsx': { count: 1, why: TOOLBAR_FAMILY },
     'components/Legend.tsx': { count: 1, why: TOOLBAR_FAMILY },
-    'pages/DeckEditorPage.tsx': { count: 3, why: RADIO_FACE },
+    'pages/deck-editor/AddZoneToggle.tsx': { count: 3, why: RADIO_FACE },
   },
   iconOnly: {
     'components/deck/DeckCardRow.tsx': { count: 2, why: CARD_ART },
@@ -189,7 +189,7 @@ const ALLOWED: Record<Shape, Record<string, number | { count: number; why: strin
     'components/trade/TradeOfferList.tsx': { count: 1, why: CARD_ART },
     'playtest/components/CardStatusStrip.tsx': { count: 2, why: BOARD_CHROME },
     'playtest/components/LifeStrip.tsx': { count: 2, why: BOARD_CHROME },
-    'playtest/components/PlaytestBoard.tsx': { count: 5, why: BOARD_CHROME },
+    'playtest/components/board/TableCornerActions.tsx': { count: 5, why: BOARD_CHROME },
   },
   navButton: {
     'pages/GoldfishListPage.tsx': { count: 1, why: BLOCKS_WHILE_BUSY },

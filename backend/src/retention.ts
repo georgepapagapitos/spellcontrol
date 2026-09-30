@@ -1,6 +1,6 @@
 import { logger } from './logger';
 import { getPool } from './db';
-import { sweepStale as sweepStaleGameSessions } from './routes/games';
+import { sweepStale as sweepStaleGameSessions } from './games/sessions';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 

@@ -24,7 +24,6 @@ const CEILINGS: Record<string, number> = {
   'routes/auth.ts': 1400,
   'routes/friends.ts': 1200,
   'routes/game-nights.ts': 2100,
-  'routes/games.ts': 2600,
   'server.ts': 1600,
 };
 
