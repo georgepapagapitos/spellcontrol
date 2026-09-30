@@ -108,6 +108,54 @@ function counts(): Record<Pattern, Map<string, number>> {
   return out;
 }
 
+/**
+ * The opening tags of every `<input>` / `<textarea>` that is a Field's first
+ * child. Walks braces so an `onChange={(e) => …}` arrow doesn't end the tag.
+ */
+function fieldControls(code: string): string[] {
+  const out: string[] = [];
+  const opener = /<Field\b[^>]*>\s*<(input|textarea)\b/g;
+  for (let m = opener.exec(code); m; m = opener.exec(code)) {
+    const start = m.index + m[0].length - m[1].length - 1;
+    let depth = 0;
+    let i = start;
+    for (; i < code.length; i++) {
+      const c = code[i];
+      if (c === '{') depth++;
+      else if (c === '}') depth--;
+      else if (c === '>' && depth === 0) break;
+    }
+    out.push(code.slice(start, i + 1));
+  }
+  return out;
+}
+
+describe('a text control in a Field is styled', () => {
+  // The kit's Field draws the label and hint, not the control. A bare
+  // <input> or <textarea> in one renders as the browser's own box: the
+  // game-night dialog shipped a narrow title and a monospace notes box
+  // beside a styled format picker. Give it `form-input` (form.css).
+  it('every input / textarea directly in a Field has a className', () => {
+    const bare: string[] = [];
+    for (const file of sourceFiles(srcDir)) {
+      const code = stripComments(readFileSync(file, 'utf8'));
+      for (const tag of fieldControls(code)) {
+        if (!/\bclassName=/.test(tag)) {
+          bare.push(`${relative(srcDir, file).split(sep).join('/')}: ${tag.split('\n')[0]}`);
+        }
+      }
+    }
+    expect(bare, 'Add className="form-input":\n  ' + bare.join('\n  ')).toEqual([]);
+  });
+
+  it('finds the controls it checks', () => {
+    // Keeps the scan honest: if the regex stops matching, the test above
+    // passes vacuously.
+    const code = readFileSync(join(srcDir, 'components/play/GameNights.tsx'), 'utf8');
+    expect(fieldControls(code).length).toBeGreaterThanOrEqual(4);
+  });
+});
+
 describe('config controls come from the form kit', () => {
   const found = counts();
 
