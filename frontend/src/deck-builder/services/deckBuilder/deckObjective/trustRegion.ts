@@ -40,13 +40,19 @@ import { getByCardName } from '@/lib/cards/card-text';
 import { countsAsRole, TIER_WEIGHT, type FactRole } from '@/deck-builder/services/cardFacts';
 import { completeCombos } from './constraints';
 import { classFloorProblem } from './classFloors';
+import {
+  passesRoleCap,
+  roleCapLimit,
+  STAPLE_CEILING_BAND,
+  STAPLE_INCLUSION_BAR,
+} from '../roleCapAllowance';
 import { isBasicLand, isLandCard } from './context';
 import { protectionValue } from './terms/interaction';
 import { readTutors } from './terms/tutors';
 import { OBJECTIVE_ROLES, type ObjectiveContext, type ObjectiveDeck } from './types';
 
 /** The generator's staple bar (cardPicking.ts STAPLE_INCLUSION_BAR, E532): in this share (%) of the page's decks. */
-export const STAPLE_BAR = 40;
+export const STAPLE_BAR = STAPLE_INCLUSION_BAR;
 /** Extra gain per unit of quality the swap gives up (1: a 0.3 drop needs 0.3 more). */
 export const DRIFT = 1;
 
@@ -72,9 +78,6 @@ export interface TrustOptions {
    */
   roleCeilings?: Readonly<Record<string, number>>;
 }
-
-/** The report's role cap (deckInvariants check 19): the target plus 2 or 20%, whichever is more. */
-export const roleCap = (target: number) => target + Math.max(2, Math.ceil(0.2 * target));
 
 export type ProtectedClass =
   'combo piece' | 'combo tutor' | 'protection' | 'interaction land' | 'Game Changer' | 'staple';
@@ -271,10 +274,18 @@ export function trustVerdict(
     const now = rolesNow[role] ?? 0;
     const after = now - lose + gain;
     if (gain > lose) {
-      const cap = Math.min(roleCap(target), opts.roleCeilings?.[role] ?? Infinity);
+      // The generator's own cap and allowance (roleCapAllowance.ts): past the
+      // cap only staples pass (the staple bar), up to the staple ceiling.
+      const ceiling = opts.roleCeilings?.[role];
+      const gained = ins.filter((c) => roleOf(c) === role);
+      const passing = gained.every((c) => passesRoleCap(inclusionPct(c, ctx), false));
+      const cap =
+        passing && ceiling === undefined
+          ? roleCapLimit(target, STAPLE_CEILING_BAND)
+          : Math.min(roleCapLimit(target), ceiling ?? Infinity);
       if (after > cap) {
         return {
-          blocked: `${role} would rise to ${after}, past ${opts.roleCeilings?.[role] !== undefined && opts.roleCeilings[role] < roleCap(target) ? 'where the rebalance left it' : 'its cap'} of ${cap}`,
+          blocked: `${role} would rise to ${after}, past ${ceiling !== undefined && ceiling <= cap ? 'where the rebalance left it' : `its cap (${STAPLE_INCLUSION_BAR}% staples pass it)`} of ${cap}`,
           bound: 'role cap',
           required,
         };

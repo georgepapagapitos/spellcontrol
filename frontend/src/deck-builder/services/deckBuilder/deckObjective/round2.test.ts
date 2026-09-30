@@ -127,7 +127,7 @@ describe('the power tier of an any-bracket deck (Isshin and Sythis went from bra
   });
 });
 
-describe('role caps (Ur-Dragon ramp went to 22 of cap 21)', () => {
+describe('role caps (Ur-Dragon ramp went past its cap)', () => {
   const ctx = merenCtx({ roleTargets: { ramp: 17, removal: 6, boardwipe: 3, cardDraw: 9 } });
   const roleOf = factsRoleOf(ctx);
   const verdict = (ramp: number, opts: { roleCeilings?: Record<string, number> } = {}) =>
@@ -146,11 +146,12 @@ describe('role caps (Ur-Dragon ramp went to 22 of cap 21)', () => {
 
   it('takes no role past the report cap', () => {
     expect(roleOf(card('Mox Jasper'))).toBe('ramp');
-    expect(verdict(21)).toMatchObject({ bound: 'role cap' });
-    expect(verdict(20).blocked).toBeNull();
+    // Mox Jasper is under the staple bar (39.8% of Ur-Dragon decks), so the cap holds.
+    expect(verdict(20)).toMatchObject({ bound: 'role cap' });
+    expect(verdict(19).blocked).toBeNull();
   });
 
   it('keeps a role the rebalance trimmed where it left it', () => {
-    expect(verdict(20, { roleCeilings: { ramp: 20 } })).toMatchObject({ bound: 'role cap' });
+    expect(verdict(19, { roleCeilings: { ramp: 19 } })).toMatchObject({ bound: 'role cap' });
   });
 });
