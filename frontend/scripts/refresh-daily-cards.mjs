@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// Also writes backend/data/daily/{pool,cards}.json (the server picks and scores
+// from these) and public/daily-names.json (guess-box suggestions, names only).
+//
 // Builds the two snapshots behind the Daily card puzzle (/daily, E558):
 //
 //   public/daily-cards.json     every paper card's scoring attributes, name-keyed:
@@ -226,6 +229,23 @@ export function puzzleEntry(c, date, number) {
   };
 }
 
+/** A pool card as the backend stores it: the puzzle entry minus its date and number. */
+export function poolEntry(c) {
+  const { date: _date, number: _number, ...rest } = puzzleEntry(c, '', 0);
+  return rest;
+}
+
+/** backend/data/daily/pool.json: the server picks each day's answer from this at runtime. */
+export function buildPoolFile(pool, generatedAt) {
+  return { version: 1, generatedAt, cards: pool.map(poolEntry) };
+}
+
+/** public/daily-names.json: every card name for the guess box, with no attributes. */
+export function buildNames(index, generatedAt) {
+  const names = [...new Set(index.cards.map((row) => row[0]))].sort();
+  return { version: 1, generatedAt, names };
+}
+
 export function addDays(date, n) {
   const d = new Date(`${date}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + n);
@@ -330,6 +350,8 @@ async function main() {
   const here = dirname(fileURLToPath(import.meta.url));
   const cardsDest = resolve(here, '..', 'public', 'daily-cards.json');
   const scheduleDest = resolve(here, '..', 'public', 'daily-schedule.json');
+  const namesDest = resolve(here, '..', 'public', 'daily-names.json');
+  const backendDir = resolve(here, '..', '..', 'backend', 'data', 'daily');
   const today = new Date().toISOString().slice(0, 10);
 
   const prevCards = await readJson(cardsDest);
@@ -377,6 +399,13 @@ async function main() {
     const cardsBody = `${JSON.stringify(index)}\n`;
     await writeFile(cardsDest, cardsBody);
     await writeFile(scheduleDest, `${JSON.stringify(schedule, null, 1)}\n`);
+    await writeFile(namesDest, `${JSON.stringify(buildNames(index, generatedAt))}\n`);
+    await mkdir(backendDir, { recursive: true });
+    await writeFile(resolve(backendDir, 'cards.json'), cardsBody);
+    await writeFile(
+      resolve(backendDir, 'pool.json'),
+      `${JSON.stringify(buildPoolFile(pool, generatedAt))}\n`
+    );
     console.log(
       `[daily] Wrote ${cardsDest} (${(cardsBody.length / 1048576).toFixed(2)} MB) and ` +
         `${scheduleDest} (+${added} days, ${puzzles.length} total, through ${puzzles.at(-1)?.date})`

@@ -8,6 +8,9 @@ import {
   buildIndex,
   buildPool,
   redactName,
+  poolEntry,
+  buildPoolFile,
+  buildNames,
   extendSchedule,
   daysAhead,
   addDays,
@@ -241,5 +244,44 @@ describe('daysAhead', () => {
     expect(daysAhead(schedule, '2026-10-01')).toBe(HORIZON_DAYS);
     expect(daysAhead(schedule, addDays('2026-10-01', HORIZON_DAYS + 1))).toBe(0);
     expect(daysAhead(null, '2026-10-01')).toBe(0);
+  });
+});
+
+describe('server snapshots', () => {
+  const card = {
+    name: 'Lightning Bolt',
+    colors: 'R',
+    mv: 1,
+    typeLine: 'Instant',
+    oracleText: 'Lightning Bolt deals 3 damage to any target.',
+    edhrecRank: 5,
+    rarity: 'common',
+    released: '1993-08-05',
+    setName: 'Limited Edition Alpha',
+    flavor: '',
+    art: 'https://example.test/a.jpg',
+  };
+  it('poolEntry has no date or number and redacts the name', () => {
+    const e = poolEntry(card);
+    expect(e).not.toHaveProperty('date');
+    expect(e).not.toHaveProperty('number');
+    expect(e.rulesText).toBe('this card deals 3 damage to any target.');
+    expect(e.year).toBe(1993);
+    expect(e.rarity).toBe('common');
+  });
+  it('buildPoolFile wraps entries', () => {
+    const f = buildPoolFile([card], 'now');
+    expect(f).toMatchObject({ version: 1, generatedAt: 'now' });
+    expect(f.cards).toHaveLength(1);
+  });
+  it('buildNames is sorted, unique and name-only', () => {
+    const idx = {
+      cards: [
+        ['B', 'R', 1, 'Instant', 0, 1993],
+        ['A', '', 0, 'Land', 0, 1994],
+        ['B', '', 0, 'X', 0, 1],
+      ],
+    };
+    expect(buildNames(idx, 'now')).toEqual({ version: 1, generatedAt: 'now', names: ['A', 'B'] });
   });
 });

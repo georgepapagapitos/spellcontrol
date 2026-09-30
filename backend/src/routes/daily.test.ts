@@ -101,18 +101,19 @@ describe('POST /api/daily/results', () => {
     expect(rows).toHaveLength(0);
   });
 
-  it('accepts today and tomorrow (clock skew) and a failed puzzle at 6', async () => {
+  it("rejects today and later (today's result is recorded as you play)", async () => {
     const u = await makeUser('dt');
     const today = new Date().toISOString().slice(0, 10);
     const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
-    const res = await post(u.cookie, {
-      results: [
-        { date: today, solved: true, guesses: 1 },
-        { date: tomorrow, solved: false, guesses: 6 },
-      ],
-    });
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual({ saved: 2 });
+    for (const date of [today, tomorrow]) {
+      const res = await post(u.cookie, { results: [{ date, solved: true, guesses: 1 }] });
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe("Today's result is recorded as you play.");
+    }
+    const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+    const ok2 = await post(u.cookie, { results: [{ date: yesterday, solved: false, guesses: 6 }] });
+    expect(ok2.status).toBe(200);
+    expect(ok2.body).toEqual({ saved: 1 });
   });
 
   it('keeps the first result for a day; a replay cannot overwrite it', async () => {
