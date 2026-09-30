@@ -22,6 +22,11 @@
  *                 (style-guide/components.md § Info tooltips, sweep-3). Reads a plain-string
  *                 `text`, inline or a same-file const; a rich node body (lead +
  *                 list, for a multi-point explainer) is exempt.
+ *   UK_SPELLING — US English everywhere: color, flavor, favorite, gray (user,
+ *                 2026-09-30; it is also the cards' own spelling: "flavor
+ *                 text"). Unlike the voice rules this one reads EVERY string
+ *                 (a one-word label like 'Colours' is still copy), so it has
+ *                 its own wider pass below.
  *   RETRY      — the retry action label is "Retry", everywhere (board T157).
  *                 Only fires on a `<Button>`/`<button>` child's own JSX text
  *                 or a `toast`/`actionLabel` value that reads exactly "Try
@@ -102,6 +107,33 @@ const RULES: Rule[] = [
     'the retry action label is "Retry", not "Try again"',
   ],
 ];
+
+// UK spellings (the US form is the fix). Word-bounded, case-insensitive. The
+// double-L past tenses ("cancelled", "labelled") are left out on purpose: US
+// usage accepts both, and "cancelled" is an API status value.
+const UK_WORDS =
+  /\b(colours?|coloured|colouring|colourless|colourful|flavours?|flavoured|favourites?|favourable|grey(s|ed|ing|ish)?|organis(e|es|ed|ing|ation|ations)|honours?|behaviours?|centres?|centred|catalogues?|analyse[sd]?|analysing|licence|judgement|artefacts?|aluminium|programme)\b/i;
+
+// Strings that are data, not copy, and may keep a UK form. Each names why.
+const SPELLING_ALLOW: { file: RegExp; text: string; why: string }[] = [
+  {
+    file: /deck-builder\/services\/cardFacts\/(schema|parse)\.ts$/,
+    text: 'colour',
+    why: 'a card-facts vocabulary key, stored in the generated public/card-facts.json',
+  },
+];
+
+/** A `keywords: [...]` array holds search synonyms: a UK form there helps people find things. */
+function insideKeywordsArray(n: ts.Node): boolean {
+  const arr = n.parent;
+  return (
+    !!arr &&
+    ts.isArrayLiteralExpression(arr) &&
+    !!arr.parent &&
+    ts.isPropertyAssignment(arr.parent) &&
+    arr.parent.name.getText() === 'keywords'
+  );
+}
 
 function walk(dir: string, out: string[]): string[] {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -276,12 +308,58 @@ function scan(file: string): Violation[] {
   return out;
 }
 
+/** Every user-visible-shaped string in a file, for the spelling pass. */
+function spellingHits(file: string): Violation[] {
+  const src = fs.readFileSync(file, 'utf8');
+  const sf = ts.createSourceFile(
+    file,
+    src,
+    ts.ScriptTarget.Latest,
+    true,
+    file.endsWith('x') ? ts.ScriptKind.TSX : ts.ScriptKind.TS
+  );
+  const rel = path.relative(ROOT, file).split(path.sep).join('/');
+  const out: Violation[] = [];
+  const hit = (n: ts.Node, kind: string, text: string) => {
+    if (!UK_WORDS.test(text) || insideKeywordsArray(n)) return;
+    if (SPELLING_ALLOW.some((a) => a.file.test(rel) && a.text === text)) return;
+    out.push({
+      file: rel,
+      line: sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1,
+      rule: 'UK_SPELLING',
+      kind,
+      text: text.replace(/\s+/g, ' ').trim().slice(0, 120),
+    });
+  };
+  const visit = (n: ts.Node) => {
+    if (ts.isJsxText(n)) hit(n, 'jsx', n.text);
+    else if (
+      (ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n)) &&
+      !ts.isImportDeclaration(n.parent) &&
+      !ts.isExternalModuleReference(n.parent) &&
+      !insideLogCall(n)
+    )
+      hit(n, 'str', n.text);
+    else if (ts.isTemplateExpression(n) && !insideLogCall(n))
+      hit(n, 'tpl', n.head.text + n.templateSpans.map((s) => ' ' + s.literal.text).join(''));
+    ts.forEachChild(n, visit);
+  };
+  visit(sf);
+  return out;
+}
+
 describe('copy guards (STYLE_GUIDE § Voice & copy)', () => {
   const files = walk(ROOT, []);
   const violations = files.flatMap(scan);
 
   it('scans the source tree', () => {
     expect(files.length).toBeGreaterThan(100);
+  });
+
+  it('UK_SPELLING: US English in every string (color, flavor, favorite, gray)', () => {
+    const hits = files.flatMap(spellingHits);
+    const report = hits.map((v) => `  ${v.file}:${v.line}  [${v.kind}]  ${v.text}`).join('\n');
+    expect(hits, `${hits.length} UK_SPELLING violation(s):\n${report}`).toEqual([]);
   });
 
   for (const [rule, , why] of RULES) {

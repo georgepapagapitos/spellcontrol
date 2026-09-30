@@ -544,6 +544,21 @@ export async function createTestEnv(): Promise<TestEnv> {
       PRIMARY KEY (user_id, puzzle_date)
     );
     CREATE INDEX daily_results_date_idx ON daily_results (puzzle_date);
+    CREATE TABLE daily_puzzles (
+      puzzle_date TEXT PRIMARY KEY,
+      number INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      payload JSONB NOT NULL,
+      created_at BIGINT NOT NULL
+    );
+    CREATE TABLE daily_progress (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      puzzle_date TEXT NOT NULL,
+      guesses JSONB NOT NULL DEFAULT '[]',
+      gave_up BOOLEAN NOT NULL DEFAULT false,
+      updated_at BIGINT NOT NULL,
+      PRIMARY KEY (user_id, puzzle_date)
+    );
     CREATE TABLE deck_likes (
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       slug TEXT NOT NULL,

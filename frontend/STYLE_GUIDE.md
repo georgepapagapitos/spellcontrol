@@ -493,6 +493,14 @@ SpellControl talks to a Magic player who knows the game. Copy is **confident,
 concrete, and MTG-literate** — it says what to do and what something means,
 never what the app "is."
 
+**US English spelling, everywhere (user ruling, 2026-09-30).** Color, colorless,
+flavor, favorite, gray, organize, center, catalog: never colour, flavour,
+favourite, grey, organise, centre. It is also the game's own spelling: the cards
+print "flavor text" and the rules say "color". `copy-guards.test.ts` (rule
+UK_SPELLING) checks every string in `src/`, one-word labels included; a
+`keywords:` search-synonym list may keep a UK form so people who type it still
+find the thing.
+
 **The five rules:**
 
 1. **Second person, imperative, concrete verb.** "Import your collection",

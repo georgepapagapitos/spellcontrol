@@ -39,6 +39,14 @@ describe('finish', () => {
   });
 });
 
+describe('finish without queueing', () => {
+  it("records the day but doesn't queue it when the server already has it", () => {
+    s().finish('2026-10-03', { solved: true, guesses: 2 }, { queue: false });
+    expect(s().results).toEqual([{ date: '2026-10-03', solved: true, guesses: 2 }]);
+    expect(s().unposted).toEqual([]);
+  });
+});
+
 describe('adoptServerResults / markPosted', () => {
   it("lets the server's result win for a day both have, keeping local-only days", () => {
     s().finish('2026-10-03', { solved: true, guesses: 2 });

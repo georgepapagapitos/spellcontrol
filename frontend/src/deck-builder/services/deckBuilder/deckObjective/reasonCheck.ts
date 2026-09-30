@@ -176,7 +176,7 @@ export function reasonProblem(
         // A fixed exception ("except for Krakens") still sweeps this deck; a
         // colour the caster names need not.
         if (sweeps.every((s) => /\bof the colou?r of your choice\b/i.test(s)))
-          return 'it spares the colour its caster names';
+          return 'it spares the color its caster names';
         if (!facts.interaction.some((f) => f.scope === 'mass' && f.side === 'all'))
           return 'no symmetric wipe fact';
         return null;

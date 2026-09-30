@@ -5,7 +5,14 @@ import { Surface } from '@/components/shared/Surface';
 import { useCardThumb } from '@/lib/cards/card-thumbs';
 import { canShare, openShareSheet } from '@/lib/util/web-share';
 import { useCopyFeedback } from '@/lib/util/use-copy-feedback';
-import { msUntilNextPuzzle, type DailyPuzzle } from '@/lib/daily/schedule';
+import type { DailyState } from '@/lib/daily/daily-client';
+
+const DAY_MS = 86_400_000;
+
+/** The puzzle day is the UTC day, so the next card lands at UTC midnight. */
+function msUntilNextPuzzle(now: number = Date.now()): number {
+  return DAY_MS - (now % DAY_MS);
+}
 
 function formatCountdown(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000));
@@ -26,7 +33,7 @@ function Countdown() {
 }
 
 interface Props {
-  puzzle: DailyPuzzle;
+  answer: NonNullable<DailyState['answer']>;
   solved: boolean;
   guesses: number;
   /** Null when this device has no grid for the day (played on another device). */
@@ -39,10 +46,10 @@ interface Props {
  * then the card, then Share and the countdown. There's no retry: today's card is
  * the same for everyone.
  */
-export function DailyResultPanel({ puzzle, solved, guesses, shareText, streak }: Props) {
+export function DailyResultPanel({ answer, solved, guesses, shareText, streak }: Props) {
   const { copied, announcement, copy } = useCopyFeedback({ what: 'your result' });
   const nativeShare = canShare();
-  const image = useCardThumb(puzzle.name, 'normal');
+  const image = useCardThumb(answer.name, 'normal');
   return (
     <Surface
       variant="framed"
@@ -68,7 +75,7 @@ export function DailyResultPanel({ puzzle, solved, guesses, shareText, streak }:
           <img
             className="daily-result-card"
             src={image}
-            alt={puzzle.name}
+            alt={answer.name}
             width={244}
             height={340}
           />
@@ -76,9 +83,9 @@ export function DailyResultPanel({ puzzle, solved, guesses, shareText, streak }:
           <div className="daily-result-card is-loading" aria-hidden="true" />
         )}
         <div className="daily-result-detail">
-          <p className="daily-result-name">{puzzle.name}</p>
+          <p className="daily-result-name">{answer.name}</p>
           <p className="daily-result-meta">
-            {puzzle.typeLine} · {puzzle.setName}, {puzzle.year}
+            {answer.typeLine} · {answer.setName}, {answer.year}
           </p>
           <div className="daily-result-actions">
             {shareText && nativeShare && (
@@ -99,7 +106,7 @@ export function DailyResultPanel({ puzzle, solved, guesses, shareText, streak }:
                 {copied ? 'Copied' : 'Copy result'}
               </Button>
             )}
-            <Button to={`/search?q=${encodeURIComponent(`!"${puzzle.name}"`)}`}>Open card</Button>
+            <Button to={`/search?q=${encodeURIComponent(`!"${answer.name}"`)}`}>Open card</Button>
           </div>
           <span className="sr-only" aria-live="polite">
             {announcement}

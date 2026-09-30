@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { cardTypes, mainType, scoreGuess, isSolved, type CardAttrs } from './score';
+import { cardTypes, mainType, scoreGuess, type CardAttrs } from './score';
 
 const swords: CardAttrs = {
   name: 'Swords to Plowshares',
@@ -23,7 +23,7 @@ describe('cardTypes / mainType', () => {
     expect(cardTypes('Tribal Instant — Faerie')).toEqual(['Instant', 'Kindred']);
   });
 
-  it('falls back to the raw left side when no card type is recognised', () => {
+  it('falls back to the raw left side when no card type is recognized', () => {
     expect(mainType('Conspiracy')).toBe('Conspiracy');
   });
 });
@@ -37,10 +37,9 @@ describe('scoreGuess', () => {
       rarity: 'hit',
       year: 'hit',
     });
-    expect(isSolved(swords, swords)).toBe(true);
   });
 
-  it('scores Lightning Bolt against Swords: wrong colour, rarity one step off', () => {
+  it('scores Lightning Bolt against Swords: wrong color, rarity one step off', () => {
     const bolt = card({ name: 'Lightning Bolt', colors: 'R', rarity: 'common' });
     expect(scoreGuess(bolt, swords)).toEqual({
       colors: 'miss',
@@ -49,12 +48,10 @@ describe('scoreGuess', () => {
       rarity: 'near',
       year: 'hit',
     });
-    expect(isSolved(bolt, swords)).toBe(false);
   });
 
   it('points mana value and year toward the answer, never "near"', () => {
-    const path = card({ mv: 3, year: 2009 });
-    const s = scoreGuess(path, swords);
+    const s = scoreGuess(card({ mv: 3, year: 2009 }), swords);
     expect(s.mv).toBe('lower');
     expect(s.year).toBe('lower');
     expect(scoreGuess(card({ mv: 0, year: 1990 }), swords)).toMatchObject({
@@ -63,7 +60,7 @@ describe('scoreGuess', () => {
     });
   });
 
-  it('calls colours near on a partial overlap and a hit only on the exact set', () => {
+  it('calls colors near on a partial overlap and a hit only on the exact set', () => {
     expect(scoreGuess(card({ colors: 'WU' }), swords).colors).toBe('near');
     expect(scoreGuess(card({ colors: '' }), card({ colors: '' })).colors).toBe('hit');
     expect(scoreGuess(card({ colors: '' }), swords).colors).toBe('miss');

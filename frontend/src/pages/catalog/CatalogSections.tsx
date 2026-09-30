@@ -536,7 +536,7 @@ function StateSpecimen() {
       <FilterChipsRow
         chips={[
           { id: 'a', label: 'Rarity: rare', onClear: noop },
-          { id: 'b', label: 'Colour: green', onClear: noop },
+          { id: 'b', label: 'Color: green', onClear: noop },
         ]}
         onClearAll={noop}
       />

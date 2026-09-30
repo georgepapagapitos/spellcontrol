@@ -742,7 +742,7 @@ function LandHistogram({ result }: { result: SimResult }) {
     <div
       className="deck-curve deck-test-hand-sim-curve"
       role="img"
-      aria-label="Distribution of lands in the opening hand, coloured by land colour identity"
+      aria-label="Distribution of lands in the opening hand, colored by land color identity"
     >
       {result.landHistogram.map((count, lands) => {
         const pct = result.iterations > 0 ? (count / result.iterations) * 100 : 0;
