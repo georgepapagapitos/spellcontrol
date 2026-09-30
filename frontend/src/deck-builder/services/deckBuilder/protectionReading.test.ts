@@ -51,6 +51,11 @@ const SMITE = real(
   'Instant',
   'Smite the Deathless deals 3 damage to target creature. That creature loses indestructible until end of turn. If that creature would die this turn, exile it instead.'
 );
+const RIPPLES = real(
+  'Ripples of Potential',
+  'Instant',
+  "Proliferate, then choose any number of permanents you control that had a counter put on them this way. Those permanents phase out. (To proliferate, choose any number of permanents and/or players, then give each another counter of each kind already there. Treat phased-out permanents and anything attached to them as though they don't exist until their controller's next turn.)"
+);
 const ctx = merenCtx();
 
 describe('a grant whose target is named in the sentence before', () => {
@@ -79,6 +84,14 @@ describe('a grant whose target is named in the sentence before', () => {
   it('leaves the generation predicate alone', () => {
     expect(isProtectionPiece(SNAKESKIN)).toBe(false);
     expect(generatorSurvival(SNAKESKIN)).toBe(false);
+  });
+
+  // Ripples of Potential phases out "those permanents" (no "target", "each" or
+  // "you control" in that sentence). The objective's protects-others reading
+  // misses it; the pick-time rule must keep promoting it (a live Commodore
+  // Guff build lost it when this rule was made to ask the same question).
+  it('keeps promoting a phase-out named by pronoun', () => {
+    expect(generatorSurvival(RIPPLES)).toBe(true);
   });
 });
 
