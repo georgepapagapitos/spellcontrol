@@ -202,9 +202,13 @@ export function HeaderSyncIndicator() {
   const state = getSyncState();
   const progress = getPushProgress();
 
-  // Offline — most urgent signal.
+  // Offline — most urgent signal. The visible label stays short: the header
+  // has ~100px to spare at 1024px, and the old sentence ("Offline. 12 changes
+  // saved locally.", ~195px) pushed Rules and the avatar off-screen in five of
+  // seven type sets (E559). The full sentence rides on title + aria-label,
+  // which starts with the visible word so speech input still finds it.
   if (!online) {
-    const label =
+    const detail =
       pending > 0
         ? `Offline. ${pending} change${pending === 1 ? '' : 's'} saved locally.`
         : 'Offline';
@@ -212,10 +216,14 @@ export function HeaderSyncIndicator() {
       <Link
         to="/you/account"
         className="sync-indicator sync-indicator-offline header-sync-indicator"
-        title="Changes saved on this device. Tap for details."
-        aria-label={label}
+        title={
+          pending > 0
+            ? `${detail} Tap for details.`
+            : 'Changes saved on this device. Tap for details.'
+        }
+        aria-label={detail}
       >
-        {label}
+        {pending > 0 ? `Offline · ${pending}` : 'Offline'}
       </Link>
     );
   }
