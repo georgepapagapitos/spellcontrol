@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { eq, inArray } from 'drizzle-orm';
+import { eq, gt } from 'drizzle-orm';
 import { getDb } from '../db';
 import { gameSessions } from '../db/schema';
 import {
@@ -9,6 +9,7 @@ import {
   isDiscordConfigured,
   listTableChannels,
   openTableChannel,
+  tableTag,
 } from '../discord';
 import { logger } from '../logger';
 import type { GameState } from './state';
@@ -93,6 +94,10 @@ export async function sweepDiscordTables(now = Date.now()): Promise<number> {
   if (!isDiscordConfigured()) return 0;
   const channels = await listTableChannels();
   if (channels.length === 0) return 0;
+  // A channel is named by a keyed tag of its code, not the code, so the
+  // lookup runs the other way: tag every game that could still own a table.
+  // Nothing untouched for DISCORD_IDLE_MS can, which bounds the read.
+  // ponytail: one row per recent game; index a stored tag if that grows large.
   const rows = await getDb()
     .select({
       code: gameSessions.code,
@@ -100,31 +105,26 @@ export async function sweepDiscordTables(now = Date.now()): Promise<number> {
       updatedAt: gameSessions.updatedAt,
     })
     .from(gameSessions)
-    .where(
-      inArray(
-        gameSessions.code,
-        channels.map((ch) => ch.code)
-      )
-    );
-  const byCode = new Map(rows.map((r) => [r.code, r]));
+    .where(gt(gameSessions.updatedAt, now - DISCORD_IDLE_MS));
+  const byTag = new Map(rows.map((r) => [tableTag(r.code), r]));
   let removed = 0;
   for (const ch of channels) {
-    const game = byCode.get(ch.code);
+    const game = byTag.get(ch.tag);
     const stale =
       !game ||
       (game.status === 'finished'
         ? now - game.updatedAt > DISCORD_FINISHED_GRACE_MS
         : now - game.updatedAt > DISCORD_IDLE_MS);
     if (!stale) {
-      discordTables.add(ch.code);
+      discordTables.add(game.code);
       continue;
     }
     try {
       await deleteTableChannel(ch.id);
-      discordTables.delete(ch.code);
+      if (game) discordTables.delete(game.code);
       removed++;
     } catch (err) {
-      logger.warn(`[discord] sweeping table ${ch.code} failed`, err);
+      logger.warn(`[discord] sweeping table ${ch.tag} failed`, err);
     }
   }
   return removed;

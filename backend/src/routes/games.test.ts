@@ -6,6 +6,7 @@ import { createTestEnv, extractSessionCookie } from '../test-helpers';
 import { isUniqueViolation } from '../games/sessions';
 import { SIGNAL_EMOTES } from '../games/live-registry';
 import { sweepDiscordTables } from '../games/discord-tables';
+import { tableChannelName } from '../discord';
 
 describe('isUniqueViolation (F20 join-code race guard)', () => {
   it('matches only a Postgres 23505 error', () => {
@@ -3226,7 +3227,11 @@ describe('Discord tables', () => {
     expect(first.body.url).toMatch(/^https:\/\/discord\.gg\/inv-/);
     const again = await open(hostCookie, code);
     expect(again.body.url).toBe(first.body.url);
-    const mine = channels.filter((c) => c.name === `Table ${code}`);
+    const mine = channels.filter((c) => c.name === tableChannelName(code));
+    // Every member can see every channel: the name must never give away the
+    // join code (which would open a private table to the whole server).
+    expect(mine[0].name).not.toContain(code);
+    expect(mine[0].name).toMatch(/^Table \d{5}$/);
     expect(mine).toHaveLength(1);
     expect(mine[0]).toMatchObject({ type: 2, parent_id: CATEGORY });
   });
@@ -3238,7 +3243,7 @@ describe('Discord tables', () => {
     expect((await open(guest, code)).status).toBe(404);
     await request(app).post(`/api/games/${code}/join`).set('Cookie', guest).send({});
     expect((await open(guest, code)).status).toBe(403);
-    expect(channels.some((c) => c.name === `Table ${code}`)).toBe(false);
+    expect(channels.some((c) => c.name === tableChannelName(code))).toBe(false);
   });
 
   it('answers 502 rather than throwing when Discord is down', async () => {
@@ -3252,7 +3257,7 @@ describe('Discord tables', () => {
     installFakeDiscord();
     const { hostCookie, code } = await hostGame('dc_close');
     await open(hostCookie, code);
-    const id = channels.find((c) => c.name === `Table ${code}`)!.id;
+    const id = channels.find((c) => c.name === tableChannelName(code))!.id;
     await request(app).post(`/api/games/${code}/leave`).set('Cookie', hostCookie).send({});
     await vi.waitFor(() => expect(deleted).toContain(id));
   });
@@ -3267,17 +3272,20 @@ describe('Discord tables', () => {
       Date.now() - 4 * 60 * 60 * 1000,
       idle.code,
     ]);
-    channels.push({ id: 'gone', name: 'Table QQQQ', type: 2, parent_id: CATEGORY });
+    channels.push({ id: 'gone', name: 'Table 00000', type: 2, parent_id: CATEGORY });
+    // Named by its join code, from before tags: always swept.
+    channels.push({ id: 'legacy', name: 'Table QQQQ', type: 2, parent_id: CATEGORY });
     channels.push({ id: 'lounge', name: 'Lounge', type: 2, parent_id: CATEGORY });
 
     const removed = await sweepDiscordTables();
     const names = channels.map((c) => c.name);
-    expect(names).toContain(`Table ${live.code}`);
-    expect(names).not.toContain(`Table ${idle.code}`);
+    expect(names).toContain(tableChannelName(live.code));
+    expect(names).not.toContain(tableChannelName(idle.code));
+    expect(names).not.toContain('Table 00000');
     expect(names).not.toContain('Table QQQQ');
     expect(names).toContain('Lounge');
     expect(names).toContain('Table ZZZZ');
-    expect(removed).toBeGreaterThanOrEqual(2);
+    expect(removed).toBeGreaterThanOrEqual(3);
   });
 });
 
