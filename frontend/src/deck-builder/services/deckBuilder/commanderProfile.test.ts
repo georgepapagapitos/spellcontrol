@@ -139,6 +139,20 @@ describe('buildCommanderProfile', () => {
     expect(profile.abilities.some((a) => a.keyword === 'tribal')).toBe(true);
   });
 
+  it("names a tribe's theme the way EDHREC spells it, irregular plurals included (E511)", () => {
+    // Real Oracle text and type line.
+    const magda = makeCard({
+      name: 'Magda, Brazen Outlaw',
+      type_line: 'Legendary Creature — Dwarf Berserker',
+      oracle_text:
+        'Other Dwarves you control get +1/+0.\nWhenever a Dwarf you control becomes tapped, create a Treasure token.\nSacrifice five Treasures: Search your library for an artifact or Dragon card, put that card onto the battlefield, then shuffle.',
+    });
+    const profile = buildCommanderProfile(magda);
+    expect(profile.tribes).toEqual(['dwarf', 'berserker']);
+    expect(profile.suggestedThemes).toEqual(expect.arrayContaining(['dwarves', 'berserkers']));
+    expect(profile.suggestedThemes).not.toContain('dwarfs');
+  });
+
   it('detects voltron from stacked evasion keywords with no engine', () => {
     const profile = buildCommanderProfile(
       makeCard({

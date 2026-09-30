@@ -17,7 +17,8 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       '{T}: Create X 1/1 red Goblin creature tokens, where X is the number of Goblins you control.',
-    expect: { producers: ['tokens'], payoffs: [] },
+    // E511: "the number of Goblins you control" counts a named tribe, a typal payoff.
+    expect: { producers: ['tokens'], payoffs: ['tribal'] },
   },
   {
     name: 'Avenger of Zendikar',
@@ -25,7 +26,8 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Landfall'],
     oracle_text:
       'When this creature enters, create a 0/1 green Plant creature token for each land you control.\nLandfall — Whenever a land you control enters, you may put a +1/+1 counter on each Plant creature you control.',
-    expect: { producers: ['tokens', 'counters'], payoffs: ['landfall'] },
+    // E511: "each Plant creature you control" rewards a named tribe.
+    expect: { producers: ['tokens', 'counters'], payoffs: ['landfall', 'tribal'] },
   },
   {
     name: 'Secure the Wastes',
@@ -932,10 +934,11 @@ export const CORPUS: CorpusCard[] = [
     name: 'Goblin King',
     type_line: 'Creature — Goblin',
     keywords: [],
-    // Trap: a specific-type lord ("Other Goblins") — deliberately NOT generalized
-    // without a creature-type list, so it classifies as nothing.
+    // A specific-type lord ("Other Goblins"). Once a trap, when the axis had no
+    // creature-type list. E511 reads named types against Comprehensive Rules
+    // 205.3m, so it is a Goblin payoff.
     oracle_text: 'Other Goblins get +1/+1 and have mountainwalk.',
-    expect: { producers: [], payoffs: [] },
+    expect: { producers: [], payoffs: ['tribal'] },
   },
   {
     name: 'Soulherder',
@@ -1168,7 +1171,8 @@ export const CORPUS: CorpusCard[] = [
     oracle_text:
       "Other Dwarves you control get +1/+1.\nEach Vehicle you control gets +1/+1 as long as it's a creature.\nWhenever Depala becomes tapped, you may pay {X}. If you do, reveal the top X cards of your library, put all Dwarf and Vehicle cards from among them into your hand, then put the rest on the bottom of your library in a random order.",
     // E139: Depala is Pilot-typed \u2014 crews the engine, so also a producer now.
-    expect: { producers: ['vehicles'], payoffs: ['vehicles'] },
+    // E511: "Other Dwarves you control get +1/+1" is a Dwarf lord.
+    expect: { producers: ['vehicles'], payoffs: ['tribal', 'vehicles'] },
   },
   {
     name: 'Kotori, Pilot Prodigy',
@@ -1639,7 +1643,8 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       'Other Horses you control have indestructible.\nAt the beginning of each end step, if you gained life this turn, create a 5/5 white Horse creature token.',
-    expect: { producers: ['tokens'], payoffs: ['lifegain'] },
+    // E511: "Other Horses you control have indestructible" is a Horse lord.
+    expect: { producers: ['tokens'], payoffs: ['lifegain', 'tribal'] },
   },
   {
     name: 'Crucible of Worlds',
@@ -1695,7 +1700,9 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       'When this creature enters, you become the monarch.\nWhenever you become the monarch, target player sacrifices a creature of their choice.',
-    expect: { producers: ['monarch'], payoffs: ['monarch', 'sacrifice'] },
+    // E511: "target player sacrifices" is an edict the monarch trigger fires, not a
+    // reward for sacrificing. The sacrifice must be the trigger's own event.
+    expect: { producers: ['monarch'], payoffs: ['monarch'] },
   },
   {
     name: 'Dance of the Dead',
@@ -1719,7 +1726,8 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       'Skeletons, Vampires, and Zombies you control get +1/+1.\nAt the beginning of your end step, if a creature died this turn, you may pay {1}. If you do, create a 1/1 black Skeleton creature token.',
-    expect: { producers: ['tokens'], payoffs: [] },
+    // E511: a lord for Skeletons, Vampires and Zombies.
+    expect: { producers: ['tokens'], payoffs: ['tribal'] },
   },
   {
     name: 'Decree of Justice',
@@ -2026,7 +2034,8 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Afflict', 'Mill'],
     oracle_text:
       'Afflict 3 (Whenever this creature becomes blocked, defending player loses 3 life.)\nOther Zombies you control have afflict 3.\nAt the beginning of your second main phase, if a player was dealt combat damage by a Zombie this turn, mill three cards, then you may return a creature card from your graveyard to your hand.',
-    expect: { producers: ['graveyard'], payoffs: ['graveyard'] },
+    // E511: "Other Zombies you control have afflict 3" is a Zombie lord.
+    expect: { producers: ['graveyard'], payoffs: ['graveyard', 'tribal'] },
   },
   {
     name: 'Maddening Cacophony',
@@ -2367,7 +2376,8 @@ export const CORPUS: CorpusCard[] = [
     oracle_text:
       'When The Bus Runner enters, create a 4/4 Desert Vehicle artifact land token with crew 2. Put eight hour counters on it. It has "{T}: Add {C}" and "Whenever this token or a Gamer you control becomes tapped, remove an hour counter from this token. Then if it has no hour counters on it, each opponent loses 1 life, you gain 1 life, and put eight hour counters on this token."\nReady to run (You can have two commanders if both have ready to run.)',
     // Drain: the gain is the loss's side effect, not a lifegain source (T112 residual).
-    expect: { producers: [], payoffs: [] },
+    // E511: its token rewards "a Gamer you control" becoming tapped, a Gamer payoff.
+    expect: { producers: [], payoffs: ['tribal'] },
   },
   {
     name: 'The Monarch',
@@ -2782,7 +2792,8 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Flying'],
     oracle_text:
       'Flying\n{T}, Sacrifice a land: Search your library for a Mercenary permanent card with mana value 2 or less, put it onto the battlefield, then shuffle.',
-    expect: { producers: ['sacrifice'], payoffs: [] },
+    // E511: tutors a Mercenary permanent card, the Mercenary chain's enabler.
+    expect: { producers: ['sacrifice', 'tribal'], payoffs: [] },
   },
   {
     name: 'Call the Scions',
@@ -2934,7 +2945,8 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Haste'],
     oracle_text:
       'Haste\n{T}, Sacrifice an artifact: Put a +1/+1 counter on each Goblin you control.\nWhenever an artifact is put into a graveyard from the battlefield, you may pay {R}. If you do, create a 1/1 red Goblin creature token. It gains haste until end of turn.',
-    expect: { producers: ['counters', 'sacrifice', 'tokens'], payoffs: ['artifacts'] },
+    // E511: "a +1/+1 counter on each Goblin you control" rewards a named tribe.
+    expect: { producers: ['counters', 'sacrifice', 'tokens'], payoffs: ['artifacts', 'tribal'] },
   },
   {
     name: "Life's Legacy",
@@ -3539,5 +3551,154 @@ export const CORPUS: CorpusCard[] = [
     oracle_text:
       'Destroy target permanent. Its controller creates a 3/3 green Beast creature token.',
     expect: { producers: [], payoffs: [] },
+  },
+
+  // ── E511: named creature types (typal) + sacrifice trigger scope ───────────
+  {
+    name: 'Najeela, the Blade-Blossom',
+    type_line: 'Legendary Creature — Human Warrior',
+    keywords: [],
+    oracle_text:
+      "Whenever a Warrior attacks, you may have its controller create a 1/1 white Warrior creature token that's tapped and attacking.\n{W}{U}{B}{R}{G}: Untap all attacking creatures. They gain trample, lifelink, and haste until end of turn. After this phase, there is an additional combat phase. Activate only during combat.",
+    // A symmetric Warrior trigger: typal even without "you control".
+    expect: { producers: [], payoffs: ['tribal'] },
+  },
+  {
+    name: 'Mikaeus, the Unhallowed',
+    type_line: 'Legendary Creature — Zombie Cleric',
+    keywords: ['Intimidate'],
+    oracle_text:
+      "Intimidate (This creature can't be blocked except by artifact creatures and/or creatures that share a color with it.)\nWhenever a Human deals damage to you, destroy it.\nOther non-Human creatures you control get +1/+1 and have undying. (When a creature with undying dies, if it had no +1/+1 counters on it, return it to the battlefield under its owner's control with a +1/+1 counter on it.)",
+    // Trap: "Whenever a Human deals damage to you, destroy it" punishes Humans, and
+    // "non-Human creatures" is the inverse of a Human payoff.
+    expect: { producers: [], payoffs: [] },
+  },
+  {
+    name: 'Spellstutter Sprite',
+    type_line: 'Creature — Faerie Wizard',
+    keywords: ['Flying', 'Flash'],
+    oracle_text:
+      'Flash\nFlying\nWhen this creature enters, counter target spell with mana value X or less, where X is the number of Faeries you control.',
+    // Counts Faeries you control.
+    expect: { producers: [], payoffs: ['tribal'] },
+  },
+  {
+    name: 'Goblin Matron',
+    type_line: 'Creature — Goblin',
+    keywords: [],
+    oracle_text:
+      'When this creature enters, you may search your library for a Goblin card, reveal that card, put it into your hand, then shuffle.',
+    // Tutors a Goblin card: the typal finder shape.
+    expect: { producers: ['tribal'], payoffs: [] },
+  },
+  {
+    name: 'Priest of Titania',
+    type_line: 'Creature — Elf Druid',
+    keywords: [],
+    oracle_text: '{T}: Add {G} for each Elf on the battlefield.',
+    // "for each Elf on the battlefield" counts a tribe on both sides of the table.
+    expect: { producers: [], payoffs: ['tribal'] },
+  },
+  {
+    name: "Yuriko, the Tiger's Shadow",
+    type_line: 'Legendary Creature — Human Ninja',
+    keywords: ['Commander ninjutsu'],
+    oracle_text:
+      "Commander ninjutsu {U}{B} ({U}{B}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand or the command zone tapped and attacking.)\nWhenever a Ninja you control deals combat damage to a player, reveal the top card of your library and put that card into your hand. Each opponent loses life equal to that card's mana value.",
+    // A Ninja payoff. The vocabulary reads a Ninja engine as Tempo, not Tribal.
+    expect: { producers: [], payoffs: ['tribal'] },
+  },
+  {
+    name: 'Lord of the Undead',
+    type_line: 'Creature — Zombie',
+    keywords: [],
+    oracle_text:
+      'Other Zombie creatures get +1/+1.\n{1}{B}, {T}: Return target Zombie card from your graveyard to your hand.',
+    // A lord without "you control" plus a Zombie-card recursion.
+    expect: { producers: ['tribal'], payoffs: ['graveyard', 'tribal'] },
+  },
+  {
+    name: 'Marrow-Gnawer',
+    type_line: 'Legendary Creature — Rat Rogue',
+    keywords: [],
+    oracle_text:
+      'All Rats have fear.\n{T}, Sacrifice a Rat: Create X 1/1 black Rat creature tokens, where X is the number of Rats you control.',
+    // "All Rats have fear" is a Rat lord. Also a Rat sacrifice outlet.
+    expect: { producers: ['sacrifice', 'tokens'], payoffs: ['tribal'] },
+  },
+  {
+    name: 'Elvish Archdruid',
+    type_line: 'Creature — Elf Druid',
+    keywords: [],
+    oracle_text:
+      'Other Elf creatures you control get +1/+1.\n{T}: Add {G} for each Elf you control.',
+    // Elf lord.
+    expect: { producers: [], payoffs: ['tribal'] },
+  },
+  {
+    name: 'Magda, Brazen Outlaw',
+    type_line: 'Legendary Creature — Dwarf Berserker',
+    keywords: ['Treasure'],
+    oracle_text:
+      'Other Dwarves you control get +1/+0.\nWhenever a Dwarf you control becomes tapped, create a Treasure token.\nSacrifice five Treasures: Search your library for an artifact or Dragon card, put that card onto the battlefield, then shuffle.',
+    // "Other Dwarves": the irregular plural resolves to Dwarf.
+    expect: { producers: ['artifacts', 'sacrifice'], payoffs: ['tribal'] },
+  },
+  {
+    name: 'Seven Dwarves',
+    type_line: 'Creature — Dwarf',
+    keywords: [],
+    oracle_text:
+      'This creature gets +1/+1 for each other creature named Seven Dwarves you control.\nA deck can have up to seven cards named Seven Dwarves.',
+    // Trap: "named Seven Dwarves you control" names a card, not the Dwarf tribe.
+    expect: { producers: [], payoffs: [] },
+  },
+  {
+    name: 'Time Lord Regeneration',
+    type_line: 'Instant',
+    keywords: [],
+    oracle_text:
+      'Until end of turn, target Time Lord you control gains "When this creature dies, reveal cards from the top of your library until you reveal a Time Lord creature card. Put that card onto the battlefield and the rest on the bottom of your library in a random order."',
+    // The one two-word creature type, as payoff and as a revealed creature card.
+    expect: { producers: ['tribal'], payoffs: ['tribal'] },
+  },
+  {
+    name: 'Whelming Wave',
+    type_line: 'Sorcery',
+    keywords: [],
+    oracle_text:
+      "Return all creatures to their owners' hands except for Krakens, Leviathans, Octopuses, and Serpents.",
+    // Trap: naming tribes a bounce spell spares is not a typal reward.
+    expect: { producers: [], payoffs: [] },
+  },
+  {
+    name: 'Sanctum of Ugin',
+    type_line: 'Land',
+    keywords: [],
+    oracle_text:
+      '{T}: Add {C}.\nWhenever you cast a colorless spell with mana value 7 or greater, you may sacrifice this land. If you do, search your library for a colorless creature card, reveal it, put it into your hand, then shuffle.',
+    // Trap: "you may sacrifice this land" inside a cast trigger rewards casting,
+    // not sacrificing, and a land that eats itself is no outlet.
+    expect: { producers: [], payoffs: [] },
+  },
+  {
+    name: 'Glaring Fleshraker',
+    type_line: 'Creature — Eldrazi Drone',
+    keywords: [],
+    oracle_text:
+      'Whenever you cast a colorless spell, create a 0/1 colorless Eldrazi Spawn creature token with "Sacrifice this token: Add {C}."\nWhenever another colorless creature you control enters, this creature deals 1 damage to each opponent.',
+    // Trap: a cast trigger that makes a token with "Sacrifice this token" is a
+    // token producer and fodder, not a reward for sacrificing.
+    expect: { producers: ['sacrifice', 'tokens'], payoffs: [] },
+  },
+  {
+    name: 'Banner of Kinship',
+    type_line: 'Artifact',
+    keywords: [],
+    oracle_text:
+      'As this artifact enters, choose a creature type. This artifact enters with a fellowship counter on it for each creature you control of the chosen type.\nCreatures you control of the chosen type get +1/+1 for each fellowship counter on this artifact.',
+    // Trap: "for each creature you control of the chosen type" counts a tribe,
+    // not the whole board, so it is no tokens payoff.
+    expect: { producers: ['tribal'], payoffs: ['tribal'] },
   },
 ];

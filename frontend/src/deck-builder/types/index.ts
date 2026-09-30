@@ -139,16 +139,18 @@ export enum Archetype {
 
 /**
  * Which precedence tier decided a deck's `detectedArchetype` (see
- * `inferArchetypeProvenance` in roleTargets.ts) — persisted so the report/UI
+ * `decideBuildArchetype` in roleTargets.ts) — persisted so the report/UI
  * layer can explain the archetype label instead of just asserting it:
  * - 'user-theme': the user's first selected theme resolved to a real archetype.
+ * - 'card-evidence': the commander's average deck runs one decisive engine (E511).
  * - 'edhrec-dominant': EDHREC's own ranked commander-page themes had a clear
  *   plurality strategy (see DOMINANT_THEME_SHARE).
  * - 'neutral': EDHREC theme data exists but no theme dominates — GOODSTUFF.
  * - 'oracle-text': no EDHREC theme data at all; fell back to the
  *   commander-profile oracle-text keyword vote.
  */
-export type ArchetypeProvenance = 'user-theme' | 'edhrec-dominant' | 'neutral' | 'oracle-text';
+export type ArchetypeProvenance =
+  'user-theme' | 'card-evidence' | 'edhrec-dominant' | 'neutral' | 'oracle-text';
 
 // EDHREC Theme types
 export interface EDHRECTheme {
@@ -850,6 +852,7 @@ export interface GeneratedDeck {
   cardRelevancyMap?: Record<string, number>; // cardName → composite relevancy score (raw, 0-200+)
   detectedArchetype?: Archetype; // Archetype inferred from themes for dynamic role targeting
   archetypeProvenance?: ArchetypeProvenance; // Which precedence tier decided detectedArchetype
+  archetypeEvidence?: import('@/deck-builder/services/deckBuilder/roleTargets').ArchetypeEvidence; // For 'card-evidence': the deciding engine
   archetypeIsLowConfidence?: boolean; // True when detectedArchetype fell all the way to the oracle-text keyword vote (no EDHREC theme data, no user theme pick)
   detectedPacing?: Pacing; // Pacing estimated from EDHREC stats at generation time
   bracketEstimation?: import('@/deck-builder/services/deckBuilder/bracketEstimator').BracketEstimation;

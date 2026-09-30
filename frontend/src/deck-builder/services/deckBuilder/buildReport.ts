@@ -12,6 +12,16 @@ import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { isRoleExcess } from './deckAnalyzer';
 import { countProtectionPieces } from './commanderDeckAnalysis';
 import { ARCHETYPE_LABEL } from './strategyVocabulary';
+import { AXES } from '@/deck-builder/services/synergy/axes';
+import type { ArchetypeEvidence } from './roleTargets';
+
+const AXIS_LABEL = new Map(AXES.map((a) => [a.key, a.label]));
+
+/** "12 payoffs", "1 payoff": an average rounded to a whole card. */
+function plural(n: number, noun: string): string {
+  const whole = Math.round(n);
+  return `${whole} ${noun}${whole === 1 ? '' : 's'}`;
+}
 
 // Archetypes where a deck built with ZERO protection/free-interaction pieces
 // is a real gap worth flagging — Voltron (one big threat that needs Lightning
@@ -34,6 +44,8 @@ export function buildArchetypeNote(params: {
   isLowConfidence: boolean;
   firstThemeName?: string;
   multiThemeSelected: boolean;
+  /** For `card-evidence`: the deciding engine in the commander's average deck. */
+  evidence?: ArchetypeEvidence;
 }): string {
   const label = ARCHETYPE_LABEL[params.archetype];
   let base: string;
@@ -41,11 +53,18 @@ export function buildArchetypeNote(params: {
     case 'user-theme':
       base = `Built as ${label}, from your ${params.firstThemeName ?? label} theme pick.`;
       break;
+    case 'card-evidence': {
+      const ev = params.evidence;
+      base = ev
+        ? `Built as ${label}, from this commander's decks. They average ${plural(ev.producers, `${AXIS_LABEL.get(ev.axis) ?? ev.axis} producer`)} and ${plural(ev.payoffs, 'payoff')}.`
+        : `Built as ${label}, from this commander's decks.`;
+      break;
+    }
     case 'edhrec-dominant':
       base = `Built as ${label}, from EDHREC's top theme for this commander.`;
       break;
     case 'neutral':
-      base = `Built as balanced ${label}. EDHREC shows no dominant theme.`;
+      base = `Built as balanced ${label}. No one strategy leads this commander's decks.`;
       break;
     case 'oracle-text':
       base = params.isLowConfidence
@@ -118,6 +137,7 @@ export function assembleBuildReport(input: {
       isLowConfidence: generated.archetypeIsLowConfidence ?? false,
       firstThemeName: selected[0]?.name,
       multiThemeSelected: selected.length > 1,
+      evidence: generated.archetypeEvidence,
     });
   }
 

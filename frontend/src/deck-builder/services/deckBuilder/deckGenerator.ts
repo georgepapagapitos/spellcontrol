@@ -48,9 +48,8 @@ import {
 import {
   getDynamicRoleTargets,
   estimatePacingFromStats,
-  inferArchetype,
-  inferArchetypeFromEdhrecThemes,
-  inferArchetypeProvenance,
+  decideBuildArchetype,
+  loadCardEvidence,
   isBoardCentricPlan,
 } from './roleTargets';
 import { buildCommanderProfile } from './commanderProfile';
@@ -1876,33 +1875,25 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     (!!partnerCommander && isExtraCombatPiece(partnerCommander)) ||
     commanderProfile.abilities.some((a) => a.keyword === 'attack-trigger');
 
-  // Prefer EDHREC's own ranked commander-page themes (the community's stated
-  // consensus) over the oracle-text keyword-vote heuristic, which tie-breaks
-  // on a static precedence list and mislabels commanders like Atraxa
-  // ("voltron" instead of proliferate/superfriends) or Sythis ("spellslinger"
-  // instead of enchantress). Only when EDHREC has nothing to say does the
-  // keyword vote decide — and that fallback path is the low-confidence case
-  // landCountNote's copy softens below.
-  const edhrecThemeArchetype = inferArchetypeFromEdhrecThemes(state.edhrecData?.themes);
-  // EDHREC theme data existing but not dominant (a genuinely split-strategy
-  // commander, e.g. Atraxa) is different from EDHREC having no data at all
-  // (fetch failed / offline / Scryfall-only generation). In the first case,
-  // don't let the coarse structural-keyword vote assert a specific — and
-  // possibly wrong — strategy (it pegs Atraxa as VOLTRON); default to the
-  // neutral GOODSTUFF instead. The keyword vote remains the only signal, and
-  // stays unchanged, when there's no EDHREC theme data to consult at all.
-  const hasEdhrecThemeData = (state.edhrecData?.themes?.length ?? 0) > 0;
-  const archetypeFallback =
-    edhrecThemeArchetype ??
-    (hasEdhrecThemeData ? Archetype.GOODSTUFF : commanderProfile.primaryArchetype);
-  archetypeIsLowConfidence =
-    edhrecThemeArchetype === undefined && !context.selectedThemes?.some((t) => t.isSelected);
-  detectedArchetype = inferArchetype(context.selectedThemes, archetypeFallback);
-  detectedArchetypeProvenance = inferArchetypeProvenance(
-    context.selectedThemes,
-    edhrecThemeArchetype,
-    hasEdhrecThemeData
-  );
+  // E511: the build's archetype comes from the cards (the commander's EDHREC
+  // pool weighted by inclusion), with EDHREC's themes as a hint; precedence
+  // lives in decideBuildArchetype. Fetched with the pool fetch's arena
+  // option, so the later batch fetch reads these cards from the cache.
+  const archetypeDecision = decideBuildArchetype({
+    selectedThemes: context.selectedThemes,
+    edhrecThemes: state.edhrecData?.themes,
+    cardEvidence: await loadCardEvidence({
+      commanders: partnerCommander ? [commander, partnerCommander] : [commander],
+      data: state.edhrecData,
+      source: state.dataSource,
+      fetchCards: (names) => getCardsByNames(names, undefined, undefined, { arenaOnly }),
+    }),
+    oracleTextArchetype: commanderProfile.primaryArchetype,
+  });
+  const archetypeFallback = archetypeDecision.fallback;
+  archetypeIsLowConfidence = archetypeDecision.isLowConfidence;
+  detectedArchetype = archetypeDecision.archetype;
+  detectedArchetypeProvenance = archetypeDecision.provenance;
 
   // Dynamic role targets (blended EDHREC + archetype-model ramp/removal/
   // boardwipe/cardDraw slots) — computed once, unconditionally, so both the
@@ -5090,6 +5081,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     cardRelevancyMap,
     detectedArchetype,
     archetypeProvenance: detectedArchetypeProvenance,
+    archetypeEvidence: archetypeDecision.evidence,
     archetypeIsLowConfidence,
     detectedPacing,
     bracketEstimation,

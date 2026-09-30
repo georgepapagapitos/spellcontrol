@@ -23,7 +23,7 @@
  */
 import type { ScryfallCard } from '@/deck-builder/types';
 import { classifyCard, type CardSynergy } from '@/deck-builder/services/synergy/classify';
-import type { AxisKey } from '@/deck-builder/services/synergy/axes';
+import { tribalMembership, type AxisKey } from '@/deck-builder/services/synergy/axes';
 import { typeLineProducerAxes } from './synergyDependency';
 import { violatesUserCaps, type UserCapsConfig } from './deckFilters';
 
@@ -54,7 +54,14 @@ export function clearPackageBoostCache(): void {
 export interface AxisInvestment {
   producers: number;
   payoffs: number;
+  /** Tribal only: the creature types the deck's typal cards name. */
+  tribes?: readonly string[];
 }
+
+// E511: the tally counts the deck's tribe members as tribal fuel by the
+// shared capped rule (tribalMembership in synergy/axes.ts, the one
+// analyzeDeckSynergy uses), so every reader sees the same tribal balance. The
+// scarce-side boost skips the tribal axis entirely (see packageFitAxes).
 
 /**
  * Per-axis producer/payoff investment of the deck so far. Commanders weigh
@@ -83,8 +90,17 @@ export function tallyAxisInvestment(
     }
     for (const p of c.payoffs) bump(p.axis, 'payoffs', weight);
   };
-  for (const c of commanders) add(c, COMMANDER_WEIGHT);
-  for (const c of picked) add(c, 1);
+  const weighted = [
+    ...commanders.map((card) => ({ card, weight: COMMANDER_WEIGHT })),
+    ...picked.map((card) => ({ card, weight: 1 })),
+  ];
+  for (const { card, weight } of weighted) add(card, weight);
+  const membership = tribalMembership(
+    weighted.map(({ card, weight }) => ({ card, weight, ...classified(card) }))
+  );
+  for (const m of membership.members) bump('tribal', 'producers', m.weight);
+  const tribal = tally.get('tribal');
+  if (tribal) tribal.tribes = [...membership.tribes].sort();
   return tally;
 }
 
@@ -113,6 +129,14 @@ export function packageFitAxes(
   const consider = (axis: AxisKey, side: 'producers' | 'payoffs') => {
     const inv = investment.get(axis);
     if (!inv || inv.producers + inv.payoffs < LIVE_MIN) return;
+    // E511: no scarce-side boost on the tribal axis. Its producer side is the
+    // tribe's members, which card text can't see, so the balance the boost
+    // reads is an artifact of the reader either way: without members a lord
+    // deck reads producer-scarce and Banners jump staples; with them (capped
+    // at the payoffs) any tribe finder tips it payoff-scarce and a lord jumps
+    // a combo piece (Sivitri: Dragonstorm Globe over Mox Amber). The typal
+    // engine is assembled by the typal pool and theme pages instead.
+    if (axis === 'tribal') return;
     const scarce = inv[side];
     const abundant = side === 'payoffs' ? inv.producers : inv.payoffs;
     if (scarce < abundant) out.push({ axis, boost: axisBoost(scarce, abundant) });

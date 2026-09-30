@@ -5,7 +5,7 @@ import type { CommanderProfile } from './commanderProfile';
 import type { CurveSlot } from './deckAnalyzer';
 import { inferArchetype } from './roleTargets';
 import { detectPacing, type Pacing } from './pacingDetector';
-import { ARCHETYPE_LABEL, THEME_TO_ARCHETYPE } from './strategyVocabulary';
+import { ARCHETYPE_LABEL, axisMassFrom, readEngine } from './strategyVocabulary';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 
 /**
@@ -78,20 +78,30 @@ function pickArchetype(profile: CommanderProfile, selectedThemes: ThemeResult[])
 
 /**
  * The archetype a decisive engine implies, or undefined when none clearly
- * leads. Decisive means the busiest axis is a real engine (invested: enough
- * cards, producers and payoffs both present) and at least twice the size of
- * the next one. An engine whose axis only maps to Goodstuff or Midrange says
- * nothing sharper than the fallback, so it doesn't count either.
+ * leads. `readEngine` holds the rule, and the generator applies the same rule
+ * to the commander's average deck before it builds (`readCardEvidence` in
+ * roleTargets.ts), so the label and the build can only differ when the built
+ * list's engine differs from the average deck's.
  */
 export function engineArchetype(synergy: DeckSynergy): Archetype | undefined {
-  const [top, next] = synergy.axes;
-  if (!top || !synergy.invested.includes(top.axis)) return undefined;
-  // ponytail: a flat 2x lead; tune against real decks if a mixed build flips.
-  if (next && next.total * 2 > top.total) return undefined;
-  const archetype = THEME_TO_ARCHETYPE[top.axis];
-  return archetype && archetype !== Archetype.GOODSTUFF && archetype !== Archetype.MIDRANGE
-    ? archetype
-    : undefined;
+  return readEngine(
+    axisMassFrom(
+      synergy.axes.flatMap((a) => [
+        ...a.producers.map((p) => ({
+          axis: a.axis,
+          side: 'producer' as const,
+          reason: p.reason,
+          weight: 1,
+        })),
+        ...a.payoffs.map((o) => ({
+          axis: a.axis,
+          side: 'payoff' as const,
+          reason: o.reason,
+          weight: 1,
+        })),
+      ])
+    )
+  ).decisive?.archetype;
 }
 
 /**

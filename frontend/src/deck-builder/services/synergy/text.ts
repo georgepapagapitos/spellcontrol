@@ -210,9 +210,13 @@ const SAC_CONDITIONAL_RE = /\bunless\b[^.]*\bsacrifice\b/;
 const SAC_SELF_LAND_RE = /\bsacrifice this land\b/;
 // "Whenever you/a player/another … sacrifices" — a sacrifice payoff. Deliberately
 // NOT the bare "whenever an opponent sacrifices" (Tergrid), which is a punisher
-// keyed on opponents, not your aristocrats engine.
+// keyed on opponents, not your aristocrats engine. The sacrifice must be the
+// trigger's own event, so the match stops at the condition's comma: "Whenever
+// you cast a colorless spell ..., you may sacrifice this land" (Sanctum of
+// Ugin) or a trigger that makes a token with "Sacrifice this creature: Add
+// {C}" (Glaring Fleshraker) rewards casting, not sacrificing.
 const SAC_REWARD_RE =
-  /whenever (?:you|a player|another)[^.]*\bsacrifices?\b|whenever[^.]*\bis sacrificed\b/;
+  /whenever (?:you|a player|another)[^,.]*\bsacrifices?\b|whenever[^,.]*\bis sacrificed\b/;
 
 /**
  * Separate a sac OUTLET (imperative "Sacrifice a creature" you activate, or a
@@ -266,10 +270,11 @@ export function hasCreatureAnthem(oracle: string): boolean {
   return /(?:other )?creature tokens? you control get \+/.test(oracle);
 }
 
-/** Scales with your board ("for each creature", "equal to the number of creatures"). */
+/** Scales with your board ("for each creature", "equal to the number of creatures").
+ *  A count narrowed to "the chosen type" (Banner of Kinship) is typal, not go-wide. */
 export function scalesWithCreatures(oracle: string): boolean {
   return (
-    /for each creature you control/.test(oracle) ||
+    /for each creature you control(?! of the chosen type)/.test(oracle) ||
     /equal to the number of creatures you control/.test(oracle) ||
     /\+1\/\+1 counter on each creature you control/.test(oracle)
   );
@@ -431,4 +436,485 @@ export function paysOffCreatureDeath(oracle: string): boolean {
     return true;
   }
   return false;
+}
+
+// ── Creature types (typal) ────────────────────────────────────────────────────
+
+/**
+ * Every creature type, from Comprehensive Rules 205.3m (effective August 7,
+ * 2026). `text.typal.test.ts` pins it to the committed rules snapshot
+ * (public/comprehensive-rules.json), so a type a new set adds fails that test
+ * until it lands here.
+ */
+export const CREATURE_TYPES: readonly string[] = [
+  'Time Lord',
+  'Advisor',
+  'Aetherborn',
+  'Alien',
+  'Ally',
+  'Angel',
+  'Antelope',
+  'Ape',
+  'Archer',
+  'Archon',
+  'Armadillo',
+  'Army',
+  'Artificer',
+  'Assassin',
+  'Assembly-Worker',
+  'Astartes',
+  'Atog',
+  'Aurochs',
+  'Avatar',
+  'Azra',
+  'Badger',
+  'Balloon',
+  'Barbarian',
+  'Bard',
+  'Basilisk',
+  'Bat',
+  'Bear',
+  'Beast',
+  'Beaver',
+  'Beeble',
+  'Beholder',
+  'Berserker',
+  'Bird',
+  'Bison',
+  'Blinkmoth',
+  'Boar',
+  'Bringer',
+  'Brushwagg',
+  'Camarid',
+  'Camel',
+  'Capybara',
+  'Caribou',
+  'Carrier',
+  'Cat',
+  'Centaur',
+  'Child',
+  'Chimera',
+  'Citizen',
+  'Cleric',
+  'Clown',
+  'Cockatrice',
+  'Construct',
+  'Coward',
+  'Coyote',
+  'Crab',
+  'Crocodile',
+  'C’tan',
+  'Custodes',
+  'Cyberman',
+  'Cyclops',
+  'Dalek',
+  'Dauthi',
+  'Demigod',
+  'Demon',
+  'Deserter',
+  'Detective',
+  'Devil',
+  'Dinosaur',
+  'Djinn',
+  'Doctor',
+  'Dog',
+  'Dragon',
+  'Drake',
+  'Dreadnought',
+  'Drix',
+  'Drone',
+  'Druid',
+  'Dryad',
+  'Dwarf',
+  'Echidna',
+  'Efreet',
+  'Egg',
+  'Elder',
+  'Eldrazi',
+  'Elemental',
+  'Elephant',
+  'Elf',
+  'Elk',
+  'Employee',
+  'Eternal',
+  'Eye',
+  'Faerie',
+  'Ferret',
+  'Fish',
+  'Flagbearer',
+  'Fox',
+  'Fractal',
+  'Frog',
+  'Fungus',
+  'Gamer',
+  'Gamma',
+  'Gargoyle',
+  'Germ',
+  'Giant',
+  'Giraffe',
+  'Gith',
+  'Glimmer',
+  'Gnoll',
+  'Gnome',
+  'Goat',
+  'Goblin',
+  'God',
+  'Golem',
+  'Gorgon',
+  'Graveborn',
+  'Gremlin',
+  'Griffin',
+  'Guest',
+  'Hag',
+  'Halfling',
+  'Hamster',
+  'Harpy',
+  'Hedgehog',
+  'Hellion',
+  'Hero',
+  'Hippo',
+  'Hippogriff',
+  'Homarid',
+  'Homunculus',
+  'Horror',
+  'Horse',
+  'Human',
+  'Hydra',
+  'Hyena',
+  'Illusion',
+  'Imp',
+  'Incarnation',
+  'Inhuman',
+  'Inkling',
+  'Inquisitor',
+  'Insect',
+  'Jackal',
+  'Jellyfish',
+  'Juggernaut',
+  'Kangaroo',
+  'Kavu',
+  'Kirin',
+  'Kithkin',
+  'Knight',
+  'Kobold',
+  'Kor',
+  'Kraken',
+  'Kree',
+  'Llama',
+  'Lamia',
+  'Lammasu',
+  'Leech',
+  'Lemur',
+  'Leviathan',
+  'Lhurgoyf',
+  'Licid',
+  'Lizard',
+  'Lobster',
+  'Manticore',
+  'Masticore',
+  'Mercenary',
+  'Merfolk',
+  'Metathran',
+  'Minion',
+  'Minotaur',
+  'Mite',
+  'Mole',
+  'Monger',
+  'Mongoose',
+  'Monk',
+  'Monkey',
+  'Moogle',
+  'Moonfolk',
+  'Mount',
+  'Mouse',
+  'Mutant',
+  'Myr',
+  'Mystic',
+  'Nautilus',
+  'Necron',
+  'Nephilim',
+  'Nightmare',
+  'Nightstalker',
+  'Ninja',
+  'Noble',
+  'Noggle',
+  'Nomad',
+  'Nymph',
+  'Octopus',
+  'Ogre',
+  'Ooze',
+  'Orb',
+  'Orc',
+  'Orgg',
+  'Otter',
+  'Ouphe',
+  'Ox',
+  'Oyster',
+  'Pangolin',
+  'Peasant',
+  'Pegasus',
+  'Pentavite',
+  'Performer',
+  'Pest',
+  'Phelddagrif',
+  'Phoenix',
+  'Phyrexian',
+  'Pilot',
+  'Pincher',
+  'Pirate',
+  'Plant',
+  'Platypus',
+  'Porcupine',
+  'Possum',
+  'Praetor',
+  'Primarch',
+  'Prism',
+  'Processor',
+  'Qu',
+  'Rabbit',
+  'Raccoon',
+  'Ranger',
+  'Rat',
+  'Rebel',
+  'Reflection',
+  'Rhino',
+  'Rigger',
+  'Robot',
+  'Rogue',
+  'Sable',
+  'Salamander',
+  'Samurai',
+  'Sand',
+  'Saproling',
+  'Satyr',
+  'Scarecrow',
+  'Scientist',
+  'Scion',
+  'Scorpion',
+  'Scout',
+  'Sculpture',
+  'Seal',
+  'Serf',
+  'Serpent',
+  'Servo',
+  'Shade',
+  'Shaman',
+  'Shapeshifter',
+  'Shark',
+  'Sheep',
+  'Shi’ar',
+  'Siren',
+  'Skeleton',
+  'Skrull',
+  'Skunk',
+  'Slith',
+  'Sliver',
+  'Sloth',
+  'Slug',
+  'Snail',
+  'Snake',
+  'Soldier',
+  'Soltari',
+  'Sorcerer',
+  'Spawn',
+  'Specter',
+  'Spellshaper',
+  'Sphinx',
+  'Spider',
+  'Spike',
+  'Spirit',
+  'Splinter',
+  'Sponge',
+  'Spy',
+  'Squid',
+  'Squirrel',
+  'Starfish',
+  'Surrakar',
+  'Survivor',
+  'Symbiote',
+  'Synth',
+  'Tentacle',
+  'Tetravite',
+  'Thalakos',
+  'Thopter',
+  'Thrull',
+  'Tiefling',
+  'Toy',
+  'Treefolk',
+  'Trilobite',
+  'Triskelavite',
+  'Troll',
+  'Turtle',
+  'Tyranid',
+  'Unicorn',
+  'Utrom',
+  'Vampire',
+  'Varmint',
+  'Vedalken',
+  'Villain',
+  'Volver',
+  'Wall',
+  'Walrus',
+  'Warlock',
+  'Warrior',
+  'Weasel',
+  'Weird',
+  'Werewolf',
+  'Whale',
+  'Wizard',
+  'Wolf',
+  'Wolverine',
+  'Wombat',
+  'Worm',
+  'Wraith',
+  'Wurm',
+  'Yeti',
+  'Zombie',
+  'Zubera',
+];
+
+// Plurals English rules get wrong. Oracle text and EDHREC's typal pages both
+// write these; the second spelling of a pair is the other one in use.
+const IRREGULAR_PLURALS: Record<string, readonly string[]> = {
+  Elf: ['Elves'],
+  Dwarf: ['Dwarves'],
+  Wolf: ['Wolves'],
+  Werewolf: ['Werewolves'],
+  Mouse: ['Mice'],
+  Ox: ['Oxen'],
+  Fungus: ['Fungi', 'Funguses'],
+  Homunculus: ['Homunculi', 'Homunculuses'],
+  Cyclops: ['Cyclopes', 'Cyclopses'],
+  Pegasus: ['Pegasi', 'Pegasuses'],
+  Octopus: ['Octopuses', 'Octopi'],
+  Djinn: ['Djinn', 'Djinns'],
+  Efreet: ['Efreets', 'Efreet'],
+  Samurai: ['Samurai', 'Samurais'],
+  Hero: ['Heroes'],
+  Cyberman: ['Cybermen'],
+};
+
+// Types whose plural is the singular.
+const INVARIANT_PLURALS = new Set([
+  'Aetherborn',
+  'Astartes',
+  'Aurochs',
+  'Bison',
+  'C’tan',
+  'Custodes',
+  'Dauthi',
+  'Eldrazi',
+  'Elk',
+  'Fish',
+  'Kithkin',
+  'Kor',
+  'Kree',
+  'Lammasu',
+  'Merfolk',
+  'Metathran',
+  'Moonfolk',
+  'Myr',
+  'Nephilim',
+  'Sheep',
+  'Shi’ar',
+  'Soltari',
+  'Surrakar',
+  'Thalakos',
+  'Treefolk',
+  'Vedalken',
+  'Zubera',
+]);
+
+/** Every plural spelling of a creature type, the usual one first. */
+export function creatureTypePlurals(type: string): string[] {
+  if (INVARIANT_PLURALS.has(type)) return [type];
+  const irregular = IRREGULAR_PLURALS[type];
+  if (irregular) return [...irregular];
+  if (/(?:s|x|z|ch|sh)$/.test(type)) return [`${type}es`];
+  if (/[^aeiou]y$/.test(type)) return [`${type.slice(0, -1)}ies`];
+  return [`${type}s`];
+}
+
+/** Lowercase, straight apostrophes, single spaces: how names get compared. */
+function typalKey(name: string): string {
+  return name.toLowerCase().replace(/[’‘]/g, "'").replace(/\s+/g, ' ').trim();
+}
+
+const TYPE_BY_FORM = new Map<string, string>();
+for (const type of CREATURE_TYPES) {
+  TYPE_BY_FORM.set(typalKey(type), type);
+  for (const plural of creatureTypePlurals(type)) TYPE_BY_FORM.set(typalKey(plural), type);
+}
+
+/**
+ * The creature type a typal name names, singular or plural, in any case:
+ * "Elves", "elf", "Time Lords", "Shi’ar". Undefined when it names no type.
+ */
+export function resolveCreatureType(name: string): string | undefined {
+  return TYPE_BY_FORM.get(typalKey(name));
+}
+
+// Every singular and plural spelling as one alternation, longest first so
+// "werewolves" wins over "wolves" at the same position.
+const TYPE_ALTERNATION = [...TYPE_BY_FORM.keys()]
+  .sort((a, b) => b.length - a.length)
+  .map((form) => form.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/'/g, "['’]"))
+  .join('|');
+// A type word as the subject: never the "Human" in "non-Human", and never a
+// card name ("each other creature named Seven Dwarves you control").
+const T = `(?<!non-)(?<!\\bnamed (?:[a-z'’-]+ ){0,4})\\b(${TYPE_ALTERNATION})\\b`;
+const OF = '(?: creatures?| permanents?| cards?)?';
+
+// Typal payoffs: a clause that rewards YOUR creatures of one named type. The
+// type word is each pattern's one matched capture group. Opponents' creatures
+// never match ("you control", not "your opponents control").
+const TYPAL_PAYOFF_PATTERNS: readonly RegExp[] = [
+  // "Other Elves you control get +1/+1", "each Zombie you control", "another Goblin you control"
+  new RegExp(`${T}${OF} you control\\b`),
+  // "for each Elf on the battlefield", "the number of Goblins you control"
+  new RegExp(
+    `(?:for each (?:other )?|number of )${T}${OF} (?:you control|on the battlefield|in your graveyard)`
+  ),
+  // Lords without "you control": "Other Goblins get +1/+1", "All Slivers have flying"
+  new RegExp(`\\b(?:other|all) ${T}(?: creatures)? (?:get|have|gain)\\b`),
+  // "Whenever another Elf you control enters", "Whenever a Warrior attacks"
+  // (Najeela). Damage counts only toward a player or creature, so Mikaeus's
+  // "Whenever a Human deals damage to you, destroy it" stays out.
+  new RegExp(
+    `whenever (?:a|an|another|one or more)(?: other)?(?: nontoken)? ${T}${OF}(?: you control)? (?:enters|attacks|dies|becomes|deals? (?:combat )?damage to (?:a player|an opponent|a creature|one or more|any target))`
+  ),
+  // "Dragon spells you cast cost {1} less", "Whenever you cast a Dragon spell"
+  new RegExp(`${T} spells? you cast|\\bcast (?:a|an|another) ${T} spell`),
+];
+
+// Typal enablers that find or bring back one named type: "search your library
+// for a Goblin card", "return target Zombie card from your graveyard".
+const TYPAL_FINDER = new RegExp(
+  `(?:search your library for|return|reveal)[^.]*?(?:a|an|any number of|all|up to \\w+|target|each) ${T}(?: creature| permanent)? cards?\\b`
+);
+
+/** The creature type a typal pattern matched: its one participating group. */
+function matchedType(m: RegExpExecArray): string | undefined {
+  const word = m.slice(1).find((g) => g !== undefined);
+  return word === undefined ? undefined : TYPE_BY_FORM.get(typalKey(word));
+}
+
+/** The named creature type a card rewards YOUR creatures of, if any. */
+export function typalPayoffType(oracle: string): string | undefined {
+  for (const clause of splitClauses(oracle)) {
+    for (const re of TYPAL_PAYOFF_PATTERNS) {
+      const m = re.exec(clause);
+      if (m) return matchedType(m);
+    }
+  }
+  return undefined;
+}
+
+/** The named creature type a card tutors or recurs, if any. */
+export function typalFinderType(oracle: string): string | undefined {
+  for (const clause of splitClauses(oracle)) {
+    const m = TYPAL_FINDER.exec(clause);
+    if (m) return matchedType(m);
+  }
+  return undefined;
 }
