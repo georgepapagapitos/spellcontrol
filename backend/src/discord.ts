@@ -166,12 +166,6 @@ export function lfgChannelId(): string | null {
   return config() ? (process.env.DISCORD_LFG_CHANNEL_ID ?? null) : null;
 }
 
-/** The server's permanent invite, for the app's "Join the Discord" link. */
-export function communityInviteUrl(): string | null {
-  const url = process.env.DISCORD_INVITE_URL;
-  return url && /^https:\/\/discord\.gg\/[A-Za-z0-9-]+$/.test(url) ? url : null;
-}
-
 /** A Discord message, as much of it as the posting needs. */
 export interface ChannelMessage {
   id: string;

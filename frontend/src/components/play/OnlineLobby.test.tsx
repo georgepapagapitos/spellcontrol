@@ -16,8 +16,8 @@ import { HORDE_BAN_LIST } from '@/lib/horde/ban-list';
 vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
 const { OFF, ON } = vi.hoisted(() => ({
-  OFF: { enabled: false, inviteUrl: null as string | null },
-  ON: { enabled: true, inviteUrl: null as string | null },
+  OFF: { enabled: false },
+  ON: { enabled: true },
 }));
 const gamesApi = vi.hoisted(() => ({
   getDiscordStatus: vi.fn(async () => OFF),
