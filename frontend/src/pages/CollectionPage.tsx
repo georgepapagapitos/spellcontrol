@@ -1,5 +1,4 @@
 import { BarChart3, Download, History, Plus, Share2, Trash2 } from 'lucide-react';
-import { CollectionHubTabs } from '@/components/collection/CollectionHubTabs';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAnimatedNumber } from '@/lib/util/use-animated-number';
@@ -11,7 +10,7 @@ import { useBinderLayoutInputs } from '@/lib/binder/use-binder-layout-inputs';
 import { useAllocations } from '@/lib/collection/allocations';
 import { formatMoney } from '@/lib/collection/format-money';
 import { AddCardsSheet } from '@/components/import/AddCardsSheet';
-import { PageHeader } from '@/components/app-shell/PageHeader';
+import { HubPage } from '@/components/app-shell/HubPage';
 import { StatsBar } from '@/components/collection/StatsBar';
 import type { CollectionFilterJump } from '@/lib/collection/collection-insights';
 import { CardListTable } from '@/components/collection/CardListTable';
@@ -152,7 +151,113 @@ export function CollectionPage() {
     hydrating || (isEmpty && authStatus === 'authed' && getSyncState() === 'syncing');
 
   return (
-    <>
+    <HubPage
+      hub="collection"
+      section="Cards"
+      introClassName="collection-hero-meta"
+      menuLabel="More collection actions"
+      actions={[
+        {
+          label: 'Add cards',
+          icon: Plus,
+          primary: true,
+          opensDialog: true,
+          onClick: () => openAddCards('search'),
+        },
+        ...(isEmpty
+          ? []
+          : [
+              {
+                label: 'Export',
+                icon: Download,
+                opensDialog: true,
+                onClick: () => setExportOpen(true),
+              },
+              {
+                label: 'Share',
+                icon: Share2,
+                opensDialog: true,
+                onClick: () => setShareOpen(true),
+              },
+              {
+                label: 'Import history',
+                icon: History,
+                menuOnly: true,
+                opensDialog: true,
+                onClick: () => setHistoryOpen(true),
+              },
+              {
+                label: 'Delete collection',
+                icon: Trash2,
+                danger: true,
+                menuOnly: true,
+                opensDialog: true,
+                onClick: () => setDeleteOpen(true),
+              },
+            ]),
+      ]}
+      // The totals wait for the collection: a count and a price read
+      // mid-load are both wrong.
+      intro={
+        loadingCollection ? undefined : (
+          <>
+            <span aria-label="Collection totals" role="group">
+              {displayCardCount.toLocaleString()} {collectionCardCount === 1 ? 'card' : 'cards'} ·{' '}
+              {(isRefreshingPrices && priceRefreshProgress) ||
+              (!isEmpty && !pricesEverLoaded && collectionValue === 0) ? (
+                // The prominent total must not read as a settled figure
+                // while the collection is being priced for the FIRST time —
+                // not as a real $0, and not as a partial sum either. The
+                // old guard was `collectionValue === 0`, which only held
+                // until the first chunk landed and then showed the running
+                // subtotal: measured $1,646 → $3,351 → $4,770 → $7,754 over
+                // ~60s on an 11.5k-card collection. A confident $1,646
+                // against a true $7,754 is worse than showing no number.
+                //
+                // `priceRefreshProgress` covers the in-flight chunked
+                // refresh. `pricesEverLoaded` (B3-02) covers the narrower
+                // gap BEFORE that: cards can render — via sync's initial
+                // pull, all at purchasePrice 0 — a full render or more
+                // before autoRefreshStalePrices has even decided whether a
+                // refresh is needed, which is when isRefreshingPrices was
+                // false, priceRefreshProgress was null, and this pill's
+                // predecessor confidently showed "$0" instead.
+                <span className="collection-hero-pricing" aria-live="polite">
+                  <span className="sync-indicator-spinner" aria-hidden="true" />
+                  {priceRefreshProgress
+                    ? `Pricing ${priceRefreshProgress.done}/${priceRefreshProgress.total}…`
+                    : 'Pricing…'}
+                </span>
+              ) : (
+                <span title="Current market value (Scryfall)">
+                  {formatMoney(displayValue, { wholeDollars: true })}
+                </span>
+              )}
+              {cubeReservedCount > 0 && (
+                <span title="Unavailable to decks">
+                  {' · '}
+                  {cubeReservedCount.toLocaleString()} reserved by cubes
+                </span>
+              )}
+            </span>
+            {!isEmpty && (
+              <>
+                <span aria-hidden> · </span>
+                <button
+                  type="button"
+                  className="collection-hero-stats-link"
+                  onClick={() => setStatsOpen(true)}
+                  aria-label="Stats: collection breakdown"
+                >
+                  <BarChart3 width={12} height={12} strokeWidth={2} aria-hidden />
+                  <span>Stats</span>
+                </button>
+              </>
+            )}
+          </>
+        )
+      }
+    >
       {loadingCollection ? (
         <div className="page-loader page-loader--message" role="status" aria-live="polite">
           <span className="spinner" aria-hidden="true" />
@@ -178,110 +283,6 @@ export function CollectionPage() {
               a separate import screen — adding/importing happens through the
               always-present "Add cards" sheet (search · list · scan). Stats and
               Share hide when there's nothing yet to break down or share. */}
-          <PageHeader
-            title="Collection"
-            metaClassName="collection-hero-meta"
-            menuLabel="More collection actions"
-            actions={[
-              {
-                label: 'Add cards',
-                icon: Plus,
-                primary: true,
-                opensDialog: true,
-                onClick: () => openAddCards('search'),
-              },
-              ...(isEmpty
-                ? []
-                : [
-                    {
-                      label: 'Export',
-                      icon: Download,
-                      opensDialog: true,
-                      onClick: () => setExportOpen(true),
-                    },
-                    {
-                      label: 'Share',
-                      icon: Share2,
-                      opensDialog: true,
-                      onClick: () => setShareOpen(true),
-                    },
-                    {
-                      label: 'Import history',
-                      icon: History,
-                      menuOnly: true,
-                      opensDialog: true,
-                      onClick: () => setHistoryOpen(true),
-                    },
-                    {
-                      label: 'Delete collection',
-                      icon: Trash2,
-                      danger: true,
-                      menuOnly: true,
-                      opensDialog: true,
-                      onClick: () => setDeleteOpen(true),
-                    },
-                  ]),
-            ]}
-            meta={
-              <>
-                <span aria-label="Collection totals" role="group">
-                  {displayCardCount.toLocaleString()} {collectionCardCount === 1 ? 'card' : 'cards'}{' '}
-                  ·{' '}
-                  {(isRefreshingPrices && priceRefreshProgress) ||
-                  (!isEmpty && !pricesEverLoaded && collectionValue === 0) ? (
-                    // The prominent total must not read as a settled figure
-                    // while the collection is being priced for the FIRST time —
-                    // not as a real $0, and not as a partial sum either. The
-                    // old guard was `collectionValue === 0`, which only held
-                    // until the first chunk landed and then showed the running
-                    // subtotal: measured $1,646 → $3,351 → $4,770 → $7,754 over
-                    // ~60s on an 11.5k-card collection. A confident $1,646
-                    // against a true $7,754 is worse than showing no number.
-                    //
-                    // `priceRefreshProgress` covers the in-flight chunked
-                    // refresh. `pricesEverLoaded` (B3-02) covers the narrower
-                    // gap BEFORE that: cards can render — via sync's initial
-                    // pull, all at purchasePrice 0 — a full render or more
-                    // before autoRefreshStalePrices has even decided whether a
-                    // refresh is needed, which is when isRefreshingPrices was
-                    // false, priceRefreshProgress was null, and this pill's
-                    // predecessor confidently showed "$0" instead.
-                    <span className="collection-hero-pricing" aria-live="polite">
-                      <span className="sync-indicator-spinner" aria-hidden="true" />
-                      {priceRefreshProgress
-                        ? `Pricing ${priceRefreshProgress.done}/${priceRefreshProgress.total}…`
-                        : 'Pricing…'}
-                    </span>
-                  ) : (
-                    <span title="Current market value (Scryfall)">
-                      {formatMoney(displayValue, { wholeDollars: true })}
-                    </span>
-                  )}
-                  {cubeReservedCount > 0 && (
-                    <span title="Unavailable to decks">
-                      {' · '}
-                      {cubeReservedCount.toLocaleString()} reserved by cubes
-                    </span>
-                  )}
-                </span>
-                {!isEmpty && (
-                  <>
-                    <span aria-hidden> · </span>
-                    <button
-                      type="button"
-                      className="collection-hero-stats-link"
-                      onClick={() => setStatsOpen(true)}
-                      aria-label="Stats: collection breakdown"
-                    >
-                      <BarChart3 width={12} height={12} strokeWidth={2} aria-hidden />
-                      <span>Stats</span>
-                    </button>
-                  </>
-                )}
-              </>
-            }
-          />
-          <CollectionHubTabs />
           <CardListTable
             cards={cards}
             binders={materialized}
@@ -313,6 +314,6 @@ export function CollectionPage() {
           onClose={() => setAddCardsOpen(false)}
         />
       )}
-    </>
+    </HubPage>
   );
 }

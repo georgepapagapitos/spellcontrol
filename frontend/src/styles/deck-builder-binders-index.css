@@ -27,12 +27,6 @@
 /* The page header is components/app-shell/PageHeader.tsx; its layout lives in
    binder-hero.css. Don't redefine it here. */
 
-.binders-index-subtitle {
-  margin: var(--space-1-5) 0 0;
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-}
-
 /* Sticky search — sister rule to .decks-index-search-row and
    .collection-toolbar-row. Only the search bar pins; the sort/view
    row scrolls away with the list. */

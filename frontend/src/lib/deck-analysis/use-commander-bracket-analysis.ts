@@ -163,8 +163,14 @@ function withStallTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  *        Denial, Remand) counts as interaction in the power signal, and
  *        Tergrid counts as a Game Changer under its full double-faced name
  *        wherever the hardcoded list stands in for the live one.
+ *   v22 — the synergy read counts an engine's own card types as its fuel: a
+ *        tribe's members (E511), and enchantments, instants and sorceries,
+ *        and lands for the enchantress, spellslinger and landfall engines
+ *        (E531), each capped at the payoffs. A Zombie deck no longer reads
+ *        "17 payoffs but only 1 producer", and an enchantress deck's
+ *        enchantments feed it.
  */
-const ANALYSIS_ENGINE_VERSION = 'v21-calibration';
+const ANALYSIS_ENGINE_VERSION = 'v22-engine-fuel';
 
 /** Suffix marking a persisted `gradeBracketSignature` as a PARTIAL result
  *  (EDHREC was unreachable). Distinguishes it from a full result computed for

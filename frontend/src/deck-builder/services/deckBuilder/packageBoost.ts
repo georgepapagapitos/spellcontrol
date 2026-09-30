@@ -24,6 +24,7 @@
 import type { ScryfallCard } from '@/deck-builder/types';
 import { classifyCard, type CardSynergy } from '@/deck-builder/services/synergy/classify';
 import { tribalMembership, type AxisKey } from '@/deck-builder/services/synergy/axes';
+import { TYPE_MEMBERSHIP_AXES, typeAxisMembership } from '@/deck-builder/services/synergy/typeAxes';
 import { typeLineProducerAxes } from './synergyDependency';
 import { violatesUserCaps, type UserCapsConfig } from './deckFilters';
 
@@ -99,6 +100,10 @@ export function tallyAxisInvestment(
     weighted.map(({ card, weight }) => ({ card, weight, ...classified(card) }))
   );
   for (const m of membership.members) bump('tribal', 'producers', m.weight);
+  // E531: enchantments, instants and sorceries, and lands are the producers of
+  // enchantress, spellslinger and landfall, by the same capped type-line rule.
+  const entries = weighted.map(({ card, weight }) => ({ card, weight, ...classified(card) }));
+  for (const m of typeAxisMembership(entries)) bump(m.axis, 'producers', m.weight);
   const tribal = tally.get('tribal');
   if (tribal) tribal.tribes = [...membership.tribes].sort();
   return tally;
@@ -137,6 +142,15 @@ export function packageFitAxes(
     // a combo piece (Sivitri: Dragonstorm Globe over Mox Amber). The typal
     // engine is assembled by the typal pool and theme pages instead.
     if (axis === 'tribal') return;
+    // E531: nor on enchantress, spellslinger or landfall, for the same reason
+    // seen from the other side. Their producers are card types, so once the
+    // deck's own enchantments, spells and lands are counted (capped at the
+    // payoffs) the axis can only read balanced or payoff-scarce, and any real
+    // producer tips it to a payoff boost. Uncounted, the deck read
+    // producer-scarce and type-agnostic support jumped staples. Neither read is
+    // a balance the deck chose, so the boost stays off; the engine is read for
+    // the synergy panel and the average-deck read, not to re-rank picks.
+    if (TYPE_MEMBERSHIP_AXES.has(axis)) return;
     const scarce = inv[side];
     const abundant = side === 'payoffs' ? inv.producers : inv.payoffs;
     if (scarce < abundant) out.push({ axis, boost: axisBoost(scarce, abundant) });

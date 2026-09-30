@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CollectionHubTabs } from '@/components/collection/CollectionHubTabs';
-import { PageHeader } from '@/components/app-shell/PageHeader';
+import { HubPage } from '@/components/app-shell/HubPage';
 // Shared with the deck editor; ships with the two chunks, not the boot payload (E265).
 import '@/styles/deck-builder-combos-list.css';
 import type { ComboMatch } from '../types/combos';
@@ -285,49 +284,51 @@ export function CollectionCombosPage() {
     hydrating ||
     (collection.length === 0 && authStatus === 'authed' && getSyncState() === 'syncing');
 
+  // The header and tabs render while loading too, so the strip is in place
+  // before the collection is.
   if (loadingCollection) {
     return (
-      <div className="page-loader page-loader--message" role="status" aria-live="polite">
-        <span className="spinner" aria-hidden="true" />
-        <span className="page-loader-message">Loading your collection…</span>
-      </div>
+      <HubPage hub="collection" section="Combos">
+        <div className="page-loader page-loader--message" role="status" aria-live="polite">
+          <span className="spinner" aria-hidden="true" />
+          <span className="page-loader-message">Loading your collection…</span>
+        </div>
+      </HubPage>
     );
   }
 
   return (
-    <>
-      <PageHeader
-        title="Combos"
-        metaClassName="collection-hero-meta"
-        meta={
-          <span>
-            {loading
-              ? 'Checking your collection…'
-              : searchMode
-                ? // In search mode the bucket counts describe a list that
-                  // isn't on screen — showing "4 complete · 9 one away" above
-                  // 22 search results reads as a contradiction. Fall back to
-                  // the collection-wide totals, which stay true either way.
-                  `${rawComplete.length.toLocaleString()} complete · ${oneAwayTotal.toLocaleString()} one away in your collection`
-                : // The one-away bucket is CAPPED (ALMOST_LIMIT). Unfiltered,
-                  // `oneAway.length` is that cap, not a count — the hero read
-                  // "200 one away" while the panel below it said "Showing 200
-                  // of 8,409", so the page contradicted itself in the one line
-                  // read first. `oneAwayTotal` is the honest number and is
-                  // already computed above (and already suppressed on the
-                  // server path, where no total is trustworthy). Once a filter
-                  // or a search narrows the list, the narrowed count is the
-                  // true answer to the question actually being asked.
-                  `${complete.length.toLocaleString()} complete · ${(oneAwayTruncated &&
-                  filterChips.length === 0
-                    ? oneAwayTotal
-                    : oneAway.length
-                  ).toLocaleString()} one away`}
-          </span>
-        }
-      />
-      <CollectionHubTabs />
-
+    <HubPage
+      hub="collection"
+      section="Combos"
+      introClassName="collection-hero-meta"
+      intro={
+        <span>
+          {loading
+            ? 'Checking your collection…'
+            : searchMode
+              ? // In search mode the bucket counts describe a list that
+                // isn't on screen — showing "4 complete · 9 one away" above
+                // 22 search results reads as a contradiction. Fall back to
+                // the collection-wide totals, which stay true either way.
+                `${rawComplete.length.toLocaleString()} complete · ${oneAwayTotal.toLocaleString()} one away in your collection`
+              : // The one-away bucket is CAPPED (ALMOST_LIMIT). Unfiltered,
+                // `oneAway.length` is that cap, not a count — the hero read
+                // "200 one away" while the panel below it said "Showing 200
+                // of 8,409", so the page contradicted itself in the one line
+                // read first. `oneAwayTotal` is the honest number and is
+                // already computed above (and already suppressed on the
+                // server path, where no total is trustworthy). Once a filter
+                // or a search narrows the list, the narrowed count is the
+                // true answer to the question actually being asked.
+                `${complete.length.toLocaleString()} complete · ${(oneAwayTruncated &&
+                filterChips.length === 0
+                  ? oneAwayTotal
+                  : oneAway.length
+                ).toLocaleString()} one away`}
+        </span>
+      }
+    >
       {partial && (
         <div className="deck-combos-partial-banner" role="status" aria-live="polite">
           <span>Showing partial results. Some combos didn't load.</span>
@@ -514,6 +515,6 @@ export function CollectionCombosPage() {
           onClose={preview.close}
         />
       )}
-    </>
+    </HubPage>
   );
 }

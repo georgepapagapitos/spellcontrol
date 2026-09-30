@@ -261,34 +261,6 @@
 
 /* ── Create / edit dialog ─────────────────────────────────────────────── */
 
-.game-night-dialog-field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.game-night-dialog-field span {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-}
-
-.game-night-dialog-field input,
-.game-night-dialog-field select,
-.game-night-dialog-field textarea {
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text-primary);
-  font: inherit;
-  min-height: 44px;
-  box-sizing: border-box;
-}
-
-.game-night-dialog-field textarea {
-  resize: vertical;
-}
-
 /* ── Where place combobox (mirrors .set-filter-results) ───────────────── */
 
 .game-night-place-field {
@@ -329,26 +301,54 @@
   color: var(--accent);
 }
 
-.game-night-dialog-invites {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: var(--space-2) var(--space-3) var(--space-3);
+/* A group of rows (invite friends, who's in, blocked, vote times) is a
+   fieldset whose legend wears the kit's Field label, not a box with its
+   caption on the border. The rows themselves sit in one field-width rect on
+   the same surface as a .form-input, a hairline between rows. */
+.game-night-dialog-invites,
+.game-night-dialog-people,
+.game-night-dialog-options {
+  display: grid;
+  gap: var(--space-1);
+  min-inline-size: 0;
   margin: 0;
+  padding: 0;
+  border: 0;
 }
 
-.game-night-dialog-invites legend {
+.game-night-dialog-invites legend,
+.game-night-dialog-people legend,
+.game-night-dialog-options legend {
+  margin-bottom: var(--space-1);
+  padding: 0;
+  font-family: var(--font-serif);
   font-size: var(--text-sm);
+  font-weight: 500;
   color: var(--text-secondary);
-  padding: 0 var(--space-1);
+}
+
+.game-night-dialog-options {
+  gap: var(--space-2);
+}
+
+.game-night-dialog-friend-list,
+.game-night-dialog-people-list {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+  padding: 0 var(--space-3);
+}
+
+.game-night-dialog-friend-list > li + li,
+.game-night-dialog-people-list > li + li {
+  border-top: 1px solid var(--border);
 }
 
 .game-night-dialog-friend-list {
   list-style: none;
   margin: 0;
-  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
   max-height: 10rem;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -368,26 +368,11 @@
 
 /* ── "Who's in" people management (edit mode) ─────────────────────────── */
 
-.game-night-dialog-people {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: var(--space-2) var(--space-3) var(--space-3);
-  margin: 0;
-}
-
-.game-night-dialog-people legend {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  padding: 0 var(--space-1);
-}
-
 .game-night-dialog-people-list {
   list-style: none;
   margin: 0;
-  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
   max-height: 12rem;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -404,13 +389,14 @@
   margin-bottom: var(--space-2);
 }
 
-.game-night-guest-invite-add .game-night-dialog-field {
+.game-night-guest-invite-add .form-field {
   flex: 1 1 12rem;
   min-width: 0;
 }
 
+/* Level with the .form-input beside it: 40px, 44px on touch (below). */
 .game-night-guest-invite-add .btn {
-  min-height: 44px;
+  min-height: 40px;
 }
 
 .game-night-dialog-people-list li {
@@ -442,22 +428,6 @@
 
 /* ── Date-poll create mode (E124) ─────────────────────────────────────── */
 
-.game-night-dialog-options {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: var(--space-2) var(--space-3) var(--space-3);
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.game-night-dialog-options legend {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  padding: 0 var(--space-1);
-}
-
 .game-night-dialog-option-row {
   display: flex;
   /* Once a Remove button joins the row it must not crush the datetime-local
@@ -471,14 +441,6 @@
      keeping every datetime segment legible. */
   flex: 1 1 12rem;
   min-width: 0;
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text-primary);
-  font: inherit;
-  min-height: 44px;
-  box-sizing: border-box;
 }
 
 .game-night-dialog-add-option {
@@ -491,6 +453,7 @@
 @media (pointer: coarse) {
   .game-night-dialog-options .btn,
   .game-night-dialog-people-list .btn,
+  .game-night-guest-invite-add .btn,
   .game-night-dialog-actions .btn {
     min-height: 44px;
   }

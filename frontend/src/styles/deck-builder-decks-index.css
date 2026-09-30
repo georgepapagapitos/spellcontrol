@@ -12,13 +12,6 @@
   gap: var(--host-gap);
 }
 
-.decks-index-subtitle {
-  color: var(--text-secondary);
-  font-size: var(--text-sm);
-  margin: var(--space-1-5) 0 0;
-  max-width: 60ch;
-}
-
 @media (max-width: 1023px) {
   /* Stretch the page to the available viewport so the empty state and
      deck list don't float at the top of tall phones. The 8.5rem subtracts

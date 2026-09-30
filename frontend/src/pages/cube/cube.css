@@ -4,12 +4,6 @@
   padding: var(--space-4);
 }
 
-/* Header type comes from the shared .binder-hero family (binder-hero.css);
-   only the sub line's measure cap is local. */
-.cube-page-sub {
-  max-width: 60ch;
-}
-
 .cube-panel {
   margin-top: var(--space-3);
 }
