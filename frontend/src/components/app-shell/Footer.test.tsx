@@ -36,6 +36,14 @@ describe('Footer', () => {
     expect(link.getAttribute('href')).toBe('/guides/');
   });
 
+  it('links the SpellControl Discord in a new tab', () => {
+    renderFooter();
+    const link = screen.getByRole('link', { name: 'Discord' });
+    expect(link.getAttribute('href')).toBe('https://discord.gg/sQdxhWhwae');
+    expect(link.getAttribute('target')).toBe('_blank');
+    expect(link.getAttribute('rel')).toContain('noopener');
+  });
+
   it('links Privacy and Terms as static pages', () => {
     renderFooter();
     expect(screen.getByRole('link', { name: /^privacy$/i }).getAttribute('href')).toBe(

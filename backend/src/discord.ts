@@ -34,15 +34,39 @@ export function isDiscordConfigured(): boolean {
   return config() !== null;
 }
 
-export function tableChannelName(code: string): string {
-  return `${NAME_PREFIX}${code}`;
+/**
+ * Table channels are "Table 1", "Table 2", …: the lowest free number, never
+ * the join code. Every member of the server sees every channel name, so a
+ * code-named channel handed a private game's code to all of them. Which game
+ * owns which channel is the `discord_channel_id` column on its session, so a
+ * name carries nothing to match on.
+ */
+export function tableChannelName(n: number): string {
+  return `${NAME_PREFIX}${n}`;
 }
 
-/** The game code a table channel was named for, or null for anything else. */
-export function codeFromChannelName(name: string): string | null {
-  if (!name.startsWith(NAME_PREFIX)) return null;
-  const code = name.slice(NAME_PREFIX.length);
-  return /^[A-Z0-9]{4}$/.test(code) ? code : null;
+/** The number of a "Table N" channel, or null for any other name. */
+export function tableNumber(name: string): number | null {
+  const m = /^Table ([1-9]\d{0,3})$/.exec(name);
+  return m ? Number(m[1]) : null;
+}
+
+/**
+ * Whether a name in the category is one the bot made: "Table N", or a name
+ * from before numbering (the join code, then a five-digit tag). The sweep may
+ * remove these once no game owns them; anything else in the category it
+ * leaves alone.
+ */
+export function isTableChannelName(name: string): boolean {
+  return tableNumber(name) !== null || /^Table (\d{5}|[A-HJ-NP-Z2-9]{4})$/.test(name);
+}
+
+/** The lowest number no table channel is using. */
+export function lowestFreeTable(names: string[]): number {
+  const taken = new Set(names.map(tableNumber));
+  let n = 1;
+  while (taken.has(n)) n++;
+  return n;
 }
 
 async function call<T>(cfg: Config, method: string, path: string, body?: unknown): Promise<T> {
@@ -66,10 +90,10 @@ async function call<T>(cfg: Config, method: string, path: string, body?: unknown
 
 export interface TableChannel {
   id: string;
-  code: string;
+  name: string;
 }
 
-/** Every table channel under the tables category. */
+/** Every channel under the tables category that the bot made. */
 export async function listTableChannels(): Promise<TableChannel[]> {
   const cfg = config();
   if (!cfg) return [];
@@ -78,41 +102,40 @@ export async function listTableChannels(): Promise<TableChannel[]> {
     'GET',
     `/guilds/${cfg.guildId}/channels`
   );
-  const out: TableChannel[] = [];
-  for (const ch of channels) {
-    if (ch.parent_id !== cfg.categoryId) continue;
-    const code = codeFromChannelName(ch.name);
-    if (code) out.push({ id: ch.id, code });
-  }
-  return out;
+  return channels
+    .filter((ch) => ch.parent_id === cfg.categoryId && isTableChannelName(ch.name))
+    .map((ch) => ({ id: ch.id, name: ch.name }));
 }
 
 /**
- * The invite link for `code`'s table, making the channel first if there is
- * none. Reuses an existing channel so a second press, or a second host after
- * a hand-off, lands everyone in the same room. Throws when unconfigured or
- * when Discord refuses; the route turns that into a message.
+ * A game's table: its existing channel when `channelId` still exists (a
+ * second press, or a new host after a hand-off, lands in the same room),
+ * otherwise a new "Table N". Returns the channel and a fresh invite. Throws
+ * when unconfigured or when Discord refuses; the route turns that into a
+ * message.
  */
-export async function openTableChannel(code: string): Promise<string> {
+export async function openTableChannel(
+  channelId: string | null
+): Promise<{ channelId: string; url: string }> {
   const cfg = config();
   if (!cfg) throw new Error('Discord tables are not configured.');
-  const existing = (await listTableChannels()).find((ch) => ch.code === code);
-  const channelId =
-    existing?.id ??
+  const channels = await listTableChannels();
+  const id =
+    (channelId && channels.find((ch) => ch.id === channelId)?.id) ||
     (
       await call<{ id: string }>(cfg, 'POST', `/guilds/${cfg.guildId}/channels`, {
-        name: tableChannelName(code),
+        name: tableChannelName(lowestFreeTable(channels.map((ch) => ch.name))),
         type: GUILD_VOICE,
         parent_id: cfg.categoryId,
       })
     ).id;
   // A day matches the game session's own 24h lifetime; unlimited uses so a
   // spectator or a rejoin never finds the link spent.
-  const invite = await call<{ code: string }>(cfg, 'POST', `/channels/${channelId}/invites`, {
+  const invite = await call<{ code: string }>(cfg, 'POST', `/channels/${id}/invites`, {
     max_age: 24 * 60 * 60,
     max_uses: 0,
   });
-  return `https://discord.gg/${invite.code}`;
+  return { channelId: id, url: `https://discord.gg/${invite.code}` };
 }
 
 export async function deleteTableChannel(channelId: string): Promise<void> {
@@ -122,17 +145,16 @@ export async function deleteTableChannel(channelId: string): Promise<void> {
 }
 
 /**
- * Remove `code`'s table if it has one. Never throws: this runs from game
- * teardown, which must not fail because Discord is down — the periodic sweep
- * gets whatever this misses.
+ * Remove a table channel. Never throws: this runs from game teardown, which
+ * must not fail because Discord is down; the periodic sweep gets whatever
+ * this misses.
  */
-export async function closeTableChannel(code: string): Promise<void> {
+export async function closeTableChannel(channelId: string): Promise<void> {
   if (!isDiscordConfigured()) return;
   try {
-    const channel = (await listTableChannels()).find((ch) => ch.code === code);
-    if (channel) await deleteTableChannel(channel.id);
+    await deleteTableChannel(channelId);
   } catch (err) {
-    logger.warn(`[discord] closing table ${code} failed`, err);
+    logger.warn(`[discord] closing table channel ${channelId} failed`, err);
   }
 }
 
@@ -142,12 +164,6 @@ export async function closeTableChannel(code: string): Promise<void> {
  */
 export function lfgChannelId(): string | null {
   return config() ? (process.env.DISCORD_LFG_CHANNEL_ID ?? null) : null;
-}
-
-/** The server's permanent invite, for the app's "Join the Discord" link. */
-export function communityInviteUrl(): string | null {
-  const url = process.env.DISCORD_INVITE_URL;
-  return url && /^https:\/\/discord\.gg\/[A-Za-z0-9-]+$/.test(url) ? url : null;
 }
 
 /** A Discord message, as much of it as the posting needs. */

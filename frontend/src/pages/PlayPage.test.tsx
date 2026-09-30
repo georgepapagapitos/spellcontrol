@@ -61,7 +61,7 @@ vi.mock('@/lib/api', async (importOriginal) => {
 
 // The Discord status is a network read; each test says what it answers.
 const discordStatus = vi.hoisted(() => ({
-  value: { enabled: false, inviteUrl: null as string | null },
+  value: { enabled: false },
 }));
 vi.mock('@/lib/play/use-discord-status', () => ({
   useDiscordStatus: () => discordStatus.value,
@@ -1165,23 +1165,10 @@ describe('History — a co-op Horde game', () => {
   });
 });
 
-describe('Discord on the Play page', () => {
+describe('Joining from a Discord post', () => {
   afterEach(() => {
-    discordStatus.value = { enabled: false, inviteUrl: null };
+    discordStatus.value = { enabled: false };
     useAuth.setState({ user: null, status: 'guest', profile: null });
-  });
-
-  it('links the community server when the server has an invite', () => {
-    discordStatus.value = { enabled: true, inviteUrl: 'https://discord.gg/sQdxhWhwae' };
-    renderPage('/play');
-    const link = screen.getByRole('link', { name: 'Join the SpellControl Discord' });
-    expect(link.getAttribute('href')).toBe('https://discord.gg/sQdxhWhwae');
-    expect(link.getAttribute('rel')).toContain('noopener');
-  });
-
-  it('shows no Discord link without an invite', () => {
-    renderPage('/play');
-    expect(screen.queryByRole('link', { name: /Discord/ })).toBeNull();
   });
 
   // A looking-for-game post links here: the form opens with its code in.
