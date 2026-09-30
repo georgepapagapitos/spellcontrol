@@ -7,6 +7,7 @@ import type {
 } from '@/deck-builder/types';
 import { useDeckBuilderStore } from '@/deck-builder/store';
 import { useCollectionStore } from '@/store/collection';
+import { useCubeStore } from '@/store/cube';
 import { useDecksStore, newDeckCard } from '@/store/decks';
 import {
   buildAllocationMap,
@@ -56,7 +57,10 @@ export function saveGeneratedDeck(
   // Build a running allocation map so we never claim the same physical
   // copy twice within a single deck (e.g. when the deck contains
   // duplicates of a non-basic — rare in EDH but possible).
-  const claimed = new Map<string, AllocationInfo>(buildAllocationMap(existingDecks));
+  // Physical cubes' copies are taken too, read fresh like the collection.
+  const claimed = new Map<string, AllocationInfo>(
+    buildAllocationMap(existingDecks, useCubeStore.getState().saved)
+  );
 
   const allocateFor = (card: ScryfallCard): string | null => {
     // Pass card.id as the preferred printing so generated-deck allocation

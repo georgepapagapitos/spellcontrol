@@ -5,6 +5,7 @@ import { Modal } from '@/components/overlays/Modal';
 import { ProgressBar } from '@/components/import/ProgressBar';
 import { fetchImportLink, importDeckText, importDeckFile } from '@/lib/api';
 import { useDecksStore } from '../../store/decks';
+import { useCubeStore } from '../../store/cube';
 import { buildAllocationMap, type AllocationInfo } from '@/lib/collection/allocations';
 import { useBuildDeckFromImport } from '@/lib/import-export/build-deck-from-import';
 import { CommanderSearch } from './CommanderSearch';
@@ -482,7 +483,9 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
   const okDrafts = useMemo(() => drafts.filter((d) => d.status === 'ok'), [drafts]);
 
   const commitBatch = useCallback(() => {
-    const claimed = new Map<string, AllocationInfo>(buildAllocationMap(decks));
+    const claimed = new Map<string, AllocationInfo>(
+      buildAllocationMap(decks, useCubeStore.getState().saved)
+    );
     const ids: string[] = [];
     for (const d of okDrafts) {
       if (!d.result) continue;

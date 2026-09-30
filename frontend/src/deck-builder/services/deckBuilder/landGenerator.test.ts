@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { ScryfallCard } from '@/deck-builder/types';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import type { EDHRECCard, ScryfallCard } from '@/deck-builder/types';
 
 function card(name: string): ScryfallCard {
   return {
@@ -47,8 +50,10 @@ vi.mock('@/deck-builder/services/scryfall/client', () => ({
   getCardByName: vi.fn(async (name: string) => card(name)),
   getCachedCard: vi.fn((name: string) => card(name)),
   getCardPrice: vi.fn(() => null),
-  getFrontFaceTypeLine: vi.fn((c: ScryfallCard) => c.type_line),
+  getFrontFaceTypeLine: vi.fn((c: ScryfallCard) => c.card_faces?.[0]?.type_line ?? c.type_line),
   searchCards: vi.fn(async () => ({ data: [] })),
+  // Without it the merit widen threw inside its try and never ran here.
+  commanderSearchIdentity: vi.fn((identity: string[]) => identity),
 }));
 
 vi.mock('@/deck-builder/services/tagger/client', () => ({
@@ -60,7 +65,47 @@ import {
   getCardsByNames,
   getCachedCard,
   getCardByName,
+  getCardPrice,
+  searchCards,
 } from '@/deck-builder/services/scryfall/client';
+
+const REAL = new Map<string, ScryfallCard>(
+  (
+    JSON.parse(
+      readFileSync(
+        resolve(
+          dirname(fileURLToPath(import.meta.url)),
+          '__fixtures__',
+          'invariant-cards.fixture.json'
+        ),
+        'utf8'
+      )
+    ) as { cards: ScryfallCard[] }
+  ).cards.map((c) => [c.name, c])
+);
+const real = (name: string): ScryfallCard => structuredClone(REAL.get(name)!);
+
+/** generateLands with everything past `maxCardPrice` at its default. */
+function landsFor(
+  edhrecLands: EDHRECCard[],
+  colorIdentity: string[],
+  count: number,
+  basicCount: number,
+  maxCardPrice: number | null
+) {
+  return generateLands(
+    edhrecLands,
+    colorIdentity,
+    count,
+    new Set(),
+    basicCount,
+    99,
+    [],
+    undefined,
+    new Set(),
+    maxCardPrice
+  );
+}
 
 describe('countColorPips', () => {
   it('counts colored mana symbols, ignoring generic', () => {
@@ -507,5 +552,53 @@ describe('generateLands', () => {
       vi.mocked(getCachedCard).mockImplementation((name: string) => card(name));
       vi.mocked(getCardByName).mockImplementation(async (name: string) => card(name));
     }
+  });
+});
+
+describe('generateLands hard gates on real cards', () => {
+  const realPrices = (c: ScryfallCard, currency?: 'USD' | 'EUR') =>
+    (currency === 'EUR' ? c.prices?.eur : c.prices?.usd) ?? null;
+
+  // E526: the stress row "atraxa impossible" (maxCardPrice 0.5, arenaOnly)
+  // shipped Command Tower at $0.56. Its named pick checked legality alone.
+  it('holds Command Tower to the max card price', async () => {
+    vi.mocked(getCardPrice).mockImplementation(realPrices);
+    vi.mocked(getCardByName).mockImplementation(async (name: string) =>
+      name === 'Command Tower' ? real('Command Tower') : card(name)
+    );
+    try {
+      const capped = await landsFor([], ['W', 'U', 'B', 'G'], 4, 0, 0.5);
+      expect(capped.map((c) => c.name)).not.toContain('Command Tower');
+      const roomy = await landsFor([], ['W', 'U', 'B', 'G'], 4, 0, 0.6);
+      expect(roomy.map((c) => c.name)).toContain('Command Tower');
+    } finally {
+      vi.mocked(getCardPrice).mockImplementation(() => null);
+      vi.mocked(getCardByName).mockImplementation(async (name: string) => card(name));
+    }
+  });
+
+  // E525: the merit widen's `t:land (o:{W} ...)` query matches Legion's
+  // Landing, whose back face is a white-producing land. The front face is an
+  // enchantment, so it is not a land drop.
+  it('never seats a card from the merit widen whose front face is not a land', async () => {
+    vi.mocked(getCardsByNames).mockResolvedValueOnce(
+      new Map([['Seat of the Synod', real('Seat of the Synod')]])
+    );
+    vi.mocked(searchCards).mockResolvedValueOnce({
+      data: [real("Legion's Landing // Adanto, the First Fort"), real('Seat of the Synod')],
+    } as Awaited<ReturnType<typeof searchCards>>);
+    const edhrecLands: EDHRECCard[] = [
+      {
+        name: 'Seat of the Synod',
+        sanitized: 'seat-of-the-synod',
+        primary_type: 'Land',
+        inclusion: 40,
+        num_decks: 1000,
+      },
+    ];
+    const lands = await landsFor(edhrecLands, ['W', 'U'], 3, 1, null);
+    const names = lands.map((c) => c.name);
+    expect(names).toContain('Seat of the Synod');
+    expect(names).not.toContain("Legion's Landing // Adanto, the First Fort");
   });
 });

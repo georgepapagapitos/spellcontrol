@@ -81,8 +81,26 @@ describe('createTagLookup', () => {
 });
 
 describe('HARDCODED_GAME_CHANGERS', () => {
-  it('is the RC list at the size the comment claims', () => {
-    expect(HARDCODED_GAME_CHANGERS.size).toBe(53);
+  it('is the RC list at the size the comment claims: 53 cards, a DFC under both names', () => {
+    const cards = new Set([...HARDCODED_GAME_CHANGERS].map((n) => n.split(' // ')[0]));
+    expect(cards.size).toBe(53);
+    expect(HARDCODED_GAME_CHANGERS.size).toBe(54);
+  });
+
+  it('names a double-faced Game Changer the way a deck lists it, not only by front face', () => {
+    // A deck card, the tagger and the backend card cache all carry the full
+    // Scryfall name; the backend's check_bracket has no other list to use.
+    const est = estimateBracket(
+      ["Tergrid, God of Fright // Tergrid's Lantern", 'Swamp'],
+      [],
+      3,
+      undefined,
+      undefined,
+      new Set(HARDCODED_GAME_CHANGERS),
+      createTagLookup({})
+    );
+    expect(est.breakdown.gameChangerCount).toBe(1);
+    expect(est.bracket).toBe(3);
   });
 
   it('carries the apostrophe and comma names exactly as Scryfall spells them', () => {

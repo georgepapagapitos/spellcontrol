@@ -362,18 +362,7 @@ beforeEach(() => {
 // E508: what the invariant checker finds on main today, pinned by test name
 // and check with the evidence. A pinned check must still fire (a fix fails
 // the test until its entry is deleted); anything unpinned fails outright.
-const KNOWN_INVARIANT_FAILURES: Record<string, { checks: InvariantCheck[]; why: string }> = {
-  // Fixture artifact, not a generator bug on real data: this test's
-  // searchCards mock answers EVERY query with 60 owned creatures, including
-  // landGenerator's merit widen (`t:land (...) -t:basic`), which trusts the
-  // query to return lands and seats Owned_32..Owned_56 in categories.lands.
-  // Real Scryfall scopes that query. Same mechanism as the two pinned cases
-  // in deckGenerator.settings.test.ts.
-  'fills an owned-only deck from the collection (no outside cards) when owned cards suffice': {
-    checks: ['spell-in-land-slot'],
-    why: 'searchCards mock ignores the t:land query of landGenerator',
-  },
-};
+const KNOWN_INVARIANT_FAILURES: Record<string, { checks: InvariantCheck[]; why: string }> = {};
 
 afterEach(({ task }) => {
   const pinned = new Set(KNOWN_INVARIANT_FAILURES[task.name]?.checks ?? []);

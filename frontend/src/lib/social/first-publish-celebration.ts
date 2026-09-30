@@ -8,7 +8,7 @@
  * to DeckEditorPage's `justPublished` landing effect). All four routes
  * funnel through this one function so "once per deck per app-open" holds
  * regardless of entry surface, mirroring the canonical module-level-Set
- * pattern (`celebratedDeckComplete` in DeckDisplay.tsx,
+ * pattern (`celebratedDeckComplete` in use-deck-complete-moment.ts,
  * `celebratedBinderCleared` in BinderDriftBanner.tsx) but centralized here
  * instead of forked per file, since this guard has more than one call site.
  */

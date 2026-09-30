@@ -10,6 +10,7 @@ import { deckNameForCommander, newDeckCard, type Deck, type DeckCard } from '@/s
 import { commanderEligibleFor } from '@/lib/import-export/deck-import-format';
 import { cardKey, type CardDelta, type CardListDiff } from './deck-diff';
 import type { EnrichedCard } from '@/types/index';
+import type { SavedCube } from '@/store/cube';
 
 /**
  * Text/bulk-edit view (E168 slice 4, the last one). The whole point of this
@@ -294,7 +295,7 @@ export function buildBulkEditPlan(
   parsed: ParsedBulkEdit,
   resolvedByName: ReadonlyMap<string, ScryfallCard>,
   formatConfig: DeckFormatConfig,
-  ctx: { decks: Deck[]; collectionCards: EnrichedCard[] }
+  ctx: { decks: Deck[]; cubes: readonly SavedCube[]; collectionCards: EnrichedCard[] }
 ): BulkEditPlan {
   const known = collectKnownCards(deck);
   const resolve = (name: string): ScryfallCard | undefined =>
@@ -330,7 +331,7 @@ export function buildBulkEditPlan(
   // Claims across every OTHER deck (and this deck's current, pre-edit state —
   // reused slots below never call pickCollectionCopy, so this deck's own
   // surviving claims never spuriously block its own growth).
-  const claimed = new Map<string, AllocationInfo>(buildAllocationMap(ctx.decks));
+  const claimed = new Map<string, AllocationInfo>(buildAllocationMap(ctx.decks, ctx.cubes));
 
   const added = new Map<string, number>();
 

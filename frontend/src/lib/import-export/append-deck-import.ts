@@ -14,6 +14,7 @@ import {
 import { getMaxCopies } from '@/lib/deck/deck-validation';
 import { deckNameForCommander, type Deck, type DeckCard } from '@/store/decks';
 import type { DeckImportResponse, EnrichedCard } from '@/types/index';
+import type { SavedCube } from '@/store/cube';
 
 /**
  * Commander-zone decision for pasting into a deck that already exists —
@@ -136,7 +137,7 @@ export function buildAppendPlan(
   result: DeckImportResponse,
   chosenCommander: ScryfallCard | null,
   chosenPartner: ScryfallCard | null,
-  ctx: { decks: Deck[]; collectionCards: EnrichedCard[] }
+  ctx: { decks: Deck[]; cubes: readonly SavedCube[]; collectionCards: EnrichedCard[] }
 ): AppendPlan {
   const config = DECK_FORMAT_CONFIGS[deck.format];
   const decision = resolveAppendCommanderDecision(deck.format, deck.commander, result);
@@ -203,7 +204,7 @@ export function buildAppendPlan(
     mainCandidates = [pastedCommander, ...mainCandidates];
   }
 
-  const claimed = new Map<string, AllocationInfo>(buildAllocationMap(ctx.decks));
+  const claimed = new Map<string, AllocationInfo>(buildAllocationMap(ctx.decks, ctx.cubes));
   const newMain = allocateCardsForImport(
     filterForCopyLimit(mainCandidates),
     ctx.collectionCards,

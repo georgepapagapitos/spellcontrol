@@ -6,6 +6,8 @@ import type { GameRecord, GameState } from '@/lib/play/game-state';
 import { gameFormatLabel } from '@/lib/play/game-formats';
 import { aggregateDeckRecords } from '../../store/play';
 import { Button } from '@/components/shared/Button';
+import { DiscordMark } from '@/components/shared/DiscordMark';
+import { useDiscordStatus } from '@/lib/play/use-discord-status';
 import { Surface } from '@/components/shared/Surface';
 import { ONLINE_PLAY_HINT, TABLE_PLAY_HINT } from '@/lib/util/shared-copy';
 
@@ -49,6 +51,7 @@ export function PlayHome({
   // every re-render (the purity rule), and a night doesn't slip into the past
   // while you look at it.
   const [now] = useState(() => Date.now());
+  const { inviteUrl } = useDiscordStatus();
   const nextNight = useMemo(() => {
     return (
       nights
@@ -123,6 +126,17 @@ export function PlayHome({
           </span>
         </button>
       </section>
+
+      {inviteUrl && (
+        <div className="play-home-discord">
+          <Button href={inviteUrl} target="_blank" rel="noreferrer noopener" icon={<DiscordMark />}>
+            Join the SpellControl Discord
+          </Button>
+          <span className="play-home-discord-sub">
+            Open public tables are posted there, and every table can have a voice channel.
+          </span>
+        </div>
+      )}
 
       {!isGuest && (
         <Surface

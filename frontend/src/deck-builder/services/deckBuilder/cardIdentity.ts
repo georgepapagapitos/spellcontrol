@@ -1,8 +1,7 @@
 // Card identity helpers shared by the shipped-deck checker (deckInvariants.ts)
 // and the whole-deck objective's hard constraints (deckObjective/). A LEAF:
-// it imports only types, so a module the generator depends on can use it
-// without dragging deckGenerator.ts back in (deckInvariants value-imports the
-// generator for one constant; the objective must not).
+// it imports only types, so the objective (which must never reach the
+// generator: deckObjective/layering.test.ts) can use them.
 import type { ScryfallCard } from '@/deck-builder/types';
 
 /** Case/punctuation/diacritic-insensitive name key. Mirrors the generator's

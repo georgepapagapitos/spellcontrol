@@ -275,16 +275,35 @@ describe('buildLandCountClampNote', () => {
 });
 
 describe('buildPoolExhaustionNote', () => {
-  it('is undefined when the excess is within routine land-generation rounding', () => {
+  // E529: a 1-3 land excess was called rounding and never disclosed, but
+  // land generation delivers its planned count exactly; the extra basics are
+  // padding for spells the pool ran out of (Tatyova PDH shipped 39 on 38).
+  it('discloses a one-land excess', () => {
     expect(
       buildPoolExhaustionNote({
-        plannedLandCount: 37,
-        finalLandCount: 38,
-        finalNonLandCount: 61,
+        plannedLandCount: 38,
+        finalLandCount: 39,
+        finalNonLandCount: 60,
         hasScryfallQuery: false,
         hasCollectionNames: false,
       })
-    ).toBeUndefined();
+    ).toBe(
+      'Ran out of cards after 60 spells. 1 slot is a basic land because your budget and card limits left too few cards to choose from.'
+    );
+  });
+
+  it('is undefined when the deck ships its planned land count or fewer', () => {
+    for (const finalLandCount of [37, 36]) {
+      expect(
+        buildPoolExhaustionNote({
+          plannedLandCount: 37,
+          finalLandCount,
+          finalNonLandCount: 62,
+          hasScryfallQuery: false,
+          hasCollectionNames: false,
+        })
+      ).toBeUndefined();
+    }
   });
 
   it('names your Scryfall filter as the cause when one is set', () => {

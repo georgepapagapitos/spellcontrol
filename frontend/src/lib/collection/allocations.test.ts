@@ -74,7 +74,7 @@ describe('buildAllocationMap', () => {
         { slotId: 's2', card: { name: 'Mana Crypt' } as never, allocatedCopyId: null },
       ],
     });
-    const map = buildAllocationMap([d]);
+    const map = buildAllocationMap([d], []);
     expect(map.size).toBe(3);
     expect(map.get('copy-cmd')?.cardName).toBe("Atraxa, Praetors' Voice");
     expect(map.get('copy-partner')?.deckName).toBe('Atraxa');
@@ -86,7 +86,7 @@ describe('buildAllocationMap', () => {
       commander: { name: 'X' } as never,
       commanderAllocatedCopyId: null,
     });
-    expect(buildAllocationMap([d]).size).toBe(0);
+    expect(buildAllocationMap([d], []).size).toBe(0);
   });
 
   it('reports a double-claim to onCollision (E133 prod-visibility hook) without changing map contents', () => {
@@ -101,7 +101,7 @@ describe('buildAllocationMap', () => {
       cards: [{ slotId: 's2', card: { name: 'Sol Ring' } as never, allocatedCopyId: 'shared' }],
     });
     const collisions: { copyId: string; prior: AllocationInfo; next: AllocationInfo }[] = [];
-    const map = buildAllocationMap([d1, d2], undefined, (c) => collisions.push(c));
+    const map = buildAllocationMap([d1, d2], [], (c) => collisions.push(c));
     expect(map.size).toBe(1); // last write wins, same as before this param existed
     expect(map.get('shared')?.deckName).toBe('B');
     expect(collisions).toHaveLength(1);
@@ -121,8 +121,8 @@ describe('buildAllocationMap', () => {
       id: 'd2',
       cards: [{ slotId: 's2', card: { name: 'Sol Ring' } as never, allocatedCopyId: 'shared' }],
     });
-    expect(() => buildAllocationMap([d1, d2])).not.toThrow();
-    expect(buildAllocationMap([d1, d2]).size).toBe(1);
+    expect(() => buildAllocationMap([d1, d2], [])).not.toThrow();
+    expect(buildAllocationMap([d1, d2], []).size).toBe(1);
   });
 
   // E122: a card parked in Considering can still hold a physical copy (the
@@ -136,7 +136,7 @@ describe('buildAllocationMap', () => {
         { slotId: 'p1', card: { name: 'Rhystic Study' } as never, allocatedCopyId: 'copy-rs' },
       ],
     });
-    const map = buildAllocationMap([d]);
+    const map = buildAllocationMap([d], []);
     expect(map.size).toBe(1);
     expect(map.get('copy-rs')?.cardName).toBe('Rhystic Study');
     expect(map.get('copy-rs')?.deckName).toBe('Park');
@@ -156,7 +156,7 @@ describe('buildAllocationMap', () => {
       cards: [{ slotId: 's1', card: { name: 'Sol Ring' } as never, allocatedCopyId: 'shared' }],
     });
     const collisions: { copyId: string; prior: AllocationInfo; next: AllocationInfo }[] = [];
-    const map = buildAllocationMap([d1, d2], undefined, (c) => collisions.push(c));
+    const map = buildAllocationMap([d1, d2], [], (c) => collisions.push(c));
     expect(map.size).toBe(1);
     expect(collisions).toHaveLength(1);
     expect(collisions[0]).toMatchObject({ prior: { deckName: 'A' }, next: { deckName: 'B' } });
@@ -559,7 +559,7 @@ describe('findSuboptimalPrintings', () => {
       card({ copyId: 'wrong-copy', name: 'Sol Ring', scryfallId: 'sf-other', setCode: 'C20' }),
       card({ copyId: 'right-copy', name: 'Sol Ring', scryfallId: 'sf-pref', setCode: 'CMR' }),
     ];
-    const out = findSuboptimalPrintings([d], collection);
+    const out = findSuboptimalPrintings([d], collection, []);
     expect(out).toHaveLength(1);
     expect(out[0]).toMatchObject({
       deckName: 'A',
@@ -580,7 +580,7 @@ describe('findSuboptimalPrintings', () => {
       card({ copyId: 'wrong-copy', name: 'Plains', scryfallId: 'sf-other', setCode: 'M20' }),
       card({ copyId: 'right-copy', name: 'Plains', scryfallId: 'sf-pref', setCode: 'ECL' }),
     ];
-    const out = findSuboptimalPrintings([d], collection);
+    const out = findSuboptimalPrintings([d], collection, []);
     expect(out).toHaveLength(1);
     expect(out[0]).toMatchObject({ cardName: 'Plains', preferredScryfallId: 'sf-pref' });
   });
@@ -595,7 +595,7 @@ describe('findSuboptimalPrintings', () => {
       card({ copyId: 'wrong-copy', name: 'Sol Ring', scryfallId: 'sf-other', setCode: 'C20' }),
       card({ copyId: 'free-pref', name: 'Sol Ring', scryfallId: 'sf-pref', setCode: 'CMR' }),
     ];
-    const out = findSuboptimalPrintings([d], collection);
+    const out = findSuboptimalPrintings([d], collection, []);
     expect(out).toHaveLength(1);
     expect(out[0].preferredFree).toBe(true);
   });
@@ -616,7 +616,7 @@ describe('findSuboptimalPrintings', () => {
       card({ copyId: 'wrong-copy', name: 'Sol Ring', scryfallId: 'sf-other', setCode: 'C20' }),
       card({ copyId: 'pref-copy', name: 'Sol Ring', scryfallId: 'sf-pref', setCode: 'CMR' }),
     ];
-    const out = findSuboptimalPrintings([d1, d2], collection);
+    const out = findSuboptimalPrintings([d1, d2], collection, []);
     const d1Row = out.find((r) => r.deckId === 'd1');
     expect(d1Row).toBeDefined();
     expect(d1Row!.preferredFree).toBe(false);
@@ -628,7 +628,7 @@ describe('findSuboptimalPrintings', () => {
       cards: [slot('Plains', 'sf-pref', 'right-copy')],
     });
     const collection = [card({ copyId: 'right-copy', name: 'Plains', scryfallId: 'sf-pref' })];
-    expect(findSuboptimalPrintings([d], collection)).toHaveLength(0);
+    expect(findSuboptimalPrintings([d], collection, [])).toHaveLength(0);
   });
 
   it('does not report when the preferred printing is not owned at all', () => {
@@ -638,7 +638,7 @@ describe('findSuboptimalPrintings', () => {
       cards: [slot('Plains', 'sf-pref', 'only-copy')],
     });
     const collection = [card({ copyId: 'only-copy', name: 'Plains', scryfallId: 'sf-other' })];
-    expect(findSuboptimalPrintings([d], collection)).toHaveLength(0);
+    expect(findSuboptimalPrintings([d], collection, [])).toHaveLength(0);
   });
 
   it('does not report unallocated slots', () => {
@@ -647,7 +647,7 @@ describe('findSuboptimalPrintings', () => {
       cards: [slot('Plains', 'sf-pref', null)],
     });
     const collection = [card({ copyId: 'c', name: 'Plains', scryfallId: 'sf-pref' })];
-    expect(findSuboptimalPrintings([d], collection)).toHaveLength(0);
+    expect(findSuboptimalPrintings([d], collection, [])).toHaveLength(0);
   });
 
   it('checks commander, partner, and sideboard alongside the main deck', () => {
@@ -668,7 +668,7 @@ describe('findSuboptimalPrintings', () => {
       card({ copyId: 'side-wrong', name: 'Bolt', scryfallId: 'sf-bolt-other' }),
       card({ copyId: 'side-right', name: 'Bolt', scryfallId: 'sf-bolt-pref' }),
     ];
-    const out = findSuboptimalPrintings([d], collection);
+    const out = findSuboptimalPrintings([d], collection, []);
     expect(out).toHaveLength(3);
     expect(out.map((r) => r.cardName).sort()).toEqual(['Atraxa', 'Bolt', 'Thrasios']);
   });
@@ -844,14 +844,16 @@ describe('planCardAdd', () => {
   it('binds a free owned copy when one is available', () => {
     const decks = [deck({ id: 'd1' })];
     const collection = [card({ copyId: 'free', name: 'Sol Ring' })];
-    expect(planCardAdd('Sol Ring', undefined, collection, decks)).toEqual({
+    expect(planCardAdd('Sol Ring', undefined, collection, decks, [])).toEqual({
       kind: 'bind',
       copyId: 'free',
     });
   });
 
   it('lists (no move) when the card is not owned', () => {
-    expect(planCardAdd('Sol Ring', undefined, [], [deck({ id: 'd1' })])).toEqual({ kind: 'list' });
+    expect(planCardAdd('Sol Ring', undefined, [], [deck({ id: 'd1' })], [])).toEqual({
+      kind: 'list',
+    });
   });
 
   it('lists, never moves, when the only copy is in another deck mainboard', () => {
@@ -861,7 +863,7 @@ describe('planCardAdd', () => {
     ];
     const collection = [card({ copyId: 'shared', name: 'Sol Ring' })];
     // Owned but elsewhere → just list it; the copy is NOT pulled out of d2.
-    expect(planCardAdd('Sol Ring', undefined, collection, decks)).toEqual({ kind: 'list' });
+    expect(planCardAdd('Sol Ring', undefined, collection, decks, [])).toEqual({ kind: 'list' });
   });
 
   it('lists, never moves, when the only copy is another deck commander', () => {
@@ -875,7 +877,7 @@ describe('planCardAdd', () => {
       }),
     ];
     const collection = [card({ copyId: 'cmd', name: 'Sol Ring' })];
-    expect(planCardAdd('Sol Ring', undefined, collection, decks)).toEqual({ kind: 'list' });
+    expect(planCardAdd('Sol Ring', undefined, collection, decks, [])).toEqual({ kind: 'list' });
   });
 
   it('prefers binding a free copy over listing', () => {
@@ -887,7 +889,7 @@ describe('planCardAdd', () => {
       card({ copyId: 'in-donor', name: 'Sol Ring' }),
       card({ copyId: 'free', name: 'Sol Ring' }),
     ];
-    expect(planCardAdd('Sol Ring', undefined, collection, decks)).toEqual({
+    expect(planCardAdd('Sol Ring', undefined, collection, decks, [])).toEqual({
       kind: 'bind',
       copyId: 'free',
     });
@@ -908,7 +910,7 @@ describe('listContestedCards', () => {
       cards: [dc('ds1', 'Sol Ring', 'shared')],
     });
     const collection = [card({ copyId: 'shared', name: 'Sol Ring' })];
-    expect(listContestedCards(current, collection, [current, donor])).toEqual([
+    expect(listContestedCards(current, collection, [current, donor], [])).toEqual([
       {
         slotId: 's1',
         cardName: 'Sol Ring',
@@ -930,7 +932,7 @@ describe('listContestedCards', () => {
     });
     const collection = [card({ copyId: 'cmd', name: 'Sol Ring' })];
     expect(
-      listContestedCards(current, collection, [current, donor]).map((c) => c.cardName)
+      listContestedCards(current, collection, [current, donor], []).map((c) => c.cardName)
     ).toEqual(['Sol Ring']);
   });
 
@@ -945,12 +947,12 @@ describe('listContestedCards', () => {
       card({ copyId: 'c1', name: 'Sol Ring' }),
       card({ copyId: 'c2', name: 'Sol Ring' }),
     ];
-    expect(listContestedCards(current, collection, [current, donor])[0].owned).toBe(2);
+    expect(listContestedCards(current, collection, [current, donor], [])[0].owned).toBe(2);
   });
 
   it('excludes a card you do not own', () => {
     const current = deck({ id: 'd1', cards: [dc('s1', 'Foo', null)] });
-    expect(listContestedCards(current, [], [current])).toEqual([]);
+    expect(listContestedCards(current, [], [current], [])).toEqual([]);
   });
 
   it('excludes a card with a free copy available (not contested)', () => {
@@ -960,13 +962,13 @@ describe('listContestedCards', () => {
       card({ copyId: 'used', name: 'Sol Ring' }),
       card({ copyId: 'free', name: 'Sol Ring' }),
     ];
-    expect(listContestedCards(current, collection, [current, donor])).toEqual([]);
+    expect(listContestedCards(current, collection, [current, donor], [])).toEqual([]);
   });
 
   it('excludes a slot already bound to a copy', () => {
     const current = deck({ id: 'd1', name: 'Current', cards: [dc('s1', 'Sol Ring', 'mine')] });
     const collection = [card({ copyId: 'mine', name: 'Sol Ring' })];
-    expect(listContestedCards(current, collection, [current])).toEqual([]);
+    expect(listContestedCards(current, collection, [current], [])).toEqual([]);
   });
 });
 
@@ -1068,8 +1070,8 @@ describe('buildAllocationMap with physical cubes', () => {
     const d = deck({
       cards: [{ slotId: 's1', card: { name: 'Sol Ring' } as never, allocatedCopyId: 'c1' }],
     });
-    expect(buildAllocationMap([d]).size).toBe(1);
-    expect(buildAllocationMap([d]).get('c1')?.ownerKind).toBe('deck');
+    expect(buildAllocationMap([d], []).size).toBe(1);
+    expect(buildAllocationMap([d], []).get('c1')?.ownerKind).toBe('deck');
   });
 
   it('lets a deck steal a copy held by a physical cube (leave-gap cube donor)', () => {
@@ -1133,13 +1135,13 @@ describe('buildAllocationMap with physical cubes', () => {
 describe('classifyPrintingAvailability', () => {
   it('returns unowned when no copy of the printing exists', () => {
     const collection = [card({ copyId: 'a', scryfallId: 'sf-other' })];
-    const map = buildAllocationMap([]);
+    const map = buildAllocationMap([], []);
     expect(classifyPrintingAvailability('sf-target', collection, map)).toBe('unowned');
   });
 
   it('returns owned when a free copy of the printing exists', () => {
     const collection = [card({ copyId: 'a', scryfallId: 'sf-target' })];
-    const map = buildAllocationMap([]);
+    const map = buildAllocationMap([], []);
     expect(classifyPrintingAvailability('sf-target', collection, map)).toBe('owned');
   });
 
@@ -1155,7 +1157,7 @@ describe('classifyPrintingAvailability', () => {
         },
       ],
     });
-    const map = buildAllocationMap([other]);
+    const map = buildAllocationMap([other], []);
     expect(classifyPrintingAvailability('sf-target', collection, map, 'current')).toBe(
       'in-other-deck'
     );
@@ -1173,7 +1175,7 @@ describe('classifyPrintingAvailability', () => {
         },
       ],
     });
-    const map = buildAllocationMap([current]);
+    const map = buildAllocationMap([current], []);
     expect(classifyPrintingAvailability('sf-target', collection, map, 'current')).toBe('owned');
   });
 
@@ -1192,7 +1194,7 @@ describe('classifyPrintingAvailability', () => {
         },
       ],
     });
-    const map = buildAllocationMap([other]);
+    const map = buildAllocationMap([other], []);
     expect(classifyPrintingAvailability('sf-target', collection, map, 'current')).toBe('owned');
   });
 
@@ -1242,7 +1244,7 @@ describe('computeSurplusByName', () => {
       cards: [{ slotId: 's1', card: { name: 'Sol Ring' } as never, allocatedCopyId: 'a' }],
     });
     const cards = [card({ copyId: 'a', name: 'Sol Ring' })];
-    const allocations = buildAllocationMap([d]);
+    const allocations = buildAllocationMap([d], []);
     const surplus = computeSurplusByName(cards, allocations);
     expect(surplus.has('Sol Ring')).toBe(false);
   });
@@ -1256,7 +1258,7 @@ describe('computeSurplusByName', () => {
       card({ copyId: 'b', name: 'Sol Ring' }),
       card({ copyId: 'c', name: 'Sol Ring' }),
     ];
-    const allocations = buildAllocationMap([d]);
+    const allocations = buildAllocationMap([d], []);
     // 1 allocated, 2 unallocated - 1 kept = 1 tradeable.
     const surplus = computeSurplusByName(cards, allocations);
     expect(surplus.get('Sol Ring')).toBe(1);
@@ -1311,7 +1313,7 @@ describe('computeSurplusByName', () => {
       card({ copyId: 'forest-1', name: 'Forest' }),
       card({ copyId: 'forest-2', name: 'Forest' }),
     ];
-    const allocations = buildAllocationMap([d]);
+    const allocations = buildAllocationMap([d], []);
     const expected = new Map<string, number>();
     const unallocated = new Map<string, number>();
     for (const c of cards) {

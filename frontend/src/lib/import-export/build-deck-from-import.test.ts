@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { DeckImportResponse, EnrichedCard } from '@/types/index';
 import { buildDeckInputFromImport } from './build-deck-from-import';
+import type { SavedCube } from '@/store/cube';
 
 function sc(name: string, id: string): ScryfallCard {
   return { id, name } as unknown as ScryfallCard;
@@ -34,13 +35,35 @@ function result(
   };
 }
 
-const ctxEmpty = { decks: [], collectionCards: [] as EnrichedCard[] };
+const ctxEmpty = { decks: [], cubes: [], collectionCards: [] as EnrichedCard[] };
 
 describe('buildDeckInputFromImport', () => {
+  it('does not claim a copy a physical cube holds (E542)', () => {
+    const cards = [sc('Sol Ring', 'sol')];
+    const cube = {
+      id: 'cube-1',
+      name: 'Shelf',
+      isPhysical: true,
+      picks: [
+        {
+          slotId: '0',
+          card: { name: 'Sol Ring' },
+          allocatedCopyId: 'copy-sol',
+          printingFinishKey: null,
+        },
+      ],
+    } as unknown as SavedCube;
+    const ctx = { decks: [], cubes: [cube], collectionCards: [owned('Sol Ring', 'copy-sol')] };
+
+    const input = buildDeckInputFromImport(result(cards), null, 'Deck', 'commander', ctx);
+
+    expect(input.cards[0].allocatedCopyId).toBeNull();
+  });
+
   it('keeps the commander out of the 99 and allocates owned copies', () => {
     const commander = sc('Zada, Hedron Grinder', 'zada');
     const cards = [commander, sc('Sol Ring', 'sol'), sc('Mountain', 'mtn')];
-    const ctx = { decks: [], collectionCards: [owned('Sol Ring', 'copy-sol')] };
+    const ctx = { decks: [], cubes: [], collectionCards: [owned('Sol Ring', 'copy-sol')] };
 
     const input = buildDeckInputFromImport(
       result(cards, commander),
@@ -98,7 +121,7 @@ describe('buildDeckInputFromImport', () => {
 
   it('shares a claim map so two decks never grab the same physical copy', () => {
     const claimed = new Map();
-    const ctx = { decks: [], collectionCards: [owned('Sol Ring', 'copy-sol')] };
+    const ctx = { decks: [], cubes: [], collectionCards: [owned('Sol Ring', 'copy-sol')] };
     const a = buildDeckInputFromImport(
       result([sc('Sol Ring', 'sol')]),
       null,
@@ -127,6 +150,7 @@ describe('buildDeckInputFromImport', () => {
     const commander = sc('Zada, Hedron Grinder', 'zada');
     const ctx = {
       decks: [],
+      cubes: [],
       collectionCards: [owned('Negate', 'copy-negate'), owned('Rhystic Study', 'copy-rhystic')],
     };
     const input = buildDeckInputFromImport(

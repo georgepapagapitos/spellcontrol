@@ -1,4 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   calculateCardPriority,
   isHighSynergyCard,
@@ -1554,4 +1557,47 @@ describe('wipeQualityPenalty (E112/E113)', () => {
       WIPE_QUALITY_SYMMETRIC_PENALTY
     );
   });
+});
+
+// E525: an EDHREC type pass seats its picks in spell slots, and the pool's
+// type label can't keep a land out: Dryad Arbor is a Creature to EDHREC, and
+// a Land Creature also passes the Unknown-type check. The front face decides.
+describe('pickFromPrefetchedWithCurve seats spells only (E525)', () => {
+  const REAL = new Map<string, ScryfallCard>(
+    (
+      JSON.parse(
+        readFileSync(
+          resolve(
+            dirname(fileURLToPath(import.meta.url)),
+            '__fixtures__',
+            'invariant-cards.fixture.json'
+          ),
+          'utf8'
+        )
+      ) as { cards: ScryfallCard[] }
+    ).cards.map((c) => [c.name, c])
+  );
+
+  it.each(['Creature', 'Unknown'])(
+    'skips Dryad Arbor in a creature pass (EDHREC type %s)',
+    (primaryType) => {
+      const pool = [
+        ec({ name: 'Dryad Arbor', inclusion: 60, primary_type: primaryType }),
+        ec({ name: 'Llanowar Elves', inclusion: 50, primary_type: 'Creature' }),
+      ];
+      const map = new Map(pool.map((c) => [c.name, structuredClone(REAL.get(c.name)!)]));
+      const picked = pickFromPrefetchedWithCurve(
+        pool,
+        map,
+        2,
+        new Set<string>(),
+        ['G'],
+        { 0: 1, 1: 1 },
+        {},
+        new Set(),
+        'Creature'
+      );
+      expect(picked.map((c) => c.name)).toEqual(['Llanowar Elves']);
+    }
+  );
 });

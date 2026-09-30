@@ -3,7 +3,8 @@ import request from 'supertest';
 import http, { type Server } from 'node:http';
 import type { Pool } from 'pg';
 import { createTestEnv, extractSessionCookie } from '../test-helpers';
-import { isUniqueViolation, SIGNAL_EMOTES } from './games';
+import { isUniqueViolation } from '../games/sessions';
+import { SIGNAL_EMOTES } from '../games/live-registry';
 import { sweepDiscordTables } from '../games/discord-tables';
 
 describe('isUniqueViolation (F20 join-code race guard)', () => {
@@ -3192,10 +3193,24 @@ describe('Discord tables', () => {
   it('reports whether it is set up', async () => {
     const cookie = await registerAndGetCookie('dc_status');
     const off = await request(app).get('/api/games/discord').set('Cookie', cookie);
-    expect(off.body).toEqual({ enabled: false });
+    expect(off.body).toEqual({ enabled: false, inviteUrl: null });
     installFakeDiscord();
     const on = await request(app).get('/api/games/discord').set('Cookie', cookie);
-    expect(on.body).toEqual({ enabled: true });
+    expect(on.body).toEqual({ enabled: true, inviteUrl: null });
+  });
+
+  it('hands out the community invite only when it is a discord.gg link', async () => {
+    const cookie = await registerAndGetCookie('dc_invite');
+    try {
+      process.env.DISCORD_INVITE_URL = 'https://discord.gg/sQdxhWhwae';
+      const ok = await request(app).get('/api/games/discord').set('Cookie', cookie);
+      expect(ok.body.inviteUrl).toBe('https://discord.gg/sQdxhWhwae');
+      process.env.DISCORD_INVITE_URL = 'javascript:alert(1)';
+      const bad = await request(app).get('/api/games/discord').set('Cookie', cookie);
+      expect(bad.body.inviteUrl).toBe(null);
+    } finally {
+      delete process.env.DISCORD_INVITE_URL;
+    }
   });
 
   it('answers 503 when not set up', async () => {
