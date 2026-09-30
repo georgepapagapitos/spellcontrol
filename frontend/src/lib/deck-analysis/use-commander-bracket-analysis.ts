@@ -159,13 +159,17 @@ function withStallTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  *   v20 — the Bracket Fit plan finds a double-faced card's EDHREC entry under
  *        its front face, so its cut order ranks the card by real priority
  *        instead of 0 (E490).
- *   v21 — Coach's cut and suggestion inputs (T171 lane M): premium cards and
+ *   v21 — calibration pass (E541): a counterspell that also draws (Arcane
+ *        Denial, Remand) counts as interaction in the power signal, and
+ *        Tergrid counts as a Game Changer under its full double-faced name
+ *        wherever the hardcoded list stands in for the live one.
+ *   v22 — Coach's cut and suggestion inputs (T171 lane M): premium cards and
  *        cards whose role is at or under target are no longer misfits or
  *        optimizer removals, suggestion rows carry price and rarity for the
  *        deck's settings, synergy picks say when their engine is only
  *        budding, and one-away combo pieces are recorded (`suggestionCards`).
  */
-const ANALYSIS_ENGINE_VERSION = 'v21-coach-inputs';
+const ANALYSIS_ENGINE_VERSION = 'v22-coach-inputs';
 
 /** Suffix marking a persisted `gradeBracketSignature` as a PARTIAL result
  *  (EDHREC was unreachable). Distinguishes it from a full result computed for

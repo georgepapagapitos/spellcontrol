@@ -4,3 +4,6 @@ coverage
 build
 *.min.*
 package-lock.json
+# The frozen bracket-calibration corpus: one line on purpose (2 MB; rebuilt by
+# packages/deck-metrics/calibration/build-fixtures.mjs, never hand-edited).
+packages/deck-metrics/calibration/fixtures/corpus.json

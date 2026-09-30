@@ -12,6 +12,8 @@ import { useConfirm } from '@/components/overlays/use-confirm';
 import { stopSyncAndWipeLocal } from '@/lib/sync';
 import { Tabs } from '@/components/overlays/Tabs';
 import { useDecksStore, type Deck } from '../store/decks';
+import { useCubeStore } from '../store/cube';
+import { remapAllAllocations } from '@/lib/cube/remap-cube-allocations';
 import {
   buildAllocationMap,
   findSuboptimalPrintings,
@@ -63,7 +65,7 @@ export function AdminPage() {
   const deleteAllBinders = useCollectionStore((s) => s.deleteAllBinders);
   const decks = useDecksStore((s) => s.decks);
   const deleteAllDecks = useDecksStore((s) => s.deleteAllDecks);
-  const remapAllocations = useDecksStore((s) => s.remapAllocations);
+  const savedCubes = useCubeStore((s) => s.saved);
 
   const [tab, setTab] = useState<Tab>('analytics');
   // First-party beacon counters (lib/util/analytics + /api/admin/events), fetched
@@ -101,18 +103,18 @@ export function AdminPage() {
   // invariant was only checkable via a dev-only console warning.
   const { allocationMap, doubleClaimCount } = useMemo(() => {
     let collisions = 0;
-    const map = buildAllocationMap(decks, undefined, () => {
+    const map = buildAllocationMap(decks, savedCubes, () => {
       collisions++;
     });
     return { allocationMap: map, doubleClaimCount: collisions };
-  }, [decks]);
+  }, [decks, savedCubes]);
 
   // Slots bound to a wrong printing when the preferred printing is owned.
   // Single highest-signal allocation bug class — every other audit (orphan,
   // double-claim, name mismatch) is covered by the existing rows above.
   const suboptimalPrintings = useMemo(
-    () => (hydrating ? [] : findSuboptimalPrintings(decks, cards)),
-    [decks, cards, hydrating]
+    () => (hydrating ? [] : findSuboptimalPrintings(decks, cards, savedCubes)),
+    [decks, cards, savedCubes, hydrating]
   );
   const fixableCount = useMemo(
     () => suboptimalPrintings.filter((r) => r.preferredFree).length,
@@ -380,11 +382,12 @@ export function AdminPage() {
                 <button
                   onClick={() => {
                     const before = suboptimalPrintings.filter((r) => r.preferredFree).length;
-                    remapAllocations(cards);
+                    remapAllAllocations(cards);
                     // decks store mutated synchronously — recompute against it.
                     const after = findSuboptimalPrintings(
                       useDecksStore.getState().decks,
-                      cards
+                      cards,
+                      useCubeStore.getState().saved
                     ).filter((r) => r.preferredFree).length;
                     const healed = before - after;
                     setRemapResult(
@@ -547,7 +550,7 @@ export function AdminPage() {
             await wipeThisDevice();
           }}
           onRerunRemap={() => {
-            remapAllocations(cards);
+            remapAllAllocations(cards);
           }}
         />
       )}

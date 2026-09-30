@@ -1,9 +1,10 @@
 import { Headphones } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { GameAction, GameState } from '@/lib/play/game-state';
 import { Button } from '@/components/shared/Button';
 import { DiscordMark } from '@/components/shared/DiscordMark';
-import { getDiscordTablesEnabled, openDiscordTable } from '@/lib/play/games-api';
+import { openDiscordTable } from '@/lib/play/games-api';
+import { useDiscordStatus } from '@/lib/play/use-discord-status';
 import { userMessage } from '@/lib/util/user-error';
 import { isDiscordLink, voiceLinkLabel } from '@/lib/play/voice-link';
 
@@ -22,7 +23,7 @@ export function VoiceLinkRow({
 }) {
   const saved = game.voiceUrl ?? '';
   const [error, setError] = useState<string | null>(null);
-  const discordEnabled = useDiscordTablesEnabled();
+  const discordEnabled = useDiscordStatus().enabled;
   const [opening, setOpening] = useState(false);
 
   const openDiscord = async () => {
@@ -86,22 +87,4 @@ export function VoiceLinkRow({
       )}
     </div>
   );
-}
-
-/**
- * Whether the server can open Discord tables, so the button only shows when
- * pressing it can work. Hidden until the answer arrives, and on any failure.
- */
-function useDiscordTablesEnabled(): boolean {
-  const [enabled, setEnabled] = useState(false);
-  useEffect(() => {
-    let live = true;
-    getDiscordTablesEnabled()
-      .then((on) => live && setEnabled(on))
-      .catch(() => {});
-    return () => {
-      live = false;
-    };
-  }, []);
-  return enabled;
 }

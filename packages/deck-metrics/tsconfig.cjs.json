@@ -12,5 +12,5 @@
     "declaration": true,
     "declarationDir": "dist/types"
   },
-  "exclude": ["dist", "node_modules", "**/*.test.ts"]
+  "exclude": ["dist", "node_modules", "**/*.test.ts", "src/calibration"]
 }

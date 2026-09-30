@@ -146,7 +146,7 @@ describe('findCrossDeckMoves', () => {
     const { donor, target } = buildScene();
     const decks = [donor, target];
     const collection: EnrichedCard[] = [owned('Spare Rock', { cmc: 2 })];
-    const allocations = buildAllocationMap(decks);
+    const allocations = buildAllocationMap(decks, []);
 
     const moves = findCrossDeckMoves(decks, collection, allocations);
 
@@ -166,7 +166,7 @@ describe('findCrossDeckMoves', () => {
     const { donor, target } = buildScene({ candidateColor: ['R'], targetColor: ['U', 'B'] });
     const decks = [donor, target];
     const collection: EnrichedCard[] = [owned('Spare Rock', { cmc: 2 })];
-    const allocations = buildAllocationMap(decks);
+    const allocations = buildAllocationMap(decks, []);
 
     const moves = findCrossDeckMoves(decks, collection, allocations);
     expect(moves).toHaveLength(0);
@@ -179,7 +179,7 @@ describe('findCrossDeckMoves', () => {
     const target = deck({ id: 'target', name: 'Lifegain', cards: lifegainCards });
     const decks = [donor, target];
     const collection: EnrichedCard[] = [owned('Spare Rock', { cmc: 2 })];
-    const allocations = buildAllocationMap(decks);
+    const allocations = buildAllocationMap(decks, []);
 
     const moves = findCrossDeckMoves(decks, collection, allocations);
     expect(moves).toHaveLength(0);
@@ -200,7 +200,7 @@ describe('findCrossDeckMoves', () => {
     ];
     const decks = [donor, target];
     const collection: EnrichedCard[] = [owned('Spare Rock', { cmc: 2 })];
-    const allocations = buildAllocationMap(decks);
+    const allocations = buildAllocationMap(decks, []);
 
     const moves = findCrossDeckMoves(decks, collection, allocations);
     expect(moves).toHaveLength(0);
@@ -211,7 +211,7 @@ describe('findCrossDeckMoves', () => {
     const decks = [donor, target];
     // A second, unallocated "Idle Cleric" — the target deck can just claim it.
     const collection: EnrichedCard[] = [owned('Spare Rock', { cmc: 2 }), owned('Idle Cleric')];
-    const allocations = buildAllocationMap(decks);
+    const allocations = buildAllocationMap(decks, []);
 
     const moves = findCrossDeckMoves(decks, collection, allocations);
     expect(moves).toHaveLength(0);
@@ -222,7 +222,7 @@ describe('findCrossDeckMoves', () => {
     const decks = [donor, target];
     const collection: EnrichedCard[] = []; // nothing owned to patch the hole
 
-    const allocations = buildAllocationMap(decks);
+    const allocations = buildAllocationMap(decks, []);
     const moves = findCrossDeckMoves(decks, collection, allocations);
     expect(moves).toHaveLength(0);
   });
@@ -237,7 +237,7 @@ describe('findCrossDeckMoves', () => {
     const target = deck({ id: 'target', name: 'Lifegain', cards: lifegainCards });
     const decks = [donor, target];
     const collection: EnrichedCard[] = [owned('Spare Rock', { cmc: 2 })];
-    const allocations = buildAllocationMap(decks);
+    const allocations = buildAllocationMap(decks, []);
 
     const moves = findCrossDeckMoves(decks, collection, allocations);
     expect(moves).toHaveLength(0);
@@ -253,7 +253,7 @@ describe('findCrossDeckMoves', () => {
     const target = deck({ id: 'target', name: 'Lifegain', cards: lifegainCards });
     const decks = [donor, target];
     const collection: EnrichedCard[] = [owned('Spare Rock', { cmc: 2 })];
-    const allocations = buildAllocationMap(decks);
+    const allocations = buildAllocationMap(decks, []);
 
     const moves = findCrossDeckMoves(decks, collection, allocations);
     expect(moves).toHaveLength(0);
@@ -277,7 +277,7 @@ describe('findCrossDeckMoves', () => {
     });
     const decks = [donor, donor2, target];
     const collection: EnrichedCard[] = [owned('Spare Rock', { cmc: 2 })]; // only ONE spare
-    const allocations = buildAllocationMap(decks);
+    const allocations = buildAllocationMap(decks, []);
 
     const moves = findCrossDeckMoves(decks, collection, allocations);
     expect(moves).toHaveLength(1);
@@ -299,7 +299,7 @@ describe('findCrossDeckMoves', () => {
       owned('Spare Rock', { cmc: 2 }),
       owned('Idle Cleric 2', { cmc: 2 }),
     ];
-    const allocations = buildAllocationMap(decks);
+    const allocations = buildAllocationMap(decks, []);
 
     const moves = findCrossDeckMoves(decks, collection, allocations);
     expect(moves).toHaveLength(1);
@@ -310,7 +310,7 @@ describe('findCrossDeckMoves', () => {
     const { donor, target } = buildScene();
     const decks = [donor, target];
     const collection: EnrichedCard[] = [owned('Spare Rock', { cmc: 2 })];
-    const allocations = buildAllocationMap(decks);
+    const allocations = buildAllocationMap(decks, []);
 
     const into = findCrossDeckMoves(decks, collection, allocations, { toDeckId: 'target' });
     expect(into.map((m) => m.cardName)).toEqual(['Idle Cleric']);

@@ -7,6 +7,7 @@ import { useComboPreview } from './use-combo-preview';
 import { buildCardImageIndex, buildCardIndex } from '@/lib/deck-analysis/deck-card-index';
 import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
+import { useCubeStore } from '../../store/cube';
 import { buildAllocationMap, pickCollectionCopy } from '@/lib/collection/allocations';
 import { useDeckCombos } from '@/lib/deck-analysis/use-deck-combos';
 import { partitionCombosByZone } from '@/lib/deck-analysis/combo-zone-partition';
@@ -89,7 +90,8 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
 ) {
   const collection = useCollectionStore((s) => s.cards);
   const decks = useDecksStore((s) => s.decks);
-  const allocations = useMemo(() => buildAllocationMap(decks), [decks]);
+  const savedCubes = useCubeStore((s) => s.saved);
+  const allocations = useMemo(() => buildAllocationMap(decks, savedCubes), [decks, savedCubes]);
 
   const ownedOracleIdSet = useMemo(() => {
     const ids = new Set<string>();

@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { ErrorBoundary } from '@/components/app-shell/ErrorBoundary';
+import { installCubeClaimHeal } from '@/lib/cube/remap-cube-allocations';
 // Split from the former styles/global.css — imported in original cascade order
 // so the split is a pure file-organization change (no behavior change).
 import './styles/fonts.css';
@@ -110,6 +111,10 @@ void registerPwa();
 const docEl = document.documentElement;
 docEl.classList.add('icons-pending');
 void import('./styles/icon-fonts-async').finally(() => docEl.classList.remove('icons-pending'));
+
+// One copy is claimed once across decks and physical cubes: release a cube
+// claim a sync or an undo brought in on a copy a deck holds (E542).
+installCubeClaimHeal();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

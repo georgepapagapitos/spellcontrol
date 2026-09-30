@@ -72,7 +72,7 @@ describe('remapAllocations fresh pick (E276)', () => {
       enriched('c3', 'Llanowar Elves'),
       enriched('c4', 'Forest'),
     ];
-    useDecksStore.getState().remapAllocations(collection);
+    useDecksStore.getState().remapAllocations(collection, []);
 
     const calls = vi.mocked(pickCollectionCopy).mock.calls;
     expect(calls.length).toBeGreaterThan(0);

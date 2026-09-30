@@ -39,6 +39,7 @@ import { withTagAdded, withTagRemoved } from '@/lib/deck/deck-tags';
 const decksIdbStorage = createIndexedDbStorage('spellcontrol-decks');
 import { pickRandomPresetColor } from '@/lib/util/preset-colors';
 import type { EnrichedCard } from '../types';
+import type { SavedCube } from './cube';
 import { toast } from './toasts';
 import { genId } from '@/lib/util/id';
 
@@ -570,8 +571,12 @@ interface DecksState {
   replaceCards(deckId: string, cards: DeckCard[]): void;
 
   /** Re-match all deck allocations against a new collection. Called when the
-   *  collection is replaced so allocatedCopyIds stay valid. */
-  remapAllocations(newCollection: EnrichedCard[]): void;
+   *  collection is replaced so allocatedCopyIds stay valid. `physicalCubes`
+   *  is the saved-cube list: a copy a physical cube holds is never handed to
+   *  a deck slot that needs a new copy. Run `remapAllAllocations`
+   *  (lib/cube/remap-cube-allocations) rather than this alone, so the cubes
+   *  are re-matched after. */
+  remapAllocations(newCollection: EnrichedCard[], physicalCubes: readonly SavedCube[]): void;
 }
 
 // Local-mutation token (E177) — a plain module-level counter per deck id,
@@ -1115,7 +1120,7 @@ export const useDecksStore = create<DecksState>()(
           decks: s.decks.map((d) => (d.id === deckId ? touch({ ...d, cards }) : d)),
         })),
 
-      remapAllocations: (newCollection) =>
+      remapAllocations: (newCollection, physicalCubes) =>
         set((s) => {
           // Stability rule: if a slot's current allocatedCopyId still exists
           // in the new collection and isn't already claimed by an earlier slot,
@@ -1319,6 +1324,20 @@ export const useDecksStore = create<DecksState>()(
               removeFromFree(current);
             } else {
               needsPick.push(slot);
+            }
+          }
+
+          // A copy a physical cube holds is not free. A slot that already held
+          // it keeps it (pass 1 above; the deck wins, and the cube remap that
+          // runs next gives the cube another copy or a gap), but passes 2-4
+          // never hand one out. Without this, any collection edit or sync
+          // could quietly move a cube's copy into a deck.
+          for (const cube of physicalCubes) {
+            if (!cube.isPhysical) continue;
+            for (const pick of cube.picks ?? []) {
+              if (!pick.allocatedCopyId || allocated.has(pick.allocatedCopyId)) continue;
+              const copy = byCopyId.get(pick.allocatedCopyId);
+              if (copy && copy.name === pick.card.name) removeFromFree(copy);
             }
           }
 
