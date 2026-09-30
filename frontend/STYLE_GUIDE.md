@@ -350,10 +350,14 @@ meanwhile.
   Detail pages (a binder, a list, a set) render no hub strip: the back link
   goes up a level and the main nav names the hub.
 - **Hub pages: the tabs never move.** Collection (Cards · Binders · Lists ·
-  Combos · Sets), Decks (My decks · Discover · Saved · Cube) and Social
-  (Friends · Trades · Pods) are one place each, and switching tabs changes
-  only what is under the strip. The title, the strip's position and its width
-  are identical on every tab of a hub, at every tier, loading or not. So:
+  Combos · Sets), Decks (My decks · Discover · Saved · Cube), Play (Play ·
+  Local · Online · Game nights · History) and Social (Friends · Trades · Pods)
+  are one place each, and switching tabs changes only what is under the strip.
+  The title, the strip's position and its width are identical on every tab of
+  a hub, at every tier, loading or not. So:
+  - Every hub strip is the same control: upper-case route links
+    (`HubTabsNav`), never the in-page `Tabs` switcher, which is for views
+    inside one page.
   - The title names the **hub**, not the tab ("Decks" on the Cube tab). The
     underlined tab already says where you are; the `<h1>` carries the tab
     name for screen readers ("Decks: Cube"), since a route change moves focus
@@ -366,8 +370,11 @@ meanwhile.
     and a tab without them put the strip at the same height. On a phone the
     primary shows as its icon (label as its accessible name and tooltip)
     rather than stacking full width under the title.
-  - One width per hub: Collection and Decks use the wide page, Social one
-    760px column. Content under the strip may be narrower, left-aligned with
+  - A tab with something running on it (Play's Local or Online with a game in
+    progress) carries the strip's dot, and its link name says so ("Local, game
+    in progress").
+  - One width per hub: Collection and Decks use the wide page, Play the
+    standard page, Social one 760px column. Content under the strip may be narrower, left-aligned with
     it; it never moves the strip.
   - A loading or guest state renders inside the hub page, under the strip,
     never instead of it.

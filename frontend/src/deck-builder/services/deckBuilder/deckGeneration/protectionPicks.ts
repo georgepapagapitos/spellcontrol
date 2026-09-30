@@ -17,6 +17,7 @@
 import type { EDHRECCard, ScryfallCard } from '@/deck-builder/types';
 import { isProtectionPiece } from '@/deck-builder/services/tagger/client';
 import { getCombinedOracleText, type CommanderProfile } from '../commanderProfile';
+import { keepsPermanentText } from '../protectionReading';
 
 /** A deck wants one or two of these, not a pile. */
 export const PROTECTION_PICK_CAP = 2;
@@ -34,11 +35,14 @@ export const PROTECTION_PICK_MIN_INCLUSION = 15;
 // strips reminder text, so a keyword's reminder can't satisfy this.
 const REPEATING_ENGINE = /\bwhenever\b|\bat the beginning of\b|\{[^}]+\}[^.:]*:/;
 
-// What keeps a permanent on the battlefield. isProtectionPiece also covers
-// free counterspells, redirects and "can't be countered" (Fierce Guardianship,
-// Deflecting Swat, Allosaurus Shepherd), which protect spells, not a
-// commander: a live Lathril run spent a slot on Allosaurus Shepherd that way.
-const KEEPS_PERMANENT = /\b(hexproof|shroud|indestructible|protection from)\b|\bphases? out\b/;
+// What keeps a permanent on the battlefield: protectionReading.ts, the reading
+// the deck objective shares (which also asks that it protect something besides
+// its own card; not asked here, so a card like Ripples of Potential, which
+// phases out permanents it names as "those permanents", stays promotable).
+// isProtectionPiece also covers free counterspells, redirects and "can't be
+// countered" (Fierce Guardianship, Deflecting Swat, Allosaurus Shepherd), which
+// protect spells, not a commander: a live Lathril run spent a slot on
+// Allosaurus Shepherd that way.
 
 /** A protection piece that keeps the commander on the battlefield. Not a
  *  planeswalker: a loyalty ability that phases something out is incidental,
@@ -46,7 +50,7 @@ const KEEPS_PERMANENT = /\b(hexproof|shroud|indestructible|protection from)\b|\b
  *  slot from Liliana, Death's Majesty (50%). */
 export function isSurvivalPiece(card: ScryfallCard): boolean {
   if (/planeswalker/i.test(card.card_faces?.[0]?.type_line ?? card.type_line ?? '')) return false;
-  return isProtectionPiece(card) && KEEPS_PERMANENT.test(getCombinedOracleText(card));
+  return isProtectionPiece(card) && keepsPermanentText(getCombinedOracleText(card));
 }
 
 /**

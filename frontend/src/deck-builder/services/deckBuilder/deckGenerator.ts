@@ -42,6 +42,7 @@ import {
 import {
   computeGradeAndBracket,
   computeRoleCounts,
+  countedRoleOf,
   buildInclusionIndex,
   lookupInclusion,
 } from './commanderDeckAnalysis';
@@ -743,7 +744,7 @@ export function countFinalWipeAsymmetry(
   finalNonLandCards: ScryfallCard[],
   preferAsymmetricWipes: boolean
 ): { oneSidedCount: number; totalCount: number } {
-  const wipes = finalNonLandCards.filter((c) => getCardRole(c.name) === 'boardwipe');
+  const wipes = finalNonLandCards.filter((c) => countedRoleOf(c) === 'boardwipe');
   return {
     oneSidedCount: preferAsymmetricWipes ? wipes.filter((c) => isOneSidedWipe(c)).length : 0,
     totalCount: wipes.length,

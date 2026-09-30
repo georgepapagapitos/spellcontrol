@@ -28,7 +28,8 @@ import type {
 } from '@/deck-builder/types';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 import { frontFaceName } from '@/lib/cards/card-text';
-import { computeRoleCounts } from './commanderDeckAnalysis';
+import { computeRoleCounts, countedRoleOf } from './commanderDeckAnalysis';
+import { overflowIsAdmitted, passesRoleCap } from './roleCapAllowance';
 import { commanderIneligibility, commanderPreviewNote } from './commanderEligibility';
 import { cardManaValue } from './deckStats';
 import {
@@ -710,10 +711,35 @@ export function checkDeckInvariants(
   }
 
   // 19. roles over target (SOFT: the rebalance's cap, as the scanner had it).
+  // E554: not a role E532 explains: staples and combo pieces seated past the
+  // cap, up to the staple ceiling, with the overflow disclosed
+  // (roleCapAllowance.ts, the decision the pick loop reads).
+  const comboNames = new Set(
+    (deck.detectedCombos ?? []).flatMap((c) =>
+      c.cards.map((n) => normalizeCardName(frontFaceName(n)))
+    )
+  );
+  const passingByRole: Record<string, number> = {};
+  for (const card of nonLandBucket) {
+    const role = countedRoleOf(card);
+    const inclusion = deck.cardInclusionMap?.[card.name] ?? 0;
+    if (
+      role &&
+      passesRoleCap(inclusion, comboNames.has(normalizeCardName(frontFaceName(card.name))))
+    )
+      passingByRole[role] = (passingByRole[role] ?? 0) + 1;
+  }
   for (const [role, target] of Object.entries(deck.roleTargets ?? {})) {
     const actual = deck.roleCounts?.[role] ?? 0;
     const cap = target + Math.max(2, Math.ceil(0.2 * target));
-    if (actual > cap) add('SOFT', 'roles', `${role}: ${actual} > target ${target} (cap ${cap})`);
+    if (actual <= cap) continue;
+    const admitted = overflowIsAdmitted({
+      target,
+      actual,
+      passing: passingByRole[role] ?? 0,
+      disclosed: !!deck.roleCapOverflowNote,
+    });
+    if (!admitted) add('SOFT', 'roles', `${role}: ${actual} > target ${target} (cap ${cap})`);
   }
 
   // 20. report truth (E166): the shipped roleCounts must be a recount of the
