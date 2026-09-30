@@ -231,6 +231,7 @@
   --motion-base: 200ms; /* fades, drawer exits, toast leave */
   --motion-gentle: 320ms; /* sheet exits, emphasis one-shots */
   --motion-drawer: 500ms; /* full-screen sheet rise (entry only) */
+  --motion-shimmer: 1.4s; /* one skeleton-shimmer loop (§ Motion: one shared shimmer) */
   /* Default entrance/move curve — the house "soft settle" (absorbed the old
      inline near-twins 0.2,0.8,0.2,1 / 0.2,0.7,0.2,1 / 0.2,0.8,0.3,1). */
   --ease-out-soft: cubic-bezier(0.2, 0.9, 0.3, 1);

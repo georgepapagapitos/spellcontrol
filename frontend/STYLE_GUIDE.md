@@ -2448,6 +2448,7 @@ must follow goes in the core.
   - [Play board: the life keypad is a board-level dialog, and the commander-damage focus bar keeps its full copy (2026-09-25)](style-guide/play-table.md#play-board-the-life-keypad-is-a-board-level-dialog-and-the-commander-damage-focus-bar-keeps-its-full-copy-2026-09-25)
   - [Play board: a short seat's drawer is one scrolling row (2026-09-26)](style-guide/play-table.md#play-board-a-short-seats-drawer-is-one-scrolling-row-2026-09-26)
   - [Play board: the board sizes off itself, and every mark fits its seat (2026-09-26)](style-guide/play-table.md#play-board-the-board-sizes-off-itself-and-every-mark-fits-its-seat-2026-09-26)
+  - [Daily card puzzle (E558, 2026-09-30)](style-guide/play-table.md#daily-card-puzzle-e558-2026-09-30)
 - **[Sharing & social](style-guide/social.md)**: Public shared views, discovery tiles and trades.
   - [Trade offer rows (T120)](style-guide/social.md#trade-offer-rows-t120)
   - [Public shared views (/s/:token)](style-guide/social.md#public-shared-views-stoken)

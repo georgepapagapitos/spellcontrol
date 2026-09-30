@@ -1191,6 +1191,7 @@ async function main() {
         '/search/top/banned',
         '/tags',
         '/rules',
+        '/daily',
         `/u/${seeded.username}`,
         USERNAME && '/admin',
       ].filter(Boolean);

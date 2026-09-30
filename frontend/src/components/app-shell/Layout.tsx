@@ -53,6 +53,7 @@ const HUB_TITLES: Record<string, string> = {
   pods: 'Pods',
   search: 'Search',
   rules: 'Rules',
+  daily: 'Daily',
   tags: 'Tags',
   admin: 'Admin',
 };

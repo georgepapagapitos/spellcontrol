@@ -1,0 +1,702 @@
+/* DailyPage.css — the Daily card puzzle (/daily, E558) and its components in
+   components/daily/. One stylesheet, loaded by the page's lazy chunk. */
+
+.daily-page {
+  container: daily-page / inline-size;
+  max-width: 68rem;
+  margin-inline: auto;
+  padding-block: var(--space-4) var(--space-6);
+}
+
+.daily-section-title {
+  font-size: var(--text-md);
+  font-weight: 500;
+  margin-bottom: var(--space-2);
+}
+
+/* ── Layout: art + clues | guess + grid ─────────────────────────────── */
+
+.daily-play {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: 'art' 'guess' 'clues';
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.daily-art-col {
+  grid-area: art;
+}
+
+.daily-guess-col {
+  grid-area: guess;
+}
+
+.daily-clue-col {
+  grid-area: clues;
+  min-width: 0;
+}
+
+/* Wide: art above clues on the left, the guess column beside both. A phone
+   reads art, then the guess box, then clues, so the box is never below the fold. */
+@container daily-page (min-width: 47.5rem) {
+  .daily-play {
+    grid-template-columns: minmax(0, 19rem) minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    grid-template-areas: 'art guess' 'clues guess';
+    column-gap: var(--space-5);
+    align-items: start;
+  }
+}
+
+.daily-art-col,
+.daily-guess-col {
+  min-width: 0;
+}
+
+.daily-guess-col {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* ── Art ────────────────────────────────────────────────────────────── */
+
+.daily-art {
+  aspect-ratio: 626 / 457;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  border: 0.5px solid var(--border);
+  background: var(--surface-raised);
+}
+
+.daily-art img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* The blur softens the edges; the scale keeps them off the frame. */
+  transform: scale(1.08);
+  transition: filter var(--motion-gentle) ease-out;
+}
+
+.daily-art-note {
+  margin-top: var(--space-1-5);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .daily-art img {
+    transition: none;
+  }
+}
+
+/* ── Clues ──────────────────────────────────────────────────────────── */
+
+.daily-clues {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.daily-clue {
+  display: grid;
+  grid-template-columns: 1.5rem minmax(5.5rem, auto) minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: baseline;
+  padding-block: var(--space-2);
+  border-top: 0.5px solid var(--border);
+}
+
+.daily-clue-n {
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
+  display: inline-grid;
+  place-items: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  background: var(--accent-light);
+}
+
+.daily-clue.is-locked .daily-clue-n {
+  background: none;
+  border: 0.5px solid var(--border-strong);
+}
+
+.daily-clue-label {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.daily-clue-value {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.daily-clue-value.is-prose {
+  font-style: italic;
+  white-space: pre-line;
+}
+
+.daily-clue-value.is-locked {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.daily-clue.is-new .daily-clue-value {
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--brand-seal-gold) 22%, transparent);
+  padding-inline: var(--space-1);
+  margin-inline: calc(-1 * var(--space-1));
+}
+
+/* ── Guess box ──────────────────────────────────────────────────────── */
+
+.daily-guess {
+  position: relative;
+}
+
+.daily-guess-row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: stretch;
+}
+
+.daily-guess-field {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.daily-guess-options {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  left: 0;
+  right: 0;
+  z-index: var(--z-popover);
+  margin: 0;
+  padding: var(--space-1);
+  list-style: none;
+  max-height: 18rem;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-tooltip);
+}
+
+.daily-guess-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 2.75rem;
+  padding: var(--space-1-5) var(--space-2);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.daily-guess-option.is-highlight {
+  background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
+}
+
+.daily-guess-option-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.daily-guess-option-note {
+  flex: none;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.daily-guess-error {
+  margin-top: var(--space-1-5);
+  font-size: var(--text-sm);
+  color: var(--err-text);
+}
+
+.daily-guess-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.daily-guess-foot-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* ── Guess grid ─────────────────────────────────────────────────────── */
+
+.daily-grid-head,
+.daily-grid-row {
+  display: grid;
+  grid-template-columns: minmax(6.5rem, 1.5fr) repeat(5, minmax(0, 1fr));
+  gap: var(--space-1);
+  align-items: stretch;
+}
+
+.daily-grid-head {
+  font-family: var(--font-label);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-overline);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-align: center;
+  padding-bottom: var(--space-1);
+}
+
+.daily-grid-head-name {
+  text-align: start;
+}
+
+.daily-grid-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.daily-grid-name {
+  align-self: center;
+  min-width: 0;
+  font-size: var(--text-sm);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.daily-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-0-5);
+  min-height: 2.75rem;
+  min-width: 0;
+  padding: var(--space-1) var(--space-0-5);
+  border-radius: var(--radius);
+  border: 0.5px solid var(--border);
+  background: var(--surface-raised);
+  font-size: var(--text-xs);
+  line-height: 1.15;
+  text-align: center;
+}
+
+.daily-cell-value {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.daily-cell[data-mark='hit'] {
+  background: color-mix(in srgb, var(--success) 16%, var(--surface));
+  border-color: color-mix(in srgb, var(--success) 60%, transparent);
+}
+
+.daily-cell[data-mark='near'] {
+  background: color-mix(in srgb, var(--warn-text) 16%, var(--surface));
+  border-color: color-mix(in srgb, var(--warn-text) 55%, transparent);
+}
+
+.daily-cell[data-mark='hit'] .daily-cell-icon {
+  color: var(--success);
+}
+
+.daily-cell[data-mark='near'] .daily-cell-icon {
+  color: var(--warn-text);
+}
+
+.daily-cell[data-mark='miss'] .daily-cell-icon {
+  color: var(--err-text);
+}
+
+.daily-cell[data-mark='higher'] .daily-cell-icon,
+.daily-cell[data-mark='lower'] .daily-cell-icon {
+  color: var(--accent);
+}
+
+.daily-cell-short {
+  display: none;
+}
+
+/* Narrow column (a phone, or a narrow tablet column): the name takes its own
+   line above the five cells, and labels switch to their short forms. */
+@container (max-width: 34rem) {
+  .daily-grid-head,
+  .daily-grid-row {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .daily-grid-head-name {
+    display: none;
+  }
+
+  .daily-grid-name {
+    grid-column: 1 / -1;
+    margin-top: var(--space-1);
+  }
+
+  .daily-cell-long {
+    display: none;
+  }
+
+  .daily-cell-short {
+    display: inline;
+  }
+}
+
+.daily-grid-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  margin-top: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.daily-grid-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-0-5);
+}
+
+/* ── Result ─────────────────────────────────────────────────────────── */
+
+.daily-result {
+  padding: var(--space-4);
+}
+
+.daily-result-verdict {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--err-text) 12%, var(--surface));
+  border: 0.5px solid color-mix(in srgb, var(--err-text) 50%, transparent);
+}
+
+.daily-result-verdict[data-solved='true'] {
+  background: color-mix(in srgb, var(--success) 14%, var(--surface));
+  border-color: color-mix(in srgb, var(--success) 55%, transparent);
+}
+
+.daily-result-title {
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+.daily-result-streak {
+  margin-left: auto;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.daily-result-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+@container (min-width: 30rem) {
+  .daily-result-body {
+    grid-template-columns: minmax(0, 11rem) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+.daily-result-card {
+  display: block;
+  width: 100%;
+  max-width: 13rem;
+  height: auto;
+  margin-inline: auto;
+  border-radius: 4.75% / 3.5%;
+  box-shadow: var(--shadow-card);
+}
+
+.daily-result-card.is-loading {
+  aspect-ratio: 488 / 680;
+  background: var(--surface-raised);
+}
+
+.daily-result-name {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  line-height: 1.15;
+}
+
+.daily-result-meta {
+  margin-top: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.daily-result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.daily-result-next {
+  margin-top: var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.daily-countdown {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+/* ── Stats + friends ────────────────────────────────────────────────── */
+
+.daily-panels {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+  margin-top: var(--space-6);
+}
+
+@container daily-page (min-width: 47.5rem) {
+  .daily-panels {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+}
+
+.daily-panel {
+  container-type: inline-size;
+  padding: var(--space-4);
+  min-width: 0;
+}
+
+.daily-panel-title {
+  font-size: var(--text-lg);
+  font-weight: 500;
+  margin-bottom: var(--space-3);
+}
+
+.daily-panel-note {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-3);
+}
+
+.daily-panel-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--err-text);
+}
+
+.daily-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  text-align: center;
+}
+
+.daily-stats dt {
+  order: 2;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.daily-stats > div {
+  display: flex;
+  flex-direction: column;
+}
+
+.daily-stats dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xl);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.daily-dist-title {
+  margin-block: var(--space-4) var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.daily-dist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-1-5);
+}
+
+.daily-dist-row {
+  display: grid;
+  grid-template-columns: 1rem minmax(0, 1fr) 4.5rem;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.daily-dist-count {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.daily-dist-row.is-today .daily-dist-count {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.daily-friends {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.daily-friend {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto 4.5rem;
+  align-items: center;
+  gap: var(--space-2);
+  padding-block: var(--space-2);
+  border-top: 0.5px solid var(--border);
+  font-size: var(--text-sm);
+}
+
+.daily-friend:first-child {
+  border-top: 0;
+}
+
+.daily-friend-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.daily-friend-score,
+.daily-friend-streak {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.daily-friend-streak {
+  text-align: end;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.daily-friend-pending {
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+@container (max-width: 22rem) {
+  .daily-friend-streak-label {
+    display: none;
+  }
+}
+
+/* ── Loading / error ────────────────────────────────────────────────── */
+
+.daily-skeleton {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+  margin-top: var(--space-4);
+}
+
+@container daily-page (min-width: 47.5rem) {
+  .daily-skeleton {
+    grid-template-columns: minmax(0, 19rem) minmax(0, 1fr);
+  }
+}
+
+.daily-skeleton-art,
+.daily-skeleton-side,
+.daily-friends-skeleton-row {
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(
+      100deg,
+      transparent 35%,
+      color-mix(in srgb, var(--text-primary) 7%, transparent) 50%,
+      transparent 65%
+    ),
+    var(--surface-raised);
+  background-size:
+    220% 100%,
+    100% 100%;
+  background-repeat: no-repeat;
+  animation: skeleton-shimmer var(--motion-shimmer) ease-in-out infinite;
+}
+
+.daily-skeleton-art {
+  aspect-ratio: 626 / 457;
+}
+
+.daily-skeleton-side {
+  min-height: 12rem;
+}
+
+.daily-friends-skeleton ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.daily-friends-skeleton-row {
+  height: 2.25rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .daily-skeleton-art,
+  .daily-skeleton-side,
+  .daily-friends-skeleton-row {
+    animation: none;
+  }
+}
+
+.daily-load-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  color: var(--err-text);
+}
