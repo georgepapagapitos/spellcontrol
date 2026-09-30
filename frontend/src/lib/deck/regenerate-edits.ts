@@ -12,6 +12,11 @@ export interface GeneratedList {
   cards: string[];
   /** The commander (and partner) it was built around. */
   commanders: string[];
+  /** Cards the player had kept out that this build was told to ban (a carried
+   *  cut, or a toolbar one-shot ban). The generator leaves them out, so they
+   *  can't show up as missing from `cards`; recording them is what lets a cut
+   *  survive any number of regenerates. */
+  cut?: string[];
 }
 
 /** What the player did to the list since it was generated. */
@@ -30,9 +35,11 @@ const nonBasicNames = (cards: DeckCard[]): Set<string> =>
 export function snapshotGeneratedList(
   cards: DeckCard[],
   commander: ScryfallCard | null | undefined,
-  partner: ScryfallCard | null | undefined
+  partner: ScryfallCard | null | undefined,
+  bans: readonly string[] = []
 ): GeneratedList {
   return {
+    cut: [...new Set(bans)],
     cards: [...nonBasicNames(cards)],
     commanders: [commander?.name, partner?.name].filter((n): n is string => !!n),
   };
@@ -42,7 +49,10 @@ export function snapshotGeneratedList(
  * The player's edits to a generated deck, or null when there is nothing to
  * carry: a deck saved before the snapshot existed (guessing would invent
  * edits), or one whose commander was swapped (the old list was built around
- * someone else, so every card would read as cut). Only the main deck counts;
+ * someone else, so every card would read as cut). Toolbar one-shot bans ride
+ * along with the carried cuts on purpose: "keep my edits" keeps everything the
+ * player kept out of the last build, and the label count shows it. Only the
+ * main deck counts;
  * a card parked in the sideboard or the considering pile is out of the list.
  */
 export function deckEdits(
@@ -55,8 +65,11 @@ export function deckEdits(
     return null;
   const before = new Set(baseline.cards);
   const after = nonBasicNames(deck.cards);
-  const added = [...after].filter((n) => !before.has(n));
-  const cut = [...before].filter((n) => !after.has(n));
+  // A carried cut still absent from the deck stays a cut; the player putting
+  // one back has un-cut it, so it reads as neither added nor cut.
+  const carried = new Set(baseline.cut ?? []);
+  const added = [...after].filter((n) => !before.has(n) && !carried.has(n));
+  const cut = [...new Set([...before, ...carried].filter((n) => !after.has(n)))];
   return added.length + cut.length > 0 ? { added, cut } : null;
 }
 

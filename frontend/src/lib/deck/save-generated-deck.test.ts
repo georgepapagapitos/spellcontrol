@@ -296,13 +296,14 @@ describe('saveGeneratedDeck', () => {
           lands: [mountain, mountain],
         }),
       }),
-      customization(),
+      customization({ tempBannedCards: ['Arcane Signet'] }),
       [],
       [],
       [],
       createDeck
     );
     expect(calls[0].generationContext?.generatedList).toEqual({
+      cut: ['Arcane Signet'],
       cards: ['Sol Ring'],
       commanders: ['Krenko, Mob Boss'],
     });

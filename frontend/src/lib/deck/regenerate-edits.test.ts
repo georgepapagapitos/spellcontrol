@@ -52,6 +52,7 @@ describe('snapshotGeneratedList', () => {
     expect(snapshotGeneratedList(generated, KRENKO, null)).toEqual({
       cards: ['Sol Ring', 'Arcane Signet', 'Goblin Chieftain'],
       commanders: ['Krenko, Mob Boss'],
+      cut: [],
     });
   });
 });
@@ -101,6 +102,35 @@ describe('deckEdits', () => {
   it('counts a card moved out of the main deck as cut', () => {
     const moved = deckWith([slot('Sol Ring'), slot('Goblin Chieftain', 'Creature — Goblin')]);
     expect(deckEdits(moved)?.cut).toEqual(['Arcane Signet']);
+  });
+});
+
+describe('a carried cut', () => {
+  // Regenerated with Arcane Signet cut: the new deck has no Signet, and the
+  // generator was told to ban it.
+  const second = [slot('Sol Ring'), slot('Goblin Chieftain', 'Creature — Goblin')];
+  const regenerated = () =>
+    deckWith(second, {
+      generationContext: {
+        ...deckWith([]).generationContext!,
+        generatedList: snapshotGeneratedList(second, KRENKO, null, ['Arcane Signet']),
+      },
+    });
+
+  it('still counts as a cut on the next regenerate with no new edits', () => {
+    const edits = deckEdits(regenerated());
+    expect(edits).toEqual({ added: [], cut: ['Arcane Signet'] });
+    expect(keepEditsLabel(edits!)).toBe('Keep my edits (0 added, 1 cut)');
+    expect(keepEditsPatch({ mustIncludeCards: [], tempBannedCards: [] }, edits!, true)).toEqual({
+      mustIncludeCards: [],
+      tempBannedCards: ['Arcane Signet'],
+    });
+  });
+
+  it('is cleared when the player puts the card back', () => {
+    const back = regenerated();
+    back.cards = [...second, slot('Arcane Signet')];
+    expect(deckEdits(back)).toBeNull();
   });
 });
 

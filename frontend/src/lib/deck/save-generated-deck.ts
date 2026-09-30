@@ -125,7 +125,12 @@ export function saveGeneratedDeck(
       generationMode: generated.generationMode ?? customization.generationMode,
       generationModeDetail: generated.generationModeDetail,
       customization: regenerateSettings(customization),
-      generatedList: snapshotGeneratedList(cards, commander, partner),
+      generatedList: snapshotGeneratedList(
+        cards,
+        commander,
+        partner,
+        customization.tempBannedCards ?? []
+      ),
     },
     roleCounts: generated.roleCounts,
     categoryTargets: generated.composition,
