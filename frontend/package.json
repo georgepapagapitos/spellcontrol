@@ -15,8 +15,8 @@
     "refresh-cube-signal-budget": "node scripts/refresh-cube-signal-budget.mjs --force",
     "refresh-card-facts": "node scripts/refresh-card-facts.mjs --force",
     "build:shared": "npm --prefix ../packages/game-core run build && npm --prefix ../packages/binder-routing run build && npm --prefix ../packages/deck-metrics run build",
-    "predev": "npm run build:shared && node scripts/refresh-tagger.mjs && node scripts/refresh-otag-index.mjs && node scripts/refresh-rules.mjs && node scripts/refresh-sld-drops.mjs && node scripts/refresh-cube-signal.mjs && node scripts/refresh-cube-signal-budget.mjs",
-    "prebuild": "npm run build:shared && node scripts/refresh-tagger.mjs --no-fetch && node scripts/refresh-otag-index.mjs --no-fetch && node scripts/refresh-rules.mjs --no-fetch && node scripts/refresh-sld-drops.mjs --no-fetch && node scripts/refresh-cube-signal.mjs --no-fetch && node scripts/refresh-cube-signal-budget.mjs --no-fetch",
+    "predev": "npm run build:shared && node scripts/refresh-tagger.mjs && node scripts/refresh-otag-index.mjs && node scripts/refresh-rules.mjs && node scripts/refresh-sld-drops.mjs && node scripts/refresh-cube-signal.mjs && node scripts/refresh-cube-signal-budget.mjs && node scripts/refresh-daily-cards.mjs",
+    "prebuild": "npm run build:shared && node scripts/refresh-tagger.mjs --no-fetch && node scripts/refresh-otag-index.mjs --no-fetch && node scripts/refresh-rules.mjs --no-fetch && node scripts/refresh-sld-drops.mjs --no-fetch && node scripts/refresh-cube-signal.mjs --no-fetch && node scripts/refresh-cube-signal-budget.mjs --no-fetch && node scripts/refresh-daily-cards.mjs --no-fetch",
     "dev": "vite",
     "build": "tsc -p tsconfig.build.json && vite build",
     "postbuild": "node scripts/precompress-dist.mjs",
@@ -32,7 +32,8 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css,json}\"",
     "refresh-sld-drops": "node scripts/refresh-sld-drops.mjs --force",
-    "refresh-otags": "node scripts/refresh-otag-index.mjs --force"
+    "refresh-otags": "node scripts/refresh-otag-index.mjs --force",
+    "refresh-daily": "node scripts/refresh-daily-cards.mjs --force"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
