@@ -1,9 +1,8 @@
-import { SCORE_KEYS, type GuessScore, type Mark } from './score';
-import { MAX_GUESSES } from './stats';
+import type { Mark, ScoredGuess } from './daily-client';
 
 // The share grid is the Wordle convention: squares that say how close each
-// guess came and never what it was. Arrows count as a miss here, since a square
-// can't point.
+// guess came and never what it was. Arrows count as a miss here, since a
+// square can't point.
 const SQUARE: Record<Mark, string> = {
   hit: '\u{1F7E9}',
   near: '\u{1F7E8}',
@@ -12,9 +11,11 @@ const SQUARE: Record<Mark, string> = {
   lower: '⬛',
 };
 
+const ORDER = ['colors', 'mv', 'type', 'rarity', 'year'] as const;
+
 /** One grid row: five squares in cell order. */
-export function shareRow(score: GuessScore): string {
-  return SCORE_KEYS.map((k) => SQUARE[score[k]]).join('');
+export function shareRow(guess: ScoredGuess): string {
+  return ORDER.map((k) => SQUARE[guess.cells[k].mark]).join('');
 }
 
 /**
@@ -24,10 +25,11 @@ export function shareRow(score: GuessScore): string {
 export function buildShareText(opts: {
   number: number;
   solved: boolean;
-  scores: readonly GuessScore[];
+  maxGuesses: number;
+  guesses: readonly ScoredGuess[];
   url: string;
 }): string {
-  const tally = opts.solved ? `${opts.scores.length}/${MAX_GUESSES}` : `X/${MAX_GUESSES}`;
-  const grid = opts.scores.map(shareRow).join('\n');
+  const tally = opts.solved ? `${opts.guesses.length}/${opts.maxGuesses}` : `X/${opts.maxGuesses}`;
+  const grid = opts.guesses.map(shareRow).join('\n');
   return `SpellControl Daily #${opts.number} ${tally}\n${grid}\n${opts.url}`;
 }

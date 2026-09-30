@@ -1,20 +1,11 @@
 import { ArrowDown, ArrowUp, Check, EqualApproximately, X, type LucideIcon } from 'lucide-react';
-import {
-  mainType,
-  SCORE_KEYS,
-  type CardAttrs,
-  type GuessScore,
-  type Mark,
-  type ScoreKey,
-} from '@/lib/daily/score';
+import type { Mark, Rarity, ScoredGuess } from '@/lib/daily/daily-client';
 
-export interface ScoredGuess {
-  card: CardAttrs;
-  score: GuessScore;
-}
+type Key = keyof ScoredGuess['cells'];
+const KEYS: readonly Key[] = ['colors', 'mv', 'type', 'rarity', 'year'];
 
-const COLUMN: Record<ScoreKey, string> = {
-  colors: 'Colours',
+const COLUMN: Record<Key, string> = {
+  colors: 'Colors',
   mv: 'Mana value',
   type: 'Type',
   rarity: 'Rarity',
@@ -22,8 +13,8 @@ const COLUMN: Record<ScoreKey, string> = {
 };
 
 // Phone-width headers; the full name rides on the sr-only prefix in each cell.
-const COLUMN_SHORT: Record<ScoreKey, string> = {
-  colors: 'Colour',
+const COLUMN_SHORT: Record<Key, string> = {
+  colors: 'Color',
   mv: 'MV',
   type: 'Type',
   rarity: 'Rarity',
@@ -38,7 +29,15 @@ const MARK: Record<Mark, { icon: LucideIcon; says: string }> = {
   lower: { icon: ArrowDown, says: 'the answer is lower' },
 };
 
-const RARITY_SHORT: Record<CardAttrs['rarity'], string> = {
+const RARITY_LONG: Record<Rarity, string> = {
+  common: 'Common',
+  uncommon: 'Uncommon',
+  rare: 'Rare',
+  mythic: 'Mythic',
+  special: 'Special',
+};
+
+const RARITY_SHORT: Record<Rarity, string> = {
   common: 'Com.',
   uncommon: 'Unc.',
   rare: 'Rare',
@@ -46,29 +45,26 @@ const RARITY_SHORT: Record<CardAttrs['rarity'], string> = {
   special: 'Spec.',
 };
 
-function capitalise(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-function CellValue({ k, card }: { k: ScoreKey; card: CardAttrs }) {
+function CellValue({ k, guess }: { k: Key; guess: ScoredGuess }) {
+  const { cells } = guess;
   switch (k) {
     case 'colors':
-      return <>{card.colors ? card.colors.split('').join(' ') : 'C'}</>;
+      return <>{cells.colors.value ? cells.colors.value.split('').join(' ') : 'C'}</>;
     case 'mv':
-      return <>{card.mv}</>;
+      return <>{cells.mv.value}</>;
     case 'type':
-      return <>{mainType(card.typeLine)}</>;
+      return <>{cells.type.value}</>;
     case 'rarity':
       return (
         <>
-          <span className="daily-cell-long">{capitalise(card.rarity)}</span>
+          <span className="daily-cell-long">{RARITY_LONG[cells.rarity.value]}</span>
           <span className="daily-cell-short" aria-hidden="true">
-            {RARITY_SHORT[card.rarity]}
+            {RARITY_SHORT[cells.rarity.value]}
           </span>
         </>
       );
     case 'year':
-      return <>{card.year}</>;
+      return <>{cells.year.value}</>;
   }
 }
 
@@ -83,7 +79,7 @@ export function GuessGrid({ guesses }: { guesses: readonly ScoredGuess[] }) {
     <div className="daily-grid">
       <div className="daily-grid-head" aria-hidden="true">
         <span className="daily-grid-head-name">Your guesses</span>
-        {SCORE_KEYS.map((k) => (
+        {KEYS.map((k) => (
           <span key={k}>
             <span className="daily-cell-long">{COLUMN[k]}</span>
             <span className="daily-cell-short">{COLUMN_SHORT[k]}</span>
@@ -91,13 +87,14 @@ export function GuessGrid({ guesses }: { guesses: readonly ScoredGuess[] }) {
         ))}
       </div>
       <ol className="daily-grid-rows" aria-label="Your guesses, newest first">
-        {rows.map(({ card, score }) => (
-          <li key={card.name} className="daily-grid-row">
-            <span className="daily-grid-name">{card.name}</span>
-            {SCORE_KEYS.map((k) => {
-              const { icon: Icon, says } = MARK[score[k]];
+        {rows.map((guess) => (
+          <li key={guess.name} className="daily-grid-row">
+            <span className="daily-grid-name">{guess.name}</span>
+            {KEYS.map((k) => {
+              const mark = guess.cells[k].mark;
+              const { icon: Icon, says } = MARK[mark];
               return (
-                <span key={k} className="daily-cell" data-mark={score[k]}>
+                <span key={k} className="daily-cell" data-mark={mark}>
                   <span className="sr-only">{COLUMN[k]}: </span>
                   <Icon
                     className="daily-cell-icon"
@@ -107,7 +104,7 @@ export function GuessGrid({ guesses }: { guesses: readonly ScoredGuess[] }) {
                     aria-hidden="true"
                   />
                   <span className="daily-cell-value">
-                    <CellValue k={k} card={card} />
+                    <CellValue k={k} guess={guess} />
                   </span>
                   <span className="sr-only">, {says}.</span>
                 </span>

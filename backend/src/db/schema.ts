@@ -1245,6 +1245,32 @@ export const dailyResults = pgTable(
 );
 export type DailyResultRow = typeof dailyResults.$inferSelect;
 
+/** The day's answer, picked at runtime on first request and frozen whole. */
+export const dailyPuzzles = pgTable('daily_puzzles', {
+  puzzleDate: text('puzzle_date').primaryKey(),
+  number: integer('number').notNull(),
+  name: text('name').notNull(),
+  payload: jsonb('payload').notNull(),
+  createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+});
+
+/** A signed-in player's plays for one day, appended server-side. */
+export const dailyProgress = pgTable(
+  'daily_progress',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    puzzleDate: text('puzzle_date').notNull(),
+    guesses: jsonb('guesses').notNull().default([]),
+    gaveUp: boolean('gave_up').notNull().default(false),
+    updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.userId, t.puzzleDate] }),
+  })
+);
+
 export type GameNightRow = typeof gameNights.$inferSelect;
 export type GameNightSeriesRow = typeof gameNightSeries.$inferSelect;
 export type GameNightInviteRow = typeof gameNightInvites.$inferSelect;

@@ -123,8 +123,9 @@ jobs:
               ["public/cube-signal.json", (d) => Object.keys(d.cards || {}).length > 20000],
               ["public/cube-signal-pauper.json", (d) => Object.keys(d.cards || {}).length > 500],
               ["public/cube-signal-peasant.json", (d) => Object.keys(d.cards || {}).length > 500],
-              ["public/daily-cards.json", (d) => (d.cards || []).length > 25000],
-              ["public/daily-schedule.json", (d) => (d.puzzles || []).some((p) => p.date >= new Date(Date.now() + 60 * 86400000).toISOString().slice(0, 10))],
+              ["../backend/data/daily/cards.json", (d) => (d.cards || []).length > 25000],
+              ["../backend/data/daily/pool.json", (d) => (d.cards || []).length >= 500],
+              ["public/daily-names.json", (d) => (d.names || []).length > 25000],
             ];
             let bad = 0;
             for (const [file, ok] of checks) {
@@ -172,7 +173,7 @@ jobs:
               ["public/cube-signal.json", "scripts/refresh-cube-signal.mjs"],
               ["public/cube-signal-pauper.json", "scripts/refresh-cube-signal-budget.mjs"],
               ["public/cube-signal-peasant.json", "scripts/refresh-cube-signal-budget.mjs"],
-              ["public/daily-cards.json", "scripts/refresh-daily-cards.mjs"],
+              ["../backend/data/daily/cards.json", "scripts/refresh-daily-cards.mjs"],
             ];
             let stale = 0;
             for (const [file, script] of targets) {
@@ -219,6 +220,9 @@ jobs:
             frontend/public/cube-signal.json
             frontend/public/cube-signal-pauper.json
             frontend/public/cube-signal-peasant.json
+            frontend/public/daily-names.json
+            backend/data/daily/cards.json
+            backend/data/daily/pool.json
             packages/binder-routing/src/flavor-names.ts
           body: |
             Automated refresh of the age-gated build snapshots, via the **Refresh build snapshots** workflow.
