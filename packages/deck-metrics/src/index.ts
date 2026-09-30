@@ -127,7 +127,7 @@ export function bracketLabel(bracket: number): string {
 }
 
 /**
- * Official Commander Game Changers list (Feb 9, 2026 — 53 cards).
+ * Official Commander Game Changers list (Feb 9, 2026 — 53 cards, 54 names).
  *
  * Lives here rather than in either app because BOTH need it and neither can
  * derive it: the frontend uses it as the offline floor under its live
@@ -140,6 +140,16 @@ export function bracketLabel(bracket: number): string {
  * Update when the RC publishes a new list, with the live query reachable to
  * verify. Canonical names must match Scryfall exactly (commas in "Narset,
  * Parter of Veils", apostrophes in "Serra's Sanctum").
+ *
+ * A double-faced card carries BOTH names, the way the live list is built
+ * (`liveGetGameChangerNames` adds the full name and the front face): the full
+ * Scryfall name is what a deck card, the tagger and the backend card cache
+ * use, the front face is what EDHREC sends. Only the front face used to be
+ * here, so wherever this list stood in for the live one (the backend's
+ * `check_bracket`, offline, a failed live fetch) a deck running Tergrid
+ * counted no Game Changer and read a bracket low. The calibration benchmark
+ * (`src/calibration`) checks this list against the official one it was built
+ * from, by front face.
  */
 export const HARDCODED_GAME_CHANGERS: ReadonlySet<string> = new Set([
   // White
@@ -171,6 +181,7 @@ export const HARDCODED_GAME_CHANGERS: ReadonlySet<string> = new Set([
   'Opposition Agent',
   'Orcish Bowmasters',
   'Tergrid, God of Fright',
+  "Tergrid, God of Fright // Tergrid's Lantern",
   'Vampiric Tutor',
   // Red
   'Gamble',
@@ -335,6 +346,8 @@ const MLD_FALSE_POSITIVES = new Set([
 const INTERACTION_PCT_MIN = 0.1;
 const INTERACTION_PCT_MAX = 0.22;
 const INTERACTION_CAP = 15;
+/** Roles `roleCounts` already counts as interaction. */
+const INTERACTION_ROLES: ReadonlySet<RoleKey | null> = new Set(['removal', 'boardwipe']);
 /** Approximate non-land count for a 100-card Commander deck (37 lands). */
 const COMMANDER_NONLAND_COUNT = 63;
 
@@ -794,7 +807,7 @@ export function estimateBracket(
     if (tags.isExtraTurn(name)) extraTurns.push(name);
     if (FAST_MANA.has(name)) fastMana.push(name);
     if (STAX_PIECES.has(name)) staxPieces.push(name);
-    if (tags.hasTag(name, 'counterspell') && tags.getCardRole(name) === null)
+    if (tags.hasTag(name, 'counterspell') && !INTERACTION_ROLES.has(tags.getCardRole(name)))
       counterspells.add(name);
     // Only count as tutor if primary role is cardDraw — cards like Cultivate
     // have the tutor tag but their primary role is ramp, not tutoring.

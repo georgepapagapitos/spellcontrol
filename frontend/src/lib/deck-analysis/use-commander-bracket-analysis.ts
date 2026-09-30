@@ -159,8 +159,12 @@ function withStallTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  *   v20 — the Bracket Fit plan finds a double-faced card's EDHREC entry under
  *        its front face, so its cut order ranks the card by real priority
  *        instead of 0 (E490).
+ *   v21 — calibration pass (E541): a counterspell that also draws (Arcane
+ *        Denial, Remand) counts as interaction in the power signal, and
+ *        Tergrid counts as a Game Changer under its full double-faced name
+ *        wherever the hardcoded list stands in for the live one.
  */
-const ANALYSIS_ENGINE_VERSION = 'v20-dfc-pool-lookup';
+const ANALYSIS_ENGINE_VERSION = 'v21-calibration';
 
 /** Suffix marking a persisted `gradeBracketSignature` as a PARTIAL result
  *  (EDHREC was unreachable). Distinguishes it from a full result computed for
