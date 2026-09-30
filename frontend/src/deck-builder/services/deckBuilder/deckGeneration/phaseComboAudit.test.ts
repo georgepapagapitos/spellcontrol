@@ -3,6 +3,7 @@ import type { ScryfallCard, DetectedCombo, EDHRECCard } from '@/deck-builder/typ
 
 vi.mock('@/deck-builder/services/tagger/client', () => ({
   getCardRole: vi.fn(() => null),
+  validateCardRole: () => null,
   isProtectionPiece: () => false,
   isFreeInteraction: () => false,
 }));
@@ -410,5 +411,152 @@ describe('comboIntegrityAuditPhase', () => {
     });
 
     expect(state.currentRoleCounts.removal).toBe(0);
+  });
+});
+
+// E532 gate: the audit cut a piece of the very combo it was completing and
+// reported the combo complete. Real cards; inclusion from the E532 panel's
+// Atraxa, Praetors' Voice Planeswalkers and Sivitri, Dragon Master pages.
+describe('comboIntegrityAuditPhase never evicts a piece of the combo it completes', () => {
+  beforeEach(() => {
+    mockGetCardRole.mockReset();
+    mockGetCardRole.mockReturnValue(null);
+  });
+
+  it('completing a near-miss keeps the in-deck piece (Prologue to Phyresis)', () => {
+    const state = makeState();
+    const prologue = scryfallCard('Prologue to Phyresis', { type_line: 'Sorcery' });
+    const wanderer = scryfallCard('The Wanderer', { type_line: 'Legendary Planeswalker' });
+    const algorithm = scryfallCard('Expansion Algorithm', { type_line: 'Instant' });
+    state.categories.synergy = [prologue, wanderer];
+    state.usedNames = new Set([prologue.name, wanderer.name]);
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [
+          edhrecCard('Prologue to Phyresis', 12.9),
+          edhrecCard('The Wanderer', 15.3),
+          edhrecCard('Expansion Algorithm', 12.5),
+        ],
+      },
+    } as unknown as GenerationState['edhrecData'];
+    const detectedCombos = [
+      combo('1131-7873', ['Prologue to Phyresis', 'Expansion Algorithm'], ['Expansion Algorithm']),
+    ];
+
+    const { repairs, detectedCombos: after } = comboIntegrityAuditPhase(state, {
+      detectedCombos,
+      scryfallCardMap: new Map([[algorithm.name, algorithm]]),
+      budgetTracker: null,
+      bracketGuard: undefined,
+    });
+
+    expect(repairs).toEqual([
+      expect.objectContaining({ cut: 'The Wanderer', added: 'Expansion Algorithm' }),
+    ]);
+    expect(state.usedNames.has('Prologue to Phyresis')).toBe(true);
+    expect(after?.[0]).toEqual(expect.objectContaining({ isComplete: true, missingCards: [] }));
+  });
+
+  it('a multi-combo enabler keeps the partners it completes (Hullbreaker Horror + Mox Amber)', () => {
+    const state = makeState();
+    const moxAmber = scryfallCard('Mox Amber', { type_line: 'Legendary Artifact' });
+    const solRing = scryfallCard('Sol Ring', { type_line: 'Artifact' });
+    const frostkite = scryfallCard('Deceptive Frostkite');
+    const hullbreaker = scryfallCard('Hullbreaker Horror');
+    state.categories.ramp = [moxAmber, solRing];
+    state.categories.creatures = [frostkite];
+    state.usedNames = new Set([moxAmber.name, solRing.name, frostkite.name]);
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [
+          edhrecCard('Mox Amber', 5.5),
+          edhrecCard('Sol Ring', 93.2),
+          edhrecCard('Deceptive Frostkite', 33.3),
+          edhrecCard('Hullbreaker Horror', 8.2),
+        ],
+      },
+    } as unknown as GenerationState['edhrecData'];
+    const detectedCombos = [
+      combo('hb-amber', ['Hullbreaker Horror', 'Mox Amber'], ['Hullbreaker Horror']),
+      combo('hb-sol', ['Hullbreaker Horror', 'Sol Ring'], ['Hullbreaker Horror']),
+    ];
+
+    const { repairs } = comboIntegrityAuditPhase(state, {
+      detectedCombos,
+      scryfallCardMap: new Map([[hullbreaker.name, hullbreaker]]),
+      budgetTracker: null,
+      bracketGuard: undefined,
+    });
+
+    expect(repairs).toEqual([
+      expect.objectContaining({ cut: 'Deceptive Frostkite', added: 'Hullbreaker Horror' }),
+    ]);
+    expect(state.usedNames.has('Mox Amber')).toBe(true);
+  });
+
+  it('keeps the pieces a later enabler needs (Kozilek: Karn stays for Mycosynth Lattice)', () => {
+    const state = makeState();
+    const art = (name: string) => scryfallCard(name, { type_line: 'Artifact' });
+    const deck = [
+      art('Foundry Inspector'),
+      art('Echoes of Eternity'),
+      art('Mystic Forge'),
+      scryfallCard('Karn, the Great Creator', { type_line: 'Legendary Planeswalker' }),
+      art('Darksteel Forge'),
+      art("Nevinyrral's Disk"),
+      art('Unwinding Clock'),
+      art('Ornithopter of Paradise'),
+      art('Hedron Crawler'),
+    ];
+    state.categories.synergy = deck;
+    state.usedNames = new Set(deck.map((c) => c.name));
+    // Kozilek, the Great Distortion's page.
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [
+          edhrecCard('Foundry Inspector', 31.3),
+          edhrecCard('Echoes of Eternity', 57.6),
+          edhrecCard('Mystic Forge', 75.7),
+          edhrecCard('Karn, the Great Creator', 18.6),
+          edhrecCard('Darksteel Forge', 15.1),
+          edhrecCard("Nevinyrral's Disk", 19.9),
+          edhrecCard('Unwinding Clock', 34.6),
+          edhrecCard('Ornithopter of Paradise', 20.1),
+          edhrecCard('Hedron Crawler', 23.3),
+          edhrecCard("Sensei's Divining Top", 30.9),
+          edhrecCard('Mycosynth Lattice', 7.3),
+        ],
+      },
+    } as unknown as GenerationState['edhrecData'];
+    const top = "Sensei's Divining Top";
+    const lattice = 'Mycosynth Lattice';
+    const detectedCombos = [
+      combo('top-echoes', ['Echoes of Eternity', 'Foundry Inspector', top], [top]),
+      combo('top-forge', ['Foundry Inspector', 'Mystic Forge', top], [top]),
+      combo('karn-lattice', ['Karn, the Great Creator', lattice], [lattice]),
+      combo(
+        'disk-lock',
+        ['Darksteel Forge', lattice, "Nevinyrral's Disk", 'Unwinding Clock'],
+        [lattice]
+      ),
+    ];
+
+    const { repairs, detectedCombos: after } = comboIntegrityAuditPhase(state, {
+      detectedCombos,
+      scryfallCardMap: new Map([
+        [top, art(top)],
+        [lattice, art(lattice)],
+      ]),
+      budgetTracker: null,
+      bracketGuard: undefined,
+    });
+
+    expect(repairs.map((r) => r.cut).sort()).toEqual(['Hedron Crawler', 'Ornithopter of Paradise']);
+    expect(
+      after
+        ?.filter((dc) => dc.isComplete)
+        .map((dc) => dc.comboId)
+        .sort()
+    ).toEqual(['disk-lock', 'karn-lattice', 'top-echoes', 'top-forge']);
   });
 });
