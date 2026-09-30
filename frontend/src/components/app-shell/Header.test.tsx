@@ -92,13 +92,17 @@ describe('Header — nav links', () => {
   // The link reads "Social" (E558): it opens the hub holding Friends, Trades
   // and Pods, and a primary nav link names its hub the way Collection and
   // Decks do, while the hub's first tab keeps the section name.
-  it('renders Home, Collection, Decks, Play and Social', () => {
+  it('renders Home, Collection, Decks, Play, Daily and Social, in that order', () => {
     renderHeader();
     expect(screen.getByRole('link', { name: /^home$/i })).toBeTruthy();
     expect(screen.getByRole('link', { name: /^collection$/i })).toBeTruthy();
     expect(screen.getByRole('link', { name: /^decks$/i })).toBeTruthy();
     expect(screen.getByRole('link', { name: /^play$/i })).toBeTruthy();
+    expect(screen.getByRole('link', { name: /^daily$/i }).getAttribute('href')).toBe('/daily');
     expect(screen.getByRole('link', { name: /^social$/i }).getAttribute('href')).toBe('/friends');
+    const nav = screen.getByRole('navigation', { name: 'Primary' });
+    const labels = Array.from(nav.querySelectorAll('.site-nav-link')).map((a) => a.textContent);
+    expect(labels.indexOf('Daily')).toBe(labels.indexOf('Play') + 1);
   });
 
   it('Social has no waiting aria-label when nothing needs an answer', () => {

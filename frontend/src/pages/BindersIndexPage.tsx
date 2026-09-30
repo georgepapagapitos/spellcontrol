@@ -8,7 +8,6 @@ import {
   Trash2,
   Upload,
 } from 'lucide-react';
-import { CollectionHubTabs } from '@/components/collection/CollectionHubTabs';
 import { Chip } from '@/components/shared/Chip';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { usePanelCascade, panelCascadeClass } from '@/lib/util/use-panel-cascade';
@@ -30,7 +29,7 @@ import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SearchPill } from '@/components/search/SearchPill';
 import { FilterChipsRow } from '../components/shared/FilterChipsRow';
 import { OverflowMenu, type OverflowMenuItem } from '@/components/overlays/OverflowMenu';
-import { PageHeader } from '@/components/app-shell/PageHeader';
+import { HubPage } from '@/components/app-shell/HubPage';
 import { InfoTip } from '@/components/overlays/InfoTip';
 import { EmptyState } from '../components/shared/EmptyState';
 import { Surface } from '../components/shared/Surface';
@@ -277,55 +276,53 @@ export function BindersIndexPage() {
       : null;
 
   return (
-    <div className="binders-index-page">
-      <PageHeader
-        title="Binders"
-        meta={`${binders.length.toLocaleString()} ${binders.length === 1 ? 'binder' : 'binders'}`}
-        menuLabel="More binder actions"
-        actions={[
-          {
-            label: 'New binder',
-            icon: Plus,
-            primary: true,
-            onClick: () => setEditingBinder('new'),
-          },
-          ...(cards.length > 0
-            ? [
-                {
-                  label: 'Plan a shelf',
-                  icon: Layers,
-                  menuOnly: true,
-                  opensDialog: true,
-                  onClick: () => setPlanShelfOpen(true),
-                },
-              ]
-            : []),
-          ...(binders.length > 0
-            ? [
-                {
-                  label: 'Export',
-                  icon: Upload,
-                  opensDialog: true,
-                  onClick: () => setExportOpen(true),
-                },
-              ]
-            : []),
-          ...(binders.length > 1
-            ? [
-                {
-                  label: 'Delete all binders',
-                  icon: Trash2,
-                  danger: true,
-                  menuOnly: true,
-                  opensDialog: true,
-                  onClick: () => void handleDeleteAll(),
-                },
-              ]
-            : []),
-        ]}
-      />
-      <CollectionHubTabs />
-
+    <HubPage
+      hub="collection"
+      section="Binders"
+      className="binders-index-page"
+      menuLabel="More binder actions"
+      actions={[
+        {
+          label: 'New binder',
+          icon: Plus,
+          primary: true,
+          onClick: () => setEditingBinder('new'),
+        },
+        ...(cards.length > 0
+          ? [
+              {
+                label: 'Plan a shelf',
+                icon: Layers,
+                menuOnly: true,
+                opensDialog: true,
+                onClick: () => setPlanShelfOpen(true),
+              },
+            ]
+          : []),
+        ...(binders.length > 0
+          ? [
+              {
+                label: 'Export',
+                icon: Upload,
+                opensDialog: true,
+                onClick: () => setExportOpen(true),
+              },
+            ]
+          : []),
+        ...(binders.length > 1
+          ? [
+              {
+                label: 'Delete all binders',
+                icon: Trash2,
+                danger: true,
+                menuOnly: true,
+                opensDialog: true,
+                onClick: () => void handleDeleteAll(),
+              },
+            ]
+          : []),
+      ]}
+    >
       {binders.length > 0 && (
         <div className="binders-index-search-row">
           <SearchPill
@@ -681,7 +678,7 @@ export function BindersIndexPage() {
       )}
 
       {confirmDialog}
-    </div>
+    </HubPage>
   );
 }
 

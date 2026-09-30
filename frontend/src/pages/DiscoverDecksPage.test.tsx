@@ -321,7 +321,10 @@ describe('DiscoverDecksPage', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Precons' })).toBeTruthy();
+    // The hub keeps its title on every tab (HubPage); the shelf says what it
+    // is in the intro line under the strip.
+    expect(screen.getByRole('heading', { level: 1, name: 'Decks: Discover' })).toBeTruthy();
+    expect(screen.getByText('Every Commander precon Wizards has printed.')).toBeTruthy();
     await waitFor(() => expect(screen.getByText('Heavenly Inferno')).toBeTruthy());
     expect(mockListDiscoverDecks).toHaveBeenCalledWith(
       expect.objectContaining({ source: 'precons' })

@@ -4,8 +4,7 @@ import './SavedDecksPage.css';
 import './DiscoverDecksPage.css';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { DecksHubTabs } from '@/components/decks/DecksHubTabs';
-import { PageHeader } from '@/components/app-shell/PageHeader';
+import { HubPage } from '@/components/app-shell/HubPage';
 import {
   DiscoverDeckTile,
   DiscoverTileSkeleton,
@@ -72,10 +71,7 @@ export function SavedDecksPage() {
 
   return (
     <>
-      <div className="decks-index-page">
-        <PageHeader title="Saved" />
-        <DecksHubTabs />
-
+      <HubPage hub="decks" section="Saved" className="decks-index-page">
         {!isAuthed ? (
           <EmptyState
             tagline="Saved decks need an account."
@@ -121,7 +117,7 @@ export function SavedDecksPage() {
             ))}
           </ul>
         )}
-      </div>
+      </HubPage>
     </>
   );
 }

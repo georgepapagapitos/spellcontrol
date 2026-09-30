@@ -663,6 +663,15 @@ own dashed, ungrouped row last, unchanged from the single-preset case above.
 | `ChoiceList`       | One-of where each option needs a sentence.                                                                                                                                                    | A single hint that rewrites itself per option.                          |
 | `Disclosure`       | A group of settings most people leave alone; summary while closed.                                                                                                                            | Identity, or the dialog's main job.                                     |
 | `SelectMenu`       | Five or more options. Inside a `Field` it draws as a field-width rect, not the toolbar pill.                                                                                                  | A native `<select>`.                                                    |
+| `.form-input`      | A typed answer in a `Field` (text, date and time, a notes `<textarea>`): the same field-width rect as the `SelectMenu` above, 16px text.                                                      | A bare `<input>` in a `Field`, which renders as the browser's own box.  |
+
+- **A group of rows is a fieldset whose legend wears the `Field` label**
+  (serif, sentence case, `--text-secondary`), with the rows in one
+  field-width rect on the `.form-input` surface and a hairline between rows.
+  Never a box with its caption sitting on the border (the game-night dialog's
+  Invite friends, Who's in, Blocked and vote-time groups). Guard:
+  `src/test/form-kit-usage.test.ts` fails on an unclassed `<input>` or
+  `<textarea>` directly in a `Field`.
 
 - **`.field label` never uppercases a checkbox.** The old descendant rule
   caught every label inside a field, so the binder editor's "Double-sided" and

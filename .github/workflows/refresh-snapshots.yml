@@ -98,6 +98,10 @@ jobs:
       # Every run, not age-gated: the table is small and a new Secret Lair drop
       # adds flavor names between refreshes. Fails loudly (nothing builds from
       # the network), and refuses to write a collapsed table.
+      - name: Refresh Daily puzzle cards and schedule (Scryfall bulk)
+        working-directory: frontend
+        run: node scripts/refresh-daily-cards.mjs
+
       - name: Refresh flavor names (Scryfall)
         working-directory: packages/binder-routing
         run: node scripts/refresh-flavor-names.mjs
@@ -119,6 +123,8 @@ jobs:
               ["public/cube-signal.json", (d) => Object.keys(d.cards || {}).length > 20000],
               ["public/cube-signal-pauper.json", (d) => Object.keys(d.cards || {}).length > 500],
               ["public/cube-signal-peasant.json", (d) => Object.keys(d.cards || {}).length > 500],
+              ["public/daily-cards.json", (d) => (d.cards || []).length > 25000],
+              ["public/daily-schedule.json", (d) => (d.puzzles || []).some((p) => p.date >= new Date(Date.now() + 60 * 86400000).toISOString().slice(0, 10))],
             ];
             let bad = 0;
             for (const [file, ok] of checks) {
@@ -166,6 +172,7 @@ jobs:
               ["public/cube-signal.json", "scripts/refresh-cube-signal.mjs"],
               ["public/cube-signal-pauper.json", "scripts/refresh-cube-signal-budget.mjs"],
               ["public/cube-signal-peasant.json", "scripts/refresh-cube-signal-budget.mjs"],
+              ["public/daily-cards.json", "scripts/refresh-daily-cards.mjs"],
             ];
             let stale = 0;
             for (const [file, script] of targets) {

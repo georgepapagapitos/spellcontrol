@@ -26,8 +26,7 @@ import { useStoredSort } from '@/lib/util/use-stored-sort';
 import { useStoredView } from '@/lib/util/use-stored-view';
 import { deckCoverArt } from '@/lib/deck/deck-cover';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { DecksHubTabs } from '@/components/decks/DecksHubTabs';
-import { PageHeader } from '@/components/app-shell/PageHeader';
+import { HubPage } from '@/components/app-shell/HubPage';
 import { useDecksStore } from '../store/decks';
 import { formatRelativeTime } from '@/lib/util/format-time';
 import { useAwaitingFirstPull } from '@/lib/sync/use-awaiting-first-pull';
@@ -531,71 +530,75 @@ export function DecksIndexPage() {
 
   return (
     <>
-      <div className="decks-index-page">
-        <PageHeader
-          title="Decks"
-          meta={`${sorted.length.toLocaleString()} ${sorted.length === 1 ? 'deck' : 'decks'}`}
-          menuLabel="More deck actions"
-          actions={[
-            { label: 'New deck', icon: Plus, primary: true, to: '/decks/new' },
-            {
-              label: 'Import deck',
-              icon: Download,
-              opensDialog: true,
-              onClick: () => setShowImport(true),
-            },
-            {
-              label: 'Add a product',
-              icon: Package,
-              opensDialog: true,
-              onClick: () => setShowProductSearch(true),
-            },
-            // Play a list you have not saved: the same gesture as Import minus
-            // the saving, parsed by the same endpoint and thrown away after.
-            { label: 'Goldfish a list', icon: Play, to: '/decks/goldfish' },
-            // A real precon on a board without building or owning anything.
-            {
-              label: 'Play a starter deck',
-              icon: Swords,
-              opensDialog: true,
-              onClick: () => setShowStarters(true),
-            },
-            // Page-level door to /decks/compare; comparing needs two decks.
-            ...(decks.length >= 2
-              ? [{ label: 'Compare decks', icon: GitCompareArrows, to: '/decks/compare' }]
-              : []),
-            // The new-deck picker's "From my binder" tab: every owned commander
-            // ranked by how much of its deck you already own. Same gate as the
-            // tab's own empty state.
-            ...(canBuildFromBinder
-              ? [
-                  {
-                    label: 'New deck from my collection',
-                    icon: BookOpen,
-                    onClick: () =>
-                      navigate('/decks/new/generate', { state: { commanderSource: 'binder' } }),
-                  },
-                ]
-              : []),
-            // The whole-library delete: last, in red, after the divider the
-            // menu draws before its first danger item. One deck is deleted
-            // from its own card, so this needs two.
-            ...(decks.length > 1
-              ? [
-                  {
-                    label: 'Delete all decks',
-                    icon: Trash2,
-                    danger: true,
-                    menuOnly: true,
-                    opensDialog: true,
-                    onClick: () => setConfirmDeleteAll(true),
-                  },
-                ]
-              : []),
-          ]}
-        />
-        <DecksHubTabs />
-
+      <HubPage
+        hub="decks"
+        section="My decks"
+        className="decks-index-page"
+        // The total is on the tab; a filtered view says how much of it shows.
+        intro={
+          sorted.length !== decks.length
+            ? `${sorted.length.toLocaleString()} of ${decks.length.toLocaleString()} decks`
+            : undefined
+        }
+        menuLabel="More deck actions"
+        actions={[
+          { label: 'New deck', icon: Plus, primary: true, to: '/decks/new' },
+          {
+            label: 'Import deck',
+            icon: Download,
+            opensDialog: true,
+            onClick: () => setShowImport(true),
+          },
+          {
+            label: 'Add a product',
+            icon: Package,
+            opensDialog: true,
+            onClick: () => setShowProductSearch(true),
+          },
+          // Play a list you have not saved: the same gesture as Import minus
+          // the saving, parsed by the same endpoint and thrown away after.
+          { label: 'Goldfish a list', icon: Play, to: '/decks/goldfish' },
+          // A real precon on a board without building or owning anything.
+          {
+            label: 'Play a starter deck',
+            icon: Swords,
+            opensDialog: true,
+            onClick: () => setShowStarters(true),
+          },
+          // Page-level door to /decks/compare; comparing needs two decks.
+          ...(decks.length >= 2
+            ? [{ label: 'Compare decks', icon: GitCompareArrows, to: '/decks/compare' }]
+            : []),
+          // The new-deck picker's "From my binder" tab: every owned commander
+          // ranked by how much of its deck you already own. Same gate as the
+          // tab's own empty state.
+          ...(canBuildFromBinder
+            ? [
+                {
+                  label: 'New deck from my collection',
+                  icon: BookOpen,
+                  onClick: () =>
+                    navigate('/decks/new/generate', { state: { commanderSource: 'binder' } }),
+                },
+              ]
+            : []),
+          // The whole-library delete: last, in red, after the divider the
+          // menu draws before its first danger item. One deck is deleted
+          // from its own card, so this needs two.
+          ...(decks.length > 1
+            ? [
+                {
+                  label: 'Delete all decks',
+                  icon: Trash2,
+                  danger: true,
+                  menuOnly: true,
+                  opensDialog: true,
+                  onClick: () => setConfirmDeleteAll(true),
+                },
+              ]
+            : []),
+        ]}
+      >
         {decks.length > 0 && (
           <div className="decks-index-search-row">
             <SearchPill
@@ -1022,7 +1025,7 @@ export function DecksIndexPage() {
             onClose={() => setShareDeck(null)}
           />
         )}
-      </div>
+      </HubPage>
     </>
   );
 }

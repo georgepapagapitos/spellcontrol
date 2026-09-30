@@ -61,6 +61,62 @@
   }
 }
 
+/* Hub pages (components/app-shell/HubPage.tsx, STYLE_GUIDE § Layout system →
+   Hub pages): the tab strip must sit at the same spot on every tab of a hub.
+   Everything above it is therefore the same height on every tab: no meta line
+   (a tab's one-liner goes under the strip), and a header of one fixed height
+   at every tier: the title line or the 44px touch target, whichever is taller.
+   Fixed, not a minimum, because a row button's height comes from its content
+   (41px on desktop against a 39.6px title line), and a minimum let the tabs
+   with buttons sit 1px lower than the tabs without. One row on a phone too,
+   where a stacked full-width primary pushed the strip down on the tabs that
+   have one and not on the tabs that don't. */
+.hub-page {
+  width: 100%;
+}
+
+.hub-page--social {
+  max-width: 760px;
+  margin-inline: auto;
+}
+
+.hub-page > .page-header {
+  height: max(calc(var(--text-3xl) * 1.1), var(--touch-target));
+  flex-wrap: nowrap;
+}
+
+/* The tab's one-liner, under the strip. It wears .binder-hero-meta (the old
+   meta line's type) and adds the strip's own clearance below it, so content
+   starts the same distance under the strip with or without one. --host-gap
+   cancels as the strip's does. */
+.hub-page > .hub-page-intro {
+  margin-bottom: calc(var(--space-4) - var(--host-gap, 0px));
+}
+
+@media (max-width: 1023px) {
+  .hub-page > .hub-page-intro {
+    margin-bottom: calc(var(--space-2) - var(--host-gap, 0px));
+  }
+}
+
+@media (max-width: 599px) {
+  .hub-page > .page-header {
+    align-items: center;
+  }
+
+  .hub-page > .page-header .page-header-actions {
+    width: auto;
+    align-self: center;
+  }
+
+  .hub-page > .page-header .page-header-primary--icon {
+    flex: 0 0 auto;
+    width: var(--control-h);
+    padding: 0;
+    justify-content: center;
+  }
+}
+
 /* Free-standing icon control: grows its own box rather than ghosting. */
 @media (pointer: coarse) {
   .page-header-kebab {
