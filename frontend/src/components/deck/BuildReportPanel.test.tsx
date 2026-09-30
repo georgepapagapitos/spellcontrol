@@ -97,6 +97,27 @@ describe('BuildReportPanel', () => {
     expect(container.textContent).toContain('The One Ring');
   });
 
+  it('lists the whole-deck search swaps with their reasons (E513)', () => {
+    const { container } = render(
+      <BuildReportPanel
+        report={makeReport({
+          wholeDeckSearchSwaps: [
+            {
+              cut: 'Strionic Resonator',
+              added: 'Grave Pact',
+              reason: 'Grave Pact for Strionic Resonator. Grave Pact: in 34% of decks.',
+            },
+          ],
+        })}
+      />
+    );
+    expect(container.textContent).toContain('1 swap after checking the whole deck');
+    expect(
+      screen.getByText('Grave Pact for Strionic Resonator. Grave Pact: in 34% of decks.')
+    ).toBeTruthy();
+    expect(screen.getByText('Whole-deck check')).toBeTruthy();
+  });
+
   it('shows padded basics when present', () => {
     const { container } = render(<BuildReportPanel report={makeReport({ basicsPadded: 4 })} />);
     expect(container.textContent?.replace(/\s+/g, ' ')).toContain('padded 4 basics');

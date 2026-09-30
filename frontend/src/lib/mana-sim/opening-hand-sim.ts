@@ -336,6 +336,11 @@ export function librarySeed(library: readonly { name: string }[]): number {
   return h >>> 0;
 }
 
+/** Cast priority by class (see classOf): finishing beats developing once the
+ *  deck is one piece from done. */
+const FINISHING = [1, 2, 0, 3] as const;
+const DEVELOPING = [0, 3, 1, 2] as const;
+
 /**
  * How many turns until the deck's win path is assembled *and paid for*, across
  * many simulated games: shuffle, draw an opening hand, then each turn draw a
@@ -396,6 +401,7 @@ export function simulateAssemblyClock(
 
   const rand = mulberry32(opts.seed ?? (Math.random() * 0xffffffff) >>> 0);
   const turns: number[] = [];
+  const cheapest = [-1, -1, -1, -1]; // per cast class, the hand index of its cheapest card
 
   for (let i = 0; i < iterations; i++) {
     let order = shuffle(library, rand);
@@ -425,9 +431,16 @@ export function simulateAssemblyClock(
     let rampPending = 0; // ramp cast this turn — online next turn
     const cast = new Set<string>(); // distinct piece names actually paid for
 
-    const missing = (o: { names: string[]; need: number }) =>
-      o.need - o.names.reduce((n, nm) => n + (cast.has(nm) ? 1 : 0), 0);
-    const closest = () => Math.min(...viable.map(missing));
+    const missing = (o: { names: string[]; need: number }) => {
+      let n = o.need;
+      for (const nm of o.names) if (cast.has(nm)) n -= 1;
+      return n;
+    };
+    const closest = () => {
+      let best = Infinity;
+      for (const o of viable) best = Math.min(best, missing(o));
+      return best;
+    };
 
     // Cast priority class: 0 ramp, 1 needed piece, 2 tutor, 3 card draw,
     // -1 uncastable (filler, a land, or a duplicate of a piece already paid).
@@ -466,14 +479,25 @@ export function simulateAssemblyClock(
         // ponytail: greedy sequencing — ramp and draw before pieces unless the
         // deck is one piece from done, then finishing beats developing. A real
         // player plans the whole curve; add lookahead only if medians move.
-        const priority = closest() <= 1 ? [1, 2, 0, 3] : [0, 3, 1, 2];
+        const priority = closest() <= 1 ? FINISHING : DEVELOPING;
+        // One pass classes each castable card once and keeps the cheapest of
+        // each class (the first on a tie); the first class in priority order
+        // with a card is the pick. The same pick as a scan per class, at a
+        // quarter of the work: this loop is most of an objective score's time.
+        cheapest.fill(-1);
+        for (let h = 0; h < hand.length; h++) {
+          if (hand[h].cmc > budget) continue;
+          const cls = classOf(hand[h]);
+          if (cls < 0) continue;
+          const best = cheapest[cls];
+          if (best < 0 || hand[h].cmc < hand[best].cmc) cheapest[cls] = h;
+        }
         let pick = -1;
         for (const want of priority) {
-          for (let h = 0; h < hand.length; h++) {
-            if (classOf(hand[h]) !== want || hand[h].cmc > budget) continue;
-            if (pick < 0 || hand[h].cmc < hand[pick].cmc) pick = h;
+          if (cheapest[want] >= 0) {
+            pick = cheapest[want];
+            break;
           }
-          if (pick >= 0) break;
         }
         if (pick < 0) break;
 

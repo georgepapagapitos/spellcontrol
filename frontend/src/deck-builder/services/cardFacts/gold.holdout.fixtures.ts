@@ -1531,7 +1531,7 @@ export const HOLDOUT: GoldCard[] = [
         cardDraw: 'P activated repeatable',
       },
       interaction: [],
-      produces: ['cards'],
+      produces: ['cards', 'creature-death'],
       payoffs: [],
     },
   },

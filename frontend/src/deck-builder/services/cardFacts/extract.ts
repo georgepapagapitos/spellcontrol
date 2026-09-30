@@ -326,7 +326,20 @@ function roleCandidates(
                 'permanent',
               ] as const
             ).find((s) => s === e.object) ?? 'other';
-          push({ role: 'tutor', sub, sentence });
+          // A search behind a cost nobody pays in a game (Vexing Puzzlebox's
+          // hundred charge counters) is not a tutor slot; one behind a combat
+          // hit (Higure, the Still Wind) is a sometimes tutor.
+          const hugeCounterCost =
+            /\bremove (?:\d{2,}|one hundred|fifty|twenty) [^.:]*counters?\b/.test(
+              a.raw.toLowerCase()
+            );
+          push({
+            role: 'tutor',
+            sub,
+            sentence,
+            force: hugeCounterCost ? 'incidental' : null,
+            cap: a.trigger?.event === 'combat-damage' ? 'secondary' : null,
+          });
           break;
         }
         case 'add-mana': {
@@ -401,6 +414,22 @@ function roleCandidates(
         case 'extra-combat':
           push({ role: 'finisher', sub: 'extra-combat', sentence });
           break;
+        case 'extra-turn': {
+          // An extra turn closes games the way an extra combat does, but only
+          // yours: "take an extra turn" (Temporal Trespass) or "target player
+          // takes" (Time Warp, cast on yourself). The parser reads any other
+          // subject as yours too, so the text decides: an opponent's turn
+          // (Eon Frolicker, Emrakul's "that player") or a contest's winner
+          // (Timesifter) is not a finisher.
+          const raw = a.raw.toLowerCase();
+          const othersTurn =
+            /\b(?:target opponent|each opponent|an opponent|that player|the player who)\b[^.]*\btakes? an extra turn\b/.test(
+              raw
+            );
+          const yours = e.who === 'you' || /\btarget player takes? an extra turn\b/.test(raw);
+          if (yours && !othersTurn) push({ role: 'finisher', sub: 'extra-turn', sentence });
+          break;
+        }
         case 'lose-life':
           // An X spell that drains (Exsanguinate). An X that counts something
           // on the board (Jovial Evil) is not a finisher.
@@ -432,8 +461,11 @@ function roleCandidates(
   // The tagger client's protection classifier covers free redirects and
   // "can't be countered" grants the tuples don't express. A free counterspell
   // trips it too (Fierce Guardianship), but that is counterspell, not protection.
+  // Phasing out a creature you don't control (Teferi, Master of Time's -3)
+  // trips it too, and protects nothing of yours.
   if (
     !out.some((c) => c.role === 'protection' || c.role === 'counterspell') &&
+    !a.effects.some((e) => e.verb === 'phase-out' && e.who === 'opp') &&
     isProtectionPiece({ name: '', oracle_text: a.raw })
   )
     push({ role: 'protection', sub: null, sentence: 0 });
@@ -677,6 +709,16 @@ function triggerResources(t: NonNullable<ParsedAbility['trigger']>): Resource[] 
   }
 }
 
+/**
+ * "Whenever a creature (you control) dies", "whenever this creature or another
+ * creature dies", "whenever you sacrifice a creature", "whenever equipped
+ * creature dies": a creature of yours dying is rewarded. The object must be a
+ * plain creature noun: "a creature an opponent controls" and "a creature with
+ * a bounty counter on it" are someone else's deaths.
+ */
+const CREATURE_DEATH_PAYOFF =
+  /\bwhenever (?:(?:this creature|cardname) or )?(?:a|another|one or more)(?: other)? (?:nontoken )?creatures?(?: you control)? (?:dies|die)\b|\bwhenever you sacrifice (?:a|another|one or more) (?:nontoken )?creatures?\b|\bwhenever (?:equipped|enchanted) creature dies\b/;
+
 function flowFacts(
   card: FactsInputCard,
   faces: FaceCtx[],
@@ -699,6 +741,21 @@ function flowFacts(
   abilities.forEach((a, i) => {
     for (const e of a.effects) for (const r of producedResources(e)) put(produces, r, i);
     for (const r of paidResources(a)) put(payoffs, r, i);
+    // creature-death: a creature of yours dying rewards the card, and
+    // sacrificing a creature makes one die. The trigger's own words decide
+    // (a creature with a bounty counter, an opponent's creature, and a
+    // Treasure sacrificed are not it).
+    if (CREATURE_DEATH_PAYOFF.test(a.raw.toLowerCase())) put(payoffs, 'creature-death', i);
+    if (
+      a.cost.includes('sac:creature') ||
+      a.effects.some(
+        (e) =>
+          e.verb === 'sacrifice' &&
+          e.object.split('|').includes('creature') &&
+          (e.who === 'you' || e.who === 'each')
+      )
+    )
+      put(produces, 'creature-death', i);
   });
 
   // Axis resources: presence exactly as classifyCard reads the card, then

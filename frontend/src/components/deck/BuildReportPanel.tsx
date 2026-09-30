@@ -237,6 +237,7 @@ export function BuildReportPanel({
     coherenceRepairs,
     fixupRepairs,
     budgetRepairs,
+    wholeDeckSearchSwaps,
     surplusConversions,
     flagshipSeatings,
     protectionCount,
@@ -764,6 +765,30 @@ export function BuildReportPanel({
                 <span className="build-report-sub-reason">{r.reason}</span>
                 <span className="build-report-lift-chips">
                   <VerdictBadge tone="success" label="Auto-fixed" />
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+
+      {wholeDeckSearchSwaps && wholeDeckSearchSwaps.length > 0 && (
+        <details className="build-report-subs">
+          <summary>
+            <strong>{wholeDeckSearchSwaps.length}</strong> swap
+            {wholeDeckSearchSwaps.length === 1 ? '' : 's'} after checking the whole deck
+          </summary>
+          <ul className="build-report-subs-list">
+            {wholeDeckSearchSwaps.map((r) => (
+              <li key={`${r.cut}-${r.added}`} className="build-report-sub">
+                <div className="build-report-sub-head">
+                  <span className="build-report-sub-map">
+                    <strong>{r.cut}</strong> &rarr; <strong>{r.added}</strong>
+                  </span>
+                </div>
+                <span className="build-report-sub-reason">{r.reason}</span>
+                <span className="build-report-lift-chips">
+                  <VerdictBadge tone="info" label="Whole-deck check" />
                 </span>
               </li>
             ))}

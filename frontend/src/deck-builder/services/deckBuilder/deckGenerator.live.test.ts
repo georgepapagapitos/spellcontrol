@@ -198,6 +198,10 @@ function customization(overrides: Partial<Customization> = {}): Customization {
           ? false
           : undefined,
     manaPhilosophy: manaPhilosophyEnv(),
+    // E513 A/B knob: LIVE_GEN_OPTIMIZER=1 runs the whole-deck search after the
+    // build (customization.wholeDeckSearch). Unset leaves the key out entirely,
+    // so a flag-off dump is byte-identical to one from before the knob.
+    ...(process.env.LIVE_GEN_OPTIMIZER === '1' ? { wholeDeckSearch: true } : {}),
     ...overrides,
   };
 }
