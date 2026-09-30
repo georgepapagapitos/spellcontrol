@@ -5,6 +5,8 @@ import { listGames, type GameListing } from '@/lib/play/games-api';
 import { gameFormatLabel } from '@/lib/play/game-formats';
 import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
+import { DiscordMark } from '@/components/shared/DiscordMark';
+import { DISCORD_INVITE_URL } from '@/lib/util/community';
 
 interface Props {
   /** Claim a seat at this code — routed through the same `joinOnline` the
@@ -69,11 +71,22 @@ export function RoomBrowser({ onJoin, onWatch, onHostInstead }: Props) {
     return (
       <EmptyState
         tagline="No public games right now."
-        hint="Host a table and set it to public, or ask the host for a join code."
+        hint="Host a table and set it to public, or find players on the SpellControl Discord."
         actions={
-          <Button variant="primary" onClick={onHostInstead}>
-            Host a table
-          </Button>
+          <>
+            <Button variant="primary" onClick={onHostInstead}>
+              Host a table
+            </Button>
+            {/* The one moment someone is looking for other players. */}
+            <Button
+              href={DISCORD_INVITE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              icon={<DiscordMark />}
+            >
+              Find players on Discord
+            </Button>
+          </>
         }
       />
     );

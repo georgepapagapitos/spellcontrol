@@ -4,7 +4,6 @@ import { getDb } from '../db';
 import { gameSessions } from '../db/schema';
 import {
   closeTableChannel,
-  communityInviteUrl,
   deleteTableChannel,
   isDiscordConfigured,
   listTableChannels,
@@ -39,11 +38,10 @@ export function releaseDiscordTable(code: string): void {
 
 /**
  * GET /api/games/discord — whether the host can open a Discord table, so the
- * lobby shows the button only when pressing it can work, and the community
- * server's permanent invite (null when unset) for the Play page's link.
+ * lobby shows the button only when pressing it can work.
  */
 export function discordStatus(_req: Request, res: Response): void {
-  res.json({ enabled: isDiscordConfigured(), inviteUrl: communityInviteUrl() });
+  res.json({ enabled: isDiscordConfigured() });
 }
 
 /**
