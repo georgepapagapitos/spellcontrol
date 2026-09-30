@@ -117,7 +117,13 @@ jobs:
   frontend:
     name: Frontend — typecheck & test
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # The coverage suite alone takes about 10 minutes (1,218 files on
+    # 2026-09-30), and the production build and boot budget follow it. Green
+    # runs that day took 9 to 14 minutes, so 15 cancelled passing PRs mid-build
+    # on a slower runner: #2585 and #2597, both after every test had passed
+    # (E544). 25 still stops a hung run. If green runs near 20 minutes, shard
+    # the suite; don't raise this again.
+    timeout-minutes: 25
 
     defaults:
       run:
