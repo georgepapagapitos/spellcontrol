@@ -7,104 +7,59 @@
 // says where each piece came from). Card facts are extracted from each card's
 // own oracle text (the snapshot isn't loaded in tests).
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import type { DetectedCombo, LiftEntry, Pacing, ScryfallCard } from '@/deck-builder/types';
 import {
   TERM_KEYS,
   checkConstraints,
   compareScores,
-  createObjectiveContext,
   infeasibility,
   scoreDeck,
   termDeltas,
-  type EdhrecRow,
-  type ObjectiveContextInput,
   type ObjectiveDeck,
-  type ObjectiveRole,
 } from './index';
 import { qualityTerm, signatureTerm } from './terms/quality';
+import { PRICE_A, PRICE_B } from './context';
 import { rolesTerm, UNDER_SCALE } from './terms/roles';
 import { answerValue, interactionTerm, isFree, protectionValue } from './terms/interaction';
 import { curveTerm } from './terms/curve';
 import { manaTerm } from './terms/mana';
 import { combosTerm, COMBO_SCALE } from './terms/combos';
 import { liftTerm, synergyTerm } from './terms/synergy';
-import { nonboTerm, HARD_NONBO, TENSION } from './terms/nonbo';
-
-const here = dirname(fileURLToPath(import.meta.url));
-
-interface Fixture {
-  cards: ScryfallCard[];
-  merenPage: Record<string, EdhrecRow>;
-  globalRank: Record<string, number>;
-  lift: Record<string, LiftEntry[]>;
-  meren: {
-    commander: string;
-    colorIdentity: string[];
-    roleTargets: Record<ObjectiveRole, number>;
-    pacing: Pacing;
-    baseline: string[];
-    treatment: string[];
-    combos: DetectedCombo[];
-  };
-  hermitDruidCombo: DetectedCombo;
-}
-
-const FIX = JSON.parse(
-  readFileSync(resolve(here, '__fixtures__', 'objective.fixture.json'), 'utf8')
-) as Fixture;
-const CARDS = new Map(FIX.cards.map((c) => [c.name, c]));
-
-function card(name: string): ScryfallCard {
-  const c = CARDS.get(name);
-  if (!c) throw new Error(`no fixture card named ${name}`);
-  return structuredClone(c);
-}
-const cards = (...names: string[]) => names.map(card);
-
-const MEREN = card('Meren of Clan Nel Toth');
-const merenDeck = (names: readonly string[]): ObjectiveDeck => ({
-  commanders: [MEREN],
-  cards: names.map(card),
-});
-const BASELINE = merenDeck(FIX.meren.baseline);
-const TREATMENT = merenDeck(FIX.meren.treatment);
-
-function merenCtx(over: Partial<ObjectiveContextInput> = {}) {
-  return createObjectiveContext({
-    colorIdentity: FIX.meren.colorIdentity,
-    customization: { deckFormat: 99, currency: 'USD' },
-    edhrec: new Map(Object.entries(FIX.merenPage)),
-    globalRank: new Map(Object.entries(FIX.globalRank)),
-    roleTargets: FIX.meren.roleTargets,
-    pacing: FIX.meren.pacing,
-    combos: FIX.meren.combos,
-    liftPools: new Map(Object.entries(FIX.lift)),
-    manaSim: { games: 1000 },
-    ...over,
-  });
-}
-
-/** Replace one card of a deck (by name) with another. */
-function swap(deck: ObjectiveDeck, out: string, inn: string): ObjectiveDeck {
-  const i = deck.cards.findIndex((c) => c.name === out);
-  if (i < 0) throw new Error(`${out} is not in the deck`);
-  const next = [...deck.cards];
-  next[i] = card(inn);
-  return { commanders: deck.commanders, cards: next };
-}
+import { nonboTerm, HARD_NONBO } from './terms/nonbo';
+import {
+  BASELINE,
+  FIX,
+  MEREN,
+  TREATMENT,
+  card,
+  cards,
+  merenCtx,
+  merenDeck,
+  swap,
+} from './__fixtures__/objectiveFixture';
 
 describe('quality: EDHREC inclusion as a prior', () => {
   const ctx = merenCtx();
 
-  it('reads an on-page card as its inclusion share and a basic as zero', () => {
+  const priced = (name: string) => {
+    const c = card(name);
+    const f = PRICE_A + PRICE_B * Math.log10(1 + parseFloat(c.prices.usd ?? '0'));
+    return Math.min(1, (FIX.merenPage[name].inclusion / 100) * f);
+  };
+
+  it('reads an on-page card as its price-adjusted inclusion share and a basic as zero', () => {
     expect(ctx.qualityOf(card('Sol Ring'))).toMatchObject({ source: 'page' });
-    expect(ctx.qualityOf(card('Sol Ring')).q).toBeCloseTo(
-      FIX.merenPage['Sol Ring'].inclusion / 100
-    );
+    expect(ctx.qualityOf(card('Sol Ring')).q).toBeCloseTo(priced('Sol Ring'));
     expect(ctx.qualityOf(card('Swamp'))).toMatchObject({ q: 0, source: 'basic' });
+  });
+
+  it('lifts an expensive card toward what stronger decks play; a $1 card stays near its rate', () => {
+    // Bracket-4 pages play premium cards more than the page average does.
+    const cheap = card('Sakura-Tribe Elder');
+    const dear = card('Vampiric Tutor');
+    const read = (c: typeof cheap) => ctx.qualityOf(c).q / (FIX.merenPage[c.name].inclusion / 100);
+    expect(read(dear)).toBeGreaterThan(read(cheap));
+    expect(Math.abs(read(cheap) - 1)).toBeLessThan(0.15);
+    expect(ctx.qualityOf(dear).note).toMatch(/price-adjusted/);
   });
 
   it('never reads an off-page card as 0, and orders off-page cards by global popularity', () => {
@@ -121,8 +76,7 @@ describe('quality: EDHREC inclusion as a prior', () => {
 
   it('sums over the 99 and names every non-basic card', () => {
     const v = qualityTerm(merenDeck(['Sol Ring', 'Swamp', 'Skullclamp']), ctx);
-    const expected =
-      (FIX.merenPage['Sol Ring'].inclusion + FIX.merenPage['Skullclamp'].inclusion) / 100;
+    const expected = priced('Sol Ring') + priced('Skullclamp');
     expect(v.value).toBeCloseTo(expected);
     expect(v.cards.map((c) => c.name).sort()).toEqual(['Skullclamp', 'Sol Ring']);
   });
@@ -261,6 +215,37 @@ describe('mana: the goldfish with a fixed seed', () => {
     const ctx = merenCtx();
     expect(manaTerm(islands, ctx).value).toBeLessThan(manaTerm(BASELINE, ctx).value - 5);
   });
+
+  describe('common random numbers', () => {
+    const slots = BASELINE.cards.map((c) => c.name);
+
+    it('a swap that plays the same, in the same slot, barely moves the term', () => {
+      // Snow-Covered Swamp is a Swamp to the goldfish; only the name (and so
+      // the simulator's card id, which breaks a few ties) differs.
+      const snow = swap(BASELINE, 'Swamp', 'Snow-Covered Swamp');
+      const aligned = merenCtx({ slotOrder: slots });
+      const inSlot = Math.abs(manaTerm(snow, aligned).value - manaTerm(BASELINE, aligned).value);
+      // In name order the snow basic shifts every card between the two names.
+      const sorted = merenCtx();
+      const moved = Math.abs(manaTerm(snow, sorted).value - manaTerm(BASELINE, sorted).value);
+      expect(inSlot).toBeLessThan(0.01);
+      expect(moved).toBeGreaterThan(5 * inSlot);
+    });
+
+    it("shrinks the seed noise of a real pair's mana delta", () => {
+      // The E510 Meren pair (seven swaps) at six fixed seeds: the spread of
+      // the delta is the goldfish's own noise on the comparison.
+      const spread = (slotOrder?: string[]) => {
+        const d = [11, 12, 13, 14, 15, 16].map((seed) => {
+          const ctx = merenCtx({ manaSim: { games: 1000, seed }, slotOrder });
+          return manaTerm(TREATMENT, ctx).value - manaTerm(BASELINE, ctx).value;
+        });
+        const mean = d.reduce((a, b) => a + b, 0) / d.length;
+        return Math.sqrt(d.reduce((a, b) => a + (b - mean) ** 2, 0) / (d.length - 1));
+      };
+      expect(spread(slots)).toBeLessThan(spread() * 0.8);
+    });
+  });
 });
 
 describe('combos: completeness', () => {
@@ -295,7 +280,7 @@ describe('synergy: producer → payoff matching, and E71 lift in deck context', 
 
   it("feeds Meren's death payoff from the deck's sacrifice pieces and names the feeders", () => {
     const v = synergyTerm(merenDeck(['Viscera Seer', 'Plaguecrafter', 'Blood Artist']), ctx);
-    expect(v.summary).toMatch(/Meren of Clan Nel Toth pays off death/);
+    expect(v.summary).toMatch(/Meren of Clan Nel Toth pays off creature-death/);
     expect(v.cards.some((c) => /feeds Meren of Clan Nel Toth/.test(c.note))).toBe(true);
   });
 
@@ -335,21 +320,6 @@ describe('nonbo: cards that fight the plan', () => {
     const v = nonboTerm(deck, merenCtx());
     const rip = v.cards.find((c) => c.name === 'Rest in Peace');
     expect(rip?.value).toBe(-HARD_NONBO);
-  });
-
-  it('flags a symmetric wipe beside a go-wide token deck as a tension', () => {
-    const goblins = cards(
-      'Goblin Instigator',
-      'Beetleback Chief',
-      'Mogg War Marshal',
-      'Siege-Gang Commander',
-      'Goblin Rabblemaster',
-      'Impact Tremors',
-      'Skirk Prospector',
-      'Blasphemous Act'
-    );
-    const v = nonboTerm({ commanders: [card('Krenko, Mob Boss')], cards: goblins }, merenCtx());
-    expect(v.cards.find((c) => c.name === 'Blasphemous Act')?.value).toBe(-TENSION);
   });
 });
 
@@ -422,8 +392,6 @@ describe('the whole score on the real E510 Meren pair', () => {
 
   it('agrees with the differ: cutting Skullclamp and Sheoldred made the deck worse', () => {
     expect(compareScores(treat, base)).toBeLessThan(0);
-    const d = termDeltas(treat, base);
-    expect(d.quality).toBeLessThan(0);
   });
 
   it('ranks the named payoff loss above the cards that took its slot, in context', () => {

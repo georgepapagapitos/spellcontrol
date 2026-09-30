@@ -15,7 +15,8 @@
  */
 import type { DetectedCombo } from '@/deck-builder/types';
 import type { CardNote } from '../types';
-import { deckNameKeys, nameKeys, round2, type TermFn } from './shared';
+import { viableCombos } from '../constraints';
+import { round2, type TermFn } from './shared';
 
 export const COMBO_SCALE = 2;
 export const COMBO_DECAY = 0.5;
@@ -30,20 +31,17 @@ export const combosTerm: TermFn = (deck, ctx) => {
   if (typeof target === 'number' && target <= 3) {
     return { value: 0, summary: `combos earn nothing at target bracket ${target}`, cards: [] };
   }
-  const keys = deckNameKeys(deck);
   const seen = new Set<string>();
   const complete: Array<{ combo: DetectedCombo; w: number }> = [];
-  for (const combo of combos) {
-    if (combo.cards.length < 2) continue;
+  // Only lines that work in this deck (constraints.ts viableCombos).
+  for (const combo of combos.length ? viableCombos(deck, ctx) : []) {
     const id = [...combo.cards]
       .map((n) => n.toLowerCase())
       .sort()
       .join('|');
     if (seen.has(id)) continue;
     seen.add(id);
-    if (combo.cards.every((n) => nameKeys(n).some((k) => keys.has(k)))) {
-      complete.push({ combo, w: comboWeight(combo) });
-    }
+    complete.push({ combo, w: comboWeight(combo) });
   }
   complete.sort(
     (a, b) => b.w - a.w || a.combo.cards.join('+').localeCompare(b.combo.cards.join('+'))

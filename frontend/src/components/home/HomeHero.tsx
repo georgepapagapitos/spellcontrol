@@ -72,7 +72,7 @@ function HeroActions({ secondary }: { secondary: React.ReactNode }) {
             icon: CalendarPlus,
             onClick: () => navigate('/play/nights'),
           },
-          { label: 'Friends', icon: Users, onClick: () => navigate('/friends') },
+          { label: 'Social', icon: Users, onClick: () => navigate('/friends') },
         ]}
       />
       {addOpen && <AddCardsSheet onClose={() => setAddOpen(false)} />}

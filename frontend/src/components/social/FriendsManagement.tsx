@@ -154,7 +154,7 @@ export function FriendsManagement() {
 
   // Deep-link arrival: scroll the page heading (owned by the parent
   // FriendsPage, not this component) into view and focus it, so a non-default
-  // tab always lands the user — or a screen reader — announced at "Friends"
+  // tab always lands the user — or a screen reader — announced at "Social"
   // instead of silently at the top of the page.
   useEffect(() => {
     if (tab === 'friends') return;
@@ -287,7 +287,7 @@ export function FriendsManagement() {
   // ── Guest gate ───────────────────────────────────────────────────────────────
   if (status === 'guest') {
     return (
-      // No <h1>Friends</h1> here — the parent FriendsPage already renders
+      // No <h1>Social</h1> here — the parent FriendsPage already renders
       // that heading (id="friends-page-heading-title"); repeating it here
       // would read as a duplicate immediately below it and add a second <h1>.
       <div className="friends-signin-prompt">

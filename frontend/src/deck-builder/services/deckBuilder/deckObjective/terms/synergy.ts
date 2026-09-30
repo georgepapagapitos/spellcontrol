@@ -18,7 +18,10 @@
  *
  *   A payoff with nothing feeding it scores 0: that is the loss. Resources
  *   every deck makes ('mana', 'cards') are left out: they'd pay every
- *   payoff for nothing specific.
+ *   payoff for nothing specific. Payoffs of ONE resource are redundant with
+ *   each other: ranked best first, the k-th counts PAYOFF_REDUNDANCY^k (the
+ *   tenth death payoff adds a quarter of what the first did), so a deck full
+ *   of payoffs can't out-score one with the enablers and answers it needs.
  *
  * lift (E71 card pages, liftSynergy.ts). A seed's co-play pool says which
  * cards its players run with it. A card earns edgeScore(seed → card) from
@@ -34,19 +37,29 @@
 import { RESOURCES, type Resource } from '@/deck-builder/services/cardFacts';
 import { edgeScore } from '../../liftSynergy';
 import type { CardNote } from '../types';
-import { isBasicLand } from '../context';
+import { frontTypeLine, isBasicLand } from '../context';
+import { rulesText } from '../factsReading';
 import { expSat, nameKeys, round2, type TermFn } from './shared';
 
 export const PAYOFF_SCALE = 0.5;
 export const PAYOFF_K = 3;
+export const PAYOFF_REDUNDANCY = 0.85;
 export const COMMANDER_FEED = 2;
 export const COMMANDER_PAYOFF_SCALE = 2;
 export const COMMANDER_K = 6;
 export const LIFT_SCALE = 0.3;
 export const LIFT_K = 50;
 
-/** Resources every deck makes: matching on them says nothing about fit. */
-const GENERIC: ReadonlySet<Resource> = new Set<Resource>(['mana', 'cards']);
+/**
+ * Resources left out: every deck makes mana and cards, so matching on them
+ * says nothing about fit; and the sacrifice axis's 'death', which counts a
+ * Treasure or a land sacrificed and an opponent's creature dying, is read as
+ * the parse's 'creature-death' instead (cardFacts schema, E513).
+ */
+const GENERIC: ReadonlySet<Resource> = new Set<Resource>(['mana', 'cards', 'death']);
+const CAST_TRIGGER =
+  /\bwhenever you cast an? (artifact|enchantment|instant|sorcery|creature|planeswalker|legendary) spell\b/i;
+
 export const SYNERGY_RESOURCES: readonly Resource[] = RESOURCES.filter((r) => !GENERIC.has(r));
 
 export const synergyTerm: TermFn = (deck, ctx) => {
@@ -77,8 +90,27 @@ export const synergyTerm: TermFn = (deck, ctx) => {
     for (const [r, conf] of paid) payoffs.push({ name: card.name, r, conf });
   }
 
-  const supplyFor = (r: Resource, except: string) =>
-    (producers.get(r) ?? []).filter((p) => p.name !== except);
+  // A payoff that triggers on CASTING a kind of spell ("whenever you cast an
+  // enchantment spell": Sythis) is fed by cards of that kind, not by a card
+  // that puts one onto the battlefield (Enduring Ideal).
+  const byName = new Map(all.map((c) => [c.name, c]));
+  const castKind = new Map<string, string | null>();
+  const castKindOf = (name: string) => {
+    if (!castKind.has(name)) {
+      const card = byName.get(name);
+      const m = card && CAST_TRIGGER.exec(rulesText(card));
+      castKind.set(name, m ? m[1].toLowerCase() : null);
+    }
+    return castKind.get(name)!;
+  };
+  const supplyFor = (r: Resource, except: string) => {
+    const kind = castKindOf(except);
+    return (producers.get(r) ?? []).filter(
+      (p) =>
+        p.name !== except &&
+        (!kind || frontTypeLine(byName.get(p.name)!).toLowerCase().includes(kind))
+    );
+  };
 
   const notes: CardNote[] = [];
   let value = 0;
@@ -114,16 +146,26 @@ export const synergyTerm: TermFn = (deck, ctx) => {
     }
   }
   let dead = 0;
+  const byResource = new Map<Resource, Array<[string, { v: number; feeders: string[] }]>>();
   for (const [name, b] of best) {
     if (b.v <= 0) {
       dead++;
       continue;
     }
-    value += b.v;
-    notes.push({
-      name,
-      value: b.v,
-      note: `pays off ${b.r}, fed by ${b.feeders.slice(0, 4).join(', ')}${b.feeders.length > 4 ? ` and ${b.feeders.length - 4} more` : ''}`,
+    let list = byResource.get(b.r);
+    if (!list) byResource.set(b.r, (list = []));
+    list.push([name, b]);
+  }
+  for (const [r, list] of byResource) {
+    list.sort(([an, a], [bn, b]) => b.v - a.v || an.localeCompare(bn));
+    list.forEach(([name, b], k) => {
+      const v = b.v * PAYOFF_REDUNDANCY ** k;
+      value += v;
+      notes.push({
+        name,
+        value: v,
+        note: `pays off ${r} (payoff ${k + 1} of ${list.length}), fed by ${b.feeders.slice(0, 4).join(', ')}${b.feeders.length > 4 ? ` and ${b.feeders.length - 4} more` : ''}`,
+      });
     });
   }
   return {

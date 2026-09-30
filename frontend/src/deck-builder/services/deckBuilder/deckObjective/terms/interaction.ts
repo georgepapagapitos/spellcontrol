@@ -26,9 +26,16 @@
  *
  * Answers are summed best first with decay ANSWER_DECAY per rank (the tenth
  * answer adds less than the first), scaled by ANSWER_SCALE card-equivalents.
- * Protection (counted `protection` facts or `isProtectionPiece`) is valued by
- * speed × cost × repeat and summed with a steeper PROTECTION_DECAY: a deck
- * wants a few pieces, not ten.
+ * A land's answer counts too: Boseiju, Who Endures is removal that costs no
+ * spell slot (the roles term still counts removal among spells only, as the
+ * report does). A "choose one or more" card answers the union of its modes
+ * (Farewell exiles every creature, artifact and enchantment at once).
+ * Protection (counted `protection` facts or `isProtectionPiece`, as the
+ * card's text bears them out: factsReading.ts) is valued by speed × cost ×
+ * repeat and summed with a steeper PROTECTION_DECAY: a deck wants a few
+ * pieces, not ten. Where the commander has to survive or connect (a
+ * repeating engine, attack triggers: the generator's E532 rule), a piece that
+ * keeps it on the battlefield counts SURVIVAL_WEIGHT times.
  */
 import type { ScryfallCard } from '@/deck-builder/types';
 import {
@@ -41,12 +48,29 @@ import {
 } from '@/deck-builder/services/cardFacts';
 import { isFreeInteraction, isProtectionPiece } from '@/deck-builder/services/tagger/client';
 import type { CardNote } from '../types';
-import { nonLandCards, round2, type TermFn } from './shared';
+import { isLandCard } from '../context';
+import {
+  commanderMustSurvive,
+  isSurvivalPiece,
+  protectsOnlyItself,
+  rulesText,
+} from '../factsReading';
+import { round2, type TermFn } from './shared';
 
 export const ANSWER_SCALE = 0.5;
 export const ANSWER_DECAY = 0.9;
 export const PROTECTION_SCALE = 0.6;
 export const PROTECTION_DECAY = 0.6;
+/**
+ * A survival piece's weight where the commander must survive: half again. At
+ * the plain weight a deck's second and third piece (Swiftfoot Boots beside
+ * Lightning Greaves) read about 0.36 and 0.21 of a card, under the 0.2-0.3
+ * quality gaps the first optimizer gate's search traded them for; at 1.5
+ * they read 0.54 and 0.32.
+ */
+export const SURVIVAL_WEIGHT = 1.5;
+
+const CHOOSE_SEVERAL = /\bchoose (?:one or more|any number)\b/i;
 
 const HIT_BREADTH: Partial<Record<Hit, number>> = {
   permanent: 1,
@@ -156,7 +180,19 @@ export function answerValue(
   if (facts.interaction.length === 0) return null;
   const free = isFree(card);
   let best: { v: number; fact: InteractionFact } | null = null;
-  for (const fact of facts.interaction) {
+  const modes = [...facts.interaction];
+  // "Choose one or more": the modes happen together, so their hits add up.
+  const together = facts.interaction.filter((f) => f.limits.includes('modal'));
+  if (together.length > 1 && CHOOSE_SEVERAL.test(rulesText(card))) {
+    const first = together[0];
+    const sameShape = together.every(
+      (f) => f.scope === first.scope && f.side === first.side && f.mode === first.mode
+    );
+    if (sameShape) {
+      modes.push({ ...first, hits: [...new Set(together.flatMap((f) => f.hits))] });
+    }
+  }
+  for (const fact of modes) {
     const repeat = fact.repeat === 'repeatable' || fact.repeat === 'per-turn' ? 1.3 : 1;
     const v =
       breadth(fact) *
@@ -174,6 +210,8 @@ export function answerValue(
 export function protectionValue(card: ScryfallCard, facts: CardFacts): number {
   const fact = facts.roles.find((r) => r.role === 'protection' && countsAsRole(r));
   if (!fact && !isProtectionPiece(card)) return 0;
+  // The tagger's flag, like the facts, is read against the text (Kaito Shizuki).
+  if (protectsOnlyItself(card)) return 0;
   const speed = fact ? SPEED[fact.speed] : 1;
   const repeat = fact && (fact.repeat === 'static' || fact.repeat === 'repeatable') ? 1.2 : 1;
   // A static equipment/aura/permanent protects every turn; its "speed" is the
@@ -189,13 +227,20 @@ function describe(fact: InteractionFact): string {
 
 export const interactionTerm: TermFn = (deck, ctx) => {
   const answers: Array<{ name: string; v: number; note: string }> = [];
-  const protection: Array<{ name: string; v: number }> = [];
-  for (const card of nonLandCards(deck)) {
+  const protection: Array<{ name: string; v: number; survival: boolean }> = [];
+  const mustSurvive = commanderMustSurvive(deck.commanders);
+  const seen = new Set<string>();
+  for (const card of deck.cards) {
+    if (seen.has(card.name)) continue; // basics repeat; no basic answers anything
+    seen.add(card.name);
     const facts = ctx.factsOf(card);
     const a = answerValue(card, facts);
     if (a) answers.push({ name: card.name, v: a.v, note: describe(a.fact) });
+    if (isLandCard(card)) continue;
     const p = protectionValue(card, facts);
-    if (p > 0) protection.push({ name: card.name, v: p });
+    if (p <= 0) continue;
+    const survival = mustSurvive && isSurvivalPiece(card, facts, deck.commanders);
+    protection.push({ name: card.name, v: survival ? p * SURVIVAL_WEIGHT : p, survival });
   }
   answers.sort((a, b) => b.v - a.v || a.name.localeCompare(b.name));
   protection.sort((a, b) => b.v - a.v || a.name.localeCompare(b.name));
@@ -210,7 +255,11 @@ export const interactionTerm: TermFn = (deck, ctx) => {
   protection.forEach((p, i) => {
     const v = PROTECTION_SCALE * p.v * PROTECTION_DECAY ** i;
     value += v;
-    notes.push({ name: p.name, value: v, note: `protection #${i + 1} (${round2(p.v)})` });
+    notes.push({
+      name: p.name,
+      value: v,
+      note: `protection #${i + 1} (${round2(p.v)})${p.survival ? ': keeps the commander on the battlefield' : ''}`,
+    });
   });
   return {
     value,

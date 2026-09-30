@@ -201,7 +201,7 @@ describe('HomePage', () => {
       );
       fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
       expect(screen.getByRole('menuitem', { name: 'Plan a game night' })).toBeTruthy();
-      expect(screen.getByRole('menuitem', { name: 'Friends' })).toBeTruthy();
+      expect(screen.getByRole('menuitem', { name: 'Social' })).toBeTruthy();
     });
 
     // T153 lane G: Home's "Add cards" used an Upload glyph while Collection's

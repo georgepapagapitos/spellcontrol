@@ -157,6 +157,97 @@ describe('flows', () => {
   });
 });
 
+describe('the E513 gaps', () => {
+  it('Blot Out: an exile edict is primary removal of the chosen permanent', () => {
+    const f = extractCardFacts(TEST_CARDS['Blot Out']);
+    expect(counted(f)).toEqual(['removal']);
+    expect(role(f, 'removal')).toMatchObject({ tier: 'primary', speed: 'instant' });
+    expect(f.interaction).toEqual([
+      expect.objectContaining({
+        mode: 'exile',
+        hits: ['creature', 'planeswalker'],
+        scope: 'single',
+        side: 'opponents',
+      }),
+    ]);
+  });
+
+  it('an extra turn for you is a finisher, and Time Warp is cast on yourself', () => {
+    for (const name of ['Temporal Trespass', 'Time Warp']) {
+      const f = extractCardFacts(TEST_CARDS[name]);
+      expect(role(f, 'finisher'), name).toMatchObject({ tier: 'primary', sub: 'extra-turn' });
+      expect(f.strengths['finisher/extra-turn'], name).toBe(1);
+    }
+  });
+
+  it("an opponent's extra turn is no finisher, and a symmetric exile tax is no removal", () => {
+    expect(role(extractCardFacts(TEST_CARDS['Eon Frolicker']), 'finisher')).toBeUndefined();
+    const descent = extractCardFacts(TEST_CARDS['Descent into Madness']);
+    expect(role(descent, 'removal')).toBeUndefined();
+    expect(descent.interaction).toEqual([]);
+  });
+
+  it('a search reads what it can find, where it puts it, and when (the second optimizer gate)', () => {
+    const search = (name: string) =>
+      extractCardFacts(TEST_CARDS[name]).abilities.flatMap((a) =>
+        a.effects.filter((e) => e.verb === 'search')
+      );
+    // Oriq Loremage searches into the graveyard, and the parse says so.
+    expect(search('Oriq Loremage')).toEqual([
+      expect.objectContaining({ object: 'any', to: 'graveyard' }),
+    ]);
+    // A Goblin or a Ninja card is a narrow search, not "a card".
+    expect(role(extractCardFacts(TEST_CARDS['Goblin Matron']), 'tutor')).toMatchObject({
+      sub: 'other',
+    });
+    // Higure's search is behind a combat hit: a sometimes tutor.
+    expect(role(extractCardFacts(TEST_CARDS['Higure, the Still Wind']), 'tutor')).toMatchObject({
+      sub: 'other',
+      tier: 'secondary',
+    });
+    // Scheming Symmetry: the caster is one of the two players it targets.
+    expect(role(extractCardFacts(TEST_CARDS['Scheming Symmetry']), 'tutor')).toMatchObject({
+      sub: 'any',
+      tier: 'primary',
+    });
+    // A hundred charge counters is no tutor slot.
+    expect(role(extractCardFacts(TEST_CARDS['Vexing Puzzlebox']), 'tutor')).toMatchObject({
+      tier: 'incidental',
+    });
+  });
+
+  it("phasing out a creature you don't control protects nothing of yours", () => {
+    const f = extractCardFacts(TEST_CARDS['Teferi, Master of Time']);
+    expect(role(f, 'protection')).toBeUndefined();
+    expect(role(extractCardFacts(TEST_CARDS['Skrelv, Defector Mite']), 'protection')).toBeDefined();
+  });
+
+  it('creature-death: your creatures dying pays it off, sacrificing a creature makes it', () => {
+    const flows = (name: string) => {
+      const f = extractCardFacts(TEST_CARDS[name]);
+      return {
+        pays: f.payoffs.some((p) => p.r === 'creature-death'),
+        makes: f.produces.some((p) => p.r === 'creature-death'),
+      };
+    };
+    expect(flows('Soul Net')).toEqual({ pays: true, makes: false });
+    expect(flows('Viscera Seer')).toEqual({ pays: false, makes: true });
+    expect(flows('Plaguecrafter')).toEqual({ pays: false, makes: true });
+    // An opponent's bountied creature, a sacrificed land, an artifact that
+    // sacrifices itself and a sacrificed Treasure are none of it.
+    expect(flows('Bounty Board')).toEqual({ pays: false, makes: false });
+    expect(flows('Sanctum of Ugin')).toEqual({ pays: false, makes: false });
+    expect(flows('Braidwood Sextant')).toEqual({ pays: false, makes: false });
+    expect(flows('Captain Lannery Storm')).toEqual({ pays: false, makes: false });
+  });
+
+  it('a player exiling cards from a graveyard is not an edict (Living Death stays a wipe)', () => {
+    const f = facts('Living Death');
+    expect(f.interaction.some((i) => i.mode === 'exile')).toBe(false);
+    expect(role(f, 'boardwipe')).toMatchObject({ tier: 'primary' });
+  });
+});
+
 describe('strengths', () => {
   it('Butcher of Malakir: a Grave Pact first, fodder for itself, a big flier', () => {
     const f = extractCardFacts(TEST_CARDS['Butcher of Malakir']);

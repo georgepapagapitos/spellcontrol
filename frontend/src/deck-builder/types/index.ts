@@ -731,6 +731,12 @@ export interface BuildReport {
   /** Swaps the bounded coherence-repair pass applied before the final audit.
    *  Undefined when nothing needed (or could be) repaired. */
   coherenceRepairs?: CoherenceRepair[];
+  /** E513: swaps the whole-deck search made after the build, each with its
+   *  reasons (customization.wholeDeckSearch). Undefined when it is off or
+   *  changed nothing. */
+  wholeDeckSearchSwaps?: CoherenceRepair[];
+  /** E513: one line on what the whole-deck search changed. */
+  wholeDeckSearchNote?: string;
   /** Swaps the post-generation fixup pass applied — critical role deficits
    *  (<=50% of target) and dead CMC 1/2 curve slots. See
    *  phasePostGenFixup.ts (E167). Undefined when nothing needed fixing. */
@@ -795,6 +801,9 @@ export interface GeneratedDeck {
   coherenceFindings?: CoherenceFinding[];
   /** Swaps the bounded coherence-repair pass applied before the final audit. */
   coherenceRepairs?: CoherenceRepair[];
+  /** E513: swaps the whole-deck search made (see BuildReport). */
+  wholeDeckSearchSwaps?: CoherenceRepair[];
+  wholeDeckSearchNote?: string;
   /** Swaps the post-generation fixup pass applied (E167). See BuildReport's
    *  field of the same name for the full rationale. */
   fixupRepairs?: CoherenceRepair[];
@@ -1078,6 +1087,11 @@ export interface Customization {
   // so the flag remains. No UI toggle — the live-eval harness forces it via
   // LIVE_GEN_ARCHETYPE_BLEND=1/0.
   archetypeBlend?: boolean;
+  // E513: after the build, a whole-deck search makes a few swaps the objective
+  // can justify (deckGeneration/phaseWholeDeckSearch.ts), disclosed in the
+  // build report. `undefined` = OFF until its ship gate clears; no UI toggle.
+  // The live-eval harness forces it with LIVE_GEN_OPTIMIZER=1.
+  wholeDeckSearch?: boolean;
   // (Hyper Focus / `hyperFocus` lived here. Removed — E230 gated it 2026-08-07
   // and it failed: its theme-exclusive predicate measured EDHREC list
   // truncation rather than theme identity, so its largest boost landed on the

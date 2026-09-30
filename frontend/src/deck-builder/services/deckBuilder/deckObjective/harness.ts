@@ -11,7 +11,12 @@
 export * from './index';
 export * from './panelDump';
 export * from './validation';
+export * from './optimizer';
+export * from './panelRewrite';
+export * from './trustRegion';
+export { completeCombos } from './constraints';
 export { setCardFactsSnapshot, hasCardFacts } from '@/deck-builder/services/cardFacts';
+export { extractCardFacts } from '@/deck-builder/services/cardFacts/extract';
 export { loadTaggerData, hasTaggerData } from '@/deck-builder/services/tagger/client';
 export {
   fetchCommanderData,
@@ -22,3 +27,4 @@ export {
   formatCommanderNameForUrl,
 } from '@/deck-builder/services/edhrec/client';
 export { HARDCODED_GAME_CHANGERS } from '@spellcontrol/deck-metrics';
+export { countedRoleOf } from '../commanderDeckAnalysis';

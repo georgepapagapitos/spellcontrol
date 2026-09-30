@@ -3133,7 +3133,13 @@ describe('the table voice link', () => {
 describe('Discord tables', () => {
   const GUILD = 'guild-1';
   const CATEGORY = 'cat-1';
-  let channels: Array<{ id: string; name: string; type: number; parent_id: string | null }>;
+  let channels: Array<{
+    id: string;
+    name: string;
+    type: number;
+    parent_id: string | null;
+    position?: number;
+  }>;
   let deleted: string[];
   let failing: boolean;
   // A running counter: ids from the list length repeat after a delete.
@@ -3160,9 +3166,17 @@ describe('Discord tables', () => {
       }
       if (method === 'POST' && path === `/guilds/${GUILD}/channels`) {
         const body = JSON.parse(String(init!.body));
-        const ch = { id: `ch-${nextChannel++}`, ...body };
+        // Discord adds a new channel at the bottom of its category.
+        const ch = { id: `ch-${nextChannel++}`, position: channels.length, ...body };
         channels.push(ch);
         return Response.json(ch);
+      }
+      if (method === 'PATCH' && path === `/guilds/${GUILD}/channels`) {
+        for (const { id, position } of JSON.parse(String(init!.body))) {
+          const ch = channels.find((c) => c.id === id);
+          if (ch) ch.position = position;
+        }
+        return new Response(null, { status: 204 });
       }
       const invite = path.match(/^\/channels\/(.+)\/invites$/);
       if (method === 'POST' && invite) return Response.json({ code: `inv-${invite[1]}` });
@@ -3230,6 +3244,28 @@ describe('Discord tables', () => {
     // join code (which would open a private table to the whole server).
     expect(mine!.name).not.toContain(code);
     expect(channels.filter((c) => c.parent_id === CATEGORY)).toHaveLength(1);
+  });
+
+  // Discord would list a refilled Table 2 under Table 3; the sidebar has to
+  // read in number order.
+  it('lists a refilled number in order, not at the bottom', async () => {
+    installFakeDiscord();
+    const games = [];
+    for (const tag of ['dc_ord_a', 'dc_ord_b', 'dc_ord_c']) {
+      const g = await hostGame(tag);
+      await open(g.hostCookie, g.code);
+      games.push(g);
+    }
+    const [, b] = games;
+    await request(app).post(`/api/games/${b.code}/leave`).set('Cookie', b.hostCookie).send({});
+    await vi.waitFor(() => expect(channels.some((c) => c.name === 'Table 2')).toBe(false));
+    const d = await hostGame('dc_ord_d');
+    await open(d.hostCookie, d.code);
+    const listed = channels
+      .filter((c) => c.parent_id === CATEGORY)
+      .sort((x, y) => (x.position ?? 0) - (y.position ?? 0))
+      .map((c) => c.name);
+    expect(listed).toEqual(['Table 1', 'Table 2', 'Table 3']);
   });
 
   it('numbers tables from the lowest free number', async () => {

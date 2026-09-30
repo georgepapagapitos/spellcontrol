@@ -1,8 +1,9 @@
 /**
  * Mana: does the deck cast its spells on time? Read from the goldfish
- * simulator (lib/mana-sim) with the context's FIXED seed, so two decks
- * compared in one context see the same shuffles (common random numbers) and a
- * difference is the manabase, not the dice.
+ * simulator (lib/mana-sim) with the context's FIXED seed and, when the context
+ * carries a reference `slotOrder`, the library laid out in those slots, so two
+ * decks compared in one context play the same shuffled positions game by game
+ * (common random numbers) and a difference is the cards, not the dice.
  *
  *   value = CAST_SCALE × castability on curve (per spell copy)
  *         + COMMANDER_SCALE × commander castable on curve (mean over the zone)
@@ -26,12 +27,44 @@ export const COMMANDER_SCALE = 10;
 export const SCREW_SCALE = 15;
 export const FLOOD_SCALE = 10;
 
+/**
+ * The deck's cards laid out in the reference slots: every card the reference
+ * holds keeps its slot (copy by copy), and the cards it doesn't hold fill the
+ * vacated slots in name order, then append. Two decks a 1:1 swap apart differ
+ * in exactly one position.
+ */
+export function alignToSlots<T extends { name: string }>(
+  cards: readonly T[],
+  slotOrder: readonly string[]
+): T[] {
+  const pending = new Map<string, T[]>();
+  for (const c of cards) {
+    const list = pending.get(c.name);
+    if (list) list.push(c);
+    else pending.set(c.name, [c]);
+  }
+  const slots: Array<T | undefined> = slotOrder.map((name) => pending.get(name)?.pop());
+  const rest = [...pending.values()]
+    .flat()
+    .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+  const out: T[] = [];
+  for (const s of slots) {
+    if (s) out.push(s);
+    else if (rest.length) out.push(rest.shift()!);
+  }
+  return [...out, ...rest];
+}
+
 /** Run the goldfish for a deck in this context (fixed seed and games). */
 export function simulateDeckMana(deck: ObjectiveDeck, ctx: ObjectiveContext): ManaSimResult {
-  const manaDeck = buildManaDeck(
-    deck.commanders.map(ctx.manaCardOf),
-    deck.cards.map(ctx.manaCardOf)
-  );
+  const commanders = deck.commanders.map(ctx.manaCardOf);
+  const library = deck.cards.map(ctx.manaCardOf);
+  const manaDeck = ctx.slotOrder
+    ? {
+        commanders: [...commanders].sort((a, b) => (a.name < b.name ? -1 : 1)),
+        library: alignToSlots(library, ctx.slotOrder),
+      }
+    : buildManaDeck(commanders, library);
   return simulateManaDeck(manaDeck, { games: ctx.sim.games, seed: ctx.sim.seed });
 }
 
