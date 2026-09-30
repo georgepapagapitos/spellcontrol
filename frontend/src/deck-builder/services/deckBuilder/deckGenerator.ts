@@ -56,6 +56,7 @@ import { buildCommanderProfile } from './commanderProfile';
 import { ARCHETYPE_LABEL } from './strategyVocabulary';
 import { Archetype } from '@/deck-builder/types';
 import type { ArchetypeProvenance, Pacing, RoleTargetBreakdown } from '@/deck-builder/types';
+import * as wholeDeckSearch from './deckGeneration/wholeDeckSearchStep';
 import { loadUserLists } from '@/deck-builder/hooks/useUserLists';
 import {
   fitsColorIdentity,
@@ -4606,6 +4607,16 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     }
   );
 
+  detectedCombos = await wholeDeckSearch.run(state, {
+    roleTargets,
+    pacing: resolvedPacing,
+    detectedCombos,
+    scryfallCardMap,
+    isSaltBlocked,
+    cardAllowed: isCardAllowedBySynergyDependencies,
+    maxCmc,
+    resolveOwned,
+  });
   // Emergent combo-completion disclosure: diff the truly-final detectedCombos
   // just refreshed above against the generation-start baseline captured
   // right after must-includes were seeded (state.baselineDetectedCombos) —
@@ -4923,6 +4934,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     themeNames: selectedThemesWithSlugs.map((t) => t.name),
     seedReasons: dialSeed.reasons,
   });
+  wholeDeckSearch.stampProvenance(state, nonLandCards, cardProvenance);
   const thinPoolFillNote = ownedOnlyBuild
     ? buildThinPoolFillNote({ nonLandCards, cardProvenance, liftScoreOf })
     : undefined;
@@ -4993,6 +5005,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     manabase,
     coherenceFindings: coherenceFindings.length > 0 ? coherenceFindings : undefined,
     coherenceRepairs: coherenceRepairs.length > 0 ? coherenceRepairs : undefined,
+    ...wholeDeckSearch.reportFields(state),
     fixupRepairs: fixupRepairs.length > 0 ? fixupRepairs : undefined,
     budgetRepairs: budgetRepairs.length > 0 ? budgetRepairs : undefined,
     surplusConversions: surplusConversions.length > 0 ? surplusConversions : undefined,

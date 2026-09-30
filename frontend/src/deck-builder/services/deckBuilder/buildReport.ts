@@ -224,6 +224,9 @@ export function assembleBuildReport(input: {
   // ramp backfill donated isshin's flagship-seated Relentless Assault for
   // Smothering Tithe, and the seat record still asserted the card held a
   // justified slot).
+  if (generated.wholeDeckSearchSwaps && generated.wholeDeckSearchSwaps.length > 0)
+    report.wholeDeckSearchSwaps = generated.wholeDeckSearchSwaps;
+  if (generated.wholeDeckSearchNote) report.wholeDeckSearchNote = generated.wholeDeckSearchNote;
   if (generated.flagshipSeatings && generated.flagshipSeatings.length > 0)
     report.flagshipSeatings = annotateDisplacedAdds(generated.flagshipSeatings);
 

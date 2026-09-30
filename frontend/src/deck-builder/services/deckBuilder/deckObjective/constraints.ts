@@ -3,14 +3,14 @@
  * infeasible whatever its score, and two infeasible decks compare by how far
  * they break (`magnitude`), so a local search can walk out of an infeasible
  * seed. Each check mirrors the rule deckInvariants.ts enforces on shipped
- * decks and reuses its helpers and the deckFilters predicates, so "legal" can
+ * decks and reuses its helpers (cardIdentity.ts) and the deckFilters predicates, so "legal" can
  * only mean one thing. What differs is deliberate: the invariant checker also
  * accepts a DISCLOSED break (a forced pick named in a note, a relaxation in
  * collectionRelaxedNames) because it judges a finished build with its report;
  * the objective judges a card list, and a list either keeps the user's
  * constraint or doesn't.
  */
-import type { ScryfallCard } from '@/deck-builder/types';
+import type { DetectedCombo, ScryfallCard } from '@/deck-builder/types';
 import { frontFaceName } from '@/lib/cards/card-text';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 import {
@@ -23,11 +23,8 @@ import {
   notLegalForFormat,
 } from '../deckFilters';
 import { bracketCeilings, type BracketCeilings } from '../bracketGuard';
-// ponytail: deckInvariants.ts value-imports deckGenerator.ts (for one
-// constant), so wiring the objective INTO the generator would close an import
-// cycle through this line — push normalizeCardName and copyLimit down into a
-// leaf module (import-cycles.test.ts will say so) before the E513 search lands.
-import { copyLimit, normalizeCardName } from '../deckInvariants';
+import { estimateBracket } from '../bracketEstimator';
+import { copyLimit, normalizeCardName } from '../cardIdentity';
 import type { ConstraintViolation, ObjectiveContext, ObjectiveDeck } from './types';
 import { isBasicLand, isLandCard } from './context';
 
@@ -45,13 +42,82 @@ function priceOf(card: ScryfallCard, currency: 'USD' | 'EUR'): number | null {
 
 /**
  * Owned share of the NONLAND cards, the basis the partial-owned target is set
- * on (deckInvariants check 18). Null when there is no collection.
+ * on (deckInvariants check 18). A must-include counts as owned: the user's
+ * own pick is the one card that may break the share (E509 ruling). Null when
+ * there is no collection.
  */
 export function ownedShare(deck: ObjectiveDeck, ctx: ObjectiveContext): number | null {
   if (!ctx.ownedNames) return null;
   const spells = deck.cards.filter((c) => !isLandCard(c));
   if (spells.length === 0) return 100;
-  return (100 * spells.filter((c) => owns(ctx.ownedNames, c)).length) / spells.length;
+  const must = new Set(
+    [...(ctx.customization.mustIncludeCards ?? [])].map((n) => normalizeCardName(n))
+  );
+  const counted = (c: ScryfallCard) =>
+    owns(ctx.ownedNames, c) ||
+    must.has(normalizeCardName(c.name)) ||
+    must.has(normalizeCardName(frontFaceName(c.name)));
+  return (100 * spells.filter(counted).length) / spells.length;
+}
+
+/**
+ * Why ONE card may never be added under this context (the card-level rules
+ * of `checkConstraints`: identity, legality, bans, rarity, card price, Arena,
+ * Tiny Leaders, the owned-only strategies), or null when it may. Deck-level
+ * rules (size, singleton, budget, Game Changer and bracket counts, owned
+ * share) depend on the rest of the deck and are checked on the whole list.
+ */
+const NOT_A_DECK_CARD =
+  /\b(?:Stickers|Attraction|Conspiracy|Scheme|Plane|Phenomenon|Vanguard|Dungeon|Emblem)\b/;
+
+export function cardIneligibility(card: ScryfallCard, ctx: ObjectiveContext): string | null {
+  const cz = ctx.customization;
+  const identity = [...ctx.colorIdentity];
+  const owned = ctx.ownedNames;
+  const basic = isBasicLand(card);
+  // Sticker sheets, Attractions and the like are legal to own, not to put in
+  // the 99 (Wild Ogre Bupkis came in through an owned pool in the gate).
+  if (NOT_A_DECK_CARD.test(card.type_line ?? '')) return 'not a card for the deck';
+  if (!fitsColorIdentity(card, identity)) return 'outside the colour identity';
+  if (isDeadInIdentity(card, identity)) return 'discounts a colour the deck cannot cast';
+  if (!basic && notLegalForFormat(card, cz.mtgFormat)) return 'not legal in the format';
+  const banned = new Set<string>();
+  for (const n of [...(cz.bannedCards ?? []), ...(cz.tempBannedCards ?? [])])
+    banned.add(normalizeCardName(n));
+  for (const list of cz.banLists ?? [])
+    if (list.enabled) for (const n of list.cards) banned.add(normalizeCardName(n));
+  if (
+    banned.has(normalizeCardName(card.name)) ||
+    banned.has(normalizeCardName(frontFaceName(card.name)))
+  )
+    return 'banned';
+  if (basic) return null;
+  const ownedSet = owned as Set<string> | undefined;
+  if (
+    cz.maxRarity &&
+    !isOwnedRarityExempt(card.name, ownedSet, !!(cz.ignoreOwnedRarity && owned)) &&
+    exceedsMaxRarity(card, cz.maxRarity)
+  )
+    return `above ${cz.maxRarity}`;
+  const budgetExempt = isOwnedBudgetExempt(card.name, ownedSet, !!(cz.ignoreOwnedBudget && owned));
+  if ((cz.maxCardPrice != null || cz.deckBudget) && !budgetExempt) {
+    const p = priceOf(card, cz.currency ?? 'USD');
+    // With money on the line a card with no price can't be counted, so it
+    // can't be added (deckFilters.exceedsMaxPrice rules the same): read as
+    // free, it would slip past every budget.
+    if (p === null) return 'no price under a budget';
+    if (cz.maxCardPrice != null && p > cz.maxCardPrice) return 'over the card price cap';
+  }
+  if (cz.arenaOnly && !card.games?.includes('arena')) return 'not on Arena';
+  if (cz.tinyLeaders && !isLandCard(card) && (card.cmc ?? 0) > 3) return 'mana value over 3';
+  if (
+    owned &&
+    cz.collectionMode !== false &&
+    constrainsToCollection(cz.collectionStrategy ?? 'full') &&
+    !owns(owned, card)
+  )
+    return 'not owned';
+  return null;
 }
 
 /** The first bracket-floor category a card falls in, as BracketGuard counts it. */
@@ -62,6 +128,93 @@ function bracketCategory(name: string, ctx: ObjectiveContext): keyof BracketCeil
   if (ctx.tags.isExtraTurn(name)) return 'extraTurns';
   if (ctx.tags.isStaxPiece(name)) return 'stax';
   return null;
+}
+
+const key = (name: string) => normalizeCardName(name);
+
+/** Complete combos from the context's set: every named piece in the deck or the command zone. */
+export function completeCombos(deck: ObjectiveDeck, ctx: ObjectiveContext): DetectedCombo[] {
+  const keys = new Set(
+    [...deck.commanders, ...deck.cards].flatMap((c) => [key(c.name), key(frontFaceName(c.name))])
+  );
+  return (ctx.combos ?? []).filter(
+    (c) =>
+      c.cards.length >= 2 &&
+      c.cards.every((n) => keys.has(key(n)) || keys.has(key(frontFaceName(n))))
+  );
+}
+
+/**
+ * The complete combos that actually work in this deck, the ones the value
+ * terms may credit (combos, winline, tutors) and the trust region protects:
+ *  - a Commander Spellbook line with an unnamed-card requirement (a template:
+ *    the `--N` suffix of its id, "11-5261--41") counts only once the deck is
+ *    known to meet it (`templatesSatisfied`, which the deck page resolves; the
+ *    generator's EDHREC feed never says), so Narset's Reversal + Isochron
+ *    Scepter is not a line on its own;
+ *  - Tainted Pact exiles until it finds a second card of one name, so its
+ *    lines need a library with no repeated name (a deck with 15 Islands
+ *    stops at the second Island).
+ * `completeCombos` stays the wider set: the bracket floor is a safety check
+ * and counts any line that might be complete.
+ */
+export function viableCombos(deck: ObjectiveDeck, ctx: ObjectiveContext): DetectedCombo[] {
+  let singleton: boolean | null = null;
+  const isSingleton = () => {
+    if (singleton === null) {
+      const names = deck.cards.map((c) => c.name);
+      singleton = new Set(names).size === names.length;
+    }
+    return singleton;
+  };
+  return completeCombos(deck, ctx).filter((c) => {
+    if (/--/.test(c.comboId ?? '') && c.templatesSatisfied !== true) return false;
+    if (c.cards.some((n) => n === 'Tainted Pact') && !isSingleton()) return false;
+    return true;
+  });
+}
+
+/**
+ * The Game Changer names the bracket estimator should match for this deck:
+ * the list names a double-faced card by its front face (Tergrid, God of
+ * Fright), the deck by its full name, and the estimator compares names as
+ * given, so a DFC Game Changer went uncounted in a rewritten dump.
+ */
+export function gameChangerNamesFor(deck: ObjectiveDeck, ctx: ObjectiveContext): Set<string> {
+  const names = new Set(ctx.gameChangerNames);
+  for (const c of [...deck.commanders, ...deck.cards]) {
+    if (ctx.gameChangerNames.has(frontFaceName(c.name))) names.add(c.name);
+  }
+  return names;
+}
+
+/** A combo hard floor above a numeric target bracket, as the bracket estimator reads the deck. */
+function comboFloor(deck: ObjectiveDeck, ctx: ObjectiveContext): ConstraintViolation | null {
+  const target = ctx.customization.targetBracket;
+  if (typeof target !== 'number' || target >= 4) return null;
+  const complete = completeCombos(deck, ctx);
+  if (complete.length === 0) return null;
+  const names = [...deck.commanders, ...deck.cards].map((c) => c.name);
+  const spells = deck.cards.filter((c) => !isLandCard(c));
+  const avg = spells.length ? spells.reduce((s, c) => s + (c.cmc ?? 0), 0) / spells.length : 0;
+  const estimate = estimateBracket(
+    names,
+    complete.map((c) => ({ ...c, isComplete: true })),
+    avg,
+    undefined,
+    undefined,
+    gameChangerNamesFor(deck, ctx),
+    deck.commanders.map((c) => c.name)
+  );
+  const over = estimate.hardFloors.filter((f) => f.bracket > target && /combo/i.test(f.reason));
+  if (over.length === 0) return null;
+  const top = Math.max(...over.map((f) => f.bracket));
+  return {
+    check: 'bracket-floor',
+    magnitude: top - target,
+    cards: [...new Set(complete.flatMap((c) => c.cards))],
+    detail: `${over.map((f) => f.reason).join('; ')} > bracket ${target}`,
+  };
 }
 
 export function checkConstraints(
@@ -207,8 +360,8 @@ export function checkConstraints(
 
   if (cz.deckBudget) {
     let spend = 0;
+    // Basics count too, as the invariant checker and the deck's total do.
     for (const c of cards) {
-      if (isBasicLand(c)) continue;
       if (isOwnedBudgetExempt(c.name, ownedSet, ignoreOwnedBudget)) continue;
       spend += priceOf(c, currency) ?? 0;
     }
@@ -297,6 +450,14 @@ export function checkConstraints(
     }
   }
 
+  // The combo floor: a bracket 2 or 3 target is a promise about combos, and
+  // the per-card ceilings above can't see one (two ordinary cards make it).
+  // Read by the app's own estimator, so the objective and the bracket badge
+  // agree; in the first optimizer gate a bracket-2 Atraxa came out of the
+  // search with two complete two-card combos, reading bracket 3.
+  const floor = comboFloor(deck, ctx);
+  if (floor) add(floor);
+
   // Collection.
   const strategy = cz.collectionStrategy ?? 'full';
   if (owned && cz.collectionMode !== false && constrainsToCollection(strategy)) {
@@ -316,15 +477,16 @@ export function checkConstraints(
       });
     }
   } else if (owned && cz.collectionMode !== false && strategy === 'partial') {
+    // At least N% owned, exactly (E509 ruling): the invariant checker's
+    // 5-point tolerance judges a finished build's report; a search moving one
+    // card at a time can hold the line itself.
     const share = ownedShare(deck, ctx) ?? 100;
-    // The invariant checker's 5-point tolerance: the target is a share of
-    // ~65 spells, so one card is ~1.5 points.
-    const target = (cz.collectionOwnedPercent ?? 0) - 5;
-    if (share < target) {
+    const target = cz.collectionOwnedPercent ?? 0;
+    if (share < target - 1e-9) {
       const spells = deck.cards.filter((c) => !isLandCard(c)).length;
       add({
         check: 'owned-share',
-        magnitude: Math.ceil(((target - share) / 100) * spells),
+        magnitude: Math.ceil(((target - share) / 100) * spells - 1e-9),
         cards: [],
         detail: `owned share ${share.toFixed(1)}% < ${target}%`,
       });

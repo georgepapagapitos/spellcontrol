@@ -30,8 +30,15 @@
  * `library` is the 99 (98 with partners) with every copy listed, basics
  * included. Everything is sync and pure: the same deck and options give the
  * same numbers, independent of card order. The default seed is derived from the
- * card names; an optimizer comparing variants should pass one fixed `seed` so
- * both variants see the same shuffles (common random numbers).
+ * card names.
+ *
+ * Comparing decks: pass one fixed `seed` so both variants see the same
+ * shuffles (common random numbers). Each game draws its own random stream
+ * from (seed, game index), and a shuffle permutes library POSITIONS, so the
+ * two variants share games only when a swapped card sits in the slot of the
+ * card it replaced: build the ManaDeck yourself with the library in a shared
+ * slot order (`buildManaDeck` sorts by name, which moves every card between
+ * the two names). The whole-deck objective does this (deckObjective/terms/mana.ts).
  *
  * ## What it measures (see `ManaSimResult`)
  *

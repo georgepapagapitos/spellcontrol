@@ -518,6 +518,37 @@ describe('generateDeck — invariants', () => {
   });
 });
 
+describe('generateDeck — whole-deck search (E513, customization.wholeDeckSearch)', () => {
+  it('is inert when the flag is off: no new field on the deck', async () => {
+    const deck = await generateDeck(baseContext());
+    expect('wholeDeckSearchSwaps' in deck).toBe(false);
+    expect('wholeDeckSearchNote' in deck).toBe(false);
+  });
+
+  it('with the flag on, keeps a legal 99 and discloses each swap against the final list', async () => {
+    const ctx = baseContext();
+    ctx.customization = customization({ wholeDeckSearch: true });
+    const deck = await generateDeck(ctx);
+    const names = Object.values(deck.categories)
+      .flat()
+      .map((c) => c.name);
+    expect(names).toHaveLength(99);
+    expect(names.filter((n) => n !== 'Forest').length).toBe(
+      new Set(names.filter((n) => n !== 'Forest')).size
+    );
+    for (const s of deck.wholeDeckSearchSwaps ?? []) {
+      expect(names).toContain(s.added);
+      expect(names).not.toContain(s.cut);
+      expect(s.reason.length).toBeGreaterThan(0);
+    }
+    // Deterministic: the same inputs make the same swaps.
+    clearGenerationCache();
+    const again = await generateDeck(ctx);
+    expect(again.wholeDeckSearchSwaps).toEqual(deck.wholeDeckSearchSwaps);
+    // Two generations, each with the search's goldfish games: slow by design.
+  }, 120_000);
+});
+
 describe('generateDeck — land top-up ordering (Fix 1, iter-6 Slice B)', () => {
   it('tops up a land shortfall BEFORE the nonland fill, so lands still hit target instead of getting backfilled with spells', async () => {
     // Simulate generateLands() silently underdelivering (e.g. a basic-fetch
