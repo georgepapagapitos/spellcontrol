@@ -7,7 +7,7 @@
 // Oracle text is Scryfall's, verbatim.
 import { describe, expect, it } from 'vitest';
 import type { ScryfallCard } from '@/deck-builder/types';
-import { isProtectionPiece } from '@/deck-builder/services/tagger/client';
+import { isProtectionPiece, readsAsProtection } from '@/deck-builder/services/tagger/client';
 import { countProtectionPieces } from './commanderDeckAnalysis';
 import { isSurvivalPiece as generatorSurvival } from './deckGeneration/protectionPicks';
 import { isSurvivalPiece as objectiveSurvival } from './deckObjective/factsReading';
@@ -54,27 +54,31 @@ const SMITE = real(
 const ctx = merenCtx();
 
 describe('a grant whose target is named in the sentence before', () => {
-  it('is a protection piece, and the report counts it', () => {
-    expect(isProtectionPiece(SNAKESKIN)).toBe(true);
-    expect(isProtectionPiece(GAEAS_GIFT)).toBe(true);
+  it('reads as protection, and the report counts it', () => {
+    expect(readsAsProtection(SNAKESKIN)).toBe(true);
+    expect(readsAsProtection(GAEAS_GIFT)).toBe(true);
     const deck = [SNAKESKIN, fixtureCard('Lightning Greaves'), fixtureCard('Sol Ring')];
     expect(countProtectionPieces(deck)).toBe(2);
   });
 
   it('is not read into text that removes a keyword', () => {
-    expect(isProtectionPiece(SMITE)).toBe(false);
+    expect(readsAsProtection(SMITE)).toBe(false);
   });
 
-  it('is a survival piece to the generator and to the objective alike', () => {
+  it('is a survival piece to the objective, and valued as protection', () => {
     for (const c of [SNAKESKIN, GAEAS_GIFT]) {
-      expect(generatorSurvival(c), c.name).toBe(true);
       expect(objectiveSurvival(c, ctx.factsOf(c), [MEREN]), c.name).toBe(true);
     }
-    expect(generatorSurvival(SMITE)).toBe(false);
+    expect(protectionValue(SNAKESKIN, ctx.factsOf(SNAKESKIN))).toBeGreaterThan(0);
   });
 
-  it('is valued by the objective as protection', () => {
-    expect(protectionValue(SNAKESKIN, ctx.factsOf(SNAKESKIN))).toBeGreaterThan(0);
+  // The pin that keeps this a report and objective change: the phases that
+  // protect a piece from eviction, and E532's pick-time promotion, still read
+  // the tagger's narrower evidence, so no composition moves. Widening them is
+  // its own ship-gated change (a live Meren $100 build moved when it was tried).
+  it('leaves the generation predicate alone', () => {
+    expect(isProtectionPiece(SNAKESKIN)).toBe(false);
+    expect(generatorSurvival(SNAKESKIN)).toBe(false);
   });
 });
 

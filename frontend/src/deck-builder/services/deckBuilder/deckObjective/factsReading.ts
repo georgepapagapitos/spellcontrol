@@ -21,6 +21,7 @@
  */
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { CardFacts, Resource } from '@/deck-builder/services/cardFacts';
+import { readsAsProtection } from '@/deck-builder/services/tagger/client';
 import { buildCommanderProfile, getCombinedOracleText } from '../commanderProfile';
 import {
   keepsPermanentText,
@@ -64,7 +65,7 @@ export function isSurvivalPiece(
   facts: CardFacts,
   commanders: readonly ScryfallCard[] = []
 ): boolean {
-  if (!facts.roles.some((r) => r.role === 'protection')) return false;
+  if (!facts.roles.some((r) => r.role === 'protection') && !readsAsProtection(card)) return false;
   if (!keepsPermanentText(rulesText(card)) || !protectsOthers(card)) return false;
   return commanders.length === 0 || commanders.some((c) => canProtect(card, c));
 }
