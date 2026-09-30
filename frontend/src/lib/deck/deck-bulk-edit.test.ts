@@ -101,7 +101,7 @@ const FYNN = card({
 });
 
 const commanderConfig = DECK_FORMAT_CONFIGS.commander;
-const emptyCtx = { decks: [] as Deck[], collectionCards: [] as EnrichedCard[] };
+const emptyCtx = { decks: [] as Deck[], cubes: [], collectionCards: [] as EnrichedCard[] };
 
 describe('parseBulkEditText', () => {
   it('parses plain "qty name" lines into the main zone', () => {
@@ -221,7 +221,7 @@ describe('buildBulkEditPlan — allocation preservation (the critical contract)'
       cards: [slot(forest, 'copy-1', 's1')],
     });
     const parsed = parseBulkEditText('2 Forest');
-    const ctx = { decks: [deck], collectionCards: [owned('Forest', 'copy-2')] };
+    const ctx = { decks: [deck], cubes: [], collectionCards: [owned('Forest', 'copy-2')] };
     const plan = buildBulkEditPlan(deck, parsed, new Map(), DECK_FORMAT_CONFIGS.standard, ctx);
     const copyIds = plan.cards.map((c) => c.allocatedCopyId).sort();
     expect(copyIds).toEqual(['copy-1', 'copy-2']);
@@ -280,7 +280,7 @@ describe('buildBulkEditPlan — allocation preservation (the critical contract)'
     const crypt = card({ name: 'Mana Crypt' });
     const parsed = parseBulkEditText('1 Mana Crypt');
     const resolved = new Map([['mana crypt', crypt]]);
-    const ctx = { decks: [deck], collectionCards: [owned('Mana Crypt', 'copy-crypt')] };
+    const ctx = { decks: [deck], cubes: [], collectionCards: [owned('Mana Crypt', 'copy-crypt')] };
     const plan = buildBulkEditPlan(deck, parsed, resolved, commanderConfig, ctx);
     expect(plan.cards).toEqual([
       {
@@ -331,7 +331,7 @@ describe('buildBulkEditPlan — allocation preservation (the critical contract)'
     const deck = baseDeck({ commander: oldCmdr, commanderAllocatedCopyId: 'copy-old' });
     const parsed = parseBulkEditText('Commander\n1 The Ur-Dragon');
     const resolved = new Map([['the ur-dragon', newCmdr]]);
-    const ctx = { decks: [deck], collectionCards: [owned('The Ur-Dragon', 'copy-new')] };
+    const ctx = { decks: [deck], cubes: [], collectionCards: [owned('The Ur-Dragon', 'copy-new')] };
     const plan = buildBulkEditPlan(deck, parsed, resolved, commanderConfig, ctx);
     expect(plan.commander).toBe(newCmdr);
     expect(plan.commanderAllocatedCopyId).toBe('copy-new');
@@ -534,7 +534,7 @@ describe('summarizeAllocationImpact (E173 resync)', () => {
     const forest = card({ name: 'Forest' });
     const deck = baseDeck({ format: 'standard', cards: [slot(forest, 'copy-1', 's1')] });
     const parsed = parseBulkEditText('2 Forest');
-    const ctx = { decks: [deck], collectionCards: [owned('Forest', 'copy-2')] };
+    const ctx = { decks: [deck], cubes: [], collectionCards: [owned('Forest', 'copy-2')] };
     const plan = buildBulkEditPlan(deck, parsed, new Map(), DECK_FORMAT_CONFIGS.standard, ctx);
     expect(summarizeAllocationImpact(deck, plan)).toEqual({
       kept: 1,

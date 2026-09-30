@@ -3,6 +3,7 @@ import { useCubeStore, type CubePickSlot } from '@/store/cube';
 import { useDecksStore } from '@/store/decks';
 import {
   buildAllocationMap,
+  dedupeCubeAllocations,
   pickCollectionCopy,
   makeDeckAllocationInfo,
   type AllocationInfo,
@@ -37,8 +38,9 @@ export function remapCubeAllocations(newCollection: EnrichedCard[]): void {
   // the deck remap immediately before this) so a cube can never hand out a
   // copyId a deck slot already claims — closes the deck↔cube double-claim
   // hole a reimport could otherwise open (E133).
+  // Decks only on purpose: Phase A below claims the cubes' own copies.
   const claimed = new Map<string, AllocationInfo>(
-    buildAllocationMap(useDecksStore.getState().decks)
+    buildAllocationMap(useDecksStore.getState().decks, [])
   );
   const take = (copyId: string, cardName: string) =>
     claimed.set(copyId, makeDeckAllocationInfo('__cube_remap__', '', '', cardName));
@@ -82,4 +84,56 @@ export function remapCubeAllocations(newCollection: EnrichedCard[]): void {
     });
     if (changed) updateSaved(cube.id, { picks: next });
   }
+}
+
+/**
+ * Re-match every claim against a replaced collection: decks first (kept away
+ * from copies the physical cubes hold), then the cubes. The one entry point
+ * for a collection change, so no caller runs the deck half alone and lets it
+ * take a cube's copy.
+ */
+export function remapAllAllocations(newCollection: EnrichedCard[]): void {
+  const { decks, remapAllocations } = useDecksStore.getState();
+  if (decks.length > 0) remapAllocations(newCollection, useCubeStore.getState().saved);
+  remapCubeAllocations(newCollection);
+}
+
+/**
+ * Self-heal for a copy claimed by both a deck and a physical cube, or by two
+ * cubes. The remaps above prevent it, but a sync from another device, or
+ * undoing a cube delete, can still bring one in. Mirrors the deck store's
+ * deck-vs-deck dedupe subscriber, and lives here because this module already
+ * reads both stores (the stores never import each other's values).
+ * `installCubeClaimHeal` below attaches it.
+ *
+ * Deferred one microtask, like that subscriber: a write made while server
+ * rows are being applied would be skipped by the cube store's sync
+ * subscriber, and by then the guard is down so the release is pushed.
+ */
+let healQueued = false;
+function queueCubeClaimHeal(): void {
+  if (healQueued) return;
+  healQueued = true;
+  queueMicrotask(() => {
+    healQueued = false;
+    const { cubes, changed } = dedupeCubeAllocations(
+      useCubeStore.getState().saved,
+      useDecksStore.getState().decks
+    );
+    if (changed) useCubeStore.setState({ saved: cubes });
+  });
+}
+let healInstalled = false;
+/** Start the heal. Called once at boot (main.tsx), not on import, so a test
+ *  that mocks a store can still import this module. Idempotent. */
+export function installCubeClaimHeal(): void {
+  if (healInstalled) return;
+  healInstalled = true;
+  useDecksStore.subscribe((state, prev) => {
+    if (state.decks !== prev.decks) queueCubeClaimHeal();
+  });
+  useCubeStore.subscribe((state, prev) => {
+    if (state.saved !== prev.saved) queueCubeClaimHeal();
+  });
+  queueCubeClaimHeal();
 }

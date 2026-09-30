@@ -26,7 +26,7 @@ export interface BasicPrintingAvail {
 export function buildBasicPrintingAvailability(
   collection: EnrichedCard[],
   decks: Deck[],
-  physicalCubes?: SavedCube[]
+  physicalCubes: readonly SavedCube[]
 ): Map<string, BasicPrintingAvail[]> {
   const claimed = buildAllocationMap(decks, physicalCubes);
   const byName = new Map<string, Map<string, BasicPrintingAvail>>();
@@ -81,7 +81,7 @@ export function planBasicPrintings(
 export function buildAvailableCollection(
   collection: EnrichedCard[],
   decks: Deck[],
-  physicalCubes?: SavedCube[]
+  physicalCubes: readonly SavedCube[]
 ): AvailableCollection {
   const claimed = buildAllocationMap(decks, physicalCubes);
   const names = new Set<string>();

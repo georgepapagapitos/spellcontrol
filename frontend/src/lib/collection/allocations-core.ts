@@ -147,8 +147,11 @@ function cubeClaim(cube: SavedCube, cardName: string): AllocationInfo {
  * Map<copyId → AllocationInfo> of every physical copy "checked out" to a deck
  * or to a cube the user flagged as physical (`isPhysical`). Read by `CardSlot`,
  * the binder UI, and the deck editor to grey out / badge copies that aren't
- * free. Pass `physicalCubes` (the raw saved-cube list — non-physical cubes are
- * filtered out here) to fold cube claims in; omit it for deck-only behavior.
+ * free. `physicalCubes` is the raw saved-cube list (non-physical cubes are
+ * filtered out here). It is required: a map built from decks alone reads a
+ * physical cube's copies as free, and a deck path that bound from one could
+ * take a copy the cube holds. Pass `[]` only where cubes are handled another
+ * way (the cube remap seeds its own).
  *
  * `onCollision` is called synchronously for every double-claim found (the
  * later claimant losing to the earlier one in map iteration order — the map
@@ -159,8 +162,8 @@ function cubeClaim(cube: SavedCube, cardName: string): AllocationInfo {
  * (below) is the chokepoint that prevents a double-claim from persisting.
  */
 export function buildAllocationMap(
-  decks: Deck[],
-  physicalCubes?: SavedCube[],
+  decks: readonly Deck[],
+  physicalCubes: readonly SavedCube[],
   onCollision?: (collision: { copyId: string; prior: AllocationInfo; next: AllocationInfo }) => void
 ): Map<string, AllocationInfo> {
   const m = new Map<string, AllocationInfo>();
@@ -185,7 +188,9 @@ export function buildAllocationMap(
     if (deck.partnerCommander && deck.partnerCommanderAllocatedCopyId) {
       claim(deck.partnerCommanderAllocatedCopyId, deckClaim(deck, deck.partnerCommander.name));
     }
-    for (const c of deck.cards) {
+    // `?? []`, as in dedupeDeckAllocations: the cube claim heal runs this on
+    // every decks write, including a partial or malformed synced row.
+    for (const c of deck.cards ?? []) {
       if (c.allocatedCopyId) claim(c.allocatedCopyId, deckClaim(deck, c.card.name));
     }
     for (const c of deck.sideboard ?? []) {
@@ -198,7 +203,7 @@ export function buildAllocationMap(
       if (c.allocatedCopyId) claim(c.allocatedCopyId, deckClaim(deck, c.card.name));
     }
   }
-  for (const cube of physicalCubes ?? []) {
+  for (const cube of physicalCubes) {
     if (!cube.isPhysical) continue;
     for (const slot of cube.picks ?? []) {
       if (slot.allocatedCopyId) claim(slot.allocatedCopyId, cubeClaim(cube, slot.card.name));
@@ -285,6 +290,45 @@ export function dedupeDeckAllocations(decks: Deck[]): { decks: Deck[]; changed: 
   });
 
   return { decks: anyChanged ? out : decks, changed: anyChanged };
+}
+
+/**
+ * Strip physical-cube claims on a copy a deck, or an earlier physical cube,
+ * already holds, so one copy is claimed once across decks and cubes. The deck
+ * wins, as in `remapCubeAllocations`: a cube pick is the one released. Cubes
+ * are checked in array order, first claim wins.
+ *
+ * A released pick keeps its `printingFinishKey`, so the next remap can bind
+ * another copy of the same printing. The pick stays listed, like
+ * `releaseCubePick`.
+ *
+ * Deck-vs-deck claims are `dedupeDeckAllocations`'s job, so `decks` are
+ * assumed deduped. Reference-stable: returns the original array and cube
+ * objects when nothing was contested.
+ */
+export function dedupeCubeAllocations(
+  cubes: SavedCube[],
+  decks: readonly Deck[]
+): { cubes: SavedCube[]; changed: boolean } {
+  const claimed = new Set(buildAllocationMap(decks, []).keys());
+  let anyChanged = false;
+  const out = cubes.map((cube) => {
+    if (!cube.isPhysical || !cube.picks?.length) return cube;
+    let changed = false;
+    const picks = cube.picks.map((slot) => {
+      if (!slot.allocatedCopyId) return slot;
+      if (claimed.has(slot.allocatedCopyId)) {
+        changed = true;
+        return { ...slot, allocatedCopyId: null };
+      }
+      claimed.add(slot.allocatedCopyId);
+      return slot;
+    });
+    if (!changed) return cube;
+    anyChanged = true;
+    return { ...cube, picks };
+  });
+  return { cubes: anyChanged ? out : cubes, changed: anyChanged };
 }
 
 /**
