@@ -1226,6 +1226,25 @@ export const userFollows = pgTable(
   })
 );
 
+/** Daily card puzzle result: one per user per UTC day, first write wins. */
+export const dailyResults = pgTable(
+  'daily_results',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    puzzleDate: text('puzzle_date').notNull(),
+    solved: boolean('solved').notNull(),
+    guesses: integer('guesses').notNull(),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.userId, t.puzzleDate] }),
+    dateIdx: index('daily_results_date_idx').on(t.puzzleDate),
+  })
+);
+export type DailyResultRow = typeof dailyResults.$inferSelect;
+
 export type GameNightRow = typeof gameNights.$inferSelect;
 export type GameNightSeriesRow = typeof gameNightSeries.$inferSelect;
 export type GameNightInviteRow = typeof gameNightInvites.$inferSelect;

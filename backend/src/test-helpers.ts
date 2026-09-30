@@ -30,6 +30,7 @@ import { reportsRouter } from './routes/reports';
 import { discoverRouter } from './routes/discover';
 import { activityRouter } from './routes/activity';
 import { followsRouter } from './routes/follows';
+import { dailyRouter } from './routes/daily';
 import { brewersRouter } from './routes/brewers';
 import { aiRouter } from './routes/ai';
 import { eventsRouter } from './routes/events';
@@ -534,6 +535,15 @@ export async function createTestEnv(): Promise<TestEnv> {
       CHECK (follower_id <> followee_id)
     );
     CREATE INDEX user_follows_followee_idx ON user_follows (followee_id, created_at DESC);
+    CREATE TABLE daily_results (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      puzzle_date TEXT NOT NULL,
+      solved BOOLEAN NOT NULL,
+      guesses INTEGER NOT NULL,
+      created_at BIGINT NOT NULL,
+      PRIMARY KEY (user_id, puzzle_date)
+    );
+    CREATE INDEX daily_results_date_idx ON daily_results (puzzle_date);
     CREATE TABLE deck_likes (
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       slug TEXT NOT NULL,
@@ -660,6 +670,7 @@ export async function createTestEnv(): Promise<TestEnv> {
   app.use('/api/public/brewers', brewersRouter);
   app.use('/api/public', publicRouter);
   app.use('/api/follows', followsRouter);
+  app.use('/api/daily', dailyRouter);
   app.use('/api/reports', reportsRouter);
   app.use('/api/discover', discoverRouter);
   app.use('/api/activity', activityRouter);

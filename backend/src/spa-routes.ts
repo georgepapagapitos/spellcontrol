@@ -11,6 +11,7 @@ const SPA_ROOTS = new Set([
   'admin',
   'auth',
   'collection',
+  'daily',
   'd',
   'decks',
   'dev', // /dev/catalog, the component catalog (noindex, robots-disallowed)
