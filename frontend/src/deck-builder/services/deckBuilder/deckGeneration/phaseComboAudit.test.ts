@@ -493,4 +493,70 @@ describe('comboIntegrityAuditPhase never evicts a piece of the combo it complete
     ]);
     expect(state.usedNames.has('Mox Amber')).toBe(true);
   });
+
+  it('keeps the pieces a later enabler needs (Kozilek: Karn stays for Mycosynth Lattice)', () => {
+    const state = makeState();
+    const art = (name: string) => scryfallCard(name, { type_line: 'Artifact' });
+    const deck = [
+      art('Foundry Inspector'),
+      art('Echoes of Eternity'),
+      art('Mystic Forge'),
+      scryfallCard('Karn, the Great Creator', { type_line: 'Legendary Planeswalker' }),
+      art('Darksteel Forge'),
+      art("Nevinyrral's Disk"),
+      art('Unwinding Clock'),
+      art('Ornithopter of Paradise'),
+      art('Hedron Crawler'),
+    ];
+    state.categories.synergy = deck;
+    state.usedNames = new Set(deck.map((c) => c.name));
+    // Kozilek, the Great Distortion's page.
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [
+          edhrecCard('Foundry Inspector', 31.3),
+          edhrecCard('Echoes of Eternity', 57.6),
+          edhrecCard('Mystic Forge', 75.7),
+          edhrecCard('Karn, the Great Creator', 18.6),
+          edhrecCard('Darksteel Forge', 15.1),
+          edhrecCard("Nevinyrral's Disk", 19.9),
+          edhrecCard('Unwinding Clock', 34.6),
+          edhrecCard('Ornithopter of Paradise', 20.1),
+          edhrecCard('Hedron Crawler', 23.3),
+          edhrecCard("Sensei's Divining Top", 30.9),
+          edhrecCard('Mycosynth Lattice', 7.3),
+        ],
+      },
+    } as unknown as GenerationState['edhrecData'];
+    const top = "Sensei's Divining Top";
+    const lattice = 'Mycosynth Lattice';
+    const detectedCombos = [
+      combo('top-echoes', ['Echoes of Eternity', 'Foundry Inspector', top], [top]),
+      combo('top-forge', ['Foundry Inspector', 'Mystic Forge', top], [top]),
+      combo('karn-lattice', ['Karn, the Great Creator', lattice], [lattice]),
+      combo(
+        'disk-lock',
+        ['Darksteel Forge', lattice, "Nevinyrral's Disk", 'Unwinding Clock'],
+        [lattice]
+      ),
+    ];
+
+    const { repairs, detectedCombos: after } = comboIntegrityAuditPhase(state, {
+      detectedCombos,
+      scryfallCardMap: new Map([
+        [top, art(top)],
+        [lattice, art(lattice)],
+      ]),
+      budgetTracker: null,
+      bracketGuard: undefined,
+    });
+
+    expect(repairs.map((r) => r.cut).sort()).toEqual(['Hedron Crawler', 'Ornithopter of Paradise']);
+    expect(
+      after
+        ?.filter((dc) => dc.isComplete)
+        .map((dc) => dc.comboId)
+        .sort()
+    ).toEqual(['disk-lock', 'karn-lattice', 'top-echoes', 'top-forge']);
+  });
 });

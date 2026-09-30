@@ -4,12 +4,7 @@ import { logger } from '@/lib/util/logger';
 import type { ScryfallCard, EDHRECCard, MaxRarity, CollectionStrategy } from '@/deck-builder/types';
 import { getCardPrice, getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { hasCurveRoom } from './curveUtils';
-import { dryRunSeats } from './stapleTier';
-import {
-  wipeAsymmetryTieBreak,
-  wipeScopeCollateralTieBreak,
-  wipeOwnBoardCollateral,
-} from './wipeTieBreaks';
+import { wipeAsymmetryTieBreak, wipeScopeCollateralTieBreak } from './wipeTieBreaks';
 import { BudgetTracker } from './budgetTracker';
 import type { BracketGuard } from './bracketGuard';
 import { matchesExpectedType, roleCapTolerance, ROLE_CAP_HATCH_MAX_PER_PASS } from './categorize';
@@ -483,9 +478,11 @@ export function pickFromPrefetchedWithCurve(
    *  (protectionPicks.ts: at most two protection pieces for a commander that
    *  must survive). Every other gate still applies. */
   admitFirst?: ReadonlySet<string>,
-  /** E532: pieces of the combo lines this deck can assemble from its pool
-   *  (deckGenerator.ts's achievableComboPieces). */
-  comboLinePieces?: ReadonlySet<string>
+  /** E532: combo-line pieces to protect from the staple tier
+   *  (typePassPick.ts's baselineComboSeats). */
+  comboLinePieces?: ReadonlySet<string>,
+  /** E532 off: the pre-E532 pass, for baselineComboSeats' dry run. */
+  e532Off = false
 ): ScryfallCard[] {
   const result: ScryfallCard[] = [];
   const preferOwned = collectionStrategy === 'prefer';
@@ -516,10 +513,11 @@ export function pickFromPrefetchedWithCurve(
   // admission past the cap is counted in stapleOverflowCounts below. Not under
   // a deck budget: a card past its cap is money a later phase has to claw
   // back, and on Meren at $100 that ended $7.45 over after 20 substitutions.
-  // Combo pieces the tier protects (below) pass the cap the same way.
-  let protectedCombos = new Set<string>();
+  // Combo pieces the tier protects (below) pass the cap the same way. The
+  // dry run behind them (e532Off) replays the passes as they were before E532.
+  const protectedCombos = e532Off ? new Set<string>() : (comboLinePieces ?? new Set<string>());
   const capExempt = (c: EDHRECCard) =>
-    !budgetTracker && (isStaple(c) || protectedCombos.has(c.name)) && !atRoleCap(c, 2);
+    !e532Off && !budgetTracker && (isStaple(c) || protectedCombos.has(c.name)) && !atRoleCap(c, 2);
   const roleCapBlocks = (edhrecCard: EDHRECCard): boolean =>
     !allowCapOverflow && !capExempt(edhrecCard) && atRoleCap(edhrecCard);
 
@@ -709,7 +707,8 @@ export function pickFromPrefetchedWithCurve(
           !isStaple(edhrecCard) &&
           comboBoost < 100 &&
           !ownedQuotaShort &&
-          !admitFirst?.has(edhrecCard.name)
+          !admitFirst?.has(edhrecCard.name) &&
+          !protectedCombos.has(edhrecCard.name)
         ) {
           continue;
         }
@@ -765,71 +764,30 @@ export function pickFromPrefetchedWithCurve(
   // (all three budget decks on the E532 panel came out worse).
   // ponytail: a price-sanity pair straddling the bar (E80) is ordered by the
   // tier, not by price. Fold the tie-break in if a live deck shows one.
-  const stapleTier = brewLevel <= 0.5 && !preferOwned && !budgetTracker;
-  // A >=40% wipe leads only when the wipe tie-breaks would not rank a cleaner
-  // wipe ahead of it: it spares the deck's own board where that is asked for
-  // (E109) and costs none of its own permanents (E112). Toxic Deluge (42.9%
-  // on Obeka's Wheels page) was lost to a 14% Aetherize while wipes sat out.
-  const wipeMayLead = (c: EDHRECCard): boolean => {
-    if (roleCapConfig?.cardRoleMap.get(c.name) !== 'boardwipe') return true;
-    const card = cardMap.get(c.name);
-    if (!card) return false;
-    if (roleCapConfig.isOneSidedWipe && !roleCapConfig.isOneSidedWipe(card)) return false;
-    const { getWipeScope, deckTypeTargets } = roleCapConfig;
-    return !getWipeScope || !deckTypeTargets
-      ? true
-      : wipeOwnBoardCollateral(card, getWipeScope, deckTypeTargets) === 0;
-  };
+  const stapleTier = !e532Off && brewLevel <= 0.5 && !preferOwned && !budgetTracker;
+  // Board wipes keep their own order (the one-sided and collateral
+  // tie-breaks, E109/E112, sort allCandidates): a >=40% wipe leads, and so
+  // does every wipe those tie-breaks rank ahead of it. Kept out entirely,
+  // Toxic Deluge (42.9% on Obeka's Wheels page) lost its slot to a 14%
+  // Aetherize and All Is Dust (91.9% on Kozilek) to rocks.
+  const isWipe = (c: EDHRECCard) => roleCapConfig?.cardRoleMap.get(c.name) === 'boardwipe';
+  const lastStapleWipe = allCandidates.reduce(
+    (last, c, i) => (isStaple(c) && isWipe(c) ? i : last),
+    -1
+  );
+  const wipeMayLead = (c: EDHRECCard, i: number) => isStaple(c) || i < lastStapleWipe;
   // The admitFirst names lead: sorted among the staples, an 18.8% Swiftfoot
   // Boots lost Meren's last artifact slot to them and never reached the deck.
-  const admitted = allCandidates.filter((c) => !!admitFirst?.has(c.name));
+  const admitted = allCandidates.filter((c) => !e532Off && !!admitFirst?.has(c.name));
   const staples = allCandidates.filter(
-    (c) => stapleTier && isStaple(c) && !admitFirst?.has(c.name) && wipeMayLead(c)
+    (c, i) =>
+      stapleTier && (isWipe(c) ? wipeMayLead(c, i) : isStaple(c)) && !admitFirst?.has(c.name)
   );
-  // A staple takes a filler slot, never a combo slot. A piece of a combo line
-  // the pool can assemble, which this pass would have seated without the tier
-  // (the dry run replays its phases, role cap and curve gate), leads the tier
-  // and passes the cap like a staple. The E532 gate lost Hermit Druid +
-  // Thassa's Oracle, Karn + Mycosynth Lattice and Hullbreaker Horror + Mox
-  // Amber to staples without it.
-  if (staples.length > 0 && comboLinePieces?.size) {
-    const staticOk = (c: EDHRECCard, typeCheck: boolean): boolean => {
-      const card = cardMap.get(c.name);
-      if (!card || usedNames.has(c.name) || bracketGuard?.exceedsCeiling(c.name)) return false;
-      if (constrainsToCollection(collectionStrategy) && notInCollection(c.name, collectionNames))
-        return false;
-      if ((cardAllowed && !cardAllowed(card)) || notLegalForFormat(card, mtgFormat)) return false;
-      if (typeCheck && c.primary_type === 'Unknown' && expectedType)
-        if (!matchesExpectedType(getFrontFaceTypeLine(card), expectedType)) return false;
-      return (
-        fitsColorIdentity(card, colorIdentity) && !exceedsMaxPrice(card, maxCardPrice, currency)
-      );
-    };
-    const roleOf = (name: string) => roleCapConfig?.cardRoleMap.get(name);
-    const seats = dryRunSeats({
-      phases: [
-        [highSynergyCards, true],
-        [regularTypedCards, false],
-        [regularUnknownCards, true],
-      ],
-      count,
-      eligible: staticOk,
-      cardMap,
-      roleOf,
-      capOf: (role) => {
-        const target = roleCapConfig?.roleTargets[role] ?? 0;
-        return target > 0 ? target + roleCapTolerance(target) : undefined;
-      },
-      roleCounts: liveRoleCounts ?? { ramp: 0, removal: 0, boardwipe: 0, cardDraw: 0 },
-      curveTargets,
-      curveCounts: currentCurveCounts,
-      mayBreakCurve: (c) =>
-        !strictCurve &&
-        (isHighSynergyCard(c) || isStaple(c) || (comboPriorityBoost?.get(c.name) ?? 0) >= 100),
-      capExempt: (c) => comboLinePieces.has(c.name),
-    });
-    protectedCombos = new Set([...seats].filter((n) => comboLinePieces.has(n)));
-  }
+  // A staple takes a filler slot, never a combo slot: the combo-line pieces
+  // the passes seat without the tier (typePassPick.ts's baselineComboSeats)
+  // lead it, and pass the cap and the curve like a staple. The E532 gate lost
+  // Hermit Druid + Thassa's Oracle, Karn + Mycosynth Lattice and Hullbreaker
+  // Horror + Mox Amber to staples without it.
   const combos = allCandidates.filter(
     (c) => protectedCombos.has(c.name) && !admitFirst?.has(c.name)
   );

@@ -637,6 +637,12 @@ describe('buildRoleCapOverflowNote (E77 iter-4 round 3 — narrow escape-hatch-o
       "3 cards went past a role cap. The ramp pool was thin. 1 is in 40% or more of this commander's decks. See Overbuilt roles for the total."
     );
   });
+
+  it('names a protected combo piece as one', () => {
+    expect(buildRoleCapOverflowNote({}, { cardDraw: 1 }, { ramp: 1 })).toBe(
+      "2 cards went past a role cap. 1 is in 40% or more of this commander's decks. 1 is part of a combo the deck can assemble. See Overbuilt roles for the total."
+    );
+  });
 });
 
 describe('resolvePriceSanity (E80 — ships as the default, not opt-in)', () => {

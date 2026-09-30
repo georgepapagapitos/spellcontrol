@@ -250,6 +250,14 @@ export function comboIntegrityAuditPhase(
       .filter(([, count]) => count >= 2)
       .sort(([, a], [, b]) => b - a);
 
+    // Never evict a piece of a combo a queued enabler completes: on the E532
+    // panel, adding Sensei's Divining Top cut Karn, the Great Creator, and the
+    // Mycosynth Lattice added next then completed nothing it had counted on.
+    const enablerPartners = new Set(
+      detectedCombos
+        .filter((dc) => topEnablers.some(([n]) => enablerCombos.get(n)?.includes(dc.comboId)))
+        .flatMap((dc) => dc.cards)
+    );
     for (const [name, combosCompleted] of topEnablers) {
       if (auditSwaps >= MAX_AUDIT_SWAPS) break;
       const card = scryfallCardMap.get(name)!;
@@ -262,13 +270,7 @@ export function comboIntegrityAuditPhase(
       // cleared the enablerScore pre-filter (evaluated once, before ANY swap)
       // can go stale by the time we get here (E-strand-fix, see auditCanAdd).
       if (!auditCanAdd(card)) continue;
-      // Never evict a piece of a combo this enabler is about to complete.
-      const partners = new Set(
-        detectedCombos
-          .filter((dc) => enablerCombos.get(name)?.includes(dc.comboId))
-          .flatMap((dc) => dc.cards)
-      );
-      const weak = auditWeakest(partners);
+      const weak = auditWeakest(enablerPartners);
       if (!weak) break;
       auditRemove(weak.card, weak.category);
       auditCommitAdd(card);

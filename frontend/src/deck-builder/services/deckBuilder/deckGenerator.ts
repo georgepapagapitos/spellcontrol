@@ -139,6 +139,7 @@ import { resolveManaPhilosophy } from './manaPhilosophy';
 import { assertCommandersEligible, commanderPreviewNote } from './commanderEligibility';
 import {
   pickEdhrecTypePass,
+  baselineComboSeats,
   bumpRoleAndSubtypeCounts,
   scryfallFallbackTypePass,
   type TypePassContext,
@@ -2696,8 +2697,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     // that file's header for exactly what stayed here per-pass and why
     // (log/sink/bump ordering is NOT uniform across the six; creature is the
     // one genuine outlier).
-    const spellPools = [instantPool, sorceryPool, artifactPool, enchantmentPool];
-    const typePools = creaturePool.concat(...spellPools, planeswalkerPool);
+    const spellPools = [instantPool, sorceryPool, artifactPool, enchantmentPool, planeswalkerPool];
+    const typePools = creaturePool.concat(...spellPools);
     const typePassCtx: TypePassContext = {
       cardMap,
       usedNames,
@@ -2743,7 +2744,6 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         cardMap,
         () => Object.entries(categories).flatMap(([cat, cards]) => (cat === 'lands' ? [] : cards))
       ),
-      comboLinePieces: achievableComboPieces(state.combos, typePools, (n) => usedNames.has(n)),
       preferAsymmetricWipes,
       wipeAsymmetryDecided,
       isOneSidedWipe,
@@ -2753,6 +2753,28 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       withPackageBoosts,
       onProgress,
     };
+    typePassCtx.comboLinePieces = baselineComboSeats(
+      typePassCtx,
+      [
+        ['Creature', creaturePool, creatureTarget],
+        ['Instant', instantPool, instantTarget],
+        ['Sorcery', sorceryPool, sorceryTarget],
+        ['Artifact', artifactPool, artifactTarget],
+        ['Enchantment', enchantmentPool, enchantmentTarget],
+        ['Planeswalker', planeswalkerPool, planeswalkerTarget],
+      ],
+      achievableComboPieces(state.combos, typePools, (n) => usedNames.has(n)),
+      {
+        cardAllowed: (card) =>
+          !notLegalForFormat(card, state.cfg.mtgFormat) &&
+          !isUnsupportedSynergyPayoff(card, dependencySupportCards(), dependencyCommanderCount),
+        seat: (cards) => categories.synergy.push(...cards),
+        unseat: (
+          (n) => () =>
+            categories.synergy.splice(n)
+        )(categories.synergy.length),
+      }
+    );
 
     // 1. Creatures
     logger.debug(

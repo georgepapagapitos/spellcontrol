@@ -130,6 +130,17 @@ describe('isSurvivalPiece', () => {
       expect(isSurvivalPiece(card)).toBe(false);
     }
   );
+
+  it('a planeswalker whose loyalty ability phases something out is not one', () => {
+    // E532 gate: promoted as a survival piece, Teferi, Master of Time (25%)
+    // took Sefris's one planeswalker slot from Liliana, Death's Majesty (50%).
+    const teferi = sc(
+      'Teferi, Master of Time',
+      'Legendary Planeswalker — Teferi',
+      "You may activate loyalty abilities of Teferi, Master of Time on any player's turn any time you could cast an instant.\n+1: Draw a card, then discard a card.\n−3: Target creature you don't control phases out until your next turn.\n−10: Take two extra turns after this one."
+    );
+    expect(isSurvivalPiece(teferi)).toBe(false);
+  });
 });
 
 describe('rankSurvivalPieces / makeProtectionAdmits', () => {

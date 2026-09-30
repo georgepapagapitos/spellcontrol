@@ -68,6 +68,7 @@ interface PassOpts {
   brewLevel?: number;
   admitFirst?: ReadonlySet<string>;
   budgetTracker?: BudgetTracker;
+  comboLinePieces?: ReadonlySet<string>;
 }
 
 // The live type pass's argument order (typePassPick.ts's pickEdhrecTypePass).
@@ -115,7 +116,8 @@ function pass(o: PassOpts): string[] {
     undefined,
     o.brewLevel ?? 0.5,
     undefined,
-    o.admitFirst
+    o.admitFirst,
+    o.comboLinePieces
   );
   return picked.map((c) => c.name);
 }
@@ -283,5 +285,96 @@ describe('admitFirst: a protection piece for a commander that must survive (E532
       admitFirst: new Set(['Swiftfoot Boots']),
     });
     expect(picked).toEqual(['Swiftfoot Boots']);
+  });
+});
+
+describe('a staple takes a filler slot, never a combo slot (E532 gate)', () => {
+  // Muldrotha, the Gravetide's Reanimator page: Spore Frog 62.8%, Eternal
+  // Witness 54.7%, Hermit Druid 30.9% (Hermit Druid + Thassa's Oracle wins).
+  // Three slots; the Druid carries a card-draw deficit boost, the staples none.
+  const creaturePass = (comboLinePieces?: ReadonlySet<string>) =>
+    pass({
+      pool: [
+        ec('Hermit Druid', 30.9, 'Creature', 0.25),
+        ec('Spore Frog', 62.8, 'Creature', 0.4),
+        ec('Eternal Witness', 54.7, 'Creature', 0.2),
+      ],
+      cards: [
+        sc(
+          'Hermit Druid',
+          2,
+          'Creature — Human Druid',
+          '{G}, {T}: Reveal cards from the top of your library until you reveal a basic land card. Put that card into your hand and all other cards revealed this way into your graveyard.'
+        ),
+        sc(
+          'Spore Frog',
+          1,
+          'Creature — Frog',
+          'Sacrifice Spore Frog: Prevent all combat damage that would be dealt this turn.'
+        ),
+        sc(
+          'Eternal Witness',
+          3,
+          'Creature — Human Shaman',
+          'When Eternal Witness enters, you may return target card from your graveyard to your hand.'
+        ),
+      ],
+      count: 2,
+      expectedType: 'Creature',
+      roleCap: {
+        cardRoleMap: new Map<string, RoleKey>([['Hermit Druid', 'cardDraw']]),
+        roleTargets: { ramp: 13, removal: 6, boardwipe: 1, cardDraw: 13 },
+        currentRoleCounts: { ramp: 10, removal: 3, boardwipe: 0, cardDraw: 2 },
+      },
+      comboLinePieces,
+    });
+
+  it('without protection the two staples take both slots', () => {
+    expect(creaturePass().sort()).toEqual(['Eternal Witness', 'Spore Frog']);
+  });
+
+  it('a protected combo piece leads the tier', () => {
+    expect(creaturePass(new Set(['Hermit Druid']))).toEqual(['Hermit Druid', 'Spore Frog']);
+  });
+});
+
+describe('a >=40% wipe leads the tier (E532 gate)', () => {
+  // Obeka, Brute Chronologist's Wheels page: Toxic Deluge 42.9% and
+  // Reanimate 42.9% for the pass's last sorcery slot, with Aetherize 14.3%
+  // behind. Kept out of the tier, the wipe lost the slot to the staple.
+  it('seats Toxic Deluge on its wipe deficit, not behind every other staple', () => {
+    const picked = pass({
+      pool: [
+        ec('Aetherize', 14.3, 'Instant', 0.05),
+        ec('Toxic Deluge', 42.9, 'Sorcery', 0.1),
+        ec('Reanimate', 42.9, 'Sorcery', 0.1),
+      ],
+      cards: [
+        sc('Aetherize', 4, 'Instant', "Return all attacking creatures to their owner's hand."),
+        sc(
+          'Toxic Deluge',
+          3,
+          'Sorcery',
+          'As an additional cost to cast this spell, pay X life.\nAll creatures get -X/-X until end of turn.'
+        ),
+        sc(
+          'Reanimate',
+          1,
+          'Sorcery',
+          'Put target creature card from a graveyard onto the battlefield under your control. You lose life equal to its mana value.'
+        ),
+      ],
+      count: 1,
+      expectedType: 'Sorcery',
+      roleCap: {
+        cardRoleMap: new Map<string, RoleKey>([
+          ['Toxic Deluge', 'boardwipe'],
+          ['Aetherize', 'boardwipe'],
+        ]),
+        roleTargets: { ramp: 12, removal: 8, boardwipe: 3, cardDraw: 18 },
+        currentRoleCounts: { ramp: 6, removal: 3, boardwipe: 1, cardDraw: 16 },
+      },
+    });
+    expect(picked).toEqual(['Toxic Deluge']);
   });
 });
