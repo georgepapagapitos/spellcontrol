@@ -5,6 +5,7 @@ import { isApplyingServer } from '@/lib/sync/applying-server';
 import { track } from '@/lib/util/analytics';
 import { isApplyingAnalysis } from '@/lib/sync/applying-analysis';
 import type { AiScope } from '@/lib/ai/ai-scope';
+import type { GeneratedList } from '@/lib/deck/regenerate-edits';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type {
   ScryfallCard,
@@ -136,6 +137,10 @@ export interface Deck {
      *  …) so Regenerate rebuilds like-for-like. Absent on decks generated
      *  before it was recorded; see regenerateSettings for what's left out. */
     customization?: Partial<Customization>;
+    /** The list as generated, so Regenerate can carry the player's edits
+     *  since. Absent on decks generated before it was recorded (no edits are
+     *  guessed for those). */
+    generatedList?: GeneratedList;
   } | null;
   /**
    * Optional generator-derived stats. Only present on freshly generated decks

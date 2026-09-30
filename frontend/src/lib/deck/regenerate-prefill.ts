@@ -1,4 +1,5 @@
 import type { Deck } from '@/store/decks';
+import { deckEdits } from './regenerate-edits';
 
 /**
  * Router state that sends a generated deck back to the generator with its own
@@ -14,6 +15,7 @@ export function regenerateState(deck: Deck) {
       commander: deck.commander,
       partnerCommander: deck.partnerCommander,
       customization: deck.generationContext?.customization,
+      edits: deckEdits(deck) ?? undefined,
       themes: (deck.generationContext?.selectedThemes ?? []).map((t) => ({
         name: t.name,
         slug: t.slug ?? '',

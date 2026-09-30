@@ -45,7 +45,7 @@ vi.mock('../components/deck/DeckCustomizer', () => ({ DeckCustomizer: () => null
 vi.mock('../components/deck/GenerationModePicker', () => ({ GenerationModePicker: () => null }));
 vi.mock('../components/deck/GenerationTakeover', () => ({ GenerationTakeover: () => null }));
 
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import { DeckGeneratePage } from './DeckGeneratePage';
 import { useDeckBuilderStore } from '@/deck-builder/store';
 
@@ -175,5 +175,32 @@ describe('DeckGeneratePage prefill', () => {
     });
     // The EDHREC land pre-fill must not overwrite a replayed land count.
     expect(s.userEditedLands).toBe(true);
+  });
+
+  describe('keep my edits', () => {
+    const edits = { added: ['Skullclamp'], cut: ['Sol Ring', 'Arcane Signet'] };
+
+    it('starts on: additions pinned, cuts banned, control labelled with the counts', () => {
+      renderWithPrefill({ commander, edits, customization: { mustIncludeCards: ['Sol Ring'] } });
+      const { customization } = useDeckBuilderStore.getState();
+      expect(customization.mustIncludeCards).toEqual(['Skullclamp']);
+      expect(customization.tempBannedCards).toEqual(['Sol Ring', 'Arcane Signet']);
+      const box = screen.getByRole('checkbox', { name: 'Keep my edits (1 added, 2 cut)' });
+      expect((box as HTMLInputElement).checked).toBe(true);
+    });
+
+    it('restores the original settings when turned off', () => {
+      renderWithPrefill({ commander, edits, customization: { mustIncludeCards: ['Sol Ring'] } });
+      fireEvent.click(screen.getByRole('checkbox'));
+      const { customization } = useDeckBuilderStore.getState();
+      expect(customization.mustIncludeCards).toEqual(['Sol Ring']);
+      expect(customization.tempBannedCards).toEqual([]);
+    });
+
+    it('shows no control and changes nothing without edits', () => {
+      renderWithPrefill({ commander });
+      expect(screen.queryByRole('checkbox', { name: /Keep my edits/ })).toBeNull();
+      expect(useDeckBuilderStore.getState().customization.tempBannedCards).toEqual([]);
+    });
   });
 });
