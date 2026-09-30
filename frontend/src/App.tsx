@@ -92,6 +92,7 @@ const SearchPage = lazyPage(() => import('./pages/SearchPage'), 'SearchPage');
 const BrowseListPage = lazyPage(() => import('./pages/BrowseListPage'), 'BrowseListPage');
 const TagsPage = lazyPage(() => import('./pages/TagsPage'), 'TagsPage');
 const RulesPage = lazyPage(() => import('./pages/RulesPage'), 'RulesPage');
+const DailyPage = lazyPage(() => import('./pages/DailyPage'), 'DailyPage');
 const AdminPage = lazyPage(() => import('./pages/AdminPage'), 'AdminPage');
 const SharedView = lazyPage(() => import('./pages/SharedView'), 'SharedView');
 const PublicProfilePage = lazyPage(() => import('./pages/PublicProfilePage'), 'PublicProfilePage');
@@ -387,6 +388,7 @@ export default function App() {
             <Route path="/play" element={<PlayPage />} />
             <Route path="/play/:section" element={<PlayPage />} />
             <Route path="/rules" element={<RulesPage />} />
+            <Route path="/daily" element={<DailyPage />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/search/top/:list" element={<BrowseListPage />} />
             <Route path="/tags" element={<TagsPage />} />

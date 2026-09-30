@@ -1,5 +1,7 @@
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/store/auth';
+import { useCubeStore } from '@/store/cube';
+import { useDecksStore } from '@/store/decks';
 import { HubTabsNav } from '@/components/app-shell/HubTabsNav';
 
 /**
@@ -8,19 +10,29 @@ import { HubTabsNav } from '@/components/app-shell/HubTabsNav';
  * you build and draft — deck-shaped work — not a thing you own; the build
  * tools themselves still read from the collection.
  *
- * Not a layout route (no `<Outlet/>`): each page renders it directly under its
- * PageHeader (STYLE_GUIDE § Layout system: title → meta → actions → tabs), the
- * same place CollectionHubTabs and SocialHubTabs sit.
+ * Rendered by HubPage, never by a page directly (STYLE_GUIDE § Layout system →
+ * Hub pages), so the strip sits in the same place on every tab.
  */
 export function DecksHubTabs() {
   const { pathname } = useLocation();
   const isAuthed = useAuth((s) => s.status === 'authed');
+  // The counts the pages' old meta lines carried ("18 decks"), on the tab
+  // they count, as CollectionHubTabs does: a line above the strip made its
+  // height differ tab to tab.
+  const deckCount = useDecksStore((s) => s.decks.length);
+  const cubeCount = useCubeStore((s) => s.saved.length);
 
   return (
     <HubTabsNav
       ariaLabel="Decks sections"
       tabs={[
-        { to: '/decks', label: 'My decks', active: pathname === '/decks' },
+        {
+          to: '/decks',
+          label: 'My decks',
+          active: pathname === '/decks',
+          count: deckCount,
+          countNoun: 'decks',
+        },
         {
           to: '/decks/discover',
           label: 'Discover',
@@ -44,6 +56,8 @@ export function DecksHubTabs() {
           to: '/decks/cube',
           label: 'Cube',
           active: pathname.startsWith('/decks/cube'),
+          count: cubeCount,
+          countNoun: 'cubes',
         },
       ]}
     />

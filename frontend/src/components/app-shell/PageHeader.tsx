@@ -3,7 +3,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { OverflowMenu } from '@/components/overlays/OverflowMenu';
 import { useMediaQuery } from '@/lib/util/use-media-query';
-import { Button, buttonClass } from '@/components/shared/Button';
+import { Button, IconButton, buttonClass } from '@/components/shared/Button';
 
 export interface PageHeaderAction {
   label: string;
@@ -33,6 +33,11 @@ interface Props {
   menuLabel?: string;
   className?: string;
   style?: CSSProperties;
+  /** Keep the header one row on a phone: the primary shows as its icon (the
+   *  label stays its accessible name and tooltip) instead of stacking under
+   *  the title at full width. Hub pages set it so every tab's header is the
+   *  same height (STYLE_GUIDE § Layout system → Hub pages). */
+  compactPrimary?: boolean;
 }
 
 /** Same boundary as the CSS phone tier (binder-hero.css). */
@@ -54,6 +59,7 @@ export function PageHeader({
   menuLabel = 'More actions',
   className,
   style,
+  compactPrimary = false,
 }: Props) {
   const isPhone = useMediaQuery(PHONE);
   const navigate = useNavigate();
@@ -81,7 +87,7 @@ export function PageHeader({
           {inline.map((a) => (
             <ActionButton key={a.label} action={a} />
           ))}
-          {primary && <ActionButton action={primary} />}
+          {primary && <ActionButton action={primary} iconOnly={compactPrimary && isPhone} />}
           {menu.length > 0 && (
             <OverflowMenu
               triggerClassName={`${buttonClass({ placement: 'row' })} page-header-kebab`}
@@ -101,10 +107,31 @@ export function PageHeader({
   );
 }
 
-function ActionButton({ action: a }: { action: PageHeaderAction }) {
+function ActionButton({ action: a, iconOnly }: { action: PageHeaderAction; iconOnly?: boolean }) {
   const Icon = a.icon;
-  const variant = a.primary ? 'primary' : 'secondary';
+  const variant: 'primary' | 'secondary' = a.primary ? 'primary' : 'secondary';
   const className = a.primary ? 'page-header-primary' : undefined;
+  if (iconOnly) {
+    const glyph = <Icon width={18} height={18} strokeWidth={1.8} />;
+    const shared = {
+      placement: 'row' as const,
+      variant,
+      className: 'page-header-primary page-header-primary--icon',
+      label: a.label,
+      icon: glyph,
+      title: a.title,
+    };
+    return a.to ? (
+      <IconButton {...shared} to={a.to} />
+    ) : (
+      <IconButton
+        {...shared}
+        onClick={a.onClick}
+        disabled={a.disabled}
+        aria-haspopup={a.opensDialog ? 'dialog' : undefined}
+      />
+    );
+  }
   const icon = <Icon width={14} height={14} strokeWidth={1.8} />;
   if (a.to) {
     return (

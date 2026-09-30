@@ -1,6 +1,7 @@
 import type { ScryfallCard } from '@/deck-builder/types';
 import { classifyCard } from '@/deck-builder/services/synergy/classify';
 import type { AxisKey } from '@/deck-builder/services/synergy/axes';
+import { TYPE_MEMBERSHIP_AXES, typeAxisMembership } from '@/deck-builder/services/synergy/typeAxes';
 import { STAPLE_INCLUSION_BAR } from './cardPicking';
 
 // Axes where a payoff is usually dead text unless the deck has a producer for
@@ -153,6 +154,28 @@ function supportScore(
   return total;
 }
 
+/**
+ * E531: support from card types on enchantress, spellslinger and landfall: the
+ * enchantments, instants and sorceries, or lands among the support cards, by
+ * the shared capped rule (typeAxisMembership). The candidate is a payoff on the
+ * axis by construction, so its own weight is part of the cap; it never counts
+ * as its own producer.
+ */
+function typeSupportScore(
+  axis: AxisKey,
+  supportCards: readonly ScryfallCard[],
+  commanderCount: number
+): number {
+  const entries = supportCards.map((card, index) => ({
+    card,
+    weight: index < commanderCount ? 2 : 1,
+    ...classifyCard(card),
+  }));
+  return typeAxisMembership(entries, { [axis]: 1 })
+    .filter((m) => m.axis === axis)
+    .reduce((sum, m) => sum + m.weight, 0);
+}
+
 export function unsupportedPayoffAxes(
   card: ScryfallCard,
   supportCards: readonly ScryfallCard[],
@@ -165,8 +188,12 @@ export function unsupportedPayoffAxes(
   for (const payoff of classified.payoffs) {
     if (!DEPENDENCY_AXES.has(payoff.axis)) continue;
     if (candidateProduces.has(payoff.axis)) continue;
-    if (supportScore(payoff.axis, supportCards, commanderCount) >= DEFAULT_SUPPORT_THRESHOLD)
-      continue;
+    const support =
+      supportScore(payoff.axis, supportCards, commanderCount) +
+      (TYPE_MEMBERSHIP_AXES.has(payoff.axis)
+        ? typeSupportScore(payoff.axis, supportCards, commanderCount)
+        : 0);
+    if (support >= DEFAULT_SUPPORT_THRESHOLD) continue;
     if (!unsupported.includes(payoff.axis)) unsupported.push(payoff.axis);
   }
   return unsupported;

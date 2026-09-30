@@ -1,7 +1,7 @@
 import './HomeHero.css';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { CalendarPlus, Check, ChevronRight, Plus, Users } from 'lucide-react';
+import { CalendarPlus, Check, ChevronRight, Plus, Puzzle, Users } from 'lucide-react';
 import { AddCardsSheet } from '@/components/import/AddCardsSheet';
 import { OverflowMenu } from '@/components/overlays/OverflowMenu';
 import { ValueSparkline } from './ValueSparkline';
@@ -72,6 +72,7 @@ function HeroActions({ secondary }: { secondary: React.ReactNode }) {
             icon: CalendarPlus,
             onClick: () => navigate('/play/nights'),
           },
+          { label: 'Daily card', icon: Puzzle, onClick: () => navigate('/daily') },
           { label: 'Social', icon: Users, onClick: () => navigate('/friends') },
         ]}
       />

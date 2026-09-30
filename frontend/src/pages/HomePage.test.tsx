@@ -201,6 +201,8 @@ describe('HomePage', () => {
       );
       fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
       expect(screen.getByRole('menuitem', { name: 'Plan a game night' })).toBeTruthy();
+      // The phone's door to /daily (E558): the tab bar is full, so it lives here.
+      expect(screen.getByRole('menuitem', { name: 'Daily card' })).toBeTruthy();
       expect(screen.getByRole('menuitem', { name: 'Social' })).toBeTruthy();
     });
 

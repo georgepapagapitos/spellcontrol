@@ -164,7 +164,13 @@ function withStallTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  *        Denial, Remand) counts as interaction in the power signal, and
  *        Tergrid counts as a Game Changer under its full double-faced name
  *        wherever the hardcoded list stands in for the live one.
- *   v22 — Coach's cut and suggestion inputs (T171 lane M): premium cards and
+ *   v22 — the synergy read counts an engine's own card types as its fuel: a
+ *        tribe's members (E511), and enchantments, instants and sorceries,
+ *        and lands for the enchantress, spellslinger and landfall engines
+ *        (E531), each capped at the payoffs. A Zombie deck no longer reads
+ *        "17 payoffs but only 1 producer", and an enchantress deck's
+ *        enchantments feed it.
+ *   v23 — Coach's cut and suggestion inputs (T171 lane M): premium cards and
  *        cards whose role is at or under target are no longer misfits or
  *        optimizer removals, suggestion rows carry price and rarity for the
  *        deck's settings, synergy picks say when their engine is only
@@ -179,7 +185,7 @@ function withStallTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  *        not a card-advantage staple, and an off-page synergy payoff needs
  *        its condition in the deck.
  */
-const ANALYSIS_ENGINE_VERSION = 'v22-coach-inputs';
+const ANALYSIS_ENGINE_VERSION = 'v23-coach-inputs';
 
 /** Suffix marking a persisted `gradeBracketSignature` as a PARTIAL result
  *  (EDHREC was unreachable). Distinguishes it from a full result computed for

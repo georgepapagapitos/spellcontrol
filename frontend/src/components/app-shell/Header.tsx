@@ -92,6 +92,15 @@ export function Header() {
               <span className="site-nav-game-dot" aria-label="game in progress" role="img" />
             )}
           </NavLink>
+          {/* The Daily card puzzle (E558). Desktop only, like Social: the phone
+              tab bar is full, so the phone door is Home's hero menu. */}
+          <NavLink
+            viewTransition
+            to="/daily"
+            className={({ isActive }) => (isActive ? 'site-nav-link active' : 'site-nav-link')}
+          >
+            <span>Daily</span>
+          </NavLink>
           {/* The social cluster's front door. /friends, /trades, /pods and
               /friends/:id were a four-page cluster with no top-level entry —
               nav v2 dropped the Friends link on the premise that friends

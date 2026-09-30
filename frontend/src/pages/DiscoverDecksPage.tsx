@@ -2,9 +2,8 @@ import './DiscoverDecksPage.css';
 import { LayoutGrid, List as ListIconLucide, Users } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { DecksHubTabs } from '@/components/decks/DecksHubTabs';
 import { DiscoverPanel, DiscoverSwitch } from '@/components/decks/DiscoverSwitch';
-import { PageHeader } from '@/components/app-shell/PageHeader';
+import { HubPage } from '@/components/app-shell/HubPage';
 import {
   DiscoverDeckTile,
   DiscoverTileSkeleton,
@@ -293,19 +292,21 @@ export function DiscoverDecksPage() {
 
   return (
     <>
-      <div className="decks-index-page">
-        {precons ? (
-          <PageHeader
-            title="Precons"
-            meta="Every Commander precon Wizards has printed."
-            // On a phone this goes to the ⋮ menu; the Discover tab below is
-            // the same way back and always shows.
-            actions={[{ label: 'Community decks', icon: Users, to: '/decks/discover' }]}
-          />
-        ) : (
-          <PageHeader title="Discover" meta="Public decks from the SpellControl community." />
-        )}
-        <DecksHubTabs />
+      <HubPage
+        hub="decks"
+        section="Discover"
+        className="decks-index-page"
+        intro={
+          precons
+            ? 'Every Commander precon Wizards has printed.'
+            : 'Public decks from the SpellControl community.'
+        }
+        // On a phone this goes to the ⋮ menu; the Discover tab is the same way
+        // back and always shows.
+        actions={
+          precons ? [{ label: 'Community decks', icon: Users, to: '/decks/discover' }] : undefined
+        }
+      >
         <DiscoverSwitch value="decks" />
 
         <DiscoverPanel section="decks">
@@ -452,7 +453,7 @@ export function DiscoverDecksPage() {
             />
           )}
         </DiscoverPanel>
-      </div>
+      </HubPage>
     </>
   );
 }

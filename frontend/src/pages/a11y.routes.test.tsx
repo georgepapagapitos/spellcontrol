@@ -101,6 +101,7 @@ import { DeckNewPage } from './DeckNewPage';
 import { DeckGeneratePage } from './DeckGeneratePage';
 import { PlayPage } from './PlayPage';
 import { RulesPage } from './RulesPage';
+import { DailyPage } from './DailyPage';
 import { SearchPage } from './SearchPage';
 import { BrowseListPage } from './BrowseListPage';
 import { TagsPage } from './TagsPage';
@@ -218,6 +219,7 @@ const CASES: RouteCase[] = [
   },
   { path: '/play', routes: <Route path="/play" element={<PlayPage />} />, ready: /Play/ },
   { path: '/rules', routes: <Route path="/rules" element={<RulesPage />} />, ready: /rules/i },
+  { path: '/daily', routes: <Route path="/daily" element={<DailyPage />} />, ready: /daily/i },
   { path: '/search', routes: <Route path="/search" element={<SearchPage />} />, ready: /search/i },
   {
     path: '/search/top/cards',
