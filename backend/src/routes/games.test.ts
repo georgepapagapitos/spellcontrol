@@ -3297,6 +3297,34 @@ describe('Discord tables', () => {
     await vi.waitFor(() => expect(deleted).toContain(id));
   });
 
+  // A table everyone walked away from without pressing Leave: nobody has had
+  // it open for over 15 minutes, though it changed only minutes ago.
+  it('closes the table of a game nobody has had open for 15 minutes', async () => {
+    installFakeDiscord();
+    const left = await hostGame('dc_left');
+    const here = await hostGame('dc_here');
+    const unknown = await hostGame('dc_unknown');
+    for (const g of [left, here, unknown]) await open(g.hostCookie, g.code);
+    const names = {
+      left: (await channelOf(left.code))!.name,
+      here: (await channelOf(here.code))!.name,
+      unknown: (await channelOf(unknown.code))!.name,
+    };
+    const now = Date.now();
+    const seen: Record<string, number | null> = {
+      [left.code]: now - 20 * 60 * 1000,
+      [here.code]: now - 60 * 1000,
+      // After a restart nobody has been seen: the 3-hour rule decides, and
+      // this game changed just now.
+      [unknown.code]: null,
+    };
+    await sweepDiscordTables(now, (code) => seen[code] ?? null);
+    const after = channels.map((c) => c.name);
+    expect(after).not.toContain(names.left);
+    expect(after).toContain(names.here);
+    expect(after).toContain(names.unknown);
+  });
+
   it('sweeps channels no game owns, idle ones, and the old code- and tag-named ones; nothing else', async () => {
     installFakeDiscord();
     const live = await hostGame('dc_sweep_live');

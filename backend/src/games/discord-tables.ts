@@ -103,17 +103,34 @@ export async function openDiscordTable(req: Request, res: Response) {
 
 /** A finished game keeps its table this long, for the post-game chat. */
 const DISCORD_FINISHED_GRACE_MS = 30 * 60 * 1000;
-/** An unfinished game nobody has touched in this long has been left. */
+/**
+ * Nobody has had the game open in this long: the table was walked away from
+ * without anyone pressing Leave. Long enough for a locked phone or a dropped
+ * connection to come back.
+ */
+const DISCORD_ABANDONED_MS = 15 * 60 * 1000;
+/**
+ * An unfinished game untouched this long. Only the backstop now: after a
+ * restart this process has seen nobody, so `seenAt` can't answer for a while.
+ */
 const DISCORD_IDLE_MS = 3 * 60 * 60 * 1000;
+
+/** When anyone last had a game open, or null if unknown (live-registry). */
+export type SeenAt = (code: string, now: number) => number | null;
 
 /**
  * Remove every table channel no game owns, or whose game finished past the
- * grace window or went idle. Channels from before numbering (named by the
- * code, then by a tag) are owned by nothing, so they go too. The backstop for
- * teardown that happened while Discord was down, or before a restart emptied
- * `discordTables`. Returns how many went.
+ * grace window, was left open by nobody for `DISCORD_ABANDONED_MS`, or went
+ * idle. Channels from before numbering (named by the code, then by a tag) are
+ * owned by nothing, so they go too. The backstop for teardown that happened
+ * while Discord was down, or before a restart emptied `discordTables`.
+ * `seenAt` is live-registry's `lastSeenAt`, passed in because the registry
+ * imports this module. Returns how many went.
  */
-export async function sweepDiscordTables(now = Date.now()): Promise<number> {
+export async function sweepDiscordTables(
+  now = Date.now(),
+  seenAt: SeenAt = () => null
+): Promise<number> {
   if (!isDiscordConfigured()) return 0;
   const channels = await listTableChannels();
   if (channels.length === 0) return 0;
@@ -135,11 +152,13 @@ export async function sweepDiscordTables(now = Date.now()): Promise<number> {
   let removed = 0;
   for (const ch of channels) {
     const game = byChannel.get(ch.id);
+    const seen = game ? seenAt(game.code, now) : null;
     const stale =
       !game ||
       (game.status === 'finished'
         ? now - game.updatedAt > DISCORD_FINISHED_GRACE_MS
-        : now - game.updatedAt > DISCORD_IDLE_MS);
+        : (seen !== null && now - seen > DISCORD_ABANDONED_MS) ||
+          now - game.updatedAt > DISCORD_IDLE_MS);
     if (!stale) {
       discordTables.set(game.code, ch.id);
       continue;

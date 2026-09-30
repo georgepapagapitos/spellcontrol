@@ -66,7 +66,7 @@ import { scheduleRulesIngest } from './rules/ingest';
 import { scheduleRetentionSweep } from './retention';
 import { isDiscordConfigured, lfgChannelId } from './discord';
 import { nudgeLfgPosts, syncLfgPosts } from './games/discord-lfg';
-import { onGameChange } from './games/live-registry';
+import { lastSeenAt, onGameChange } from './games/live-registry';
 import { lastSuccessfulRollupAt, runScheduledRollup } from './aggregates/rollup';
 import { recountDeckCopies } from './publications/copies';
 import {
@@ -1471,7 +1471,7 @@ async function start() {
   if (isDiscordConfigured()) {
     afterBoot('discord table sweep', 90_000, () => {
       const tick = () =>
-        void sweepDiscordTables()
+        void sweepDiscordTables(Date.now(), lastSeenAt)
           .then((n) => n > 0 && logger.info(`[discord] swept ${n} table channel(s)`))
           .catch((err) => logger.warn('[discord] table sweep failed', err));
       tick();
