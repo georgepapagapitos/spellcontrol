@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { assembleBuildReport, buildArchetypeNote } from './buildReport';
+import { buildRoleCapOverflowNote } from './deckGenerator';
 import {
   Archetype,
   type Customization,
@@ -630,8 +631,9 @@ describe('assembleBuildReport', () => {
     // isn't there.
     const report = assembleBuildReport({
       generated: makeGenerated({
-        roleCapOverflowNote:
-          '2 cards pushed past its role cap. The card draw pool was thin. See Overbuilt roles below for the full total.',
+        // The builder's own text: a hand-written note here once kept this green
+        // while the real suffix had changed and the strip matched nothing.
+        roleCapOverflowNote: buildRoleCapOverflowNote({ cardDraw: 2 }),
         roleTargets: { cardDraw: 18 },
         roleCounts: { cardDraw: 22 }, // over, but <1.5x and <4 over → no roleExcesses
       }),
@@ -641,15 +643,14 @@ describe('assembleBuildReport', () => {
 
     expect(report.roleExcesses).toBeUndefined();
     expect(report.roleCapOverflowNote).toBe(
-      '2 cards pushed past its role cap. The card draw pool was thin.'
+      '2 cards went past a role cap. The card draw pool was thin.'
     );
   });
 
   it('keeps the "see Overbuilt roles" cross-reference when roleExcesses is non-empty', () => {
     const report = assembleBuildReport({
       generated: makeGenerated({
-        roleCapOverflowNote:
-          '2 cards pushed past its role cap. The ramp pool was thin. See Overbuilt roles below for the full total.',
+        roleCapOverflowNote: buildRoleCapOverflowNote({ ramp: 2 }),
         roleTargets: { ramp: 13 },
         roleCounts: { ramp: 25 }, // clears isRoleExcess -> roleExcesses renders
       }),
@@ -659,7 +660,7 @@ describe('assembleBuildReport', () => {
 
     expect(report.roleExcesses).toEqual([{ role: 'ramp', have: 25, want: 13 }]);
     expect(report.roleCapOverflowNote).toBe(
-      '2 cards pushed past its role cap. The ramp pool was thin. See Overbuilt roles below for the full total.'
+      '2 cards went past a role cap. The ramp pool was thin. See Overbuilt roles for the total.'
     );
   });
 

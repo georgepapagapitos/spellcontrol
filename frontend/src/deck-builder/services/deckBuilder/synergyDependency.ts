@@ -1,6 +1,7 @@
 import type { ScryfallCard } from '@/deck-builder/types';
 import { classifyCard } from '@/deck-builder/services/synergy/classify';
 import type { AxisKey } from '@/deck-builder/services/synergy/axes';
+import { STAPLE_INCLUSION_BAR } from './cardPicking';
 
 // Axes where a payoff is usually dead text unless the deck has a producer for
 // the same engine. Generic roles like "draw" or "ramp" are deliberately not
@@ -171,10 +172,19 @@ export function unsupportedPayoffAxes(
   return unsupported;
 }
 
+/**
+ * `pageInclusion` is the card's EDHREC inclusion (%) on the commander's own
+ * page. At the staple bar the page is the evidence: players run the card in
+ * this shell, so it is never dead text here, whatever the picks so far supply.
+ * The motivating case (E532): Temporal Trespass, 76.8% on Yuriko, read as a
+ * graveyard payoff (delve) and failed the support count in every type pass.
+ */
 export function isUnsupportedSynergyPayoff(
   card: ScryfallCard,
   supportCards: readonly ScryfallCard[],
-  commanderCount = 1
+  commanderCount = 1,
+  pageInclusion = 0
 ): boolean {
+  if (pageInclusion >= STAPLE_INCLUSION_BAR) return false;
   return unsupportedPayoffAxes(card, supportCards, commanderCount).length > 0;
 }

@@ -147,6 +147,29 @@ describe('smartTrimPhase', () => {
     expect(names).toHaveLength(2);
   });
 
+  it('cuts filler before a staple at the tail of its category (E532 gate)', () => {
+    // Meren of Clan Nel Toth's page. The type passes seated Skullclamp past
+    // the card-draw cap, so it sat last in its category and was cut, silently.
+    const state = makeState();
+    state.categories.cardDraw = [
+      card('Satyr Wayfinder'),
+      card('Morbid Opportunist'),
+      card('Skullclamp'),
+    ];
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [
+          { name: 'Satyr Wayfinder', inclusion: 30.3 },
+          { name: 'Morbid Opportunist', inclusion: 27.5 },
+          { name: 'Skullclamp', inclusion: 59.6 },
+        ],
+        lands: [],
+      },
+    } as unknown as GenerationState['edhrecData'];
+    smartTrimPhase(state, { targetDeckSize: 2, landTarget: 0, roleTargets: null });
+    expect(allCards(state).map((c) => c.name)).toEqual(['Satyr Wayfinder', 'Skullclamp']);
+  });
+
   it('protects a staple rock by name exactly as much as by the flag', () => {
     const flagged = { ...card('Arcane Signet'), isStapleRock: true } as ScryfallCard;
     const byName = card('Arcane Signet');
