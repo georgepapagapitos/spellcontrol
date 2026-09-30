@@ -6,7 +6,12 @@
  * card read as unlisted (-1) and was the first eviction victim, whatever its
  * real inclusion.
  */
+import type { EDHRECCard, ScryfallCard } from '@/deck-builder/types';
 import { getByCardName } from '@/lib/cards/card-text';
+import { isProtectionPiece, isFreeInteraction } from '@/deck-builder/services/tagger/client';
+import { STAPLE_INCLUSION_BAR } from './cardPicking';
+import type { GenerationState } from './deckGeneration/state';
+import { achievableComboPieces } from './deckGeneration/comboLines';
 import { STAPLE_ROCK_NAMES } from './deckGeneration/phaseStapleManaRocks';
 
 /** A card's page inclusion by name, the front face for a double-faced card
@@ -26,13 +31,28 @@ export function weakestFirst<T extends { name: string }>(
 }
 
 /**
- * E537: the owned-share swap never takes a slot from a must-include, nor from a
- * staple rock below a 100% share (Sol Ring and Arcane Signet stay, owned or
- * not). At 100% the share is the user's rule and an unowned rock may go.
+ * The owned-share swap's protection (E537, E532 lesson). Below a 100% share it
+ * never takes the slot of a must-include, a staple rock, a staple (page
+ * inclusion at STAPLE_INCLUSION_BAR), a piece of a combo line the deck can
+ * assemble, or a protection / free-interaction piece: the victim is the
+ * least-played unowned card that is none of those, and when every unowned card
+ * is one of them the share stays short (the owned-share gap note says so). At
+ * 100% the share is the user's rule and only must-includes hold.
  */
-export function keepsOwnedShareSlot(
-  card: { name: string; isMustInclude?: boolean },
-  ownedPercent: number
-): boolean {
-  return !!card.isMustInclude || (ownedPercent < 100 && STAPLE_ROCK_NAMES.has(card.name));
+export function ownedShareKeeper(
+  state: Pick<GenerationState, 'combos' | 'usedNames' | 'comboCardNames'>,
+  ownedPercent: number,
+  inclusionOf: (name: string) => number,
+  pool: readonly EDHRECCard[]
+): (card: ScryfallCard) => boolean {
+  const comboPieces = achievableComboPieces(state.combos, pool, (n) => state.usedNames.has(n));
+  return (card) =>
+    !!card.isMustInclude ||
+    (ownedPercent < 100 &&
+      (STAPLE_ROCK_NAMES.has(card.name) ||
+        inclusionOf(card.name) >= STAPLE_INCLUSION_BAR ||
+        comboPieces.has(card.name) ||
+        state.comboCardNames.has(card.name) ||
+        isProtectionPiece(card) ||
+        isFreeInteraction(card)));
 }

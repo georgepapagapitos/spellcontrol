@@ -127,7 +127,7 @@ import {
 } from './substituteFinder';
 import { sameType } from '@/lib/coach/card-matching';
 import { resolveOwnedCards } from './ownedCardResolution';
-import { pageInclusionOf, weakestFirst, keepsOwnedShareSlot } from './ownedShareEviction';
+import { pageInclusionOf, weakestFirst, ownedShareKeeper } from './ownedShareEviction';
 import { withNonbasicShortfall } from './deckGeneration/nonbasicShortfallNote';
 import {
   finalDeckMembership,
@@ -4030,6 +4030,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     const inclusionByName = new Map<string, number>();
     for (const ec of edhrecNonLand) inclusionByName.set(ec.name, ec.inclusion);
     const inclusionOf = pageInclusionOf(inclusionByName);
+    const keepsSlot = ownedShareKeeper(state, collectionOwnedPercent, inclusionOf, edhrecNonLand);
 
     // Swap one owned card in for an unowned one. `preferEvict` names the card
     // it was matched against (an owned substitute's staple); otherwise the
@@ -4052,9 +4053,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       // composition swap, not a size-shortage backfill).
       if (violatesUserCaps(card, state.cfg, collectionNames)) return false;
 
-      const swappable = nonLandNow().filter(
-        (c) => !collectionNames.has(c.name) && !keepsOwnedShareSlot(c, collectionOwnedPercent)
-      );
+      const swappable = nonLandNow().filter((c) => !collectionNames.has(c.name) && !keepsSlot(c));
       if (swappable.length === 0) return false;
       const wantedRole = validateCardRole(card);
       const matched = preferEvict ? swappable.filter((c) => c.name === preferEvict) : [];
@@ -4126,7 +4125,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     if (deficit > 0 && poolFits.length > 0) {
       const unownedWithRole: GapAnalysisCard[] = [];
       for (const c of nonLandNow()) {
-        if (collectionNames.has(c.name) || keepsOwnedShareSlot(c, collectionOwnedPercent)) continue;
+        if (collectionNames.has(c.name) || keepsSlot(c)) continue;
         const role = getCardRole(c.name);
         if (!role) continue;
         unownedWithRole.push({
