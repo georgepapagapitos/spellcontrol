@@ -22,33 +22,26 @@
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { CardFacts, Resource } from '@/deck-builder/services/cardFacts';
 import { buildCommanderProfile, getCombinedOracleText } from '../commanderProfile';
+import {
+  keepsPermanentText,
+  protectionSentencesOf,
+  protectsOnlyItselfText,
+  protectsOther,
+  protectsOthersText,
+} from '../protectionReading';
 
 /** The card's rules text, reminder text stripped, its own name read as "~". */
 export function rulesText(card: ScryfallCard): string {
   return getCombinedOracleText(card);
 }
 
-const PROTECTION_WORDS =
-  /\b(hexproof|shroud|indestructible|protection from|phases? out|can't be the target|can't be countered|ward)\b/i;
-/**
- * What a protection clause is FOR: another permanent, the player, a spell.
- * "Equipped creature", "creatures you control", "target creature", "you gain
- * protection", "all permanents you control phase out", "spells you control
- * can't be countered". A clause about the card itself ("~ phases out",
- * "this creature has hexproof", a bare keyword) protects only that card.
- */
-const PROTECTS_OTHER =
-  /\b(equipped|enchanted|target|other|another|each|all|any number of)\b[^.]*?\b(creatures?|permanents?|commanders?|spells?|player)\b|\b(creatures?|permanents?|spells?) you control\b|\byou (gain|have|get)\b[^.]*?\b(protection|hexproof|shroud)\b|\byour commanders?\b/i;
-
 function protectionSentences(card: ScryfallCard): string[] {
-  return rulesText(card)
-    .split(/(?<=[.\n])\s*/)
-    .filter((sentence) => PROTECTION_WORDS.test(sentence));
+  return protectionSentencesOf(rulesText(card));
 }
 
 /** True when the card's protection text protects something other than itself. */
 export function protectsOthers(card: ScryfallCard): boolean {
-  return protectionSentences(card).some((sentence) => PROTECTS_OTHER.test(sentence));
+  return protectsOthersText(rulesText(card));
 }
 
 /**
@@ -57,15 +50,8 @@ export function protectsOthers(card: ScryfallCard): boolean {
  * Swat) or a counterspell protects the commander without them.
  */
 export function protectsOnlyItself(card: ScryfallCard): boolean {
-  const sentences = protectionSentences(card);
-  return sentences.length > 0 && !sentences.some((sentence) => PROTECTS_OTHER.test(sentence));
+  return protectsOnlyItselfText(rulesText(card));
 }
-
-/**
- * What keeps a permanent on the battlefield, the generator's E532 survival
- * rule: a counterspell that protects a SPELL does not keep a commander alive.
- */
-const KEEPS_PERMANENT = /\b(hexproof|shroud|indestructible|protection from)\b|\bphases? out\b/i;
 
 /**
  * A protection piece that keeps the commander on the battlefield (Lightning
@@ -79,7 +65,7 @@ export function isSurvivalPiece(
   commanders: readonly ScryfallCard[] = []
 ): boolean {
   if (!facts.roles.some((r) => r.role === 'protection')) return false;
-  if (!KEEPS_PERMANENT.test(rulesText(card)) || !protectsOthers(card)) return false;
+  if (!keepsPermanentText(rulesText(card)) || !protectsOthers(card)) return false;
   return commanders.length === 0 || commanders.some((c) => canProtect(card, c));
 }
 
@@ -89,7 +75,7 @@ export function canProtect(card: ScryfallCard, commander: ScryfallCard): boolean
   const keywords = (commander.keywords ?? []).map((k) => k.toLowerCase());
   const type = (commander.type_line ?? '').toLowerCase();
   return protectionSentences(card)
-    .filter((s) => PROTECTS_OTHER.test(s) && KEEPS_PERMANENT.test(s))
+    .filter((s) => protectsOther(s) && keepsPermanentText(s))
     .some((s) => {
       const lower = s.toLowerCase();
       const withWords =

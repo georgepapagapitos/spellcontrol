@@ -1,4 +1,5 @@
 import { logger } from '@/lib/util/logger';
+import { grantsToTargetText } from '../deckBuilder/protectionReading';
 import {
   checkRoleEvidence,
   isIncidentalRampByTags,
@@ -348,7 +349,11 @@ export function isProtectionPiece(card: {
     ''
   ).trim();
   if (!text) return false;
-  return PROTECTION_EVIDENCE.test(text);
+  // E555: also a grant whose target is named in the sentence before
+  // ("Put a +1/+1 counter on target creature you control. It gains hexproof
+  // until end of turn." - Snakeskin Veil), read by protectionReading.ts, the
+  // reading the survival rule and the deck objective share.
+  return PROTECTION_EVIDENCE.test(text) || grantsToTargetText(text);
 }
 
 // Free-interaction / reflexive alt-cost pieces (iter-10 Slice A) — cards whose
