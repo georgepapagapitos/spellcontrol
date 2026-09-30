@@ -139,17 +139,65 @@ describe('rankReplacementCuts — role balance', () => {
     expect(cutNames(cuts)).not.toContain('Harmonize');
   });
 
-  it('an add whose role is already met swaps inside that role first (T171 re-gate)', () => {
-    // Removal 2/2: cutting Harmonize (draw, over its target of 0) would leave
-    // removal at 3/2, so the removal cards lead. Harmonize still follows: the
-    // prompt never dead-ends on a staple for a met role.
+  it('an add in a role at target is an upgrade: only a weaker card of that role (T171 round 3)', () => {
+    // Removal 2/2. Cutting Harmonize (draw) would leave removal at 3/2, so it
+    // isn't offered. With no play rate for Beast Within, "weaker" is the
+    // analysis's flag: Murder, not the unflagged Doom Blade.
     const cuts = rankReplacementCuts({
       addCard: real('Beast Within'),
       deckCards: deck,
       analysis: { optimizeSwaps: { removals }, roleTargets: { removal: 2, cardDraw: 0 } },
     });
-    expect(cutNames(cuts).slice(0, 2)).toEqual(['Murder', 'Doom Blade']);
-    expect(cutNames(cuts)).toContain('Harmonize');
+    expect(cutNames(cuts)).toEqual(['Murder']);
+    expect(cuts[0].reason).toBe('Upgrade in removal');
+  });
+
+  it('an upgrade cuts only cards played here less than the add', () => {
+    const cuts = rankReplacementCuts({
+      addCard: real('Beast Within'),
+      deckCards: deck,
+      analysis: {
+        optimizeSwaps: { removals },
+        roleTargets: { removal: 2, cardDraw: 0 },
+        cardInclusionMap: { 'Doom Blade': 12, Murder: 40 },
+        gapAnalysis: [{ name: 'Beast Within', inclusion: 30 }],
+      },
+    });
+    expect(cutNames(cuts)).toEqual(['Doom Blade']);
+  });
+
+  it("never upgrades away a card whose role is incidental to the commander's plan", () => {
+    // Isshin, ramp 3 of 2: Battle Angels of Tyr counts as ramp for its
+    // Treasure, but it is an attack-trigger payoff Isshin doubles. The only
+    // weaker ramp card is Rakdos Signet.
+    const cuts = rankReplacementCuts({
+      addCard: real('Boros Signet'),
+      deckCards: slots(['Battle Angels of Tyr', 'Rakdos Signet', 'Orzhov Signet']),
+      analysis: {
+        commander: real('Isshin, Two Heavens as One'),
+        optimizeSwaps: {
+          removals: [
+            flag('Battle Angels of Tyr', 'Excess Ramp', 16),
+            flag('Rakdos Signet', 'Excess Ramp', 28),
+          ],
+        },
+        roleTargets: { ramp: 2 },
+        cardInclusionMap: { 'Battle Angels of Tyr': 16, 'Rakdos Signet': 28, 'Orzhov Signet': 35 },
+        gapAnalysis: [{ name: 'Boros Signet', inclusion: 34 }],
+      },
+    });
+    expect(cutNames(cuts)).toEqual(['Rakdos Signet']);
+    expect(cuts[0].reason).toBe('Upgrade in ramp');
+  });
+
+  it('never offers a cut the deck settings rule out', () => {
+    const cuts = rankReplacementCuts({
+      addCard: real('Beast Within'),
+      deckCards: deck,
+      analysis: { optimizeSwaps: { removals } },
+      keepsSettings: (cut) => cut.name !== 'Murder',
+    });
+    expect(cutNames(cuts)).not.toContain('Murder');
   });
 
   it('never offers a staple the analysis still lists as missing: it was just added (T171 re-gate)', () => {
@@ -167,15 +215,6 @@ describe('rankReplacementCuts — role balance', () => {
       },
     });
     expect(cutNames(cuts)).not.toContain('Doom Blade');
-    expect(cutNames(cuts)[0]).toBe('Murder');
-  });
-
-  it('swaps like for like when the role is already met', () => {
-    const cuts = rankReplacementCuts({
-      addCard: real('Beast Within'),
-      deckCards: deck,
-      analysis: { optimizeSwaps: { removals }, roleTargets: { removal: 2, cardDraw: 1 } },
-    });
     expect(cutNames(cuts)[0]).toBe('Murder');
   });
 });

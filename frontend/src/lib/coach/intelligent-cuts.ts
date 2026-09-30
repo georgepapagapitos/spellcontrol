@@ -38,6 +38,8 @@ import type { OptimizeCard } from '@/deck-builder/services/deckBuilder/deckAnaly
 import { ROLE_LABELS } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
 import type { MisfitSummary } from '@/deck-builder/services/deckBuilder/cardFit';
 import { isPremiumCard } from '@/deck-builder/services/deckBuilder/premiumCards';
+import { buildCommanderProfile } from '@/deck-builder/services/deckBuilder/commanderProfile';
+import { roleIsIncidental } from '@/deck-builder/services/deckBuilder/incidentalRole';
 import { isUtilityLand, landSlotMerit } from '@/deck-builder/services/deckBuilder/landUpgrades';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { isBasicLandName } from '@/lib/collection/allocations';
@@ -85,6 +87,9 @@ export interface CutAnalysis {
   /** The staples the deck is missing, with their play rate here: the incoming
    *  card's inclusion when it is one of them. */
   gapAnalysis?: { name: string; inclusion: number }[];
+  /** The commander(s), whose own abilities mark a card's role as incidental. */
+  commander?: ScryfallCard | null;
+  partnerCommander?: ScryfallCard | null;
 }
 
 export interface RankReplacementCutsParams {
@@ -107,6 +112,9 @@ export interface RankReplacementCutsParams {
   inDeckCombos?: ComboMatch[];
   /** Max suggestions to return (default 8). */
   limit?: number;
+  /** False when swapping this card out would break the deck's own settings
+   *  (a partial collection deck's owned share, say): it is not offered. */
+  keepsSettings?: (cut: ScryfallCard) => boolean;
 }
 
 /** EDHREC-style inclusion proxy (0–100, higher = more played) for sort tiebreaks
@@ -128,7 +136,6 @@ interface Flag {
   inclusion?: number;
 }
 
-/** Why a card was flagged as weak: the optimizer's reason, else the misfit's first. */
 const nameKey = (name: string): string => frontFaceName(name).toLowerCase();
 
 /**
@@ -145,6 +152,7 @@ export function missingStapleFloor(
   return played.length > 0 ? Math.min(...played) : undefined;
 }
 
+/** Why a card was flagged as weak: the optimizer's reason, else the misfit's first. */
 function flagReasons(analysis: CutAnalysis, extra: OptimizeCard[]): Map<string, Flag> {
   const out = new Map<string, Flag>();
   for (const r of [...extra, ...(analysis.optimizeSwaps?.removals ?? [])]) {
@@ -175,7 +183,10 @@ function landCutReason(card: ScryfallCard, copies: number): string {
  * its target, a staple the analysis still lists as missing (just added), or an
  * unflagged card played at least as much as the least-played missing staple
  * (Coach would suggest adding it straight back).
- * When the incoming card's role is already met, cards in that role come first.
+ * When the incoming card's role is at or over its target, the add is an
+ * upgrade inside that role: the only cuts are strictly weaker cards of the
+ * same counted role whose role isn't incidental to them, and the reason says
+ * so ("Upgrade in ramp").
  *
  * Spells, best → worst:
  *  1. Flagged weak AND shares the add's role or engine — a real, on-theme swap.
@@ -203,6 +214,7 @@ export function rankReplacementCuts({
   deckSynergy,
   inDeckCombos = [],
   limit = 8,
+  keepsSettings,
 }: RankReplacementCutsParams): RankedCut[] {
   const flagged = flagReasons(analysis, removals);
   const gapInclusion = new Map((analysis.gapAnalysis ?? []).map((g) => [g.name, g.inclusion]));
@@ -224,13 +236,18 @@ export function rankReplacementCuts({
     if ((counts[role] ?? 0) > targets[role]) return false; // over target: room to trim
     return role !== addCounted || addFillsGap;
   };
-  // An add whose role is already met swaps inside that role first; a cut from
-  // another role pushes this one into surplus ("Fills Removal gap" applied at
-  // 12/12 left removal at 14/12 in the T171 re-gate). Another role's surplus
-  // card still follows, so the prompt never dead-ends.
+  // An add whose role is at or over its target is an upgrade inside that role
+  // (T171 round 3). A cut from another role leaves the surplus where it was:
+  // Boros Signet came in for Battle Angels of Tyr as "Excess Ramp" and ramp
+  // stayed at 16/13. So the cut is a strictly weaker card of the same counted
+  // role, and never one whose role is incidental to what it is (a commander's
+  // attack-trigger payoff tagged ramp for its Treasure).
   const addRoleMet = !!addCounted && targets?.[addCounted] !== undefined && !addFillsGap;
-  const outOfRole = (card: ScryfallCard): number =>
-    addRoleMet && countedRoleOf(card) !== addCounted ? 1 : 0;
+  const profile = analysis.commander
+    ? buildCommanderProfile(analysis.commander, analysis.partnerCommander)
+    : null;
+  const inRole = (card: ScryfallCard): boolean =>
+    countedRoleOf(card) === addCounted && !roleIsIncidental(card, addCounted, profile);
   // A staple the analysis still lists as missing is in the deck now: the user
   // just added it, most likely on Coach's advice. Offering it as the next cut
   // undoes that move (a Bracket 4 Yuriko added Mockingbird, then the next add
@@ -248,6 +265,8 @@ export function rankReplacementCuts({
     if (comboPieces.has(card.name.toLowerCase())) return false;
     if (justAdded.has(nameKey(card.name))) return false;
     if (opensGap(card)) return false;
+    if (addRoleMet && !inRole(card)) return false;
+    if (keepsSettings && !keepsSettings(card)) return false;
     return !isPremiumCard(card, { inclusion: pageInclusion(card.name) });
   });
 
@@ -262,12 +281,7 @@ export function rankReplacementCuts({
   const investedAxes = new Set<string>(deckSyn.invested);
   const hasEngine = investedAxes.size > 0;
 
-  type Scored = RankedCut & {
-    tier: number;
-    relScore: number;
-    inclusion: number;
-    outOfRole: number;
-  };
+  type Scored = RankedCut & { tier: number; relScore: number; inclusion: number };
   const scored: Scored[] = [];
 
   for (const { slotId, card } of eligible) {
@@ -309,6 +323,10 @@ export function rankReplacementCuts({
       continue; // an unflagged card played here as much as the add stays
     if (!flagReason && candInclusion !== undefined && gapFloor !== undefined)
       if (candInclusion >= gapFloor) continue; // cut, it would head Coach's missing staples
+    // An upgrade replaces a strictly weaker card: played here less than the
+    // add, or, when the add's play rate is unknown, flagged weak by the analysis.
+    const weaker = addInclusion !== undefined ? (candInclusion ?? 0) < addInclusion : !!flagReason;
+    if (addRoleMet && !weaker) continue;
 
     let tier: number;
     if (flagReason && (sameRole || sameAxis)) tier = 1;
@@ -318,17 +336,18 @@ export function rankReplacementCuts({
     else if (playedLess) tier = 5;
     else continue; // unflagged + unrelated, no evidence the add is better → not a suggestion
 
-    const reason =
-      flagReason ??
-      (sameAxis
-        ? `Overlapping ${axisLabel(shared[0])}`
-        : sameRole
-          ? 'Overlapping role'
-          : sameType
-            ? 'Overlapping type'
-            : candInclusion === undefined
-              ? "Not played in this commander's decks"
-              : `Played in ${Math.round(candInclusion)}% of decklists`);
+    const reason = addRoleMet
+      ? `Upgrade in ${ROLE_LABELS[addCounted!].toLowerCase()}`
+      : (flagReason ??
+        (sameAxis
+          ? `Overlapping ${axisLabel(shared[0])}`
+          : sameRole
+            ? 'Overlapping role'
+            : sameType
+              ? 'Overlapping type'
+              : candInclusion === undefined
+                ? "Not played in this commander's decks"
+                : `Played in ${Math.round(candInclusion)}% of decklists`));
 
     const inclusion = candInclusion ?? inclusionOf(card, flag?.inclusion);
     const factors = buildCutFactors({
@@ -341,21 +360,10 @@ export function rankReplacementCuts({
       inclusion,
     });
 
-    scored.push({
-      slotId,
-      card,
-      reason,
-      related,
-      factors,
-      tier,
-      relScore,
-      inclusion,
-      outOfRole: outOfRole(card),
-    });
+    scored.push({ slotId, card, reason, related, factors, tier, relScore, inclusion });
   }
 
   scored.sort((a, b) => {
-    if (a.outOfRole !== b.outOfRole) return a.outOfRole - b.outOfRole;
     if (a.tier !== b.tier) return a.tier - b.tier;
     // Related tiers favor the stronger relation first; tiers 3 and 5 are flat weakest-first lists.
     if (a.tier !== 3 && a.tier !== 5 && a.relScore !== b.relScore) return b.relScore - a.relScore;

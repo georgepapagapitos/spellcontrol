@@ -28,6 +28,8 @@
  *   Tier 3: everything else.
  */
 import type { Change } from './deck-change';
+import type { ScryfallCard } from '@/deck-builder/types';
+import { premiumReason } from '@/deck-builder/services/deckBuilder/premiumCards';
 import type { PlanScore, SubScoreKey } from '@/deck-builder/services/deckBuilder/planScore';
 
 export interface CoachContext {
@@ -77,6 +79,13 @@ export function changeTargets(c: Change): SubScoreKey[] {
     default:
       return [];
   }
+}
+
+/** A staple rock or a staple of this commander's page: worth an in-role upgrade. */
+function keepsInMetRole(c: Change): boolean {
+  const card = c.card ?? ({ name: c.name, type_line: c.typeLine ?? '' } as ScryfallCard);
+  const why = premiumReason(card, { inclusion: c.inclusion });
+  return why === 'staple-rock' || why === 'commander-staple';
 }
 
 /** Tier-3-only lanes — budget saves money but is never a quality concern.
@@ -181,10 +190,16 @@ export function rankCoachMoves(changes: Change[], ctx: CoachContext): RankedMove
     ctx.roleTargets[role] !== undefined &&
     (ctx.roleCounts[role] ?? 0) >= ctx.roleTargets[role];
   // "Fills {role} gap" is false once the role is met: the row goes (it comes
-  // back on the next analysis if the role falls short again).
-  const live = changes.filter(
-    (c) => !(c.lane === 'upgrade' && c.group?.startsWith('fills:') && roleMet(c.group.slice(6)))
-  );
+  // back on the next analysis if the role falls short again). And a missing
+  // staple in a role at or over its target is not a gap to fill: Blasphemous
+  // Act came in as an "EDHREC staple" at 2 of 1 wipes (T171 round 3). A staple
+  // this commander's decks can't do without (Sol Ring, Arcane Signet, a 40%
+  // page staple) stays, as an upgrade inside the role (intelligent-cuts.ts).
+  const live = changes.filter((c) => {
+    if (c.lane === 'upgrade' && c.group?.startsWith('fills:')) return !roleMet(c.group.slice(6));
+    if (c.lane === 'fill-gaps' && c.type === 'add' && roleMet(c.role)) return keepsInMetRole(c);
+    return true;
+  });
 
   const ranked: RankedMove[] = live.map((c) => ({
     change: c,

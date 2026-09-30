@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { analyzeDeckSynergy } from './deckSynergy';
 import { deriveNeeds, suggestOffMeta, type SynergyCandidate } from './suggest';
 import { CORPUS, type CorpusCard } from './classify.fixtures';
+import { COACH_CARDS } from '../deckBuilder/__fixtures__/coach-cards.fixtures';
+import type { CardLike } from './text';
 
 const pick = (...names: string[]): CorpusCard[] =>
   names.map((n) => CORPUS.find((c) => c.name === n)!);
@@ -137,5 +139,50 @@ describe('suggestOffMeta', () => {
       )
     );
     expect(suggestOffMeta(balanced, [cand('Mirror Entity', 10)])).toEqual([]);
+  });
+});
+
+// T171 round 3: the Upgrade lane offered off-plan text matches. Waste Not
+// ("punishes opponents discarding") went to five decks whose only discard was
+// their own looting, a convoke card to decks with few creatures, and Fable of
+// the Mirror-Breaker read as a blink engine because its Saga exiles itself and
+// returns transformed. Real cards (Scryfall 2026-09-29).
+describe('suggestOffMeta — a payoff needs the deck to enable it', () => {
+  const real = (name: string): CardLike => ({ ...COACH_CARDS[name] });
+  const offPage = (name: string): SynergyCandidate => ({ card: real(name) });
+
+  it('offers an opponent-discard payoff only to a deck that makes opponents discard', () => {
+    const looting = analyzeDeckSynergy(
+      ['Faithless Looting', 'Cathartic Reunion', "Tsabo's Decree"].map(real)
+    );
+    expect(suggestOffMeta(looting, [offPage('Waste Not')])).toEqual([]);
+    // Page evidence stands in for the missing enabler.
+    expect(
+      suggestOffMeta(looting, [{ card: real('Waste Not'), inclusion: 6 }]).map((s) => s.cardName)
+    ).toEqual(['Waste Not']);
+
+    const handAttack = analyzeDeckSynergy(
+      ['Hymn to Tourach', 'Mind Twist', "Tsabo's Decree"].map(real)
+    );
+    expect(suggestOffMeta(handAttack, [offPage('Waste Not')]).map((s) => s.cardName)).toEqual([
+      'Waste Not',
+    ]);
+  });
+
+  it('offers a convoke card only to a creature-dense deck', () => {
+    const thin = analyzeDeckSynergy(pick('Krenko, Mob Boss', 'Secure the Wastes', 'Bitterblossom'));
+    expect(suggestOffMeta(thin, [offPage('Hoarding Broodlord')])).toEqual([]);
+    const dense = analyzeDeckSynergy(
+      pick('Krenko, Mob Boss', 'Secure the Wastes', 'Hornet Queen', 'Grave Titan')
+    );
+    expect(suggestOffMeta(dense, [offPage('Hoarding Broodlord')]).map((s) => s.cardName)).toEqual([
+      'Hoarding Broodlord',
+    ]);
+  });
+
+  it('never reads a Saga that returns itself transformed as a blink engine', () => {
+    const fable = real('Fable of the Mirror-Breaker // Reflection of Kiki-Jiki');
+    const deck = analyzeDeckSynergy([fable]);
+    expect(deck.axes.find((a) => a.axis === 'blink')).toBeUndefined();
   });
 });

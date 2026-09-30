@@ -176,6 +176,23 @@ describe('rankCoachMoves (T171 re-gate): the live role counts decide a gap', () 
     expect(rankCoachMoves([swords], tuned)[0].tier).toBe(3);
     expect(rankCoachMoves([swords], { ...tuned, roleCounts: ctx.roleCounts })[0].tier).toBe(1);
   });
+
+  // T171 round 3: Blasphemous Act came in as an "EDHREC staple" to a go-wide
+  // Isshin deck already at 2 of 1 wipes.
+  it('never offers a missing staple whose role is at or over target, bar a staple rock or page staple', () => {
+    const gap = (name: string, role: string, inclusion: number, typeLine: string) =>
+      fromGapCard({ name, price: null, inclusion, synergy: 0, typeLine, role }, 'unowned');
+    const names = rankCoachMoves(
+      [
+        gap('Blasphemous Act', 'boardwipe', 13, 'Sorcery'),
+        gap('Coldsteel Heart', 'ramp', 25, 'Artifact'),
+        gap('Arcane Signet', 'ramp', 30, 'Artifact'),
+        gap('Talisman of Conviction', 'ramp', 45, 'Artifact'),
+      ],
+      ctx
+    ).map((r) => r.change.name);
+    expect(names).toEqual(['Talisman of Conviction', 'Arcane Signet']);
+  });
 });
 
 describe('rankCoachMoves (T171): cuts read weakest first', () => {

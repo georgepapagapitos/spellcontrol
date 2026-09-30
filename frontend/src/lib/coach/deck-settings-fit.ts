@@ -174,9 +174,16 @@ export function settingsBreak(
         count--;
         if (deck.isOwned(out.name)) ownedCount--;
       }
-    } else if (deck.full && ownedCount > 0) {
+    } else if (deck.full && ownedCount === count && count > 0) {
+      // Every card here is owned, so the cut is too. With an unowned card in
+      // the deck, the replace prompt offers only cuts that keep the share
+      // (cutKeepsSettings), so the add doesn't break it: an Arcane Signet at
+      // 57% was hidden from a 50%-owned Lathril deck sitting on its floor
+      // (T171 round 3).
       count--;
       ownedCount--;
+    } else if (deck.full) {
+      count--;
     }
     count++;
     const after = ownedCount / count;
@@ -227,6 +234,27 @@ export function settingsChecker(
   return (change) => settingsBreak(change, settings, deck);
 }
 
+/**
+ * The replace-when-full prompt's filter: false for a cut whose swap with the
+ * incoming card would break one of the deck's settings (an owned card out of
+ * a partial deck on its owned-share floor, say).
+ */
+export function cutKeepsSettings(
+  fit: ((change: Change) => boolean) | undefined,
+  add: { name: string; card?: ScryfallCard }
+): ((cut: ScryfallCard) => boolean) | undefined {
+  if (!fit) return undefined;
+  return (cut) =>
+    fit({
+      id: `swap:${cut.name}->${add.name}`,
+      type: 'swap',
+      lane: 'similar',
+      name: add.name,
+      card: add.card,
+      inName: cut.name,
+    });
+}
+
 /** A predicate over Coach rows: true when the move keeps the deck's settings. */
 export function fitsSettings(
   check: ((change: Change) => SettingsBreak | null) | undefined
@@ -239,6 +267,11 @@ export interface CoachSettingsHooks {
   check: ((change: Change) => SettingsBreak | null) | undefined;
   /** The same as a keep-or-drop predicate. */
   fit: ((change: Change) => boolean) | undefined;
+  /** The replace prompt's cut filter for an incoming card (`cutKeepsSettings`). */
+  cutFits: (add: {
+    name: string;
+    card?: ScryfallCard;
+  }) => ((cut: ScryfallCard) => boolean) | undefined;
 }
 
 /** The deck page's check: the saved settings against the live deck and collection. */
@@ -270,7 +303,8 @@ export function useCoachSettings(
       full: mainboard.length >= mainboardLimit,
       cardData: (name) => suggestionCards?.[name],
     });
-    return { check, fit: fitsSettings(check) };
+    const fit = fitsSettings(check);
+    return { check, fit, cutFits: (add) => cutKeepsSettings(fit, add) };
   }, [settings, cards, ownedNames, mainboardLimit, suggestionCards]);
 }
 

@@ -146,6 +146,19 @@ function isCardDrawCard(cardName: string): boolean {
   );
 }
 
+/**
+ * The card's only card-advantage evidence is a land search: a fetchland, Elven
+ * Passage, Evolving Wilds. Coach never labels or counts such a card as card
+ * advantage (T171 round 3: Elven Passage was offered as a "Card advantage
+ * staple"). The generator's own role reading is unchanged.
+ */
+export function drawsOnlyLands(cardName: string): boolean {
+  if (!tagSets?.['land-tutor']?.has(cardName)) return false;
+  return !['card-advantage', 'draw', 'wheel', 'looting', 'cantrip'].some((t) =>
+    tagSets?.[t]?.has(cardName)
+  );
+}
+
 /** Categorize a card by its tagger tags. Returns the best-fit deck role, or null if no tag matches / data unavailable. */
 export function getCardRole(cardName: string): RoleKey | null {
   if (!tagSets) return null;

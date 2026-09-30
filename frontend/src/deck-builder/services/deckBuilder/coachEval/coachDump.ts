@@ -17,7 +17,11 @@
  */
 import type { DeckCategory, DetectedCombo, ScryfallCard } from '@/deck-builder/types';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
-import { getCardTags, validateCardRole } from '@/deck-builder/services/tagger/client';
+import {
+  drawsOnlyLands,
+  getCardTags,
+  validateCardRole,
+} from '@/deck-builder/services/tagger/client';
 import { frontFaceName } from '@/lib/cards/card-text';
 import { isBasicLandName } from '@/lib/collection/allocations';
 import { countedRoleOf } from '../commanderDeckAnalysis';
@@ -82,6 +86,12 @@ function oracleText(card: ScryfallCard): string {
 }
 
 /** A card as the live harness projects it (deckGenerator.live.test.ts projectCard). */
+/** A Coach-added card's role: a land search is not card advantage (T171 round 3). */
+function coachRole(card: ScryfallCard): ReturnType<typeof validateCardRole> {
+  const role = validateCardRole(card);
+  return role === 'cardDraw' && drawsOnlyLands(card.name) ? null : role;
+}
+
 export function projectDumpCard(card: ScryfallCard, inclusion: number | null): DumpCard {
   return {
     name: card.name,
@@ -101,7 +111,7 @@ export function projectDumpCard(card: ScryfallCard, inclusion: number | null): D
     price_eur: getCardPrice(card, 'EUR'),
     oracle_text_snippet: oracleText(card).slice(0, 140),
     edhrec_inclusion: inclusion,
-    role: validateCardRole(card),
+    role: coachRole(card),
     countedRole: countedRoleOf(card),
     tags: getCardTags(card.name),
   } as DumpCard;

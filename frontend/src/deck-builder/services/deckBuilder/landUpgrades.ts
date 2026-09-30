@@ -34,11 +34,10 @@
  */
 import type { ScryfallCard } from '@/deck-builder/types';
 import { fitsColorIdentity } from '@/lib/deck/deck-validation';
-import { producedManaColors, isManaSourceType } from '@/lib/deck-analysis/mana-sources';
+import { producedManaColors } from '@/lib/deck-analysis/mana-sources';
 import { isBasicLandName } from '@/lib/collection/allocations';
 import { isChannelLand, isMdfcLand } from '../scryfall/client';
-import { weightedColorDemand, colorSourceCounts, fetchedBasicRequirement } from './manabaseMath';
-import { isColorShort, shortfallThresholdsForCurve } from './colorShortfall';
+import { buildManabaseSummary, fetchedBasicRequirement } from './manabaseMath';
 import { countBasicFetchers } from './deckAnalyzer';
 import { isPremiumCard } from './premiumCards';
 
@@ -73,8 +72,6 @@ export interface LandUpgradeMove {
   /** Colors it adds that the cut land didn't make (WUBRG letters). */
   addsColors: string[];
 }
-
-const COLOR_KEYS = ['W', 'U', 'B', 'R', 'G'] as const;
 
 function isLand(card: ScryfallCard): boolean {
   const front = (card.type_line || card.card_faces?.[0]?.type_line || '').toLowerCase();
@@ -235,7 +232,6 @@ interface Candidate {
  *                        unused lands plus strong duals they may not own yet
  * @param ownedNames      names of lands the user owns (owned → apply-now swap,
  *                        else → "acquire" suggestion; drives the prefer-owned tie-break)
- * @param manaCurve       the deck's mana curve, for pacing-aware shortfall detection
  * @param inclusion       this commander's page play rates (`cardInclusionMap`): a
  *                        premium land never goes out, as with every Coach cut
  *                        (Path of Ancestry out for Reflecting Pool in Lathril
@@ -246,7 +242,6 @@ export function computeLandUpgrades(
   identity: ReadonlySet<string>,
   candidateLands: readonly ScryfallCard[],
   ownedNames: ReadonlySet<string> = new Set(),
-  manaCurve: Record<number, number> = {},
   inclusion: Readonly<Record<string, number>> = {}
 ): LandUpgradeMove[] {
   const currentLands = deckCards.filter(isLand);
@@ -254,12 +249,14 @@ export function computeLandUpgrades(
   if (currentLands.length === 0) return [];
 
   // Which colors is the deck short on? Incoming lands that fix a short color earn
-  // a stronger "why" and are preferred. Demand vs. sources the deck already has.
-  const demand = weightedColorDemand(nonLands);
-  const sources = colorSourceCounts(deckCards.filter(isManaSourceType), identity);
-  const thresholds = shortfallThresholdsForCurve(manaCurve);
+  // a stronger "why" and are preferred. The deck's own manabase report decides,
+  // so "fixing you're short on" never contradicts it: a separate demand reading
+  // told Lathril it was short on green while its manabase said it wasn't (T171
+  // round 3).
   const shortColors = new Set<string>(
-    COLOR_KEYS.filter((c) => identity.has(c) && isColorShort(demand[c], sources[c], thresholds))
+    buildManabaseSummary(currentLands, nonLands, identity)
+      .lines.filter((l) => l.short)
+      .map((l) => l.color)
   );
 
   // Candidate pool: on-color lands not in the deck, ranked by merit. Dedupe by

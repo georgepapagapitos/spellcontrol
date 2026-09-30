@@ -50,6 +50,8 @@ import { computePlanScore, type PlanScore, type StrategyEngineInput } from './pl
 import { computeMisfits, summarizeMisfits, type MisfitSummary } from './cardFit';
 import { premiumNames } from './premiumCards';
 import { isUtilityLand } from './landUpgrades';
+import { roleIsIncidental } from './incidentalRole';
+import { dropSymmetricWipes, prefersOneSidedWipes } from './coachWipes';
 import { fetchDeckEdhrecPage, type DeckEdhrecSource } from './deckEdhrecSource';
 import {
   enrichRecommendationPrices,
@@ -986,7 +988,8 @@ export async function analyzeCommanderDeck(
         new Set([...synergyProtectedNames, ...protectedNames]),
         // E71 Phase 4: lift co-play connectivity — protects package-connected
         // cards from the cutter and flags trusted no-link cards "off-package".
-        liftIndex ? { index: liftIndex, seedCount: liftSeedCount } : undefined
+        liftIndex ? { index: liftIndex, seedCount: liftSeedCount } : undefined,
+        (card, role) => roleIsIncidental(card, role, commanderProfile)
       );
       // Budget downgrades: cheaper role-equivalents drawn from the same EDHREC
       // recommendation pool. USD-canonical (matches the baked recommendation
@@ -1063,6 +1066,20 @@ export async function analyzeCommanderDeck(
     } catch (err) {
       logger.warn('[CommanderDeckAnalysis] Synergy analysis failed:', err);
       synergyAnalysis = buildSynergyAnalysis(deckSynergy, []);
+    }
+
+    // A deck that builds a board isn't offered a symmetric wipe (E109/E112).
+    const commanders = [
+      params.commander,
+      ...(params.partnerCommander ? [params.partnerCommander] : []),
+    ];
+    if (prefersOneSidedWipes(commanders, commanderProfile, params.cards)) {
+      await scryfallBudget(
+        dropSymmetricWipes([gapAnalysis, optimizeSwaps?.additions ?? []], (names) =>
+          getCardsByNames(names, undefined, undefined, { priceTail: false })
+        ),
+        undefined
+      );
     }
 
     // Price + rarity of every card Coach may suggest (lib/coach/deck-settings-fit.ts).

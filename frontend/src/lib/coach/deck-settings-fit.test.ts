@@ -10,6 +10,7 @@ import { fromComboCompletion, fromGapCard, fromLandUpgradeMove } from './deck-ch
 import {
   coachDeckSettings,
   combosThatFit,
+  cutKeepsSettings,
   fitsSettings,
   gapsThatFit,
   settingsBreak,
@@ -90,13 +91,27 @@ describe('settingsBreak', () => {
     expect(settingsBreak(gapRow('Swords to Plowshares', true), s, deckOf(cheapDeck))).toBeNull();
   });
 
-  it("keeps a partial deck's owned share: the add of an unowned card may cost an owned one", () => {
-    const s = { ...open, collectionStrategy: 'partial' as const, collectionOwnedPercent: 75 };
-    // Three of four spells owned (75%); a full deck cuts one to add an unowned card.
-    const deck = deckOf(cheapDeck, ['Harmonize', 'Murder', 'Doom Blade']);
+  it("keeps a partial deck's owned share: an all-owned deck must cut an owned card", () => {
+    const s = { ...open, collectionStrategy: 'partial' as const, collectionOwnedPercent: 80 };
+    // Four of four spells owned; a full deck cuts one to add an unowned card: 3 of 4.
+    const deck = deckOf(cheapDeck, cheapDeck);
     expect(settingsBreak(gapRow('Swords to Plowshares'), s, deck)).toBe('owned-share');
     // Owned basics and lands don't count toward the share.
     expect(settingsBreak(gapRow('Overgrown Tomb'), s, deck)).toBeNull();
+  });
+
+  // T171 round 3: an Arcane Signet at 57% was hidden from a 50%-owned Lathril
+  // deck on its floor, though cutting one of its unowned cards keeps the share.
+  it('lets an unowned add in when the deck holds an unowned card to cut, and the prompt offers only that', () => {
+    const s = { ...open, collectionStrategy: 'partial' as const, collectionOwnedPercent: 75 };
+    // Three of four spells owned (75%): Beast Within is the unowned one.
+    const deck = deckOf(cheapDeck, ['Harmonize', 'Murder', 'Doom Blade']);
+    expect(settingsBreak(gapRow('Swords to Plowshares'), s, deck)).toBeNull();
+    const cutFits = cutKeepsSettings(fitsSettings(settingsChecker(s, deck)), {
+      name: 'Swords to Plowshares',
+    })!;
+    expect(cutFits(real('Beast Within'))).toBe(true);
+    expect(cutFits(real('Harmonize'))).toBe(false);
   });
 
   it('holds the price cap and the budget, with the incoming price from the row', () => {

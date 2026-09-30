@@ -183,7 +183,6 @@ export function buildCoachView(input: CoachViewInputs): CoachView {
           new Set(identity),
           candidateLands,
           new Set(ownedNames),
-          {},
           analysis.cardInclusionMap
         )
       : [];

@@ -82,7 +82,12 @@ import { axisKeys } from '@/lib/coach/axis-overlap';
 import { frontFaceName } from '@/lib/cards/card-text';
 import { isBasicLandName } from '@/lib/collection/allocations';
 import { HARDCODED_GAME_CHANGERS } from '@spellcontrol/deck-metrics';
-import { coachDeckSettings, fitsSettings, settingsChecker } from '@/lib/coach/deck-settings-fit';
+import {
+  coachDeckSettings,
+  cutKeepsSettings,
+  fitsSettings,
+  settingsChecker,
+} from '@/lib/coach/deck-settings-fit';
 import type { SubstituteCandidate } from '../substituteFinder';
 import { dumpPage, resolveName } from '../deckObjective/panelDump';
 import { deckEdhrecSource, fetchDeckEdhrecPage, type DeckEdhrecSource } from '../deckEdhrecSource';
@@ -532,20 +537,10 @@ async function coachPass(dump: CoachDump, deck: EvalDeckState): Promise<CoachPas
   if (analysis.edhrecMissing) throw new Error('EDHREC missing for this commander');
 
   const strategy = settings.collectionStrategy;
-  const view = buildCoachView({
-    commander,
-    partner,
-    cards,
-    analysis,
-    ownedNames: settings.ownedNames,
-    ownedPool: settings.collectionMode ? OWNED_POOL : [],
-    ownedLands: settings.collectionMode ? OWNED_LANDS : [],
-    fixingLands: await fixingLands(dump.colorIdentity),
-    combos,
-    ownedOnly: settings.collectionMode && (strategy === 'full' || strategy === 'available'),
-    substitutesReady: true,
-    // DeckEditorPage `useCoachSettings`: the saved customization, no stated target.
-    settingsFit: fitsSettings(
+  // DeckEditorPage `useCoachSettings`: the saved customization, no stated target,
+  // against the deck as it stands (the replace prompt reads the live deck).
+  const fitFor = (deckCards: readonly ScryfallCard[]) =>
+    fitsSettings(
       settingsChecker(
         coachDeckSettings({
           generationContext: {
@@ -558,14 +553,27 @@ async function coachPass(dump: CoachDump, deck: EvalDeckState): Promise<CoachPas
           bracketOverride: null,
         }),
         {
-          cards,
+          cards: deckCards,
           isOwned: (name) => settings.ownedNames.has(name),
-          full: cards.length >= 99 - (partner ? 1 : 0),
+          full: deckCards.length >= 99 - (partner ? 1 : 0),
           gameChangerNames: GAME_CHANGERS,
           cardData: (name) => analysis.suggestionCards?.[name],
         }
       )
-    ),
+    );
+  const view = buildCoachView({
+    commander,
+    partner,
+    cards,
+    analysis,
+    ownedNames: settings.ownedNames,
+    ownedPool: settings.collectionMode ? OWNED_POOL : [],
+    ownedLands: settings.collectionMode ? OWNED_LANDS : [],
+    fixingLands: await fixingLands(dump.colorIdentity),
+    combos,
+    ownedOnly: settings.collectionMode && (strategy === 'full' || strategy === 'available'),
+    substitutesReady: true,
+    settingsFit: fitFor(cards),
   });
   const commanderNames = allNames.slice(0, partner ? 2 : 1);
   const env: ApplyEnv = {
@@ -574,13 +582,14 @@ async function coachPass(dump: CoachDump, deck: EvalDeckState): Promise<CoachPas
       rankReplacementCuts({
         addCard,
         deckCards: current.map((card, i) => ({ slotId: String(i), card })),
-        // The persisted analysis (DeckEditorPage passes the deck): it doesn't
-        // recompute between quick applies.
-        analysis,
+        // The persisted analysis (DeckEditorPage passes the deck, commander
+        // included): it doesn't recompute between quick applies.
+        analysis: { ...analysis, commander, partnerCommander: partner },
         inDeckCombos: combosFromEdhrec(edhrecCombos, [
           ...commanderNames,
           ...current.map((c) => c.name),
         ]).inDeck,
+        keepsSettings: cutKeepsSettings(fitFor(current), addCard),
       }).map((r) => ({ name: r.card.name, reason: r.reason })),
     bracketOf: (current) => {
       const names = [...commanderNames, ...current.map((c) => c.name)];

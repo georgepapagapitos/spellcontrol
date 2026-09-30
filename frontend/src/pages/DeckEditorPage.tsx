@@ -1272,7 +1272,7 @@ export function DeckEditorPage() {
     if (!deck || identity.size === 0) return [];
     const owned = collectionLandsAsCards(collectionCards);
     const pool = landUpgradeCandidates(owned, fetchedFixingLands);
-    return computeLandUpgrades(deckCards, identity, pool, ownedNames, {}, deck.cardInclusionMap);
+    return computeLandUpgrades(deckCards, identity, pool, ownedNames, deck.cardInclusionMap);
   }, [deck, commanderColorIdentity, collectionCards, deckCards, fetchedFixingLands, ownedNames]);
 
   /**
@@ -2182,6 +2182,7 @@ export function DeckEditorPage() {
             deckCards: deck.cards,
             analysis: deck,
             inDeckCombos: mainboardComboData?.inDeck,
+            keepsSettings: coachSettings.cutFits({ name: pendingAdd, card: addCard }),
           });
           const suggested = ranked.map((r) =>
             toOpt({ slotId: r.slotId, card: r.card }, r.reason, r.factors)

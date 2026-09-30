@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { computeLandUpgrades, isUtilityLand, landSlotMerit } from './landUpgrades';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { COACH_CARDS } from './__fixtures__/coach-cards.fixtures';
+import { buildManabaseSummary } from './manabaseMath';
 
 const card = (p: Partial<ScryfallCard>): ScryfallCard =>
   ({ name: 'x', cmc: 2, ...p }) as ScryfallCard;
@@ -210,6 +211,29 @@ describe('computeLandUpgrades — real cards (T171)', () => {
     const swap = computeLandUpgrades(deck, BG, pool, new Set());
     expect(swap.map((m) => m.outName)).toEqual(['Path of Ancestry']);
     const onPage = { 'Path of Ancestry': 56 };
-    expect(computeLandUpgrades(deck, BG, pool, new Set(), {}, onPage)).toEqual([]);
+    expect(computeLandUpgrades(deck, BG, pool, new Set(), onPage)).toEqual([]);
+  });
+
+  // T171 round 3: "Adds green fixing you're short on" appeared where the
+  // deck's own manabase said green was not short. The claim now comes from
+  // the manabase report's `short` flag.
+  it("says a color is short only when the deck's manabase says so", () => {
+    // Two Forests for two green spells: the old demand reading called green
+    // short; the manabase report, below its demand floor, does not.
+    const deck = [
+      ...Array.from({ length: 2 }, () => real('Forest')),
+      ...Array.from({ length: 9 }, () => real('Swamp')),
+      real('Harmonize'),
+      real('Cultivate'),
+      real('Murder'),
+    ];
+    const moves = computeLandUpgrades(deck, BG, [real('Overgrown Tomb')], new Set());
+    const lands = deck.filter((c) => /land/i.test(c.type_line ?? ''));
+    const spells = deck.filter((c) => !/land/i.test(c.type_line ?? ''));
+    const short = buildManabaseSummary(lands, spells, BG).lines.filter((l) => l.short);
+    expect(short).toEqual([]);
+    expect(moves).toHaveLength(1);
+    expect(moves[0].fixesShortColors).toEqual([]);
+    expect(moves[0].reason).not.toContain('short on');
   });
 });

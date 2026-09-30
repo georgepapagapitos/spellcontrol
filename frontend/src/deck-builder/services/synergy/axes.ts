@@ -57,6 +57,20 @@ export interface SynergyAxis {
 
 const has = (card: ParsedCard, kw: string) => card.keywords.includes(kw);
 
+/**
+ * Reasons whose condition is narrower than their axis: a payoff that needs a
+ * specific producer (or board) the axis alone doesn't promise. The off-meta
+ * suggester checks the deck enables them (suggest.ts, T171 round 3).
+ */
+export const REASON = {
+  convoke: 'has convoke',
+  forcesDiscards: 'forces discards',
+  loots: 'loots or rummages',
+  punishesOpponentDiscard: 'punishes opponents discarding',
+  rewardsYourDiscards: 'rewards your discards',
+  madness: 'madness',
+} as const;
+
 // ── Tokens (creature / go-wide) — noncreature tokens belong to the artifacts axis ──
 const CREATURE_TOKEN_KEYWORDS = ['fabricate', 'amass', 'embalm', 'eternalize', 'afterlife'];
 
@@ -75,7 +89,7 @@ const tokens: SynergyAxis = {
     if (hasCreatureEtbTrigger(card.oracle)) return 'triggers when your creatures enter';
     if (scalesWithCreatures(card.oracle)) return 'scales with creatures you control';
     if (hasCreatureAnthem(card.oracle)) return 'anthem for your creatures';
-    if (has(card, 'convoke')) return 'has convoke';
+    if (has(card, 'convoke')) return REASON.convoke;
     if (/\bpopulate\b/.test(card.oracle)) return 'populate';
     return null;
   },
@@ -508,7 +522,12 @@ const tribal: SynergyAxis = {
 // ── Blink / flicker ──────────────────────────────────────────────────────────
 // A flicker exiles a permanent and returns it to the battlefield — that round
 // trip IS the mechanic. The producer is the flicker engine itself.
-const FLICKER_RETURN = /return (?:it|them|that card|those cards|that permanent) to the battlefield/;
+// A card that exiles itself and returns transformed (Fable of the
+// Mirror-Breaker's chapter III, the Kamigawa Sagas) is transforming, not
+// flickering: it read as a blink engine and was suggested to Krenko as one
+// (T171 round 3).
+const FLICKER_RETURN =
+  /return (?:it|them|that card|those cards|that permanent) to the battlefield(?![^.]*\btransformed\b)/;
 
 const blink: SynergyAxis = {
   key: 'blink',
@@ -677,15 +696,15 @@ const discard: SynergyAxis = {
   label: 'Discard / madness',
   producer(card) {
     const d = discardSignals(card.oracle);
-    if (d.forced) return 'forces discards';
-    if (d.causes) return 'loots or rummages';
+    if (d.forced) return REASON.forcesDiscards;
+    if (d.causes) return REASON.loots;
     return null;
   },
   payoff(card) {
-    if (has(card, 'madness') || /\bmadness\b/.test(card.oracle)) return 'madness';
+    if (has(card, 'madness') || /\bmadness\b/.test(card.oracle)) return REASON.madness;
     const d = discardSignals(card.oracle);
-    if (d.rewardsOpponents) return 'punishes opponents discarding';
-    if (d.rewards) return 'rewards your discards';
+    if (d.rewardsOpponents) return REASON.punishesOpponentDiscard;
+    if (d.rewards) return REASON.rewardsYourDiscards;
     return null;
   },
 };
