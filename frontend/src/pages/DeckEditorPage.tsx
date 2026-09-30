@@ -1124,8 +1124,12 @@ export function DeckEditorPage() {
 
   // Coach shows only moves the deck's saved settings allow (price, budget, rarity, …).
   const coachSettings = useCoachSettings(deck, ownedNames, mainboardLimit);
-  const combosInDeck = mainboardComboData?.inDeck;
-  const replaceCuts = useReplaceCuts(deck, combosInDeck, coachSettings.cutFits, mainboardLimit);
+  const replaceCuts = useReplaceCuts(
+    deck,
+    mainboardComboData,
+    coachSettings.cutFits,
+    mainboardLimit
+  );
   // "Next best move" — the single highest-leverage change, derived from the
   // live PlanScore + role gaps + near-miss combos.
   const nextBestMoves = useMemo(() => {
@@ -3547,7 +3551,7 @@ export function DeckEditorPage() {
                   misfits={deck.misfits}
                   synergy={deck.synergyAnalysis?.suggestions ?? []}
                   substitutes={substitutionPlan?.rows ?? []}
-                  costPlan={effectiveCostPlan ?? undefined}
+                  costPlan={(coachSettings.savesMoney && effectiveCostPlan) || undefined}
                   bracketFit={deck.bracketFit ?? undefined}
                   landUpgrades={landUpgrades}
                   oneAwayCombos={mainboardComboData?.oneAway}

@@ -1247,8 +1247,8 @@ at its role target, or owned on a partial deck's floor) still shows and still
 says what it adds, but ranks below every row that has a cut or needs none,
 tiers included. The rank reads the prompt's own logic
 (`lib/coach/replace-cuts.ts`), so the two never disagree; the prompt then
-reads "No suggestions. Pick a card below." A combo completion keeps its place:
-its payoff is explicit, and the manual pick is enough.
+reads "No suggestions. Pick a card below." A combo completion keeps its place,
+and it always gets a suggested cut (see the cut floors below).
 
 **The Cuts chip reads weakest first:** spell cuts before land tuning (a
 basic-for-basic rebalance is not a card the deck is worse for running), then
@@ -1279,13 +1279,17 @@ card in it is owned. With an unowned card in the deck, the replace prompt
 offers only cuts that keep the deck's settings (`cutKeepsSettings`), so a
 missing Arcane Signet isn't hidden from a 50%-owned deck sitting on its floor.
 
-**A budget swap that costs power is shown only when the deck can't afford the
-card it replaces** (its settings would hide that card's re-add). With no budget,
-or room left in it, the Budget lane offers drop-ins only, and a drop-in never
-trades away a card Coach would suggest straight back or a utility land
-(`coach-changes.ts`, `costAnalyzer.ts`). The cost plan reads each current
-card's play rate off the deck's page: it used to read 0%, so every swap in the
-same curve slot claimed to "play nearly the same".
+**The Budget lane runs only for a deck with a budget or a per-card cap**
+(`coachSettings.savesMoney`). A Yuriko deck with no budget had Underground Sea
+swapped for Temple of Deceit by it. Within a budget, **a swap that costs power
+is shown only when the deck can't afford the card it replaces** (its settings
+would hide that card's re-add); with room left, the lane offers drop-ins only,
+and a drop-in never trades away a card Coach would suggest straight back or a
+utility land (`coach-changes.ts`, `costAnalyzer.ts`). Every budget row says
+what it trades in words the badge abbreviates ("Same job for less", "Cheaper,
+played a little less", "Cheaper, a step down in power"). The cost plan reads
+each current card's play rate off the deck's page: it used to read 0%, so
+every swap in the same curve slot claimed to "play nearly the same".
 
 When the settings empty the feed, the empty state says so instead of "This
 deck looks tuned": the tagline is "Nothing to coach within this deck's
@@ -1308,6 +1312,14 @@ a bracket). Every play rate Coach quotes ("Played in 62% of decklists"), the
 hand-built deck, or a page that fails to load, reads the base page. On the
 base page a Zombies Gisa deck's 62% lords read as 0% misfits, which is the
 advice this rule retires.
+
+**What the build removed stays out** (T171 round 3). A card the build cut for a
+stated reason (`buildReport`'s coherence repairs, fixup repairs and surplus
+conversions) isn't suggested back while the card it made room for is still in
+the deck: Sythis's build cut Rest in Peace, an orphan combo piece, for Path to
+Exile, and Coach had offered it straight back. Graveyard hate isn't suggested
+to a deck that recurs from its own graveyard (invested in the graveyard axis,
+or running three counted recursion cards) (`deckBuilder/coachExclusions.ts`).
 
 ### What Coach never offers to cut (T171)
 
@@ -1351,6 +1363,21 @@ and a land swap never takes a premium land (Path of Ancestry in an elves deck):
   the replace prompt has nothing left to cut, it says "No suggestions. Pick a
   card below." and the user picks from the whole deck.
 - **A combo piece** of a combo the deck has.
+- **A finisher, as an overlap cut.** A card the card facts read as a finisher
+  (an overrun, an alt win, mass animation like Starfield of Nyx) or that the
+  deck's win paths name as an alt win is never cut as "Overlapping
+  Enchantress"; it goes only when the analysis flags it weak.
+
+An excess-role cut is the least played card of the role that isn't a plan or
+engine card: a crowded curve slot no longer pushes a 22% Birgi out ahead of a
+12% Strike It Rich.
+
+**A combo completion always gets a cut** (T171 round 3). It isn't an upgrade
+inside a role, so the in-role rule doesn't apply: the cut is the least valuable
+card that isn't protected (a plan or engine card, a finisher, a survival piece
+like Lightning Greaves, a premium card, a piece of another combo), flagged weak
+first, then the least played here. It keeps every role at its target when the
+deck can; when it can't, the combo still gets its cut.
 
 The replace-when-full prompt also keeps the slot: **a land makes room for a
 land, a spell for a spell** (the weakest land for this deck first, a utility

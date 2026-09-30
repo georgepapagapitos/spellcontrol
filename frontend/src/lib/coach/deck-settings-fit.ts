@@ -269,6 +269,8 @@ export interface CoachSettingsHooks {
   fit: ((change: Change) => boolean) | undefined;
   /** The replace prompt's cut filter for an incoming card (`cutKeepsSettings`). */
   cutFits: (add: ScryfallCard) => ((cut: ScryfallCard) => boolean) | undefined;
+  /** The deck asks to save money (a budget or a per-card cap): the Budget lane runs. */
+  savesMoney: boolean;
 }
 
 /** The deck page's check: the saved settings against the live deck and collection. */
@@ -301,7 +303,8 @@ export function useCoachSettings(
       cardData: (name) => suggestionCards?.[name],
     });
     const fit = fitsSettings(check);
-    return { check, fit, cutFits: (add) => cutKeepsSettings(fit, add) };
+    const savesMoney = settings?.deckBudget != null || settings?.maxCardPrice != null;
+    return { check, fit, cutFits: (add) => cutKeepsSettings(fit, add), savesMoney };
   }, [settings, cards, ownedNames, mainboardLimit, suggestionCards]);
 }
 

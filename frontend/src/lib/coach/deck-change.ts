@@ -763,6 +763,12 @@ export function toSwapAgainst(incoming: Change, outName: string): Change {
  * is the live-resolved ownership of the INCOMING suggestion — owning the cheaper
  * card makes the swap free, so it badges and ranks like any other owned move.
  */
+const COST_REASON: Record<CostSwapRow['confidence'], string> = {
+  'drop-in': 'Same job for less',
+  sidegrade: 'Cheaper, played a little less',
+  budget: 'Cheaper, a step down in power',
+};
+
 export function fromCostSwapRow(row: CostSwapRow, ownership?: ChangeOwnership): Change {
   // The confidence tier renders as a VerdictBadge and the savings as the row's
   // price delta; the whyFactors disclosure adds what those *mean* (is the cheaper
@@ -773,6 +779,9 @@ export function fromCostSwapRow(row: CostSwapRow, ownership?: ChangeOwnership): 
     lane: 'budget',
     name: row.suggestionName,
     inName: row.currentName,
+    // Every row says why, in the words the badge only abbreviates (T171 round
+    // 3: a budget swap was applied with no reason at all).
+    reason: COST_REASON[row.confidence],
     ownership,
     deltaPrice: -row.savings,
     confidence: row.confidence,

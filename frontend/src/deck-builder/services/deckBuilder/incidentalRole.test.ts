@@ -41,6 +41,47 @@ describe('roleIsIncidental', () => {
   });
 });
 
+function edhrecOf(page: [string, number][]): EDHRECCommanderData {
+  return {
+    themes: [],
+    stats: {
+      avgPrice: 0,
+      numDecks: 1000,
+      deckSize: 99,
+      manaCurve: {},
+      typeDistribution: {
+        creature: 0,
+        instant: 0,
+        sorcery: 0,
+        artifact: 0,
+        enchantment: 0,
+        land: 0,
+        planeswalker: 0,
+        battle: 0,
+      },
+      landDistribution: { basic: 35, nonbasic: 2, total: 37 },
+    },
+    cardlists: {
+      creatures: [],
+      instants: [],
+      sorceries: [],
+      artifacts: [],
+      enchantments: [],
+      planeswalkers: [],
+      lands: [],
+      allNonLand: page.map(([name, inclusion]) => ({
+        name,
+        sanitized: name,
+        primary_type: 'Artifact',
+        inclusion,
+        synergy: 0,
+        num_decks: 0,
+      })),
+    },
+    similarCommanders: [],
+  } as unknown as EDHRECCommanderData;
+}
+
 describe('computeOptimizeSwaps — excess-role cuts', () => {
   const PAGE: [string, number][] = [
     ['Battle Angels of Tyr', 3],
@@ -119,5 +160,41 @@ describe('computeOptimizeSwaps — excess-role cuts', () => {
     // Unguarded, the least-played ramp card is Battle Angels of Tyr.
     expect(excessRampCuts(false)).toContain('Battle Angels of Tyr');
     expect(excessRampCuts(true)).toEqual(['Rakdos Signet', 'Orzhov Signet', 'Boros Signet']);
+  });
+});
+
+// T171 round 3, v4 gate: Gnostro's hero move cut Birgi, God of Storytelling
+// (22%) as "Excess Ramp" while Strike It Rich (12%) stayed; the curve nudge
+// outweighed the play rate. The excess cut is the least-played card of the role.
+describe('computeOptimizeSwaps — the excess cut is the least played', () => {
+  const RAMP: [string, number][] = [
+    ['Birgi, God of Storytelling // Harnfel, Horn of Bounty', 22],
+    ['Strike It Rich', 12],
+    ['Rakdos Signet', 28],
+  ];
+  it('cuts Strike It Rich before Birgi, however crowded the three-drop slot', () => {
+    const page = {
+      ...edhrecOf(RAMP),
+    } as EDHRECCommanderData;
+    // A crowded three-drop slot (Birgi's) used to push it to the front.
+    const filler = Array.from({ length: 14 }, () => real('Diregraf Colossus'));
+    const cards = [...RAMP.map(([name]) => real(name, 'ramp')), ...filler];
+    const inclusionMap = buildCardInclusionMap(
+      page,
+      cards.map((c) => c.name)
+    );
+    const analysis = analyzeDeck(page, cards, { ramp: 3 }, { ramp: 1 }, 99, inclusionMap);
+    const cuts = computeOptimizeSwaps(
+      analysis,
+      cards,
+      inclusionMap,
+      'Gnostro, Voice of the Crags',
+      undefined,
+      new Set(),
+      new Set()
+    )
+      .removals.filter((r) => r.reason === 'Excess Ramp')
+      .map((r) => r.name);
+    expect(cuts).toEqual(['Strike It Rich']);
   });
 });

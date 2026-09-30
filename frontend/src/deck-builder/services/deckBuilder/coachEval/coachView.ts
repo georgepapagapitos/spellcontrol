@@ -64,6 +64,8 @@ export interface CoachViewInputs {
   substitutesReady: boolean;
   /** The page's `useCoachSettingsFit`: moves the deck's saved settings allow. */
   settingsFit?: (change: Change) => boolean;
+  /** The deck has a budget or a per-card cap (DeckEditorPage `coachSettings.savesMoney`). */
+  savesMoney?: boolean;
   /** A card by name, for rows that carry none (the page reads its card cache). */
   resolveCard?: (name: string) => ScryfallCard | undefined;
 }
@@ -173,9 +175,11 @@ export function buildCoachView(input: CoachViewInputs): CoachView {
 
   // DeckEditorPage `effectiveCostPlan`: no cheaper-swap row for a card the
   // user owns and can field.
-  const costPlan = analysis.costPlan
-    ? filterCostPlanByOwnership(analysis.costPlan, (name) => ownershipFor(name) === 'owned')
-    : undefined;
+  // The Budget lane runs only for a deck that asks to save money (T171 round 3).
+  const costPlan =
+    input.savesMoney && analysis.costPlan
+      ? filterCostPlanByOwnership(analysis.costPlan, (name) => ownershipFor(name) === 'owned')
+      : undefined;
 
   // DeckEditorPage `landUpgrades`: owned unused lands + fetched duals.
   const candidateLands = landUpgradeCandidates(input.ownedLands, input.fixingLands);
@@ -213,6 +217,7 @@ export function buildCoachView(input: CoachViewInputs): CoachView {
     deckCards: cards.map((card, i) => ({ slotId: String(i), card })),
     analysis: { ...analysis, commander, partnerCommander: partner },
     inDeckCombos: input.combos.inDeck,
+    oneAwayCombos: input.combos.oneAway,
     cutFits: (add) => cutKeepsSettings(input.settingsFit, add),
     full: cards.length >= COMMANDER_DECK_TARGET - 1 - (partner ? 1 : 0),
     resolve: input.resolveCard,

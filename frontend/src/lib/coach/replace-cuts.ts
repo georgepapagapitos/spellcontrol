@@ -12,6 +12,7 @@ import { useMemo } from 'react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { ComboMatch } from '@/types/combos';
 import { getCachedCard } from '@/deck-builder/services/scryfall/client';
+import { frontFaceName } from '@/lib/cards/card-text';
 import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
 import {
   rankReplacementCuts,
@@ -27,6 +28,8 @@ export interface ReplaceCutInputs {
   /** The persisted analysis, commander included (a Deck carries both). */
   analysis: CutAnalysis;
   inDeckCombos?: ComboMatch[];
+  /** Combos one card short: an add that finishes one always gets a cut. */
+  oneAwayCombos?: ComboMatch[];
   /** The deck settings' cut filter for an incoming card (`cutKeepsSettings`). */
   cutFits?: (add: ScryfallCard) => ((cut: ScryfallCard) => boolean) | undefined;
   /** The mainboard is at its size limit: an add needs a cut. */
@@ -44,6 +47,12 @@ export interface ReplaceCuts {
 
 export function replaceCuts(input: ReplaceCutInputs): ReplaceCuts {
   const deckSynergy = analyzeDeckSynergy(input.deckCards.map((d) => d.card));
+  const finishers = new Set(
+    (input.oneAwayCombos ?? [])
+      .filter((m) => m.missingOracleIds.length === 1)
+      .flatMap((m) => m.combo.cards.filter((c) => m.missingOracleIds.includes(c.oracleId)))
+      .map((c) => frontFaceName(c.cardName).toLowerCase())
+  );
   const cutsFor = (addCard: ScryfallCard, limit?: number) =>
     rankReplacementCuts({
       addCard,
@@ -52,6 +61,7 @@ export function replaceCuts(input: ReplaceCutInputs): ReplaceCuts {
       inDeckCombos: input.inDeckCombos,
       deckSynergy,
       keepsSettings: input.cutFits?.(addCard),
+      completesCombo: finishers.has(frontFaceName(addCard.name).toLowerCase()),
       limit,
     });
   const known = new Map<string, boolean>();
@@ -81,7 +91,7 @@ export function replaceCuts(input: ReplaceCutInputs): ReplaceCuts {
 /** The deck page's replace cuts, rebuilt when the deck, its combos or its settings change. */
 export function useReplaceCuts(
   deck: (CutAnalysis & { cards: CutCandidate[] }) | null | undefined,
-  inDeckCombos: ComboMatch[] | undefined,
+  combos: { inDeck?: ComboMatch[]; oneAway?: ComboMatch[] } | null | undefined,
   cutFits: ReplaceCutInputs['cutFits'],
   mainboardLimit: number
 ): ReplaceCuts {
@@ -90,10 +100,11 @@ export function useReplaceCuts(
       replaceCuts({
         deckCards: deck?.cards ?? [],
         analysis: deck ?? {},
-        inDeckCombos,
+        inDeckCombos: combos?.inDeck,
+        oneAwayCombos: combos?.oneAway,
         cutFits,
         full: (deck?.cards.length ?? 0) >= mainboardLimit,
       }),
-    [deck, inDeckCombos, cutFits, mainboardLimit]
+    [deck, combos, cutFits, mainboardLimit]
   );
 }

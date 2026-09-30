@@ -43,6 +43,9 @@ import {
   whyCardMatches,
 } from '@/deck-builder/services/deckBuilder/commanderProfile';
 import { roleIsIncidental } from '@/deck-builder/services/deckBuilder/incidentalRole';
+import { isSurvivalPiece } from '@/deck-builder/services/deckBuilder/deckObjective/factsReading';
+import { countsAsFinisher, getCardFacts } from '@/deck-builder/services/cardFacts';
+import type { WinConditionAnalysis } from '@/deck-builder/services/winConditions/types';
 import { isUtilityLand, landSlotMerit } from '@/deck-builder/services/deckBuilder/landUpgrades';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { isBasicLandName } from '@/lib/collection/allocations';
@@ -93,6 +96,8 @@ export interface CutAnalysis {
   /** The commander(s), whose own abilities mark a card's role as incidental. */
   commander?: ScryfallCard | null;
   partnerCommander?: ScryfallCard | null;
+  /** The deck's win paths: an alt-win card is a finisher, never an overlap cut. */
+  winConditions?: Pick<WinConditionAnalysis, 'primary' | 'secondary'> | null;
 }
 
 export interface RankReplacementCutsParams {
@@ -118,6 +123,14 @@ export interface RankReplacementCutsParams {
   /** False when swapping this card out would break the deck's own settings
    *  (a partial collection deck's owned share, say): it is not offered. */
   keepsSettings?: (cut: ScryfallCard) => boolean;
+  /**
+   * The incoming card completes a combo. It isn't an upgrade inside a role, so
+   * it always gets a cut: the least valuable card that isn't protected (a plan
+   * card, an engine piece, a finisher, a survival piece, a staple, a piece of
+   * another combo). A Bracket 4 Yuriko's Demonic Consultation, the missing
+   * Thassa's Oracle piece, had no cut at all (T171 round 3).
+   */
+  completesCombo?: boolean;
 }
 
 /** EDHREC-style inclusion proxy (0–100, higher = more played) for sort tiebreaks
@@ -218,6 +231,7 @@ export function rankReplacementCuts({
   inDeckCombos = [],
   limit = 8,
   keepsSettings,
+  completesCombo = false,
 }: RankReplacementCutsParams): RankedCut[] {
   const flagged = flagReasons(analysis, removals);
   const gapInclusion = new Map((analysis.gapAnalysis ?? []).map((g) => [g.name, g.inclusion]));
@@ -265,16 +279,18 @@ export function rankReplacementCuts({
   // pass re-suggested 32 such cuts, most of them 25 to 40% staples).
   const gapFloor = missingStapleFloor(analysis.gapAnalysis);
 
-  const eligible = deckCards.filter(({ card }) => {
-    if (card.name === addCard.name) return false; // never offer to cut the card you're adding
-    if (isLandSlot(card) !== addIsLand) return false;
-    if (comboPieces.has(card.name.toLowerCase())) return false;
-    if (justAdded.has(nameKey(card.name))) return false;
-    if (opensGap(card)) return false;
-    if (addRoleMet && !inRole(card)) return false;
-    if (keepsSettings && !keepsSettings(card)) return false;
-    return !isPremiumCard(card, { inclusion: pageInclusion(card.name) });
-  });
+  // Never a cut, on any path: the card itself, a card of the other slot type,
+  // a combo piece, a card just added, one the deck settings rule out, a premium card.
+  const cuttable = ({ card }: CutCandidate): boolean =>
+    card.name !== addCard.name &&
+    isLandSlot(card) === addIsLand &&
+    !comboPieces.has(card.name.toLowerCase()) &&
+    !justAdded.has(nameKey(card.name)) &&
+    !(keepsSettings && !keepsSettings(card)) &&
+    !isPremiumCard(card, { inclusion: pageInclusion(card.name) });
+  const eligible = deckCards.filter(
+    (d) => cuttable(d) && !opensGap(d.card) && !(addRoleMet && !inRole(d.card))
+  );
 
   if (addIsLand) return rankLandCuts(deckCards, eligible, flagged, limit);
 
@@ -286,6 +302,41 @@ export function rankReplacementCuts({
   const deckSyn = deckSynergy ?? analyzeDeckSynergy(deckCards.map((d) => d.card));
   const investedAxes = new Set<string>(deckSyn.invested);
   const hasEngine = investedAxes.size > 0;
+  const loadBearingOf = (card: ScryfallCard): boolean =>
+    hasEngine && [...axisKeys(card)].some((k) => investedAxes.has(k.slice(0, k.indexOf(':'))));
+  // A finisher (the card facts' counted finisher, the win-line reading's) or an
+  // alt-win card: what the deck wins with is never an overlap cut. Starfield
+  // of Nyx went as "Overlapping Enchantress" for a one-shot recursion spell.
+  const altWins = new Set(
+    [analysis.winConditions?.primary, ...(analysis.winConditions?.secondary ?? [])]
+      .filter((w) => w?.category === 'alt-win')
+      .flatMap((w) => w!.evidence)
+  );
+  const isFinisher = (card: ScryfallCard): boolean => {
+    const facts = getCardFacts(card);
+    return altWins.has(card.name) || (!!facts && countsAsFinisher(facts));
+  };
+
+  if (completesCombo) {
+    const commanders = [analysis.commander, analysis.partnerCommander].filter(
+      (c): c is ScryfallCard => !!c
+    );
+    const survival = (card: ScryfallCard): boolean => {
+      const facts = getCardFacts(card);
+      return !!facts && isSurvivalPiece(card, facts, commanders);
+    };
+    const pool = deckCards.filter(
+      (d) =>
+        cuttable(d) &&
+        !feedsCommander(d.card) &&
+        !loadBearingOf(d.card) &&
+        !isFinisher(d.card) &&
+        !survival(d.card)
+    );
+    // Keep every role at its target when the deck can; the combo still gets a cut when it can't.
+    const inFloor = pool.filter((d) => !opensGap(d.card));
+    return rankComboCuts(inFloor.length > 0 ? inFloor : pool, flagged, pageInclusion, limit);
+  }
 
   type Scored = RankedCut & { tier: number; relScore: number; inclusion: number };
   const scored: Scored[] = [];
@@ -333,6 +384,7 @@ export function rankReplacementCuts({
       continue; // an unflagged card played here as much as the add stays
     if (!flagReason && candInclusion !== undefined && gapFloor !== undefined)
       if (candInclusion >= gapFloor) continue; // cut, it would head Coach's missing staples
+    if (!flagReason && isFinisher(card)) continue; // what the deck wins with is no overlap
     // An upgrade replaces a strictly weaker card: played here less than the
     // add, or, when the add's play rate is unknown, flagged weak by the analysis.
     const weaker = addInclusion !== undefined ? (candInclusion ?? 0) < addInclusion : !!flagReason;
@@ -387,6 +439,35 @@ export function rankReplacementCuts({
     related,
     factors,
   }));
+}
+
+/** A combo completion's cuts: flagged weak first, then the least played here. */
+function rankComboCuts(
+  pool: CutCandidate[],
+  flagged: Map<string, Flag>,
+  pageInclusion: (name: string) => number | undefined,
+  limit: number
+): RankedCut[] {
+  return pool
+    .map(({ slotId, card }) => {
+      const flag = flagged.get(card.name.toLowerCase());
+      const played = pageInclusion(card.name);
+      return {
+        slotId,
+        card,
+        flagged: flag ? 0 : 1,
+        // Off the commander's page reads as the least played.
+        inclusion: played ?? -1,
+        reason:
+          flag?.reason ??
+          (played === undefined
+            ? "Not played in this commander's decks"
+            : `Played in ${Math.round(played)}% of decklists`),
+      };
+    })
+    .sort((a, b) => a.flagged - b.flagged || a.inclusion - b.inclusion)
+    .slice(0, limit)
+    .map(({ slotId, card, reason }) => ({ slotId, card, reason, related: false, factors: [] }));
 }
 
 function rankLandCuts(

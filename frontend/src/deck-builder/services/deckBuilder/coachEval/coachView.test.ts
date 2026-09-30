@@ -159,4 +159,47 @@ describe('buildCoachView', () => {
     });
     expect(view.feed.map((r) => r.change.name)).toEqual(['Fact or Fiction']);
   });
+
+  // T171 round 3, v4 gate: a Yuriko deck with no budget had Underground Sea
+  // swapped for Temple of Deceit by the Budget lane, with no reason given.
+  it('runs the Budget lane only for a deck that asks to save money', () => {
+    const withPlan = {
+      ...analysis(),
+      costPlan: {
+        currentTotal: 50,
+        minTotal: 45,
+        spellRows: [
+          {
+            id: 'Counterspell',
+            currentName: 'Counterspell',
+            currentPrice: 1.5,
+            // Below the least-played missing staple (22%): a drop-in, not a re-add.
+            currentInclusion: 10,
+            suggestionName: 'Mana Leak',
+            suggestionPrice: 0.3,
+            suggestionInclusion: 25,
+            savings: 1.2,
+            confidence: 'drop-in' as const,
+            category: 'spell' as const,
+          },
+        ],
+        landRows: [],
+        protectedCount: 0,
+      },
+    } as unknown as CommanderDeckAnalysisResult;
+    const view = (savesMoney: boolean) =>
+      buildCoachView({
+        ...base,
+        cards: tatyova(),
+        analysis: withPlan,
+        ownedNames: new Set(),
+        combos: { inDeck: [], oneAway: [] },
+        ownedOnly: false,
+        savesMoney,
+      }).feed.filter((r) => r.change.lane === 'budget');
+    expect(view(false)).toEqual([]);
+    const rows = view(true);
+    expect(rows.map((r) => r.change.name)).toEqual(['Mana Leak']);
+    expect(rows[0].change.reason).toBe('Same job for less');
+  });
 });

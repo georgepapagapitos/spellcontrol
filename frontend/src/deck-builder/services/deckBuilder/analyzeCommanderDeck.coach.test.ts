@@ -197,6 +197,29 @@ describe('analyzeCommanderDeck — what Coach reads (T171)', () => {
     for (const name of plan) expect(cuts).not.toContain(name);
   });
 
+  // T171 round 3, v4 gate: Coach offered back a card the build had removed
+  // for a stated reason (Sythis's Rest in Peace, a coherence repair).
+  it('never suggests a card the build removed while the swap stands', async () => {
+    const { analyzeCommanderDeck } = await import('./commanderDeckAnalysis');
+    const run = (buildRemovals?: object) =>
+      analyzeCommanderDeck({
+        commander,
+        cards: deck,
+        deckSize: 99,
+        colorIdentity: ['B', 'U', 'W', 'G'],
+        buildRemovals,
+      });
+    const gapNames = async (r: Awaited<ReturnType<typeof run>>) =>
+      (r?.gapAnalysis ?? []).map((g) => g.name);
+    expect(await gapNames(await run())).toContain('Swords to Plowshares');
+    const repaired = await run({
+      coherenceRepairs: [
+        { cut: 'Swords to Plowshares', added: 'Crib Swap', reason: 'Swapped for Crib Swap.' },
+      ],
+    });
+    expect(await gapNames(repaired)).not.toContain('Swords to Plowshares');
+  });
+
   // T171 re-gate: Altar of Dementia, added to finish a Krenko combo, came
   // straight back as a Cuts-lane misfit on the next pass.
   it('keeps the pieces of a combo the deck has out of the misfits', async () => {

@@ -1471,7 +1471,7 @@ export function computeOptimizeSwaps(
         ...base,
         reason: `Excess ${roleLabel}`,
         reasonCategory: `excess:${role}`,
-        sortScore: (inclusion ?? 50) + curveAdjust,
+        sortScore: inclusion ?? 50, // the least played goes first (T171 round 3: Birgi)
       });
       excessRoleCandidates.set(role, bucket);
       continue; // don't also consider as general cut

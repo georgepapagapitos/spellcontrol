@@ -78,6 +78,7 @@ import {
 import { getGameChangerNames, searchCards } from '@/deck-builder/services/scryfall/client';
 import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
 import { replaceCuts } from '@/lib/coach/replace-cuts';
+import type { BuildRemovals } from '../coachExclusions';
 import { axisKeys } from '@/lib/coach/axis-overlap';
 import { frontFaceName } from '@/lib/cards/card-text';
 import { isBasicLandName } from '@/lib/collection/allocations';
@@ -532,6 +533,7 @@ async function coachPass(dump: CoachDump, deck: EvalDeckState): Promise<CoachPas
     oneAwayCombos: combos.oneAway,
     archetypeBlendNames: buildReport?.archetypeBlendNames,
     edhrecSource,
+    buildRemovals: dump.buildReport as BuildRemovals | undefined,
   });
   if (!analysis) throw new Error('analyzeCommanderDeck returned null');
   if (analysis.edhrecMissing) throw new Error('EDHREC missing for this commander');
@@ -575,6 +577,7 @@ async function coachPass(dump: CoachDump, deck: EvalDeckState): Promise<CoachPas
     substitutesReady: true,
     settingsFit: fitFor(cards),
     resolveCard: cardFor,
+    savesMoney: settings.deckBudget != null || settings.maxCardPrice != null,
   });
   const commanderNames = allNames.slice(0, partner ? 2 : 1);
   const env: ApplyEnv = {
@@ -586,10 +589,13 @@ async function coachPass(dump: CoachDump, deck: EvalDeckState): Promise<CoachPas
         // The persisted analysis (DeckEditorPage passes the deck, commander
         // included): it doesn't recompute between quick applies.
         analysis: { ...analysis, commander, partnerCommander: partner },
-        inDeckCombos: combosFromEdhrec(edhrecCombos, [
-          ...commanderNames,
-          ...current.map((c) => c.name),
-        ]).inDeck,
+        ...(() => {
+          const live = combosFromEdhrec(edhrecCombos, [
+            ...commanderNames,
+            ...current.map((c) => c.name),
+          ]);
+          return { inDeckCombos: live.inDeck, oneAwayCombos: live.oneAway };
+        })(),
         cutFits: (add) => cutKeepsSettings(fitFor(current), add),
         full: true,
       })

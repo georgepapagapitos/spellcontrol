@@ -183,7 +183,9 @@ function withStallTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  *        A plan card whose role tag is incidental is never an excess cut, a
  *        board-building deck is offered no symmetric wipe, a land search is
  *        not a card-advantage staple, and an off-page synergy payoff needs
- *        its condition in the deck.
+ *        its condition in the deck. A card the build removed for a stated
+ *        reason, or graveyard hate in a deck that recurs its own graveyard,
+ *        is not suggested, and the excess cut is the least-played card.
  */
 const ANALYSIS_ENGINE_VERSION = 'v23-coach-inputs';
 
@@ -411,6 +413,7 @@ export function useCommanderBracketAnalysis(args: Args): {
             oneAwayCombos,
             archetypeBlendNames,
             edhrecSource,
+            buildRemovals: deck.buildReport,
           })
         ),
         STALL_TIMEOUT_MS

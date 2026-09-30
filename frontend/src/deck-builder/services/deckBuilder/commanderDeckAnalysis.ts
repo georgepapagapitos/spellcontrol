@@ -52,6 +52,7 @@ import { premiumNames } from './premiumCards';
 import { isUtilityLand } from './landUpgrades';
 import { roleIsIncidental } from './incidentalRole';
 import { dropSymmetricWipes, prefersOneSidedWipes } from './coachWipes';
+import { coachExclusions, dropExcluded, type BuildRemovals } from './coachExclusions';
 import { fetchDeckEdhrecPage, type DeckEdhrecSource } from './deckEdhrecSource';
 import {
   enrichRecommendationPrices,
@@ -551,6 +552,8 @@ export interface AnalyzeCommanderDeckParams {
   archetypeBlendNames?: string[];
   /** The EDHREC page(s) a generated deck was built from; absent = the base page. */
   edhrecSource?: DeckEdhrecSource;
+  /** The build's stated removals (`BuildReport` repairs); Coach doesn't offer them back. */
+  buildRemovals?: BuildRemovals;
 }
 
 export { enrichRecommendationPrices } from './candidateCardData';
@@ -1076,6 +1079,10 @@ export async function analyzeCommanderDeck(
       params.commander,
       ...(params.partnerCommander ? [params.partnerCommander] : []),
     ];
+    const excluded = coachExclusions(params.buildRemovals, params.cards, deckSynergy);
+    dropExcluded(gapAnalysis, (g) => g.name, excluded);
+    dropExcluded(optimizeSwaps?.additions, (a) => a.name, excluded);
+    dropExcluded(synergyAnalysis?.suggestions, (x) => x.cardName, excluded);
     if (prefersOneSidedWipes(commanders, commanderProfile, params.cards)) {
       await scryfallBudget(
         dropSymmetricWipes([gapAnalysis, optimizeSwaps?.additions ?? []], (names) =>
