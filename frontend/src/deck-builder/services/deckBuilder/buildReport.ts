@@ -342,7 +342,7 @@ export function assembleBuildReport(input: {
   // dangling clause rather than change the threshold (out of scope).
   if (report.roleCapOverflowNote && roleExcesses.length === 0) {
     report.roleCapOverflowNote = report.roleCapOverflowNote.replace(
-      / See Overbuilt roles below for the full total\.$/,
+      / See Overbuilt roles for the total\.$/,
       ''
     );
   }

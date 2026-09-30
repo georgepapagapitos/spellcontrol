@@ -43,6 +43,7 @@ import {
   computeGradeAndBracket,
   computeRoleCounts,
   buildInclusionIndex,
+  lookupInclusion,
 } from './commanderDeckAnalysis';
 import {
   getDynamicRoleTargets,
@@ -93,6 +94,9 @@ import {
   PRICE_SANITY_RATIO,
   PRICE_SANITY_INCLUSION_BAND,
 } from './cardPicking';
+import { commanderMustSurvive, makeProtectionAdmits } from './deckGeneration/protectionPicks';
+import { buildRoleCapOverflowNote } from './deckGeneration/roleCapNote';
+import { achievableComboPieces } from './deckGeneration/comboLines';
 import {
   categorizeCards,
   stampRoleSubtypes,
@@ -135,6 +139,7 @@ import { resolveManaPhilosophy } from './manaPhilosophy';
 import { assertCommandersEligible, commanderPreviewNote } from './commanderEligibility';
 import {
   pickEdhrecTypePass,
+  baselineComboSeats,
   bumpRoleAndSubtypeCounts,
   scryfallFallbackTypePass,
   type TypePassContext,
@@ -157,7 +162,7 @@ import { liftPicksPhase } from './deckGeneration/phaseLiftPicks';
 import { ensureLiftPools, getLiftIndex, MAX_LIFT_SEEDS } from './deckGeneration/liftPools';
 import { deckScorePhase } from './deckGeneration/phaseDeckScore';
 import { cardRelevancyPhase } from './deckGeneration/phaseCardRelevancy';
-import { stapleManaRocksPhase } from './deckGeneration/phaseStapleManaRocks';
+import { stapleManaRocksPhase, STAPLE_ROCK_NAMES } from './deckGeneration/phaseStapleManaRocks';
 import { finalStatsPhase } from './deckGeneration/phaseFinalStats';
 import { applyComboFloor } from './deckGeneration/phaseApplyComboFloor';
 import {
@@ -543,37 +548,9 @@ export function roleCapOverage(
   return (currentRoleCounts[role] ?? 0) - (roleTargets[role] ?? 0);
 }
 
-const ROLE_DISPLAY: Record<RoleKey, string> = {
-  ramp: 'ramp',
-  removal: 'removal',
-  boardwipe: 'board wipe',
-  cardDraw: 'card draw',
-};
-
-/**
- * Disclosure for the role-cap escape hatch (E77 iter-4) — every gated path
- * (pick loop, Scryfall fallback, shortage backfill, owned substitutes)
- * increments the same shared counter when it admits an over-cap card rather
- * than shipping the deck short. Mirrors the `buildDisclosureNote` idiom in
- * phaseLiftPicks.ts: one terse note naming the total and the dominant role,
- * not per-card spam. Undefined when the hatch never actually fired.
- *
- * Deliberately narrow (round 3 fix): this counts ONLY escape-hatch
- * admissions, not the deck's total role overshoot — exempt picks
- * (must-includes, combo floor) and in-tolerance amounts can push a role's
- * final count well past this number, and `roleExcesses` (Overbuilt roles)
- * is the full accounting for that. Wording must never read as "the total is
- * N" when Overbuilt roles can show a larger one for the same role.
- */
-export function buildRoleCapOverflowNote(
-  counts: Partial<Record<RoleKey, number>>
-): string | undefined {
-  const entries = (Object.entries(counts) as [RoleKey, number][]).filter(([, n]) => n > 0);
-  const total = entries.reduce((s, [, n]) => s + n, 0);
-  if (total === 0) return undefined;
-  const [dominantRole] = entries.sort((a, b) => b[1] - a[1]);
-  return `${total} card${total === 1 ? '' : 's'} went past a role cap. The ${ROLE_DISPLAY[dominantRole[0]]} pool was thin. See Overbuilt roles for the total.`;
-}
+// The role-cap overflow note moved to deckGeneration/roleCapNote.ts (E532, to
+// keep this file under its size ceiling); re-exported for existing importers.
+export { buildRoleCapOverflowNote };
 
 /**
  * E80 product ruling: price-sanity (cardPicking.ts's priceSanityTieBreak)
@@ -1102,7 +1079,9 @@ export function assembleCardProvenance(params: {
       cardProvenance[card.name] = 'You required this card';
     } else if (params.comboFloorAdd && params.comboFloorAdd.name === card.name) {
       cardProvenance[card.name] = params.comboFloorAdd.reason;
-    } else if (card.isStapleRock) {
+    } else if (card.isStapleRock || STAPLE_ROCK_NAMES.has(card.name)) {
+      // E532: a type pass now seats Sol Ring and Arcane Signet first as
+      // staples, before the auto-include runs, and they read as lift picks.
       cardProvenance[card.name] = 'Auto-included staple mana rock';
     } else if (wildcardNames.has(card.name)) {
       cardProvenance[card.name] = 'A wildcard pick for its overall power';
@@ -2140,9 +2119,16 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     for (const alias of aliases) context.collectionNames?.add(alias);
     return byName;
   };
+  // E532: the card's inclusion on this commander's page exempts a staple.
+  const pageInclusion = state.edhrecData ? buildInclusionIndex(state.edhrecData) : new Map();
   const isCardAllowedBySynergyDependencies = (card: ScryfallCard) =>
     !notLegalForFormat(card, state.cfg.mtgFormat) &&
-    !isUnsupportedSynergyPayoff(card, dependencySupportCards(), dependencyCommanderCount);
+    !isUnsupportedSynergyPayoff(
+      card,
+      dependencySupportCards(),
+      dependencyCommanderCount,
+      lookupInclusion(pageInclusion, card.name)
+    );
 
   // EDHREC lift pools (E71 slice 2): fetch intent-anchored seeds once, before
   // any card is picked, so every re-rank/tie-break point below (EDHREC picks,
@@ -2188,6 +2174,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // substitutes) increments this so ONE build-report note can disclose it
   // (see roleCapOverflowNote below), instead of firing invisibly.
   const roleCapOverflowCounts: Partial<Record<RoleKey, number>> = {};
+  const roleCapStapleCounts: Partial<Record<RoleKey, number>> = {};
+  const roleCapComboCounts: Partial<Record<RoleKey, number>> = {};
   // E80: unordered name-pairs the price-sanity tie-break actually decided
   // (see pickFromPrefetchedWithCurve's priceSanityDecided doc) — aggregated
   // across every type pass so ONE build-report note can disclose it.
@@ -2709,6 +2697,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     // that file's header for exactly what stayed here per-pass and why
     // (log/sink/bump ordering is NOT uniform across the six; creature is the
     // one genuine outlier).
+    const spellPools = [instantPool, sorceryPool, artifactPool, enchantmentPool, planeswalkerPool];
+    const typePools = creaturePool.concat(...spellPools);
     const typePassCtx: TypePassContext = {
       cardMap,
       usedNames,
@@ -2746,6 +2736,14 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       currentRoleCounts,
       currentSubtypeCounts,
       roleCapOverflowCounts,
+      roleCapStapleCounts,
+      roleCapComboCounts,
+      protectionAdmits: makeProtectionAdmits(
+        commanderMustSurvive([commander, partnerCommander ?? commander], commanderProfile),
+        typePools,
+        cardMap,
+        () => Object.entries(categories).flatMap(([cat, cards]) => (cat === 'lands' ? [] : cards))
+      ),
       preferAsymmetricWipes,
       wipeAsymmetryDecided,
       isOneSidedWipe,
@@ -2755,6 +2753,28 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       withPackageBoosts,
       onProgress,
     };
+    typePassCtx.comboLinePieces = baselineComboSeats(
+      typePassCtx,
+      [
+        ['Creature', creaturePool, creatureTarget],
+        ['Instant', instantPool, instantTarget],
+        ['Sorcery', sorceryPool, sorceryTarget],
+        ['Artifact', artifactPool, artifactTarget],
+        ['Enchantment', enchantmentPool, enchantmentTarget],
+        ['Planeswalker', planeswalkerPool, planeswalkerTarget],
+      ],
+      achievableComboPieces(state.combos, typePools, (n) => usedNames.has(n)),
+      {
+        cardAllowed: (card) =>
+          !notLegalForFormat(card, state.cfg.mtgFormat) &&
+          !isUnsupportedSynergyPayoff(card, dependencySupportCards(), dependencyCommanderCount),
+        seat: (cards) => categories.synergy.push(...cards),
+        unseat: (
+          (n) => () =>
+            categories.synergy.splice(n)
+        )(categories.synergy.length),
+      }
+    );
 
     // 1. Creatures
     logger.debug(
@@ -4820,7 +4840,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // Role-cap escape-hatch disclosure (E77 iter-4 round 2) — aggregated across
   // every gated path over the whole generation; undefined when the cap was
   // never actually breached.
-  const roleCapOverflowNote = buildRoleCapOverflowNote(roleCapOverflowCounts);
+  const roleCapOverflowNote = buildRoleCapOverflowNote(
+    roleCapOverflowCounts,
+    roleCapStapleCounts,
+    roleCapComboCounts
+  );
 
   // Pick-time displacement disclosure (E160) — the deficit-direction
   // counterpart to roleCapOverflowNote above. Runs AFTER every composition

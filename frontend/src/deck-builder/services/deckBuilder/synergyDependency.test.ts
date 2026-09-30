@@ -270,3 +270,33 @@ describe('isUnsupportedSynergyPayoff — E135 type-line density support', () => 
     expect(isUnsupportedSynergyPayoff(etchedChampion, [], 0)).toBe(true);
   });
 });
+
+// E532: the commander's own page overrides the dependency heuristic at the
+// staple bar. Real oracle text; 76.8% is Temporal Trespass on Yuriko's
+// bracket-4 page, where the gate rejected it in every type pass.
+describe('isUnsupportedSynergyPayoff: a staple on the commander page', () => {
+  const temporalTrespass = card({
+    name: 'Temporal Trespass',
+    type_line: 'Sorcery',
+    cmc: 11,
+    keywords: ['Delve'],
+    oracle_text:
+      'Delve (Each card you exile from your graveyard while casting this spell pays for {1}.)\nTake an extra turn after this one. Exile Temporal Trespass.',
+  });
+  const yuriko = card({
+    name: "Yuriko, the Tiger's Shadow",
+    type_line: 'Legendary Creature — Human Ninja',
+    oracle_text:
+      "Commander ninjutsu {U}{B} ({U}{B}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand or the command zone tapped and attacking.)\nWhenever a Ninja you control deals combat damage to a player, reveal the top card of your library and put that card into your hand. Each opponent loses life equal to that card's mana value.",
+  });
+
+  it('reads delve as an unsupported graveyard payoff without page evidence', () => {
+    expect(isUnsupportedSynergyPayoff(temporalTrespass, [yuriko])).toBe(true);
+    // Yuriko's Core page: 32.1%, under the bar.
+    expect(isUnsupportedSynergyPayoff(temporalTrespass, [yuriko], 1, 32.1)).toBe(true);
+  });
+
+  it('never rejects a card in 40% or more of the commander decks', () => {
+    expect(isUnsupportedSynergyPayoff(temporalTrespass, [yuriko], 1, 76.8)).toBe(false);
+  });
+});
