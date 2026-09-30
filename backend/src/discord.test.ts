@@ -6,6 +6,7 @@ import {
   lowestFreeTable,
   tableChannelName,
   tableNumber,
+  tablePositions,
 } from './discord';
 
 vi.mock('./logger', () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
@@ -25,6 +26,22 @@ describe('table channel names', () => {
     expect(tableChannelName(1)).toBe('Table 1');
     expect(tableNumber('Table 1')).toBe(1);
     expect(tableNumber('Table 12')).toBe(12);
+  });
+
+  it('orders tables by number, old-style names last', () => {
+    expect(
+      tablePositions([
+        { id: 'c', name: 'Table 3' },
+        { id: 'z', name: 'Table ZVVU' },
+        { id: 'a', name: 'Table 1' },
+        { id: 'b', name: 'Table 2' },
+      ])
+    ).toEqual([
+      { id: 'a', position: 0 },
+      { id: 'b', position: 1 },
+      { id: 'c', position: 2 },
+      { id: 'z', position: 3 },
+    ]);
   });
 
   it('takes the lowest free number', () => {

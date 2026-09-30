@@ -61,6 +61,17 @@ export function isTableChannelName(name: string): boolean {
   return tableNumber(name) !== null || /^Table (\d{5}|[A-HJ-NP-Z2-9]{4})$/.test(name);
 }
 
+/**
+ * Positions that list the tables in number order (Table 1, Table 2, …), with
+ * any old code- or tag-named channel after them.
+ */
+export function tablePositions(channels: TableChannel[]): Array<{ id: string; position: number }> {
+  const key = (ch: TableChannel) => tableNumber(ch.name) ?? Number.MAX_SAFE_INTEGER;
+  return [...channels]
+    .sort((a, b) => key(a) - key(b))
+    .map((ch, position) => ({ id: ch.id, position }));
+}
+
 /** The lowest number no table channel is using. */
 export function lowestFreeTable(names: string[]): number {
   const taken = new Set(names.map(tableNumber));
@@ -120,15 +131,30 @@ export async function openTableChannel(
   const cfg = config();
   if (!cfg) throw new Error('Discord tables are not configured.');
   const channels = await listTableChannels();
-  const id =
-    (channelId && channels.find((ch) => ch.id === channelId)?.id) ||
-    (
+  let id = channelId && channels.find((ch) => ch.id === channelId)?.id;
+  if (!id) {
+    const name = tableChannelName(lowestFreeTable(channels.map((ch) => ch.name)));
+    id = (
       await call<{ id: string }>(cfg, 'POST', `/guilds/${cfg.guildId}/channels`, {
-        name: tableChannelName(lowestFreeTable(channels.map((ch) => ch.name))),
+        name,
         type: GUILD_VOICE,
         parent_id: cfg.categoryId,
       })
     ).id;
+    // Discord adds a channel at the bottom of its category, so a refilled
+    // Table 2 would sit under Table 4. Put every table back in number order.
+    // Cosmetic: a failure here must not cost the host their table.
+    try {
+      await call(
+        cfg,
+        'PATCH',
+        `/guilds/${cfg.guildId}/channels`,
+        tablePositions([...channels, { id, name }])
+      );
+    } catch (err) {
+      logger.warn('[discord] ordering the table channels failed', err);
+    }
+  }
   // A day matches the game session's own 24h lifetime; unlimited uses so a
   // spectator or a rejoin never finds the link spent.
   const invite = await call<{ code: string }>(cfg, 'POST', `/channels/${id}/invites`, {
