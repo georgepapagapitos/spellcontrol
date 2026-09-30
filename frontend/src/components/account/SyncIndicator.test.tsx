@@ -295,7 +295,54 @@ describe('HeaderSyncIndicator', () => {
     vi.spyOn(sync, 'isOnline').mockReturnValue(false);
     vi.spyOn(sync, 'getPendingCount').mockReturnValue(3);
     renderHeaderIndicator();
-    expect(screen.getByText(/Offline\. 3 changes saved locally\./)).toBeTruthy();
+    const link = screen.getByRole('link', { name: 'Offline. 3 changes saved locally.' });
+    expect(link.textContent).toBe('Offline · 3');
+    expect(link.getAttribute('title')).toBe('Offline. 3 changes saved locally. Tap for details.');
+  });
+
+  // Guard (E559): the header pill shares a 1024px row with six nav links,
+  // Search, Rules and the avatar. The old offline sentence ("Offline. 12 changes
+  // saved locally.") overflowed that row in five of seven type sets. Every
+  // state's VISIBLE text stays short; the detail belongs in aria-label/title.
+  it.each([
+    [
+      'offline with a big queue',
+      () => {
+        vi.spyOn(sync, 'isOnline').mockReturnValue(false);
+        vi.spyOn(sync, 'getPendingCount').mockReturnValue(999);
+      },
+    ],
+    [
+      'a long chunked push',
+      () => {
+        vi.spyOn(sync, 'getPushProgress').mockReturnValue({ done: 98, total: 99, ops: 1 });
+      },
+    ],
+    [
+      'syncing',
+      () => {
+        vi.spyOn(sync, 'getSyncState').mockReturnValue('syncing');
+      },
+    ],
+    [
+      'sync failed',
+      () => {
+        vi.spyOn(sync, 'hasSyncError').mockReturnValue(true);
+      },
+    ],
+    [
+      'saving a big queue',
+      () => {
+        vi.spyOn(sync, 'getPendingCount').mockReturnValue(999);
+      },
+    ],
+  ])('keeps the visible label to 14 characters or fewer: %s', (_name, arrange) => {
+    authedHeader();
+    arrange();
+    renderHeaderIndicator();
+    const text = screen.getByRole('link').textContent ?? '';
+    expect(text.length).toBeGreaterThan(0);
+    expect(text.length).toBeLessThanOrEqual(14);
   });
 
   it('renders Syncing pill with spinner when actively syncing', () => {
