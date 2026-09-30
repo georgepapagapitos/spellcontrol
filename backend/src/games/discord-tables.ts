@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { eq, gt } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { getDb } from '../db';
 import { gameSessions } from '../db/schema';
 import {
@@ -9,7 +9,6 @@ import {
   isDiscordConfigured,
   listTableChannels,
   openTableChannel,
-  tableTag,
 } from '../discord';
 import { logger } from '../logger';
 import type { GameState } from './state';
@@ -18,18 +17,24 @@ import type { GameState } from './state';
  * The game side of Discord tables (the Discord side is `src/discord.ts`):
  * the host's open-a-table route, teardown when a game is deleted, and the
  * sweep that catches what teardown missed. `routes/games.ts` only wires these.
+ *
+ * A game's channel is "Table N", and which channel it owns is its session's
+ * `discord_channel_id`: the name never carries the join code.
  */
 
 /**
- * Codes this process opened a Discord table for, so teardown only calls
- * Discord for a game that has one. A restart forgets them; `sweepDiscordTables`
- * is what catches those.
+ * Code → channel for tables this process opened, because teardown runs after
+ * the session row is already gone. A restart forgets them; the sweep, which
+ * reads the column, catches those.
  */
-const discordTables = new Set<string>();
+const discordTables = new Map<string, string>();
 
 /** Called from game deletion: close the code's table if it has one. */
 export function releaseDiscordTable(code: string): void {
-  if (discordTables.delete(code)) void closeTableChannel(code);
+  const channelId = discordTables.get(code);
+  if (!channelId) return;
+  discordTables.delete(code);
+  void closeTableChannel(channelId);
 }
 
 /**
@@ -40,6 +45,12 @@ export function releaseDiscordTable(code: string): void {
 export function discordStatus(_req: Request, res: Response): void {
   res.json({ enabled: isDiscordConfigured(), inviteUrl: communityInviteUrl() });
 }
+
+/**
+ * Opens run one at a time: two hosts pressing at once would both see Table 1
+ * as free, and Discord allows two channels with one name.
+ */
+let opening: Promise<unknown> = Promise.resolve();
 
 /**
  * POST /api/games/:code/discord — the host opens (or reopens) this table's
@@ -70,10 +81,20 @@ export async function openDiscordTable(req: Request, res: Response) {
   if (!isDiscordConfigured()) {
     return res.status(503).json({ error: 'Discord tables are not set up.' });
   }
+  const open = opening.then(async () => {
+    const table = await openTableChannel(row.discordChannelId ?? null);
+    if (table.channelId !== row.discordChannelId) {
+      await getDb()
+        .update(gameSessions)
+        .set({ discordChannelId: table.channelId })
+        .where(eq(gameSessions.code, code));
+    }
+    discordTables.set(code, table.channelId);
+    return table.url;
+  });
+  opening = open.catch(() => {});
   try {
-    const url = await openTableChannel(code);
-    discordTables.add(code);
-    res.json({ url });
+    res.json({ url: await open });
   } catch (err) {
     logger.error(`[discord] opening table ${code} failed`, err);
     res.status(502).json({ error: 'Discord did not answer. Try again in a moment.' });
@@ -82,41 +103,64 @@ export async function openDiscordTable(req: Request, res: Response) {
 
 /** A finished game keeps its table this long, for the post-game chat. */
 const DISCORD_FINISHED_GRACE_MS = 30 * 60 * 1000;
-/** An unfinished game nobody has touched in this long has been left. */
+/**
+ * Nobody has had the game open in this long: the table was walked away from
+ * without anyone pressing Leave. Long enough for a locked phone or a dropped
+ * connection to come back.
+ */
+const DISCORD_ABANDONED_MS = 15 * 60 * 1000;
+/**
+ * An unfinished game untouched this long. Only the backstop now: after a
+ * restart this process has seen nobody, so `seenAt` can't answer for a while.
+ */
 const DISCORD_IDLE_MS = 3 * 60 * 60 * 1000;
 
+/** When anyone last had a game open, or null if unknown (live-registry). */
+export type SeenAt = (code: string, now: number) => number | null;
+
 /**
- * Remove every table channel whose game is gone, finished past the grace
- * window, or idle. The backstop for teardown that happened while Discord was
- * down, or before a restart emptied `discordTables`. Returns how many went.
+ * Remove every table channel no game owns, or whose game finished past the
+ * grace window, was left open by nobody for `DISCORD_ABANDONED_MS`, or went
+ * idle. Channels from before numbering (named by the code, then by a tag) are
+ * owned by nothing, so they go too. The backstop for teardown that happened
+ * while Discord was down, or before a restart emptied `discordTables`.
+ * `seenAt` is live-registry's `lastSeenAt`, passed in because the registry
+ * imports this module. Returns how many went.
  */
-export async function sweepDiscordTables(now = Date.now()): Promise<number> {
+export async function sweepDiscordTables(
+  now = Date.now(),
+  seenAt: SeenAt = () => null
+): Promise<number> {
   if (!isDiscordConfigured()) return 0;
   const channels = await listTableChannels();
   if (channels.length === 0) return 0;
-  // A channel is named by a keyed tag of its code, not the code, so the
-  // lookup runs the other way: tag every game that could still own a table.
-  // Nothing untouched for DISCORD_IDLE_MS can, which bounds the read.
-  // ponytail: one row per recent game; index a stored tag if that grows large.
   const rows = await getDb()
     .select({
       code: gameSessions.code,
       status: gameSessions.status,
       updatedAt: gameSessions.updatedAt,
+      channelId: gameSessions.discordChannelId,
     })
     .from(gameSessions)
-    .where(gt(gameSessions.updatedAt, now - DISCORD_IDLE_MS));
-  const byTag = new Map(rows.map((r) => [tableTag(r.code), r]));
+    .where(
+      inArray(
+        gameSessions.discordChannelId,
+        channels.map((ch) => ch.id)
+      )
+    );
+  const byChannel = new Map(rows.map((r) => [r.channelId, r]));
   let removed = 0;
   for (const ch of channels) {
-    const game = byTag.get(ch.tag);
+    const game = byChannel.get(ch.id);
+    const seen = game ? seenAt(game.code, now) : null;
     const stale =
       !game ||
       (game.status === 'finished'
         ? now - game.updatedAt > DISCORD_FINISHED_GRACE_MS
-        : now - game.updatedAt > DISCORD_IDLE_MS);
+        : (seen !== null && now - seen > DISCORD_ABANDONED_MS) ||
+          now - game.updatedAt > DISCORD_IDLE_MS);
     if (!stale) {
-      discordTables.add(game.code);
+      discordTables.set(game.code, ch.id);
       continue;
     }
     try {
@@ -124,7 +168,7 @@ export async function sweepDiscordTables(now = Date.now()): Promise<number> {
       if (game) discordTables.delete(game.code);
       removed++;
     } catch (err) {
-      logger.warn(`[discord] sweeping table ${ch.tag} failed`, err);
+      logger.warn(`[discord] sweeping ${ch.name} failed`, err);
     }
   }
   return removed;

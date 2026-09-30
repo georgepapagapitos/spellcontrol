@@ -287,6 +287,19 @@ export function touchPresence(code: string, userId: string): void {
 }
 
 /**
+ * When anyone last had `code` open: now while a subscriber is connected,
+ * otherwise the latest presence touch, or null when this process has never
+ * seen the game (a restart empties this map). The Discord table sweep uses
+ * it to close the voice channel of a table everyone walked away from.
+ */
+export function lastSeenAt(code: string, now = Date.now()): number | null {
+  if (subscribers.get(code)?.size) return now;
+  const seen = lastSeen.get(code);
+  if (!seen || seen.size === 0) return null;
+  return Math.max(...seen.values());
+}
+
+/**
  * A seat counts as "present" if it has a live subscriber right now, or was
  * seen within `PRESENCE_TTL_MS`. A guest seat (`userId: null` — a host-added
  * local player with no device of its own) is never present: `makePlayer`

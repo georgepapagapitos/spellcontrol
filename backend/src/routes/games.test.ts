@@ -6,7 +6,6 @@ import { createTestEnv, extractSessionCookie } from '../test-helpers';
 import { isUniqueViolation } from '../games/sessions';
 import { SIGNAL_EMOTES } from '../games/live-registry';
 import { sweepDiscordTables } from '../games/discord-tables';
-import { tableChannelName } from '../discord';
 
 describe('isUniqueViolation (F20 join-code race guard)', () => {
   it('matches only a Postgres 23505 error', () => {
@@ -3137,6 +3136,8 @@ describe('Discord tables', () => {
   let channels: Array<{ id: string; name: string; type: number; parent_id: string | null }>;
   let deleted: string[];
   let failing: boolean;
+  // A running counter: ids from the list length repeat after a delete.
+  let nextChannel = 1;
   const realFetch = globalThis.fetch;
 
   // A stand-in for the four Discord REST calls discord.ts makes; anything that
@@ -3159,7 +3160,7 @@ describe('Discord tables', () => {
       }
       if (method === 'POST' && path === `/guilds/${GUILD}/channels`) {
         const body = JSON.parse(String(init!.body));
-        const ch = { id: `ch-${channels.length}`, ...body };
+        const ch = { id: `ch-${nextChannel++}`, ...body };
         channels.push(ch);
         return Response.json(ch);
       }
@@ -3219,7 +3220,17 @@ describe('Discord tables', () => {
     expect((await open(hostCookie, code)).status).toBe(503);
   });
 
-  it('opens one voice channel per table under the category, and reuses it', async () => {
+  /** The channel a game's session row says it owns, or undefined. */
+  async function channelOf(code: string) {
+    const { rows } = await pool.query(
+      'SELECT discord_channel_id FROM game_sessions WHERE code = $1',
+      [code]
+    );
+    const id = rows[0]?.discord_channel_id as string | null | undefined;
+    return channels.find((c) => c.id === id);
+  }
+
+  it('opens "Table 1", reuses it on a second press, and never names it by the code', async () => {
     installFakeDiscord();
     const { hostCookie, code } = await hostGame('dc_open');
     const first = await open(hostCookie, code);
@@ -3227,13 +3238,37 @@ describe('Discord tables', () => {
     expect(first.body.url).toMatch(/^https:\/\/discord\.gg\/inv-/);
     const again = await open(hostCookie, code);
     expect(again.body.url).toBe(first.body.url);
-    const mine = channels.filter((c) => c.name === tableChannelName(code));
+    const mine = await channelOf(code);
+    expect(mine).toMatchObject({ name: 'Table 1', type: 2, parent_id: CATEGORY });
     // Every member can see every channel: the name must never give away the
     // join code (which would open a private table to the whole server).
-    expect(mine[0].name).not.toContain(code);
-    expect(mine[0].name).toMatch(/^Table \d{5}$/);
-    expect(mine).toHaveLength(1);
-    expect(mine[0]).toMatchObject({ type: 2, parent_id: CATEGORY });
+    expect(mine!.name).not.toContain(code);
+    expect(channels.filter((c) => c.parent_id === CATEGORY)).toHaveLength(1);
+  });
+
+  it('numbers tables from the lowest free number', async () => {
+    installFakeDiscord();
+    const a = await hostGame('dc_num_a');
+    const b = await hostGame('dc_num_b');
+    await open(a.hostCookie, a.code);
+    await open(b.hostCookie, b.code);
+    expect((await channelOf(a.code))?.name).toBe('Table 1');
+    expect((await channelOf(b.code))?.name).toBe('Table 2');
+    await request(app).post(`/api/games/${a.code}/leave`).set('Cookie', a.hostCookie).send({});
+    await vi.waitFor(() => expect(channels.some((c) => c.name === 'Table 1')).toBe(false));
+    const c = await hostGame('dc_num_c');
+    await open(c.hostCookie, c.code);
+    expect((await channelOf(c.code))?.name).toBe('Table 1');
+  });
+
+  // Two hosts pressing at once must not both take Table 1.
+  it('gives two tables opened at the same moment different numbers', async () => {
+    installFakeDiscord();
+    const a = await hostGame('dc_race_a');
+    const b = await hostGame('dc_race_b');
+    await Promise.all([open(a.hostCookie, a.code), open(b.hostCookie, b.code)]);
+    const names = [(await channelOf(a.code))?.name, (await channelOf(b.code))?.name].sort();
+    expect(names).toEqual(['Table 1', 'Table 2']);
   });
 
   it('is the host’s to open, and a stranger gets the unknown-code 404', async () => {
@@ -3243,7 +3278,7 @@ describe('Discord tables', () => {
     expect((await open(guest, code)).status).toBe(404);
     await request(app).post(`/api/games/${code}/join`).set('Cookie', guest).send({});
     expect((await open(guest, code)).status).toBe(403);
-    expect(channels.some((c) => c.name === tableChannelName(code))).toBe(false);
+    expect(channels.some((c) => c.parent_id === CATEGORY)).toBe(false);
   });
 
   it('answers 502 rather than throwing when Discord is down', async () => {
@@ -3257,35 +3292,67 @@ describe('Discord tables', () => {
     installFakeDiscord();
     const { hostCookie, code } = await hostGame('dc_close');
     await open(hostCookie, code);
-    const id = channels.find((c) => c.name === tableChannelName(code))!.id;
+    const id = (await channelOf(code))!.id;
     await request(app).post(`/api/games/${code}/leave`).set('Cookie', hostCookie).send({});
     await vi.waitFor(() => expect(deleted).toContain(id));
   });
 
-  it('sweeps channels whose game is gone, finished or idle, and nothing outside the category', async () => {
+  // A table everyone walked away from without pressing Leave: nobody has had
+  // it open for over 15 minutes, though it changed only minutes ago.
+  it('closes the table of a game nobody has had open for 15 minutes', async () => {
+    installFakeDiscord();
+    const left = await hostGame('dc_left');
+    const here = await hostGame('dc_here');
+    const unknown = await hostGame('dc_unknown');
+    for (const g of [left, here, unknown]) await open(g.hostCookie, g.code);
+    const names = {
+      left: (await channelOf(left.code))!.name,
+      here: (await channelOf(here.code))!.name,
+      unknown: (await channelOf(unknown.code))!.name,
+    };
+    const now = Date.now();
+    const seen: Record<string, number | null> = {
+      [left.code]: now - 20 * 60 * 1000,
+      [here.code]: now - 60 * 1000,
+      // After a restart nobody has been seen: the 3-hour rule decides, and
+      // this game changed just now.
+      [unknown.code]: null,
+    };
+    await sweepDiscordTables(now, (code) => seen[code] ?? null);
+    const after = channels.map((c) => c.name);
+    expect(after).not.toContain(names.left);
+    expect(after).toContain(names.here);
+    expect(after).toContain(names.unknown);
+  });
+
+  it('sweeps channels no game owns, idle ones, and the old code- and tag-named ones; nothing else', async () => {
     installFakeDiscord();
     const live = await hostGame('dc_sweep_live');
     const idle = await hostGame('dc_sweep_idle');
     await open(live.hostCookie, live.code);
     await open(idle.hostCookie, idle.code);
+    const liveName = (await channelOf(live.code))!.name;
+    const idleName = (await channelOf(idle.code))!.name;
     await pool.query('UPDATE game_sessions SET updated_at = $1 WHERE code = $2', [
       Date.now() - 4 * 60 * 60 * 1000,
       idle.code,
     ]);
-    channels.push({ id: 'gone', name: 'Table 00000', type: 2, parent_id: CATEGORY });
-    // Named by its join code, from before tags: always swept.
-    channels.push({ id: 'legacy', name: 'Table QQQQ', type: 2, parent_id: CATEGORY });
+    channels.push({ id: 'ownerless', name: 'Table 7', type: 2, parent_id: CATEGORY });
+    // From before numbering: named by the join code, then by a tag.
+    channels.push({ id: 'coded', name: 'Table QQQQ', type: 2, parent_id: CATEGORY });
+    channels.push({ id: 'tagged', name: 'Table 48213', type: 2, parent_id: CATEGORY });
     channels.push({ id: 'lounge', name: 'Lounge', type: 2, parent_id: CATEGORY });
 
     const removed = await sweepDiscordTables();
     const names = channels.map((c) => c.name);
-    expect(names).toContain(tableChannelName(live.code));
-    expect(names).not.toContain(tableChannelName(idle.code));
-    expect(names).not.toContain('Table 00000');
-    expect(names).not.toContain('Table QQQQ');
+    expect(names).toContain(liveName);
+    expect(names).not.toContain(idleName);
+    for (const gone of ['Table 7', 'Table QQQQ', 'Table 48213']) {
+      expect(names, gone).not.toContain(gone);
+    }
     expect(names).toContain('Lounge');
     expect(names).toContain('Table ZZZZ');
-    expect(removed).toBeGreaterThanOrEqual(3);
+    expect(removed).toBe(4);
   });
 });
 

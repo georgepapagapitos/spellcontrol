@@ -311,6 +311,8 @@ export const gameSessions = pgTable('game_sessions', {
   version: integer('version').notNull().default(0),
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),
   updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+  /** The "Table N" Discord voice channel this game owns, if it opened one. */
+  discordChannelId: text('discord_channel_id'),
 });
 
 /**

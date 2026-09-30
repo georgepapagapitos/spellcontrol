@@ -267,6 +267,9 @@ export async function ensureSchema(): Promise<void> {
     );
     CREATE INDEX IF NOT EXISTS game_sessions_host_idx ON game_sessions(host_user_id);
     CREATE INDEX IF NOT EXISTS game_sessions_updated_idx ON game_sessions(updated_at);
+    -- The game's Discord table (games/discord-tables.ts): which "Table N" voice
+    -- channel it owns, so channels are numbered rather than named by the code.
+    ALTER TABLE game_sessions ADD COLUMN IF NOT EXISTS discord_channel_id TEXT;
 
     CREATE TABLE IF NOT EXISTS combos (
       id TEXT PRIMARY KEY,
