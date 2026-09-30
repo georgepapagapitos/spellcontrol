@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { logger } from './logger';
 
 /**
@@ -34,15 +35,35 @@ export function isDiscordConfigured(): boolean {
   return config() !== null;
 }
 
-export function tableChannelName(code: string): string {
-  return `${NAME_PREFIX}${code}`;
+/**
+ * The number a game's table channel is named by, never the join code itself:
+ * every channel in the server is visible to every member, so "Table ZVVU"
+ * handed anyone the code to a private game. A keyed hash of the code (the
+ * bot token is the key) can't be turned back into it, and five digits can't
+ * be typed into the four-character join box. The bot recomputes it from a
+ * code to find a game's channel, so nothing extra is stored.
+ */
+export function tableTag(code: string): string {
+  const key = process.env.DISCORD_BOT_TOKEN ?? '';
+  const n = crypto.createHmac('sha256', key).update(code).digest().readUInt32BE(0);
+  return String(n % 100_000).padStart(5, '0');
 }
 
-/** The game code a table channel was named for, or null for anything else. */
-export function codeFromChannelName(name: string): string | null {
+export function tableChannelName(code: string): string {
+  return `${NAME_PREFIX}${tableTag(code)}`;
+}
+
+/**
+ * The tag a table channel was named with, or null for anything else. A
+ * four-character name is a channel from before tags (named by its join code):
+ * no tag can equal one, so the sweep removes it as a table whose game is gone.
+ * Only the join-code alphabet (no 0, 1, I or O), so a channel a moderator
+ * named "Table 1234" is never mistaken for one.
+ */
+export function tagFromChannelName(name: string): string | null {
   if (!name.startsWith(NAME_PREFIX)) return null;
-  const code = name.slice(NAME_PREFIX.length);
-  return /^[A-Z0-9]{4}$/.test(code) ? code : null;
+  const tag = name.slice(NAME_PREFIX.length);
+  return /^(\d{5}|[A-HJ-NP-Z2-9]{4})$/.test(tag) ? tag : null;
 }
 
 async function call<T>(cfg: Config, method: string, path: string, body?: unknown): Promise<T> {
@@ -66,7 +87,8 @@ async function call<T>(cfg: Config, method: string, path: string, body?: unknown
 
 export interface TableChannel {
   id: string;
-  code: string;
+  /** From the name; match a game with `tableTag(code)`. */
+  tag: string;
 }
 
 /** Every table channel under the tables category. */
@@ -81,8 +103,8 @@ export async function listTableChannels(): Promise<TableChannel[]> {
   const out: TableChannel[] = [];
   for (const ch of channels) {
     if (ch.parent_id !== cfg.categoryId) continue;
-    const code = codeFromChannelName(ch.name);
-    if (code) out.push({ id: ch.id, code });
+    const tag = tagFromChannelName(ch.name);
+    if (tag) out.push({ id: ch.id, tag });
   }
   return out;
 }
@@ -96,7 +118,7 @@ export async function listTableChannels(): Promise<TableChannel[]> {
 export async function openTableChannel(code: string): Promise<string> {
   const cfg = config();
   if (!cfg) throw new Error('Discord tables are not configured.');
-  const existing = (await listTableChannels()).find((ch) => ch.code === code);
+  const existing = (await listTableChannels()).find((ch) => ch.tag === tableTag(code));
   const channelId =
     existing?.id ??
     (
@@ -129,7 +151,7 @@ export async function deleteTableChannel(channelId: string): Promise<void> {
 export async function closeTableChannel(code: string): Promise<void> {
   if (!isDiscordConfigured()) return;
   try {
-    const channel = (await listTableChannels()).find((ch) => ch.code === code);
+    const channel = (await listTableChannels()).find((ch) => ch.tag === tableTag(code));
     if (channel) await deleteTableChannel(channel.id);
   } catch (err) {
     logger.warn(`[discord] closing table ${code} failed`, err);
