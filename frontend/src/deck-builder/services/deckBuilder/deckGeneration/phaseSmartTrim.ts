@@ -8,6 +8,8 @@ import {
 import type { GenerationState } from './state';
 import { countAllCards } from './state';
 import { STAPLE_ROCK_NAMES } from './phaseStapleManaRocks';
+import { STAPLE_INCLUSION_BAR } from '../cardPicking';
+import { buildInclusionIndex, lookupInclusion } from '../commanderDeckAnalysis';
 import {
   MUST_INCLUDE_BOOST,
   LAND_PROTECTION_BOOST,
@@ -41,9 +43,16 @@ export function computeTrimResistance(
   category: DeckCategory,
   comboCardNames: ReadonlySet<string>,
   roleTargets: Record<RoleKey, number> | null,
-  currentRoleCounts: Record<RoleKey, number>
+  currentRoleCounts: Record<RoleKey, number>,
+  /** The card's inclusion (%) on the commander's own EDHREC page. */
+  inclusion = 0
 ): number {
   let resistance = categoryLength - positionIndex;
+
+  // E532: a staple outlasts filler. The type passes now seat staples past a
+  // role cap, so they sit at the tail of an over-target role and read as the
+  // first cut: Meren lost Skullclamp (59.6%) here, silently.
+  if (inclusion >= STAPLE_INCLUSION_BAR) resistance += STAPLE_PROTECTION_BOOST;
 
   if (card.isMustInclude) {
     resistance += MUST_INCLUDE_BOOST;
@@ -104,6 +113,7 @@ export function smartTrimPhase(state: GenerationState, ctx: SmartTrimContext): v
 
   const currentCount = countAllCards(state);
   if (currentCount > targetDeckSize) {
+    const pageInclusion = state.edhrecData ? buildInclusionIndex(state.edhrecData) : new Map();
     const trimCandidates: { card: ScryfallCard; category: DeckCategory; trimResistance: number }[] =
       [];
 
@@ -122,7 +132,8 @@ export function smartTrimPhase(state: GenerationState, ctx: SmartTrimContext): v
           cat,
           comboCardNames,
           roleTargets,
-          currentRoleCounts
+          currentRoleCounts,
+          lookupInclusion(pageInclusion, card.name)
         );
         trimCandidates.push({ card, category: cat, trimResistance: resistance });
       }
