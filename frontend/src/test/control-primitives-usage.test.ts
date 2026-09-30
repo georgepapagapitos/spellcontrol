@@ -154,7 +154,7 @@ const ALLOWED: Record<Shape, Record<string, number | { count: number; why: strin
     'components/overlays/SelectMenu.tsx': { count: 1, why: TOOLBAR_FAMILY },
     'components/shared/ToolbarPopover.tsx': { count: 1, why: TOOLBAR_FAMILY },
     'components/Legend.tsx': { count: 1, why: TOOLBAR_FAMILY },
-    'pages/DeckEditorPage.tsx': { count: 3, why: RADIO_FACE },
+    'pages/deck-editor/AddZoneToggle.tsx': { count: 3, why: RADIO_FACE },
   },
   iconOnly: {
     'components/deck/DeckCardRow.tsx': { count: 2, why: CARD_ART },
