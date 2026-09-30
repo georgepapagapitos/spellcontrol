@@ -17,6 +17,7 @@ export { analyseDeck } from './panelReport';
 export * from './trustRegion';
 export { completeCombos } from './constraints';
 export { setCardFactsSnapshot, hasCardFacts } from '@/deck-builder/services/cardFacts';
+export { extractCardFacts } from '@/deck-builder/services/cardFacts/extract';
 export { loadTaggerData, hasTaggerData } from '@/deck-builder/services/tagger/client';
 export {
   fetchCommanderData,

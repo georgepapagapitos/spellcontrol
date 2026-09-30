@@ -356,6 +356,11 @@ export const RESOURCES = [
   'copy',
   'untap',
   'extra-combat',
+  // A creature dying, read from the parse (E513): YOUR creatures dying pays it
+  // off (Grave Pact, Blood Artist, Soul Net), sacrificing a creature makes it
+  // (Viscera Seer). The sacrifice axis above also counts sacrificing a
+  // Treasure or a land and triggers on an opponent's creature dying.
+  'creature-death',
 ] as const;
 export type Resource = (typeof RESOURCES)[number];
 
@@ -401,6 +406,7 @@ export const RESOURCE_AXIS: Record<Resource, AxisKey | null> = {
   copy: null,
   untap: null,
   'extra-combat': null,
+  'creature-death': null,
 };
 
 /** The resource that stands for an axis (inverse of RESOURCE_AXIS). */

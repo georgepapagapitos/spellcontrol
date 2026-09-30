@@ -60,11 +60,18 @@ export const rolesTerm: TermFn = (deck, ctx) => {
   };
   for (const card of nonLandCards(deck)) {
     const best = new Map<ObjectiveRole, number>();
-    for (const fact of ctx.factsOf(card).roles) {
-      if (!countsAsRole(fact)) continue;
-      const role = FACT_TO_OBJECTIVE[fact.role];
-      if (!role) continue;
-      best.set(role, Math.max(best.get(role) ?? 0, TIER_WEIGHT[fact.tier]));
+    if (ctx.roleOf) {
+      // The deck report's own count (one role per card): the numbers a
+      // reason quotes are the ones the report shows.
+      const role = ctx.roleOf(card) as ObjectiveRole | null;
+      if (role && OBJECTIVE_ROLES.includes(role)) best.set(role, 1);
+    } else {
+      for (const fact of ctx.factsOf(card).roles) {
+        if (!countsAsRole(fact)) continue;
+        const role = FACT_TO_OBJECTIVE[fact.role];
+        if (!role) continue;
+        best.set(role, Math.max(best.get(role) ?? 0, TIER_WEIGHT[fact.tier]));
+      }
     }
     for (const [role, w] of best) {
       counts[role] += w;

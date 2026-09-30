@@ -27,14 +27,15 @@
  * "assembly" is a critical mass drawn (any two equipment for voltron), not a
  * kill, so a timed voltron path rewarded a second Lightning Greaves.
  */
-import type { DetectedCombo, ScryfallCard } from '@/deck-builder/types';
+import type { ScryfallCard } from '@/deck-builder/types';
 import { countsAsRole } from '@/deck-builder/services/cardFacts';
 import { detectWinConditions } from '@/deck-builder/services/winConditions/detect';
 import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
 import { simulateAssemblyClock, type ClockCard } from '@/lib/mana-sim/opening-hand-sim';
 import type { CardNote, ObjectiveContext, ObjectiveDeck } from '../types';
+import { viableCombos } from '../constraints';
 import { alignToSlots } from './mana';
-import { deckNameKeys, nameKeys, nonLandCards, pct, type TermFn } from './shared';
+import { nonLandCards, pct, type TermFn } from './shared';
 
 /** A line online on every turn is worth what the combos term pays a first complete combo. */
 export const WIN_SCALE = 2;
@@ -43,14 +44,9 @@ export const NO_WIN = 2;
 /** Clock games: the mean share's standard error is about a point. */
 export const CLOCK_GAMES = 1000;
 
-/** Complete combos in the deck, in the detector's input shape. */
-function combosInDeck(deck: ObjectiveDeck, combos: readonly DetectedCombo[]) {
-  const keys = deckNameKeys(deck);
-  return combos
-    .filter(
-      (c) => c.cards.length >= 2 && c.cards.every((n) => nameKeys(n).some((k) => keys.has(k)))
-    )
-    .map((c) => ({ results: c.results, cards: c.cards }));
+/** Complete combos that work in this deck (viableCombos), in the detector's input shape. */
+function combosInDeck(deck: ObjectiveDeck, ctx: ObjectiveContext) {
+  return viableCombos(deck, ctx).map((c) => ({ results: c.results, cards: c.cards }));
 }
 
 export interface WinLines {
@@ -71,7 +67,7 @@ export function winLines(deck: ObjectiveDeck, ctx: ObjectiveContext): WinLines {
     cards: all,
     commander: deck.commanders[0] ?? null,
     partnerCommander: deck.commanders[1] ?? null,
-    combosInDeck: combosInDeck(deck, ctx.combos ?? []),
+    combosInDeck: combosInDeck(deck, ctx),
     deckSynergy: analyzeDeckSynergy(all),
     format: 'commander',
   });

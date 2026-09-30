@@ -67,11 +67,17 @@ export function ownedShare(deck: ObjectiveDeck, ctx: ObjectiveContext): number |
  * rules (size, singleton, budget, Game Changer and bracket counts, owned
  * share) depend on the rest of the deck and are checked on the whole list.
  */
+const NOT_A_DECK_CARD =
+  /\b(?:Stickers|Attraction|Conspiracy|Scheme|Plane|Phenomenon|Vanguard|Dungeon|Emblem)\b/;
+
 export function cardIneligibility(card: ScryfallCard, ctx: ObjectiveContext): string | null {
   const cz = ctx.customization;
   const identity = [...ctx.colorIdentity];
   const owned = ctx.ownedNames;
   const basic = isBasicLand(card);
+  // Sticker sheets, Attractions and the like are legal to own, not to put in
+  // the 99 (Wild Ogre Bupkis came in through an owned pool in the gate).
+  if (NOT_A_DECK_CARD.test(card.type_line ?? '')) return 'not a card for the deck';
   if (!fitsColorIdentity(card, identity)) return 'outside the colour identity';
   if (isDeadInIdentity(card, identity)) return 'discounts a colour the deck cannot cast';
   if (!basic && notLegalForFormat(card, cz.mtgFormat)) return 'not legal in the format';
@@ -136,6 +142,36 @@ export function completeCombos(deck: ObjectiveDeck, ctx: ObjectiveContext): Dete
       c.cards.length >= 2 &&
       c.cards.every((n) => keys.has(key(n)) || keys.has(key(frontFaceName(n))))
   );
+}
+
+/**
+ * The complete combos that actually work in this deck, the ones the value
+ * terms may credit (combos, winline, tutors) and the trust region protects:
+ *  - a Commander Spellbook line with an unnamed-card requirement (a template:
+ *    the `--N` suffix of its id, "11-5261--41") counts only once the deck is
+ *    known to meet it (`templatesSatisfied`, which the deck page resolves; the
+ *    generator's EDHREC feed never says), so Narset's Reversal + Isochron
+ *    Scepter is not a line on its own;
+ *  - Tainted Pact exiles until it finds a second card of one name, so its
+ *    lines need a library with no repeated name (a deck with 15 Islands
+ *    stops at the second Island).
+ * `completeCombos` stays the wider set: the bracket floor is a safety check
+ * and counts any line that might be complete.
+ */
+export function viableCombos(deck: ObjectiveDeck, ctx: ObjectiveContext): DetectedCombo[] {
+  let singleton: boolean | null = null;
+  const isSingleton = () => {
+    if (singleton === null) {
+      const names = deck.cards.map((c) => c.name);
+      singleton = new Set(names).size === names.length;
+    }
+    return singleton;
+  };
+  return completeCombos(deck, ctx).filter((c) => {
+    if (/--/.test(c.comboId ?? '') && c.templatesSatisfied !== true) return false;
+    if (c.cards.some((n) => n === 'Tainted Pact') && !isSingleton()) return false;
+    return true;
+  });
 }
 
 /**

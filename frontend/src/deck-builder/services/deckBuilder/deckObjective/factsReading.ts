@@ -67,11 +67,78 @@ export function protectsOnlyItself(card: ScryfallCard): boolean {
  */
 const KEEPS_PERMANENT = /\b(hexproof|shroud|indestructible|protection from)\b|\bphases? out\b/i;
 
-/** A protection piece that keeps the commander on the battlefield (Lightning Greaves, Teferi's Protection). */
-export function isSurvivalPiece(card: ScryfallCard, facts: CardFacts): boolean {
+/**
+ * A protection piece that keeps the commander on the battlefield (Lightning
+ * Greaves, Teferi's Protection), and can reach THIS commander: Skrelv,
+ * Defector Mite protects only a creature "with toxic, infect, or poisonous",
+ * and a "target Ninja creature" clause only a Ninja.
+ */
+export function isSurvivalPiece(
+  card: ScryfallCard,
+  facts: CardFacts,
+  commanders: readonly ScryfallCard[] = []
+): boolean {
   if (!facts.roles.some((r) => r.role === 'protection')) return false;
-  return KEEPS_PERMANENT.test(rulesText(card)) && protectsOthers(card);
+  if (!KEEPS_PERMANENT.test(rulesText(card)) || !protectsOthers(card)) return false;
+  return commanders.length === 0 || commanders.some((c) => canProtect(card, c));
 }
+
+/** Whether a protection clause of `card` can reach `commander` (no restriction it fails). */
+export function canProtect(card: ScryfallCard, commander: ScryfallCard): boolean {
+  const commanderText = rulesText(commander).toLowerCase();
+  const keywords = (commander.keywords ?? []).map((k) => k.toLowerCase());
+  const type = (commander.type_line ?? '').toLowerCase();
+  return protectionSentences(card)
+    .filter((s) => PROTECTS_OTHER.test(s) && KEEPS_PERMANENT.test(s))
+    .some((s) => {
+      const lower = s.toLowerCase();
+      const withWords =
+        /\bcreatures? you control with ([a-z ,]+?)(?= gains?\b| has\b| have\b|[.:]|$)/.exec(lower);
+      if (withWords) {
+        const needs = withWords[1]
+          .split(/,|\bor\b/)
+          .map((w) => w.trim())
+          .filter(Boolean);
+        if (!needs.some((w) => keywords.includes(w) || commanderText.includes(w))) return false;
+      }
+      // "Target Merfolk you control", "target Spirit", "another target Ally":
+      // a creature type the commander must have.
+      const subtype = /\btarget ([a-z]+)\b/.exec(lower.replace(/\banother target\b/, 'target'));
+      if (subtype && !NOT_A_SUBTYPE.has(subtype[1]) && !type.includes(subtype[1])) return false;
+      return true;
+    });
+}
+
+/** Words that sit between "target" and "creature" without naming a creature type. */
+const NOT_A_SUBTYPE = new Set([
+  'creature',
+  'creatures',
+  'permanent',
+  'permanents',
+  'player',
+  'players',
+  'spell',
+  'nonland',
+  'noncreature',
+  'another',
+  'other',
+  'legendary',
+  'attacking',
+  'blocking',
+  'tapped',
+  'untapped',
+  'nontoken',
+  'token',
+  'artifact',
+  'enchantment',
+  'nonartifact',
+  'white',
+  'blue',
+  'black',
+  'red',
+  'green',
+  'colorless',
+]);
 
 /**
  * A value engine that repeats while the commander stays on the battlefield:
@@ -124,13 +191,29 @@ const PAYOFF_EVIDENCE: Partial<Record<Resource, RegExp>> = {
     /\btokens?\b|\bcreatures? you control\b|\bwhenever (?:a|another|one or more) (?:\w+ )?creatures?\b/i,
   'plus1-counter': /\+1\/\+1 counters?/i,
   loyalty: /\bloyalty\b|\bplaneswalkers? you control\b/i,
-  death:
-    /\bdies\b|\bdie\b|\bdied\b|put into (?:a|your|an opponent's) graveyard from the battlefield|\bsacrifices?\b/i,
   landfall: /\blands?\b/i,
   graveyard: /\bgraveyards?\b/i,
   lifegain: /\bgains? (?:\w+ )?life\b|\blife you gain\b|\blifelink\b/i,
   poison: /\bpoison\b|\btoxic\b|\binfect\b|\bcorrupted\b|\bproliferate\b/i,
+  // Captain Lannery Storm makes Treasure; nothing about it rewards spells.
+  'instant-sorcery': /\binstants?\b|\bsorcery\b|\bsorceries\b|\bnoncreature spells?\b/i,
+  // Other cards cycling, not its own ("When you cycle ~": Deem Worthy).
+  cycling: /\bwhenever (?:you|a player) cycles? (?:or discards? )?(?:a|another|one or more)\b/i,
 };
+
+/**
+ * The words a PRODUCER of each resource has to carry. Discard feeds a
+ * discard payoff only when the card makes YOU discard (Discovery // Dispersal
+ * makes opponents discard).
+ */
+const PRODUCER_EVIDENCE: Partial<Record<Resource, RegExp>> = {
+  discard:
+    /(?:^|[.\n:,] ?|\bthen |\byou (?:may )?)discards? (?:a|an|one|two|three|x|that|your|up to|any number of)\b|\beach player discards\b|\bdiscard (?:a|an|one|two|three|x) cards?\b/i,
+};
+
+/** A mass effect that needs a board the deck won't have (Glyph of Reincarnation's Wall). */
+const NARROW_MASS =
+  /\bblocked by target wall\b|\bthat were blocked by\b|\bthat blocked (?:target|this)\b/i;
 
 /** The transforming layouts: the back face is reached only by transforming. */
 const TRANSFORMS = new Set(['transform', 'meld']);
@@ -141,13 +224,23 @@ export function readFacts(card: ScryfallCard, facts: CardFacts): CardFacts {
   const transforms = TRANSFORMS.has(card.layout ?? '');
   const reachable = <T extends { face?: number; limits?: readonly string[] }>(f: T) =>
     !(transforms && (f.face ?? 0) >= 1) && !(f.limits ?? []).includes('transform');
-  const interaction = facts.interaction.filter(reachable);
-  const selfOnly = protectsOnlyItself(card);
-  const roles = facts.roles.filter((r) => reachable(r) && (r.role !== 'protection' || !selfOnly));
-  const producesOthers = tokensGoToOthers(card);
-  const produces = facts.produces.filter(
-    (p) => reachable(p) && !(producesOthers && p.r === 'creature-token')
+  const narrowMass = NARROW_MASS.test(text);
+  const interaction = facts.interaction.filter(
+    (f) => reachable(f) && !(narrowMass && f.scope === 'mass')
   );
+  const selfOnly = protectsOnlyItself(card);
+  const roles = facts.roles.filter(
+    (r) =>
+      reachable(r) &&
+      (r.role !== 'protection' || !selfOnly) &&
+      !(narrowMass && r.role === 'boardwipe')
+  );
+  const producesOthers = tokensGoToOthers(card);
+  const produces = facts.produces.filter((p) => {
+    if (!reachable(p) || (producesOthers && p.r === 'creature-token')) return false;
+    const evidence = PRODUCER_EVIDENCE[p.r];
+    return !evidence || evidence.test(text);
+  });
   const payoffs = facts.payoffs.filter((p) => {
     if (!reachable(p)) return false;
     const evidence = PAYOFF_EVIDENCE[p.r];

@@ -13,6 +13,7 @@
  */
 import { countsAsRole } from '@/deck-builder/services/cardFacts';
 import type { CardNote } from '../types';
+import { rulesText } from '../factsReading';
 import { costFactor } from './interaction';
 import { nonLandCards, round2, type TermFn } from './shared';
 
@@ -20,6 +21,8 @@ export const ENGINE_SCALE = 0.4;
 export const ENGINE_DECAY = 0.7;
 
 const REPEATS = new Set(['per-turn', 'per-event', 'repeatable', 'static']);
+const OPPONENTS_DRAW = /\bopponents draws?\b/i;
+const YOU_DRAW = /\byou draw\b|(?:^|[.:\n] ?)draw (?:a|two|three|x|that many) cards?\b/i;
 
 export const enginesTerm: TermFn = (deck, ctx) => {
   const engines: Array<{ name: string; v: number; how: string }> = [];
@@ -28,10 +31,19 @@ export const enginesTerm: TermFn = (deck, ctx) => {
     if (seen.has(card.name)) continue;
     seen.add(card.name);
     const facts = ctx.factsOf(card);
+    // A draw that needs an empty hand (Asylum Visitor) is not an engine, and
+    // neither is one that draws for opponents when their creature dies
+    // (Bounty Board).
     const draw = facts.roles.find(
-      (r) => r.role === 'cardDraw' && countsAsRole(r) && REPEATS.has(r.repeat)
+      (r) =>
+        r.role === 'cardDraw' &&
+        countsAsRole(r) &&
+        REPEATS.has(r.repeat) &&
+        !r.limits.includes('conditional')
     );
     if (!draw) continue;
+    const text = rulesText(card);
+    if (OPPONENTS_DRAW.test(text) && !YOU_DRAW.test(text)) continue;
     engines.push({ name: card.name, v: costFactor(facts.mv, false), how: draw.repeat });
   }
   engines.sort((a, b) => b.v - a.v || a.name.localeCompare(b.name));

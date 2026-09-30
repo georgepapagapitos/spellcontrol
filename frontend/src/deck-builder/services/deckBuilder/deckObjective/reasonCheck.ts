@@ -16,7 +16,7 @@
 import type { ScryfallCard } from '@/deck-builder/types';
 import { countsAsRole } from '@/deck-builder/services/cardFacts';
 import { getByCardName } from '@/lib/cards/card-text';
-import { protectsOnlyItself, protectsOthers, rulesText } from './factsReading';
+import { canProtect, protectsOnlyItself, protectsOthers, rulesText } from './factsReading';
 import { tutorFilter, tutorFinds } from './terms/tutors';
 import type { ObjectiveContext, ObjectiveDeck, TermKey } from './types';
 
@@ -151,6 +151,11 @@ export function reasonProblem(
         if (protectsOnlyItself(card)) return 'it only protects itself';
         if (note.includes('keeps the commander') && !protectsOthers(card))
           return 'no protection of another permanent';
+        if (
+          note.includes('keeps the commander') &&
+          !deck.commanders.some((c) => canProtect(card, c))
+        )
+          return 'it cannot reach the commander';
         return null;
       }
       return null;

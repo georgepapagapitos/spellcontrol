@@ -312,8 +312,22 @@ export function createObjectiveContext(input: ObjectiveContextInput): ObjectiveC
     return m;
   };
 
+  const roleCache = new Map<string, string | null>();
+  const inputRoleOf = input.roleOf;
+  const roleOf = inputRoleOf
+    ? (card: ScryfallCard): string | null => {
+        let r = roleCache.get(card.name);
+        if (r === undefined) {
+          r = inputRoleOf(card);
+          roleCache.set(card.name, r);
+        }
+        return r;
+      }
+    : undefined;
+
   return {
     ...input,
+    roleOf,
     factsOf: cachedFacts,
     weights,
     tags: {

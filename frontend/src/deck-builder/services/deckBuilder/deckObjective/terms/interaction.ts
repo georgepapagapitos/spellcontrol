@@ -239,7 +239,7 @@ export const interactionTerm: TermFn = (deck, ctx) => {
     if (isLandCard(card)) continue;
     const p = protectionValue(card, facts);
     if (p <= 0) continue;
-    const survival = mustSurvive && isSurvivalPiece(card, facts);
+    const survival = mustSurvive && isSurvivalPiece(card, facts, deck.commanders);
     protection.push({ name: card.name, v: survival ? p * SURVIVAL_WEIGHT : p, survival });
   }
   answers.sort((a, b) => b.v - a.v || a.name.localeCompare(b.name));

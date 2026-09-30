@@ -280,7 +280,7 @@ describe('synergy: producer → payoff matching, and E71 lift in deck context', 
 
   it("feeds Meren's death payoff from the deck's sacrifice pieces and names the feeders", () => {
     const v = synergyTerm(merenDeck(['Viscera Seer', 'Plaguecrafter', 'Blood Artist']), ctx);
-    expect(v.summary).toMatch(/Meren of Clan Nel Toth pays off death/);
+    expect(v.summary).toMatch(/Meren of Clan Nel Toth pays off creature-death/);
     expect(v.cards.some((c) => /feeds Meren of Clan Nel Toth/.test(c.note))).toBe(true);
   });
 

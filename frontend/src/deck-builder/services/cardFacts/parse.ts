@@ -1375,11 +1375,24 @@ export function parseSentence(s: string, ctx: SentenceCtx): EffectSig[] {
     // reanimate what it finds.
     if (m[2] && /onto the battlefield/.test(found))
       add(eff('reanimate', `card:${nounOf(found)}`, 'you', { dest: 'battlefield' }));
-    const who: Polarity = m[1] === 'your' ? 'you' : m[1] === "target player's" ? 'any' : 'opp';
+    // "Choose two target players. Each of them searches their library"
+    // (Scheming Symmetry): the caster chooses themselves as one of them, so
+    // it is a tutor for you (the other search is the price).
+    const chosenPlayers =
+      m[1] === 'their' &&
+      /\beach of them searches\b/.test(s) &&
+      /\btarget players\b/.test(ctx.abilityText.toLowerCase());
+    const who: Polarity =
+      m[1] === 'your' || chosenPlayers ? 'you' : m[1] === "target player's" ? 'any' : 'opp';
     // What it finds: up to the first "card(s)" ("a Plains, Island, Swamp, or
     // Mountain card"), else up to the first clause break.
     const what =
       found.match(/^[^.]*?\bcards?\b/)?.[0] ?? found.split(/,| and put| and reveal| then /)[0];
+    // A card of a creature type or any other name-word ("a Ninja card",
+    // Higure; "a Goblin card", Goblin Matron) is a narrow search, not "a card".
+    const narrowed = /^(?:up to )?(?:a|an|one|two|three|x|\d+) (?!cards?\b)[a-z-]+ cards?$/.test(
+      what.trim()
+    );
     const object = /\bcards? named\b|with the same name/.test(found)
       ? 'named'
       : /\bbasic land|\bland cards?|\b(?:forest|plains|island|swamp|mountain|gate|desert) cards?|\bbasic (?:forest|plains|island|swamp|mountain)/.test(
@@ -1400,7 +1413,7 @@ export function parseSentence(s: string, ctx: SentenceCtx): EffectSig[] {
                   ? 'planeswalker'
                   : /\bpermanent card\b/.test(what)
                     ? 'permanent'
-                    : /\bcards?\b/.test(what)
+                    : /\bcards?\b/.test(what) && !narrowed
                       ? 'any'
                       : 'other';
     const tail = found;
@@ -1782,9 +1795,18 @@ export function parseSentence(s: string, ctx: SentenceCtx): EffectSig[] {
   const phase = s.match(/\b([a-z ]+?) phases? out\b/);
   if (phase && !/cardname phases out/.test(s))
     add(
-      eff('phase-out', 'permanent', /you control|^you\b/.test(phase[1]) ? 'you' : 'any', {
-        scope: /permanents|creatures/.test(phase[1]) ? 'mass' : 'single',
-      })
+      eff(
+        'phase-out',
+        'permanent',
+        // "Target creature you don't control phases out" (Teferi, Master of
+        // Time) takes a blocker away; it protects nothing of yours.
+        /\b(?:you don'?t control|an opponent controls)\b[^.]*\bphases? out\b/.test(s)
+          ? 'opp'
+          : /you control|^you\b/.test(phase[1])
+            ? 'you'
+            : 'any',
+        { scope: /permanents|creatures/.test(phase[1]) ? 'mass' : 'single' }
+      )
     );
 
   // "If you would ..., ... instead": a replacement that modifies other effects.

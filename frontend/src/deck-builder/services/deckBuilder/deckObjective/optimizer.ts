@@ -164,6 +164,8 @@ export const STAPLE_ROCKS: readonly string[] = ['Sol Ring', 'Arcane Signet'];
 
 /** A pair is scored in full once its fast gain reaches this share of its margin. */
 const FAST_GATE = 0.5;
+/** Repairs of a broken constraint compared before the least damaging one is taken. */
+const REPAIR_CHOICES = 8;
 /** Constraint checks allowed per shortlist slot before a step gives up. */
 const CHECKS_PER_SLOT = 25;
 
@@ -201,6 +203,22 @@ function applyMove(deck: ObjectiveDeck, move: Pick<Move, 'out' | 'in'>): Objecti
   return { commanders: deck.commanders, cards };
 }
 
+/** "draw 11 → 12 of target 12" for each role whose count the swap moved (from the roles term's summary). */
+function rolesMoved(before: string, after: string): string | null {
+  const parse = (s: string) =>
+    new Map(
+      [...s.matchAll(/(\w+) ([\d.]+)\/(\d+)/g)].map((m) => [m[1], { c: m[2], t: m[3] }] as const)
+    );
+  const a = parse(before);
+  const b = parse(after);
+  const moved: string[] = [];
+  for (const [label, x] of b) {
+    const y = a.get(label);
+    if (y && y.c !== x.c) moved.push(`${label} ${y.c} → ${x.c} of target ${x.t}`);
+  }
+  return moved.length ? `roles: ${moved.join(', ')}` : null;
+}
+
 function reasonsFor(
   before: ObjectiveScore,
   after: ObjectiveScore,
@@ -209,12 +227,25 @@ function reasonsFor(
 ): SwapReason[] {
   const out: SwapReason[] = [];
   for (const term of TERM_KEYS) {
+    // A role's shortfall is shared by all its cards, so a per-card roles note
+    // reads backwards on the card that fills it ("draw is short" on the draw
+    // spell coming in). The role counts the swap moved say it instead.
+    if (term === 'roles') continue;
     for (const n of after.terms[term].detail.cards)
       if (ins.includes(n.name))
         out.push({ name: n.name, term, value: n.value * after.terms[term].weight, note: n.note });
     for (const n of before.terms[term].detail.cards)
       if (outs.includes(n.name))
         out.push({ name: n.name, term, value: -n.value * before.terms[term].weight, note: n.note });
+  }
+  const roles = rolesMoved(before.terms.roles.detail.summary, after.terms.roles.detail.summary);
+  if (roles && ins.length) {
+    out.push({
+      name: ins[0],
+      term: 'roles',
+      value: after.terms.roles.contribution - before.terms.roles.contribution,
+      note: roles,
+    });
   }
   return out
     .filter((r) => Math.abs(r.value) >= 0.005)
@@ -252,7 +283,7 @@ export function optimizeDeck(
 ): OptimizeResult {
   const opts = { ...DEFAULTS, ...options };
   const trust = opts.trust === false ? null : (opts.trust ?? {});
-  const roleOf = memoRoleOf(trust?.roleOf ?? factsRoleOf(baseCtx));
+  const roleOf = memoRoleOf(trust?.roleOf ?? baseCtx.roleOf ?? factsRoleOf(baseCtx));
   const t0 = Date.now();
   const cz = baseCtx.customization;
   // A staple rock yields to the user's ownership rule only where an unowned
@@ -320,7 +351,9 @@ export function optimizeDeck(
   while (pool.length > 0) {
     // Repairs don't count: a broken constraint is fixed however many swaps
     // it takes (an owned-only build can start six cards out of its pool).
-    if (applied.filter((a) => a.kind !== 'repair').length >= opts.maxSwaps) {
+    // Past the cap, the search goes on only to repair.
+    const capped = applied.filter((a) => a.kind !== 'repair').length >= opts.maxSwaps;
+    if (capped && infeasibility(currentScore) === 0) {
       stoppedBy = 'max-swaps';
       break;
     }
@@ -464,6 +497,8 @@ export function optimizeDeck(
     // them must not use up the step. The checks themselves are capped.
     let judged = 0;
     let checked = 0;
+    let bestRepair: { move: Move; score: ObjectiveScore } | null = null;
+    let repairsSeen = 0;
     for (const move of moves) {
       if (judged >= opts.shortlist || checked >= opts.shortlist * CHECKS_PER_SLOT) break;
       if (evaluations.full >= opts.maxEvaluations || Date.now() - t0 > opts.timeBudgetMs) break;
@@ -495,10 +530,26 @@ export function optimizeDeck(
       if (!isRepair && fastGain < FAST_GATE * required) continue;
       const score = full(next);
       if (!bestTried || compareScores(score, bestTried.score) > 0) bestTried = { move, score };
-      if (isRepair || score.total - currentScore.total >= required) {
-        taken = { move, score, kind: isRepair ? 'repair' : move.kind };
+      if (isRepair) {
+        // A repair is forced, so it is the least damaging one: the best of
+        // the first REPAIR_CHOICES that fix the break, not the first found
+        // (Swiftfoot Boots in an owned-only row went to Soul Net that way).
+        if (!bestRepair || compareScores(score, bestRepair.score) > 0) {
+          bestRepair = { move, score };
+        }
+        if (++repairsSeen >= REPAIR_CHOICES) break;
+        continue;
+      }
+      // While the deck breaks a constraint, only a repair is taken; past the
+      // cap, nothing else is.
+      if (bestRepair || capped) continue;
+      if (score.total - currentScore.total >= required) {
+        taken = { move, score, kind: move.kind };
         break;
       }
+    }
+    if (!taken && bestRepair) {
+      taken = { move: bestRepair.move, score: bestRepair.score, kind: 'repair' };
     }
     if (!taken && escapesLeft > 0 && bestTried) {
       if (currentScore.total - bestTried.score.total <= opts.escapeTolerance) {
@@ -702,7 +753,7 @@ export function judgeSwap(
   }
   let required = minGain;
   if (trust) {
-    const roleOf = memoRoleOf(trust.roleOf ?? factsRoleOf(ctx));
+    const roleOf = memoRoleOf(trust.roleOf ?? ctx.roleOf ?? factsRoleOf(ctx));
     const verdict = trustVerdict(
       countRoles(deck, roleOf),
       idx.map((i) => deck.cards[i]),

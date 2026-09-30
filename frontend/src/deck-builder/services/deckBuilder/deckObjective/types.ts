@@ -56,6 +56,14 @@ export interface ObjectiveContextInput {
   edhrec: ReadonlyMap<string, EdhrecRow>;
   /** Role targets the deck is built toward (the generator's `roleTargets`). */
   roleTargets: Partial<Record<ObjectiveRole, number>>;
+  /**
+   * The role a card counts toward, as the deck report counts it (one per
+   * card: commanderDeckAnalysis's countedRoleOf). Given, the roles term and
+   * the search's role floors count with it, so the counts a reason quotes are
+   * the report's. Omitted: the card-facts reading (primary and secondary
+   * roles, weighted by tier).
+   */
+  roleOf?: (card: ScryfallCard) => string | null;
   /** The plan's pacing, fixed per context so the curve target never moves with the deck. */
   pacing?: Pacing;
   /**

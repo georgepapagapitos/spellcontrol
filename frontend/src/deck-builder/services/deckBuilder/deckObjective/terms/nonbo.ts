@@ -33,7 +33,7 @@ import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy'
 import { nonboFindings, qualifiedTriggerFindings } from '../../nonbo';
 import type { CardNote, ObjectiveContext } from '../types';
 import { frontTypeLine } from '../context';
-import { rulesText } from '../factsReading';
+import { rulesText, tokensGoToOthers } from '../factsReading';
 import { nonLandCards, pct, type TermFn } from './shared';
 
 export const HARD_NONBO = 1;
@@ -47,6 +47,11 @@ export const QUALIFIED = 0.3;
  */
 export const WIPE_SELF_SCALE = 0.5;
 export const TOKEN_WEIGHT = 0.5;
+
+/** "Create a 1/1 black Rat creature token": the card makes creature tokens itself. */
+function makesOwnCreatureTokens(card: ScryfallCard): boolean {
+  return /\bcreates? [^.]*\bcreature tokens?\b/i.test(rulesText(card)) && !tokensGoToOthers(card);
+}
 
 /** nonbo.ts's wipe-tension message: those findings are replaced by the graded cost. */
 const WIPE_TENSION = /^It sweeps the deck's own /;
@@ -211,8 +216,13 @@ export const nonboTerm: TermFn = (deck, ctx) => {
       note: f.message,
     });
   }
+  const byName = new Map(spells.map((c) => [c.name, c]));
   for (const f of qualifiedTriggerFindings(spells)) {
     if (!f.card) continue;
+    // A card that makes its own matching tokens feeds itself (Lord Skitter,
+    // Sewer King makes a Rat every combat): the finding can't hold for it.
+    const self = byName.get(f.card);
+    if (self && makesOwnCreatureTokens(self)) continue;
     notes.push({ name: f.card, value: -QUALIFIED, note: f.message });
   }
   const own = ownBoard([...deck.commanders, ...spells], ctx);

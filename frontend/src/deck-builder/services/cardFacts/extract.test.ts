@@ -187,6 +187,60 @@ describe('the E513 gaps', () => {
     expect(descent.interaction).toEqual([]);
   });
 
+  it('a search reads what it can find, where it puts it, and when (the second optimizer gate)', () => {
+    const search = (name: string) =>
+      extractCardFacts(TEST_CARDS[name]).abilities.flatMap((a) =>
+        a.effects.filter((e) => e.verb === 'search')
+      );
+    // Oriq Loremage searches into the graveyard, and the parse says so.
+    expect(search('Oriq Loremage')).toEqual([
+      expect.objectContaining({ object: 'any', to: 'graveyard' }),
+    ]);
+    // A Goblin or a Ninja card is a narrow search, not "a card".
+    expect(role(extractCardFacts(TEST_CARDS['Goblin Matron']), 'tutor')).toMatchObject({
+      sub: 'other',
+    });
+    // Higure's search is behind a combat hit: a sometimes tutor.
+    expect(role(extractCardFacts(TEST_CARDS['Higure, the Still Wind']), 'tutor')).toMatchObject({
+      sub: 'other',
+      tier: 'secondary',
+    });
+    // Scheming Symmetry: the caster is one of the two players it targets.
+    expect(role(extractCardFacts(TEST_CARDS['Scheming Symmetry']), 'tutor')).toMatchObject({
+      sub: 'any',
+      tier: 'primary',
+    });
+    // A hundred charge counters is no tutor slot.
+    expect(role(extractCardFacts(TEST_CARDS['Vexing Puzzlebox']), 'tutor')).toMatchObject({
+      tier: 'incidental',
+    });
+  });
+
+  it("phasing out a creature you don't control protects nothing of yours", () => {
+    const f = extractCardFacts(TEST_CARDS['Teferi, Master of Time']);
+    expect(role(f, 'protection')).toBeUndefined();
+    expect(role(extractCardFacts(TEST_CARDS['Skrelv, Defector Mite']), 'protection')).toBeDefined();
+  });
+
+  it('creature-death: your creatures dying pays it off, sacrificing a creature makes it', () => {
+    const flows = (name: string) => {
+      const f = extractCardFacts(TEST_CARDS[name]);
+      return {
+        pays: f.payoffs.some((p) => p.r === 'creature-death'),
+        makes: f.produces.some((p) => p.r === 'creature-death'),
+      };
+    };
+    expect(flows('Soul Net')).toEqual({ pays: true, makes: false });
+    expect(flows('Viscera Seer')).toEqual({ pays: false, makes: true });
+    expect(flows('Plaguecrafter')).toEqual({ pays: false, makes: true });
+    // An opponent's bountied creature, a sacrificed land, an artifact that
+    // sacrifices itself and a sacrificed Treasure are none of it.
+    expect(flows('Bounty Board')).toEqual({ pays: false, makes: false });
+    expect(flows('Sanctum of Ugin')).toEqual({ pays: false, makes: false });
+    expect(flows('Braidwood Sextant')).toEqual({ pays: false, makes: false });
+    expect(flows('Captain Lannery Storm')).toEqual({ pays: false, makes: false });
+  });
+
   it('a player exiling cards from a graveyard is not an edict (Living Death stays a wipe)', () => {
     const f = facts('Living Death');
     expect(f.interaction.some((i) => i.mode === 'exile')).toBe(false);

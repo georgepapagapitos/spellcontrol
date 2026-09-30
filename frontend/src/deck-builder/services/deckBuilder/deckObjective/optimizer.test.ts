@@ -3,7 +3,7 @@
 // The whole-deck search over real cards: the E510 Meren pair (the treatment
 // cut Skullclamp and Sheoldred), Meren's real page and combo set.
 import { describe, expect, it } from 'vitest';
-import { checkConstraints } from './index';
+import { checkConstraints, scoreDeck } from './index';
 import { cardIneligibility } from './constraints';
 import { MAX_SWAPS, MIN_GAIN, STAPLE_ROCKS, judgeSwap, optimizeDeck } from './optimizer';
 import { reasonProblem } from './reasonCheck';
@@ -194,5 +194,42 @@ describe('optimizeDeck', () => {
     const r = optimizeDeck(BASELINE, extras, c, { ...SMALL, maxSwaps: 1, maxEvaluations: 60 });
     expect(r.swaps.filter((s) => s.kind === 'repair').length).toBe(6);
     expect(r.score.violations).toEqual([]);
+  });
+
+  it('takes the least damaging repair, not the first one found', () => {
+    // Swiftfoot Boots is not owned in an owned-only build; three owned cards could take its slot.
+    const owned = new Set([
+      ...BASELINE.cards.map((c) => c.name).filter((n) => n !== 'Swiftfoot Boots'),
+      'Soul Net',
+      'Heroic Intervention',
+      'Grave Pact',
+    ]);
+    const c = merenCtx({
+      customization: {
+        deckFormat: 99,
+        currency: 'USD',
+        collectionMode: true,
+        collectionStrategy: 'full',
+      },
+      ownedNames: owned,
+    });
+    const ins = cards('Soul Net', 'Heroic Intervention', 'Grave Pact');
+    const r = optimizeDeck(BASELINE, ins, c, { ...SMALL, maxSwaps: 0, maxEvaluations: 40 });
+    const repair = r.swaps.find((s) => s.kind === 'repair')!;
+    expect(repair.out).toEqual(['Swiftfoot Boots']);
+    // Every alternative repair scores no better than the one taken.
+    const i = BASELINE.cards.findIndex((x) => x.name === 'Swiftfoot Boots');
+    const slots = { ...c, slotOrder: BASELINE.cards.map((x) => x.name) };
+    const scoreWith = (name: string) =>
+      scoreDeck(
+        {
+          commanders: BASELINE.commanders,
+          cards: BASELINE.cards.map((x, j) => (j === i ? card(name) : x)),
+        },
+        slots
+      ).total;
+    const taken = scoreWith(repair.in[0]);
+    for (const alt of ['Soul Net', 'Heroic Intervention', 'Grave Pact'])
+      expect(taken, alt).toBeGreaterThanOrEqual(scoreWith(alt) - 1e-9);
   });
 });

@@ -33,7 +33,7 @@
 import type { ScryfallCard } from '@/deck-builder/types';
 import { getByCardName } from '@/lib/cards/card-text';
 import { countsAsRole, TIER_WEIGHT, type FactRole } from '@/deck-builder/services/cardFacts';
-import { completeCombos } from './constraints';
+import { viableCombos } from './constraints';
 import { isBasicLand, isLandCard } from './context';
 import { protectionValue } from './terms/interaction';
 import { readTutors } from './terms/tutors';
@@ -76,7 +76,7 @@ export function protectedCards(
   stapleBar = STAPLE_BAR
 ): Map<string, Protection> {
   const out = new Map<string, Protection>();
-  const combos = completeCombos(deck, ctx);
+  const combos = viableCombos(deck, ctx);
   for (const c of combos) {
     for (const n of c.cards) {
       const card = deck.cards.find((d) => d.name === n || d.name.split(' // ')[0] === n);
@@ -221,7 +221,7 @@ export function trustVerdict(
     free.splice(match, 1);
   }
 
-  const roleOf = opts.roleOf ?? factsRoleOf(ctx);
+  const roleOf = opts.roleOf ?? ctx.roleOf ?? factsRoleOf(ctx);
   for (const role of OBJECTIVE_ROLES) {
     const target = ctx.roleTargets[role];
     if (!target) continue;
