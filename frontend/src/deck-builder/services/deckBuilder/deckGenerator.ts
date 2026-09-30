@@ -4050,8 +4050,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         return false;
       }
       if (!isCardAllowedBySynergyDependencies(card)) return false;
-      // The static caps, not the shortage block's relaxed ones (this is a
-      // composition swap, not a size-shortage backfill).
+      // Static caps, not the shortage block's relaxed ones (a composition swap).
       if (violatesUserCaps(card, state.cfg, collectionNames)) return false;
       if (seatsAsNonbo(card, state)) return false;
 

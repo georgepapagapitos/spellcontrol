@@ -9,7 +9,7 @@
 import type { ScryfallCard } from '@/deck-builder/types';
 import { getByCardName } from '@/lib/cards/card-text';
 import {
-  isProtectionPiece,
+  readsAsProtection,
   isFreeInteraction,
   isOneSidedWipe,
   getCardTags,
@@ -17,6 +17,7 @@ import {
 } from '@/deck-builder/services/tagger/client';
 import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
 import { nonboFindings } from './nonbo';
+import { protectsOthersText } from './protectionReading';
 import { STAPLE_INCLUSION_BAR } from './cardPicking';
 import type { GenerationState } from './deckGeneration/state';
 import { achievableComboPieces } from './deckGeneration/comboLines';
@@ -61,7 +62,10 @@ export function shareKeeper(
         inclusionOf(card.name) >= STAPLE_INCLUSION_BAR ||
         comboPieces.has(card.name) ||
         state.comboCardNames.has(card.name) ||
-        isProtectionPiece(card) ||
+        readsAsProtection(card) ||
+        protectsOthersText(
+          card.oracle_text ?? card.card_faces?.map((f) => f.oracle_text).join(' ') ?? ''
+        ) ||
         getCardTags(card.name).includes('protection') ||
         isFreeInteraction(card) ||
         // E112: a one-sided wipe is not traded for a symmetric one.

@@ -457,6 +457,41 @@ describe('comboIntegrityAuditPhase never evicts a piece of the combo it complete
     expect(after?.[0]).toEqual(expect.objectContaining({ isComplete: true, missingCards: [] }));
   });
 
+  it('completing a near-miss never cuts a staple rock, however unplayed it reads (E537)', () => {
+    const state = makeState();
+    const prologue = scryfallCard('Prologue to Phyresis', { type_line: 'Sorcery' });
+    const wanderer = scryfallCard('The Wanderer', { type_line: 'Legendary Planeswalker' });
+    const signet = scryfallCard('Arcane Signet', { type_line: 'Artifact' });
+    const algorithm = scryfallCard('Expansion Algorithm', { type_line: 'Instant' });
+    state.categories.synergy = [prologue, wanderer];
+    state.categories.ramp = [signet];
+    state.usedNames = new Set([prologue.name, wanderer.name, signet.name]);
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [
+          edhrecCard('Prologue to Phyresis', 12.9),
+          edhrecCard('The Wanderer', 15.3),
+          edhrecCard('Arcane Signet', 1),
+          edhrecCard('Expansion Algorithm', 12.5),
+        ],
+      },
+    } as unknown as GenerationState['edhrecData'];
+    const { repairs } = comboIntegrityAuditPhase(state, {
+      detectedCombos: [
+        combo(
+          '1131-7873',
+          ['Prologue to Phyresis', 'Expansion Algorithm'],
+          ['Expansion Algorithm']
+        ),
+      ],
+      scryfallCardMap: new Map([[algorithm.name, algorithm]]),
+      budgetTracker: null,
+      bracketGuard: undefined,
+    });
+    expect(repairs).toEqual([expect.objectContaining({ cut: 'The Wanderer' })]);
+    expect(state.usedNames.has('Arcane Signet')).toBe(true);
+  });
+
   it('a multi-combo enabler keeps the partners it completes (Hullbreaker Horror + Mox Amber)', () => {
     const state = makeState();
     const moxAmber = scryfallCard('Mox Amber', { type_line: 'Legendary Artifact' });

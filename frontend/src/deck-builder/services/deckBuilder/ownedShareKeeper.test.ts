@@ -58,13 +58,26 @@ describe('shareKeeper', () => {
     expect(keeps(SIGNET)).toBe(false);
   });
 
-  it('keeps a protection piece by its oracle text', () => {
+  it('keeps the protection pieces the wide reading finds (E555)', () => {
     const ward = card(
       'Flickering Ward',
       'Enchantment — Aura',
-      'Enchanted creature has protection from the chosen color.'
+      `Enchant creature
+As Flickering Ward enters, choose a color.
+Enchanted creature has protection from the chosen color. This effect doesn't remove Flickering Ward.
+{W}: Change Flickering Ward's chosen color.`
+    );
+    const confinement = card(
+      'Solitary Confinement',
+      'Enchantment',
+      `At the beginning of your upkeep, sacrifice Solitary Confinement unless you discard a card.
+Skip your draw step.
+Skip all combat phases of your turns.
+You have shroud.
+Damage that would be dealt to you is prevented.`
     );
     expect(keeper(50)(ward)).toBe(true);
+    expect(keeper(50)(confinement)).toBe(true);
   });
 });
 
