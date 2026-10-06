@@ -1,3 +1,4 @@
+import { STAPLE_INCLUSION_BAR } from '../roleCapAllowance';
 import { logger } from '@/lib/util/logger';
 import type {
   CoherenceRepair,
@@ -289,7 +290,11 @@ export async function applyCoherenceRepair(
       if (isGC && ctx.gameChangerCount.value >= ctx.maxGameChangers) continue;
       if (ctx.bracketGuard?.exceedsCeiling(c.name)) continue;
       if (!isOwnedBudgetExempt(c.name, collectionNames, ctx.ignoreOwnedBudget)) {
-        const cap = ctx.budgetTracker?.getEffectiveCap(ctx.maxCardPrice) ?? ctx.maxCardPrice;
+        // E566: a staple is never priced out by the pacing (Krenko ignoreowned lost
+        // Chaos Warp, 52%, $0.33, from the repair slot to a dead Empty the Warrens).
+        const staple = c.inclusion >= STAPLE_INCLUSION_BAR;
+        const cap =
+          ctx.budgetTracker?.getEffectiveCap(ctx.maxCardPrice, staple) ?? ctx.maxCardPrice;
         if (exceedsMaxPrice(card, cap, ctx.currency)) continue;
       }
       if (!isOwnedRarityExempt(c.name, collectionNames, ctx.ignoreOwnedRarity)) {
