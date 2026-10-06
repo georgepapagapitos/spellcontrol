@@ -46,6 +46,28 @@ function priceOf(card: ScryfallCard, currency: 'USD' | 'EUR'): number | null {
  * own pick is the one card that may break the share (E509 ruling). Null when
  * there is no collection.
  */
+/**
+ * Whether the deck's strategy makes every card owned, lands included: owned-only,
+ * available, or a 100% share (Coach's rule, deck-settings-fit.ts, which can't be
+ * imported from here: it is a React hook module). No card the user doesn't own
+ * may come in then, whatever relaxation the generator shipped.
+ */
+export function requiresOwnedCards(ctx: ObjectiveContext): boolean {
+  const cz = ctx.customization;
+  if (!ctx.ownedNames || cz.collectionMode === false) return false;
+  const strategy = cz.collectionStrategy ?? 'full';
+  return (
+    strategy === 'full' ||
+    strategy === 'available' ||
+    (strategy === 'partial' && (cz.collectionOwnedPercent ?? 0) >= 100)
+  );
+}
+
+/** A card the collection holds (basic lands are always available). */
+export function isOwnedCard(card: ScryfallCard, ctx: ObjectiveContext): boolean {
+  return isBasicLand(card) || owns(ctx.ownedNames, card);
+}
+
 export function ownedShare(deck: ObjectiveDeck, ctx: ObjectiveContext): number | null {
   if (!ctx.ownedNames) return null;
   const spells = deck.cards.filter((c) => !isLandCard(c));

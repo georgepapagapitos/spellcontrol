@@ -10,8 +10,8 @@ import { loadTaggerData } from '@/deck-builder/services/tagger/client';
 import { checkConstraints } from './index';
 import { optimizeDeck } from './optimizer';
 import { rolesMovedBetween } from './swapReasons';
-import { countRoles, factsRoleOf } from './trustRegion';
-import { BASELINE, cards, merenCtx, swap } from './__fixtures__/objectiveFixture';
+import { countRoles, factsRoleOf, protectedCards, trustVerdict } from './trustRegion';
+import { BASELINE, TREATMENT, card, cards, merenCtx, swap } from './__fixtures__/objectiveFixture';
 
 const SMALL = { maxSwaps: 0, maxEvaluations: 60, shortlist: 12, escapes: 0 };
 const ONLY_OWNED = { deckFormat: 99, currency: 'USD', collectionMode: true } as const;
@@ -183,5 +183,41 @@ describe('a forced repair never seats a card the bracket estimator floors higher
     const ctx = bootsRow(['Winter Orb'], { gameChangerNames: new Set() });
     const r = optimizeDeck(BASELINE, cards('Winter Orb'), ctx, SMALL);
     expect(r.swaps.flatMap((s) => s.in)).not.toContain('Winter Orb');
+  });
+});
+
+describe('round 3 gate: a staple leaves for a card played as often, and a 100% owned deck takes nothing unowned', () => {
+  it("compares a staple's page play rate, not its price-adjusted read (Enchantress's Presence went for Sterling Grove)", () => {
+    const ctx = merenCtx();
+    // Assassin's Trophy 52.1% of Meren decks; Reanimate 51.9%, but its adjusted read is higher.
+    expect(ctx.qualityOf(card('Reanimate')).q).toBeGreaterThan(
+      ctx.qualityOf(card("Assassin's Trophy")).q
+    );
+    const v = trustVerdict(
+      countRoles(BASELINE, factsRoleOf(ctx)),
+      cards("Assassin's Trophy"),
+      cards('Reanimate'),
+      ctx,
+      protectedCards(BASELINE, ctx),
+      0.3,
+      { roleOf: factsRoleOf(ctx) }
+    );
+    expect(v).toMatchObject({ bound: 'staple' });
+  });
+
+  it('never brings an unowned card in at a 100% owned share (Serra Sanctum, bought for $537)', () => {
+    const owned = new Set(BASELINE.cards.map((c) => c.name));
+    const ctx = merenCtx({
+      customization: { ...ONLY_OWNED, collectionStrategy: 'partial', collectionOwnedPercent: 100 },
+      ownedNames: owned,
+    });
+    const pool = [
+      ...TREATMENT.cards,
+      ...BASELINE.cards,
+      ...cards('Counterspell', 'Swords to Plowshares', 'Grave Pact', 'Pitiless Plunderer'),
+    ];
+    const r = optimizeDeck(BASELINE, pool, ctx, { ...SMALL, maxSwaps: 3, maxEvaluations: 120 });
+    const unowned = r.swaps.flatMap((s) => s.in).filter((n) => !owned.has(n));
+    expect(unowned).toEqual([]);
   });
 });

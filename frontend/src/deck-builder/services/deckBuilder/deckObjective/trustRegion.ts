@@ -264,7 +264,12 @@ export function trustVerdict(
     // Guardianship is a protection piece first (its class above), and went out
     // for a proliferate creature that way in the second gate.
     const needsGc = isGc(c);
-    const match = free.findIndex((x) => q(x) >= q(c) && (!needsGc || isGc(x)));
+    // A staple is matched on its page play rate itself: the price-adjusted
+    // quality lets a cheap, less-played card replace a staple (Enchantress's
+    // Presence, 87.6%, went for Sterling Grove, 78.7%, whose adjusted read was
+    // higher), and an off-page card has no rate to match with.
+    const played = (x: ScryfallCard) => (p.cls === 'staple' ? inclusionPct(x, ctx) : q(x));
+    const match = free.findIndex((x) => played(x) >= played(c) && (!needsGc || isGc(x)));
     if (match < 0) {
       return {
         blocked: needsGc

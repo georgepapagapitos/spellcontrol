@@ -55,7 +55,13 @@ import { frontFaceName } from '@/lib/cards/card-text';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 import { normalizeCardName } from '../cardIdentity';
 import { classCounts } from './classFloors';
-import { bracketFloorOf, cardIneligibility, checkConstraints } from './constraints';
+import {
+  bracketFloorOf,
+  cardIneligibility,
+  checkConstraints,
+  isOwnedCard,
+  requiresOwnedCards,
+} from './constraints';
 import { isBasicLand, isLandCard } from './context';
 import { reasonProblem } from './reasonCheck';
 import { protectionValue } from './terms/interaction';
@@ -265,6 +271,7 @@ export function optimizeDeck(
   const opts = { ...DEFAULTS, ...options };
   // Ownership rules the generator shipped relaxed and disclosed are left as
   // they are: only a violation outside this set is repaired.
+  const ownedOnly = requiresOwnedCards(baseCtx);
   const leave = opts.leave ?? new Set<string>();
   const repairable = (vs: readonly ConstraintViolation[]) =>
     vs.reduce((n, v) => n + (leave.has(v.check) ? 0 : v.magnitude), 0);
@@ -385,7 +392,10 @@ export function optimizeDeck(
       lossOf.set(i, loss);
     }
     const addable = pool.filter(
-      (c) => (isBasicLand(c) || !inDeck.has(key(c.name))) && (tabuIn.get(key(c.name)) ?? -1) < step
+      (c) =>
+        (isBasicLand(c) || !inDeck.has(key(c.name))) &&
+        (tabuIn.get(key(c.name)) ?? -1) < step &&
+        (!ownedOnly || isOwnedCard(c, ctx))
     );
     const gainOf = new Map<ScryfallCard, number>();
     for (const c of addable) {
