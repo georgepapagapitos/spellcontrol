@@ -1,22 +1,35 @@
 /**
  * Coach ranker — pure, deterministic tier assignment for the CoachFeed.
  *
- * Lane → sub-score mapping:
- *   fill-gaps  → roles       (structural gaps in functional-role coverage)
- *   upgrade    → cardFit     (weak-fit slots that better cards can fill)
- *   collection → roles       (same gap coverage, owned cards)
- *   bracket-fit → cardFit    (bracket-alignment coaching)
- *   budget     → always tier 3 (polish, not quality)
- *   combos     → always tier 3 (polish, opportunistic)
- *   similar    → always tier 3
+ * A row is promoted by the sub-score its change actually moves, read from
+ * what the change IS rather than which lane carries it:
+ *   fill-gaps (a missing staple)      → roles when it has a role, and cardFit
+ *                                       (unfilled staples are cardFit's gap term)
+ *   upgrade "Fills <role> gap"        → roles, cardFit
+ *   upgrade EDHREC pick (theme,
+ *     synergy, curve play)            → cardFit
+ *   upgrade synergy pick on an axis
+ *     the deck is invested in         → strategy (the producer/payoff balance)
+ *   upgrade synergy pick on a budding
+ *     axis, or a land/fixing add      → nothing: tier 3
+ *   collection (owned substitute)     → roles
+ *   bracket-fit                       → cardFit
+ *   budget, similar, lands, cuts      → always tier 3
+ *   combos                            → tier 2 when the missing piece is owned
+ *
+ * T171 lane L measured the old mapping (every upgrade row → cardFit): an
+ * off-plan "rewards cycling" pick for Atraxa rode a low cardFit into tier 1
+ * over the staples the deck was missing, 93 times across the panel.
  *
  * Tier assignment:
- *   Tier 1: fill-gaps or upgrade when their target sub-score < 60 (severe deficit).
- *   Tier 2: changes targeting a sub-score that is both the weakest AND < 75.
- *   Tier 3: everything else (budget, combos, similar, bracket-fit when in-band,
- *            upgrade/collection when sub-score >= 75, cuts).
+ *   Tier 1: a roles/cardFit target below 60 (severe deficit), for fill-gaps
+ *           and upgrade rows.
+ *   Tier 2: a target that is the weakest non-partial sub-score and below 75.
+ *   Tier 3: everything else.
  */
 import type { Change } from './deck-change';
+import type { ScryfallCard } from '@/deck-builder/types';
+import { premiumReason } from '@/deck-builder/services/deckBuilder/premiumCards';
 import type { PlanScore, SubScoreKey } from '@/deck-builder/services/deckBuilder/planScore';
 
 export interface CoachContext {
@@ -27,6 +40,13 @@ export interface CoachContext {
   deckTarget: number;
   bracketOverridePresent: boolean;
   ownedNames: Set<string>;
+  /**
+   * False for an add to a full deck whose replace prompt has no suggested cut
+   * (replace-cuts.ts, the prompt's own logic). Such a row ranks below every
+   * row that has a cut or needs none. It answers true for an add that newly
+   * completes a combo: that payoff is explicit and the manual pick is enough.
+   */
+  hasReplaceCut?: (change: Change) => boolean;
 }
 
 export interface RankedMove {
@@ -43,32 +63,68 @@ function ownershipRank(c: Change): number {
   return 2;
 }
 
-/** The sub-score a lane targets for tier promotion. */
-const LANE_SUBSCORE: Partial<Record<NonNullable<Change['lane']>, SubScoreKey>> = {
-  'fill-gaps': 'roles',
-  upgrade: 'cardFit',
-  collection: 'roles',
-  'bracket-fit': 'cardFit',
-};
+/** Optimizer addition categories that add a land or fix colors: the manabase's business. */
+const MANABASE_GROUPS = new Set(['mana-fix', 'flex-land', 'color-fix', 'color-rebalance']);
+
+/** The sub-scores this change moves, strongest claim first. Empty = never promoted. */
+export function changeTargets(c: Change): SubScoreKey[] {
+  switch (c.lane) {
+    case 'fill-gaps':
+      return c.role ? ['roles', 'cardFit'] : ['cardFit'];
+    case 'collection':
+      return ['roles'];
+    case 'bracket-fit':
+      return ['cardFit'];
+    case 'upgrade': {
+      // A synergy pick carries its axis; the optimizer's picks carry a group.
+      if (c.axis) return c.budding ? [] : ['strategy'];
+      const group = c.group ?? '';
+      if (MANABASE_GROUPS.has(group)) return [];
+      if (group.startsWith('fills:')) return ['roles', 'cardFit'];
+      return ['cardFit'];
+    }
+    default:
+      return [];
+  }
+}
+
+/** A staple rock or a staple of this commander's page: worth an in-role upgrade. */
+function keepsInMetRole(c: Change): boolean {
+  const card = c.card ?? ({ name: c.name, type_line: c.typeLine ?? '' } as ScryfallCard);
+  const why = premiumReason(card, { inclusion: c.inclusion });
+  return why === 'staple-rock' || why === 'commander-staple';
+}
 
 /** Tier-3-only lanes — budget saves money but is never a quality concern.
  *  Combos are NOT listed here anymore: an owned-piece combo completion is tier 2
  *  (tonight's "free win"); unowned combo pieces stay tier 3. */
-const ALWAYS_TIER_3 = new Set<Change['lane']>(['budget', 'similar']);
+const ALWAYS_TIER_3 = new Set<Change['lane']>(['budget', 'similar', 'lands']);
+
+/**
+ * Within a tier, what the row is for: 0 = a move that makes the deck better,
+ * 1 = a synergy pick that would start a new engine, or a budget swap (it
+ * saves money and its play rate is the cheaper card's, so it can't outrank a
+ * staple on that number).
+ */
+function planBand(c: Change): number {
+  return c.budding || c.lane === 'budget' ? 1 : 0;
+}
 
 /**
  * Rank a flat list of Changes into tier-ordered RankedMoves.
  *
- * Tier logic:
- *   1. Tier 1: fill-gaps/upgrade AND their target sub-score < 60 (severe gap).
- *   2. Tier 2: lane targets the weakest non-partial sub-score AND that score < 75.
- *   3. Tier 3: everything else.
+ * An add the replace prompt has no cut for (`ctx.hasReplaceCut`) goes below
+ * every other row, tiers included; the prompt exempts an add that newly
+ * completes a combo.
  *
- * Within-tier order: owned < in-other-deck < unowned/undefined, then
- * deltaScore descending (undefined = 0), then inclusion descending, then
- * name ascending (deterministic tie-break).
+ * Within-tier order: owned < in-other-deck < unowned/undefined, then on-plan
+ * before budding, then EDHREC inclusion descending (the one signal every add
+ * lane shares), then deltaScore descending (undefined = 0; only land swaps
+ * carry it, on their own scale, so it only breaks ties), then name ascending.
  *
- * Cuts are always tier 3 and marked with isCut:true.
+ * Cuts are always tier 3 and marked with isCut:true. They read weakest first:
+ * spells before land tuning, then inclusion ASCENDING (the old shared key put
+ * the most-played flagged card at the top of the Cuts chip).
  */
 export function rankCoachMoves(changes: Change[], ctx: CoachContext): RankedMove[] {
   const { planScore } = ctx;
@@ -87,6 +143,11 @@ export function rankCoachMoves(changes: Change[], ctx: CoachContext): RankedMove
     }
   }
 
+  const scoreOf = (key: SubScoreKey): number | undefined => {
+    const sub = planScore?.subscores[key];
+    return sub?.partial ? undefined : sub?.value;
+  };
+
   function assignTier(c: Change): 1 | 2 | 3 {
     // Cuts are always tier 3.
     if (c.type === 'cut') return 3;
@@ -100,40 +161,69 @@ export function rankCoachMoves(changes: Change[], ctx: CoachContext): RankedMove
       return c.ownership === 'owned' ? 2 : 3;
     }
 
-    const targetKey = LANE_SUBSCORE[c.lane];
-    if (!targetKey) return 3;
-
-    const subScore = planScore?.subscores[targetKey];
-    const score = subScore?.partial ? undefined : subScore?.value;
+    // A staple in a role the deck already fills is a quality swap, not a gap.
+    const targets = changeTargets(c).filter((k) => k !== 'roles' || !roleMet(c.role));
+    if (targets.length === 0) return 3;
 
     // Tier 1: severe structural gap (< 60) for fill-gaps or upgrade.
-    if ((c.lane === 'fill-gaps' || c.lane === 'upgrade') && score !== undefined && score < 60) {
+    if (
+      (c.lane === 'fill-gaps' || c.lane === 'upgrade') &&
+      targets.some((k) => k !== 'strategy' && (scoreOf(k) ?? Infinity) < 60)
+    ) {
       return 1;
     }
 
-    // Tier 2: this lane's target sub-score is the weakest AND < 75.
-    if (weakestKey !== null && targetKey === weakestKey && weakestValue < 75) {
+    // Tier 2: a target sub-score is the weakest AND < 75.
+    if (weakestKey !== null && targets.includes(weakestKey) && weakestValue < 75) {
       return 2;
     }
 
     return 3;
   }
 
-  function withinTierKey(r: RankedMove): [number, number, number, string] {
+  function withinTierKey(r: RankedMove): [number, number, number, number, string] {
     const oRank = ownershipRank(r.change);
-    const dScore = r.change.deltaScore ?? 0;
     const incl = r.change.inclusion ?? -1;
-    return [oRank, -dScore, -incl, r.change.name];
+    // Cuts read weakest first: spells before land tuning (a basic-for-basic
+    // rebalance is not a card the deck is worse for running), then the least
+    // played here, a card missing from the commander's page first.
+    if (r.change.type === 'cut') {
+      return [oRank, 0, /\bland\b/i.test(r.change.typeLine ?? '') ? 1 : 0, incl, r.change.name];
+    }
+    const dScore = r.change.deltaScore ?? 0;
+    return [oRank, planBand(r.change), -incl, -dScore, r.change.name];
   }
 
-  const ranked: RankedMove[] = changes.map((c) => ({
+  // A role at or over its target. The persisted analysis doesn't recompute
+  // between applies, so the live counts decide.
+  const roleMet = (role: string | undefined): boolean =>
+    !!role &&
+    ctx.roleTargets[role] !== undefined &&
+    (ctx.roleCounts[role] ?? 0) >= ctx.roleTargets[role];
+  // "Fills {role} gap" is false once the role is met: the row goes (it comes
+  // back on the next analysis if the role falls short again). And a missing
+  // staple in a role at or over its target is not a gap to fill: Blasphemous
+  // Act came in as an "EDHREC staple" at 2 of 1 wipes (T171 round 3). A staple
+  // this commander's decks can't do without (Sol Ring, Arcane Signet, a 40%
+  // page staple) stays, as an upgrade inside the role (intelligent-cuts.ts).
+  const live = changes.filter((c) => {
+    if (c.lane === 'upgrade' && c.group?.startsWith('fills:')) return !roleMet(c.group.slice(6));
+    if (c.lane === 'fill-gaps' && c.type === 'add' && roleMet(c.role)) return keepsInMetRole(c);
+    return true;
+  });
+
+  const ranked: RankedMove[] = live.map((c) => ({
     change: c,
     tier: assignTier(c),
     isCut: c.type === 'cut' ? true : undefined,
   }));
 
-  // Sort: tier ascending, then within-tier by [ownershipRank, -deltaScore, -inclusion, name].
+  // Sort: tier ascending, then within-tier by the key above.
+  const stranded = (c: Change): number => (ctx.hasReplaceCut && !ctx.hasReplaceCut(c) ? 1 : 0);
   ranked.sort((a, b) => {
+    const sa = stranded(a.change);
+    const sb = stranded(b.change);
+    if (sa !== sb) return sa - sb;
     if (a.tier !== b.tier) return a.tier - b.tier;
     const ak = withinTierKey(a);
     const bk = withinTierKey(b);

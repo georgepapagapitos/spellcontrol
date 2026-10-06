@@ -105,6 +105,9 @@ function sideOf(who: EffectSig['who']): Side {
 
 // ── Roles ───────────────────────────────────────────────────────────────────
 
+const MASS_ANIMATE =
+  /\b(?:each|all)\b[^.]*\b(?:enchantments?|artifacts?)\b[^.]*\b(?:is|are) (?:an? )?(?:artifact )?creatures?\b[^.]*\bpower and (?:base )?toughness\b/;
+
 function roleCandidates(
   a: ParsedAbility,
   index: number,
@@ -457,6 +460,12 @@ function roleCandidates(
       push({ role: 'finisher', sub: 'mass-steal', sentence });
     if (out.length > before && firstRoleEffect < 0) firstRoleEffect = j;
   });
+
+  // Mass animation: a board of noncreature permanents becomes an army, the way
+  // an overrun turns a board into lethal (Opalescence, Starfield of Nyx, March
+  // of the Machines). A static line with no effect tuple, so read off the text.
+  if (MASS_ANIMATE.test(a.raw.toLowerCase()))
+    push({ role: 'finisher', sub: 'animate', sentence: a.effectSentence[0] ?? 0 });
 
   // The tagger client's protection classifier covers free redirects and
   // "can't be countered" grants the tuples don't express. A free counterspell

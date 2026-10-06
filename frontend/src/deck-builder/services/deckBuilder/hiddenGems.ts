@@ -28,6 +28,7 @@ import { fitsColorIdentity, notCommanderLegal } from './deckFilters';
 import { tallyAxisInvestment, packageFitAxes } from './packageBoost';
 import { synergyStrength, bySynergyStrength } from './synergyLift';
 import { AXES } from '@/deck-builder/services/synergy/axes';
+import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
 
 /** A card at/above this EDHREC inclusion % is a staple, not a hidden gem. */
 export const GEM_INCLUSION_CEILING = 10;
@@ -38,6 +39,8 @@ const LIFT_MIN_SEEDS = 2;
 const SIMILAR_MAX_RANK = 4;
 /** Axis fit below this boost is too weak to cite as evidence on its own. */
 const AXIS_MIN_BOOST = 8;
+/** Classified deck cards on an axis before it reads as an engine a gem can complete. */
+const ENGINE_MIN_CARDS = 3;
 /** Per-source candidate caps before the single batched card fetch. */
 const LIFT_CAP = 20;
 const SIMILAR_CAP = 20;
@@ -218,13 +221,22 @@ export async function computeHiddenGems(opts: ComputeHiddenGemsOptions): Promise
   const resolvedFor = (name: string): ScryfallCard | undefined =>
     cardMap.get(name) ?? cardByLower.get(name.toLowerCase());
 
-  // Axis fit runs over every resolved candidate (tail AND lift/similar).
+  // Axis fit runs over every resolved candidate (tail AND lift/similar). The
+  // axis a gem cites must be live in the deck's own cards as the synergy
+  // classifier reads them (oracle text): packageBoost also counts every mana
+  // rock as an artifact producer by type line, so its Artifacts "engine"
+  // vouched for Mox Opal in any deck with a few rocks (T171).
   const investment = tallyAxisInvestment(deckCards, commanders);
+  const live = new Set<string>(
+    analyzeDeckSynergy([...commanders, ...deckCards])
+      .axes.filter((a) => a.total >= ENGINE_MIN_CARDS)
+      .map((a) => a.axis)
+  );
   for (const name of namesToResolve) {
     const card = resolvedFor(name);
     if (!card) continue;
     const fits = packageFitAxes(card, investment)
-      .filter((f) => f.boost >= AXIS_MIN_BOOST)
+      .filter((f) => f.boost >= AXIS_MIN_BOOST && live.has(f.axis))
       .sort((a, b) => b.boost - a.boost);
     if (fits.length === 0) continue;
     const label = AXIS_LABELS.get(fits[0].axis);
@@ -248,6 +260,12 @@ export async function computeHiddenGems(opts: ComputeHiddenGemsOptions): Promise
     if (notCommanderLegal(card)) continue;
 
     const edhrecEntry = edhrecByLower.get(card.name.toLowerCase());
+    // A gem has to fit THIS deck: it completes one of the deck's engines, or
+    // this commander's decks play it more than others in its colors. Lift and
+    // similar alone vouch for general power, and they filled the lane with
+    // fast mana any deck would take (Mox Opal, Chrome Mox, Mana Vault; T171).
+    const fitsEngine = candidate.signals.some((s) => s.signal.kind === 'axis');
+    if (!fitsEngine && !(edhrecEntry && synergyStrength(edhrecEntry) > 0)) continue;
     const signals = [...candidate.signals].sort((a, b) => b.strength - a.strength);
     rows.push({
       name: card.name,

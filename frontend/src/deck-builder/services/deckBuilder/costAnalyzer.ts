@@ -50,6 +50,13 @@ export interface CostPlan {
 export interface BuildCostPlanOptions {
   mustIncludeNames?: Set<string>;
   excludeFromSuggestions?: Set<string>;
+  /**
+   * An in-deck card's play rate on the commander's page. The recommendation
+   * pool holds only cards the deck lacks, so without it every current card
+   * read as 0% and any swap in its curve slot classed as a drop-in (Great
+   * Fierce Bee "plays nearly the same" as Undead Warchief, T171 re-gate).
+   */
+  inclusionOf?: (name: string) => number | undefined;
 }
 
 /**
@@ -319,7 +326,7 @@ export function buildCostPlan(
     const suggestion = pickCheapestAlternative(pool, price, exclude, MIN_SUGGESTION_INCLUSION);
     if (!suggestion) continue;
 
-    const currentInclusion = inclusionByName.get(card.name) ?? 0;
+    const currentInclusion = opts.inclusionOf?.(card.name) ?? inclusionByName.get(card.name) ?? 0;
     const confidence = classifyConfidence(currentInclusion, card.cmc, suggestion);
 
     const row: CostSwapRow = {

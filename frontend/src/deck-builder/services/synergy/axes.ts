@@ -7,6 +7,7 @@
  * Adding an axis is declarative: append to AXES. The framework is unchanged.
  */
 import type { ParsedCard } from './text';
+import { CAST_TRIGGER, REASON } from './reasons';
 import {
   splitClauses,
   tokenCreation,
@@ -79,7 +80,7 @@ const tokens: SynergyAxis = {
     if (hasCreatureEtbTrigger(card.oracle)) return 'triggers when your creatures enter';
     if (scalesWithCreatures(card.oracle)) return 'scales with creatures you control';
     if (hasCreatureAnthem(card.oracle)) return 'anthem for your creatures';
-    if (has(card, 'convoke')) return 'has convoke';
+    if (has(card, 'convoke')) return REASON.convoke;
     if (/\bpopulate\b/.test(card.oracle)) return 'populate';
     return null;
   },
@@ -382,8 +383,8 @@ const spellslinger: SynergyAxis = {
   payoff(card) {
     if (has(card, 'magecraft') || has(card, 'prowess')) return 'magecraft/prowess';
     if (has(card, 'storm') || /\bstorm\b/.test(card.oracle)) return 'storm';
-    if (/whenever you cast (?:or copy )?(?:an? )?(?:instant|sorcery)/.test(card.oracle))
-      return 'triggers on instants/sorceries';
+    const cast = CAST_TRIGGER.exec(card.oracle);
+    if (cast) return cast[1] === 'spell' ? REASON.everySpell : 'triggers on instants/sorceries';
     if (/whenever you cast[^.]*instant or sorcery/.test(card.oracle))
       return 'triggers on instants/sorceries';
     if (/for each instant and sorcery card in your graveyard/.test(card.oracle))
@@ -420,7 +421,7 @@ const superfriends: SynergyAxis = {
     // counter-doublers (Doubling Season, Vorinclex) are deliberately *not* here —
     // their templating is "counters", not loyalty-specific, so they read as the
     // `counters` axis. Only loyalty-named or planeswalker-named text qualifies.
-    if (card.typeLine.includes('planeswalker')) return 'a loyalty engine';
+    if (card.typeLine.includes('planeswalker')) return REASON.loyaltyEngine;
     if (has(card, 'proliferate') || /\bproliferate\b/.test(card.oracle)) return 'proliferate';
     if (/(?:enters with|put|add)[^.]*loyalty counter/.test(card.oracle))
       return 'adds loyalty counters';
@@ -619,7 +620,9 @@ const tribal: SynergyAxis = {
 // ── Blink / flicker ──────────────────────────────────────────────────────────
 // A flicker exiles a permanent and returns it to the battlefield — that round
 // trip IS the mechanic. The producer is the flicker engine itself.
-const FLICKER_RETURN = /return (?:it|them|that card|those cards|that permanent) to the battlefield/;
+// Exiling itself to return transformed (Fable of the Mirror-Breaker) isn't a flicker.
+const FLICKER_RETURN =
+  /return (?:it|them|that card|those cards|that permanent) to the battlefield(?![^.]*\btransformed\b)/;
 
 const blink: SynergyAxis = {
   key: 'blink',
@@ -788,15 +791,15 @@ const discard: SynergyAxis = {
   label: 'Discard / madness',
   producer(card) {
     const d = discardSignals(card.oracle);
-    if (d.forced) return 'forces discards';
-    if (d.causes) return 'loots or rummages';
+    if (d.forced) return REASON.forcesDiscards;
+    if (d.causes) return REASON.loots;
     return null;
   },
   payoff(card) {
-    if (has(card, 'madness') || /\bmadness\b/.test(card.oracle)) return 'madness';
+    if (has(card, 'madness') || /\bmadness\b/.test(card.oracle)) return REASON.madness;
     const d = discardSignals(card.oracle);
-    if (d.rewardsOpponents) return 'punishes opponents discarding';
-    if (d.rewards) return 'rewards your discards';
+    if (d.rewardsOpponents) return REASON.punishesOpponentDiscard;
+    if (d.rewards) return REASON.rewardsYourDiscards;
     return null;
   },
 };

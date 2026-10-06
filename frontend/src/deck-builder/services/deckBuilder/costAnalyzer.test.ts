@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { RecommendedCard } from './deckAnalyzer';
+import { COACH_CARDS } from './__fixtures__/coach-cards.fixtures';
 import {
   autoCheckToTarget,
   buildCostPlan,
@@ -396,5 +397,20 @@ describe('buildCostPlan suggestion quality', () => {
     const recs = [rec({ name: 'Mystery Land', primaryType: 'Land', inclusion: 40, price: '1.00' })];
     const plan = buildCostPlan([dual], 'Cmdr', undefined, recs);
     expect(plan.landRows.map((r) => r.suggestionName)).toEqual(['Mystery Land']);
+  });
+
+  // T171 re-gate: the pool holds only cards the deck lacks, so every in-deck
+  // card read as 0% and any swap in its curve slot classed as a drop-in.
+  it("reads the current card's play rate off the page, not the missing-card pool", () => {
+    const warchief = { ...COACH_CARDS['Undead Warchief'], deckRole: 'creature' } as ScryfallCard;
+    const recs = [
+      rec({ name: 'Cemetery Reaper', role: 'creature', inclusion: 25, cmc: 3, price: '0.50' }),
+    ];
+    const onPage = (name: string) => (name === 'Undead Warchief' ? 45 : undefined);
+    const [row] = buildCostPlan([warchief], 'Gisa, Glorious Resurrector', undefined, recs, {
+      inclusionOf: onPage,
+    }).spellRows;
+    expect(row.currentInclusion).toBe(45);
+    expect(row.confidence).toBe('sidegrade');
   });
 });

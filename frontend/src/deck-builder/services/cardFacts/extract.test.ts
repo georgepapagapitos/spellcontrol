@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { classifyCard } from '../synergy/classify';
 import { CORPUS } from '../synergy/classify.fixtures';
 import { extractCardFacts } from './extract';
+import { COACH_CARDS } from '../deckBuilder/__fixtures__/coach-cards.fixtures';
 import { GOLD } from './gold.fixtures';
 import { HOLDOUT } from './gold.holdout.fixtures';
 import {
@@ -294,5 +295,24 @@ describe('determinism', () => {
       pt: null,
       mv: null,
     });
+  });
+});
+
+// T171 round 3, v4 gate: Coach cut Starfield of Nyx, Sythis's enchantment-
+// animation finisher, as "Overlapping Enchantress": the facts read only its
+// recursion. Mass animation turns a board into an army, the way an overrun
+// turns one into lethal. Real cards (Scryfall 2026-09-29).
+describe('mass animation', () => {
+  const finisher = (name: string) =>
+    extractCardFacts({ ...COACH_CARDS[name], oracle_id: name } as never).roles.find(
+      (r) => r.role === 'finisher'
+    );
+  it('reads a board of enchantments turned creatures as a finisher', () => {
+    expect(finisher('Starfield of Nyx')).toMatchObject({ sub: 'animate' });
+    expect(finisher('Opalescence')).toMatchObject({ sub: 'animate' });
+  });
+  it('leaves a single animation and a plain anthem alone', () => {
+    expect(finisher('Resurgent Belief')).toBeUndefined();
+    expect(finisher('Harmonize')).toBeUndefined();
   });
 });

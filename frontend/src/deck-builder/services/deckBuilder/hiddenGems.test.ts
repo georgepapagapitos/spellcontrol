@@ -8,6 +8,7 @@ import {
   MAX_GEMS,
 } from './hiddenGems';
 import { clearPackageBoostCache } from './packageBoost';
+import { COACH_CARDS } from './__fixtures__/coach-cards.fixtures';
 
 function sCard(name: string, over: Partial<ScryfallCard> = {}): ScryfallCard {
   return {
@@ -92,12 +93,16 @@ const baseOpts = {
   gapNames: [] as string[],
 };
 
+/** On the commander's page, under the gem ceiling, played more here than in its colours. */
+const onPage = (name: string) => eCard(name, 4, { synergy: 0.03 });
+
 beforeEach(() => clearPackageBoostCache());
 
 describe('computeHiddenGems — lift signal', () => {
   it('surfaces a multi-seed lift candidate with the seed names', async () => {
     const rows = await computeHiddenGems({
       ...baseOpts,
+      edhrecData: edhrec([onPage('Hidden Pick')]),
       liftIndex: lift({ 'Hidden Pick': { clusterScore: 500, liftedBy: ['Seed A', 'Seed B'] } }),
       resolveCards: resolverFor([sCard('Hidden Pick')]),
     });
@@ -136,7 +141,10 @@ describe('computeHiddenGems — lift signal', () => {
   it('drops candidates at/above the inclusion ceiling and keeps low-inclusion ones', async () => {
     const rows = await computeHiddenGems({
       ...baseOpts,
-      edhrecData: edhrec([eCard('Popular Pick', GEM_INCLUSION_CEILING), eCard('Fringe Pick', 4)]),
+      edhrecData: edhrec([
+        eCard('Popular Pick', GEM_INCLUSION_CEILING, { synergy: 0.05 }),
+        onPage('Fringe Pick'),
+      ]),
       liftIndex: lift({
         'Popular Pick': { clusterScore: 500, liftedBy: ['A', 'B'] },
         'Fringe Pick': { clusterScore: 400, liftedBy: ['A', 'B'] },
@@ -192,6 +200,7 @@ describe('computeHiddenGems — similar signal', () => {
   it('surfaces a close substitute of an in-deck card', async () => {
     const rows = await computeHiddenGems({
       ...baseOpts,
+      edhrecData: edhrec([onPage('Mystic Remora')]),
       deckCards: [sCard('Rhystic Study', { type_line: 'Enchantment' })],
       similarRankFor: (name) => (name === 'Rhystic Study' ? new Map([['Mystic Remora', 1]]) : null),
       resolveCards: resolverFor([sCard('Mystic Remora', { type_line: 'Enchantment' })]),
@@ -293,6 +302,7 @@ describe('computeHiddenGems — ranking and caps', () => {
   it('floats multi-signal candidates above single-signal ones', async () => {
     const rows = await computeHiddenGems({
       ...baseOpts,
+      edhrecData: edhrec([onPage('Lift Only'), onPage('Both Signals')]),
       deckCards: [sCard('Rhystic Study', { type_line: 'Enchantment' })],
       liftIndex: lift({
         'Lift Only': { clusterScore: 9000, liftedBy: ['A', 'B'] },
@@ -312,6 +322,7 @@ describe('computeHiddenGems — ranking and caps', () => {
     const names = Array.from({ length: MAX_GEMS + 5 }, (_, i) => `Pick ${i}`);
     const rows = await computeHiddenGems({
       ...baseOpts,
+      edhrecData: edhrec(names.map((n) => onPage(n))),
       liftIndex: lift(
         Object.fromEntries(
           names.map((n, i) => [n, { clusterScore: 100 + i, liftedBy: ['A', 'B'] }])
@@ -348,5 +359,41 @@ describe('hiddenGemSignalCopy', () => {
         ],
       })
     ).toBe('Lifted by A · Plays like X');
+  });
+});
+
+// Guard (T171 lane M): a gem has to fit THIS deck. Lift and similar alone
+// vouch for general power: they filled the lane with fast mana any deck takes
+// (Mana Vault in 57 of 119 panel decks, Chrome Mox in 48, Mox Opal in 25),
+// and packageBoost's typeline rule counts every mana rock as an artifact
+// producer, so its Artifacts "engine" vouched for Mox Opal anywhere. Real
+// cards (Scryfall 2026-09-29).
+describe('computeHiddenGems — fit to this deck (T171)', () => {
+  const real = (name: string): ScryfallCard => ({ ...COACH_CARDS[name] });
+  const rockDeck = ['Sol Ring', 'Mind Stone', 'Basalt Monolith', 'Swiftfoot Boots'].map(real);
+  const fastMana = {
+    ...baseOpts,
+    colorIdentity: ['B', 'G'],
+    deckCards: rockDeck,
+    liftIndex: lift({
+      'Mox Opal': { clusterScore: 800, liftedBy: ['Sol Ring', 'Mind Stone'] },
+      'Chrome Mox': { clusterScore: 700, liftedBy: ['Sol Ring', 'Mind Stone'] },
+      'Mana Vault': { clusterScore: 600, liftedBy: ['Sol Ring', 'Basalt Monolith'] },
+    }),
+    similarRankFor: (name: string) =>
+      name === 'Basalt Monolith' ? new Map([['Mana Vault', 1]]) : null,
+    resolveCards: resolverFor(['Mox Opal', 'Chrome Mox', 'Mana Vault'].map(real)),
+  };
+
+  it('drops generic fast mana vouched for only by lift and similar', async () => {
+    expect(await computeHiddenGems(fastMana)).toEqual([]);
+  });
+
+  it("keeps it when this commander's decks play it more than others in its colours", async () => {
+    const rows = await computeHiddenGems({
+      ...fastMana,
+      edhrecData: edhrec([eCard('Mox Opal', 6, { synergy: 0.05 })]),
+    });
+    expect(rows.map((r) => r.name)).toEqual(['Mox Opal']);
   });
 });
