@@ -140,13 +140,15 @@ export async function wholeDeckSearchPhase(
     (input.cardAllowed?.(c) ?? true) &&
     !exceedsCmcCap(c, input.maxCmc);
   const candidates = [...input.scryfallCardMap.values()].filter(passesGates);
+  // A face-name collision the generator shipped is left alone too (a SOFT
+  // invariant it already reports); a move may only not add one.
   // An ownership rule the generator shipped relaxed, and disclosed (the
   // collectionRelaxedNames of an owned-only build, the gap under a partial
   // share), is left as it is: the search is never stricter than the generator.
   // Its improving swaps still run, and may not make the shortfall worse.
   const leave = new Set(
     checkConstraints(seed, ctx)
-      .filter((v) => OWNED_RULES.has(v.check))
+      .filter((v) => OWNED_RULES.has(v.check) || v.check === 'face-name-collision')
       .map((v) => v.check)
   );
   const repairOnly = await ownedRepairCandidates(

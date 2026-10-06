@@ -184,6 +184,7 @@ export interface TermResult {
 export type ConstraintCheck =
   | 'size'
   | 'singleton'
+  | 'face-name-collision'
   | 'identity'
   | 'dead-in-identity'
   | 'commander-in-99'

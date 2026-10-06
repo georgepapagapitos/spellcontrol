@@ -301,6 +301,32 @@ export function checkConstraints(
     }
   }
 
+  // One face name on two different cards (deckInvariants' face-name-collision,
+  // #2157): Grave Researcher // Reanimate beside the sorcery Reanimate. The
+  // invariant calls it SOFT, but a search that adds one has made the deck worse
+  // by the generator's own measure, so a move may not.
+  const faceOwners = new Map<string, Set<string>>();
+  for (const c of cards) {
+    if (isBasicLand(c)) continue;
+    const front = normalizeCardName(frontFaceName(c.name));
+    const faces = c.card_faces?.length ? c.card_faces.map((f) => f.name) : c.name.split(' // ');
+    for (const face of faces) {
+      const key = normalizeCardName(face);
+      faceOwners.set(key, (faceOwners.get(key) ?? new Set()).add(front));
+    }
+  }
+  for (const [face, fronts] of faceOwners) {
+    if (fronts.size < 2) continue;
+    add({
+      check: 'face-name-collision',
+      magnitude: 1,
+      cards: cards
+        .filter((c) => c.name.toLowerCase().includes(face.toLowerCase()))
+        .map((c) => c.name),
+      detail: `the name "${face}" is on ${fronts.size} different cards`,
+    });
+  }
+
   const offIdentity = cards.filter((c) => !fitsColorIdentity(c, identity));
   if (offIdentity.length) {
     add({

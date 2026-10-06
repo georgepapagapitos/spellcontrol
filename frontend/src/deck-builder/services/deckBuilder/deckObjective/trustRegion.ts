@@ -36,7 +36,8 @@
  *    to a less popular one only for a large, stated reason.
  */
 import type { ScryfallCard } from '@/deck-builder/types';
-import { getByCardName } from '@/lib/cards/card-text';
+import { frontFaceName, getByCardName } from '@/lib/cards/card-text';
+import { normalizeCardName } from '../cardIdentity';
 import { countsAsRole, TIER_WEIGHT, type FactRole } from '@/deck-builder/services/cardFacts';
 import { completeCombos } from './constraints';
 import { classFloorProblem } from './classFloors';
@@ -80,7 +81,14 @@ export interface TrustOptions {
 }
 
 export type ProtectedClass =
-  'combo piece' | 'combo tutor' | 'protection' | 'interaction land' | 'Game Changer' | 'staple';
+  | 'combo piece'
+  | 'near combo piece'
+  | 'combo tutor'
+  | 'protection'
+  | 'interaction land'
+  | 'Game Changer'
+  | 'staple'
+  | 'signature';
 
 /** What bound a move: a protected class, a role floor or cap, or a class floor. */
 export type TrustBound =
@@ -98,7 +106,39 @@ export function gameChangerCount(deck: ObjectiveDeck, ctx: ObjectiveContext): nu
 }
 
 /** Classes that never leave outside a repair. */
-const STRICT: ReadonlySet<ProtectedClass> = new Set(['combo piece', 'combo tutor']);
+const STRICT: ReadonlySet<ProtectedClass> = new Set([
+  'combo piece',
+  'near combo piece',
+  'combo tutor',
+]);
+
+/** A line of this many cards or more counts as a build-around once one card from complete. */
+const NEAR_LINE_CARDS = 3;
+/** A commander's signature cards: the page's most commander-specific few ... */
+export const SIGNATURE_COUNT = 5;
+/** ... among the cards a real share of its decks play (a 2% card with a big ratio is noise). */
+export const SIGNATURE_MIN_PCT = 20;
+
+const signatureCache = new WeakMap<ObjectiveContext['edhrec'], ReadonlySet<string>>();
+
+/** The page's top SIGNATURE_COUNT cards by EDHREC synergy among those played in SIGNATURE_MIN_PCT of decks. */
+function signatureNames(ctx: ObjectiveContext): ReadonlySet<string> {
+  let names = signatureCache.get(ctx.edhrec);
+  if (!names) {
+    names = new Set(
+      [...ctx.edhrec]
+        .filter(([, r]) => r.inclusion >= SIGNATURE_MIN_PCT && (r.synergy ?? 0) > 0)
+        .sort(([an, a], [bn, b]) => b.synergy! - a.synergy! || an.localeCompare(bn))
+        .slice(0, SIGNATURE_COUNT)
+        .map(([n]) => n)
+    );
+    signatureCache.set(ctx.edhrec, names);
+  }
+  return names;
+}
+
+const synergyOf = (card: ScryfallCard, ctx: ObjectiveContext) =>
+  getByCardName(ctx.edhrec, card.name)?.synergy ?? -Infinity;
 
 export interface Protection {
   cls: ProtectedClass;
@@ -123,6 +163,30 @@ export function protectedCards(
       const card = deck.cards.find((d) => d.name === n || d.name.split(' // ')[0] === n);
       if (card && !out.has(card.name)) {
         out.set(card.name, { cls: 'combo piece', why: `a piece of ${c.cards.join(' + ')}` });
+      }
+    }
+  }
+  // The pieces of a line of three or more that is one card from complete: the
+  // deck is built toward it, and a piece cut sets it two away (Satoru Umezawa
+  // in Yuriko's deck, a piece of four such lines, went for a two-card combo).
+  const held = new Set(
+    [...deck.commanders, ...deck.cards].flatMap((c) => [
+      normalizeCardName(c.name),
+      normalizeCardName(frontFaceName(c.name)),
+    ])
+  );
+  for (const c of ctx.combos ?? []) {
+    if (c.cards.length < NEAR_LINE_CARDS) continue;
+    const have = (n: string) =>
+      held.has(normalizeCardName(n)) || held.has(normalizeCardName(frontFaceName(n)));
+    if (c.cards.filter((n) => !have(n)).length !== 1) continue;
+    for (const n of c.cards.filter(have)) {
+      const card = deck.cards.find((d) => d.name === n || frontFaceName(d.name) === n);
+      if (card && !out.has(card.name)) {
+        out.set(card.name, {
+          cls: 'near combo piece',
+          why: `a piece of ${c.cards.join(' + ')}, one card from complete`,
+        });
       }
     }
   }
@@ -158,6 +222,17 @@ export function protectedCards(
     if (pct >= stapleBar) {
       out.set(card.name, { cls: 'staple', why: `a staple (${Math.round(pct)}% of decks)` });
     }
+  }
+  // The commander's signature cards leave only for one as commander-specific,
+  // or as played.
+  const signature = signatureNames(ctx);
+  for (const card of deck.cards) {
+    if (out.has(card.name) || isBasicLand(card)) continue;
+    const row = [...signature].find(
+      (n) => getByCardName(ctx.edhrec, card.name) === ctx.edhrec.get(n)
+    );
+    if (row)
+      out.set(card.name, { cls: 'signature', why: "one of this commander's signature cards" });
   }
   return out;
 }
@@ -269,7 +344,11 @@ export function trustVerdict(
     // Presence, 87.6%, went for Sterling Grove, 78.7%, whose adjusted read was
     // higher), and an off-page card has no rate to match with.
     const played = (x: ScryfallCard) => (p.cls === 'staple' ? inclusionPct(x, ctx) : q(x));
-    const match = free.findIndex((x) => played(x) >= played(c) && (!needsGc || isGc(x)));
+    const asGood = (x: ScryfallCard) =>
+      p.cls === 'signature'
+        ? synergyOf(x, ctx) >= synergyOf(c, ctx) || inclusionPct(x, ctx) >= inclusionPct(c, ctx)
+        : played(x) >= played(c);
+    const match = free.findIndex((x) => asGood(x) && (!needsGc || isGc(x)));
     if (match < 0) {
       return {
         blocked: needsGc
