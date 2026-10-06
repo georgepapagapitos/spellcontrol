@@ -149,66 +149,73 @@ describe('judgeMove', { timeout: 120_000 }, () => {
   });
 });
 
-describe('judgeMove never accepts a move that leaves a check worse (property)', () => {
-  // Fast terms only: the property is about the constraints, not the goldfish.
-  const ctx = merenCtx({ allowPartial: true, weights: { mana: 0, winline: 0 } });
-  const pool = FIX.cards
-    .filter(
-      (c) => !BASELINE.cards.some((b) => b.name === c.name) && c.name !== 'Meren of Clan Nel Toth'
-    )
-    .slice(0, 40);
-  const sizes = [99, 98, 70];
-  const loose = [{ trust: false as const, minGain: -100 }, { minGain: -100 }, {}];
+// About 1,300 judged moves: under 20 s locally, over it with CI's coverage instrumentation.
+describe(
+  'judgeMove never accepts a move that leaves a check worse (property)',
+  { timeout: 120_000 },
+  () => {
+    // Fast terms only: the property is about the constraints, not the goldfish.
+    const ctx = merenCtx({ allowPartial: true, weights: { mana: 0, winline: 0 } });
+    const pool = FIX.cards
+      .filter(
+        (c) => !BASELINE.cards.some((b) => b.name === c.name) && c.name !== 'Meren of Clan Nel Toth'
+      )
+      .slice(0, 40);
+    const sizes = [99, 98, 70];
+    const loose = [{ trust: false as const, minGain: -100 }, { minGain: -100 }, {}];
 
-  it('holds over adds, cuts and swaps, in full and partial decks, with and without the trust region', () => {
-    let accepted = 0;
-    let judged = 0;
-    for (const n of sizes) {
-      const deck = withCards(BASELINE, n);
-      const names = deck.cards.map((c) => c.name);
-      const moves: Array<{ out: string[]; in: typeof pool }> = [];
-      for (let i = 0; i < pool.length; i++) {
-        const out = names[(i * 7) % names.length];
-        moves.push({ out: [out], in: [pool[i]] }); // swap
-        moves.push({ out: [], in: [pool[i]] }); // add
-        if (i % 4 === 0) moves.push({ out: [out], in: [] }); // cut
-        if (i % 5 === 0)
-          moves.push({
-            out: [out, names[(i * 11 + 3) % names.length]].filter((x, k, a) => a.indexOf(x) === k),
-            in: [pool[i], pool[(i + 1) % pool.length]],
-          }); // wider swap
-      }
-      for (const move of moves) {
-        for (const options of loose) {
-          for (const partial of [true, false]) {
-            const j = judgeMove(deck, move, ctx, { ...options, partial });
-            judged++;
-            if (!j.accepted) continue;
-            accepted++;
-            const c = partial ? ctx : { ...ctx, allowPartial: false };
-            const idx = move.out.map((o) => deck.cards.findIndex((d) => d.name === o));
-            const after = {
-              commanders: deck.commanders,
-              cards: [...deck.cards.filter((_, i) => !idx.includes(i)), ...move.in],
-            };
-            const was = magnitudes(deck, c);
-            const now = magnitudes(after, c);
-            for (const [check, mag] of now) {
-              expect(
-                mag,
-                `${check} after ${move.out.join('+')} -> ${move.in.map((x) => x.name).join('+')}`
-              ).toBeLessThanOrEqual(was.get(check) ?? 0);
+    it('holds over adds, cuts and swaps, in full and partial decks, with and without the trust region', () => {
+      let accepted = 0;
+      let judged = 0;
+      for (const n of sizes) {
+        const deck = withCards(BASELINE, n);
+        const names = deck.cards.map((c) => c.name);
+        const moves: Array<{ out: string[]; in: typeof pool }> = [];
+        for (let i = 0; i < pool.length; i++) {
+          const out = names[(i * 7) % names.length];
+          moves.push({ out: [out], in: [pool[i]] }); // swap
+          moves.push({ out: [], in: [pool[i]] }); // add
+          if (i % 4 === 0) moves.push({ out: [out], in: [] }); // cut
+          if (i % 5 === 0)
+            moves.push({
+              out: [out, names[(i * 11 + 3) % names.length]].filter(
+                (x, k, a) => a.indexOf(x) === k
+              ),
+              in: [pool[i], pool[(i + 1) % pool.length]],
+            }); // wider swap
+        }
+        for (const move of moves) {
+          for (const options of loose) {
+            for (const partial of [true, false]) {
+              const j = judgeMove(deck, move, ctx, { ...options, partial });
+              judged++;
+              if (!j.accepted) continue;
+              accepted++;
+              const c = partial ? ctx : { ...ctx, allowPartial: false };
+              const idx = move.out.map((o) => deck.cards.findIndex((d) => d.name === o));
+              const after = {
+                commanders: deck.commanders,
+                cards: [...deck.cards.filter((_, i) => !idx.includes(i)), ...move.in],
+              };
+              const was = magnitudes(deck, c);
+              const now = magnitudes(after, c);
+              for (const [check, mag] of now) {
+                expect(
+                  mag,
+                  `${check} after ${move.out.join('+')} -> ${move.in.map((x) => x.name).join('+')}`
+                ).toBeLessThanOrEqual(was.get(check) ?? 0);
+              }
+              expect(j.worsened).toEqual([]);
             }
-            expect(j.worsened).toEqual([]);
           }
         }
       }
-    }
-    // The property is not vacuous: plenty of moves were judged and many accepted.
-    expect(judged).toBeGreaterThan(500);
-    expect(accepted).toBeGreaterThan(20);
-  });
-});
+      // The property is not vacuous: plenty of moves were judged and many accepted.
+      expect(judged).toBeGreaterThan(500);
+      expect(accepted).toBeGreaterThan(20);
+    });
+  }
+);
 
 describe('judgeMove on Yuriko, a second real deck and page', () => {
   it('holds the invariant for adds to a deck under its size', () => {
