@@ -19,6 +19,8 @@ export class BudgetTracker {
   /** E561: money held back from the spell picks for the nonbasic land base
    *  (landBudgetReserve.ts), given back when generateLands starts. */
   landReserve = 0;
+  /** E561: the same hold for the staple rocks the later rock phase seats. */
+  rockReserve = 0;
   /** E561: the land phase's pacing — nonbasic slots still to seat and the
    *  price of the costliest of the cheapest `slots` candidates. 0 = no phase. */
   landSlots = 0;
@@ -48,10 +50,14 @@ export class BudgetTracker {
     // Drop the hold then, so the spells go on under a small positive cap, as
     // they would with no hold. Only with no hold left does the exhausted cap
     // below apply (E566).
-    if (this.landReserve > 0 && this.remainingBudget <= 0) this.releaseLandReserve();
+    if (this.landReserve + this.rockReserve > 0 && this.remainingBudget <= 0) {
+      this.releaseLandReserve();
+      this.releaseRockReserve();
+    }
     // E561: a staple (STAPLE_INCLUSION_BAR) is never priced out by the money
     // held for the land base; it sees the budget as if nothing were held.
-    const remaining = this.remainingBudget + (mayUseLandReserve ? this.landReserve : 0);
+    const remaining =
+      this.remainingBudget + (mayUseLandReserve ? this.landReserve + this.rockReserve : 0);
     const avg = remaining / this.cardsRemaining;
     const dynamicCap = Math.min(
       remaining * 0.15, // max 15% of remaining budget
@@ -109,6 +115,20 @@ export class BudgetTracker {
     const held = this.landReserve;
     this.remainingBudget += held;
     this.landReserve = 0;
+    return held;
+  }
+
+  /** Hold `amount` back for the staple rocks. */
+  reserveForRocks(amount: number): void {
+    this.rockReserve = amount;
+    this.remainingBudget -= amount;
+  }
+
+  /** Give the rock money back as the rock phase starts; returns the amount. */
+  releaseRockReserve(): number {
+    const held = this.rockReserve;
+    this.remainingBudget += held;
+    this.rockReserve = 0;
     return held;
   }
 

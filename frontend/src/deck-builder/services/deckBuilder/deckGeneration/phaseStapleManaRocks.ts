@@ -54,6 +54,7 @@ export async function stapleManaRocksPhase(
   budgetTracker: BudgetTracker | null
 ): Promise<void> {
   const stapleRocks = STAPLE_ROCKS;
+  const heldForRocks = budgetTracker?.releaseRockReserve() ?? 0;
   if (state.cfg.format === 99) {
     for (const staple of stapleRocks) {
       if (state.context.colorIdentity.length < staple.minColors) continue;
@@ -85,12 +86,12 @@ export async function stapleManaRocksPhase(
         // budget-gated pick path.
         const paced = budgetTracker?.getEffectiveCap(state.cfg.maxCardPrice);
         const cap =
-          paced != null && state.cfg.deckBudget != null
+          paced != null
             ? Math.min(
                 state.cfg.maxCardPrice ?? Infinity,
-                Math.max(paced, state.cfg.deckBudget * ROCK_BUDGET_SHARE)
+                Math.max(paced, heldForRocks, (state.cfg.deckBudget ?? 0) * ROCK_BUDGET_SHARE)
               )
-            : (paced ?? state.cfg.maxCardPrice);
+            : state.cfg.maxCardPrice;
         if (
           !ownedExempt &&
           exceedsMaxPrice(card, Number.isFinite(cap) ? cap : null, state.cfg.currency)
