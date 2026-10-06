@@ -77,8 +77,18 @@ export async function stapleManaRocksPhase(
         // Respect budget, rarity, arena-only constraints — the dynamic
         // per-card cap (not just the static max), matching every other
         // budget-gated pick path.
+        const dynamicCap = budgetTracker?.getEffectiveCap(state.cfg.maxCardPrice);
+        // E561: by the time this runs a tight budget has little left, and the
+        // dynamic cap (15% of what's left) priced Sol Ring ($1.54) out of the
+        // Atraxa $10 build entirely. A staple rock gets the same 15% of the
+        // WHOLE budget any single card could have; budget convergence keeps it.
         const cap =
-          budgetTracker?.getEffectiveCap(state.cfg.maxCardPrice) ?? state.cfg.maxCardPrice;
+          dynamicCap == null || state.cfg.deckBudget == null
+            ? (dynamicCap ?? state.cfg.maxCardPrice)
+            : Math.min(
+                state.cfg.maxCardPrice ?? Infinity,
+                Math.max(dynamicCap, state.cfg.deckBudget * 0.15)
+              );
         if (!ownedExempt && exceedsMaxPrice(card, cap, state.cfg.currency)) continue;
         if (
           !isOwnedRarityExempt(

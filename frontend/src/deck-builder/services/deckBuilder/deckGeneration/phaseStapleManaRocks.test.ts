@@ -147,6 +147,23 @@ describe('stapleManaRocksPhase', () => {
     expect(names).not.toContain('Arcane Signet');
   });
 
+  it('seats a staple rock a tight budget left no dynamic cap for, while the rock fits the budget (E561: Sol Ring missing at $10)', async () => {
+    const state = makeState();
+    state.cfg.deckBudget = 300; // 15% = $45 covers the $40 Sol Ring and $5 Signet
+    const tracker = new BudgetTracker(6, 3, 'USD'); // dynamic cap ~$0.9, as in E79
+    await stapleManaRocksPhase(state, tracker);
+    expect(allCards(state).map((c) => c.name)).toEqual(
+      expect.arrayContaining(['Sol Ring', 'Arcane Signet'])
+    );
+  });
+
+  it('still refuses a staple rock that costs more than 15% of the whole budget', async () => {
+    const state = makeState();
+    state.cfg.deckBudget = 100; // 15% = $15: Signet yes, the $40 Sol Ring no
+    await stapleManaRocksPhase(state, new BudgetTracker(6, 3, 'USD'));
+    expect(allCards(state).map((c) => c.name)).toEqual(['Arcane Signet']);
+  });
+
   it('deducts added staples from the budget tracker', async () => {
     const state = makeState();
     // A generous enough remaining budget/card-count that the dynamic
