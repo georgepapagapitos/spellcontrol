@@ -793,8 +793,6 @@ export async function analyzeCommanderDeck(
       edhrecData,
       params.cards.map((c) => c.name)
     );
-    // Native synergy engine over the deck's real oracle text, and the deck's win
-    // paths: both feed the one Coach protection set below.
     const deckSynergy = analyzeDeckSynergy(params.cards);
     // Win-condition detection: pure, composes existing signals (combos, synergy
     // axes, oracle text). Best-effort: failure leaves winConditions absent.
@@ -815,11 +813,8 @@ export async function analyzeCommanderDeck(
       logger.warn('[CommanderDeckAnalysis] Win-condition detection failed:', err);
     }
 
-    // The one Coach protection set (lib/coach/coach-protections.ts): never a
-    // misfit, an optimizer removal or a budget downgrade, and the same set the
-    // replace prompt and the whole-deck objective read. Premium cards, what
-    // feeds the commander's own abilities (T171 round 3), engine pieces,
-    // finishers and survival pieces.
+    // The one Coach protection set (lib/coach/coach-protections.ts), read by every
+    // cut path and the whole-deck objective: never a misfit, excess cut or downgrade.
     const coachProtection = createCoachProtections({
       commanders: [params.commander, ...(params.partnerCommander ? [params.partnerCommander] : [])],
       invested: deckSynergy.invested,
