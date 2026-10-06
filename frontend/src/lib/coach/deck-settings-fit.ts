@@ -164,6 +164,10 @@ export function settingsBreak(
   if (strategy === 'full' && !owned) return 'unowned';
   // 'available' fields only free copies: one committed to another deck won't do.
   if (strategy === 'available' && !basic && change.ownership !== 'owned') return 'unowned';
+  // At a 100% owned share every card is owned, lands included: the share
+  // counts nonland cards only, which let a partial100 Lathril take Reflecting
+  // Pool and Exotic Orchard "Not owned" (T171 v4b).
+  if (strategy === 'partial' && settings.collectionOwnedPercent >= 100 && !owned) return 'unowned';
   if (strategy === 'partial' && !owned && !incomingLand) {
     const nonLand = deck.cards.filter((c) => !isLand(c));
     let ownedCount = nonLand.filter((c) => deck.isOwned(c.name)).length;

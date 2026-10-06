@@ -98,7 +98,12 @@ export interface CutAnalysis {
   partnerCommander?: ScryfallCard | null;
   /** The deck's win paths: an alt-win card is a finisher, never an overlap cut. */
   winConditions?: Pick<WinConditionAnalysis, 'primary' | 'secondary'> | null;
+  /** The build's per-card relevancy (play rate and synergy): a combo cut takes the lowest. */
+  cardRelevancyMap?: Record<string, number>;
 }
+
+/** A card played in this share of the commander's decks or more is a staple, never a combo cut. */
+const STAPLE_INCLUSION = 40;
 
 export interface RankReplacementCutsParams {
   /** The card the user is adding (we cut to make room for it). */
@@ -124,11 +129,11 @@ export interface RankReplacementCutsParams {
    *  (a partial collection deck's owned share, say): it is not offered. */
   keepsSettings?: (cut: ScryfallCard) => boolean;
   /**
-   * The incoming card completes a combo. It isn't an upgrade inside a role, so
-   * it always gets a cut: the least valuable card that isn't protected (a plan
-   * card, an engine piece, a finisher, a survival piece, a staple, a piece of
-   * another combo). A Bracket 4 Yuriko's Demonic Consultation, the missing
-   * Thassa's Oracle piece, had no cut at all (T171 round 3).
+   * The incoming card newly completes a combo. It isn't an upgrade inside a
+   * role, so its cut may come from any role: the least valuable card that no
+   * protection holds (a role at its target, a staple, a card Coach would
+   * suggest back, a plan card, an engine piece, a finisher, a survival piece,
+   * a piece of another combo). None left means no cut (T171 v4b).
    */
   completesCombo?: boolean;
 }
@@ -325,17 +330,26 @@ export function rankReplacementCuts({
       const facts = getCardFacts(card);
       return !!facts && isSurvivalPiece(card, facts, commanders);
     };
-    const pool = deckCards.filter(
-      (d) =>
+    // Every protection the other paths keep, and no fallback: with none left
+    // the prompt offers no cut and the user picks one. The round-4 rule that a
+    // combo always got a cut took Yuriko's ramp to 7/9 and Krenko's only wipe,
+    // and cut 34 to 39% staples Coach then suggested straight back (T171 v4b).
+    const pool = deckCards.filter((d) => {
+      const card = d.card;
+      const played = pageInclusion(card.name);
+      const flag = flagged.has(card.name.toLowerCase());
+      return (
         cuttable(d) &&
-        !feedsCommander(d.card) &&
-        !loadBearingOf(d.card) &&
-        !isFinisher(d.card) &&
-        !survival(d.card)
-    );
-    // Keep every role at its target when the deck can; the combo still gets a cut when it can't.
-    const inFloor = pool.filter((d) => !opensGap(d.card));
-    return rankComboCuts(inFloor.length > 0 ? inFloor : pool, flagged, pageInclusion, limit);
+        !opensGap(card) &&
+        !(played !== undefined && played >= STAPLE_INCLUSION) &&
+        !(!flag && played !== undefined && gapFloor !== undefined && played >= gapFloor) &&
+        !feedsCommander(card) &&
+        !loadBearingOf(card) &&
+        !isFinisher(card) &&
+        !survival(card)
+      );
+    });
+    return rankComboCuts(pool, flagged, pageInclusion, analysis.cardRelevancyMap, limit);
   }
 
   type Scored = RankedCut & { tier: number; relScore: number; inclusion: number };
@@ -441,11 +455,17 @@ export function rankReplacementCuts({
   }));
 }
 
-/** A combo completion's cuts: flagged weak first, then the least played here. */
+/**
+ * A combo completion's cuts: flagged weak first, then the least valuable, by
+ * the deck's relevancy score (play rate and synergy together) where the build
+ * recorded one, else by play rate. Sink into Stupor went at 34% while weaker,
+ * less synergistic cards stayed (T171 v4b).
+ */
 function rankComboCuts(
   pool: CutCandidate[],
   flagged: Map<string, Flag>,
   pageInclusion: (name: string) => number | undefined,
+  relevancy: Record<string, number> | undefined,
   limit: number
 ): RankedCut[] {
   return pool
@@ -457,7 +477,7 @@ function rankComboCuts(
         card,
         flagged: flag ? 0 : 1,
         // Off the commander's page reads as the least played.
-        inclusion: played ?? -1,
+        inclusion: relevancy?.[card.name] ?? played ?? -1,
         reason:
           flag?.reason ??
           (played === undefined

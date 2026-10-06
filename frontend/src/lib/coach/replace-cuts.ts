@@ -41,18 +41,32 @@ export interface ReplaceCutInputs {
 export interface ReplaceCuts {
   /** The prompt's suggested cuts for `addCard`, best first. */
   cutsFor: (addCard: ScryfallCard, limit?: number) => RankedCut[];
-  /** False for an add to a full deck the prompt has no suggested cut for. */
+  /** False for an add to a full deck the prompt has no suggested cut for,
+   *  unless the add newly completes a combo (that row keeps its rank). */
   hasCut: (change: Change) => boolean;
 }
 
 export function replaceCuts(input: ReplaceCutInputs): ReplaceCuts {
   const deckSynergy = analyzeDeckSynergy(input.deckCards.map((d) => d.card));
+  // A combo the add newly completes: one card short, and a line the deck
+  // doesn't already assemble (something it produces that no in-deck combo
+  // does). Akroma's Memorial finished a Krenko line the deck already had five
+  // times over, and was cut for as a combo completer (T171 v4b).
+  const assembled = new Set(
+    (input.inDeckCombos ?? []).flatMap((m) => m.combo.produces.map((p) => p.toLowerCase()))
+  );
   const finishers = new Set(
     (input.oneAwayCombos ?? [])
-      .filter((m) => m.missingOracleIds.length === 1)
+      .filter(
+        (m) =>
+          m.missingOracleIds.length === 1 &&
+          (m.combo.produces.length === 0 ||
+            m.combo.produces.some((p) => !assembled.has(p.toLowerCase())))
+      )
       .flatMap((m) => m.combo.cards.filter((c) => m.missingOracleIds.includes(c.oracleId)))
       .map((c) => frontFaceName(c.cardName).toLowerCase())
   );
+  const completes = (name: string): boolean => finishers.has(frontFaceName(name).toLowerCase());
   const cutsFor = (addCard: ScryfallCard, limit?: number) =>
     rankReplacementCuts({
       addCard,
@@ -61,12 +75,14 @@ export function replaceCuts(input: ReplaceCutInputs): ReplaceCuts {
       inDeckCombos: input.inDeckCombos,
       deckSynergy,
       keepsSettings: input.cutFits?.(addCard),
-      completesCombo: finishers.has(frontFaceName(addCard.name).toLowerCase()),
+      completesCombo: completes(addCard.name),
       limit,
     });
   const known = new Map<string, boolean>();
   const hasCut = (change: Change): boolean => {
     if (change.type !== 'add' || !input.full) return true;
+    // A combo completion keeps its rank with no cut: the prompt reads "Pick a card below".
+    if (completes(change.name)) return true;
     const key = change.name.toLowerCase();
     let has = known.get(key);
     if (has === undefined) {

@@ -1,8 +1,8 @@
 // Guard (T171 round 3): on a full deck, 366 of the harness's top-10 rows were
 // adds whose replace prompt had no valid cut. They stay in the feed, but rank
 // below every row that has a cut or needs none, through the prompt's own
-// logic (replace-cuts.ts), so rank and prompt can't disagree. A combo
-// completion keeps its place. Real cards (Scryfall 2026-09-29) with the
+// logic (replace-cuts.ts), so rank and prompt can't disagree. An add that
+// newly completes one of the deck's one-away combos keeps its place. Real cards (Scryfall 2026-09-29) with the
 // pinned tagger fixture for roles.
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -75,23 +75,20 @@ describe('rankCoachMoves — adds the replace prompt has no cut for', () => {
     },
     'unowned'
   );
-  const completesCombo = fromComboCompletion(
-    {
-      combo: {
-        id: 'bm',
-        produces: ['Infinite colorless mana'],
-        popularity: 900,
-        cards: [
-          { oracleId: 'Harmonize', cardName: 'Harmonize', quantity: 1 },
-          { oracleId: 'Beast Within', cardName: 'Beast Within', quantity: 1 },
-        ],
-      },
-      presentOracleIds: ['Harmonize'],
-      missingOracleIds: ['Beast Within'],
-    } as unknown as ComboMatch,
-    'Beast Within',
-    'unowned'
-  );
+  const comboMatch = {
+    combo: {
+      id: 'bm',
+      produces: ['Infinite colorless mana'],
+      popularity: 900,
+      cards: [
+        { oracleId: 'Harmonize', cardName: 'Harmonize', quantity: 1 },
+        { oracleId: 'Beast Within', cardName: 'Beast Within', quantity: 1 },
+      ],
+    },
+    presentOracleIds: ['Harmonize'],
+    missingOracleIds: ['Beast Within'],
+  } as unknown as ComboMatch;
+  const completesCombo = fromComboCompletion(comboMatch, 'Beast Within', 'unowned');
   const ctx: CoachContext = {
     planScore: {
       overall: 60,
@@ -117,7 +114,7 @@ describe('rankCoachMoves — adds the replace prompt has no cut for', () => {
     expect(cuts.hasCut(solRing)).toBe(true);
   });
 
-  it('ranks an add with no cut below a lower-tier add with one, and a combo keeps its place', () => {
+  it('ranks an add with no cut below a lower-tier add with one; a combo the prompt knows keeps its place', () => {
     const plain = rankCoachMoves([beastWithin, solRing, completesCombo], ctx);
     // By tier alone the upgrade (cardFit 50) leads the budding pick.
     expect(plain.find((r) => r.change === beastWithin)?.tier).toBe(1);
@@ -131,11 +128,15 @@ describe('rankCoachMoves — adds the replace prompt has no cut for', () => {
     });
     const names = ranked.map((r) => `${r.change.lane}:${r.change.name}`);
     expect(names.indexOf('upgrade:Sol Ring')).toBeLessThan(names.indexOf('upgrade:Beast Within'));
-    // The combo completion needs the same cut Beast Within can't get, and keeps its place.
-    expect(names.indexOf('combos:Beast Within')).toBeLessThan(
-      names.indexOf('upgrade:Beast Within')
+    expect(names.indexOf('upgrade:Sol Ring')).toBeLessThan(names.indexOf('combos:Beast Within'));
+
+    // The prompt reads the one-away combo: the completion keeps its place.
+    const knows = replaceCuts({ ...inputs, oneAwayCombos: [comboMatch] });
+    expect(knows.hasCut(completesCombo)).toBe(true);
+    const kept = rankCoachMoves([solRing, completesCombo], { ...ctx, hasReplaceCut: knows.hasCut });
+    expect(kept.map((r) => r.change)).toEqual(
+      rankCoachMoves([solRing, completesCombo], ctx).map((r) => r.change)
     );
-    expect(names[names.length - 1]).toBe('upgrade:Beast Within');
   });
 
   it('never reorders a deck with room', () => {

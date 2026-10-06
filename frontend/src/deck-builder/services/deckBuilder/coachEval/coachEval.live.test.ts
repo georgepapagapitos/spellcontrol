@@ -536,6 +536,16 @@ async function coachPass(dump: CoachDump, deck: EvalDeckState): Promise<CoachPas
     buildRemovals: dump.buildReport as BuildRemovals | undefined,
   });
   if (!analysis) throw new Error('analyzeCommanderDeck returned null');
+  // The deck's persisted relevancy map (the dump's synergyScoreRaw): the page
+  // passes the deck, so its replace prompt reads it (a combo cut's value).
+  const relevancy = dump.cardRelevancy as Record<string, { synergyScoreRaw?: number }> | undefined;
+  Object.assign(analysis, {
+    cardRelevancyMap: Object.fromEntries(
+      Object.entries(relevancy ?? {}).flatMap(([name, r]) =>
+        r.synergyScoreRaw == null ? [] : [[name, r.synergyScoreRaw]]
+      )
+    ),
+  });
   if (analysis.edhrecMissing) throw new Error('EDHREC missing for this commander');
 
   const strategy = settings.collectionStrategy;

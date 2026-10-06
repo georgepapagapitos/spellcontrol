@@ -100,6 +100,37 @@ describe('settingsBreak', () => {
     expect(settingsBreak(gapRow('Overgrown Tomb'), s, deck)).toBeNull();
   });
 
+  // T171 v4b: partial100 Lathril and Yuriko decks took Reflecting Pool,
+  // Underground Sea and Exotic Orchard "Not owned" from the lands lane. The
+  // share counts nonland cards, so a land walked past it.
+  it('offers a deck at a 100% owned share no unowned card, lands included', () => {
+    const s = { ...open, collectionStrategy: 'partial' as const, collectionOwnedPercent: 100 };
+    const deck = deckOf([...cheapDeck, 'Swamp'], cheapDeck);
+    const pool = fromLandUpgradeMove(
+      {
+        outName: 'Swamp',
+        outCard: real('Swamp'),
+        inName: 'Reflecting Pool',
+        inCard: real('Reflecting Pool'),
+        owned: false,
+        reason: '',
+        outScore: 10,
+        inScore: 58,
+        fixesShortColors: [],
+        addsColors: ['U'],
+      },
+      'unowned'
+    );
+    expect(settingsBreak(pool, s, deck)).toBe('unowned');
+    expect(settingsBreak(gapRow('Exotic Orchard'), s, deck)).toBe('unowned');
+    expect(settingsBreak(gapRow('Exotic Orchard', true), s, deck)).toBeNull();
+    expect(settingsBreak(gapRow('Island'), s, deck)).toBeNull();
+    // Below 100% a land still never touches the share.
+    expect(
+      settingsBreak(pool, { ...s, collectionOwnedPercent: 75 }, deckOf(cheapDeck, cheapDeck))
+    ).toBeNull();
+  });
+
   // T171 round 3: an Arcane Signet at 57% was hidden from a 50%-owned Lathril
   // deck on its floor, though cutting one of its unowned cards keeps the share.
   it('lets an unowned add in when the deck holds an unowned card to cut, and the prompt offers only that', () => {
