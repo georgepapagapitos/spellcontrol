@@ -39,15 +39,22 @@ function threatsOf(card: ScryfallCard): readonly AnswerThreat[] {
   return t;
 }
 
-/** The classes one card counts toward. */
-export function classesOf(card: ScryfallCard, ctx: ObjectiveContext): FloorClass[] {
+/** The answer classes one card counts toward, from its text alone (no protection). */
+export function answerClassesOf(card: ScryfallCard): FloorClass[] {
   if (isBasicLand(card)) return [];
   const out = new Set<FloorClass>();
   for (const threat of threatsOf(card)) {
     if (threat === 'any-permanent') BATTLEFIELD.forEach((c) => out.add(c));
     else out.add(threat);
   }
-  if (!isLandCard(card) && protectionValue(card, ctx.factsOf(card)) > 0) out.add('protection');
+  return [...out];
+}
+
+/** The classes one card counts toward. */
+export function classesOf(card: ScryfallCard, ctx: ObjectiveContext): FloorClass[] {
+  const out = new Set(answerClassesOf(card));
+  if (!isBasicLand(card) && !isLandCard(card) && protectionValue(card, ctx.factsOf(card)) > 0)
+    out.add('protection');
   return [...out];
 }
 

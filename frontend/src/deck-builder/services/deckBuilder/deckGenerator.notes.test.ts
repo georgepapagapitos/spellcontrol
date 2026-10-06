@@ -19,7 +19,7 @@ import type { RoleKey } from '@/deck-builder/services/tagger/client';
 // validateCardRole directly — stub it to a simple name->role map so these
 // pure-logic tests don't depend on real tagger data or oracle text.
 const ROLES: Record<string, RoleKey> = {};
-// computeTrimResistance (E87-new Slice A) also calls isProtectionPiece
+// computeTrimResistance (E87-new Slice A) also calls readsAsProtection
 // directly — stub it the same way (name-set membership, not real oracle
 // text; the classifier's own regex is covered in tagger/client.test.ts).
 const PROTECTED_NAMES = new Set<string>();
@@ -32,9 +32,10 @@ const FREE_INTERACTION_NAMES = new Set<string>();
 // text; isOneSidedWipe's own regex is covered in tagger/client.test.ts).
 const ONE_SIDED_WIPE_NAMES = new Set<string>();
 vi.mock('@/deck-builder/services/tagger/client', () => ({
+  getCardDrawSubtype: () => null,
   validateCardRole: (card: { name: string }) => ROLES[card.name] ?? null,
   getCardRole: (name: string) => ROLES[name] ?? null,
-  isProtectionPiece: (card: { name: string }) => PROTECTED_NAMES.has(card.name),
+  readsAsProtection: (card: { name: string }) => PROTECTED_NAMES.has(card.name),
   isFreeInteraction: (card: { name: string }) => FREE_INTERACTION_NAMES.has(card.name),
   isOneSidedWipe: (card: { name: string }) => ONE_SIDED_WIPE_NAMES.has(card.name),
 }));

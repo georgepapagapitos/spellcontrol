@@ -99,3 +99,27 @@ export function grantsToTargetText(text: string): boolean {
       TARGET_PERMANENT.test(all[i - 1])
   );
 }
+
+/** "Enchanted creature has protection from ...", "Equipped permanent has indestructible". */
+const GRANT_TO_ATTACHED =
+  /\b(?:enchanted|equipped) (?:creature|permanent)\b[^.]*?\b(?:has|have|gains?)\b[^.]*?\b(?:hexproof|shroud|indestructible|protection from)\b/i;
+
+/**
+ * "You have shroud", "You have hexproof": a standing grant, not "you gain
+ * protection from everything until your next turn" (The One Ring: a card
+ * draw engine whose one-turn fog is incidental; reading it as protection kept
+ * a $115 card over staples in five live decks).
+ */
+const GRANT_TO_PLAYER = /\byou have\b[^.]*?\b(?:hexproof|shroud|protection from)\b/i;
+
+/**
+ * A keeping keyword granted to what a card is attached to, or to its
+ * controller: Flickering Ward ("Enchanted creature has protection from the
+ * chosen color."), Solitary Confinement ("You have shroud."). Neither names a
+ * target, so the tagger's evidence and the target-then-pronoun reading both
+ * miss them.
+ */
+export function grantsToHolderText(text: string): boolean {
+  const body = withoutReminder(text);
+  return GRANT_TO_ATTACHED.test(body) || GRANT_TO_PLAYER.test(body);
+}

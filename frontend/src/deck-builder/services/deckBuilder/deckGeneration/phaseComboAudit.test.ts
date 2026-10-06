@@ -2,9 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ScryfallCard, DetectedCombo, EDHRECCard } from '@/deck-builder/types';
 
 vi.mock('@/deck-builder/services/tagger/client', () => ({
+  getCardDrawSubtype: () => null,
   getCardRole: vi.fn(() => null),
   validateCardRole: () => null,
-  isProtectionPiece: () => false,
+  readsAsProtection: () => false,
   isFreeInteraction: () => false,
 }));
 
