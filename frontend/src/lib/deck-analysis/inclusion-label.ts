@@ -40,3 +40,16 @@ export function inclusionColor(pct: number): string {
   const hue = p < 50 ? 35 + ((p - 1) / 49) * 25 : (p / 100) * 120;
   return `hsl(${Math.round(hue)} 60% 45%)`;
 }
+
+/** How much of the ramp's hue the text form keeps; the rest is the theme's ink. */
+export const INCLUSION_INK_HUE_SHARE = 40;
+
+/**
+ * The same ramp for the percentage as text. A 45%-lightness yellow is fine as
+ * a meter fill but reads at 1.9:1 on a light page, so the text mixes the hue
+ * toward `--text-primary`: darker on light themes, lighter on dark ones, AA on
+ * every theme's grounds (themes-contrast.test.ts checks every percentage).
+ */
+export function inclusionInk(pct: number): string {
+  return `color-mix(in srgb, ${inclusionColor(pct)} ${INCLUSION_INK_HUE_SHARE}%, var(--text-primary))`;
+}
