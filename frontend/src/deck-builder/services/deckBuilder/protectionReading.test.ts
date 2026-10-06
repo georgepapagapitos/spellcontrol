@@ -77,11 +77,11 @@ describe('a grant whose target is named in the sentence before', () => {
     expect(protectionValue(SNAKESKIN, ctx.factsOf(SNAKESKIN))).toBeGreaterThan(0);
   });
 
-  // The pin that keeps this a report and objective change: the phases that
-  // protect a piece from eviction, and E532's pick-time promotion, still read
-  // the tagger's narrower evidence, so no composition moves. Widening them is
-  // its own ship-gated change (a live Meren $100 build moved when it was tried).
-  it('leaves the generation predicate alone', () => {
+  // The eviction phases read readsAsProtection (E563, protectionPhases.real.test.ts).
+  // What stays narrow is the tagger's evidence itself and E532's pick-time
+  // promotion: promoting a survival piece spends a slot, and Solitary
+  // Confinement is not one a voltron deck wants.
+  it('leaves the tagger evidence and the pick-time promotion alone', () => {
     expect(isProtectionPiece(SNAKESKIN)).toBe(false);
     expect(generatorSurvival(SNAKESKIN)).toBe(false);
   });

@@ -1,5 +1,5 @@
 import { logger } from '@/lib/util/logger';
-import { grantsToTargetText } from '../deckBuilder/protectionReading';
+import { grantsToHolderText, grantsToTargetText } from '../deckBuilder/protectionReading';
 import {
   checkRoleEvidence,
   isIncidentalRampByTags,
@@ -366,14 +366,13 @@ export function isProtectionPiece(card: {
 }
 
 /**
- * E555: every card that reads as protection: `isProtectionPiece`, plus a grant
- * whose target is named in the sentence before ("Put a +1/+1 counter on target
- * creature you control. It gains hexproof until end of turn." - Snakeskin
- * Veil), read by protectionReading.ts, the reading the survival rule and the
- * deck objective share. What the build report counts and the deck objective
- * values. The generation phases that protect a piece from eviction still read
- * `isProtectionPiece`: widening them moves compositions, which is its own
- * ship-gated change.
+ * E563: every card that reads as protection, the ONE predicate the report, the
+ * deck objective and every generation phase that protects a piece from
+ * eviction share: `isProtectionPiece`, plus a grant whose target is named in
+ * the sentence before (Snakeskin Veil), plus a keyword granted to the card's
+ * holder (Flickering Ward, Solitary Confinement), read by protectionReading.ts.
+ * Phases read this, never the narrow `isProtectionPiece` (it let a combo audit
+ * cut Solitary Confinement).
  */
 export function readsAsProtection(card: {
   name: string;
@@ -386,7 +385,7 @@ export function readsAsProtection(card: {
     card.card_faces?.map((f) => f.oracle_text ?? '').join(' ') ??
     ''
   ).trim();
-  return text !== '' && grantsToTargetText(text);
+  return text !== '' && (grantsToTargetText(text) || grantsToHolderText(text));
 }
 
 // Free-interaction / reflexive alt-cost pieces (iter-10 Slice A) — cards whose

@@ -64,6 +64,8 @@ export function buildRoleDeficitNotes(
   opts: {
     bannedCards?: ReadonlySet<string>;
     isSaltBlocked?: (name: string) => boolean;
+    /** E563: candidates a swap tried to seat and evictionKeeper turned away. */
+    keeperBlocked?: ReadonlySet<string>;
   } = {}
 ): string[] | undefined {
   if (!roleTargets || !pool || pool.length === 0) return undefined;
@@ -106,14 +108,27 @@ export function buildRoleDeficitNotes(
       notes.push(`${headline}. EDHREC had no more ${roleLabel}.`);
       continue;
     }
-    const examples = candidates
-      .map((c, i) =>
-        i === 0
-          ? `${c.name} (${Math.round(c.inclusion)}% of decks)`
-          : `${c.name} (${Math.round(c.inclusion)}%)`
-      )
-      .join(' and ');
-    notes.push(`${headline}. ${examples} lost out to stronger picks.`);
+    const describe = (c: EDHRECCard, i: number) =>
+      i === 0
+        ? `${c.name} (${Math.round(c.inclusion)}% of decks)`
+        : `${c.name} (${Math.round(c.inclusion)}%)`;
+    // A card the keeper turned away did not lose to a stronger pick: every card
+    // it could have replaced was one the deck keeps.
+    // The backfill also records a role it found no donor for: every card the deck
+    // keeps was one it could not replace, so none of that role's candidates lost
+    // to a stronger pick.
+    const roleBlocked = opts.keeperBlocked?.has(`role:${role}`);
+    const isBlocked = (c: EDHRECCard) => roleBlocked || opts.keeperBlocked?.has(c.name);
+    const blocked = candidates.filter(isBlocked);
+    const outcompeted = candidates.filter((c) => !isBlocked(c));
+    const sentences: string[] = [];
+    if (outcompeted.length > 0)
+      sentences.push(`${outcompeted.map(describe).join(' and ')} lost out to stronger picks.`);
+    if (blocked.length > 0)
+      sentences.push(
+        `${blocked.map(describe).join(' and ')} stayed out: the cards it could replace are ones the deck keeps.`
+      );
+    notes.push(`${headline}. ${sentences.join(' ')}`);
   }
 
   return notes.length > 0 ? notes : undefined;

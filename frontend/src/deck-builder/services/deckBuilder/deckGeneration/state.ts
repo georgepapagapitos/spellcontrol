@@ -143,6 +143,8 @@ export interface GenerationState {
   /** Seed names already attempted (success or failure) — so a failed fetch
    *  isn't retried, and the MAX_LIFT_SEEDS cap counts attempts, not hits. */
   liftSeedsTried: Set<string>;
+  /** E563: cards a swap wanted to bring in that evictionKeeper turned away (the deficit note says so). */
+  keeperBlocked: Set<string>;
   /** Memoization cache for liftPools.ts:getLiftIndex — invalidated whenever
    *  liftSeedPools.size changes. */
   liftIndexCache?: {
@@ -261,6 +263,7 @@ export function createState(context: GenerationContext): GenerationState {
     saltIndex: new Map<string, number>(),
     liftSeedPools: new Map<string, LiftEntry[]>(),
     liftSeedsTried: new Set<string>(),
+    keeperBlocked: new Set<string>(),
 
     gameChangerNames: new Set<string>(),
     combos: [],

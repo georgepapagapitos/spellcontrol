@@ -1,8 +1,9 @@
 import type { DeckCategory, ScryfallCard } from '@/deck-builder/types';
+import { evictionKeeper } from './evictionKeeper';
 import type { GenerationState } from './state';
 import {
   getCardRole,
-  isProtectionPiece,
+  readsAsProtection,
   isFreeInteraction,
   validateCardRole,
   type RoleKey,
@@ -197,6 +198,7 @@ export function applyLandSqueezeReconcile(
         : OWNED_PRIORITY_BOOST
       : 0;
 
+  const keeps = evictionKeeper(state);
   const scoreOf = (card: ScryfallCard): number => {
     const ec = getByCardName(poolByName, card.name);
     const role = validateCardRole(card);
@@ -224,7 +226,8 @@ export function applyLandSqueezeReconcile(
 
     if (card.isMustInclude) score += MUST_INCLUDE_BOOST;
     if (card.isStapleRock || STAPLE_ROCK_NAMES.has(card.name)) score += STAPLE_PROTECTION_BOOST;
-    if (isProtectionPiece(card)) score += PROTECTION_PIECE_BOOST;
+    if (readsAsProtection(card)) score += PROTECTION_PIECE_BOOST;
+    if (keeps(card)) score += STAPLE_PROTECTION_BOOST; // E563
     if (isFreeInteraction(card)) score += FREE_INTERACTION_BOOST;
     if (state.comboCardNames.has(card.name)) score += COMBO_TRIM_BOOST;
     if (ctx.roleTargets && role) {

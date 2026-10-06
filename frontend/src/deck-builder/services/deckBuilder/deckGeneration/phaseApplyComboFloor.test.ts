@@ -3,6 +3,7 @@ import type { ScryfallCard, EDHRECCombo } from '@/deck-builder/types';
 
 // Stub tagger — tests don't need real role lookups
 vi.mock('@/deck-builder/services/tagger/client', () => ({
+  getCardDrawSubtype: () => null,
   getCardRole: () => null,
   isExtraTurn: () => false,
 }));
