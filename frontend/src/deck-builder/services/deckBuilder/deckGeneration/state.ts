@@ -328,6 +328,24 @@ export function markBanned(state: GenerationState, name: string): void {
   }
 }
 
+// Every ban the player set up, in one set: the ban field, enabled ban lists,
+// applied exclude lists, the toolbar's temporary bans and, under "Skip my
+// cards", the collection.
+export function applyBans(
+  state: GenerationState,
+  userLists: readonly { id: string; cards: readonly string[] }[]
+): void {
+  const cz = state.context.customization;
+  const ban = (name: string) => markBanned(state, name);
+  (cz.bannedCards ?? []).forEach(ban);
+  for (const list of cz.banLists ?? []) if (list.enabled) list.cards.forEach(ban);
+  for (const ref of cz.appliedExcludeLists ?? []) {
+    if (ref.enabled) userLists.find((l) => l.id === ref.listId)?.cards.forEach(ban);
+  }
+  (cz.tempBannedCards ?? []).forEach(ban);
+  banOwnedCards(state, userLists);
+}
+
 // "Skip my cards": ban every owned name. Basics stay (a deck needs them and
 // nobody shops for a Forest), and so does anything the player asked for by
 // name, the commanders included: a ban would drop their combos too.

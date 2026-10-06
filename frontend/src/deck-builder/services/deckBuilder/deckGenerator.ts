@@ -153,8 +153,7 @@ import {
   type GenerationState,
   createState,
   markUsed as stMarkUsed,
-  markBanned as stMarkBanned,
-  banOwnedCards,
+  applyBans,
   addMustInclude as stAddMustInclude,
   getComboBoosts as stGetComboBoosts,
   countAllCards as stCountAllCards,
@@ -1234,30 +1233,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // a valid Scryfall name search; see validateScryfallFilter's doc).
   await validateScryfallFilter(scryfallQuery, state.context.colorIdentity);
   const markUsed = (name: string) => stMarkUsed(state, name);
-  const markBanned = (name: string) => stMarkBanned(state, name);
   const addMustInclude = (name: string, source: 'user' | 'deck' | 'combo') =>
     stAddMustInclude(state, name, source);
   const getComboBoosts = () => stGetComboBoosts(state);
-  (customization.bannedCards || []).forEach(markBanned);
-  // Merge enabled ban lists into the banned set
-  for (const list of customization.banLists || []) {
-    if (list.enabled) list.cards.forEach(markBanned);
-  }
-  // Merge applied exclude user lists
   const userLists = loadUserLists();
-  for (const ref of customization.appliedExcludeLists || []) {
-    if (ref.enabled) {
-      const list = userLists.find((l) => l.id === ref.listId);
-      if (list) list.cards.forEach(markBanned);
-    }
-  }
-  // Merge temporary banned cards
-  const tempBanned = customization.tempBannedCards ?? [];
-  if (tempBanned.length > 0) {
-    logger.debug(`[DeckGen] Temp banned cards:`, tempBanned);
-    tempBanned.forEach(markBanned);
-  }
-  banOwnedCards(state, userLists);
+  applyBans(state, userLists);
   logger.debug(
     `[DeckGen] Budget settings: deckBudget=${deckBudget}, maxCardPrice=${maxCardPrice}, budgetOption=${budgetOption}, currency=${currency}${ignoreOwnedBudget ? ', ignoring owned for budget' : ''}${ignoreOwnedRarity ? ', ignoring owned for rarity' : ''}`
   );
