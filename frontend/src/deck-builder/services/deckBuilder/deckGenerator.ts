@@ -106,7 +106,12 @@ import {
   roleCapTolerance,
   ROLE_CAP_HATCH_MAX_PER_PASS,
 } from './categorize';
-import { fillWithScryfall, type FillHardGates } from './scryfallFill';
+import {
+  fillWithScryfall,
+  exceedsFillCeilings,
+  recordFillSeat,
+  type FillHardGates,
+} from './scryfallFill';
 import { isUnsupportedSynergyPayoff } from './synergyDependency';
 import {
   computePackageBoosts,
@@ -3637,12 +3642,18 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     // over-cap spell). Returns false and stashes the card for the shared
     // escape hatch below rather than silently over-filling the role.
     const ownedCapSkipped: ScryfallCard[] = [];
+    // Tier 1 substitutes bypass fillWithScryfall's gates, so addOwnedCard applies
+    // the bracket/Game Changer ceilings to them (and counts them once seated).
+    const ungatedSubs = new Set<string>();
     const addOwnedCard = (card: ScryfallCard, allowCapOverflow = false): boolean => {
       if (!fitsSpellSlot(card)) return false; // E525: these fill spell slots
+      const ungated = ungatedSubs.has(card.name);
+      if (ungated && exceedsFillCeilings(card, fillGates)) return false;
       if (!allowCapOverflow && isOverRoleCap(card, roleTargets, currentRoleCounts)) {
         ownedCapSkipped.push(card);
         return false;
       }
+      if (ungated) recordFillSeat(card, fillGates);
       stampRoleSubtypes(card);
       routeCardByType(card, categories);
       usedNames.add(card.name);
@@ -3705,6 +3716,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
             // ponytail: a role-capped substitute defers to the escape hatch
             // below rather than recording provenance here — it still gets
             // added to the deck, just without a "Wanted X → used your Y" row.
+            ungatedSubs.add(card.name);
             if (addOwnedCard(card)) substitutionRows.push(row);
           }
           logger.debug(
