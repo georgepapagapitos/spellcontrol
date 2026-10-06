@@ -9,6 +9,7 @@ import {
   formatValueDeltaChip,
   getLatestMovers,
   getValueHistory,
+  onValueHistoryChange,
   type MoverRecord,
   type ValuePoint,
 } from '@/lib/collection/value-history';
@@ -207,6 +208,11 @@ export function ValueTrend() {
   } | null>(null);
   // getValueHistory filters to the active display currency — reload on switch.
   const currency = useCurrency();
+  // …and on every write to the log. The drawer can be open while a price
+  // refresh lands or the collection is emptied, and a chart read once at mount
+  // would keep showing the old trend (HomeHero re-reads the same way).
+  const [logTick, setLogTick] = useState(0);
+  useEffect(() => onValueHistoryChange(() => setLogTick((n) => n + 1)), []);
 
   useEffect(() => {
     let stale = false;
@@ -220,7 +226,7 @@ export function ValueTrend() {
     return () => {
       stale = true;
     };
-  }, [currency]);
+  }, [currency, logTick]);
 
   const points = data?.points ?? [];
   const delta = computeValueDelta(points);

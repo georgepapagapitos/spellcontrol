@@ -2,6 +2,7 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { flushSync } from '@/lib/sync';
+import { setApplyingServer } from '@/lib/sync/applying-server';
 
 // Wrap local-cards so persistence stays real by default but the hydrate
 // error path can be forced per-test (ESM named exports aren't reassignable).
@@ -498,6 +499,28 @@ describe('refreshPrices', () => {
     useCollectionStore.setState({ cards: [enriched({ copyId: 'c1', scryfallId: '' })] });
     await useCollectionStore.getState().refreshPrices();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('logs no point when the refresh priced nothing — $0 would read as a deleted collection', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ prices: {} }) })
+    );
+    // An earlier test leaves sf1 in the device price cache, which the refresh
+    // would carry over; this card has never been priced anywhere.
+    resetPriceCache();
+    localStorage.removeItem('spellcontrol:card-prices');
+    await recordValueSnapshot(420);
+    try {
+      useCollectionStore.setState({
+        cards: [enriched({ copyId: 'c1', scryfallId: 'sf1', purchasePrice: 0 })],
+      });
+      await useCollectionStore.getState().refreshPrices();
+      await new Promise((r) => setTimeout(r, 0));
+      expect((await getValueHistory()).map((p) => p.value)).toEqual([420]);
+    } finally {
+      await clearValueHistory();
+    }
   });
 
   it('clears a previous run’s error banner on a successful refresh', async () => {
@@ -1856,15 +1879,53 @@ describe('destructive-op undo', () => {
       expect(saveCollection).toHaveBeenCalled();
     });
 
-    it('logs a $0 value point so the home hero stops showing the deleted total', async () => {
+    it('resets the value log so no surface keeps showing the deleted total', async () => {
       await recordValueSnapshot(420);
       try {
         useCollectionStore.setState({ cards: [enriched({ copyId: 'a', scryfallId: 'sfA' })] });
         await useCollectionStore.getState().clearCards();
         await vi.waitFor(async () => {
-          const points = await getValueHistory();
-          expect(points[points.length - 1].value).toBe(0);
+          expect(await getValueHistory()).toEqual([]);
         });
+      } finally {
+        await clearValueHistory();
+      }
+    });
+
+    it('re-values the log when another device changes the collection (server-applied)', async () => {
+      await recordValueSnapshot(420);
+      try {
+        setApplyingServer(true);
+        try {
+          useCollectionStore.setState({
+            cards: [enriched({ copyId: 'b', scryfallId: 'sfB', purchasePrice: 500 })],
+          });
+        } finally {
+          setApplyingServer(false);
+        }
+        await vi.waitFor(async () => {
+          expect((await getValueHistory()).map((p) => p.value)).toEqual([500]);
+        });
+      } finally {
+        await clearValueHistory();
+      }
+    });
+
+    it('never reads a server-applied empty (logout blanking the stores) as a delete', async () => {
+      await recordValueSnapshot(420);
+      try {
+        useCollectionStore.setState({
+          cards: [enriched({ copyId: 'a', scryfallId: 'sfA', purchasePrice: 420 })],
+        });
+        await flush();
+        setApplyingServer(true);
+        try {
+          useCollectionStore.setState({ cards: [] });
+        } finally {
+          setApplyingServer(false);
+        }
+        await flush();
+        expect((await getValueHistory()).map((p) => p.value)).toEqual([420]);
       } finally {
         await clearValueHistory();
       }
