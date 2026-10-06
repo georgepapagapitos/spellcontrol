@@ -4,8 +4,9 @@ import type { ScryfallCard } from '@/deck-builder/types';
 const roleMap: Record<string, string | null> = {};
 
 vi.mock('@/deck-builder/services/tagger/client', () => ({
+  getCardDrawSubtype: () => null,
   getCardRole: (name: string) => roleMap[name] ?? null,
-  isProtectionPiece: vi.fn(() => false),
+  readsAsProtection: vi.fn(() => false),
   isFreeInteraction: vi.fn(() => false),
 }));
 
@@ -19,7 +20,7 @@ vi.mock('../categorize', async (importOriginal) => {
 
 import { postGenFixupPhase, type PostGenFixupContext } from './phasePostGenFixup';
 import type { GenerationState } from './state';
-import { isProtectionPiece, isFreeInteraction } from '@/deck-builder/services/tagger/client';
+import { readsAsProtection, isFreeInteraction } from '@/deck-builder/services/tagger/client';
 
 function scryfallCard(name: string, overrides: Partial<ScryfallCard> = {}): ScryfallCard {
   return {
@@ -379,6 +380,13 @@ describe('postGenFixupPhase', () => {
       expect(state.usedNames.has(unprotectedName)).toBe(false);
     }
 
+    /** Sets the page pool: [name, inclusion] pairs. */
+    function pagePool(state: GenerationState, rows: Array<[string, number]>) {
+      state.edhrecData = {
+        cardlists: { allNonLand: rows.map(([name, inclusion]) => ({ name, inclusion })) },
+      } as unknown as GenerationState['edhrecData'];
+    }
+
     it('protects a repairAddedNames member (Contract D wiring)', () => {
       const { state, rampReplacement } = makeProtectionState('Repair Added Card', 'Unprotected A');
       expectProtectedCardSurvives(state, rampReplacement, 'Repair Added Card', 'Unprotected A', {
@@ -400,13 +408,13 @@ describe('postGenFixupPhase', () => {
       expectProtectedCardSurvives(state, rampReplacement, 'Some Other Rock', 'Unprotected C');
     });
 
-    it('protects a card flagged isProtectionPiece', () => {
+    it('protects a card flagged readsAsProtection', () => {
       const { state, rampReplacement } = makeProtectionState('Protected Piece', 'Unprotected D');
-      vi.mocked(isProtectionPiece).mockImplementation((c) => c.name === 'Protected Piece');
+      vi.mocked(readsAsProtection).mockImplementation((c) => c.name === 'Protected Piece');
       try {
         expectProtectedCardSurvives(state, rampReplacement, 'Protected Piece', 'Unprotected D');
       } finally {
-        vi.mocked(isProtectionPiece).mockReturnValue(false);
+        vi.mocked(readsAsProtection).mockReturnValue(false);
       }
     });
 
@@ -434,10 +442,149 @@ describe('postGenFixupPhase', () => {
       expectProtectedCardSurvives(state, rampReplacement, 'Combo Piece', 'Unprotected F');
     });
 
+    // E563: Lathril coll-prefer. The coherence repair seated Umbral Mantle, so
+    // Leyline of Abundance, the engine of the deck's one infinite line (with
+    // Llanowar Tribe and Umbral Mantle), was a combo piece only now; the fixup
+    // cut it "to close a board wipe gap".
+    it('protects a piece of a combo line the deck can now assemble', () => {
+      const { state, rampReplacement } = makeProtectionState(
+        'Leyline of Abundance',
+        'Unprotected H'
+      );
+      const tribe = scryfallCard('Llanowar Tribe');
+      const mantle = scryfallCard('Umbral Mantle');
+      state.categories.synergy = [tribe, mantle];
+      state.usedNames.add('Llanowar Tribe');
+      state.usedNames.add('Umbral Mantle');
+      state.combos = [
+        {
+          comboId: 'leyline-line',
+          cards: [
+            { name: 'Leyline of Abundance', id: 'a' },
+            { name: 'Llanowar Tribe', id: 'b' },
+            { name: 'Umbral Mantle', id: 'c' },
+          ],
+        },
+      ] as unknown as GenerationState['combos'];
+      // The incoming Rampant Growth is played less (10%) than Leyline (30%): a downgrade.
+      pagePool(state, [
+        ['Rampant Growth', 10],
+        ['Leyline of Abundance', 30],
+        ['Llanowar Tribe', 30],
+        ['Umbral Mantle', 30],
+      ]);
+      expectProtectedCardSurvives(state, rampReplacement, 'Leyline of Abundance', 'Unprotected H');
+    });
+
+    // E563: Atraxa partial50. Counterspell (37.7%) is the deck's only stack answer.
+    it('protects the last answer of a class the deck holds', () => {
+      const { state, rampReplacement } = makeProtectionState('Counterspell', 'Unprotected I');
+      state.categories.creatures = state.categories.creatures.map((c) =>
+        c.name === 'Counterspell' ? { ...c, oracle_text: 'Counter target spell.' } : c
+      );
+      pagePool(state, [
+        ['Rampant Growth', 10],
+        ['Counterspell', 30],
+      ]);
+      expectProtectedCardSurvives(state, rampReplacement, 'Counterspell', 'Unprotected I');
+    });
+
+    // E563 (Lathril coll-partial50): an unkept 0% card stays the first victim while
+    // kept staples are skipped, exactly as before the keeper existed.
+    it('cuts the unkept 0% card for a removal gap, never the kept staple beside it', () => {
+      const state = makeState();
+      const staple = scryfallCard('Poison-Tip Archer');
+      const glacial = scryfallCard('Glacial Revelation');
+      const beastWithin = scryfallCard('Beast Within', { cmc: 3 });
+      roleMap['Beast Within'] = 'removal';
+      // the staple is LAST in its category, so position alone would cut it
+      state.categories.creatures = [glacial, staple];
+      state.usedNames = new Set(['Glacial Revelation', 'Poison-Tip Archer']);
+      state.currentRoleCounts = { ramp: 0, removal: 3, boardwipe: 0, cardDraw: 0 };
+      pagePool(state, [
+        ['Poison-Tip Archer', 49.8],
+        ['Glacial Revelation', 0],
+        ['Beast Within', 38.3],
+      ]);
+      const result = postGenFixupPhase(state, {
+        roleTargets: { ramp: 0, removal: 8, boardwipe: 0, cardDraw: 0 },
+        swapCandidates: undefined,
+        scryfallCardMap: new Map([['Beast Within', beastWithin]]),
+        repairAddedNames: new Set(),
+      });
+      expect(result.fixupRepairs[0]).toMatchObject({
+        cut: 'Glacial Revelation',
+        added: 'Beast Within',
+      });
+      expect(state.usedNames.has('Poison-Tip Archer')).toBe(true);
+    });
+
     it('protects a must-include card', () => {
       const { state, rampReplacement } = makeProtectionState('Must Include Card', 'Unprotected G');
       state.context.customization.mustIncludeCards = ['Must Include Card'];
       expectProtectedCardSurvives(state, rampReplacement, 'Must Include Card', 'Unprotected G');
+    });
+  });
+
+  // E563: a role below target takes a filler's slot (5a2), whatever the deficit.
+  describe('filler upgrade for a role below target (5a2)', () => {
+    function lathril(opts: { filler?: number; cardDraw?: number; beast?: number } = {}) {
+      const state = makeState();
+      const archer = scryfallCard('Poison-Tip Archer');
+      const glacial = scryfallCard('Glacial Revelation');
+      const beastWithin = scryfallCard('Beast Within', { cmc: 3 });
+      roleMap['Beast Within'] = 'removal';
+      roleMap['Glacial Revelation'] = 'cardDraw';
+      roleMap['Poison-Tip Archer'] = null;
+      state.categories.creatures = [archer];
+      state.categories.cardDraw = [glacial];
+      state.usedNames = new Set(['Glacial Revelation', 'Poison-Tip Archer']);
+      state.currentRoleCounts = {
+        ramp: 0,
+        removal: 5,
+        boardwipe: 0,
+        cardDraw: opts.cardDraw ?? 12,
+      };
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [
+            { name: 'Poison-Tip Archer', inclusion: 49.8 },
+            { name: 'Glacial Revelation', inclusion: opts.filler ?? 0 },
+            { name: 'Beast Within', inclusion: opts.beast ?? 38.3 },
+          ],
+        },
+      } as unknown as GenerationState['edhrecData'];
+      const result = postGenFixupPhase(state, {
+        roleTargets: { ramp: 0, removal: 8, boardwipe: 0, cardDraw: 12 },
+        swapCandidates: undefined,
+        scryfallCardMap: new Map([['Beast Within', beastWithin]]),
+        repairAddedNames: new Set(),
+      });
+      return { result, state };
+    }
+
+    it('swaps a 0% filler for the best missing removal at 5 of 8 (Lathril coll-partial50)', () => {
+      const { result, state } = lathril();
+      expect(result.fixupRepairs).toEqual([
+        {
+          cut: 'Glacial Revelation',
+          added: 'Beast Within',
+          reason: 'Swapped Glacial Revelation for Beast Within to close a removal gap.',
+        },
+      ]);
+      expect(state.usedNames.has('Poison-Tip Archer')).toBe(true);
+    });
+
+    it('makes no swap when no card is on 5% or less (every card a real pick)', () => {
+      expect(lathril({ filler: 30 }).result.fixupSwaps).toBe(0);
+    });
+
+    it('makes no swap when the incoming card is not played 20 points more', () => {
+      expect(lathril({ beast: 15 }).result.fixupSwaps).toBe(0);
+    });
+
+    it('does not take a filler that is the last card of its own role at target', () => {
+      expect(lathril({ cardDraw: 1 }).result.fixupSwaps).toBe(0);
     });
   });
 });

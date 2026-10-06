@@ -50,6 +50,47 @@ describe('buildRoleDeficitNotes', () => {
     ROLE_OF.clear();
   });
 
+  it('does not say a card the keeper turned away lost to a stronger pick (E563)', () => {
+    ROLE_OF.set('Beast Within', 'removal');
+    ROLE_OF.set('Ruthless Winnower', 'removal');
+    ROLE_OF.set('Swords to Plowshares', 'removal');
+    const targets = { ...ZERO_TARGETS, removal: 3 };
+    const pool = [
+      edhrecCard('Beast Within', 38.3),
+      edhrecCard('Ruthless Winnower', 37.1),
+      edhrecCard('Swords to Plowshares', 30),
+    ];
+    const notes = buildRoleDeficitNotes([], targets, pool, {
+      keeperBlocked: new Set(['Beast Within', 'Ruthless Winnower']),
+    });
+    expect(notes).toHaveLength(1);
+    expect(notes![0]).not.toMatch(/Beast Within[^.]*lost out/);
+    expect(notes![0]).toMatch(
+      /Beast Within \(38% of decks\) and Ruthless Winnower \(37%\) stayed out/
+    );
+  });
+
+  it('says every candidate of a role stayed out when the backfill found no donor (Lathril: Beast Within)', () => {
+    ROLE_OF.set('Beast Within', 'removal');
+    ROLE_OF.set('Ruthless Winnower', 'removal');
+    const notes = buildRoleDeficitNotes(
+      [],
+      { ...ZERO_TARGETS, removal: 8 },
+      [edhrecCard('Beast Within', 38.3), edhrecCard('Ruthless Winnower', 37.1)],
+      { keeperBlocked: new Set(['role:removal', 'Ruthless Winnower']) }
+    );
+    expect(notes![0]).not.toMatch(/lost out/);
+    expect(notes![0]).toMatch(/Beast Within[^.]*and Ruthless Winnower[^.]* stayed out/);
+  });
+
+  it('still says a card nothing blocked lost out to stronger picks', () => {
+    ROLE_OF.set('Swords to Plowshares', 'removal');
+    const notes = buildRoleDeficitNotes([], { ...ZERO_TARGETS, removal: 3 }, [
+      edhrecCard('Swords to Plowshares', 30),
+    ]);
+    expect(notes![0]).toMatch(/lost out to stronger picks/);
+  });
+
   it('returns undefined when roleTargets is null', () => {
     expect(buildRoleDeficitNotes([], null, [])).toBeUndefined();
   });

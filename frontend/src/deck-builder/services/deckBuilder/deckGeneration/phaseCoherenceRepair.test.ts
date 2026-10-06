@@ -4,6 +4,7 @@ import type { EDHRECCard, ScryfallCard } from '@/deck-builder/types';
 // Tagger reads bundled JSON keyed by card name — mock for determinism (roles
 // come back null, so category placement falls through to `synergy`).
 vi.mock('@/deck-builder/services/tagger/client', () => ({
+  getCardDrawSubtype: () => null,
   hasTag: vi.fn(() => false),
   isMassLandDenial: vi.fn(() => false),
   isExtraTurn: vi.fn(() => false),
@@ -12,10 +13,10 @@ vi.mock('@/deck-builder/services/tagger/client', () => ({
   // validated form when bucketing a newly-added card — mirror the
   // getCardRole default so behavior is unchanged for this test file.
   validateCardRole: vi.fn(() => null),
-  // E87-new Slice A: isProtected now also checks isProtectionPiece — default
+  // E87-new Slice A: isProtected now also checks readsAsProtection — default
   // false, overridden per-test via mockReturnValueOnce where protection
   // behavior itself is under test.
-  isProtectionPiece: vi.fn(() => false),
+  readsAsProtection: vi.fn(() => false),
   // iter-10 Slice A: isProtected now also checks isFreeInteraction — same
   // default-false, per-test override shape.
   isFreeInteraction: vi.fn(() => false),
@@ -37,7 +38,7 @@ import { applyCoherenceRepair, MAX_COHERENCE_SWAPS } from './phaseCoherenceRepai
 import type { CoherenceRepairContext } from './phaseCoherenceRepair';
 import type { GenerationState } from './state';
 import { auditDeckCoherence } from '../coherenceAudit';
-import { isProtectionPiece, isFreeInteraction } from '@/deck-builder/services/tagger/client';
+import { readsAsProtection, isFreeInteraction } from '@/deck-builder/services/tagger/client';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -387,13 +388,13 @@ describe('applyCoherenceRepair', () => {
   it('never cuts a protection-class card (E87-new Slice A)', async () => {
     const state = makeState();
     addToDeck(state, scryfallCard('Junk Card'));
-    vi.mocked(isProtectionPiece).mockReturnValue(true);
+    vi.mocked(readsAsProtection).mockReturnValue(true);
     try {
       const { repairs } = await applyCoherenceRepair(state, makeCtx(state));
       expect(repairs).toHaveLength(0);
       expect(deckNames(state)).toContain('Junk Card');
     } finally {
-      vi.mocked(isProtectionPiece).mockReturnValue(false);
+      vi.mocked(readsAsProtection).mockReturnValue(false);
     }
   });
 

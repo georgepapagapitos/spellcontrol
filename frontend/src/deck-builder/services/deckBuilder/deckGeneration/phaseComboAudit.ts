@@ -10,7 +10,7 @@ import type { GenerationState } from './state';
 import { markBanned } from './state';
 import { frontFaceName, getByCardName } from '@/lib/cards/card-text';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
-import { isProtectionPiece, isFreeInteraction } from '@/deck-builder/services/tagger/client';
+import { readsAsProtection, isFreeInteraction } from '@/deck-builder/services/tagger/client';
 import {
   fitsColorIdentity,
   exceedsMaxPrice,
@@ -24,6 +24,7 @@ import { stampRoleSubtypes, routeCardByType } from '../categorize';
 import type { BudgetTracker } from '../budgetTracker';
 import type { BracketGuard } from '../bracketGuard';
 import { getCardRole } from '@/deck-builder/services/tagger/client';
+import { evictionKeeper } from './evictionKeeper';
 
 export interface ComboAuditContext {
   /** Result of detectCombosPhase — the audit no-ops when undefined. */
@@ -102,9 +103,12 @@ export function comboIntegrityAuditPhase(
     }
   }
 
+  const auditKeeps = evictionKeeper(state);
+
   // Helper: find the weakest (lowest inclusion%) evictable non-land card
   function auditWeakest(
-    skipNames?: Set<string>
+    skipNames?: Set<string>,
+    incoming?: ScryfallCard
   ): { card: ScryfallCard; category: DeckCategory } | null {
     let best: { card: ScryfallCard; category: DeckCategory; incl: number } | null = null;
     for (const cat of Object.keys(categories) as DeckCategory[]) {
@@ -113,7 +117,8 @@ export function comboIntegrityAuditPhase(
         if (auditMustInclude.has(card.name.toLowerCase())) continue;
         if (completeComboCards.has(card.name)) continue;
         if (STAPLE_ROCK_NAMES.has(card.name)) continue; // E537
-        if (isProtectionPiece(card) || isFreeInteraction(card)) continue;
+        if (readsAsProtection(card) || isFreeInteraction(card)) continue;
+        if (auditKeeps(card, incoming)) continue; // E563
         if (skipNames?.has(card.name) || skipNames?.has(frontFaceName(card.name))) continue;
         if (state.cfg.ownedQuotaProtects?.(card.name)) continue;
         const incl = getByCardName(auditInclusion, card.name) ?? 0;
@@ -272,7 +277,7 @@ export function comboIntegrityAuditPhase(
       // cleared the enablerScore pre-filter (evaluated once, before ANY swap)
       // can go stale by the time we get here (E-strand-fix, see auditCanAdd).
       if (!auditCanAdd(card)) continue;
-      const weak = auditWeakest(enablerPartners);
+      const weak = auditWeakest(enablerPartners, card);
       if (!weak) break;
       auditRemove(weak.card, weak.category);
       auditCommitAdd(card);
@@ -369,7 +374,7 @@ export function comboIntegrityAuditPhase(
           ok = false;
           break;
         }
-        const weak = auditWeakest(evicted);
+        const weak = auditWeakest(evicted, missing);
         if (!weak) {
           ok = false;
           break;

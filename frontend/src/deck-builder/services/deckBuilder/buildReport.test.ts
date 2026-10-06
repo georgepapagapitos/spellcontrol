@@ -164,6 +164,23 @@ describe('assembleBuildReport', () => {
     expect(report.ownedPercentActual).toBe(100);
   });
 
+  // "Skip my cards" reads the collection only to leave it out: no owned-%
+  // line (the basics would read as "3% from your collection"), and the count
+  // it skipped lands on its own field, not the "Available only" one.
+  it('reports Skip my cards as a count left out, not a build from the collection', () => {
+    const report = assembleBuildReport({
+      generated: makeGenerated({ categories: categories({ lands: [makeCard('Forest')] }) }),
+      customization: makeCustomization({ collectionMode: true, collectionStrategy: 'exclude' }),
+      collectionNames: new Set(['Forest']),
+      committedExcluded: 42,
+    });
+
+    expect(report.builtFromCollection).toBe(false);
+    expect(report.ownedPercentActual).toBeUndefined();
+    expect(report.ownedExcluded).toBe(42);
+    expect(report.committedExcluded).toBeUndefined();
+  });
+
   it('sets ownedPercentTarget only in partial mode', () => {
     const partial = assembleBuildReport({
       generated: makeGenerated({ builtFromCollection: true }),

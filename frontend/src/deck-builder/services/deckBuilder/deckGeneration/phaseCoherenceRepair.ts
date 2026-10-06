@@ -12,7 +12,7 @@ import { frontFaceName, getByCardName } from '@/lib/cards/card-text';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import {
   getCardRole,
-  isProtectionPiece,
+  readsAsProtection,
   isFreeInteraction,
 } from '@/deck-builder/services/tagger/client';
 import { stampRoleSubtypes, routeCardByType } from '../categorize';
@@ -44,6 +44,7 @@ import { classifyAnswer } from '../answerCoverage';
 import { classifyCard } from '@/deck-builder/services/synergy/classify';
 import { buildManabaseSummary } from '../manabaseMath';
 import { STAPLE_ROCK_NAMES } from './phaseStapleManaRocks';
+import { evictionKeeper } from './evictionKeeper';
 
 // ── Coherence Repair (E78 phase 3) ──
 // The read-only audit at the very end of generation can only *report* dead
@@ -207,7 +208,8 @@ export async function applyCoherenceRepair(
     for (const n of combo.cards) completeComboNames.add(n);
   }
 
-  const isProtected = (card: ScryfallCard): boolean =>
+  const keeps = evictionKeeper(state);
+  const isProtected = (card: ScryfallCard, incoming?: ScryfallCard): boolean =>
     !!card.isMustInclude ||
     card.isStapleRock === true ||
     STAPLE_ROCK_NAMES.has(card.name) ||
@@ -219,8 +221,9 @@ export async function applyCoherenceRepair(
     (liftedByMap[card.name.toLowerCase()]?.length ?? 0) >= 2 ||
     state.gameChangerNames.has(card.name) ||
     isLoadBearing(card, deckSynergy) ||
-    isProtectionPiece(card) ||
-    isFreeInteraction(card);
+    readsAsProtection(card) ||
+    isFreeInteraction(card) ||
+    keeps(card, incoming); // E563
 
   const findInDeck = (name: string): { card: ScryfallCard; category: DeckCategory } | null => {
     for (const [cat, cards] of Object.entries(state.categories) as [
@@ -319,7 +322,8 @@ export async function applyCoherenceRepair(
 
   // Weakest unprotected nonland (lowest inclusion) — room for an enabler add.
   const weakestCut = (
-    exclude: Set<string>
+    exclude: Set<string>,
+    incoming?: ScryfallCard
   ): { card: ScryfallCard; category: DeckCategory } | null => {
     let best: { card: ScryfallCard; category: DeckCategory; incl: number } | null = null;
     for (const [cat, cards] of Object.entries(state.categories) as [
@@ -328,7 +332,7 @@ export async function applyCoherenceRepair(
     ][]) {
       if (cat === 'lands') continue;
       for (const card of cards) {
-        if (exclude.has(card.name) || isProtected(card)) continue;
+        if (exclude.has(card.name) || isProtected(card, incoming)) continue;
         const pooled = getByCardName(poolByName, card.name);
         const incl =
           (pooled?.inclusion ?? 0) +
@@ -348,7 +352,7 @@ export async function applyCoherenceRepair(
   const noWinPath = findings.find((f) => f.kind === 'win-condition' && f.severity === 'warn');
   if (noWinPath) {
     const finisher = findCandidate((card) => isAltWinCard(card));
-    const cut = finisher ? weakestCut(new Set([finisher.name])) : null;
+    const cut = finisher ? weakestCut(new Set([finisher.name]), finisher) : null;
     if (finisher && cut) {
       removeCard(cut.card, cut.category);
       commitAdd(finisher);
@@ -403,7 +407,7 @@ export async function applyCoherenceRepair(
         const enabler = findCandidate((card) =>
           classifyCard(card).producers.some((p) => p.axis === investedAxis)
         );
-        const cut = enabler ? weakestCut(new Set([f.card!, enabler.name])) : null;
+        const cut = enabler ? weakestCut(new Set([f.card!, enabler.name]), enabler) : null;
         if (enabler && cut) {
           removeCard(cut.card, cut.category);
           commitAdd(enabler);
@@ -445,7 +449,7 @@ export async function applyCoherenceRepair(
         (a) => a.threat === f.answerClass || a.threat === 'any-permanent'
       );
     });
-    const cut = answer ? weakestCut(new Set([answer.name])) : null;
+    const cut = answer ? weakestCut(new Set([answer.name]), answer) : null;
     if (!answer || !cut) continue;
     removeCard(cut.card, cut.category);
     commitAdd(answer);

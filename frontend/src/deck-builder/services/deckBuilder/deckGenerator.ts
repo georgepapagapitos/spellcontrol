@@ -97,7 +97,7 @@ import {
   PRICE_SANITY_INCLUSION_BAND,
 } from './cardPicking';
 import { commanderMustSurvive, makeProtectionAdmits } from './deckGeneration/protectionPicks';
-import { buildRoleCapOverflowNote } from './deckGeneration/roleCapNote';
+import { buildRoleCapOverflowNote, withoutDanglingPointer } from './deckGeneration/roleCapNote';
 import { achievableComboPieces } from './deckGeneration/comboLines';
 import {
   categorizeCards,
@@ -154,7 +154,7 @@ import {
   type GenerationState,
   createState,
   markUsed as stMarkUsed,
-  markBanned as stMarkBanned,
+  applyBans,
   addMustInclude as stAddMustInclude,
   getComboBoosts as stGetComboBoosts,
   countAllCards as stCountAllCards,
@@ -1234,29 +1234,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // a valid Scryfall name search; see validateScryfallFilter's doc).
   await validateScryfallFilter(scryfallQuery, state.context.colorIdentity);
   const markUsed = (name: string) => stMarkUsed(state, name);
-  const markBanned = (name: string) => stMarkBanned(state, name);
   const addMustInclude = (name: string, source: 'user' | 'deck' | 'combo') =>
     stAddMustInclude(state, name, source);
   const getComboBoosts = () => stGetComboBoosts(state);
-  (customization.bannedCards || []).forEach(markBanned);
-  // Merge enabled ban lists into the banned set
-  for (const list of customization.banLists || []) {
-    if (list.enabled) list.cards.forEach(markBanned);
-  }
-  // Merge applied exclude user lists
   const userLists = loadUserLists();
-  for (const ref of customization.appliedExcludeLists || []) {
-    if (ref.enabled) {
-      const list = userLists.find((l) => l.id === ref.listId);
-      if (list) list.cards.forEach(markBanned);
-    }
-  }
-  // Merge temporary banned cards
-  const tempBanned = customization.tempBannedCards ?? [];
-  if (tempBanned.length > 0) {
-    logger.debug(`[DeckGen] Temp banned cards:`, tempBanned);
-    tempBanned.forEach(markBanned);
-  }
+  applyBans(state, userLists);
   logger.debug(
     `[DeckGen] Budget settings: deckBudget=${deckBudget}, maxCardPrice=${maxCardPrice}, budgetOption=${budgetOption}, currency=${currency}${ignoreOwnedBudget ? ', ignoring owned for budget' : ''}${ignoreOwnedRarity ? ', ignoring owned for rarity' : ''}`
   );
@@ -4850,10 +4832,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // Role-cap escape-hatch disclosure (E77 iter-4 round 2) — aggregated across
   // every gated path over the whole generation; undefined when the cap was
   // never actually breached.
-  const roleCapOverflowNote = buildRoleCapOverflowNote(
-    roleCapOverflowCounts,
-    roleCapStapleCounts,
-    roleCapComboCounts
+  const roleCapOverflowNote = withoutDanglingPointer(
+    buildRoleCapOverflowNote(roleCapOverflowCounts, roleCapStapleCounts, roleCapComboCounts),
+    roleTargets ?? undefined,
+    finalRoleCounts
   );
 
   // Pick-time displacement disclosure (E160) — the deficit-direction
@@ -4866,7 +4848,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     nonLandCards,
     roleTargets,
     state.edhrecData?.cardlists.allNonLand,
-    { bannedCards, isSaltBlocked }
+    { bannedCards, isSaltBlocked, keeperBlocked: state.keeperBlocked }
   );
 
   // Price-sanity disclosure (E80, honesty fix E126) — composed from the

@@ -223,7 +223,17 @@ export function trustVerdict(
   ctx: ObjectiveContext,
   protectedNow: ReadonlyMap<string, Protection>,
   minGain: number,
-  opts: TrustOptions & { repair?: boolean } = {}
+  opts: TrustOptions & {
+    repair?: boolean;
+    /**
+     * A forced repair (an unowned card an owned-only build can't keep): skip
+     * the protected-card rule, whose "played as often" bar no owned card can
+     * meet, and keep the role floors and caps and the bracket tier.
+     */
+    skipProtected?: boolean;
+    /** Also skip the class floors (no owned card of the class exists). */
+    skipClassFloor?: boolean;
+  } = {}
 ): TrustVerdict {
   const drift = opts.drift ?? DRIFT;
   const lostQuality =
@@ -242,7 +252,9 @@ export function trustVerdict(
     ctx.gameChangerNames.has(c.name) || ctx.gameChangerNames.has(c.name.split(' // ')[0]);
   const q = (c: ScryfallCard) => ctx.qualityOf(c).q;
   const free = [...ins].sort((a, b) => q(b) - q(a));
-  const guarded = outs.filter((c) => protectedNow.has(c.name)).sort((a, b) => q(b) - q(a));
+  const guarded = opts.skipProtected
+    ? []
+    : outs.filter((c) => protectedNow.has(c.name)).sort((a, b) => q(b) - q(a));
   for (const c of guarded) {
     const p = protectedNow.get(c.name)!;
     if (STRICT.has(p.cls)) {
@@ -252,7 +264,12 @@ export function trustVerdict(
     // Guardianship is a protection piece first (its class above), and went out
     // for a proliferate creature that way in the second gate.
     const needsGc = isGc(c);
-    const match = free.findIndex((x) => q(x) >= q(c) && (!needsGc || isGc(x)));
+    // A staple is matched on its page play rate itself: the price-adjusted
+    // quality lets a cheap, less-played card replace a staple (Enchantress's
+    // Presence, 87.6%, went for Sterling Grove, 78.7%, whose adjusted read was
+    // higher), and an off-page card has no rate to match with.
+    const played = (x: ScryfallCard) => (p.cls === 'staple' ? inclusionPct(x, ctx) : q(x));
+    const match = free.findIndex((x) => played(x) >= played(c) && (!needsGc || isGc(x)));
     if (match < 0) {
       return {
         blocked: needsGc
@@ -315,7 +332,7 @@ export function trustVerdict(
       };
     }
   }
-  if (opts.classesNow) {
+  if (opts.classesNow && !opts.skipClassFloor) {
     const problem = classFloorProblem(opts.classesNow, outs, ins, ctx);
     if (problem) return { blocked: problem, bound: 'class floor', required };
   }

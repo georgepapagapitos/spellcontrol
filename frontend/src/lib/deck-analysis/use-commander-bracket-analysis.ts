@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Deck } from '@/store/decks';
 import type { ComboMatchResponse } from '@/types/combos';
+import { deckEdhrecSource } from '@/deck-builder/services/deckBuilder/deckEdhrecSource';
 import {
   analyzeCommanderDeck,
   detectCombosForAnalysis,
@@ -169,8 +170,24 @@ function withStallTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  *        (E531), each capped at the payoffs. A Zombie deck no longer reads
  *        "17 payoffs but only 1 producer", and an enchantress deck's
  *        enchantments feed it.
+ *   v23 — Coach's cut and suggestion inputs (T171 lane M): premium cards and
+ *        cards whose role is at or under target are no longer misfits or
+ *        optimizer removals, suggestion rows carry price and rarity for the
+ *        deck's settings, synergy picks say when their engine is only
+ *        budding, and one-away combo pieces are recorded (`suggestionCards`).
+ *        A generated deck is read against the EDHREC page it was built from
+ *        (its themes, bracket and budget; `deckEdhrecSource`), not the
+ *        commander's base page. The cost plan reads each current card's play
+ *        rate off that page (it read 0%, so every swap classed as a drop-in)
+ *        and keeps utility lands; a complete combo's pieces are never misfits.
+ *        A plan card whose role tag is incidental is never an excess cut, a
+ *        board-building deck is offered no symmetric wipe, a land search is
+ *        not a card-advantage staple, and an off-page synergy payoff needs
+ *        its condition in the deck. A card the build removed for a stated
+ *        reason, or graveyard hate in a deck that recurs its own graveyard,
+ *        is not suggested, and the excess cut is the least-played card.
  */
-const ANALYSIS_ENGINE_VERSION = 'v22-engine-fuel';
+const ANALYSIS_ENGINE_VERSION = 'v23-coach-inputs';
 
 /** Suffix marking a persisted `gradeBracketSignature` as a PARTIAL result
  *  (EDHREC was unreachable). Distinguishes it from a full result computed for
@@ -372,6 +389,8 @@ export function useCommanderBracketAnalysis(args: Args): {
     // page by construction) and the Coach recommends cutting exactly what
     // generation deliberately added.
     const archetypeBlendNames = deck.buildReport?.archetypeBlendNames;
+    // A generated deck is read against the EDHREC page it was built from.
+    const edhrecSource = deckEdhrecSource(deck);
 
     const myReqId = ++reqIdRef.current;
     const timer = window.setTimeout(() => {
@@ -393,6 +412,8 @@ export function useCommanderBracketAnalysis(args: Args): {
             targetBracket,
             oneAwayCombos,
             archetypeBlendNames,
+            edhrecSource,
+            buildRemovals: deck.buildReport,
           })
         ),
         STALL_TIMEOUT_MS
@@ -413,6 +434,7 @@ export function useCommanderBracketAnalysis(args: Args): {
             gapAnalysis: result.gapAnalysis,
             hiddenGems: result.hiddenGems,
             cardInclusionMap: result.cardInclusionMap,
+            suggestionCards: result.suggestionCards,
             planScore: result.planScore,
             misfits: result.misfits,
             edhrecNumDecks: result.edhrecNumDecks ?? null,

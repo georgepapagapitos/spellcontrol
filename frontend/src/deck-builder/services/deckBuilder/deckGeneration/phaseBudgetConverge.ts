@@ -1,4 +1,5 @@
 import { logger } from '@/lib/util/logger';
+import { evictionKeeper } from './evictionKeeper';
 import type {
   CoherenceRepair,
   DeckCategory,
@@ -11,7 +12,7 @@ import type { GenerationState } from './state';
 import { frontFaceName } from '@/lib/cards/card-text';
 import {
   getCardRole,
-  isProtectionPiece,
+  readsAsProtection,
   isFreeInteraction,
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
@@ -370,6 +371,7 @@ export async function applyBudgetConvergence(
   // swap's reason string, or null when no soft protection applies. Checked
   // ONLY for cards that already cleared isHardProtected, so an alt-win card
   // reaching here is guaranteed not to be the last one.
+  const keeps = evictionKeeper(state);
   const softProtectionLabel = (card: ScryfallCard): string | null => {
     if (isLoadBearing(card, deckSynergy)) return 'a synergy engine piece';
     if ((ctx.liftedByOf(card.name.toLowerCase())?.length ?? 0) >= 2)
@@ -378,8 +380,9 @@ export async function applyBudgetConvergence(
     if (state.cfg.targetBracket === undefined && state.gameChangerNames.has(card.name))
       return 'a game changer';
     if (state.comboCardNames.has(card.name)) return 'a combo-flavored pick';
-    if (isProtectionPiece(card)) return 'a protection/free-interaction piece';
-    // iter-10 Slice A: isProtectionPiece's label above already says
+    if (readsAsProtection(card)) return 'a protection/free-interaction piece';
+    if (keeps(card)) return 'a staple, tutor, combo piece or last answer of its kind'; // E563
+    // iter-10 Slice A: the protection label above already says
     // "protection/free-interaction piece", but its regex misses the
     // Commandeer-class cards this new classifier exists for (e.g. Fierce
     // Guardianship's "Counter target noncreature spell" still trips the

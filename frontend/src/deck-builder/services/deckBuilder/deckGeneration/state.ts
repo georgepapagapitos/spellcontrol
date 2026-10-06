@@ -35,6 +35,7 @@ import type { RoleKey } from '@/deck-builder/services/tagger/client';
 import type { SubstituteCandidate } from '@/deck-builder/services/deckBuilder/substituteFinder';
 import { parseSetFromQuery } from '@/deck-builder/services/scryfall/client';
 import { frontFaceName } from '@/lib/cards/card-text';
+import { isBasicLandName } from '@/lib/collection/allocations';
 import type { BasicPrintingAvail } from '@/lib/collection/collection-availability';
 
 export interface GenerationContext {
@@ -59,6 +60,13 @@ export interface GenerationContext {
    * cards whose every copy is committed to another deck are excluded upstream.
    */
   collectionPool?: SubstituteCandidate[];
+  /**
+   * "Skip my cards": every name the player owns. Banned at the start of
+   * generation, except basic lands and the player's own must-includes (an
+   * explicit pick outranks the blanket rule). Set only under that strategy,
+   * and never together with collectionNames.
+   */
+  excludedOwnedNames?: ReadonlySet<string>;
   optimizeDeckCards?: string[];
   onProgress?: (message: string, percent: number) => void;
 }
@@ -135,6 +143,8 @@ export interface GenerationState {
   /** Seed names already attempted (success or failure) — so a failed fetch
    *  isn't retried, and the MAX_LIFT_SEEDS cap counts attempts, not hits. */
   liftSeedsTried: Set<string>;
+  /** E563: cards a swap wanted to bring in that evictionKeeper turned away (the deficit note says so). */
+  keeperBlocked: Set<string>;
   /** Memoization cache for liftPools.ts:getLiftIndex — invalidated whenever
    *  liftSeedPools.size changes. */
   liftIndexCache?: {
@@ -253,6 +263,7 @@ export function createState(context: GenerationContext): GenerationState {
     saltIndex: new Map<string, number>(),
     liftSeedPools: new Map<string, LiftEntry[]>(),
     liftSeedsTried: new Set<string>(),
+    keeperBlocked: new Set<string>(),
 
     gameChangerNames: new Set<string>(),
     combos: [],
@@ -317,6 +328,49 @@ export function markBanned(state: GenerationState, name: string): void {
   state.bannedCards.add(name);
   if (name.includes(' // ')) {
     state.bannedCards.add(frontFaceName(name));
+  }
+}
+
+// Every ban the player set up, in one set: the ban field, enabled ban lists,
+// applied exclude lists, the toolbar's temporary bans and, under "Skip my
+// cards", the collection.
+export function applyBans(
+  state: GenerationState,
+  userLists: readonly { id: string; cards: readonly string[] }[]
+): void {
+  const cz = state.context.customization;
+  const ban = (name: string) => markBanned(state, name);
+  (cz.bannedCards ?? []).forEach(ban);
+  for (const list of cz.banLists ?? []) if (list.enabled) list.cards.forEach(ban);
+  for (const ref of cz.appliedExcludeLists ?? []) {
+    if (ref.enabled) userLists.find((l) => l.id === ref.listId)?.cards.forEach(ban);
+  }
+  (cz.tempBannedCards ?? []).forEach(ban);
+  banOwnedCards(state, userLists);
+}
+
+// "Skip my cards": ban every owned name. Basics stay (a deck needs them and
+// nobody shops for a Forest), and so does anything the player asked for by
+// name, the commanders included: a ban would drop their combos too.
+export function banOwnedCards(
+  state: GenerationState,
+  userLists: readonly { id: string; cards: readonly string[] }[]
+): void {
+  const { excludedOwnedNames, commander, partnerCommander, customization: cz } = state.context;
+  if (!excludedOwnedNames || excludedOwnedNames.size === 0) return;
+  const asked = new Set<string>([
+    commander.name,
+    ...(partnerCommander ? [partnerCommander.name] : []),
+    ...(cz.mustIncludeCards ?? []),
+    ...(cz.tempMustIncludeCards ?? []),
+    ...(state.context.optimizeDeckCards ?? []),
+  ]);
+  for (const ref of cz.appliedIncludeLists ?? []) {
+    if (!ref.enabled) continue;
+    for (const name of userLists.find((l) => l.id === ref.listId)?.cards ?? []) asked.add(name);
+  }
+  for (const name of excludedOwnedNames) {
+    if (!isBasicLandName(name) && !asked.has(name)) markBanned(state, name);
   }
 }
 
