@@ -251,10 +251,10 @@ describe('loading the page', () => {
 });
 
 describe('combos for the objective', () => {
-  const summary = (id: string, names: string[]) => ({
+  const summary = (id: string, names: string[], produces = ['Infinite mana']) => ({
     id,
     identity: 'BG',
-    produces: ['Infinite mana'],
+    produces,
     prerequisites: null,
     description: null,
     manaNeeded: null,
@@ -275,7 +275,13 @@ describe('combos for the objective', () => {
       ],
       oneAway: [
         {
-          combo: summary('3-4', ['Hermit Druid', "Thassa's Oracle"]),
+          combo: summary('3-4', ['Hermit Druid', "Thassa's Oracle"], ['Win the game']),
+          presentOracleIds: ['o0'],
+          missingOracleIds: ['o1'],
+        },
+        {
+          // A loop that only makes mana needs a payoff: not a combo until the deck has one (E437).
+          combo: summary('5-6', ['Hermit Druid', 'Sol Ring']),
           presentOracleIds: ['o0'],
           missingOracleIds: ['o1'],
         },
