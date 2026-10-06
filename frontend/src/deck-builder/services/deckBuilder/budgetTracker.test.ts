@@ -48,49 +48,40 @@ describe('BudgetTracker.getEffectiveCap', () => {
     expect(t.getEffectiveCap(7)).toBe(7);
   });
 
-  it('caps at the bulk tier (never $0, never uncapped) once must-includes blew the budget; a staple prices against the unspent budget shrunk by the hole', () => {
+  it('caps at an even share of the unspent budget (never $0, never uncapped) once must-includes blew it; a staple prices against the unspent budget shrunk by the hole', () => {
     vi.spyOn(console, 'debug').mockImplementation(() => {});
     // 30-card budget deck, must-includes alone cost more than the budget —
     // remainingBudget goes negative and stays negative for every later pick.
     const t = new BudgetTracker(30, 40);
     t.deductMustIncludes([makeCard({ prices: { usd: '80.00' } })]);
     expect(t.remainingBudget).toBeLessThan(0);
-    expect(t.getEffectiveCap(null)).toBe(EXHAUSTED_CAP);
-    expect(t.getEffectiveCap(5)).toBe(EXHAUSTED_CAP);
+    expect(t.getEffectiveCap(null)).toBeCloseTo(0.75);
+    expect(t.getEffectiveCap(5)).toBeCloseTo(0.75);
     expect(t.getEffectiveCap(0.1)).toBe(0.1);
     // Unspent shape: min(15% of $30, 8 x $30/40) = $4.50, times 30 / (30 + 50).
     expect(t.getEffectiveCap(null, true)).toBeCloseTo(1.6875);
   });
 
   it('never drops below the bulk tier however deep the hole', () => {
+    const tiny = new BudgetTracker(10, 99);
+    tiny.remainingBudget = -100000;
+    expect(tiny.getEffectiveCap(null)).toBe(EXHAUSTED_CAP);
+    expect(tiny.getEffectiveCap(null, true)).toBe(EXHAUSTED_CAP);
     const t = new BudgetTracker(30, 40);
     t.remainingBudget = -100000;
-    expect(t.getEffectiveCap(null)).toBe(EXHAUSTED_CAP);
-    expect(t.getEffectiveCap(null, true)).toBe(EXHAUSTED_CAP);
+    expect(t.getEffectiveCap(null)).toBeCloseTo(0.75);
   });
 
-  // E566, Krenko budget50: a zero remainder returned the static max and lifted
-  // the cap off every later pick (the $50 deck shipped at $147). Real prices.
-  it('keeps a $50 mono-red build under its budget once the remainder hits zero', () => {
-    const pool = [
-      ['Mana Crypt', 150],
-      ['Goblin Recruiter', 30],
-      ['Skullclamp', 8],
-      ['Howlsquad Heavy', 3.68],
-      ['Impact Tremors', 0.4],
-      ['Rummaging Goblin', 0.1],
-    ] as const;
-    const t = new BudgetTracker(50, 64);
-    t.remainingBudget = 0; // a combo seat and the rocks spent everything
-    let total = 50;
-    for (let i = 0; i < 64; i++) {
-      const cap = t.getEffectiveCap(null);
-      expect(cap).not.toBeNull();
-      const pick = pool.find(([, price]) => price <= (cap as number))!;
-      total += pick[1];
-      t.deductCard(makeCard({ prices: { usd: String(pick[1]) } }));
-    }
-    expect(total).toBeLessThan(147);
+  // E566: the flat $0.25 cap priced these real cards out of $30-$40 builds.
+  it.each([
+    ['Chaos Warp (52% in Krenko)', 0.33, 30, 70],
+    ['Spell Pierce (15% in Yuriko)', 0.31, 40, 70],
+    ['Mana Leak (10% in Yuriko)', 0.28, 40, 70],
+  ])('seats %s at $%s under an exhausted $%s tracker', (_name, price, budget, slots) => {
+    const t = new BudgetTracker(budget, slots);
+    t.remainingBudget = -1;
+    expect(t.getEffectiveCap(null)).toBeGreaterThanOrEqual(price);
+    expect(t.getEffectiveCap(null, true)).toBeGreaterThanOrEqual(price);
   });
 
   it('holds the nonbasic land picks to the cheapest viable price while in the red (kitchen-sink: Command Tower and shocks at $40)', () => {

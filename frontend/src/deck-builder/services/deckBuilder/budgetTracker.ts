@@ -60,7 +60,10 @@ export class BudgetTracker {
     // against the budget as it stood unspent, shrunk by the hole, so it is never
     // priced out. phaseBudgetConverge reconciles the total after.
     if (dynamicCap <= 0) {
-      let cap = mayUseLandReserve ? this.exhaustedStapleCap(-remaining) : EXHAUSTED_CAP;
+      // The floor is an even share of the unspent budget: a flat $0.25 priced out
+      // Chaos Warp (52%, $0.33), Mana Leak and Spell Pierce in $30-$40 builds.
+      const floor = Math.max(EXHAUSTED_CAP, this.totalBudget / this.totalSlots);
+      let cap = mayUseLandReserve ? Math.max(floor, this.exhaustedStapleCap(-remaining)) : floor;
       // The land phase's cheapest viable option still binds a build in the red.
       if (this.landSlots > 0) cap = Math.min(cap, Math.max(this.landFloor, EXHAUSTED_CAP));
       return staticMax === null ? cap : Math.min(staticMax, cap);

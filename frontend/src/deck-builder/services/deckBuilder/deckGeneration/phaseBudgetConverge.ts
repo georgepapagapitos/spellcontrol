@@ -672,7 +672,15 @@ export async function applyBudgetConvergence(
   if (total > ctx.deckBudget) {
     runRounds((c) => !isHardProtected(c) && !keeps(c));
   }
-  if (total > ctx.deckBudget) {
+  // E566: the kept cards yield last, and only if cutting them can close the gap.
+  // Yuriko kitchen-sink ended $9.78 over, and the last stage still cut Shadow of
+  // Mortality (49.8%, the deck's reveal finisher) for $0.58. Even every kept
+  // card swapped for a free one saves no more than they cost, so a gap bigger
+  // than that is not closed by them and they stay.
+  const keptPrice = nonLands()
+    .filter((c) => !isHardProtected(c) && keeps(c))
+    .reduce((sum, c) => sum + (parsePrice(getCardPrice(c, ctx.currency)) ?? 0), 0);
+  if (total > ctx.deckBudget && total - keptPrice <= ctx.deckBudget) {
     runRounds((c) => !isHardProtected(c));
   }
 
