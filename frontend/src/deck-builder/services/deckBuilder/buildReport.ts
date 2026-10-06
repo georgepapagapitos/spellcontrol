@@ -219,18 +219,19 @@ export function assembleBuildReport(input: {
       if (c.name.includes(' // ')) finalNames.add(c.name.split(' // ')[0]);
     }
   }
-  // The whole-deck search also puts back a card an earlier repair cut (E513:
-  // budgetRepairs read "Skrelv, Defector Mite -> Tainted Observer ... cut a
-  // synergy engine piece" over a deck that had Skrelv back in it).
-  const searchAdded = new Set((generated.wholeDeckSearchSwaps ?? []).map((s) => s.added));
+  // A later phase can also put back a card an earlier repair cut: the whole-deck
+  // search (E513: "Skrelv, Defector Mite -> Tainted Observer ... cut a synergy
+  // engine piece" over a deck that had Skrelv back in it), a surplus conversion
+  // or a fixup (E561: Krenko budget50's "Goblin Piledriver -> Rummaging Goblin"
+  // beside a conversion that seated Piledriver again). The final deck is the
+  // truth source, whoever put it back.
   const annotateDisplacedAdds = <T extends { cut: string; added: string; reason: string }>(
     repairs: T[]
   ): T[] =>
     repairs.map((r) => {
       let reason = r.reason;
       if (!finalNames.has(r.added)) reason += ` ${r.added} was cut later.`;
-      if (searchAdded.has(r.cut) && finalNames.has(r.cut))
-        reason += ` ${r.cut} was put back later.`;
+      if (finalNames.has(r.cut)) reason += ` ${r.cut} was put back later.`;
       return reason === r.reason ? r : { ...r, reason };
     });
 

@@ -14,8 +14,11 @@ import {
   getCardRole,
   readsAsProtection,
   isFreeInteraction,
+  isOneSidedWipe,
+  getWipeScope,
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
+import { wipeQualityPenalty } from '../wipeTieBreaks';
 import { roleCapTolerance, stampRoleSubtypes, routeCardByType } from '../categorize';
 import {
   constrainsToCollection,
@@ -527,6 +530,17 @@ export async function applyBudgetConvergence(
       // can't push anything over cap that wasn't already there (see
       // isRoleCapBlocked's doc comment and the header comment above).
       if (getCardRole(card.name) !== cutRole && isRoleCapBlocked(card.name)) return false;
+      // E561: a board wipe leaves for a wipe that is no worse. Vandalblast (one-sided
+      // in a goblin deck) went to Chain Reaction (symmetric) for $1.28, and the
+      // role-surplus pass then kept a creature as the deck's only "wipe".
+      if (
+        cutRole === 'boardwipe' &&
+        getCardRole(card.name) === 'boardwipe' &&
+        wipeQualityPenalty(card, isOneSidedWipe, getWipeScope, undefined) >
+          wipeQualityPenalty(cutCard, isOneSidedWipe, getWipeScope, undefined)
+      ) {
+        return false;
+      }
       return true;
     };
 
