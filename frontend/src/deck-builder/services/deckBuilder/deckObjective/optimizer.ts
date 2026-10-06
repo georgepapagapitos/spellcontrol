@@ -59,6 +59,7 @@ import { cardIneligibility, checkConstraints } from './constraints';
 import { isBasicLand, isLandCard } from './context';
 import { reasonProblem } from './reasonCheck';
 import { protectionValue } from './terms/interaction';
+import { ROLE_LABEL } from './terms/roles';
 import { TERMS, compareScores, infeasibility, scoreDeck, termDeltas } from './index';
 import {
   countRoles,
@@ -69,6 +70,7 @@ import {
   type TrustOptions,
 } from './trustRegion';
 import {
+  OBJECTIVE_ROLES,
   TERM_KEYS,
   type ObjectiveContext,
   type ObjectiveDeck,
@@ -132,6 +134,8 @@ export interface AppliedSwap {
   reasons: SwapReason[];
   /** One line. */
   summary: string;
+  /** Set on a repair that had to leave the trust region: what it broke and why nothing owned fit inside. */
+  disclosure?: string;
 }
 
 export interface OptimizeResult {
@@ -198,6 +202,13 @@ const REPAIR_CHOICES = 8;
 const REPAIR_TIER = 0.5;
 /** Repairs kept aside because they leave the trust region, judged only when none stays inside it. */
 const FORCED_KEPT = 64;
+type ForcedTier = 1 | 2 | 3;
+/** What a forced repair that left the trust region says, so the reason owns up to it. */
+function forcedDisclosure(tier: ForcedTier, why: string): string {
+  return tier === 2
+    ? `no owned card keeps the class floor (${why})`
+    : `no owned card fits inside the role limits (${why})`;
+}
 /** Constraint checks allowed per shortlist slot before a step gives up. */
 const CHECKS_PER_SLOT = 25;
 
@@ -251,11 +262,38 @@ function rolesMoved(before: string, after: string): string | null {
   return moved.length ? `roles: ${moved.join(', ')}` : null;
 }
 
+/**
+ * "ramp 16 → 15 of target 11" for each role the swap moved, counted by the
+ * report's own counter in the decks the swap was made between (the seed with
+ * the swaps before it applied, and with it): a reason read against the final
+ * deck alone would give every ramp cut the same last step.
+ */
+export function rolesMovedBetween(
+  before: ObjectiveDeck,
+  after: ObjectiveDeck,
+  roleOf: (card: ScryfallCard) => string | null,
+  targets: ObjectiveContext['roleTargets']
+): string | null {
+  const a = countRoles(
+    { commanders: before.commanders, cards: before.cards.filter((c) => !isLandCard(c)) },
+    roleOf
+  );
+  const b = countRoles(
+    { commanders: after.commanders, cards: after.cards.filter((c) => !isLandCard(c)) },
+    roleOf
+  );
+  const moved = OBJECTIVE_ROLES.filter((r) => targets[r] && (a[r] ?? 0) !== (b[r] ?? 0)).map(
+    (r) => `${ROLE_LABEL[r]} ${a[r] ?? 0} → ${b[r] ?? 0} of target ${targets[r]}`
+  );
+  return moved.length ? `roles: ${moved.join(', ')}` : null;
+}
+
 function reasonsFor(
   before: ObjectiveScore,
   after: ObjectiveScore,
   outs: string[],
-  ins: string[]
+  ins: string[],
+  rolesNote?: string | null
 ): SwapReason[] {
   const out: SwapReason[] = [];
   for (const term of TERM_KEYS) {
@@ -270,7 +308,10 @@ function reasonsFor(
       if (outs.includes(n.name))
         out.push({ name: n.name, term, value: -n.value * before.terms[term].weight, note: n.note });
   }
-  const roles = rolesMoved(before.terms.roles.detail.summary, after.terms.roles.detail.summary);
+  const roles =
+    rolesNote !== undefined
+      ? rolesNote
+      : rolesMoved(before.terms.roles.detail.summary, after.terms.roles.detail.summary);
   if (roles && ins.length) {
     out.push({
       name: ins[0],
@@ -319,19 +360,18 @@ export function optimizeDeck(
   const t0 = Date.now();
   const cz = baseCtx.customization;
   // A staple rock yields to the user's ownership rule only where an unowned
-  // one must break it: owned-only builds and a 100% owned share (E509 ruling
-  // (a): Sol Ring is correctly absent there, and only must-includes may break
-  // the share). Under a lower share the generator keeps them, and so does the
-  // search. Combo-sourced temporary must-includes are the generator's
+  // one must break it: owned-only builds (E509 ruling (a): Sol Ring is
+  // correctly absent there). Under an owned SHARE, even 100%, the generator
+  // keeps one it seated and discloses the shortfall (Yuriko at 99% kept Sol
+  // Ring), and so does the search: a share is met by cards that aren't
+  // staples, or not at all (E513 round 3). Combo-sourced temporary must-includes are the generator's
   // bookkeeping, skipped silently by design (deckInvariants), so they are
   // not protected.
   const strategy = cz.collectionStrategy ?? 'full';
   const ownershipBinds =
     !!baseCtx.ownedNames &&
     cz.collectionMode !== false &&
-    (strategy === 'full' ||
-      strategy === 'available' ||
-      (strategy === 'partial' && (cz.collectionOwnedPercent ?? 0) >= 100));
+    (strategy === 'full' || strategy === 'available');
   const stapleProtected = STAPLE_ROCKS.filter(
     (n) =>
       !ownershipBinds || baseCtx.ownedNames!.has(n) || baseCtx.ownedNames!.has(frontFaceName(n))
@@ -372,7 +412,12 @@ export function optimizeDeck(
   const seedScore = full(current);
   let currentScore = seedScore;
   let best = { deck: current, score: currentScore };
-  const applied: Array<{ out: ScryfallCard[]; in: ScryfallCard[]; kind: AppliedSwap['kind'] }> = [];
+  const applied: Array<{
+    out: ScryfallCard[];
+    in: ScryfallCard[];
+    kind: AppliedSwap['kind'];
+    disclosure?: string;
+  }> = [];
   const refusals: Record<string, number> = {};
   const tabuOut = new Map<string, number>(); // key -> swap index until which it can't leave
   const tabuIn = new Map<string, number>(); // key -> swap index until which it can't return
@@ -551,7 +596,12 @@ export function optimizeDeck(
     );
 
     // 3. Judge the best candidates exactly, cheapest first.
-    let taken: { move: Move; score: ObjectiveScore; kind: AppliedSwap['kind'] } | null = null;
+    let taken: {
+      move: Move;
+      score: ObjectiveScore;
+      kind: AppliedSwap['kind'];
+      disclosure?: string;
+    } | null = null;
     let bestTried: { move: Move; score: ObjectiveScore } | null = null;
     // The shortlist counts moves inside every bound: under a budget the
     // best-estimated pairs are often the ones that break it, and skipping
@@ -562,9 +612,17 @@ export function optimizeDeck(
     let repairsSeen = 0;
     // Repairs that leave the trust region: the constraint is the user's, so
     // one is taken when none stays inside it, never before.
+    // They are kept in tiers (below): a forced repair still keeps whatever
+    // of the region an owned card can keep.
     const forced: Move[] = [];
+    const forcedKept = [0, 0, 0, 0];
     let forcedRepair = false;
-    const judgeOf = (move: Move, repair: boolean) =>
+    let forcedTier: ForcedTier = 1;
+    const judgeOf = (
+      move: Move,
+      repair: boolean,
+      relax: { skipProtected?: boolean; skipClassFloor?: boolean } = {}
+    ) =>
       trustVerdict(
         rolesNow,
         move.out.map((i) => current.cards[i]),
@@ -572,8 +630,28 @@ export function optimizeDeck(
         ctx,
         protectedNow,
         opts.minGain,
-        { ...trust!, roleOf, classesNow, gameChangersNow, repair }
+        { ...trust!, roleOf, classesNow, gameChangersNow, repair, ...relax }
       );
+    // The least a forced repair gives up: 1 keeps the role floors and caps and
+    // the class floors (an owned protection piece for Swiftfoot Boots), 2
+    // keeps the caps and the floors but not the class (no owned card holds
+    // it), 3 is over a cap or floor too (nothing owned fits under it).
+    const tiers = new Map<Move, { tier: ForcedTier; why: string | null }>();
+    const tierOf = (move: Move) => {
+      let t = tiers.get(move);
+      if (!t) {
+        const keepsClass = judgeOf(move, false, { skipProtected: true });
+        if (!keepsClass.bound) t = { tier: 1, why: null };
+        else {
+          const keepsCaps = judgeOf(move, false, { skipProtected: true, skipClassFloor: true });
+          t = keepsCaps.bound
+            ? { tier: 3, why: keepsCaps.blocked }
+            : { tier: 2, why: keepsClass.blocked };
+        }
+        tiers.set(move, t);
+      }
+      return t;
+    };
     for (const move of moves) {
       if (judged >= opts.shortlist || checked >= opts.shortlist * CHECKS_PER_SLOT) break;
       if (evaluations.full >= opts.maxEvaluations || Date.now() - t0 > opts.timeBudgetMs) break;
@@ -590,7 +668,11 @@ export function optimizeDeck(
         const verdict = judgeOf(move, false);
         if (verdict.bound) {
           if (isRepair) {
-            if (forced.length < FORCED_KEPT) forced.push(move);
+            const tier = tierOf(move).tier;
+            if (forcedKept[tier] < FORCED_KEPT) {
+              forcedKept[tier]++;
+              forced.push(move);
+            }
           } else refusals[verdict.bound] = (refusals[verdict.bound] ?? 0) + 1;
           continue;
         }
@@ -624,7 +706,8 @@ export function optimizeDeck(
       // doesn't, as before the region reached repairs.
       forcedRepair = true;
       let seen = 0;
-      for (const move of forced) {
+      forcedTier = Math.min(...forced.map((m) => tierOf(m).tier)) as ForcedTier;
+      for (const move of forced.filter((m) => tierOf(m).tier === forcedTier)) {
         if (evaluations.full >= opts.maxEvaluations || Date.now() - t0 > opts.timeBudgetMs) break;
         const score = full(applyMove(current, move));
         if (!bestRepair || compareScores(score, bestRepair.score) > 0) bestRepair = { move, score };
@@ -652,6 +735,7 @@ export function optimizeDeck(
         const left = checkConstraints(next, ctx).reduce((n, v) => n + v.magnitude, 0);
         if (left >= curInfeasible) continue;
         if (trust && !forcedRepair && judgeOf(move, false).bound) continue;
+        if (trust && forcedRepair && tierOf(move).tier > forcedTier) continue;
         tried++;
         const score = full(next);
         const beats =
@@ -664,7 +748,13 @@ export function optimizeDeck(
       if (bestMatched && rank(bestMatched.move) > rank(bestRepair.move)) bestRepair = bestMatched;
     }
     if (!taken && bestRepair) {
-      taken = { move: bestRepair.move, score: bestRepair.score, kind: 'repair' };
+      const out = tierOf(bestRepair.move);
+      taken = {
+        move: bestRepair.move,
+        score: bestRepair.score,
+        kind: 'repair',
+        disclosure: forcedRepair && out.why ? forcedDisclosure(out.tier, out.why) : undefined,
+      };
     }
     if (!taken && escapesLeft > 0 && bestTried) {
       if (currentScore.total - bestTried.score.total <= opts.escapeTolerance) {
@@ -684,7 +774,12 @@ export function optimizeDeck(
     }
 
     const outs = taken.move.out.map((i) => current.cards[i]);
-    applied.push({ out: outs, in: taken.move.in, kind: taken.kind });
+    applied.push({
+      out: outs,
+      in: taken.move.in,
+      kind: taken.kind,
+      disclosure: taken.disclosure,
+    });
     for (const c of taken.move.in) tabuOut.set(key(c.name), applied.length + opts.tabuTenure);
     for (const c of outs) tabuIn.set(key(c.name), applied.length + opts.tabuTenure);
     current = applyMove(current, taken.move);
@@ -714,15 +809,28 @@ export function optimizeDeck(
     });
     return { commanders: d.commanders, cards };
   };
+  const applyKept = (d: ObjectiveDeck, s: (typeof kept)[number]): ObjectiveDeck => {
+    const cards = [...d.cards];
+    s.out.forEach((o, j) => {
+      const i = cards.findIndex((x) => x.name === o.name);
+      if (i >= 0) cards[i] = s.in[j];
+    });
+    return { commanders: d.commanders, cards };
+  };
   const readSwaps = () => {
     const c = withSlots(deck);
     const now = full(deck, c);
+    // Each swap in the order it was made, from the seed.
+    let stepFrom = seed;
     return kept.map((s) => {
+      const stepTo = applyKept(stepFrom, s);
+      const rolesNote = rolesMovedBetween(stepFrom, stepTo, roleOf, c.roleTargets);
+      stepFrom = stepTo;
       const without = undo(deck, s);
       const then = full(without, c);
       const outNames = s.out.map((x) => x.name);
       const inNames = s.in.map((x) => x.name);
-      const all = reasonsFor(then, now, outNames, inNames);
+      const all = reasonsFor(then, now, outNames, inNames, rolesNote);
       // An incoming card's reason is about the final deck, an outgoing one's
       // about the deck it left.
       const problems = all.map((r) =>
@@ -737,7 +845,11 @@ export function optimizeDeck(
         reasons: all.filter((_, i) => problems[i] === null),
       };
       return {
-        swap: { ...partial, summary: summaryOf(partial) } as AppliedSwap,
+        swap: {
+          ...partial,
+          summary: summaryOf(partial),
+          ...(s.disclosure ? { disclosure: s.disclosure } : {}),
+        } as AppliedSwap,
         source: s,
         without,
         breaks: infeasibility(then) > infeasibility(now),

@@ -2,6 +2,7 @@
 // that file under its size ceiling. deckGenerator.ts re-exports it.
 import type { RoleKey } from '@/deck-builder/services/tagger/client';
 import { STAPLE_INCLUSION_BAR } from '../cardPicking';
+import { isRoleExcess } from '../deckAnalyzer';
 
 const ROLE_DISPLAY: Record<RoleKey, string> = {
   ramp: 'ramp',
@@ -51,4 +52,25 @@ export function buildRoleCapOverflowNote(
   const comboClause =
     combos > 0 ? ` ${subject(combos)} part of a combo the deck can assemble.` : '';
   return `${total} card${total === 1 ? '' : 's'} went past a role cap.${thinClause}${stapleClause}${comboClause} See Overbuilt roles for the total.`;
+}
+
+const POINTER = / See Overbuilt roles for the total\.$/;
+
+/**
+ * The note without its "See Overbuilt roles" pointer when the FINAL counts
+ * leave nothing for it to point at (the report's `roleExcesses` is empty: a
+ * role-surplus rebalance or the whole-deck search brought every role under the
+ * excess bar after the escape hatch fired). The deck's own copy of the note and
+ * the report's must agree, so both go through here with the final role counts.
+ */
+export function withoutDanglingPointer(
+  note: string | undefined,
+  roleTargets: Readonly<Record<string, number>> | undefined,
+  roleCounts: Readonly<Record<string, number>> | undefined
+): string | undefined {
+  if (!note || !roleTargets) return note;
+  const excess = Object.entries(roleTargets).some(([role, want]) =>
+    isRoleExcess(roleCounts?.[role] ?? 0, want)
+  );
+  return excess ? note : note.replace(POINTER, '');
 }

@@ -76,13 +76,23 @@ export interface WholeDeckSearchResult {
   note: string | undefined;
 }
 
-/** The swap's reasons as the report states them: its biggest three, in words. */
-function reasonLine(s: AppliedSwap): string {
-  const top = s.reasons
-    .slice(0, 3)
-    .map((r) => `${r.name}: ${r.note}`)
-    .join('; ');
-  return `${s.in.join(' + ')} for ${s.out.join(' + ')}${s.kind === 'repair' ? ' (to keep a build rule)' : ''}. ${top}.`;
+/**
+ * The swap's reasons as the report states them: its biggest three, in words,
+ * and always a case FOR each card that came in (its best gain, when it has
+ * one): Vexing Puzzlebox and Rise of the Dark Realms were stated only by what
+ * the cards they replaced had provided (E513 round 3).
+ */
+export function reasonLine(s: AppliedSwap): string {
+  const top3 = s.reasons.slice(0, 3);
+  const cases = s.in.flatMap((name) => {
+    if (top3.some((r) => r.name === name && r.value > 0)) return [];
+    const gain = s.reasons.find((r) => r.name === name && r.value > 0);
+    return gain ? [gain] : [];
+  });
+  const shown = [...top3.slice(0, Math.max(0, 3 - cases.length)), ...cases];
+  const top = shown.map((r) => `${r.name}: ${r.note}`).join('; ');
+  const outside = s.disclosure ? ` Outside the usual limits, because ${s.disclosure}.` : '';
+  return `${s.in.join(' + ')} for ${s.out.join(' + ')}${s.kind === 'repair' ? ' (to keep a build rule)' : ''}. ${top}.${outside}`;
 }
 
 export async function wholeDeckSearchPhase(
