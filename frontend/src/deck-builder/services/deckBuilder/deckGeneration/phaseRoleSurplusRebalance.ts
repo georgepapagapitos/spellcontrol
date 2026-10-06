@@ -5,10 +5,11 @@ import type {
   MaxRarity,
   ScryfallCard,
 } from '@/deck-builder/types';
+import { evictionKeeper } from './evictionKeeper';
 import type { GenerationState } from './state';
 import {
   getCardRole,
-  isProtectionPiece,
+  readsAsProtection,
   isOneSidedWipe,
   isFreeInteraction,
   getWipeScope,
@@ -471,6 +472,8 @@ export function applyRoleSurplusRebalance(
     for (const n of combo.cards) completeComboNames.add(n);
   }
 
+  // E563: the keeper judges the card coming in too, so it is not part of isProtected.
+  const keeps = evictionKeeper(state);
   const isProtected = (card: ScryfallCard): boolean =>
     !!card.isMustInclude ||
     !!state.cfg.ownedQuotaProtects?.(card.name) ||
@@ -485,7 +488,7 @@ export function applyRoleSurplusRebalance(
     // because it happens to also carry a reactive-role tag — every sibling
     // pass (Smart Trim, phaseBracketConverge, phaseBudgetConverge,
     // phaseCoherenceRepair) already checks this; this pass hadn't yet.
-    isProtectionPiece(card);
+    readsAsProtection(card);
 
   // Nonbo-flagged cards evict first (E80 tie-in — the Isshin motivating case:
   // self-damaging wipes in a go-wide token shell). Recomputed here from the
@@ -626,7 +629,9 @@ export function applyRoleSurplusRebalance(
      *  specifically, not "whatever payoff ranks highest overall" (that's
      *  Phase 1/2's job). Undefined for every existing caller (unchanged
      *  behavior). */
-    roleFilter?: RoleKey
+    roleFilter?: RoleKey,
+    /** E563: skips a candidate the keeper blocks for the evicted card. */
+    canReplace?: (card: ScryfallCard) => boolean
   ): ScryfallCard | null => {
     const eligible = pool.filter(
       (c) =>
@@ -690,6 +695,7 @@ export function applyRoleSurplusRebalance(
       if (exceedsCmcCap(card, ctx.maxCmc)) continue;
       if (notOnArena(card, ctx.arenaOnly)) continue;
       if (!destinationRoleOk(card, evictedRole)) continue;
+      if (canReplace && !canReplace(card)) continue;
       if (!allowSameRole && countedRoleOf(card) === evictedRole) continue; // defect 6a: role-exit phase only
       // Price sanity (E80/#1011 precedent — cardPicking.ts's PRICE_SANITY_RATIO
       // = 20, reused verbatim): a candidate dramatically pricier than the card
@@ -799,7 +805,9 @@ export function applyRoleSurplusRebalance(
         candidate.survival,
         evictedPrice,
         candidate.role,
-        allowSameRole
+        allowSameRole,
+        undefined,
+        (incoming) => !keeps(candidate.card, incoming)
       );
       if (!replacement) continue; // this candidate has no legal upgrade — try the next-worst one
 
@@ -877,24 +885,24 @@ export function applyRoleSurplusRebalance(
   // genuinely replaceable one, same protection Phase 1/2 give outgoing
   // reactive-role cards.
   //
-  // isFreeInteraction is checked HERE only, not folded into the shared
-  // isProtected() — isProtectionPiece() deliberately returns false for a
-  // free-interaction piece (#1037's overlap exclusion between the two
-  // classifiers), so without this a Fierce Guardianship/Commandeer-class
-  // card is protected by nothing in this donor pool. Phase 1/2 never faced
-  // this: they only ever evict from OVER-CAP reactive roles, and a roleless
-  // free-interaction card was never eligible there, so widening the shared
-  // isProtected() would change Phase 1/2 eviction behavior beyond this
-  // slice's scope — scoped to this loop instead.
+  // isFreeInteraction is checked HERE only: isProtected() leaves a roleless
+  // free-interaction card (Fierce Guardianship) unprotected, and widening it
+  // would change Phase 1/2 eviction behavior.
   const findRoleDeficitDonor = (
     deficitRole: RoleKey
   ): { card: ScryfallCard; category: DeckCategory } | null => {
+    const probe = findReplacement(-Infinity, Infinity, deficitRole, true, deficitRole) ?? undefined;
+    let blockedByKeeper = false;
     const candidates: { card: ScryfallCard; category: DeckCategory }[] = [];
     for (const cat of Object.keys(state.categories) as DeckCategory[]) {
       if (cat === 'lands') continue;
       for (const card of state.categories[cat]) {
         const role = countedRoleOf(card);
         if (role === deficitRole || isProtected(card) || isFreeInteraction(card)) continue;
+        if (keeps(card, probe)) {
+          blockedByKeeper = true; // E563: only a downgrade of a kept card is blocked
+          continue;
+        }
         if (role) {
           const roleTarget = roleTargets[role] ?? 0;
           if ((liveRoleCounts[role] ?? 0) - 1 < roleTarget) continue;
@@ -902,7 +910,10 @@ export function applyRoleSurplusRebalance(
         candidates.push({ card, category: cat });
       }
     }
-    if (candidates.length === 0) return null;
+    if (candidates.length === 0) {
+      if (blockedByKeeper) state.keeperBlocked?.add(`role:${deficitRole}`); // no donor left to give
+      return null;
+    }
     const liftBoosts = computeLiftPickBoosts(
       candidates.map((c) => c.card.name),
       ctx.liftScoreOf
@@ -940,12 +951,8 @@ export function applyRoleSurplusRebalance(
   // roles are deficient and the budget is tight (see DEFICIT_BACKFILL_ROLES'
   // own doc). Bounded by the same MAX_SURPLUS_CONVERSIONS budget as Phases
   // 1/2 above (shared conversionsApplied counter) so a pathological deficit
-  // can't run away. The incoming card is ranked through the exact same
-  // quality-aware findReplacement machinery every other pick in this pass
-  // uses — wipeQualityPenalty only actually applies inside findReplacement
-  // when the candidate IS a boardwipe, so a removal backfill ranks candidates
-  // on priority + lift + ownedBoost, which is the correct behavior for that
-  // role (see findReplacement's roleFilter param).
+  // can't run away. The incoming card is ranked through findReplacement like
+  // every other pick here (see its roleFilter param).
   for (const role of DEFICIT_BACKFILL_ROLES) {
     while (conversionsApplied < MAX_SURPLUS_CONVERSIONS) {
       const target = roleTargets[role] ?? 0;
@@ -954,7 +961,8 @@ export function applyRoleSurplusRebalance(
       const donor = findRoleDeficitDonor(role);
       if (!donor) break;
       const donorPrice = priceOf(donor.card);
-      const replacement = findReplacement(-Infinity, donorPrice, role, true, role);
+      const fits = (i: ScryfallCard) => !keeps(donor.card, i);
+      const replacement = findReplacement(-Infinity, donorPrice, role, true, role, fits);
       if (!replacement) break;
 
       removeCard(donor.card, donor.category, countedRoleOf(donor.card) ?? undefined);
@@ -984,5 +992,7 @@ export function applyRoleSurplusRebalance(
     }
   }
 
+  // The whole-deck search keeps the roles this pass trimmed trimmed (E513).
+  state.surplusCuts = conversions.map((c) => c.cut);
   return { conversions };
 }

@@ -3,6 +3,11 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import {
+  INCLUSION_INK_HUE_SHARE,
+  inclusionColor,
+  inclusionInk,
+} from '@/lib/deck-analysis/inclusion-label';
 
 // CSS `?raw` imports return empty under this vite/rolldown setup (the CSS plugin
 // consumes the file), so read the stylesheets directly. Tests run in the node
@@ -189,5 +194,94 @@ describe('accent as text clears AA', () => {
         }
       });
     }
+  }
+});
+
+/**
+ * The light-scheme `--success` / `--info` (themes.css, `[data-scheme='light']`)
+ * are text: the "Owned" chip, score labels, Engine panel lines. The nightly
+ * journey's axe pass caught `--success` at 4.0–4.4:1 on the Tune view, under
+ * every light theme, for weeks. Hold both to AA on each light palette's grounds.
+ */
+describe('light-scheme status inks clear AA', () => {
+  const lightBlock = themesCss.match(/\[data-scheme='light'\]\s*\{([^}]*)\}/)?.[1] ?? '';
+  const light = collectThemes().filter((t) => luminance(t.bg) > 0.3);
+
+  it('finds the light palettes and the light-scheme block', () => {
+    expect(light.map((t) => t.name).sort()).toEqual(['azorius', 'boros', 'selesnya', 'simic']);
+    expect(lightBlock).toContain('--success');
+  });
+
+  for (const token of ['success', 'info']) {
+    for (const t of light) {
+      it(`${t.name}: --${token} on bg/surface/surface-raised`, () => {
+        const ink = tokenIn(lightBlock, token);
+        expect(ink, `[data-scheme='light'] declares no --${token}`).toBeTruthy();
+        for (const [where, ground] of Object.entries({
+          bg: t.bg,
+          surface: t.surface,
+          'surface-raised': t.surfaceRaised,
+        })) {
+          const ratio = contrast(ink!, ground);
+          expect(
+            ratio,
+            `${t.name} --${token} on --${where} = ${ratio.toFixed(2)}`
+          ).toBeGreaterThanOrEqual(AA);
+        }
+      });
+    }
+  }
+});
+
+/**
+ * `inclusionInk` sets the EDHREC "In 42% of decks" figure as text. The raw ramp
+ * (`inclusionColor`, a 45%-lightness hue) is a meter fill; as text its yellows
+ * read at 1.9:1 on a light page. The ink mixes the hue toward each theme's
+ * `--text-primary`, so check every percentage on every theme's grounds.
+ */
+describe('inclusion % ink clears AA on every theme', () => {
+  const blocks = [...themesCss.matchAll(/\[data-theme='([a-z]+)'\]\s*\{([^}]*)\}/g)];
+
+  function hslRgb(h: number, s: number, l: number): number[] {
+    const k = (n: number) => (n + h / 30) % 12;
+    const a = s * Math.min(l, 1 - l);
+    const f = (n: number) => l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1));
+    return [f(0), f(8), f(4)].map((v) => v * 255);
+  }
+  const hex = (rgb: number[]) =>
+    `#${rgb.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`;
+
+  it('the ink is the ramp mixed toward --text-primary', () => {
+    expect(inclusionInk(42)).toBe(
+      `color-mix(in srgb, ${inclusionColor(42)} ${INCLUSION_INK_HUE_SHARE}%, var(--text-primary))`
+    );
+  });
+
+  for (const t of collectThemes()) {
+    it(`${t.name}: every inclusion % from 1 to 100`, () => {
+      const text = tokenIn(blocks.find((m) => m[1] === t.name)![2], 'text-primary');
+      expect(text, `${t.name} declares no --text-primary`).toBeTruthy();
+      const textRgb = [1, 3, 5].map((i) => parseInt(text!.slice(i, i + 2), 16));
+      const share = INCLUSION_INK_HUE_SHARE / 100;
+      for (let pct = 1; pct <= 100; pct++) {
+        const [, h, s, l] = inclusionColor(pct)
+          .match(/hsl\((\d+) (\d+)% (\d+)%\)/)!
+          .map(Number);
+        const ink = hex(
+          hslRgb(h, s / 100, l / 100).map((v, i) => v * share + textRgb[i] * (1 - share))
+        );
+        for (const [where, ground] of Object.entries({
+          bg: t.bg,
+          surface: t.surface,
+          'surface-raised': t.surfaceRaised,
+        })) {
+          const ratio = contrast(ink, ground);
+          expect(
+            ratio,
+            `${t.name} ${pct}% ink ${ink} on --${where} = ${ratio.toFixed(2)}`
+          ).toBeGreaterThanOrEqual(AA);
+        }
+      }
+    });
   }
 });

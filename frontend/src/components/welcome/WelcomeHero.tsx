@@ -81,7 +81,7 @@ export function WelcomeHero({ onTrySamples, samplesLoading }: WelcomeHeroProps) 
           <SearchPill
             value={query}
             onChange={setQuery}
-            placeholder="Search decks, commanders, builders"
+            placeholder="Search decks, commanders, brewers"
             ariaLabel="Search public decks"
             className="welcome-hero-search-pill"
             trailing={

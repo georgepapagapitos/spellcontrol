@@ -42,10 +42,10 @@ vi.mock('@/deck-builder/services/tagger/client', () => ({
   getRemovalSubtype: vi.fn(() => null),
   getBoardwipeSubtype: vi.fn(() => null),
   getCardDrawSubtype: vi.fn(() => null),
-  // #1022 gap fix: isProtected() now also checks isProtectionPiece — default
+  // #1022 gap fix: isProtected() now also checks readsAsProtection — default
   // false, overridden per-test via mockReturnValueOnce where protection
   // behavior itself is under test (mirrors phaseCoherenceRepair.test.ts).
-  isProtectionPiece: vi.fn(() => false),
+  readsAsProtection: vi.fn(() => false),
   isOneSidedWipe: vi.fn((card: { name: string }) => ONE_SIDED_WIPE_NAMES.has(card.name)),
   getWipeScope: vi.fn((card: { name: string }) => WIPE_SCOPE_OF.get(card.name) ?? EMPTY_WIPE_SCOPE),
   isFreeInteraction: vi.fn((card: { name: string }) => FREE_INTERACTION_NAMES.has(card.name)),
@@ -79,7 +79,7 @@ import {
   type RoleSurplusRebalanceContext,
 } from './phaseRoleSurplusRebalance';
 import type { GenerationState } from './state';
-import { isProtectionPiece } from '@/deck-builder/services/tagger/client';
+import { readsAsProtection } from '@/deck-builder/services/tagger/client';
 import { OWNED_PRIORITY_BOOST } from '../cardPicking';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -259,8 +259,8 @@ describe('applyRoleSurplusRebalance', () => {
       cardlists: {
         allNonLand: [
           edhrecCard('The Only Payoff', 95),
-          ...Array.from({ length: 7 }, (_, i) => edhrecCard(`Ramp_${i + 1}`, 50)),
-          ...Array.from({ length: 6 }, (_, i) => edhrecCard(`Draw_${i + 1}`, i === 0 ? 1 : 50)),
+          ...Array.from({ length: 7 }, (_, i) => edhrecCard(`Ramp_${i + 1}`, 30)),
+          ...Array.from({ length: 6 }, (_, i) => edhrecCard(`Draw_${i + 1}`, i === 0 ? 1 : 30)),
         ],
       },
     } as unknown as GenerationState['edhrecData'];
@@ -270,6 +270,25 @@ describe('applyRoleSurplusRebalance', () => {
     expect(result.conversions).toHaveLength(1);
     expect(result.conversions[0].added).toBe('The Only Payoff');
     expect(result.conversions[0].cut).toMatch(/^Ramp_/); // not Draw_1, the lowest-scored card
+  });
+
+  it('lets an over-cap staple leave for a card played more often (E563: Narset for Ezuri)', () => {
+    const state = makeState();
+    addRampCards(state, 7); // target 2 -> 3.5x
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [
+          edhrecCard('The Only Payoff', 95),
+          ...Array.from({ length: 7 }, (_, i) => edhrecCard(`Ramp_${i + 1}`, 45)),
+        ],
+      },
+    } as unknown as GenerationState['edhrecData'];
+    const roleTargets = { ramp: 2, removal: 0, boardwipe: 0, cardDraw: 0 };
+    const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+    expect(result.conversions).toHaveLength(1);
+    expect(result.conversions[0].added).toBe('The Only Payoff');
+    expect(result.conversions[0].cut).toMatch(/^Ramp_/);
   });
 
   it('never converts a spell into a land from the pool (E485)', () => {
@@ -430,14 +449,14 @@ describe('applyRoleSurplusRebalance', () => {
     expect(state.usedNames.has(cards[1].name)).toBe(true);
   });
 
-  // #1022 gap fix: this pass's isProtected() didn't check isProtectionPiece
+  // #1022 gap fix: this pass's isProtected() didn't check readsAsProtection
   // until now — a roleless protection/free-interaction piece (Heroic
   // Intervention/Fierce Guardianship-class) tagged with a reactive role could
   // still be evicted here even though every sibling pass already protects it.
-  it('never evicts a card flagged isProtectionPiece', () => {
+  it('never evicts a card flagged readsAsProtection', () => {
     const state = makeState();
     const cards = addRampCards(state, 8);
-    vi.mocked(isProtectionPiece).mockImplementation((c) => c.name === cards[3].name);
+    vi.mocked(readsAsProtection).mockImplementation((c) => c.name === cards[3].name);
     state.edhrecData = {
       cardlists: { allNonLand: [edhrecCard('Payoff A', 90)] },
     } as unknown as GenerationState['edhrecData'];
@@ -449,7 +468,7 @@ describe('applyRoleSurplusRebalance', () => {
       expect(result.conversions[0].cut).not.toBe(cards[3].name);
       expect(state.usedNames.has(cards[3].name)).toBe(true);
     } finally {
-      vi.mocked(isProtectionPiece).mockReturnValue(false);
+      vi.mocked(readsAsProtection).mockReturnValue(false);
     }
   });
 
@@ -1283,9 +1302,9 @@ describe('applyRoleSurplusRebalance', () => {
         cardlists: {
           allNonLand: [
             edhrecCard('Wipe Payoff', 90),
-            edhrecCard('Wipe_1', 50),
-            edhrecCard('Wipe_2', 50),
-            edhrecCard('Wipe_3', 50),
+            edhrecCard('Wipe_1', 30),
+            edhrecCard('Wipe_2', 30),
+            edhrecCard('Wipe_3', 30),
             edhrecCard('Edict Walker', 1), // the worst-scored card: first to go on the raw tag
           ],
         },
@@ -1425,11 +1444,52 @@ describe('applyRoleSurplusRebalance', () => {
       expect(remainingRamp).toHaveLength(5);
     });
 
-    // Donor-defect fix 3 (orchestrator diff-review): isProtectionPiece()
+    // Donor-defect fix 3 (orchestrator diff-review): readsAsProtection()
     // deliberately returns false for a free-interaction piece (#1037's
     // overlap exclusion), so a Fierce Guardianship/Commandeer-class roleless
     // card was protected by nothing in the donor pool and — on raw priority
     // alone — the cheapest candidate to cut.
+    // E563: with every donor a kept card the backfill makes no swap, and says why
+    // (the deficit note must not call that "lost out to stronger picks").
+    it('records a role it found no donor for because the deck keeps every candidate', () => {
+      const state = makeState();
+      const donor = scryfallCard('Filler A');
+      state.usedNames.add('Filler A');
+      state.categories.utility.push(donor);
+      state.keeperBlocked = new Set();
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [edhrecCard('Filler A', 45), edhrecCard('Wipe Candidate', 30)],
+        },
+      } as unknown as GenerationState['edhrecData'];
+      ROLE_OF.set('Wipe Candidate', 'boardwipe');
+      const roleTargets = { ramp: 0, removal: 0, boardwipe: 1, cardDraw: 0 };
+      const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+      expect(result.conversions).toHaveLength(0);
+      expect(state.keeperBlocked.has('role:boardwipe')).toBe(true);
+    });
+
+    // E563: the keeper blocks a downgrade, not a donation to a better-played card.
+    it('lets a kept staple donate its slot to a boardwipe played more often', () => {
+      const state = makeState();
+      const donor = scryfallCard('Filler A');
+      state.usedNames.add('Filler A');
+      state.categories.utility.push(donor);
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [edhrecCard('Filler A', 45), edhrecCard('Wipe Candidate', 70)],
+        },
+      } as unknown as GenerationState['edhrecData'];
+      ROLE_OF.set('Wipe Candidate', 'boardwipe');
+      const roleTargets = { ramp: 0, removal: 0, boardwipe: 1, cardDraw: 0 };
+      const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+      expect(result.conversions).toHaveLength(1);
+      expect(result.conversions[0].cut).toBe('Filler A');
+      expect(result.conversions[0].added).toBe('Wipe Candidate');
+    });
+
     it('never chooses a free-interaction filler as the boardwipe-deficit donor, even when it scores lowest', () => {
       const state = makeState();
       const freeInteraction = scryfallCard('Fierce Guardianship');
@@ -1443,7 +1503,7 @@ describe('applyRoleSurplusRebalance', () => {
           allNonLand: [
             edhrecCard('Fierce Guardianship', 5), // lowest priority — would be
             // the eviction target without the isFreeInteraction guard.
-            edhrecCard('Filler A', 80),
+            edhrecCard('Filler A', 30),
             edhrecCard('Wipe Candidate', 70),
           ],
         },
@@ -1548,7 +1608,7 @@ describe('applyRoleSurplusRebalance', () => {
       }
       state.comboCardNames.add('Combo Filler');
       FREE_INTERACTION_NAMES.add('Free Interaction Filler');
-      vi.mocked(isProtectionPiece).mockImplementation((c) => c.name === 'Protection Filler');
+      vi.mocked(readsAsProtection).mockImplementation((c) => c.name === 'Protection Filler');
       // Ramp sits EXACTLY at its own target — donating one would drop ramp
       // under target, so every ramp card is refused too.
       addRampCards(state, 5);
@@ -1578,7 +1638,7 @@ describe('applyRoleSurplusRebalance', () => {
         );
         expect(remainingRamp).toHaveLength(5);
       } finally {
-        vi.mocked(isProtectionPiece).mockReturnValue(false);
+        vi.mocked(readsAsProtection).mockReturnValue(false);
       }
     });
 

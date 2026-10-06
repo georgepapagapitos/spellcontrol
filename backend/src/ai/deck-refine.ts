@@ -319,7 +319,10 @@ export function hashRefineInput(req: RefineRequest): string {
         ownedOnly: req.ownedOnly,
         // Only the scopes the boolean cannot express — `owned` readings keep
         // the key they were written under.
-        scope: req.scope === 'uncommitted' || req.scope === 'budget' ? req.scope : undefined,
+        scope:
+          req.scope === 'uncommitted' || req.scope === 'budget' || req.scope === 'unowned'
+            ? req.scope
+            : undefined,
         currency: req.scope === 'budget' && req.currency === 'eur' ? 'eur' : undefined,
         analysis: req.analysis,
       })
@@ -476,7 +479,9 @@ export function buildRefineMessage(req: RefineRequest, oracle: OracleEntry[]): s
         ? '## ENGINE SUGGESTIONS — OWNED ONLY (the player physically owns every card here)'
         : req.scope === 'budget'
           ? `## ENGINE SUGGESTIONS — BUDGET (every card here is under ${budgetLabel(req.currency)} today)`
-          : "## ENGINE SUGGESTIONS (the app's own analysis flagged these for this deck)";
+          : req.scope === 'unowned'
+            ? '## ENGINE SUGGESTIONS — NOT OWNED (the player owns none of these; they asked for cards they do not have yet)'
+            : "## ENGINE SUGGESTIONS (the app's own analysis flagged these for this deck)";
   const parts = [
     `Commander: ${commanderLabel(req)}`,
     `## Decklist (${req.cards.reduce((n, c) => n + c.qty, 0)})\n\n${decklist}`,

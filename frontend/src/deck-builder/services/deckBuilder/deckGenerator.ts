@@ -87,6 +87,7 @@ import {
 } from './targetCounts';
 import { applyArchetypeTypeFloor } from './curveUtils';
 import { BudgetTracker } from './budgetTracker';
+import { reserveLandBudget } from './landBudgetReserve';
 import { BracketGuard, bracketCeilings, ceilingsAreOpen } from './bracketGuard';
 import {
   mergeWithAllNonLand,
@@ -96,7 +97,7 @@ import {
   PRICE_SANITY_INCLUSION_BAND,
 } from './cardPicking';
 import { commanderMustSurvive, makeProtectionAdmits } from './deckGeneration/protectionPicks';
-import { buildRoleCapOverflowNote } from './deckGeneration/roleCapNote';
+import { buildRoleCapOverflowNote, withoutDanglingPointer } from './deckGeneration/roleCapNote';
 import { achievableComboPieces } from './deckGeneration/comboLines';
 import {
   categorizeCards,
@@ -106,7 +107,12 @@ import {
   roleCapTolerance,
   ROLE_CAP_HATCH_MAX_PER_PASS,
 } from './categorize';
-import { fillWithScryfall, type FillHardGates } from './scryfallFill';
+import {
+  fillWithScryfall,
+  exceedsFillCeilings,
+  recordFillSeat,
+  type FillHardGates,
+} from './scryfallFill';
 import { isUnsupportedSynergyPayoff } from './synergyDependency';
 import {
   computePackageBoosts,
@@ -128,7 +134,8 @@ import {
 } from './substituteFinder';
 import { sameType } from '@/lib/coach/card-matching';
 import { resolveOwnedCards } from './ownedCardResolution';
-import { pageInclusionOf, weakestFirst } from './ownedShareEviction';
+import { pageInclusionOf, weakestFirst, shareKeeper, seatsAsNonbo } from './ownedShareEviction';
+import { withNonbasicShortfall } from './deckGeneration/nonbasicShortfallNote';
 import {
   finalDeckMembership,
   gapsOutsideDeck,
@@ -152,7 +159,7 @@ import {
   type GenerationState,
   createState,
   markUsed as stMarkUsed,
-  markBanned as stMarkBanned,
+  applyBans,
   addMustInclude as stAddMustInclude,
   getComboBoosts as stGetComboBoosts,
   countAllCards as stCountAllCards,
@@ -1232,29 +1239,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // a valid Scryfall name search; see validateScryfallFilter's doc).
   await validateScryfallFilter(scryfallQuery, state.context.colorIdentity);
   const markUsed = (name: string) => stMarkUsed(state, name);
-  const markBanned = (name: string) => stMarkBanned(state, name);
   const addMustInclude = (name: string, source: 'user' | 'deck' | 'combo') =>
     stAddMustInclude(state, name, source);
   const getComboBoosts = () => stGetComboBoosts(state);
-  (customization.bannedCards || []).forEach(markBanned);
-  // Merge enabled ban lists into the banned set
-  for (const list of customization.banLists || []) {
-    if (list.enabled) list.cards.forEach(markBanned);
-  }
-  // Merge applied exclude user lists
   const userLists = loadUserLists();
-  for (const ref of customization.appliedExcludeLists || []) {
-    if (ref.enabled) {
-      const list = userLists.find((l) => l.id === ref.listId);
-      if (list) list.cards.forEach(markBanned);
-    }
-  }
-  // Merge temporary banned cards
-  const tempBanned = customization.tempBannedCards ?? [];
-  if (tempBanned.length > 0) {
-    logger.debug(`[DeckGen] Temp banned cards:`, tempBanned);
-    tempBanned.forEach(markBanned);
-  }
+  applyBans(state, userLists);
   logger.debug(
     `[DeckGen] Budget settings: deckBudget=${deckBudget}, maxCardPrice=${maxCardPrice}, budgetOption=${budgetOption}, currency=${currency}${ignoreOwnedBudget ? ', ignoring owned for budget' : ''}${ignoreOwnedRarity ? ', ignoring owned for rarity' : ''}`
   );
@@ -2082,6 +2071,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       : mustIncludeCards;
     if (cardsToDeduct.length > 0) budgetTracker.deductMustIncludes(cardsToDeduct);
   }
+  if (budgetTracker) await reserveLandBudget(state, budgetTracker, effectiveNonBasicLandCount);
 
   // Hoisted so fixup pass can access the Scryfall card map after generation
   let scryfallCardMap: Map<string, ScryfallCard> = new Map();
@@ -2093,15 +2083,13 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   const dependencyCommanderCount = partnerCommander ? 2 : 1;
   // The `cardAllowed` gate threaded through every pick path (type passes,
   // Scryfall fills, converge/rebalance swap-ins). Format-keyed legality check
-  // (commander/PDH/brawl) — EDHREC/lift-derived candidates aren't pre-scoped
-  // to the format-legal pool the way the Scryfall searches are, so every
-  // phase reusing this gate (coherence repair, flagship seating, bracket/
-  // budget convergence, role-surplus rebalance) gets the check for free.
-  // Owned cards by collection name, resolved by printing id and verified to
-  // be the card the collection names (ownedCardResolution.ts). A canonical
-  // name the collection spells another way (a front face only, another
-  // language) joins the owned-name set, so ownership checks see the card that
-  // ships under it; the names are the same owned cards.
+  // (commander/PDH/brawl) — EDHREC/lift candidates aren't pre-scoped to the
+  // format-legal pool the way the Scryfall searches are, so every phase reusing
+  // this gate (coherence repair, flagship seating, bracket/budget convergence,
+  // role-surplus rebalance) gets the check for free.
+  // Owned cards by collection name, resolved by printing id and verified to be
+  // the card the collection names (ownedCardResolution.ts). A name spelled
+  // another way (front face, another language) joins the owned-name set.
   const resolveOwned = async (names: string[]): Promise<Map<string, ScryfallCard>> => {
     const pool = new Map((context.collectionPool ?? []).map((e) => [e.name, e]));
     const entries = names.map((n) => pool.get(n) ?? { name: n, colorIdentity: [] });
@@ -3654,12 +3642,18 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     // over-cap spell). Returns false and stashes the card for the shared
     // escape hatch below rather than silently over-filling the role.
     const ownedCapSkipped: ScryfallCard[] = [];
+    // Tier 1 substitutes bypass fillWithScryfall's gates, so addOwnedCard applies
+    // the bracket/Game Changer ceilings to them (and counts them once seated).
+    const ungatedSubs = new Set<string>();
     const addOwnedCard = (card: ScryfallCard, allowCapOverflow = false): boolean => {
       if (!fitsSpellSlot(card)) return false; // E525: these fill spell slots
+      const ungated = ungatedSubs.has(card.name);
+      if (ungated && exceedsFillCeilings(card, fillGates)) return false;
       if (!allowCapOverflow && isOverRoleCap(card, roleTargets, currentRoleCounts)) {
         ownedCapSkipped.push(card);
         return false;
       }
+      if (ungated) recordFillSeat(card, fillGates);
       stampRoleSubtypes(card);
       routeCardByType(card, categories);
       usedNames.add(card.name);
@@ -3722,6 +3716,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
             // ponytail: a role-capped substitute defers to the escape hatch
             // below rather than recording provenance here — it still gets
             // added to the deck, just without a "Wanted X → used your Y" row.
+            ungatedSubs.add(card.name);
             if (addOwnedCard(card)) substitutionRows.push(row);
           }
           logger.debug(
@@ -4030,6 +4025,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     const inclusionByName = new Map<string, number>();
     for (const ec of edhrecNonLand) inclusionByName.set(ec.name, ec.inclusion);
     const inclusionOf = pageInclusionOf(inclusionByName);
+    const keeps = shareKeeper(state);
 
     // Swap one owned card in for an unowned one. `preferEvict` names the card
     // it was matched against (an owned substitute's staple); otherwise the
@@ -4048,13 +4044,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         return false;
       }
       if (!isCardAllowedBySynergyDependencies(card)) return false;
-      // The static caps, not the shortage block's relaxed ones (this is a
-      // composition swap, not a size-shortage backfill).
+      // Static caps, not the shortage block's relaxed ones (a composition swap).
       if (violatesUserCaps(card, state.cfg, collectionNames)) return false;
+      if (seatsAsNonbo(card, state)) return false;
 
-      const swappable = nonLandNow().filter(
-        (c) => !collectionNames.has(c.name) && !c.isMustInclude
-      );
+      const swappable = nonLandNow().filter((c) => !collectionNames.has(c.name) && !keeps(c, card));
       if (swappable.length === 0) return false;
       const wantedRole = validateCardRole(card);
       const matched = preferEvict ? swappable.filter((c) => c.name === preferEvict) : [];
@@ -4126,7 +4120,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     if (deficit > 0 && poolFits.length > 0) {
       const unownedWithRole: GapAnalysisCard[] = [];
       for (const c of nonLandNow()) {
-        if (collectionNames.has(c.name) || c.isMustInclude) continue;
+        if (collectionNames.has(c.name) || keeps(c)) continue;
         const role = getCardRole(c.name);
         if (!role) continue;
         unownedWithRole.push({
@@ -4761,6 +4755,13 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     );
   }
 
+  landCountNote = withNonbasicShortfall(
+    landCountNote,
+    categories.lands,
+    effectiveNonBasicLandCount,
+    customization
+  );
+
   // Budget honesty: recompute the real final total over the FINAL deck (post
   // combo-floor/fixup/coherence-repair/bracket-convergence swaps) — the early
   // budgetTracker log above runs before those mutating passes and only ever
@@ -4787,7 +4788,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         deckBudget,
         currency,
         comboBudgetSkipCount,
-        convergedSwapCount: budgetConvergedSwaps,
+        convergedSwapCount: wholeDeckSearch.standing(state, budgetRepairs, budgetConvergedSwaps),
         residualReason: budgetResidualReason,
       }) ?? budgetNote;
   }
@@ -4843,10 +4844,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // Role-cap escape-hatch disclosure (E77 iter-4 round 2) — aggregated across
   // every gated path over the whole generation; undefined when the cap was
   // never actually breached.
-  const roleCapOverflowNote = buildRoleCapOverflowNote(
-    roleCapOverflowCounts,
-    roleCapStapleCounts,
-    roleCapComboCounts
+  const roleCapOverflowNote = withoutDanglingPointer(
+    buildRoleCapOverflowNote(roleCapOverflowCounts, roleCapStapleCounts, roleCapComboCounts),
+    roleTargets ?? undefined,
+    finalRoleCounts
   );
 
   // Pick-time displacement disclosure (E160) — the deficit-direction
@@ -4859,7 +4860,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     nonLandCards,
     roleTargets,
     state.edhrecData?.cardlists.allNonLand,
-    { bannedCards, isSaltBlocked }
+    { bannedCards, isSaltBlocked, keeperBlocked: state.keeperBlocked }
   );
 
   // Price-sanity disclosure (E80, honesty fix E126) — composed from the

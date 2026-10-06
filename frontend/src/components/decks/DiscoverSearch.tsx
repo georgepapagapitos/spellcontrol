@@ -165,7 +165,7 @@ export function DiscoverSearch({
           if (!next.trim()) commit('');
           else commitTimer.current = window.setTimeout(() => commit(next), DEBOUNCE_MS);
         }}
-        placeholder={placeholder ?? 'Search decks, commanders, builders…'}
+        placeholder={placeholder ?? 'Search decks, commanders, brewers…'}
         ariaLabel={source === 'precons' ? 'Search precons' : 'Search public decks'}
         trailing={trailing}
         inputProps={{

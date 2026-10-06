@@ -163,6 +163,8 @@ export interface CardNote {
   /** This card's signed share of the term's value (before the weight). */
   value: number;
   note: string;
+  /** The cards the note lists (feeders, lifting seeds), whole: the note itself may be cut short. */
+  names?: string[];
 }
 
 export interface TermResult {
@@ -182,6 +184,7 @@ export interface TermResult {
 export type ConstraintCheck =
   | 'size'
   | 'singleton'
+  | 'face-name-collision'
   | 'identity'
   | 'dead-in-identity'
   | 'commander-in-99'

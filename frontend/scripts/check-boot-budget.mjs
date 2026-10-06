@@ -52,6 +52,11 @@
 // pages. Their three shared availability-label rules moved to
 // deck-builder-card-list.css, which stays global. Measured 59.52; before/after
 // shots of every page they style were pixel-identical.
+// 2026-10-05: growth since then reached 61.00 and main went red (#2631 was the
+// last straw), which also stopped every Fly deploy. The deck and collection
+// export dialogs' rules left deck-builder-export.css for
+// components/shared/ExportDialog.css, imported by the two dialogs. Measured
+// 60.73; the ceiling stays 61.
 import { readFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import { resolve, dirname } from 'node:path';

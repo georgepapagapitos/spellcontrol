@@ -90,6 +90,7 @@ describe('AI scope (T112)', () => {
     expect(parseAiScope(undefined, true)).toBe('owned');
     expect(parseAiScope('uncommitted', false)).toBe('uncommitted');
     expect(parseAiScope('budget')).toBe('budget');
+    expect(parseAiScope('unowned')).toBe('unowned');
     expect(parseCurrency('eur')).toBe('eur');
     expect(parseCurrency('EUR')).toBe('usd');
     expect(parseCurrency(undefined)).toBe('usd');

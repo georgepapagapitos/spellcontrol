@@ -23,7 +23,7 @@ import {
   notLegalForFormat,
 } from '../deckFilters';
 import { bracketCeilings, type BracketCeilings } from '../bracketGuard';
-import { estimateBracket } from '../bracketEstimator';
+import { estimateBracket, floorOf } from '../bracketEstimator';
 import { copyLimit, normalizeCardName } from '../cardIdentity';
 import type { ConstraintViolation, ObjectiveContext, ObjectiveDeck } from './types';
 import { isBasicLand, isLandCard } from './context';
@@ -46,6 +46,28 @@ function priceOf(card: ScryfallCard, currency: 'USD' | 'EUR'): number | null {
  * own pick is the one card that may break the share (E509 ruling). Null when
  * there is no collection.
  */
+/**
+ * Whether the deck's strategy makes every card owned, lands included: owned-only,
+ * available, or a 100% share (Coach's rule, deck-settings-fit.ts, which can't be
+ * imported from here: it is a React hook module). No card the user doesn't own
+ * may come in then, whatever relaxation the generator shipped.
+ */
+export function requiresOwnedCards(ctx: ObjectiveContext): boolean {
+  const cz = ctx.customization;
+  if (!ctx.ownedNames || cz.collectionMode === false) return false;
+  const strategy = cz.collectionStrategy ?? 'full';
+  return (
+    strategy === 'full' ||
+    strategy === 'available' ||
+    (strategy === 'partial' && (cz.collectionOwnedPercent ?? 0) >= 100)
+  );
+}
+
+/** A card the collection holds (basic lands are always available). */
+export function isOwnedCard(card: ScryfallCard, ctx: ObjectiveContext): boolean {
+  return isBasicLand(card) || owns(ctx.ownedNames, card);
+}
+
 export function ownedShare(deck: ObjectiveDeck, ctx: ObjectiveContext): number | null {
   if (!ctx.ownedNames) return null;
   const spells = deck.cards.filter((c) => !isLandCard(c));
@@ -188,6 +210,23 @@ export function gameChangerNamesFor(deck: ObjectiveDeck, ctx: ObjectiveContext):
   return names;
 }
 
+/** The bracket the estimator's hard floors put the deck at (mass land denial, Game Changers, complete combos: its own predicates). */
+export function bracketFloorOf(deck: ObjectiveDeck, ctx: ObjectiveContext): number {
+  const names = [...deck.commanders, ...deck.cards].map((c) => c.name);
+  const spells = deck.cards.filter((c) => !isLandCard(c));
+  const avg = spells.length ? spells.reduce((s, c) => s + (c.cmc ?? 0), 0) / spells.length : 0;
+  const estimate = estimateBracket(
+    names,
+    completeCombos(deck, ctx).map((c) => ({ ...c, isComplete: true })),
+    avg,
+    undefined,
+    undefined,
+    gameChangerNamesFor(deck, ctx),
+    deck.commanders.map((c) => c.name)
+  );
+  return floorOf(estimate.hardFloors);
+}
+
 /** A combo hard floor above a numeric target bracket, as the bracket estimator reads the deck. */
 function comboFloor(deck: ObjectiveDeck, ctx: ObjectiveContext): ConstraintViolation | null {
   const target = ctx.customization.targetBracket;
@@ -260,6 +299,32 @@ export function checkConstraints(
         detail: `${group[0].name} ×${group.length} (limit ${limit})`,
       });
     }
+  }
+
+  // One face name on two different cards (deckInvariants' face-name-collision,
+  // #2157): Grave Researcher // Reanimate beside the sorcery Reanimate. The
+  // invariant calls it SOFT, but a search that adds one has made the deck worse
+  // by the generator's own measure, so a move may not.
+  const faceOwners = new Map<string, Set<string>>();
+  for (const c of cards) {
+    if (isBasicLand(c)) continue;
+    const front = normalizeCardName(frontFaceName(c.name));
+    const faces = c.card_faces?.length ? c.card_faces.map((f) => f.name) : c.name.split(' // ');
+    for (const face of faces) {
+      const key = normalizeCardName(face);
+      faceOwners.set(key, (faceOwners.get(key) ?? new Set()).add(front));
+    }
+  }
+  for (const [face, fronts] of faceOwners) {
+    if (fronts.size < 2) continue;
+    add({
+      check: 'face-name-collision',
+      magnitude: 1,
+      cards: cards
+        .filter((c) => c.name.toLowerCase().includes(face.toLowerCase()))
+        .map((c) => c.name),
+      detail: `the name "${face}" is on ${fronts.size} different cards`,
+    });
   }
 
   const offIdentity = cards.filter((c) => !fitsColorIdentity(c, identity));

@@ -236,7 +236,7 @@ export function FillDeckSheet({
               ))}
               {additions.length === 0 ? (
                 <p className="fill-deck-lead">
-                  The builder found nothing to add. Try another lean, or add cards by hand.
+                  Nothing to add. Try another lean, or add cards by hand.
                 </p>
               ) : (
                 groups.map(({ group, cards }) => (

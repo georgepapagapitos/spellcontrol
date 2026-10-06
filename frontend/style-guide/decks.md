@@ -1191,22 +1191,219 @@ Pros lead, the lane's own factors sit in the middle, cons close the list.
 
 ### Tiered ordering
 
-The ranker (`lib/coach/coach-rank.ts`) orders moves in three tiers, then by
-`deltaScore` / `inclusion`, owned-first within each tier:
+The ranker (`lib/coach/coach-rank.ts`) orders moves in three tiers, owned-first
+within each tier:
 
-| Tier                        | Trigger                                                      | Examples                                        |
-| --------------------------- | ------------------------------------------------------------ | ----------------------------------------------- |
-| **Tier 1 — severe deficit** | a gap/upgrade move whose target sub-score is < 60            | fill-gap adds when `roles` scores 45            |
-| **Tier 2 — quality**        | move targets the weakest `PlanScore` sub-score and it's < 75 | ramp gap when `roles` is the weakest signal     |
-| **Tier 3 — polish**         | everything else                                              | combo completions, budget swaps, bracket nudges |
+| Tier                        | Trigger                                                                | Examples                                      |
+| --------------------------- | ---------------------------------------------------------------------- | --------------------------------------------- |
+| **Tier 1 — severe deficit** | a gap/upgrade move whose target `roles` or `cardFit` sub-score is < 60 | a missing removal staple when `cardFit` is 55 |
+| **Tier 2 — quality**        | the move's target is the weakest `PlanScore` sub-score and it's < 75   | ramp gap when `roles` is the weakest signal   |
+| **Tier 3 — polish**         | everything else                                                        | combo completions, land swaps, budget swaps   |
+
+**A row is promoted by what it fixes, never by the lane that carries it**
+(T171, 2026-09-30). A missing staple targets `roles` (when it has a role) and
+`cardFit` (unfilled staples are `cardFit`'s gap term); an optimizer
+"Fills {role} gap" pick the same; an optimizer EDHREC pick `cardFit`; a
+synergy pick for an engine the deck is invested in `strategy`; an owned
+stand-in `roles`. A synergy pick for an engine the deck has only started
+(`budding`), a manabase add (mana, flex or color fix) and every land, budget
+and similar row target nothing and stay tier 3. The old lane mapping put every
+upgrade row on `cardFit`, so "rewards cycling" picks for Atraxa rode a low
+`cardFit` into tier 1 over the staples the deck was missing.
+
+**Within a tier:** owned before unowned, then rows that make the deck better
+before a budding-engine pick or a budget swap (a budget swap saves money, and
+its play rate is the cheaper card's, so it can't outrank a staple on that
+number), then EDHREC play rate high to low (the one signal every add lane
+shares). `deltaScore` only breaks ties: land swaps are the only rows that
+carry it, on their own scale, and sorting on it first put every land swap
+ahead of every staple.
+
+**A role gap is read off the live deck.** A "Fills {role} gap" row whose role
+is already at target is dropped, and a staple for a met role targets `cardFit`
+only, not `roles`: the analysis can predate the user's last edits, and a gap
+the deck has since filled is not a reason to promote anything (T171 re-gate).
+
+**A met role is not a gap to fill** (T171 round 3). A missing staple whose role
+is at or over its target isn't offered, unless it is a staple mana rock or a
+staple of this commander's page (40%): Sol Ring and Arcane Signet still come
+in, as an upgrade inside the role (see the cut floors below). Blasphemous Act
+reached a go-wide Isshin deck at 2 of 1 wipes as an "EDHREC staple" before
+this. **A deck that builds a board is offered no symmetric wipe**: Coach reads
+the generator's own rule (E109/E112, `isBoardCentricPlan` and
+`isOneSidedWipe`), so Ruinous Ultimatum can come in and Blasphemous Act can't
+(`services/deckBuilder/coachWipes.ts`).
+
+**An off-page Upgrade pick needs the deck to enable it.** A synergy payoff with
+no play rate on this commander's page is offered only when the deck makes its
+condition happen: a payoff for opponents discarding needs cards that make them
+discard, a payoff for your own discards needs looting, a convoke card needs a
+creature-dense deck. Waste Not reached five decks whose only discard was their
+own looting. A land search is never a card-advantage staple (Elven Passage).
+
+**An add with nowhere to go ranks last** (T171 round 3). On a full deck, an add
+whose replace prompt has no suggested cut (every weaker card is a plan card,
+at its role target, or owned on a partial deck's floor) still shows and still
+says what it adds, but ranks below every row that has a cut or needs none,
+tiers included. The rank reads the prompt's own logic
+(`lib/coach/replace-cuts.ts`), so the two never disagree; the prompt then
+reads "No suggestions. Pick a card below." A combo completion keeps its place,
+and it always gets a suggested cut (see the cut floors below).
+
+**The Cuts chip reads weakest first:** spell cuts before land tuning (a
+basic-for-basic rebalance is not a card the deck is worse for running), then
+play rate low to high, a card missing from the commander's page first.
 
 (Deck-size and missing-win-condition _structural_ alerts have no concrete card
 move, so they live in the NextBestMove headline above the feed, not as ranked
 rows.)
 
-Owned cards surface before unowned within each tier (the standing
-`sortOwnedFirst` rule). **No raw score numbers in the UI** — the ordering is
-felt, not displayed, to avoid implying false precision.
+**No raw score numbers in the UI** — the ordering is felt, not displayed, to
+avoid implying false precision.
+
+### The deck's own settings bound the feed (T171)
+
+A generated deck keeps its build settings (`generationContext.customization`):
+per-card price cap, budget, rarity cap, Game Changer limit, target bracket
+(the stated `bracketOverride` wins over the built one) and collection
+strategy. **A move that breaks one is not shown**, in the feed, the upgrade
+plan or the Next-best-move hero (`lib/coach/deck-settings-fit.ts`). The check
+reads the incoming card's price and rarity off the row (the analysis stamps
+both); data it doesn't have never hides a move, except a price: **under a
+budget or a per-card cap, a card with no price is not shown** (`unpriced`),
+since reading it as free is how a $50 deck was once handed an unpriced
+Goblin Lackey. Basics and owned cards the budget ignores are exempt. An add
+to a full deck assumes the least favourable cut: nothing freed for the
+budget, and an owned card out for a partial deck's owned share only when every
+card in it is owned. With an unowned card in the deck, the replace prompt
+offers only cuts that keep the deck's settings (`cutKeepsSettings`), so a
+missing Arcane Signet isn't hidden from a 50%-owned deck sitting on its floor.
+
+**The Budget lane runs only for a deck with a budget or a per-card cap**
+(`coachSettings.savesMoney`). A Yuriko deck with no budget had Underground Sea
+swapped for Temple of Deceit by it. Within a budget, **a swap that costs power
+is shown only when the deck can't afford the card it replaces** (its settings
+would hide that card's re-add); with room left, the lane offers drop-ins only,
+and a drop-in never trades away a card Coach would suggest straight back or a
+utility land (`coach-changes.ts`, `costAnalyzer.ts`). Every budget row says
+what it trades in words the badge abbreviates ("Same job for less", "Cheaper,
+played a little less", "Cheaper, a step down in power"). The cost plan reads
+each current card's play rate off the deck's page: it used to read 0%, so
+every swap in the same curve slot claimed to "play nearly the same".
+
+When the settings empty the feed, the empty state says so instead of "This
+deck looks tuned": the tagline is "Nothing to coach within this deck's
+settings." and the hint names the one setting behind every hidden move, or
+falls back to the reason-agnostic "Every suggestion breaks one of this deck's
+build settings." when it's several (Voice & copy rule 3).
+
+The hero's combo move names a missing piece this commander's decks play (on
+its EDHREC page, most played first): a combo that only needs a generic card
+(Hullbreaker Horror with the Sol Ring every deck runs) is not a next best move.
+
+### Which EDHREC page Coach reads (T171 re-gate)
+
+Coach reads a generated deck against **the page it was built from**, not the
+commander's base page (`services/deckBuilder/deckEdhrecSource.ts`): its themes
+merged the way generation merges them, at its bracket and budget, following
+the rung `buildReport.dataSource` records (the build can ladder off a theme or
+a bracket). Every play rate Coach quotes ("Played in 62% of decklists"), the
+40% staple floor below and the role targets all come from that page. A
+hand-built deck, or a page that fails to load, reads the base page. On the
+base page a Zombies Gisa deck's 62% lords read as 0% misfits, which is the
+advice this rule retires.
+
+**What the build removed stays out** (T171 round 3). A card the build cut for a
+stated reason (`buildReport`'s coherence repairs, fixup repairs and surplus
+conversions) isn't suggested back while the card it made room for is still in
+the deck: Sythis's build cut Rest in Peace, an orphan combo piece, for Path to
+Exile, and Coach had offered it straight back. Graveyard hate isn't suggested
+to a deck that recurs from its own graveyard (invested in the graveyard axis,
+or running three counted recursion cards) (`deckBuilder/coachExclusions.ts`).
+
+### What Coach never offers to cut (T171)
+
+Every cut surface (the Cuts chip, the optimizer's removals, the misfits, the
+replace-when-full prompt, the budget lane's outgoing card) shares these floors,
+and a land swap never takes a premium land (Path of Ancestry in an elves deck):
+
+- **Premium cards** (`services/deckBuilder/premiumCards.ts`): a Game Changer
+  by name as well as by stamp (an imported deck has no stamp), a staple mana
+  rock, a staple of this commander (at least 40% of its decks), a spell among
+  the 100 most played in Commander, and, from the card facts, an efficient
+  tutor, protection piece, answer or board wipe (cheap, or free to cast), and
+  any tutor the bracket estimator counts, whatever it costs.
+- **A card whose role is at or under its target**, unless the incoming card
+  fills that same role and the role isn't short: a cut never opens a gap Coach
+  would then ask to fill.
+- **Anything but a weaker card of the same role, for an add whose role is at
+  or over target** (T171 round 3). That add is an upgrade inside its role: the
+  cut is a strictly weaker card of the same counted role (played here less, or
+  flagged weak when the add's play rate is unknown), and the reason says
+  "Upgrade in ramp", never "Excess Ramp". Boros Signet once came in for Battle
+  Angels of Tyr as "Excess Ramp" and ramp stayed at 16 of 13. With no weaker
+  card in the role, there is no suggestion. This holds on every path that adds
+  a card, the hero's included.
+- **A plan card.** A card that feeds one of the commander's own abilities (an
+  attack trigger Isshin doubles, a tribe Lathril leads; the commander profile's
+  detectors) is never a misfit, an optimizer removal or a budget swap's
+  outgoing card, and the replace prompt offers it only for an incoming card
+  that feeds the commander too. A card whose card facts rank its counted role
+  below its primary one is never an excess cut or an in-role upgrade either
+  (`services/deckBuilder/incidentalRole.ts`). Battle Angels of Tyr counts as
+  ramp for its Treasure, but it is an Isshin payoff; the Signets are the
+  excess.
+- **A card the user just added.** A staple the analysis still lists as
+  missing is in the deck only because the user added it since, most likely
+  on Coach's advice; offering it as the next cut undoes that move.
+- **A card Coach would suggest adding straight back.** An unflagged card
+  played here at least as much as the least-played staple the analysis lists
+  as missing would join that list the moment it's cut. A budget swap keeps
+  such a card in play only when the deck's budget would hide the re-add. When
+  the replace prompt has nothing left to cut, it says "No suggestions. Pick a
+  card below." and the user picks from the whole deck.
+- **A combo piece** of a combo the deck has.
+- **A finisher, as an overlap cut.** A card the card facts read as a finisher
+  (an overrun, an alt win, mass animation like Starfield of Nyx) or that the
+  deck's win paths name as an alt win is never cut as "Overlapping
+  Enchantress"; it goes only when the analysis flags it weak.
+
+An excess-role cut is the least played card of the role that isn't a plan or
+engine card: a crowded curve slot no longer pushes a 22% Birgi out ahead of a
+12% Strike It Rich.
+
+**A combo completion always gets a cut** (T171 round 3). It isn't an upgrade
+inside a role, so the in-role rule doesn't apply: the cut is the least valuable
+card that isn't protected (a plan or engine card, a finisher, a survival piece
+like Lightning Greaves, a premium card, a piece of another combo), flagged weak
+first, then the least played here. It keeps every role at its target when the
+deck can; when it can't, the combo still gets its cut.
+
+The replace-when-full prompt also keeps the slot: **a land makes room for a
+land, a spell for a spell** (the weakest land for this deck first, a utility
+land never), and an unflagged card is never offered when it is played here at
+least as much as the card coming in, nor when swapping it out would break the
+deck's settings.
+
+A land swap's "Adds green fixing you're short on" comes from the deck's own
+manabase report (its `short` flag), so the two never disagree.
+
+### Land swaps are upgrades for this deck (T171)
+
+The land lane reads merit with `landSlotMerit`, not generation's
+`landPowerScore`: a land that only fetches a basic counts as one basic, tapped
+or not; a land that does more than make mana (channel, MDFC, legendary, a
+static rule, a repeatable non-mana ability, mana it can only spend on some
+spells) is never cut; an incoming land enters untapped or conditionally, makes
+more of the deck's colors, and never only fetches a basic. Basics the deck's
+own basic fetchers need stay.
+
+### Hidden gems fit this deck (T171)
+
+A gem needs a tie to this deck, not only general power: it completes an
+engine live in the deck's own cards (the synergy classifier, three or more on
+the axis), or this commander's decks play it more than others in its colors.
+Lift and similar alone filled the lane with fast mana any deck takes.
 
 ### Filter-chip row
 
@@ -1278,6 +1475,11 @@ collapsed by default, that expands the ranked alternatives as nested
 - **The ranking only reorders.** v2 never adds or drops an owned option: the
   role gate, colour identity and the land rule decide which cards qualify, so
   a row can only move, never appear from nowhere.
+- **A stand-in fills a short role, or it isn't offered** (T171). A missing
+  staple gets owned stand-ins only while its role is under target
+  (`staplesToSubstitute`): in a role already met, the stand-in was a lateral
+  swap between two owned cards off the commander's page, and the next pass
+  traded it straight back.
 
 ### Apply feedback
 
@@ -1339,7 +1541,8 @@ Model-written text always says so. The rulings:
 - **One sources contract per deck, one control (T112).** Where the AI may draw
   candidates from (any card / cards you own / free copies you own / budget
   picks, a fixed per-card ceiling by cheapest printing in the player's
-  display currency, USD or EUR) is a deck
+  display currency, USD or EUR / cards you don't own, the collection read as
+  a list to leave out) is a deck
   field (`deck.aiScope`), read identically by every AI surface on that deck and
   set in exactly one place: the `AiSourcesControl` fieldset above the Coach
   tab's AI panels. Native radios, options are rects (§ segmented controls), and
@@ -1348,6 +1551,13 @@ Model-written text always says so. The rulings:
   AI panel never grows its own owned/budget toggle; the Coach feed's "Owned
   only" checkbox is a free display filter over engine rows and does not drive
   the AI.
+- **"Leave my cards out" exists wherever the collection is a source.** A
+  surface that can build from the collection also offers its inverse: the deck
+  generator's "Skip my cards" strategy (inside "Use my collection") and the
+  AI's "Cards you don't own" scope. Basic lands and the player's own picks
+  (must-includes, commanders) are exempt, and the build report says how many
+  owned cards it left out. The cube builder is the exception for now: its only
+  pool IS the collection.
 - **The AI never annotates engine rows unlabelled (E274).** When the live
   refine reading picks the same card as an engine row, the row gets an
   "AI agrees" `AiMarker` followed by the model's own sentence, on its own line

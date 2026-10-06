@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { BudgetTracker } from './budgetTracker';
+import { BudgetTracker, EXHAUSTED_CAP } from './budgetTracker';
 import type { ScryfallCard } from '@/deck-builder/types';
 
 function makeCard(overrides: Partial<ScryfallCard> = {}): ScryfallCard {
@@ -48,17 +48,55 @@ describe('BudgetTracker.getEffectiveCap', () => {
     expect(t.getEffectiveCap(7)).toBe(7);
   });
 
-  it('falls back to the static max (not $0) once must-includes already blew the budget', () => {
+  it('caps at an even share of the unspent budget (never $0, never uncapped) once must-includes blew it; a staple prices against the unspent budget shrunk by the hole', () => {
     vi.spyOn(console, 'debug').mockImplementation(() => {});
     // 30-card budget deck, must-includes alone cost more than the budget —
     // remainingBudget goes negative and stays negative for every later pick.
     const t = new BudgetTracker(30, 40);
     t.deductMustIncludes([makeCard({ prices: { usd: '80.00' } })]);
     expect(t.remainingBudget).toBeLessThan(0);
-    // A Math.max(0, ...) floor would clamp this to exactly $0, banning every
-    // remaining priced card for the rest of generation.
-    expect(t.getEffectiveCap(5)).toBe(5);
-    expect(t.getEffectiveCap(null)).toBeNull();
+    expect(t.getEffectiveCap(null)).toBeCloseTo(0.75);
+    expect(t.getEffectiveCap(5)).toBeCloseTo(0.75);
+    expect(t.getEffectiveCap(0.1)).toBe(0.1);
+    // Unspent shape: min(15% of $30, 8 x $30/40) = $4.50, times 30 / (30 + 50).
+    expect(t.getEffectiveCap(null, true)).toBeCloseTo(1.6875);
+  });
+
+  it('never drops below the bulk tier however deep the hole', () => {
+    const tiny = new BudgetTracker(10, 99);
+    tiny.remainingBudget = -100000;
+    expect(tiny.getEffectiveCap(null)).toBe(EXHAUSTED_CAP);
+    expect(tiny.getEffectiveCap(null, true)).toBe(EXHAUSTED_CAP);
+    const t = new BudgetTracker(30, 40);
+    t.remainingBudget = -100000;
+    expect(t.getEffectiveCap(null)).toBeCloseTo(0.75);
+  });
+
+  // E566: the flat $0.25 cap priced these real cards out of $30-$40 builds.
+  it.each([
+    ['Chaos Warp (52% in Krenko)', 0.33, 30, 70],
+    ['Spell Pierce (15% in Yuriko)', 0.31, 40, 70],
+    ['Mana Leak (10% in Yuriko)', 0.28, 40, 70],
+  ])('seats %s at $%s under an exhausted $%s tracker', (_name, price, budget, slots) => {
+    const t = new BudgetTracker(budget, slots);
+    t.remainingBudget = -1;
+    expect(t.getEffectiveCap(null)).toBeGreaterThanOrEqual(price);
+    expect(t.getEffectiveCap(null, true)).toBeGreaterThanOrEqual(price);
+  });
+
+  it('holds the nonbasic land picks to the cheapest viable price while in the red (kitchen-sink: Command Tower and shocks at $40)', () => {
+    const t = new BudgetTracker(40, 70);
+    t.remainingBudget = -20;
+    t.planLandPhase(8, 0.35);
+    expect(t.getEffectiveCap(null, true)).toBe(0.35);
+    t.endLandPhase();
+    expect(t.getEffectiveCap(null, true)).toBeGreaterThan(0.35);
+  });
+
+  it('lets a staple (Protean Hulk, $8.37, 46% in Meren) compete once a $100 build is in the red', () => {
+    const t = new BudgetTracker(100, 70);
+    t.remainingBudget = -1;
+    expect(t.getEffectiveCap(null, true)).toBeGreaterThan(8.37);
   });
 });
 

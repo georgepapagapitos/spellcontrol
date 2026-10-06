@@ -5,6 +5,9 @@ import { logger } from '@/lib/util/logger';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 
+/** E566: the floor of the per-card cap once the budget is spent: bulk-tier prices. */
+export const EXHAUSTED_CAP = 0.25;
+
 /**
  * Tracks total deck spending and dynamically adjusts per-card price cap.
  * Hard cap — deck total will not exceed the set budget.
@@ -13,8 +16,21 @@ export class BudgetTracker {
   remainingBudget: number;
   cardsRemaining: number;
   currency: 'USD' | 'EUR';
+  /** E561: money held back from the spell picks for the nonbasic land base
+   *  (landBudgetReserve.ts), given back when generateLands starts. */
+  landReserve = 0;
+  /** E561: the same hold for the staple rocks the later rock phase seats. */
+  rockReserve = 0;
+  /** E561: the land phase's pacing — nonbasic slots still to seat and the
+   *  price of the costliest of the cheapest `slots` candidates. 0 = no phase. */
+  landSlots = 0;
+  landFloor = 0;
+  readonly totalBudget: number;
+  readonly totalSlots: number;
 
   constructor(totalBudget: number, totalCardsToSelect: number, currency: 'USD' | 'EUR' = 'USD') {
+    this.totalBudget = Math.max(0, totalBudget);
+    this.totalSlots = Math.max(1, totalCardsToSelect);
     this.remainingBudget = totalBudget;
     this.cardsRemaining = Math.max(1, totalCardsToSelect);
     this.currency = currency;
@@ -28,22 +44,104 @@ export class BudgetTracker {
    * This spreads the budget across all slots — key cards can still cost
    * several times the average, but no single pick dominates.
    */
-  getEffectiveCap(staticMax: number | null): number | null {
+  getEffectiveCap(staticMax: number | null, mayUseLandReserve = false): number | null {
     if (this.cardsRemaining <= 0) return staticMax;
-    const avg = this.remainingBudget / this.cardsRemaining;
+    // E561: an uncapped spend (combo seat) can push the held remainder to zero.
+    // Drop the land hold then, so the spells go on under a small positive cap, as
+    // they would with no hold. The rock hold stays: it is the rocks' money and
+    // the rock phase seats them from it (E566: releasing it too let the spells
+    // spend it, and Atraxa $10 shipped no Sol Ring). With no land hold left the
+    // exhausted cap below applies.
+    if (this.landReserve > 0 && this.remainingBudget <= 0) this.releaseLandReserve();
+    // E561: a staple (STAPLE_INCLUSION_BAR) is never priced out by the money
+    // held for the land base; it sees the budget as if nothing were held.
+    const remaining =
+      this.remainingBudget + (mayUseLandReserve ? this.landReserve + this.rockReserve : 0);
+    const avg = remaining / this.cardsRemaining;
     const dynamicCap = Math.min(
-      this.remainingBudget * 0.15, // max 15% of remaining budget
+      remaining * 0.15, // max 15% of remaining budget
       avg * 8 // max 8x average per card
     );
-    // Budget already exhausted (deductMustIncludes can drive remainingBudget
-    // negative) — a Math.max(0, ...) floor here would clamp every remaining
-    // pick to exactly $0, i.e. ban every priced card for the rest of
-    // generation instead of just pacing spend. Fall back to the static cap
-    // (or uncapped) so picking can continue; phaseBudgetConverge reconciles
-    // the total afterward.
-    if (dynamicCap <= 0) return staticMax;
-    if (staticMax === null) return dynamicCap;
-    return Math.min(staticMax, dynamicCap);
+    // Budget exhausted (deductMustIncludes and the uncapped spends, combo seats
+    // and rocks, can drive remainingBudget to zero or below). E566: this used to
+    // return the static cap, which lifted the cap off every later pick (a $50
+    // mono-red build could reach $147), and a $0 cap would ban every priced card.
+    // Cap at an even share of the budget instead, so the hole stops growing; a
+    // staple still prices against the budget as it stood unspent, shrunk by the
+    // hole, so it is never priced out. phaseBudgetConverge reconciles the total after.
+    if (dynamicCap <= 0) {
+      // The floor is an even share of the unspent budget: a flat $0.25 priced out
+      // Chaos Warp (52%, $0.33), Mana Leak and Spell Pierce in $30-$40 builds.
+      const floor = Math.max(EXHAUSTED_CAP, this.totalBudget / this.totalSlots);
+      let cap = mayUseLandReserve ? Math.max(floor, this.exhaustedStapleCap(-remaining)) : floor;
+      // The land phase's cheapest viable option still binds a build in the red.
+      if (this.landSlots > 0) cap = Math.min(cap, Math.max(this.landFloor, EXHAUSTED_CAP));
+      return staticMax === null ? cap : Math.min(staticMax, cap);
+    }
+    const cap = this.landSlots > 0 ? this.landPhaseCap(dynamicCap) : dynamicCap;
+    if (staticMax === null) return cap;
+    return Math.min(staticMax, cap);
+  }
+
+  /** The cap an unspent budget would set for the first pick, scaled down by how
+   *  far past zero the build already is; never below EXHAUSTED_CAP. */
+  private exhaustedStapleCap(overspend: number): number {
+    const total = this.totalBudget;
+    const unspent = Math.min(total * 0.15, (total / this.totalSlots) * 8);
+    return Math.max(EXHAUSTED_CAP, (unspent * total) / (total + Math.max(0, overspend)));
+  }
+
+  /** E561: the 15%-of-remaining rule shrinks with every pick and `cardsRemaining`
+   *  counts every slot, not just the nonbasic ones, so a merit-ranked land base
+   *  spent the lot on its first picks and left the tail unseatable. Cap a pick
+   *  at what leaves the cheapest price for every slot still to fill; the N
+   *  cheapest candidates stay affordable however far the dynamic cap fell. */
+  private landPhaseCap(dynamicCap: number): number {
+    const budget = this.remainingBudget;
+    const leaveForRest = budget - (this.landSlots - 1) * this.landFloor;
+    return Math.max(Math.min(this.landFloor, budget), Math.min(dynamicCap, leaveForRest));
+  }
+
+  /** Hold `amount` back from the spell picks. */
+  reserveForLands(amount: number): void {
+    this.landReserve = amount;
+    this.remainingBudget -= amount;
+  }
+
+  /** Give the held money back as the land phase starts (no-op without one);
+   *  returns the amount, 0 when nothing was held. */
+  releaseLandReserve(): number {
+    const held = this.landReserve;
+    this.remainingBudget += held;
+    this.landReserve = 0;
+    return held;
+  }
+
+  /** Hold `amount` back for the staple rocks. */
+  reserveForRocks(amount: number): void {
+    this.rockReserve = amount;
+    this.remainingBudget -= amount;
+  }
+
+  /** Give the rock money back as the rock phase starts; returns the amount. */
+  releaseRockReserve(): number {
+    const held = this.rockReserve;
+    this.remainingBudget += held;
+    this.rockReserve = 0;
+    return held;
+  }
+
+  /** Pace the nonbasic picks: `slots` to seat, the costliest of the cheapest
+   *  `slots` candidates is `floor`. */
+  planLandPhase(slots: number, floor: number): void {
+    this.landSlots = Math.max(0, slots);
+    this.landFloor = floor;
+  }
+
+  /** Nonbasic picks are done: later phases pace normally again. */
+  endLandPhase(): void {
+    this.landSlots = 0;
+    this.landFloor = 0;
   }
 
   /** Deduct card price after adding it to the deck */
@@ -56,6 +154,7 @@ export class BudgetTracker {
       }
     }
     this.cardsRemaining = Math.max(0, this.cardsRemaining - 1);
+    if (this.landSlots > 0) this.landSlots--;
   }
 
   /** Independent snapshot with the same remaining budget/cards/currency —

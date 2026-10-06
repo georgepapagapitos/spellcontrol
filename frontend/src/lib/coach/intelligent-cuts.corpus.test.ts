@@ -19,7 +19,6 @@ import { rankReplacementCuts, type CutCandidate } from './intelligent-cuts';
 import { axisKeys, axisLabel } from './axis-overlap';
 import { roleOf, primaryTypeOf } from './card-matching';
 import { CORPUS, type CorpusCard } from '@/deck-builder/services/synergy/classify.fixtures';
-import { comboNameKey, type EdhrecComboOverlay } from '@/lib/deck-analysis/edhrec-combo-overlay';
 
 function toCard(c: CorpusCard): ScryfallCard {
   return {
@@ -104,7 +103,9 @@ describe('rankReplacementCuts — heuristic quality on the real corpus', () => {
   });
 
   for (const key of SCENARIO_KEYS) {
-    const members = DECK.filter((c) => c.keys.has(key));
+    // Spells only: a land makes room for a land (T171), which the land-slot
+    // tests in intelligent-cuts.test.ts cover with real lands.
+    const members = DECK.filter((c) => c.keys.has(key) && c.type !== 'Land');
     const add = members[0];
     const deckMembers = members.slice(1, 5); // 4 same-archetype in-deck cards
 
@@ -150,7 +151,10 @@ describe('rankReplacementCuts — heuristic quality on the real corpus', () => {
     });
   }
 
-  it('protects and explains real in-deck combo pieces before weak-slot cuts', () => {
+  // T171 lane M: a combo the deck has is never taken apart by the prompt. The
+  // pieces used to rank last with a "Breaks combo" warning; the applied first
+  // cut still landed on one when little else qualified.
+  it('never offers a real in-deck combo piece, flagged or not', () => {
     const kiki = corpusCard('Kiki-Jiki, Mirror Breaker');
     const felidar = corpusCard('Felidar Guardian');
     const ordinaryWeakSlot = corpusCard('Settle the Wreckage');
@@ -158,13 +162,6 @@ describe('rankReplacementCuts — heuristic quality on the real corpus', () => {
     const inDeckCombos = [
       comboMatch('kiki-felidar', ['Kiki-Jiki, Mirror Breaker', 'Felidar Guardian'], 900),
     ];
-    const comboOverlay: EdhrecComboOverlay = new Map([
-      [
-        comboNameKey(['Kiki-Jiki, Mirror Breaker', 'Felidar Guardian']),
-        { rank: 1, deckCount: 1200, percent: 8, href: null },
-      ],
-    ]);
-
     const cuts = rankReplacementCuts({
       addCard,
       deckCards: [slot(kiki), slot(felidar), slot(ordinaryWeakSlot)],
@@ -174,18 +171,12 @@ describe('rankReplacementCuts — heuristic quality on the real corpus', () => {
         removal('Settle the Wreckage', 3),
       ],
       inDeckCombos,
-      comboOverlay,
     });
 
-    expect(cuts[0].card.name).toBe('Settle the Wreckage');
-
-    const kikiCut = cuts.find((c) => c.card.name === 'Kiki-Jiki, Mirror Breaker');
-    expect(kikiCut?.reason).toBe(
-      'Breaks combo: Kiki-Jiki, Mirror Breaker + Felidar Guardian (Win the game) - Low inclusion'
-    );
+    expect(cuts.map((c) => c.card.name)).toEqual(['Settle the Wreckage']);
   });
 
-  it('protects a real signature combo more than an obscure real combo', () => {
+  it('protects a signature combo and an obscure one alike', () => {
     const addCard = corpusCard('Sylvan Scrying');
     const signaturePiece = corpusCard('Kiki-Jiki, Mirror Breaker');
     const obscurePiece = corpusCard('Walking Ballista');
@@ -193,25 +184,13 @@ describe('rankReplacementCuts — heuristic quality on the real corpus', () => {
       comboMatch('signature', ['Kiki-Jiki, Mirror Breaker', 'Felidar Guardian']),
       comboMatch('obscure', ['Walking Ballista', 'Hardened Scales']),
     ];
-    const comboOverlay: EdhrecComboOverlay = new Map([
-      [
-        comboNameKey(['Kiki-Jiki, Mirror Breaker', 'Felidar Guardian']),
-        { rank: 1, deckCount: 1200, percent: 8, href: null },
-      ],
-      [
-        comboNameKey(['Walking Ballista', 'Hardened Scales']),
-        { rank: 40, deckCount: 20, percent: 0.1, href: null },
-      ],
-    ]);
-
     const cuts = rankReplacementCuts({
       addCard,
       deckCards: [slot(signaturePiece), slot(obscurePiece)],
       removals: [removal('Kiki-Jiki, Mirror Breaker', 1), removal('Walking Ballista', 1)],
       inDeckCombos,
-      comboOverlay,
     });
 
-    expect(cuts.map((c) => c.card.name)).toEqual(['Walking Ballista', 'Kiki-Jiki, Mirror Breaker']);
+    expect(cuts).toEqual([]);
   });
 });

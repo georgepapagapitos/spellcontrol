@@ -178,12 +178,12 @@ vi.mock('@/deck-builder/services/tagger/client', async (orig) => ({
   getCardRole: vi.fn(() => null),
   getCardSubtype: vi.fn(() => null),
   isTapland: vi.fn(() => false),
-  // E87-new Slice A: isProtectionPiece is a pure oracle-text regex, NOT
+  // E87-new Slice A: readsAsProtection is a pure oracle-text regex, NOT
   // routed through getCardRole — mocking getCardRole above has zero effect
   // on it, so it needs its own inert-by-default mock (this fixture universe's
   // cards all have oracle_text: '', which already reads false, but stubbing
   // it explicitly keeps goldens inert by construction rather than by luck).
-  isProtectionPiece: vi.fn(() => false),
+  readsAsProtection: vi.fn(() => false),
   // iter-10 Slice A: isFreeInteraction is the same shape — same explicit
   // inert-by-construction stub.
   isFreeInteraction: vi.fn(() => false),
@@ -285,7 +285,7 @@ import { fetchCommanderData, fetchCommanderCombosRaw } from '@/deck-builder/serv
 import { generateLands } from './landGenerator';
 import { computeAutoLandCount, computeLandCountSizingAnchor } from './targetCounts';
 import { applyLandSqueezeReconcile } from './deckGeneration/phaseLandSqueezeReconcile';
-import { isProtectionPiece, isFreeInteraction } from '@/deck-builder/services/tagger/client';
+import { readsAsProtection, isFreeInteraction } from '@/deck-builder/services/tagger/client';
 
 // ---- Customization factory (static, no localStorage) ----------------------
 
@@ -326,6 +326,11 @@ function customization(overrides: Partial<Customization> = {}): Customization {
     historicalYear: 2005,
     permanentsOnly: false,
     brewLevel: 0.5,
+    // The masters pin the generator's own composition; the whole-deck search
+    // (on by default since E513 shipped) has its own describe below. Without
+    // this the base deck's snapshots would swap creatures for artifacts and
+    // instants in the synthetic fixture, which says nothing about the generator.
+    wholeDeckSearch: false,
     ...overrides,
   };
 }
@@ -380,6 +385,24 @@ afterEach(({ task }) => {
     ).toBe(true);
   }
 });
+
+/** Caps every rate on the EDHREC page, so the deck holds no staple (E532, E563):
+ *  a repair that cuts a card never takes one at STAPLE_INCLUSION_BAR. Returns the restore. */
+function capPageInclusion(cap: number): () => void {
+  const realPage = vi.mocked(fetchCommanderData).getMockImplementation()!;
+  vi.mocked(fetchCommanderData).mockImplementation(async (...args) => {
+    const page = await realPage(...args);
+    const capList = (l: EDHRECCard[]) =>
+      l.map((c) => ({ ...c, inclusion: Math.min(c.inclusion, cap) }));
+    const lists = Object.fromEntries(
+      Object.entries(page.cardlists).map(([k, v]) => [k, capList(v as EDHRECCard[])])
+    );
+    return { ...page, cardlists: lists as unknown as typeof page.cardlists };
+  });
+  return () => {
+    vi.mocked(fetchCommanderData).mockImplementation(realPage);
+  };
+}
 
 describe('generateDeck — golden master', () => {
   it('produces a stable deck for the base (no-theme) mono-G context', async () => {
@@ -518,17 +541,48 @@ describe('generateDeck — invariants', () => {
   });
 });
 
-describe('generateDeck — whole-deck search (E513, customization.wholeDeckSearch)', () => {
-  it('is inert when the flag is off: no new field on the deck', async () => {
-    const deck = await generateDeck(baseContext());
+describe('generateDeck — whole-deck search (E513, on unless customization.wholeDeckSearch is false)', () => {
+  const progressOf = (ctx: ReturnType<typeof baseContext>) => {
+    const steps: Array<[string, number]> = [];
+    return {
+      steps,
+      ctx: { ...ctx, onProgress: (m: string, p: number) => steps.push([m, p]) },
+    };
+  };
+  const SEARCH_STEP: [string, number] = ['Fine-tuning the list…', 93];
+
+  it('is inert when the flag is explicitly false: no new field, no progress step', async () => {
+    const { steps, ctx } = progressOf(baseContext());
+    const deck = await generateDeck(ctx);
     expect('wholeDeckSearchSwaps' in deck).toBe(false);
     expect('wholeDeckSearchNote' in deck).toBe(false);
+    expect(steps).not.toContainEqual(SEARCH_STEP);
   });
+
+  it('runs by default (the key unset), with its own progress step before the report', async () => {
+    const base = baseContext();
+    const { wholeDeckSearch: _unset, ...rest } = base.customization;
+    const { steps, ctx } = progressOf({
+      ...base,
+      customization: rest as typeof base.customization,
+    });
+    expect('wholeDeckSearch' in ctx.customization).toBe(false);
+    const deck = await generateDeck(ctx);
+    expect(steps).toContainEqual(SEARCH_STEP);
+    // The step comes after the last build step and never moves the bar back.
+    const percents = steps.map(([, p]) => p);
+    expect(Math.max(...percents.slice(0, percents.lastIndexOf(93)))).toBeLessThanOrEqual(93);
+    expect(Math.max(...percents)).toBeLessThanOrEqual(96); // never into "Shuffling up"
+    expect(Object.values(deck.categories).flat()).toHaveLength(99);
+    clearGenerationCache();
+  }, 120_000);
 
   it('with the flag on, keeps a legal 99 and discloses each swap against the final list', async () => {
     const ctx = baseContext();
     ctx.customization = customization({ wholeDeckSearch: true });
-    const deck = await generateDeck(ctx);
+    // No wall-clock cap here: a loaded CI worker would stop the search early,
+    // and this test compares two runs swap for swap.
+    const deck = await generateDeck({ ...ctx, searchTimeBudgetMs: 600_000 });
     const names = Object.values(deck.categories)
       .flat()
       .map((c) => c.name);
@@ -536,6 +590,7 @@ describe('generateDeck — whole-deck search (E513, customization.wholeDeckSearc
     expect(names.filter((n) => n !== 'Forest').length).toBe(
       new Set(names.filter((n) => n !== 'Forest')).size
     );
+    expect((deck.wholeDeckSearchSwaps ?? []).length).toBeGreaterThan(0);
     for (const s of deck.wholeDeckSearchSwaps ?? []) {
       expect(names).toContain(s.added);
       expect(names).not.toContain(s.cut);
@@ -543,9 +598,32 @@ describe('generateDeck — whole-deck search (E513, customization.wholeDeckSearc
     }
     // Deterministic: the same inputs make the same swaps.
     clearGenerationCache();
-    const again = await generateDeck(ctx);
+    const again = await generateDeck({ ...ctx, searchTimeBudgetMs: 600_000 });
     expect(again.wholeDeckSearchSwaps).toEqual(deck.wholeDeckSearchSwaps);
     // Two generations, each with the search's goldfish games: slow by design.
+  }, 120_000);
+
+  it('a search that runs out of time stops with a legal deck and no swaps', async () => {
+    // A slow device, as far as the search can tell: its budget is spent before
+    // its first step.
+    const ctx = baseContext();
+    ctx.customization = customization({ wholeDeckSearch: true });
+    try {
+      const deck = await generateDeck({ ...ctx, searchTimeBudgetMs: -1 });
+      const names = Object.values(deck.categories)
+        .flat()
+        .map((c) => c.name);
+      expect(names).toHaveLength(99);
+      for (const s of deck.wholeDeckSearchSwaps ?? []) {
+        expect(names).toContain(s.added);
+        expect(names).not.toContain(s.cut);
+      }
+      // Stopped before its first step: the unhurried run on this fixture makes
+      // two swaps, this one none, and the deck is the generator's own.
+      expect(deck.wholeDeckSearchSwaps).toBeUndefined();
+    } finally {
+      clearGenerationCache();
+    }
   }, 120_000);
 });
 
@@ -702,6 +780,7 @@ describe('generateDeck — Combo Integrity Audit color-identity gate (defect A1/
     // by-name resolution. (Previously used tinyLeaders' cmc<=3 cap for the
     // same purpose — no longer viable since combo completion is no longer
     // CMC-exempt: Tiny Leaders is a FORMAT rule, not a soft preference.)
+    const restorePage = capPageInclusion(30);
     const ON_COLOR: ScryfallCard = mkSC('On-Color Enabler', 'Land', 5); // color_identity ['G']
     const mockedFetch = vi.mocked(getCardsByNames);
     const realFetch = mockedFetch.getMockImplementation()!;
@@ -722,6 +801,7 @@ describe('generateDeck — Combo Integrity Audit color-identity gate (defect A1/
       expect(repair).toBeDefined();
       expect(repair!.reason).toMatch(/Completes 2 more combos/);
     } finally {
+      restorePage();
       mockedFetch.mockImplementation(realFetch);
       clearGenerationCache();
     }
@@ -729,10 +809,10 @@ describe('generateDeck — Combo Integrity Audit color-identity gate (defect A1/
 
   it('never evicts anything via auditWeakest when every candidate reads as a protection piece (E87-new Slice A)', async () => {
     // Same shape as the "discloses a legal combo-audit swap" case above, but
-    // with isProtectionPiece forced true for every card — auditWeakest's skip
+    // with readsAsProtection forced true for every card — auditWeakest's skip
     // condition means it can never find an evictable candidate, so the
     // near-miss combo can't complete even though its enabler is legal and
-    // resolvable. Proves the wiring (auditWeakest → isProtectionPiece) without
+    // resolvable. Proves the wiring (auditWeakest → readsAsProtection) without
     // needing to know which specific card the real fill would pick as weakest.
     vi.mocked(fetchCommanderCombosRaw).mockResolvedValueOnce([
       {
@@ -776,7 +856,7 @@ describe('generateDeck — Combo Integrity Audit color-identity gate (defect A1/
       if (names.includes('On-Color Enabler 2')) m.set('On-Color Enabler 2', ON_COLOR2);
       return m;
     });
-    vi.mocked(isProtectionPiece).mockReturnValue(true);
+    vi.mocked(readsAsProtection).mockReturnValue(true);
     try {
       const ctx = baseContext();
       ctx.customization = customization({ comboCount: 3 });
@@ -789,14 +869,14 @@ describe('generateDeck — Combo Integrity Audit color-identity gate (defect A1/
       expect(repair).toBeUndefined();
     } finally {
       mockedFetch.mockImplementation(realFetch);
-      vi.mocked(isProtectionPiece).mockReturnValue(false);
+      vi.mocked(readsAsProtection).mockReturnValue(false);
       clearGenerationCache();
     }
   });
 
   it('never evicts anything via auditWeakest when every candidate reads as a free-interaction piece (iter-10 Slice A)', async () => {
-    // Mirrors the isProtectionPiece proof above, but for the new classifier —
-    // auditWeakest's skip condition is `isProtectionPiece(card) ||
+    // Mirrors the readsAsProtection proof above, but for the new classifier —
+    // auditWeakest's skip condition is `readsAsProtection(card) ||
     // isFreeInteraction(card)`, so forcing isFreeInteraction true must have
     // the same "no evictable candidate found" effect.
     vi.mocked(fetchCommanderCombosRaw).mockResolvedValueOnce([
@@ -977,6 +1057,7 @@ describe('generateDeck — Combo Integrity Audit color-identity gate (defect A1/
       return m;
     });
     vi.mocked(getGameChangerNames).mockResolvedValueOnce(new Set(['Bracket-Gated Enabler']));
+    const restorePage = capPageInclusion(30);
     try {
       const ctx = baseContext();
       ctx.customization = customization({
@@ -991,6 +1072,7 @@ describe('generateDeck — Combo Integrity Audit color-identity gate (defect A1/
       const repair = (deck.coherenceRepairs ?? []).find((r) => r.added === 'Bracket-Gated Enabler');
       expect(repair).toBeDefined();
     } finally {
+      restorePage();
       mockedFetch.mockImplementation(realFetch);
       clearGenerationCache();
     }
@@ -1135,6 +1217,9 @@ describe('generateDeck — collection relaxation (T43 PR-3)', () => {
       for (const n of names) if (ownedByName.has(n)) m.set(n, ownedByName.get(n)!);
       return m;
     });
+    // A page of staples has no filler for the owned share to displace (the swap
+    // never takes a card at STAPLE_INCLUSION_BAR), so cap this page's rates.
+    const restorePage = capPageInclusion(30);
     clearGenerationCache();
     try {
       const deck = await generateDeck(ctx);
@@ -1146,6 +1231,7 @@ describe('generateDeck — collection relaxation (T43 PR-3)', () => {
       expect(Object.values(deck.categories).flat()).toHaveLength(99);
     } finally {
       mockedFetch.mockImplementation(realFetch);
+      restorePage();
       clearGenerationCache();
     }
   });
@@ -1163,7 +1249,7 @@ describe('generateDeck — land-squeeze reconciliation (E88, iter-7 Slice B)', (
     // The single worst-scoring nonland pick (Creature_31, the tail of the
     // creature type pass) is seeded as a protection piece — it should survive
     // the squeeze even though it would otherwise be the first cut.
-    vi.mocked(isProtectionPiece).mockImplementation((c) => c.name === 'Creature_31');
+    vi.mocked(readsAsProtection).mockImplementation((c) => c.name === 'Creature_31');
 
     const ctx = baseContext();
     ctx.customization = customization({ nonBasicLandCount: 15 });
@@ -1187,7 +1273,7 @@ describe('generateDeck — land-squeeze reconciliation (E88, iter-7 Slice B)', (
       // ...while the next-worst, unprotected filler was cut instead.
       expect(names).not.toContain('Creature_30');
     } finally {
-      vi.mocked(isProtectionPiece).mockReturnValue(false);
+      vi.mocked(readsAsProtection).mockReturnValue(false);
       clearGenerationCache();
     }
   });
@@ -1228,7 +1314,7 @@ describe('generateDeck — land-squeeze reconciliation (E88, iter-7 Slice B)', (
     // forces that exact divergence and asserts the reconcile actually ran.
     vi.mocked(computeAutoLandCount).mockImplementationOnce(() => 35);
     vi.mocked(computeLandCountSizingAnchor).mockImplementationOnce(() => 33);
-    vi.mocked(isProtectionPiece).mockImplementation((c) => c.name === 'Creature_31');
+    vi.mocked(readsAsProtection).mockImplementation((c) => c.name === 'Creature_31');
 
     const ctx = baseContext();
     ctx.customization = customization({ nonBasicLandCount: 15 });
@@ -1245,7 +1331,7 @@ describe('generateDeck — land-squeeze reconciliation (E88, iter-7 Slice B)', (
       expect(deck.landSqueezeTrimNote).toBeDefined();
       expect(names).toContain('Creature_31');
     } finally {
-      vi.mocked(isProtectionPiece).mockReturnValue(false);
+      vi.mocked(readsAsProtection).mockReturnValue(false);
       clearGenerationCache();
     }
   });

@@ -164,6 +164,23 @@ describe('assembleBuildReport', () => {
     expect(report.ownedPercentActual).toBe(100);
   });
 
+  // "Skip my cards" reads the collection only to leave it out: no owned-%
+  // line (the basics would read as "3% from your collection"), and the count
+  // it skipped lands on its own field, not the "Available only" one.
+  it('reports Skip my cards as a count left out, not a build from the collection', () => {
+    const report = assembleBuildReport({
+      generated: makeGenerated({ categories: categories({ lands: [makeCard('Forest')] }) }),
+      customization: makeCustomization({ collectionMode: true, collectionStrategy: 'exclude' }),
+      collectionNames: new Set(['Forest']),
+      committedExcluded: 42,
+    });
+
+    expect(report.builtFromCollection).toBe(false);
+    expect(report.ownedPercentActual).toBeUndefined();
+    expect(report.ownedExcluded).toBe(42);
+    expect(report.committedExcluded).toBeUndefined();
+  });
+
   it('sets ownedPercentTarget only in partial mode', () => {
     const partial = assembleBuildReport({
       generated: makeGenerated({ builtFromCollection: true }),
@@ -255,7 +272,7 @@ describe('assembleBuildReport', () => {
     });
 
     expect(report.ownedPercentGapNote).toBe(
-      'You asked for 50% owned cards and got 20%. The rest of your cards hit your limits or a role cap.'
+      'You asked for 50% owned cards and got 20%. The rest of your cards hit your limits, hit a role cap, or would have replaced a staple.'
     );
   });
 
@@ -1208,5 +1225,74 @@ describe('assembleBuildReport — archetype blend (E221)', () => {
     });
     expect(report.archetypeBlendNote).toBeUndefined();
     expect(report.archetypeBlendNames).toBeUndefined();
+  });
+});
+
+// E513 round 2: the whole-deck search can put back a card an earlier repair
+// cut, and the repair line then said the card was cut over a deck that has it
+// (the gate's Atraxa budget75: "Skrelv, Defector Mite -> Tainted Observer ...
+// cut a synergy engine piece" beside a search swap that seated Skrelv again).
+describe('assembleBuildReport: a repair the whole-deck search reversed (E513)', () => {
+  const budget = {
+    cut: 'Skrelv, Defector Mite',
+    added: 'Tainted Observer',
+    reason: 'Saves $3.03. Cut a synergy engine piece to fit your budget.',
+  };
+  const search = [
+    { cut: 'Viridian Corrupter', added: 'Skrelv, Defector Mite', reason: 'protects Atraxa' },
+  ];
+  const run = (names: string[], wholeDeckSearchSwaps?: typeof search) =>
+    assembleBuildReport({
+      generated: makeGenerated({
+        budgetRepairs: [budget],
+        wholeDeckSearchSwaps,
+        categories: categories({ utility: names.map((name) => ({ name }) as ScryfallCard) }),
+      }),
+      customization: makeCustomization(),
+      collectionNames: new Set(),
+    }).budgetRepairs?.[0].reason;
+
+  it('says the cut card was put back', () => {
+    expect(run(['Skrelv, Defector Mite', 'Tainted Observer'], search)).toBe(
+      `${budget.reason} Skrelv, Defector Mite was put back later.`
+    );
+  });
+
+  it('leaves the line alone when the cut card is not in the final deck', () => {
+    expect(run(['Tainted Observer'], search)).toBe(budget.reason);
+    expect(run(['Tainted Observer'])).toBe(budget.reason);
+  });
+
+  // E561: whoever put the card back, the final deck says it is there. Krenko
+  // budget50: converge cut Goblin Piledriver, a surplus conversion seated it again.
+  it('says so when a surplus conversion put the cut card back', () => {
+    const piledriver = {
+      cut: 'Goblin Piledriver',
+      added: 'Rummaging Goblin',
+      reason: 'Saves $2.41. Cut a strongly-linked synergy pick to fit your budget.',
+    };
+    const report = assembleBuildReport({
+      generated: makeGenerated({
+        budgetRepairs: [piledriver],
+        surplusConversions: [
+          {
+            cut: 'Blasphemous Act',
+            added: 'Goblin Piledriver',
+            reason: 'Board wipe is over cap (2/1).',
+          },
+        ],
+        categories: categories({
+          creatures: ['Goblin Piledriver', 'Rummaging Goblin'].map(
+            (name) => ({ name }) as ScryfallCard
+          ),
+        }),
+      }),
+      customization: makeCustomization(),
+      collectionNames: new Set(),
+    });
+    expect(report.budgetRepairs?.[0].reason).toBe(
+      `${piledriver.reason} Goblin Piledriver was put back later.`
+    );
+    expect(report.surplusConversions?.[0].reason).toBe('Board wipe is over cap (2/1).');
   });
 });

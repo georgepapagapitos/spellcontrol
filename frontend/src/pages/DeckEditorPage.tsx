@@ -103,12 +103,14 @@ import {
   type LaneId,
   type ChangeOwnership,
 } from '@/lib/coach/deck-change';
-import { rankReplacementCuts } from '@/lib/coach/intelligent-cuts';
+import { useReplaceCuts } from '@/lib/coach/replace-cuts';
+import { onPlanCombos, staplesToSubstitute } from '@/lib/coach/coach-changes';
+import { combosThatFit, gapsThatFit, useCoachSettings } from '@/lib/coach/deck-settings-fit';
+import { collectionLandsAsCards, landUpgradeCandidates } from '@/lib/coach/land-candidates';
 import { buildSwapAlternativeFactors, type WhyFactor } from '@/lib/coach/why-factors';
 import '../styles/deck-builder-card-search.css';
 import { computeAddFit } from '@/lib/coach/card-fit';
 import { toClockCard } from '@/lib/mana-sim/hand-classify';
-import { useEdhrecComboOverlay } from '@/lib/deck-analysis/edhrec-combo-overlay';
 import { CardFitPanel } from '../components/deck/CardFitPanel';
 import { SwapThisCard } from '../components/deck/SwapThisCard';
 import { SimilarCardsStrip } from '../components/deck/SimilarCardsStrip';
@@ -943,7 +945,6 @@ export function DeckEditorPage() {
     format: deck?.format,
     colorIdentity: comboColorIdentity,
   });
-  const comboOverlay = useEdhrecComboOverlay(deck?.commander?.name ?? null);
 
   // Commander(s) + mainboard view of `comboData` — every analysis/coach/hero/
   // badge consumer below reads THIS, never the raw response, so a combo
@@ -1121,6 +1122,14 @@ export function DeckEditorPage() {
     });
   }, [planOpen, deck, mainboardComboData, liveRoleCounts]);
 
+  // Coach shows only moves the deck's saved settings allow (price, budget, rarity, …).
+  const coachSettings = useCoachSettings(deck, ownedNames, mainboardLimit);
+  const replaceCuts = useReplaceCuts(
+    deck,
+    mainboardComboData,
+    coachSettings.cutFits,
+    mainboardLimit
+  );
   // "Next best move" — the single highest-leverage change, derived from the
   // live PlanScore + role gaps + near-miss combos.
   const nextBestMoves = useMemo(() => {
@@ -1130,20 +1139,32 @@ export function DeckEditorPage() {
       planScore: deck.planScore,
       roleCounts,
       roleTargets: deck.roleTargets ?? {},
-      gapAnalysis: deck.gapAnalysis,
+      gapAnalysis: gapsThatFit(deck.gapAnalysis, coachSettings.fit, ownershipFor),
       // Count the commander zone too (incl. a partner) so the total matches
       // the Deck tab's header and the 100-card (deckSize) target — commanders
       // live in their own fields, not in deck.cards.
       cardCount: deck.cards.length + (deck.commander ? 1 : 0) + (deck.partnerCommander ? 1 : 0),
       deckTarget: DECK_FORMAT_CONFIGS[deck.format].deckSize,
-      oneAwayCombos: mainboardComboData?.oneAway,
+      oneAwayCombos: onPlanCombos(
+        combosThatFit(mainboardComboData?.oneAway, coachSettings.fit, ownershipFor),
+        deck.suggestionCards
+      ),
       ownedNames,
       winConditions: deck.winConditions,
       bracketFitHasMoves: (deck.bracketFit?.moves.length ?? 0) > 0,
       ownedOnly,
       landAdvice,
     });
-  }, [deck, liveRoleCounts, mainboardComboData, ownedNames, ownedOnly, landAdvice]);
+  }, [
+    deck,
+    liveRoleCounts,
+    mainboardComboData,
+    ownedNames,
+    ownedOnly,
+    landAdvice,
+    coachSettings.fit,
+    ownershipFor,
+  ]);
 
   // UX-310: whether the async commander-deck analysis is still in its first
   // run. `gradeBracketSignature` is only set after a successful analysis
@@ -1209,9 +1230,13 @@ export function DeckEditorPage() {
     if (!deck || !DECK_FORMAT_CONFIGS[deck.format].hasCommander) return null;
     const gap = deck.gapAnalysis;
     if (!gap || gap.length === 0) return null;
-    // Staples worth substituting: role-bearing, and not already owned (an owned
-    // staple is something you'd just add — not a "buy" to substitute around).
-    const missingStaples = gap.filter((g) => g.role && !ownedNames.has(g.name));
+    // Staples worth substituting: role-bearing, not owned, in a role the deck is short on.
+    const missingStaples = staplesToSubstitute(
+      gap,
+      ownedNames,
+      liveRoleCounts ?? {},
+      deck.roleTargets ?? {}
+    );
     if (missingStaples.length === 0) return null;
 
     const deckNames = new Set(deck.cards.map((c) => c.card.name));
@@ -1223,7 +1248,7 @@ export function DeckEditorPage() {
       inclusionByName,
       rerank: substitutesReady ? substitutesV2.ownedAlternativesReranker([...deckNames]) : null,
     });
-  }, [deck, ownedNames, ownedPool, commanderColorIdentity, substitutesReady]);
+  }, [deck, ownedNames, ownedPool, commanderColorIdentity, substitutesReady, liveRoleCounts]);
 
   // Strong on-color duals for the deck's colors, fetched live for the
   // "Re-analyze lands" tool's acquire rows (duals worth getting, not just ones
@@ -1249,31 +1274,11 @@ export function DeckEditorPage() {
   // (producedManaColors' oracle-text fallback recovers colors) — mirroring
   // classifyOwnedCommanderPlaystyles. Fetched cards are already full ScryfallCards.
   const landUpgrades = useMemo(() => {
-    if (!deck) return [];
     const identity = new Set(commanderColorIdentity);
-    if (identity.size === 0) return [];
-    const seen = new Set<string>();
-    const candidateLands: ScryfallCard[] = [];
-    for (const c of collectionCards) {
-      if (!c.typeLine?.toLowerCase().includes('land')) continue;
-      if (seen.has(c.name)) continue;
-      seen.add(c.name);
-      candidateLands.push({
-        name: c.name,
-        type_line: c.typeLine,
-        oracle_text: c.oracleText,
-        mana_cost: c.manaCost,
-        cmc: c.cmc,
-        color_identity: c.colorIdentity,
-        layout: c.layout,
-      } as ScryfallCard);
-    }
-    for (const c of fetchedFixingLands) {
-      if (seen.has(c.name)) continue;
-      seen.add(c.name);
-      candidateLands.push(c);
-    }
-    return computeLandUpgrades(deckCards, identity, candidateLands, ownedNames);
+    if (!deck || identity.size === 0) return [];
+    const owned = collectionLandsAsCards(collectionCards);
+    const pool = landUpgradeCandidates(owned, fetchedFixingLands);
+    return computeLandUpgrades(deckCards, identity, pool, ownedNames, deck.cardInclusionMap);
   }, [deck, commanderColorIdentity, collectionCards, deckCards, fetchedFixingLands, ownedNames]);
 
   /**
@@ -2178,13 +2183,7 @@ export function DeckEditorPage() {
             (pendingAddCard?.forName === pendingAdd ? pendingAddCard.card : null);
           const addCard: ScryfallCard =
             resolvedAdd ?? ({ name: pendingAdd, type_line: '', cmc: 0 } as ScryfallCard);
-          const ranked = rankReplacementCuts({
-            addCard,
-            deckCards: deck.cards,
-            removals: deck.optimizeSwaps?.removals,
-            inDeckCombos: mainboardComboData?.inDeck,
-            comboOverlay,
-          });
+          const ranked = replaceCuts.cutsFor(addCard);
           const suggested = ranked.map((r) =>
             toOpt({ slotId: r.slotId, card: r.card }, r.reason, r.factors)
           );
@@ -2203,9 +2202,8 @@ export function DeckEditorPage() {
       ? computeAddFit({
           addCard: auditionCard,
           deckCards: deck.cards,
-          removals: deck.optimizeSwaps?.removals,
+          analysis: deck,
           inDeckCombos: mainboardComboData?.inDeck,
-          comboOverlay,
           commanderColorIdentity,
         })
       : null;
@@ -3553,7 +3551,7 @@ export function DeckEditorPage() {
                   misfits={deck.misfits}
                   synergy={deck.synergyAnalysis?.suggestions ?? []}
                   substitutes={substitutionPlan?.rows ?? []}
-                  costPlan={effectiveCostPlan ?? undefined}
+                  costPlan={(coachSettings.savesMoney && effectiveCostPlan) || undefined}
                   bracketFit={deck.bracketFit ?? undefined}
                   landUpgrades={landUpgrades}
                   oneAwayCombos={mainboardComboData?.oneAway}
@@ -3601,6 +3599,8 @@ export function DeckEditorPage() {
                   }
                   ownedOnly={ownedOnly}
                   onOwnedOnlyChange={handleOwnedOnlyChange}
+                  settingsBreak={coachSettings.check}
+                  hasReplaceCut={replaceCuts.hasCut}
                   aiAgrees={aiAgrees ?? undefined}
                   upgradePlan={
                     planAvailable

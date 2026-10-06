@@ -1,4 +1,6 @@
 import { logger } from '@/lib/util/logger';
+import { STAPLE_ROCK_NAMES } from './phaseStapleManaRocks';
+import { evictionKeeper } from './evictionKeeper';
 import type {
   CoherenceRepair,
   DetectedCombo,
@@ -217,6 +219,8 @@ export function applyComboFloor(state: GenerationState, ctx: ComboFloorContext):
     'boardWipes',
     'ramp',
   ];
+  const keeps = evictionKeeper(state);
+  const seedCard = best.missingCard;
   function findWeakest(): { card: ScryfallCard; category: DeckCategory } | null {
     for (const cat of EVICTION_ORDER) {
       const cards = state.categories[cat];
@@ -226,6 +230,8 @@ export function applyComboFloor(state: GenerationState, ctx: ComboFloorContext):
         if (mustIncludeNames.has(card.name.toLowerCase())) continue;
         if (state.comboCardNames.has(card.name)) continue;
         if (protectedNames.has(card.name)) continue;
+        if (STAPLE_ROCK_NAMES.has(card.name)) continue; // E537
+        if (keeps(card, seedCard)) continue; // E563
         return { card, category: cat };
       }
     }

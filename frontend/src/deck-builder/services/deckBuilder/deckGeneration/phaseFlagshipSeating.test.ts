@@ -5,9 +5,10 @@ import type { RoleKey } from '@/deck-builder/services/tagger/client';
 // Deterministic role signals — same pattern as phaseLandSqueezeReconcile.test.ts.
 const ROLE_OF = new Map<string, RoleKey>();
 vi.mock('@/deck-builder/services/tagger/client', () => ({
+  getCardDrawSubtype: () => null,
   getCardRole: vi.fn((name: string) => ROLE_OF.get(name) ?? null),
   validateCardRole: vi.fn((card: { name: string }) => ROLE_OF.get(card.name) ?? null),
-  isProtectionPiece: vi.fn(() => false),
+  readsAsProtection: vi.fn(() => false),
   isFreeInteraction: vi.fn(() => false),
 }));
 
@@ -30,7 +31,7 @@ import {
 } from './phaseFlagshipSeating';
 import type { GenerationState } from './state';
 import type { BracketGuard } from '../bracketGuard';
-import { isProtectionPiece, isFreeInteraction } from '@/deck-builder/services/tagger/client';
+import { readsAsProtection, isFreeInteraction } from '@/deck-builder/services/tagger/client';
 
 // ── helpers (mirrors phaseLandSqueezeReconcile.test.ts) ──
 
@@ -160,7 +161,7 @@ function makeCtx(overrides: Partial<FlagshipSeatingContext> = {}): FlagshipSeati
 
 beforeEach(() => {
   ROLE_OF.clear();
-  vi.mocked(isProtectionPiece).mockReturnValue(false);
+  vi.mocked(readsAsProtection).mockReturnValue(false);
   vi.mocked(isFreeInteraction).mockReturnValue(false);
 });
 

@@ -1,4 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import type { ScryfallCard } from '@/deck-builder/types';
 
 function card(name: string, price: string, cmc = 1): ScryfallCard {
@@ -147,6 +149,39 @@ describe('stapleManaRocksPhase', () => {
     expect(names).not.toContain('Arcane Signet');
   });
 
+  it('keeps the rock hold when the spells empty the budget, so a $10 four-colour build still seats Sol Ring (E566)', async () => {
+    const { getCardByName } = await import('@/deck-builder/services/scryfall/client');
+    const original = vi.mocked(getCardByName).getMockImplementation()!;
+    // Real prices: Sol Ring $1.60, Arcane Signet $1.20.
+    vi.mocked(getCardByName).mockImplementation(async (name: string) =>
+      name === 'Sol Ring' ? card('Sol Ring', '1.60') : card('Arcane Signet', '1.20')
+    );
+    const state = makeState();
+    state.context.colorIdentity = ['W', 'U', 'B', 'G'];
+    const tracker = new BudgetTracker(10, 99, 'USD');
+    tracker.reserveForRocks(2.8);
+    tracker.remainingBudget = -0.5; // an uncapped spend ran the spells through the budget
+    tracker.getEffectiveCap(null); // the next spell pick: it used to hand the rock money back
+    expect(tracker.rockReserve).toBe(2.8);
+    await stapleManaRocksPhase(state, tracker);
+    expect(allCards(state).map((c) => c.name)).toEqual(
+      expect.arrayContaining(['Sol Ring', 'Arcane Signet'])
+    );
+    vi.mocked(getCardByName).mockImplementation(original);
+  });
+
+  it('seats the rocks the budget held money for, though the dynamic cap alone would refuse them (E561: no Sol Ring at $10)', async () => {
+    const state = makeState();
+    const tracker = new BudgetTracker(50, 3, 'USD');
+    tracker.remainingBudget = 0.3; // the spells ran through the budget
+    tracker.reserveForRocks(45); // what landBudgetReserve held for Sol Ring + Signet
+    await stapleManaRocksPhase(state, tracker);
+    expect(allCards(state).map((c) => c.name)).toEqual(
+      expect.arrayContaining(['Sol Ring', 'Arcane Signet'])
+    );
+    expect(tracker.rockReserve).toBe(0);
+  });
+
   it('deducts added staples from the budget tracker', async () => {
     const state = makeState();
     // A generous enough remaining budget/card-count that the dynamic
@@ -193,5 +228,21 @@ describe('stapleManaRocksPhase', () => {
     state.cfg.mtgFormat = 'brawl';
     await stapleManaRocksPhase(state, null);
     expect(allCards(state)).toEqual([]);
+  });
+});
+
+// E566 (8ef8eda3 seated the rocks before the type passes): the rocks took ~$2.70 and
+// two slots off the tracker before the first spell pick, which shifted every
+// pacing cap and priced Howlsquad Heavy ($3.68 against a $3.55 cap, a piece of
+// Krenko's Skirk Prospector combo) out of the Krenko $50 deck. The rocks seat once,
+// after the lands, as they always did; the gate, not the order, guarantees Sol Ring.
+describe('stapleManaRocksPhase call site', () => {
+  it('runs once, after generateLands', () => {
+    const src = readFileSync(resolve(__dirname, '../deckGenerator.ts'), 'utf8');
+    const calls = [...src.matchAll(/await stapleManaRocksPhase\(/g)].map((m) => m.index!);
+    expect(calls).toHaveLength(1);
+    const lastLands = src.lastIndexOf('await generateLands(');
+    expect(lastLands).toBeGreaterThan(0);
+    expect(calls[0]).toBeGreaterThan(lastLands);
   });
 });

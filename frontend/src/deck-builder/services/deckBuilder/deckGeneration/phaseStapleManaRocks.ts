@@ -30,7 +30,7 @@ import type { BudgetTracker } from '../budgetTracker';
 // ever sees the spend (E79).
 // Sol Ring goes in every Commander deck. Arcane Signet goes in every 2+ color deck.
 // These are so universally played that a deck with Charcoal Diamond but no Arcane Signet is wrong.
-const STAPLE_ROCKS: { name: string; minColors: number }[] = [
+export const STAPLE_ROCKS: { name: string; minColors: number }[] = [
   { name: 'Sol Ring', minColors: 0 },
   { name: 'Arcane Signet', minColors: 1 },
 ];
@@ -48,6 +48,7 @@ export async function stapleManaRocksPhase(
   budgetTracker: BudgetTracker | null
 ): Promise<void> {
   const stapleRocks = STAPLE_ROCKS;
+  const heldForRocks = budgetTracker?.releaseRockReserve() ?? 0;
   if (state.cfg.format === 99) {
     for (const staple of stapleRocks) {
       if (state.context.colorIdentity.length < staple.minColors) continue;
@@ -77,8 +78,12 @@ export async function stapleManaRocksPhase(
         // Respect budget, rarity, arena-only constraints — the dynamic
         // per-card cap (not just the static max), matching every other
         // budget-gated pick path.
+        // E561: money held for the rocks (landBudgetReserve.ts) covers them.
+        const dynamicCap = budgetTracker?.getEffectiveCap(state.cfg.maxCardPrice);
         const cap =
-          budgetTracker?.getEffectiveCap(state.cfg.maxCardPrice) ?? state.cfg.maxCardPrice;
+          dynamicCap != null && heldForRocks > 0
+            ? Math.min(state.cfg.maxCardPrice ?? Infinity, Math.max(dynamicCap, heldForRocks))
+            : (dynamicCap ?? state.cfg.maxCardPrice);
         if (!ownedExempt && exceedsMaxPrice(card, cap, state.cfg.currency)) continue;
         if (
           !isOwnedRarityExempt(

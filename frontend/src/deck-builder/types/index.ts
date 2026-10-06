@@ -381,6 +381,9 @@ export interface GapAnalysisCard {
    *  backed by synergy or lift evidence AND the dial was leaned toward Brew
    *  when generated — see phaseGapAnalysis.ts. */
   brewFavored?: boolean;
+  /** Scryfall rarity, stamped by the manual-deck analysis (candidateCardData.ts)
+   *  so Coach can respect a rarity cap without resolving the card again. */
+  rarity?: string;
 }
 
 /**
@@ -715,6 +718,9 @@ export interface BuildReport {
    *  the land top-up supplies them regardless). Mirror of claimedConflicts;
    *  undefined when 0 or under other strategies. */
   committedExcluded?: number;
+  /** "Skip my cards": owned, identity-legal names left out of the pool
+   *  (basics exempt). Undefined when 0 or under other strategies. */
+  ownedExcluded?: number;
   /** "Hidden synergy" suggestions from EDHREC lift data — never added to the
    *  deck, surfaced only in the build report. See LiftPackagePick. */
   packagePicks?: LiftPackagePick[];
@@ -981,7 +987,9 @@ export type SaltTolerance = 0 | 1 | 2 | 3;
 // 'full'/'available' hard-filter to owned cards; 'partial' is a percentage
 // quota; 'prefer' is a soft owned-first ranking bias (best deck, leaning on
 // your cards — no forced ratio, no hard filter). See cardPicking.ts.
-export type CollectionStrategy = 'full' | 'partial' | 'available' | 'prefer';
+// 'exclude' is the inverse: every card you own except basics is banned, so
+// the deck is all cards you'd go and get (see skipsOwnedCards in deckFilters).
+export type CollectionStrategy = 'full' | 'partial' | 'available' | 'prefer' | 'exclude';
 
 // Ban list (preset or custom)
 export interface BanList {
@@ -1089,8 +1097,8 @@ export interface Customization {
   archetypeBlend?: boolean;
   // E513: after the build, a whole-deck search makes a few swaps the objective
   // can justify (deckGeneration/phaseWholeDeckSearch.ts), disclosed in the
-  // build report. `undefined` = OFF until its ship gate clears; no UI toggle.
-  // The live-eval harness forces it with LIVE_GEN_OPTIMIZER=1.
+  // build report. ON unless `false` (default since 2026-10-06); no UI toggle.
+  // The live harness turns it off with LIVE_GEN_OPTIMIZER=0.
   wholeDeckSearch?: boolean;
   // (Hyper Focus / `hyperFocus` lived here. Removed — E230 gated it 2026-08-07
   // and it failed: its theme-exclusive predicate measured EDHREC list

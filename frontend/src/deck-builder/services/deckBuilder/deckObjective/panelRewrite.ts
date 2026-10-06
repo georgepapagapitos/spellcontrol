@@ -15,7 +15,7 @@
  * deck before the swaps, and a rewrite can only guess at it: the second
  * optimizer gate counted those stale fields as trust issues in most decks.
  * A gate runs the search inside generation instead (customization
- * .wholeDeckSearch, LIVE_GEN_OPTIMIZER=1), where the generator writes every
+ * .wholeDeckSearch, on by default; LIVE_GEN_OPTIMIZER=0 turns it off), where the generator writes every
  * note for the final list. This rewrite stays for the offline driver's quick
  * look at what a search would change.
  *

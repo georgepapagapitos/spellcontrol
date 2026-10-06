@@ -43,7 +43,7 @@ const FACT_TO_OBJECTIVE: Partial<Record<FactRole, ObjectiveRole>> = {
   boardwipe: 'boardwipe',
 };
 
-const ROLE_LABEL: Record<ObjectiveRole, string> = {
+export const ROLE_LABEL: Record<ObjectiveRole, string> = {
   ramp: 'ramp',
   cardDraw: 'draw',
   removal: 'removal',

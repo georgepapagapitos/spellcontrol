@@ -1,4 +1,5 @@
 import { logger } from '@/lib/util/logger';
+import { evictionKeeper } from './evictionKeeper';
 import type {
   CoherenceRepair,
   DeckCategory,
@@ -11,10 +12,13 @@ import type { GenerationState } from './state';
 import { frontFaceName } from '@/lib/cards/card-text';
 import {
   getCardRole,
-  isProtectionPiece,
+  readsAsProtection,
   isFreeInteraction,
+  isOneSidedWipe,
+  getWipeScope,
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
+import { wipeQualityPenalty } from '../wipeTieBreaks';
 import { roleCapTolerance, stampRoleSubtypes, routeCardByType } from '../categorize';
 import {
   constrainsToCollection,
@@ -31,6 +35,7 @@ import { parsePrice } from '../costAnalyzer';
 import { getCardPrice, getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { primaryTypeOf } from '@/lib/coach/card-matching';
 import type { BudgetTracker } from '../budgetTracker';
+import { STAPLE_ROCK_NAMES } from './phaseStapleManaRocks';
 import type { BracketGuard } from '../bracketGuard';
 import { analyzeDeckSynergy, isLoadBearing } from '@/deck-builder/services/synergy/deckSynergy';
 import { isAltWinCard } from '@/deck-builder/services/winConditions/detect';
@@ -230,6 +235,9 @@ const ROLE_LABEL: Record<RoleKey, string> = {
   cardDraw: 'card draw',
 };
 
+/** A board wipe may be swapped for a worse one only for at least this saving. */
+const WIPE_DOWNGRADE_MIN_SAVINGS = 5;
+
 export async function applyBudgetConvergence(
   state: GenerationState,
   ctx: BudgetConvergeContext
@@ -359,6 +367,9 @@ export async function applyBudgetConvergence(
     completeComboNames.has(card.name) ||
     completeComboNames.has(frontFaceName(card.name)) ||
     isLastAltWinCard(card) ||
+    // A staple rock costs a few dollars and is in nearly every deck; the cut
+    // that fits the budget comes from the spells (E561, like E537's paths).
+    STAPLE_ROCK_NAMES.has(card.name) ||
     isBudgetExempt(card);
 
   // SOFT protections — cut only once every fully-unprotected candidate is
@@ -366,6 +377,7 @@ export async function applyBudgetConvergence(
   // swap's reason string, or null when no soft protection applies. Checked
   // ONLY for cards that already cleared isHardProtected, so an alt-win card
   // reaching here is guaranteed not to be the last one.
+  const keeps = evictionKeeper(state);
   const softProtectionLabel = (card: ScryfallCard): string | null => {
     if (isLoadBearing(card, deckSynergy)) return 'a synergy engine piece';
     if ((ctx.liftedByOf(card.name.toLowerCase())?.length ?? 0) >= 2)
@@ -374,8 +386,9 @@ export async function applyBudgetConvergence(
     if (state.cfg.targetBracket === undefined && state.gameChangerNames.has(card.name))
       return 'a game changer';
     if (state.comboCardNames.has(card.name)) return 'a combo-flavored pick';
-    if (isProtectionPiece(card)) return 'a protection/free-interaction piece';
-    // iter-10 Slice A: isProtectionPiece's label above already says
+    if (readsAsProtection(card)) return 'a protection/free-interaction piece';
+    if (keeps(card)) return 'a staple, tutor, combo piece or last answer of its kind'; // E563
+    // iter-10 Slice A: the protection label above already says
     // "protection/free-interaction piece", but its regex misses the
     // Commandeer-class cards this new classifier exists for (e.g. Fierce
     // Guardianship's "Counter target noncreature spell" still trips the
@@ -520,6 +533,19 @@ export async function applyBudgetConvergence(
       // can't push anything over cap that wasn't already there (see
       // isRoleCapBlocked's doc comment and the header comment above).
       if (getCardRole(card.name) !== cutRole && isRoleCapBlocked(card.name)) return false;
+      // E561: a board wipe leaves for a wipe that is no worse, unless the swap saves
+      // real money. Vandalblast (one-sided in a goblin deck) went to Chain Reaction
+      // (symmetric) for $1.28, and the role-surplus pass then kept a creature as
+      // the deck's only "wipe"; Cyclonic Rift's $26 is worth a symmetric wipe.
+      if (
+        cutRole === 'boardwipe' &&
+        cutPrice - price < WIPE_DOWNGRADE_MIN_SAVINGS &&
+        getCardRole(card.name) === 'boardwipe' &&
+        wipeQualityPenalty(card, isOneSidedWipe, getWipeScope, undefined) >
+          wipeQualityPenalty(cutCard, isOneSidedWipe, getWipeScope, undefined)
+      ) {
+        return false;
+      }
       return true;
     };
 
@@ -639,6 +665,13 @@ export async function applyBudgetConvergence(
   runRounds((c) => !isHardProtected(c) && softProtectionLabel(c) === null);
   // Stage 2: only reached if stage 1 didn't converge — soft protections now
   // yield too (still never hard-protected ones).
+  // E561: the cards the eviction keeper holds (a 40%+ staple, a tutor, the last
+  // answer of its kind) yield last of all, so a soft label that only says
+  // "synergy engine piece" can't take Flux Channeler (40.6%) over a card the
+  // deck plays less.
+  if (total > ctx.deckBudget) {
+    runRounds((c) => !isHardProtected(c) && !keeps(c));
+  }
   if (total > ctx.deckBudget) {
     runRounds((c) => !isHardProtected(c));
   }

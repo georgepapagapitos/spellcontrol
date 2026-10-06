@@ -164,6 +164,7 @@ export const synergyTerm: TermFn = (deck, ctx) => {
       notes.push({
         name,
         value: v,
+        names: b.feeders,
         note: `pays off ${r} (payoff ${k + 1} of ${list.length}), fed by ${b.feeders.slice(0, 4).join(', ')}${b.feeders.length > 4 ? ` and ${b.feeders.length - 4} more` : ''}`,
       });
     });
@@ -219,6 +220,7 @@ export const liftTerm: TermFn = (deck, ctx) => {
     notes.push({
       name: card.name,
       value: v,
+      names: by.map((b) => b.seed),
       note: `lifted by ${by
         .slice(0, 3)
         .map((b) => b.seed)

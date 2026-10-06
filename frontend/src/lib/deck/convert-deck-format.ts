@@ -39,6 +39,7 @@ const FORMAT_DERIVED_FIELDS = {
   gapAnalysis: undefined,
   hiddenGems: undefined,
   cardInclusionMap: undefined,
+  suggestionCards: undefined,
   planScore: undefined,
   misfits: undefined,
   edhrecNumDecks: undefined,

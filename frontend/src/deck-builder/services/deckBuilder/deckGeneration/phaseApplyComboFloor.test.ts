@@ -3,6 +3,7 @@ import type { ScryfallCard, EDHRECCombo } from '@/deck-builder/types';
 
 // Stub tagger — tests don't need real role lookups
 vi.mock('@/deck-builder/services/tagger/client', () => ({
+  getCardDrawSubtype: () => null,
   getCardRole: () => null,
   isExtraTurn: () => false,
 }));
@@ -452,6 +453,24 @@ describe('applyComboFloor', () => {
     });
 
     expect(result.seeded).toBe(false);
+  });
+
+  it('never evicts a staple rock to seed a combo piece (E537, Sythis lost Arcane Signet)', () => {
+    const state = makeState({
+      combos: [edhrec2CardCombo('c1', ['Gravecrawler', 'Phyrexian Altar'])],
+    });
+    state.usedNames.add('Phyrexian Altar');
+    state.categories.creatures = [scryfallCard('Phyrexian Altar')];
+    state.comboCardNames.add('Phyrexian Altar');
+    // Sol Ring and Arcane Signet are the only other nonland cards.
+    const result = applyComboFloor(state, {
+      detectedCombos: undefined,
+      scryfallCardMap: new Map([['Gravecrawler', scryfallCard('Gravecrawler')]]),
+      mustIncludeNames: new Set(),
+      targetBracket: undefined,
+    });
+    expect(result.seeded).toBe(false);
+    expect(state.categories.ramp.map((c) => c.name)).toEqual(['Sol Ring', 'Arcane Signet']);
   });
 
   // ── budget gate (Cluster D) ──────────────────────────────────────────────

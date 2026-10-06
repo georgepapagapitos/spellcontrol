@@ -1,11 +1,13 @@
 import { logger } from '@/lib/util/logger';
+import { STAPLE_ROCK_NAMES } from './phaseStapleManaRocks';
+import { evictionKeeper } from './evictionKeeper';
 import type { DeckCategory, DetectedCombo, EDHRECCard, ScryfallCard } from '@/deck-builder/types';
 import { markBanned, type GenerationState } from './state';
 import { frontFaceName, getByCardName } from '@/lib/cards/card-text';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import {
   getCardRole,
-  isProtectionPiece,
+  readsAsProtection,
   isFreeInteraction,
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
@@ -143,12 +145,15 @@ export function applyBracketConvergence(
   if (commander) commanderNames.push(commander.name);
   if (partnerCommander) commanderNames.push(partnerCommander.name);
 
-  const isProtected = (card: ScryfallCard): boolean =>
+  const keeps = evictionKeeper(state);
+  const isProtected = (card: ScryfallCard, incoming?: ScryfallCard): boolean =>
     mustIncludeNames.has(card.name.toLowerCase()) ||
     state.comboCardNames.has(card.name) ||
+    STAPLE_ROCK_NAMES.has(card.name) || // E537
     commanderNames.includes(card.name) ||
-    isProtectionPiece(card) ||
-    isFreeInteraction(card);
+    readsAsProtection(card) ||
+    isFreeInteraction(card) ||
+    keeps(card, incoming); // E563
 
   // DOWN-only variant (E105 iter-2): `state.comboCardNames` marks EVERY piece
   // of EVERY detected combo (a whole-generation preview, since #1044), not
@@ -167,7 +172,7 @@ export function applyBracketConvergence(
   const isProtectedForDownshift = (card: ScryfallCard): boolean =>
     mustIncludeNames.has(card.name.toLowerCase()) ||
     commanderNames.includes(card.name) ||
-    isProtectionPiece(card) ||
+    readsAsProtection(card) ||
     isFreeInteraction(card);
 
   const inclusionMap: Record<string, number> = {};
@@ -367,7 +372,9 @@ export function applyBracketConvergence(
   // floor-violating ones (same tiering as bracketFit.ts's upshift cut pool),
   // never a protected, power-signal, or land card (cutting a power card would
   // fight the very bracket we're trying to raise).
-  const pickCut = (): { card: ScryfallCard; category: DeckCategory } | null => {
+  const pickCut = (
+    incoming?: ScryfallCard
+  ): { card: ScryfallCard; category: DeckCategory } | null => {
     const candidates: { card: ScryfallCard; category: DeckCategory }[] = [];
     for (const [cat, cards] of Object.entries(state.categories) as [
       DeckCategory,
@@ -375,7 +382,7 @@ export function applyBracketConvergence(
     ][]) {
       if (cat === 'lands') continue;
       for (const card of cards) {
-        if (isProtected(card)) continue;
+        if (isProtected(card, incoming)) continue;
         if (isPowerSignal(card.name, state.gameChangerNames)) continue;
         candidates.push({ card, category: cat });
       }
@@ -501,7 +508,7 @@ export function applyBracketConvergence(
       ) {
         continue;
       }
-      const cut = pickCut();
+      const cut = pickCut(incoming);
       if (!cut) break; // nothing safe to cut — can't add without overshooting 100
 
       removeCard(cut.card, cut.category);

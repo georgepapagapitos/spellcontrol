@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { isUnsupportedSynergyPayoff, typeLineProducerAxes } from './synergyDependency';
+import { classifyCard } from '@/deck-builder/services/synergy/classify';
+import { COACH_CARDS } from './__fixtures__/coach-cards.fixtures';
 
 function card(overrides: Partial<ScryfallCard> = {}): ScryfallCard {
   return {
@@ -298,5 +300,32 @@ describe('isUnsupportedSynergyPayoff: a staple on the commander page', () => {
 
   it('never rejects a card in 40% or more of the commander decks', () => {
     expect(isUnsupportedSynergyPayoff(temporalTrespass, [yuriko], 1, 76.8)).toBe(false);
+  });
+});
+
+// Guard (T171 gate on 06f72a57): reading Birgi's "Whenever you cast a spell,
+// add {R}" as a spellslinger payoff dropped her from a Gnostro build. At ramp
+// pick time the picks didn't yet hold three spells, so the dependency gate read
+// the new payoff as dead text and Birgi (22%) lost her ramp slot. A payoff
+// whose reward is mana is the card's ramp, not a trigger to feed: the reading
+// adds to the card, it never removes it from a pool. Real card (Scryfall
+// 2026-09-29).
+describe('isUnsupportedSynergyPayoff — a mana-for-every-spell payoff', () => {
+  const birgi = { ...COACH_CARDS['Birgi, God of Storytelling // Harnfel, Horn of Bounty'] };
+  const gnostro = { ...COACH_CARDS['Gnostro, Voice of the Crags'] };
+
+  it('reads Birgi as a spellslinger payoff and still lets her into a deck with no spells yet', () => {
+    expect(classifyCard(birgi).payoffs.map((p) => p.axis)).toContain('spellslinger');
+    expect(isUnsupportedSynergyPayoff(birgi, [gnostro], 1, 22)).toBe(false);
+  });
+
+  it('still gates a spell-trigger payoff that pays off in something else', () => {
+    const guttersnipe = card({
+      name: 'Guttersnipe',
+      type_line: 'Creature — Goblin Shaman',
+      oracle_text:
+        'Whenever you cast an instant or sorcery spell, Guttersnipe deals 2 damage to each opponent.',
+    });
+    expect(isUnsupportedSynergyPayoff(guttersnipe, [gnostro], 1, 22)).toBe(true);
   });
 });

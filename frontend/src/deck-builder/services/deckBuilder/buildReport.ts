@@ -14,6 +14,7 @@ import { countProtectionPieces } from './commanderDeckAnalysis';
 import { ARCHETYPE_LABEL } from './strategyVocabulary';
 import { AXES } from '@/deck-builder/services/synergy/axes';
 import type { ArchetypeEvidence } from './roleTargets';
+import { buildsFromOwnedCards, skipsOwnedCards } from './deckFilters';
 
 const AXIS_LABEL = new Map(AXES.map((a) => [a.key, a.label]));
 
@@ -93,8 +94,9 @@ export function assembleBuildReport(input: {
   customization: Customization;
   collectionNames: Set<string>;
   claimedConflicts?: number;
-  /** Owned, identity-legal names "Available only" excluded because every copy
-   *  is committed elsewhere — the mirror of claimedConflicts. */
+  /** Owned, identity-legal names the collection strategy left out: under
+   *  "Available only" the ones whose every copy is committed elsewhere (the
+   *  mirror of claimedConflicts), under "Skip my cards" every one. */
   committedExcluded?: number;
   /** The deck's selected themes, for the archetype-note's "your X theme
    *  pick" / multi-theme disclosure. Undefined for non-theme generators
@@ -111,7 +113,9 @@ export function assembleBuildReport(input: {
     selectedThemes,
   } = input;
 
-  const builtFromCollection = generated.builtFromCollection ?? customization.collectionMode;
+  // "Skip my cards" reads the collection only to leave it out, so the deck
+  // was not built from it.
+  const builtFromCollection = generated.builtFromCollection ?? buildsFromOwnedCards(customization);
   const collectionStrategy = customization.collectionStrategy;
 
   const report: BuildReport = {
@@ -215,10 +219,21 @@ export function assembleBuildReport(input: {
       if (c.name.includes(' // ')) finalNames.add(c.name.split(' // ')[0]);
     }
   }
-  const annotateDisplacedAdds = <T extends { added: string; reason: string }>(repairs: T[]): T[] =>
-    repairs.map((r) =>
-      finalNames.has(r.added) ? r : { ...r, reason: `${r.reason} ${r.added} was cut later.` }
-    );
+  // A later phase can also put back a card an earlier repair cut: the whole-deck
+  // search (E513: "Skrelv, Defector Mite -> Tainted Observer ... cut a synergy
+  // engine piece" over a deck that had Skrelv back in it), a surplus conversion
+  // or a fixup (E561: Krenko budget50's "Goblin Piledriver -> Rummaging Goblin"
+  // beside a conversion that seated Piledriver again). The final deck is the
+  // truth source, whoever put it back.
+  const annotateDisplacedAdds = <T extends { cut: string; added: string; reason: string }>(
+    repairs: T[]
+  ): T[] =>
+    repairs.map((r) => {
+      let reason = r.reason;
+      if (!finalNames.has(r.added)) reason += ` ${r.added} was cut later.`;
+      if (finalNames.has(r.cut)) reason += ` ${r.cut} was put back later.`;
+      return reason === r.reason ? r : { ...r, reason };
+    });
 
   // Flagship seatings are add-claiming records too (E161 gate round 2: the
   // ramp backfill donated isshin's flagship-seated Relentless Assault for
@@ -276,7 +291,7 @@ export function assembleBuildReport(input: {
               ? `You asked for ${target}% owned cards, but only ${eligible} of ` +
                 `your cards fit this commander's colors. ${used}.`
               : `You asked for ${target}% owned cards and got ${report.ownedPercentActual}%. ` +
-                'The rest of your cards hit your limits or a role cap.';
+                'The rest of your cards hit your limits, hit a role cap, or would have replaced a staple.';
         }
       }
     }
@@ -392,7 +407,8 @@ export function assembleBuildReport(input: {
     report.claimedConflicts = claimedConflicts;
   }
   if (committedExcluded != null && committedExcluded > 0) {
-    report.committedExcluded = committedExcluded;
+    if (skipsOwnedCards(customization)) report.ownedExcluded = committedExcluded;
+    else report.committedExcluded = committedExcluded;
   }
 
   // Manabase self-explanation: sources built vs castability-weighted targets.

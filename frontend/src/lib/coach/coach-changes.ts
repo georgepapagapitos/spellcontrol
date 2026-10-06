@@ -20,15 +20,60 @@ import {
   type ChangeOwnership,
 } from './deck-change';
 import type { CrossDeckMove } from './cross-deck-moves';
+import { missingStapleFloor } from './intelligent-cuts';
 import type { GapAnalysisCard } from '@/deck-builder/types';
 import type { OptimizeSwaps } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
 import type { SynergySuggestion } from '@/deck-builder/services/synergy/suggest';
 import type { SubstituteRow } from '@/deck-builder/services/deckBuilder/substituteFinder';
-import type { CostPlan } from '@/deck-builder/services/deckBuilder/costAnalyzer';
+import type { CostPlan, CostSwapRow } from '@/deck-builder/services/deckBuilder/costAnalyzer';
 import type { BracketFitPlan } from '@/deck-builder/services/deckBuilder/bracketFit';
 import type { LandUpgradeMove } from '@/deck-builder/services/deckBuilder/landUpgrades';
 import type { MisfitSummary } from '@/deck-builder/services/deckBuilder/cardFit';
 import type { ComboMatch } from '@/types/combos';
+
+/**
+ * The gap staples worth an owned substitute: role-bearing, not owned (an owned
+ * staple is simply added), and in a role the deck is short on. A substitute in
+ * a role already at its target was a lateral swap between two owned cards off
+ * the commander's page, and the next pass traded it straight back (T171 lane M
+ * measured 0.80 of the collection panel's applied moves reversed).
+ */
+export function staplesToSubstitute<T extends GapAnalysisCard>(
+  gaps: readonly T[],
+  ownedNames: ReadonlySet<string>,
+  roleCounts: Record<string, number>,
+  roleTargets: Record<string, number>
+): T[] {
+  return gaps.filter((g) => {
+    if (!g.role || ownedNames.has(g.name)) return false;
+    const target = roleTargets[g.role];
+    return target === undefined || (roleCounts[g.role] ?? 0) < target;
+  });
+}
+
+/**
+ * The one-away combos worth the Next-best-move hero: the missing piece is a
+ * card this commander's decks play (on its EDHREC page), most played first.
+ * A combo that only needs a generic card (Hullbreaker Horror with the Sol Ring
+ * every deck runs) led the hero for Atraxa, Muldrotha and Yuriko alike, and
+ * the next pass flagged the card it added (T171 lane M: 38 of the 74 off-plan
+ * moves left). `pieces` is the analysis' `suggestionCards`.
+ */
+export function onPlanCombos(
+  combos: ComboMatch[] | undefined,
+  pieces: Readonly<Record<string, { inclusion?: number }>> | undefined
+): ComboMatch[] | undefined {
+  if (!combos) return combos;
+  const pieceInclusion = (m: ComboMatch): number => {
+    const missing = m.combo.cards.filter((c) => m.missingOracleIds.includes(c.oracleId));
+    return Math.min(...missing.map((c) => pieces?.[c.cardName]?.inclusion ?? 0));
+  };
+  return combos
+    .map((m) => ({ m, inclusion: pieceInclusion(m) }))
+    .filter((x) => x.inclusion > 0)
+    .sort((a, b) => b.inclusion - a.inclusion)
+    .map((x) => x.m);
+}
 
 export interface CoachChangeSources {
   gaps: GapAnalysisCard[];
@@ -50,11 +95,19 @@ export interface CoachChangeSources {
  * recompute on an apply, so this is what drops an applied row (and brings an
  * undone one back): adds need their card absent, cuts need it present, swaps
  * need the outgoing card present and the incoming card absent.
+ *
+ * `settingsFit` drops a move that breaks the deck's saved settings (price cap,
+ * budget, rarity, collection strategy, Game Changer limit): see
+ * deck-settings-fit.ts. Absent for a deck with nothing to respect.
+ * `readdFits` is the same check for a caller that applies it later itself
+ * (CoachFeed counts what the settings hide); it defaults to `settingsFit`.
  */
 export function buildCoachChanges(
   src: CoachChangeSources,
   resolveOwnership: (name: string) => ChangeOwnership,
-  deckNames: Set<string>
+  deckNames: Set<string>,
+  settingsFit?: (change: Change) => boolean,
+  readdFits: ((change: Change) => boolean) | undefined = settingsFit
 ): Change[] {
   const adds: Change[] = [
     ...src.gaps.map((g) => fromGapCard(g, resolveOwnership(g.name))),
@@ -66,9 +119,32 @@ export function buildCoachChanges(
   ];
 
   const allCostRows = [...(src.costPlan?.spellRows ?? []), ...(src.costPlan?.landRows ?? [])];
-  const costChanges: Change[] = allCostRows.map((row) =>
-    fromCostSwapRow(row, resolveOwnership(row.suggestionName))
-  );
+  // A budget swap is worth its cost in power only when the deck can't afford
+  // the card it replaces: the deck's settings would hide that card's re-add.
+  // Otherwise (no budget, or room left in it) only a drop-in stays, and never
+  // one that trades away a card Coach would suggest adding straight back (a
+  // card played here at least as much as the least-played missing staple).
+  // Undead Warchief went out for Great Fierce Bee in a Zombies Gisa with no
+  // budget, and the next pass suggested the Warchief back (T171 re-gate).
+  const gapFloor = missingStapleFloor(src.gaps);
+  const affordable = (row: CostSwapRow): boolean =>
+    !readdFits ||
+    readdFits(
+      fromGapCard(
+        {
+          name: row.currentName,
+          inclusion: row.currentInclusion,
+          price: String(row.currentPrice),
+        } as GapAnalysisCard,
+        resolveOwnership(row.currentName)
+      )
+    );
+  const worthIt = (row: CostSwapRow): boolean =>
+    !affordable(row) ||
+    (row.confidence === 'drop-in' && (gapFloor === undefined || row.currentInclusion < gapFloor));
+  const costChanges: Change[] = allCostRows
+    .filter(worthIt)
+    .map((row) => fromCostSwapRow(row, resolveOwnership(row.suggestionName)));
 
   const bracketChanges: Change[] = (src.bracketFit?.moves ?? []).map((m) => {
     if (m.type === 'swap' && m.inName) {
@@ -124,9 +200,11 @@ export function buildCoachChanges(
     ...moveChanges,
     ...[...mergedAdds, ...bracketAdds, ...comboChanges].filter(notMoved),
     ...swapsAndCuts,
-  ].filter((c) => {
-    if (c.type === 'add') return !inDeck(c.name);
-    if (c.type === 'cut') return inDeck(c.name);
-    return c.inName ? inDeck(c.inName) && !inDeck(c.name) : false;
-  });
+  ]
+    .filter((c) => {
+      if (c.type === 'add') return !inDeck(c.name);
+      if (c.type === 'cut') return inDeck(c.name);
+      return c.inName ? inDeck(c.inName) && !inDeck(c.name) : false;
+    })
+    .filter((c) => !settingsFit || settingsFit(c));
 }
