@@ -11,7 +11,7 @@ import { loadTaggerData } from '@/deck-builder/services/tagger/client';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { setCardFactsSnapshot } from '@/deck-builder/services/cardFacts';
 import { COACH_CARDS, coachCardFactsSnapshot } from './__fixtures__/coach-cards.fixtures';
-import { isPremiumCard, premiumNames, premiumReason } from './premiumCards';
+import { isPremiumCard, premiumReason } from './premiumCards';
 
 const card = (name: string): ScryfallCard => ({ ...COACH_CARDS[name] });
 
@@ -63,16 +63,6 @@ describe('premiumReason with card facts', () => {
     for (const name of ['Aetherjacket', 'Basalt Monolith', 'Crib Swap']) {
       expect(premiumReason(card(name)), name).toBeNull();
     }
-  });
-});
-
-describe('premiumNames', () => {
-  it('collects the deck cards that are premium, by name', () => {
-    const deck = ['Path to Exile', 'Aetherjacket', 'The One Ring', 'Basalt Monolith'].map(card);
-    expect([...premiumNames(deck, () => undefined)].sort()).toEqual([
-      'Path to Exile',
-      'The One Ring',
-    ]);
   });
 });
 

@@ -20,7 +20,10 @@
  *   - a card of the other slot type: a land makes room for a land, a spell for
  *     a spell (T171 lane L: 42 of 196 applied cuts traded a land for a spell or
  *     the reverse, because the flag list was read whatever the incoming type);
- *   - a premium card (premiumCards.ts) or a piece of a combo the deck has;
+ *   - a card the one Coach protection set holds (coach-protections.ts: a premium
+ *     card, what feeds the commander, an engine piece, a finisher, a survival
+ *     piece, a card Coach would suggest straight back) or a piece of a combo
+ *     the deck has;
  *   - a card whose role is at or under its target, unless the add fills that
  *     same role and the role isn't short: a cut never opens a role gap, and an
  *     add that fills a gap never trades away another card in the same role
@@ -37,19 +40,12 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import type { OptimizeCard } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
 import { ROLE_LABELS } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
 import type { MisfitSummary } from '@/deck-builder/services/deckBuilder/cardFit';
-import { isPremiumCard } from '@/deck-builder/services/deckBuilder/premiumCards';
-import {
-  buildCommanderProfile,
-  whyCardMatches,
-} from '@/deck-builder/services/deckBuilder/commanderProfile';
+import { buildCommanderProfile } from '@/deck-builder/services/deckBuilder/commanderProfile';
 import { roleIsIncidental } from '@/deck-builder/services/deckBuilder/incidentalRole';
-import { isSurvivalPiece } from '@/deck-builder/services/deckBuilder/deckObjective/factsReading';
-import { countsAsFinisher, getCardFacts } from '@/deck-builder/services/cardFacts';
 import type { WinConditionAnalysis } from '@/deck-builder/services/winConditions/types';
 import { isUtilityLand, landSlotMerit } from '@/deck-builder/services/deckBuilder/landUpgrades';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { isBasicLandName } from '@/lib/collection/allocations';
-import { frontFaceName } from '@/lib/cards/card-text';
 import {
   computeRoleCounts,
   countedRoleOf,
@@ -57,6 +53,7 @@ import {
 import type { ComboMatch } from '@/types/combos';
 import { analyzeDeckSynergy, type DeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
 import { axisKeys, axisJaccard, sharedAxisNames, axisLabel } from './axis-overlap';
+import { createCoachProtections } from './coach-protections';
 import { roleOf, primaryTypeOf, colorsOverlap } from './card-matching';
 import { buildCutFactors, type WhyFactor } from './why-factors';
 
@@ -101,9 +98,6 @@ export interface CutAnalysis {
   /** The build's per-card relevancy (play rate and synergy): a combo cut takes the lowest. */
   cardRelevancyMap?: Record<string, number>;
 }
-
-/** A card played in this share of the commander's decks or more is a staple, never a combo cut. */
-const STAPLE_INCLUSION = 40;
 
 export interface RankReplacementCutsParams {
   /** The card the user is adding (we cut to make room for it). */
@@ -155,22 +149,6 @@ interface Flag {
   reason: string;
   /** The flagging engine's play rate for the card, when it had one. */
   inclusion?: number;
-}
-
-const nameKey = (name: string): string => frontFaceName(name).toLowerCase();
-
-/**
- * The play rate of the least-played staple the analysis lists as missing: a
- * card played here at least that much would join the list the moment it's
- * cut, and Coach would suggest adding it straight back. A 0% row (an off-meta
- * pick) isn't listed for its play rate, so it sets no floor. Undefined when
- * the list has no played staple.
- */
-export function missingStapleFloor(
-  gaps: readonly { inclusion: number }[] | undefined
-): number | undefined {
-  const played = (gaps ?? []).map((g) => g.inclusion).filter((i) => i > 0);
-  return played.length > 0 ? Math.min(...played) : undefined;
 }
 
 /** Why a card was flagged as weak: the optimizer's reason, else the misfit's first. */
@@ -268,31 +246,44 @@ export function rankReplacementCuts({
   const profile = analysis.commander
     ? buildCommanderProfile(analysis.commander, analysis.partnerCommander)
     : null;
-  const feedsCommander = (card: ScryfallCard): boolean =>
-    !!profile && whyCardMatches(card, profile).length > 0;
-  const addFeedsCommander = feedsCommander(addCard);
   const inRole = (card: ScryfallCard): boolean =>
     countedRoleOf(card) === addCounted && !roleIsIncidental(card, addCounted, profile);
-  // A staple the analysis still lists as missing is in the deck now: the user
-  // just added it, most likely on Coach's advice. Offering it as the next cut
-  // undoes that move (a Bracket 4 Yuriko added Mockingbird, then the next add
-  // cut it, in the T171 re-gate).
-  const justAdded = new Set((analysis.gapAnalysis ?? []).map((g) => nameKey(g.name)));
-  // The least-played staple the analysis lists as missing. An unflagged card
-  // played here at least that much would join that list the moment it's cut,
-  // and Coach would suggest adding it straight back (the T171 re-gate's second
-  // pass re-suggested 32 such cuts, most of them 25 to 40% staples).
-  const gapFloor = missingStapleFloor(analysis.gapAnalysis);
+  // The one Coach protection set (coach-protections.ts): premium cards, what
+  // feeds the commander, engine pieces, finishers, survival pieces, and what
+  // Coach would suggest straight back (a staple the analysis still lists as
+  // missing, which the user just added; an unflagged card played at least as
+  // much as the least-played missing staple). The engine and commander-plan
+  // pieces leave for a like-for-like card; a combo completion offers none.
+  const commanders = [analysis.commander, analysis.partnerCommander].filter(
+    (c): c is ScryfallCard => !!c
+  );
+  const deckSyn = deckSynergy ?? analyzeDeckSynergy(deckCards.map((d) => d.card));
+  const altWins = new Set(
+    [analysis.winConditions?.primary, ...(analysis.winConditions?.secondary ?? [])]
+      .filter((w) => w?.category === 'alt-win')
+      .flatMap((w) => w!.evidence)
+  );
+  const protection = createCoachProtections({
+    commanders,
+    invested: deckSyn.invested,
+    inclusionOf: pageInclusion,
+    altWinNames: altWins,
+    gaps: analysis.gapAnalysis,
+    flagged: new Set(flagged.keys()),
+  });
+  const held = (card: ScryfallCard, likeForLike: boolean): boolean => {
+    const p = protection(card);
+    return !!p && !(likeForLike && p.exempt?.(addCard));
+  };
 
   // Never a cut, on any path: the card itself, a card of the other slot type,
-  // a combo piece, a card just added, one the deck settings rule out, a premium card.
-  const cuttable = ({ card }: CutCandidate): boolean =>
+  // a combo piece, one the deck settings rule out, a card the protection set holds.
+  const cuttable = ({ card }: CutCandidate, likeForLike = true): boolean =>
     card.name !== addCard.name &&
     isLandSlot(card) === addIsLand &&
     !comboPieces.has(card.name.toLowerCase()) &&
-    !justAdded.has(nameKey(card.name)) &&
     !(keepsSettings && !keepsSettings(card)) &&
-    !isPremiumCard(card, { inclusion: pageInclusion(card.name) });
+    !held(card, likeForLike);
   const eligible = deckCards.filter(
     (d) => cuttable(d) && !opensGap(d.card) && !(addRoleMet && !inRole(d.card))
   );
@@ -303,52 +294,13 @@ export function rankReplacementCuts({
   const addType = primaryTypeOf(addCard);
   const addCmc = addCard.cmc ?? 0;
   const addAxes = axisKeys(addCard);
-  // Derive the engine analysis once if the caller didn't supply it.
-  const deckSyn = deckSynergy ?? analyzeDeckSynergy(deckCards.map((d) => d.card));
-  const investedAxes = new Set<string>(deckSyn.invested);
-  const hasEngine = investedAxes.size > 0;
-  const loadBearingOf = (card: ScryfallCard): boolean =>
-    hasEngine && [...axisKeys(card)].some((k) => investedAxes.has(k.slice(0, k.indexOf(':'))));
-  // A finisher (the card facts' counted finisher, the win-line reading's) or an
-  // alt-win card: what the deck wins with is never an overlap cut. Starfield
-  // of Nyx went as "Overlapping Enchantress" for a one-shot recursion spell.
-  const altWins = new Set(
-    [analysis.winConditions?.primary, ...(analysis.winConditions?.secondary ?? [])]
-      .filter((w) => w?.category === 'alt-win')
-      .flatMap((w) => w!.evidence)
-  );
-  const isFinisher = (card: ScryfallCard): boolean => {
-    const facts = getCardFacts(card);
-    return altWins.has(card.name) || (!!facts && countsAsFinisher(facts));
-  };
-
   if (completesCombo) {
-    const commanders = [analysis.commander, analysis.partnerCommander].filter(
-      (c): c is ScryfallCard => !!c
-    );
-    const survival = (card: ScryfallCard): boolean => {
-      const facts = getCardFacts(card);
-      return !!facts && isSurvivalPiece(card, facts, commanders);
-    };
     // Every protection the other paths keep, and no fallback: with none left
     // the prompt offers no cut and the user picks one. The round-4 rule that a
     // combo always got a cut took Yuriko's ramp to 7/9 and Krenko's only wipe,
     // and cut 34 to 39% staples Coach then suggested straight back (T171 v4b).
-    const pool = deckCards.filter((d) => {
-      const card = d.card;
-      const played = pageInclusion(card.name);
-      const flag = flagged.has(card.name.toLowerCase());
-      return (
-        cuttable(d) &&
-        !opensGap(card) &&
-        !(played !== undefined && played >= STAPLE_INCLUSION) &&
-        !(!flag && played !== undefined && gapFloor !== undefined && played >= gapFloor) &&
-        !feedsCommander(card) &&
-        !loadBearingOf(card) &&
-        !isFinisher(card) &&
-        !survival(card)
-      );
-    });
+    // The completing card is no like-for-like swap for an engine or plan piece.
+    const pool = deckCards.filter((d) => cuttable(d, false) && !opensGap(d.card));
     return rankComboCuts(pool, flagged, pageInclusion, analysis.cardRelevancyMap, limit);
   }
 
@@ -370,18 +322,6 @@ export function rankReplacementCuts({
     const colorClose = colorsOverlap(addCard, card);
     const related = sameAxis || sameRole || sameType;
 
-    // Cut guard: don't propose trimming a card holding up one of the deck's
-    // invested engines — unless the card being added plays that same engine, in
-    // which case it's a legitimate like-for-like swap. (Reuses cardAxes rather
-    // than re-classifying via isLoadBearing.)
-    const loadBearing =
-      hasEngine && [...cardAxes].some((k) => investedAxes.has(k.slice(0, k.indexOf(':'))));
-    if (loadBearing && !sameAxis) continue;
-    // A card that feeds the commander's own ability goes only for another that
-    // does: Flawless Maneuver cut Drakuseth, an Isshin attack-trigger payoff,
-    // as "Played in 13% of decklists" (T171 round 3).
-    if (!addFeedsCommander && feedsCommander(card)) continue;
-
     // Axis overlap is the dominant relatedness signal (up to 6), then role, type,
     // color, cost. Mirrors the synergy-first weighting of the similar-cards scorer.
     const relScore =
@@ -396,9 +336,6 @@ export function rankReplacementCuts({
       addInclusion !== undefined && (candInclusion === undefined || candInclusion < addInclusion);
     if (!flagReason && candInclusion !== undefined && addInclusion !== undefined && !playedLess)
       continue; // an unflagged card played here as much as the add stays
-    if (!flagReason && candInclusion !== undefined && gapFloor !== undefined)
-      if (candInclusion >= gapFloor) continue; // cut, it would head Coach's missing staples
-    if (!flagReason && isFinisher(card)) continue; // what the deck wins with is no overlap
     // An upgrade replaces a strictly weaker card: played here less than the
     // add, or, when the add's play rate is unknown, flagged weak by the analysis.
     const weaker = addInclusion !== undefined ? (candInclusion ?? 0) < addInclusion : !!flagReason;

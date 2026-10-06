@@ -41,6 +41,45 @@ export interface ObjectiveTags {
   isStaxPiece(name: string): boolean;
 }
 
+/**
+ * The classes a context's `extraProtections` may name: Coach's cut protections
+ * (coachProtections.ts). All of them are strict, as a combo piece is: none
+ * leaves outside a repair, since every Coach cut path offers none of them.
+ */
+export const COACH_PROTECTED_CLASSES = [
+  'premium',
+  'commander plan',
+  'engine piece',
+  'finisher',
+  'survival piece',
+  'suggested back',
+] as const;
+export type CoachProtectedClass = (typeof COACH_PROTECTED_CLASSES)[number];
+
+/** What holds a card in a deck (protections.ts builds the set). */
+export type ProtectedClass =
+  | 'combo piece'
+  | 'near combo piece'
+  | 'combo tutor'
+  | 'protection'
+  | 'interaction land'
+  | 'Game Changer'
+  | 'staple'
+  | 'signature'
+  | CoachProtectedClass;
+
+export interface Protection {
+  cls: ProtectedClass;
+  /** Why, in words: "a piece of Hermit Druid + Thassa's Oracle". */
+  why: string;
+  /**
+   * A held card that may still go for a like-for-like card: true for an
+   * incoming card that does the same job (Coach's commander-plan and engine
+   * pieces). Absent: nothing exempts it.
+   */
+  exempt?: (incoming: ScryfallCard) => boolean;
+}
+
 /** Everything a score depends on besides the deck itself. Build with `createObjectiveContext`. */
 export interface ObjectiveContextInput {
   /** The deck's colour identity (the commanders'). */
@@ -110,6 +149,16 @@ export interface ObjectiveContextInput {
   allowPartial?: boolean;
   /** Term weight overrides (multipliers on DEFAULT_WEIGHTS). */
   weights?: Partial<Record<TermKey, number>>;
+  /**
+   * Protections beyond the objective's own (protections.ts), read for every
+   * card of a deck by the one protection set. Coach fills it with what its cut
+   * paths keep. Omitted: none, and generation and the search are unchanged.
+   */
+  extraProtections?: (
+    card: ScryfallCard,
+    deck: ObjectiveDeck,
+    ctx: ObjectiveContext
+  ) => Protection | null;
 }
 
 /** A read of one card on this context's page. */
