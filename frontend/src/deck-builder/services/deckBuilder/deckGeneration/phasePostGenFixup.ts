@@ -1,4 +1,5 @@
 import { logger } from '@/lib/util/logger';
+import { getByCardName } from '@/lib/cards/card-text';
 import { evictionKeeper } from './evictionKeeper';
 import type { ScryfallCard, DeckCategory, CoherenceRepair } from '@/deck-builder/types';
 import {
@@ -19,6 +20,11 @@ import {
 import { calculateCardPriority } from '../cardPicking';
 import { STAPLE_ROCK_NAMES } from './phaseStapleManaRocks';
 import { ROLE_LABEL } from './phaseRoleSurplusRebalance';
+
+/** 5a2: a filler is a card on at most this % of the commander's decks. */
+const FILLER_INCLUSION_MAX = 5;
+/** 5a2: the incoming card must be played this many points more than the filler. */
+const FILLER_UPGRADE_POINTS = 20;
 
 export interface PostGenFixupContext {
   /** Balanced-roles targets; role-deficit swaps (5a) are skipped when null. */
@@ -203,6 +209,48 @@ export function postGenFixupPhase(
           }
           fixupSwaps++;
         }
+      }
+    }
+  }
+
+  // 5a2 (E563): a role below its target, by any amount, takes the best missing
+  // card of that role for a filler: an unkept card on 5% or less of the
+  // commander's decks that is not the last card of its own role at or under
+  // target, when the incoming card is played FILLER_UPGRADE_POINTS more. A pure
+  // upgrade, so a deck whose cards are all real picks is untouched. 5a's trigger
+  // (50% of target) never fired for Lathril once a staple was no longer cut for
+  // a combo piece: removal sat at 5 of 8 beside Glacial Revelation (0%).
+  if (roleTargets) {
+    const pageInclusion = new Map(
+      state.edhrecData!.cardlists.allNonLand.map((c) => [c.name, c.inclusion])
+    );
+    const inclusionOf = (card: ScryfallCard) => getByCardName(pageInclusion, card.name) ?? 0;
+    for (const role of ['ramp', 'removal', 'boardwipe', 'cardDraw'] as RoleKey[]) {
+      const target = roleTargets[role] ?? 0;
+      while (fixupSwaps < MAX_FIXUP_SWAPS && (currentRoleCounts[role] ?? 0) < target) {
+        const replacement = findRoleCandidate(role);
+        if (!replacement) break;
+        const weak = findWeakestCard((card) => {
+          if (inclusionOf(card) > FILLER_INCLUSION_MAX) return false;
+          const own = getCardRole(card.name);
+          const lastOfOwn =
+            own && (currentRoleCounts[own] ?? 0) <= Math.min(1, roleTargets[own] ?? 0);
+          return own !== role && !lastOfOwn;
+        }, replacement);
+        if (!weak) break;
+        if (inclusionOf(replacement) < inclusionOf(weak.card) + FILLER_UPGRADE_POINTS) break;
+        fixupRemoveCard(weak.card, weak.category);
+        fixupAddCard(replacement);
+        fixupRepairs.push({
+          cut: weak.card.name,
+          added: replacement.name,
+          reason: `Swapped ${weak.card.name} for ${replacement.name} to close a ${ROLE_LABEL[role]} gap.`,
+        });
+        if (swapCandidates) {
+          const key = `type:${(getFrontFaceTypeLine(weak.card) || 'unknown').split(' ')[0].toLowerCase()}`;
+          (swapCandidates[key] ??= []).push(weak.card);
+        }
+        fixupSwaps++;
       }
     }
   }

@@ -525,4 +525,66 @@ describe('postGenFixupPhase', () => {
       expectProtectedCardSurvives(state, rampReplacement, 'Must Include Card', 'Unprotected G');
     });
   });
+
+  // E563: a role below target takes a filler's slot (5a2), whatever the deficit.
+  describe('filler upgrade for a role below target (5a2)', () => {
+    function lathril(opts: { filler?: number; cardDraw?: number; beast?: number } = {}) {
+      const state = makeState();
+      const archer = scryfallCard('Poison-Tip Archer');
+      const glacial = scryfallCard('Glacial Revelation');
+      const beastWithin = scryfallCard('Beast Within', { cmc: 3 });
+      roleMap['Beast Within'] = 'removal';
+      roleMap['Glacial Revelation'] = 'cardDraw';
+      roleMap['Poison-Tip Archer'] = null;
+      state.categories.creatures = [archer];
+      state.categories.cardDraw = [glacial];
+      state.usedNames = new Set(['Glacial Revelation', 'Poison-Tip Archer']);
+      state.currentRoleCounts = {
+        ramp: 0,
+        removal: 5,
+        boardwipe: 0,
+        cardDraw: opts.cardDraw ?? 12,
+      };
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [
+            { name: 'Poison-Tip Archer', inclusion: 49.8 },
+            { name: 'Glacial Revelation', inclusion: opts.filler ?? 0 },
+            { name: 'Beast Within', inclusion: opts.beast ?? 38.3 },
+          ],
+        },
+      } as unknown as GenerationState['edhrecData'];
+      const result = postGenFixupPhase(state, {
+        roleTargets: { ramp: 0, removal: 8, boardwipe: 0, cardDraw: 12 },
+        swapCandidates: undefined,
+        scryfallCardMap: new Map([['Beast Within', beastWithin]]),
+        repairAddedNames: new Set(),
+      });
+      return { result, state };
+    }
+
+    it('swaps a 0% filler for the best missing removal at 5 of 8 (Lathril coll-partial50)', () => {
+      const { result, state } = lathril();
+      expect(result.fixupRepairs).toEqual([
+        {
+          cut: 'Glacial Revelation',
+          added: 'Beast Within',
+          reason: 'Swapped Glacial Revelation for Beast Within to close a removal gap.',
+        },
+      ]);
+      expect(state.usedNames.has('Poison-Tip Archer')).toBe(true);
+    });
+
+    it('makes no swap when no card is on 5% or less (every card a real pick)', () => {
+      expect(lathril({ filler: 30 }).result.fixupSwaps).toBe(0);
+    });
+
+    it('makes no swap when the incoming card is not played 20 points more', () => {
+      expect(lathril({ beast: 15 }).result.fixupSwaps).toBe(0);
+    });
+
+    it('does not take a filler that is the last card of its own role at target', () => {
+      expect(lathril({ cardDraw: 1 }).result.fixupSwaps).toBe(0);
+    });
+  });
 });
