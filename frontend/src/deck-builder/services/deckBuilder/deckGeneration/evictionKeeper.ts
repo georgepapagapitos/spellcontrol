@@ -8,7 +8,7 @@
 // partial50 was Enlightened Tutor (40.3%): the cut that completed Siona fell
 // on the deck's tutor.
 //
-// Kept: a staple, a tutor, a piece of a combo line the deck can assemble, and
+// Kept: a staple, a tutor, a piece of a combo line the deck already holds whole, and
 // the last card of an answer class the deck holds (the answer-coverage
 // matrix's classes, deckObjective/classFloors.ts). A Game Changer is not kept
 // as such: that rule belongs to the E513 search's trust region, and holding a
@@ -19,16 +19,15 @@
 //
 // If every card left is kept, the cut doesn't happen and the combo stays
 // one-away (the E532 pattern).
-import { getByCardName } from '@/lib/cards/card-text';
+import { frontFaceName, getByCardName } from '@/lib/cards/card-text';
 import {
   getCardDrawSubtype,
   isFreeInteraction,
   readsAsProtection,
 } from '@/deck-builder/services/tagger/client';
-import type { EDHRECCard, ScryfallCard } from '@/deck-builder/types';
+import type { ScryfallCard } from '@/deck-builder/types';
 import { STAPLE_INCLUSION_BAR } from '../roleCapAllowance';
 import { answerClassesOf } from '../deckObjective/classFloors';
-import { achievableComboPieces } from './comboLines';
 import type { GenerationState } from './state';
 
 /**
@@ -62,12 +61,15 @@ export function evictionKeeper(
       .join('|');
     if (names === signature) return;
     signature = names;
-    const inDeck = new Set(held.map((c) => c.name));
-    // A piece seated from outside the page pool is still a piece of the line.
-    const seated = held.map((c) => ({ name: c.name }) as EDHRECCard);
-    comboPieces = achievableComboPieces(state.combos ?? [], [...pool, ...seated], (n) =>
-      inDeck.has(n)
-    );
+    const inDeck = new Set(held.flatMap((c) => [c.name, frontFaceName(c.name)]));
+    // Only a line the deck already holds whole: a line the pool COULD complete
+    // reaches nearly every card in a deck with dozens of listed combos (Isshin's
+    // Professional Face-Breaker, 11.8%, sat in two of them).
+    comboPieces = new Set<string>();
+    for (const combo of state.combos ?? []) {
+      const line = combo.cards.map((c) => c.name);
+      if (line.every((n) => inDeck.has(n))) for (const n of line) comboPieces.add(n);
+    }
     classCounts = new Map();
     for (const [cat, cards] of Object.entries(state.categories ?? {})) {
       if (cat === 'lands') continue;

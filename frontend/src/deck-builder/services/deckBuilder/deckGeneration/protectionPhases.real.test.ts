@@ -478,4 +478,35 @@ describe('evictionKeeper blocks only downgrades', () => {
     expect(keeps(leyline, winnower)).toBe(true);
     expect(keeps(leyline, WORLDLY)).toBe(false);
   });
+
+  // Isshin coll-partial50: Professional Face-Breaker (11.8%) sits in lines the pool
+  // could complete, so it read as kept and Smart Trim cut Reconnaissance (38.3%,
+  // the on-theme untap enabler) in its place. Only a line held whole keeps a piece.
+  it('keeps a line piece only for a line the deck holds whole (Isshin: Professional Face-Breaker)', () => {
+    const faceBreaker = card('Professional Face-Breaker');
+    const fable = card('Fable of the Mirror-Breaker');
+    const celebrant = card('Combat Celebrant');
+    const state = {
+      edhrecData: {
+        cardlists: {
+          allNonLand: [
+            { name: 'Professional Face-Breaker', id: 'p', inclusion: 11.8 },
+            { name: 'Fable of the Mirror-Breaker', id: 'f', inclusion: 60 },
+            { name: 'Combat Celebrant', id: 'c', inclusion: 50 },
+          ],
+        },
+      },
+      combos: [
+        {
+          comboId: 'x',
+          cards: [{ name: fable.name }, { name: celebrant.name }, { name: faceBreaker.name }],
+        },
+      ],
+      categories: { lands: [], synergy: [faceBreaker, fable] },
+    } as unknown as GenerationState;
+    const keeps = evictionKeeper(state);
+    expect(keeps(faceBreaker)).toBe(false); // Combat Celebrant is only in the pool
+    state.categories.synergy.push(celebrant);
+    expect(keeps(faceBreaker)).toBe(true); // the line is now held whole
+  });
 });
