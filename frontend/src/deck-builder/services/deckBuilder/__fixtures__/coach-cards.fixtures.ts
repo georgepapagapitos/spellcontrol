@@ -2764,6 +2764,30 @@ export const COACH_CARDS = {
       usd: '3.12',
     },
   },
+  'Gnostro, Voice of the Crags': {
+    id: 'c171f179-9ccf-4819-915c-7f2cd3a91ad8',
+    oracle_id: 'bff55e1a-730c-4349-9ccb-18c97f46496d',
+    name: 'Gnostro, Voice of the Crags',
+    layout: 'normal',
+    mana_cost: '{1}{U}{R}{W}',
+    cmc: 4.0,
+    type_line: 'Legendary Creature \u2014 Chimera',
+    oracle_text:
+      "{T}: Choose one. X is the number of spells you've cast this turn.\n\u2022 Scry X.\n\u2022 Gnostro deals X damage to target creature.\n\u2022 You gain X life.",
+    colors: ['R', 'U', 'W'],
+    color_identity: ['R', 'U', 'W'],
+    keywords: ['Scry'],
+    power: '3',
+    toughness: '3',
+    rarity: 'rare',
+    edhrec_rank: 23210,
+    legalities: {
+      commander: 'legal',
+    },
+    prices: {
+      usd: '0.25',
+    },
+  },
   'Undead Warchief': {
     id: '01482b0c-d05b-4356-9144-e044159f4dcb',
     oracle_id: 'e6af56bf-bd78-4801-8f6e-033cdd68de3d',
