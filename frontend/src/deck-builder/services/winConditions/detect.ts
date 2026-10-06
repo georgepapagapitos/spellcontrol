@@ -207,6 +207,18 @@ function comboBucket(results: string[]): 'win' | 'damage' | 'tokens' | 'grow' | 
   return 'other';
 }
 
+/**
+ * Does this loop end the game on its own? The one answer the win-condition
+ * detector, the Coach's combo rows and its Next best move share. A loop that
+ * only makes mana, draws cards or stacks triggers (Hullbreaker Horror + Sol
+ * Ring, Spellbook tag E) needs a payoff card; when the deck holds that payoff
+ * Spellbook lists the line as its own combo with the win in its results, and
+ * that combo passes this test.
+ */
+export function comboEndsGame(results: string[]): boolean {
+  return comboBucket(results) !== 'other';
+}
+
 // ── Voltron heuristic ────────────────────────────────────────────────────────
 
 const EVASION_KW = ['flying', 'trample', 'menace', 'shadow', 'fear', 'intimidate', 'unblockable'];

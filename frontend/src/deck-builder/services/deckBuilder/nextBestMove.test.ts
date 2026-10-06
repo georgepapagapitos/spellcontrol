@@ -185,7 +185,7 @@ describe('buildNextBestMoves', () => {
         combo: {
           id: 'c1',
           identity: 'UB',
-          produces: ['Infinite mana'],
+          produces: ['Win the game'],
           prerequisites: null,
           description: null,
           manaNeeded: null,
@@ -205,7 +205,7 @@ describe('buildNextBestMoves', () => {
     expect(moves).toHaveLength(1);
     expect(moves[0].tier).toBe(3);
     expect(moves[0].cardName).toBe('Missing Piece');
-    expect(moves[0].detail).toContain('Infinite mana');
+    expect(moves[0].detail).toContain('Win the game');
     expect(moves[0].navigateTo).toBe('power');
   });
 
@@ -376,7 +376,7 @@ describe('buildNextBestMoves', () => {
       combo: {
         id,
         identity: 'U',
-        produces: ['Infinite mana'],
+        produces: ['Win the game'],
         prerequisites: null,
         description: null,
         manaNeeded: null,

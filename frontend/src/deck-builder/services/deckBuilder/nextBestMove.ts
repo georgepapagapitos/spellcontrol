@@ -4,6 +4,7 @@ import { synergyStrength, bySynergyStrength } from './synergyLift';
 import type { DeckView } from '@/components/deck/DeckDisplay';
 import type { ComboMatch } from '@/types/combos';
 import type { WinConditionAnalysis } from '@/deck-builder/services/winConditions/types';
+import { comboEndsGame } from '@/deck-builder/services/winConditions/detect';
 
 /**
  * One ranked, data-grounded suggestion for the single highest-leverage change
@@ -326,6 +327,9 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
   if (oneAwayCombos) {
     for (const match of oneAwayCombos) {
       if (match.missingOracleIds.length !== 1) continue;
+      // A loop that doesn't win (infinite mana with no sink) is no "near-miss
+      // combo" worth a top-three slot (E437).
+      if (!comboEndsGame(match.combo.produces)) continue;
       const missingId = match.missingOracleIds[0];
       const missingCard = match.combo.cards.find((c) => c.oracleId === missingId);
       const missingName = missingCard?.cardName;

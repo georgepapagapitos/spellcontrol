@@ -132,14 +132,16 @@ describe('buildCoachView', () => {
       ownedOnly: false,
     });
     const feedNames = view.feed.map((r) => r.change.name);
-    // Gap rows by play rate; the combo completion rides in the feed too. The
-    // deck's ramp is at its target, so Burgeoning is no gap (T171 round 3).
-    expect(feedNames.slice(0, 3)).toEqual(['Rhystic Study', 'Fact or Fiction', 'Mox Amber']);
+    // Gap rows by play rate. The Hullbreaker loop makes mana and ends nothing,
+    // so its missing piece is no combo row (E437). The deck's ramp is at its
+    // target, so Burgeoning is no gap (T171 round 3).
+    expect(feedNames.slice(0, 3)).toEqual(['Rhystic Study', 'Fact or Fiction']);
+    expect(feedNames).not.toContain('Mox Amber');
     expect(feedNames).not.toContain('Burgeoning');
     // The Cuts chip reads weakest first: the least played here leads.
     expect(view.cuts.map((r) => r.change.name)).toEqual(['Negate', 'Aetherize']);
-    // The hero names the missing combo piece.
-    expect(view.nbm.find((m) => m.cardName)?.cardName).toBe('Mox Amber');
+    // And the hero does not name it either.
+    expect(view.nbm.find((m) => m.cardName)?.cardName).not.toBe('Mox Amber');
     expect(view.roleCounts.cardDraw).toBeGreaterThan(0);
     expect(view.suggestions.staples.map((s) => s.name)).toEqual([
       'Rhystic Study',

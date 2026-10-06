@@ -30,6 +30,7 @@ import type { BracketFitPlan } from '@/deck-builder/services/deckBuilder/bracket
 import type { LandUpgradeMove } from '@/deck-builder/services/deckBuilder/landUpgrades';
 import type { MisfitSummary } from '@/deck-builder/services/deckBuilder/cardFit';
 import type { ComboMatch } from '@/types/combos';
+import { comboEndsGame } from '@/deck-builder/services/winConditions/detect';
 
 /**
  * The gap staples worth an owned substitute: role-bearing, not owned (an owned
@@ -153,8 +154,13 @@ export function buildCoachChanges(
     return fromBracketFitMove(m, m.type === 'cut' ? undefined : resolveOwnership(m.name));
   });
 
+  // A completion earns the combos lane only when the loop wins the game (the
+  // deck's own payoff shows up as its own Spellbook combo). A loop that only
+  // makes mana or draws is no free win: the card competes on its ordinary fit
+  // through the other lanes (E437, Hullbreaker Horror + Sol Ring).
   const comboChanges: Change[] = (src.oneAwayCombos ?? [])
     .filter((match) => match.missingOracleIds.length === 1)
+    .filter((match) => comboEndsGame(match.combo.produces))
     .map((match) => {
       const missingId = match.missingOracleIds[0];
       const missingCard = match.combo.cards.find((c) => c.oracleId === missingId);
