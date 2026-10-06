@@ -114,8 +114,13 @@ export function buildRoleDeficitNotes(
         : `${c.name} (${Math.round(c.inclusion)}%)`;
     // A card the keeper turned away did not lose to a stronger pick: every card
     // it could have replaced was one the deck keeps.
-    const blocked = candidates.filter((c) => opts.keeperBlocked?.has(c.name));
-    const outcompeted = candidates.filter((c) => !opts.keeperBlocked?.has(c.name));
+    // The backfill also records a role it found no donor for: every card the deck
+    // keeps was one it could not replace, so none of that role's candidates lost
+    // to a stronger pick.
+    const roleBlocked = opts.keeperBlocked?.has(`role:${role}`);
+    const isBlocked = (c: EDHRECCard) => roleBlocked || opts.keeperBlocked?.has(c.name);
+    const blocked = candidates.filter(isBlocked);
+    const outcompeted = candidates.filter((c) => !isBlocked(c));
     const sentences: string[] = [];
     if (outcompeted.length > 0)
       sentences.push(`${outcompeted.map(describe).join(' and ')} lost out to stronger picks.`);

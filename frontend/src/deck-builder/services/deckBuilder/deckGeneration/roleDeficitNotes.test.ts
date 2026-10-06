@@ -70,6 +70,19 @@ describe('buildRoleDeficitNotes', () => {
     );
   });
 
+  it('says every candidate of a role stayed out when the backfill found no donor (Lathril: Beast Within)', () => {
+    ROLE_OF.set('Beast Within', 'removal');
+    ROLE_OF.set('Ruthless Winnower', 'removal');
+    const notes = buildRoleDeficitNotes(
+      [],
+      { ...ZERO_TARGETS, removal: 8 },
+      [edhrecCard('Beast Within', 38.3), edhrecCard('Ruthless Winnower', 37.1)],
+      { keeperBlocked: new Set(['role:removal', 'Ruthless Winnower']) }
+    );
+    expect(notes![0]).not.toMatch(/lost out/);
+    expect(notes![0]).toMatch(/Beast Within[^.]*and Ruthless Winnower[^.]* stayed out/);
+  });
+
   it('still says a card nothing blocked lost out to stronger picks', () => {
     ROLE_OF.set('Swords to Plowshares', 'removal');
     const notes = buildRoleDeficitNotes([], { ...ZERO_TARGETS, removal: 3 }, [

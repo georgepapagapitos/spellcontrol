@@ -885,26 +885,24 @@ export function applyRoleSurplusRebalance(
   // genuinely replaceable one, same protection Phase 1/2 give outgoing
   // reactive-role cards.
   //
-  // isFreeInteraction is checked HERE only, not folded into the shared
-  // isProtected() — isProtectionPiece() deliberately returns false for a
-  // free-interaction piece (#1037's overlap exclusion between the two
-  // classifiers), so without this a Fierce Guardianship/Commandeer-class
-  // card is protected by nothing in this donor pool. Phase 1/2 never faced
-  // this: they only ever evict from OVER-CAP reactive roles, and a roleless
-  // free-interaction card was never eligible there, so widening the shared
-  // isProtected() would change Phase 1/2 eviction behavior beyond this
-  // slice's scope — scoped to this loop instead.
+  // isFreeInteraction is checked HERE only: isProtected() leaves a roleless
+  // free-interaction card (Fierce Guardianship) unprotected, and widening it
+  // would change Phase 1/2 eviction behavior.
   const findRoleDeficitDonor = (
     deficitRole: RoleKey
   ): { card: ScryfallCard; category: DeckCategory } | null => {
     const probe = findReplacement(-Infinity, Infinity, deficitRole, true, deficitRole) ?? undefined;
+    let blockedByKeeper = false;
     const candidates: { card: ScryfallCard; category: DeckCategory }[] = [];
     for (const cat of Object.keys(state.categories) as DeckCategory[]) {
       if (cat === 'lands') continue;
       for (const card of state.categories[cat]) {
         const role = countedRoleOf(card);
         if (role === deficitRole || isProtected(card) || isFreeInteraction(card)) continue;
-        if (keeps(card, probe)) continue; // E563: only a downgrade of a kept card is blocked
+        if (keeps(card, probe)) {
+          blockedByKeeper = true; // E563: only a downgrade of a kept card is blocked
+          continue;
+        }
         if (role) {
           const roleTarget = roleTargets[role] ?? 0;
           if ((liveRoleCounts[role] ?? 0) - 1 < roleTarget) continue;
@@ -912,7 +910,10 @@ export function applyRoleSurplusRebalance(
         candidates.push({ card, category: cat });
       }
     }
-    if (candidates.length === 0) return null;
+    if (candidates.length === 0) {
+      if (blockedByKeeper) state.keeperBlocked?.add(`role:${deficitRole}`); // no donor left to give
+      return null;
+    }
     const liftBoosts = computeLiftPickBoosts(
       candidates.map((c) => c.card.name),
       ctx.liftScoreOf

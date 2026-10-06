@@ -1449,6 +1449,27 @@ describe('applyRoleSurplusRebalance', () => {
     // overlap exclusion), so a Fierce Guardianship/Commandeer-class roleless
     // card was protected by nothing in the donor pool and — on raw priority
     // alone — the cheapest candidate to cut.
+    // E563: with every donor a kept card the backfill makes no swap, and says why
+    // (the deficit note must not call that "lost out to stronger picks").
+    it('records a role it found no donor for because the deck keeps every candidate', () => {
+      const state = makeState();
+      const donor = scryfallCard('Filler A');
+      state.usedNames.add('Filler A');
+      state.categories.utility.push(donor);
+      state.keeperBlocked = new Set();
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [edhrecCard('Filler A', 45), edhrecCard('Wipe Candidate', 30)],
+        },
+      } as unknown as GenerationState['edhrecData'];
+      ROLE_OF.set('Wipe Candidate', 'boardwipe');
+      const roleTargets = { ramp: 0, removal: 0, boardwipe: 1, cardDraw: 0 };
+      const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+      expect(result.conversions).toHaveLength(0);
+      expect(state.keeperBlocked.has('role:boardwipe')).toBe(true);
+    });
+
     // E563: the keeper blocks a downgrade, not a donation to a better-played card.
     it('lets a kept staple donate its slot to a boardwipe played more often', () => {
       const state = makeState();

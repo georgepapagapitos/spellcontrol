@@ -489,6 +489,36 @@ describe('postGenFixupPhase', () => {
       expectProtectedCardSurvives(state, rampReplacement, 'Counterspell', 'Unprotected I');
     });
 
+    // E563 (Lathril coll-partial50): an unkept 0% card stays the first victim while
+    // kept staples are skipped, exactly as before the keeper existed.
+    it('cuts the unkept 0% card for a removal gap, never the kept staple beside it', () => {
+      const state = makeState();
+      const staple = scryfallCard('Poison-Tip Archer');
+      const glacial = scryfallCard('Glacial Revelation');
+      const beastWithin = scryfallCard('Beast Within', { cmc: 3 });
+      roleMap['Beast Within'] = 'removal';
+      // the staple is LAST in its category, so position alone would cut it
+      state.categories.creatures = [glacial, staple];
+      state.usedNames = new Set(['Glacial Revelation', 'Poison-Tip Archer']);
+      state.currentRoleCounts = { ramp: 0, removal: 3, boardwipe: 0, cardDraw: 0 };
+      pagePool(state, [
+        ['Poison-Tip Archer', 49.8],
+        ['Glacial Revelation', 0],
+        ['Beast Within', 38.3],
+      ]);
+      const result = postGenFixupPhase(state, {
+        roleTargets: { ramp: 0, removal: 8, boardwipe: 0, cardDraw: 0 },
+        swapCandidates: undefined,
+        scryfallCardMap: new Map([['Beast Within', beastWithin]]),
+        repairAddedNames: new Set(),
+      });
+      expect(result.fixupRepairs[0]).toMatchObject({
+        cut: 'Glacial Revelation',
+        added: 'Beast Within',
+      });
+      expect(state.usedNames.has('Poison-Tip Archer')).toBe(true);
+    });
+
     it('protects a must-include card', () => {
       const { state, rampReplacement } = makeProtectionState('Must Include Card', 'Unprotected G');
       state.context.customization.mustIncludeCards = ['Must Include Card'];
