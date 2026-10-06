@@ -1,5 +1,5 @@
-// E513: the whole-deck search as a generation phase, behind
-// `customization.wholeDeckSearch` (default off: the phase isn't loaded).
+// E513: the whole-deck search as a generation phase. On unless
+// `customization.wholeDeckSearch` is false (wholeDeckSearchStep.ts decides).
 //
 // Runs once, after the last phase that changes the deck (the post-refresh
 // bracket reconvergence) and BEFORE the build report is assembled, so every
@@ -30,11 +30,27 @@ import { exceedsCmcCap } from '../deckFilters';
 import { createObjectiveContext } from '../deckObjective';
 import { cardIneligibility, checkConstraints } from '../deckObjective/constraints';
 import { isLandCard } from '../deckObjective/context';
-import { optimizeDeck, repairSlotOf, type AppliedSwap } from '../deckObjective/optimizer';
+import { MAX_SWAPS, repairSlotOf, type AppliedSwap } from '../deckObjective/optimizer';
+import { optimizeDeckAsync } from '../deckObjective/optimizerAsync';
 import { countRoles } from '../deckObjective/trustRegion';
 import type { ObjectiveContext, ObjectiveDeck } from '../deckObjective/types';
 import { edhrecRowsFrom } from '../deckObjective/panelDump';
 import { markBanned, type GenerationState } from './state';
+import {
+  SEARCH_PROGRESS_MESSAGE,
+  SEARCH_PROGRESS_PERCENT,
+  SEARCH_PROGRESS_SPAN,
+} from './searchProgress';
+import { plainDisclosure, swapSentences } from './swapCopy';
+
+/**
+ * Cap on the search's WORK time (the waits that let the page paint don't
+ * count, so a busy phone isn't cut short by its own yields). The slowest deck
+ * of the standard panel needs about 10 s of work on a desktop, so this never
+ * bites there; a phone several times slower is stopped at the cap with the
+ * swaps it has, each valid on its own and disclosed as usual.
+ */
+export const SEARCH_TIME_BUDGET_MS = 15_000;
 
 /** The ownership checks. */
 const OWNED_RULES = new Set(['collection', 'owned-share']);
@@ -53,6 +69,8 @@ export interface WholeDeckSearchInput {
   resolveOwned?: (names: string[]) => Promise<Map<string, ScryfallCard>>;
   /** The cards the generator's role-surplus rebalance cut: the roles it trimmed stay trimmed. */
   surplusCuts?: readonly string[];
+  /** Overrides SEARCH_TIME_BUDGET_MS (tests). */
+  timeBudgetMs?: number;
 }
 
 /** One swap as the build report records a swap: what left, what came in, and why. */
@@ -66,25 +84,21 @@ export interface WholeDeckSearchResult {
   swaps: WholeDeckSwapRecord[];
   /** One line for the report; undefined when the search changed nothing. */
   note: string | undefined;
+  /** Why the search ended; 'time' means it hit SEARCH_TIME_BUDGET_MS. */
+  stoppedBy?: string;
 }
 
 /**
- * The swap's reasons as the report states them: its biggest three, in words,
- * and always a case FOR each card that came in (its best gain, when it has
- * one): Vexing Puzzlebox and Rise of the Dark Realms were stated only by what
- * the cards they replaced had provided (E513 round 3).
+ * The swap's reasons as the report states them (swapCopy.ts): why the card
+ * that came in, then why the one that left was the weaker pick. The heading
+ * above them already says which is which.
  */
 export function reasonLine(s: AppliedSwap): string {
-  const top3 = s.reasons.slice(0, 3);
-  const cases = s.in.flatMap((name) => {
-    if (top3.some((r) => r.name === name && r.value > 0)) return [];
-    const gain = s.reasons.find((r) => r.name === name && r.value > 0);
-    return gain ? [gain] : [];
-  });
-  const shown = [...top3.slice(0, Math.max(0, 3 - cases.length)), ...cases];
-  const top = shown.map((r) => `${r.name}: ${r.note}`).join('; ');
-  const outside = s.disclosure ? ` Outside the usual limits, because ${s.disclosure}.` : '';
-  return `${s.in.join(' + ')} for ${s.out.join(' + ')}${s.kind === 'repair' ? ' (to keep a build rule)' : ''}. ${top}.${outside}`;
+  const { why, weaker } = swapSentences(s);
+  const outside = s.disclosure
+    ? ` Outside the usual limits, because ${plainDisclosure(s.disclosure)}.`
+    : '';
+  return `${[why, weaker].filter(Boolean).join(' ')}${outside}`;
 }
 
 export async function wholeDeckSearchPhase(
@@ -126,13 +140,15 @@ export async function wholeDeckSearchPhase(
     (input.cardAllowed?.(c) ?? true) &&
     !exceedsCmcCap(c, input.maxCmc);
   const candidates = [...input.scryfallCardMap.values()].filter(passesGates);
+  // A face-name collision the generator shipped is left alone too (a SOFT
+  // invariant it already reports); a move may only not add one.
   // An ownership rule the generator shipped relaxed, and disclosed (the
   // collectionRelaxedNames of an owned-only build, the gap under a partial
   // share), is left as it is: the search is never stricter than the generator.
   // Its improving swaps still run, and may not make the shortfall worse.
   const leave = new Set(
     checkConstraints(seed, ctx)
-      .filter((v) => OWNED_RULES.has(v.check))
+      .filter((v) => OWNED_RULES.has(v.check) || v.check === 'face-name-collision')
       .map((v) => v.check)
   );
   const repairOnly = await ownedRepairCandidates(
@@ -158,12 +174,31 @@ export async function wholeDeckSearchPhase(
     const role = countedRoleOf(input.scryfallCardMap.get(name) ?? ({ name } as ScryfallCard));
     if (role) roleCeilings[role] = seedRoles[role] ?? 0;
   }
-  const result = optimizeDeck(seed, candidates, ctx, {
-    locks,
-    leave,
-    repairOnly: new Set(repairOnly.keys()),
-    trust: { roleCeilings },
-  });
+  // Waits for the page every few dozen ms of work and reports how far along it
+  // is, from the step's own percent toward (not to) the next milestone.
+  let shown = SEARCH_PROGRESS_PERCENT;
+  const result = await optimizeDeckAsync(
+    seed,
+    candidates,
+    ctx,
+    {
+      locks,
+      leave,
+      repairOnly: new Set(repairOnly.keys()),
+      trust: { roleCeilings },
+      timeBudgetMs: input.timeBudgetMs ?? SEARCH_TIME_BUDGET_MS,
+    },
+    (beat) => {
+      const done = Math.max(beat.evaluations / beat.maxEvaluations, beat.swaps / MAX_SWAPS);
+      const pct =
+        SEARCH_PROGRESS_PERCENT +
+        Math.min(SEARCH_PROGRESS_SPAN, Math.floor(done * SEARCH_PROGRESS_SPAN));
+      if (pct > shown) {
+        shown = pct;
+        state.context.onProgress?.(SEARCH_PROGRESS_MESSAGE, pct);
+      }
+    }
+  );
 
   const records: WholeDeckSwapRecord[] = [];
   for (const s of result.swaps) {
@@ -178,10 +213,12 @@ export async function wholeDeckSearchPhase(
   const note =
     records.length === 0
       ? undefined
-      : `A whole-deck search made ${result.swaps.length} swap${result.swaps.length === 1 ? '' : 's'} after the build: ${result.swaps
+      : `After the build, a check of the whole list made ${result.swaps.length} swap${result.swaps.length === 1 ? '' : 's'}: ${result.swaps
           .map((s) => `${s.in.join(' + ')} for ${s.out.join(' + ')}`)
-          .join('; ')}.`;
-  return { swaps: records, note };
+          .join(
+            '; '
+          )}.${result.stoppedBy === 'time' ? ' It stopped at its time limit, so it may have missed some.' : ''}`;
+  return { swaps: records, note, stoppedBy: result.stoppedBy };
 }
 
 /** Owned replacements per slot a repair needs, and for any slot: enough to

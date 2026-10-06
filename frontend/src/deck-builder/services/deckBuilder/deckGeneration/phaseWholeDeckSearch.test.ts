@@ -25,10 +25,11 @@ const swap = (over: Partial<AppliedSwap>): AppliedSwap =>
   }) as AppliedSwap;
 
 describe('reasonLine', () => {
-  it('always states a gain of the card that came in, when it has one', () => {
+  it('states why the card came in, with no heading repeated', () => {
     const line = reasonLine(swap({}));
-    expect(line).toContain('Vexing Puzzlebox: a rock that adds one mana');
-    expect(line).toContain('Swiftfoot Boots: protection #1 (1.49)');
+    expect(line).toContain('A build rule you set needed this swap');
+    expect(line).not.toContain('Vexing Puzzlebox for Swiftfoot Boots');
+    expect(line).not.toMatch(/#\d|\(\d+\.\d+\)|price-adjusted|doublings|card-equivalent/);
   });
 
   it('says so when a repair had to leave the trust region', () => {
@@ -36,7 +37,7 @@ describe('reasonLine', () => {
       swap({ disclosure: 'no owned card fits inside the role limits (ramp would rise to 23)' })
     );
     expect(line).toMatch(
-      /Outside the usual limits, because no owned card fits inside the role limits/
+      /Outside the usual limits, because no card you own fits inside the role limits/
     );
   });
 });

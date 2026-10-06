@@ -41,7 +41,15 @@ const EXTRA = JSON.parse(readFileSync(resolve(here, 'round2.fixture.json'), 'utf
 const EXTRA3 = JSON.parse(readFileSync(resolve(here, 'round3.fixture.json'), 'utf8')) as {
   cards: ScryfallCard[];
 };
-const CARDS = new Map([...FIX.cards, ...EXTRA.cards, ...EXTRA3.cards].map((c) => [c.name, c]));
+// Yuriko's real page and cards (E513's final gate: Satoru Umezawa, Reanimate).
+export const YURIKO = JSON.parse(readFileSync(resolve(here, 'yuriko.fixture.json'), 'utf8')) as {
+  cards: ScryfallCard[];
+  page: Record<string, EdhrecRow>;
+  combos: DetectedCombo[];
+};
+const CARDS = new Map(
+  [...FIX.cards, ...EXTRA.cards, ...EXTRA3.cards, ...YURIKO.cards].map((c) => [c.name, c])
+);
 
 /** A fresh copy of a real fixture card. */
 export function card(name: string): ScryfallCard {

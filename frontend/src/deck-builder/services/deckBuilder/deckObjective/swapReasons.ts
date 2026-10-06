@@ -22,6 +22,8 @@ export interface SwapReason {
   term: TermKey;
   value: number;
   note: string;
+  /** The cards the note lists, whole (see CardNote). */
+  names?: string[];
 }
 
 export interface AppliedSwap {
@@ -98,10 +100,22 @@ export function reasonsFor(
     if (term === 'roles') continue;
     for (const n of after.terms[term].detail.cards)
       if (ins.includes(n.name))
-        out.push({ name: n.name, term, value: n.value * after.terms[term].weight, note: n.note });
+        out.push({
+          name: n.name,
+          term,
+          value: n.value * after.terms[term].weight,
+          note: n.note,
+          ...(n.names ? { names: n.names } : {}),
+        });
     for (const n of before.terms[term].detail.cards)
       if (outs.includes(n.name))
-        out.push({ name: n.name, term, value: -n.value * before.terms[term].weight, note: n.note });
+        out.push({
+          name: n.name,
+          term,
+          value: -n.value * before.terms[term].weight,
+          note: n.note,
+          ...(n.names ? { names: n.names } : {}),
+        });
   }
   const roles =
     rolesNote !== undefined

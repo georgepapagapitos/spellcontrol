@@ -2,10 +2,12 @@
 // Runs the whole-deck search (deckObjective/optimizer.ts) on every generator
 // deck in a LIVE_GEN panel directory and writes the optimized decks as panel
 // dumps in the harness's own format (deckObjective/panelRewrite.ts), for a
-// quick offline look at what a search would change.
+// quick offline look at what a search would change. Run the panel with
+// LIVE_GEN_OPTIMIZER=0 first: the generator searches by default now, and this
+// script wants the decks as they were before the swaps.
 //
 // NOT FOR GATING: a rewritten dump keeps the generator's notes for the deck
-// before the swaps. Gate the search with LIVE_GEN_OPTIMIZER=1 panels, where it
+// before the swaps. Gate the search with ordinary panels (it is on by default), where it
 // runs inside generation and the generator writes the report for the final
 // list (customization.wholeDeckSearch).
 //
@@ -116,9 +118,14 @@ for (const d of runs) {
     console.log(`  ${s.kind.padEnd(7)} ${s.summary}`);
     for (const r of s.reasons) console.log(`            ${r}`);
   }
-  for (const u of result.undone) console.log(`  undone  ${u.in.join(' + ')} for ${u.out.join(' + ')}: ${u.why}`);
+  for (const u of result.undone)
+    console.log(`  undone  ${u.in.join(' + ')} for ${u.out.join(' + ')}: ${u.why}`);
   if (Object.keys(result.refusals).length)
-    console.log(`  refused by the trust region: ${Object.entries(result.refusals).map(([k, n]) => `${k} ${n}`).join(', ')}`);
+    console.log(
+      `  refused by the trust region: ${Object.entries(result.refusals)
+        .map(([k, n]) => `${k} ${n}`)
+        .join(', ')}`
+    );
   for (const u of result.unverified)
     console.log(`  dropped reason ${u.name} (${u.term}): ${u.note}; ${u.problem}`);
   if (line.violations.length)
@@ -128,7 +135,10 @@ const reportFile = resolve(opt('--report') ?? join(OUT, 'optimizer-report.json')
 writeFileSync(reportFile, JSON.stringify(report, null, 1));
 const total = report.reduce((s, r) => s + r.ms, 0);
 const deltas = report.flatMap((r) => r.swaps.map((s) => s.delta)).sort((a, b) => a - b);
-const q = (f) => (deltas.length ? deltas[Math.min(deltas.length - 1, Math.floor(f * deltas.length))].toFixed(2) : 'n/a');
+const q = (f) =>
+  deltas.length
+    ? deltas[Math.min(deltas.length - 1, Math.floor(f * deltas.length))].toFixed(2)
+    : 'n/a';
 console.log(
   `\n[optimize] swap gain in the final deck: n ${deltas.length}, min ${q(0)}, p25 ${q(0.25)}, median ${q(0.5)}, p75 ${q(0.75)}, max ${q(0.9999)}; ` +
     `swaps per deck ${report.map((r) => r.swaps.length).join(' ')}`

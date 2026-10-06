@@ -178,6 +178,14 @@ const FLAVOR_LINES: [string, string[]][] = [
     ],
   ],
   [
+    'Fine-tuning the list',
+    [
+      'Every slot gets a second look…',
+      'Small swaps, sharper deck.',
+      'The last few cards matter most.',
+    ],
+  ],
+  [
     'Preparing board wipes',
     [
       'The board holds its breath…',
@@ -207,7 +215,8 @@ const MILESTONES: { at: number; label: string }[] = [
   { at: 35, label: 'Summoning creatures' },
   { at: 45, label: 'Weaving the spells' },
   { at: 78, label: 'Tapping the mana base' },
-  { at: 95, label: 'Shuffling up' },
+  { at: 93, label: 'Fine-tuning the list' },
+  { at: 97, label: 'Shuffling up' },
 ];
 
 /** Index of the in-progress milestone for a given percent (highest passed). */

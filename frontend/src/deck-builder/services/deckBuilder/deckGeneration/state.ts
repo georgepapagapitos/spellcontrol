@@ -69,6 +69,8 @@ export interface GenerationContext {
   excludedOwnedNames?: ReadonlySet<string>;
   optimizeDeckCards?: string[];
   onProgress?: (message: string, percent: number) => void;
+  /** Overrides the whole-deck search's wall-clock cap (tests; a slow-device probe). */
+  searchTimeBudgetMs?: number;
 }
 
 // Immutable config snapshot — verbatim from generateDeck's top-of-body derivations.

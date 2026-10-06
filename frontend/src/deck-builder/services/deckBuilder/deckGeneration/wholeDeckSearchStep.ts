@@ -1,13 +1,14 @@
 // E513: how generateDeck calls the whole-deck search. Kept out of
-// deckGenerator.ts, and the phase itself is loaded only when
-// customization.wholeDeckSearch asks for it, so a flag-off build neither runs
-// nor downloads it. deckGenerator.ts imports it as a namespace
+// deckGenerator.ts. The search is on unless customization.wholeDeckSearch is
+// explicitly false (default on since 2026-10-06); the phase is loaded only
+// when it runs, so an opted-out build neither runs nor downloads it. deckGenerator.ts imports it as a namespace
 // (wholeDeckSearch.run, .stampProvenance, .reportFields) and calls run after
 // the last phase that changes the list, before any note is written.
 import type { CoherenceRepair, DetectedCombo, ScryfallCard } from '@/deck-builder/types';
 import type { WholeDeckSearchInput } from './phaseWholeDeckSearch';
 import { detectCombosPhase, refreshComboCompleteness } from './phaseDetectCombos';
 import type { GenerationState } from './state';
+import { SEARCH_PROGRESS_MESSAGE, SEARCH_PROGRESS_PERCENT } from './searchProgress';
 
 /**
  * Every combo the deck assembles, not only the list the phases before handed
@@ -26,17 +27,28 @@ function allDeckCombos(
   return all.length > 0 ? all : undefined;
 }
 
-/** Runs the search when the flag is on, leaves its result on
+/** The search is on unless a build says false. */
+export function searchEnabled(customization: { wholeDeckSearch?: boolean }): boolean {
+  return customization.wholeDeckSearch !== false;
+}
+
+/** Lets the page paint the step's line before the search holds the thread. */
+const paint = () => new Promise<void>((resolve) => setTimeout(resolve, 30));
+
+/** Runs the search unless the build opted out, leaves its result on
  *  state.wholeDeckSearch, and returns the combo list for the final deck. */
 export async function run(
   state: GenerationState,
   input: WholeDeckSearchInput
 ): Promise<DetectedCombo[] | undefined> {
-  if (!state.context.customization.wholeDeckSearch) return input.detectedCombos;
+  if (!searchEnabled(state.context.customization)) return input.detectedCombos;
+  state.context.onProgress?.(SEARCH_PROGRESS_MESSAGE, SEARCH_PROGRESS_PERCENT);
+  await paint();
   const { wholeDeckSearchPhase } = await import('./phaseWholeDeckSearch');
   const combos = allDeckCombos(state, input.detectedCombos);
   state.wholeDeckSearch = await wholeDeckSearchPhase(state, {
     ...input,
+    timeBudgetMs: state.context.searchTimeBudgetMs ?? input.timeBudgetMs,
     detectedCombos: combos,
     surplusCuts: state.surplusCuts,
   });
@@ -71,11 +83,10 @@ export function stampProvenance(
 ): void {
   for (const swap of state.wholeDeckSearch?.swaps ?? [])
     if (nonLandCards.some((c) => c.name === swap.added))
-      cardProvenance[swap.added] = `Swapped in by the whole-deck search for ${swap.cut}`;
+      cardProvenance[swap.added] = `Swapped in for ${swap.cut} after checking the whole deck`;
 }
 
-/** The report's fields for the search: no key at all when it changed nothing,
- *  so a flag-off deck's report is unchanged. */
+/** The report's fields for the search: no key at all when it changed nothing. */
 export function reportFields(state: GenerationState) {
   const search = state.wholeDeckSearch;
   return search?.swaps.length
