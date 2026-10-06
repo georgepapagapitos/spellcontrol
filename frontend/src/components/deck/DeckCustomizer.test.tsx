@@ -82,7 +82,7 @@ describe('DeckCustomizer — More settings fold', () => {
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     expect(screen.queryByText('Lands')).toBeNull();
     expect(screen.getByText('Power bracket')).toBeTruthy();
-    expect(screen.getByText('Build from my collection')).toBeTruthy();
+    expect(screen.getByText('Use my collection')).toBeTruthy();
     expect(toggle.textContent).toContain('37 lands');
   });
 
@@ -158,7 +158,7 @@ describe('DeckCustomizer — collection controls', () => {
     );
     const group = screen.getByText('Collection strategy').closest('.form-field')!;
     const labels = [...group.querySelectorAll('.choice-option-label')].map((el) => el.textContent);
-    expect(labels).toHaveLength(4);
+    expect(labels).toHaveLength(5);
     expect(
       labels.filter((l) => /\b(favou?r|prefer|prioriti[sz]e|lean)/i.test(l ?? ''))
     ).toHaveLength(1);
@@ -221,6 +221,24 @@ describe('DeckCustomizer — collection controls', () => {
       />
     );
     expect(screen.getByText(/about 60% owned/)).toBeTruthy();
+  });
+
+  // The inverse of building from the collection: a deck of cards you'd go
+  // and get. The sub-line names the two things it still lets in.
+  it('offers Skip my cards and says what it still lets in', () => {
+    const update = vi.fn();
+    const { rerender } = render(
+      <DeckCustomizer customization={baseCustomization({ collectionMode: true })} update={update} />
+    );
+    fireEvent.click(screen.getByText('Skip my cards'));
+    expect(update).toHaveBeenCalledWith({ collectionStrategy: 'exclude' });
+    rerender(
+      <DeckCustomizer
+        customization={baseCustomization({ collectionMode: true, collectionStrategy: 'exclude' })}
+        update={update}
+      />
+    );
+    expect(screen.getByText(/Leaves out every card you own, except basic lands/)).toBeTruthy();
   });
 });
 

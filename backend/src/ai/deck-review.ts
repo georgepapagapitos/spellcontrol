@@ -342,7 +342,7 @@ export interface DeckReviewCard {
  * already sits in another of their decks. A HARD constraint in the query, never
  * a preference the model weighs.
  */
-export type AiScope = 'any' | 'owned' | 'uncommitted' | 'budget';
+export type AiScope = 'any' | 'owned' | 'uncommitted' | 'budget' | 'unowned';
 
 /**
  * The `budget` scope's per-card ceiling — the same number in either currency
@@ -372,7 +372,8 @@ export const isCollectionScope = (scope: AiScope): scope is 'owned' | 'uncommitt
 /** Parse an untrusted scope. `ownedOnly` is the pre-scope wire field a native
  *  bundle built before T112 still sends — honoured so a stale bundle keeps working. */
 export function parseAiScope(scope: unknown, ownedOnly?: unknown): AiScope {
-  if (scope === 'owned' || scope === 'uncommitted' || scope === 'budget') return scope;
+  if (scope === 'owned' || scope === 'uncommitted' || scope === 'budget' || scope === 'unowned')
+    return scope;
   return ownedOnly === true ? 'owned' : 'any';
 }
 
@@ -725,7 +726,9 @@ export function renderFetchedCards(
         ? ', every one owned by the player with a copy not already in another of their decks'
         : scope === 'budget'
           ? `, every one under ${budgetLabel(currency)}`
-          : '';
+          : scope === 'unowned'
+            ? ', none of them owned by the player'
+            : '';
   return (
     `## Cards you looked up (real cards, legal in this deck, not already in it${owned} —\n` +
     'these are the only cards outside the decklist you may name)\n\n' +
