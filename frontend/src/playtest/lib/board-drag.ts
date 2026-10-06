@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import type { DragEndEvent } from '@dnd-kit/core';
 import type { PlaytestAction, PlaytestState, Zone } from '@/lib/playtest';
 import { haptics } from '@/lib/util/haptics';
@@ -65,6 +66,26 @@ export function measureBattlefieldRect(el: HTMLElement | null) {
   // to land straight under it. Its box is ~1.1 card heights tall.
   const reservedTop = Math.min(0.3, (cardH * 1.1) / height);
   return { width, height, cardW, cardH, reservedBottom, reservedTop };
+}
+
+/**
+ * The felt's own card box, as inline custom properties for the <DragOverlay>
+ * copy. The overlay renders outside every felt, so it inherits `--pt-card-w`
+ * from <body>, the full-table size. A felt that redeclares the box for itself
+ * (each half of a Horde board, a quadrant of the seat grid) then drew a card
+ * twice its size in the air and snapped it back on drop. Reading the felt the
+ * card lands on makes the copy match it. Undefined before the felt mounts,
+ * which leaves the inherited size.
+ */
+export function readCardBox(el: Element | null): CSSProperties | undefined {
+  if (!el) return undefined;
+  const cs = getComputedStyle(el);
+  const box: Record<string, string> = {};
+  for (const name of ['--pt-card-w', '--pt-card-h', '--pt-edge']) {
+    const value = cs.getPropertyValue(name).trim();
+    if (value) box[name] = value;
+  }
+  return Object.keys(box).length ? (box as CSSProperties) : undefined;
 }
 
 /** The card currently under the pointer, resolved to its data + display

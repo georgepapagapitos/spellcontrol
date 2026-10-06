@@ -173,9 +173,12 @@ export function tokensGoToOthers(card: ScryfallCard): boolean {
  */
 const PAYOFF_EVIDENCE: Partial<Record<Resource, RegExp>> = {
   // Tokens by name, or creatures entering / counted ("whenever a creature you
-  // control enters": Impact Tremors). Not a creature-type choice or convoke.
+  // control enters": Impact Tremors; "for each creature you control":
+  // Craterhoof). Not a creature-type choice or convoke, and not an effect that
+  // merely reaches every creature: Leyline of Abundance's "a +1/+1 counter on
+  // each creature you control" pays nothing off for tokens (E513 round 2).
   'creature-token':
-    /\btokens?\b|\bcreatures? you control\b|\bwhenever (?:a|another|one or more) (?:\w+ )?creatures?\b/i,
+    /\btokens?\b|\bfor each creature you control\b|\bnumber of creatures you control\b|\bwhenever (?:a|another|one or more) (?:\w+ )?creatures?\b/i,
   'plus1-counter': /\+1\/\+1 counters?/i,
   loyalty: /\bloyalty\b|\bplaneswalkers? you control\b/i,
   landfall: /\blands?\b/i,
@@ -202,6 +205,17 @@ const PRODUCER_EVIDENCE: Partial<Record<Resource, RegExp>> = {
 const NARROW_MASS =
   /\bblocked by target wall\b|\bthat were blocked by\b|\bthat blocked (?:target|this)\b/i;
 
+/**
+ * An ability that needs an opponent to discard is not an engine you can count
+ * on: Waste Not "draws on every trigger" and "adds {B}{B}" only when an
+ * opponent discards, which most decks never make happen (the second gate's
+ * Waste Not took Mana Vault's ramp slot as a draw engine).
+ */
+function needsOpponentDiscard(facts: CardFacts, ability: number): boolean {
+  const trigger = facts.abilities[ability]?.trigger;
+  return trigger?.event === 'discard' && trigger.who === 'opp';
+}
+
 /** The transforming layouts: the back face is reached only by transforming. */
 const TRANSFORMS = new Set(['transform', 'meld']);
 
@@ -219,6 +233,7 @@ export function readFacts(card: ScryfallCard, facts: CardFacts): CardFacts {
   const roles = facts.roles.filter(
     (r) =>
       reachable(r) &&
+      !((r.role === 'ramp' || r.role === 'cardDraw') && needsOpponentDiscard(facts, r.ability)) &&
       (r.role !== 'protection' || !selfOnly) &&
       !(narrowMass && r.role === 'boardwipe')
   );

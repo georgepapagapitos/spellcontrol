@@ -155,7 +155,7 @@
   cursor: pointer;
 }
 
-.segmented-option span {
+.segmented-option > span {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -171,7 +171,7 @@
 
 /* The coarse floor sits on the SPAN (§ Shape language). */
 @media (pointer: coarse) {
-  .segmented-option span {
+  .segmented-option > span {
     min-height: 44px;
   }
 }
@@ -191,7 +191,7 @@
 }
 
 /* The span pins its own weight, so the selected weight lands here. */
-.segmented-option.is-selected span {
+.segmented-option.is-selected > span {
   font-weight: 600;
 }
 
@@ -213,7 +213,7 @@
   min-width: 0;
 }
 
-.segmented--fill .segmented-option span {
+.segmented--fill .segmented-option > span {
   flex: 1;
   padding: 0 var(--space-1);
 }

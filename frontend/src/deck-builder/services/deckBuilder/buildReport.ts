@@ -215,10 +215,20 @@ export function assembleBuildReport(input: {
       if (c.name.includes(' // ')) finalNames.add(c.name.split(' // ')[0]);
     }
   }
-  const annotateDisplacedAdds = <T extends { added: string; reason: string }>(repairs: T[]): T[] =>
-    repairs.map((r) =>
-      finalNames.has(r.added) ? r : { ...r, reason: `${r.reason} ${r.added} was cut later.` }
-    );
+  // The whole-deck search also puts back a card an earlier repair cut (E513:
+  // budgetRepairs read "Skrelv, Defector Mite -> Tainted Observer ... cut a
+  // synergy engine piece" over a deck that had Skrelv back in it).
+  const searchAdded = new Set((generated.wholeDeckSearchSwaps ?? []).map((s) => s.added));
+  const annotateDisplacedAdds = <T extends { cut: string; added: string; reason: string }>(
+    repairs: T[]
+  ): T[] =>
+    repairs.map((r) => {
+      let reason = r.reason;
+      if (!finalNames.has(r.added)) reason += ` ${r.added} was cut later.`;
+      if (searchAdded.has(r.cut) && finalNames.has(r.cut))
+        reason += ` ${r.cut} was put back later.`;
+      return reason === r.reason ? r : { ...r, reason };
+    });
 
   // Flagship seatings are add-claiming records too (E161 gate round 2: the
   // ramp backfill donated isshin's flagship-seated Relentless Assault for
@@ -276,7 +286,7 @@ export function assembleBuildReport(input: {
               ? `You asked for ${target}% owned cards, but only ${eligible} of ` +
                 `your cards fit this commander's colors. ${used}.`
               : `You asked for ${target}% owned cards and got ${report.ownedPercentActual}%. ` +
-                'The rest of your cards hit your limits or a role cap.';
+                'The rest of your cards hit your limits, hit a role cap, or would have replaced a staple.';
         }
       }
     }

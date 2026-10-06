@@ -2581,6 +2581,23 @@ describe('PlaytestBoard — solo Horde', () => {
     }
   );
 
+  // The chip hid itself during the horde's turn, but Space still advanced
+  // the turn under an unanswered attack banner (3 → 6 in a real-browser run).
+  it.each(['reveal', 'combat'] as const)(
+    'refuses the next turn from Space while the horde %s runs',
+    (phase) => {
+      usePlaytestStore.setState({ horde: buildTestHorde({ phase }) });
+      render(
+        <MemoryRouter>
+          <PlaytestBoard state={seededState()} />
+        </MemoryRouter>
+      );
+      fireEvent.keyDown(window, { key: ' ' });
+      expect(dispatch).not.toHaveBeenCalledWith({ type: 'NEXT_TURN' });
+      expect(usePlaytestStore.getState().startHordeTurn).not.toHaveBeenCalled();
+    }
+  );
+
   it('routes Space through the same horde-aware function', () => {
     usePlaytestStore.setState({ horde: dueHorde() });
     render(

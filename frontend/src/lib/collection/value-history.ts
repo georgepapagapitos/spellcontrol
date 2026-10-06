@@ -179,18 +179,46 @@ export async function recordCollectionSnapshot(value: number, at = Date.now()): 
   await recordValueSnapshot(value, at);
 }
 
-/** All points in the ACTIVE display currency, oldest → newest. Points logged
- *  under the other currency are kept in the DB (switching back restores that
- *  trend) but never surfaced into a mixed-currency series. */
-export async function getValueHistory(): Promise<ValuePoint[]> {
-  const db = await getDB();
+/** Every stored point in the ACTIVE display currency, resets included. */
+async function getCurrencyPoints(db: IDBPDatabase): Promise<ValuePoint[]> {
   const active = getCurrency();
   return ((await db.getAll(STORE)) as ValuePoint[]).filter((p) => (p.currency ?? 'USD') === active);
+}
+
+/**
+ * The points that describe the collection as it is now: everything after the
+ * newest $0 point.
+ *
+ * A $0 point means the collection was emptied (the store records one on a
+ * full delete, and nothing else writes a zero: an unpriced collection is never
+ * logged). The history before it belongs to cards that are gone, so a
+ * re-import a week later starts a fresh trend instead of charting the old
+ * collection, a cliff, and "+$5,000 from cards added". The zero is kept on
+ * disk rather than clearing the log because the delete can still be undone:
+ * the undo re-records today's point, which overwrites the zero and brings the
+ * whole history back. While the collection is still empty this returns [].
+ * Pure; `points` ascending.
+ */
+export function sinceLastReset(points: ValuePoint[]): ValuePoint[] {
+  for (let i = points.length - 1; i >= 0; i--) {
+    if (points[i].value <= 0) return points.slice(i + 1);
+  }
+  return points;
+}
+
+/** The current collection's points in the ACTIVE display currency, oldest →
+ *  newest. Points logged under the other currency are kept in the DB
+ *  (switching back restores that trend) but never surfaced into a
+ *  mixed-currency series; points from before a full delete are left out (see
+ *  sinceLastReset). */
+export async function getValueHistory(): Promise<ValuePoint[]> {
+  return sinceLastReset(await getCurrencyPoints(await getDB()));
 }
 
 export async function clearValueHistory(): Promise<void> {
   const db = await getDB();
   await db.clear(STORE);
+  notifyValueHistoryChange();
 }
 
 /* ── Value movers (E133) ──────────────────────────────────────────────────
@@ -344,19 +372,26 @@ export async function recordDailyMovers(movers: CardMover[], at = Date.now()): P
   notifyValueHistoryChange();
 }
 
-/** Newest movers record in the ACTIVE display currency, or null. */
+/**
+ * Newest movers record in the ACTIVE display currency, or null. A record from
+ * before the newest full delete is null too: it names cards that are gone.
+ */
 export async function getLatestMovers(): Promise<MoverRecord | null> {
   const db = await getDB();
   const active = getCurrency();
   const records = ((await db.getAll(MOVERS_STORE)) as MoverRecord[]).filter(
     (r) => (r.currency ?? 'USD') === active
   );
-  return records.length ? records[records.length - 1] : null;
+  const latest = records.length ? records[records.length - 1] : null;
+  if (!latest) return null;
+  const lastReset = (await getCurrencyPoints(db)).filter((p) => p.value <= 0).at(-1);
+  return lastReset && lastReset.at >= latest.at ? null : latest;
 }
 
 export async function clearMovers(): Promise<void> {
   const db = await getDB();
   await db.clear(MOVERS_STORE);
+  notifyValueHistoryChange();
 }
 
 /**

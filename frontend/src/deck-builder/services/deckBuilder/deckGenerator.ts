@@ -129,7 +129,8 @@ import {
 } from './substituteFinder';
 import { sameType } from '@/lib/coach/card-matching';
 import { resolveOwnedCards } from './ownedCardResolution';
-import { pageInclusionOf, weakestFirst } from './ownedShareEviction';
+import { pageInclusionOf, weakestFirst, shareKeeper, seatsAsNonbo } from './ownedShareEviction';
+import { withNonbasicShortfall } from './deckGeneration/nonbasicShortfallNote';
 import {
   finalDeckMembership,
   gapsOutsideDeck,
@@ -4034,6 +4035,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     const inclusionByName = new Map<string, number>();
     for (const ec of edhrecNonLand) inclusionByName.set(ec.name, ec.inclusion);
     const inclusionOf = pageInclusionOf(inclusionByName);
+    const keeps = shareKeeper(state);
 
     // Swap one owned card in for an unowned one. `preferEvict` names the card
     // it was matched against (an owned substitute's staple); otherwise the
@@ -4052,13 +4054,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         return false;
       }
       if (!isCardAllowedBySynergyDependencies(card)) return false;
-      // The static caps, not the shortage block's relaxed ones (this is a
-      // composition swap, not a size-shortage backfill).
+      // Static caps, not the shortage block's relaxed ones (a composition swap).
       if (violatesUserCaps(card, state.cfg, collectionNames)) return false;
+      if (seatsAsNonbo(card, state)) return false;
 
-      const swappable = nonLandNow().filter(
-        (c) => !collectionNames.has(c.name) && !c.isMustInclude
-      );
+      const swappable = nonLandNow().filter((c) => !collectionNames.has(c.name) && !keeps(c, card));
       if (swappable.length === 0) return false;
       const wantedRole = validateCardRole(card);
       const matched = preferEvict ? swappable.filter((c) => c.name === preferEvict) : [];
@@ -4130,7 +4130,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     if (deficit > 0 && poolFits.length > 0) {
       const unownedWithRole: GapAnalysisCard[] = [];
       for (const c of nonLandNow()) {
-        if (collectionNames.has(c.name) || c.isMustInclude) continue;
+        if (collectionNames.has(c.name) || keeps(c)) continue;
         const role = getCardRole(c.name);
         if (!role) continue;
         unownedWithRole.push({
@@ -4765,6 +4765,13 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     );
   }
 
+  landCountNote = withNonbasicShortfall(
+    landCountNote,
+    categories.lands,
+    effectiveNonBasicLandCount,
+    customization
+  );
+
   // Budget honesty: recompute the real final total over the FINAL deck (post
   // combo-floor/fixup/coherence-repair/bracket-convergence swaps) — the early
   // budgetTracker log above runs before those mutating passes and only ever
@@ -4791,7 +4798,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         deckBudget,
         currency,
         comboBudgetSkipCount,
-        convergedSwapCount: budgetConvergedSwaps,
+        convergedSwapCount: wholeDeckSearch.standing(state, budgetRepairs, budgetConvergedSwaps),
         residualReason: budgetResidualReason,
       }) ?? budgetNote;
   }

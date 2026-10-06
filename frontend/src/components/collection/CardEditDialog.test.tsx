@@ -77,8 +77,8 @@ describe('CardEditDialog owned-finish awareness', () => {
     // Row tag carries the sr-only ownership note…
     expect(screen.getByText(/\(owned\)/)).toBeTruthy();
     // …and the finish radio announces it.
-    expect(screen.getByRole('radio', { name: 'Foil · You own this finish' })).toBeTruthy();
-    expect(screen.getByRole('radio', { name: 'Non-foil' })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: 'Foil, $9.00 · You own this finish' })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: 'Non-foil, $1.50' })).toBeTruthy();
   });
 
   it('is a single-choice radio group, not aria-pressed chips', async () => {
@@ -87,14 +87,14 @@ describe('CardEditDialog owned-finish awareness', () => {
     // SegmentedControl's <fieldset> takes the implicit "group" role — native
     // radios inside it are what make this a one-of choice, not aria-pressed.
     expect(screen.getByRole('group', { name: 'Finish' })).toBeTruthy();
-    expect(screen.getByRole('radio', { name: 'Non-foil' })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: 'Non-foil, $1.50' })).toBeTruthy();
   });
 
   it('defaults to an owned finish when an owned printing is selected', async () => {
     renderDialog();
     await selectOwnedPrinting();
     const foilBtn = screen.getByRole('radio', {
-      name: 'Foil · You own this finish',
+      name: 'Foil, $9.00 · You own this finish',
     }) as HTMLInputElement;
     expect(foilBtn.checked).toBe(true);
   });
@@ -104,7 +104,7 @@ describe('CardEditDialog owned-finish awareness', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Owned only' }));
     await selectOwnedPrinting();
     // Only foil is owned → no finish toggle is offered at all.
-    expect(screen.queryByRole('radio', { name: 'Non-foil' })).toBeNull();
+    expect(screen.queryByRole('radio', { name: 'Non-foil, $1.50' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({ finish: 'foil' }));
     expect(onConfirm.mock.calls[0][0].card.id).toBe('sf-b');
@@ -113,11 +113,52 @@ describe('CardEditDialog owned-finish awareness', () => {
   it('passes the explicitly chosen finish through onConfirm', async () => {
     const onConfirm = renderDialog();
     await selectOwnedPrinting();
-    fireEvent.click(screen.getByRole('radio', { name: 'Non-foil' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Non-foil, $1.50' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() =>
       expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({ finish: 'nonfoil' }))
     );
+  });
+});
+
+describe('CardEditDialog with a finish the current printing lacks', () => {
+  // A deck slot bound to a foil copy of a printing only made in non-foil: the
+  // caller passes 'foil', the printing offers nonfoil alone.
+  const nonfoilOnly = printing({ finishes: ['nonfoil'] });
+  const bothFinishes = printing({ id: 'sf-c', set: 'sld', collector_number: '2783' });
+
+  function renderStale(onConfirm = vi.fn()) {
+    render(
+      <CardEditDialog
+        cardName="Sol Ring"
+        currentScryfallId="sf-a"
+        currentFinish="foil"
+        onConfirm={onConfirm}
+        onCancel={vi.fn()}
+      />
+    );
+    return onConfirm;
+  }
+
+  beforeEach(() => {
+    fetchPrintingsMock.mockReset();
+    fetchPrintingsMock.mockResolvedValue([nonfoilOnly, bothFinishes]);
+  });
+
+  it('opens on the printing’s own finish, priced, with nothing to save', async () => {
+    renderStale();
+    await screen.findByText('#2783');
+    expect(document.querySelector('.card-edit-preview-price')?.textContent).toBe('$1.50');
+    expect(screen.getByRole('button', { name: 'Save' }).hasAttribute('disabled')).toBe(true);
+  });
+
+  it('keeps non-foil when a printing with both finishes is picked', async () => {
+    const onConfirm = renderStale();
+    fireEvent.click((await screen.findByText('#2783')).closest('button')!);
+    const nonfoil = screen.getByRole('radio', { name: 'Non-foil, $1.50' }) as HTMLInputElement;
+    expect(nonfoil.checked).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({ finish: 'nonfoil' }));
   });
 });
 

@@ -272,6 +272,14 @@ describe('table chrome at the wide tier', () => {
     );
     expect(css).not.toContain('(100vh - 340px) / 4.6');
   });
+
+  // Each Horde half redeclares the box for its half-height felt, and the
+  // redeclaration dropped the zoom: the card-size slider and ctrl + wheel
+  // did nothing on a horde board.
+  it('keeps the card-size setting on both halves of a Horde board', () => {
+    const horde = block('.playtest-main--horde > .playtest-battlefield-wrap,');
+    expect(horde).toMatch(/--pt-card-w: calc\(clamp\([^;]*\) \* var\(--pt-zoom, 1\)\);/);
+  });
 });
 
 /**

@@ -194,6 +194,14 @@ function priceForFinish(card: ScryfallCard, finish: Finish): number {
   return raw ? Number(raw) || 0 : 0;
 }
 
+/** The finishes a printing was made in; a card with no list reads as non-foil. */
+function printingFinishes(card: ScryfallCard): Finish[] {
+  const made = (card.finishes ?? []).filter(
+    (f: string): f is Finish => f === 'nonfoil' || f === 'foil' || f === 'etched'
+  );
+  return made.length > 0 ? made : ['nonfoil'];
+}
+
 interface SetGroup {
   setCode: string;
   setName: string;
@@ -396,12 +404,22 @@ export function CardEditDialog({
   const selectedCard =
     printings.find((c) => c.id === selectedId) ??
     (printingsUnavailable && fallbackCard?.id === currentScryfallId ? fallbackCard : null);
-  const availableFinishes = useMemo<Finish[]>(() => {
-    if (!selectedCard?.finishes || selectedCard.finishes.length === 0) return ['nonfoil'];
-    return selectedCard.finishes.filter(
-      (f: string): f is Finish => f === 'nonfoil' || f === 'foil' || f === 'etched'
-    );
-  }, [selectedCard]);
+  const availableFinishes = useMemo<Finish[]>(
+    () => (selectedCard ? printingFinishes(selectedCard) : ['nonfoil']),
+    [selectedCard]
+  );
+
+  // The finish the dialog opens on. A caller's finish can name one the current
+  // printing was never made in (a deck slot bound to a foil copy of a
+  // non-foil-only printing); that reads as the printing's own finish, so the
+  // toggle never opens on an option it doesn't offer and Save stays off until
+  // the user changes something.
+  const currentPrinting =
+    printings.find((c) => c.id === currentScryfallId) ??
+    (fallbackCard?.id === currentScryfallId ? fallbackCard : undefined);
+  const currentMade = currentPrinting ? printingFinishes(currentPrinting) : null;
+  const baseFinish =
+    currentMade && !currentMade.includes(currentFinish) ? currentMade[0] : currentFinish;
 
   // Finishes of the selected printing the user owns and can bind (empty when
   // the caller doesn't resolve ownership, e.g. collection/binder edits).
@@ -416,22 +434,33 @@ export function CardEditDialog({
   const ownedOffered = availableFinishes.filter((f) => ownedFinishes.includes(f));
   const offeredFinishes = ownedOnly && ownedOffered.length > 0 ? ownedOffered : availableFinishes;
 
-  // When the selected printing (or the offered-finish set) changes, re-derive
-  // the finish: picking a printing you own defaults to a finish you own of it;
-  // otherwise only reset when the current choice is no longer offered.
-  // Compare-prev-during-render keeps this synchronous without an extra render
-  // pass (effect-based version triggers the react-hooks/set-state-in-effect
-  // lint rule).
-  const finishesKey = `${selectedId}|${offeredFinishes.join(',')}`;
-  const [prevFinishesKey, setPrevFinishesKey] = useState(finishesKey);
-  if (prevFinishesKey !== finishesKey) {
-    const printingChanged = prevFinishesKey.split('|')[0] !== selectedId;
-    setPrevFinishesKey(finishesKey);
-    if (printingChanged && ownedOffered.length > 0 && !ownedOffered.includes(selectedFinish)) {
+  // Picking a printing you own defaults to a finish you own of it. Compare-
+  // prev-during-render keeps this synchronous without an extra render pass
+  // (effect-based version triggers the react-hooks/set-state-in-effect lint
+  // rule).
+  const [prevSelectedId, setPrevSelectedId] = useState(selectedId);
+  if (prevSelectedId !== selectedId) {
+    setPrevSelectedId(selectedId);
+    if (ownedOffered.length > 0 && !ownedOffered.includes(selectedFinish)) {
       setSelectedFinish(ownedOffered[0]);
-    } else if (offeredFinishes.length > 0 && !offeredFinishes.includes(selectedFinish)) {
-      setSelectedFinish(offeredFinishes[0]);
     }
+  }
+  // The choice is always one the selected printing offers. Checked on every
+  // render, not only when the offered set changes: before printings load the
+  // set reads as non-foil only, so a non-foil-only printing loading in changes
+  // nothing and a stale foil from the caller was never corrected. It opened
+  // on a finish the toggle didn't show, with the price reading "—".
+  if (
+    selectedCard &&
+    selectedId === prevSelectedId &&
+    offeredFinishes.length > 0 &&
+    !offeredFinishes.includes(selectedFinish)
+  ) {
+    setSelectedFinish(
+      selectedId === currentScryfallId && offeredFinishes.includes(baseFinish)
+        ? baseFinish
+        : offeredFinishes[0]
+    );
   }
 
   // Mixed: only an explicit pick counts as a change — the no-selection
@@ -473,7 +502,7 @@ export function CardEditDialog({
 
   const isDirty =
     selectedId !== currentScryfallId ||
-    selectedFinish !== currentFinish ||
+    selectedFinish !== baseFinish ||
     (quantity !== undefined && qty !== quantity) ||
     (details !== undefined &&
       (conditionChanged ||
@@ -581,28 +610,38 @@ export function CardEditDialog({
                 </div>
               )}
 
-              {offeredFinishes.length > 1 && (
-                <SegmentedControl
-                  ariaLabel="Finish"
-                  value={selectedFinish}
-                  onChange={setSelectedFinish}
-                  options={offeredFinishes.map((f) => {
-                    const label = FINISH_LABELS[f];
-                    const owned = ownedFinishes.includes(f);
-                    return {
-                      value: f,
-                      label: (
-                        <>
-                          {label}
-                          {owned && (
-                            <span className="card-edit-finish-owned-dot" aria-hidden="true" />
-                          )}
-                        </>
-                      ),
-                      ariaLabel: owned ? `${label} · You own this finish` : label,
-                    };
-                  })}
-                />
+              {selectedCard && offeredFinishes.length > 1 && (
+                // The same segment as the add picker's FinishControl: the
+                // finish's price under its name, the track spanning the column.
+                <Field label="Finish">
+                  <SegmentedControl
+                    fill
+                    ariaLabel="Finish"
+                    value={selectedFinish}
+                    onChange={setSelectedFinish}
+                    options={offeredFinishes.map((f) => {
+                      const label = FINISH_LABELS[f];
+                      const owned = ownedFinishes.includes(f);
+                      const price = priceForFinish(selectedCard, f);
+                      const name = price > 0 ? `${label}, ${formatMoney(price)}` : label;
+                      return {
+                        value: f,
+                        label: (
+                          <span className="copy-finish">
+                            <span className="card-edit-finish-name">
+                              {label}
+                              {owned && (
+                                <span className="card-edit-finish-owned-dot" aria-hidden="true" />
+                              )}
+                            </span>
+                            <small>{formatMoney(price, { zeroAsDash: true })}</small>
+                          </span>
+                        ),
+                        ariaLabel: owned ? `${name} · You own this finish` : name,
+                      };
+                    })}
+                  />
+                </Field>
               )}
 
               {details !== undefined && (
