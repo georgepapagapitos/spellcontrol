@@ -658,7 +658,7 @@ Overload {6}{U}`
   it('converges even when the BudgetTracker is exhausted/negative (krenko-shaped repro)', async () => {
     const state = makeState();
     const tracker = new BudgetTracker(-50, 5, 'USD'); // already deep in the red
-    expect(tracker.getEffectiveCap(null)).toBe(EXHAUSTED_CAP); // bulk tier: not $0, not uncapped
+    expect(tracker.getEffectiveCap(null)).toBe(EXHAUSTED_CAP); // floor tier: not $0, not uncapped
 
     const result = await applyBudgetConvergence(
       state,

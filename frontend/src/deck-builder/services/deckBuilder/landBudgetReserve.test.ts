@@ -233,7 +233,9 @@ describe('BudgetTracker land reserve', () => {
     const t = new BudgetTracker(40, 70);
     t.reserveForLands(2);
     t.remainingBudget = -1; // a combo seat overshot the held remainder
-    expect(t.getEffectiveCap(null)).toBe(EXHAUSTED_CAP);
+    const cap = t.getEffectiveCap(null);
+    expect(cap).not.toBeNull();
+    expect(cap).toBeGreaterThanOrEqual(EXHAUSTED_CAP);
     expect(t.landReserve).toBe(2);
   });
 

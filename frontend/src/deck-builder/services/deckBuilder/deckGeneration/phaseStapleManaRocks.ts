@@ -43,14 +43,15 @@ export const STAPLE_ROCKS: { name: string; minColors: number }[] = [
 // "is a staple" — protection/exemption logic elsewhere must key off the name.
 export const STAPLE_ROCK_NAMES: ReadonlySet<string> = new Set(STAPLE_ROCKS.map((s) => s.name));
 
-// `seatEarly` (E566): a budget build seats the rocks as priced must-includes,
-// before the type passes spend the budget, so the gate is "fits what is left"
-// rather than the per-slot pacing cap (a $10 Atraxa shipped no Sol Ring because
-// the spells ran the tracker to zero first). The later call is the retry.
+// E566: the rocks gate on the pacing cap OR a share of the whole deck budget,
+// whichever is larger. By this phase the spells have usually run the tracker to
+// zero, and the pacing cap alone refused Sol Ring on every tight budget (Atraxa
+// $10 shipped none); a rock that fits the budget at all seats.
+export const ROCK_BUDGET_SHARE = 0.25;
+
 export async function stapleManaRocksPhase(
   state: GenerationState,
-  budgetTracker: BudgetTracker | null,
-  seatEarly = false
+  budgetTracker: BudgetTracker | null
 ): Promise<void> {
   const stapleRocks = STAPLE_ROCKS;
   if (state.cfg.format === 99) {
@@ -82,12 +83,14 @@ export async function stapleManaRocksPhase(
         // Respect budget, rarity, arena-only constraints — the dynamic
         // per-card cap (not just the static max), matching every other
         // budget-gated pick path.
-        const cap = seatEarly
-          ? Math.min(
-              state.cfg.maxCardPrice ?? Infinity,
-              Math.max(0, budgetTracker?.remainingBudget ?? Infinity)
-            )
-          : (budgetTracker?.getEffectiveCap(state.cfg.maxCardPrice) ?? state.cfg.maxCardPrice);
+        const paced = budgetTracker?.getEffectiveCap(state.cfg.maxCardPrice);
+        const cap =
+          paced != null && state.cfg.deckBudget != null
+            ? Math.min(
+                state.cfg.maxCardPrice ?? Infinity,
+                Math.max(paced, state.cfg.deckBudget * ROCK_BUDGET_SHARE)
+              )
+            : (paced ?? state.cfg.maxCardPrice);
         if (
           !ownedExempt &&
           exceedsMaxPrice(card, Number.isFinite(cap) ? cap : null, state.cfg.currency)

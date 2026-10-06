@@ -5,7 +5,7 @@ import { logger } from '@/lib/util/logger';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 
-/** E566: the per-card cap once the budget is spent: bulk-tier prices only. */
+/** E566: the floor of the per-card cap once the budget is spent: bulk-tier prices. */
 export const EXHAUSTED_CAP = 0.25;
 
 /**
@@ -23,8 +23,12 @@ export class BudgetTracker {
    *  price of the costliest of the cheapest `slots` candidates. 0 = no phase. */
   landSlots = 0;
   landFloor = 0;
+  readonly totalBudget: number;
+  readonly totalSlots: number;
 
   constructor(totalBudget: number, totalCardsToSelect: number, currency: 'USD' | 'EUR' = 'USD') {
+    this.totalBudget = Math.max(0, totalBudget);
+    this.totalSlots = Math.max(1, totalCardsToSelect);
     this.remainingBudget = totalBudget;
     this.cardsRemaining = Math.max(1, totalCardsToSelect);
     this.currency = currency;
@@ -51,13 +55,25 @@ export class BudgetTracker {
     // Budget exhausted (deductMustIncludes and the uncapped spends, combo seats
     // and rocks, can drive remainingBudget to zero or below). E566: this used to
     // return the static cap, which lifted the cap off every later pick (Krenko
-    // $50 shipped at $147). A zero cap would ban every priced card, so pick from
-    // the bulk tier instead; phaseBudgetConverge reconciles the total after.
-    if (dynamicCap <= 0)
-      return staticMax === null ? EXHAUSTED_CAP : Math.min(staticMax, EXHAUSTED_CAP);
+    // $50 shipped at $147). A zero cap would ban every priced card, and a flat
+    // bulk cap starves the on-plan premium picks that convergence would keep
+    // (Meren $100 lost Living Death, Skullclamp, Victimize). So price against the
+    // budget as it stood unspent, tightening with the size of the hole.
+    if (dynamicCap <= 0) {
+      const cap = this.exhaustedCap(-remaining);
+      return staticMax === null ? cap : Math.min(staticMax, cap);
+    }
     const cap = this.landSlots > 0 ? this.landPhaseCap(dynamicCap) : dynamicCap;
     if (staticMax === null) return cap;
     return Math.min(staticMax, cap);
+  }
+
+  /** The cap an unspent budget would set for the first pick, scaled down by how
+   *  far past zero the build already is; never below EXHAUSTED_CAP. */
+  private exhaustedCap(overspend: number): number {
+    const total = this.totalBudget;
+    const unspent = Math.min(total * 0.15, (total / this.totalSlots) * 8);
+    return Math.max(EXHAUSTED_CAP, (unspent * total) / (total + Math.max(0, overspend)));
   }
 
   /** E561: the 15%-of-remaining rule shrinks with every pick and `cardsRemaining`
@@ -66,11 +82,9 @@ export class BudgetTracker {
    *  at what leaves the cheapest price for every slot still to fill; the N
    *  cheapest candidates stay affordable however far the dynamic cap fell. */
   private landPhaseCap(dynamicCap: number): number {
-    const leaveForRest = this.remainingBudget - (this.landSlots - 1) * this.landFloor;
-    return Math.max(
-      Math.min(this.landFloor, this.remainingBudget),
-      Math.min(dynamicCap, leaveForRest)
-    );
+    const budget = this.remainingBudget;
+    const leaveForRest = budget - (this.landSlots - 1) * this.landFloor;
+    return Math.max(Math.min(this.landFloor, budget), Math.min(dynamicCap, leaveForRest));
   }
 
   /** Hold `amount` back from the spell picks. */
