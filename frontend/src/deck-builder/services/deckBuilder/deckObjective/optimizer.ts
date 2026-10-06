@@ -63,6 +63,7 @@ import {
   requiresOwnedCards,
 } from './constraints';
 import { isBasicLand, isLandCard } from './context';
+import { MIN_GAIN, applyMove, memoRoleOf } from './judge';
 import { reasonProblem } from './reasonCheck';
 import { protectionValue } from './terms/interaction';
 import {
@@ -95,6 +96,7 @@ export const SLOW_TERMS: readonly TermKey[] = ['mana', 'winline'];
 export const FAST_TERMS: readonly TermKey[] = TERM_KEYS.filter((k) => !SLOW_TERMS.includes(k));
 
 export type { AppliedSwap, SwapReason };
+export { MIN_GAIN, judgeSwap, type SwapJudgement } from './judge';
 
 export interface OptimizeOptions {
   /** Card names that must stay (in addition to the customization's must-includes). */
@@ -176,12 +178,6 @@ export function optimizeDeck(
 
 /** Swaps a deck. Five: a finished deck needs a few corrections, not a rebuild. */
 export const MAX_SWAPS = 5;
-/**
- * The margin a swap must clear, in card-equivalents: about twice the mana
- * term's standard deviation on a one-card swap with common random numbers
- * (0.155, context.ts), so a swap is never taken on goldfish noise.
- */
-export const MIN_GAIN = 0.3;
 const DEFAULTS = {
   maxSwaps: MAX_SWAPS,
   maxEvaluations: 300,
@@ -250,27 +246,6 @@ interface Move {
   in: ScryfallCard[];
   kind: 'improve' | 'combo';
   estimate: number;
-}
-
-function applyMove(deck: ObjectiveDeck, move: Pick<Move, 'out' | 'in'>): ObjectiveDeck {
-  const cards = [...deck.cards];
-  move.out.forEach((i, j) => (cards[i] = move.in[j]));
-  return { commanders: deck.commanders, cards };
-}
-
-/** The report's role counter, memoized by name (it is asked about the same cards every step). */
-function memoRoleOf(
-  roleOf: (card: ScryfallCard) => string | null
-): (card: ScryfallCard) => string | null {
-  const memo = new Map<string, string | null>();
-  return (card) => {
-    let r = memo.get(card.name);
-    if (r === undefined) {
-      r = roleOf(card);
-      memo.set(card.name, r);
-    }
-    return r;
-  };
 }
 
 /** What the search reports at each checkpoint. */
@@ -905,95 +880,4 @@ function keptUpTo(
     if (names.slice().sort().join('|') === target) return i + 1;
   }
   return applied.length;
-}
-
-export interface SwapJudgement {
-  /** Full score change, the library in `deck`'s slots. */
-  delta: number;
-  /** The gain the move had to reach (its margin). */
-  required: number;
-  accepted: boolean;
-  /** Why it was refused, when it was. */
-  refusal: string | null;
-  reasons: SwapReason[];
-}
-
-/**
- * One swap judged on its own against `deck`, by the rule the search applies:
- * a move is taken when it breaks no more hard constraints, stays inside the
- * trust region, and gains its margin. `trust: false` with `minGain: 0.1` is
- * the first gate's rule. The swap-label validation
- * (scripts/deck-objective-swaps.mjs) replays a gate's swaps through this.
- */
-export function judgeSwap(
-  deck: ObjectiveDeck,
-  outNames: readonly string[],
-  ins: readonly ScryfallCard[],
-  baseCtx: ObjectiveContext,
-  options: Pick<OptimizeOptions, 'minGain' | 'trust'> = {}
-): SwapJudgement {
-  const minGain = options.minGain ?? MIN_GAIN;
-  const trust = options.trust === false ? null : (options.trust ?? {});
-  const ctx = { ...baseCtx, slotOrder: deck.cards.map((c) => c.name) };
-  const idx: number[] = [];
-  for (const n of outNames) {
-    const i = deck.cards.findIndex((c, j) => c.name === n && !idx.includes(j));
-    if (i < 0) throw new Error(`judgeSwap: ${n} is not in the deck`);
-    idx.push(i);
-  }
-  const next = applyMove(deck, { out: idx, in: [...ins] });
-  const before = scoreDeck(deck, ctx);
-  const after = scoreDeck(next, ctx);
-  const delta = after.total - before.total;
-  const reasons = reasonsFor(
-    before,
-    after,
-    [...outNames],
-    ins.map((c) => c.name)
-  );
-  const worse = infeasibility(after) > infeasibility(before);
-  if (worse) {
-    const refusal = `breaks ${after.violations.map((v) => v.check).join(', ')}`;
-    return { delta, required: minGain, accepted: false, refusal, reasons };
-  }
-  let required = minGain;
-  if (trust) {
-    const roleOf = memoRoleOf(trust.roleOf ?? ctx.roleOf ?? factsRoleOf(ctx));
-    const verdict = trustVerdict(
-      countRoles(deck, roleOf),
-      idx.map((i) => deck.cards[i]),
-      ins,
-      ctx,
-      protectedCards(deck, ctx, trust.stapleBar),
-      minGain,
-      {
-        ...trust,
-        roleOf,
-        classesNow: classCounts(deck, ctx),
-        gameChangersNow: gameChangerCount(deck, ctx),
-        repair: infeasibility(after) < infeasibility(before),
-      }
-    );
-    if (verdict.blocked) {
-      return {
-        delta,
-        required: verdict.required,
-        accepted: false,
-        refusal: verdict.blocked,
-        reasons,
-      };
-    }
-    required = verdict.required;
-    // As the search's final read: a claim the cards don't bear out doesn't count.
-    const bad = reasons.filter(
-      (r) => reasonProblem(r, ins.some((c) => c.name === r.name) ? next : deck, ctx) !== null
-    );
-    const claimed = bad.reduce((s, r) => s + r.value, 0);
-    if (bad.length && delta - claimed < required) {
-      const refusal = `rests on ${bad.map((r) => `${r.name} (${r.term})`).join(', ')}`;
-      return { delta, required, accepted: false, refusal, reasons };
-    }
-  }
-  const refusal = delta < required ? `gains ${delta.toFixed(2)} < ${required.toFixed(2)}` : null;
-  return { delta, required, accepted: refusal === null, refusal, reasons };
 }

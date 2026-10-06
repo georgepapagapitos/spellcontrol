@@ -274,7 +274,7 @@ export function checkConstraints(
   // Size: deckFormat 99 is the "100-card deck" sentinel.
   const format = cz.deckFormat ?? 99;
   const expected = (format === 99 ? 100 : format) - deck.commanders.length;
-  if (cards.length !== expected) {
+  if (ctx.allowPartial ? cards.length > expected : cards.length !== expected) {
     add({
       check: 'size',
       magnitude: Math.abs(cards.length - expected),
