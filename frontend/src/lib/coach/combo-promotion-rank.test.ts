@@ -85,6 +85,24 @@ const hackerLine = combo(
   ],
   HACKER
 );
+/** Spellbook 307-344-3821: the same partner set as hackerLine, a third line off those pieces. */
+const SKULLSNATCHER = '5326381e-e5e7-4c3e-9565-4837b3ffaec0';
+const skullsnatcherLine = combo(
+  '307-344-3821',
+  936,
+  [
+    'Infinite combat damage to one opponent',
+    'Infinite creature tokens',
+    'Infinite creature ETB',
+    'Infinite creature LTB',
+  ],
+  [
+    [TFS, 'Thousand-Faced Shadow'],
+    [DRAKE, 'Peregrine Drake'],
+    [SKULLSNATCHER, 'Skullsnatcher'],
+  ],
+  SKULLSNATCHER
+);
 /** 513-5034--46, tag E: loops, never ends the game (E437). */
 const hullbreakerLine = combo(
   '513-5034--46',
@@ -193,6 +211,12 @@ describe('a game-ending combo completion ranks as a combo (E540)', () => {
   it('orders two promoted completions by the line deck count', () => {
     const order = names([hackerLine, drakeLine], ctx({ targetBracket: 4 }));
     expect(order.slice(0, 2)).toEqual(['Peregrine Drake', 'Moon-Circuit Hacker']);
+  });
+
+  it('promotes one line per partner set, so a third line off the same pieces stays put', () => {
+    const order = names([drakeLine, hackerLine, skullsnatcherLine], ctx({ targetBracket: 4 }));
+    expect(order.slice(0, 2)).toEqual(['Peregrine Drake', 'Moon-Circuit Hacker']);
+    expect(order.indexOf('Skullsnatcher')).toBeGreaterThan(GAPS.length);
   });
 
   it('changes no other row: the rest keep their order', () => {

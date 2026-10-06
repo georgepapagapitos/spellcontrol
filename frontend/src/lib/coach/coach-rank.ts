@@ -127,6 +127,36 @@ function planBand(c: Change, promotedCombo: boolean): number {
   return c.budding || c.lane === 'budget' ? 1 : 0;
 }
 
+/** Game-ending completions promoted per deck. Past the first two lines the shadow run
+ *  showed combos crowding the first fold (recall against critic-named gaps fell). */
+export const PROMOTED_COMBO_CAP = 2;
+
+/**
+ * The completions that lead the feed: owned first, then the line's deck count,
+ * at most one per card and one per partner set (a second win line off the same
+ * pieces is the repeat `diversifyRankedMoves` already defers).
+ */
+function pickPromotedCombos(eligible: Change[]): Set<Change> {
+  const sorted = [...eligible].sort(
+    (a, b) =>
+      ownershipRank(a) - ownershipRank(b) ||
+      (b.comboPopularity ?? 0) - (a.comboPopularity ?? 0) ||
+      (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)
+  );
+  const picked = new Set<Change>();
+  const names = new Set<string>();
+  const lines = new Set<string | null>();
+  for (const c of sorted) {
+    if (picked.size >= PROMOTED_COMBO_CAP) break;
+    const line = diversityKey(c);
+    if (names.has(c.name) || lines.has(line)) continue;
+    names.add(c.name);
+    lines.add(line);
+    picked.add(c);
+  }
+  return picked;
+}
+
 /**
  * Rank a flat list of Changes into tier-ordered RankedMoves.
  *
@@ -136,7 +166,8 @@ function planBand(c: Change, promotedCombo: boolean): number {
  *
  * A game-ending combo completion (the combos lane) is tier 1 when the target
  * bracket lets combos count (`combosCountAtBracket`, the objective's own gate)
- * and the replace prompt has a protected cut for it. Its play rate is absent,
+ * and the replace prompt has a protected cut for it, for the first
+ * `PROMOTED_COMBO_CAP` such lines. Its play rate is absent,
  * so under the inclusion key it sank behind every row that had one; it leads
  * its ownership class instead, by the line's deck count.
  *
@@ -228,12 +259,14 @@ export function rankCoachMoves(changes: Change[], ctx: CoachContext): RankedMove
   }
 
   // A game-ending completion the bracket lets count and the deck can seat.
-  const promotedCombo = (c: Change): boolean =>
+  const canPromote = (c: Change): boolean =>
     c.lane === 'combos' &&
     c.type === 'add' &&
     ctx.targetBracket !== undefined &&
     combosCountAtBracket(ctx.targetBracket) &&
     (ctx.hasProtectedCut ? ctx.hasProtectedCut(c) : true);
+  let promoted = new Set<Change>();
+  const promotedCombo = (c: Change): boolean => promoted.has(c);
 
   // A role at or over its target. The persisted analysis doesn't recompute
   // between applies, so the live counts decide.
@@ -252,6 +285,8 @@ export function rankCoachMoves(changes: Change[], ctx: CoachContext): RankedMove
     if (c.lane === 'fill-gaps' && c.type === 'add' && roleMet(c.role)) return keepsInMetRole(c);
     return true;
   });
+
+  promoted = pickPromotedCombos(live.filter(canPromote));
 
   const ranked: RankedMove[] = live.map((c) => ({
     change: c,
