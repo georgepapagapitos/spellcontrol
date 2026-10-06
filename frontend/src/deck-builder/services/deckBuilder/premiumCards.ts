@@ -9,6 +9,11 @@
  * commander's page, so Path to Exile read as "Excess Removal" and Fierce
  * Guardianship, The One Ring and Imperial Seal as misfits (T171 lane L).
  *
+ * A basic land is never premium, whatever its page row says: EDHREC lists
+ * Forest at 98% of a green commander's decks because every deck plays it, not
+ * because a slot of it is worth holding (the objective's own protections skip
+ * basics for the same reason). The land engines judge a basic on merit.
+ *
  * A card is premium when any of these holds, each read from data the card or
  * the analysis already carries:
  *  - a Game Changer, by name as well as by stamp (an imported deck has no stamp);
@@ -33,6 +38,7 @@ import { frontFaceName } from '@/lib/cards/card-text';
 import { getCardFacts } from '@/deck-builder/services/cardFacts';
 import { STAPLE_ROCK_NAMES } from './deckGeneration/phaseStapleManaRocks';
 import { isTutor } from './bracketEstimator';
+import { isBasicLand } from './deckObjective/context';
 
 /** On this commander's EDHREC page at or above this share: a staple here. */
 export const COMMANDER_STAPLE_INCLUSION = 40;
@@ -98,6 +104,7 @@ function factsReason(card: ScryfallCard): PremiumReason | null {
 
 /** Why `card` is premium, or null when it is an ordinary cut candidate. */
 export function premiumReason(card: ScryfallCard, ctx: PremiumContext = {}): PremiumReason | null {
+  if (isBasicLand(card)) return null;
   if (card.isGameChanger || isGameChangerName(card.name, ctx.gameChangerNames))
     return 'game-changer';
   if (card.isStapleRock || STAPLE_ROCK_NAMES.has(frontFaceName(card.name))) return 'staple-rock';

@@ -46,6 +46,30 @@ describe('premiumReason without card facts', () => {
   });
 });
 
+describe('a basic land is never premium', () => {
+  // Real basics: EDHREC lists them at 98% of a commander's decks because every
+  // deck plays them (Meren's page: Swamp 98.4%), which is no reason to hold a slot.
+  const basic = (name: string, type_line: string): ScryfallCard =>
+    ({ id: name, oracle_id: name, name, type_line, cmc: 0 }) as ScryfallCard;
+  const basics = [
+    basic('Forest', 'Basic Land — Forest'),
+    basic('Snow-Covered Island', 'Basic Snow Land — Island'),
+    basic('Wastes', 'Basic Land'),
+  ];
+
+  it('ignores the page inclusion for Forest, a snow basic and Wastes', () => {
+    for (const b of basics) {
+      expect(premiumReason(b, { inclusion: 98.3 }), b.name).toBeNull();
+      expect(isPremiumCard(b, { inclusion: 98.3 }), b.name).toBe(false);
+    }
+  });
+
+  it('still holds a nonbasic land at that rate (Command Tower)', () => {
+    const tower = basic('Command Tower', 'Land');
+    expect(premiumReason(tower, { inclusion: 91.4 })).toBe('commander-staple');
+  });
+});
+
 describe('premiumReason with card facts', () => {
   it('names efficient protection, answers and tutors the rank misses', () => {
     setCardFactsSnapshot(coachCardFactsSnapshot());
