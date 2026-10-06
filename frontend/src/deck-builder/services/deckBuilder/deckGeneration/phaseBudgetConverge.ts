@@ -680,8 +680,8 @@ export async function applyBudgetConvergence(
   const keptPrice = nonLands()
     .filter((c) => !isHardProtected(c) && keeps(c))
     .reduce((sum, c) => sum + (parsePrice(getCardPrice(c, ctx.currency)) ?? 0), 0);
-  if (total > ctx.deckBudget && total - keptPrice <= ctx.deckBudget) {
-    runRounds((c) => !isHardProtected(c));
+  if (total > ctx.deckBudget) {
+    runRounds((c) => !isHardProtected(c) && (!keeps(c) || total - keptPrice <= ctx.deckBudget));
   }
 
   // Recompute fresh rather than trusting the incrementally-decremented `total`
