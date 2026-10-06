@@ -331,7 +331,10 @@ function* scoreSteps(
           rows[r] = unscored('out-not-in-deck');
         } else {
           const cls = slotClass(out);
-          const ins = candidates.filter((c) => slotClass(c) === cls);
+          // A basic comes out for a nonbasic land (the lands lane's own upgrade), or for another basic.
+          const ins = candidates.filter(
+            (c) => slotClass(c) === cls || (cls === 'basic' && slotClass(c) === 'land')
+          );
           const best = ins.length > 0 ? yield* bestPair([out], ins) : null;
           if (best) {
             rows[r] = scored(ch.id, 'cut-paired', 'fast', best.j, {

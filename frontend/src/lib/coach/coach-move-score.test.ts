@@ -228,6 +228,19 @@ describe('what the scorer will not score', () => {
     expect(s[0]).toMatchObject({ status: 'unscored', reason: 'bare-cut-not-a-repair' });
   });
 
+  it('pairs a basic land cut with a nonbasic land, a land upgrade (Swamp for Phyrexian Tower)', () => {
+    const obj = objective();
+    // Every Swamp row was unscored: no basic is ever offered in, so a basic had no replacement class.
+    const s = scoreCoachMoves([row({ type: 'cut', name: 'Swamp' })], obj, {
+      resolve: card,
+      candidates: [card('Phyrexian Tower')],
+    });
+    expect(scored(s[0])).toMatchObject({
+      kind: 'cut-paired',
+      move: { out: ['Swamp'], in: ['Phyrexian Tower'] },
+    });
+  });
+
   it('never throws on a deck with no objective, and names why', () => {
     for (const reason of ['no-page', 'thin-page', 'no-commander'] as const) {
       const s = scoreCoachMoves(
