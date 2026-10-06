@@ -7,7 +7,7 @@
  * Adding an axis is declarative: append to AXES. The framework is unchanged.
  */
 import type { ParsedCard } from './text';
-import { REASON } from './reasons';
+import { CAST_TRIGGER, REASON } from './reasons';
 import {
   splitClauses,
   tokenCreation,
@@ -383,8 +383,8 @@ const spellslinger: SynergyAxis = {
   payoff(card) {
     if (has(card, 'magecraft') || has(card, 'prowess')) return 'magecraft/prowess';
     if (has(card, 'storm') || /\bstorm\b/.test(card.oracle)) return 'storm';
-    if (/whenever you cast (?:or copy )?(?:an? )?(?:instant|sorcery)/.test(card.oracle))
-      return 'triggers on instants/sorceries';
+    const cast = CAST_TRIGGER.exec(card.oracle);
+    if (cast) return cast[1] === 'spell' ? REASON.everySpell : 'triggers on instants/sorceries';
     if (/whenever you cast[^.]*instant or sorcery/.test(card.oracle))
       return 'triggers on instants/sorceries';
     if (/for each instant and sorcery card in your graveyard/.test(card.oracle))
@@ -620,8 +620,7 @@ const tribal: SynergyAxis = {
 // ── Blink / flicker ──────────────────────────────────────────────────────────
 // A flicker exiles a permanent and returns it to the battlefield — that round
 // trip IS the mechanic. The producer is the flicker engine itself.
-// A card that exiles itself and returns transformed (Fable of the Mirror-Breaker)
-// is transforming, not flickering (T171 round 3).
+// Exiling itself to return transformed (Fable of the Mirror-Breaker) isn't a flicker.
 const FLICKER_RETURN =
   /return (?:it|them|that card|those cards|that permanent) to the battlefield(?![^.]*\btransformed\b)/;
 

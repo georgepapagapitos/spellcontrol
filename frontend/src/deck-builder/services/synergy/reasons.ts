@@ -12,4 +12,13 @@ export const REASON = {
   rewardsYourDiscards: 'rewards your discards',
   madness: 'madness',
   loyaltyEngine: 'a loyalty engine',
+  everySpell: 'adds mana for every spell',
 } as const;
+
+/**
+ * A cast trigger the spellslinger engine pays off: an instant or sorcery, or
+ * mana for any spell cast (Birgi, God of Storytelling; T171 round 3). Other
+ * any-spell triggers (Aetherflux Reservoir's life) stay with their own axis.
+ */
+export const CAST_TRIGGER =
+  /whenever you cast (?:or copy )?(?:an? )?(instant|sorcery|spell(?=, add\b))/;

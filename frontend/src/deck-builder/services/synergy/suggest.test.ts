@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { analyzeDeckSynergy } from './deckSynergy';
+import { classifyCard } from './classify';
 import { deriveNeeds, suggestOffMeta, type SynergyCandidate } from './suggest';
 import { CORPUS, type CorpusCard } from './classify.fixtures';
 import { COACH_CARDS } from '../deckBuilder/__fixtures__/coach-cards.fixtures';
@@ -198,5 +199,20 @@ describe('suggestOffMeta — a payoff needs the deck to enable it', () => {
     const fable = real('Fable of the Mirror-Breaker // Reflection of Kiki-Jiki');
     const deck = analyzeDeckSynergy([fable]);
     expect(deck.axes.find((a) => a.axis === 'blink')).toBeUndefined();
+  });
+});
+
+// T171 round 3, v4 gate: Gnostro's hero move cut Birgi, God of Storytelling
+// as "Excess Ramp": the engine read missed that it adds mana for every spell,
+// so it wasn't load-bearing for the deck's spellslinger engine.
+describe('spellslinger: mana for every spell cast', () => {
+  it('reads Birgi as a spellslinger payoff, and leaves other any-spell triggers alone', () => {
+    const real = (name: string): CardLike => ({ ...COACH_CARDS[name] });
+    const birgi = classifyCard(real('Birgi, God of Storytelling // Harnfel, Horn of Bounty'));
+    expect(birgi.payoffs).toContainEqual(
+      expect.objectContaining({ axis: 'spellslinger', reason: 'adds mana for every spell' })
+    );
+    const aetherflux = CORPUS.find((c) => c.name === 'Aetherflux Reservoir')!;
+    expect(classifyCard(aetherflux).payoffs.map((p) => p.axis)).not.toContain('spellslinger');
   });
 });
