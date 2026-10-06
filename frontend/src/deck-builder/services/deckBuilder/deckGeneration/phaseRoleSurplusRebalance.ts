@@ -984,5 +984,7 @@ export function applyRoleSurplusRebalance(
     }
   }
 
+  // The whole-deck search keeps the roles this pass trimmed trimmed (E513).
+  state.surplusCuts = conversions.map((c) => c.cut);
   return { conversions };
 }

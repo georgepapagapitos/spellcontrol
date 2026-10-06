@@ -39,6 +39,7 @@ import { createObjectiveContext } from '../deckObjective';
 import { cardIneligibility, checkConstraints } from '../deckObjective/constraints';
 import { isLandCard } from '../deckObjective/context';
 import { optimizeDeck, repairSlotOf, type AppliedSwap } from '../deckObjective/optimizer';
+import { countRoles } from '../deckObjective/trustRegion';
 import type { ObjectiveContext, ObjectiveDeck } from '../deckObjective/types';
 import { edhrecRowsFrom } from '../deckObjective/panelDump';
 import { markBanned, type GenerationState } from './state';
@@ -58,6 +59,8 @@ export interface WholeDeckSearchInput {
   maxCmc: number | null;
   /** Owned cards by collection name (the generator's resolveOwned). */
   resolveOwned?: (names: string[]) => Promise<Map<string, ScryfallCard>>;
+  /** The cards the generator's role-surplus rebalance cut: the roles it trimmed stay trimmed. */
+  surplusCuts?: readonly string[];
 }
 
 /** One swap as the build report records a swap: what left, what came in, and why. */
@@ -128,9 +131,18 @@ export async function wholeDeckSearchPhase(
   const locks = seed.cards
     .filter((c) => c.isMustInclude || state.cfg.ownedQuotaProtects?.(c.name))
     .map((c) => c.name);
+  // A role the rebalance trimmed (a disclosed conversion) is capped at the
+  // count it left: the search may not fill it again.
+  const seedRoles = countRoles(seed, countedRoleOf);
+  const roleCeilings: Record<string, number> = {};
+  for (const name of input.surplusCuts ?? []) {
+    const role = countedRoleOf(input.scryfallCardMap.get(name) ?? ({ name } as ScryfallCard));
+    if (role) roleCeilings[role] = seedRoles[role] ?? 0;
+  }
   const result = optimizeDeck(seed, candidates, ctx, {
     locks,
     repairOnly: new Set(repairOnly.keys()),
+    trust: { roleCeilings },
   });
 
   const records: WholeDeckSwapRecord[] = [];

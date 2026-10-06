@@ -4787,7 +4787,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         deckBudget,
         currency,
         comboBudgetSkipCount,
-        convergedSwapCount: budgetConvergedSwaps,
+        convergedSwapCount: wholeDeckSearch.standing(state, budgetRepairs, budgetConvergedSwaps),
         residualReason: budgetResidualReason,
       }) ?? budgetNote;
   }

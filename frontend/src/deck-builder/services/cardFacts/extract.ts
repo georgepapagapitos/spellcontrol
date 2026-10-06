@@ -719,6 +719,12 @@ function triggerResources(t: NonNullable<ParsedAbility['trigger']>): Resource[] 
 const CREATURE_DEATH_PAYOFF =
   /\bwhenever (?:(?:this creature|cardname) or )?(?:a|another|one or more)(?: other)? (?:nontoken )?creatures?(?: you control)? (?:dies|die)\b|\bwhenever you sacrifice (?:a|another|one or more) (?:nontoken )?creatures?\b|\bwhenever (?:equipped|enchanted) creature dies\b/;
 
+/** What the discard axis says when it means an opponent's discard, by direction. */
+const OPP_DISCARD_READING = {
+  producer: 'forces discards',
+  payoff: 'punishes opponents discarding',
+} as const;
+
 function flowFacts(
   card: FactsInputCard,
   faces: FaceCtx[],
@@ -773,7 +779,13 @@ function flowFacts(
       const def = AXES.find((x) => x.key === axis)!;
       const at = perAbility.findIndex((p) => def[dir](p) !== null);
       const map = dir === 'producer' ? produces : payoffs;
-      const r = AXIS_RESOURCE[axis];
+      // The discard axis reads two ways: an opponent's discard (forced by
+      // Mind Rot, punished by Waste Not) and yours (loot, madness). They are
+      // different resources, so a loot doesn't feed Waste Not (E513).
+      const r =
+        axis === 'discard' && at >= 0 && def[dir](perAbility[at]) === OPP_DISCARD_READING[dir]
+          ? 'opp-discard'
+          : AXIS_RESOURCE[axis];
       if (map.has(r)) continue;
       if (at >= 0) put(map, r, at);
       else

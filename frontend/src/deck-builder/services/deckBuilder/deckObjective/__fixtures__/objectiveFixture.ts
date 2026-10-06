@@ -34,7 +34,11 @@ const here = dirname(fileURLToPath(import.meta.url));
 export const FIX = JSON.parse(
   readFileSync(resolve(here, 'objective.fixture.json'), 'utf8')
 ) as Fixture;
-const CARDS = new Map(FIX.cards.map((c) => [c.name, c]));
+// Cards the Meren fixture lacks (round2.fixture.json: E513's second gate).
+const EXTRA = JSON.parse(readFileSync(resolve(here, 'round2.fixture.json'), 'utf8')) as {
+  cards: ScryfallCard[];
+};
+const CARDS = new Map([...FIX.cards, ...EXTRA.cards].map((c) => [c.name, c]));
 
 /** A fresh copy of a real fixture card. */
 export function card(name: string): ScryfallCard {
