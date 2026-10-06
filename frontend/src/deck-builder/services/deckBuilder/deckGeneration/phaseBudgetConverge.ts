@@ -31,6 +31,7 @@ import { parsePrice } from '../costAnalyzer';
 import { getCardPrice, getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { primaryTypeOf } from '@/lib/coach/card-matching';
 import type { BudgetTracker } from '../budgetTracker';
+import { STAPLE_ROCK_NAMES } from './phaseStapleManaRocks';
 import type { BracketGuard } from '../bracketGuard';
 import { analyzeDeckSynergy, isLoadBearing } from '@/deck-builder/services/synergy/deckSynergy';
 import { isAltWinCard } from '@/deck-builder/services/winConditions/detect';
@@ -359,6 +360,9 @@ export async function applyBudgetConvergence(
     completeComboNames.has(card.name) ||
     completeComboNames.has(frontFaceName(card.name)) ||
     isLastAltWinCard(card) ||
+    // A staple rock costs a few dollars and is in nearly every deck; the cut
+    // that fits the budget comes from the spells (E561, like E537's paths).
+    STAPLE_ROCK_NAMES.has(card.name) ||
     isBudgetExempt(card);
 
   // SOFT protections — cut only once every fully-unprotected candidate is

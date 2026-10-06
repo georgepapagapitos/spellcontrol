@@ -163,7 +163,7 @@ describe('E561 land budget', () => {
     const edhrec = wire(ATRAXA);
     // The spells run first and ran the deck out of money: $0.94 left.
     const tracker = new BudgetTracker(75, 63 + NONBASIC_TARGET);
-    const held = await reserveLandBudget(stateFor(edhrec, ATRAXA), tracker, NONBASIC_TARGET, 36);
+    const held = await reserveLandBudget(stateFor(edhrec, ATRAXA), tracker, NONBASIC_TARGET);
     expect(held).toBeGreaterThan(0);
     expect(held).toBeLessThanOrEqual(75 * LAND_RESERVE_MAX_SHARE);
     expect(tracker.remainingBudget).toBeCloseTo(75 - held);
@@ -206,27 +206,33 @@ describe('E561 land budget', () => {
     expect(nonbasicNames(lands)).toHaveLength(NONBASIC_TARGET);
   });
 
-  it('leaves a mono-color budget build with room to spare as it was', async () => {
+  it('holds no reserve on a mono-red $50 build whose land tail is a few cents (Krenko keeps Impact Tremors)', async () => {
     const mono = ['R'];
     const edhrec = wire(mono);
-    const ample = () => new BudgetTracker(50, 60);
-    const before = await run(edhrec, mono, ample(), 5);
-    const t = ample();
-    const held = await reserveLandBudget(stateFor(edhrec, mono), t, 5, 36);
-    t.remainingBudget += held; // the spells spent exactly what they would have
-    const after = await run(edhrec, mono, t, 5);
-    expect(nonbasicNames(after)).toEqual(nonbasicNames(before));
-    expect(nonbasicNames(after)).toHaveLength(5);
+    // Krenko budget50: 5 nonbasics against ~60 slots. Holding money here cost
+    // the build Impact Tremors (84.6% inclusion) and Beetleback Chief.
+    const t = new BudgetTracker(50, 60 + 5);
+    expect(await reserveLandBudget(stateFor(edhrec, mono), t, 5)).toBe(0);
+    expect(t.remainingBudget).toBe(50);
+    const lands = await run(edhrec, mono, t, 5);
+    expect(nonbasicNames(lands)).toHaveLength(5);
   });
 
   it('holds nothing without a priced pool to size it from', async () => {
     const t = new BudgetTracker(75, 80);
-    expect(await reserveLandBudget(stateFor([], ATRAXA), t, NONBASIC_TARGET, 36)).toBe(0);
+    expect(await reserveLandBudget(stateFor([], ATRAXA), t, NONBASIC_TARGET)).toBe(0);
     expect(t.remainingBudget).toBe(75);
   });
 });
 
 describe('BudgetTracker land reserve', () => {
+  it('lets a staple see the budget as if nothing were held', () => {
+    const t = new BudgetTracker(75, 80);
+    t.reserveForLands(10);
+    expect(t.getEffectiveCap(null)).toBeCloseTo(6.5);
+    expect(t.getEffectiveCap(null, true)).toBeCloseTo(7.5);
+  });
+
   it('gives the held money back once, and only that', () => {
     const t = new BudgetTracker(100, 80);
     t.reserveForLands(7);

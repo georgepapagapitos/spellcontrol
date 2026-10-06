@@ -256,6 +256,16 @@ describe('applyBudgetConvergence', () => {
     expect(result.finalTotal).toBeGreaterThan(0);
   });
 
+  it('never cuts a staple rock to fit the budget (E561: Meren budget100 swapped Sol Ring for a Talisman)', async () => {
+    // Sol Ring is the priciest card here, so price alone would cut it first.
+    const state = makeState();
+    state.categories.ramp.push(scryfallCard('Sol Ring', '35'));
+    state.usedNames.add('Sol Ring');
+    await applyBudgetConvergence(state, baseCtx({ deckBudget: 40 }));
+    expect(state.usedNames.has('Sol Ring')).toBe(true);
+    expect(state.usedNames.has('Pricey Card')).toBe(false);
+  });
+
   it('never cuts the commander, even if a same-named card somehow sits in categories', async () => {
     // Not how generation normally shapes the deck (the commander lives outside
     // `categories`), but isProtected() checks commanderNames by name alone

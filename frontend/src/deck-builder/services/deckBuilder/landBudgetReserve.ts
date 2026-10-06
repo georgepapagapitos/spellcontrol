@@ -27,7 +27,9 @@ import type { GenerationState } from './deckGeneration/state';
 /** Smallest reserve that still seats the target is the sum of the N cheapest
  *  viable nonbasics; the land picker ranks by merit, not price, so it gets
  *  some room above that. */
-export const LAND_RESERVE_SLACK = 1.5;
+export const LAND_RESERVE_SLACK = 1.75;
+/** A land tail costing no more than this many budget slots needs no hold. */
+export const LAND_TAIL_SLOTS = 3;
 /** Spells keep at least this share of the budget however many lands cost. */
 export const LAND_RESERVE_MAX_SHARE = 0.2;
 /** How many of the newest on-identity nonbasics the merit widen adds. */
@@ -88,11 +90,9 @@ export function landCandidatePrices(
 export async function reserveLandBudget(
   state: GenerationState,
   tracker: BudgetTracker,
-  nonbasicCount: number,
-  landCount: number
+  slots: number
 ): Promise<number> {
   const { cfg, context } = state;
-  const slots = Math.min(nonbasicCount, landCount);
   const edhrecLands = state.edhrecData?.cardlists.lands ?? [];
   if (slots <= 0 || edhrecLands.length === 0) return 0;
   // The pool generateLands picks from: the top EDHREC slice plus the merit widen.
@@ -127,8 +127,14 @@ export async function reserveLandBudget(
     context.collectionNames
   );
   const cheapest = prices.slice(0, slots);
+  const floorCost = cheapest.reduce((a, b) => a + b, 0);
+  // Spells leave about a slot's worth of money behind (Atraxa budget75: $0.94
+  // against a $0.87 slot). A tail that costs only a few slots' worth seats from
+  // that, as it always did; holding money for it only reshuffles the spells.
+  const slotWorth = tracker.remainingBudget / Math.max(1, tracker.cardsRemaining);
+  if (floorCost <= LAND_TAIL_SLOTS * slotWorth) return 0;
   const reserve = Math.min(
-    cheapest.reduce((a, b) => a + b, 0) * LAND_RESERVE_SLACK,
+    floorCost * LAND_RESERVE_SLACK - slotWorth,
     Math.max(0, tracker.remainingBudget) * LAND_RESERVE_MAX_SHARE
   );
   if (reserve <= 0) return 0;

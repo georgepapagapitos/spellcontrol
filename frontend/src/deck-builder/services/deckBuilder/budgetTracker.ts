@@ -35,11 +35,14 @@ export class BudgetTracker {
    * This spreads the budget across all slots — key cards can still cost
    * several times the average, but no single pick dominates.
    */
-  getEffectiveCap(staticMax: number | null): number | null {
+  getEffectiveCap(staticMax: number | null, mayUseLandReserve = false): number | null {
     if (this.cardsRemaining <= 0) return staticMax;
-    const avg = this.remainingBudget / this.cardsRemaining;
+    // E561: a staple (STAPLE_INCLUSION_BAR) is never priced out by the money
+    // held for the land base; it sees the budget as if nothing were held.
+    const remaining = this.remainingBudget + (mayUseLandReserve ? this.landReserve : 0);
+    const avg = remaining / this.cardsRemaining;
     const dynamicCap = Math.min(
-      this.remainingBudget * 0.15, // max 15% of remaining budget
+      remaining * 0.15, // max 15% of remaining budget
       avg * 8 // max 8x average per card
     );
     // Budget already exhausted (deductMustIncludes can drive remainingBudget
