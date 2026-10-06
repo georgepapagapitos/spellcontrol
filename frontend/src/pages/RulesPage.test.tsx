@@ -245,6 +245,15 @@ describe('RulesPage — every row has a menu', () => {
   const openMenu = (label: string) =>
     fireEvent.click(screen.getByRole('button', { name: `Actions for ${label}` }));
 
+  // E557: OverflowMenu attaches its right-click listener in an effect, which can
+  // run after the row's text is already in the DOM. A right-click sent in that
+  // gap is lost, so keep sending it until the menu is open.
+  const rightClickUntilOpen = (host: Element) =>
+    waitFor(() => {
+      if (!screen.queryByText('Copy text')) fireEvent.contextMenu(host);
+      expect(screen.getByText('Copy text')).toBeTruthy();
+    });
+
   it('copies the number and the official text, and copies the row address', async () => {
     renderPage(undefined, '?tab=rules&q=702.2b');
     await screen.findByText('Any nonzero amount of combat damage is lethal.');
@@ -265,16 +274,14 @@ describe('RulesPage — every row has a menu', () => {
   it('opens from a right-click on the row too', async () => {
     renderPage(undefined, '?tab=rules&q=702.2b');
     const text = await screen.findByText('Any nonzero amount of combat damage is lethal.');
-    fireEvent.contextMenu(text.closest('.rules-ref-rule')!);
-    expect(screen.getByText('Copy text')).toBeTruthy();
+    await rightClickUntilOpen(text.closest('.rules-ref-rule')!);
   });
 
   it('right-clicks anywhere on a keyword card, not just its head row', async () => {
     renderPage(undefined, '');
     // The summary line sits below the head button — outside the old target.
     const summary = await screen.findByText('A keyword ability. See rule 702.2.');
-    fireEvent.contextMenu(summary.closest('.rules-ref-keyword')!);
-    expect(screen.getByText('Copy text')).toBeTruthy();
+    await rightClickUntilOpen(summary.closest('.rules-ref-keyword')!);
     expect(screen.getByText('Cards with this keyword')).toBeTruthy();
   });
 
