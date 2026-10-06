@@ -32,6 +32,10 @@
  *                 or a `toast`/`actionLabel` value that reads exactly "Try
  *                 again" — a full sentence in a message ("Couldn't load X.
  *                 Try again.") is prose, not a label, and is untouched.
+ *   BREWER     — a person who makes decks is a "brewer", never a "builder"
+ *                 (STYLE_GUIDE § Voice & copy, canonical terms). Plural
+ *                 "builders" only ever means people, so that is what fires;
+ *                 the singular stays free for the deck builder tool.
  *
  * Card names and oracle text are data, not copy: fixtures and tests are
  * excluded, and strings inside console/logger calls are ignored.
@@ -105,6 +109,11 @@ const RULES: Rule[] = [
       s.trim() === 'Try again' &&
       (kind === 'jsx:button' || kind === 'prop:actionLabel' || kind === 'attr:actionLabel'),
     'the retry action label is "Retry", not "Try again"',
+  ],
+  [
+    'BREWER',
+    (s) => /\bbuilders\b/i.test(s),
+    'a person who makes decks is a "brewer", not a "builder"',
   ],
 ];
 
