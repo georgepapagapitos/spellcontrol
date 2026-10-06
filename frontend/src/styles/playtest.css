@@ -4002,8 +4002,10 @@ button.playtest-card-pt__value--editable:focus-visible {
      ~0.18/0.24 top/bottom reservation (`measureHordeRect`): at 5.6 there
      wasn't enough `rowsHeight` left after reserving that chrome for the
      permanents and creatures rows to stay apart, and a two-turn horde board
-     placed an enchantment on top of a token (E387 PR 5 follow-up). */
-  --pt-card-w: clamp(56px, min(5vw, (50vh - 40px) / 7.6), 120px);
+     placed an enchantment on top of a token (E387 PR 5 follow-up). Times
+     the card-size setting, as the full table's box is: without it the
+     slider and ctrl + wheel did nothing on a horde board. */
+  --pt-card-w: calc(clamp(56px, min(5vw, (50vh - 40px) / 7.6), 120px) * var(--pt-zoom, 1));
   --pt-card-h: calc(var(--pt-card-w) * 1.4);
   --pt-edge: calc((var(--pt-card-h) - var(--pt-card-w)) / 2);
 }
