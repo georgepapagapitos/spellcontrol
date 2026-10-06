@@ -179,6 +179,8 @@ export interface GenerationState {
   baselineDetectedCombos?: DetectedCombo[];
   /** E513: what the whole-deck search changed; unset when the flag is off. */
   wholeDeckSearch?: WholeDeckSearchResult;
+  /** The cards the role-surplus rebalance cut: the roles it trimmed stay trimmed for the search. */
+  surplusCuts?: string[];
   gapAnalysis: GapAnalysisCard[] | undefined;
   deckScore: number | undefined;
   cardInclusionMap: Record<string, number> | undefined;

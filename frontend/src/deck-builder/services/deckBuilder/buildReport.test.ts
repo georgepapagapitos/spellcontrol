@@ -1210,3 +1210,39 @@ describe('assembleBuildReport — archetype blend (E221)', () => {
     expect(report.archetypeBlendNames).toBeUndefined();
   });
 });
+
+// E513 round 2: the whole-deck search can put back a card an earlier repair
+// cut, and the repair line then said the card was cut over a deck that has it
+// (the gate's Atraxa budget75: "Skrelv, Defector Mite -> Tainted Observer ...
+// cut a synergy engine piece" beside a search swap that seated Skrelv again).
+describe('assembleBuildReport: a repair the whole-deck search reversed (E513)', () => {
+  const budget = {
+    cut: 'Skrelv, Defector Mite',
+    added: 'Tainted Observer',
+    reason: 'Saves $3.03. Cut a synergy engine piece to fit your budget.',
+  };
+  const search = [
+    { cut: 'Viridian Corrupter', added: 'Skrelv, Defector Mite', reason: 'protects Atraxa' },
+  ];
+  const run = (names: string[], wholeDeckSearchSwaps?: typeof search) =>
+    assembleBuildReport({
+      generated: makeGenerated({
+        budgetRepairs: [budget],
+        wholeDeckSearchSwaps,
+        categories: categories({ utility: names.map((name) => ({ name }) as ScryfallCard) }),
+      }),
+      customization: makeCustomization(),
+      collectionNames: new Set(),
+    }).budgetRepairs?.[0].reason;
+
+  it('says the cut card was put back', () => {
+    expect(run(['Skrelv, Defector Mite', 'Tainted Observer'], search)).toBe(
+      `${budget.reason} Skrelv, Defector Mite was put back later.`
+    );
+  });
+
+  it('leaves the line alone when the search did not put it back', () => {
+    expect(run(['Tainted Observer'], search)).toBe(budget.reason);
+    expect(run(['Skrelv, Defector Mite', 'Tainted Observer'])).toBe(budget.reason);
+  });
+});
