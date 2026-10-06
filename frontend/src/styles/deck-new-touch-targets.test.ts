@@ -53,7 +53,7 @@ describe('/decks/new coarse-pointer touch targets', () => {
   });
 
   it('the "In my collection" switch reaches the 44px floor on a coarse pointer', () => {
-    const body = ruleBody(coarseBlocks(formKit), '.segmented-option span');
+    const body = ruleBody(coarseBlocks(formKit), '.segmented-option > span');
     expect(body, 'SegmentedControl lost its coarse floor').toBeTruthy();
     expect(body!).toMatch(/min-height:\s*44px/);
   });

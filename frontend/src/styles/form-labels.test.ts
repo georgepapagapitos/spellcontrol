@@ -42,7 +42,7 @@ describe('form labels', () => {
       '.form-field-label',
       '.switch-row-label',
       '.choice-option-label',
-      '.segmented-option span',
+      '.segmented-option > span',
     ]) {
       expect(selectors, `${bad} is an option or field label`).not.toContain(bad);
     }

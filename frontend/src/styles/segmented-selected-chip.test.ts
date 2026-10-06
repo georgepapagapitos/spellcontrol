@@ -50,7 +50,7 @@ const TRACKS: { file: string; selected: string; weightOn?: string }[] = [
   {
     file: 'components/shared/form.css',
     selected: '.segmented-option.is-selected',
-    weightOn: '.segmented-option.is-selected span',
+    weightOn: '.segmented-option.is-selected > span',
   },
 ];
 
