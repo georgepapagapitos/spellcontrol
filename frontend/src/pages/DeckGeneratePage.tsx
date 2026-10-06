@@ -34,6 +34,7 @@ import { keepEditsPatch, type DeckEdits } from '@/lib/deck/regenerate-edits';
 import { parseDeckFormat } from '@/lib/deck/deck-format-param';
 import { getCardByName } from '@/deck-builder/services/scryfall/client';
 import { commanderIneligibility } from '@/deck-builder/services/deckBuilder/commanderEligibility';
+import { buildsFromOwnedCards } from '@/deck-builder/services/deckBuilder/deckFilters';
 
 /**
  * Router-state seed for a build. Two shapes share it:
@@ -539,7 +540,7 @@ export function DeckGeneratePage() {
           commander={commander}
           partner={partnerCommander}
           onSelect={setPartnerCommander}
-          collectionMode={customization.collectionMode}
+          collectionMode={buildsFromOwnedCards(customization)}
         />
       )}
 

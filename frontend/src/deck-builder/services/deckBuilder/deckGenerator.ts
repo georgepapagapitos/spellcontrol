@@ -154,6 +154,7 @@ import {
   createState,
   markUsed as stMarkUsed,
   markBanned as stMarkBanned,
+  banOwnedCards,
   addMustInclude as stAddMustInclude,
   getComboBoosts as stGetComboBoosts,
   countAllCards as stCountAllCards,
@@ -1256,6 +1257,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     logger.debug(`[DeckGen] Temp banned cards:`, tempBanned);
     tempBanned.forEach(markBanned);
   }
+  banOwnedCards(state, userLists);
   logger.debug(
     `[DeckGen] Budget settings: deckBudget=${deckBudget}, maxCardPrice=${maxCardPrice}, budgetOption=${budgetOption}, currency=${currency}${ignoreOwnedBudget ? ', ignoring owned for budget' : ''}${ignoreOwnedRarity ? ', ignoring owned for rarity' : ''}`
   );

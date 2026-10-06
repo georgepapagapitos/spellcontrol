@@ -1196,6 +1196,46 @@ describe('POST /api/ai/deck-refine', () => {
     expect(options.tools[0].definition.description).toMatch(/ALREADY OWNS/);
   });
 
+  it("under the unowned scope, an owned card leaves the pool and can't come back as a tweak", async () => {
+    const cookie = await makeUser('ai-refine-scope-unowned');
+    await optIn(cookie);
+    const { getPool } = await import('../db');
+    const { rows } = await getPool().query<{ id: string }>(
+      'SELECT id FROM users WHERE username = $1',
+      ['ai-refine-scope-unowned']
+    );
+    await getPool().query(
+      `INSERT INTO user_cards (user_id, id, import_id, data, rev, updated_at)
+       VALUES ($1, 'c1', 'i1', $2::jsonb, 1, 1)`,
+      [rows[0].id, JSON.stringify({ name: 'Eternal Witness', oracleId: 'o-ew' })]
+    );
+    mockState.generate.mockImplementation(async () => ({
+      content: refineReply(PROSE, [
+        { add: 'Eternal Witness', cut: null, why: 'Recursion.' },
+        { add: 'Viscera Seer', cut: null, why: 'A free sac outlet.' },
+      ]),
+      inputTokens: 1,
+      outputTokens: 1,
+      fetched: [],
+    }));
+
+    const res = await request(app)
+      .post('/api/ai/deck-refine')
+      .set('Cookie', cookie)
+      .send(refineBody({ scope: 'unowned' }));
+
+    expect(res.status).toBe(200);
+    const done = parseStream(res.text).done as { tweaks: { add: string }[] };
+    expect(done.tweaks.map((t) => t.add)).toEqual(['Viscera Seer']);
+    const userMessage = mockState.generate.mock.calls[0][1] as string;
+    expect(userMessage).toMatch(/ENGINE SUGGESTIONS — NOT OWNED/);
+    expect(userMessage).not.toContain('Eternal Witness');
+    const options = mockState.generate.mock.calls[0][4] as {
+      tools: { definition: { description: string } }[];
+    };
+    expect(options.tools[0].definition.description).toMatch(/does NOT own/);
+  });
+
   it('under the uncommitted scope, drops a name whose every owned copy sits in another deck', async () => {
     const cookie = await makeUser('ai-refine-uncommitted');
     await optIn(cookie);

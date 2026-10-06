@@ -401,6 +401,33 @@ describe('lookup_cards, owned-only', () => {
   });
 });
 
+describe("lookup_cards, cards the player doesn't own", () => {
+  it('leaves out every owned card, case-insensitively', async () => {
+    const tool = lookupCardsTool(cache, { notOwnedNames: ['relic crush'] });
+    const names = (await tool.run({ query: 'destroy target artifact' })).fetched.map((f) => f.name);
+    expect(names.length).toBeGreaterThan(0);
+    expect(names).not.toContain('Relic Crush');
+  });
+
+  it('leaves them out INSIDE the query, so a limit of 1 still finds an unowned card', async () => {
+    const all = (await lookupCardsTool(cache, {}).run({ query: 'destroy target artifact' }))
+      .fetched;
+    const owned = all.slice(0, -1).map((f) => f.name);
+    const tool = lookupCardsTool(cache, { notOwnedNames: owned });
+    const names = (await tool.run({ query: 'destroy target artifact', limit: 1 })).fetched.map(
+      (f) => f.name
+    );
+    expect(names).toEqual([all[all.length - 1].name]);
+  });
+
+  it('tells the model in its own description', () => {
+    expect(lookupCardsTool(cache, { notOwnedNames: [] }).definition.description).toMatch(
+      /does NOT own/
+    );
+    expect(lookupCardsTool(cache, {}).definition.description).not.toMatch(/does NOT own/);
+  });
+});
+
 describe('lookup_cards, budget', () => {
   beforeEach(() => {
     cache.setMany([
@@ -508,6 +535,12 @@ describe('makeCandidateResolver', () => {
     const resolve = makeCandidateResolver(cache, { ownedNames: ['Relic Crush'] });
     expect(resolve('Relic Crush')).toBe('Relic Crush');
     expect(resolve('Naturalize')).toBeNull();
+  });
+
+  it("rejects a card the player owns when they asked for cards they don't own", () => {
+    const resolve = makeCandidateResolver(cache, { notOwnedNames: ['relic crush'] });
+    expect(resolve('Relic Crush')).toBeNull();
+    expect(resolve('Naturalize')).toBe('Naturalize');
   });
 
   it('rejects a card over the ceiling, or with no price, under a budget scope', () => {

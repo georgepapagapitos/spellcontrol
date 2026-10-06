@@ -35,6 +35,7 @@ import type { RoleKey } from '@/deck-builder/services/tagger/client';
 import type { SubstituteCandidate } from '@/deck-builder/services/deckBuilder/substituteFinder';
 import { parseSetFromQuery } from '@/deck-builder/services/scryfall/client';
 import { frontFaceName } from '@/lib/cards/card-text';
+import { isBasicLandName } from '@/lib/collection/allocations';
 import type { BasicPrintingAvail } from '@/lib/collection/collection-availability';
 
 export interface GenerationContext {
@@ -59,6 +60,13 @@ export interface GenerationContext {
    * cards whose every copy is committed to another deck are excluded upstream.
    */
   collectionPool?: SubstituteCandidate[];
+  /**
+   * "Skip my cards": every name the player owns. Banned at the start of
+   * generation, except basic lands and the player's own must-includes (an
+   * explicit pick outranks the blanket rule). Set only under that strategy,
+   * and never together with collectionNames.
+   */
+  excludedOwnedNames?: ReadonlySet<string>;
   optimizeDeckCards?: string[];
   onProgress?: (message: string, percent: number) => void;
 }
@@ -317,6 +325,31 @@ export function markBanned(state: GenerationState, name: string): void {
   state.bannedCards.add(name);
   if (name.includes(' // ')) {
     state.bannedCards.add(frontFaceName(name));
+  }
+}
+
+// "Skip my cards": ban every owned name. Basics stay (a deck needs them and
+// nobody shops for a Forest), and so does anything the player asked for by
+// name, the commanders included: a ban would drop their combos too.
+export function banOwnedCards(
+  state: GenerationState,
+  userLists: readonly { id: string; cards: readonly string[] }[]
+): void {
+  const { excludedOwnedNames, commander, partnerCommander, customization: cz } = state.context;
+  if (!excludedOwnedNames || excludedOwnedNames.size === 0) return;
+  const asked = new Set<string>([
+    commander.name,
+    ...(partnerCommander ? [partnerCommander.name] : []),
+    ...(cz.mustIncludeCards ?? []),
+    ...(cz.tempMustIncludeCards ?? []),
+    ...(state.context.optimizeDeckCards ?? []),
+  ]);
+  for (const ref of cz.appliedIncludeLists ?? []) {
+    if (!ref.enabled) continue;
+    for (const name of userLists.find((l) => l.id === ref.listId)?.cards ?? []) asked.add(name);
+  }
+  for (const name of excludedOwnedNames) {
+    if (!isBasicLandName(name) && !asked.has(name)) markBanned(state, name);
   }
 }
 

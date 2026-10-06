@@ -74,11 +74,15 @@ export function lookupCardsTool(
      * suggestion at all.
      */
     ownedNames?: readonly string[];
+    /** When set, no result is a card the player owns: they asked for cards
+     *  they don't have yet. As hard as ownedNames, inverted. */
+    notOwnedNames?: readonly string[];
     /** When set, every result's cheapest fresh printing costs at most this. */
     maxPrice?: PriceCeiling;
   }
 ): AiTool {
   const ownedOnly = context.ownedNames !== undefined;
+  const unownedOnly = context.notOwnedNames !== undefined;
   const budget = context.maxPrice;
   return {
     definition: {
@@ -100,6 +104,14 @@ export function lookupCardsTool(
               'building from their own collection. Every card returned is one they can physically',
               'put in the deck today, and a card that does NOT come back from this tool is not',
               'available to them however strong it would be.',
+            ]
+          : []),
+        ...(unownedOnly
+          ? [
+              '',
+              'Results are further restricted to cards this player does NOT own, because they',
+              'asked for cards they do not have yet. A card they own will not come back from this',
+              'tool, and naming one anyway is not a suggestion they want.',
             ]
           : []),
         ...(budget
@@ -152,6 +164,7 @@ export function lookupCardsTool(
         commanderLegalOnly: true,
         exclude: context.exclude,
         ownedNames: context.ownedNames,
+        notOwnedNames: context.notOwnedNames,
         maxPrice: context.maxPrice,
         limit: Math.min(Math.max(1, Math.trunc(limitRaw)), LOOKUP_LIMIT_MAX),
       });
@@ -160,9 +173,11 @@ export function lookupCardsTool(
         return {
           text: ownedOnly
             ? `Nothing this player owns matched "${query}". Try different rules wording, or accept that their collection has no answer to this and look for a different improvement.`
-            : budget
-              ? `Nothing under ${ceilingText(budget)} matched "${query}". Try different rules wording, or accept that nothing in budget does this and look for a different improvement.`
-              : `No cards matched "${query}". Try describing the effect in different rules wording.`,
+            : unownedOnly
+              ? `Nothing this player doesn't already own matched "${query}". Try different rules wording, or look for a different improvement.`
+              : budget
+                ? `Nothing under ${ceilingText(budget)} matched "${query}". Try different rules wording, or accept that nothing in budget does this and look for a different improvement.`
+                : `No cards matched "${query}". Try describing the effect in different rules wording.`,
           fetched: [],
         };
       }
@@ -231,12 +246,16 @@ export function makeCandidateResolver(
     colorIdentity?: readonly string[];
     exclude?: readonly string[];
     ownedNames?: readonly string[];
+    notOwnedNames?: readonly string[];
     maxPrice?: PriceCeiling;
   }
 ): (name: string) => string | null {
   const identity = context.colorIdentity ? new Set(context.colorIdentity) : null;
   const excluded = new Set((context.exclude ?? []).map((n) => n.toLowerCase()));
   const owned = context.ownedNames ? new Set(context.ownedNames.map((n) => n.toLowerCase())) : null;
+  const notOwned = context.notOwnedNames
+    ? new Set(context.notOwnedNames.map((n) => n.toLowerCase()))
+    : null;
 
   return (name: string) => {
     const trimmed = name.trim();
@@ -251,6 +270,7 @@ export function makeCandidateResolver(
     if (card.legalities?.commander !== 'legal') return null;
     if (identity && (card.color_identity ?? []).some((c) => !identity.has(c))) return null;
     if (owned && !owned.has(key)) return null;
+    if (notOwned?.has(key)) return null;
     if (context.maxPrice && !withinBudget(cache, canonical, context.maxPrice)) return null;
     return canonical;
   };

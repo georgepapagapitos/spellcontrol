@@ -173,7 +173,7 @@ export function PartnerCommanderSelector({ commander, partner, onSelect, collect
         {partnerNotOwned && (
           <p className="partner-warning" role="status">
             {partner.name} isn't in your collection. Pick a different partner, remove it, or turn
-            off &ldquo;Build from my collection&rdquo; to keep this pairing.
+            off &ldquo;Use my collection&rdquo; to keep this pairing.
           </p>
         )}
         <div className="commander-pick">

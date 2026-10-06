@@ -83,6 +83,25 @@ export function constrainsToCollection(strategy: CollectionStrategy): boolean {
   return strategy === 'full' || strategy === 'available';
 }
 
+// Collection mode is on and reads the collection as the pool to build from
+// (every strategy but 'exclude').
+export function buildsFromOwnedCards(cz: {
+  collectionMode: boolean;
+  collectionStrategy: CollectionStrategy;
+}): boolean {
+  return cz.collectionMode && cz.collectionStrategy !== 'exclude';
+}
+
+// Collection mode is on and reads the collection as cards to leave OUT:
+// "Skip my cards". The generator bans every owned name but basics and the
+// player's own must-includes; it never sees collectionNames.
+export function skipsOwnedCards(cz: {
+  collectionMode: boolean;
+  collectionStrategy: CollectionStrategy;
+}): boolean {
+  return cz.collectionMode && cz.collectionStrategy === 'exclude';
+}
+
 // Check if an owned card is exempt from budget constraints
 export function isOwnedBudgetExempt(
   cardName: string,

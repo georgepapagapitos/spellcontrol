@@ -577,6 +577,35 @@ const CASES: Case[] = [
     },
   },
   {
+    // "Skip my cards": owning half the pool (lands too) leaves none of it in
+    // the deck, but basics and a must-include you own still go in. The HARD
+    // invariant (18b) checks the same rule on every case that sets it.
+    name: 'collectionMode exclude: no owned card but basics and must-includes',
+    ctx: (ctx) => {
+      ctx.customization = {
+        ...ctx.customization,
+        collectionMode: true,
+        collectionStrategy: 'exclude',
+        mustIncludeCards: ['Creature_1'],
+      };
+      const pool = [...POOL.cardlists.allNonLand, ...POOL.cardlists.lands];
+      ctx.excludedOwnedNames = new Set([
+        'Forest',
+        ...pool.filter((_, i) => i % 2 === 0).map((c) => c.name),
+        'Creature_1',
+      ]);
+    },
+    extra: (deck, ctx) => {
+      const names = allCards(deck).map((c) => c.name);
+      expect(names).toContain('Creature_1');
+      expect(names).toContain('Forest');
+      const owned = names.filter(
+        (n) => n !== 'Forest' && n !== 'Creature_1' && ctx.excludedOwnedNames!.has(n)
+      );
+      expect(owned).toEqual([]);
+    },
+  },
+  {
     // E281: "owned cards don't count" must reach the final budget note, not
     // only the pick-time gate and the converge phase — a deck built entirely
     // from the collection costs $0 to buy whatever its sticker price, so a

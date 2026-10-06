@@ -202,6 +202,7 @@ export function BuildReportPanel({
     roleExcesses,
     claimedConflicts,
     committedExcluded,
+    ownedExcluded,
     generationMode,
     generationModeDetail,
     generationNote,
@@ -819,6 +820,13 @@ export function BuildReportPanel({
           Skipped <strong>{committedExcluded}</strong> card
           {committedExcluded === 1 ? '' : 's'} in these colors, all committed to other decks. Switch
           collection mode to "Only my cards" to include them.
+        </p>
+      )}
+
+      {ownedExcluded != null && ownedExcluded > 0 && (
+        <p className="build-report-line">
+          Left out <strong>{ownedExcluded}</strong> card{ownedExcluded === 1 ? '' : 's'} you own in
+          these colors. Basic lands and your must-includes can still go in.
         </p>
       )}
 
