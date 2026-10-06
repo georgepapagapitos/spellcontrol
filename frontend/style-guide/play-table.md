@@ -1424,34 +1424,41 @@ rule that only held on the seat or the orientation it was tuned on.
 
 ## Daily card puzzle (E558, 2026-09-30)
 
-`/daily`: one card a day, the same for everyone (the UTC day), six guesses. Its
-data is two committed snapshots (`public/daily-cards.json`,
-`public/daily-schedule.json`), so play needs no network; results go to
-`/api/daily` when signed in.
+`/daily`: one card a day, the same for everyone (the UTC day), six guesses.
 
+- **The answer never reaches the browser before the day is done.** The server
+  picks each day's card at random from `backend/data/daily/pool.json` and
+  stores the pick in Postgres (`daily_puzzles`); nothing in the repo names an
+  answer, because the repo is public. `POST /api/daily/play` scores a guess and
+  returns only the clues earned so far; the art comes from
+  `GET /api/daily/art`, blurred by the server. Never render a Scryfall URL,
+  image or name for the card while it is in play: a CSS blur is not a secret.
+  The browser holds only `public/daily-names.json`, for suggestions.
 - **Its own destination, not a Play tab.** Play is your real games. The header
   gets a Daily link between Play and Social; the phone tab bar is full, so the
   phone door is Home's hero ⋮ ("Daily card"), per
   [§ App chrome](app-shell.md#app-chrome--leather--divider-tabs-t53).
 - **Every miss teaches twice.** A wrong guess opens the next clue and gets a
-  scored row: colours, mana value, type, rarity and year of the first
-  printing. Colours and type read **close** on a partial overlap, rarity one
+  scored row: colors, mana value, type, rarity and year of the first
+  printing. Colors and type read **close** on a partial overlap, rarity one
   step away; mana value and year only ever point (up or down), never "close".
-- **A scored cell is never colour-only.** Tint + glyph (check, approximately,
+- **A scored cell is never color-only.** Tint + glyph (check, approximately,
   arrow, cross) + an sr-only sentence ("Rarity: Uncommon, close."). The
   legend under the grid names the glyphs.
 - **Newest guess first.** It's the row you just made. In a column narrower
   than 34rem the name takes its own line above the five cells and labels
   switch to short forms (Com., Unc., MV), by container query.
-- **The card names itself as "this card".** Rules and flavour clues never
-  black out the name: a bar the length of the name is a clue.
+- **A locked clue shows only its number.** The server doesn't say what a
+  locked clue is, and the card names itself as "this card" in the rules and
+  flavor clues: a bar the length of the name would be a clue.
 - **Giving up asks once, inline** (it ends the day and the streak), with
   Keep playing beside it. No retry: the card is the same for everyone.
 - **Share is squares, never names.** The share text is the Wordle grid (hit,
   close, anything else); it's the one place the page uses emoji, and it's
   clipboard data, not UI copy. On screen, Copy result swaps its own label to
   Copied; Share appears only where `canShare()`.
-- **Friends' counts, never their guesses.** The friends panel shows guesses
-  used and streaks, so it can't spoil the card for someone who hasn't played.
-- **Solve fires the seal** in the card's colours, once, beside the "Solved in
+- **Friends' counts, never their guesses.** Signed in, the server keeps your
+  guesses and records your result itself, so the friends panel is honest; it
+  shows guesses used and streaks, never guesses.
+- **Solve fires the seal** in the card's colors, once, beside the "Solved in
   N" heading that says it in words.

@@ -27,7 +27,7 @@ describe('false reasons the gate found', () => {
     ).toMatch(/face you cast/);
   });
 
-  it('Wash Out spares the colour its caster names', () => {
+  it('Wash Out spares the color its caster names', () => {
     expect(
       problem({
         name: 'Wash Out',

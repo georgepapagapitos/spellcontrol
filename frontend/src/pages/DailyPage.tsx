@@ -2,52 +2,38 @@ import './DailyPage.css';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PageHeader } from '@/components/app-shell/PageHeader';
 import { Button } from '@/components/shared/Button';
-import { EmptyState } from '@/components/shared/EmptyState';
 import { useSealMoment } from '@/components/shared/SealMoment';
 import { ClueList } from '@/components/daily/ClueList';
 import { DailyFriendsPanel } from '@/components/daily/DailyFriendsPanel';
 import { DailyResultPanel } from '@/components/daily/DailyResultPanel';
 import { DailyStatsPanel } from '@/components/daily/DailyStatsPanel';
-import { GuessGrid, type ScoredGuess } from '@/components/daily/GuessGrid';
+import { GuessGrid } from '@/components/daily/GuessGrid';
 import { GuessInput } from '@/components/daily/GuessInput';
-import { loadCardIndex, type DailyCardIndex } from '@/lib/daily/cards-index';
 import {
+  dailyArtUrl,
   fetchDailyFriends,
   fetchMyDailyResults,
+  playDaily,
   postDailyResults,
   type DailyFriend,
+  type DailyState,
 } from '@/lib/daily/daily-client';
-import { loadSchedule, puzzleFor, todayUtc, type DailyPuzzle } from '@/lib/daily/schedule';
-import { scoreGuess, type CardAttrs } from '@/lib/daily/score';
+import { loadDailyNames, type DailyNames } from '@/lib/daily/names';
 import { buildShareText } from '@/lib/daily/share';
-import { computeStats, MAX_GUESSES } from '@/lib/daily/stats';
+import { computeStats } from '@/lib/daily/stats';
 import { userMessage } from '@/lib/util/user-error';
 import { useAuth } from '@/store/auth';
 import { useDailyStore } from '@/store/daily';
 
-// The art starts unreadable and sharpens with each miss; clear once finished.
-const BLUR_PX = [18, 13, 9, 6, 3, 1.5];
-
 type Load =
   | { state: 'loading' }
   | { state: 'error'; message: string }
-  | { state: 'ready'; puzzle: DailyPuzzle | null; index: DailyCardIndex };
+  | { state: 'ready'; daily: DailyState };
 
 type Friends =
   | { kind: 'loading' }
   | { kind: 'error'; message: string }
   | { kind: 'ready'; friends: DailyFriend[] };
-
-function answerOf(p: DailyPuzzle): CardAttrs {
-  return {
-    name: p.name,
-    colors: p.colors,
-    mv: p.mv,
-    typeLine: p.typeLine,
-    rarity: p.rarity,
-    year: p.year,
-  };
-}
 
 function dayLabel(date: string): string {
   return new Date(`${date}T12:00:00Z`).toLocaleDateString(undefined, {
@@ -59,47 +45,83 @@ function dayLabel(date: string): string {
 }
 
 /**
- * `/daily`: one card a day, the same for everyone (E558). Guests play with their
- * results on this device; signed in, results reach the server (which keeps the
- * first per day) and friends' scores show beside yours.
+ * `/daily`: one card a day, the same for everyone (E558). The server picks the
+ * card, scores each guess, hands out only the clues a player has earned and
+ * blurs the art itself, so nothing in the browser names the answer until the
+ * day is done. Signed in, the server keeps the guesses; a guest's live on the
+ * device and are sent with each move.
  */
 export function DailyPage() {
-  // ponytail: the day is fixed at mount; a page left open past UTC midnight
-  // keeps yesterday's card until reload. Add a midnight rollover if people notice.
-  const [today] = useState(() => todayUtc());
   const [load, setLoad] = useState<Load>({ state: 'loading' });
+  const [names, setNames] = useState<DailyNames | null>(null);
   const authStatus = useAuth((s) => s.status);
   const signedIn = authStatus === 'authed';
+  const settled = authStatus === 'authed' || authStatus === 'guest';
 
-  const guessNames = useDailyStore((s) => s.guesses[today]);
   const results = useDailyStore((s) => s.results);
   const { addGuess, finish, adoptServerResults, markPosted } = useDailyStore.getState();
 
   const { fire, moment } = useSealMoment();
   const [friends, setFriends] = useState<Friends>({ kind: 'loading' });
 
-  // State is set only when the load settles, so the mount effect never sets
-  // state synchronously; Retry shows the skeleton first, then fetches.
-  const fetchPuzzle = useCallback(() => {
-    Promise.all([loadSchedule(), loadCardIndex()])
-      .then(([schedule, index]) =>
-        setLoad({ state: 'ready', puzzle: puzzleFor(schedule, today), index })
-      )
+  const daily = load.state === 'ready' ? load.daily : null;
+  const today = daily?.date ?? null;
+
+  // A guest's guesses for the server's day. Signed in, the server already has them.
+  const guestGuesses = useCallback(
+    (date: string | null) => (date ? (useDailyStore.getState().guesses[date] ?? []) : []),
+    []
+  );
+
+  const recordFinish = useCallback(
+    (state: DailyState) => {
+      if (state.status === 'playing') return;
+      finish(
+        state.date,
+        {
+          solved: state.status === 'solved',
+          guesses: state.status === 'solved' ? state.guesses.length : state.maxGuesses,
+        },
+        { queue: !signedIn }
+      );
+    },
+    [finish, signedIn]
+  );
+
+  // State is set only when the load settles, so the effect never sets state
+  // synchronously; Retry shows the skeleton first, then fetches.
+  const fetchState = useCallback(() => {
+    // The server's day is the UTC day, so a guest's list for it is keyed the
+    // same way. Never another day's list: it would replay against today's card.
+    const utcToday = new Date().toISOString().slice(0, 10);
+    playDaily(signedIn ? {} : { guesses: guestGuesses(utcToday) })
+      .then((state) => {
+        recordFinish(state);
+        setLoad({ state: 'ready', daily: state });
+      })
       .catch((err: unknown) =>
         setLoad({ state: 'error', message: userMessage(err, "Couldn't load today's card.") })
       );
-  }, [today]);
+  }, [signedIn, guestGuesses, recordFinish]);
 
-  useEffect(fetchPuzzle, [fetchPuzzle]);
+  useEffect(() => {
+    if (settled) fetchState();
+  }, [settled, fetchState]);
+
+  useEffect(() => {
+    loadDailyNames()
+      .then(setNames)
+      .catch(() => setNames(null));
+  }, []);
 
   const retry = () => {
     setLoad({ state: 'loading' });
-    fetchPuzzle();
+    fetchState();
   };
 
-  const loadFriends = useCallback(() => {
+  const loadFriends = useCallback((date: string) => {
     setFriends({ kind: 'loading' });
-    fetchDailyFriends(today)
+    fetchDailyFriends(date)
       .then((list) => setFriends({ kind: 'ready', friends: list }))
       .catch((err: unknown) =>
         setFriends({
@@ -107,17 +129,16 @@ export function DailyPage() {
           message: userMessage(err, "Couldn't load your friends' results."),
         })
       );
-  }, [today]);
+  }, []);
 
-  // Signed in: hand the server anything it hasn't confirmed (a guest's history
-  // on first sign-in, or a post that failed), then read back the account's own
-  // history. The server keeps the first result per day, so the order matters.
+  // Signed in: hand the account a guest's past days it hasn't seen (today's is
+  // recorded as you play, so it's never posted), then read back its history.
   const syncedRef = useRef(false);
   useEffect(() => {
-    if (!signedIn || syncedRef.current) return;
+    if (!signedIn || !today || syncedRef.current) return;
     syncedRef.current = true;
-    const { results: local, unposted: pending } = useDailyStore.getState();
-    const toPost = local.filter((r) => pending.includes(r.date));
+    const { results: local, unposted } = useDailyStore.getState();
+    const toPost = local.filter((r) => unposted.includes(r.date) && r.date < today);
     const posted = toPost.length
       ? postDailyResults(toPost)
           .then(() => markPosted(toPost.map((r) => r.date)))
@@ -127,46 +148,29 @@ export function DailyPage() {
       .then(() => fetchMyDailyResults())
       .then(adoptServerResults)
       .catch(() => undefined);
-    loadFriends();
-  }, [signedIn, loadFriends, markPosted, adoptServerResults]);
+    loadFriends(today);
+  }, [signedIn, today, loadFriends, markPosted, adoptServerResults]);
 
-  const ready = load.state === 'ready' ? load : null;
-  const puzzle = ready?.puzzle ?? null;
-  const todayResult = results.find((r) => r.date === today) ?? null;
-  const finished = todayResult !== null;
+  const finished = daily ? daily.status !== 'playing' : false;
+  const stats = useMemo(() => (today ? computeStats(results, today) : null), [results, today]);
 
-  const scored: ScoredGuess[] = useMemo(() => {
-    if (!ready || !puzzle) return [];
-    const answer = answerOf(puzzle);
-    return (guessNames ?? []).flatMap((name) => {
-      const card = ready.index.get(name);
-      return card ? [{ card, score: scoreGuess(card, answer) }] : [];
-    });
-  }, [ready, puzzle, guessNames]);
-
-  const misses = scored.filter((g) => g.card.name !== puzzle?.name).length;
-  const stats = useMemo(() => computeStats(results, today), [results, today]);
-
-  const record = (solved: boolean, guesses: number) => {
-    finish(today, { solved, guesses });
-    if (!signedIn) return;
-    postDailyResults([{ date: today, solved, guesses }])
-      .then(() => {
-        markPosted([today]);
-        loadFriends();
-      })
-      .catch(() => undefined);
-  };
-
-  const onGuess = (name: string) => {
-    if (!puzzle || finished) return;
-    addGuess(today, name);
-    const count = (useDailyStore.getState().guesses[today] ?? []).length;
-    if (name === puzzle.name) {
-      record(true, count);
-      fire(puzzle.colors.split(''));
-    } else if (count >= MAX_GUESSES) {
-      record(false, MAX_GUESSES);
+  const move = async (body: { guess?: string; giveUp?: boolean }): Promise<string | null> => {
+    if (!daily) return null;
+    try {
+      const next = await playDaily(
+        signedIn ? body : { guesses: guestGuesses(daily.date), ...body }
+      );
+      if (!signedIn && body.guess) {
+        const last = next.guesses.at(-1);
+        if (last) addGuess(next.date, last.name);
+      }
+      recordFinish(next);
+      setLoad({ state: 'ready', daily: next });
+      if (next.status === 'solved' && next.answer) fire(next.answer.colors.split(''));
+      if (next.status !== 'playing' && signedIn) loadFriends(next.date);
+      return null;
+    } catch (err) {
+      return userMessage(err, "Couldn't send that guess.");
     }
   };
 
@@ -174,30 +178,34 @@ export function DailyPage() {
   const [confirmingGiveUp, setConfirmingGiveUp] = useState(false);
   const giveUp = () => {
     setConfirmingGiveUp(false);
-    if (puzzle && !finished) record(false, MAX_GUESSES);
+    void move({ giveUp: true });
   };
 
-  const meta = puzzle
+  const meta = daily
     ? [
-        `#${puzzle.number}`,
-        dayLabel(today),
-        finished
-          ? todayResult.solved
-            ? `Solved in ${todayResult.guesses}`
-            : 'Not solved'
-          : `Guess ${Math.min(scored.length + 1, MAX_GUESSES)} of ${MAX_GUESSES}`,
+        `#${daily.number}`,
+        dayLabel(daily.date),
+        daily.status === 'solved'
+          ? `Solved in ${daily.guesses.length}`
+          : daily.status === 'failed'
+            ? 'Not solved'
+            : `Guess ${Math.min(daily.guesses.length + 1, daily.maxGuesses)} of ${daily.maxGuesses}`,
       ].join(' · ')
     : undefined;
 
   const shareText =
-    finished && puzzle && scored.length > 0
+    daily && finished && daily.guesses.length > 0
       ? buildShareText({
-          number: puzzle.number,
-          solved: todayResult.solved,
-          scores: scored.map((g) => g.score),
+          number: daily.number,
+          solved: daily.status === 'solved',
+          maxGuesses: daily.maxGuesses,
+          guesses: daily.guesses,
           url: `${window.location.origin}/daily`,
         })
       : null;
+
+  const left = daily ? daily.maxGuesses - daily.guesses.length : 0;
+  const todayResult = today ? (results.find((r) => r.date === today) ?? null) : null;
 
   return (
     <div className="daily-page">
@@ -218,39 +226,39 @@ export function DailyPage() {
         </div>
       )}
 
-      {ready && !puzzle && (
-        <EmptyState tagline="No card today." hint="The next one arrives at midnight UTC." />
-      )}
-
-      {ready && puzzle && (
+      {daily && (
         <div className="daily-play">
           <div className="daily-art-col">
             <div className="daily-art">
-              <img
-                src={puzzle.art}
-                alt={finished ? `Art from ${puzzle.name}` : "Today's card art, blurred"}
-                style={{
-                  filter: finished
-                    ? 'none'
-                    : `blur(${BLUR_PX[Math.min(misses, BLUR_PX.length - 1)]}px)`,
-                }}
-              />
+              {finished && daily.answer ? (
+                <img src={daily.answer.art} alt={`Art from ${daily.answer.name}`} />
+              ) : (
+                <img
+                  className="is-blurred"
+                  src={dailyArtUrl(daily.date, daily.artLevel ?? 0)}
+                  alt="Today's card art, blurred"
+                />
+              )}
             </div>
             {!finished && <p className="daily-art-note">The art sharpens with each miss.</p>}
           </div>
           <div className="daily-guess-col">
-            {finished ? (
+            {finished && daily.answer ? (
               <DailyResultPanel
-                puzzle={puzzle}
-                solved={todayResult.solved}
-                guesses={todayResult.guesses}
+                answer={daily.answer}
+                solved={daily.status === 'solved'}
+                guesses={daily.status === 'solved' ? daily.guesses.length : daily.maxGuesses}
                 shareText={shareText}
-                streak={stats.streak}
+                streak={stats?.streak ?? 0}
               />
             ) : (
               <>
                 <h2 className="daily-section-title">Name the card</h2>
-                <GuessInput index={ready.index} guessed={guessNames ?? []} onGuess={onGuess} />
+                <GuessInput
+                  names={names}
+                  guessed={daily.guesses.map((g) => g.name)}
+                  onGuess={(name) => move({ guess: name })}
+                />
                 {confirmingGiveUp ? (
                   <div className="daily-guess-foot" role="group" aria-label="Give up today's card">
                     <span>Give up? Your streak ends and today's card is revealed.</span>
@@ -264,8 +272,7 @@ export function DailyPage() {
                 ) : (
                   <div className="daily-guess-foot">
                     <span>
-                      {MAX_GUESSES - scored.length}{' '}
-                      {MAX_GUESSES - scored.length === 1 ? 'guess' : 'guesses'} left
+                      {left} {left === 1 ? 'guess' : 'guesses'} left
                     </span>
                     <Button variant="link" onClick={() => setConfirmingGiveUp(true)}>
                       Give up
@@ -274,20 +281,16 @@ export function DailyPage() {
                 )}
               </>
             )}
-            <GuessGrid guesses={scored} />
+            <GuessGrid guesses={daily.guesses} />
           </div>
           <div className="daily-clue-col">
             <h2 className="daily-section-title">Clues</h2>
-            <ClueList
-              puzzle={puzzle}
-              unlocked={finished ? MAX_GUESSES : Math.min(MAX_GUESSES, misses + 1)}
-              playing={!finished}
-            />
+            <ClueList clues={daily.clues} total={daily.maxGuesses} playing={!finished} />
           </div>
         </div>
       )}
 
-      {ready && (
+      {daily && stats && (
         <div className="daily-panels">
           <DailyStatsPanel
             stats={stats}
@@ -295,15 +298,19 @@ export function DailyPage() {
           />
           {signedIn ? (
             friends.kind === 'error' ? (
-              <DailyFriendsPanel kind="error" message={friends.message} onRetry={loadFriends} />
+              <DailyFriendsPanel
+                kind="error"
+                message={friends.message}
+                onRetry={() => loadFriends(daily.date)}
+              />
             ) : friends.kind === 'loading' ? (
               <DailyFriendsPanel kind="loading" />
             ) : (
               <DailyFriendsPanel kind="ready" friends={friends.friends} />
             )
-          ) : authStatus === 'guest' ? (
+          ) : (
             <DailyFriendsPanel kind="guest" />
-          ) : null}
+          )}
         </div>
       )}
     </div>

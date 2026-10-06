@@ -1,16 +1,12 @@
 /**
- * Scoring for the Daily card puzzle (E558). A guess is compared with the answer
- * on five attributes; each cell says how close it came. The rules, settled with
- * the user on 2026-09-30:
+ * Scoring for the Daily card puzzle (E558): a guess is compared with the answer
+ * on five attributes. Ported from the frontend's original scorer, same rules:
  *
- *   colours  hit on the same set; near when they share a colour
- *   mana     hit, or an arrow saying the answer is higher or lower
- *   type     hit on the same main type; near when any card type is shared
- *   rarity   of the FIRST printing: hit, or near one step away
- *   year     of the first printing: hit, or an arrow
- *
- * Mana value and year never read "near": an arrow already says which way to go,
- * so a fuzzy threshold would only add an argument.
+ *   colors  hit on the same set; near when they share a color
+ *   mana    hit, or an arrow saying the answer is higher or lower
+ *   type    hit on the same main type; near when any card type is shared
+ *   rarity  of the FIRST printing: hit, or near one step away
+ *   year    of the first printing: hit, or an arrow
  */
 
 export const RARITIES = ['common', 'uncommon', 'rare', 'mythic', 'special'] as const;
@@ -18,7 +14,7 @@ export type Rarity = (typeof RARITIES)[number];
 
 export interface CardAttrs {
   name: string;
-  /** WUBRG letters in order; "" for colourless. */
+  /** WUBRG letters in order; "" for colorless. */
   colors: string;
   mv: number;
   typeLine: string;
@@ -36,9 +32,6 @@ export interface GuessScore {
   rarity: Mark;
   year: Mark;
 }
-
-export const SCORE_KEYS = ['colors', 'mv', 'type', 'rarity', 'year'] as const;
-export type ScoreKey = (typeof SCORE_KEYS)[number];
 
 // Precedence for a card's MAIN type: an Artifact Creature is a creature first.
 const TYPE_ORDER = [
@@ -94,8 +87,4 @@ export function scoreGuess(guess: CardAttrs, answer: CardAttrs): GuessScore {
     rarity,
     year: arrow(guess.year, answer.year),
   };
-}
-
-export function isSolved(guess: CardAttrs, answer: CardAttrs): boolean {
-  return guess.name === answer.name;
 }

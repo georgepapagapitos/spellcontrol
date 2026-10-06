@@ -78,8 +78,8 @@ export function cardIneligibility(card: ScryfallCard, ctx: ObjectiveContext): st
   // Sticker sheets, Attractions and the like are legal to own, not to put in
   // the 99 (Wild Ogre Bupkis came in through an owned pool in the gate).
   if (NOT_A_DECK_CARD.test(card.type_line ?? '')) return 'not a card for the deck';
-  if (!fitsColorIdentity(card, identity)) return 'outside the colour identity';
-  if (isDeadInIdentity(card, identity)) return 'discounts a colour the deck cannot cast';
+  if (!fitsColorIdentity(card, identity)) return 'outside the color identity';
+  if (isDeadInIdentity(card, identity)) return 'discounts a color the deck cannot cast';
   if (!basic && notLegalForFormat(card, cz.mtgFormat)) return 'not legal in the format';
   const banned = new Set<string>();
   for (const n of [...(cz.bannedCards ?? []), ...(cz.tempBannedCards ?? [])])
@@ -277,7 +277,7 @@ export function checkConstraints(
       check: 'dead-in-identity',
       magnitude: dead.length,
       cards: dead.map((c) => c.name),
-      detail: 'discounts a colour the deck cannot cast',
+      detail: 'discounts a color the deck cannot cast',
     });
   }
 

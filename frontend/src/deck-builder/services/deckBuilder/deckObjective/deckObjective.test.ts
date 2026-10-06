@@ -81,7 +81,7 @@ describe('quality: EDHREC inclusion as a prior', () => {
     expect(v.cards.map((c) => c.name).sort()).toEqual(['Skullclamp', 'Sol Ring']);
   });
 
-  it('signature rewards what this commander plays over its colours and names the avoided', () => {
+  it('signature rewards what this commander plays over its colors and names the avoided', () => {
     const v = signatureTerm(merenDeck(['Spore Frog', 'Heroic Intervention']), ctx);
     const frog = v.cards.find((c) => c.name === 'Spore Frog')!;
     const hi = v.cards.find((c) => c.name === 'Heroic Intervention')!;
