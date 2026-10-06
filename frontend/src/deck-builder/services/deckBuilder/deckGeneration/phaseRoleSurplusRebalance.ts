@@ -897,13 +897,14 @@ export function applyRoleSurplusRebalance(
   const findRoleDeficitDonor = (
     deficitRole: RoleKey
   ): { card: ScryfallCard; category: DeckCategory } | null => {
+    const probe = findReplacement(-Infinity, Infinity, deficitRole, true, deficitRole) ?? undefined;
     const candidates: { card: ScryfallCard; category: DeckCategory }[] = [];
     for (const cat of Object.keys(state.categories) as DeckCategory[]) {
       if (cat === 'lands') continue;
       for (const card of state.categories[cat]) {
         const role = countedRoleOf(card);
-        if (role === deficitRole || isProtected(card) || isFreeInteraction(card) || keeps(card))
-          continue;
+        if (role === deficitRole || isProtected(card) || isFreeInteraction(card)) continue;
+        if (keeps(card, probe)) continue; // E563: only a downgrade of a kept card is blocked
         if (role) {
           const roleTarget = roleTargets[role] ?? 0;
           if ((liveRoleCounts[role] ?? 0) - 1 < roleTarget) continue;
@@ -949,12 +950,8 @@ export function applyRoleSurplusRebalance(
   // roles are deficient and the budget is tight (see DEFICIT_BACKFILL_ROLES'
   // own doc). Bounded by the same MAX_SURPLUS_CONVERSIONS budget as Phases
   // 1/2 above (shared conversionsApplied counter) so a pathological deficit
-  // can't run away. The incoming card is ranked through the exact same
-  // quality-aware findReplacement machinery every other pick in this pass
-  // uses — wipeQualityPenalty only actually applies inside findReplacement
-  // when the candidate IS a boardwipe, so a removal backfill ranks candidates
-  // on priority + lift + ownedBoost, which is the correct behavior for that
-  // role (see findReplacement's roleFilter param).
+  // can't run away. The incoming card is ranked through findReplacement like
+  // every other pick here (see its roleFilter param).
   for (const role of DEFICIT_BACKFILL_ROLES) {
     while (conversionsApplied < MAX_SURPLUS_CONVERSIONS) {
       const target = roleTargets[role] ?? 0;
@@ -963,7 +960,8 @@ export function applyRoleSurplusRebalance(
       const donor = findRoleDeficitDonor(role);
       if (!donor) break;
       const donorPrice = priceOf(donor.card);
-      const replacement = findReplacement(-Infinity, donorPrice, role, true, role);
+      const fits = (i: ScryfallCard) => !keeps(donor.card, i);
+      const replacement = findReplacement(-Infinity, donorPrice, role, true, role, fits);
       if (!replacement) break;
 
       removeCard(donor.card, donor.category, countedRoleOf(donor.card) ?? undefined);
