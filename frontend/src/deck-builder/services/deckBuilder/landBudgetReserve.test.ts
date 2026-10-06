@@ -250,7 +250,7 @@ describe('E561 staple rock hold', () => {
 });
 
 describe('BudgetTracker land reserve', () => {
-  it('drops the hold when an uncapped spend empties the budget, rather than lifting the spell cap (kitchen-sink: $50 over)', () => {
+  it('drops the land hold when an uncapped spend empties the budget, rather than lifting the spell cap (kitchen-sink: $50 over)', () => {
     const t = new BudgetTracker(40, 70);
     t.reserveForLands(2);
     t.remainingBudget = -1; // a combo seat overshot the held remainder

@@ -48,7 +48,7 @@ import {
 } from '@/deck-builder/services/tagger/client';
 import { isLoadBearing } from '@/deck-builder/services/synergy/deckSynergy';
 import { isAltWinCard } from '@/deck-builder/services/winConditions/detect';
-import { BudgetTracker } from '../budgetTracker';
+import { BudgetTracker, EXHAUSTED_CAP } from '../budgetTracker';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 import type { GenerationState } from './state';
 
@@ -658,7 +658,7 @@ Overload {6}{U}`
   it('converges even when the BudgetTracker is exhausted/negative (krenko-shaped repro)', async () => {
     const state = makeState();
     const tracker = new BudgetTracker(-50, 5, 'USD'); // already deep in the red
-    expect(tracker.getEffectiveCap(null)).toBeNull(); // no longer floors to $0
+    expect(tracker.getEffectiveCap(null)).toBe(EXHAUSTED_CAP); // floor tier: not $0, not uncapped
 
     const result = await applyBudgetConvergence(
       state,
