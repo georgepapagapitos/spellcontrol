@@ -125,7 +125,7 @@ export function analyzeDeckSynergy(cards: CardLike[]): DeckSynergy {
  * guard — a token producer in a token deck must never be auto-trimmed, even at
  * low EDHREC inclusion.
  */
-export function isLoadBearing(card: CardLike, deck: DeckSynergy): boolean {
+export function isLoadBearing(card: CardLike, deck: Pick<DeckSynergy, 'invested'>): boolean {
   if (deck.invested.length === 0) return false;
   const invested = new Set(deck.invested);
   const cs: CardSynergy = classifyCard(card);

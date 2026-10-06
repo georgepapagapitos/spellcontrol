@@ -14,7 +14,8 @@ import type { OptimizeCard } from '@/deck-builder/services/deckBuilder/deckAnaly
 import { loadTaggerData } from '@/deck-builder/services/tagger/client';
 import { COACH_CARDS } from '@/deck-builder/services/deckBuilder/__fixtures__/coach-cards.fixtures';
 import type { ComboMatch } from '@/types/combos';
-import { missingStapleFloor, rankReplacementCuts, type CutCandidate } from './intelligent-cuts';
+import { rankReplacementCuts, type CutCandidate } from './intelligent-cuts';
+import { missingStapleFloor } from './coach-protections';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const real = (name: string): ScryfallCard => ({ ...COACH_CARDS[name] });

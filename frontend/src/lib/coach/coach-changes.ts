@@ -20,7 +20,7 @@ import {
   type ChangeOwnership,
 } from './deck-change';
 import type { CrossDeckMove } from './cross-deck-moves';
-import { missingStapleFloor } from './intelligent-cuts';
+import { wouldBeSuggestedBack } from './coach-protections';
 import type { GapAnalysisCard } from '@/deck-builder/types';
 import type { OptimizeSwaps } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
 import type { SynergySuggestion } from '@/deck-builder/services/synergy/suggest';
@@ -127,7 +127,6 @@ export function buildCoachChanges(
   // card played here at least as much as the least-played missing staple).
   // Undead Warchief went out for Great Fierce Bee in a Zombies Gisa with no
   // budget, and the next pass suggested the Warchief back (T171 re-gate).
-  const gapFloor = missingStapleFloor(src.gaps);
   const affordable = (row: CostSwapRow): boolean =>
     !readdFits ||
     readdFits(
@@ -142,7 +141,7 @@ export function buildCoachChanges(
     );
   const worthIt = (row: CostSwapRow): boolean =>
     !affordable(row) ||
-    (row.confidence === 'drop-in' && (gapFloor === undefined || row.currentInclusion < gapFloor));
+    (row.confidence === 'drop-in' && !wouldBeSuggestedBack(row.currentInclusion, src.gaps));
   const costChanges: Change[] = allCostRows
     .filter(worthIt)
     .map((row) => fromCostSwapRow(row, resolveOwnership(row.suggestionName)));

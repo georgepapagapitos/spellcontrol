@@ -42,13 +42,13 @@ import {
   type SummaryItem,
 } from './deckAnalyzer';
 import { getDynamicRoleTargets } from './roleTargets';
-import { buildCommanderProfile, whyCardMatches } from './commanderProfile';
+import { buildCommanderProfile } from './commanderProfile';
 import { buildGapAnalysis } from './gapAnalysisBuilder';
 import { computeHiddenGems } from './hiddenGems';
 import { loadCardSimilar, getSimilarRank } from './cardSimilar';
 import { computePlanScore, type PlanScore, type StrategyEngineInput } from './planScore';
 import { computeMisfits, summarizeMisfits, type MisfitSummary } from './cardFit';
-import { premiumNames } from './premiumCards';
+import { createCoachProtections } from '@/lib/coach/coach-protections';
 import { isUtilityLand } from './landUpgrades';
 import { roleIsIncidental } from './incidentalRole';
 import { dropSymmetricWipes, prefersOneSidedWipes } from './coachWipes';
@@ -63,7 +63,7 @@ import { loadCardFacts } from '@/deck-builder/services/cardFacts';
 import { buildCostPlan, type CostPlan } from './costAnalyzer';
 import { frontFaceName, getByCardName } from '@/lib/cards/card-text';
 import { isSignatureSynergy } from './synergyLift';
-import { analyzeDeckSynergy, isLoadBearing, type DeckSynergy } from '../synergy/deckSynergy';
+import { analyzeDeckSynergy, type DeckSynergy } from '../synergy/deckSynergy';
 import {
   buildSynergyAnalysis,
   type SynergyAnalysis,
@@ -793,11 +793,42 @@ export async function analyzeCommanderDeck(
       edhrecData,
       params.cards.map((c) => c.name)
     );
-    // Premium cards are never a Coach cut: not a misfit, not an optimizer removal.
-    const protectedNames = premiumNames(params.cards, (n) => cardInclusionMap[n], gameChangerNames);
-    // A card that feeds the commander's own ability is the deck's plan, not a cut (T171 round 3).
-    for (const c of params.cards)
-      if (whyCardMatches(c, commanderProfile).length > 0) protectedNames.add(c.name);
+    const deckSynergy = analyzeDeckSynergy(params.cards);
+    // Win-condition detection: pure, composes existing signals (combos, synergy
+    // axes, oracle text). Best-effort: failure leaves winConditions absent.
+    let winConditions: WinConditionAnalysis | undefined;
+    try {
+      winConditions = detectWinConditions({
+        cards: params.cards,
+        commander: params.commander,
+        partnerCommander: params.partnerCommander,
+        combosInDeck: (params.detectedCombos ?? []).map((c) => ({
+          results: c.results,
+          cards: c.cards,
+        })),
+        deckSynergy,
+        format: 'commander',
+      });
+    } catch (err) {
+      logger.warn('[CommanderDeckAnalysis] Win-condition detection failed:', err);
+    }
+
+    // The one Coach protection set (lib/coach/coach-protections.ts), read by every
+    // cut path and the whole-deck objective: never a misfit, excess cut or downgrade.
+    const coachProtection = createCoachProtections({
+      commanders: [params.commander, ...(params.partnerCommander ? [params.partnerCommander] : [])],
+      invested: deckSynergy.invested,
+      inclusionOf: (n) => cardInclusionMap[n],
+      gameChangerNames,
+      altWinNames: new Set(
+        [winConditions?.primary, ...(winConditions?.secondary ?? [])]
+          .filter((w) => w?.category === 'alt-win')
+          .flatMap((w) => w!.evidence)
+      ),
+    });
+    const protectedNames = new Set(
+      params.cards.filter((c) => coachProtection(c)).map((c) => c.name)
+    );
 
     const allCardNames = [...params.cards.map((c) => c.name), params.commander.name];
     if (params.partnerCommander) allCardNames.push(params.partnerCommander.name);
@@ -915,7 +946,6 @@ export async function analyzeCommanderDeck(
     // Native synergy engine over the deck's real oracle text. Drives both the
     // PlanScore "strategy" dimension (producer↔payoff balance, not EDHREC
     // conformance) and the Optimize cut guard (load-bearing cards never cut).
-    const deckSynergy = analyzeDeckSynergy(params.cards);
     const strategyEngine = buildStrategyEngineInput(deckSynergy, nonLand.length);
 
     let planScore: PlanScore | undefined;
@@ -975,12 +1005,6 @@ export async function analyzeCommanderDeck(
         enrichRecommendationPrices(gradeBracket.analysis.recommendations),
         undefined
       );
-      // Protect cards load-bearing for an invested axis (a token producer in a
-      // token deck, etc.) from the EDHREC-inclusion cutter. Reuses the synergy
-      // analysis computed above.
-      const synergyProtectedNames = new Set(
-        params.cards.filter((c) => isLoadBearing(c, deckSynergy)).map((c) => c.name)
-      );
       optimizeSwaps = computeOptimizeSwaps(
         gradeBracket.analysis,
         params.cards,
@@ -991,7 +1015,7 @@ export async function analyzeCommanderDeck(
         new Set<string>(),
         params.detectedCombos,
         cardSynergyMap,
-        new Set([...synergyProtectedNames, ...protectedNames]),
+        protectedNames,
         // E71 Phase 4: lift co-play connectivity — protects package-connected
         // cards from the cutter and flags trusted no-link cards "off-package".
         liftIndex ? { index: liftIndex, seedCount: liftSeedCount } : undefined,
@@ -1006,8 +1030,7 @@ export async function analyzeCommanderDeck(
       const budgetProtected = new Set<string>([
         ...params.cards.filter((c) => c.isMustInclude).map((c) => c.name),
         ...(params.detectedCombos?.flatMap((combo) => combo.cards) ?? []),
-        ...synergyProtectedNames,
-        ...protectedNames, // saving money never costs the deck a premium card
+        ...protectedNames, // saving money never costs the deck a held card
         // A utility land never makes way for a plain one, as in the replace
         // prompt (Boseiju out for Jungle Hollow, T171 re-gate).
         ...params.cards.filter(isUtilityLand).map((c) => c.name),
@@ -1111,25 +1134,6 @@ export async function analyzeCommanderDeck(
       ),
       {}
     );
-
-    // Win-condition detection — pure, composes existing signals (combos,
-    // synergy axes, oracle text). Best-effort: failure leaves winConditions absent.
-    let winConditions: WinConditionAnalysis | undefined;
-    try {
-      winConditions = detectWinConditions({
-        cards: params.cards,
-        commander: params.commander,
-        partnerCommander: params.partnerCommander,
-        combosInDeck: (params.detectedCombos ?? []).map((c) => ({
-          results: c.results,
-          cards: c.cards,
-        })),
-        deckSynergy,
-        format: 'commander',
-      });
-    } catch (err) {
-      logger.warn('[CommanderDeckAnalysis] Win-condition detection failed:', err);
-    }
 
     // Bracket Fit coaching plan — only when a target bracket is set. The engine
     // re-runs the real estimateBracket in its verify loop, so it must receive the

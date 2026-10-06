@@ -8,7 +8,7 @@ import { describe, it, expect } from 'vitest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { COACH_CARDS } from './__fixtures__/coach-cards.fixtures';
 import { computeMisfits } from './cardFit';
-import { premiumNames } from './premiumCards';
+import { createCoachProtections } from '@/lib/coach/coach-protections';
 
 const real = (name: string): ScryfallCard => ({ ...COACH_CARDS[name] });
 // Off this commander's page: no inclusion, no synergy (two misfit reasons each).
@@ -24,7 +24,17 @@ describe('computeMisfits — protected cards (T171)', () => {
   });
 
   it('never flags a premium card', () => {
-    const protectedNames = premiumNames(deck.map(real), () => undefined);
+    const hold = createCoachProtections({
+      commanders: [],
+      invested: [],
+      inclusionOf: () => undefined,
+    });
+    const protectedNames = new Set(
+      deck
+        .map(real)
+        .filter((c) => hold(c))
+        .map((c) => c.name)
+    );
     expect(flagged({ protectedNames })).toEqual(['Aetherjacket', 'Crib Swap']);
   });
 

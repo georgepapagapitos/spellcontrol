@@ -36,10 +36,7 @@
  *    to a less popular one only for a large, stated reason.
  */
 import type { ScryfallCard } from '@/deck-builder/types';
-import { frontFaceName, getByCardName } from '@/lib/cards/card-text';
-import { normalizeCardName } from '../cardIdentity';
 import { countsAsRole, TIER_WEIGHT, type FactRole } from '@/deck-builder/services/cardFacts';
-import { completeCombos } from './constraints';
 import { classFloorProblem } from './classFloors';
 import {
   passesRoleCap,
@@ -47,14 +44,27 @@ import {
   STAPLE_CEILING_BAND,
   STAPLE_INCLUSION_BAR,
 } from '../roleCapAllowance';
-import { isBasicLand, isLandCard } from './context';
-import { protectionValue } from './terms/interaction';
-import { readTutors } from './terms/tutors';
+import { isLandCard } from './context';
+import {
+  inclusionPct,
+  isGameChanger,
+  STRICT,
+  synergyOf,
+  type Protection,
+  type ProtectedClass,
+} from './protections';
 import { OBJECTIVE_ROLES, type ObjectiveContext, type ObjectiveDeck } from './types';
 
-/** The generator's staple bar (cardPicking.ts STAPLE_INCLUSION_BAR, E532): in this share (%) of the page's decks. */
-export const STAPLE_BAR = STAPLE_INCLUSION_BAR;
-/** Extra gain per unit of quality the swap gives up (1: a 0.3 drop needs 0.3 more). */
+// The protection set moved to protections.ts (E540 S3); these stay importable from here.
+export {
+  protectedCards,
+  STAPLE_BAR,
+  SIGNATURE_COUNT,
+  SIGNATURE_MIN_PCT,
+  inclusionPct,
+} from './protections';
+export type { Protection, ProtectedClass } from './protections';
+
 export const DRIFT = 1;
 
 export interface TrustOptions {
@@ -80,16 +90,6 @@ export interface TrustOptions {
   roleCeilings?: Readonly<Record<string, number>>;
 }
 
-export type ProtectedClass =
-  | 'combo piece'
-  | 'near combo piece'
-  | 'combo tutor'
-  | 'protection'
-  | 'interaction land'
-  | 'Game Changer'
-  | 'staple'
-  | 'signature';
-
 /** What bound a move: a protected class, a role floor or cap, or a class floor. */
 export type TrustBound =
   ProtectedClass | 'role floor' | 'role cap' | 'class floor' | 'bracket tier';
@@ -97,149 +97,9 @@ export type TrustBound =
 /** Game Changers at which the estimator floors a deck at bracket 4 (deck-metrics' hard floor). */
 export const BRACKET_4_GAME_CHANGERS = 4;
 
-const isGameChanger = (c: ScryfallCard, ctx: ObjectiveContext) =>
-  ctx.gameChangerNames.has(c.name) || ctx.gameChangerNames.has(c.name.split(' // ')[0]);
-
 /** How many Game Changers the deck holds. */
 export function gameChangerCount(deck: ObjectiveDeck, ctx: ObjectiveContext): number {
   return deck.cards.filter((c) => isGameChanger(c, ctx)).length;
-}
-
-/** Classes that never leave outside a repair. */
-const STRICT: ReadonlySet<ProtectedClass> = new Set([
-  'combo piece',
-  'near combo piece',
-  'combo tutor',
-]);
-
-/** A line of this many cards or more counts as a build-around once one card from complete. */
-const NEAR_LINE_CARDS = 3;
-/** A commander's signature cards: the page's most commander-specific few ... */
-export const SIGNATURE_COUNT = 5;
-/** ... among the cards a real share of its decks play (a 2% card with a big ratio is noise). */
-export const SIGNATURE_MIN_PCT = 20;
-
-const signatureCache = new WeakMap<ObjectiveContext['edhrec'], ReadonlySet<string>>();
-
-/** The page's top SIGNATURE_COUNT cards by EDHREC synergy among those played in SIGNATURE_MIN_PCT of decks. */
-function signatureNames(ctx: ObjectiveContext): ReadonlySet<string> {
-  let names = signatureCache.get(ctx.edhrec);
-  if (!names) {
-    names = new Set(
-      [...ctx.edhrec]
-        .filter(([, r]) => r.inclusion >= SIGNATURE_MIN_PCT && (r.synergy ?? 0) > 0)
-        .sort(([an, a], [bn, b]) => b.synergy! - a.synergy! || an.localeCompare(bn))
-        .slice(0, SIGNATURE_COUNT)
-        .map(([n]) => n)
-    );
-    signatureCache.set(ctx.edhrec, names);
-  }
-  return names;
-}
-
-const synergyOf = (card: ScryfallCard, ctx: ObjectiveContext) =>
-  getByCardName(ctx.edhrec, card.name)?.synergy ?? -Infinity;
-
-export interface Protection {
-  cls: ProtectedClass;
-  /** Why, in words: "a piece of Hermit Druid + Thassa's Oracle". */
-  why: string;
-}
-
-/** The protected class of each card in a deck, by name. */
-export function protectedCards(
-  deck: ObjectiveDeck,
-  ctx: ObjectiveContext,
-  stapleBar = STAPLE_BAR
-): Map<string, Protection> {
-  const out = new Map<string, Protection>();
-  // Every combo the deck completes, template lines included: the value terms
-  // credit only the ones known to work (viableCombos), but a piece of a line
-  // the deck may complete is no slot to spend (the gate's Umbral Mantle, a
-  // piece of four lines).
-  const combos = completeCombos(deck, ctx);
-  for (const c of combos) {
-    for (const n of c.cards) {
-      const card = deck.cards.find((d) => d.name === n || d.name.split(' // ')[0] === n);
-      if (card && !out.has(card.name)) {
-        out.set(card.name, { cls: 'combo piece', why: `a piece of ${c.cards.join(' + ')}` });
-      }
-    }
-  }
-  // The pieces of a line of three or more that is one card from complete: the
-  // deck is built toward it, and a piece cut sets it two away (Satoru Umezawa
-  // in Yuriko's deck, a piece of four such lines, went for a two-card combo).
-  const held = new Set(
-    [...deck.commanders, ...deck.cards].flatMap((c) => [
-      normalizeCardName(c.name),
-      normalizeCardName(frontFaceName(c.name)),
-    ])
-  );
-  for (const c of ctx.combos ?? []) {
-    if (c.cards.length < NEAR_LINE_CARDS) continue;
-    const have = (n: string) =>
-      held.has(normalizeCardName(n)) || held.has(normalizeCardName(frontFaceName(n)));
-    if (c.cards.filter((n) => !have(n)).length !== 1) continue;
-    for (const n of c.cards.filter(have)) {
-      const card = deck.cards.find((d) => d.name === n || frontFaceName(d.name) === n);
-      if (card && !out.has(card.name)) {
-        out.set(card.name, {
-          cls: 'near combo piece',
-          why: `a piece of ${c.cards.join(' + ')}, one card from complete`,
-        });
-      }
-    }
-  }
-  for (const t of readTutors(deck, ctx)) {
-    if (t.why.startsWith('a piece of') && !out.has(t.name)) {
-      out.set(t.name, { cls: 'combo tutor', why: `the tutor that finds ${t.target}` });
-    }
-  }
-  for (const card of deck.cards) {
-    if (out.has(card.name) || isBasicLand(card)) continue;
-    const facts = ctx.factsOf(card);
-    if (isLandCard(card)) {
-      if (facts.interaction.length > 0) {
-        out.set(card.name, { cls: 'interaction land', why: 'a land that is also interaction' });
-      }
-    } else if (protectionValue(card, facts) > 0) {
-      out.set(card.name, { cls: 'protection', why: 'a protection piece' });
-    }
-  }
-  for (const card of deck.cards) {
-    if (out.has(card.name)) continue;
-    if (
-      ctx.gameChangerNames.has(card.name) ||
-      ctx.gameChangerNames.has(card.name.split(' // ')[0])
-    ) {
-      out.set(card.name, { cls: 'Game Changer', why: 'a Game Changer' });
-    }
-  }
-  for (const card of deck.cards) {
-    // Basics swap only for basics, and their page rows say nothing about a slot.
-    if (out.has(card.name) || isBasicLand(card)) continue;
-    const pct = inclusionPct(card, ctx);
-    if (pct >= stapleBar) {
-      out.set(card.name, { cls: 'staple', why: `a staple (${Math.round(pct)}% of decks)` });
-    }
-  }
-  // The commander's signature cards leave only for one as commander-specific,
-  // or as played.
-  const signature = signatureNames(ctx);
-  for (const card of deck.cards) {
-    if (out.has(card.name) || isBasicLand(card)) continue;
-    const row = [...signature].find(
-      (n) => getByCardName(ctx.edhrec, card.name) === ctx.edhrec.get(n)
-    );
-    if (row)
-      out.set(card.name, { cls: 'signature', why: "one of this commander's signature cards" });
-  }
-  return out;
-}
-
-/** EDHREC inclusion on this page, in percent (0 off the page). */
-export function inclusionPct(card: ScryfallCard, ctx: ObjectiveContext): number {
-  return getByCardName(ctx.edhrec, card.name)?.inclusion ?? 0;
 }
 
 const FACT_ROLE: Partial<Record<FactRole, string>> = {
@@ -333,6 +193,8 @@ export function trustVerdict(
   for (const c of guarded) {
     const p = protectedNow.get(c.name)!;
     if (STRICT.has(p.cls)) {
+      // A card that does the same job comes in (Coach's exempt swaps): not a loss.
+      if (p.exempt && ins.some(p.exempt)) continue;
       return { blocked: `${c.name} is ${p.why}`, bound: p.cls, required };
     }
     // A Game Changer leaves only for another, whatever else it is: Fierce

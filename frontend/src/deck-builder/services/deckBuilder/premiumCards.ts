@@ -116,20 +116,3 @@ export function premiumReason(card: ScryfallCard, ctx: PremiumContext = {}): Pre
 export function isPremiumCard(card: ScryfallCard, ctx: PremiumContext = {}): boolean {
   return premiumReason(card, ctx) !== null;
 }
-
-/**
- * The deck's premium cards by name, for the cut engines that take a
- * protected-name set. `inclusionOf` reads this commander's page.
- */
-export function premiumNames(
-  cards: readonly ScryfallCard[],
-  inclusionOf: (name: string) => number | undefined,
-  gameChangerNames?: ReadonlySet<string>
-): Set<string> {
-  const out = new Set<string>();
-  for (const card of cards) {
-    if (isPremiumCard(card, { inclusion: inclusionOf(card.name), gameChangerNames }))
-      out.add(card.name);
-  }
-  return out;
-}

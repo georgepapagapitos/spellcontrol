@@ -50,7 +50,9 @@ import {
 } from '@/deck-builder/services/deckBuilder/deckObjective';
 import { edhrecRowsFrom } from '@/deck-builder/services/deckBuilder/deckObjective/panelDump';
 import { getByCardName } from '@/lib/cards/card-text';
+import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
 import { coachDeckSettings } from './deck-settings-fit';
+import { createCoachProtections, type CoachProtectionInputs } from './coach-protections';
 
 /**
  * Fewest page rows (cards with a play rate) a context is built on. A page the
@@ -109,6 +111,13 @@ export interface CoachObjectiveInput {
    */
   availableNames?: ReadonlySet<string>;
   gameChangerNames?: ReadonlySet<string>;
+  /**
+   * What Coach's cut paths read besides the deck itself, for the one
+   * protection set (coach-protections.ts): the cards the win paths name as the
+   * deck's alt win, the analysis' missing staples, and the cards Coach already
+   * flags as weak. Omitted: the set is read off the deck and the page alone.
+   */
+  protections?: Pick<CoachProtectionInputs, 'altWinNames' | 'gaps' | 'flagged'>;
   /** Cards whose Scryfall `edhrec_rank` feeds the off-page read (the deck's, the candidates'). */
   knownCards?: readonly ScryfallCard[];
   /** Not saved with a deck: omitted reads the objective's default. */
@@ -173,7 +182,16 @@ export function buildCoachObjective(input: CoachObjectiveInput): CoachObjectiveR
       ? input.availableNames
       : input.ownedNames;
   const colorIdentity = [...new Set(commanders.flatMap((c) => c.color_identity ?? []))];
+  // The one protection set Coach's cut paths read: judgeMove refuses the same cuts.
+  const protection = createCoachProtections({
+    commanders,
+    invested: analyzeDeckSynergy(cards).invested,
+    inclusionOf: (name) => getByCardName(input.rows, name)?.inclusion,
+    gameChangerNames: input.gameChangerNames,
+    ...input.protections,
+  });
   const ctx = createObjectiveContext({
+    extraProtections: protection,
     colorIdentity,
     customization,
     edhrec: input.rows,
