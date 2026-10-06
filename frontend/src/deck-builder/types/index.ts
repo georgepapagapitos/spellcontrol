@@ -1097,8 +1097,8 @@ export interface Customization {
   archetypeBlend?: boolean;
   // E513: after the build, a whole-deck search makes a few swaps the objective
   // can justify (deckGeneration/phaseWholeDeckSearch.ts), disclosed in the
-  // build report. `undefined` = OFF until its ship gate clears; no UI toggle.
-  // The live-eval harness forces it with LIVE_GEN_OPTIMIZER=1.
+  // build report. ON unless `false` (default since 2026-10-06); no UI toggle.
+  // The live harness turns it off with LIVE_GEN_OPTIMIZER=0.
   wholeDeckSearch?: boolean;
   // (Hyper Focus / `hyperFocus` lived here. Removed — E230 gated it 2026-08-07
   // and it failed: its theme-exclusive predicate measured EDHREC list

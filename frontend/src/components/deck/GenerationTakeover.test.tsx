@@ -121,6 +121,6 @@ describe('GenerationTakeover', () => {
     expect(document.querySelector('.gen-takeover-percent')?.textContent).toBe('43%');
     rerender(<GenerationTakeover message="Building…" percent={60} isExiting />);
     expect(document.querySelector('.gen-takeover-percent')?.textContent).toBe('100%');
-    expect(document.querySelectorAll('.gen-takeover-phase--done').length).toBe(6);
+    expect(document.querySelectorAll('.gen-takeover-phase--done').length).toBe(7);
   });
 });

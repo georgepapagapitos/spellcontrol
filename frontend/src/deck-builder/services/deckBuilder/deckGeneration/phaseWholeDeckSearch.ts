@@ -1,5 +1,5 @@
-// E513: the whole-deck search as a generation phase, behind
-// `customization.wholeDeckSearch` (default off: the phase isn't loaded).
+// E513: the whole-deck search as a generation phase. On unless
+// `customization.wholeDeckSearch` is false (wholeDeckSearchStep.ts decides).
 //
 // Runs once, after the last phase that changes the deck (the post-refresh
 // bracket reconvergence) and BEFORE the build report is assembled, so every
@@ -35,6 +35,14 @@ import { countRoles } from '../deckObjective/trustRegion';
 import type { ObjectiveContext, ObjectiveDeck } from '../deckObjective/types';
 import { edhrecRowsFrom } from '../deckObjective/panelDump';
 import { markBanned, type GenerationState } from './state';
+import { plainDisclosure, plainNote } from './swapCopy';
+
+/**
+ * Wall-clock cap on the search. A phone runs it several times slower than a
+ * desktop (about 5 s there); at the cap it stops with the swaps it has made,
+ * which are each valid on their own and are disclosed as usual.
+ */
+export const SEARCH_TIME_BUDGET_MS = 8000;
 
 /** The ownership checks. */
 const OWNED_RULES = new Set(['collection', 'owned-share']);
@@ -53,6 +61,8 @@ export interface WholeDeckSearchInput {
   resolveOwned?: (names: string[]) => Promise<Map<string, ScryfallCard>>;
   /** The cards the generator's role-surplus rebalance cut: the roles it trimmed stay trimmed. */
   surplusCuts?: readonly string[];
+  /** Overrides SEARCH_TIME_BUDGET_MS (tests). */
+  timeBudgetMs?: number;
 }
 
 /** One swap as the build report records a swap: what left, what came in, and why. */
@@ -66,6 +76,8 @@ export interface WholeDeckSearchResult {
   swaps: WholeDeckSwapRecord[];
   /** One line for the report; undefined when the search changed nothing. */
   note: string | undefined;
+  /** Why the search ended; 'time' means it hit SEARCH_TIME_BUDGET_MS. */
+  stoppedBy?: string;
 }
 
 /**
@@ -82,8 +94,10 @@ export function reasonLine(s: AppliedSwap): string {
     return gain ? [gain] : [];
   });
   const shown = [...top3.slice(0, Math.max(0, 3 - cases.length)), ...cases];
-  const top = shown.map((r) => `${r.name}: ${r.note}`).join('; ');
-  const outside = s.disclosure ? ` Outside the usual limits, because ${s.disclosure}.` : '';
+  const top = shown.map((r) => `${r.name}: ${plainNote(r.note)}`).join('; ');
+  const outside = s.disclosure
+    ? ` Outside the usual limits, because ${plainDisclosure(s.disclosure)}.`
+    : '';
   return `${s.in.join(' + ')} for ${s.out.join(' + ')}${s.kind === 'repair' ? ' (to keep a build rule)' : ''}. ${top}.${outside}`;
 }
 
@@ -163,6 +177,7 @@ export async function wholeDeckSearchPhase(
     leave,
     repairOnly: new Set(repairOnly.keys()),
     trust: { roleCeilings },
+    timeBudgetMs: input.timeBudgetMs ?? SEARCH_TIME_BUDGET_MS,
   });
 
   const records: WholeDeckSwapRecord[] = [];
@@ -178,10 +193,12 @@ export async function wholeDeckSearchPhase(
   const note =
     records.length === 0
       ? undefined
-      : `A whole-deck search made ${result.swaps.length} swap${result.swaps.length === 1 ? '' : 's'} after the build: ${result.swaps
+      : `After the build, a check of the whole list made ${result.swaps.length} swap${result.swaps.length === 1 ? '' : 's'}: ${result.swaps
           .map((s) => `${s.in.join(' + ')} for ${s.out.join(' + ')}`)
-          .join('; ')}.`;
-  return { swaps: records, note };
+          .join(
+            '; '
+          )}.${result.stoppedBy === 'time' ? ' It stopped at its time limit, so it may have missed some.' : ''}`;
+  return { swaps: records, note, stoppedBy: result.stoppedBy };
 }
 
 /** Owned replacements per slot a repair needs, and for any slot: enough to

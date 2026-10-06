@@ -326,6 +326,11 @@ function customization(overrides: Partial<Customization> = {}): Customization {
     historicalYear: 2005,
     permanentsOnly: false,
     brewLevel: 0.5,
+    // The masters pin the generator's own composition; the whole-deck search
+    // (on by default since E513 shipped) has its own describe below. Without
+    // this the base deck's snapshots would swap creatures for artifacts and
+    // instants in the synthetic fixture, which says nothing about the generator.
+    wholeDeckSearch: false,
     ...overrides,
   };
 }
@@ -518,17 +523,47 @@ describe('generateDeck — invariants', () => {
   });
 });
 
-describe('generateDeck — whole-deck search (E513, customization.wholeDeckSearch)', () => {
-  it('is inert when the flag is off: no new field on the deck', async () => {
-    const deck = await generateDeck(baseContext());
+describe('generateDeck — whole-deck search (E513, on unless customization.wholeDeckSearch is false)', () => {
+  const progressOf = (ctx: ReturnType<typeof baseContext>) => {
+    const steps: Array<[string, number]> = [];
+    return {
+      steps,
+      ctx: { ...ctx, onProgress: (m: string, p: number) => steps.push([m, p]) },
+    };
+  };
+  const SEARCH_STEP: [string, number] = ['Fine-tuning the list…', 93];
+
+  it('is inert when the flag is explicitly false: no new field, no progress step', async () => {
+    const { steps, ctx } = progressOf(baseContext());
+    const deck = await generateDeck(ctx);
     expect('wholeDeckSearchSwaps' in deck).toBe(false);
     expect('wholeDeckSearchNote' in deck).toBe(false);
+    expect(steps).not.toContainEqual(SEARCH_STEP);
   });
+
+  it('runs by default (the key unset), with its own progress step before the report', async () => {
+    const base = baseContext();
+    const { wholeDeckSearch: _unset, ...rest } = base.customization;
+    const { steps, ctx } = progressOf({
+      ...base,
+      customization: rest as typeof base.customization,
+    });
+    expect('wholeDeckSearch' in ctx.customization).toBe(false);
+    const deck = await generateDeck(ctx);
+    expect(steps).toContainEqual(SEARCH_STEP);
+    // The step comes after the last build step and never moves the bar back.
+    const percents = steps.map(([, p]) => p);
+    expect(Math.max(...percents.slice(0, percents.lastIndexOf(93)))).toBeLessThanOrEqual(93);
+    expect(Object.values(deck.categories).flat()).toHaveLength(99);
+    clearGenerationCache();
+  }, 120_000);
 
   it('with the flag on, keeps a legal 99 and discloses each swap against the final list', async () => {
     const ctx = baseContext();
     ctx.customization = customization({ wholeDeckSearch: true });
-    const deck = await generateDeck(ctx);
+    // No wall-clock cap here: a loaded CI worker would stop the search early,
+    // and this test compares two runs swap for swap.
+    const deck = await generateDeck({ ...ctx, searchTimeBudgetMs: 600_000 });
     const names = Object.values(deck.categories)
       .flat()
       .map((c) => c.name);
@@ -536,6 +571,7 @@ describe('generateDeck — whole-deck search (E513, customization.wholeDeckSearc
     expect(names.filter((n) => n !== 'Forest').length).toBe(
       new Set(names.filter((n) => n !== 'Forest')).size
     );
+    expect((deck.wholeDeckSearchSwaps ?? []).length).toBeGreaterThan(0);
     for (const s of deck.wholeDeckSearchSwaps ?? []) {
       expect(names).toContain(s.added);
       expect(names).not.toContain(s.cut);
@@ -543,9 +579,32 @@ describe('generateDeck — whole-deck search (E513, customization.wholeDeckSearc
     }
     // Deterministic: the same inputs make the same swaps.
     clearGenerationCache();
-    const again = await generateDeck(ctx);
+    const again = await generateDeck({ ...ctx, searchTimeBudgetMs: 600_000 });
     expect(again.wholeDeckSearchSwaps).toEqual(deck.wholeDeckSearchSwaps);
     // Two generations, each with the search's goldfish games: slow by design.
+  }, 120_000);
+
+  it('a search that runs out of time stops with a legal deck and no swaps', async () => {
+    // A slow device, as far as the search can tell: its budget is spent before
+    // its first step.
+    const ctx = baseContext();
+    ctx.customization = customization({ wholeDeckSearch: true });
+    try {
+      const deck = await generateDeck({ ...ctx, searchTimeBudgetMs: -1 });
+      const names = Object.values(deck.categories)
+        .flat()
+        .map((c) => c.name);
+      expect(names).toHaveLength(99);
+      for (const s of deck.wholeDeckSearchSwaps ?? []) {
+        expect(names).toContain(s.added);
+        expect(names).not.toContain(s.cut);
+      }
+      // Stopped before its first step: the unhurried run on this fixture makes
+      // two swaps, this one none, and the deck is the generator's own.
+      expect(deck.wholeDeckSearchSwaps).toBeUndefined();
+    } finally {
+      clearGenerationCache();
+    }
   }, 120_000);
 });
 
