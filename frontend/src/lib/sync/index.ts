@@ -13,6 +13,7 @@ import {
 import * as queue from './mutation-queue';
 import * as estore from './entity-store';
 import { clearAnalysisCache } from '@/lib/deck-analysis/deck-analysis-cache';
+import { clearMovers, clearValueHistory } from '@/lib/collection/value-history';
 import type { EntityKind } from './entity-store';
 import { applyPrices, setPrices, priceKey } from '@/lib/collection/card-prices';
 import { fetchOracleIds } from '@/lib/api/combos';
@@ -440,6 +441,11 @@ async function stopSyncAndWipeLocalInternal(): Promise<void> {
   await estore.wipeAll();
   // The device's copy of each deck's analysis names the account's cards.
   await clearAnalysisCache();
+  // So do the value log and its movers: without this the next account to sign
+  // in on this device is greeted with the last one's collection value, trend
+  // and price movers. Best effort, like the log's writes: a blocked IndexedDB
+  // must not stop a logout.
+  await Promise.all([clearValueHistory(), clearMovers()]).catch(() => {});
   clearCursor();
   clearOwner();
   currentOwnerId = null;
