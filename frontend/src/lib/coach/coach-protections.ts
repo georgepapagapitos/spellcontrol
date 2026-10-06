@@ -13,6 +13,7 @@
  * context's `extraProtections`, so `judgeMove` refuses the same cuts the
  * paths do (deckObjective/protections.ts).
  *
+ * A basic land is never held (a page row of 98% is every deck's, not a slot's).
  * A card is held when it is:
  *  - premium (premiumCards.ts): a Game Changer, a staple rock, a 40% staple
  *    of this commander, a format staple, a tutor, efficient interaction;
@@ -43,6 +44,7 @@ import {
   buildCommanderProfile,
   whyCardMatches,
 } from '@/deck-builder/services/deckBuilder/commanderProfile';
+import { isBasicLand } from '@/deck-builder/services/deckBuilder/deckObjective/context';
 import { isSurvivalPiece } from '@/deck-builder/services/deckBuilder/deckObjective/factsReading';
 import type { Protection } from '@/deck-builder/services/deckBuilder/deckObjective/types';
 import { isLoadBearing, type DeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
@@ -122,6 +124,10 @@ export function createCoachProtections(inputs: CoachProtectionInputs): CoachProt
   const cache = new Map<string, Protection | null>();
 
   const read = (card: ScryfallCard): Protection | null => {
+    // A basic land is never held: its page row (Forest at 98%) says every deck
+    // plays it, not that a slot of it is worth keeping or that Coach would
+    // suggest it back. The land lane swaps basics on merit.
+    if (isBasicLand(card)) return null;
     const played = inputs.inclusionOf(card.name);
     const premium = premiumReason(card, {
       inclusion: played,
