@@ -64,11 +64,11 @@ export class BudgetTracker {
     );
     // Budget exhausted (deductMustIncludes and the uncapped spends, combo seats
     // and rocks, can drive remainingBudget to zero or below). E566: this used to
-    // return the static cap, which lifted the cap off every later pick (Krenko
-    // $50 shipped at $147), and a $0 cap would ban every priced card. Pick from
-    // the bulk tier instead, so the hole stops growing; a staple still prices
-    // against the budget as it stood unspent, shrunk by the hole, so it is never
-    // priced out. phaseBudgetConverge reconciles the total after.
+    // return the static cap, which lifted the cap off every later pick (a $50
+    // mono-red build could reach $147), and a $0 cap would ban every priced card.
+    // Cap at an even share of the budget instead, so the hole stops growing; a
+    // staple still prices against the budget as it stood unspent, shrunk by the
+    // hole, so it is never priced out. phaseBudgetConverge reconciles the total after.
     if (dynamicCap <= 0) {
       // The floor is an even share of the unspent budget: a flat $0.25 priced out
       // Chaos Warp (52%, $0.33), Mana Leak and Spell Pierce in $30-$40 builds.
