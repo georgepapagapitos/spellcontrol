@@ -28,9 +28,11 @@ import { routeCardByType, stampRoleSubtypes } from '../categorize';
 import { countedRoleOf } from '../commanderDeckAnalysis';
 import { exceedsCmcCap } from '../deckFilters';
 import { createObjectiveContext } from '../deckObjective';
-import { checkConstraints } from '../deckObjective/constraints';
-import { optimizeDeck, type AppliedSwap } from '../deckObjective/optimizer';
+import { cardIneligibility, checkConstraints } from '../deckObjective/constraints';
+import { isLandCard } from '../deckObjective/context';
+import { optimizeDeck, repairSlotOf, type AppliedSwap } from '../deckObjective/optimizer';
 import { countRoles } from '../deckObjective/trustRegion';
+import type { ObjectiveContext, ObjectiveDeck } from '../deckObjective/types';
 import { edhrecRowsFrom } from '../deckObjective/panelDump';
 import { markBanned, type GenerationState } from './state';
 
@@ -133,6 +135,16 @@ export async function wholeDeckSearchPhase(
       .filter((v) => OWNED_RULES.has(v.check))
       .map((v) => v.check)
   );
+  const repairOnly = await ownedRepairCandidates(
+    state,
+    seed,
+    ctx,
+    input,
+    candidates,
+    passesGates,
+    leave
+  );
+  candidates.push(...repairOnly.values());
   // The generator's own protections: must-includes (the customization's are
   // the search's too), a partial build's owned quota.
   const locks = seed.cards
@@ -149,6 +161,7 @@ export async function wholeDeckSearchPhase(
   const result = optimizeDeck(seed, candidates, ctx, {
     locks,
     leave,
+    repairOnly: new Set(repairOnly.keys()),
     trust: { roleCeilings },
   });
 
@@ -169,6 +182,73 @@ export async function wholeDeckSearchPhase(
           .map((s) => `${s.in.join(' + ')} for ${s.out.join(' + ')}`)
           .join('; ')}.`;
   return { swaps: records, note };
+}
+
+/** Owned replacements per slot a repair needs, and for any slot: enough to
+ *  choose from, few enough that the search stays quick. */
+const OWNED_PER_SLOT = 12;
+const OWNED_ANY_SLOT = 24;
+
+/**
+ * The owned cards a repair may bring in, by name: none unless the list breaks
+ * a rule the search repairs (an ownership rule the generator left relaxed is
+ * not one, but a Game Changer ceiling in an owned-only build is, and its
+ * replacement has to be owned). The collection's fitting cards are resolved, and kept
+ * are the most-played (EDHREC rank) of each slot the cards to replace fill
+ * (their counted role, a protection piece, a land) plus the most-played of
+ * any slot.
+ */
+async function ownedRepairCandidates(
+  state: GenerationState,
+  seed: ObjectiveDeck,
+  ctx: ObjectiveContext,
+  input: WholeDeckSearchInput,
+  fetchedAlready: readonly ScryfallCard[],
+  passesGates: (c: ScryfallCard) => boolean,
+  leave: ReadonlySet<string>
+): Promise<Map<string, ScryfallCard>> {
+  const out = new Map<string, ScryfallCard>();
+  const owned = ctx.ownedNames;
+  const broken = checkConstraints(seed, ctx).filter((v) => !leave.has(v.check));
+  if (!input.resolveOwned || !owned || broken.length === 0) return out;
+  const { colorIdentity, collectionPool } = state.context;
+  const known = new Set([...fetchedAlready, ...seed.cards].map((c) => c.name));
+  const rest = (collectionPool ?? []).filter(
+    (c) =>
+      !known.has(c.name) &&
+      !state.bannedCards.has(c.name) &&
+      c.colorIdentity.every((x) => colorIdentity.includes(x))
+  );
+  if (rest.length === 0) return out;
+  // The cards a repair takes out: the unowned ones a violation names, or,
+  // under an owned share, every unowned spell.
+  const named = new Set(broken.flatMap((v) => v.cards));
+  const shareBroken = broken.some((v) => v.check === 'owned-share');
+  const isOwned = (c: ScryfallCard) => owned.has(c.name) || owned.has(frontFaceName(c.name));
+  const toReplace = seed.cards.filter(
+    (c) => named.has(c.name) || (shareBroken && !isLandCard(c) && !isOwned(c))
+  );
+  const slotKey = (c: ScryfallCard) =>
+    isLandCard(c) ? 'land' : (repairSlotOf(c, ctx, countedRoleOf) ?? 'any');
+  const needed = new Set(toReplace.map(slotKey));
+
+  const fetched = await input.resolveOwned(rest.map((c) => c.name));
+  const fits = [...new Set(fetched.values())]
+    .filter((c) => !known.has(c.name) && passesGates(c) && !cardIneligibility(c, ctx))
+    .sort((a, b) => (a.edhrec_rank ?? Infinity) - (b.edhrec_rank ?? Infinity));
+  const perSlot = new Map<string, number>();
+  let anySlot = 0;
+  for (const c of fits) {
+    const k = slotKey(c);
+    const n = perSlot.get(k) ?? 0;
+    const keepForSlot = needed.has(k) && n < OWNED_PER_SLOT;
+    const keepForAny = k !== 'land' && anySlot < OWNED_ANY_SLOT;
+    if (!keepForSlot && !keepForAny) continue;
+    if (keepForSlot) perSlot.set(k, n + 1);
+    else anySlot++;
+    out.set(c.name, c);
+  }
+  return out;
 }
 
 function removeFromDeck(state: GenerationState, name: string): void {
