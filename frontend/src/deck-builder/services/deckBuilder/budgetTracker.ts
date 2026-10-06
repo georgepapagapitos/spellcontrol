@@ -55,11 +55,12 @@ export class BudgetTracker {
     // Budget exhausted (deductMustIncludes and the uncapped spends, combo seats
     // and rocks, can drive remainingBudget to zero or below). E566: this used to
     // return the static cap, which lifted the cap off every later pick (Krenko
-    // $50 shipped at $147). A zero cap would ban every priced card, and a flat
-    // bulk cap starves the on-plan premium picks that convergence would keep. So
-    // price against the budget as it stood unspent, tightening with the hole.
+    // $50 shipped at $147), and a $0 cap would ban every priced card. Pick from
+    // the bulk tier instead, so the hole stops growing; a staple still prices
+    // against the budget as it stood unspent, shrunk by the hole, so it is never
+    // priced out. phaseBudgetConverge reconciles the total after.
     if (dynamicCap <= 0) {
-      let cap = this.exhaustedCap(-remaining);
+      let cap = mayUseLandReserve ? this.exhaustedStapleCap(-remaining) : EXHAUSTED_CAP;
       // The land phase's cheapest viable option still binds a build in the red.
       if (this.landSlots > 0) cap = Math.min(cap, Math.max(this.landFloor, EXHAUSTED_CAP));
       return staticMax === null ? cap : Math.min(staticMax, cap);
@@ -71,7 +72,7 @@ export class BudgetTracker {
 
   /** The cap an unspent budget would set for the first pick, scaled down by how
    *  far past zero the build already is; never below EXHAUSTED_CAP. */
-  private exhaustedCap(overspend: number): number {
+  private exhaustedStapleCap(overspend: number): number {
     const total = this.totalBudget;
     const unspent = Math.min(total * 0.15, (total / this.totalSlots) * 8);
     return Math.max(EXHAUSTED_CAP, (unspent * total) / (total + Math.max(0, overspend)));

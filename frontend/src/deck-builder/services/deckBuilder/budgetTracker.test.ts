@@ -48,23 +48,25 @@ describe('BudgetTracker.getEffectiveCap', () => {
     expect(t.getEffectiveCap(7)).toBe(7);
   });
 
-  it('prices against the unspent budget, shrunk by the hole, once must-includes blew it (never $0, never uncapped)', () => {
+  it('caps at the bulk tier (never $0, never uncapped) once must-includes blew the budget; a staple prices against the unspent budget shrunk by the hole', () => {
     vi.spyOn(console, 'debug').mockImplementation(() => {});
     // 30-card budget deck, must-includes alone cost more than the budget —
     // remainingBudget goes negative and stays negative for every later pick.
     const t = new BudgetTracker(30, 40);
     t.deductMustIncludes([makeCard({ prices: { usd: '80.00' } })]);
     expect(t.remainingBudget).toBeLessThan(0);
-    // Unspent shape: min(15% of $30, 8 x $30/40) = $4.50, times 30 / (30 + 50).
-    expect(t.getEffectiveCap(null)).toBeCloseTo(1.6875);
-    expect(t.getEffectiveCap(5)).toBeCloseTo(1.6875);
+    expect(t.getEffectiveCap(null)).toBe(EXHAUSTED_CAP);
+    expect(t.getEffectiveCap(5)).toBe(EXHAUSTED_CAP);
     expect(t.getEffectiveCap(0.1)).toBe(0.1);
+    // Unspent shape: min(15% of $30, 8 x $30/40) = $4.50, times 30 / (30 + 50).
+    expect(t.getEffectiveCap(null, true)).toBeCloseTo(1.6875);
   });
 
   it('never drops below the bulk tier however deep the hole', () => {
     const t = new BudgetTracker(30, 40);
     t.remainingBudget = -100000;
     expect(t.getEffectiveCap(null)).toBe(EXHAUSTED_CAP);
+    expect(t.getEffectiveCap(null, true)).toBe(EXHAUSTED_CAP);
   });
 
   // E566, Krenko budget50: a zero remainder returned the static max and lifted
@@ -76,6 +78,7 @@ describe('BudgetTracker.getEffectiveCap', () => {
       ['Skullclamp', 8],
       ['Howlsquad Heavy', 3.68],
       ['Impact Tremors', 0.4],
+      ['Rummaging Goblin', 0.1],
     ] as const;
     const t = new BudgetTracker(50, 64);
     t.remainingBudget = 0; // a combo seat and the rocks spent everything
@@ -94,15 +97,15 @@ describe('BudgetTracker.getEffectiveCap', () => {
     const t = new BudgetTracker(40, 70);
     t.remainingBudget = -20;
     t.planLandPhase(8, 0.35);
-    expect(t.getEffectiveCap(null)).toBe(0.35);
+    expect(t.getEffectiveCap(null, true)).toBe(0.35);
     t.endLandPhase();
-    expect(t.getEffectiveCap(null)).toBeGreaterThan(0.35);
+    expect(t.getEffectiveCap(null, true)).toBeGreaterThan(0.35);
   });
 
-  it('lets a premium on-plan card (Living Death, $5.99) compete once a $100 build is in the red', () => {
+  it('lets a staple (Protean Hulk, $8.37, 46% in Meren) compete once a $100 build is in the red', () => {
     const t = new BudgetTracker(100, 70);
     t.remainingBudget = -1;
-    expect(t.getEffectiveCap(null)).toBeGreaterThan(5.99);
+    expect(t.getEffectiveCap(null, true)).toBeGreaterThan(8.37);
   });
 });
 

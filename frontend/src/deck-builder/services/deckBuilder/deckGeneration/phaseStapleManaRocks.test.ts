@@ -1,4 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import type { ScryfallCard } from '@/deck-builder/types';
 
 function card(name: string, price: string, cmc = 1): ScryfallCard {
@@ -223,5 +225,21 @@ describe('stapleManaRocksPhase', () => {
     state.cfg.mtgFormat = 'brawl';
     await stapleManaRocksPhase(state, null);
     expect(allCards(state)).toEqual([]);
+  });
+});
+
+// E566 (8ef8eda3 seated the rocks before the type passes): the rocks took ~$2.70 and
+// two slots off the tracker before the first spell pick, which shifted every
+// pacing cap and priced Howlsquad Heavy ($3.68 against a $3.55 cap, a piece of
+// Krenko's Skirk Prospector combo) out of the Krenko $50 deck. The rocks seat once,
+// after the lands, as they always did; the gate, not the order, guarantees Sol Ring.
+describe('stapleManaRocksPhase call site', () => {
+  it('runs once, after generateLands', () => {
+    const src = readFileSync(resolve(__dirname, '../deckGenerator.ts'), 'utf8');
+    const calls = [...src.matchAll(/await stapleManaRocksPhase\(/g)].map((m) => m.index!);
+    expect(calls).toHaveLength(1);
+    const lastLands = src.lastIndexOf('await generateLands(');
+    expect(lastLands).toBeGreaterThan(0);
+    expect(calls[0]).toBeGreaterThan(lastLands);
   });
 });
