@@ -4,7 +4,7 @@ import { markUsed } from './state';
 import { frontFaceName, getByCardName } from '@/lib/cards/card-text';
 import {
   validateCardRole,
-  isProtectionPiece,
+  readsAsProtection,
   isFreeInteraction,
 } from '@/deck-builder/services/tagger/client';
 import { calculateCardPriority } from '../cardPicking';
@@ -192,7 +192,7 @@ export function applyFlagshipSeating(
     );
     if (card.isMustInclude) score += MUST_INCLUDE_BOOST;
     if (card.isStapleRock || STAPLE_ROCK_NAMES.has(card.name)) score += STAPLE_PROTECTION_BOOST;
-    if (isProtectionPiece(card)) score += PROTECTION_PIECE_BOOST;
+    if (readsAsProtection(card)) score += PROTECTION_PIECE_BOOST;
     if (isFreeInteraction(card)) score += FREE_INTERACTION_BOOST;
     if (state.comboCardNames.has(card.name)) score += COMBO_TRIM_BOOST;
     if (ctx.roleTargets) {

@@ -5,7 +5,7 @@ const roleMap: Record<string, string | null> = {};
 
 vi.mock('@/deck-builder/services/tagger/client', () => ({
   getCardRole: (name: string) => roleMap[name] ?? null,
-  isProtectionPiece: vi.fn(() => false),
+  readsAsProtection: vi.fn(() => false),
   isFreeInteraction: vi.fn(() => false),
 }));
 
@@ -19,7 +19,7 @@ vi.mock('../categorize', async (importOriginal) => {
 
 import { postGenFixupPhase, type PostGenFixupContext } from './phasePostGenFixup';
 import type { GenerationState } from './state';
-import { isProtectionPiece, isFreeInteraction } from '@/deck-builder/services/tagger/client';
+import { readsAsProtection, isFreeInteraction } from '@/deck-builder/services/tagger/client';
 
 function scryfallCard(name: string, overrides: Partial<ScryfallCard> = {}): ScryfallCard {
   return {
@@ -400,13 +400,13 @@ describe('postGenFixupPhase', () => {
       expectProtectedCardSurvives(state, rampReplacement, 'Some Other Rock', 'Unprotected C');
     });
 
-    it('protects a card flagged isProtectionPiece', () => {
+    it('protects a card flagged readsAsProtection', () => {
       const { state, rampReplacement } = makeProtectionState('Protected Piece', 'Unprotected D');
-      vi.mocked(isProtectionPiece).mockImplementation((c) => c.name === 'Protected Piece');
+      vi.mocked(readsAsProtection).mockImplementation((c) => c.name === 'Protected Piece');
       try {
         expectProtectedCardSurvives(state, rampReplacement, 'Protected Piece', 'Unprotected D');
       } finally {
-        vi.mocked(isProtectionPiece).mockReturnValue(false);
+        vi.mocked(readsAsProtection).mockReturnValue(false);
       }
     });
 

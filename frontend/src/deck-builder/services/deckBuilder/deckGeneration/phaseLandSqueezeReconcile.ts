@@ -2,7 +2,7 @@ import type { DeckCategory, ScryfallCard } from '@/deck-builder/types';
 import type { GenerationState } from './state';
 import {
   getCardRole,
-  isProtectionPiece,
+  readsAsProtection,
   isFreeInteraction,
   validateCardRole,
   type RoleKey,
@@ -224,7 +224,7 @@ export function applyLandSqueezeReconcile(
 
     if (card.isMustInclude) score += MUST_INCLUDE_BOOST;
     if (card.isStapleRock || STAPLE_ROCK_NAMES.has(card.name)) score += STAPLE_PROTECTION_BOOST;
-    if (isProtectionPiece(card)) score += PROTECTION_PIECE_BOOST;
+    if (readsAsProtection(card)) score += PROTECTION_PIECE_BOOST;
     if (isFreeInteraction(card)) score += FREE_INTERACTION_BOOST;
     if (state.comboCardNames.has(card.name)) score += COMBO_TRIM_BOOST;
     if (ctx.roleTargets && role) {

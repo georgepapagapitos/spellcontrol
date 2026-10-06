@@ -7,7 +7,7 @@ import type { ScryfallCard, DeckCategory } from '@/deck-builder/types';
 vi.mock('@/deck-builder/services/tagger/client', () => ({
   getCardRole: () => null,
   validateCardRole: () => null,
-  isProtectionPiece: () => false,
+  readsAsProtection: () => false,
   isFreeInteraction: () => false,
 }));
 

@@ -178,12 +178,12 @@ vi.mock('@/deck-builder/services/tagger/client', async (orig) => ({
   getCardRole: vi.fn(() => null),
   getCardSubtype: vi.fn(() => null),
   isTapland: vi.fn(() => false),
-  // E87-new Slice A: isProtectionPiece is a pure oracle-text regex, NOT
+  // E87-new Slice A: readsAsProtection is a pure oracle-text regex, NOT
   // routed through getCardRole — mocking getCardRole above has zero effect
   // on it, so it needs its own inert-by-default mock (this fixture universe's
   // cards all have oracle_text: '', which already reads false, but stubbing
   // it explicitly keeps goldens inert by construction rather than by luck).
-  isProtectionPiece: vi.fn(() => false),
+  readsAsProtection: vi.fn(() => false),
   // iter-10 Slice A: isFreeInteraction is the same shape — same explicit
   // inert-by-construction stub.
   isFreeInteraction: vi.fn(() => false),
@@ -285,7 +285,7 @@ import { fetchCommanderData, fetchCommanderCombosRaw } from '@/deck-builder/serv
 import { generateLands } from './landGenerator';
 import { computeAutoLandCount, computeLandCountSizingAnchor } from './targetCounts';
 import { applyLandSqueezeReconcile } from './deckGeneration/phaseLandSqueezeReconcile';
-import { isProtectionPiece, isFreeInteraction } from '@/deck-builder/services/tagger/client';
+import { readsAsProtection, isFreeInteraction } from '@/deck-builder/services/tagger/client';
 
 // ---- Customization factory (static, no localStorage) ----------------------
 
@@ -729,10 +729,10 @@ describe('generateDeck — Combo Integrity Audit color-identity gate (defect A1/
 
   it('never evicts anything via auditWeakest when every candidate reads as a protection piece (E87-new Slice A)', async () => {
     // Same shape as the "discloses a legal combo-audit swap" case above, but
-    // with isProtectionPiece forced true for every card — auditWeakest's skip
+    // with readsAsProtection forced true for every card — auditWeakest's skip
     // condition means it can never find an evictable candidate, so the
     // near-miss combo can't complete even though its enabler is legal and
-    // resolvable. Proves the wiring (auditWeakest → isProtectionPiece) without
+    // resolvable. Proves the wiring (auditWeakest → readsAsProtection) without
     // needing to know which specific card the real fill would pick as weakest.
     vi.mocked(fetchCommanderCombosRaw).mockResolvedValueOnce([
       {
@@ -776,7 +776,7 @@ describe('generateDeck — Combo Integrity Audit color-identity gate (defect A1/
       if (names.includes('On-Color Enabler 2')) m.set('On-Color Enabler 2', ON_COLOR2);
       return m;
     });
-    vi.mocked(isProtectionPiece).mockReturnValue(true);
+    vi.mocked(readsAsProtection).mockReturnValue(true);
     try {
       const ctx = baseContext();
       ctx.customization = customization({ comboCount: 3 });
@@ -789,14 +789,14 @@ describe('generateDeck — Combo Integrity Audit color-identity gate (defect A1/
       expect(repair).toBeUndefined();
     } finally {
       mockedFetch.mockImplementation(realFetch);
-      vi.mocked(isProtectionPiece).mockReturnValue(false);
+      vi.mocked(readsAsProtection).mockReturnValue(false);
       clearGenerationCache();
     }
   });
 
   it('never evicts anything via auditWeakest when every candidate reads as a free-interaction piece (iter-10 Slice A)', async () => {
-    // Mirrors the isProtectionPiece proof above, but for the new classifier —
-    // auditWeakest's skip condition is `isProtectionPiece(card) ||
+    // Mirrors the readsAsProtection proof above, but for the new classifier —
+    // auditWeakest's skip condition is `readsAsProtection(card) ||
     // isFreeInteraction(card)`, so forcing isFreeInteraction true must have
     // the same "no evictable candidate found" effect.
     vi.mocked(fetchCommanderCombosRaw).mockResolvedValueOnce([
@@ -1176,7 +1176,7 @@ describe('generateDeck — land-squeeze reconciliation (E88, iter-7 Slice B)', (
     // The single worst-scoring nonland pick (Creature_31, the tail of the
     // creature type pass) is seeded as a protection piece — it should survive
     // the squeeze even though it would otherwise be the first cut.
-    vi.mocked(isProtectionPiece).mockImplementation((c) => c.name === 'Creature_31');
+    vi.mocked(readsAsProtection).mockImplementation((c) => c.name === 'Creature_31');
 
     const ctx = baseContext();
     ctx.customization = customization({ nonBasicLandCount: 15 });
@@ -1200,7 +1200,7 @@ describe('generateDeck — land-squeeze reconciliation (E88, iter-7 Slice B)', (
       // ...while the next-worst, unprotected filler was cut instead.
       expect(names).not.toContain('Creature_30');
     } finally {
-      vi.mocked(isProtectionPiece).mockReturnValue(false);
+      vi.mocked(readsAsProtection).mockReturnValue(false);
       clearGenerationCache();
     }
   });
@@ -1241,7 +1241,7 @@ describe('generateDeck — land-squeeze reconciliation (E88, iter-7 Slice B)', (
     // forces that exact divergence and asserts the reconcile actually ran.
     vi.mocked(computeAutoLandCount).mockImplementationOnce(() => 35);
     vi.mocked(computeLandCountSizingAnchor).mockImplementationOnce(() => 33);
-    vi.mocked(isProtectionPiece).mockImplementation((c) => c.name === 'Creature_31');
+    vi.mocked(readsAsProtection).mockImplementation((c) => c.name === 'Creature_31');
 
     const ctx = baseContext();
     ctx.customization = customization({ nonBasicLandCount: 15 });
@@ -1258,7 +1258,7 @@ describe('generateDeck — land-squeeze reconciliation (E88, iter-7 Slice B)', (
       expect(deck.landSqueezeTrimNote).toBeDefined();
       expect(names).toContain('Creature_31');
     } finally {
-      vi.mocked(isProtectionPiece).mockReturnValue(false);
+      vi.mocked(readsAsProtection).mockReturnValue(false);
       clearGenerationCache();
     }
   });

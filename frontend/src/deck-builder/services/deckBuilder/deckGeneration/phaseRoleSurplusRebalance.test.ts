@@ -42,10 +42,10 @@ vi.mock('@/deck-builder/services/tagger/client', () => ({
   getRemovalSubtype: vi.fn(() => null),
   getBoardwipeSubtype: vi.fn(() => null),
   getCardDrawSubtype: vi.fn(() => null),
-  // #1022 gap fix: isProtected() now also checks isProtectionPiece — default
+  // #1022 gap fix: isProtected() now also checks readsAsProtection — default
   // false, overridden per-test via mockReturnValueOnce where protection
   // behavior itself is under test (mirrors phaseCoherenceRepair.test.ts).
-  isProtectionPiece: vi.fn(() => false),
+  readsAsProtection: vi.fn(() => false),
   isOneSidedWipe: vi.fn((card: { name: string }) => ONE_SIDED_WIPE_NAMES.has(card.name)),
   getWipeScope: vi.fn((card: { name: string }) => WIPE_SCOPE_OF.get(card.name) ?? EMPTY_WIPE_SCOPE),
   isFreeInteraction: vi.fn((card: { name: string }) => FREE_INTERACTION_NAMES.has(card.name)),
@@ -79,7 +79,7 @@ import {
   type RoleSurplusRebalanceContext,
 } from './phaseRoleSurplusRebalance';
 import type { GenerationState } from './state';
-import { isProtectionPiece } from '@/deck-builder/services/tagger/client';
+import { readsAsProtection } from '@/deck-builder/services/tagger/client';
 import { OWNED_PRIORITY_BOOST } from '../cardPicking';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -430,14 +430,14 @@ describe('applyRoleSurplusRebalance', () => {
     expect(state.usedNames.has(cards[1].name)).toBe(true);
   });
 
-  // #1022 gap fix: this pass's isProtected() didn't check isProtectionPiece
+  // #1022 gap fix: this pass's isProtected() didn't check readsAsProtection
   // until now — a roleless protection/free-interaction piece (Heroic
   // Intervention/Fierce Guardianship-class) tagged with a reactive role could
   // still be evicted here even though every sibling pass already protects it.
-  it('never evicts a card flagged isProtectionPiece', () => {
+  it('never evicts a card flagged readsAsProtection', () => {
     const state = makeState();
     const cards = addRampCards(state, 8);
-    vi.mocked(isProtectionPiece).mockImplementation((c) => c.name === cards[3].name);
+    vi.mocked(readsAsProtection).mockImplementation((c) => c.name === cards[3].name);
     state.edhrecData = {
       cardlists: { allNonLand: [edhrecCard('Payoff A', 90)] },
     } as unknown as GenerationState['edhrecData'];
@@ -449,7 +449,7 @@ describe('applyRoleSurplusRebalance', () => {
       expect(result.conversions[0].cut).not.toBe(cards[3].name);
       expect(state.usedNames.has(cards[3].name)).toBe(true);
     } finally {
-      vi.mocked(isProtectionPiece).mockReturnValue(false);
+      vi.mocked(readsAsProtection).mockReturnValue(false);
     }
   });
 
@@ -1425,7 +1425,7 @@ describe('applyRoleSurplusRebalance', () => {
       expect(remainingRamp).toHaveLength(5);
     });
 
-    // Donor-defect fix 3 (orchestrator diff-review): isProtectionPiece()
+    // Donor-defect fix 3 (orchestrator diff-review): readsAsProtection()
     // deliberately returns false for a free-interaction piece (#1037's
     // overlap exclusion), so a Fierce Guardianship/Commandeer-class roleless
     // card was protected by nothing in the donor pool and — on raw priority
@@ -1548,7 +1548,7 @@ describe('applyRoleSurplusRebalance', () => {
       }
       state.comboCardNames.add('Combo Filler');
       FREE_INTERACTION_NAMES.add('Free Interaction Filler');
-      vi.mocked(isProtectionPiece).mockImplementation((c) => c.name === 'Protection Filler');
+      vi.mocked(readsAsProtection).mockImplementation((c) => c.name === 'Protection Filler');
       // Ramp sits EXACTLY at its own target — donating one would drop ramp
       // under target, so every ramp card is refused too.
       addRampCards(state, 5);
@@ -1578,7 +1578,7 @@ describe('applyRoleSurplusRebalance', () => {
         );
         expect(remainingRamp).toHaveLength(5);
       } finally {
-        vi.mocked(isProtectionPiece).mockReturnValue(false);
+        vi.mocked(readsAsProtection).mockReturnValue(false);
       }
     });
 

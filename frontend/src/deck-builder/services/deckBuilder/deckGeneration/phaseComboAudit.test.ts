@@ -4,7 +4,7 @@ import type { ScryfallCard, DetectedCombo, EDHRECCard } from '@/deck-builder/typ
 vi.mock('@/deck-builder/services/tagger/client', () => ({
   getCardRole: vi.fn(() => null),
   validateCardRole: () => null,
-  isProtectionPiece: () => false,
+  readsAsProtection: () => false,
   isFreeInteraction: () => false,
 }));
 

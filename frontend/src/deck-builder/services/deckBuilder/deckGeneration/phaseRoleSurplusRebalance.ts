@@ -8,7 +8,7 @@ import type {
 import type { GenerationState } from './state';
 import {
   getCardRole,
-  isProtectionPiece,
+  readsAsProtection,
   isOneSidedWipe,
   isFreeInteraction,
   getWipeScope,
@@ -485,7 +485,7 @@ export function applyRoleSurplusRebalance(
     // because it happens to also carry a reactive-role tag — every sibling
     // pass (Smart Trim, phaseBracketConverge, phaseBudgetConverge,
     // phaseCoherenceRepair) already checks this; this pass hadn't yet.
-    isProtectionPiece(card);
+    readsAsProtection(card);
 
   // Nonbo-flagged cards evict first (E80 tie-in — the Isshin motivating case:
   // self-damaging wipes in a go-wide token shell). Recomputed here from the

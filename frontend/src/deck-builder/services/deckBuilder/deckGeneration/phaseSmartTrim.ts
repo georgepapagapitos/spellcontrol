@@ -1,7 +1,7 @@
 import type { ScryfallCard, DeckCategory } from '@/deck-builder/types';
 import type { RoleKey } from '@/deck-builder/services/tagger/client';
 import {
-  isProtectionPiece,
+  readsAsProtection,
   isFreeInteraction,
   validateCardRole,
 } from '@/deck-builder/services/tagger/client';
@@ -63,7 +63,7 @@ export function computeTrimResistance(
   if (card.isStapleRock || STAPLE_ROCK_NAMES.has(card.name)) {
     resistance += STAPLE_PROTECTION_BOOST;
   }
-  if (isProtectionPiece(card)) {
+  if (readsAsProtection(card)) {
     resistance += PROTECTION_PIECE_BOOST;
   }
   if (isFreeInteraction(card)) {

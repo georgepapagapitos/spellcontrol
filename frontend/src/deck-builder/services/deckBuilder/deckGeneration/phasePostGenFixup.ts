@@ -2,7 +2,7 @@ import { logger } from '@/lib/util/logger';
 import type { ScryfallCard, DeckCategory, CoherenceRepair } from '@/deck-builder/types';
 import {
   getCardRole,
-  isProtectionPiece,
+  readsAsProtection,
   isFreeInteraction,
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
@@ -94,7 +94,7 @@ export function postGenFixupPhase(
         // naturally from the EDHREC pool (the common case) arrives here
         // flagless (mirrors phaseRoleSurplusRebalance.ts's identical guard).
         if (card.isStapleRock || STAPLE_ROCK_NAMES.has(card.name)) continue;
-        if (isProtectionPiece(card) || isFreeInteraction(card)) continue;
+        if (readsAsProtection(card) || isFreeInteraction(card)) continue;
         if (filter && !filter(card, cat)) continue;
         // ponytail: position-based weakness is a pick-order proxy (iter-6
         // class); the protected set above neuters its worst failure — a

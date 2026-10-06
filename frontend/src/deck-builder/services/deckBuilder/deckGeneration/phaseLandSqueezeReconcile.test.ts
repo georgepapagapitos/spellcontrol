@@ -7,7 +7,7 @@ const ROLE_OF = new Map<string, RoleKey>();
 vi.mock('@/deck-builder/services/tagger/client', () => ({
   getCardRole: vi.fn((name: string) => ROLE_OF.get(name) ?? null),
   validateCardRole: vi.fn((card: { name: string }) => ROLE_OF.get(card.name) ?? null),
-  isProtectionPiece: vi.fn(() => false),
+  readsAsProtection: vi.fn(() => false),
   isFreeInteraction: vi.fn(() => false),
 }));
 
@@ -17,7 +17,7 @@ import {
 } from './phaseLandSqueezeReconcile';
 import { detectCombosPhase } from './phaseDetectCombos';
 import type { GenerationState } from './state';
-import { isProtectionPiece, isFreeInteraction } from '@/deck-builder/services/tagger/client';
+import { readsAsProtection, isFreeInteraction } from '@/deck-builder/services/tagger/client';
 import { FREE_INTERACTION_BOOST } from './trimResistanceConstants';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -136,7 +136,7 @@ function makeCtx(
 
 beforeEach(() => {
   ROLE_OF.clear();
-  vi.mocked(isProtectionPiece).mockReturnValue(false);
+  vi.mocked(readsAsProtection).mockReturnValue(false);
   vi.mocked(isFreeInteraction).mockReturnValue(false);
 });
 
@@ -214,7 +214,7 @@ describe('applyLandSqueezeReconcile', () => {
       filler
     );
     state.comboCardNames.add('Combo Piece');
-    vi.mocked(isProtectionPiece).mockImplementation((c) => c.name === 'Heroic Intervention');
+    vi.mocked(readsAsProtection).mockImplementation((c) => c.name === 'Heroic Intervention');
     // Every protected card has a WORSE (lower) raw inclusion than the filler —
     // proves the boosts, not luck, are what saves them.
     state.edhrecData = {
@@ -388,7 +388,7 @@ describe('applyLandSqueezeReconcile', () => {
     const filler1 = scryfallCard('Filler_1');
     const filler2 = scryfallCard('Filler_2');
     state.categories.synergy.push(mustInclude, protectionPiece, filler1, filler2);
-    vi.mocked(isProtectionPiece).mockImplementation((c) => c.name === 'Heroic Intervention');
+    vi.mocked(readsAsProtection).mockImplementation((c) => c.name === 'Heroic Intervention');
     state.edhrecData = {
       cardlists: {
         allNonLand: [

@@ -6,9 +6,9 @@ import type { ScryfallCard, EDHRECCard, DetectedCombo } from '@/deck-builder/typ
 vi.mock('@/deck-builder/services/tagger/client', () => ({
   getCardRole: vi.fn(() => null),
   validateCardRole: vi.fn(() => null),
-  // E87-new Slice A: softProtectionLabel also checks isProtectionPiece —
+  // E87-new Slice A: softProtectionLabel also checks readsAsProtection —
   // default false, overridden per-test where protection behavior is under test.
-  isProtectionPiece: vi.fn(() => false),
+  readsAsProtection: vi.fn(() => false),
   // iter-10 Slice A: softProtectionLabel also checks isFreeInteraction — same
   // default-false, per-test override shape.
   isFreeInteraction: vi.fn(() => false),
@@ -36,7 +36,7 @@ vi.mock('@/deck-builder/services/winConditions/detect', () => ({
 import { applyBudgetConvergence } from './phaseBudgetConverge';
 import {
   getCardRole,
-  isProtectionPiece,
+  readsAsProtection,
   isFreeInteraction,
 } from '@/deck-builder/services/tagger/client';
 import { isLoadBearing } from '@/deck-builder/services/synergy/deckSynergy';
@@ -311,23 +311,23 @@ describe('applyBudgetConvergence', () => {
     expect(result.finalTotal).toBeLessThanOrEqual(40);
   });
 
-  // E87-new Slice A: isProtectionPiece is a soft protection, same tier as
+  // E87-new Slice A: readsAsProtection is a soft protection, same tier as
   // load-bearing/lift/game-changer — yields in stage 2, never touched while
   // unprotected candidates suffice.
   it('never cuts a protection-class card when unprotected candidates suffice (soft)', async () => {
-    vi.mocked(isProtectionPiece).mockImplementation((c) => c.name === 'Pricey Card');
+    vi.mocked(readsAsProtection).mockImplementation((c) => c.name === 'Pricey Card');
     try {
       const state = makeState();
       const result = await applyBudgetConvergence(state, baseCtx({ deckBudget: 40 }));
       expect(state.usedNames.has('Pricey Card')).toBe(true);
       expect(result.finalTotal).toBeLessThanOrEqual(40);
     } finally {
-      vi.mocked(isProtectionPiece).mockReturnValue(false);
+      vi.mocked(readsAsProtection).mockReturnValue(false);
     }
   });
 
   it('discloses a protection-class card in the swap reason once stage 2 must cut it', async () => {
-    vi.mocked(isProtectionPiece).mockImplementation((c) => c.name === 'Pricey Card');
+    vi.mocked(readsAsProtection).mockImplementation((c) => c.name === 'Pricey Card');
     try {
       const state = makeState();
       // Tight enough that Mid + Cheap alone can't reach it, forcing stage 2
@@ -338,12 +338,12 @@ describe('applyBudgetConvergence', () => {
         'Saves $27.00: similar card type. Cut a protection/free-interaction piece to fit your budget.'
       );
     } finally {
-      vi.mocked(isProtectionPiece).mockReturnValue(false);
+      vi.mocked(readsAsProtection).mockReturnValue(false);
     }
   });
 
   // iter-10 Slice A: isFreeInteraction is the same soft-protection tier as
-  // isProtectionPiece, but its own branch/label — Commandeer-class cards the
+  // readsAsProtection, but its own branch/label — Commandeer-class cards the
   // protection classifier's regex misses.
   it('never cuts a free-interaction-class card when unprotected candidates suffice (soft)', async () => {
     vi.mocked(isFreeInteraction).mockImplementation((c) => c.name === 'Pricey Card');

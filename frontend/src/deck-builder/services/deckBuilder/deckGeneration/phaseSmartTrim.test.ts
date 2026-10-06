@@ -5,7 +5,7 @@ import type { RoleKey } from '@/deck-builder/services/tagger/client';
 vi.mock('@/deck-builder/services/tagger/client', () => ({
   getCardRole: () => null,
   validateCardRole: () => null,
-  isProtectionPiece: () => false,
+  readsAsProtection: () => false,
   isFreeInteraction: () => false,
 }));
 

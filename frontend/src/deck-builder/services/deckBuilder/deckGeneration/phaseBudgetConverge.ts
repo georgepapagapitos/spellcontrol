@@ -11,7 +11,7 @@ import type { GenerationState } from './state';
 import { frontFaceName } from '@/lib/cards/card-text';
 import {
   getCardRole,
-  isProtectionPiece,
+  readsAsProtection,
   isFreeInteraction,
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
@@ -374,8 +374,8 @@ export async function applyBudgetConvergence(
     if (state.cfg.targetBracket === undefined && state.gameChangerNames.has(card.name))
       return 'a game changer';
     if (state.comboCardNames.has(card.name)) return 'a combo-flavored pick';
-    if (isProtectionPiece(card)) return 'a protection/free-interaction piece';
-    // iter-10 Slice A: isProtectionPiece's label above already says
+    if (readsAsProtection(card)) return 'a protection/free-interaction piece';
+    // iter-10 Slice A: the protection label above already says
     // "protection/free-interaction piece", but its regex misses the
     // Commandeer-class cards this new classifier exists for (e.g. Fierce
     // Guardianship's "Counter target noncreature spell" still trips the

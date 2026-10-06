@@ -12,7 +12,7 @@ import { frontFaceName, getByCardName } from '@/lib/cards/card-text';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import {
   getCardRole,
-  isProtectionPiece,
+  readsAsProtection,
   isFreeInteraction,
 } from '@/deck-builder/services/tagger/client';
 import { stampRoleSubtypes, routeCardByType } from '../categorize';
@@ -219,7 +219,7 @@ export async function applyCoherenceRepair(
     (liftedByMap[card.name.toLowerCase()]?.length ?? 0) >= 2 ||
     state.gameChangerNames.has(card.name) ||
     isLoadBearing(card, deckSynergy) ||
-    isProtectionPiece(card) ||
+    readsAsProtection(card) ||
     isFreeInteraction(card);
 
   const findInDeck = (name: string): { card: ScryfallCard; category: DeckCategory } | null => {

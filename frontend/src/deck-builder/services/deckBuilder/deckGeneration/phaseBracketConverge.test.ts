@@ -13,9 +13,9 @@ vi.mock('@/deck-builder/services/tagger/client', () => ({
   // validated form when bucketing a newly-added card — mirror the
   // getCardRole default so behavior is unchanged for this test file.
   validateCardRole: vi.fn(() => null),
-  // E87-new Slice A: isProtected now also checks isProtectionPiece — default
+  // E87-new Slice A: isProtected now also checks readsAsProtection — default
   // false, overridden per-test where protection behavior is under test.
-  isProtectionPiece: vi.fn(() => false),
+  readsAsProtection: vi.fn(() => false),
   // iter-10 Slice A: isProtected now also checks isFreeInteraction — same
   // default-false, per-test override shape.
   isFreeInteraction: vi.fn(() => false),
@@ -34,7 +34,7 @@ vi.mock('../categorize', async (importOriginal) => {
 import { applyBracketConvergence, reconvergeUntilStable } from './phaseBracketConverge';
 import {
   getCardRole,
-  isProtectionPiece,
+  readsAsProtection,
   isFreeInteraction,
 } from '@/deck-builder/services/tagger/client';
 import { BudgetTracker } from '../budgetTracker';
@@ -329,7 +329,7 @@ describe('applyBracketConvergence', () => {
   it('never cuts a protection-class card, leaving an honest residual above target (E87-new Slice A)', () => {
     const state = makeState();
     state.cfg.targetBracket = 2;
-    vi.mocked(isProtectionPiece).mockImplementation((c) => c.name === 'Power Card');
+    vi.mocked(readsAsProtection).mockImplementation((c) => c.name === 'Power Card');
     try {
       const result = applyBracketConvergence(state, {
         scryfallCardMap: fillerScryfallMap(),
@@ -340,7 +340,7 @@ describe('applyBracketConvergence', () => {
       expect(state.categories.synergy.some((c) => c.name === 'Power Card')).toBe(true);
       expect(result.finalBracket).toBeGreaterThan(2);
     } finally {
-      vi.mocked(isProtectionPiece).mockReturnValue(false);
+      vi.mocked(readsAsProtection).mockReturnValue(false);
     }
   });
 
@@ -492,7 +492,7 @@ describe('applyBracketConvergence', () => {
     // Every in-deck candidate now reads as a protection piece — pickCut can
     // never find a card to make room with, so the UP swap can't complete
     // even though a Game Changer is sitting right there in the pool.
-    vi.mocked(isProtectionPiece).mockReturnValue(true);
+    vi.mocked(readsAsProtection).mockReturnValue(true);
     try {
       const result = applyBracketConvergence(state, {
         scryfallCardMap: map,
@@ -502,7 +502,7 @@ describe('applyBracketConvergence', () => {
       expect(result.applied).toBe(0);
       expect(state.usedNames.has('Pool GC')).toBe(false);
     } finally {
-      vi.mocked(isProtectionPiece).mockReturnValue(false);
+      vi.mocked(readsAsProtection).mockReturnValue(false);
     }
   });
 
@@ -515,7 +515,7 @@ describe('applyBracketConvergence', () => {
     map.set('Pool GC', scryfallCard('Pool GC'));
     // Every in-deck candidate now reads as a free-interaction piece — pickCut
     // can never find a card to make room with, same shape as the
-    // isProtectionPiece case above.
+    // readsAsProtection case above.
     vi.mocked(isFreeInteraction).mockReturnValue(true);
     try {
       const result = applyBracketConvergence(state, {
@@ -895,7 +895,7 @@ describe('applyBracketConvergence — comboCardNames must not deadlock DOWN conv
     const state = underTargetState();
     // Every in-deck candidate reads as a combo piece — pickCut can never find
     // a card to make room with, same deadlock shape as the
-    // isProtectionPiece/isFreeInteraction UP tests above, but this direction
+    // readsAsProtection/isFreeInteraction UP tests above, but this direction
     // is SUPPOSED to keep protecting combos (only DOWN drops the clause).
     state.comboCardNames = new Set(['Spell A', 'Spell B', 'Spell C', 'Spell D']);
     state.edhrecData = {

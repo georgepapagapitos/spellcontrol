@@ -10,7 +10,7 @@ import type { GenerationState } from './state';
 import { markBanned } from './state';
 import { frontFaceName, getByCardName } from '@/lib/cards/card-text';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
-import { isProtectionPiece, isFreeInteraction } from '@/deck-builder/services/tagger/client';
+import { readsAsProtection, isFreeInteraction } from '@/deck-builder/services/tagger/client';
 import {
   fitsColorIdentity,
   exceedsMaxPrice,
@@ -113,7 +113,7 @@ export function comboIntegrityAuditPhase(
         if (auditMustInclude.has(card.name.toLowerCase())) continue;
         if (completeComboCards.has(card.name)) continue;
         if (STAPLE_ROCK_NAMES.has(card.name)) continue; // E537
-        if (isProtectionPiece(card) || isFreeInteraction(card)) continue;
+        if (readsAsProtection(card) || isFreeInteraction(card)) continue;
         if (skipNames?.has(card.name) || skipNames?.has(frontFaceName(card.name))) continue;
         if (state.cfg.ownedQuotaProtects?.(card.name)) continue;
         const incl = getByCardName(auditInclusion, card.name) ?? 0;

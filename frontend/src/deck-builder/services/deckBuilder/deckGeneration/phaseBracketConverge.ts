@@ -6,7 +6,7 @@ import { frontFaceName, getByCardName } from '@/lib/cards/card-text';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import {
   getCardRole,
-  isProtectionPiece,
+  readsAsProtection,
   isFreeInteraction,
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
@@ -149,7 +149,7 @@ export function applyBracketConvergence(
     state.comboCardNames.has(card.name) ||
     STAPLE_ROCK_NAMES.has(card.name) || // E537
     commanderNames.includes(card.name) ||
-    isProtectionPiece(card) ||
+    readsAsProtection(card) ||
     isFreeInteraction(card);
 
   // DOWN-only variant (E105 iter-2): `state.comboCardNames` marks EVERY piece
@@ -169,7 +169,7 @@ export function applyBracketConvergence(
   const isProtectedForDownshift = (card: ScryfallCard): boolean =>
     mustIncludeNames.has(card.name.toLowerCase()) ||
     commanderNames.includes(card.name) ||
-    isProtectionPiece(card) ||
+    readsAsProtection(card) ||
     isFreeInteraction(card);
 
   const inclusionMap: Record<string, number> = {};
