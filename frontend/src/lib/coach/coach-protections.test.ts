@@ -273,6 +273,27 @@ describe('the whole-deck objective reads the same set (judgeMove)', { timeout: 1
     }
   });
 
+  it('never holds a basic land, whatever its page row says (Swamp at 98% of Meren decks)', () => {
+    const { ctx, deck } = built();
+    const swamp = deck.cards.find((c) => c.name === 'Swamp')!;
+    expect(FIX.merenPage['Swamp'].inclusion).toBeGreaterThan(98);
+    expect(protectionOf(swamp, deck, ctx)).toBeNull();
+    const verdict = judgeMove(deck, { out: ['Swamp'], in: [] }, ctx, { partial: true });
+    expect(verdict.refusal ?? '').not.toContain('staple');
+  });
+
+  it('and Coach would not suggest a basic back, with a missing-staple floor below its 98%', () => {
+    const { deck } = built();
+    const swamp = deck.cards.find((c) => c.name === 'Swamp')!;
+    const set = createCoachProtections({
+      commanders: [MEREN],
+      invested: analyzeDeckSynergy([...deck.cards]).invested,
+      inclusionOf: (n) => FIX.merenPage[n]?.inclusion,
+      gaps: [{ name: 'Sol Ring', inclusion: 30 }],
+    });
+    expect(set(swamp)).toBeNull();
+  });
+
   it('holds nothing extra when a context has no hook (generation is unchanged)', () => {
     const { deck } = built();
     const bare = merenCtx();
