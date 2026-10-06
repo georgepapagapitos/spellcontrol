@@ -87,6 +87,7 @@ import {
 } from './targetCounts';
 import { applyArchetypeTypeFloor } from './curveUtils';
 import { BudgetTracker } from './budgetTracker';
+import { reserveLandBudget } from './landBudgetReserve';
 import { BracketGuard, bracketCeilings, ceilingsAreOpen } from './bracketGuard';
 import {
   mergeWithAllNonLand,
@@ -2082,6 +2083,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       : mustIncludeCards;
     if (cardsToDeduct.length > 0) budgetTracker.deductMustIncludes(cardsToDeduct);
   }
+  // E561: hold the nonbasic land base's money back from the spell picks.
+  if (budgetTracker)
+    await reserveLandBudget(state, budgetTracker, effectiveNonBasicLandCount, targets.lands);
 
   // Hoisted so fixup pass can access the Scryfall card map after generation
   let scryfallCardMap: Map<string, ScryfallCard> = new Map();
