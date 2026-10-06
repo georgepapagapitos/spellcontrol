@@ -226,6 +226,16 @@ describe('E561 land budget', () => {
 });
 
 describe('BudgetTracker land reserve', () => {
+  it('drops the hold when an uncapped spend empties the budget, rather than lifting the spell cap (kitchen-sink: $50 over)', () => {
+    const t = new BudgetTracker(40, 70);
+    t.reserveForLands(2);
+    t.remainingBudget = -1; // a combo seat overshot the held remainder
+    const cap = t.getEffectiveCap(null);
+    expect(t.landReserve).toBe(0);
+    expect(t.remainingBudget).toBe(1);
+    expect(cap).toBeCloseTo(8 / 70);
+  });
+
   it('lets a staple see the budget as if nothing were held', () => {
     const t = new BudgetTracker(75, 80);
     t.reserveForLands(10);

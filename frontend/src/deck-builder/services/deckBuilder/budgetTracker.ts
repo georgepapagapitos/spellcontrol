@@ -37,6 +37,11 @@ export class BudgetTracker {
    */
   getEffectiveCap(staticMax: number | null, mayUseLandReserve = false): number | null {
     if (this.cardsRemaining <= 0) return staticMax;
+    // E561: an uncapped spend (combo seat, staple rock) can push the held
+    // remainder to zero, and a zero remainder lifts the cap off every spell
+    // (see below). Drop the hold then: the spells go on under a small positive
+    // cap, as they would with no hold, instead of buying out the deck.
+    if (this.landReserve > 0 && this.remainingBudget <= 0) this.releaseLandReserve();
     // E561: a staple (STAPLE_INCLUSION_BAR) is never priced out by the money
     // held for the land base; it sees the budget as if nothing were held.
     const remaining = this.remainingBudget + (mayUseLandReserve ? this.landReserve : 0);
