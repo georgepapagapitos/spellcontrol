@@ -76,11 +76,10 @@ export function evictionKeeper(
     }
   };
 
+  // The incoming card's own standing. A card that is a combo piece only because
+  // this swap would complete the line (Siona, for Enlightened Tutor) does not count.
   const isKeptKind = (card: ScryfallCard): boolean =>
-    getCardDrawSubtype(card.name) === 'tutor' ||
-    comboPieces.has(card.name) ||
-    readsAsProtection(card) ||
-    isFreeInteraction(card);
+    getCardDrawSubtype(card.name) === 'tutor' || readsAsProtection(card) || isFreeInteraction(card);
 
   return (card, incoming) => {
     refresh();

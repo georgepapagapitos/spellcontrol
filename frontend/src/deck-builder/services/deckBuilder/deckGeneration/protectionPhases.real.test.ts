@@ -84,6 +84,8 @@ interface AuditDeck {
   enabler?: ScryfallCard;
   enablerInclusion?: number;
   gameChangers?: string[];
+  /** EDHREC combos for this commander (default none). */
+  combos?: unknown[];
 }
 
 /** Runs the combo audit on a deck holding PieceA and PieceB (50%) plus `cards`,
@@ -127,7 +129,7 @@ function auditRun(deck: AuditDeck) {
     currentRoleCounts: { ramp: 0, removal: 0, boardwipe: 0, cardDraw: 0 },
     currentSubtypeCounts: {},
     mustIncludeNames: [],
-    combos: [],
+    combos: deck.combos ?? [],
     gameChangerNames: new Set<string>(deck.gameChangers ?? []),
     comboCardNames: new Set<string>(),
     edhrecData: {
@@ -241,6 +243,19 @@ describe('a combo completion never cuts what the deck keeps (E563)', () => {
     expect(repairs).toEqual([]);
     expect(state.usedNames.has('Enlightened Tutor')).toBe(true);
     expect(state.usedNames.has('Solitary Confinement')).toBe(true);
+    expect(state.usedNames.has(SIONA.name)).toBe(false);
+  });
+
+  it('does not cut Enlightened Tutor for Siona even though Siona completes a line (Sythis coll-partial50)', () => {
+    const { repairs, state } = siona({
+      cards: [
+        [SOLITARY, 33.2],
+        [ENLIGHTENED_TUTOR, 40.3],
+      ],
+      combos: [{ comboId: 'siona-line', cards: [{ name: 'PieceA' }, { name: SIONA.name }] }],
+    });
+    expect(repairs).toEqual([]);
+    expect(state.usedNames.has('Enlightened Tutor')).toBe(true);
     expect(state.usedNames.has(SIONA.name)).toBe(false);
   });
 
