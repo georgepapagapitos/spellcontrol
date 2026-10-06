@@ -25,6 +25,7 @@ import type { BudgetTracker } from '../budgetTracker';
 import type { BracketGuard } from '../bracketGuard';
 import { getCardRole } from '@/deck-builder/services/tagger/client';
 import { evictionKeeper } from './evictionKeeper';
+import { STAPLE_INCLUSION_BAR } from '../roleCapAllowance';
 
 export interface ComboAuditContext {
   /** Result of detectCombosPhase — the audit no-ops when undefined. */
@@ -146,9 +147,9 @@ export function comboIntegrityAuditPhase(
 
   // Same budget gate cardPicking/scryfallFill/coherenceRepair enforce — owned
   // copies are exempt, everything else checks the live effective cap.
-  function auditPassesBudget(card: ScryfallCard): boolean {
+  function auditPassesBudget(card: ScryfallCard, staple = false): boolean {
     if (isOwnedBudgetExempt(card.name, collectionNames, ignoreOwnedBudget)) return true;
-    const cap = budgetTracker?.getEffectiveCap(maxCardPrice) ?? maxCardPrice;
+    const cap = budgetTracker?.getEffectiveCap(maxCardPrice, staple) ?? maxCardPrice;
     return !exceedsMaxPrice(card, cap, currency);
   }
 
@@ -444,7 +445,9 @@ export function comboIntegrityAuditPhase(
         for (const cand of replacementCandidates) {
           const candCard = scryfallCardMap.get(cand.name)!;
           if (!auditCanAdd(candCard)) continue;
-          if (auditPassesBudget(candCard)) {
+          // E566: the best candidate by inclusion is a staple more often than not; the
+          // pacing cap priced Chaos Warp (52%, $0.33) out of Krenko's orphan slot.
+          if (auditPassesBudget(candCard, cand.inclusion >= STAPLE_INCLUSION_BAR)) {
             replacement = cand;
             break;
           }
