@@ -105,7 +105,12 @@ import {
 } from '@/lib/coach/deck-change';
 import { useReplaceCuts } from '@/lib/coach/replace-cuts';
 import { onPlanCombos, staplesToSubstitute } from '@/lib/coach/coach-changes';
-import { combosThatFit, gapsThatFit, useCoachSettings } from '@/lib/coach/deck-settings-fit';
+import {
+  coachTargetBracket,
+  combosThatFit,
+  gapsThatFit,
+  useCoachSettings,
+} from '@/lib/coach/deck-settings-fit';
 import { collectionLandsAsCards, landUpgradeCandidates } from '@/lib/coach/land-candidates';
 import { buildSwapAlternativeFactors, type WhyFactor } from '@/lib/coach/why-factors';
 import '../styles/deck-builder-card-search.css';
@@ -3601,6 +3606,8 @@ export function DeckEditorPage() {
                   onOwnedOnlyChange={handleOwnedOnlyChange}
                   settingsBreak={coachSettings.check}
                   hasReplaceCut={replaceCuts.hasCut}
+                  hasProtectedCut={replaceCuts.hasProtectedCut}
+                  targetBracket={coachTargetBracket(deck)}
                   aiAgrees={aiAgrees ?? undefined}
                   upgradePlan={
                     planAvailable

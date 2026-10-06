@@ -155,6 +155,8 @@ export interface Change {
   roleLabel?: string;
   /** EDHREC inclusion % (0–100). Primary sort key for fill-gaps. undefined → "Off-meta". */
   inclusion?: number;
+  /** Combos lane: how many decks run the line. Orders promoted completions (coach-rank.ts). */
+  comboPopularity?: number;
   /** EDHREC synergy delta. Secondary signal; can be negative. */
   synergy?: number;
   /** Game-changer (bracket-relevant high-power) — must survive (protection + correctness). */
@@ -839,5 +841,6 @@ export function fromComboCompletion(
       owned: ownership === 'owned',
     }),
     ownership,
+    comboPopularity: match.combo.popularity,
   };
 }

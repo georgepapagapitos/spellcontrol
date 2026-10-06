@@ -153,6 +153,10 @@ export interface CoachFeedProps {
   settingsBreak?: (change: Change) => SettingsBreak | null;
   /** False for an add the replace prompt has no cut for: it ranks last (replace-cuts.ts). */
   hasReplaceCut?: (change: Change) => boolean;
+  /** The bracket the deck is held to; a game-ending combo is promoted only where combos count. */
+  targetBracket?: number | 'all';
+  /** An add that has a real protected cut, or needs none (replace-cuts.ts `hasProtectedCut`). */
+  hasProtectedCut?: (change: Change) => boolean;
   /**
    * E458: the upgrade plan. The feed hosts it because the plan spends a
    * budget over this feed's own ranked list; the page owns the open flag (a
@@ -219,6 +223,8 @@ export function CoachFeed({
   aiAgrees,
   settingsBreak,
   hasReplaceCut,
+  targetBracket,
+  hasProtectedCut,
   upgradePlan,
 }: CoachFeedProps): JSX.Element {
   const busy = busyNames ?? new Set<string>();
@@ -429,6 +435,8 @@ export function CoachFeed({
       bracketOverridePresent,
       ownedNames,
       hasReplaceCut,
+      targetBracket,
+      hasProtectedCut,
     }),
     [
       planScore,
@@ -439,6 +447,8 @@ export function CoachFeed({
       bracketOverridePresent,
       ownedNames,
       hasReplaceCut,
+      targetBracket,
+      hasProtectedCut,
     ]
   );
 

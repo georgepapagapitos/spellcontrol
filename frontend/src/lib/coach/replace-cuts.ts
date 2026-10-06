@@ -44,6 +44,10 @@ export interface ReplaceCuts {
   /** False for an add to a full deck the prompt has no suggested cut for,
    *  unless the add newly completes a combo (that row keeps its rank). */
   hasCut: (change: Change) => boolean;
+  /** True when the add needs no cut (room in the deck) or the prompt really has
+   *  one for it, a combo completion's from `rankComboCuts` included. Unlike
+   *  `hasCut` it gives a completion no exemption. */
+  hasProtectedCut: (change: Change) => boolean;
 }
 
 export function replaceCuts(input: ReplaceCutInputs): ReplaceCuts {
@@ -79,10 +83,8 @@ export function replaceCuts(input: ReplaceCutInputs): ReplaceCuts {
       limit,
     });
   const known = new Map<string, boolean>();
-  const hasCut = (change: Change): boolean => {
+  const hasProtectedCut = (change: Change): boolean => {
     if (change.type !== 'add' || !input.full) return true;
-    // A combo completion keeps its rank with no cut: the prompt reads "Pick a card below".
-    if (completes(change.name)) return true;
     const key = change.name.toLowerCase();
     let has = known.get(key);
     if (has === undefined) {
@@ -101,7 +103,10 @@ export function replaceCuts(input: ReplaceCutInputs): ReplaceCuts {
     }
     return has;
   };
-  return { cutsFor, hasCut };
+  const hasCut = (change: Change): boolean =>
+    // A combo completion keeps its rank with no cut: the prompt reads "Pick a card below".
+    change.type !== 'add' || !input.full || completes(change.name) || hasProtectedCut(change);
+  return { cutsFor, hasCut, hasProtectedCut };
 }
 
 /** The deck page's replace cuts, rebuilt when the deck, its combos or its settings change. */

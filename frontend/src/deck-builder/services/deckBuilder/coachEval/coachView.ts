@@ -66,6 +66,8 @@ export interface CoachViewInputs {
   settingsFit?: (change: Change) => boolean;
   /** The deck has a budget or a per-card cap (DeckEditorPage `coachSettings.savesMoney`). */
   savesMoney?: boolean;
+  /** The page's `coachTargetBracket`: where a game-ending combo is promoted. */
+  targetBracket?: number | 'all';
   /** A card by name, for rows that carry none (the page reads its card cache). */
   resolveCard?: (name: string) => ScryfallCard | undefined;
 }
@@ -231,6 +233,8 @@ export function buildCoachView(input: CoachViewInputs): CoachView {
     deckTarget: COMMANDER_DECK_TARGET,
     bracketOverridePresent: false,
     ownedNames: new Set(ownedNames),
+    targetBracket: input.targetBracket,
+    hasProtectedCut: replace.hasProtectedCut,
   });
   const seenAdds = new Set<string>();
   const ranked = diversifyRankedMoves(
