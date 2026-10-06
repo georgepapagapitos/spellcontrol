@@ -1,4 +1,5 @@
 import { logger } from '@/lib/util/logger';
+import { STAPLE_ROCK_NAMES } from './phaseStapleManaRocks';
 import type {
   CoherenceRepair,
   DetectedCombo,
@@ -111,6 +112,7 @@ export function comboIntegrityAuditPhase(
       for (const card of categories[cat]) {
         if (auditMustInclude.has(card.name.toLowerCase())) continue;
         if (completeComboCards.has(card.name)) continue;
+        if (STAPLE_ROCK_NAMES.has(card.name)) continue; // E537
         if (isProtectionPiece(card) || isFreeInteraction(card)) continue;
         if (skipNames?.has(card.name) || skipNames?.has(frontFaceName(card.name))) continue;
         if (state.cfg.ownedQuotaProtects?.(card.name)) continue;
