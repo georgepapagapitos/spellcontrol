@@ -90,6 +90,15 @@ describe('BudgetTracker.getEffectiveCap', () => {
     expect(total).toBeLessThan(147);
   });
 
+  it('holds the nonbasic land picks to the cheapest viable price while in the red (kitchen-sink: Command Tower and shocks at $40)', () => {
+    const t = new BudgetTracker(40, 70);
+    t.remainingBudget = -20;
+    t.planLandPhase(8, 0.35);
+    expect(t.getEffectiveCap(null)).toBe(0.35);
+    t.endLandPhase();
+    expect(t.getEffectiveCap(null)).toBeGreaterThan(0.35);
+  });
+
   it('lets a premium on-plan card (Living Death, $5.99) compete once a $100 build is in the red', () => {
     const t = new BudgetTracker(100, 70);
     t.remainingBudget = -1;

@@ -56,11 +56,12 @@ export class BudgetTracker {
     // and rocks, can drive remainingBudget to zero or below). E566: this used to
     // return the static cap, which lifted the cap off every later pick (Krenko
     // $50 shipped at $147). A zero cap would ban every priced card, and a flat
-    // bulk cap starves the on-plan premium picks that convergence would keep
-    // (Meren $100 lost Living Death, Skullclamp, Victimize). So price against the
-    // budget as it stood unspent, tightening with the size of the hole.
+    // bulk cap starves the on-plan premium picks that convergence would keep. So
+    // price against the budget as it stood unspent, tightening with the hole.
     if (dynamicCap <= 0) {
-      const cap = this.exhaustedCap(-remaining);
+      let cap = this.exhaustedCap(-remaining);
+      // The land phase's cheapest viable option still binds a build in the red.
+      if (this.landSlots > 0) cap = Math.min(cap, Math.max(this.landFloor, EXHAUSTED_CAP));
       return staticMax === null ? cap : Math.min(staticMax, cap);
     }
     const cap = this.landSlots > 0 ? this.landPhaseCap(dynamicCap) : dynamicCap;
