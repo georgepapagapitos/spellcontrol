@@ -141,6 +141,7 @@ const nonbasicNames = (lands: ScryfallCard[]) =>
 function stateFor(edhrec: EDHRECCard[], identity: string[]): GenerationState {
   return {
     cfg: {
+      format: 99,
       maxRarity: null,
       maxCmc: null,
       arenaOnly: false,
@@ -224,6 +225,27 @@ describe('E561 land budget', () => {
     const t = new BudgetTracker(75, 80);
     expect(await reserveLandBudget(stateFor([], ATRAXA), t, NONBASIC_TARGET)).toBe(0);
     expect(t.remainingBudget).toBe(75);
+  });
+});
+
+describe('E561 staple rock hold', () => {
+  it('holds the rocks the deck lacks on a budget they would swallow, and nothing on a roomy one', async () => {
+    const edhrec = wire(['R']);
+    // The mocked client prices every named card at $0.05, so size the budget around that.
+    const tight = new BudgetTracker(0.5, 40);
+    await reserveLandBudget(stateFor(edhrec, ['R']), tight, 5);
+    expect(tight.rockReserve).toBeCloseTo(0.1); // Sol Ring + Arcane Signet
+    const roomy = new BudgetTracker(75, 80);
+    await reserveLandBudget(stateFor(edhrec, ['R']), roomy, 5);
+    expect(roomy.rockReserve).toBe(0);
+  });
+
+  it('skips a rock already in the deck', async () => {
+    const state = stateFor(wire(['R']), ['R']);
+    state.usedNames.add('Sol Ring');
+    const t = new BudgetTracker(0.5, 40);
+    await reserveLandBudget(state, t, 5);
+    expect(t.rockReserve).toBeCloseTo(0.05);
   });
 });
 

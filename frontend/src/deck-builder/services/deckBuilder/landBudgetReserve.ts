@@ -9,6 +9,7 @@ import { BASIC_LAND_NAMES } from '@/lib/collection/allocations';
 import type { ScryfallCard } from '@/deck-builder/types';
 import {
   commanderSearchIdentity,
+  getCardByName,
   getCardPrice,
   getCardsByNames,
   isMdfcLand,
@@ -23,6 +24,7 @@ import {
   type UserCapsConfig,
 } from './deckFilters';
 import type { GenerationState } from './deckGeneration/state';
+import { STAPLE_ROCKS } from './deckGeneration/phaseStapleManaRocks';
 
 /** Smallest reserve that still seats the target is the sum of the N cheapest
  *  viable nonbasics; the land picker ranks by merit, not price, so it gets
@@ -32,6 +34,9 @@ export const LAND_RESERVE_SLACK = 1.75;
 export const LAND_TAIL_SLOTS = 3;
 /** Spells keep at least this share of the budget however many lands cost. */
 export const LAND_RESERVE_MAX_SHARE = 0.2;
+/** The rocks are held for only when they cost this share of the budget or more:
+ *  Sol Ring + Arcane Signet are ~$2, invisible at $75 and a fifth of a $10 deck. */
+export const ROCK_HOLD_SHARE = 0.1;
 /** How many of the newest on-identity nonbasics the merit widen adds. */
 export const MERIT_POOL_MAX = 40;
 
@@ -85,6 +90,29 @@ export function landCandidatePrices(
   return prices.sort((a, b) => a - b);
 }
 
+/** Hold back what the staple rocks the deck lacks cost, on a budget so tight
+ *  that the spells would otherwise run through it first (Atraxa $10 shipped no
+ *  Sol Ring). Returns the amount held. */
+async function reserveRockBudget(state: GenerationState, tracker: BudgetTracker): Promise<number> {
+  const { cfg, context } = state;
+  if (cfg.format !== 99) return 0;
+  let cost = 0;
+  for (const rock of STAPLE_ROCKS) {
+    if (context.colorIdentity.length < rock.minColors) continue;
+    if (state.usedNames.has(rock.name) || state.bannedCards.has(rock.name)) continue;
+    try {
+      const card = await getCardByName(rock.name, cfg.arenaOnly);
+      if (violatesUserCaps(card, cfg, context.collectionNames)) continue;
+      cost += parseFloat(getCardPrice(card, cfg.currency) ?? '') || 0;
+    } catch {
+      // The rock phase reports a fetch failure; nothing to size from here.
+    }
+  }
+  if (cost <= 0 || cost < ROCK_HOLD_SHARE * Math.max(0, tracker.remainingBudget)) return 0;
+  tracker.reserveForRocks(cost);
+  return cost;
+}
+
 /** Reserve for the nonbasic slots, taken off `tracker`. Returns the amount held
  *  (0 when there is nothing to size it from). */
 export async function reserveLandBudget(
@@ -93,6 +121,7 @@ export async function reserveLandBudget(
   slots: number
 ): Promise<number> {
   const { cfg, context } = state;
+  await reserveRockBudget(state, tracker);
   const edhrecLands = state.edhrecData?.cardlists.lands ?? [];
   if (slots <= 0 || edhrecLands.length === 0) return 0;
   // The pool generateLands picks from: the top EDHREC slice plus the merit widen.
