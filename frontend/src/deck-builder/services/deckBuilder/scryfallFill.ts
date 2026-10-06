@@ -71,6 +71,30 @@ export interface FillHardGates {
   qualifiedGateOverflowCount?: { value: number };
 }
 
+/**
+ * Would seating `card` cross the target-bracket ceiling or the Game Changer
+ * limit? For a seating path that doesn't go through `fillWithScryfall` (the
+ * owned-substitute tier), which would otherwise ship a Game Changer into a
+ * bracket-2 deck. Mirrors the checks inside `tryAcceptCard`.
+ */
+export function exceedsFillCeilings(card: ScryfallCard, gates?: FillHardGates): boolean {
+  if (gates?.bracketGuard?.exceedsCeiling(card.name)) return true;
+  return (
+    !!gates?.gameChangerNames?.has(card.name) &&
+    gates.maxGameChangers !== undefined &&
+    (gates.gameChangerCount?.value ?? 0) >= gates.maxGameChangers
+  );
+}
+
+/** Count a card seated outside `fillWithScryfall` against the same ceilings. */
+export function recordFillSeat(card: ScryfallCard, gates?: FillHardGates): void {
+  if (gates?.gameChangerNames?.has(card.name) && gates.gameChangerCount) {
+    card.isGameChanger = true;
+    gates.gameChangerCount.value++;
+  }
+  gates?.bracketGuard?.record(card.name);
+}
+
 // Fill remaining slots with Scryfall search (fallback)
 export async function fillWithScryfall(
   query: string,
