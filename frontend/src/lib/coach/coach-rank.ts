@@ -133,8 +133,7 @@ export const PROMOTED_COMBO_CAP = 2;
 
 /**
  * The completions that lead the feed: owned first, then the line's deck count,
- * at most one per card and one per partner set (a second win line off the same
- * pieces is the repeat `diversifyRankedMoves` already defers).
+ * at most one per card.
  */
 function pickPromotedCombos(eligible: Change[]): Set<Change> {
   const sorted = [...eligible].sort(
@@ -145,13 +144,10 @@ function pickPromotedCombos(eligible: Change[]): Set<Change> {
   );
   const picked = new Set<Change>();
   const names = new Set<string>();
-  const lines = new Set<string | null>();
   for (const c of sorted) {
     if (picked.size >= PROMOTED_COMBO_CAP) break;
-    const line = diversityKey(c);
-    if (names.has(c.name) || lines.has(line)) continue;
+    if (names.has(c.name)) continue;
     names.add(c.name);
-    lines.add(line);
     picked.add(c);
   }
   return picked;

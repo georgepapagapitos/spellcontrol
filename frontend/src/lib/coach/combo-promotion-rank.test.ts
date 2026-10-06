@@ -213,7 +213,7 @@ describe('a game-ending combo completion ranks as a combo (E540)', () => {
     expect(order.slice(0, 2)).toEqual(['Peregrine Drake', 'Moon-Circuit Hacker']);
   });
 
-  it('promotes one line per partner set, so a third line off the same pieces stays put', () => {
+  it('promotes at most two lines; a third stays where it was', () => {
     const order = names([drakeLine, hackerLine, skullsnatcherLine], ctx({ targetBracket: 4 }));
     expect(order.slice(0, 2)).toEqual(['Peregrine Drake', 'Moon-Circuit Hacker']);
     expect(order.indexOf('Skullsnatcher')).toBeGreaterThan(GAPS.length);
