@@ -96,7 +96,7 @@ import {
   PRICE_SANITY_INCLUSION_BAND,
 } from './cardPicking';
 import { commanderMustSurvive, makeProtectionAdmits } from './deckGeneration/protectionPicks';
-import { buildRoleCapOverflowNote } from './deckGeneration/roleCapNote';
+import { buildRoleCapOverflowNote, withoutDanglingPointer } from './deckGeneration/roleCapNote';
 import { achievableComboPieces } from './deckGeneration/comboLines';
 import {
   categorizeCards,
@@ -4832,10 +4832,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // Role-cap escape-hatch disclosure (E77 iter-4 round 2) — aggregated across
   // every gated path over the whole generation; undefined when the cap was
   // never actually breached.
-  const roleCapOverflowNote = buildRoleCapOverflowNote(
-    roleCapOverflowCounts,
-    roleCapStapleCounts,
-    roleCapComboCounts
+  const roleCapOverflowNote = withoutDanglingPointer(
+    buildRoleCapOverflowNote(roleCapOverflowCounts, roleCapStapleCounts, roleCapComboCounts),
+    roleTargets ?? undefined,
+    finalRoleCounts
   );
 
   // Pick-time displacement disclosure (E160) — the deficit-direction
