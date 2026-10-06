@@ -202,7 +202,9 @@ describe('E561 land budget', () => {
       .sort((a, b) => a - b)
       .slice(0, NONBASIC_TARGET)
       .reduce((a, b) => a + b, 0);
-    const lands = await run(edhrec, ATRAXA, new BudgetTracker(cheapest * 1.2, 50), NONBASIC_TARGET);
+    const tracker = new BudgetTracker(cheapest * 1.2 + 1, 50);
+    tracker.reserveForLands(1); // released as the land phase starts
+    const lands = await run(edhrec, ATRAXA, tracker, NONBASIC_TARGET);
     expect(nonbasicNames(lands)).toHaveLength(NONBASIC_TARGET);
   });
 

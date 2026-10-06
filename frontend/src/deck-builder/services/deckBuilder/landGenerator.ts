@@ -162,7 +162,7 @@ export async function generateLands(
 ): Promise<ScryfallCard[]> {
   const lands: ScryfallCard[] = [];
   // E561: the nonbasic reserve held back from the spell picks comes back now.
-  budgetTracker?.releaseLandReserve();
+  const heldForLands = budgetTracker?.releaseLandReserve() ?? 0;
   const enforceAvailableCounts = collectionStrategy === 'available';
   const availableCount = (name: string): number =>
     enforceAvailableCounts ? (collectionAvailableCounts?.get(name) ?? 0) : Infinity;
@@ -378,8 +378,8 @@ export async function generateLands(
           ))
       );
     });
-    // E561: pace the picks so the cheapest candidates still seat the tail.
-    if (budgetTracker) {
+    // E561: with money held for them, pace the picks so the cheapest candidates still seat the tail.
+    if (budgetTracker && heldForLands > 0) {
       const prices = landCandidatePrices(
         capsFilteredLands.flatMap((c) => landCardMap.get(c.name) ?? []),
         colorIdentity,

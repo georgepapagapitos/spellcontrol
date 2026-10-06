@@ -81,10 +81,13 @@ export class BudgetTracker {
     this.remainingBudget -= amount;
   }
 
-  /** Give the held money back as the land phase starts (no-op without one). */
-  releaseLandReserve(): void {
-    this.remainingBudget += this.landReserve;
+  /** Give the held money back as the land phase starts (no-op without one);
+   *  returns the amount, 0 when nothing was held. */
+  releaseLandReserve(): number {
+    const held = this.landReserve;
+    this.remainingBudget += held;
     this.landReserve = 0;
+    return held;
   }
 
   /** Pace the nonbasic picks: `slots` to seat, the costliest of the cheapest
