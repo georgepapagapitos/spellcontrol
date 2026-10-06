@@ -472,8 +472,7 @@ export function applyRoleSurplusRebalance(
     for (const n of combo.cards) completeComboNames.add(n);
   }
 
-  // E563: what the keeper holds is judged against the card coming in (a kept
-  // card leaves for one at least as strong), so it is not part of isProtected.
+  // E563: the keeper judges the card coming in too, so it is not part of isProtected.
   const keeps = evictionKeeper(state);
   const isProtected = (card: ScryfallCard): boolean =>
     !!card.isMustInclude ||
@@ -631,7 +630,7 @@ export function applyRoleSurplusRebalance(
      *  Phase 1/2's job). Undefined for every existing caller (unchanged
      *  behavior). */
     roleFilter?: RoleKey,
-    /** E563: skips a candidate evictionKeeper would not let the evicted card leave for. */
+    /** E563: skips a candidate the keeper blocks for the evicted card. */
     canReplace?: (card: ScryfallCard) => boolean
   ): ScryfallCard | null => {
     const eligible = pool.filter(

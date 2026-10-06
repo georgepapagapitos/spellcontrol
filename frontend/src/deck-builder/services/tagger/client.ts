@@ -366,16 +366,13 @@ export function isProtectionPiece(card: {
 }
 
 /**
- * E563: every card that reads as protection, and the ONE predicate the report,
- * the deck objective and every generation phase that protects a piece from
- * eviction share. `isProtectionPiece`, plus a grant whose target is named in
- * the sentence before ("Put a +1/+1 counter on target creature you control. It
- * gains hexproof until end of turn." - Snakeskin Veil), plus a keyword granted
- * to the card's holder ("Enchanted creature has protection from the chosen
- * color." - Flickering Ward; "You have shroud." - Solitary Confinement), read
- * by protectionReading.ts. `isProtectionPiece` stays the narrow tagger evidence
- * this builds on; phases read this, not it (a phase that reads the narrow one
- * cut Solitary Confinement for a combo audit).
+ * E563: every card that reads as protection, the ONE predicate the report, the
+ * deck objective and every generation phase that protects a piece from
+ * eviction share: `isProtectionPiece`, plus a grant whose target is named in
+ * the sentence before (Snakeskin Veil), plus a keyword granted to the card's
+ * holder (Flickering Ward, Solitary Confinement), read by protectionReading.ts.
+ * Phases read this, never the narrow `isProtectionPiece` (it let a combo audit
+ * cut Solitary Confinement).
  */
 export function readsAsProtection(card: {
   name: string;
