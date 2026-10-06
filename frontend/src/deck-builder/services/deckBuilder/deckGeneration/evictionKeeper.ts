@@ -91,7 +91,11 @@ export function evictionKeeper(
     if (!incoming) return true;
     const incomingClasses = answerClassesOf(incoming);
     const covers = lastClasses.every((cls) => incomingClasses.includes(cls));
-    const asStrong = isKeptKind(incoming) || inclusionOf(incoming.name) >= inclusionOf(card.name);
+    // A piece of a line leaves only for another kept card: inclusion says nothing
+    // about a line (Leyline of Abundance, 5.7%, is the engine of Lathril's infinite).
+    const asStrong =
+      isKeptKind(incoming) ||
+      (!comboPieces.has(card.name) && inclusionOf(incoming.name) >= inclusionOf(card.name));
     if (asStrong || (!staple && !tutorOrLine && covers)) return false;
     state.keeperBlocked?.add(incoming.name);
     return true;

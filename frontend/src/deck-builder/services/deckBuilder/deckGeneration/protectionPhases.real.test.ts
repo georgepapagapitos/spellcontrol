@@ -436,4 +436,31 @@ describe('evictionKeeper blocks only downgrades', () => {
     expect(keeps(EZURI, FILLER_CARD)).toBe(true);
     expect(state.keeperBlocked.has('Greenweaver Druid')).toBe(true);
   });
+
+  it('lets a line piece leave only for another kept card, not for a better-played one (Lathril: Leyline of Abundance)', () => {
+    const leyline = card('Leyline of Abundance');
+    const tribe = card('Llanowar Tribe');
+    const mantle = card('Umbral Mantle');
+    const winnower = card('Ruthless Winnower');
+    const state = {
+      edhrecData: {
+        cardlists: {
+          allNonLand: [
+            { name: 'Leyline of Abundance', id: 'l', inclusion: 5.7 },
+            { name: 'Ruthless Winnower', id: 'w', inclusion: 37.1 },
+          ],
+        },
+      },
+      combos: [
+        {
+          comboId: 'x',
+          cards: [{ name: leyline.name }, { name: tribe.name }, { name: mantle.name }],
+        },
+      ],
+      categories: { lands: [], synergy: [leyline, tribe, mantle] },
+    } as unknown as GenerationState;
+    const keeps = evictionKeeper(state);
+    expect(keeps(leyline, winnower)).toBe(true);
+    expect(keeps(leyline, WORLDLY)).toBe(false);
+  });
 });

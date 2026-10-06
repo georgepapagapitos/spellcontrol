@@ -630,7 +630,9 @@ export function applyRoleSurplusRebalance(
      *  specifically, not "whatever payoff ranks highest overall" (that's
      *  Phase 1/2's job). Undefined for every existing caller (unchanged
      *  behavior). */
-    roleFilter?: RoleKey
+    roleFilter?: RoleKey,
+    /** E563: skips a candidate evictionKeeper would not let the evicted card leave for. */
+    canReplace?: (card: ScryfallCard) => boolean
   ): ScryfallCard | null => {
     const eligible = pool.filter(
       (c) =>
@@ -694,6 +696,7 @@ export function applyRoleSurplusRebalance(
       if (exceedsCmcCap(card, ctx.maxCmc)) continue;
       if (notOnArena(card, ctx.arenaOnly)) continue;
       if (!destinationRoleOk(card, evictedRole)) continue;
+      if (canReplace && !canReplace(card)) continue;
       if (!allowSameRole && countedRoleOf(card) === evictedRole) continue; // defect 6a: role-exit phase only
       // Price sanity (E80/#1011 precedent — cardPicking.ts's PRICE_SANITY_RATIO
       // = 20, reused verbatim): a candidate dramatically pricier than the card
@@ -803,10 +806,11 @@ export function applyRoleSurplusRebalance(
         candidate.survival,
         evictedPrice,
         candidate.role,
-        allowSameRole
+        allowSameRole,
+        undefined,
+        (incoming) => !keeps(candidate.card, incoming)
       );
       if (!replacement) continue; // this candidate has no legal upgrade — try the next-worst one
-      if (keeps(candidate.card, replacement)) continue; // E563: a downgrade of a kept card
 
       const wasSameRole = countedRoleOf(replacement) === candidate.role;
       removeCard(candidate.card, candidate.category, candidate.role);

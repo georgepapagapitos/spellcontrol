@@ -272,6 +272,25 @@ describe('applyRoleSurplusRebalance', () => {
     expect(result.conversions[0].cut).toMatch(/^Ramp_/); // not Draw_1, the lowest-scored card
   });
 
+  it('lets an over-cap staple leave for a card played more often (E563: Narset for Ezuri)', () => {
+    const state = makeState();
+    addRampCards(state, 7); // target 2 -> 3.5x
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [
+          edhrecCard('The Only Payoff', 95),
+          ...Array.from({ length: 7 }, (_, i) => edhrecCard(`Ramp_${i + 1}`, 45)),
+        ],
+      },
+    } as unknown as GenerationState['edhrecData'];
+    const roleTargets = { ramp: 2, removal: 0, boardwipe: 0, cardDraw: 0 };
+    const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+    expect(result.conversions).toHaveLength(1);
+    expect(result.conversions[0].added).toBe('The Only Payoff');
+    expect(result.conversions[0].cut).toMatch(/^Ramp_/);
+  });
+
   it('never converts a spell into a land from the pool (E485)', () => {
     // allNonLand carries utility lands; kozilek converted Oblivion Stone into
     // Eldrazi Temple and shipped 40 lands on 38.
