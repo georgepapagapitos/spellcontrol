@@ -289,7 +289,7 @@ describe('applyBudgetConvergence', () => {
     expect(state.usedNames.has('Mid Card')).toBe(false);
   });
 
-  it('leaves a kept staple alone when no cut of the kept cards can close the gap (E566: Shadow of Mortality -> Wingcrafter, $0.58, in a build $9.78 over)', async () => {
+  it('leaves a kept staple alone when its cut is a small dent in the gap (E566: Shadow of Mortality -> Wingcrafter, $0.58, in a build $9.78 over)', async () => {
     const state = makeState();
     state.categories.synergy = [
       scryfallCard('Force of Will', '60', { isMustInclude: true }),
@@ -310,7 +310,7 @@ describe('applyBudgetConvergence', () => {
     expect(state.usedNames.has('Shadow of Mortality')).toBe(true);
   });
 
-  it('still cuts a kept card when the kept cards can close the gap', async () => {
+  it('still cuts a kept card whose price is a material share of the gap', async () => {
     const state = makeState();
     state.categories.synergy = [scryfallCard('Pricey Card', '30')];
     state.usedNames = new Set(['Pricey Card']);
