@@ -104,6 +104,8 @@ import {
   type EvalDeckState,
   type MoveAudit,
 } from './applyCoachMoves';
+import { shadowMarkdown, shadowNumbers } from './coachShadowReport';
+import { shadowRecord, type ShadowRecord } from './coachShadow';
 import { advisedDump, rebuildDeck, stampGenerationFlags, type CoachDump } from './coachDump';
 import { buildNameMatcher, extractDeckLabels } from './coachLabels';
 import {
@@ -207,6 +209,21 @@ const writeJson = (path: string, value: unknown) => {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, JSON.stringify(value, null, 2));
 };
+
+// ---- E540 S4: shadow scoring (COACH_SHADOW=1) -------------------------------------
+// Beside the legacy feed, the whole-deck objective's verdict on every row shown.
+// Nothing here changes what Coach does.
+const SHADOW = process.env.COACH_SHADOW === '1';
+const SHADOW_GAMES = Number(process.env.COACH_SHADOW_GAMES ?? 1000);
+const shadowRecords: ShadowRecord[] = [];
+
+function writeShadowReport(corpus: ShadowRecord['corpus']): void {
+  const mine = shadowRecords.filter((r) => r.corpus === corpus);
+  if (mine.length === 0) return;
+  const numbers = shadowNumbers(mine);
+  writeJson(join(OUT, 'shadow', `${corpus}-report.json`), { numbers, records: mine });
+  writeFileSync(join(OUT, 'shadow', `${corpus}-report.md`), shadowMarkdown(corpus, numbers));
+}
 
 // ---- Card records from the Scryfall bulk file ---------------------------------
 
@@ -903,6 +920,22 @@ describe.skipIf(!process.env.LIVE_GEN || adviseRows.length === 0)('Coach eval: a
           violations: s.violations,
         }));
         record.audit = flagAudit(audit, pass1, deck);
+        if (SHADOW) {
+          const shadow = await shadowRecord({
+            corpus: 'advise',
+            group: panel.name,
+            deck: record.deck,
+            state: deck,
+            customization: dump.customization as Record<string, unknown>,
+            ownedNames: settings.ownedNames,
+            gameChangers: GAME_CHANGERS,
+            pass: pass1,
+            resolve: cardFor,
+            games: SHADOW_GAMES,
+          });
+          shadowRecords.push(shadow);
+          writeJson(join(OUT, 'shadow', 'advise', panel.name, file), shadow);
+        }
         record.selfReversed = result.applied
           .filter((a, i) => a.cut && result.applied.slice(0, i).some((b) => b.added === a.cut))
           .map((a) => a.cut!);
@@ -958,6 +991,7 @@ describe.skipIf(!process.env.LIVE_GEN || adviseRows.length === 0)('Coach eval: a
       md.push(adviseMarkdown(panel, numbers));
     }
     writeFileSync(join(OUT, 'advise-report.md'), md.join('\n\n'));
+    writeShadowReport('advise');
     writeJson(join(OUT, 'missed-urls.json'), missedUrls);
     writeJson(join(OUT, 'bulk-misses.json'), [...bulkMisses]);
     console.log(`[coach-eval] advise:\n${md.join('\n\n')}\nnet ${JSON.stringify(netStats)}`);
@@ -1065,6 +1099,27 @@ describe.skipIf(!process.env.LIVE_GEN || benchRows.length === 0)('Coach eval: be
           nbmStrategy: { post: post.strategy, pre: pre.strategy },
         };
         benchRecords.push(record);
+        if (SHADOW) {
+          const shadow = await shadowRecord({
+            corpus: 'bench',
+            group: gate.name,
+            deck: name,
+            state: deck,
+            customization: dump.customization as Record<string, unknown>,
+            ownedNames: settingsOf(dump).ownedNames,
+            gameChangers: GAME_CHANGERS,
+            pass: post.pass,
+            resolve: cardFor,
+            games: SHADOW_GAMES,
+            labels: {
+              weak: labels.weak,
+              missing: labels.missing,
+              lostPremium: labels.lostPremium,
+            },
+          });
+          shadowRecords.push(shadow);
+          writeJson(join(OUT, 'shadow', 'bench', gate.name, `${name}.json`), shadow);
+        }
         writeJson(join(OUT, 'benchmark', gate.name, `${name}.json`), {
           ...record,
           mentions: labels.mentions,
@@ -1090,6 +1145,7 @@ describe.skipIf(!process.env.LIVE_GEN || benchRows.length === 0)('Coach eval: be
       byGate[g] = benchNumbers(benchRecords.filter((r) => r.gate === g));
     }
     writeJson(join(OUT, 'benchmark', 'report.json'), { numbers, byGate, net: netStats });
+    writeShadowReport('bench');
     writeJson(join(OUT, 'missed-urls.json'), missedUrls);
     writeJson(join(OUT, 'bulk-misses.json'), [...bulkMisses]);
     const md = benchMarkdown(numbers);

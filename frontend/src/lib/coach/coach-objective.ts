@@ -51,6 +51,7 @@ import {
 import { edhrecRowsFrom } from '@/deck-builder/services/deckBuilder/deckObjective/panelDump';
 import { getByCardName } from '@/lib/cards/card-text';
 import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
+import { comboEndsGame } from '@/deck-builder/services/winConditions/detect';
 import { coachDeckSettings } from './deck-settings-fit';
 import { createCoachProtections, type CoachProtectionInputs } from './coach-protections';
 
@@ -227,14 +228,20 @@ function nearMiss(m: ComboMatch): DetectedCombo {
 /**
  * The commander's combo set from the combos panel's answer: the lines the deck
  * holds (templates resolved against its cards) and the lines one card away,
- * which are what an add can complete.
+ * which are what an add can complete. A line one card away counts only when the
+ * loop ends the game (`comboEndsGame`, E437): the rule the combos lane and the
+ * Next best move share, so an add that would only make mana or draw cards is
+ * never credited as a combo.
  */
 export function coachCombos(
   resp: ComboMatchResponse | null | undefined,
   deckCards: readonly ScryfallCard[]
 ): DetectedCombo[] {
   if (!resp) return [];
-  return [...comboMatchesToDetected(resp, deckCards), ...resp.oneAway.map(nearMiss)];
+  return [
+    ...comboMatchesToDetected(resp, deckCards),
+    ...resp.oneAway.filter((m) => comboEndsGame(m.combo.produces)).map(nearMiss),
+  ];
 }
 
 export interface CoachObjectiveEnv extends Omit<CoachObjectiveInput, 'deck' | 'rows'> {
