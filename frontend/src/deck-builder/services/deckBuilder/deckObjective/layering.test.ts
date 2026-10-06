@@ -1,6 +1,6 @@
 // @vitest-environment node
 //
-// Guard: the objective never reaches the generator. E513's search will be
+// Guard: the objective never reaches the generator, nor Coach (lib/coach). E513's search will be
 // CALLED by deckGenerator.ts, so any value import from the objective back into
 // the generator (or its phases) closes an import cycle the moment the search
 // is wired in. It happened once already: constraints.ts took normalizeCardName
@@ -12,11 +12,16 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 
 const SRC = resolve(__dirname, '..', '..', '..', '..');
-const ENTRIES = ['index.ts', 'optimizer.ts'].map((f) => resolve(__dirname, f)).filter(existsSync);
+const ENTRIES = ['index.ts', 'optimizer.ts', 'judge.ts']
+  .map((f) => resolve(__dirname, f))
+  .filter(existsSync);
 const FORBIDDEN = [
   /deck-builder[\\/]services[\\/]deckBuilder[\\/]deckGenerator\.ts$/,
   /deck-builder[\\/]services[\\/]deckBuilder[\\/]deckInvariants\.ts$/,
   /deck-builder[\\/]services[\\/]deckBuilder[\\/]deckGeneration[\\/]/,
+  // Coach reads the objective (lib/coach/coach-objective.ts), never the other
+  // way: the objective is generation's and Coach's shared judge (E540).
+  /src[\\/]lib[\\/]coach[\\/]/,
 ];
 
 function resolveSpec(fromFile: string, spec: string): string | null {

@@ -102,6 +102,12 @@ export interface ObjectiveContextInput {
    * Omitted: name order, which is deterministic but shares no games.
    */
   slotOrder?: readonly string[];
+  /**
+   * Score a deck that is not at its size yet (Coach judging a move on a deck
+   * being built): the size check then objects only to a deck that is too
+   * large. Generation never sets it, so its constraints are unchanged.
+   */
+  allowPartial?: boolean;
   /** Term weight overrides (multipliers on DEFAULT_WEIGHTS). */
   weights?: Partial<Record<TermKey, number>>;
 }
