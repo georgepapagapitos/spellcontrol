@@ -93,6 +93,8 @@ function analysis(): CommanderDeckAnalysisResult {
     ],
     hiddenGems: [],
     cardInclusionMap: {},
+    // The hero only names a combo piece this commander's decks play.
+    suggestionCards: { 'Mox Amber': { price: '2.10', rarity: 'rare', inclusion: 18 } },
     optimizeSwaps: {
       additions: [],
       removals: [
@@ -130,11 +132,12 @@ describe('buildCoachView', () => {
       ownedOnly: false,
     });
     const feedNames = view.feed.map((r) => r.change.name);
-    // Gap rows by play rate; the combo completion rides in the feed too.
-    expect(feedNames.slice(0, 3)).toEqual(['Rhystic Study', 'Fact or Fiction', 'Burgeoning']);
-    expect(feedNames).toContain('Mox Amber');
-    // Cut rows carry no delta, so rankCoachMoves orders them by play rate, highest first.
-    expect(view.cuts.map((r) => r.change.name)).toEqual(['Aetherize', 'Negate']);
+    // Gap rows by play rate; the combo completion rides in the feed too. The
+    // deck's ramp is at its target, so Burgeoning is no gap (T171 round 3).
+    expect(feedNames.slice(0, 3)).toEqual(['Rhystic Study', 'Fact or Fiction', 'Mox Amber']);
+    expect(feedNames).not.toContain('Burgeoning');
+    // The Cuts chip reads weakest first: the least played here leads.
+    expect(view.cuts.map((r) => r.change.name)).toEqual(['Negate', 'Aetherize']);
     // The hero names the missing combo piece.
     expect(view.nbm.find((m) => m.cardName)?.cardName).toBe('Mox Amber');
     expect(view.roleCounts.cardDraw).toBeGreaterThan(0);
@@ -155,5 +158,48 @@ describe('buildCoachView', () => {
       ownedOnly: true,
     });
     expect(view.feed.map((r) => r.change.name)).toEqual(['Fact or Fiction']);
+  });
+
+  // T171 round 3, v4 gate: a Yuriko deck with no budget had Underground Sea
+  // swapped for Temple of Deceit by the Budget lane, with no reason given.
+  it('runs the Budget lane only for a deck that asks to save money', () => {
+    const withPlan = {
+      ...analysis(),
+      costPlan: {
+        currentTotal: 50,
+        minTotal: 45,
+        spellRows: [
+          {
+            id: 'Counterspell',
+            currentName: 'Counterspell',
+            currentPrice: 1.5,
+            // Below the least-played missing staple (22%): a drop-in, not a re-add.
+            currentInclusion: 10,
+            suggestionName: 'Mana Leak',
+            suggestionPrice: 0.3,
+            suggestionInclusion: 25,
+            savings: 1.2,
+            confidence: 'drop-in' as const,
+            category: 'spell' as const,
+          },
+        ],
+        landRows: [],
+        protectedCount: 0,
+      },
+    } as unknown as CommanderDeckAnalysisResult;
+    const view = (savesMoney: boolean) =>
+      buildCoachView({
+        ...base,
+        cards: tatyova(),
+        analysis: withPlan,
+        ownedNames: new Set(),
+        combos: { inDeck: [], oneAway: [] },
+        ownedOnly: false,
+        savesMoney,
+      }).feed.filter((r) => r.change.lane === 'budget');
+    expect(view(false)).toEqual([]);
+    const rows = view(true);
+    expect(rows.map((r) => r.change.name)).toEqual(['Mana Leak']);
+    expect(rows[0].change.reason).toBe('Same job for less');
   });
 });

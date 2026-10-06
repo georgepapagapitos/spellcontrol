@@ -1135,6 +1135,18 @@ describe('generateDeck — collection relaxation (T43 PR-3)', () => {
       for (const n of names) if (ownedByName.has(n)) m.set(n, ownedByName.get(n)!);
       return m;
     });
+    // A page of staples has no filler for the owned share to displace (the swap
+    // never takes a card at STAPLE_INCLUSION_BAR), so cap this page's rates.
+    const realPage = vi.mocked(fetchCommanderData).getMockImplementation()!;
+    vi.mocked(fetchCommanderData).mockImplementation(async (...args) => {
+      const page = await realPage(...args);
+      const cap = (l: EDHRECCard[]) =>
+        l.map((c) => ({ ...c, inclusion: Math.min(c.inclusion, 30) }));
+      const lists = Object.fromEntries(
+        Object.entries(page.cardlists).map(([k, v]) => [k, cap(v as EDHRECCard[])])
+      );
+      return { ...page, cardlists: lists as unknown as typeof page.cardlists };
+    });
     clearGenerationCache();
     try {
       const deck = await generateDeck(ctx);
@@ -1146,6 +1158,7 @@ describe('generateDeck — collection relaxation (T43 PR-3)', () => {
       expect(Object.values(deck.categories).flat()).toHaveLength(99);
     } finally {
       mockedFetch.mockImplementation(realFetch);
+      vi.mocked(fetchCommanderData).mockImplementation(realPage);
       clearGenerationCache();
     }
   });

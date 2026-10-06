@@ -208,7 +208,7 @@ export function DeckCustomizer({ customization, update }: DeckCustomizerProps) {
                 <CardListGroup
                   hint={
                     poolFetcher
-                      ? `These cards go in first. While "Build from my collection" is on, search is limited to ${
+                      ? `These cards go in first. While "Use my collection" is on, search is limited to ${
                           customization.collectionStrategy === 'available'
                             ? 'free copies in your collection'
                             : 'cards you own'
@@ -491,8 +491,10 @@ function CollectionGroup({ customization, update }: DeckCustomizerProps) {
           ? 'Uses only copies not committed to other decks.'
           : strategy === 'prefer'
             ? 'Leans on cards you own. Nothing is excluded.'
-            : 'Uses only cards you own.'
-      : 'Constrain the build to your owned cards.';
+            : strategy === 'exclude'
+              ? 'Leaves out every card you own, except basic lands and your must-includes.'
+              : 'Uses only cards you own.'
+      : 'Build from the cards you own, or leave them out.';
   return (
     <div className={`deck-customizer-group collection-group${active ? ' active' : ''}`}>
       <label className="collection-group-row">
@@ -505,12 +507,12 @@ function CollectionGroup({ customization, update }: DeckCustomizerProps) {
           // otherwise concatenate the sub-description text below into the
           // accessible name too, which reads as a run-on to a screen reader
           // (same pattern as ManaPhilosophyGroup below).
-          aria-label="Build from my collection"
+          aria-label="Use my collection"
           onChange={(e) => update({ collectionMode: e.target.checked })}
         />
         <span className="collection-group-text">
           <span className="collection-group-title-row">
-            <span className="collection-group-title">Build from my collection</span>
+            <span className="collection-group-title">Use my collection</span>
             <span className="collection-group-badge" aria-hidden>
               {uniqueCount.toLocaleString()} unique
             </span>
@@ -530,6 +532,7 @@ function CollectionGroup({ customization, update }: DeckCustomizerProps) {
                 { value: 'full', label: 'Only my cards', hint: 'Owned only' },
                 { value: 'partial', label: 'Owned share %', hint: 'Target %' },
                 { value: 'available', label: 'Available only', hint: 'Free copies' },
+                { value: 'exclude', label: 'Skip my cards', hint: 'None owned' },
               ]}
               onChange={(v) => update({ collectionStrategy: v })}
             />

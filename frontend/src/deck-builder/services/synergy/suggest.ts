@@ -11,7 +11,9 @@
 import { classifyCard } from './classify';
 import type { CardLike } from './text';
 import type { AxisKey } from './axes';
-import type { DeckSynergy } from './deckSynergy';
+import { REASON } from './reasons';
+import type { AxisSummary, DeckSynergy } from './deckSynergy';
+import { BOARD_CENTRIC_CREATURE_DENSITY } from '../deckBuilder/roleTargets';
 
 export type AxisSide = 'producer' | 'payoff';
 
@@ -20,6 +22,8 @@ export interface SynergyNeed {
   label: string;
   /** The side of the engine the deck is short on. */
   side: AxisSide;
+  /** A budding axis (not invested): filling it starts an engine. */
+  budding?: boolean;
 }
 
 export interface SynergyCandidate {
@@ -36,6 +40,15 @@ export interface SynergySuggestion {
   /** Why it fits — straight from the classifier ("triggers when your creatures enter"). */
   reason: string;
   inclusion?: number;
+  /**
+   * The axis is only budding in this deck (a few cards, one side absent), not
+   * one it is invested in: the pick would start an engine, not feed the plan.
+   * Coach ranks these last.
+   */
+  budding?: boolean;
+  /** USD price and rarity, stamped by the manual-deck analysis (candidateCardData.ts). */
+  price?: string | null;
+  rarity?: string;
 }
 
 /** A side is "starved" when it's outnumbered ≥3:1 by the other (and ≥1 exists). */
@@ -64,8 +77,10 @@ export function deriveNeeds(deck: DeckSynergy): SynergyNeed[] {
       else if (o >= p * LOPSIDED_RATIO && p >= 1)
         needs.push({ axis: ax.axis, label: ax.label, side: 'producer' });
     } else if (ax.total >= BUDDING_MIN) {
-      if (p >= 2 && o === 0) needs.push({ axis: ax.axis, label: ax.label, side: 'payoff' });
-      else if (o >= 2 && p === 0) needs.push({ axis: ax.axis, label: ax.label, side: 'producer' });
+      if (p >= 2 && o === 0)
+        needs.push({ axis: ax.axis, label: ax.label, side: 'payoff', budding: true });
+      else if (o >= 2 && p === 0)
+        needs.push({ axis: ax.axis, label: ax.label, side: 'producer', budding: true });
     }
   }
   return needs;
@@ -84,12 +99,43 @@ export interface SuggestOptions {
   offMetaQuota?: number;
 }
 
+/** Producers of the matching kind a narrow payoff needs before it is offered:
+ *  the engine's own "budding, worth completing" bar. */
+const ENABLING_PRODUCERS = BUDDING_MIN;
+
+/**
+ * Whether the deck enables a payoff's own condition (T171 round 3). Most
+ * payoffs are enabled by any producer on their axis; a few need a narrower
+ * one. Waste Not punishes an OPPONENT discarding and was offered to five
+ * decks whose only discard was their own looting; a convoke card was offered
+ * to decks with few creatures to tap; Interplanar Beacon, which pays off
+ * casting planeswalkers, replaced a Forest in decks running two of them.
+ */
+function payoffEnabled(reason: string, axis: AxisSummary | undefined, deck: DeckSynergy): boolean {
+  const producing = (why: string) =>
+    (axis?.producers ?? []).filter((p) => p.reason === why).length >= ENABLING_PRODUCERS;
+  switch (reason) {
+    case REASON.punishesOpponentDiscard:
+      return producing(REASON.forcesDiscards);
+    case REASON.rewardsYourDiscards:
+    case REASON.madness:
+      return producing(REASON.loots);
+    case REASON.convoke:
+      return (deck.creatureShare ?? 0) >= BOARD_CENTRIC_CREATURE_DENSITY;
+    default:
+      // A planeswalker payoff needs planeswalkers, not proliferate.
+      return axis?.axis !== 'superfriends' || producing(REASON.loyaltyEngine);
+  }
+}
+
 /**
  * Rank off-meta cards that fill the deck's synergy gaps. For each need, keep
  * candidates that classify onto the needed side of that axis and sit in the
  * off-meta inclusion window, then surface the most-validated of them first
  * (highest inclusion within the window — "real, just not consensus"). Dedups
- * across needs so one card is suggested once.
+ * across needs so one card is suggested once. A payoff whose condition the
+ * deck doesn't enable (see `payoffEnabled`) needs page evidence: a card off
+ * this commander's page is dropped.
  */
 export function suggestOffMeta(
   deck: DeckSynergy,
@@ -118,6 +164,13 @@ export function suggestOffMeta(
       const roles = need.side === 'producer' ? cs.producers : cs.payoffs;
       const hit = roles.find((r) => r.axis === need.axis);
       if (!hit) continue;
+      const axis = deck.axes.find((a) => a.axis === need.axis);
+      if (
+        need.side === 'payoff' &&
+        cand.inclusion == null &&
+        !payoffEnabled(hit.reason, axis, deck)
+      )
+        continue;
       matches.push({
         cardName: name,
         axis: need.axis,
@@ -125,6 +178,7 @@ export function suggestOffMeta(
         side: need.side,
         reason: hit.reason,
         inclusion: cand.inclusion,
+        ...(need.budding ? { budding: true } : {}),
       });
     }
     // Validated fills (real EDHREC inclusion) lead, most-validated first.

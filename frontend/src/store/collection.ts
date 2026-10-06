@@ -1120,11 +1120,17 @@ export const useCollectionStore = create<CollectionState>()(
           // effort: a missing/blocked IndexedDB must not fail the refresh.
           // The refresh's own market move rides along, so the day's point can
           // tell a price change from an import (the headline delta splits them).
-          recordValueSnapshot(
-            afterCards.reduce((sum, c) => sum + (c.purchasePrice ?? 0), 0),
-            Date.now(),
-            computeMarketMove(beforeCards, afterCards)
-          ).catch(() => {});
+          // A $0 total is a refresh that priced nothing, not a worthless
+          // collection, and the log reads $0 as "the collection was deleted"
+          // (sinceLastReset), so it would wipe the trend off every surface.
+          const refreshedTotal = afterCards.reduce((sum, c) => sum + (c.purchasePrice ?? 0), 0);
+          if (refreshedTotal > 0) {
+            recordValueSnapshot(
+              refreshedTotal,
+              Date.now(),
+              computeMarketMove(beforeCards, afterCards)
+            ).catch(() => {});
+          }
           // E133 value movers: same tick, same before/after pair the binder
           // diff uses — per-card deltas into the device-local movers log.
           recordDailyMovers(computeMovers(beforeCards, afterCards)).catch(() => {});
@@ -1166,11 +1172,11 @@ export const useCollectionStore = create<CollectionState>()(
             void recordCollectionSnapshot(0).catch(() => {});
             return;
           }
-          // …and the same catch-all for a collection that came BACK. The authed
-          // boot path writes `cards` from sync's local rehydrate, under the
-          // applyingServer guard — so the store subscriber never sees the cards
-          // arrive, and prices restored from the device cache are usually fresh,
-          // so the refresh below returns early too. Without this, a log left at
+          // …and the same catch-all for a collection that came BACK. The store
+          // subscriber records cards as they arrive, but skips a $0 total (cards
+          // whose prices aren't applied yet), and prices restored fresh from the
+          // device cache make the refresh below return early, so neither one
+          // writes. Without this, a log left at
           // $0 by a delete (or by this function's own empty branch firing in the
           // window before the first pull lands) stays $0 until a price goes stale
           // a day later, and the hero reports $0 for a collection you can see.
@@ -1996,20 +2002,23 @@ useCollectionStore.subscribe((state, prev) => {
  * calls `persistCollection` at all. Every local change is a `set({ cards })`, so
  * watching them is the one place they all pass through.
  *
- * `isApplyingServer()` is load-bearing here, not copied boilerplate: `sync.ts`'s
- * `resetInMemoryStores()` blanks `cards` on logout/account-switch, and that is
- * NOT the collection being emptied — recording $0 there would corrupt today's
- * point for a collection that still exists. The boot-time catch-all in
- * `autoRefreshStalePrices` is what covers the deletions this guard skips.
+ * Server-applied changes are recorded too, so cards another device added or
+ * removed re-value today's point while this tab is open (rehydrate applies the
+ * device's prices before the cards reach the store, so the total is real). The
+ * one exception is a server-applied EMPTY: `sync.ts`'s `resetInMemoryStores()`
+ * blanks `cards` on logout/account-switch, and that is NOT the collection being
+ * emptied. A $0 point reads as a full delete (`sinceLastReset`) and would hide
+ * the trend of a collection that still exists. The boot-time catch-all in
+ * `autoRefreshStalePrices` is what covers the real deletions this skips, and
+ * logout clears the log outright (`stopSyncAndWipeLocal`).
  */
 useCollectionStore.subscribe((state, prev) => {
   if (state.cards === prev.cards) return;
-  if (isApplyingServer()) return;
   // refreshPrices re-sets `cards` once per price chunk and records its own
   // snapshot at the end — one point per refresh, not one per chunk.
   if (state.isRefreshingPrices) return;
   if (state.cards.length === 0) {
-    if (prev.cards.length === 0) return;
+    if (prev.cards.length === 0 || isApplyingServer()) return;
     void recordCollectionSnapshot(0).catch(() => {});
     return;
   }

@@ -6,6 +6,7 @@ import { toast } from '@/store/toasts';
 import { useDeckBuilderStore } from '@/deck-builder/store';
 import { buildCommanderProfile } from '@/deck-builder/services/deckBuilder/commanderProfile';
 import { generateDeck } from '@/deck-builder/services/deckBuilder/deckGenerator';
+import { skipsOwnedCards } from '@/deck-builder/services/deckBuilder/deckFilters';
 import {
   fetchCommanderData,
   fetchPartnerCommanderData,
@@ -275,7 +276,14 @@ export function useDeckGeneration({
       // groups of the player's basic-land printings (built for any owned-aware
       // mode; based on free copies so we never stamp a printing they can't supply).
       let collectionBasicPrintings: Map<string, BasicPrintingAvail[]> | undefined;
-      if (customization.collectionMode) {
+      // "Skip my cards" reads the collection only to leave it out: the
+      // generator gets no owned pool, just the names to ban.
+      let excludedOwnedNames: Set<string> | undefined;
+      if (skipsOwnedCards(customization)) {
+        excludedOwnedNames = new Set(collectionCards.map((c) => c.name));
+        const skipped = countCommittedExcluded(collectionCards, new Set(), colorIdentity);
+        if (skipped > 0) committedExcluded = skipped;
+      } else if (customization.collectionMode) {
         collectionBasicPrintings = buildBasicPrintingAvailability(
           collectionCards,
           decks,
@@ -347,6 +355,7 @@ export function useDeckGeneration({
         collectionAvailableCounts,
         collectionBasicPrintings,
         collectionPool,
+        excludedOwnedNames,
         onProgress: (message, percent) => setProgress({ message, percent }),
       });
 

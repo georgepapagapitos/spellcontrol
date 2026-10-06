@@ -32,6 +32,8 @@ export interface DeckSynergy {
   /** Human-readable engine notes ("Tokens: 9 producers but no payoff"). */
   warnings: string[];
   headline: string;
+  /** Creatures among the deck's nonland cards, 0 to 1 (what convoke spends). */
+  creatureShare?: number;
 }
 
 /** A deck is "invested" in an axis once it runs this many producers+payoffs. */
@@ -107,7 +109,15 @@ export function analyzeDeckSynergy(cards: CardLike[]): DeckSynergy {
       ? 'No clear engine yet.'
       : `Primary engine: ${top.label} (${top.producers.length} producers / ${top.payoffs.length} payoffs).`;
 
-  return { axes, invested, warnings, headline };
+  const typeLine = (c: CardLike) =>
+    (c.card_faces?.[0]?.type_line ?? c.type_line ?? '').toLowerCase();
+  const nonLand = cards.filter((c) => !/\bland\b/.test(typeLine(c)));
+  const creatureShare =
+    nonLand.length > 0
+      ? nonLand.filter((c) => /\bcreature\b/.test(typeLine(c))).length / nonLand.length
+      : 0;
+
+  return { axes, invested, warnings, headline, creatureShare };
 }
 
 /**

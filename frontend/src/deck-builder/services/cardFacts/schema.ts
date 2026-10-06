@@ -186,6 +186,13 @@ export function countsAsRole(fact: { tier: Tier }): boolean {
   return fact.tier !== 'incidental';
 }
 
+/** A card that ends games: a counted `finisher` fact (the win-line reading's finishers). */
+export function countsAsFinisher(facts: {
+  roles: readonly { role: string; tier: Tier }[];
+}): boolean {
+  return facts.roles.some((r) => r.role === 'finisher' && countsAsRole(r));
+}
+
 export const SPEEDS = ['instant', 'flash', 'sorcery', 'activated', 'triggered', 'static'] as const;
 export type Speed = (typeof SPEEDS)[number];
 
@@ -246,6 +253,7 @@ export const ROLE_SUBS = [
   // Keep new values LAST: the codec stores indices into this list, so an
   // append leaves every existing record's encoding unchanged.
   'extra-turn',
+  'animate',
 ] as const;
 export type RoleSub = (typeof ROLE_SUBS)[number];
 

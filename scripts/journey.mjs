@@ -743,6 +743,43 @@ const slug = (s) =>
     .replace(/[^a-z0-9]+/gi, '-')
     .replace(/^-|-$/g, '') || 'root';
 
+/** Remember every scrolled element's offset, in the page, for restoreScroll. */
+function saveScroll() {
+  window.__journeyScroll = [...document.querySelectorAll('*')]
+    .filter((e) => e.scrollTop || e.scrollLeft)
+    .map((e) => [e, e.scrollTop, e.scrollLeft]);
+}
+/** Put every element back where saveScroll found it; anything else to 0. */
+function restoreScroll() {
+  const saved = new Map((window.__journeyScroll ?? []).map(([e, t, l]) => [e, [t, l]]));
+  for (const e of document.querySelectorAll('*')) {
+    const [top, left] = saved.get(e) ?? [0, 0];
+    if (e.scrollTop !== top || e.scrollLeft !== left) {
+      e.scrollTo({ top, left, behavior: 'instant' });
+    }
+  }
+}
+
+/** Screenshot the page a fatal step died on and print what it was showing. */
+async function saveFatal({ page, tierName, consoleErrors }) {
+  const file = `fatal__${tierName}.png`;
+  await page.screenshot({ path: path.join(OUT, file) });
+  const seen = await page.evaluate(() => ({
+    url: location.pathname + location.search,
+    alerts: [...document.querySelectorAll('[role=alert], .error-banner')]
+      .map((e) => e.textContent.trim())
+      .filter(Boolean),
+    disabled: [...document.querySelectorAll('button:disabled')]
+      .map((e) => e.textContent.trim())
+      .filter(Boolean)
+      .slice(0, 10),
+  }));
+  console.log(`\nfatal on ${tierName} at ${seen.url}, screenshot ${file}`);
+  if (seen.alerts.length) console.log(`  alerts: ${seen.alerts.join(' | ')}`);
+  if (seen.disabled.length) console.log(`  disabled buttons: ${seen.disabled.join(' | ')}`);
+  for (const e of consoleErrors.slice(-10)) console.log(`  console: ${e}`);
+}
+
 /** Click the first element whose visible text matches, waiting for it to exist. */
 async function clickText(page, re, { timeout = 15000, within = 'button, a, [role=button]' } = {}) {
   const deadline = Date.now() + timeout;
@@ -780,6 +817,7 @@ async function main() {
   });
   const results = [];
   let seeded = null;
+  let live = null;
   try {
     for (const tierName of VIEWPORTS) {
       const tier = TIERS[tierName];
@@ -788,6 +826,7 @@ async function main() {
       const page = await context.newPage();
       await page.setViewport(tier);
       const consoleErrors = [];
+      live = { page, tierName, consoleErrors };
       page.on('console', (m) => {
         if (m.type() !== 'error') return;
         if (THIRD_PARTY.test(m.location()?.url ?? '') || THIRD_PARTY.test(m.text())) return;
@@ -861,8 +900,16 @@ async function main() {
         const overlapping =
           tierName === 'phone' ? await page.evaluate(overlappingTouchTargets) : [];
         // Axe runs last among the probes: it swaps themes and restores them.
+        // Axe's contrast rule scrolls each node into view and the Tab walk
+        // scrolls to each stop, so put the page back where it loaded: the
+        // screenshot and every assert after record() measure that page. The
+        // scroller is .app-main, not the window, so snapshot every scrolled
+        // element. Left scrolled, /collection/sets failed its hub-strip assert
+        // every night.
+        if (A11Y) await page.evaluate(saveScroll);
         const a11y = A11Y ? await axeSweep(page, tierName === 'desktop') : null;
         if (a11y) a11y.keyboard = tierName === 'desktop' ? await keyboardWalk(page) : [];
+        if (A11Y) await page.evaluate(restoreScroll);
         const errs = consoleErrors.filter((e) => !IGNORED_CONSOLE.test(e));
         const file = `${slug(label)}__${tierName}.png`;
         await page.screenshot({ path: path.join(OUT, file) }).catch(() => {});
@@ -1453,6 +1500,12 @@ async function main() {
       }
       await context.close();
     }
+  } catch (err) {
+    // A step that throws ("no clickable element matching /^Start blank$/", a
+    // selector timeout) ends the walk before record() runs, so the run used to
+    // say only what was missing, never what the page showed instead (E535).
+    if (live) await saveFatal(live).catch(() => {});
+    throw err;
   } finally {
     await browser.close();
   }

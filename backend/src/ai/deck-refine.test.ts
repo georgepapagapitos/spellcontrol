@@ -271,6 +271,14 @@ describe('parseRefineRequest', () => {
     expect(buildRefineMessage(eurBudget, [])).toMatch(/BUDGET .*under €5/);
   });
 
+  it("cards the player doesn't own: its own key and its own pool header", () => {
+    const unowned = { ...REQ, scope: 'unowned' as const };
+    expect(hashRefineInput(unowned)).not.toBe(hashRefineInput(REQ));
+    const msg = buildRefineMessage(unowned, []);
+    expect(msg).toMatch(/ENGINE SUGGESTIONS — NOT OWNED/);
+    expect(msg).not.toMatch(/OWNED ONLY/);
+  });
+
   it('accepts a well-formed body and defaults ownedOnly to false', () => {
     const res = parseRefineRequest(body());
     expect(res.ok).toBe(true);

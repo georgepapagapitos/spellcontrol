@@ -189,6 +189,8 @@ export interface Deck {
    * the analysis hook, like roleTargets/gapAnalysis.
    */
   cardInclusionMap?: Record<string, number>;
+  /** One-away combo pieces' price and rarity (`SuggestionCardData`), for Coach's settings check. */
+  suggestionCards?: Record<string, { price: string | null; rarity?: string; inclusion?: number }>;
   /**
    * 0-100 PlanScore (4 weighted dimensions: strategy/roles/curve/cardFit) with
    * its sub-scores. Kept live by useCommanderBracketAnalysis (recomputed as

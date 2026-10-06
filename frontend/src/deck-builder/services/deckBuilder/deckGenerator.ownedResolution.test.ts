@@ -63,7 +63,7 @@ function buildPool() {
     Array.from({ length: count }, (_, i) => {
       const name = `${prefix}_${i + 1}`;
       scMap.set(name, mkSC(name, type, cmcOf(i)));
-      return ec(name, prefix, 90 - i);
+      return ec(name, prefix, Math.max(5, 90 - 2 * i));
     });
   const creatures = gen('Creature', 'Creature', 40, (i) => (i % 6) + 1);
   const instants = gen('Instant', 'Instant', 15, (i) => (i % 4) + 1);
@@ -178,7 +178,11 @@ vi.mock('@/deck-builder/services/tagger/client', async (orig) => ({
 
 import { generateDeck, clearGenerationCache } from './deckGenerator';
 
-function context(strategy: Customization['collectionStrategy'], owned: string[]) {
+function context(
+  strategy: Customization['collectionStrategy'],
+  owned: string[],
+  ownedPercent = 50
+) {
   const customization = {
     deckFormat: 99,
     landCount: 37,
@@ -199,7 +203,7 @@ function context(strategy: Customization['collectionStrategy'], owned: string[])
     ignoreOwnedRarity: false,
     collectionMode: true,
     collectionStrategy: strategy,
-    collectionOwnedPercent: 50,
+    collectionOwnedPercent: ownedPercent,
     arenaOnly: false,
     scryfallQuery: '',
     comboCount: 0,
@@ -249,5 +253,23 @@ describe('generateDeck: owned cards resolve to the card the collection names', (
     const touched = (deck.coherenceRepairs ?? []).flatMap((r) => [r.cut, r.added]);
     expect(touched).not.toContain('Harmonized Trio // Brainstorm');
     expect(all).toHaveLength(99);
+  });
+
+  // E537: the owned-share swap replaced an unowned Arcane Signet with an owned
+  // Coldsteel Heart. A staple rock keeps its slot below a 100% share; at 100%
+  // the share is the user's rule and an unowned one may go.
+  it('below 100% owned, a staple rock is never swapped for an owned rock', async () => {
+    const deck = await generateDeck(context('partial', ['Coldsteel Heart'], 50));
+    const all = names(deck);
+    expect(all).toContain('Arcane Signet');
+    expect(all).toContain('Sol Ring');
+    expect(deck.collectionSubstitutions?.map((r) => r.wantedName) ?? []).not.toContain(
+      'Arcane Signet'
+    );
+  });
+
+  it('at 100% owned, an unowned staple rock still leaves for an owned one', async () => {
+    const deck = await generateDeck(context('partial', ['Coldsteel Heart'], 100));
+    expect(names(deck)).toContain('Coldsteel Heart');
   });
 });

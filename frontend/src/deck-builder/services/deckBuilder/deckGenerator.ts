@@ -128,7 +128,8 @@ import {
 } from './substituteFinder';
 import { sameType } from '@/lib/coach/card-matching';
 import { resolveOwnedCards } from './ownedCardResolution';
-import { pageInclusionOf, weakestFirst } from './ownedShareEviction';
+import { pageInclusionOf, weakestFirst, shareKeeper, seatsAsNonbo } from './ownedShareEviction';
+import { withNonbasicShortfall } from './deckGeneration/nonbasicShortfallNote';
 import {
   finalDeckMembership,
   gapsOutsideDeck,
@@ -152,7 +153,7 @@ import {
   type GenerationState,
   createState,
   markUsed as stMarkUsed,
-  markBanned as stMarkBanned,
+  applyBans,
   addMustInclude as stAddMustInclude,
   getComboBoosts as stGetComboBoosts,
   countAllCards as stCountAllCards,
@@ -1232,29 +1233,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // a valid Scryfall name search; see validateScryfallFilter's doc).
   await validateScryfallFilter(scryfallQuery, state.context.colorIdentity);
   const markUsed = (name: string) => stMarkUsed(state, name);
-  const markBanned = (name: string) => stMarkBanned(state, name);
   const addMustInclude = (name: string, source: 'user' | 'deck' | 'combo') =>
     stAddMustInclude(state, name, source);
   const getComboBoosts = () => stGetComboBoosts(state);
-  (customization.bannedCards || []).forEach(markBanned);
-  // Merge enabled ban lists into the banned set
-  for (const list of customization.banLists || []) {
-    if (list.enabled) list.cards.forEach(markBanned);
-  }
-  // Merge applied exclude user lists
   const userLists = loadUserLists();
-  for (const ref of customization.appliedExcludeLists || []) {
-    if (ref.enabled) {
-      const list = userLists.find((l) => l.id === ref.listId);
-      if (list) list.cards.forEach(markBanned);
-    }
-  }
-  // Merge temporary banned cards
-  const tempBanned = customization.tempBannedCards ?? [];
-  if (tempBanned.length > 0) {
-    logger.debug(`[DeckGen] Temp banned cards:`, tempBanned);
-    tempBanned.forEach(markBanned);
-  }
+  applyBans(state, userLists);
   logger.debug(
     `[DeckGen] Budget settings: deckBudget=${deckBudget}, maxCardPrice=${maxCardPrice}, budgetOption=${budgetOption}, currency=${currency}${ignoreOwnedBudget ? ', ignoring owned for budget' : ''}${ignoreOwnedRarity ? ', ignoring owned for rarity' : ''}`
   );
@@ -4030,6 +4013,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     const inclusionByName = new Map<string, number>();
     for (const ec of edhrecNonLand) inclusionByName.set(ec.name, ec.inclusion);
     const inclusionOf = pageInclusionOf(inclusionByName);
+    const keeps = shareKeeper(state);
 
     // Swap one owned card in for an unowned one. `preferEvict` names the card
     // it was matched against (an owned substitute's staple); otherwise the
@@ -4048,13 +4032,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         return false;
       }
       if (!isCardAllowedBySynergyDependencies(card)) return false;
-      // The static caps, not the shortage block's relaxed ones (this is a
-      // composition swap, not a size-shortage backfill).
+      // Static caps, not the shortage block's relaxed ones (a composition swap).
       if (violatesUserCaps(card, state.cfg, collectionNames)) return false;
+      if (seatsAsNonbo(card, state)) return false;
 
-      const swappable = nonLandNow().filter(
-        (c) => !collectionNames.has(c.name) && !c.isMustInclude
-      );
+      const swappable = nonLandNow().filter((c) => !collectionNames.has(c.name) && !keeps(c, card));
       if (swappable.length === 0) return false;
       const wantedRole = validateCardRole(card);
       const matched = preferEvict ? swappable.filter((c) => c.name === preferEvict) : [];
@@ -4126,7 +4108,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     if (deficit > 0 && poolFits.length > 0) {
       const unownedWithRole: GapAnalysisCard[] = [];
       for (const c of nonLandNow()) {
-        if (collectionNames.has(c.name) || c.isMustInclude) continue;
+        if (collectionNames.has(c.name) || keeps(c)) continue;
         const role = getCardRole(c.name);
         if (!role) continue;
         unownedWithRole.push({
@@ -4760,6 +4742,13 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         : undefined
     );
   }
+
+  landCountNote = withNonbasicShortfall(
+    landCountNote,
+    categories.lands,
+    effectiveNonBasicLandCount,
+    customization
+  );
 
   // Budget honesty: recompute the real final total over the FINAL deck (post
   // combo-floor/fixup/coherence-repair/bracket-convergence swaps) — the early

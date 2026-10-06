@@ -33,6 +33,11 @@ const AI_SCOPE_OPTIONS: ReadonlyArray<{ value: AiScope; label: string; hint: str
     // Written in the player's display currency at render time — see below.
     hint: '',
   },
+  {
+    value: 'unowned',
+    label: "Cards you don't own",
+    hint: 'Leaves out your collection. Only cards to go and get.',
+  },
 ];
 
 interface AiSourcesControlProps {

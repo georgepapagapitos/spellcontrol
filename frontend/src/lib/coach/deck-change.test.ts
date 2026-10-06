@@ -603,29 +603,29 @@ describe('fromCostSwapRow', () => {
     category: 'spell',
   };
 
-  it('drop-in: name=suggestion (INCOMING), inName=current (OUTGOING), deltaPrice=-savings; tier rides confidence, not a reason string', () => {
+  it('drop-in: name=suggestion (INCOMING), inName=current (OUTGOING), deltaPrice=-savings, and a reason', () => {
     const c = fromCostSwapRow(baseRow);
     expect(c.type).toBe('swap');
     expect(c.lane).toBe('budget');
     expect(c.name).toBe('Esper Sentinel'); // incoming cheaper card
     expect(c.inName).toBe('Smothering Tithe'); // outgoing expensive card
     expect(c.deltaPrice).toBe(-16.0);
-    // Tier + savings are shown by the confidence badge and the price delta — no
-    // redundant reason string.
-    expect(c.reason).toBeUndefined();
+    // The reason spells out what the confidence badge abbreviates (T171 round 3:
+    // a budget swap was applied with no reason at all).
+    expect(c.reason).toBe('Same job for less');
     expect(c.confidence).toBe('drop-in');
   });
 
-  it('sidegrade: confidence tier set, no reason string', () => {
+  it('sidegrade: confidence tier set, and a reason that says what it costs', () => {
     const c = fromCostSwapRow({ ...baseRow, confidence: 'sidegrade', savings: 10.5 });
-    expect(c.reason).toBeUndefined();
+    expect(c.reason).toBe('Cheaper, played a little less');
     expect(c.deltaPrice).toBe(-10.5);
     expect(c.confidence).toBe('sidegrade');
   });
 
-  it('budget: confidence tier set, no reason string', () => {
+  it('budget: confidence tier set, and a reason that says what it costs', () => {
     const c = fromCostSwapRow({ ...baseRow, confidence: 'budget', savings: 5.0 });
-    expect(c.reason).toBeUndefined();
+    expect(c.reason).toBe('Cheaper, a step down in power');
     expect(c.deltaPrice).toBe(-5.0);
     expect(c.confidence).toBe('budget');
   });

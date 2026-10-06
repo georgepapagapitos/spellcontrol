@@ -98,6 +98,8 @@ export interface InvariantContext {
   colorIdentity: readonly string[];
   customization: Customization;
   collectionNames?: ReadonlySet<string>;
+  /** "Skip my cards": every owned name. `GenerationContext` carries it. */
+  excludedOwnedNames?: ReadonlySet<string>;
   /**
    * Name lookups observed at the Scryfall boundary: requested name → the name
    * of the card the lookup answered with. The generator does not record what
@@ -628,7 +630,8 @@ export function checkDeckInvariants(
     add(
       'SOFT',
       'nonbasic',
-      `${nonbasicLands} nonbasic lands vs customization.nonBasicLandCount ${cz.nonBasicLandCount}`
+      `${nonbasicLands} nonbasic lands vs customization.nonBasicLandCount ${cz.nonBasicLandCount}` +
+        (deck.landCountNote?.includes('nonbasic slot') ? ' (disclosed)' : '')
     );
   }
 
@@ -707,6 +710,18 @@ export function checkDeckInvariants(
         `strategy=partial: owned share ${share.toFixed(1)}% < target-5 ${target}%`
       );
     }
+  }
+
+  // 18b. "Skip my cards": no owned card but basics and must-includes.
+  if (ctx.excludedOwnedNames && strategy === 'exclude') {
+    const owned = [
+      ...new Set(
+        cards
+          .filter((c) => !isBasic(c) && !c.isMustInclude && owns(ctx.excludedOwnedNames, c))
+          .map((c) => c.name)
+      ),
+    ];
+    if (owned.length > 0) add('HARD', 'collection', `strategy=exclude: owned: ${owned.join(', ')}`);
   }
 
   // 19. roles over target (SOFT: the rebalance's cap, as the scanner had it).

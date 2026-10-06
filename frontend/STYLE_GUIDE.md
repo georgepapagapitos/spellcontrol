@@ -819,7 +819,10 @@ goes in it.
 **Canonical terms (use exactly):** _collection_ (your cards), _binder_ (a
 rule-defined group), _deck_, _power bracket_ (the 1–5 Commander tier — not
 "bracket level"/"bracket target" in user-facing copy), _Coach_ (the
-suggestion/tuning tab). The product's one-line promise leads with **collection**
+suggestion/tuning tab), _brewer_ (a person who makes decks: "Find brewers",
+"Most followed brewers", "Search decks, commanders, brewers"; never "builder" or
+"creator" for a person, and "builder" never names a person in copy at all;
+guarded by `copy-guards.test.ts` BREWER). The product's one-line promise leads with **collection**
 ("Plan your Magic: The Gathering collection") — binders, decks, and games all
 live under it.
 
