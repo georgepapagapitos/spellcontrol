@@ -120,7 +120,8 @@ describe('recordCollectionSnapshot', () => {
   it('logs $0 so an emptied collection stops reporting its old total', async () => {
     await recordValueSnapshot(420, atDay(0));
     await recordCollectionSnapshot(0, atDay(1));
-    expect((await getValueHistory()).map((p) => p.value)).toEqual([420, 0]);
+    // The deleted collection's history is gone from every surface; no $0 hero.
+    expect(await getValueHistory()).toEqual([]);
   });
 
   it('does nothing when the log is empty — a user who never imported keeps no trend', async () => {
@@ -128,10 +129,10 @@ describe('recordCollectionSnapshot', () => {
     expect(await getValueHistory()).toEqual([]);
   });
 
-  it('overwrites the same day, so deleting the collection zeroes today at once', async () => {
+  it('overwrites the same day, so deleting the collection empties the trend at once', async () => {
     await recordValueSnapshot(420, atDay(0));
     await recordCollectionSnapshot(0, atDay(0));
-    expect((await getValueHistory()).map((p) => p.value)).toEqual([0]);
+    expect(await getValueHistory()).toEqual([]);
   });
 
   it('re-values the same day when the cards come back, no price refresh needed', async () => {
@@ -139,6 +140,82 @@ describe('recordCollectionSnapshot', () => {
     await recordCollectionSnapshot(0, atDay(0));
     await recordCollectionSnapshot(360, atDay(0));
     expect((await getValueHistory()).map((p) => p.value)).toEqual([360]);
+  });
+});
+
+describe('a full delete resets the trend', () => {
+  it('starts a re-import on a later day as a fresh trend, not old history and a cliff', async () => {
+    await recordValueSnapshot(5000, atDay(0));
+    await recordValueSnapshot(5100, atDay(1));
+    await recordCollectionSnapshot(0, atDay(2)); // deleted
+    await recordCollectionSnapshot(0, atDay(3)); // boot catch-all while still empty
+    await recordValueSnapshot(800, atDay(5)); // a different collection, priced
+    await recordValueSnapshot(820, atDay(6));
+    const points = await getValueHistory();
+    expect(points.map((p) => p.value)).toEqual([800, 820]);
+    // The headline measures the new collection only: no "+$800 from cards added".
+    expect(computeValueDelta(points)?.amount).toBe(20);
+  });
+
+  it('brings the whole history back when the delete is undone the same day', async () => {
+    await recordValueSnapshot(5000, atDay(0));
+    await recordValueSnapshot(5100, atDay(1));
+    await recordCollectionSnapshot(0, atDay(1)); // deleted
+    expect(await getValueHistory()).toEqual([]);
+    await recordCollectionSnapshot(5100, atDay(1)); // undo restores the cards
+    expect((await getValueHistory()).map((p) => p.value)).toEqual([5000, 5100]);
+  });
+
+  it('hides movers that name the deleted cards, and shows them again on undo', async () => {
+    const mover: CardMover = {
+      scryfallId: 'a',
+      finish: 'nonfoil',
+      name: 'A',
+      setCode: 'lea',
+      before: 1,
+      after: 3,
+      copies: 1,
+    };
+    await recordValueSnapshot(5000, atDay(0));
+    await recordDailyMovers([mover], atDay(0));
+    await recordCollectionSnapshot(0, atDay(0) + 1000);
+    expect(await getLatestMovers()).toBeNull();
+    await recordCollectionSnapshot(5000, atDay(0) + 2000);
+    expect((await getLatestMovers())?.movers).toEqual([mover]);
+  });
+
+  it('keeps movers logged after the reset', async () => {
+    await recordValueSnapshot(5000, atDay(0));
+    await recordCollectionSnapshot(0, atDay(1));
+    await recordValueSnapshot(800, atDay(2));
+    await recordDailyMovers(
+      [
+        {
+          scryfallId: 'b',
+          finish: 'nonfoil',
+          name: 'B',
+          setCode: 'm21',
+          before: 1,
+          after: 2,
+          copies: 1,
+        },
+      ],
+      atDay(2)
+    );
+    expect((await getLatestMovers())?.day).toBe(dayKey(atDay(2)));
+  });
+});
+
+describe('clearValueHistory / clearMovers', () => {
+  it('notify, so a mounted hero or chart drops the cleared log at once', async () => {
+    await recordValueSnapshot(420, atDay(0));
+    let calls = 0;
+    const off = onValueHistoryChange(() => calls++);
+    await clearValueHistory();
+    await clearMovers();
+    off();
+    expect(calls).toBe(2);
+    expect(await getValueHistory()).toEqual([]);
   });
 });
 

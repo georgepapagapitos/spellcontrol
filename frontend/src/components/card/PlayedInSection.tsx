@@ -13,7 +13,11 @@ import { useCardCarousel, type CarouselEntry } from '@/components/deck/useCardCa
 import { useCardThumb } from '@/lib/cards/card-thumbs';
 import { frontFaceName } from '@/lib/cards/card-text';
 import { formatCount } from '@/lib/util/format-count';
-import { classifyInclusion, inclusionColor } from '@/lib/deck-analysis/inclusion-label';
+import {
+  classifyInclusion,
+  inclusionColor,
+  inclusionInk,
+} from '@/lib/deck-analysis/inclusion-label';
 import { useCollectionStore } from '@/store/collection';
 import './PlayedInSection.css';
 
@@ -43,7 +47,7 @@ function Inclusion({ play }: { play: CommanderPlay }) {
     <span className="played-in-incl">
       <span className="played-in-incl-text">
         In{' '}
-        <span className="played-in-incl-pct" style={{ color }}>
+        <span className="played-in-incl-pct" style={{ color: inclusionInk(info.pct) }}>
           {info.pct}%
         </span>{' '}
         of its {decks} decks
@@ -322,7 +326,7 @@ function Headline({ card }: { card: { numDecks: number; potentialDecks: number; 
   return (
     <p className="played-in-headline" title={sample}>
       In{' '}
-      <span className="played-in-incl-pct" style={{ color: inclusionColor(info.pct) }}>
+      <span className="played-in-incl-pct" style={{ color: inclusionInk(info.pct) }}>
         {info.pct}%
       </span>{' '}
       of decks that can play it

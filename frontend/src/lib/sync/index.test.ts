@@ -12,6 +12,12 @@ vi.mock('@/lib/account/auth-api', () => ({
 
 import { readCachedAnalysis, writeCachedAnalysis } from '@/lib/deck-analysis/deck-analysis-cache';
 import {
+  getLatestMovers,
+  getValueHistory,
+  recordDailyMovers,
+  recordValueSnapshot,
+} from '@/lib/collection/value-history';
+import {
   startSync,
   stopSyncAndWipeLocal,
   hydrateLocal,
@@ -161,6 +167,25 @@ describe('lifecycle', () => {
     await vi.waitFor(async () => expect(await readCachedAnalysis('deck-1')).not.toBeNull());
     await stopSyncAndWipeLocal();
     expect(await readCachedAnalysis('deck-1')).toBeNull();
+  });
+
+  it('a different user signing in never inherits the last user’s value trend or movers', async () => {
+    await startSync('user-1');
+    await recordValueSnapshot(4200);
+    await recordDailyMovers([
+      {
+        scryfallId: 'a',
+        finish: 'nonfoil',
+        name: 'A',
+        setCode: 'lea',
+        before: 1,
+        after: 3,
+        copies: 1,
+      },
+    ]);
+    await startSync('user-2');
+    expect(await getValueHistory()).toEqual([]);
+    expect(await getLatestMovers()).toBeNull();
   });
 
   it('a different user signing in never sees the last user’s cached analyses', async () => {
