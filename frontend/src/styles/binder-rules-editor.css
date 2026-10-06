@@ -1061,9 +1061,15 @@
 }
 
 /* ── Chip builder autocomplete dropdown ─────────────────────────────────── */
+/* Column, not the default row: inside a dialog the suggestion list below is
+   flowed in-line (`position: static`), and a row put it BESIDE the input,
+   which then stretched to the list's full height (the binder rules Type line
+   grew a ~250px-tall input, 2026-10-05). Stacked, the input keeps its own
+   height and the list opens under it. Guarded by chip-suggest-stacking.test.ts. */
 .chip-builder-input-wrap {
   position: relative;
   display: inline-flex;
+  flex-direction: column;
 }
 
 .chip-suggest-list {
