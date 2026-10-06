@@ -325,6 +325,42 @@ Overload {4}{R} (You may cast this spell for its overload cost. If you do, chang
     expect(state.usedNames.has('Chain Reaction')).toBe(false);
   });
 
+  it('still trades a one-sided wipe for a symmetric one when it saves real money (E561: Cyclonic Rift $26)', async () => {
+    const wipe = (name: string, price: string, oracle_text: string) =>
+      scryfallCard(name, price, { type_line: 'Sorcery', oracle_text });
+    const state = makeState();
+    state.categories.boardWipes.push(
+      wipe(
+        'Cyclonic Rift',
+        '26.00',
+        `Return target nonland permanent you don't control to its owner's hand.
+Overload {6}{U}`
+      )
+    );
+    state.usedNames.add('Cyclonic Rift');
+    const roles: Record<string, 'boardwipe'> = {
+      'Cyclonic Rift': 'boardwipe',
+      'Chain Reaction': 'boardwipe',
+    };
+    vi.mocked(getCardRole).mockImplementation((n: string) => roles[n] ?? null);
+    const scryfallCardMap = poolScryfallMap();
+    scryfallCardMap.set(
+      'Chain Reaction',
+      wipe(
+        'Chain Reaction',
+        '0.28',
+        'Chain Reaction deals X damage to each creature, where X is the number of creatures on the battlefield.'
+      )
+    );
+    state.edhrecData = {
+      cardlists: { allNonLand: [...POOL, edhrecCard('Chain Reaction', 5)] },
+    } as unknown as GenerationState['edhrecData'];
+    state.categories.synergy = [];
+    await applyBudgetConvergence(state, baseCtx({ scryfallCardMap, deckBudget: 1.0 }));
+    vi.mocked(getCardRole).mockImplementation(() => null);
+    expect(state.usedNames.has('Cyclonic Rift')).toBe(false);
+  });
+
   it('never cuts the commander, even if a same-named card somehow sits in categories', async () => {
     // Not how generation normally shapes the deck (the commander lives outside
     // `categories`), but isProtected() checks commanderNames by name alone

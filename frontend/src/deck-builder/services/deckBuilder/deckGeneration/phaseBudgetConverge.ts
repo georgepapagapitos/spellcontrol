@@ -235,6 +235,9 @@ const ROLE_LABEL: Record<RoleKey, string> = {
   cardDraw: 'card draw',
 };
 
+/** A board wipe may be swapped for a worse one only for at least this saving. */
+const WIPE_DOWNGRADE_MIN_SAVINGS = 5;
+
 export async function applyBudgetConvergence(
   state: GenerationState,
   ctx: BudgetConvergeContext
@@ -530,11 +533,13 @@ export async function applyBudgetConvergence(
       // can't push anything over cap that wasn't already there (see
       // isRoleCapBlocked's doc comment and the header comment above).
       if (getCardRole(card.name) !== cutRole && isRoleCapBlocked(card.name)) return false;
-      // E561: a board wipe leaves for a wipe that is no worse. Vandalblast (one-sided
-      // in a goblin deck) went to Chain Reaction (symmetric) for $1.28, and the
-      // role-surplus pass then kept a creature as the deck's only "wipe".
+      // E561: a board wipe leaves for a wipe that is no worse, unless the swap saves
+      // real money. Vandalblast (one-sided in a goblin deck) went to Chain Reaction
+      // (symmetric) for $1.28, and the role-surplus pass then kept a creature as
+      // the deck's only "wipe"; Cyclonic Rift's $26 is worth a symmetric wipe.
       if (
         cutRole === 'boardwipe' &&
+        cutPrice - price < WIPE_DOWNGRADE_MIN_SAVINGS &&
         getCardRole(card.name) === 'boardwipe' &&
         wipeQualityPenalty(card, isOneSidedWipe, getWipeScope, undefined) >
           wipeQualityPenalty(cutCard, isOneSidedWipe, getWipeScope, undefined)
