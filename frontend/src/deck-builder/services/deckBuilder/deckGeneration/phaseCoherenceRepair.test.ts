@@ -4,6 +4,7 @@ import type { EDHRECCard, ScryfallCard } from '@/deck-builder/types';
 // Tagger reads bundled JSON keyed by card name — mock for determinism (roles
 // come back null, so category placement falls through to `synergy`).
 vi.mock('@/deck-builder/services/tagger/client', () => ({
+  getCardDrawSubtype: () => null,
   hasTag: vi.fn(() => false),
   isMassLandDenial: vi.fn(() => false),
   isExtraTurn: vi.fn(() => false),

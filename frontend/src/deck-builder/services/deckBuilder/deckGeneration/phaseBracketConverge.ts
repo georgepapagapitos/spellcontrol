@@ -1,5 +1,6 @@
 import { logger } from '@/lib/util/logger';
 import { STAPLE_ROCK_NAMES } from './phaseStapleManaRocks';
+import { evictionKeeper } from './evictionKeeper';
 import type { DeckCategory, DetectedCombo, EDHRECCard, ScryfallCard } from '@/deck-builder/types';
 import { markBanned, type GenerationState } from './state';
 import { frontFaceName, getByCardName } from '@/lib/cards/card-text';
@@ -144,13 +145,15 @@ export function applyBracketConvergence(
   if (commander) commanderNames.push(commander.name);
   if (partnerCommander) commanderNames.push(partnerCommander.name);
 
+  const keeps = evictionKeeper(state);
   const isProtected = (card: ScryfallCard): boolean =>
     mustIncludeNames.has(card.name.toLowerCase()) ||
     state.comboCardNames.has(card.name) ||
     STAPLE_ROCK_NAMES.has(card.name) || // E537
     commanderNames.includes(card.name) ||
     readsAsProtection(card) ||
-    isFreeInteraction(card);
+    isFreeInteraction(card) ||
+    keeps(card); // E563
 
   // DOWN-only variant (E105 iter-2): `state.comboCardNames` marks EVERY piece
   // of EVERY detected combo (a whole-generation preview, since #1044), not

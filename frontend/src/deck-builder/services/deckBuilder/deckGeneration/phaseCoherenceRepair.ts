@@ -44,6 +44,7 @@ import { classifyAnswer } from '../answerCoverage';
 import { classifyCard } from '@/deck-builder/services/synergy/classify';
 import { buildManabaseSummary } from '../manabaseMath';
 import { STAPLE_ROCK_NAMES } from './phaseStapleManaRocks';
+import { evictionKeeper } from './evictionKeeper';
 
 // ── Coherence Repair (E78 phase 3) ──
 // The read-only audit at the very end of generation can only *report* dead
@@ -207,6 +208,7 @@ export async function applyCoherenceRepair(
     for (const n of combo.cards) completeComboNames.add(n);
   }
 
+  const keeps = evictionKeeper(state);
   const isProtected = (card: ScryfallCard): boolean =>
     !!card.isMustInclude ||
     card.isStapleRock === true ||
@@ -220,7 +222,8 @@ export async function applyCoherenceRepair(
     state.gameChangerNames.has(card.name) ||
     isLoadBearing(card, deckSynergy) ||
     readsAsProtection(card) ||
-    isFreeInteraction(card);
+    isFreeInteraction(card) ||
+    keeps(card); // E563
 
   const findInDeck = (name: string): { card: ScryfallCard; category: DeckCategory } | null => {
     for (const [cat, cards] of Object.entries(state.categories) as [

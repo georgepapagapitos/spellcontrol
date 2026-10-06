@@ -5,6 +5,7 @@ import type { ScryfallCard, EDHRECCard, DetectedCombo } from '@/deck-builder/typ
 // deterministic — every signal we want comes from the explicit gameChangerNames
 // set passed to the estimator, not from tag data that may be absent in tests.
 vi.mock('@/deck-builder/services/tagger/client', () => ({
+  getCardDrawSubtype: () => null,
   hasTag: vi.fn(() => false),
   isMassLandDenial: vi.fn(() => false),
   isExtraTurn: vi.fn(() => false),
@@ -590,7 +591,7 @@ describe('applyBracketConvergence', () => {
         allNonLand: [
           edhrecCard('Pool GC', 95),
           { ...edhrecCard('Niche Payoff', 2), synergy: 1, isThemeSynergyCard: true },
-          edhrecCard('Generic Filler', 50),
+          edhrecCard('Generic Filler', 35),
         ],
       },
     } as unknown as GenerationState['edhrecData'];

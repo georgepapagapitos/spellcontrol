@@ -71,20 +71,27 @@ function combo(cards: string[], missingCards: string[]): DetectedCombo {
   };
 }
 
-/** A deck whose weakest card by inclusion is `protectedCard` (1%) and whose
- *  next-weakest is Filler (5%), with two incomplete combos an enabler fixes. */
-function auditCut(protectedCard: ScryfallCard): string | undefined {
+interface AuditDeck {
+  /** Cards in the deck with their page inclusion; two incomplete combos need `enabler`. */
+  cards: Array<[ScryfallCard, number]>;
+  enabler?: ScryfallCard;
+  enablerInclusion?: number;
+  gameChangers?: string[];
+}
+
+/** Runs the combo audit on a deck holding PieceA and PieceB (50%) plus `cards`,
+ *  with two incomplete combos the enabler (80% unless stated) completes. */
+function auditRun(deck: AuditDeck) {
   const pieceA = real('PieceA', 'Creature — Human', 'Flying');
   const pieceB = real('PieceB', 'Creature — Human', 'Flying');
-  const enabler = real('Enabler', 'Creature — Human', 'Flying');
-  const inclusion = new Map([
-    [protectedCard.name, 1],
-    ['Filler', 5],
+  const enabler = deck.enabler ?? real('Enabler', 'Creature — Human', 'Flying');
+  const inclusion = new Map<string, number>([
     ['PieceA', 50],
     ['PieceB', 50],
-    ['Enabler', 80],
+    [enabler.name, deck.enablerInclusion ?? 80],
+    ...deck.cards.map(([c, inc]) => [c.name, inc] as [string, number]),
   ]);
-  const creatures = [pieceA, pieceB, FILLER];
+  const held = deck.cards.map(([c]) => c);
   const state = {
     context: {
       commander: real('Commander', 'Legendary Creature — Human', ''),
@@ -98,7 +105,7 @@ function auditCut(protectedCard: ScryfallCard): string | undefined {
       collectionStrategy: 'full',
       comboCountSetting: 1,
     },
-    usedNames: new Set(['PieceA', 'PieceB', 'Filler', protectedCard.name]),
+    usedNames: new Set(['PieceA', 'PieceB', ...held.map((c) => c.name)]),
     bannedCards: new Set<string>(),
     categories: {
       lands: [],
@@ -106,13 +113,15 @@ function auditCut(protectedCard: ScryfallCard): string | undefined {
       cardDraw: [],
       singleRemoval: [],
       boardWipes: [],
-      creatures,
-      synergy: [protectedCard],
+      creatures: [pieceA, pieceB],
+      synergy: held,
       utility: [],
     },
     currentRoleCounts: { ramp: 0, removal: 0, boardwipe: 0, cardDraw: 0 },
     currentSubtypeCounts: {},
     mustIncludeNames: [],
+    combos: [],
+    gameChangerNames: new Set<string>(deck.gameChangers ?? []),
     comboCardNames: new Set<string>(),
     edhrecData: {
       cardlists: {
@@ -122,14 +131,24 @@ function auditCut(protectedCard: ScryfallCard): string | undefined {
   } as unknown as GenerationState;
   const { repairs } = comboIntegrityAuditPhase(state, {
     detectedCombos: [
-      combo(['PieceA', 'Enabler'], ['Enabler']),
-      combo(['PieceB', 'Enabler'], ['Enabler']),
+      combo(['PieceA', enabler.name], [enabler.name]),
+      combo(['PieceB', enabler.name], [enabler.name]),
     ],
-    scryfallCardMap: new Map([['Enabler', enabler]]),
+    scryfallCardMap: new Map([[enabler.name, enabler]]),
     budgetTracker: null,
     bracketGuard: undefined,
   });
-  return repairs[0]?.cut;
+  return { repairs, state };
+}
+
+/** The weakest card by inclusion is `protectedCard` (1%); Filler (5%) is next. */
+function auditCut(protectedCard: ScryfallCard): string | undefined {
+  return auditRun({
+    cards: [
+      [protectedCard, 1],
+      [FILLER, 5],
+    ],
+  }).repairs[0]?.cut;
 }
 
 describe('the wide protection reading reaches the eviction phases', () => {
@@ -183,6 +202,65 @@ At the beginning of your upkeep, you lose 1 life for each burden counter on The 
   });
 });
 
+// The Sythis partial50 regression: once Solitary Confinement read as
+// protection, the audit's lowest unprotected card completing Siona was
+// Enlightened Tutor (40.3%, a Game Changer). A cut never takes a staple, a
+// tutor, a Game Changer (for a non-Game Changer) or a piece of another line.
+const ENLIGHTENED_TUTOR = real(
+  'Enlightened Tutor',
+  'Instant',
+  'Search your library for an artifact or enchantment card, reveal that card, then shuffle and put the card on top.',
+  1
+);
+const SIONA = real(
+  'Siona, Captain of the Pyleas',
+  'Legendary Creature — Human Warrior',
+  'Vigilance\nWhenever Siona, Captain of the Pyleas or another Human enters, you gain 1 life.',
+  3
+);
+
+describe('a combo completion never cuts what the deck keeps (E563)', () => {
+  const siona = (deck: Omit<AuditDeck, 'enabler' | 'enablerInclusion'>) =>
+    auditRun({ ...deck, enabler: SIONA, enablerInclusion: 20 });
+
+  it('makes no cut when every card left is a staple or protection, and the combo stays one-away', () => {
+    const { repairs, state } = siona({
+      cards: [
+        [SOLITARY, 33.2],
+        [ENLIGHTENED_TUTOR, 40.3],
+      ],
+      gameChangers: ['Enlightened Tutor'],
+    });
+    expect(repairs).toEqual([]);
+    expect(state.usedNames.has('Enlightened Tutor')).toBe(true);
+    expect(state.usedNames.has('Solitary Confinement')).toBe(true);
+    expect(state.usedNames.has(SIONA.name)).toBe(false);
+  });
+
+  it('cuts filler instead when there is some', () => {
+    const { repairs } = siona({
+      cards: [
+        [SOLITARY, 33.2],
+        [ENLIGHTENED_TUTOR, 40.3],
+        [FILLER, 12],
+      ],
+      gameChangers: ['Enlightened Tutor'],
+    });
+    expect(repairs).toEqual([expect.objectContaining({ cut: 'Filler', added: SIONA.name })]);
+  });
+
+  it('keeps a Game Changer below the staple bar, unless a Game Changer comes in', () => {
+    const cards: Array<[ScryfallCard, number]> = [
+      [ENLIGHTENED_TUTOR, 10],
+      [SOLITARY, 33.2],
+    ];
+    expect(siona({ cards, gameChangers: ['Enlightened Tutor'] }).repairs).toEqual([]);
+    expect(siona({ cards, gameChangers: ['Enlightened Tutor', SIONA.name] }).repairs).toEqual([
+      expect.objectContaining({ cut: 'Enlightened Tutor' }),
+    ]);
+  });
+});
+
 // The structural half: a phase that protects a piece from eviction reads
 // `readsAsProtection`. The only generation readers of the narrow tagger
 // evidence are listed here, each for a stated reason.
@@ -201,5 +279,16 @@ describe('no generation phase reads the narrow evidence', () => {
         return /\bisProtectionPiece\(/.test(code);
       });
     expect(offenders).toEqual([]);
+  });
+
+  // The cut sites of a combo completion or repair keep staples, tutors, Game
+  // Changers and combo-line pieces (evictionKeeper.ts).
+  it.each([
+    'phaseComboAudit',
+    'phaseApplyComboFloor',
+    'phaseCoherenceRepair',
+    'phaseBracketConverge',
+  ])('%s reads evictionKeeper', (phase) => {
+    expect(readFileSync(join(__dirname, `${phase}.ts`), 'utf8')).toContain("'./evictionKeeper'");
   });
 });
