@@ -183,8 +183,13 @@ const FAST_GATE = 0.5;
 const REPAIR_CHOICES = 8;
 /** A repair's card comes in at least this share as played as the card it replaces, when one can. */
 const REPAIR_TIER = 0.5;
-/** Repairs kept aside because they leave the trust region, judged only when none stays inside it. */
-const FORCED_KEPT = 64;
+/**
+ * Repairs kept aside, per tier, because they leave the trust region, judged
+ * only when none stays inside it. As many as the checks reach (a step checks
+ * at most shortlist x CHECKS_PER_SLOT moves), so the best-played owned card is
+ * picked from all of them, not from the first by estimate.
+ */
+const FORCED_KEPT = 1000;
 type ForcedTier = 1 | 2 | 3;
 /** What a forced repair that left the trust region says, so the reason owns up to it. */
 function forcedDisclosure(tier: ForcedTier, why: string): string {
