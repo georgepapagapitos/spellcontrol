@@ -267,6 +267,22 @@ describe('applyBudgetConvergence', () => {
     expect(state.usedNames.has('Pricey Card')).toBe(false);
   });
 
+  it('cuts a soft-protected card the deck plays less before a kept 40%+ staple (E561: Flux Channeler)', async () => {
+    // Pricey Card is the priciest and Mid Card the next; both read as combo
+    // flavored (soft). Pricey Card is in 60% of decks, so the keeper holds it.
+    const state = makeState();
+    state.comboCardNames = new Set(['Pricey Card', 'Mid Card']);
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [...POOL, edhrecCard('Pricey Card', 60), edhrecCard('Mid Card', 10)],
+      },
+    } as unknown as GenerationState['edhrecData'];
+    const result = await applyBudgetConvergence(state, baseCtx({ deckBudget: 40 }));
+    expect(result.finalTotal).toBeLessThanOrEqual(40);
+    expect(state.usedNames.has('Pricey Card')).toBe(true);
+    expect(state.usedNames.has('Mid Card')).toBe(false);
+  });
+
   it('never cuts the commander, even if a same-named card somehow sits in categories', async () => {
     // Not how generation normally shapes the deck (the commander lives outside
     // `categories`), but isProtected() checks commanderNames by name alone

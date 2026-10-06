@@ -646,6 +646,13 @@ export async function applyBudgetConvergence(
   runRounds((c) => !isHardProtected(c) && softProtectionLabel(c) === null);
   // Stage 2: only reached if stage 1 didn't converge — soft protections now
   // yield too (still never hard-protected ones).
+  // E561: the cards the eviction keeper holds (a 40%+ staple, a tutor, the last
+  // answer of its kind) yield last of all, so a soft label that only says
+  // "synergy engine piece" can't take Flux Channeler (40.6%) over a card the
+  // deck plays less.
+  if (total > ctx.deckBudget) {
+    runRounds((c) => !isHardProtected(c) && !keeps(c));
+  }
   if (total > ctx.deckBudget) {
     runRounds((c) => !isHardProtected(c));
   }
