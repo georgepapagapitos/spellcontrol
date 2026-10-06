@@ -23,7 +23,7 @@ import {
   notLegalForFormat,
 } from '../deckFilters';
 import { bracketCeilings, type BracketCeilings } from '../bracketGuard';
-import { estimateBracket } from '../bracketEstimator';
+import { estimateBracket, floorOf } from '../bracketEstimator';
 import { copyLimit, normalizeCardName } from '../cardIdentity';
 import type { ConstraintViolation, ObjectiveContext, ObjectiveDeck } from './types';
 import { isBasicLand, isLandCard } from './context';
@@ -186,6 +186,23 @@ export function gameChangerNamesFor(deck: ObjectiveDeck, ctx: ObjectiveContext):
     if (ctx.gameChangerNames.has(frontFaceName(c.name))) names.add(c.name);
   }
   return names;
+}
+
+/** The bracket the estimator's hard floors put the deck at (mass land denial, Game Changers, complete combos: its own predicates). */
+export function bracketFloorOf(deck: ObjectiveDeck, ctx: ObjectiveContext): number {
+  const names = [...deck.commanders, ...deck.cards].map((c) => c.name);
+  const spells = deck.cards.filter((c) => !isLandCard(c));
+  const avg = spells.length ? spells.reduce((s, c) => s + (c.cmc ?? 0), 0) / spells.length : 0;
+  const estimate = estimateBracket(
+    names,
+    completeCombos(deck, ctx).map((c) => ({ ...c, isComplete: true })),
+    avg,
+    undefined,
+    undefined,
+    gameChangerNamesFor(deck, ctx),
+    deck.commanders.map((c) => c.name)
+  );
+  return floorOf(estimate.hardFloors);
 }
 
 /** A combo hard floor above a numeric target bracket, as the bracket estimator reads the deck. */

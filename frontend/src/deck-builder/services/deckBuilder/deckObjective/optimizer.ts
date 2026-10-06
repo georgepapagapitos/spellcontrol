@@ -55,7 +55,7 @@ import { frontFaceName } from '@/lib/cards/card-text';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 import { normalizeCardName } from '../cardIdentity';
 import { classCounts } from './classFloors';
-import { cardIneligibility, checkConstraints } from './constraints';
+import { bracketFloorOf, cardIneligibility, checkConstraints } from './constraints';
 import { isBasicLand, isLandCard } from './context';
 import { reasonProblem } from './reasonCheck';
 import { protectionValue } from './terms/interaction';
@@ -77,6 +77,7 @@ import {
 } from './trustRegion';
 import {
   TERM_KEYS,
+  type ConstraintViolation,
   type ObjectiveContext,
   type ObjectiveDeck,
   type ObjectiveScore,
@@ -119,6 +120,12 @@ export interface OptimizeOptions {
    * so they don't compete with the page's cards for an improving swap.
    */
   repairOnly?: ReadonlySet<string>;
+  /**
+   * Constraint checks the search must not repair: an ownership rule the
+   * generator shipped relaxed and disclosed. The search is never stricter than
+   * the generator was. Moves still may not make them worse.
+   */
+  leave?: ReadonlySet<string>;
 }
 
 export interface OptimizeResult {
@@ -256,6 +263,11 @@ export function optimizeDeck(
   options: OptimizeOptions = {}
 ): OptimizeResult {
   const opts = { ...DEFAULTS, ...options };
+  // Ownership rules the generator shipped relaxed and disclosed are left as
+  // they are: only a violation outside this set is repaired.
+  const leave = opts.leave ?? new Set<string>();
+  const repairable = (vs: readonly ConstraintViolation[]) =>
+    vs.reduce((n, v) => n + (leave.has(v.check) ? 0 : v.magnitude), 0);
   const trust = opts.trust === false ? null : (opts.trust ?? {});
   const roleOf = memoRoleOf(trust?.roleOf ?? baseCtx.roleOf ?? factsRoleOf(baseCtx));
   const t0 = Date.now();
@@ -331,7 +343,7 @@ export function optimizeDeck(
     // it takes (an owned-only build can start six cards out of its pool).
     // Past the cap, the search goes on only to repair.
     const capped = applied.filter((a) => a.kind !== 'repair').length >= opts.maxSwaps;
-    if (capped && infeasibility(currentScore) === 0) {
+    if (capped && repairable(currentScore.violations) === 0) {
       stoppedBy = 'max-swaps';
       break;
     }
@@ -431,6 +443,7 @@ export function optimizeDeck(
       }
     }
     const curInfeasible = infeasibility(currentScore);
+    const curRepairable = repairable(currentScore.violations);
     // Constraints come first, as in compareScores: while the deck breaks one,
     // moves that take out a card a violation names (an unowned card in an
     // owned-only build, a Game Changer over the bracket's ceiling, a combo
@@ -438,8 +451,9 @@ export function optimizeDeck(
     // owned one under an owned share, or a dearer card for a cheaper one over
     // budget, are judged before any other.
     const repairs = (m: Move): boolean => {
-      if (curInfeasible === 0) return false;
+      if (curRepairable === 0) return false;
       for (const v of currentScore.violations) {
+        if (leave.has(v.check)) continue;
         const outs = m.out.map((i) => current.cards[i]);
         if (outs.some((c) => v.cards.includes(c.name))) return true;
         if (v.check === 'owned-share' && ctx.ownedNames) {
@@ -544,6 +558,14 @@ export function optimizeDeck(
     const moveCmc = (m: Move) => m.in.reduce((t, c) => t + (c.cmc ?? 0), 0);
     const bestPlayed = (a: Move, b: Move) =>
       (forcedTier === 1 ? moveCmc(a) - moveCmc(b) : 0) || moveQ(b) - moveQ(a);
+    // A forced repair never seats a card the bracket estimator floors higher
+    // (Winter Moon is mass land denial: a deck's bracket is not the user's
+    // ownership rule to trade away), read by the estimator's own floors.
+    let floorNow: number | null = null;
+    const raisesBracket = (m: Move) => {
+      floorNow ??= bracketFloorOf(current, ctx);
+      return bracketFloorOf(applyMove(current, m), ctx) > floorNow;
+    };
     const tiers = new Map<Move, { tier: ForcedTier; why: string | null }>();
     const tierOf = (move: Move) => {
       let t = tiers.get(move);
@@ -568,7 +590,7 @@ export function optimizeDeck(
       const violations = checkConstraints(next, ctx);
       const nextInfeasible = violations.reduce((s, v) => s + v.magnitude, 0);
       if (nextInfeasible > curInfeasible) continue;
-      const isRepair = nextInfeasible < curInfeasible;
+      const isRepair = repairable(violations) < curRepairable;
       if (!isRepair && opts.repairOnly && move.in.some((c) => opts.repairOnly!.has(c.name)))
         continue;
       let required = opts.minGain;
@@ -576,6 +598,7 @@ export function optimizeDeck(
         const verdict = judgeOf(move, false);
         if (verdict.bound) {
           if (isRepair) {
+            if (raisesBracket(move)) continue;
             const tier = tierOf(move).tier;
             if (forcedKept[tier] < FORCED_KEPT) {
               forcedKept[tier]++;
@@ -640,10 +663,10 @@ export function optimizeDeck(
         if (!sameRole.get(move) || move.out.join(',') !== outs) continue;
         if (evaluations.full >= opts.maxEvaluations || Date.now() - t0 > opts.timeBudgetMs) break;
         const next = applyMove(current, move);
-        const left = checkConstraints(next, ctx).reduce((n, v) => n + v.magnitude, 0);
-        if (left >= curInfeasible) continue;
+        if (repairable(checkConstraints(next, ctx)) >= curRepairable) continue;
         if (trust && !forcedRepair && judgeOf(move, false).bound) continue;
-        if (trust && forcedRepair && tierOf(move).tier > forcedTier) continue;
+        if (trust && forcedRepair && (tierOf(move).tier > forcedTier || raisesBracket(move)))
+          continue;
         tried++;
         const score = full(next);
         const beats =

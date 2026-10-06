@@ -2,7 +2,11 @@
 //
 // E513 round 3: the flag-on gate's regressed and neutral decks, each over the
 // real cards it happened with (Scryfall records from the same bulk file).
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { loadTaggerData } from '@/deck-builder/services/tagger/client';
 import { checkConstraints } from './index';
 import { optimizeDeck } from './optimizer';
 import { rolesMovedBetween } from './swapReasons';
@@ -13,7 +17,7 @@ const SMALL = { maxSwaps: 0, maxEvaluations: 60, shortlist: 12, escapes: 0 };
 const ONLY_OWNED = { deckFormat: 99, currency: 'USD', collectionMode: true } as const;
 
 /** Meren's list with Swiftfoot Boots unowned in an owned-only build, ramp at its cap. */
-function bootsRow(ownedExtras: string[]) {
+function bootsRow(ownedExtras: string[], over: Parameters<typeof merenCtx>[0] = {}) {
   const roleOf = factsRoleOf(merenCtx());
   const ramp = countRoles(BASELINE, roleOf).ramp;
   // cap = target + max(2, 20% of target): a target of ramp - 2 puts the deck one under it at most.
@@ -27,6 +31,7 @@ function bootsRow(ownedExtras: string[]) {
     ownedNames: owned,
     roleTargets: { ...merenCtx().roleTargets, ramp: target },
     roleOf,
+    ...over,
   });
 }
 
@@ -114,5 +119,69 @@ describe('swap reasons count the way the report does, in the order the swaps wer
     expect(rolesMovedBetween(a, b, roleOf, targets)).toContain(
       `ramp ${n - 1} → ${n - 2} of target ${targets.ramp}`
     );
+  });
+});
+
+describe('the search is never stricter than the generator disclosed ownership relaxation', () => {
+  const owned = (unowned: string[], extra: string[]) =>
+    new Set([...BASELINE.cards.map((c) => c.name).filter((n) => !unowned.includes(n)), ...extra]);
+
+  it('leaves an owned-only build unowned Swiftfoot Boots (Krenko coll-full), where it repaired before', () => {
+    const ctx = merenCtx({
+      customization: { ...ONLY_OWNED, collectionStrategy: 'full' },
+      ownedNames: owned(['Swiftfoot Boots'], ['Heroic Intervention']),
+    });
+    expect(checkConstraints(BASELINE, ctx).map((v) => v.check)).toEqual(['collection']);
+    const r = optimizeDeck(BASELINE, cards('Heroic Intervention'), ctx, {
+      ...SMALL,
+      leave: new Set(['collection']),
+    });
+    expect(r.swaps).toEqual([]);
+    expect(r.deck.cards.some((c) => c.name === 'Swiftfoot Boots')).toBe(true);
+  });
+
+  it('leaves a partial build unowned staple at the disclosed shortfall (Sythis partial 100: Sanctum Weaver)', () => {
+    const ctx = merenCtx({
+      customization: { ...ONLY_OWNED, collectionStrategy: 'partial', collectionOwnedPercent: 100 },
+      ownedNames: owned(['Sakura-Tribe Elder'], ['Vexing Puzzlebox']),
+    });
+    const r = optimizeDeck(BASELINE, cards('Vexing Puzzlebox'), ctx, {
+      ...SMALL,
+      leave: new Set(['owned-share']),
+    });
+    expect(r.swaps.flatMap((s) => s.out)).not.toContain('Sakura-Tribe Elder');
+  });
+
+  it('still repairs a Game Changer limit the generator broke (Atraxa coll-full bracket 2)', () => {
+    const ctx = merenCtx({
+      customization: { ...ONLY_OWNED, collectionStrategy: 'full', gameChangerLimit: 'none' },
+      ownedNames: owned([], ['Grave Pact']),
+      gameChangerNames: new Set(['Dread Return']),
+    });
+    expect(checkConstraints(BASELINE, ctx).map((v) => v.check)).toContain('game-changers');
+    const r = optimizeDeck(BASELINE, cards('Grave Pact'), ctx, {
+      ...SMALL,
+      leave: new Set(['collection', 'owned-share']),
+    });
+    expect(r.swaps[0]).toMatchObject({ out: ['Dread Return'], kind: 'repair' });
+  });
+});
+
+describe('a forced repair never seats a card the bracket estimator floors higher (Winter Moon)', () => {
+  const here = dirname(fileURLToPath(import.meta.url));
+  beforeAll(async () => {
+    const data = JSON.parse(
+      readFileSync(resolve(here, '..', '__fixtures__', 'tagger-tags.fixture.json'), 'utf8')
+    );
+    vi.stubGlobal('fetch', async () => ({ ok: true, status: 200, json: async () => data }));
+    if (!(await loadTaggerData())) throw new Error('tagger data failed to load');
+  });
+  afterAll(() => vi.unstubAllGlobals());
+
+  it('leaves Boots in rather than take Winter Orb, the only owned card', () => {
+    // No Game Changers, so the deck floors below bracket 4 and Winter Orb would raise it.
+    const ctx = bootsRow(['Winter Orb'], { gameChangerNames: new Set() });
+    const r = optimizeDeck(BASELINE, cards('Winter Orb'), ctx, SMALL);
+    expect(r.swaps.flatMap((s) => s.in)).not.toContain('Winter Orb');
   });
 });

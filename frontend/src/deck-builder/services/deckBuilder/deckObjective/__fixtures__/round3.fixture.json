@@ -105,6 +105,57 @@
       "set_name": "Commander Masters",
       "toughness": "6",
       "type_line": "Artifact Creature — Phyrexian Avatar"
+    },
+    {
+      "cmc": 2.0,
+      "color_identity": [],
+      "colors": [],
+      "edhrec_rank": 3411,
+      "games": ["paper", "mtgo"],
+      "id": "ab3cec7e-513e-400d-a1a8-2c71cdde02c6",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "standard": "not_legal",
+        "future": "not_legal",
+        "historic": "not_legal",
+        "timeless": "not_legal",
+        "gladiator": "not_legal",
+        "pioneer": "not_legal",
+        "modern": "not_legal",
+        "legacy": "legal",
+        "pauper": "not_legal",
+        "vintage": "legal",
+        "penny": "not_legal",
+        "commander": "legal",
+        "oathbreaker": "legal",
+        "standardbrawl": "not_legal",
+        "brawl": "not_legal",
+        "competitivebrawl": "not_legal",
+        "alchemy": "not_legal",
+        "paupercommander": "not_legal",
+        "duel": "legal",
+        "oldschool": "not_legal",
+        "premodern": "legal",
+        "predh": "legal",
+        "tlr": "legal"
+      },
+      "mana_cost": "{2}",
+      "name": "Winter Orb",
+      "oracle_id": "1dcbd583-3388-4b34-a7cd-131648aa6abd",
+      "oracle_text": "As long as this artifact is untapped, players can't untap more than one land during their untap steps.",
+      "prices": {
+        "usd": "21.91",
+        "usd_foil": "33.33",
+        "usd_etched": null,
+        "eur": "10.85",
+        "eur_foil": "20.76",
+        "tix": "11.27"
+      },
+      "rarity": "rare",
+      "set": "ema",
+      "set_name": "Eternal Masters",
+      "type_line": "Artifact"
     }
   ]
 }
