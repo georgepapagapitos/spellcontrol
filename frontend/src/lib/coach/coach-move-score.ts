@@ -110,6 +110,8 @@ export interface CoachMoveScoreOptions {
 
 const DEFAULT_FULL_TOP = 12;
 const DEFAULT_PAIRS = 6;
+/** Pairs judged at most per row when none is accepted yet. */
+const MAX_PAIRS = 30;
 
 type SlotClass = 'spell' | 'land' | 'basic';
 function slotClass(card: ScryfallCard): SlotClass {
@@ -251,8 +253,14 @@ function* scoreSteps(
     }
     pairs.sort((a, b) => b.est - a.est || byName(a.out, b.out) || byName(a.in, b.in));
     let best: { out: ScryfallCard; in: ScryfallCard; j: MoveJudgement } | null = null;
-    for (const p of pairs.slice(0, pairsJudged)) {
+    let judged = 0;
+    for (const p of pairs) {
+      // Judge the best few by the estimate; keep going (to a cap) while none is
+      // accepted, since a refusal on a hard rule (owned share, a role floor)
+      // says nothing about the next pair.
+      if (judged >= MAX_PAIRS || (judged >= pairsJudged && best?.j.accepted)) break;
       const j = judgeMove(deck, { out: [p.out.name], in: [p.in] }, fastCtx, judgeOpts);
+      judged++;
       if (!best || better(j, best.j)) best = { ...p, j };
       yield;
     }

@@ -199,7 +199,18 @@ export async function shadowRecord(input: ShadowInput): Promise<ShadowRecord> {
     ...view.suggestions.staples.map((s) => s.name),
     ...(analysis.optimizeSwaps?.additions ?? []).map((o) => o.name),
   ];
-  const candidates = [...new Set(offered)]
+  // A collection deck's best replacement is a card it owns: the owned cards this
+  // commander's page plays most, beside what Coach offers.
+  const ownedOffered =
+    input.ownedNames.size === 0
+      ? []
+      : [...input.ownedNames]
+          .map((n) => ({ n, inc: objective.ctx.edhrec.get(n)?.inclusion ?? 0 }))
+          .filter((x) => x.inc > 0)
+          .sort((a, b) => b.inc - a.inc || (a.n < b.n ? -1 : 1))
+          .slice(0, 60)
+          .map((x) => x.n);
+  const candidates = [...new Set([...offered, ...ownedOffered])]
     .map((n) => input.resolve(n))
     .filter((c): c is ScryfallCard => !!c);
 
