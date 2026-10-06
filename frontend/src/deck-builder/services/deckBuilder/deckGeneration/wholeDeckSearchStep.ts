@@ -8,6 +8,7 @@ import type { CoherenceRepair, DetectedCombo, ScryfallCard } from '@/deck-builde
 import type { WholeDeckSearchInput } from './phaseWholeDeckSearch';
 import { detectCombosPhase, refreshComboCompleteness } from './phaseDetectCombos';
 import type { GenerationState } from './state';
+import { SEARCH_PROGRESS_MESSAGE, SEARCH_PROGRESS_PERCENT } from './searchProgress';
 
 /**
  * Every combo the deck assembles, not only the list the phases before handed
@@ -25,10 +26,6 @@ function allDeckCombos(
   const all = [...fresh, ...(handed ?? []).filter((c) => !known.has(c.comboId))];
   return all.length > 0 ? all : undefined;
 }
-
-/** The step's own line in the takeover's progress list (a milestone there). */
-export const SEARCH_PROGRESS_MESSAGE = 'Fine-tuning the list…';
-export const SEARCH_PROGRESS_PERCENT = 93;
 
 /** The search is on unless a build says false. */
 export function searchEnabled(customization: { wholeDeckSearch?: boolean }): boolean {

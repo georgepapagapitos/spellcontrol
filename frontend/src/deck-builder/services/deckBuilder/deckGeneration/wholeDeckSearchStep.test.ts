@@ -5,9 +5,9 @@ import type { GenerationState } from './state';
 import {
   SEARCH_PROGRESS_MESSAGE,
   SEARCH_PROGRESS_PERCENT,
-  searchEnabled,
-  standing,
-} from './wholeDeckSearchStep';
+  SEARCH_PROGRESS_SPAN,
+} from './searchProgress';
+import { searchEnabled, standing } from './wholeDeckSearchStep';
 
 const repair = (cut: string, added: string) => ({ cut, added, reason: '' });
 const stateWith = (swaps: Array<{ cut: string; added: string }>) =>
@@ -45,6 +45,6 @@ describe('the search is on unless a build says false', () => {
   it('has a progress step the takeover lists, and the bar can move on past it', () => {
     expect(SEARCH_PROGRESS_MESSAGE).toBe('Fine-tuning the list…');
     expect(SEARCH_PROGRESS_PERCENT).toBeGreaterThan(92);
-    expect(SEARCH_PROGRESS_PERCENT).toBeLessThan(97);
+    expect(SEARCH_PROGRESS_PERCENT + SEARCH_PROGRESS_SPAN).toBeLessThan(97);
   });
 });

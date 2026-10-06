@@ -554,6 +554,7 @@ describe('generateDeck — whole-deck search (E513, on unless customization.whol
     // The step comes after the last build step and never moves the bar back.
     const percents = steps.map(([, p]) => p);
     expect(Math.max(...percents.slice(0, percents.lastIndexOf(93)))).toBeLessThanOrEqual(93);
+    expect(Math.max(...percents)).toBeLessThanOrEqual(96); // never into "Shuffling up"
     expect(Object.values(deck.categories).flat()).toHaveLength(99);
     clearGenerationCache();
   }, 120_000);

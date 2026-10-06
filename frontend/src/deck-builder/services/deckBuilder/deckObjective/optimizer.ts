@@ -163,6 +163,17 @@ export function repairSlotOf(
   return roleOf(card) ?? (protectionValue(card, ctx.factsOf(card)) > 0 ? 'protection' : null);
 }
 
+/** Runs the search to the end without waiting. */
+export function optimizeDeck(
+  seed: ObjectiveDeck,
+  candidates: readonly ScryfallCard[],
+  baseCtx: ObjectiveContext,
+  options: OptimizeOptions = {}
+): OptimizeResult {
+  const steps = optimizeSteps(seed, candidates, baseCtx, options);
+  for (let next = steps.next(); ; next = steps.next()) if (next.done) return next.value;
+}
+
 /** Swaps a deck. Five: a finished deck needs a few corrections, not a rebuild. */
 export const MAX_SWAPS = 5;
 /**
@@ -262,12 +273,26 @@ function memoRoleOf(
   };
 }
 
-export function optimizeDeck(
+/** What the search reports at each checkpoint. */
+export interface Beat {
+  swaps: number;
+  evaluations: number; // full scores spent, of maxEvaluations
+  maxEvaluations: number;
+}
+
+/**
+ * The search as a generator: a Beat at every checkpoint, so a driver can let
+ * the page breathe (optimizeDeckAsync, optimizerAsync.ts) or not (optimizeDeck
+ * below). Same steps either way, so the same swaps. `meter.idle` is the time
+ * the driver spent waiting, which the time budget does not count.
+ */
+export function* optimizeSteps(
   seed: ObjectiveDeck,
   candidates: readonly ScryfallCard[],
   baseCtx: ObjectiveContext,
-  options: OptimizeOptions = {}
-): OptimizeResult {
+  options: OptimizeOptions = {},
+  meter: { idle: number } = { idle: 0 }
+): Generator<Beat, OptimizeResult, void> {
   const opts = { ...DEFAULTS, ...options };
   // Ownership rules the generator shipped relaxed and disclosed are left as
   // they are: only a violation outside this set is repaired.
@@ -278,6 +303,7 @@ export function optimizeDeck(
   const trust = opts.trust === false ? null : (opts.trust ?? {});
   const roleOf = memoRoleOf(trust?.roleOf ?? baseCtx.roleOf ?? factsRoleOf(baseCtx));
   const t0 = Date.now();
+  const worked = () => Date.now() - t0 - meter.idle;
   const cz = baseCtx.customization;
   // A staple rock yields to the user's ownership rule only where an unowned
   // one must break it: owned-only builds (E509 ruling (a): Sol Ring is
@@ -339,6 +365,11 @@ export function optimizeDeck(
     disclosure?: string;
   }> = [];
   const refusals: Record<string, number> = {};
+  const beat = (): Beat => ({
+    swaps: applied.length,
+    evaluations: evaluations.full,
+    maxEvaluations: opts.maxEvaluations,
+  });
   const tabuOut = new Map<string, number>(); // key -> swap index until which it can't leave
   const tabuIn = new Map<string, number>(); // key -> swap index until which it can't return
   let escapesLeft = opts.escapes;
@@ -358,10 +389,11 @@ export function optimizeDeck(
       stoppedBy = 'max-evaluations';
       break;
     }
-    if (Date.now() - t0 > opts.timeBudgetMs) {
+    if (worked() > opts.timeBudgetMs) {
       stoppedBy = 'time';
       break;
     }
+    yield beat();
     const step = applied.length;
     const inDeck = new Set(current.cards.map((c) => key(c.name)));
     const fastNow = fast(current);
@@ -388,6 +420,7 @@ export function optimizeDeck(
         };
         loss = fastNow - fast(without);
         lossByName.set(c.name, loss);
+        yield beat();
       }
       lossOf.set(i, loss);
     }
@@ -403,6 +436,7 @@ export function optimizeDeck(
         c,
         fast({ commanders: current.commanders, cards: [...current.cards, c] }) - fastNow
       );
+      yield beat();
     }
 
     // 2. Rank 1:1 pairs within a slot class, plus 2:2 combo seatings.
@@ -593,8 +627,9 @@ export function optimizeDeck(
       return t;
     };
     for (const move of moves) {
+      yield beat();
       if (judged >= opts.shortlist || checked >= opts.shortlist * CHECKS_PER_SLOT) break;
-      if (evaluations.full >= opts.maxEvaluations || Date.now() - t0 > opts.timeBudgetMs) break;
+      if (evaluations.full >= opts.maxEvaluations || worked() > opts.timeBudgetMs) break;
       const next = applyMove(current, move);
       checked++;
       const violations = checkConstraints(next, ctx);
@@ -649,7 +684,8 @@ export function optimizeDeck(
       let seen = 0;
       forcedTier = Math.min(...forced.map((m) => tierOf(m).tier)) as ForcedTier;
       for (const move of forced.filter((m) => tierOf(m).tier === forcedTier).sort(bestPlayed)) {
-        if (evaluations.full >= opts.maxEvaluations || Date.now() - t0 > opts.timeBudgetMs) break;
+        if (evaluations.full >= opts.maxEvaluations || worked() > opts.timeBudgetMs) break;
+        yield beat();
         const score = full(applyMove(current, move));
         if (!bestRepair || compareScores(score, bestRepair.score) > 0) bestRepair = { move, score };
         if (++seen >= REPAIR_CHOICES) break;
@@ -671,7 +707,8 @@ export function optimizeDeck(
       for (const move of forcedRepair ? [...moves].sort(bestPlayed) : moves) {
         if (tried >= REPAIR_CHOICES) break;
         if (!sameRole.get(move) || move.out.join(',') !== outs) continue;
-        if (evaluations.full >= opts.maxEvaluations || Date.now() - t0 > opts.timeBudgetMs) break;
+        if (evaluations.full >= opts.maxEvaluations || worked() > opts.timeBudgetMs) break;
+        yield beat();
         const next = applyMove(current, move);
         if (repairable(checkConstraints(next, ctx)) >= curRepairable) continue;
         if (trust && !forcedRepair && judgeOf(move, false).bound) continue;
@@ -708,7 +745,7 @@ export function optimizeDeck(
       stoppedBy =
         evaluations.full >= opts.maxEvaluations
           ? 'max-evaluations'
-          : Date.now() - t0 > opts.timeBudgetMs
+          : worked() > opts.timeBudgetMs
             ? 'time'
             : 'local-optimum';
       break;

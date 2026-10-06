@@ -30,19 +30,27 @@ import { exceedsCmcCap } from '../deckFilters';
 import { createObjectiveContext } from '../deckObjective';
 import { cardIneligibility, checkConstraints } from '../deckObjective/constraints';
 import { isLandCard } from '../deckObjective/context';
-import { optimizeDeck, repairSlotOf, type AppliedSwap } from '../deckObjective/optimizer';
+import { MAX_SWAPS, repairSlotOf, type AppliedSwap } from '../deckObjective/optimizer';
+import { optimizeDeckAsync } from '../deckObjective/optimizerAsync';
 import { countRoles } from '../deckObjective/trustRegion';
 import type { ObjectiveContext, ObjectiveDeck } from '../deckObjective/types';
 import { edhrecRowsFrom } from '../deckObjective/panelDump';
 import { markBanned, type GenerationState } from './state';
-import { plainDisclosure, plainNote } from './swapCopy';
+import {
+  SEARCH_PROGRESS_MESSAGE,
+  SEARCH_PROGRESS_PERCENT,
+  SEARCH_PROGRESS_SPAN,
+} from './searchProgress';
+import { plainDisclosure, swapSentences } from './swapCopy';
 
 /**
- * Wall-clock cap on the search. A phone runs it several times slower than a
- * desktop (about 5 s there); at the cap it stops with the swaps it has made,
- * which are each valid on their own and are disclosed as usual.
+ * Cap on the search's WORK time (the waits that let the page paint don't
+ * count, so a busy phone isn't cut short by its own yields). The slowest deck
+ * of the standard panel needs about 10 s of work on a desktop, so this never
+ * bites there; a phone several times slower is stopped at the cap with the
+ * swaps it has, each valid on its own and disclosed as usual.
  */
-export const SEARCH_TIME_BUDGET_MS = 8000;
+export const SEARCH_TIME_BUDGET_MS = 15_000;
 
 /** The ownership checks. */
 const OWNED_RULES = new Set(['collection', 'owned-share']);
@@ -81,24 +89,16 @@ export interface WholeDeckSearchResult {
 }
 
 /**
- * The swap's reasons as the report states them: its biggest three, in words,
- * and always a case FOR each card that came in (its best gain, when it has
- * one): Vexing Puzzlebox and Rise of the Dark Realms were stated only by what
- * the cards they replaced had provided (E513 round 3).
+ * The swap's reasons as the report states them (swapCopy.ts): why the card
+ * that came in, then why the one that left was the weaker pick. The heading
+ * above them already says which is which.
  */
 export function reasonLine(s: AppliedSwap): string {
-  const top3 = s.reasons.slice(0, 3);
-  const cases = s.in.flatMap((name) => {
-    if (top3.some((r) => r.name === name && r.value > 0)) return [];
-    const gain = s.reasons.find((r) => r.name === name && r.value > 0);
-    return gain ? [gain] : [];
-  });
-  const shown = [...top3.slice(0, Math.max(0, 3 - cases.length)), ...cases];
-  const top = shown.map((r) => `${r.name}: ${plainNote(r.note)}`).join('; ');
+  const { why, weaker } = swapSentences(s);
   const outside = s.disclosure
     ? ` Outside the usual limits, because ${plainDisclosure(s.disclosure)}.`
     : '';
-  return `${s.in.join(' + ')} for ${s.out.join(' + ')}${s.kind === 'repair' ? ' (to keep a build rule)' : ''}. ${top}.${outside}`;
+  return `${[why, weaker].filter(Boolean).join(' ')}${outside}`;
 }
 
 export async function wholeDeckSearchPhase(
@@ -172,13 +172,31 @@ export async function wholeDeckSearchPhase(
     const role = countedRoleOf(input.scryfallCardMap.get(name) ?? ({ name } as ScryfallCard));
     if (role) roleCeilings[role] = seedRoles[role] ?? 0;
   }
-  const result = optimizeDeck(seed, candidates, ctx, {
-    locks,
-    leave,
-    repairOnly: new Set(repairOnly.keys()),
-    trust: { roleCeilings },
-    timeBudgetMs: input.timeBudgetMs ?? SEARCH_TIME_BUDGET_MS,
-  });
+  // Waits for the page every few dozen ms of work and reports how far along it
+  // is, from the step's own percent toward (not to) the next milestone.
+  let shown = SEARCH_PROGRESS_PERCENT;
+  const result = await optimizeDeckAsync(
+    seed,
+    candidates,
+    ctx,
+    {
+      locks,
+      leave,
+      repairOnly: new Set(repairOnly.keys()),
+      trust: { roleCeilings },
+      timeBudgetMs: input.timeBudgetMs ?? SEARCH_TIME_BUDGET_MS,
+    },
+    (beat) => {
+      const done = Math.max(beat.evaluations / beat.maxEvaluations, beat.swaps / MAX_SWAPS);
+      const pct =
+        SEARCH_PROGRESS_PERCENT +
+        Math.min(SEARCH_PROGRESS_SPAN, Math.floor(done * SEARCH_PROGRESS_SPAN));
+      if (pct > shown) {
+        shown = pct;
+        state.context.onProgress?.(SEARCH_PROGRESS_MESSAGE, pct);
+      }
+    }
+  );
 
   const records: WholeDeckSwapRecord[] = [];
   for (const s of result.swaps) {
