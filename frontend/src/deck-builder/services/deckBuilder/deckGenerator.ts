@@ -2071,6 +2071,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       : mustIncludeCards;
     if (cardsToDeduct.length > 0) budgetTracker.deductMustIncludes(cardsToDeduct);
   }
+  // E566: the staple rocks seat first, as priced must-includes; the land reserve
+  // is then sized from what they leave.
+  if (budgetTracker) await stapleManaRocksPhase(state, budgetTracker, true);
   if (budgetTracker) await reserveLandBudget(state, budgetTracker, effectiveNonBasicLandCount);
 
   // Hoisted so fixup pass can access the Scryfall card map after generation

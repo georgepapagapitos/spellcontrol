@@ -147,16 +147,34 @@ describe('stapleManaRocksPhase', () => {
     expect(names).not.toContain('Arcane Signet');
   });
 
-  it('seats the rocks the budget held money for, though the dynamic cap alone would refuse them (E561: no Sol Ring at $10)', async () => {
+  it('seats the rocks first on a $10 four-colour build, though the pacing cap would refuse them (E566: no Sol Ring at $10)', async () => {
+    const { getCardByName } = await import('@/deck-builder/services/scryfall/client');
+    const original = vi.mocked(getCardByName).getMockImplementation()!;
+    // Real prices: Sol Ring $1.60, Arcane Signet $1.20.
+    vi.mocked(getCardByName).mockImplementation(async (name: string) =>
+      name === 'Sol Ring' ? card('Sol Ring', '1.60') : card('Arcane Signet', '1.20')
+    );
     const state = makeState();
-    const tracker = new BudgetTracker(50, 3, 'USD');
-    tracker.remainingBudget = 0.3; // the spells ran through the budget
-    tracker.reserveForRocks(45); // what landBudgetReserve held for Sol Ring + Signet
-    await stapleManaRocksPhase(state, tracker);
-    expect(allCards(state).map((c) => c.name)).toEqual(
+    state.context.colorIdentity = ['W', 'U', 'B', 'G'];
+    const late = new BudgetTracker(10, 99, 'USD'); // 8x the $0.10 average = $0.81 cap
+    await stapleManaRocksPhase(state, late);
+    expect(allCards(state)).toHaveLength(0); // the pacing cap refuses both
+    const early = makeState();
+    early.context.colorIdentity = ['W', 'U', 'B', 'G'];
+    const tracker = new BudgetTracker(10, 99, 'USD');
+    await stapleManaRocksPhase(early, tracker, true);
+    expect(allCards(early).map((c) => c.name)).toEqual(
       expect.arrayContaining(['Sol Ring', 'Arcane Signet'])
     );
-    expect(tracker.rockReserve).toBe(0);
+    expect(tracker.remainingBudget).toBeCloseTo(10 - 2.8, 2);
+    vi.mocked(getCardByName).mockImplementation(original);
+  });
+
+  it('does not seat an early rock the whole remaining budget cannot buy', async () => {
+    const state = makeState();
+    const tracker = new BudgetTracker(6, 99, 'USD');
+    await stapleManaRocksPhase(state, tracker, true); // mock: Sol Ring $40, Signet $5
+    expect(allCards(state).map((c) => c.name)).toEqual(['Arcane Signet']);
   });
 
   it('deducts added staples from the budget tracker', async () => {

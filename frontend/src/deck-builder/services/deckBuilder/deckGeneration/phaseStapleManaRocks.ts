@@ -43,12 +43,16 @@ export const STAPLE_ROCKS: { name: string; minColors: number }[] = [
 // "is a staple" — protection/exemption logic elsewhere must key off the name.
 export const STAPLE_ROCK_NAMES: ReadonlySet<string> = new Set(STAPLE_ROCKS.map((s) => s.name));
 
+// `seatEarly` (E566): a budget build seats the rocks as priced must-includes,
+// before the type passes spend the budget, so the gate is "fits what is left"
+// rather than the per-slot pacing cap (a $10 Atraxa shipped no Sol Ring because
+// the spells ran the tracker to zero first). The later call is the retry.
 export async function stapleManaRocksPhase(
   state: GenerationState,
-  budgetTracker: BudgetTracker | null
+  budgetTracker: BudgetTracker | null,
+  seatEarly = false
 ): Promise<void> {
   const stapleRocks = STAPLE_ROCKS;
-  const heldForRocks = budgetTracker?.releaseRockReserve() ?? 0;
   if (state.cfg.format === 99) {
     for (const staple of stapleRocks) {
       if (state.context.colorIdentity.length < staple.minColors) continue;
@@ -78,13 +82,17 @@ export async function stapleManaRocksPhase(
         // Respect budget, rarity, arena-only constraints — the dynamic
         // per-card cap (not just the static max), matching every other
         // budget-gated pick path.
-        // E561: money held for the rocks (landBudgetReserve.ts) covers them.
-        const dynamicCap = budgetTracker?.getEffectiveCap(state.cfg.maxCardPrice);
-        const cap =
-          dynamicCap != null && heldForRocks > 0
-            ? Math.min(state.cfg.maxCardPrice ?? Infinity, Math.max(dynamicCap, heldForRocks))
-            : (dynamicCap ?? state.cfg.maxCardPrice);
-        if (!ownedExempt && exceedsMaxPrice(card, cap, state.cfg.currency)) continue;
+        const cap = seatEarly
+          ? Math.min(
+              state.cfg.maxCardPrice ?? Infinity,
+              Math.max(0, budgetTracker?.remainingBudget ?? Infinity)
+            )
+          : (budgetTracker?.getEffectiveCap(state.cfg.maxCardPrice) ?? state.cfg.maxCardPrice);
+        if (
+          !ownedExempt &&
+          exceedsMaxPrice(card, Number.isFinite(cap) ? cap : null, state.cfg.currency)
+        )
+          continue;
         if (
           !isOwnedRarityExempt(
             staple.name,

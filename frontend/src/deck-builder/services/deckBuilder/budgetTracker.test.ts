@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { BudgetTracker } from './budgetTracker';
+import { BudgetTracker, EXHAUSTED_CAP } from './budgetTracker';
 import type { ScryfallCard } from '@/deck-builder/types';
 
 function makeCard(overrides: Partial<ScryfallCard> = {}): ScryfallCard {
@@ -48,7 +48,7 @@ describe('BudgetTracker.getEffectiveCap', () => {
     expect(t.getEffectiveCap(7)).toBe(7);
   });
 
-  it('falls back to the static max (not $0) once must-includes already blew the budget', () => {
+  it('caps at the bulk tier (not $0, never uncapped) once must-includes already blew the budget', () => {
     vi.spyOn(console, 'debug').mockImplementation(() => {});
     // 30-card budget deck, must-includes alone cost more than the budget —
     // remainingBudget goes negative and stays negative for every later pick.
@@ -57,8 +57,36 @@ describe('BudgetTracker.getEffectiveCap', () => {
     expect(t.remainingBudget).toBeLessThan(0);
     // A Math.max(0, ...) floor would clamp this to exactly $0, banning every
     // remaining priced card for the rest of generation.
-    expect(t.getEffectiveCap(5)).toBe(5);
-    expect(t.getEffectiveCap(null)).toBeNull();
+    expect(t.getEffectiveCap(5)).toBe(EXHAUSTED_CAP);
+    expect(t.getEffectiveCap(0.1)).toBe(0.1);
+    expect(t.getEffectiveCap(null)).toBe(EXHAUSTED_CAP);
+  });
+
+  // E566, Krenko budget50: a zero remainder returned the static max and lifted
+  // the cap off every later pick ($50 deck shipped at $147). Real prices.
+  it('keeps a $50 mono-red build under its budget once the remainder hits zero', () => {
+    const pool = [
+      ['Mana Crypt', 150],
+      ['Goblin Recruiter', 30],
+      ['Skullclamp', 8],
+      ['Impact Tremors', 0.4],
+      ['Goblin Chieftain', 0.3],
+      ['Rummaging Goblin', 0.1],
+      ['Goblin Piledriver', 0.1],
+      ['Mountain Goblin', 0.05],
+    ] as const;
+    const t = new BudgetTracker(50, 64);
+    t.remainingBudget = 0; // a combo seat and the rocks spent everything
+    let total = 50;
+    for (let i = 0; i < 64; i++) {
+      const cap = t.getEffectiveCap(null);
+      expect(cap).not.toBeNull();
+      const pick = pool.find(([, price]) => price <= (cap as number))!;
+      total += pick[1];
+      t.deductCard(makeCard({ prices: { usd: String(pick[1]) } }));
+    }
+    expect(total).toBeLessThan(50 + 64 * EXHAUSTED_CAP);
+    expect(total).toBeLessThan(147);
   });
 });
 
