@@ -1,4 +1,5 @@
 import { logger } from '@/lib/util/logger';
+import { evictionKeeper } from './evictionKeeper';
 import type { ScryfallCard, DeckCategory, CoherenceRepair } from '@/deck-builder/types';
 import {
   getCardRole,
@@ -70,6 +71,8 @@ export function postGenFixupPhase(
     ...customization.tempMustIncludeCards.map((n) => n.toLowerCase()),
   ]);
 
+  const keeps = evictionKeeper(state);
+
   // Helper: find the lowest-priority non-protected card matching a filter
   // Never evict lands — they have their own target and shouldn't be swapped for spells
   function findWeakestCard(
@@ -95,6 +98,7 @@ export function postGenFixupPhase(
         // flagless (mirrors phaseRoleSurplusRebalance.ts's identical guard).
         if (card.isStapleRock || STAPLE_ROCK_NAMES.has(card.name)) continue;
         if (readsAsProtection(card) || isFreeInteraction(card)) continue;
+        if (keeps(card)) continue; // E563
         if (filter && !filter(card, cat)) continue;
         // ponytail: position-based weakness is a pick-order proxy (iter-6
         // class); the protected set above neuters its worst failure — a

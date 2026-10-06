@@ -4,6 +4,7 @@ import type { ScryfallCard } from '@/deck-builder/types';
 const roleMap: Record<string, string | null> = {};
 
 vi.mock('@/deck-builder/services/tagger/client', () => ({
+  getCardDrawSubtype: () => null,
   getCardRole: (name: string) => roleMap[name] ?? null,
   readsAsProtection: vi.fn(() => false),
   isFreeInteraction: vi.fn(() => false),
@@ -432,6 +433,42 @@ describe('postGenFixupPhase', () => {
       const { state, rampReplacement } = makeProtectionState('Combo Piece', 'Unprotected F');
       state.comboCardNames = new Set(['Combo Piece']);
       expectProtectedCardSurvives(state, rampReplacement, 'Combo Piece', 'Unprotected F');
+    });
+
+    // E563: Lathril coll-prefer. The coherence repair seated Umbral Mantle, so
+    // Leyline of Abundance, the engine of the deck's one infinite line (with
+    // Llanowar Tribe and Umbral Mantle), was a combo piece only now; the fixup
+    // cut it "to close a board wipe gap".
+    it('protects a piece of a combo line the deck can now assemble', () => {
+      const { state, rampReplacement } = makeProtectionState(
+        'Leyline of Abundance',
+        'Unprotected H'
+      );
+      const tribe = scryfallCard('Llanowar Tribe');
+      const mantle = scryfallCard('Umbral Mantle');
+      state.categories.synergy = [tribe, mantle];
+      state.usedNames.add('Llanowar Tribe');
+      state.usedNames.add('Umbral Mantle');
+      state.combos = [
+        {
+          comboId: 'leyline-line',
+          cards: [
+            { name: 'Leyline of Abundance', id: 'a' },
+            { name: 'Llanowar Tribe', id: 'b' },
+            { name: 'Umbral Mantle', id: 'c' },
+          ],
+        },
+      ] as unknown as GenerationState['combos'];
+      expectProtectedCardSurvives(state, rampReplacement, 'Leyline of Abundance', 'Unprotected H');
+    });
+
+    // E563: Atraxa partial50. Counterspell (37.7%) is the deck's only stack answer.
+    it('protects the last answer of a class the deck holds', () => {
+      const { state, rampReplacement } = makeProtectionState('Counterspell', 'Unprotected I');
+      state.categories.creatures = state.categories.creatures.map((c) =>
+        c.name === 'Counterspell' ? { ...c, oracle_text: 'Counter target spell.' } : c
+      );
+      expectProtectedCardSurvives(state, rampReplacement, 'Counterspell', 'Unprotected I');
     });
 
     it('protects a must-include card', () => {

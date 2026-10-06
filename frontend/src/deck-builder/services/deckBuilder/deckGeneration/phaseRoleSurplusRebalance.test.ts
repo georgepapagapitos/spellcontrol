@@ -259,8 +259,8 @@ describe('applyRoleSurplusRebalance', () => {
       cardlists: {
         allNonLand: [
           edhrecCard('The Only Payoff', 95),
-          ...Array.from({ length: 7 }, (_, i) => edhrecCard(`Ramp_${i + 1}`, 50)),
-          ...Array.from({ length: 6 }, (_, i) => edhrecCard(`Draw_${i + 1}`, i === 0 ? 1 : 50)),
+          ...Array.from({ length: 7 }, (_, i) => edhrecCard(`Ramp_${i + 1}`, 30)),
+          ...Array.from({ length: 6 }, (_, i) => edhrecCard(`Draw_${i + 1}`, i === 0 ? 1 : 30)),
         ],
       },
     } as unknown as GenerationState['edhrecData'];
@@ -1283,9 +1283,9 @@ describe('applyRoleSurplusRebalance', () => {
         cardlists: {
           allNonLand: [
             edhrecCard('Wipe Payoff', 90),
-            edhrecCard('Wipe_1', 50),
-            edhrecCard('Wipe_2', 50),
-            edhrecCard('Wipe_3', 50),
+            edhrecCard('Wipe_1', 30),
+            edhrecCard('Wipe_2', 30),
+            edhrecCard('Wipe_3', 30),
             edhrecCard('Edict Walker', 1), // the worst-scored card: first to go on the raw tag
           ],
         },
@@ -1443,7 +1443,7 @@ describe('applyRoleSurplusRebalance', () => {
           allNonLand: [
             edhrecCard('Fierce Guardianship', 5), // lowest priority — would be
             // the eviction target without the isFreeInteraction guard.
-            edhrecCard('Filler A', 80),
+            edhrecCard('Filler A', 30),
             edhrecCard('Wipe Candidate', 70),
           ],
         },

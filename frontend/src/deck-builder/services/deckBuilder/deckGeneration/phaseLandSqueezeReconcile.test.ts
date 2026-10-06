@@ -11,6 +11,11 @@ vi.mock('@/deck-builder/services/tagger/client', () => ({
   isFreeInteraction: vi.fn(() => false),
 }));
 
+// E563: the eviction keeper reads the deck; the scoring tests below pin the
+// score arithmetic, so it holds nothing here unless a test says so.
+const KEEPS = vi.fn((_card: { name: string }) => false);
+vi.mock('./evictionKeeper', () => ({ evictionKeeper: () => KEEPS }));
+
 import {
   applyLandSqueezeReconcile,
   type LandSqueezeReconcileContext,
@@ -136,6 +141,7 @@ function makeCtx(
 
 beforeEach(() => {
   ROLE_OF.clear();
+  KEEPS.mockReturnValue(false);
   vi.mocked(readsAsProtection).mockReturnValue(false);
   vi.mocked(isFreeInteraction).mockReturnValue(false);
 });
@@ -499,6 +505,19 @@ describe('applyLandSqueezeReconcile', () => {
     const result = applyLandSqueezeReconcile(state, makeCtx({ squeezeDelta: 1 }));
 
     expect(result.cut).toEqual(['Genuine Filler 2']);
+  });
+
+  it('E563: a card the eviction keeper holds outranks a better-included filler', () => {
+    const state = makeState();
+    state.categories.synergy.push(scryfallCard('Held Tutor'), scryfallCard('Plain Filler'));
+    state.edhrecData = {
+      cardlists: { allNonLand: [edhrecCard('Held Tutor', 5), edhrecCard('Plain Filler', 30)] },
+    } as unknown as GenerationState['edhrecData'];
+    KEEPS.mockImplementation((c) => c.name === 'Held Tutor');
+
+    const result = applyLandSqueezeReconcile(state, makeCtx({ squeezeDelta: 1 }));
+
+    expect(result.cut).toEqual(['Plain Filler']);
   });
 
   it('regression: the unscaled-lift bug let a high-clusterScore incumbent outrank a free-interaction candidate — the scaling fix restores the correct order (iter-10 Slice A / board E82)', () => {

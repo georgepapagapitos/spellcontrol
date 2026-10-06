@@ -5,6 +5,7 @@ import type {
   MaxRarity,
   ScryfallCard,
 } from '@/deck-builder/types';
+import { evictionKeeper } from './evictionKeeper';
 import type { GenerationState } from './state';
 import {
   getCardRole,
@@ -471,6 +472,7 @@ export function applyRoleSurplusRebalance(
     for (const n of combo.cards) completeComboNames.add(n);
   }
 
+  const keeps = evictionKeeper(state);
   const isProtected = (card: ScryfallCard): boolean =>
     !!card.isMustInclude ||
     !!state.cfg.ownedQuotaProtects?.(card.name) ||
@@ -485,7 +487,8 @@ export function applyRoleSurplusRebalance(
     // because it happens to also carry a reactive-role tag — every sibling
     // pass (Smart Trim, phaseBracketConverge, phaseBudgetConverge,
     // phaseCoherenceRepair) already checks this; this pass hadn't yet.
-    readsAsProtection(card);
+    readsAsProtection(card) ||
+    keeps(card); // E563
 
   // Nonbo-flagged cards evict first (E80 tie-in — the Isshin motivating case:
   // self-damaging wipes in a go-wide token shell). Recomputed here from the

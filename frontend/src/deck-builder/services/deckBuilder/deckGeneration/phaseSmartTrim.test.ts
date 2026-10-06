@@ -3,6 +3,7 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import type { RoleKey } from '@/deck-builder/services/tagger/client';
 
 vi.mock('@/deck-builder/services/tagger/client', () => ({
+  getCardDrawSubtype: () => null,
   getCardRole: () => null,
   validateCardRole: () => null,
   readsAsProtection: () => false,

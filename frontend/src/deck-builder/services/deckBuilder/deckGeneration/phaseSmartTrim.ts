@@ -1,4 +1,5 @@
 import type { ScryfallCard, DeckCategory } from '@/deck-builder/types';
+import { evictionKeeper } from './evictionKeeper';
 import type { RoleKey } from '@/deck-builder/services/tagger/client';
 import {
   readsAsProtection,
@@ -45,14 +46,16 @@ export function computeTrimResistance(
   roleTargets: Record<RoleKey, number> | null,
   currentRoleCounts: Record<RoleKey, number>,
   /** The card's inclusion (%) on the commander's own EDHREC page. */
-  inclusion = 0
+  inclusion = 0,
+  /** E563: evictionKeeper's reading (a tutor, a combo-line piece, a last answer). */
+  kept = false
 ): number {
   let resistance = categoryLength - positionIndex;
 
   // E532: a staple outlasts filler. The type passes now seat staples past a
   // role cap, so they sit at the tail of an over-target role and read as the
   // first cut: Meren lost Skullclamp (59.6%) here, silently.
-  if (inclusion >= STAPLE_INCLUSION_BAR) resistance += STAPLE_PROTECTION_BOOST;
+  if (inclusion >= STAPLE_INCLUSION_BAR || kept) resistance += STAPLE_PROTECTION_BOOST;
 
   if (card.isMustInclude) {
     resistance += MUST_INCLUDE_BOOST;
@@ -114,6 +117,7 @@ export function smartTrimPhase(state: GenerationState, ctx: SmartTrimContext): v
   const currentCount = countAllCards(state);
   if (currentCount > targetDeckSize) {
     const pageInclusion = state.edhrecData ? buildInclusionIndex(state.edhrecData) : new Map();
+    const keeps = evictionKeeper(state);
     const trimCandidates: { card: ScryfallCard; category: DeckCategory; trimResistance: number }[] =
       [];
 
@@ -133,7 +137,8 @@ export function smartTrimPhase(state: GenerationState, ctx: SmartTrimContext): v
           comboCardNames,
           roleTargets,
           currentRoleCounts,
-          lookupInclusion(pageInclusion, card.name)
+          lookupInclusion(pageInclusion, card.name),
+          keeps(card)
         );
         trimCandidates.push({ card, category: cat, trimResistance: resistance });
       }

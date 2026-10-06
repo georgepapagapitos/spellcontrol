@@ -220,7 +220,6 @@ export function applyComboFloor(state: GenerationState, ctx: ComboFloorContext):
     'ramp',
   ];
   const keeps = evictionKeeper(state);
-  const seedName = best.missingName;
   function findWeakest(): { card: ScryfallCard; category: DeckCategory } | null {
     for (const cat of EVICTION_ORDER) {
       const cards = state.categories[cat];
@@ -231,7 +230,7 @@ export function applyComboFloor(state: GenerationState, ctx: ComboFloorContext):
         if (state.comboCardNames.has(card.name)) continue;
         if (protectedNames.has(card.name)) continue;
         if (STAPLE_ROCK_NAMES.has(card.name)) continue; // E537
-        if (keeps(card, seedName)) continue; // E563
+        if (keeps(card)) continue; // E563
         return { card, category: cat };
       }
     }

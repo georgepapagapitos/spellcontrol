@@ -4,6 +4,7 @@ import type { ScryfallCard, EDHRECCard, DetectedCombo } from '@/deck-builder/typ
 // Deterministic role/tag signals — real tagger data isn't needed for these
 // pure-logic tests; individual tests override getCardRole per-case.
 vi.mock('@/deck-builder/services/tagger/client', () => ({
+  getCardDrawSubtype: () => null,
   getCardRole: vi.fn(() => null),
   validateCardRole: vi.fn(() => null),
   // E87-new Slice A: softProtectionLabel also checks readsAsProtection —

@@ -5,6 +5,7 @@ import type { RoleKey } from '@/deck-builder/services/tagger/client';
 // Deterministic role signals — same pattern as phaseLandSqueezeReconcile.test.ts.
 const ROLE_OF = new Map<string, RoleKey>();
 vi.mock('@/deck-builder/services/tagger/client', () => ({
+  getCardDrawSubtype: () => null,
   getCardRole: vi.fn((name: string) => ROLE_OF.get(name) ?? null),
   validateCardRole: vi.fn((card: { name: string }) => ROLE_OF.get(card.name) ?? null),
   readsAsProtection: vi.fn(() => false),

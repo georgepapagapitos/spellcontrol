@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest';
 import type { DetectedCombo, ScryfallCard } from '@/deck-builder/types';
 import { isProtectionPiece, readsAsProtection } from '@/deck-builder/services/tagger/client';
 import { comboIntegrityAuditPhase } from './phaseComboAudit';
+import { evictionKeeper } from './evictionKeeper';
 import type { GenerationState } from './state';
 
 function real(name: string, type_line: string, oracle_text: string, cmc = 2): ScryfallCard {
@@ -249,15 +250,40 @@ describe('a combo completion never cuts what the deck keeps (E563)', () => {
     expect(repairs).toEqual([expect.objectContaining({ cut: 'Filler', added: SIONA.name })]);
   });
 
-  it('keeps a Game Changer below the staple bar, unless a Game Changer comes in', () => {
-    const cards: Array<[ScryfallCard, number]> = [
-      [ENLIGHTENED_TUTOR, 10],
-      [SOLITARY, 33.2],
-    ];
-    expect(siona({ cards, gameChangers: ['Enlightened Tutor'] }).repairs).toEqual([]);
-    expect(siona({ cards, gameChangers: ['Enlightened Tutor', SIONA.name] }).repairs).toEqual([
-      expect.objectContaining({ cut: 'Enlightened Tutor' }),
-    ]);
+  // Atraxa partial50: protecting a 15% Game Changer moved the cut onto
+  // Counterspell (37.7%, the deck's only stack answer) and Brokers Ascendancy.
+  // A Game Changer is not kept as such: the repair takes the least valuable
+  // unprotected card, and the last answer of a class is never it.
+  const COUNTERSPELL = real('Counterspell', 'Instant', 'Counter target spell.', 2);
+  const BROKERS = real(
+    'Brokers Ascendancy',
+    'Enchantment',
+    'At the beginning of your end step, put a +1/+1 counter on each creature you control.',
+    3
+  );
+  const MANA_VAULT = real(
+    'Mana Vault',
+    'Artifact',
+    "Mana Vault doesn't untap during your untap step.\nAt the beginning of your upkeep, you may pay {4}. If you do, untap Mana Vault.\nAt the beginning of your draw step, if Mana Vault is tapped, it deals 1 damage to you.\n{T}: Add {C}{C}{C}.",
+    1
+  );
+
+  it('cuts a low-inclusion Game Changer, not the last stack answer or a 32% card', () => {
+    const { repairs } = siona({
+      cards: [
+        [COUNTERSPELL, 37.7],
+        [BROKERS, 32.4],
+        [MANA_VAULT, 15],
+      ],
+      gameChangers: ['Mana Vault'],
+    });
+    expect(repairs).toEqual([expect.objectContaining({ cut: 'Mana Vault' })]);
+  });
+
+  it('never cuts the last answer of its kind, so the combo stays one-away', () => {
+    const { repairs, state } = siona({ cards: [[COUNTERSPELL, 37.7]] });
+    expect(repairs).toEqual([]);
+    expect(state.usedNames.has('Counterspell')).toBe(true);
   });
 });
 
@@ -281,14 +307,56 @@ describe('no generation phase reads the narrow evidence', () => {
     expect(offenders).toEqual([]);
   });
 
-  // The cut sites of a combo completion or repair keep staples, tutors, Game
-  // Changers and combo-line pieces (evictionKeeper.ts).
+  // Every phase that picks a victim keeps what evictionKeeper keeps: staples,
+  // tutors, combo-line pieces and the last answer of a class.
   it.each([
     'phaseComboAudit',
     'phaseApplyComboFloor',
     'phaseCoherenceRepair',
     'phaseBracketConverge',
+    'phasePostGenFixup',
+    'phaseRoleSurplusRebalance',
+    'phaseSmartTrim',
+    'phaseBudgetConverge',
+    'phaseLandSqueezeReconcile',
+    'phaseFlagshipSeating',
   ])('%s reads evictionKeeper', (phase) => {
-    expect(readFileSync(join(__dirname, `${phase}.ts`), 'utf8')).toContain("'./evictionKeeper'");
+    const code = readFileSync(join(__dirname, `${phase}.ts`), 'utf8');
+    expect(code).toContain("'./evictionKeeper'");
+    expect(code).toMatch(/[Kk]eeps\(card\)/);
+  });
+});
+
+// A coherence repair can seat a piece that a later phase must protect: the
+// keeper reads the deck as it is on every call, not as it was when built.
+describe('evictionKeeper reads the deck as it is', () => {
+  it('keeps a combo piece once the rest of its line is seated', () => {
+    const leyline = real(
+      'Leyline of Abundance',
+      'Enchantment',
+      'If Leyline of Abundance is in your opening hand, you may begin the game with it on the battlefield.',
+      4
+    );
+    const tribe = real('Llanowar Tribe', 'Creature — Elf Druid', '{T}: Add {G}{G}{G}.', 3);
+    const mantle = real(
+      'Umbral Mantle',
+      'Artifact — Equipment',
+      'Equipped creature has "{3}, {Q}: This creature gets +2/+2 until end of turn."',
+      0
+    );
+    const state = {
+      edhrecData: { cardlists: { allNonLand: [] } },
+      combos: [
+        {
+          comboId: 'x',
+          cards: [{ name: leyline.name }, { name: tribe.name }, { name: mantle.name }],
+        },
+      ],
+      categories: { lands: [], synergy: [leyline, tribe] },
+    } as unknown as GenerationState;
+    const keeps = evictionKeeper(state);
+    expect(keeps(leyline)).toBe(false);
+    state.categories.synergy.push(mantle);
+    expect(keeps(leyline)).toBe(true);
   });
 });

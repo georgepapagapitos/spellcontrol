@@ -32,6 +32,7 @@ const FREE_INTERACTION_NAMES = new Set<string>();
 // text; isOneSidedWipe's own regex is covered in tagger/client.test.ts).
 const ONE_SIDED_WIPE_NAMES = new Set<string>();
 vi.mock('@/deck-builder/services/tagger/client', () => ({
+  getCardDrawSubtype: () => null,
   validateCardRole: (card: { name: string }) => ROLES[card.name] ?? null,
   getCardRole: (name: string) => ROLES[name] ?? null,
   readsAsProtection: (card: { name: string }) => PROTECTED_NAMES.has(card.name),
