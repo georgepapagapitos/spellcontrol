@@ -1247,6 +1247,7 @@ export interface OptimizeCard {
   reasonCategory: string; // grouping key for UI sections
   inclusion: number | null;
   price?: string;
+  rarity?: string; // stamped for additions by candidateCardData.ts
   role?: string;
   roleLabel?: string;
   imageUrl?: string;
@@ -1295,7 +1296,9 @@ export function computeOptimizeSwaps(
   liftSignal?: {
     index: Map<string, { clusterScore: number; liftedBy: string[] }>;
     seedCount: number;
-  }
+  },
+  /** A plan card whose role tag is incidental is never an excess cut (incidentalRole.ts). */
+  isIncidentalRole?: (card: ScryfallCard, role: string) => boolean
 ): OptimizeSwaps {
   const inclusionMap = cardInclusionMap ?? {};
   const synergyMap = cardSynergyMap ?? {};
@@ -1461,13 +1464,14 @@ export function computeOptimizeSwaps(
 
     // ── Excess role cards ──
     // Protect theme synergy cards (e.g. tribal elves that are also ramp) — they serve double duty
-    if (role && excessRoles.has(role) && !card.isThemeSynergyCard) {
+    const incidental = !!role && !!isIncidentalRole?.(card, role); // Isshin's attack-trigger payoffs
+    if (role && excessRoles.has(role) && !card.isThemeSynergyCard && !incidental) {
       const bucket = excessRoleCandidates.get(role) || [];
       bucket.push({
         ...base,
         reason: `Excess ${roleLabel}`,
         reasonCategory: `excess:${role}`,
-        sortScore: (inclusion ?? 50) + curveAdjust,
+        sortScore: inclusion ?? 50, // the least played goes first (T171 round 3: Birgi)
       });
       excessRoleCandidates.set(role, bucket);
       continue; // don't also consider as general cut

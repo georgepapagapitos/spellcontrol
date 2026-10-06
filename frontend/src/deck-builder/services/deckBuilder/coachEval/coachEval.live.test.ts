@@ -50,7 +50,12 @@ import { createGunzip } from 'node:zlib';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
-import type { EDHRECCommanderData, ScryfallCard } from '@/deck-builder/types';
+import type {
+  Customization,
+  DeckDataSource,
+  EDHRECCommanderData,
+  ScryfallCard,
+} from '@/deck-builder/types';
 import type { ComboMatchResponse } from '@/types/combos';
 import {
   analyzeCommanderDeck,
@@ -72,13 +77,21 @@ import {
 } from '@/deck-builder/services/edhrec/client';
 import { getGameChangerNames, searchCards } from '@/deck-builder/services/scryfall/client';
 import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
-import { rankReplacementCuts } from '@/lib/coach/intelligent-cuts';
-import { buildComboOverlay } from '@/lib/deck-analysis/edhrec-combo-overlay';
+import { replaceCuts } from '@/lib/coach/replace-cuts';
+import type { BuildRemovals } from '../coachExclusions';
 import { axisKeys } from '@/lib/coach/axis-overlap';
 import { frontFaceName } from '@/lib/cards/card-text';
+import { isBasicLandName } from '@/lib/collection/allocations';
 import { HARDCODED_GAME_CHANGERS } from '@spellcontrol/deck-metrics';
+import {
+  coachDeckSettings,
+  cutKeepsSettings,
+  fitsSettings,
+  settingsChecker,
+} from '@/lib/coach/deck-settings-fit';
 import type { SubstituteCandidate } from '../substituteFinder';
 import { dumpPage, resolveName } from '../deckObjective/panelDump';
+import { deckEdhrecSource, fetchDeckEdhrecPage, type DeckEdhrecSource } from '../deckEdhrecSource';
 import { synergyStrength } from '../synergyLift';
 import { buildCoachView, combosFromEdhrec, type CoachView } from './coachView';
 import {
@@ -276,7 +289,7 @@ async function acquireLock(): Promise<void> {
       await new Promise((r) => setTimeout(r, 30_000));
     }
   }
-  writeFileSync(join(LOCK, 'owner'), 'laneL');
+  writeFileSync(join(LOCK, 'owner'), process.env.COACH_EVAL_LOCK_OWNER ?? 'coach-eval');
   lockHeld = true;
 }
 function releaseLock(): void {
@@ -292,10 +305,36 @@ const missedUrls: string[] = [];
 const bulkMisses = new Set<string>();
 let realFetch: typeof fetch;
 
-function lookupResponse(body: { names?: string[]; ids?: string[] }): Response {
+/**
+ * The backend answers a name with its cheapest PRICED printing
+ * (cache.ts getCheapestByName). oracle_cards carries one printing per card,
+ * sometimes one with no USD price (Overgrown Tomb 'trk', Fellwar Stone 'mbc'),
+ * which the budget checks then read as free. Fill such a card's price from
+ * Scryfall's cheapest priced printing, through the HTTP cache.
+ */
+const priceHydrated = new Set<string>();
+async function hydratePrice(card: ScryfallCard | undefined): Promise<void> {
+  if (!card || card.prices?.usd || priceHydrated.has(card.name)) return;
+  priceHydrated.add(card.name);
+  if (isBasicLandName(card.name)) return;
+  const q = encodeURIComponent(`!"${frontFaceName(card.name)}" usd>0`);
+  const url = `https://api.scryfall.com/cards/search?q=${q}&unique=prints&order=usd&dir=asc`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return;
+    const body = (await res.json()) as { data?: ScryfallCard[] };
+    const usd = body.data?.find((c) => c.prices?.usd)?.prices?.usd;
+    if (usd) card.prices = { ...card.prices, usd };
+  } catch {
+    // No price found: the card stays unpriced, which the budget check hides.
+  }
+}
+
+async function lookupResponse(body: { names?: string[]; ids?: string[] }): Promise<Response> {
   const byName: Record<string, ScryfallCard> = {};
   for (const n of body.names ?? []) {
     const c = cardFor(n);
+    await hydratePrice(c);
     if (c) byName[n] = c;
     else bulkMisses.add(n);
   }
@@ -324,6 +363,7 @@ function installFetch(): void {
     if (url.startsWith('/api/cards/named')) {
       const name = new URL(url, 'http://x').searchParams.get('exact') ?? '';
       const card = cardFor(name) ?? null;
+      await hydratePrice(card ?? undefined);
       netStats.bulk++;
       return new Response(JSON.stringify({ card }), { status: card ? 200 : 404 });
     }
@@ -440,14 +480,30 @@ async function fixingLands(identity: string[]): Promise<ScryfallCard[]> {
   return fixingLandCache.get(key)!;
 }
 
+/** The deck's EDHREC source as the app reads it off a saved generated deck. */
+function sourceOf(dump: CoachDump): DeckEdhrecSource | undefined {
+  const page = dumpPage(dump);
+  const cz = dump.customization as Partial<Customization>;
+  return deckEdhrecSource({
+    generationContext: {
+      selectedThemes: page.theme
+        ? [{ name: page.theme, slug: page.theme, source: 'edhrec', isSelected: true }]
+        : [],
+      targetBracket: cz.targetBracket ?? 'all',
+      landCount: 0,
+      collectionMode: cz.collectionMode === true,
+      customization: cz,
+    },
+    buildReport: dump.buildReport as { dataSource?: DeckDataSource } | undefined,
+  });
+}
+
 async function coachPass(dump: CoachDump, deck: EvalDeckState): Promise<CoachPass> {
   const settings = settingsOf(dump);
   const { commander, partner, cards } = deck;
-  const page = await (
-    partner
-      ? fetchPartnerCommanderData(commander.name, partner.name)
-      : fetchCommanderData(commander.name)
-  ).catch(() => null);
+  // DeckEditorPage's analysis reads the page the deck was built from.
+  const edhrecSource = sourceOf(dump);
+  const page = await fetchDeckEdhrecPage(commander, partner, edhrecSource).catch(() => null);
   const edhrecCombos = await fetchCommanderCombos(commander.name);
   const allNames = [
     commander.name,
@@ -476,11 +532,47 @@ async function coachPass(dump: CoachDump, deck: EvalDeckState): Promise<CoachPas
     detectedCombos: detected,
     oneAwayCombos: combos.oneAway,
     archetypeBlendNames: buildReport?.archetypeBlendNames,
+    edhrecSource,
+    buildRemovals: dump.buildReport as BuildRemovals | undefined,
   });
   if (!analysis) throw new Error('analyzeCommanderDeck returned null');
+  // The deck's persisted relevancy map (the dump's synergyScoreRaw): the page
+  // passes the deck, so its replace prompt reads it (a combo cut's value).
+  const relevancy = dump.cardRelevancy as Record<string, { synergyScoreRaw?: number }> | undefined;
+  Object.assign(analysis, {
+    cardRelevancyMap: Object.fromEntries(
+      Object.entries(relevancy ?? {}).flatMap(([name, r]) =>
+        r.synergyScoreRaw == null ? [] : [[name, r.synergyScoreRaw]]
+      )
+    ),
+  });
   if (analysis.edhrecMissing) throw new Error('EDHREC missing for this commander');
 
   const strategy = settings.collectionStrategy;
+  // DeckEditorPage `useCoachSettings`: the saved customization, no stated target,
+  // against the deck as it stands (the replace prompt reads the live deck).
+  const fitFor = (deckCards: readonly ScryfallCard[]) =>
+    fitsSettings(
+      settingsChecker(
+        coachDeckSettings({
+          generationContext: {
+            selectedThemes: [],
+            targetBracket: settings.targetBracket ?? 'all',
+            landCount: 0,
+            collectionMode: settings.collectionMode,
+            customization: dump.customization as Partial<Customization>,
+          },
+          bracketOverride: null,
+        }),
+        {
+          cards: deckCards,
+          isOwned: (name) => settings.ownedNames.has(name),
+          full: deckCards.length >= 99 - (partner ? 1 : 0),
+          gameChangerNames: GAME_CHANGERS,
+          cardData: (name) => analysis.suggestionCards?.[name],
+        }
+      )
+    );
   const view = buildCoachView({
     commander,
     partner,
@@ -493,23 +585,32 @@ async function coachPass(dump: CoachDump, deck: EvalDeckState): Promise<CoachPas
     combos,
     ownedOnly: settings.collectionMode && (strategy === 'full' || strategy === 'available'),
     substitutesReady: true,
+    settingsFit: fitFor(cards),
+    resolveCard: cardFor,
+    savesMoney: settings.deckBudget != null || settings.maxCardPrice != null,
   });
-  const overlay = buildComboOverlay(edhrecCombos, page?.stats?.numDecks ?? 0);
   const commanderNames = allNames.slice(0, partner ? 2 : 1);
   const env: ApplyEnv = {
     resolve: cardFor,
+    // DeckEditorPage `useReplaceCuts`, over the deck as it stands.
     rankCuts: (addCard, current) =>
-      rankReplacementCuts({
-        addCard,
+      replaceCuts({
         deckCards: current.map((card, i) => ({ slotId: String(i), card })),
-        // The persisted analysis: it doesn't recompute between quick applies.
-        removals: analysis.optimizeSwaps?.removals,
-        inDeckCombos: combosFromEdhrec(edhrecCombos, [
-          ...commanderNames,
-          ...current.map((c) => c.name),
-        ]).inDeck,
-        comboOverlay: overlay,
-      }).map((r) => ({ name: r.card.name, reason: r.reason })),
+        // The persisted analysis (DeckEditorPage passes the deck, commander
+        // included): it doesn't recompute between quick applies.
+        analysis: { ...analysis, commander, partnerCommander: partner },
+        ...(() => {
+          const live = combosFromEdhrec(edhrecCombos, [
+            ...commanderNames,
+            ...current.map((c) => c.name),
+          ]);
+          return { inDeckCombos: live.inDeck, oneAwayCombos: live.oneAway };
+        })(),
+        cutFits: (add) => cutKeepsSettings(fitFor(current), add),
+        full: true,
+      })
+        .cutsFor(addCard)
+        .map((r) => ({ name: r.card.name, reason: r.reason })),
     bracketOf: (current) => {
       const names = [...commanderNames, ...current.map((c) => c.name)];
       const nonLand = current.filter((c) => !/land/i.test(c.type_line ?? ''));
@@ -537,7 +638,10 @@ async function coachPass(dump: CoachDump, deck: EvalDeckState): Promise<CoachPas
     },
     isGameChanger: (name) => GAME_CHANGERS.has(name) || GAME_CHANGERS.has(frontFaceName(name)),
   };
-  return { analysis, view, moves: orderedCoachMoves(view), env, page, combos };
+  const moves = orderedCoachMoves(view);
+  // The app prices a card on apply from its cheapest priced printing.
+  for (const m of moves) await hydratePrice(cardFor(m.name));
+  return { analysis, view, moves, env, page, combos };
 }
 
 /** A card a cut should never take: ≥40% on the page, a Game Changer, a watchlist premium. */
@@ -731,12 +835,13 @@ describe.skipIf(!process.env.LIVE_GEN || adviseRows.length === 0)('Coach eval: a
         const audit2 = auditMoves(result.deck, pass2.moves, settings, pass2.env, AUDIT_K);
 
         const index = pass1.page ? buildInclusionIndex(pass1.page) : new Map<string, number>();
-        const detected2 = pass2.combos.inDeck.map((m) => ({
+        // Complete combos and one-card near misses, the generator's own shape.
+        const detected2 = [...pass2.combos.inDeck, ...pass2.combos.oneAway].map((m) => ({
           comboId: m.combo.id,
           cards: m.combo.cards.map((c) => c.cardName),
           results: m.combo.produces,
-          isComplete: true,
-          missingCards: [],
+          isComplete: m.missingOracleIds.length === 0,
+          missingCards: m.missingOracleIds,
           deckCount: m.combo.popularity,
           bracket: m.combo.bracket,
           bracketTag: m.combo.bracketTag ?? null,

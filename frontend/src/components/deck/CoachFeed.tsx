@@ -41,57 +41,15 @@ import type {
 } from '@/deck-builder/services/deckBuilder/nextBestMove';
 import type { DeckView } from './DeckDisplay';
 import { Chip } from '@/components/shared/Chip';
-
-// ── Types ──────────────────────────────────────────────────────────────────
-
-type FilterId =
-  | 'all'
-  | 'fill-gaps'
-  | 'upgrade'
-  | 'budget'
-  | 'collection'
-  | 'decks'
-  | 'bracket-fit'
-  | 'combos'
-  | 'lands'
-  | 'cuts';
-
-const FILTER_LABELS: Record<FilterId, string> = {
-  all: 'All',
-  'fill-gaps': 'Fix gaps',
-  upgrade: 'Upgrades',
-  budget: 'Budget',
-  collection: 'Stand-ins',
-  decks: 'Your decks',
-  'bracket-fit': 'Bracket',
-  combos: 'Combos',
-  lands: 'Lands',
-  cuts: 'Cuts',
-};
-
-/** First page of the feed — enough to fill a laptop viewport below the hero
- *  without walling off the browse catalog and AI strips underneath. */
-const ROW_CAP = 8;
-
-/** tuneFocusLane → feed filter chip mapping. */
-const FOCUS_TO_FILTER: Record<string, FilterId> = {
-  'fill-gaps': 'fill-gaps',
-  upgrade: 'upgrade',
-  budget: 'budget',
-  collection: 'collection',
-  'bracket-fit': 'bracket-fit',
-  lands: 'lands',
-};
-
-// ── Shortcuts ─────────────────────────────────────────────────────────────
-
-/**
- * Shortcuts contributed by the Coach feed to the app-wide `?` overlay.
- * STABLE module-level constant — never inline (dep-array reference equality).
- */
-const COACH_SHORTCUTS = [
-  { keys: ['f'], description: 'Cycle suggestion filters (All → Fix gaps → Upgrades → …)' },
-];
+import type { SettingsBreak } from '@/lib/coach/deck-settings-fit';
+import {
+  COACH_SHORTCUTS,
+  FILTER_LABELS,
+  FOCUS_TO_FILTER,
+  ROW_CAP,
+  settingsEmptyHint,
+  type FilterId,
+} from './coach-feed-filters';
 
 // ── Props ──────────────────────────────────────────────────────────────────
 
@@ -190,6 +148,11 @@ export interface CoachFeedProps {
    * sees, so it costs nothing (see `hashRefineInput`).
    */
   aiAgrees?: ReadonlyMap<string, string>;
+  /** The saved setting a move breaks, or null (lib/coach/deck-settings-fit.ts). A
+   *  move that breaks one is not shown; the empty state names the setting. */
+  settingsBreak?: (change: Change) => SettingsBreak | null;
+  /** False for an add the replace prompt has no cut for: it ranks last (replace-cuts.ts). */
+  hasReplaceCut?: (change: Change) => boolean;
   /**
    * E458: the upgrade plan. The feed hosts it because the plan spends a
    * budget over this feed's own ranked list; the page owns the open flag (a
@@ -254,6 +217,8 @@ export function CoachFeed({
   ownedOnly,
   onOwnedOnlyChange,
   aiAgrees,
+  settingsBreak,
+  hasReplaceCut,
   upgradePlan,
 }: CoachFeedProps): JSX.Element {
   const busy = busyNames ?? new Set<string>();
@@ -409,7 +374,7 @@ export function CoachFeed({
 
   // ── Build all changes ────────────────────────────────────────────────────
 
-  const allChanges = useMemo<Change[]>(
+  const unfiltered = useMemo<Change[]>(
     () =>
       buildCoachChanges(
         {
@@ -425,7 +390,9 @@ export function CoachFeed({
           crossDeckMoves,
         },
         resolveOwnership,
-        deckNames
+        deckNames,
+        undefined,
+        settingsBreak && ((c) => settingsBreak(c) === null)
       ),
     [
       gaps,
@@ -440,8 +407,15 @@ export function CoachFeed({
       crossDeckMoves,
       resolveOwnership,
       deckNames,
+      settingsBreak,
     ]
   );
+  // A move that breaks the deck's own settings is not shown (and not planned).
+  const [allChanges, hiddenBy] = useMemo(() => {
+    const reasons = settingsBreak ? unfiltered.map(settingsBreak) : [];
+    const kept = settingsBreak ? unfiltered.filter((_, i) => reasons[i] === null) : unfiltered;
+    return [kept, reasons.filter((r): r is SettingsBreak => r !== null)] as const;
+  }, [unfiltered, settingsBreak]);
 
   // ── Rank ─────────────────────────────────────────────────────────────────
 
@@ -454,8 +428,18 @@ export function CoachFeed({
       deckTarget,
       bracketOverridePresent,
       ownedNames,
+      hasReplaceCut,
     }),
-    [planScore, roleCounts, roleTargets, deckSize, deckTarget, bracketOverridePresent, ownedNames]
+    [
+      planScore,
+      roleCounts,
+      roleTargets,
+      deckSize,
+      deckTarget,
+      bracketOverridePresent,
+      ownedNames,
+      hasReplaceCut,
+    ]
   );
 
   // Rank, then dedupe add-type rows by card name keeping the highest-ranked
@@ -484,9 +468,8 @@ export function CoachFeed({
   // Release departed ids once the deck update has genuinely dropped their rows
   // from the data — after that the id is stale bookkeeping, and if the row ever
   // legitimately returns (the apply was undone), it must not stay hidden.
-  // Render-phase adjustment (react.dev "storing information from previous
-  // renders"): guarded setState during render, NOT an effect — React re-renders
-  // immediately without committing the stale frame.
+  // Render-phase adjustment (react.dev "storing information from previous renders"):
+  // guarded setState during render, NOT an effect, so no stale frame commits.
   const liveIds = useMemo(() => new Set(ranked.map((r) => r.change.id)), [ranked]);
   if (departedIds.size > 0 && [...departedIds].some((id) => !liveIds.has(id))) {
     setDepartedIds(new Set([...departedIds].filter((id) => liveIds.has(id))));
@@ -779,10 +762,17 @@ export function CoachFeed({
           Suggestions
         </h4>
         {!isPending && allChanges.length === 0 ? (
-          <EmptyState
-            tagline="Nothing to coach. This deck looks tuned."
-            hint="Try another power bracket, or browse themes below."
-          />
+          hiddenBy.length > 0 ? (
+            <EmptyState
+              tagline="Nothing to coach within this deck's settings."
+              hint={settingsEmptyHint(hiddenBy)}
+            />
+          ) : (
+            <EmptyState
+              tagline="Nothing to coach. This deck looks tuned."
+              hint="Try another power bracket, or browse themes below."
+            />
+          )
         ) : (
           <>
             {/* Filter chips */}

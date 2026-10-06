@@ -20,8 +20,12 @@ import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy'
 import { classifyCard } from '@/deck-builder/services/synergy/classify';
 import { axisLabel } from './axis-overlap';
 import { roleOf, primaryTypeOf, withinColorIdentity } from './card-matching';
-import { rankReplacementCuts, type CutCandidate, type RankedCut } from './intelligent-cuts';
-import type { EdhrecComboOverlay } from '@/lib/deck-analysis/edhrec-combo-overlay';
+import {
+  rankReplacementCuts,
+  type CutAnalysis,
+  type CutCandidate,
+  type RankedCut,
+} from './intelligent-cuts';
 
 export interface AxisHit {
   axis: string;
@@ -52,12 +56,12 @@ export interface ComputeAddFitParams {
   addCard: ScryfallCard;
   /** In-deck cards eligible to cut (caller excludes the commander/partner). */
   deckCards: CutCandidate[];
-  /** Optimizer removal suggestions (`deck.optimizeSwaps?.removals`) for the cut ranker. */
+  /** The deck's persisted analysis (optimizer removals, misfits, inclusion) for the cut ranker. */
+  analysis?: CutAnalysis;
+  /** Optimizer removal suggestions, for callers without a whole analysis. */
   removals?: OptimizeCard[];
-  /** Fully assembled combos already present in the deck, for combo-piece cut protection. */
+  /** Fully assembled combos already present in the deck: their pieces are never offered as cuts. */
   inDeckCombos?: ComboMatch[];
-  /** E63 per-commander EDHREC combo stats, used to protect signature combos harder. */
-  comboOverlay?: EdhrecComboOverlay;
   /** Commander color identity — to flag an off-identity / colorless add. */
   commanderColorIdentity?: string[];
   /** Max ranked cuts to return (default 8). */
@@ -79,9 +83,9 @@ const ROLE_LABELS: Record<string, string> = {
 export function computeAddFit({
   addCard,
   deckCards,
+  analysis,
   removals = [],
   inDeckCombos = [],
-  comboOverlay,
   commanderColorIdentity,
   cutLimit = 8,
 }: ComputeAddFitParams): AddFitReport {
@@ -142,10 +146,10 @@ export function computeAddFit({
   const rankedCuts = rankReplacementCuts({
     addCard,
     deckCards,
+    analysis,
     removals,
     deckSynergy: deckSyn,
     inDeckCombos,
-    comboOverlay,
     limit: cutLimit,
   });
 

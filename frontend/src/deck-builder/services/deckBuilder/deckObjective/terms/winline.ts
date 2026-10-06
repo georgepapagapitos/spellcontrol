@@ -28,7 +28,7 @@
  * kill, so a timed voltron path rewarded a second Lightning Greaves.
  */
 import type { ScryfallCard } from '@/deck-builder/types';
-import { countsAsRole } from '@/deck-builder/services/cardFacts';
+import { countsAsFinisher } from '@/deck-builder/services/cardFacts';
 import { detectWinConditions } from '@/deck-builder/services/winConditions/detect';
 import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
 import { simulateAssemblyClock, type ClockCard } from '@/lib/mana-sim/opening-hand-sim';
@@ -75,8 +75,7 @@ export function winLines(deck: ObjectiveDeck, ctx: ObjectiveContext): WinLines {
   const comboPath = paths.find((p) => p.category === 'infinite-combo');
   const altWin = paths.find((p) => p.category === 'alt-win')?.evidence ?? [];
   const commanderNames = new Set(deck.commanders.map((c) => c.name));
-  const finisherRole = (c: ScryfallCard) =>
-    ctx.factsOf(c).roles.some((r) => r.role === 'finisher' && countsAsRole(r));
+  const finisherRole = (c: ScryfallCard) => countsAsFinisher(ctx.factsOf(c));
   const finishers = [
     ...new Set([...altWin, ...all.filter(finisherRole).map((c) => c.name)]),
   ].sort();

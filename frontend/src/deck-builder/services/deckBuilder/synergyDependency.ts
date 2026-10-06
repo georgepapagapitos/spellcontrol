@@ -1,5 +1,6 @@
 import type { ScryfallCard } from '@/deck-builder/types';
 import { classifyCard } from '@/deck-builder/services/synergy/classify';
+import { REASON } from '@/deck-builder/services/synergy/reasons';
 import type { AxisKey } from '@/deck-builder/services/synergy/axes';
 import { TYPE_MEMBERSHIP_AXES, typeAxisMembership } from '@/deck-builder/services/synergy/typeAxes';
 import { STAPLE_INCLUSION_BAR } from './cardPicking';
@@ -188,6 +189,9 @@ export function unsupportedPayoffAxes(
   for (const payoff of classified.payoffs) {
     if (!DEPENDENCY_AXES.has(payoff.axis)) continue;
     if (candidateProduces.has(payoff.axis)) continue;
+    // Mana for every spell (Birgi) is the card's ramp, not a trigger to feed:
+    // the payoff reading adds to the card and never gates it out of a pool.
+    if (payoff.reason === REASON.everySpell) continue;
     const support =
       supportScore(payoff.axis, supportCards, commanderCount) +
       (TYPE_MEMBERSHIP_AXES.has(payoff.axis)

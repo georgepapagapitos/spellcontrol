@@ -98,6 +98,26 @@ export interface MisfitInputs {
    * about a blended card.
    */
   blendedNames?: ReadonlySet<string>;
+  /**
+   * Premium cards (premiumCards.ts): never misfits, whatever their play rate on
+   * this commander's page. Fierce Guardianship, The One Ring and Imperial Seal
+   * read as misfits on pages that barely run them, and every misfit is a row
+   * in the Coach's Cuts lane. Generation doesn't pass it.
+   */
+  protectedNames?: ReadonlySet<string>;
+  /**
+   * The deck's role counts and targets, with the role reading that produced
+   * the counts. A card whose role is at or under its target isn't a misfit:
+   * cutting it opens a gap Coach would then ask to fill, and an owned card
+   * Coach added to fill that gap would be flagged straight back out (T171
+   * lane M). The optimizer's excess-role cutter already works this way.
+   * Generation doesn't pass it.
+   */
+  roleBalance?: {
+    roleOf: (card: ScryfallCard) => string | null;
+    counts: Record<string, number>;
+    targets: Record<string, number>;
+  };
 }
 
 export function computeMisfits(inputs: MisfitInputs): Misfit[] {
@@ -112,6 +132,12 @@ export function computeMisfits(inputs: MisfitInputs): Misfit[] {
 
   for (const card of cards) {
     if (isAnyLand(card)) continue; // lands evaluated separately, not as misfits here
+    if (inputs.protectedNames?.has(card.name)) continue;
+    const balance = inputs.roleBalance;
+    const counted = balance?.roleOf(card);
+    if (balance && counted && balance.targets[counted] !== undefined) {
+      if ((balance.counts[counted] ?? 0) <= balance.targets[counted]) continue;
+    }
 
     const reasons: MisfitReason[] = [];
     // E221: an archetype-blended card's absence from the commander page is
