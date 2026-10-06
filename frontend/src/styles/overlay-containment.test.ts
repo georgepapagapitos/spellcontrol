@@ -78,7 +78,7 @@ describe('overlay scroll containment', () => {
     ['styles/deck-builder-card-search.css', '.deck-test-hand-sheet-body'],
     ['styles/deck-builder-card-search.css', '.card-search-results'],
     ['styles/deck-builder-card-search.css', '.card-search-tabpanel'],
-    ['styles/deck-builder-export.css', '.export-dialog-preview'],
+    ['components/shared/ExportDialog.css', '.export-dialog-preview'],
   ];
 
   for (const [file, selector] of SCROLLERS) {
