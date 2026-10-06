@@ -1,4 +1,3 @@
-import { STAPLE_INCLUSION_BAR } from '../roleCapAllowance';
 import type {
   CoherenceRepair,
   DeckCategory,
@@ -687,9 +686,7 @@ export function applyRoleSurplusRebalance(
       if (isGC && ctx.gameChangerCount.value >= ctx.maxGameChangers) continue;
       if (ctx.bracketGuard?.exceedsCeiling(ec.name)) continue;
       if (!isOwnedBudgetExempt(ec.name, collectionNames, ctx.ignoreOwnedBudget)) {
-        const staple = ec.inclusion >= STAPLE_INCLUSION_BAR;
-        const cap =
-          ctx.budgetTracker?.getEffectiveCap(ctx.maxCardPrice, staple) ?? ctx.maxCardPrice;
+        const cap = ctx.budgetTracker?.getEffectiveCap(ctx.maxCardPrice) ?? ctx.maxCardPrice;
         if (exceedsMaxPrice(card, cap, ctx.currency)) continue;
       }
       if (!isOwnedRarityExempt(ec.name, collectionNames, ctx.ignoreOwnedRarity)) {

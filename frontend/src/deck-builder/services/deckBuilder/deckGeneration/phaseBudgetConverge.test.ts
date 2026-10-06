@@ -289,39 +289,6 @@ describe('applyBudgetConvergence', () => {
     expect(state.usedNames.has('Mid Card')).toBe(false);
   });
 
-  it('leaves a kept staple alone when its cut is a small dent in the gap (E566: Shadow of Mortality -> Wingcrafter, $0.58, in a build $9.78 over)', async () => {
-    const state = makeState();
-    state.categories.synergy = [
-      scryfallCard('Force of Will', '60', { isMustInclude: true }),
-      scryfallCard('Shadow of Mortality', '0.76'),
-    ];
-    state.usedNames = new Set(['Force of Will', 'Shadow of Mortality']);
-    state.edhrecData = {
-      cardlists: {
-        allNonLand: [edhrecCard('Shadow of Mortality', 49.8), edhrecCard('Wingcrafter', 29)],
-      },
-    } as unknown as GenerationState['edhrecData'];
-    const map = new Map([['Wingcrafter', scryfallCard('Wingcrafter', '0.18')]]);
-    const result = await applyBudgetConvergence(
-      state,
-      baseCtx({ deckBudget: 50, scryfallCardMap: map })
-    );
-    expect(result.applied).toBe(0);
-    expect(state.usedNames.has('Shadow of Mortality')).toBe(true);
-  });
-
-  it('still cuts a kept card whose price is a material share of the gap', async () => {
-    const state = makeState();
-    state.categories.synergy = [scryfallCard('Pricey Card', '30')];
-    state.usedNames = new Set(['Pricey Card']);
-    state.edhrecData = {
-      cardlists: { allNonLand: [...POOL, edhrecCard('Pricey Card', 60)] },
-    } as unknown as GenerationState['edhrecData'];
-    const result = await applyBudgetConvergence(state, baseCtx({ deckBudget: 10 }));
-    expect(result.applied).toBe(1);
-    expect(state.usedNames.has('Pricey Card')).toBe(false);
-  });
-
   it('never trades a one-sided board wipe for a symmetric one to save a dollar (E561: Vandalblast -> Chain Reaction)', async () => {
     const wipe = (name: string, price: string, oracle_text: string) =>
       scryfallCard(name, price, { type_line: 'Sorcery', oracle_text });

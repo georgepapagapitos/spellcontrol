@@ -238,10 +238,6 @@ const ROLE_LABEL: Record<RoleKey, string> = {
 /** A board wipe may be swapped for a worse one only for at least this saving. */
 const WIPE_DOWNGRADE_MIN_SAVINGS = 5;
 
-/** A kept card is cut for budget only when its price is at least this share of
- *  the gap still to close. */
-export const KEPT_CUT_GAP_SHARE = 0.25;
-
 export async function applyBudgetConvergence(
   state: GenerationState,
   ctx: BudgetConvergeContext
@@ -676,15 +672,8 @@ export async function applyBudgetConvergence(
   if (total > ctx.deckBudget) {
     runRounds((c) => !isHardProtected(c) && !keeps(c));
   }
-  // E566: the kept cards yield last, and only when the cut is material to the gap.
-  // Yuriko kitchen-sink ended $9.78 over and the last stage still cut Shadow of
-  // Mortality (49.8%, the deck's reveal finisher) to save $0.58, a 6% dent that
-  // closed nothing. A $39 Cyclonic Rift in a build $56 over is a different cut.
-  const closesShare = (c: ScryfallCard): boolean =>
-    (parsePrice(getCardPrice(c, ctx.currency)) ?? 0) >=
-    KEPT_CUT_GAP_SHARE * (total - ctx.deckBudget);
   if (total > ctx.deckBudget) {
-    runRounds((c) => !isHardProtected(c) && (!keeps(c) || closesShare(c)));
+    runRounds((c) => !isHardProtected(c));
   }
 
   // Recompute fresh rather than trusting the incrementally-decremented `total`
