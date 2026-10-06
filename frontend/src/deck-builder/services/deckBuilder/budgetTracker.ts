@@ -47,13 +47,12 @@ export class BudgetTracker {
   getEffectiveCap(staticMax: number | null, mayUseLandReserve = false): number | null {
     if (this.cardsRemaining <= 0) return staticMax;
     // E561: an uncapped spend (combo seat) can push the held remainder to zero.
-    // Drop the hold then, so the spells go on under a small positive cap, as
-    // they would with no hold. Only with no hold left does the exhausted cap
-    // below apply (E566).
-    if (this.landReserve + this.rockReserve > 0 && this.remainingBudget <= 0) {
-      this.releaseLandReserve();
-      this.releaseRockReserve();
-    }
+    // Drop the land hold then, so the spells go on under a small positive cap, as
+    // they would with no hold. The rock hold stays: it is the rocks' money and
+    // the rock phase seats them from it (E566: releasing it too let the spells
+    // spend it, and Atraxa $10 shipped no Sol Ring). With no land hold left the
+    // exhausted cap below applies.
+    if (this.landReserve > 0 && this.remainingBudget <= 0) this.releaseLandReserve();
     // E561: a staple (STAPLE_INCLUSION_BAR) is never priced out by the money
     // held for the land base; it sees the budget as if nothing were held.
     const remaining =

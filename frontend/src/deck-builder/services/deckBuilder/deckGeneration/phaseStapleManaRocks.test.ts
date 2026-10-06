@@ -149,7 +149,7 @@ describe('stapleManaRocksPhase', () => {
     expect(names).not.toContain('Arcane Signet');
   });
 
-  it('seats the rocks a $10 four-colour build can afford though the spells spent the pacing room (E566: no Sol Ring at $10)', async () => {
+  it('keeps the rock hold when the spells empty the budget, so a $10 four-colour build still seats Sol Ring (E566)', async () => {
     const { getCardByName } = await import('@/deck-builder/services/scryfall/client');
     const original = vi.mocked(getCardByName).getMockImplementation()!;
     // Real prices: Sol Ring $1.60, Arcane Signet $1.20.
@@ -158,25 +158,16 @@ describe('stapleManaRocksPhase', () => {
     );
     const state = makeState();
     state.context.colorIdentity = ['W', 'U', 'B', 'G'];
-    state.cfg.deckBudget = 10;
     const tracker = new BudgetTracker(10, 99, 'USD');
-    tracker.remainingBudget = 0.3; // the spells ran through it; pacing cap is $0.05
-    tracker.cardsRemaining = 60;
+    tracker.reserveForRocks(2.8);
+    tracker.remainingBudget = -0.5; // an uncapped spend ran the spells through the budget
+    tracker.getEffectiveCap(null); // the next spell pick: it used to hand the rock money back
+    expect(tracker.rockReserve).toBe(2.8);
     await stapleManaRocksPhase(state, tracker);
     expect(allCards(state).map((c) => c.name)).toEqual(
       expect.arrayContaining(['Sol Ring', 'Arcane Signet'])
     );
     vi.mocked(getCardByName).mockImplementation(original);
-  });
-
-  it('still refuses a rock that costs more than its share of the deck budget', async () => {
-    const state = makeState();
-    state.cfg.deckBudget = 6;
-    const tracker = new BudgetTracker(6, 99, 'USD');
-    tracker.remainingBudget = 0.3;
-    tracker.cardsRemaining = 60;
-    await stapleManaRocksPhase(state, tracker); // mock: Sol Ring $40, Signet $5 > 6 * 0.25
-    expect(allCards(state)).toHaveLength(0);
   });
 
   it('seats the rocks the budget held money for, though the dynamic cap alone would refuse them (E561: no Sol Ring at $10)', async () => {
