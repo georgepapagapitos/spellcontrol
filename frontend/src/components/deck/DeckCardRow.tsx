@@ -17,7 +17,11 @@ const CONFIDENCE_BADGE: Record<string, { tone: VerdictTone; label: string }> = {
 import { useCardThumb } from '@/lib/cards/card-thumbs';
 import { formatMoney } from '@/lib/collection/format-money';
 import { ManaCost } from '../ManaCost';
-import { classifyInclusion, inclusionColor } from '@/lib/deck-analysis/inclusion-label';
+import {
+  classifyInclusion,
+  inclusionColor,
+  inclusionInk,
+} from '@/lib/deck-analysis/inclusion-label';
 import { synergyPct } from '@/lib/coach/why-factors';
 import { scryfallArtCrop } from '@/lib/offline/slim-to-scryfall';
 import { MeterBar } from '../shared/MeterBar';
@@ -158,7 +162,7 @@ export function DeckCardRow({
           In{' '}
           <span
             className="deck-card-row-incl-pct"
-            style={{ color: inclusionColor(inclusionInfo.pct) }}
+            style={{ color: inclusionInk(inclusionInfo.pct) }}
           >
             {inclusionInfo.pct}%
           </span>{' '}
