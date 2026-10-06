@@ -4,7 +4,8 @@
 // real cards it happened with (Scryfall records from the same bulk file).
 import { describe, expect, it } from 'vitest';
 import { checkConstraints } from './index';
-import { optimizeDeck, rolesMovedBetween } from './optimizer';
+import { optimizeDeck } from './optimizer';
+import { rolesMovedBetween } from './swapReasons';
 import { countRoles, factsRoleOf } from './trustRegion';
 import { BASELINE, cards, merenCtx, swap } from './__fixtures__/objectiveFixture';
 
