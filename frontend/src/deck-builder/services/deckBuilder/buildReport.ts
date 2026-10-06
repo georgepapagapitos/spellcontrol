@@ -286,7 +286,7 @@ export function assembleBuildReport(input: {
               ? `You asked for ${target}% owned cards, but only ${eligible} of ` +
                 `your cards fit this commander's colors. ${used}.`
               : `You asked for ${target}% owned cards and got ${report.ownedPercentActual}%. ` +
-                'The rest of your cards hit your limits or a role cap.';
+                'The rest of your cards hit your limits, hit a role cap, or would have replaced a staple.';
         }
       }
     }

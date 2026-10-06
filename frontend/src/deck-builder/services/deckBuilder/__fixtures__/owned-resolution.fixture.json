@@ -154,6 +154,75 @@
       },
       "games": ["paper", "mtgo"],
       "set": "otc"
+    },
+    {
+      "name": "Sol Ring",
+      "type_line": "Artifact",
+      "oracle_text": "{T}: Add {C}{C}.",
+      "mana_cost": "{1}",
+      "cmc": 1.0,
+      "colors": [],
+      "color_identity": [],
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "not_legal"
+      },
+      "rarity": "uncommon",
+      "oracle_id": "6ad8011d-3471-4369-9d68-b264cc027487",
+      "prices": {
+        "usd": "1.54",
+        "eur": "1.25"
+      },
+      "games": ["paper", "mtgo"],
+      "set": "frc"
+    },
+    {
+      "name": "Arcane Signet",
+      "type_line": "Artifact",
+      "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
+      "mana_cost": "{2}",
+      "cmc": 2.0,
+      "colors": [],
+      "color_identity": [],
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "legal",
+        "brawl": "legal"
+      },
+      "rarity": "uncommon",
+      "oracle_id": "0bc7f093-bef0-4f1a-852c-4b75ebf54838",
+      "prices": {
+        "usd": "0.79",
+        "eur": "0.32"
+      },
+      "games": ["paper", "mtgo", "arena"],
+      "set": "frc"
+    },
+    {
+      "name": "Coldsteel Heart",
+      "type_line": "Snow Artifact",
+      "oracle_text": "This artifact enters tapped.\nAs this artifact enters, choose a color.\n{T}: Add one mana of the chosen color.",
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "colors": [],
+      "color_identity": [],
+      "keywords": [],
+      "layout": "normal",
+      "oracle_id": "coldsteel-heart-fixture",
+      "legalities": {
+        "commander": "legal"
+      },
+      "rarity": "uncommon",
+      "prices": {
+        "usd": "1.20"
+      },
+      "games": ["paper"],
+      "set": "tst"
     }
   ]
 }

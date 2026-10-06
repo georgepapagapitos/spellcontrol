@@ -448,15 +448,17 @@ describe('segmented-control options carry the coarse floor on the SPAN', () => {
   // leaves the span text-height and top-aligned inside it — the Private /
   // Public toggle shipped that way on phones (2026-09-10). The floor lives on
   // the span, and the span centers (same placement as .home-hero-scope-option).
-  const OPTIONS: Array<[string, string]> = [
-    ['components/shared/form.css', '.segmented-option'],
-    ['playtest/components/ScrySheet.css', '.playtest-scry-mode'],
+  // The kit's span selector is a child combinator: a descendant one also hit
+  // spans nested in a caller's label (segmented-option-span.test.ts).
+  const OPTIONS: Array<[string, string, string]> = [
+    ['components/shared/form.css', '.segmented-option', ' > span'],
+    ['playtest/components/ScrySheet.css', '.playtest-scry-mode', ' span'],
   ];
 
-  for (const [file, option] of OPTIONS) {
+  for (const [file, option, spanSel] of OPTIONS) {
     it(`${option} span reaches 44px on touch and centers its text`, () => {
       const css = read(file);
-      const span = blocks(css, `${option} span`);
+      const span = blocks(css, `${option}${spanSel}`);
       expect(span, `no rule for ${option} span in ${file}`).not.toEqual([]);
       expect(
         span.some((b) => /min-height:\s*(?:44px|2\.75rem)/.test(b)),

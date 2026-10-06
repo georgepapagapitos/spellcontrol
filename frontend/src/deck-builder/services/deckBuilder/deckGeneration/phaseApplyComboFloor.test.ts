@@ -454,6 +454,24 @@ describe('applyComboFloor', () => {
     expect(result.seeded).toBe(false);
   });
 
+  it('never evicts a staple rock to seed a combo piece (E537, Sythis lost Arcane Signet)', () => {
+    const state = makeState({
+      combos: [edhrec2CardCombo('c1', ['Gravecrawler', 'Phyrexian Altar'])],
+    });
+    state.usedNames.add('Phyrexian Altar');
+    state.categories.creatures = [scryfallCard('Phyrexian Altar')];
+    state.comboCardNames.add('Phyrexian Altar');
+    // Sol Ring and Arcane Signet are the only other nonland cards.
+    const result = applyComboFloor(state, {
+      detectedCombos: undefined,
+      scryfallCardMap: new Map([['Gravecrawler', scryfallCard('Gravecrawler')]]),
+      mustIncludeNames: new Set(),
+      targetBracket: undefined,
+    });
+    expect(result.seeded).toBe(false);
+    expect(state.categories.ramp.map((c) => c.name)).toEqual(['Sol Ring', 'Arcane Signet']);
+  });
+
   // ── budget gate (Cluster D) ──────────────────────────────────────────────
   it('does not exceed the budget: no-budget run stays unchanged', () => {
     const missingCard = scryfallCard('Gravecrawler', { prices: { usd: '9999.00' } });

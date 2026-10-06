@@ -43,6 +43,7 @@ import { isAltWinCard } from '@/deck-builder/services/winConditions/detect';
 import { classifyAnswer } from '../answerCoverage';
 import { classifyCard } from '@/deck-builder/services/synergy/classify';
 import { buildManabaseSummary } from '../manabaseMath';
+import { STAPLE_ROCK_NAMES } from './phaseStapleManaRocks';
 
 // ── Coherence Repair (E78 phase 3) ──
 // The read-only audit at the very end of generation can only *report* dead
@@ -208,6 +209,8 @@ export async function applyCoherenceRepair(
 
   const isProtected = (card: ScryfallCard): boolean =>
     !!card.isMustInclude ||
+    card.isStapleRock === true ||
+    STAPLE_ROCK_NAMES.has(card.name) ||
     !!state.cfg.ownedQuotaProtects?.(card.name) ||
     ctx.mustIncludeNames.has(card.name.toLowerCase()) ||
     state.comboCardNames.has(card.name) ||

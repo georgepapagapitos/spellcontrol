@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react';
 import {
   ArrowLeft,
   BarChart3,
@@ -137,6 +145,7 @@ import {
   applyDragEnd,
   measureBattlefield,
   measureBattlefieldRect,
+  readCardBox,
   resolveActiveDrag,
   resolveDragGroup,
 } from '../lib/board-drag';
@@ -352,6 +361,9 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   const [showDesignations, setShowDesignations] = useState(false);
   const [showTakebackSettings, setShowTakebackSettings] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
+  // Your felt's card box, read as a drag starts, for the moving copy (see
+  // `readCardBox`).
+  const [dragCardBox, setDragCardBox] = useState<CSSProperties | undefined>(undefined);
   // Battlefield selection + copy buffer (E226). Deliberately UI state, not
   // reducer state: selecting a card isn't a game action and must never land
   // on the 50-deep undo stack.
@@ -590,6 +602,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
 
   function handleDragStart(event: DragStartEvent) {
     setActiveId(String(event.active.id));
+    setDragCardBox(readCardBox(battlefieldRef.current));
     // Picking a card up is done reading it: the preview must not come back
     // over the table once it lands.
     setTappedPreviewId(null);
@@ -1000,14 +1013,19 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   // Passing your turn while the horde is due opens its reveal instead of
   // advancing (design decision: "the horde's turn starts when you pass
   // yours"). The turn chip, the Space/next-turn shortcut and the table
-  // menu's "Next turn" row all route through this one function.
+  // menu's "Next turn" row all route through this one function, so it is
+  // also the one place that refuses while the horde's own turn is running:
+  // the chip hid itself then, but Space kept advancing the turn under an
+  // unanswered attack banner. False leaves the key to the browser.
   const doNextTurnHordeAware = useCallback(() => {
+    if (hordeBlocksTurn) return false;
     if (horde && isHordeTurnDue(horde, state.turn)) {
       startHordeTurn(hordeFeltRef.current ? measureHordeRect(hordeFeltRef.current) : null);
-      return;
+      return true;
     }
     doNextTurn();
-  }, [horde, state.turn, startHordeTurn, doNextTurn]);
+    return true;
+  }, [hordeBlocksTurn, horde, state.turn, startHordeTurn, doNextTurn]);
   const doUntapAll = useCallback(() => dispatch({ type: 'UNTAP_ALL' }), [dispatch]);
   const doPassTurn = useCallback(() => {
     if (!onlineTable) return;
@@ -1101,8 +1119,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       doPassTurn();
       return true;
     }
-    doNextTurnHordeAware();
-    return true;
+    return doNextTurnHordeAware();
   }, [onlineHorde, onlineTable, canPassTurn, doPassTurn, doNextTurnHordeAware]);
 
   const advancePhase = useCallback(() => {
@@ -1693,6 +1710,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           // online and not your turn it does nothing, so Shift+N is the key.
           shortcut: keyFor(onlineTable ? 'next-turn' : 'pass-turn'),
           onClick: doNextTurnHordeAware,
+          disabled: hordeBlocksTurn,
         },
     { label: 'Untap all', shortcut: keyFor('untap-all'), onClick: doUntapAll },
     {
@@ -2196,7 +2214,10 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
               bf={activeDrag.bf}
               size={activeDrag.size}
               className="playtest-card--dragging"
-              style={{ transform: activeDrag.bf?.tapped ? 'rotate(90deg)' : undefined }}
+              style={{
+                ...dragCardBox,
+                transform: activeDrag.bf?.tapped ? 'rotate(90deg)' : undefined,
+              }}
             />
           )}
         </DragOverlay>
