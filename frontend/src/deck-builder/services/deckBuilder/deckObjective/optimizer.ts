@@ -532,6 +532,13 @@ export function optimizeDeck(
     // the class floors (an owned protection piece for Swiftfoot Boots), 2
     // keeps the caps and the floors but not the class (no owned card holds
     // it), 3 is over a cap or floor too (nothing owned fits under it).
+    // Which forced repairs are judged first: the best-played owned card (the
+    // user's ruling), and among the protection pieces that keep the class the
+    // cheapest (Soul of New Phyrexia, six mana, took Lightning Greaves's slot).
+    const moveQ = (m: Move) => m.in.reduce((t, c) => t + ctx.qualityOf(c).q, 0);
+    const moveCmc = (m: Move) => m.in.reduce((t, c) => t + (c.cmc ?? 0), 0);
+    const bestPlayed = (a: Move, b: Move) =>
+      (forcedTier === 1 ? moveCmc(a) - moveCmc(b) : 0) || moveQ(b) - moveQ(a);
     const tiers = new Map<Move, { tier: ForcedTier; why: string | null }>();
     const tierOf = (move: Move) => {
       let t = tiers.get(move);
@@ -603,7 +610,7 @@ export function optimizeDeck(
       forcedRepair = true;
       let seen = 0;
       forcedTier = Math.min(...forced.map((m) => tierOf(m).tier)) as ForcedTier;
-      for (const move of forced.filter((m) => tierOf(m).tier === forcedTier)) {
+      for (const move of forced.filter((m) => tierOf(m).tier === forcedTier).sort(bestPlayed)) {
         if (evaluations.full >= opts.maxEvaluations || Date.now() - t0 > opts.timeBudgetMs) break;
         const score = full(applyMove(current, move));
         if (!bestRepair || compareScores(score, bestRepair.score) > 0) bestRepair = { move, score };
@@ -623,7 +630,7 @@ export function optimizeDeck(
       const outs = bestRepair.move.out.join(',');
       let bestMatched: { move: Move; score: ObjectiveScore } | null = null;
       let tried = 0;
-      for (const move of moves) {
+      for (const move of forcedRepair ? [...moves].sort(bestPlayed) : moves) {
         if (tried >= REPAIR_CHOICES) break;
         if (!sameRole.get(move) || move.out.join(',') !== outs) continue;
         if (evaluations.full >= opts.maxEvaluations || Date.now() - t0 > opts.timeBudgetMs) break;

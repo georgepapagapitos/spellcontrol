@@ -50,6 +50,19 @@ describe('a forced repair keeps the cap (Krenko owned-only: Swiftfoot Boots went
     expect(repair.disclosure).toMatch(/role limits.*ramp would rise/);
   });
 
+  it('takes the cheaper of two owned protection pieces (Soul of New Phyrexia took Lightning Greaves)', () => {
+    const ctx = bootsRow(['Soul of New Phyrexia', 'Heroic Intervention']);
+    const r = optimizeDeck(
+      BASELINE,
+      cards('Soul of New Phyrexia', 'Heroic Intervention'),
+      ctx,
+      SMALL
+    );
+    const repair = r.swaps.find((s) => s.kind === 'repair')!;
+    expect(repair.in).toEqual(['Heroic Intervention']);
+    expect(repair.disclosure).toBeUndefined();
+  });
+
   it('prefers an owned protection piece to both', () => {
     const ctx = bootsRow(['Vexing Puzzlebox', 'Grave Pact', 'Heroic Intervention']);
     const r = optimizeDeck(
