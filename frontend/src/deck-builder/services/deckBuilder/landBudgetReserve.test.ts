@@ -74,7 +74,7 @@ vi.mock('@/deck-builder/services/tagger/client', () => ({
   isTapland: vi.fn(() => false),
 }));
 
-import { BudgetTracker, EXHAUSTED_CAP } from './budgetTracker';
+import { BudgetTracker } from './budgetTracker';
 import { generateLands } from './landGenerator';
 import { reserveLandBudget, LAND_RESERVE_MAX_SHARE } from './landBudgetReserve';
 import type { GenerationState } from './deckGeneration/state';
@@ -229,14 +229,14 @@ describe('E561 land budget', () => {
 });
 
 describe('BudgetTracker land reserve', () => {
-  it('keeps the hold and caps spells at the bulk tier when an uncapped spend empties the budget (kitchen-sink: $50 over)', () => {
+  it('drops the hold when an uncapped spend empties the budget, rather than lifting the spell cap (kitchen-sink: $50 over)', () => {
     const t = new BudgetTracker(40, 70);
     t.reserveForLands(2);
     t.remainingBudget = -1; // a combo seat overshot the held remainder
     const cap = t.getEffectiveCap(null);
-    expect(cap).not.toBeNull();
-    expect(cap).toBeGreaterThanOrEqual(EXHAUSTED_CAP);
-    expect(t.landReserve).toBe(2);
+    expect(t.landReserve).toBe(0);
+    expect(t.remainingBudget).toBe(1);
+    expect(cap).toBeCloseTo(8 / 70);
   });
 
   it('lets a staple see the budget as if nothing were held', () => {
