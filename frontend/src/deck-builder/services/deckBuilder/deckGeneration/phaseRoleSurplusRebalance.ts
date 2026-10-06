@@ -472,6 +472,8 @@ export function applyRoleSurplusRebalance(
     for (const n of combo.cards) completeComboNames.add(n);
   }
 
+  // E563: what the keeper holds is judged against the card coming in (a kept
+  // card leaves for one at least as strong), so it is not part of isProtected.
   const keeps = evictionKeeper(state);
   const isProtected = (card: ScryfallCard): boolean =>
     !!card.isMustInclude ||
@@ -487,8 +489,7 @@ export function applyRoleSurplusRebalance(
     // because it happens to also carry a reactive-role tag — every sibling
     // pass (Smart Trim, phaseBracketConverge, phaseBudgetConverge,
     // phaseCoherenceRepair) already checks this; this pass hadn't yet.
-    readsAsProtection(card) ||
-    keeps(card); // E563
+    readsAsProtection(card);
 
   // Nonbo-flagged cards evict first (E80 tie-in — the Isshin motivating case:
   // self-damaging wipes in a go-wide token shell). Recomputed here from the
@@ -805,6 +806,7 @@ export function applyRoleSurplusRebalance(
         allowSameRole
       );
       if (!replacement) continue; // this candidate has no legal upgrade — try the next-worst one
+      if (keeps(candidate.card, replacement)) continue; // E563: a downgrade of a kept card
 
       const wasSameRole = countedRoleOf(replacement) === candidate.role;
       removeCard(candidate.card, candidate.category, candidate.role);
@@ -897,7 +899,8 @@ export function applyRoleSurplusRebalance(
       if (cat === 'lands') continue;
       for (const card of state.categories[cat]) {
         const role = countedRoleOf(card);
-        if (role === deficitRole || isProtected(card) || isFreeInteraction(card)) continue;
+        if (role === deficitRole || isProtected(card) || isFreeInteraction(card) || keeps(card))
+          continue;
         if (role) {
           const roleTarget = roleTargets[role] ?? 0;
           if ((liveRoleCounts[role] ?? 0) - 1 < roleTarget) continue;

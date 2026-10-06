@@ -380,6 +380,13 @@ describe('postGenFixupPhase', () => {
       expect(state.usedNames.has(unprotectedName)).toBe(false);
     }
 
+    /** Sets the page pool: [name, inclusion] pairs. */
+    function pagePool(state: GenerationState, rows: Array<[string, number]>) {
+      state.edhrecData = {
+        cardlists: { allNonLand: rows.map(([name, inclusion]) => ({ name, inclusion })) },
+      } as unknown as GenerationState['edhrecData'];
+    }
+
     it('protects a repairAddedNames member (Contract D wiring)', () => {
       const { state, rampReplacement } = makeProtectionState('Repair Added Card', 'Unprotected A');
       expectProtectedCardSurvives(state, rampReplacement, 'Repair Added Card', 'Unprotected A', {
@@ -459,6 +466,13 @@ describe('postGenFixupPhase', () => {
           ],
         },
       ] as unknown as GenerationState['combos'];
+      // The incoming Rampant Growth is played less (10%) than Leyline (30%): a downgrade.
+      pagePool(state, [
+        ['Rampant Growth', 10],
+        ['Leyline of Abundance', 30],
+        ['Llanowar Tribe', 30],
+        ['Umbral Mantle', 30],
+      ]);
       expectProtectedCardSurvives(state, rampReplacement, 'Leyline of Abundance', 'Unprotected H');
     });
 
@@ -468,6 +482,10 @@ describe('postGenFixupPhase', () => {
       state.categories.creatures = state.categories.creatures.map((c) =>
         c.name === 'Counterspell' ? { ...c, oracle_text: 'Counter target spell.' } : c
       );
+      pagePool(state, [
+        ['Rampant Growth', 10],
+        ['Counterspell', 30],
+      ]);
       expectProtectedCardSurvives(state, rampReplacement, 'Counterspell', 'Unprotected I');
     });
 

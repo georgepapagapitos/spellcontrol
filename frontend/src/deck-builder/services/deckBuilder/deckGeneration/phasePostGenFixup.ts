@@ -76,7 +76,8 @@ export function postGenFixupPhase(
   // Helper: find the lowest-priority non-protected card matching a filter
   // Never evict lands — they have their own target and shouldn't be swapped for spells
   function findWeakestCard(
-    filter?: (card: ScryfallCard, cat: DeckCategory) => boolean
+    filter?: (card: ScryfallCard, cat: DeckCategory) => boolean,
+    incoming?: ScryfallCard
   ): { card: ScryfallCard; category: DeckCategory } | null {
     let weakest: { card: ScryfallCard; category: DeckCategory; priority: number } | null = null;
     for (const cat of Object.keys(categories) as DeckCategory[]) {
@@ -98,7 +99,7 @@ export function postGenFixupPhase(
         // flagless (mirrors phaseRoleSurplusRebalance.ts's identical guard).
         if (card.isStapleRock || STAPLE_ROCK_NAMES.has(card.name)) continue;
         if (readsAsProtection(card) || isFreeInteraction(card)) continue;
-        if (keeps(card)) continue; // E563
+        if (keeps(card, incoming)) continue; // E563
         if (filter && !filter(card, cat)) continue;
         // ponytail: position-based weakness is a pick-order proxy (iter-6
         // class); the protected set above neuters its worst failure — a
@@ -184,10 +185,10 @@ export function postGenFixupPhase(
         );
         const roleLabel = ROLE_LABEL[role];
         for (let i = 0; i < swapsForRole; i++) {
-          const weak = findWeakestCard((card) => getCardRole(card.name) !== role);
-          if (!weak) break;
           const replacement = findRoleCandidate(role);
           if (!replacement) break;
+          const weak = findWeakestCard((card) => getCardRole(card.name) !== role, replacement);
+          if (!weak) break;
           fixupRemoveCard(weak.card, weak.category);
           fixupAddCard(replacement);
           fixupRepairs.push({
@@ -224,27 +225,28 @@ export function postGenFixupPhase(
           .filter(([cmc]) => Number(cmc) !== targetCmc)
           .sort(([, a], [, b]) => b - a)[0];
         if (overfullEntry) {
-          const weak = findWeakestCard((card) => (card.cmc ?? 0) === Number(overfullEntry[0]));
-          if (weak) {
-            const candidates = state
-              .edhrecData!.cardlists.allNonLand.filter(
-                (c) =>
-                  !usedNames.has(c.name) &&
-                  !bannedCards.has(c.name) &&
-                  scryfallCardMap.has(c.name) &&
-                  fitsSpellSlot(scryfallCardMap.get(c.name)!) &&
-                  isOwnedCandidate(c.name) &&
-                  (scryfallCardMap.get(c.name)!.cmc ?? 0) === targetCmc &&
-                  // E-arena-leak: same missing gate as findRoleCandidate above.
-                  !violatesUserCaps(scryfallCardMap.get(c.name)!, state.cfg, collectionNames)
-              )
-              .sort(
-                (a, b) =>
-                  calculateCardPriority(b, state.cfg.brewLevel) -
-                  calculateCardPriority(a, state.cfg.brewLevel)
-              );
-            if (candidates.length > 0) {
-              const replacement = scryfallCardMap.get(candidates[0].name)!;
+          const overfullCmc = Number(overfullEntry[0]);
+          const candidates = state
+            .edhrecData!.cardlists.allNonLand.filter(
+              (c) =>
+                !usedNames.has(c.name) &&
+                !bannedCards.has(c.name) &&
+                scryfallCardMap.has(c.name) &&
+                fitsSpellSlot(scryfallCardMap.get(c.name)!) &&
+                isOwnedCandidate(c.name) &&
+                (scryfallCardMap.get(c.name)!.cmc ?? 0) === targetCmc &&
+                // E-arena-leak: same missing gate as findRoleCandidate above.
+                !violatesUserCaps(scryfallCardMap.get(c.name)!, state.cfg, collectionNames)
+            )
+            .sort(
+              (a, b) =>
+                calculateCardPriority(b, state.cfg.brewLevel) -
+                calculateCardPriority(a, state.cfg.brewLevel)
+            );
+          if (candidates.length > 0) {
+            const replacement = scryfallCardMap.get(candidates[0].name)!;
+            const weak = findWeakestCard((card) => (card.cmc ?? 0) === overfullCmc, replacement);
+            if (weak) {
               fixupRemoveCard(weak.card, weak.category);
               fixupAddCard(replacement);
               fixupRepairs.push({

@@ -20,18 +20,35 @@
 // If every card left is kept, the cut doesn't happen and the combo stays
 // one-away (the E532 pattern).
 import { getByCardName } from '@/lib/cards/card-text';
-import { getCardDrawSubtype } from '@/deck-builder/services/tagger/client';
+import {
+  getCardDrawSubtype,
+  isFreeInteraction,
+  readsAsProtection,
+} from '@/deck-builder/services/tagger/client';
 import type { EDHRECCard, ScryfallCard } from '@/deck-builder/types';
 import { STAPLE_INCLUSION_BAR } from '../roleCapAllowance';
 import { answerClassesOf } from '../deckObjective/classFloors';
 import { achievableComboPieces } from './comboLines';
 import type { GenerationState } from './state';
 
+/**
+ * `keeps(card)` is whether the card is kept. `keeps(card, incoming)` is
+ * whether the card is kept AGAINST that incoming card: a kept card leaves for
+ * a card at least as strong (E513's trust-region rule, "leaves only for a card
+ * played as often"), so the keeper blocks downgrades only. The incoming card
+ * is at least as strong when it is itself kept (a tutor, a piece of a line the
+ * deck can assemble, a protection or free-interaction piece), or its
+ * inclusion is at least the leaving card's, or it answers the same last class
+ * the leaving card answers (and the leaving card is kept for nothing else).
+ * A blocked incoming card is recorded in `state.keeperBlocked`.
+ */
 export function evictionKeeper(
-  state: Pick<GenerationState, 'edhrecData' | 'combos' | 'categories'>
-): (card: ScryfallCard) => boolean {
+  state: Pick<GenerationState, 'edhrecData' | 'combos' | 'categories'> &
+    Partial<Pick<GenerationState, 'keeperBlocked'>>
+): (card: ScryfallCard, incoming?: ScryfallCard) => boolean {
   const pool = state.edhrecData?.cardlists.allNonLand ?? [];
   const inclusion = new Map(pool.map((c) => [c.name, c.inclusion]));
+  const inclusionOf = (name: string) => getByCardName(inclusion, name) ?? 0;
   let signature = '';
   let comboPieces = new Set<string>();
   let classCounts = new Map<string, number>();
@@ -59,11 +76,24 @@ export function evictionKeeper(
     }
   };
 
-  return (card) => {
-    if ((getByCardName(inclusion, card.name) ?? 0) >= STAPLE_INCLUSION_BAR) return true;
-    if (getCardDrawSubtype(card.name) === 'tutor') return true;
+  const isKeptKind = (card: ScryfallCard): boolean =>
+    getCardDrawSubtype(card.name) === 'tutor' ||
+    comboPieces.has(card.name) ||
+    readsAsProtection(card) ||
+    isFreeInteraction(card);
+
+  return (card, incoming) => {
     refresh();
-    if (comboPieces.has(card.name)) return true;
-    return answerClassesOf(card).some((cls) => (classCounts.get(cls) ?? 0) <= 1);
+    const staple = inclusionOf(card.name) >= STAPLE_INCLUSION_BAR;
+    const tutorOrLine = getCardDrawSubtype(card.name) === 'tutor' || comboPieces.has(card.name);
+    const lastClasses = answerClassesOf(card).filter((cls) => (classCounts.get(cls) ?? 0) <= 1);
+    if (!staple && !tutorOrLine && lastClasses.length === 0) return false;
+    if (!incoming) return true;
+    const incomingClasses = answerClassesOf(incoming);
+    const covers = lastClasses.every((cls) => incomingClasses.includes(cls));
+    const asStrong = isKeptKind(incoming) || inclusionOf(incoming.name) >= inclusionOf(card.name);
+    if (asStrong || (!staple && !tutorOrLine && covers)) return false;
+    state.keeperBlocked?.add(incoming.name);
+    return true;
   };
 }

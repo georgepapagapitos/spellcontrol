@@ -7,7 +7,13 @@
 // Sythis partial50 the combo audit cut Solitary Confinement (33%) for Siona.
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+// Tagger data is not loaded under test; Worldly Tutor is the one tutor these cases need.
+vi.mock('@/deck-builder/services/tagger/client', async (orig) => ({
+  ...(await orig<typeof import('@/deck-builder/services/tagger/client')>()),
+  getCardDrawSubtype: (name: string) => (name === 'Worldly Tutor' ? 'tutor' : null),
+}));
 import type { DetectedCombo, ScryfallCard } from '@/deck-builder/types';
 import { isProtectionPiece, readsAsProtection } from '@/deck-builder/services/tagger/client';
 import { comboIntegrityAuditPhase } from './phaseComboAudit';
@@ -323,7 +329,7 @@ describe('no generation phase reads the narrow evidence', () => {
   ])('%s reads evictionKeeper', (phase) => {
     const code = readFileSync(join(__dirname, `${phase}.ts`), 'utf8');
     expect(code).toContain("'./evictionKeeper'");
-    expect(code).toMatch(/[Kk]eeps\(card\)/);
+    expect(code).toMatch(/[Kk]eeps\(card/);
   });
 });
 
@@ -358,5 +364,76 @@ describe('evictionKeeper reads the deck as it is', () => {
     expect(keeps(leyline)).toBe(false);
     state.categories.synergy.push(mantle);
     expect(keeps(leyline)).toBe(true);
+  });
+});
+
+// The keeper blocks downgrades only: a kept card leaves for a card at least as
+// strong (E513's "leaves only for a card played as often").
+describe('evictionKeeper blocks only downgrades', () => {
+  const card = (name: string, text = 'Flying') => real(name, 'Creature — Elf', text, 2);
+  const ARCHER = card('Poison-Tip Archer');
+  const WORLDLY = real(
+    'Worldly Tutor',
+    'Instant',
+    'Search your library for a creature card, reveal it, then shuffle and put that card on top.',
+    1
+  );
+  const NARSET = real(
+    'Narset Transcendent',
+    'Legendary Planeswalker — Narset',
+    '+1: Look at the top card of your library. If it is a noncreature, nonland card, you may reveal it and put it into your hand.',
+    5
+  );
+  const EZURI = card('Ezuri, Stalker of Spheres');
+  const FILLER_CARD = card('Greenweaver Druid');
+  const keeper = (rows: Array<[string, number]>, deck: ScryfallCard[]) =>
+    evictionKeeper({
+      edhrecData: {
+        cardlists: { allNonLand: rows.map(([name, inclusion]) => ({ name, id: name, inclusion })) },
+      },
+      combos: [],
+      categories: { lands: [], synergy: deck },
+    } as unknown as GenerationState);
+
+  it('lets a 49.8% staple leave for a tutor (Lathril: Poison-Tip Archer to Worldly Tutor)', () => {
+    const keeps = keeper(
+      [
+        ['Poison-Tip Archer', 49.8],
+        ['Worldly Tutor', 17.6],
+      ],
+      [ARCHER]
+    );
+    expect(keeps(ARCHER)).toBe(true);
+    expect(keeps(ARCHER, WORLDLY)).toBe(false);
+  });
+
+  it('lets a 44.7% staple leave for a card played as often (Atraxa: Narset for Ezuri)', () => {
+    const keeps = keeper(
+      [
+        ['Ezuri, Stalker of Spheres', 44.7],
+        ['Narset Transcendent', 46.1],
+      ],
+      [EZURI]
+    );
+    expect(keeps(EZURI, NARSET)).toBe(false);
+  });
+
+  it('still blocks a 0% card replacing a 40% staple, and records what it turned away', () => {
+    const state = {
+      edhrecData: {
+        cardlists: {
+          allNonLand: [
+            { name: 'Ezuri, Stalker of Spheres', id: 'e', inclusion: 44.7 },
+            { name: 'Greenweaver Druid', id: 'g', inclusion: 0 },
+          ],
+        },
+      },
+      combos: [],
+      categories: { lands: [], synergy: [EZURI] },
+      keeperBlocked: new Set<string>(),
+    } as unknown as GenerationState;
+    const keeps = evictionKeeper(state);
+    expect(keeps(EZURI, FILLER_CARD)).toBe(true);
+    expect(state.keeperBlocked.has('Greenweaver Druid')).toBe(true);
   });
 });

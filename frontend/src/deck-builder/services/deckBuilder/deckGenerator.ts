@@ -4866,7 +4866,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     nonLandCards,
     roleTargets,
     state.edhrecData?.cardlists.allNonLand,
-    { bannedCards, isSaltBlocked }
+    { bannedCards, isSaltBlocked, keeperBlocked: state.keeperBlocked }
   );
 
   // Price-sanity disclosure (E80, honesty fix E126) — composed from the
