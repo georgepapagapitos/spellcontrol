@@ -154,7 +154,8 @@ export function pickFromPrefetched(
 
     const ownedExempt = isOwnedBudgetExempt(edhrecCard.name, collectionNames, ignoreOwnedBudget);
     if (!ownedExempt) {
-      const effectiveCap = budgetTracker?.getEffectiveCap(maxCardPrice) ?? maxCardPrice;
+      const staple = edhrecCard.inclusion >= STAPLE_INCLUSION_BAR;
+      const effectiveCap = budgetTracker?.getEffectiveCap(maxCardPrice, staple) ?? maxCardPrice;
       if (exceedsMaxPrice(scryfallCard, effectiveCap, currency)) return false;
     }
     if (!isOwnedRarityExempt(edhrecCard.name, collectionNames, ignoreOwnedRarity)) {
@@ -668,7 +669,8 @@ export function pickFromPrefetchedWithCurve(
       // Price limit check (uses dynamic cap if budget tracker is active)
       const ownedExempt = isOwnedBudgetExempt(edhrecCard.name, collectionNames, ignoreOwnedBudget);
       if (!ownedExempt) {
-        const effectiveCap = budgetTracker?.getEffectiveCap(maxCardPrice) ?? maxCardPrice;
+        const staple = edhrecCard.inclusion >= STAPLE_INCLUSION_BAR;
+        const effectiveCap = budgetTracker?.getEffectiveCap(maxCardPrice, staple) ?? maxCardPrice;
         if (exceedsMaxPrice(scryfallCard, effectiveCap, currency)) {
           continue;
         }

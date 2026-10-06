@@ -147,6 +147,18 @@ describe('stapleManaRocksPhase', () => {
     expect(names).not.toContain('Arcane Signet');
   });
 
+  it('seats the rocks the budget held money for, though the dynamic cap alone would refuse them (E561: no Sol Ring at $10)', async () => {
+    const state = makeState();
+    const tracker = new BudgetTracker(50, 3, 'USD');
+    tracker.remainingBudget = 0.3; // the spells ran through the budget
+    tracker.reserveForRocks(45); // what landBudgetReserve held for Sol Ring + Signet
+    await stapleManaRocksPhase(state, tracker);
+    expect(allCards(state).map((c) => c.name)).toEqual(
+      expect.arrayContaining(['Sol Ring', 'Arcane Signet'])
+    );
+    expect(tracker.rockReserve).toBe(0);
+  });
+
   it('deducts added staples from the budget tracker', async () => {
     const state = makeState();
     // A generous enough remaining budget/card-count that the dynamic

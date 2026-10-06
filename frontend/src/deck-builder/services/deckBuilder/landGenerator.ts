@@ -24,11 +24,10 @@ import {
   CHANNEL_LANDS,
   getCardByName,
   getCachedCard,
-  searchCards,
-  commanderSearchIdentity,
 } from '@/deck-builder/services/scryfall/client';
 import { isTapland } from '@/deck-builder/services/tagger/client';
 import { BudgetTracker } from './budgetTracker';
+import { fetchMeritLands, landCandidatePrices } from './landBudgetReserve';
 import { pickFromPrefetched } from './cardPicking';
 import { fillWithScryfall, type FillHardGates } from './scryfallFill';
 import {
@@ -66,9 +65,6 @@ export const MDFC_LAND_BOOST = 50;
  *  yet (0 inclusion) can compete with mid-inclusion staples, without steamrolling
  *  a proven high-inclusion pick. Sized between COLOR_DEMAND (25) and MDFC (50). */
 export const LAND_POWER_BOOST_MAX = 40;
-/** How many newest on-identity nonbasic lands to seed into the candidate pool
- *  beyond EDHREC's list — the merit-widen that lets brand-new lands be seen. */
-const MERIT_POOL_MAX = 40;
 
 const TAPLAND_PENALTIES: Record<Pacing, number> = {
   'aggressive-early': -30,
@@ -165,6 +161,8 @@ export async function generateLands(
   mtgFormat?: string
 ): Promise<ScryfallCard[]> {
   const lands: ScryfallCard[] = [];
+  // E561: the nonbasic reserve held back from the spell picks comes back now.
+  const heldForLands = budgetTracker?.releaseLandReserve() ?? 0;
   const enforceAvailableCounts = collectionStrategy === 'available';
   const availableCount = (name: string): number =>
     enforceAvailableCounts ? (collectionAvailableCounts?.get(name) ?? 0) : Infinity;
@@ -236,35 +234,21 @@ export async function generateLands(
     // lands (the E116 A/B lost Phyrexian Tower / Urborg / Bojuka Bog on Meren
     // to MDFCs). The widen's real job is the PLAIN fixers EDHREC misses — new
     // duals / rainbow lands — which is also the headline use case.
-    try {
-      const meritQuery =
-        colorIdentity.length > 0
-          ? `t:land (${colorIdentity.map((c) => `o:{${c}}`).join(' OR ')}) -t:basic`
-          : `t:land id:c -t:basic`;
-      const meritResp = await searchCards(meritQuery, commanderSearchIdentity(colorIdentity), {
-        order: 'released',
-      });
-      let added = 0;
-      for (const card of meritResp.data) {
-        if (added >= MERIT_POOL_MAX) break;
-        if (usedNames.has(card.name) || bannedCards.has(card.name)) continue;
-        if (landCardMap.has(card.name)) continue;
-        if (isMdfcLand(card)) continue;
-        landCardMap.set(card.name, card);
-        if (!edhrecLandNames.has(card.name)) {
-          edhrecLandNames.add(card.name);
-          nonBasicEdhrecLands.push({
-            name: card.name,
-            sanitized: card.name,
-            primary_type: 'Land',
-            inclusion: 0,
-            num_decks: 0,
-          });
-        }
-        added++;
+    for (const card of await fetchMeritLands(
+      colorIdentity,
+      (c) => usedNames.has(c.name) || bannedCards.has(c.name) || landCardMap.has(c.name)
+    )) {
+      landCardMap.set(card.name, card);
+      if (!edhrecLandNames.has(card.name)) {
+        edhrecLandNames.add(card.name);
+        nonBasicEdhrecLands.push({
+          name: card.name,
+          sanitized: card.name,
+          primary_type: 'Land',
+          inclusion: 0,
+          num_decks: 0,
+        });
       }
-    } catch {
-      // Ignore — the EDHREC-sourced pool + Scryfall fallback still apply.
     }
 
     // Build priority boost / penalty map for pacing-aware land selection
@@ -394,6 +378,26 @@ export async function generateLands(
           ))
       );
     });
+    // E561: with money held for them, pace the picks so the cheapest candidates still seat the tail.
+    if (budgetTracker && heldForLands > 0) {
+      const prices = landCandidatePrices(
+        capsFilteredLands.flatMap((c) => landCardMap.get(c.name) ?? []),
+        colorIdentity,
+        {
+          maxRarity,
+          maxCmc,
+          arenaOnly,
+          maxCardPrice,
+          currency,
+          mtgFormat,
+          ignoreOwnedRarity,
+          ignoreOwnedBudget,
+        },
+        collectionNames
+      );
+      const seats = Math.min(nonBasicTarget, prices.length);
+      if (seats > 0) budgetTracker.planLandPhase(seats, prices[seats - 1]);
+    }
     const nonBasics = pickFromPrefetched(
       capsFilteredLands,
       landCardMap,
@@ -503,6 +507,8 @@ export async function generateLands(
       // Ignore if not found
     }
   }
+
+  budgetTracker?.endLandPhase();
 
   // Fill remaining with basic lands (use cached cards for efficiency)
   const basicsNeeded = Math.max(0, count - lands.length);

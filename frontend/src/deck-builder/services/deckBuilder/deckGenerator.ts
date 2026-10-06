@@ -87,6 +87,7 @@ import {
 } from './targetCounts';
 import { applyArchetypeTypeFloor } from './curveUtils';
 import { BudgetTracker } from './budgetTracker';
+import { reserveLandBudget } from './landBudgetReserve';
 import { BracketGuard, bracketCeilings, ceilingsAreOpen } from './bracketGuard';
 import {
   mergeWithAllNonLand,
@@ -2070,6 +2071,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       : mustIncludeCards;
     if (cardsToDeduct.length > 0) budgetTracker.deductMustIncludes(cardsToDeduct);
   }
+  if (budgetTracker) await reserveLandBudget(state, budgetTracker, effectiveNonBasicLandCount);
 
   // Hoisted so fixup pass can access the Scryfall card map after generation
   let scryfallCardMap: Map<string, ScryfallCard> = new Map();
@@ -2081,15 +2083,13 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   const dependencyCommanderCount = partnerCommander ? 2 : 1;
   // The `cardAllowed` gate threaded through every pick path (type passes,
   // Scryfall fills, converge/rebalance swap-ins). Format-keyed legality check
-  // (commander/PDH/brawl) — EDHREC/lift-derived candidates aren't pre-scoped
-  // to the format-legal pool the way the Scryfall searches are, so every
-  // phase reusing this gate (coherence repair, flagship seating, bracket/
-  // budget convergence, role-surplus rebalance) gets the check for free.
-  // Owned cards by collection name, resolved by printing id and verified to
-  // be the card the collection names (ownedCardResolution.ts). A canonical
-  // name the collection spells another way (a front face only, another
-  // language) joins the owned-name set, so ownership checks see the card that
-  // ships under it; the names are the same owned cards.
+  // (commander/PDH/brawl) — EDHREC/lift candidates aren't pre-scoped to the
+  // format-legal pool the way the Scryfall searches are, so every phase reusing
+  // this gate (coherence repair, flagship seating, bracket/budget convergence,
+  // role-surplus rebalance) gets the check for free.
+  // Owned cards by collection name, resolved by printing id and verified to be
+  // the card the collection names (ownedCardResolution.ts). A name spelled
+  // another way (front face, another language) joins the owned-name set.
   const resolveOwned = async (names: string[]): Promise<Map<string, ScryfallCard>> => {
     const pool = new Map((context.collectionPool ?? []).map((e) => [e.name, e]));
     const entries = names.map((n) => pool.get(n) ?? { name: n, colorIdentity: [] });

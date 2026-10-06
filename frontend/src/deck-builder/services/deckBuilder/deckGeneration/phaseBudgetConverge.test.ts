@@ -3,17 +3,23 @@ import type { ScryfallCard, EDHRECCard, DetectedCombo } from '@/deck-builder/typ
 
 // Deterministic role/tag signals — real tagger data isn't needed for these
 // pure-logic tests; individual tests override getCardRole per-case.
-vi.mock('@/deck-builder/services/tagger/client', () => ({
-  getCardDrawSubtype: () => null,
-  getCardRole: vi.fn(() => null),
-  validateCardRole: vi.fn(() => null),
-  // E87-new Slice A: softProtectionLabel also checks readsAsProtection —
-  // default false, overridden per-test where protection behavior is under test.
-  readsAsProtection: vi.fn(() => false),
-  // iter-10 Slice A: softProtectionLabel also checks isFreeInteraction — same
-  // default-false, per-test override shape.
-  isFreeInteraction: vi.fn(() => false),
-}));
+vi.mock('@/deck-builder/services/tagger/client', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@/deck-builder/services/tagger/client')>();
+  return {
+    // Oracle-text predicates (who a wipe hits, what it destroys) are the real ones.
+    isOneSidedWipe: real.isOneSidedWipe,
+    getWipeScope: real.getWipeScope,
+    getCardDrawSubtype: () => null,
+    getCardRole: vi.fn(() => null),
+    validateCardRole: vi.fn(() => null),
+    // E87-new Slice A: softProtectionLabel also checks readsAsProtection —
+    // default false, overridden per-test where protection behavior is under test.
+    readsAsProtection: vi.fn(() => false),
+    // iter-10 Slice A: softProtectionLabel also checks isFreeInteraction — same
+    // default-false, per-test override shape.
+    isFreeInteraction: vi.fn(() => false),
+  };
+});
 
 vi.mock('../categorize', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../categorize')>();
@@ -255,6 +261,104 @@ describe('applyBudgetConvergence', () => {
     expect(state.usedNames.has('Pricey Card')).toBe(true);
     // Cheaper cards may still be swapped to reach budget, but Pricey Card survives.
     expect(result.finalTotal).toBeGreaterThan(0);
+  });
+
+  it('never cuts a staple rock to fit the budget (E561: Meren budget100 swapped Sol Ring for a Talisman)', async () => {
+    // Sol Ring is the priciest card here, so price alone would cut it first.
+    const state = makeState();
+    state.categories.ramp.push(scryfallCard('Sol Ring', '35'));
+    state.usedNames.add('Sol Ring');
+    await applyBudgetConvergence(state, baseCtx({ deckBudget: 40 }));
+    expect(state.usedNames.has('Sol Ring')).toBe(true);
+    expect(state.usedNames.has('Pricey Card')).toBe(false);
+  });
+
+  it('cuts a soft-protected card the deck plays less before a kept 40%+ staple (E561: Flux Channeler)', async () => {
+    // Pricey Card is the priciest and Mid Card the next; both read as combo
+    // flavored (soft). Pricey Card is in 60% of decks, so the keeper holds it.
+    const state = makeState();
+    state.comboCardNames = new Set(['Pricey Card', 'Mid Card']);
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [...POOL, edhrecCard('Pricey Card', 60), edhrecCard('Mid Card', 10)],
+      },
+    } as unknown as GenerationState['edhrecData'];
+    const result = await applyBudgetConvergence(state, baseCtx({ deckBudget: 40 }));
+    expect(result.finalTotal).toBeLessThanOrEqual(40);
+    expect(state.usedNames.has('Pricey Card')).toBe(true);
+    expect(state.usedNames.has('Mid Card')).toBe(false);
+  });
+
+  it('never trades a one-sided board wipe for a symmetric one to save a dollar (E561: Vandalblast -> Chain Reaction)', async () => {
+    const wipe = (name: string, price: string, oracle_text: string) =>
+      scryfallCard(name, price, { type_line: 'Sorcery', oracle_text });
+    const state = makeState();
+    state.categories.boardWipes.push(
+      wipe(
+        'Vandalblast',
+        '1.56',
+        `Destroy target artifact you don't control.
+Overload {4}{R} (You may cast this spell for its overload cost. If you do, change "target" in its text to "each.")`
+      )
+    );
+    state.usedNames.add('Vandalblast');
+    const chainReaction = wipe(
+      'Chain Reaction',
+      '0.28',
+      'Chain Reaction deals X damage to each creature, where X is the number of creatures on the battlefield.'
+    );
+    const roles: Record<string, 'boardwipe'> = {
+      Vandalblast: 'boardwipe',
+      'Chain Reaction': 'boardwipe',
+    };
+    vi.mocked(getCardRole).mockImplementation((n: string) => roles[n] ?? null);
+    const scryfallCardMap = poolScryfallMap();
+    scryfallCardMap.set('Chain Reaction', chainReaction);
+    state.edhrecData = {
+      cardlists: { allNonLand: [...POOL, edhrecCard('Chain Reaction', 5)] },
+    } as unknown as GenerationState['edhrecData'];
+    // Only the wipe is cuttable: everything else is cheaper than any saving.
+    state.categories.synergy = [];
+    await applyBudgetConvergence(state, baseCtx({ scryfallCardMap, deckBudget: 1.0 }));
+    vi.mocked(getCardRole).mockImplementation(() => null);
+    expect(state.usedNames.has('Vandalblast')).toBe(true);
+    expect(state.usedNames.has('Chain Reaction')).toBe(false);
+  });
+
+  it('still trades a one-sided wipe for a symmetric one when it saves real money (E561: Cyclonic Rift $26)', async () => {
+    const wipe = (name: string, price: string, oracle_text: string) =>
+      scryfallCard(name, price, { type_line: 'Sorcery', oracle_text });
+    const state = makeState();
+    state.categories.boardWipes.push(
+      wipe(
+        'Cyclonic Rift',
+        '26.00',
+        `Return target nonland permanent you don't control to its owner's hand.
+Overload {6}{U}`
+      )
+    );
+    state.usedNames.add('Cyclonic Rift');
+    const roles: Record<string, 'boardwipe'> = {
+      'Cyclonic Rift': 'boardwipe',
+      'Chain Reaction': 'boardwipe',
+    };
+    vi.mocked(getCardRole).mockImplementation((n: string) => roles[n] ?? null);
+    const scryfallCardMap = poolScryfallMap();
+    scryfallCardMap.set(
+      'Chain Reaction',
+      wipe(
+        'Chain Reaction',
+        '0.28',
+        'Chain Reaction deals X damage to each creature, where X is the number of creatures on the battlefield.'
+      )
+    );
+    state.edhrecData = {
+      cardlists: { allNonLand: [...POOL, edhrecCard('Chain Reaction', 5)] },
+    } as unknown as GenerationState['edhrecData'];
+    state.categories.synergy = [];
+    await applyBudgetConvergence(state, baseCtx({ scryfallCardMap, deckBudget: 1.0 }));
+    vi.mocked(getCardRole).mockImplementation(() => null);
+    expect(state.usedNames.has('Cyclonic Rift')).toBe(false);
   });
 
   it('never cuts the commander, even if a same-named card somehow sits in categories', async () => {

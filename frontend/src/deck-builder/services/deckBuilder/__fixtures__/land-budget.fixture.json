@@ -1,0 +1,455 @@
+{
+  "_source": "Nonbasic lands recorded from live deck-generation panels (Atraxa budget75, Krenko budget50) on 2026-10-05: Scryfall name, type line, color identity, rarity, set, USD price, and EDHREC inclusion. oracle_text is the first ~140 characters.",
+  "lands": [
+    {
+      "name": "Exotic Orchard",
+      "type_line": "Land",
+      "color_identity": [],
+      "rarity": "rare",
+      "set": "c16",
+      "oracle_text": "{T}: Add one mana of any color that a land an opponent controls could produce.",
+      "price_usd": "0.26",
+      "edhrec_inclusion": 63.8
+    },
+    {
+      "name": "Breeding Pool",
+      "type_line": "Land \u2014 Forest Island",
+      "color_identity": ["G", "U"],
+      "rarity": "rare",
+      "set": "rna",
+      "oracle_text": "({T}: Add {G} or {U}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
+      "price_usd": "9.29",
+      "edhrec_inclusion": 48.8
+    },
+    {
+      "name": "Overgrown Tomb",
+      "type_line": "Land \u2014 Swamp Forest",
+      "color_identity": ["B", "G"],
+      "rarity": "rare",
+      "set": "ecl",
+      "oracle_text": "({T}: Add {B} or {G}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
+      "price_usd": "8.01",
+      "edhrec_inclusion": 47.4
+    },
+    {
+      "name": "Castle Embereth",
+      "type_line": "Land",
+      "color_identity": ["R"],
+      "rarity": "rare",
+      "set": "tdc",
+      "oracle_text": "This land enters tapped unless you control a Mountain.\n{T}: Add {R}.\n{1}{R}{R}, {T}: Creatures you control get +1/+0 until end of turn.",
+      "price_usd": "0.30",
+      "edhrec_inclusion": 39.8
+    },
+    {
+      "name": "Sandsteppe Citadel",
+      "type_line": "Land",
+      "color_identity": ["B", "G", "W"],
+      "rarity": "uncommon",
+      "set": "ecc",
+      "oracle_text": "This land enters tapped.\n{T}: Add {W}, {B}, or {G}.",
+      "price_usd": "0.35",
+      "edhrec_inclusion": 31.6
+    },
+    {
+      "name": "Opulent Palace",
+      "type_line": "Land",
+      "color_identity": ["B", "G", "U"],
+      "rarity": "uncommon",
+      "set": "ecc",
+      "oracle_text": "This land enters tapped.\n{T}: Add {B}, {G}, or {U}.",
+      "price_usd": "0.34",
+      "edhrec_inclusion": 30.3
+    },
+    {
+      "name": "Path of Ancestry",
+      "type_line": "Land",
+      "color_identity": [],
+      "rarity": "common",
+      "set": "fic",
+      "oracle_text": "This land enters tapped.\n{T}: Add one mana of any color in your commander's color identity. When that mana is spent to cast a creature spell",
+      "price_usd": "0.16",
+      "edhrec_inclusion": 29.5
+    },
+    {
+      "name": "Den of the Bugbear",
+      "type_line": "Land",
+      "color_identity": ["R"],
+      "rarity": "rare",
+      "set": "afr",
+      "oracle_text": "If you control two or more other lands, this land enters tapped.\n{T}: Add {R}.\n{3}{R}: Until end of turn, this land becomes a 3/2 red Goblin",
+      "price_usd": "1.41",
+      "edhrec_inclusion": 28.5
+    },
+    {
+      "name": "Seaside Citadel",
+      "type_line": "Land",
+      "color_identity": ["G", "U", "W"],
+      "rarity": "uncommon",
+      "set": "ecc",
+      "oracle_text": "This land enters tapped.\n{T}: Add {G}, {W}, or {U}.",
+      "price_usd": "0.33",
+      "edhrec_inclusion": 28.3
+    },
+    {
+      "name": "Arcane Sanctum",
+      "type_line": "Land",
+      "color_identity": ["B", "U", "W"],
+      "rarity": "uncommon",
+      "set": "dsc",
+      "oracle_text": "This land enters tapped.\n{T}: Add {W}, {U}, or {B}.",
+      "price_usd": "0.41",
+      "edhrec_inclusion": 27.2
+    },
+    {
+      "name": "Evolving Wilds",
+      "type_line": "Land",
+      "color_identity": [],
+      "rarity": "common",
+      "set": "msc",
+      "oracle_text": "{T}, Sacrifice this land: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.",
+      "price_usd": "0.28",
+      "edhrec_inclusion": 21.5
+    },
+    {
+      "name": "Forgotten Cave",
+      "type_line": "Land",
+      "color_identity": ["R"],
+      "rarity": "common",
+      "set": "c21",
+      "oracle_text": "This land enters tapped.\n{T}: Add {R}.\nCycling {R} ({R}, Discard this card: Draw a card.)",
+      "price_usd": "0.31",
+      "edhrec_inclusion": 21.0
+    },
+    {
+      "name": "Canopy Vista",
+      "type_line": "Land \u2014 Forest Plains",
+      "color_identity": ["G", "W"],
+      "rarity": "rare",
+      "set": "msc",
+      "oracle_text": "({T}: Add {G} or {W}.)\nThis land enters tapped unless you control two or more basic lands.",
+      "price_usd": "0.29",
+      "edhrec_inclusion": 17.7
+    },
+    {
+      "name": "Terramorphic Expanse",
+      "type_line": "Land",
+      "color_identity": [],
+      "rarity": "common",
+      "set": "msc",
+      "oracle_text": "{T}, Sacrifice this land: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.",
+      "price_usd": "0.28",
+      "edhrec_inclusion": 17.5
+    },
+    {
+      "name": "Rogue's Passage",
+      "type_line": "Land",
+      "color_identity": [],
+      "rarity": "uncommon",
+      "set": "hoc",
+      "oracle_text": "{T}: Add {C}.\n{4}, {T}: Target creature can't be blocked this turn.",
+      "price_usd": "0.68",
+      "edhrec_inclusion": 15.7
+    },
+    {
+      "name": "Hinterland Harbor",
+      "type_line": "Land",
+      "color_identity": ["G", "U"],
+      "rarity": "rare",
+      "set": "msc",
+      "oracle_text": "This land enters tapped unless you control a Forest or an Island.\n{T}: Add {G} or {U}.",
+      "price_usd": "0.32",
+      "edhrec_inclusion": 14.5
+    },
+    {
+      "name": "The Seedcore",
+      "type_line": "Land \u2014 Sphere",
+      "color_identity": [],
+      "rarity": "rare",
+      "set": "one",
+      "oracle_text": "{T}: Add {C}.\n{T}: Add one mana of any color. Spend this mana only to cast Phyrexian creature spells.\nCorrupted \u2014 {T}: Target 1/1 creature g",
+      "price_usd": "0.38",
+      "edhrec_inclusion": 13.6
+    },
+    {
+      "name": "Prairie Stream",
+      "type_line": "Land \u2014 Plains Island",
+      "color_identity": ["U", "W"],
+      "rarity": "rare",
+      "set": "frc",
+      "oracle_text": "({T}: Add {W} or {U}.)\nThis land enters tapped unless you control two or more basic lands.",
+      "price_usd": "0.35",
+      "edhrec_inclusion": 13.4
+    },
+    {
+      "name": "Smoldering Crater",
+      "type_line": "Land",
+      "color_identity": ["R"],
+      "rarity": "common",
+      "set": "plst",
+      "oracle_text": "This land enters tapped.\n{T}: Add {R}.\nCycling {2} ({2}, Discard this card: Draw a card.)",
+      "price_usd": "0.20",
+      "edhrec_inclusion": 6.7
+    },
+    {
+      "name": "Thriving Moor",
+      "type_line": "Land",
+      "color_identity": ["B"],
+      "rarity": "common",
+      "set": "msc",
+      "oracle_text": "This land enters tapped. As it enters, choose a color other than black.\n{T}: Add {B} or one mana of the chosen color.",
+      "price_usd": "0.24",
+      "edhrec_inclusion": 0
+    },
+    {
+      "name": "Thriving Isle",
+      "type_line": "Land",
+      "color_identity": ["U"],
+      "rarity": "common",
+      "set": "msc",
+      "oracle_text": "This land enters tapped. As it enters, choose a color other than blue.\n{T}: Add {U} or one mana of the chosen color.",
+      "price_usd": "0.23",
+      "edhrec_inclusion": 0
+    },
+    {
+      "name": "Thriving Heath",
+      "type_line": "Land",
+      "color_identity": ["W"],
+      "rarity": "common",
+      "set": "msc",
+      "oracle_text": "This land enters tapped. As it enters, choose a color other than white.\n{T}: Add {W} or one mana of the chosen color.",
+      "price_usd": "0.20",
+      "edhrec_inclusion": 0
+    },
+    {
+      "name": "Thriving Grove",
+      "type_line": "Land",
+      "color_identity": ["G"],
+      "rarity": "common",
+      "set": "msc",
+      "oracle_text": "This land enters tapped. As it enters, choose a color other than green.\n{T}: Add {G} or one mana of the chosen color.",
+      "price_usd": "0.21",
+      "edhrec_inclusion": 0
+    },
+    {
+      "name": "Elvenking's Halls",
+      "type_line": "Land",
+      "color_identity": ["G", "U"],
+      "rarity": "common",
+      "set": "hob",
+      "oracle_text": "This land enters tapped.\n{T}: Add {G} or {U}.\n{2}{G}{U}, {T}, Sacrifice this land: Put two +1/+1 counters on target Elf you control. Activat",
+      "price_usd": "0.16",
+      "edhrec_inclusion": 0
+    },
+    {
+      "name": "Pym Technologies",
+      "type_line": "Land",
+      "color_identity": ["G", "U"],
+      "rarity": "common",
+      "set": "msh",
+      "oracle_text": "This land enters tapped.\nWhen this land enters, you gain 1 life.\n{T}: Add {G} or {U}.",
+      "price_usd": "0.17",
+      "edhrec_inclusion": 0
+    },
+    {
+      "name": "Lake-town",
+      "type_line": "Land",
+      "color_identity": ["U", "W"],
+      "rarity": "common",
+      "set": "hob",
+      "oracle_text": "This land enters tapped.\n{T}: Add {W} or {U}.\n{2}{W}{U}, {T}, Sacrifice this land: Put two +1/+1 counters on target Human you control. Activ",
+      "price_usd": "0.15",
+      "edhrec_inclusion": 0
+    },
+    {
+      "name": "Mirkwood",
+      "type_line": "Land",
+      "color_identity": ["B", "G"],
+      "rarity": "common",
+      "set": "hob",
+      "oracle_text": "This land enters tapped.\n{T}: Add {B} or {G}.\n{2}{B}{G}, {T}, Sacrifice this land: Put two +1/+1 counters on target Bear, Spider, or Wolf yo",
+      "price_usd": "0.17",
+      "edhrec_inclusion": 0
+    },
+    {
+      "name": "Barren Moor",
+      "type_line": "Land",
+      "color_identity": ["B"],
+      "rarity": "common",
+      "set": "ddj",
+      "oracle_text": "This land enters tapped.\n{T}: Add {B}.\nCycling {B} ({B}, Discard this card: Draw a card.)",
+      "price_usd": "0.16",
+      "edhrec_inclusion": 0
+    },
+    {
+      "name": "Desert of the Indomitable",
+      "type_line": "Land \u2014 Desert",
+      "color_identity": ["G"],
+      "rarity": "common",
+      "set": "hou",
+      "oracle_text": "This land enters tapped.\n{T}: Add {G}.\nCycling {1}{G} ({1}{G}, Discard this card: Draw a card.)",
+      "price_usd": "0.12",
+      "edhrec_inclusion": 0
+    },
+    {
+      "name": "Desert of the Mindful",
+      "type_line": "Land \u2014 Desert",
+      "color_identity": ["U"],
+      "rarity": "common",
+      "set": "hou",
+      "oracle_text": "This land enters tapped.\n{T}: Add {U}.\nCycling {1}{U} ({1}{U}, Discard this card: Draw a card.)",
+      "price_usd": "0.08",
+      "edhrec_inclusion": 0
+    },
+    {
+      "name": "Skybridge Towers",
+      "type_line": "Land",
+      "color_identity": ["U", "W"],
+      "rarity": "common",
+      "set": "plst",
+      "oracle_text": "This land enters tapped.\n{T}: Add {W} or {U}.\n{2}{W}{U}, {T}, Sacrifice this land: Draw a card.",
+      "price_usd": "0.10",
+      "edhrec_inclusion": 0
+    },
+    {
+      "name": "Transformative Commons",
+      "type_line": "Land",
+      "color_identity": ["G", "U"],
+      "rarity": "common",
+      "set": "fra",
+      "oracle_text": "This land enters tapped unless you control a planeswalker.\n{T}: Add {G} or {U}.",
+      "price_usd": "0.32",
+      "edhrec_inclusion": 0
+    },
+    {
+      "name": "Theorix Annex",
+      "type_line": "Land",
+      "color_identity": ["B", "U"],
+      "rarity": "common",
+      "set": "fra",
+      "oracle_text": "This land enters tapped unless you control a planeswalker.\n{T}: Add {U} or {B}.",
+      "price_usd": "0.53",
+      "edhrec_inclusion": 0
+    },
+    {
+      "name": "Tranquil Thicket",
+      "type_line": "Land",
+      "color_identity": ["G"],
+      "rarity": "common",
+      "set": "c13",
+      "oracle_text": "This land enters tapped.\n{T}: Add {G}.\nCycling {G} ({G}, Discard this card: Draw a card.)",
+      "price_usd": "0.11",
+      "edhrec_inclusion": 0
+    },
+    {
+      "name": "Secluded Steppe",
+      "type_line": "Land",
+      "color_identity": ["W"],
+      "rarity": "common",
+      "set": "arc",
+      "oracle_text": "This land enters tapped.\n{T}: Add {W}.\nCycling {W} ({W}, Discard this card: Draw a card.)",
+      "price_usd": "0.11",
+      "edhrec_inclusion": 0
+    },
+    {
+      "name": "Submerged Boneyard",
+      "type_line": "Land",
+      "color_identity": ["B", "U"],
+      "rarity": "common",
+      "set": "m19",
+      "oracle_text": "This land enters tapped.\n{T}: Add {U} or {B}.",
+      "price_usd": "0.07",
+      "edhrec_inclusion": 0
+    },
+    {
+      "name": "Eiganjo, Seat of the Empire",
+      "type_line": "Legendary Land",
+      "color_identity": ["W"],
+      "rarity": "rare",
+      "set": "neo",
+      "oracle_text": "{T}: Add {W}.\nChannel \u2014 {2}{W}, Discard this card: It deals 4 damage to target attacking or blocking creature. This ability costs {1} less t",
+      "price_usd": "5.60",
+      "edhrec_inclusion": 0
+    },
+    {
+      "name": "Vigorbloom Annex",
+      "type_line": "Land",
+      "color_identity": ["G", "W"],
+      "rarity": "common",
+      "set": "fra",
+      "oracle_text": "This land enters tapped unless you control a planeswalker.\n{T}: Add {G} or {W}.",
+      "price_usd": "0.31",
+      "edhrec_inclusion": 0
+    },
+    {
+      "name": "Overgrown Farmland",
+      "type_line": "Land",
+      "color_identity": ["G", "W"],
+      "rarity": "rare",
+      "set": "fra",
+      "oracle_text": "This land enters tapped unless you control two or more other lands.\n{T}: Add {G} or {W}.",
+      "price_usd": "0.94",
+      "edhrec_inclusion": 0
+    },
+    {
+      "name": "Formidable Commons",
+      "type_line": "Land",
+      "color_identity": ["B", "G"],
+      "rarity": "common",
+      "set": "fra",
+      "oracle_text": "This land enters tapped unless you control a planeswalker.\n{T}: Add {B} or {G}.",
+      "price_usd": "0.52",
+      "edhrec_inclusion": 0
+    },
+    {
+      "name": "Looming Spires",
+      "type_line": "Land",
+      "color_identity": ["R"],
+      "rarity": "common",
+      "set": "bfz",
+      "oracle_text": "This land enters tapped.\nWhen this land enters, target creature gets +1/+1 and gains first strike until end of turn.\n{T}: Add {R}.",
+      "price_usd": "0.15",
+      "edhrec_inclusion": 0
+    },
+    {
+      "name": "Blighted Gorge",
+      "type_line": "Land",
+      "color_identity": ["R"],
+      "rarity": "uncommon",
+      "set": "ddt",
+      "oracle_text": "{T}: Add {C}.\n{4}{R}, {T}, Sacrifice this land: It deals 2 damage to any target.",
+      "price_usd": "0.12",
+      "edhrec_inclusion": 0
+    },
+    {
+      "name": "Thriving Bluff",
+      "type_line": "Land",
+      "color_identity": ["R"],
+      "rarity": "common",
+      "set": "tle",
+      "oracle_text": "This land enters tapped. As it enters, choose a color other than red.\n{T}: Add {R} or one mana of the chosen color.",
+      "price_usd": "0.11",
+      "edhrec_inclusion": 0
+    },
+    {
+      "name": "Rockface Village",
+      "type_line": "Land",
+      "color_identity": ["R"],
+      "rarity": "uncommon",
+      "set": "blb",
+      "oracle_text": "{T}: Add {C}.\n{T}: Add {R}. Spend this mana only to cast a creature spell.\n{R}, {T}: Target Lizard, Mouse, Otter, or Raccoon you control get",
+      "price_usd": "0.30",
+      "edhrec_inclusion": 0
+    },
+    {
+      "name": "Flamekin Village",
+      "type_line": "Land",
+      "color_identity": ["R"],
+      "rarity": "rare",
+      "set": "ecc",
+      "oracle_text": "As this land enters, you may reveal an Elemental card from your hand. If you don't, this land enters tapped.\n{T}: Add {R}.\n{R}, {T}: Target ",
+      "price_usd": "0.28",
+      "edhrec_inclusion": 0
+    }
+  ]
+}

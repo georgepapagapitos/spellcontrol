@@ -1258,8 +1258,41 @@ describe('assembleBuildReport: a repair the whole-deck search reversed (E513)', 
     );
   });
 
-  it('leaves the line alone when the search did not put it back', () => {
+  it('leaves the line alone when the cut card is not in the final deck', () => {
     expect(run(['Tainted Observer'], search)).toBe(budget.reason);
-    expect(run(['Skrelv, Defector Mite', 'Tainted Observer'])).toBe(budget.reason);
+    expect(run(['Tainted Observer'])).toBe(budget.reason);
+  });
+
+  // E561: whoever put the card back, the final deck says it is there. Krenko
+  // budget50: converge cut Goblin Piledriver, a surplus conversion seated it again.
+  it('says so when a surplus conversion put the cut card back', () => {
+    const piledriver = {
+      cut: 'Goblin Piledriver',
+      added: 'Rummaging Goblin',
+      reason: 'Saves $2.41. Cut a strongly-linked synergy pick to fit your budget.',
+    };
+    const report = assembleBuildReport({
+      generated: makeGenerated({
+        budgetRepairs: [piledriver],
+        surplusConversions: [
+          {
+            cut: 'Blasphemous Act',
+            added: 'Goblin Piledriver',
+            reason: 'Board wipe is over cap (2/1).',
+          },
+        ],
+        categories: categories({
+          creatures: ['Goblin Piledriver', 'Rummaging Goblin'].map(
+            (name) => ({ name }) as ScryfallCard
+          ),
+        }),
+      }),
+      customization: makeCustomization(),
+      collectionNames: new Set(),
+    });
+    expect(report.budgetRepairs?.[0].reason).toBe(
+      `${piledriver.reason} Goblin Piledriver was put back later.`
+    );
+    expect(report.surplusConversions?.[0].reason).toBe('Board wipe is over cap (2/1).');
   });
 });

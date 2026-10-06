@@ -43,7 +43,7 @@ import type { GenerationState } from './state';
  */
 export function evictionKeeper(
   state: Pick<GenerationState, 'edhrecData' | 'combos' | 'categories'> &
-    Partial<Pick<GenerationState, 'keeperBlocked'>>
+    Partial<Pick<GenerationState, 'keeperBlocked' | 'context'>>
 ): (card: ScryfallCard, incoming?: ScryfallCard) => boolean {
   const pool = state.edhrecData?.cardlists.allNonLand ?? [];
   const inclusion = new Map(pool.map((c) => [c.name, c.inclusion]));
@@ -61,7 +61,14 @@ export function evictionKeeper(
       .join('|');
     if (names === signature) return;
     signature = names;
-    const inDeck = new Set(held.flatMap((c) => [c.name, frontFaceName(c.name)]));
+    // The commander is in the deck but in no category: a line that runs through
+    // it (Skirk Prospector + Rising of the Day + Krenko, Mob Boss) is whole.
+    const commanders = [state.context?.commander, state.context?.partnerCommander].filter(
+      (c): c is ScryfallCard => !!c
+    );
+    const inDeck = new Set(
+      [...held, ...commanders].flatMap((c) => [c.name, frontFaceName(c.name)])
+    );
     // Only a line the deck already holds whole: a line the pool COULD complete
     // reaches nearly every card in a deck with dozens of listed combos (Isshin's
     // Professional Face-Breaker, 11.8%, sat in two of them).
