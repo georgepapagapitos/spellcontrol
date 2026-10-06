@@ -78,6 +78,12 @@ export interface CardSearchOptions {
    */
   ownedNames?: readonly string[];
   /**
+   * Names to leave OUT in the query — the player's collection, when they asked
+   * for cards they don't own. In the query rather than with {@link exclude}'s
+   * over-fetch: a collection is thousands of names, not a decklist's hundred.
+   */
+  notOwnedNames?: readonly string[];
+  /**
    * Only cards whose cheapest fresh printing, in this currency, is at or under
    * `amount`. Applied in the query for the same reason {@link ownedNames} is;
    * a card with no fresh price in that currency is out, since a ceiling nobody
@@ -660,6 +666,11 @@ export class ScryfallCache {
       // by different paths.
       where.push('lower(name) IN (SELECT value FROM json_each(?))');
       params.push(JSON.stringify(options.ownedNames.map((n) => n.toLowerCase())));
+    }
+    if (options.notOwnedNames && options.notOwnedNames.length > 0) {
+      // Same one-parameter JSON shape as ownedNames, inverted.
+      where.push('lower(name) NOT IN (SELECT value FROM json_each(?))');
+      params.push(JSON.stringify(options.notOwnedNames.map((n) => n.toLowerCase())));
     }
 
     // The index carries no prices (they move nightly; oracle text does not), so

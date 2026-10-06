@@ -617,8 +617,9 @@ async function scopeSearch(
   scope: AiScope,
   deckId: string,
   currency: PriceCurrency
-): Promise<{ ownedNames?: string[]; maxPrice?: PriceCeiling }> {
+): Promise<{ ownedNames?: string[]; notOwnedNames?: string[]; maxPrice?: PriceCeiling }> {
   if (isCollectionScope(scope)) return { ownedNames: await loadOwnedNames(userId, scope, deckId) };
+  if (scope === 'unowned') return { notOwnedNames: await loadOwnedNames(userId, 'owned', deckId) };
   if (scope === 'budget') return { maxPrice: { amount: BUDGET_CEILING, currency } };
   return {};
 }
@@ -817,6 +818,13 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
   if (scoped.maxPrice) {
     const ceiling = scoped.maxPrice;
     request.pool = request.pool.filter((c) => withinBudget(cache, c.name, ceiling));
+  }
+  // Same for "Cards I don't own": the engine's list leans on the collection
+  // (substitutes, owned upgrades), and every owned name in it would be a
+  // suggestion the player asked not to get.
+  if (scoped.notOwnedNames) {
+    const owned = new Set(scoped.notOwnedNames.map((n) => n.toLowerCase()));
+    request.pool = request.pool.filter((c) => !owned.has(c.name.toLowerCase()));
   }
 
   const cached = await pool.query<{

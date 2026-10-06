@@ -1339,7 +1339,8 @@ Model-written text always says so. The rulings:
 - **One sources contract per deck, one control (T112).** Where the AI may draw
   candidates from (any card / cards you own / free copies you own / budget
   picks, a fixed per-card ceiling by cheapest printing in the player's
-  display currency, USD or EUR) is a deck
+  display currency, USD or EUR / cards you don't own, the collection read as
+  a list to leave out) is a deck
   field (`deck.aiScope`), read identically by every AI surface on that deck and
   set in exactly one place: the `AiSourcesControl` fieldset above the Coach
   tab's AI panels. Native radios, options are rects (§ segmented controls), and
@@ -1348,6 +1349,13 @@ Model-written text always says so. The rulings:
   AI panel never grows its own owned/budget toggle; the Coach feed's "Owned
   only" checkbox is a free display filter over engine rows and does not drive
   the AI.
+- **"Leave my cards out" exists wherever the collection is a source.** A
+  surface that can build from the collection also offers its inverse: the deck
+  generator's "Skip my cards" strategy (inside "Use my collection") and the
+  AI's "Cards you don't own" scope. Basic lands and the player's own picks
+  (must-includes, commanders) are exempt, and the build report says how many
+  owned cards it left out. The cube builder is the exception for now: its only
+  pool IS the collection.
 - **The AI never annotates engine rows unlabelled (E274).** When the live
   refine reading picks the same card as an engine row, the row gets an
   "AI agrees" `AiMarker` followed by the model's own sentence, on its own line

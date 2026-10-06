@@ -3,14 +3,15 @@
  * may draw candidates from. `any` = the whole card pool; `owned` = the
  * player's collection; `uncommitted` = owned copies not already sitting in
  * another of their decks; `budget` = any card at or under a USD ceiling by its
- * cheapest printing today. Persisted on the deck (`deck.aiScope`) so the
+ * cheapest printing today; `unowned` = only cards the player does not own
+ * (the collection read as a list to leave out). Persisted on the deck (`deck.aiScope`) so the
  * review and the refine pass read the same answer, and part of the server's
  * cache key, so changing it makes the next reading a new one.
  *
  * A leaf on purpose: the decks store, the AI clients and the control all
  * import it, and none of them may import each other.
  */
-export type AiScope = 'any' | 'owned' | 'uncommitted' | 'budget';
+export type AiScope = 'any' | 'owned' | 'uncommitted' | 'budget' | 'unowned';
 
 /**
  * The `budget` scope's per-card ceiling — the same number in USD or EUR (a
