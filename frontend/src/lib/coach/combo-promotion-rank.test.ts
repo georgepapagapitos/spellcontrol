@@ -20,6 +20,7 @@ import { comboEndsGame } from '@/deck-builder/services/winConditions/detect';
 import { buildCoachChanges } from './coach-changes';
 import { rankCoachMoves, diversifyRankedMoves, type CoachContext } from './coach-rank';
 import { replaceCuts } from './replace-cuts';
+import { coachTargetBracket } from './deck-settings-fit';
 
 const TFS = '98636623-bbc6-4935-a2bb-2234691eb6d8';
 const DRAKE = '0bd67481-6bd9-48d6-92bd-8933b5ea1eae';
@@ -267,5 +268,20 @@ describe('the cut a promoted completion needs comes from the protected path (E54
 
   it('a deck with room needs no cut', () => {
     expect(make([tfs, silver], false).hasProtectedCut(change)).toBe(true);
+  });
+});
+
+describe('the target bracket the rank reads (E540)', () => {
+  const built = (targetBracket: 2 | 4) => ({
+    selectedThemes: [],
+    targetBracket,
+    landCount: 0,
+    collectionMode: false,
+    customization: {},
+  });
+  it('is the stated bracket first, then the one built for, else all', () => {
+    expect(coachTargetBracket({ generationContext: built(4), bracketOverride: 2 })).toBe(2);
+    expect(coachTargetBracket({ generationContext: built(4) })).toBe(4);
+    expect(coachTargetBracket({ generationContext: null })).toBe('all');
   });
 });

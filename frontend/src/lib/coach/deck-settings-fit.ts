@@ -279,6 +279,8 @@ export interface CoachSettingsHooks {
   cutFits: (add: ScryfallCard) => ((cut: ScryfallCard) => boolean) | undefined;
   /** The deck asks to save money (a budget or a per-card cap): the Budget lane runs. */
   savesMoney: boolean;
+  /** The bracket Coach holds the deck to (`coachTargetBracket`). */
+  targetBracket: TargetBracket | 'all';
 }
 
 /** The deck page's check: the saved settings against the live deck and collection. */
@@ -293,6 +295,7 @@ export function useCoachSettings(
   const generationContext = deck?.generationContext ?? null;
   const bracketOverride = deck?.bracketOverride;
   const collectionStrategy = deck?.buildReport?.collectionStrategy;
+  const targetBracket = coachTargetBracket({ generationContext, bracketOverride });
   const settings = useMemo(
     () =>
       coachDeckSettings({
@@ -312,8 +315,8 @@ export function useCoachSettings(
     });
     const fit = fitsSettings(check);
     const savesMoney = settings?.deckBudget != null || settings?.maxCardPrice != null;
-    return { check, fit, cutFits: (add) => cutKeepsSettings(fit, add), savesMoney };
-  }, [settings, cards, ownedNames, mainboardLimit, suggestionCards]);
+    return { check, fit, cutFits: (add) => cutKeepsSettings(fit, add), savesMoney, targetBracket };
+  }, [settings, cards, ownedNames, mainboardLimit, suggestionCards, targetBracket]);
 }
 
 /** The gap staples the settings allow, for the Next-best-move hero's card picks. */
