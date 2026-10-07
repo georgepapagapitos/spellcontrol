@@ -14,7 +14,7 @@ const isShard = process.argv.some((arg) => arg.startsWith('--shard'));
 // slow to share a shard with another slow one is split into
 // `<name>.part-N.test.ts` files, and this pins part N to shard N (wrapping
 // past the shard count). Everything else keeps the hash placement.
-// deckGenerator.settings.part-{1..4}.test.ts is the first: as one file it
+// deckGenerator.settings.part-{1..6}.test.ts is the first: as one file it
 // set the length of the whole CI run.
 const PART = /\.part-(\d+)\.test\.tsx?$/;
 class PinnedPartSequencer extends BaseSequencer {
