@@ -116,7 +116,15 @@ import {
 import { shadowMarkdown, shadowNumbers } from './coachShadowReport';
 import { shadowRecord, type ShadowRecord } from './coachShadow';
 import { applyCutLane, cutLaneRecord } from './coachCutLane';
-import { pingPong, PLAN_CONFIGS, planLaneAdvise, planRecords, planReport } from './coachPlanLane';
+import {
+  FILL,
+  fillLaneAdvise,
+  pingPong,
+  PLAN_CONFIGS,
+  planLaneAdvise,
+  planRecords,
+  planReport,
+} from './coachPlanLane';
 import type { Change } from '@/lib/coach/deck-change';
 import {
   advisedDump,
@@ -976,6 +984,7 @@ async function planLanes(
     implicitReversal: IMPLICIT_REVERSAL,
   };
   if (PLAN_CONFIGS.length > 0) await planLaneAdvise(input, deps, pass1);
+  if (FILL) await fillLaneAdvise(input, deps, pass1);
 }
 
 // ---- E573: generation vs analysis parity (COACH_EVAL_PARITY=1) --------------------
@@ -1056,7 +1065,8 @@ describe.skipIf(!process.env.LIVE_GEN || adviseRows.length === 0)('Coach eval: a
         const advised = advisedFrom(dump, result, index, pass2);
         writeJson(join(base, 'advised', file), advised);
         if (CUTS) await cutLaneAdvise(panel, file, dump, deck, settings, pass1);
-        if (PLAN_CONFIGS.length > 0) await planLanes(panel, file, dump, deck, settings, pass1);
+        if (PLAN_CONFIGS.length > 0 || FILL)
+          await planLanes(panel, file, dump, deck, settings, pass1);
 
         record.reversed.push(
           ...pingPong(result.applied, pass2, audit2, AUDIT_K, IMPLICIT_REVERSAL)

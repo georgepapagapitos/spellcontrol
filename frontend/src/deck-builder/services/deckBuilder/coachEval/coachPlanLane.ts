@@ -10,6 +10,10 @@
  *    and count cut-then-re-add reversals. Also replays every pick through the
  *    whole-deck objective's judge, so a baseline run reports how many of its
  *    own picks the objective would have refused.
+ *  - COACH_EVAL_FILL=1: take the deck, hold back every eighth non-basic card,
+ *    and let `planFill` complete it from the deck itself as the generator's
+ *    answer. Both sides of the gate are whole decks (the original, and the
+ *    held-back deck plus the plan's adds); the sim throws if the sizes differ.
  *
  * The same file runs on a detached-main baseline: main's planners ignore the
  * `judge` argument, so the two sides differ only in the planners.
@@ -18,6 +22,7 @@ import type { CommanderDeckAnalysisResult } from '../commanderDeckAnalysis';
 import { buildInclusionIndex, computeRoleCounts, lookupInclusion } from '../commanderDeckAnalysis';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
+import { planFill } from '@/lib/coach/fill-deck-plan';
 import { createPlanJudge, type PlanPick } from '@/lib/coach/plan-move-judge';
 import { planUpgrades, type UpgradeGoal, type UpgradePlan } from '@/lib/coach/upgrade-plan';
 import { buildUpgradePlanTools } from '@/lib/coach/upgrade-plan-tools';
@@ -98,7 +103,7 @@ export function pingPong(
 }
 
 export interface PlanRecord {
-  kind: 'plan';
+  kind: 'plan' | 'fill';
   config: string;
   panel: string;
   deck: string;
@@ -109,6 +114,8 @@ export interface PlanRecord {
   /** Picks the objective's judge refuses when replayed in order (a baseline's own losses). */
   refusedByObjective: { in: string; cut: string | null; reason: string }[];
   notUpgrades: number;
+  declined: { card: string; reason: string }[];
+  stillOpen?: number;
   reversed: Reversal[];
   ms: number;
   error?: string;
@@ -125,6 +132,7 @@ const configsOf = (): { goal: UpgradeGoal; budget: number; name: string }[] =>
       return { goal: goal as UpgradeGoal, budget: Number(budget), name: `${goal}-${budget}` };
     });
 export const PLAN_CONFIGS = configsOf();
+export const FILL = process.env.COACH_EVAL_FILL === '1';
 
 async function advise(
   input: PlanLaneInput,
@@ -200,6 +208,7 @@ export async function planLaneAdvise(
       applied: 0,
       refusedByObjective: [],
       notUpgrades: 0,
+      declined: [],
       reversed: [],
       ms: 0,
     };
@@ -264,6 +273,95 @@ export async function planLaneAdvise(
   }
 }
 
+/** "Fill the rest" for one deck: hold back every eighth non-basic card, complete from the deck itself. */
+export async function fillLaneAdvise(
+  input: PlanLaneInput,
+  deps: PlanLaneDeps,
+  pass1: PassLike
+): Promise<void> {
+  const rec: PlanRecord = {
+    kind: 'fill',
+    config: 'fill',
+    panel: input.panel,
+    deck: input.deck,
+    objective: 'ok',
+    picks: [],
+    applied: 0,
+    refusedByObjective: [],
+    notUpgrades: 0,
+    declined: [],
+    reversed: [],
+    ms: 0,
+  };
+  records.push(rec);
+  try {
+    const { state } = input;
+    const isBasic = (c: ScryfallCard) => /\bBasic\b/.test((c.type_line ?? '').split('//')[0]);
+    let n = 0;
+    const heldBack = new Set<ScryfallCard>();
+    for (const c of state.cards) if (!isBasic(c) && n++ % 8 === 3) heldBack.add(c);
+    const partBuilt = { ...state, cards: state.cards.filter((c) => !heldBack.has(c)) };
+    const objective = shadowObjective({ ...input, state: partBuilt });
+    rec.objective = objective.ok ? 'ok' : objective.reason;
+    const judge = createPlanJudge(objective, (name) => input.resolve(name));
+    const index = pass1.page ? buildInclusionIndex(pass1.page) : new Map<string, number>();
+    const relevancy = Object.fromEntries(
+      state.cards.map((c) => [c.name, lookupInclusion(index, c.name) ?? 0])
+    );
+    const t0 = Date.now();
+    const plan = planFill(
+      partBuilt.cards,
+      state.cards,
+      state.cards.length,
+      relevancy,
+      judge ?? undefined
+    );
+    rec.ms = Date.now() - t0;
+    rec.picks = plan.additions.map((c) => ({ in: c.name, cut: null }));
+    rec.declined = (
+      (plan as { declined?: { card: ScryfallCard; reason: string }[] }).declined ?? []
+    ).map((d) => ({ card: d.card.name, reason: d.reason }));
+    rec.stillOpen = plan.stillOpen;
+    rec.applied = plan.additions.length;
+    // The advised dump is built from the original dump: cut what was held back, add what the plan seats.
+    const cutOps = [...heldBack].map((c, i) => ({
+      order: i + 1,
+      move: {
+        rank: i + 1,
+        source: 'feed' as const,
+        surface: 'fill',
+        type: 'cut' as const,
+        name: c.name,
+      },
+      cut: c.name,
+    }));
+    const addOps = plan.additions.map((c, i) => ({
+      order: cutOps.length + i + 1,
+      move: {
+        rank: i + 1,
+        source: 'feed' as const,
+        surface: 'fill',
+        type: 'add' as const,
+        name: c.name,
+      },
+      added: c.name,
+    }));
+    const result: ApplyResult = {
+      deck: { ...state, cards: [...partBuilt.cards, ...plan.additions] },
+      applied: [...cutOps, ...addOps],
+      skipped: [],
+    };
+    // Both sides of the gate are whole decks: the held-back deck plus the plan's adds is the original's size.
+    if (result.deck.cards.length + plan.stillOpen !== state.cards.length)
+      throw new Error(
+        `fill sim: ${result.deck.cards.length} cards + ${plan.stillOpen} open, not ${state.cards.length}`
+      );
+    await advise(input, deps, result, 'fill', rec, pass1);
+  } catch (err) {
+    rec.error = err instanceof Error ? err.message : String(err);
+  }
+}
+
 /** The numbers per kind and config: applied picks, objective refusals, reversals, errors. */
 export function planReport(): string {
   const groups = new Map<string, PlanRecord[]>();
@@ -277,6 +375,7 @@ export function planReport(): string {
       `- picks offered ${sum((r) => r.picks.length)}, applied ${sum((r) => r.applied)}`,
       `- picks the objective refuses (replayed in order) ${sum((r) => r.refusedByObjective.length)} across ${rs.filter((r) => r.refusedByObjective.length > 0).length} decks`,
       `- moves the plan withheld as not an upgrade ${sum((r) => r.notUpgrades)}`,
+      `- fill cards declined ${sum((r) => r.declined.length)}, slots left open ${sum((r) => r.stillOpen ?? 0)}`,
       `- Ping-pong (cut-then-re-add reversals): ${sum((r) => r.reversed.length)} across ${rs.filter((r) => r.reversed.length > 0).length} decks`,
       `- plan time ms (sum ${sum((r) => r.ms)}, max ${Math.max(0, ...rs.map((r) => r.ms))})`,
       ''

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { planFill } from './fill-deck-plan';
+import type { PlanJudge } from './plan-move-judge';
 import type { ScryfallCard } from '@/deck-builder/types';
 
 const spell = (name: string) => ({ name, type_line: 'Creature — Goblin' }) as ScryfallCard;
@@ -43,5 +44,106 @@ describe('planFill', () => {
 
   it('adds nothing to a deck that is already full', () => {
     expect(planFill([spell('A'), spell('B')], [spell('C')], 2).additions).toEqual([]);
+  });
+  // E540 S9: the whole-deck objective may decline a card, never leave a slot worse than a small loss.
+  describe('with the objective judge', () => {
+    type Flags = { reason?: string; hard?: boolean; premium?: boolean };
+    const judgeOf = (
+      lossy: Record<string, Flags>,
+      seen: string[][] = [],
+      until?: (name: string, prior: string[]) => boolean
+    ): PlanJudge => ({
+      verdict: () => ({ status: 'unscored' }),
+      loss: (add, prior) => {
+        const before = prior.map((p) => p.add);
+        seen.push([add.name, ...before]);
+        const f = lossy[add.name];
+        if (!f || until?.(add.name, before)) return { loss: false };
+        return {
+          loss: true,
+          reason: f.reason ?? 'scores worse',
+          hard: f.hard === true,
+          premium: f.premium === true,
+        };
+      },
+    });
+    // The generator gave 4 cards for 2 slots; the best 2 were B and Trap.
+    const overflow = (judge?: PlanJudge) =>
+      planFill(
+        [spell('A')],
+        [spell('A'), spell('B'), spell('Trap'), spell('D'), spell('E')],
+        3,
+        { B: 4, Trap: 3, D: 2, E: 1 },
+        judge
+      );
+
+    it('seats the next-best card when the judge declines a soft loss', () => {
+      const plan = overflow(judgeOf({ Trap: { reason: 'ramp would rise to 16' } }));
+      expect(names(plan.additions)).toEqual(['B', 'D']);
+      expect(plan.stillOpen).toBe(0);
+      expect(plan.declined.map((d) => [d.card.name, d.reason])).toEqual([
+        ['Trap', 'ramp would rise to 16'],
+      ]);
+    });
+
+    it('keeps a soft loss rather than leave the slot empty when nothing can take it', () => {
+      const plan = planFill(
+        [spell('A')],
+        [spell('A'), spell('B'), spell('Trap')],
+        3,
+        { B: 2, Trap: 1 },
+        judgeOf({ Trap: {} })
+      );
+      expect(names(plan.additions)).toEqual(['B', 'Trap']);
+      expect(plan.stillOpen).toBe(0);
+      expect(plan.declined).toEqual([]);
+    });
+
+    it('never declines a premium card for a soft loss, a role past its cap', () => {
+      // Birthing Pod, 34.7% of decks and a tutor: declined on a cardDraw cap before this.
+      const plan = overflow(judgeOf({ Trap: { premium: true, reason: 'cardDraw past its cap' } }));
+      expect(names(plan.additions)).toEqual(['B', 'Trap']);
+      expect(plan.declined).toEqual([]);
+    });
+
+    it('declines a premium card for a hard rule break, and still seats the next-best', () => {
+      const plan = overflow(
+        judgeOf({ Trap: { premium: true, hard: true, reason: 'breaks identity' } })
+      );
+      expect(names(plan.additions)).toEqual(['B', 'D']);
+      expect(plan.declined.map((d) => d.card.name)).toEqual(['Trap']);
+    });
+
+    it('reads a broken hard rule again once the rest are in, as an owned share the later cards restore', () => {
+      const plan = planFill(
+        [spell('A')],
+        [spell('A'), spell('Unowned'), spell('Owned')],
+        3,
+        { Unowned: 2, Owned: 1 },
+        judgeOf({ Unowned: { hard: true, reason: 'breaks owned-share' } }, [], (_n, prior) =>
+          prior.includes('Owned')
+        )
+      );
+      expect(names(plan.additions).sort()).toEqual(['Owned', 'Unowned']);
+      expect(plan.declined).toEqual([]);
+    });
+
+    it('judges each card against the cards added before it', () => {
+      const seen: string[][] = [];
+      planFill(
+        [spell('A')],
+        [spell('A'), spell('B'), spell('C')],
+        3,
+        { B: 2, C: 1 },
+        judgeOf({}, seen)
+      );
+      expect(seen).toEqual([['B'], ['C', 'B']]);
+    });
+
+    it('declines nothing without a judge', () => {
+      const plan = planFill([spell('A')], [spell('A'), spell('Trap')], 2);
+      expect(names(plan.additions)).toEqual(['Trap']);
+      expect(plan.declined).toEqual([]);
+    });
   });
 });

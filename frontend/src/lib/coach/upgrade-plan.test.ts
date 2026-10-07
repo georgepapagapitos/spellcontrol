@@ -466,6 +466,7 @@ describe('planUpgrades', () => {
       f: (add: string, cutName: string | null, prior: readonly PlanPick[]) => PlanVerdict
     ): PlanJudge => ({
       verdict: (a, c, prior) => f(a.name, c, prior),
+      loss: () => ({ loss: false }),
     });
 
     it('does not offer a swap the objective judges a loss', () => {

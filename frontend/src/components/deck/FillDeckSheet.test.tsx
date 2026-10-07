@@ -50,7 +50,7 @@ describe('FillDeckSheet', () => {
       card('Mountain', 'Basic Land — Mountain'),
     ];
     buildFill.mockResolvedValue({
-      plan: { additions, stillOpen: 0 },
+      plan: { additions, stillOpen: 0, declined: [] },
       reasons: { 'Goblin Chieftain': 'EDHREC staple for this commander' },
       notes: [],
     });
@@ -82,12 +82,32 @@ describe('FillDeckSheet', () => {
 
   it('owns up to slots it could not fill', async () => {
     buildFill.mockResolvedValue({
-      plan: { additions: [card('Goblin Chieftain', 'Creature — Goblin')], stillOpen: 2 },
+      plan: {
+        additions: [card('Goblin Chieftain', 'Creature — Goblin')],
+        stillOpen: 2,
+        declined: [],
+      },
       reasons: {},
       notes: [],
     });
     renderSheet();
     fireEvent.click(screen.getByRole('button', { name: 'Find 3 cards' }));
     await waitFor(() => screen.getByText('2 slots stay open: the card pool ran out.'));
+  });
+  it('names the cards the objective left out instead of blaming the card pool', async () => {
+    buildFill.mockResolvedValue({
+      plan: {
+        additions: [card('Goblin Chieftain', 'Creature — Goblin')],
+        stillOpen: 1,
+        declined: [{ card: card('Mana Echoes', 'Enchantment'), reason: 'ramp would rise to 16' }],
+      },
+      reasons: {},
+      notes: [],
+    });
+    renderSheet();
+    fireEvent.click(screen.getByRole('button', { name: 'Find 3 cards' }));
+    await waitFor(() => screen.getByText(/Left out for this deck: Mana Echoes\./));
+    expect(screen.getByText('1 slot stays open.')).toBeTruthy();
+    expect(screen.queryByText(/card pool ran out/)).toBeNull();
   });
 });

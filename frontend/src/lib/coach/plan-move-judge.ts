@@ -27,6 +27,7 @@ import {
   judgeMove,
   type MoveJudgement,
 } from '@/deck-builder/services/deckBuilder/deckObjective/judge';
+import { protectedCards } from '@/deck-builder/services/deckBuilder/deckObjective/protections';
 import type {
   ObjectiveContext,
   ObjectiveDeck,
@@ -36,6 +37,8 @@ import type { CoachObjectiveResult } from './coach-objective';
 /** A move the plan has already taken: the card in, and the card out (null: an open slot). */
 export interface PlanPick {
   add: string;
+  /** The card itself, when the plan holds it (Fill's generated cards); else it is resolved by name. */
+  addCard?: ScryfallCard;
   cut: string | null;
 }
 
@@ -43,6 +46,19 @@ export type PlanVerdict =
   | { status: 'ok'; delta: number }
   | { status: 'refused'; delta: number; reason: string }
   | { status: 'unscored' };
+
+/** What adding a card to the deck costs it (Fill's question). */
+export type LossVerdict =
+  | { loss: false }
+  | { loss: null }
+  | {
+      loss: true;
+      reason: string;
+      /** A hard rule the deck holds is broken (owned-only, bracket, Game Changer limit, banned, colors). */
+      hard: boolean;
+      /** The protection set holds the card (a staple, Game Changer, combo piece, tutor, survival piece...). */
+      premium: boolean;
+    };
 
 export interface PlanJudge {
   /**
@@ -56,7 +72,21 @@ export interface PlanJudge {
     cut: string | null,
     prior: readonly PlanPick[]
   ): PlanVerdict;
+  /**
+   * Whether a card may be added to the deck with `prior` applied without making
+   * it worse: Fill's rule, where the deck is short and a small gain still beats
+   * an empty slot. A loss says whether it is a hard rule break and whether the
+   * card is premium, because Fill declines a premium card only for a hard break.
+   */
+  loss(add: { name: string; card?: ScryfallCard }, prior: readonly PlanPick[]): LossVerdict;
 }
+
+/**
+ * Checks Fill reads as soft. A partial owned share is read to the card but a build lands
+ * within a few points of it; a face-name collision is a card whose back face shares another
+ * card's name (Emeritus of Woe // Demonic Tutor), which Commander keeps, not a duplicate.
+ */
+const SOFT_FOR_FILL: ReadonlySet<string> = new Set(['owned-share', 'face-name-collision']);
 
 const keyOf = (name: string): string => normalizeCardName(frontFaceName(name));
 
@@ -85,7 +115,7 @@ export function createPlanJudge(
         const i = cards.findIndex((c) => keyOf(c.name) === keyOf(p.cut!));
         if (i >= 0) cards.splice(i, 1);
       }
-      const add = cardOf(p.add);
+      const add = cardOf(p.add, p.addCard);
       if (add) cards = [...cards, add];
     }
     memoKey = k;
@@ -115,6 +145,23 @@ export function createPlanJudge(
   };
 
   return {
+    loss(add, prior) {
+      const j = judged(add, null, prior);
+      if (!j) return { loss: null };
+      // Refused for its margin alone is no loss: the slot is open and a small gain beats none.
+      if (j.accepted || (j.delta >= 0 && /^gains /.test(j.refusal ?? ''))) return { loss: false };
+      const incoming = cardOf(add.name, add.card)!;
+      const held = protectedCards(
+        { ...deckAfter(prior), cards: [...deckAfter(prior).cards, incoming] },
+        ctx
+      );
+      return {
+        loss: true,
+        reason: j.refusal ?? 'scores worse',
+        hard: j.worsened.some((v) => !SOFT_FOR_FILL.has(v.check)),
+        premium: held.has(incoming.name),
+      };
+    },
     verdict(add, cut, prior) {
       const j = judged(add, cut, prior);
       if (!j) return { status: 'unscored' };
