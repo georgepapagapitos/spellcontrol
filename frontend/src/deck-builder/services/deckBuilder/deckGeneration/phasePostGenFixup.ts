@@ -130,6 +130,12 @@ export function postGenFixupPhase(
     return !!role && !!roleTargets && (currentRoleCounts[role] ?? 0) > (roleTargets[role] ?? 0);
   };
 
+  // Why a partial build let an unowned card take an owned one's slot, for the report.
+  const overOwned = (weak: ScryfallCard, incoming: ScryfallCard) =>
+    share.partial && share.owned(weak.name) && !share.owned(incoming.name)
+      ? { overOwned: inSurplus(weak) ? ('surplus' as const) : ('better' as const) }
+      : {};
+
   // E571: a partial build gives an owned card up for an unowned one only when
   // the unowned one is clearly better by the user's price bar (at 100%, never).
   // Otherwise the weakest card is the weakest UNOWNED one, and when there is
@@ -236,6 +242,7 @@ export function postGenFixupPhase(
             cut: weak.card.name,
             added: replacement.name,
             reason: `Swapped ${weak.card.name} for ${replacement.name} to close a ${roleLabel} gap.`,
+            ...overOwned(weak.card, replacement),
           });
           if (swapCandidates) {
             const key = `type:${(getFrontFaceTypeLine(weak.card) || 'unknown').split(' ')[0].toLowerCase()}`;
@@ -280,6 +287,7 @@ export function postGenFixupPhase(
           cut: weak.card.name,
           added: replacement.name,
           reason: `Swapped ${weak.card.name} for ${replacement.name} to close a ${ROLE_LABEL[role]} gap.`,
+          ...overOwned(weak.card, replacement),
         });
         if (swapCandidates) {
           const key = `type:${(getFrontFaceTypeLine(weak.card) || 'unknown').split(' ')[0].toLowerCase()}`;
@@ -336,6 +344,7 @@ export function postGenFixupPhase(
                 cut: weak.card.name,
                 added: replacement.name,
                 reason: `Swapped ${weak.card.name} for ${replacement.name} to fill your ${targetCmc}-mana curve.`,
+                ...overOwned(weak.card, replacement),
               });
               if (swapCandidates) {
                 const key = `type:${(getFrontFaceTypeLine(weak.card) || 'unknown').split(' ')[0].toLowerCase()}`;

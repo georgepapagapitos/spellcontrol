@@ -501,6 +501,8 @@ export interface CoherenceRepair {
   cut: string;
   added: string;
   reason: string;
+  /** An unowned add over an owned cut in a partial build: why the share allowed it. */
+  overOwned?: 'better' | 'surplus';
 }
 
 /** Describes which data source was ultimately used for deck generation */

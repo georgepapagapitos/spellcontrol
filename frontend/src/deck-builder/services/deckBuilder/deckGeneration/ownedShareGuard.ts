@@ -26,6 +26,8 @@ export interface OwnedShareGuard {
   owned: (name: string) => boolean;
   /** A partial build whose owned nonland count is under the share it asked for. */
   short: () => boolean;
+  /** A build with a partial owned share. */
+  partial: boolean;
   /** A partial build at 100%: only a must-include breaks the share. */
   strict: boolean;
   /** Trading the owned `weak` for the unowned `incoming` is not allowed. */
@@ -55,6 +57,7 @@ export function ownedShareGuard(state: ShareState): OwnedShareGuard {
       .flatMap(([, cards]) => cards);
   return {
     owned,
+    partial,
     strict: partial && percent >= 100,
     short: () => {
       if (!partial) return false;

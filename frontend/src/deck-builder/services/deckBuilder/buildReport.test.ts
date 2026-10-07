@@ -341,6 +341,7 @@ describe('assembleBuildReport', () => {
             cut: 'Glacial Revelation',
             added: 'Beast Within',
             reason: 'Swapped Glacial Revelation for Beast Within to close a removal gap.',
+            overOwned: 'better',
           },
         ],
       }),
@@ -353,7 +354,35 @@ describe('assembleBuildReport', () => {
     });
 
     expect(report.ownedPercentGapNote).toBe(
-      "You asked for 50% owned cards and got 20%. 7 of the 8 cards you don't own are each a staple, combo piece, protection piece or must-include, and stay in over your share. Beast Within was added over a card you own because it is much more played and costs $0.62."
+      "You asked for 50% owned cards and got 20%. 7 of the 8 cards you don't own are each a staple, combo piece, protection piece or must-include, and stay in over your share. Beast Within was added over a card you own because it is much more played and it costs $0.62."
+    );
+  });
+
+  it('says an owned card was extra for its role when the swap took a surplus slot', () => {
+    const mainboard = [
+      ...Array.from({ length: 9 }, (_, i) => makeCard(`Card ${i + 1}`)),
+      { ...makeCard('Farewell'), prices: { usd: '6.16' } } as ScryfallCard,
+    ];
+    const report = assembleBuildReport({
+      generated: makeGenerated({
+        builtFromCollection: true,
+        categories: categories({ creatures: mainboard }),
+        partialOwnedEligibleCount: 10,
+        partialOwnedHeldCount: 7,
+        fixupRepairs: [
+          { cut: 'Far Wanderings', added: 'Farewell', reason: 'Swapped.', overOwned: 'surplus' },
+        ],
+      }),
+      customization: makeCustomization({
+        collectionMode: true,
+        collectionStrategy: 'partial',
+        collectionOwnedPercent: 50,
+      }),
+      collectionNames: new Set(['Card 1', 'Card 2', 'Far Wanderings']),
+    });
+
+    expect(report.ownedPercentGapNote).toContain(
+      'Farewell was added over a card you own because the card you own was extra for its role and it costs $6.16.'
     );
   });
 

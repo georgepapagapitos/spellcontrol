@@ -658,7 +658,7 @@ describe('postGenFixupPhase', () => {
         pool: ['Beast Within'],
       });
       expect(run().fixupRepairs).toMatchObject([
-        { cut: 'Glacial Revelation', added: 'Beast Within' },
+        { cut: 'Glacial Revelation', added: 'Beast Within', overOwned: 'better' },
       ]);
       expect(state.usedNames.has('Beast Within')).toBe(true);
     });
@@ -750,7 +750,9 @@ describe('postGenFixupPhase', () => {
         repairAddedNames: new Set(),
       });
       void run;
-      expect(result.fixupRepairs).toMatchObject([{ cut: 'Far Wanderings', added: 'Farewell' }]);
+      expect(result.fixupRepairs).toMatchObject([
+        { cut: 'Far Wanderings', added: 'Farewell', overOwned: 'surplus' },
+      ]);
     });
 
     // Lathril partial100: Mox Diamond is ramp 18 of 15, surplus, but at 100% only a

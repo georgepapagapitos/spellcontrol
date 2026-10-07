@@ -25,7 +25,7 @@ const AXIS_LABEL = new Map(AXES.map((a) => [a.key, a.label]));
 function ownedGapReason(
   held: number | undefined,
   unowned: number,
-  boughtOver: readonly { name: string; price: string | null }[],
+  boughtOver: readonly { name: string; price: string | null; surplus: boolean }[],
   symbol: string
 ): string {
   const kind = 'staple, combo piece, protection piece or must-include';
@@ -39,9 +39,10 @@ function ownedGapReason(
       `${held} of the ${unowned} cards you don't own ${held === 1 ? 'is a' : 'are each a'} ${kind}, and stay${held === 1 ? 's' : ''} in over your share.`
     );
   }
-  for (const { name, price } of boughtOver.slice(0, 3)) {
+  for (const { name, price, surplus } of boughtOver.slice(0, 3)) {
+    const why = surplus ? 'the card you own was extra for its role' : 'it is much more played';
     parts.push(
-      `${name} was added over a card you own because it is much more played${price ? ` and costs ${symbol}${price}` : ''}.`
+      `${name} was added over a card you own because ${why}${price ? ` and it costs ${symbol}${price}` : ''}.`
     );
   }
   if (boughtOver.length > 3) parts.push(`${boughtOver.length - 3} more were added the same way.`);
@@ -338,6 +339,7 @@ export function assembleBuildReport(input: {
                       return {
                         name: r.added,
                         price: card ? getCardPrice(card, customization.currency ?? 'USD') : null,
+                        surplus: r.overOwned === 'surplus',
                       };
                     }),
                   customization.currency === 'EUR' ? '€' : '$'
