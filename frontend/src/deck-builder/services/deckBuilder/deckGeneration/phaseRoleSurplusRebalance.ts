@@ -33,6 +33,10 @@ import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy'
 import { nonboFindings } from '../nonbo';
 import { getLiftIndex, liftersInDeck } from './liftPools';
 import { STAPLE_ROCK_NAMES } from './phaseStapleManaRocks';
+import { buildConversionReason, buildBackfillReason } from './surplusReasons';
+
+// Exported: reused verbatim by roleDeficitNotes.ts (E160).
+export { ROLE_LABEL } from './surplusReasons';
 import type { BudgetTracker } from '../budgetTracker';
 import type { BracketGuard } from '../bracketGuard';
 import {
@@ -190,14 +194,6 @@ const DEFICIT_BACKFILL_ROLES: RoleKey[] = ['boardwipe', 'removal', 'ramp', 'card
 // pinned regression test.
 const BOARDWIPE_SURPLUS_TOLERANCE = 1;
 
-// Exported: reused verbatim by roleDeficitNotes.ts (E160) — see REACTIVE_ROLES.
-export const ROLE_LABEL: Record<RoleKey, string> = {
-  ramp: 'ramp',
-  removal: 'removal',
-  boardwipe: 'board wipe',
-  cardDraw: 'card draw',
-};
-
 export interface RoleSurplusRebalanceContext {
   /** name -> ScryfallCard map built during generation (for swap-in lookups). */
   scryfallCardMap: Map<string, ScryfallCard>;
@@ -248,86 +244,6 @@ export interface RoleSurplusRebalanceContext {
 
 export interface RoleSurplusRebalanceResult {
   conversions: CoherenceRepair[];
-}
-
-// A price increase over this (in the swap's own currency) is disclosed in
-// the reason text — "nothing moves silently" ethos already used by the
-// budget-repair notes elsewhere in the build report. Not a gate (see
-// PRICE_SANITY_RATIO for the hard reject) — just the transparency floor.
-const DISCLOSE_PRICE_DELTA = 1;
-
-function buildConversionReason(params: {
-  role: RoleKey;
-  have: number;
-  target: number;
-  nonbo: boolean;
-  cutName: string;
-  addedName: string;
-  liftedBy?: string[];
-  /** False for a same-role quality upgrade — a net-zero swap that does NOT
-   *  reduce this role's over-cap count, so the wording must never claim it
-   *  fixes the overage (defect 6b: dishonest disclosure). */
-  isRoleExit: boolean;
-  cutPrice: number;
-  addedPrice: number;
-  currency: 'USD' | 'EUR';
-}): string {
-  const label = ROLE_LABEL[params.role];
-  const roleLabel = label.charAt(0).toUpperCase() + label.slice(1);
-  const nonboClause = params.nonbo ? ` ${params.cutName} was also flagged as a nonbo.` : '';
-  const sym = params.currency === 'EUR' ? '€' : '$';
-  const priceClause =
-    params.addedPrice - params.cutPrice > DISCLOSE_PRICE_DELTA
-      ? ` (+${sym}${(params.addedPrice - params.cutPrice).toFixed(2)})`
-      : '';
-  const addedClause =
-    params.liftedBy && params.liftedBy.length > 0
-      ? `${params.isRoleExit ? 'Converted' : 'Upgraded'} to ${params.addedName}${priceClause}, lifted by ${params.liftedBy.slice(0, 3).join(', ')}.`
-      : `${params.isRoleExit ? 'Converted' : 'Upgraded'} to ${params.addedName}${priceClause} for a stronger payoff.`;
-
-  if (params.isRoleExit) {
-    const capClause = `${roleLabel} is over cap (${params.have}/${params.target}).`;
-    return `${capClause}${nonboClause} ${addedClause}`;
-  }
-  // Same-role swap: context for WHY this role's slots are under scrutiny at
-  // all, without claiming this specific swap resolves the overage (it can't:
-  // evicting and re-adding the same role nets to zero count change).
-  const contextClause = `${roleLabel} is over cap (${params.have}/${params.target}). This swap upgrades a slot in the role. The count stays.`;
-  return `${contextClause}${nonboClause} ${addedClause}`;
-}
-
-// E113 follow-up (half b); E160 generalizes from boardwipe-only to any
-// DEFICIT_BACKFILL_ROLES member: the deficit-direction counterpart to
-// buildConversionReason's "over cap" wording — Phase 3 backfills a role
-// deficit, not a surplus, so the disclosure must say so honestly rather than
-// reusing the "over cap" phrasing.
-function buildBackfillReason(params: {
-  role: RoleKey;
-  haveBefore: number;
-  target: number;
-  cutName: string;
-  addedName: string;
-  liftedBy?: string[];
-  cutPrice: number;
-  addedPrice: number;
-  currency: 'USD' | 'EUR';
-}): string {
-  const sym = params.currency === 'EUR' ? '€' : '$';
-  const priceClause =
-    params.addedPrice - params.cutPrice > DISCLOSE_PRICE_DELTA
-      ? ` (+${sym}${(params.addedPrice - params.cutPrice).toFixed(2)})`
-      : '';
-  const addedClause =
-    params.liftedBy && params.liftedBy.length > 0
-      ? `Added ${params.addedName}${priceClause}, lifted by ${params.liftedBy.slice(0, 3).join(', ')}.`
-      : `Added ${params.addedName}${priceClause} to close the gap.`;
-  const roleLabel = ROLE_LABEL[params.role];
-  const capitalizedLabel = roleLabel.charAt(0).toUpperCase() + roleLabel.slice(1);
-  // "vs its N-card target" (E160 copy fix) reads correctly for every target
-  // magnitude — the prior "vs a N target" produced "a 8 target" for removal's
-  // larger targets; applies to wipes too (deliberate copy improvement).
-  const deficitClause = `${capitalizedLabel} is under target (${params.haveBefore}/${params.target}). Freed a slot from ${params.cutName}. ${addedClause}`;
-  return deficitClause;
 }
 
 /**
@@ -781,12 +697,14 @@ export function applyRoleSurplusRebalance(
       worstSurvival.set(e.role, Math.min(worstSurvival.get(e.role) ?? Infinity, e.survival));
     }
 
-    for (const candidate of scored) {
+    // The legal swap for one candidate, or null (outside the eviction reach,
+    // under the role's own target, or nothing clears the gates).
+    const tryCandidate = (candidate: (typeof scored)[number]) => {
       if (
         !candidate.nonbo &&
         candidate.survival > (worstSurvival.get(candidate.role) ?? Infinity) + MAX_EVICTION_REACH
       ) {
-        continue;
+        return null;
       }
       const roleTarget = roleTargets[candidate.role] ?? 0;
       const beforeCount = liveRoleCounts[candidate.role] ?? 0;
@@ -794,7 +712,7 @@ export function applyRoleSurplusRebalance(
       // outer isOverCap guard only evicts from counts strictly over cap, and
       // cap >= target by construction), asserted defensively rather than
       // trusted silently.
-      if (beforeCount - 1 < roleTarget) continue;
+      if (beforeCount - 1 < roleTarget) return null;
 
       const evictedPrice = priceOf(candidate.card);
       const replacement = findReplacement(
@@ -806,8 +724,40 @@ export function applyRoleSurplusRebalance(
         (incoming) => !keeps(candidate.card, incoming),
         candidate.nonbo ? undefined : inclusionOfEvicted(candidate.card, candidate.role)
       );
-      if (!replacement) continue; // this candidate has no legal upgrade — try the next-worst one
+      if (!replacement) return null; // this candidate has no legal upgrade — try the next-worst one
+      const gain =
+        (getByCardName(poolByName, replacement.name)?.inclusion ?? 0) -
+        inclusionOfEvicted(candidate.card, candidate.role);
+      return { candidate, replacement, roleTarget, beforeCount, evictedPrice, gain };
+    };
 
+    // Role exits take the worst card of the role most over its target. The
+    // same-role upgrades that follow have only two slots (MAX_SAME_ROLE_UPGRADES),
+    // so they go to the swaps worth the most across ALL over-cap roles: by
+    // role order alone, Meren's two went to a card-draw swap of Grisly Salvage
+    // (26.5%) for Bolas's Citadel (5.8%) and to ramp, and the removal swap of
+    // Liliana (15.3%) for Grave Pact (33.8%) never ran.
+    let chosen: ReturnType<typeof tryCandidate> = null;
+    if (allowSameRole) {
+      for (const candidate of scored) {
+        const found = tryCandidate(candidate);
+        if (!found) continue;
+        if (
+          !chosen ||
+          Number(found.candidate.nonbo) > Number(chosen.candidate.nonbo) ||
+          (found.candidate.nonbo === chosen.candidate.nonbo && found.gain > chosen.gain)
+        ) {
+          chosen = found;
+        }
+      }
+    } else {
+      for (const candidate of scored) {
+        chosen = tryCandidate(candidate);
+        if (chosen) break;
+      }
+    }
+    if (chosen) {
+      const { candidate, replacement, roleTarget, beforeCount, evictedPrice } = chosen;
       const wasSameRole = countedRoleOf(replacement) === candidate.role;
       removeCard(candidate.card, candidate.category, candidate.role);
       addCard(replacement);

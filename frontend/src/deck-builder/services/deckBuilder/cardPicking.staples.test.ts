@@ -378,3 +378,59 @@ describe('a >=40% wipe leads the tier (E532 gate)', () => {
     expect(picked).toEqual(['Toxic Deluge']);
   });
 });
+
+describe("an owned staple keeps its slot under 'prefer' (E540 S8)", () => {
+  // Krenko, Mob Boss, coll-prefer: Purphoros (41.8%, owned) lost a creature
+  // slot to the high-synergy 17% Goblin Cratermaker, because the staple tier
+  // is off under 'prefer'. An owned staple costs nothing, so it leads there.
+  const PURPHOROS = sc(
+    'Purphoros, God of the Forge',
+    4,
+    'Legendary Enchantment Creature — God',
+    "Indestructible\nAs long as your devotion to red is less than five, Purphoros isn't a creature.\nWhenever another creature you control enters, Purphoros deals 2 damage to each opponent.\n{2}{R}: Creatures you control get +1/+0 until end of turn."
+  );
+  const CRATERMAKER = sc(
+    'Goblin Cratermaker',
+    2,
+    'Creature — Goblin Warrior',
+    '{1}, Sacrifice Goblin Cratermaker: Choose one —\n• Goblin Cratermaker deals 2 damage to target creature.\n• Destroy target colorless nonland permanent.'
+  );
+  const creaturePass = (owned: string[]) => {
+    const cardMap = new Map([PURPHOROS, CRATERMAKER].map((c) => [c.name, c]));
+    return pickFromPrefetchedWithCurve(
+      [
+        ec('Goblin Cratermaker', 17, 'Creature', 0.5),
+        ec('Purphoros, God of the Forge', 41.8, 'Creature', 0.1),
+      ],
+      cardMap,
+      1,
+      new Set(),
+      ['R'],
+      { 2: 20, 4: 20 },
+      {},
+      new Set(),
+      'Creature',
+      null,
+      Infinity,
+      { value: 0 },
+      null,
+      null,
+      null,
+      new Set(owned),
+      undefined,
+      'USD',
+      new Set(),
+      false,
+      false,
+      'prefer'
+    ).map((c) => c.name);
+  };
+
+  it('seats the owned 41.8% Purphoros over the unowned 17% high-synergy goblin', () => {
+    expect(creaturePass(['Purphoros, God of the Forge'])).toEqual(['Purphoros, God of the Forge']);
+  });
+
+  it('leaves an unowned staple to the owned boost, as before', () => {
+    expect(creaturePass([])).toEqual(['Goblin Cratermaker']);
+  });
+});

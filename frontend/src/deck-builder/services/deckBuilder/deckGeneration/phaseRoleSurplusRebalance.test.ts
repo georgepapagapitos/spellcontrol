@@ -1297,6 +1297,45 @@ describe('applyRoleSurplusRebalance', () => {
     });
   });
 
+  // Meren of Clan Nel Toth: the two same-role upgrades went by role order, to
+  // Grisly Salvage -> Bolas's Citadel (card draw) and ramp, and the removal
+  // upgrade Liliana (15%) -> Grave Pact (34%) never ran.
+  describe('same-role upgrades are ranked across roles by what they gain', () => {
+    it('spends the two upgrades on the largest gains, not on the roles most over target', () => {
+      const state = makeState();
+      const mk = (role: RoleKey, prefix: string, n: number) => {
+        const cards = Array.from({ length: n }, (_, i) => scryfallCard(`${prefix}_${i + 1}`));
+        for (const c of cards) {
+          ROLE_OF.set(c.name, role);
+          state.usedNames.add(c.name);
+        }
+        state.categories.synergy.push(...cards);
+        return cards;
+      };
+      const ramp = mk('ramp', 'Rock', 7);
+      const draw = mk('cardDraw', 'Draw', 7);
+      const removal = mk('removal', 'Kill', 6);
+      for (const n of ['Rock Payoff', 'Draw Payoff', 'Grave Pact']) {
+        ROLE_OF.set(n, n === 'Rock Payoff' ? 'ramp' : n === 'Draw Payoff' ? 'cardDraw' : 'removal');
+      }
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [
+            ...[...ramp, ...draw, ...removal].map((c) => edhrecCard(c.name, 15)),
+            edhrecCard('Rock Payoff', 36),
+            edhrecCard('Draw Payoff', 34),
+            edhrecCard('Grave Pact', 70),
+          ],
+        },
+      } as unknown as GenerationState['edhrecData'];
+      const roleTargets = { ramp: 3, removal: 3, boardwipe: 0, cardDraw: 3 };
+      const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+      const added = result.conversions.map((c) => c.added);
+      expect(added).toContain('Grave Pact');
+      expect(added).toHaveLength(2);
+    });
+  });
+
   // ── Defect 7 regression (round-2 live-eval gate) ───────────────────────────
   describe('eviction ordering with pool-absent incumbents', () => {
     it('never evicts a pool-absent premium card ahead of a genuinely weak, pool-listed one (atraxa-bracket2 repro)', () => {
