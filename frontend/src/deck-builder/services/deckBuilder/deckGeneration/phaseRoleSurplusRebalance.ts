@@ -6,6 +6,7 @@ import type {
   ScryfallCard,
 } from '@/deck-builder/types';
 import { evictionKeeper } from './evictionKeeper';
+import { premiumIsPaidFor } from './conversionPriceBar';
 import type { GenerationState } from './state';
 import {
   getCardRole,
@@ -72,39 +73,24 @@ import {
 // relocate the surplus onto a different reactive role.
 //
 // Runs from a FRESH recount (computeRoleCounts over the live nonland cards),
-// never `state.currentRoleCounts`. E119 fixed the one real drift source (the
-// combo audit's auditAdd/auditRemove now keep currentRoleCounts in sync,
-// same as every other mutating phase) — but this is the last pass before
-// role surplus gets converted, so it stays a defensive recount rather than
-// trusting an incremental tally accumulated across a dozen call sites.
+// never `state.currentRoleCounts`: this is the last pass before role surplus is
+// converted, so it stays a defensive recount rather than trusting a tally
+// accumulated across a dozen call sites.
 //
 // Live-eval fixes (post-ship gate, first pass): eviction "worst first" is
-// scored by the SAME priority+lift signal `findReplacement` uses for
-// incoming candidates — NOT deckGenerator.ts's position-based
-// computeTrimResistance, which looked plausible in isolation but produced
-// the wrong order on real decks once curve-fit/early-ramp-CMC bonuses had
-// scrambled a category array's pick-order-as-quality-proxy assumption (a
-// 6%-inclusion 0-cmc rock got picked EARLY for curve reasons and out-survived
-// a 90%-inclusion payoff picked later in the same type pass). A card with
-// real EDHREC-lift connectivity to the deck also survives even when its
-// regex tagger role reads as reactive (a token payoff mistagged 'removal'
-// from its printed text isn't actually filler). And staples are protected by
-// NAME (STAPLE_ROCK_NAMES), not `card.isStapleRock` — that flag is only ever
-// set on a copy THIS generation's stapleManaRocksPhase itself adds; the
-// common case is the staple already came in via normal EDHREC-pool picking
-// (high inclusion), landing here flagless and, before this fix, evictable.
+// scored by the SAME priority+lift signal `findReplacement` uses for incoming
+// candidates, NOT deckGenerator.ts's position-based computeTrimResistance (a
+// 6%-inclusion 0-cmc rock picked early for curve reasons out-survived a
+// 90%-inclusion payoff picked later). A card with real EDHREC-lift
+// connectivity survives even when its tagger role reads reactive. Staples are
+// protected by NAME (STAPLE_ROCK_NAMES), not `card.isStapleRock`, which only
+// phaseStapleManaRocks's own adds carry.
 //
-// Live-eval fixes (round 3): incoming candidates now clear a price-sanity
-// gate (PRICE_SANITY_RATIO, reused from cardPicking.ts's #1011 tie-break) so
-// a wildly-pricier candidate can't seat itself absent a combo reason; the
-// pass runs role-exit conversions to exhaustion BEFORE any same-role
-// "quality upgrade" swap, and caps those at MAX_SAME_ROLE_UPGRADES, so churn
-// that doesn't reduce an overage can't crowd out the conversions that do —
-// and its disclosure says "upgrade", never "fixed the cap"; and an
-// incumbent absent from THIS generation's (possibly bracket-restricted) pool
-// falls back to its role's average inclusion instead of 0, so a
-// pool-omitted premium staple isn't guaranteed to look like the worst card
-// in its role.
+// Live-eval fixes (round 3): incoming candidates clear a price-sanity gate
+// (PRICE_SANITY_RATIO, #1011); role-exit conversions run to exhaustion before
+// any capped same-role "upgrade" swap, with honest disclosure wording; and an
+// incumbent absent from this generation's (possibly bracket-restricted) pool
+// falls back to its role's average inclusion instead of 0.
 //
 // E113 follow-up (iter-19): this pass also runs a THIRD, direction-reversed
 // phase — boardwipe deficit backfill (baseline decks routinely ship FEWER
@@ -115,18 +101,9 @@ import {
 // target) for the best quality-gated wipe candidate the pool offers, ranked
 // by the same wipeQualityPenalty machinery as everything else here.
 //
-// E160 generalizes Phase 3 from boardwipe-only to DEFICIT_BACKFILL_ROLES
-// (boardwipe, removal), motivated by the OTHER open half of the same "nothing
-// ever adds a card back" gap: pick-time slot competition can displace an
-// under-target removal/boardwipe bearer with no disclosure anywhere (E139
-// gate: lathril lost Assassin's Trophy, removal 7/8 -> 6/8, outcompeted not
-// devalued). The donor/replacement machinery is identical, just parameterized
-// by which role is being backfilled instead of hardcoded to boardwipe — see
-// findRoleDeficitDonor and the Phase 3 loop below. A residual deficit this
-// pass can't or won't close (ramp/cardDraw are out of scope this slice, or
-// the budget/pool ran out) is disclosed separately, post-hoc, by
-// buildRoleDeficitNotes (roleDeficitNotes.ts) — that disclosure runs over the
-// FINAL deck in deckGenerator.ts, not here.
+// E160 generalizes Phase 3 to DEFICIT_BACKFILL_ROLES (pick-time slot competition
+// can displace an under-target removal/boardwipe bearer undisclosed). A deficit
+// this pass can't close is disclosed by buildRoleDeficitNotes.
 
 // Total conversions this pass may apply per deck. Precedent: MAX_AUDIT_SWAPS
 // = 4 (deckGenerator.ts's Combo Integrity Audit), MAX_COHERENCE_SWAPS = 3
@@ -176,12 +153,9 @@ export const REACTIVE_ROLES: RoleKey[] = ['ramp', 'removal', 'boardwipe', 'cardD
 // boardwipe keeps first claim on the shared MAX_SURPLUS_CONVERSIONS budget,
 // then removal, then ramp, then cardDraw — preserving the E113/E160
 // priorities rather than introducing a new tunable to pick winners.
-// E161 completes the set with ramp + cardDraw: the E139 re-gate measured the
-// exact harm the E160 slice had deliberately deferred — krenko shipped ramp
-// 7/11 after pick-time re-ranking displaced Arcane Signet AND a
-// coherence-added Phyrexian Altar, with nothing able to close the gap
-// (disclosure alone can't reseat a staple). Same donor rules, same shared
-// budget, same findReplacement gate stack for every role.
+// E161 completes the set with ramp + cardDraw (krenko shipped ramp 7/11 after
+// pick-time re-ranking displaced Arcane Signet and Phyrexian Altar). Same donor
+// rules, same shared budget, same findReplacement gate stack for every role.
 const DEFICIT_BACKFILL_ROLES: RoleKey[] = ['boardwipe', 'removal', 'ramp', 'cardDraw'];
 
 // E112/E113: board wipes get a TIGHTER surplus band than the generic
@@ -615,6 +589,12 @@ export function applyRoleSurplusRebalance(
   // meren evicted Liliana, Dreadhorde General "because wipes are 4/2" when
   // the validated count never held her, so the pass stopped at a phantom 2/2
   // and shipped three wipes under a note saying it runs one fewer.
+  // E572: a leaving card's inclusion, its role's average when it has no entry.
+  const inclusionOfEvicted = (card: ScryfallCard, role: RoleKey | null): number =>
+    getByCardName(poolByName, card.name)?.inclusion ??
+    (role ? roleAverageInclusion.get(role) : undefined) ??
+    0;
+
   const findReplacement = (
     evictedScore: number,
     evictedPrice: number,
@@ -631,7 +611,9 @@ export function applyRoleSurplusRebalance(
      *  behavior). */
     roleFilter?: RoleKey,
     /** E563: skips a candidate the keeper blocks for the evicted card. */
-    canReplace?: (card: ScryfallCard) => boolean
+    canReplace?: (card: ScryfallCard) => boolean,
+    /** E572: leaving card's inclusion for the price bar; undefined skips it. */
+    evictedInclusion?: number
   ): ScryfallCard | null => {
     const eligible = pool.filter(
       (c) =>
@@ -706,6 +688,20 @@ export function applyRoleSurplusRebalance(
       if (!state.comboCardNames.has(ec.name) && !completeComboNames.has(ec.name)) {
         if (priceOf(card) > Math.max(1, evictedPrice) * PRICE_SANITY_RATIO) continue;
       }
+      // E572: a pricier replacement pays the price bar in play rate, budget or not.
+      if (
+        evictedInclusion !== undefined &&
+        !state.comboCardNames.has(ec.name) &&
+        !completeComboNames.has(ec.name) &&
+        !premiumIsPaidFor({
+          incoming: card,
+          incomingPrice: priceOf(card),
+          incomingInclusion: ec.inclusion,
+          leavingPrice: evictedPrice,
+          leavingInclusion: evictedInclusion,
+        })
+      )
+        continue;
       // Total-deck budget headroom (see runningTotal doc above) — independent
       // of, and in addition to, the per-card maxCardPrice/effectiveCap gate.
       if (
@@ -807,7 +803,8 @@ export function applyRoleSurplusRebalance(
         candidate.role,
         allowSameRole,
         undefined,
-        (incoming) => !keeps(candidate.card, incoming)
+        (incoming) => !keeps(candidate.card, incoming),
+        candidate.nonbo ? undefined : inclusionOfEvicted(candidate.card, candidate.role)
       );
       if (!replacement) continue; // this candidate has no legal upgrade — try the next-worst one
 
@@ -962,7 +959,8 @@ export function applyRoleSurplusRebalance(
       if (!donor) break;
       const donorPrice = priceOf(donor.card);
       const fits = (i: ScryfallCard) => !keeps(donor.card, i);
-      const replacement = findReplacement(-Infinity, donorPrice, role, true, role, fits);
+      const donorIncl = inclusionOfEvicted(donor.card, countedRoleOf(donor.card));
+      const replacement = findReplacement(-Infinity, donorPrice, role, true, role, fits, donorIncl);
       if (!replacement) break;
 
       removeCard(donor.card, donor.category, countedRoleOf(donor.card) ?? undefined);

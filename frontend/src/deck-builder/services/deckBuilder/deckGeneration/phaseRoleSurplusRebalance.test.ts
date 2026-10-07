@@ -236,6 +236,7 @@ function addBoardWipes(
 
 describe('applyRoleSurplusRebalance', () => {
   beforeEach(() => {
+    vi.mocked(readsAsProtection).mockImplementation(() => false);
     ROLE_OF.clear();
     NONBO_FLAGGED.clear();
     ONE_SIDED_WIPE_NAMES.clear();
@@ -850,6 +851,169 @@ describe('applyRoleSurplusRebalance', () => {
       // Same-price-as-cut (delta 0) is rejected while already over ask;
       // strictly cheaper (delta -1) is accepted.
       expect(result.conversions[0].added).toBe('Cheaper Payoff');
+    });
+  });
+
+  // E572: with no deck budget set, nothing weighed a conversion's price. Sythis
+  // partial50 traded Exploration (42%, $30.70) for Teferi's Protection (22%,
+  // $48.58): a staple for a pricier, less-played card.
+  describe('price bar with no deck budget (E572)', () => {
+    function sythisRamp(): GenerationState {
+      const state = makeState();
+      const specs: [string, string][] = [
+        ['Exploration', '30.70'],
+        ['Cultivate', '0.50'],
+        ['Rampant Growth', '0.30'],
+        ['Wild Growth', '0.40'],
+        ['Farseek', '0.45'],
+        ['Kodama’s Reach', '0.60'],
+      ];
+      for (const [name, usd] of specs) {
+        ROLE_OF.set(name, 'ramp');
+        state.usedNames.add(name);
+        state.categories.ramp.push(scryfallCard(name, { prices: { usd } }));
+      }
+      return state;
+    }
+    const ctxFor = (state: GenerationState, name: string, usd: string) =>
+      makeCtx(state, {
+        roleTargets: { ramp: 2, removal: 0, boardwipe: 0, cardDraw: 0 },
+        scryfallCardMap: new Map([[name, scryfallCard(name, { prices: { usd } })]]),
+      });
+    // Teferi's Protection reads as protection, so the keeper (E563) lets it
+    // take a staple's slot: the price bar is the only thing left to judge it.
+    const asProtection = (name: string) =>
+      vi.mocked(readsAsProtection).mockImplementation((c) => c.name === name);
+    const pool = (state: GenerationState, name: string, inclusion: number, exploration = 42) => {
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [
+            ...[
+              ['Exploration', exploration],
+              ['Cultivate', 70],
+              ['Rampant Growth', 68],
+              ['Wild Growth', 66],
+              ['Farseek', 64],
+              ['Kodama’s Reach', 62],
+            ].map(([n, i]) => edhrecCard(n as string, i as number)),
+            { ...edhrecCard(name, inclusion), synergy: 0.6 },
+          ],
+        },
+      } as unknown as GenerationState['edhrecData'];
+    };
+
+    it("does not trade Exploration for the pricier, less-played Teferi's Protection", () => {
+      const state = sythisRamp();
+      asProtection("Teferi's Protection");
+      pool(state, "Teferi's Protection", 22);
+      const result = applyRoleSurplusRebalance(
+        state,
+        ctxFor(state, "Teferi's Protection", '48.58')
+      );
+      expect(result.conversions.some((c) => c.cut === 'Exploration')).toBe(false);
+      expect(state.usedNames.has('Exploration')).toBe(true);
+    });
+
+    it('still converts into a pricier card played enough more to pay the bar', () => {
+      const state = sythisRamp();
+      asProtection("Teferi's Protection");
+      pool(state, "Teferi's Protection", 75);
+      const result = applyRoleSurplusRebalance(
+        state,
+        ctxFor(state, "Teferi's Protection", '48.58')
+      );
+      expect(result.conversions[0]).toMatchObject({
+        cut: 'Exploration',
+        added: "Teferi's Protection",
+      });
+    });
+
+    it('still converts into a cheaper, less-played payoff (price is never the only reason)', () => {
+      const state = sythisRamp();
+      pool(state, 'Smothering Tithe', 22, 35); // a 35% Exploration is no staple
+      const result = applyRoleSurplusRebalance(state, ctxFor(state, 'Smothering Tithe', '12.00'));
+      expect(result.conversions[0]).toMatchObject({ cut: 'Exploration' });
+    });
+  });
+
+  // E572 gate round 2: the bar must not veto a conversion on play rate alone
+  // when the price gap is small or the incoming card is the deck's theme.
+  describe('price bar scope (E572 round 2)', () => {
+    function rampSurplus(leaving: [string, string], incoming: EDHRECCard & { synergy?: number }) {
+      const state = makeState();
+      const specs: [string, string][] = [
+        leaving,
+        ['Cultivate', '0.50'],
+        ['Rampant Growth', '0.30'],
+        ['Wild Growth', '0.40'],
+        ['Farseek', '0.45'],
+        ['Kodama’s Reach', '0.60'],
+      ];
+      for (const [name, usd] of specs) {
+        ROLE_OF.set(name, 'ramp');
+        state.usedNames.add(name);
+        state.categories.ramp.push(scryfallCard(name, { prices: { usd } }));
+      }
+      return { state, incoming };
+    }
+    const run = (
+      leaving: [string, string],
+      leavingIncl: number,
+      incoming: EDHRECCard & { synergy?: number; isThemeSynergyCard?: boolean },
+      usd: string
+    ) => {
+      const { state } = rampSurplus(leaving, incoming);
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [
+            edhrecCard(leaving[0], leavingIncl),
+            ...[
+              ['Cultivate', 70],
+              ['Rampant Growth', 68],
+              ['Wild Growth', 66],
+              ['Farseek', 64],
+              ['Kodama’s Reach', 62],
+            ].map(([n, i]) => edhrecCard(n as string, i as number)),
+            incoming,
+          ],
+        },
+      } as unknown as GenerationState['edhrecData'];
+      const result = applyRoleSurplusRebalance(
+        state,
+        makeCtx(state, {
+          roleTargets: { ramp: 2, removal: 0, boardwipe: 0, cardDraw: 0 },
+          scryfallCardMap: new Map([
+            [incoming.name, scryfallCard(incoming.name, { prices: { usd } })],
+          ]),
+        })
+      );
+      return result.conversions;
+    };
+
+    it('lets Path to Exile ($0.75, 36%) replace Astral Cornucopia ($0.29, 43%): no premium past the free line', () => {
+      // Whatever lets the keeper pass a lower-inclusion answer, the price bar
+      // must not add a play-rate veto over a $0.46 gap.
+      FREE_INTERACTION_NAMES.add('Path to Exile');
+      const conversions = run(
+        ['Astral Cornucopia', '0.29'],
+        43,
+        { ...edhrecCard('Path to Exile', 36.1), synergy: 0.6 },
+        '0.75'
+      );
+      expect(conversions[0]).toMatchObject({
+        cut: 'Astral Cornucopia',
+        added: 'Path to Exile',
+      });
+    });
+
+    it('lets Reanimate ($9.81, 29.7%, synergy 0.06) replace a cheap 13% card', () => {
+      const conversions = run(
+        ['Wight of the Reliquary', '0.30'],
+        13,
+        { ...edhrecCard('Reanimate', 29.7), synergy: 0.058 },
+        '9.81'
+      );
+      expect(conversions[0]).toMatchObject({ cut: 'Wight of the Reliquary', added: 'Reanimate' });
     });
   });
 
