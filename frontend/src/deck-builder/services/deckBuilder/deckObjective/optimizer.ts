@@ -64,6 +64,14 @@ import {
 } from './constraints';
 import { isBasicLand, isLandCard } from './context';
 import { MIN_GAIN, applyMove, memoRoleOf } from './judge';
+import {
+  MAX_LAND_UPGRADES,
+  SCREEN_GAMES,
+  UPGRADES_PER_STEP,
+  landCredit,
+  landUpgrades,
+  replicates,
+} from './landUpgrades';
 import { reasonProblem } from './reasonCheck';
 import { protectionValue } from './terms/interaction';
 import {
@@ -128,6 +136,20 @@ export interface OptimizeOptions {
    * so they don't compete with the page's cards for an improving swap.
    */
   repairOnly?: ReadonlySet<string>;
+  /**
+   * Owned cards with no page evidence for this commander (E509): the rest of
+   * the collection, resolved so it competes. A spell comes in as a repair, or
+   * as an improvement that takes out an unowned card or one the page doesn't
+   * vouch for, never an owned card the page's players play.
+   */
+  offPageOwned?: ReadonlySet<string>;
+  /**
+   * Owned nonbasic lands may come in for a basic (landUpgrades.ts), whether or
+   * not the page ranks them. For a collection build: the generator meets a land
+   * through the page's land list, so an owned dual or utility land is otherwise
+   * a swap for another nonbasic at best.
+   */
+  landUpgrades?: boolean;
   /**
    * Constraint checks the search must not repair: an ownership rule the
    * generator shipped relaxed and disclosed. The search is never stricter than
@@ -246,6 +268,8 @@ interface Move {
   in: ScryfallCard[];
   kind: 'improve' | 'combo';
   estimate: number;
+  /** A nonbasic land for a basic: the incoming land's quality credit, which its bar is raised by. */
+  landUp?: number;
 }
 
 /** What the search reports at each checkpoint. */
@@ -338,6 +362,8 @@ export function* optimizeSteps(
     in: ScryfallCard[];
     kind: AppliedSwap['kind'];
     disclosure?: string;
+    /** A land upgrade: counted against its own budget, never the spell swaps'. */
+    landUp?: boolean;
   }> = [];
   const refusals: Record<string, number> = {};
   const beat = (): Beat => ({
@@ -355,8 +381,12 @@ export function* optimizeSteps(
     // Repairs don't count: a broken constraint is fixed however many swaps
     // it takes (an owned-only build can start six cards out of its pool).
     // Past the cap, the search goes on only to repair.
-    const capped = applied.filter((a) => a.kind !== 'repair').length >= opts.maxSwaps;
-    if (capped && repairable(currentScore.violations) === 0) {
+    const capped = applied.filter((a) => a.kind !== 'repair' && !a.landUp).length >= opts.maxSwaps;
+    // Land upgrades have a budget of their own: sharing the spell swaps' would
+    // spend it on lands and push out the page's better spell swaps (E509 gate 1).
+    const landsLeft =
+      !!opts.landUpgrades && applied.filter((a) => a.landUp).length < MAX_LAND_UPGRADES;
+    if (capped && !landsLeft && repairable(currentScore.violations) === 0) {
       stoppedBy = 'max-swaps';
       break;
     }
@@ -436,6 +466,39 @@ export function* optimizeSteps(
             estimate: gainOf.get(c)! - lossOf.get(o.i)!,
           });
         }
+      }
+    }
+    if (landsLeft) {
+      // E509: owned nonbasic lands, for a basic each. The
+      // goldfish is the case for a land and the fast terms leave it out, so the
+      // moves are ranked by a short goldfish and the best few judged in full.
+      const lands = addable.filter((c) => isLandCard(c) && !isBasicLand(c) && isOwnedCard(c, ctx));
+      const upgrades = landUpgrades(current, lands, ctx).filter(
+        (u) => !protectedKeys.has(key(current.cards[u.out].name))
+      );
+      if (upgrades.length > 0) {
+        const screenCtx = { ...ctx, sim: { ...ctx.sim, games: SCREEN_GAMES } };
+        const screenNow = partialTotal(current, screenCtx, ['mana']);
+        const scored: Move[] = [];
+        for (const u of upgrades) {
+          const next = applyMove(current, { out: [u.out], in: [u.land] });
+          const credit = landCredit(u.land, ctx);
+          scored.push({
+            out: [u.out],
+            in: [u.land],
+            kind: 'improve',
+            landUp: credit,
+            estimate:
+              partialTotal(next, screenCtx, ['mana']) - screenNow + fast(next) - fastNow - credit,
+          });
+          yield beat();
+        }
+        moves.push(
+          ...scored
+            .filter((m) => m.estimate > 0)
+            .sort((a, b) => b.estimate - a.estimate || a.in[0].name.localeCompare(b.in[0].name))
+            .slice(0, UPGRADES_PER_STEP)
+        );
       }
     }
     if (opts.comboPairs) {
@@ -611,7 +674,20 @@ export function* optimizeSteps(
       const nextInfeasible = violations.reduce((s, v) => s + v.magnitude, 0);
       if (nextInfeasible > curInfeasible) continue;
       const isRepair = repairable(violations) < curRepairable;
+      if (capped && !isRepair && move.landUp === undefined) continue;
       if (!isRepair && opts.repairOnly && move.in.some((c) => opts.repairOnly!.has(c.name)))
+        continue;
+      // An owned spell the page never ranked takes the place of an unowned card
+      // or one the page doesn't vouch for, never of an owned card its players play.
+      if (
+        !isRepair &&
+        opts.offPageOwned &&
+        move.in.some((c) => opts.offPageOwned!.has(c.name) && !isLandCard(c)) &&
+        move.out.some((i) => {
+          const o = current.cards[i];
+          return isOwnedCard(o, ctx) && ctx.qualityOf(o).source === 'page';
+        })
+      )
         continue;
       let required = opts.minGain;
       if (trust) {
@@ -629,9 +705,10 @@ export function* optimizeSteps(
         }
         required = verdict.required;
       }
+      required += move.landUp ?? 0;
       judged++;
       const fastGain = fast(next) - fastNow;
-      if (!isRepair && fastGain < FAST_GATE * required) continue;
+      if (!isRepair && move.landUp === undefined && fastGain < FAST_GATE * required) continue;
       const score = full(next);
       if (!bestTried || compareScores(score, bestTried.score) > 0) bestTried = { move, score };
       if (isRepair) {
@@ -646,8 +723,14 @@ export function* optimizeSteps(
       }
       // While the deck breaks a constraint, only a repair is taken; past the
       // cap, nothing else is.
-      if (bestRepair || capped || forced.length > 0) continue;
+      if (bestRepair || (capped && move.landUp === undefined) || forced.length > 0) continue;
       if (score.total - currentScore.total >= required) {
+        // A land is chosen from dozens by a noisy goldfish: the best of them
+        // clears the bar by luck, so it has to clear it again on other games.
+        if (move.landUp !== undefined) {
+          evaluations.full += 2;
+          if (!replicates(current, next, ctx, required)) continue;
+        }
         taken = { move, score, kind: move.kind };
         break;
       }
@@ -732,6 +815,7 @@ export function* optimizeSteps(
       in: taken.move.in,
       kind: taken.kind,
       disclosure: taken.disclosure,
+      landUp: taken.move.landUp !== undefined,
     });
     for (const c of taken.move.in) tabuOut.set(key(c.name), applied.length + opts.tabuTenure);
     for (const c of outs) tabuIn.set(key(c.name), applied.length + opts.tabuTenure);
