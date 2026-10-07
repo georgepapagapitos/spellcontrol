@@ -101,18 +101,9 @@ import {
 // target) for the best quality-gated wipe candidate the pool offers, ranked
 // by the same wipeQualityPenalty machinery as everything else here.
 //
-// E160 generalizes Phase 3 from boardwipe-only to DEFICIT_BACKFILL_ROLES
-// (boardwipe, removal), motivated by the OTHER open half of the same "nothing
-// ever adds a card back" gap: pick-time slot competition can displace an
-// under-target removal/boardwipe bearer with no disclosure anywhere (E139
-// gate: lathril lost Assassin's Trophy, removal 7/8 -> 6/8, outcompeted not
-// devalued). The donor/replacement machinery is identical, just parameterized
-// by which role is being backfilled instead of hardcoded to boardwipe — see
-// findRoleDeficitDonor and the Phase 3 loop below. A residual deficit this
-// pass can't or won't close (ramp/cardDraw are out of scope this slice, or
-// the budget/pool ran out) is disclosed separately, post-hoc, by
-// buildRoleDeficitNotes (roleDeficitNotes.ts) — that disclosure runs over the
-// FINAL deck in deckGenerator.ts, not here.
+// E160 generalizes Phase 3 to DEFICIT_BACKFILL_ROLES (pick-time slot competition
+// can displace an under-target removal/boardwipe bearer undisclosed). A deficit
+// this pass can't close is disclosed by buildRoleDeficitNotes.
 
 // Total conversions this pass may apply per deck. Precedent: MAX_AUDIT_SWAPS
 // = 4 (deckGenerator.ts's Combo Integrity Audit), MAX_COHERENCE_SWAPS = 3
@@ -702,7 +693,14 @@ export function applyRoleSurplusRebalance(
         evictedInclusion !== undefined &&
         !state.comboCardNames.has(ec.name) &&
         !completeComboNames.has(ec.name) &&
-        !premiumIsPaidFor(card, priceOf(card), ec.inclusion, evictedPrice, evictedInclusion)
+        !premiumIsPaidFor({
+          incoming: card,
+          incomingPrice: priceOf(card),
+          incomingInclusion: ec.inclusion,
+          leavingPrice: evictedPrice,
+          leavingInclusion: evictedInclusion,
+          scoreSurplus: score - evictedScore - MIN_IMPROVEMENT_MARGIN,
+        })
       )
         continue;
       // Total-deck budget headroom (see runningTotal doc above) — independent

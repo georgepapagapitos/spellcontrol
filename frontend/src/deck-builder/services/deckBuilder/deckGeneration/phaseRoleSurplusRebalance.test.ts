@@ -936,6 +936,87 @@ describe('applyRoleSurplusRebalance', () => {
     });
   });
 
+  // E572 gate round 2: the bar must not veto a conversion on play rate alone
+  // when the price gap is small or the incoming card is the deck's theme.
+  describe('price bar scope (E572 round 2)', () => {
+    function rampSurplus(leaving: [string, string], incoming: EDHRECCard & { synergy?: number }) {
+      const state = makeState();
+      const specs: [string, string][] = [
+        leaving,
+        ['Cultivate', '0.50'],
+        ['Rampant Growth', '0.30'],
+        ['Wild Growth', '0.40'],
+        ['Farseek', '0.45'],
+        ['Kodama’s Reach', '0.60'],
+      ];
+      for (const [name, usd] of specs) {
+        ROLE_OF.set(name, 'ramp');
+        state.usedNames.add(name);
+        state.categories.ramp.push(scryfallCard(name, { prices: { usd } }));
+      }
+      return { state, incoming };
+    }
+    const run = (
+      leaving: [string, string],
+      leavingIncl: number,
+      incoming: EDHRECCard & { synergy?: number; isThemeSynergyCard?: boolean },
+      usd: string
+    ) => {
+      const { state } = rampSurplus(leaving, incoming);
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [
+            edhrecCard(leaving[0], leavingIncl),
+            ...[
+              ['Cultivate', 70],
+              ['Rampant Growth', 68],
+              ['Wild Growth', 66],
+              ['Farseek', 64],
+              ['Kodama’s Reach', 62],
+            ].map(([n, i]) => edhrecCard(n as string, i as number)),
+            incoming,
+          ],
+        },
+      } as unknown as GenerationState['edhrecData'];
+      const result = applyRoleSurplusRebalance(
+        state,
+        makeCtx(state, {
+          roleTargets: { ramp: 2, removal: 0, boardwipe: 0, cardDraw: 0 },
+          scryfallCardMap: new Map([
+            [incoming.name, scryfallCard(incoming.name, { prices: { usd } })],
+          ]),
+        })
+      );
+      return result.conversions;
+    };
+
+    it('lets Path to Exile ($0.75, 36%) replace Astral Cornucopia ($0.29, 43%): no premium past the free line', () => {
+      // Whatever lets the keeper pass a lower-inclusion answer, the price bar
+      // must not add a play-rate veto over a $0.46 gap.
+      FREE_INTERACTION_NAMES.add('Path to Exile');
+      const conversions = run(
+        ['Astral Cornucopia', '0.29'],
+        43,
+        { ...edhrecCard('Path to Exile', 36.1), synergy: 0.6 },
+        '0.75'
+      );
+      expect(conversions[0]).toMatchObject({
+        cut: 'Astral Cornucopia',
+        added: 'Path to Exile',
+      });
+    });
+
+    it('lets Reanimate ($9.81, 29.7%, the deck theme) replace a cheap 15% card', () => {
+      const conversions = run(
+        ['Wight of the Reliquary', '0.30'],
+        15,
+        { ...edhrecCard('Reanimate', 29.7), synergy: 0.6, isThemeSynergyCard: true },
+        '9.81'
+      );
+      expect(conversions[0]).toMatchObject({ cut: 'Wight of the Reliquary', added: 'Reanimate' });
+    });
+  });
+
   // E488 (meren-budget100 at $97.83/$100): the worst draw cards couldn't fund
   // the payoff, so the walk climbed to the one expensive draw card whose
   // eviction freed enough money and cut Protean Hulk (survival 90) while

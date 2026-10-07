@@ -8,13 +8,22 @@
  *
  * The rule reuses the user's E509 price bar (buyBar, the term the whole-deck
  * search's ownership objective and the owned-share guard already encode: 8
- * inclusion points per price doubling past $2). A swap that costs more than
- * the card it replaces must be paid for in play rate: the incoming card's
- * inclusion has to beat the leaving card's by the extra bar. A swap that costs
- * the same or less is untouched, so price is never the only reason to move.
+ * inclusion points per price doubling past $2). It applies only to an incoming
+ * card priced past the free line that costs more than the card it replaces;
+ * every other swap is untouched, so price is never the only reason to move.
+ * The extra price is paid for in play rate:
+ *  - a staple (STAPLE_INCLUSION_BAR) leaves only for a card whose inclusion
+ *    beats its own by the bar;
+ *  - any other card leaves for a card whose survival score clears the pass's
+ *    improvement margin by the bar, so theme, lift and synergy count (a
+ *    reanimator deck's Reanimate is not judged on raw inclusion).
  */
-import { buyBar } from '../deckObjective/terms/ownership';
+import { buyBar, PRICE_BAR_FREE_USD } from '../deckObjective/terms/ownership';
+import { STAPLE_INCLUSION_BAR } from '../roleCapAllowance';
 import type { ScryfallCard } from '@/deck-builder/types';
+
+const points = (card: ScryfallCard, price: number) =>
+  100 * buyBar(card, Number.isFinite(price) && price > 0 ? price : 0);
 
 /** The bar in inclusion points: what the incoming card must add over the leaving one. */
 export function premiumBarPoints(
@@ -22,22 +31,25 @@ export function premiumBarPoints(
   incomingPrice: number,
   leavingPrice: number
 ): number {
-  const bar = (card: ScryfallCard, price: number) =>
-    100 * buyBar(card, Number.isFinite(price) && price > 0 ? price : 0);
-  // The leaving card is a spell here, so its bar uses the spell scale too.
-  const incomingBar = bar(incoming, incomingPrice);
-  const leavingBar = 100 * buyBar(incoming, Number.isFinite(leavingPrice) ? leavingPrice : 0);
-  return Math.max(0, incomingBar - leavingBar);
+  if (!(incomingPrice > PRICE_BAR_FREE_USD)) return 0;
+  return Math.max(0, points(incoming, incomingPrice) - points(incoming, leavingPrice));
 }
 
-/** Whether the incoming card's play rate pays for the extra price it costs. */
-export function premiumIsPaidFor(
-  incoming: ScryfallCard,
-  incomingPrice: number,
-  incomingInclusion: number,
-  leavingPrice: number,
-  leavingInclusion: number
-): boolean {
-  const bar = premiumBarPoints(incoming, incomingPrice, leavingPrice);
-  return bar <= 0 || incomingInclusion - leavingInclusion >= bar;
+/**
+ * Whether the incoming card's play rate pays for the extra price it costs.
+ * `scoreSurplus` is how far its survival score clears the improvement margin.
+ */
+export function premiumIsPaidFor(params: {
+  incoming: ScryfallCard;
+  incomingPrice: number;
+  incomingInclusion: number;
+  leavingPrice: number;
+  leavingInclusion: number;
+  scoreSurplus: number;
+}): boolean {
+  const bar = premiumBarPoints(params.incoming, params.incomingPrice, params.leavingPrice);
+  if (bar <= 0) return true;
+  return params.leavingInclusion >= STAPLE_INCLUSION_BAR
+    ? params.incomingInclusion - params.leavingInclusion >= bar
+    : params.scoreSurplus >= bar;
 }

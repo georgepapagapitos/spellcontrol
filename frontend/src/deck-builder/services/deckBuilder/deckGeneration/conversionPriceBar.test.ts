@@ -10,6 +10,16 @@ describe('conversion price bar (E572)', () => {
   // (22%, $48.58). Both sit far past the $2 free line, so the bar is the gap
   // between 8 points per price doubling at each price.
   const teferis = card("Teferi's Protection", '48.58');
+  const paid = (over: Partial<Parameters<typeof premiumIsPaidFor>[0]>) =>
+    premiumIsPaidFor({
+      incoming: teferis,
+      incomingPrice: 48.58,
+      incomingInclusion: 22,
+      leavingPrice: 30.7,
+      leavingInclusion: 42,
+      scoreSurplus: 0,
+      ...over,
+    });
 
   it('charges the extra doublings between the two prices', () => {
     const bar = premiumBarPoints(teferis, 48.58, 30.7);
@@ -22,16 +32,35 @@ describe('conversion price bar (E572)', () => {
     expect(premiumBarPoints(teferis, 5, 5)).toBe(0);
   });
 
-  it('blocks a pricier card played far less than the staple it replaces', () => {
-    expect(premiumIsPaidFor(teferis, 48.58, 22, 30.7, 42)).toBe(false);
+  it('is zero for an incoming card at or under the free line', () => {
+    // Path to Exile ($0.75) for Astral Cornucopia ($0.29): no real premium.
+    expect(premiumBarPoints(card('Path to Exile', '0.75'), 0.75, 0.29)).toBe(0);
+    expect(premiumBarPoints(card('Edgar', '2.00'), 2, 0.1)).toBe(0);
   });
 
-  it('allows a pricier card played enough more to pay the bar', () => {
-    expect(premiumIsPaidFor(teferis, 48.58, 70, 30.7, 42)).toBe(true);
+  it('blocks a pricier card played far less than the staple it replaces', () => {
+    expect(paid({ scoreSurplus: 60 })).toBe(false);
+  });
+
+  it('allows a pricier card played enough more than a staple to pay the bar', () => {
+    expect(paid({ incomingInclusion: 70 })).toBe(true);
+  });
+
+  it('judges a non-staple on the survival score, not raw inclusion', () => {
+    // Reanimate (29.7%, $9.81) for a 15% card: theme and synergy lift the score.
+    const base = {
+      incoming: card('Reanimate', '9.81'),
+      incomingPrice: 9.81,
+      incomingInclusion: 29.7,
+      leavingPrice: 0.3,
+      leavingInclusion: 15,
+    };
+    expect(premiumIsPaidFor({ ...base, scoreSurplus: 40 })).toBe(true);
+    expect(premiumIsPaidFor({ ...base, scoreSurplus: 2 })).toBe(false);
   });
 
   it('never blocks a swap that costs less', () => {
-    expect(premiumIsPaidFor(teferis, 1, 10, 30.7, 42)).toBe(true);
+    expect(paid({ incomingPrice: 1 })).toBe(true);
   });
 
   it('treats a missing price as free', () => {
