@@ -775,7 +775,12 @@ export function pickFromPrefetchedWithCurve(
   // (all three budget decks on the E532 panel came out worse).
   // ponytail: a price-sanity pair straddling the bar (E80) is ordered by the
   // tier, not by price. Fold the tie-break in if a live deck shows one.
-  const stapleTier = !e532Off && brewLevel <= 0.5 && !preferOwned && !budgetTracker;
+  // Under 'prefer' the owned boost decides near-ties between UNOWNED cards, but a
+  // staple the user already owns costs nothing and satisfies the preference, so
+  // it still leads: Krenko's owned Purphoros (41.8%) lost a creature slot to
+  // 17-27% unowned goblins that sort ahead as high-synergy picks.
+  const stapleTier = !e532Off && brewLevel <= 0.5 && !budgetTracker;
+  const preferOwnedStaple = (c: EDHRECCard) => !preferOwned || !!collectionNames?.has(c.name);
   // Board wipes keep their own order (the one-sided and collateral
   // tie-breaks, E109/E112, sort allCandidates): a >=40% wipe leads, and so
   // does every wipe those tie-breaks rank ahead of it. Kept out entirely,
@@ -792,7 +797,10 @@ export function pickFromPrefetchedWithCurve(
   const admitted = allCandidates.filter((c) => !e532Off && !!admitFirst?.has(c.name));
   const staples = allCandidates.filter(
     (c, i) =>
-      stapleTier && (isWipe(c) ? wipeMayLead(c, i) : isStaple(c)) && !admitFirst?.has(c.name)
+      stapleTier &&
+      preferOwnedStaple(c) &&
+      (isWipe(c) ? wipeMayLead(c, i) : isStaple(c)) &&
+      !admitFirst?.has(c.name)
   );
   // A staple takes a filler slot, never a combo slot: the combo-line pieces
   // the passes seat without the tier (typePassPick.ts's baselineComboSeats)
