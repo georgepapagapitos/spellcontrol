@@ -25,6 +25,7 @@
  * carries no card data and no I/O (the deck-metrics `TagLookup` pattern).
  */
 import type { Change } from './deck-change';
+import type { PlanJudge, PlanPick } from './plan-move-judge';
 
 /** 'hold' keeps the bracket, 'up' moves it up to `ceiling`, 'any' ignores it. */
 export type UpgradeGoal = 'hold' | 'up' | 'any';
@@ -68,6 +69,13 @@ export interface UpgradePlanContext {
   /** Basic lands in the list, and lands in it that fetch a basic. */
   basics?: number;
   fetchers?: number;
+  /**
+   * The whole-deck objective's judge (E540 S9), absent when the deck cannot be
+   * scored (no EDHREC page, a thin one): the plan then runs on its own rules.
+   * A swap or add it refuses is never offered, and a cut it refuses (a card the
+   * protection set holds) is passed over for the next weakest card.
+   */
+  judge?: PlanJudge;
 }
 
 export type LeftOutReason =
@@ -108,6 +116,11 @@ export interface UpgradePlan {
   leftOut: LeftOut[];
   /** The most valuable move the budget couldn't reach, with its cost. */
   nextOverBudget: { change: Change; cost: number } | null;
+  /**
+   * Moves the objective judged a loss or refused (a protected cut) and the plan
+   * therefore did not offer. Lets an empty plan say why it is empty.
+   */
+  notUpgrades: number;
   /** Role counts with the plan applied. */
   rolesAfter: Record<string, number>;
   /** The re-estimate with the plan applied, when a verify ran. */
@@ -236,25 +249,30 @@ export function planUpgrades(ctx: UpgradePlanContext, opts: UpgradePlanOptions):
     if (isBasicFetcher(add)) return false;
     return basics - 1 >= fetchers;
   }
-  function pickCut(add: Change): Change | undefined {
+  /** Cuts that keep the deck's shape for this add, in the order they are preferred. */
+  function cutOptions(add: Change): Change[] {
     const land = isLand(add);
     const role = add.role;
     const eligible = cutPool.filter(
       (c) => freeCut(c.name) && isLand(c) === land && basicAllowed(add, c.name)
     );
     const safe = (c: Change) => !c.role || c.role === role || cuttable(c.role);
+    const ordered: Change[] = [];
     // Filling a short role only helps when the cut comes from outside it.
-    if (role && short(role)) {
-      const outside = eligible.find((c) => c.role !== role && safe(c));
-      if (outside) return outside;
-    }
-    return (role ? eligible.find((c) => c.role === role) : undefined) ?? eligible.find(safe);
+    if (role && short(role)) ordered.push(...eligible.filter((c) => c.role !== role && safe(c)));
+    if (role) ordered.push(...eligible.filter((c) => c.role === role));
+    ordered.push(...eligible.filter(safe));
+    return [...new Set(ordered)];
   }
+  /** Cuts the judge may refuse before a card is given up on. */
+  const MAX_CUT_TRIES = 8;
 
   const picks: PlannedMove[] = [];
   const leftOut: LeftOut[] = [];
   let nextOverBudget: UpgradePlan['nextOverBudget'] = null;
   let spent = 0;
+  let notUpgrades = 0;
+  const priorPicks = (): PlanPick[] => picks.map((p) => ({ add: p.change.name, cut: p.cutName }));
   let slots = Math.max(0, ctx.openSlots);
   let gcRoom = opts.goal === 'up' ? ctx.gameChangerRoom : Infinity;
 
@@ -275,23 +293,50 @@ export function planUpgrades(ctx: UpgradePlanContext, opts: UpgradePlanOptions):
       continue;
     }
 
+    // A card the budget can't reach and the next pick is already named: nothing
+    // below changes the plan, so skip the slot search and the judge.
+    if (cost > remaining && nextOverBudget) continue;
+
     // Find its slot: a pre-paired swap brings its own cut unless the player
-    // kept that card, then an empty slot, then the pool.
+    // kept that card, then an empty slot, then the pool. With a judge the
+    // first slot it accepts wins; without one, the first slot is the only try.
+    const options: { cutName: string | null; cut?: Change }[] = [];
+    if (c.type === 'swap' && c.inName && freeCut(c.inName) && basicAllowed(c, c.inName)) {
+      options.push({
+        cutName: c.inName,
+        cut: cutPool.find((p) => key(p.name) === key(c.inName!)),
+      });
+    }
+    if (slots > 0) options.push({ cutName: null });
+    else
+      for (const cut of cutOptions(c).slice(0, ctx.judge ? MAX_CUT_TRIES : 1))
+        options.push({ cutName: cut.name, cut });
+    // Without a judge the pre-paired cut, or else the first slot, is the only try.
+    const tries = ctx.judge ? options : options.slice(0, 1);
+
     let cutName: string | null = null;
     let cut: Change | undefined;
-    if (c.type === 'swap' && c.inName && freeCut(c.inName) && basicAllowed(c, c.inName)) {
-      cutName = c.inName;
-      cut = cutPool.find((p) => key(p.name) === key(c.inName!));
-    } else if (slots > 0) {
-      cutName = null;
-    } else {
-      cut = pickCut(c);
-      if (!cut) continue;
-      cutName = cut.name;
+    let found = false;
+    let refused = false;
+    for (const o of tries) {
+      // A pre-paired swap was already judged against its cut by its own engine.
+      const prePaired = c.type === 'swap' && o.cutName === c.inName;
+      if (!prePaired && o.cutName && gainOver(c, o.cut) < MIN_GAIN) continue;
+      if (ctx.judge) {
+        const v = ctx.judge.verdict(c, o.cutName, priorPicks());
+        if (v.status === 'refused') {
+          refused = true;
+          continue;
+        }
+      }
+      ({ cutName, cut } = { cutName: o.cutName, cut: o.cut });
+      found = true;
+      break;
     }
-    // A pre-paired swap was already judged against its cut by its own engine.
-    const prePaired = c.type === 'swap' && cutName === c.inName;
-    if (!prePaired && cutName && gainOver(c, cut) < MIN_GAIN) continue;
+    if (!found) {
+      if (refused) notUpgrades++;
+      continue;
+    }
 
     if (cost > remaining) {
       nextOverBudget ??= { change: c, cost };
@@ -356,6 +401,7 @@ export function planUpgrades(ctx: UpgradePlanContext, opts: UpgradePlanOptions):
     fromCollection: picks.filter((p) => p.cost === 0 && p.change.ownership === 'owned').length,
     leftOut,
     nextOverBudget,
+    notUpgrades,
     rolesAfter: counts,
     estimateAfter,
   };

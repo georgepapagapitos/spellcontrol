@@ -30,6 +30,7 @@ import {
   type UpgradeGoal,
 } from '@/lib/coach/upgrade-plan';
 import type { UpgradePlanTools } from '@/lib/coach/upgrade-plan-tools';
+import type { PlanJudge } from '@/lib/coach/plan-move-judge';
 import type { PlanStep } from '@/lib/coach/apply-upgrade-plan';
 import { useToastsStore } from '@/store/toasts';
 import { logger } from '@/lib/util/logger';
@@ -62,6 +63,8 @@ export interface UpgradePlanSheetProps {
   roleTargets: Record<string, number>;
   openSlots: number;
   tools: UpgradePlanTools;
+  /** The whole-deck objective's judge; absent when the deck cannot be scored (E540 S9). */
+  judge?: PlanJudge;
   commanderName?: string;
   analysisState?: 'pending' | 'ready' | 'error';
   edhrecMissing?: boolean;
@@ -170,6 +173,7 @@ export function UpgradePlanSheet({
   roleTargets,
   openSlots,
   tools,
+  judge,
   commanderName,
   analysisState,
   edhrecMissing,
@@ -256,6 +260,7 @@ export function UpgradePlanSheet({
           tierOf,
           basics: tools.basics,
           fetchers: tools.fetchers,
+          judge,
         },
         { budget, goal, ownedFree, excluded, kept }
       ),
@@ -267,6 +272,7 @@ export function UpgradePlanSheet({
       openSlots,
       prices,
       tools,
+      judge,
       upTarget,
       ceiling,
       tierOf,
@@ -628,6 +634,8 @@ export function UpgradePlanSheet({
     );
   };
 
+  // Empty because the objective refused every swap, not because the budget is short.
+  const noUpgrades = plan.notUpgrades > 0 && !plan.nextOverBudget;
   const loading = analysisState === 'pending' || (analysisState !== 'error' && !pricesLoaded);
   const keptNote =
     lastEvent?.kind === 'keep'
@@ -657,9 +665,13 @@ export function UpgradePlanSheet({
     body = (
       <EmptyState
         className="upgrade-plan-empty"
-        tagline={`Nothing fits ${budgetLabel}.`}
+        tagline={noUpgrades ? 'Nothing here improves the deck.' : `Nothing fits ${budgetLabel}.`}
         hint={
-          ownedFree ? 'Raise the budget to see swaps.' : 'Raise the budget or use cards you own.'
+          noUpgrades
+            ? 'Every swap Coach found scores worse, or would cut a card the deck needs.'
+            : ownedFree
+              ? 'Raise the budget to see swaps.'
+              : 'Raise the budget or use cards you own.'
         }
         actions={
           !ownedFree && (

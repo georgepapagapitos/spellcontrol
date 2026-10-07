@@ -225,6 +225,17 @@ describe('UpgradePlanSheet', () => {
     expect(planRows()).toEqual(['Harrow']);
   });
 
+  it('says the objective found no upgrade, not that the budget is short', () => {
+    // E540 S9: every swap Coach found scores worse, or would cut a card the deck needs.
+    const refuseAll = {
+      verdict: () => ({ status: 'refused' as const, delta: -1, reason: 'scores worse' }),
+    };
+    render(<UpgradePlanSheet {...props({ judge: refuseAll })} />);
+    expect(screen.getByText('Nothing here improves the deck.')).toBeTruthy();
+    expect(screen.queryByText(/Nothing fits/)).toBeNull();
+    expect(planRows()).toEqual([]);
+  });
+
   it('remembers the budget and goal for the deck', () => {
     const { unmount } = render(<UpgradePlanSheet {...props()} />);
     fireEvent.click(screen.getByRole('radio', { name: '$100' }));
