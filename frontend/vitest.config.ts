@@ -1,12 +1,33 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
+import { BaseSequencer, type TestSpecification } from 'vitest/node';
 
 // CI splits the suite with `--shard=N/M --reporter=blob` and merges the blobs
 // with `--merge-reports --coverage` in one final job. A shard runs a slice of
 // the tests, so its coverage can never meet the floors below. The floors (and
 // the report files) belong to that merge, which sees the whole suite.
 const isShard = process.argv.some((arg) => arg.startsWith('--shard'));
+
+// Vitest places files in shards by a hash of their path, which ignores how
+// long a file runs, and a single file can't be split across shards. A file too
+// slow to share a shard with another slow one is split into
+// `<name>.part-N.test.ts` files, and this pins part N to shard N (wrapping
+// past the shard count). Everything else keeps the hash placement.
+// deckGenerator.settings.part-{1..4}.test.ts is the first: as one file it
+// set the length of the whole CI run.
+const PART = /\.part-(\d+)\.test\.tsx?$/;
+class PinnedPartSequencer extends BaseSequencer {
+  override async shard(files: TestSpecification[]): Promise<TestSpecification[]> {
+    const { index, count } = this.ctx.config.shard!;
+    const part = (f: TestSpecification) => PART.exec(f.moduleId)?.[1];
+    const pinned = files.filter((f) => {
+      const n = part(f);
+      return n !== undefined && (Number(n) - 1) % count === index - 1;
+    });
+    return [...(await super.shard(files.filter((f) => part(f) === undefined))), ...pinned];
+  }
+}
 
 export default defineConfig({
   plugins: [react()],
@@ -86,6 +107,7 @@ export default defineConfig({
     // Installs an in-memory `localStorage` shim for persisted stores; inert
     // for tests that don't touch storage.
     setupFiles: ['./src/test/setup.ts'],
+    sequence: { sequencer: PinnedPartSequencer },
     coverage: {
       provider: 'v8',
       // Every file matched by `include` is measured, imported by a test or
@@ -137,6 +159,10 @@ export default defineConfig({
         'src/deck-builder/services/edhrec/client.ts',
         'src/deck-builder/services/scryfall/client.ts',
         'src/deck-builder/services/tagger/client.ts',
+        // Test bodies split across `*.part-N.test.ts` files (see
+        // PinnedPartSequencer). They are tests, not source, but the name
+        // misses the default test-file exclusion.
+        'src/**/*.test-matrix.ts',
       ],
       // Per-directory floors. `src/lib/**` stays the long-standing 80.
       // `src/store/**`, `src/deck-builder/**`, `src/components/**`,

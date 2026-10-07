@@ -1,5 +1,5 @@
 // The offline fixture universe the settings matrix
-// (deckGenerator.settings.test.ts) builds decks from: a mono-green commander,
+// (deckGenerator.settings.test-matrix.ts) builds decks from: a mono-green commander,
 // an EDHREC page of generated cards with deterministic rarity, price, Arena
 // and PDH legality, and the real cards (pinned Scryfall fixtures) the E524
 // case seats on that page. Types only from the app, so a test's vi.mock
