@@ -1,0 +1,136 @@
+{
+  "_source": "Scryfall /cards/named?exact=, 2026-10-07 (E576)",
+  "cards": [
+    {
+      "name": "Rin and Seri, Inseparable",
+      "mana_cost": "{1}{R}{G}{W}",
+      "cmc": 4.0,
+      "type_line": "Legendary Creature — Dog Cat",
+      "oracle_text": "Whenever you cast a Dog spell, create a 1/1 green Cat creature token.\nWhenever you cast a Cat spell, create a 1/1 white Dog creature token.\n{R}{G}{W}, {T}: Rin and Seri deals damage to any target equal to the number of Dogs you control. You gain life equal to the number of Cats you control.",
+      "colors": ["G", "R", "W"],
+      "color_identity": ["G", "R", "W"],
+      "keywords": [],
+      "rarity": "mythic",
+      "set": "m21",
+      "edhrec_rank": 5502,
+      "legalities": {
+        "commander": "legal"
+      },
+      "prices": {
+        "usd": "32.53"
+      }
+    },
+    {
+      "name": "Bolt Hound",
+      "mana_cost": "{2}{R}",
+      "cmc": 3.0,
+      "type_line": "Creature — Elemental Dog",
+      "oracle_text": "Haste (This creature can attack and {T} as soon as it comes under your control.)\nWhenever this creature attacks, other creatures you control get +1/+0 until end of turn.",
+      "colors": ["R"],
+      "color_identity": ["R"],
+      "keywords": ["Haste"],
+      "rarity": "uncommon",
+      "set": "m21",
+      "edhrec_rank": 13511,
+      "legalities": {
+        "commander": "legal"
+      },
+      "prices": {
+        "usd": "0.30"
+      }
+    },
+    {
+      "name": "Welcoming Vampire",
+      "mana_cost": "{2}{W}",
+      "cmc": 3.0,
+      "type_line": "Creature — Vampire",
+      "oracle_text": "Flying\nWhenever one or more other creatures you control with power 2 or less enter, draw a card. This ability triggers only once each turn.",
+      "colors": ["W"],
+      "color_identity": ["W"],
+      "keywords": ["Flying"],
+      "rarity": "rare",
+      "set": "tdc",
+      "edhrec_rank": 426,
+      "legalities": {
+        "commander": "legal"
+      },
+      "prices": {
+        "usd": "3.64"
+      }
+    },
+    {
+      "name": "Lightning Bolt",
+      "mana_cost": "{R}",
+      "cmc": 1.0,
+      "type_line": "Instant",
+      "oracle_text": "Lightning Bolt deals 3 damage to any target.",
+      "colors": ["R"],
+      "color_identity": ["R"],
+      "keywords": [],
+      "rarity": "uncommon",
+      "set": "msc",
+      "edhrec_rank": 157,
+      "legalities": {
+        "commander": "legal"
+      },
+      "prices": {
+        "usd": "0.87"
+      }
+    },
+    {
+      "name": "Ajani, Nacatl Pariah // Ajani, Nacatl Avenger",
+      "layout": "transform",
+      "cmc": 2.0,
+      "type_line": "Legendary Creature — Cat Warrior // Legendary Planeswalker — Ajani",
+      "color_identity": ["R", "W"],
+      "keywords": ["Transform"],
+      "rarity": "mythic",
+      "set": "mh3",
+      "edhrec_rank": 4494,
+      "card_faces": [
+        {
+          "name": "Ajani, Nacatl Pariah",
+          "mana_cost": "{1}{W}",
+          "type_line": "Legendary Creature — Cat Warrior",
+          "oracle_text": "When Ajani enters, create a 2/1 white Cat Warrior creature token.\nWhenever one or more other Cats you control die, you may exile Ajani, then return him to the battlefield transformed under his owner's control.",
+          "colors": ["W"]
+        },
+        {
+          "name": "Ajani, Nacatl Avenger",
+          "mana_cost": "",
+          "type_line": "Legendary Planeswalker — Ajani",
+          "oracle_text": "+2: Put a +1/+1 counter on each Cat you control.\n0: Create a 2/1 white Cat Warrior creature token. When you do, if you control a red permanent other than Ajani, he deals damage equal to the number of creatures you control to any target.\n−4: Each opponent chooses an artifact, a creature, an enchantment, and a planeswalker from among the nonland permanents they control, then sacrifices the rest.",
+          "colors": ["R", "W"]
+        }
+      ],
+      "mana_cost": "{1}{W}",
+      "oracle_text": "When Ajani enters, create a 2/1 white Cat Warrior creature token.\nWhenever one or more other Cats you control die, you may exile Ajani, then return him to the battlefield transformed under his owner's control.",
+      "legalities": {
+        "commander": "legal"
+      },
+      "prices": {
+        "usd": "9.89"
+      }
+    },
+    {
+      "name": "Mana Vault",
+      "mana_cost": "{1}",
+      "cmc": 1.0,
+      "type_line": "Artifact",
+      "oracle_text": "This artifact doesn't untap during your untap step.\nAt the beginning of your upkeep, you may pay {4}. If you do, untap this artifact.\nAt the beginning of your draw step, if this artifact is tapped, it deals 1 damage to you.\n{T}: Add {C}{C}{C}.",
+      "colors": [],
+      "color_identity": [],
+      "keywords": [],
+      "rarity": "mythic",
+      "set": "2x2",
+      "edhrec_rank": 152,
+      "game_changer": true,
+      "legalities": {
+        "commander": "legal"
+      },
+      "prices": {
+        "usd": "116.06"
+      }
+    }
+  ]
+}

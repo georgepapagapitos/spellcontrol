@@ -75,6 +75,7 @@ import {
   violatesUserCaps,
   userCapsWithoutPrice,
   fitsSpellSlot,
+  withFrontFaces,
 } from './deckFilters';
 import { computeEffectiveNonBasicLandCount } from './targetCounts';
 import { BudgetTracker } from './budgetTracker';
@@ -129,6 +130,7 @@ import { pageInclusionOf, weakestFirst, shareKeeper, seatsAsNonbo } from './owne
 import { ownedShareHeld } from './deckGeneration/ownedShareHeld';
 import { withNonbasicShortfall } from './deckGeneration/nonbasicShortfallNote';
 import {
+  buildUnownedLeftOutNote,
   finalDeckMembership,
   gapsOutsideDeck,
   survivingSubstitutionRows,
@@ -1146,7 +1148,10 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
   // E530: an illegal commander refuses to build, naming why, before any fetch.
   // A previewed one builds, and the deck says it isn't legal until it releases.
   assertCommandersEligible(context);
-  const deck = await generateDeckForMode(context);
+  const deck = await generateDeckForMode({
+    ...context,
+    collectionNames: withFrontFaces(context.collectionNames),
+  });
   const previewNote = commanderPreviewNote(
     context.commander,
     context.partnerCommander,
@@ -3320,8 +3325,18 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     // Try to fill with remaining EDHREC cards (relaxed budget cap)
     // Respect type distribution targets when filling
     if (state.edhrecData && state.edhrecData.cardlists.allNonLand.length > 0) {
+      // E576: an owned-only build takes only owned rows here. The fetch window
+      // below is shortage × 3 rows; unfiltered, a Rin and Seri Cats+Dogs build
+      // fetched 6 unowned rows, skipped all 6, and never saw its 21 owned
+      // on-page cards (Bolt Hound 20%), so the off-page substitute tier seated
+      // Welcoming Vampire and Lightning Bolt instead.
       const remainingEdhrecCards = state.edhrecData.cardlists.allNonLand
-        .filter((c) => !usedNames.has(c.name) && !bannedCards.has(c.name))
+        .filter(
+          (c) =>
+            !usedNames.has(c.name) &&
+            !bannedCards.has(c.name) &&
+            !(ownedOnlyBuild && notInCollection(c.name, context.collectionNames))
+        )
         .sort((a, b) => b.inclusion - a.inclusion);
 
       logger.debug(
@@ -3395,6 +3410,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           violatesUserCaps(scryfallCard, userCapsWithoutPrice(state.cfg), context.collectionNames)
         )
           continue;
+        // E576: the bracket and Game Changer ceilings too. Once this fill
+        // reached owned rows, it seated Mana Vault and Opposition Agent (from
+        // the similar-commander pool) in a bracket-2 Atraxa build.
+        if (exceedsFillCeilings(scryfallCard, fillGates)) continue;
 
         // Prioritize cards that fill type deficits — bind type targets here too
         // (previously only did this when the user set explicit type
@@ -3420,6 +3439,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         }
 
         routeCardByType(scryfallCard, categories);
+        recordFillSeat(scryfallCard, fillGates);
         usedNames.add(edhrecCard.name);
         if (scryfallCard.name !== edhrecCard.name) usedNames.add(scryfallCard.name);
         bumpRoleCapCount(
@@ -3453,6 +3473,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
             violatesUserCaps(scryfallCard, userCapsWithoutPrice(state.cfg), context.collectionNames)
           )
             continue;
+          if (exceedsFillCeilings(scryfallCard, fillGates)) continue;
 
           if (isOverRoleCap(scryfallCard, roleTargets, currentRoleCounts)) {
             if (!capSkippedNames.has(edhrecCard.name)) {
@@ -3463,6 +3484,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           }
 
           routeCardByType(scryfallCard, categories);
+          recordFillSeat(scryfallCard, fillGates);
           usedNames.add(edhrecCard.name);
           if (scryfallCard.name !== edhrecCard.name) usedNames.add(scryfallCard.name);
           bumpRoleCapCount(
@@ -3490,7 +3512,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           if (filled >= shortage) break;
           if (admitted >= ROLE_CAP_HATCH_MAX_PER_PASS) break;
           if (usedNames.has(edhrecCard.name)) continue;
+          if (exceedsFillCeilings(scryfallCard, fillGates)) continue;
           routeCardByType(scryfallCard, categories);
+          recordFillSeat(scryfallCard, fillGates);
           usedNames.add(edhrecCard.name);
           if (scryfallCard.name !== edhrecCard.name) usedNames.add(scryfallCard.name);
           bumpRoleCapCount(
@@ -4715,6 +4739,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // Substitutions and gaps against the final deck (finalDeckDisclosure.ts).
   const inFinalDeck = finalDeckMembership(finalNames);
   const survivingSubstitutions = survivingSubstitutionRows(substitutionRows, inFinalDeck);
+  const finalGaps = gapsOutsideDeck(gapAnalysis, inFinalDeck);
+  const unownedLeftOutNote =
+    ownedOnlyBuild && (collectionStrategy === 'full' || collectionStrategy === 'available')
+      ? buildUnownedLeftOutNote(finalGaps, collectionStrategy)
+      : undefined;
 
   // Bounded to the final deck (not the whole lift index) so the build report
   // only explains cards actually in the deck.
@@ -4903,7 +4932,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     stats,
     usedThemes,
     ...themeFidelity,
-    gapAnalysis: gapsOutsideDeck(gapAnalysis, inFinalDeck),
+    gapAnalysis: finalGaps,
     packagePicks: liftPicks?.packagePicks,
     liftPicksNote: liftPicks?.liftPicksNote,
     manabase,
@@ -4948,6 +4977,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     landCountNote,
     poolExhaustionNote,
     thinPoolFillNote,
+    unownedLeftOutNote,
     mustIncludeSkippedNote,
     mustIncludeOverrideNote,
     budgetNote,

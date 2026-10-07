@@ -76,6 +76,23 @@ export function notInCollection(
   return !collectionNames.has(cardName);
 }
 
+// E576: the collection names a double-faced card in full ("A // B") while
+// EDHREC rows name it by its front face, so every owned DFC read as unowned
+// against its page row: an owned-only Rin and Seri build left the user's
+// Ajani, Nacatl Pariah out, and the gap list called it unowned. Adds each
+// front face; the same set back when the collection holds no DFC.
+export function withFrontFaces(names: Set<string> | undefined): Set<string> | undefined {
+  if (!names) return names;
+  let out: Set<string> | undefined;
+  for (const name of names) {
+    const cut = name.indexOf(' // ');
+    if (cut === -1) continue;
+    out ??= new Set(names);
+    out.add(name.slice(0, cut));
+  }
+  return out ?? names;
+}
+
 // Strategies that promise the generated deck is constrained to the provided
 // collectionNames set. For "available", callers pass only names with free
 // unclaimed copies, so it must be just as strict as "full".

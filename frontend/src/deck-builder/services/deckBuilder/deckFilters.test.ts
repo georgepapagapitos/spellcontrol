@@ -20,6 +20,7 @@ import {
   userCapsWithoutPrice,
   fitsLandSlot,
   fitsSpellSlot,
+  withFrontFaces,
   type UserCapsConfig,
 } from './deckFilters';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -401,5 +402,24 @@ describe('exceedsCmcCap', () => {
   it('filters non-land cards above the cap', () => {
     expect(exceedsCmcCap(makeCard({ cmc: 3 }), 3)).toBe(false);
     expect(exceedsCmcCap(makeCard({ cmc: 4 }), 3)).toBe(true);
+  });
+});
+
+// E576: the user's collection holds Ajani in full; the Rin and Seri Cats page
+// names its front face.
+describe('withFrontFaces (E576)', () => {
+  const AJANI = 'Ajani, Nacatl Pariah // Ajani, Nacatl Avenger';
+
+  it('an owned double-faced card reads as owned by its front face', () => {
+    const owned = withFrontFaces(new Set([AJANI, 'Bolt Hound']));
+    expect(notInCollection('Ajani, Nacatl Pariah', owned)).toBe(false);
+    expect(notInCollection(AJANI, owned)).toBe(false);
+    expect(notInCollection('Ajani, Nacatl Avenger', owned)).toBe(true);
+  });
+
+  it('returns the same set when the collection holds no double-faced card', () => {
+    const owned = new Set(['Bolt Hound']);
+    expect(withFrontFaces(owned)).toBe(owned);
+    expect(withFrontFaces(undefined)).toBeUndefined();
   });
 });

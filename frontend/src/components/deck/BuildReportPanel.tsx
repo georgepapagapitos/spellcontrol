@@ -211,6 +211,7 @@ export function BuildReportPanel({
     landCountNote,
     poolExhaustionNote,
     thinPoolFillNote,
+    unownedLeftOutNote,
     mustIncludeSkippedNote,
     mustIncludeOverrideNote,
     brewDialNote,
@@ -369,6 +370,9 @@ export function BuildReportPanel({
 
       {poolExhaustionNote && <p className="build-report-flag">{poolExhaustionNote}</p>}
       {thinPoolFillNote && <p className="build-report-flag">{thinPoolFillNote}</p>}
+      {unownedLeftOutNote && (
+        <p className="build-report-line build-report-source">{unownedLeftOutNote}</p>
+      )}
 
       {/* Combo builds already surface this note in the confirmation banner
           above — don't say it twice. */}
