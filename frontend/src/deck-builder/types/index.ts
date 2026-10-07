@@ -563,22 +563,18 @@ export interface BuildReport {
   generationModeDetail?: string;
   /** Optional note about how the mode resolved (e.g. historical eased its year). */
   generationNote?: string;
-  /** Disclosure when the archetype-aware auto land count adjusted the 37-land
-   *  default (e.g. tribal/dork-dense decks running fewer). Undefined when the
-   *  user set land count explicitly, or no adjustment applied. */
+  /** Disclosure when the archetype-aware auto land count adjusted the 37-land default (e.g.
+   *  tribal/dork-dense decks running fewer). Undefined when set explicitly or unchanged. */
   landCountNote?: string;
-  /** Disclosure when the card pool ran dry (an invalid/narrow Scryfall
-   *  filter, a thin owned-only collection, or a plain budget/price/rarity/
-   *  arena/bracket squeeze) and the shortfall got padded with extra basic
-   *  lands — names the cause and how many slots it cost. Undefined when the
-   *  final land count is within a few of the pre-generation plan. */
+  /** Disclosure when the card pool ran dry (an invalid/narrow Scryfall filter, a thin
+   *  owned-only collection, or a plain budget/price/rarity/arena/bracket squeeze) and the
+   *  shortfall got padded with extra basic lands — names the cause and how many slots it
+   *  cost. Undefined when the final land count is within a few of the pre-generation plan. */
   poolExhaustionNote?: string;
   /** E282: owned-only build — the slots the commander's EDHREC data couldn't
    *  fill from the collection, weakest first, so the user knows what to swap. */
   thinPoolFillNote?: string;
-  /** E576: owned-only build — the staples (40%+ of decks) left out because
-   *  the user doesn't own them, or has no free copy, most-played first. */
-  unownedLeftOutNote?: string;
+  unownedLeftOutNote?: string; // E576: owned-only build — staples (40%+) left out as unowned
   /** Disclosure when an explicit (user/deck) must-include couldn't be seated —
    *  off-color, over the rarity/CMC cap, not on Arena, or unresolvable. Names
    *  each dropped pick with its reason so a forced card never vanishes
