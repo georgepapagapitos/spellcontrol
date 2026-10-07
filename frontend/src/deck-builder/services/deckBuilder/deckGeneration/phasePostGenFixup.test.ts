@@ -718,5 +718,39 @@ describe('postGenFixupPhase', () => {
       });
       expect(run().fixupRepairs).toMatchObject([{ added: "Assassin's Trophy" }]);
     });
+
+    // Sythis partial50: Farewell (15.3%, $6.16) trails the price bar over the owned
+    // Far Wanderings (0%) by a point, but Far Wanderings is ramp 17 of 13, surplus.
+    // Refusing it left the deck over its ramp cap and the surplus phase then cut
+    // Exploration (42%).
+    it('trades an owned card of a role past its target for a needed role, bar or not', () => {
+      const { state, run } = partial({
+        owned: ['Far Wanderings'],
+        deck: ['Far Wanderings', 'Imperious Perfect', 'Timberwatch Elf'],
+        pool: ['Farewell'],
+      });
+      PAGE.push(['Far Wanderings', 0], ['Farewell', 15.3]);
+      PRICE['Farewell'] = '6.16';
+      roleMap['Farewell'] = 'boardwipe';
+      roleMap['Far Wanderings'] = 'ramp';
+      state.categories.ramp = [scryfallCard('Far Wanderings')];
+      state.categories.creatures = state.categories.creatures.filter(
+        (c) => c.name !== 'Far Wanderings'
+      );
+      state.currentRoleCounts = { ramp: 17, removal: 8, boardwipe: 1, cardDraw: 12 };
+      state.edhrecData = {
+        cardlists: { allNonLand: PAGE.map(([name, inclusion]) => ({ name, inclusion })) },
+      } as unknown as GenerationState['edhrecData'];
+      const result = postGenFixupPhase(state, {
+        roleTargets: { ramp: 13, removal: 8, boardwipe: 2, cardDraw: 12 },
+        swapCandidates: undefined,
+        scryfallCardMap: new Map([
+          ['Farewell', scryfallCard('Farewell', { prices: { usd: '6.16' } })],
+        ]),
+        repairAddedNames: new Set(),
+      });
+      void run;
+      expect(result.fixupRepairs).toMatchObject([{ cut: 'Far Wanderings', added: 'Farewell' }]);
+    });
   });
 });

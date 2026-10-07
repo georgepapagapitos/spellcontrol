@@ -122,6 +122,14 @@ export function postGenFixupPhase(
     return weakest ? { card: weakest.card, category: weakest.category } : null;
   }
 
+  // An owned card of a role past its target is surplus, not a slot the price bar
+  // guards: Sythis partial50 kept Far Wanderings (ramp 17 of 13) over Farewell,
+  // and the surplus phase then cut Exploration (42%) to get back to the cap.
+  const inSurplus = (card: ScryfallCard) => {
+    const role = getCardRole(card.name);
+    return !!role && !!roleTargets && (currentRoleCounts[role] ?? 0) > (roleTargets[role] ?? 0);
+  };
+
   // E571: a partial build gives an owned card up for an unowned one only when
   // the unowned one is clearly better by the user's price bar (at 100%, never).
   // Otherwise the weakest card is the weakest UNOWNED one, and when there is
@@ -131,7 +139,7 @@ export function postGenFixupPhase(
     incoming: ScryfallCard
   ) {
     const weak = findWeakestCard(filter, incoming);
-    if (!weak || !share.costsShare(weak.card, incoming)) return weak;
+    if (!weak || !share.costsShare(weak.card, incoming) || inSurplus(weak.card)) return weak;
     return findWeakestCard((card, cat) => !share.owned(card.name) && filter(card, cat), incoming);
   }
 
