@@ -110,6 +110,12 @@ export interface Change {
 
   /** swap only — the in-deck card being CUT to make room for `name`. */
   inName?: string;
+  /**
+   * A swap that is a Cuts-lane row (E540 S6): the cut `inName` leads and `name`
+   * is its best replacement, judged as one swap. It lives in the Cuts lane, not
+   * in the adds-and-swaps list, and its apply does both halves.
+   */
+  pairedCut?: boolean;
   inCard?: ScryfallCard;
 
   /** Data-grounded "why" — already the verdict/category copy per surface.

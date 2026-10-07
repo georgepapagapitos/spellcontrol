@@ -209,6 +209,10 @@ export function DeckCardRow({
 
       <div className="deck-card-row-body">
         <span className="deck-card-row-title">
+          {/* A Cuts-lane swap leads with the cut: the card leaving, then the one coming in. */}
+          {change.pairedCut && outName && (
+            <span className="deck-card-row-cut">Cut {outName}, add</span>
+          )}
           <span className="deck-card-row-name">{name}</span>
           {manaCost && <ManaCost cost={manaCost} className="deck-card-row-mana" />}
           {/* Tags are shared VerdictBadge chips (tone + label, per the finer-scale
@@ -289,7 +293,13 @@ export function DeckCardRow({
           {change.whyFactors && change.whyFactors.length > 0 && (
             <WhyBreakdown
               factors={change.whyFactors}
-              label={change.type === 'cut' ? 'Why cut this?' : 'Why this?'}
+              label={
+                change.pairedCut
+                  ? 'Why this swap?'
+                  : change.type === 'cut'
+                    ? 'Why cut this?'
+                    : 'Why this?'
+              }
             />
           )}
         </div>
@@ -313,11 +323,13 @@ export function DeckCardRow({
           onClick={() => onAct(change)}
           disabled={acting}
           aria-label={
-            acting
-              ? actLabel
-                ? `${actLabel} ${name}, in progress`
-                : `${ACT_BUSY[change.type]} ${name}`
-              : `${label} ${name}`
+            change.pairedCut && outName
+              ? `${acting ? 'Cutting' : 'Cut'} ${outName} and add ${name}${acting ? ', in progress' : ''}`
+              : acting
+                ? actLabel
+                  ? `${actLabel} ${name}, in progress`
+                  : `${ACT_BUSY[change.type]} ${name}`
+                : `${label} ${name}`
           }
         >
           {acting ? (

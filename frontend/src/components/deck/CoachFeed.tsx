@@ -1,7 +1,7 @@
 import './CoachFeed.css';
 import { type JSX, useMemo, useState, useEffect, useRef, useCallback, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronDown, ChevronRight } from 'lucide-react';
+import { Check, ChevronDown } from 'lucide-react';
 import { DeckCardRow } from './DeckCardRow';
 import { SubstituteOptions } from './SubstituteOptions';
 import { DeckHoverPeek } from './DeckHoverPeek';
@@ -10,8 +10,13 @@ import { UpgradePlanSheet } from './UpgradePlanSheet';
 import type { UpgradePlanTools } from '@/lib/coach/upgrade-plan-tools';
 import type { PlanStep } from '@/lib/coach/apply-upgrade-plan';
 import { DeckAnalysisSkeleton } from './DeckAnalysisSkeleton';
+import {
+  BracketFitStrip,
+  BudgetConfidenceStrip,
+  CutsLaneStatus,
+  UpgradePlanEntry,
+} from './CoachFeedStrips';
 import { VerdictBadge } from './VerdictBadge';
-import { InfoTip } from '@/components/overlays/InfoTip';
 import { Button } from '@/components/shared/Button';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Surface } from '@/components/shared/Surface';
@@ -23,6 +28,8 @@ import { classifyInclusion } from '@/lib/deck-analysis/inclusion-label';
 import { buildCoachChanges } from '@/lib/coach/coach-changes';
 import { isOffMetaChange, type Change, type ChangeOwnership } from '@/lib/coach/deck-change';
 import { rankCoachMoves, type CoachContext, diversifyRankedMoves } from '@/lib/coach/coach-rank';
+import { cutLane, isPairedCut } from '@/lib/coach/coach-cut-swaps';
+import { useCutSwaps, type CutSwapSources } from '@/lib/coach/use-cut-swaps';
 import { useRegisterShortcuts, isTypingTarget } from '@/components/app-shell/shortcut-registry';
 import type { GapAnalysisCard } from '@/deck-builder/types';
 import type { OptimizeSwaps } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
@@ -158,6 +165,11 @@ export interface CoachFeedProps {
   /** An add that has a real protected cut, or needs none (replace-cuts.ts `hasProtectedCut`). */
   hasProtectedCut?: (change: Change) => boolean;
   /**
+   * What the Cuts lane needs to pair each cut with its best replacement (E540
+   * S6): the saved deck and its combos. Omit and the lane shows today's cuts.
+   */
+  cutSwaps?: CutSwapSources;
+  /**
    * E458: the upgrade plan. The feed hosts it because the plan spends a
    * budget over this feed's own ranked list; the page owns the open flag (a
    * `?plan=1` deep link opens it) and the bracket tools. Omit to hide it.
@@ -225,6 +237,7 @@ export function CoachFeed({
   hasReplaceCut,
   targetBracket,
   hasProtectedCut,
+  cutSwaps,
   upgradePlan,
 }: CoachFeedProps): JSX.Element {
   const busy = busyNames ?? new Set<string>();
@@ -494,6 +507,17 @@ export function CoachFeed({
     [ranked, departedIds]
   );
 
+  // ── The Cuts lane: each cut with its best replacement ────────────────────
+  // Legacy order stays; the pairing adds the replacement (verdicts land in one batch).
+  const cutChanges = useMemo(() => cuts.map((r) => r.change), [cuts]);
+  const env = { resolveOwnership, settingsBreak };
+  const cutPairing = useCutSwaps(cutChanges, cutSwaps, env, combosLoading);
+  const cutsLoading = cutPairing.state.status === 'loading' && cuts.length > 0;
+  const lane = useMemo(
+    () => cutLane(cuts, cutPairing.state, deckNames),
+    [cuts, cutPairing.state, deckNames]
+  );
+
   // ── Filter ───────────────────────────────────────────────────────────────
 
   const filteredRows = useMemo(() => {
@@ -501,7 +525,7 @@ export function CoachFeed({
     // lane is its source engine, e.g. bracket-fit). They stay out of "All" —
     // trimming is a different intent than improving — and `ownedOnly` never
     // applies: every cut is a card already in the deck.
-    if (activeFilter === 'cuts') return cuts;
+    if (activeFilter === 'cuts') return cutsLoading ? [] : lane.rows;
     let list = addsAndSwaps;
     if (ownedOnly) {
       list = list.filter((r) => r.change.ownership === 'owned');
@@ -513,7 +537,7 @@ export function CoachFeed({
       list = list.filter((r) => isOffMetaChange(r.change));
     }
     return list;
-  }, [addsAndSwaps, cuts, activeFilter, ownedOnly, offMetaOnly]);
+  }, [addsAndSwaps, lane, cutsLoading, activeFilter, ownedOnly, offMetaOnly]);
 
   // E64: global off-meta count — independent of `activeFilter` (a lane
   // switch shouldn't make the differentiator's own count flicker), but
@@ -564,9 +588,11 @@ export function CoachFeed({
     }
     // Cuts pseudo-lane: in-deck cards, so `ownedOnly` never hides them and
     // they don't count toward "All" (adds/swaps only).
-    shown.cuts = total.cuts = cuts.length;
+    // While the pairing runs the chip shows no number (the lane is about to lose
+    // the cuts that have no replacement); once it lands the number is the lane's.
+    shown.cuts = total.cuts = cutsLoading ? cuts.length : lane.rows.length;
     return { shownCounts: shown, totalCounts: total };
-  }, [addsAndSwaps, cuts, ownedOnly]);
+  }, [addsAndSwaps, cuts, lane, cutsLoading, ownedOnly]);
 
   // Body empty purely because `ownedOnly` hid every match in this lane — drives
   // the context-aware empty state (explain + one-tap relax) rather than a bare
@@ -637,11 +663,11 @@ export function CoachFeed({
     () =>
       // Nested owned-substitute alternatives are previewable too, so the carousel
       // can swipe to them from their row.
-      [...addsAndSwaps, ...cuts].flatMap(({ change }) => [
+      [...addsAndSwaps, ...lane.rows].flatMap(({ change }) => [
         entryFor(change),
         ...(change.alternatives ?? []).map(entryFor),
       ]),
-    [addsAndSwaps, cuts]
+    [addsAndSwaps, lane]
   );
 
   // ── Skeleton / error / EDHREC-missing ───────────────────────────────────
@@ -662,19 +688,7 @@ export function CoachFeed({
   // the skeleton branch too, so a deep link opened while the analysis runs
   // shows the plan loading instead of nothing.
   const planEntry = upgradePlan && (
-    <button
-      type="button"
-      className="upgrade-plan-entry"
-      onClick={() => upgradePlan.onOpenChange(true)}
-    >
-      <span className="upgrade-plan-entry-text">
-        <span className="upgrade-plan-entry-title">Upgrade plan</span>
-        <span className="upgrade-plan-entry-hint">
-          Spend a budget on the best swaps for this deck
-        </span>
-      </span>
-      <ChevronRight width={18} height={18} aria-hidden />
-    </button>
+    <UpgradePlanEntry onOpen={() => upgradePlan.onOpenChange(true)} />
   );
   const tierById = new Map(ranked.map((r) => [r.change.id, r.tier]));
   const planSheet = upgradePlan?.open && upgradePlan.tools && (
@@ -794,7 +808,9 @@ export function CoachFeed({
                   // Visible when the lane has any match at all (owned or not), so a
                   // lane `ownedOnly` has emptied stays reachable — clicking it lands
                   // on the "all N are unowned" empty state rather than disappearing.
-                  if (f !== 'all' && total === 0) return null;
+                  if (f !== 'all' && total === 0 && !(f === 'cuts' && activeFilter === 'cuts')) {
+                    return null;
+                  }
                   const ownedEmpty = f !== 'all' && shown === 0 && total > 0;
                   return (
                     <Chip
@@ -806,7 +822,10 @@ export function CoachFeed({
                       onClick={() => setActiveFilter(f)}
                       trailing={
                         shown > 0 &&
-                        f !== 'all' && <span className="coach-feed-chip-count">{shown}</span>
+                        f !== 'all' &&
+                        !(f === 'cuts' && cutsLoading) && (
+                          <span className="coach-feed-chip-count">{shown}</span>
+                        )
                       }
                     >
                       {FILTER_LABELS[f]}
@@ -880,41 +899,9 @@ export function CoachFeed({
               )}
             </div>
 
-            {/* Budget confidence legend — budget filter only */}
-            {activeFilter === 'budget' && filteredRows.length > 0 && (
-              <div className="coach-feed-budget-strip">
-                <span className="coach-feed-budget-summary">
-                  How close each cheaper pick is to the card it replaces:
-                </span>
-                <InfoTip
-                  label="budget confidence"
-                  text={
-                    <>
-                      <ul className="info-tip-list">
-                        <li>
-                          <strong>Drop-in</strong>: near-identical, swap freely.
-                        </li>
-                        <li>
-                          <strong>Sidegrade</strong>: a lateral trade, a bit less played.
-                        </li>
-                        <li>
-                          <strong>Budget</strong>: a real downgrade for the savings.
-                        </li>
-                      </ul>
-                    </>
-                  }
-                />
-              </div>
-            )}
-
-            {/* Bracket strip — bracket-fit filter only */}
+            {activeFilter === 'budget' && filteredRows.length > 0 && <BudgetConfidenceStrip />}
             {activeFilter === 'bracket-fit' && bracketFit && bracketFit.direction !== 'aligned' && (
-              <div className="coach-feed-bracket-strip">
-                <span className="coach-feed-bracket-summary">{bracketFit.summary}</span>
-                {bracketFit.note && (
-                  <span className="coach-feed-bracket-note">{bracketFit.note}</span>
-                )}
-              </div>
+              <BracketFitStrip plan={bracketFit} />
             )}
 
             {/* Stand-ins strip — collection filter only */}
@@ -926,10 +913,19 @@ export function CoachFeed({
               </div>
             )}
 
+            {activeFilter === 'cuts' && (
+              <CutsLaneStatus
+                lane={lane}
+                loading={cutsLoading}
+                rows={filteredRows.length}
+                onRetry={cutPairing.retry}
+              />
+            )}
+
             {/* Feed rows — first page only until "Show all" is pressed. */}
             {/* Column names for the table layout (CoachFeed.css shows them
                 from a 48rem feed); the list itself stays a list. */}
-            {filteredRows.length > 0 && (
+            {filteredRows.length > 0 && !cutsLoading && (
               <div className="coach-feed-rows-head" aria-hidden>
                 <span>Card</span>
                 <span>Why</span>
@@ -942,8 +938,11 @@ export function CoachFeed({
                   const isLeaving = leavingIds.has(change.id);
                   // A move row's apply carries the donor's patch; the Fit audition
                   // adds through the plain path, so it would leave that out.
-                  const showFit = onPreviewFit && change.type !== 'cut' && change.lane !== 'decks';
-                  const aiWhy = change.type === 'cut' ? undefined : aiAgrees?.get(change.name);
+                  const paired = isPairedCut(change);
+                  const showFit =
+                    onPreviewFit && change.type !== 'cut' && change.lane !== 'decks' && !paired;
+                  const aiWhy =
+                    change.type === 'cut' || paired ? undefined : aiAgrees?.get(change.name);
                   return (
                     <li
                       key={change.id}
@@ -1011,6 +1010,8 @@ export function CoachFeed({
             )}
             {filteredRows.length === 0 &&
               !isPending &&
+              !cutsLoading &&
+              !(activeFilter === 'cuts' && lane.withheld > 0) &&
               (isOwnedEmpty ? (
                 <div className="coach-feed-empty-filter coach-feed-empty-owned">
                   <p>

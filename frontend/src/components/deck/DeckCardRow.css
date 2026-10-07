@@ -182,6 +182,13 @@
   gap: var(--space-1-5);
 }
 
+/* The cut a Cuts-lane swap leads with: its own line above the card coming in. */
+.deck-card-row-cut {
+  flex-basis: 100%;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
 .deck-card-row-name {
   font-size: var(--text-sm);
   font-weight: 600;

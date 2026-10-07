@@ -128,6 +128,32 @@ export interface CoachObjectiveInput {
 }
 
 /**
+ * What the one protection set reads off a deck's analysis (the persisted one on
+ * the deck page, the harness's fresh one): the win paths' alt-win cards, the
+ * missing staples, and the cards Coach already flags as weak.
+ */
+export function protectionSourcesFrom(a: {
+  winConditions?: {
+    primary?: { category?: string; evidence: readonly string[] } | null;
+    secondary?: readonly { category?: string; evidence: readonly string[] }[];
+  } | null;
+  gapAnalysis?: readonly { name: string; inclusion: number }[];
+  misfits?: readonly { name: string }[];
+  optimizeSwaps?: { removals?: readonly { name: string }[] } | null;
+}): NonNullable<CoachObjectiveInput['protections']> {
+  const wins = [a.winConditions?.primary, ...(a.winConditions?.secondary ?? [])];
+  return {
+    altWinNames: new Set(
+      wins.filter((w) => w?.category === 'alt-win').flatMap((w) => [...w!.evidence])
+    ),
+    gaps: a.gapAnalysis,
+    flagged: new Set(
+      [...(a.misfits ?? []), ...(a.optimizeSwaps?.removals ?? [])].map((m) => m.name.toLowerCase())
+    ),
+  };
+}
+
+/**
  * The customization the objective holds a saved deck to: what it was built
  * with, the target bracket Coach holds it to, and its format's size and pool
  * (a Brawl list is 59 cards: fill-deck.ts fillFormatSettings sets the same).

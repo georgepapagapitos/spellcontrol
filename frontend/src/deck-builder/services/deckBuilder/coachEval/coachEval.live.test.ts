@@ -106,6 +106,8 @@ import {
 } from './applyCoachMoves';
 import { shadowMarkdown, shadowNumbers } from './coachShadowReport';
 import { shadowRecord, type ShadowRecord } from './coachShadow';
+import { cutLaneMoves, cutLaneRecord } from './coachCutLane';
+import type { Change } from '@/lib/coach/deck-change';
 import { advisedDump, rebuildDeck, stampGenerationFlags, type CoachDump } from './coachDump';
 import { buildNameMatcher, extractDeckLabels } from './coachLabels';
 import {
@@ -481,6 +483,8 @@ interface CoachPass {
   env: ApplyEnv;
   page: EDHRECCommanderData | null;
   combos: ReturnType<typeof combosFromEdhrec>;
+  /** The deck's settings check as a keep-or-drop predicate (the page's `coachSettings.fit`). */
+  fit?: (change: Change) => boolean | undefined;
 }
 
 const fixingLandCache = new Map<string, ScryfallCard[]>();
@@ -659,7 +663,7 @@ async function coachPass(dump: CoachDump, deck: EvalDeckState): Promise<CoachPas
   const moves = orderedCoachMoves(view);
   // The app prices a card on apply from its cheapest priced printing.
   for (const m of moves) await hydratePrice(cardFor(m.name));
-  return { analysis, view, moves, env, page, combos };
+  return { analysis, view, moves, env, page, combos, fit: fitFor(cards) };
 }
 
 /** A card a cut should never take: ≥40% on the page, a Game Changer, a watchlist premium. */
@@ -811,6 +815,74 @@ function moveRecord(m: CoachMove) {
   };
 }
 
+/** The advised dump for an applied result: the second pass's analysis stamped on the original. */
+function advisedFrom(
+  dump: CoachDump,
+  result: ReturnType<typeof applyCoachMoves>,
+  index: ReturnType<typeof buildInclusionIndex>,
+  pass2: CoachPass
+): CoachDump {
+  // Complete combos and one-card near misses, the generator's own shape.
+  const detected2 = [...pass2.combos.inDeck, ...pass2.combos.oneAway].map((m) => ({
+    comboId: m.combo.id,
+    cards: m.combo.cards.map((c) => c.cardName),
+    results: m.combo.produces,
+    isComplete: m.missingOracleIds.length === 0,
+    missingCards: m.missingOracleIds,
+    deckCount: m.combo.popularity,
+    bracket: m.combo.bracket,
+    bracketTag: m.combo.bracketTag ?? null,
+    cardCount: m.combo.cardCount,
+  }));
+  return advisedDump(dump, BY_NAME, result.deck, {
+    applied: result.applied,
+    skipped: result.skipped,
+    inclusionOf: (name) => lookupInclusion(index, name) ?? null,
+    resolve: cardFor,
+    bracketEstimation: pass2.analysis.bracketEstimation,
+    deckGrade: pass2.analysis.deckGrade ?? null,
+    gapAnalysis: pass2.analysis.gapAnalysis ?? null,
+    detectedCombos: detected2,
+  });
+}
+
+// ---- E540 S6: the Cuts lane as the app shows it (COACH_EVAL_CUTS=1) ---------------
+
+const CUTS = process.env.COACH_EVAL_CUTS === '1';
+
+/** Pair the deck's cuts like the page, record the lane, and apply what a user following it would. */
+async function cutLaneAdvise(
+  panel: AdvisePanel,
+  file: string,
+  dump: CoachDump,
+  deck: EvalDeckState,
+  settings: DeckSettings,
+  pass1: CoachPass
+): Promise<void> {
+  const { record, lane } = await cutLaneRecord(
+    {
+      corpus: 'advise',
+      group: panel.name,
+      deck: file.replace(/\.json$/, ''),
+      state: deck,
+      customization: dump.customization as Record<string, unknown>,
+      ownedNames: settings.ownedNames,
+      gameChangers: GAME_CHANGERS,
+      pass: pass1,
+      resolve: cardFor,
+      fit: pass1.fit,
+    },
+    new Set(deck.cards.map((c) => c.name.toLowerCase()))
+  );
+  writeJson(join(OUT, 'cuts', panel.name, file), record);
+  const result = applyCoachMoves(deck, cutLaneMoves(lane), settings, pass1.env, N);
+  if (result.applied.length === 0) return;
+  const pass2 = await coachPass(dump, result.deck);
+  const index = pass1.page ? buildInclusionIndex(pass1.page) : new Map<string, number>();
+  writeJson(join(OUT, 'cuts-advised', panel.name, file), advisedFrom(dump, result, index, pass2));
+  writeJson(join(OUT, 'cuts-applied', panel.name, file), result.applied);
+}
+
 // ---- E538: advise -----------------------------------------------------------------
 
 const adviseRows = advisePanels().flatMap((p) =>
@@ -853,29 +925,9 @@ describe.skipIf(!process.env.LIVE_GEN || adviseRows.length === 0)('Coach eval: a
         const audit2 = auditMoves(result.deck, pass2.moves, settings, pass2.env, AUDIT_K);
 
         const index = pass1.page ? buildInclusionIndex(pass1.page) : new Map<string, number>();
-        // Complete combos and one-card near misses, the generator's own shape.
-        const detected2 = [...pass2.combos.inDeck, ...pass2.combos.oneAway].map((m) => ({
-          comboId: m.combo.id,
-          cards: m.combo.cards.map((c) => c.cardName),
-          results: m.combo.produces,
-          isComplete: m.missingOracleIds.length === 0,
-          missingCards: m.missingOracleIds,
-          deckCount: m.combo.popularity,
-          bracket: m.combo.bracket,
-          bracketTag: m.combo.bracketTag ?? null,
-          cardCount: m.combo.cardCount,
-        }));
-        const advised = advisedDump(dump, BY_NAME, result.deck, {
-          applied: result.applied,
-          skipped: result.skipped,
-          inclusionOf: (name) => lookupInclusion(index, name) ?? null,
-          resolve: cardFor,
-          bracketEstimation: pass2.analysis.bracketEstimation,
-          deckGrade: pass2.analysis.deckGrade ?? null,
-          gapAnalysis: pass2.analysis.gapAnalysis ?? null,
-          detectedCombos: detected2,
-        });
+        const advised = advisedFrom(dump, result, index, pass2);
         writeJson(join(base, 'advised', file), advised);
+        if (CUTS) await cutLaneAdvise(panel, file, dump, deck, settings, pass1);
 
         // Ping-pong: the second pass wants an added card out, or a cut card back.
         const top2 = pass2.moves.slice(0, AUDIT_K);
