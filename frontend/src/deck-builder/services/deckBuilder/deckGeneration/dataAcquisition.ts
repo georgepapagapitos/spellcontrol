@@ -120,6 +120,31 @@ export function buildBracketPoolFallbackNote(
 }
 
 /**
+ * E575 disclosure: a selected theme's EDHREC page could not be fetched, so the
+ * deck was built without it. Names the themes that were lost and the page the
+ * pool came from instead. Silent before this: the fallback changed the pool
+ * but only the `dataSource` tag said so.
+ */
+export function buildThemeUnavailableNote(
+  commanderLabel: string,
+  failedThemeNames: string[],
+  allThemesFailed: boolean,
+  usedSource: PoolRung | undefined,
+  targetBracket: TargetBracket | undefined,
+  keptThemeNames?: string
+): string {
+  const lost = failedThemeNames.join(', ');
+  if (!allThemesFailed) {
+    return `EDHREC has no ${lost} page for ${commanderLabel}, so the deck was built from the ${keptThemeNames} page alone.`;
+  }
+  const bracketPhrase = targetBracket
+    ? `bracket-${targetBracket} (${bracketLabel(Number(targetBracket))})`
+    : '';
+  const used = usedSource ? poolRungLabel(usedSource, bracketPhrase, undefined) : 'the main page';
+  return `EDHREC has no ${lost} page for ${commanderLabel}, so no theme shaped the pool. Built from ${used} instead.`;
+}
+
+/**
  * Calls `fn` once; if it throws, or resolves to a value that fails the
  * optional `isOk` check, tries again exactly once. No backoff — for the
  * per-generation data loads (tagger role data, combos, the substitute index)
@@ -452,6 +477,13 @@ export async function acquireCardPoolPhase(
   else if (!usingCache && selectedThemesWithSlugs.length > 0) {
     // Fetch theme-specific data for all selected themes
     onProgress?.('Consulting the Oracle…', 8);
+    const commanderLabelForThemes = partnerCommander
+      ? `${commander.name} // ${partnerCommander.name}`
+      : commander.name;
+    const themeNamesAll = selectedThemesWithSlugs.map((t) => t.name);
+    // E575: set when every selected theme's page failed to fetch, so the
+    // base-page fallback below can say the theme is gone.
+    let allThemesFailed = false;
     try {
       // Catch each theme fetch individually so one theme's 404/network error
       // doesn't discard the themes that succeeded (F14).
@@ -464,6 +496,7 @@ export async function acquireCardPoolPhase(
       );
 
       if (!themeMergeResult) {
+        allThemesFailed = true;
         throw new Error(
           "EDHREC didn't return data for any of those themes. Try fewer themes or a different commander."
         );
@@ -471,6 +504,7 @@ export async function acquireCardPoolPhase(
 
       let mergedCardlists = themeMergeResult.data.cardlists;
       state.themeOverlapCounts = themeMergeResult.themeOverlapCounts;
+      const failedThemeNames = themeMergeResult.failedThemeNames;
       let representativeStats = themeMergeResult.data.stats;
       let dataSource: DeckDataSource = targetBracket ? 'theme+bracket' : 'theme';
 
@@ -605,6 +639,21 @@ export async function acquireCardPoolPhase(
         }
       }
 
+      if (failedThemeNames.length > 0) {
+        // Some, not all, of the selected themes had no page: say which were lost.
+        const partial = buildThemeUnavailableNote(
+          commanderLabelForThemes,
+          failedThemeNames,
+          false,
+          undefined,
+          targetBracket,
+          themeNamesAll.filter((n) => !failedThemeNames.includes(n)).join(', ')
+        );
+        state.bracketPoolFallbackNote = state.bracketPoolFallbackNote
+          ? `${partial} ${state.bracketPoolFallbackNote}`
+          : partial;
+      }
+
       state.edhrecData = {
         themes: [],
         stats: representativeStats,
@@ -631,6 +680,15 @@ export async function acquireCardPoolPhase(
             )
           : await fetchCommanderData(commander.name, budgetOption, targetBracket);
         state.dataSource = targetBracket ? 'base+bracket' : 'base';
+        if (allThemesFailed) {
+          state.bracketPoolFallbackNote = buildThemeUnavailableNote(
+            commanderLabelForThemes,
+            themeNamesAll,
+            true,
+            state.dataSource,
+            targetBracket
+          );
+        }
         logger.debug('[DeckGen] FALLBACK: Using base commander data (with bracket)');
         onProgress?.('Consulting the Oracle…', 12);
       } catch {
@@ -644,6 +702,15 @@ export async function acquireCardPoolPhase(
               ? await fetchPartnerCommanderData(commander.name, partnerCommander.name, budgetOption)
               : await fetchCommanderData(commander.name, budgetOption);
             state.dataSource = 'base';
+            if (allThemesFailed) {
+              state.bracketPoolFallbackNote = buildThemeUnavailableNote(
+                commanderLabelForThemes,
+                themeNamesAll,
+                true,
+                'base',
+                targetBracket
+              );
+            }
             logger.debug('[DeckGen] FALLBACK: Using base commander data (no bracket)');
             onProgress?.('Consulting the Oracle…', 12);
           } catch {

@@ -92,7 +92,12 @@ export async function fetchMergedThemeData(
   partnerCommanderName: string | undefined,
   budgetOption: BudgetOption | undefined,
   bracket: TargetBracket | undefined
-): Promise<{ data: EDHRECCommanderData; themeOverlapCounts: Map<string, number> } | null> {
+): Promise<{
+  data: EDHRECCommanderData;
+  themeOverlapCounts: Map<string, number>;
+  /** Names of the themes whose page could not be fetched and were skipped. */
+  failedThemeNames: string[];
+} | null> {
   const results = await Promise.all(
     themes.map((theme) =>
       (partnerCommanderName
@@ -112,9 +117,11 @@ export async function fetchMergedThemeData(
   );
   const ok = results.filter((r): r is EDHRECCommanderData => r != null);
   if (ok.length === 0) return null;
+  const failedThemeNames = themes.filter((_, i) => results[i] == null).map((t) => t.name);
   const merged = mergeThemeCardlists(ok);
   return {
     data: { themes: [], stats: ok[0].stats, cardlists: merged.cardlists, similarCommanders: [] },
     themeOverlapCounts: merged.themeOverlapCounts,
+    failedThemeNames,
   };
 }
