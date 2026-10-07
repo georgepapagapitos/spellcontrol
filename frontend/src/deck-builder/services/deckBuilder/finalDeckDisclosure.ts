@@ -33,3 +33,35 @@ export function survivingSubstitutionRows<T extends { wantedName: string; usedNa
 ): T[] {
   return rows.filter((r) => inDeck(r.usedName) && !inDeck(r.wantedName));
 }
+
+/** A left-out card is named only when it is a staple (40%+ of decks). */
+const LEFT_OUT_MIN_INCLUSION = 40;
+const LEFT_OUT_NAMED = 5;
+
+/**
+ * E576: an owned-only build says plainly which of the most-played cards it
+ * left out because the user doesn't own them ('available': has no free copy).
+ * Pass the gap list after `gapsOutsideDeck`, so a card the deck runs is never
+ * named. The Rin and Seri Cats+Dogs report said nothing about Jetmir (80%) or
+ * Spirited Companion (71%).
+ */
+export function buildUnownedLeftOutNote(
+  gaps: readonly { name: string; inclusion: number; isOwned?: boolean }[] | undefined,
+  strategy: 'full' | 'available'
+): string | undefined {
+  const staples = (gaps ?? [])
+    .filter((g) => !g.isOwned && g.inclusion >= LEFT_OUT_MIN_INCLUSION)
+    .sort((a, b) => b.inclusion - a.inclusion);
+  if (staples.length === 0) return undefined;
+  const named = staples
+    .slice(0, LEFT_OUT_NAMED)
+    .map((g) => `${g.name} (${Math.round(g.inclusion)}%)`)
+    .join(', ');
+  const more = staples.length - LEFT_OUT_NAMED;
+  const why =
+    strategy === 'available'
+      ? 'you have no free copy'
+      : `you don't own ${staples.length === 1 ? 'it' : 'them'}`;
+  const tail = more > 0 ? `, and ${more} more played in ${LEFT_OUT_MIN_INCLUSION}%+ of decks` : '';
+  return `Left out because ${why}: ${named}${tail}.`;
+}

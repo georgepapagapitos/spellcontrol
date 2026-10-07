@@ -576,6 +576,9 @@ export interface BuildReport {
   /** E282: owned-only build — the slots the commander's EDHREC data couldn't
    *  fill from the collection, weakest first, so the user knows what to swap. */
   thinPoolFillNote?: string;
+  /** E576: owned-only build — the staples (40%+ of decks) left out because
+   *  the user doesn't own them, or has no free copy, most-played first. */
+  unownedLeftOutNote?: string;
   /** Disclosure when an explicit (user/deck) must-include couldn't be seated —
    *  off-color, over the rarity/CMC cap, not on Arena, or unresolvable. Names
    *  each dropped pick with its reason so a forced card never vanishes
@@ -870,6 +873,7 @@ export interface GeneratedDeck {
   landCountNote?: string; // e.g. archetype-aware auto land count nudged the 37-land default
   poolExhaustionNote?: string; // e.g. an invalid filter / thin collection / other caps ran the pool dry and basics padded the gap
   thinPoolFillNote?: string; // E282: owned-only build — N slots filled from the collection outside the commander's EDHREC data, weakest first
+  unownedLeftOutNote?: string; // E576: owned-only build — staples left out because the user doesn't own them
   mustIncludeSkippedNote?: string; // e.g. a forced pick was off-color / over a cap / not on Arena and couldn't be seated
   mustIncludeOverrideNote?: string; // e.g. a forced pick was seated over the game-changer limit or max card price
   budgetNote?: string; // e.g. a combo upgrade was skipped to honor the budget cap

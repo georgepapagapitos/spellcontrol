@@ -207,6 +207,7 @@ export function assembleBuildReport(input: {
   if (generated.landCountNote) report.landCountNote = generated.landCountNote;
   if (generated.poolExhaustionNote) report.poolExhaustionNote = generated.poolExhaustionNote;
   if (generated.thinPoolFillNote) report.thinPoolFillNote = generated.thinPoolFillNote;
+  if (generated.unownedLeftOutNote) report.unownedLeftOutNote = generated.unownedLeftOutNote;
   if (generated.mustIncludeSkippedNote)
     report.mustIncludeSkippedNote = generated.mustIncludeSkippedNote;
   if (generated.mustIncludeOverrideNote)
