@@ -47,7 +47,7 @@ import { classCounts } from './classFloors';
 import { cardIneligibility } from './constraints';
 import { isLandCard } from './context';
 import { applyMove, memoRoleOf } from './judge';
-import { infeasibility, scoreDeck } from './index';
+import { scoreDeck } from './index';
 import { STAPLE_ROCKS } from './optimizer';
 import { protectedCards, inclusionPct } from './protections';
 import { SYNERGY_RESOURCES } from './terms/synergy';
@@ -58,7 +58,20 @@ import {
   trustVerdict,
   type TrustOptions,
 } from './trustRegion';
-import type { ObjectiveContext, ObjectiveDeck } from './types';
+import type { ObjectiveContext, ObjectiveDeck, ObjectiveScore } from './types';
+
+/**
+ * Whether the swap leaves any one hard check worse. The summed magnitude is not
+ * enough: a pick that cures a colour-identity slip while breaking the owned
+ * share by as much nets zero, and the owned share is the user's (E509).
+ */
+function breaksMore(before: ObjectiveScore, after: ObjectiveScore): boolean {
+  const was = new Map<string, number>();
+  for (const v of before.violations) was.set(v.check, (was.get(v.check) ?? 0) + v.magnitude);
+  const now = new Map<string, number>();
+  for (const v of after.violations) now.set(v.check, (now.get(v.check) ?? 0) + v.magnitude);
+  return [...now].some(([check, magnitude]) => magnitude > (was.get(check) ?? 0));
+}
 
 /** Discovery picks a deck. The slot is a handful of cards of 99, not a theme. */
 export const DISCOVERY_MAX = 2;
@@ -509,7 +522,7 @@ export function discover(
       checks++;
       const next = applyMove(deck, { out: [p.out], in: [p.cand.card] });
       const after = scoreDeck(next, ctx);
-      if (infeasibility(after) > infeasibility(before)) continue;
+      if (breaksMore(before, after)) continue;
       const delta = after.total - before.total;
       if (delta < DISCOVERY_MIN_DELTA) continue;
       if (chosen && delta <= chosen.delta) continue;

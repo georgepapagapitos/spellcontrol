@@ -180,3 +180,32 @@ describe('labelFor', () => {
     ).toContain('a known combo');
   });
 });
+
+// E509: ownership is a hard constraint the slot never trades. Every card of the
+// deck is owned and no card of the pool is, so any pick would be an unowned
+// card in a build that allows none.
+describe('discover in a build that owns only its own cards', { timeout: 120_000 }, () => {
+  const deck = BASE;
+  const owned = new Set(names(deck));
+  const under = (strategy: 'full' | 'available' | 'partial') =>
+    merenCtx({
+      ownedNames: owned,
+      customization: {
+        deckFormat: 99,
+        currency: 'USD',
+        collectionMode: true,
+        collectionStrategy: strategy,
+        collectionOwnedPercent: 100,
+      },
+    });
+
+  it('control: the same pool earns picks with no ownership rule', () => {
+    expect(discover(deck, poolFor(deck), ctx).picks.length).toBeGreaterThan(0);
+  });
+
+  for (const strategy of ['full', 'available', 'partial'] as const) {
+    it(`seats no unowned card under ${strategy}${strategy === 'partial' ? ' 100%' : ''}`, () => {
+      expect(discover(deck, poolFor(deck), under(strategy)).picks).toEqual([]);
+    });
+  }
+});
