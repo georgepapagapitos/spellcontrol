@@ -47,7 +47,6 @@ import {
   lookupInclusion,
 } from './commanderDeckAnalysis';
 import {
-  getDynamicRoleTargets,
   estimatePacingFromStats,
   decideBuildArchetype,
   loadCardEvidence,
@@ -58,6 +57,7 @@ import { ARCHETYPE_LABEL } from './strategyVocabulary';
 import { Archetype } from '@/deck-builder/types';
 import type { ArchetypeProvenance, Pacing, RoleTargetBreakdown } from '@/deck-builder/types';
 import * as wholeDeckSearch from './deckGeneration/wholeDeckSearchStep';
+import { resolveBuildPlan, wantsExtraCombat } from './deckGeneration/buildPlan';
 import { loadUserLists } from '@/deck-builder/hooks/useUserLists';
 import {
   fitsColorIdentity,
@@ -76,16 +76,7 @@ import {
   userCapsWithoutPrice,
   fitsSpellSlot,
 } from './deckFilters';
-import {
-  calculateTargetCounts,
-  computeAutoLandCount,
-  computeLandCountSizingAnchor,
-  computeEffectiveNonBasicLandCount,
-  isDefaultLandCount,
-  karstenAppliesToFormat,
-  DEFAULT_LAND_COUNT,
-} from './targetCounts';
-import { applyArchetypeTypeFloor } from './curveUtils';
+import { computeEffectiveNonBasicLandCount } from './targetCounts';
 import { BudgetTracker } from './budgetTracker';
 import { reserveLandBudget } from './landBudgetReserve';
 import { BracketGuard, bracketCeilings, ceilingsAreOpen } from './bracketGuard';
@@ -1348,7 +1339,6 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // Balanced roles tracking — declared at outer scope so return statement can access them
   let roleTargets: Record<RoleKey, number> | null = null;
   let roleTargetBreakdown: Record<RoleKey, RoleTargetBreakdown> | undefined;
-  let detectedArchetype: Archetype | undefined;
   // Which precedence tier decided detectedArchetype — persisted onto the
   // build report (S3) so the archetype label the user sees always names
   // where it came from instead of just asserting a value.
@@ -1861,10 +1851,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // merges partner oracle text, so this one check covers both slots. Read
   // again in E103's flagship-seating call (deckGeneration/phaseFlagshipSeating.ts)
   // as the reserved-seat gate, same boolean the +15 visibility boost already uses.
-  const commanderWantsExtraCombat =
-    isExtraCombatPiece(commander) ||
-    (!!partnerCommander && isExtraCombatPiece(partnerCommander)) ||
-    commanderProfile.abilities.some((a) => a.keyword === 'attack-trigger');
+  const commanderWantsExtraCombat = wantsExtraCombat(
+    partnerCommander ? [commander, partnerCommander] : [commander],
+    commanderProfile
+  );
 
   // E511: the build's archetype comes from the cards (the commander's EDHREC
   // pool weighted by inclusion), with EDHREC's themes as a hint; precedence
@@ -1883,82 +1873,30 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   });
   const archetypeFallback = archetypeDecision.fallback;
   archetypeIsLowConfidence = archetypeDecision.isLowConfidence;
-  detectedArchetype = archetypeDecision.archetype;
+  const detectedArchetype: Archetype = archetypeDecision.archetype;
   detectedArchetypeProvenance = archetypeDecision.provenance;
 
-  // Dynamic role targets (blended EDHREC + archetype-model ramp/removal/
-  // boardwipe/cardDraw slots) — computed once, unconditionally, so both the
-  // Karsten land-count formula below AND the balancedRoles branch further
-  // down (which used to recompute this from scratch) share ONE result.
-  // Pure / side-effect-free aside from a debug log; every input it needs
-  // (format, context.selectedThemes, state.edhrecData, archetypeFallback)
-  // is already in scope above.
-  const dynamicRoleTargets = getDynamicRoleTargets(
+  // The build plan: role targets (blended EDHREC + archetype-model slots),
+  // pacing, the Karsten auto land count and the type/curve targets, derived
+  // once. The analysis of a saved generated deck reads the same plan
+  // (deckGeneration/buildPlan.ts), so a deck keeps its grade after generation.
+  // Computed unconditionally: the land count needs the ramp target before the
+  // balancedRoles gate below is known.
+  const plan = resolveBuildPlan({
     format,
-    context.selectedThemes,
-    state.edhrecData?.stats,
-    state.edhrecData,
-    null, // E121: was customization.advancedTargets?.edhrecBlendWeight (deleted, dead at default)
-    null, // E121: was customization.advancedTargets?.edhrecInclusionThreshold (deleted, dead at default)
-    archetypeFallback
-  );
-
-  // Karsten land-count formula: only when the user hasn't customized land
-  // inputs (still at the store defaults) — an explicit user choice is never
-  // second-guessed. Uses the deck's planned ramp-slot target (blended EDHREC
-  // + archetype model — NOT the raw EDHREC inclusion count, which reads a
-  // commander's typical ramp density rather than what this deck will
-  // actually run) + the EDHREC average CMC. The note fires whenever this
-  // tune runs, even when it resolves back to the 37-land baseline — a
-  // deck genuinely tuned to 37 still deserves disclosure, and the
-  // superset-pick wildcard scan (see wildcardCount below) is meant to run
-  // for it too.
-  // SIZING-ONLY anchor for the type/curve passes below — see
-  // computeLandCountSizingAnchor's doc. Default (not auto-tuned) is the flat
-  // baseline, matching typeTargetLandCount's own pre-existing default.
-  let landCountSizingAnchor = DEFAULT_LAND_COUNT;
-
-  // karstenAppliesToFormat: the [32,40] Karsten band is commander-sized —
-  // explicit format gate so a non-99-card path with EDHREC-shaped data can
-  // never auto-tune into a 32-land 60-card deck (dormant hazard, see the
-  // predicate's doc in targetCounts.ts).
-  if (karstenAppliesToFormat(format) && isDefaultLandCount(customization) && state.edhrecData) {
-    const plannedRampCount = dynamicRoleTargets.targets.ramp;
-    const manaCurve = state.edhrecData.stats?.manaCurve ?? {};
-    const curveTotal = Object.values(manaCurve).reduce((s, v) => s + v, 0);
-    const avgCmc =
-      curveTotal > 0
-        ? Object.entries(manaCurve).reduce((s, [cmc, count]) => s + Number(cmc) * count, 0) /
-          curveTotal
-        : 0;
-    resolvedLandCount = computeAutoLandCount(detectedArchetype, plannedRampCount, avgCmc);
-    landCountSizingAnchor = computeLandCountSizingAnchor(
-      detectedArchetype,
-      plannedRampCount,
-      avgCmc
-    );
-    landCountAutoTuned = true;
-    edhrecRampCountForNote = plannedRampCount;
-  }
-
-  // E88 + E94: when the auto-tune RAISES land count above the sizing anchor
-  // (legacy-validated per archetype/ramp/curve — see
-  // computeLandCountSizingAnchor), size the type passes as if lands were
-  // still at that anchor — so they pick their full, un-squeezed complement
-  // (including the marginal roleless-premium cards that would otherwise
-  // never be tried) — and let phaseLandSqueezeReconcile (just before Smart
-  // Trim, below) reconcile the resulting surplus down to the real land
-  // count, globally, disclosed, and with the SAME protection tiers
-  // (must-include/staple/protection-piece/combo/role) Smart Trim already
-  // carries. This routes the ENTIRE Karsten-vs-legacy-anchor delta (not just
-  // the >37 case) through that disclosed/protected reconcile — Karsten can
-  // land anywhere in its own 32-40 band relative to a legacy anchor that
-  // independently varies 32-40, and either direction of "resolved lower than
-  // anchor" is a genuine shortage the existing shortage-fill path already
-  // handles gracefully by ADDING marginal picks (no casualty problem there).
-  const typeTargetLandCount = landCountAutoTuned
-    ? Math.min(resolvedLandCount, landCountSizingAnchor)
-    : resolvedLandCount;
+    customization,
+    selectedThemes: context.selectedThemes,
+    edhrecData: state.edhrecData,
+    archetypeFallback,
+    hasPartner: !!partnerCommander,
+    commanderWantsExtraCombat,
+  });
+  resolvedLandCount = plan.resolvedLandCount;
+  landCountAutoTuned = plan.landCountAutoTuned;
+  if (landCountAutoTuned) edhrecRampCountForNote = plan.plannedRampCount;
+  // The land budget the type passes are sized against (E88 + E94:
+  // phaseLandSqueezeReconcile reconciles the surplus down to the real count).
+  const typeTargetLandCount = plan.typeTargetLandCount;
 
   // E100: scale the nonbasic land budget with the auto-tune raise so it
   // never lands entirely as basics — see computeEffectiveNonBasicLandCount's
@@ -1972,31 +1910,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     colorIdentity.length
   );
 
-  // Calculate target counts with type and curve targets
-  const {
-    composition: targets,
-    typeTargets,
-    curveTargets,
-  } = calculateTargetCounts(
-    customization,
-    state.edhrecData?.stats,
-    !!partnerCommander,
-    resolvedPacing,
-    resolvedLandCount,
-    typeTargetLandCount
-  );
-
-  // Archetype identity floor on top of EDHREC's purely stats-driven type
-  // targets (e.g. a spellslinger commander needs a real instant/sorcery
-  // density even if its EDHREC page sample skews creature-heavy).
-  {
-    const nonLandTotalForFloor = Object.values(typeTargets).reduce((s, v) => s + v, 0);
-    applyArchetypeTypeFloor(
-      typeTargets,
-      detectedArchetype ?? Archetype.GOODSTUFF,
-      nonLandTotalForFloor
-    );
-  }
+  const { composition: targets, typeTargets, curveTargets } = plan;
 
   // Compress curve targets for Tiny Leaders (CMC cap at 3)
   if (maxCmc !== null) {
@@ -2467,43 +2381,12 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
 
     // ---- Balanced Roles: pre-compute role map and seed counts ----
     if (customization.balancedRoles) {
-      // Reuses the SAME dynamicRoleTargets computed unconditionally above
-      // (the Karsten land-count formula needs its .ramp before this gate
-      // is known) — don't recompute.
-      const dynamic = dynamicRoleTargets;
-      roleTargets = dynamic.targets;
-      detectedArchetype = dynamic.archetype; // same value already set above; kept for shape parity
-      roleTargetBreakdown = dynamic.breakdown;
-      // When auto-detect is on, prefer the richer archetype-aware pacing from getDynamicRoleTargets
-      if (customization.tempoAutoDetect) {
-        resolvedPacing = dynamic.pacing;
-        detectedPacing = dynamic.pacing;
-      }
-
-      // E109: one more point off the board wipe target for a board-centric
-      // plan (see isBoardCentricPlan) — ARCHETYPE_ROLE_MULTIPLIERS already
-      // shaves TOKENS/TRIBAL/ARISTOCRATS/AGGRO, but panel evidence (Isshin:
-      // 4 wipes, including Farewell and Blasphemous Act, against its own
-      // token board) shows that alone isn't enough, and a GOODSTUFF-
-      // mislabeled creature-heavy deck (a split-strategy commander like
-      // Atraxa, whose archetype vote defaults to GOODSTUFF when no theme
-      // dominates) gets no reduction at all today. Floored at 1 — never
-      // zero out wipe coverage, a board-centric deck still needs a reset
-      // button — and only fires when there's a point to give up. Mutates
-      // BOTH roleTargets and roleTargetBreakdown together so the pick-time
-      // cap and the report's disclosed target can never drift apart.
-      if (
-        isBoardCentricPlan(detectedArchetype, typeTargets, commanderWantsExtraCombat) &&
-        roleTargets.boardwipe > 1
-      ) {
-        const shavedTarget = roleTargets.boardwipe - 1;
-        roleTargets = { ...roleTargets, boardwipe: shavedTarget };
-        roleTargetBreakdown = {
-          ...roleTargetBreakdown,
-          boardwipe: { ...roleTargetBreakdown.boardwipe, blended: shavedTarget },
-        };
-        wipeAsymmetryTargetShaved = true;
-      }
+      // The plan's targets (computed unconditionally above: the land count
+      // needs the ramp target before this gate), with the board-centric wipe
+      // shave (E109) already applied. The analysis reads the same plan.
+      roleTargets = plan.roleTargets;
+      roleTargetBreakdown = plan.roleTargetBreakdown;
+      wipeAsymmetryTargetShaved = plan.wipeTargetShaved;
     }
     const cardRoleMap = new Map<string, RoleKey>();
     const cardCmcMap = new Map<string, number>();
@@ -4680,7 +4563,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // categories.lands, drifting from the per-card role fields it's supposed to
   // mirror). `currentRoleCounts` itself stays untouched — it's still the live
   // counter driving in-flight picking/fixup decisions during generation.
-  const finalRoleRecount = computeRoleCounts(nonLandCards);
+  // The whole mainboard, lands included: a spell-land MDFC seated as a land
+  // slot is still a removal/draw spell to every other reader (countedRoleOf
+  // reads its front face; a real land is null).
+  const finalRoleRecount = computeRoleCounts(Object.values(categories).flat());
   const finalRoleCounts = finalRoleRecount.roleCounts;
   const stats = await finalStatsPhase(state, saltIndex);
   const { bracketEstimation, deckGrade } = computeGradeAndBracket({
@@ -4858,7 +4744,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // (or couldn't) close — surplusConversions above already discloses
   // whatever backfill DID fix. Undefined when every reactive role met target.
   const roleDeficitNotes = buildRoleDeficitNotes(
-    nonLandCards,
+    Object.values(categories).flat(),
     roleTargets,
     state.edhrecData?.cardlists.allNonLand,
     { bannedCards, isSaltBlocked, keeperBlocked: state.keeperBlocked }

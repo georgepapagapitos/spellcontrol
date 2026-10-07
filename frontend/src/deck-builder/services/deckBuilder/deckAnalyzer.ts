@@ -23,6 +23,7 @@ import {
   getCardImageUrl,
   CHANNEL_LANDS,
 } from '@/deck-builder/services/scryfall/client';
+import { isManaSource, subtypesOf } from './roleSubtypes';
 import { calculateCurvePercentages } from './curveUtils';
 import { isColorShort, shortfallThresholdsForCurve } from './colorShortfall';
 import { detectPacing, type Pacing } from './pacingDetector';
@@ -2119,7 +2120,7 @@ export function analyzeDeck(
   const rampCount = roleCounts['ramp'] || 0;
   let manaProducerCount = 0;
   for (const card of currentCards) {
-    if (card.rampSubtype === 'mana-producer' || card.rampSubtype === 'mana-rock') {
+    if (isManaSource(subtypesOf(card).ramp)) {
       manaProducerCount++;
     }
   }
@@ -2266,8 +2267,8 @@ export function analyzeDeck(
   // --- Scoring Context (for smart recommendation scoring) ---
   const currentSubtypeCounts: Record<string, number> = {};
   for (const card of currentCards) {
-    const subtype =
-      card.rampSubtype || card.removalSubtype || card.boardwipeSubtype || card.cardDrawSubtype;
+    const st0 = subtypesOf(card);
+    const subtype = st0.ramp || st0.removal || st0.boardwipe || st0.cardDraw;
     if (subtype) {
       currentSubtypeCounts[subtype] = (currentSubtypeCounts[subtype] ?? 0) + 1;
     } else {
@@ -2415,27 +2416,23 @@ export function analyzeDeck(
   };
 
   function makeAnalyzedCard(card: ScryfallCard, targetRole?: string): AnalyzedCard {
+    const st = subtypesOf(card);
     let subtype: string | undefined;
     switch (targetRole) {
       case 'cardDraw':
-        subtype =
-          card.cardDrawSubtype || card.rampSubtype || card.removalSubtype || card.boardwipeSubtype;
+        subtype = st.cardDraw || st.ramp || st.removal || st.boardwipe;
         break;
       case 'removal':
-        subtype =
-          card.removalSubtype || card.boardwipeSubtype || card.rampSubtype || card.cardDrawSubtype;
+        subtype = st.removal || st.boardwipe || st.ramp || st.cardDraw;
         break;
       case 'boardwipe':
-        subtype =
-          card.boardwipeSubtype || card.removalSubtype || card.rampSubtype || card.cardDrawSubtype;
+        subtype = st.boardwipe || st.removal || st.ramp || st.cardDraw;
         break;
       case 'ramp':
-        subtype =
-          card.rampSubtype || card.cardDrawSubtype || card.removalSubtype || card.boardwipeSubtype;
+        subtype = st.ramp || st.cardDraw || st.removal || st.boardwipe;
         break;
       default:
-        subtype =
-          card.rampSubtype || card.removalSubtype || card.boardwipeSubtype || card.cardDrawSubtype;
+        subtype = st.ramp || st.removal || st.boardwipe || st.cardDraw;
         break;
     }
     let subtypeLabel = subtype ? SUBTYPE_LABELS[subtype] || subtype : undefined;
@@ -2542,10 +2539,8 @@ export function analyzeDeck(
     .sort(sortByInclusion);
 
   // Mana sources analysis
-  const msProducers = rampCards.filter(
-    (ac) => ac.card.rampSubtype === 'mana-producer' || ac.card.rampSubtype === 'mana-rock'
-  ).length;
-  const msReducers = rampCards.filter((ac) => ac.card.rampSubtype === 'cost-reducer').length;
+  const msProducers = rampCards.filter((ac) => isManaSource(subtypesOf(ac.card).ramp)).length;
+  const msReducers = rampCards.filter((ac) => subtypesOf(ac.card).ramp === 'cost-reducer').length;
   const msOther = rampCards.length - msProducers - msReducers;
   const msEarly = rampCards.filter((ac) => ac.card.cmc <= 2).length;
   const msAvgCmc =
@@ -2643,7 +2638,7 @@ export function analyzeDeck(
 
   // Also count mana producers (dorks/rocks) as color sources
   for (const card of currentCards) {
-    if (card.rampSubtype !== 'mana-producer' && card.rampSubtype !== 'mana-rock') continue;
+    if (!isManaSource(subtypesOf(card).ramp)) continue;
     const produced = card.produced_mana || [];
     for (const mana of produced) {
       if (ci.includes(mana)) {
@@ -2657,10 +2652,11 @@ export function analyzeDeck(
     .filter((c) => {
       const tl = getFrontFaceTypeLine(c).toLowerCase();
       if (tl.includes('land')) return false;
+      const ramp = subtypesOf(c).ramp;
       return (
-        c.rampSubtype === 'mana-producer' ||
-        c.rampSubtype === 'mana-rock' ||
-        c.rampSubtype === 'cost-reducer' ||
+        ramp === 'mana-producer' ||
+        ramp === 'mana-rock' ||
+        ramp === 'cost-reducer' ||
         hasTag(c.name, 'mana-dork') ||
         hasTag(c.name, 'mana-rock') ||
         hasTag(c.name, 'cost-reducer')

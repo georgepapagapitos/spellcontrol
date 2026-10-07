@@ -53,7 +53,9 @@ function landCountFloor(format: number, deckCards: number): number {
 /** True when landCount/nonBasicLandCount are both still at the store defaults
  *  — the only signal available that the user hasn't customized lands (no
  *  dirty flag is threaded through generation context). */
-export function isDefaultLandCount(customization: Customization): boolean {
+export function isDefaultLandCount(
+  customization: Pick<Customization, 'landCount' | 'nonBasicLandCount'>
+): boolean {
   return customization.landCount === DEFAULT_LAND_COUNT && customization.nonBasicLandCount === 15;
 }
 
@@ -206,7 +208,7 @@ export function computeEffectiveNonBasicLandCount(
 
 // Calculate target counts for each category based on EDHREC stats or fallback defaults
 export function calculateTargetCounts(
-  customization: Customization,
+  customization: Pick<Customization, 'deckFormat' | 'landCount'>,
   edhrecStats?: EDHRECCommanderStats,
   hasPartner?: boolean,
   pacing?: Pacing,

@@ -41,7 +41,7 @@ import {
   type OptimizeSwaps,
   type SummaryItem,
 } from './deckAnalyzer';
-import { getDynamicRoleTargets } from './roleTargets';
+import { deriveAnalysisTargets, type DeckBuild } from './analysisTargets';
 import { buildCommanderProfile } from './commanderProfile';
 import { buildGapAnalysis } from './gapAnalysisBuilder';
 import { computeHiddenGems } from './hiddenGems';
@@ -51,7 +51,7 @@ import { computeMisfits, summarizeMisfits, type MisfitSummary } from './cardFit'
 import { createCoachProtections } from '@/lib/coach/coach-protections';
 import { isUtilityLand } from './landUpgrades';
 import { roleIsIncidental } from './incidentalRole';
-import { dropSymmetricWipes, prefersOneSidedWipes, shaveWipeTarget } from './coachWipes';
+import { dropSymmetricWipes, prefersOneSidedWipes } from './coachWipes';
 import { coachExclusions, dropExcluded, type BuildRemovals } from './coachExclusions';
 import { fetchDeckEdhrecPage, type DeckEdhrecSource } from './deckEdhrecSource';
 import {
@@ -143,9 +143,11 @@ export function countedRoleOf(card: RoleCard): ReturnType<typeof validateCardRol
 
 /**
  * Tag each non-land card by functional role + subtype, one role per card
- * (`countedRoleOf`). Pass the mainboard: the generator, the analysis, the
- * deck page and the AI's `check_bracket` all count the 99 without the
- * commander, so their numbers line up.
+ * (`countedRoleOf`). Pass the whole mainboard, lands included (a land counts
+ * under no role, but a spell // land MDFC counts for its spell half wherever it
+ * is seated): the generator, the analysis, the deck page and the AI's
+ * `check_bracket` all count the 99 without the commander, so their numbers
+ * line up.
  */
 export function computeRoleCounts(cards: RoleCard[]): RoleCountResult {
   const roleCounts: Record<string, number> = {
@@ -552,6 +554,9 @@ export interface AnalyzeCommanderDeckParams {
   archetypeBlendNames?: string[];
   /** The EDHREC page(s) a generated deck was built from; absent = the base page. */
   edhrecSource?: DeckEdhrecSource;
+  /** How a generated deck was built (settings, themes, archetype): its targets
+   *  and grade read the plan generation built to. Absent = hand-built deck. */
+  build?: DeckBuild;
   /** The build's stated removals (`BuildReport` repairs); Coach doesn't offer them back. */
   buildRemovals?: BuildRemovals;
 }
@@ -764,25 +769,17 @@ export async function analyzeCommanderDeck(
     }
 
     const { roleCounts } = computeRoleCounts(params.cards);
-    // Manual/imported decks have no selected themes, so without a fallback
-    // this always lands on GOODSTUFF — thread the commander's own mechanically
-    // detected archetype (tribal/spellslinger/etc.) the same way generation does.
     const commanderProfile = buildCommanderProfile(params.commander, params.partnerCommander);
-    const { targets: rawRoleTargets } = getDynamicRoleTargets(
-      params.deckSize,
-      params.edhrecSource?.themes,
-      edhrecData.stats,
-      edhrecData,
-      undefined,
-      undefined,
-      commanderProfile.primaryArchetype
-    );
-
     const commanders = [params.commander, params.partnerCommander ?? []].flat();
-    const roleTargets = shaveWipeTarget(
-      rawRoleTargets,
-      prefersOneSidedWipes(commanders, commanderProfile, params.cards)
-    );
+    const { roleTargets, overridePacing, overrideLandTarget } = deriveAnalysisTargets({
+      commanders,
+      cards: params.cards,
+      deckSize: params.deckSize,
+      edhrecData,
+      sourceThemes: params.edhrecSource?.themes,
+      profile: commanderProfile,
+      build: params.build,
+    });
     const nonLand = params.cards.filter((c) => !frontTypeLine(c).toLowerCase().includes('land'));
     const averageCmc =
       nonLand.length > 0 ? nonLand.reduce((s, c) => s + (c.cmc ?? 0), 0) / nonLand.length : 0;
@@ -855,6 +852,8 @@ export async function analyzeCommanderDeck(
       deckSize: params.deckSize,
       cardInclusionMap,
       colorIdentity: params.colorIdentity,
+      overridePacing,
+      overrideLandTarget,
     });
 
     // Small opportunistic lift seed set for the gap-analysis ranking below:

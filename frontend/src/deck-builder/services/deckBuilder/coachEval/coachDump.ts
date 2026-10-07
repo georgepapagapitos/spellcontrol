@@ -364,12 +364,15 @@ export interface RoleStamp {
 /**
  * A dump whose role numbers are one source's. A generated dump carries the
  * generator's counts and targets and its own grade; Coach's analysis recounts the
- * saved deck (an MDFC spell-land such as Fell the Profane // Fell Mire is a
- * removal spell to it, a land to the generator) and derives its own targets
- * (ramp 14 for the generator's 15), then grades from those. Putting the analysis'
- * grade beside the generator's counts printed "Removal: running 11" next to
- * roleCounts.removal 10 (T171 S6 round 2). The Cuts-lane gate stamps BOTH sides
- * from the analysis, so before and after are measured by one ruler.
+ * saved deck and grades from its own targets. Both read one plan now (E573: the
+ * build plan and the whole-mainboard recount), so the two agree on a deck the
+ * generator just built; a dump from before that carried the old disagreement
+ * (an MDFC spell-land such as Fell the Profane // Fell Mire a land to the
+ * generator and a removal spell to the analysis, ramp target 15 against 14).
+ * Putting the analysis' grade beside the generator's counts printed "Removal:
+ * running 11" next to roleCounts.removal 10 (T171 S6 round 2). The Cuts-lane gate
+ * stamps BOTH sides from the analysis, so before and after are measured by one
+ * ruler.
  */
 export function restampRoles(dump: CoachDump, roles: RoleStamp, deckGrade: unknown): CoachDump {
   return {

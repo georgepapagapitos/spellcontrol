@@ -165,10 +165,7 @@ export function assemble(
   categories: Record<DeckCategory, ScryfallCard[]>,
   extra: Partial<GeneratedDeck> = {}
 ): GeneratedDeck {
-  const nonLand = (Object.entries(categories) as [DeckCategory, ScryfallCard[]][])
-    .filter(([cat]) => cat !== 'lands')
-    .flatMap(([, cards]) => cards);
-  const recount = computeRoleCounts(nonLand);
+  const recount = computeRoleCounts(Object.values(categories).flat());
   return {
     commander: card(COMMANDER),
     partnerCommander: null,

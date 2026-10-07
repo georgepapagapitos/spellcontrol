@@ -144,9 +144,9 @@ export function rewriteDump(
   const nonLand = Object.entries(categories)
     .filter(([b]) => b !== 'lands')
     .flatMap(([, cards]) => cards);
-  const roles = computeRoleCounts(nonLand);
+  const roles = computeRoleCounts([...lands, ...nonLand]);
   const roleCardNames: Record<string, string[]> = {};
-  for (const c of nonLand) {
+  for (const c of [...lands, ...nonLand]) {
     const r = countedRoleOf(c);
     if (r) (roleCardNames[r] ??= []).push(c.name);
   }

@@ -110,7 +110,7 @@ export function swapCard(
   }
 
   // Recount roles and subtypes the way generation stores them and the deck
-  // page recounts them (computeRoleCounts over the nonland buckets, E166 and
+  // page recounts them (computeRoleCounts over the whole mainboard, E166 and
   // E528). This used to tally the pick-time deckRole / *Subtype stamps across
   // every category, lands included, and stampRoleSubtypes stamps every
   // subtype on every pick, so one swap put the stored numbers back out of
@@ -121,11 +121,7 @@ export function swapCard(
   let newBoardwipeSubtypeCounts = deck.boardwipeSubtypeCounts;
   let newCardDrawSubtypeCounts = deck.cardDrawSubtypeCounts;
   if (deck.roleCounts && deck.roleTargets) {
-    const recount = computeRoleCounts(
-      (Object.entries(newCategories) as [DeckCategory, ScryfallCard[]][])
-        .filter(([category]) => category !== 'lands')
-        .flatMap(([, cards]) => cards)
-    );
+    const recount = computeRoleCounts(Object.values(newCategories).flat());
     newRoleCounts = recount.roleCounts;
     newRampSubtypeCounts = recount.rampSubtypeCounts;
     newRemovalSubtypeCounts = recount.removalSubtypeCounts;

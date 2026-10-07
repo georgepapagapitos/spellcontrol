@@ -758,12 +758,12 @@ export function checkDeckInvariants(
 
   // 20. report truth (E166): the shipped roleCounts must be a recount of the
   // shipped cards through the one role source everything else reads
-  // (computeRoleCounts / countedRoleOf), over the same nonland bucket.
+  // (computeRoleCounts / countedRoleOf), over the whole mainboard.
   if (deck.roleTargets && !deck.roleCounts) {
     add('HARD', 'report-roles', 'roleTargets is set but roleCounts is missing');
   }
   if (deck.roleCounts) {
-    const recount = computeRoleCounts(nonLandBucket);
+    const recount = computeRoleCounts(cards);
     const shipped = nonZero(deck.roleCounts);
     const truth = nonZero(recount.roleCounts);
     if (!sameCounts(shipped, truth)) {
