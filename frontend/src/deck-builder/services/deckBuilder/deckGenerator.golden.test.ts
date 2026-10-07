@@ -539,6 +539,22 @@ describe('generateDeck — invariants', () => {
     const total = Object.values(deck.categories).flat().length;
     expect(total).toBe(99);
   });
+
+  // E574: the generator measures how much of a themed deck is on its theme (the
+  // build report writes the per-theme line from it). The measure itself is
+  // pinned over real data in themeFidelity.test.ts; this pins the wiring.
+  it('measures a themed build against its theme page, and an unthemed build not at all', async () => {
+    const themed = await generateDeck({
+      ...baseContext(),
+      selectedThemes: [{ name: 'Elves', slug: 'elves', source: 'edhrec', isSelected: true }],
+    });
+    expect(themed.dataSource).toBe('theme');
+    expect(themed.themeFidelity).toMatchObject({
+      nonland: Object.values(themed.categories).flat().length - themed.categories.lands.length,
+      themes: [{ name: 'Elves' }],
+    });
+    expect((await generateDeck(baseContext())).themeFidelity).toBeUndefined();
+  });
 });
 
 describe('generateDeck — whole-deck search (E513, on unless customization.wholeDeckSearch is false)', () => {

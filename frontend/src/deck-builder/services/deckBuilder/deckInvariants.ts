@@ -41,6 +41,7 @@ import {
 } from './deckFilters';
 import { bracketCeilings } from './bracketGuard';
 import { copyLimit, normalizeCardName } from './cardIdentity';
+import { measureThemeFidelity, themeDilution, type ThemePage } from './themeFidelity';
 
 // The name helpers live in a leaf (cardIdentity.ts) the objective can import
 // without this file's other dependencies.
@@ -79,6 +80,7 @@ export type InvariantCheck =
   | 'game-changers'
   | 'bracket-game-changers'
   | 'empty-buckets'
+  | 'theme-fidelity'
   | 'errors';
 
 export interface InvariantViolation {
@@ -119,6 +121,13 @@ export interface InvariantContext {
    * that priced Brainstorm out), so it is SOFT.
    */
   requestedNames?: Iterable<string>;
+  /**
+   * The selected themes' EDHREC pages and average decks (loadThemePages with
+   * `withAverageDeck`), for the SOFT `theme-fidelity` check. Without them the
+   * check does not run: the mocked CI suites have no theme pages, the live
+   * harness reads them.
+   */
+  themePages?: readonly ThemePage[];
   /** "Today", for the previewed-commander check. Defaults to now; tests pin
    *  it so a card's release date can't flip their answer. */
   now?: Date;
@@ -864,6 +873,16 @@ export function checkDeckInvariants(
   if (lands.length === 0 && cz.landCount > 0) add('SOFT', 'empty-buckets', 'no lands in the deck');
   if (!cards.some((c) => /\bCreature\b/.test(c.type_line || ''))) {
     add('SOFT', 'empty-buckets', 'zero creatures in the deck');
+  }
+
+  // 24. theme fidelity (E574, SOFT): a deck built from its theme pages should
+  // be about as on-theme as those themes' own average decks. Only a build that
+  // really used the theme pages is held to it; a base-page fallback is
+  // disclosed by the pool-fallback note and has no theme to be faithful to.
+  if (ctx.themePages && ctx.themePages.length > 0 && /^theme/.test(deck.dataSource ?? '')) {
+    const fidelity = measureThemeFidelity(nonLandBucket, ctx.themePages);
+    const diluted = fidelity && themeDilution(fidelity);
+    if (diluted) add('SOFT', 'theme-fidelity', diluted);
   }
 
   return v;

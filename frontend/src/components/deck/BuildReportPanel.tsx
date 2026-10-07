@@ -217,6 +217,7 @@ export function BuildReportPanel({
     landSqueezeTrimNote,
     bracketPoolFallbackNote,
     dialSeedNote,
+    themeFidelityNote,
     archetypeBlendNote,
     similarPoolNote,
     integrityNotes,
@@ -348,6 +349,9 @@ export function BuildReportPanel({
       )}
 
       {dialSeedNote && <p className="build-report-line build-report-source">{dialSeedNote}</p>}
+      {themeFidelityNote && (
+        <p className="build-report-line build-report-source">{themeFidelityNote}</p>
+      )}
       {bracketPoolFallbackNote && (
         <p className="build-report-line build-report-source">{bracketPoolFallbackNote}</p>
       )}

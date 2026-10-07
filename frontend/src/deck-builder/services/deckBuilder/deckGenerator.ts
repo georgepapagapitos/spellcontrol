@@ -201,6 +201,7 @@ import { postGenFixupPhase } from './deckGeneration/phasePostGenFixup';
 import { smartTrimPhase, computeTrimResistance } from './deckGeneration/phaseSmartTrim';
 import { wildcardScanPhase } from './deckGeneration/phaseWildcardScan';
 import { dialSeedPhase } from './deckGeneration/phaseDialSeed';
+import { deckThemeFidelity } from './deckGeneration/themeFidelityData';
 import {
   MUST_INCLUDE_BOOST,
   LAND_PROTECTION_BOOST,
@@ -4882,12 +4883,26 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     if (name in cardProvenance) cardProvenance[name] = similarPoolSeated.provenance!;
   }
 
+  // E574: how much of a themed deck is on its theme, and the report line for it.
+  const themeFidelity = await deckThemeFidelity(
+    {
+      themes: selectedThemesWithSlugs,
+      commanderName: commander.name,
+      partnerName: partnerCommander?.name,
+      budgetOption: state.cfg.budgetOption,
+      targetBracket: state.cfg.targetBracket,
+      dataSource: state.dataSource,
+    },
+    Object.entries(categories).flatMap(([cat, cards]) => (cat === 'lands' ? [] : cards))
+  );
+
   return {
     commander,
     partnerCommander,
     categories,
     stats,
     usedThemes,
+    ...themeFidelity,
     gapAnalysis: gapsOutsideDeck(gapAnalysis, inFinalDeck),
     packagePicks: liftPicks?.packagePicks,
     liftPicksNote: liftPicks?.liftPicksNote,

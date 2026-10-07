@@ -69,6 +69,8 @@ import {
   type InvariantViolation,
 } from './deckInvariants';
 import { frontFaceName } from '@/lib/cards/card-text';
+import { measureThemeFidelity, type ThemePage } from './themeFidelity';
+import { loadThemePages } from './deckGeneration/themeFidelityData';
 import { choosesColorBeforeGame, withChosenColor } from '@/deck-builder/lib/partnerUtils';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -342,6 +344,12 @@ interface RunSpec {
   /** A theme to build with (stress/niche rows). */
   themeName?: string;
   themeSlug?: string;
+  /** E574: several themes, in pick order (the first one shapes the deck). Wins
+   *  over themeName/themeSlug when both are set. */
+  themes?: Array<{ name: string; slug: string }>;
+  /** E574 negative control: build with NO theme, then measure the deck against
+   *  these themes' pages anyway, to see what an ignored theme scores. */
+  measureAgainst?: Array<{ name: string; slug: string }>;
   /** The row's correct outcome is a refusal: generation must throw an error
    *  whose first line contains this text (an impossible filter, an illegal
    *  commander). Building a deck anyway is then a HARD violation. */
@@ -351,6 +359,26 @@ interface RunSpec {
    *  then stamps it onto the card (withChosenColor), so the harness does the
    *  same and refuses a chooser row without one. */
   chosenColor?: string;
+}
+
+/** A row's themes in pick order: `themes`, else the single themeName/themeSlug. */
+function rowThemes(spec: RunSpec): Array<{ name: string; slug: string }> {
+  if (spec.themes) return spec.themes;
+  return spec.themeName && spec.themeSlug ? [{ name: spec.themeName, slug: spec.themeSlug }] : [];
+}
+
+/** E574: the measure for the dump, with the average-deck baseline it is judged by. */
+function themeFidelityDump(deck: GeneratedDeck, themePages: readonly ThemePage[]) {
+  const nonland = Object.entries(deck.categories).flatMap(([cat, cards]) =>
+    cat === 'lands' ? [] : cards
+  );
+  const f = measureThemeFidelity(nonland, themePages);
+  if (!f) return null;
+  return {
+    ...f,
+    shortfall: f.averageShare === undefined ? null : f.averageShare - f.share,
+    dataSource: deck.dataSource ?? null,
+  };
 }
 
 const BASE_COMMANDERS = [
@@ -582,6 +610,15 @@ function stressPanel(): RunSpec[] {
     readFileSync(resolve(here, '__fixtures__', 'stress-panel.json'), 'utf8')
   ) as RunSpec[];
 }
+// E574: LIVE_GEN_PANEL=theme runs the committed theme-fidelity panel: tribal and
+// mechanic themes on well-known commanders, including the two-theme Rin and
+// Seri rows. Its on-theme shares are the baseline deckInvariants' SOFT
+// `theme-fidelity` check is judged against (see themeFidelity.ts).
+function themePanel(): RunSpec[] {
+  return JSON.parse(
+    readFileSync(resolve(here, '__fixtures__', 'theme-panel.json'), 'utf8')
+  ) as RunSpec[];
+}
 const FULL_PANEL: RunSpec[] = process.env.LIVE_GEN_SPEC
   ? (JSON.parse(readFileSync(resolve(process.env.LIVE_GEN_SPEC), 'utf8')) as RunSpec[])
   : process.env.LIVE_GEN_PANEL === 'niche'
@@ -590,7 +627,9 @@ const FULL_PANEL: RunSpec[] = process.env.LIVE_GEN_SPEC
       ? POPULAR_THEMED_RUNS
       : process.env.LIVE_GEN_PANEL === 'stress'
         ? stressPanel()
-        : RUNS;
+        : process.env.LIVE_GEN_PANEL === 'theme'
+          ? themePanel()
+          : RUNS;
 
 // LIVE_GEN_SHARD=k/n: keep the rows whose panel index is k mod n. The nightly
 // workflow rotates k by day so every stress row runs at least once per n
@@ -816,17 +855,12 @@ describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
           // Niche-panel rows carry a real EDHREC theme (source 'edhrec' + slug
           // is what state.ts requires to populate selectedThemesWithSlugs);
           // the standard panel stays theme-less exactly as before.
-          selectedThemes:
-            spec.themeSlug && spec.themeName
-              ? [
-                  {
-                    name: spec.themeName,
-                    slug: spec.themeSlug,
-                    source: 'edhrec' as const,
-                    isSelected: true,
-                  },
-                ]
-              : [],
+          selectedThemes: rowThemes(spec).map((t) => ({
+            name: t.name,
+            slug: t.slug,
+            source: 'edhrec' as const,
+            isSelected: true,
+          })),
           collectionNames,
           collectionPool: fixture ? fixture.pool : collectionNames ? COLLECTION_POOL : undefined,
         };
@@ -861,8 +895,29 @@ describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
 
         // E508: the committed invariant checker over the real deck, with the
         // name-lookup evidence recorded at the fetch boundary.
+        // E574: the themes' pages and average decks, read once for the
+        // invariant and the dump.
+        const themePages = await loadThemePages({
+          themes: [
+            ...(ctx.selectedThemes ?? []),
+            ...(spec.measureAgainst ?? []).map((t) => ({
+              ...t,
+              source: 'edhrec' as const,
+              isSelected: true,
+            })),
+          ],
+          commanderName: commander.name,
+          partnerName: partnerCommander?.name,
+          budgetOption: custom.budgetOption !== 'any' ? custom.budgetOption : undefined,
+          targetBracket:
+            deck.dataSource === 'theme+bracket' || spec.measureAgainst
+              ? custom.targetBracket
+              : undefined,
+          withAverageDeck: true,
+        });
         deckViolations = checkDeckInvariants(deck, {
           ...ctx,
+          themePages,
           nameResolutions: [...NAME_RESOLUTIONS.values()],
           requestedNames: await requestedPoolNames(spec, commander, partnerCommander, custom),
         });
@@ -913,6 +968,7 @@ describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
           generationRelaxedNote: deck.generationRelaxedNote ?? null,
           allNotes,
           buildReport,
+          themeFidelity: themeFidelityDump(deck, themePages),
           cardRelevancy: buildCardRelevancy(deck),
           invariants: {
             hard: hardViolations(deckViolations).length,
@@ -1044,11 +1100,11 @@ async function requestedPoolNames(
       : fetchCommanderData(commander.name, b, t);
   const pages = [page()];
   if (budget || bracket) pages.push(page(budget, bracket));
-  if (spec.themeSlug) {
+  for (const theme of rowThemes(spec)) {
     pages.push(
       partner
-        ? fetchPartnerThemeData(commander.name, partner.name, spec.themeSlug, budget, bracket)
-        : fetchCommanderThemeData(commander.name, spec.themeSlug, budget, bracket)
+        ? fetchPartnerThemeData(commander.name, partner.name, theme.slug, budget, bracket)
+        : fetchCommanderThemeData(commander.name, theme.slug, budget, bracket)
     );
   }
   const names = new Set<string>();

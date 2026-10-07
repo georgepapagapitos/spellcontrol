@@ -12,6 +12,7 @@ import { getCardPrice, getFrontFaceTypeLine } from '@/deck-builder/services/scry
 import { isRoleExcess } from './deckAnalyzer';
 import { countProtectionPieces } from './commanderDeckAnalysis';
 import { ARCHETYPE_LABEL } from './strategyVocabulary';
+import { describeThemeFidelity } from './themeFidelity';
 import { AXES } from '@/deck-builder/services/synergy/axes';
 import type { ArchetypeEvidence } from './roleTargets';
 import { buildsFromOwnedCards, skipsOwnedCards } from './deckFilters';
@@ -112,7 +113,7 @@ export function buildArchetypeNote(params: {
       break;
   }
   const multiClause = params.multiThemeSelected
-    ? ` Role targets follow ${params.firstThemeName}. Your other themes still shape the pool.`
+    ? ` Role targets and land count follow ${params.firstThemeName}, the first theme you picked. Your other themes still shape the pool.`
     : '';
   return base + multiClause;
 }
@@ -226,6 +227,8 @@ export function assembleBuildReport(input: {
   if (generated.bracketPoolFallbackNote)
     report.bracketPoolFallbackNote = generated.bracketPoolFallbackNote;
   if (generated.dialSeedNote) report.dialSeedNote = generated.dialSeedNote;
+  if (generated.themeFidelity)
+    report.themeFidelityNote = describeThemeFidelity(generated.themeFidelity);
   if (generated.archetypeBlendNote) report.archetypeBlendNote = generated.archetypeBlendNote;
   if (generated.similarPoolNote) report.similarPoolNote = generated.similarPoolNote;
   if (generated.similarPoolNames && generated.similarPoolNames.length > 0)

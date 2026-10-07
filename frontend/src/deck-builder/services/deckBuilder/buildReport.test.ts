@@ -1083,7 +1083,7 @@ describe('assembleBuildReport', () => {
         selectedThemes: [theme('Aristocrats'), theme('Lifegain')],
       });
       expect(report.archetypeNote).toMatch(
-        /Role targets follow Aristocrats\. Your other themes still shape the pool\./
+        /Role targets and land count follow Aristocrats, the first theme you picked\. Your other themes still shape the pool\./
       );
     });
 
@@ -1097,7 +1097,7 @@ describe('assembleBuildReport', () => {
         collectionNames: new Set(),
         selectedThemes: [theme('Aristocrats')],
       });
-      expect(report.archetypeNote).not.toMatch(/Role targets follow/);
+      expect(report.archetypeNote).not.toMatch(/Role targets and land count follow/);
     });
   });
 });
