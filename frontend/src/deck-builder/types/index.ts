@@ -831,15 +831,10 @@ export interface GeneratedDeck {
   /** "Wanted X → used your Y" substitutions: owned cards swapped in for unowned
    *  EDHREC staples to complete an owned-only deck from the collection. */
   collectionSubstitutions?: SubstituteRow[];
-  /** Partial mode only: the total distinct owned card names present in this
-   *  commander's candidate pool (seated in the deck or not) — the honest
-   *  denominator for "only N owned cards fit this pool" when the delivered
-   *  owned share falls short of collectionOwnedPercent. Undefined outside
-   *  partial mode. */
+  /** Partial mode only: the distinct owned nonland names that fit this commander
+   *  (seated or not), the honest denominator when the owned share falls short. */
   partialOwnedEligibleCount?: number;
-  /** Partial mode only: how many of the deck's unowned nonland cards the
-   *  owned-share swap may not take (must-includes, staples, staple rocks,
-   *  combo pieces, protection), the reason a share can stay short. */
+  /** Partial mode only: the deck's unowned nonland cards the share swap may not take. */
   partialOwnedHeldCount?: number;
   detectedCombos?: DetectedCombo[];
   typeTargets?: Record<string, number>;
