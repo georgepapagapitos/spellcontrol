@@ -145,6 +145,21 @@ export function buildThemeUnavailableNote(
 }
 
 /**
+ * E575 disclosure: a selected theme's EDHREC page loaded but rests on only a
+ * handful of decks, so the pool follows a small sample of lists and can skip
+ * the commander's usual staples. The pool is unchanged; this only says so.
+ */
+export function buildThinThemeNote(
+  commanderLabel: string,
+  thinThemes: { name: string; numDecks: number }[]
+): string {
+  const list = thinThemes
+    .map((t) => `${t.name} (${t.numDecks} ${t.numDecks === 1 ? 'deck' : 'decks'})`)
+    .join(', ');
+  return `EDHREC has few decks for ${commanderLabel} with ${list}, so the pool rests on a small sample and may skip this commander's usual staples.`;
+}
+
+/**
  * Calls `fn` once; if it throws, or resolves to a value that fails the
  * optional `isOk` check, tries again exactly once. No backoff — for the
  * per-generation data loads (tagger role data, combos, the substitute index)
@@ -652,6 +667,15 @@ export async function acquireCardPoolPhase(
         state.bracketPoolFallbackNote = state.bracketPoolFallbackNote
           ? `${partial} ${state.bracketPoolFallbackNote}`
           : partial;
+      }
+
+      if (dataSource === 'theme' && themeMergeResult.thinThemes.length > 0) {
+        // Only the bracket-agnostic page: a bracket-narrowed page is judged by
+        // the E93 ladder above, which already discloses when it moves.
+        const thin = buildThinThemeNote(commanderLabelForThemes, themeMergeResult.thinThemes);
+        state.bracketPoolFallbackNote = state.bracketPoolFallbackNote
+          ? `${state.bracketPoolFallbackNote} ${thin}`
+          : thin;
       }
 
       state.edhrecData = {

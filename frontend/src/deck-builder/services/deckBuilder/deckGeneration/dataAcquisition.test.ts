@@ -554,6 +554,33 @@ describe('acquireCardPoolPhase: a theme page that cannot be fetched', () => {
     );
   });
 
+  // Live 2026-10-07: Gisa + Zombies is 24 decks and Gisa + Aristocrats 129. The
+  // thin page seated 12 of the base page's 40%-inclusion staples fewer.
+  const withDecks = (numDecks: number) => {
+    const d = healthy();
+    d.stats.numDecks = numDecks;
+    return d;
+  };
+
+  it('says so when a selected theme page rests on a small sample of decks', async () => {
+    fetchCommanderThemeDataMock.mockImplementation(async (_c: string, slug: string) =>
+      withDecks(slug === 'zombies' ? 24 : 129)
+    );
+    const state = themedState([zombies, aristocrats]);
+    await acquireCardPoolPhase(state, { usingCache: false, scryfallQuery: '' });
+    expect(state.dataSource).toBe('theme');
+    expect(state.bracketPoolFallbackNote).toBe(
+      "EDHREC has few decks for Gisa, Glorious Resurrector with Zombies (24 decks), so the pool rests on a small sample and may skip this commander's usual staples."
+    );
+  });
+
+  it('adds no thin note when the theme page has plenty of decks', async () => {
+    fetchCommanderThemeDataMock.mockResolvedValue(withDecks(129));
+    const state = themedState([aristocrats]);
+    await acquireCardPoolPhase(state, { usingCache: false, scryfallQuery: '' });
+    expect(state.bracketPoolFallbackNote).toBeUndefined();
+  });
+
   it('adds no note when every theme page loads', async () => {
     fetchCommanderThemeDataMock.mockResolvedValue(healthy());
     const state = themedState([zombies, aristocrats]);
