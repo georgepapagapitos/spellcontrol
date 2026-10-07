@@ -185,8 +185,16 @@ describe('getProductDeck', () => {
     ]);
     const main = deck?.mainBoard ?? [];
     expect(main.reduce((n, c) => n + (c.count ?? 1), 0)).toBe(99);
-    expect(main.filter((c) => c.setCode === 'SLD').map((c) => c.number)).toEqual(
-      Array.from({ length: 11 }, (_, i) => String(2122 + i))
-    );
+    // The 11 new-art foils, then the 12 foil Oddlands basics (4 each).
+    expect(main.filter((c) => c.setCode === 'SLD').map((c) => c.number)).toEqual([
+      ...Array.from({ length: 11 }, (_, i) => String(2122 + i)),
+      '2116',
+      '2117',
+      '2118',
+    ]);
+    expect(main.filter((c) => c.number && Number(c.number) <= 2118).map((c) => c.count)).toEqual([
+      4, 4, 4,
+    ]);
+    expect(main.filter((c) => c.setCode === 'SLD').every((c) => c.isFoil)).toBe(true);
   });
 });
