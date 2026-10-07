@@ -2,6 +2,12 @@ import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
 
+// CI splits the suite with `--shard=N/M --reporter=blob` and merges the blobs
+// with `--merge-reports --coverage` in one final job. A shard runs a slice of
+// the tests, so its coverage can never meet the floors below. The floors (and
+// the report files) belong to that merge, which sees the whole suite.
+const isShard = process.argv.some((arg) => arg.startsWith('--shard'));
+
 export default defineConfig({
   plugins: [react()],
   // Mirror the `__BUILD_ID__` define from vite.config.ts so source files
@@ -185,6 +191,9 @@ export default defineConfig({
           lines: 61,
         },
       },
+      // A shard's partial coverage rides in its blob report to the merge job,
+      // which applies the floors above. See `isShard`.
+      ...(isShard && { thresholds: {}, reporter: [] }),
     },
   },
 });
