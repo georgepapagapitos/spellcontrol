@@ -6,7 +6,13 @@ import { ownedShareHeld } from './ownedShareHeld';
 import type { GenerationState } from './state';
 
 const card = (name: string, oracle_text = '') =>
-  ({ name, type_line: 'Creature', oracle_text, keywords: [], color_identity: [] }) as unknown as ScryfallCard;
+  ({
+    name,
+    type_line: 'Creature',
+    oracle_text,
+    keywords: [],
+    color_identity: [],
+  }) as unknown as ScryfallCard;
 
 const stateOf = (strategy: string, owned: string[], deck: ScryfallCard[]) =>
   ({
