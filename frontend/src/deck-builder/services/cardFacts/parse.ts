@@ -787,6 +787,22 @@ function limitsOf(phrase: string): Limit[] {
     limits.push('colour');
   if (/\battacking\b|\bblocking\b|\btapped creature\b|attacked or blocked/.test(phrase))
     limits.push('combat');
+  // Object filters beyond a type and a colour: the target must be legendary
+  // (Hero's Demise), carry a trait (Plummet's "with flying") or be in a state
+  // ("that was dealt damage this turn"). Each narrows the answer; none changes
+  // the role's tier. Colour, mana value and power bounds are recorded above, an
+  // artifact-or-enchantment-only or nonland answer in the hits, an attacking or
+  // tapped one as 'combat'.
+  const object = clip(phrase);
+  if (/(?<!non-?)\blegendary\b/.test(object)) limits.push('legendary');
+  if (
+    /\b(?:creature|permanent|artifact|enchantment|planeswalker)s? with (?!power\b|toughness\b|mana value\b|total\b|the \w|no \w)/.test(
+      object
+    ) ||
+    /\b(?:creature|permanent)s? without \w/.test(object)
+  )
+    limits.push('trait');
+  if (/\bthat (?:was dealt|dealt|has|had|isn't|is not) /.test(object)) limits.push('state');
   if (/\bnontoken\b/.test(phrase)) limits.push('nontoken');
   else if (
     /\btokens?\b/.test(phrase) &&

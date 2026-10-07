@@ -29,6 +29,7 @@ export const FEATURES = [
   'sameEffect',
   'polarity',
   'interaction',
+  'narrowing',
   'roleStrength',
   'mv',
   'type',
@@ -153,6 +154,34 @@ function opposed(a: string, b: string): boolean {
   );
 }
 
+/**
+ * How much of its type's targets a card's answer can hit, in (0, 1]: 1 when
+ * unrestricted, less for each object filter the extractor records on the
+ * role-carrying interaction (Plummet's "with flying" 0.5, Hero's Demise's
+ * "legendary" 0.35, Kill Shot's "attacking" 0.6). A card with several answers
+ * counts its broadest. A colour, mana value or power bound is not here: the
+ * graded judgments treat Doom Blade as Murder's equal, and a bound removes
+ * little of the board. Cards with no interaction fact are 1.
+ */
+const BREADTH_OF_LIMIT: Record<string, number> = {
+  legendary: 0.35,
+  trait: 0.5,
+  state: 0.5,
+  combat: 0.6,
+};
+
+export function answerBreadth(f: CardFacts, abilities: readonly number[]): number {
+  const keep = abilities.length > 0 ? new Set(abilities) : null;
+  let best = 0;
+  for (const i of f.interaction) {
+    if (keep && !keep.has(i.ability)) continue;
+    let b = 1;
+    for (const l of i.limits) b *= BREADTH_OF_LIMIT[l] ?? 1;
+    best = Math.max(best, b);
+  }
+  return best === 0 ? 1 : best;
+}
+
 /** Tokens of a card's interaction facts on the given abilities (or all when empty). */
 function interactionTokens(f: CardFacts, abilities: readonly number[]): string[] {
   const keep = abilities.length > 0 ? new Set(abilities) : null;
@@ -256,6 +285,8 @@ export function pairFeatures(
     sameEffect: qTuples.length === 0 ? 0 : sharedTuples.length / qTuples.length,
     polarity: polarityClash ? 1 : 0,
     interaction: qInter.length > 0 && cInter.length > 0 ? jaccard(qInter, cInter) : 0,
+    // A penalty: how much narrower C's answer is than Q's. A broader C costs nothing.
+    narrowing: Math.max(0, answerBreadth(q, qAbilities) - answerBreadth(c, cAbilities)),
     roleStrength: c.strengths[role] ?? 0,
     mv: q.mv !== null && c.mv !== null ? 1 / (1 + Math.abs(q.mv - c.mv)) : 0,
     type: jaccard(primaryTypes(q), primaryTypes(c)),

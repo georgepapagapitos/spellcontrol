@@ -42,6 +42,15 @@ export type SubstituteWeights = Record<(typeof FEATURES)[number], number>;
  * strength (-0.03) and structure (-0.02). Re-fit after regenerating
  * card-facts.json or adding judgments (`--fit` says when this table is
  * stale); never hand-edit a number.
+ *
+ * `narrowing` is the one weight that is NOT fitted (E517 slice 2): a penalty
+ * for a substitute that hits less of the board than the card it replaces
+ * (Plummet's "with flying" for Murder), read from the extractor's object
+ * filters. Fitting it moved every other weight; fixed, it changes nothing for
+ * a card with no filter. Held out, on the weights above: nDCG@5 0.790 → 0.794
+ * owned lane, 0.827 → 0.831 Similar cards, no metric lower. The grid -4 … -8 is
+ * one plateau (-1 … -3 sit within 0.002 under it), so -4 is the smallest weight
+ * on it.
  */
 export const SUBSTITUTE_WEIGHTS: SubstituteWeights = {
   roleTags: 0.8021,
@@ -49,6 +58,7 @@ export const SUBSTITUTE_WEIGHTS: SubstituteWeights = {
   sameEffect: 0.3396,
   polarity: 0,
   interaction: 1.9932,
+  narrowing: -4,
   roleStrength: 3.3748,
   mv: 0.536,
   type: 1.1132,
