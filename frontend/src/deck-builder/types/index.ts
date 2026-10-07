@@ -644,14 +644,13 @@ export interface BuildReport {
    *  37-land baseline. Undefined when the auto-tune never raised land count
    *  past baseline (the common case). */
   landSqueezeTrimNote?: string;
-  /** Disclosure when the bracket-narrowed EDHREC page (bracket-only or
-   *  theme+bracket) was too thin to build from (E93) and generation laddered
-   *  down to a broader page — naming what was missing, what was used
-   *  instead, and that the target bracket's card permissions were kept
-   *  regardless. Undefined when no bracket was targeted, or the requested
-   *  page had real data. */
   /** What the Staples/Synergy dial seated up front (phaseDialSeed.ts). */
   dialSeedNote?: string;
+  /** E574: cards per selected theme, e.g. "Cats theme: 24 cards. Dogs theme: 6 cards." */
+  themeFidelityNote?: string;
+  /** E93: the bracket-narrowed EDHREC page was too thin, so generation laddered down to a
+   *  broader page; names what was missing and what was used, and that the target bracket's
+   *  card permissions were kept. Undefined when no bracket was targeted or the page had data. */
   bracketPoolFallbackNote?: string;
   /** Expensive combo pieces the price-sanity tie-break let win over a cheaper
    *  same-role staple for a live-but-still-incomplete combo. Undefined when
@@ -884,6 +883,7 @@ export interface GeneratedDeck {
   landSqueezeTrimNote?: string; // e.g. N cards cut to reconcile an auto-tuned land count raise (E88)
   bracketPoolFallbackNote?: string; // e.g. bracket-narrowed EDHREC page was too thin — laddered down to a broader page (E93)
   dialSeedNote?: string; // what the Staples/Synergy dial seated up front (phaseDialSeed.ts)
+  themeFidelity?: import('@/deck-builder/services/deckBuilder/themeFidelity').ThemeFidelity; // E574
   archetypeBlendNote?: string; // e.g. N cards backfilled from the theme's EDHREC tag page because the commander's own page is thin (E221)
   archetypeBlendNames?: string[]; // the names that note refers to — threaded into the misfit pass so they aren't flagged for the absence that caused them (E221)
   similarPoolNote?: string; // E282: N owned cards came from similar commanders' decks (owned-only builds)

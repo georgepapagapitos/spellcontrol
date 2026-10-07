@@ -1,0 +1,101 @@
+[
+  {
+    "commanderName": "Rin and Seri, Inseparable",
+    "variant": "cats-dogs",
+    "themes": [
+      {
+        "name": "Cats",
+        "slug": "cats"
+      },
+      {
+        "name": "Dogs",
+        "slug": "dogs"
+      }
+    ]
+  },
+  {
+    "commanderName": "Rin and Seri, Inseparable",
+    "variant": "dogs-cats",
+    "themes": [
+      {
+        "name": "Dogs",
+        "slug": "dogs"
+      },
+      {
+        "name": "Cats",
+        "slug": "cats"
+      }
+    ]
+  },
+  {
+    "commanderName": "Rin and Seri, Inseparable",
+    "variant": "cats-dogs-synergy",
+    "overrides": {
+      "brewLevel": 1
+    },
+    "themes": [
+      {
+        "name": "Cats",
+        "slug": "cats"
+      },
+      {
+        "name": "Dogs",
+        "slug": "dogs"
+      }
+    ]
+  },
+  {
+    "commanderName": "Rin and Seri, Inseparable",
+    "variant": "cats",
+    "themes": [
+      {
+        "name": "Cats",
+        "slug": "cats"
+      }
+    ]
+  },
+  {
+    "commanderName": "Rin and Seri, Inseparable",
+    "variant": "no-theme-control",
+    "measureAgainst": [
+      {
+        "name": "Cats",
+        "slug": "cats"
+      },
+      {
+        "name": "Dogs",
+        "slug": "dogs"
+      }
+    ]
+  },
+  {
+    "commanderName": "Lathril, Blade of the Elves",
+    "variant": "elves",
+    "themes": [
+      {
+        "name": "Elves",
+        "slug": "elves"
+      }
+    ]
+  },
+  {
+    "commanderName": "Edgar Markov",
+    "variant": "vampires",
+    "themes": [
+      {
+        "name": "Vampires",
+        "slug": "vampires"
+      }
+    ]
+  },
+  {
+    "commanderName": "Atraxa, Praetors' Voice",
+    "variant": "counters",
+    "themes": [
+      {
+        "name": "+1/+1 Counters",
+        "slug": "plus-1-plus-1-counters"
+      }
+    ]
+  }
+]
