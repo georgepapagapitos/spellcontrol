@@ -20,7 +20,9 @@ export interface PendingProduct {
 export const PENDING_PRODUCTS: readonly PendingProduct[] = [
   {
     // https://magic.wizards.com/en/news/announcements/secret-lair-commander-deck-odds-and-ends-decklist
-    // The 4 foil Oddlands basics aren't pinned: the list doesn't say which 4.
+    // All 12 basics are foil Oddlands basics, 4 of each type (Star City Games'
+    // full-contents list). The 10 double-sided tokens are product-only pairings
+    // with no Scryfall printing yet, so they're left to MTGJSON's own file.
     fileName: 'pending-OddsAndEnds_SLD',
     deck: {
       name: 'Secret Lair Commander Deck: Odds and Ends',
@@ -124,9 +126,9 @@ export const PENDING_PRODUCTS: readonly PendingProduct[] = [
         { count: 1, name: 'Vesuvan Drifter' },
         { count: 1, name: "Wayfarer's Bauble" },
         { count: 1, name: 'Yavimaya, Cradle of Growth' },
-        { count: 4, name: 'Plains' },
-        { count: 4, name: 'Island' },
-        { count: 4, name: 'Swamp' },
+        { count: 4, name: 'Plains', setCode: 'SLD', number: '2116', isFoil: true },
+        { count: 4, name: 'Island', setCode: 'SLD', number: '2117', isFoil: true },
+        { count: 4, name: 'Swamp', setCode: 'SLD', number: '2118', isFoil: true },
       ],
     },
   },
