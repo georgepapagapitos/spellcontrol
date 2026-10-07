@@ -79,6 +79,14 @@ export function mergeThemeCardlists(themeDataResults: EDHRECCommanderData[]): {
 }
 
 /**
+ * E575: a commander+theme page under this many decks is a small sample. The
+ * 2026-10-07 live read: at 6 to 8 decks the deck seated 9 to 23 of the
+ * commander's 40%-inclusion staples fewer than the base page holds; at 11 and
+ * above (Bard + Humans) none were missing.
+ */
+export const THIN_THEME_DECKS = 30;
+
+/**
  * Fetch + merge all selected EDHREC themes for a given bracket (or `undefined`
  * for the bracket-agnostic page). Each theme's fetch failure is swallowed
  * (logged) so one theme's 404/network error doesn't sink the others; returns
@@ -92,7 +100,14 @@ export async function fetchMergedThemeData(
   partnerCommanderName: string | undefined,
   budgetOption: BudgetOption | undefined,
   bracket: TargetBracket | undefined
-): Promise<{ data: EDHRECCommanderData; themeOverlapCounts: Map<string, number> } | null> {
+): Promise<{
+  data: EDHRECCommanderData;
+  themeOverlapCounts: Map<string, number>;
+  /** Names of the themes whose page could not be fetched and were skipped. */
+  failedThemeNames: string[];
+  /** Themes whose page loaded but rests on fewer than THIN_THEME_DECKS decks. */
+  thinThemes: { name: string; numDecks: number }[];
+} | null> {
   const results = await Promise.all(
     themes.map((theme) =>
       (partnerCommanderName
@@ -112,9 +127,18 @@ export async function fetchMergedThemeData(
   );
   const ok = results.filter((r): r is EDHRECCommanderData => r != null);
   if (ok.length === 0) return null;
+  const failedThemeNames = themes.filter((_, i) => results[i] == null).map((t) => t.name);
   const merged = mergeThemeCardlists(ok);
+  const thinThemes = themes.flatMap((t, i) => {
+    const numDecks = results[i]?.stats.numDecks;
+    return numDecks !== undefined && numDecks < THIN_THEME_DECKS
+      ? [{ name: t.name, numDecks }]
+      : [];
+  });
   return {
     data: { themes: [], stats: ok[0].stats, cardlists: merged.cardlists, similarCommanders: [] },
     themeOverlapCounts: merged.themeOverlapCounts,
+    failedThemeNames,
+    thinThemes,
   };
 }

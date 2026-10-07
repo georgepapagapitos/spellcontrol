@@ -3,10 +3,12 @@ import type { EDHRECCommanderData, ScryfallCard } from '@/deck-builder/types';
 
 const fetchCommanderCombosRawMock = vi.fn();
 const fetchCommanderDataMock = vi.fn();
+const fetchCommanderThemeDataMock = vi.fn();
 vi.mock('@/deck-builder/services/edhrec/client', async (orig) => ({
   ...(await orig<typeof import('@/deck-builder/services/edhrec/client')>()),
   fetchCommanderCombosRaw: (...args: unknown[]) => fetchCommanderCombosRawMock(...args),
   fetchCommanderData: (...args: unknown[]) => fetchCommanderDataMock(...args),
+  fetchCommanderThemeData: (...args: unknown[]) => fetchCommanderThemeDataMock(...args),
 }));
 
 const prefetchBasicLandsMock = vi.fn(async () => undefined);
@@ -477,6 +479,113 @@ describe('acquireCardPoolPhase', () => {
     expect(result.scryfallQuery).not.toContain('art:');
     expect(state.dataSource).toBe('oracle-role');
     expect(result.altPool?.relaxedNote).toMatch(/Built by function instead/);
+  });
+});
+
+// E575: a selected theme whose EDHREC page cannot be fetched changes the pool
+// (the deck loses its theme) and used to say so nowhere but the dataSource tag.
+// Live (2026-10-07): Obeka + a theme with no page built from the base page with
+// an empty build report. Real commander and theme names; the 403 is what EDHREC
+// answers for a commander/theme pair that has no page.
+describe('acquireCardPoolPhase: a theme page that cannot be fetched', () => {
+  const gisa = scryfallCard('Gisa, Glorious Resurrector');
+  const zombies = { name: 'Zombies', slug: 'zombies', source: 'edhrec' as const, isSelected: true };
+  const aristocrats = {
+    name: 'Aristocrats',
+    slug: 'aristocrats',
+    source: 'edhrec' as const,
+    isSelected: true,
+  };
+  const healthy = (): EDHRECCommanderData => {
+    const d = edhrecData();
+    d.cardlists.allNonLand = Array.from({ length: 40 }, (_, i) => ({
+      name: `Card ${i}`,
+      sanitized: `card-${i}`,
+      primary_type: 'Creature',
+      inclusion: 30,
+      num_decks: 30,
+    }));
+    return d;
+  };
+  const themedState = (themes: (typeof zombies)[], targetBracket?: 2) => {
+    const state = makeState();
+    state.context.commander = gisa;
+    state.cfg.selectedThemesWithSlugs = themes;
+    state.cfg.targetBracket = targetBracket;
+    return state;
+  };
+
+  beforeEach(() => {
+    clearGenerationCache();
+    vi.clearAllMocks();
+  });
+
+  it('says the theme is gone when every selected theme fails and the base page is used', async () => {
+    fetchCommanderThemeDataMock.mockRejectedValue(new Error('EDHREC API error: 403'));
+    fetchCommanderDataMock.mockResolvedValue(healthy());
+    const state = themedState([zombies]);
+    await acquireCardPoolPhase(state, { usingCache: false, scryfallQuery: '' });
+    expect(state.dataSource).toBe('base');
+    expect(state.bracketPoolFallbackNote).toBe(
+      'EDHREC has no Zombies page for Gisa, Glorious Resurrector, so no theme shaped the pool. Built from the main commander page instead.'
+    );
+  });
+
+  it('names the bracket page when the bracket-narrowed base page supplied the pool', async () => {
+    fetchCommanderThemeDataMock.mockRejectedValue(new Error('EDHREC API error: 403'));
+    fetchCommanderDataMock.mockResolvedValue(healthy());
+    const state = themedState([zombies], 2);
+    await acquireCardPoolPhase(state, { usingCache: false, scryfallQuery: '' });
+    expect(state.dataSource).toBe('base+bracket');
+    expect(state.bracketPoolFallbackNote).toContain('no theme shaped the pool');
+    expect(state.bracketPoolFallbackNote).toContain('the main bracket-2');
+  });
+
+  it('names the lost theme when only some of the selected themes fail', async () => {
+    fetchCommanderThemeDataMock.mockImplementation(async (_c: string, slug: string) => {
+      if (slug === 'zombies') throw new Error('EDHREC API error: 403');
+      return healthy();
+    });
+    const state = themedState([zombies, aristocrats]);
+    await acquireCardPoolPhase(state, { usingCache: false, scryfallQuery: '' });
+    expect(state.dataSource).toBe('theme');
+    expect(state.bracketPoolFallbackNote).toBe(
+      'EDHREC has no Zombies page for Gisa, Glorious Resurrector, so the deck was built from the Aristocrats page alone.'
+    );
+  });
+
+  // Live 2026-10-07: Gisa + Zombies is 24 decks and Gisa + Aristocrats 129. The
+  // thin page seated 12 of the base page's 40%-inclusion staples fewer.
+  const withDecks = (numDecks: number) => {
+    const d = healthy();
+    d.stats.numDecks = numDecks;
+    return d;
+  };
+
+  it('says so when a selected theme page rests on a small sample of decks', async () => {
+    fetchCommanderThemeDataMock.mockImplementation(async (_c: string, slug: string) =>
+      withDecks(slug === 'zombies' ? 24 : 129)
+    );
+    const state = themedState([zombies, aristocrats]);
+    await acquireCardPoolPhase(state, { usingCache: false, scryfallQuery: '' });
+    expect(state.dataSource).toBe('theme');
+    expect(state.bracketPoolFallbackNote).toBe(
+      "EDHREC has few decks for Gisa, Glorious Resurrector with Zombies (24 decks), so the pool rests on a small sample and may skip this commander's usual staples."
+    );
+  });
+
+  it('adds no thin note when the theme page has plenty of decks', async () => {
+    fetchCommanderThemeDataMock.mockResolvedValue(withDecks(129));
+    const state = themedState([aristocrats]);
+    await acquireCardPoolPhase(state, { usingCache: false, scryfallQuery: '' });
+    expect(state.bracketPoolFallbackNote).toBeUndefined();
+  });
+
+  it('adds no note when every theme page loads', async () => {
+    fetchCommanderThemeDataMock.mockResolvedValue(healthy());
+    const state = themedState([zombies, aristocrats]);
+    await acquireCardPoolPhase(state, { usingCache: false, scryfallQuery: '' });
+    expect(state.bracketPoolFallbackNote).toBeUndefined();
   });
 });
 

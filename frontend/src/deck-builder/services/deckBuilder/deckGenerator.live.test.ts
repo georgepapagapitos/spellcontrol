@@ -933,7 +933,33 @@ describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
           }
         }
 
+        // E575: the theme page this row selected and the base page, so a scan
+        // can compute the theme's deck count, row count and on-theme share.
+        const pageNames = (d: {
+          cardlists: { allNonLand: { name: string; synergy?: number; inclusion: number }[] };
+        }) => d.cardlists.allNonLand.map((c) => ({ n: c.name, s: c.synergy ?? 0, i: c.inclusion }));
+        const themeProbe = spec.themeSlug
+          ? await (
+              partnerCommander
+                ? fetchPartnerThemeData(commander.name, partnerCommander.name, spec.themeSlug)
+                : fetchCommanderThemeData(commander.name, spec.themeSlug)
+            )
+              .then((d) => ({ numDecks: d.stats.numDecks, rows: pageNames(d) }))
+              .catch((e) => ({ error: String(e) }))
+          : null;
+        const baseProbe = spec.themeSlug
+          ? await (
+              partnerCommander
+                ? fetchPartnerCommanderData(commander.name, partnerCommander.name)
+                : fetchCommanderData(commander.name)
+            )
+              .then((d) => ({ numDecks: d.stats.numDecks, rows: pageNames(d) }))
+              .catch((e) => ({ error: String(e) }))
+          : null;
         const output = {
+          dataSource: deck.dataSource ?? null,
+          themeProbe,
+          baseProbe,
           commander: spec.commanderName,
           variant: spec.variant,
           partner: partnerCommander?.name ?? null,
