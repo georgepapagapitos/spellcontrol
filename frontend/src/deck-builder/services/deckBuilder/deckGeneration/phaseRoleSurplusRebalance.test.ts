@@ -1006,11 +1006,11 @@ describe('applyRoleSurplusRebalance', () => {
       });
     });
 
-    it('lets Reanimate ($9.81, 29.7%, the deck theme) replace a cheap 15% card', () => {
+    it('lets Reanimate ($9.81, 29.7%, synergy 0.06) replace a cheap 13% card', () => {
       const conversions = run(
         ['Wight of the Reliquary', '0.30'],
-        15,
-        { ...edhrecCard('Reanimate', 29.7), synergy: 0.6, isThemeSynergyCard: true },
+        13,
+        { ...edhrecCard('Reanimate', 29.7), synergy: 0.058 },
         '9.81'
       );
       expect(conversions[0]).toMatchObject({ cut: 'Wight of the Reliquary', added: 'Reanimate' });

@@ -17,7 +17,6 @@ describe('conversion price bar (E572)', () => {
       incomingInclusion: 22,
       leavingPrice: 30.7,
       leavingInclusion: 42,
-      scoreSurplus: 0,
       ...over,
     });
 
@@ -39,24 +38,24 @@ describe('conversion price bar (E572)', () => {
   });
 
   it('blocks a pricier card played far less than the staple it replaces', () => {
-    expect(paid({ scoreSurplus: 60 })).toBe(false);
+    expect(paid({})).toBe(false);
   });
 
   it('allows a pricier card played enough more than a staple to pay the bar', () => {
     expect(paid({ incomingInclusion: 70 })).toBe(true);
   });
 
-  it('judges a non-staple on the survival score, not raw inclusion', () => {
-    // Reanimate (29.7%, $9.81) for a 15% card: theme and synergy lift the score.
-    const base = {
-      incoming: card('Reanimate', '9.81'),
-      incomingPrice: 9.81,
-      incomingInclusion: 29.7,
-      leavingPrice: 0.3,
-      leavingInclusion: 15,
-    };
-    expect(premiumIsPaidFor({ ...base, scoreSurplus: 40 })).toBe(true);
-    expect(premiumIsPaidFor({ ...base, scoreSurplus: 2 })).toBe(false);
+  it('never judges a non-staple on inclusion', () => {
+    // Reanimate (29.7%, $9.81) replacing a 16.4% card in Muldrotha.
+    expect(
+      premiumIsPaidFor({
+        incoming: card('Reanimate', '9.81'),
+        incomingPrice: 9.81,
+        incomingInclusion: 29.7,
+        leavingPrice: 0.4,
+        leavingInclusion: 16.4,
+      })
+    ).toBe(true);
   });
 
   it('never blocks a swap that costs less', () => {

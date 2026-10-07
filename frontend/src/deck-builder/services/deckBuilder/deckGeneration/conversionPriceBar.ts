@@ -8,15 +8,14 @@
  *
  * The rule reuses the user's E509 price bar (buyBar, the term the whole-deck
  * search's ownership objective and the owned-share guard already encode: 8
- * inclusion points per price doubling past $2). It applies only to an incoming
- * card priced past the free line that costs more than the card it replaces;
- * every other swap is untouched, so price is never the only reason to move.
- * The extra price is paid for in play rate:
- *  - a staple (STAPLE_INCLUSION_BAR) leaves only for a card whose inclusion
- *    beats its own by the bar;
- *  - any other card leaves for a card whose survival score clears the pass's
- *    improvement margin by the bar, so theme, lift and synergy count (a
- *    reanimator deck's Reanimate is not judged on raw inclusion).
+ * inclusion points per price doubling past $2). It guards a staple
+ * (STAPLE_INCLUSION_BAR, 40% of the commander's decks) and nothing else: a
+ * staple leaves for a card priced past the free line and above its own price
+ * only when the incoming card's inclusion beats its own by the bar. Every
+ * other swap is untouched, so price is never the only reason to move, and a
+ * non-staple is never judged on raw inclusion: Reanimate (29.7%, $9.81) is the
+ * reanimator deck's engine though a 16% card leaves for it, and no pool signal
+ * (synergy 0.06, no theme flag) marks it as such.
  */
 import { buyBar, PRICE_BAR_FREE_USD } from '../deckObjective/terms/ownership';
 import { STAPLE_INCLUSION_BAR } from '../roleCapAllowance';
@@ -35,21 +34,15 @@ export function premiumBarPoints(
   return Math.max(0, points(incoming, incomingPrice) - points(incoming, leavingPrice));
 }
 
-/**
- * Whether the incoming card's play rate pays for the extra price it costs.
- * `scoreSurplus` is how far its survival score clears the improvement margin.
- */
+/** Whether a staple may leave for this incoming card: its play rate pays for the extra price. */
 export function premiumIsPaidFor(params: {
   incoming: ScryfallCard;
   incomingPrice: number;
   incomingInclusion: number;
   leavingPrice: number;
   leavingInclusion: number;
-  scoreSurplus: number;
 }): boolean {
+  if (params.leavingInclusion < STAPLE_INCLUSION_BAR) return true;
   const bar = premiumBarPoints(params.incoming, params.incomingPrice, params.leavingPrice);
-  if (bar <= 0) return true;
-  return params.leavingInclusion >= STAPLE_INCLUSION_BAR
-    ? params.incomingInclusion - params.leavingInclusion >= bar
-    : params.scoreSurplus >= bar;
+  return bar <= 0 || params.incomingInclusion - params.leavingInclusion >= bar;
 }

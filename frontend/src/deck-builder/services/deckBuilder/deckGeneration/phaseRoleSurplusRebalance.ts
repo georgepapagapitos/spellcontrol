@@ -699,7 +699,6 @@ export function applyRoleSurplusRebalance(
           incomingInclusion: ec.inclusion,
           leavingPrice: evictedPrice,
           leavingInclusion: evictedInclusion,
-          scoreSurplus: score - evictedScore - MIN_IMPROVEMENT_MARGIN,
         })
       )
         continue;
