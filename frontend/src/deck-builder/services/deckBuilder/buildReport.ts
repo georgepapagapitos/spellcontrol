@@ -19,6 +19,19 @@ import { buildsFromOwnedCards, skipsOwnedCards } from './deckFilters';
 const AXIS_LABEL = new Map(AXES.map((a) => [a.key, a.label]));
 
 /** "12 payoffs", "1 payoff": an average rounded to a whole card. */
+/** The owned-share gap note's reason: the unowned cards the swap may not take
+ *  (staples, combo pieces, protection, must-includes), or the older general one. */
+function ownedGapReason(held: number | undefined, unowned: number): string {
+  if (!held) {
+    return 'The rest of your cards hit your limits, hit a role cap, or would have replaced a staple.';
+  }
+  const kind = 'staple, combo piece, protection piece or must-include';
+  if (held >= unowned) {
+    return `${unowned === 1 ? 'The one card' : 'Every card'} you don't own is a ${kind}, so ${unowned === 1 ? 'it was not' : 'none was'} swapped for one of yours.`;
+  }
+  return `${held} of the ${unowned} cards you don't own ${held === 1 ? 'is a' : 'are each a'} ${kind}, and stay${held === 1 ? 's' : ''} in over your share. The rest hit your limits or a role cap.`;
+}
+
 function plural(n: number, noun: string): string {
   const whole = Math.round(n);
   return `${whole} ${noun}${whole === 1 ? '' : 's'}`;
@@ -291,7 +304,7 @@ export function assembleBuildReport(input: {
               ? `You asked for ${target}% owned cards, but only ${eligible} of ` +
                 `your cards fit this commander's colors. ${used}.`
               : `You asked for ${target}% owned cards and got ${report.ownedPercentActual}%. ` +
-                'The rest of your cards hit your limits, hit a role cap, or would have replaced a staple.';
+                ownedGapReason(generated.partialOwnedHeldCount, nonland.length - ownedCount);
         }
       }
     }

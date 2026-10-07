@@ -276,6 +276,54 @@ describe('assembleBuildReport', () => {
     );
   });
 
+  // E571: Lathril partial50 shipped at 38% and the note blamed "limits, a role
+  // cap or a staple" with no count; every unowned card in it was one the share
+  // swap may not take, and the note says so.
+  it('names the held cards as the reason when every unowned card is one the swap may not take', () => {
+    const mainboard = Array.from({ length: 10 }, (_, i) => makeCard(`Card ${i + 1}`));
+    const report = assembleBuildReport({
+      generated: makeGenerated({
+        builtFromCollection: true,
+        categories: categories({ creatures: mainboard }),
+        partialOwnedEligibleCount: 10,
+        partialOwnedHeldCount: 8,
+      }),
+      customization: makeCustomization({
+        collectionMode: true,
+        collectionStrategy: 'partial',
+        collectionOwnedPercent: 50,
+      }),
+      collectionNames: new Set(['Card 1', 'Card 2']),
+    });
+
+    expect(report.ownedPercentGapNote).toBe(
+      "You asked for 50% owned cards and got 20%. Every card you don't own is a staple, combo piece, protection piece or must-include, so none was swapped for one of yours."
+    );
+  });
+
+  it('adds that the rest hit a limit when some unowned cards were free to swap', () => {
+    const mainboard = Array.from({ length: 10 }, (_, i) => makeCard(`Card ${i + 1}`));
+    const report = assembleBuildReport({
+      generated: makeGenerated({
+        builtFromCollection: true,
+        categories: categories({ creatures: mainboard }),
+        partialOwnedEligibleCount: 10,
+        partialOwnedHeldCount: 5,
+      }),
+      customization: makeCustomization({
+        collectionMode: true,
+        collectionStrategy: 'partial',
+        collectionOwnedPercent: 50,
+      }),
+      collectionNames: new Set(['Card 1', 'Card 2']),
+    });
+
+    expect(report.ownedPercentGapNote).toContain(
+      "5 of the 8 cards you don't own are each a staple"
+    );
+    expect(report.ownedPercentGapNote).toContain('The rest hit your limits or a role cap.');
+  });
+
   it('says nothing when partial mode meets its target', () => {
     const mainboard = Array.from({ length: 4 }, (_, i) => makeCard(`Card ${i + 1}`));
     const report = assembleBuildReport({

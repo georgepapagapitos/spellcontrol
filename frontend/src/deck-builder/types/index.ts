@@ -837,6 +837,10 @@ export interface GeneratedDeck {
    *  owned share falls short of collectionOwnedPercent. Undefined outside
    *  partial mode. */
   partialOwnedEligibleCount?: number;
+  /** Partial mode only: how many of the deck's unowned nonland cards the
+   *  owned-share swap may not take (must-includes, staples, staple rocks,
+   *  combo pieces, protection), the reason a share can stay short. */
+  partialOwnedHeldCount?: number;
   detectedCombos?: DetectedCombo[];
   typeTargets?: Record<string, number>;
   /** Target counts per DeckCategory bucket, computed unconditionally (unlike

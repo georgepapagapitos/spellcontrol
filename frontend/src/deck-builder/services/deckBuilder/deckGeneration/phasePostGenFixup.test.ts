@@ -587,4 +587,98 @@ describe('postGenFixupPhase', () => {
       expect(lathril({ cardDraw: 1 }).result.fixupSwaps).toBe(0);
     });
   });
+  // E571: Lathril partial50 left the owned-share repair at 28 owned of 65, then
+  // this pass cut three owned fillers (Glacial Revelation among them) for
+  // unowned removal and the deck shipped at 25 of 65 (38.5%), under its 45%
+  // floor. Below its owned share a partial build keeps its owned cards.
+  describe('owned share in a partial build (E571)', () => {
+    function partialLathril(opts: { owned: string[]; deck?: string[] }) {
+      const state = makeState();
+      state.cfg.collectionStrategy = 'partial';
+      state.cfg.collectionOwnedPercent = 50;
+      state.context.collectionNames = new Set(opts.owned);
+      const names = opts.deck ?? ['Glacial Revelation', 'Imperious Perfect'];
+      roleMap['Beast Within'] = 'removal';
+      roleMap["Assassin's Trophy"] = 'removal';
+      roleMap['Glacial Revelation'] = 'cardDraw';
+      roleMap['Imperious Perfect'] = null;
+      roleMap['Skemfar Shadowsage'] = null;
+      state.categories.creatures = names
+        .filter((n) => n !== 'Glacial Revelation')
+        .map((n) => scryfallCard(n));
+      state.categories.cardDraw = [scryfallCard('Glacial Revelation')];
+      state.usedNames = new Set(names);
+      state.currentRoleCounts = { ramp: 0, removal: 7, boardwipe: 0, cardDraw: 12 };
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [
+            { name: 'Imperious Perfect', inclusion: 79.5 },
+            { name: 'Skemfar Shadowsage', inclusion: 54 },
+            { name: 'Glacial Revelation', inclusion: 0 },
+            { name: 'Beast Within', inclusion: 38.3 },
+            { name: "Assassin's Trophy", inclusion: 48.4 },
+          ],
+        },
+      } as unknown as GenerationState['edhrecData'];
+      const run = () =>
+        postGenFixupPhase(state, {
+          roleTargets: { ramp: 0, removal: 8, boardwipe: 0, cardDraw: 12 },
+          swapCandidates: undefined,
+          scryfallCardMap: new Map([
+            ['Beast Within', scryfallCard('Beast Within', { cmc: 3 })],
+            ["Assassin's Trophy", scryfallCard("Assassin's Trophy", { cmc: 2 })],
+          ]),
+          repairAddedNames: new Set(),
+        });
+      return { state, run };
+    }
+
+    it('does not cut an owned filler for an unowned card when that leaves the share short', () => {
+      // 1 owned of 2 = the 50% asked for: the swap would take it to 0 of 2.
+      const { state, run } = partialLathril({ owned: ['Glacial Revelation'] });
+      expect(run().fixupSwaps).toBe(0);
+      expect(state.usedNames.has('Glacial Revelation')).toBe(true);
+    });
+
+    it('cuts an unowned filler instead when the share is short and one is free', () => {
+      const { state, run } = partialLathril({
+        owned: ['Glacial Revelation'],
+        deck: ['Glacial Revelation', 'Imperious Perfect', 'Timberwatch Elf'],
+      });
+      state.edhrecData!.cardlists.allNonLand.push({
+        name: 'Timberwatch Elf',
+        inclusion: 1,
+      } as never);
+      roleMap['Timberwatch Elf'] = null;
+      const result = run();
+      expect(result.fixupRepairs).toMatchObject([
+        { cut: 'Timberwatch Elf', added: "Assassin's Trophy" },
+      ]);
+      expect(state.usedNames.has('Glacial Revelation')).toBe(true);
+    });
+
+    it('seats an owned candidate of the role ahead of a better-played unowned one', () => {
+      const { state, run } = partialLathril({
+        owned: ['Glacial Revelation', 'Beast Within'],
+        deck: ['Glacial Revelation', 'Imperious Perfect', 'Timberwatch Elf'],
+      });
+      state.edhrecData!.cardlists.allNonLand.push({
+        name: 'Timberwatch Elf',
+        inclusion: 1,
+      } as never);
+      roleMap['Timberwatch Elf'] = null;
+      expect(run().fixupRepairs).toMatchObject([{ added: 'Beast Within' }]);
+    });
+
+    it('still swaps an owned filler for removal once the share is met with room to spare', () => {
+      const { state, run } = partialLathril({
+        owned: ['Glacial Revelation', 'Imperious Perfect', 'Skemfar Shadowsage'],
+        deck: ['Glacial Revelation', 'Imperious Perfect', 'Skemfar Shadowsage', 'Elvish Warmaster'],
+      });
+      expect(run().fixupRepairs).toMatchObject([
+        { cut: 'Glacial Revelation', added: "Assassin's Trophy" },
+      ]);
+      expect(state.usedNames.has('Imperious Perfect')).toBe(true);
+    });
+  });
 });

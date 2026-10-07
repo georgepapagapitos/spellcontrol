@@ -135,6 +135,7 @@ import {
 import { sameType } from '@/lib/coach/card-matching';
 import { resolveOwnedCards } from './ownedCardResolution';
 import { pageInclusionOf, weakestFirst, shareKeeper, seatsAsNonbo } from './ownedShareEviction';
+import { ownedShareHeld } from './deckGeneration/ownedShareHeld';
 import { withNonbasicShortfall } from './deckGeneration/nonbasicShortfallNote';
 import {
   finalDeckMembership,
@@ -5025,6 +5026,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       collectionRelaxedNamesList.length > 0 ? collectionRelaxedNamesList : undefined,
     collectionSubstitutions: survivingSubstitutions.length > 0 ? survivingSubstitutions : undefined,
     partialOwnedEligibleCount,
+    partialOwnedHeldCount: ownedShareHeld(state),
     typeTargets,
     composition: targets,
     dataSource: state.dataSource,

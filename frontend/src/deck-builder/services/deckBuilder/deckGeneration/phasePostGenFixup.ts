@@ -20,6 +20,7 @@ import {
 import { calculateCardPriority } from '../cardPicking';
 import { STAPLE_ROCK_NAMES } from './phaseStapleManaRocks';
 import { ROLE_LABEL } from './phaseRoleSurplusRebalance';
+import { ownedShareGuard } from './ownedShareGuard';
 
 /** 5a2: a filler is a card on at most this % of the commander's decks. */
 const FILLER_INCLUSION_MAX = 5;
@@ -78,6 +79,7 @@ export function postGenFixupPhase(
   ]);
 
   const keeps = evictionKeeper(state);
+  const share = ownedShareGuard(state);
 
   // Helper: find the lowest-priority non-protected card matching a filter
   // Never evict lands — they have their own target and shouldn't be swapped for spells
@@ -118,6 +120,18 @@ export function postGenFixupPhase(
       }
     }
     return weakest ? { card: weakest.card, category: weakest.category } : null;
+  }
+
+  // E571: below its owned share, a partial build does not give an owned card up
+  // for an unowned one. The weakest card is then the weakest UNOWNED one, and
+  // when there is none the swap does not happen.
+  function findWeakestFor(
+    filter: (card: ScryfallCard, cat: DeckCategory) => boolean,
+    incoming: ScryfallCard
+  ) {
+    const weak = findWeakestCard(filter, incoming);
+    if (!weak || !share.costsShare(weak.card, incoming)) return weak;
+    return findWeakestCard((card, cat) => !share.owned(card.name) && filter(card, cat), incoming);
   }
 
   // Helper: remove a card from its category and update tracking
@@ -169,7 +183,11 @@ export function postGenFixupPhase(
           calculateCardPriority(b, state.cfg.brewLevel) -
           calculateCardPriority(a, state.cfg.brewLevel)
       );
-    return candidates.length > 0 ? scryfallCardMap.get(candidates[0].name)! : null;
+    // E571: under its owned share, an owned candidate of the role comes first.
+    const pick = share.short()
+      ? (candidates.find((c) => share.owned(c.name)) ?? candidates[0])
+      : candidates[0];
+    return pick ? scryfallCardMap.get(pick.name)! : null;
   }
 
   // 5a: Critical Role Deficits (<=50% of target)
@@ -193,7 +211,7 @@ export function postGenFixupPhase(
         for (let i = 0; i < swapsForRole; i++) {
           const replacement = findRoleCandidate(role);
           if (!replacement) break;
-          const weak = findWeakestCard((card) => getCardRole(card.name) !== role, replacement);
+          const weak = findWeakestFor((card) => getCardRole(card.name) !== role, replacement);
           if (!weak) break;
           fixupRemoveCard(weak.card, weak.category);
           fixupAddCard(replacement);
@@ -230,7 +248,7 @@ export function postGenFixupPhase(
       while (fixupSwaps < MAX_FIXUP_SWAPS && (currentRoleCounts[role] ?? 0) < target) {
         const replacement = findRoleCandidate(role);
         if (!replacement) break;
-        const weak = findWeakestCard((card) => {
+        const weak = findWeakestFor((card) => {
           if (inclusionOf(card) > FILLER_INCLUSION_MAX) return false;
           const own = getCardRole(card.name);
           const lastOfOwn =
@@ -293,7 +311,7 @@ export function postGenFixupPhase(
             );
           if (candidates.length > 0) {
             const replacement = scryfallCardMap.get(candidates[0].name)!;
-            const weak = findWeakestCard((card) => (card.cmc ?? 0) === overfullCmc, replacement);
+            const weak = findWeakestFor((card) => (card.cmc ?? 0) === overfullCmc, replacement);
             if (weak) {
               fixupRemoveCard(weak.card, weak.category);
               fixupAddCard(replacement);
