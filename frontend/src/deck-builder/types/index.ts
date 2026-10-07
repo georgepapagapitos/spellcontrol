@@ -833,8 +833,7 @@ export interface GeneratedDeck {
   /** "Wanted X → used your Y" substitutions: owned cards swapped in for unowned
    *  EDHREC staples to complete an owned-only deck from the collection. */
   collectionSubstitutions?: SubstituteRow[];
-  /** Partial mode only: the distinct owned nonland names that fit this commander
-   *  (seated or not), the honest denominator when the owned share falls short. */
+  /** Partial mode only: distinct owned nonland names that fit this commander. */
   partialOwnedEligibleCount?: number;
   /** Partial mode only: the deck's unowned nonland cards the share swap may not take. */
   partialOwnedHeldCount?: number;
