@@ -111,6 +111,26 @@
       "prices": {
         "usd": "9.89"
       }
+    },
+    {
+      "name": "Mana Vault",
+      "mana_cost": "{1}",
+      "cmc": 1.0,
+      "type_line": "Artifact",
+      "oracle_text": "This artifact doesn't untap during your untap step.\nAt the beginning of your upkeep, you may pay {4}. If you do, untap this artifact.\nAt the beginning of your draw step, if this artifact is tapped, it deals 1 damage to you.\n{T}: Add {C}{C}{C}.",
+      "colors": [],
+      "color_identity": [],
+      "keywords": [],
+      "rarity": "mythic",
+      "set": "2x2",
+      "edhrec_rank": 152,
+      "game_changer": true,
+      "legalities": {
+        "commander": "legal"
+      },
+      "prices": {
+        "usd": "116.06"
+      }
     }
   ]
 }

@@ -73,6 +73,8 @@ const boltHound = ec('Bolt Hound', 'Creature', 19.7);
 const AJANI = 'Ajani, Nacatl Pariah // Ajani, Nacatl Avenger';
 const ajani = ec('Ajani, Nacatl Pariah', 'Creature', 47.6);
 SC.set(ajani.name, REAL.get(AJANI)!);
+// An owned Game Changer on the page, below the fetch window like Bolt Hound.
+const manaVault = ec('Mana Vault', 'Artifact', 19.5);
 // Owned cards on no page for this commander, ranked well across Commander.
 const OFF_PAGE = [
   'Welcoming Vampire',
@@ -90,7 +92,7 @@ const lands = Array.from({ length: 20 }, (_, i) => {
 });
 
 const byType = (t: string) =>
-  [...unowned, ajani, ...ownedOnPage, boltHound].filter((c) => c.primary_type === t);
+  [...unowned, ajani, ...ownedOnPage, boltHound, manaVault].filter((c) => c.primary_type === t);
 
 function page(): EDHRECCommanderData {
   return {
@@ -121,7 +123,7 @@ function page(): EDHRECCommanderData {
       enchantments: byType('Enchantment'),
       planeswalkers: [],
       lands: [...lands],
-      allNonLand: [...unowned, ajani, ...ownedOnPage, boltHound],
+      allNonLand: [...unowned, ajani, ...ownedOnPage, boltHound, manaVault],
     },
   } as EDHRECCommanderData;
 }
@@ -160,7 +162,7 @@ vi.mock('@/deck-builder/services/scryfall/client', async (orig) => {
     getCachedCard: vi.fn((name: string) =>
       ['Plains', 'Mountain', 'Forest'].includes(name) ? basic(name) : undefined
     ),
-    getGameChangerNames: vi.fn(async () => new Set<string>()),
+    getGameChangerNames: vi.fn(async () => new Set<string>(['Mana Vault'])),
     upgradeCardPrintings: vi.fn(async () => {}),
     fetchMultiCopyCardNames: vi.fn(async () => new Map()),
   };
@@ -181,9 +183,13 @@ vi.mock('@/deck-builder/services/tagger/client', async (orig) => ({
 
 import { generateDeck, clearGenerationCache } from './deckGenerator';
 
-const OWNED = [AJANI, ...ownedOnPage.map((c) => c.name), 'Bolt Hound', ...OFF_PAGE];
+const OWNED = [AJANI, ...ownedOnPage.map((c) => c.name), 'Bolt Hound', 'Mana Vault', ...OFF_PAGE];
 
-function context(strategy: 'full' | 'available') {
+function context(
+  strategy: 'full' | 'available',
+  targetBracket: number | 'all' = 'all',
+  owned: string[] = OWNED
+) {
   const customization = {
     deckFormat: 99,
     landCount: 37,
@@ -197,7 +203,7 @@ function context(strategy: 'full' | 'available') {
     deckBudget: null,
     budgetOption: 'any',
     gameChangerLimit: 'unlimited',
-    targetBracket: 'all',
+    targetBracket,
     maxRarity: null,
     tinyLeaders: false,
     ignoreOwnedBudget: false,
@@ -221,7 +227,7 @@ function context(strategy: 'full' | 'available') {
     permanentsOnly: false,
     brewLevel: 0.5,
   } as unknown as Customization;
-  const pool: SubstituteCandidate[] = OWNED.map((name) => {
+  const pool: SubstituteCandidate[] = owned.map((name) => {
     const c = SC.get(name)!;
     return { name, colorIdentity: c.color_identity, cmc: c.cmc, typeLine: c.type_line };
   });
@@ -231,7 +237,7 @@ function context(strategy: 'full' | 'available') {
     colorIdentity: ['R', 'G', 'W'],
     customization,
     selectedThemes: [],
-    collectionNames: new Set(OWNED),
+    collectionNames: new Set(owned),
     collectionPool: pool,
   };
 }
@@ -255,4 +261,22 @@ describe('generateDeck: an owned-only build seats owned page cards before off-pa
       expect([...all].filter((n) => n.startsWith('Unowned'))).toEqual([]);
     }
   );
+
+  // The shortage fill applies the bracket and Game Changer ceilings: once it
+  // reached owned rows, a bracket-2 Atraxa build seated Mana Vault. With no
+  // owned card to swap in, bracket convergence couldn't take it back out.
+  it('a bracket-2 build leaves an owned Game Changer out', async () => {
+    const names = (deck: Awaited<ReturnType<typeof generateDeck>>) =>
+      new Set(
+        Object.values(deck.categories)
+          .flat()
+          .map((c) => c.name)
+      );
+    const pageOnly = OWNED.filter((n) => !OFF_PAGE.includes(n));
+    expect(names(await generateDeck(context('full', 'all', pageOnly)))).toContain('Mana Vault');
+    clearGenerationCache();
+    const bracket2 = names(await generateDeck(context('full', 2, pageOnly)));
+    expect(bracket2).not.toContain('Mana Vault');
+    expect(bracket2).toContain('Bolt Hound');
+  });
 });

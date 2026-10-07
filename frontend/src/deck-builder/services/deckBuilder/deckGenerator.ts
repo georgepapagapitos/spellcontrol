@@ -3410,6 +3410,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           violatesUserCaps(scryfallCard, userCapsWithoutPrice(state.cfg), context.collectionNames)
         )
           continue;
+        // E576: the bracket and Game Changer ceilings too. Once this fill
+        // reached owned rows, it seated Mana Vault and Opposition Agent (from
+        // the similar-commander pool) in a bracket-2 Atraxa build.
+        if (exceedsFillCeilings(scryfallCard, fillGates)) continue;
 
         // Prioritize cards that fill type deficits — bind type targets here too
         // (previously only did this when the user set explicit type
@@ -3435,6 +3439,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         }
 
         routeCardByType(scryfallCard, categories);
+        recordFillSeat(scryfallCard, fillGates);
         usedNames.add(edhrecCard.name);
         if (scryfallCard.name !== edhrecCard.name) usedNames.add(scryfallCard.name);
         bumpRoleCapCount(
@@ -3468,6 +3473,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
             violatesUserCaps(scryfallCard, userCapsWithoutPrice(state.cfg), context.collectionNames)
           )
             continue;
+          if (exceedsFillCeilings(scryfallCard, fillGates)) continue;
 
           if (isOverRoleCap(scryfallCard, roleTargets, currentRoleCounts)) {
             if (!capSkippedNames.has(edhrecCard.name)) {
@@ -3478,6 +3484,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           }
 
           routeCardByType(scryfallCard, categories);
+          recordFillSeat(scryfallCard, fillGates);
           usedNames.add(edhrecCard.name);
           if (scryfallCard.name !== edhrecCard.name) usedNames.add(scryfallCard.name);
           bumpRoleCapCount(
@@ -3505,7 +3512,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           if (filled >= shortage) break;
           if (admitted >= ROLE_CAP_HATCH_MAX_PER_PASS) break;
           if (usedNames.has(edhrecCard.name)) continue;
+          if (exceedsFillCeilings(scryfallCard, fillGates)) continue;
           routeCardByType(scryfallCard, categories);
+          recordFillSeat(scryfallCard, fillGates);
           usedNames.add(edhrecCard.name);
           if (scryfallCard.name !== edhrecCard.name) usedNames.add(scryfallCard.name);
           bumpRoleCapCount(
