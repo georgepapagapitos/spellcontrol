@@ -587,4 +587,191 @@ describe('postGenFixupPhase', () => {
       expect(lathril({ cardDraw: 1 }).result.fixupSwaps).toBe(0);
     });
   });
+  // E571: Lathril partial50 left the owned-share repair at 28 owned of 65, then
+  // this pass cut three owned fillers (Glacial Revelation among them) for
+  // unowned cards and the deck shipped at 25 of 65 (38.5%), under its 45%
+  // floor. The user's price bar (2026-09-29): an unowned card takes an owned
+  // card's slot only when clearly better, the bar rising with its price; at
+  // 100% only a must-include breaks the share.
+  describe('owned share in a partial build (E571)', () => {
+    const PAGE: Array<[string, number]> = [
+      ['Imperious Perfect', 79.5],
+      ['Glacial Revelation', 0],
+      ['Timberwatch Elf', 1],
+      ['Beast Within', 38.3],
+      ['Natural Order', 12.4],
+      ["Assassin's Trophy", 48.4],
+    ];
+    const PRICE: Record<string, string> = {
+      'Beast Within': '0.62',
+      'Natural Order': '35.50',
+      "Assassin's Trophy": '1.22',
+    };
+    const ROLE: Record<string, string | null> = {
+      'Beast Within': 'removal',
+      'Natural Order': 'removal',
+      "Assassin's Trophy": 'removal',
+      'Glacial Revelation': 'cardDraw',
+    };
+
+    function partial(opts: {
+      percent?: number;
+      removal?: number;
+      owned: string[];
+      deck: string[];
+      pool: string[];
+    }) {
+      const state = makeState();
+      state.cfg.collectionStrategy = 'partial';
+      state.cfg.collectionOwnedPercent = opts.percent ?? 50;
+      state.context.collectionNames = new Set(opts.owned);
+      for (const [n, r] of Object.entries(ROLE)) roleMap[n] = r;
+      roleMap['Imperious Perfect'] = null;
+      roleMap['Timberwatch Elf'] = null;
+      state.categories.creatures = opts.deck
+        .filter((n) => n !== 'Glacial Revelation')
+        .map((n) => scryfallCard(n));
+      state.categories.cardDraw = opts.deck.includes('Glacial Revelation')
+        ? [scryfallCard('Glacial Revelation')]
+        : [];
+      state.usedNames = new Set(opts.deck);
+      state.currentRoleCounts = { ramp: 0, removal: opts.removal ?? 7, boardwipe: 0, cardDraw: 12 };
+      state.edhrecData = {
+        cardlists: { allNonLand: PAGE.map(([name, inclusion]) => ({ name, inclusion })) },
+      } as unknown as GenerationState['edhrecData'];
+      const run = () =>
+        postGenFixupPhase(state, {
+          roleTargets: { ramp: 0, removal: 8, boardwipe: 0, cardDraw: 12 },
+          swapCandidates: undefined,
+          scryfallCardMap: new Map(
+            opts.pool.map((n) => [n, scryfallCard(n, { cmc: 3, prices: { usd: PRICE[n] } })])
+          ),
+          repairAddedNames: new Set(),
+        });
+      return { state, run };
+    }
+
+    it('lets a much more played, cheap unowned card take an owned filler (Beast Within, $0.62)', () => {
+      const { state, run } = partial({
+        owned: ['Glacial Revelation'],
+        deck: ['Glacial Revelation', 'Imperious Perfect'],
+        pool: ['Beast Within'],
+      });
+      expect(run().fixupRepairs).toMatchObject([
+        { cut: 'Glacial Revelation', added: 'Beast Within', overOwned: 'better' },
+      ]);
+      expect(state.usedNames.has('Beast Within')).toBe(true);
+    });
+
+    it('refuses an expensive card that is not that much better (Natural Order, 12.4%, $35.50)', () => {
+      const { state, run } = partial({
+        owned: ['Glacial Revelation'],
+        removal: 3,
+        deck: ['Glacial Revelation', 'Imperious Perfect'],
+        pool: ['Natural Order'],
+      });
+      expect(run().fixupSwaps).toBe(0);
+      expect(state.usedNames.has('Glacial Revelation')).toBe(true);
+    });
+
+    it('cuts an unowned filler instead when the bar refuses the owned one', () => {
+      const { state, run } = partial({
+        owned: ['Glacial Revelation'],
+        removal: 3,
+        deck: ['Glacial Revelation', 'Imperious Perfect', 'Timberwatch Elf'],
+        pool: ['Natural Order'],
+      });
+      expect(run().fixupRepairs).toMatchObject([
+        { cut: 'Timberwatch Elf', added: 'Natural Order' },
+      ]);
+      expect(state.usedNames.has('Glacial Revelation')).toBe(true);
+    });
+
+    it('at 100% never gives an owned card up for an unowned one, however much better', () => {
+      const { state, run } = partial({
+        percent: 100,
+        owned: ['Glacial Revelation', 'Imperious Perfect'],
+        deck: ['Glacial Revelation', 'Imperious Perfect'],
+        pool: ['Beast Within'],
+      });
+      expect(run().fixupSwaps).toBe(0);
+      expect(state.usedNames.has('Glacial Revelation')).toBe(true);
+    });
+
+    it('takes an owned candidate of the role when the unowned one is not clearly better', () => {
+      // Assassin's Trophy (48.4%) leads the owned Beast Within (38.3%) by 10, under its $1.22 bar of 2.
+      // It is clearly better, so it wins; with Beast Within at 47% it would not be.
+      const { state, run } = partial({
+        owned: ['Glacial Revelation', 'Beast Within'],
+        deck: ['Glacial Revelation', 'Imperious Perfect', 'Timberwatch Elf'],
+        pool: ['Beast Within', "Assassin's Trophy"],
+      });
+      state.edhrecData!.cardlists.allNonLand.find((c) => c.name === 'Beast Within')!.inclusion = 47;
+      expect(run().fixupRepairs).toMatchObject([{ added: 'Beast Within' }]);
+    });
+
+    it('takes the unowned candidate when it is clearly better than the owned one', () => {
+      const { run } = partial({
+        owned: ['Glacial Revelation', 'Beast Within'],
+        deck: ['Glacial Revelation', 'Imperious Perfect', 'Timberwatch Elf'],
+        pool: ['Beast Within', "Assassin's Trophy"],
+      });
+      expect(run().fixupRepairs).toMatchObject([{ added: "Assassin's Trophy" }]);
+    });
+
+    // Sythis partial50: Farewell (15.3%, $6.16) trails the price bar over the owned
+    // Far Wanderings (0%) by a point, but Far Wanderings is ramp 17 of 13, surplus.
+    // Refusing it left the deck over its ramp cap and the surplus phase then cut
+    // Exploration (42%).
+    it('trades an owned card of a role past its target for a needed role, bar or not', () => {
+      const { state, run } = partial({
+        owned: ['Far Wanderings'],
+        deck: ['Far Wanderings', 'Imperious Perfect', 'Timberwatch Elf'],
+        pool: ['Farewell'],
+      });
+      PAGE.push(['Far Wanderings', 0], ['Farewell', 15.3]);
+      PRICE['Farewell'] = '6.16';
+      roleMap['Farewell'] = 'boardwipe';
+      roleMap['Far Wanderings'] = 'ramp';
+      state.categories.ramp = [scryfallCard('Far Wanderings')];
+      state.categories.creatures = state.categories.creatures.filter(
+        (c) => c.name !== 'Far Wanderings'
+      );
+      state.currentRoleCounts = { ramp: 17, removal: 8, boardwipe: 1, cardDraw: 12 };
+      state.edhrecData = {
+        cardlists: { allNonLand: PAGE.map(([name, inclusion]) => ({ name, inclusion })) },
+      } as unknown as GenerationState['edhrecData'];
+      const result = postGenFixupPhase(state, {
+        roleTargets: { ramp: 13, removal: 8, boardwipe: 2, cardDraw: 12 },
+        swapCandidates: undefined,
+        scryfallCardMap: new Map([
+          ['Farewell', scryfallCard('Farewell', { prices: { usd: '6.16' } })],
+        ]),
+        repairAddedNames: new Set(),
+      });
+      void run;
+      expect(result.fixupRepairs).toMatchObject([
+        { cut: 'Far Wanderings', added: 'Farewell', overOwned: 'surplus' },
+      ]);
+    });
+
+    // Lathril partial100: Mox Diamond is ramp 18 of 15, surplus, but at 100% only a
+    // must-include breaks the share, so Beast Whisperer (72.5%, $9.03) does not take it.
+    it('at 100% keeps an owned surplus card over an unowned one', () => {
+      const { state, run } = partial({
+        percent: 100,
+        owned: ['Mox Diamond', 'Imperious Perfect'],
+        deck: ['Mox Diamond', 'Imperious Perfect'],
+        pool: ['Beast Within'],
+      });
+      roleMap['Mox Diamond'] = 'ramp';
+      state.categories.ramp = [scryfallCard('Mox Diamond')];
+      state.categories.creatures = state.categories.creatures.filter(
+        (c) => c.name !== 'Mox Diamond'
+      );
+      state.currentRoleCounts = { ramp: 18, removal: 7, boardwipe: 0, cardDraw: 12 };
+      expect(run().fixupSwaps).toBe(0);
+      expect(state.usedNames.has('Mox Diamond')).toBe(true);
+    });
+  });
 });

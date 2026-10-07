@@ -8,7 +8,7 @@ import {
   type ThemeResult,
 } from '@/deck-builder/types';
 import { buildSynergyFingerprint, topMatchedTags } from './synergyFingerprint';
-import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
+import { getCardPrice, getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { isRoleExcess } from './deckAnalyzer';
 import { countProtectionPieces } from './commanderDeckAnalysis';
 import { ARCHETYPE_LABEL } from './strategyVocabulary';
@@ -17,6 +17,44 @@ import type { ArchetypeEvidence } from './roleTargets';
 import { buildsFromOwnedCards, skipsOwnedCards } from './deckFilters';
 
 const AXIS_LABEL = new Map(AXES.map((a) => [a.key, a.label]));
+
+/** The owned-share gap note's reason, in two parts. The unowned cards the swap
+ *  may not take (staples, combo pieces, protection, must-includes) stay in over
+ *  the share. Each unowned card the user's price bar let take an owned card's
+ *  slot is named, with its price (E571). */
+function ownedGapReason(
+  held: number | undefined,
+  unowned: number,
+  boughtOver: readonly { name: string; price: string | null; surplus: boolean }[],
+  symbol: string
+): string {
+  const kind = 'staple, combo piece, protection piece or must-include';
+  const parts: string[] = [];
+  if (held && held >= unowned) {
+    parts.push(
+      `${unowned === 1 ? 'The one card' : 'Every card'} you don't own is a ${kind}, so ${unowned === 1 ? 'it was not' : 'none was'} swapped for one of yours.`
+    );
+  } else if (held) {
+    parts.push(
+      `${held} of the ${unowned} cards you don't own ${held === 1 ? 'is a' : 'are each a'} ${kind}, and stay${held === 1 ? 's' : ''} in over your share.`
+    );
+  }
+  for (const { name, price, surplus } of boughtOver.slice(0, 3)) {
+    const why = surplus ? 'the card you own was extra for its role' : 'it is much more played';
+    parts.push(
+      `${name} was added over a card you own because ${why}${price ? ` and it costs ${symbol}${price}` : ''}.`
+    );
+  }
+  if (boughtOver.length > 3) parts.push(`${boughtOver.length - 3} more were added the same way.`);
+  if (unowned - (held ?? 0) - boughtOver.length > 0 || parts.length === 0) {
+    parts.push(
+      held || boughtOver.length > 0
+        ? 'The rest hit your limits or a role cap.'
+        : 'The rest of your cards hit your limits, hit a role cap, or would have replaced a staple.'
+    );
+  }
+  return parts.join(' ');
+}
 
 /** "12 payoffs", "1 payoff": an average rounded to a whole card. */
 function plural(n: number, noun: string): string {
@@ -291,7 +329,21 @@ export function assembleBuildReport(input: {
               ? `You asked for ${target}% owned cards, but only ${eligible} of ` +
                 `your cards fit this commander's colors. ${used}.`
               : `You asked for ${target}% owned cards and got ${report.ownedPercentActual}%. ` +
-                'The rest of your cards hit your limits, hit a role cap, or would have replaced a staple.';
+                ownedGapReason(
+                  generated.partialOwnedHeldCount,
+                  nonland.length - ownedCount,
+                  (generated.fixupRepairs ?? [])
+                    .filter((r) => collectionNames.has(r.cut) && !collectionNames.has(r.added))
+                    .map((r) => {
+                      const card = nonland.find((c) => c.name === r.added);
+                      return {
+                        name: r.added,
+                        price: card ? getCardPrice(card, customization.currency ?? 'USD') : null,
+                        surplus: r.overOwned === 'surplus',
+                      };
+                    }),
+                  customization.currency === 'EUR' ? '€' : '$'
+                );
         }
       }
     }

@@ -276,6 +276,116 @@ describe('assembleBuildReport', () => {
     );
   });
 
+  // E571: Lathril partial50 shipped at 38% and the note blamed "limits, a role
+  // cap or a staple" with no count; every unowned card in it was one the share
+  // swap may not take, and the note says so.
+  it('names the held cards as the reason when every unowned card is one the swap may not take', () => {
+    const mainboard = Array.from({ length: 10 }, (_, i) => makeCard(`Card ${i + 1}`));
+    const report = assembleBuildReport({
+      generated: makeGenerated({
+        builtFromCollection: true,
+        categories: categories({ creatures: mainboard }),
+        partialOwnedEligibleCount: 10,
+        partialOwnedHeldCount: 8,
+      }),
+      customization: makeCustomization({
+        collectionMode: true,
+        collectionStrategy: 'partial',
+        collectionOwnedPercent: 50,
+      }),
+      collectionNames: new Set(['Card 1', 'Card 2']),
+    });
+
+    expect(report.ownedPercentGapNote).toBe(
+      "You asked for 50% owned cards and got 20%. Every card you don't own is a staple, combo piece, protection piece or must-include, so none was swapped for one of yours."
+    );
+  });
+
+  it('adds that the rest hit a limit when some unowned cards were free to swap', () => {
+    const mainboard = Array.from({ length: 10 }, (_, i) => makeCard(`Card ${i + 1}`));
+    const report = assembleBuildReport({
+      generated: makeGenerated({
+        builtFromCollection: true,
+        categories: categories({ creatures: mainboard }),
+        partialOwnedEligibleCount: 10,
+        partialOwnedHeldCount: 5,
+      }),
+      customization: makeCustomization({
+        collectionMode: true,
+        collectionStrategy: 'partial',
+        collectionOwnedPercent: 50,
+      }),
+      collectionNames: new Set(['Card 1', 'Card 2']),
+    });
+
+    expect(report.ownedPercentGapNote).toContain(
+      "5 of the 8 cards you don't own are each a staple"
+    );
+    expect(report.ownedPercentGapNote).toContain('The rest hit your limits or a role cap.');
+  });
+
+  // E571: a card the price bar let take an owned card's slot is named, with its price.
+  it('names an unowned card the price bar let take an owned fixup slot', () => {
+    const mainboard = [
+      ...Array.from({ length: 9 }, (_, i) => makeCard(`Card ${i + 1}`)),
+      { ...makeCard('Beast Within'), prices: { usd: '0.62' } } as ScryfallCard,
+    ];
+    const report = assembleBuildReport({
+      generated: makeGenerated({
+        builtFromCollection: true,
+        categories: categories({ creatures: mainboard }),
+        partialOwnedEligibleCount: 10,
+        partialOwnedHeldCount: 7,
+        fixupRepairs: [
+          {
+            cut: 'Glacial Revelation',
+            added: 'Beast Within',
+            reason: 'Swapped Glacial Revelation for Beast Within to close a removal gap.',
+            overOwned: 'better',
+          },
+        ],
+      }),
+      customization: makeCustomization({
+        collectionMode: true,
+        collectionStrategy: 'partial',
+        collectionOwnedPercent: 50,
+      }),
+      collectionNames: new Set(['Card 1', 'Card 2', 'Glacial Revelation']),
+    });
+
+    expect(report.ownedPercentGapNote).toBe(
+      "You asked for 50% owned cards and got 20%. 7 of the 8 cards you don't own are each a staple, combo piece, protection piece or must-include, and stay in over your share. Beast Within was added over a card you own because it is much more played and it costs $0.62."
+    );
+  });
+
+  it('says an owned card was extra for its role when the swap took a surplus slot', () => {
+    const mainboard = [
+      ...Array.from({ length: 9 }, (_, i) => makeCard(`Card ${i + 1}`)),
+      { ...makeCard('Farewell'), prices: { usd: '6.16' } } as ScryfallCard,
+    ];
+    const report = assembleBuildReport({
+      generated: makeGenerated({
+        builtFromCollection: true,
+        categories: categories({ creatures: mainboard }),
+        partialOwnedEligibleCount: 10,
+        partialOwnedHeldCount: 7,
+        fixupRepairs: [
+          { cut: 'Far Wanderings', added: 'Farewell', reason: 'Swapped.', overOwned: 'surplus' },
+        ],
+      }),
+      customization: makeCustomization({
+        collectionMode: true,
+        collectionStrategy: 'partial',
+        collectionOwnedPercent: 50,
+      }),
+      collectionNames: new Set(['Card 1', 'Card 2', 'Far Wanderings']),
+    });
+
+    expect(report.ownedPercentGapNote).toContain(
+      'Farewell was added over a card you own because the card you own was extra for its role and it costs $6.16.'
+    );
+  });
+
   it('says nothing when partial mode meets its target', () => {
     const mainboard = Array.from({ length: 4 }, (_, i) => makeCard(`Card ${i + 1}`));
     const report = assembleBuildReport({

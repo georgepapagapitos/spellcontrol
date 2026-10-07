@@ -501,6 +501,8 @@ export interface CoherenceRepair {
   cut: string;
   added: string;
   reason: string;
+  /** An unowned add over an owned cut in a partial build: why the share allowed it. */
+  overOwned?: 'better' | 'surplus';
 }
 
 /** Describes which data source was ultimately used for deck generation */
@@ -831,12 +833,10 @@ export interface GeneratedDeck {
   /** "Wanted X → used your Y" substitutions: owned cards swapped in for unowned
    *  EDHREC staples to complete an owned-only deck from the collection. */
   collectionSubstitutions?: SubstituteRow[];
-  /** Partial mode only: the total distinct owned card names present in this
-   *  commander's candidate pool (seated in the deck or not) — the honest
-   *  denominator for "only N owned cards fit this pool" when the delivered
-   *  owned share falls short of collectionOwnedPercent. Undefined outside
-   *  partial mode. */
+  /** Partial mode only: distinct owned nonland names that fit this commander. */
   partialOwnedEligibleCount?: number;
+  /** Partial mode only: the deck's unowned nonland cards the share swap may not take. */
+  partialOwnedHeldCount?: number;
   detectedCombos?: DetectedCombo[];
   typeTargets?: Record<string, number>;
   /** Target counts per DeckCategory bucket, computed unconditionally (unlike
