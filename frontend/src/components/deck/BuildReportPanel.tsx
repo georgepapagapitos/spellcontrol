@@ -797,7 +797,10 @@ export function BuildReportPanel({
                 </div>
                 <span className="build-report-sub-reason">{r.reason}</span>
                 <span className="build-report-lift-chips">
-                  <VerdictBadge tone="info" label="Whole-deck check" />
+                  <VerdictBadge
+                    tone="info"
+                    label={r.discovery ? 'Discovery pick' : 'Whole-deck check'}
+                  />
                 </span>
               </li>
             ))}

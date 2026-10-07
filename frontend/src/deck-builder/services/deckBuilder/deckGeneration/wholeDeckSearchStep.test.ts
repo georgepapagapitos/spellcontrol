@@ -7,7 +7,8 @@ import {
   SEARCH_PROGRESS_PERCENT,
   SEARCH_PROGRESS_SPAN,
 } from './searchProgress';
-import { searchEnabled, standing } from './wholeDeckSearchStep';
+import type { ScryfallCard } from '@/deck-builder/types';
+import { reportFields, searchEnabled, stampProvenance, standing } from './wholeDeckSearchStep';
 
 const repair = (cut: string, added: string) => ({ cut, added, reason: '' });
 const stateWith = (swaps: Array<{ cut: string; added: string }>) =>
@@ -46,5 +47,38 @@ describe('the search is on unless a build says false', () => {
     expect(SEARCH_PROGRESS_MESSAGE).toBe('Fine-tuning the list…');
     expect(SEARCH_PROGRESS_PERCENT).toBeGreaterThan(92);
     expect(SEARCH_PROGRESS_PERCENT + SEARCH_PROGRESS_SPAN).toBeLessThan(97);
+  });
+});
+
+describe('discovery picks are labelled with the link that earned them (E515)', () => {
+  const state = {
+    wholeDeckSearch: {
+      swaps: [
+        { cut: 'Bloom Tender', added: 'Hardened Scales', reason: 'r' },
+        {
+          cut: 'Fathom Mage',
+          added: 'Cordial Vampire',
+          reason: 'r',
+          discovery: 'pays off the creature deaths that Viscera Seer makes',
+        },
+      ],
+      note: '',
+    },
+  } as GenerationState;
+  const cards = ['Hardened Scales', 'Cordial Vampire'].map((name) => ({ name }) as ScryfallCard);
+
+  it('stamps the link on the card, and the search swap as before', () => {
+    const provenance: Record<string, string> = {};
+    stampProvenance(state, cards, provenance);
+    expect(provenance['Cordial Vampire']).toBe(
+      'Discovery pick: pays off the creature deaths that Viscera Seer makes (swapped in for Fathom Mage)'
+    );
+    expect(provenance['Hardened Scales']).toBe(
+      'Swapped in for Bloom Tender after checking the whole deck'
+    );
+  });
+
+  it('carries the link into the report swaps', () => {
+    expect(reportFields(state).wholeDeckSearchSwaps?.[1].discovery).toMatch(/Viscera Seer/);
   });
 });
