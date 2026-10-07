@@ -503,6 +503,8 @@ export interface CoherenceRepair {
   reason: string;
   /** An unowned add over an owned cut in a partial build: why the share allowed it. */
   overOwned?: 'better' | 'surplus';
+  /** E515: a discovery pick's link, e.g. "makes Treasure for Marionette Master". */
+  discovery?: string;
 }
 
 /** Describes which data source was ultimately used for deck generation */
@@ -1100,13 +1102,11 @@ export interface Customization {
   // build report. ON unless `false` (default since 2026-10-06); no UI toggle.
   // The live harness turns it off with LIVE_GEN_OPTIMIZER=0.
   wholeDeckSearch?: boolean;
-  // (Hyper Focus / `hyperFocus` lived here. Removed — E230 gated it 2026-08-07
-  // and it failed: its theme-exclusive predicate measured EDHREC list
-  // truncation rather than theme identity, so its largest boost landed on the
-  // least-played cards. Second removal of this knob; #1081 deleted the first
-  // as dead-at-default before #1451 rebuilt it. Do not reintroduce it without
-  // a truncation-immune signal — a relative-inclusion comparison, not set
-  // membership. See project_e230_hyper_focus_rejected.)
+  // E515: discovery slot after the whole-deck search (discovery.ts). OFF unless true.
+  discoveryPicks?: boolean;
+  // (Hyper Focus / `hyperFocus` was removed twice: E230 gated it 2026-08-07 and it
+  // failed, its theme-exclusive predicate measuring EDHREC list truncation.
+  // Not to return without a truncation-immune signal. See project_e230_hyper_focus_rejected.)
   // Mana-philosophy wheel (Manafoundry ranked item 22): four blendable weights
   // steering nonbasic land selection (reliable / greedy / spelllands / budget),
   // normalized to sum to 1 with a per-axis floor so no axis ever reaches 0.

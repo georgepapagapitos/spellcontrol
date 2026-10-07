@@ -83,7 +83,9 @@ export function stampProvenance(
 ): void {
   for (const swap of state.wholeDeckSearch?.swaps ?? [])
     if (nonLandCards.some((c) => c.name === swap.added))
-      cardProvenance[swap.added] = `Swapped in for ${swap.cut} after checking the whole deck`;
+      cardProvenance[swap.added] = swap.discovery
+        ? `Discovery pick: ${swap.discovery} (swapped in for ${swap.cut})`
+        : `Swapped in for ${swap.cut} after checking the whole deck`;
 }
 
 /** The report's fields for the search: no key at all when it changed nothing. */

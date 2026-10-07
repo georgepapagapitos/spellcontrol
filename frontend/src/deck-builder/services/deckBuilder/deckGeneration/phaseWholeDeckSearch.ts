@@ -32,6 +32,7 @@ import { cardIneligibility, checkConstraints } from '../deckObjective/constraint
 import { isLandCard } from '../deckObjective/context';
 import { MAX_SWAPS, repairSlotOf, type AppliedSwap } from '../deckObjective/optimizer';
 import { optimizeDeckAsync } from '../deckObjective/optimizerAsync';
+import { discover, type DiscoveryPick } from '../deckObjective/discovery';
 import { countRoles } from '../deckObjective/trustRegion';
 import type { ObjectiveContext, ObjectiveDeck } from '../deckObjective/types';
 import { edhrecRowsFrom } from '../deckObjective/panelDump';
@@ -78,6 +79,8 @@ export interface WholeDeckSwapRecord {
   cut: string;
   added: string;
   reason: string;
+  /** E515: the link that earned a discovery pick its slot; absent on a search swap. */
+  discovery?: string;
 }
 
 export interface WholeDeckSearchResult {
@@ -99,6 +102,15 @@ export function reasonLine(s: AppliedSwap): string {
     ? ` Outside the usual limits, because ${plainDisclosure(s.disclosure)}.`
     : '';
   return `${[why, weaker].filter(Boolean).join(' ')}${outside}`;
+}
+
+/** A discovery pick's reason: its link first, then what it replaced and why that was filler. */
+function discoveryReason(p: DiscoveryPick): string {
+  const played =
+    p.inclusion === null
+      ? 'is not on the commander page'
+      : `is in ${Math.round(p.inclusion)}% of the page's decks`;
+  return `Discovery pick: ${p.label}. It ${played} but ranks ${p.rank ?? 'unranked'} on EDHREC overall, and the deck scores no worse with it. ${p.cut.name} was filler.`;
 }
 
 export async function wholeDeckSearchPhase(
@@ -160,6 +172,9 @@ export async function wholeDeckSearchPhase(
     passesGates,
     leave
   );
+  // The discovery slot (E515) draws from the cards this generation fetched,
+  // not from the owned cards fetched only to repair a rule.
+  const discoveryPool = [...candidates];
   candidates.push(...repairOnly.values());
   // The generator's own protections: must-includes (the customization's are
   // the search's too), a partial build's owned quota.
@@ -210,14 +225,36 @@ export async function wholeDeckSearchPhase(
       records.push({ cut: outName, added: inCard.name, reason: reasonLine(s) });
     });
   }
-  const note =
-    records.length === 0
-      ? undefined
+  // E515: the discovery slot, after the search, on the list it left.
+  let discoveryNote = '';
+  if (cz.discoveryPicks) {
+    const found = discover(result.deck, discoveryPool, ctx, {
+      locks,
+      trust: { roleCeilings },
+      exclude: new Set(result.swaps.flatMap((s) => s.out)),
+    });
+    for (const p of found.picks) {
+      removeFromDeck(state, p.cut.name);
+      addToDeck(state, p.card);
+      records.push({
+        cut: p.cut.name,
+        added: p.card.name,
+        reason: discoveryReason(p),
+        discovery: p.label,
+      });
+    }
+    if (found.picks.length > 0)
+      discoveryNote = `${result.swaps.length > 0 ? ' ' : ''}Discovery picks: ${found.picks.map((p) => `${p.card.name} for ${p.cut.name} (${p.label})`).join('; ')}.`;
+  }
+  const searchNote =
+    result.swaps.length === 0
+      ? ''
       : `After the build, a check of the whole list made ${result.swaps.length} swap${result.swaps.length === 1 ? '' : 's'}: ${result.swaps
           .map((s) => `${s.in.join(' + ')} for ${s.out.join(' + ')}`)
           .join(
             '; '
           )}.${result.stoppedBy === 'time' ? ' It stopped at its time limit, so it may have missed some.' : ''}`;
+  const note = records.length === 0 ? undefined : `${searchNote}${discoveryNote}`.trim();
   return { swaps: records, note, stoppedBy: result.stoppedBy };
 }
 
