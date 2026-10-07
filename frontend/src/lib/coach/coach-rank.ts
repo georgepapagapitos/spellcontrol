@@ -127,13 +127,14 @@ function planBand(c: Change, promotedCombo: boolean): number {
   return c.budding || c.lane === 'budget' ? 1 : 0;
 }
 
-/** Game-ending completions promoted per deck. Past the first two lines the shadow run
+/** Game-ending completions promoted per deck. Past the first three lines the shadow run
  *  showed combos crowding the first fold (recall against critic-named gaps fell). */
-export const PROMOTED_COMBO_CAP = 2;
+export const PROMOTED_COMBO_CAP = 3;
 
 /**
  * The completions that lead the feed: owned first, then the line's deck count,
- * at most one per card.
+ * at most one per card and one per partner set (a second win line off the same
+ * pieces is the repeat `diversifyRankedMoves` already defers).
  */
 function pickPromotedCombos(eligible: Change[]): Set<Change> {
   const sorted = [...eligible].sort(
@@ -144,10 +145,13 @@ function pickPromotedCombos(eligible: Change[]): Set<Change> {
   );
   const picked = new Set<Change>();
   const names = new Set<string>();
+  const lines = new Set<string | null>();
   for (const c of sorted) {
     if (picked.size >= PROMOTED_COMBO_CAP) break;
-    if (names.has(c.name)) continue;
+    const line = diversityKey(c);
+    if (names.has(c.name) || lines.has(line)) continue;
     names.add(c.name);
+    lines.add(line);
     picked.add(c);
   }
   return picked;
