@@ -139,7 +139,8 @@ export function postGenFixupPhase(
     incoming: ScryfallCard
   ) {
     const weak = findWeakestCard(filter, incoming);
-    if (!weak || !share.costsShare(weak.card, incoming) || inSurplus(weak.card)) return weak;
+    if (!weak || !share.costsShare(weak.card, incoming) || (!share.strict && inSurplus(weak.card)))
+      return weak;
     return findWeakestCard((card, cat) => !share.owned(card.name) && filter(card, cat), incoming);
   }
 

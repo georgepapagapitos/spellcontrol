@@ -752,5 +752,24 @@ describe('postGenFixupPhase', () => {
       void run;
       expect(result.fixupRepairs).toMatchObject([{ cut: 'Far Wanderings', added: 'Farewell' }]);
     });
+
+    // Lathril partial100: Mox Diamond is ramp 18 of 15, surplus, but at 100% only a
+    // must-include breaks the share, so Beast Whisperer (72.5%, $9.03) does not take it.
+    it('at 100% keeps an owned surplus card over an unowned one', () => {
+      const { state, run } = partial({
+        percent: 100,
+        owned: ['Mox Diamond', 'Imperious Perfect'],
+        deck: ['Mox Diamond', 'Imperious Perfect'],
+        pool: ['Beast Within'],
+      });
+      roleMap['Mox Diamond'] = 'ramp';
+      state.categories.ramp = [scryfallCard('Mox Diamond')];
+      state.categories.creatures = state.categories.creatures.filter(
+        (c) => c.name !== 'Mox Diamond'
+      );
+      state.currentRoleCounts = { ramp: 18, removal: 7, boardwipe: 0, cardDraw: 12 };
+      expect(run().fixupSwaps).toBe(0);
+      expect(state.usedNames.has('Mox Diamond')).toBe(true);
+    });
   });
 });
