@@ -1102,7 +1102,7 @@ export interface Customization {
   // build report. ON unless `false` (default since 2026-10-06); no UI toggle.
   // The live harness turns it off with LIVE_GEN_OPTIMIZER=0.
   wholeDeckSearch?: boolean;
-  // E515: discovery slot after the whole-deck search (discovery.ts). OFF unless true.
+  // E515: discovery slot after the whole-deck search (discovery.ts). ON unless false.
   discoveryPicks?: boolean;
   // (Hyper Focus / `hyperFocus` was removed twice: E230 gated it 2026-08-07 and it
   // failed, its theme-exclusive predicate measuring EDHREC list truncation.

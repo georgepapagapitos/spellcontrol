@@ -51,6 +51,15 @@ import { plainDisclosure, swapSentences } from './swapCopy';
  * bites there; a phone several times slower is stopped at the cap with the
  * swaps it has, each valid on its own and disclosed as usual.
  */
+
+/**
+ * The E515 discovery slot is on unless a build says false (default since its
+ * pairwise gate passed: 4 improved, 0 regressed over 59 decks, 2026-10-07).
+ */
+export function discoveryEnabled(customization: { discoveryPicks?: boolean }): boolean {
+  return customization.discoveryPicks !== false;
+}
+
 export const SEARCH_TIME_BUDGET_MS = 15_000;
 
 /** The ownership checks. */
@@ -227,7 +236,7 @@ export async function wholeDeckSearchPhase(
   }
   // E515: the discovery slot, after the search, on the list it left.
   let discoveryNote = '';
-  if (cz.discoveryPicks) {
+  if (discoveryEnabled(cz)) {
     const found = discover(result.deck, discoveryPool, ctx, {
       locks,
       trust: { roleCeilings },
