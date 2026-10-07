@@ -122,9 +122,10 @@ export function postGenFixupPhase(
     return weakest ? { card: weakest.card, category: weakest.category } : null;
   }
 
-  // E571: below its owned share, a partial build does not give an owned card up
-  // for an unowned one. The weakest card is then the weakest UNOWNED one, and
-  // when there is none the swap does not happen.
+  // E571: a partial build gives an owned card up for an unowned one only when
+  // the unowned one is clearly better by the user's price bar (at 100%, never).
+  // Otherwise the weakest card is the weakest UNOWNED one, and when there is
+  // none the swap does not happen.
   function findWeakestFor(
     filter: (card: ScryfallCard, cat: DeckCategory) => boolean,
     incoming: ScryfallCard
@@ -183,10 +184,17 @@ export function postGenFixupPhase(
           calculateCardPriority(b, state.cfg.brewLevel) -
           calculateCardPriority(a, state.cfg.brewLevel)
       );
-    // E571: under its owned share, an owned candidate of the role comes first.
-    const pick = share.short()
-      ? (candidates.find((c) => share.owned(c.name)) ?? candidates[0])
-      : candidates[0];
+    // E571: under its owned share, an owned candidate of the role wins a tie:
+    // it is taken unless the best candidate is clearly better by the price bar.
+    const ownedPick = share.short() ? candidates.find((c) => share.owned(c.name)) : undefined;
+    const pick =
+      ownedPick &&
+      share.ownedIsAsGood(
+        scryfallCardMap.get(ownedPick.name)!,
+        scryfallCardMap.get(candidates[0].name)!
+      )
+        ? ownedPick
+        : candidates[0];
     return pick ? scryfallCardMap.get(pick.name)! : null;
   }
 

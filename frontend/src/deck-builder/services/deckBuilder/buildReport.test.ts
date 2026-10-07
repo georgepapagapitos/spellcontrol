@@ -324,6 +324,39 @@ describe('assembleBuildReport', () => {
     expect(report.ownedPercentGapNote).toContain('The rest hit your limits or a role cap.');
   });
 
+  // E571: a card the price bar let take an owned card's slot is named, with its price.
+  it('names an unowned card the price bar let take an owned fixup slot', () => {
+    const mainboard = [
+      ...Array.from({ length: 9 }, (_, i) => makeCard(`Card ${i + 1}`)),
+      { ...makeCard('Beast Within'), prices: { usd: '0.62' } } as ScryfallCard,
+    ];
+    const report = assembleBuildReport({
+      generated: makeGenerated({
+        builtFromCollection: true,
+        categories: categories({ creatures: mainboard }),
+        partialOwnedEligibleCount: 10,
+        partialOwnedHeldCount: 7,
+        fixupRepairs: [
+          {
+            cut: 'Glacial Revelation',
+            added: 'Beast Within',
+            reason: 'Swapped Glacial Revelation for Beast Within to close a removal gap.',
+          },
+        ],
+      }),
+      customization: makeCustomization({
+        collectionMode: true,
+        collectionStrategy: 'partial',
+        collectionOwnedPercent: 50,
+      }),
+      collectionNames: new Set(['Card 1', 'Card 2', 'Glacial Revelation']),
+    });
+
+    expect(report.ownedPercentGapNote).toBe(
+      "You asked for 50% owned cards and got 20%. 7 of the 8 cards you don't own are each a staple, combo piece, protection piece or must-include, and stay in over your share. Beast Within was added over a card you own because it is much more played and costs $0.62."
+    );
+  });
+
   it('says nothing when partial mode meets its target', () => {
     const mainboard = Array.from({ length: 4 }, (_, i) => makeCard(`Card ${i + 1}`));
     const report = assembleBuildReport({
