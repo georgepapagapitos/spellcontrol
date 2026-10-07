@@ -7,6 +7,7 @@ import {
   type UpgradePlanOptions,
 } from './upgrade-plan';
 import type { Change } from './deck-change';
+import type { PlanJudge, PlanPick, PlanVerdict } from './plan-move-judge';
 
 const add = (name: string, extra: Partial<Change> = {}): Change => ({
   id: `fill-gaps:${name}`,
@@ -451,6 +452,119 @@ describe('planUpgrades', () => {
       );
       expect(names(plan)).toEqual(['Rift']);
       expect(plan.estimateAfter).toBeNull();
+    });
+  });
+  // E540 S9: the whole-deck objective's judge decides what the plan may offer.
+  describe('with the objective judge', () => {
+    const refuse = (reason = 'scores worse'): PlanVerdict => ({
+      status: 'refused',
+      delta: -1,
+      reason,
+    });
+    const ok: PlanVerdict = { status: 'ok', delta: 1 };
+    const judgeOf = (
+      f: (add: string, cutName: string | null, prior: readonly PlanPick[]) => PlanVerdict
+    ): PlanJudge => ({
+      verdict: (a, c, prior) => f(a.name, c, prior),
+    });
+
+    it('does not offer a swap the objective judges a loss', () => {
+      const plan = planUpgrades(
+        ctx({
+          moves: [add('Trap', { inclusion: 80 }), add('Real Upgrade', { inclusion: 70 })],
+          cuts: [cut('Weak A'), cut('Weak B')],
+          prices: { Trap: 1, 'Real Upgrade': 1 },
+          judge: judgeOf((a) => (a === 'Trap' ? refuse() : ok)),
+        }),
+        opts()
+      );
+      expect(names(plan)).toEqual(['Real Upgrade']);
+      expect(plan.notUpgrades).toBe(1);
+    });
+
+    it('moves on to the next weakest card when the judge holds the first cut', () => {
+      // The weakest card by play-rate is a protected tutor of this commander.
+      const plan = planUpgrades(
+        ctx({
+          moves: [add('Upgrade', { inclusion: 70 })],
+          cuts: [cut('Protected Tutor'), cut('Spare')],
+          prices: { Upgrade: 1 },
+          judge: judgeOf((_a, c) => (c === 'Protected Tutor' ? refuse('a tutor') : ok)),
+        }),
+        opts()
+      );
+      expect(plan.picks.map((p) => [p.change.name, p.cutName])).toEqual([['Upgrade', 'Spare']]);
+    });
+
+    it('re-slots a pre-paired swap whose cut the judge holds', () => {
+      const plan = planUpgrades(
+        ctx({
+          moves: [add('Upgrade', { type: 'swap', inName: 'Protected Combo Piece', inclusion: 70 })],
+          cuts: [cut('Protected Combo Piece'), cut('Spare')],
+          prices: { Upgrade: 1 },
+          judge: judgeOf((_a, c) => (c === 'Protected Combo Piece' ? refuse() : ok)),
+        }),
+        opts()
+      );
+      expect(plan.picks.map((p) => p.cutName)).toEqual(['Spare']);
+    });
+
+    it('judges each pick against the picks before it', () => {
+      const seen: string[][] = [];
+      planUpgrades(
+        ctx({
+          moves: [add('First', { inclusion: 90 }), add('Second', { inclusion: 80 })],
+          prices: { First: 1, Second: 1 },
+          judge: judgeOf((a, _c, prior) => {
+            seen.push([a, ...prior.map((p) => p.add)]);
+            return ok;
+          }),
+        }),
+        opts()
+      );
+      expect(seen).toContainEqual(['First']);
+      expect(seen).toContainEqual(['Second', 'First']);
+    });
+
+    it('judges an add into an open slot with no cut', () => {
+      const asked: (string | null)[] = [];
+      const plan = planUpgrades(
+        ctx({
+          moves: [add('Filler', { inclusion: 70 })],
+          openSlots: 1,
+          prices: { Filler: 1 },
+          judge: judgeOf((_a, c) => {
+            asked.push(c);
+            return refuse();
+          }),
+        }),
+        opts()
+      );
+      expect(asked).toEqual([null]);
+      expect(plan.picks).toEqual([]);
+      expect(plan.notUpgrades).toBe(1);
+    });
+
+    it('keeps a card the judge could not score, on the plan own rules', () => {
+      const plan = planUpgrades(
+        ctx({
+          moves: [add('Unknown', { inclusion: 70 })],
+          prices: { Unknown: 1 },
+          judge: judgeOf(() => ({ status: 'unscored' })),
+        }),
+        opts()
+      );
+      expect(names(plan)).toEqual(['Unknown']);
+      expect(plan.notUpgrades).toBe(0);
+    });
+
+    it('runs unchanged without a judge', () => {
+      const plan = planUpgrades(
+        ctx({ moves: [add('Trap', { inclusion: 80 })], prices: { Trap: 1 } }),
+        opts()
+      );
+      expect(names(plan)).toEqual(['Trap']);
+      expect(plan.notUpgrades).toBe(0);
     });
   });
 });

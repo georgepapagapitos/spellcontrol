@@ -16,18 +16,12 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ScryfallCard } from '@/deck-builder/types';
-import type { ComboMatchResponse } from '@/types/combos';
-import type { Deck } from '@/store/decks';
-import {
-  getCachedCard,
-  getCardsByNames,
-  getGameChangerNames,
-} from '@/deck-builder/services/scryfall/client';
+import { getCachedCard, getCardsByNames } from '@/deck-builder/services/scryfall/client';
 import { logger } from '@/lib/util/logger';
 import { coachExclusions } from '@/deck-builder/services/deckBuilder/coachExclusions';
 import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
 import type { Change, ChangeOwnership } from './deck-change';
-import { coachCombos, loadCoachObjective, protectionSourcesFrom } from './coach-objective';
+import { loadSourcesObjective, type CutSwapSources } from './objective-for-deck';
 import {
   CUT_PAIRING_BUDGET_MS,
   ownedInIdentity,
@@ -39,13 +33,7 @@ import {
 } from './coach-cut-swaps';
 import type { SettingsBreak } from './deck-settings-fit';
 
-export interface CutSwapSources {
-  deck: Deck;
-  /** The mainboard-scoped combo answer (`mainboardComboData`). */
-  combos: ComboMatchResponse | null | undefined;
-  /** The collection (one entry per copy is fine): its names and the colors each card needs. */
-  owned: readonly { name: string; colorIdentity?: readonly string[] }[];
-}
+export type { CutSwapSources };
 
 export interface CutSwapEnv {
   resolveOwnership: (name: string) => ChangeOwnership;
@@ -137,22 +125,9 @@ export function useCutSwaps(
       if (!src) return;
       try {
         const tRun = Date.now();
-        const gameChangerNames = await getGameChangerNames().catch(() => new Set<string>());
-        const tGc = Date.now();
+        const tGc = tRun;
         const d = src.deck;
-        const ownedNames = new Set(src.owned.map((c) => c.name));
-        const objective = await loadCoachObjective(d, {
-          roleTargets: d.roleTargets,
-          combos: coachCombos(
-            src.combos,
-            d.cards.map((c) => c.card)
-          ),
-          ownedNames,
-          availableNames: ownedNames,
-          gameChangerNames,
-          protections: protectionSourcesFrom(d),
-          knownCards: d.cards.map((c) => c.card),
-        });
+        const objective = await loadSourcesObjective(src);
         const tObjective = Date.now();
         if (cancelled) return;
         if (!objective.ok) {

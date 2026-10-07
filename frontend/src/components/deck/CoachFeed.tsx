@@ -30,6 +30,7 @@ import { isOffMetaChange, type Change, type ChangeOwnership } from '@/lib/coach/
 import { rankCoachMoves, type CoachContext, diversifyRankedMoves } from '@/lib/coach/coach-rank';
 import { cutLane, isPairedCut } from '@/lib/coach/coach-cut-swaps';
 import { useCutSwaps, type CutSwapSources } from '@/lib/coach/use-cut-swaps';
+import { usePlanJudge } from '@/lib/coach/use-plan-judge';
 import { useRegisterShortcuts, isTypingTarget } from '@/components/app-shell/shortcut-registry';
 import type { GapAnalysisCard } from '@/deck-builder/types';
 import type { OptimizeSwaps } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
@@ -513,6 +514,7 @@ export function CoachFeed({
   const env = { resolveOwnership, settingsBreak };
   const cutPairing = useCutSwaps(cutChanges, cutSwaps, env, combosLoading);
   const cutsLoading = cutPairing.state.status === 'loading' && cuts.length > 0;
+  const planJudge = usePlanJudge(cutSwaps, upgradePlan?.open === true, combosLoading);
   const lane = useMemo(
     () => cutLane(cuts, cutPairing.state, deckNames),
     [cuts, cutPairing.state, deckNames]
@@ -702,8 +704,9 @@ export function CoachFeed({
       openSlots={Math.max(0, deckTarget - deckSize)}
       tools={upgradePlan.tools}
       commanderName={commanderName}
-      // The plan's bracket reads the combos too, so it waits for them.
-      analysisState={combosLoading ? 'pending' : analysisState}
+      // The plan's bracket and judge read the combos too, so it waits for them.
+      analysisState={combosLoading || planJudge.status === 'loading' ? 'pending' : analysisState}
+      judge={planJudge.status === 'ready' ? planJudge.judge : undefined}
       edhrecMissing={edhrecMissing}
       onRetry={onRetryAnalysis}
       onApply={upgradePlan.onApply}

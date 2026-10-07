@@ -116,6 +116,7 @@ import {
 import { shadowMarkdown, shadowNumbers } from './coachShadowReport';
 import { shadowRecord, type ShadowRecord } from './coachShadow';
 import { applyCutLane, cutLaneRecord } from './coachCutLane';
+import { pingPong, PLAN_CONFIGS, planLaneAdvise, planRecords, planReport } from './coachPlanLane';
 import type { Change } from '@/lib/coach/deck-change';
 import {
   advisedDump,
@@ -869,6 +870,18 @@ function advisedFrom(
   });
 }
 
+/** Both sides of a gate are stamped from Coach's analysis (see restampRoles). */
+const roleStamp = (cards: ScryfallCard[], analysis: CommanderDeckAnalysisResult): RoleStamp => ({
+  counts: computeRoleCounts(cards).roleCounts,
+  targets: (analysis.roleTargets ?? {}) as Record<string, number>,
+  names: Object.fromEntries(
+    ['ramp', 'removal', 'boardwipe', 'cardDraw'].map((r) => [
+      r,
+      cards.filter((c) => countedRoleOf(c) === r).map((c) => c.name),
+    ])
+  ),
+});
+
 // ---- E540 S6: the Cuts lane as the app shows it (COACH_EVAL_CUTS=1) ---------------
 
 const CUTS = process.env.COACH_EVAL_CUTS === '1';
@@ -909,30 +922,60 @@ async function cutLaneAdvise(
   if (result.applied.length === 0) return;
   const pass2 = await coachPass(dump, result.deck);
   const index = pass1.page ? buildInclusionIndex(pass1.page) : new Map<string, number>();
-  // Both sides of the gate are stamped from Coach's analysis (see restampRoles).
-  const stamp = (cards: ScryfallCard[], analysis: CommanderDeckAnalysisResult): RoleStamp => ({
-    counts: computeRoleCounts(cards).roleCounts,
-    targets: (analysis.roleTargets ?? {}) as Record<string, number>,
-    names: Object.fromEntries(
-      ['ramp', 'removal', 'boardwipe', 'cardDraw'].map((r) => [
-        r,
-        cards.filter((c) => countedRoleOf(c) === r).map((c) => c.name),
-      ])
-    ),
-  });
   writeJson(
     join(OUT, 'cuts-before', panel.name, file),
-    restampRoles(dump, stamp(deck.cards, pass1.analysis), pass1.analysis.deckGrade)
+    restampRoles(dump, roleStamp(deck.cards, pass1.analysis), pass1.analysis.deckGrade)
   );
   writeJson(
     join(OUT, 'cuts-advised', panel.name, file),
     restampRoles(
       advisedFrom(dump, result, index, pass2),
-      stamp(result.deck.cards, pass2.analysis),
+      roleStamp(result.deck.cards, pass2.analysis),
       pass2.analysis.deckGrade
     )
   );
   writeJson(join(OUT, 'cuts-applied', panel.name, file), result.applied);
+}
+
+// ---- E540 S9: the upgrade plan (COACH_EVAL_PLAN) -------
+
+async function planLanes(
+  panel: AdvisePanel,
+  file: string,
+  dump: CoachDump,
+  deck: EvalDeckState,
+  settings: DeckSettings,
+  pass1: CoachPass
+): Promise<void> {
+  const input = {
+    corpus: 'advise' as const,
+    group: panel.name,
+    deck: file.replace(/\.json$/, ''),
+    state: deck,
+    customization: dump.customization as Record<string, unknown>,
+    ownedNames: settings.ownedNames,
+    gameChangers: GAME_CHANGERS,
+    pass: pass1,
+    resolve: cardFor,
+    collectionDeck: settings.collectionMode,
+    removals: dump.buildReport as BuildRemovals | undefined,
+    dump,
+    panel: panel.name,
+    file,
+    settings,
+    env: pass1.env,
+  };
+  const deps = {
+    out: join(OUT, 'plans'),
+    coachPass,
+    advisedFrom,
+    stamp: roleStamp,
+    writeJson,
+    join,
+    auditK: AUDIT_K,
+    implicitReversal: IMPLICIT_REVERSAL,
+  };
+  if (PLAN_CONFIGS.length > 0) await planLaneAdvise(input, deps, pass1);
 }
 
 // ---- E573: generation vs analysis parity (COACH_EVAL_PARITY=1) --------------------
@@ -1013,23 +1056,11 @@ describe.skipIf(!process.env.LIVE_GEN || adviseRows.length === 0)('Coach eval: a
         const advised = advisedFrom(dump, result, index, pass2);
         writeJson(join(base, 'advised', file), advised);
         if (CUTS) await cutLaneAdvise(panel, file, dump, deck, settings, pass1);
+        if (PLAN_CONFIGS.length > 0) await planLanes(panel, file, dump, deck, settings, pass1);
 
-        // Ping-pong: the second pass wants an added card out, or a cut card back.
-        const top2 = pass2.moves.slice(0, AUDIT_K);
-        const addsBack = new Set(top2.filter((m) => m.type !== 'cut').map((m) => m.name));
-        const outs2 = new Set([
-          ...pass2.view.cuts.slice(0, AUDIT_K).map((r) => r.change.name),
-          ...top2.filter((m) => m.type === 'swap' && m.outName).map((m) => m.outName!),
-        ]);
-        const promptCuts2 = new Set(audit2.map((a) => a.cut).filter((c): c is string => !!c));
-        for (const a of result.applied) {
-          if (a.added && outs2.has(a.added))
-            record.reversed.push({ move: `+${a.added}`, how: 'second pass lists it as a cut' });
-          else if (a.added && promptCuts2.has(a.added))
-            record.reversed.push({ move: `+${a.added}`, how: IMPLICIT_REVERSAL });
-          if (a.cut && addsBack.has(a.cut))
-            record.reversed.push({ move: `-${a.cut}`, how: 'second pass suggests adding it back' });
-        }
+        record.reversed.push(
+          ...pingPong(result.applied, pass2, audit2, AUDIT_K, IMPLICIT_REVERSAL)
+        );
 
         const feedTiers = pass1.view.feed.map((r) => r.tier);
         const nbmCard = pass1.view.nbm.filter((m) => m.cardName);
@@ -1130,6 +1161,10 @@ describe.skipIf(!process.env.LIVE_GEN || adviseRows.length === 0)('Coach eval: a
     }
     writeFileSync(join(OUT, 'advise-report.md'), md.join('\n\n'));
     writeShadowReport('advise');
+    if (planRecords().length > 0) {
+      writeJson(join(OUT, 'plans', 'records.json'), planRecords());
+      writeFileSync(join(OUT, 'plan-report.md'), planReport());
+    }
     writeJson(join(OUT, 'missed-urls.json'), missedUrls);
     writeJson(join(OUT, 'bulk-misses.json'), [...bulkMisses]);
     console.log(`[coach-eval] advise:\n${md.join('\n\n')}\nnet ${JSON.stringify(netStats)}`);
