@@ -25,6 +25,7 @@ import { manaTerm } from './terms/mana';
 import { combosTerm, COMBO_SCALE } from './terms/combos';
 import { liftTerm, synergyTerm } from './terms/synergy';
 import { nonboTerm, HARD_NONBO } from './terms/nonbo';
+import type { DetectedCombo } from '@/deck-builder/types';
 import {
   BASELINE,
   FIX,
@@ -272,6 +273,58 @@ describe('combos: completeness', () => {
   it('earns nothing at a target bracket of 3 or lower', () => {
     const ctx = merenCtx({ combos: [combo], customization: { targetBracket: 3 } });
     expect(combosTerm(druid, ctx).value).toBe(0);
+  });
+
+  // E540 S7: Commander Spellbook 864-2596-4050 (as the v4 Coach corpus recorded
+  // it, 2026-10-06) loops Living Death, Eternal Witness and Phyrexian Altar for
+  // mana and blinks. It never ends the game on its own, so under comboCredit
+  // 'wins' it earns nothing, while Hermit Druid + Thassa's Oracle pays in full.
+  const loop: DetectedCombo = {
+    comboId: '864-2596-4050',
+    cards: ['Living Death', 'Eternal Witness', 'Phyrexian Altar'],
+    results: [
+      'Infinite blinking',
+      'Infinite colored mana',
+      'Infinite death triggers',
+      'Infinite creature ETB',
+      'Infinite creature LTB',
+      'Infinite creature sacrifice triggers',
+    ],
+    isComplete: true,
+    missingCards: [],
+    deckCount: 9794,
+    bracket: null,
+    bracketTag: null,
+    cardCount: 3,
+  };
+  const both = {
+    commanders: druid.commanders,
+    cards: cards(
+      'Hermit Druid',
+      "Thassa's Oracle",
+      'Living Death',
+      'Eternal Witness',
+      'Phyrexian Altar'
+    ),
+  };
+
+  it("under comboCredit 'wins', pays only the lines that end the game", () => {
+    const colorIdentity = ['B', 'G', 'U'];
+    const any = combosTerm(both, merenCtx({ combos: [combo, loop], colorIdentity }));
+    const wins = combosTerm(
+      both,
+      merenCtx({ combos: [combo, loop], colorIdentity, comboCredit: 'wins' })
+    );
+    expect(any.cards.map((c) => c.name)).toContain('Phyrexian Altar');
+    expect(wins.cards.map((c) => c.name).sort()).toEqual(['Hermit Druid', "Thassa's Oracle"]);
+    expect(wins.value).toBeCloseTo(COMBO_SCALE * Math.min(1, Math.log10(1 + combo.deckCount) / 4));
+    expect(any.value).toBeGreaterThan(wins.value);
+  });
+
+  it("under comboCredit 'wins', a deck whose only line loops for mana earns no combo credit", () => {
+    const loopOnly = { commanders: druid.commanders, cards: cards(...loop.cards) };
+    expect(combosTerm(loopOnly, merenCtx({ combos: [loop], comboCredit: 'wins' })).value).toBe(0);
+    expect(combosTerm(loopOnly, merenCtx({ combos: [loop] })).value).toBeGreaterThan(0);
   });
 });
 
