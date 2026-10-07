@@ -1,4 +1,4 @@
-// One quarter of the settings matrix. See deckGenerator.settings.test-matrix.ts.
+// One sixth of the settings matrix. See deckGenerator.settings.test-matrix.ts.
 import { runSettingsMatrix } from './deckGenerator.settings.test-matrix';
 
-runSettingsMatrix(3, 4);
+runSettingsMatrix(3, 6);

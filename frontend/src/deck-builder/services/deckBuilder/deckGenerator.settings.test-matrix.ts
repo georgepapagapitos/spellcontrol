@@ -9,13 +9,15 @@
 // The fixture universe lives in __fixtures__/settings-universe.ts.
 //
 // This module holds the whole matrix but is not a test file itself: the
-// deckGenerator.settings.part-{1..4}.test.ts files each run a quarter of CASES
+// deckGenerator.settings.part-{1..6}.test.ts files each run a sixth of CASES
 // through runSettingsMatrix, and vitest.config.ts pins each part to its own
-// CI shard. As one file it took about two minutes locally and five and a half
-// in CI, and since CI shards by file it set the length of the whole run.
+// CI shard. Keep one part per shard in ci.yml: with four parts on six shards,
+// the two shards without one finished 100s before the rest. As one file it
+// took about two minutes locally and five and a half in CI, and since CI
+// shards by file it set the length of the whole run.
 // The mocks below still apply: vi.mock is hoisted within this module, above
-// its own imports of the mocked clients. Run one quarter with
-// `npm test -- settings.part-1`, or all four with
+// its own imports of the mocked clients. Run one part with
+// `npm test -- settings.part-1`, or all of them with
 // `npm test -- deckGenerator.settings`.
 import { describe, it, expect, vi } from 'vitest';
 import type {
