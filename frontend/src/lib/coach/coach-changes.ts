@@ -76,6 +76,27 @@ export function onPlanCombos(
     .map((x) => x.m);
 }
 
+/**
+ * The one-away combos that open a line the deck doesn't already assemble. A
+ * Spellbook line has variants that swap one piece for another (Demonic
+ * Consultation + Laboratory Maniac, Demonic Consultation + Thassa's Oracle):
+ * with one variant whole, the other is one card away but adds nothing, and
+ * "Completes Demonic Consultation" for it was false (T171, E567 gate). A line
+ * with no recorded result is kept.
+ */
+export function newLineCombos(
+  combos: { oneAway?: ComboMatch[]; inDeck?: readonly ComboMatch[] } | null | undefined
+): ComboMatch[] {
+  const { oneAway, inDeck } = combos ?? {};
+  const assembled = new Set(
+    (inDeck ?? []).flatMap((m) => m.combo.produces.map((p) => p.toLowerCase()))
+  );
+  return (oneAway ?? []).filter(
+    (m) =>
+      m.combo.produces.length === 0 || m.combo.produces.some((p) => !assembled.has(p.toLowerCase()))
+  );
+}
+
 export interface CoachChangeSources {
   gaps: GapAnalysisCard[];
   optimize?: OptimizeSwaps;

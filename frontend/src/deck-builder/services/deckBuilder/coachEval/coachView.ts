@@ -30,7 +30,12 @@ import { computeLandUpgrades } from '../landUpgrades';
 import { filterCostPlanByOwnership } from '../costAnalyzer';
 import { buildSubstitutionOptions, type SubstituteCandidate } from '../substituteFinder';
 import { ownedAlternativesReranker } from '@/deck-builder/services/substitutes/surfaces';
-import { buildCoachChanges, onPlanCombos, staplesToSubstitute } from '@/lib/coach/coach-changes';
+import {
+  buildCoachChanges,
+  newLineCombos,
+  onPlanCombos,
+  staplesToSubstitute,
+} from '@/lib/coach/coach-changes';
 import { rankCoachMoves, diversifyRankedMoves, type RankedMove } from '@/lib/coach/coach-rank';
 import type { Change, ChangeOwnership } from '@/lib/coach/deck-change';
 import { buildSuggestionRows, type SuggestionRows } from '@/lib/coach/deck-suggestions';
@@ -207,7 +212,7 @@ export function buildCoachView(input: CoachViewInputs): CoachView {
       costPlan,
       bracketFit: analysis.bracketFit ?? undefined,
       landUpgrades,
-      oneAwayCombos: input.combos.oneAway,
+      oneAwayCombos: newLineCombos(input.combos),
       crossDeckMoves: [],
     },
     ownershipFor,

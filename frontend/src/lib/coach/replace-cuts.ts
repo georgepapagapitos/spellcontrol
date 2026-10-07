@@ -21,6 +21,7 @@ import {
   type RankedCut,
 } from './intelligent-cuts';
 import type { Change } from './deck-change';
+import { newLineCombos } from './coach-changes';
 
 export interface ReplaceCutInputs {
   /** The mainboard, commanders excluded. */
@@ -56,17 +57,9 @@ export function replaceCuts(input: ReplaceCutInputs): ReplaceCuts {
   // doesn't already assemble (something it produces that no in-deck combo
   // does). Akroma's Memorial finished a Krenko line the deck already had five
   // times over, and was cut for as a combo completer (T171 v4b).
-  const assembled = new Set(
-    (input.inDeckCombos ?? []).flatMap((m) => m.combo.produces.map((p) => p.toLowerCase()))
-  );
   const finishers = new Set(
-    (input.oneAwayCombos ?? [])
-      .filter(
-        (m) =>
-          m.missingOracleIds.length === 1 &&
-          (m.combo.produces.length === 0 ||
-            m.combo.produces.some((p) => !assembled.has(p.toLowerCase())))
-      )
+    newLineCombos({ oneAway: input.oneAwayCombos, inDeck: input.inDeckCombos })
+      .filter((m) => m.missingOracleIds.length === 1)
       .flatMap((m) => m.combo.cards.filter((c) => m.missingOracleIds.includes(c.oracleId)))
       .map((c) => frontFaceName(c.cardName).toLowerCase())
   );
