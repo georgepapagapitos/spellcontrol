@@ -68,7 +68,7 @@ function combo(cards: string[], missingCards: string[]): DetectedCombo {
   return {
     comboId: 'c1',
     cards,
-    results: [],
+    results: ['Win the game'],
     isComplete: false,
     missingCards,
     deckCount: 500,

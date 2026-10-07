@@ -106,6 +106,22 @@ describe('optimizeDeck', { timeout: 60_000 }, () => {
     for (const n of r.swaps[0].out) expect(['Vampiric Tutor', 'Worldly Tutor']).not.toContain(n);
   });
 
+  it('does not seat the pair of a line that only loops for mana (E540 S8)', () => {
+    const muldrotha = card('Muldrotha, the Gravetide');
+    const seed = { commanders: [muldrotha], cards: BASELINE.cards };
+    // The same two cards, but the line only makes mana and blinks.
+    const loop = {
+      ...FIX.hermitDruidCombo,
+      results: ['Infinite colored mana', 'Infinite blinking', 'Infinite creature ETB'],
+    };
+    const c = merenCtx({ colorIdentity: ['B', 'G', 'U'], combos: [loop] });
+    const r = optimizeDeck(seed, cards('Hermit Druid', "Thassa's Oracle"), c, {
+      ...SMALL,
+      maxSwaps: 1,
+    });
+    expect(r.swaps.some((x) => x.kind === 'combo')).toBe(false);
+  });
+
   it('never adds a card it cannot price under a budget', () => {
     const budget = merenCtx({
       customization: { deckFormat: 99, currency: 'USD', deckBudget: 100 },

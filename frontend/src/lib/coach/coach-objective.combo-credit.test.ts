@@ -65,7 +65,6 @@ describe("Coach's objective credits only combos that end the game", () => {
   it('a loop that only makes mana and blinks earns no combo credit', () => {
     const deckCards = cards(...loop.cards, 'Swamp');
     const o = objectiveFor(deckCards, [loop]);
-    expect(o.ctx.comboCredit).toBe('wins');
     expect(combosTerm(o.deck, o.ctx).value).toBe(0);
   });
 

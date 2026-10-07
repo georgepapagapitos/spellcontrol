@@ -90,7 +90,7 @@ import {
 } from './cardPicking';
 import { commanderMustSurvive, makeProtectionAdmits } from './deckGeneration/protectionPicks';
 import { buildRoleCapOverflowNote, withoutDanglingPointer } from './deckGeneration/roleCapNote';
-import { achievableComboPieces } from './deckGeneration/comboLines';
+import { achievableComboPieces, winCombos } from './deckGeneration/comboLines';
 import {
   categorizeCards,
   stampRoleSubtypes,
@@ -1291,7 +1291,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     // At lower combo settings, require pieces to actually fit this commander's builds
     // so we don't pull in random 2-card combos that aren't thematically relevant.
     const comboInclusionFloor = comboCountSetting === 1 ? 25 : comboCountSetting === 2 ? 10 : 0;
-    const scoredCombos = state.combos
+    const scoredCombos = winCombos(state.combos)
       .filter((combo) => !combo.cards.some((c) => bannedCards.has(c.name)))
       .map((combo) => {
         const avgInclusion =

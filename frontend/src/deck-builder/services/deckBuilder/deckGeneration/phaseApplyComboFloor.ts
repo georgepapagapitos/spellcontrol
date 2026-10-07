@@ -1,4 +1,5 @@
 import { logger } from '@/lib/util/logger';
+import { winCombos } from './comboLines';
 import { STAPLE_ROCK_NAMES } from './phaseStapleManaRocks';
 import { evictionKeeper } from './evictionKeeper';
 import type {
@@ -28,6 +29,7 @@ import type { BudgetTracker } from '../budgetTracker';
 // 2-card combo from the commander's known combo list.
 //
 // Seeding criteria (in priority order):
+//   0. The combo ends the game (E540 S8): a mana or draw loop is not seeded.
 //   1. Exactly 1 card is missing from the deck.
 //   2. The missing card is not banned and satisfies collection/price constraints.
 //   3. The missing card is available in scryfallCardMap.
@@ -146,7 +148,7 @@ export function applyComboFloor(state: GenerationState, ctx: ComboFloorContext):
   let budgetSkipped = 0;
 
   // Sort combos descending by deckCount so we pick the most popular first.
-  const sorted = [...state.combos]
+  const sorted = winCombos(state.combos)
     .filter((c) => c.cardCount <= 2 && !c.cards.some((p) => state.bannedCards.has(p.name)))
     .sort((a, b) => b.deckCount - a.deckCount);
 

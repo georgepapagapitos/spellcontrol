@@ -111,13 +111,6 @@ export interface ObjectiveContextInput {
    * templates the objective can't check.
    */
   combos?: readonly DetectedCombo[];
-  /**
-   * Which complete combos the combos term pays. 'wins': only lines that end
-   * the game (`comboEndsGame`, E437), the rule Coach's combo rows and Next best
-   * move already follow, so a loop that only makes mana or draws cards earns
-   * no combo credit. Omitted: every complete line (generation, until E540 S8).
-   */
-  comboCredit?: 'wins';
   /** E71 card-page lift pools, keyed by seed card name. A seed counts only while it is in the deck. */
   liftPools?: ReadonlyMap<string, readonly LiftEntry[]>;
   /**

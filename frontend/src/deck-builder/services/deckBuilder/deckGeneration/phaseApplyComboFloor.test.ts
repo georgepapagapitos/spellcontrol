@@ -159,6 +159,31 @@ describe('bracketAllowsCombos', () => {
 // ── applyComboFloor ───────────────────────────────────────────────────────────
 
 describe('applyComboFloor', () => {
+  it('does not seed a loop that only makes mana and blinks (E540 S8)', () => {
+    const loop = {
+      ...edhrec2CardCombo('864-2596-4050', ['Eternal Witness', 'Phyrexian Altar'], 9794),
+      results: ['Infinite blinking', 'Infinite colored mana', 'Infinite creature ETB'],
+    };
+    const state = makeState({ combos: [loop] });
+    state.usedNames.add('Phyrexian Altar');
+    state.categories.creatures.push(scryfallCard('Phyrexian Altar'));
+    const before = Object.values(state.categories)
+      .flat()
+      .map((c) => c.name);
+    const result = applyComboFloor(state, {
+      detectedCombos: undefined,
+      scryfallCardMap: new Map([['Eternal Witness', scryfallCard('Eternal Witness')]]),
+      mustIncludeNames: new Set(),
+      targetBracket: undefined,
+    });
+    expect(result.seeded).toBe(false);
+    expect(
+      Object.values(state.categories)
+        .flat()
+        .map((c) => c.name)
+    ).toEqual(before);
+  });
+
   it('does nothing when comboCountSetting > 0 (user requested combos — audit handles it)', () => {
     const state = makeState({
       combos: [edhrec2CardCombo('c1', ['Gravecrawler', 'Phyrexian Altar'])],

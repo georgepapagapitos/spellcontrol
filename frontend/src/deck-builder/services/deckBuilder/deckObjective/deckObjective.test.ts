@@ -277,8 +277,7 @@ describe('combos: completeness', () => {
 
   // E540 S7: Commander Spellbook 864-2596-4050 (as the v4 Coach corpus recorded
   // it, 2026-10-06) loops Living Death, Eternal Witness and Phyrexian Altar for
-  // mana and blinks. It never ends the game on its own, so under comboCredit
-  // 'wins' it earns nothing, while Hermit Druid + Thassa's Oracle pays in full.
+  // mana and blinks. It never ends the game on its own, so it earns nothing, while Hermit Druid + Thassa's Oracle pays in full.
   const loop: DetectedCombo = {
     comboId: '864-2596-4050',
     cards: ['Living Death', 'Eternal Witness', 'Phyrexian Altar'],
@@ -308,23 +307,16 @@ describe('combos: completeness', () => {
     ),
   };
 
-  it("under comboCredit 'wins', pays only the lines that end the game", () => {
+  it('pays only the lines that end the game', () => {
     const colorIdentity = ['B', 'G', 'U'];
-    const any = combosTerm(both, merenCtx({ combos: [combo, loop], colorIdentity }));
-    const wins = combosTerm(
-      both,
-      merenCtx({ combos: [combo, loop], colorIdentity, comboCredit: 'wins' })
-    );
-    expect(any.cards.map((c) => c.name)).toContain('Phyrexian Altar');
-    expect(wins.cards.map((c) => c.name).sort()).toEqual(['Hermit Druid', "Thassa's Oracle"]);
-    expect(wins.value).toBeCloseTo(COMBO_SCALE * Math.min(1, Math.log10(1 + combo.deckCount) / 4));
-    expect(any.value).toBeGreaterThan(wins.value);
+    const v = combosTerm(both, merenCtx({ combos: [combo, loop], colorIdentity }));
+    expect(v.cards.map((c) => c.name).sort()).toEqual(['Hermit Druid', "Thassa's Oracle"]);
+    expect(v.value).toBeCloseTo(COMBO_SCALE * Math.min(1, Math.log10(1 + combo.deckCount) / 4));
   });
 
-  it("under comboCredit 'wins', a deck whose only line loops for mana earns no combo credit", () => {
+  it('a deck whose only line loops for mana earns no combo credit', () => {
     const loopOnly = { commanders: druid.commanders, cards: cards(...loop.cards) };
-    expect(combosTerm(loopOnly, merenCtx({ combos: [loop], comboCredit: 'wins' })).value).toBe(0);
-    expect(combosTerm(loopOnly, merenCtx({ combos: [loop] })).value).toBeGreaterThan(0);
+    expect(combosTerm(loopOnly, merenCtx({ combos: [loop] })).value).toBe(0);
   });
 });
 

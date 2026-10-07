@@ -226,7 +226,6 @@ export function buildCoachObjective(input: CoachObjectiveInput): CoachObjectiveR
     roleOf: countedRoleOf,
     pacing: input.pacing,
     combos: input.combos ? [...input.combos] : [],
-    comboCredit: 'wins',
     liftPools: input.liftPools,
     globalRank,
     ownedNames: customization.collectionMode && owned ? new Set(owned) : undefined,

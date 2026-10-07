@@ -25,6 +25,8 @@ import type { BudgetTracker } from '../budgetTracker';
 import type { BracketGuard } from '../bracketGuard';
 import { getCardRole } from '@/deck-builder/services/tagger/client';
 import { evictionKeeper } from './evictionKeeper';
+import { comboEndsGame } from '@/deck-builder/services/winConditions/detect';
+import { ownedShareGuard } from './ownedShareGuard';
 
 export interface ComboAuditContext {
   /** Result of detectCombosPhase — the audit no-ops when undefined. */
@@ -104,6 +106,26 @@ export function comboIntegrityAuditPhase(
   }
 
   const auditKeeps = evictionKeeper(state);
+  // The owned share the user asked for (E571): at 100% only a must-include
+  // breaks it, under 100% an unowned card takes an owned one's slot only when
+  // it is clearly better. The completion adds and the orphan replacement both
+  // used to skip it (Krenko partial100 seated an unowned Sol Ring).
+  const share = ownedShareGuard(state);
+
+  // A card that holds its slot on merit, whatever combo it sits in: a Game
+  // Changer or one of the page's few signature cards (the top synergy cards
+  // played in 20%+ of decks). Only a piece of a line that does NOT end the game
+  // is judged this way (E540 S8): its line earns no credit, so the piece stays
+  // or goes on its own merit, never because the line is missing a card.
+  const signatureNames = new Set(
+    [...state.edhrecData.cardlists.allNonLand]
+      .filter((c) => c.inclusion >= 20 && (c.synergy ?? 0) > 0)
+      .sort((a, b) => (b.synergy ?? 0) - (a.synergy ?? 0))
+      .slice(0, 5)
+      .map((c) => c.name)
+  );
+  const holdsOnMerit = (name: string) =>
+    !!state.cfg.isGameChanger?.(name) || signatureNames.has(name);
 
   // Helper: find the weakest (lowest inclusion%) evictable non-land card
   function auditWeakest(
@@ -190,6 +212,8 @@ export function comboIntegrityAuditPhase(
     // is the only gate standing between an off-identity combo card and the
     // decklist).
     if (!fitsColorIdentity(card, colorIdentity)) return false;
+    // At a 100% owned share only a must-include is unowned.
+    if (share.strict && !share.owned(card.name)) return false;
     return true;
   }
 
@@ -221,7 +245,7 @@ export function comboIntegrityAuditPhase(
     const enablerCombos = new Map<string, string[]>(); // cardName → combo IDs
 
     for (const dc of detectedCombos) {
-      if (dc.isComplete) continue;
+      if (dc.isComplete || !comboEndsGame(dc.results)) continue;
       const trulyMissing = dc.missingCards.filter((n) => !usedNames.has(n));
       // Only count combos where this card is the sole missing piece
       if (trulyMissing.length !== 1) continue;
@@ -309,11 +333,17 @@ export function comboIntegrityAuditPhase(
   // ── Phase 2: Per-combo completion / orphan eviction (existing logic) ──
   for (const dc of detectedCombos) {
     if (dc.isComplete || auditSwaps >= MAX_AUDIT_SWAPS) continue;
+    // E540 S8: only a line that ends the game is worth completing. A piece of
+    // a mana or draw loop whose line is incomplete is still an orphan, and
+    // still gives its slot to a better-played card, unless it holds the slot on
+    // merit (a Game Changer or a signature card).
+    const endsGame = comboEndsGame(dc.results);
 
     // Find in-deck pieces that only justify their slot because of this combo.
     // Cards in 2+ combos are valuable enablers — never treat them as orphans.
     const orphans = dc.cards.filter((name) => {
       if (!usedNames.has(name)) return false;
+      if (!endsGame && holdsOnMerit(name)) return false;
       if (auditMustInclude.has(name.toLowerCase())) return false;
       if (completeComboCards.has(name)) return false;
       if ((cardComboCount.get(name) ?? 0) >= 2) return false;
@@ -355,6 +385,7 @@ export function comboIntegrityAuditPhase(
     }
 
     const canComplete =
+      endsGame &&
       missingResolved.length === trulyMissing.length &&
       auditSwaps + trulyMissing.length <= MAX_AUDIT_SWAPS;
 
@@ -444,6 +475,7 @@ export function comboIntegrityAuditPhase(
         for (const cand of replacementCandidates) {
           const candCard = scryfallCardMap.get(cand.name)!;
           if (!auditCanAdd(candCard)) continue;
+          if (share.costsShare(found.card, candCard)) continue;
           if (auditPassesBudget(candCard)) {
             replacement = cand;
             break;

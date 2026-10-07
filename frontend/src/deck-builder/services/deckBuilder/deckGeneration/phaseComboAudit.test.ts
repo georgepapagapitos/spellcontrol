@@ -50,7 +50,7 @@ function combo(id: string, cards: string[], missingCards: string[]): DetectedCom
   return {
     comboId: id,
     cards,
-    results: [],
+    results: ['Win the game'],
     isComplete: missingCards.length === 0,
     missingCards,
     deckCount: 500,
@@ -143,6 +143,113 @@ describe('comboIntegrityAuditPhase', () => {
   beforeEach(() => {
     mockGetCardRole.mockReset();
     mockGetCardRole.mockReturnValue(null);
+  });
+
+  // E540 S8: Commander Spellbook 864-2596-4050 loops mana and blinks and never
+  // ends the game, so the audit never completes it. Its low-played in-deck
+  // piece is an orphan all the same and gives its slot up (as Mana Vault did
+  // to Sol Ring on the 100%-owned Yuriko build).
+  it('does not complete a loop that only makes mana, but still replaces its orphan', () => {
+    const state = makeState();
+    const piece = scryfallCard('Eternal Witness');
+    state.categories.creatures = [piece, scryfallCard('Filler')];
+    state.usedNames = new Set(['Eternal Witness', 'Filler']);
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [
+          edhrecCard('Eternal Witness', 1),
+          edhrecCard('Filler', 1),
+          edhrecCard('Spell Fill', 50),
+        ],
+      },
+    } as unknown as GenerationState['edhrecData'];
+    const loop: DetectedCombo = {
+      ...combo('864-2596-4050', ['Eternal Witness', 'Phyrexian Altar'], ['Phyrexian Altar']),
+      results: ['Infinite blinking', 'Infinite colored mana', 'Infinite creature ETB'],
+    };
+    const result = comboIntegrityAuditPhase(state, {
+      detectedCombos: [loop],
+      scryfallCardMap: new Map([
+        ['Eternal Witness', piece],
+        ['Phyrexian Altar', scryfallCard('Phyrexian Altar')],
+        ['Spell Fill', scryfallCard('Spell Fill')],
+      ]),
+      budgetTracker: null,
+      bracketGuard: undefined,
+    });
+    expect(result.repairs).toEqual([
+      expect.objectContaining({ cut: 'Eternal Witness', added: 'Spell Fill' }),
+    ]);
+    expect(state.usedNames.has('Phyrexian Altar')).toBe(false);
+  });
+
+  // Obeka wheels (niche panel): Underworld Breach + Wheel of Fortune + Jeska's
+  // Will loops draw triggers and never ends the game. Jeska's Will, a Game
+  // Changer, was cut as its orphan for an Izzet Signet.
+  it('keeps a Game Changer that is a piece of a line that does not end the game', () => {
+    const state = makeState();
+    const will = scryfallCard("Jeska's Will", { color_identity: ['U'] });
+    state.categories.ramp = [will, scryfallCard('Filler')];
+    state.usedNames = new Set(["Jeska's Will", 'Filler']);
+    state.gameChangerNames = new Set(["Jeska's Will"]);
+    state.cfg.isGameChanger = (n) => state.gameChangerNames.has(n);
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [
+          edhrecCard("Jeska's Will", 14),
+          edhrecCard('Filler', 1),
+          edhrecCard('Izzet Signet', 57),
+        ],
+      },
+    } as unknown as GenerationState['edhrecData'];
+    const loop: DetectedCombo = {
+      ...combo('1368-1878-2706', ["Jeska's Will", 'Wheel of Fortune'], ['Wheel of Fortune']),
+      results: ['Infinite draw triggers for all players', 'Infinite looting for all players'],
+    };
+    const result = comboIntegrityAuditPhase(state, {
+      detectedCombos: [loop],
+      scryfallCardMap: new Map([
+        ["Jeska's Will", will],
+        ['Izzet Signet', scryfallCard('Izzet Signet')],
+      ]),
+      budgetTracker: null,
+      bracketGuard: undefined,
+    });
+    expect(result.repairs).toEqual([]);
+    expect(state.categories.ramp.map((c) => c.name)).toContain("Jeska's Will");
+  });
+
+  // Krenko, Mob Boss at 100% owned: the orphan swap seated an unowned Sol Ring.
+  it('seats only owned replacements at a 100% owned share', () => {
+    const state = makeState();
+    const orphan = scryfallCard('Goblin Welder');
+    state.categories.creatures = [orphan];
+    state.usedNames = new Set(['Goblin Welder']);
+    state.cfg.collectionStrategy = 'partial';
+    state.cfg.collectionOwnedPercent = 100;
+    state.context.collectionNames = new Set(['Goblin Welder', 'Owned Fill']);
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [
+          edhrecCard('Goblin Welder', 1),
+          edhrecCard('Sol Ring', 85),
+          edhrecCard('Owned Fill', 20),
+        ],
+      },
+    } as unknown as GenerationState['edhrecData'];
+    const result = comboIntegrityAuditPhase(state, {
+      detectedCombos: [combo('c1', ['Goblin Welder', 'Missing X'], ['Missing X'])],
+      scryfallCardMap: new Map([
+        ['Goblin Welder', orphan],
+        ['Sol Ring', scryfallCard('Sol Ring')],
+        ['Owned Fill', scryfallCard('Owned Fill')],
+      ]),
+      budgetTracker: null,
+      bracketGuard: undefined,
+    });
+    expect(result.repairs).toEqual([
+      expect.objectContaining({ cut: 'Goblin Welder', added: 'Owned Fill' }),
+    ]);
   });
 
   it('never replaces an orphaned combo piece with a land (E485)', () => {

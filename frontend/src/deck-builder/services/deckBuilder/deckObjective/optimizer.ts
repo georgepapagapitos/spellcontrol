@@ -52,6 +52,7 @@
  */
 import type { ScryfallCard } from '@/deck-builder/types';
 import { frontFaceName } from '@/lib/cards/card-text';
+import { comboEndsGame } from '@/deck-builder/services/winConditions/detect';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 import { normalizeCardName } from '../cardIdentity';
 import { classCounts } from './classFloors';
@@ -442,7 +443,7 @@ export function* optimizeSteps(
       // The two weakest spells the trust region lets go.
       const outs = outsByClass('spell').filter(({ c }) => !protectedNow.has(c.name));
       for (const combo of baseCtx.combos ?? []) {
-        if (combo.cards.length < 2) continue;
+        if (combo.cards.length < 2 || !comboEndsGame(combo.results)) continue;
         const missing = combo.cards.filter(
           (n) => !inDeck.has(key(n)) && !commanderKeys.has(key(n))
         );
