@@ -113,4 +113,35 @@ describe('createPlanJudge on Meren', { timeout: 300_000 }, () => {
       premium: true,
     });
   });
+  it('reads a back face that shares a held card name as soft, not a hard rule break', () => {
+    // Emeritus of Woe // Demonic Tutor (sos): a distinct card whose BACK face is named like the
+    // Demonic Tutor the deck holds. Commander keeps it; Fill must not treat it as a duplicate.
+    const emeritus = {
+      id: 'sos-emeritus-of-woe',
+      name: 'Emeritus of Woe // Demonic Tutor',
+      mana_cost: '{3}{B} // {1}{B}',
+      cmc: 4,
+      type_line: 'Creature — Vampire Warlock // Sorcery',
+      color_identity: ['B'],
+      colors: ['B'],
+      set: 'sos',
+      layout: 'prepare',
+      legalities: { commander: 'legal' },
+      card_faces: [
+        { name: 'Emeritus of Woe', type_line: 'Creature — Vampire Warlock' },
+        {
+          name: 'Demonic Tutor',
+          type_line: 'Sorcery',
+          oracle_text:
+            'Search your library for a card, put that card into your hand, then shuffle.',
+        },
+      ],
+    } as unknown as ScryfallCard;
+    const base = BASELINE.cards.slice(0, 90).filter((c) => c.name !== 'Demonic Tutor');
+    const withTutor = createPlanJudge(objective([...base, card('Demonic Tutor')]), (n) =>
+      n === emeritus.name ? emeritus : resolve(n)
+    )!;
+    const v = withTutor.loss({ name: emeritus.name, card: emeritus }, []);
+    expect(v.loss === true && v.hard).not.toBe(true);
+  });
 });

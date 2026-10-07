@@ -81,6 +81,13 @@ export interface PlanJudge {
   loss(add: { name: string; card?: ScryfallCard }, prior: readonly PlanPick[]): LossVerdict;
 }
 
+/**
+ * Checks Fill reads as soft. A partial owned share is read to the card but a build lands
+ * within a few points of it; a face-name collision is a card whose back face shares another
+ * card's name (Emeritus of Woe // Demonic Tutor), which Commander keeps, not a duplicate.
+ */
+const SOFT_FOR_FILL: ReadonlySet<string> = new Set(['owned-share', 'face-name-collision']);
+
 const keyOf = (name: string): string => normalizeCardName(frontFaceName(name));
 
 /** A judge for the saved deck, or null when the deck cannot be scored (the plan keeps its own rules). */
@@ -151,8 +158,7 @@ export function createPlanJudge(
       return {
         loss: true,
         reason: j.refusal ?? 'scores worse',
-        // A partial owned share is read to the card, but a build lands within a few points of it: not a hard rule.
-        hard: j.worsened.some((v) => v.check !== 'owned-share'),
+        hard: j.worsened.some((v) => !SOFT_FOR_FILL.has(v.check)),
         premium: held.has(incoming.name),
       };
     },
