@@ -8,6 +8,15 @@ vi.mock('@/deck-builder/services/deckBuilder/deckGenerator', () => ({
   generateDeck: (...args: unknown[]) => generateDeck(...args),
 }));
 
+const loadCoachObjective = vi.fn();
+vi.mock('./coach-objective', () => ({
+  loadCoachObjective: (...args: unknown[]) => loadCoachObjective(...args),
+}));
+vi.mock('@/deck-builder/services/scryfall/client', async (orig) => ({
+  ...(await orig<typeof import('@/deck-builder/services/scryfall/client')>()),
+  getGameChangerNames: async () => new Set<string>(),
+}));
+
 const { buildFill, fillFormatSettings } = await import('./fill-deck');
 
 function card(name: string, over: Partial<ScryfallCard> = {}): ScryfallCard {
@@ -60,6 +69,8 @@ const customizationOf = () =>
 
 beforeEach(() => {
   generateDeck.mockReset();
+  loadCoachObjective.mockReset();
+  loadCoachObjective.mockResolvedValue({ ok: false, reason: 'no-page' });
   generateDeck.mockResolvedValue({
     categories: {
       spells: Array.from({ length: 70 }, (_, i) => card(`Spell ${i}`)),
@@ -92,6 +103,39 @@ describe('buildFill', () => {
     generateDeck.mockClear();
     await buildFill(deck('paupercommander'), 99, { brewLevel: 0.5, preferOwned: false }, {});
     expect(customizationOf()).toMatchObject({ mtgFormat: 'paupercommander', deckFormat: 99 });
+  });
+});
+
+// E540 S9: the whole-deck objective judges the generator's picks when the deck can be scored.
+describe('buildFill judge', () => {
+  const fill = (over: Partial<Deck> = {}) =>
+    buildFill({ ...deck('commander'), ...over }, 99, { brewLevel: 0.5, preferOwned: false }, {});
+
+  it('does not load the objective for a deck with no role targets, so a manual deck costs no fetch', async () => {
+    await fill();
+    expect(loadCoachObjective).not.toHaveBeenCalled();
+  });
+
+  it('loads it with the generator role targets and keeps the generator picks when the deck cannot be scored', async () => {
+    generateDeck.mockResolvedValue({
+      categories: { spells: Array.from({ length: 70 }, (_, i) => card(`Spell ${i}`)) },
+      roleTargets: { ramp: 10 },
+    });
+    const { plan } = await fill();
+    expect(loadCoachObjective).toHaveBeenCalledTimes(1);
+    expect(loadCoachObjective.mock.calls[0][1]).toMatchObject({ roleTargets: { ramp: 10 } });
+    expect(plan.additions).toHaveLength(70);
+    expect(plan.declined).toEqual([]);
+  });
+
+  it('keeps the generator picks when building the objective throws', async () => {
+    generateDeck.mockResolvedValue({
+      categories: { spells: [card('Spell 0')] },
+      roleTargets: { ramp: 10 },
+    });
+    loadCoachObjective.mockRejectedValue(new Error('page fetch blew up'));
+    const { plan } = await fill();
+    expect(plan.additions.map((c) => c.name)).toEqual(['Spell 0']);
   });
 });
 

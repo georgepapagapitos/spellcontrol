@@ -260,11 +260,19 @@ export function FillDeckSheet({
                   </section>
                 ))
               )}
+              {phase.result.plan.declined.length > 0 && (
+                <p className="fill-deck-note">
+                  Left out for this deck:{' '}
+                  {phase.result.plan.declined.map((d) => d.card.name).join(', ')}. Each scores worse
+                  here or breaks a rule the deck was built with.
+                </p>
+              )}
               {phase.result.plan.stillOpen > 0 && (
                 <p className="fill-deck-note">
                   {phase.result.plan.stillOpen === 1
-                    ? '1 slot stays open: the card pool ran out.'
-                    : `${phase.result.plan.stillOpen} slots stay open: the card pool ran out.`}
+                    ? '1 slot stays open'
+                    : `${phase.result.plan.stillOpen} slots stay open`}
+                  {phase.result.plan.declined.length > 0 ? '.' : ': the card pool ran out.'}
                 </p>
               )}
             </>

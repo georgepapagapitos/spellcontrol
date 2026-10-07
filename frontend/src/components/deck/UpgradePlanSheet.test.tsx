@@ -229,6 +229,7 @@ describe('UpgradePlanSheet', () => {
     // E540 S9: every swap Coach found scores worse, or would cut a card the deck needs.
     const refuseAll = {
       verdict: () => ({ status: 'refused' as const, delta: -1, reason: 'scores worse' }),
+      loss: () => ({ loss: false as const }),
     };
     render(<UpgradePlanSheet {...props({ judge: refuseAll })} />);
     expect(screen.getByText('Nothing here improves the deck.')).toBeTruthy();

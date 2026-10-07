@@ -1,10 +1,14 @@
-import type { Customization, ScryfallCard } from '@/deck-builder/types';
+import type { Customization, DetectedCombo, ScryfallCard } from '@/deck-builder/types';
 import { generateDeck } from '@/deck-builder/services/deckBuilder/deckGenerator';
 import { defaultCustomization } from '@/deck-builder/store';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import { getCurrency } from '@/lib/collection/currency';
 import { deckColorIdentity } from '@/lib/deck/deck-validation';
+import { getGameChangerNames } from '@/deck-builder/services/scryfall/client';
+import { logger } from '@/lib/util/logger';
+import { loadCoachObjective } from './coach-objective';
 import { planFill, type FillPlan } from './fill-deck-plan';
+import { createPlanJudge, type PlanJudge } from './plan-move-judge';
 import type { Deck } from '@/store/decks';
 
 export interface FillOptions {
@@ -92,14 +96,46 @@ export async function buildFill(
     optimizeDeckCards: [...new Set(current.filter((c) => !isBasic(c)).map((c) => c.name))],
     onProgress: env.onProgress,
   });
+  const roleTargets = generated.roleTargets ?? deck.roleTargets;
   return {
     plan: planFill(
       current,
       Object.values(generated.categories).flat(),
       target,
-      generated.cardRelevancyMap ?? {}
+      generated.cardRelevancyMap ?? {},
+      await fillJudge(deck, roleTargets, generated.detectedCombos, env.ownedNames)
     ),
     reasons: generated.cardProvenance ?? {},
     notes: generated.integrityNotes ?? [],
   };
+}
+
+/**
+ * The whole-deck objective's judge for this part-built deck (E540 S9), or
+ * undefined when it can't be scored: no role targets (a manual deck the
+ * generator reported none for), no EDHREC page, a thin one. Fill then runs on
+ * the generator's own picks, as before. Never throws.
+ */
+async function fillJudge(
+  deck: Deck,
+  roleTargets: Record<string, number> | undefined,
+  combos: DetectedCombo[] | undefined,
+  ownedNames: Set<string> | undefined
+): Promise<PlanJudge | undefined> {
+  if (!roleTargets || Object.keys(roleTargets).length === 0) return undefined;
+  try {
+    const current = deck.cards.map((c) => c.card);
+    const objective = await loadCoachObjective(deck, {
+      roleTargets,
+      combos,
+      ownedNames,
+      availableNames: ownedNames,
+      gameChangerNames: await getGameChangerNames().catch(() => new Set<string>()),
+      knownCards: current,
+    });
+    return createPlanJudge(objective, () => undefined) ?? undefined;
+  } catch (err) {
+    logger.warn('[coach] fill judge unavailable', err);
+    return undefined;
+  }
 }

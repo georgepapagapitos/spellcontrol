@@ -94,4 +94,23 @@ describe('createPlanJudge on Meren', { timeout: 300_000 }, () => {
       status: 'unscored',
     });
   });
+  it('calls an add to a short deck a loss only when it makes the deck worse', () => {
+    const short = createPlanJudge(objective(BASELINE.cards.slice(0, 90)), resolve)!;
+    expect(short.loss({ name: 'Grave Pact' }, [])).toEqual({ loss: false });
+    expect(short.loss({ name: 'Counterspell' }, [])).toMatchObject({
+      loss: true,
+      reason: 'breaks identity',
+      hard: true,
+    });
+  });
+
+  it('reads a Game Changer as premium, and an identity break as hard', () => {
+    const short = createPlanJudge(objective(BASELINE.cards.slice(0, 90)), resolve)!;
+    // Fierce Guardianship is a Game Changer outside Meren's colors: premium, and the colors are a hard rule.
+    expect(short.loss({ name: 'Fierce Guardianship' }, [])).toMatchObject({
+      loss: true,
+      hard: true,
+      premium: true,
+    });
+  });
 });
