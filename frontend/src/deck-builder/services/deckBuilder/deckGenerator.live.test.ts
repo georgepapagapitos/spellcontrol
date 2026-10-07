@@ -205,8 +205,8 @@ function customization(overrides: Partial<Customization> = {}): Customization {
     // LIVE_GEN_OPTIMIZER=0 turns it off, to A/B or to baseline a build that
     // predates it; unset or 1 leaves it on.
     ...(process.env.LIVE_GEN_OPTIMIZER === '0' ? { wholeDeckSearch: false } : {}),
-    // E515: the discovery slot (off by default). LIVE_GEN_DISCOVERY=1 turns it on.
-    ...(process.env.LIVE_GEN_DISCOVERY === '1' ? { discoveryPicks: true } : {}),
+    // E515: the discovery slot (on by default). LIVE_GEN_DISCOVERY=0 turns it off.
+    ...(process.env.LIVE_GEN_DISCOVERY === '0' ? { discoveryPicks: false } : {}),
     ...overrides,
   };
 }

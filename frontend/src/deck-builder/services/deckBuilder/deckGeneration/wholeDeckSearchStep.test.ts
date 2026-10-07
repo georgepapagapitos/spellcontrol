@@ -8,6 +8,7 @@ import {
   SEARCH_PROGRESS_SPAN,
 } from './searchProgress';
 import type { ScryfallCard } from '@/deck-builder/types';
+import { discoveryEnabled } from './phaseWholeDeckSearch';
 import { reportFields, searchEnabled, stampProvenance, standing } from './wholeDeckSearchStep';
 
 const repair = (cut: string, added: string) => ({ cut, added, reason: '' });
@@ -41,6 +42,12 @@ describe('the search is on unless a build says false', () => {
     expect(searchEnabled({})).toBe(true);
     expect(searchEnabled({ wholeDeckSearch: true })).toBe(true);
     expect(searchEnabled({ wholeDeckSearch: false })).toBe(false);
+  });
+
+  it('runs the E515 discovery slot unless the build turns it off', () => {
+    expect(discoveryEnabled({})).toBe(true);
+    expect(discoveryEnabled({ discoveryPicks: true })).toBe(true);
+    expect(discoveryEnabled({ discoveryPicks: false })).toBe(false);
   });
 
   it('has a progress step the takeover lists, and the bar can move on past it', () => {
