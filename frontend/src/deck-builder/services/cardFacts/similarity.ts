@@ -29,6 +29,13 @@ function mvBand(mv: number): string {
   return mv <= 1 ? '0-1' : mv <= 4 ? String(Math.floor(mv)) : mv <= 6 ? '5-6' : '7+';
 }
 
+/**
+ * Object filters (E517) are read by the substitute ranker's narrowing feature
+ * (substitutes/features.ts), not matched as tags, so every other card's tags
+ * stay as they were.
+ */
+const FILTER_LIMITS = new Set<string>(['legendary', 'trait', 'state']);
+
 const limitTag = (l: string) =>
   `L:${l.replace(/^(mv|power|toughness)(<=|>=)\d+$/, (_m, k: string, op: string) => `${k}-${op === '<=' ? 'cap' : 'floor'}`)}`;
 
@@ -50,7 +57,7 @@ export function similarityTags(f: CardFacts): string[] {
       tags.add(trigger!);
     }
     if (a.effects.length) tags.add(`S:${a.speed}`);
-    for (const l of a.limits) tags.add(limitTag(l));
+    for (const l of a.limits) if (!FILTER_LIMITS.has(l)) tags.add(limitTag(l));
     for (const e of a.effects) {
       const effect = `E:${e.verb}/${e.object}/${e.who}${e.scope === 'mass' ? '@mass' : ''}`;
       tags.add(`E:${e.verb}`);
@@ -60,7 +67,7 @@ export function similarityTags(f: CardFacts): string[] {
         tags.add(`${trigger}>${effect}`);
         tags.add(`T:${t.event}>E:${e.verb}`);
       } else tags.add(`K:${a.kind}>${effect}`);
-      for (const l of e.limits) tags.add(limitTag(l));
+      for (const l of e.limits) if (!FILTER_LIMITS.has(l)) tags.add(limitTag(l));
     }
     for (const c of a.cost) tags.add(`C:${c}`);
   }

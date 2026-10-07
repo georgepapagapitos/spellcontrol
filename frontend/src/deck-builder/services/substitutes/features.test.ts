@@ -10,6 +10,8 @@ import {
   tupleTags,
   type FeatureSources,
 } from './features';
+import { TEST_CARDS } from '../cardFacts/test-cards.fixtures';
+import { SUBSTITUTE_WEIGHTS, linearScore } from './ranker';
 import { SUBSTITUTE_TEST_CARDS } from './test-cards.fixtures';
 
 const facts = (name: string) => extractCardFacts(SUBSTITUTE_TEST_CARDS[name]);
@@ -141,6 +143,37 @@ describe('tuple helpers', () => {
   it('keep only full tuples, never their ancestors', () => {
     const tuples = tupleTags(cardTags(facts('Grave Pact')));
     expect(tuples).toEqual(['T:dies/creature/you>E:sacrifice/creature/opp']);
+  });
+});
+
+describe('object filters narrow a substitute (E517)', () => {
+  const removal = (name: string) => extractCardFacts(TEST_CARDS[name]);
+  const narrowing = (q: string, c: string) =>
+    pairFeatures(removal(q), removal(c), 'removal', NONE).x.narrowing;
+
+  it('charges a substitute for hitting less of the board than the card it replaces', () => {
+    // Plummet only kills flyers, Hero's Demise only legends, Kill Shot only attackers.
+    expect(narrowing('Murder', 'Plummet')).toBeCloseTo(0.5);
+    expect(narrowing('Murder', "Hero's Demise")).toBeCloseTo(0.65);
+    expect(narrowing('Murder', 'Kill Shot')).toBeCloseTo(0.4);
+  });
+
+  it('charges nothing for hitting more, or the same', () => {
+    expect(narrowing('Plummet', 'Murder')).toBe(0);
+    expect(narrowing('Plummet', 'Plummet')).toBe(0);
+    expect(narrowing('Murder', 'Cast Down')).toBe(0);
+    // A colour restriction is not narrowing: Doom Blade is Murder's equal.
+    expect(narrowing('Murder', 'Doom Blade')).toBe(0);
+  });
+
+  it('lowers the score, so Plummet ranks under Murder as a stand-in for Murder', () => {
+    const score = (c: string) =>
+      linearScore(
+        pairFeatures(removal('Doom Blade'), removal(c), 'removal', NONE).x,
+        SUBSTITUTE_WEIGHTS
+      );
+    expect(score('Murder')).toBeGreaterThan(score('Plummet'));
+    expect(score('Murder')).toBeGreaterThan(score("Hero's Demise"));
   });
 });
 

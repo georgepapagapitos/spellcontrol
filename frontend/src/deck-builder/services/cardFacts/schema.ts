@@ -311,6 +311,9 @@ export const LIMIT_FLAGS = [
   'conditional', // gated by an if / as long as / threshold clause
   'combat', // attacking/blocking/tapped targets only
   'colour', // colour-restricted target (nonblack, white, ...)
+  'legendary', // only legendary targets (Hero's Demise)
+  'trait', // targets with a keyword or counter ("creature with flying")
+  'state', // targets in a state ("that was dealt damage this turn")
   'nontoken',
   'token-only',
   'except', // a wipe with carve-outs

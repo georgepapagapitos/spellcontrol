@@ -8,6 +8,13 @@
 //   node scripts/substitute-eval.mjs --pool F     write every pooled system's unjudged
 //                                                 top 5, with oracle text, to F for grading
 //   node scripts/substitute-eval.mjs --errors     list each main system's misses by bucket
+//   node scripts/substitute-eval.mjs --latent     slice B experiment: add a fitted cosine over
+//                                                 SVD vectors of the card x tag matrix
+//                                                 (substitute-latent.mjs; --latent-k N dims).
+//                                                 Measured 2026-10-07 at k=64: no gain, not shipped.
+//
+// Pass --bulk <oracle-cards .jsonl.gz> when node_modules has no cached bulk file.
+// The tables also carry "narrowing" at fixed weights (the one unfitted weight).
 //
 // JUDGMENTS. Every (query, role, candidate, grade 0-3) was graded by reading
 // oracle text, never derived from the tagger corpus, the card-facts extractor
@@ -114,7 +121,15 @@ const m = await importTogether({
   finder: 'deck-builder/services/deckBuilder/substituteFinder.ts',
   similarCards: 'lib/coach/similar-cards.ts',
 });
-const FEATURES = m.features.FEATURES;
+// --latent: slice B experiment, a cosine over SVD vectors of the card x tag matrix as one more fitted feature.
+const LATENT = flag('--latent');
+const FEATURES = [...m.features.FEATURES, ...(LATENT ? ['latent'] : [])];
+// 'narrowing' is not fitted: a pairwise fit over it moved the other weights
+// and cost the held-out nDCG@5 0.01 for no gain. It is a fixed penalty
+// (ranker.ts) added to the weights the other features fit, so a card with no
+// object filter ranks exactly as it did before it existed.
+const FIT_FEATURES = FEATURES.filter((f) => f !== 'narrowing');
+const NARROWING_W = m.ranker.SUBSTITUTE_WEIGHTS.narrowing;
 
 // ── Data ────────────────────────────────────────────────────────────────────
 const readJson = async (file) => JSON.parse(await readFile(join(FRONTEND, 'public', file), 'utf8'));
@@ -155,6 +170,35 @@ const sources = (idf) => ({
 // v2 ships without IDF (see "v2 with IDF" in the tables): the runtime would
 // have to decode the whole snapshot to compute it.
 const SRC = sources(null);
+const latentIndex = new Map();
+let latentVectors = null;
+let latentK = 0;
+if (LATENT) {
+  const { buildLatent } = await import('./substitute-latent.mjs');
+  const t = Date.now();
+  const built = buildLatent(
+    facts.map((f) => m.features.cardTags(f)),
+    tagIdf,
+    Number(opt('--latent-k') ?? 64)
+  );
+  latentVectors = built.vectors;
+  latentK = built.k;
+  facts.forEach((f, i) => latentIndex.set(f.name, i));
+  console.log(
+    `[latent] ${built.k} dims over ${built.vocab} tags in ${((Date.now() - t) / 1000).toFixed(0)} s`
+  );
+}
+function pairX(q, c, role, src) {
+  const { x, evidence } = m.features.pairFeatures(q, c, role, src);
+  if (latentVectors) {
+    const a = latentIndex.get(q.name) * latentK;
+    const b = latentIndex.get(c.name) * latentK;
+    let dot = 0;
+    for (let i = 0; i < latentK; i++) dot += latentVectors[a + i] * latentVectors[b + i];
+    x.latent = Math.max(0, dot);
+  }
+  return { x, evidence };
+}
 const SRC_IDF = sources(tagIdf);
 
 // ── Judgments: (query, role) → candidate → grade ───────────────────────────
@@ -258,7 +302,7 @@ const featureCache = new Map();
 function featuresFor(e, c, src = SRC) {
   const key = `${e.q}\u0000${e.role}\u0000${c.name}\u0000${src === SRC ? 1 : 0}`;
   let v = featureCache.get(key);
-  if (!v) featureCache.set(key, (v = m.features.pairFeatures(byName.get(e.q), c, e.role, src).x));
+  if (!v) featureCache.set(key, (v = pairX(byName.get(e.q), c, e.role, src).x));
   return v;
 }
 const dot = (w, x) => FEATURES.reduce((s, f) => s + (w[f] ?? 0) * x[f], 0);
@@ -309,7 +353,7 @@ function solve(A, b) {
  * leaning on a collinear partner (cardTags against roleTags) or on a feature
  * that almost never fires (polarity), and would rank a false friend UP.
  */
-const SIGN = (f) => (f === 'polarity' ? -1 : 1);
+const SIGN = (f) => (f === 'polarity' || f === 'narrowing' ? -1 : 1);
 
 /**
  * Sign-constrained fit (active set): fit, drop the feature whose weight has
@@ -522,13 +566,13 @@ const GROUPS = {
 };
 
 const t0 = Date.now();
-const cvFull = crossValidate(FEATURES);
-const cvIdf = crossValidate(FEATURES, SRC_IDF, cvFull.lambdaByRole);
-const cvFree = crossValidate(FEATURES, SRC, cvFull.lambdaByRole, true);
+const cvFull = crossValidate(FIT_FEATURES);
+const cvIdf = crossValidate(FIT_FEATURES, SRC_IDF, cvFull.lambdaByRole);
+const cvFree = crossValidate(FIT_FEATURES, SRC, cvFull.lambdaByRole, true);
 const ablations = Object.entries(GROUPS).map(([name, drop]) => ({
   name,
   cv: crossValidate(
-    FEATURES.filter((f) => !drop.includes(f)),
+    FIT_FEATURES.filter((f) => !drop.includes(f)),
     SRC,
     cvFull.lambdaByRole
   ),
@@ -541,8 +585,11 @@ const alone = Object.entries(GROUPS).map(([name, keep]) => ({
     cvFull.lambdaByRole
   ),
 }));
-const finalLambda = pickLambda(evalQueries, FEATURES, SRC);
-const finalWeights = fit(evalQueries, FEATURES, finalLambda, SRC);
+const finalLambda = pickLambda(evalQueries, FIT_FEATURES, SRC);
+const finalWeights = {
+  ...fit(evalQueries, FIT_FEATURES, finalLambda, SRC),
+  narrowing: NARROWING_W,
+};
 console.log(
   `[eval] ${evalQueries.length} queries (${m.subs.SUBSTITUTES.length} lane B rows, ${m.judgments.JUDGMENTS.length} pooled judgments), ${universe.length} cards in the universe; fits in ${((Date.now() - t0) / 1000).toFixed(0)} s`
 );
@@ -573,7 +620,7 @@ const equalWeights = (() => {
     FEATURES.map((f) => {
       const mu = mean(rows.map((r) => r[f]));
       const sd = Math.sqrt(mean(rows.map((r) => (r[f] - mu) ** 2))) || 1;
-      return [f, (f === 'polarity' ? -1 : 1) / sd];
+      return [f, (f === 'polarity' || f === 'narrowing' ? -1 : 1) / sd];
     })
   );
 })();
@@ -581,7 +628,10 @@ const equalWeights = (() => {
 // ── Systems over the universe ───────────────────────────────────────────────
 // A v2 variant scores with the weights of the fold that held its query's role out.
 const linear = (label, pick, src = SRC) => ({ label, kind: 'v2', src, weights: pick });
-const byFold = (cv) => (e) => cv.weightsByRole.get(e.role);
+const byFold =
+  (cv, n = NARROWING_W) =>
+  (e) => ({ ...cv.weightsByRole.get(e.role), narrowing: n });
+const NARROWING_GRID = [0, -1, -2, -3, -4, -6, -8];
 function systemsFor(protocol) {
   return [
     protocol === 'owned'
@@ -604,10 +654,11 @@ function systemsFor(protocol) {
     linear('v2 prior (unfitted)', () => PRIOR),
     linear('v2 equal weights', () => equalWeights),
     linear('v2 (held-out fit)', byFold(cvFull)),
+    ...NARROWING_GRID.map((n) => linear(`v2 narrowing ${n}`, byFold(cvFull, n))),
     linear('v2 with IDF', byFold(cvIdf), SRC_IDF),
     linear('v2 unconstrained signs', byFold(cvFree)),
     ...ablations.map((a) => linear(`v2 minus ${a.name}`, byFold(a.cv))),
-    ...alone.map((a) => linear(`${a.name} alone`, byFold(a.cv))),
+    ...alone.map((a) => linear(`${a.name} alone`, (e) => a.cv.weightsByRole.get(e.role))),
   ];
 }
 /** Systems whose top 5 is pooled for grading (every system in the headline table). */
@@ -635,8 +686,8 @@ function runUniverse(protocol) {
     const gate = gateFor(q, e.role, protocol);
     const ideal = [...e.grades].filter(([n]) => gate(byName.get(n))).map(([, g]) => g);
     const needIdf = systems.some((s) => s.src === SRC_IDF);
-    const x = pool.map((c) => m.features.pairFeatures(q, c, e.role, SRC).x);
-    const xIdf = needIdf ? pool.map((c) => m.features.pairFeatures(q, c, e.role, SRC_IDF).x) : null;
+    const x = pool.map((c) => pairX(q, c, e.role, SRC).x);
+    const xIdf = needIdf ? pool.map((c) => pairX(q, c, e.role, SRC_IDF).x) : null;
     for (const s of systems) {
       let scores;
       if (s.kind === 'fn') {
@@ -779,7 +830,7 @@ for (const [protocol, run] of Object.entries(runs)) {
 const BUCKETS = ['polarity', 'role confusion', 'popularity noise', 'MV mismatch', 'other'];
 function bucketsOf(e, c) {
   const q = byName.get(e.q);
-  const { x, evidence } = m.features.pairFeatures(q, c, e.role, SRC);
+  const { x, evidence } = pairX(q, c, e.role, SRC);
   const out = [];
   if (evidence.polarityClash) out.push('polarity');
   if (x.roleStrength < 0.6) out.push('role confusion');
