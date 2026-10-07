@@ -353,3 +353,53 @@ export function advisedDump(
   out.coachChecks = coachChecks(out);
   return out;
 }
+
+/** The role numbers one source gives a deck: counts, targets and the cards counted. */
+export interface RoleStamp {
+  counts: Record<string, number>;
+  targets: Record<string, number>;
+  names: Record<string, string[]>;
+}
+
+/**
+ * A dump whose role numbers are one source's. A generated dump carries the
+ * generator's counts and targets and its own grade; Coach's analysis recounts the
+ * saved deck (an MDFC spell-land such as Fell the Profane // Fell Mire is a
+ * removal spell to it, a land to the generator) and derives its own targets
+ * (ramp 14 for the generator's 15), then grades from those. Putting the analysis'
+ * grade beside the generator's counts printed "Removal: running 11" next to
+ * roleCounts.removal 10 (T171 S6 round 2). The Cuts-lane gate stamps BOTH sides
+ * from the analysis, so before and after are measured by one ruler.
+ */
+export function restampRoles(dump: CoachDump, roles: RoleStamp, deckGrade: unknown): CoachDump {
+  return {
+    ...dump,
+    roleCounts: roles.counts,
+    roleTargets: roles.targets,
+    roleCardNames: roles.names,
+    ...(deckGrade !== undefined ? { deckGrade } : {}),
+  };
+}
+
+const TRIM_ROLE: Record<string, string> = {
+  Ramp: 'ramp',
+  Removal: 'removal',
+  'Board wipes': 'boardwipe',
+  'Card advantage': 'cardDraw',
+};
+
+/** The role trims the grade states ("running 11, only need 8") that its dump's own counts and targets contradict. */
+export function gradeTrimDisagreements(dump: CoachDump): string[] {
+  const grade = dump.deckGrade as { trims?: { label: string; text: string }[] } | undefined;
+  const counts = (dump.roleCounts ?? {}) as Record<string, number>;
+  const targets = (dump.roleTargets ?? {}) as Record<string, number>;
+  const out: string[] = [];
+  for (const t of grade?.trims ?? []) {
+    const role = TRIM_ROLE[t.label];
+    const m = t.text.match(/running (\d+), only need (\d+)/);
+    if (!role || !m) continue;
+    if (Number(m[1]) !== counts[role] || Number(m[2]) !== targets[role])
+      out.push(`${t.label}: grade says ${m[1]}/${m[2]}, dump has ${counts[role]}/${targets[role]}`);
+  }
+  return out;
+}

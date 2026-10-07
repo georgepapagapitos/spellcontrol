@@ -61,6 +61,7 @@ import {
   analyzeCommanderDeck,
   buildInclusionIndex,
   computeRoleCounts,
+  countedRoleOf,
   detectCombosForAnalysis,
   lookupInclusion,
   type CommanderDeckAnalysisResult,
@@ -108,7 +109,14 @@ import { shadowMarkdown, shadowNumbers } from './coachShadowReport';
 import { shadowRecord, type ShadowRecord } from './coachShadow';
 import { applyCutLane, cutLaneRecord } from './coachCutLane';
 import type { Change } from '@/lib/coach/deck-change';
-import { advisedDump, rebuildDeck, stampGenerationFlags, type CoachDump } from './coachDump';
+import {
+  advisedDump,
+  rebuildDeck,
+  restampRoles,
+  stampGenerationFlags,
+  type CoachDump,
+  type RoleStamp,
+} from './coachDump';
 import { buildNameMatcher, extractDeckLabels } from './coachLabels';
 import {
   adviseMarkdown,
@@ -886,7 +894,29 @@ async function cutLaneAdvise(
   if (result.applied.length === 0) return;
   const pass2 = await coachPass(dump, result.deck);
   const index = pass1.page ? buildInclusionIndex(pass1.page) : new Map<string, number>();
-  writeJson(join(OUT, 'cuts-advised', panel.name, file), advisedFrom(dump, result, index, pass2));
+  // Both sides of the gate are stamped from Coach's analysis (see restampRoles).
+  const stamp = (cards: ScryfallCard[], analysis: CommanderDeckAnalysisResult): RoleStamp => ({
+    counts: computeRoleCounts(cards).roleCounts,
+    targets: (analysis.roleTargets ?? {}) as Record<string, number>,
+    names: Object.fromEntries(
+      ['ramp', 'removal', 'boardwipe', 'cardDraw'].map((r) => [
+        r,
+        cards.filter((c) => countedRoleOf(c) === r).map((c) => c.name),
+      ])
+    ),
+  });
+  writeJson(
+    join(OUT, 'cuts-before', panel.name, file),
+    restampRoles(dump, stamp(deck.cards, pass1.analysis), pass1.analysis.deckGrade)
+  );
+  writeJson(
+    join(OUT, 'cuts-advised', panel.name, file),
+    restampRoles(
+      advisedFrom(dump, result, index, pass2),
+      stamp(result.deck.cards, pass2.analysis),
+      pass2.analysis.deckGrade
+    )
+  );
   writeJson(join(OUT, 'cuts-applied', panel.name, file), result.applied);
 }
 
