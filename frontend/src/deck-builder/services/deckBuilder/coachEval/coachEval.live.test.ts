@@ -29,6 +29,12 @@
 //     ./node_modules/.bin/vitest run --mode production \
 //     src/deck-builder/services/deckBuilder/coachEval/coachEval.live.test.ts
 //
+//   COACH_EVAL_PARITY=1 (with COACH_EVAL_ADVISE)
+//     Also write <out>/parity/<panel>/<file>.json: what generation shipped
+//     (roleCounts, roleTargets, grade) beside what the analysis reads off the same
+//     saved deck. Any difference is a deck graded one way when generation finishes
+//     and another when Coach opens it (E573).
+//
 // Other knobs: COACH_EVAL_BULK (oracle_cards .jsonl.gz, default the newest in
 // node_modules/.cache/card-facts), COACH_EVAL_OWNED (owned names for
 // collection rows, default the harness fixture), COACH_EVAL_ONLY (substring
@@ -51,6 +57,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import type {
+  Archetype,
   Customization,
   DeckDataSource,
   EDHRECCommanderData,
@@ -92,6 +99,7 @@ import {
 } from '@/lib/coach/deck-settings-fit';
 import type { SubstituteCandidate } from '../substituteFinder';
 import { dumpPage, resolveName } from '../deckObjective/panelDump';
+import { deckBuildOf } from '../analysisTargets';
 import { deckEdhrecSource, fetchDeckEdhrecPage, type DeckEdhrecSource } from '../deckEdhrecSource';
 import { synergyStrength } from '../synergyLift';
 import { buildCoachView, combosFromEdhrec, type CoachView } from './coachView';
@@ -509,22 +517,28 @@ async function fixingLands(identity: string[]): Promise<ScryfallCard[]> {
   return fixingLandCache.get(key)!;
 }
 
-/** The deck's EDHREC source as the app reads it off a saved generated deck. */
-function sourceOf(dump: CoachDump): DeckEdhrecSource | undefined {
+/** The saved deck the app reads a generated dump's EDHREC source and build from. */
+function savedDeckOf(dump: CoachDump) {
   const page = dumpPage(dump);
   const cz = dump.customization as Partial<Customization>;
-  return deckEdhrecSource({
+  return {
     generationContext: {
       selectedThemes: page.theme
-        ? [{ name: page.theme, slug: page.theme, source: 'edhrec', isSelected: true }]
+        ? [{ name: page.theme, slug: page.theme, source: 'edhrec' as const, isSelected: true }]
         : [],
       targetBracket: cz.targetBracket ?? 'all',
-      landCount: 0,
+      landCount: cz.landCount ?? 37,
       collectionMode: cz.collectionMode === true,
       customization: cz,
     },
-    buildReport: dump.buildReport as { dataSource?: DeckDataSource } | undefined,
-  });
+    buildReport: dump.buildReport as
+      { dataSource?: DeckDataSource; archetype?: Archetype } | undefined,
+  };
+}
+
+/** The deck's EDHREC source as the app reads it off a saved generated deck. */
+function sourceOf(dump: CoachDump): DeckEdhrecSource | undefined {
+  return deckEdhrecSource(savedDeckOf(dump));
 }
 
 async function coachPass(dump: CoachDump, deck: EvalDeckState): Promise<CoachPass> {
@@ -562,6 +576,7 @@ async function coachPass(dump: CoachDump, deck: EvalDeckState): Promise<CoachPas
     oneAwayCombos: combos.oneAway,
     archetypeBlendNames: buildReport?.archetypeBlendNames,
     edhrecSource,
+    build: deckBuildOf(savedDeckOf(dump)),
     buildRemovals: dump.buildReport as BuildRemovals | undefined,
   });
   if (!analysis) throw new Error('analyzeCommanderDeck returned null');
@@ -920,6 +935,34 @@ async function cutLaneAdvise(
   writeJson(join(OUT, 'cuts-applied', panel.name, file), result.applied);
 }
 
+// ---- E573: generation vs analysis parity (COACH_EVAL_PARITY=1) --------------------
+// For each dump, what generation shipped (roleCounts, roleTargets, grade) beside
+// what the analysis reads off the same saved deck.
+const PARITY = process.env.COACH_EVAL_PARITY === '1';
+function parityRecord(dump: CoachDump, deck: EvalDeckState, analysis: CommanderDeckAnalysisResult) {
+  const roleKeys = ['ramp', 'removal', 'boardwipe', 'cardDraw'];
+  const own = computeRoleCounts(deck.cards).roleCounts;
+  return {
+    generation: {
+      counts: dump.roleCounts,
+      targets: dump.roleTargets,
+      grade: dump.deckGrade,
+      names: dump.roleCardNames,
+    },
+    analysis: {
+      counts: Object.fromEntries(roleKeys.map((r) => [r, own[r] ?? 0])),
+      targets: analysis.roleTargets ?? null,
+      grade: analysis.deckGrade ?? null,
+      names: Object.fromEntries(
+        roleKeys.map((r) => [
+          r,
+          deck.cards.filter((c) => countedRoleOf(c) === r).map((c) => c.name),
+        ])
+      ),
+    },
+  };
+}
+
 // ---- E538: advise -----------------------------------------------------------------
 
 const adviseRows = advisePanels().flatMap((p) =>
@@ -956,6 +999,11 @@ describe.skipIf(!process.env.LIVE_GEN || adviseRows.length === 0)('Coach eval: a
         const deck = await generatedDeck(dump);
         const settings = settingsOf(dump);
         const pass1 = await coachPass(dump, deck);
+        if (PARITY)
+          writeJson(
+            join(OUT, 'parity', panel.name, file),
+            parityRecord(dump, deck, pass1.analysis)
+          );
         const audit = auditMoves(deck, pass1.moves, settings, pass1.env, AUDIT_K);
         const result = applyCoachMoves(deck, pass1.moves, settings, pass1.env, N);
         const pass2 = await coachPass(dump, result.deck);

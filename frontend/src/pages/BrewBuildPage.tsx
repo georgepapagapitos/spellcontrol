@@ -166,7 +166,7 @@ export function BrewBuildPage(): JSX.Element {
       for (const card of resolvedNonlandCards) routeCardByType(card, categories);
       categories.lands = landPlan;
       const stats = calculateStats(categories);
-      const roleResult = computeRoleCounts(resolvedNonlandCards);
+      const roleResult = computeRoleCounts([...resolvedNonlandCards, ...landPlan]);
       const generated: GeneratedDeck = {
         commander,
         partnerCommander: partnerCommander ?? null,

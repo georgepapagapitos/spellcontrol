@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Deck } from '@/store/decks';
 import type { ComboMatchResponse } from '@/types/combos';
+import { deckBuildOf } from '@/deck-builder/services/deckBuilder/analysisTargets';
 import { deckEdhrecSource } from '@/deck-builder/services/deckBuilder/deckEdhrecSource';
 import {
   analyzeCommanderDeck,
@@ -186,8 +187,15 @@ function withStallTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  *        its condition in the deck. A card the build removed for a stated
  *        reason, or graveyard hate in a deck that recurs its own graveyard,
  *        is not suggested, and the excess cut is the least-played card.
+ *   v24 — a generated deck is graded against the plan it was built to (E573):
+ *        its land target, pacing and role targets come from the same
+ *        `resolveBuildPlan` generation reads, from the deck's saved settings,
+ *        themes and archetype, so a deck keeps the grade generation gave it
+ *        (28 of 59 read B where generation said A). A spell-land MDFC such as
+ *        Fell the Profane // Fell Mire counts as the spell it is in the role
+ *        counts however it was seated, the way the deck page counts it.
  */
-const ANALYSIS_ENGINE_VERSION = 'v23-coach-inputs';
+const ANALYSIS_ENGINE_VERSION = 'v24-build-plan';
 
 /** Suffix marking a persisted `gradeBracketSignature` as a PARTIAL result
  *  (EDHREC was unreachable). Distinguishes it from a full result computed for
@@ -413,6 +421,7 @@ export function useCommanderBracketAnalysis(args: Args): {
             oneAwayCombos,
             archetypeBlendNames,
             edhrecSource,
+            build: deckBuildOf(deck),
             buildRemovals: deck.buildReport,
           })
         ),

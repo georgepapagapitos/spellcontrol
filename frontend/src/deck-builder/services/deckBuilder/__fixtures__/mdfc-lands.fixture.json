@@ -1,0 +1,115 @@
+{
+  "note": "Real Scryfall oracle cards (2026-09-29) and the matching rows of the tagger snapshot.",
+  "cards": {
+    "Fell the Profane // Fell Mire": {
+      "id": "a3cb782d-c459-468d-9779-9b5669abc337",
+      "oracle_id": "053a69d8-2b5e-4f14-8b02-ca405891dc4a",
+      "name": "Fell the Profane // Fell Mire",
+      "cmc": 4.0,
+      "type_line": "Instant // Land",
+      "color_identity": ["B"],
+      "keywords": [],
+      "produced_mana": ["B"],
+      "legalities": {
+        "commander": "legal"
+      },
+      "rarity": "uncommon",
+      "set": "mh3",
+      "layout": "modal_dfc",
+      "edhrec_rank": 200,
+      "card_faces": [
+        {
+          "name": "Fell the Profane",
+          "mana_cost": "{2}{B}{B}",
+          "type_line": "Instant",
+          "oracle_text": "Destroy target creature or planeswalker.",
+          "colors": ["B"]
+        },
+        {
+          "name": "Fell Mire",
+          "mana_cost": "",
+          "type_line": "Land",
+          "oracle_text": "As this land enters, you may pay 3 life. If you don't, it enters tapped.\n{T}: Add {B}.",
+          "colors": []
+        }
+      ]
+    },
+    "Spikefield Hazard // Spikefield Cave": {
+      "id": "a69541db-3f4e-412f-aa8e-dec1e74f74dc",
+      "oracle_id": "81036c9f-fe0a-45a7-bcd5-0d344f31055a",
+      "name": "Spikefield Hazard // Spikefield Cave",
+      "cmc": 1.0,
+      "type_line": "Instant // Land",
+      "color_identity": ["R"],
+      "keywords": [],
+      "produced_mana": ["R"],
+      "legalities": {
+        "commander": "legal"
+      },
+      "rarity": "uncommon",
+      "set": "znr",
+      "layout": "modal_dfc",
+      "edhrec_rank": 2925,
+      "card_faces": [
+        {
+          "name": "Spikefield Hazard",
+          "mana_cost": "{R}",
+          "type_line": "Instant",
+          "oracle_text": "Spikefield Hazard deals 1 damage to any target. If a permanent dealt damage this way would die this turn, exile it instead.",
+          "colors": ["R"]
+        },
+        {
+          "name": "Spikefield Cave",
+          "mana_cost": "",
+          "type_line": "Land",
+          "oracle_text": "This land enters tapped.\n{T}: Add {R}.",
+          "colors": []
+        }
+      ]
+    },
+    "Silundi Vision // Silundi Isle": {
+      "id": "11568cdf-6148-494c-8b98-f5ca5797d775",
+      "oracle_id": "b0182ca0-f353-4012-9121-6f4ac9f7a046",
+      "name": "Silundi Vision // Silundi Isle",
+      "cmc": 3.0,
+      "type_line": "Instant // Land",
+      "color_identity": ["U"],
+      "keywords": [],
+      "produced_mana": ["U"],
+      "legalities": {
+        "commander": "legal"
+      },
+      "rarity": "uncommon",
+      "set": "znr",
+      "layout": "modal_dfc",
+      "edhrec_rank": 2013,
+      "card_faces": [
+        {
+          "name": "Silundi Vision",
+          "mana_cost": "{2}{U}",
+          "type_line": "Instant",
+          "oracle_text": "Look at the top six cards of your library. You may reveal an instant or sorcery card from among them and put it into your hand. Put the rest on the bottom of your library in a random order.",
+          "colors": ["U"]
+        },
+        {
+          "name": "Silundi Isle",
+          "mana_cost": "",
+          "type_line": "Land",
+          "oracle_text": "This land enters tapped.\n{T}: Add {U}.",
+          "colors": []
+        }
+      ]
+    }
+  },
+  "tags": {
+    "removal": ["Fell the Profane // Fell Mire", "Spikefield Hazard // Spikefield Cave"],
+    "spot-removal": ["Fell the Profane // Fell Mire", "Spikefield Hazard // Spikefield Cave"],
+    "card-advantage": ["Silundi Vision // Silundi Isle"],
+    "utility-land": [
+      "Fell the Profane // Fell Mire",
+      "Silundi Vision // Silundi Isle",
+      "Spikefield Hazard // Spikefield Cave"
+    ],
+    "tapland": ["Silundi Vision // Silundi Isle", "Spikefield Hazard // Spikefield Cave"]
+  }
+}

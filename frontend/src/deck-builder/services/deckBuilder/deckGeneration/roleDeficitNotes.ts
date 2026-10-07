@@ -58,7 +58,7 @@ function capitalize(label: string): string {
  * roleTargets/pool never got computed at all.
  */
 export function buildRoleDeficitNotes(
-  finalNonLandCards: ScryfallCard[],
+  finalCards: ScryfallCard[],
   roleTargets: Record<RoleKey, number> | null,
   pool: readonly EDHRECCard[] | null | undefined,
   opts: {
@@ -70,14 +70,14 @@ export function buildRoleDeficitNotes(
 ): string[] | undefined {
   if (!roleTargets || !pool || pool.length === 0) return undefined;
 
-  const finalCounts = computeRoleCounts(finalNonLandCards).roleCounts;
+  const finalCounts = computeRoleCounts(finalCards).roleCounts;
 
   // Front-face-aware "already shipped" set — mirrors phaseRoleSurplusRebalance
   // .ts's usedNames convention: an EDHREC pool entry for a DFC is keyed by its
   // front face, while a shipped card's own name can carry the full "A // B"
   // form, so index both forms to catch either direction.
   const shippedNames = new Set<string>();
-  for (const card of finalNonLandCards) {
+  for (const card of finalCards) {
     shippedNames.add(card.name);
     if (card.name.includes(' // ')) shippedNames.add(frontFaceName(card.name));
   }

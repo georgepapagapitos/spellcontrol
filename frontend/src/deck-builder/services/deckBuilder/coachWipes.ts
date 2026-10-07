@@ -10,8 +10,9 @@
  * `isOneSidedWipe` over the card's oracle text.
  */
 import type { ScryfallCard } from '@/deck-builder/types';
-import { isExtraCombatPiece, isOneSidedWipe } from '@/deck-builder/services/tagger/client';
+import { isOneSidedWipe } from '@/deck-builder/services/tagger/client';
 import type { CommanderProfile } from './commanderProfile';
+import { wantsExtraCombat } from './deckGeneration/buildPlan';
 import { isBoardCentricPlan } from './roleTargets';
 
 /** Whether this deck, as built, is the kind generation keeps symmetric wipes out of. */
@@ -26,13 +27,10 @@ export function prefersOneSidedWipes(
   const creatures = nonLand.filter((c) =>
     /\bcreature\b/i.test(c.card_faces?.[0]?.type_line ?? c.type_line ?? '')
   ).length;
-  const attackTrigger =
-    commanders.some((c) => isExtraCombatPiece(c)) ||
-    profile.abilities.some((a) => a.keyword === 'attack-trigger');
   return isBoardCentricPlan(
     profile.primaryArchetype,
     { creature: creatures, other: nonLand.length - creatures },
-    attackTrigger
+    wantsExtraCombat(commanders, profile)
   );
 }
 
