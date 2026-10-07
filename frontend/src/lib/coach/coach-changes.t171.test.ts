@@ -10,7 +10,12 @@
 import { describe, it, expect } from 'vitest';
 import type { GapAnalysisCard } from '@/deck-builder/types';
 import type { ComboMatch } from '@/types/combos';
-import { buildCoachChanges, onPlanCombos, staplesToSubstitute } from './coach-changes';
+import {
+  buildCoachChanges,
+  newLineCombos,
+  onPlanCombos,
+  staplesToSubstitute,
+} from './coach-changes';
 
 const gap = (name: string, role: string, inclusion = 40): GapAnalysisCard => ({
   name,
@@ -160,5 +165,39 @@ describe('buildCoachChanges — budget swaps Coach would undo', () => {
     expect(
       budgetNames(buildCoachChanges(withSidegrade, () => 'unowned', inDeck, undefined, overBudget))
     ).toEqual(['Noxious Ghoul', 'Diregraf Colossus']);
+  });
+});
+
+// E567 gate: the Coach cut Satoru Umezawa for Laboratory Maniac, "Completes
+// Demonic Consultation", though Demonic Consultation + Thassa's Oracle already
+// wins the game in that deck. The Spellbook variant swaps one piece; it opens
+// no new line.
+describe('newLineCombos', () => {
+  const win = (id: string, present: string, missing: string, produces: string[]): ComboMatch =>
+    ({
+      ...combo(id, present, missing),
+      combo: { ...combo(id, present, missing).combo, produces },
+    }) as unknown as ComboMatch;
+  const whole = win('oracle', 'Demonic Consultation', "Thassa's Oracle", [
+    'Target opponent loses the game',
+  ]);
+  const variant = win('maniac', 'Demonic Consultation', 'Laboratory Maniac', [
+    'Target opponent loses the game',
+  ]);
+  const other = win('mana', 'Demonic Consultation', 'Lotus Petal', ['Infinite colorless mana']);
+
+  it('drops a completion whose result the deck already assembles through another piece', () => {
+    expect(
+      newLineCombos({ oneAway: [variant, other], inDeck: [whole] }).map((m) => m.combo.id)
+    ).toEqual(['mana']);
+  });
+
+  it('keeps every completion when the deck assembles nothing, and results with no record', () => {
+    expect(newLineCombos({ oneAway: [variant, other], inDeck: [] }).map((m) => m.combo.id)).toEqual(
+      ['maniac', 'mana']
+    );
+    const bare = win('bare', 'A', 'B', []);
+    expect(newLineCombos({ oneAway: [bare], inDeck: [whole] })).toEqual([bare]);
+    expect(newLineCombos(undefined)).toEqual([]);
   });
 });
