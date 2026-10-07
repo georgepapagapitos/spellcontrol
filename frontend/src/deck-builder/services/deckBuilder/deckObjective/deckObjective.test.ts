@@ -25,6 +25,7 @@ import { manaTerm } from './terms/mana';
 import { combosTerm, COMBO_SCALE } from './terms/combos';
 import { liftTerm, synergyTerm } from './terms/synergy';
 import { nonboTerm, HARD_NONBO } from './terms/nonbo';
+import type { DetectedCombo } from '@/deck-builder/types';
 import {
   BASELINE,
   FIX,
