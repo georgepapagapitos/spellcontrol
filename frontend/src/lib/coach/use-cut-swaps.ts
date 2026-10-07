@@ -24,13 +24,16 @@ import {
   getGameChangerNames,
 } from '@/deck-builder/services/scryfall/client';
 import { logger } from '@/lib/util/logger';
+import { coachExclusions } from '@/deck-builder/services/deckBuilder/coachExclusions';
+import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
 import type { Change, ChangeOwnership } from './deck-change';
 import { coachCombos, loadCoachObjective, protectionSourcesFrom } from './coach-objective';
 import {
   CUT_PAIRING_BUDGET_MS,
-  keepShown,
+  ownedInIdentity,
   pairCuts,
   replacementCandidateNames,
+  stablePlan,
   type CutOutcome,
   type CutSwapState,
 } from './coach-cut-swaps';
@@ -40,7 +43,8 @@ export interface CutSwapSources {
   deck: Deck;
   /** The mainboard-scoped combo answer (`mainboardComboData`). */
   combos: ComboMatchResponse | null | undefined;
-  ownedNames: ReadonlySet<string>;
+  /** The collection (one entry per copy is fine): its names and the colors each card needs. */
+  owned: readonly { name: string; colorIdentity?: readonly string[] }[];
 }
 
 export interface CutSwapEnv {
@@ -90,7 +94,7 @@ export function useCutSwaps(
   const deckKey = deck
     ? `${deck.cards.map((c) => c.card.name).join('|')}#${deck.bracketOverride ?? ''}#${
         sources.combos ? sources.combos.inDeck.length + ':' + sources.combos.oneAway.length : ''
-      }#${sources.ownedNames.size}`
+      }#${sources.owned.length}`
     : '';
   const idle = !hasSources || cutsKey === '';
   const runKey = `${cutsKey}#${deckKey}#${attempt}`;
@@ -129,21 +133,22 @@ export function useCutSwaps(
       };
     }
     void (async () => {
-      const { cuts: toPair, sources: src, env: e } = latest.current;
+      const { cuts: allCuts, sources: src, env: e } = latest.current;
       if (!src) return;
       try {
         const tRun = Date.now();
         const gameChangerNames = await getGameChangerNames().catch(() => new Set<string>());
         const tGc = Date.now();
         const d = src.deck;
+        const ownedNames = new Set(src.owned.map((c) => c.name));
         const objective = await loadCoachObjective(d, {
           roleTargets: d.roleTargets,
           combos: coachCombos(
             src.combos,
             d.cards.map((c) => c.card)
           ),
-          ownedNames: src.ownedNames,
-          availableNames: src.ownedNames,
+          ownedNames,
+          availableNames: ownedNames,
           gameChangerNames,
           protections: protectionSourcesFrom(d),
           knownCards: d.cards.map((c) => c.card),
@@ -154,18 +159,32 @@ export function useCutSwaps(
           settle({ status: 'fallback', reason: objective.reason });
           return;
         }
+        const mainboard = d.cards.map((c) => c.card);
+        // What the build removed on purpose, and graveyard hate in a deck that recurses.
+        const excluded = coachExclusions(d.buildReport, mainboard, analyzeDeckSynergy(mainboard));
         const names = replacementCandidateNames({
           gaps: d.gapAnalysis,
           hiddenGems: d.hiddenGems,
           additions: d.optimizeSwaps?.additions,
           synergy: d.synergyAnalysis?.suggestions,
-          ownedNames: d.generationContext?.collectionMode ? src.ownedNames : undefined,
-          inclusionOf: (n) => objective.ctx.edhrec.get(n)?.inclusion ?? 0,
+          // A collection deck searches the whole collection, narrowed to what the
+          // deck's colors allow before any card is fetched or scored.
+          ownedNames: d.generationContext?.collectionMode
+            ? ownedInIdentity(
+                src.owned,
+                objective.ctx.colorIdentity,
+                new Set(mainboard.map((c) => c.name))
+              )
+            : undefined,
+          excluded,
         });
         const cards = await resolveCards(names);
         const tPair = Date.now();
         if (cancelled) return;
-        const outcomes = await pairCuts(toPair, {
+        const inDeckNow = new Set(mainboard.map((c) => c.name.toLowerCase()));
+        const plan = stablePlan(shown.current, allCuts, (n) => inDeckNow.has(n.toLowerCase()));
+        const toPair = plan.toPair;
+        const paired = await pairCuts(toPair, {
           objective,
           resolve: (n) => cards.get(n) ?? getCachedCard(n),
           candidates: [...cards.values()],
@@ -173,7 +192,9 @@ export function useCutSwaps(
           settingsBreak: e.settingsBreak,
           budgetMs: Math.max(0, CUT_PAIRING_BUDGET_MS - (Date.now() - t0)),
           cancelled: () => cancelled,
+          pins: plan.pins,
         });
+        const outcomes = new Map([...paired, ...plan.kept]);
         logger.debug('[coach] cut pairing', {
           cuts: toPair.length,
           candidates: cards.size,
@@ -184,11 +205,7 @@ export function useCutSwaps(
           pairMs: Date.now() - tPair,
           unscored: [...outcomes.values()].filter((o) => o.status === 'unscored').length,
         });
-        const inDeck = new Set(d.cards.map((c) => c.card.name.toLowerCase()));
-        settle({
-          status: 'ready',
-          outcomes: keepShown(shown.current, outcomes, (n) => inDeck.has(n.toLowerCase())),
-        });
+        settle({ status: 'ready', outcomes });
       } catch (err) {
         logger.warn('[coach] cut pairing failed', err);
         settle({ status: 'error' });

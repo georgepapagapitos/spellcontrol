@@ -106,7 +106,7 @@ import {
 } from './applyCoachMoves';
 import { shadowMarkdown, shadowNumbers } from './coachShadowReport';
 import { shadowRecord, type ShadowRecord } from './coachShadow';
-import { cutLaneMoves, cutLaneRecord } from './coachCutLane';
+import { applyCutLane, cutLaneRecord } from './coachCutLane';
 import type { Change } from '@/lib/coach/deck-change';
 import { advisedDump, rebuildDeck, stampGenerationFlags, type CoachDump } from './coachDump';
 import { buildNameMatcher, extractDeckLabels } from './coachLabels';
@@ -859,23 +859,30 @@ async function cutLaneAdvise(
   settings: DeckSettings,
   pass1: CoachPass
 ): Promise<void> {
+  const laneInput = {
+    corpus: 'advise' as const,
+    group: panel.name,
+    deck: file.replace(/\.json$/, ''),
+    state: deck,
+    customization: dump.customization as Record<string, unknown>,
+    ownedNames: settings.ownedNames,
+    gameChangers: GAME_CHANGERS,
+    pass: pass1,
+    resolve: cardFor,
+    fit: pass1.fit,
+    collectionDeck: settings.collectionMode,
+    removals: dump.buildReport as BuildRemovals | undefined,
+  };
   const { record, lane } = await cutLaneRecord(
-    {
-      corpus: 'advise',
-      group: panel.name,
-      deck: file.replace(/\.json$/, ''),
-      state: deck,
-      customization: dump.customization as Record<string, unknown>,
-      ownedNames: settings.ownedNames,
-      gameChangers: GAME_CHANGERS,
-      pass: pass1,
-      resolve: cardFor,
-      fit: pass1.fit,
-    },
+    laneInput,
     new Set(deck.cards.map((c) => c.name.toLowerCase()))
   );
-  writeJson(join(OUT, 'cuts', panel.name, file), record);
-  const result = applyCoachMoves(deck, cutLaneMoves(lane), settings, pass1.env, N);
+  // The grade the ANALYSIS gives the untouched deck: the dump's own is the generator's.
+  writeJson(join(OUT, 'cuts', panel.name, file), {
+    ...record,
+    analysisGrade: pass1.analysis.deckGrade ?? null,
+  });
+  const result = await applyCutLane(laneInput, lane, settings, pass1.env, N);
   if (result.applied.length === 0) return;
   const pass2 = await coachPass(dump, result.deck);
   const index = pass1.page ? buildInclusionIndex(pass1.page) : new Map<string, number>();

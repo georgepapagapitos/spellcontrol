@@ -26,7 +26,12 @@ export interface BuildRemovals {
 
 const lower = (name: string) => name.toLowerCase();
 
-/** The cards the build removed whose replacement is still in the deck. */
+/**
+ * The cards the build removed whose replacement is still in the deck. A replacement
+ * the build itself cut later is followed to what took ITS place (Rest in Peace went
+ * for Starfield of Nyx, which went for Auramancer: the reason still holds while
+ * Auramancer is in the deck).
+ */
 export function removedByBuild(
   report: BuildRemovals | undefined,
   cards: readonly ScryfallCard[]
@@ -37,9 +42,20 @@ export function removedByBuild(
     ...(report?.fixupRepairs ?? []),
     ...(report?.surplusConversions ?? []),
   ];
+  const tookPlace = new Map<string, string>();
+  for (const r of repairs)
+    if (!tookPlace.has(lower(r.cut))) tookPlace.set(lower(r.cut), lower(r.added));
+  const holds = (added: string): boolean => {
+    const seen = new Set<string>();
+    for (let n: string | undefined = added; n && !seen.has(n); n = tookPlace.get(n)) {
+      if (inDeck.has(n)) return true;
+      seen.add(n);
+    }
+    return false;
+  };
   return new Set(
     repairs
-      .filter((r) => inDeck.has(lower(r.added)) && !inDeck.has(lower(r.cut)))
+      .filter((r) => holds(lower(r.added)) && !inDeck.has(lower(r.cut)))
       .map((r) => lower(r.cut))
   );
 }

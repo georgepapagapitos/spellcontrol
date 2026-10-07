@@ -1470,6 +1470,20 @@ budget, over a bracket or Game Changer limit, or a banned card."
   the cut's slot class that the deck's settings allow (budget, ownership, rarity,
   Game Changer limit), not a card the protection set holds, and no card is offered
   as the replacement twice. One source of truth: never a second pairing in the feed.
+- **A collection deck searches the whole collection** (2026-10-07 ruling): every
+  owned card legal in the deck's colors is a candidate, narrowed by color identity,
+  slot class and the deck's settings before any card is judged, and scored on the
+  fast terms with the commander's page cards first. A card the commander's page has
+  no row for must clear 0.6 of gain outside the roles, synergy, engines and lift
+  terms (what any card of a kind earns, or an incidental theme read earns): the swap
+  has to improve the deck by the commander's own data. What the build removed on
+  purpose, and graveyard hate in a deck that recurs from its graveyard, is never a
+  replacement (`coachExclusions`, which follows a replacement the build itself cut
+  later).
+- **The words are the current deck's.** After an apply the rows still on screen keep
+  their card (a withheld row stays withheld) but are judged again, so a reason that
+  says ramp goes from 16 to 15 says 15 to 14 once the first swap took it to 15. A
+  payoff is called a theme only with four or more feeders.
 - **A cut with no acceptable replacement is not shown as a bare cut.** The one
   exception is a repair: a bare cut that fixes a rule the deck breaks keeps its
   row and its reason names the rule ("The deck is over its card count, so a card

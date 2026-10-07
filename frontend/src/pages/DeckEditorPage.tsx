@@ -3602,7 +3602,7 @@ export function DeckEditorPage() {
                   settingsBreak={coachSettings.check}
                   hasReplaceCut={replaceCuts.hasCut}
                   hasProtectedCut={replaceCuts.hasProtectedCut}
-                  cutSwaps={{ deck, combos: mainboardComboData, ownedNames }}
+                  cutSwaps={{ deck, combos: mainboardComboData, owned: collectionCards }}
                   targetBracket={coachSettings.targetBracket}
                   aiAgrees={aiAgrees ?? undefined}
                   upgradePlan={

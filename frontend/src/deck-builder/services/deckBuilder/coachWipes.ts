@@ -37,6 +37,24 @@ export function prefersOneSidedWipes(
 }
 
 /**
+ * The role targets of a deck that builds a board: one fewer board wipe, never below
+ * one (a board-centric deck still wants a reset button). Generation shaves its own
+ * target the same way (deckGenerator.ts, wipeAsymmetryTargetShaved) and discloses it
+ * in the wipe-asymmetry note; the analysis that grades a SAVED deck must read the
+ * same target, or a deck generated at "1 of 1 wipes, all roles well-covered" reads
+ * "1 of 2, needs more board wipes" the moment Coach grades it (T171 S6: Isshin went
+ * A to B on a land swap that changed no role count).
+ */
+export function shaveWipeTarget<T extends Record<string, number>>(
+  targets: T,
+  buildsBoard: boolean
+): T {
+  return buildsBoard && (targets.boardwipe ?? 0) > 1
+    ? { ...targets, boardwipe: targets.boardwipe - 1 }
+    : targets;
+}
+
+/**
  * Remove every symmetric board wipe from the suggestion lists, in place. A
  * row whose card can't be resolved stays: no oracle text, no evidence.
  */

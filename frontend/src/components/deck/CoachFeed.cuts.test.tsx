@@ -37,6 +37,9 @@ const outcomes = (entries: [string, CutOutcome][]): CutSwapState => ({
 
 const swapFor = (cutName: string, addName: string): CutOutcome => ({
   status: 'swap',
+  delta: 1,
+  onPage: true,
+  terms: [],
   change: {
     id: `upgrade:cut:${cutName}`,
     type: 'swap',

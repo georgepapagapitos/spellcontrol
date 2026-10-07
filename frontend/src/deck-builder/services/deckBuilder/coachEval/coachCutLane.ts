@@ -6,10 +6,20 @@
  * (a paired row is a swap; a repair is a bare cut), so the advised deck can be
  * built and gated like the feed's.
  */
-import { cutLane, pairCuts, type CutLane } from '@/lib/coach/coach-cut-swaps';
+import { cutLane, pairCuts, type CutLane, type CutOutcome } from '@/lib/coach/coach-cut-swaps';
+import type { ScryfallCard } from '@/deck-builder/types';
 import type { Change } from '@/lib/coach/deck-change';
 import { ownershipByName } from './coachView';
-import type { CoachMove } from './applyCoachMoves';
+import {
+  applyCoachMoves,
+  type AppliedMove,
+  type ApplyEnv,
+  type ApplyResult,
+  type CoachMove,
+  type DeckSettings,
+  type EvalDeckState,
+  type SkippedMove,
+} from './applyCoachMoves';
 import { shadowCandidates, shadowObjective, type ShadowInput } from './coachShadow';
 
 export interface CutLaneRow {
@@ -18,6 +28,10 @@ export interface CutLaneRow {
   out: string;
   in: string | null;
   reason: string | null;
+  /** The swap's gain by the whole-deck objective, and whether the commander's page has the card. */
+  delta?: number;
+  onPage?: boolean;
+  terms?: [string, number][];
 }
 
 export interface CutLaneRecord {
@@ -78,7 +92,7 @@ export async function cutLaneRecord(
     record: {
       ...base,
       objective: 'ok',
-      rows: legacyRows(lane),
+      rows: legacyRows(lane, outcomes),
       withheld: lane.withheld,
       refused: cuts.flatMap((r) => {
         const o = outcomes.get(r.change.id);
@@ -101,10 +115,20 @@ export async function cutLaneRecord(
   };
 }
 
-function legacyRows(lane: CutLane): CutLaneRow[] {
+function legacyRows(lane: CutLane, outcomes?: ReadonlyMap<string, CutOutcome>): CutLaneRow[] {
   return lane.rows.map(({ change: c }) => {
-    if (c.type === 'swap')
-      return { kind: 'swap', out: c.inName!, in: c.name, reason: c.reason ?? null };
+    if (c.type === 'swap') {
+      const o = outcomes?.get(c.id);
+      return {
+        kind: 'swap',
+        out: c.inName!,
+        in: c.name,
+        reason: c.reason ?? null,
+        ...(o?.status === 'swap'
+          ? { delta: Math.round(o.delta * 1000) / 1000, onPage: o.onPage, terms: o.terms }
+          : {}),
+      };
+    }
     // A repair carries the rule it fixes; a legacy row carries the engine's label.
     const repair = /^(The deck|This card)/.test(c.reason ?? '');
     return { kind: repair ? 'repair' : 'legacy', out: c.name, in: null, reason: c.reason ?? null };
@@ -130,4 +154,71 @@ export function cutLaneMoves(lane: CutLane): CoachMove[] {
       inclusion: c.inclusion,
       ownership: c.ownership,
     }));
+}
+
+/**
+ * The lane's move judged again against the deck as it now stands (a user applies the
+ * rows one after another): same card, words recomputed ("ramp 15 to 14" once the
+ * first swap took it to 15), or null when the pair is no longer accepted.
+ */
+async function currentMove(
+  input: ShadowInput & { fit?: (change: Change) => boolean | undefined },
+  cards: ScryfallCard[],
+  move: CoachMove,
+  cut: Change
+): Promise<CoachMove | null> {
+  const now = { ...input, state: { ...input.state, cards } };
+  const objective = shadowObjective(now);
+  if (!objective.ok) return null;
+  const outcomes = await pairCuts([cut], {
+    objective,
+    resolve: input.resolve,
+    candidates: shadowCandidates(now, objective),
+    ownership: ownershipByName(input.ownedNames),
+    settingsBreak: input.fit ? (c) => (input.fit!(c) === false ? 'unowned' : null) : undefined,
+    budgetMs: Number.MAX_SAFE_INTEGER,
+    pins: new Map([[cut.id, move.name]]),
+  });
+  const o = outcomes.get(cut.id);
+  return o?.status === 'swap' && o.change.name === move.name
+    ? { ...move, reason: o.change.reason, whyFactors: o.change.whyFactors }
+    : null;
+}
+
+/**
+ * Follow the lane the way a user does: row by row, each judged against the deck the
+ * rows before it left, up to `n` applied.
+ */
+export async function applyCutLane(
+  input: ShadowInput & { fit?: (change: Change) => boolean | undefined },
+  lane: CutLane,
+  settings: DeckSettings,
+  env: ApplyEnv,
+  n: number
+): Promise<ApplyResult> {
+  const cutById = new Map(input.pass.view.cuts.map((r) => [r.change.id, r.change]));
+  const laneIds = lane.rows
+    .filter(
+      ({ change }) => change.type === 'swap' || /^(The deck|This card)/.test(change.reason ?? '')
+    )
+    .map(({ change }) => change.id);
+  let deck: EvalDeckState = input.state;
+  const applied: AppliedMove[] = [];
+  const skipped: SkippedMove[] = [];
+  for (const [i, move] of cutLaneMoves(lane).entries()) {
+    if (applied.length >= n) break;
+    let m = move;
+    const cut = cutById.get(laneIds[i]);
+    if (move.type === 'swap' && applied.length > 0 && cut) {
+      const again = await currentMove(input, deck.cards, move, cut);
+      if (!again) continue;
+      m = again;
+    }
+    const r = applyCoachMoves(deck, [m], settings, env, 1, 1);
+    skipped.push(...r.skipped);
+    if (r.applied.length === 0) continue;
+    deck = r.deck;
+    applied.push({ ...r.applied[0], order: applied.length + 1 });
+  }
+  return { deck, applied, skipped };
 }

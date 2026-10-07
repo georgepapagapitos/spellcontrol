@@ -24,6 +24,7 @@
  */
 import type { ScryfallCard } from '@/deck-builder/types';
 import { frontFaceName } from '@/lib/cards/card-text';
+import { isBasicLandName } from '@/lib/collection/allocations';
 import {
   countsClause,
   swapSentences,
@@ -41,6 +42,15 @@ import type { CoachObjectiveResult } from './coach-objective';
 import type { RankedMove } from './coach-rank';
 import type { SettingsBreak } from './deck-settings-fit';
 
+/**
+ * What a replacement the commander's page has no row for must gain beyond filling a
+ * role (twice the objective's 0.3 margin): the swap has to improve the deck by what
+ * the card itself does, not by a role count or an incidental theme read.
+ */
+export const OFF_PAGE_MIN_GAIN = 0.6;
+/** Replacement candidates scored per pairing, the page's most played first. */
+export const MAX_CANDIDATES = 150;
+
 /** Time the app gives the pairing before the lane shows what it has (the user ruling: about 4 s). */
 export const CUT_PAIRING_BUDGET_MS = 4000;
 
@@ -55,42 +65,65 @@ export function isCutsLaneRow(change: Change): boolean {
 }
 
 export type CutOutcome =
-  | { status: 'swap'; change: Change }
+  | {
+      status: 'swap';
+      change: Change;
+      delta: number;
+      onPage: boolean;
+      /** The terms that moved most: what the gain rests on. */
+      terms: [string, number][];
+    }
   | { status: 'repair'; change: Change }
   /** No acceptable replacement and no rule to repair: the row is not shown. */
   | { status: 'none'; reason: string; best?: { in: string; delta: number } }
   /** Not scored: the row stays as it is today, below the scored rows. */
   | { status: 'unscored'; reason: UnscoredReason };
 
-/** The cards Coach itself offers to bring in, the pool a cut's replacement is chosen from. */
+/**
+ * The cards a cut's replacement is chosen from: what Coach itself offers, and for a
+ * collection deck every owned card (the user ruling 2026-10-07, "search my whole
+ * collection"). The scorer filters them by identity, legality, settings and slot
+ * class, and ranks what is left; a card the build removed on purpose, or graveyard
+ * hate in a deck that recurs from its graveyard (`coachExclusions`), is never one.
+ */
 export function replacementCandidateNames(src: {
   gaps?: readonly { name: string }[];
   hiddenGems?: readonly { name: string }[];
   additions?: readonly { name: string }[];
   synergy?: readonly { cardName: string }[];
-  /** A collection deck's best replacement is a card it owns. */
-  ownedNames?: ReadonlySet<string>;
-  /** Share of the commander's page decks that play a card (0-100). */
-  inclusionOf?: (name: string) => number;
-  /** Owned cards offered, the most played first. Default 60. */
-  ownedLimit?: number;
+  /** A collection deck's replacement is a card it owns: all of them. */
+  ownedNames?: Iterable<string>;
+  /** Names Coach never offers this deck. */
+  excluded?: (name: string) => boolean;
 }): string[] {
-  const offered = [
+  const names = [
     ...(src.gaps ?? []).map((g) => g.name),
     ...(src.hiddenGems ?? []).map((g) => g.name),
     ...(src.additions ?? []).map((o) => o.name),
     ...(src.synergy ?? []).map((s) => s.cardName),
+    ...(src.ownedNames ?? []),
   ];
-  const owned =
-    !src.ownedNames || src.ownedNames.size === 0 || !src.inclusionOf
-      ? []
-      : [...src.ownedNames]
-          .map((n) => ({ n, inc: src.inclusionOf!(n) }))
-          .filter((x) => x.inc > 0)
-          .sort((a, b) => b.inc - a.inc || (a.n < b.n ? -1 : 1))
-          .slice(0, src.ownedLimit ?? 60)
-          .map((x) => x.n);
-  return [...new Set([...offered, ...owned])];
+  return [...new Set(names)].filter((n) => !src.excluded?.(n));
+}
+
+/**
+ * The owned card names the deck's colors allow, not already in the deck, no basic
+ * land: the whole collection narrowed before any card is fetched. A card whose
+ * colors are unknown stays (the scorer's identity check has the last word).
+ */
+export function ownedInIdentity(
+  owned: readonly { name: string; colorIdentity?: readonly string[] }[],
+  identity: Iterable<string>,
+  inDeck: ReadonlySet<string>
+): string[] {
+  const allowed = new Set(identity);
+  const names = new Set<string>();
+  for (const c of owned) {
+    if (inDeck.has(c.name) || isBasicLandName(c.name)) continue;
+    if (c.colorIdentity && !c.colorIdentity.every((k) => allowed.has(k))) continue;
+    names.add(c.name);
+  }
+  return [...names];
 }
 
 /** What a repaired hard-constraint check says, in the words of the rule (objective's `check` names). */
@@ -155,6 +188,9 @@ function weakerFromLegacy(cut: Change, outName: string): string {
   return `${outName} is the weakest fit in this slot.`;
 }
 
+/** Feeders a payoff needs before the reason calls it a theme. */
+const THEME_FEEDERS = 4;
+
 const PLAY_RATE = /^[\d.]+% of this page's decks/;
 
 /** At most two plain sentences: why the card leaving is weaker, why the card coming in is better. */
@@ -168,7 +204,13 @@ export function cutSwapReason(
   // (Animate Dead does not "move the deck's ramp"): they are said as the swap's.
   const roles = reasons.find((r) => r.term === 'roles');
   const counts = roles ? countsClause(roles.note) : null;
-  const rest = reasons.filter((r) => r !== roles);
+  // "Pays off the deck's X theme" needs a deck that is about X: two incidental
+  // producers are not a theme (Meren is no lifegain deck for having High Market).
+  const rest = reasons.filter(
+    (r) =>
+      r !== roles &&
+      !(r.term === 'synergy' && /^pays off/.test(r.note) && (r.names?.length ?? 0) < THEME_FEEDERS)
+  );
   const say = (rs: SwapReason[]) =>
     swapSentences({ in: [inName], out: [outName], kind: 'improve', reasons: rs, named: true });
   const fallback = `${inName} fits this deck better overall.`;
@@ -193,6 +235,13 @@ interface PairEnv {
   ownership: (name: string) => ChangeOwnership;
   /** Coach's own settings check on the paired row (price, budget, rarity, ...). */
   settingsBreak?: (change: Change) => SettingsBreak | null;
+}
+
+/** The commander's page has a row for the card (anyone plays it with this commander). */
+function onPage(objective: CoachObjectiveResult, card: ScryfallCard | undefined): boolean {
+  if (!card || !objective.ok) return false;
+  const rows = objective.ctx.edhrec;
+  return (rows.get(card.name)?.inclusion ?? rows.get(frontFaceName(card.name))?.inclusion ?? 0) > 0;
 }
 
 /** The Cuts-lane swap row for an accepted pairing: the cut leads, one apply does both. */
@@ -241,7 +290,13 @@ function swapRow(cut: Change, s: ScoredRow, env: PairEnv): Change | null {
  */
 export async function pairCuts(
   cuts: readonly Change[],
-  env: PairEnv & { budgetMs?: number; now?: () => number; cancelled?: () => boolean }
+  env: PairEnv & {
+    budgetMs?: number;
+    now?: () => number;
+    cancelled?: () => boolean;
+    /** Cut id -> the replacement it already shows (see `stablePlan`). */
+    pins?: ReadonlyMap<string, string>;
+  }
 ): Promise<Map<string, CutOutcome>> {
   const out = new Map<string, CutOutcome>();
   const now = env.now ?? (() => Date.now());
@@ -259,6 +314,9 @@ export async function pairCuts(
     pairsJudged: 2,
     maxPairs: 8,
     distinctReplacements: true,
+    maxCandidates: MAX_CANDIDATES,
+    offPage: { is: (c) => !onPage(env.objective, c), bar: OFF_PAGE_MIN_GAIN },
+    pins: env.pins,
     shouldStop: () => now() - t0 > budget || env.cancelled?.() === true,
   });
   cuts.forEach((cut, i) => {
@@ -293,41 +351,51 @@ export async function pairCuts(
     } else if (env.settingsBreak?.(row)) {
       out.set(cut.id, { status: 'none', reason: `settings:${env.settingsBreak(row)}` });
     } else {
-      out.set(cut.id, { status: 'swap', change: row });
+      out.set(cut.id, {
+        status: 'swap',
+        change: row,
+        delta: s.delta,
+        terms: Object.entries(s.terms)
+          .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+          .slice(0, 3)
+          .map(([k, v]): [string, number] => [k, Math.round(v * 1000) / 1000]),
+        onPage: onPage(
+          env.objective,
+          env.candidates.find((c) => c.name === s.move.in[0])
+        ),
+      });
     }
   });
   return out;
 }
 
 /**
- * A re-pairing after an apply changes the deck, and its verdicts can differ for rows
- * the user is reading: "Shriekmaw, add Scute Swarm" must not become another card
- * between the read and the click. So a row already shown keeps its verdict while it
- * stays valid: a replacement still out of the deck, or a row that was withheld. The
- * new run decides only what is new or no longer valid, and never hands a kept
- * replacement to a second row.
+ * A re-pairing after an apply changes the deck, and the rows the user is reading
+ * must not move under the cursor: "Shriekmaw, add Scute Swarm" stays that card. So
+ * a row already shown keeps its card: a shown swap is pinned (the scorer judges
+ * that pair again against the deck as it stands, so the words are the current
+ * deck's, "ramp 15 to 14" after the first swap took it to 15, not the old
+ * "16 to 15"), and a withheld row stays withheld (a row appearing would shift the
+ * ones being read). Only what is new, or whose card has entered the deck, is
+ * searched afresh.
  */
-export function keepShown(
+export function stablePlan(
   prev: ReadonlyMap<string, CutOutcome> | undefined,
-  next: ReadonlyMap<string, CutOutcome>,
+  cuts: readonly Change[],
   inDeck: (name: string) => boolean
-): Map<string, CutOutcome> {
-  const out = new Map(next);
-  if (!prev) return out;
-  const taken = new Set<string>();
-  for (const [id, was] of prev) {
-    if (!out.has(id)) continue;
-    const valid = was.status === 'none' || (was.status === 'swap' && !inDeck(was.change.name));
-    if (!valid) continue;
-    out.set(id, was);
-    if (was.status === 'swap') taken.add(was.change.name);
-  }
-  for (const [id, o] of out) {
-    if (o.status === 'swap' && taken.has(o.change.name) && prev.get(id) !== o) {
-      out.set(id, { status: 'none', reason: 'replacement taken by a row already shown' });
+): { toPair: Change[]; pins: Map<string, string>; kept: Map<string, CutOutcome> } {
+  const pins = new Map<string, string>();
+  const kept = new Map<string, CutOutcome>();
+  const toPair: Change[] = [];
+  for (const cut of cuts) {
+    const was = prev?.get(cut.id);
+    if (was?.status === 'none') kept.set(cut.id, was);
+    else {
+      if (was?.status === 'swap' && !inDeck(was.change.name)) pins.set(cut.id, was.change.name);
+      toPair.push(cut);
     }
   }
-  return out;
+  return { toPair, pins, kept };
 }
 
 export type CutSwapState =

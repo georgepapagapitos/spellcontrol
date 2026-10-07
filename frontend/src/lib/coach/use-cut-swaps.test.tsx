@@ -43,7 +43,7 @@ const deck = (names: string[]) =>
 const sources = (names: string[]): CutSwapSources => ({
   deck: deck(names),
   combos: null,
-  ownedNames: new Set(),
+  owned: [],
 });
 const env: CutSwapEnv = { resolveOwnership: () => undefined };
 
@@ -150,8 +150,6 @@ describe('useCutSwaps', () => {
     expect(result.current.state).toEqual({ status: 'ready', outcomes: first });
     await waitFor(() => expect(pairCuts).toHaveBeenCalledTimes(2));
     release(new Map());
-    await waitFor(() =>
-      expect(result.current.state).toEqual({ status: 'ready', outcomes: new Map() })
-    );
+    await waitFor(() => expect(result.current.state).toEqual({ status: 'ready', outcomes: first }));
   });
 });

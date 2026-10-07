@@ -20,6 +20,7 @@ vi.mock('@/deck-builder/services/tagger/client', () => ({
   getCardDrawSubtype: vi.fn(() => null),
   isMassLandDenial: vi.fn(() => false),
   isExtraTurn: vi.fn(() => false),
+  isExtraCombatPiece: vi.fn(() => false),
   hasTag: vi.fn(() => false),
   hasTaggerData: vi.fn(() => true),
   validateCardRole: vi.fn(() => null),

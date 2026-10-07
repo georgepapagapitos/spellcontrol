@@ -9,6 +9,7 @@ import {
   cardIneligibility,
   checkConstraints,
 } from '@/deck-builder/services/deckBuilder/deckObjective';
+import { scoreCoachMoves } from './coach-move-score';
 import { applyMove } from '@/deck-builder/services/deckBuilder/deckObjective/judge';
 import { protectedCards } from '@/deck-builder/services/deckBuilder/deckObjective/protections';
 import {
@@ -24,7 +25,8 @@ import {
   cutLane,
   cutSwapReason,
   isPairedCut,
-  keepShown,
+  ownedInIdentity,
+  stablePlan,
   pairCuts,
   repairCopy,
   replacementCandidateNames,
@@ -188,6 +190,9 @@ describe('pairing Meren’s cuts with replacements', { timeout: 300_000 }, () =>
     );
     const swap = (n: string, into: string): CutOutcome => ({
       status: 'swap',
+      delta: 1,
+      onPage: true,
+      terms: [],
       change: { ...cut(n), type: 'swap', name: into, inName: n, pairedCut: true },
     });
     const lane = cutLane(
@@ -223,48 +228,103 @@ describe('pairing Meren’s cuts with replacements', { timeout: 300_000 }, () =>
   });
 });
 
+describe('replacements off the commander’s page', { timeout: 300_000 }, () => {
+  const obj = objective();
+  const cuts = ['Strionic Resonator', 'Dread Return'].map((n) => cut(n));
+  const ofCut = (cutName: string, m: Map<string, CutOutcome>) => m.get(`upgrade:cut:${cutName}`)!;
+
+  it('asks a card the page has no row for to clear a bar outside the roles and synergy terms', () => {
+    // With every candidate off the page and an impossible bar, no swap survives, and
+    // the refusal says why (a Terisiare's Devastation "removal" for a ramp-heavy deck).
+    const scores = scoreCoachMoves(cuts, obj, {
+      resolve: tryCard,
+      candidates: POOL,
+      offPage: { is: () => true, bar: 50 },
+    });
+    const refused = scores.filter((s) => s.status === 'scored');
+    expect(refused.every((s) => s.status === 'scored' && !s.accepted)).toBe(true);
+    expect(
+      refused.some((s) => s.status === 'scored' && /off the commander's page/.test(s.refusal ?? ''))
+    ).toBe(true);
+    // The same pairs without the bar: at least one accepted (the earlier tests).
+    const free = scoreCoachMoves(cuts, obj, { resolve: tryCard, candidates: POOL });
+    expect(free.some((s) => s.status === 'scored' && s.accepted)).toBe(true);
+  });
+
+  it('scores only the most played candidates when the pool is a whole collection', () => {
+    const top = [...POOL]
+      .sort((x, y) => (rows.get(y.name)?.inclusion ?? 0) - (rows.get(x.name)?.inclusion ?? 0))
+      .slice(0, 3)
+      .map((c) => c.name);
+    const scores = scoreCoachMoves(cuts, obj, {
+      resolve: tryCard,
+      candidates: POOL,
+      maxCandidates: 3,
+    });
+    for (const s of scores) if (s.status === 'scored') expect(top).toContain(s.move.in[0]);
+  });
+
+  it('judges a pinned replacement again, so its words are the current deck’s', async () => {
+    const first = await pairCuts([cuts[0]], env(obj));
+    const was = ofCut('Strionic Resonator', first);
+    if (was.status !== 'swap') throw new Error('expected a swap to pin');
+    const again = await pairCuts([cuts[0]], {
+      ...env(obj),
+      pins: new Map([[was.change.id, was.change.name]]),
+    });
+    const now = ofCut('Strionic Resonator', again);
+    expect(now.status === 'swap' && now.change.name).toBe(was.change.name);
+  });
+});
+
 describe('a re-pairing after an apply', () => {
   const swap = (cutName: string, into: string): CutOutcome => ({
     status: 'swap',
+    delta: 1,
+    onPage: true,
+    terms: [],
     change: { ...cut(cutName), type: 'swap', name: into, inName: cutName, pairedCut: true },
   });
   const id = (n: string) => `upgrade:cut:${n}`;
 
-  it('keeps the card a row already shows, so a click lands on what was read', () => {
+  it('pins the card a row shows and leaves a withheld row withheld', () => {
     const prev = new Map<string, CutOutcome>([
       [id('Shriekmaw'), swap('Shriekmaw', 'Scute Swarm')],
       [id('Spellbook'), { status: 'none', reason: 'x' }],
     ]);
-    const next = new Map<string, CutOutcome>([
-      [id('Shriekmaw'), swap('Shriekmaw', "Ashnod's Altar")],
-      // A withheld row stays withheld: a new row appearing would shift the ones being read.
-      [id('Spellbook'), swap('Spellbook', 'Cultivate')],
-      [id('Ornithopter'), swap('Ornithopter', 'Gilded Lotus')],
-    ]);
-    const kept = keepShown(prev, next, () => false);
-    expect(kept.get(id('Shriekmaw'))).toBe(prev.get(id('Shriekmaw')));
-    expect(kept.get(id('Spellbook'))).toBe(prev.get(id('Spellbook')));
-    // What is new is decided by the new run.
-    expect(kept.get(id('Ornithopter'))).toBe(next.get(id('Ornithopter')));
+    const cuts = ['Shriekmaw', 'Spellbook', 'Ornithopter'].map((n) => cut(n));
+    const plan = stablePlan(prev, cuts, () => false);
+    // Judged again (so the words are the current deck's), never searched afresh.
+    expect([...plan.pins]).toEqual([[id('Shriekmaw'), 'Scute Swarm']]);
+    // Withheld stays withheld: a row appearing would shift the ones being read.
+    expect([...plan.kept.keys()]).toEqual([id('Spellbook')]);
+    // New rows, and the pinned one, go to the scorer.
+    expect(plan.toPair.map((c) => c.name)).toEqual(['Shriekmaw', 'Ornithopter']);
   });
 
-  it('takes the new verdict when the shown replacement has since entered the deck', () => {
+  it('searches afresh when the shown replacement has since entered the deck', () => {
     const prev = new Map<string, CutOutcome>([[id('Shriekmaw'), swap('Shriekmaw', 'Scute Swarm')]]);
-    const next = new Map<string, CutOutcome>([
-      [id('Shriekmaw'), swap('Shriekmaw', "Ashnod's Altar")],
-    ]);
-    expect(keepShown(prev, next, (n) => n === 'Scute Swarm').get(id('Shriekmaw'))).toBe(
-      next.get(id('Shriekmaw'))
-    );
+    const plan = stablePlan(prev, [cut('Shriekmaw')], (n) => n === 'Scute Swarm');
+    expect(plan.pins.size).toBe(0);
+    expect(plan.toPair).toHaveLength(1);
   });
+});
 
-  it('never gives a kept replacement to a second row', () => {
-    const prev = new Map<string, CutOutcome>([[id('A'), swap('A', 'Cultivate')]]);
-    const next = new Map<string, CutOutcome>([
-      [id('A'), swap('A', 'Cultivate')],
-      [id('B'), swap('B', 'Cultivate')],
-    ]);
-    expect(keepShown(prev, next, () => false).get(id('B'))).toMatchObject({ status: 'none' });
+describe('the whole collection as the replacement pool', () => {
+  it('narrows the collection to the deck’s colors, minus the deck and basic lands', () => {
+    const names = ownedInIdentity(
+      [
+        { name: 'Cultivate', colorIdentity: ['G'] },
+        { name: 'Counterspell', colorIdentity: ['U'] },
+        { name: 'Cultivate', colorIdentity: ['G'] },
+        { name: 'Forest', colorIdentity: ['G'] },
+        { name: 'Skullclamp' },
+        { name: 'Sol Ring', colorIdentity: [] },
+      ],
+      ['B', 'G'],
+      new Set(['Sol Ring'])
+    );
+    expect(names).toEqual(['Cultivate', 'Skullclamp']);
   });
 });
 
@@ -344,7 +404,13 @@ describe('the words of a cut and its replacement', () => {
         term: 'synergy',
         value: 1,
         note: 'pays off lifegain (payoff 1 of 3), fed by High Market, Haywire Mite and 1 more',
-        names: ['High Market', 'Haywire Mite', 'Gray Merchant of Asphodel'],
+        names: [
+          'High Market',
+          'Haywire Mite',
+          'Gray Merchant of Asphodel',
+          'Vito',
+          'Sanguine Bond',
+        ],
       },
       { name: 'Ornithopter', term: 'quality', value: 1, note: "0% of this page's decks" },
     ]);
@@ -352,6 +418,22 @@ describe('the words of a cut and its replacement', () => {
     expect(text).toBe(
       "Ornithopter is not played with this commander. Vito pays off the deck's lifegain theme."
     );
+  });
+
+  it('does not call two incidental producers a theme', () => {
+    // Meren is no lifegain deck for running High Market and Gray Merchant.
+    const text = cutSwapReason(cut('Ornithopter'), 'Ornithopter', 'Vito', [
+      { name: 'Vito', term: 'quality', value: 1, note: "12% of this page's decks" },
+      {
+        name: 'Vito',
+        term: 'synergy',
+        value: 1,
+        note: 'pays off lifegain (payoff 1 of 3), fed by High Market, Gray Merchant of Asphodel',
+        names: ['High Market', 'Gray Merchant of Asphodel'],
+      },
+    ]);
+    expect(text).not.toMatch(/theme/);
+    expect(text).toContain('12%');
   });
 
   it('fixes the generation copy’s article and a zero play rate', () => {
@@ -391,16 +473,15 @@ describe('the words of a cut and its replacement', () => {
     expect(repairCopy(['unheard-of'])).toMatch(/breaks a rule you set/);
   });
 
-  it('builds the replacement pool from what Coach offers, owned cards by play rate', () => {
+  it('builds the pool from what Coach offers and the owned cards, minus what Coach never offers', () => {
     const names = replacementCandidateNames({
-      gaps: [{ name: 'Sol Ring' }],
+      gaps: [{ name: 'Sol Ring' }, { name: 'Rest in Peace' }],
       hiddenGems: [{ name: 'Gem' }],
       additions: [{ name: 'Sol Ring' }],
       synergy: [{ cardName: 'Syn' }],
-      ownedNames: new Set(['A', 'B', 'C']),
-      inclusionOf: (n) => ({ A: 10, B: 30, C: 0 })[n] ?? 0,
-      ownedLimit: 1,
+      ownedNames: new Set(['A', 'B', 'Helm']),
+      excluded: (n) => n === 'Rest in Peace' || n === 'Helm',
     });
-    expect(names).toEqual(['Sol Ring', 'Gem', 'Syn', 'B']);
+    expect(names).toEqual(['Sol Ring', 'Gem', 'Syn', 'A', 'B']);
   });
 });

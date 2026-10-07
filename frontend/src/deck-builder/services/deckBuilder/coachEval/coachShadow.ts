@@ -21,6 +21,8 @@ import {
 import { scoreCoachMoves, type RowScore } from '@/lib/coach/coach-move-score';
 import { replacementCandidateNames } from '@/lib/coach/coach-cut-swaps';
 import type { Change } from '@/lib/coach/deck-change';
+import { coachExclusions, type BuildRemovals } from '../coachExclusions';
+import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
 import type { CommanderDeckAnalysisResult } from '../commanderDeckAnalysis';
 import { edhrecRowsFrom } from '../deckObjective/panelDump';
 import type { CoachView } from './coachView';
@@ -94,6 +96,10 @@ export interface ShadowInput {
   /** Goldfish games per full read. */
   games?: number;
   fullTop?: number;
+  /** The deck was built from the collection: its replacement pool is the whole collection. */
+  collectionDeck?: boolean;
+  /** What the build removed on purpose (`buildReport`), so Coach does not offer it back. */
+  removals?: BuildRemovals;
   labels?: ShadowLabels;
 }
 
@@ -159,15 +165,18 @@ export function shadowObjective(input: ShadowInput): CoachObjectiveResult {
 }
 
 /** The cards a cut's replacement is chosen from: what Coach itself offers (the app's own list). */
-export function shadowCandidates(input: ShadowInput, objective: CoachObjective): ScryfallCard[] {
+export function shadowCandidates(input: ShadowInput, _objective: CoachObjective): ScryfallCard[] {
   const { analysis, view } = input.pass;
+  const cards = input.state.cards;
+  const excluded = coachExclusions(input.removals, cards, analyzeDeckSynergy(cards));
   return replacementCandidateNames({
     gaps: [...(analysis.gapAnalysis ?? []), ...view.suggestions.staples],
     hiddenGems: view.hiddenGems,
     additions: analysis.optimizeSwaps?.additions,
     synergy: analysis.synergyAnalysis?.suggestions,
-    ownedNames: input.ownedNames,
-    inclusionOf: (n) => objective.ctx.edhrec.get(n)?.inclusion ?? 0,
+    // A collection deck searches its whole collection (the scorer narrows it).
+    ownedNames: input.collectionDeck ? input.ownedNames : undefined,
+    excluded,
   })
     .map((n) => input.resolve(n))
     .filter((c): c is ScryfallCard => !!c);
