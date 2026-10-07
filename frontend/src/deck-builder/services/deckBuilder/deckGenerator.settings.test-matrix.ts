@@ -7,6 +7,16 @@
 // this file in isolation — never the full suite alongside
 // deckGenerator.live.test.ts's network panel.
 // The fixture universe lives in __fixtures__/settings-universe.ts.
+//
+// This module holds the whole matrix but is not a test file itself: the
+// deckGenerator.settings.part-{1..4}.test.ts files each run a quarter of CASES
+// through runSettingsMatrix, and vitest.config.ts pins each part to its own
+// CI shard. As one file it took about two minutes locally and five and a half
+// in CI, and since CI shards by file it set the length of the whole run.
+// The mocks below still apply: vi.mock is hoisted within this module, above
+// its own imports of the mocked clients. Run one quarter with
+// `npm test -- settings.part-1`, or all four with
+// `npm test -- deckGenerator.settings`.
 import { describe, it, expect, vi } from 'vitest';
 import type {
   ScryfallCard,
@@ -799,105 +809,117 @@ const CASES: Case[] = [
   },
 ];
 
-describe('generateDeck — settings matrix (offline stress)', () => {
-  it.each(CASES.map((c): [string, Case] => [c.name, c]))('%s', async (_name, tc) => {
-    const ctx = baseContext();
-    if (tc.customize) ctx.customization = customization(tc.customize);
-    tc.ctx?.(ctx);
-    tc.setup?.();
-    try {
+// Runs every `parts`-th case starting at `part`. Striding rather than slicing
+// keeps neighboring cases, which tend to be alike in cost, in different files.
+// The one-off tests after the matrix run with part 0.
+export function runSettingsMatrix(part: number, parts: number): void {
+  const cases = CASES.filter((_, i) => i % parts === part);
+  describe(`generateDeck: settings matrix, offline stress (${part + 1}/${parts})`, () => {
+    it.each(cases.map((c): [string, Case] => [c.name, c]))('%s', async (_name, tc) => {
+      const ctx = baseContext();
+      if (tc.customize) ctx.customization = customization(tc.customize);
+      tc.ctx?.(ctx);
+      tc.setup?.();
+      try {
+        const deck = await generateDeck(ctx);
+        assertInvariants(deck, ctx.customization, ctx);
+        tc.extra?.(deck, ctx);
+        // After `extra`: several cases restore their searchCards/fetch mocks
+        // there, and a failure here must not leak a mock into the next case.
+        expectDeckInvariants(tc.name, deck, ctx);
+      } finally {
+        clearGenerationCache();
+      }
+    });
+
+    if (part !== 0) return;
+
+    // Regression: the main pickers and the Scryfall shortfall fill once skipped
+    // commander legality for EDHREC-sourced candidates (only lift/PDH paths
+    // gated on it), so a bugged or stale feed could ship a banned card.
+    // Creature_2 is stamped legalities.commander: 'banned'.
+    it('a Scryfall-banned card from the EDHREC pool is filtered out', async () => {
+      const ctx = baseContext();
       const deck = await generateDeck(ctx);
-      assertInvariants(deck, ctx.customization, ctx);
-      tc.extra?.(deck, ctx);
-      // After `extra`: several cases restore their searchCards/fetch mocks
-      // there, and a failure here must not leak a mock into the next case.
-      expectDeckInvariants(tc.name, deck, ctx);
-    } finally {
-      clearGenerationCache();
-    }
-  });
-
-  // Regression: the main pickers and the Scryfall shortfall fill once skipped
-  // commander legality for EDHREC-sourced candidates (only lift/PDH paths
-  // gated on it), so a bugged or stale feed could ship a banned card.
-  // Creature_2 is stamped legalities.commander: 'banned'.
-  it('a Scryfall-banned card from the EDHREC pool is filtered out', async () => {
-    const ctx = baseContext();
-    const deck = await generateDeck(ctx);
-    const names = allCards(deck).map((c) => c.name);
-    expect(names).not.toContain('Creature_2');
-    expectDeckInvariants('a Scryfall-banned card from the EDHREC pool is filtered out', deck, ctx);
-    clearGenerationCache();
-  });
-
-  // E528: the tagger answers getCardDrawSubtype with 'card-advantage' for any
-  // card outside its draw tags (tutor/wheel/cantrip/draw), and
-  // stampRoleSubtypes stamps every subtype on every pick for the secondary
-  // badges. The stored breakdown used to tally those stamps across every
-  // category, lands included (Krenko: card-advantage 22, live recount 5).
-  // It must be the recount the deck page runs once the tagger loads; the
-  // HARD report-subtypes invariant compares the two.
-  it('stores the subtype breakdown the live recount computes, not the pick-time stamps', async () => {
-    // A loaded tagger, as far as this deck is concerned: the artifacts are
-    // ramp, and the draw-subtype lookup answers the way the real one does
-    // for a card in none of its draw tags.
-    const actual = await vi.importActual<typeof import('@/deck-builder/services/tagger/client')>(
-      '@/deck-builder/services/tagger/client'
-    );
-    vi.mocked(hasTaggerData).mockReturnValue(true);
-    vi.mocked(validateCardRole).mockImplementation((c) =>
-      c.name.startsWith('Artifact_') ? 'ramp' : null
-    );
-    vi.mocked(getCardDrawSubtype).mockImplementation(() => 'card-advantage');
-    const ctx = baseContext();
-    try {
-      const deck = await generateDeck(ctx);
-      const stamped = allCards(deck).filter((c) => c.cardDrawSubtype === 'card-advantage').length;
-      expect(deck.cardDrawSubtypeCounts).toBeDefined();
-      expect(deck.cardDrawSubtypeCounts!['card-advantage'] ?? 0).toBeLessThan(stamped);
-      expectDeckInvariants('stored subtype breakdown', deck, ctx);
-    } finally {
-      vi.mocked(getCardDrawSubtype).mockReset().mockImplementation(actual.getCardDrawSubtype);
-      vi.mocked(validateCardRole).mockReset().mockImplementation(actual.validateCardRole);
-      vi.mocked(hasTaggerData).mockReset().mockReturnValue(false);
-      clearGenerationCache();
-    }
-  });
-
-  // E530, USER RULING 2026-09-29: an illegal commander refuses before any
-  // fetch, naming why. The real Llanowar Elves is no legendary creature.
-  it('refuses an illegal commander before fetching anything', async () => {
-    vi.mocked(fetchCommanderData).mockClear();
-    const ctx = { ...baseContext(), commander: realCard('Llanowar Elves') };
-    const run = generateDeck(ctx);
-    await expect(run).rejects.toBeInstanceOf(CommanderIneligibleError);
-    await expect(run).rejects.toThrow(
-      "Llanowar Elves isn't a legendary creature, so it can't be your commander."
-    );
-    expect(fetchCommanderData).not.toHaveBeenCalled();
-  });
-
-  // USER RULING (second pass): a previewed commander, not legal only because
-  // it hasn't released, builds and the deck says when it becomes legal.
-  it('builds a previewed commander and discloses it', async () => {
-    const preview: ScryfallCard = {
-      ...COMMANDER,
-      legalities: { ...COMMANDER.legalities, commander: 'not_legal' },
-      released_at: '2099-06-01',
-    };
-    const ctx = { ...baseContext(), commander: preview };
-    try {
-      const deck = await generateDeck(ctx);
-      expect(deck.commanderPreviewNote).toBe(
-        `Test Commander isn't legal until ${formatReleaseDate('2099-06-01')}.`
+      const names = allCards(deck).map((c) => c.name);
+      expect(names).not.toContain('Creature_2');
+      expectDeckInvariants(
+        'a Scryfall-banned card from the EDHREC pool is filtered out',
+        deck,
+        ctx
       );
-      assertInvariants(deck, ctx.customization, ctx);
-      expectDeckInvariants('builds a previewed commander and discloses it', deck, ctx);
-      expect(
-        checkDeckInvariants(deck, ctx).filter((x) => x.check === 'commander-legality')
-      ).toEqual([expect.objectContaining({ level: 'SOFT' })]);
-    } finally {
       clearGenerationCache();
-    }
+    });
+
+    // E528: the tagger answers getCardDrawSubtype with 'card-advantage' for any
+    // card outside its draw tags (tutor/wheel/cantrip/draw), and
+    // stampRoleSubtypes stamps every subtype on every pick for the secondary
+    // badges. The stored breakdown used to tally those stamps across every
+    // category, lands included (Krenko: card-advantage 22, live recount 5).
+    // It must be the recount the deck page runs once the tagger loads; the
+    // HARD report-subtypes invariant compares the two.
+    it('stores the subtype breakdown the live recount computes, not the pick-time stamps', async () => {
+      // A loaded tagger, as far as this deck is concerned: the artifacts are
+      // ramp, and the draw-subtype lookup answers the way the real one does
+      // for a card in none of its draw tags.
+      const actual = await vi.importActual<typeof import('@/deck-builder/services/tagger/client')>(
+        '@/deck-builder/services/tagger/client'
+      );
+      vi.mocked(hasTaggerData).mockReturnValue(true);
+      vi.mocked(validateCardRole).mockImplementation((c) =>
+        c.name.startsWith('Artifact_') ? 'ramp' : null
+      );
+      vi.mocked(getCardDrawSubtype).mockImplementation(() => 'card-advantage');
+      const ctx = baseContext();
+      try {
+        const deck = await generateDeck(ctx);
+        const stamped = allCards(deck).filter((c) => c.cardDrawSubtype === 'card-advantage').length;
+        expect(deck.cardDrawSubtypeCounts).toBeDefined();
+        expect(deck.cardDrawSubtypeCounts!['card-advantage'] ?? 0).toBeLessThan(stamped);
+        expectDeckInvariants('stored subtype breakdown', deck, ctx);
+      } finally {
+        vi.mocked(getCardDrawSubtype).mockReset().mockImplementation(actual.getCardDrawSubtype);
+        vi.mocked(validateCardRole).mockReset().mockImplementation(actual.validateCardRole);
+        vi.mocked(hasTaggerData).mockReset().mockReturnValue(false);
+        clearGenerationCache();
+      }
+    });
+
+    // E530, USER RULING 2026-09-29: an illegal commander refuses before any
+    // fetch, naming why. The real Llanowar Elves is no legendary creature.
+    it('refuses an illegal commander before fetching anything', async () => {
+      vi.mocked(fetchCommanderData).mockClear();
+      const ctx = { ...baseContext(), commander: realCard('Llanowar Elves') };
+      const run = generateDeck(ctx);
+      await expect(run).rejects.toBeInstanceOf(CommanderIneligibleError);
+      await expect(run).rejects.toThrow(
+        "Llanowar Elves isn't a legendary creature, so it can't be your commander."
+      );
+      expect(fetchCommanderData).not.toHaveBeenCalled();
+    });
+
+    // USER RULING (second pass): a previewed commander, not legal only because
+    // it hasn't released, builds and the deck says when it becomes legal.
+    it('builds a previewed commander and discloses it', async () => {
+      const preview: ScryfallCard = {
+        ...COMMANDER,
+        legalities: { ...COMMANDER.legalities, commander: 'not_legal' },
+        released_at: '2099-06-01',
+      };
+      const ctx = { ...baseContext(), commander: preview };
+      try {
+        const deck = await generateDeck(ctx);
+        expect(deck.commanderPreviewNote).toBe(
+          `Test Commander isn't legal until ${formatReleaseDate('2099-06-01')}.`
+        );
+        assertInvariants(deck, ctx.customization, ctx);
+        expectDeckInvariants('builds a previewed commander and discloses it', deck, ctx);
+        expect(
+          checkDeckInvariants(deck, ctx).filter((x) => x.check === 'commander-legality')
+        ).toEqual([expect.objectContaining({ level: 'SOFT' })]);
+      } finally {
+        clearGenerationCache();
+      }
+    });
   });
-});
+}
