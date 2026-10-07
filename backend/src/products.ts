@@ -13,12 +13,15 @@
  * products (esp. Secret Lair) can lag, and the daily refresh picks them up.
  */
 import type { MtgjsonDeckFile } from './product-map';
+import { PENDING_PRODUCTS, type PendingProduct } from './pending-products';
 import { SCRYFALL_USER_AGENT } from './scryfall';
 
 const INDEX_TTL_MS = 24 * 60 * 60 * 1000;
 const DECK_TTL_MS = 24 * 60 * 60 * 1000;
 const DECK_LRU_MAX = 50;
 const SEARCH_LIMIT = 50;
+const SECRET_LAIR_TYPE = 'Secret Lair Drop';
+const SECRET_LAIR_CODE = 'SLD';
 
 const MTGJSON_BASE = 'https://mtgjson.com/api/v5';
 const FETCH_HEADERS = { Accept: 'application/json', 'User-Agent': SCRYFALL_USER_AGENT };
@@ -100,7 +103,32 @@ async function fetchDeckList(): Promise<DeckListEntry[]> {
     throw new Error(`MTGJSON DeckList returned HTTP ${response.status}`);
   }
   const json = (await response.json()) as DeckListResponse;
-  return json.data ?? [];
+  return withPendingProducts(json.data ?? []);
+}
+
+/** A pending product MTGJSON now lists itself: same set, its name inside MTGJSON's. */
+function isCatalogued(pending: PendingProduct, entries: readonly DeckListEntry[]): boolean {
+  const name = pending.deck.name.toLowerCase();
+  const short = name.slice(name.lastIndexOf(':') + 1).trim();
+  return entries.some((e) => e.code === pending.deck.code && e.name.toLowerCase().includes(short));
+}
+
+/** MTGJSON's index plus the {@link PENDING_PRODUCTS} it doesn't list yet. */
+export function withPendingProducts(
+  entries: DeckListEntry[],
+  pending: readonly PendingProduct[] = PENDING_PRODUCTS
+): DeckListEntry[] {
+  const missing = pending.filter((p) => !isCatalogued(p, entries));
+  return [
+    ...entries,
+    ...missing.map((p) => ({
+      code: p.deck.code,
+      fileName: p.fileName,
+      name: p.deck.name,
+      releaseDate: p.deck.releaseDate,
+      type: p.deck.type,
+    })),
+  ];
 }
 
 function toSummary(e: DeckListEntry): ProductSummary {
@@ -117,6 +145,10 @@ function toSummary(e: DeckListEntry): ProductSummary {
  * Searches the product index. `query` matches product names (case-insensitive);
  * `types` restricts to those MTGJSON `type` values (e.g. "Commander Deck"). With
  * no query, returns the newest products (optionally of the given types).
+ *
+ * "Secret Lair Drop" also matches every product from the Secret Lair set: MTGJSON
+ * files a Secret Lair Commander Deck (Odds and Ends, Raining Cats and Dogs) as
+ * type "Commander Deck", so the Secret Lair filter used to hide all of them.
  */
 export async function searchProducts(
   query: string,
@@ -124,7 +156,10 @@ export async function searchProducts(
 ): Promise<ProductSummary[]> {
   const entries = await getDeckList();
   const typeSet = opts.types && opts.types.length ? new Set(opts.types) : null;
-  const pool = typeSet ? entries.filter((e) => typeSet.has(e.type)) : entries;
+  const anySecretLair = typeSet?.has(SECRET_LAIR_TYPE) ?? false;
+  const pool = typeSet
+    ? entries.filter((e) => typeSet.has(e.type) || (anySecretLair && e.code === SECRET_LAIR_CODE))
+    : entries;
 
   const q = query.trim().toLowerCase();
   if (!q) {
@@ -211,6 +246,9 @@ async function fetchProductDeck(fileName: string): Promise<MtgjsonDeckFile | nul
   // Only catalogued fileNames are fetchable (validates the param + prevents SSRF).
   const summary = await getProductSummary(fileName);
   if (!summary) return null;
+  // A pending product is served from the repo until MTGJSON lists it.
+  const pending = PENDING_PRODUCTS.find((p) => p.fileName === fileName);
+  if (pending) return pending.deck;
 
   const response = await fetch(`${MTGJSON_BASE}/decks/${encodeURIComponent(fileName)}.json`, {
     headers: FETCH_HEADERS,

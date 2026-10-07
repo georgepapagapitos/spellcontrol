@@ -67,8 +67,48 @@ describe('searchProducts', () => {
   it('with an empty query returns newest-first', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValue(indexResponse());
     const { searchProducts } = await freshModule();
-    const results = await searchProducts('');
-    expect(results[0].releaseDate).toBe('2026-04-24'); // Prismari Artistry, newest
+    const results = await searchProducts('', { types: ['Planeswalker Deck', 'Commander Deck'] });
+    // Odds and Ends (pending, 2026-09-28) is newest, then Prismari Artistry.
+    expect(results.map((r) => r.releaseDate).slice(0, 2)).toEqual(['2026-09-28', '2026-04-24']);
+  });
+
+  // E577: MTGJSON's DeckList had no Odds and Ends on 2026-10-07, nine days
+  // after it shipped, so the search found nothing under any filter.
+  it('finds a shipped product MTGJSON has not listed yet, under Commander and Secret Lair', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue(indexResponse());
+    const { searchProducts } = await freshModule();
+    for (const type of ['Commander Deck', 'Secret Lair Drop']) {
+      const results = await searchProducts('odds and ends', { types: [type] });
+      expect(results.map((r) => r.fileName)).toEqual(['pending-OddsAndEnds_SLD']);
+    }
+  });
+
+  it('the Secret Lair filter includes Secret Lair commander decks', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue(indexResponse());
+    const { searchProducts } = await freshModule();
+    const results = await searchProducts('cats', { types: ['Secret Lair Drop'] });
+    expect(results.map((r) => r.fileName)).toContain('RainingCatsAndDogs_SLD');
+  });
+
+  it('drops a pending product once MTGJSON lists it', async () => {
+    const listed = {
+      data: [
+        ...INDEX.data,
+        {
+          code: 'SLD',
+          fileName: 'SecretLairCommanderDeckOddsAndEnds_SLD',
+          name: 'Secret Lair Commander Deck: Odds and Ends',
+          releaseDate: '2026-09-28',
+          type: 'Commander Deck',
+        },
+      ],
+    };
+    vi.spyOn(global, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(listed), { status: 200 })
+    );
+    const { searchProducts } = await freshModule();
+    const results = await searchProducts('odds and ends');
+    expect(results.map((r) => r.fileName)).toEqual(['SecretLairCommanderDeckOddsAndEnds_SLD']);
   });
 
   it('caches the index across calls within the TTL', async () => {
@@ -127,5 +167,26 @@ describe('getProductDeck', () => {
     const after = fetchSpy.mock.calls.filter((c) => String(c[0]).includes('/decks/')).length;
     expect(after).toBe(deckFetchCount);
     expect(deckFetchCount).toBe(1);
+  });
+
+  it('serves a pending product from the repo, the commander and its foils pinned', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(indexResponse());
+    const { getProductDeck } = await freshModule();
+    const deck = await getProductDeck('pending-OddsAndEnds_SLD');
+    expect(fetchSpy.mock.calls.some((c) => String(c[0]).includes('/decks/'))).toBe(false);
+    expect(deck?.commander).toEqual([
+      {
+        count: 1,
+        name: 'Yennett, Cryptic Sovereign',
+        setCode: 'SLD',
+        number: '2121',
+        isFoil: true,
+      },
+    ]);
+    const main = deck?.mainBoard ?? [];
+    expect(main.reduce((n, c) => n + (c.count ?? 1), 0)).toBe(99);
+    expect(main.filter((c) => c.setCode === 'SLD').map((c) => c.number)).toEqual(
+      Array.from({ length: 11 }, (_, i) => String(2122 + i))
+    );
   });
 });
