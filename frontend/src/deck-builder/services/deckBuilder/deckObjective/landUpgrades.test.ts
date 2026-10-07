@@ -6,7 +6,7 @@
 // here and are offered as the collection's off-page lands.
 import { describe, expect, it } from 'vitest';
 import { optimizeDeck } from './optimizer';
-import { landUpgrades } from './landUpgrades';
+import { landUpgrades, paysForMana } from './landUpgrades';
 import { TREATMENT, card, merenCtx, swap } from './__fixtures__/objectiveFixture';
 
 const DUALS = ['Overgrown Tomb', 'Woodland Cemetery', 'Llanowar Wastes'];
@@ -41,6 +41,27 @@ describe('landUpgrades', () => {
   });
 });
 
+describe('paysForMana', () => {
+  const land = (oracle_text: string) => ({ ...card('Command Tower'), oracle_text });
+  it('reads the filter lands the goldfish mistakes for free any-colour sources (real text)', () => {
+    // Daily Bugle Building and Captivating Cave, as the gate's dumps carry them.
+    expect(paysForMana(land('{T}: Add {C}.\n{1}, {T}: Add one mana of any color.'))).toBe(true);
+    expect(
+      paysForMana(
+        land(
+          '{T}: Add {C}.\n{1}, {T}: Add one mana of any color.\n{4}, {T}, Sacrifice this land: Put two +1/+1 counters on target creature.'
+        )
+      )
+    ).toBe(true);
+  });
+
+  it('passes a land that taps for mana free', () => {
+    expect(paysForMana(card('Overgrown Tomb'))).toBe(false);
+    expect(paysForMana(card('Command Tower'))).toBe(false);
+    expect(paysForMana(card('Llanowar Wastes'))).toBe(false);
+  });
+});
+
 describe('optimizeDeck with owned lands the page never ranked', { timeout: 60_000 }, () => {
   const pool = DUALS.map(card);
 
@@ -56,6 +77,17 @@ describe('optimizeDeck with owned lands the page never ranked', { timeout: 60_00
       expect(s.out).toEqual(['Swamp']);
       expect(s.terms.mana).toBeGreaterThan(0);
     }
+  });
+
+  it('keeps the land upgrades off the spell swaps budget', () => {
+    const r = optimizeDeck(swapped, [...pool, card('Counterspell'), card('Grave Pact')], owned(), {
+      ...SMALL,
+      maxSwaps: 1,
+      landUpgrades: true,
+      offPageOwned: new Set(DUALS),
+    });
+    const lands = r.swaps.filter((s) => s.in.some((n) => DUALS.includes(n)));
+    expect(lands.length).toBeGreaterThan(1);
   });
 
   it('leaves the basics alone without the option: the land count and mix are the plan', () => {

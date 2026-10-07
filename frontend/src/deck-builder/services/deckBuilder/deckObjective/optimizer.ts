@@ -70,6 +70,7 @@ import {
   UPGRADES_PER_STEP,
   landCredit,
   landUpgrades,
+  paysForMana,
   replicates,
 } from './landUpgrades';
 import { reasonProblem } from './reasonCheck';
@@ -386,6 +387,9 @@ export function* optimizeSteps(
     // spend it on lands and push out the page's better spell swaps (E509 gate 1).
     const landsLeft =
       !!opts.landUpgrades && applied.filter((a) => a.landUp).length < MAX_LAND_UPGRADES;
+    // A move that only trades lands rides the land budget (a "lean on mine" build
+    // finds owned lands for its page lands too), not the spell swaps'.
+    const landMove = (m: Move) => !!opts.landUpgrades && m.in.every(isLandCard);
     if (capped && !landsLeft && repairable(currentScore.violations) === 0) {
       stoppedBy = 'max-swaps';
       break;
@@ -472,7 +476,9 @@ export function* optimizeSteps(
       // E509: owned nonbasic lands, for a basic each. The
       // goldfish is the case for a land and the fast terms leave it out, so the
       // moves are ranked by a short goldfish and the best few judged in full.
-      const lands = addable.filter((c) => isLandCard(c) && !isBasicLand(c) && isOwnedCard(c, ctx));
+      const lands = addable.filter(
+        (c) => isLandCard(c) && !isBasicLand(c) && isOwnedCard(c, ctx) && !paysForMana(c)
+      );
       const upgrades = landUpgrades(current, lands, ctx).filter(
         (u) => !protectedKeys.has(key(current.cards[u.out].name))
       );
@@ -674,7 +680,7 @@ export function* optimizeSteps(
       const nextInfeasible = violations.reduce((s, v) => s + v.magnitude, 0);
       if (nextInfeasible > curInfeasible) continue;
       const isRepair = repairable(violations) < curRepairable;
-      if (capped && !isRepair && move.landUp === undefined) continue;
+      if (!isRepair && ((capped && !landMove(move)) || (!landsLeft && landMove(move)))) continue;
       if (!isRepair && opts.repairOnly && move.in.some((c) => opts.repairOnly!.has(c.name)))
         continue;
       // An owned spell the page never ranked takes the place of an unowned card
@@ -723,7 +729,7 @@ export function* optimizeSteps(
       }
       // While the deck breaks a constraint, only a repair is taken; past the
       // cap, nothing else is.
-      if (bestRepair || (capped && move.landUp === undefined) || forced.length > 0) continue;
+      if (bestRepair || forced.length > 0) continue;
       if (score.total - currentScore.total >= required) {
         // A land is chosen from dozens by a noisy goldfish: the best of them
         // clears the bar by luck, so it has to clear it again on other games.
@@ -815,7 +821,7 @@ export function* optimizeSteps(
       in: taken.move.in,
       kind: taken.kind,
       disclosure: taken.disclosure,
-      landUp: taken.move.landUp !== undefined,
+      landUp: taken.kind !== 'repair' && landMove(taken.move),
     });
     for (const c of taken.move.in) tabuOut.set(key(c.name), applied.length + opts.tabuTenure);
     for (const c of outs) tabuIn.set(key(c.name), applied.length + opts.tabuTenure);
