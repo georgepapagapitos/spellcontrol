@@ -265,6 +265,14 @@ interface Detector {
   reason: string;
 }
 
+/**
+ * Lookahead that rules out the verb sense of "counter": "Counter target spell",
+ * "Counter that spell unless", "counter it", "counter all", "counter up to one".
+ * A marker counter ("a +1/+1 counter", "counters on", "a counter on") never
+ * reads like that, so the counter detectors append it to their bare-word test.
+ */
+const NOT_COUNTERSPELL = String.raw`(?! (?:target|that|unless|it|this|all|each|up to|a|an|the|any|another)\b)`;
+
 const DETECTORS: Detector[] = [
   {
     keyword: 'etb',
@@ -347,7 +355,8 @@ const DETECTORS: Detector[] = [
     commander: /\bproliferate\b/,
     wants: ['Cards that place counters of any kind', 'Counter payoffs to scale'],
     themes: ['proliferate', 'counters'],
-    feeder: /\bcounter\b|\bproliferate\b/,
+    // Singular only (as before); the bare word also read "Counter target spell".
+    feeder: new RegExp(String.raw`\bcounter\b${NOT_COUNTERSPELL}|\bproliferate\b`),
     reason: 'Places or scales counters',
   },
   {
@@ -356,9 +365,8 @@ const DETECTORS: Detector[] = [
     commander: /\bcounters? (on|from|among)\b/,
     wants: ['Counter generators', 'Counter doublers and proliferate'],
     themes: ['counters', 'proliferate'],
-    // Marker counters only — exclude counterspell phrasing
-    // ("counter target/that/unless/it ...").
-    feeder: /\bcounters?\b(?! target| that| unless| it\b| this\b)|\bproliferate\b/,
+    // Marker counters only, not counterspell phrasing.
+    feeder: new RegExp(String.raw`\bcounters?\b${NOT_COUNTERSPELL}|\bproliferate\b`),
     reason: 'Works with counters',
   },
   {
