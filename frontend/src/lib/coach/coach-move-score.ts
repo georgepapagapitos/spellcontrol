@@ -35,14 +35,24 @@
 import type { ScryfallCard } from '@/deck-builder/types';
 import { frontFaceName } from '@/lib/cards/card-text';
 import { normalizeCardName } from '@/deck-builder/services/deckBuilder/cardIdentity';
-import { cardIneligibility, scoreDeck } from '@/deck-builder/services/deckBuilder/deckObjective';
+import {
+  cardIneligibility,
+  checkConstraints,
+  scoreDeck,
+} from '@/deck-builder/services/deckBuilder/deckObjective';
+import {
+  isOwnedCard,
+  requiresOwnedCards,
+} from '@/deck-builder/services/deckBuilder/deckObjective/constraints';
 import { isBasicLand, isLandCard } from '@/deck-builder/services/deckBuilder/deckObjective/context';
 import {
   judgeMove,
+  MIN_GAIN,
   type MoveJudgement,
 } from '@/deck-builder/services/deckBuilder/deckObjective/judge';
 import { SLICE_MS } from '@/deck-builder/services/deckBuilder/deckObjective/optimizerAsync';
 import { protectedCards } from '@/deck-builder/services/deckBuilder/deckObjective/protections';
+import type { SwapReason } from '@/deck-builder/services/deckBuilder/deckObjective/swapReasons';
 import type {
   ObjectiveContext,
   ObjectiveDeck,
@@ -70,6 +80,10 @@ export interface ScoredRow {
   feasibleAfter: boolean;
   /** The move judged: names out of the deck, names in. For a paired row, the pairing chosen. */
   move: { out: string[]; in: string[] };
+  /** The per-card notes behind the verdict (the words a row states the swap in). */
+  reasons: SwapReason[];
+  /** A bare cut only: the hard-constraint checks it repairs (size, budget, banned...). */
+  repairs?: string[];
 }
 
 export type UnscoredReason =
@@ -81,6 +95,8 @@ export type UnscoredReason =
   /** An add to a full deck where every card of its slot class is held by the protection set. */
   | 'no-cut-offered'
   | 'bare-cut-not-a-repair'
+  /** The caller's time budget ran out before this row was reached. */
+  | 'over-budget'
   | 'error';
 
 export interface UnscoredRow {
@@ -104,14 +120,74 @@ export interface CoachMoveScoreOptions {
   fullTop?: number;
   /** Replaces the objective's margin. */
   minGain?: number;
-  /** Pairs judged exactly per cut or add (the best by the fast estimate). Default 3. */
+  /** Pairs judged exactly per cut or add (the best by the fast estimate). Default 6. */
   pairsJudged?: number;
+  /** Most pairs judged for a row when none is accepted yet. Default 30. */
+  maxPairs?: number;
+  /**
+   * Checked before each row: when it answers true the remaining rows come back
+   * `over-budget` and the full pass is skipped (the app's time budget).
+   */
+  shouldStop?: () => boolean;
+  /**
+   * Give each cut a replacement no earlier cut took: rows are visited in the
+   * order given, and an accepted pairing reserves its incoming card. Two rows
+   * offering the same card would leave the second stale the moment the first
+   * is applied.
+   */
+  distinctReplacements?: boolean;
+  /**
+   * A higher bar for a card the commander's page has no row for: a swap bringing one
+   * in must clear `bar` WITHOUT the terms any card of a kind earns (GENERIC_GAIN).
+   * Filling a role made a Terisiare's Devastation a "removal" for a Yuriko deck over
+   * its ramp cap, and two incidental producers made Urza's Saga pay off an "artifact
+   * theme"; only what the card itself does beyond that is its own.
+   */
+  offPage?: { is: (card: ScryfallCard) => boolean; bar: number };
+  /**
+   * Cut row id -> the replacement it already shows. A pinned pair is judged again
+   * against the deck as it stands, so the words are the current deck's; only when it
+   * is no longer accepted does the row look for another card.
+   */
+  pins?: ReadonlyMap<string, string>;
+  /**
+   * Most replacement candidates scored, the commander's page first (most played) then
+   * the rest by global rank: every card of a whole collection is a candidate, and
+   * each costs a deck score.
+   */
+  maxCandidates?: number;
 }
 
+/** Terms an off-page card earns by being a card of a kind or by a theme read, not by the commander's data. */
+/** Off-page pairs judged per cut. */
+const OFF_PAGE_JUDGED = 2;
+const GENERIC_GAIN = ['roles', 'synergy', 'engines', 'lift'] as const;
+type Pair = { out: ScryfallCard; in: ScryfallCard; j: MoveJudgement };
 const DEFAULT_FULL_TOP = 12;
 const DEFAULT_PAIRS = 6;
+/**
+ * How far above the fast estimate (the gain of the card in minus the loss of the
+ * card out, scored apart) a swap's exact gain was seen to land: at most 0.334 over
+ * 478 judged pairs in the v4 corpus (mean 0.007, sd 0.043), so 0.4 keeps a margin.
+ */
+const EST_SLACK = 0.4;
 /** Pairs judged at most per row when none is accepted yet. */
-const MAX_PAIRS = 30;
+const DEFAULT_MAX_PAIRS = 30;
+
+/** Hard-constraint checks about one card (a banned card, one off the identity): a held card may leave for these. */
+const CARD_LEVEL_CHECKS: ReadonlySet<string> = new Set([
+  'banned',
+  'legality',
+  'identity',
+  'dead-in-identity',
+  'max-price',
+  'rarity',
+  'tiny-leaders',
+  'arena',
+  'collection',
+  'commander-in-99',
+  'face-name-collision',
+]);
 
 type SlotClass = 'spell' | 'land' | 'basic';
 function slotClass(card: ScryfallCard): SlotClass {
@@ -137,7 +213,8 @@ function scored(
   kind: MoveKind,
   tier: ScoreTier,
   j: MoveJudgement,
-  move: { out: string[]; in: string[] }
+  move: { out: string[]; in: string[] },
+  repairs?: string[]
 ): ScoredRow {
   return {
     status: 'scored',
@@ -151,6 +228,8 @@ function scored(
     terms: j.terms,
     feasibleAfter: j.feasibleAfter,
     move,
+    reasons: j.reasons,
+    ...(repairs ? { repairs } : {}),
   };
 }
 
@@ -171,6 +250,7 @@ function* scoreSteps(
   const resolve = opts.resolve ?? (() => undefined);
   const fullTop = opts.fullTop ?? DEFAULT_FULL_TOP;
   const pairsJudged = opts.pairsJudged ?? DEFAULT_PAIRS;
+  const maxPairs = opts.maxPairs ?? DEFAULT_MAX_PAIRS;
   const judgeOpts = opts.minGain === undefined ? {} : { minGain: opts.minGain };
   // The fast read: the same terms and constraints without the two goldfish terms.
   const fastCtx: ObjectiveContext = {
@@ -200,7 +280,9 @@ function* scoreSteps(
       isWholeCard(c) &&
       !inDeck.has(keyOf(c.name)) &&
       !pool.has(keyOf(c.name)) &&
-      cardIneligibility(c, ctx) === null
+      cardIneligibility(c, ctx) === null &&
+      // A deck that may hold only cards it owns (a 100% share too) is not offered the rest.
+      !(requiresOwnedCards(ctx) && !isOwnedCard(c, ctx))
     )
       pool.set(keyOf(c.name), c);
   };
@@ -208,7 +290,19 @@ function* scoreSteps(
   for (const ch of changes) {
     if (ch.type !== 'cut') addToPool(cardFor(ch.name, ch.card));
   }
-  const candidates = [...pool.values()].sort(byName);
+  const pageInclusion = (c: ScryfallCard): number =>
+    ctx.edhrec.get(c.name)?.inclusion ?? ctx.edhrec.get(frontFaceName(c.name))?.inclusion ?? 0;
+  let candidates = [...pool.values()].sort(byName);
+  if (opts.maxCandidates !== undefined && candidates.length > opts.maxCandidates) {
+    candidates = candidates
+      .sort(
+        (a, b) =>
+          pageInclusion(b) - pageInclusion(a) ||
+          (a.edhrec_rank ?? Infinity) - (b.edhrec_rank ?? Infinity) ||
+          byName(a, b)
+      )
+      .slice(0, opts.maxCandidates);
+  }
 
   // Memoised fast reads of what each card is worth in this deck.
   const loss = new Map<string, number>();
@@ -234,6 +328,20 @@ function* scoreSteps(
     return v;
   }
 
+  const ownedFirst = ctx.ownedNames ? (c: ScryfallCard) => isOwnedCard(c, ctx) : undefined;
+  /** An off-page card must clear its own bar outside the roles term. */
+  const grounded = (j: MoveJudgement, c: ScryfallCard): MoveJudgement => {
+    const off = opts.offPage;
+    if (!off || !j.accepted || !off.is(c)) return j;
+    const own = j.delta - GENERIC_GAIN.reduce((sum, k) => sum + (j.terms[k] ?? 0), 0);
+    return own >= off.bar
+      ? j
+      : {
+          ...j,
+          accepted: false,
+          refusal: `off the commander's page, and ${own.toFixed(2)} of its gain is its own (< ${off.bar.toFixed(2)})`,
+        };
+  };
   let protectedNow: ReturnType<typeof protectedCards> | null = null;
   const held = (): ReturnType<typeof protectedCards> =>
     (protectedNow ??= protectedCards(deck, ctx));
@@ -242,7 +350,7 @@ function* scoreSteps(
   function* bestPair(
     outs: readonly ScryfallCard[],
     ins: readonly ScryfallCard[]
-  ): Generator<void, { out: ScryfallCard; in: ScryfallCard; j: MoveJudgement } | null> {
+  ): Generator<void, Pair | null> {
     const pairs: { out: ScryfallCard; in: ScryfallCard; est: number }[] = [];
     for (const o of outs) {
       const l = yield* lossOf(o);
@@ -251,15 +359,38 @@ function* scoreSteps(
         pairs.push({ out: o, in: i, est: (yield* gainOf(i)) - l });
       }
     }
-    pairs.sort((a, b) => b.est - a.est || byName(a.out, b.out) || byName(a.in, b.in));
-    let best: { out: ScryfallCard; in: ScryfallCard; j: MoveJudgement } | null = null;
+    // A collection deck's hard rules (owned share, owned-only) fail for the same
+    // cards on every pair: the cards it owns are tried first, or the pairs
+    // judged before one is accepted would all be unowned staples.
+    const rank = (c: ScryfallCard): number => (ownedFirst && !ownedFirst(c) ? 1 : 0);
+    // The commander's page first: a card it has a row for has the data to back a swap.
+    const pageRank = (c: ScryfallCard): number => (opts.offPage?.is(c) ? 1 : 0);
+    pairs.sort(
+      (a, b) =>
+        rank(a.in) - rank(b.in) ||
+        pageRank(a.in) - pageRank(b.in) ||
+        b.est - a.est ||
+        byName(a.out, b.out) ||
+        byName(a.in, b.in)
+    );
+    let judgedOffPage = 0;
+    let best: Pair | null = null;
     let judged = 0;
     for (const p of pairs) {
       // Judge the best few by the estimate; keep going (to a cap) while none is
       // accepted, since a refusal on a hard rule (owned share, a role floor)
       // says nothing about the next pair.
-      if (judged >= MAX_PAIRS || (judged >= pairsJudged && best?.j.accepted)) break;
-      const j = judgeMove(deck, { out: [p.out.name], in: [p.in] }, fastCtx, judgeOpts);
+      if (judged >= maxPairs || (judged >= pairsJudged && best?.j.accepted)) break;
+      // The estimate runs at most EST_SLACK under the exact gain: a pair far enough
+      // below the margin cannot be accepted, so it is not worth two deck scores.
+      if (p.est < (judgeOpts.minGain ?? MIN_GAIN) - EST_SLACK) continue;
+      // Off-page cards are mostly role fills the commander's data does not back: two
+      // judged per cut is enough to find the exception.
+      if (opts.offPage?.is(p.in) && judgedOffPage++ >= OFF_PAGE_JUDGED) continue;
+      const j = grounded(
+        judgeMove(deck, { out: [p.out.name], in: [p.in] }, fastCtx, judgeOpts),
+        p.in
+      );
       judged++;
       if (!best || better(j, best.j)) best = { ...p, j };
       yield;
@@ -267,9 +398,33 @@ function* scoreSteps(
     return best;
   }
 
+  /** How far each hard-constraint check is broken now, spent as bare cuts claim a repair of it. */
+  const brokenNow = new Map<string, number>();
+  for (const v of checkConstraints(deck, fastCtx))
+    brokenNow.set(v.check, (brokenNow.get(v.check) ?? 0) + v.magnitude);
+  /** The checks taking `out` away leaves less broken, by how much. */
+  const repairedBy = (out: ScryfallCard): Map<string, number> => {
+    const now = new Map<string, number>();
+    const i = deck.cards.indexOf(out);
+    const without = { commanders: deck.commanders, cards: deck.cards.filter((_, j) => j !== i) };
+    for (const v of checkConstraints(without, fastCtx))
+      now.set(v.check, (now.get(v.check) ?? 0) + v.magnitude);
+    const by = new Map<string, number>();
+    for (const [k, v] of brokenNow) if ((now.get(k) ?? 0) < v) by.set(k, v - (now.get(k) ?? 0));
+    return by;
+  };
+
   const rows: (RowScore | null)[] = changes.map(() => null);
+  // Replacements rows already show are not offered to another row.
+  const taken = new Set<string>([...(opts.pins?.values() ?? [])].map(keyOf));
+  let stopped = false;
   for (let r = 0; r < changes.length; r++) {
     const ch = changes[r];
+    if (stopped || opts.shouldStop?.()) {
+      stopped = true;
+      rows[r] = { status: 'unscored', id: ch.id, reason: 'over-budget' };
+      continue;
+    }
     const unscored = (reason: UnscoredReason): UnscoredRow => ({
       status: 'unscored',
       id: ch.id,
@@ -333,20 +488,53 @@ function* scoreSteps(
           const cls = slotClass(out);
           // A basic comes out for a nonbasic land (the lands lane's own upgrade), or for another basic.
           const ins = candidates.filter(
-            (c) => slotClass(c) === cls || (cls === 'basic' && slotClass(c) === 'land')
+            (c) =>
+              (slotClass(c) === cls || (cls === 'basic' && slotClass(c) === 'land')) &&
+              !(opts.distinctReplacements && taken.has(keyOf(c.name)))
           );
-          const best = ins.length > 0 ? yield* bestPair([out], ins) : null;
+          let best: Pair | null = null;
+          const pinned = opts.pins?.get(ch.id);
+          const pinnedCard = pinned ? cardFor(pinned, pool.get(keyOf(pinned))) : undefined;
+          if (pinnedCard && pool.has(keyOf(pinnedCard.name))) {
+            const j = grounded(
+              judgeMove(deck, { out: [out.name], in: [pinnedCard] }, fastCtx, judgeOpts),
+              pinnedCard
+            );
+            if (j.accepted) best = { out, in: pinnedCard, j };
+          }
+          if (!best && ins.length > 0) best = yield* bestPair([out], ins);
           if (best) {
+            if (opts.distinctReplacements && best.j.accepted) taken.add(keyOf(best.in.name));
             rows[r] = scored(ch.id, 'cut-paired', 'fast', best.j, {
               out: [best.out.name],
               in: [best.in.name],
             });
           } else {
-            // No replacement in its slot class: a bare cut counts only as a repair.
+            // No replacement in its slot class: a bare cut counts only as a repair of a
+            // broken hard constraint (judgeMove refuses it for its score, as the search
+            // takes a repair whatever it costs, so the repair is read off the checks).
             const j = judgeMove(deck, { out: [out.name], in: [] }, fastCtx, judgeOpts);
-            rows[r] = j.accepted
-              ? scored(ch.id, 'bare-cut', 'fast', j, { out: [out.name], in: [] })
-              : unscored('bare-cut-not-a-repair');
+            const fixes = [...repairedBy(out)].filter(
+              ([check]) =>
+                (brokenNow.get(check) ?? 0) > 0 &&
+                // A card kept by the protection set leaves only for a rule about the card itself.
+                (CARD_LEVEL_CHECKS.has(check) || !held().has(out.name))
+            );
+            if (fixes.length > 0 && j.worsened.length === 0) {
+              // Each cut claims what it repairs: an over-size deck needs one cut per card over.
+              for (const [check, by] of fixes)
+                brokenNow.set(check, (brokenNow.get(check) ?? 0) - by);
+              rows[r] = scored(
+                ch.id,
+                'bare-cut',
+                'fast',
+                { ...j, accepted: true, refusal: null },
+                { out: [out.name], in: [] },
+                fixes.map(([check]) => check)
+              );
+            } else {
+              rows[r] = unscored('bare-cut-not-a-repair');
+            }
           }
         }
       }
@@ -356,6 +544,7 @@ function* scoreSteps(
     yield;
   }
 
+  if (stopped) return rows as RowScore[];
   // Full read for the top rows by the fast one (accepted first, then the larger gain).
   const rank = (s: RowScore): number =>
     s.status === 'scored' ? s.delta + (s.accepted ? 1e6 : 0) : -Infinity;
@@ -372,7 +561,8 @@ function* scoreSteps(
         ...judgeOpts,
         ...(s.kind === 'add' ? { partial: true } : {}),
       });
-      rows[i] = scored(s.id, s.kind, 'full', j, s.move);
+      const judged = s.kind === 'cut-paired' && ins.length === 1 ? grounded(j, ins[0]) : j;
+      rows[i] = scored(s.id, s.kind, 'full', judged, s.move, s.repairs);
     } catch {
       // The fast read stands.
     }

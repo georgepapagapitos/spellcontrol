@@ -1,8 +1,9 @@
 // @vitest-environment node
 //
-// Shadow mode (E540 S4): the objective's move scorer is read by the eval
-// harness only. No page, hook, component or store imports it until S5 lets the
-// feed use it. When S5 lands, this guard is the line to move.
+// The objective's move scorer (E540 S4) is read by the eval harness and, since
+// S6, by the Cuts lane's pairing (coach-cut-swaps.ts, wrapped by use-cut-swaps.ts).
+// No page, component or store imports the scorer directly: the pairing module is
+// the one door, so the lane and the harness can't score a cut two ways.
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -11,6 +12,7 @@ import { describe, expect, it } from 'vitest';
 const SRC = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const ALLOWED = [
   join('lib', 'coach', 'coach-move-score'),
+  join('lib', 'coach', 'coach-cut-swaps'),
   join('deck-builder', 'services', 'deckBuilder', 'coachEval') + sep,
 ];
 

@@ -1447,6 +1447,63 @@ row is an opportunity or a warning. (An earlier revision described a
 `<details>` disclosure at the feed's end; the shipped design has always been
 the chip lane — this section was stale until the UX-402 posture pass.)
 
+### The Cuts lane shows each cut with its best replacement (E540 S6, 2026-10-06 ruling)
+
+"The Cuts lane shows each cut with its best replacement, scored as one swap. A
+cut on its own appears only to fix a broken rule: over the card count, over
+budget, over a bracket or Game Changer limit, or a banned card."
+
+- **The row is a swap that leads with the cut.** It is a `DeckCardRow` swap
+  (`change.pairedCut`): the cut card's dimmed art, an arrow, the replacement's
+  art, and a line above the replacement's name reading "Cut {X}, add". One
+  action, aria-labelled "Cut {X} and add {Y}", does both through the page's
+  swap path; the leave animation and Undo are the ordinary ones. There is no
+  "Fit & cut" on it (the cut is already chosen), and its Why disclosure reads
+  "Why this swap?".
+- **The words are at most two plain sentences**: why the cut is the weaker card,
+  then why the replacement is better ("Awakening is rarely played with this
+  commander. Starfield of Nyx is in 18% of this commander's decks."). The
+  clauses come from `deckGeneration/swapCopy.ts`, restated in the present tense,
+  never a score or an objective term.
+- **The replacement is the whole-deck objective's pick** (`lib/coach/coach-cut-swaps.ts`
+  over `coach-move-score.ts`, `judgeMove`): the best card Coach itself offers in
+  the cut's slot class that the deck's settings allow (budget, ownership, rarity,
+  Game Changer limit), not a card the protection set holds, and no card is offered
+  as the replacement twice. One source of truth: never a second pairing in the feed.
+- **A collection deck searches the whole collection** (2026-10-07 ruling): every
+  owned card legal in the deck's colors is a candidate, narrowed by color identity,
+  slot class and the deck's settings before any card is judged, and scored on the
+  fast terms with the commander's page cards first. A card the commander's page has
+  no row for must clear 0.6 of gain outside the roles, synergy, engines and lift
+  terms (what any card of a kind earns, or an incidental theme read earns): the swap
+  has to improve the deck by the commander's own data. What the build removed on
+  purpose, and graveyard hate in a deck that recurs from its graveyard, is never a
+  replacement (`coachExclusions`, which follows a replacement the build itself cut
+  later).
+- **The words are the current deck's.** After an apply the rows still on screen keep
+  their card (a withheld row stays withheld) but are judged again, so a reason that
+  says ramp goes from 16 to 15 says 15 to 14 once the first swap took it to 15. A
+  payoff is called a theme only with four or more feeders.
+- **A cut with no acceptable replacement is not shown as a bare cut.** The one
+  exception is a repair: a bare cut that fixes a rule the deck breaks keeps its
+  row and its reason names the rule ("The deck is over its card count, so a card
+  has to go."). A size repair claims one cut per card over.
+- **The order of the cuts is the legacy order**; the objective's cut order
+  measured as a wash, so only the pairing is new. Rows are scored in that order
+  and scored rows come first; anything unscored by the budget keeps today's
+  order below them.
+- **Loading.** The lane shows the existing skeleton until the pairing lands, at
+  most about 4 s (`CUT_PAIRING_BUDGET_MS`), the scorer yielding to the page every
+  40 ms. The verdicts land in one batch, so **rows never reorder after paint**.
+  The chip shows no number while it runs, then the lane's count. After an apply
+  the last verdicts stay on screen until the new ones land.
+- **States.** Loading: the skeleton. Empty (every cut lacked a replacement):
+  "Nothing to cut. No weak card here has a better one to take its place." while
+  the lane is open (the chip itself disappears at zero, like every lane). Can't
+  score this deck (no EDHREC page, a thin page, no commander): today's cut rows
+  with a one-line note, never a blank lane. Error: today's rows, a note and
+  "Retry".
+
 ### Collection lane — owned alternatives
 
 The collection lane ("Stand-ins") shows one **primary** row per missing staple —

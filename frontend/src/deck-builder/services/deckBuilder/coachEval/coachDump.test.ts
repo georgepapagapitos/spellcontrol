@@ -16,8 +16,10 @@ import {
   bucketFor,
   coachChecks,
   flattenDecklist,
+  gradeTrimDisagreements,
   projectDumpCard,
   rebuildDeck,
+  restampRoles,
   stampGenerationFlags,
   type CoachDump,
 } from './coachDump';
@@ -245,5 +247,48 @@ describe('advisedDump', () => {
     expect(checks.totalCards).toBe(101);
     expect(checks.duplicates).toEqual(['Counterspell']);
     expect(checks.offIdentity).toEqual(['Lightning Bolt']);
+  });
+});
+
+// Guard (T171 S6 round 2): the Cuts-lane gate printed the analysis' grade ("Removal:
+// running 11, only need 8", ramp "only need 14") beside the generator's counts
+// (removal 10, ramp target 15) for the real Lathril collection deck. Fell the
+// Profane // Fell Mire is a removal spell to Coach's recount and a land to the
+// generator. Real numbers from that dump.
+describe('restampRoles', () => {
+  const generated = {
+    roleCounts: { ramp: 24, removal: 10, boardwipe: 3, cardDraw: 15 },
+    roleTargets: { ramp: 15, removal: 8, boardwipe: 1, cardDraw: 12 },
+    deckGrade: { letter: 'A', headline: '' },
+  } as unknown as CoachDump;
+  const analysisGrade = {
+    letter: 'B',
+    headline: 'Strong card advantage, but 3 roles overbuilt.',
+    trims: [
+      { label: 'Ramp', text: 'running 23, only need 14' },
+      { label: 'Removal', text: 'running 11, only need 8' },
+    ],
+  };
+
+  it("finds the analysis' grade contradicting the generator's counts", () => {
+    const mixed = { ...generated, deckGrade: analysisGrade } as unknown as CoachDump;
+    expect(gradeTrimDisagreements(mixed)).toEqual([
+      'Ramp: grade says 23/14, dump has 24/15',
+      'Removal: grade says 11/8, dump has 10/8',
+    ]);
+  });
+
+  it('stamps counts and targets from the analysis that graded, so they agree', () => {
+    const stamped = restampRoles(
+      generated,
+      {
+        counts: { ramp: 23, removal: 11, boardwipe: 3, cardDraw: 15 },
+        targets: { ramp: 14, removal: 8, boardwipe: 1, cardDraw: 12 },
+        names: {},
+      },
+      analysisGrade
+    );
+    expect(gradeTrimDisagreements(stamped)).toEqual([]);
+    expect(stamped.roleCounts).toMatchObject({ removal: 11 });
   });
 });

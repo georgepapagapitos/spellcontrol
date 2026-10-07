@@ -9,11 +9,20 @@
  * `scoreCoachMoves`, and keeps a compact row per change. coachShadowReport.ts
  * turns the records into the numbers that decide S5.
  */
-import type { EDHRECCommanderData, GapAnalysisCard, ScryfallCard } from '@/deck-builder/types';
+import type { EDHRECCommanderData, ScryfallCard } from '@/deck-builder/types';
 import type { ComboMatchResponse } from '@/types/combos';
-import { buildCoachObjective, coachCombos } from '@/lib/coach/coach-objective';
+import {
+  buildCoachObjective,
+  coachCombos,
+  protectionSourcesFrom,
+  type CoachObjective,
+  type CoachObjectiveResult,
+} from '@/lib/coach/coach-objective';
 import { scoreCoachMoves, type RowScore } from '@/lib/coach/coach-move-score';
+import { replacementCandidateNames } from '@/lib/coach/coach-cut-swaps';
 import type { Change } from '@/lib/coach/deck-change';
+import { coachExclusions, type BuildRemovals } from '../coachExclusions';
+import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
 import type { CommanderDeckAnalysisResult } from '../commanderDeckAnalysis';
 import { edhrecRowsFrom } from '../deckObjective/panelDump';
 import type { CoachView } from './coachView';
@@ -87,6 +96,10 @@ export interface ShadowInput {
   /** Goldfish games per full read. */
   games?: number;
   fullTop?: number;
+  /** The deck was built from the collection: its replacement pool is the whole collection. */
+  collectionDeck?: boolean;
+  /** What the build removed on purpose (`buildReport`), so Coach does not offer it back. */
+  removals?: BuildRemovals;
   labels?: ShadowLabels;
 }
 
@@ -109,33 +122,10 @@ const compact = (s: RowScore): CompactScore => {
   };
 };
 
-export async function shadowRecord(input: ShadowInput): Promise<ShadowRecord> {
+/** The whole-deck objective for the harness's saved deck (the app's `buildCoachObjective`). */
+export function shadowObjective(input: ShadowInput): CoachObjectiveResult {
   const { state, pass, customization } = input;
-  const { analysis, view } = pass;
-  const base = {
-    corpus: input.corpus,
-    group: input.group,
-    deck: input.deck,
-    deckSize: state.cards.length,
-    labels: input.labels,
-  };
-  const shown: { row: Omit<ShadowRow, 'score'>; change: Change }[] = [
-    ...view.feed.map((r, position) => ({ surface: 'feed' as const, r, position })),
-    ...view.cuts.map((r, position) => ({ surface: 'cuts' as const, r, position })),
-  ].map(({ surface, r, position }) => ({
-    change: r.change,
-    row: {
-      position,
-      surface,
-      lane: r.change.lane,
-      type: r.change.type,
-      name: r.change.name,
-      inName: r.change.inName ?? null,
-      tier: r.tier,
-      inclusion: r.change.inclusion ?? null,
-    },
-  }));
-
+  const { analysis } = pass;
   const response: ComboMatchResponse = {
     ...pass.combos,
     almostInCollection: [],
@@ -143,7 +133,7 @@ export async function shadowRecord(input: ShadowInput): Promise<ShadowRecord> {
     almostInCollectionTotal: 0,
   };
   const cz = customization;
-  const objective = buildCoachObjective({
+  return buildCoachObjective({
     deck: {
       format: 'commander',
       commander: state.commander,
@@ -168,22 +158,58 @@ export async function shadowRecord(input: ShadowInput): Promise<ShadowRecord> {
     ownedNames: input.ownedNames,
     availableNames: input.ownedNames,
     gameChangerNames: input.gameChangers,
-    protections: {
-      altWinNames: new Set(
-        [analysis.winConditions?.primary, ...(analysis.winConditions?.secondary ?? [])]
-          .filter((w) => w?.category === 'alt-win')
-          .flatMap((w) => w!.evidence)
-      ),
-      gaps: analysis.gapAnalysis,
-      flagged: new Set(
-        [...(analysis.misfits ?? []), ...(analysis.optimizeSwaps?.removals ?? [])].map((m) =>
-          m.name.toLowerCase()
-        )
-      ),
-    },
+    protections: protectionSourcesFrom(analysis),
     knownCards: state.cards,
     manaSim: { games: input.games ?? 1000 },
   });
+}
+
+/** The cards a cut's replacement is chosen from: what Coach itself offers (the app's own list). */
+export function shadowCandidates(input: ShadowInput, _objective: CoachObjective): ScryfallCard[] {
+  const { analysis, view } = input.pass;
+  const cards = input.state.cards;
+  const excluded = coachExclusions(input.removals, cards, analyzeDeckSynergy(cards));
+  return replacementCandidateNames({
+    gaps: [...(analysis.gapAnalysis ?? []), ...view.suggestions.staples],
+    hiddenGems: view.hiddenGems,
+    additions: analysis.optimizeSwaps?.additions,
+    synergy: analysis.synergyAnalysis?.suggestions,
+    // A collection deck searches its whole collection (the scorer narrows it).
+    ownedNames: input.collectionDeck ? input.ownedNames : undefined,
+    excluded,
+  })
+    .map((n) => input.resolve(n))
+    .filter((c): c is ScryfallCard => !!c);
+}
+
+export async function shadowRecord(input: ShadowInput): Promise<ShadowRecord> {
+  const { state, pass } = input;
+  const { view } = pass;
+  const base = {
+    corpus: input.corpus,
+    group: input.group,
+    deck: input.deck,
+    deckSize: state.cards.length,
+    labels: input.labels,
+  };
+  const shown: { row: Omit<ShadowRow, 'score'>; change: Change }[] = [
+    ...view.feed.map((r, position) => ({ surface: 'feed' as const, r, position })),
+    ...view.cuts.map((r, position) => ({ surface: 'cuts' as const, r, position })),
+  ].map(({ surface, r, position }) => ({
+    change: r.change,
+    row: {
+      position,
+      surface,
+      lane: r.change.lane,
+      type: r.change.type,
+      name: r.change.name,
+      inName: r.change.inName ?? null,
+      tier: r.tier,
+      inclusion: r.change.inclusion ?? null,
+    },
+  }));
+
+  const objective = shadowObjective(input);
   if (!objective.ok) {
     const rows = shown.map((s) => ({
       ...s.row,
@@ -192,27 +218,7 @@ export async function shadowRecord(input: ShadowInput): Promise<ShadowRecord> {
     return { ...base, objective: objective.reason, pageRows: 0, scoreMs: 0, rows };
   }
 
-  // The replacement pool: what Coach itself offers to bring in.
-  const offered = [
-    ...(analysis.gapAnalysis ?? []).map((g: GapAnalysisCard) => g.name),
-    ...view.hiddenGems.map((g) => g.name),
-    ...view.suggestions.staples.map((s) => s.name),
-    ...(analysis.optimizeSwaps?.additions ?? []).map((o) => o.name),
-  ];
-  // A collection deck's best replacement is a card it owns: the owned cards this
-  // commander's page plays most, beside what Coach offers.
-  const ownedOffered =
-    input.ownedNames.size === 0
-      ? []
-      : [...input.ownedNames]
-          .map((n) => ({ n, inc: objective.ctx.edhrec.get(n)?.inclusion ?? 0 }))
-          .filter((x) => x.inc > 0)
-          .sort((a, b) => b.inc - a.inc || (a.n < b.n ? -1 : 1))
-          .slice(0, 60)
-          .map((x) => x.n);
-  const candidates = [...new Set([...offered, ...ownedOffered])]
-    .map((n) => input.resolve(n))
-    .filter((c): c is ScryfallCard => !!c);
+  const candidates = shadowCandidates(input, objective);
 
   const t0 = Date.now();
   const scores = scoreCoachMoves(

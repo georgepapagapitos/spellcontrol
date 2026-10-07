@@ -30,6 +30,25 @@ describe('removedByBuild', () => {
   });
 });
 
+// The real Sythis build (T171 S6 gate): Rest in Peace went for Starfield of Nyx,
+// which the build itself cut later for Auramancer. The Cuts lane added it back.
+describe('removedByBuild follows a replacement the build cut later', () => {
+  const chain = {
+    coherenceRepairs: [
+      { cut: 'Rest in Peace', added: 'Starfield of Nyx', reason: 'combo missing 1 card' },
+      { cut: 'Starfield of Nyx', added: 'Auramancer', reason: 'combo missing 1 card' },
+    ],
+  };
+  it('holds while what finally took its place is in the deck', () => {
+    const deck = [real('Path to Exile')].map((c) => ({ ...c, name: 'Auramancer' }) as ScryfallCard);
+    expect(removedByBuild(chain, deck).has('rest in peace')).toBe(true);
+    expect(removedByBuild(chain, deck).has('starfield of nyx')).toBe(true);
+  });
+  it('lapses once nothing of the chain is in the deck', () => {
+    expect(removedByBuild(chain, [real('Murder')]).size).toBe(0);
+  });
+});
+
 describe('coachExclusions', () => {
   it('drops what the build removed from every suggestion list', () => {
     const excluded = coachExclusions(RIP_REPAIR, [real('Path to Exile')], { invested: [] });

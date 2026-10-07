@@ -92,7 +92,7 @@ function clauseFor(table: ReadonlyArray<[RegExp, Clause]>, r: SwapReason): strin
 }
 
 /** "draw from 12 to 11 (aiming for 9)" for each count a swap moved. */
-function countsClause(note: string): string | null {
+export function countsClause(note: string): string | null {
   const m = note.match(/^roles: (.+)$/);
   if (!m) return null;
   const moves = [...m[1].matchAll(/(\w[\w ]*?) (\d+) → (\d+) of target (\d+)/g)].map(
@@ -116,6 +116,8 @@ export function swapSentences(s: {
   out: string[];
   kind: string;
   reasons: SwapReason[];
+  /** Name the card that came in even when it is the only one ("Sol Ring is in 90%..."). */
+  named?: boolean;
 }): { why: string; weaker: string | null } {
   const ins = new Set(s.in);
   const outs = new Set(s.out);
@@ -127,9 +129,15 @@ export function swapSentences(s: {
     clauses.push({ name: r.name, text, term: r.term });
     if (clauses.length === 2) break;
   }
-  const named = s.in.length > 1;
+  const named = s.in.length > 1 || s.named === true;
+  // One card in, asked to be named: it leads the first clause and the rest follow
+  // ("Sol Ring is in 90% of decks and adds a mana"), not a name per clause.
   const body = clauses.map((c, i) =>
-    named ? `${c.name} ${c.text}` : i === 0 ? capital(c.text) : c.text
+    s.in.length > 1 || (named && i === 0)
+      ? `${c.name} ${c.text}`
+      : named || i > 0
+        ? c.text
+        : capital(c.text)
   );
   const why =
     s.kind === 'repair'

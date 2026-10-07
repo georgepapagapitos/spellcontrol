@@ -5,7 +5,7 @@ import { describe, it, expect } from 'vitest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { COACH_CARDS } from './__fixtures__/coach-cards.fixtures';
 import { buildCommanderProfile } from './commanderProfile';
-import { dropSymmetricWipes, prefersOneSidedWipes } from './coachWipes';
+import { dropSymmetricWipes, prefersOneSidedWipes, shaveWipeTarget } from './coachWipes';
 
 const real = (name: string): ScryfallCard => ({ ...COACH_CARDS[name] }) as ScryfallCard;
 
@@ -44,5 +44,26 @@ describe('dropSymmetricWipes', () => {
     const gaps = [{ name: 'Blasphemous Act', role: 'boardwipe' }];
     await dropSymmetricWipes([gaps], async () => new Map());
     expect(gaps).toHaveLength(1);
+  });
+});
+
+// Guard (T171 S6): Isshin was generated at "1 of 1 wipes, all roles well-covered"
+// (grade A) and graded "1 of 2, needs more board wipes" (B) by the analysis after a
+// land swap that moved no role count: generation shaves a board deck's wipe target,
+// the analysis did not.
+describe('shaveWipeTarget', () => {
+  const targets = { ramp: 13, removal: 5, boardwipe: 2, cardDraw: 9 };
+
+  it("holds Isshin's board deck one wipe fewer, as generation does", () => {
+    const isshin = real('Isshin, Two Heavens as One');
+    const deck = ['Boros Signet', 'Swords to Plowshares'].map(real);
+    const builds = prefersOneSidedWipes([isshin], buildCommanderProfile(isshin), deck);
+    expect(shaveWipeTarget(targets, builds)).toEqual({ ...targets, boardwipe: 1 });
+  });
+
+  it('leaves a deck that is free to wipe, and a target already at one, alone', () => {
+    expect(shaveWipeTarget(targets, false)).toBe(targets);
+    const one = { ...targets, boardwipe: 1 };
+    expect(shaveWipeTarget(one, true)).toBe(one);
   });
 });

@@ -51,7 +51,7 @@ import { computeMisfits, summarizeMisfits, type MisfitSummary } from './cardFit'
 import { createCoachProtections } from '@/lib/coach/coach-protections';
 import { isUtilityLand } from './landUpgrades';
 import { roleIsIncidental } from './incidentalRole';
-import { dropSymmetricWipes, prefersOneSidedWipes } from './coachWipes';
+import { dropSymmetricWipes, prefersOneSidedWipes, shaveWipeTarget } from './coachWipes';
 import { coachExclusions, dropExcluded, type BuildRemovals } from './coachExclusions';
 import { fetchDeckEdhrecPage, type DeckEdhrecSource } from './deckEdhrecSource';
 import {
@@ -768,7 +768,7 @@ export async function analyzeCommanderDeck(
     // this always lands on GOODSTUFF — thread the commander's own mechanically
     // detected archetype (tribal/spellslinger/etc.) the same way generation does.
     const commanderProfile = buildCommanderProfile(params.commander, params.partnerCommander);
-    const { targets: roleTargets } = getDynamicRoleTargets(
+    const { targets: rawRoleTargets } = getDynamicRoleTargets(
       params.deckSize,
       params.edhrecSource?.themes,
       edhrecData.stats,
@@ -778,6 +778,11 @@ export async function analyzeCommanderDeck(
       commanderProfile.primaryArchetype
     );
 
+    const commanders = [params.commander, params.partnerCommander ?? []].flat();
+    const roleTargets = shaveWipeTarget(
+      rawRoleTargets,
+      prefersOneSidedWipes(commanders, commanderProfile, params.cards)
+    );
     const nonLand = params.cards.filter((c) => !frontTypeLine(c).toLowerCase().includes('land'));
     const averageCmc =
       nonLand.length > 0 ? nonLand.reduce((s, c) => s + (c.cmc ?? 0), 0) / nonLand.length : 0;
@@ -1098,10 +1103,6 @@ export async function analyzeCommanderDeck(
     }
 
     // A deck that builds a board isn't offered a symmetric wipe (E109/E112).
-    const commanders = [
-      params.commander,
-      ...(params.partnerCommander ? [params.partnerCommander] : []),
-    ];
     const excluded = coachExclusions(params.buildRemovals, params.cards, deckSynergy);
     dropExcluded(gapAnalysis, (g) => g.name, excluded);
     dropExcluded(optimizeSwaps?.additions, (a) => a.name, excluded);
