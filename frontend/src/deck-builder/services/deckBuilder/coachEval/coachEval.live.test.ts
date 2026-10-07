@@ -605,6 +605,7 @@ async function coachPass(dump: CoachDump, deck: EvalDeckState): Promise<CoachPas
     settingsFit: fitFor(cards),
     resolveCard: cardFor,
     savesMoney: settings.deckBudget != null || settings.maxCardPrice != null,
+    targetBracket: settings.targetBracket ?? 'all',
   });
   const commanderNames = allNames.slice(0, partner ? 2 : 1);
   const env: ApplyEnv = {

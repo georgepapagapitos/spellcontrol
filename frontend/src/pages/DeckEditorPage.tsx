@@ -3601,6 +3601,8 @@ export function DeckEditorPage() {
                   onOwnedOnlyChange={handleOwnedOnlyChange}
                   settingsBreak={coachSettings.check}
                   hasReplaceCut={replaceCuts.hasCut}
+                  hasProtectedCut={replaceCuts.hasProtectedCut}
+                  targetBracket={coachSettings.targetBracket}
                   aiAgrees={aiAgrees ?? undefined}
                   upgradePlan={
                     planAvailable

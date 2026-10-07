@@ -31,6 +31,7 @@ import type { Change } from './deck-change';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { premiumReason } from '@/deck-builder/services/deckBuilder/premiumCards';
 import type { PlanScore, SubScoreKey } from '@/deck-builder/services/deckBuilder/planScore';
+import { combosCountAtBracket } from '@/deck-builder/services/deckBuilder/deckObjective/terms/combos';
 
 export interface CoachContext {
   planScore?: PlanScore;
@@ -47,6 +48,19 @@ export interface CoachContext {
    * completes a combo: that payoff is explicit and the manual pick is enough.
    */
   hasReplaceCut?: (change: Change) => boolean;
+  /**
+   * The bracket Coach holds the deck to (`coachTargetBracket`). A game-ending
+   * combo completion is promoted only where the whole-deck objective pays for
+   * combos at all: 'all' or 4 and up. Omitted: no promotion.
+   */
+  targetBracket?: number | 'all';
+  /**
+   * Whether the add has a real cut from the replace prompt's own protection
+   * path (`ReplaceCuts.hasProtectedCut`, rankComboCuts for a completion). A
+   * completion with no cut in a full deck keeps its ordinary rank. Omitted
+   * reads as true.
+   */
+  hasProtectedCut?: (change: Change) => boolean;
 }
 
 export interface RankedMove {
@@ -96,8 +110,9 @@ function keepsInMetRole(c: Change): boolean {
 }
 
 /** Tier-3-only lanes — budget saves money but is never a quality concern.
- *  Combos are NOT listed here anymore: an owned-piece combo completion is tier 2
- *  (tonight's "free win"); unowned combo pieces stay tier 3. */
+ *  Combos are NOT listed here: a combo completion (every row ends the game,
+ *  coach-changes.ts) is tier 1 where combos count and the deck can seat it,
+ *  else an owned piece is tier 2 (tonight's "free win") and an unowned one tier 3. */
 const ALWAYS_TIER_3 = new Set<Change['lane']>(['budget', 'similar', 'lands']);
 
 /**
@@ -106,8 +121,40 @@ const ALWAYS_TIER_3 = new Set<Change['lane']>(['budget', 'similar', 'lands']);
  * saves money and its play rate is the cheaper card's, so it can't outrank a
  * staple on that number).
  */
-function planBand(c: Change): number {
+function planBand(c: Change, promotedCombo: boolean): number {
+  // -1: a promoted combo leads its ownership class; it has no play rate to sort by.
+  if (promotedCombo) return -1;
   return c.budding || c.lane === 'budget' ? 1 : 0;
+}
+
+/** Game-ending completions promoted per deck. Past the first three lines the shadow run
+ *  showed combos crowding the first fold (recall against critic-named gaps fell). */
+export const PROMOTED_COMBO_CAP = 3;
+
+/**
+ * The completions that lead the feed: owned first, then the line's deck count,
+ * at most one per card and one per partner set (a second win line off the same
+ * pieces is the repeat `diversifyRankedMoves` already defers).
+ */
+function pickPromotedCombos(eligible: Change[]): Set<Change> {
+  const sorted = [...eligible].sort(
+    (a, b) =>
+      ownershipRank(a) - ownershipRank(b) ||
+      (b.comboPopularity ?? 0) - (a.comboPopularity ?? 0) ||
+      (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)
+  );
+  const picked = new Set<Change>();
+  const names = new Set<string>();
+  const lines = new Set<string | null>();
+  for (const c of sorted) {
+    if (picked.size >= PROMOTED_COMBO_CAP) break;
+    const line = diversityKey(c);
+    if (names.has(c.name) || lines.has(line)) continue;
+    names.add(c.name);
+    lines.add(line);
+    picked.add(c);
+  }
+  return picked;
 }
 
 /**
@@ -116,6 +163,13 @@ function planBand(c: Change): number {
  * An add the replace prompt has no cut for (`ctx.hasReplaceCut`) goes below
  * every other row, tiers included; the prompt exempts an add that newly
  * completes a combo.
+ *
+ * A game-ending combo completion (the combos lane) is tier 1 when the target
+ * bracket lets combos count (`combosCountAtBracket`, the objective's own gate)
+ * and the replace prompt has a protected cut for it, for the first
+ * `PROMOTED_COMBO_CAP` such lines. Its play rate is absent,
+ * so under the inclusion key it sank behind every row that had one; it leads
+ * its ownership class instead, by the line's deck count.
  *
  * Within-tier order: owned < in-other-deck < unowned/undefined, then on-plan
  * before budding, then EDHREC inclusion descending (the one signal every add
@@ -155,9 +209,11 @@ export function rankCoachMoves(changes: Change[], ctx: CoachContext): RankedMove
     // Tier-3-only lanes.
     if (ALWAYS_TIER_3.has(c.lane)) return 3;
 
-    // Combos lane: owned missing piece = tier 2 ("build it tonight"),
-    // unowned missing piece = tier 3 ("nice to have, go buy it").
+    // Combos lane (every row already ends the game, coach-changes.ts): tier 1
+    // where combos count and the deck can give up a protected card for it,
+    // else owned missing piece = tier 2 ("build it tonight"), unowned = tier 3.
     if (c.lane === 'combos') {
+      if (promotedCombo(c)) return 1;
       return c.ownership === 'owned' ? 2 : 3;
     }
 
@@ -191,8 +247,26 @@ export function rankCoachMoves(changes: Change[], ctx: CoachContext): RankedMove
       return [oRank, 0, /\bland\b/i.test(r.change.typeLine ?? '') ? 1 : 0, incl, r.change.name];
     }
     const dScore = r.change.deltaScore ?? 0;
-    return [oRank, planBand(r.change), -incl, -dScore, r.change.name];
+    const promoted = promotedCombo(r.change);
+    // A promoted completion has no play rate: the line's own deck count stands in.
+    return [
+      oRank,
+      planBand(r.change, promoted),
+      promoted ? -(r.change.comboPopularity ?? 0) : -incl,
+      -dScore,
+      r.change.name,
+    ];
   }
+
+  // A game-ending completion the bracket lets count and the deck can seat.
+  const canPromote = (c: Change): boolean =>
+    c.lane === 'combos' &&
+    c.type === 'add' &&
+    ctx.targetBracket !== undefined &&
+    combosCountAtBracket(ctx.targetBracket) &&
+    (ctx.hasProtectedCut ? ctx.hasProtectedCut(c) : true);
+  let promoted = new Set<Change>();
+  const promotedCombo = (c: Change): boolean => promoted.has(c);
 
   // A role at or over its target. The persisted analysis doesn't recompute
   // between applies, so the live counts decide.
@@ -211,6 +285,8 @@ export function rankCoachMoves(changes: Change[], ctx: CoachContext): RankedMove
     if (c.lane === 'fill-gaps' && c.type === 'add' && roleMet(c.role)) return keepsInMetRole(c);
     return true;
   });
+
+  promoted = pickPromotedCombos(live.filter(canPromote));
 
   const ranked: RankedMove[] = live.map((c) => ({
     change: c,

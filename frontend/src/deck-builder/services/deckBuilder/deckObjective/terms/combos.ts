@@ -25,10 +25,15 @@ export function comboWeight(combo: Pick<DetectedCombo, 'deckCount'>): number {
   return Math.min(1, Math.log10(1 + Math.max(0, combo.deckCount)) / 4);
 }
 
+/** Whether a combo earns anything under this target bracket ('all' and 4+ do). */
+export function combosCountAtBracket(target: number | string | undefined): boolean {
+  return !(typeof target === 'number' && target <= 3);
+}
+
 export const combosTerm: TermFn = (deck, ctx) => {
   const combos = ctx.combos ?? [];
   const target = ctx.customization.targetBracket;
-  if (typeof target === 'number' && target <= 3) {
+  if (!combosCountAtBracket(target)) {
     return { value: 0, summary: `combos earn nothing at target bracket ${target}`, cards: [] };
   }
   const seen = new Set<string>();

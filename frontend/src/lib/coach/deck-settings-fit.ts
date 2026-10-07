@@ -65,11 +65,16 @@ export type SettingsBreak =
 
 const RARITY_ORDER = ['common', 'uncommon', 'rare', 'mythic'];
 
-/**
- * The settings Coach holds a deck to, or null when nothing constrains it. The
- * target bracket is the user's stated one when set (`bracketOverride`), else
- * the one the deck was built for.
- */
+/** The target bracket Coach holds a deck to: the user's stated one (`bracketOverride`), else the one it was built for. */
+export function coachTargetBracket(
+  deck: Pick<Deck, 'generationContext' | 'bracketOverride'>
+): TargetBracket | 'all' {
+  const gc = deck.generationContext;
+  const builtFor = gc?.customization?.targetBracket ?? gc?.targetBracket;
+  return (deck.bracketOverride ?? builtFor ?? 'all') as TargetBracket | 'all';
+}
+
+/** The settings Coach holds a deck to, or null when nothing constrains it. */
 export function coachDeckSettings(
   deck: Pick<Deck, 'generationContext' | 'bracketOverride'> & {
     buildReport?: { collectionStrategy?: CollectionStrategy };
@@ -78,8 +83,7 @@ export function coachDeckSettings(
   const gc = deck.generationContext;
   const c: Partial<Customization> = gc?.customization ?? {};
   const collectionMode = c.collectionMode ?? gc?.collectionMode ?? false;
-  const builtFor = c.targetBracket ?? gc?.targetBracket;
-  const target = (deck.bracketOverride ?? builtFor ?? 'all') as TargetBracket;
+  const target = coachTargetBracket(deck);
   const limit =
     c.gameChangerLimit === 'none'
       ? 0
@@ -275,6 +279,8 @@ export interface CoachSettingsHooks {
   cutFits: (add: ScryfallCard) => ((cut: ScryfallCard) => boolean) | undefined;
   /** The deck asks to save money (a budget or a per-card cap): the Budget lane runs. */
   savesMoney: boolean;
+  /** The bracket Coach holds the deck to (`coachTargetBracket`). */
+  targetBracket: TargetBracket | 'all';
 }
 
 /** The deck page's check: the saved settings against the live deck and collection. */
@@ -289,6 +295,7 @@ export function useCoachSettings(
   const generationContext = deck?.generationContext ?? null;
   const bracketOverride = deck?.bracketOverride;
   const collectionStrategy = deck?.buildReport?.collectionStrategy;
+  const targetBracket = coachTargetBracket({ generationContext, bracketOverride });
   const settings = useMemo(
     () =>
       coachDeckSettings({
@@ -308,8 +315,8 @@ export function useCoachSettings(
     });
     const fit = fitsSettings(check);
     const savesMoney = settings?.deckBudget != null || settings?.maxCardPrice != null;
-    return { check, fit, cutFits: (add) => cutKeepsSettings(fit, add), savesMoney };
-  }, [settings, cards, ownedNames, mainboardLimit, suggestionCards]);
+    return { check, fit, cutFits: (add) => cutKeepsSettings(fit, add), savesMoney, targetBracket };
+  }, [settings, cards, ownedNames, mainboardLimit, suggestionCards, targetBracket]);
 }
 
 /** The gap staples the settings allow, for the Next-best-move hero's card picks. */
