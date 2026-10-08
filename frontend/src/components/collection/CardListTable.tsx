@@ -16,6 +16,7 @@ import type { SetMap } from '@/lib/api';
 import { CardRowMenu } from './CardRowMenu';
 import type { OverflowMenuItem } from '@/components/overlays/OverflowMenu';
 import { CardPreview } from '@/components/card/CardPreview';
+import { renderFriendOwners } from '@/components/trade/FriendOwnersPanel';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
 import { RemoveCopiesDialog } from './RemoveCopiesDialog';
 import { BulkMoveToBinderSheet } from '@/components/binder/BulkMoveToBinderSheet';
@@ -1657,6 +1658,7 @@ export function CardListTable({
             displayRows[i] ? cubeListingsFor(displayRows[i].card.name) : []
           }
           getStackQty={(i) => displayRows[i]?.qty ?? 1}
+          renderPanelExtra={(i) => renderFriendOwners(displayRows[i]?.card)}
           onIndexChange={setPreviewIndex}
           onClose={() => setPreviewIndex(null)}
           onEdit={(c) => {
