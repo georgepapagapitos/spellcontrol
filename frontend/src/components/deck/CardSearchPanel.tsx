@@ -49,6 +49,7 @@ import { dismissBinderHint, shouldShowBinderHint } from '@/lib/home/wedge-hints'
 import type { ChipExpression, EnrichedCard } from '../../types';
 import type { GapAnalysisCard, HiddenGemRow } from '@/deck-builder/types';
 import { hiddenGemReason } from '@/deck-builder/services/deckBuilder/hiddenGems';
+import { recordShown, recordSuggestion } from '@/lib/util/suggestion-labels';
 import type { ComboMatch } from '@/types/combos';
 import { OWNERSHIP_BADGE, type ChangeOwnership } from '@/lib/coach/deck-change';
 import {
@@ -1453,6 +1454,33 @@ function SuggestionsResults({
   // Flat order for the parent's ↑/↓/Enter handling: staples, combos, gems.
   const rows = useMemo(() => [...staples, ...combos, ...gems], [staples, combos, gems]);
 
+  // Suggestion labels (E518): what the player added from which group, at what rank.
+  useEffect(() => {
+    recordShown('add-suggestions', staples.length);
+    recordShown('add-combos', combos.length);
+    recordShown('hidden-gems', gems.length);
+  }, [staples.length, combos.length, gems.length]);
+  const labelAdd = (name: string) => {
+    const groups = [
+      { rows: staples, surface: 'add-suggestions', reason: 'staple' },
+      { rows: combos, surface: 'add-combos', reason: 'combos' },
+      { rows: gems, surface: 'hidden-gems', reason: 'hidden-gem' },
+    ] as const;
+    for (const g of groups) {
+      const i = g.rows.findIndex((r) => r.name === name);
+      if (i >= 0) {
+        recordSuggestion({
+          surface: g.surface,
+          action: 'accept',
+          rank: i + 1,
+          reason: g.reason,
+          cardIn: name,
+        });
+        return;
+      }
+    }
+  };
+
   // Suggestion rows carry only a name; resolve the full card on add (same as
   // the Collection tab) so the deck gets a real ScryfallCard.
   const addByName = async (name: string) => {
@@ -1468,6 +1496,7 @@ function SuggestionsResults({
     const claim = pickCollectionCopy(name, collection, allocations, full.id);
     onAdd({ card: full, allocatedCopyId: claim?.copyId ?? null });
     onAnnounce(`Added ${name}`);
+    labelAdd(name);
   };
 
   const addAtIndex = (index: number) => {

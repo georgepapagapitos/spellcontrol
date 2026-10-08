@@ -3,7 +3,7 @@ import { apiUrl } from '@/lib/api/api-base';
 /**
  * First-party, cookieless beacon (see backend/src/routes/events.ts).
  *
- * Three shapes ride one endpoint, and every one sends only an event name, a
+ * Four shapes ride one endpoint, and every one sends only an event name, a
  * normalized path, and low-cardinality strings — no ids, no user data — so an
  * aggregate counter is all the server can ever hold:
  *
@@ -14,6 +14,9 @@ import { apiUrl } from '@/lib/api/api-base';
  *    capped, so a looping error is one beacon, not a flood.
  *  - web vitals (`startVitals`): LCP, CLS and INP for the page load, sent
  *    once when the page is hidden. The server keeps the band, not the value.
+ *
+ *  - suggestion labels (lib/util/suggestion-labels.ts): what a player did with
+ *    a suggestion, for a commander. Off when the player turns it off in Settings.
  *
  * Fire-and-forget: a failed beacon is silently dropped.
  */
@@ -48,6 +51,11 @@ export function normalizePath(pathname: string): string {
   const [, prefix, seg, rest] = m;
   if (prefix === 'decks' && STATIC_SECOND.has(seg)) return pathname;
   return `/${prefix}/:id${rest ? '/*' : ''}`;
+}
+
+/** Fire-and-forget POST of one beacon body; the callers above and suggestion-labels.ts build it. */
+export function sendBeaconPayload(payload: Record<string, unknown>): void {
+  send(payload);
 }
 
 function send(payload: Record<string, unknown>): void {

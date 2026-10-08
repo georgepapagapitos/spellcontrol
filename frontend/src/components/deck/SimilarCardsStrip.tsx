@@ -1,10 +1,11 @@
-import type { JSX } from 'react';
+import { useEffect, type JSX } from 'react';
 import './SimilarCardsStrip.css';
 import { DeckCardRow } from './DeckCardRow';
 import { useSimilarCards } from './useSimilarCards';
 import { toSwapAgainst, type Change, type ChangeOwnership } from '@/lib/coach/deck-change';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '@/types';
+import { recordShown, recordSuggestion } from '@/lib/util/suggestion-labels';
 import type { RankedSimilar } from '@/deck-builder/services/substitutes/surfaces';
 
 export interface SimilarCardsStripProps {
@@ -101,7 +102,24 @@ export function SimilarCardsStrip({
     enabled,
   });
 
-  if (!loading && owned.length === 0 && discovery.length === 0) return null;
+  const shown = owned.length + discovery.length;
+  useEffect(() => {
+    recordShown('similar-cards', shown, target.name);
+  }, [shown, target.name]);
+
+  if (!loading && shown === 0) return null;
+
+  function swapIn(name: string, rank: number) {
+    recordSuggestion({
+      surface: 'similar-cards',
+      action: 'accept',
+      rank,
+      reason: 'similar',
+      cardIn: name,
+      cardOut: target.name,
+    });
+    onSwap(name);
+  }
 
   // Bridge: the page-level onPreview is (name, card) → void, but DeckCardRow
   // delivers onPreview as (change: Change) → void. Adapt per-candidate so we
@@ -119,13 +137,13 @@ export function SimilarCardsStrip({
         <div className="similar-cards-group">
           <span className="similar-cards-group-label">From your collection</span>
           <ul className="similar-cards-list">
-            {owned.map((c) => (
+            {owned.map((c, i) => (
               <DeckCardRow
                 key={`owned:${c.name}`}
                 change={toSwapAgainst(toChange(c, 'owned', target.name), target.name)}
                 commanderName={commanderName}
                 actLabel="Swap in"
-                onAct={() => onSwap(c.name)}
+                onAct={() => swapIn(c.name, i + 1)}
                 acting={swapping}
                 onPreview={makeRowPreview(c)}
               />
@@ -141,13 +159,13 @@ export function SimilarCardsStrip({
             <p className="similar-cards-loading">Finding similar cards…</p>
           ) : (
             <ul className="similar-cards-list">
-              {discovery.map((c) => (
+              {discovery.map((c, i) => (
                 <DeckCardRow
                   key={`discovery:${c.name}`}
                   change={toSwapAgainst(toChange(c, 'discovery', target.name), target.name)}
                   commanderName={commanderName}
                   actLabel="Swap in"
-                  onAct={() => onSwap(c.name)}
+                  onAct={() => swapIn(c.name, owned.length + i + 1)}
                   acting={swapping}
                   onPreview={makeRowPreview(c)}
                 />

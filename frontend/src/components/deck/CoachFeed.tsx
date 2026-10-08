@@ -31,7 +31,8 @@ import { rankCoachMoves, type CoachContext, diversifyRankedMoves } from '@/lib/c
 import { cutLane, isPairedCut } from '@/lib/coach/coach-cut-swaps';
 import { useCutSwaps, type CutSwapSources } from '@/lib/coach/use-cut-swaps';
 import { usePlanJudge } from '@/lib/coach/use-plan-judge';
-import { useRegisterShortcuts, isTypingTarget } from '@/components/app-shell/shortcut-registry';
+import { useFilterCycle } from './use-filter-cycle';
+import { useCoachFeedLabels } from './use-coach-feed-labels';
 import type { GapAnalysisCard } from '@/deck-builder/types';
 import type { OptimizeSwaps } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
 import type { SynergySuggestion } from '@/deck-builder/services/synergy/suggest';
@@ -51,7 +52,6 @@ import type { DeckView } from './DeckDisplay';
 import { Chip } from '@/components/shared/Chip';
 import type { SettingsBreak } from '@/lib/coach/deck-settings-fit';
 import {
-  COACH_SHORTCUTS,
   FILTER_LABELS,
   FOCUS_TO_FILTER,
   ROW_CAP,
@@ -367,31 +367,6 @@ export function CoachFeed({
     []
   );
 
-  // ── Shortcut registration + `f` key cycle ───────────────────────────────
-  useRegisterShortcuts('Coach', COACH_SHORTCUTS);
-
-  // Ordered list of chips that actually have rows (used to cycle with `f`).
-  // Computed from filterCounts, but filterCounts isn't available yet (it's
-  // defined below in the return path). We derive it inline from addsAndSwaps
-  // after ranking, so the effect can reference it. We store it in a ref so
-  // the keydown listener always sees the current set without re-registering.
-  const cyclableFiltersRef = useRef<FilterId[]>(['all']);
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key !== 'f' || e.metaKey || e.ctrlKey || e.altKey) return;
-      if (isTypingTarget(e.target)) return;
-      const filters = cyclableFiltersRef.current;
-      if (filters.length === 0) return;
-      setActiveFilter((curr) => {
-        const idx = filters.indexOf(curr);
-        return filters[(idx + 1) % filters.length];
-      });
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, []);
-
   // ── Build all changes ────────────────────────────────────────────────────
 
   const unfiltered = useMemo<Change[]>(
@@ -619,18 +594,19 @@ export function CoachFeed({
     );
   }, [offMetaOnly, filteredRows, isOwnedEmpty, activeFilter, addsAndSwaps, ownedOnly]);
 
-  // ── Update cyclable-filters ref (for `f` key cycle) ─────────────────────
-  // The `f` key listener uses a ref so it doesn't need to re-register on
-  // every render; we sync it via an effect (writing refs during render is
-  // flagged by react-hooks/refs).
+  // ── `f` key cycle + suggestion labels ────────────────────────────────────
   const cyclableList = useMemo<FilterId[]>(
     () =>
       (Object.keys(FILTER_LABELS) as FilterId[]).filter((f) => f === 'all' || totalCounts[f] > 0),
     [totalCounts]
   );
-  useEffect(() => {
-    cyclableFiltersRef.current = cyclableList;
-  }, [cyclableList]);
+  useFilterCycle(cyclableList, setActiveFilter);
+  const labelRows = useMemo(() => filteredRows.map((r) => r.change), [filteredRows]);
+  const labels = useCoachFeedLabels(activeFilter, labelRows, cutsLoading);
+  const act = (c: Change) => {
+    labels.accept(c);
+    handleApplyWithLeave(c);
+  };
 
   // ── Drop-in budget changes for "Apply all" ───────────────────────────────
 
@@ -709,7 +685,10 @@ export function CoachFeed({
       judge={planJudge.status === 'ready' ? planJudge.judge : undefined}
       edhrecMissing={edhrecMissing}
       onRetry={onRetryAnalysis}
-      onApply={upgradePlan.onApply}
+      onApply={(steps, toCopy) => {
+        labels.acceptPlan(steps);
+        return upgradePlan.onApply(steps, toCopy);
+      }}
       onClose={() => upgradePlan.onOpenChange(false)}
     />
   );
@@ -868,7 +847,8 @@ export function CoachFeed({
                 <Button
                   variant="primary"
                   icon={<Check width={14} height={14} strokeWidth={1.8} />}
-                  onClick={() =>
+                  onClick={() => {
+                    labels.acceptAll(dropInChanges.map((r) => r.change));
                     void onApplyAllDropIns(
                       dropInChanges
                         .filter((r) => r.change.inName)
@@ -876,8 +856,8 @@ export function CoachFeed({
                           removeName: r.change.inName!,
                           addName: r.change.name,
                         }))
-                    )
-                  }
+                    );
+                  }}
                 >
                   Apply all {dropInChanges.length} drop-in{dropInChanges.length > 1 ? 's' : ''}
                 </Button>
@@ -888,14 +868,15 @@ export function CoachFeed({
                 <Button
                   variant="primary"
                   icon={<Check width={14} height={14} strokeWidth={1.8} />}
-                  onClick={() =>
+                  onClick={() => {
+                    labels.acceptAll(bracketSwaps.map((r) => r.change));
                     void onConvergeBracket(
                       bracketSwaps.map((r) => ({
                         removeName: r.change.inName!,
                         addName: r.change.name,
                       }))
-                    )
-                  }
+                    );
+                  }}
                 >
                   Apply all {bracketSwaps.length} swap{bracketSwaps.length > 1 ? 's' : ''}
                 </Button>
@@ -969,7 +950,7 @@ export function CoachFeed({
                             c.inName!
                           )
                         }
-                        onAct={(c) => handleApplyWithLeave(c)}
+                        onAct={act}
                         actLabel={change.lane === 'decks' ? 'Move in' : undefined}
                         acting={
                           busy.has(change.name) || (change.inName ? busy.has(change.inName) : false)
@@ -989,7 +970,7 @@ export function CoachFeed({
                           alternatives={change.alternatives}
                           commanderName={commanderShort}
                           onPreview={(name) => carousel.open(previewEntries, name)}
-                          onAct={(c) => handleApplyWithLeave(c)}
+                          onAct={act}
                           acting={(name) => busy.has(name)}
                         />
                       )}

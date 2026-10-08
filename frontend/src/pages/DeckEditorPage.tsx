@@ -208,6 +208,7 @@ import { ReplaceCommanderDialog } from './deck-editor/ReplaceCommanderDialog';
 import { DeckEditorHero } from './deck-editor/DeckEditorHero';
 import { DeckEditorOverflowMenu } from './deck-editor/DeckEditorOverflowMenu';
 import { DeckScryfallDropOverlay } from './deck-editor/DeckScryfallDropOverlay';
+import { useSuggestionContext } from '@/lib/util/use-suggestion-context';
 
 export function DeckEditorPage() {
   const { id } = useParams<{ id: string }>();
@@ -215,13 +216,12 @@ export function DeckEditorPage() {
   const location = useLocation();
   const deck = useDecksStore((s) => s.decks.find((d) => d.id === id) ?? null);
   const currency = useCurrency();
-  // Names the browser print job / tab title — the print stylesheet has no
-  // other way to label a printed checklist with the deck's name.
+  // Names the print job and tab: the print stylesheet can't label a checklist.
   useDocumentTitle(deck?.name);
+  useSuggestionContext(deck);
   const decksHydrated = useDecksStore((s) => s.hydrated);
-  // A fresh device hydrates an EMPTY IndexedDB first; the deck only arrives with the
-  // first server pull. Treat that pull as part of loading, or a bookmarked deck reads
-  // as deleted for the seconds it takes (sweep-3 B6-01).
+  // A fresh device hydrates an EMPTY IndexedDB first; the deck arrives with the first
+  // server pull. Count that pull as loading, or a bookmark reads as deleted (sweep-3 B6-01).
   const syncing = useSyncExternalStore(onSyncedChange, () => getSyncState() === 'syncing');
   const updateDeck = useDecksStore((s) => s.updateDeck);
   const markArrivalsReviewed = useDecksStore((s) => s.markArrivalsReviewed);

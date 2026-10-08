@@ -654,6 +654,20 @@ export async function createTestEnv(): Promise<TestEnv> {
       count INTEGER NOT NULL DEFAULT 0,
       PRIMARY KEY (day, path, metric, rating)
     );
+    CREATE TABLE suggestion_counts (
+      day DATE NOT NULL,
+      surface TEXT NOT NULL,
+      action TEXT NOT NULL,
+      reason TEXT NOT NULL DEFAULT '',
+      rank SMALLINT NOT NULL DEFAULT 0,
+      commander TEXT NOT NULL,
+      partner TEXT NOT NULL DEFAULT '',
+      card_in TEXT NOT NULL DEFAULT '',
+      card_out TEXT NOT NULL DEFAULT '',
+      commander_name TEXT NOT NULL DEFAULT '',
+      count INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (day, surface, action, reason, rank, commander, partner, card_in, card_out)
+    );
   `);
 
   const db = drizzle(pool, { schema });
