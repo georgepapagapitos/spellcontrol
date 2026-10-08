@@ -35,8 +35,16 @@ describe('grid tile loading placeholder', () => {
     expect(css.slice(at, at + 160)).toContain('animation: none');
   });
 
-  it('keeps the image positioned so it paints over the placeholder', () => {
-    expect(rule('.collection-grid-img')).toContain('position: relative');
+  it('lays the art over the tile box so a lazy image never has a 0px box', () => {
+    // A loading="lazy" <img> with no size never intersects, never loads, and
+    // so never paints: the tile stayed on its placeholder forever.
+    const body = rule('.collection-grid-img--fill');
+    expect(body).toContain('position: absolute');
+    expect(body).toContain('inset: 0');
+    expect(rule('.collection-grid-item')).toContain('aspect-ratio: 488 / 680');
+    expect(rule('.collection-grid-item')).toContain('position: relative');
+    const cell = readFileSync(join(here, '../components/shared/CardGridCell.tsx'), 'utf8');
+    expect(cell).toContain('className="collection-grid-img collection-grid-img--fill"');
   });
 
   it('keeps the rarity chip off the art for surfaces that opt out', () => {

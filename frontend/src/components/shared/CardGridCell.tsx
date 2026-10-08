@@ -253,7 +253,7 @@ export function CardGridCell({
             src={art}
             alt=""
             loading="lazy"
-            className="collection-grid-img"
+            className="collection-grid-img collection-grid-img--fill"
             ref={(el) => {
               if (el?.complete && el.naturalWidth > 0) setLoadedArt(art);
             }}

@@ -1398,12 +1398,19 @@ i.ss.set-symbol--mythic {
 }
 
 .collection-grid-img {
-  /* Above the pending placeholder (positioned, earlier in the DOM). */
-  position: relative;
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
+}
+
+/* CardGridCell's art: laid over the tile's own aspect-ratio box instead of
+   sized by it. A lazy <img> with a 0px box never intersects the viewport, so
+   it never loads; here it always has the card's full shape. It also paints
+   above the pending placeholder (positioned, later in the DOM). */
+.collection-grid-img--fill {
+  position: absolute;
+  inset: 0;
 }
 
 .collection-grid-placeholder {
