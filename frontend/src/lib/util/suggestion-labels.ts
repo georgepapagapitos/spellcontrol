@@ -63,6 +63,7 @@ export const SURFACE_LABELS: Record<SuggestionSurface, string> = {
   'add-suggestions': 'Add panel, suggestions',
   'add-combos': 'Add panel, combos',
   generation: 'Generation review',
+  'cube-swap': 'Cube, swaps',
 };
 
 /** The name Admin shows for a surface id; an id this build doesn't know shows as is. */
