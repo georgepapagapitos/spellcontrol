@@ -78,6 +78,19 @@ export function onPlanCombos(
 }
 
 /**
+ * The new lines whose loop ends the game (`comboEndsGame`, E437): by its results
+ * alone, or because a payoff the deck holds converts it (`deckComboPayoffs`,
+ * E578: Staff of Domination + a mana elf in a Lathril deck). What the combos lane
+ * and its feed rows are built from.
+ */
+export function winningCombos(
+  combos: Parameters<typeof newLineCombos>[0],
+  payoffs?: DeckPayoffs
+): ComboMatch[] {
+  return newLineCombos(combos).filter((m) => comboEndsGame(m.combo.produces, payoffs));
+}
+
+/**
  * The one-away combos that open a line the deck doesn't already assemble. A
  * Spellbook line has variants that swap one piece for another (Demonic
  * Consultation + Laboratory Maniac, Demonic Consultation + Thassa's Oracle):
@@ -109,8 +122,6 @@ export interface CoachChangeSources {
   bracketFit?: BracketFitPlan;
   landUpgrades?: LandUpgradeMove[];
   oneAwayCombos?: ComboMatch[];
-  /** What the deck's own cards convert into a win (`deckComboPayoffs`, E578). */
-  deckPayoffs?: DeckPayoffs;
   /** E90: owned copies idle in a sibling deck. */
   crossDeckMoves?: CrossDeckMove[];
 }
@@ -177,13 +188,12 @@ export function buildCoachChanges(
     return fromBracketFitMove(m, m.type === 'cut' ? undefined : resolveOwnership(m.name));
   });
 
-  // A completion earns the combos lane only when the loop wins the game (the
-  // deck's own payoff shows up as its own Spellbook combo). A loop that only
-  // makes mana or draws is no free win: the card competes on its ordinary fit
-  // through the other lanes (E437, Hullbreaker Horror + Sol Ring).
+  // A completion earns the combos lane only when the loop wins the game, which
+  // the caller decides (`winningCombos`): a loop that only makes mana or
+  // draws is no free win, and competes on its ordinary fit through the other
+  // lanes (E437, Hullbreaker Horror + Sol Ring).
   const comboChanges: Change[] = (src.oneAwayCombos ?? [])
     .filter((match) => match.missingOracleIds.length === 1)
-    .filter((match) => comboEndsGame(match.combo.produces, src.deckPayoffs))
     .map((match) => {
       const missingId = match.missingOracleIds[0];
       const missingCard = match.combo.cards.find((c) => c.oracleId === missingId);

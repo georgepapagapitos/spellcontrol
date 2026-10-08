@@ -53,7 +53,8 @@ function kindsOf(f: CardFacts): DeckPayoffs {
   const isCreature = f.types.includes('creature');
   const damagesViaCounters = f.abilities.some(
     (a) =>
-      a.cost.includes('remove-counter') && a.effects.some((e) => e.verb === 'damage' && hurtsOpponent(e))
+      a.cost.includes('remove-counter') &&
+      a.effects.some((e) => e.verb === 'damage' && hurtsOpponent(e))
   );
   for (const a of f.abilities) {
     if (a.kind === 'activated' && a.repeat !== 'once') {

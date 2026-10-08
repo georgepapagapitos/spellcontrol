@@ -17,6 +17,12 @@
  * favorable one: nothing freed, an owned card out.
  */
 import { useMemo } from 'react';
+import { hasCardFacts } from '@/deck-builder/services/cardFacts';
+import {
+  NO_PAYOFFS,
+  deckComboPayoffs,
+  type DeckPayoffs,
+} from '@/deck-builder/services/winConditions/comboPayoffs';
 import {
   fromComboCompletion,
   fromGapCard,
@@ -281,6 +287,8 @@ export interface CoachSettingsHooks {
   savesMoney: boolean;
   /** The bracket Coach holds the deck to (`coachTargetBracket`). */
   targetBracket: TargetBracket | 'all';
+  /** What the deck's own cards convert into a win (`deckComboPayoffs`, E578). */
+  deckPayoffs: DeckPayoffs;
 }
 
 /** The deck page's check: the saved settings against the live deck and collection. */
@@ -290,7 +298,15 @@ export function useCoachSettings(
   mainboardLimit: number
 ): CoachSettingsHooks {
   const cards = deck?.cards;
+  const commander = deck?.commander;
+  const partner = deck?.partnerCommander;
+  const commanders = useMemo(
+    () => [commander, partner].filter((c): c is ScryfallCard => !!c),
+    [commander, partner]
+  );
   const suggestionCards = deck?.suggestionCards;
+  // The facts snapshot loads after first paint; the payoffs refresh once it has.
+  const factsReady = hasCardFacts();
   // Only the settings' own inputs: a card edit doesn't change them.
   const generationContext = deck?.generationContext ?? null;
   const bracketOverride = deck?.bracketOverride;
@@ -315,8 +331,25 @@ export function useCoachSettings(
     });
     const fit = fitsSettings(check);
     const savesMoney = settings?.deckBudget != null || settings?.maxCardPrice != null;
-    return { check, fit, cutFits: (add) => cutKeepsSettings(fit, add), savesMoney, targetBracket };
-  }, [settings, cards, ownedNames, mainboardLimit, suggestionCards, targetBracket]);
+    const deckPayoffs = factsReady ? deckComboPayoffs([...commanders, ...mainboard]) : NO_PAYOFFS;
+    return {
+      check,
+      fit,
+      cutFits: (add) => cutKeepsSettings(fit, add),
+      savesMoney,
+      targetBracket,
+      deckPayoffs,
+    };
+  }, [
+    settings,
+    cards,
+    ownedNames,
+    mainboardLimit,
+    suggestionCards,
+    targetBracket,
+    commanders,
+    factsReady,
+  ]);
 }
 
 /** The gap staples the settings allow, for the Next-best-move hero's card picks. */

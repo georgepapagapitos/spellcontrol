@@ -52,7 +52,9 @@ describe('comboEndsGame with the deck in hand', () => {
 
   it('infinite mana with no sink stays non-winning; with an X spell or Ballista it wins', () => {
     const loop = ['Infinite colorless mana'];
-    expect(comboEndsGame(loop, payoffsOf('Sol Ring', 'Cultivate', 'Priest of Titania'))).toBe(false);
+    expect(comboEndsGame(loop, payoffsOf('Sol Ring', 'Cultivate', 'Priest of Titania'))).toBe(
+      false
+    );
     expect(comboEndsGame(loop, payoffsOf('Banefire'))).toBe(true);
     expect(comboEndsGame(loop, payoffsOf('Walking Ballista'))).toBe(true);
   });
@@ -70,7 +72,7 @@ describe('comboEndsGame with the deck in hand', () => {
     expect(comboEndsGame(dies, payoffsOf('Impact Tremors'))).toBe(false);
   });
 
-  it('infinite draw is not converted here: Spellbook lists Thassa\'s Oracle lines itself', () => {
+  it("infinite draw is not converted here: Spellbook lists Thassa's Oracle lines itself", () => {
     expect(comboEndsGame(['Infinite card draw'], payoffsOf("Thassa's Oracle"))).toBe(false);
   });
 

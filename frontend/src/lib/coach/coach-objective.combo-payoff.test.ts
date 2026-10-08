@@ -16,6 +16,7 @@ import { deckComboPayoffs } from '@/deck-builder/services/winConditions/comboPay
 import type { DetectedCombo, ScryfallCard } from '@/deck-builder/types';
 import type { ComboMatch } from '@/types/combos';
 import { coachCombos } from './coach-objective';
+import { winningCombos } from './coach-changes';
 
 const real = (name: string, type_line: string, oracle_text: string, extra = {}) =>
   ({ name, type_line, oracle_text, keywords: [], ...extra }) as unknown as ScryfallCard;
@@ -125,5 +126,24 @@ describe('Coach credits a loop the deck converts into a win', () => {
       }).filter((m) => m.cardName === 'Staff of Domination');
     expect(moves([LATHRIL, PRIEST])).toHaveLength(1);
     expect(moves([GRIZZLY, PRIEST])).toHaveLength(0);
+  });
+
+  it('the combos lane keeps a converted line and drops it without the payoff', () => {
+    const match = {
+      combo: {
+        id: 'x',
+        produces: line.results,
+        popularity: 2000,
+        cards: [
+          { oracleId: 'a', cardName: 'Staff of Domination' },
+          { oracleId: 'b', cardName: 'Priest of Titania' },
+        ],
+      },
+      missingOracleIds: ['a'],
+    } as unknown as ComboMatch;
+    const data = { oneAway: [match], inDeck: [] };
+    expect(winningCombos(data, deckComboPayoffs([LATHRIL, PRIEST]))).toHaveLength(1);
+    expect(winningCombos(data, deckComboPayoffs([GRIZZLY, PRIEST]))).toHaveLength(0);
+    expect(winningCombos(data)).toHaveLength(0);
   });
 });

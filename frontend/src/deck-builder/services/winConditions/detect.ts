@@ -222,7 +222,9 @@ function comboBucket(results: string[]): 'win' | 'damage' | 'tokens' | 'grow' | 
  * results alone decide, as before.
  */
 export function comboEndsGame(results: string[], payoffs?: DeckPayoffs): boolean {
-  return comboBucket(results) !== 'other' || (payoffs !== undefined && loopConverts(results, payoffs));
+  return (
+    comboBucket(results) !== 'other' || (payoffs !== undefined && loopConverts(results, payoffs))
+  );
 }
 
 // ── Voltron heuristic ────────────────────────────────────────────────────────

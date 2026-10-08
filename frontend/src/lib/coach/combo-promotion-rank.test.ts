@@ -17,7 +17,7 @@ import { describe, it, expect } from 'vitest';
 import type { GapAnalysisCard, ScryfallCard } from '@/deck-builder/types';
 import type { ComboMatch } from '@/types/combos';
 import { comboEndsGame } from '@/deck-builder/services/winConditions/detect';
-import { buildCoachChanges } from './coach-changes';
+import { buildCoachChanges, winningCombos } from './coach-changes';
 import { rankCoachMoves, diversifyRankedMoves, type CoachContext } from './coach-rank';
 import { replaceCuts } from './replace-cuts';
 import { coachTargetBracket } from './deck-settings-fit';
@@ -158,7 +158,12 @@ const ctx = (over: Partial<CoachContext> = {}): CoachContext => ({
 const names = (oneAwayCombos: ComboMatch[], c: CoachContext, owned: string[] = []) => {
   const ownedSet = new Set(owned);
   const changes = buildCoachChanges(
-    { gaps, synergy: [], substitutes: [], oneAwayCombos },
+    {
+      gaps,
+      synergy: [],
+      substitutes: [],
+      oneAwayCombos: winningCombos({ oneAway: oneAwayCombos }),
+    },
     (n) => (ownedSet.has(n) ? 'owned' : 'unowned'),
     new Set()
   );

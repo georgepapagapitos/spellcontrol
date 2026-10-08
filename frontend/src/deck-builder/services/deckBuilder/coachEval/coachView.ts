@@ -32,7 +32,7 @@ import { buildSubstitutionOptions, type SubstituteCandidate } from '../substitut
 import { ownedAlternativesReranker } from '@/deck-builder/services/substitutes/surfaces';
 import {
   buildCoachChanges,
-  newLineCombos,
+  winningCombos,
   onPlanCombos,
   staplesToSubstitute,
 } from '@/lib/coach/coach-changes';
@@ -216,8 +216,7 @@ export function buildCoachView(input: CoachViewInputs): CoachView {
       costPlan,
       bracketFit: analysis.bracketFit ?? undefined,
       landUpgrades,
-      oneAwayCombos: newLineCombos(input.combos),
-      deckPayoffs,
+      oneAwayCombos: winningCombos(input.combos, deckPayoffs),
       crossDeckMoves: [],
     },
     ownershipFor,
