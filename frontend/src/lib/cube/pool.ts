@@ -7,6 +7,7 @@ import { cubeSignalOf } from './signal';
 import type { OracleFacts } from './oracle';
 import type { EnrichedCard } from '@/types';
 import type { RarityCap } from './pool-filters';
+import { alwaysProducedMana, fixedColourOf } from '@/lib/mana-sim/unconditional-mana';
 
 // ---------------------------------------------------------------------------
 // API contract types
@@ -250,7 +251,8 @@ export function namesToCubePool(
       role: cubeRole(name),
       rank: s?.edhrec_rank ?? card?.edhrecRank,
       colorIdentity: s?.color_identity ?? card?.colorIdentity,
-      producedMana: s?.produced_mana,
+      producedMana: alwaysProducedMana(s?.oracle_text, s?.produced_mana),
+      fixesWith: fixedColourOf(s?.oracle_text),
       oracleText: s?.oracle_text,
       ...cubeSignalOf(name, scope),
       ...synergyTags(s ?? { name }),

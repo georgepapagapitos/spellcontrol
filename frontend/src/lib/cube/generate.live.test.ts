@@ -128,6 +128,16 @@ interface Row {
 }
 
 const names = (cube: GeneratedCube) => cube.picks.map((p) => p.card.name);
+/** Every guarded row's picks, keyed `size/level[/pool]`, written to cube-picks.json:
+ *  what an A/B reads to name each card that changed and the reason it was picked. */
+const pickDump: Record<string, { name: string; bucket: string; reason: string }[]> = {};
+const dumpPicks = (key: string, cube: GeneratedCube) => {
+  pickDump[key] = cube.picks.map((p) => ({
+    name: p.card.name,
+    bucket: p.bucket,
+    reason: p.reason,
+  }));
+};
 const removalCount = (picks: Pick[]) =>
   picks.filter((p) => p.card.role === 'removal' || p.card.role === 'boardwipe').length;
 const creatureShare = (picks: Pick[]) =>
@@ -256,6 +266,7 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
       [...goodstuffBySize].map(([size, cube]) => [size, names(cube)])
     );
     writeFileSync(out, JSON.stringify({ ...summary, rows, goodstuffPicks }, null, 2));
+    writeFileSync(join(OUT_DIR, 'cube-picks.json'), JSON.stringify(pickDump, null, 1));
     if (legendCoverageRows.length > 0) {
       const legendOut = join(OUT_DIR, 'legend-coverage.json');
       writeFileSync(legendOut, JSON.stringify(legendCoverageRows, null, 2));
@@ -333,6 +344,7 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
         expect(s.interaction).toBeGreaterThanOrEqual(0.9);
         expect(creatureShare(cube.picks)).toBeGreaterThanOrEqual(band.type.creature.p25 - 0.01);
         expect(rampShare(cube.picks)).toBeLessThanOrEqual(band.role.ramp.p75 + 0.01);
+        dumpPicks(`360/${level}/commander`, cube);
         rows.push({
           size: 360,
           level,
@@ -467,6 +479,7 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
             expect(s[k]).toBeGreaterThanOrEqual(0);
             expect(s[k]).toBeLessThanOrEqual(1);
           }
+          dumpPicks(`360/${level}/${preset}`, cube);
           rows.push({
             size: 360,
             level,
@@ -655,6 +668,7 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
         // E288 guard: roles are capped at the corpus p75 — quality order alone
         // filled 15–18% of a cube with ramp against an 8% corpus median.
         expect(rampShare(cube.picks)).toBeLessThanOrEqual(band.role.ramp.p75 + 0.01);
+        dumpPicks(`${size}/0`, cube);
         rows.push({
           size,
           level: 0,
@@ -800,6 +814,7 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
           }
 
           const seedNames = new Set(names(goodstuff));
+          dumpPicks(`${size}/${level}`, cube);
           rows.push({
             size,
             level,
