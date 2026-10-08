@@ -213,3 +213,67 @@ describe('SearchPage keyboard nav', () => {
     expect(h.addActive).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('SearchPage rules', () => {
+  // Shaped like the generated keyword glossary; the rule sentence is the real
+  // Comprehensive Rules text for 702.21a.
+  const GLOSSARY = {
+    meta: { effective: 'September 25, 2026' },
+    keywords: [
+      {
+        name: 'Ward',
+        rule: '702.21',
+        kind: 'ability',
+        text: 'Ward [cost] means “Whenever this permanent becomes the target of a spell or ability an opponent controls, counter that spell or ability unless that player pays [cost].”',
+      },
+      {
+        name: 'Scry',
+        rule: '701.22',
+        kind: 'action',
+        text: 'To “scry N” means to look at the top N cards of your library.',
+      },
+    ],
+  };
+  const fetchMock = vi.fn(() =>
+    Promise.resolve(new Response(JSON.stringify(GLOSSARY), { status: 200 }))
+  );
+
+  beforeEach(() => {
+    vi.stubGlobal('fetch', fetchMock);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('has a door to /rules beside the syntax helper', () => {
+    renderPage();
+    expect(screen.getByRole('link', { name: 'Rules' }).getAttribute('href')).toBe('/rules');
+  });
+
+  it('puts the rule of a searched keyword above the cards, linking to it on /rules', async () => {
+    renderPage('/search?q=ward');
+    const hit = await screen.findByRole('link', { name: /Ward Keyword ability · 702\.21/ });
+    expect(hit.getAttribute('href')).toBe('/rules?tab=keywords&q=Ward');
+    expect(hit.textContent).toContain('Ward [cost] means');
+    // The rule leads, the cards follow.
+    expect(
+      hit.compareDocumentPosition(screen.getByTestId('results')) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
+
+  it('reads a printed form of a keyword action', async () => {
+    renderPage('/search?q=scried');
+    expect(await screen.findByRole('link', { name: /Scry Keyword action · 701\.22/ })).toBeTruthy();
+  });
+
+  it('shows no rule for a card name, and never fetches the glossary for syntax', async () => {
+    fetchMock.mockClear();
+    renderPage('/search?q=t:dragon');
+    expect(screen.getByTestId('results')).toBeTruthy();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    renderPage('/search?q=Sol Ring');
+    await waitFor(() => expect(screen.getAllByTestId('results')).toHaveLength(2));
+    expect(screen.queryByRole('link', { name: /Keyword/ })).toBeNull();
+  });
+});

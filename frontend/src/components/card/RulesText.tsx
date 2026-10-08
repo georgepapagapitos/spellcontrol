@@ -1,7 +1,12 @@
 import './RulesText.css';
 import { useId } from 'react';
 import { createPortal } from 'react-dom';
-import { useRulesText, type KeywordGloss, type OracleSegment } from '@/lib/cards/keyword-glossary';
+import {
+  KEYWORD_KIND_LABEL,
+  useRulesText,
+  type KeywordGloss,
+  type OracleSegment,
+} from '@/lib/cards/keyword-glossary';
 import { useAnchoredPanel } from '@/lib/overlays/use-anchored-panel';
 import { useRulesReferenceStore } from '@/store/rules-reference';
 import { Button } from '@/components/shared/Button';
@@ -41,11 +46,6 @@ export function RulesTextParagraphs({ text, names }: { text: string; names?: rea
     </>
   );
 }
-
-const KIND_LABEL: Record<KeywordGloss['kind'], string> = {
-  ability: 'Keyword ability',
-  action: 'Keyword action',
-};
 
 /**
  * A keyword in rules text. It reads as the word it is, marked only by a
@@ -109,7 +109,7 @@ function KeywordTerm({ entry, children }: { entry: KeywordGloss; children: strin
                   {entry.name}
                 </span>
                 <span className="keyword-pop-meta">
-                  {KIND_LABEL[entry.kind]} · {entry.rule}
+                  {KEYWORD_KIND_LABEL[entry.kind]} · {entry.rule}
                 </span>
               </div>
               <p className="keyword-pop-text">

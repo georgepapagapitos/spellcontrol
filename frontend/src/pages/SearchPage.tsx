@@ -1,5 +1,5 @@
 import { Surface } from '../components/shared/Surface';
-import { AlignJustify, HelpCircle, LayoutGrid, List } from 'lucide-react';
+import { AlignJustify, BookOpen, ChevronRight, HelpCircle, LayoutGrid, List } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import './SearchPage.css';
@@ -11,6 +11,12 @@ import { useCollapsedPref } from '@/lib/util/use-collapsed-pref';
 import { useResultsKeys } from '@/lib/search/use-results-keys';
 import { useStoredView } from '@/lib/util/use-stored-view';
 import { offlineDataAvailable, useOfflineStore } from '../store/offline';
+import { MagicText } from '@/components/deck/MagicText';
+import {
+  KEYWORD_KIND_LABEL,
+  useKeywordLookup,
+  type KeywordGloss,
+} from '@/lib/cards/keyword-glossary';
 
 // Don't autofocus on touch — the soft keyboard would cover the landing copy
 // the moment the page opens. Desktop (fine pointer, per the project's touch
@@ -117,6 +123,7 @@ export function SearchPage() {
   };
 
   const searching = query.trim().length >= 2;
+  const keyword = useKeywordLookup(query);
   // The landing's browse rails want the wide column the grid results use.
   const wide = !searching || view === 'grid';
 
@@ -143,16 +150,27 @@ export function SearchPage() {
         inputProps={{ onKeyDown: resultsKeyDown }}
       />
       <div className="search-syntax">
-        <button
-          type="button"
-          className="search-syntax-toggle"
-          aria-expanded={!syntaxCollapsed}
-          aria-controls="search-syntax-panel"
-          onClick={() => setSyntaxCollapsed((v) => !v)}
-        >
-          <HelpCircle width={14} height={14} strokeWidth={1.8} aria-hidden />
-          Search syntax
-        </button>
+        <div className="search-tools">
+          <button
+            type="button"
+            className="search-syntax-toggle"
+            aria-expanded={!syntaxCollapsed}
+            aria-controls="search-syntax-panel"
+            onClick={() => setSyntaxCollapsed((v) => !v)}
+          >
+            <HelpCircle width={14} height={14} strokeWidth={1.8} aria-hidden />
+            Search syntax
+          </button>
+          {/* The phone's Rules door. The header carries Rules beside Search,
+              but the header is gone below 1024px and the tab bar has no room,
+              so on a phone Rules rides in the Search tab it sits beside on
+              desktop. Hidden from 1024px, where the header door is one row up
+              (STYLE_GUIDE decks § Rules is a place). */}
+          <Link className="search-rules-door" to="/rules">
+            <BookOpen width={14} height={14} strokeWidth={1.8} aria-hidden />
+            Rules
+          </Link>
+        </div>
         {!syntaxCollapsed && (
           <Surface
             as="div"
@@ -192,6 +210,7 @@ export function SearchPage() {
       </div>
       {searching ? (
         <>
+          {keyword && <SearchRulesHit entry={keyword} />}
           <div className="search-page-toolbar">
             <ViewModeToggle<InlineCardSearchView>
               ariaLabel="Result layout"
@@ -227,5 +246,47 @@ export function SearchPage() {
         <BrowseRails />
       )}
     </div>
+  );
+}
+
+/**
+ * A query that names a keyword gets its rule first, as one row above the
+ * cards: the rule's own sentence, the way the keyword popover in card text
+ * says it, and a door to the full rule on /rules with its subrules open.
+ * Nothing renders for any other query.
+ */
+function SearchRulesHit({ entry }: { entry: KeywordGloss }) {
+  return (
+    <Link
+      className="search-rules-hit"
+      to={`/rules?tab=keywords&q=${encodeURIComponent(entry.name)}`}
+      state={{ expand: entry.name }}
+    >
+      <BookOpen
+        className="search-rules-hit-icon"
+        width={18}
+        height={18}
+        strokeWidth={2}
+        aria-hidden
+      />
+      <span className="search-rules-hit-body">
+        <span className="search-rules-hit-head">
+          <span className="search-rules-hit-name">{entry.name}</span>
+          <span className="search-rules-hit-meta">
+            {KEYWORD_KIND_LABEL[entry.kind]} · {entry.rule}
+          </span>
+        </span>
+        <span className="search-rules-hit-text">
+          <MagicText text={entry.text} />
+        </span>
+      </span>
+      <ChevronRight
+        className="search-rules-hit-chevron"
+        width={16}
+        height={16}
+        strokeWidth={2}
+        aria-hidden
+      />
+    </Link>
   );
 }
