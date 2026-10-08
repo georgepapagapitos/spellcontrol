@@ -221,6 +221,8 @@ export function DeckDisplay({
   activeView = 'deck',
   tabbed = true,
   onShowTestHand,
+  editActions,
+  deckActionsInHeader,
   onAddCards,
   onChooseCommander,
   analysisState = 'ready',
@@ -1334,6 +1336,8 @@ export function DeckDisplay({
               canBulkEdit={canBulkEdit}
               selectMode={selectMode}
               onToggleSelectMode={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
+              editActions={editActions}
+              deckActionsInHeader={deckActionsInHeader}
             />
 
             {selectMode && (

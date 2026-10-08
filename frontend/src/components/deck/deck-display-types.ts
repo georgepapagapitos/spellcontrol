@@ -16,6 +16,7 @@ import type { ArrivalsByType } from '@/lib/coach/new-arrivals';
 import type { ComboMatch } from '@/types/combos';
 import type { BinderInfo } from '../BinderBadge';
 import type { DeckCardActionCtx } from './deck-card-actions';
+import type { ListAction } from './DeckToolbar';
 
 // ── Props ─────────────────────────────────────────────────────────────────
 export interface DeckDisplayCard {
@@ -256,8 +257,15 @@ export interface DeckDisplayProps {
   /** False when the page shows no view tabs (a lone Deck view), so this is
    *  not labelled as a tab panel. */
   tabbed?: boolean;
-  /** Reveal the standalone Test hand panel — surfaced in the Deck-view toolbar. */
+  /** Reveal the standalone Test hand panel. In the toolbar only when the page
+   *  has no header Deck menu of its own (`deckActionsInHeader`). */
   onShowTestHand?: () => void;
+  /** The owner's list edits for the toolbar's Edit menu (paste, bulk edit,
+   *  resync, printings). Absent on a read-only deck. */
+  editActions?: ListAction[];
+  /** The header's Deck menu holds Test hand and Export, so the toolbar leaves
+   *  them out (STYLE_GUIDE § Deck page menus). */
+  deckActionsInHeader?: boolean;
   /** Opens the add-cards sheet — used by the empty-deck state's CTA (E182). */
   onAddCards?: () => void;
   /**

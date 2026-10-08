@@ -7,6 +7,7 @@ import 'fake-indexeddb/auto';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { ClipboardPaste, FileText } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { DeckDisplay, type DeckDisplayCard } from './DeckDisplay';
 
@@ -53,7 +54,13 @@ function setNarrow(narrow: boolean) {
     }) as unknown as MediaQueryList) as typeof window.matchMedia;
 }
 
-function renderDeck(opts: { narrow: boolean; sideboard?: string[]; considering?: string[] }) {
+function renderDeck(opts: {
+  narrow: boolean;
+  sideboard?: string[];
+  considering?: string[];
+  /** The owner's editor: list edits for the Edit menu, deck actions in the header. */
+  owner?: boolean;
+}) {
   setNarrow(opts.narrow);
   return render(
     <MemoryRouter>
@@ -64,6 +71,15 @@ function renderDeck(opts: { narrow: boolean; sideboard?: string[]; considering?:
         cards={slots(['Mainboard Card'])}
         sideboard={slots(opts.sideboard ?? [])}
         considering={slots(opts.considering ?? [])}
+        onShowTestHand={() => {}}
+        {...(opts.owner && {
+          onBulkRemove: () => {},
+          deckActionsInHeader: true,
+          editActions: [
+            { label: 'Paste cards', icon: ClipboardPaste, onClick: () => {} },
+            { label: 'Bulk edit', icon: FileText, onClick: () => {} },
+          ],
+        })}
       />
     </MemoryRouter>
   );
@@ -91,10 +107,10 @@ describe('deck toolbar — narrow-viewport fold', () => {
   });
 
   // STYLE_GUIDE § Layout system: the row never wraps. Search, sort, group,
-  // layout and Select sit inline; the row details, the symbol key and the
-  // list actions (Test hand, Export) are in its trailing ⋯, and nothing
-  // filled sits in the toolbar.
-  it('>640px: one row, with the key and the list actions in its ⋯', () => {
+  // layout and Select sit inline; the row details and the symbol key are in
+  // its named View button, a shared deck's Test hand and Export in a kebab
+  // (never in View), and nothing filled sits in the toolbar.
+  it('>640px: one row, with the key in View and the list actions in the kebab', () => {
     const { container, getByRole, queryByRole, getByText } = renderDeck({ narrow: false });
 
     expect(container.querySelector('.deck-toolbar-controls--row')).toBeTruthy();
@@ -105,11 +121,40 @@ describe('deck toolbar — narrow-viewport fold', () => {
     expect(queryByRole('button', { name: /Show symbol key/ })).toBeNull();
     expect(container.querySelector('.deck-toolbar .btn-primary')).toBeNull();
 
-    fireEvent.click(getByRole('button', { name: 'More list options' }));
-    expect(getByRole('button', { name: /Export/ })).toBeTruthy();
+    const view = getByRole('button', { name: 'View options' });
+    expect(view.textContent).toContain('View');
+    fireEvent.click(view);
     expect(getByText('Symbol key')).toBeTruthy();
-    // Group by is on the row, so the ⋯ doesn't repeat it.
+    expect(queryByRole('button', { name: /Export/ })).toBeNull();
+    // Group by is on the row, so View doesn't repeat it.
     expect(queryByRole('button', { name: 'Group cards by' })).toBeNull();
+
+    fireEvent.click(getByRole('button', { name: 'Deck list actions' }));
+    expect(getByRole('menuitem', { name: /Export/ })).toBeTruthy();
+    expect(getByRole('menuitem', { name: /Test hand/ })).toBeTruthy();
+  });
+
+  // The page's three menus are each named for what they act on: the header's
+  // Deck menu (the deck), Edit (the list) and View (the display). With the
+  // deck actions in the header, the toolbar has no unnamed kebab at all.
+  it.each([
+    ['>640px', false],
+    ['≤640px', true],
+  ])('owner, %s: a named Edit menu holds Select and the list edits; no kebab', (_, narrow) => {
+    const { getByRole, queryByRole, getAllByRole } = renderDeck({ narrow, owner: true });
+
+    expect(queryByRole('button', { name: 'Deck list actions' })).toBeNull();
+    expect(queryByRole('button', { name: /^Select$/ })).toBeNull();
+
+    const edit = getByRole('button', { name: 'Edit the list' });
+    expect(edit.textContent).toContain('Edit');
+    fireEvent.click(edit);
+    expect(getAllByRole('menuitem').map((m) => m.textContent)).toEqual([
+      'Select cards',
+      'Paste cards',
+      'Bulk edit',
+    ]);
+    expect(queryByRole('menuitem', { name: /Export|Test hand/ })).toBeNull();
   });
 
   it('>640px but too narrow for the full row: Group by folds into the ⋯', () => {
@@ -125,9 +170,9 @@ describe('deck toolbar — narrow-viewport fold', () => {
       expect(queryByRole('button', { name: /^Group/ })).toBeNull();
       expect(getByRole('group', { name: /Deck view mode/ })).toBeTruthy();
 
-      fireEvent.click(getByRole('button', { name: 'More list options' }));
+      fireEvent.click(getByRole('button', { name: 'View options' }));
       expect(getByRole('button', { name: 'Group cards by' })).toBeTruthy();
-      expect(getByRole('button', { name: /Export/ })).toBeTruthy();
+      expect(queryByRole('button', { name: /Export/ })).toBeNull();
     } finally {
       if (width) Object.defineProperty(HTMLElement.prototype, 'clientWidth', width);
     }

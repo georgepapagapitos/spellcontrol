@@ -340,9 +340,11 @@ meanwhile.
   and detail header uses it except the deck page, whose art header is
   `components/deck/DeckHero` (owner's editor and shared deck both): back
   link, title, one meta line, actions, in one block. Its actions follow the
-  same rule by tier: a phone shows Add cards (the primary) and `⋮`, a tablet
-  adds Playtest, a desktop adds undo/redo. Tokens, Pull list, Duplicate and
-  Delete live in the `⋮` at every width. The meta line reads format · count
+  same rule by tier: a phone shows Add cards (the primary) and the named
+  **Deck ▾** menu, a tablet adds Playtest, a desktop adds undo/redo. Test
+  hand, Tokens, Pull list, Export, Duplicate and Delete live in Deck ▾ at
+  every width; edits to the card list are the toolbar's Edit ▾ ([§ Deck page
+  menus](style-guide/decks.md#deck-page-menus--each-named-for-what-it-acts-on-2026-10-08)). The meta line reads format · count
   · value · bracket · sharing; the commander is the art and the command
   zone's first row, so the meta line doesn't name it again, and sharing is
   its last segment ("Sharing: Public"), not a boxed chip under the title. **Hub tabs, built:** see Hub pages below. The header
@@ -2463,6 +2465,7 @@ must follow goes in the core.
   - [Build-time coach strip (E169 Half B) — a NAVIGATING insight strip](style-guide/decks.md#build-time-coach-strip-e169-half-b--a-navigating-insight-strip)
   - [Upgrade plan (E458, v2 E467, 2026-09-27)](style-guide/decks.md#upgrade-plan-e458-v2-e467-2026-09-27)
   - [Deck view — one fact, one place (2026-09-08)](style-guide/decks.md#deck-view--one-fact-one-place-2026-09-08)
+  - [Deck page menus — each named for what it acts on (2026-10-08)](style-guide/decks.md#deck-page-menus--each-named-for-what-it-acts-on-2026-10-08)
   - [Deck list on a wide screen (2026-09-19)](style-guide/decks.md#deck-list-on-a-wide-screen-2026-09-19)
   - [Deck diff rows (T22/E173)](style-guide/decks.md#deck-diff-rows-t22e173)
   - [Comparing two of anything (2026-09-15)](style-guide/decks.md#comparing-two-of-anything-2026-09-15)

@@ -236,7 +236,7 @@ three times on one screen, so these rulings now hold:
   spread across the width, long labels swap for short ones ("avg MV"), and
   the missing cards' price drops (the buy list the stat opens states it);
   more than four stats scroll with the edge fade. Sort and View pack left
-  under the search with the `⋮` on the right edge. The role chips are one
+  under the search with Edit ▾ (a shared deck's `⋮`) on the right edge. The role chips are one
   scrolling line at every width. The archetype's label is "plays as", the
   stats band's word for it.
 - **A panel's eyebrow is its only title.** `Panel title="Mana curve"` means the
@@ -421,6 +421,34 @@ what it did to the curve meant switching tabs every time.
 - **A lone tab is not a choice.** A deck with no Power/Coach (any non-Commander
   format, or a shared deck with no analysis) shows no view-tab bar at all, and
   `DeckDisplay` drops its tabpanel role (`tabbed={false}`).
+
+## Deck page menus — each named for what it acts on (2026-10-08)
+
+The deck page had a `⋮` in the header and a `⋯` at the end of the toolbar,
+both unlabelled, with no rule between them: Export and Test hand sat in the
+toolbar's, Paste cards, Bulk edit, Resync and the printing fixes in the
+header's. Finding Export meant opening both. Now every menu on the page is a
+named button, and each holds exactly one kind of thing:
+
+| Menu | Where | Holds |
+| --- | --- | --- |
+| **Deck ▾** | header actions | the deck as a whole: Play (Playtest on a phone, Test hand), At the table (Pull list, Tokens to prep, Print proxies), Share (Export, Primer, Get feedback), This deck (Duplicate, Build report, Regenerate), then Delete |
+| **Edit ▾** | toolbar | changes to the card list: Select cards, Paste cards, Bulk edit, Resync from a list, Match my copies, Cheapest printings for missing |
+| **View** | toolbar, last | the display only: whatever layout/group/size control the row folded, row details, the role key and the symbol key. Never an action. |
+
+- **Add cards stays the header's primary.** It is the page's main action on
+  every tab, and the toolbar only exists on the Deck tab.
+- **Select leads Edit ▾.** While selecting, Done sits on the row, so leaving
+  the mode never means opening a menu.
+- **Deck ▾ is two columns from 600px** (Play + At the table, Share + This
+  deck) so the whole menu shows without a scroll; one column on a phone, in
+  the same order.
+- **A shared deck** has no Deck ▾ and no edits: its Test hand and Export keep
+  a kebab in the toolbar, after View. With no header menu on that page there
+  is no second kebab to mistake it for.
+- Guard: `DeckDisplay.toolbar-fold.test.tsx` (the owner's toolbar has Edit and
+  View and no kebab, at both widths) and `DeckEditorPage.delete.test.tsx`
+  (Export and Test hand in Deck ▾ at every width, list edits never).
 
 ## Deck list on a wide screen (2026-09-19)
 

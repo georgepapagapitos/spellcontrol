@@ -41,9 +41,8 @@ import {
   type DeckView,
   scrollToDeckStats,
 } from '../components/deck/DeckDisplay';
-import { Tabs, type TabBadge } from '@/components/overlays/Tabs';
+import { Tabs } from '@/components/overlays/Tabs';
 import {
-  bracketLabel,
   bracketReasons,
   bracketBorderline,
 } from '@/deck-builder/services/deckBuilder/bracketEstimator';
@@ -207,6 +206,7 @@ import { DeckTestHandSheet } from './deck-editor/DeckTestHandSheet';
 import { ReplaceCommanderDialog } from './deck-editor/ReplaceCommanderDialog';
 import { DeckEditorHero } from './deck-editor/DeckEditorHero';
 import { DeckEditorOverflowMenu } from './deck-editor/DeckEditorOverflowMenu';
+import { deckEditActions, deckViewTabs } from './deck-editor/deck-page-chrome';
 import { DeckScryfallDropOverlay } from './deck-editor/DeckScryfallDropOverlay';
 import { useSuggestionContext } from '@/lib/util/use-suggestion-context';
 
@@ -3156,33 +3156,8 @@ export function DeckEditorPage() {
       : bracketAnalysis.missesCombos && deck.bracketOverride == null
         ? `${bracketValue}+`
         : String(bracketValue);
-  // Power + Tune are Commander-only: their analysis (bracket fit, EDHREC-driven
-  // Improve, command-zone-aware stats) doesn't apply to 60-card formats, where
-  // it read as misleading. Gate them to commander formats (E2/T19) — a commander
-  // format still shows them before cards are added, for its early power signals.
-  const showAnalysisExtras = hasCommanderFormat;
-  // The Tune tab carries no count badge — a bare number there read as a
-  // mystery (it was the in-deck combo count); the combo count is shown,
-  // clearly labelled, on the "In deck" sub-tab of the embedded Combos panel.
-  // E223 — Power's tab badge is its already-computed verdict. The checks
-  // verdict that used to badge Stats now leads the Deck tab's stat strip.
-  const powerBadge: TabBadge | null =
-    bracketValue !== undefined && bracketText !== undefined
-      ? {
-          text: bracketText,
-          description: `bracket ${bracketText} of 5, ${bracketLabel(bracketValue)}`,
-          tone: 'neutral',
-        }
-      : null;
-  const viewTabs: Array<{ id: DeckView; label: string; badge?: TabBadge | null }> = [
-    { id: 'deck', label: 'Deck' },
-    ...(showAnalysisExtras
-      ? [
-          { id: 'power' as DeckView, label: 'Power', badge: powerBadge },
-          { id: 'tune' as DeckView, label: 'Coach' },
-        ]
-      : []),
-  ];
+  // Power + Coach are Commander-only (deckViewTabs says why).
+  const viewTabs = deckViewTabs(hasCommanderFormat, bracketValue, bracketText);
   // Guard against a stale view that no longer has a tab. Map any legacy
   // analysis id that might still be in `view` from an earlier restructure, then
   // fall back to the Deck tab. (improve → tune; stats and its older names are
@@ -3221,9 +3196,8 @@ export function DeckEditorPage() {
           <DeckEditorOverflowMenu
             onDuplicate={handleDuplicate}
             onDelete={handleDelete}
-            onImport={() => setAppendOpen(true)}
-            onBulkEdit={() => setBulkEditOpen(true)}
-            onResync={() => setResyncOpen(true)}
+            onExport={() => setExportOpen(true)}
+            onTestHand={() => setShowTestHand(true)}
             onFeedback={() => setFeedbackOpen(true)}
             onPrimer={() => setPrimerOpen(true)}
             onBuildReport={deck.buildReport ? () => setShowBuildReport(true) : undefined}
@@ -3235,8 +3209,6 @@ export function DeckEditorPage() {
             onPlaytest={isPhone ? () => navigate(`/decks/${deck.id}/playtest`) : undefined}
             onTokens={deckTokens.length > 0 ? () => setTokensOpen(true) : undefined}
             onPullList={hasPullSlots ? () => setPullListOpen(true) : undefined}
-            onCheapestPrintings={hasMissingSlots ? () => void handleCheapestPrintings() : undefined}
-            onMatchCopies={hasCopyMismatches ? () => void handleMatchMyCopies() : undefined}
             onPrintProxies={hasPullSlots ? () => navigate(`/decks/${deck.id}/proxies`) : undefined}
             onUndo={!isDesktop && canUndoEdit ? () => undoEdit(deck.id) : undefined}
             onRedo={!isDesktop && canRedoEdit ? () => redoEdit(deck.id) : undefined}
@@ -3402,6 +3374,14 @@ export function DeckEditorPage() {
             activeView={safeView}
             tabbed={viewTabs.length > 1}
             onShowTestHand={() => setShowTestHand(true)}
+            deckActionsInHeader
+            editActions={deckEditActions({
+              paste: () => setAppendOpen(true),
+              bulkEdit: () => setBulkEditOpen(true),
+              resync: () => setResyncOpen(true),
+              matchCopies: hasCopyMismatches ? () => void handleMatchMyCopies() : undefined,
+              cheapestPrintings: hasMissingSlots ? () => void handleCheapestPrintings() : undefined,
+            })}
             onAddCards={handleToggleAddPanel}
             onChooseCommander={
               formatConfig?.hasCommander ? () => setShowCommanderPicker(true) : undefined

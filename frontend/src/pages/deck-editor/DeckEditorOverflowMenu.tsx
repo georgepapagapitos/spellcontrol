@@ -1,16 +1,21 @@
-import { MoreVertical } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { IconButton } from '@/components/shared/Button';
+import { Button } from '@/components/shared/Button';
 import { useMenuKeyboard } from '@/lib/overlays/use-menu-keyboard';
 import { computePopoverPlacement, getSafeViewport } from '@/lib/overlays/popover-placement';
 
+/**
+ * The header's Deck menu: what acts on the deck as a whole. Edits to the card
+ * list (paste, bulk edit, resync, printings) are the toolbar's Edit menu, and
+ * display settings its View menu, so each of the page's three menus is named
+ * for the one thing it acts on (STYLE_GUIDE § Deck page menus).
+ */
 export function DeckEditorOverflowMenu({
   onDuplicate,
   onDelete,
-  onImport,
-  onBulkEdit,
-  onResync,
+  onExport,
+  onTestHand,
   onFeedback,
   onPrimer,
   onBuildReport,
@@ -18,8 +23,6 @@ export function DeckEditorOverflowMenu({
   onPlaytest,
   onTokens,
   onPullList,
-  onCheapestPrintings,
-  onMatchCopies,
   onPrintProxies,
   onUndo,
   onRedo,
@@ -28,17 +31,11 @@ export function DeckEditorOverflowMenu({
 }: {
   onDuplicate: () => void;
   onDelete: () => void;
-  /** Opens the paste-into-this-deck dialog (E168 slice 2): kebab-only at
-   *  every breakpoint, no separate toolbar button. Export is the deck
-   *  toolbar's (its ⋯ on a wide row, its kebab on a phone). */
-  onImport: () => void;
-  /** Opens the text/bulk-edit dialog (E168 slice 4) — same kebab-only,
-   *  every-breakpoint placement as onImport. */
-  onBulkEdit: () => void;
-  /** Opens the same dialog in resync mode (E173) — paste-and-diff against an
-   *  external list-of-record (Moxfield, Archidekt, …), kebab-only like
-   *  onBulkEdit/onImport. */
-  onResync: () => void;
+  /** Opens the export dialog. A deck leaves the app whole, so it is a deck
+   *  action, not a list one. */
+  onExport: () => void;
+  /** Deals a test hand from this deck. */
+  onTestHand: () => void;
   /** Opens the Feedback Tool sheet (mint link + review responses). */
   onFeedback: () => void;
   /** Opens the primer (strategy notes) editor sheet. */
@@ -55,10 +52,6 @@ export function DeckEditorOverflowMenu({
   onTokens?: () => void;
   /** Present only when the deck has cards to pull. */
   onPullList?: () => void;
-  /** Present only when the deck has a missing card (no owned copy bound). */
-  onCheapestPrintings?: () => void;
-  /** Present only when an owned slot's printing differs from its copy's. */
-  onMatchCopies?: () => void;
   /** Opens the printable proxy sheet. Present only when the deck has cards. */
   onPrintProxies?: () => void;
   /** Present only when there's an edit to undo; carries the action label. */
@@ -122,36 +115,30 @@ export function DeckEditorOverflowMenu({
     setOpen((v) => !v);
   };
 
-  // Sectioned groups (E181): a flat 12-13 row list read as an undifferentiated
-  // wall. Undo/Redo stay unlabelled at top (existing convention) and Delete
-  // stays last (STYLE_GUIDE UX-316 — destructive actions live in this menu);
+  // Sectioned groups (E181): a flat list read as an undifferentiated wall.
+  // Undo/Redo stay unlabelled at top (existing convention) and Delete stays
+  // last (STYLE_GUIDE UX-316: destructive actions live in this menu);
   // everything else buckets into labelled clusters. Each row is `{ key, label,
-  // onClick }` so a whole section can be built + filtered in one line instead
-  // of ~10 near-identical <button> blocks.
+  // onClick }` so a whole section can be built + filtered in one line.
   type Row = { key: string; label: string; onClick: () => void };
-  const quickActions: Row[] = [
+  const play: Row[] = [
     onPlaytest && { key: 'playtest', label: 'Playtest', onClick: onPlaytest },
-    onTokens && { key: 'tokens', label: 'Tokens to prep', onClick: onTokens },
+    { key: 'test-hand', label: 'Test hand', onClick: onTestHand },
+  ].filter((r): r is Row => !!r);
+  const atTheTable: Row[] = [
     onPullList && { key: 'pull-list', label: 'Pull list', onClick: onPullList },
+    onTokens && { key: 'tokens', label: 'Tokens to prep', onClick: onTokens },
     onPrintProxies && { key: 'proxies', label: 'Print proxies', onClick: onPrintProxies },
   ].filter((r): r is Row => !!r);
-  const textTools: Row[] = [
-    { key: 'paste', label: 'Paste cards', onClick: onImport },
-    { key: 'bulk-edit', label: 'Bulk edit', onClick: onBulkEdit },
-    { key: 'resync', label: 'Resync from a list', onClick: onResync },
-  ];
-  const deckActions: Row[] = [
-    { key: 'duplicate', label: 'Duplicate', onClick: onDuplicate },
+  const share: Row[] = [
+    { key: 'export', label: 'Export', onClick: onExport },
     { key: 'primer', label: 'Primer', onClick: onPrimer },
     { key: 'feedback', label: 'Get feedback', onClick: onFeedback },
+  ];
+  const thisDeck: Row[] = [
+    { key: 'duplicate', label: 'Duplicate', onClick: onDuplicate },
     onBuildReport && { key: 'build-report', label: 'Build report', onClick: onBuildReport },
     onRegenerate && { key: 'regenerate', label: 'Regenerate', onClick: onRegenerate },
-    onCheapestPrintings && {
-      key: 'cheapest-printings',
-      label: 'Cheapest printings for missing',
-      onClick: onCheapestPrintings,
-    },
-    onMatchCopies && { key: 'match-copies', label: 'Match my copies', onClick: onMatchCopies },
   ].filter((r): r is Row => !!r);
 
   const renderRow = (row: Row) => (
@@ -179,15 +166,21 @@ export function DeckEditorOverflowMenu({
 
   return (
     <div className="deck-editor-overflow">
-      <IconButton
-        className="deck-editor-overflow-btn"
+      {/* A named button, not a bare ⋮: the toolbar below carries its own
+          Edit and View menus, and three unlabelled kebabs on one page left
+          nobody sure which one held Export. The accessible name keeps the
+          visible "Deck" and says what it opens. */}
+      <Button
+        className="deck-editor-action-btn deck-editor-overflow-btn"
         ref={buttonRef}
         aria-haspopup="menu"
         aria-expanded={open}
+        aria-label="Deck actions"
         onClick={handleToggle}
-        label="Deck actions"
-        icon={<MoreVertical width={20} height={20} strokeWidth={1.8} />}
-      />
+        iconEnd={<ChevronDown width={14} height={14} strokeWidth={1.8} />}
+      >
+        Deck
+      </Button>
       {open &&
         panelPos &&
         createPortal(
@@ -232,15 +225,18 @@ export function DeckEditorOverflowMenu({
             {(onUndo || onRedo) && (
               <div className="deck-editor-overflow-divider" role="separator" aria-hidden />
             )}
-            {quickActions.length > 0 && (
-              <>
-                {renderSection('Quick actions', quickActions)}
-                <div className="deck-editor-overflow-divider" role="separator" aria-hidden />
-              </>
-            )}
-            {renderSection('Text tools', textTools)}
-            <div className="deck-editor-overflow-divider" role="separator" aria-hidden />
-            {renderSection('Deck actions', deckActions)}
+            {/* Two columns wider up, so the whole menu shows without a
+                scroll; one on a phone, in this same reading order. */}
+            <div className="deck-editor-overflow-columns">
+              <div className="deck-editor-overflow-column">
+                {renderSection('Play', play)}
+                {renderSection('At the table', atTheTable)}
+              </div>
+              <div className="deck-editor-overflow-column">
+                {renderSection('Share', share)}
+                {renderSection('This deck', thisDeck)}
+              </div>
+            </div>
             <div className="deck-editor-overflow-divider" role="separator" aria-hidden />
             <button
               type="button"
