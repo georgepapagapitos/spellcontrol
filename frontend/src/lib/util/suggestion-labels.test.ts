@@ -98,7 +98,7 @@ describe('buildSuggestionPayload', () => {
 
   it('never carries a user id, a deck id or a deck list, even when the caller holds them', () => {
     const poisoned = {
-      surface: 'swap-this-card',
+      surface: 'swap',
       action: 'accept',
       cardIn: 'Grave Pact',
       userId: 'user-77',
@@ -175,14 +175,14 @@ describe('recordShown', () => {
     setSuggestionContext(deck());
     recordShown('coach:all', 4);
     recordShown('coach:all', 5);
-    recordShown('swap-this-card', 3, 'Rampant Growth');
-    recordShown('swap-this-card', 3, 'Rampant Growth');
-    recordShown('swap-this-card', 2, 'Sol Ring');
+    recordShown('swap', 3, 'Rampant Growth');
+    recordShown('swap', 3, 'Rampant Growth');
+    recordShown('swap', 2, 'Sol Ring');
     recordShown('coach:cuts', 0);
     expect(sent.map((p) => [p.surface, p.n])).toEqual([
       ['coach:all', 4],
-      ['swap-this-card', 3],
-      ['swap-this-card', 2],
+      ['swap', 3],
+      ['swap', 2],
     ]);
   });
 });

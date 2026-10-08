@@ -104,14 +104,14 @@ export function SimilarCardsStrip({
 
   const shown = owned.length + discovery.length;
   useEffect(() => {
-    recordShown('similar-cards', shown, target.name);
+    recordShown('similar', shown, target.name);
   }, [shown, target.name]);
 
   if (!loading && shown === 0) return null;
 
   function swapIn(name: string, rank: number) {
     recordSuggestion({
-      surface: 'similar-cards',
+      surface: 'similar',
       action: 'accept',
       rank,
       reason: 'similar',

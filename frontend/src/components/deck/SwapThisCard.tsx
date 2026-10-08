@@ -34,7 +34,7 @@ export function SwapThisCard({
 }: SwapThisCardProps): JSX.Element | null {
   const count = alternatives.length;
   useEffect(() => {
-    recordShown('swap-this-card', count, currentName);
+    recordShown('swap', count, currentName);
   }, [count, currentName]);
   if (count === 0) return null;
 
@@ -51,7 +51,7 @@ export function SwapThisCard({
             actLabel="Swap in"
             onAct={() => {
               recordSuggestion({
-                surface: 'swap-this-card',
+                surface: 'swap',
                 action: 'accept',
                 rank: i + 1,
                 reason: change.lane,

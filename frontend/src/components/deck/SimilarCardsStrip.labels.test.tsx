@@ -68,9 +68,9 @@ describe('SimilarCardsStrip suggestion labels', () => {
     const buttons = container.querySelectorAll<HTMLButtonElement>('.deck-card-row-act');
     fireEvent.click(buttons[2]);
     expect(sent).toEqual([
-      expect.objectContaining({ surface: 'similar-cards', action: 'shown', n: 3 }),
+      expect.objectContaining({ surface: 'similar', action: 'shown', n: 3 }),
       expect.objectContaining({
-        surface: 'similar-cards',
+        surface: 'similar',
         action: 'accept',
         rank: 3,
         reason: 'similar',

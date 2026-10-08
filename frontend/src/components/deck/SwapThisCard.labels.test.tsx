@@ -54,9 +54,9 @@ describe('SwapThisCard suggestion labels', () => {
     const buttons = container.querySelectorAll<HTMLButtonElement>('.deck-card-row-act');
     fireEvent.click(buttons[1]);
     expect(sent).toEqual([
-      expect.objectContaining({ surface: 'swap-this-card', action: 'shown', n: 2 }),
+      expect.objectContaining({ surface: 'swap', action: 'shown', n: 2 }),
       expect.objectContaining({
-        surface: 'swap-this-card',
+        surface: 'swap',
         action: 'accept',
         rank: 2,
         reason: 'fill-gaps',
