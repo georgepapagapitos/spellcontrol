@@ -467,7 +467,7 @@ export function checkDeckInvariants(
   }
 
   // 6. banned: the user's lists always win over a must-include.
-  // ponytail: applied user lists (appliedIncludeLists/appliedExcludeLists)
+  // Applied user lists (appliedIncludeLists/appliedExcludeLists)
   // resolve through the lists store, which this pure checker can't read; the
   // harness and the mocked suites never set them. Thread the resolved names
   // through InvariantContext if a caller starts using them.

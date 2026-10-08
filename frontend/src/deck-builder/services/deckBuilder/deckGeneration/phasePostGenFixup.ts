@@ -109,7 +109,7 @@ export function postGenFixupPhase(
         if (readsAsProtection(card) || isFreeInteraction(card)) continue;
         if (keeps(card, incoming)) continue; // E563
         if (filter && !filter(card, cat)) continue;
-        // ponytail: position-based weakness is a pick-order proxy (iter-6
+        // Position-based weakness is a pick-order proxy (iter-6
         // class); the protected set above neuters its worst failure — a
         // survival-blend rank is the upgrade path if fixup churn ever shows
         // up in a gate again.

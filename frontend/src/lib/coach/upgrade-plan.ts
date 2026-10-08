@@ -149,7 +149,7 @@ const UNRATED_INCLUSION = 20;
 
 const BASIC = /^(?:Snow-Covered )?(?:Plains|Island|Swamp|Mountain|Forest)$|^Wastes$/;
 /** Lands that fetch a basic, by name when the Change carries no card text.
- *  ponytail: a fixed list; the oracle-text check below covers any card with text. */
+ *  A fixed list; the oracle-text check below covers any card with text. */
 const FETCH_NAMES = new Set([
   'Evolving Wilds',
   'Terramorphic Expanse',
@@ -357,7 +357,7 @@ export function planUpgrades(ctx: UpgradePlanContext, opts: UpgradePlanOptions):
   // Verify with the real estimator. While the deck reads past the ceiling,
   // drop the pick whose removal lowers the Estimate most: the card actually
   // responsible, never a bystander that happened to be picked last.
-  // ponytail: one estimator call per pick per drop (≈ picks² worst case); fine
+  // One estimator call per pick per drop (≈ picks² worst case); fine
   // at plan sizes, memoize by pick set if plans grow past a few dozen swaps.
   let estimateAfter: number | null = null;
   if (ctx.estimate && opts.goal !== 'any') {

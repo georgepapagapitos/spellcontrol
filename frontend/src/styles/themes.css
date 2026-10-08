@@ -350,7 +350,7 @@
    `[data-scheme='…']` all carry the same specificity, so source order is what
    makes this win over a theme's own values. A media query adds no specificity.
 
-   ponytail: retires two tone levels (muted→secondary, border→border-strong).
+   Retires two tone levels (muted→secondary, border→border-strong).
    If that proves insufficient the next step is a dedicated high-contrast
    palette per scheme, not further flattening of the tone ramp. */
 @media (prefers-contrast: more) {

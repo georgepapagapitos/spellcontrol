@@ -57,7 +57,7 @@ function toTradeableCard(raw: unknown): TonightTradeCard | null {
     cmc: typeof r.cmc === 'number' ? r.cmc : 0,
     typeLine: typeof r.typeLine === 'string' ? r.typeLine : '',
   };
-  // ponytail: no SQLite-cache rank backfill here (unlike friends.ts) —
+  // No SQLite-cache rank backfill here (unlike friends.ts) —
   // edhrecRank is carried for FriendCard shape parity only; buildTradeRadar
   // and RadarCardTile never read it, so the extra lookup isn't worth it.
   if (typeof r.edhrecRank === 'number') card.edhrecRank = r.edhrecRank;
@@ -199,7 +199,7 @@ tonightTradesRouter.get(
 
         // Tracking lists catalogue owned cards, not wants — same gate as
         // frontend's isTrackingList (lib/lists.ts).
-        // ponytail: duplicated one-line predicate (list.kind !== 'tracking');
+        // Duplicated one-line predicate (list.kind !== 'tracking');
         // if this logic ever grows past one line, promote it to a tiny
         // shared package. Backend and frontend are separate dependency trees
         // with no shared package for this one-line check today.

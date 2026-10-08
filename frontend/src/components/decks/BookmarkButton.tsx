@@ -15,7 +15,7 @@ interface Props {
    * needing to re-insert a removed tile on a rare rollback). SavedDecksPage
    * passes this to splice an unsaved deck out of its list immediately;
    * Discover leaves it undefined (nothing needs to happen there).
-   * ponytail: server-confirmed rather than optimistic removal — a POST/
+   * Server-confirmed rather than optimistic removal — a POST/
    * DELETE round trip here is fast enough to read as immediate, and this
    * sidesteps re-inserting a tile at the right spot if the request fails.
    */

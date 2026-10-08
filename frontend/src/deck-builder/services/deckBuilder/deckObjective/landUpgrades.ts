@@ -150,7 +150,7 @@ export function rankLandUpgrades(
  * lands instead") is a net loss of lands the goldfish does not play out, and
  * its {C}{C}{C}{C} is not four sources. Left out of the land moves.
  *
- * ponytail: text test. Upgrade path: model the entry cost in the engine's land
+ * Text test. Upgrade path: model the entry cost in the engine's land
  * face and drop this.
  */
 export function sacrificesLandsToEnter(land: ScryfallCard): boolean {

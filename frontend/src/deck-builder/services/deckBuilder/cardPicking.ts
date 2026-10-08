@@ -302,7 +302,7 @@ export function calculateCardPriority(card: EDHRECCard, brewLevel: number = 0.5)
 // Applied in the sort comparator ONLY (not calculateCardPriority), so
 // ownership changes pick *preference*, never a card's type classification or
 // its right to break curve.
-// ponytail: single tunable constant; raise if the owned bias feels too weak.
+// Single tunable constant; raise if the owned bias feels too weak.
 export const OWNED_PRIORITY_BOOST = 40;
 
 // E122: theme/high-synergy cards (isHighSynergyCard) score on a much wider
@@ -773,7 +773,7 @@ export function pickFromPrefetchedWithCurve(
   // deck budget, where pick order is spending order: staples first spent the
   // budget on play rate and budget convergence then cut the cheap role cards
   // (all three budget decks on the E532 panel came out worse).
-  // ponytail: a price-sanity pair straddling the bar (E80) is ordered by the
+  // A price-sanity pair straddling the bar (E80) is ordered by the
   // tier, not by price. Fold the tie-break in if a live deck shows one.
   // Under 'prefer' the owned boost decides near-ties between UNOWNED cards, but a
   // staple the user already owns costs nothing and satisfies the preference, so

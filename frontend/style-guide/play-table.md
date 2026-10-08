@@ -1188,7 +1188,7 @@ accidental bump change what's rendered.
   handedness, which is the part every downstream consumer (gesture
   composition, the hub ring, the CSS transform) actually depends on. If a
   real device shows the board spinning the wrong way, the fix is the
-  one-line swap called out in `use-board-keep-still.ts`'s own `ponytail:`
+  one-line swap called out in `use-board-keep-still.ts`'s own
   comment — nothing else needs to change.
 - **Left for later:** the custom layout drag-and-drop editor
   (`LayoutEditor.tsx`'s `dnd-kit` sensors) was not verified or adapted for

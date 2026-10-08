@@ -16,7 +16,7 @@ import {
 } from '@/deck-builder/services/deckBuilder/substituteFinder';
 import { getCardSubtype } from '@/deck-builder/services/tagger/client';
 
-// ponytail: mirrors lib/collection/allocations.ts's BASIC_LAND_NAMES verbatim rather than
+// Mirrors lib/collection/allocations.ts's BASIC_LAND_NAMES verbatim rather than
 // importing it — that module also exports store hooks (useDecksStore, …)
 // whose eager IndexedDB-backed storage init isn't safe in a node-env test.
 // Re-sync this list if the canonical one ever changes (new snow basics etc).

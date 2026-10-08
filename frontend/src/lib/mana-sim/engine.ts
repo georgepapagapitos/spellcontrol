@@ -518,7 +518,7 @@ export function simulateManaDeck(deck: ManaDeck, options: ManaSimOptions = {}): 
       const f = cards[id].land;
       if (!f || f.minLands > lands.length + 1) continue;
       if (f.fetch) {
-        // ponytail: a fetch counts as one land of every colour it can reach,
+        // A fetch counts as one land of every colour it can reach,
         // even as today's drop where only its untapped targets could serve
         // (a fetch into a tapped triome). Split the mask by use if it matters.
         const r = fetchReach(f.fetch);
@@ -681,7 +681,7 @@ export function simulateManaDeck(deck: ManaDeck, options: ManaSimOptions = {}): 
       // land is and its spell side can't be cast this turn anyway. Best is
       // what it lets you cast now, then a tapland when that costs nothing,
       // then the colours the deck needs most.
-      // ponytail: one-turn greedy sequencing, no plan for next turn's curve.
+      // One-turn greedy sequencing, no plan for next turn's curve.
       // It moves the mana and screw stats, never the per-card castability
       // (that re-chooses the drops). Add lookahead if the mana curve reads low.
       let pool = buildPool(turn);
@@ -743,7 +743,7 @@ export function simulateManaDeck(deck: ManaDeck, options: ManaSimOptions = {}): 
       if (pool.length >= turn) manaAtLeast[turn]++;
 
       // Spend: ramp first (cheapest), then the commanders, then the biggest spell.
-      // ponytail: casting a spell does nothing but spend mana; card draw is not
+      // Casting a spell does nothing but spend mana; card draw is not
       // modelled, so a draw-heavy deck's land drops read low. Feed a draw role
       // through (like simulateAssemblyClock's +2) if that bias matters.
       for (;;) {

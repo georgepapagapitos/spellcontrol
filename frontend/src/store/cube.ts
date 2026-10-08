@@ -425,7 +425,7 @@ export const useCubeStore = create<CubeState>()(
     {
       name: 'spellcontrol-cube',
       storage: createJSONStorage(() => safeLocalStorage),
-      // ponytail: only working state in localStorage; saved cubes live in IDB/sync
+      // Only working state in localStorage; saved cubes live in IDB/sync
       // now. Legacy localStorage cubes (pre-sync, #737) are migrated into IDB by
       // sync.ts's migrateLegacyCubes() before the first hydrate — NOT seeded via a
       // persist `merge`, which runs before the subscriber attaches and would be

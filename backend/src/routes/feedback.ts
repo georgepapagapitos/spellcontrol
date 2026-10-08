@@ -137,7 +137,7 @@ feedbackRouter.post(
       return res.status(404).json({ error: 'Feedback link not found.' });
     }
 
-    // ponytail: hard cap, no pagination — no deck accrues more real feedback
+    // Hard cap, no pagination — no deck accrues more real feedback
     // than this; it exists purely so anonymous writes can't grow unboundedly.
     const [existing] = await getDb()
       .select({ n: count() })

@@ -352,7 +352,7 @@ const DEVELOPING = [0, 3, 1, 2] as const;
  * can't cast is not online, so a four-piece combo of five-drops correctly clocks
  * slower than two one-drops, and a tutor costs its mana plus a second cast for
  * what it fetches. Cast `role: 'ramp'` adds a mana from the next turn and cast
- * `role: 'cardDraw'` draws two (see the ponytail notes below); openers use the
+ * `role: 'cardDraw'` draws two (see the notes below); openers use the
  * same two-mulligan keep policy as `simulateOpeningHands`.
  *
  * Still a goldfish: no colors, no rituals or free spells, no opponent and no
@@ -476,7 +476,7 @@ export function simulateAssemblyClock(
       let budget = lands + rampOnline;
 
       for (;;) {
-        // ponytail: greedy sequencing — ramp and draw before pieces unless the
+        // Greedy sequencing — ramp and draw before pieces unless the
         // deck is one piece from done, then finishing beats developing. A real
         // player plans the whole curve; add lookahead only if medians move.
         const priority = closest() <= 1 ? FINISHING : DEVELOPING;
@@ -528,12 +528,12 @@ export function simulateAssemblyClock(
             });
           }
         } else if (card.role === 'cardDraw') {
-          // ponytail: every draw spell is +2 cards. Rhystic Study is an engine
+          // Every draw spell is +2 cards. Rhystic Study is an engine
           // and Sign in Blood is exactly two; without ANY draw the clock is
           // one-card-per-turn, which is what actually dominated the medians.
           for (let d = 0; d < 2 && nextDraw < order.length; d++) hand.push(order[nextDraw++]);
         } else {
-          rampPending += 1; // ponytail: every ramp spell is +1 mana. Sol Ring is
+          rampPending += 1; // Every ramp spell is +1 mana. Sol Ring is
           // +2 and a dork is summoning-sick; ramp COUNT drives the median, not
           // which rock it was. Model individual output if the numbers demand it.
         }

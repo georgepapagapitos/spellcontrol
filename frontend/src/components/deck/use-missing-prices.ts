@@ -12,7 +12,7 @@ import { getCurrency } from '@/lib/collection/currency';
  * `getCardsByNames` batches internally, but the one-away list can still run to
  * a couple hundred rows, so this caps what it asks for.
  *
- * ponytail: hard cap at MAX_PRICED names, no virtualization-aware windowing.
+ * Hard cap at MAX_PRICED names, no virtualization-aware windowing.
  * Rows past the cap simply render without a price, which is the same as an
  * unpriced card and reads fine. Upgrade path if the list gets long enough to
  * matter: virtualize the list and price only the visible window.

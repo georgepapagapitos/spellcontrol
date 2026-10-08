@@ -99,7 +99,7 @@ function isLandCard(card: ScryfallCard): boolean {
 /**
  * A budget suggestion must appear in at least this % of EDHREC decks, so the
  * cutter never offers a 0%-inclusion fringe card as a "cheaper alternative".
- * ponytail: single tunable floor; raise to be pickier about suggestion quality.
+ * Single tunable floor; raise to be pickier about suggestion quality.
  */
 const MIN_SUGGESTION_INCLUSION = 1;
 

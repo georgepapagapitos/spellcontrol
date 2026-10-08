@@ -48,7 +48,7 @@ async function loadSpotlightId(now: number): Promise<string | null> {
              WHERE dp.user_id = u.id AND dp.unpublished_at IS NULL) >= 2`;
   const count = Number((await pool.query<{ n: string }>(`SELECT COUNT(*) AS n ${from}`)).rows[0].n);
   if (count === 0) return null;
-  // ponytail: COUNT then OFFSET over every brewer with 2+ decks; fine for
+  // COUNT then OFFSET over every brewer with 2+ decks; fine for
   // thousands, move to a precomputed daily pick if that count outgrows it.
   const { rows } = await pool.query<{ id: string }>(
     `SELECT u.id ${from} ORDER BY u.id OFFSET $1 LIMIT 1`,

@@ -923,7 +923,7 @@ export function tableCounters(state: GameState): Record<string, number> {
  * poison — every counter Magic actually uses is non-negative, and a stray tap
  * that reads "-1" looks broken rather than permissive.
  *
- * ponytail: clamped at 0. If a table ever genuinely needs a signed tally, the
+ * Clamped at 0. If a table ever genuinely needs a signed tally, the
  * upgrade is a per-counter `signed` flag, not removing the clamp for everyone.
  */
 function withCounterDelta(

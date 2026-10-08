@@ -1367,7 +1367,7 @@ export function computeOptimizeSwaps(
   // Absence of any co-play link only means something when enough seed pools
   // back the index; below the floor the negative signal stays silent (the
   // positive protection needs no floor — a 2-seed cluster link is evidence
-  // on its own). ponytail: fixed floor; revisit if Coach widens its seeding.
+  // on its own). Fixed floor; revisit if Coach widens its seeding.
   const LIFT_OFFPACKAGE_MIN_SEEDS = 3;
   const liftEntryOf = (name: string) => liftSignal?.index.get(name.toLowerCase());
   // Co-played with 2+ of the deck's key cards → package-connected, never cut.

@@ -148,7 +148,7 @@ function topSynergyGap(
   ownedNames?: Set<string>,
   ownedOnly?: boolean
 ): GapAnalysisCard | undefined {
-  // ponytail: GapAnalysisCard carries no deck count, so this reads the
+  // GapAnalysisCard carries no deck count, so this reads the
   // strength unshrunk; add potential_decks to GapAnalysisCard to shrink a
   // thin commander's gap suggestions like the generator does.
   const positive =

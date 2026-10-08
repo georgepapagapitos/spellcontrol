@@ -20,7 +20,7 @@ import { frontFaceName } from '@/lib/cards/card-text';
 // (owned-collection backfill, off-snapshot printing, etc.) — a role-tagged
 // card has a known real function, so it reads as more relevant than a hard 0;
 // an untagged card still gets a small non-zero floor rather than reading as
-// "irrelevant". ponytail: flat two-tier floor, not a full scoring model —
+// "irrelevant". Flat two-tier floor, not a full scoring model —
 // upgrade if a finer role-weighted floor is ever needed.
 const RELEVANCY_NO_DATA_FLOOR_TAGGED = 30;
 const RELEVANCY_NO_DATA_FLOOR_BASE = 15;

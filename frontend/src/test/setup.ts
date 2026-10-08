@@ -35,7 +35,7 @@ import './pending';
  */
 const realSetImmediate = globalThis.setImmediate;
 afterEach(async () => {
-  // ponytail: 8 hops covers open -> get/count -> close chains; raise if the
+  // 8 hops covers open -> get/count -> close chains; raise if the
   // leak count climbs back.
   for (let i = 0; i < 8; i++) await new Promise<void>((r) => realSetImmediate(r));
 });

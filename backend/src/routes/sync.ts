@@ -302,7 +302,7 @@ syncRouter.get('/', requireAuth, syncLimiter, async (req: Request, res: Response
  * included. Measuring it is a scan of the account's rows, so it is cached and
  * advanced by an over-estimate of each batch, and only re-measured when the
  * estimate goes stale or would cross the cap.
- * ponytail: per-process cache; with >1 machine each one estimates separately,
+ * Per-process cache; with >1 machine each one estimates separately,
  * which is still bounded (every machine re-measures before refusing).
  */
 const STORAGE_USAGE_TTL_MS = 10 * 60_000;

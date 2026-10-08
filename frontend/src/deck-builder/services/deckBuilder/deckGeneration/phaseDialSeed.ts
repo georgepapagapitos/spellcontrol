@@ -40,7 +40,7 @@ import { markUsed, type GenerationState } from './state';
 export const CORE_STAPLE_INCLUSION = 50;
 /** Synergy seeds: [min EDHREC synergy, max cards] for each synergy stop. */
 export const SYNERGY_SEED = { lean: [0.4, 10], full: [0.25, 20] } as const;
-// ponytail: a flat share of the deck budget, not a per-slot plan. The seeds are
+// A flat share of the deck budget, not a per-slot plan. The seeds are
 // the highest-value cards and get most of the money; the other 30% has to
 // cover the lands and whatever the seeds leave open.
 const SEED_BUDGET_SHARE = 0.7;

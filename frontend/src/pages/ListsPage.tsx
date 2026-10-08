@@ -145,7 +145,7 @@ export function ListsPage() {
   // opening a list resolves its cards (name → card data) from cache instead of
   // a cold network round-trip. getCardsByNames dedups + caches per card, so
   // this is idempotent and cheap to re-run.
-  // ponytail: prefetches all lists up front; lists are small wishlists so this
+  // Prefetches all lists up front; lists are small wishlists so this
   // is fine — switch to visible-only / on-hover prefetch if a user keeps huge lists.
   const prefetchKey = useMemo(
     () => lists.flatMap((l) => l.entries.map((e) => e.name)).join('|'),

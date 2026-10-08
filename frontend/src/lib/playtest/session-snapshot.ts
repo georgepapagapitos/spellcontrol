@@ -118,7 +118,7 @@ function isValidSnapshot(v: unknown): v is PlaytestSnapshot {
   return true;
 }
 
-/** ponytail: a snapshot saved before battlefield coordinates became 0..1
+/** A snapshot saved before battlefield coordinates became 0..1
  *  fractions (see BattlefieldCard.x/y) stored raw pixels with no fixed
  *  container size recorded alongside them, so the original box can't be
  *  recovered exactly. Assumes the same ~800×540 "reasonable default"
