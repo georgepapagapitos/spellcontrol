@@ -36,15 +36,25 @@ export interface CubeCard {
    */
   colorIdentity?: string[];
   /**
-   * Mana a LAND can produce (Scryfall's `produced_mana`). Optional, lands
-   * only — a fixing land's color_identity usually matches what it produces
-   * (its ability text carries the same colored symbols), but "add one mana of
-   * any color" lands (Command Tower, Arcane Signet) have no colored symbol in
-   * their oracle text and so an EMPTY color identity despite fixing every
-   * pair; produced_mana is what `pairsFixedBy` needs to get those right.
-   * Falls back to colorIdentity, then colors, when absent.
+   * Mana a LAND can count on: Scryfall's `produced_mana` with the paid,
+   * sacrifice and spend-restricted abilities left out (`alwaysProducedMana`,
+   * set in ./pool). Optional, lands only. A fixing land's color_identity
+   * usually matches what it produces, but "add one mana of any color" lands
+   * (City of Brass) have no colored symbol in their oracle text and so an
+   * EMPTY color identity despite fixing every pair. Raw produced_mana goes the
+   * other way: Power Depot, Springjack Pasture, Daily Bugle Building and
+   * Cavern of Souls list every color they can make only by paying, sacrificing
+   * or restricting the mana (E581). Falls back to colorIdentity, then colors,
+   * when absent.
    */
   producedMana?: string[];
+  /**
+   * The one color all of a LAND's mana pairs with (`fixedColourOf`, set in
+   * ./pool): a Thriving land makes its own color or one chosen on entry, so it
+   * fixes the four pairs holding its color, not the ten its produced_mana
+   * implies (E581). Absent for every other card.
+   */
+  fixesWith?: string;
   /**
    * Full Oracle rules text. Optional — most of the pipeline never needs it
    * (type_line + color_identity cover bucket/pair classification), so it's
@@ -87,7 +97,8 @@ export function pairOf(c: CubeCard): ColorPair | null {
 }
 
 /** Every pair a LAND fixes: every 2-color subset of what it can produce (a
- *  triland fixes 3 pairs, a five-color land fixes all 10). Falls back through
+ *  triland fixes 3 pairs, a five-color land fixes all 10), limited to the pairs
+ *  holding `fixesWith` when it is set (a Thriving land). Falls back through
  *  producedMana → colorIdentity → colors — see `CubeCard.producedMana`'s doc
  *  for why produced mana, not identity, is the right basis for a land. */
 export function pairsFixedBy(c: CubeCard): ColorPair[] {
@@ -102,6 +113,7 @@ export function pairsFixedBy(c: CubeCard): ColorPair[] {
   const out: ColorPair[] = [];
   for (let i = 0; i < produced.length; i++) {
     for (let j = i + 1; j < produced.length; j++) {
+      if (c.fixesWith && produced[i] !== c.fixesWith && produced[j] !== c.fixesWith) continue;
       const p = PAIR_BY_KEY.get([produced[i], produced[j]].sort().join(''));
       if (p) out.push(p);
     }

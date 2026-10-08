@@ -19,6 +19,7 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import { producedManaColors } from '@/lib/deck-analysis/mana-sources';
 import type { SimCard } from './opening-hand-sim';
 import { maskOf, parseManaCost } from './cost';
+import { CHOSEN_OTHER_THAN, costMana, unconditionalMana } from './unconditional-mana';
 import {
   ANY_COLOR,
   type LandEntry,
@@ -79,17 +80,6 @@ function normalise(text: string | undefined): string {
 function selfSubject(names: readonly string[]): string {
   const own = names.filter(Boolean).map((n) => escapeRegExp(n.toLowerCase()));
   return `(?:this land|this artifact|this creature|this permanent|it|${own.join('|')})`;
-}
-
-/** Generic mana in an activation cost, or -1 when it needs coloured mana. */
-function costMana(cost: string): number {
-  let generic = 0;
-  for (const [, sym] of cost.matchAll(/\{([^}]+)\}/g)) {
-    if (sym === 't' || sym === 'q') continue;
-    if (/^\d+$/.test(sym)) generic += Number(sym);
-    else return -1;
-  }
-  return generic;
 }
 
 interface ManaClause {
@@ -160,7 +150,7 @@ function unitsFrom(clauses: readonly ManaClause[], produced: ManaMask): ManaMask
 
 /** A choose-on-entry production (Thriving lands, Coldsteel Heart), or null. */
 function choiceIn(text: string, identity: ManaMask): ManaChoice | null {
-  const other = text.match(/choose a colou?r other than (white|blue|black|red|green)/);
+  const other = text.match(CHOSEN_OTHER_THAN);
   if (other) {
     const fixed = COLOR_WORDS[other[1]];
     return { fixed, options: (identity || ANY_COLOR) & ~fixed };
@@ -262,49 +252,6 @@ function facesOf(card: ScryfallCard): Face[] {
 }
 
 const isLandType = (typeLine: string): boolean => /\bland\b/i.test(typeLine.split('—')[0]);
-
-/**
- * A land's mana abilities that always work: the ones a source can count on.
- * Scryfall's `produced_mana` also lists what a paid or restricted ability makes,
- * so Daily Bugle Building ("{1}, {T}: Add one mana of any color"), Springjack
- * Pasture (sacrifice Goats for any one color), Power Depot ("Spend this mana
- * only to cast artifact spells") and Cavern of Souls read as free any-colour
- * sources. An ability is left out when it costs generic mana or a sacrifice, or
- * when its mana carries a spend restriction. Returns the face's text without
- * those lines and the colours the rest produce, or null when nothing is left
- * out (the caller keeps Scryfall's reading).
- *
- * A text test, not a model of the filter step: a filter land costing
- * generic mana reads as its {T} mana (a colourless land for Daily Bugle
- * Building). A coloured-cost filter (Mystic Gate) is kept as a dual. Upgrade
- * path: model the filter's conversion in the engine.
- */
-function unconditionalMana(rawText: string): { text: string; colours: string[] | null } | null {
-  const lines = rawText.toLowerCase().replace(/[()]/g, ' ').split('\n');
-  let dropped = false;
-  const kept: string[] = [];
-  const symbols = new Set<string>();
-  let anyColour = false;
-  for (const line of lines) {
-    const m = /^([^:]*):\s*adds?\s([^]*)$/.exec(line.trim());
-    if (!m) {
-      kept.push(line);
-      continue;
-    }
-    const [, cost, effect] = m;
-    const needsMana = costMana(cost) > 0 || cost.includes('sacrifice');
-    if (needsMana || /spend this mana only/.test(effect)) {
-      dropped = true;
-      continue;
-    }
-    kept.push(line);
-    for (const [, sym] of effect.split('.')[0].matchAll(/\{([wubrgc])\}/g))
-      symbols.add(sym.toUpperCase());
-    if (/any (?:one )?(?:colou?r|type)|color identity|could produce/.test(effect)) anyColour = true;
-  }
-  if (!dropped) return null;
-  return { text: kept.join('\n'), colours: anyColour ? null : [...symbols] };
-}
 
 function landFaceOf(
   card: ScryfallCard,
