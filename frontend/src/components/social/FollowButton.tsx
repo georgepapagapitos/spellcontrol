@@ -12,6 +12,9 @@ interface Props {
   initialFollowing: boolean;
   /** Fires after the server confirms, with the canonical follower count. */
   onChange?: (following: boolean, followerCount: number) => void;
+  /** Secondary even when not following: a stronger action (Trade, on a
+   *  friend's profile) sits beside it and owns the one filled button. */
+  quiet?: boolean;
 }
 
 /**
@@ -22,7 +25,7 @@ interface Props {
  * accessible name stays "Follow <username>" so it doesn't change under a
  * screen reader.
  */
-export function FollowButton({ username, initialFollowing, onChange }: Props) {
+export function FollowButton({ username, initialFollowing, onChange, quiet = false }: Props) {
   const isAuthed = useAuth((s) => s.status === 'authed');
   const [following, setFollowing] = useState(initialFollowing);
   const [busy, setBusy] = useState(false);
@@ -61,7 +64,7 @@ export function FollowButton({ username, initialFollowing, onChange }: Props) {
     <>
       <Button
         ref={triggerRef}
-        variant={following ? 'secondary' : 'primary'}
+        variant={following || quiet ? 'secondary' : 'primary'}
         className="follow-button"
         aria-pressed={following}
         aria-label={`Follow ${username}`}

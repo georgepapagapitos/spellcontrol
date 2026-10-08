@@ -200,6 +200,7 @@ export function ProfileHeader({ profile, heading, handle, joined, onReport }: Pr
                 username={profile.username}
                 initialFollowing={profile.viewerFollows}
                 onChange={(_following, count) => setFollowerCount(count)}
+                quiet={!!profile.ownerId}
               />
               {profile.ownerId && (
                 <Button

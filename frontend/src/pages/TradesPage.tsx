@@ -247,10 +247,10 @@ function TradesPageBody() {
         <EmptyState
           status
           tagline="No trades yet."
-          hint="Propose one from a friend's page."
+          hint="Pick a friend and browse their cards."
           actions={
-            <Button variant="primary" to="/friends">
-              Find a friend to trade with
+            <Button variant="primary" onClick={() => setPicking(true)} aria-haspopup="dialog">
+              Start a trade
             </Button>
           }
         />

@@ -84,6 +84,14 @@ describe('TradesPage New trade', () => {
     expect(await screen.findByText('at /friends')).toBeTruthy();
   });
 
+  it('the no-trades empty state starts a trade through the same picker', async () => {
+    listFriends.mockResolvedValue([friend('f1', 'ada', 'Ada Brews')]);
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Start a trade' }));
+    expect(await screen.findByRole('dialog')).toBeTruthy();
+    expect(await screen.findByRole('link', { name: /Ada Brews/ })).toBeTruthy();
+  });
+
   it('shows an error with a retry when friends fail to load', async () => {
     listFriends.mockRejectedValueOnce(new Error('boom')).mockResolvedValue([friend('f1', 'ada')]);
     await openPicker();

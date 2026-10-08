@@ -71,6 +71,17 @@ describe('ProfileHeader trade entry points', () => {
     expect(screen.getByRole('button', { name: /Follow/ })).toBeTruthy();
   });
 
+  it('gives Trade the one filled button: Follow drops to secondary beside it', () => {
+    renderHeader(profile());
+    expect(screen.getByRole('link', { name: 'Trade' }).className).toContain('btn-primary');
+    expect(screen.getByRole('button', { name: /Follow/ }).className).not.toContain('btn-primary');
+  });
+
+  it('keeps Follow filled for a stranger, where it is the only action', () => {
+    renderHeader(profile({ ownerId: undefined, viewerIsFriend: false }));
+    expect(screen.getByRole('button', { name: /Follow/ }).className).toContain('btn-primary');
+  });
+
   it('hides Trade for a stranger (no ownerId)', () => {
     renderHeader(profile({ ownerId: undefined, viewerIsFriend: false }));
     expect(screen.queryByRole('link', { name: 'Trade' })).toBeNull();
