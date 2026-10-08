@@ -10,12 +10,7 @@ import path from 'path';
 import { Worker } from 'node:worker_threads';
 import { existsSync } from 'fs';
 import { gzip } from 'node:zlib';
-import {
-  DB_PATH,
-  getScryfallCache,
-  buildImageVersions,
-  buildPriceRefreshPayload,
-} from './scryfall-cache';
+import { DB_PATH, getScryfallCache, buildPriceRefreshPayload } from './scryfall-cache';
 import { resolveOracleFacts, ORACLE_REQUEST_LIMIT, type OracleRequest } from './oracle-facts';
 import { closeDb, ensureSchema, getPool } from './db';
 import { backfillResultsFromUserGames } from './games/backfill-results';
@@ -25,6 +20,7 @@ import { parseMarkAllAsProxies } from './import-proxy-flag';
 import { fetchImportLink, ImportLinkError } from './import-link';
 import { promoteAdminsAtBoot } from './admin/bootstrap';
 import { authRouter } from './routes/auth';
+import { cardImagesRouter } from './routes/card-images';
 import { adminRouter } from './routes/admin';
 import { syncRouter } from './routes/sync';
 import { gamesRouter } from './routes/games';
@@ -315,6 +311,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 // rather than a raw body-parser 413.
 app.use(express.json({ limit: '72mb' }));
 
+app.use('/api/cards', cardImagesRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/sync', syncRouter);
@@ -1059,26 +1056,6 @@ app.post('/api/refresh-prices', priceLimiter, async (req: Request, res: Response
     logger.error('[refresh-prices] error:', err);
     res.status(500).json({ error: 'Price refresh failed.' });
   }
-});
-
-/**
- * Current image stamps for a batch of printings (`{ scryfallIds }` →
- * `{ imageVersions }`, see `imageVersionOf`). A deck stores a frozen copy of
- * each card, image URL included, so a card added before Scryfall replaced its
- * preview photo keeps the photo; the client asks this for its deck cards and
- * moves their URLs onto the new stamp. The collection gets the same map from
- * `/api/refresh-prices`. Cache only, stale rows included: a missing or old
- * stamp just leaves the stored URL as it is, so this never calls Scryfall.
- */
-app.post('/api/cards/image-versions', priceLimiter, (req: Request, res: Response) => {
-  const raw = (req.body && (req.body as { scryfallIds?: unknown }).scryfallIds) as unknown;
-  if (!Array.isArray(raw)) {
-    return res.status(400).json({ error: 'Body must be { scryfallIds: string[] }.' });
-  }
-  const ids = Array.from(
-    new Set(raw.filter((x): x is string => typeof x === 'string' && x.length > 0))
-  ).slice(0, 1000);
-  res.json({ imageVersions: buildImageVersions([...cache.getMany(ids, true).values()]) });
 });
 
 /**
