@@ -161,6 +161,7 @@ const ALLOWED: Record<Shape, Record<string, number | { count: number; why: strin
     'components/deck/DeckSizePrompt.tsx': { count: 1, why: CARD_ART },
     'components/trade/TradeAcceptDialog.tsx': { count: 1, why: CARD_ART },
     'components/trade/TradeComposer.tsx': { count: 2, why: CARD_ART },
+    'components/trade/TradeReview.tsx': { count: 1, why: CARD_ART },
     'playtest/components/CardCounters.tsx': { count: 1, why: BOARD_CHROME },
     'components/collection/CardEditDialog.tsx': { count: 2, why: STEPPER },
     'components/card/PrintingPicker.tsx': { count: 2, why: STEPPER },

@@ -382,6 +382,15 @@ describe('coarse-pointer touch floor', () => {
     // The collection browser's "Clear all" text link in the result line
     // (E586): an inline link, so the floor is the only thing giving it a box.
     ['components/share/CollectionBrowser.css', '.collection-browser .collection-browser-clear'],
+    // The trade review (sheet, dock, tray). Stepper and remove are 28px boxes
+    // in a one-line row, so they ghost; the thumb, printing line, note toggle
+    // and tray button are free-standing and grow their own box.
+    ['components/trade/TradeReview.css', '.trade-review-step::after'],
+    ['components/trade/TradeReview.css', '.trade-review-remove::after'],
+    ['components/trade/TradeReview.css', '.trade-review-thumb-btn'],
+    ['components/trade/TradeReview.css', '.trade-review-printing'],
+    ['components/trade/TradeReview.css', '.trade-review-note-toggle'],
+    ['components/trade/TradeReview.css', '.trade-tray-cta'],
   ];
 
   // The shared kebab trigger is its own control, not one crowded into a dense

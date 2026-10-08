@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { apiUrl } from '@/lib/api/api-base';
 import { getPrice } from '@/lib/collection/card-prices';
 import { getCurrency } from '@/lib/collection/currency';
+import { formatMoney } from '@/lib/collection/format-money';
 import type { TradeCard } from './trades-client';
 
 /**
@@ -175,4 +176,42 @@ export function useFloorPrices(names: string[]): {
 
   const fresh = resolved.key === key;
   return { prices: fresh ? resolved.prices : NO_PRICES, pending: key !== '' && !fresh };
+}
+
+export interface SideValue {
+  /** Rendered form: exact, "from $x", "from $x +?", or "…" while pending. */
+  text: string;
+  /** Total in the viewer's currency, or null while pending / partly unknown. */
+  amount: number | null;
+  /** True when any card was priced from a floor rather than a pinned printing. */
+  estimate: boolean;
+}
+
+/**
+ * The net of the deal, which is the subtraction everyone did in their head
+ * from the two side totals. Null while either side is unpriced: a net built
+ * on a guess is worse than no net.
+ */
+export function describeNet(give: SideValue, receive: SideValue): string | null {
+  if (give.amount === null || receive.amount === null) return null;
+  const diff = receive.amount - give.amount;
+  const estimate = give.estimate || receive.estimate;
+  if (Math.abs(diff) < 1) return estimate ? 'About even' : 'Even';
+  const about = estimate ? 'about ' : '';
+  return diff > 0
+    ? `You come out ${about}${formatMoney(diff)} ahead`
+    : `They come out ${about}${formatMoney(-diff)} ahead`;
+}
+
+/**
+ * The net, short enough for the tray's one line: `about $31 ahead`, `$4 behind`
+ * or `even`. Same omission rule as {@link describeNet}: null while a side is
+ * unpriced, because a subtraction with a missing term is a lie.
+ */
+export function describeNetShort(give: SideValue, receive: SideValue): string | null {
+  if (give.amount === null || receive.amount === null) return null;
+  const diff = receive.amount - give.amount;
+  const about = give.estimate || receive.estimate ? 'about ' : '';
+  if (Math.abs(diff) < 1) return about ? 'about even' : 'even';
+  return diff > 0 ? `${about}${formatMoney(diff)} ahead` : `${about}${formatMoney(-diff)} behind`;
 }
