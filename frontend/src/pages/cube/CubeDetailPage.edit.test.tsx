@@ -227,6 +227,21 @@ describe('CubeDetailPage — swap suggestion labels', () => {
     expect(sent[1]).not.toHaveProperty('cardIn');
   });
 
+  it('records no dismiss when the sheet listed nothing to choose', async () => {
+    const counterspell: Pick = {
+      card: card('Counterspell', { colors: ['U'] }),
+      bucket: 'U',
+      reason: 'goodstuff',
+    };
+    useCubeStore.setState({ saved: [saved({ id: 'cube-2', cube: makeCube([counterspell]) })] });
+    renderAt('/decks/cube/cube-2');
+    await switchToList();
+    fireEvent.click(screen.getByRole('button', { name: 'Swap Counterspell' }));
+    expect(await screen.findByText('Nothing in your collection fits this slot.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(sent).toEqual([]);
+  });
+
   it('sends nothing when the player opted out', async () => {
     setSuggestionLabelsEnabled(false);
     fireEvent.click(await openSwap());

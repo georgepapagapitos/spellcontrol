@@ -289,8 +289,10 @@ export function CubeDetailPage() {
     rescoreIfPossible(target.id, pool);
   };
   // The sheet closed without a pick: the player looked at the candidates and kept the card.
+  // Closing it while it loads or with nothing listed dismisses nothing.
   const dismissSwap = () => {
-    recordCubeSwap({ action: 'dismiss', reason: swapReason(), cardOut: swapCardName });
+    if (!poolLoading && swapList.length > 0)
+      recordCubeSwap({ action: 'dismiss', reason: swapReason(), cardOut: swapCardName });
     setSwapTarget(null);
   };
 
