@@ -154,9 +154,8 @@
 
 /* ── Themed number stepper ─────────────────────────────────────────────
    Use as: <span class="number-stepper">[−][input][+]</span>
-   Hides the native browser spinner so the custom buttons are the only
-   step affordance. The input itself keeps the standard themed border
-   from input[type='number'] above. */
+   The native spinner is already gone app-wide (see the input[type='number']
+   reset below), so the custom buttons are the only step affordance. */
 .number-stepper {
   display: inline-flex;
   align-items: stretch;
@@ -168,15 +167,6 @@
   border-radius: 0;
   border-left: 0;
   border-right: 0;
-  appearance: textfield;
-  -moz-appearance: textfield;
-}
-
-.number-stepper input[type='number']::-webkit-inner-spin-button,
-.number-stepper input[type='number']::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-  appearance: none;
-  margin: 0;
 }
 
 select,
@@ -191,6 +181,24 @@ input[type='search'] {
   border-radius: var(--radius);
   padding: var(--space-1-5) var(--space-2-5);
   outline: none;
+}
+
+/* No native spin buttons on any number input, anywhere. Next to the app's own
+   [-] [+] steppers they read as a second, cramped set of the same control, and
+   they render differently in every browser (absent on touch). Arrow keys
+   still step the value. This is the ONE place the reset
+   lives: a per-class copy is how the add-to-collection Copies stepper shipped
+   with both sets. Pinned by number-input-spinners.test.ts. */
+input[type='number'] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
 }
 
 /* E321: 6px of padding plus a text-base line box computes 42px — two under the

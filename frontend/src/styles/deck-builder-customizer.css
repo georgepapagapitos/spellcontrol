@@ -637,14 +637,6 @@ button.option-card:focus-visible,
   border-radius: var(--radius);
   padding: var(--space-0-5) var(--space-1);
   outline: none;
-  appearance: textfield;
-  -moz-appearance: textfield;
-}
-
-.option-card-input::-webkit-inner-spin-button,
-.option-card-input::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
 }
 
 /* ── Preset row (None / $25 / $50 / $100 / $200 / Custom) ────────────── */
@@ -717,14 +709,6 @@ button.option-card:focus-visible,
   border-color: var(--accent);
   color: var(--accent);
   font-weight: 600;
-  appearance: textfield;
-  -moz-appearance: textfield;
-}
-
-.preset-pill-input::-webkit-inner-spin-button,
-.preset-pill-input::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
 }
 
 /* ── Misc field elements ─────────────────────────────────────────────── */
@@ -732,19 +716,6 @@ button.option-card:focus-visible,
 .deck-customizer-text-input {
   width: 100%;
   background: var(--surface);
-}
-
-/* Reset native spinner arrows on all numeric inputs inside the customizer
-   — themed stepper / preset row are the canonical affordances. */
-.deck-customizer input[type='number'] {
-  appearance: textfield;
-  -moz-appearance: textfield;
-}
-
-.deck-customizer input[type='number']::-webkit-inner-spin-button,
-.deck-customizer input[type='number']::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
 }
 
 /* ── Ban-list presets — wrapping chip row (4 formats, long labels) ────── */
