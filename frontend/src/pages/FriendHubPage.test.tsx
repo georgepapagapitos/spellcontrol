@@ -631,6 +631,8 @@ describe('FriendHubPage — ?counter=<offerId> from /trades', () => {
         </Routes>
       </MemoryRouter>
     );
+    // Counter now lives in the offer's review, not on the row.
+    fireEvent.click(await screen.findByRole('button', { name: 'Review offer' }));
     fireEvent.click(await screen.findByRole('button', { name: /^Counter/ }));
     expect(await screen.findByRole('dialog', { name: /Trade with/ })).toBeTruthy();
   });

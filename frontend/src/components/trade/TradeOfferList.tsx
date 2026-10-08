@@ -23,17 +23,12 @@ import {
   type TradeOffer,
 } from '@/lib/trade/trades-client';
 import { useCollectionStore } from '../../store/collection';
-import {
-  groupOwnedForTrade,
-  groupByPrinting,
-  toTradeCard,
-  type OwnedTradeLine,
-} from '@/lib/trade/trade-picker';
+import { groupOwnedForTrade, type OwnedTradeLine } from '@/lib/trade/trade-picker';
 import { settleTrade } from '@/lib/trade/use-trade-settlement';
 import { resolveTradePreview } from '@/lib/trade/trade-preview';
 import { TradePreviewCarousel, type TradePreviewState } from './TradePreviewCarousel';
 import { formatLocation, useCardLocations, type CardLocation } from '@/lib/binder/card-locations';
-import { TradeAcceptDialog, type AcceptChoice } from './TradeAcceptDialog';
+import { TradeIncomingReview, type AcceptChoice } from './TradeIncomingReview';
 import { useConfirm } from '@/components/overlays/use-confirm';
 import { Button, IconButton } from '@/components/shared/Button';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -158,8 +153,11 @@ function TradeOfferCard({
   locations: Map<string, CardLocation>;
 }) {
   const [busy, setBusy] = useState(false);
-  // Non-null while the viewer is choosing which copies to hand over.
-  const [choosing, setChoosing] = useState<AcceptChoice[] | null>(null);
+  // Non-null while the viewer is reviewing an incoming offer; a snapshot, so a
+  // sync landing mid-review can't reshuffle the copies under their thumb.
+  const [reviewing, setReviewing] = useState<{ choices: AcceptChoice[]; missing: string[] } | null>(
+    null
+  );
   // Non-null while the card-preview carousel is open over this offer.
   const [preview, setPreview] = useState<TradePreviewState | null>(null);
   const headingId = useId();
@@ -219,7 +217,7 @@ function TradeOfferCard({
   // E501), so each asks first, per the verb contract (STYLE_GUIDE § Delete and
   // remove: only an action nothing can reverse confirms). Accept has its own
   // step, and Remove only hides a finished trade from this side's list.
-  async function decline() {
+  async function decline(): Promise<boolean> {
     const ok = await confirm({
       title: `Decline the trade from ${who}?`,
       body: `${who} will see it as declined. This can't be undone.`,
@@ -227,6 +225,7 @@ function TradeOfferCard({
       danger: true,
     });
     if (ok) await run(() => declineTrade(offer.id), "Couldn't decline the trade. Try again.");
+    return ok;
   }
 
   async function withdraw() {
@@ -259,21 +258,6 @@ function TradeOfferCard({
     return { choices, missing };
   }
 
-  /**
-   * True when at least one asked card exists in more than one printing here —
-   * i.e. when accepting is a real decision rather than a formality. Most of a
-   * collection is a single printing, and making those cost an extra tap would
-   * be a worse feature, so the picker is opened only when it has something to
-   * ask.
-   */
-  const needsChoice = useMemo(() => {
-    if (!canAnswer) return false;
-    return offer.give.some((asked) => {
-      const line = ownedByKey.get(asked.oracleId || `name:${asked.name.toLowerCase()}`);
-      return !!line && groupByPrinting(line).length > 1;
-    });
-  }, [canAnswer, offer.give, ownedByKey]);
-
   async function commit(resolved: TradeCard[]) {
     await run(async () => {
       const updated = await acceptTrade(offer.id, resolved);
@@ -282,24 +266,7 @@ function TradeOfferCard({
       // collection visibly stale.
       await settleTrade(updated);
     }, "Couldn't accept the trade. Try again.");
-    setChoosing(null);
-  }
-
-  async function accept() {
-    const { choices, missing } = resolveAsk();
-    if (missing.length > 0) {
-      toast.show({
-        message: `You no longer have ${missing.join(', ')} to give. Decline and counter instead.`,
-        tone: 'warn',
-      });
-      return;
-    }
-    if (needsChoice) {
-      setChoosing(choices);
-      return;
-    }
-    // Nothing to choose — the cheapest-first pick IS the only pick.
-    await commit(choices.map((c) => toTradeCard(c.line, c.asked.quantity)));
+    setReviewing(null);
   }
 
   return (
@@ -384,27 +351,12 @@ function TradeOfferCard({
       {(canAnswer || canWithdraw) && (
         <div className="trade-offer-actions">
           {canAnswer && (
-            <>
-              <Button variant="primary" disabled={busy} onClick={() => void accept()}>
-                {/* The ellipsis is the standard promise that a further step
-                    follows — this button settles a collection either way, and
-                    it must not be ambiguous which of the two it is doing. */}
-                {busy ? 'Working…' : needsChoice ? 'Accept…' : 'Accept'}
-              </Button>
-              <Button disabled={busy} onClick={() => void decline()}>
-                Decline
-              </Button>
-              {onCounter && (
-                <Button
-                  variant="link"
-                  disabled={busy}
-                  onClick={() => onCounter(offer)}
-                  className="trade-offer-counter"
-                >
-                  Counter
-                </Button>
-              )}
-            </>
+            // Accepting moves cards out of your binders, so a list row only
+            // opens the review; the deal, the decks it touches and the copies
+            // that leave are all on that sheet before anything commits.
+            <Button variant="primary" disabled={busy} onClick={() => setReviewing(resolveAsk())}>
+              Review offer
+            </Button>
           )}
           {canWithdraw && (
             <Button disabled={busy} onClick={() => void withdraw()}>
@@ -422,13 +374,31 @@ function TradeOfferCard({
         />
       )}
 
-      {choosing && (
-        <TradeAcceptDialog
-          counterpartyName={who}
-          choices={choosing}
+      {reviewing && (
+        <TradeIncomingReview
+          who={who}
+          note={offer.note}
+          asks={offer.give}
+          receive={offer.receive}
+          receiveValue={receive}
+          choices={reviewing.choices}
+          missing={reviewing.missing}
           busy={busy}
-          onCancel={() => setChoosing(null)}
-          onConfirm={(resolved) => void commit(resolved)}
+          onClose={() => setReviewing(null)}
+          onAccept={(resolved) => void commit(resolved)}
+          onDecline={() => {
+            void decline().then((done) => {
+              if (done) setReviewing(null);
+            });
+          }}
+          onCounter={
+            onCounter
+              ? () => {
+                  setReviewing(null);
+                  onCounter(offer);
+                }
+              : undefined
+          }
         />
       )}
 

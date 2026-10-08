@@ -265,12 +265,6 @@ describe('coarse-pointer touch floor', () => {
     // class carries the accept dialog's card-head thumb.
     ['components/trade/TradeComposer.css', '.trade-thumb-btn'],
     ['components/trade/TradeComposer.css', '.trade-result-pick'],
-    // The accept dialog's own copy — each component owns its classes rather
-    // than borrowing across stylesheets (a load-order coin flip).
-    ['components/trade/TradeAcceptDialog.css', '.trade-accept-thumb-btn'],
-    // Its confirm/cancel pair settles a collection, so they take the floor on
-    // their real boxes rather than a ghost — `.btn` is 32-36px by default.
-    ['components/trade/TradeAcceptDialog.css', '.trade-accept-actions .btn'],
     // Card header, not a dense row — it grows its own box rather than a ghost
     // (a ghost here would only overlap the non-interactive sides grid below).
     ['components/trade/TradeOfferList.css', '.trade-offer-who'],
@@ -402,6 +396,9 @@ describe('coarse-pointer touch floor', () => {
     // row below; upward it reaches 4px into the art's bottom edge, which holds
     // no control on this surface (the corner badges sit above that).
     ['components/trade/TradeAddButton.css', '.trade-add::after'],
+    // The incoming review's Counter / Decline pair answer a real offer, so they
+    // take the floor on their real boxes (`.btn` is 32-36px by default).
+    ['components/trade/TradeIncomingReview.css', '.trade-incoming-actions .btn'],
   ];
 
   // The shared kebab trigger is its own control, not one crowded into a dense

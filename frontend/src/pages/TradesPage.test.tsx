@@ -318,6 +318,8 @@ describe('TradesPage', () => {
       </MemoryRouter>
     );
 
+    // Counter now lives in the offer's review, not on the row.
+    fireEvent.click(await screen.findByRole('button', { name: 'Review offer' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Counter' }));
     expect(await screen.findByText('/friends/friend-9?counter=incoming')).toBeTruthy();
   });

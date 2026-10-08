@@ -69,7 +69,6 @@ const FAMILIES = [
   'deck-identity-card',
   'friend-hub-h2h-card',
   'trade-offer-card',
-  'trade-accept-card',
   'filter-popover-panel',
   'sort-popover-panel',
   'toolbar-popover-panel',
