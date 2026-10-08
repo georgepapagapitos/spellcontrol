@@ -203,7 +203,9 @@ vi.mock('../components/deck/DeckDisplay', () => ({
 // delete-flow tests and exactly the unmocked-network-leaf shape that causes
 // the post-teardown fetch flake (see project_vitest_teardown_flake).
 vi.mock('../components/deck/DeckVisibilityChip', () => ({
-  DeckVisibilityChip: () => null,
+  DeckVisibilityChip: ({ variant }: { variant?: string }) => (
+    <span data-testid="visibility-chip" data-variant={variant ?? 'meta'} />
+  ),
 }));
 // DeckPublishNudge (E150) pulls in the same ShareDialog tree as the chip
 // above, for the identical reason — none of these delete-flow tests navigate
@@ -873,6 +875,22 @@ describe('DeckEditorPage — header actions by tier (STYLE_GUIDE § Layout syste
     const items = menuLabels();
     expect(items.some((t) => t?.startsWith('Undo') || t?.startsWith('Redo'))).toBe(false);
     expect(items).not.toContain('Playtest');
+  });
+
+  // A phone's meta line is one line of facts. Sharing ended it before, and in
+  // a 358px line it wrapped the meta onto extra 44px touch rows, so on a
+  // phone it is a header action beside Add cards instead.
+  it.each([
+    [390, '.deck-editor-actions', 'button'],
+    [768, '.binder-hero-meta', 'meta'],
+    [1280, '.binder-hero-meta', 'meta'],
+  ])('at %ipx puts sharing in %s', (px, where, variant) => {
+    atWidth(px);
+    renderEditor();
+    const chips = screen.getAllByTestId('visibility-chip');
+    expect(chips).toHaveLength(1);
+    expect(chips[0].closest(where)).toBeTruthy();
+    expect(chips[0].dataset.variant).toBe(variant);
   });
 
   it('omits undo/redo from the ⋮ when there is nothing to undo or redo', () => {

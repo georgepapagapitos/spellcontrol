@@ -164,13 +164,19 @@ export function DeckEditorHero({
             </span>
           )}
           {/* Sharing is a fact about the deck, so it is the meta line's last
-              segment; the status itself opens ShareDialog. */}
-          {'\u00A0· '}
-          <DeckVisibilityChip
-            deckId={deck.id}
-            deckName={deck.name}
-            colorIdentity={commanderColorIdentity}
-          />
+              segment; the status itself opens ShareDialog. On a phone it is a
+              header action instead: in a 358px line it wrapped the meta onto
+              extra 44px touch rows (STYLE_GUIDE § Page hero art, deck header). */}
+          {!isPhone && (
+            <>
+              {' · '}
+              <DeckVisibilityChip
+                deckId={deck.id}
+                deckName={deck.name}
+                colorIdentity={commanderColorIdentity}
+              />
+            </>
+          )}
         </>
       }
       actions={
@@ -224,6 +230,14 @@ export function DeckEditorHero({
           >
             {showAddPanel ? 'Hide cards panel' : 'Add cards'}
           </Button>
+          {isPhone && (
+            <DeckVisibilityChip
+              variant="button"
+              deckId={deck.id}
+              deckName={deck.name}
+              colorIdentity={commanderColorIdentity}
+            />
+          )}
           {/* Tokens, Pull list, Duplicate and Delete (UX-316: destructive
               actions live here, never inline) are all in the ⋮. */}
           {overflowMenu}
