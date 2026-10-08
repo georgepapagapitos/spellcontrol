@@ -8,7 +8,7 @@
  * selection, never on mount, never again on re-selection), both row-type
  * renders, the empty state, and the error+retry path.
  */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -552,6 +552,21 @@ describe('FriendsManagement — people, following and suggestions', () => {
     vi.mocked(fetchBrewerRails).mockResolvedValue({ ...NO_RAILS, newest: [brewer('newbie')] });
     await renderPage();
     expect(await screen.findByRole('heading', { name: 'Brewers to meet' })).toBeTruthy();
+  });
+
+  it('leaves a friend out of the suggestions even when they share your commanders', async () => {
+    vi.mocked(listFriends).mockResolvedValue([friendRow('erin')]);
+    vi.mocked(fetchFollowing).mockResolvedValue([]);
+    vi.mocked(fetchBrewerRails).mockResolvedValue({
+      ...NO_RAILS,
+      sharedCommanders: [brewer('erin'), brewer('stranger')],
+    });
+    await renderPage();
+    const strip = (await screen.findByRole('heading', { name: 'Brewers to meet' })).closest(
+      'section'
+    )!;
+    expect(within(strip).getByRole('link', { name: /stranger/ })).toBeTruthy();
+    expect(within(strip).queryByRole('link', { name: /erin/ })).toBeNull();
   });
 
   it('hides the suggestions at three or more combined, and when there are none to give', async () => {
