@@ -29,7 +29,7 @@ import { countedRoleOf } from '../commanderDeckAnalysis';
 import { exceedsCmcCap } from '../deckFilters';
 import { createObjectiveContext } from '../deckObjective';
 import { cardIneligibility, checkConstraints } from '../deckObjective/constraints';
-import { isLandCard } from '../deckObjective/context';
+import { isBasicLand, isLandCard } from '../deckObjective/context';
 import { MAX_SWAPS, repairSlotOf, type AppliedSwap } from '../deckObjective/optimizer';
 import { optimizeDeckAsync } from '../deckObjective/optimizerAsync';
 import { discover, type DiscoveryPick } from '../deckObjective/discovery';
@@ -172,7 +172,7 @@ export async function wholeDeckSearchPhase(
       .filter((v) => OWNED_RULES.has(v.check) || v.check === 'face-name-collision')
       .map((v) => v.check)
   );
-  const repairOnly = await ownedRepairCandidates(
+  const offPage = await ownedExtraCandidates(
     state,
     seed,
     ctx,
@@ -184,7 +184,7 @@ export async function wholeDeckSearchPhase(
   // The discovery slot (E515) draws from the cards this generation fetched,
   // not from the owned cards fetched only to repair a rule.
   const discoveryPool = [...candidates];
-  candidates.push(...repairOnly.values());
+  candidates.push(...offPage.values());
   // The generator's own protections: must-includes (the customization's are
   // the search's too), a partial build's owned quota.
   const locks = seed.cards
@@ -208,7 +208,8 @@ export async function wholeDeckSearchPhase(
     {
       locks,
       leave,
-      repairOnly: new Set(repairOnly.keys()),
+      offPageOwned: new Set(offPage.keys()),
+      landUpgrades: !!ctx.ownedNames,
       trust: { roleCeilings },
       timeBudgetMs: input.timeBudgetMs ?? SEARCH_TIME_BUDGET_MS,
     },
@@ -271,17 +272,21 @@ export async function wholeDeckSearchPhase(
  *  choose from, few enough that the search stays quick. */
 const OWNED_PER_SLOT = 12;
 const OWNED_ANY_SLOT = 24;
+/** Owned nonbasic lands kept, the most played first. */
+const OWNED_LANDS = 30;
 
 /**
- * The owned cards a repair may bring in, by name: none unless the list breaks
- * a rule the search repairs (an ownership rule the generator left relaxed is
- * not one, but a Game Changer ceiling in an owned-only build is, and its
- * replacement has to be owned). The collection's fitting cards are resolved, and kept
- * are the most-played (EDHREC rank) of each slot the cards to replace fill
- * (their counted role, a protection piece, a land) plus the most-played of
- * any slot.
+ * The owned cards the page doesn't rank, by name, that the search may seat
+ * (E509). Lands are always resolved in a collection build: the generator meets
+ * a land only through the page's land list, so an owned dual or utility land is
+ * otherwise out of reach (the most played OWNED_LANDS are kept). Spells are
+ * resolved only while the list breaks a rule the search repairs (an ownership
+ * rule the generator left relaxed is not one, but a Game Changer ceiling in an
+ * owned-only build is, and its replacement has to be owned): the most played
+ * (EDHREC rank) of each slot the cards to replace fill (their counted role, a
+ * protection piece), plus the most played of any slot.
  */
-async function ownedRepairCandidates(
+export async function ownedExtraCandidates(
   state: GenerationState,
   seed: ObjectiveDeck,
   ctx: ObjectiveContext,
@@ -292,15 +297,19 @@ async function ownedRepairCandidates(
 ): Promise<Map<string, ScryfallCard>> {
   const out = new Map<string, ScryfallCard>();
   const owned = ctx.ownedNames;
+  if (!input.resolveOwned || !owned) return out;
   const broken = checkConstraints(seed, ctx).filter((v) => !leave.has(v.check));
-  if (!input.resolveOwned || !owned || broken.length === 0) return out;
   const { colorIdentity, collectionPool } = state.context;
   const known = new Set([...fetchedAlready, ...seed.cards].map((c) => c.name));
+  // A land by its front face, as the search reads it (an MDFC spell is a spell).
+  const isLandEntry = (c: { typeLine?: string }) =>
+    /\bLand\b/.test((c.typeLine ?? '').split(' // ')[0]);
   const rest = (collectionPool ?? []).filter(
     (c) =>
       !known.has(c.name) &&
       !state.bannedCards.has(c.name) &&
-      c.colorIdentity.every((x) => colorIdentity.includes(x))
+      c.colorIdentity.every((x) => colorIdentity.includes(x)) &&
+      (broken.length > 0 || isLandEntry(c))
   );
   if (rest.length === 0) return out;
   // The cards a repair takes out: the unowned ones a violation names, or,
@@ -318,14 +327,24 @@ async function ownedRepairCandidates(
   const fetched = await input.resolveOwned(rest.map((c) => c.name));
   const fits = [...new Set(fetched.values())]
     .filter((c) => !known.has(c.name) && passesGates(c) && !cardIneligibility(c, ctx))
-    .sort((a, b) => (a.edhrec_rank ?? Infinity) - (b.edhrec_rank ?? Infinity));
+    .sort(
+      (a, b) =>
+        (a.edhrec_rank ?? Infinity) - (b.edhrec_rank ?? Infinity) || (a.name < b.name ? -1 : 1)
+    );
   const perSlot = new Map<string, number>();
   let anySlot = 0;
+  let lands = 0;
   for (const c of fits) {
+    if (isLandCard(c)) {
+      if (isBasicLand(c) || lands >= OWNED_LANDS) continue;
+      lands++;
+      out.set(c.name, c);
+      continue;
+    }
     const k = slotKey(c);
     const n = perSlot.get(k) ?? 0;
     const keepForSlot = needed.has(k) && n < OWNED_PER_SLOT;
-    const keepForAny = k !== 'land' && anySlot < OWNED_ANY_SLOT;
+    const keepForAny = anySlot < OWNED_ANY_SLOT;
     if (!keepForSlot && !keepForAny) continue;
     if (keepForSlot) perSlot.set(k, n + 1);
     else anySlot++;

@@ -216,6 +216,15 @@ function needsOpponentDiscard(facts: CardFacts, ability: number): boolean {
   return trigger?.event === 'discard' && trigger.who === 'opp';
 }
 
+/**
+ * A land that becomes a creature only for snow mana (Faceless Haven's
+ * {S}{S}{S}) is a creature in a deck of snow sources and a plain land in any
+ * other: the extractor credited it with the creature types it gains, and a
+ * Krenko deck with no snow sources seated it as a colourless land on that claim
+ * (E509 gate 9). Only its mana counts.
+ */
+const SNOW_ANIMATED_LAND = /\{s\}[^:\n]*:[^\n]*\bbecomes?\b[^\n]*\bcreature/i;
+
 /** The transforming layouts: the back face is reached only by transforming. */
 const TRANSFORMS = new Set(['transform', 'meld']);
 
@@ -238,7 +247,10 @@ export function readFacts(card: ScryfallCard, facts: CardFacts): CardFacts {
       !(narrowMass && r.role === 'boardwipe')
   );
   const producesOthers = tokensGoToOthers(card);
+  const snowLand =
+    /\bland\b/i.test(card.type_line?.split('//')[0] ?? '') && SNOW_ANIMATED_LAND.test(text);
   const produces = facts.produces.filter((p) => {
+    if (snowLand && p.r !== 'mana') return false;
     if (!reachable(p) || (producesOthers && p.r === 'creature-token')) return false;
     const evidence = PRODUCER_EVIDENCE[p.r];
     return !evidence || evidence.test(text);
