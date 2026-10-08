@@ -24,6 +24,7 @@ export const SUGGESTION_SURFACES = new Set([
   'coach:cuts',
   'coach:plan',
   'swap',
+  'cube-swap',
   'similar',
   'hidden-gems',
   'add-suggestions',
@@ -79,8 +80,13 @@ export function parseSuggestion(body: Record<string, unknown>): SuggestionLabel 
   const surface = typeof body.surface === 'string' ? body.surface : '';
   const action = typeof body.action === 'string' ? body.action : '';
   if (!SUGGESTION_SURFACES.has(surface) || !SUGGESTION_ACTIONS.has(action)) return null;
+  // A cube has no commander, so its label carries neither field; every other surface is keyed on one.
+  const cubeLabel = surface === 'cube-swap';
   const commander = typeof body.cmdr === 'string' ? body.cmdr.toLowerCase() : '';
-  if (!ORACLE_ID.test(commander)) return null;
+  if (
+    cubeLabel ? body.cmdr !== undefined || body.partner !== undefined : !ORACLE_ID.test(commander)
+  )
+    return null;
   const partner = typeof body.partner === 'string' ? body.partner.toLowerCase() : '';
   if (partner && !ORACLE_ID.test(partner)) return null;
   const rank = body.rank === undefined ? 0 : body.rank;

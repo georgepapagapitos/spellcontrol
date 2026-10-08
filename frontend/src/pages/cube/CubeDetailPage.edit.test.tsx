@@ -7,11 +7,21 @@ import { useCubeStore, type SavedCube } from '../../store/cube';
 import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
 import { useToastsStore } from '../../store/toasts';
+import {
+  resetSuggestionLabelsForTests,
+  setSuggestionLabelsEnabled,
+} from '@/lib/util/suggestion-labels';
 import type { GeneratedCube, Pick } from '../../lib/cube/generate';
 import type { CubeCard } from '../../lib/cube/core';
 
 vi.mock('../../deck-builder/services/scryfall/client', () => ({
   getCardsByNames: vi.fn(() => Promise.resolve(new Map())),
+}));
+
+const sent = vi.hoisted(() => [] as Record<string, unknown>[]);
+vi.mock('@/lib/util/analytics', () => ({
+  sendBeaconPayload: (p: Record<string, unknown>) => sent.push(p),
+  normalizePath: (p: string) => p,
 }));
 
 const { SWAP_POOL } = vi.hoisted(() => ({
@@ -112,6 +122,8 @@ beforeEach(() => {
   useDecksStore.setState({ decks: [] });
   useToastsStore.setState({ toasts: [] });
   localStorage.clear();
+  sent.length = 0;
+  resetSuggestionLabelsForTests();
   writeText.mockClear();
   generateCubeAsyncMock.mockReset();
   Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
@@ -168,6 +180,60 @@ describe('CubeDetailPage — swap', () => {
       expect(names).toContain('Monastery Swiftspear');
       expect(names).not.toContain('Goblin Guide');
     });
+  });
+});
+
+describe('CubeDetailPage — swap suggestion labels', () => {
+  const openSwap = async () => {
+    useCubeStore.setState({
+      saved: [saved({ id: 'cube-secret-1', cube: makeCube([pick('Goblin Guide')]) })],
+    });
+    renderAt('/decks/cube/cube-secret-1');
+    await switchToList();
+    fireEvent.click(screen.getByRole('button', { name: 'Swap Goblin Guide' }));
+    return screen.findByRole('button', { name: 'Use' });
+  };
+
+  it('counts the list once and labels the picked candidate with its rank, with no commander or cube id', async () => {
+    fireEvent.click(await openSwap());
+    await waitFor(() => expect(sent).toHaveLength(2));
+    expect(sent).toEqual([
+      expect.objectContaining({ surface: 'cube-swap', action: 'shown', n: 1 }),
+      expect.objectContaining({
+        surface: 'cube-swap',
+        action: 'accept',
+        rank: 1,
+        reason: 'red',
+        cardIn: 'Monastery Swiftspear',
+        cardOut: 'Goblin Guide',
+      }),
+    ]);
+    const body = JSON.stringify(sent);
+    expect(body).not.toContain('cube-secret-1');
+    expect(sent.every((p) => !('cmdr' in p) && !('cmdrName' in p))).toBe(true);
+  });
+
+  it('labels closing the sheet without a pick as a dismiss of the card kept', async () => {
+    await openSwap();
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(sent).toEqual([
+      expect.objectContaining({ action: 'shown', n: 1 }),
+      expect.objectContaining({
+        surface: 'cube-swap',
+        action: 'dismiss',
+        cardOut: 'Goblin Guide',
+      }),
+    ]);
+    expect(sent[1]).not.toHaveProperty('cardIn');
+  });
+
+  it('sends nothing when the player opted out', async () => {
+    setSuggestionLabelsEnabled(false);
+    fireEvent.click(await openSwap());
+    await waitFor(() =>
+      expect(useCubeStore.getState().saved[0].cube.picks[0].card.name).toBe('Monastery Swiftspear')
+    );
+    expect(sent).toEqual([]);
   });
 });
 

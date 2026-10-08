@@ -21,7 +21,8 @@ import { toCubeCobraList } from '../../lib/cube/format';
 import { useAwaitingFirstPull } from '@/lib/sync/use-awaiting-first-pull';
 import { useOwnedCubePool } from '../../lib/cube/use-owned-pool';
 import { DEFAULT_POOL_FILTERS } from '../../lib/cube/pool-filters';
-import { swapCandidates } from '../../lib/cube/swap';
+import { COLOR_LABEL, swapCandidates } from '../../lib/cube/swap';
+import { recordCubeSwap, recordCubeSwapShown } from '@/lib/util/suggestion-labels';
 import { byQuality } from '../../lib/cube/generate';
 import { targetsForSize } from '../../lib/cube/targets';
 import { scoreCube, computePowerBasis } from '../../lib/cube/objective';
@@ -116,6 +117,10 @@ export function CubeDetailPage() {
         : [],
     [swapTarget, pool, target, bannedIds]
   );
+  const swapScope = swapTarget !== null ? target?.cube.picks[swapTarget]?.card.oracleId : undefined;
+  useEffect(() => {
+    if (swapScope) recordCubeSwapShown(swapList.length, swapScope);
+  }, [swapScope, swapList.length]);
   const inCubeIds = useMemo(
     () => new Set((target?.cube.picks ?? []).map((p) => p.card.oracleId)),
     [target]
@@ -262,15 +267,32 @@ export function CubeDetailPage() {
     setSwapTarget(pickIndex);
     void loadPool();
   };
+  const swapCardName = swapTarget !== null ? (target.cube.picks[swapTarget]?.card.name ?? '') : '';
+  /** The label's reason kind: the slot's role, else its color bucket. */
+  const swapReason = (): string => {
+    const p = swapTarget !== null ? target.cube.picks[swapTarget] : undefined;
+    return p ? (p.card.role ?? COLOR_LABEL[p.bucket] ?? '') : '';
+  };
   const applySwap = (card: CubeCard) => {
     if (swapTarget === null) return;
+    recordCubeSwap({
+      action: 'accept',
+      rank: swapList.findIndex((c) => c.card.oracleId === card.oracleId) + 1,
+      reason: swapReason(),
+      cardIn: card.name,
+      cardOut: swapCardName,
+    });
     const liveCollection = useCollectionStore.getState().cards;
     const liveDecks = useDecksStore.getState().decks;
     cubeStore.swapPick(target.id, swapTarget, card, liveCollection, liveDecks);
     setSwapTarget(null);
     rescoreIfPossible(target.id, pool);
   };
-  const swapCardName = swapTarget !== null ? (target.cube.picks[swapTarget]?.card.name ?? '') : '';
+  // The sheet closed without a pick: the player looked at the candidates and kept the card.
+  const dismissSwap = () => {
+    recordCubeSwap({ action: 'dismiss', reason: swapReason(), cardOut: swapCardName });
+    setSwapTarget(null);
+  };
 
   const handleRemove = (pickIndex: number) => {
     const p = target.cube.picks[pickIndex];
@@ -549,7 +571,7 @@ export function CubeDetailPage() {
           emptyMessage="Nothing in your collection fits this slot."
           pickLabel="Use"
           onPick={applySwap}
-          onClose={() => setSwapTarget(null)}
+          onClose={dismissSwap}
         />
       )}
       {addOpen && (
