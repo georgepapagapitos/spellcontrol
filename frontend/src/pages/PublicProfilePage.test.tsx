@@ -4,7 +4,7 @@
  * gets the way back to the editor on /you (the other half of the Profile
  * card's "public profile" link).
  */
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PublicProfile, PublicProfileDeck } from '@/lib/social/profile-client';
@@ -242,6 +242,24 @@ describe('PublicProfilePage — the Collection tab (T136)', () => {
     // The note shows before the collection's fetch has settled; the owner
     // sees their own cards under it too.
     expect(await screen.findByText(/1 card/)).toBeTruthy();
+  });
+
+  it('keeps the collection mounted across a Decks round trip: search survives, one fetch', async () => {
+    fetchPublicProfileMock.mockResolvedValue(
+      profile({ collection: { visibility: 'public', canView: true } })
+    );
+    fetchProfileCollectionMock.mockResolvedValue(COLLECTION);
+    renderProfile('/u/alice?tab=collection');
+    const box = (await screen.findByLabelText('Search cards')) as HTMLInputElement;
+    fireEvent.change(box, { target: { value: 'sol' } });
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Decks' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Collection' }));
+
+    const again = screen.getByLabelText('Search cards') as HTMLInputElement;
+    expect(again).toBe(box);
+    expect(again.value).toBe('sol');
+    expect(fetchProfileCollectionMock).toHaveBeenCalledTimes(1);
   });
 
   it('offers a retry when the collection fails to load', async () => {

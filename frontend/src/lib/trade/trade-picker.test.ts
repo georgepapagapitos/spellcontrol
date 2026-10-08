@@ -50,13 +50,14 @@ describe('groupOwnedForTrade', () => {
     expect(lines.map((l) => l.name)).toEqual(['Sol Ring']);
   });
 
-  it('keeps a legacy copy with no oracleId tradeable, keyed by name', () => {
+  it('leaves out legacy copies with no oracleId, which the server would reject at Send', () => {
     const lines = groupOwnedForTrade([
       owned({ copyId: 'legacy', name: 'Sol Ring', oracleId: undefined }),
-      owned({ copyId: 'legacy2', name: 'sol ring', oracleId: undefined }),
+      owned({ copyId: 'legacy2', name: 'Sol Ring', oracleId: '' }),
+      owned({ copyId: 'real', name: 'Mana Crypt', oracleId: 'o-crypt' }),
     ]);
-    expect(lines).toHaveLength(1);
-    expect(lines[0].copies).toHaveLength(2);
+    expect(lines.map((l) => l.name)).toEqual(['Mana Crypt']);
+    expect(lines.every((l) => l.oracleId !== '')).toBe(true);
   });
 
   it('sorts by name', () => {

@@ -232,7 +232,7 @@ function ProfileCollection({
           </Button>
         </p>
       ) : (
-        <SharedCollectionView data={current.data!} embedded />
+        <SharedCollectionView data={current.data!} embedded viewerIsOwner={isOwner} />
       )}
       {changing && (
         <CollectionVisibilityDialog
@@ -265,6 +265,8 @@ function PublicProfilePageInner({ username }: { username: string }) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   // The owner can change it from the Collection tab without a refetch.
+  // Set on first open, below; kept here because hooks can't follow the early returns.
+  const [collectionOpened, setCollectionOpened] = useState(false);
   const [visibilityOverride, setVisibilityOverride] = useState<CollectionVisibility | null>(null);
 
   useEffect(() => {
@@ -323,6 +325,10 @@ function PublicProfilePageInner({ username }: { username: string }) {
   const canViewCollection = !profile.moderationHidden && !!profile.collection?.canView;
   const tab: ProfileTab =
     canViewCollection && searchParams.get('tab') === 'collection' ? 'collection' : 'decks';
+  // Once opened the collection stays mounted (hidden by the tabpanel), so a
+  // round trip through Decks keeps its search, filters, sort, paging and scroll
+  // instead of refetching and starting over.
+  if (tab === 'collection' && !collectionOpened) setCollectionOpened(true);
   const setTab = (next: ProfileTab) =>
     setSearchParams(next === 'collection' ? { tab: 'collection' } : {}, { replace: true });
   const profileTabs: TabItem<ProfileTab>[] = [
@@ -399,7 +405,7 @@ function PublicProfilePageInner({ username }: { username: string }) {
               aria-labelledby="sc-tab-collection"
               hidden={tab !== 'collection'}
             >
-              {tab === 'collection' && (
+              {collectionOpened && (
                 <ProfileCollection
                   username={profile.username}
                   isOwner={profile.isOwner}

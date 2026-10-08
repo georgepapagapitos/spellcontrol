@@ -26,21 +26,22 @@ export interface OwnedTradeLine {
  * Keyed by `oracleId` so printings of the same card stack into one line —
  * that is how a person thinks about what they'd trade ("my Sol Ring"), and it
  * matches the oracle-level identity the friend-facing collection uses.
- * Copies with no oracleId (legacy rows) fall back to a name key so they stay
- * tradeable rather than vanishing from the picker.
+ * Copies with no oracleId (legacy rows) are left out: the wire shape names a
+ * card by oracle id and the server rejects a line without one, so offering them
+ * only moved the failure to Send ("That trade has a card we could not read.").
  */
 export function groupOwnedForTrade(cards: EnrichedCard[]): OwnedTradeLine[] {
   const byKey = new Map<string, OwnedTradeLine>();
   for (const card of cards) {
     // Proxies are never tradeable — they are not the card.
     if (card.proxy) continue;
-    const key = card.oracleId || `name:${card.name.toLowerCase()}`;
-    const existing = byKey.get(key);
+    if (!card.oracleId) continue;
+    const existing = byKey.get(card.oracleId);
     if (existing) {
       existing.copies.push(card);
     } else {
-      byKey.set(key, {
-        oracleId: card.oracleId || '',
+      byKey.set(card.oracleId, {
+        oracleId: card.oracleId,
         name: card.name,
         copies: [card],
       });
