@@ -237,8 +237,8 @@ describe('FriendHubPage — Collection browser', () => {
     const deckLink = await within(panel).findByRole('link', { name: 'In deck: Krenko Goes Wide' });
     expect(deckLink.getAttribute('href')).toBe('/d/krenko-goes-wide');
     expect(within(panel).getAllByRole('link', { name: /^In deck/ })).toHaveLength(1);
-    expect(within(panel).getAllByText('Spare')).toHaveLength(1);
-    expect(within(panel).getByRole('button', { name: /sol ring.*has a spare copy/i })).toBeTruthy();
+    expect(within(panel).getAllByText('Spare copy')).toHaveLength(1);
+    expect(within(panel).getByRole('button', { name: /sol ring.*spare copy/i })).toBeTruthy();
     // Spare is a yes/no: no count rides along with it.
     expect(panel.textContent).not.toMatch(/\d+ (free|spare)/);
   });

@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { SharedCardTile } from './SharedCardTile';
 import type { PublicCard } from '@/lib/social/shared-types';
 
@@ -59,7 +59,7 @@ describe('SharedCardTile', () => {
     ).not.toMatch(/quantity/i);
   });
 
-  it('omits the set caption when the projection carries no printing identity', () => {
+  it('captions only the rarity word when the projection carries no printing identity', () => {
     // The friend endpoint is oracle-level: no set code, no collector number.
     // `gridSetLabel` would otherwise caption that as an empty line.
     const { container } = render(
@@ -69,6 +69,66 @@ describe('SharedCardTile', () => {
         hideValue
       />
     );
-    expect(container.querySelector('.collection-grid-caption--set')).toBeNull();
+    expect(container.querySelector('.collection-grid-caption--set')?.textContent).toBe('Uncommon');
+    expect(container.querySelector('.ss')).toBeNull();
+  });
+
+  it('never puts the rarity chip on the art, where it covers the printed mana cost', () => {
+    // Friend tiles (no set code) and share tiles with the set caption off both
+    // used to pin a C/U/R/M chip top-right, over the mana cost.
+    localStorage.setItem(
+      'mtg-collection-grid-caption-prefs',
+      JSON.stringify({ sortValue: true, set: false })
+    );
+    try {
+      const { container } = render(<SharedCardTile card={pc()} onClick={() => {}} />);
+      expect(container.querySelector('.rarity-badge')).toBeNull();
+      expect(container.querySelector('.collection-grid-topright')).toBeNull();
+    } finally {
+      localStorage.clear();
+    }
+    const friend = render(
+      <SharedCardTile
+        card={pc({ setCode: '', collectorNumber: '' })}
+        onClick={() => {}}
+        hideValue
+      />
+    );
+    expect(friend.container.querySelector('.rarity-badge')).toBeNull();
+  });
+
+  it('states a spare copy in visible words, in the caption and the accessible name', () => {
+    const { container } = render(<SharedCardTile card={pc()} onClick={() => {}} hideValue spare />);
+    expect(container.querySelector('.collection-grid-caption--note')?.textContent).toBe(
+      'Spare copy'
+    );
+    expect(container.querySelector('.art-badge')).toBeNull();
+    expect(screen.getByRole('button', { name: /spare copy/i })).toBeTruthy();
+  });
+
+  it('says nothing about a spare when there is none', () => {
+    const { container } = render(<SharedCardTile card={pc()} onClick={() => {}} hideValue />);
+    expect(container.querySelector('.collection-grid-caption--note')).toBeNull();
+  });
+
+  it('keeps the card name on the tile while its art has not painted', () => {
+    // A resolved art URL is not a painted image: a lazy <img> is blank until
+    // it loads, which left wide friend grids as walls of empty boxes.
+    const { container } = render(
+      <SharedCardTile
+        card={pc({ imageNormal: 'https://img.test/sol.jpg' } as never)}
+        onClick={() => {}}
+        hideValue
+      />
+    );
+    const ph = container.querySelector('.collection-grid-placeholder.is-pending');
+    expect(ph?.textContent).toBe('Sol Ring');
+    fireEvent.load(container.querySelector('img')!);
+    expect(container.querySelector('.collection-grid-placeholder')).toBeNull();
+  });
+
+  it('shows the name when there is no art at all', () => {
+    const { container } = render(<SharedCardTile card={pc()} onClick={() => {}} hideValue />);
+    expect(container.querySelector('.collection-grid-placeholder')?.textContent).toBe('Sol Ring');
   });
 });
