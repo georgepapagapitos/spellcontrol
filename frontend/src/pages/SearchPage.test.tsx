@@ -4,6 +4,8 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, RouterProvider, createMemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SearchPage } from './SearchPage';
+import { KEYWORD_GLOSSARY_URL } from '@/lib/cards/keyword-glossary';
+import { RULES_GLOSSARY_URL } from '@/lib/cards/rules-glossary';
 
 const h = vi.hoisted(() => ({
   moveActive: vi.fn(),
@@ -234,8 +236,28 @@ describe('SearchPage rules', () => {
       },
     ],
   };
-  const fetchMock = vi.fn(() =>
-    Promise.resolve(new Response(JSON.stringify(GLOSSARY), { status: 200 }))
+  // The glossary terms Search falls back to, shaped like rules-glossary.json.
+  const TERMS = {
+    meta: { effective: 'September 25, 2026' },
+    terms: [
+      {
+        term: 'Priority',
+        rule: '117',
+        text: 'Which player can take actions at any given time is determined by a system of “priority.”',
+      },
+      {
+        term: 'Ward',
+        rule: '702.21',
+        text: 'A keyword ability that can counter spells or abilities that target the permanent with ward.',
+      },
+    ],
+  };
+  const fetchMock = vi.fn((url: string) =>
+    Promise.resolve(
+      new Response(JSON.stringify(url === RULES_GLOSSARY_URL ? TERMS : GLOSSARY), {
+        status: 200,
+      })
+    )
   );
 
   beforeEach(() => {
@@ -259,6 +281,31 @@ describe('SearchPage rules', () => {
     expect(
       hit.compareDocumentPosition(screen.getByTestId('results')) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
+  });
+
+  it('falls back to a glossary term, linking to it on the Glossary tab', async () => {
+    renderPage('/search?q=priority');
+    const hit = await screen.findByRole('link', { name: /Priority Glossary · 117/ });
+    expect(hit.getAttribute('href')).toBe('/rules?tab=glossary&q=Priority');
+    expect(hit.textContent).toContain('determined by a system of');
+  });
+
+  it('answers a keyword as a keyword, never fetching the glossary', async () => {
+    // A fresh module graph, so neither file is cached from an earlier test:
+    // the glossary must wait for the keyword answer, not race it.
+    vi.resetModules();
+    const { SearchPage: Fresh } = await import('./SearchPage');
+    fetchMock.mockClear();
+    render(
+      <MemoryRouter initialEntries={['/search?q=ward']}>
+        <Fresh />
+      </MemoryRouter>
+    );
+    expect(await screen.findByRole('link', { name: /Keyword ability/ })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: /Glossary/ })).toBeNull();
+    const urls = fetchMock.mock.calls.map(([url]) => url);
+    expect(urls).toContain(KEYWORD_GLOSSARY_URL);
+    expect(urls).not.toContain(RULES_GLOSSARY_URL);
   });
 
   it('reads a printed form of a keyword action', async () => {

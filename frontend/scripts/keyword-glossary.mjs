@@ -154,10 +154,41 @@ export function deriveKeywordGlossary(bundle) {
   };
 }
 
+/** The first rule a glossary definition points to: "See rule 117, …" → "117". */
+const SEE_RULE = /\bSee rules? (\d{3}(?:\.\d+[a-z]?)?)/;
+
+/**
+ * Derives public/rules-glossary.json: the glossary terms that are not
+ * keywords ("Priority", "Stack", "Mana Value"), each with the definition's own
+ * words and the rule it points to. Search shows one when a query is exactly
+ * that term (src/lib/cards/rules-glossary.ts), so the lookup never needs the
+ * ~1 MB rules bundle. Keywords are left out: keyword-glossary.json answers
+ * those with the rule's operative sentence. A definition that is only a
+ * cross-reference says nothing on its own and is dropped.
+ */
+export function deriveRulesGlossary(bundle) {
+  const keywords = new Set(bundle.keywords.map((k) => k.name.toLowerCase()));
+  const terms = [];
+  for (const g of bundle.glossary) {
+    if (keywords.has(g.term.toLowerCase())) continue;
+    const text = sentences(g.definition)
+      .filter((s) => !/^See (?:rules?|also)\b/.test(s))
+      .join(' ')
+      .trim();
+    if (!text) continue;
+    const rule = g.definition.match(SEE_RULE)?.[1];
+    terms.push(rule ? { term: g.term, rule, text } : { term: g.term, text });
+  }
+  return {
+    meta: { effective: bundle.meta.effective, fetchedAt: bundle.meta.fetchedAt },
+    terms,
+  };
+}
+
 /** Re-derive `out` from the bundle at `rulesPath`; writes only when the content changed. */
-export async function writeKeywordGlossary(rulesPath, out) {
+async function writeDerived(rulesPath, out, derive) {
   const bundle = JSON.parse(await readFile(rulesPath, 'utf8'));
-  const next = JSON.stringify(deriveKeywordGlossary(bundle));
+  const next = JSON.stringify(derive(bundle));
   const prev = await readFile(out, 'utf8').catch(() => null);
   if (prev === next) return false;
   await writeFile(out, next);
@@ -165,3 +196,9 @@ export async function writeKeywordGlossary(rulesPath, out) {
   console.log(`[rules] Wrote ${out} (${kb} KB)`);
   return true;
 }
+
+export const writeKeywordGlossary = (rulesPath, out) =>
+  writeDerived(rulesPath, out, deriveKeywordGlossary);
+
+export const writeRulesGlossary = (rulesPath, out) =>
+  writeDerived(rulesPath, out, deriveRulesGlossary);

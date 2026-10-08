@@ -35,6 +35,7 @@ const REGENERATED_ASSETS = [
   'otag-index.json',
   'comprehensive-rules.json',
   'keyword-glossary.json',
+  'rules-glossary.json',
   'sld-drops.json',
 ];
 

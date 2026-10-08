@@ -260,25 +260,41 @@ export function loadKeywordLookup(): Promise<KeywordLookup> {
 /** A query that could be a word, not Scryfall syntax: letters, spaces, hyphens, apostrophes. */
 const PLAIN_WORDS = /^[\p{L}' ’-]+$/u;
 
+const noAnswer = () => null;
+
 /**
- * The keyword a search query names, or null. The glossary loads only once a
- * query could be one, so a syntax search (`t:dragon`) never fetches it.
+ * What a search query names in a lazily loaded lookup: the entry, `null` for
+ * no match, or `undefined` while the lookup is still loading, so a caller can
+ * wait for this answer before asking another source. The lookup loads only
+ * once a query could be a word, so a syntax search (`t:dragon`) never fetches
+ * it, and a failed load answers null.
  */
-export function useKeywordLookup(query: string): KeywordGloss | null {
+export function useQueryLookup<T>(
+  query: string,
+  load: () => Promise<(query: string) => T | null>
+): T | null | undefined {
   const plain = query.trim().length >= 3 && PLAIN_WORDS.test(query.trim());
-  const [lookup, setLookup] = useState<KeywordLookup | null>(null);
+  const [lookup, setLookup] = useState<((query: string) => T | null) | null>(null);
   useEffect(() => {
     if (!plain || lookup) return;
     let alive = true;
-    loadKeywordLookup().then(
+    load().then(
       (l) => alive && setLookup(() => l),
-      () => {}
+      () => alive && setLookup(() => noAnswer)
     );
     return () => {
       alive = false;
     };
-  }, [plain, lookup]);
-  return useMemo(() => (plain && lookup ? lookup(query) : null), [plain, lookup, query]);
+  }, [plain, lookup, load]);
+  return useMemo(
+    () => (!plain ? null : lookup ? lookup(query) : undefined),
+    [plain, lookup, query]
+  );
+}
+
+/** The keyword a search query names; `undefined` while the glossary loads. */
+export function useKeywordLookup(query: string): KeywordGloss | null | undefined {
+  return useQueryLookup(query, loadKeywordLookup);
 }
 
 /**

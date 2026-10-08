@@ -1799,6 +1799,15 @@ Model-written text always says so. The rulings:
   query never fetches the glossary. Nothing renders without a match: it is
   an answer to the query, not an advisor, so it never takes room it hasn't
   earned.
+- **A query that isn't a keyword falls back to a glossary term** (2026-10-08,
+  E587). The same row, with "Glossary · 117" for the meta and the term's own
+  definition for the text, for an exact term ("priority", "the stack", "mana
+  value"); it opens `/rules?tab=glossary&q=…`. The terms come from
+  `rules-glossary.json` (~20 KB gzipped, every glossary term that is not a
+  keyword, derived beside the keyword file), and Search fetches it only after
+  the keyword lookup has answered "not a keyword", never in parallel with
+  it, so a keyword search costs the keyword file alone. A keyword always
+  wins over a term of the same name.
 - **Every reference row has a menu** (`RulesEntryMenu`, on the shared
   `OverflowMenu`): Copy text (the number and the official text, for the
   group chat), Share link (the row's own `/rules?tab=…&q=…` address; the
