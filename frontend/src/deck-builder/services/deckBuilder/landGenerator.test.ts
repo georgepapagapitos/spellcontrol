@@ -602,3 +602,48 @@ describe('generateLands hard gates on real cards', () => {
     expect(names).not.toContain("Legion's Landing // Adanto, the First Fort");
   });
 });
+
+describe('E585: a 40%+ staple keeps its slot when its paid colour no longer counts', () => {
+  it('seats Phyrexian Tower (41.8% on Meren) over Exotic Orchard (22.7%)', async () => {
+    const fx = JSON.parse(
+      readFileSync(
+        resolve(
+          dirname(fileURLToPath(import.meta.url)),
+          'deckObjective',
+          '__fixtures__',
+          'objective.fixture.json'
+        ),
+        'utf8'
+      )
+    ) as {
+      cards: ScryfallCard[];
+      merenPage: Record<string, { inclusion: number; num_decks: number }>;
+    };
+    const byName = new Map(fx.cards.map((c) => [c.name, c]));
+    const names = ['Exotic Orchard', 'Phyrexian Tower'];
+    vi.mocked(getCardsByNames).mockResolvedValueOnce(
+      new Map(names.map((n) => [n, structuredClone(byName.get(n)!)]))
+    );
+    const edhrecLands = names.map((name) => ({
+      name,
+      sanitized: name.toLowerCase(),
+      primary_type: 'Land',
+      inclusion: fx.merenPage[name].inclusion,
+      num_decks: fx.merenPage[name].num_decks,
+    }));
+    const lands = await generateLands(
+      edhrecLands,
+      ['B', 'G'],
+      2,
+      new Set(),
+      1,
+      99,
+      [sc({ name: 'Costly Plunder', mana_cost: '{B}{B}{B}{B}{G}', cmc: 5 })],
+      undefined,
+      new Set(),
+      null
+    );
+    expect(lands.map((c) => c.name)).toContain('Phyrexian Tower');
+    expect(lands.map((c) => c.name)).not.toContain('Exotic Orchard');
+  });
+});

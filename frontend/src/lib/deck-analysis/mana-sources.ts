@@ -32,6 +32,9 @@ const COLOR_KEYS = ['W', 'U', 'B', 'R', 'G'] as const;
  * Bugle Building, Captivating Cave and Cavern of Souls would read as coloured
  * sources; they tap for {C}. The mana sim reads lands the same way.
  *
+ * `allAbilities` keeps Scryfall's reading, for the one caller that must not let
+ * the colour count move a staple's slot (see landGenerator's boosts).
+ *
  * Name/text fallbacks cover the rare card cached without `produced_mana`.
  * Returns `[]` for non-producers.
  *
@@ -39,11 +42,16 @@ const COLOR_KEYS = ['W', 'U', 'B', 'R', 'G'] as const;
  * all — e.g. excluding one-shot rituals (instants/sorceries) — is decided by the
  * caller; see `isManaSourceType`.
  */
-export function producedManaColors(card: ScryfallCard, identity: ReadonlySet<string>): string[] {
+export function producedManaColors(
+  card: ScryfallCard,
+  identity: ReadonlySet<string>,
+  { allAbilities = false }: { allAbilities?: boolean } = {}
+): string[] {
   const typeLine = card.type_line || card.card_faces?.[0]?.type_line || '';
-  const free = /\bland\b/i.test(typeLine.split('//')[0].split('—')[0])
-    ? unconditionalMana(card.oracle_text ?? '', { fixing: true })
-    : null;
+  const free =
+    !allAbilities && /\bland\b/i.test(typeLine.split('//')[0].split('—')[0])
+      ? unconditionalMana(card.oracle_text ?? '', { fixing: true })
+      : null;
   const ot = free ? free.text : (card.oracle_text ?? '').toLowerCase();
   const pm = (free?.colours ?? card.produced_mana ?? []).filter((c) => 'WUBRGC'.includes(c));
   const identityColors = COLOR_KEYS.filter((c) => identity.has(c));

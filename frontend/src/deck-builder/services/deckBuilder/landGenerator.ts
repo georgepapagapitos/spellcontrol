@@ -45,6 +45,7 @@ import {
 } from './manabaseMath';
 import { producedManaColors } from '@/lib/deck-analysis/mana-sources';
 import { landPowerScore } from './landPower';
+import { COMMANDER_STAPLE_INCLUSION } from './premiumCards';
 import { computeManaPhilosophyBoosts } from './manaPhilosophy';
 
 /** Ceiling for the color-deficit nonbasic boost — a bounded re-rank (below the
@@ -264,6 +265,15 @@ export async function generateLands(
       }
     }
 
+    // A staple of this commander's page (40%+) keeps the priority its colour
+    // reading earned before the paid, sacrifice and restricted abilities were
+    // left out of it: the colour COUNT changes, a staple's slot does not
+    // (Phyrexian Tower, 41.8% on Meren, taps {B}{B} only by sacrificing).
+    const inclusionOf = new Map(edhrecLands.map((l) => [l.name, l.inclusion ?? 0]));
+    const readingFor = (name: string) => ({
+      allAbilities: (inclusionOf.get(name) ?? 0) >= COMMANDER_STAPLE_INCLUSION,
+    });
+
     // Color-demand boost: nudge lands that produce the colors this deck's
     // costs actually lean on (weighted pip demand), so an on-color dual
     // outranks an off-color utility land at similar inclusion and utility
@@ -274,7 +284,7 @@ export async function generateLands(
     const totalDemand = WUBRG.reduce((s, c) => s + (identitySet.has(c) ? demand[c] : 0), 0);
     if (totalDemand > 0) {
       for (const [name, card] of landCardMap) {
-        const produced = producedManaColors(card, identitySet);
+        const produced = producedManaColors(card, identitySet, readingFor(name));
         let share = 0;
         for (const c of WUBRG) {
           if (identitySet.has(c) && produced.includes(c)) share += demand[c] / totalDemand;
@@ -308,7 +318,7 @@ export async function generateLands(
     const meritIdentity = colorsNeedingSources(nonLandCards, identitySet, basicCount);
     for (const [name, card] of landCardMap) {
       if (isChannelLand(card) || isMdfcLand(card)) continue;
-      const merit = landPowerScore(card, meritIdentity);
+      const merit = landPowerScore(card, meritIdentity, readingFor(name));
       if (merit > 0) {
         const boost = Math.round((LAND_POWER_BOOST_MAX * merit) / 100);
         landPenalties.set(name, (landPenalties.get(name) ?? 0) + boost);

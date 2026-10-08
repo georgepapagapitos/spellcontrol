@@ -42,3 +42,12 @@ describe('lands that tap for colour unconditionally keep it', () => {
     expect(colours('Hallowed Fountain')).toEqual(['U', 'W']);
   });
 });
+
+describe('allAbilities keeps Scryfall reading for staple slot priority', () => {
+  it('Phyrexian Tower reads B and C with it, C alone without', () => {
+    const tower = CARDS.get('Phyrexian Tower')!;
+    const all = new Set(['W', 'U', 'B', 'R', 'G']);
+    expect(producedManaColors(tower, all, { allAbilities: true }).sort()).toEqual(['B', 'C']);
+    expect(producedManaColors(tower, all)).toEqual(['C']);
+  });
+});

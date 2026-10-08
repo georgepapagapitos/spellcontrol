@@ -62,8 +62,12 @@ function basicTypeCount(card: ScryfallCard): number {
  * fetch lands producing nothing themselves) what it can find. Off-identity
  * production is dropped — an off-color land isn't fixing.
  */
-export function landColorCoverage(card: ScryfallCard, identity: ReadonlySet<string>): number {
-  const fix = new Set(producedManaColors(card, identity).filter((c) => identity.has(c)));
+export function landColorCoverage(
+  card: ScryfallCard,
+  identity: ReadonlySet<string>,
+  opts: { allAbilities?: boolean } = {}
+): number {
+  const fix = new Set(producedManaColors(card, identity, opts).filter((c) => identity.has(c)));
   for (const c of fetchableBasicColors(card, identity)) fix.add(c);
   return fix.size;
 }
@@ -100,11 +104,15 @@ function painPenalty(card: ScryfallCard): number {
  * score 0. Higher = more worth running than a basic; new-but-strong lands score
  * in the same band as established staples because nothing here reads popularity.
  */
-export function landPowerScore(card: ScryfallCard, identity: ReadonlySet<string>): number {
+export function landPowerScore(
+  card: ScryfallCard,
+  identity: ReadonlySet<string>,
+  opts: { allAbilities?: boolean } = {}
+): number {
   if (!isLandCard(card)) return 0;
 
-  const nColors = landColorCoverage(card, identity);
-  const producesColorless = producedManaColors(card, identity).includes('C');
+  const nColors = landColorCoverage(card, identity, opts);
+  const producesColorless = producedManaColors(card, identity, opts).includes('C');
 
   const tapped = tappedKind(card);
   let score = 0;
