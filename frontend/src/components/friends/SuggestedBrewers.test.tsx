@@ -34,10 +34,10 @@ function rails(over: Partial<BrewerRails>): BrewerRails {
   };
 }
 
-function renderStrip() {
+function renderStrip(known: ReadonlySet<string> = new Set()) {
   return render(
     <MemoryRouter>
-      <SuggestedBrewers />
+      <SuggestedBrewers known={known} />
     </MemoryRouter>
   );
 }
@@ -64,6 +64,28 @@ describe('SuggestedBrewers', () => {
     expect(screen.getByRole('link', { name: /see all/i }).getAttribute('href')).toBe(
       '/decks/discover/brewers'
     );
+  });
+
+  it('leaves out friends and people you already follow', async () => {
+    mockRails.mockResolvedValue(
+      rails({
+        sharedCommanders: [brewer('friend'), brewer('followed'), brewer('stranger')],
+        newest: [brewer('fresh')],
+      })
+    );
+    renderStrip(new Set(['friend', 'followed']));
+    expect(await screen.findByRole('link', { name: /stranger/ })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: /friend/ })).toBeNull();
+    expect(screen.queryByRole('link', { name: /followed/ })).toBeNull();
+  });
+
+  it('falls back to the newest brewers when everyone sharing commanders is in your circle', async () => {
+    mockRails.mockResolvedValue(
+      rails({ sharedCommanders: [brewer('friend')], newest: [brewer('friend'), brewer('fresh')] })
+    );
+    renderStrip(new Set(['friend']));
+    expect(await screen.findByRole('link', { name: /fresh/ })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: /friend/ })).toBeNull();
   });
 
   it('renders nothing when there is no one to suggest', async () => {

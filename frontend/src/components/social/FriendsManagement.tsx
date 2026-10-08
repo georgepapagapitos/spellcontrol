@@ -307,6 +307,8 @@ export function FriendsManagement() {
   const inboxList = inbox ?? [];
   const followingList = following.brewers ?? [];
   const followingNames = new Set(followingList.map((b) => b.username));
+  // Your circle, which the brewers-to-meet strip leaves out.
+  const knownNames = new Set([...followingNames, ...friendsList.map((f) => f.username)]);
   // Few people in your circle: offer a short strip of brewers to meet. Only
   // once both lists have answered (a slow one must not flash it), and never
   // over an error.
@@ -597,7 +599,9 @@ export function FriendsManagement() {
           )}
         </div>
       </div>
-      {fewPeople && (tab === 'friends' || tab === 'following') && <SuggestedBrewers />}
+      {fewPeople && (tab === 'friends' || tab === 'following') && (
+        <SuggestedBrewers known={knownNames} />
+      )}
       {confirmDialog}
     </>
   );
