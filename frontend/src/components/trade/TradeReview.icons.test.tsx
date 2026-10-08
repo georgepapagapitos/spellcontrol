@@ -107,9 +107,14 @@ describe('the review centres its text-button icons', () => {
       /margin-left:\s*calc\(-1 \* var\(--meta-sep\)\)/
     );
     expect(rule('.trade-review-meta-seg::before')).toMatch(/width:\s*var\(--meta-sep\)/);
+    // The exact separator: a middle dot, not a mangled escape.
+    expect(rule('.trade-review-meta-seg::before')).toContain("content: '·';");
     expect(css).not.toMatch(/meta-seg \+ \.trade-review-meta-seg/);
     // The give line's printing keeps its 44px target without 44px of spacing.
-    expect(css).toMatch(/\.trade-review-printing \{\s*min-height: 44px;\s*margin-block: -14px;/);
+    // z-index keeps the whole 44px box the button: the note below overlaps its edge.
+    expect(css).toMatch(
+      /\.trade-review-printing \{\s*position: relative;\s*z-index: 1;\s*min-height: 44px;\s*margin-block: -14px;/
+    );
     expect(rule('.trade-review-meta-seg')).toMatch(/white-space:\s*nowrap/);
   });
 
