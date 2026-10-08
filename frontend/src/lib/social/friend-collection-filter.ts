@@ -37,6 +37,37 @@ export function friendCardToPublic(card: FriendCard): PublicCard {
   };
 }
 
+/**
+ * The other direction: a per-copy `PublicCard` as the `FriendCard` the friend
+ * search engine matches on, so `buildFriendSearch` (Scryfall syntax, with its
+ * ignored-clause report) runs over a profile, a share link or a friend's
+ * copies with one implementation.
+ *
+ * `colorIdentity` stays undefined when the payload lacks it (absent is not
+ * colourless; see `FriendCard`). A card with no oracle id keys on its
+ * printing so the required field is never empty.
+ */
+export function publicCardToFriendCard(card: PublicCard): FriendCard {
+  return {
+    name: card.name,
+    oracleId: card.oracleId ?? card.scryfallId,
+    colors: card.colors ?? [],
+    colorIdentity: card.colorIdentity,
+    cmc: card.cmc ?? 0,
+    typeLine: card.typeLine ?? '',
+    rarity: card.rarity || undefined,
+    edhrecRank: card.edhrecRank,
+    oracleText: card.oracleText,
+    legalities: card.legalities,
+    spare: card.spare,
+  };
+}
+
+/** Index-parallel to `cards`: one `FriendCard` per copy, not deduped. */
+export function publicCardsToFriendCards(cards: readonly PublicCard[]): FriendCard[] {
+  return cards.map(publicCardToFriendCard);
+}
+
 /** Sort keys for the friend-collection browser; each pairs with a direction. */
 export type FriendSortKey = 'popularity' | 'name' | 'cmc' | 'rarity';
 

@@ -1,0 +1,115 @@
+/* CollectionBrowser (profile Collection tab, collection share links, and the
+   friend hub next). Imported by the lazy component, never a boot-path sheet.
+   Viewport tiers are 600 / 1024 only; anything else asks its container. */
+
+.collection-browser {
+  min-width: 0;
+}
+
+/* The toolbar pins under the page chrome while the cards scroll. The search
+   row and the chip row stick together; bleeding to the gutter keeps cards from
+   showing past its edges. */
+.collection-browser-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-popover);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-block: var(--space-2);
+  background: var(--bg);
+}
+
+.collection-browser-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.collection-browser-search {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.collection-browser-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.collection-browser-chip-count {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+
+.collection-browser-result {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--space-1);
+  margin: var(--space-1) 0 var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.collection-browser-note {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+/* The ghost grows the hit area so the link keeps its text height in the
+   result line. Two classes beat .btn at equal specificity. */
+@media (pointer: coarse) {
+  .collection-browser .collection-browser-clear {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* ── Loading skeleton: shaped like the grid that is coming ───────────── */
+
+.collection-browser-skeleton-bar {
+  height: 2.75rem;
+  margin-block: var(--space-2) var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+}
+
+.collection-browser-skeleton-tile {
+  aspect-ratio: 5 / 7;
+  border-radius: var(--radius);
+  background: linear-gradient(
+    90deg,
+    var(--surface-raised) 25%,
+    var(--border) 50%,
+    var(--surface-raised) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer var(--motion-shimmer) ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .collection-browser-skeleton-tile {
+    animation: none;
+  }
+}
+
+/* ── Phone: one tool row, chips on a single scrolling line ───────────── */
+
+@media (max-width: 599px) {
+  .collection-browser-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    /* Keep a focused chip's ring clear of the scroll clip. */
+    padding-block: var(--space-1);
+  }
+
+  .collection-browser-chips > * {
+    flex-shrink: 0;
+  }
+}

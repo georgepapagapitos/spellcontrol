@@ -4,7 +4,12 @@ import { publicCardToEnriched } from '@/lib/social/shared-filter';
 import { BinderBadge, type BinderInfo } from '../BinderBadge';
 import { DeckBadge } from '../DeckBadge';
 import type { AllocationInfo } from '@/lib/collection/allocations-core';
-import { CardGridCell, gridSetLabel, useGridCaptionPrefs } from '../shared/CardGridCell';
+import {
+  CardGridCell,
+  gridSetLabel,
+  useGridCaptionPrefs,
+  type GridCaptionPrefs,
+} from '../shared/CardGridCell';
 import { formatMoney } from '@/lib/collection/format-money';
 
 export interface CardOwnership {
@@ -33,6 +38,9 @@ interface Props {
   allocations?: AllocationInfo[];
   /** The owner has a copy to spare (friend hub). A yes/no, never a count. */
   spare?: boolean;
+  /** The caption prefs, when the surface owns them (the collection browser's
+   *  Details control). Absent: this tile reads the stored device-wide prefs. */
+  captionPrefs?: GridCaptionPrefs;
 }
 
 /** The visible words for a spare copy. "Spare" alone was explained only by a
@@ -92,8 +100,10 @@ export function SharedCardTile({
   hideValue,
   allocations,
   spare,
+  captionPrefs: captionPrefsProp,
 }: Props) {
-  const [captionPrefs] = useGridCaptionPrefs();
+  const [storedPrefs] = useGridCaptionPrefs();
+  const captionPrefs = captionPrefsProp ?? storedPrefs;
   const enriched = useMemo(() => publicCardToEnriched(card), [card]);
 
   // A shared projection can carry no printing identity at all — the friend
