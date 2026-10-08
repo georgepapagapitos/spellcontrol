@@ -117,6 +117,9 @@ friendsRouter.get(
     const friendIds = await listFriendIds(req.user!.id);
     if (friendIds.length === 0) return res.json({ owners: [] });
 
+    // ponytail: unindexed jsonb filter over every friend's card rows (bounded by
+    // the user_id scan) — add an expression index on (data->>'oracleId') when a
+    // friend list's combined collections make this slow.
     const holders = await pool.query<{ user_id: string; id: string; data: unknown }>(
       `SELECT uc.user_id, uc.id, uc.data
          FROM user_cards uc
