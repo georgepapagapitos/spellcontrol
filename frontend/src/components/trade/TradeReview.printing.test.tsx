@@ -152,4 +152,28 @@ describe('TradeReview: an ask names its printing', () => {
       { oracleId: 'o-elves', name: 'Llanowar Elves', quantity: 2, copies: [] },
     ]);
   });
+
+  it('keeps the footer true: exact printings when all are named, a choice clause otherwise', () => {
+    seed({ [SEVENTH]: pinned('sf-7ed', 1) });
+    const { unmount } = render(<TradeReview {...base} theirCards={THEIRS} />);
+    expect(
+      screen.getByText(
+        'Pal gets the exact printings above and confirms when they accept. Closing keeps this as a draft.'
+      )
+    ).toBeTruthy();
+    unmount();
+
+    seed({ 'o-elves': { name: 'Llanowar Elves', oracleId: 'o-elves', quantity: 1 } });
+    render(<TradeReview {...base} theirCards={THEIRS} />);
+    expect(screen.getByText(/Pal chooses the printing for cards with none named/)).toBeTruthy();
+    expect(screen.queryByText(/picks exact printings/)).toBeNull();
+  });
+
+  it('renders the meta as whole segments, so a wrap never strands a separator', () => {
+    seed({ [SEVENTH]: pinned('sf-7ed', 1) });
+    render(<TradeReview {...base} theirCards={THEIRS} />);
+    const line = screen.getByRole('list', { name: 'You get: chosen cards' });
+    const segs = [...line.querySelectorAll('.trade-review-meta-seg')].map((e) => e.textContent);
+    expect(segs).toEqual(['ED7 · #253', 'Pal has 1 of this', '$4.00']);
+  });
 });

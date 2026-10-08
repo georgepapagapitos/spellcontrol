@@ -288,7 +288,10 @@ export function TradeReview({
         <p className="trade-review-hint" id={`${noteId}-hint`}>
           {m.blockedReason && !sending
             ? m.blockedReason
-            : `${friendName} picks exact printings when they accept. Closing keeps this as a draft.`}
+            : footerHint(
+                friendName,
+                m.getLines.some((l) => !l.printing && !l.gone)
+              )}
         </p>
       </footer>
 
@@ -301,6 +304,13 @@ export function TradeReview({
       )}
     </div>
   );
+}
+
+/** What the footer promises about printings, true to what is in the trade. */
+export function footerHint(friendName: string, anyPrinting: boolean): string {
+  return anyPrinting
+    ? `${friendName} chooses the printing for cards with none named, and confirms when they accept. Closing keeps this as a draft.`
+    : `${friendName} gets the exact printings above and confirms when they accept. Closing keeps this as a draft.`;
 }
 
 function Banner({
@@ -427,17 +437,15 @@ function GetLine({
     : line.floor != null
       ? `from ${formatMoney(line.floor * line.quantity)}`
       : null;
-  const meta = line.gone
-    ? `${friendName} no longer has this`
+  const segments = line.gone
+    ? [`${friendName} no longer has this`]
     : [
         printing ? describeAskedPrinting(printing) : null,
         line.theirCount != null
           ? `${friendName} has ${line.theirCount}${printing ? ' of this' : ''}`
           : null,
         price,
-      ]
-        .filter(Boolean)
-        .join(' · ');
+      ].filter((x): x is string => !!x);
   return (
     <li className="trade-review-line">
       <ThumbButton name={line.name} src={printing?.imageSmall} onClick={onInspect} />
@@ -445,9 +453,15 @@ function GetLine({
         <span className="trade-review-name" title={line.name}>
           {line.name}
         </span>
-        {meta && (
-          <span className={line.gone ? 'trade-review-meta is-warn' : 'trade-review-meta'}>
-            {meta}
+        {segments.length > 0 && (
+          <span
+            className={line.gone ? 'trade-review-meta is-warn' : 'trade-review-meta is-segments'}
+          >
+            {segments.map((text) => (
+              <span key={text} className="trade-review-meta-seg">
+                {text}
+              </span>
+            ))}
           </span>
         )}
       </span>

@@ -92,6 +92,18 @@ describe('the review centres its text-button icons', () => {
     );
   });
 
+  it('top-aligns the line grid and keeps meta segments unbreakable', () => {
+    const css = readFileSync(join(here, 'TradeReview.css'), 'utf8');
+    const rule = (selector: string) => {
+      const at = css.indexOf(`${selector} {`);
+      expect(at, `${selector} rule`).toBeGreaterThanOrEqual(0);
+      return css.slice(at, css.indexOf('}', at));
+    };
+    expect(rule('.trade-review-line')).toMatch(/align-items:\s*flex-start/);
+    expect(rule('.trade-review-meta.is-segments')).toMatch(/flex-wrap:\s*wrap/);
+    expect(rule('.trade-review-meta-seg')).toMatch(/white-space:\s*nowrap/);
+  });
+
   it('keeps every Button in components/trade from taking an icon as its child', () => {
     const offenders: string[] = [];
     for (const file of readdirSync(here).filter((f) => /\.tsx$/.test(f) && !/\.test\./.test(f))) {
