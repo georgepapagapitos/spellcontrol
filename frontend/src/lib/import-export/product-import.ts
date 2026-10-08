@@ -4,6 +4,18 @@ import { scryfallToEnrichedCard } from '@/lib/cards/scryfall-to-enriched';
 /** Label every product import is stamped with in the collection history (T17). */
 export const PRODUCT_IMPORT_LABEL = 'product-import';
 
+const TOKEN_LAYOUTS = new Set(['token', 'double_faced_token', 'emblem']);
+
+/** A product's token (or emblem): MTGJSON's tokens zone, or a token layout in any zone. */
+export function isProductToken(pc: ProductPhysicalCard): boolean {
+  return pc.zone === 'tokens' || TOKEN_LAYOUTS.has(pc.card.layout ?? '');
+}
+
+/** Copy count across a product's physical cards (basics etc. carry quantity > 1). */
+export function physicalCopyCount(physicalCards: ProductPhysicalCard[]): number {
+  return physicalCards.reduce((n, pc) => n + Math.max(1, pc.quantity), 0);
+}
+
 /**
  * Expands a product's full physical card list into an {@link UploadResponse}
  * ready for `collection.importCards` — one owned copy per physical card, with
