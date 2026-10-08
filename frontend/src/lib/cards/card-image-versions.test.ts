@@ -10,6 +10,7 @@ import {
   loadImageVersions,
   setImageVersions,
 } from './card-image-versions';
+import type { Deck } from '@/store/decks';
 
 // Perplexing Chimera (SLD 7039): Scryfall's first image was a phone photo of a
 // foil; the scan replaced it on 2026-10-04 under stamp 1791120518.
@@ -129,14 +130,15 @@ describe('freshenScryfallCard', () => {
 });
 
 describe('freshenDeckImages', () => {
-  const deck = () => ({
-    id: 'd1',
-    commander: { id: CHIMERA, image_uris: { normal: url('normal', OLD) } },
-    partnerCommander: null,
-    cards: [{ slotId: 's1', card: { id: CHIMERA, image_uris: { normal: url('normal', OLD) } } }],
-    sideboard: [],
-    considering: [],
-  });
+  const deck = (): Deck =>
+    ({
+      id: 'd1',
+      commander: { id: CHIMERA, image_uris: { normal: url('normal', OLD) } },
+      partnerCommander: null,
+      cards: [{ slotId: 's1', card: { id: CHIMERA, image_uris: { normal: url('normal', OLD) } } }],
+      sideboard: [],
+      considering: [],
+    }) as unknown as Deck;
 
   it('rewrites the commander and every slot, and keeps unchanged decks', () => {
     const decks = [deck()];
@@ -154,10 +156,11 @@ describe('freshenDeckImages', () => {
   it('lists every printing a deck holds once', () => {
     const d = {
       ...deck(),
+      // Fixture shapes only: the id is all deckPrintingIds reads.
       partnerCommander: { id: 'p' },
       sideboard: [{ card: { id: 's' } }],
       considering: [{ card: { id: CHIMERA } }],
-    };
+    } as unknown as Deck;
     expect(deckPrintingIds([d]).sort()).toEqual([CHIMERA, 'p', 's'].sort());
   });
 });
