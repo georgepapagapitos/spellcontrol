@@ -171,6 +171,8 @@ export function TradeComposer({
   function setGiving(fn: (prev: PickedCopies) => PickedCopies) {
     setGivingEdit((prev) => fn(prev ?? givePrefill));
   }
+  // On a device that has never cached this account the store is empty until
+  // the first pull lands; "empty collection" there is a lie about the account.
   const awaitingFirstPull = useAwaitingFirstPull();
   const [wanting, setWanting] = useState<Picked>(() =>
     Object.fromEntries((initialGet ?? []).map((c) => [keyOf(c), Math.max(1, c.quantity)]))
@@ -443,6 +445,12 @@ export function TradeComposer({
   const totalWant = wantCards.reduce((n, c) => n + c.quantity, 0);
   const canSend = !sending && giveCards.length + wantCards.length > 0;
 
+  // The "add a card" hint is for someone who has started and emptied the
+  // basket, not a greeting: on open the empty Send button already says it.
+  // Latched during render (the documented derive-from-props pattern).
+  const [startedBasket, setStartedBasket] = useState(false);
+  if (!startedBasket && giveCards.length + wantCards.length > 0) setStartedBasket(true);
+
   // Give side is exact — real copies, real printings, already priced.
   const giveValue = [...chosenByKey.values()].reduce((sum, c) => sum + sumCopyValue(c), 0);
 
@@ -608,6 +616,8 @@ export function TradeComposer({
                 const line = ownedByKey.get(key);
                 if (line) inspectGiveResult(line);
               }}
+              loading={awaitingFirstPull && ownedLines.length === 0}
+              loadingLabel="Getting your cards…"
               emptyResults={
                 ownedLines.length === 0
                   ? 'Your collection is empty. Import or add cards first.'
@@ -707,7 +717,7 @@ export function TradeComposer({
               {sending ? 'Sending…' : 'Send offer'}
             </Button>
           </div>
-          {!canSend && !sending && (
+          {!canSend && !sending && startedBasket && (
             <p className="trade-composer-gate" role="status">
               Add at least one card to send.
             </p>
@@ -782,6 +792,7 @@ function TradeSide({
   results,
   emptyResults,
   loading = false,
+  loadingLabel,
   error,
   onRetry,
 }: {
@@ -811,6 +822,8 @@ function TradeSide({
   results: SideRow[];
   emptyResults: string;
   loading?: boolean;
+  /** Accessible name for the loading skeleton; defaults to "Loading <title>". */
+  loadingLabel?: string;
   error?: string;
   onRetry?: () => void;
 }) {
@@ -871,7 +884,7 @@ function TradeSide({
       ) : loading ? (
         <div
           className="trade-side-skeleton"
-          aria-label={`Loading ${title}`}
+          aria-label={loadingLabel ?? `Loading ${title}`}
           role="status"
           aria-busy="true"
         />
