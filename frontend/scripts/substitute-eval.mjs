@@ -12,6 +12,12 @@
 //                                                 SVD vectors of the card x tag matrix
 //                                                 (substitute-latent.mjs; --latent-k N dims).
 //                                                 Measured 2026-10-07 at k=64: no gain, not shipped.
+//   --cooc F [--cooc-shrink N] [--cooc-topk K]   slice C experiment: add a fitted cosine over PPMI
+//                                                 deck co-occurrence vectors (substitute-cooc.mjs; F is
+//                                                 E516's cooccurrence.json). Measured 2026-10-08, not
+//                                                 shipped: see the E517 board row.
+//   --fast                                        skip the ablation grid (keeps the cold-start rows)
+//   --per-query                                   print each query's v2 and cold-start nDCG@5
 //
 // Pass --bulk <oracle-cards .jsonl.gz> when node_modules has no cached bulk file.
 // The tables also carry "narrowing" at fixed weights (the one unfitted weight).
@@ -123,7 +129,11 @@ const m = await importTogether({
 });
 // --latent: slice B experiment, a cosine over SVD vectors of the card x tag matrix as one more fitted feature.
 const LATENT = flag('--latent');
-const FEATURES = [...m.features.FEATURES, ...(LATENT ? ['latent'] : [])];
+// --cooc <file>: slice C experiment, a cosine over PPMI vectors of deck co-occurrence (E516's
+// cooccurrence.json) as one more fitted feature. --fast skips the ablation grid (cold start kept).
+const COOC = opt('--cooc');
+const FAST = flag('--fast');
+const FEATURES = [...m.features.FEATURES, ...(LATENT ? ['latent'] : []), ...(COOC ? ['cooc'] : [])];
 // 'narrowing' is not fitted: a pairwise fit over it moved the other weights
 // and cost the held-out nDCG@5 0.01 for no gain. It is a fixed penalty
 // (ranker.ts) added to the weights the other features fit, so a card with no
@@ -188,8 +198,24 @@ if (LATENT) {
     `[latent] ${built.k} dims over ${built.vocab} tags in ${((Date.now() - t) / 1000).toFixed(0)} s`
   );
 }
+let coocVec = null;
+if (COOC) {
+  const { buildCooc } = await import('./substitute-cooc.mjs');
+  coocVec = buildCooc(
+    JSON.parse(await readFile(COOC, 'utf8')),
+    Number(opt('--cooc-shrink') ?? 0),
+    Number(opt('--cooc-topk') ?? 0)
+  );
+  const hit = facts.filter((f) => coocVec.has(f.name)).length;
+  console.log(`[cooc] ${coocVec.size} card vectors, ${hit} match a facts card`);
+}
 function pairX(q, c, role, src) {
   const { x, evidence } = m.features.pairFeatures(q, c, role, src);
+  if (coocVec) {
+    const a = coocVec.get(q.name);
+    const b = coocVec.get(c.name);
+    x.cooc = a && b ? Math.max(0, a.cos(b)) : 0;
+  }
   if (latentVectors) {
     const a = latentIndex.get(q.name) * latentK;
     const b = latentIndex.get(c.name) * latentK;
@@ -567,17 +593,19 @@ const GROUPS = {
 
 const t0 = Date.now();
 const cvFull = crossValidate(FIT_FEATURES);
-const cvIdf = crossValidate(FIT_FEATURES, SRC_IDF, cvFull.lambdaByRole);
-const cvFree = crossValidate(FIT_FEATURES, SRC, cvFull.lambdaByRole, true);
-const ablations = Object.entries(GROUPS).map(([name, drop]) => ({
-  name,
-  cv: crossValidate(
-    FIT_FEATURES.filter((f) => !drop.includes(f)),
-    SRC,
-    cvFull.lambdaByRole
-  ),
-}));
-const alone = Object.entries(GROUPS).map(([name, keep]) => ({
+const cvIdf = FAST ? cvFull : crossValidate(FIT_FEATURES, SRC_IDF, cvFull.lambdaByRole);
+const cvFree = FAST ? cvFull : crossValidate(FIT_FEATURES, SRC, cvFull.lambdaByRole, true);
+const ablations = Object.entries(GROUPS)
+  .filter(([name]) => !FAST || name === 'EDHREC similar')
+  .map(([name, drop]) => ({
+    name,
+    cv: crossValidate(
+      FIT_FEATURES.filter((f) => !drop.includes(f)),
+      SRC,
+      cvFull.lambdaByRole
+    ),
+  }));
+const alone = (FAST ? [] : Object.entries(GROUPS)).map(([name, keep]) => ({
   name,
   cv: crossValidate(
     FEATURES.filter((f) => keep.includes(f)),
@@ -654,9 +682,9 @@ function systemsFor(protocol) {
     linear('v2 prior (unfitted)', () => PRIOR),
     linear('v2 equal weights', () => equalWeights),
     linear('v2 (held-out fit)', byFold(cvFull)),
-    ...NARROWING_GRID.map((n) => linear(`v2 narrowing ${n}`, byFold(cvFull, n))),
-    linear('v2 with IDF', byFold(cvIdf), SRC_IDF),
-    linear('v2 unconstrained signs', byFold(cvFree)),
+    ...(FAST ? [] : NARROWING_GRID.map((n) => linear(`v2 narrowing ${n}`, byFold(cvFull, n)))),
+    ...(FAST ? [] : [linear('v2 with IDF', byFold(cvIdf), SRC_IDF)]),
+    ...(FAST ? [] : [linear('v2 unconstrained signs', byFold(cvFree))]),
     ...ablations.map((a) => linear(`v2 minus ${a.name}`, byFold(a.cv))),
     ...alone.map((a) => linear(`${a.name} alone`, (e) => a.cv.weightsByRole.get(e.role))),
   ];
@@ -789,6 +817,16 @@ for (const [protocol, run] of Object.entries(runs)) {
         .toFixed(2)
         .padEnd(10)}${vsV1.padEnd(56)}${vsV2}`
     );
+  }
+  if (flag('--per-query')) {
+    const cold = run.perSystem.get('v2 minus EDHREC similar');
+    run.qs.forEach((e, i) => {
+      const hasList = m.similar.getSimilarRank(e.q) ? 1 : 0;
+      const hasVec = coocVec?.has(e.q) ? 1 : 0;
+      console.log(
+        `[pq] ${protocol}	${e.q}	${e.role}	list=${hasList}	vec=${hasVec}	v2=${v2[i].n5.toFixed(4)}	cold=${cold ? cold[i].n5.toFixed(4) : ''}`
+      );
+    });
   }
   console.log(`ΔnDCG@10 v2 vs v1: ${delta(v2, base, 'n10')}   ΔR@10: ${delta(v2, base, 'r10')}`);
   if (protocol === 'owned') {
