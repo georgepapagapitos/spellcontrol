@@ -10,7 +10,7 @@ import { Button } from '@/components/shared/Button';
 import { MeterBar } from '@/components/shared/MeterBar';
 import { OwnershipBadge } from '@/components/deck/OwnershipBadge';
 import { useCardCarousel, type CarouselEntry } from '@/components/deck/useCardCarousel';
-import { useCardThumb } from '@/lib/cards/card-thumbs';
+import { useOwnedCardThumb } from '@/lib/cards/owned-printing';
 import { frontFaceName } from '@/lib/cards/card-text';
 import { formatCount } from '@/lib/util/format-count';
 import {
@@ -72,7 +72,7 @@ function PlayRow({
   owned: boolean;
   onOpen: () => void;
 }) {
-  const art = useCardThumb(play.name, 'art_crop');
+  const art = useOwnedCardThumb(play.name, 'art_crop');
   return (
     <li>
       <button

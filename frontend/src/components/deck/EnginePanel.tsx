@@ -11,7 +11,7 @@ import { useCardCarousel, tallyToEntries } from './useCardCarousel';
 import { CardGroupSheet } from './CardGroupSheet';
 import type { CardAnnotation } from './CardGroupSheet';
 import type { CardTally } from './useCardCarousel';
-import { useCardThumb } from '@/lib/cards/card-thumbs';
+import { useOwnedCardThumb } from '@/lib/cards/owned-printing';
 import { classifyInclusion } from '@/lib/deck-analysis/inclusion-label';
 import { StackedBar } from '../shared/MeterBar';
 
@@ -124,7 +124,7 @@ function SuggestionTile({
   const sideWord = suggestion.side === 'payoff' ? 'payoff' : 'producer';
   // Resolve the suggestion's CDN art by name (cached + batched); the art box
   // shows its own placeholder background until it lands.
-  const thumb = useCardThumb(suggestion.cardName);
+  const thumb = useOwnedCardThumb(suggestion.cardName);
   return (
     <li className="engine-suggestion">
       <button

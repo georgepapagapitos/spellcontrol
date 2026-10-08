@@ -1,8 +1,10 @@
 // @vitest-environment happy-dom
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DeckCardRow } from './DeckCardRow';
 import type { Change } from '@/lib/coach/deck-change';
+import { useCollectionStore } from '@/store/collection';
+import { bestOwnedCopyByName } from '@/lib/cards/owned-printing';
 
 function add(over: Partial<Change> = {}): Change {
   return {
@@ -206,5 +208,62 @@ describe('DeckCardRow', () => {
   it('does not render a secondary action button when secondaryAction is omitted', () => {
     render(<DeckCardRow change={add()} />);
     expect(screen.queryByRole('button', { name: /fit this deck/ })).toBeNull();
+  });
+});
+
+// The row and the carousel it opens pick a printing by one rule
+// (`bestOwnedCopyByName`): an owned Secret Lair copy showed its own art in the
+// preview while the row showed Scryfall's default printing.
+describe('DeckCardRow thumbnail printing', () => {
+  const sld = {
+    copyId: 'c1',
+    name: 'Tireless Provisioner',
+    setCode: 'sld',
+    setName: 'Secret Lair Drop',
+    collectorNumber: '2661',
+    rarity: 'rare',
+    scryfallId: 'ab12cd34-0000-0000-0000-000000000000',
+    purchasePrice: 0,
+    sourceCategory: '',
+    sourceFormat: '',
+    finish: 'foil' as const,
+    foil: true,
+    imageNormal: 'https://cards.scryfall.io/normal/front/a/b/ab12cd34.jpg?1',
+  };
+  afterEach(() => useCollectionStore.setState({ cards: [] }));
+
+  it('shows the owned printing the preview opens on, over the default art', () => {
+    useCollectionStore.setState({ cards: [sld] });
+    const { container } = render(
+      <DeckCardRow
+        artThumb
+        change={add({
+          name: 'Tireless Provisioner',
+          imageUrl: 'https://cards.scryfall.io/normal/front/d/e/default.jpg',
+        })}
+      />
+    );
+    expect(container.querySelector('.deck-card-row-art img')?.getAttribute('src')).toBe(
+      'https://cards.scryfall.io/art_crop/front/a/b/ab12cd34.jpg?1'
+    );
+    // The carousel resolves through the same function, so it opens on this copy.
+    expect(bestOwnedCopyByName('Tireless Provisioner')?.scryfallId).toBe(sld.scryfallId);
+  });
+
+  it('builds the owned art from the printing id when the copy stored no image', () => {
+    useCollectionStore.setState({ cards: [{ ...sld, imageNormal: undefined }] });
+    const { container } = render(<DeckCardRow change={add({ name: 'Tireless Provisioner' })} />);
+    expect(container.querySelector('.deck-card-row-art img')?.getAttribute('src')).toBe(
+      `https://cards.scryfall.io/normal/front/a/b/${sld.scryfallId}.jpg`
+    );
+  });
+
+  it('keeps the carried art for a card the player does not own', () => {
+    const { container } = render(
+      <DeckCardRow change={add({ imageUrl: 'https://cards.scryfall.io/normal/front/d/e/x.jpg' })} />
+    );
+    expect(container.querySelector('.deck-card-row-art img')?.getAttribute('src')).toBe(
+      'https://cards.scryfall.io/normal/front/d/e/x.jpg'
+    );
   });
 });
