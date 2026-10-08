@@ -347,7 +347,9 @@ meanwhile.
   menus](style-guide/decks.md#deck-page-menus--each-named-for-what-it-acts-on-2026-10-08)). The meta line reads format · count
   · value · bracket · sharing; the commander is the art and the command
   zone's first row, so the meta line doesn't name it again, and sharing is
-  its last segment ("Sharing: Public"), not a boxed chip under the title. **Hub tabs, built:** see Hub pages below. The header
+  its last segment ("Sharing: Public"), not a boxed chip under the title. On a
+  phone sharing is instead a labelled action between Add cards and Deck ▾,
+  so the meta line stays one line ([§ Page hero art](style-guide/app-shell.md#page-hero-art--phones-get-the-art-not-a-downgrade)). **Hub tabs, built:** see Hub pages below. The header
   and strip own their spacing (8px header → tabs on every hub; hosts with a
   flex gap declare it as `--host-gap` so it cancels instead of stacking).
   Detail pages (a binder, a list, a set) render no hub strip: the back link

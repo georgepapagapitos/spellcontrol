@@ -106,6 +106,26 @@ describe('coarse-pointer ghosts stay off their neighbours', () => {
     ).toBeGreaterThanOrEqual(slack - 1e-6);
   });
 
+  it("on a phone the deck hero stacks rows, and the back link's row clears the name", () => {
+    // A phone dissolves the title column into rows: the back link alone, the
+    // thumbnail beside the title only, then the meta line at full width. As a
+    // column (2026-10-08 report) the thumbnail stood beside everything and a
+    // ~220px meta wrapped onto three 44px touch rows.
+    const deck = read('styles/deck-builder-editor.css');
+    const phone = after(deck, '@media (max-width: 599px) {');
+    expect(decl(deck, '.deck-editor-hero-text', 'display', phone)).toBe('contents');
+    expect(decl(deck, '.deck-editor-hero-text > .back-link', 'flex-basis', phone)).toBe('100%');
+    expect(decl(deck, '.deck-editor-hero-text > .back-link', 'margin-bottom', phone)).toBe('0');
+    // With the link's margin gone, the row gap alone keeps the name's slack
+    // (at the phone's name size) off the link.
+    const name = '.deck-editor-name.binder-hero-name';
+    const slack =
+      parseFloat(decl(deck, name, 'padding')) *
+      px(decl(deck, `.deck-editor-hero ${name}`, 'font-size', phone));
+    const rowGap = px(decl(deck, '.deck-editor-hero', 'gap', phone).split(/\s+/)[0]);
+    expect(rowGap, `row gap ${rowGap}px, name slack ${slack}px`).toBeGreaterThanOrEqual(slack);
+  });
+
   it("the deck hero's meta links stay off the name above and each other (E465)", () => {
     // The format is the meta line's first segment, straight under the deck
     // name (InlineRename's button, sized by `.deck-editor-name.binder-hero-name`),

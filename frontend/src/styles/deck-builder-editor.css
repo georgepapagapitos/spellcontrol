@@ -126,12 +126,13 @@
 }
 
 /* The thumbnail: a ~4:3 art_crop at its own shape, so the commander's face
-   stays in frame. 92px square on a phone, 120×88 on a tablet, 152×108 on a
-   desktop: every size draws fewer pixels than the crop has, even at 2x. */
+   stays in frame. 84×64 on a phone, sized to sit beside a two-line title;
+   120×88 on a tablet; 152×108 on a desktop. Every size draws fewer pixels
+   than the crop has, even at 2x. */
 .deck-editor-hero-art {
   flex: none;
-  width: 92px;
-  height: 92px;
+  width: 84px;
+  height: 64px;
   object-fit: cover;
   object-position: center 25%;
   border-radius: var(--radius-lg);
@@ -187,16 +188,40 @@
 }
 
 @media (max-width: 599px) {
-  /* The thumbnail and the title column share the first row; the actions take
-     a row of their own under them, Add cards stretching and the Deck menu
-     beside it. */
-  .deck-editor-hero-text {
-    flex-basis: 0;
+  /* A phone stacks rows, not columns: the back link alone, then the
+     thumbnail beside the title only, then the meta line and the actions at
+     full width. The title column dissolves into those rows. As a column, the
+     thumbnail stood beside back link, title and a meta line that a ~220px
+     column wrapped into three 44px touch rows, with empty space under it. */
+  .deck-editor-hero {
+    gap: var(--space-2) var(--space-3);
   }
 
+  .deck-editor-hero-text {
+    display: contents;
+  }
+
+  /* The row gap alone clears the name's 0.22em slack under the link here. */
+  .deck-editor-hero-text > .back-link {
+    order: -1;
+    flex-basis: 100%;
+    margin-bottom: 0;
+  }
+
+  .deck-editor-hero-text > h1 {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .deck-editor-hero-text > :not(.back-link, h1),
   .deck-editor-actions {
     flex-basis: 100%;
     margin-left: 0;
+  }
+
+  .deck-editor-hero:not(.deck-editor-hero--art) .deck-editor-hero-text > h1 {
+    padding-left: var(--space-3);
+    border-left: 3px solid var(--deck-color, var(--accent));
   }
 
   .deck-editor-add-btn {

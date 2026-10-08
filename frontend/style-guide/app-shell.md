@@ -129,11 +129,19 @@ different from desktop; it is not _absent_.
   top edge rather than costing a row above it.
 - **Deck header: a thumbnail at every width (2026-10-08, T179).** The deck
   page is where the user works on the list, so its header is a compact bar
-  that gives the deck the screen: the commander's art as a thumbnail (92px
-  square on a phone, 120×88 on a tablet, 152×108 on a desktop, the deck's
-  colour as its foot), then back link, title and the meta line in a column,
-  then the actions (their own row on a phone). The meta line opens with the
-  deck's color pips. This replaced a `min(58%, 440px)` right-hand panel and the
+  that gives the deck the screen: the commander's art as a thumbnail (84×64
+  on a phone, 120×88 on a tablet, 152×108 on a desktop, the deck's colour as
+  its foot), then back link, title and the meta line in a column, then the
+  actions. The meta line opens with the deck's color pips.
+  **A phone stacks rows, not columns:** the back link alone, the thumbnail
+  beside the title only, the meta line at full width, then the actions. On a
+  phone, sharing is a labelled header action (the visibility glyph and "Private") beside Add cards
+  instead of the meta line's last segment, so the meta stays one line of
+  facts. (The first version kept the column on a phone: the thumbnail stood
+  beside a ~220px column whose meta wrapped onto three 44px touch rows, with
+  "Bracket 3" and "Sharing: Public" stranded on lines of their own. Guards:
+  `touch-ghost-clearance.test.ts`, and `DeckEditorPage.delete.test.tsx` for
+  where sharing sits at each width.) This replaced a `min(58%, 440px)` right-hand panel and the
   phone's full-bleed backdrop, for a reason the rest of this section does not
   share: Scryfall's `art_crop` is ~626px wide, so a 440px panel on a 2x screen
   (880 device px) and a phone backdrop both upscaled it into a blur, and there
