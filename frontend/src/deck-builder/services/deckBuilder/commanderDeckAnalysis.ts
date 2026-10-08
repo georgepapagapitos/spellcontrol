@@ -559,6 +559,8 @@ export interface AnalyzeCommanderDeckParams {
   build?: DeckBuild;
   /** The build's stated removals (`BuildReport` repairs); Coach doesn't offer them back. */
   buildRemovals?: BuildRemovals;
+  /** Lowercased names hidden with "Not for this deck" (E580); Coach never suggests them. */
+  dismissedNames?: ReadonlySet<string>;
 }
 
 export { enrichRecommendationPrices } from './candidateCardData';
@@ -1102,7 +1104,8 @@ export async function analyzeCommanderDeck(
     }
 
     // A deck that builds a board isn't offered a symmetric wipe (E109/E112).
-    const excluded = coachExclusions(params.buildRemovals, params.cards, deckSynergy);
+    const { buildRemovals: built, dismissedNames: hidden } = params;
+    const excluded = coachExclusions(built, params.cards, deckSynergy, hidden);
     dropExcluded(gapAnalysis, (g) => g.name, excluded);
     dropExcluded(optimizeSwaps?.additions, (a) => a.name, excluded);
     dropExcluded(synergyAnalysis?.suggestions, (x) => x.cardName, excluded);

@@ -33,6 +33,8 @@ import { useCutSwaps, type CutSwapSources } from '@/lib/coach/use-cut-swaps';
 import { usePlanJudge } from '@/lib/coach/use-plan-judge';
 import { useFilterCycle } from './use-filter-cycle';
 import { useCoachFeedLabels } from './use-coach-feed-labels';
+import { HiddenSuggestions } from './HiddenSuggestions';
+import { useDismissedSuggestions, withoutDismissed } from '@/lib/coach/dismissed-suggestions';
 import type { GapAnalysisCard } from '@/deck-builder/types';
 import type { OptimizeSwaps } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
 import type { SynergySuggestion } from '@/deck-builder/services/synergy/suggest';
@@ -242,6 +244,8 @@ export function CoachFeed({
   upgradePlan,
 }: CoachFeedProps): JSX.Element {
   const busy = busyNames ?? new Set<string>();
+  // "Not for this deck" (E580): what the player hid never reaches the feed.
+  const hidden = useDismissedSuggestions();
   // "In 71% of Sram decks": the rows read the commander by its short name, so
   // the played-in line holds one line in the table's column.
   const commanderShort = commanderName?.split(',')[0].trim();
@@ -409,8 +413,11 @@ export function CoachFeed({
   const [allChanges, hiddenBy] = useMemo(() => {
     const reasons = settingsBreak ? unfiltered.map(settingsBreak) : [];
     const kept = settingsBreak ? unfiltered.filter((_, i) => reasons[i] === null) : unfiltered;
-    return [kept, reasons.filter((r): r is SettingsBreak => r !== null)] as const;
-  }, [unfiltered, settingsBreak]);
+    return [
+      withoutDismissed(kept, hidden.list),
+      reasons.filter((r): r is SettingsBreak => r !== null),
+    ] as const;
+  }, [unfiltered, settingsBreak, hidden.list]);
 
   // ── Rank ─────────────────────────────────────────────────────────────────
 
@@ -490,9 +497,15 @@ export function CoachFeed({
   const cutPairing = useCutSwaps(cutChanges, cutSwaps, env, combosLoading);
   const cutsLoading = cutPairing.state.status === 'loading' && cuts.length > 0;
   const planJudge = usePlanJudge(cutSwaps, upgradePlan?.open === true, combosLoading);
+  // A replacement the player hid counts as unavailable, like one already in the deck.
   const lane = useMemo(
-    () => cutLane(cuts, cutPairing.state, deckNames),
-    [cuts, cutPairing.state, deckNames]
+    () =>
+      cutLane(
+        cuts,
+        cutPairing.state,
+        hidden.inNames.size ? new Set([...deckNames, ...hidden.inNames]) : deckNames
+      ),
+    [cuts, cutPairing.state, deckNames, hidden.inNames]
   );
 
   // ── Filter ───────────────────────────────────────────────────────────────
@@ -951,6 +964,7 @@ export function CoachFeed({
                           )
                         }
                         onAct={act}
+                        onDismiss={hidden.canDismiss ? labels.dismiss : undefined}
                         actLabel={change.lane === 'decks' ? 'Move in' : undefined}
                         acting={
                           busy.has(change.name) || (change.inName ? busy.has(change.inName) : false)
@@ -1039,6 +1053,8 @@ export function CoachFeed({
           used to sit between the filter chips and the rows they filter, where
           its all-caps summary read as a heading for the feed below it. The
           bounded first page above keeps it discoverable near the fold. */}
+      <HiddenSuggestions />
+
       {browserSection}
 
       {/* Desktop hover-peek — portaled to <body> so it escapes any

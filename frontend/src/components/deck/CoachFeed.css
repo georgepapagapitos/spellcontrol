@@ -251,7 +251,9 @@
   .coach-feed-rows-head,
   .coach-feed-rows > li > .deck-card-row {
     display: grid;
-    grid-template-columns: var(--coach-art-col) minmax(0, 1.2fr) minmax(0, 1fr) 9.5rem auto auto;
+    grid-template-columns:
+      var(--coach-art-col) minmax(0, 1.2fr) minmax(0, 1fr)
+      9.5rem auto auto auto;
     column-gap: var(--space-4);
     align-items: center;
   }
@@ -308,6 +310,12 @@
 
   .coach-feed-rows > li > .deck-card-row > .deck-card-row-act {
     grid-column: 6;
+    grid-row: 1;
+  }
+
+  /* The "Not for this deck" ⋮ closes the row (E580). */
+  .coach-feed-rows > li > .deck-card-row > .suggestion-menu {
+    grid-column: 7;
     grid-row: 1;
   }
 }

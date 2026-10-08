@@ -94,9 +94,13 @@ export function buildSuggestionRows(
     show: SuggestionFilter;
     /** Hidden-gem rows from the deck's analysis (E146). */
     hiddenGems?: HiddenGemRow[];
+    /** Lowercased names the player hid with "Not for this deck" (E580). */
+    dismissed?: ReadonlySet<string>;
   }
 ): SuggestionRows {
-  const { ownershipFor, query, inDeck, show, hiddenGems } = opts;
+  const { ownershipFor, query, inDeck, show, hiddenGems, dismissed } = opts;
+  const out = (name: string) =>
+    inDeck.has(name.toLowerCase()) || !!dismissed?.has(name.toLowerCase());
   const nq = normalizeForSearch(query);
   const matchesQuery = (name: string) => !nq || normalizeForSearch(name).includes(nq);
   const ownershipOf = (name: string): Ownership => {
@@ -124,7 +128,7 @@ export function buildSuggestionRows(
   // "not in deck", but the deck mutates live, so re-check against `inDeck`.
   const staples: SuggestionRow[] = [];
   for (const g of gap ?? []) {
-    if (inDeck.has(g.name.toLowerCase())) continue;
+    if (out(g.name)) continue;
     if (!matchesQuery(g.name)) continue;
     if (seen.has(g.name)) continue;
     seen.add(g.name);
@@ -164,7 +168,7 @@ export function buildSuggestionRows(
     const card = m.combo.cards.find((c) => c.oracleId === m.missingOracleIds[0]);
     if (!card) continue;
     const key = card.cardName;
-    if (inDeck.has(key.toLowerCase())) continue;
+    if (out(key)) continue;
     if (seen.has(key)) continue;
     if (!matchesQuery(key)) continue;
     seen.add(key);
@@ -184,7 +188,7 @@ export function buildSuggestionRows(
   // staple/combo row (or entered the deck) is dropped by the shared dedupe.
   const gems: SuggestionRow[] = [];
   for (const g of hiddenGems ?? []) {
-    if (inDeck.has(g.name.toLowerCase())) continue;
+    if (out(g.name)) continue;
     if (seen.has(g.name)) continue;
     if (!matchesQuery(g.name)) continue;
     seen.add(g.name);

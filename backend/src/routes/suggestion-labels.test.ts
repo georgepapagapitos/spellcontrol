@@ -221,6 +221,18 @@ describe('GET /api/admin/suggestions', () => {
       .send({ username: 'sugadmin', password: 'correct horse battery' });
     const admin = extractSessionCookie(login.headers['set-cookie'])!;
 
+    // A suggestion dismissed from Swap this card credits the card it offered, not the deck's own.
+    await request(app)
+      .post('/api/events')
+      .send(
+        label({
+          surface: 'swap',
+          cmdr: SORIN,
+          cmdrName: 'Sorin',
+          cardIn: 'Cultivate',
+          cardOut: 'Rampant Growth',
+        })
+      );
     const res = await request(app).get('/api/admin/suggestions?days=7').set('Cookie', admin);
     expect(res.status).toBe(200);
     expect(res.body.surfaces).toEqual(
@@ -240,6 +252,11 @@ describe('GET /api/admin/suggestions', () => {
       commander: ATRAXA,
       name: "Atraxa, Praetors' Voice",
       cards: [{ card: 'Early Winter', count: 2 }],
+    });
+    expect(
+      res.body.topDismissed.find((c: { commander: string }) => c.commander === SORIN)
+    ).toMatchObject({
+      cards: [{ card: 'Cultivate', count: 1 }],
     });
   });
 });

@@ -220,6 +220,31 @@ describe('analyzeCommanderDeck — what Coach reads (T171)', () => {
     expect(await gapNames(repaired)).not.toContain('Swords to Plowshares');
   });
 
+  // E580: "Not for this deck" on a suggestion. The player's own ruling holds for
+  // every later pass, whatever the card's play rate, in every list Coach reads.
+  it('never suggests a card the player hid for this deck, in any suggestion list', async () => {
+    const { analyzeCommanderDeck } = await import('./commanderDeckAnalysis');
+    const run = (dismissedNames?: Set<string>) =>
+      analyzeCommanderDeck({
+        commander,
+        cards: deck,
+        deckSize: 99,
+        colorIdentity: ['B', 'U', 'W', 'G'],
+        oneAwayCombos: [beastWithinCombo],
+        dismissedNames,
+      });
+    const suggested = (r: Awaited<ReturnType<typeof run>>) => [
+      ...(r?.gapAnalysis ?? []).map((g) => g.name),
+      ...(r?.optimizeSwaps?.additions ?? []).map((a) => a.name),
+      ...(r?.synergyAnalysis?.suggestions ?? []).map((x) => x.cardName),
+    ];
+    expect(suggested(await run())).toContain('Swords to Plowshares');
+    const hidden = suggested(await run(new Set(['swords to plowshares'])));
+    expect(hidden).not.toContain('Swords to Plowshares');
+    // Only what was hidden goes; the rest of the page is still offered.
+    expect(hidden).toContain('Counterspell');
+  });
+
   // T171 re-gate: Altar of Dementia, added to finish a Krenko combo, came
   // straight back as a Cuts-lane misfit on the next pass.
   it('keeps the pieces of a combo the deck has out of the misfits', async () => {

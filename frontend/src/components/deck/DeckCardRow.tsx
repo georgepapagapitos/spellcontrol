@@ -1,6 +1,7 @@
 import type { JSX } from 'react';
 import './DeckCardRow.css';
 import { ArrowLeftRight, ArrowRight, Loader2, Minus, Plus } from 'lucide-react';
+import { SuggestionDismissMenu } from './SuggestionDismissMenu';
 import { OwnershipBadge } from './OwnershipBadge';
 import { VerdictBadge, type VerdictTone } from './VerdictBadge';
 import { WhyBreakdown } from './WhyBreakdown';
@@ -85,6 +86,12 @@ export interface DeckCardRowProps {
    *  shrunk to a sliver. The Coach feed's table reads by art; the swap
    *  panels keep the card. */
   artThumb?: boolean;
+  /**
+   * "Not for this deck" (E580): adds a quiet ⋮ at the row's end whose one item
+   * hides this suggestion for the open deck. The caller owns what that means
+   * (persist, label, toast). Omit on rows that are not suggestions.
+   */
+  onDismiss?: (change: Change) => void;
 }
 
 /**
@@ -106,6 +113,7 @@ export function DeckCardRow({
   peekName,
   secondaryAction,
   artThumb,
+  onDismiss,
 }: DeckCardRowProps): JSX.Element {
   const { name, reason, ownership, inclusion, synergy, roleLabel, deltaPrice, manaCost } = change;
   // Prefer an imageUrl already carried by the Change; otherwise resolve the
@@ -339,6 +347,15 @@ export function DeckCardRow({
           )}
           {label}
         </button>
+      )}
+
+      {onDismiss && (
+        <SuggestionDismissMenu
+          name={name}
+          host=".deck-card-row"
+          focusTarget="button:not(:disabled)"
+          onDismiss={() => onDismiss(change)}
+        />
       )}
     </Root>
   );

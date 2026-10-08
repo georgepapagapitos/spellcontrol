@@ -1,0 +1,97 @@
+/* HiddenSuggestions (E580): the way back for suggestions hidden with "Not for
+   this deck". One quiet disclosure under the suggestions; it never competes
+   with them (STYLE_GUIDE § Insight surfaces never displace content). */
+.hidden-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.hidden-suggestions-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  align-self: flex-start;
+  padding: var(--space-1) var(--space-2);
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .hidden-suggestions-toggle:hover {
+    color: var(--accent);
+  }
+}
+
+.hidden-suggestions-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .hidden-suggestions-toggle {
+    min-height: 44px;
+  }
+}
+
+.hidden-suggestions-toggle > svg {
+  transform: rotate(-90deg);
+}
+
+.hidden-suggestions-toggle[aria-expanded='true'] > svg {
+  transform: rotate(0);
+}
+
+.hidden-suggestions-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.hidden-suggestions-list {
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hidden-suggestions-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-1) 0;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.hidden-suggestions-row:last-child {
+  border-bottom: 0;
+}
+
+.hidden-suggestions-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.hidden-suggestions-kind,
+.hidden-suggestions-empty {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.hidden-suggestions-empty {
+  margin: 0;
+}

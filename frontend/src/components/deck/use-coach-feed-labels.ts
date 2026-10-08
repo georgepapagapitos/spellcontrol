@@ -1,5 +1,6 @@
 import { useCallback, useEffect } from 'react';
 import type { Change } from '@/lib/coach/deck-change';
+import { useDismissedSuggestions } from '@/lib/coach/dismissed-suggestions';
 import type { PlanStep } from '@/lib/coach/apply-upgrade-plan';
 import {
   recordShown,
@@ -42,5 +43,22 @@ export function useCoachFeedLabels(filter: string, rows: Change[], loading: bool
       })
     );
   }, []);
-  return { accept, acceptAll, acceptPlan };
+  const { dismiss: hide } = useDismissedSuggestions();
+  /** "Not for this deck": hides the row for this deck and labels it a dismissal. */
+  const dismiss = useCallback(
+    (c: Change) => {
+      const input = suggestionInputForChange(c, surface, rankOf(c));
+      hide({
+        name: c.name,
+        cut: c.type === 'cut',
+        surface,
+        rank: input.rank,
+        reason: input.reason,
+        cardIn: input.cardIn,
+        cardOut: input.cardOut,
+      });
+    },
+    [hide, surface, rankOf]
+  );
+  return { accept, acceptAll, acceptPlan, dismiss };
 }

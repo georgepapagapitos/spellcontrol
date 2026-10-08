@@ -1,8 +1,9 @@
-import { useEffect, type JSX } from 'react';
+import { useEffect, useMemo, type JSX } from 'react';
 import './SwapThisCard.css';
 import { DeckCardRow } from './DeckCardRow';
 import type { Change } from '@/lib/coach/deck-change';
 import { recordShown, recordSuggestion } from '@/lib/util/suggestion-labels';
+import { useDismissedSuggestions, withoutDismissed } from '@/lib/coach/dismissed-suggestions';
 
 export interface SwapThisCardProps {
   /** The in-deck card being looked at (the swap-out target). */
@@ -27,11 +28,13 @@ export interface SwapThisCardProps {
  */
 export function SwapThisCard({
   currentName,
-  alternatives,
+  alternatives: all,
   onSwap,
   swapping,
   commanderName,
 }: SwapThisCardProps): JSX.Element | null {
+  const hidden = useDismissedSuggestions();
+  const alternatives = useMemo(() => withoutDismissed(all, hidden.list), [all, hidden.list]);
   const count = alternatives.length;
   useEffect(() => {
     recordShown('swap', count, currentName);
@@ -61,6 +64,19 @@ export function SwapThisCard({
               onSwap(change.name);
             }}
             acting={swapping}
+            onDismiss={
+              hidden.canDismiss
+                ? () =>
+                    hidden.dismiss({
+                      name: change.name,
+                      surface: 'swap',
+                      rank: i + 1,
+                      reason: change.lane,
+                      cardIn: change.name,
+                      cardOut: currentName,
+                    })
+                : undefined
+            }
           />
         ))}
       </ul>

@@ -1,5 +1,4 @@
 import { logger } from '@/lib/util/logger';
-import { useSyncExternalStore } from 'react';
 import { create } from 'zustand';
 import { isApplyingServer } from '@/lib/sync/applying-server';
 import { track } from '@/lib/util/analytics';
@@ -41,7 +40,9 @@ import { pickRandomPresetColor } from '@/lib/util/preset-colors';
 import type { EnrichedCard } from '../types';
 import type { SavedCube } from './cube';
 import { toast } from './toasts';
+import { bumpLocalMutationToken, getLocalMutationToken } from './deck-mutation-token';
 import { genId } from '@/lib/util/id';
+import type { DismissedSuggestion } from '@/lib/coach/dismissed-suggestions';
 
 /**
  * Persisted deck shape. Stores full ScryfallCard payloads so a saved deck
@@ -317,6 +318,15 @@ export interface Deck {
    */
   lastArrivalReviewAt?: number;
   /**
+   * Suggestions the player hid for this deck ("Not for this deck", E580): Coach,
+   * Swap this card, Similar cards and the Add panel leave these out, and Coach's
+   * next analysis does not suggest them back. A whole-row-synced additive field
+   * like every other Deck field, so it follows the deck across devices and the
+   * signed-out queue. Never part of a public projection. See
+   * `lib/coach/dismissed-suggestions.ts`.
+   */
+  dismissedSuggestions?: DismissedSuggestion[];
+  /**
    * Long-form strategy notes, rendered via `lib/util/markdown-lite.ts` on
    * SharedDeckView/DeckFeedbackView (and the future `/d/` page). Edited
    * through `DeckPrimerSheet`; absent = never written. An additive,
@@ -582,36 +592,9 @@ interface DecksState {
   remapAllocations(newCollection: EnrichedCard[], physicalCubes: readonly SavedCube[]): void;
 }
 
-// Local-mutation token (E177) — a plain module-level counter per deck id,
-// bumped synchronously by every entry into `touch()` below.
-const localMutationTokens = new Map<string, number>();
-const mutationTokenListeners = new Set<() => void>();
-
-function bumpLocalMutationToken(deckId: string): void {
-  localMutationTokens.set(deckId, (localMutationTokens.get(deckId) ?? 0) + 1);
-  for (const listener of mutationTokenListeners) listener();
-}
-
-/** Non-reactive read — for tests and any non-component consumer. */
-export function getLocalMutationToken(deckId: string): number {
-  return localMutationTokens.get(deckId) ?? 0;
-}
-
-/**
- * Reactive read: re-renders the calling component whenever `deckId`'s local
- * mutation token bumps. A consumer snapshots a baseline (`getLocalMutationToken`
- * or this hook's value) and later asks "has the user mutated this deck since?"
- * by comparing tokens. See the comment on `touch()` for what this replaces.
- */
-export function useLocalMutationToken(deckId: string): number {
-  return useSyncExternalStore(
-    (onChange) => {
-      mutationTokenListeners.add(onChange);
-      return () => mutationTokenListeners.delete(onChange);
-    },
-    () => getLocalMutationToken(deckId)
-  );
-}
+// Local-mutation token (E177): the counter lives in ./deck-mutation-token; every entry
+// into `touch()` below bumps it.
+export { getLocalMutationToken, useLocalMutationToken } from './deck-mutation-token';
 
 /**
  * `touch()` is the one chokepoint every LOCAL-ONLY mutator in this store
