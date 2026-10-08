@@ -67,7 +67,10 @@ import { MIN_GAIN, applyMove, memoRoleOf } from './judge';
 import {
   MAX_LAND_EVALUATIONS,
   MAX_LAND_UPGRADES,
+  losesShortSource,
   rankLandUpgrades,
+  sacrificesLandsToEnter,
+  withinNonbasicCeiling,
   replicates,
 } from './landUpgrades';
 import { reasonProblem } from './reasonCheck';
@@ -485,7 +488,10 @@ export function* optimizeSteps(
         current,
         addable,
         ctx,
-        (u) => !protectedKeys.has(key(current.cards[u.out].name)),
+        (u) =>
+          !protectedKeys.has(key(current.cards[u.out].name)) &&
+          withinNonbasicCeiling(current, { out: [u.out], in: [u.land] }, ctx) &&
+          !losesShortSource(current, applyMove(current, { out: [u.out], in: [u.land] }), ctx),
         (deck, c) => partialTotal(deck, c, ['mana']),
         (deck) => fast(deck) - fastNow
       );
@@ -675,6 +681,13 @@ export function* optimizeSteps(
       if (!isRepair && opts.landUpgrades) {
         if (landMove(move) !== landPhase) continue;
         if (landPhase && !landsLeft) continue;
+        if (
+          landPhase &&
+          (move.in.some(sacrificesLandsToEnter) ||
+            !withinNonbasicCeiling(current, move, ctx) ||
+            losesShortSource(current, next, ctx))
+        )
+          continue;
       }
       if (!isRepair && opts.repairOnly && move.in.some((c) => opts.repairOnly!.has(c.name)))
         continue;

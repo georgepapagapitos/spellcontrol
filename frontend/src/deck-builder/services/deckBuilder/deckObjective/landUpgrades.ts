@@ -18,6 +18,7 @@
  *    best few are judged in full.
  */
 import type { ScryfallCard } from '@/deck-builder/types';
+import { buildManabaseSummary } from '../manabaseMath';
 import { isOwnedCard } from './constraints';
 import { isBasicLand, isLandCard } from './context';
 import { applyMove } from './judge';
@@ -142,4 +143,64 @@ export function rankLandUpgrades(
     .filter((m) => m.estimate > 0)
     .sort((a, b) => b.estimate - a.estimate || a.land.name.localeCompare(b.land.name))
     .slice(0, UPGRADES_PER_STEP);
+}
+
+/**
+ * A land that costs lands to enter (Scorched Ruins: "sacrifice two untapped
+ * lands instead") is a net loss of lands the goldfish does not play out, and
+ * its {C}{C}{C}{C} is not four sources. Left out of the land moves.
+ *
+ * ponytail: text test. Upgrade path: model the entry cost in the engine's land
+ * face and drop this.
+ */
+export function sacrificesLandsToEnter(land: ScryfallCard): boolean {
+  const faces = (land.card_faces ?? []).map((f) => f.oracle_text ?? '');
+  const text = [land.oracle_text ?? '', ...faces].join('\n').toLowerCase();
+  return /\benters?\b[^.\n]*,\s*sacrifice [^.\n]*\blands?\b/.test(text);
+}
+
+/** Nonbasic lands in a deck. */
+export function nonbasicLands(deck: ObjectiveDeck): number {
+  return deck.cards.filter((c) => isLandCard(c) && !isBasicLand(c)).length;
+}
+
+/**
+ * Whether a land move gives up a colour source the deck is short of: the
+ * manabase summary (the build report's own) finds a colour short after the
+ * move, and the move took away a source of it. A colourless utility land for a
+ * red source in a deck short of red (Faceless Haven in Krenko, gate 9).
+ */
+export function losesShortSource(
+  before: ObjectiveDeck,
+  after: ObjectiveDeck,
+  ctx: ObjectiveContext
+): boolean {
+  const identity = new Set(ctx.colorIdentity);
+  const split = (d: ObjectiveDeck) => {
+    const lands = d.cards.filter(isLandCard);
+    return buildManabaseSummary(
+      lands,
+      d.cards.filter((c) => !isLandCard(c)),
+      identity
+    );
+  };
+  const was = new Map(split(before).lines.map((l) => [l.color, l]));
+  return split(after).lines.some((l) => l.short && l.sources < (was.get(l.color)?.sources ?? 0));
+}
+
+/**
+ * The nonbasic count a land move leaves: basic-for-nonbasic only while under
+ * customization.nonBasicLandCount, which the build chose and the invariant
+ * checks. A nonbasic for a nonbasic never changes it.
+ */
+export function withinNonbasicCeiling(
+  deck: ObjectiveDeck,
+  move: { out: readonly number[]; in: readonly ScryfallCard[] },
+  ctx: ObjectiveContext
+): boolean {
+  const ceiling = ctx.customization.nonBasicLandCount;
+  if (ceiling === undefined) return true;
+  const gain = move.in.filter((c) => !isBasicLand(c)).length;
+  const loss = move.out.filter((i) => !isBasicLand(deck.cards[i])).length;
+  return gain <= loss || nonbasicLands(deck) + gain - loss <= ceiling;
 }

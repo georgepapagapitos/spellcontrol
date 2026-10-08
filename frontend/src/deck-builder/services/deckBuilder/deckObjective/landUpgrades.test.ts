@@ -5,8 +5,19 @@
 // Forest next to every Golgari dual; three of the duals go back to Swamps
 // here and are offered as the collection's off-page lands.
 import { describe, expect, it } from 'vitest';
+import { applyMove } from './judge';
 import { optimizeDeck } from './optimizer';
-import { landUpgrades } from './landUpgrades';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import type { ScryfallCard } from '@/deck-builder/types';
+import { readFacts } from './factsReading';
+import {
+  landUpgrades,
+  losesShortSource,
+  nonbasicLands,
+  sacrificesLandsToEnter,
+  withinNonbasicCeiling,
+} from './landUpgrades';
 import { TREATMENT, card, merenCtx, swap } from './__fixtures__/objectiveFixture';
 
 const DUALS = ['Overgrown Tomb', 'Woodland Cemetery', 'Llanowar Wastes'];
@@ -74,5 +85,90 @@ describe('optimizeDeck with owned lands the page never ranked', { timeout: 60_00
     expect(
       r.swaps.filter((s) => s.out.includes('Swamp') && s.in.some((n) => DUALS.includes(n)))
     ).toEqual([]);
+  });
+});
+
+// E509 gate 9: three defects, each on the real card.
+const GATE9 = JSON.parse(
+  readFileSync(resolve(__dirname, '__fixtures__/gate9-lands.fixture.json'), 'utf8')
+) as { cards: ScryfallCard[] };
+const FACELESS = (
+  JSON.parse(
+    readFileSync(
+      resolve(__dirname, '../../../../lib/mana-sim/__fixtures__/land-abilities.fixture.json'),
+      'utf8'
+    )
+  ) as { cards: ScryfallCard[] }
+).cards.find((c) => c.name === 'Faceless Haven')!;
+const gate9 = (name: string) => GATE9.cards.find((c) => c.name === name)!;
+
+describe('a land animated only by snow mana feeds no creature-type payoff', () => {
+  const c = merenCtx();
+  const nonMana = (card: ScryfallCard) =>
+    readFacts(card, c.factsOf(card)).produces.filter((p) => p.r !== 'mana');
+
+  it('Faceless Haven ({S}{S}{S}) keeps its mana and nothing else', () => {
+    expect(nonMana(FACELESS)).toEqual([]);
+  });
+
+  it('Mutavault ({1}) still reads as a creature', () => {
+    expect(nonMana(gate9('Mutavault')).length).toBeGreaterThan(0);
+  });
+});
+
+describe('sacrificesLandsToEnter', () => {
+  it('reads Scorched Ruins, and not Gemstone Caverns or Mutavault', () => {
+    expect(sacrificesLandsToEnter(gate9('Scorched Ruins'))).toBe(true);
+    expect(sacrificesLandsToEnter(gate9('Gemstone Caverns'))).toBe(false);
+    expect(sacrificesLandsToEnter(gate9('Mutavault'))).toBe(false);
+  });
+});
+
+describe('the nonbasic ceiling and the colour a land move gives up', () => {
+  const owned = (nonBasicLandCount: number) =>
+    merenCtx({
+      customization: { deckFormat: 99, currency: 'USD', nonBasicLandCount },
+    });
+  const have = nonbasicLands(swapped);
+  const move = {
+    out: [swapped.cards.findIndex((x) => x.name === 'Swamp')],
+    in: [card('Overgrown Tomb')],
+  };
+
+  it('allows a basic for a nonbasic only under nonBasicLandCount', () => {
+    expect(withinNonbasicCeiling(swapped, move, owned(have))).toBe(false);
+    expect(withinNonbasicCeiling(swapped, move, owned(have + 1))).toBe(true);
+  });
+
+  it('always allows a nonbasic for a nonbasic', () => {
+    const out = swapped.cards.findIndex((x) => x.name === 'Boseiju, Who Endures');
+    expect(
+      withinNonbasicCeiling(swapped, { out: [out], in: [card('Overgrown Tomb')] }, owned(have))
+    ).toBe(true);
+  });
+
+  it('refuses the last green sources of a deck short of green for a colourless land', () => {
+    const GREEN = [
+      'Overgrown Tomb',
+      'Woodland Cemetery',
+      'Llanowar Wastes',
+      'Tainted Wood',
+      'Deathcap Glade',
+      'Necroblossom Snarl',
+      'Twilight Mire',
+      'Golgari Rot Farm',
+      'Undergrowth Stadium',
+      'Command Tower',
+      'Boseiju, Who Endures',
+    ];
+    const starved = GREEN.reduce(
+      (d, name) => (d.cards.some((c) => c.name === name) ? swap(d, name, 'Swamp') : d),
+      swapped
+    );
+    const forest = starved.cards.findIndex((x) => x.name === 'Forest');
+    const bare = applyMove(starved, { out: [forest], in: [card('High Market')] });
+    expect(losesShortSource(starved, bare, merenCtx())).toBe(true);
+    const dual = applyMove(starved, { out: [forest], in: [card('Overgrown Tomb')] });
+    expect(losesShortSource(starved, dual, merenCtx())).toBe(false);
   });
 });
