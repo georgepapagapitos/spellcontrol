@@ -238,9 +238,10 @@ describe('FriendHubPage — Collection tab (the trade workspace)', () => {
     fireEvent.click(await within(panel()).findByRole('button', { name: 'Ask for Sol Ring' }));
 
     expect(screen.getByRole('button', { name: /^Review trade with @friendo. Get 1/ })).toBeTruthy();
-    expect(useTradeDraftsStore.getState().getDraft('viewer-1', 'friend-1')?.get.sol.quantity).toBe(
-      1
-    );
+    expect(
+      useTradeDraftsStore.getState().getDraft('viewer-1', 'friend-1')?.get['sol|sf-sol|nonfoil']
+        .quantity
+    ).toBe(1);
   });
 
   it('says a Private collection is private, rather than empty (T136)', async () => {

@@ -92,7 +92,7 @@ export function TradeReview({
   /** A row's thumb opens the whole deal, give then get. `indexOf` maps back:
    *  a card that resolved nowhere is dropped, so position would drift. */
   async function inspect(tapped: TradeCard | undefined) {
-    const all = [...m.giveCards, ...m.wantCards];
+    const all = [...m.giveCards, ...m.getLines.map((l) => l.card)];
     const { cards, indexOf } = await resolveTradePreview(all);
     if (cards.length === 0) {
       toast.show({ message: "Couldn't load these cards right now.", tone: 'warn' });
@@ -165,7 +165,7 @@ export function TradeReview({
                     line={line}
                     friendName={friendName}
                     disabled={sending}
-                    onInspect={() => void inspect(m.wantCards.find((c) => c.oracleId === line.key))}
+                    onInspect={() => void inspect(line.card)}
                     onQuantity={(q) => m.setGetQuantity(line.key, q)}
                     onRemove={() => m.removeGet(line.key)}
                   />
@@ -250,7 +250,7 @@ export function TradeReview({
                 onClick={() => setNoteOpen(true)}
               >
                 <Plus width={14} height={14} strokeWidth={1.8} aria-hidden />
-                Add a note
+                <span>Add a note</span>
               </button>
             )}
           </div>
@@ -288,7 +288,10 @@ export function TradeReview({
         <p className="trade-review-hint" id={`${noteId}-hint`}>
           {m.blockedReason && !sending
             ? m.blockedReason
-            : `${friendName} picks exact printings when they accept. Closing keeps this as a draft.`}
+            : footerHint(
+                friendName,
+                m.getLines.some((l) => !l.printing && !l.gone)
+              )}
         </p>
       </footer>
 
@@ -301,6 +304,13 @@ export function TradeReview({
       )}
     </div>
   );
+}
+
+/** What the footer promises about printings, true to what is in the trade. */
+function footerHint(friendName: string, anyPrinting: boolean): string {
+  return anyPrinting
+    ? `${friendName} chooses the printing for cards with none named, and confirms when they accept. Closing keeps this as a draft.`
+    : `${friendName} gets the exact printings above and confirms when they accept. Closing keeps this as a draft.`;
 }
 
 function Banner({
@@ -377,11 +387,29 @@ function AddMore({
   disabled: boolean;
 }) {
   return (
-    <Button className="trade-review-add" onClick={onClick} disabled={disabled}>
-      <Plus width={16} height={16} aria-hidden />
+    // The glyph goes through Button's icon slot. As a child it landed inside
+    // the inline `.btn-label` span, on the text baseline, above the label's
+    // optical centre; the slot makes it a sibling flex item the row centres.
+    <Button
+      className="trade-review-add"
+      icon={<Plus width={16} height={16} />}
+      onClick={onClick}
+      disabled={disabled}
+    >
       {label}
     </Button>
   );
+}
+
+/** `7ED · #253`, plus the finish when it isn't plain. Empty parts are left out. */
+function describeAskedPrinting(p: NonNullable<ReviewGetLine['printing']>): string {
+  return [
+    p.setCode ? p.setCode.toUpperCase() : null,
+    p.collectorNumber ? `#${p.collectorNumber}` : null,
+    p.finish !== 'nonfoil' ? p.finish : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 }
 
 function GetLine({
@@ -399,24 +427,43 @@ function GetLine({
   onQuantity: (next: number) => void;
   onRemove: () => void;
 }) {
-  const meta = line.gone
-    ? `${friendName} no longer has this`
+  const { printing } = line;
+  // A pinned ask names its printing and prices it exactly; an any-printing ask
+  // can only say "from" the cheapest one.
+  const price = printing
+    ? printing.price !== null
+      ? formatMoney(printing.price * line.quantity)
+      : null
+    : line.floor != null
+      ? `from ${formatMoney(line.floor * line.quantity)}`
+      : null;
+  const segments = line.gone
+    ? [`${friendName} no longer has this`]
     : [
-        line.theirCount != null ? `${friendName} has ${line.theirCount}` : null,
-        line.floor != null ? `from ${formatMoney(line.floor * line.quantity)}` : null,
-      ]
-        .filter(Boolean)
-        .join(' · ');
+        printing ? describeAskedPrinting(printing) : null,
+        line.theirCount != null
+          ? `${friendName} has ${line.theirCount}${printing ? ' of this' : ''}`
+          : null,
+        price,
+      ].filter((x): x is string => !!x);
   return (
     <li className="trade-review-line">
-      <ThumbButton name={line.name} onClick={onInspect} />
+      <ThumbButton name={line.name} src={printing?.imageSmall} onClick={onInspect} />
       <span className="trade-review-info">
         <span className="trade-review-name" title={line.name}>
           {line.name}
         </span>
-        {meta && (
-          <span className={line.gone ? 'trade-review-meta is-warn' : 'trade-review-meta'}>
-            {meta}
+        {segments.length > 0 && (
+          <span
+            className={line.gone ? 'trade-review-meta is-warn' : 'trade-review-meta is-segments'}
+          >
+            <span className="trade-review-meta-row">
+              {segments.map((text) => (
+                <span key={text} className="trade-review-meta-seg">
+                  {text}
+                </span>
+              ))}
+            </span>
           </span>
         )}
       </span>

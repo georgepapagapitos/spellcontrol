@@ -285,9 +285,15 @@ describe('PublicProfilePage — the Collection tab (T136)', () => {
       renderWithHub();
 
       fireEvent.click(await screen.findByRole('button', { name: 'Ask for Sol Ring' }));
-      expect(useTradeDraftsStore.getState().getDraft('viewer-1', 'friend-9')?.get['o-sol']).toEqual(
-        { name: 'Sol Ring', quantity: 1 }
-      );
+      expect(
+        useTradeDraftsStore.getState().getDraft('viewer-1', 'friend-9')?.get['o-sol|sol|nonfoil']
+      ).toEqual({
+        name: 'Sol Ring',
+        oracleId: 'o-sol',
+        scryfallId: 'sol',
+        finish: 'nonfoil',
+        quantity: 1,
+      });
 
       fireEvent.click(screen.getByRole('button', { name: /^Review trade with/ }));
       expect(screen.getByTestId('where').textContent).toBe(

@@ -38,7 +38,7 @@ describe('addGet / removeOneGet', () => {
     let r = addGet(null, FRIEND, sol, 2);
     expect(r.blocked).toBeNull();
     expect(r.draft.friendId).toBe('f1');
-    expect(r.draft.get['o-sol']).toEqual({ name: 'Sol Ring', quantity: 1 });
+    expect(r.draft.get['o-sol']).toEqual({ name: 'Sol Ring', oracleId: 'o-sol', quantity: 1 });
     r = addGet(r.draft, FRIEND, sol, 2);
     expect(r.draft.get['o-sol'].quantity).toBe(2);
     r = addGet(r.draft, FRIEND, sol, 2);
@@ -109,7 +109,11 @@ describe('counterDraft', () => {
   it('puts what the viewer was asked for on "give" and what was offered on "get"', () => {
     const { draft, skipped } = counterDraft(offer, FRIEND, new Map([['o-sol', line]]));
     expect(draft.give['o-sol'].copyIds).toEqual(['cheap', 'mid']);
-    expect(draft.get['o-bolt']).toEqual({ name: 'Lightning Bolt', quantity: 3 });
+    expect(draft.get['o-bolt']).toEqual({
+      name: 'Lightning Bolt',
+      oracleId: 'o-bolt',
+      quantity: 3,
+    });
     expect(draft.get['o-sol']).toBeUndefined();
     expect(draft.counterTo).toEqual({ offerId: 't1', name: 'Morgan' });
     // A card the viewer no longer owns is named, not silently dropped.

@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { toast } from '@/store/toasts';
 import { useCollectionStore } from '@/store/collection';
+import { useAllocations } from '@/lib/collection/allocations';
 import { useAwaitingFirstPull } from '@/lib/sync/use-awaiting-first-pull';
 import { counterDraft } from './draft-edits';
 import { keyOf } from './trade-basket';
@@ -29,6 +30,8 @@ export function useCounterSeed(opts: {
   const { friendId, friendName, offer, onSeeded } = opts;
   const { draft, save } = useTradeDraft(friendId);
   const cards = useCollectionStore((s) => s.cards);
+  const allocations = useAllocations();
+  const claimed = useMemo(() => new Set(allocations.keys()), [allocations]);
   const awaitingFirstPull = useAwaitingFirstPull();
   const waiting = awaitingFirstPull && cards.length === 0;
   const ownedByKey = useMemo(() => {
@@ -40,7 +43,7 @@ export function useCounterSeed(opts: {
   useEffect(() => {
     if (!offer || waiting) return;
     if (draft?.counterTo?.offerId !== offer.id) {
-      const seeded = counterDraft(offer, { id: friendId, name: friendName }, ownedByKey);
+      const seeded = counterDraft(offer, { id: friendId, name: friendName }, ownedByKey, claimed);
       save(seeded.draft);
       if (seeded.skipped.length > 0) {
         toast.show({
@@ -52,5 +55,5 @@ export function useCounterSeed(opts: {
       }
     }
     onSeeded();
-  }, [offer, waiting, draft, ownedByKey, friendId, friendName, save, onSeeded]);
+  }, [offer, waiting, draft, ownedByKey, claimed, friendId, friendName, save, onSeeded]);
 }

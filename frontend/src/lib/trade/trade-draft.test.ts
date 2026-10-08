@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { emptyDraft, isEmptyDraft, reconcileDraft, type TradeDraftV1 } from './trade-draft';
+import { emptyDraft, isEmptyDraft, reconcileDraft, type TradeDraft } from './trade-draft';
 import type { OwnedTradeLine } from './trade-picker';
 import type { EnrichedCard } from '../../types';
 
@@ -8,14 +8,17 @@ const owned: OwnedTradeLine[] = [
   { oracleId: 'o-sol', name: 'Sol Ring', copies: [card('c1'), card('c2')] },
 ];
 
-function draft(over: Partial<TradeDraftV1> = {}): TradeDraftV1 {
+function draft(over: Partial<TradeDraft> = {}): TradeDraft {
   return { ...emptyDraft('f1', 'Ann', 1000), ...over };
 }
 
 describe('reconcileDraft', () => {
   it('clamps get quantities to min(20, theirCount) and reports reduced', () => {
     const d = draft({
-      get: { 'o-a': { name: 'A', quantity: 9 }, 'o-b': { name: 'B', quantity: 30 } },
+      get: {
+        'o-a': { name: 'A', oracleId: 'o-a', quantity: 9 },
+        'o-b': { name: 'B', oracleId: 'o-b', quantity: 30 },
+      },
     });
     const { draft: out, issues } = reconcileDraft(
       d,
@@ -34,7 +37,7 @@ describe('reconcileDraft', () => {
   });
 
   it('keeps a get line that fits untouched, with no issue', () => {
-    const d = draft({ get: { 'o-a': { name: 'A', quantity: 2 } } });
+    const d = draft({ get: { 'o-a': { name: 'A', oracleId: 'o-a', quantity: 2 } } });
     const { draft: out, issues } = reconcileDraft(d, new Map([['o-a', 5]]), owned);
     expect(out.get).toEqual(d.get);
     expect(issues).toEqual([]);
@@ -42,11 +45,14 @@ describe('reconcileDraft', () => {
 
   it('flags a card no longer in their collection as gone and leaves the line for the owner to remove', () => {
     const d = draft({
-      get: { 'o-a': { name: 'A', quantity: 2 }, 'o-z': { name: 'Z', quantity: 1 } },
+      get: {
+        'o-a': { name: 'A', oracleId: 'o-a', quantity: 2 },
+        'o-z': { name: 'Z', oracleId: 'o-z', quantity: 1 },
+      },
     });
     const { draft: out, issues } = reconcileDraft(d, new Map([['o-a', 1]]), owned);
     expect(issues).toContainEqual({ kind: 'gone', key: 'o-z', name: 'Z' });
-    expect(out.get['o-z']).toEqual({ name: 'Z', quantity: 1 });
+    expect(out.get['o-z']).toEqual({ name: 'Z', oracleId: 'o-z', quantity: 1 });
     const zero = reconcileDraft(
       d,
       new Map([
@@ -60,7 +66,10 @@ describe('reconcileDraft', () => {
 
   it('treats null counts (private collection) as a cap of 20 with nothing gone', () => {
     const d = draft({
-      get: { 'o-a': { name: 'A', quantity: 25 }, 'o-b': { name: 'B', quantity: 3 } },
+      get: {
+        'o-a': { name: 'A', oracleId: 'o-a', quantity: 25 },
+        'o-b': { name: 'B', oracleId: 'o-b', quantity: 3 },
+      },
     });
     const { draft: out, issues } = reconcileDraft(d, null, owned);
     expect(out.get['o-a'].quantity).toBe(20);
@@ -104,7 +113,9 @@ describe('isEmptyDraft', () => {
     expect(isEmptyDraft(draft())).toBe(true);
     expect(isEmptyDraft(draft({ note: '  ' }))).toBe(true);
     expect(isEmptyDraft(draft({ note: 'x' }))).toBe(false);
-    expect(isEmptyDraft(draft({ get: { a: { name: 'A', quantity: 1 } } }))).toBe(false);
+    expect(isEmptyDraft(draft({ get: { a: { name: 'A', oracleId: 'a', quantity: 1 } } }))).toBe(
+      false
+    );
     expect(isEmptyDraft(draft({ counterTo: { offerId: 'o', name: 'n' } }))).toBe(false);
     expect(isEmptyDraft(draft({ give: { a: { name: 'A', oracleId: 'a', copyIds: ['c'] } } }))).toBe(
       false

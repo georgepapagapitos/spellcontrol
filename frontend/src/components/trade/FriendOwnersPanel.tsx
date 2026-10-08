@@ -85,7 +85,7 @@ export function FriendOwnersPanel({ oracleId, cardName }: Props) {
       const quantity = Math.min(have + 1, owner.count, MAX_COPIES_PER_LINE);
       setDraft(viewerId, owner.friendId, {
         ...draft,
-        get: { ...draft.get, [oracleId]: { name: cardName, quantity } },
+        get: { ...draft.get, [oracleId]: { name: cardName, oracleId, quantity } },
       });
       navigate(`/friends/${encodeURIComponent(owner.friendId)}?tab=collection&review=1`);
     },

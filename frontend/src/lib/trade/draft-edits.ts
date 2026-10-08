@@ -2,12 +2,16 @@ import type { EnrichedCard } from '@/types/index';
 import {
   MAX_COPIES_PER_LINE,
   addCheapestCopy,
+  askedOf,
   atLineCap,
+  getEntryKey,
+  giveCandidates,
   keyOf,
   resolveGivePrefill,
+  type GivePickOptions,
 } from './trade-basket';
-import { emptyDraft, type TradeDraftV1 } from './trade-draft';
-import { copiesByValue, type OwnedTradeLine } from './trade-picker';
+import { emptyDraft, type TradeDraft } from './trade-draft';
+import type { OwnedTradeLine } from './trade-picker';
 import type { TradeOffer } from './trades-client';
 
 /**
@@ -26,7 +30,7 @@ export interface Friend {
 export type AddBlock = 'copies' | 'lines';
 
 export interface AddResult {
-  draft: TradeDraftV1;
+  draft: TradeDraft;
   /** Null when the card went in. */
   blocked: AddBlock | null;
 }
@@ -37,29 +41,37 @@ export function getCeiling(theirCount: number | null): number {
 }
 
 /**
- * One more copy of a card from THEIR collection. `theirCount` is how many they
- * hold across every printing (null when their collection can't be read, which
- * leaves only the per-line 20).
+ * One more copy from THEIR collection. A card with a `scryfallId` + `finish` is
+ * a request for that printing and gets its own entry; without them it is a
+ * request for any printing. `theirCount` is how many they hold of what is being
+ * asked for (that printing, or the card across printings), null when their
+ * collection can't be read, which leaves only the per-line 20. The 20 is per
+ * card, since the server holds one line per card.
  */
 export function addGet(
-  base: TradeDraftV1 | null,
+  base: TradeDraft | null,
   friend: Friend,
-  card: { oracleId: string; name: string },
+  card: { oracleId: string; name: string; scryfallId?: string; finish?: string },
   theirCount: number | null
 ): AddResult {
   const draft = base ?? emptyDraft(friend.id, friend.name);
-  const key = keyOf(card);
+  const key = getEntryKey(card);
   const have = draft.get[key]?.quantity ?? 0;
-  if (have >= getCeiling(theirCount)) return { draft, blocked: 'copies' };
+  if (have >= getCeiling(theirCount) || askedOf(draft.get, card) >= MAX_COPIES_PER_LINE) {
+    return { draft, blocked: 'copies' };
+  }
   if (atLineCap(draft.get, key)) return { draft, blocked: 'lines' };
-  return {
-    draft: { ...draft, get: { ...draft.get, [key]: { name: card.name, quantity: have + 1 } } },
-    blocked: null,
+  const entry = {
+    name: card.name,
+    oracleId: card.oracleId,
+    ...(card.scryfallId && card.finish ? { scryfallId: card.scryfallId, finish: card.finish } : {}),
+    quantity: have + 1,
   };
+  return { draft: { ...draft, get: { ...draft.get, [key]: entry } }, blocked: null };
 }
 
-/** One copy fewer of a card they have; at zero the line goes. */
-export function removeOneGet(base: TradeDraftV1 | null, key: string): TradeDraftV1 | null {
+/** One copy fewer of an ask; at zero the line goes. */
+export function removeOneGet(base: TradeDraft | null, key: string): TradeDraft | null {
   const line = base?.get[key];
   if (!base || !line) return base;
   const get = { ...base.get };
@@ -68,28 +80,35 @@ export function removeOneGet(base: TradeDraftV1 | null, key: string): TradeDraft
   return { ...base, get };
 }
 
-/** The copy "+" would put in next: the cheapest one not already in the trade. */
+/**
+ * The copy "+" would put in next: no deck or cube holds it if any free copy is
+ * left, and the cheapest of those. `printing` narrows it to one printing (the
+ * tile that was tapped).
+ */
 export function nextGiveCopy(
-  base: TradeDraftV1 | null,
-  line: OwnedTradeLine
+  base: TradeDraft | null,
+  line: OwnedTradeLine,
+  opts: GivePickOptions = {}
 ): EnrichedCard | undefined {
   const chosen = new Set(base?.give[keyOf(line)]?.copyIds ?? []);
-  return copiesByValue(line).find((c) => !chosen.has(c.copyId));
+  return giveCandidates(line, chosen, opts)[0];
 }
 
-/** One more of the viewer's own copies: the cheapest not already in the trade. */
+/** One more of the viewer's own copies, picked by {@link nextGiveCopy}. */
 export function addGive(
-  base: TradeDraftV1 | null,
+  base: TradeDraft | null,
   friend: Friend,
-  line: OwnedTradeLine
+  line: OwnedTradeLine,
+  opts: GivePickOptions = {}
 ): AddResult {
   const draft = base ?? emptyDraft(friend.id, friend.name);
   const key = keyOf(line);
-  if (!nextGiveCopy(draft, line)) return { draft, blocked: 'copies' };
+  if (!nextGiveCopy(draft, line, opts)) return { draft, blocked: 'copies' };
   if (atLineCap(draft.give, key)) return { draft, blocked: 'lines' };
   const picked = addCheapestCopy(
     Object.fromEntries(Object.entries(draft.give).map(([k, l]) => [k, l.copyIds])),
-    line
+    line,
+    opts
   );
   return {
     draft: {
@@ -103,12 +122,23 @@ export function addGive(
   };
 }
 
-/** Take the most recently added copy of a card back out; the last one drops the line. */
-export function removeOneGive(base: TradeDraftV1 | null, key: string): TradeDraftV1 | null {
+/**
+ * Take the most recently added copy of a card back out; the last one drops the
+ * line. `among` limits it to those copyIds (one printing's), so a "-" on a
+ * printing's tile never removes another printing's copy.
+ */
+export function removeOneGive(
+  base: TradeDraft | null,
+  key: string,
+  among?: ReadonlySet<string>
+): TradeDraft | null {
   const line = base?.give[key];
   if (!base || !line) return base;
+  let at = line.copyIds.length - 1;
+  if (among) while (at >= 0 && !among.has(line.copyIds[at])) at -= 1;
+  if (at < 0) return base;
   const give = { ...base.give };
-  const copyIds = line.copyIds.slice(0, -1);
+  const copyIds = line.copyIds.filter((_, i) => i !== at);
   if (copyIds.length === 0) delete give[key];
   else give[key] = { ...line, copyIds };
   return { ...base, give };
@@ -123,18 +153,41 @@ export function removeOneGive(base: TradeDraftV1 | null, key: string): TradeDraf
 export function counterDraft(
   offer: TradeOffer,
   friend: Friend,
-  ownedByKey: ReadonlyMap<string, OwnedTradeLine>
-): { draft: TradeDraftV1; skipped: string[] } {
-  const { prefill, skipped } = resolveGivePrefill(offer.give, ownedByKey);
+  ownedByKey: ReadonlyMap<string, OwnedTradeLine>,
+  claimed?: ReadonlySet<string>
+): { draft: TradeDraft; skipped: string[] } {
+  const { prefill, skipped } = resolveGivePrefill(offer.give, ownedByKey, claimed);
   const draft = emptyDraft(friend.id, friend.name);
   for (const [key, copyIds] of Object.entries(prefill)) {
     const line = ownedByKey.get(key);
     if (line) draft.give[key] = { name: line.name, oracleId: line.oracleId, copyIds };
   }
+  // What the offer would hand the viewer is what the counter asks for, at the
+  // printings it named; a line that named none stays "any printing".
   for (const card of offer.receive) {
-    const key = keyOf(card);
     const quantity = Math.max(1, Math.min(card.quantity, MAX_COPIES_PER_LINE));
-    draft.get[key] = { name: card.name, quantity: (draft.get[key]?.quantity ?? 0) + quantity };
+    const pins = card.copies.length === card.quantity ? card.copies : [];
+    if (pins.length === 0) {
+      const key = keyOf(card);
+      const entry = draft.get[key];
+      draft.get[key] = {
+        name: card.name,
+        oracleId: card.oracleId,
+        quantity: (entry?.quantity ?? 0) + quantity,
+      };
+      continue;
+    }
+    for (const copy of pins.slice(0, quantity)) {
+      const key = getEntryKey({ ...card, scryfallId: copy.scryfallId, finish: copy.finish });
+      const entry = draft.get[key];
+      draft.get[key] = {
+        name: card.name,
+        oracleId: card.oracleId,
+        scryfallId: copy.scryfallId,
+        finish: copy.finish,
+        quantity: (entry?.quantity ?? 0) + 1,
+      };
+    }
   }
   draft.counterTo = {
     offerId: offer.id,

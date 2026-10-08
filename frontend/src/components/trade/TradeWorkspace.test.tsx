@@ -162,6 +162,11 @@ function renderWorkspace(
   );
 }
 
+/** The draft key of one of their printings: `oracleId|scryfallId|finish`. */
+const RHYSTIC_A = 'o-Rhystic Study|sf-Rhystic Study-a|nonfoil';
+const SOL_A = 'o-Sol Ring|sf-Sol Ring-a|nonfoil';
+const SOL_B = 'o-Sol Ring|sf-Sol Ring-b|nonfoil';
+
 const draft = () => useTradeDraftsStore.getState().getDraft(VIEWER, FRIEND);
 
 function stubViewport() {
@@ -207,7 +212,14 @@ describe('TradeWorkspace: their cards', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Ask for Rhystic Study' }));
 
-    expect(draft()?.get['o-Rhystic Study']).toEqual({ name: 'Rhystic Study', quantity: 1 });
+    // Tapping a printing asks for THAT printing: the entry names it.
+    expect(draft()?.get[RHYSTIC_A]).toEqual({
+      name: 'Rhystic Study',
+      oracleId: 'o-Rhystic Study',
+      scryfallId: 'sf-Rhystic Study-a',
+      finish: 'nonfoil',
+      quantity: 1,
+    });
     expect(screen.getByRole('button', { name: /^Review trade with Morgan. Get 1/ })).toBeTruthy();
     // The tile now offers the way back out, and says how many are in.
     const check = screen.getByRole('button', { name: /Take one Rhystic Study out of the trade/ });
@@ -216,54 +228,69 @@ describe('TradeWorkspace: their cards', () => {
     expect(screen.queryByRole('button', { name: /^Review trade with Morgan/ })).toBeNull();
   });
 
-  it('counts a card across printings and stops at what they really have', () => {
+  it('asks per printing and stops at what they really hold of that printing', () => {
     renderWorkspace();
-    // Two Sol Rings in two printings: two tiles, one card in the trade.
+    // Two Sol Rings in two printings: two tiles, each its own ask.
     const plus = screen.getAllByRole('button', { name: 'Ask for Sol Ring' });
     expect(plus).toHaveLength(2);
     fireEvent.click(plus[0]);
+    expect(Object.keys(draft()?.get ?? {})).toEqual([SOL_A]);
     fireEvent.click(screen.getAllByRole('button', { name: /Take one Sol Ring out/ })[0]);
     expect(draft()).toBeNull();
 
-    // Through the preview stepper: Ask, one more, and then it is at the ceiling.
+    // Through the preview: Ask pins the previewed printing, and it is at its
+    // ceiling at once, because they hold one copy of THIS printing.
     fireEvent.click(screen.getAllByRole('button', { name: /^Sol Ring/ })[0]);
     fireEvent.click(screen.getByRole('button', { name: 'Ask for this' }));
-    expect(draft()?.get['o-Sol Ring'].quantity).toBe(1);
-    fireEvent.click(screen.getByRole('button', { name: 'One more in the trade' }));
-    expect(draft()?.get['o-Sol Ring'].quantity).toBe(2);
+    expect(draft()?.get[SOL_A].quantity).toBe(1);
+    expect(draft()?.get[SOL_B]).toBeUndefined();
     expect(
       (screen.getByRole('button', { name: 'One more in the trade' }) as HTMLButtonElement).disabled
     ).toBe(true);
-    expect(screen.getByText(/that's all Morgan has/)).toBeTruthy();
+    expect(screen.getByText(/that's all Morgan has of this printing/)).toBeTruthy();
   });
 
-  it('says the same true thing on every printing of a picked card, with nothing on the art', () => {
+  it('rings only the tile that was tapped, with nothing on the art', () => {
     renderWorkspace();
-    fireEvent.click(screen.getAllByRole('button', { name: 'Ask for Sol Ring' })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Ask for Sol Ring' })[1]);
 
-    // Seven tiles of one card would read as seven picked; they say "In trade · 1".
-    expect(screen.getAllByText('In trade · 1')).toHaveLength(2);
+    // One printing asked for: one tile says so, the other still offers the "+".
+    expect(screen.getAllByText('In trade · 1')).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Ask for Sol Ring' })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: /Take one Sol Ring out/ })).toHaveLength(1);
+    expect(Object.keys(draft()?.get ?? {})).toEqual([SOL_B]);
     // The count is a caption, never a badge on the card face.
     for (const art of document.querySelectorAll('.collection-grid-item')) {
       expect(art.querySelector('.art-badge')).toBeNull();
     }
   });
 
-  it('prices the ask from their own copies: the cheapest printing', () => {
+  it('keeps two printings of one card as two entries, and counts both', () => {
+    renderWorkspace();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Ask for Sol Ring' })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Ask for Sol Ring' })[0]);
+    expect(Object.keys(draft()?.get ?? {}).sort()).toEqual([SOL_A, SOL_B]);
+    expect(screen.getAllByText('In trade · 1')).toHaveLength(2);
+    expect(screen.getByRole('button', { name: /^Review trade with Morgan. Get 2/ })).toBeTruthy();
+  });
+
+  it('prices a pinned ask exactly, from the printing that was tapped', () => {
     world.width = 1000;
     const cheap = { ...theirCard('Sol Ring', 'b'), purchasePrice: 0.5 };
     renderWorkspace({ theirCards: [theirCard('Sol Ring', 'a'), cheap] });
-    fireEvent.click(screen.getAllByRole('button', { name: 'Ask for Sol Ring' })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Ask for Sol Ring' })[1]);
     const dock = screen.getByRole('complementary', { name: /Trade with Morgan/ });
-    expect(within(dock).getByText('from $0.50')).toBeTruthy();
+    expect(within(dock).getAllByText(/\$0\.50/).length).toBeGreaterThan(0);
+    expect(within(dock).queryByText(/from \$/)).toBeNull();
   });
 
   it('asks for a card from its preview with "Ask for this"', () => {
     renderWorkspace();
     fireEvent.click(screen.getByRole('button', { name: /^Rhystic Study/ }));
-    expect(screen.getByText(/Morgan has 1/)).toBeTruthy();
+    expect(screen.getByText(/Morgan has 1 of this printing/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Ask for this' }));
-    expect(draft()?.get['o-Rhystic Study'].quantity).toBe(1);
+    expect(draft()?.get[RHYSTIC_A].quantity).toBe(1);
+    expect(draft()?.get[RHYSTIC_A].scryfallId).toBe('sf-Rhystic Study-a');
     // Once in, the action gives way to the stepper.
     expect(screen.queryByRole('button', { name: 'Ask for this' })).toBeNull();
   });
@@ -354,6 +381,83 @@ describe('TradeWorkspace: your cards', () => {
     expect(draft()).toBeNull();
   });
 
+  describe('picks a copy no deck holds before one a deck does', () => {
+    // Three Mana Geysers of one printing; the cheapest is the one Goblin Storm uses.
+    function seedGeysers() {
+      world.cards = [
+        owned('g1', 'Mana Geyser', 0.1),
+        owned('g2', 'Mana Geyser', 0.4),
+        owned('g3', 'Mana Geyser', 0.2),
+      ];
+      world.allocations = new Map<string, AllocationInfo>([
+        ['g1', makeDeckAllocationInfo('d9', 'Goblin Storm', '#f00', 'Mana Geyser')],
+      ]);
+    }
+
+    it('adds free copies with no question, and warns once only when none is left', () => {
+      seedGeysers();
+      renderWorkspace();
+      openYours();
+      expect(screen.getByText('1 spare')).toBeTruthy();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Offer Mana Geyser' }));
+      expect(screen.queryByRole('dialog', { name: 'Offer Mana Geyser?' })).toBeNull();
+      expect(draft()?.give['o-Mana Geyser'].copyIds).toEqual(['g3']);
+
+      // The second free copy, from the preview stepper.
+      fireEvent.click(screen.getByRole('button', { name: /^Mana Geyser/ }));
+      fireEvent.click(screen.getByRole('button', { name: 'One more in the trade' }));
+      expect(screen.queryByRole('dialog', { name: 'Offer Mana Geyser?' })).toBeNull();
+      expect(draft()?.give['o-Mana Geyser'].copyIds).toEqual(['g3', 'g2']);
+
+      // Only the deck's copy is left: now it asks, naming the deck.
+      fireEvent.click(screen.getByRole('button', { name: 'One more in the trade' }));
+      const dialog = screen.getByRole('dialog', { name: 'Offer Mana Geyser?' });
+      expect(within(dialog).getByText(/Mana Geyser is in Goblin Storm/)).toBeTruthy();
+      expect(draft()?.give['o-Mana Geyser'].copyIds).toEqual(['g3', 'g2']);
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Offer it anyway' }));
+      expect(draft()?.give['o-Mana Geyser'].copyIds).toEqual(['g3', 'g2', 'g1']);
+    });
+
+    it('offers the printing on the tile, and "spare" never promises more than that tile gives', () => {
+      // Printing X has one copy, and Goblin Storm holds it. Printing Y has two free copies.
+      world.cards = [
+        { ...owned('x1', 'Mana Geyser', 0.1), scryfallId: 'sf-x' },
+        { ...owned('y1', 'Mana Geyser', 0.2), scryfallId: 'sf-y' },
+        { ...owned('y2', 'Mana Geyser', 0.3), scryfallId: 'sf-y' },
+      ];
+      world.allocations = new Map<string, AllocationInfo>([
+        ['x1', makeDeckAllocationInfo('d9', 'Goblin Storm', '#f00', 'Mana Geyser')],
+      ]);
+      renderWorkspace();
+      openYours();
+
+      // Tile X has nothing free: it says so rather than borrowing Y's spare.
+      expect(screen.getByText('in 1 deck')).toBeTruthy();
+      expect(screen.getByText('1 spare')).toBeTruthy();
+      // The tile whose caption says so, whichever order the grid puts them in.
+      const addOn = (caption: string) => {
+        let node: HTMLElement | null = screen.getByText(caption);
+        while (
+          node &&
+          node.querySelectorAll('button[aria-label="Offer Mana Geyser"]').length !== 1
+        ) {
+          node = node.parentElement;
+        }
+        return node!.querySelector('button[aria-label="Offer Mana Geyser"]') as HTMLElement;
+      };
+      const tileX = addOn('in 1 deck');
+      const tileY = addOn('1 spare');
+      // Tapping Y's "+" puts in a Y copy, with no question.
+      fireEvent.click(tileY);
+      expect(screen.queryByRole('dialog', { name: 'Offer Mana Geyser?' })).toBeNull();
+      expect(draft()?.give['o-Mana Geyser'].copyIds).toEqual(['y1']);
+      // Tapping X's "+" is the deck's copy of X, and it asks.
+      fireEvent.click(tileX);
+      expect(screen.getByRole('dialog', { name: 'Offer Mana Geyser?' })).toBeTruthy();
+    });
+  });
+
   it('shows a loading state, never an empty one, while the first pull lands', () => {
     world.cards = [];
     world.awaiting = true;
@@ -368,7 +472,7 @@ describe('TradeWorkspace: your cards', () => {
 describe('TradeWorkspace: the review', () => {
   function seedDraft() {
     const d = emptyDraft(FRIEND, 'Morgan');
-    d.get['o-Rhystic Study'] = { name: 'Rhystic Study', quantity: 1 };
+    d.get['o-Rhystic Study'] = { name: 'Rhystic Study', oracleId: 'o-Rhystic Study', quantity: 1 };
     useTradeDraftsStore.getState().setDraft(VIEWER, FRIEND, d);
   }
 

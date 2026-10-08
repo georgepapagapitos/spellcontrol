@@ -1,5 +1,6 @@
 import './TradeIncomingReview.css';
-import { useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
+import { getCardById } from '@/lib/api';
 import { useBinderByCopyId } from '@/lib/binder/use-binder-by-copy';
 import { formatLocation, useCardLocations } from '@/lib/binder/card-locations';
 import { useAllocations } from '@/lib/collection/allocations';
@@ -8,16 +9,19 @@ import {
   copiesFromCounts,
   defaultPrintingCounts,
   groupByPrinting,
+  printingShortfall,
   setPrintingCountBalanced,
   sumCopyValue,
   toTradeCardFromCopies,
   type OwnedTradeLine,
+  type PrintingRef,
   type PrintingCounts,
   type PrintingGroup,
 } from '@/lib/trade/trade-picker';
 import { resolveTradePreview } from '@/lib/trade/trade-preview';
 import { describeNet, type SideValue } from '@/lib/trade/trade-value';
 import type { TradeCard } from '@/lib/trade/trades-client';
+import type { EnrichedCard } from '@/types/index';
 import { toast } from '@/store/toasts';
 import { Button } from '@/components/shared/Button';
 import { PrintingChoices } from './PrintingChoices';
@@ -35,6 +39,51 @@ export interface AcceptChoice {
 
 function keyOf(card: { oracleId: string; name: string }): string {
   return card.oracleId || `name:${card.name.toLowerCase()}`;
+}
+
+/** `7ED #253`, with the finish when it isn't plain. */
+function printingLabel(p: { setCode: string; collectorNumber: string; finish: string }): string {
+  const base = `${p.setCode.toUpperCase()} #${p.collectorNumber}`;
+  return p.finish !== 'nonfoil' ? `${base} ${p.finish}` : base;
+}
+
+/**
+ * Set and number for printings an ask named. The viewer may own none of them,
+ * so a printing they hold is read off their own copy and the rest are looked up
+ * by id; until a lookup lands (or when it fails) the note says "a printing you
+ * don't have".
+ */
+function useAskedLabels(refs: readonly PrintingRef[], owned: readonly EnrichedCard[]) {
+  const [fetched, setFetched] = useState<Record<string, string>>({});
+  const ownedIds = new Set(owned.map((c) => c.scryfallId));
+  const needed = [...new Set(refs.map((r) => r.scryfallId))].filter(
+    (id) => !ownedIds.has(id) && !(id in fetched)
+  );
+  const neededKey = needed.join(',');
+  useEffect(() => {
+    let alive = true;
+    for (const id of neededKey ? neededKey.split(',') : []) {
+      getCardById(id)
+        .then((card) => {
+          if (alive && card) {
+            setFetched((prev) => ({
+              ...prev,
+              [id]: `${card.set.toUpperCase()} #${card.collector_number}`,
+            }));
+          }
+        })
+        .catch(() => {});
+    }
+    return () => {
+      alive = false;
+    };
+  }, [neededKey]);
+  return (ref: PrintingRef): string | null => {
+    const own = owned.find((c) => c.scryfallId === ref.scryfallId);
+    if (own) return printingLabel({ ...own, finish: ref.finish });
+    const label = fetched[ref.scryfallId];
+    return label ? (ref.finish !== 'nonfoil' ? `${label} ${ref.finish}` : label) : null;
+  };
 }
 
 interface Props {
@@ -93,16 +142,24 @@ export function TradeIncomingReview({
 
   // Stable for the life of the sheet: it opens over a snapshot, and
   // re-grouping mid-choice (a sync landing) would reshuffle rows under a thumb.
+  const claimed = useMemo(() => new Set(allocations.keys()), [allocations]);
   const groupsByKey = useMemo(() => {
     const map = new Map<string, PrintingGroup[]>();
-    for (const choice of choices) map.set(keyOf(choice.asked), groupByPrinting(choice.line));
+    for (const choice of choices) {
+      map.set(keyOf(choice.asked), groupByPrinting(choice.line, claimed));
+    }
     return map;
-  }, [choices]);
+  }, [choices, claimed]);
 
   const [counts, setCounts] = useState<Record<string, PrintingCounts>>(() => {
     const seeded: Record<string, PrintingCounts> = {};
     for (const choice of choices) {
-      seeded[keyOf(choice.asked)] = defaultPrintingCounts(choice.line, choice.asked.quantity);
+      // The printings the ask named come first (a free copy before a deck's);
+      // what the viewer lacks of them is filled with the cheapest free copy.
+      seeded[keyOf(choice.asked)] = defaultPrintingCounts(choice.line, choice.asked.quantity, {
+        claimed,
+        prefer: choice.asked.copies,
+      });
     }
     return seeded;
   });
@@ -133,8 +190,14 @@ export function TradeIncomingReview({
         if (owner && !deckNames.includes(owner)) deckNames.push(owner);
       }
     }
-    return { choice, cardKey, groups, copies, deckNames };
+    const shortfall = printingShortfall(choice.asked.copies, copies);
+    return { choice, cardKey, groups, copies, deckNames, shortfall };
   });
+
+  const labelOf = useAskedLabels(
+    resolved.flatMap((r) => r.shortfall?.missed ?? []),
+    resolved.flatMap((r) => r.choice.line.copies)
+  );
 
   // The server checks the resolved side against the ask, so a short line would
   // be rejected there anyway. Catching it here keeps the reason legible.
@@ -183,7 +246,7 @@ export function TradeIncomingReview({
               )}
             </h3>
             <ul className="trade-incoming-cards">
-              {resolved.map(({ choice, cardKey, groups, copies, deckNames }) => {
+              {resolved.map(({ choice, cardKey, groups, copies, deckNames, shortfall }) => {
                 const asked = choice.asked.quantity;
                 return (
                   <li key={cardKey} className="trade-incoming-card">
@@ -228,6 +291,15 @@ export function TradeIncomingReview({
                       binderByCopyId={binderByCopyId}
                       label={`${choice.asked.name}: your printings`}
                     />
+                    {shortfall && (
+                      <p className="trade-review-meta trade-incoming-swap" role="status">
+                        {who} asked for{' '}
+                        {shortfall.missed
+                          .map((m) => labelOf(m) ?? "a printing you don't have")
+                          .join(', ')}
+                        ; you&apos;re giving {shortfall.given.map(printingLabel).join(', ')}.
+                      </p>
+                    )}
                     {deckNames.length > 0 && (
                       <p className="trade-incoming-deck" role="status">
                         {choice.asked.name} is in {deckNames.join(' and ')}. Accepting leaves{' '}
