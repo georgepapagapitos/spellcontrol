@@ -12,8 +12,8 @@ const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
  * A 44px coarse-pointer target is only a floor if it doesn't take its
  * neighbour's pixels. Two did (nightly journey, E455): the binder page header's
  * centred ghost reached 2.5px into the section header button above it, and the
- * deck hero's absolute back link covered the top of the deck name's rename
- * button once the hero's meta wrapped. The journey caught both, but only on the
+ * deck hero's back link (then absolute on the phone art) covered the top of
+ * the deck name's rename button once the hero's meta wrapped. The journey caught both, but only on the
  * nights the data happened to fill the space; this holds the arithmetic every
  * run. Lengths resolve through tokens.css at 16px per rem.
  */
@@ -88,42 +88,22 @@ describe('coarse-pointer ghosts stay off their neighbours', () => {
     ).toBeLessThanOrEqual(below);
   });
 
-  it("the deck hero's back-link lane holds the coarse link and the name's slack", () => {
+  it("the deck hero's back link stays off the name's slack under it", () => {
+    // The back link heads the title column, straight above the deck name
+    // (InlineRename's button), whose box starts 0.22em above its text: padding
+    // cancelled by a negative margin. The link's bottom margin plus the
+    // column gap must cover that slack at the largest name size, or the top
+    // strip of the name's rename button would open "All decks" (E455). The
+    // link's own 44px coarse floor is its own box and grows away from it.
     const deck = read('styles/deck-builder-editor.css');
-    const phone = after(deck, '@media (max-width: 599px) {');
-    const linkTop = px(decl(deck, '.deck-editor-hero--art > .back-link', 'top', phone));
-    const linkFloor = px(
-      decl(
-        read('styles/binder-card-management.css'),
-        '.back-link',
-        'min-height',
-        after(
-          read('styles/binder-card-management.css'),
-          '@media (pointer: coarse) {\n  .back-link {'
-        )
-      )
-    );
-    // The name's box starts 0.22em above its text (padding cancelled by a
-    // negative margin), at the phone art hero's font size.
-    // The name is the shared InlineRename button now; its rule carries the
-    // `.binder-hero-name` bump so it beats the primitive's base.
-    const slackEm = parseFloat(decl(deck, '.deck-editor-name.binder-hero-name', 'padding'));
-    const nameSize = px(
-      decl(deck, '.deck-editor-hero--art .deck-editor-name.binder-hero-name', 'font-size', phone)
-    );
-    const lane = px(
-      decl(
-        deck,
-        '.deck-editor-hero--art',
-        'padding-top',
-        after(deck, '@media (max-width: 599px) and (pointer: coarse) {')
-      )
-    );
-    expect(linkFloor).toBe(44);
+    const name = '.deck-editor-name.binder-hero-name';
+    const slack = parseFloat(decl(deck, name, 'padding')) * px(decl(deck, name, 'font-size'));
+    const gap = px(decl(deck, '.deck-editor-hero-text', 'gap'));
+    const margin = px(decl(deck, '.deck-editor-hero-text > .back-link', 'margin-bottom'));
     expect(
-      lane,
-      `lane ${lane}px < link ${linkTop}+${linkFloor} + name slack ${slackEm * nameSize}`
-    ).toBeGreaterThanOrEqual(linkTop + linkFloor + slackEm * nameSize);
+      gap + margin,
+      `name starts ${gap + margin}px under the link, its box reaches ${slack}px`
+    ).toBeGreaterThanOrEqual(slack - 1e-6);
   });
 
   it("the deck hero's meta links stay off the name above and each other (E465)", () => {

@@ -165,19 +165,41 @@ describe('responsive primitives (E68 cross-device guard)', () => {
   // report sheet shipped exactly that; the deck-gen takeover did too, and now
   // shows the real commander card instead of an art header). ≥600px the
   // art must be a bounded, right-anchored panel; ≤599px it goes full-bleed
-  // under a vertical scrim. Every commander-art header is listed here.
-  it.each([
-    ['BuildReportSheet.css', '.build-report-sheet-art'],
-    ['deck-builder-editor.css', '.deck-editor-hero-art'],
-  ])('keeps the %s commander art as a right-anchored panel at ≥600px', (file, selector) => {
-    const f = byFile.find((x) => x.file.endsWith(file));
-    expect(f, `${file} should exist`).toBeTruthy();
-    const idx = f!.css.search(/@media \(min-width: 600px\)\s*\{/);
-    expect(idx, `${file} needs a min-width: 600px block`).toBeGreaterThan(-1);
-    const block = balancedBlock(f!.css, f!.css.indexOf('{', idx));
-    const art = block.match(new RegExp(`${selector.replace('.', '\\.')}\\s*\\{([^}]*)\\}`));
-    expect(art, `${selector} must be restyled at ≥600px`).toBeTruthy();
-    expect(/inset:\s*0 0 0 auto/.test(art![1]), 'art panel must be right-anchored').toBe(true);
-    expect(/width:\s*min\(/.test(art![1]), 'art panel width must be bounded').toBe(true);
+  // under a vertical scrim. Every commander-art header is listed here, except
+  // the deck page's, which is a thumbnail (the test below).
+  it.each([['BuildReportSheet.css', '.build-report-sheet-art']])(
+    'keeps the %s commander art as a right-anchored panel at ≥600px',
+    (file, selector) => {
+      const f = byFile.find((x) => x.file.endsWith(file));
+      expect(f, `${file} should exist`).toBeTruthy();
+      const idx = f!.css.search(/@media \(min-width: 600px\)\s*\{/);
+      expect(idx, `${file} needs a min-width: 600px block`).toBeGreaterThan(-1);
+      const block = balancedBlock(f!.css, f!.css.indexOf('{', idx));
+      const art = block.match(new RegExp(`${selector.replace('.', '\\.')}\\s*\\{([^}]*)\\}`));
+      expect(art, `${selector} must be restyled at ≥600px`).toBeTruthy();
+      expect(/inset:\s*0 0 0 auto/.test(art![1]), 'art panel must be right-anchored').toBe(true);
+      expect(/width:\s*min\(/.test(art![1]), 'art panel width must be bounded').toBe(true);
+    }
+  );
+
+  // style-guide/app-shell.md § Page hero art, deck header: Scryfall's art_crop
+  // is ~626px wide. The deck header's ~440px panel and phone backdrop drew it
+  // wider than a 2x screen can fill from that many pixels, so it blurred. The
+  // art is a thumbnail now: every width it is given is a fixed px size no
+  // more than half the crop, and nothing positions it as a backdrop again.
+  it('keeps the deck header art a thumbnail a 2x screen draws sharp', () => {
+    const f = byFile.find((x) => x.file.endsWith('deck-builder-editor.css'))!;
+    const bodies = [...f.css.matchAll(/\.deck-editor-hero-art\s*\{([^}]*)\}/g)].map((m) => m[1]);
+    expect(bodies.length).toBeGreaterThan(0);
+    for (const body of bodies) {
+      expect(body, 'no backdrop positioning').not.toMatch(/position:\s*absolute|inset:/);
+      for (const [, prop, value] of body.matchAll(/(?:^|;|\s)(width|height):\s*([^;]+)/g)) {
+        expect(value.trim(), `${prop} must be a fixed px size`).toMatch(/^\d+px$/);
+        expect(
+          parseInt(value, 10),
+          `${prop} ${value} upscales a 626px crop at 2x`
+        ).toBeLessThanOrEqual(313);
+      }
+    }
   });
 });

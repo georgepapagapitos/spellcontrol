@@ -434,8 +434,7 @@
 /* Grid mode: the ⋮ sits on the tile's art or colour band, where no bare
    glyph colour reads on every crop: a white glyph with a shadow vanished on
    pale and busy art (user reports, E466). A solid surface square reads on
-   anything, the deck editor hero's answer for the same problem
-   (.deck-editor-hero--art .deck-editor-overflow-btn). Under a coarse pointer
+   anything. Under a coarse pointer
    the square keeps its size and a centred ghost carries the 44px target, so
    each tile isn't capped by a 44px block. */
 .binders-index-list.is-grid .binders-index-card-menu-btn {

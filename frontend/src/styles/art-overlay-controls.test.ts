@@ -13,11 +13,11 @@ const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
  * read against, and art can be any colour. The binder and deck tile ⋮ were a
  * white glyph with a drop shadow, which users reported as hard to see: it
  * vanished on pale and busy art (E466). Every such control paints a solid
- * surface under its glyph at rest, the way the deck editor hero's ⋮ already
- * did. A new control over art belongs in this list.
+ * surface under its glyph at rest. A new control over art belongs in this
+ * list. (The deck header's menu used to sit on the phone's full-bleed art;
+ * the art is a thumbnail beside the title now, so nothing overlays it.)
  */
 const OVER_ART: Array<[file: string, selector: string]> = [
-  ['styles/deck-builder-editor.css', '.deck-editor-hero--art .deck-editor-overflow-btn'],
   [
     'styles/deck-builder-binders-index.css',
     '.binders-index-list.is-grid .binders-index-card-menu-btn',

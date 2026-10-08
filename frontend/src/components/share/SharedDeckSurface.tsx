@@ -307,6 +307,7 @@ export function SharedDeckSurface({
       <DeckHero
         className="shared-deck-header"
         art={heroArt}
+        colors={comboColorIdentity}
         color={deck.color}
         title={<h1 className="binder-hero-name">{data.name}</h1>}
         meta={

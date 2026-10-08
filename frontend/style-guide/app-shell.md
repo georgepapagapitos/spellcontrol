@@ -127,11 +127,21 @@ different from desktop; it is not _absent_.
   showed straight through, which is what made the old deck header hard to
   read (2026-09-24 mockup, shipped 2026-09-25). The back link rides the art's
   top edge rather than costing a row above it.
-- **≥600px, deck header** — the art is a bounded panel on the right
-  (`min(58%, 440px)`, the header's full height, ~2:1) that fades in from its
-  left edge with a `mask-image`, and the text column sits on the page in the
-  theme's colours. The header is 188px tall on a tablet and 216px on a
-  desktop, so the panel keeps the commander's face in frame.
+- **Deck header: a thumbnail at every width (2026-10-08, T179).** The deck
+  page is where the user works on the list, so its header is a compact bar
+  that gives the deck the screen: the commander's art as a thumbnail (92px
+  square on a phone, 120×88 on a tablet, 152×108 on a desktop, the deck's
+  colour as its foot), then back link, title and the meta line in a column,
+  then the actions (their own row on a phone). The meta line opens with the
+  deck's color pips. This replaced a `min(58%, 440px)` right-hand panel and the
+  phone's full-bleed backdrop, for a reason the rest of this section does not
+  share: Scryfall's `art_crop` is ~626px wide, so a 440px panel on a 2x screen
+  (880 device px) and a phone backdrop both upscaled it into a blur, and there
+  is no larger crop to fetch. A thumbnail draws fewer pixels than the crop has,
+  so it stays sharp. The art is still there at every width; the rule above
+  holds. Guard: `responsive-primitives.test.ts` fails any `.deck-editor-hero-art`
+  size that isn't a fixed px no more than half the crop, or that positions it
+  as a backdrop. Mockups: board T179.
 
 The rule exists because the deck hero originally did the opposite — it hid the
 commander art below 600px on the reasoning that "art behind full-width text

@@ -1,11 +1,22 @@
 import type { CSSProperties, ReactNode } from 'react';
+import { ColorPip } from '@/components/shared/ManaSymbol';
+
+const COLOR_NAMES: Record<string, string> = {
+  W: 'white',
+  U: 'blue',
+  B: 'black',
+  R: 'red',
+  G: 'green',
+};
 
 interface Props {
-  /** The commander's art_crop. Absent → the plain header (no art, no height). */
+  /** The commander's art_crop, drawn as a thumbnail. Absent → no thumbnail. */
   art?: string;
-  /** The deck's own colour, drawn as the title column's left rule. */
+  /** The deck's own colour: the thumbnail's foot, or the title column's rule. */
   color?: string;
-  /** A back link. Rides on the art on a phone, heads the column wider up. */
+  /** The deck's color identity (WUBRG), as pips at the head of the meta line. */
+  colors?: readonly string[];
+  /** A back link, heading the title column. */
   back?: ReactNode;
   /** The h1 (or the owner's inline rename editor). */
   title: ReactNode;
@@ -19,22 +30,48 @@ interface Props {
 
 /**
  * The deck page's header, shared by the owner's editor and the shared/public
- * deck (STYLE_GUIDE § Layout system, § Page hero art): back link, title, one
- * meta line, then the actions, all in one block. On a phone the art is
- * full-bleed behind a dark scrim with the text bottom-anchored on it; from
- * 600px it is a ~2:1 panel on the right and the text sits on the page.
+ * deck (STYLE_GUIDE § Page hero art, deck header): a compact bar, so the deck
+ * itself has the screen. The commander's art is a thumbnail beside the title,
+ * never a stretched banner: Scryfall's art_crop is ~626px wide, which a wide
+ * panel upscales into a blur. Then back link, title and one meta line in a
+ * column, and the actions on the right (their own row on a phone).
  */
-export function DeckHero({ art, color, back, title, meta, children, actions, className }: Props) {
+export function DeckHero({
+  art,
+  color,
+  colors,
+  back,
+  title,
+  meta,
+  children,
+  actions,
+  className,
+}: Props) {
+  // WUBRG order, whatever order a commander and its partner were merged in.
+  const pips = Object.keys(COLOR_NAMES).filter((c) => colors?.includes(c));
   return (
     <header
       className={`deck-editor-hero${art ? ' deck-editor-hero--art' : ''}${className ? ` ${className}` : ''}`}
       style={color ? ({ '--deck-color': color } as CSSProperties) : undefined}
     >
       {art && <img className="deck-editor-hero-art" src={art} alt="" aria-hidden="true" />}
-      {back}
       <div className="deck-editor-hero-text">
+        {back}
         {title}
-        <p className="binder-hero-meta">{meta}</p>
+        <p className="binder-hero-meta">
+          {pips.length > 0 && (
+            <span
+              className="deck-hero-colors"
+              role="img"
+              aria-label={`Colors: ${pips.map((c) => COLOR_NAMES[c]).join(', ')}`}
+            >
+              {pips.map((c) => (
+                <ColorPip key={c} color={c} />
+              ))}
+            </span>
+          )}
+          {meta}
+        </p>
         {children}
       </div>
       {actions && <div className="deck-editor-actions">{actions}</div>}
