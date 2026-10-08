@@ -27,6 +27,38 @@ function oracleOf(card: unknown): string {
 }
 
 /**
+ * Ids of the owner's copies that a deck slot, a commander slot or a physical
+ * cube pick claims (`allocatedCopyId`). Private decks count: a copy sleeved in
+ * one is not free. Shared by `summarizeCardUse` and the profile collection.
+ */
+export function claimedCopyIds(decks: Row[], cubes: Row[]): Set<string> {
+  const claimed = new Set<string>();
+  for (const row of decks) {
+    const d = asRecord(row.data);
+    if (!d) continue;
+    for (const key of ['commanderAllocatedCopyId', 'partnerCommanderAllocatedCopyId']) {
+      if (typeof d[key] === 'string') claimed.add(d[key] as string);
+    }
+    for (const zone of ['cards', 'sideboard', 'considering'] as const) {
+      const slots = Array.isArray(d[zone]) ? (d[zone] as unknown[]) : [];
+      for (const raw of slots) {
+        const slot = asRecord(raw);
+        if (slot && typeof slot.allocatedCopyId === 'string') claimed.add(slot.allocatedCopyId);
+      }
+    }
+  }
+  for (const row of cubes) {
+    const cube = asRecord(row.data);
+    if (!cube || cube.isPhysical !== true || !Array.isArray(cube.picks)) continue;
+    for (const raw of cube.picks) {
+      const pick = asRecord(raw);
+      if (pick && typeof pick.allocatedCopyId === 'string') claimed.add(pick.allocatedCopyId);
+    }
+  }
+  return claimed;
+}
+
+/**
  * Per-oracle answer to "can I get this from them?" for a friend's collection.
  *
  * `spare` is computed over EVERY deck and physical cube the owner has, private
@@ -49,7 +81,7 @@ export function summarizeCardUse(
   cubes: Row[],
   visibleDeckIds: ReadonlySet<string>
 ): Map<string, CardUse> {
-  const claimed = new Set<string>();
+  const claimed = claimedCopyIds(decks, cubes);
   const inDecks = new Map<string, Set<string>>();
   const addMember = (oracleId: string, deckId: string) => {
     if (!oracleId) return;
@@ -62,9 +94,6 @@ export function summarizeCardUse(
     const d = asRecord(row.data);
     if (!d) continue;
     const visible = visibleDeckIds.has(row.id);
-    for (const key of ['commanderAllocatedCopyId', 'partnerCommanderAllocatedCopyId']) {
-      if (typeof d[key] === 'string') claimed.add(d[key] as string);
-    }
     if (visible) {
       addMember(oracleOf(d.commander), row.id);
       addMember(oracleOf(d.partnerCommander), row.id);
@@ -74,18 +103,8 @@ export function summarizeCardUse(
       for (const raw of slots) {
         const slot = asRecord(raw);
         if (!slot) continue;
-        if (typeof slot.allocatedCopyId === 'string') claimed.add(slot.allocatedCopyId);
         if (visible && zone !== 'considering') addMember(oracleOf(slot.card), row.id);
       }
-    }
-  }
-
-  for (const row of cubes) {
-    const cube = asRecord(row.data);
-    if (!cube || cube.isPhysical !== true || !Array.isArray(cube.picks)) continue;
-    for (const raw of cube.picks) {
-      const pick = asRecord(raw);
-      if (pick && typeof pick.allocatedCopyId === 'string') claimed.add(pick.allocatedCopyId);
     }
   }
 

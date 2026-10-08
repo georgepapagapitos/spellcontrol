@@ -591,4 +591,106 @@ describe('a profile Collection tab (T136)', () => {
     ]);
     expect((await collection('coll-hidden-owner')).status).toBe(404);
   });
+
+  describe('trade signals and wire format', () => {
+    // The fixture's populated fields; JSON drops the rest. Exact on purpose: a
+    // new key on the stranger's view must be a deliberate edit to this list.
+    const STRANGER_KEYS = [
+      'cmc',
+      'collectorNumber',
+      'edhrecRank',
+      'finish',
+      'foil',
+      'name',
+      'oracleId',
+      'purchasePrice',
+      'rarity',
+      'scryfallId',
+      'setCode',
+      'setName',
+      'typeLine',
+    ];
+    async function tradeOwner(username: string) {
+      const cookie = await makeUser(username);
+      const sol = (copyId: string) =>
+        card({ copyId, oracleId: 'sol-oracle', edhrecRank: 5, name: 'Sol Ring' });
+      await setSnapshotViaSyncApi(request(app), cookie, {
+        collection: {
+          cards: [
+            sol('sol-a'),
+            sol('sol-b'),
+            card({ copyId: 'rhys-a', oracleId: 'rhys-oracle', name: 'Rhystic Study' }),
+          ],
+        },
+        decks: [{ id: 'secret-deck', name: 'Hidden Plans', cards: [{ allocatedCopyId: 'sol-a' }] }],
+      });
+      return cookie;
+    }
+    const byCopy = (body: { cards: Array<Record<string, unknown>> }) =>
+      body.cards.filter((c) => c.name === 'Sol Ring');
+
+    it('a stranger on a public collection gets edhrecRank but neither trade signal, exact key set', async () => {
+      await tradeOwner('trade-pub-owner');
+      const stranger = await makeUser('trade-pub-stranger');
+      for (const res of [
+        await collection('trade-pub-owner'),
+        await collection('trade-pub-owner', stranger),
+      ]) {
+        expect(res.status).toBe(200);
+        const sol = byCopy(res.body)[0];
+        expect(Object.keys(sol).sort()).toEqual(STRANGER_KEYS);
+        expect(sol.edhrecRank).toBe(5);
+        for (const c of res.body.cards) {
+          expect(c).not.toHaveProperty('inDeck');
+          expect(c).not.toHaveProperty('spare');
+        }
+        expect(JSON.stringify(res.body)).not.toContain('secret-deck');
+        expect(JSON.stringify(res.body)).not.toContain('Hidden Plans');
+      }
+    });
+
+    it('a friend and the owner see per-copy inDeck and per-card spare, as booleans', async () => {
+      const o = await tradeOwner('trade-fr-owner');
+      const friend = await makeUser('trade-fr-friend');
+      await befriend(o, 'trade-fr-owner', friend, 'trade-fr-friend');
+      for (const who of [friend, o]) {
+        const res = await collection('trade-fr-owner', who);
+        expect(res.status).toBe(200);
+        const sols = byCopy(res.body);
+        // One Sol Ring is sleeved in a deck, one is free: spare needs a free
+        // copy beyond the one kept, so two copies with one claimed is not spare.
+        expect(sols.map((c) => c.inDeck).sort()).toEqual([false, true]);
+        expect(sols.every((c) => c.spare === false)).toBe(true);
+        const rhys = res.body.cards.find((c: { name: string }) => c.name === 'Rhystic Study');
+        expect(rhys).toMatchObject({ inDeck: false, spare: false });
+        expect(JSON.stringify(res.body)).not.toContain('secret-deck');
+        expect(JSON.stringify(res.body)).not.toContain('Hidden Plans');
+      }
+    });
+
+    it('spare turns on once two copies are free', async () => {
+      const cookie = await makeUser('trade-spare-owner');
+      await setSnapshotViaSyncApi(request(app), cookie, {
+        collection: {
+          cards: ['a', 'b', 'c'].map((n) =>
+            card({ copyId: `s-${n}`, oracleId: 'sol-oracle', name: 'Sol Ring' })
+          ),
+        },
+        decks: [{ id: 'd1', name: 'D', cards: [{ allocatedCopyId: 's-a' }] }],
+      });
+      const res = await collection('trade-spare-owner', cookie);
+      expect(byCopy(res.body).every((c) => c.spare === true)).toBe(true);
+    });
+
+    it('gzips the body with Vary, and falls back to plain JSON without gzip', async () => {
+      await tradeOwner('trade-gz-owner');
+      const gz = await collection('trade-gz-owner').set('Accept-Encoding', 'gzip');
+      expect(gz.headers['content-encoding']).toBe('gzip');
+      expect(gz.headers.vary).toMatch(/Accept-Encoding/i);
+      expect(gz.body.cards).toHaveLength(3);
+      const plain = await collection('trade-gz-owner').set('Accept-Encoding', 'identity');
+      expect(plain.headers['content-encoding']).toBeUndefined();
+      expect(plain.body.cards).toHaveLength(3);
+    });
+  });
 });

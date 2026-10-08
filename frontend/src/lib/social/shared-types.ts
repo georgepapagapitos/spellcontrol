@@ -60,6 +60,15 @@ export interface PublicCard {
   frameEffects?: string[];
   fullArt?: boolean;
   borderColor?: string;
+  /** Profile collection only (never on /s/:token links): EDHREC popularity rank. */
+  edhrecRank?: number;
+  /** Profile collection, owner and accepted friends only: this exact copy is
+   *  claimed by one of the owner's decks or physical cubes. A boolean; never a
+   *  deck id or name. */
+  inDeck?: boolean;
+  /** Same audience: the owner has a free copy of this card beyond the one they
+   *  keep (`summarizeCardUse`, the friend hub's "spare"). */
+  spare?: boolean;
 }
 
 export interface PublicCollection {
