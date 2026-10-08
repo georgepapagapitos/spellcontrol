@@ -18,7 +18,9 @@
       flex-wrap: wrap;
     }
 
-    .collection-browser-search {
+    /* Two classes: the base `.collection-browser-search` rule further down
+       this file would otherwise win on source order and keep a 0 basis. */
+    .collection-browser-tools .collection-browser-search {
       flex: 1 1 100%;
     }
   }

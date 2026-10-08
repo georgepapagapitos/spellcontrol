@@ -49,7 +49,12 @@ describe('collection browser responsiveness', () => {
     expect(browserCss).toMatch(
       /@media \(min-width: 600px\)\s*\{\s*@container collection-browser \(max-width: 639px\)\s*\{[^]*?\.collection-browser-tools\s*\{\s*flex-wrap:\s*wrap/
     );
-    expect(browserCss).toMatch(/\.collection-browser-search\s*\{\s*flex:\s*1 1 100%/);
+    // Two classes, so it outranks the base `.collection-browser-search` rule
+    // later in the file. With one class it lost on source order and the search
+    // pill kept a 0 basis (measured 167px wide beside the dock at 1440).
+    expect(browserCss).toMatch(
+      /\.collection-browser-tools \.collection-browser-search\s*\{\s*flex:\s*1 1 100%/
+    );
   });
 
   it('keeps three tiles across on a phone', () => {
