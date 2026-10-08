@@ -17,7 +17,7 @@ import {
 import type { PublicCollection } from '@/lib/social/shared-types';
 import type { CollectionVisibility } from '@/lib/account/auth-api';
 import { Tabs, type TabItem } from '@/components/overlays/Tabs';
-import { SharedCollectionView } from '../components/share/SharedCollectionView';
+import { CollectionBrowser } from '../components/share/CollectionBrowser';
 import { CollectionVisibilityDialog } from '@/components/collection/CollectionVisibilityDialog';
 import type { PublicProfile, PublicProfileDeck } from '@/lib/social/profile-client';
 import { DeckLibrary, type LibraryDeck } from '../components/decks/DeckLibrary';
@@ -168,11 +168,13 @@ function DeckGrid({
  */
 function ProfileCollection({
   username,
+  ownerName,
   isOwner,
   visibility,
   onVisibilityChanged,
 }: {
   username: string;
+  ownerName: string;
   isOwner: boolean;
   visibility: CollectionVisibility | null;
   onVisibilityChanged: (v: CollectionVisibility) => void;
@@ -196,7 +198,7 @@ function ProfileCollection({
           setResult({
             attempt,
             data: null,
-            error: userMessage(err, "Couldn't load this collection. Try again."),
+            error: userMessage(err, 'The request did not go through.'),
           });
         }
       });
@@ -217,23 +219,14 @@ function ProfileCollection({
           </Button>
         </p>
       )}
-      {current === null ? (
-        <div
-          className="public-profile-skeleton public-profile-collection-skeleton"
-          aria-busy="true"
-          aria-label="Loading collection"
-          role="status"
-        />
-      ) : current.error ? (
-        <p className="public-profile-collection-note" role="alert">
-          {current.error}{' '}
-          <Button variant="link" onClick={() => setAttempt((n) => n + 1)}>
-            Retry
-          </Button>
-        </p>
-      ) : (
-        <SharedCollectionView data={current.data!} embedded viewerIsOwner={isOwner} />
-      )}
+      <CollectionBrowser
+        cards={current?.data?.cards ?? null}
+        error={current?.error ?? null}
+        onRetry={() => setAttempt((n) => n + 1)}
+        ownerName={ownerName}
+        viewer={isOwner ? 'owner' : 'public'}
+        embedded
+      />
       {changing && (
         <CollectionVisibilityDialog
           onClose={() => setChanging(false)}
@@ -408,6 +401,7 @@ function PublicProfilePageInner({ username }: { username: string }) {
               {collectionOpened && (
                 <ProfileCollection
                   username={profile.username}
+                  ownerName={heading}
                   isOwner={profile.isOwner}
                   visibility={visibilityOverride ?? profile.collection?.visibility ?? null}
                   onVisibilityChanged={setVisibilityOverride}

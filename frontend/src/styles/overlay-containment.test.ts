@@ -379,6 +379,9 @@ describe('coarse-pointer touch floor', () => {
     // now (2026-09-25), not the bottom sheet whose rows alone had the floor,
     // so every row takes it: they computed to ~37px without it.
     ['styles/playtest.css', '.playtest-ctx-action'],
+    // The collection browser's "Clear all" text link in the result line
+    // (E586): an inline link, so the floor is the only thing giving it a box.
+    ['components/share/CollectionBrowser.css', '.collection-browser .collection-browser-clear'],
   ];
 
   // The shared kebab trigger is its own control, not one crowded into a dense

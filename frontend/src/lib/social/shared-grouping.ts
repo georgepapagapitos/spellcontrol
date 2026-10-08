@@ -39,7 +39,7 @@ export function groupCards(cards: PublicCard[]): GroupedCard[] {
   return Array.from(buckets.values());
 }
 
-export type SharedSortKey = 'name' | 'cmc' | 'price' | 'set' | 'rarity' | 'qty';
+export type SharedSortKey = 'name' | 'cmc' | 'price' | 'set' | 'rarity' | 'qty' | 'popularity';
 export type SortDir = 'asc' | 'desc';
 
 const RARITY_ORDER: Record<string, number> = {
@@ -49,8 +49,20 @@ const RARITY_ORDER: Record<string, number> = {
   common: 3,
 };
 
-function rarityRank(r: string): number {
-  return RARITY_ORDER[r.toLowerCase()] ?? 99;
+function rarityRank(r: string): number | undefined {
+  return RARITY_ORDER[r.toLowerCase()];
+}
+
+/**
+ * Compare two values where "unknown" (undefined) sorts last in BOTH
+ * directions: never flipped by `sign`, so a descending sort doesn't lead with
+ * the cards that have no value (memory project_unknown_sorts_last). Returns
+ * `null` when both are known so the caller compares them normally.
+ */
+function unknownLast(a: number | undefined, b: number | undefined): number | null {
+  if (a !== undefined && b !== undefined) return null;
+  if (a === undefined && b === undefined) return 0;
+  return a === undefined ? 1 : -1;
 }
 
 export function sortGrouped(
@@ -74,12 +86,27 @@ export function sortGrouped(
       case 'set':
         diff = a.card.setCode.localeCompare(b.card.setCode);
         break;
-      case 'rarity':
-        diff = rarityRank(a.card.rarity) - rarityRank(b.card.rarity);
+      case 'rarity': {
+        const ra = rarityRank(a.card.rarity);
+        const rb = rarityRank(b.card.rarity);
+        const last = unknownLast(ra, rb);
+        if (last === null) diff = (ra as number) - (rb as number);
+        else if (last !== 0) return last;
         break;
+      }
       case 'qty':
         diff = a.quantity - b.quantity;
         break;
+      case 'popularity': {
+        // EDHREC rank 1 is the most popular card, so ascending reads
+        // "most popular first". Unranked cards trail either way.
+        const ra = a.card.edhrecRank;
+        const rb = b.card.edhrecRank;
+        const last = unknownLast(ra, rb);
+        if (last === null) diff = (ra as number) - (rb as number);
+        else if (last !== 0) return last;
+        break;
+      }
     }
     // Stable tie-break by name then setCode/collectorNumber so the order is
     // deterministic across renders (avoids List rendering shuffle on rerender).

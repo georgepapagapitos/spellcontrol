@@ -42,23 +42,23 @@ function renderView(viewerIsOwner?: boolean) {
 }
 
 describe('SharedCollectionView', () => {
-  it('Reset search on a no-match search clears the search box', () => {
+  it('Clear search and filters on a no-match search clears the search box', () => {
     renderView();
     const box = screen.getByLabelText('Search cards') as HTMLInputElement;
     fireEvent.change(box, { target: { value: 'zzzz' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Reset search' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Clear search and filters' }));
     expect(box.value).toBe('');
     expect(screen.getByText('Sol Ring')).toBeTruthy();
   });
 
-  it('Reset search also clears a filter that emptied the list, with the search box empty', async () => {
+  it('Clear search and filters also clears a filter that emptied the list, with the search box empty', async () => {
     renderView();
     fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
     fireEvent.click(screen.getByRole('button', { name: 'Blue' }));
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
-    expect(await screen.findByText(/no cards match your search or filters/i)).toBeTruthy();
+    expect(await screen.findByText(/no cards match/i)).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Reset search' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Clear search and filters' }));
     expect(await screen.findByText('Sol Ring')).toBeTruthy();
   });
 
