@@ -263,6 +263,49 @@ function facesOf(card: ScryfallCard): Face[] {
 
 const isLandType = (typeLine: string): boolean => /\bland\b/i.test(typeLine.split('—')[0]);
 
+/**
+ * A land's mana abilities that always work: the ones a source can count on.
+ * Scryfall's `produced_mana` also lists what a paid or restricted ability makes,
+ * so Daily Bugle Building ("{1}, {T}: Add one mana of any color"), Springjack
+ * Pasture (sacrifice Goats for any one color), Power Depot ("Spend this mana
+ * only to cast artifact spells") and Cavern of Souls read as free any-colour
+ * sources. An ability is left out when it costs generic mana or a sacrifice, or
+ * when its mana carries a spend restriction. Returns the face's text without
+ * those lines and the colours the rest produce, or null when nothing is left
+ * out (the caller keeps Scryfall's reading).
+ *
+ * ponytail: a text test, not a model of the filter step: a filter land costing
+ * generic mana reads as its {T} mana (a colourless land for Daily Bugle
+ * Building). A coloured-cost filter (Mystic Gate) is kept as a dual. Upgrade
+ * path: model the filter's conversion in the engine.
+ */
+function unconditionalMana(rawText: string): { text: string; colours: string[] | null } | null {
+  const lines = rawText.toLowerCase().replace(/[()]/g, ' ').split('\n');
+  let dropped = false;
+  const kept: string[] = [];
+  const symbols = new Set<string>();
+  let anyColour = false;
+  for (const line of lines) {
+    const m = /^([^:]*):\s*adds?\s([^]*)$/.exec(line.trim());
+    if (!m) {
+      kept.push(line);
+      continue;
+    }
+    const [, cost, effect] = m;
+    const needsMana = costMana(cost) > 0 || cost.includes('sacrifice');
+    if (needsMana || /spend this mana only/.test(effect)) {
+      dropped = true;
+      continue;
+    }
+    kept.push(line);
+    for (const [, sym] of effect.split('.')[0].matchAll(/\{([wubrgc])\}/g))
+      symbols.add(sym.toUpperCase());
+    if (/any (?:one )?(?:colou?r|type)|color identity|could produce/.test(effect)) anyColour = true;
+  }
+  if (!dropped) return null;
+  return { text: kept.join('\n'), colours: anyColour ? null : [...symbols] };
+}
+
 function landFaceOf(
   card: ScryfallCard,
   face: Face,
@@ -272,8 +315,17 @@ function landFaceOf(
   const text = normalise(face.text);
   const names = [face.name, card.name];
   const identitySet = new Set(['W', 'U', 'B', 'R', 'G'].filter((_, i) => identity & (1 << i)));
+  const free = unconditionalMana(face.text);
   const produced = maskOf(
-    producedManaColors({ ...card, oracle_text: face.text, type_line: face.typeLine }, identitySet)
+    producedManaColors(
+      {
+        ...card,
+        oracle_text: free ? free.text : face.text,
+        type_line: face.typeLine,
+        ...(free?.colours ? { produced_mana: free.colours } : {}),
+      },
+      identitySet
+    )
   );
   const typeLine = face.typeLine.toLowerCase();
   const fetchAbility = text
