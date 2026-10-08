@@ -82,6 +82,13 @@ const renderPage = (state?: Record<string, unknown>, search = '?tab=ask') =>
   );
 
 describe('RulesPage — the Rules hub', () => {
+  it('opens a keyword Search sent over with its subrules showing', async () => {
+    renderPage({ expand: 'Deathtouch' }, '?tab=keywords&q=Deathtouch');
+    const heads = await screen.findAllByRole('button', { name: /Deathtouch/, expanded: true });
+    expect(heads).toHaveLength(1);
+    expect(await screen.findByText('Any nonzero amount of combat damage is lethal.')).toBeTruthy();
+  });
+
   it('opens on the Keywords reference by default, with the Ask tab beside the three sections', async () => {
     renderPage(undefined, '');
     expect(screen.getByRole('heading', { level: 1, name: 'Rules' })).toBeTruthy();

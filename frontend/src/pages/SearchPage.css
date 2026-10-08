@@ -37,7 +37,16 @@
   margin: calc(-1 * var(--space-3)) 0 var(--space-3);
 }
 
-.search-syntax-toggle {
+.search-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* The Rules door takes the syntax toggle's shape: the two are the pill's
+   footnote tools, one opening the cheatsheet below, one leaving for /rules. */
+.search-syntax-toggle,
+.search-rules-door {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
@@ -51,19 +60,32 @@
   cursor: pointer;
 }
 
+.search-rules-door {
+  text-decoration: none;
+}
+
+/* Desktop has the header's Rules door one row up; this one is the phone's. */
+@media (min-width: 1024px) {
+  .search-rules-door {
+    display: none;
+  }
+}
+
 .search-syntax-toggle[aria-expanded='true'] {
   color: var(--text-primary);
   border-color: var(--text-secondary);
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .search-syntax-toggle:hover {
+  .search-syntax-toggle:hover,
+  .search-rules-door:hover {
     color: var(--text-primary);
     border-color: var(--text-secondary);
   }
 }
 
 .search-syntax-toggle:focus-visible,
+.search-rules-door:focus-visible,
 .search-syntax-example:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -73,6 +95,7 @@
    are interactive, so they get their own coarse-pointer 44px block. */
 @media (pointer: coarse) {
   .search-syntax-toggle,
+  .search-rules-door,
   .search-syntax-example {
     min-height: 44px;
   }
@@ -143,6 +166,102 @@
   color: var(--accent);
 }
 
+/* A keyword's rule, one row above the cards (SearchRulesHit). Sized like the
+   keyword popover it echoes: serif name, muted kind and number, the rule's own
+   sentence in secondary. A trailing chevron, because it opens another page
+   (STYLE_GUIDE decks § In-place disclosure leads, a separate surface trails). */
+.search-rules-hit {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: inherit;
+  text-decoration: none;
+  transition: background var(--motion-fast) var(--ease-out-soft);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .search-rules-hit:hover {
+    background: var(--surface-raised);
+  }
+
+  .search-rules-hit:hover .search-rules-hit-chevron {
+    color: var(--text-primary);
+  }
+}
+
+.search-rules-hit:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The book marks the name line, not the middle of a wrapped sentence; the
+   chevron stays centered, since it answers for the whole row. */
+.search-rules-hit-icon {
+  flex: none;
+  align-self: flex-start;
+  margin-top: 1px;
+  color: var(--accent);
+}
+
+.search-rules-hit-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5);
+}
+
+.search-rules-hit-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--space-2);
+}
+
+.search-rules-hit-name {
+  font-family: var(--font-serif);
+  font-size: var(--text-base);
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--text-primary);
+}
+
+.search-rules-hit-meta {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* Two lines of the rule, then the door: the whole sentence is on /rules. */
+.search-rules-hit-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.search-rules-hit-chevron {
+  flex: none;
+  color: var(--text-muted);
+  transition: color var(--motion-fast) var(--ease-out-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .search-rules-hit,
+  .search-rules-hit-chevron {
+    transition: none;
+  }
+}
+
 /* Layout toggle sits between the pill and the results, right-aligned. The
    results' own top margin is generous next to the toggle — tighten it. */
 .search-page-toolbar {
@@ -163,6 +282,7 @@
 
 .search-page--wide .search-page-head,
 .search-page--wide .search-syntax,
+.search-page--wide .search-rules-hit,
 .search-page--wide .search-page-toolbar {
   width: 100%;
   max-width: 540px;

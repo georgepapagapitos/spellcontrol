@@ -166,6 +166,9 @@ export function RulesPage() {
             onTabChange={setTab}
             onQueryChange={setQuery}
             showTabs={false}
+            // Search's keyword row opens its rule with the subrules showing,
+            // the way a keyword in card text opens the sheet.
+            initialExpanded={(location.state as { expand?: string } | null)?.expand}
             onAsk={
               askAvailable
                 ? (q) => {

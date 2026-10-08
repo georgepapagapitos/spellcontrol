@@ -1766,19 +1766,39 @@ Model-written text always says so. The rulings:
   sheet shows) plus an Ask tab that self-hides without AI. Section and search
   live in the URL (`?tab=`, `?q=`) so a rule lookup is a linkable address.
   Its doors are utility-shaped, never a fifth primary tab: the header's
-  utility cluster beside Search, the ⌘K Navigate group, and You › Help. The
+  utility cluster beside Search (on a phone, the Search page itself; see
+  below), the ⌘K Navigate group, and You › Help. The
   sheet (`RulesReferenceSheet.tsx`) stays for the one place you must not
   leave, the in-game menu, and is never the target of a link. Don't
   reintroduce a header sheet trigger or a tab-bar slot: the nav redesign
   that removed them was right about the bar, wrong to leave Rules reachable
   only from Play.
 - **A Rules door lives in three kinds of places, never on a page** (settled
-  2026-09-19): the global utility slot (the header, every width), the place
-  you can't leave (the game menu), and a contextual escalation (the sheet's
-  "Ask a rules question" when a search came up short; a row's "Ask AI about
-  this"). The Play hero's own Rules pill sat one row under the header door
-  and was removed for that reason. The same shape as Search, which is
-  header-only and does not repeat on Collection.
+  2026-09-19): the global utility slot, the place you can't leave (the game
+  menu), and a contextual escalation (the sheet's "Ask a rules question" when
+  a search came up short; a row's "Ask AI about this"; Search's keyword row,
+  below). The Play hero's own Rules pill sat one row under the header door
+  and was removed for that reason. The same shape as Search, which does not
+  repeat on Collection.
+- **The utility slot is the header from 1024px and the Search tab below it**
+  (settled 2026-10-08). The header is `display: none` in the mobile shell, so
+  the 2026-09-19 ruling above, which named "the header, every width", left
+  phones with no door but You › Help for three weeks. On a phone Rules rides
+  in Search, its desktop neighbor: a "Rules" link beside "Search syntax"
+  under the pill (`.search-rules-door`, the syntax toggle's shape), hidden
+  from 1024px where the header door sits one row up. Still no tab-bar slot
+  and no page pill. Guarded by `styles/rules-door-every-width.test.ts`.
+- **A search that names a keyword shows its rule first** (2026-10-08). When
+  the whole query is a keyword's name, or a form card text prints it in
+  ("scried", "islandwalk"), one row sits above the card results
+  (`SearchRulesHit`): name, kind and number, two lines of the rule's own
+  sentence, a trailing chevron. It says what the card-text keyword popover
+  says, from the same ~15 KB `keyword-glossary.json` (never the rules
+  bundle), and opens `/rules` on that keyword with its subrules expanded. A
+  keyword inside a longer query ("ward elf") is a card search, and a syntax
+  query never fetches the glossary. Nothing renders without a match: it is
+  an answer to the query, not an advisor, so it never takes room it hasn't
+  earned.
 - **Every reference row has a menu** (`RulesEntryMenu`, on the shared
   `OverflowMenu`): Copy text (the number and the official text, for the
   group chat), Share link (the row's own `/rules?tab=…&q=…` address; the

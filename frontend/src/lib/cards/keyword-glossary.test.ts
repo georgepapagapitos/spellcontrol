@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
+  buildKeywordLookup,
   buildKeywordMatcher,
   segmentOracle,
   loadKeywordMatcher,
@@ -248,5 +249,42 @@ describe('loadKeywordMatcher', () => {
 
   it('is exported for the card text to share one load', () => {
     expect(typeof loadKeywordMatcher).toBe('function');
+  });
+});
+
+describe('buildKeywordLookup', () => {
+  const lookup = buildKeywordLookup(GLOSSARY, matcher);
+  const name = (q: string) => lookup(q)?.name ?? null;
+
+  it('finds a keyword by its exact name in any case and spacing', () => {
+    expect(name('ward')).toBe('Ward');
+    expect(name('  WARD ')).toBe('Ward');
+    expect(name('first  strike')).toBe('First Strike');
+    expect(name('the ring tempts you')).toBe('The Ring Tempts You');
+  });
+
+  it('finds the everyday verbs card text leaves unlinked', () => {
+    expect(name('exile')).toBe('Exile');
+    expect(name('Sacrifice')).toBe('Sacrifice');
+  });
+
+  it('finds a keyword by a form card text prints it in', () => {
+    expect(name('scried')).toBe('Scry');
+    expect(name('islandwalk')).toBe('Landwalk');
+    expect(name('multikicker')).toBe('Kicker');
+    expect(name('nightbound')).toBe('Daybound and Nightbound');
+    expect(name('investigates')).toBe('Investigate');
+  });
+
+  it('never reads a longer card search, a partial word or a near miss as a keyword', () => {
+    expect(name('ward elf')).toBeNull();
+    expect(name('flying men')).toBeNull();
+    expect(name('flas')).toBeNull();
+    expect(name('toward')).toBeNull();
+    expect(name('Sol Ring')).toBeNull();
+  });
+
+  it('needs three characters', () => {
+    expect(name('ye')).toBeNull();
   });
 });
