@@ -12,6 +12,7 @@ export * from './index';
 export * from './panelDump';
 export * from './validation';
 export * from './optimizer';
+export * from './pairFit';
 export * from './panelRewrite';
 export * from './trustRegion';
 export { completeCombos } from './constraints';
@@ -25,6 +26,8 @@ export {
   fetchPartnerThemeData,
   fetchCardLiftPool,
   formatCommanderNameForUrl,
+  parseAverageDeckQuantities,
 } from '@/deck-builder/services/edhrec/client';
 export { HARDCODED_GAME_CHANGERS } from '@spellcontrol/deck-metrics';
 export { countedRoleOf } from '../commanderDeckAnalysis';
+export { computeEdhrecRoleTargets, estimatePacingFromStats } from '../roleTargets';

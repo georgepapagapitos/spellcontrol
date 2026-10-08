@@ -29,10 +29,11 @@ export const DEFAULT_OWNED = join(
  * a 404 or, with `live`, a real fetch under the shared lock that is written
  * back to the cache. Returns the counters and a cache probe.
  */
-export function installNetwork({ httpCache, live, owner }) {
+export function installNetwork({ httpCache, live, owner, lockedByCaller = false, delayMs = 0 }) {
   let lockHeld = false;
   const acquireLock = () => {
-    if (lockHeld) return;
+    // lockedByCaller: the whole process already runs under live-lock.sh.
+    if (lockHeld || lockedByCaller) return;
     // Same protocol as the lanes' shell loop: mkdir is atomic.
     for (;;) {
       try {
@@ -75,6 +76,7 @@ export function installNetwork({ httpCache, live, owner }) {
     if (!live) return new Response('{"error":"not in the HTTP cache"}', { status: 404 });
     acquireLock();
     stats.live++;
+    if (delayMs > 0) await new Promise((r) => setTimeout(r, delayMs));
     const res = await realFetch(url, {
       ...init,
       headers: { ...(init?.headers ?? {}), 'User-Agent': 'SpellControl-DeckObjective/1.0' },
@@ -249,7 +251,7 @@ const BASICS = { W: 'Plains', U: 'Island', B: 'Swamp', R: 'Mountain', G: 'Forest
  * the owned cards for a collection build, the identity's basics) and the
  * objective context built from the dump's own settings. One bulk pass for all.
  */
-export async function loadPanelRuns(H, net, { panel, only, owned, bulk }) {
+export async function loadPanelRuns(H, net, { panel, only, owned, bulk, weights }) {
   const files = readdirSync(panel)
     .filter((f) => f.endsWith('.json') && f !== 'summary.json' && !f.startsWith('report'))
     .filter((f) => !only || only.some((o) => f.includes(o)))
@@ -315,6 +317,7 @@ export async function loadPanelRuns(H, net, { panel, only, owned, bulk }) {
       ),
       globalRank: rank,
       ownedNames,
+      weights,
     });
     runs.push({ ...d, seed, candidates, ctx, byName });
   }

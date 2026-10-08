@@ -20,7 +20,7 @@
 // oracle_cards bulk file (a candidate's price is that file's printing, where
 // the generator priced the cheapest printing it found). Deterministic.
 //
-// Options: --bulk, --http-cache, --live, --owned, --only (as the evaluator),
+// Options: --weights term=w,term=w (objective term weights, default all 1), --bulk, --http-cache, --live, --owned, --only (as the evaluator),
 //   --max-swaps <n> (5), --max-evals <n> (300), --min-gain <x> (0.3),
 //   --report <file> (default <out>/optimizer-report.json)
 
@@ -70,6 +70,14 @@ const { runs, bulkFile } = await loadPanelRuns(H, net, {
   only: ONLY,
   owned: OWNED,
   bulk: opt('--bulk'),
+  weights: opt('--weights')
+    ? Object.fromEntries(
+        opt('--weights')
+          .split(',')
+          .map((kv) => kv.split('='))
+          .map(([k, v]) => [k, Number(v)])
+      )
+    : undefined,
 });
 console.log(`[optimize] ${runs.length} decks from ${PANEL}; cards from ${bulkFile}`);
 
