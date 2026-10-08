@@ -1,4 +1,5 @@
 import type { ScryfallCard } from '@/deck-builder/types';
+import { unconditionalMana } from '@/lib/mana-sim/unconditional-mana';
 
 /** Mana keys we tally: the five colors plus colorless. */
 export const MANA_KEYS = ['W', 'U', 'B', 'R', 'G', 'C'] as const;
@@ -25,6 +26,12 @@ const COLOR_KEYS = ['W', 'U', 'B', 'R', 'G'] as const;
  * qualifier (City of Brass, Mana Confluence, Chromatic Lantern) — keep all
  * their reported colors.
  *
+ * A land counts only the abilities that always work (`unconditionalMana`).
+ * Scryfall's `produced_mana` also lists what a paid, sacrifice or
+ * spend-restricted ability makes, so Power Depot, Springjack Pasture, Daily
+ * Bugle Building, Captivating Cave and Cavern of Souls would read as coloured
+ * sources; they tap for {C}. The mana sim reads lands the same way.
+ *
  * Name/text fallbacks cover the rare card cached without `produced_mana`.
  * Returns `[]` for non-producers.
  *
@@ -33,10 +40,13 @@ const COLOR_KEYS = ['W', 'U', 'B', 'R', 'G'] as const;
  * caller; see `isManaSourceType`.
  */
 export function producedManaColors(card: ScryfallCard, identity: ReadonlySet<string>): string[] {
-  const ot = (card.oracle_text ?? '').toLowerCase();
-  const pm = (card.produced_mana ?? []).filter((c) => 'WUBRGC'.includes(c));
-  const identityColors = COLOR_KEYS.filter((c) => identity.has(c));
   const typeLine = card.type_line || card.card_faces?.[0]?.type_line || '';
+  const free = /\bland\b/i.test(typeLine.split('//')[0].split('—')[0])
+    ? unconditionalMana(card.oracle_text ?? '', { fixing: true })
+    : null;
+  const ot = free ? free.text : (card.oracle_text ?? '').toLowerCase();
+  const pm = (free?.colours ?? card.produced_mana ?? []).filter((c) => 'WUBRGC'.includes(c));
+  const identityColors = COLOR_KEYS.filter((c) => identity.has(c));
 
   // Contextual fixers that Scryfall prints as the full rainbow because it can't
   // know the table state: commander-identity fixers ("color identity" — Command
