@@ -861,6 +861,24 @@ export async function ensureSchema(): Promise<void> {
       PRIMARY KEY (day, path, metric, rating)
     );
 
+    -- Revealed-preference labels for suggestions (E518), same beacon contract:
+    -- a per-day aggregate with no user, deck or session column. See
+    -- routes/suggestion-labels.ts.
+    CREATE TABLE IF NOT EXISTS suggestion_counts (
+      day DATE NOT NULL,
+      surface TEXT NOT NULL,
+      action TEXT NOT NULL,
+      reason TEXT NOT NULL DEFAULT '',
+      rank SMALLINT NOT NULL DEFAULT 0,
+      commander TEXT NOT NULL,
+      partner TEXT NOT NULL DEFAULT '',
+      card_in TEXT NOT NULL DEFAULT '',
+      card_out TEXT NOT NULL DEFAULT '',
+      commander_name TEXT NOT NULL DEFAULT '',
+      count INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (day, surface, action, reason, rank, commander, partner, card_in, card_out)
+    );
+
     -- Opt-in AI features (T96 "Read the deck"). Consent lives on the user
     -- row, deliberately outside the sync layer; NULL ai_daily_limit means
     -- the app default applies (per-user override = a data change, not a

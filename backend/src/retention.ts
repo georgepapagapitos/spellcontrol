@@ -4,7 +4,9 @@ import { sweepStale as sweepStaleGameSessions } from './games/sessions';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-async function pruneCountTable(table: 'error_counts' | 'event_counts' | 'vital_counts') {
+async function pruneCountTable(
+  table: 'error_counts' | 'event_counts' | 'suggestion_counts' | 'vital_counts'
+) {
   // `day` is a DATE column; admin reads at most 365 days back (the `days`
   // cap in routes/admin.ts), so 400 leaves headroom past that read window.
   const { rowCount } = await getPool().query(`DELETE FROM ${table} WHERE day < CURRENT_DATE - 400`);
@@ -31,6 +33,7 @@ const RULES: ReadonlyArray<{ table: string; prune: () => Promise<number> }> = [
   },
   { table: 'error_counts', prune: () => pruneCountTable('error_counts') },
   { table: 'event_counts', prune: () => pruneCountTable('event_counts') },
+  { table: 'suggestion_counts', prune: () => pruneCountTable('suggestion_counts') },
   { table: 'vital_counts', prune: () => pruneCountTable('vital_counts') },
   {
     // deck_feedback rows are denormalized off their share specifically so a

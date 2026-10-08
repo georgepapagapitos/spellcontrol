@@ -1293,3 +1293,5 @@ export type CommanderStatsRow = typeof commanderStats.$inferSelect;
 export type CommanderCardInclusionRow = typeof commanderCardInclusion.$inferSelect;
 export type EdhrecTopListRow = typeof edhrecTopLists.$inferSelect;
 export type EventCountRow = typeof eventCounts.$inferSelect;
+
+export * from './schema-suggestions';

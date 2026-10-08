@@ -185,3 +185,31 @@ export async function listEvents(days = 30): Promise<BeaconRows> {
   const res = await authedFetch(`/api/admin/events?days=${days}`);
   return adminResponse<BeaconRows>(res);
 }
+
+export interface SuggestionSurfaceRow {
+  surface: string;
+  shown: number;
+  accept: number;
+  dismiss: number;
+  undo: number;
+}
+
+export interface SuggestionDismissals {
+  /** The commander's oracle id. */
+  commander: string;
+  /** Display name the label carried; empty if none did. */
+  name: string;
+  total: number;
+  cards: { card: string; count: number }[];
+}
+
+export interface SuggestionStats {
+  surfaces: SuggestionSurfaceRow[];
+  topDismissed: SuggestionDismissals[];
+}
+
+/** What players did with suggestions in the last `days` days (aggregate, no ids). */
+export async function getSuggestionStats(days = 30): Promise<SuggestionStats> {
+  const res = await authedFetch(`/api/admin/suggestions?days=${days}`);
+  return adminResponse<SuggestionStats>(res);
+}

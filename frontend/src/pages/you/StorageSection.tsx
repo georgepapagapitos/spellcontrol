@@ -11,6 +11,11 @@ import { resetAppCacheAndReload } from '@/lib/account/reset-app-cache';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsRow } from '@/components/settings/SettingsRow';
 import { Button } from '@/components/shared/Button';
+import { SwitchRow } from '@/components/shared/form';
+import {
+  isSuggestionLabelsEnabled,
+  setSuggestionLabelsEnabled,
+} from '@/lib/util/suggestion-labels';
 
 /** What this device keeps (offline card data, the app cache), and the repair tools. */
 export function StorageSection() {
@@ -19,6 +24,7 @@ export function StorageSection() {
   const [resetCacheOpen, setResetCacheOpen] = useState(false);
   const [resetCacheBusy, setResetCacheBusy] = useState(false);
   const canRepair = cards.length > 0 && deckCount > 0;
+  const [shareLabels, setShareLabels] = useState(isSuggestionLabelsEnabled);
 
   function handleRepairAllocations() {
     if (!canRepair) return;
@@ -46,6 +52,18 @@ export function StorageSection() {
   return (
     <>
       <OfflineModeSettings />
+
+      <SettingsSection id="settings-privacy-title" title="Privacy">
+        <SwitchRow
+          label="Share suggestion feedback"
+          hint="Sends the commander, the cards and what you did with a suggestion: took it, cut it or undid it. Never tied to your account or a deck."
+          checked={shareLabels}
+          onChange={(next) => {
+            setSuggestionLabelsEnabled(next);
+            setShareLabels(next);
+          }}
+        />
+      </SettingsSection>
 
       <SettingsSection id="settings-troubleshooting-title" title="Troubleshooting">
         <SettingsRow

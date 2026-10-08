@@ -2,9 +2,10 @@ import { Router, type Request, type Response } from 'express';
 import { getPool } from '../db';
 import { logger } from '../logger';
 import { testAwareLimiter } from '../route-utils';
+import { countSuggestion, parseSuggestion } from './suggestion-labels';
 
 /**
- * First-party, cookieless beacon. Three shapes, one contract: every row the
+ * First-party, cookieless beacon. Four shapes, one contract: every row the
  * server keeps is an aggregate count keyed by a day and a few low-cardinality
  * strings — never an IP, user agent, user id, or session — so none of it can
  * identify anyone and none of it needs a consent banner. Always 204: a beacon
@@ -14,6 +15,9 @@ import { testAwareLimiter } from '../route-utils';
  *  - `{ name: 'error', path, kind, message, frame }`
  *                                             → error_counts(day, path, kind, message, frame)
  *  - `{ name: 'vital', path, metric, value }` → vital_counts(day, path, metric, rating)
+ *  - `{ name: 'suggestion', surface, action, ... }` → suggestion_counts (suggestion-labels.ts):
+ *    which suggestion a player accepted, dismissed or undid, for which commander. Same
+ *    contract: no user, deck or session id, and an event with an unknown field is dropped.
  *
  * The error row holds the exception's own message and the script location it
  * came from (an `/assets/<chunk>.js:line:col` frame), both scrubbed and
@@ -107,6 +111,10 @@ eventsRouter.post('/', beaconLimiter, async (req: Request, res: Response) => {
     if (EVENT_NAMES.has(name)) await countEvent(name, path);
     else if (name === 'error') await countError(path, body);
     else if (name === 'vital') await countVital(path, body);
+    else if (name === 'suggestion') {
+      const label = parseSuggestion(body);
+      if (label) await countSuggestion(label);
+    }
   } catch (err) {
     logger.warn('[events] beacon insert failed', err);
   }

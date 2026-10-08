@@ -29,6 +29,7 @@ import {
 } from '@/lib/account/admin-api';
 import { formatRelativeTime } from '@/lib/util/format-time';
 import { userMessage } from '@/lib/util/user-error';
+import { SuggestionLabelsTable } from './admin-suggestions';
 import { toast } from '../store/toasts';
 import { Button } from '@/components/shared/Button';
 import { copyToClipboard } from '@/lib/util/clipboard';
@@ -897,6 +898,7 @@ function AnalyticsTab({
       />
       <ErrorTable rows={events.errors} />
       <VitalsTable rows={events.vitals} />
+      <SuggestionLabelsTable />
     </section>
   );
 }

@@ -121,6 +121,77 @@ adminRouter.get('/events', requireAdmin, adminLimiter, async (req: Request, res:
   res.json({ events: events.rows, errors: errors.rows, vitals: vitals.rows });
 });
 
+/**
+ * GET /api/admin/suggestions?days=30
+ * What players did with suggestions (E518), aggregate only: per surface the
+ * shown / accepted / dismissed / undone counts, and per commander the cards
+ * players cut most. The table behind it holds no user or deck id.
+ */
+adminRouter.get('/suggestions', requireAdmin, adminLimiter, async (req: Request, res: Response) => {
+  const days = Math.min(365, Math.max(1, Number(req.query.days) || 30));
+  const pool = getPool();
+  const [surfaces, dismissed] = await Promise.all([
+    pool.query<{ surface: string; action: string; count: string }>(
+      `SELECT surface, action, SUM(count)::text AS count FROM suggestion_counts
+          WHERE day >= CURRENT_DATE - ($1::int - 1)
+          GROUP BY surface, action`,
+      [days]
+    ),
+    pool.query<{ commander: string; commander_name: string; card: string; count: string }>(
+      `SELECT commander, MAX(commander_name) AS commander_name, card_out AS card,
+                SUM(count)::text AS count
+           FROM suggestion_counts
+          WHERE day >= CURRENT_DATE - ($1::int - 1) AND action = 'dismiss' AND card_out <> ''
+          GROUP BY commander, card_out
+          ORDER BY SUM(count) DESC, commander, card_out
+          LIMIT 200`,
+      [days]
+    ),
+  ]);
+  const bySurface = new Map<
+    string,
+    { surface: string; shown: number; accept: number; dismiss: number; undo: number }
+  >();
+  for (const r of surfaces.rows) {
+    const row = bySurface.get(r.surface) ?? {
+      surface: r.surface,
+      shown: 0,
+      accept: 0,
+      dismiss: 0,
+      undo: 0,
+    };
+    if (
+      r.action === 'shown' ||
+      r.action === 'accept' ||
+      r.action === 'dismiss' ||
+      r.action === 'undo'
+    ) {
+      row[r.action] = Number(r.count);
+    }
+    bySurface.set(r.surface, row);
+  }
+  // Top dismissed cards per commander: five each, commanders in order of total dismissals.
+  const perCommander = new Map<
+    string,
+    { commander: string; name: string; total: number; cards: { card: string; count: number }[] }
+  >();
+  for (const r of dismissed.rows) {
+    const entry = perCommander.get(r.commander) ?? {
+      commander: r.commander,
+      name: r.commander_name,
+      total: 0,
+      cards: [],
+    };
+    entry.total += Number(r.count);
+    if (entry.cards.length < 5) entry.cards.push({ card: r.card, count: Number(r.count) });
+    perCommander.set(r.commander, entry);
+  }
+  res.json({
+    surfaces: [...bySurface.values()].sort((a, b) => a.surface.localeCompare(b.surface)),
+    topDismissed: [...perCommander.values()].sort((a, b) => b.total - a.total).slice(0, 20),
+  });
+});
+
 adminRouter.get('/users', requireAdmin, adminLimiter, async (_req: Request, res: Response) => {
   const { rows } = await getPool().query<{
     id: string;

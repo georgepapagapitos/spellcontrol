@@ -1,7 +1,8 @@
-import type { JSX } from 'react';
+import { useEffect, type JSX } from 'react';
 import './SwapThisCard.css';
 import { DeckCardRow } from './DeckCardRow';
 import type { Change } from '@/lib/coach/deck-change';
+import { recordShown, recordSuggestion } from '@/lib/util/suggestion-labels';
 
 export interface SwapThisCardProps {
   /** The in-deck card being looked at (the swap-out target). */
@@ -31,20 +32,34 @@ export function SwapThisCard({
   swapping,
   commanderName,
 }: SwapThisCardProps): JSX.Element | null {
-  if (alternatives.length === 0) return null;
+  const count = alternatives.length;
+  useEffect(() => {
+    recordShown('swap', count, currentName);
+  }, [count, currentName]);
+  if (count === 0) return null;
 
   return (
     <section className="swap-this-card" aria-label={`Swap ${currentName}`}>
       <h4 className="swap-this-card-title">Swap this card</h4>
       <p className="swap-this-card-sub">Same-role alternatives, owned first.</p>
       <ul className="swap-this-card-list">
-        {alternatives.map((change) => (
+        {alternatives.map((change, i) => (
           <DeckCardRow
             key={change.id}
             change={change}
             commanderName={commanderName}
             actLabel="Swap in"
-            onAct={() => onSwap(change.name)}
+            onAct={() => {
+              recordSuggestion({
+                surface: 'swap',
+                action: 'accept',
+                rank: i + 1,
+                reason: change.lane,
+                cardIn: change.name,
+                cardOut: currentName,
+              });
+              onSwap(change.name);
+            }}
             acting={swapping}
           />
         ))}
