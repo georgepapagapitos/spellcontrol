@@ -24,6 +24,7 @@ import {
 } from '@/deck-builder/services/scryfall/client';
 import { frontFaceName } from '@/lib/cards/card-text';
 import { logger } from '@/lib/util/logger';
+import { alwaysProducedMana } from '@/lib/mana-sim/unconditional-mana';
 import type { OptimizeCard, RecommendedCard } from './deckAnalyzer';
 
 const RECOMMENDATION_SUPERTYPE = /^(Legendary|Basic|Snow|Tribal|Kindred|World|Ongoing)\s+/i;
@@ -92,8 +93,9 @@ export async function enrichRecommendationPrices(recs: RecommendedCard[]): Promi
       // than nothing: "unknown" passes the floor, so it was offered as the
       // cheaper swap for a tri-land.
       if (!r.producedColors && getFrontFaceTypeLine(c).toLowerCase().includes('land')) {
-        const colors = [...new Set((c.produced_mana ?? []).filter((m) => 'WUBRG'.includes(m)))];
-        if (colors.length > 0 || c.produced_mana) r.producedColors = colors;
+        const made = alwaysProducedMana(c.oracle_text, c.produced_mana);
+        const colors = [...new Set((made ?? []).filter((m) => 'WUBRG'.includes(m)))];
+        if (colors.length > 0 || made) r.producedColors = colors;
       }
     }
   } catch (err) {

@@ -6,7 +6,14 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { GapAnalysisCard, ScryfallCard } from '@/deck-builder/types';
 import type { RecommendedCard } from './deckAnalyzer';
-import { COACH_CARDS } from './__fixtures__/coach-cards.fixtures';
+import { COACH_CARDS as COACH_BASE } from './__fixtures__/coach-cards.fixtures';
+import landFixture from '@/lib/mana-sim/__fixtures__/land-abilities.fixture.json';
+
+// E585: Power Depot's {T} mana is {C}; its any-colour mana is artifact-only.
+const COACH_CARDS: Record<string, ScryfallCard> = {
+  ...Object.fromEntries((landFixture.cards as unknown as ScryfallCard[]).map((c) => [c.name, c])),
+  ...COACH_BASE,
+};
 
 vi.mock('@/deck-builder/services/scryfall/client', async (orig) => ({
   ...(await orig<typeof import('@/deck-builder/services/scryfall/client')>()),
@@ -71,5 +78,17 @@ describe('enrichRecommendationPrices', () => {
     await enrichRecommendationPrices(recs);
     expect(recs[0].producedColors).toEqual([]);
     expect(recs[1].producedColors?.sort()).toEqual(['B', 'G']);
+  });
+
+  it('reads a land the way it taps: Power Depot and Springjack Pasture fix nothing, City of Brass keeps five', async () => {
+    const recs = [
+      { name: 'Power Depot', inclusion: 30, primaryType: 'Land' },
+      { name: 'Springjack Pasture', inclusion: 30, primaryType: 'Land' },
+      { name: 'City of Brass', inclusion: 30, primaryType: 'Land' },
+    ] as RecommendedCard[];
+    await enrichRecommendationPrices(recs);
+    expect(recs[0].producedColors).toEqual([]);
+    expect(recs[1].producedColors).toEqual([]);
+    expect(recs[2].producedColors?.sort()).toEqual(['B', 'G', 'R', 'U', 'W']);
   });
 });
