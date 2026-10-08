@@ -13,8 +13,9 @@ import {
   Layers,
   LayoutGrid,
   List as ListIconLucide,
-  MoreHorizontal,
+  Pencil,
   Share2,
+  SlidersHorizontal,
   type LucideIcon,
 } from 'lucide-react';
 import { LegendContent } from '../Legend';
@@ -60,6 +61,14 @@ interface ToolbarProps {
   canBulkEdit: boolean;
   selectMode: boolean;
   onToggleSelectMode: () => void;
+  /** The owner's edits to the list (paste, bulk edit, resync, printings).
+   *  Present → the toolbar shows a named Edit menu holding Select and these.
+   *  Absent (a read-only shared deck) → no Edit menu at all. */
+  editActions?: ListAction[];
+  /** The page header has its own Deck menu holding Test hand and Export, so
+   *  the toolbar drops them and keeps to the list (STYLE_GUIDE § Deck page
+   *  menus). A shared deck has no such menu and keeps them here. */
+  deckActionsInHeader?: boolean;
 }
 
 const SORT_LABEL: Record<SortMode, string> = {
@@ -184,7 +193,7 @@ function ShowPrefsList({
   );
 }
 
-interface ListAction {
+export interface ListAction {
   label: string;
   icon: LucideIcon;
   onClick: () => void;
@@ -192,15 +201,14 @@ interface ListAction {
 
 // The toolbar's fold panel. What doesn't fit the row lands here instead of
 // wrapping it (STYLE_GUIDE § Layout system: the toolbar never wraps). On a
-// phone it is the "View" popover and carries every display control; wider,
-// it is the row's trailing ⋯ and carries only the rows the width had to
-// drop, plus the list actions (Select, Test hand, Export). Mirrors the
-// collection toolbar's ViewPopoverPanel (CardListTable) down to the sub-page
-// key. State lives here so it resets whenever the popover closes.
+// phone it carries every display control; wider, it is the row's named View
+// button and carries only the rows the width had to drop, plus row details
+// and the keys. It never holds an action: those are the Edit menu's, or on a
+// shared deck the kebab's. Mirrors the collection toolbar's ViewPopoverPanel
+// (CardListTable) down to the sub-page key. State lives here so it resets
+// whenever the popover closes.
 function DeckViewPopoverPanel({
   rows = { layout: true, groupBy: true },
-  actions = [],
-  onAction,
   viewMode,
   onViewModeChange,
   groupBy,
@@ -224,9 +232,6 @@ function DeckViewPopoverPanel({
   onShowPrefsChange: (next: ShowPrefs) => void;
   /** Which display controls the row couldn't hold. */
   rows?: { layout?: boolean; groupBy?: boolean };
-  actions?: ListAction[];
-  /** Closes the panel before an action runs. */
-  onAction?: () => void;
 }) {
   const [keyOpen, setKeyOpen] = useState(false);
   if (keyOpen) {
@@ -246,27 +251,6 @@ function DeckViewPopoverPanel({
   }
   return (
     <>
-      {/* The list actions lead: they are what the ⋯ is opened for most, and
-          a panel taller than the space below the row scrolls, which would
-          hide them under the display settings. */}
-      {actions.length > 0 && (
-        <div className="view-popover-actions">
-          {actions.map((a) => (
-            <button
-              key={a.label}
-              type="button"
-              className="toolbar-popover-item"
-              onClick={() => {
-                onAction?.();
-                a.onClick();
-              }}
-            >
-              <a.icon width={14} height={14} strokeWidth={2} aria-hidden />
-              <span>{a.label}</span>
-            </button>
-          ))}
-        </div>
-      )}
       {rows.layout && (
         <div className="view-popover-row">
           <span className="view-popover-row-label">Layout</span>
@@ -332,6 +316,8 @@ export function DeckToolbar({
   canBulkEdit,
   selectMode,
   onToggleSelectMode,
+  editActions,
+  deckActionsInHeader = false,
 }: ToolbarProps) {
   const [rowRef, rowWidth] = useElementWidth<HTMLElement>();
   // Three shapes, one order (STYLE_GUIDE § Layout system): search grows, then
@@ -345,10 +331,39 @@ export function DeckToolbar({
     canBulkEdit && !selectMode
       ? [{ label: 'Select cards', icon: CheckSquare, onClick: onToggleSelectMode }]
       : [];
-  const listActions: ListAction[] = [
-    ...(onShowTestHand ? [{ label: 'Test hand', icon: Hand, onClick: onShowTestHand }] : []),
-    { label: 'Export', icon: Share2, onClick: onExport },
-  ];
+  const listActions: ListAction[] = deckActionsInHeader
+    ? []
+    : [
+        ...(onShowTestHand ? [{ label: 'Test hand', icon: Hand, onClick: onShowTestHand }] : []),
+        { label: 'Export', icon: Share2, onClick: onExport },
+      ];
+  // The owner's Edit menu: Select leads it (it is the edit reached for most),
+  // then the text tools and printings. While selecting, Select is the Done
+  // button on the row instead, so leaving the mode never means opening a menu.
+  const editMenu = editActions && (
+    <OverflowMenu
+      ariaLabel="Edit the list"
+      className="deck-toolbar-edit"
+      triggerClassName={buttonClass({ placement: 'toolbar' })}
+      trigger={
+        <>
+          <Pencil width={14} height={14} strokeWidth={1.8} aria-hidden />
+          <span className="btn-label">Edit</span>
+          <ChevronDown width={14} height={14} strokeWidth={1.8} aria-hidden />
+        </>
+      }
+      items={[...selectAction, ...editActions]}
+    />
+  );
+  const wideKebab: ListAction[] = [...(editActions || full ? [] : selectAction), ...listActions];
+  // The display menu's trigger names itself on a wide row too. It used to be
+  // a bare ⋯, which sat a hand's width under the header's own ⋮.
+  const viewTrigger = (
+    <>
+      <SlidersHorizontal width={14} height={14} strokeWidth={1.8} aria-hidden />
+      <span className="btn-label">View</span>
+    </>
+  );
 
   const doneButton = canBulkEdit && selectMode && (
     <Button
@@ -419,15 +434,20 @@ export function DeckToolbar({
             )}
           </ToolbarPopover>
 
-          {/* The list *actions* (select, test hand, export) collapse into the
-              standard kebab rather than the View panel: they act on the deck,
-              they don't configure the display. */}
-          <OverflowMenu
-            ariaLabel="Deck list actions"
-            className="deck-toolbar-more"
-            triggerClassName={buttonClass({ placement: 'toolbar' })}
-            items={[...selectAction, ...listActions]}
-          />
+          {/* The owner's edits sit in the named Edit menu. A shared deck has
+              no edits, so its Test hand and Export keep the plain kebab: with
+              no header menu on that page there is no second one to mistake
+              it for. Neither goes in the View panel, which only configures
+              the display. */}
+          {editMenu}
+          {(editActions ? listActions.length > 0 : true) && (
+            <OverflowMenu
+              ariaLabel="Deck list actions"
+              className="deck-toolbar-more"
+              triggerClassName={buttonClass({ placement: 'toolbar' })}
+              items={editActions ? listActions : [...selectAction, ...listActions]}
+            />
+          )}
         </div>
       ) : (
         <div className="deck-toolbar-controls deck-toolbar-controls--row">
@@ -460,33 +480,40 @@ export function DeckToolbar({
 
           <DeckViewModeToggle value={viewMode} onChange={onViewModeChange} />
 
-          {full && canBulkEdit && (
-            <Button
-              placement="toolbar"
-              aria-pressed={selectMode}
-              onClick={onToggleSelectMode}
-              className="deck-toolbar-select-toggle"
-              icon={<CheckSquare width={14} height={14} strokeWidth={1.8} />}
-            >
-              {selectMode ? 'Done' : 'Select'}
-            </Button>
+          {editActions ? (
+            <>
+              {doneButton}
+              {editMenu}
+            </>
+          ) : (
+            <>
+              {full && canBulkEdit && (
+                <Button
+                  placement="toolbar"
+                  aria-pressed={selectMode}
+                  onClick={onToggleSelectMode}
+                  className="deck-toolbar-select-toggle"
+                  icon={<CheckSquare width={14} height={14} strokeWidth={1.8} />}
+                >
+                  {selectMode ? 'Done' : 'Select'}
+                </Button>
+              )}
+              {!full && doneButton}
+            </>
           )}
-          {!full && doneButton}
 
           <ToolbarPopover
             triggerClassName={`${buttonClass({ placement: 'toolbar' })} deck-toolbar-more-btn`}
-            triggerContent={<MoreHorizontal width={18} height={18} strokeWidth={2} aria-hidden />}
-            triggerAriaLabel="More list options"
+            triggerContent={viewTrigger}
+            triggerAriaLabel="View options"
             haspopup="dialog"
             panelRole="dialog"
-            panelAriaLabel="List options"
+            panelAriaLabel="View options"
             panelClassName="toolbar-popover-panel toolbar-popover-panel--fixed view-popover-panel"
           >
-            {(close) => (
+            {() => (
               <DeckViewPopoverPanel
                 rows={{ groupBy: !full }}
-                actions={full ? listActions : [...selectAction, ...listActions]}
-                onAction={close}
                 viewMode={viewMode}
                 onViewModeChange={onViewModeChange}
                 groupBy={groupBy}
@@ -500,6 +527,17 @@ export function DeckToolbar({
               />
             )}
           </ToolbarPopover>
+
+          {/* A shared deck's Test hand and Export (and a folded Select): the
+              same kebab as on a phone, never inside View. */}
+          {wideKebab.length > 0 && (
+            <OverflowMenu
+              ariaLabel="Deck list actions"
+              className="deck-toolbar-more"
+              triggerClassName={buttonClass({ placement: 'toolbar' })}
+              items={wideKebab}
+            />
+          )}
         </div>
       )}
     </header>

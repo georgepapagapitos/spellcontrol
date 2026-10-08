@@ -179,8 +179,24 @@ vi.mock('@/lib/deck/deck-printing-actions', async (importOriginal) => ({
 }));
 
 // ── Heavy component / lib stubs ─────────────────────────────────────────────
+// The stub renders the toolbar's Edit actions the page hands it, so the page's
+// own handlers for them (paste, printings) stay under test.
 vi.mock('../components/deck/DeckDisplay', () => ({
-  DeckDisplay: () => <div data-testid="deck-display" />,
+  DeckDisplay: ({
+    editActions,
+    deckActionsInHeader,
+  }: {
+    editActions?: { label: string; onClick: () => void }[];
+    deckActionsInHeader?: boolean;
+  }) => (
+    <div data-testid="deck-display" data-deck-actions-in-header={String(!!deckActionsInHeader)}>
+      {editActions?.map((a) => (
+        <button key={a.label} type="button" data-testid="edit-action" onClick={a.onClick}>
+          {a.label}
+        </button>
+      ))}
+    </div>
+  ),
 }));
 // The chip pulls in ShareDialog (the share sheet, friends-client,
 // auth-api…) and fetches on mount via useDeckVisibility — irrelevant to these
@@ -575,19 +591,32 @@ describe('DeckEditorPage — Delete in ⋮ overflow (UX-316)', () => {
   });
 });
 
-describe('DeckEditorPage — ⋮ menu sectioning + Export de-dup (E181)', () => {
+describe('DeckEditorPage — the Deck menu holds the deck, the toolbar the list (E181)', () => {
   beforeEach(() => localStorage.clear());
   afterEach(() => localStorage.clear());
 
-  // Export belongs to the deck toolbar (its ⋯ on a wide row, its kebab on a
-  // phone), so the header ⋮ never repeats it at any width.
-  it.each([390, 768, 1280])('leaves Export out of the header ⋮ at %ipx', (px) => {
+  // Export and Test hand act on the whole deck, so they are the header Deck
+  // menu's at every width, and the toolbar is told to leave them out.
+  it.each([390, 768, 1280])('puts Export and Test hand in the Deck menu at %ipx', (px) => {
     atWidth(px);
     renderEditor();
     fireEvent.click(screen.getByLabelText('Deck actions'));
 
-    expect(screen.queryByRole('menuitem', { name: 'Export' })).toBeNull();
+    expect(screen.getByRole('menuitem', { name: 'Export' })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: 'Test hand' })).toBeTruthy();
+    expect(screen.getByTestId('deck-display').dataset.deckActionsInHeader).toBe('true');
     vi.unstubAllGlobals();
+  });
+
+  // The edits to the card list are the toolbar's Edit menu, never this one.
+  it('keeps list edits out of the Deck menu and hands them to the toolbar', () => {
+    renderEditor();
+    fireEvent.click(screen.getByLabelText('Deck actions'));
+    for (const name of ['Paste cards', 'Bulk edit', 'Resync from a list']) {
+      expect(screen.queryByRole('menuitem', { name })).toBeNull();
+    }
+    const edits = screen.getAllByTestId('edit-action').map((b) => b.textContent);
+    expect(edits.slice(0, 3)).toEqual(['Paste cards', 'Bulk edit', 'Resync from a list']);
   });
 
   // Regenerate lived only in the decks index's tile menu, not here where the
@@ -616,27 +645,21 @@ describe('DeckEditorPage — ⋮ menu sectioning + Export de-dup (E181)', () => 
     renderEditor();
     fireEvent.click(screen.getByLabelText('Deck actions'));
 
-    expect(screen.getByText('Text tools')).toBeTruthy();
-    expect(screen.getByText('Deck actions')).toBeTruthy();
-    // Text tools clusters the paste/bulk-edit/resync trio.
-    const textTools = screen.getByText('Text tools').closest('.deck-editor-overflow-section');
-    expect(textTools?.textContent).toContain('Paste cards');
-    expect(textTools?.textContent).toContain('Bulk edit');
-    expect(textTools?.textContent).toContain('Resync from a list');
-    // Deck actions clusters Duplicate/Primer/Get feedback (+ Export on mobile).
-    const deckActions = screen.getByText('Deck actions').closest('.deck-editor-overflow-section');
-    expect(deckActions?.textContent).toContain('Duplicate');
-    expect(deckActions?.textContent).toContain('Primer');
-    expect(deckActions?.textContent).toContain('Get feedback');
+    const section = (label: string) =>
+      screen.getByText(label).closest('.deck-editor-overflow-section')?.textContent ?? '';
+    expect(section('Play')).toContain('Test hand');
+    expect(section('Share')).toContain('Export');
+    expect(section('Share')).toContain('Primer');
+    expect(section('Share')).toContain('Get feedback');
+    expect(section('This deck')).toContain('Duplicate');
   });
 
   describe('printing actions', () => {
-    const deckActionsText = () => {
-      fireEvent.click(screen.getByLabelText('Deck actions'));
-      return (
-        screen.getByText('Deck actions').closest('.deck-editor-overflow-section')?.textContent ?? ''
-      );
-    };
+    const deckActionsText = () =>
+      screen
+        .getAllByTestId('edit-action')
+        .map((b) => b.textContent)
+        .join(' | ');
     const bindAtraxa = (scryfallId: string) => {
       (mockDeck as { commanderAllocatedCopyId: string | null }).commanderAllocatedCopyId = 'cp1';
       mockCollectionById = new Map([['cp1', { copyId: 'cp1', name: 'Atraxa', scryfallId }]]);
@@ -662,8 +685,7 @@ describe('DeckEditorPage — ⋮ menu sectioning + Export de-dup (E181)', () => 
     });
 
     const clickRow = async (name: string) => {
-      fireEvent.click(screen.getByLabelText('Deck actions'));
-      fireEvent.click(screen.getByRole('menuitem', { name }));
+      fireEvent.click(screen.getByRole('button', { name }));
       await vi.waitFor(() => expect(mockPushToast).toHaveBeenCalled());
       return mockPushToast.mock.calls[0][0] as {
         message: string;
@@ -727,8 +749,7 @@ describe('DeckEditorPage — ⋮ menu sectioning + Export de-dup (E181)', () => 
 
       mockPushToast.mockClear();
       mockApplyMatch.mockRejectedValueOnce(new Error('network'));
-      fireEvent.click(screen.getByLabelText('Deck actions'));
-      fireEvent.click(screen.getByRole('menuitem', { name: 'Match my copies' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Match my copies' }));
       await vi.waitFor(() => expect(mockPushToast).toHaveBeenCalled());
       expect(mockPushToast.mock.calls[0][0]).toMatchObject({
         message: "Couldn't look up your copies' printings.",
