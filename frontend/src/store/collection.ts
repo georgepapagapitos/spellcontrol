@@ -36,6 +36,7 @@ import {
   type PriceEntry,
 } from '@/lib/collection/card-prices';
 import { setReleaseDates } from '@/lib/cards/card-release-dates';
+import { setImageVersions } from '@/lib/cards/card-image-versions';
 import { getCurrency } from '@/lib/collection/currency';
 import type { Backup } from '@/lib/import-export/backup';
 import { scryfallToEnrichedCard } from '@/lib/cards/scryfall-to-enriched';
@@ -987,6 +988,9 @@ export const useCollectionStore = create<CollectionState>()(
           // 4xx still fails fast — retrying a bad body just fails again.
           const sleep = (ms: number) =>
             ms <= 0 ? Promise.resolve() : new Promise<void>((r) => setTimeout(r, ms));
+          // True once a chunk brings an image stamp newer than this device had
+          // (see card-image-versions): the stores re-apply them after the run.
+          let imagesMoved = false;
           const fetchChunk = async (batch: string[]): Promise<FinishPrices> => {
             for (let attempt = 0; ; attempt++) {
               let res: Response;
@@ -1010,6 +1014,7 @@ export const useCollectionStore = create<CollectionState>()(
                 const json = (await res.json()) as {
                   prices: FinishPrices;
                   releasedAt?: Record<string, string>;
+                  imageVersions?: Record<string, string>;
                 };
                 // Per-printing release dates ride along on this response (see
                 // the route). They need none of the reconciliation prices do —
@@ -1018,6 +1023,7 @@ export const useCollectionStore = create<CollectionState>()(
                 // them. Absent from a pre-release-date server: those cards just
                 // keep dating from their set/drop.
                 if (json.releasedAt) setReleaseDates(json.releasedAt);
+                if (json.imageVersions && setImageVersions(json.imageVersions)) imagesMoved = true;
                 return json.prices;
               }
               const body = (await res.json().catch(() => ({}))) as { error?: string };
@@ -1087,6 +1093,11 @@ export const useCollectionStore = create<CollectionState>()(
           setPrices(entries);
           const afterCards = applyPrices(get().cards);
           set({ cards: afterCards });
+          // Lazy: the module imports this store back.
+          if (imagesMoved)
+            void import('@/lib/cards/refresh-image-versions')
+              .then((m) => m.applyImageVersionsToStores())
+              .catch((err) => logger.warn('[images] apply after price refresh failed:', err));
 
           // Rule-based binders re-route silently when a price crosses a
           // threshold — diff membership old↔new and tell the user what moved.

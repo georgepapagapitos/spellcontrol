@@ -110,13 +110,21 @@ export interface FinishPriceEntry {
  * the price gate to it would permanently starve exactly those cards. It rides
  * this response because this is already the one request that walks a whole
  * collection by printing id — see `frontend/src/lib/card-release-dates.ts`.
+ *
+ * `imageVersions` is each printing's current image stamp (see
+ * {@link imageVersionOf}), ungated for the same reason as `releasedAt`.
  */
 export function buildPriceRefreshPayload(
   cards: ScryfallCard[],
   now: number
-): { prices: Record<string, FinishPriceEntry>; releasedAt: Record<string, string> } {
+): {
+  prices: Record<string, FinishPriceEntry>;
+  releasedAt: Record<string, string>;
+  imageVersions: Record<string, string>;
+} {
   const prices: Record<string, FinishPriceEntry> = {};
   const releasedAt: Record<string, string> = {};
+  const imageVersions = buildImageVersions(cards);
   for (const card of cards) {
     if (card.released_at) releasedAt[card.id] = card.released_at;
     const usd = pickUsdForFinish(card, 'nonfoil');
@@ -129,5 +137,29 @@ export function buildPriceRefreshPayload(
       prices[card.id] = { usd, usdFoil, usdEtched, eur, eurFoil, eurEtched, pricedAt: now };
     }
   }
-  return { prices, releasedAt };
+  return { prices, releasedAt, imageVersions };
+}
+
+/**
+ * The version stamp on a printing's Scryfall image URL: the `?1791120518` in
+ * `cards.scryfall.io/normal/front/8/1/<id>.jpg?1791120518`. Scryfall bumps it
+ * when it replaces an image, most often a preview-season phone photo swapped
+ * for the real scan, and the CDN serves the newest file under any stamp. But
+ * the CDN tells browsers to cache an image for a year, keyed by the full URL,
+ * so a client still holding the old stamp keeps showing the old picture. The
+ * stamp is what lets a client move a stored URL onto the new image.
+ */
+export function imageVersionOf(card: ScryfallCard): string | undefined {
+  const url = card.image_uris?.normal ?? card.card_faces?.[0]?.image_uris?.normal;
+  return url ? /\?(\d+)$/.exec(url)?.[1] : undefined;
+}
+
+/** `imageVersionOf` for each card that has one, keyed by printing id. */
+export function buildImageVersions(cards: ScryfallCard[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const card of cards) {
+    const v = imageVersionOf(card);
+    if (v) out[card.id] = v;
+  }
+  return out;
 }

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildPriceRefreshPayload,
+  imageVersionOf,
   pickEurForFinish,
   pickUsdForFinish,
   pickUsdFromPrices,
@@ -111,6 +112,61 @@ describe('buildPriceRefreshPayload', () => {
   });
 
   it('returns empty maps for no cards', () => {
-    expect(buildPriceRefreshPayload([], 1)).toEqual({ prices: {}, releasedAt: {} });
+    expect(buildPriceRefreshPayload([], 1)).toEqual({
+      prices: {},
+      releasedAt: {},
+      imageVersions: {},
+    });
+  });
+
+  // Perplexing Chimera (SLD 7039) shipped with a phone photo, then Scryfall
+  // swapped in the scan on 2026-10-04 and bumped the stamp to 1791120518. An
+  // unpriced printing still needs its stamp, so this is ungated like the date.
+  it('emits each printing image stamp, priced or not', () => {
+    const { imageVersions } = buildPriceRefreshPayload(
+      [
+        printing('chimera', {
+          prices: { usd: null },
+          image_uris: {
+            normal:
+              'https://cards.scryfall.io/normal/front/8/1/81cea94d-e8a2-4c88-b121-9806eb7cc210.jpg?1791120518',
+          },
+        } as Partial<ScryfallCard>),
+      ],
+      1
+    );
+    expect(imageVersions).toEqual({ chimera: '1791120518' });
+  });
+});
+
+describe('imageVersionOf', () => {
+  const at = (over: Partial<ScryfallCard>) => ({ id: 'x', ...over }) as unknown as ScryfallCard;
+
+  it('reads a double-faced card off its front face', () => {
+    expect(
+      imageVersionOf(
+        at({
+          card_faces: [
+            {
+              image_uris: { normal: 'https://cards.scryfall.io/normal/front/a/b/x.jpg?1700000000' },
+            },
+            {
+              image_uris: { normal: 'https://cards.scryfall.io/normal/back/a/b/x.jpg?1700000000' },
+            },
+          ],
+        } as Partial<ScryfallCard>)
+      )
+    ).toBe('1700000000');
+  });
+
+  it('is undefined with no image or no stamp', () => {
+    expect(imageVersionOf(at({}))).toBeUndefined();
+    expect(
+      imageVersionOf(
+        at({
+          image_uris: { normal: 'https://cards.scryfall.io/normal/front/a/b/x.jpg' },
+        } as Partial<ScryfallCard>)
+      )
+    ).toBeUndefined();
   });
 });
