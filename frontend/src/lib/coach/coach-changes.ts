@@ -31,6 +31,7 @@ import type { LandUpgradeMove } from '@/deck-builder/services/deckBuilder/landUp
 import type { MisfitSummary } from '@/deck-builder/services/deckBuilder/cardFit';
 import type { ComboMatch } from '@/types/combos';
 import { comboEndsGame } from '@/deck-builder/services/winConditions/detect';
+import type { DeckPayoffs } from '@/deck-builder/services/winConditions/comboPayoffs';
 
 /**
  * The gap staples worth an owned substitute: role-bearing, not owned (an owned
@@ -108,6 +109,8 @@ export interface CoachChangeSources {
   bracketFit?: BracketFitPlan;
   landUpgrades?: LandUpgradeMove[];
   oneAwayCombos?: ComboMatch[];
+  /** What the deck's own cards convert into a win (`deckComboPayoffs`, E578). */
+  deckPayoffs?: DeckPayoffs;
   /** E90: owned copies idle in a sibling deck. */
   crossDeckMoves?: CrossDeckMove[];
 }
@@ -180,7 +183,7 @@ export function buildCoachChanges(
   // through the other lanes (E437, Hullbreaker Horror + Sol Ring).
   const comboChanges: Change[] = (src.oneAwayCombos ?? [])
     .filter((match) => match.missingOracleIds.length === 1)
-    .filter((match) => comboEndsGame(match.combo.produces))
+    .filter((match) => comboEndsGame(match.combo.produces, src.deckPayoffs))
     .map((match) => {
       const missingId = match.missingOracleIds[0];
       const missingCard = match.combo.cards.find((c) => c.oracleId === missingId);

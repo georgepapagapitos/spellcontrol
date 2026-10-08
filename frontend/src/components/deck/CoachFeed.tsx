@@ -40,6 +40,7 @@ import type { CostPlan } from '@/deck-builder/services/deckBuilder/costAnalyzer'
 import type { BracketFitPlan } from '@/deck-builder/services/deckBuilder/bracketFit';
 import type { LandUpgradeMove } from '@/deck-builder/services/deckBuilder/landUpgrades';
 import type { ComboMatch } from '@/types/combos';
+import type { DeckPayoffs } from '@/deck-builder/services/winConditions/comboPayoffs';
 import type { CrossDeckMove } from '@/lib/coach/cross-deck-moves';
 import type { PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
 import type { MisfitSummary } from '@/deck-builder/services/deckBuilder/cardFit';
@@ -73,6 +74,8 @@ export interface CoachFeedProps {
   bracketFit?: BracketFitPlan;
   landUpgrades?: LandUpgradeMove[];
   oneAwayCombos?: ComboMatch[];
+  /** What the deck's own cards convert into a win (`deckComboPayoffs`, E578). */
+  deckPayoffs?: DeckPayoffs;
   /** E90: owned copies idle in a sibling deck that would feed an engine here,
    *  each with an owned patch for the deck it leaves. Applied by the page. */
   crossDeckMoves?: CrossDeckMove[];
@@ -204,6 +207,7 @@ export function CoachFeed({
   bracketFit,
   landUpgrades,
   oneAwayCombos,
+  deckPayoffs,
   crossDeckMoves,
   planScore,
   roleCounts,
@@ -407,6 +411,7 @@ export function CoachFeed({
           bracketFit,
           landUpgrades,
           oneAwayCombos,
+          deckPayoffs,
           crossDeckMoves,
         },
         resolveOwnership,
@@ -424,6 +429,7 @@ export function CoachFeed({
       bracketFit,
       landUpgrades,
       oneAwayCombos,
+      deckPayoffs,
       crossDeckMoves,
       resolveOwnership,
       deckNames,

@@ -44,6 +44,7 @@ import { replaceCuts } from '@/lib/coach/replace-cuts';
 import { landUpgradeCandidates } from '@/lib/coach/land-candidates';
 import { analyzeDeck } from '@/lib/deck-analysis/deck-analysis';
 import { frontFaceName } from '@/lib/cards/card-text';
+import { deckComboPayoffs } from '@/deck-builder/services/winConditions/comboPayoffs';
 
 /** Commander decks are 100 cards counting the command zone (DECK_FORMAT_CONFIGS). */
 export const COMMANDER_DECK_TARGET = 100;
@@ -201,6 +202,9 @@ export function buildCoachView(input: CoachViewInputs): CoachView {
         )
       : [];
 
+  // DeckEditorPage `deckPayoffs`: what the deck's own cards convert into a win (E578).
+  const deckPayoffs = deckComboPayoffs([commander, ...(partner ? [partner] : []), ...cards]);
+
   // CoachFeed `allChanges` → `ranked` (rank, dedupe adds by name, diversify).
   const changes = buildCoachChanges(
     {
@@ -213,6 +217,7 @@ export function buildCoachView(input: CoachViewInputs): CoachView {
       bracketFit: analysis.bracketFit ?? undefined,
       landUpgrades,
       oneAwayCombos: newLineCombos(input.combos),
+      deckPayoffs,
       crossDeckMoves: [],
     },
     ownershipFor,
@@ -277,6 +282,7 @@ export function buildCoachView(input: CoachViewInputs): CoachView {
       combosThatFit(input.combos.oneAway, input.settingsFit, ownershipFor),
       analysis.suggestionCards
     ),
+    deckPayoffs,
     ownedNames: new Set(ownedNames),
     winConditions: analysis.winConditions,
     bracketFitHasMoves: (analysis.bracketFit?.moves.length ?? 0) > 0,

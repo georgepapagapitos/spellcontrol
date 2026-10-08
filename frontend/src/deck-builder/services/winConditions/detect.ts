@@ -20,6 +20,7 @@ import { classifyCard } from '../synergy/classify';
 import type { DeckSynergy } from '../synergy/deckSynergy';
 import type { CardLike } from '../synergy/text';
 import type { WinCondition, WinConditionAnalysis } from './types';
+import { loopConverts, type DeckPayoffs } from './comboPayoffs';
 
 export interface DetectedComboForWinCon {
   /** Commander Spellbook produces[] labels: "Win the game", "Infinite damage", etc. */
@@ -214,9 +215,14 @@ function comboBucket(results: string[]): 'win' | 'damage' | 'tokens' | 'grow' | 
  * Ring, Spellbook tag E) needs a payoff card; when the deck holds that payoff
  * Spellbook lists the line as its own combo with the win in its results, and
  * that combo passes this test.
+ *
+ * `payoffs` (E578, `deckComboPayoffs`) is what the deck itself holds: a loop
+ * its results can't win alone still ends the game when the deck's own card
+ * converts it (infinite untap + Lathril's tap-ten-Elves drain). Omitted, the
+ * results alone decide, as before.
  */
-export function comboEndsGame(results: string[]): boolean {
-  return comboBucket(results) !== 'other';
+export function comboEndsGame(results: string[], payoffs?: DeckPayoffs): boolean {
+  return comboBucket(results) !== 'other' || (payoffs !== undefined && loopConverts(results, payoffs));
 }
 
 // ── Voltron heuristic ────────────────────────────────────────────────────────

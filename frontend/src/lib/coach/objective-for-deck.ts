@@ -24,10 +24,10 @@ export async function loadSourcesObjective(src: CutSwapSources): Promise<CoachOb
   const ownedNames = new Set(src.owned.map((c) => c.name));
   return loadCoachObjective(d, {
     roleTargets: d.roleTargets,
-    combos: coachCombos(
-      src.combos,
-      d.cards.map((c) => c.card)
-    ),
+    combos: coachCombos(src.combos, [
+      ...[d.commander, d.partnerCommander].filter((c): c is NonNullable<typeof c> => !!c),
+      ...d.cards.map((c) => c.card),
+    ]),
     ownedNames,
     availableNames: ownedNames,
     gameChangerNames,

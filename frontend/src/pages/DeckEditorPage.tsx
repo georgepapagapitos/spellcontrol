@@ -86,6 +86,8 @@ import { filterCostPlanByOwnership } from '@/deck-builder/services/deckBuilder/c
 import { EnginePanel } from '../components/deck/EnginePanel';
 import { WinConditionPanel } from '../components/deck/WinConditionPanel';
 import { toggleWinConTag } from '@/deck-builder/services/winConditions/winConTags';
+import { deckComboPayoffs } from '@/deck-builder/services/winConditions/comboPayoffs';
+import { hasCardFacts } from '@/deck-builder/services/cardFacts';
 import { analyzeDeckSynergy } from '../deck-builder/services/synergy/deckSynergy';
 import {
   buildSubstitutionOptions,
@@ -1132,6 +1134,19 @@ export function DeckEditorPage() {
   );
   // "Next best move" — the single highest-leverage change, derived from the
   // live PlanScore + role gaps + near-miss combos.
+  // What the deck's own cards (commander first) convert into a win: a loop that
+  // only untaps or makes mana still ends the game when the deck holds its payoff (E578).
+  const factsReady = hasCardFacts();
+  const deckPayoffs = useMemo(
+    () =>
+      deck && factsReady
+        ? deckComboPayoffs([
+            ...[deck.commander, deck.partnerCommander].filter((c) => !!c),
+            ...deck.cards.map((c) => c.card),
+          ] as { name: string; oracle_id?: string }[])
+        : undefined,
+    [deck, factsReady]
+  );
   const nextBestMoves = useMemo(() => {
     if (!deck || !DECK_FORMAT_CONFIGS[deck.format].hasCommander) return [];
     const roleCounts = liveRoleCounts ?? {};
@@ -1149,6 +1164,7 @@ export function DeckEditorPage() {
         combosThatFit(mainboardComboData?.oneAway, coachSettings.fit, ownershipFor),
         deck.suggestionCards
       ),
+      deckPayoffs,
       ownedNames,
       winConditions: deck.winConditions,
       bracketFitHasMoves: (deck.bracketFit?.moves.length ?? 0) > 0,
@@ -1159,6 +1175,7 @@ export function DeckEditorPage() {
     deck,
     liveRoleCounts,
     mainboardComboData,
+    deckPayoffs,
     ownedNames,
     ownedOnly,
     landAdvice,
@@ -3555,6 +3572,7 @@ export function DeckEditorPage() {
                   bracketFit={deck.bracketFit ?? undefined}
                   landUpgrades={landUpgrades}
                   oneAwayCombos={newLineCombos(mainboardComboData)}
+                  deckPayoffs={deckPayoffs}
                   crossDeckMoves={crossDeckMoves}
                   planScore={deck.planScore}
                   roleCounts={liveRoleCounts ?? {}}

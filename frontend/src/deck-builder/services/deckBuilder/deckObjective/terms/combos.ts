@@ -13,10 +13,12 @@
  * the deck above it (@spellcontrol/deck-metrics), so there it is a liability
  * the bracket convergence exists to remove, not a payoff. Under
  * `ctx.comboCredit === 'wins'` (Coach, E540 S7) only lines that end the game
- * (`comboEndsGame`) count: a loop that only makes mana or draws earns nothing.
+ * (`comboEndsGame`) count: a loop that only makes mana or draws earns nothing,
+ * unless a payoff the deck holds converts it (E578: infinite untap + Lathril).
  */
 import type { DetectedCombo } from '@/deck-builder/types';
 import { comboEndsGame } from '@/deck-builder/services/winConditions/detect';
+import { deckComboPayoffs } from '@/deck-builder/services/winConditions/comboPayoffs';
 import type { CardNote } from '../types';
 import { viableCombos } from '../constraints';
 import { round2, type TermFn } from './shared';
@@ -40,11 +42,16 @@ export const combosTerm: TermFn = (deck, ctx) => {
     return { value: 0, summary: `combos earn nothing at target bracket ${target}`, cards: [] };
   }
   const seen = new Set<string>();
+  // The deck's own payoffs (commander first) turn a mana/untap/ETB loop into a win (E578).
+  const payoffs =
+    ctx.comboCredit === 'wins'
+      ? deckComboPayoffs([...deck.commanders, ...deck.cards], ctx.factsOf)
+      : undefined;
   const complete: Array<{ combo: DetectedCombo; w: number }> = [];
   // Only lines that work in this deck (constraints.ts viableCombos), and under
   // comboCredit 'wins' only the ones that end the game.
   for (const combo of combos.length ? viableCombos(deck, ctx) : []) {
-    if (ctx.comboCredit === 'wins' && !comboEndsGame(combo.results)) continue;
+    if (ctx.comboCredit === 'wins' && !comboEndsGame(combo.results, payoffs)) continue;
     const id = [...combo.cards]
       .map((n) => n.toLowerCase())
       .sort()
