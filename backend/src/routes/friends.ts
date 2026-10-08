@@ -5,6 +5,7 @@ import { users } from '../db/schema';
 import { and, eq } from 'drizzle-orm';
 import { getScryfallCache } from '../scryfall-cache';
 import { areFriends, listFriendIds } from '../friends/relations';
+import { edhrecRankOf } from '../shares/edhrec-rank';
 import { summarizeCardUse } from '../friends/card-use';
 import { loadFriendPeeks } from '../friends/peek';
 import { storedCollectionVisibility } from '../collections/visibility';
@@ -729,9 +730,7 @@ friendsRouter.get(
       ) {
         const cached = scryfallMap.get(scryfallId);
         if (cached) {
-          if (edhrecRank === undefined && typeof cached.edhrec_rank === 'number') {
-            edhrecRank = cached.edhrec_rank;
-          }
+          edhrecRank = edhrecRankOf(edhrecRank, cached);
           if (rarity === undefined && typeof cached.rarity === 'string') rarity = cached.rarity;
           if (identity.length === 0 && Array.isArray(cached.color_identity)) {
             identity = (cached.color_identity as unknown[]).filter(

@@ -9,6 +9,7 @@ import { projectCollection, projectDeck, type PublicDeck } from '../shares/proje
 import { stampSharePrices } from '../shares/context';
 import { areFriends } from '../friends/relations';
 import { claimedCopyIds, summarizeCardUse } from '../friends/card-use';
+import { cachedPrintingsForMissingRanks, edhrecRankOf } from '../shares/edhrec-rank';
 import { sendGzippedJson } from '../gzip-json';
 import { loadProfileExtras } from '../brewers/profile-stats';
 import { canViewFullCollection, storedCollectionVisibility } from '../collections/visibility';
@@ -457,6 +458,7 @@ publicRouter.get(
     const live = rows.rows.filter((r) => r.data != null);
     const cards = live.map((r) => r.data);
     stampSharePrices(cards);
+    const printings = cachedPrintingsForMissingRanks(cards as Array<Record<string, unknown>>);
 
     const claimed = withSignals ? claimedCopyIds(deckRows!.rows, cubeRows!.rows) : null;
     const use = withSignals
@@ -469,7 +471,11 @@ publicRouter.get(
       { username: profile.username, displayName: profile.displayName },
       { cards },
       (raw, card) => {
-        if (typeof raw.edhrecRank === 'number') card.edhrecRank = raw.edhrecRank;
+        const rank = edhrecRankOf(
+          raw.edhrecRank,
+          typeof raw.scryfallId === 'string' ? printings.get(raw.scryfallId) : undefined
+        );
+        if (rank !== undefined) card.edhrecRank = rank;
         if (!claimed || !use) return;
         card.inDeck = claimed.has(idOf.get(raw) ?? '');
         card.spare = use.get(card.oracleId ?? '')?.spare ?? false;

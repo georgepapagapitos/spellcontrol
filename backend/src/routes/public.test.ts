@@ -3,6 +3,7 @@ import request from 'supertest';
 import type { Server } from 'node:http';
 import type { Pool } from 'pg';
 import { createTestEnv, extractSessionCookie, setSnapshotViaSyncApi } from '../test-helpers';
+import { getScryfallCache } from '../scryfall-cache';
 import { deckPublicationCache, publicUserCache } from '../publications/cache';
 import { isFirstViewToday, lookupPublicUserLandingMeta } from './public';
 
@@ -680,6 +681,38 @@ describe('a profile Collection tab (T136)', () => {
       });
       const res = await collection('trade-spare-owner', cookie);
       expect(byCopy(res.body).every((c) => c.spare === true)).toBe(true);
+    });
+
+    it('a stored card with no edhrecRank takes the cached printing rank, and a stored rank wins', async () => {
+      getScryfallCache().setMany([
+        {
+          id: 'rank-fallback-id',
+          oracle_id: 'rank-fallback-oracle',
+          name: 'Rank Fallback',
+          rarity: 'rare',
+          set: 'tst',
+          set_name: 'Test',
+          collector_number: '1',
+          prices: { usd: '1.00' },
+          edhrec_rank: 42,
+        } as never,
+      ]);
+      const cookie = await makeUser('trade-rank-owner');
+      await setSnapshotViaSyncApi(request(app), cookie, {
+        collection: {
+          cards: [
+            card({ copyId: 'rk-a', scryfallId: 'rank-fallback-id', name: 'Rank Fallback' }),
+            card({ copyId: 'rk-b', scryfallId: 'rank-fallback-id', edhrecRank: 7 }),
+            card({ copyId: 'rk-c', scryfallId: 'never-cached-id', name: 'Uncached' }),
+          ],
+        },
+      });
+      const res = await collection('trade-rank-owner');
+      const rank = (n: string) =>
+        res.body.cards.find((c: { name: string }) => c.name === n)?.edhrecRank;
+      expect(rank('Rank Fallback')).toBe(42);
+      expect(rank('Sol Ring')).toBe(7);
+      expect(rank('Uncached')).toBeUndefined();
     });
 
     it('gzips the body with Vary, and falls back to plain JSON without gzip', async () => {
