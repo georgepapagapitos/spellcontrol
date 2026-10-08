@@ -47,6 +47,7 @@ import { FilterChipsRow } from '@/components/shared/FilterChipsRow';
 import { ToolbarPopover } from '@/components/shared/ToolbarPopover';
 import { ViewPopoverPanel } from '@/components/shared/ViewPopoverPanel';
 import { CardPreview } from '@/components/card/CardPreview';
+import { renderFriendOwners } from '@/components/trade/FriendOwnersPanel';
 import { OverflowMenu } from '@/components/overlays/OverflowMenu';
 import { InlineCardSearch } from '@/components/search/InlineCardSearch';
 import { scryfallToEnrichedCard } from '@/lib/cards/scryfall-to-enriched';
@@ -877,6 +878,9 @@ export function ListDetailView({
           pageNumbers={previewPageNumbers}
           totalPages={0}
           getStackQty={(i) => sorted[i]?.entry.quantity ?? 1}
+          renderPanelExtra={
+            dynamic || tracking ? undefined : (i) => renderFriendOwners(sorted[i]?.card)
+          }
           onIndexChange={setPreviewIndex}
           onClose={() => setPreviewIndex(null)}
         />
