@@ -65,6 +65,7 @@ import {
 import { isBasicLand, isLandCard } from './context';
 import { MIN_GAIN, applyMove, memoRoleOf } from './judge';
 import {
+  MAX_LAND_EVALUATIONS,
   MAX_LAND_UPGRADES,
   SCREEN_GAMES,
   UPGRADES_PER_STEP,
@@ -347,6 +348,10 @@ export function* optimizeSteps(
   });
   let ctx = withSlots(current);
   const evaluations = { fast: 0, full: 0 };
+  // Full scores spent on land moves. They are not charged to `evaluations.full`:
+  // the spell swaps' budget is theirs, and a land move spending it pushed out the
+  // page's better spell swaps (E509 gate 3: Goblin Grenade for Brash Taunter).
+  let landEvals = 0;
   const full = (deck: ObjectiveDeck, c: ObjectiveContext = ctx) => {
     evaluations.full++;
     return scoreDeck(deck, c);
@@ -718,10 +723,15 @@ export function* optimizeSteps(
         required = verdict.required;
       }
       required += move.landUp ?? 0;
-      judged++;
+      if (move.landUp === undefined) judged++;
+      else if (landEvals >= MAX_LAND_EVALUATIONS) continue;
       const fastGain = fast(next) - fastNow;
       if (!isRepair && move.landUp === undefined && fastGain < FAST_GATE * required) continue;
       const score = full(next);
+      if (landMove(move)) {
+        evaluations.full--;
+        landEvals++;
+      }
       if (!bestTried || compareScores(score, bestTried.score) > 0) bestTried = { move, score };
       if (isRepair) {
         // A repair is forced, so it is the least damaging one: the best of
@@ -740,7 +750,7 @@ export function* optimizeSteps(
         // A land is chosen from dozens by a noisy goldfish: the best of them
         // clears the bar by luck, so it has to clear it again on other games.
         if (move.landUp !== undefined) {
-          evaluations.full += 2;
+          landEvals += 2;
           if (!replicates(current, next, ctx, required)) continue;
         }
         taken = { move, score, kind: move.kind };

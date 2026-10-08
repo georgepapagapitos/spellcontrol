@@ -28,6 +28,8 @@ import type { ObjectiveContext, ObjectiveDeck } from './types';
 export const SCREEN_GAMES = 400;
 /** Land upgrades a deck gets: a few corrections to the mana, not a rebuild of it. */
 export const MAX_LAND_UPGRADES = 3;
+/** Full scores land moves may spend in a search, apart from the spell swaps' budget. */
+export const MAX_LAND_EVALUATIONS = 120;
 /** Land upgrades judged in full per step. */
 export const UPGRADES_PER_STEP = 6;
 
