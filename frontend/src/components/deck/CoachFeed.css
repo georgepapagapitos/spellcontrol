@@ -271,6 +271,16 @@
     grid-column: 2;
   }
 
+  /* The art fills its column and centers on the row. The base thumb's 52px
+     width and top alignment suit the stacked row; here they left a plain
+     thumb pinned to the top-left of a 7rem column whenever the list held a
+     swap pair. */
+  .coach-feed-rows > li > .deck-card-row > .deck-card-row-art--crop {
+    width: auto;
+    justify-self: stretch;
+    align-self: center;
+  }
+
   .coach-feed-rows > li > .deck-card-row > .deck-card-row-body {
     display: contents;
   }
