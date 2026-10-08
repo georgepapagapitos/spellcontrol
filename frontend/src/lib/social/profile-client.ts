@@ -36,6 +36,8 @@ export interface ProfileGameRecord {
 }
 
 export interface PublicProfile {
+  /** The account id, sent only to the owner and an accepted friend. */
+  ownerId?: string;
   username: string;
   displayName: string | null;
   bio: string | null;

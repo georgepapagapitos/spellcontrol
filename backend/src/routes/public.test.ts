@@ -593,6 +593,25 @@ describe('a profile Collection tab (T136)', () => {
     expect((await collection('coll-hidden-owner')).status).toBe(404);
   });
 
+  it('the profile carries ownerId for the owner and an accepted friend, never a stranger or a guest', async () => {
+    const o = await owner('coll-oid-owner', 'public');
+    const friend = await makeUser('coll-oid-friend');
+    const stranger = await makeUser('coll-oid-stranger');
+    await befriend(o, 'coll-oid-owner', friend, 'coll-oid-friend');
+    const ownerId = await userIdFromCookie(o);
+    const profile = (cookie?: string) => {
+      const r = request(app).get('/api/public/users/coll-oid-owner');
+      return cookie ? r.set('Cookie', cookie) : r;
+    };
+    expect((await profile(friend)).body.ownerId).toBe(ownerId);
+    expect((await profile(o)).body.ownerId).toBe(ownerId);
+    for (const res of [await profile(stranger), await profile()]) {
+      expect(res.status).toBe(200);
+      expect(res.body).not.toHaveProperty('ownerId');
+      expect(JSON.stringify(res.body)).not.toContain(ownerId);
+    }
+  });
+
   describe('trade signals and wire format', () => {
     // The fixture's populated fields; JSON drops the rest. Exact on purpose: a
     // new key on the stranger's view must be a deliberate edit to this list.

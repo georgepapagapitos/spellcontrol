@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import request from 'supertest';
 import type { Server } from 'node:http';
 import type { Pool } from 'pg';
-import { createTestEnv, extractSessionCookie } from '../test-helpers';
+import { createTestEnv, extractSessionCookie, setSnapshotViaSyncApi } from '../test-helpers';
 import { uniqueCardCountSql } from './friends';
 
 // Wiring check only (does the route call notifyUser with the right
@@ -1054,6 +1054,109 @@ describe('GET /api/friends/:friendId/collection', () => {
     expect(byOracle.get('oracle-rhystic')).not.toHaveProperty('deckIds');
     // Spare is a yes/no, never how many.
     expect(typeof byOracle.get('oracle-sol')?.spare).toBe('boolean');
+  }, 15000);
+});
+
+// ─── GET /api/friends/:friendId/collection?shape=copies ──────────────────────
+
+describe('GET /api/friends/:friendId/collection?shape=copies', () => {
+  const copy = (copyId: string, over: Record<string, unknown> = {}) => ({
+    copyId,
+    name: 'Sol Ring',
+    oracleId: 'sol-oracle',
+    scryfallId: 'sol-ring-id',
+    setCode: 'cmr',
+    collectorNumber: '472',
+    rarity: 'uncommon',
+    finish: 'nonfoil',
+    foil: false,
+    purchasePrice: 1.5,
+    cmc: 1,
+    typeLine: 'Artifact',
+    edhrecRank: 5,
+    importId: 'import-1',
+    ...over,
+  });
+  const copies = (id: string, cookie: string) =>
+    request(app).get(`/api/friends/${id}/collection?shape=copies`).set('Cookie', cookie);
+
+  async function seededPair(prefix: string) {
+    const alice = await makeUserFull(`${prefix}-alice`);
+    const bob = await makeUserFull(`${prefix}-bob`);
+    await befriend(alice, bob);
+    await setSnapshotViaSyncApi(request(app), bob.cookie, {
+      collection: {
+        cards: [
+          copy('s-a'),
+          copy('s-b'),
+          copy('s-c'),
+          copy('r-a', { name: 'Rhystic Study', oracleId: 'rhys-oracle', scryfallId: 'rhys-id' }),
+        ],
+      },
+      decks: [{ id: 'secret-deck', name: 'Hidden Plans', cards: [{ allocatedCopyId: 's-a' }] }],
+    });
+    return { alice, bob };
+  }
+
+  it('403 for a non-friend', async () => {
+    const alice = await makeUserFull('fcc-403-alice');
+    const bob = await makeUserFull('fcc-403-bob');
+    const res = await copies(bob.id, alice.cookie);
+    expect(res.status).toBe(403);
+  }, 15000);
+
+  it('a private collection answers empty with collectionPrivate', async () => {
+    const { alice, bob } = await seededPair('fcc-priv');
+    await pool.query(`UPDATE users SET collection_visibility = 'private' WHERE id = $1`, [bob.id]);
+    const res = await copies(bob.id, alice.cookie);
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ cards: [], collectionPrivate: true, fullView: false });
+  }, 15000);
+
+  it('returns per-copy cards with rank, inDeck and spare, and no deck id or name', async () => {
+    const { alice, bob } = await seededPair('fcc-shape');
+    const res = await copies(bob.id, alice.cookie);
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ ownerUsername: bob.username, fullView: true });
+    expect(res.body).not.toHaveProperty('collectionPrivate');
+    const sols = res.body.cards.filter((c: { name: string }) => c.name === 'Sol Ring');
+    expect(sols).toHaveLength(3);
+    expect(sols.map((c: { inDeck: boolean }) => c.inDeck).sort()).toEqual([false, false, true]);
+    expect(sols.every((c: { spare: boolean }) => c.spare === true)).toBe(true);
+    expect(sols[0].edhrecRank).toBe(5);
+    expect(sols[0]).toHaveProperty('finish', 'nonfoil');
+    const text = JSON.stringify(res.body);
+    expect(text).not.toContain('secret-deck');
+    expect(text).not.toContain('Hidden Plans');
+    expect(text).not.toContain('deckIds');
+  }, 15000);
+
+  it('matches the profile Collection tab card for card, spare included', async () => {
+    const { alice, bob } = await seededPair('fcc-same');
+    const friendBody = (await copies(bob.id, alice.cookie)).body;
+    const profile = await request(app)
+      .get(`/api/public/users/${bob.username}/collection`)
+      .set('Cookie', alice.cookie);
+    expect(profile.status).toBe(200);
+    expect(friendBody.cards).toHaveLength(profile.body.cards.length);
+    expect(friendBody.cards).toEqual(profile.body.cards);
+    const spareOf = (b: { cards: Array<{ name: string; spare: boolean }> }) =>
+      b.cards.map((c) => `${c.name}:${c.spare}`).sort();
+    expect(spareOf(friendBody)).toEqual(spareOf(profile.body));
+  }, 15000);
+
+  it('without the shape the oracle-level response is unchanged', async () => {
+    const { alice, bob } = await seededPair('fcc-default');
+    const res = await request(app)
+      .get(`/api/friends/${bob.id}/collection`)
+      .set('Cookie', alice.cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.cards).toHaveLength(2);
+    expect(Object.keys(res.body.cards[0]).sort()).toEqual(
+      expect.arrayContaining(['colorIdentity', 'oracleId', 'spare'])
+    );
+    expect(res.body.cards[0]).not.toHaveProperty('finish');
+    expect(res.body.cards[0]).not.toHaveProperty('inDeck');
   }, 15000);
 });
 
