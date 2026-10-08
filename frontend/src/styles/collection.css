@@ -1343,6 +1343,10 @@ i.ss.set-symbol--mythic {
   line-height: 1;
 }
 
+.collection-grid-caption--note {
+  color: var(--text-muted);
+}
+
 .collection-grid-caption-set-label {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1400,6 +1404,15 @@ i.ss.set-symbol--mythic {
   display: block;
 }
 
+/* CardGridCell's art: laid over the tile's own aspect-ratio box instead of
+   sized by it. A lazy <img> with a 0px box never intersects the viewport, so
+   it never loads; here it always has the card's full shape. It also paints
+   above the pending placeholder (positioned, later in the DOM). */
+.collection-grid-img--fill {
+  position: absolute;
+  inset: 0;
+}
+
 .collection-grid-placeholder {
   width: 100%;
   height: 100%;
@@ -1416,6 +1429,28 @@ i.ss.set-symbol--mythic {
      the tile shows the middle of the word. Break inside the word instead. */
   overflow-wrap: anywhere;
   min-width: 0;
+}
+
+/* Art not painted yet (a lazy <img> is blank until it loads): the placeholder
+   keeps the name and a card-shaped shimmer, behind the image. */
+.collection-grid-placeholder.is-pending {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    110deg,
+    var(--surface-raised) 35%,
+    var(--surface) 50%,
+    var(--surface-raised) 65%
+  );
+  background-size: 220% 100%;
+  background-repeat: no-repeat;
+  animation: skeleton-shimmer var(--motion-shimmer) ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .collection-grid-placeholder.is-pending {
+    animation: none;
+  }
 }
 
 /* The on-art badge plate (T166, § On-art scrims). ArtBadge renders

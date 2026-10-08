@@ -158,6 +158,19 @@ interface CardGridCellProps {
    * printing behind it.
    */
   printing?: boolean;
+  /**
+   * Rarity as a corner chip on the art when the set caption is off. The chip
+   * lands on the card's printed mana cost (top-right), so a surface that can't
+   * afford that (the friend and share views, whose tiles carry no set caption)
+   * passes false and puts rarity in the caption line instead.
+   */
+  rarityOnArt?: boolean;
+  /**
+   * A third caption line under the set line: a plain-words fact about this
+   * card that must read without hover (the friend hub's "Spare copy"). Callers
+   * fold the same words into `ariaExtra`, since captions are aria-hidden.
+   */
+  note?: string | null;
 }
 
 /**
@@ -183,6 +196,8 @@ export function CardGridCell({
   hideQty = false,
   menu,
   printing = true,
+  rarityOnArt = true,
+  note = null,
 }: CardGridCellProps) {
   const foilStyle = classifyFoil(card);
   const foilClass = foilStyle !== 'none' ? ` is-foil foil-${foilStyle}` : '';
@@ -190,6 +205,11 @@ export function CardGridCell({
   // default printing, so the row card's own art always wins.
   const thumb = useCardThumb(card.imageNormal ? undefined : card.name, 'normal');
   const art = card.imageNormal ?? thumb;
+  // The art URL resolving is not the art being painted: a lazy <img> is blank
+  // until it loads (a wall of empty boxes on a wide grid). Until it has, the
+  // name-bearing placeholder shows behind it.
+  const [loadedArt, setLoadedArt] = useState<string | undefined>(undefined);
+  const artReady = !!art && loadedArt === art;
 
   return (
     <div className={`collection-grid-cell${menu && !selectMode ? ' has-menu' : ''}`}>
@@ -220,12 +240,25 @@ export function CardGridCell({
             {selected && <Check width={14} height={14} strokeWidth={1.8} />}
           </span>
         )}
-        {art ? (
-          <img src={art} alt="" loading="lazy" className="collection-grid-img" />
-        ) : (
-          <div className="collection-grid-placeholder">
+        {!artReady && (
+          <div
+            className={`collection-grid-placeholder${art ? ' is-pending' : ''}`}
+            aria-hidden={art ? true : undefined}
+          >
             <CardName card={card} />
           </div>
+        )}
+        {art && (
+          <img
+            src={art}
+            alt=""
+            loading="lazy"
+            className="collection-grid-img collection-grid-img--fill"
+            ref={(el) => {
+              if (el?.complete && el.naturalWidth > 0) setLoadedArt(art);
+            }}
+            onLoad={() => setLoadedArt(art)}
+          />
         )}
         {card.foil && <FoilShimmer seed={card.copyId} />}
         {/* The Set & rarity caption line carries rarity (glyph tint) and set
@@ -233,11 +266,13 @@ export function CardGridCell({
             while it's shown. The proxy chip is independent of that toggle —
             it must stay legible regardless of caption prefs or select mode,
             so it lives in its own top-right cluster alongside rarity. */}
-        {(card.proxy || card.priceOverride !== undefined || (setLabel === null && printing)) && (
+        {(card.proxy ||
+          card.priceOverride !== undefined ||
+          (setLabel === null && printing && rarityOnArt)) && (
           <div className="collection-grid-topright">
             <ProxyBadge card={card} className="collection-grid-proxy" />
             <PriceOverrideBadge card={card} className="collection-grid-price-override" />
-            {setLabel === null && printing && (
+            {setLabel === null && printing && rarityOnArt && (
               <RarityBadge rarity={card.rarity} className="collection-grid-rarity" />
             )}
           </div>
@@ -262,7 +297,7 @@ export function CardGridCell({
           reach it. It stays mounted: a right-click on a selected tile opens
           the selection's actions through it. */}
       {menu}
-      {(caption !== null || setLabel !== null) && (
+      {(caption !== null || setLabel !== null || note) && (
         <div className="collection-grid-captions" aria-hidden="true">
           {caption !== null && <div className="collection-grid-caption">{caption}</div>}
           {setLabel !== null && (
@@ -270,6 +305,9 @@ export function CardGridCell({
               <SetSymbol setCode={card.setCode} rarity={card.rarity} />
               <span className="collection-grid-caption-set-label">{setLabel}</span>
             </div>
+          )}
+          {note && (
+            <div className="collection-grid-caption collection-grid-caption--note">{note}</div>
           )}
         </div>
       )}

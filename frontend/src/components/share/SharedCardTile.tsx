@@ -6,7 +6,6 @@ import { DeckBadge } from '../DeckBadge';
 import type { AllocationInfo } from '@/lib/collection/allocations-core';
 import { CardGridCell, gridSetLabel, useGridCaptionPrefs } from '../shared/CardGridCell';
 import { formatMoney } from '@/lib/collection/format-money';
-import { ArtBadge } from '@/components/shared/ArtBadge';
 
 export interface CardOwnership {
   owned: boolean;
@@ -36,9 +35,17 @@ interface Props {
   spare?: boolean;
 }
 
-/** Tooltip for the "Spare" chip. Says what the word means here, since the
- *  friend can't see the counts behind it. */
+/** The visible words for a spare copy. "Spare" alone was explained only by a
+ *  tooltip, which a phone can't show. It means the owner has a copy past the
+ *  one they keep that no deck or cube claims, so it says "copy". */
+export const SPARE_LABEL = 'Spare copy';
+
+/** Tooltip for the list row's chip, same meaning as SPARE_LABEL. */
 export const SPARE_TITLE = 'A copy to spare: not in any of their decks, past the one they keep';
+
+function capitalize(w: string): string {
+  return w ? w[0].toUpperCase() + w.slice(1) : w;
+}
 
 /** Folds the ownership fact into the tile's accessible name (rather than a
  *  second separately-focusable element per card), e.g. "Sol Ring · owned,
@@ -93,7 +100,13 @@ export function SharedCardTile({
   // endpoint is oracle-level, with no set code and no collector number — and
   // `gridSetLabel` would caption that as an empty line. Ask for the line only
   // when there is something to put on it.
-  const setLabel = enriched.setCode ? gridSetLabel(enriched, captionPrefs) : null;
+  // With no printing, rarity still has a place: the caption line, spelled out.
+  // The old corner chip sat on the art's printed mana cost.
+  const setLabel = enriched.setCode
+    ? gridSetLabel(enriched, captionPrefs)
+    : captionPrefs.set && enriched.rarity
+      ? capitalize(enriched.rarity)
+      : null;
   // Shared projections are server-stamped USD — pin the symbol, as the rest of
   // the shared views do.
   const caption =
@@ -110,14 +123,9 @@ export function SharedCardTile({
       onActivate={() => onClick?.()}
       caption={caption}
       setLabel={setLabel}
-      ariaExtra={`${ownedAriaSuffix(ownership)}${spare ? ' · has a spare copy' : ''}`}
-      cornerExtras={
-        spare ? (
-          <ArtBadge className="collection-grid-surplus" title={SPARE_TITLE}>
-            Spare
-          </ArtBadge>
-        ) : null
-      }
+      ariaExtra={`${ownedAriaSuffix(ownership)}${spare ? ` · ${SPARE_LABEL.toLowerCase()}` : ''}`}
+      rarityOnArt={false}
+      note={spare ? SPARE_LABEL : null}
       badges={
         ownership?.owned || allocations?.length ? (
           <>

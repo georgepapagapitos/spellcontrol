@@ -5,7 +5,7 @@ import { BinderBadge } from '../BinderBadge';
 import { CardRow } from '../shared/CardRow';
 import { CardTableFrame, CardTableHead, SHARED_TABLE_COLUMNS } from '../shared/CardTable';
 import { useMediaQuery } from '@/lib/util/use-media-query';
-import { ownedAriaSuffix, SPARE_TITLE, type CardOwnership } from './SharedCardTile';
+import { ownedAriaSuffix, SPARE_LABEL, SPARE_TITLE, type CardOwnership } from './SharedCardTile';
 import type { AllocationInfo } from '@/lib/collection/allocations-core';
 
 export interface SharedCardListItem {
@@ -120,7 +120,7 @@ export function SharedCardList({
                 <>
                   {it.spare && (
                     <span className="collection-list-surplus" title={SPARE_TITLE}>
-                      Spare
+                      {SPARE_LABEL}
                     </span>
                   )}
                   {it.ownership?.owned && (
