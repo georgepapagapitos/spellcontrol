@@ -260,7 +260,7 @@ export const useScanQueueStore = create<ScanQueueState>()(
     {
       name: 'spellcontrol-scan-queue',
       storage: createJSONStorage(() => safeLocalStorage),
-      // ponytail: persists the full ScryfallCard per row to localStorage. A
+      // Persists the full ScryfallCard per row to localStorage. A
       // scan session is bounded (add-to-collection clears it), so size is a
       // non-issue; move to IndexedDB if sessions ever hold hundreds of cards.
     }

@@ -62,7 +62,7 @@ export function targetCounts(
 /** Spreads `tokens` evenly through `nontokens` by giving each token its own
  *  evenly-spaced slot in the combined timeline (slot `k` centers on
  *  `(k + 0.5) / tokens.length` of the way through), rather than clumping
- *  them at one end. Ponytail: when tokens outnumber nontokens the slots can
+ *  them at one end. When tokens outnumber nontokens the slots can
  *  collide, so the overflow lands after the nontokens run out — good enough
  *  for a horde reveal window; revisit if a deck ships with more tokens than
  *  nontoken cards in its safe zone. */

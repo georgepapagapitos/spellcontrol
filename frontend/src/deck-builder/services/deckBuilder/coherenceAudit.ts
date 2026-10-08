@@ -78,7 +78,7 @@ const typeLineOf = (c: ScryfallCard): string =>
 const oracleOf = (c: ScryfallCard): string =>
   (c.oracle_text ?? c.card_faces?.map((f) => f.oracle_text ?? '').join('\n') ?? '').toLowerCase();
 
-// ponytail: creature subtypes = every word after an em dash in the type line
+// Creature subtypes = every word after an em dash in the type line
 // (both faces). Good enough for share estimates; not a full typal engine —
 // upgrade to real Scryfall subtype data if typal support ever needs precision.
 function creatureSubtypes(card: ScryfallCard): string[] {

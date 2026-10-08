@@ -25,7 +25,7 @@ export function onGameChange(fn: ChangeListener): () => void {
  * to its still-open stream; a long-poll subscriber resolves its held request
  * once and is removed — see GET /:code/poll.
  *
- * ponytail: single-machine by construction — and so is the rest of the backend: the
+ * Single-machine by construction — and so is the rest of the backend: the
  * Scryfall cache is SQLite on the Fly volume (`fly.toml [mounts]`), which is
  * pinned to one machine, so a second machine is not a scaling option anyone
  * can take casually. This registry, `boards`, `requests` and `lastSeen` are
@@ -512,7 +512,7 @@ export async function resolveGameAccess(
  * `isFriendOfHost` (set once, when it subscribed — see `GET /:code/events`
  * and `/:code/poll`) rather than re-querying live.
  *
- * ponytail: this means a host's friend who un-friends them mid-stream keeps
+ * This means a host's friend who un-friends them mid-stream keeps
  * watching until they reconnect (their next `/events`/`/poll` open re-checks
  * live and would then 404 them) — a real but narrow staleness window, not a
  * standing hole: `GET /:code` and `POST /:code/join` always check live, so

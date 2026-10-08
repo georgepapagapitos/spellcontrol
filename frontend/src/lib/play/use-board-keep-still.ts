@@ -30,7 +30,7 @@ export const KEEP_STILL_QUERY =
  * (-90) — a reasonable default since it's what most phones use turned
  * clockwise, the common grip.
  *
- * ponytail: the primary/secondary → ∓90 mapping is verified against headless
+ * The primary/secondary → ∓90 mapping is verified against headless
  * Edge's `Emulation.setDeviceMetricsOverride({ screenOrientation })` (a
  * clean, unmirrored 90° rotation either way, opposite handedness for
  * primary vs secondary — see the lane's report for the exact geometry), not

@@ -25,7 +25,7 @@ export function effectiveSortIndex(row: ReorderableRow): number {
 }
 
 // Wider than any realistic gap between two neighbors' effective indices.
-// ponytail: plain float midpoint halving, no LexoRank-style string ranks —
+// Plain float midpoint halving, no LexoRank-style string ranks —
 // at deck-list scale (hundreds of drags, not millions) float precision runs
 // out only after ~50 repeated inserts at the exact same spot.
 const GAP = 1000;

@@ -124,7 +124,7 @@ const SCRYFALL_SEARCH_URL = 'https://api.scryfall.com/cards/search';
 // Safety valve on next_page loops — 30 pages × 175 cards covers even Secret
 // Lair Drop, the largest single set code.
 const MAX_SET_PAGES = 30;
-// ponytail: unbounded per-code cache; sets are a few hundred KB each and only
+// Unbounded per-code cache; sets are a few hundred KB each and only
 // visited codes cache — add LRU eviction if backend memory ever matters.
 const setCardsCache = new Map<string, { at: number; cards: SetCard[] }>();
 const setCardsInFlight = new Map<string, Promise<SetCard[]>>();

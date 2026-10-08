@@ -369,7 +369,7 @@ function GlossaryList({
   onJump: (n: string) => void;
   menu: MenuProps;
 }) {
-  // ponytail: renders all ~720 terms unfiltered; plain rows so it's fine. Add
+  // Renders all ~720 terms unfiltered; plain rows so it's fine. Add
   // virtualization if the glossary ever balloons.
   const results = useMemo(() => searchGlossary(bundle.glossary, query), [bundle, query]);
   if (results.length === 0) return <Empty what="terms" />;

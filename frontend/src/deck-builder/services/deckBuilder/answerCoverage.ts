@@ -47,7 +47,7 @@ const oracleOf = (c: ScryfallCard): string =>
 function threatsInPhrase(phrase: string): AnswerThreat[] {
   if (phrase.includes('graveyard')) return []; // recursion/gy targets, not battlefield removal
   if (phrase.includes('you control')) return []; // self-targeting (blink, sac outlets) — not an answer
-  // ponytail: same-sentence blink guard ("exile X, then return it to the
+  // Same-sentence blink guard ("exile X, then return it to the
   // battlefield"); two-sentence blink wordings slip through and merely
   // over-credit coverage — safe direction, never a false finding.
   if (phrase.includes('return')) return [];
@@ -87,7 +87,7 @@ const CLAUSES: { re: RegExp; mode: AnswerMode }[] = [
     re: /\b(?:each|target) (?:opponent|player)[^.;]*? sacrifices? (?:a|an|one|two|three|x) ([^.;]*)/g,
     mode: 'destroy',
   },
-  // Chaos Warp-style tuck. ponytail: covers "shuffles it into their library";
+  // Chaos Warp-style tuck. Covers "shuffles it into their library";
   // extend to bottom-of-library wordings if a real deck ever needs them.
   {
     re: new RegExp(String.raw`\bowner of ${Q}\b([^.;]*?) shuffles it into`, 'g'),

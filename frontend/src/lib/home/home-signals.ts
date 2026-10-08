@@ -160,7 +160,7 @@ export function aggregateNewArrivalDecks(
   collectionCards: readonly ArrivalCandidateCard[],
   addedAtByImportId: ReadonlyMap<string, number>,
   watchlists: ArrivalWatchlists,
-  // ponytail: 20-deck cap — a power user's older, untouched decks won't
+  // 20-deck cap — a power user's older, untouched decks won't
   // surface arrivals on Home (unaffected inside the deck itself); raise this
   // if it ever undercounts in practice.
   limit = 20

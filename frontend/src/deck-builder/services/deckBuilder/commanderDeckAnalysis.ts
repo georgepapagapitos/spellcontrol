@@ -861,7 +861,7 @@ export async function analyzeCommanderDeck(
     // fetches total. fetchCardLiftPool never throws and caches per-slug for
     // 30min, so re-opening Coach is free; any failure just yields undefined,
     // leaving gap analysis identical to before lift existed.
-    // ponytail: commander + high-synergy seeds only, not the whole deck —
+    // Commander + high-synergy seeds only, not the whole deck —
     // widen to full-deck seeding if analysis-time lift proves worth the cost.
     let liftIndex: ReturnType<typeof buildLiftIndex> | undefined;
     let liftSeedCount = 0;

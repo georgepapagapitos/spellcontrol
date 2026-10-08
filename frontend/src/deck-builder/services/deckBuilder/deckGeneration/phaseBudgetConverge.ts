@@ -73,7 +73,7 @@ import { isAltWinCard } from '@/deck-builder/services/winConditions/detect';
 // the card it replaces" (enforced below) — every such swap monotonically
 // lowers the total, which is the only ceiling this pass needs.
 //
-// ponytail: costAnalyzer.ts's `buildCostPlan`/`autoCheckToTarget` already solve
+// costAnalyzer.ts's `buildCostPlan`/`autoCheckToTarget` already solve
 // "rank cheaper alternatives" for the Coach's UI-facing Trim Cost lane, but they
 // batch-plan over a `RecommendedCard[]` pool with no notion of the LIVE,
 // per-swap pick-time gates this pass must honor (GC cap, bracket ceiling, role

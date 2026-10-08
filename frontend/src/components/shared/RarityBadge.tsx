@@ -7,7 +7,7 @@ import { rarityTint, type RarityTint } from '@/lib/cards/set-symbols';
  * old rarity-only color tint on the row set glyph (T36), which a colorblind
  * user couldn't read. One place owns the letter + tint + accessible-name map.
  *
- * ponytail: non-standard rarities (special/bonus/unknown) fold to the common
+ * Non-standard rarities (special/bonus/unknown) fold to the common
  * tier — same as the old glyph tint did. Add their own letters if a set ever
  * leans on them.
  */

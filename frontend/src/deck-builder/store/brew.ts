@@ -376,7 +376,7 @@ export const useBrewStore = create<BrewState>((set, get) => ({
     if (!slot || !s.edhrecData) return;
     const current = s.accepted[slot.key]?.length ?? 0;
     const deficit = Math.max(0, slot.target - current);
-    // ponytail: simple top-N by the same priority order the hand already
+    // Simple top-N by the same priority order the hand already
     // uses — no extra pass-aware weighting. Upgrade if auto-fills feel samey.
     const picks =
       deficit > 0

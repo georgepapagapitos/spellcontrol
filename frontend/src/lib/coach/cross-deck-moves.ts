@@ -165,7 +165,7 @@ export function findCrossDeckMoves(
   for (const donor of profiles) {
     for (const slot of donor.deck.cards) {
       const card = slot.card;
-      // ponytail: lands are out of scope for v1 — the "sleeved into the wrong
+      // Lands are out of scope for v1 — the "sleeved into the wrong
       // deck" scenario this feature targets is spells/staples (Smothering
       // Tithe, not a Swamp). Manabase moves need their own land-count-aware
       // donor outcome; upgrade path is a separate pass once that exists.

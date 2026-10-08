@@ -3622,7 +3622,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
             if (!card || usedNames.has(card.name)) continue;
             if (!isCardAllowedBySynergyDependencies(card)) continue;
             if (isDeadInIdentity(card, colorIdentity)) continue; // E282
-            // ponytail: a role-capped substitute defers to the escape hatch
+            // A role-capped substitute defers to the escape hatch
             // below rather than recording provenance here — it still gets
             // added to the deck, just without a "Wanted X → used your Y" row.
             ungatedSubs.add(card.name);
@@ -4058,7 +4058,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     }
 
     // Tier 3: the rest of the collection, most-played across Commander first.
-    // ponytail: fetches every remaining owned card that fits (a few Scryfall
+    // Fetches every remaining owned card that fits (a few Scryfall
     // batches for a large collection); pre-rank by type need if it gets slow.
     if (deficit > 0) {
       const rest = unseated();
@@ -4175,7 +4175,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   let budgetNote: string | undefined;
   if (budgetTracker && comboBudgetSkipCount > 0) {
     const sym = currency === 'EUR' ? '€' : '$';
-    // ponytail: count tallies per-candidate loop skips, not user-meaningful upgrades — keep the note qualitative
+    // Count tallies per-candidate loop skips, not user-meaningful upgrades — keep the note qualitative
     budgetNote = `Some combo upgrades were skipped to honor your ${sym}${deckBudget} budget`;
   }
 

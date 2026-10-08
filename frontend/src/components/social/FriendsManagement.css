@@ -4,7 +4,7 @@
    heading on a `?tab=` deep link so sighted users land in the right place and
    screen readers get the announcement. It's not a control, so it gets no
    `:focus-visible` ring pairing — suppress the raw default outline rather
-   than let it read as a rendering glitch. ponytail: local fix pending W1a's
+   than let it read as a rendering glitch. Local fix pending W1a's
    shared scroll-anchor class (B8-01) — drop this once that class covers
    `#friends-page-heading-title` too. */
 #friends-page-heading-title:focus {

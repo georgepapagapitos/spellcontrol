@@ -64,7 +64,7 @@ function icsEscape(s: string): string {
  * A minimal single-event VCALENDAR. `uid` must be stable per night so
  * re-importing updates the event instead of duplicating it.
  */
-// ponytail: no 75-octet line folding — every consumer tested tolerates long lines;
+// No 75-octet line folding — every consumer tested tolerates long lines;
 // add folding if some calendar app ever chokes.
 export function buildIcs(ev: CalendarEvent, uid: string): string {
   const { start, end } = eventWindow(ev);

@@ -739,7 +739,7 @@ export interface EngineRead {
 }
 
 /** How far the leading archetype must outweigh the next one to be decisive. */
-// ponytail: one flat 2x lead for a finished list and the average deck alike;
+// One flat 2x lead for a finished list and the average deck alike;
 // tune it against the 15-deck panel if a mixed build flips between reads.
 export const ENGINE_LEAD_RATIO = 2;
 

@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 /**
- * DiscoverDecksPage — the ponytail-mandated one runnable check for this
+ * DiscoverDecksPage — the one runnable check for this
  * page's branching (skeleton -> tiles / empty / error+retry), matching the
  * app's existing convention of not exhaustively unit-testing page
  * components (see FriendsManagement.test.tsx), plus the filter/sort/buildable

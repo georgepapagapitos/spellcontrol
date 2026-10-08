@@ -11,7 +11,7 @@
  * into `dist`. So we just read it off disk (same dir server.ts serves the SPA
  * from). In local dev / tests that dir doesn't exist (the SPA isn't built) —
  * the loader degrades to "no tags", so tag rules simply match nothing rather
- * than erroring. ponytail: piggyback on the existing copy, no second 889 KB
+ * than erroring. Piggyback on the existing copy, no second 889 KB
  * asset committed; the upgrade path if that COPY ever changes is to commit a
  * backend copy + refresh it like the frontend's refresh-tagger.mjs does.
  */

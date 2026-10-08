@@ -58,7 +58,7 @@ export function cardsUntilNextBoss(
 }
 
 /** Reads the live battlefield box for `autoPlace` — the same reserved-
- *  fraction ponytail constants HordeTable's own `measureRect` uses (this
+ *  fraction constants HordeTable's own `measureRect` uses (this
  *  table's own corner chrome, not the main board's). */
 export function measureHordeRect(el: HTMLElement): Rect {
   const box = el.getBoundingClientRect();

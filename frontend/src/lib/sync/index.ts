@@ -726,7 +726,7 @@ async function persistKind<T>(
 
   const groupConfirmedCounts = kind === 'card' ? confirmedGroupCounts(local) : undefined;
 
-  // ponytail: O(kind-size) JSON.stringify per call to detect changes — fine at
+  // O(kind-size) JSON.stringify per call to detect changes — fine at
   // realistic collection sizes (one diff per user action, no network); hash the
   // rows if a profiler ever flags it. Identical stringify ⟹ identical content,
   // so skipping is never lossy. Unpushed rows (rev 0) are never skipped, so a

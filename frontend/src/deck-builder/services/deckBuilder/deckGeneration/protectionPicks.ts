@@ -25,7 +25,7 @@ export const PROTECTION_PICK_CAP = 2;
 /** EDHREC inclusion (%) a piece needs on this commander's page to be promoted:
  *  the page has to show players protect this commander with it. 15 keeps the
  *  18-20% pieces that had reached Meren and Yuriko decks through conversions. */
-// ponytail: flat floor. A per-page relative bar (the page's own top piece) if
+// Flat floor. A per-page relative bar (the page's own top piece) if
 // thin pages promote pieces nobody plays there.
 export const PROTECTION_PICK_MIN_INCLUSION = 15;
 

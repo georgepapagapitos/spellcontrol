@@ -14,7 +14,7 @@
  *    EDHREC-backed/async and already kept live on the deck record, so we read,
  *    never recompute.
  *  - Price reads the card's own Scryfall `prices` snapshot (usd → foil →
- *    etched), exactly like DeckDisplay. ponytail: snapshot, not the device-local
+ *    etched), exactly like DeckDisplay. Snapshot, not the device-local
  *    `card-prices` cache — keeps this module pure; the UI can pre-merge fresher
  *    prices onto the cards before diffing if it ever needs to.
  */

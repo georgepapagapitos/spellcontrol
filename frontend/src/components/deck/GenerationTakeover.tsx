@@ -206,7 +206,7 @@ const FALLBACK_LINES = [
 // Macro build outline shown as a checklist below the hero, lit progressively
 // by `percent`. Coarse on purpose — the hero's live `message` carries the
 // precise step; this is the at-a-glance map of where the build is.
-// ponytail: percent-threshold mapping (monotonic across both the EDHREC and
+// Percent-threshold mapping (monotonic across both the EDHREC and
 // Scryfall-fallback paths). If the paths' pacing ever diverges enough to
 // mislabel a stage, thread a real phase id through `onProgress` instead.
 const MILESTONES: { at: number; label: string }[] = [

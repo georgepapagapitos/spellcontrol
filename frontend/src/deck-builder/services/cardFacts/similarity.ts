@@ -142,7 +142,7 @@ export function weightedJaccard(
  * similarityTags (IDF-weighted when `idf` is given), ties broken by name for a
  * stable order. The query card itself is skipped.
  */
-// ponytail: linear scan that rebuilds every pool card's tags per call (fine
+// Linear scan that rebuilds every pool card's tags per call (fine
 // offline: ~0.1 s over 32k cards); memoize tags per record before a runtime
 // caller queries it in a loop.
 export function mostSimilar(
