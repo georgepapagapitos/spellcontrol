@@ -16,6 +16,7 @@ import { clearAnalysisCache } from '@/lib/deck-analysis/deck-analysis-cache';
 import { clearMovers, clearValueHistory } from '@/lib/collection/value-history';
 import type { EntityKind } from './entity-store';
 import { applyPrices, setPrices, priceKey } from '@/lib/collection/card-prices';
+import { freshenCollectionImages, freshenDeckImages } from '@/lib/cards/card-image-versions';
 import { fetchOracleIds } from '@/lib/api/combos';
 import { remapAllAllocations } from '@/lib/cube/remap-cube-allocations';
 import { toast } from '@/store/toasts';
@@ -1913,17 +1914,25 @@ async function rehydrateStoresFromIdb(): Promise<void> {
   // Card rows are stored WITHOUT price (it lives device-local, see card-prices).
   // Merge the live price back on before the cards reach the in-memory store, so
   // every downstream consumer (display, sort, binder routing) sees a price.
-  const cardData = applyPrices(
-    liveData(cards) as unknown as Array<{
-      scryfallId: string;
-      purchasePrice?: number;
-      pricedAt?: number;
-    }>
+  // Image URLs move onto the newest stamp this device knows the same way, so a
+  // card stored before Scryfall replaced its preview photo shows the scan (see
+  // card-image-versions). In memory only, like the price.
+  const cardData = freshenCollectionImages(
+    applyPrices(
+      liveData(cards) as unknown as Array<{
+        scryfallId: string;
+        purchasePrice?: number;
+        pricedAt?: number;
+        imageNormal?: string;
+      }>
+    )
   );
   const importData = liveData(imports);
   const listData = liveData(lists);
   const binderData = liveData(binders);
-  const deckData = liveData(decks);
+  const deckData = freshenDeckImages(
+    liveData(decks) as unknown as Deck[]
+  ) as unknown as AnyRecord[];
   const cubeData = liveData(cubes);
 
   const { useCollectionStore } = await import('@/store/collection');
@@ -1972,6 +1981,11 @@ async function rehydrateStoresFromIdb(): Promise<void> {
     // only, but the underlying objects are full EnrichedCard rows.
     const cardsForRemap = cardData as unknown as EnrichedCard[];
     remapAllAllocations(cardsForRemap);
+    // Deck cards are frozen copies, image URL included: ask for current image
+    // stamps (self-throttled to daily). Lazy: the module imports the stores.
+    void import('@/lib/cards/refresh-image-versions')
+      .then((m) => m.refreshDeckImageVersions())
+      .catch(() => {});
   }
 }
 

@@ -20,6 +20,7 @@ import { parseMarkAllAsProxies } from './import-proxy-flag';
 import { fetchImportLink, ImportLinkError } from './import-link';
 import { promoteAdminsAtBoot } from './admin/bootstrap';
 import { authRouter } from './routes/auth';
+import { cardImagesRouter } from './routes/card-images';
 import { adminRouter } from './routes/admin';
 import { syncRouter } from './routes/sync';
 import { gamesRouter } from './routes/games';
@@ -310,6 +311,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 // rather than a raw body-parser 413.
 app.use(express.json({ limit: '72mb' }));
 
+app.use('/api/cards', cardImagesRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/sync', syncRouter);
