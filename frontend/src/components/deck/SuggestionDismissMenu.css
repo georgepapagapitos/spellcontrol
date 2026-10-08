@@ -1,0 +1,77 @@
+/* "Not for this deck" ⋮ (E580), shared by the Tune-tab card rows and the Add
+   panel's suggestion rows. One quiet menu in the row, built on the
+   shared OverflowMenu so a right-click on the row opens it too (STYLE_GUIDE
+   § Verbs, Menus). It rests hidden under a fine pointer and shows on row
+   hover or focus, like the deck list's ⋮; its slot keeps its width so nothing
+   shifts. Touch has no hover, so it stays visible there. */
+.suggestion-menu {
+  flex: 0 0 auto;
+  align-self: center;
+}
+
+.suggestion-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-0-5);
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  /* WCAG 2.5.8: a 24px box for a fine pointer. */
+  min-width: 24px;
+  min-height: 24px;
+}
+
+.suggestion-menu-trigger[aria-expanded='true'] {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+
+.suggestion-menu-trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .suggestion-menu-trigger {
+    opacity: 0;
+  }
+  .deck-card-row:hover .suggestion-menu-trigger,
+  .deck-card-row:focus-within .suggestion-menu-trigger,
+  .inline-card-search-item:hover .suggestion-menu-trigger,
+  .inline-card-search-item:focus-within .suggestion-menu-trigger,
+  .suggestion-menu-trigger[aria-expanded='true'] {
+    opacity: 1;
+  }
+  .suggestion-menu-trigger:hover {
+    background: var(--surface-raised);
+    color: var(--text-primary);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .suggestion-menu-trigger {
+    transition: opacity var(--motion-fast) ease;
+  }
+}
+
+/* The 44px floor as a ghost, never a box: this is a dense row, and a 44px box
+   would set the height of every row (STYLE_GUIDE § Responsive, dense rows).
+   Both rows are at least 44px tall on touch (their action button), so the
+   ghost stays inside the row. */
+@media (pointer: coarse) {
+  .suggestion-menu-trigger {
+    position: relative;
+  }
+  .suggestion-menu-trigger::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+}

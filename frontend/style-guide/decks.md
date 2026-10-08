@@ -1563,6 +1563,36 @@ animation entirely:
 5. Survivor rows may reflow. A FLIP list animation is explicitly out of scope
    (tracked as UX-409).
 
+### Not for this deck (E580, 2026-10-08)
+
+Every suggestion row (Coach, Swap this card, Similar cards, the Add panel's
+suggestions, combos and Hidden gems) can be turned down for the open deck.
+
+- **It is the row's own ⋮ menu, one item: `Not for this deck`.** Not a second
+  always-visible button beside the apply: the apply stays the one loud action,
+  and a dismissal is a quiet, rarer verb. That is the right-click contract
+  (§ Verbs, Menus) applied as written: the menu opens on a right-click, the
+  Context Menu key and Shift+F10 too, and `SuggestionDismissMenu` is the one
+  component that renders it. The ⋮ rests hidden under a fine pointer and shows
+  on row hover or focus; it is always visible on touch. Its slot keeps its
+  width, so nothing shifts when it appears.
+- **44px is a ghost, not a box** (dense-row rule): 24px at a fine pointer, a 44px
+  `::after` on touch, inside a row that is already 44px tall.
+- **It hides at once and says so with Undo**: a toast `Hid {card} from this
+deck's suggestions`. Undo restores the row. Focus moves to the next row.
+- **It is stored on the deck** (`Deck.dismissedSuggestions`: the card, whether it
+  was a cut suggestion, and the surface), so it syncs and survives a reload. The
+  card is keyed by name: hiding a card hides it on every surface for this deck.
+  Coach's next analysis does not suggest it back (`coachExclusions`), and a
+  Cuts-lane replacement the player hid reads as withheld.
+- **The way back is `Hidden for this deck (N)`**, one quiet disclosure under the
+  Coach feed and under the Add panel's suggestions, each entry with `Show
+again`. It renders nothing while nothing is hidden, so a deck the player never
+  curated pays no chrome. Opened and then emptied, it stays and reads `Nothing
+hidden. Suggestions you hide from a row's menu show up here.`
+- **It is also a label** (E518): `dismiss` on the surface the row was on, `undo`
+  when it is restored.
+
 ### Empty states
 
 | Situation                                            | Copy                                                                                                                                         |

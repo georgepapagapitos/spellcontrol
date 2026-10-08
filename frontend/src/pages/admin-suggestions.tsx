@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { getSuggestionStats, type SuggestionStats } from '@/lib/account/admin-api';
+import { surfaceLabel } from '@/lib/util/suggestion-labels';
 import { userMessage } from '@/lib/util/user-error';
 
 /** Same keyboard-focusable scroll region AdminPage gives its tables. */
@@ -57,7 +58,9 @@ export function SuggestionLabelsTable() {
           )}
           {stats.surfaces.map((r) => (
             <tr key={r.surface}>
-              <th scope="row">{r.surface}</th>
+              <th scope="row" title={r.surface}>
+                {surfaceLabel(r.surface)}
+              </th>
               <td>{r.shown.toLocaleString()}</td>
               <td>{r.accept.toLocaleString()}</td>
               <td>{pct(r.accept, r.shown)}</td>
@@ -73,7 +76,7 @@ export function SuggestionLabelsTable() {
           <tr>
             <th scope="col">Commander</th>
             <th scope="col">Dismissals</th>
-            <th scope="col">Cards cut most</th>
+            <th scope="col">Cards turned down most</th>
           </tr>
         </thead>
         <tbody>

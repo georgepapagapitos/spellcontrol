@@ -1,6 +1,7 @@
 import { sendBeaconPayload, normalizePath } from '@/lib/util/analytics';
 import { useDeckHistoryStore } from '@/store/deck-history';
 import type { Deck } from '@/store/decks';
+import { setActiveDeckId } from '@/lib/util/active-deck-id';
 import type { Command } from '@/lib/deck/deck-history-core';
 import type { Change } from '@/lib/coach/deck-change';
 
@@ -42,6 +43,31 @@ export type SuggestionSurface =
   | 'add-suggestions'
   | 'add-combos'
   | 'generation';
+
+/** Admin-facing names for each surface (Admin → Analytics). */
+export const SURFACE_LABELS: Record<SuggestionSurface, string> = {
+  'coach:all': 'Coach, all lanes',
+  'coach:fill-gaps': 'Coach, fill gaps',
+  'coach:upgrade': 'Coach, upgrades',
+  'coach:budget': 'Coach, budget',
+  'coach:collection': 'Coach, your collection',
+  'coach:decks': 'Coach, your decks',
+  'coach:bracket-fit': 'Coach, bracket fit',
+  'coach:combos': 'Coach, combos',
+  'coach:lands': 'Coach, lands',
+  'coach:cuts': 'Coach, cuts',
+  'coach:plan': 'Coach, upgrade plan',
+  swap: 'Swap this card',
+  similar: 'Similar cards',
+  'hidden-gems': 'Add panel, hidden gems',
+  'add-suggestions': 'Add panel, suggestions',
+  'add-combos': 'Add panel, combos',
+  generation: 'Generation review',
+};
+
+/** The name Admin shows for a surface id; an id this build doesn't know shows as is. */
+export const surfaceLabel = (surface: string): string =>
+  (SURFACE_LABELS as Record<string, string>)[surface] ?? surface;
 
 export type SuggestionAction = 'shown' | 'accept' | 'dismiss' | 'undo';
 
@@ -159,6 +185,7 @@ let context: LabelContext | null = null;
 export function setSuggestionContext(
   deck: Pick<Deck, 'id' | 'commander' | 'partnerCommander'> | null
 ): void {
+  setActiveDeckId(deck?.id ?? null);
   const oracleId = deck?.commander?.oracle_id;
   if (!deck || !deck.commander || !oracleId) {
     context = null;
@@ -324,6 +351,7 @@ export function recordShown(surface: SuggestionSurface, n: number, scope = ''): 
 /** Test seam: forget everything this module remembers. */
 export function resetSuggestionLabelsForTests(): void {
   context = null;
+  setActiveDeckId(null);
   pending = [];
   shownSeen.clear();
   unwatch?.();

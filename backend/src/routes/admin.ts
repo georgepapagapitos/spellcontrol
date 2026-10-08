@@ -125,7 +125,7 @@ adminRouter.get('/events', requireAdmin, adminLimiter, async (req: Request, res:
  * GET /api/admin/suggestions?days=30
  * What players did with suggestions (E518), aggregate only: per surface the
  * shown / accepted / dismissed / undone counts, and per commander the cards
- * players cut most. The table behind it holds no user or deck id.
+ * players turned down most. The table behind it holds no user or deck id.
  */
 adminRouter.get('/suggestions', requireAdmin, adminLimiter, async (req: Request, res: Response) => {
   const days = Math.min(365, Math.max(1, Number(req.query.days) || 30));
@@ -138,12 +138,20 @@ adminRouter.get('/suggestions', requireAdmin, adminLimiter, async (req: Request,
       [days]
     ),
     pool.query<{ commander: string; commander_name: string; card: string; count: string }>(
-      `SELECT commander, MAX(commander_name) AS commander_name, card_out AS card,
-                SUM(count)::text AS count
-           FROM suggestion_counts
-          WHERE day >= CURRENT_DATE - ($1::int - 1) AND action = 'dismiss' AND card_out <> '' AND commander <> ''
-          GROUP BY commander, card_out
-          ORDER BY SUM(count) DESC, commander, card_out
+      `SELECT commander, MAX(commander_name) AS commander_name, card, SUM(count)::text AS count
+           FROM (
+             SELECT commander, commander_name, count,
+                    -- The card the player turned down: a generated card they cut, or the
+                    -- card a suggestion offered (a swap's card_out is the deck's own card,
+                    -- never the one dismissed). A "keep this card" dismissal has only card_out.
+                    CASE WHEN surface = 'generation' THEN card_out
+                         ELSE COALESCE(NULLIF(card_in, ''), card_out) END AS card
+               FROM suggestion_counts
+              WHERE day >= CURRENT_DATE - ($1::int - 1) AND action = 'dismiss' AND commander <> ''
+           ) d
+          WHERE card <> ''
+          GROUP BY commander, card
+          ORDER BY SUM(count) DESC, commander, card
           LIMIT 200`,
       [days]
     ),

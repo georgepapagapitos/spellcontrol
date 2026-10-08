@@ -9,6 +9,7 @@ import {
 } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import { setApplyingAnalysis } from '@/lib/sync/applying-analysis';
 import { readCachedAnalysis, writeCachedAnalysis } from './deck-analysis-cache';
+import { dismissedNames } from '@/lib/coach/dismissed-suggestions';
 
 interface Args {
   deck: Deck | null;
@@ -423,6 +424,7 @@ export function useCommanderBracketAnalysis(args: Args): {
             edhrecSource,
             build: deckBuildOf(deck),
             buildRemovals: deck.buildReport,
+            dismissedNames: dismissedNames(deck.dismissedSuggestions),
           })
         ),
         STALL_TIMEOUT_MS

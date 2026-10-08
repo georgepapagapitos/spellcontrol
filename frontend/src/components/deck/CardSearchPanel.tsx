@@ -49,7 +49,10 @@ import { dismissBinderHint, shouldShowBinderHint } from '@/lib/home/wedge-hints'
 import type { ChipExpression, EnrichedCard } from '../../types';
 import type { GapAnalysisCard, HiddenGemRow } from '@/deck-builder/types';
 import { hiddenGemReason } from '@/deck-builder/services/deckBuilder/hiddenGems';
-import { recordShown, recordSuggestion } from '@/lib/util/suggestion-labels';
+import { useDismissedSuggestions } from '@/lib/coach/dismissed-suggestions';
+import { useAddSuggestionLabels } from './use-add-suggestion-labels';
+import { HiddenSuggestions } from './HiddenSuggestions';
+import { SuggestionDismissMenu } from './SuggestionDismissMenu';
 import type { ComboMatch } from '@/types/combos';
 import { OWNERSHIP_BADGE, type ChangeOwnership } from '@/lib/coach/deck-change';
 import {
@@ -322,6 +325,7 @@ function SearchResultRow({
   image,
   onPreview,
   manaCost,
+  onDismiss,
   children,
 }: {
   resultIndex: number;
@@ -338,6 +342,8 @@ function SearchResultRow({
   image?: string;
   onPreview: () => void;
   manaCost?: string;
+  /** "Not for this deck" (E580): adds the row's quiet ⋮ menu. */
+  onDismiss?: () => void;
   /** The row's meta line — owned/in-deck counts, badges, fit signal. */
   children: React.ReactNode;
 }) {
@@ -359,6 +365,14 @@ function SearchResultRow({
         />
         <RowThumb name={name} nameNode={nameNode} image={image} onPreview={onPreview} />
         {manaCost && <ManaCost cost={manaCost} className="inline-card-search-mana" />}
+        {onDismiss && (
+          <SuggestionDismissMenu
+            name={name}
+            host=".inline-card-search-item"
+            focusTarget="button:not(:disabled)"
+            onDismiss={onDismiss}
+          />
+        )}
         <span className="inline-card-search-trailing">
           <span className="inline-card-search-meta">{children}</span>
         </span>
@@ -1439,6 +1453,7 @@ function SuggestionsResults({
     [existingCardCounts]
   );
 
+  const hidden = useDismissedSuggestions();
   const { staples, combos, gems, counts } = useMemo(
     () =>
       buildSuggestionRows(suggestions, oneAwayCombos, {
@@ -1447,39 +1462,15 @@ function SuggestionsResults({
         inDeck,
         show,
         hiddenGems,
+        dismissed: hidden.inNames,
       }),
-    [suggestions, oneAwayCombos, hiddenGems, ownershipFor, query, inDeck, show]
+    [suggestions, oneAwayCombos, hiddenGems, ownershipFor, query, inDeck, show, hidden.inNames]
   );
 
   // Flat order for the parent's ↑/↓/Enter handling: staples, combos, gems.
   const rows = useMemo(() => [...staples, ...combos, ...gems], [staples, combos, gems]);
 
-  // Suggestion labels (E518): what the player added from which group, at what rank.
-  useEffect(() => {
-    recordShown('add-suggestions', staples.length);
-    recordShown('add-combos', combos.length);
-    recordShown('hidden-gems', gems.length);
-  }, [staples.length, combos.length, gems.length]);
-  const labelAdd = (name: string) => {
-    const groups = [
-      { rows: staples, surface: 'add-suggestions', reason: 'staple' },
-      { rows: combos, surface: 'add-combos', reason: 'combos' },
-      { rows: gems, surface: 'hidden-gems', reason: 'hidden-gem' },
-    ] as const;
-    for (const g of groups) {
-      const i = g.rows.findIndex((r) => r.name === name);
-      if (i >= 0) {
-        recordSuggestion({
-          surface: g.surface,
-          action: 'accept',
-          rank: i + 1,
-          reason: g.reason,
-          cardIn: name,
-        });
-        return;
-      }
-    }
-  };
+  const { labelAdd, dismissFor } = useAddSuggestionLabels(staples, combos, gems, hidden);
 
   // Suggestion rows carry only a name; resolve the full card on add (same as
   // the Collection tab) so the deck gets a real ScryfallCard.
@@ -1588,6 +1579,7 @@ function SuggestionsResults({
             </div>
           )}
         </div>
+        <HiddenSuggestions />
         {/* Adding the last suggestion from an open preview empties the list —
             keep the preview mounted so it can close on its own terms. */}
         {carousel.preview}
@@ -1626,6 +1618,7 @@ function SuggestionsResults({
         name={row.name}
         image={row.imageUrl}
         onPreview={() => carousel.open(previewEntries, row.name)}
+        onDismiss={dismissFor(row.name)}
       >
         <span className={badge.className}>{badgeLabel}</span>
         {row.kind === 'staple' ? (
@@ -1713,6 +1706,7 @@ function SuggestionsResults({
           {gems.map((row, i) => renderRow(row, staples.length + combos.length + i))}
         </ul>
       )}
+      <HiddenSuggestions />
       {carousel.preview}
     </>
   );

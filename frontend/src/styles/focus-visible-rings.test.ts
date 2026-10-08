@@ -44,6 +44,10 @@ const ALLOWLIST = new Set([
   // tile's kebab. That button carries .deck-card-grid-menu:focus-visible,
   // which is also what reveals it for keyboard users.
   '.deck-card-grid-cell',
+  // A suggestion row (E580): not focusable, its hover only reveals the row's
+  // "Not for this deck" ⋮, and .suggestion-menu-trigger:focus-visible both rings
+  // and reveals it for keyboard users (SuggestionDismissMenu.css).
+  '.deck-card-row',
   // The collection grid's twin (T162): the cell is not focusable, its hover
   // only reveals the card's ⋮, and .collection-grid-menu-btn:focus-visible
   // both rings and reveals it for keyboard users.

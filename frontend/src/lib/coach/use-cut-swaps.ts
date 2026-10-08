@@ -32,6 +32,7 @@ import {
   type CutSwapState,
 } from './coach-cut-swaps';
 import type { SettingsBreak } from './deck-settings-fit';
+import { dismissedNames } from './dismissed-suggestions';
 
 export type { CutSwapSources };
 
@@ -136,7 +137,12 @@ export function useCutSwaps(
         }
         const mainboard = d.cards.map((c) => c.card);
         // What the build removed on purpose, and graveyard hate in a deck that recurses.
-        const excluded = coachExclusions(d.buildReport, mainboard, analyzeDeckSynergy(mainboard));
+        const excluded = coachExclusions(
+          d.buildReport,
+          mainboard,
+          analyzeDeckSynergy(mainboard),
+          dismissedNames(d.dismissedSuggestions)
+        );
         const names = replacementCandidateNames({
           gaps: d.gapAnalysis,
           hiddenGems: d.hiddenGems,

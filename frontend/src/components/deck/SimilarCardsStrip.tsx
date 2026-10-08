@@ -1,4 +1,4 @@
-import { useEffect, type JSX } from 'react';
+import { useEffect, useMemo, type JSX } from 'react';
 import './SimilarCardsStrip.css';
 import { DeckCardRow } from './DeckCardRow';
 import { useSimilarCards } from './useSimilarCards';
@@ -6,6 +6,7 @@ import { toSwapAgainst, type Change, type ChangeOwnership } from '@/lib/coach/de
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '@/types';
 import { recordShown, recordSuggestion } from '@/lib/util/suggestion-labels';
+import { useDismissedSuggestions } from '@/lib/coach/dismissed-suggestions';
 import type { RankedSimilar } from '@/deck-builder/services/substitutes/surfaces';
 
 export interface SimilarCardsStripProps {
@@ -91,7 +92,12 @@ export function SimilarCardsStrip({
   commanderName,
   enabled,
 }: SimilarCardsStripProps): JSX.Element | null {
-  const { owned, discovery, loading } = useSimilarCards({
+  const hidden = useDismissedSuggestions();
+  const {
+    owned: allOwned,
+    discovery: allDiscovery,
+    loading,
+  } = useSimilarCards({
     target,
     deckCardNames,
     collectionCards,
@@ -102,6 +108,15 @@ export function SimilarCardsStrip({
     enabled,
   });
 
+  // "Not for this deck" (E580): what the player hid stays out of both groups.
+  const owned = useMemo(
+    () => allOwned.filter((c) => !hidden.inNames.has(c.name.toLowerCase())),
+    [allOwned, hidden.inNames]
+  );
+  const discovery = useMemo(
+    () => allDiscovery.filter((c) => !hidden.inNames.has(c.name.toLowerCase())),
+    [allDiscovery, hidden.inNames]
+  );
   const shown = owned.length + discovery.length;
   useEffect(() => {
     recordShown('similar', shown, target.name);
@@ -120,6 +135,19 @@ export function SimilarCardsStrip({
     });
     onSwap(name);
   }
+
+  const dismissRow = (name: string, rank: number) =>
+    hidden.canDismiss
+      ? () =>
+          hidden.dismiss({
+            name,
+            surface: 'similar',
+            rank,
+            reason: 'similar',
+            cardIn: name,
+            cardOut: target.name,
+          })
+      : undefined;
 
   // Bridge: the page-level onPreview is (name, card) → void, but DeckCardRow
   // delivers onPreview as (change: Change) → void. Adapt per-candidate so we
@@ -144,6 +172,7 @@ export function SimilarCardsStrip({
                 commanderName={commanderName}
                 actLabel="Swap in"
                 onAct={() => swapIn(c.name, i + 1)}
+                onDismiss={dismissRow(c.name, i + 1)}
                 acting={swapping}
                 onPreview={makeRowPreview(c)}
               />
@@ -166,6 +195,7 @@ export function SimilarCardsStrip({
                   commanderName={commanderName}
                   actLabel="Swap in"
                   onAct={() => swapIn(c.name, owned.length + i + 1)}
+                  onDismiss={dismissRow(c.name, owned.length + i + 1)}
                   acting={swapping}
                   onPreview={makeRowPreview(c)}
                 />

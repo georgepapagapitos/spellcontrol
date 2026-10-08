@@ -20,10 +20,24 @@ describe('SuggestionLabelsTable', () => {
       ],
     });
     render(<SuggestionLabelsTable />);
-    expect(await screen.findByText('coach:all')).toBeTruthy();
+    expect(await screen.findByText('Coach, all lanes')).toBeTruthy();
+    expect(screen.queryByText('coach:all')).toBeNull();
     expect(screen.getByText('25%')).toBeTruthy();
     expect(screen.getByText("Atraxa, Praetors' Voice")).toBeTruthy();
     expect(screen.getByText('Early Winter (3)')).toBeTruthy();
+  });
+
+  it('shows an id this build does not know as it is', async () => {
+    getSuggestionStats.mockResolvedValue({
+      surfaces: [
+        { surface: 'swap', shown: 4, accept: 1, dismiss: 1, undo: 0 },
+        { surface: 'future-lane', shown: 1, accept: 0, dismiss: 0, undo: 0 },
+      ],
+      topDismissed: [],
+    });
+    render(<SuggestionLabelsTable />);
+    expect(await screen.findByText('Swap this card')).toBeTruthy();
+    expect(screen.getByText('future-lane')).toBeTruthy();
   });
 
   it('says so when nothing is recorded and when the request fails', async () => {

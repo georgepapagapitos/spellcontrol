@@ -75,17 +75,22 @@ export function recursesOwnGraveyard(
 
 /**
  * The names Coach leaves out of this deck's suggestions: what the build
- * removed for a reason that still holds, and graveyard hate when the deck
- * recurs from its own graveyard.
+ * removed for a reason that still holds, graveyard hate when the deck
+ * recurs from its own graveyard, and what the player hid with "Not for this
+ * deck" (`dismissed`, lowercased names; E580).
  */
 export function coachExclusions(
   report: BuildRemovals | undefined,
   cards: readonly ScryfallCard[],
-  synergy: Pick<DeckSynergy, 'invested'>
+  synergy: Pick<DeckSynergy, 'invested'>,
+  dismissed?: ReadonlySet<string>
 ): (name: string) => boolean {
   const removed = removedByBuild(report, cards);
   const noHate = recursesOwnGraveyard(cards, synergy);
-  return (name) => removed.has(lower(name)) || (noHate && hasRole(name, 'graveyardHate'));
+  return (name) =>
+    removed.has(lower(name)) ||
+    !!dismissed?.has(lower(name)) ||
+    (noHate && hasRole(name, 'graveyardHate'));
 }
 
 /** Drop the excluded rows from each suggestion list, in place. */
