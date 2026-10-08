@@ -91,7 +91,7 @@ export function WaitingOnYou({ actionRequired, activityLoading, nights, nightsLo
       }).primary;
       out.push({
         key: 'offers',
-        to: `/friends/${o.fromUserId}`,
+        to: `/friends/${o.fromUserId}?tab=trades`,
         icon: ArrowLeftRight,
         title: 'Trade offer',
         detail: `From ${from}`,

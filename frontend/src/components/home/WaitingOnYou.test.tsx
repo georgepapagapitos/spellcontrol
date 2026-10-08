@@ -158,14 +158,14 @@ describe('WaitingOnYou', () => {
     expect(readHomeShape()['waiting']).toBe(0);
   });
 
-  it('one trade offer links to the sender', () => {
+  it('one trade offer links to the sender Trades tab', () => {
     renderWaiting({
       actionRequired: [
         tradeOffer({ fromUserId: 'u1', fromUsername: 'bob', fromDisplayName: null }),
       ],
     });
     const link = screen.getByRole('link', { name: 'Trade offer from bob' });
-    expect(link.getAttribute('href')).toBe('/friends/u1');
+    expect(link.getAttribute('href')).toBe('/friends/u1?tab=trades');
   });
 
   it('two or more trade offers point at /trades instead', () => {

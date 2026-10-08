@@ -294,10 +294,12 @@ describe('AroundTheTable', () => {
     expect(within(activityColumn()).getByRole('link').textContent).toContain('3 people liked');
   });
 
-  it('a resolved trade links to /friends/:withUserId', async () => {
+  it('a resolved trade links to the friend Trades tab', async () => {
     renderTable({ recent: [tradeResolved({ withUserId: 'u-77' })] });
     await waitFor(() => expect(activityColumn()).toBeTruthy());
-    expect(within(activityColumn()).getByRole('link').getAttribute('href')).toBe('/friends/u-77');
+    expect(within(activityColumn()).getByRole('link').getAttribute('href')).toBe(
+      '/friends/u-77?tab=trades'
+    );
   });
 
   it('caps recent-activity rows at 3', async () => {

@@ -102,7 +102,7 @@ function activityRow(item: RecentActivityItem): Row {
       const verb = item.outcome === 'accepted' ? 'accepted' : 'declined';
       return {
         id: item.id,
-        to: `/friends/${item.withUserId}`,
+        to: `/friends/${item.withUserId}?tab=trades`,
         lead: <ArrowLeftRight {...ICON} />,
         ariaLabel: `${who} ${verb} your trade, ${time}`,
         text: (
