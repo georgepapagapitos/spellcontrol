@@ -1130,8 +1130,7 @@ export function DeckEditorPage() {
     coachSettings.cutFits,
     mainboardLimit
   );
-  // "Next best move" — the single highest-leverage change, derived from the
-  // live PlanScore + role gaps + near-miss combos.
+  // "Next best move": the highest-leverage change, from the PlanScore, role gaps and near-miss combos.
   const nextBestMoves = useMemo(() => {
     if (!deck || !DECK_FORMAT_CONFIGS[deck.format].hasCommander) return [];
     const roleCounts = liveRoleCounts ?? {};
