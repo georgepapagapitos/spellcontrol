@@ -149,6 +149,25 @@ export async function proposeTrade(input: {
 }
 
 /**
+ * Counter an offer atomically: the server declines `originalId` and creates the
+ * new offer (to the original's proposer) in one transaction. A 409 means the
+ * original was already answered and nothing was created.
+ */
+export async function counterTrade(
+  originalId: string,
+  input: { give: TradeCard[]; receive: TradeCard[]; note?: string }
+): Promise<TradeOffer> {
+  const res = await fetch(apiUrl(`/api/trades/${encodeURIComponent(originalId)}/counter`), {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  const data = await handle<{ offer: TradeOffer }>(res, "Couldn't send the trade. Try again.");
+  return data.offer;
+}
+
+/**
  * Accept an offer, stamping the printings being handed over. `resolved` must
  * name the same cards in the same quantities the offer asked for — accepting is
  * not a channel for changing the deal, and the server rejects one that does.

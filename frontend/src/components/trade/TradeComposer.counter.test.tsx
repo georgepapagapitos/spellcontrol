@@ -37,6 +37,7 @@ vi.mock('../../store/cube', () => ({
 const calls: string[] = [];
 const proposeTrade = vi.fn();
 const declineTrade = vi.fn();
+const counterTrade = vi.fn();
 vi.mock('@/lib/trade/trades-client', async () => {
   const actual = await vi.importActual<typeof import('@/lib/trade/trades-client')>(
     '@/lib/trade/trades-client'
@@ -45,6 +46,7 @@ vi.mock('@/lib/trade/trades-client', async () => {
     ...actual,
     proposeTrade: (input: unknown) => proposeTrade(input),
     declineTrade: (id: string) => declineTrade(id),
+    counterTrade: (id: string, input: unknown) => counterTrade(id, input),
   };
 });
 
@@ -101,13 +103,10 @@ beforeEach(() => {
   toastShow.mockClear();
   proposeTrade.mockReset();
   declineTrade.mockReset();
-  proposeTrade.mockImplementation(async () => {
-    calls.push('propose');
+  counterTrade.mockReset();
+  counterTrade.mockImplementation(async () => {
+    calls.push('counter');
     return { id: 'new' };
-  });
-  declineTrade.mockImplementation(async () => {
-    calls.push('decline');
-    return { id: 't1' };
   });
   storeState = {
     cards: [
@@ -132,13 +131,16 @@ describe('TradeComposer: countering', () => {
     ).toBeTruthy();
   });
 
-  it('proposes first, THEN declines the original', async () => {
+  it('counters in one call, with no separate propose or decline', async () => {
     const onSent = renderCounter();
     fireEvent.click(screen.getByRole('button', { name: 'Send offer' }));
     await waitFor(() => expect(onSent).toHaveBeenCalled());
 
-    expect(calls).toEqual(['propose', 'decline']);
-    const sent = proposeTrade.mock.calls[0][0] as { give: TradeCard[]; receive: TradeCard[] };
+    expect(calls).toEqual(['counter']);
+    expect(counterTrade.mock.calls[0][0]).toBe('t1');
+    expect(proposeTrade).not.toHaveBeenCalled();
+    expect(declineTrade).not.toHaveBeenCalled();
+    const sent = counterTrade.mock.calls[0][1] as { give: TradeCard[]; receive: TradeCard[] };
     expect(sent.give.map((c) => [c.name, c.quantity])).toEqual([
       ['Sol Ring', 2],
       ['Arcane Signet', 1],
@@ -147,27 +149,16 @@ describe('TradeComposer: countering', () => {
       ['Lightning Bolt', 1],
       ['Rhystic Study', 3],
     ]);
-    expect(declineTrade).toHaveBeenCalledWith('t1');
   });
 
-  it('never declines when the new offer fails to send', async () => {
-    proposeTrade.mockRejectedValue(new Error('nope'));
+  it('keeps the composer open when the counter fails', async () => {
+    counterTrade.mockRejectedValue(new Error('nope'));
     const onSent = renderCounter();
     fireEvent.click(screen.getByRole('button', { name: 'Send offer' }));
     await waitFor(() => expect(toastShow).toHaveBeenCalled());
 
     expect(declineTrade).not.toHaveBeenCalled();
     expect(onSent).not.toHaveBeenCalled();
-  });
-
-  it('warns that their offer is still open when the decline fails', async () => {
-    declineTrade.mockRejectedValue(new Error('offline'));
-    const onSent = renderCounter();
-    fireEvent.click(screen.getByRole('button', { name: 'Send offer' }));
-    await waitFor(() => expect(onSent).toHaveBeenCalled());
-
-    const messages = toastShow.mock.calls.map(([t]) => t as { tone?: string; message: string });
-    expect(messages.some((t) => t.tone === 'warn' && /still open/.test(t.message))).toBe(true);
   });
 
   it('skips a card no longer owned and says so in the note line', () => {

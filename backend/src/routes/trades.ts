@@ -308,6 +308,93 @@ tradesRouter.post('/', requireAuth, tradeWriteLimiter, async (req: Request, res:
 });
 
 /**
+ * POST /api/trades/:id/counter — answer an offer with a new one, atomically.
+ *
+ * Declines the original and inserts the counter in ONE transaction, so a
+ * crash or a validation failure can never leave both open (or neither). Only
+ * the original's recipient may counter; the new offer runs the other way
+ * (counterer proposes to the original proposer) and takes the same body as
+ * propose minus `recipientId`. The decline is the same conditional UPDATE the
+ * PATCH route uses, so a counter racing an accept/withdraw loses with a 409
+ * and creates nothing.
+ */
+tradesRouter.post(
+  '/:id/counter',
+  requireAuth,
+  tradeWriteLimiter,
+  async (req: Request, res: Response) => {
+    const callerId = req.user!.id;
+    const offerId = typeof req.params.id === 'string' ? req.params.id : '';
+    const body = asRecord(req.body) ?? {};
+
+    const existing = await loadOwnOffer(res, callerId, offerId);
+    if (!existing) return;
+    if (existing.recipient_id !== callerId) {
+      return res.status(403).json({ error: 'Only the person offered a trade can counter it.' });
+    }
+    if (existing.status !== 'proposed') {
+      return res.status(409).json({ error: 'That trade was already answered.' });
+    }
+    const otherId = existing.proposer_id;
+    if (!(await areFriends(callerId, otherId))) {
+      return res.status(403).json({ error: 'You can only trade with friends — add them first.' });
+    }
+
+    const give = parseSide(body.give, true);
+    const receive = parseSide(body.receive, false);
+    if (!give || !receive) {
+      return res.status(400).json({ error: 'That trade has a card we could not read.' });
+    }
+    if (give.length === 0 && receive.length === 0) {
+      return res.status(400).json({ error: 'Add at least one card to the trade.' });
+    }
+    const note = typeof body.note === 'string' ? body.note.trim().slice(0, MAX_NOTE_LENGTH) : '';
+    const now = Date.now();
+    const newId = crypto.randomUUID();
+
+    const client = await getPool().connect();
+    let lost = false;
+    try {
+      await client.query('BEGIN');
+      const declined = await client.query(
+        `UPDATE trade_offers SET status = 'declined', resolved_at = $3, updated_at = $3
+          WHERE id = $1 AND recipient_id = $2 AND status = 'proposed'`,
+        [offerId, callerId, now]
+      );
+      if (declined.rowCount === 0) {
+        lost = true;
+        await client.query('ROLLBACK');
+      } else {
+        await client.query(
+          `INSERT INTO trade_offers
+               (id, proposer_id, recipient_id, status, note, proposer_cards, recipient_cards,
+                created_at, updated_at)
+             VALUES ($1, $2, $3, 'proposed', $4, $5::jsonb, $6::jsonb, $7, $7)`,
+          [newId, callerId, otherId, note, JSON.stringify(give), JSON.stringify(receive), now]
+        );
+        await client.query('COMMIT');
+      }
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw err;
+    } finally {
+      client.release();
+    }
+    if (lost) return res.status(409).json({ error: 'That trade was already answered.' });
+
+    const row = await loadOwnOffer(res, callerId, newId);
+    if (!row) return;
+
+    void notifyUser(otherId, 'trade_offer', {
+      fromLabel: await resolveDisplayLabel(callerId),
+      path: '/trades',
+    }).catch(() => {});
+
+    res.status(201).json({ offer: await viewFor(row, callerId), declinedId: offerId });
+  }
+);
+
+/**
  * GET /api/trades — every offer the caller is a party to, newest first.
  * `?withUserId=` narrows to one friend (the friend hub's thread view);
  * `?status=` narrows to one state.
