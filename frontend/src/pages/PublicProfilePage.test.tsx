@@ -5,10 +5,12 @@
  * card's "public profile" link).
  */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PublicProfile, PublicProfileDeck } from '@/lib/social/profile-client';
 import { ProfileNotFoundError, ProfileRenamedError } from '@/lib/social/profile-client';
+import { useAuth } from '@/store/auth';
+import { useTradeDraftsStore } from '@/store/trade-drafts';
 
 const { fetchPublicProfileMock, fetchProfileCollectionMock } = vi.hoisted(() => ({
   fetchPublicProfileMock: vi.fn(),
@@ -242,6 +244,83 @@ describe('PublicProfilePage — the Collection tab (T136)', () => {
     // The note shows before the collection's fetch has settled; the owner
     // sees their own cards under it too.
     expect(await screen.findByText(/1 card/)).toBeTruthy();
+  });
+
+  describe('trading from a friend’s profile (E586)', () => {
+    const TRADEABLE = {
+      ...COLLECTION,
+      cards: [{ ...COLLECTION.cards[0], oracleId: 'o-sol', name: 'Sol Ring' }],
+    };
+
+    function Where() {
+      const loc = useLocation();
+      return <output data-testid="where">{loc.pathname + loc.search}</output>;
+    }
+
+    function renderWithHub() {
+      return render(
+        <MemoryRouter initialEntries={['/u/alice?tab=collection']}>
+          <Routes>
+            <Route path="/u/:username" element={<PublicProfilePage />} />
+            <Route path="/friends/:friendId" element={<Where />} />
+          </Routes>
+        </MemoryRouter>
+      );
+    }
+
+    beforeEach(() => {
+      useAuth.setState({ status: 'authed', user: { id: 'viewer-1' } as never });
+      useTradeDraftsStore.setState({ drafts: {} });
+    });
+
+    it('gives a friend the "+" and a tray that hands the review to the hub', async () => {
+      fetchPublicProfileMock.mockResolvedValue(
+        profile({
+          ownerId: 'friend-9',
+          viewerIsFriend: true,
+          collection: { visibility: 'friends', canView: true },
+        })
+      );
+      fetchProfileCollectionMock.mockResolvedValue(TRADEABLE);
+      renderWithHub();
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Ask for Sol Ring' }));
+      expect(useTradeDraftsStore.getState().getDraft('viewer-1', 'friend-9')?.get['o-sol']).toEqual(
+        { name: 'Sol Ring', quantity: 1 }
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /^Review trade with/ }));
+      expect(screen.getByTestId('where').textContent).toBe(
+        '/friends/friend-9?tab=collection&review=1'
+      );
+    });
+
+    it('gives a stranger no "+" and no tray', async () => {
+      fetchPublicProfileMock.mockResolvedValue(
+        profile({ collection: { visibility: 'public', canView: true } })
+      );
+      fetchProfileCollectionMock.mockResolvedValue(TRADEABLE);
+      renderWithHub();
+
+      await screen.findByText('Sol Ring');
+      expect(screen.queryByRole('button', { name: /^Ask for/ })).toBeNull();
+      expect(screen.queryByRole('button', { name: /^Review trade/ })).toBeNull();
+    });
+
+    it('gives the owner no "+" on their own profile', async () => {
+      fetchPublicProfileMock.mockResolvedValue(
+        profile({
+          isOwner: true,
+          ownerId: 'viewer-1',
+          collection: { visibility: null, canView: true },
+        })
+      );
+      fetchProfileCollectionMock.mockResolvedValue(TRADEABLE);
+      renderWithHub();
+
+      await screen.findByText('Sol Ring');
+      expect(screen.queryByRole('button', { name: /^Ask for/ })).toBeNull();
+    });
   });
 
   it('keeps the collection mounted across a Decks round trip: search survives, one fetch', async () => {

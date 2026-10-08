@@ -1,0 +1,66 @@
+/* The trade workspace (friend hub's Collection tab). Imported by the lazy
+   component, never a boot-path sheet. Viewport tiers are 600 / 1024 only;
+   the dock threshold is a CONTAINER query on the host, and DOCK_MIN_WIDTH in
+   lib/trade/workspace-layout.ts must name the same number (a guard test reads
+   this file). */
+
+.trade-workspace {
+  container: trade-workspace / inline-size;
+  min-width: 0;
+}
+
+.trade-workspace-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-4);
+}
+
+.trade-workspace-main {
+  min-width: 0;
+}
+
+.trade-workspace-switch {
+  margin-bottom: var(--space-2);
+}
+
+/* The tray is fixed above the tab bar; keep the last row of cards clear of it
+   so the final tiles are never under the bar. */
+.trade-workspace-body:not(.is-docked) .trade-workspace-main {
+  padding-bottom: calc(var(--space-7) + var(--space-5));
+}
+
+/* The dock pins here, on the grid cell's wrapper, not on .trade-dock itself.
+   A sticky box can only travel inside its parent, and this wrapper is exactly
+   as tall as the dock, so a sticky .trade-dock had no room to move and scrolled
+   away with the grid, its title under the header. The wrapper's parent is the
+   grid row, which is as tall as the card grid. The header sits OUTSIDE the
+   scrolling .app-main, so the pin is --space-3 below the scrollport's top and
+   the height budget subtracts the header (--site-header-h). */
+.trade-workspace-dock {
+  position: sticky;
+  top: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  max-height: calc(var(--vh-safe) - var(--site-header-h) - var(--space-5));
+}
+
+.trade-workspace-dock .trade-dock {
+  position: static;
+  flex: 1 1 auto;
+  max-height: none;
+}
+
+.trade-workspace-dock:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-lg);
+}
+
+@container trade-workspace (min-width: 880px) {
+  .trade-workspace-body.is-docked {
+    grid-template-columns: minmax(0, 1fr) 380px;
+  }
+}

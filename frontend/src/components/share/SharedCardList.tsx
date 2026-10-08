@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import type { PublicCard } from '@/lib/social/shared-types';
 import { publicCardToEnriched } from '@/lib/social/shared-filter';
 import { BinderBadge } from '../BinderBadge';
@@ -19,6 +19,8 @@ export interface SharedCardListItem {
   allocations?: AllocationInfo[];
   /** The owner has a copy to spare — see SharedCardTile. */
   spare?: boolean;
+  /** A control at the row's end (the trade "+"). */
+  action?: ReactNode;
 }
 
 interface Props {
@@ -107,7 +109,7 @@ export function SharedCardList({
             // name, and no per-row action menu (nothing here is the viewer's
             // to edit).
             allocations={it.allocations ?? []}
-            menu={null}
+            menu={it.action ?? null}
             onActivate={() => onPreview(i)}
             isLastRow={i === rows.length - 1}
             hidePrice={!showPrice}

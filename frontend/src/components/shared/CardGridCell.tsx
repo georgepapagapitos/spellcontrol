@@ -171,6 +171,19 @@ interface CardGridCellProps {
    * fold the same words into `ariaExtra`, since captions are aria-hidden.
    */
   note?: string | null;
+  /**
+   * Copies of this card already in a trade being built. Above 0 the art takes
+   * the accent ring. Nothing else is drawn on the card face (its name and cost
+   * corners stay clear); the count is the caller's caption line and `ariaExtra`.
+   */
+  pickedCount?: number;
+  /**
+   * A control that belongs to the tile's caption (the trade "+"). It is a
+   * sibling of the aria-hidden caption plate, not inside it: a button in a
+   * hidden subtree is a focusable control with no name. Reserves room on the
+   * plate's right so a caption line never runs under it.
+   */
+  action?: ReactNode;
 }
 
 /**
@@ -198,6 +211,8 @@ export function CardGridCell({
   printing = true,
   rarityOnArt = true,
   note = null,
+  pickedCount = 0,
+  action,
 }: CardGridCellProps) {
   const foilStyle = classifyFoil(card);
   const foilClass = foilStyle !== 'none' ? ` is-foil foil-${foilStyle}` : '';
@@ -212,9 +227,13 @@ export function CardGridCell({
   const artReady = !!art && loadedArt === art;
 
   return (
-    <div className={`collection-grid-cell${menu && !selectMode ? ' has-menu' : ''}`}>
+    <div
+      className={`collection-grid-cell${menu && !selectMode ? ' has-menu' : ''}${
+        action ? ' has-action' : ''
+      }`}
+    >
       <div
-        className={`collection-grid-item grid-${size}${foilClass}${
+        className={`collection-grid-item grid-${size}${foilClass}${pickedCount > 0 ? ' is-picked' : ''}${
           selectMode ? ' is-selectable' : ''
         }${selected ? ' is-selected' : ''}`}
       >
@@ -297,7 +316,7 @@ export function CardGridCell({
           reach it. It stays mounted: a right-click on a selected tile opens
           the selection's actions through it. */}
       {menu}
-      {(caption !== null || setLabel !== null || note) && (
+      {(caption !== null || setLabel !== null || note || action) && (
         <div className="collection-grid-captions" aria-hidden="true">
           {caption !== null && <div className="collection-grid-caption">{caption}</div>}
           {setLabel !== null && (
@@ -311,6 +330,7 @@ export function CardGridCell({
           )}
         </div>
       )}
+      {action && <div className="collection-grid-action">{action}</div>}
     </div>
   );
 }

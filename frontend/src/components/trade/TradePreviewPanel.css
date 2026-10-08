@@ -1,0 +1,66 @@
+/* The trade row in a card preview's detail panel. Imported by the component,
+   which only the lazy trade workspace and profile load. */
+
+.trade-preview-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-block: var(--space-2);
+}
+
+.trade-preview-status {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.trade-preview-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.trade-preview-stepper {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.trade-preview-stepper button {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.trade-preview-stepper button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.trade-preview-stepper button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.trade-preview-stepper output {
+  min-width: 2ch;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.trade-preview-note {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}

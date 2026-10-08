@@ -39,7 +39,17 @@ export function groupCards(cards: PublicCard[]): GroupedCard[] {
   return Array.from(buckets.values());
 }
 
-export type SharedSortKey = 'name' | 'cmc' | 'price' | 'set' | 'rarity' | 'qty' | 'popularity';
+export type SharedSortKey =
+  | 'name'
+  | 'cmc'
+  | 'price'
+  | 'set'
+  | 'rarity'
+  | 'qty'
+  | 'popularity'
+  /** An interest ranking the caller supplies (the collection browser's
+   *  `priority`); `sortGrouped` has no data to order it by. */
+  | 'priority';
 export type SortDir = 'asc' | 'desc';
 
 const RARITY_ORDER: Record<string, number> = {
