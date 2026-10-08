@@ -116,7 +116,12 @@ function mk(o: Partial<EnrichedCard>): EnrichedCard {
 
 function renderPreview(
   card: EnrichedCard,
-  props: { hidePrice?: boolean; source?: 'playtest'; renderPanelMeta?: () => ReactNode } = {}
+  props: {
+    hidePrice?: boolean;
+    theirCopy?: boolean;
+    source?: 'playtest' | 'collection';
+    renderPanelMeta?: () => ReactNode;
+  } = {}
 ) {
   return render(
     <MemoryRouter>
@@ -154,6 +159,24 @@ describe('CardPreview hidePrice (friend-surface value contract)', () => {
     expect(document.body.textContent).not.toMatch(/\$|—|Prices/);
     // The rest of the meta line survives — this hides value, not identity.
     expect(screen.getByText('rare')).toBeTruthy();
+  });
+});
+
+describe('CardPreview whose copy it is', () => {
+  // Portals to document.body: assert there, never on RTL's empty `container`.
+  it('labels an owned copy "Your copy" by default', () => {
+    renderPreview(mk({ condition: 'nm' }), { source: 'collection' });
+    expect(document.body.textContent).toContain('Your copy');
+  });
+
+  it('labels it "Their copy" for a collection that is not the viewer’s, with prices still shown', () => {
+    renderPreview(mk({ condition: 'nm', purchasePrice: 12.5 }), {
+      source: 'collection',
+      theirCopy: true,
+    });
+    expect(document.body.textContent).toContain('Their copy');
+    expect(document.body.textContent).not.toContain('Your copy');
+    expect(document.body.textContent).toContain('$12.50');
   });
 });
 

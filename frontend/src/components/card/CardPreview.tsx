@@ -178,6 +178,13 @@ interface Props {
    */
   hidePrice?: boolean;
   /**
+   * The card belongs to someone other than the viewer (a profile's or a share
+   * link's collection). Labels the copy section "Their copy" instead of "Your
+   * copy" without touching prices, which a full-view collection still shows.
+   * `hidePrice` implies it for the friend hub, which predates this prop.
+   */
+  theirCopy?: boolean;
+  /**
    * Which surface opened the preview. Exposed as `data-source` on the panel and
    * picks the panel's lead section; also documents intent at the call site.
    */
@@ -247,6 +254,7 @@ export function CardPreview({
   renderPanelExtra,
   renderPanelMeta,
   hidePrice,
+  theirCopy,
   source,
 }: Props) {
   const trackRef = useRef<HTMLDivElement>(null);
@@ -754,7 +762,7 @@ export function CardPreview({
     copyRows.length > 0 ? (
       <section className="card-preview-sec">
         <h3 className="card-preview-eyebrow">
-          {owned ? (hidePrice ? 'Their copy' : 'Your copy') : 'This copy'}
+          {owned ? (hidePrice || theirCopy ? 'Their copy' : 'Your copy') : 'This copy'}
         </h3>
         <dl className="card-preview-kv">
           {copyRows.map((r) => (

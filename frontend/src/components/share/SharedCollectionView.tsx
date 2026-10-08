@@ -27,6 +27,10 @@ interface Props {
    *  Collection tab): drops the "Shared by" header and the `.shared-view`
    *  shell, and keeps the count and value as a plain summary line. */
   embedded?: boolean;
+  /** The viewer is the person whose collection this is (their own profile
+   *  tab). Everyone else, including the owner on a bare share link, sees the
+   *  preview's copy section as "Their copy". */
+  viewerIsOwner?: boolean;
 }
 
 type ViewKind = 'grid' | 'list' | 'compact';
@@ -46,7 +50,7 @@ const SORT_OPTIONS: SortMenuOption<SharedSortKey>[] = [
   { value: 'qty', label: 'Quantity', dirLabels: ['Fewest', 'Most'] },
 ];
 
-export function SharedCollectionView({ data, embedded = false }: Props) {
+export function SharedCollectionView({ data, embedded = false, viewerIsOwner = false }: Props) {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<SharedSortKey>('name');
   const [dir, setDir] = useState<SortDir>('asc');
@@ -55,7 +59,7 @@ export function SharedCollectionView({ data, embedded = false }: Props) {
 
   const grouped = useMemo(() => groupCards(data.cards), [data.cards]);
 
-  const { filterNode, matches } = useSharedFilters(data.cards);
+  const { filterNode, matches, activeCount, clear } = useSharedFilters(data.cards);
 
   const filtered = useMemo(
     () => filterBySearch(grouped, search).filter((g) => matches(g.card)),
@@ -181,7 +185,14 @@ export function SharedCollectionView({ data, embedded = false }: Props) {
           empty={totalCards === 0}
           emptyTagline="This collection is empty."
           filteredTagline="No cards match your search or filters."
-          onClearSearch={search ? () => setSearch('') : undefined}
+          onClearSearch={
+            search || activeCount > 0
+              ? () => {
+                  setSearch('');
+                  clear();
+                }
+              : undefined
+          }
         />
       ) : (
         <>
@@ -214,6 +225,7 @@ export function SharedCollectionView({ data, embedded = false }: Props) {
       {previewIndex !== null && previewCards[previewIndex] && (
         <CardPreview
           source="collection"
+          theirCopy={!viewerIsOwner}
           cards={previewCards}
           index={previewIndex}
           binderName="Collection"
