@@ -200,8 +200,12 @@
   outline-offset: 2px;
 }
 
+/* The book marks the name line, not the middle of a wrapped sentence; the
+   chevron stays centered, since it answers for the whole row. */
 .search-rules-hit-icon {
   flex: none;
+  align-self: flex-start;
+  margin-top: 1px;
   color: var(--accent);
 }
 
