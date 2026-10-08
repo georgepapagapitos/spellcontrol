@@ -8,6 +8,7 @@ import { areFriends, listFriendIds } from '../friends/relations';
 import { edhrecRankOf } from '../shares/edhrec-rank';
 import { summarizeCardUse } from '../friends/card-use';
 import { loadFriendPeeks } from '../friends/peek';
+import { loadFriendOwners } from '../friends/owners';
 import { storedCollectionVisibility } from '../collections/visibility';
 import { resolveShareLabels } from '../shares/labels';
 import { asRecord, pickLegalities, type PublicCard } from '../shares/projections';
@@ -88,6 +89,28 @@ friendsRouter.get('/', requireAuth, friendReadLimiter, async (req: Request, res:
 
   res.json({ friends });
 });
+
+// ────────────────────────────────────────────────
+// GET /api/friends/owners?oracleId=
+// ────────────────────────────────────────────────
+
+/** An oracle id is a UUID; anything longer or odd never reaches the query. */
+const ORACLE_ID_RE = /^[0-9a-zA-Z-]{1,64}$/;
+
+/** Which of the caller's friends own a card ("Friends who own this");
+ *  the query and its privacy rules live in `friends/owners.ts`. */
+friendsRouter.get(
+  '/owners',
+  requireAuth,
+  friendCollectionLimiter,
+  async (req: Request, res: Response) => {
+    const oracleId = typeof req.query.oracleId === 'string' ? req.query.oracleId : '';
+    if (!ORACLE_ID_RE.test(oracleId)) {
+      return res.status(400).json({ error: 'oracleId is required.' });
+    }
+    res.json({ owners: await loadFriendOwners(req.user!.id, oracleId) });
+  }
+);
 
 // ────────────────────────────────────────────────
 // GET /api/friends/requests

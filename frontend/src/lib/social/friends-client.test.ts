@@ -3,6 +3,7 @@ import {
   acceptRequest,
   cancelRequest,
   declineRequest,
+  fetchFriendOwners,
   listFriends,
   listRequests,
   removeFriend,
@@ -110,5 +111,19 @@ describe('removeFriend / listFriends / listRequests', () => {
     const body = { incoming: [], outgoing: [] };
     fetchMock.mockResolvedValue(jsonResponse(body));
     expect(await listRequests()).toEqual(body);
+  });
+});
+
+describe('fetchFriendOwners', () => {
+  it('GETs by oracle id and unwraps owners', async () => {
+    const owners = [{ friendId: 'u2', username: 'sam', displayName: null, count: 2, spare: true }];
+    fetchMock.mockResolvedValue(jsonResponse({ owners }));
+    expect(await fetchFriendOwners('a/b')).toEqual(owners);
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/api/friends/owners?oracleId=a%2Fb');
+  });
+
+  it('throws the server message on failure', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ error: 'oracleId is required.' }, 400));
+    await expect(fetchFriendOwners('')).rejects.toThrow('oracleId is required.');
   });
 });

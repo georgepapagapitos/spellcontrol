@@ -391,6 +391,8 @@ describe('coarse-pointer touch floor', () => {
     ['components/trade/TradeReview.css', '.trade-review-printing'],
     ['components/trade/TradeReview.css', '.trade-review-note-toggle'],
     ['components/trade/TradeReview.css', '.trade-tray-cta'],
+    // The profile's "Resume" link in the saved-draft line (E586): inline text.
+    ['components/profile/ProfileHeader.css', '.public-profile-resume-link'],
   ];
 
   // The shared kebab trigger is its own control, not one crowded into a dense

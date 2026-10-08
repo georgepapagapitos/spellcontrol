@@ -146,14 +146,14 @@ describe('TradesPage', () => {
     expect(screen.queryByText(/no trades yet/i)).toBeNull();
   });
 
-  it('offers a whole-page empty state pointing at where trades start', async () => {
+  it('offers a whole-page empty state that starts a trade', async () => {
     listTrades.mockResolvedValue(listing([]));
     renderPage();
 
     expect(await screen.findByText(/no trades yet/i)).toBeTruthy();
-    expect(
-      screen.getByRole('link', { name: /find a friend to trade with/i }).getAttribute('href')
-    ).toBe('/friends');
+    // The action opens the friend picker (which owns the no-friends case),
+    // rather than dropping the person on /friends to hunt for the door.
+    expect(screen.getByRole('button', { name: 'Start a trade' })).toBeTruthy();
     expect(screen.queryByText('Needs your answer')).toBeNull();
   });
 

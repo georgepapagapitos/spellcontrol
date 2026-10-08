@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import type { Friend } from '@/lib/social/friends-client';
 import { FriendRow } from './FriendRow';
@@ -22,6 +22,11 @@ function friend(over: Partial<Friend> = {}): Friend {
   };
 }
 
+function HubProbe() {
+  const loc = useLocation();
+  return <p>{`friend hub ${loc.pathname}${loc.search}`}</p>;
+}
+
 function renderRow(f: Friend, onRemove = vi.fn(), busy = false) {
   render(
     <MemoryRouter initialEntries={['/friends']}>
@@ -35,7 +40,7 @@ function renderRow(f: Friend, onRemove = vi.fn(), busy = false) {
           }
         />
         <Route path="/u/:username" element={<p>profile page</p>} />
-        <Route path="/friends/:id" element={<p>friend hub</p>} />
+        <Route path="/friends/:id" element={<HubProbe />} />
       </Routes>
     </MemoryRouter>
   );
@@ -80,10 +85,19 @@ describe('FriendRow', () => {
     expect(onRemove).toHaveBeenCalledWith(expect.objectContaining({ id: 'f1' }));
   });
 
+  it('puts Start a trade first, and it opens the hub on the Collection tab', () => {
+    renderRow(friend());
+    fireEvent.click(screen.getByRole('button', { name: 'More actions for Ada Brews' }));
+    const items = screen.getAllByRole('menuitem');
+    expect(items[0].textContent).toContain('Start a trade');
+    fireEvent.click(items[0]);
+    expect(screen.getByText('friend hub /friends/f1?tab=collection')).toBeTruthy();
+  });
+
   it('opens the friend hub from the menu', () => {
     renderRow(friend());
     fireEvent.click(screen.getByRole('button', { name: 'More actions for Ada Brews' }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Trades, games and shared' }));
-    expect(screen.getByText('friend hub')).toBeTruthy();
+    expect(screen.getByText('friend hub /friends/f1')).toBeTruthy();
   });
 });

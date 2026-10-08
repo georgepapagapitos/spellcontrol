@@ -1,6 +1,6 @@
 import './FriendRow.css';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeftRight, UserRound, UserMinus } from 'lucide-react';
+import { ArrowLeftRight, Handshake, UserRound, UserMinus } from 'lucide-react';
 import { OverflowMenu } from '@/components/overlays/OverflowMenu';
 import { UserAvatar } from '@/components/profile/UserAvatar';
 import { ColorIdentityBar } from '../shared/ColorIdentityBar';
@@ -20,7 +20,7 @@ interface Props {
  * One friend as a person: avatar, name, a peek at what they brew (deck count,
  * top commander, colour bar, the art of a deck), and when you became friends.
  * The whole identity is one link to their profile. Everything else lives in a
- * ⋮ menu beside it, kept out of the link: View profile, the friend hub (trades,
+ * ⋮ menu beside it, kept out of the link: Start a trade, View profile, the friend hub (trades,
  * head-to-head, what they shared with you), and Remove, which is danger-toned
  * and asks first. Remove is deliberately not a button on the row.
  */
@@ -57,6 +57,11 @@ export function FriendRow({ friend, busy, onRemove }: Props) {
         className="friend-row-menu"
         ariaLabel={`More actions for ${primary}`}
         items={[
+          {
+            label: 'Start a trade',
+            icon: Handshake,
+            onClick: () => navigate(`/friends/${friend.id}?tab=collection`),
+          },
           {
             label: 'View profile',
             icon: UserRound,
