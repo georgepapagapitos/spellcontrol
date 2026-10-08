@@ -35,7 +35,12 @@ import {
   makeDeckAllocationInfo,
   type AllocationInfo,
 } from '@/lib/collection/allocations';
-import { listTrades, subscribeTradesChanged, type TradeOffer } from '@/lib/trade/trades-client';
+import {
+  listTrades,
+  subscribeTradesChanged,
+  type TradeCard,
+  type TradeOffer,
+} from '@/lib/trade/trades-client';
 import { TradeComposer } from '../components/trade/TradeComposer';
 import { TradeOfferList } from '../components/trade/TradeOfferList';
 import { RadarCardTile } from '../components/trade/RadarCardTile';
@@ -89,13 +94,23 @@ type HubTab = 'overview' | 'decks' | 'collection' | 'trades';
 /** Grid/list, matching the shared collection view's own toggle. */
 type FriendViewKind = 'grid' | 'list' | 'compact';
 
-/** A counter is just a new offer the other way, prefilled with the first card
- *  they asked for so the composer opens with the conversation already in it. */
-function counterOf(offer: TradeOffer): { want?: { oracleId: string; name: string } } {
+/** What the composer opens with: a fresh offer, or a counter that carries the
+ *  WHOLE incoming offer. Offers are viewer-relative, so `give` is what the
+ *  viewer was asked to hand over and `receive` is what they would get. */
+interface ComposerSeed {
+  give?: TradeCard[];
+  get?: TradeCard[];
+  counterTo?: { offerId: string; name: string };
+}
+
+function counterOf(offer: TradeOffer): ComposerSeed {
   return {
-    want: offer.give[0]
-      ? { oracleId: offer.give[0].oracleId, name: offer.give[0].name }
-      : undefined,
+    give: offer.give,
+    get: offer.receive,
+    counterTo: {
+      offerId: offer.id,
+      name: offer.counterpartyDisplayName || `@${offer.counterpartyUsername}`,
+    },
   };
 }
 
@@ -330,9 +345,7 @@ export function FriendHubPage() {
   const [offers, setOffers] = useState<TradeOffer[] | null>(null);
   const [offersError, setOffersError] = useState(false);
   const [tradeAttempt, setTradeAttempt] = useState(0);
-  const [composing, setComposing] = useState<{ want?: { oracleId: string; name: string } } | null>(
-    null
-  );
+  const [composing, setComposing] = useState<ComposerSeed | null>(null);
   const refreshTrades = () => setTradeAttempt((n) => n + 1);
   // A settlement applied by the app shell changes rows in this tab.
   useEffect(() => subscribeTradesChanged(() => setTradeAttempt((n) => n + 1)), []);
@@ -1033,7 +1046,9 @@ export function FriendHubPage() {
           friendCardsError={collectionError}
           onRetryFriendCards={retryCollection}
           friendWants={theyWant}
-          initialWant={activeComposing.want}
+          initialGive={activeComposing.give}
+          initialGet={activeComposing.get}
+          counterTo={activeComposing.counterTo}
           onClose={closeComposer}
           onSent={() => {
             closeComposer();

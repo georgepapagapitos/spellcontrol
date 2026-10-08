@@ -30,6 +30,7 @@ import { resolveTradePreview } from '@/lib/trade/trade-preview';
 import { TradePreviewCarousel, type TradePreviewState } from './TradePreviewCarousel';
 import {
   proposeTrade,
+  declineTrade,
   MAX_TRADE_LINES_PER_SIDE,
   type TradeOffer,
   type TradeCard,
@@ -38,6 +39,7 @@ import type { EnrichedCard } from '../../types';
 import type { FriendCard } from '../../lib/cube/pool';
 import type { FriendWant } from '@/lib/social/friends-client';
 
+import { useAwaitingFirstPull } from '@/lib/sync/use-awaiting-first-pull';
 import { userMessage } from '@/lib/util/user-error';
 import { Button, IconButton } from '@/components/shared/Button';
 /** How many picker results render before the list asks you to narrow down.
@@ -89,8 +91,18 @@ interface Props {
    * which is what it did before this existed.
    */
   friendWants: FriendWant[] | null;
-  /** Prefills the ask — used when opening from a trade-radar card. */
-  initialWant?: { oracleId: string; name: string };
+  /** Prefills the "You give" side. Resolved to the viewer's owned copies,
+   *  cheapest first; a card they no longer own is skipped and named in the
+   *  composer's note line. */
+  initialGive?: TradeCard[];
+  /** Prefills the "You get" side with these cards and quantities. */
+  initialGet?: Array<{ oracleId: string; name: string; quantity: number }>;
+  /**
+   * Set when this composer is a counter to an incoming offer. A successful
+   * send declines that offer AFTER the new one is out, so a failed send never
+   * leaves the friend with nothing on the table.
+   */
+  counterTo?: { offerId: string; name: string };
   onClose: () => void;
   onSent: (offer: TradeOffer) => void;
 }
@@ -112,7 +124,9 @@ export function TradeComposer({
   friendCardsError = false,
   onRetryFriendCards,
   friendWants,
-  initialWant,
+  initialGive,
+  initialGet,
+  counterTo,
   onClose,
   onSent,
 }: Props) {
@@ -137,9 +151,29 @@ export function TradeComposer({
     return map;
   }, [friendCards]);
 
-  const [giving, setGiving] = useState<PickedCopies>({});
+  // The give side is the prefill until the owner edits it. Derived rather than
+  // seeded into state so a counter opened before the collection hydrates fills
+  // in once it does.
+  const { prefill: givePrefill, skipped: giveSkipped } = useMemo(() => {
+    const prefill: PickedCopies = {};
+    const skipped: string[] = [];
+    for (const card of initialGive ?? []) {
+      const line = ownedByKey.get(keyOf(card));
+      const copies = line ? copiesByValue(line) : [];
+      const taken = copies.slice(0, card.quantity);
+      if (taken.length > 0) prefill[keyOf(card)] = taken.map((c) => c.copyId);
+      if (taken.length < card.quantity) skipped.push(card.name);
+    }
+    return { prefill, skipped };
+  }, [initialGive, ownedByKey]);
+  const [givingEdit, setGivingEdit] = useState<PickedCopies | null>(null);
+  const giving = givingEdit ?? givePrefill;
+  function setGiving(fn: (prev: PickedCopies) => PickedCopies) {
+    setGivingEdit((prev) => fn(prev ?? givePrefill));
+  }
+  const awaitingFirstPull = useAwaitingFirstPull();
   const [wanting, setWanting] = useState<Picked>(() =>
-    initialWant ? { [keyOf(initialWant)]: 1 } : {}
+    Object.fromEntries((initialGet ?? []).map((c) => [keyOf(c), Math.max(1, c.quantity)]))
   );
   const [giveQuery, setGiveQuery] = useState('');
   const [spareOnly, setSpareOnly] = useState(false);
@@ -153,9 +187,9 @@ export function TradeComposer({
   // still renders with a name instead of vanishing.
   const wantFallback = useMemo(() => {
     const map = new Map<string, { oracleId: string; name: string }>();
-    if (initialWant) map.set(keyOf(initialWant), initialWant);
+    for (const card of initialGet ?? []) map.set(keyOf(card), card);
     return map;
-  }, [initialWant]);
+  }, [initialGet]);
 
   // Copies bound to no deck and no cube, beyond the one kept copy, basics
   // excluded — the collection's own "Tradeable surplus" definition, which had
@@ -439,6 +473,16 @@ export function TradeComposer({
         note: note.trim(),
       });
       toast.show({ message: `Trade sent to ${friendName}.`, tone: 'success' });
+      if (counterTo) {
+        try {
+          await declineTrade(counterTo.offerId);
+        } catch {
+          toast.show({
+            message: `Your counter went out, but ${counterTo.name}'s offer is still open. Decline it from Trades.`,
+            tone: 'warn',
+          });
+        }
+      }
       onSent(offer);
     } catch (err) {
       toast.show({
@@ -474,6 +518,15 @@ export function TradeComposer({
           <p className="game-night-dialog-hint">
             {friendName} sees the exact printings and confirms theirs when they accept.
           </p>
+
+          {counterTo && (
+            <p className="trade-composer-counter-note" role="status">
+              Countering {counterTo.name}&apos;s offer. Sending this declines theirs.
+              {!awaitingFirstPull && giveSkipped.length > 0 && (
+                <> Left out because you no longer own enough: {giveSkipped.join(', ')}.</>
+              )}
+            </p>
+          )}
 
           <div className="trade-composer-sides">
             <TradeSide
