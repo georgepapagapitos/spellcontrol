@@ -13,6 +13,7 @@ import { useDecksStore } from '../store/decks';
 import { useDocumentTitle } from '@/lib/util/use-document-title';
 import { useOwnershipLens } from '@/lib/collection/use-ownership-lens';
 import { OwnershipLensStrip } from '../components/deck/OwnershipLensStrip';
+import { OwnershipLensSheet } from '../components/deck/OwnershipLensSheet';
 import type { PublicDeckCard } from '@/lib/social/shared-types';
 
 import { userMessage } from '@/lib/util/user-error';
@@ -115,6 +116,7 @@ function PublicDeckPageInner({ slug }: { slug: string }) {
     missingCardPrices,
     loading: lensLoading,
   } = useOwnershipLens(deckCards);
+  const [lensOpen, setLensOpen] = useState(false);
 
   // Your own deck, opened through its public link (Discover, a rail, your
   // profile): the read-only visitor's view of a deck you can edit is the wrong
@@ -158,26 +160,40 @@ function PublicDeckPageInner({ slug }: { slug: string }) {
   }
 
   const { payload } = state;
+  // A guest gets the sign-in hook; a signed-in viewer's lens lives in the deck
+  // view (covered rows, the strip's "missing" stat opening the sheet).
+  const isGuest = !lens && !lensLoading;
   return (
-    <SharedDeckSurface
-      lead={
-        <OwnershipLensStrip
+    <>
+      <SharedDeckSurface
+        lead={isGuest ? <OwnershipLensStrip /> : undefined}
+        viewerMissing={
+          lens && lens.missingCardNames.length > 0
+            ? {
+                count: lens.missingCardNames.length,
+                price: missingCost,
+                onOpen: () => setLensOpen(true),
+              }
+            : undefined
+        }
+        data={payload.deck}
+        sourceKey={payload.slug}
+        publicMeta={{
+          slug: payload.slug,
+          deckId: payload.deck.id,
+          viewCount: payload.viewCount,
+          copyCount: payload.copyCount,
+          official: payload.official,
+        }}
+        ownership={lens?.perCard}
+      />
+      {lensOpen && lens && (
+        <OwnershipLensSheet
           lens={lens}
-          missingCost={missingCost}
           missingCardPrices={missingCardPrices}
-          loading={lensLoading}
+          onClose={() => setLensOpen(false)}
         />
-      }
-      data={payload.deck}
-      sourceKey={payload.slug}
-      publicMeta={{
-        slug: payload.slug,
-        deckId: payload.deck.id,
-        viewCount: payload.viewCount,
-        copyCount: payload.copyCount,
-        official: payload.official,
-      }}
-      ownership={lens?.perCard}
-    />
+      )}
+    </>
   );
 }

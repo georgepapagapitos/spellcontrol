@@ -27,6 +27,7 @@ import { bracketTextWithEstimate } from '@/lib/deck-analysis/format-bracket-labe
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
 import { DeckDisplay, type DeckView } from '../deck/DeckDisplay';
+import type { DeckDisplayProps } from '../deck/deck-display-types';
 import { DeckCombosPanel } from '../deck/DeckCombosPanel';
 import { EnginePanel } from '../deck/EnginePanel';
 import { PowerHero } from '../deck/PowerHero';
@@ -72,6 +73,8 @@ interface Props {
   publicMeta?: PublicMeta;
   /** Viewer's per-card ownership, keyed by card name — absent for a guest. */
   ownership?: Map<string, CardOwnership>;
+  /** The viewer's missing cards, for the stat strip — see DeckDisplay's prop. */
+  viewerMissing?: DeckDisplayProps['viewerMissing'];
   /** Rendered first inside <main> (the ownership-lens strip), so it shares the
    *  landmark and width math instead of sitting above it. */
   lead?: ReactNode;
@@ -102,7 +105,14 @@ interface Props {
  *    being absent, so nothing renders disabled (which would imply the action
  *    exists for this viewer).
  */
-export function SharedDeckSurface({ data, sourceKey, publicMeta, ownership, lead }: Props) {
+export function SharedDeckSurface({
+  data,
+  sourceKey,
+  publicMeta,
+  ownership,
+  viewerMissing,
+  lead,
+}: Props) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [reportOpen, setReportOpen] = useState(false);
   const authed = useAuth((s) => s.status === 'authed');
@@ -434,6 +444,7 @@ export function SharedDeckSurface({ data, sourceKey, publicMeta, ownership, lead
         activeView={view}
         tabbed={viewTabs.length > 1}
         ownershipFor={ownershipFor}
+        viewerMissing={viewerMissing}
         // ── Deck-describing analysis, straight off the payload ──────────────
         bracketEstimation={deck.bracketEstimation}
         bracketOverride={deck.bracketOverride}

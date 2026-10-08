@@ -328,6 +328,11 @@ export interface DeckDisplayProps {
   /** Allocation-aware ownership per card name — badges the arrivals sheet's rows
    *  (E246). Omitted (read-only/shared views) → no badges. */
   ownershipFor?: (name: string) => ChangeOwnership;
+  /** The viewer's missing cards on a deck shown without their collection
+   *  (someone else's shared deck), from the ownership lens. Takes the strip's
+   *  "missing" stat in place of the allocation count, which has nothing to
+   *  count there; tapping it calls `onOpen`. `price` is null while it loads. */
+  viewerMissing?: { count: number; price: number | null; onOpen: () => void };
   /** Stamp deck.lastArrivalReviewAt (silent) — fired once the sheet closes. */
   onMarkArrivalsReviewed?: () => void;
   /** Open the new-arrivals sheet once, as soon as it has rows — Home's
