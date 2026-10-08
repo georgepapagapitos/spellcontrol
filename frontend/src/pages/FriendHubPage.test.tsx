@@ -9,7 +9,7 @@
  * assertions use plain vitest/chai matchers, not `.toBeInTheDocument()`.
  */
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FriendCard } from '../lib/cube/pool';
 import type { TradeOffer } from '@/lib/trade/trades-client';
@@ -528,5 +528,105 @@ describe('FriendHubPage — ?counter=<offerId> from /trades', () => {
 
     await screen.findByRole('tab', { name: /Trades/ });
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+});
+
+describe('FriendHubPage: the tab lives in ?tab=', () => {
+  beforeEach(() => {
+    fetchFriendCollection.mockReset();
+    fetchFriendCollection.mockResolvedValue({ ownerUsername: 'friendo', cards: [] });
+    fetchFriendWants.mockReset();
+    fetchFriendWants.mockResolvedValue({ ownerUsername: 'friendo', wants: [] });
+    listTrades.mockReset();
+    listTrades.mockResolvedValue({ offers: [], truncated: false });
+    myCards = [];
+  });
+
+  function Where() {
+    const loc = useLocation();
+    return <output data-testid="where">{loc.pathname + loc.search}</output>;
+  }
+
+  function renderAt(entry: string) {
+    return render(
+      <MemoryRouter initialEntries={[entry]}>
+        <Routes>
+          <Route
+            path="/friends/:friendId"
+            element={
+              <>
+                <FriendHubPage />
+                <Where />
+              </>
+            }
+          />
+        </Routes>
+      </MemoryRouter>
+    );
+  }
+
+  const where = () => screen.getByTestId('where').textContent;
+
+  it('opens on the tab named in the URL', async () => {
+    renderAt('/friends/friend-1?tab=trades');
+    const tab = await screen.findByRole('tab', { name: /Trades/ });
+    expect(tab.getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('writes the tab to the URL and drops it for Overview', async () => {
+    renderAt('/friends/friend-1');
+    expect(
+      (await screen.findByRole('tab', { name: 'Overview' })).getAttribute('aria-selected')
+    ).toBe('true');
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Decks' }));
+    expect(where()).toBe('/friends/friend-1?tab=decks');
+    expect(screen.getByRole('tab', { name: 'Decks' }).getAttribute('aria-selected')).toBe('true');
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Overview' }));
+    expect(where()).toBe('/friends/friend-1');
+  });
+
+  it('falls back to Overview for an unknown tab', async () => {
+    renderAt('/friends/friend-1?tab=nonsense');
+    const tab = await screen.findByRole('tab', { name: 'Overview' });
+    expect(tab.getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('?counter= still forces Trades, and changing tab clears it', async () => {
+    renderAt('/friends/friend-1?counter=gone&tab=decks');
+    const trades = await screen.findByRole('tab', { name: /Trades/ });
+    expect(trades.getAttribute('aria-selected')).toBe('true');
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Decks' }));
+    expect(where()).toBe('/friends/friend-1?tab=decks');
+  });
+});
+
+describe('FriendHubPage: Overview with no share links', () => {
+  beforeEach(() => {
+    fetchFriendWants.mockReset();
+    fetchFriendWants.mockResolvedValue({ ownerUsername: 'friendo', wants: [] });
+    listTrades.mockReset();
+    listTrades.mockResolvedValue({ offers: [], truncated: false });
+    myCards = [];
+  });
+
+  it('does not claim nothing is shared when their collection is viewable', async () => {
+    fetchFriendCollection.mockResolvedValue({
+      ownerUsername: 'friendo',
+      cards: [makeCard({ name: 'Sol Ring', oracleId: 'sol' })],
+    });
+    renderPage();
+
+    expect(await screen.findByText(/Their cards are on the Collection tab/)).toBeTruthy();
+    expect(screen.queryByText(/shared anything with friends/)).toBeNull();
+  });
+
+  it('keeps the plain empty copy when their collection is empty too', async () => {
+    fetchFriendCollection.mockResolvedValue({ ownerUsername: 'friendo', cards: [] });
+    renderPage();
+
+    expect(await screen.findByText(/shared anything with friends yet/)).toBeTruthy();
   });
 });

@@ -90,7 +90,8 @@ const COLLECTION_SORT_OPTIONS: SortMenuOption<FriendSortKey>[] = [
   { value: 'rarity', label: 'Rarity', dirLabels: ['Common first', 'Mythic first'] },
 ];
 
-type HubTab = 'overview' | 'decks' | 'collection' | 'trades';
+const HUB_TABS = ['overview', 'decks', 'collection', 'trades'] as const;
+type HubTab = (typeof HUB_TABS)[number];
 /** Grid/list, matching the shared collection view's own toggle. */
 type FriendViewKind = 'grid' | 'list' | 'compact';
 
@@ -153,8 +154,18 @@ export function FriendHubPage() {
   const [h2hLoading, setH2hLoading] = useState(true);
   const [searchParams, setSearchParams] = useSearchParams();
   // Arriving to counter an offer lands on the Trades tab, where that offer is.
+  // The tab lives in `?tab=` so a link (Home's "answer this trade") and a
+  // reload land on the same view; Overview is the bare URL.
   const counterId = searchParams.get('counter');
-  const [tab, setTab] = useState<HubTab>(counterId ? 'trades' : 'overview');
+  const tabParam = searchParams.get('tab');
+  const tab: HubTab = counterId ? 'trades' : (HUB_TABS.find((t) => t === tabParam) ?? 'overview');
+  const setTab = (next: HubTab) => {
+    const params = new URLSearchParams(searchParams);
+    params.delete('counter');
+    if (next === 'overview') params.delete('tab');
+    else params.set('tab', next);
+    setSearchParams(params, { replace: true });
+  };
 
   // Trade radar: cross-reference the viewer's own want lists against this
   // friend's collection — the same oracle-level fetch the cube collab pool
@@ -380,7 +391,7 @@ export function FriendHubPage() {
   const activeComposing = composing ?? (counterOffer ? counterOf(counterOffer) : null);
   function closeComposer() {
     setComposing(null);
-    if (counterId) setSearchParams({}, { replace: true });
+    if (counterId) setTab('trades');
   }
 
   const openTrades = (offers ?? []).filter((o) => o.status === 'proposed');
@@ -787,8 +798,13 @@ export function FriendHubPage() {
                 {ownerUsername
                   ? `${hasDisplayName ? identity!.primary : handle} hasn't`
                   : "This person hasn't"}{' '}
-                shared anything with friends yet.
+                {(friendCards?.length ?? 0) > 0
+                  ? 'shared any links with friends yet.'
+                  : 'shared anything with friends yet.'}
               </>
+            }
+            hint={
+              (friendCards?.length ?? 0) > 0 ? 'Their cards are on the Collection tab.' : undefined
             }
           />
         ) : (
