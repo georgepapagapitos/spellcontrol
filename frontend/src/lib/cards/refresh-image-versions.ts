@@ -1,6 +1,6 @@
 /**
  * Moves the in-memory collection and decks onto the newest image stamps, and
- * asks the server for the stamps of deck cards. See `card-image-versions.ts`
+ * asks the server for the stamps of collection and deck cards. See `card-image-versions.ts`
  * for why a stored image URL goes stale.
  */
 
@@ -37,19 +37,23 @@ export function applyImageVersionsToStores(): void {
   }
 }
 
-const CHECKED_KEY = 'spellcontrol:deck-image-versions-checked';
+// Renamed from `…deck-image-versions-checked` when collection cards joined the
+// check, so a device that already ran the deck-only check today runs again.
+const CHECKED_KEY = 'spellcontrol:image-versions-checked';
 const CHECK_EVERY_MS = 24 * 60 * 60 * 1000;
 const CHUNK = 1000;
 let inFlight = false;
 
 /**
- * Ask the server for the image stamps of every card in every deck, at most once
- * a day per device. Collection cards get theirs from the price refresh; this is
- * for the frozen deck copies, which include cards the user doesn't own. The
- * check is stamped only after it succeeds with something to ask about, so a
- * fresh device whose decks arrive with the first pull still runs it then.
+ * Ask the server for the image stamps of every printing the user holds, in the
+ * collection and in every deck, at most once a day per device. The price
+ * refresh also carries stamps, but only for cards whose price went stale, so a
+ * freshly priced card would otherwise keep a replaced photo for days. Decks add
+ * the frozen copies of cards the user doesn't own. The check is stamped only
+ * after it succeeds with something to ask about, so a fresh device whose cards
+ * arrive with the first pull still runs it then.
  */
-export async function refreshDeckImageVersions(now = Date.now()): Promise<void> {
+export async function refreshImageVersions(now = Date.now()): Promise<void> {
   if (inFlight) return;
   try {
     const last = Number(localStorage.getItem(CHECKED_KEY) ?? 0);
@@ -57,7 +61,15 @@ export async function refreshDeckImageVersions(now = Date.now()): Promise<void> 
   } catch {
     /* storage blocked: check every session, still cheap */
   }
-  const ids = deckPrintingIds(useDecksStore.getState().decks);
+  const ids = [
+    ...new Set([
+      ...useCollectionStore
+        .getState()
+        .cards.map((c) => c.scryfallId)
+        .filter(Boolean),
+      ...deckPrintingIds(useDecksStore.getState().decks),
+    ]),
+  ];
   if (ids.length === 0) return;
   inFlight = true;
   try {
@@ -88,7 +100,7 @@ export async function refreshDeckImageVersions(now = Date.now()): Promise<void> 
     }
   } catch (err) {
     // Offline or a server blip: the stored URLs still render; try next session.
-    logger.warn('[images] deck image check failed:', err);
+    logger.warn('[images] image check failed:', err);
   } finally {
     inFlight = false;
   }
