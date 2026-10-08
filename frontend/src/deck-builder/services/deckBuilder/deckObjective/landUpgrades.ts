@@ -19,7 +19,9 @@
  */
 import type { ScryfallCard } from '@/deck-builder/types';
 import { ANY_COLOR } from '@/lib/mana-sim/types';
+import { isOwnedCard } from './constraints';
 import { isBasicLand, isLandCard } from './context';
+import { applyMove } from './judge';
 import { scoreDeck } from './index';
 import { OWNED_BONUS, isCollectionBuild } from './terms/ownership';
 import type { ObjectiveContext, ObjectiveDeck } from './types';
@@ -134,4 +136,51 @@ export function replicates(
 ): boolean {
   const other = { ...ctx, sim: { ...ctx.sim, seed: ctx.sim.seed + REPLICATION_SEED_STEP } };
   return scoreDeck(after, other).total - scoreDeck(before, other).total >= required;
+}
+
+export interface RankedUpgrade extends LandUpgrade {
+  /** landCredit(): what the score already credits the land besides the mana. */
+  credit: number;
+  /** The short goldfish's mana gain plus the fast terms', less the credit. */
+  estimate: number;
+}
+
+/**
+ * The land upgrades worth a full score this step: the owned nonbasic lands that
+ * give colour and don't pay for their mana, each against the basics it could
+ * replace, ranked by the short goldfish and kept to UPGRADES_PER_STEP.
+ */
+export function rankLandUpgrades(
+  deck: ObjectiveDeck,
+  addable: readonly ScryfallCard[],
+  ctx: ObjectiveContext,
+  allowed: (u: LandUpgrade) => boolean,
+  partial: (deck: ObjectiveDeck, ctx: ObjectiveContext) => number,
+  fastGain: (deck: ObjectiveDeck) => number
+): RankedUpgrade[] {
+  const lands = addable.filter(
+    (c) =>
+      isLandCard(c) &&
+      !isBasicLand(c) &&
+      isOwnedCard(c, ctx) &&
+      !paysForMana(c) &&
+      givesColour(c, ctx)
+  );
+  const upgrades = landUpgrades(deck, lands, ctx).filter(allowed);
+  if (upgrades.length === 0) return [];
+  const screenCtx = { ...ctx, sim: { ...ctx.sim, games: SCREEN_GAMES } };
+  const screenNow = partial(deck, screenCtx);
+  return upgrades
+    .map((u) => {
+      const next = applyMove(deck, { out: [u.out], in: [u.land] });
+      const credit = landCredit(u.land, ctx);
+      return {
+        ...u,
+        credit,
+        estimate: partial(next, screenCtx) - screenNow + fastGain(next) - credit,
+      };
+    })
+    .filter((m) => m.estimate > 0)
+    .sort((a, b) => b.estimate - a.estimate || a.land.name.localeCompare(b.land.name))
+    .slice(0, UPGRADES_PER_STEP);
 }

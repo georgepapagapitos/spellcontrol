@@ -67,12 +67,7 @@ import { MIN_GAIN, applyMove, memoRoleOf } from './judge';
 import {
   MAX_LAND_EVALUATIONS,
   MAX_LAND_UPGRADES,
-  SCREEN_GAMES,
-  UPGRADES_PER_STEP,
-  landCredit,
-  givesColour,
-  landUpgrades,
-  paysForMana,
+  rankLandUpgrades,
   replicates,
 } from './landUpgrades';
 import { reasonProblem } from './reasonCheck';
@@ -485,44 +480,24 @@ export function* optimizeSteps(
       }
     }
     if (landsLeft && landPhase) {
-      // E509: owned nonbasic lands, for a basic each. The
-      // goldfish is the case for a land and the fast terms leave it out, so the
-      // moves are ranked by a short goldfish and the best few judged in full.
-      const lands = addable.filter(
-        (c) =>
-          isLandCard(c) &&
-          !isBasicLand(c) &&
-          isOwnedCard(c, ctx) &&
-          !paysForMana(c) &&
-          givesColour(c, ctx)
+      // E509: owned nonbasic lands, for a basic each (landUpgrades.ts).
+      const ranked = rankLandUpgrades(
+        current,
+        addable,
+        ctx,
+        (u) => !protectedKeys.has(key(current.cards[u.out].name)),
+        (deck, c) => partialTotal(deck, c, ['mana']),
+        (deck) => fast(deck) - fastNow
       );
-      const upgrades = landUpgrades(current, lands, ctx).filter(
-        (u) => !protectedKeys.has(key(current.cards[u.out].name))
+      moves.push(
+        ...ranked.map((r) => ({
+          out: [r.out],
+          in: [r.land],
+          kind: 'improve' as const,
+          landUp: r.credit,
+          estimate: r.estimate,
+        }))
       );
-      if (upgrades.length > 0) {
-        const screenCtx = { ...ctx, sim: { ...ctx.sim, games: SCREEN_GAMES } };
-        const screenNow = partialTotal(current, screenCtx, ['mana']);
-        const scored: Move[] = [];
-        for (const u of upgrades) {
-          const next = applyMove(current, { out: [u.out], in: [u.land] });
-          const credit = landCredit(u.land, ctx);
-          scored.push({
-            out: [u.out],
-            in: [u.land],
-            kind: 'improve',
-            landUp: credit,
-            estimate:
-              partialTotal(next, screenCtx, ['mana']) - screenNow + fast(next) - fastNow - credit,
-          });
-          yield beat();
-        }
-        moves.push(
-          ...scored
-            .filter((m) => m.estimate > 0)
-            .sort((a, b) => b.estimate - a.estimate || a.in[0].name.localeCompare(b.in[0].name))
-            .slice(0, UPGRADES_PER_STEP)
-        );
-      }
     }
     if (opts.comboPairs) {
       // The two weakest spells the trust region lets go.
