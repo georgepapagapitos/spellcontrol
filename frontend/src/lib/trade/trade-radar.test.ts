@@ -172,13 +172,12 @@ describe('buildWantRadar', () => {
     const lines = groupOwnedForTrade([owned({ copyId: 'a', name: 'Sol Ring', oracleId: 'o-sol' })]);
     expect(buildWantRadar([{ name: 'SOL RING', oracleId: '' }], lines, new Map())).toHaveLength(1);
 
+    // A legacy copy with no oracleId can't be put in an offer, so it isn't a
+    // line at all and the radar has nothing to match it against.
     const legacyLines = groupOwnedForTrade([owned({ copyId: 'a', name: 'Sol Ring' })]);
-    const matches = buildWantRadar(
-      [{ name: 'sol ring', oracleId: 'o-sol' }],
-      legacyLines,
-      new Map()
-    );
-    expect(matches).toEqual([{ name: 'Sol Ring', oracleId: '', owned: 1, spare: 0 }]);
+    expect(
+      buildWantRadar([{ name: 'sol ring', oracleId: 'o-sol' }], legacyLines, new Map())
+    ).toEqual([]);
   });
 
   it('never surfaces a proxy — groupOwnedForTrade drops them before we index', () => {
