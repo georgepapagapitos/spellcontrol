@@ -9,7 +9,7 @@ import { describe, it, expect } from 'vitest';
 import type { ComboMatch } from '@/types/combos';
 import { buildNextBestMoves } from '@/deck-builder/services/deckBuilder/nextBestMove';
 import { comboEndsGame } from '@/deck-builder/services/winConditions/detect';
-import { buildCoachChanges } from './coach-changes';
+import { buildCoachChanges, winningCombos } from './coach-changes';
 import { rankCoachMoves, type CoachContext } from './coach-rank';
 
 const HULLBREAKER = 'd4a84e78-d9b9-4c67-8a4b-4329e65f0f15';
@@ -73,7 +73,12 @@ const ctx: CoachContext = {
 const rank = (oneAwayCombos: ComboMatch[]) =>
   rankCoachMoves(
     buildCoachChanges(
-      { gaps: [], synergy: [], substitutes: [], oneAwayCombos },
+      {
+        gaps: [],
+        synergy: [],
+        substitutes: [],
+        oneAwayCombos: winningCombos({ oneAway: oneAwayCombos }),
+      },
       () => 'owned',
       new Set()
     ),

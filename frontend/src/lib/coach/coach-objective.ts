@@ -52,6 +52,7 @@ import { edhrecRowsFrom } from '@/deck-builder/services/deckBuilder/deckObjectiv
 import { getByCardName } from '@/lib/cards/card-text';
 import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
 import { comboEndsGame } from '@/deck-builder/services/winConditions/detect';
+import { deckComboPayoffs } from '@/deck-builder/services/winConditions/comboPayoffs';
 import { coachDeckSettings } from './deck-settings-fit';
 import { createCoachProtections, type CoachProtectionInputs } from './coach-protections';
 
@@ -265,9 +266,11 @@ export function coachCombos(
   deckCards: readonly ScryfallCard[]
 ): DetectedCombo[] {
   if (!resp) return [];
+  // The deck's own cards (commander included) can convert a loop the results can't win (E578).
+  const payoffs = deckComboPayoffs(deckCards);
   return [
     ...comboMatchesToDetected(resp, deckCards),
-    ...resp.oneAway.filter((m) => comboEndsGame(m.combo.produces)).map(nearMiss),
+    ...resp.oneAway.filter((m) => comboEndsGame(m.combo.produces, payoffs)).map(nearMiss),
   ];
 }
 

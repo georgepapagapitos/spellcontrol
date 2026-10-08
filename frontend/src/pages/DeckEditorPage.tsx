@@ -104,7 +104,7 @@ import {
   type ChangeOwnership,
 } from '@/lib/coach/deck-change';
 import { useReplaceCuts } from '@/lib/coach/replace-cuts';
-import { newLineCombos, onPlanCombos, staplesToSubstitute } from '@/lib/coach/coach-changes';
+import { onPlanCombos, staplesToSubstitute, winningCombos } from '@/lib/coach/coach-changes';
 import { combosThatFit, gapsThatFit, useCoachSettings } from '@/lib/coach/deck-settings-fit';
 import { collectionLandsAsCards, landUpgradeCandidates } from '@/lib/coach/land-candidates';
 import { buildSwapAlternativeFactors, type WhyFactor } from '@/lib/coach/why-factors';
@@ -1130,8 +1130,7 @@ export function DeckEditorPage() {
     coachSettings.cutFits,
     mainboardLimit
   );
-  // "Next best move" — the single highest-leverage change, derived from the
-  // live PlanScore + role gaps + near-miss combos.
+  // "Next best move": the highest-leverage change, from the PlanScore, role gaps and near-miss combos.
   const nextBestMoves = useMemo(() => {
     if (!deck || !DECK_FORMAT_CONFIGS[deck.format].hasCommander) return [];
     const roleCounts = liveRoleCounts ?? {};
@@ -1149,6 +1148,7 @@ export function DeckEditorPage() {
         combosThatFit(mainboardComboData?.oneAway, coachSettings.fit, ownershipFor),
         deck.suggestionCards
       ),
+      deckPayoffs: coachSettings.deckPayoffs,
       ownedNames,
       winConditions: deck.winConditions,
       bracketFitHasMoves: (deck.bracketFit?.moves.length ?? 0) > 0,
@@ -1162,7 +1162,7 @@ export function DeckEditorPage() {
     ownedNames,
     ownedOnly,
     landAdvice,
-    coachSettings.fit,
+    coachSettings,
     ownershipFor,
   ]);
 
@@ -3554,7 +3554,7 @@ export function DeckEditorPage() {
                   costPlan={(coachSettings.savesMoney && effectiveCostPlan) || undefined}
                   bracketFit={deck.bracketFit ?? undefined}
                   landUpgrades={landUpgrades}
-                  oneAwayCombos={newLineCombos(mainboardComboData)}
+                  oneAwayCombos={winningCombos(mainboardComboData, coachSettings.deckPayoffs)}
                   crossDeckMoves={crossDeckMoves}
                   planScore={deck.planScore}
                   roleCounts={liveRoleCounts ?? {}}

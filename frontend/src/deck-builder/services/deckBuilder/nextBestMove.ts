@@ -5,6 +5,7 @@ import type { DeckView } from '@/components/deck/DeckDisplay';
 import type { ComboMatch } from '@/types/combos';
 import type { WinConditionAnalysis } from '@/deck-builder/services/winConditions/types';
 import { comboEndsGame } from '@/deck-builder/services/winConditions/detect';
+import type { DeckPayoffs } from '@/deck-builder/services/winConditions/comboPayoffs';
 
 /**
  * One ranked, data-grounded suggestion for the single highest-leverage change
@@ -50,6 +51,9 @@ export interface NextBestMoveInput {
   deckTarget: number;
   /** Near-miss combos — the `oneAway` slice of ComboMatchResponse. */
   oneAwayCombos?: ComboMatch[];
+  /** What the deck's own cards convert into a win (`deckComboPayoffs`, E578): a loop that
+   *  only makes mana or untaps still counts as a combo when the deck holds its payoff. */
+  deckPayoffs?: DeckPayoffs;
   /** Live owned card names. When a role/synergy gap can be filled by a card the
    *  player already owns, the hero prefers it ("build it tonight" over "go buy").
    *  Re-derived live by the page — never the stale persisted `isOwned` snapshot. */
@@ -173,6 +177,7 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
     cardCount,
     deckTarget,
     oneAwayCombos,
+    deckPayoffs,
     ownedNames,
     winConditions,
     ownedOnly,
@@ -329,7 +334,7 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
       if (match.missingOracleIds.length !== 1) continue;
       // A loop that doesn't win (infinite mana with no sink) is no "near-miss
       // combo" worth a top-three slot (E437).
-      if (!comboEndsGame(match.combo.produces)) continue;
+      if (!comboEndsGame(match.combo.produces, deckPayoffs)) continue;
       const missingId = match.missingOracleIds[0];
       const missingCard = match.combo.cards.find((c) => c.oracleId === missingId);
       const missingName = missingCard?.cardName;
