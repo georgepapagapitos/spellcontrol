@@ -457,11 +457,13 @@ function GetLine({
           <span
             className={line.gone ? 'trade-review-meta is-warn' : 'trade-review-meta is-segments'}
           >
-            {segments.map((text) => (
-              <span key={text} className="trade-review-meta-seg">
-                {text}
-              </span>
-            ))}
+            <span className="trade-review-meta-row">
+              {segments.map((text) => (
+                <span key={text} className="trade-review-meta-seg">
+                  {text}
+                </span>
+              ))}
+            </span>
           </span>
         )}
       </span>

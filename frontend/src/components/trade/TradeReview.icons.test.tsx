@@ -100,7 +100,16 @@ describe('the review centres its text-button icons', () => {
       return css.slice(at, css.indexOf('}', at));
     };
     expect(rule('.trade-review-line')).toMatch(/align-items:\s*flex-start/);
-    expect(rule('.trade-review-meta.is-segments')).toMatch(/flex-wrap:\s*wrap/);
+    // The clipped-separator pattern: row pulled left by one dot box, container clips.
+    expect(rule('.trade-review-meta.is-segments')).toMatch(/overflow:\s*hidden/);
+    expect(rule('.trade-review-meta-row')).toMatch(/flex-wrap:\s*wrap/);
+    expect(rule('.trade-review-meta-row')).toMatch(
+      /margin-left:\s*calc\(-1 \* var\(--meta-sep\)\)/
+    );
+    expect(rule('.trade-review-meta-seg::before')).toMatch(/width:\s*var\(--meta-sep\)/);
+    expect(css).not.toMatch(/meta-seg \+ \.trade-review-meta-seg/);
+    // The give line's printing keeps its 44px target without 44px of spacing.
+    expect(css).toMatch(/\.trade-review-printing \{\s*min-height: 44px;\s*margin-block: -14px;/);
     expect(rule('.trade-review-meta-seg')).toMatch(/white-space:\s*nowrap/);
   });
 
