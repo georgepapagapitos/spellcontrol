@@ -9,6 +9,7 @@ import type {
 import { getPartnerType, getPartnerWithName } from '@/deck-builder/lib/partnerUtils';
 import { isPlayableCard, resolveReversiblePrinting } from '@/deck-builder/lib/printingLayouts';
 export { isPlayableCard };
+import { freshenScryfallCard } from '@/lib/cards/card-image-versions';
 import { offlineGetCardByName, offlineGetCardsByNames, offlineSearchCards } from '@/lib/offline';
 import { offlineDataAvailable, useOfflineStore } from '@/store/offline';
 import { frontFaceName } from '@/lib/cards/card-text';
@@ -92,8 +93,10 @@ function cacheKeyFor(name: string, preferredSet?: string, arenaOnly?: boolean): 
 async function primeFromDisk(keys: string[]): Promise<void> {
   const missing = keys.filter((key) => !memoryCache.has(key));
   if (missing.length === 0) return;
+  // A card cached before Scryfall replaced its image still holds the old
+  // stamp; move it onto the newest one this device knows (card-image-versions).
   for (const [key, card] of await readCachedCards(missing)) {
-    memoryCache.set(key, card);
+    memoryCache.set(key, freshenScryfallCard(card));
   }
 }
 

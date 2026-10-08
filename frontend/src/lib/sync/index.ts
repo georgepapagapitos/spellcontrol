@@ -1981,10 +1981,12 @@ async function rehydrateStoresFromIdb(): Promise<void> {
     // only, but the underlying objects are full EnrichedCard rows.
     const cardsForRemap = cardData as unknown as EnrichedCard[];
     remapAllAllocations(cardsForRemap);
-    // Deck cards are frozen copies, image URL included: ask for current image
-    // stamps (self-throttled to daily). Lazy: the module imports the stores.
+  }
+  // Stored image URLs can predate a Scryfall re-scan: ask for current image
+  // stamps (self-throttled to daily). Lazy: the module imports the stores.
+  if (cardData.length > 0 || deckData.length > 0) {
     void import('@/lib/cards/refresh-image-versions')
-      .then((m) => m.refreshDeckImageVersions())
+      .then((m) => m.refreshImageVersions())
       .catch(() => {});
   }
 }

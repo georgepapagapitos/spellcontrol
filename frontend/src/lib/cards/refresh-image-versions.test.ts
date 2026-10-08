@@ -9,7 +9,7 @@ import { _resetForTests as resetVersions, setImageVersions } from './card-image-
 import {
   _resetForTests,
   applyImageVersionsToStores,
-  refreshDeckImageVersions,
+  refreshImageVersions,
 } from './refresh-image-versions';
 
 const CHIMERA = '81cea94d-e8a2-4c88-b121-9806eb7cc210';
@@ -68,7 +68,7 @@ describe('applyImageVersionsToStores', () => {
   });
 });
 
-describe('refreshDeckImageVersions', () => {
+describe('refreshImageVersions', () => {
   const stubFetch = (body: unknown, ok = true) => {
     const fetch = vi.fn(async () => new Response(JSON.stringify(body), { status: ok ? 200 : 500 }));
     vi.stubGlobal('fetch', fetch);
@@ -77,7 +77,7 @@ describe('refreshDeckImageVersions', () => {
 
   it('asks for the deck printings and moves their images', async () => {
     const fetch = stubFetch({ imageVersions: { [CHIMERA]: String(NEW) } });
-    await refreshDeckImageVersions(T);
+    await refreshImageVersions(T);
     expect(fetch).toHaveBeenCalledOnce();
     const [path, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
     expect(path).toContain('/api/cards/image-versions');
@@ -87,16 +87,16 @@ describe('refreshDeckImageVersions', () => {
 
   it('runs at most once a day', async () => {
     const fetch = stubFetch({ imageVersions: {} });
-    await refreshDeckImageVersions(T);
-    await refreshDeckImageVersions(T + 60_000);
+    await refreshImageVersions(T);
+    await refreshImageVersions(T + 60_000);
     expect(fetch).toHaveBeenCalledOnce();
-    await refreshDeckImageVersions(T + 25 * 60 * 60 * 1000);
+    await refreshImageVersions(T + 25 * 60 * 60 * 1000);
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
   it('retries next time after a failed check, leaving images as stored', async () => {
     const failing = stubFetch({ error: 'down' }, false);
-    await refreshDeckImageVersions(T);
+    await refreshImageVersions(T);
     expect(failing).toHaveBeenCalledOnce();
     expect(deckImage()).toBe(url(OLD));
 
@@ -106,19 +106,31 @@ describe('refreshDeckImageVersions', () => {
         throw new TypeError('offline');
       })
     );
-    await refreshDeckImageVersions(T + 1);
+    await refreshImageVersions(T + 1);
     expect(deckImage()).toBe(url(OLD));
 
     const fetch = stubFetch({ imageVersions: { [CHIMERA]: String(NEW) } });
-    await refreshDeckImageVersions(T + 2);
+    await refreshImageVersions(T + 2);
     expect(fetch).toHaveBeenCalledOnce();
     expect(deckImage()).toBe(url(NEW));
   });
 
-  it('skips the request when there are no deck cards', async () => {
+  // A collection card whose price is fresh gets no stamp from the price
+  // refresh, so the daily check must ask for collection printings too.
+  it('asks for collection printings even with no decks, and moves them', async () => {
     useDecksStore.setState({ decks: [] });
+    const fetch = stubFetch({ imageVersions: { [CHIMERA]: String(NEW) } });
+    await refreshImageVersions(T);
+    const [, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
+    expect(JSON.parse(init.body as string)).toEqual({ scryfallIds: [CHIMERA] });
+    expect(useCollectionStore.getState().cards[0].imageNormal).toBe(url(NEW));
+  });
+
+  it('skips the request when there are no cards at all', async () => {
+    useDecksStore.setState({ decks: [] });
+    useCollectionStore.setState({ cards: [] });
     const fetch = stubFetch({ imageVersions: {} });
-    await refreshDeckImageVersions(T);
+    await refreshImageVersions(T);
     expect(fetch).not.toHaveBeenCalled();
   });
 });
