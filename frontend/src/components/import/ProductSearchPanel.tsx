@@ -15,8 +15,11 @@ import { useBinderLayoutInputs } from '@/lib/binder/use-binder-layout-inputs';
 import {
   PRODUCT_IMPORT_LABEL,
   groupPhysicalByZone,
+  isProductToken,
   physicalCardsToUploadResponse,
+  physicalCopyCount,
 } from '@/lib/import-export/product-import';
+import { readLocalStorage } from '@/lib/util/local-storage';
 import { fetchErrorMessage } from '@/lib/import-export/import-review';
 import { summarizeImportRouting } from '@/lib/import-export/import-routing';
 import { useCardCarousel, type CarouselEntry } from '@/components/deck/useCardCarousel';
@@ -52,6 +55,11 @@ function physicalToEntries(physicalCards: ProductPhysicalCard[]): CarouselEntry[
 /** Card-list layout for the precon detail — grid of art, roomy list, or dense list. */
 type PreconLayout = 'grid' | 'list' | 'compact';
 const LAYOUT_KEY = 'sc-precon-layout';
+
+/** Whether adding a product to the collection includes its tokens. Off unless
+ *  the user turned it on once: some players keep tokens with their cards, some
+ *  don't want them in the collection at all. */
+const ADD_TOKENS_KEY = 'sc-product-add-tokens';
 
 function readLayout(): PreconLayout {
   try {
@@ -336,6 +344,9 @@ export function ProductSearchPanel({ onClose, context = 'collection' }: Props) {
   const [alsoAddToCollection, setAlsoAddToCollection] = useState(false);
   const [result, setResult] = useState<AddResult | null>(null);
   const [layout, setLayout] = useState<PreconLayout>(readLayout);
+  const [addTokens, setAddTokens] = useState(() =>
+    readLocalStorage(ADD_TOKENS_KEY, (raw) => raw === '1', false)
+  );
   const debounceRef = useRef<number | null>(null);
 
   const routingSummary = result ? summarizeImportRouting(result.importIds, binderLayout) : null;
@@ -348,6 +359,19 @@ export function ProductSearchPanel({ onClose, context = 'collection' }: Props) {
       // non-fatal — preference just won't persist this session
     }
   };
+
+  const chooseAddTokens = (next: boolean) => {
+    setAddTokens(next);
+    try {
+      localStorage.setItem(ADD_TOKENS_KEY, next ? '1' : '0');
+    } catch {
+      // non-fatal — the choice just won't be remembered
+    }
+  };
+
+  /** The physical cards an "Add to collection" takes: everything, or all but the tokens. */
+  const cardsToAdd = (physicalCards: ProductPhysicalCard[]) =>
+    addTokens ? physicalCards : physicalCards.filter((pc) => !isProductToken(pc));
 
   // Debounced product search. An empty query lists the newest products of the
   // chosen type so the tab is browsable, not just searchable.
@@ -426,7 +450,7 @@ export function ProductSearchPanel({ onClose, context = 'collection' }: Props) {
     setBusy(true);
     setProductError(null);
     try {
-      const upload = uploadForQuantity(resp.physicalCards, quantity);
+      const upload = uploadForQuantity(cardsToAdd(resp.physicalCards), quantity);
       const importId = await importCards(
         upload,
         `${PRODUCT_IMPORT_LABEL}:${resp.product.name}`,
@@ -469,7 +493,8 @@ export function ProductSearchPanel({ onClose, context = 'collection' }: Props) {
     // collection, so the quantity stepper and the total in the primary label
     // both apply.
     const addsToCollection = cardListProduct || context === 'collection' || alsoAddToCollection;
-    const totalCount = selected.physicalCardCount * quantity;
+    const tokenCount = physicalCopyCount(selected.physicalCards.filter(isProductToken));
+    const totalCount = physicalCopyCount(cardsToAdd(selected.physicalCards)) * quantity;
     const primaryLabel = addsToCollection
       ? `Add ${totalCount.toLocaleString()} card${totalCount === 1 ? '' : 's'} to collection`
       : 'Add as deck';
@@ -652,6 +677,14 @@ export function ProductSearchPanel({ onClose, context = 'collection' }: Props) {
                 label="Also add the cards to my collection"
                 checked={alsoAddToCollection}
                 onChange={setAlsoAddToCollection}
+                disabled={busy}
+              />
+            )}
+            {addsToCollection && tokenCount > 0 && (
+              <SwitchRow
+                label={`Add the ${tokenCount} token${tokenCount === 1 ? '' : 's'} too`}
+                checked={addTokens}
+                onChange={chooseAddTokens}
                 disabled={busy}
               />
             )}

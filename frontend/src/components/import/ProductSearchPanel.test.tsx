@@ -280,3 +280,72 @@ describe('ProductSearchPanel — Secret Lair (card-list) products', () => {
     expect(buildDeckMock).not.toHaveBeenCalled();
   });
 });
+
+// Some players want a precon's tokens in their collection and some don't, so
+// adding a product leaves them out unless the user turns them on (remembered).
+describe('ProductSearchPanel — tokens are opt-in', () => {
+  function withTokens(): ProductResolveResponse {
+    const base = makeResolved();
+    const treasure = makeScryfallCard({
+      id: 'tok-1',
+      oracle_id: 'oracle-tok-1',
+      name: 'Treasure',
+      type_line: 'Token Artifact — Treasure',
+      layout: 'token',
+    });
+    const copy = makeScryfallCard({
+      id: 'tok-2',
+      oracle_id: 'oracle-tok-2',
+      name: 'Slug // Copy',
+      type_line: 'Token Creature — Slug // Token',
+      layout: 'double_faced_token',
+    });
+    return {
+      ...base,
+      physicalCards: [
+        ...base.physicalCards,
+        { card: treasure, quantity: 2, finish: 'nonfoil', zone: 'tokens' },
+        { card: copy, quantity: 1, finish: 'nonfoil', zone: 'tokens' },
+      ],
+      physicalCardCount: 5,
+    };
+  }
+
+  beforeEach(() => {
+    localStorage.clear();
+    fetchProductMock.mockResolvedValue(withTokens());
+  });
+
+  it('leaves the tokens out by default', async () => {
+    renderPanel();
+    await openProductDetail();
+
+    const tokensSwitch = screen.getByRole('switch', { name: 'Add the 3 tokens too' });
+    expect(tokensSwitch.getAttribute('aria-checked')).toBe('false');
+    fireEvent.click(screen.getByRole('button', { name: 'Add 2 cards to collection' }));
+    await waitFor(() => expect(importCardsMock).toHaveBeenCalledTimes(1));
+    const [upload] = importCardsMock.mock.calls[0];
+    expect((upload.cards as { name: string }[]).map((c) => c.name)).toEqual([
+      'Test Commander',
+      'Test Other',
+    ]);
+  });
+
+  it('adds them when switched on, and remembers the choice', async () => {
+    renderPanel();
+    await openProductDetail();
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Add the 3 tokens too' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add 5 cards to collection' }));
+    await waitFor(() => expect(importCardsMock).toHaveBeenCalledTimes(1));
+    expect(importCardsMock.mock.calls[0][0].cards).toHaveLength(5);
+    expect(localStorage.getItem('sc-product-add-tokens')).toBe('1');
+  });
+
+  it('shows no tokens switch for a product without tokens', async () => {
+    fetchProductMock.mockResolvedValue(makeResolved());
+    renderPanel();
+    await openProductDetail();
+    expect(screen.queryByRole('switch', { name: /token/ })).toBeNull();
+  });
+});
