@@ -18,7 +18,6 @@
  *    best few are judged in full.
  */
 import type { ScryfallCard } from '@/deck-builder/types';
-import { ANY_COLOR } from '@/lib/mana-sim/types';
 import { isOwnedCard } from './constraints';
 import { isBasicLand, isLandCard } from './context';
 import { applyMove } from './judge';
@@ -34,39 +33,6 @@ export const MAX_LAND_UPGRADES = 3;
 export const MAX_LAND_EVALUATIONS = 120;
 /** Land upgrades judged in full per step. */
 export const UPGRADES_PER_STEP = 6;
-
-/**
- * Whether a land makes mana only by paying mana: a filter ("{1}, {T}: Add one
- * mana of any color", Daily Bugle Building, Captivating Cave). The goldfish
- * classifies a land from Scryfall's produced_mana, which lists the paid
- * ability's colours too, so it reads such a land as a free any-colour source
- * and pays it to replace a basic (E509 gate 1). Left out of the upgrades until
- * the classifier models the filter step.
- *
- * ponytail: text test, not a model of the filter. Ceiling: a filter land
- * (Mystic Gate) never upgrades a basic. Upgrade path: parse the paid clause in
- * lib/mana-sim/classify.ts, then drop this.
- */
-export function paysForMana(land: ScryfallCard): boolean {
-  const faces = (land.card_faces ?? []).map((f) => f.oracle_text ?? '');
-  const lines = [land.oracle_text ?? '', ...faces].join('\n').toLowerCase().split('\n');
-  return lines.some((line) => {
-    const m = /^([^:]*):\s*add\b/.exec(line.trim());
-    return m !== null && /\{[^}]*\}/.test(m[1].replace(/\{t\}|\{q\}/g, ''));
-  });
-}
-
-/**
- * Whether a land gives the deck colour: it taps for one, or fetches one. A
- * colourless utility land (Springjack Pasture, Scorched Ruins) is a choice the
- * generator's land plan makes from the page; swapped in for a basic it reads as
- * a mana gain in the goldfish only by its text's quirks (gate 2), so a land
- * upgrade must still tap for colour.
- */
-export function givesColour(land: ScryfallCard, ctx: ObjectiveContext): boolean {
-  const face = ctx.manaCardOf(land).land;
-  return !!face && (face.fetch !== null || (landColours(land, ctx) & ANY_COLOR) !== 0);
-}
 
 /** The colours a land taps for, as the goldfish reads them (0 = colourless or none). */
 export function landColours(card: ScryfallCard, ctx: ObjectiveContext): number {
@@ -158,14 +124,7 @@ export function rankLandUpgrades(
   partial: (deck: ObjectiveDeck, ctx: ObjectiveContext) => number,
   fastGain: (deck: ObjectiveDeck) => number
 ): RankedUpgrade[] {
-  const lands = addable.filter(
-    (c) =>
-      isLandCard(c) &&
-      !isBasicLand(c) &&
-      isOwnedCard(c, ctx) &&
-      !paysForMana(c) &&
-      givesColour(c, ctx)
-  );
+  const lands = addable.filter((c) => isLandCard(c) && !isBasicLand(c) && isOwnedCard(c, ctx));
   const upgrades = landUpgrades(deck, lands, ctx).filter(allowed);
   if (upgrades.length === 0) return [];
   const screenCtx = { ...ctx, sim: { ...ctx.sim, games: SCREEN_GAMES } };

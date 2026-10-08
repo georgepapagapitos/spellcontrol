@@ -6,7 +6,7 @@
 // here and are offered as the collection's off-page lands.
 import { describe, expect, it } from 'vitest';
 import { optimizeDeck } from './optimizer';
-import { givesColour, landUpgrades, paysForMana } from './landUpgrades';
+import { landUpgrades } from './landUpgrades';
 import { TREATMENT, card, merenCtx, swap } from './__fixtures__/objectiveFixture';
 
 const DUALS = ['Overgrown Tomb', 'Woodland Cemetery', 'Llanowar Wastes'];
@@ -38,36 +38,6 @@ describe('landUpgrades', () => {
 
   it('skips a land the deck already holds and any basic', () => {
     expect(landUpgrades(swapped, [card('Command Tower'), card('Forest')], ctx)).toEqual([]);
-  });
-});
-
-describe('givesColour', () => {
-  const ctx = merenCtx();
-  it('passes a land that taps for colour and refuses a colourless one (real cards)', () => {
-    expect(givesColour(card('Overgrown Tomb'), ctx)).toBe(true);
-    expect(givesColour(card("Gaea's Cradle"), ctx)).toBe(true);
-    expect(givesColour(card('High Market'), ctx)).toBe(false);
-  });
-});
-
-describe('paysForMana', () => {
-  const land = (oracle_text: string) => ({ ...card('Command Tower'), oracle_text });
-  it('reads the filter lands the goldfish mistakes for free any-colour sources (real text)', () => {
-    // Daily Bugle Building and Captivating Cave, as the gate's dumps carry them.
-    expect(paysForMana(land('{T}: Add {C}.\n{1}, {T}: Add one mana of any color.'))).toBe(true);
-    expect(
-      paysForMana(
-        land(
-          '{T}: Add {C}.\n{1}, {T}: Add one mana of any color.\n{4}, {T}, Sacrifice this land: Put two +1/+1 counters on target creature.'
-        )
-      )
-    ).toBe(true);
-  });
-
-  it('passes a land that taps for mana free', () => {
-    expect(paysForMana(card('Overgrown Tomb'))).toBe(false);
-    expect(paysForMana(card('Command Tower'))).toBe(false);
-    expect(paysForMana(card('Llanowar Wastes'))).toBe(false);
   });
 });
 
