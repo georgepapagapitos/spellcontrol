@@ -34,6 +34,22 @@ export function countTheirCopies(cards: readonly PublicCard[] | null): Map<strin
   return counts;
 }
 
+/**
+ * The cheapest priced printing of each card among THEIR copies, by `keyOf`.
+ * Their payload carries market `purchasePrice` per printing, so an ask can be
+ * priced from the very cards it names; a card with no priced copy is absent.
+ */
+export function theirFloorPrices(cards: readonly PublicCard[] | null): Map<string, number> {
+  const floors = new Map<string, number>();
+  for (const card of cards ?? []) {
+    if (!(card.purchasePrice > 0)) continue;
+    const key = keyOf({ oracleId: card.oracleId ?? '', name: card.name });
+    const have = floors.get(key);
+    if (have === undefined || card.purchasePrice < have) floors.set(key, card.purchasePrice);
+  }
+  return floors;
+}
+
 export interface ReviewGetLine {
   key: string;
   name: string;
@@ -137,9 +153,19 @@ export function useTradeReview(opts: {
   );
 
   const getEntries = Object.entries(draft?.get ?? {});
-  const { prices: floorPrices, pending: floorPending } = useFloorPrices(
-    getEntries.map(([, l]) => l.name)
+  // Their own copies price the ask first; the Scryfall floor lookup is only
+  // for a card none of their copies has a price for.
+  const ownFloors = useMemo(() => theirFloorPrices(theirCards), [theirCards]);
+  const unpriced = getEntries.filter(([key]) => !ownFloors.has(key));
+  const { prices: lookedUp, pending: lookupPending } = useFloorPrices(
+    unpriced.map(([, l]) => l.name)
   );
+  const floorPending = unpriced.length > 0 && lookupPending;
+  const floorPrices = new Map(lookedUp);
+  for (const [key, line] of getEntries) {
+    const own = ownFloors.get(key);
+    if (own !== undefined) floorPrices.set(line.name, own);
+  }
 
   const getLines: ReviewGetLine[] = getEntries.map(([key, line]) => {
     const theirCount = theirCounts ? (theirCounts.get(key) ?? 0) : null;

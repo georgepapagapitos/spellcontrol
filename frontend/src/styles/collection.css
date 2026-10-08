@@ -1379,11 +1379,6 @@ i.ss.set-symbol--mythic {
     0 0 0 5px var(--accent-light);
 }
 
-.collection-grid-picked {
-  background: var(--accent);
-  color: var(--on-accent);
-}
-
 .collection-grid-item {
   position: relative;
   aspect-ratio: 488 / 680;

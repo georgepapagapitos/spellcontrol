@@ -4,6 +4,32 @@
 
 .collection-browser {
   min-width: 0;
+  /* The toolbar answers to the browser's own width, not the viewport's: beside
+     the trade dock a 1440px window leaves the browser under 640px. */
+  container: collection-browser / inline-size;
+}
+
+/* Above the phone fold (which has its own one-row layout) a narrow browser
+   gives the search pill a row to itself and wraps sort, layout and Details
+   beneath it. 600 is the viewport tier; the 640 is this container's own. */
+@media (min-width: 600px) {
+  @container collection-browser (max-width: 639px) {
+    .collection-browser-tools {
+      flex-wrap: wrap;
+    }
+
+    .collection-browser-search {
+      flex: 1 1 100%;
+    }
+  }
+}
+
+/* Three tiles across on a phone, as the owner's own grid has. The shared grid
+   fits by a 110px minimum and loses a column inside a padded page (the hub). */
+@media (max-width: 599px) {
+  .collection-browser .shared-card-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 /* The toolbar pins under the page chrome while the cards scroll. The search

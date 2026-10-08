@@ -51,6 +51,13 @@ export function theirSideHooks(opts: {
         />
       );
     },
+    // The ask is per card, not per printing, so every printing of a picked
+    // card says the same true thing.
+    caption: (g) => {
+      const oracleId = idOf(g);
+      const n = oracleId ? wd.getQuantity(oracleId) : 0;
+      return n > 0 ? `In trade · ${n}` : null;
+    },
     flag: (g) => {
       const oracleId = idOf(g);
       return oracleId && myWants?.has(oracleId) ? 'You want' : null;
@@ -140,6 +147,9 @@ export function useYourSide(opts: {
     },
     caption: (g) => {
       const info = infoFor(g);
+      const key = keyFor(g);
+      const n = key ? wd.giveQuantity(key) : 0;
+      if (n > 0) return `In trade · ${n}`;
       return info ? describeOwned(info) : null;
     },
     flag: (g) => (wanted(g) ? `${friendName} wants` : null),

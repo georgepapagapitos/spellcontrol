@@ -26,4 +26,42 @@ describe('trade workspace dock threshold', () => {
       /\.trade-workspace\s*\{[^}]*container:\s*trade-workspace\s*\/\s*inline-size/
     );
   });
+
+  it('pins the dock on its grid-cell wrapper, clearing the header', () => {
+    // A sticky .trade-dock inside a wrapper exactly its own height has no room
+    // to travel: it scrolled away with the grid, title under the header.
+    const wrapper = css.match(/\.trade-workspace-dock\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(wrapper).toMatch(/position:\s*sticky/);
+    expect(wrapper).toMatch(/top:\s*var\(--space-3\)/);
+    expect(wrapper).toMatch(/var\(--site-header-h\)/);
+    const inner = css.match(/\.trade-workspace-dock \.trade-dock\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(inner).toMatch(/position:\s*static/);
+  });
+});
+
+describe('collection browser responsiveness', () => {
+  const browserCss = readFileSync(join(srcRoot, 'components/share/CollectionBrowser.css'), 'utf8');
+
+  it('is a container, and its toolbar wraps by that container above the phone fold', () => {
+    expect(browserCss).toMatch(
+      /\.collection-browser\s*\{[^}]*container:\s*collection-browser\s*\/\s*inline-size/
+    );
+    expect(browserCss).toMatch(
+      /@media \(min-width: 600px\)\s*\{\s*@container collection-browser \(max-width: 639px\)\s*\{[^]*?\.collection-browser-tools\s*\{\s*flex-wrap:\s*wrap/
+    );
+    expect(browserCss).toMatch(/\.collection-browser-search\s*\{\s*flex:\s*1 1 100%/);
+  });
+
+  it('keeps three tiles across on a phone', () => {
+    expect(browserCss).toMatch(
+      /@media \(max-width: 599px\)\s*\{\s*\.collection-browser \.shared-card-grid\s*\{\s*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/
+    );
+  });
+
+  it('draws nothing trade-related on the card face but the ring', () => {
+    const cell = readFileSync(join(srcRoot, 'components/shared/CardGridCell.tsx'), 'utf8');
+    // pickedCount reaches the item class (the ring) and nowhere inside the art.
+    expect(cell).not.toMatch(/collection-grid-picked/);
+    expect(cell).not.toMatch(/\{pickedCount[^}]*&&[^]*?<ArtBadge/);
+  });
 });

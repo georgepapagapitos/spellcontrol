@@ -237,6 +237,27 @@ describe('TradeWorkspace: their cards', () => {
     expect(screen.getByText(/that's all Morgan has/)).toBeTruthy();
   });
 
+  it('says the same true thing on every printing of a picked card, with nothing on the art', () => {
+    renderWorkspace();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Ask for Sol Ring' })[0]);
+
+    // Seven tiles of one card would read as seven picked; they say "In trade · 1".
+    expect(screen.getAllByText('In trade · 1')).toHaveLength(2);
+    // The count is a caption, never a badge on the card face.
+    for (const art of document.querySelectorAll('.collection-grid-item')) {
+      expect(art.querySelector('.art-badge')).toBeNull();
+    }
+  });
+
+  it('prices the ask from their own copies: the cheapest printing', () => {
+    world.width = 1000;
+    const cheap = { ...theirCard('Sol Ring', 'b'), purchasePrice: 0.5 };
+    renderWorkspace({ theirCards: [theirCard('Sol Ring', 'a'), cheap] });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Ask for Sol Ring' })[0]);
+    const dock = screen.getByRole('complementary', { name: /Trade with Morgan/ });
+    expect(within(dock).getByText('from $0.50')).toBeTruthy();
+  });
+
   it('asks for a card from its preview with "Ask for this"', () => {
     renderWorkspace();
     fireEvent.click(screen.getByRole('button', { name: /^Rhystic Study/ }));

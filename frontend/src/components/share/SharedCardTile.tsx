@@ -153,7 +153,7 @@ export function SharedCardTile({
       setLabel={setLabel}
       ariaExtra={`${ownedAriaSuffix(ownership)}${flag ? ` · ${flag.toLowerCase()}` : ''}${
         note ? ` · ${note.toLowerCase()}` : ''
-      }${pickedCount ? ` · ${pickedCount} in your trade` : ''}`}
+      }`}
       rarityOnArt={false}
       note={note}
       cornerExtras={

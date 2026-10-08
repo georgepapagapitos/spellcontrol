@@ -394,7 +394,13 @@ describe('coarse-pointer touch floor', () => {
     // The profile's "Resume" link in the saved-draft line (E586): inline text.
     ['components/profile/ProfileHeader.css', '.public-profile-resume-link'],
     // The trade "+" on a card tile: a 30px circle in the tile's caption corner,
-    // between the art above and the neighbouring tile, so it ghosts.
+    // between the art above and the neighbouring tile, so it ghosts. Hit-test
+    // reasoning (measured geometry, phone 3-up grid with an 8px gap): the
+    // button sits 4px from the cell's right edge and 3px above its bottom, so
+    // the 44px ghost reaches 3px past the right edge and 4px below the bottom,
+    // both inside the 8px grid gap, never into the neighbouring tile or the
+    // row below; upward it reaches 4px into the art's bottom edge, which holds
+    // no control on this surface (the corner badges sit above that).
     ['components/trade/TradeAddButton.css', '.trade-add::after'],
   ];
 

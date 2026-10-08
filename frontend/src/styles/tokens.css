@@ -255,6 +255,10 @@
      whose content widens to --page-max-wide below (#1953 let the header
      follow the page, and the chrome jumped ~260px between routes). */
   --header-max: 1400px;
+  /* Height of the site header (.site-header-inner, desktop). It sits outside the
+     scrolling .app-main, so a sticky panel that budgets its own height against
+     the viewport subtracts it. */
+  --site-header-h: 3.25rem;
   /* Ceiling for the card-grid routes (collection hub, decks index, deck
      editor) — see base-layout.css `.app-shell:has(…)`. Still a
      cap: an ultrawide gets balanced gutters, not a 30-card row. */

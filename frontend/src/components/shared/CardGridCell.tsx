@@ -173,8 +173,8 @@ interface CardGridCellProps {
   note?: string | null;
   /**
    * Copies of this card already in a trade being built. Above 0 the art takes
-   * the accent ring and a count; the caller says it in `ariaExtra` too, since
-   * the ring and the count are sight only.
+   * the accent ring. Nothing else is drawn on the card face (its name and cost
+   * corners stay clear); the count is the caller's caption line and `ariaExtra`.
    */
   pickedCount?: number;
   /**
@@ -308,11 +308,6 @@ export function CardGridCell({
             )}
             {cornerExtras}
           </div>
-        )}
-        {pickedCount > 0 && (
-          <ArtBadge className="collection-grid-picked" corner="top-start" aria-hidden="true">
-            {pickedCount}
-          </ArtBadge>
         )}
         {badges && <div className="collection-grid-badges">{badges}</div>}
       </div>

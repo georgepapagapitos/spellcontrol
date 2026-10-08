@@ -306,7 +306,7 @@ select {
   display: flex;
   align-items: center;
   gap: var(--space-4);
-  height: 3.25rem;
+  height: var(--site-header-h);
 }
 
 .site-brand {
