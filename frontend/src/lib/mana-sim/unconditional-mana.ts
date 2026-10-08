@@ -29,14 +29,16 @@ export function costMana(cost: string): number {
  * Building). A coloured-cost filter (Mystic Gate) is kept as a dual. Upgrade
  * path: model the filter's conversion in the engine.
  *
- * `keepNetFilters` keeps a generic-cost ability that makes more mana than it
- * costs: an Odyssey filter (Sunscorched Divide, "{1}, {T}: Add {R}{W}") nets one
- * extra mana in two colours, which is real fixing for a drafter even though the
- * engine can't spend it. The simulator leaves it off.
+ * `fixing` reads a land the way a drafter counts fixing; the simulator leaves
+ * it off. It keeps a generic-cost ability that makes more mana than it costs:
+ * an Odyssey filter (Sunscorched Divide, "{1}, {T}: Add {R}{W}") nets one extra
+ * mana in two colours, real fixing even though the engine can't spend it. It
+ * also leaves out a one-shot triggered add: Branch of Vitu-Ghazi's "When this
+ * land is turned face up, add two mana of any one color" is not a source.
  */
 export function unconditionalMana(
   rawText: string,
-  { keepNetFilters = false }: { keepNetFilters?: boolean } = {}
+  { fixing = false }: { fixing?: boolean } = {}
 ): { text: string; colours: string[] | null } | null {
   const lines = rawText.toLowerCase().replace(/[()]/g, ' ').split('\n');
   let dropped = false;
@@ -45,6 +47,10 @@ export function unconditionalMana(
   let anyColour = false;
   for (const line of lines) {
     const m = /^([^:]*):\s*adds?\s([^]*)$/.exec(line.trim());
+    if (fixing && !m && /^(?:when|whenever|at)\b[^:]*\badds?\b/.test(line.trim())) {
+      dropped = true;
+      continue;
+    }
     if (!m) {
       kept.push(line);
       continue;
@@ -52,8 +58,10 @@ export function unconditionalMana(
     const [, cost, effect] = m;
     const generic = costMana(cost);
     const named = effect.split('.')[0];
-    const made = /or|one mana|any/.test(named) ? 1 : (named.match(/{[wubrgc]}/g) ?? []).length;
-    const netFilter = keepNetFilters && generic > 0 && made > generic;
+    const made = /\bor\b|one mana|any/.test(named)
+      ? 1
+      : (named.match(/\{[wubrgc]\}/g) ?? []).length;
+    const netFilter = fixing && generic > 0 && made > generic;
     const needsMana = (generic > 0 && !netFilter) || cost.includes('sacrifice');
     if (needsMana || /spend this mana only/.test(effect)) {
       dropped = true;
@@ -79,7 +87,7 @@ export function alwaysProducedMana(
   producedMana: string[] | undefined
 ): string[] | undefined {
   if (!producedMana || !oracleText) return producedMana;
-  return unconditionalMana(oracleText, { keepNetFilters: true })?.colours ?? producedMana;
+  return unconditionalMana(oracleText, { fixing: true })?.colours ?? producedMana;
 }
 
 /** "As it enters, choose a color other than red": a Thriving land's fixed colour. */

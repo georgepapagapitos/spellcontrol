@@ -28,6 +28,7 @@ describe('cube fixing lands read the mana their free abilities make', () => {
     'Phyrexian Tower',
     'Faceless Haven',
     'Unknown Shores',
+    'Branch of Vitu-Ghazi',
   ])('%s fixes no pair', (name) => {
     expect(facts.get(name)?.produced_mana?.length).toBeGreaterThan(0);
     expect(pairs(name)).toEqual([]);
