@@ -36,6 +36,7 @@ export type SuggestionSurface =
   | 'coach:cuts'
   | 'coach:plan'
   | 'swap'
+  | 'cube-swap'
   | 'similar'
   | 'hidden-gems'
   | 'add-suggestions'
@@ -91,7 +92,7 @@ const clip = (v: string | undefined): string | undefined =>
 /** The beacon body for one label. Named fields only, so nothing else can ride along. */
 export function buildSuggestionPayload(
   input: SuggestionInput,
-  commander: LabelCommander,
+  commander: LabelCommander | null,
   path: string
 ): Record<string, unknown> {
   const reason = (input.reason ?? '').toLowerCase().replace(/[^a-z-]/g, '');
@@ -101,12 +102,15 @@ export function buildSuggestionPayload(
     path,
     surface: input.surface,
     action: input.action,
-    cmdr: commander.oracleId,
-    cmdrName: clip(commander.name),
   };
+  // A cube has no commander: its labels carry neither field (the server accepts that for `cube-swap` only).
+  if (commander) {
+    payload.cmdr = commander.oracleId;
+    payload.cmdrName = clip(commander.name);
+  }
   if (rank) payload.rank = rank;
   if (reason) payload.reason = reason.slice(0, 24);
-  if (commander.partnerOracleId) payload.partner = commander.partnerOracleId;
+  if (commander?.partnerOracleId) payload.partner = commander.partnerOracleId;
   if (input.action === 'shown') {
     payload.n = Math.min(200, Math.max(1, Math.trunc(input.n ?? 1)));
   } else {
@@ -172,7 +176,7 @@ export function setSuggestionContext(
   watchHistory();
 }
 
-function send(input: SuggestionInput, commander: LabelCommander): void {
+function send(input: SuggestionInput, commander: LabelCommander | null): void {
   if (typeof window === 'undefined') return;
   sendBeaconPayload(
     buildSuggestionPayload(input, commander, normalizePath(window.location.pathname))
@@ -280,6 +284,26 @@ export function recordSuggestion(input: SuggestionInput): void {
       at: Date.now(),
     });
   }
+}
+
+/**
+ * A label for the cube page's swap sheet. A cube has no commander, so this
+ * does not read the deck context and sends no commander field; the cube's id
+ * and name stay in the page. `accept` is the player picking a candidate,
+ * `dismiss` closing the sheet without one (the cube page has no undo for a swap).
+ */
+export function recordCubeSwap(input: Omit<SuggestionInput, 'surface'>): void {
+  if (!isSuggestionLabelsEnabled()) return;
+  send({ ...input, surface: 'cube-swap' }, null);
+}
+
+/** The swap sheet listed `n` candidates; counted once per pick per page load (`scope` is never sent). */
+export function recordCubeSwapShown(n: number, scope: string): void {
+  if (!isSuggestionLabelsEnabled() || n < 1) return;
+  const key = `cube-swap||${scope}`;
+  if (shownSeen.has(key)) return;
+  shownSeen.add(key);
+  send({ surface: 'cube-swap', action: 'shown', n }, null);
 }
 
 const shownSeen = new Set<string>();

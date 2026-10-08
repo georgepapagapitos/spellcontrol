@@ -148,6 +148,38 @@ describe('POST /api/events {name:"suggestion"}', () => {
     expect(all.find((r) => r.action === 'shown')).toMatchObject({ count: 7, card_in: '' });
   });
 
+  it('counts a cube swap label without a commander, and refuses one that carries one', async () => {
+    const cube = (over: Record<string, unknown> = {}) => ({
+      name: 'suggestion',
+      path: '/decks/cube/:id',
+      surface: 'cube-swap',
+      action: 'dismiss',
+      reason: 'removal',
+      cardOut: 'Terminate',
+      ...over,
+    });
+    expect((await request(app).post('/api/events').send(cube())).status).toBe(204);
+    const found = (await rows()).filter((r) => r.surface === 'cube-swap');
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({
+      action: 'dismiss',
+      reason: 'removal',
+      commander: '',
+      partner: '',
+      card_out: 'Terminate',
+    });
+    // Every other surface still needs its commander; a cube label may not carry one.
+    const before = (await rows()).length;
+    for (const body of [
+      cube({ cmdr: ATRAXA }),
+      cube({ partner: SORIN }),
+      label({ cmdr: undefined }),
+    ]) {
+      expect((await request(app).post('/api/events').send(body)).status).toBe(204);
+    }
+    expect(await rows()).toHaveLength(before);
+  });
+
   it('shares the beacon rate limiter', () => {
     const layer = eventsRouter.stack.find(
       (l) =>
@@ -196,6 +228,13 @@ describe('GET /api/admin/suggestions', () => {
         { surface: 'generation', shown: 0, accept: 0, dismiss: 2, undo: 0 },
         { surface: 'coach:all', shown: 7, accept: 1, dismiss: 0, undo: 0 },
       ])
+    );
+    expect(res.body.surfaces).toEqual(
+      expect.arrayContaining([{ surface: 'cube-swap', shown: 0, accept: 0, dismiss: 1, undo: 0 }])
+    );
+    // A cube has no commander: its dismissals count per surface, never as a blank commander.
+    expect(res.body.topDismissed.every((g: { commander: string }) => g.commander !== '')).toBe(
+      true
     );
     expect(res.body.topDismissed[0]).toMatchObject({
       commander: ATRAXA,

@@ -141,7 +141,7 @@ adminRouter.get('/suggestions', requireAdmin, adminLimiter, async (req: Request,
       `SELECT commander, MAX(commander_name) AS commander_name, card_out AS card,
                 SUM(count)::text AS count
            FROM suggestion_counts
-          WHERE day >= CURRENT_DATE - ($1::int - 1) AND action = 'dismiss' AND card_out <> ''
+          WHERE day >= CURRENT_DATE - ($1::int - 1) AND action = 'dismiss' AND card_out <> '' AND commander <> ''
           GROUP BY commander, card_out
           ORDER BY SUM(count) DESC, commander, card_out
           LIMIT 200`,

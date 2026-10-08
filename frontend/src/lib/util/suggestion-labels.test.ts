@@ -7,6 +7,8 @@ import { useDeckHistoryStore } from '@/store/deck-history';
 import {
   buildSuggestionPayload,
   isSuggestionLabelsEnabled,
+  recordCubeSwap,
+  recordCubeSwapShown,
   recordShown,
   recordSuggestion,
   resetSuggestionLabelsForTests,
@@ -273,6 +275,51 @@ describe('generation review', () => {
     edit(mine, deck({ cards: [slot('Sol Ring'), slot('Early Winter')] }));
     const hand = deck({ generationContext: null });
     edit({ ...hand, id: 'other' }, { ...deck({ cards: [slot('Sol Ring')] }), id: 'other' });
+    expect(sent).toEqual([]);
+  });
+});
+
+describe('cube swap labels', () => {
+  beforeEach(() => {
+    sent.length = 0;
+    localStorage.clear();
+    resetSuggestionLabelsForTests();
+  });
+
+  it('send without a deck context and carry no commander field', () => {
+    recordCubeSwap({
+      action: 'accept',
+      rank: 2,
+      reason: 'removal',
+      cardIn: 'Terminate',
+      cardOut: 'Doom Blade',
+    });
+    expect(sent).toEqual([
+      {
+        name: 'suggestion',
+        path: window.location.pathname,
+        surface: 'cube-swap',
+        action: 'accept',
+        rank: 2,
+        reason: 'removal',
+        cardIn: 'Terminate',
+        cardOut: 'Doom Blade',
+      },
+    ]);
+  });
+
+  it('counts the candidate list once per pick', () => {
+    recordCubeSwapShown(5, 'oracle-a');
+    recordCubeSwapShown(5, 'oracle-a');
+    recordCubeSwapShown(3, 'oracle-b');
+    recordCubeSwapShown(0, 'oracle-c');
+    expect(sent.map((p) => p.n)).toEqual([5, 3]);
+  });
+
+  it('sends nothing once the player opted out', () => {
+    setSuggestionLabelsEnabled(false);
+    recordCubeSwap({ action: 'dismiss', cardOut: 'Doom Blade' });
+    recordCubeSwapShown(4, 'oracle-a');
     expect(sent).toEqual([]);
   });
 });
