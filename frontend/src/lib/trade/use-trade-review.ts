@@ -111,7 +111,7 @@ export function useTradeReview(opts: {
   }, [stored, theirCounts, ownedLines, giveLoading]);
 
   const draft: TradeDraftV1 | null = reconciled?.draft ?? null;
-  const issues: DraftIssue[] = reconciled?.issues ?? [];
+  const issues: DraftIssue[] = useMemo(() => reconciled?.issues ?? [], [reconciled]);
 
   /** Give lines the draft had that this device no longer owns. */
   const droppedGive = useMemo(() => {
