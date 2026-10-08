@@ -10,9 +10,10 @@ import { summarizeCardUse } from '../friends/card-use';
 import { loadFriendPeeks } from '../friends/peek';
 import { storedCollectionVisibility } from '../collections/visibility';
 import { resolveShareLabels } from '../shares/labels';
-import { asRecord, pickLegalities } from '../shares/projections';
+import { asRecord, pickLegalities, type PublicCard } from '../shares/projections';
 import { extractListingFields } from '../publications/listing-fields';
 import { sendGzippedJson } from '../gzip-json';
+import { projectWithSignals } from '../shares/project-with-signals';
 import { testAwareLimiter } from '../route-utils';
 import { notifyUser } from '../notify';
 
@@ -548,6 +549,16 @@ interface FriendCard {
   deckIds?: string[];
 }
 
+/** `?shape=copies`: the profile Collection tab's per-copy projection, with
+ *  the friend-only `inDeck` / `spare` signals (shares/project-with-signals.ts). */
+interface FriendCopiesResponse {
+  ownerUsername: string;
+  ownerDisplayName: string | null;
+  cards: PublicCard[];
+  collectionPrivate?: true;
+  fullView: boolean;
+}
+
 interface FriendCollectionResponse {
   ownerUsername: string;
   ownerDisplayName: string | null;
@@ -612,6 +623,7 @@ friendsRouter.get(
     const callerId = req.user!.id;
     const friendId = String(req.params.friendId ?? '');
     const pool = getPool();
+    const copies = req.query.shape === 'copies';
 
     // 1. Confirm friendship and fetch the owner's username
     const target = await requireFriendship(res, callerId, friendId);
@@ -628,7 +640,7 @@ friendsRouter.get(
       ).rows[0]?.collection_visibility
     );
     if (vis === 'private') {
-      const hidden: FriendCollectionResponse = {
+      const hidden: FriendCollectionResponse | FriendCopiesResponse = {
         ownerUsername: target.username,
         ownerDisplayName: target.displayName,
         cards: [],
@@ -636,6 +648,35 @@ friendsRouter.get(
         fullView: false,
       };
       return res.json(hidden);
+    }
+
+    if (copies) {
+      const [cardRows, deckRows, cubeRows] = await Promise.all([
+        pool.query<{ data: unknown; id: string }>(
+          `SELECT id, data FROM user_cards WHERE user_id = $1 AND deleted_at IS NULL`,
+          [friendId]
+        ),
+        pool.query<{ data: unknown; id: string }>(
+          `SELECT id, data FROM user_decks WHERE user_id = $1 AND deleted_at IS NULL`,
+          [friendId]
+        ),
+        pool.query<{ data: unknown; id: string }>(
+          `SELECT id, data FROM user_cubes WHERE user_id = $1 AND deleted_at IS NULL`,
+          [friendId]
+        ),
+      ]);
+      const projected = projectWithSignals(
+        { username: target.username, displayName: target.displayName },
+        cardRows.rows.filter((r) => r.data != null),
+        { decks: deckRows.rows, cubes: cubeRows.rows }
+      );
+      const body: FriendCopiesResponse = {
+        ownerUsername: target.username,
+        ownerDisplayName: target.displayName,
+        cards: projected.cards,
+        fullView: true,
+      };
+      return sendGzippedJson(req, res, body, 'friends/collection-copies');
     }
 
     // 3. Fetch friend's non-deleted cards, plus what claims them: every deck

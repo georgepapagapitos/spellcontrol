@@ -1,5 +1,5 @@
 import { apiUrl } from '@/lib/api/api-base';
-import type { ShareKind } from './shared-types';
+import type { PublicCard, ShareKind } from './shared-types';
 
 export type FriendStatus = 'none' | 'friends' | 'request_sent' | 'request_received';
 
@@ -213,4 +213,31 @@ export async function getFriendsActivity(): Promise<FriendActivityItem[]> {
   }
   const body = (await res.json()) as { items: FriendActivityItem[] };
   return body.items;
+}
+
+export interface FriendCollectionCopies {
+  ownerUsername: string;
+  ownerDisplayName: string | null;
+  /** They set their collection to Private: `cards` is empty on purpose. */
+  collectionPrivate?: true;
+  fullView: boolean;
+  /** One entry per physical copy; `inDeck` and `spare` are booleans only. */
+  cards: PublicCard[];
+}
+
+/** The friend's collection copy by copy (`?shape=copies`), the same card shape
+ *  their profile Collection tab serves, with the friend-only trade signals. */
+export async function fetchFriendCollectionCopies(
+  friendId: string
+): Promise<FriendCollectionCopies> {
+  const res = await fetch(
+    apiUrl(`/api/friends/${encodeURIComponent(friendId)}/collection?shape=copies`),
+    { credentials: 'include' }
+  );
+  if (!res.ok) {
+    throw new Error(
+      await readError(res, "Couldn't load your friend's collection. Check your connection.")
+    );
+  }
+  return (await res.json()) as FriendCollectionCopies;
 }

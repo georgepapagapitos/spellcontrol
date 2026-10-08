@@ -5,11 +5,9 @@ import { testAwareLimiter } from '../route-utils';
 import { normalizeUsername, optionalAuth } from '../auth';
 import { getPool } from '../db';
 import { ORIGIN, type ShareLandingMeta, type ShareLandingResult } from '../shares/og';
-import { projectCollection, projectDeck, type PublicDeck } from '../shares/projections';
-import { stampSharePrices } from '../shares/context';
+import { projectDeck, type PublicDeck } from '../shares/projections';
+import { projectWithSignals } from '../shares/project-with-signals';
 import { areFriends } from '../friends/relations';
-import { claimedCopyIds, summarizeCardUse } from '../friends/card-use';
-import { cachedPrintingsForMissingRanks, edhrecRankOf } from '../shares/edhrec-rank';
 import { sendGzippedJson } from '../gzip-json';
 import { loadProfileExtras } from '../brewers/profile-stats';
 import { canViewFullCollection, storedCollectionVisibility } from '../collections/visibility';
@@ -382,6 +380,10 @@ publicRouter.get(
       isOfficial: profile.isOfficial,
       isOwner,
       moderationHidden,
+      // The account id, for the friend-only actions on the profile (start a
+      // trade). The owner and accepted friends only: a stranger's response has
+      // no such key, so a public page never hands out an id to scrape.
+      ...(isOwner || social.viewerIsFriend ? { ownerId: profile.id } : {}),
       deckCount: profile.deckCount,
       ...social,
       stats: profile.stats,
@@ -456,30 +458,10 @@ publicRouter.get(
         : null,
     ]);
     const live = rows.rows.filter((r) => r.data != null);
-    const cards = live.map((r) => r.data);
-    stampSharePrices(cards);
-    const printings = cachedPrintingsForMissingRanks(cards as Array<Record<string, unknown>>);
-
-    const claimed = withSignals ? claimedCopyIds(deckRows!.rows, cubeRows!.rows) : null;
-    const use = withSignals
-      ? summarizeCardUse(live, deckRows!.rows, cubeRows!.rows, new Set())
-      : null;
-    // Row id by data object, so the per-copy decorator can look its copy up.
-    const idOf = new Map<unknown, string>(live.map((r) => [r.data, r.id]));
-
-    const body = projectCollection(
+    const body = projectWithSignals(
       { username: profile.username, displayName: profile.displayName },
-      { cards },
-      (raw, card) => {
-        const rank = edhrecRankOf(
-          raw.edhrecRank,
-          typeof raw.scryfallId === 'string' ? printings.get(raw.scryfallId) : undefined
-        );
-        if (rank !== undefined) card.edhrecRank = rank;
-        if (!claimed || !use) return;
-        card.inDeck = claimed.has(idOf.get(raw) ?? '');
-        card.spare = use.get(card.oracleId ?? '')?.spare ?? false;
-      }
+      live,
+      withSignals ? { decks: deckRows!.rows, cubes: cubeRows!.rows } : null
     );
     sendGzippedJson(req, res, body, 'public/collection');
   }
