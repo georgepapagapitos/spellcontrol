@@ -241,3 +241,26 @@ export async function fetchFriendCollectionCopies(
   }
   return (await res.json()) as FriendCollectionCopies;
 }
+
+/** One friend who owns a card: copies owned, and whether one is spare. */
+export interface FriendOwner {
+  friendId: string;
+  username: string;
+  displayName: string | null;
+  count: number;
+  spare: boolean;
+}
+
+/** Which of your friends own a card (by oracle id). Private collections are
+ *  left out by the server; the rows carry no deck or price data. */
+export async function fetchFriendOwners(oracleId: string): Promise<FriendOwner[]> {
+  const res = await fetch(apiUrl(`/api/friends/owners?oracleId=${encodeURIComponent(oracleId)}`), {
+    credentials: 'include',
+  });
+  if (!res.ok) {
+    throw new Error(
+      await readError(res, "Couldn't check which friends own this. Check your connection.")
+    );
+  }
+  return ((await res.json()) as { owners: FriendOwner[] }).owners;
+}

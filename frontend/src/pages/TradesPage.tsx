@@ -8,6 +8,8 @@ import { toast } from '../store/toasts';
 import { ConfirmDialog } from '@/components/overlays/ConfirmDialog';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { SearchPill } from '@/components/search/SearchPill';
+import { FriendPicker } from '../components/trade/FriendPicker';
+import { Handshake } from 'lucide-react';
 import { TradeOfferList } from '../components/trade/TradeOfferList';
 import {
   clearTradeHistory,
@@ -109,6 +111,8 @@ function TradesPageBody() {
   const [query, setQuery] = useState('');
   // The "Clear history" confirm is open.
   const [clearing, setClearing] = useState(false);
+  // The "New trade" friend picker is open.
+  const [picking, setPicking] = useState(false);
   // Offers are server-authoritative (two parties, no last-write-wins), so
   // every transition re-fetches rather than patching local state — same
   // contract the friend hub's own thread view keeps.
@@ -217,6 +221,15 @@ function TradesPageBody() {
       hub="social"
       section="Trades"
       className="trades-page"
+      actions={[
+        {
+          label: 'New trade',
+          icon: Handshake,
+          primary: true,
+          opensDialog: true,
+          onClick: () => setPicking(true),
+        },
+      ]}
       intro="Every offer you're part of, either way. Accepting settles both collections."
     >
       {loadError && (
@@ -330,6 +343,8 @@ function TradesPageBody() {
             </section>
           );
         })}
+
+      {picking && <FriendPicker onClose={() => setPicking(false)} />}
 
       {clearing && (
         <ConfirmDialog

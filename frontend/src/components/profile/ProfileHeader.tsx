@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Users } from 'lucide-react';
+import { Handshake, Users } from 'lucide-react';
 import { UserAvatar } from './UserAvatar';
 import { Button } from '../shared/Button';
 import { Chip } from '../shared/Chip';
 import { FollowButton } from '../social/FollowButton';
 import { formatCount } from '@/lib/util/format-count';
 import { formatSocialCount } from '@/lib/social/social-proof';
+import { useTradeDraft } from '@/lib/trade/use-trade-draft';
 import type { PublicProfile } from '@/lib/social/profile-client';
 import './ProfileHeader.css';
 
@@ -91,6 +92,38 @@ function StatLine({ profile, followerCount }: { profile: PublicProfile; follower
   );
 }
 
+/** Cards in a saved basket: what they get plus the copies they give. */
+function draftCardCount(draft: NonNullable<ReturnType<typeof useTradeDraft>['draft']>): number {
+  const get = Object.values(draft.get).reduce((n, l) => n + l.quantity, 0);
+  const give = Object.values(draft.give).reduce((n, l) => n + l.copyIds.length, 0);
+  return get + give;
+}
+
+/**
+ * A friend viewing a friend (`ownerId` rides only on a friend's view): the
+ * basket you left with them, one tap from the review. Nothing when there is
+ * no draft, so the header stays as quiet as it was.
+ */
+function ResumeTrade({ friendId, name }: { friendId: string; name: string }) {
+  const { draft } = useTradeDraft(friendId);
+  if (!draft) return null;
+  const n = draftCardCount(draft);
+  if (n === 0) return null;
+  return (
+    <p className="public-profile-resume">
+      You have a draft trade with {name} · {n} {plural(n, 'card', 'cards')}
+      {' · '}
+      <Button
+        variant="link"
+        to={`/friends/${encodeURIComponent(friendId)}?tab=collection&review=1`}
+        className="public-profile-resume-link"
+      >
+        Resume
+      </Button>
+    </p>
+  );
+}
+
 interface Props {
   profile: PublicProfile;
   /** displayName-or-@username. */
@@ -168,6 +201,16 @@ export function ProfileHeader({ profile, heading, handle, joined, onReport }: Pr
                 initialFollowing={profile.viewerFollows}
                 onChange={(_following, count) => setFollowerCount(count)}
               />
+              {profile.ownerId && (
+                <Button
+                  variant="primary"
+                  icon={<Handshake width={16} height={16} strokeWidth={2} />}
+                  to={`/friends/${encodeURIComponent(profile.ownerId)}?tab=collection`}
+                  className="public-profile-trade-btn"
+                >
+                  Trade
+                </Button>
+              )}
               {profile.viewerIsFriend && (
                 <Chip
                   className="public-profile-friend-chip"
@@ -177,6 +220,9 @@ export function ProfileHeader({ profile, heading, handle, joined, onReport }: Pr
                 </Chip>
               )}
             </div>
+          )}
+          {canFollow && profile.ownerId && (
+            <ResumeTrade friendId={profile.ownerId} name={heading} />
           )}
         </div>
       </div>

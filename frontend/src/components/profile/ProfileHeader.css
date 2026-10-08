@@ -79,6 +79,18 @@
   white-space: nowrap;
 }
 
+/* The saved-basket line under the actions: one quiet row, the Resume link
+   inline like Report. */
+.public-profile-resume {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.public-profile-resume-link {
+  font-size: inherit;
+}
+
 /* "Friends" is a status, not a control: flat tinted label, small square
    corners, no border, no hover, no pointer. The Follow button beside it keeps
    the bordered pill, so the two can't be confused. */
@@ -98,6 +110,12 @@
 
 @media (pointer: coarse) {
   .public-profile-actions .follow-button {
+    min-height: 44px;
+  }
+
+  .public-profile-resume-link {
+    display: inline-flex;
+    align-items: center;
     min-height: 44px;
   }
 }
