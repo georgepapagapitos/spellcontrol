@@ -42,7 +42,6 @@ const CEILINGS: Record<string, number> = {
   'components/play/GameNights.tsx': 1800,
   'components/play/OnlineGameView.tsx': 1200,
   'components/play/OnlineLobby.tsx': 1300,
-  'components/trade/TradeComposer.tsx': 1100,
   'components/import/UploadPanel.tsx': 1300,
   'deck-builder/services/cardFacts/parse.ts': 2000,
   'deck-builder/services/deckBuilder/bracketFit.ts': 1200,
