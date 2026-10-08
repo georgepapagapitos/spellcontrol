@@ -16,7 +16,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { writeKeywordGlossary } from './keyword-glossary.mjs';
+import { writeKeywordGlossary, writeRulesGlossary } from './keyword-glossary.mjs';
 
 const RULES_PAGE = 'https://magic.wizards.com/en/rules';
 const FALLBACK_URL = 'https://media.wizards.com/2026/downloads/MagicCompRules%2020260417.txt';
@@ -49,12 +49,14 @@ const noFetch = !force && process.argv.includes('--no-fetch');
 const here = dirname(fileURLToPath(import.meta.url));
 const dest = resolve(here, '..', 'public', 'comprehensive-rules.json');
 const glossaryDest = resolve(here, '..', 'public', 'keyword-glossary.json');
+const termsDest = resolve(here, '..', 'public', 'rules-glossary.json');
 
 // Every successful exit — fetched, still fresh, or kept under --no-fetch —
-// re-derives the card-text keyword glossary from whichever bundle is now on
-// disk, so the two files can never disagree.
+// re-derives the card-text keyword glossary and Search's glossary terms from
+// whichever bundle is now on disk, so the files can never disagree.
 async function done() {
   await writeKeywordGlossary(dest, glossaryDest);
+  await writeRulesGlossary(dest, termsDest);
   process.exit(0);
 }
 

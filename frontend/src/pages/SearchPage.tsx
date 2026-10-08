@@ -17,6 +17,7 @@ import {
   useKeywordLookup,
   type KeywordGloss,
 } from '@/lib/cards/keyword-glossary';
+import { useTermLookup, type GlossaryTerm } from '@/lib/cards/rules-glossary';
 
 // Don't autofocus on touch — the soft keyboard would cover the landing copy
 // the moment the page opens. Desktop (fine pointer, per the project's touch
@@ -124,6 +125,9 @@ export function SearchPage() {
 
   const searching = query.trim().length >= 2;
   const keyword = useKeywordLookup(query);
+  // A keyword answers first; the glossary is asked only once the keyword
+  // lookup has said this query isn't one.
+  const term = useTermLookup(keyword === null ? query : '');
   // The landing's browse rails want the wide column the grid results use.
   const wide = !searching || view === 'grid';
 
@@ -210,7 +214,11 @@ export function SearchPage() {
       </div>
       {searching ? (
         <>
-          {keyword && <SearchRulesHit entry={keyword} />}
+          {keyword ? (
+            <SearchRulesHit hit={keywordHit(keyword)} />
+          ) : (
+            term && <SearchRulesHit hit={termHit(term)} />
+          )}
           <div className="search-page-toolbar">
             <ViewModeToggle<InlineCardSearchView>
               ariaLabel="Result layout"
@@ -249,19 +257,40 @@ export function SearchPage() {
   );
 }
 
+interface RulesHit {
+  name: string;
+  meta: string;
+  text: string;
+  to: string;
+  state?: { expand: string };
+}
+
+/** A keyword opens on /rules with its subrules expanded. */
+const keywordHit = (k: KeywordGloss): RulesHit => ({
+  name: k.name,
+  meta: `${KEYWORD_KIND_LABEL[k.kind]} · ${k.rule}`,
+  text: k.text,
+  to: `/rules?tab=keywords&q=${encodeURIComponent(k.name)}`,
+  state: { expand: k.name },
+});
+
+/** A glossary term opens on /rules' Glossary, where its row shows the whole definition. */
+const termHit = (t: GlossaryTerm): RulesHit => ({
+  name: t.term,
+  meta: t.rule ? `Glossary · ${t.rule}` : 'Glossary',
+  text: t.text,
+  to: `/rules?tab=glossary&q=${encodeURIComponent(t.term)}`,
+});
+
 /**
- * A query that names a keyword gets its rule first, as one row above the
- * cards: the rule's own sentence, the way the keyword popover in card text
- * says it, and a door to the full rule on /rules with its subrules open.
- * Nothing renders for any other query.
+ * A query that names a keyword or a glossary term gets it first, as one row
+ * above the cards: the rule's own words, the way the keyword popover in card
+ * text says them, and a door to the full entry on /rules. Nothing renders for
+ * any other query.
  */
-function SearchRulesHit({ entry }: { entry: KeywordGloss }) {
+function SearchRulesHit({ hit }: { hit: RulesHit }) {
   return (
-    <Link
-      className="search-rules-hit"
-      to={`/rules?tab=keywords&q=${encodeURIComponent(entry.name)}`}
-      state={{ expand: entry.name }}
-    >
+    <Link className="search-rules-hit" to={hit.to} state={hit.state}>
       <BookOpen
         className="search-rules-hit-icon"
         width={18}
@@ -271,13 +300,11 @@ function SearchRulesHit({ entry }: { entry: KeywordGloss }) {
       />
       <span className="search-rules-hit-body">
         <span className="search-rules-hit-head">
-          <span className="search-rules-hit-name">{entry.name}</span>
-          <span className="search-rules-hit-meta">
-            {KEYWORD_KIND_LABEL[entry.kind]} · {entry.rule}
-          </span>
+          <span className="search-rules-hit-name">{hit.name}</span>
+          <span className="search-rules-hit-meta">{hit.meta}</span>
         </span>
         <span className="search-rules-hit-text">
-          <MagicText text={entry.text} />
+          <MagicText text={hit.text} />
         </span>
       </span>
       <ChevronRight

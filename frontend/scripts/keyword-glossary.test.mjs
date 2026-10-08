@@ -2,7 +2,12 @@
 // glossary text below is copied from the Comprehensive Rules (April 2026), so
 // each case is the real shape the derivation meets, not an invented one.
 import { describe, it, expect } from 'vitest';
-import { deriveKeywordGlossary, operativeText, sentences } from './keyword-glossary.mjs';
+import {
+  deriveKeywordGlossary,
+  deriveRulesGlossary,
+  operativeText,
+  sentences,
+} from './keyword-glossary.mjs';
 
 const RULES = [
   { number: '702.9', text: 'Flying' },
@@ -147,5 +152,67 @@ describe('deriveKeywordGlossary', () => {
       fetchedAt: '2026-09-14T00:00:00.000Z',
     });
     expect(out.keywords[0]).toMatchObject({ name: 'Flying', rule: '702.9', kind: 'ability' });
+  });
+});
+
+describe('deriveRulesGlossary', () => {
+  // Real glossary definitions from the Comprehensive Rules.
+  const bundle = {
+    meta: { effective: 'April 17, 2026', fetchedAt: '2026-09-14T00:00:00.000Z' },
+    rules: [],
+    keywords: [kw('Trample', '702.19')],
+    glossary: [
+      {
+        term: 'Priority',
+        definition:
+          'Which player can take actions at any given time is determined by a system of “priority.” See rule 117, “Timing and Priority.”',
+      },
+      {
+        term: 'Tapped',
+        definition:
+          'A status a permanent may have. See rule 110.5 and rule 701.26, “Tap and Untap.” See also Untapped.',
+      },
+      {
+        term: 'Trample',
+        definition:
+          'A keyword ability that modifies how a creature assigns combat damage. See rule 702.19, “Trample.”',
+      },
+      { term: 'Bury', definition: 'See rule 701.' },
+      {
+        term: 'Library',
+        definition:
+          '1. A zone. A player’s library is where that player draws cards from. 2. All the cards in a player’s library. See rule 401, “Library.”',
+      },
+    ],
+  };
+  const out = deriveRulesGlossary(bundle);
+  const find = (term) => out.terms.find((t) => t.term === term);
+
+  it('keeps the definition’s own words and the first rule it points to', () => {
+    expect(find('Priority')).toEqual({
+      term: 'Priority',
+      rule: '117',
+      text: 'Which player can take actions at any given time is determined by a system of “priority.”',
+    });
+    expect(find('Tapped')).toEqual({
+      term: 'Tapped',
+      rule: '110.5',
+      text: 'A status a permanent may have.',
+    });
+  });
+
+  it('keeps a numbered definition whole', () => {
+    expect(find('Library')?.text).toBe(
+      '1. A zone. A player’s library is where that player draws cards from. 2. All the cards in a player’s library.'
+    );
+  });
+
+  it('leaves out keywords, which keyword-glossary.json answers, and bare cross-references', () => {
+    expect(find('Trample')).toBeUndefined();
+    expect(find('Bury')).toBeUndefined();
+    expect(out.meta).toEqual({
+      effective: 'April 17, 2026',
+      fetchedAt: '2026-09-14T00:00:00.000Z',
+    });
   });
 });
