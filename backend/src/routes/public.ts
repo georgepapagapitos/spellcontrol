@@ -7,6 +7,10 @@ import { getPool } from '../db';
 import { ORIGIN, type ShareLandingMeta, type ShareLandingResult } from '../shares/og';
 import { projectCollection, projectDeck, type PublicDeck } from '../shares/projections';
 import { stampSharePrices } from '../shares/context';
+import { areFriends } from '../friends/relations';
+import { claimedCopyIds, summarizeCardUse } from '../friends/card-use';
+import { cachedPrintingsForMissingRanks, edhrecRankOf } from '../shares/edhrec-rank';
+import { sendGzippedJson } from '../gzip-json';
 import { loadProfileExtras } from '../brewers/profile-stats';
 import { canViewFullCollection, storedCollectionVisibility } from '../collections/visibility';
 import {
@@ -402,8 +406,8 @@ publicRouter.get(
  * The full collection on a profile's Collection tab: one entry per physical
  * copy with its printing, finish, condition and market price, the same
  * projection a collection share link serves. Gated per request by
- * `canViewFullCollection` (public / friends-only / private, NULL = never
- * chose = no), and answered with the same 404 as a missing profile so a
+ * `canViewFullCollection` (public / friends-only / private; NULL = never
+ * chose reads as friends-only since #2580, see `storedCollectionVisibility`), and answered with the same 404 as a missing profile so a
  * stranger can't tell "private" from "no such user".
  *
  * No response cache. A share token's collection is cached 60 s
@@ -427,15 +431,57 @@ publicRouter.get(
       return res.status(404).json(USER_NOT_FOUND);
     }
 
-    const rows = await getPool().query<{ data: unknown }>(
-      `SELECT data FROM user_cards WHERE user_id = $1 AND deleted_at IS NULL`,
-      [profile.id]
-    );
-    const cards = rows.rows.map((r) => r.data).filter((d) => d != null);
+    const pool = getPool();
+    // Trade signals (is this copy sleeved in a deck, does the owner have one to
+    // spare) are for the owner and accepted friends only. A stranger reading a
+    // public collection gets neither key, so a public profile never says what
+    // the owner is building. Booleans only: no deck id or name leaves here.
+    const withSignals = isOwner || (!!req.user && (await areFriends(profile.id, req.user.id)));
+    const [rows, deckRows, cubeRows] = await Promise.all([
+      pool.query<{ id: string; data: unknown }>(
+        `SELECT id, data FROM user_cards WHERE user_id = $1 AND deleted_at IS NULL`,
+        [profile.id]
+      ),
+      withSignals
+        ? pool.query<{ id: string; data: unknown }>(
+            `SELECT id, data FROM user_decks WHERE user_id = $1 AND deleted_at IS NULL`,
+            [profile.id]
+          )
+        : null,
+      withSignals
+        ? pool.query<{ id: string; data: unknown }>(
+            `SELECT id, data FROM user_cubes WHERE user_id = $1 AND deleted_at IS NULL`,
+            [profile.id]
+          )
+        : null,
+    ]);
+    const live = rows.rows.filter((r) => r.data != null);
+    const cards = live.map((r) => r.data);
     stampSharePrices(cards);
-    res.json(
-      projectCollection({ username: profile.username, displayName: profile.displayName }, { cards })
+    const printings = cachedPrintingsForMissingRanks(cards as Array<Record<string, unknown>>);
+
+    const claimed = withSignals ? claimedCopyIds(deckRows!.rows, cubeRows!.rows) : null;
+    const use = withSignals
+      ? summarizeCardUse(live, deckRows!.rows, cubeRows!.rows, new Set())
+      : null;
+    // Row id by data object, so the per-copy decorator can look its copy up.
+    const idOf = new Map<unknown, string>(live.map((r) => [r.data, r.id]));
+
+    const body = projectCollection(
+      { username: profile.username, displayName: profile.displayName },
+      { cards },
+      (raw, card) => {
+        const rank = edhrecRankOf(
+          raw.edhrecRank,
+          typeof raw.scryfallId === 'string' ? printings.get(raw.scryfallId) : undefined
+        );
+        if (rank !== undefined) card.edhrecRank = rank;
+        if (!claimed || !use) return;
+        card.inDeck = claimed.has(idOf.get(raw) ?? '');
+        card.spare = use.get(card.oracleId ?? '')?.spare ?? false;
+      }
     );
+    sendGzippedJson(req, res, body, 'public/collection');
   }
 );
 

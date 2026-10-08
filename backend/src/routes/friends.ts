@@ -5,14 +5,14 @@ import { users } from '../db/schema';
 import { and, eq } from 'drizzle-orm';
 import { getScryfallCache } from '../scryfall-cache';
 import { areFriends, listFriendIds } from '../friends/relations';
+import { edhrecRankOf } from '../shares/edhrec-rank';
 import { summarizeCardUse } from '../friends/card-use';
 import { loadFriendPeeks } from '../friends/peek';
 import { storedCollectionVisibility } from '../collections/visibility';
 import { resolveShareLabels } from '../shares/labels';
 import { asRecord, pickLegalities } from '../shares/projections';
 import { extractListingFields } from '../publications/listing-fields';
-import { gzip } from 'node:zlib';
-import { logger } from '../logger';
+import { sendGzippedJson } from '../gzip-json';
 import { testAwareLimiter } from '../route-utils';
 import { notifyUser } from '../notify';
 
@@ -730,9 +730,7 @@ friendsRouter.get(
       ) {
         const cached = scryfallMap.get(scryfallId);
         if (cached) {
-          if (edhrecRank === undefined && typeof cached.edhrec_rank === 'number') {
-            edhrecRank = cached.edhrec_rank;
-          }
+          edhrecRank = edhrecRankOf(edhrecRank, cached);
           if (rarity === undefined && typeof cached.rarity === 'string') rarity = cached.rarity;
           if (identity.length === 0 && Array.isArray(cached.color_identity)) {
             identity = (cached.color_identity as unknown[]).filter(
@@ -777,22 +775,7 @@ friendsRouter.get(
       fullView: true,
     };
 
-    // Gzipped by hand, like /api/cards/oracle-facts: there is no compression
-    // middleware in this app, and rules text roughly triples a 10k-card
-    // answer that phones fetch on every friend-hub visit. ~4x on the wire.
-    const body = Buffer.from(JSON.stringify(response), 'utf-8');
-    gzip(body, (err, gzipped) => {
-      if (err) {
-        logger.warn('[friends/collection] gzip failed, sending uncompressed:', err);
-        return res.type('application/json').send(body);
-      }
-      res
-        .set({
-          'Content-Type': 'application/json; charset=utf-8',
-          'Content-Encoding': 'gzip',
-        })
-        .send(gzipped);
-    });
+    sendGzippedJson(req, res, response, 'friends/collection');
   }
 );
 

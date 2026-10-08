@@ -73,6 +73,15 @@ export interface PublicCard {
   frameEffects?: string[];
   fullArt?: boolean;
   borderColor?: string;
+  /** Profile collection only (never on /s/:token links): EDHREC popularity rank. */
+  edhrecRank?: number;
+  /** Profile collection, owner and accepted friends only: this exact copy is
+   *  claimed by one of the owner's decks or physical cubes. A boolean; never a
+   *  deck id or name. */
+  inDeck?: boolean;
+  /** Same audience: the owner has a free copy of this card beyond the one they
+   *  keep (`summarizeCardUse`, the friend hub's "spare"). */
+  spare?: boolean;
   /** Per-copy quantity is always 1 — this is a per-physical-copy shape. */
 }
 
@@ -456,13 +465,24 @@ export function projectCard(raw: unknown): PublicCard | null {
   };
 }
 
-export function projectCollection(owner: ShareOwner, collection: unknown): PublicCollection {
+/**
+ * `decorate` lets one caller add fields to each projected copy from its raw
+ * row without widening what every other caller (share links) emits.
+ */
+export function projectCollection(
+  owner: ShareOwner,
+  collection: unknown,
+  decorate?: (raw: Record<string, unknown>, card: PublicCard) => void
+): PublicCollection {
   const r = asRecord(collection);
   const rawCards = r && Array.isArray(r.cards) ? r.cards : [];
   const cards: PublicCard[] = [];
   for (const raw of rawCards) {
     const p = projectCard(raw);
-    if (p) cards.push(p);
+    if (p) {
+      if (decorate) decorate(asRecord(raw)!, p);
+      cards.push(p);
+    }
   }
   return {
     ownerUsername: owner.username,
