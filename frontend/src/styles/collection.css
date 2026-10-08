@@ -1352,6 +1352,38 @@ i.ss.set-symbol--mythic {
   text-overflow: ellipsis;
 }
 
+/* A tile with a trade "+" (the collection browser while trading). The control
+   is a sibling of the caption plate, pinned to its right edge, so the plate
+   keeps room for it and left-aligns its lines to read as a caption beside a
+   button. The count and ring on the art mark a card already in the trade. */
+.collection-grid-cell.has-action .collection-grid-captions {
+  min-height: 46px;
+  padding-right: 38px;
+}
+
+.collection-grid-cell.has-action .collection-grid-caption {
+  text-align: left;
+  padding-left: var(--space-1);
+}
+
+.collection-grid-action {
+  position: absolute;
+  right: var(--space-1);
+  bottom: 3px;
+  z-index: 1;
+}
+
+.collection-grid-item.is-picked {
+  box-shadow:
+    0 0 0 2px var(--accent),
+    0 0 0 5px var(--accent-light);
+}
+
+.collection-grid-picked {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
 .collection-grid-item {
   position: relative;
   aspect-ratio: 488 / 680;

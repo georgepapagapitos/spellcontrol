@@ -393,6 +393,9 @@ describe('coarse-pointer touch floor', () => {
     ['components/trade/TradeReview.css', '.trade-tray-cta'],
     // The profile's "Resume" link in the saved-draft line (E586): inline text.
     ['components/profile/ProfileHeader.css', '.public-profile-resume-link'],
+    // The trade "+" on a card tile: a 30px circle in the tile's caption corner,
+    // between the art above and the neighbouring tile, so it ghosts.
+    ['components/trade/TradeAddButton.css', '.trade-add::after'],
   ];
 
   // The shared kebab trigger is its own control, not one crowded into a dense

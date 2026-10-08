@@ -1,0 +1,47 @@
+/* The trade "+" on a card tile. Imported by TradeAddButton, which the trade
+   workspace and the profile's Collection tab load lazily; never a boot sheet. */
+
+.trade-add {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.trade-add.is-picked {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.trade-add:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .trade-add:not(.is-picked):hover {
+    background: var(--accent-light);
+  }
+}
+
+/* The ghost: 44px on touch, centered on the circle. The tile's caption plate
+   and the art above it leave about 7px each way, so it stays inside the tile. */
+@media (pointer: coarse) {
+  .trade-add::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+}

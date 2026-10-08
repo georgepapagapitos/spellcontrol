@@ -13,15 +13,19 @@ import { useCollectionBrowser, type BrowserGroup } from './use-collection-browse
 import './CollectionBrowser.css';
 
 /**
- * Hook points a trading surface plugs into. TYPE ONLY for now: nothing renders
- * them yet, and a browser without `trade` shows no "+" and no extra captions,
- * which is every viewer but a friend about to trade.
+ * Hook points a trading surface plugs into. A browser without `trade` shows no
+ * "+" and no extra captions, which is every viewer but a friend about to trade.
+ * Each hook is called per group, so keep them cheap.
  */
 export interface CollectionBrowserTradeHooks {
-  /** The "+" control inside a tile's caption. */
+  /** The "+" control in a tile's caption (and at the end of a list row). */
   renderAdd?: (group: BrowserGroup) => ReactNode;
-  /** A short caption line on a tile (for example "You want"). */
+  /** The tile's note line ("2 spare"). Null falls back to the default note. */
   caption?: (group: BrowserGroup) => string | null;
+  /** A short plate on the art ("You want"). Spoken as well as shown. */
+  flag?: (group: BrowserGroup) => string | null;
+  /** How many of this card are in the trade; above 0 the tile shows it. */
+  pickedCount?: (group: BrowserGroup) => number;
   /** Card preview extension points, indexed like the browser's sorted list. */
   preview?: {
     getActions?: (group: BrowserGroup) => CardPreviewAction[];
@@ -52,7 +56,16 @@ export interface CollectionBrowserProps {
   embedded?: boolean;
   /** Oracle ids the viewer wants; adds the "On my wants" chip. */
   myWants?: ReadonlySet<string>;
+  /** The wants chip's label when the wants are not the viewer's own. */
+  wantsLabel?: string;
   defaultSort?: SharedSortKey;
+  /** A ranking only the caller knows, offered as a sort (see the hook). */
+  priority?: { label: string; rank: (group: BrowserGroup) => number };
+  /** How the search hint refers to these cards: "Morgan's" by default. */
+  possessive?: string;
+  /** The cards are this device's own, priced in the display currency, so the
+   *  USD pin that server-stamped shares need would be wrong here. */
+  localValues?: boolean;
   trade?: CollectionBrowserTradeHooks;
 }
 
@@ -76,10 +89,15 @@ export function CollectionBrowser({
   viewer,
   embedded = false,
   myWants,
+  wantsLabel,
   defaultSort,
+  priority,
+  possessive: possessiveProp,
+  localValues = false,
   trade,
 }: CollectionBrowserProps) {
-  const b = useCollectionBrowser({ cards, myWants, defaultSort });
+  const b = useCollectionBrowser({ cards, myWants, wantsLabel, defaultSort, priority });
+  const possessive = possessiveProp ?? `${ownerName}'s`;
   const [captionPrefs, setCaptionPrefs] = useGridCaptionPrefs();
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const rootClass = embedded ? 'collection-browser is-embedded' : 'shared-view collection-browser';
@@ -154,7 +172,10 @@ export function CollectionBrowser({
         <>
           {' · '}
           {/* Shared projections are server-stamped USD, so pin the symbol. */}
-          {formatMoney(b.totalValue, { wholeDollars: true, currency: 'USD' })}
+          {formatMoney(
+            b.totalValue,
+            localValues ? { wholeDollars: true } : { wholeDollars: true, currency: 'USD' }
+          )}
         </>
       )}
     </>
@@ -173,7 +194,7 @@ export function CollectionBrowser({
       )}
 
       <CollectionBrowserToolbar
-        ownerName={ownerName}
+        possessive={possessive}
         query={b.query}
         onQueryChange={b.setQuery}
         filterNode={b.filterNode}
@@ -181,6 +202,7 @@ export function CollectionBrowser({
         dir={b.dir}
         onSort={b.toggleSort}
         hasPopularity={b.hasPopularity}
+        priorityLabel={b.priorityLabel}
         view={b.view}
         onView={b.setView}
         chips={b.chips}
@@ -206,8 +228,8 @@ export function CollectionBrowser({
           tagline="No cards match."
           hint={
             b.query.trim()
-              ? `Nothing in ${ownerName}'s collection fits ${b.query.trim()} with these filters.`
-              : `Nothing in ${ownerName}'s collection fits these filters.`
+              ? `Nothing in ${possessive} collection fits ${b.query.trim()} with these filters.`
+              : `Nothing in ${possessive} collection fits these filters.`
           }
           actions={<Button onClick={b.clearAll}>Clear search and filters</Button>}
         />
@@ -221,6 +243,11 @@ export function CollectionBrowser({
                     card={g.card}
                     quantity={g.quantity}
                     spare={g.spare}
+                    note={trade?.caption?.(g) ?? undefined}
+                    flag={trade?.flag?.(g) ?? undefined}
+                    pickedCount={trade?.pickedCount?.(g)}
+                    action={trade?.renderAdd?.(g)}
+                    localValues={localValues}
                     captionPrefs={captionPrefs}
                     onClick={() => setPreviewIndex(i)}
                   />
@@ -234,6 +261,7 @@ export function CollectionBrowser({
                 card: g.card,
                 quantity: g.quantity,
                 spare: g.spare,
+                action: trade?.renderAdd?.(g),
               }))}
               onPreview={setPreviewIndex}
               table={b.view === 'compact'}

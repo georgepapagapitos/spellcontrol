@@ -50,7 +50,6 @@ const VIEW_OPTIONS: ViewModeOption<BrowserView>[] = [
 ];
 
 interface Props {
-  ownerName: string;
   query: string;
   onQueryChange: (q: string) => void;
   filterNode: ReactNode;
@@ -58,6 +57,10 @@ interface Props {
   dir: SortDir;
   onSort: (key: SharedSortKey) => void;
   hasPopularity: boolean;
+  /** Name of the caller's own ranked sort, when it has one. */
+  priorityLabel?: string;
+  /** Whose cards, as it reads in the search hint ("Morgan's", "your"). */
+  possessive: string;
   view: BrowserView;
   onView: (v: BrowserView) => void;
   chips: BrowserChip[];
@@ -76,7 +79,7 @@ interface Props {
  * chip row, so the tool row stays a single line.
  */
 export function CollectionBrowserToolbar({
-  ownerName,
+  possessive,
   query,
   onQueryChange,
   filterNode,
@@ -84,6 +87,7 @@ export function CollectionBrowserToolbar({
   dir,
   onSort,
   hasPopularity,
+  priorityLabel,
   view,
   onView,
   chips,
@@ -92,7 +96,19 @@ export function CollectionBrowserToolbar({
   onCaptionPrefs: setCaptionPrefs,
 }: Props) {
   const isPhone = useMediaQuery(PHONE_QUERY);
-  const sortOptions = hasPopularity ? [POPULARITY_OPTION, ...BASE_SORT_OPTIONS] : BASE_SORT_OPTIONS;
+  const sortOptions: SortMenuOption<SharedSortKey>[] = [
+    ...(priorityLabel
+      ? [
+          {
+            value: 'priority' as const,
+            label: priorityLabel,
+            dirLabels: ['First', 'Last'] as [string, string],
+          },
+        ]
+      : []),
+    ...(hasPopularity ? [POPULARITY_OPTION] : []),
+    ...BASE_SORT_OPTIONS,
+  ];
   const sortMenu = (
     <SortMenu<SharedSortKey>
       ariaLabel="Sort"
@@ -109,7 +125,7 @@ export function CollectionBrowserToolbar({
         <SearchPill
           value={query}
           onChange={onQueryChange}
-          placeholder={`Search ${ownerName}'s cards (Scryfall syntax works)`}
+          placeholder={`Search ${possessive} cards (Scryfall syntax works)`}
           ariaLabel="Search cards"
           className="collection-browser-search"
           trailing={filterNode}

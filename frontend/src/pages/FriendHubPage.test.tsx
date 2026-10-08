@@ -1,22 +1,26 @@
 // @vitest-environment happy-dom
 /**
- * FriendHubPage — the Collection tab (E-friend-collection-browse): the shared
- * fetch feeds both the trade radar and the browser, the browser never renders
- * quantity/price, name search + color filtering work, and the "Show more" cap
- * only reveals more of an already-fetched set (no re-fetch, no re-filter).
+ * FriendHubPage — the Collection tab is the trade workspace (E586): ONE copies
+ * fetch feeds the trade radar and the workspace, the hub's own thin grid, sort
+ * and filter state and its composer mount are gone, and "Propose a trade" goes
+ * to the Collection tab. The browser's own search, filters and "+" are covered
+ * where they live (CollectionBrowser, TradeWorkspace); this suite covers the
+ * hub's wiring: the radars, the tabs, the counter hand-off and the fetch.
  *
  * No `@testing-library/jest-dom` in this repo (see other *.test.tsx files) —
  * assertions use plain vitest/chai matchers, not `.toBeInTheDocument()`.
  */
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { FriendCard } from '../lib/cube/pool';
+import type { PublicCard } from '@/lib/social/shared-types';
+import { useToastsStore } from '@/store/toasts';
+import { useTradeDraftsStore } from '@/store/trade-drafts';
 import type { TradeOffer } from '@/lib/trade/trades-client';
 import type { EnrichedCard } from '../types';
 
 vi.mock('../store/auth', () => ({
-  useAuth: (sel: (s: { status: string }) => unknown) => sel({ status: 'authed' }),
+  useAuth: (sel: (s: unknown) => unknown) => sel({ status: 'authed', user: { id: 'viewer-1' } }),
 }));
 
 // `cards` feeds the "They're looking for" matcher; `lists` feeds the trade
@@ -30,11 +34,12 @@ vi.mock('../store/collection', () => ({
 
 // The real hook subscribes to the persisted decks/cube stores; nothing here
 // allocates a copy, so an empty claim map is the whole truth.
+const NO_CLAIMS = vi.hoisted(() => new Map());
 vi.mock('@/lib/collection/allocations', async () => {
   const actual = await vi.importActual<typeof import('@/lib/collection/allocations')>(
     '@/lib/collection/allocations'
   );
-  return { ...actual, useAllocations: () => new Map() };
+  return { ...actual, useAllocations: () => NO_CLAIMS };
 });
 
 vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
@@ -53,15 +58,6 @@ vi.mock('@/lib/play/game-results-client', () => ({
   fetchH2H: vi.fn(() => Promise.reject(new Error('no h2h in this test'))),
 }));
 
-const fetchFriendCollection = vi.fn();
-vi.mock('../lib/cube/pool', async () => {
-  const actual = await vi.importActual<typeof import('../lib/cube/pool')>('../lib/cube/pool');
-  return {
-    ...actual,
-    fetchFriendCollection: (...args: unknown[]) => fetchFriendCollection(...args),
-  };
-});
-
 // Their deck shelf. Fails by default, as the unmocked fetch always did here;
 // the deck-badge test resolves it.
 const fetchFriendDecks = vi.fn((_id: string): Promise<unknown> => Promise.reject(new Error('no')));
@@ -79,11 +75,26 @@ vi.mock('@/lib/sync/use-awaiting-first-pull', () => ({
 }));
 
 const fetchFriendWants = vi.fn();
+const fetchFriendCollection = vi.fn();
 vi.mock('@/lib/social/friends-client', async () => {
   const actual = await vi.importActual<typeof import('@/lib/social/friends-client')>(
     '@/lib/social/friends-client'
   );
-  return { ...actual, fetchFriendWants: (...args: unknown[]) => fetchFriendWants(...args) };
+  return {
+    ...actual,
+    fetchFriendWants: (...args: unknown[]) => fetchFriendWants(...args),
+    // The copies shape: the hub's one collection fetch.
+    fetchFriendCollectionCopies: (...args: unknown[]) => fetchFriendCollection(...args),
+  };
+});
+vi.mock('@/lib/trade/trade-value', async () => {
+  const actual =
+    await vi.importActual<typeof import('@/lib/trade/trade-value')>('@/lib/trade/trade-value');
+  return { ...actual, useFloorPrices: () => ({ prices: new Map(), pending: false }) };
+});
+vi.mock('@/lib/api', async () => {
+  const { pending } = await import('@/test/pending');
+  return { getSetMap: () => pending({}) };
 });
 
 // The trade thread. Defaults to empty so the existing tests see what they
@@ -112,8 +123,21 @@ vi.mock('@/lib/cards/card-tags', () => ({ getCardTags: () => [], useCardTagsRead
 
 import { FriendHubPage } from './FriendHubPage';
 
-function makeCard(overrides: Partial<FriendCard> & { name: string; oracleId: string }): FriendCard {
-  return { colors: [], cmc: 0, typeLine: 'Creature', ...overrides };
+function makeCard(overrides: Partial<PublicCard> & { name: string; oracleId: string }): PublicCard {
+  return {
+    scryfallId: `sf-${overrides.oracleId}`,
+    setCode: 'cmr',
+    setName: 'Commander Legends',
+    collectorNumber: '1',
+    rarity: 'rare',
+    finish: 'nonfoil',
+    foil: false,
+    purchasePrice: 1,
+    cmc: 0,
+    typeLine: 'Creature',
+    colors: [],
+    ...overrides,
+  };
 }
 
 function makeOwned(over: Partial<EnrichedCard> & { copyId: string; name: string }): EnrichedCard {
@@ -148,99 +172,75 @@ async function openCollectionTab() {
   return tab;
 }
 
-describe('FriendHubPage — Collection browser', () => {
+describe('FriendHubPage — Collection tab (the trade workspace)', () => {
   beforeEach(() => {
     fetchFriendCollection.mockReset();
     fetchFriendWants.mockReset();
     fetchFriendWants.mockResolvedValue({ ownerUsername: 'friendo', wants: [] });
+    useTradeDraftsStore.setState({ drafts: {} });
     myCards = [];
   });
 
-  it('renders card names but never a quantity or price anywhere in the panel', async () => {
+  const panel = () => document.getElementById('friend-hub-panel-collection')!;
+
+  it('renders their cards in the shared browser and never a quantity-free thin grid', async () => {
     fetchFriendCollection.mockResolvedValue({
       ownerUsername: 'friendo',
       cards: [
         makeCard({ name: 'Sol Ring', oracleId: 'sol', edhrecRank: 1 }),
-        makeCard({ name: 'Lightning Bolt', oracleId: 'bolt', colors: ['R'], edhrecRank: 50 }),
+        makeCard({ name: 'Lightning Bolt', oracleId: 'bolt', edhrecRank: 50 }),
       ],
     });
     renderPage();
     await openCollectionTab();
 
-    const panel = document.getElementById('friend-hub-panel-collection')!;
-    expect(await within(panel).findByText('Sol Ring')).toBeTruthy();
-    expect(within(panel).getByText('Lightning Bolt')).toBeTruthy();
-
-    // No quantity (×N) or currency-formatted price string anywhere in the panel.
-    expect(panel.textContent).not.toMatch(/×\d/);
-    expect(panel.textContent).not.toMatch(/\$\d/);
+    expect(await within(panel()).findByText('Sol Ring')).toBeTruthy();
+    expect(within(panel()).getByText('Lightning Bolt')).toBeTruthy();
+    // The shared browser's own toolbar, not the hub's retired one.
+    expect(within(panel()).getByRole('textbox', { name: 'Search cards' })).toBeTruthy();
+    expect(within(panel()).getByRole('tab', { name: "@friendo's cards" })).toBeTruthy();
+    expect(within(panel()).getByRole('tab', { name: 'Your cards' })).toBeTruthy();
   });
 
-  it('renders the app-wide grid tile — an openable control, naming no quantity', async () => {
-    // Two regressions in one assertion. The tile was a plain <li> (look at a
-    // friend's binder, but never open a card in it), and then briefly its own
-    // bespoke button — while every other grid in the app rendered
-    // `CardGridCell`. It now renders that, which is why the accessible name is
-    // the bare card name, exactly as in the owner's own collection.
-    //
-    // And `CardGridCell` states "quantity N" unconditionally, so the friend
-    // surface passes `hideQty`: a count is the privacy line here, and
-    // "quantity 1" would announce one the endpoint never sent.
+  it('feeds the radar and the workspace from ONE fetch', async () => {
     fetchFriendCollection.mockResolvedValue({
       ownerUsername: 'friendo',
       cards: [makeCard({ name: 'Sol Ring', oracleId: 'sol' })],
     });
     renderPage();
     await openCollectionTab();
-
-    const panel = document.getElementById('friend-hub-panel-collection')!;
-    const tile = await within(panel).findByRole('button', { name: /sol ring/i });
-    expect(tile.closest('.collection-grid-item')).not.toBeNull();
-    expect(tile.getAttribute('aria-label')).not.toMatch(/quantity/i);
+    await within(panel()).findByText('Sol Ring');
+    expect(fetchFriendCollection).toHaveBeenCalledTimes(1);
   });
 
-  it('marks what they can spare and which of their visible decks a card is in', async () => {
-    // The friend's question was "which of these are already in a deck?". The
-    // server answers with a yes/no `spare` and ids of decks the viewer can
-    // open; the page names them from the shelf and links to that deck's page.
-    fetchFriendDecks.mockResolvedValueOnce({
-      ownerUsername: 'friendo',
-      ownerDisplayName: null,
-      decks: [
-        {
-          deckId: 'deck-krenko',
-          href: '/d/krenko-goes-wide',
-          name: 'Krenko Goes Wide',
-          format: 'commander',
-          commanderName: 'Krenko, Mob Boss',
-          commanderImage: null,
-          colorIdentity: ['R'],
-          cardCount: 100,
-          bracket: 3,
-          visibility: 'published',
-          updatedAt: 1,
-        },
-      ],
-    });
+  it('retires the composer mount and the profile link', async () => {
     fetchFriendCollection.mockResolvedValue({
       ownerUsername: 'friendo',
-      cards: [
-        makeCard({ name: 'Sol Ring', oracleId: 'sol', spare: true, deckIds: ['deck-krenko'] }),
-        // An id the shelf doesn't have: named by nothing, so no badge.
-        makeCard({ name: 'Mana Crypt', oracleId: 'crypt', spare: false, deckIds: ['gone'] }),
-      ],
+      cards: [makeCard({ name: 'Sol Ring', oracleId: 'sol' })],
+      fullView: true,
     });
     renderPage();
     await openCollectionTab();
+    await within(panel()).findByText('Sol Ring');
 
-    const panel = document.getElementById('friend-hub-panel-collection')!;
-    const deckLink = await within(panel).findByRole('link', { name: 'In deck: Krenko Goes Wide' });
-    expect(deckLink.getAttribute('href')).toBe('/d/krenko-goes-wide');
-    expect(within(panel).getAllByRole('link', { name: /^In deck/ })).toHaveLength(1);
-    expect(within(panel).getAllByText('Spare copy')).toHaveLength(1);
-    expect(within(panel).getByRole('button', { name: /sol ring.*spare copy/i })).toBeTruthy();
-    // Spare is a yes/no: no count rides along with it.
-    expect(panel.textContent).not.toMatch(/\d+ (free|spare)/);
+    expect(screen.queryByText('See quantities and prices on their profile')).toBeNull();
+    expect(screen.queryByText(/never quantities or values/i)).toBeNull();
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('adds a card to the trade from its tile and shows the tray', async () => {
+    fetchFriendCollection.mockResolvedValue({
+      ownerUsername: 'friendo',
+      cards: [makeCard({ name: 'Sol Ring', oracleId: 'sol' })],
+    });
+    renderPage();
+    await openCollectionTab();
+    fireEvent.click(await within(panel()).findByRole('button', { name: 'Ask for Sol Ring' }));
+
+    expect(screen.getByRole('button', { name: /^Review trade with @friendo. Get 1/ })).toBeTruthy();
+    expect(useTradeDraftsStore.getState().getDraft('viewer-1', 'friend-1')?.get.sol.quantity).toBe(
+      1
+    );
   });
 
   it('says a Private collection is private, rather than empty (T136)', async () => {
@@ -252,75 +252,30 @@ describe('FriendHubPage — Collection browser', () => {
     });
     renderPage();
     await openCollectionTab();
-    const panel = document.getElementById('friend-hub-panel-collection')!;
-    expect(await within(panel).findAllByText(/keeps their collection private/)).not.toHaveLength(0);
-    expect(panel.textContent).not.toMatch(/hasn't added anything/);
+    expect(await within(panel()).findByText(/keeps their collection private/)).toBeTruthy();
+    expect(panel().textContent).not.toMatch(/collection is empty/);
   });
 
-  it('points to the full view on their profile when it opens for this friend (T136)', async () => {
-    fetchFriendCollection.mockResolvedValue({
-      ownerUsername: 'friendo',
-      cards: [makeCard({ name: 'Sol Ring', oracleId: 'sol' })],
-      fullView: true,
-    });
-    renderPage();
-    await openCollectionTab();
-    const panel = document.getElementById('friend-hub-panel-collection')!;
-    const link = await within(panel).findByRole('link', {
-      name: 'See quantities and prices on their profile',
-    });
-    expect(link.getAttribute('href')).toBe('/u/friendo?tab=collection');
-  });
-
-  it('shows the contract line and the empty state when the friend owns nothing', async () => {
+  it('says so when the friend owns nothing', async () => {
     fetchFriendCollection.mockResolvedValue({ ownerUsername: 'friendo', cards: [] });
     renderPage();
     await openCollectionTab();
-
-    expect(await screen.findByText(/never quantities or values/i)).toBeTruthy();
-    expect(await screen.findByText(/hasn.t added anything to their collection yet/i)).toBeTruthy();
+    expect(await within(panel()).findByText('This collection is empty.')).toBeTruthy();
   });
 
-  it('filters by name search across the full set, not just the rendered page', async () => {
-    fetchFriendCollection.mockResolvedValue({
+  it('offers Retry when the collection fails to load, and refetches', async () => {
+    fetchFriendCollection.mockRejectedValueOnce(new Error('boom'));
+    fetchFriendCollection.mockResolvedValueOnce({
       ownerUsername: 'friendo',
-      cards: [
-        makeCard({ name: 'Sol Ring', oracleId: 'sol' }),
-        makeCard({ name: 'Lightning Bolt', oracleId: 'bolt', colors: ['R'] }),
-      ],
+      cards: [makeCard({ name: 'Sol Ring', oracleId: 'sol' })],
     });
     renderPage();
     await openCollectionTab();
-    await screen.findByText('Sol Ring');
-
-    fireEvent.change(screen.getByRole('textbox', { name: /search .*collection by card name/i }), {
-      target: { value: 'bolt' },
-    });
-
-    expect(screen.getByText('Lightning Bolt')).toBeTruthy();
-    expect(screen.queryByText('Sol Ring')).toBeNull();
-  });
-
-  it('filters by color and shows a filtered-empty state that can be reset', async () => {
-    fetchFriendCollection.mockResolvedValue({
-      ownerUsername: 'friendo',
-      cards: [makeCard({ name: 'Sol Ring', oracleId: 'sol', colors: [] })],
-    });
-    renderPage();
-    await openCollectionTab();
-    await screen.findByText('Sol Ring');
-
-    // Color lives inside the shared filter dialog now — the same door the
-    // authed collection and the public share views use.
-    fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Blue' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
-
-    expect(await screen.findByText(/no cards match your search or filters/i)).toBeTruthy();
-    expect(screen.queryByText('Sol Ring')).toBeNull();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Reset search' }));
-    expect(await screen.findByText('Sol Ring')).toBeTruthy();
+    const alert = await within(panel()).findByRole('alert');
+    expect(alert.textContent).toMatch(/couldn.t load this collection/i);
+    fireEvent.click(within(alert).getByRole('button', { name: 'Retry' }));
+    expect(await within(panel()).findByText('Sol Ring')).toBeTruthy();
+    expect(fetchFriendCollection).toHaveBeenCalledTimes(2);
   });
 
   it('caps the initial render and reveals more via "Show more" without a re-fetch', async () => {
@@ -342,6 +297,79 @@ describe('FriendHubPage — Collection browser', () => {
 
     expect(await screen.findByText('Card 60')).toBeTruthy();
     expect(fetchFriendCollection).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('FriendHubPage — "Propose a trade" goes to the Collection tab', () => {
+  beforeEach(() => {
+    fetchFriendCollection.mockReset();
+    fetchFriendWants.mockReset();
+    useTradeDraftsStore.setState({ drafts: {} });
+    myCards = [makeOwned({ copyId: 'c1', name: 'Sol Ring', oracleId: 'o-sol' })];
+    listTrades.mockReset();
+    listTrades.mockResolvedValue({ offers: [], truncated: false });
+  });
+
+  function Where() {
+    const loc = useLocation();
+    return <output data-testid="where">{loc.pathname + loc.search}</output>;
+  }
+
+  it('from the want radar, with no composer dialog', async () => {
+    fetchFriendCollection.mockResolvedValue({
+      ownerUsername: 'friendo',
+      cards: [makeCard({ name: 'Sol Ring', oracleId: 'o-sol' })],
+    });
+    fetchFriendWants.mockResolvedValue({
+      ownerUsername: 'friendo',
+      wants: [{ name: 'Sol Ring', oracleId: 'o-sol' }],
+    });
+    render(
+      <MemoryRouter initialEntries={['/friends/friend-1']}>
+        <Routes>
+          <Route
+            path="/friends/:friendId"
+            element={
+              <>
+                <FriendHubPage />
+                <Where />
+              </>
+            }
+          />
+        </Routes>
+      </MemoryRouter>
+    );
+    const strip = await screen.findByRole('list', { name: /cards you own that .* wants/i });
+    const section = strip.closest('section')!;
+    fireEvent.click(within(section).getByRole('button', { name: 'Propose a trade' }));
+
+    expect(screen.getByTestId('where').textContent).toBe('/friends/friend-1?tab=collection');
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByRole('tab', { name: 'Collection' }).getAttribute('aria-selected')).toBe(
+      'true'
+    );
+  });
+
+  it('from the Trades tab', async () => {
+    fetchFriendCollection.mockResolvedValue({ ownerUsername: 'friendo', cards: [] });
+    fetchFriendWants.mockResolvedValue({ ownerUsername: 'friendo', wants: [] });
+    render(
+      <MemoryRouter initialEntries={['/friends/friend-1?tab=trades']}>
+        <Routes>
+          <Route
+            path="/friends/:friendId"
+            element={
+              <>
+                <FriendHubPage />
+                <Where />
+              </>
+            }
+          />
+        </Routes>
+      </MemoryRouter>
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Propose a trade' }));
+    expect(screen.getByTestId('where').textContent).toBe('/friends/friend-1?tab=collection');
   });
 });
 
@@ -457,6 +485,7 @@ describe('FriendHubPage — ?counter=<offerId> from /trades', () => {
     fetchFriendWants.mockResolvedValue({ ownerUsername: 'friendo', wants: [] });
     listTrades.mockReset();
     listTrades.mockResolvedValue({ offers: [], truncated: false });
+    useTradeDraftsStore.setState({ drafts: {} });
     myCards = [];
   });
 
@@ -486,7 +515,7 @@ describe('FriendHubPage — ?counter=<offerId> from /trades', () => {
     );
   }
 
-  it('lands on the Trades tab with the composer open, the WHOLE offer on its own sides', async () => {
+  it('lands on the Collection tab with the review open, the WHOLE offer on its own sides', async () => {
     // Offers are viewer-relative: `give` is what I was asked to hand over,
     // `receive` is what I would get. A counter must keep them there.
     myCards = [
@@ -516,7 +545,68 @@ describe('FriendHubPage — ?counter=<offerId> from /trades', () => {
     expect(within(get).getByText('Lightning Bolt')).toBeTruthy();
     expect(within(get).queryByText('Sol Ring')).toBeNull();
     expect(within(dialog).getByText(/Countering @friendo.s offer/)).toBeTruthy();
-    expect(screen.getByRole('tab', { name: /Trades/ }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByRole('tab', { name: 'Collection' }).getAttribute('aria-selected')).toBe(
+      'true'
+    );
+
+    // The draft is what was seeded, and it remembers what it answers.
+    const saved = useTradeDraftsStore.getState().getDraft('viewer-1', 'friend-1');
+    expect(saved?.counterTo).toEqual({ offerId: 't1', name: '@friendo' });
+    expect(saved?.get['o-bolt'].quantity).toBe(2);
+    expect(Object.keys(saved?.give ?? {}).sort()).toEqual(['o-sig', 'o-sol']);
+  });
+
+  it('spends the counter and review params once it has landed', async () => {
+    myCards = [makeOwned({ copyId: 'c1', name: 'Sol Ring', oracleId: 'o-sol' })];
+    listTrades.mockResolvedValue({ offers: [incoming], truncated: false });
+    render(
+      <MemoryRouter initialEntries={['/friends/friend-1?counter=t1']}>
+        <Routes>
+          <Route
+            path="/friends/:friendId"
+            element={
+              <>
+                <FriendHubPage />
+                <WhereAmI />
+              </>
+            }
+          />
+        </Routes>
+      </MemoryRouter>
+    );
+    await screen.findByRole('dialog', { name: /Trade with/ });
+    await waitFor(() =>
+      expect(screen.getByTestId('where').textContent).toBe('/friends/friend-1?tab=collection')
+    );
+  });
+
+  it('names a card the viewer no longer has instead of seeding it silently', async () => {
+    useToastsStore.getState().clear();
+    myCards = [makeOwned({ copyId: 'c2', name: 'Arcane Signet', oracleId: 'o-sig' })];
+    listTrades.mockResolvedValue({ offers: [incoming], truncated: false });
+    renderWithCounter('t1');
+
+    await screen.findByRole('dialog', { name: /Trade with/ });
+    expect(
+      useToastsStore.getState().toasts.some((t) => /You no longer have Sol Ring/.test(t.message))
+    ).toBe(true);
+    const saved = useTradeDraftsStore.getState().getDraft('viewer-1', 'friend-1');
+    expect(saved?.give).toEqual({});
+  });
+
+  it('waits for the first pull rather than seeding an empty collection', async () => {
+    firstPull.awaiting = true;
+    try {
+      myCards = [];
+      listTrades.mockResolvedValue({ offers: [incoming], truncated: false });
+      renderWithCounter('t1');
+      await screen.findByRole('tab', { name: 'Collection' });
+      await Promise.resolve();
+      expect(useTradeDraftsStore.getState().getDraft('viewer-1', 'friend-1')).toBeNull();
+      expect(screen.queryByRole('dialog')).toBeNull();
+    } finally {
+      firstPull.awaiting = false;
+    }
   });
 
   it('ignores a counter link for an offer that is no longer open', async () => {
@@ -528,8 +618,28 @@ describe('FriendHubPage — ?counter=<offerId> from /trades', () => {
 
     await screen.findByRole('tab', { name: /Trades/ });
     expect(screen.queryByRole('dialog')).toBeNull();
+    expect(useTradeDraftsStore.getState().getDraft('viewer-1', 'friend-1')).toBeNull();
+  });
+
+  it('Counter on the Trades tab seeds the same way', async () => {
+    myCards = [makeOwned({ copyId: 'c1', name: 'Sol Ring', oracleId: 'o-sol' })];
+    listTrades.mockResolvedValue({ offers: [incoming], truncated: false });
+    render(
+      <MemoryRouter initialEntries={['/friends/friend-1?tab=trades']}>
+        <Routes>
+          <Route path="/friends/:friendId" element={<FriendHubPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+    fireEvent.click(await screen.findByRole('button', { name: /^Counter/ }));
+    expect(await screen.findByRole('dialog', { name: /Trade with/ })).toBeTruthy();
   });
 });
+
+function WhereAmI() {
+  const loc = useLocation();
+  return <output data-testid="where">{loc.pathname + loc.search}</output>;
+}
 
 describe('FriendHubPage: the tab lives in ?tab=', () => {
   beforeEach(() => {
@@ -593,10 +703,10 @@ describe('FriendHubPage: the tab lives in ?tab=', () => {
     expect(tab.getAttribute('aria-selected')).toBe('true');
   });
 
-  it('?counter= still forces Trades, and changing tab clears it', async () => {
+  it('?counter= still forces a tab, and changing tab clears it', async () => {
     renderAt('/friends/friend-1?counter=gone&tab=decks');
-    const trades = await screen.findByRole('tab', { name: /Trades/ });
-    expect(trades.getAttribute('aria-selected')).toBe('true');
+    const collection = await screen.findByRole('tab', { name: 'Collection' });
+    expect(collection.getAttribute('aria-selected')).toBe('true');
 
     fireEvent.click(screen.getByRole('tab', { name: 'Decks' }));
     expect(where()).toBe('/friends/friend-1?tab=decks');

@@ -1,6 +1,8 @@
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
+import { Star } from 'lucide-react';
 import type { PublicCard } from '@/lib/social/shared-types';
 import { publicCardToEnriched } from '@/lib/social/shared-filter';
+import { ArtBadge } from '../shared/ArtBadge';
 import { BinderBadge, type BinderInfo } from '../BinderBadge';
 import { DeckBadge } from '../DeckBadge';
 import type { AllocationInfo } from '@/lib/collection/allocations-core';
@@ -41,6 +43,16 @@ interface Props {
   /** The caption prefs, when the surface owns them (the collection browser's
    *  Details control). Absent: this tile reads the stored device-wide prefs. */
   captionPrefs?: GridCaptionPrefs;
+  /** Replaces the default note line (otherwise "Spare copy" for a spare). */
+  note?: string;
+  /** A short plate on the art ("You want"). */
+  flag?: string;
+  /** Copies of this card in a trade being built; above 0 the tile shows it. */
+  pickedCount?: number;
+  /** A control in the caption (the trade "+"). */
+  action?: ReactNode;
+  /** The card is this device's own: price it in the display currency. */
+  localValues?: boolean;
 }
 
 /** The visible words for a spare copy. "Spare" alone was explained only by a
@@ -101,6 +113,11 @@ export function SharedCardTile({
   allocations,
   spare,
   captionPrefs: captionPrefsProp,
+  note: noteProp,
+  flag,
+  pickedCount,
+  action,
+  localValues,
 }: Props) {
   const [storedPrefs] = useGridCaptionPrefs();
   const captionPrefs = captionPrefsProp ?? storedPrefs;
@@ -122,7 +139,8 @@ export function SharedCardTile({
   const caption =
     hideValue || !captionPrefs.sortValue
       ? null
-      : formatMoney(enriched.purchasePrice, { currency: 'USD' });
+      : formatMoney(enriched.purchasePrice, localValues ? undefined : { currency: 'USD' });
+  const note = noteProp ?? (spare ? SPARE_LABEL : null);
 
   return (
     <CardGridCell
@@ -133,9 +151,24 @@ export function SharedCardTile({
       onActivate={() => onClick?.()}
       caption={caption}
       setLabel={setLabel}
-      ariaExtra={`${ownedAriaSuffix(ownership)}${spare ? ` · ${SPARE_LABEL.toLowerCase()}` : ''}`}
+      ariaExtra={`${ownedAriaSuffix(ownership)}${flag ? ` · ${flag.toLowerCase()}` : ''}${
+        note ? ` · ${note.toLowerCase()}` : ''
+      }${pickedCount ? ` · ${pickedCount} in your trade` : ''}`}
       rarityOnArt={false}
-      note={spare ? SPARE_LABEL : null}
+      note={note}
+      cornerExtras={
+        flag ? (
+          <ArtBadge
+            className="shared-tile-flag"
+            tone="warn"
+            icon={<Star width={11} height={11} strokeWidth={2} />}
+          >
+            {flag}
+          </ArtBadge>
+        ) : undefined
+      }
+      pickedCount={pickedCount}
+      action={action}
       badges={
         ownership?.owned || allocations?.length ? (
           <>

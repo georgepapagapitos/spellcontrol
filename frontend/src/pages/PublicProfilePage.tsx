@@ -18,6 +18,7 @@ import type { PublicCollection } from '@/lib/social/shared-types';
 import type { CollectionVisibility } from '@/lib/account/auth-api';
 import { Tabs, type TabItem } from '@/components/overlays/Tabs';
 import { CollectionBrowser } from '../components/share/CollectionBrowser';
+import { FriendProfileCollection } from '../components/trade/FriendProfileCollection';
 import { CollectionVisibilityDialog } from '@/components/collection/CollectionVisibilityDialog';
 import type { PublicProfile, PublicProfileDeck } from '@/lib/social/profile-client';
 import { DeckLibrary, type LibraryDeck } from '../components/decks/DeckLibrary';
@@ -170,12 +171,16 @@ function ProfileCollection({
   username,
   ownerName,
   isOwner,
+  friendId,
   visibility,
   onVisibilityChanged,
 }: {
   username: string;
   ownerName: string;
   isOwner: boolean;
+  /** The owner's account id, present only when the viewer is their friend:
+   *  the one case where the tiles can trade. */
+  friendId: string | null;
   visibility: CollectionVisibility | null;
   onVisibilityChanged: (v: CollectionVisibility) => void;
 }) {
@@ -219,14 +224,24 @@ function ProfileCollection({
           </Button>
         </p>
       )}
-      <CollectionBrowser
-        cards={current?.data?.cards ?? null}
-        error={current?.error ?? null}
-        onRetry={() => setAttempt((n) => n + 1)}
-        ownerName={ownerName}
-        viewer={isOwner ? 'owner' : 'public'}
-        embedded
-      />
+      {friendId && !isOwner ? (
+        <FriendProfileCollection
+          friendId={friendId}
+          friendName={ownerName}
+          cards={current?.data?.cards ?? null}
+          error={current?.error ?? null}
+          onRetry={() => setAttempt((n) => n + 1)}
+        />
+      ) : (
+        <CollectionBrowser
+          cards={current?.data?.cards ?? null}
+          error={current?.error ?? null}
+          onRetry={() => setAttempt((n) => n + 1)}
+          ownerName={ownerName}
+          viewer={isOwner ? 'owner' : 'public'}
+          embedded
+        />
+      )}
       {changing && (
         <CollectionVisibilityDialog
           onClose={() => setChanging(false)}
@@ -403,6 +418,7 @@ function PublicProfilePageInner({ username }: { username: string }) {
                   username={profile.username}
                   ownerName={heading}
                   isOwner={profile.isOwner}
+                  friendId={profile.ownerId ?? null}
                   visibility={visibilityOverride ?? profile.collection?.visibility ?? null}
                   onVisibilityChanged={setVisibilityOverride}
                 />

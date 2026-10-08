@@ -4,24 +4,19 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useSignInPath } from '@/lib/account/sign-in-path';
 import { BackLink } from '@/components/app-shell/BackLink';
-import {
-  BookOpen,
-  Box,
-  FolderOpen,
-  Layers,
-  AlignJustify,
-  LayoutGrid,
-  List as ListIcon,
-  ListChecks,
-} from 'lucide-react';
+import { BookOpen, Box, FolderOpen, Layers, ListChecks } from 'lucide-react';
 import { useAuth } from '../store/auth';
 import { useCollectionStore } from '../store/collection';
 import { useAwaitingFirstPull } from '@/lib/sync/use-awaiting-first-pull';
 import { getFriendShares, type FriendShareRow } from '@/lib/social/share-client';
 import { formatIdentity } from '@/lib/social/display-name';
 import { fetchH2H, type H2HResponse } from '@/lib/play/game-results-client';
-import { fetchFriendCollection, type FriendCard } from '../lib/cube/pool';
-import { fetchFriendWants, type FriendWant } from '@/lib/social/friends-client';
+import {
+  fetchFriendCollectionCopies,
+  fetchFriendWants,
+  type FriendWant,
+} from '@/lib/social/friends-client';
+import { publicCardsToFriendCards } from '@/lib/social/friend-collection-filter';
 import {
   buildTradeRadar,
   buildWantRadar,
@@ -29,46 +24,18 @@ import {
   type WantMatch,
 } from '@/lib/trade/trade-radar';
 import { groupOwnedForTrade } from '@/lib/trade/trade-picker';
-import {
-  useAllocations,
-  computeSurplusByName,
-  makeDeckAllocationInfo,
-  type AllocationInfo,
-} from '@/lib/collection/allocations';
-import {
-  listTrades,
-  subscribeTradesChanged,
-  type TradeCard,
-  type TradeOffer,
-} from '@/lib/trade/trades-client';
-import { TradeComposer } from '../components/trade/TradeComposer';
+import { useAllocations, computeSurplusByName } from '@/lib/collection/allocations';
+import { listTrades, subscribeTradesChanged, type TradeOffer } from '@/lib/trade/trades-client';
+import { useCounterSeed } from '@/lib/trade/use-counter-seed';
 import { TradeOfferList } from '../components/trade/TradeOfferList';
+import { TradeWorkspace } from '../components/trade/TradeWorkspace';
 import { RadarCardTile } from '../components/trade/RadarCardTile';
 import { isTrackingList } from '@/lib/collection/lists';
 import { useCardThumb } from '@/lib/cards/card-thumbs';
-import { resolveFriendPreview } from '@/lib/social/friend-preview';
 import { fetchFriendDecks, type FriendDeck } from '@/lib/social/friend-decks-client';
 import { DeckLibrary, type LibraryDeck } from '../components/decks/DeckLibrary';
-import { CardPreview } from '@/components/card/CardPreview';
-import { toast } from '../store/toasts';
-import type { EnrichedCard } from '../types';
-import {
-  filterFriendCollection,
-  friendCardToPublic,
-  sortFriendCollection,
-  type FriendSortKey,
-} from '@/lib/social/friend-collection-filter';
-import { getCardTags, useCardTagsReady } from '@/lib/cards/card-tags';
-import { friendPayloadCaps } from '@/lib/social/friend-search';
 import { H2HSummary } from '../components/play/H2HSummary';
 import { Tabs, type TabItem } from '@/components/overlays/Tabs';
-import { SearchPill } from '@/components/search/SearchPill';
-import { SortMenu, type SortMenuOption } from '@/components/search/SortMenu';
-import { ViewModeToggle } from '../components/ViewModeToggle';
-import { useSharedFilters } from '../components/share/use-shared-filters';
-import { SharedCardTile } from '../components/share/SharedCardTile';
-import { SharedCardList } from '../components/share/SharedCardList';
-import { SharedEmptyState } from '../components/share/SharedEmptyState';
 import { EmptyState } from '@/components/shared/EmptyState';
 import type { PublicCard, ShareKind } from '@/lib/social/shared-types';
 
@@ -76,45 +43,9 @@ import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
 import { SectionHeader } from '@/components/shared/SectionHeader';
-/** How many collection cards render before "Show more" — the friend's real
- *  collection can be ~11.5k unique oracle cards; filtering runs over the
- *  full set regardless of this cap (see filterFriendCollection). */
-const COLLECTION_PAGE_SIZE = 60;
-
-// Popularity is EDHREC rank, where 1 is the most-played card — so "ascending"
-// reads most-popular-first (see SortMenuOption.dirLabels).
-const COLLECTION_SORT_OPTIONS: SortMenuOption<FriendSortKey>[] = [
-  { value: 'popularity', label: 'Popularity', dirLabels: ['Most played', 'Least played'] },
-  { value: 'name', label: 'Name', dirLabels: ['A → Z', 'Z → A'] },
-  { value: 'cmc', label: 'Mana value', dirLabels: ['Low → high', 'High → low'] },
-  { value: 'rarity', label: 'Rarity', dirLabels: ['Common first', 'Mythic first'] },
-];
 
 const HUB_TABS = ['overview', 'decks', 'collection', 'trades'] as const;
 type HubTab = (typeof HUB_TABS)[number];
-/** Grid/list, matching the shared collection view's own toggle. */
-type FriendViewKind = 'grid' | 'list' | 'compact';
-
-/** What the composer opens with: a fresh offer, or a counter that carries the
- *  WHOLE incoming offer. Offers are viewer-relative, so `give` is what the
- *  viewer was asked to hand over and `receive` is what they would get. */
-interface ComposerSeed {
-  give?: TradeCard[];
-  get?: TradeCard[];
-  counterTo?: { offerId: string; name: string };
-}
-
-function counterOf(offer: TradeOffer): ComposerSeed {
-  return {
-    give: offer.give,
-    get: offer.receive,
-    counterTo: {
-      offerId: offer.id,
-      name: offer.counterpartyDisplayName || `@${offer.counterpartyUsername}`,
-    },
-  };
-}
-
 /** Display order + presentation for each shareable kind. */
 const KIND_META: Record<ShareKind, { label: string; plural: string; Icon: typeof Layers }> = {
   deck: { label: 'Deck', plural: 'Decks', Icon: Layers },
@@ -153,12 +84,15 @@ export function FriendHubPage() {
   const [h2h, setH2h] = useState<H2HResponse | null>(null);
   const [h2hLoading, setH2hLoading] = useState(true);
   const [searchParams, setSearchParams] = useSearchParams();
-  // Arriving to counter an offer lands on the Trades tab, where that offer is.
-  // The tab lives in `?tab=` so a link (Home's "answer this trade") and a
-  // reload land on the same view; Overview is the bare URL.
+  // Arriving to counter an offer lands on the Collection tab, where the
+  // counter's draft is built and reviewed. The tab lives in `?tab=` so a link
+  // (Home's "answer this trade") and a reload land on the same view; Overview
+  // is the bare URL.
   const counterId = searchParams.get('counter');
   const tabParam = searchParams.get('tab');
-  const tab: HubTab = counterId ? 'trades' : (HUB_TABS.find((t) => t === tabParam) ?? 'overview');
+  const tab: HubTab = counterId
+    ? 'collection'
+    : (HUB_TABS.find((t) => t === tabParam) ?? 'overview');
   const setTab = (next: HubTab) => {
     const params = new URLSearchParams(searchParams);
     params.delete('counter');
@@ -167,6 +101,18 @@ export function FriendHubPage() {
     setSearchParams(params, { replace: true });
   };
 
+  const identity = ownerUsername
+    ? formatIdentity({ username: ownerUsername, displayName: ownerDisplayName })
+    : null;
+  // Today's exact `@username` phrasing, reused verbatim in two spots: as the
+  // heading itself when no display name is set, or demoted to a secondary
+  // line/prose reference once one is. Either way, a user with no display name
+  // sees byte-identical output to today.
+  const handle = ownerUsername ? `@${ownerUsername}` : null;
+  const hasDisplayName = identity !== null && identity.secondary !== null;
+  const heading = hasDisplayName ? identity!.primary : (handle ?? 'Shared with friends');
+  const who = hasDisplayName ? identity!.primary : (handle ?? 'this friend');
+
   // Trade radar: cross-reference the viewer's own want lists against this
   // friend's collection — the same oracle-level fetch the cube collab pool
   // uses, so it rides the existing sharing model (no new privacy surface).
@@ -174,21 +120,20 @@ export function FriendHubPage() {
   // Tracking lists catalogue cards the viewer owns — never wants.
   const wantsAnything = lists.some((l) => !isTrackingList(l) && l.entries.length > 0);
 
-  // ONE fetch of the friend's (already oracle-deduped, price/quantity-free)
-  // collection feeds both the trade radar above and the Collection browser
-  // below — fetched unconditionally (not gated on wantsAnything) since the
-  // browser needs it regardless of whether the viewer has any want lists.
+  // ONE fetch of the friend's collection, copy by copy, feeds the trade radar
+  // below and the Collection tab's workspace. It is fetched unconditionally
+  // (not gated on wantsAnything): the workspace needs it whether or not the
+  // viewer has want lists. The radar reads it through `publicCardsToFriendCards`
+  // (oracle-level), so there is no second request for it.
   const [collectionAttempt, setCollectionAttempt] = useState(0);
   // Keyed result: a stale key (friend switch / retry) reads as loading again,
   // so the effect never needs a synchronous reset-setState.
   const [collectionResult, setCollectionResult] = useState<{
     key: string;
-    cards: FriendCard[] | null;
+    cards: PublicCard[] | null;
     error: boolean;
     /** Set to Private by its owner (T136): the empty list is a choice. */
     isPrivate?: boolean;
-    /** Their profile's Collection tab opens for this viewer (T136). */
-    fullView?: boolean;
   } | null>(null);
   const collectionKey = `${friendId ?? ''}:${collectionAttempt}`;
 
@@ -249,7 +194,7 @@ export function FriendHubPage() {
     if (status !== 'authed' || !friendId) return;
     let cancelled = false;
     const key = `${friendId}:${collectionAttempt}`;
-    fetchFriendCollection(friendId)
+    fetchFriendCollectionCopies(friendId)
       .then((res) => {
         if (!cancelled) {
           setCollectionResult({
@@ -257,7 +202,6 @@ export function FriendHubPage() {
             cards: res.cards,
             error: false,
             isPrivate: !!res.collectionPrivate,
-            fullView: !!res.fullView,
           });
         }
       })
@@ -272,7 +216,11 @@ export function FriendHubPage() {
   const collectionCurrent =
     collectionResult && collectionResult.key === collectionKey ? collectionResult : null;
   const collectionError = collectionCurrent?.error ?? false;
-  const friendCards = collectionCurrent?.cards ?? null;
+  const friendCopies = collectionCurrent?.cards ?? null;
+  const friendCards = useMemo(
+    () => (friendCopies ? publicCardsToFriendCards(friendCopies) : null),
+    [friendCopies]
+  );
   const retryCollection = () => setCollectionAttempt((n) => n + 1);
   // Trade radar's own copy below still says "radar" — alias so that section
   // reads unchanged even though it now shares the Collection browser's fetch.
@@ -356,7 +304,6 @@ export function FriendHubPage() {
   const [offers, setOffers] = useState<TradeOffer[] | null>(null);
   const [offersError, setOffersError] = useState(false);
   const [tradeAttempt, setTradeAttempt] = useState(0);
-  const [composing, setComposing] = useState<ComposerSeed | null>(null);
   const refreshTrades = () => setTradeAttempt((n) => n + 1);
   // A settlement applied by the app shell changes rows in this tab.
   useEffect(() => subscribeTradesChanged(() => setTradeAttempt((n) => n + 1)), []);
@@ -380,161 +327,42 @@ export function FriendHubPage() {
     };
   }, [friendId, status, tradeAttempt]);
 
-  // `/friends/:id?counter=<offerId>` — /trades' Counter lands here. The
-  // composer is DERIVED from the param while it names a live incoming offer
-  // (no effect, no setState-in-effect), and closing or sending clears the
-  // param so it can't re-open on the next refetch.
+  // `/friends/:id?counter=<offerId>` — /trades' Counter lands here. A live
+  // incoming offer seeds the saved draft (what they asked of the viewer on
+  // "You give", what they offered on "You get") and the page moves on to the
+  // Collection tab with the review open; the param is spent once it has.
   const counterOffer =
     counterId && offers
       ? offers.find((o) => o.id === counterId && o.status === 'proposed' && !o.mine)
       : undefined;
-  const activeComposing = composing ?? (counterOffer ? counterOf(counterOffer) : null);
-  function closeComposer() {
-    setComposing(null);
-    if (counterId) setTab('trades');
+  function collectionParams(review: boolean) {
+    const params = new URLSearchParams(searchParams);
+    params.delete('counter');
+    params.set('tab', 'collection');
+    if (review) params.set('review', '1');
+    return params;
   }
+  useCounterSeed({
+    friendId: friendId ?? '',
+    friendName: who,
+    offer: counterOffer,
+    onSeeded: () => setSearchParams(collectionParams(true), { replace: true }),
+  });
+  // A counter for an offer that is gone (answered elsewhere) has nothing to
+  // seed: land on the Collection tab without it rather than keep waiting.
+  const counterGone = !!counterId && offers !== null && !counterOffer;
+  useEffect(() => {
+    if (!counterGone) return;
+    const params = new URLSearchParams(searchParams);
+    params.delete('counter');
+    params.set('tab', 'collection');
+    setSearchParams(params, { replace: true });
+  }, [counterGone, searchParams, setSearchParams]);
 
   const openTrades = (offers ?? []).filter((o) => o.status === 'proposed');
   // Only offers awaiting THIS viewer count toward the tab badge — an offer
   // they sent is waiting on the other person, not on them.
   const awaitingMe = openTrades.filter((o) => !o.mine).length;
-
-  // ── Collection browser: search + the shared filter dialog + sort ────
-  // Same three controls as the authed collection and the public share views
-  // (SearchPill with the filter door in its trailing slot, SortMenu). The
-  // friend payload is card facts only, so the dialog mounts with the
-  // `card-facts` facet set and hides every row it couldn't answer.
-  const [collectionQuery, setCollectionQuery] = useState('');
-  const [collectionSort, setCollectionSort] = useState<FriendSortKey>('popularity');
-  const [collectionDir, setCollectionDir] = useState<'asc' | 'desc'>('asc');
-  const [collectionVisible, setCollectionVisible] = useState(COLLECTION_PAGE_SIZE);
-  const [collectionView, setCollectionView] = useState<FriendViewKind>('grid');
-  const friendPublicCards = useMemo(
-    () => (friendCards ?? []).map(friendCardToPublic),
-    [friendCards]
-  );
-  // The same projection keyed BY CARD, so the tile and the filter pipeline
-  // share one object per card. Rebuilding it per render would hand
-  // `SharedCardTile` a new `card` identity every time and defeat its memo.
-  const friendPublicByCard = useMemo(() => {
-    const m = new Map<FriendCard, PublicCard>();
-    (friendCards ?? []).forEach((c, i) => m.set(c, friendPublicCards[i]));
-    return m;
-  }, [friendCards, friendPublicCards]);
-  // Which of THEIR decks each card is in, as the same deck badge the owner
-  // sees on their own collection, linking to the deck page the friend can
-  // open. The server names only decks on the shelf above; a card whose deck
-  // hasn't loaded (or failed to) simply shows no badge.
-  const friendDeckBadges = useMemo(() => {
-    const byId = new Map((friendDecks ?? []).map((d) => [d.deckId, d]));
-    const m = new Map<FriendCard, AllocationInfo[]>();
-    for (const c of friendCards ?? []) {
-      const infos = (c.deckIds ?? []).flatMap((id) => {
-        const d = byId.get(id);
-        return d ? [{ ...makeDeckAllocationInfo(d.deckId, d.name, '', c.name), href: d.href }] : [];
-      });
-      if (infos.length > 0) m.set(c, infos);
-    }
-    return m;
-  }, [friendCards, friendDecks]);
-  // Rules text and legality ride the payload only since the endpoint started
-  // sending them; probe what this payload actually has so the dialog and the
-  // `o:` / `f:` search agree on what can be answered.
-  const friendCaps = useMemo(() => friendPayloadCaps(friendCards ?? []), [friendCards]);
-  const {
-    filterNode: collectionFilterNode,
-    matches: collectionMatches,
-    activeCount: collectionFilterCount,
-    clear: clearCollectionFilters,
-  } = useSharedFilters(friendPublicCards, {
-    withPrice: false,
-    facets: 'card-facts',
-    hasOracleText: friendCaps.oracleText,
-    hasLegalities: friendCaps.legalities,
-  });
-
-  // `otag:` needs the tag snapshot; load it only when the query asks for one
-  // (same gate as CardSearchPanel — the snapshot is a multi-MB artifact).
-  const collectionWantsTags = /\b(otag|oracletag|function)[:=]/i.test(collectionQuery);
-  const collectionTagsReady = useCardTagsReady(collectionWantsTags);
-
-  const friendSearchResult = useMemo(
-    () =>
-      friendCards
-        ? filterFriendCollection(friendCards, {
-            query: collectionQuery,
-            tagsFor: collectionTagsReady ? getCardTags : undefined,
-            caps: friendCaps,
-          })
-        : { cards: [], ignored: [] },
-    [friendCards, friendCaps, collectionQuery, collectionTagsReady]
-  );
-  // The search narrows by name/syntax; the dialog's facets narrow the rest,
-  // matching against each card's public-card projection (by index, so the
-  // conversion runs once per payload rather than once per keystroke).
-  const filteredFriendCards = useMemo(() => {
-    const kept = friendSearchResult.cards.filter((c) => {
-      const pc = friendPublicByCard.get(c);
-      return pc ? collectionMatches(pc) : true;
-    });
-    return sortFriendCollection(kept, collectionSort, collectionDir);
-  }, [friendPublicByCard, friendSearchResult, collectionMatches, collectionSort, collectionDir]);
-
-  // A friend switch, a retry, a search, a filter, or a sort change all
-  // invalidate the current "show more" depth — reset to the first page. The
-  // filtered list's identity changes on exactly those events, so it is the
-  // reset key. Adjusted during render (the React-documented pattern for
-  // resetting state on a derived-value change) rather than in an effect,
-  // which would cascade an extra render.
-  const [lastFilteredList, setLastFilteredList] = useState(filteredFriendCards);
-  if (filteredFriendCards !== lastFilteredList) {
-    setLastFilteredList(filteredFriendCards);
-    setCollectionVisible(COLLECTION_PAGE_SIZE);
-  }
-
-  const visibleFriendCards = filteredFriendCards.slice(0, collectionVisible);
-  const hasMoreFriendCards = filteredFriendCards.length > collectionVisible;
-
-  // ── Collection browser: the card inspector ──────────────────────────
-  // Tapping a tile opens the same carousel every other collection surface
-  // opens, spanning the cards currently on screen so a browse keeps browsing
-  // — swiping walks the grid in its sorted order rather than stopping at the
-  // one card that was tapped. Slides resolve by name on demand (not up front:
-  // the filtered set can run to thousands) and the lookup is normally warm,
-  // since each visible tile already resolved the same name for its thumbnail.
-  const [collectionPreview, setCollectionPreview] = useState<{
-    cards: EnrichedCard[];
-    index: number;
-  } | null>(null);
-  const [openingCard, setOpeningCard] = useState<string | null>(null);
-
-  async function inspectFriendCard(card: FriendCard) {
-    setOpeningCard(card.name);
-    try {
-      const { cards, indexOf } = await resolveFriendPreview(visibleFriendCards);
-      if (cards.length === 0) {
-        toast.show({ message: "Couldn't load these cards right now.", tone: 'warn' });
-        return;
-      }
-      // A card whose own lookup failed is not in the carousel; open at the
-      // nearest slide rather than refusing, so one bad card can't block the
-      // rest (same fallback as the trade carousel).
-      const at = indexOf(card);
-      setCollectionPreview({ cards, index: at >= 0 ? at : 0 });
-    } finally {
-      setOpeningCard(null);
-    }
-  }
-
-  // Mirrors the collection's sort behavior: re-picking the active field
-  // flips direction (SortMenu's Reverse action), a new field resets to asc.
-  const toggleCollectionSort = (key: FriendSortKey) => {
-    if (key === collectionSort) setCollectionDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-    else {
-      setCollectionSort(key);
-      setCollectionDir('asc');
-    }
-  };
 
   useEffect(() => {
     if (status !== 'authed' || !friendId) return;
@@ -596,17 +424,6 @@ export function FriendHubPage() {
 
   const loading = shares === null;
   const sharesList = shares ?? [];
-  const identity = ownerUsername
-    ? formatIdentity({ username: ownerUsername, displayName: ownerDisplayName })
-    : null;
-  // Today's exact `@username` phrasing, reused verbatim in two spots: as the
-  // heading itself when no display name is set, or demoted to a secondary
-  // line/prose reference once one is. Either way, a user with no display name
-  // sees byte-identical output to today.
-  const handle = ownerUsername ? `@${ownerUsername}` : null;
-  const hasDisplayName = identity !== null && identity.secondary !== null;
-  const heading = hasDisplayName ? identity!.primary : (handle ?? 'Shared with friends');
-  const who = hasDisplayName ? identity!.primary : (handle ?? 'this friend');
 
   const hubTabs: TabItem<HubTab>[] = [
     { id: 'overview', label: 'Overview', controls: 'friend-hub-panel-overview' },
@@ -707,7 +524,7 @@ export function FriendHubPage() {
                 </ul>
                 <Button
                   variant="primary"
-                  onClick={() => setComposing({})}
+                  onClick={() => setTab('collection')}
                   className="friend-hub-radar-propose"
                 >
                   Propose a trade
@@ -762,7 +579,7 @@ export function FriendHubPage() {
                 </ul>
                 <Button
                   variant="primary"
-                  onClick={() => setComposing({})}
+                  onClick={() => setTab('collection')}
                   className="friend-hub-radar-propose"
                 >
                   Propose a trade
@@ -866,152 +683,20 @@ export function FriendHubPage() {
         aria-labelledby="sc-tab-collection"
         hidden={tab !== 'collection'}
       >
-        <p className="friend-hub-collection-contract">
-          {collectionCurrent?.isPrivate ? (
-            `${who} keeps their collection private.`
-          ) : collectionCurrent?.fullView && ownerUsername ? (
-            <>
-              Which cards {who} owns.{' '}
-              <Link to={`/u/${ownerUsername}?tab=collection`}>
-                See quantities and prices on their profile
-              </Link>
-              .
-            </>
-          ) : (
-            `What ${who} owns, never quantities or values.`
-          )}
-        </p>
-
-        {collectionError ? (
-          <p className="friend-hub-radar-note" role="alert">
-            Couldn't load {who}'s collection.{' '}
-            <Button variant="link" onClick={retryCollection} className="friend-hub-radar-retry">
-              Retry
-            </Button>
-          </p>
-        ) : friendCards === null ? (
-          <div
-            className="friend-hub-collection-skeleton"
-            aria-label={`Loading ${who}'s collection`}
-            role="status"
-            aria-busy="true"
+        {tab === 'collection' && friendId && (
+          <TradeWorkspace
+            friendId={friendId}
+            friendName={who}
+            theirCards={friendCopies}
+            error={collectionError ? 'Check your connection, then retry.' : null}
+            onRetry={retryCollection}
+            isPrivate={!!collectionCurrent?.isPrivate}
+            friendWants={theyWant}
+            onSent={() => {
+              setTab('trades');
+              refreshTrades();
+            }}
           />
-        ) : (
-          <>
-            <div className="friend-hub-collection-controls">
-              <SearchPill
-                value={collectionQuery}
-                onChange={setCollectionQuery}
-                placeholder="Search by card name"
-                ariaLabel={`Search ${who}'s collection by card name`}
-                className="friend-hub-collection-search"
-                trailing={collectionFilterNode}
-              />
-              <SortMenu<FriendSortKey>
-                ariaLabel="Sort"
-                value={collectionSort}
-                dir={collectionDir}
-                options={COLLECTION_SORT_OPTIONS}
-                onChange={toggleCollectionSort}
-              />
-              <ViewModeToggle<FriendViewKind>
-                ariaLabel="Collection view mode"
-                value={collectionView}
-                onChange={setCollectionView}
-                options={[
-                  {
-                    value: 'grid',
-                    label: 'Grid view',
-                    icon: <LayoutGrid width={14} height={14} strokeWidth={1.8} aria-hidden />,
-                  },
-                  {
-                    value: 'list',
-                    label: 'List view',
-                    icon: <ListIcon width={14} height={14} strokeWidth={1.8} aria-hidden />,
-                  },
-                  {
-                    value: 'compact',
-                    label: 'Compact list (text only)',
-                    icon: <AlignJustify width={14} height={14} strokeWidth={1.8} aria-hidden />,
-                  },
-                ]}
-              />
-            </div>
-
-            {friendSearchResult.ignored.length > 0 && (
-              <p className="friend-hub-search-note" role="status">
-                {friendSearchResult.ignored.join(', ')}{' '}
-                {friendSearchResult.ignored.length === 1 ? "isn't" : "aren't"} searchable in this
-                collection. The rest of your search still ran.
-              </p>
-            )}
-
-            {filteredFriendCards.length === 0 ? (
-              <div role="status">
-                <SharedEmptyState
-                  empty={friendCards.length === 0}
-                  emptyTagline={
-                    collectionCurrent?.isPrivate
-                      ? `${who} keeps their collection private.`
-                      : `${who} hasn't added anything to their collection yet.`
-                  }
-                  emptyHint={collectionCurrent?.isPrivate ? 'Only they can see it.' : undefined}
-                  filteredTagline="No cards match your search or filters."
-                  onClearSearch={
-                    collectionQuery || collectionFilterCount > 0
-                      ? () => {
-                          setCollectionQuery('');
-                          clearCollectionFilters();
-                        }
-                      : undefined
-                  }
-                />
-              </div>
-            ) : (
-              <>
-                {collectionView === 'grid' ? (
-                  <ul
-                    className="shared-card-grid shared-card-grid--small friend-hub-collection-grid"
-                    aria-label={`${who}'s collection`}
-                  >
-                    {visibleFriendCards.map((c) => (
-                      <li key={c.oracleId} aria-busy={openingCard === c.name || undefined}>
-                        <SharedCardTile
-                          card={friendPublicByCard.get(c)!}
-                          onClick={() => inspectFriendCard(c)}
-                          hideValue
-                          allocations={friendDeckBadges.get(c)}
-                          spare={c.spare}
-                        />
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <SharedCardList
-                    items={visibleFriendCards.map((c) => ({
-                      key: c.oracleId,
-                      card: friendPublicByCard.get(c)!,
-                      quantity: 1,
-                      allocations: friendDeckBadges.get(c),
-                      spare: c.spare,
-                    }))}
-                    onPreview={(i) => inspectFriendCard(visibleFriendCards[i])}
-                    table={collectionView === 'compact'}
-                    showPrice={false}
-                    showQty={false}
-                  />
-                )}
-                {hasMoreFriendCards && (
-                  <Button
-                    onClick={() => setCollectionVisible((n) => n + COLLECTION_PAGE_SIZE)}
-                    className="friend-hub-collection-more"
-                  >
-                    Show more ({filteredFriendCards.length - collectionVisible} left)
-                  </Button>
-                )}
-              </>
-            )}
-          </>
         )}
       </div>
 
@@ -1025,7 +710,7 @@ export function FriendHubPage() {
           <p className="friend-hub-collection-contract">
             Offers either way. Accepting settles both collections.
           </p>
-          <Button variant="primary" onClick={() => setComposing({})}>
+          <Button variant="primary" onClick={() => setTab('collection')}>
             Propose a trade
           </Button>
         </div>
@@ -1048,51 +733,14 @@ export function FriendHubPage() {
           <TradeOfferList
             offers={offers}
             onChanged={refreshTrades}
-            onCounter={(offer) => setComposing(counterOf(offer))}
+            onCounter={(offer) => {
+              const params = new URLSearchParams(searchParams);
+              params.set('counter', offer.id);
+              setSearchParams(params, { replace: true });
+            }}
           />
         )}
       </div>
-
-      {activeComposing && friendId && (
-        <TradeComposer
-          friendId={friendId}
-          friendName={who}
-          friendCards={friendCards}
-          friendCardsLoading={friendCards === null && !collectionError}
-          friendCardsError={collectionError}
-          onRetryFriendCards={retryCollection}
-          friendWants={theyWant}
-          initialGive={activeComposing.give}
-          initialGet={activeComposing.get}
-          counterTo={activeComposing.counterTo}
-          onClose={closeComposer}
-          onSent={() => {
-            closeComposer();
-            setTab('trades');
-            refreshTrades();
-          }}
-        />
-      )}
-
-      {collectionPreview && (
-        <CardPreview
-          // `search`, not `collection`: these are not the viewer's rows and
-          // there is no binder, page or section to report — the same call the
-          // trade carousel makes for the same reason. `hidePrice` holds the
-          // friend-surface contract; the slide is a default printing resolved
-          // by name, so its market price is no part of what was shared.
-          source="search"
-          hidePrice
-          cards={collectionPreview.cards}
-          index={collectionPreview.index}
-          binderName=""
-          sectionLabels={[]}
-          pageNumbers={[]}
-          totalPages={0}
-          onIndexChange={(i) => setCollectionPreview((p) => (p ? { ...p, index: i } : p))}
-          onClose={() => setCollectionPreview(null)}
-        />
-      )}
     </div>
   );
 }

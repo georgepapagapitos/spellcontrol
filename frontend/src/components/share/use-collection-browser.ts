@@ -41,7 +41,12 @@ interface Options {
   cards: PublicCard[] | null;
   /** Oracle ids the viewer wants; turns on the "On my wants" chip. */
   myWants?: ReadonlySet<string>;
+  /** The wants chip's label when it is not the viewer's own ("Morgan wants"). */
+  wantsLabel?: string;
   defaultSort?: SharedSortKey;
+  /** An interest ranking the data does not carry itself (what a friend wants
+   *  first). Offers a sort named `label`; lower `rank` sorts first. */
+  priority?: { label: string; rank: (group: BrowserGroup) => number };
 }
 
 /**
@@ -50,7 +55,13 @@ interface Options {
  * are grouped into printing stacks afterwards, which keeps "Spare 3" and a
  * stack's ×qty telling the same story.
  */
-export function useCollectionBrowser({ cards, myWants, defaultSort }: Options) {
+export function useCollectionBrowser({
+  cards,
+  myWants,
+  wantsLabel = 'On my wants',
+  defaultSort,
+  priority,
+}: Options) {
   const list = cards ?? EMPTY;
   const hasData = cards !== null;
 
@@ -70,7 +81,10 @@ export function useCollectionBrowser({ cards, myWants, defaultSort }: Options) {
     key: defaultSort ?? (hasPopularity ? 'popularity' : 'name'),
     dir: 'asc' as SortDir,
   };
-  const sort = wanted.key === 'popularity' && !hasPopularity ? 'name' : wanted.key;
+  const sort =
+    (wanted.key === 'popularity' && !hasPopularity) || (wanted.key === 'priority' && !priority)
+      ? 'name'
+      : wanted.key;
   const dir = wanted.dir;
   // Re-picking the active field flips direction (SortMenu's Reverse calls this
   // too); a new field starts ascending.
@@ -108,13 +122,13 @@ export function useCollectionBrowser({ cards, myWants, defaultSort }: Options) {
         count: list.filter(chipPredicates[id]).length,
         pressed: pressed.has(id),
       });
-    if (myWants) add('wants', 'On my wants');
+    if (myWants) add('wants', wantsLabel);
     // Only a payload that carries the keys can answer these; a stranger's
     // does not, and a chip over a fact nobody sent would match nothing.
     if (list.some((c) => c.spare !== undefined)) add('spare', 'Spare');
     if (list.some((c) => c.inDeck !== undefined)) add('free', 'Not in a deck');
     return out;
-  }, [list, myWants, pressed, chipPredicates]);
+  }, [list, myWants, wantsLabel, pressed, chipPredicates]);
 
   const toggleChip = (id: BrowserChipId) =>
     setPressed((prev) => {
@@ -140,8 +154,16 @@ export function useCollectionBrowser({ cards, myWants, defaultSort }: Options) {
     const spareKeys = new Set<string>();
     const groups = groupCards(filteredCopies);
     for (const c of filteredCopies) if (c.spare) spareKeys.add(`${c.scryfallId}::${c.finish}`);
-    return sortGrouped(groups, sort, dir).map((g) => ({ ...g, spare: spareKeys.has(g.key) }));
-  }, [filteredCopies, sort, dir]);
+    // A ranked sort is the name order with the ranking laid over it: the sort
+    // is stable, so ties keep their A to Z order.
+    const byPriority = sort === 'priority' && priority;
+    const ordered = sortGrouped(groups, byPriority ? 'name' : sort, byPriority ? 'asc' : dir).map(
+      (g) => ({ ...g, spare: spareKeys.has(g.key) })
+    );
+    if (!byPriority) return ordered;
+    const sign = dir === 'asc' ? 1 : -1;
+    return ordered.sort((a, b) => sign * (priority.rank(a) - priority.rank(b)));
+  }, [filteredCopies, sort, dir, priority]);
 
   // Page depth resets whenever the result changes (adjusted during render, the
   // React-documented way, rather than in an effect that costs a second paint).
@@ -177,6 +199,7 @@ export function useCollectionBrowser({ cards, myWants, defaultSort }: Options) {
     dir,
     toggleSort,
     hasPopularity,
+    priorityLabel: priority?.label,
     view,
     setView,
     chips,
