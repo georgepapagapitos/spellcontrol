@@ -1358,7 +1358,7 @@ i.ss.set-symbol--mythic {
    button. The count and ring on the art mark a card already in the trade. */
 .collection-grid-cell.has-action .collection-grid-captions {
   min-height: 46px;
-  padding-right: 38px;
+  padding-right: calc(var(--space-6) + var(--space-1-5));
 }
 
 .collection-grid-cell.has-action .collection-grid-caption {

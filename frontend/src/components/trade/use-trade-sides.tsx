@@ -23,7 +23,7 @@ import { TradePreviewPanel } from './TradePreviewPanel';
  * the only places it learns it is also a basket.
  */
 
-const ICON = <Plus width={16} height={16} strokeWidth={2.4} aria-hidden="true" />;
+const ICON = <Plus width={16} height={16} strokeWidth={2} aria-hidden="true" />;
 
 /** Their cards: "+" asks for the card, capped at what they really have. */
 export function theirSideHooks(opts: {

@@ -1,5 +1,6 @@
 import './TradePreviewPanel.css';
 import { Minus, Plus } from 'lucide-react';
+import { IconButton } from '@/components/shared/Button';
 
 interface Props {
   /** What the card is to the other side of the trade: "Morgan has 3 · spare". */
@@ -31,18 +32,18 @@ export function TradePreviewPanel({ status, count, max, ceilingNote, onMore, onF
       {count > 0 && (
         <div className="trade-preview-row">
           <div className="trade-preview-stepper" role="group" aria-label="Copies in your trade">
-            <button type="button" aria-label="One fewer in the trade" onClick={onFewer}>
-              <Minus width={16} height={16} aria-hidden="true" />
-            </button>
+            <IconButton
+              label="One fewer in the trade"
+              icon={<Minus width={16} height={16} strokeWidth={2} />}
+              onClick={onFewer}
+            />
             <output aria-live="polite">{count}</output>
-            <button
-              type="button"
-              aria-label="One more in the trade"
+            <IconButton
+              label="One more in the trade"
+              icon={<Plus width={16} height={16} strokeWidth={2} />}
               onClick={onMore}
               disabled={atCeiling}
-            >
-              <Plus width={16} height={16} aria-hidden="true" />
-            </button>
+            />
           </div>
           <p className="trade-preview-note">
             {atCeiling ? `In your trade · ${ceilingNote}` : 'In your trade'}

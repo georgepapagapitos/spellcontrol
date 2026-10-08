@@ -161,7 +161,7 @@ export function SharedCardTile({
           <ArtBadge
             className="shared-tile-flag"
             tone="warn"
-            icon={<Star width={11} height={11} strokeWidth={2} />}
+            icon={<Star width={12} height={12} strokeWidth={2} />}
           >
             {flag}
           </ArtBadge>

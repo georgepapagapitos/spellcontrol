@@ -28,7 +28,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .trade-add:not(.is-picked):hover {
-    background: var(--accent-light);
+    border-color: var(--accent);
   }
 }
 

@@ -353,11 +353,18 @@ export function FriendHubPage() {
   const counterGone = !!counterId && offers !== null && !counterOffer;
   useEffect(() => {
     if (!counterGone) return;
-    const params = new URLSearchParams(searchParams);
-    params.delete('counter');
-    params.set('tab', 'collection');
-    setSearchParams(params, { replace: true });
-  }, [counterGone, searchParams, setSearchParams]);
+    // Functional, so a tab the viewer picked meanwhile is not overwritten.
+    setSearchParams(
+      (prev) => {
+        if (!prev.has('counter')) return prev;
+        const params = new URLSearchParams(prev);
+        params.delete('counter');
+        params.set('tab', 'collection');
+        return params;
+      },
+      { replace: true }
+    );
+  }, [counterGone, setSearchParams]);
 
   const openTrades = (offers ?? []).filter((o) => o.status === 'proposed');
   // Only offers awaiting THIS viewer count toward the tab badge — an offer

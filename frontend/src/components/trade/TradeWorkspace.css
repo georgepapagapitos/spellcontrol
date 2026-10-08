@@ -27,7 +27,7 @@
 /* The tray is fixed above the tab bar; keep the last row of cards clear of it
    so the final tiles are never under the bar. */
 .trade-workspace-body:not(.is-docked) .trade-workspace-main {
-  padding-bottom: 5.5rem;
+  padding-bottom: calc(var(--space-7) + var(--space-5));
 }
 
 .trade-workspace-dock {

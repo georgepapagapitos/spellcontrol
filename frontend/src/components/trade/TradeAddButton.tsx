@@ -34,9 +34,9 @@ export function TradeAddButton({ name, count, verb, onAdd, onRemove }: Props) {
       onClick={picked ? onRemove : onAdd}
     >
       {picked ? (
-        <Check width={16} height={16} strokeWidth={2.6} aria-hidden="true" />
+        <Check width={16} height={16} strokeWidth={2} aria-hidden="true" />
       ) : (
-        <Plus width={16} height={16} strokeWidth={2.4} aria-hidden="true" />
+        <Plus width={16} height={16} strokeWidth={2} aria-hidden="true" />
       )}
     </button>
   );
