@@ -19,3 +19,26 @@ export function ReviewThumb({ name, src }: { name: string; src?: string }) {
     <span className="trade-review-thumb is-placeholder" aria-hidden />
   );
 }
+
+/** A review row's thumbnail as the button that opens the card preview. */
+export function ThumbButton({
+  name,
+  src,
+  onClick,
+}: {
+  name: string;
+  src?: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="trade-review-thumb-btn"
+      aria-label={`Preview ${name}`}
+      title="Preview card"
+      onClick={onClick}
+    >
+      <ReviewThumb name={name} src={src} />
+    </button>
+  );
+}

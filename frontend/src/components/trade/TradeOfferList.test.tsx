@@ -349,8 +349,9 @@ describe('declining and withdrawing ask first', () => {
     storeState = { cards: [], binders: [] };
   });
 
-  it('Decline does nothing until confirmed, and Cancel backs out', async () => {
+  it('Decline from the review does nothing until confirmed, and Cancel backs out', async () => {
     mount({ ...open, id: 'in', mine: false });
+    fireEvent.click(screen.getByRole('button', { name: 'Review offer' }));
     fireEvent.click(screen.getByRole('button', { name: 'Decline' }));
 
     const dialog = await screen.findByRole('dialog', {
@@ -362,11 +363,15 @@ describe('declining and withdrawing ask first', () => {
     expect(declineTrade).not.toHaveBeenCalled();
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: /Decline the trade/ })).toBeNull()
+    );
     expect(declineTrade).not.toHaveBeenCalled();
 
+    // The review is still open behind it: backing out of the confirm is not
+    // backing out of the offer.
     fireEvent.click(screen.getByRole('button', { name: 'Decline' }));
-    const again = await screen.findByRole('dialog');
+    const again = await screen.findByRole('dialog', { name: /Decline the trade/ });
     fireEvent.click(within(again).getByRole('button', { name: 'Decline' }));
     await waitFor(() => expect(declineTrade).toHaveBeenCalledWith('in'));
     expect(declineTrade).toHaveBeenCalledTimes(1);

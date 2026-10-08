@@ -97,7 +97,6 @@ const SURFACE_CLASSES = new Set([
   'deck-identity-card',
   'friend-hub-h2h-card',
   'trade-offer-card',
-  'trade-accept-card',
   // popover: an anchored panel
   'filter-popover-panel',
   'sort-popover-panel',

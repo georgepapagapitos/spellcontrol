@@ -21,7 +21,7 @@ import {
 import { useSendTrade } from '@/lib/trade/use-send-trade';
 import { toast } from '@/store/toasts';
 import { PrintingChoices, describePrinting } from './PrintingChoices';
-import { ReviewThumb } from './ReviewThumb';
+import { ThumbButton } from './ReviewThumb';
 import { TradePreviewCarousel, type TradePreviewState } from './TradePreviewCarousel';
 
 export interface TradeReviewProps {
@@ -381,20 +381,6 @@ function AddMore({
       <Plus width={16} height={16} aria-hidden />
       {label}
     </Button>
-  );
-}
-
-function ThumbButton({ name, src, onClick }: { name: string; src?: string; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      className="trade-review-thumb-btn"
-      aria-label={`Preview ${name}`}
-      title="Preview card"
-      onClick={onClick}
-    >
-      <ReviewThumb name={name} src={src} />
-    </button>
   );
 }
 
