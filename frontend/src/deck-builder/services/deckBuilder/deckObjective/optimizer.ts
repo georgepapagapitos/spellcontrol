@@ -381,6 +381,11 @@ export function* optimizeSteps(
   const tabuOut = new Map<string, number>(); // key -> swap index until which it can't leave
   const tabuIn = new Map<string, number>(); // key -> swap index until which it can't return
   let escapesLeft = opts.escapes;
+  // Land moves come after the spell search has run out: they start from the deck
+  // it ends with, so they cannot change which spell swaps it makes (E509 gate 4:
+  // a land swap early in a "lean on mine" build changed the later spell picks).
+  let landPhase = false;
+  const budgetSpent = () => evaluations.full >= opts.maxEvaluations || worked() > opts.timeBudgetMs;
   let stoppedBy: OptimizeResult['stoppedBy'] = 'local-optimum';
   if (pool.length === 0) stoppedBy = 'no-candidates';
 
@@ -396,6 +401,7 @@ export function* optimizeSteps(
     // A move that only trades lands rides the land budget (a "lean on mine" build
     // finds owned lands for its page lands too), not the spell swaps'.
     const landMove = (m: Move) => !!opts.landUpgrades && m.in.every(isLandCard);
+    if (capped && opts.landUpgrades) landPhase = true;
     if (capped && !landsLeft && repairable(currentScore.violations) === 0) {
       stoppedBy = 'max-swaps';
       break;
@@ -478,7 +484,7 @@ export function* optimizeSteps(
         }
       }
     }
-    if (landsLeft) {
+    if (landsLeft && landPhase) {
       // E509: owned nonbasic lands, for a basic each. The
       // goldfish is the case for a land and the fast terms leave it out, so the
       // moves are ranked by a short goldfish and the best few judged in full.
@@ -691,7 +697,10 @@ export function* optimizeSteps(
       const nextInfeasible = violations.reduce((s, v) => s + v.magnitude, 0);
       if (nextInfeasible > curInfeasible) continue;
       const isRepair = repairable(violations) < curRepairable;
-      if (!isRepair && ((capped && !landMove(move)) || (!landsLeft && landMove(move)))) continue;
+      if (!isRepair && opts.landUpgrades) {
+        if (landMove(move) !== landPhase) continue;
+        if (landPhase && !landsLeft) continue;
+      }
       if (!isRepair && opts.repairOnly && move.in.some((c) => opts.repairOnly!.has(c.name)))
         continue;
       // An owned spell the page never ranked takes the place of an unowned card
@@ -819,6 +828,10 @@ export function* optimizeSteps(
         taken = { move: bestTried.move, score: bestTried.score, kind: 'escape' };
         escapesLeft--;
       }
+    }
+    if (!taken && opts.landUpgrades && !landPhase && landsLeft && !budgetSpent()) {
+      landPhase = true;
+      continue;
     }
     if (!taken) {
       // A step cut short by a budget found nothing yet; it is not an optimum.
