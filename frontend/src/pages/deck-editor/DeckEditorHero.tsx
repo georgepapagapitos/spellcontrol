@@ -70,6 +70,7 @@ export function DeckEditorHero({
     <DeckHero
       art={art}
       color={deck.color}
+      colors={commanderColorIdentity}
       back={<BackLink to="/decks" label="All decks" />}
       title={
         // Identity is the header (STYLE_GUIDE § Config surfaces): name and

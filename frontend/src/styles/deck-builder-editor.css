@@ -9,43 +9,52 @@
 }
 
 /* ── Deck header (DeckHero) ──────────────────────────────────────────────
-   One block, same order at every width (STYLE_GUIDE § Layout system): back
-   link, title, one meta line, actions. The owner's editor and the shared
-   deck both render it. With commander art it follows § Page hero art:
+   A compact bar, same order at every width (STYLE_GUIDE § Page hero art,
+   deck header): the commander's art as a thumbnail, then a column of back
+   link, title and one meta line, then the actions. The owner's editor and
+   the shared deck both render it.
 
-   ≤599px — the art is full-bleed behind a dark scrim and the text sits on it,
-   bottom-anchored, with the back link riding the art's top edge. The scrim
-   is dark in every theme: a scrim that faded to a light theme's --bg was a
-   pale wash that the white-ish art showed straight through.
-
-   ≥600px — the art is a ~2:1 panel on the right, fading in from its left
-   edge, and the text column sits on the page in the theme's own colours. A
-   wide, short box cut from a ~4:3 art_crop only ever shows a strip of it;
-   a bounded panel keeps the commander's face in frame. */
+   The art is a thumbnail on purpose. Scryfall's art_crop is ~626px wide; the
+   old ≥600px panel and the phone's full-bleed backdrop upscaled it until it
+   blurred on a 2x screen, and a tall header pushed the deck itself down. A
+   thumbnail draws the crop smaller than it is, so it stays sharp. */
 .deck-editor-hero {
-  --hero-art-w: min(58%, 440px);
-  position: relative;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-3);
-}
-
-/* The header owns its gaps; the back link's own bottom margin would stack. */
-.deck-editor-hero > .back-link {
-  margin-bottom: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
 }
 
 .deck-editor-hero-text {
   display: flex;
+  flex: 1 1 16rem;
   flex-direction: column;
   align-items: flex-start;
   gap: var(--space-1);
-  max-width: 100%;
   min-width: 0;
-  /* The deck's own colour (the rename editor's picker sets it). */
+}
+
+/* With no art, the deck's own colour (the rename editor's picker sets it)
+   is the title column's rule; with art it is the thumbnail's foot. */
+.deck-editor-hero:not(.deck-editor-hero--art) .deck-editor-hero-text {
   padding-left: var(--space-3);
   border-left: 3px solid var(--deck-color, var(--accent));
+}
+
+/* The back link heads the title column. The name under it keeps 0.22em of
+   slack above its text (see .deck-editor-name), which reaches past the
+   column gap; the link's margin keeps that slack off the link, at the
+   largest name size, the same sum the meta line below makes. */
+.deck-editor-hero-text > .back-link {
+  margin-bottom: calc(0.22 * var(--text-3xl) - var(--space-1));
+}
+
+/* The deck's colors open the meta line. */
+.deck-hero-colors {
+  display: inline-flex;
+  gap: 2px;
+  margin-right: var(--space-2);
+  vertical-align: -0.15em;
 }
 
 /* The owner's title is a rename button inside the page's h1. */
@@ -116,17 +125,41 @@
   }
 }
 
+/* The thumbnail: a ~4:3 art_crop at its own shape, so the commander's face
+   stays in frame. 92px square on a phone, 120×88 on a tablet, 152×108 on a
+   desktop: every size draws fewer pixels than the crop has, even at 2x. */
 .deck-editor-hero-art {
-  position: absolute;
+  flex: none;
+  width: 92px;
+  height: 92px;
   object-fit: cover;
   object-position: center 25%;
-  pointer-events: none;
+  border-radius: var(--radius-lg);
+  border-bottom: 4px solid var(--deck-color, var(--accent));
+  box-shadow: 0 0 0 1px var(--border);
+  /* Shows while the art loads. */
+  background: var(--surface-raised);
+}
+
+@media (min-width: 600px) {
+  .deck-editor-hero-art {
+    width: 120px;
+    height: 88px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .deck-editor-hero-art {
+    width: 152px;
+    height: 108px;
+  }
 }
 
 .deck-editor-actions {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  margin-left: auto;
 }
 
 .deck-editor-action-btn {
@@ -154,80 +187,21 @@
 }
 
 @media (max-width: 599px) {
-  /* Add cards takes the row; the ⋮ keeps its square beside it. */
+  /* The thumbnail and the title column share the first row; the actions take
+     a row of their own under them, Add cards stretching and the Deck menu
+     beside it. */
+  .deck-editor-hero-text {
+    flex-basis: 0;
+  }
+
   .deck-editor-actions {
-    align-self: stretch;
+    flex-basis: 100%;
+    margin-left: 0;
   }
 
   .deck-editor-add-btn {
     flex: 1;
     min-height: 44px;
-  }
-
-  .deck-editor-hero--art {
-    align-items: stretch;
-    justify-content: flex-end;
-    min-height: 13rem;
-    /* Top padding is the back link's lane on the art. */
-    padding: var(--space-7) var(--space-4) var(--space-4);
-    border-radius: var(--radius-lg);
-    overflow: hidden;
-    isolation: isolate;
-    /* Shows while the art loads, so white text is never on a light page. */
-    background: rgb(22 22 28);
-  }
-
-  .deck-editor-hero--art .deck-editor-hero-art {
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    z-index: -2;
-  }
-
-  /* Dark at both edges: the top holds the back link, the bottom the text. */
-  .deck-editor-hero--art::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    background: linear-gradient(
-      180deg,
-      rgb(0 0 0 / 50%) 0%,
-      rgb(0 0 0 / 5%) 30%,
-      rgb(0 0 0 / 40%) 55%,
-      rgb(0 0 0 / 85%) 100%
-    );
-  }
-
-  .deck-editor-hero--art > .back-link {
-    position: absolute;
-    top: var(--space-2);
-    left: var(--space-2);
-    color: rgb(255 255 255 / 92%);
-    text-shadow: 0 1px 2px rgb(0 0 0 / 60%);
-  }
-
-  .deck-editor-hero--art .deck-editor-name,
-  .deck-editor-hero--art .binder-hero-name {
-    color: #fff;
-    text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
-  }
-
-  .deck-editor-hero--art .binder-hero-meta,
-  .deck-editor-hero--art .shared-view-owner,
-  .deck-editor-hero--art .forked-from-badge {
-    color: rgb(255 255 255 / 86%);
-  }
-
-  .deck-editor-hero--art .deck-meta-link-value {
-    color: #fff;
-  }
-
-  /* The ⋮ on the art is a solid square, so it reads against any crop. */
-  .deck-editor-hero--art .deck-editor-overflow-btn {
-    background: var(--surface);
-    border-color: transparent;
-    color: var(--text-primary);
   }
 
   /* The name is the page's identity on a phone: two lines rather than
@@ -237,7 +211,7 @@
      below, regardless of which stylesheet the bundler concatenates first —
      `.inline-rename-btn` isn't used for the bump: its `-btn` suffix reads as
      a stacked interactive row to `touch-target-overlap.test.ts`. */
-  .deck-editor-hero--art .deck-editor-name.binder-hero-name {
+  .deck-editor-hero .deck-editor-name.binder-hero-name {
     font-size: var(--text-2xl);
     white-space: normal;
     display: -webkit-box;
@@ -245,50 +219,6 @@
     -webkit-line-clamp: 2;
     line-clamp: 2;
     overflow: hidden;
-  }
-}
-
-/* The back link's lane on the art, sized for the link a coarse pointer
-   actually gets: its offset, its 44px floor, and the name's 0.22em slack above
-   its text (see .deck-editor-name). --space-7 alone let a deck whose meta
-   wraps push the name into the link, so the top strip of the name's rename
-   button opened "All decks" (nightly journey, E455). A short deck never
-   reaches the lane: the hero packs its content to the bottom. */
-@media (max-width: 599px) and (pointer: coarse) {
-  .deck-editor-hero--art {
-    padding-top: calc(var(--space-2) + var(--touch-target) + 0.22 * var(--text-2xl));
-  }
-}
-
-@media (min-width: 600px) {
-  .deck-editor-hero--art {
-    justify-content: flex-end;
-    min-height: 188px;
-  }
-
-  .deck-editor-hero-art {
-    inset: 0 0 0 auto;
-    width: min(58%, 440px);
-    height: 100%;
-    border-radius: var(--radius-lg);
-    mask-image: linear-gradient(90deg, transparent 0%, #000 45%);
-  }
-
-  /* Back link heads the column; everything else sits at the bottom. The text
-     stops where the panel's fade is still under half strength. */
-  .deck-editor-hero--art > .back-link {
-    margin-bottom: auto;
-  }
-
-  .deck-editor-hero--art > :not(.deck-editor-hero-art) {
-    position: relative;
-    max-width: calc(100% - var(--hero-art-w) * 0.8);
-  }
-}
-
-@media (min-width: 1024px) {
-  .deck-editor-hero--art {
-    min-height: 216px;
   }
 }
 
