@@ -6,7 +6,7 @@
 // here and are offered as the collection's off-page lands.
 import { describe, expect, it } from 'vitest';
 import { optimizeDeck } from './optimizer';
-import { landUpgrades, paysForMana } from './landUpgrades';
+import { givesColour, landUpgrades, paysForMana } from './landUpgrades';
 import { TREATMENT, card, merenCtx, swap } from './__fixtures__/objectiveFixture';
 
 const DUALS = ['Overgrown Tomb', 'Woodland Cemetery', 'Llanowar Wastes'];
@@ -38,6 +38,15 @@ describe('landUpgrades', () => {
 
   it('skips a land the deck already holds and any basic', () => {
     expect(landUpgrades(swapped, [card('Command Tower'), card('Forest')], ctx)).toEqual([]);
+  });
+});
+
+describe('givesColour', () => {
+  const ctx = merenCtx();
+  it('passes a land that taps for colour and refuses a colourless one (real cards)', () => {
+    expect(givesColour(card('Overgrown Tomb'), ctx)).toBe(true);
+    expect(givesColour(card("Gaea's Cradle"), ctx)).toBe(true);
+    expect(givesColour(card('High Market'), ctx)).toBe(false);
   });
 });
 

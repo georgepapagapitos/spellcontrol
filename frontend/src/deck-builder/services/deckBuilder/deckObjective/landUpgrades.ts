@@ -18,6 +18,7 @@
  *    best few are judged in full.
  */
 import type { ScryfallCard } from '@/deck-builder/types';
+import { ANY_COLOR } from '@/lib/mana-sim/types';
 import { isBasicLand, isLandCard } from './context';
 import { scoreDeck } from './index';
 import { OWNED_BONUS, isCollectionBuild } from './terms/ownership';
@@ -49,6 +50,18 @@ export function paysForMana(land: ScryfallCard): boolean {
     const m = /^([^:]*):\s*add\b/.exec(line.trim());
     return m !== null && /\{[^}]*\}/.test(m[1].replace(/\{t\}|\{q\}/g, ''));
   });
+}
+
+/**
+ * Whether a land gives the deck colour: it taps for one, or fetches one. A
+ * colourless utility land (Springjack Pasture, Scorched Ruins) is a choice the
+ * generator's land plan makes from the page; swapped in for a basic it reads as
+ * a mana gain in the goldfish only by its text's quirks (gate 2), so a land
+ * upgrade must still tap for colour.
+ */
+export function givesColour(land: ScryfallCard, ctx: ObjectiveContext): boolean {
+  const face = ctx.manaCardOf(land).land;
+  return !!face && (face.fetch !== null || (landColours(land, ctx) & ANY_COLOR) !== 0);
 }
 
 /** The colours a land taps for, as the goldfish reads them (0 = colourless or none). */

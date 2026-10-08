@@ -69,6 +69,7 @@ import {
   SCREEN_GAMES,
   UPGRADES_PER_STEP,
   landCredit,
+  givesColour,
   landUpgrades,
   paysForMana,
   replicates,
@@ -477,7 +478,12 @@ export function* optimizeSteps(
       // goldfish is the case for a land and the fast terms leave it out, so the
       // moves are ranked by a short goldfish and the best few judged in full.
       const lands = addable.filter(
-        (c) => isLandCard(c) && !isBasicLand(c) && isOwnedCard(c, ctx) && !paysForMana(c)
+        (c) =>
+          isLandCard(c) &&
+          !isBasicLand(c) &&
+          isOwnedCard(c, ctx) &&
+          !paysForMana(c) &&
+          givesColour(c, ctx)
       );
       const upgrades = landUpgrades(current, lands, ctx).filter(
         (u) => !protectedKeys.has(key(current.cards[u.out].name))
