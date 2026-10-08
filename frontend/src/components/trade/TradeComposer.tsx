@@ -27,6 +27,13 @@ import {
 } from '@/lib/trade/trade-picker';
 import { useFloorPrices } from '@/lib/trade/trade-value';
 import { resolveTradePreview } from '@/lib/trade/trade-preview';
+import {
+  atLineCap,
+  keyOf,
+  resolveGivePrefill,
+  type Picked,
+  type PickedCopies,
+} from '@/lib/trade/trade-basket';
 import { TradePreviewCarousel, type TradePreviewState } from './TradePreviewCarousel';
 import {
   proposeTrade,
@@ -46,31 +53,6 @@ import { Button, IconButton } from '@/components/shared/Button';
  *  A real collection is ~11.5k unique cards; the search filters the full set
  *  regardless of this cap (same contract as the friend Collection browser). */
 const PICKER_LIMIT = 40;
-
-/** Selected quantity, keyed by oracleId (or a name key for legacy copies). */
-type Picked = Record<string, number>;
-
-/**
- * The GIVE side is keyed by card, but its value is the list of `copyId`s the
- * owner actually chose — not a count. Seven printings of one card are seven
- * different objects at seven different prices; a quantity can't say which is
- * leaving the binder, and the old quantity-only model silently sent whichever
- * sorted first. `copyId` never reaches the wire (see toTradeCardFromCopies).
- */
-type PickedCopies = Record<string, string[]>;
-
-function keyOf(card: { oracleId: string; name: string }): string {
-  return card.oracleId || `name:${card.name.toLowerCase()}`;
-}
-
-/**
- * Would adding `key` push a basket past the server's 40-lines-per-side cap?
- * Bumping a card already in the basket is never capped — the cap is on
- * distinct lines, not copies (copies have their own per-line ceiling of 20).
- */
-function atLineCap(picked: Record<string, unknown>, key: string): boolean {
-  return !(key in picked) && Object.keys(picked).length >= MAX_TRADE_LINES_PER_SIDE;
-}
 
 interface Props {
   friendId: string;
@@ -154,23 +136,17 @@ export function TradeComposer({
   // The give side is the prefill until the owner edits it. Derived rather than
   // seeded into state so a counter opened before the collection hydrates fills
   // in once it does.
-  const { prefill: givePrefill, skipped: giveSkipped } = useMemo(() => {
-    const prefill: PickedCopies = {};
-    const skipped: string[] = [];
-    for (const card of initialGive ?? []) {
-      const line = ownedByKey.get(keyOf(card));
-      const copies = line ? copiesByValue(line) : [];
-      const taken = copies.slice(0, card.quantity);
-      if (taken.length > 0) prefill[keyOf(card)] = taken.map((c) => c.copyId);
-      if (taken.length < card.quantity) skipped.push(card.name);
-    }
-    return { prefill, skipped };
-  }, [initialGive, ownedByKey]);
+  const { prefill: givePrefill, skipped: giveSkipped } = useMemo(
+    () => resolveGivePrefill(initialGive, ownedByKey),
+    [initialGive, ownedByKey]
+  );
   const [givingEdit, setGivingEdit] = useState<PickedCopies | null>(null);
   const giving = givingEdit ?? givePrefill;
   function setGiving(fn: (prev: PickedCopies) => PickedCopies) {
     setGivingEdit((prev) => fn(prev ?? givePrefill));
   }
+  // On a device that has never cached this account the store is empty until
+  // the first pull lands; "empty collection" there is a lie about the account.
   const awaitingFirstPull = useAwaitingFirstPull();
   const [wanting, setWanting] = useState<Picked>(() =>
     Object.fromEntries((initialGet ?? []).map((c) => [keyOf(c), Math.max(1, c.quantity)]))
@@ -443,6 +419,12 @@ export function TradeComposer({
   const totalWant = wantCards.reduce((n, c) => n + c.quantity, 0);
   const canSend = !sending && giveCards.length + wantCards.length > 0;
 
+  // The "add a card" hint is for someone who has started and emptied the
+  // basket, not a greeting: on open the empty Send button already says it.
+  // Latched during render (the documented derive-from-props pattern).
+  const [startedBasket, setStartedBasket] = useState(false);
+  if (!startedBasket && giveCards.length + wantCards.length > 0) setStartedBasket(true);
+
   // Give side is exact — real copies, real printings, already priced.
   const giveValue = [...chosenByKey.values()].reduce((sum, c) => sum + sumCopyValue(c), 0);
 
@@ -608,6 +590,8 @@ export function TradeComposer({
                 const line = ownedByKey.get(key);
                 if (line) inspectGiveResult(line);
               }}
+              loading={awaitingFirstPull && ownedLines.length === 0}
+              loadingLabel="Getting your cards…"
               emptyResults={
                 ownedLines.length === 0
                   ? 'Your collection is empty. Import or add cards first.'
@@ -707,7 +691,7 @@ export function TradeComposer({
               {sending ? 'Sending…' : 'Send offer'}
             </Button>
           </div>
-          {!canSend && !sending && (
+          {!canSend && !sending && startedBasket && (
             <p className="trade-composer-gate" role="status">
               Add at least one card to send.
             </p>
@@ -782,6 +766,7 @@ function TradeSide({
   results,
   emptyResults,
   loading = false,
+  loadingLabel,
   error,
   onRetry,
 }: {
@@ -811,6 +796,8 @@ function TradeSide({
   results: SideRow[];
   emptyResults: string;
   loading?: boolean;
+  /** Accessible name for the loading skeleton; defaults to "Loading <title>". */
+  loadingLabel?: string;
   error?: string;
   onRetry?: () => void;
 }) {
@@ -871,7 +858,7 @@ function TradeSide({
       ) : loading ? (
         <div
           className="trade-side-skeleton"
-          aria-label={`Loading ${title}`}
+          aria-label={loadingLabel ?? `Loading ${title}`}
           role="status"
           aria-busy="true"
         />
