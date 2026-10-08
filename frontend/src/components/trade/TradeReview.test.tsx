@@ -64,7 +64,7 @@ import { TradeReviewSheet } from './TradeReviewSheet';
 import { TradeTray } from './TradeTray';
 import { TradeDock } from './TradeDock';
 import { useTradeDraftsStore } from '@/store/trade-drafts';
-import { emptyDraft, type TradeDraftV1 } from '@/lib/trade/trade-draft';
+import { emptyDraft, type TradeDraft } from '@/lib/trade/trade-draft';
 
 function owned(copyId: string, name: string, oracleId: string, price = 1): EnrichedCard {
   return {
@@ -92,12 +92,12 @@ function theirs(name: string, oracleId: string, copies: number): PublicCard[] {
   })) as PublicCard[];
 }
 
-function seed(patch: Partial<TradeDraftV1>) {
+function seed(patch: Partial<TradeDraft>) {
   useTradeDraftsStore.getState().setDraft('me', 'f1', { ...emptyDraft('f1', 'Pal'), ...patch });
 }
 const stored = () => useTradeDraftsStore.getState().getDraft('me', 'f1');
 
-const SOL = { 'o-sol': { name: 'Sol Ring', quantity: 1 } };
+const SOL = { 'o-sol': { name: 'Sol Ring', oracleId: 'o-sol', quantity: 1 } };
 const CS = { 'o-cs': { name: 'Counterspell', oracleId: 'o-cs', copyIds: ['a'] } };
 const base = {
   friendId: 'f1',
@@ -132,7 +132,7 @@ describe('TradeReview', () => {
   });
 
   it('blocks Send on a gone line until it is removed', () => {
-    seed({ get: { ...SOL, 'o-gone': { name: 'Mana Crypt', quantity: 1 } } });
+    seed({ get: { ...SOL, 'o-gone': { name: 'Mana Crypt', oracleId: 'o-gone', quantity: 1 } } });
     render(<TradeReview {...base} theirCards={theirs('Sol Ring', 'o-sol', 1)} />);
 
     const send = () => screen.getByRole('button', { name: 'Send offer' }) as HTMLButtonElement;
@@ -233,7 +233,10 @@ describe('TradeReview', () => {
 
   it('explains the 40-line cap', () => {
     const get = Object.fromEntries(
-      Array.from({ length: 40 }, (_, i) => [`o-${i}`, { name: `Card ${i}`, quantity: 1 }])
+      Array.from({ length: 40 }, (_, i) => [
+        `o-${i}`,
+        { name: `Card ${i}`, oracleId: `o-${i}`, quantity: 1 },
+      ])
     );
     seed({ get });
     render(<TradeReview {...base} theirCards={null} />);

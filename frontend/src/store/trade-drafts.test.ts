@@ -3,12 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DRAFT_TTL_MS, pruneDrafts, useTradeDraftsStore } from './trade-drafts';
 import { MAX_TRADE_LINES_PER_SIDE } from '@/lib/trade/trades-client';
 import { MAX_COPIES_PER_LINE, atLineCap, bump } from '@/lib/trade/trade-basket';
-import { emptyDraft, type TradeDraftV1 } from '@/lib/trade/trade-draft';
+import { emptyDraft, type TradeDraft } from '@/lib/trade/trade-draft';
 
 const KEY = 'sc-trade-drafts:v1';
-const withCard = (friendId: string, updatedAt = Date.now()): TradeDraftV1 => ({
+const withCard = (friendId: string, updatedAt = Date.now()): TradeDraft => ({
   ...emptyDraft(friendId, 'Ann', updatedAt),
-  get: { 'o-a': { name: 'A', quantity: 1 } },
+  get: { 'o-a': { name: 'A', oracleId: 'o-a', quantity: 1 } },
 });
 
 beforeEach(() => {

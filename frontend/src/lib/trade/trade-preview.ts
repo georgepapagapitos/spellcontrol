@@ -83,7 +83,10 @@ export async function resolveTradePreview(
   };
 }
 
-/** Matches TradeOfferSide's own `key` — oracle id, or the name for legacy rows. */
+/** Matches TradeOfferSide's own `key` — oracle id, or the name for legacy rows —
+ *  plus the printing when the line names one, so two printings of a card in one
+ *  deal are two slides. */
 function keyOf(card: TradeCard): string {
-  return card.oracleId || card.name;
+  const pin = card.copies[0];
+  return `${card.oracleId || card.name}${pin ? `|${pin.scryfallId}|${pin.finish}` : ''}`;
 }

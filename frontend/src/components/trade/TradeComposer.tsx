@@ -128,6 +128,7 @@ export function TradeComposer({
   // question of the same collection.
   const binderByCopyId = useBinderByCopyId();
   const allocations = useAllocations();
+  const claimed = useMemo(() => new Set(allocations.keys()), [allocations]);
 
   const ownedLines = useMemo(() => groupOwnedForTrade(cards), [cards]);
   const ownedByKey = useMemo(() => {
@@ -146,8 +147,8 @@ export function TradeComposer({
   // seeded into state so a counter opened before the collection hydrates fills
   // in once it does.
   const { prefill: givePrefill, skipped: giveSkipped } = useMemo(
-    () => resolveGivePrefill(initialGive, ownedByKey),
-    [initialGive, ownedByKey]
+    () => resolveGivePrefill(initialGive, ownedByKey, claimed),
+    [initialGive, ownedByKey, claimed]
   );
   const [givingEdit, setGivingEdit] = useState<PickedCopies | null>(null);
   const giving = givingEdit ?? givePrefill;
@@ -307,15 +308,15 @@ export function TradeComposer({
     });
   }
 
-  /** Picking a card from the results adds its CHEAPEST unchosen copy — the
-   *  same safe default `copiesByValue` documents. One tap still works for the
+  /** Picking a card from the results adds its best unchosen copy: one no deck
+   *  holds before one that does, then the cheapest (`copiesFreeFirst`). One tap still works for the
    *  single-printing case, which is most of a collection. */
   function addGive(line: OwnedTradeLine) {
     if (atLineCap(giving, keyOf(line))) {
       warnLineCap();
       return;
     }
-    setGiving((prev) => addCheapestCopy(prev, line));
+    setGiving((prev) => addCheapestCopy(prev, line, { claimed }));
   }
 
   /** The ask-side mirror of {@link addGive}: one more of `key`, unless it
@@ -333,7 +334,7 @@ export function TradeComposer({
   function setPrintingCount(key: string, printingKey: string, count: number) {
     const line = ownedByKey.get(key);
     if (!line) return;
-    setGiving((prev) => setPrintingCountIn(prev, line, printingKey, count));
+    setGiving((prev) => setPrintingCountIn(prev, line, printingKey, count, claimed));
   }
 
   function removeGive(key: string) {

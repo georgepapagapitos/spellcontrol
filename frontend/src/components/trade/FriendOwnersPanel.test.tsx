@@ -86,7 +86,7 @@ describe('FriendOwnersPanel', () => {
     fireEvent.click(btn);
     const d = useTradeDraftsStore.getState().getDraft('me', 'f2');
     expect(d?.friendName).toBe('bo');
-    expect(d?.get.o1).toEqual({ name: 'Sol Ring', quantity: 1 });
+    expect(d?.get.o1).toEqual({ name: 'Sol Ring', oracleId: 'o1', quantity: 1 });
     expect(screen.getByTestId('where').textContent).toBe('/friends/f2?tab=collection&review=1');
 
     // A second Ask cannot exceed the one copy they own.

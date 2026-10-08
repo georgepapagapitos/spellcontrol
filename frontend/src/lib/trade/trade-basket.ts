@@ -1,11 +1,14 @@
 import type { EnrichedCard } from '../../types';
 import {
-  copiesByValue,
+  copiesFreeFirst,
   groupByPrinting,
+  matchesPrinting,
+  pickCopies,
   sumCopyValue,
   toRequestedCard,
   toTradeCardFromCopies,
   type OwnedTradeLine,
+  type PrintingRef,
 } from './trade-picker';
 import { MAX_TRADE_LINES_PER_SIDE, type TradeCard } from './trades-client';
 
@@ -39,34 +42,63 @@ export function atLineCap(picked: Record<string, unknown>, key: string): boolean
 
 /**
  * Resolves a prefilled give side (a counter's "You give") to the owner's own
- * copies, cheapest first, up to each card's quantity. A card owned short of
+ * copies, up to each card's quantity: the printings the offer named, else the
+ * cheapest, and copies no deck holds before ones a deck does. A card owned short of
  * what was asked is named in `skipped`, so the composer can say so.
  */
 export function resolveGivePrefill(
   initialGive: readonly TradeCard[] | undefined,
-  ownedByKey: ReadonlyMap<string, OwnedTradeLine>
+  ownedByKey: ReadonlyMap<string, OwnedTradeLine>,
+  claimed?: ReadonlySet<string>
 ): { prefill: PickedCopies; skipped: string[] } {
   const prefill: PickedCopies = {};
   const skipped: string[] = [];
   for (const card of initialGive ?? []) {
     const line = ownedByKey.get(keyOf(card));
-    const copies = line ? copiesByValue(line) : [];
-    const taken = copies.slice(0, card.quantity);
+    // A line that named printings keeps them; free copies still win over a
+    // deck's (see pickCopies).
+    const taken = line ? pickCopies(line, card.quantity, { claimed, prefer: card.copies }) : [];
     if (taken.length > 0) prefill[keyOf(card)] = taken.map((c) => c.copyId);
     if (taken.length < card.quantity) skipped.push(card.name);
   }
   return { prefill, skipped };
 }
 
+/** What auto-picking a give copy needs to know. */
+export interface GivePickOptions {
+  /** copyIds a deck or cube holds; they are taken last. */
+  claimed?: ReadonlySet<string>;
+  /** Restrict the pick to one printing (a "+" on that printing's tile). */
+  printing?: PrintingRef;
+}
+
+/** The unchosen copies a "+" may take, best first: free before claimed, cheapest within. */
+export function giveCandidates(
+  line: OwnedTradeLine,
+  chosen: ReadonlySet<string>,
+  opts: GivePickOptions = {}
+) {
+  const { claimed, printing } = opts;
+  return copiesFreeFirst(line, claimed).filter(
+    (c) => !chosen.has(c.copyId) && (!printing || matchesPrinting(c, printing))
+  );
+}
+
 /**
- * Picking a card from the results adds its CHEAPEST unchosen copy — the same
- * safe default `copiesByValue` documents. Returns `prev` untouched when every
- * copy is already in. The line cap is the caller's to check (`atLineCap`).
+ * Picking a card from the results adds its best unchosen copy: one no deck or
+ * cube holds before one that does, and the cheapest of those (the safe default
+ * `copiesByValue` documents). With `printing`, only that printing's copies are
+ * candidates. Returns `prev` untouched when none is left. The line cap is the
+ * caller's to check (`atLineCap`).
  */
-export function addCheapestCopy(prev: PickedCopies, line: OwnedTradeLine): PickedCopies {
+export function addCheapestCopy(
+  prev: PickedCopies,
+  line: OwnedTradeLine,
+  opts: GivePickOptions = {}
+): PickedCopies {
   const key = keyOf(line);
   const chosen = new Set(prev[key] ?? []);
-  const next = copiesByValue(line).find((c) => !chosen.has(c.copyId));
+  const next = giveCandidates(line, chosen, opts)[0];
   if (!next) return prev;
   return { ...prev, [key]: [...chosen, next.copyId] };
 }
@@ -75,16 +107,18 @@ export function addCheapestCopy(prev: PickedCopies, line: OwnedTradeLine): Picke
  * Set how many copies OF ONE PRINTING are in the trade. Selection is stored as
  * copyIds — the wire shape and settlement both work in printings, and identical
  * copies are interchangeable — so this swaps in the first `count` of that group
- * and leaves every other printing's picks alone. An unknown printing is a no-op.
+ * and leaves every other printing's picks alone. With `claimed`, copies a deck
+ * holds are the last ones taken. An unknown printing is a no-op.
  */
 export function setPrintingCount(
   prev: PickedCopies,
   line: OwnedTradeLine,
   printingKey: string,
-  count: number
+  count: number,
+  claimed?: ReadonlySet<string>
 ): PickedCopies {
   const key = keyOf(line);
-  const group = groupByPrinting(line).find((g) => g.key === printingKey);
+  const group = groupByPrinting(line, claimed).find((g) => g.key === printingKey);
   if (!group) return prev;
   const groupIds = new Set(group.copies.map((c) => c.copyId));
   const kept = (prev[key] ?? []).filter((id) => !groupIds.has(id));
@@ -140,7 +174,81 @@ export function giveTradeCards(
     .filter((c): c is NonNullable<typeof c> => c !== null && c.quantity > 0);
 }
 
-/** The ask side as oracle-level wire `TradeCard`s. A key `lookup` can't name is skipped. */
+/**
+ * One line of what the viewer asks for. Pinned (`scryfallId` + `finish`): that
+ * exact printing, the one whose tile was tapped. Unpinned: any printing, which
+ * is what an oracle-level ask from an older draft, or from "Friends who own
+ * this", means.
+ */
+export interface GetEntry {
+  name: string;
+  oracleId: string;
+  scryfallId?: string;
+  finish?: string;
+  quantity: number;
+}
+
+/**
+ * The key an ask is stored under: `oracleId|scryfallId|finish` when pinned, the
+ * bare oracleId (or name key) when any printing will do.
+ */
+export function getEntryKey(card: {
+  oracleId: string;
+  name: string;
+  scryfallId?: string;
+  finish?: string;
+}): string {
+  const base = keyOf(card);
+  return card.scryfallId && card.finish ? `${base}|${card.scryfallId}|${card.finish}` : base;
+}
+
+export function isPinned(
+  entry: GetEntry
+): entry is GetEntry & { scryfallId: string; finish: string } {
+  return !!entry.scryfallId && !!entry.finish;
+}
+
+/**
+ * The ask side as wire `TradeCard`s. The server refuses a repeated oracleId, so
+ * entries aggregate per card: when every entry for a card names its printing
+ * the line carries one `{scryfallId, finish}` per unit; when any entry takes
+ * any printing, the whole line goes oracle-level (`copies: []`) at the summed
+ * quantity, because a half-pinned line would claim printings nobody asked for.
+ */
+export function askTradeCards(get: Readonly<Record<string, GetEntry>>): TradeCard[] {
+  const byCard = new Map<string, GetEntry[]>();
+  for (const entry of Object.values(get)) {
+    if (entry.quantity <= 0) continue;
+    const key = keyOf(entry);
+    const list = byCard.get(key);
+    if (list) list.push(entry);
+    else byCard.set(key, [entry]);
+  }
+  const cards: TradeCard[] = [];
+  for (const entries of byCard.values()) {
+    const quantity = entries.reduce((n, e) => n + e.quantity, 0);
+    const first = entries[0];
+    const card = toRequestedCard({ oracleId: first.oracleId, name: first.name }, quantity);
+    if (entries.every(isPinned)) {
+      card.copies = entries.flatMap((e) =>
+        Array.from({ length: e.quantity }, () => ({ scryfallId: e.scryfallId!, finish: e.finish! }))
+      );
+    }
+    cards.push(card);
+  }
+  return cards;
+}
+
+/** Copies of one card already asked for, across its pinned and unpinned entries. */
+export function askedOf(
+  get: Readonly<Record<string, GetEntry>>,
+  card: { oracleId: string; name: string }
+) {
+  const key = keyOf(card);
+  return Object.values(get).reduce((n, e) => (keyOf(e) === key ? n + e.quantity : n), 0);
+}
+
+/** The ask side from an oracle-level lookup (the composer's model). A key `lookup` can't name is skipped. */
 export function wantTradeCards(
   wanting: Picked,
   lookup: (key: string) => { oracleId: string; name: string } | undefined

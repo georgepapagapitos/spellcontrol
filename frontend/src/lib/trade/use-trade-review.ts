@@ -7,7 +7,9 @@ import type { PublicCard } from '@/lib/social/shared-types';
 import { groupOwnedForTrade, type OwnedTradeLine } from './trade-picker';
 import {
   MAX_COPIES_PER_LINE,
-  askFloorValue,
+  askTradeCards,
+  askedOf,
+  getEntryKey,
   giveTradeCards,
   giveValue as sumGiveValue,
   keyOf,
@@ -15,10 +17,10 @@ import {
   resolveChosen,
   setPrintingCount as setPrintingCountIn,
   totalQuantity,
-  wantTradeCards,
+  isPinned,
   type PickedCopies,
 } from './trade-basket';
-import { reconcileDraft, type DraftIssue, type TradeDraftV1 } from './trade-draft';
+import { reconcileDraft, type DraftIssue, type TradeDraft } from './trade-draft';
 import { describeNet, describeNetShort, useFloorPrices, type SideValue } from './trade-value';
 import { MAX_TRADE_LINES_PER_SIDE, type TradeCard } from './trades-client';
 import { useTradeDraft } from './use-trade-draft';
@@ -32,6 +34,39 @@ export function countTheirCopies(cards: readonly PublicCard[] | null): Map<strin
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
   return counts;
+}
+
+/** One entry per printing they hold, keyed like a pinned ask (`getEntryKey`). */
+function printingKeyOfTheirs(card: PublicCard): string {
+  return getEntryKey({
+    oracleId: card.oracleId ?? '',
+    name: card.name,
+    scryfallId: card.scryfallId,
+    finish: card.finish,
+  });
+}
+
+/** Copies they hold of each PRINTING. Null = not readable. */
+export function countTheirPrintings(
+  cards: readonly PublicCard[] | null
+): Map<string, number> | null {
+  if (!cards) return null;
+  const counts = new Map<string, number>();
+  for (const card of cards) {
+    const key = printingKeyOfTheirs(card);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return counts;
+}
+
+/** One of their copies per printing, for the art, set and price an ask names. */
+export function theirPrintings(cards: readonly PublicCard[] | null): Map<string, PublicCard> {
+  const byKey = new Map<string, PublicCard>();
+  for (const card of cards ?? []) {
+    const key = printingKeyOfTheirs(card);
+    if (!byKey.has(key)) byKey.set(key, card);
+  }
+  return byKey;
 }
 
 /**
@@ -52,15 +87,27 @@ export function theirFloorPrices(cards: readonly PublicCard[] | null): Map<strin
 
 export interface ReviewGetLine {
   key: string;
+  oracleId: string;
   name: string;
+  /** The line as the card preview wants it: this entry's own printing, if it names one. */
+  card: TradeCard;
   quantity: number;
   /** What they actually have, capped at 20; 0 when the card is gone. */
   max: number;
   /** Their real count, or null when their collection can't be read. */
   theirCount: number | null;
   gone: boolean;
-  /** Cheapest printing that exists, or null when unknown. */
+  /** Cheapest printing that exists, or null when unknown. Any-printing asks only. */
   floor: number | null;
+  /** The printing this ask names, or null when any printing will do. */
+  printing: {
+    setCode: string;
+    collectorNumber: string;
+    finish: string;
+    imageSmall?: string;
+    /** Their price for this printing, per copy; null when it has none. */
+    price: number | null;
+  } | null;
 }
 
 export interface ReviewGiveLine {
@@ -106,6 +153,7 @@ export function useTradeReview(opts: {
     for (const line of ownedLines) map.set(keyOf(line), line);
     return map;
   }, [ownedLines]);
+  const claimed = useMemo(() => new Set(allocations.keys()), [allocations]);
   const surplusByName = useMemo(
     () => computeSurplusByName(cards, allocations),
     [cards, allocations]
@@ -117,16 +165,18 @@ export function useTradeReview(opts: {
   const giveLoading = awaitingFirstPull && ownedLines.length === 0;
 
   const theirCounts = useMemo(() => countTheirCopies(theirCards), [theirCards]);
+  const theirPrintingCounts = useMemo(() => countTheirPrintings(theirCards), [theirCards]);
+  const theirPrintingRows = useMemo(() => theirPrintings(theirCards), [theirCards]);
 
   const reconciled = useMemo(() => {
     if (!stored) return null;
-    const result = reconcileDraft(stored, theirCounts, ownedLines);
+    const result = reconcileDraft(stored, theirCounts, ownedLines, theirPrintingCounts);
     if (giveLoading)
       return { draft: { ...result.draft, give: stored.give }, issues: result.issues };
     return result;
-  }, [stored, theirCounts, ownedLines, giveLoading]);
+  }, [stored, theirCounts, theirPrintingCounts, ownedLines, giveLoading]);
 
-  const draft: TradeDraftV1 | null = reconciled?.draft ?? null;
+  const draft: TradeDraft | null = reconciled?.draft ?? null;
   const issues: DraftIssue[] = useMemo(() => reconciled?.issues ?? [], [reconciled]);
 
   /** Give lines the draft had that this device no longer owns. */
@@ -153,31 +203,63 @@ export function useTradeReview(opts: {
   );
 
   const getEntries = Object.entries(draft?.get ?? {});
-  // Their own copies price the ask first; the Scryfall floor lookup is only
-  // for a card none of their copies has a price for.
+  // Their own copies price an any-printing ask first; the Scryfall floor lookup
+  // is only for a card none of their copies has a price for. A pinned ask is
+  // priced from the printing itself and never needs a floor.
   const ownFloors = useMemo(() => theirFloorPrices(theirCards), [theirCards]);
-  const unpriced = getEntries.filter(([key]) => !ownFloors.has(key));
+  const unpriced = getEntries.filter(([, l]) => !isPinned(l) && !ownFloors.has(keyOf(l)));
   const { prices: lookedUp, pending: lookupPending } = useFloorPrices(
     unpriced.map(([, l]) => l.name)
   );
   const floorPending = unpriced.length > 0 && lookupPending;
   const floorPrices = new Map(lookedUp);
-  for (const [key, line] of getEntries) {
-    const own = ownFloors.get(key);
+  for (const [, line] of getEntries) {
+    const own = ownFloors.get(keyOf(line));
     if (own !== undefined) floorPrices.set(line.name, own);
   }
 
   const getLines: ReviewGetLine[] = getEntries.map(([key, line]) => {
-    const theirCount = theirCounts ? (theirCounts.get(key) ?? 0) : null;
+    const pinned = isPinned(line);
+    const theirCount = pinned
+      ? theirPrintingCounts
+        ? (theirPrintingCounts.get(key) ?? 0)
+        : null
+      : theirCounts
+        ? (theirCounts.get(keyOf(line)) ?? 0)
+        : null;
     const gone = goneKeys.has(key);
+    // The 20 is per card, and the card's other entries use some of it.
+    const room = MAX_COPIES_PER_LINE - (askedOf(draft?.get ?? {}, line) - line.quantity);
+    const row = pinned ? theirPrintingRows.get(key) : undefined;
     return {
       key,
+      oracleId: line.oracleId,
       name: line.name,
+      card: {
+        oracleId: line.oracleId,
+        name: line.name,
+        quantity: line.quantity,
+        copies: isPinned(line)
+          ? Array.from({ length: line.quantity }, () => ({
+              scryfallId: line.scryfallId,
+              finish: line.finish,
+            }))
+          : [],
+      },
       quantity: line.quantity,
-      max: gone ? 0 : Math.min(MAX_COPIES_PER_LINE, theirCount ?? MAX_COPIES_PER_LINE),
+      max: gone ? 0 : Math.min(room, theirCount ?? MAX_COPIES_PER_LINE),
       theirCount,
       gone,
-      floor: floorPrices.get(line.name) ?? null,
+      floor: pinned ? null : (floorPrices.get(line.name) ?? null),
+      printing: pinned
+        ? {
+            setCode: row?.setCode ?? '',
+            collectorNumber: row?.collectorNumber ?? '',
+            finish: line.finish,
+            imageSmall: row?.imageSmall ?? row?.imageNormal,
+            price: row && row.purchasePrice > 0 ? row.purchasePrice : null,
+          }
+        : null,
     };
   });
 
@@ -211,10 +293,7 @@ export function useTradeReview(opts: {
   });
 
   const giveCards: TradeCard[] = giveTradeCards(chosenByKey, ownedByKey);
-  const wantCards: TradeCard[] = wantTradeCards(
-    Object.fromEntries(Object.entries(draft?.get ?? {}).map(([k, l]) => [k, l.quantity])),
-    (key) => (draft?.get[key] ? { oracleId: key, name: draft.get[key].name } : undefined)
-  );
+  const wantCards: TradeCard[] = askTradeCards(draft?.get ?? {});
 
   const getCount = totalQuantity(wantCards);
   const giveCount = totalQuantity(giveCards);
@@ -222,7 +301,25 @@ export function useTradeReview(opts: {
   const giveLineCount = giveLoading ? giveLines.length : giveCards.length;
 
   const giveTotal = sumGiveValue(chosenByKey);
-  const { value: wantFloor, unpriced: wantUnpriced } = askFloorValue(wantCards, floorPrices);
+  // A pinned ask is worth exactly its printing's price; an any-printing ask is
+  // only a floor ("from"). A line with no price at all is counted, never zero.
+  let wantExact = 0;
+  let wantFloor = 0;
+  let wantUnpriced = 0;
+  let anyFloor = false;
+  for (const line of getLines) {
+    if (line.gone) continue;
+    if (line.printing) {
+      if (line.printing.price === null) wantUnpriced += 1;
+      else wantExact += line.printing.price * line.quantity;
+    } else if (line.floor === null) {
+      wantUnpriced += 1;
+    } else {
+      anyFloor = true;
+      wantFloor += line.floor * line.quantity;
+    }
+  }
+  const wantTotal = wantExact + wantFloor;
 
   const giveSide: SideValue = {
     text: giveCards.length === 0 ? '' : formatMoney(giveTotal),
@@ -235,9 +332,12 @@ export function useTradeReview(opts: {
       : floorPending
         ? { text: '…', amount: null, estimate: true }
         : {
-            text: `from ${formatMoney(wantFloor)}${wantUnpriced > 0 ? ' +?' : ''}`,
-            amount: wantUnpriced > 0 ? null : wantFloor,
-            estimate: true,
+            text:
+              anyFloor || wantUnpriced > 0
+                ? `from ${formatMoney(wantTotal)}${wantUnpriced > 0 ? ' +?' : ''}`
+                : formatMoney(wantTotal),
+            amount: wantUnpriced > 0 ? null : wantTotal,
+            estimate: anyFloor || wantUnpriced > 0,
           };
 
   // A net needs something on both sides; one-sided asks and gifts have no
@@ -261,7 +361,7 @@ export function useTradeReview(opts: {
           ? 'Add a card to send.'
           : null;
 
-  function commit(next: TradeDraftV1) {
+  function commit(next: TradeDraft) {
     save(next);
   }
 
@@ -287,7 +387,7 @@ export function useTradeReview(opts: {
     if (!draft || !draft.give[key]) return;
     const line = ownedByKey.get(key);
     if (!line) return;
-    const next = setPrintingCountIn(giving, line, printingKey, count);
+    const next = setPrintingCountIn(giving, line, printingKey, count, claimed);
     const copyIds = next[key];
     commit({
       ...draft,

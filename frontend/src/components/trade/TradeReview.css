@@ -356,6 +356,14 @@
   gap: var(--space-2);
 }
 
+/* The glyph is its own flex item, never inline text: an inline svg sits on the
+   baseline, above the label's optical centre. */
+.trade-review-note-toggle > svg,
+.trade-review-add > svg {
+  display: block;
+  flex: none;
+}
+
 .trade-review-skeleton {
   height: 4rem;
   border-radius: var(--radius);
@@ -406,6 +414,9 @@
   align-items: center;
   gap: var(--space-2);
   align-self: flex-start;
+  /* One line box the size of the type, so the glyph and the label are centred
+     on the same axis rather than the label's taller default line box. */
+  line-height: 1;
   min-height: 36px;
   padding: 0;
   background: none;

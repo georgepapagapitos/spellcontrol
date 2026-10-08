@@ -33,7 +33,7 @@ const input = { give: [] as TradeCard[], receive: [] as TradeCard[], note: '  hi
 function seedDraft() {
   useTradeDraftsStore.getState().setDraft('me', 'f1', {
     ...emptyDraft('f1', 'Ann'),
-    get: { a: { name: 'A', quantity: 1 } },
+    get: { a: { name: 'A', oracleId: 'a', quantity: 1 } },
   });
 }
 

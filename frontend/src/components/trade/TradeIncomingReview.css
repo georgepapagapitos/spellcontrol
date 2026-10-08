@@ -61,3 +61,8 @@
     min-height: 44px;
   }
 }
+
+/* The one-line note when the printing they asked for is not the one going. */
+.trade-incoming-swap {
+  margin: 0;
+}

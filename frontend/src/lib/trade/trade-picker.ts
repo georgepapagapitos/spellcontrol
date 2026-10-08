@@ -133,6 +133,104 @@ export function copiesByValue(line: OwnedTradeLine): EnrichedCard[] {
     .map((entry) => entry.card);
 }
 
+/** A printing as the wire names it: `scryfallId` + `finish`, no condition. */
+export interface PrintingRef {
+  scryfallId: string;
+  finish: string;
+}
+
+export function matchesPrinting(card: { scryfallId: string; finish: string }, ref: PrintingRef) {
+  return card.scryfallId === ref.scryfallId && card.finish === ref.finish;
+}
+
+/**
+ * Stable partition: copies no deck or cube holds first, the rest after, each
+ * half keeping its incoming order. `claimed` is the set of copyIds an
+ * allocation holds (`useAllocations().keys()`).
+ */
+export function freeFirst(copies: readonly EnrichedCard[], claimed?: ReadonlySet<string>) {
+  if (!claimed || claimed.size === 0) return [...copies];
+  return [
+    ...copies.filter((c) => !claimed.has(c.copyId)),
+    ...copies.filter((c) => claimed.has(c.copyId)),
+  ];
+}
+
+/**
+ * The order every automatic GIVE pick walks: a copy a deck or cube holds comes
+ * last, and within each half the cheapest first (see {@link copiesByValue}).
+ * Auto-picking by price alone offered a deck's copy while a free one sat in the
+ * binder, because the deck copy happened to be the cheaper printing.
+ */
+export function copiesFreeFirst(
+  line: OwnedTradeLine,
+  claimed?: ReadonlySet<string>
+): EnrichedCard[] {
+  return freeFirst(copiesByValue(line), claimed);
+}
+
+/**
+ * `quantity` copies to hand over unattended. Printings in `prefer` (an ask
+ * that named them) are taken first, but a free copy always beats a claimed one:
+ * free asked printings, then any free copy, then claimed asked printings, then
+ * anything left. Fewer come back when the line holds fewer.
+ */
+export function pickCopies(
+  line: OwnedTradeLine,
+  quantity: number,
+  opts: { claimed?: ReadonlySet<string>; prefer?: readonly PrintingRef[] } = {}
+): EnrichedCard[] {
+  const { claimed, prefer = [] } = opts;
+  const ordered = copiesByValue(line);
+  const free = ordered.filter((c) => !claimed?.has(c.copyId));
+  const held = ordered.filter((c) => claimed?.has(c.copyId));
+  const taken: EnrichedCard[] = [];
+  const used = new Set<string>();
+  const add = (card: EnrichedCard) => {
+    used.add(card.copyId);
+    taken.push(card);
+  };
+  // One copy per asked unit, so two asks of one printing take two copies.
+  const takeAsked = (pool: EnrichedCard[]) => {
+    for (const ref of prefer) {
+      if (taken.length >= quantity) return;
+      const hit = pool.find((c) => !used.has(c.copyId) && matchesPrinting(c, ref));
+      if (hit) add(hit);
+    }
+  };
+  const takeAny = (pool: EnrichedCard[]) => {
+    for (const card of pool) {
+      if (taken.length >= quantity) return;
+      if (!used.has(card.copyId)) add(card);
+    }
+  };
+  takeAsked(free);
+  takeAny(free);
+  takeAsked(held);
+  takeAny(held);
+  return taken;
+}
+
+/**
+ * How a pick falls short of what an ask named: the asked printings no chosen
+ * copy covers (`missed`), and the chosen copies that cover none of them
+ * (`given`), one for one. Null when every asked printing is covered, or the ask
+ * named none.
+ */
+export function printingShortfall(
+  asked: readonly PrintingRef[],
+  chosen: readonly EnrichedCard[]
+): { missed: PrintingRef[]; given: EnrichedCard[] } | null {
+  const spare = [...chosen];
+  const missed: PrintingRef[] = [];
+  for (const ref of asked) {
+    const at = spare.findIndex((c) => matchesPrinting(c, ref));
+    if (at >= 0) spare.splice(at, 1);
+    else missed.push(ref);
+  }
+  return missed.length > 0 ? { missed, given: spare } : null;
+}
+
 /**
  * Turns a picked line + quantity into the wire shape, naming the exact copies
  * being handed over. Used where there is no explicit selection — the accept
@@ -197,7 +295,10 @@ export function printingKeyOf(card: EnrichedCard): string {
   return `${card.scryfallId}|${card.finish}|${card.condition ?? ''}`;
 }
 
-export function groupByPrinting(line: OwnedTradeLine): PrintingGroup[] {
+export function groupByPrinting(
+  line: OwnedTradeLine,
+  claimed?: ReadonlySet<string>
+): PrintingGroup[] {
   const byKey = new Map<string, PrintingGroup>();
   for (const card of copiesByValue(line)) {
     const key = printingKeyOf(card);
@@ -217,8 +318,14 @@ export function groupByPrinting(line: OwnedTradeLine): PrintingGroup[] {
     }
   }
   // copiesByValue already ordered the input, so insertion order is cheapest
-  // printing first and each group's copies are stable.
-  return [...byKey.values()];
+  // printing first and each group's copies are stable. With `claimed`, the
+  // copies a deck holds sink to the end of their own group, so "the first N of
+  // this printing" (what every count edit takes) is the free ones first.
+  const groups = [...byKey.values()];
+  if (claimed && claimed.size > 0) {
+    for (const g of groups) g.copies = freeFirst(g.copies, claimed);
+  }
+  return groups;
 }
 
 /**
@@ -235,13 +342,18 @@ export function countsTotal(counts: PrintingCounts): number {
 
 /**
  * The cheapest-first pick, expressed as per-printing counts — i.e. exactly what
- * {@link toTradeCard} would hand over unattended. The accept dialog opens
- * pre-filled with this, so confirming is one more tap rather than data entry,
- * and adjusting is a deliberate override of a safe default.
+ * {@link toTradeCard} would hand over unattended, except that copies a deck
+ * holds come last and printings the ask named (`prefer`) come first. The
+ * answer sheet opens pre-filled with this, so confirming is one more tap rather
+ * than data entry, and adjusting is a deliberate override of a safe default.
  */
-export function defaultPrintingCounts(line: OwnedTradeLine, quantity: number): PrintingCounts {
+export function defaultPrintingCounts(
+  line: OwnedTradeLine,
+  quantity: number,
+  opts: { claimed?: ReadonlySet<string>; prefer?: readonly PrintingRef[] } = {}
+): PrintingCounts {
   const counts: PrintingCounts = {};
-  for (const card of copiesByValue(line).slice(0, Math.max(0, quantity))) {
+  for (const card of pickCopies(line, Math.max(0, quantity), opts)) {
     const key = printingKeyOf(card);
     counts[key] = (counts[key] ?? 0) + 1;
   }

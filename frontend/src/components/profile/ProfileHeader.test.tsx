@@ -50,7 +50,7 @@ function renderHeader(p: PublicProfile) {
 
 function seedDraft(viewerId: string, friendId: string, quantity: number) {
   const d = emptyDraft(friendId, 'Ada Brews');
-  d.get = { 'oracle-1': { name: 'Sol Ring', quantity } };
+  d.get = { 'oracle-1': { name: 'Sol Ring', oracleId: 'oracle-1', quantity } };
   useTradeDraftsStore.getState().setDraft(viewerId, friendId, d);
 }
 

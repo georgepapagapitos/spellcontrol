@@ -12,7 +12,10 @@ import { useTradeDraft } from './use-trade-draft';
 import { useTradeDraftsStore } from '@/store/trade-drafts';
 import { emptyDraft } from './trade-draft';
 
-const withCard = { ...emptyDraft('f1', 'Ann'), get: { a: { name: 'A', quantity: 1 } } };
+const withCard = {
+  ...emptyDraft('f1', 'Ann'),
+  get: { a: { name: 'A', oracleId: 'a', quantity: 1 } },
+};
 
 beforeEach(() => {
   viewer = 'me';

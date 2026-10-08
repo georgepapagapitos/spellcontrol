@@ -3,7 +3,12 @@ import type { AllocationInfo } from '@/lib/collection/allocations-core';
 import type { PublicCard } from '@/lib/social/shared-types';
 import type { EnrichedCard } from '@/types/index';
 import { keyOf } from './trade-basket';
-import { groupOwnedForTrade, type OwnedTradeLine } from './trade-picker';
+import {
+  groupOwnedForTrade,
+  matchesPrinting,
+  type OwnedTradeLine,
+  type PrintingRef,
+} from './trade-picker';
 
 /**
  * The viewer's own collection, shaped for the collection browser that
@@ -99,6 +104,50 @@ export function describeOwned(info: OwnedInfo): string {
   }
   if (info.owned === 1) return 'your only copy';
   return `${info.owned} copies`;
+}
+
+/** What one printing's tile can honestly say: its own copies, not the card's. */
+export interface PrintingStats {
+  owned: number;
+  /** Copies of this printing in no deck or cube. */
+  free: number;
+  /** Decks and cubes that hold a copy of this printing. */
+  holders: string[];
+  /** copyIds of this printing. */
+  copyIds: Set<string>;
+}
+
+export function printingStats(
+  info: OwnedInfo,
+  printing: PrintingRef,
+  allocations: ReadonlyMap<string, AllocationInfo>
+): PrintingStats {
+  const stats: PrintingStats = { owned: 0, free: 0, holders: [], copyIds: new Set() };
+  for (const copy of info.line.copies) {
+    if (!matchesPrinting(copy, printing)) continue;
+    stats.owned += 1;
+    stats.copyIds.add(copy.copyId);
+    const claim = allocations.get(copy.copyId);
+    if (!claim) stats.free += 1;
+    else if (!stats.holders.includes(claim.ownerName)) stats.holders.push(claim.ownerName);
+  }
+  return stats;
+}
+
+/**
+ * A printing tile's caption. "N spare" never promises more than a "+" on THIS
+ * tile can deliver without a warning: the card's spare count is capped at this
+ * printing's free copies, since a tap takes this printing's free copy first
+ * and only then one a deck holds.
+ */
+export function describeOwnedPrinting(info: OwnedInfo, stats: PrintingStats): string {
+  const spare = Math.min(info.spare, stats.free);
+  if (spare > 0) return `${spare} spare`;
+  if (stats.free === 0 && stats.holders.length > 0) {
+    return stats.holders.length === 1 ? 'in 1 deck' : `in ${stats.holders.length} decks`;
+  }
+  if (info.owned === 1) return 'your only copy';
+  return `${stats.owned} ${stats.owned === 1 ? 'copy' : 'copies'}`;
 }
 
 /**
