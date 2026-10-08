@@ -486,13 +486,36 @@ describe('FriendHubPage — ?counter=<offerId> from /trades', () => {
     );
   }
 
-  it('lands on the Trades tab with the composer open, prefilled with what they asked for', async () => {
-    listTrades.mockResolvedValue({ offers: [incoming], truncated: false });
+  it('lands on the Trades tab with the composer open, the WHOLE offer on its own sides', async () => {
+    // Offers are viewer-relative: `give` is what I was asked to hand over,
+    // `receive` is what I would get. A counter must keep them there.
+    myCards = [
+      makeOwned({ copyId: 'c1', name: 'Sol Ring', oracleId: 'o-sol' }),
+      makeOwned({ copyId: 'c2', name: 'Arcane Signet', oracleId: 'o-sig' }),
+    ];
+    listTrades.mockResolvedValue({
+      offers: [
+        {
+          ...incoming,
+          give: [
+            { oracleId: 'o-sol', name: 'Sol Ring', quantity: 1, copies: [] },
+            { oracleId: 'o-sig', name: 'Arcane Signet', quantity: 1, copies: [] },
+          ],
+          receive: [{ oracleId: 'o-bolt', name: 'Lightning Bolt', quantity: 2, copies: [] }],
+        },
+      ],
+      truncated: false,
+    });
     renderWithCounter('t1');
 
     const dialog = await screen.findByRole('dialog', { name: /Trade with/ });
-    const basket = within(dialog).getByRole('list', { name: /You get: chosen cards/i });
-    expect(within(basket).getByText('Sol Ring')).toBeTruthy();
+    const give = within(dialog).getByRole('list', { name: /You give: chosen cards/i });
+    expect(within(give).getByText('Sol Ring')).toBeTruthy();
+    expect(within(give).getByText('Arcane Signet')).toBeTruthy();
+    const get = within(dialog).getByRole('list', { name: /You get: chosen cards/i });
+    expect(within(get).getByText('Lightning Bolt')).toBeTruthy();
+    expect(within(get).queryByText('Sol Ring')).toBeNull();
+    expect(within(dialog).getByText(/Countering @friendo.s offer/)).toBeTruthy();
     expect(screen.getByRole('tab', { name: /Trades/ }).getAttribute('aria-selected')).toBe('true');
   });
 

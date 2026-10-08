@@ -583,6 +583,12 @@
   text-align: right;
 }
 
+.trade-composer-counter-note {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
 /* Basket item count next to a heading — quiet, not bold. */
 .trade-composer-count {
   color: var(--text-secondary);

@@ -180,7 +180,7 @@ describe('TradeComposer — a picked row opens the DEAL', () => {
         indexOf: (card: { name: string }) => slides.findIndex((s) => s.name === card.name),
       });
     });
-    renderComposer({ initialWant: { oracleId: 'o-rhystic', name: 'Rhystic Study' } });
+    renderComposer({ initialGet: [{ oracleId: 'o-rhystic', name: 'Rhystic Study', quantity: 1 }] });
 
     // Put one of ours in too, so the deal has both sides.
     fireEvent.click(within(giveResults()).getByRole('button', { name: 'Add Sol Ring' }));
@@ -206,7 +206,7 @@ describe('TradeComposer — a picked row opens the DEAL', () => {
         indexOf: (card: { name: string }) => kept.findIndex((s) => s.name === card.name),
       });
     });
-    renderComposer({ initialWant: { oracleId: 'o-rhystic', name: 'Rhystic Study' } });
+    renderComposer({ initialGet: [{ oracleId: 'o-rhystic', name: 'Rhystic Study', quantity: 1 }] });
 
     fireEvent.click(within(giveResults()).getByRole('button', { name: 'Add Sol Ring' }));
     const wantBasket = screen.getByRole('list', { name: /You get: chosen cards/i });
