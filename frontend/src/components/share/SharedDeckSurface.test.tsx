@@ -11,7 +11,7 @@
  */
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useAuth } from '../../store/auth';
 import type { PublicDeck, PublicDeckCard } from '@/lib/social/shared-types';
 import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
@@ -343,5 +343,34 @@ describe('SharedDeckSurface', () => {
     expect(hero.querySelector('.deck-hero-bracket')?.textContent).not.toContain('est.');
     fireEvent.click(screen.getByRole('tab', { name: 'Power' }));
     expect(screen.queryByText(/Estimate:/)).toBeNull();
+  });
+
+  it("reads the viewer's owned cards as owned, not as missing", () => {
+    // The visitor's deck has no allocations to their collection, so every row
+    // classified as unowned: a qty cell tinted missing and a preview saying
+    // "Not in your collection" for a card the viewer owns. Ownership on this
+    // surface is the viewer's lens, by name.
+    const ownership = new Map([
+      ['Sol Ring', { owned: true, binders: [] }],
+      ['Llanowar Elves', { owned: false, binders: [] }],
+    ]);
+    const onOpen = vi.fn();
+    render(
+      <MemoryRouter>
+        <SharedDeckSurface
+          data={makeDeck()}
+          sourceKey="s"
+          ownership={ownership}
+          viewerMissing={{ count: 1, price: 0.25, onOpen }}
+        />
+      </MemoryRouter>
+    );
+    expect(screen.getAllByLabelText(/From your collection/).length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText(/Not in your collection/).length).toBeGreaterThan(0);
+    expect(screen.queryAllByLabelText(/Sol Ring.*Not in your collection/)).toHaveLength(0);
+
+    // The lens's missing count rides the stat strip and opens its sheet.
+    fireEvent.click(screen.getByRole('button', { name: 'Show the 1 missing cards' }));
+    expect(onOpen).toHaveBeenCalledTimes(1);
   });
 });

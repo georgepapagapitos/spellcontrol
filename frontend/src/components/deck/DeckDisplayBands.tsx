@@ -41,7 +41,8 @@ export function DeckStatStrip({
   onHealthClick: () => void;
   averageCmc: number;
   identity: { archetypeLabel: string } | null;
-  missing: { count: number; price: number };
+  /** `price` is null while a viewer's lens prices are still loading. */
+  missing: { count: number; price: number | null };
   /** The missing tally has entries, so the stat opens the buy list. */
   hasMissingCards: boolean;
   currency: CurrencyCode;
@@ -87,15 +88,17 @@ export function DeckStatStrip({
             type="button"
             className="deck-stat deck-stat-missing deck-stat-btn"
             onClick={onOpenBuyList}
-            aria-label={`Open the buy list for the ${missing.count} missing cards`}
+            aria-label={`Show the ${missing.count} missing cards`}
           >
             <span className="deck-stat-value">{missing.count}</span>
             <span className="deck-stat-label">
               missing
-              <span className="deck-stat-label-long">
-                {' '}
-                ({formatMoney(missing.price, { currency })})
-              </span>
+              {missing.price != null && (
+                <span className="deck-stat-label-long">
+                  {' '}
+                  ({formatMoney(missing.price, { currency })})
+                </span>
+              )}
             </span>
           </button>
         ) : (
@@ -103,10 +106,12 @@ export function DeckStatStrip({
             <span className="deck-stat-value">{missing.count}</span>
             <span className="deck-stat-label">
               missing
-              <span className="deck-stat-label-long">
-                {' '}
-                ({formatMoney(missing.price, { currency })})
-              </span>
+              {missing.price != null && (
+                <span className="deck-stat-label-long">
+                  {' '}
+                  ({formatMoney(missing.price, { currency })})
+                </span>
+              )}
             </span>
           </span>
         ))}

@@ -97,6 +97,7 @@ import {
   listColumnCount,
   sectionRowCount,
 } from './deck-display-rows';
+import { withViewerOwnership } from './viewer-ownership';
 import { DeckCardInspector, type DeckCardInspectorCard } from './DeckCardInspector';
 import { PartnerHeaderButton } from './deck-display-icons';
 import { DeckToolbar } from './DeckToolbar';
@@ -237,6 +238,7 @@ export function DeckDisplay({
   arrivalsByType,
   existingCardCounts,
   ownershipFor,
+  viewerMissing,
   onMarkArrivalsReviewed,
   autoOpenArrivals,
   onSetCardTags,
@@ -464,21 +466,27 @@ export function DeckDisplay({
     [crossDeck]
   );
 
+  // A deck shown without the viewer's collection (someone else's shared deck)
+  // has no allocations, so ownership comes from the viewer's name-level lens.
+  const viewerOwned = useMemo(
+    () =>
+      !collectionByCopyId && ownershipFor
+        ? (name: string) => ownershipFor(name) === 'owned'
+        : undefined,
+    [collectionByCopyId, ownershipFor]
+  );
+  const rowsFor = useCallback(
+    (zone: typeof cards) => {
+      const rows = buildRows(zone, currency, collectionByCopyId, crossDeck);
+      return viewerOwned ? withViewerOwnership(rows, viewerOwned) : rows;
+    },
+    [currency, collectionByCopyId, crossDeck, viewerOwned]
+  );
+
   // Commander rows are synthetic so they always render first; their slot
   // ids are blank because remove is not allowed on the commander.
-  const commanderRows: Row[] = useMemo(
-    () =>
-      buildCommanderRows({
-        commander,
-        partnerCommander,
-        commanderAllocatedCopyId,
-        partnerCommanderAllocatedCopyId,
-        collectionByCopyId,
-        crossDeck,
-        claimedByForName,
-        currency,
-      }),
-    [
+  const commanderRows: Row[] = useMemo(() => {
+    const rows = buildCommanderRows({
       commander,
       partnerCommander,
       commanderAllocatedCopyId,
@@ -487,8 +495,19 @@ export function DeckDisplay({
       crossDeck,
       claimedByForName,
       currency,
-    ]
-  );
+    });
+    return viewerOwned ? withViewerOwnership(rows, viewerOwned) : rows;
+  }, [
+    commander,
+    partnerCommander,
+    commanderAllocatedCopyId,
+    partnerCommanderAllocatedCopyId,
+    collectionByCopyId,
+    crossDeck,
+    claimedByForName,
+    currency,
+    viewerOwned,
+  ]);
 
   // Whether the bundled tagger data (role classification) has loaded —
   // gates category-view grouping below, same source as the role-filter bar's
@@ -504,21 +523,12 @@ export function DeckDisplay({
   // taggerReady, untagged cards fall to 'synergy'; that's fine, it's the same
   // one-time settle as the role-filter bar's counts.
   const groups = useMemo(() => {
-    const rows = buildRows(cards, currency, collectionByCopyId, crossDeck);
+    const rows = rowsFor(cards);
     if (groupBy === 'tag') return groupByTag(rows, commanderRows);
     return groupBy === 'category'
       ? groupByCategory(rows, categoryTargets, commanderRows)
       : groupByType(rows, commanderRows);
-  }, [
-    cards,
-    commanderRows,
-    collectionByCopyId,
-    crossDeck,
-    currency,
-    groupBy,
-    categoryTargets,
-    taggerReady,
-  ]);
+  }, [cards, commanderRows, rowsFor, groupBy, categoryTargets, taggerReady]);
 
   // Every distinct user tag across the WHOLE deck (all 3 zones, unfiltered
   // by search/groupBy) — the tag manager's "see all tags" list. Deliberately
@@ -540,25 +550,25 @@ export function DeckDisplay({
       {
         title: 'Sideboard',
         icon: 'sideboard',
-        rows: buildRows(sideboard, currency, collectionByCopyId, crossDeck),
+        rows: rowsFor(sideboard),
         empty: sideboard.length === 0 ? 'No sideboard cards yet' : undefined,
       },
     ],
-    [sideboard, collectionByCopyId, crossDeck, currency]
+    [sideboard, rowsFor]
   );
   const consideringGroups = useMemo<TypedGroup[]>(
     () => [
       {
         title: 'Considering',
         icon: 'considering',
-        rows: buildRows(considering, currency, collectionByCopyId, crossDeck),
+        rows: rowsFor(considering),
         empty:
           considering.length === 0
             ? "Nothing parked here yet. Move a card here when you're unsure about it."
             : undefined,
       },
     ],
-    [considering, collectionByCopyId, crossDeck, currency]
+    [considering, rowsFor]
   );
 
   // Legality issues for the current format. The live ban list catches a card
@@ -1292,10 +1302,10 @@ export function DeckDisplay({
               onHealthClick={scrollToDeckStats}
               averageCmc={manaData.averageCmc}
               identity={identity}
-              missing={missing}
-              hasMissingCards={missingTally.length > 0}
+              missing={viewerMissing ?? missing}
+              hasMissingCards={viewerMissing ? true : missingTally.length > 0}
               currency={currency}
-              onOpenBuyList={() => setBuyListOpen(true)}
+              onOpenBuyList={viewerMissing?.onOpen ?? (() => setBuyListOpen(true))}
               openSlots={openSlots}
               onFill={onFill}
               arrivalCount={arrivalRows.length}
