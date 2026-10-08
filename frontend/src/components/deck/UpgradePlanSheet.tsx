@@ -17,7 +17,7 @@ import { useDeckHoverPeek } from './use-deck-hover-peek';
 import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
 import { useCardPriceLookup } from './use-missing-prices';
 import { useTouchPeek } from '@/lib/overlays/use-touch-peek';
-import { useCardThumb } from '@/lib/cards/card-thumbs';
+import { useOwnedCardThumb } from '@/lib/cards/owned-printing';
 import { useMediaQuery } from '@/lib/util/use-media-query';
 import { useCurrency, currencySymbol } from '@/lib/collection/currency';
 import { formatMoney } from '@/lib/collection/format-money';
@@ -133,7 +133,7 @@ function LeftOutItem({
   why: string;
   onPreview: () => void;
 }): JSX.Element {
-  const thumb = useCardThumb(name);
+  const thumb = useOwnedCardThumb(name);
   return (
     <li className="upgrade-plan-leftout-item">
       <button
@@ -188,9 +188,9 @@ export function UpgradePlanSheet({
   const pushToast = useToastsStore((s) => s.push);
   const carousel = useCardCarousel('Upgrade plan');
   const hoverPeek = useDeckHoverPeek();
-  const peekUrl = useCardThumb(hoverPeek.peek?.name, 'normal');
+  const peekUrl = useOwnedCardThumb(hoverPeek.peek?.name, 'normal');
   const touchPeek = useTouchPeek();
-  const touchPeekUrl = useCardThumb(touchPeek.peek?.name, 'normal');
+  const touchPeekUrl = useOwnedCardThumb(touchPeek.peek?.name, 'normal');
 
   const canMoveUp = tools.current <= 3;
   const upTarget = tools.current + 1;

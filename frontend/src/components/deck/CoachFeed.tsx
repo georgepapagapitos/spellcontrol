@@ -23,7 +23,7 @@ import { Surface } from '@/components/shared/Surface';
 import { useDeckHoverPeek } from './use-deck-hover-peek';
 import { useTouchPeek } from '@/lib/overlays/use-touch-peek';
 import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
-import { useCardThumb } from '@/lib/cards/card-thumbs';
+import { useOwnedCardThumb } from '@/lib/cards/owned-printing';
 import { classifyInclusion } from '@/lib/deck-analysis/inclusion-label';
 import { buildCoachChanges } from '@/lib/coach/coach-changes';
 import { isOffMetaChange, type Change, type ChangeOwnership } from '@/lib/coach/deck-change';
@@ -255,13 +255,13 @@ export function CoachFeed({
   const hoverPeek = useDeckHoverPeek();
   // Full-size peek art resolved via CDN (cached + batched, never the
   // rate-limited API image host).
-  const peekUrl = useCardThumb(hoverPeek.peek?.name, 'normal');
+  const peekUrl = useOwnedCardThumb(hoverPeek.peek?.name, 'normal');
   // Touch parity (E129): long-press a row for the same glance. Covers every
   // `DeckCardRow` nested inside `.coach-feed` (including `SubstituteOptions`
   // a few components down) via one delegated container gesture — see
   // `useTouchPeek`'s coexistence contract.
   const touchPeek = useTouchPeek();
-  const touchPeekUrl = useCardThumb(touchPeek.peek?.name, 'normal');
+  const touchPeekUrl = useOwnedCardThumb(touchPeek.peek?.name, 'normal');
 
   // Derive the active filter chip from the deep-link prop (tuneFocusLane).
   // The lazy initializer covers the mount case (arriving from another tab),

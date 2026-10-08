@@ -4,7 +4,7 @@ import { type JSX, type ReactNode, useMemo, useState } from 'react';
 import { ArrowLeftRight, Plus } from 'lucide-react';
 import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
 import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
-import { useCardThumb } from '@/lib/cards/card-thumbs';
+import { useOwnedCardThumb } from '@/lib/cards/owned-printing';
 import { WhyBreakdown } from './WhyBreakdown';
 import type { WhyFactor } from '@/lib/coach/why-factors';
 import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
@@ -66,7 +66,7 @@ export interface DeckSizePromptProps {
 /** Portrait mini-card thumbnail (CDN-resolved by name) — same recognizable
  *  full-card treatment as the add-panel rows, never an art crop. */
 function Thumb({ name }: { name: string }): JSX.Element {
-  const url = useCardThumb(name, 'normal');
+  const url = useOwnedCardThumb(name, 'normal');
   return (
     <span className="deck-size-prompt-thumb" aria-hidden>
       {url && <img src={url} alt="" loading="lazy" />}

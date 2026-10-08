@@ -16,6 +16,7 @@ const CONFIDENCE_BADGE: Record<string, { tone: VerdictTone; label: string }> = {
   budget: { tone: 'warn', label: 'Budget' },
 };
 import { useCardThumb } from '@/lib/cards/card-thumbs';
+import { useOwnedPrintingImage } from '@/lib/cards/owned-printing';
 import { formatMoney } from '@/lib/collection/format-money';
 import { ManaCost } from '../ManaCost';
 import {
@@ -116,17 +117,15 @@ export function DeckCardRow({
   onDismiss,
 }: DeckCardRowProps): JSX.Element {
   const { name, reason, ownership, inclusion, synergy, roleLabel, deltaPrice, manaCost } = change;
-  // Prefer an imageUrl already carried by the Change; otherwise resolve the
-  // card's CDN art by name (cached + batched), never the rate-limited API host.
-  const resolved = useCardThumb(
-    change.imageUrl ? undefined : name,
-    artThumb ? 'art_crop' : undefined
-  );
-  const thumb = change.imageUrl
-    ? artThumb
-      ? scryfallArtCrop(change.imageUrl)
-      : change.imageUrl
-    : resolved;
+  // The owned printing first, since that is what the preview opens on; then an
+  // imageUrl already carried by the Change; otherwise resolve the card's CDN art
+  // by name (cached + batched), never the rate-limited API host.
+  const thumbVersion = artThumb ? 'art_crop' : 'normal';
+  const owned = useOwnedPrintingImage(name, thumbVersion);
+  const resolved = useCardThumb(owned || change.imageUrl ? undefined : name, thumbVersion);
+  const thumb =
+    owned ??
+    (change.imageUrl ? (artThumb ? scryfallArtCrop(change.imageUrl) : change.imageUrl) : resolved);
   const preview = onPreview ? () => onPreview(change) : undefined;
   const previewOut = onPreviewOut ? () => onPreviewOut(change) : undefined;
   const ActIcon = ACT_ICON[change.type];

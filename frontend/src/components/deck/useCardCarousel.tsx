@@ -2,6 +2,7 @@ import { type JSX, useCallback, useRef, useState } from 'react';
 import { getCardByNameResilient, getOwnedPrinting } from '@/deck-builder/services/scryfall/client';
 import { scryfallToEnrichedCard } from '@/lib/cards/scryfall-to-enriched';
 import { useCollectionStore } from '@/store/collection';
+import { bestOwnedCopyByName } from '@/lib/cards/owned-printing';
 import type { EnrichedCard, Finish } from '@/types';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { CardPreview, type CardPreviewAction } from '@/components/card/CardPreview';
@@ -24,30 +25,6 @@ function ownedShimmerFinish(card: EnrichedCard): Finish {
     if (!matches) continue;
     if (c.finish === 'foil') return 'foil'; // best possible — stop early
     if (c.finish === 'etched') best = 'etched';
-  }
-  return best;
-}
-
-/** The best owned physical copy for a card NAME, preferring foil > etched >
- *  nonfoil so a name-only carousel entry resolves to the *exact printing the
- *  player has* (its scryfallId), not Scryfall's arbitrary default printing.
- *  Keyed by name because entries aren't resolved yet (no oracleId in hand).
- *  Returns undefined when the card isn't in the collection — suggestions and
- *  unowned cards then fall back to name resolution. */
-function bestOwnedCopyByName(name: string): EnrichedCard | undefined {
-  const owned = useCollectionStore.getState().cards;
-  const lower = name.toLowerCase();
-  const rank: Record<Finish, number> = { foil: 3, etched: 2, nonfoil: 1 };
-  let best: EnrichedCard | undefined;
-  let bestRank = 0;
-  for (const c of owned) {
-    if (c.name.toLowerCase() !== lower || !c.scryfallId) continue;
-    const r = rank[c.finish] ?? 1;
-    if (r > bestRank) {
-      best = c;
-      bestRank = r;
-      if (r === 3) break; // foil is best possible — stop early
-    }
   }
   return best;
 }
