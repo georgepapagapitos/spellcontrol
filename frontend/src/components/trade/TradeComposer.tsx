@@ -19,7 +19,6 @@ import {
   filterToSurplus,
   copiesByValue,
   groupByPrinting,
-  toTradeCardFromCopies,
   toRequestedCard,
   sumCopyValue,
   type OwnedTradeLine,
@@ -28,26 +27,36 @@ import {
 import { useFloorPrices } from '@/lib/trade/trade-value';
 import { resolveTradePreview } from '@/lib/trade/trade-preview';
 import {
+  MAX_COPIES_PER_LINE,
+  addCheapestCopy,
+  askFloorValue,
   atLineCap,
+  bump,
+  giveTradeCards,
+  giveValue as sumGiveValue,
   keyOf,
+  rankGiveLines,
+  removeKey,
+  resolveChosen,
   resolveGivePrefill,
+  setPrintingCount as setPrintingCountIn,
+  totalQuantity,
+  wantTradeCards,
+  wantedKeysOf,
   type Picked,
   type PickedCopies,
 } from '@/lib/trade/trade-basket';
+import { useSendTrade } from '@/lib/trade/use-send-trade';
 import { TradePreviewCarousel, type TradePreviewState } from './TradePreviewCarousel';
 import {
-  proposeTrade,
-  declineTrade,
   MAX_TRADE_LINES_PER_SIDE,
   type TradeOffer,
   type TradeCard,
 } from '@/lib/trade/trades-client';
-import type { EnrichedCard } from '../../types';
 import type { FriendCard } from '../../lib/cube/pool';
 import type { FriendWant } from '@/lib/social/friends-client';
 
 import { useAwaitingFirstPull } from '@/lib/sync/use-awaiting-first-pull';
-import { userMessage } from '@/lib/util/user-error';
 import { Button, IconButton } from '@/components/shared/Button';
 /** How many picker results render before the list asks you to narrow down.
  *  A real collection is ~11.5k unique cards; the search filters the full set
@@ -156,7 +165,7 @@ export function TradeComposer({
   const [wantedOnly, setWantedOnly] = useState(false);
   const [wantQuery, setWantQuery] = useState('');
   const [note, setNote] = useState('');
-  const [sending, setSending] = useState(false);
+  const { sending, send: sendTrade } = useSendTrade({ friendId, friendName, counterTo, onSent });
 
   // The prefilled want may not be in the fetched friend collection yet (or at
   // all, if the radar and the browser disagree) — keep a fallback so the chip
@@ -185,22 +194,10 @@ export function TradeComposer({
    * oracleId, so the match falls back to a case-insensitive name — but only
    * the owned line's key ever needs to come back out.
    */
-  const wantedKeys = useMemo(() => {
-    if (!friendWants || friendWants.length === 0) return new Set<string>();
-    const byOracle = new Set<string>();
-    const byName = new Set<string>();
-    for (const want of friendWants) {
-      if (want.oracleId) byOracle.add(want.oracleId);
-      byName.add(want.name.toLowerCase());
-    }
-    const keys = new Set<string>();
-    for (const line of ownedLines) {
-      if ((line.oracleId && byOracle.has(line.oracleId)) || byName.has(line.name.toLowerCase())) {
-        keys.add(keyOf(line));
-      }
-    }
-    return keys;
-  }, [friendWants, ownedLines]);
+  const wantedKeys = useMemo(
+    () => wantedKeysOf(friendWants, ownedLines),
+    [friendWants, ownedLines]
+  );
 
   const giveWantsTags = /\b(otag|oracletag|function)[:=]/i.test(giveQuery);
   const giveTagsReady = useCardTagsReady(giveWantsTags);
@@ -213,9 +210,7 @@ export function TradeComposer({
       // two toggles. Lead with what this friend wants, then spare copies;
       // the rest keeps collection order. A typed search keeps its own
       // ranking (name hits first).
-      const rank = (line: OwnedTradeLine) =>
-        wantedKeys.has(keyOf(line)) ? 0 : surplusByName.has(line.name) ? 1 : 2;
-      pool = [...pool].sort((a, b) => rank(a) - rank(b));
+      pool = rankGiveLines(pool, wantedKeys, surplusByName);
     }
     return filterOwnedLines(pool, giveQuery, giveTagsReady ? getCardTags : undefined).slice(
       0,
@@ -320,12 +315,7 @@ export function TradeComposer({
       warnLineCap();
       return;
     }
-    setGiving((prev) => {
-      const chosen = new Set(prev[keyOf(line)] ?? []);
-      const next = copiesByValue(line).find((c) => !chosen.has(c.copyId));
-      if (!next) return prev;
-      return { ...prev, [keyOf(line)]: [...chosen, next.copyId] };
-    });
+    setGiving((prev) => addCheapestCopy(prev, line));
   }
 
   /** The ask-side mirror of {@link addGive}: one more of `key`, unless it
@@ -335,88 +325,29 @@ export function TradeComposer({
       warnLineCap();
       return;
     }
-    bump(setWanting, key, 1, 20);
+    setWanting((prev) => bump(prev, key, 1, MAX_COPIES_PER_LINE));
   }
 
-  /**
-   * Set how many copies OF ONE PRINTING are in the trade. Selection is still
-   * stored as copyIds — the wire shape and settlement both work in printings,
-   * and identical copies are interchangeable — so this just swaps in the first
-   * `count` of that group and leaves every other printing's picks alone.
-   */
+  /** Set how many copies OF ONE PRINTING are in the trade (see the basket's
+   *  `setPrintingCount`); a line that is no longer owned has nothing to set. */
   function setPrintingCount(key: string, printingKey: string, count: number) {
     const line = ownedByKey.get(key);
     if (!line) return;
-    const groups = groupByPrinting(line);
-    const group = groups.find((g) => g.key === printingKey);
-    if (!group) return;
-    const groupIds = new Set(group.copies.map((c) => c.copyId));
-    setGiving((prev) => {
-      const kept = (prev[key] ?? []).filter((id) => !groupIds.has(id));
-      const added = group.copies.slice(0, Math.max(0, Math.min(count, group.copies.length)));
-      const next = [...kept, ...added.map((c) => c.copyId)];
-      if (next.length === 0) {
-        const without = { ...prev };
-        delete without[key];
-        return without;
-      }
-      return { ...prev, [key]: next };
-    });
+    setGiving((prev) => setPrintingCountIn(prev, line, printingKey, count));
   }
 
   function removeGive(key: string) {
-    setGiving((prev) => {
-      const next = { ...prev };
-      delete next[key];
-      return next;
-    });
+    setGiving((prev) => removeKey(prev, key));
   }
 
-  function bump(
-    setter: (fn: (prev: Picked) => Picked) => void,
-    key: string,
-    delta: number,
-    max: number
-  ) {
-    setter((prev) => {
-      const next = { ...prev };
-      const value = (next[key] ?? 0) + delta;
-      if (value <= 0) delete next[key];
-      else next[key] = Math.min(value, max);
-      return next;
-    });
-  }
+  /** The chosen copies per picked line, resolved against what is owned NOW. */
+  const chosenByKey = useMemo(() => resolveChosen(giving, ownedByKey), [giving, ownedByKey]);
 
-  /** The chosen copies per picked line, resolved against what is owned NOW —
-   *  a copy edited or deleted in another tab simply drops out. */
-  const chosenByKey = useMemo(() => {
-    const map = new Map<string, EnrichedCard[]>();
-    for (const [key, copyIds] of Object.entries(giving)) {
-      const line = ownedByKey.get(key);
-      if (!line) continue;
-      const ids = new Set(copyIds);
-      const chosen = line.copies.filter((c) => ids.has(c.copyId));
-      if (chosen.length > 0) map.set(key, chosen);
-    }
-    return map;
-  }, [giving, ownedByKey]);
+  const giveCards = giveTradeCards(chosenByKey, ownedByKey);
+  const wantCards = wantTradeCards(wanting, (key) => friendByKey.get(key) ?? wantFallback.get(key));
 
-  const giveCards = [...chosenByKey.entries()]
-    .map(([key, chosen]) => {
-      const line = ownedByKey.get(key);
-      return line ? toTradeCardFromCopies(line, chosen) : null;
-    })
-    .filter((c): c is NonNullable<typeof c> => c !== null && c.quantity > 0);
-
-  const wantCards = Object.entries(wanting)
-    .map(([key, qty]) => {
-      const card = friendByKey.get(key) ?? wantFallback.get(key);
-      return card ? toRequestedCard(card, qty) : null;
-    })
-    .filter((c): c is NonNullable<typeof c> => c !== null && c.quantity > 0);
-
-  const totalGive = giveCards.reduce((n, c) => n + c.quantity, 0);
-  const totalWant = wantCards.reduce((n, c) => n + c.quantity, 0);
+  const totalGive = totalQuantity(giveCards);
+  const totalWant = totalQuantity(wantCards);
   const canSend = !sending && giveCards.length + wantCards.length > 0;
 
   // The "add a card" hint is for someone who has started and emptied the
@@ -426,7 +357,7 @@ export function TradeComposer({
   if (!startedBasket && giveCards.length + wantCards.length > 0) setStartedBasket(true);
 
   // Give side is exact — real copies, real printings, already priced.
-  const giveValue = [...chosenByKey.values()].reduce((sum, c) => sum + sumCopyValue(c), 0);
+  const giveValue = sumGiveValue(chosenByKey);
 
   // Ask side is a FLOOR, not a price: their collection is oracle-level, so the
   // best honest answer is the cheapest printing that exists. Any card we can't
@@ -438,41 +369,11 @@ export function TradeComposer({
   const { prices: floorPrices, pending: floorPending } = useFloorPrices(
     wantCards.map((c) => c.name)
   );
-  const wantValue = wantCards.reduce((sum, c) => {
-    const floor = floorPrices.get(c.name);
-    return sum + (floor ?? 0) * c.quantity;
-  }, 0);
-  const wantUnpriced = wantCards.filter((c) => (floorPrices.get(c.name) ?? null) === null).length;
+  const { value: wantValue, unpriced: wantUnpriced } = askFloorValue(wantCards, floorPrices);
 
-  async function send() {
+  function send() {
     if (!canSend) return;
-    setSending(true);
-    try {
-      const offer = await proposeTrade({
-        recipientId: friendId,
-        give: giveCards,
-        receive: wantCards,
-        note: note.trim(),
-      });
-      toast.show({ message: `Trade sent to ${friendName}.`, tone: 'success' });
-      if (counterTo) {
-        try {
-          await declineTrade(counterTo.offerId);
-        } catch {
-          toast.show({
-            message: `Your counter went out, but ${counterTo.name}'s offer is still open. Decline it from Trades.`,
-            tone: 'warn',
-          });
-        }
-      }
-      onSent(offer);
-    } catch (err) {
-      toast.show({
-        message: userMessage(err, "Couldn't send the trade. Try again."),
-        tone: 'error',
-      });
-      setSending(false);
-    }
+    void sendTrade({ give: giveCards, receive: wantCards, note });
   }
 
   // The carousel is a SIBLING of the Modal, never a child: `Modal` renders in
@@ -640,8 +541,10 @@ export function TradeComposer({
                   return floor == null ? undefined : `from ${formatMoney(floor * c.quantity)}`;
                 })(),
               }))}
-              onBump={(key, delta, max) => bump(setWanting, key, delta, max)}
-              onRemove={(key) => bump(setWanting, key, -(wanting[key] ?? 0), 20)}
+              onBump={(key, delta, max) => setWanting((prev) => bump(prev, key, delta, max))}
+              onRemove={(key) =>
+                setWanting((prev) => bump(prev, key, -(prev[key] ?? 0), MAX_COPIES_PER_LINE))
+              }
               results={wantResults.map((card) => ({
                 key: keyOf(card),
                 name: card.name,
@@ -687,7 +590,7 @@ export function TradeComposer({
             <Button onClick={onClose} disabled={sending}>
               Cancel
             </Button>
-            <Button variant="primary" onClick={() => void send()} disabled={!canSend}>
+            <Button variant="primary" onClick={send} disabled={!canSend}>
               {sending ? 'Sending…' : 'Send offer'}
             </Button>
           </div>
