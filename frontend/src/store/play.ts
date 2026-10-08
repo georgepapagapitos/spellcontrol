@@ -1367,7 +1367,7 @@ export const usePlayStore = create<PlayState>()(
         // (server-side normally closes it via broadcastGameDeleted, but that
         // relies on this client's subscriber having actually received the
         // broadcast — cross-machine delivery isn't guaranteed, see the
-        // `subscribers` map's own ponytail comment in routes/games.ts). Left
+        // `subscribers` map's own comment in routes/games.ts). Left
         // unchecked, `tick` would then skip forever and the board would sit
         // on screen looking live. So: every tick still runs while unhealthy
         // (as before), and even while healthy, force a real refreshOnline at

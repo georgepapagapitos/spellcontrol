@@ -18,7 +18,7 @@ export interface ProxyBadgeProps {
  * total, budget/binder price rules, price filters. `altered`/`misprint` are
  * cosmetic-only and stay inspector-only (CardPreview's " · ALTERED" line);
  * add the same treatment here if a real ask for at-a-glance altered/misprint
- * ever lands. ponytail: one flag, one chip — no config for a variant nobody
+ * ever lands. One flag, one chip — no config for a variant nobody
  * asked for.
  */
 export function ProxyBadge({ card, className }: ProxyBadgeProps): JSX.Element | null {

@@ -21,7 +21,7 @@
  * @spellcontrol/binder-routing prefers `EnrichedCard.releasedAt` over both the
  * Secret Lair drop map and the set date.
  *
- * ponytail: localStorage-backed, mirroring the price cache — one keyed map,
+ * localStorage-backed, mirroring the price cache — one keyed map,
  * loaded once at boot, rewritten on change. A date is ~11 bytes of payload and
  * ~50 with its key and JSON overhead, so a 13k-printing library is ~650KB,
  * inside the ~5MB quota and the same tradeoff the price cache already accepted.

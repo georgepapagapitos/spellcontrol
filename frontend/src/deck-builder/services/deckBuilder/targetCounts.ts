@@ -196,7 +196,7 @@ export function computeEffectiveNonBasicLandCount(
   colorIdentityCount: number
 ): number {
   if (!landCountAutoTuned) return nonBasicLandCount;
-  // ponytail: mono-color skipped — a utility nonbasic trades the deck's one
+  // Mono-color skipped — a utility nonbasic trades the deck's one
   // colored source for colorless/tapped upside, and the manabase math
   // already treats that source as scarce. Upgrade path: replace this flat
   // color-count gate with a colored-source-target-aware cap (compare

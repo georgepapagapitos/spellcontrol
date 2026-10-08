@@ -1083,7 +1083,7 @@ async function liveGetCardsByNames(
   // usd_foil, so a $1 common whose default printing only has a $89 foil price
   // would look "priced" and skip the cheapest-nonfoil re-fetch below.
   // Skip when user specified a preferred set — they want that set's printing, not the cheapest
-  // ponytail: bounded tail. Both passes below cost ONE request per card, on top
+  // Bounded tail. Both passes below cost ONE request per card, on top
   // of the batched work. At deck scale (~100 names) that's a handful; at
   // COLLECTION scale it's the whole ballgame — cube generation enriches every
   // unique name a player owns (10k+), where a few percent unpriced/unmatched

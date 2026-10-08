@@ -236,7 +236,7 @@ export function CollectionCombosPage() {
   // to the first page with no effect (same derived-state shape as `searchState`
   // above — the react-hooks/set-state-in-effect rule bans the effect version).
   //
-  // ponytail: fixed-size pages, no virtualization. Upgrade path if users
+  // Fixed-size pages, no virtualization. Upgrade path if users
   // routinely page deep: swap the button for an IntersectionObserver sentinel
   // or a windowing library.
   const [pager, setPager] = useState<{ list: readonly ComboMatch[]; count: number }>({

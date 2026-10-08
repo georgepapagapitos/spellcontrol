@@ -49,7 +49,7 @@ function cardsUntilNextBoss(
 
 /** Reads the live battlefield box for `autoPlace`: the felt's pixel size plus
  *  the card box the CSS density var currently resolves to. Reserved
- *  fractions are ponytail-level constants (the horde table's own corner
+ *  fractions are rough constants (the horde table's own corner
  *  chrome, not the main board's) rather than a measured value — good enough
  *  for keeping a fresh permanent out from under the status/action clusters. */
 function measureRect(el: HTMLElement): Rect {

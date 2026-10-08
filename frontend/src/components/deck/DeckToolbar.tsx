@@ -306,7 +306,7 @@ function DeckViewPopoverPanel({
   );
 }
 
-// ponytail: the row's full width is an estimate of its controls at the
+// The row's full width is an estimate of its controls at the
 // default type scale; measure the rendered controls if a label change or a
 // larger type set starts folding them early or clipping them.
 const FULL_ROW_MIN = { list: 760, other: 880 };

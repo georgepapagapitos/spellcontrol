@@ -123,7 +123,7 @@ function manaClauses(text: string): ManaClause[] {
         maskOf([s])
       );
       if (syms.length === 0) continue;
-      // ponytail: a filter ("{W/U}, {T}: Add {W}{W}, {W}{U}, or {U}{U}") is
+      // A filter ("{W/U}, {T}: Add {W}{W}, {W}{U}, or {U}{U}") is
       // skipped as needing coloured mana, so a filter land reads as its {T}
       // colours: a dual. Model the filter step if a filter-heavy deck misreads.
       const choice = /\bor\b|,/.test(effect);
@@ -148,7 +148,7 @@ function unitsFrom(clauses: readonly ManaClause[], produced: ManaMask): ManaMask
   }
   if (!best) return produced ? [produced] : [];
   if (best.net > 1) {
-    // ponytail: "three mana of any one color" becomes three independent
+    // "three mana of any one color" becomes three independent
     // any-colour units, so Gilded Lotus can pay {W}{U}{B}. Tie the units to one
     // colour if a deck leans on such a rock for fixing.
     if (best.anyCount > 0) return new Array<ManaMask>(best.net).fill(ANY_COLOR);
@@ -274,7 +274,7 @@ const isLandType = (typeLine: string): boolean => /\bland\b/i.test(typeLine.spli
  * those lines and the colours the rest produce, or null when nothing is left
  * out (the caller keeps Scryfall's reading).
  *
- * ponytail: a text test, not a model of the filter step: a filter land costing
+ * A text test, not a model of the filter step: a filter land costing
  * generic mana reads as its {T} mana (a colourless land for Daily Bugle
  * Building). A coloured-cost filter (Mystic Gate) is kept as a dual. Upgrade
  * path: model the filter's conversion in the engine.
@@ -333,7 +333,7 @@ function landFaceOf(
     .find(
       (l) => /sacrifice[^:]*:\s*search your library/.test(l) && costMana(l.split(':')[0]) === 0
     );
-  // ponytail: a fetch whose activation costs mana (a Panorama's {1}, Myriad
+  // A fetch whose activation costs mana (a Panorama's {1}, Myriad
   // Landscape's {2}) is not a fetch here, only its own {T} mana. Model the
   // paid crack (tapped land next turn, mana spent) if a deck runs several.
   const fetch = fetchAbility ? parseLandSearch(fetchAbility) : null;
@@ -397,7 +397,7 @@ function rampOf(card: ScryfallCard, face: Face, identity: ManaMask): RampEffect 
   }
 
   if (spell) return null;
-  // ponytail: "Spend this mana only to cast…" restrictions are ignored and a
+  // "Spend this mana only to cast…" restrictions are ignored and a
   // Signet is one unit of its two colours (its {1} filter is not modelled).
   // Both read slightly generous; model the restriction if a deck leans on it.
   const clauses = manaClauses(text);

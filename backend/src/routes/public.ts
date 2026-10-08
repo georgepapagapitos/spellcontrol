@@ -406,7 +406,7 @@ publicRouter.get(
  * chose = no), and answered with the same 404 as a missing profile so a
  * stranger can't tell "private" from "no such user".
  *
- * ponytail: no response cache. A share token's collection is cached 60 s
+ * No response cache. A share token's collection is cached 60 s
  * (shares/cache.ts); add the same here, keyed by username and purged in
  * purgeUserPublicCaches, if profile traffic ever makes big collections hot.
  */

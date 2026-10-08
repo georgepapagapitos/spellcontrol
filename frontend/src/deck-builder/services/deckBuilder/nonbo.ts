@@ -112,7 +112,7 @@ const typeLineOf = (c: ScryfallCard): string =>
   (c.type_line ?? c.card_faces?.[0]?.type_line ?? '').toLowerCase();
 const isCreature = (c: ScryfallCard): boolean => typeLineOf(c).includes('creature');
 
-// ponytail: creature subtypes = every word after the type line's em dash.
+// Creature subtypes = every word after the type line's em dash.
 // Good enough for a majority-share check; not a full typal engine.
 function cardCreatureTypes(c: ScryfallCard): string[] {
   if (!isCreature(c)) return [];

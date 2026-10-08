@@ -128,9 +128,9 @@ function toPublicForPod(r: ResultRow): PodGameResult {
  * a heavily-played pod's leaderboard tally understates its true lifetime
  * total past that horizon; acceptable for v1.
  *
- * // ponytail: unindexed JSONB containment scan, add a GIN index if
- * // game_results ever grows large enough for this to matter (matches the
- * // existing H2H/leaderboard routes' identical, already-accepted scaling note).
+ * Unindexed JSONB containment scan, add a GIN index if
+ * game_results ever grows large enough for this to matter (matches the
+ * existing H2H/leaderboard routes' identical, already-accepted scaling note).
  */
 async function fetchPodGames(memberIds: string[]): Promise<ResultRow[]> {
   const result = await getPool().query<ResultRow>(

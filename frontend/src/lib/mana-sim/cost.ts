@@ -57,7 +57,7 @@ export function parseManaCost(text: string | undefined | null): ManaCost | null 
     } else if (sym === 'X' || sym === 'Y' || sym === 'Z') {
       continue;
     } else if (sym === 'S') {
-      // ponytail: {S} paid as generic; snow sources aren't tracked. Add a snow
+      // {S} paid as generic; snow sources aren't tracked. Add a snow
       // bit to ManaMask if a snow deck's castability ever matters.
       generic += 1;
       mv += 1;

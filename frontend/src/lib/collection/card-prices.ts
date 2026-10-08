@@ -10,7 +10,7 @@
  * row carries no price, and `applyPrices` merges the live value back onto cards
  * in memory for display / sort / binder routing.
  *
- * ponytail: localStorage-backed — one keyed map, loaded once into memory at
+ * localStorage-backed — one keyed map, loaded once into memory at
  * boot and fully rewritten on refresh. The payload is small (unique printings ×
  * ~40 bytes ≈ well under the quota). If it ever janks on a huge library, move
  * to the device-local offline IDB (`spellcontrol-offline`), where the rest of

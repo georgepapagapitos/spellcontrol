@@ -81,7 +81,7 @@ function isAltWin(oracle: string, name: string): boolean {
  * land-only tutors (Rampant Growth, fetchlands) are excluded — they can't
  * find a combo piece.
  */
-// ponytail: type-narrow tutors (Mystical, Stoneforge) count at full weight;
+// Type-narrow tutors (Mystical, Stoneforge) count at full weight;
 // scope them to matching-type pieces if the clock reads too optimistic.
 const LAND_TARGET_RE = /\bland\b|\bplains\b|\bisland\b|\bswamp\b|\bmountain\b|\bforest\b|\bgate\b/;
 
@@ -476,7 +476,7 @@ export function detectWinConditions(input: WinConditionInput): WinConditionAnaly
       summary: `${engineNote}${tokenCards.length} token maker${tokenCards.length === 1 ? '' : 's'}${anthemCards.length > 0 ? `, ${anthemCards.length} anthem${anthemCards.length === 1 ? '' : 's'}` : ''}`,
       evidence: allEvidence.slice(0, 8),
       score: goWideCount + (goWideInvested ? INVESTED_BONUS : 0),
-      // ponytail: flat count over producers+anthems; require-a-payoff-drawn if
+      // Flat count over producers+anthems; require-a-payoff-drawn if
       // this reads too optimistic for anthem-light lists.
       assembly: strategicAssembly(allEvidence, STRATEGIC_MIN_CARDS),
     });

@@ -89,7 +89,7 @@ function isPlayableInPair(card: CubeCard, pair: ColorPair): boolean {
 }
 
 /** Deterministic seed from the cube's contents alone, order-independent.
- *  ponytail: a local FNV-1a copy of refine.ts's private `deriveSeed` — that
+ *  A local FNV-1a copy of refine.ts's private `deriveSeed` — that
  *  one isn't exported, and the coordinator said not to touch refine.ts/core.ts
  *  to export it. Dedupe later if a shared `lib/cube/seed.ts` leaf appears. */
 function deriveSeed(cube: CubeCard[]): number {

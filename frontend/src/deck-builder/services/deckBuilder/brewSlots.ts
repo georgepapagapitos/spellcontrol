@@ -105,7 +105,7 @@ function toBrewCandidate(card: EDHRECCard, role: RoleKey | null, isOwned: boolea
  * grounded in real EDHREC counts is what a slot's purpose line needs; the
  * archetype nuance is a refinement Brew mode can pick up later if the flat
  * targets feel off in practice.
- * ponytail: skips archetype/pacing multipliers — add if brewed decks
+ * Skips archetype/pacing multipliers — add if brewed decks
  * systematically under/over-shoot a role for a given archetype.
  */
 export function computeBrewRoleTargets(
@@ -164,7 +164,7 @@ export interface BuildBrewSlotPlanOptions {
  * targets) is split across theme/finishers/flex by a fixed, simple ratio —
  * flex's target is a starting estimate only, the page recomputes it live off
  * however much budget actually remains once earlier slots are filled/skipped.
- * ponytail: fixed 45/20/rest split, not commander-tuned; good enough for a
+ * Fixed 45/20/rest split, not commander-tuned; good enough for a
  * starting rail, the live "toward 99" total is what actually matters.
  */
 export function buildBrewSlotPlan(opts: BuildBrewSlotPlanOptions): BrewSlotDef[] {

@@ -44,7 +44,7 @@ function locationBias(): Promise<{ lat: number; lon: number } | null> {
     navigator.geolocation.getCurrentPosition(
       (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
       () => resolve(null), // denied / unavailable / timed out — unbiased search still works
-      // ponytail: coarse + cached-for-10min is all a search bias needs — no GPS spin-up.
+      // Coarse + cached-for-10min is all a search bias needs — no GPS spin-up.
       { enableHighAccuracy: false, timeout: 5000, maximumAge: 600_000 }
     );
   });

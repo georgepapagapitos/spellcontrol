@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 /**
- * SavedDecksPage — the ponytail-mandated runnable check for this page's
+ * SavedDecksPage — the runnable check for this page's
  * branching (guest-gate / skeleton / tiles / empty / error+retry) plus the
  * one behavior genuinely unique to this page: an unsave removes its tile
  * without a refetch.

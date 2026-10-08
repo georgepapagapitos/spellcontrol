@@ -1830,7 +1830,7 @@ gameNightsRouter.post(
       [night.id]
     );
     if (Number(count.rows[0].n) >= MAX_RSVPS) {
-      // ponytail: hard cap, no waitlist — no physical game night exceeds this.
+      // Hard cap, no waitlist — no physical game night exceeds this.
       return res.status(400).json({ error: 'This game night is full.' });
     }
     const id = crypto.randomUUID();

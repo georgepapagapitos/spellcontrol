@@ -57,12 +57,12 @@ import { computeDownshiftPlan, computeUpshiftPlan, isPowerSignal } from '../brac
 // `state.edhrecData` at converge time; only GCs present in `scryfallCardMap`
 // (fetched during generation) can be added, so a low target whose pool has no
 // game changers simply no-ops.
-// ponytail: UP adds Game Changers only — the deterministic estimator lever. Soft
+// UP adds Game Changers only — the deterministic estimator lever. Soft
 // fills (high-inclusion engines) rarely cross a bracket boundary and would churn
 // the deck for no gain; combo-completion adds need oneAwayCombos, not computed at
 // generation time. Wire gapAnalysis/oneAwayCombos through if either is ever worth
 // the extra churn-guarding.
-// ponytail: Bracket 1 (Exhibition) is by design undetectable from card content
+// Bracket 1 (Exhibition) is by design undetectable from card content
 // (the estimator never emits 1), so a target of 1 converges to the same in-band
 // result as target 2 — the lowest the estimator can verify.
 

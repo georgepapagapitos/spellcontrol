@@ -92,7 +92,7 @@ export function sourceKey(s: AddedSource): string {
  *   user last confirmed it physically lives (that binder's own queue shows
  *   the matching outbound row). No snapshot holds it → it was never filed
  *   into a reviewed binder, i.e. the unsorted pile (Uncategorized).
- *   ponytail: snapshot-holder is a per-key guess — copies of one printing
+ *   Snapshot-holder is a per-key guess — copies of one printing
  *   split between a reviewed binder and a fresh import all point at the
  *   binder; the row's reason line ("newly imported from …") keeps the
  *   provenance visible.

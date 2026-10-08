@@ -724,7 +724,7 @@ export function generateCube(
   // (locked cards excluded) — a locked role card still counts toward its own
   // bucket's quota via the seed below, but not toward the cross-bucket SPLIT of
   // the cube-level total.
-  // ponytail: minor undercount of a bucket's natural supply when it holds a
+  // Minor undercount of a bucket's natural supply when it holds a
   // locked role/creature card; upgrade path is folding `locked` into
   // distributeQuota's supply calc if this is ever measured to matter.
   const totals = cubeQuotas(band, size - targetByBucket.land);

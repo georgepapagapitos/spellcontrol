@@ -17,7 +17,7 @@ import { logger } from '@/lib/util/logger';
  * currently carries a fresh analysis to the server on the next deck edit.
  *
  * Cleared with the rest of the account's local data (`stopSyncAndWipeLocal`).
- * ponytail: a deleted deck's entry lingers until that wipe; prune by live
+ * A deleted deck's entry lingers until that wipe; prune by live
  * deck ids if the store ever grows enough to matter.
  */
 export type CachedAnalysis = Partial<Deck> & { gradeBracketSignature: string };

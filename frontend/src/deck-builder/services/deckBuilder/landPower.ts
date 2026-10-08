@@ -38,7 +38,7 @@ function isBasicLand(card: ScryfallCard): boolean {
  * for new cards). "enters tapped" unconditionally is a real downside; a
  * conditional tapped clause (shock/check/fast/pain lands: "unless…", "you may
  * pay…", "if you don't…") is untapped in practice most games.
- * ponytail: regex heuristic; ceiling = exotic tapped wordings. Upgrade path is a
+ * Regex heuristic; ceiling = exotic tapped wordings. Upgrade path is a
  * curated exception set if a specific card misreads.
  */
 function tappedKind(card: ScryfallCard): 'untapped' | 'conditional' | 'tapped' {

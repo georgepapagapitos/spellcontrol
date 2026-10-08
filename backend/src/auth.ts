@@ -114,7 +114,7 @@ export function verifySession(token: string): AuthedUser | null {
 // The floor is read once per user per minute, not once per request (the DB is
 // a network hop away). `revokeSessions` writes the cache in the same breath as
 // the row, so on this single-machine deploy a revocation is immediate.
-// ponytail: per-process cache; if the app ever runs >1 machine, a revocation
+// Per-process cache; if the app ever runs >1 machine, a revocation
 // reaches the other machines within SESSION_FLOOR_TTL_MS, not instantly.
 const SESSION_FLOOR_TTL_MS = 60_000;
 const sessionFloors = new Map<string, { exists: boolean; validAfter: number | null; at: number }>();

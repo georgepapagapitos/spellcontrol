@@ -15,7 +15,7 @@ const MAX_UNDO_STACK = 50;
 const MAX_STICKERS_PER_CARD = 8;
 const MAX_STICKER_LENGTH = 30;
 /** Battlefield x/y step (fraction of the battlefield box, see
- *  `BattlefieldCard.x`) between a clone and its source. ponytail: sized
+ *  `BattlefieldCard.x`) between a clone and its source. Sized
  *  against the same ~800px "reasonable default" battlefield width
  *  `auto-place.ts`'s `FALLBACK_RECT` uses (18px / 800px) rather than reading
  *  the real container — the reducer is pure and has no DOM access, and a
