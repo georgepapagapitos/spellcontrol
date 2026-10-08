@@ -1,0 +1,631 @@
+/* The trade review: body, sheet, tray and dock. One co-located sheet, imported
+   by the lazy components only; never a boot-path stylesheet. */
+
+/* ── Host chrome: shared by the sheet and the dock ─────────────────────── */
+.trade-review-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex: 0 0 auto;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 0.5px solid var(--border);
+}
+
+.trade-review-title {
+  margin: 0;
+  min-width: 0;
+  font-size: var(--text-lg);
+  font-weight: normal;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+/* ── The review itself: a flex column that fills its host ──────────────── */
+.trade-review {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* The ONE scroll region. Everything inside grows the list; nothing inside
+   scrolls on its own. */
+.trade-review-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+}
+
+.trade-review-foot {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4) calc(var(--space-3) + var(--safe-bottom));
+  border-top: 0.5px solid var(--border);
+  background: var(--surface);
+}
+
+.trade-review-net {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+}
+
+.trade-review-send {
+  width: 100%;
+}
+
+.trade-review-hint {
+  margin: 0;
+  text-align: center;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* ── Banners ───────────────────────────────────────────────────────────── */
+.trade-review-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  font-size: var(--text-sm);
+}
+
+.trade-review-banner-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.trade-review-banner.is-info {
+  background: var(--accent-light);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  color: var(--text-primary);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
+}
+
+.trade-review-banner.is-warn {
+  background: var(--warn-bg);
+  border-color: var(--warn-border);
+  color: var(--warn-text);
+}
+
+.trade-review-banner.is-error {
+  background: var(--err-bg);
+  border-color: var(--err-border);
+  color: var(--err-text);
+}
+
+/* ── Sides ─────────────────────────────────────────────────────────────── */
+.trade-review-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.trade-review-side-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-overline);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.trade-review-side-value {
+  font-family: var(--font-mono);
+  letter-spacing: 0;
+  text-transform: none;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.trade-review-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.trade-review-lines > li {
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+}
+
+.trade-review-lines > li:last-child {
+  border-bottom: 0;
+}
+
+.trade-review-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: var(--space-2) 0;
+}
+
+.trade-review-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 1px;
+}
+
+.trade-review-name-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.trade-review-name {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trade-review-wanted {
+  flex: 0 0 auto;
+  padding: 0 var(--space-2);
+  border-radius: 999px;
+  background: var(--accent-light);
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
+}
+
+.trade-review-meta {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.trade-review-meta.is-warn {
+  color: var(--warn-text);
+}
+
+/* Self-contained art treatment: a component must not lean on a page sheet. */
+.trade-review-thumb {
+  display: block;
+  width: 34px;
+  flex: 0 0 auto;
+  aspect-ratio: 488 / 680;
+  object-fit: cover;
+  border-radius: 4.5% / 3.2%;
+  background: var(--surface-raised);
+}
+
+.trade-review-thumb.is-placeholder {
+  border: 0.5px solid var(--border);
+}
+
+.trade-review-thumb-btn {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  /* The real box takes the floor: these rows are ~47px tall already. */
+  min-height: 44px;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.trade-review-thumb-btn:focus-visible,
+.trade-review-step:focus-visible,
+.trade-review-remove:focus-visible,
+.trade-review-printing:focus-visible,
+.trade-review-note-toggle:focus-visible,
+.trade-tray-main:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── Stepper and remove: 28px boxes, 44px ghost hit areas on touch ─────── */
+.trade-review-stepper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 0 0 auto;
+}
+
+.trade-review-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-primary);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.trade-review-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex: 0 0 auto;
+  margin-left: var(--space-3);
+}
+
+.trade-review-step:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.trade-review-count {
+  min-width: 1.5rem;
+  text-align: center;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Printing line: the accent, dashed-underlined text that says WHICH copy is
+   leaving, and opens the one chooser. */
+.trade-review-printing {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: var(--space-1);
+  max-width: 100%;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-align: left;
+  cursor: pointer;
+}
+
+.trade-review-printing-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-bottom: 1px dashed var(--accent);
+}
+
+.trade-review-chevron {
+  flex: 0 0 auto;
+  transition: transform var(--motion-fast) var(--ease-out-soft);
+}
+
+.trade-review-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.trade-review-printings {
+  padding: 0 0 var(--space-2);
+}
+
+/* ── Empty, skeleton, add, note ────────────────────────────────────────── */
+.trade-review-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.trade-review-empty p {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.trade-review-add {
+  align-self: flex-start;
+  gap: var(--space-2);
+}
+
+.trade-review-skeleton {
+  height: 4rem;
+  border-radius: var(--radius);
+  background:
+    linear-gradient(
+      100deg,
+      rgb(255 255 255 / 0%) 35%,
+      rgb(255 255 255 / 11%) 50%,
+      rgb(255 255 255 / 0%) 65%
+    ),
+    var(--surface-raised);
+  background-size:
+    220% 100%,
+    100% 100%;
+  background-repeat: no-repeat;
+  animation: skeleton-shimmer var(--motion-shimmer) ease-in-out infinite;
+}
+
+.trade-review-note {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.trade-review-note-label {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.trade-review-optional {
+  color: var(--text-muted);
+}
+
+.trade-review-note-input {
+  width: 100%;
+  resize: vertical;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--text-sm);
+}
+
+.trade-review-note-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  align-self: flex-start;
+  min-height: 36px;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+/* ── Sheet: a bottom sheet up to 1023px ────────────────────────────────── */
+.trade-review-sheet {
+  overflow: hidden;
+  padding: 0;
+}
+
+@media (max-width: 1023px) {
+  /* Doubled class like the shared sheet and AddCardsSheet: the base
+     `.modal-backdrop` rule would otherwise win on source order. */
+  .modal-backdrop.trade-review-backdrop {
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: stretch;
+    padding: 0;
+  }
+
+  .modal-backdrop.trade-review-backdrop > .trade-review-sheet {
+    max-width: none;
+    width: 100%;
+    /* Full height under the status bar; the keyboard inset keeps a focused
+       note field above the keyboard. Header and footer are chrome. */
+    height: calc(var(--vh-safe) - var(--space-4) - var(--keyboard-inset));
+    max-height: calc(var(--vh-safe) - var(--space-4) - var(--keyboard-inset));
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    padding-bottom: 0;
+    animation: sheet-panel-in var(--motion-base) var(--ease-out-soft);
+  }
+
+  .modal-backdrop.trade-review-backdrop.is-closing > .trade-review-sheet {
+    animation: modal-panel-out var(--motion-fast) var(--ease-out-soft) forwards;
+  }
+}
+
+@media (min-width: 1024px) {
+  .trade-review-sheet {
+    max-width: 560px;
+    height: min(46rem, calc(var(--vh-safe) - 6rem));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-backdrop.trade-review-backdrop > .trade-review-sheet {
+    animation: none;
+  }
+
+  .trade-review-skeleton {
+    animation: none;
+  }
+
+  .trade-tray {
+    animation: none;
+  }
+
+  .trade-review-chevron {
+    transition: none;
+  }
+}
+
+/* ── Dock: sticky side panel ───────────────────────────────────────────── */
+.trade-dock {
+  position: sticky;
+  top: var(--space-3);
+  align-self: flex-start;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 0;
+  max-height: calc(var(--vh-safe) - var(--space-5));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+/* ── Tray: summary above the mobile tab bar ────────────────────────────── */
+.trade-tray {
+  position: fixed;
+  left: var(--space-3);
+  right: var(--space-3);
+  /* `--mobile-tabbar-h` already folds in the safe inset below 1024px and is 0
+     above it, where the inset still has to be cleared. */
+  bottom: calc(var(--space-3) + max(var(--mobile-tabbar-h), var(--safe-bottom)));
+  z-index: var(--z-sheet-bg);
+  animation: trade-tray-in var(--motion-base) var(--ease-out-soft);
+}
+
+@keyframes trade-tray-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.trade-tray-main {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 56px;
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  box-shadow: var(--shadow-tooltip);
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.trade-tray-stack {
+  display: flex;
+}
+
+.trade-tray-stack .trade-review-thumb {
+  width: 26px;
+  box-shadow: 0 0 0 1.5px var(--surface-raised);
+}
+
+.trade-tray-stack .trade-review-thumb + .trade-review-thumb {
+  margin-left: -12px;
+}
+
+.trade-tray-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.trade-tray-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trade-tray-sub {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trade-tray-sub b {
+  font-weight: 500;
+  color: var(--success);
+}
+
+.trade-tray-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+/* ── Coarse-pointer touch floor (STYLE_GUIDE § "44px touch targets") ───────
+   Dense-row controls grow a ghost, not their box, so a row stays one line
+   tall. One rule per selector: the guard in overlay-containment.test.ts
+   matches `selector {` and misses a comma group. */
+@media (pointer: coarse) {
+  .trade-review-step {
+    position: relative;
+  }
+
+  .trade-review-remove {
+    position: relative;
+  }
+
+  .trade-review-step::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+
+  .trade-review-remove::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+
+  .trade-review-printing {
+    min-height: 44px;
+  }
+
+  .trade-review-note-toggle {
+    min-height: 44px;
+  }
+
+  .trade-tray-cta {
+    min-height: 44px;
+  }
+}

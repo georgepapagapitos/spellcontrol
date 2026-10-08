@@ -6,7 +6,12 @@ import { UserAvatar } from '@/components/profile/UserAvatar';
 import { useCardThumb } from '@/lib/cards/card-thumbs';
 import { formatMoney } from '@/lib/collection/format-money';
 import { formatRelativeTime } from '@/lib/util/format-time';
-import { splitSideValue, useFloorPrices } from '@/lib/trade/trade-value';
+import {
+  describeNet,
+  splitSideValue,
+  useFloorPrices,
+  type SideValue,
+} from '@/lib/trade/trade-value';
 import { toast } from '../../store/toasts';
 import {
   acceptTrade,
@@ -57,31 +62,6 @@ function statusLabel(offer: TradeOffer): string {
 function isRemovable(offer: TradeOffer): boolean {
   if (offer.status === 'declined' || offer.status === 'withdrawn') return true;
   return offer.status === 'accepted' && offer.settled;
-}
-
-interface SideValue {
-  /** Rendered form: exact, "from $x", "from $x +?", or "…" while pending. */
-  text: string;
-  /** Total in the viewer's currency, or null while pending / partly unknown. */
-  amount: number | null;
-  /** True when any card was priced from a floor rather than a pinned printing. */
-  estimate: boolean;
-}
-
-/**
- * The net of the deal, which is the subtraction everyone did in their head
- * from the two side totals. Null while either side is unpriced: a net built
- * on a guess is worse than no net.
- */
-function describeNet(give: SideValue, receive: SideValue): string | null {
-  if (give.amount === null || receive.amount === null) return null;
-  const diff = receive.amount - give.amount;
-  const estimate = give.estimate || receive.estimate;
-  if (Math.abs(diff) < 1) return estimate ? 'About even' : 'Even';
-  const about = estimate ? 'about ' : '';
-  return diff > 0
-    ? `You come out ${about}${formatMoney(diff)} ahead`
-    : `They come out ${about}${formatMoney(-diff)} ahead`;
 }
 
 interface Props {
