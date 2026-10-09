@@ -15,7 +15,9 @@
 // the local copy is missing or older than MAX_AGE_DAYS; `prebuild` passes
 // --no-fetch so a build never touches the network. Pass --force to re-fetch
 // unconditionally, or --no-fetch to keep the committed snapshot at any age. Mirrors refresh-tagger.mjs,
-// including its soft-fail: fetch trouble keeps the existing snapshot.
+// including its soft-fail (fetch trouble keeps the existing snapshot) and its
+// shrink guard (a result that loses >2% of the committed number/drop pairs exits
+// non-zero; --allow-shrink overrides).
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
@@ -25,6 +27,7 @@ import { gunzipSync } from 'node:zlib';
 // default export, so this must be the named import.
 import { load as loadYaml } from 'js-yaml';
 import { pruneOutlierDrops } from './sld-drop-dates.mjs';
+import { assertNoShrink, carryForward } from './sld-drop-merge.mjs';
 
 const JSON_URL = process.env.SLD_JSON_URL ?? 'https://mtgjson.com/api/v5/SLD.json.gz';
 const YAML_URL =
@@ -36,10 +39,20 @@ const force = process.argv.includes('--force');
 // `prebuild` passes it so a production build can't depend on a third-party API
 // being up, fast, or under its rate limit. --force still wins, so the scheduled
 // refresh workflow and the manual `npm run refresh-*` scripts are unaffected.
+// --allow-shrink: write even when the result loses more than the shrink guard allows.
+const allowShrink = process.argv.includes('--allow-shrink');
 const noFetch = !force && process.argv.includes('--no-fetch');
 
 const here = dirname(fileURLToPath(import.meta.url));
 const dest = resolve(here, '..', 'public', 'sld-drops.json');
+
+async function readPrevious() {
+  try {
+    return JSON.parse(await readFile(dest, 'utf8'));
+  } catch {
+    return null;
+  }
+}
 
 async function ageDays(path) {
   // Age from the snapshot's own generatedAt, NOT file mtime — the file is
@@ -155,10 +168,10 @@ for (const [productName, productContents] of Object.entries(contents?.products ?
   // key (data/contents/ became data/products/); the old flat shape still parses.
   const blocks = productContents?.contents ?? productContents ?? {};
   addCardRefs(drop, blocks);
-  // ponytail: upstream now names bonus/chase cards by `pack` code (a shared sheet in
-  // the compiled set's `booster` table) instead of listing numbers. Resolving packs
-  // credits one pool card to up to 47 drops, so they are skipped: those cards keep the
-  // flat SLD set until someone rules which drop owns a shared bonus pool (E606 leftover).
+  // Upstream now names bonus/chase cards by `pack` code (a shared sheet in the compiled
+  // set's `booster` table) instead of listing numbers. Resolving packs credits one pool
+  // card to up to 47 drops, so they are skipped here and the committed snapshot's
+  // membership is carried forward below (sld-drop-merge.mjs).
   for (const ref of blocks.deck ?? []) {
     const deck = decksByName.get(ref?.name);
     if (!deck) continue;
@@ -204,11 +217,39 @@ const built = [...numbersByDrop.entries()]
   }))
   .sort((a, b) => b.releasedAt.localeCompare(a.releasedAt) || a.name.localeCompare(b.name));
 
+// Keep the committed snapshot's membership for anything upstream no longer lists
+// as explicit numbers, so a refresh adds drops and corrects dates but never loses
+// a mapping just because upstream changed how it writes it down.
+const previousSnapshot = await readPrevious();
+const merged = carryForward(built, previousSnapshot?.drops);
+console.log(
+  `[sld] Carried forward ${merged.carried.length} number/drop pairs the snapshot had and upstream no longer lists explicitly` +
+    (merged.carried.length
+      ? ` (e.g. ${merged.carried
+          .slice(0, 5)
+          .map((c) => `${c.drop} #${c.number}`)
+          .join(', ')})`
+      : '')
+);
+
 // A drop whose date is far from the printing's own is MTGJSON misfiling a
 // bonus card (Ral, Storm Conduit #523 under 2021 drops): treat that drop as
 // unknown for the number. See sld-drop-dates.mjs for the cutoff.
-const { drops, removed } = pruneOutlierDrops(built, printings);
+const { drops, removed } = pruneOutlierDrops(merged.drops, printings);
 console.log(`[sld] Dropped ${removed.length} number/drop pairs far from the printing's own date`);
+
+// Refuse a rewrite that guts the map (a structural upstream change) instead of
+// shipping it as a quiet snapshot PR. Exits non-zero so the workflow run fails.
+try {
+  const { before, lost } = assertNoShrink(drops, previousSnapshot?.drops);
+  console.log(`[sld] Shrink guard: ${lost.length} of ${before} committed pairs not in the result`);
+} catch (err) {
+  if (!allowShrink) {
+    console.error(`::error::[sld] ${err.message}`);
+    process.exit(1);
+  }
+  console.warn(`[sld] ${err.message} Writing anyway (--allow-shrink).`);
+}
 
 const mapped = new Set(drops.flatMap((d) => d.numbers)).size;
 if (drops.length < 300 || mapped < 1500) {
