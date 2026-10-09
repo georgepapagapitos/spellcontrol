@@ -36,3 +36,19 @@ describe('EDHREC suggestion grid', () => {
     expect(ruleBody('.deck-analysis-suggest-chips')).toMatch(/flex-wrap:\s*wrap/);
   });
 });
+
+// The commander lists (finder, picker, trending) had the other half of the
+// bug: the <li> stretched, but the bordered card inside it ended at its own
+// content, so a wrapped name or a second chip line made a ragged row.
+describe('commander result grid', () => {
+  it('fills the stretched cell with the bordered card', () => {
+    const src = readFileSync(join(here, 'commander-result.css'), 'utf8').replace(
+      /\/\*[\s\S]*?\*\//g,
+      ''
+    );
+    const at = src.indexOf('.commander-result-card {');
+    expect(at, '.commander-result-card rule is missing').toBeGreaterThan(-1);
+    expect(src.slice(at, src.indexOf('}', at))).toMatch(/height:\s*100%/);
+    expect(src).not.toMatch(/\.commander-result-grid\s*\{[^}]*align-items:\s*start/);
+  });
+});
