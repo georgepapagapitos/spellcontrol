@@ -1,3 +1,4 @@
+import '@/styles/deck-builder-tabs.css';
 import { type JSX, type ReactNode, useMemo, useState } from 'react';
 import {
   AlertTriangle,

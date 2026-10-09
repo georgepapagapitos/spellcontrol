@@ -1,3 +1,4 @@
+import '@/styles/shared.css';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { NotFoundView, ErrorView } from '../components/share/SharedShell';

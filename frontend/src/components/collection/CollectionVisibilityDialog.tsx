@@ -1,3 +1,4 @@
+import '@/styles/shared.css';
 import { useEffect, useState } from 'react';
 import { Modal } from '@/components/overlays/Modal';
 import { VisibilityChoice } from '@/components/share/VisibilityChoice';

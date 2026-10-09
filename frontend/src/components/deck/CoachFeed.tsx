@@ -1,3 +1,4 @@
+import '@/styles/deck-builder-analysis.css';
 import './CoachFeed.css';
 import { type JSX, useMemo, useState, useEffect, useRef, useCallback, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';

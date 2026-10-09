@@ -38,23 +38,28 @@ import './styles/typesets.css';
 // combos-list / import-dialog sheets in those pages, the scanner + admin
 // sheet in CardScanner / AdminPage / YouPage. A sheet stays here only while
 // a class of it is rendered from the entry chunk or from several hubs —
-// `src/styles/css-chunk-ownership.test.ts` is the guard.
+// `src/styles/css-chunk-ownership.test.ts` is the guard. The entry-graph
+// slices of the deck-builder families are their own small sheets below
+// (commander-result, popover-menu, deck-row-role, deck-bento,
+// load-failure-strip), placed where the parent sheet used to sit so the
+// cascade order is unchanged; the rest of each parent loads with the modules
+// that render it (E592).
 import './styles/deck-builder-page.css';
-import './styles/deck-builder-commander.css';
+import './styles/commander-result.css';
 // Stays global: deck-builder-responsive.css (below) overrides its
 // .deck-builder-options / .deck-builder-field at ≤1024px by ORDER, and a page
 // chunk's sheet would load after it and win.
 import './styles/deck-builder-settings.css';
 import './styles/deck-builder-display.css';
-import './styles/deck-builder-card-list.css';
-import './styles/deck-builder-analysis.css';
+import './styles/popover-menu.css';
+import './styles/deck-row-role.css';
+import './styles/deck-bento.css';
 import './styles/deck-builder-decks-index.css';
 import './styles/deck-builder-combos.css';
-import './styles/deck-builder-tabs.css';
 import './styles/deck-builder-toast.css';
 import './styles/deck-builder-responsive.css';
 import './styles/deck-builder-skeleton.css';
-import './styles/shared.css';
+import './styles/load-failure-strip.css';
 // Last on purpose: print rules must win over everything else in print media
 // regardless of specificity elsewhere in the cascade (see the file header).
 import './styles/print.css';

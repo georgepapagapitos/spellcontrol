@@ -1,3 +1,4 @@
+import '@/styles/deck-builder-analysis.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, RefreshCw, X } from 'lucide-react';
 import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';

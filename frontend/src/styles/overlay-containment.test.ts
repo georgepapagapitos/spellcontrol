@@ -169,8 +169,8 @@ describe('horizontal tab strips', () => {
   // (a 1px block-axis range for touch momentum to rubber-band against).
   const STRIPS: Array<[string, string]> = [
     ['styles/responsive-nav.css', '.collection-hub-tabs'],
-    ['styles/deck-builder-tabs.css', '.sc-tabs--scrollable'],
-    ['styles/deck-builder-tabs.css', '.sc-tabs--underline'],
+    ['components/overlays/Tabs.css', '.sc-tabs--scrollable'],
+    ['components/overlays/Tabs.css', '.sc-tabs--underline'],
     ['styles/binder-nav.css', '.binder-tab-row'],
     ['styles/shared.css', '.shared-table-scroll'],
     ['styles/play-history-inline.css', '.play-records'],
@@ -202,7 +202,7 @@ describe('horizontal tab strips', () => {
   it('fades the edge a Tabs strip has more tabs behind', () => {
     // The scrollbar is hidden on these strips, so the fade is the only scroll
     // affordance — without it an overflowing tab reads as clipped layout.
-    const css = read('styles/deck-builder-tabs.css');
+    const css = read('components/overlays/Tabs.css');
     for (const state of ['start', 'end', 'both']) {
       expect(
         blocks(css, `.sc-tabs[data-overflow='${state}']`).some((b) => /mask-image:/.test(b)),

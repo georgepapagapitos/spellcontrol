@@ -1,0 +1,199 @@
+/* Portaled to <body> by ToolbarPopover and positioned `fixed` via inline styles
+   (with viewport flip/clamp) — this rule is the visual surface only.
+   Deliberately NO z-index: this class is always composed with a second class
+   that owns the layer (`.overflow-menu-popover` at --z-menu, or
+   `.toolbar-popover-panel--fixed` whose caller sets --z-portal-popover inline).
+   Both were same-specificity (0,1,0), so a bare z-index here won or lost purely
+   on stylesheet order — and in the production bundle OverflowMenu's chunk is
+   linked BEFORE index.css, so this rule silently pinned every kebab and the
+   account menu to 50, under all sticky chrome (--z-popover: 60). See
+   styles/z-index-ownership.test.ts. */
+
+.deck-row-menu-popover {
+  min-width: 11rem;
+  padding: var(--space-1);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  /* Small anchored popover = tooltip tier (parity w/ .deck-editor-overflow-panel). */
+  box-shadow: var(--shadow-tooltip);
+  display: flex;
+  flex-direction: column;
+  /* Tall menus on a short viewport scroll rather than overflow off-screen. */
+  max-height: min(360px, calc(100dvh - 4rem));
+  overflow-y: auto;
+}
+
+/* Popover enter (STYLE_GUIDE Motion pattern 4): fade + scale(0.98) + 2px
+   rise from the trigger corner; exit stays instant. Transform/opacity only,
+   so the viewport-aware measured positioning (flip-up etc.) is untouched.
+   The default origin matches the in-flow anchoring (below the trigger,
+   right-aligned); portaled menus override it inline per their placement. */
+
+.deck-row-menu-popover,
+.toolbar-popover-panel {
+  animation: menu-pop-in var(--motion-fast) var(--ease-out-soft);
+  transform-origin: top right;
+}
+
+@keyframes menu-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-row-menu-popover,
+  .toolbar-popover-panel {
+    animation: none;
+  }
+}
+
+/* Labelled clusters inside the card menu. The menu runs past a dozen rows,
+   and the style guide asks for sections with hairline dividers rather than
+   one flat list once it does. */
+
+.deck-card-menu-group + .deck-card-menu-group {
+  margin-top: var(--space-1);
+  padding-top: var(--space-1);
+  border-top: 0.5px solid var(--border);
+}
+
+.deck-card-menu-heading {
+  margin: 0 0 var(--space-0-5);
+  padding: 0 var(--space-2);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-overline);
+  color: var(--text-muted);
+}
+
+.deck-card-menu-drill,
+.deck-card-menu-back,
+.deck-card-menu-pick {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.deck-card-menu-drill {
+  justify-content: space-between;
+}
+
+/* Fixed gutter so the picked stack's check does not shunt the labels. */
+
+.deck-card-menu-pick-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  flex: 0 0 14px;
+  color: var(--accent);
+}
+
+.deck-card-menu-new {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+  padding: var(--space-1) var(--space-2) var(--space-0-5);
+  border-top: 0.5px solid var(--border);
+}
+
+.deck-card-menu-new-label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-overline);
+  color: var(--text-muted);
+}
+
+.deck-card-menu-new-input {
+  width: 100%;
+  min-height: 32px;
+  padding: var(--space-1) var(--space-1-5);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.deck-card-menu-new-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.deck-row-menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1-5) var(--space-2-5);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: pointer;
+  min-height: var(--row-h);
+}
+
+@media (pointer: coarse) {
+  .deck-row-menu-item {
+    min-height: 44px;
+  }
+}
+
+.deck-row-menu-status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  padding: var(--space-1-5) var(--space-2-5) var(--space-1-5);
+  margin-bottom: var(--space-0-5);
+  border-bottom: 0.5px solid var(--border);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+
+.deck-row-menu-status strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .deck-row-menu-item:hover:not(:disabled) {
+    background: var(--accent-light);
+    --text-muted: var(--text-muted-tint);
+    --text-secondary: var(--text-secondary-tint);
+    --accent: var(--accent-tint);
+    --accent-hover: var(--accent-hover-tint);
+  }
+}
+
+.deck-row-menu-item:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.deck-row-menu-item--danger {
+  color: var(--err-text);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .deck-row-menu-item--danger:hover:not(:disabled) {
+    background: var(--err-bg);
+  }
+}
+
+/* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover. */
+
+.deck-row-menu-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

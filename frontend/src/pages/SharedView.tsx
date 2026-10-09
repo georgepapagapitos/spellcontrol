@@ -1,3 +1,4 @@
+import '@/styles/shared.css';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useSignInPath } from '@/lib/account/sign-in-path';

@@ -1,3 +1,4 @@
+import '@/styles/deck-builder-analysis.css';
 import { useState } from 'react';
 import { consumedRevealKeys, __resetRevealRegistryForTests } from './use-animated-number';
 

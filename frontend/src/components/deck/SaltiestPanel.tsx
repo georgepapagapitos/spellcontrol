@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom is set on the test file — not here.
+import '@/styles/deck-builder-analysis.css';
 import { type JSX } from 'react';
 import { useCardCarousel } from './useCardCarousel';
 import './SaltiestPanel.css';

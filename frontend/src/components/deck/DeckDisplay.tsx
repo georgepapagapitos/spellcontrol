@@ -1,3 +1,5 @@
+import '@/styles/deck-builder-card-list.css';
+import '@/styles/deck-builder-analysis.css';
 import { CircleAlert, Layers, Search } from 'lucide-react';
 import {
   Fragment,

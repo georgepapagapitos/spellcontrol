@@ -531,12 +531,6 @@
   grid-column: 1 / -1;
 }
 
-/* Grid items must be allowed to shrink below their content's min-content, or a
-   wide child (the Power tab's combos grid / bracket breakdown) blows the
-   single-column track out past the viewport on phones — panels render wider than
-   their container and spill off the right edge. The ≥640px template already uses
-   minmax(0,1fr); this covers the base single column + the nested pair sub-grid. */
-.deck-bento > *,
 .deck-stats-pair > * {
   min-width: 0;
 }
@@ -550,67 +544,6 @@
    position:fixed, see STYLE_GUIDE "Popovers". */
 .deck-stats-pair > * {
   container-type: inline-size;
-}
-
-/* ── Bento boards (Stats / Tune analysis tabs) ───────────────────────────────
-   Each analysis tab is one dense, contained bento that reflows to its OWN
-   width (container queries), not just the viewport — so it fills desktop
-   width with 2 dense columns + spanning heroes, and collapses to a single
-   column on phones, with no dead space and no orphaned cells.
-
-   `container-type: inline-size` makes the board a query container; the
-   `@container` rules below drive the column count off the board's measured
-   width. The board still inherits the shared --analysis-max cap + centering
-   from .deck-analysis-view. */
-.deck-bento {
-  container-type: inline-size;
-  container-name: bento;
-  display: grid;
-  /* minmax(0, …) not 1fr: 1fr's floor is min-content, which lets a wide child
-     blow the single column past the container on phones. */
-  grid-template-columns: minmax(0, 1fr);
-  align-items: stretch;
-  grid-auto-flow: row dense;
-  gap: clamp(var(--space-3), 2.2cqi, var(--space-5));
-  max-width: var(--analysis-max, 1320px);
-  margin-inline: auto;
-  /* width: 100% is load-bearing for non-block mount contexts (Home and /pods
-     mount this inside flex COLUMNS): a cross-axis auto margin in flex cancels
-     the default stretch, dropping the item to shrink-to-fit — and inline-size
-     containment makes this element's intrinsic width ZERO by definition, so
-     the bento collapsed to a ~0-width strip (#1269). In normal block flow
-     (deck analysis) this renders byte-identically: a block already fills its
-     containing block, and max-width + auto margins still cap and center. */
-  width: 100%;
-}
-
-/* ≥640px container → two dense columns. Heroes / list-heavy panels span the
-   full row via .deck-stats-panel--wide; compact panels pair via
-   .deck-stats-pair (which is itself an orphan-guarded auto-fit sub-grid).
-
-   These two board-level rules query `bento-host` — the WRAPPER each mount
-   declares (`container: bento-host / inline-size`) — NOT the bento's own
-   `bento` name: an element can never match a container query against its own
-   container-type, so keying these to `bento` left them dead since birth
-   (E158; /home surfaced it as every card rendering full-width, E157).
-   `container-name: bento` above stays for the bento's CHILDREN (PowerHero,
-   DeckIdentityCard pillars, NextBestMove…), whose queries measure the board.
-   Hosts today: .deck-analysis-view (Stats/Power/Tune), .home-page,
-   .pods-index-section, .trending-rail — a NEW mount must declare its own
-   host or its cards render full-width at every viewport (STYLE_GUIDE
-   § Responsive, bento-host bullet). */
-@container bento-host (min-width: 640px) {
-  .deck-bento {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-/* ≥1040px container → keep the 2-col rhythm but let it breathe with a more
-   generous gutter (2 dense columns + spanning hero is the target, not 3-col). */
-@container bento-host (min-width: 1040px) {
-  .deck-bento {
-    gap: clamp(var(--space-4), 1.6cqi, var(--space-6));
-  }
 }
 
 /* ── Panel cascade animation ─────────────────────────────────────────────────
@@ -931,5 +864,11 @@
 @media (pointer: coarse) {
   .deck-stat-btn {
     min-height: 44px;
+  }
+}
+
+@media (max-width: 1023px) {
+  .deck-curve {
+    height: clamp(110px, 30vh, 220px);
   }
 }

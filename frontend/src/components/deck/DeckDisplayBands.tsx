@@ -2,6 +2,8 @@
 // bulk-action bar, the role-filter bar and the empty-deck state. Presentational
 // only; DeckDisplay owns every piece of state and passes it in. Moved out
 // verbatim (T176, W5), DOM unchanged.
+import '@/styles/deck-builder-card-list.css';
+import '@/styles/deck-builder-analysis.css';
 import { Search, Tag as TagIcon, Trash2, X } from 'lucide-react';
 import { useState, type Dispatch, type RefObject, type SetStateAction } from 'react';
 import { formatMoney } from '@/lib/collection/format-money';

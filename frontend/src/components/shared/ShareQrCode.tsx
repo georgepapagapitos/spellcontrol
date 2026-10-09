@@ -1,3 +1,4 @@
+import '@/styles/shared.css';
 import { useMemo } from 'react';
 import { create } from 'qrcode';
 
