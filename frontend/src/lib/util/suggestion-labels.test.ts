@@ -241,6 +241,24 @@ describe('undo', () => {
     });
     expect(JSON.stringify(undo[0])).not.toContain(before.id);
   });
+
+  it('labels an accept as undone when a toast undoes it through undoIfLatest', () => {
+    const before = deck();
+    setSuggestionContext(before);
+    recordSuggestion({
+      surface: 'coach:all',
+      action: 'accept',
+      rank: 1,
+      reason: 'add',
+      cardIn: 'Grave Pact',
+      cardOut: undefined,
+    });
+    edit(before, deck({ cards: [slot('Sol Ring'), slot('Grave Pact')] }));
+    const store = useDeckHistoryStore.getState();
+    // undoIfLatest restores through the decks store; stub only that write.
+    expect(store.undoIfLatest(before.id, store.topCommand(before.id)!)).toBe(true);
+    expect(sent.filter((p) => p.action === 'undo' && p.surface === 'coach:all')).toHaveLength(1);
+  });
 });
 
 describe('generation review', () => {

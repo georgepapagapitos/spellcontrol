@@ -2012,6 +2012,22 @@ export function DeckEditorPage() {
   // elsewhere) or "unowned" (not owned). It NEVER moves a copy out of another deck:
   // pulling a copy in is always a separate, conscious choice (per-row "Use my copy"
   // / the Shared-copies review). This matches what import/generate already do.
+  // The Undo a single-add toast carries. It takes back THAT edit: if another
+  // edit landed first, Undo says so rather than undoing the wrong one.
+  // `topBefore` is the history top before the add, so a no-op add offers nothing.
+  const addUndoAction = (deckId: string, topBefore: unknown) => {
+    const command = useDeckHistoryStore.getState().topCommand(deckId);
+    if (!command || command === topBefore) return {};
+    return {
+      actionLabel: 'Undo',
+      onAction: () => {
+        if (!useDeckHistoryStore.getState().undoIfLatest(deckId, command)) {
+          pushToast({ message: 'Other edits came after this one.', tone: 'info' });
+        }
+      },
+    };
+  };
+
   const allocateAndAdd = (
     card: ScryfallCard,
     zone: 'main' | 'sideboard' | 'considering',
@@ -2027,6 +2043,7 @@ export function DeckEditorPage() {
     );
     const allocatedId = plan.kind === 'bind' ? plan.copyId : null;
     const label = zone === 'main' ? `add ${card.name}` : `add ${card.name} to ${zone}`;
+    const topBefore = useDeckHistoryStore.getState().topCommand(deck.id);
     recordEdit(deck.id, label, () => {
       if (zone === 'sideboard') addSideboardCard(deck.id, card, allocatedId);
       else if (zone === 'considering') addConsideringCard(deck.id, card, allocatedId);
@@ -2036,6 +2053,7 @@ export function DeckEditorPage() {
       pushToast({
         message: zone === 'main' ? `Added ${card.name}` : `Added ${card.name} to ${zone}`,
         tone: 'success',
+        ...addUndoAction(deck.id, topBefore),
       });
   };
 
@@ -2118,6 +2136,7 @@ export function DeckEditorPage() {
         return;
       }
       const before = beginEdit(deck.id);
+      const topBefore = useDeckHistoryStore.getState().topCommand(deck.id);
       const allocations = buildAllocationMap(
         useDecksStore.getState().decks,
         useCubeStore.getState().saved
@@ -2127,7 +2146,11 @@ export function DeckEditorPage() {
       swapCard(deck.id, cutSlotId, scry, claim?.copyId ?? null);
       if (before)
         commitEdit(deck.id, cutName ? `replace ${cutName} → ${name}` : `add ${name}`, before);
-      pushToast({ message: `Added ${name}`, tone: 'success' });
+      pushToast({
+        message: `Added ${name}`,
+        tone: 'success',
+        ...addUndoAction(deck.id, topBefore),
+      });
       haptics.tap();
     } catch {
       pushToast({ message: `Couldn't add ${name}`, tone: 'error' });

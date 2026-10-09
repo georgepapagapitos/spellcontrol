@@ -1,9 +1,14 @@
 // @vitest-environment happy-dom
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { BuildReport } from '@/deck-builder/types';
 import type { ComboMatch } from '@/types/combos';
 import { BuildReportPanel } from './BuildReportPanel';
+import { useCollectionStore } from '@/store/collection';
+
+const own = (...names: string[]) =>
+  useCollectionStore.setState({ cards: names.map((name) => ({ name })) as never });
+afterEach(() => useCollectionStore.setState({ cards: [] }));
 
 function makeReport(overrides: Partial<BuildReport> = {}): BuildReport {
   return {
@@ -348,6 +353,7 @@ describe('BuildReportPanel', () => {
     });
 
     it('renders a bomb pick with its reason and chips (combo-style + owned)', () => {
+      own('Bomb Card');
       const { container } = render(
         <BuildReportPanel
           report={makeReport({
@@ -838,6 +844,42 @@ describe('claimedConflicts (E134 — proactive visibility)', () => {
     const note = container.querySelector('.build-report-conflict-note');
     expect(note?.textContent).toMatch(/committed to other decks/);
     expect(note?.textContent).not.toMatch(/Available only/);
+  });
+});
+
+describe('non-collection builds', () => {
+  const pick = (owned: boolean) => ({
+    name: 'Arbor Elf',
+    kind: 'cluster' as const,
+    liftedBy: ['Card A'],
+    lowSample: false,
+    owned,
+  });
+
+  it('marks an outside-EDHREC pick owned from the live collection, not the stamp', () => {
+    own('Arbor Elf');
+    render(
+      <BuildReportPanel
+        report={makeReport({ builtFromCollection: false, packagePicks: [pick(false)] })}
+      />
+    );
+    expect(screen.getByText('Owned')).toBeTruthy();
+    expect(screen.queryByText('Not owned')).toBeNull();
+  });
+
+  it('marks a stamped-owned pick unowned once it left the collection', () => {
+    render(<BuildReportPanel report={makeReport({ packagePicks: [pick(true)] })} />);
+    expect(screen.queryByText('Owned')).toBeNull();
+  });
+
+  it('keeps collection-mode advice out of the committed-copies note', () => {
+    const { container } = render(
+      <BuildReportPanel report={makeReport({ builtFromCollection: false, claimedConflicts: 4 })} />
+    );
+    const note = container.querySelector('.build-report-conflict-note');
+    expect(note?.textContent).toMatch(/4 cards you own are committed to other decks/);
+    expect(note?.textContent).toMatch(/Review shared cards/);
+    expect(note?.textContent).not.toMatch(/collection mode/i);
   });
 });
 

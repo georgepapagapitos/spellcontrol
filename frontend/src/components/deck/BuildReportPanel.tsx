@@ -7,6 +7,8 @@ import { ROLE_TITLES, type RoleKey } from '@/lib/deck-analysis/role-badges';
 import { comboPayoffScore } from '@/lib/deck-analysis/combo-payoff';
 import { VerdictBadge } from './VerdictBadge';
 import { OwnershipBadge } from './OwnershipBadge';
+import { useOwnedNames } from '@/lib/discover/use-owned-names';
+import { isOwnedName } from '@/lib/discover/browse-lists';
 import { ColorPip } from '@/components/shared/ManaSymbol';
 import { THIN_SAMPLE_FLOOR } from '@/components/shared/ThinDataNote';
 import { InfoTip } from '@/components/overlays/InfoTip';
@@ -140,6 +142,7 @@ export function BuildReportPanel({
   comboSeedContext?: ComboSeedContext | null;
 }): JSX.Element {
   const [justAdded, setJustAdded] = useState<Set<string>>(new Set());
+  const ownedNames = useOwnedNames();
 
   const renderAddButton = (name: string) => {
     if (!onAddCard) return null;
@@ -606,7 +609,9 @@ export function BuildReportPanel({
                     label={p.kind === 'bomb' ? 'Combo-style pairing' : 'Cluster pick'}
                   />
                   {p.lowSample && <VerdictBadge tone="warn" label="Low sample" />}
-                  <OwnershipBadge owned={p.owned} showUnowned />
+                  {/* Live, not the generation-time stamp: a build that skipped the
+                      collection stamped every pick unowned. */}
+                  <OwnershipBadge owned={isOwnedName(ownedNames, p.name)} showUnowned />
                 </span>
               </li>
             ))}
@@ -820,7 +825,7 @@ export function BuildReportPanel({
           {claimedConflicts} card{claimedConflicts === 1 ? ' you own is' : 's you own are'}{' '}
           committed to other decks. Open &ldquo;Review shared cards&rdquo; to pull a copy or swap in
           a free one.
-          {collectionStrategy !== 'available' && (
+          {builtFromCollection && collectionStrategy !== 'available' && (
             <> Set collection mode to &ldquo;Available only&rdquo; to skip them next time.</>
           )}
         </p>
