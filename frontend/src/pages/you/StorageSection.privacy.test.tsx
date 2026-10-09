@@ -19,6 +19,13 @@ describe('Storage > Privacy', () => {
       /Not linked to you or a deck/
     );
 
+    // E632: the hint names every action the beacon carries (suggestion-labels.ts
+    // SuggestionAction: shown → "see", accept → "take"/"cut", dismiss → "hide",
+    // undo → "undo"). It said "take, cut or undo", while a hide sends a dismiss.
+    const hint = document.getElementById(toggle.getAttribute('aria-describedby')!)!.textContent!;
+    for (const verb of ['see', 'take', 'cut', 'hide', 'undo'])
+      expect(hint).toMatch(new RegExp(`\\b${verb}\\b`));
+
     fireEvent.click(toggle);
     expect(toggle.getAttribute('aria-checked')).toBe('false');
     expect(isSuggestionLabelsEnabled()).toBe(false);

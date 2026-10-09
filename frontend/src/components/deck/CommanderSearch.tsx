@@ -890,14 +890,15 @@ export function CommanderSearch({
   // The popular list only takes colors, and its status line names them.
   const browsingPopular =
     activeSource === 'all' && current?.from === 'edhrec' && current.status === 'done';
-  const status =
-    loading && entries.length === 0
-      ? 'Searching…'
-      : activeSource === 'owned'
-        ? `${count(total)} you own${checking}`
-        : browsingPopular
-          ? `Popular ${comboName ? `${comboName} ` : ''}commanders on EDHREC${checking}`
-          : `${count(total)}${checking}`;
+  // While a search runs the last results stay up, dimmed; their count does not,
+  // or the line names the new query over a list that isn't its answer (E635).
+  const status = loading
+    ? 'Searching…'
+    : activeSource === 'owned'
+      ? `${count(total)} you own${checking}`
+      : browsingPopular
+        ? `Popular ${comboName ? `${comboName} ` : ''}commanders on EDHREC${checking}`
+        : `${count(total)}${checking}`;
 
   const relax = (r: Relaxation) => {
     if (r.id === 'source') setSource('all');

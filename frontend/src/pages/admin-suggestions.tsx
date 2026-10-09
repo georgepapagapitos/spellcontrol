@@ -12,7 +12,12 @@ function Region({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-const pct = (n: number, of: number) => (of > 0 ? `${Math.round((n / of) * 100)}%` : 'n/a');
+/** A rate that rounds to 0 while something was accepted reads "<1%", never "0%". */
+const pct = (n: number, of: number) => {
+  if (of <= 0) return 'n/a';
+  const rate = Math.round((n / of) * 100);
+  return rate === 0 && n > 0 ? '<1%' : `${rate}%`;
+};
 
 /**
  * Suggestion labels (E518) for the last 30 days: per surface, how many

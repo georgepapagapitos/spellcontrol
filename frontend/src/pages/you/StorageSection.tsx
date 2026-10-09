@@ -55,7 +55,7 @@ export function StorageSection() {
       <SettingsSection id="settings-privacy-title" title="Privacy">
         <SwitchRow
           label="Share suggestion feedback"
-          hint="Shares which suggestions you take, cut or undo, with the commander and cards. Not linked to you or a deck."
+          hint="Shares how many suggestions you see, and which ones you take, cut, hide or undo, with the commander and cards. Not linked to you or a deck."
           checked={shareLabels}
           onChange={(next) => {
             setSuggestionLabelsEnabled(next);
