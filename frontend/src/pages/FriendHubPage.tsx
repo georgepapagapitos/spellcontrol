@@ -1,7 +1,7 @@
 import '@/styles/social-shared.css';
 import './FriendHubPage.css';
 import { PageHeader } from '@/components/app-shell/PageHeader';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useSignInPath } from '@/lib/account/sign-in-path';
 import { BackLink } from '@/components/app-shell/BackLink';
@@ -94,7 +94,12 @@ export function FriendHubPage() {
   const tab: HubTab = counterId
     ? 'collection'
     : (HUB_TABS.find((t) => t === tabParam) ?? 'overview');
+  // Set once the viewer picks a tab. The gone-counter fallback below reads it:
+  // React Router's functional setSearchParams sees the render's params, not
+  // the latest, so it can't tell on its own that the viewer moved on.
+  const tabPicked = useRef(false);
   const setTab = (next: HubTab) => {
+    tabPicked.current = true;
     const params = new URLSearchParams(searchParams);
     params.delete('counter');
     if (next === 'overview') params.delete('tab');
@@ -353,8 +358,10 @@ export function FriendHubPage() {
   // seed: land on the Collection tab without it rather than keep waiting.
   const counterGone = !!counterId && offers !== null && !counterOffer;
   useEffect(() => {
-    if (!counterGone) return;
-    // Functional, so a tab the viewer picked meanwhile is not overwritten.
+    // A tab the viewer picked wins. The click's navigation runs as a
+    // transition, so offers landing in the same tick still render with
+    // ?counter= and would send them back to Collection.
+    if (!counterGone || tabPicked.current) return;
     setSearchParams(
       (prev) => {
         if (!prev.has('counter')) return prev;

@@ -10,7 +10,7 @@
  * No `@testing-library/jest-dom` in this repo (see other *.test.tsx files) —
  * assertions use plain vitest/chai matchers, not `.toBeInTheDocument()`.
  */
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PublicCard } from '@/lib/social/shared-types';
@@ -707,6 +707,33 @@ describe('FriendHubPage: the tab lives in ?tab=', () => {
     renderAt('/friends/friend-1?tab=nonsense');
     const tab = await screen.findByRole('tab', { name: 'Overview' });
     expect(tab.getAttribute('aria-selected')).toBe('true');
+  });
+
+  // A tab picked while the offers are still loading is the viewer's choice:
+  // the gone-counter fallback must not overwrite it when the offers land in
+  // the same tick. React Router runs the click's navigation as a transition,
+  // so the offers' render still saw ?counter= and the fallback sent the viewer
+  // back to Collection (CI flake on main, 2026-10-09).
+  it('a tab picked while the offers load survives a gone counter', async () => {
+    let resolveOffers!: (v: { offers: TradeOffer[]; truncated: boolean }) => void;
+    listTrades.mockReturnValue(
+      new Promise((resolve) => {
+        resolveOffers = resolve;
+      })
+    );
+    renderAt('/friends/friend-1?counter=gone&tab=decks');
+    await screen.findByRole('tab', { name: 'Collection' });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('tab', { name: 'Decks' }));
+      resolveOffers({ offers: [], truncated: false });
+    });
+    await waitFor(() => expect(where()).toBe('/friends/friend-1?tab=decks'));
+    // Give the fallback every chance to fire late.
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+    expect(where()).toBe('/friends/friend-1?tab=decks');
   });
 
   it('?counter= still forces a tab, and changing tab clears it', async () => {
