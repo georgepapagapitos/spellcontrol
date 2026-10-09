@@ -160,7 +160,7 @@ export function ImportParseSummary({
         <div className="import-deck-warning">
           <div className="import-deck-warning-title">
             {result.unresolvedNames.length} card{result.unresolvedNames.length === 1 ? '' : 's'}{' '}
-            couldn't be matched and will be skipped:
+            couldn't be found and will be skipped:
           </div>
           <ul className="import-deck-unresolved-list">
             {result.unresolvedNames.slice(0, 12).map((name) => (

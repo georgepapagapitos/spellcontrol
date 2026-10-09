@@ -177,7 +177,7 @@ function weakerFromLegacy(cut: Change, outName: string): string {
   const basics = reason.match(/too many (\w+) basics/i);
   if (basics) return `The deck has more ${basics[1].toLowerCase()} basics than it needs.`;
   if (/^off-package/i.test(reason))
-    return `${outName} has no co-play links with this deck's key cards.`;
+    return `${outName} isn't played alongside this deck's key cards.`;
   if (/low synergy/i.test(reason)) return `${outName} does little for this deck's plan.`;
   if (typeof cut.inclusion === 'number' && cut.inclusion < 1)
     return `${outName} is not played with this commander.`;

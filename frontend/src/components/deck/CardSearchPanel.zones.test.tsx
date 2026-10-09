@@ -85,7 +85,7 @@ describe('CardSearchPanel — out-of-deck zones accept any card', () => {
     renderPanel('main');
     // Counterspell (off-colour) + Black Lotus (banned). The commander is not
     // counted: it is excluded by name, not by the mainboard legality rules.
-    expect(screen.getByText(/2 cards you own match but cannot go in the mainboard/)).toBeTruthy();
+    expect(screen.getByText(/2 cards you own match but can't go in the mainboard/)).toBeTruthy();
     expect(screen.queryByText('Counterspell')).toBeNull();
   });
 
@@ -106,7 +106,7 @@ describe('CardSearchPanel — out-of-deck zones accept any card', () => {
 
   it('shows no such note in the out-of-deck zones, where nothing is held back', () => {
     renderPanel('side');
-    expect(screen.queryByText(/cannot go in the mainboard/)).toBeNull();
+    expect(screen.queryByText(/can't go in the mainboard/)).toBeNull();
   });
 
   it('lifts all three on Sideboard — they are legitimate swap-pile cards', () => {

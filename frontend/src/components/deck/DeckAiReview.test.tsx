@@ -158,7 +158,7 @@ describe('AI sources contract (T112)', () => {
     const fetchMock = globalThis.fetch as unknown as ReturnType<typeof vi.fn>;
     const call = fetchMock.mock.calls.find((c) => c[0] === '/api/ai/deck-review')!;
     expect(JSON.parse((call[1] as RequestInit).body as string).scope).toBe('owned');
-    expect(screen.queryByText(/have changed since this was written/)).toBeNull();
+    expect(screen.queryByText(/changed since this reading/)).toBeNull();
 
     // Same list, different scope: the reading is now stale, like an edit.
     rerender(
@@ -173,7 +173,7 @@ describe('AI sources contract (T112)', () => {
         />
       </MemoryRouter>
     );
-    expect(await screen.findByText(/have changed since this was written/)).toBeTruthy();
+    expect(await screen.findByText(/changed since this reading/)).toBeTruthy();
   });
 });
 

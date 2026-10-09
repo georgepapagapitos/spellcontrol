@@ -362,7 +362,7 @@ export function buildLandCountNote(params: {
     params.effectiveNonBasicLandCount > params.nonBasicLandCount
       ? ` Nonbasic land budget raised to ${params.effectiveNonBasicLandCount} to match.`
       : '';
-  return `Auto-tuned to ${params.resolvedLandCount} lands ${archetypeText}: ${params.edhrecRampCount} ramp slots, avg CMC ${params.finalAvgCmc.toFixed(1)}.${deliveredClause}${nonBasicClause} Set a count under Customize to override.`;
+  return `${params.resolvedLandCount} lands ${archetypeText}: ${params.edhrecRampCount} ramp slots, average mana value ${params.finalAvgCmc.toFixed(1)}.${deliveredClause}${nonBasicClause} Set a count under Customize to change it.`;
 }
 
 /**
@@ -460,7 +460,7 @@ export function buildPoolExhaustionNote(params: {
       ? 'your Scryfall filter'
       : 'your budget and card limits';
   const spellWord = params.finalNonLandCount === 1 ? 'spell' : 'spells';
-  return `Ran out of cards after ${params.finalNonLandCount} ${spellWord}. ${excess} slot${excess === 1 ? ' is a basic land' : 's are basic lands'} because ${cause} left too few cards to choose from.`;
+  return `Ran out of cards after ${params.finalNonLandCount} ${spellWord}. ${excess} slot${excess === 1 ? ' is a basic land' : 's are basic lands'} because ${cause} left too few options.`;
 }
 
 /**
@@ -781,7 +781,7 @@ export function buildQualifiedPayoffGateNote(overflowCount: number): string | un
  */
 export function buildComboAuditBracketBlockNote(blockCount: number): string | undefined {
   if (blockCount <= 0) return undefined;
-  return `${blockCount} combo-audit swap${blockCount === 1 ? '' : 's'} skipped to stay within your target bracket`;
+  return `${blockCount} combo swap${blockCount === 1 ? '' : 's'} skipped to stay in your target bracket`;
 }
 
 /**
@@ -1081,7 +1081,7 @@ export function assembleCardProvenance(params: {
   for (const card of params.nonLandCards) {
     if (card.isMustInclude && card.mustIncludeSource === 'dial') {
       cardProvenance[card.name] =
-        params.seedReasons?.get(card.name) ?? 'Seated by the Staples/Synergy setting';
+        params.seedReasons?.get(card.name) ?? 'Placed by your Staples/Synergy setting';
     } else if (card.isMustInclude) {
       cardProvenance[card.name] = 'You required this card';
     } else if (params.comboFloorAdd && params.comboFloorAdd.name === card.name) {
@@ -1565,7 +1565,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           logger.warn(
             `[DeckGen] Must-include card "${name}" skipped (rarity "${card.rarity}" exceeds max "${maxRarity}")`
           );
-          noteSkip(name, `rarity "${card.rarity}" is over your max rarity`);
+          noteSkip(name, `rarity ${card.rarity} is over your max rarity`);
           continue;
         }
       }

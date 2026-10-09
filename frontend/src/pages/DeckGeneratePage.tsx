@@ -390,14 +390,14 @@ export function DeckGeneratePage() {
           : 'Generate deck';
   const generateHint =
     genMode === 'art-theme'
-      ? 'Builds a full 100 where every card depicts your motif.'
+      ? 'A full 100 where every card depicts your motif.'
       : genMode === 'historical'
-        ? `Builds a full 100 from cards printed through ${customization.historicalYear}.`
+        ? `A full 100 from cards printed through ${customization.historicalYear}.`
         : genMode === 'oracle-role'
-          ? 'Builds a full 100 chosen by card function, not crowd data.'
+          ? 'A full 100 chosen by card function, not crowd data.'
           : isPdh
-            ? 'Builds a full 100 from Pauper Commander–legal cards, chosen by card function. EDHREC has no PDH data.'
-            : 'Generate uses EDHREC data to draft a full 100.';
+            ? 'A full 100 from Pauper Commander–legal cards, chosen by card function. EDHREC has no PDH data.'
+            : 'A full 100 drafted from EDHREC data.';
 
   // The bar's one-line recap, so the choices made above stay in view while
   // the page scrolls: who, how, the first theme, the bracket and who sees it.
@@ -592,7 +592,7 @@ export function DeckGeneratePage() {
               {ineligible
                 ? ineligible.message
                 : colorChooser && !colorReady
-                  ? `Choose ${colorChooser.name.split(' // ')[0]}'s color above to build.`
+                  ? `Choose ${colorChooser.name.split(' // ')[0]}'s color to build.`
                   : summary}
             </p>
             {error && (

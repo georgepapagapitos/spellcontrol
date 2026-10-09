@@ -132,12 +132,12 @@ describe('buildLandCountNote', () => {
       edhrecRampCount: 8,
       finalAvgCmc: 3.4,
     });
-    expect(note).toContain('Auto-tuned to 36 lands');
+    expect(note).toContain('36 lands');
     expect(note).toContain('Delivered 40 after later adjustments');
   });
 
   it('still reconciles curve stats to FINAL state, not auto-tune-time values', () => {
-    // avg CMC must reflect the shipped deck even when composed late — only the
+    // average mana value must reflect the shipped deck even when composed late — only the
     // "Auto-tuned to N" headline is pinned to the tune's own resolved output.
     const note = buildLandCountNote({
       resolvedLandCount: 36,
@@ -147,8 +147,8 @@ describe('buildLandCountNote', () => {
       edhrecRampCount: 8,
       finalAvgCmc: 3.4, // final curve, not the 3.0 known at decision time
     });
-    expect(note).toContain('Auto-tuned to 36 lands');
-    expect(note).toContain('avg CMC 3.4');
+    expect(note).toContain('36 lands');
+    expect(note).toContain('average mana value 3.4');
     expect(note).toContain('Delivered 35 after later adjustments');
   });
 
@@ -161,7 +161,7 @@ describe('buildLandCountNote', () => {
       edhrecRampCount: 9,
       finalAvgCmc: 3,
     });
-    expect(note).toContain('avg CMC 3.0');
+    expect(note).toContain('average mana value 3.0');
   });
 
   // E100: the nonbasic-budget scaling (computeEffectiveNonBasicLandCount) is
@@ -220,7 +220,7 @@ describe('buildLandCountNote', () => {
       finalAvgCmc: 3.4,
       deliveredByPoolExhaustion: true,
     });
-    expect(note).toContain('Auto-tuned to 36 lands');
+    expect(note).toContain('36 lands');
     expect(note).not.toContain('Delivered');
     expect(note).not.toContain('post-tune deck adjustments');
   });
@@ -289,7 +289,7 @@ describe('buildPoolExhaustionNote', () => {
         hasCollectionNames: false,
       })
     ).toBe(
-      'Ran out of cards after 60 spells. 1 slot is a basic land because your budget and card limits left too few cards to choose from.'
+      'Ran out of cards after 60 spells. 1 slot is a basic land because your budget and card limits left too few options.'
     );
   });
 
@@ -984,13 +984,13 @@ describe('buildComboAuditBracketBlockNote (E104)', () => {
 
   it('names the count with plural phrasing', () => {
     expect(buildComboAuditBracketBlockNote(2)).toBe(
-      '2 combo-audit swaps skipped to stay within your target bracket'
+      '2 combo swaps skipped to stay in your target bracket'
     );
   });
 
   it('uses singular phrasing for exactly one block', () => {
     expect(buildComboAuditBracketBlockNote(1)).toBe(
-      '1 combo-audit swap skipped to stay within your target bracket'
+      '1 combo swap skipped to stay in your target bracket'
     );
   });
 });

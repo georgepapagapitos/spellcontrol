@@ -97,7 +97,7 @@ describe('DeckDisplay tag lens', () => {
   it('labels the derived lens "Roles", not "Category"', () => {
     localStorage.setItem('mtg-decks-group-by', 'category');
     const { container } = renderDeck(deck());
-    expect(container.textContent).toContain('Each card is filed under one role');
+    expect(container.textContent).toContain('Each card counts once, under its main role');
   });
 
   it('collapses a section and hides only its rows, keeping the header readable', () => {

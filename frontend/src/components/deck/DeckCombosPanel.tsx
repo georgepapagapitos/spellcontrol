@@ -361,8 +361,8 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
                   {oneAwayCount > 0 && (
                     <p className="deck-combos-empty-secondary">
                       {oneAwayCount === 1
-                        ? '1 combo is one card away. Check the next tab.'
-                        : `${oneAwayCount} combos are one card away. Check the next tab.`}
+                        ? '1 combo is one card away. Open the One card away tab.'
+                        : `${oneAwayCount} combos are one card away. Open the One card away tab.`}
                     </p>
                   )}
                   {deckEntered && oneAwayCount === 0 && (

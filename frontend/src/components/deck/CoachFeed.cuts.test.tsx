@@ -205,7 +205,7 @@ describe('a deck the pairing cannot serve', () => {
     expect(rowNames(container).sort()).toEqual(
       ['Dread Return', 'Skull Prophet', 'Strionic Resonator'].sort()
     );
-    expect(screen.getByText(/can't judge swaps for this deck right now/)).toBeTruthy();
+    expect(screen.getByText(/No replacements for these cuts right now/)).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
   });
 

@@ -282,7 +282,7 @@ export function DeckAiRefine({
     // applies, so the applied Change carries a neutral engine reason instead
     // of misattributing the model's claim to a card it never evaluated.
     const reason = rerollIndex.has(tweak.add)
-      ? `Engine alternative, same role as ${tweak.add}.`
+      ? `Coach's alternative, same role as ${tweak.add}.`
       : tweak.why;
     // `name` is the card coming IN and `inName` the one being cut — the
     // direction `fromSwap` and the page's apply handler both use.
@@ -521,7 +521,7 @@ export function DeckAiRefine({
                       </div>
                       {rerolled ? (
                         <p className="deck-ai-tweak-why deck-ai-tweak-why--engine">
-                          Engine alternative, same role as {t.add}.{' '}
+                          Coach&apos;s alternative, same role as {t.add}.{' '}
                           <button
                             type="button"
                             className="deck-ai-tweak-reset"
@@ -626,9 +626,9 @@ export function DeckAiRefine({
         <div className="deck-ai-idle">
           <p className="deck-ai-idle-text">
             {isReplace
-              ? `Judges whether ${incoming} earns a slot, and what to cut if it does.`
+              ? `Find out if ${incoming} earns a slot and what to cut for it.`
               : isSuggestions
-                ? `Picks the few of these ${pool.length} suggestions worth making${
+                ? `Narrow these ${pool.length} suggestions to the few worth making${
                     fromCopy ? `,${fromCopy}` : ''
                   }.`
                 : pool.length === 0
@@ -637,7 +637,7 @@ export function DeckAiRefine({
                        built": since #1673 the Coach mount is no longer gated to
                        generated decks, and this same string renders on
                        hand-built ones, where a generator never existed. */
-                    `Suggests a few changes${fromCopy} from the ${pool.length} candidates the coach found.`}
+                    `Get a few swaps${fromCopy} from the ${pool.length} candidates Coach found.`}
           </p>
           <div className="deck-ai-idle-actions">
             <Button variant="primary" onClick={run} disabled={remaining === 0 || pool.length === 0}>

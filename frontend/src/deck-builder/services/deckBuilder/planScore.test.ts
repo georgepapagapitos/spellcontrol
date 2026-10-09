@@ -269,7 +269,7 @@ describe('computePlanScore', () => {
 // A 60-69 deck read "Needs work" over "Your deck is solid, with clear room for
 // improvement." The headline refines the band and must never contradict it.
 describe('headlineFor agrees with bandFor at every score', () => {
-  const praise = ["Your deck's dialed in.", 'Your deck plays well, with a little room to grow.'];
+  const praise = ["Your deck's dialed in.", 'Plays well. A few cards need tuning.'];
   it.each(Array.from({ length: 101 }, (_, s) => s))('score %i', (score) => {
     const praised = praise.includes(headlineFor(score));
     expect(praised).toBe(bandFor(score) === 'Dialed in');

@@ -245,7 +245,7 @@ describe('DeckCustomizer — collection controls', () => {
 describe('DeckCustomizer — Staples <-> Synergy dial (always visible)', () => {
   it('shows Balanced with its description at the 0.5 default', () => {
     render(<DeckCustomizer customization={baseCustomization()} update={vi.fn()} />);
-    expect(screen.getByLabelText(/Staples to Synergy dial/)).toBeTruthy();
+    expect(screen.getByLabelText(/Staples to synergy/)).toBeTruthy();
     expect(screen.getAllByText('Balanced').length).toBeGreaterThan(0);
     expect(screen.getByText(/even mix of proven staples/)).toBeTruthy();
   });
@@ -265,7 +265,7 @@ describe('DeckCustomizer — Staples <-> Synergy dial (always visible)', () => {
   it('patches brewLevel when the slider changes', () => {
     const update = vi.fn();
     render(<DeckCustomizer customization={baseCustomization()} update={update} />);
-    fireEvent.change(screen.getByLabelText(/Staples to Synergy dial/), {
+    fireEvent.change(screen.getByLabelText(/Staples to synergy/), {
       target: { value: '0.75' },
     });
     expect(update).toHaveBeenCalledWith({ brewLevel: 0.75 });
@@ -599,14 +599,14 @@ describe('DeckCustomizer — Target Bracket (Exhibition expectations)', () => {
     render(
       <DeckCustomizer customization={baseCustomization({ targetBracket: 3 })} update={vi.fn()} />
     );
-    expect(screen.queryByText(/themed-build intent/)).toBeNull();
+    expect(screen.queryByText(/themed build, not a power level/)).toBeNull();
   });
 
   it('explains that Exhibition never reads below Core once bracket 1 is picked', () => {
     render(
       <DeckCustomizer customization={baseCustomization({ targetBracket: 1 })} update={vi.fn()} />
     );
-    expect(screen.getByText(/themed-build intent/)).toBeTruthy();
-    expect(screen.getByText(/estimate at Core \(2\) or higher/)).toBeTruthy();
+    expect(screen.getByText(/themed build, not a power level/)).toBeTruthy();
+    expect(screen.getByText(/estimate at Core or higher/)).toBeTruthy();
   });
 });

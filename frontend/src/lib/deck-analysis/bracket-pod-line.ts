@@ -23,7 +23,7 @@ export function bracketPodLine(
   const parts: string[] = [];
 
   if (stated != null && stated !== est.bracket) {
-    parts.push(`I play this at Bracket ${stated}; the app estimates ${est.bracket}.`);
+    parts.push(`I play this at Bracket ${stated}. Estimate: ${est.bracket}.`);
   } else {
     const at = stated ?? est.bracket;
     parts.push(

@@ -458,12 +458,12 @@ describe('the words of a cut and its replacement', () => {
     expect(basics).toMatch(/^The deck has more blue basics than it needs\./);
     expect(
       cutSwapReason(
-        cut('Spellbook', 'Off-package: no co-play links with your key cards'),
+        cut('Spellbook', 'Off-package: not played with your key cards'),
         'Spellbook',
         'Cultivate',
         []
       )
-    ).toMatch(/^Spellbook has no co-play links with this deck's key cards\./);
+    ).toMatch(/^Spellbook isn't played alongside this deck's key cards\./);
   });
 
   it('words each repaired rule', () => {

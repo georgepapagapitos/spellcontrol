@@ -45,9 +45,9 @@ export function bandFor(score: number): string {
 // before this change read correctly without a re-analysis.
 export function headlineFor(score: number): string {
   if (score >= 90) return "Your deck's dialed in.";
-  if (score >= 70) return 'Your deck plays well, with a little room to grow.';
-  if (score >= 50) return 'Your deck has the foundation. It needs some tuning.';
-  return 'Your deck is missing key pieces of its plan.';
+  if (score >= 70) return 'Plays well. A few cards need tuning.';
+  if (score >= 50) return 'The base is there. It needs tuning.';
+  return 'Key pieces of the plan are missing.';
 }
 
 // ── Shared ratio scoring ────────────────────────────────────────────────────

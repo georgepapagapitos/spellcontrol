@@ -495,7 +495,7 @@ export function UpgradePlanSheet({
           {
             name: plan.nextOverBudget.change.name,
             price: plan.nextOverBudget.cost,
-            why: `Next pick. ${formatMoney(plan.nextOverBudget.cost - left)} over what's left.`,
+            why: `Next best pick. ${formatMoney(plan.nextOverBudget.cost - left)} over what's left.`,
           },
         ]
       : []),
@@ -646,7 +646,7 @@ export function UpgradePlanSheet({
           return moved?.cutName
             ? `Kept ${lastEvent.name}. ${moved.change.name} replaces ${moved.cutName} instead.`
             : lastEvent.freed
-              ? `Kept ${lastEvent.name}. ${lastEvent.freed} had nowhere else to go.`
+              ? `Kept ${lastEvent.name}. ${lastEvent.freed} has no other slot.`
               : `Kept ${lastEvent.name}.`;
         })()
       : null;

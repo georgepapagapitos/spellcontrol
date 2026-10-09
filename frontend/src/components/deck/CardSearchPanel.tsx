@@ -1258,7 +1258,7 @@ function CollectionResults({
   const tagNote =
     wantsTags && tagsError ? (
       <p className="card-search-tag-note" role="status">
-        Card-tag data unavailable. otag: filters are ignored.{' '}
+        Couldn&apos;t load card tags. otag: filters are ignored.{' '}
         <button type="button" className="card-search-fit" onClick={() => void ensureCardTags()}>
           Retry
         </button>
@@ -1276,8 +1276,8 @@ function CollectionResults({
     blocked.length === 0 ? null : (
       <p className="card-search-tag-note" role="status">
         {blocked.length === 1
-          ? '1 card you own matches but cannot go in the mainboard.'
-          : `${blocked.length} cards you own match but cannot go in the mainboard.`}{' '}
+          ? "1 card you own matches but can't go in the mainboard."
+          : `${blocked.length} cards you own match but can't go in the mainboard.`}{' '}
         <button
           type="button"
           className="card-search-fit"

@@ -30,10 +30,10 @@ function FewAxesFallback({ axes }: { axes: AxisSummary[] }): JSX.Element {
               </Chip>
             ))}
           </div>
-          <p className="playstyle-radar-few-msg">Not enough synergy signal for a shape yet.</p>
+          <p className="playstyle-radar-few-msg">Not enough synergy yet to draw a shape.</p>
         </>
       ) : (
-        <p className="playstyle-radar-few-msg">Not enough synergy signal for a shape yet.</p>
+        <p className="playstyle-radar-few-msg">Not enough synergy yet to draw a shape.</p>
       )}
     </div>
   );
@@ -91,7 +91,7 @@ export function PlaystyleRadar({ cards }: { cards: ScryfallCard[] }): JSX.Elemen
       <div className="playstyle-radar-root">
         <FewAxesFallback axes={axes} />
         <p className="playstyle-radar-caption">
-          Engine balance, not power. Tap an axis to see its cards.{' '}
+          Shows engine balance. Tap an axis to see its cards.{' '}
           <InfoTip
             label="playstyle radar"
             text="Producers feed a resource; payoffs spend it."
@@ -213,7 +213,7 @@ export function PlaystyleRadar({ cards }: { cards: ScryfallCard[] }): JSX.Elemen
 
       {/* ── Honesty caption ── */}
       <p className="playstyle-radar-caption">
-        Engine balance, not power. Tap an axis to see its cards.{' '}
+        Shows engine balance. Tap an axis to see its cards.{' '}
         <InfoTip label="playstyle radar" text="Producers feed a resource; payoffs spend it." wide />
       </p>
 

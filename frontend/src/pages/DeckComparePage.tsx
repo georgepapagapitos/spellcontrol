@@ -562,17 +562,13 @@ function CompareBody({
               <>
                 <span className="info-tip-lead">How to read this</span>
                 <ul className="info-tip-list">
-                  <li>
-                    Each column is a mana cost; bar height is how many cards cost that much. Lands
-                    aren&apos;t counted.
-                  </li>
+                  <li>Bar height is how many cards cost that much. Lands aren&apos;t counted.</li>
                   <li>
                     Below, those cards roll up into <strong>Early</strong> (0–2),{' '}
                     <strong>Mid</strong> (3–4) and <strong>Late</strong> (5+).
                   </li>
                   <li>
-                    The small word is how close that phase sits to a healthy Commander curve. A
-                    guideline, not a verdict.
+                    The small word shows how close that phase is to a healthy Commander curve.
                   </li>
                 </ul>
               </>
@@ -675,11 +671,11 @@ function CompareBody({
                 <span className="info-tip-lead">Power brackets</span>
                 <ul className="info-tip-list">
                   <li>
-                    Commander decks rate <strong>1–5</strong> by power. Bracket 1 is casual, Bracket
-                    5 is cutthroat (cEDH).
+                    Brackets run <strong>1–5</strong> by power. Bracket 1 is casual, Bracket 5 is
+                    cEDH.
                   </li>
                   <li>
-                    <strong>Bracket</strong> is what the owner states the deck plays at;{' '}
+                    <strong>Bracket</strong> is what the owner says the deck plays at.{' '}
                     <strong>Auto</strong> means none is stated.
                   </li>
                   <li>

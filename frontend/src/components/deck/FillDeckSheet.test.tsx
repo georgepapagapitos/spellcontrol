@@ -106,7 +106,7 @@ describe('FillDeckSheet', () => {
     });
     renderSheet();
     fireEvent.click(screen.getByRole('button', { name: 'Find 3 cards' }));
-    await waitFor(() => screen.getByText(/Left out for this deck: Mana Echoes\./));
+    await waitFor(() => screen.getByText(/Left out: Mana Echoes\./));
     expect(screen.getByText('1 slot stays open.')).toBeTruthy();
     expect(screen.queryByText(/card pool ran out/)).toBeNull();
   });

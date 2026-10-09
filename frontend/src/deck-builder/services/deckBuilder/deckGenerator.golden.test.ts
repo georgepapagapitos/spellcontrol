@@ -1311,7 +1311,7 @@ describe('generateDeck — land-squeeze reconciliation (E88, iter-7 Slice B)', (
     try {
       const deck = await generateDeck(ctx);
       expect(deck.landCountNote).toBeDefined();
-      expect(deck.landCountNote).toMatch(/^Auto-tuned to 37 lands/);
+      expect(deck.landCountNote).toMatch(/^37 lands/);
     } finally {
       clearGenerationCache();
     }

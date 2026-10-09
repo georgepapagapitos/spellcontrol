@@ -1369,7 +1369,7 @@ export function DeckDisplay({
             {confirmBulkRemove && selection && onBulkRemove && (
               <ConfirmDialog
                 title={`Remove ${selection.keys.size} ${selection.keys.size === 1 ? 'card' : 'cards'}?`}
-                body="Removes the selected cards. You can undo this from history."
+                body="You can undo this from history."
                 confirmLabel="Remove"
                 danger
                 onConfirm={() => {
@@ -1427,7 +1427,7 @@ export function DeckDisplay({
                     Removal; this line names the rule so the headings read right
                     (playtest batch 6, E330). */}
                 {groupBy === 'category' && visibleGroups.length > 0 && (
-                  <p className="deck-group-caption">Each card is filed under one role.</p>
+                  <p className="deck-group-caption">Each card counts once, under its main role.</p>
                 )}
                 {/* The tag lens partitions too, so it gets the same reconciling
                     line. It also carries the tag manager: renaming or removing
@@ -1627,7 +1627,7 @@ export function DeckDisplay({
                             Search Scryfall
                           </span>
                           <span className="deck-display-scryfall-trigger-sub">
-                            for "{search.trim()}", add a card not in this deck
+                            for &ldquo;{search.trim()}&rdquo;, add a card not in this deck
                           </span>
                         </span>
                       </button>

@@ -28,12 +28,12 @@ export function DeckAnalysisSkeleton({ status, onRetry }: DeckAnalysisSkeletonPr
     return (
       <div className="deck-analysis-skeleton is-error" role="status" aria-live="polite">
         <p className="deck-analysis-skeleton-eyebrow">
-          {status === 'edhrec-missing' ? 'Some insight unavailable' : 'Analysis unavailable'}
+          {status === 'edhrec-missing' ? 'Some analysis is missing' : 'Analysis unavailable'}
         </p>
         <p className="deck-analysis-skeleton-error-text">
           {status === 'edhrec-missing'
-            ? "Couldn't reach EDHREC for this. The bracket and win conditions are current; suggestions that need EDHREC aren't."
-            : "Couldn't analyze this deck. EDHREC may be unreachable, or this commander isn't indexed yet."}
+            ? "Couldn't reach EDHREC. Bracket and win conditions are current. EDHREC suggestions are missing."
+            : "Couldn't analyze this deck. Try again."}
           {onRetry && (
             <>
               {' '}

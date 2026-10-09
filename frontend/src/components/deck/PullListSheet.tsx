@@ -116,7 +116,7 @@ export function PullListSheet({
     groups.length === 0
       ? 'Nothing to pull yet.'
       : totalQty === 0
-        ? 'Nothing to pull. No free copies of these cards are sitting in your binders.'
+        ? 'Nothing to pull. No free copies in your binders.'
         : pulledQty === totalQty
           ? `All ${totalQty} pulled.`
           : `${pulledQty} of ${totalQty} pulled.`;

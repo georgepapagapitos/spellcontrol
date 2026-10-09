@@ -208,7 +208,7 @@ export function DeckCustomizer({ customization, update }: DeckCustomizerProps) {
                 <CardListGroup
                   hint={
                     poolFetcher
-                      ? `These cards go in first. While "Use my collection" is on, search is limited to ${
+                      ? `These cards go in first. While “Use my collection” is on, search is limited to ${
                           customization.collectionStrategy === 'available'
                             ? 'free copies in your collection'
                             : 'cards you own'
@@ -450,7 +450,7 @@ function BrewGroup({ customization, update }: DeckCustomizerProps) {
             max={1}
             step={0.25}
             value={value}
-            aria-label="Staples to Synergy dial: how much to build from EDHREC's most-played cards or from this commander's high-synergy cards"
+            aria-label="Staples to synergy"
             aria-valuetext={label}
             onChange={(e) => update({ brewLevel: Number(e.target.value) })}
             style={{
@@ -490,7 +490,7 @@ function CollectionGroup({ customization, update }: DeckCustomizerProps) {
         : strategy === 'available'
           ? 'Uses only copies not committed to other decks.'
           : strategy === 'prefer'
-            ? 'Leans on cards you own. Nothing is excluded.'
+            ? 'Leans on cards you own.'
             : strategy === 'exclude'
               ? 'Leaves out every card you own, except basic lands and your must-includes.'
               : 'Uses only cards you own.'
@@ -714,7 +714,9 @@ function ManaPhilosophyGroup({ customization, update }: DeckCustomizerProps) {
         <span className="collection-group-text">
           <span className="collection-group-title">Blend land priorities</span>
           <span className="collection-group-sub">
-            {active ? 'Favoring the priorities below.' : 'Off. Lands use the default order.'}
+            {active
+              ? 'On. Lands favor the priorities you pick.'
+              : 'Off. Lands use the default order.'}
           </span>
         </span>
       </label>
@@ -816,7 +818,7 @@ function BudgetGroup({ customization, update }: DeckCustomizerProps) {
         />
       </Field>
       <SwitchRow
-        label="Owned cards do not count toward budget"
+        label="Owned cards don't count toward budget"
         checked={customization.ignoreOwnedBudget}
         onChange={(v) => update({ ignoreOwnedBudget: v })}
       />

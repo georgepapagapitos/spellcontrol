@@ -56,7 +56,7 @@ const {
 } = SOFT_SCORE;
 
 const HARD_FLOOR_TIP =
-  'A hard floor is the lowest bracket the deck can be. Game Changers, mass land denial, infinite combos, stax and extra turns each set one. Cut those cards to go lower.';
+  'A hard floor is the lowest bracket this deck can be. Cut the cards that set it to go lower.';
 // One consolidated explainer for the power signal — intro + every signal —
 // so the four rows don't each need their own info icon (which read as clutter).
 const SOFT_SCORE_TIP: ReactNode = (
@@ -599,8 +599,8 @@ export function BracketBreakdown({
           <div className="bracket-breakdown-loops">
             <p className="bracket-breakdown-footnote">
               {loops.length === 1
-                ? 'This combo sets no floor: Commander Spellbook rates it fine at Bracket 2, or it takes more than two cards. It adds to the power signal.'
-                : `These ${loops.length} combos set no floor: Commander Spellbook rates them fine at Bracket 2, or they take more than two cards. They add to the power signal.`}
+                ? 'Sets no floor: Commander Spellbook rates it fine at Bracket 2, or it needs more than two cards. Adds to the power signal.'
+                : `These ${loops.length} combos set no floor: Commander Spellbook rates them fine at Bracket 2, or they need more than two cards. They add to the power signal.`}
             </p>
             <ul className="bracket-breakdown-loop-list">
               {loops.map((cards) => (

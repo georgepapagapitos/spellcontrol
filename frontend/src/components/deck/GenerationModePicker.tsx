@@ -120,8 +120,8 @@ export function GenerationModePicker({
           </h2>
           {!online && (
             <p className="gen-mode-offline" role="status">
-              <WifiOff width={14} height={14} strokeWidth={1.8} aria-hidden /> The Scryfall-powered
-              modes need a connection.
+              <WifiOff width={14} height={14} strokeWidth={1.8} aria-hidden /> These modes need a
+              connection.
             </p>
           )}
 
@@ -205,7 +205,7 @@ function OracleConfig({ customization, update }: Pick<Props, 'customization' | '
   return (
     <>
       <p className="gen-mode-explain">
-        Picks the strongest cards for each <strong>role</strong> in your colors. Works for
+        Picks the strongest card for each <strong>role</strong> in your colors. Use it for
         commanders EDHREC barely covers.
       </p>
       <label className="gen-mode-toggle">
@@ -299,8 +299,8 @@ function HistoricalConfig({
   return (
     <>
       <p className="gen-mode-explain">
-        Build with only cards printed <strong>on or before {year}</strong>. Niche colors may reach
-        forward a few years to find enough cards.
+        Build with only cards printed <strong>on or before {year}</strong>. If your colors run
+        short, the cutoff moves forward a few years.
       </p>
       {/* Native radios: exclusivity, arrow-key nav and one group tab stop
           come free. The slider below can land on a year with no preset,

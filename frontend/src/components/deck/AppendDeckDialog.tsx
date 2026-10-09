@@ -192,8 +192,8 @@ export function AppendDeckDialog({ deck, onClose }: Props) {
         {step === 'input' && (
           <>
             <p className="import-deck-hint">
-              Paste a decklist, one card per line. A <strong>Sideboard</strong> header routes to
-              sideboard, <strong>Maybeboard</strong> to Considering.
+              Paste a decklist, one card per line. Cards under a <strong>Sideboard</strong> header
+              go to the sideboard, <strong>Maybeboard</strong> to Considering.
             </p>
             <textarea
               className="paste-textarea import-textarea"
@@ -267,7 +267,7 @@ export function AppendDeckDialog({ deck, onClose }: Props) {
                 {plan.addedCards.some((c) => c.card.name === decision.pasted.name)
                   ? `${decision.pasted.name} was added as a regular card.`
                   : `${decision.pasted.name} is already in the deck.`}{' '}
-                Use its row's "Make commander" to swap.
+                Use its row&apos;s &ldquo;Make commander&rdquo; to swap.
               </div>
             )}
 

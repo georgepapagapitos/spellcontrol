@@ -226,9 +226,7 @@ export function BulkEditDeckDialog({ deck, onClose, mode = 'edit' }: Props) {
               {mode === 'resync' ? (
                 <>Paste the updated list from Moxfield, Archidekt, or anywhere else.</>
               ) : (
-                <>
-                  Edit the whole decklist as <strong>qty name</strong> lines, one per row.
-                </>
+                <>One card per line, like &ldquo;1 Sol Ring&rdquo;.</>
               )}
             </p>
             {mode === 'resync' && deck.lastSyncedFrom && (
@@ -239,7 +237,7 @@ export function BulkEditDeckDialog({ deck, onClose, mode = 'edit' }: Props) {
             {divergedSinceSync && (
               <div className="import-deck-warning" role="alert">
                 <div className="import-deck-warning-title">Edited since the last sync</div>
-                Edits you made here since then show as removed if your paste doesn't include them.
+                Cards you added here since then drop out unless your paste includes them.
               </div>
             )}
             {fetchError && (
@@ -305,7 +303,7 @@ export function BulkEditDeckDialog({ deck, onClose, mode = 'edit' }: Props) {
               <p className="append-deck-offline" role="status">
                 <WifiOff width={14} height={14} strokeWidth={1.8} aria-hidden />
                 You're offline. {offlineNames.length} new card
-                {offlineNames.length === 1 ? '' : 's'} couldn't be resolved and will be skipped.
+                {offlineNames.length === 1 ? '' : 's'} couldn't be found and will be skipped.
               </p>
             )}
 
@@ -330,7 +328,7 @@ export function BulkEditDeckDialog({ deck, onClose, mode = 'edit' }: Props) {
               <div className="import-deck-warning">
                 <div className="import-deck-warning-title">
                   {unresolvedGenuine.length} card{unresolvedGenuine.length === 1 ? '' : 's'}{' '}
-                  couldn't be matched and will be skipped:
+                  couldn't be found and will be skipped:
                 </div>
                 <ul className="import-deck-unresolved-list">
                   {unresolvedGenuine.map((name) => (
@@ -344,7 +342,7 @@ export function BulkEditDeckDialog({ deck, onClose, mode = 'edit' }: Props) {
               <div className="import-deck-warning">
                 <div className="import-deck-warning-title">
                   {plan.malformedLines.length} line{plan.malformedLines.length === 1 ? '' : 's'}{' '}
-                  couldn't be read and will be ignored:
+                  couldn't be read and will be skipped:
                 </div>
                 <ul className="import-deck-unresolved-list">
                   {plan.malformedLines.map((line, i) => (

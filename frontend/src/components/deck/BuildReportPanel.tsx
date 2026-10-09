@@ -31,7 +31,7 @@ function humanizeGenerationMode(mode: GenerationMode, detail?: string): string {
     case 'oracle-role':
       return detail === 'permanents only'
         ? 'Built by card function, permanents only'
-        : 'Built by card function (Scryfall oracle tags)';
+        : 'Built by card function';
     case 'art-theme': {
       const motif = (detail ?? '').replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
       return motif ? `Art theme: every card depicts ${motif}` : 'Art theme';
@@ -818,10 +818,10 @@ export function BuildReportPanel({
       {claimedConflicts != null && claimedConflicts > 0 && (
         <p className="build-report-conflict-note">
           {claimedConflicts} card{claimedConflicts === 1 ? ' you own is' : 's you own are'}{' '}
-          committed to other decks. Open "Review shared cards" to pull a copy in, or swap in free
-          alternatives.
+          committed to other decks. Open &ldquo;Review shared cards&rdquo; to pull a copy or swap in
+          a free one.
           {collectionStrategy !== 'available' && (
-            <> Building again? Set collection mode to "Available only" to skip committed cards.</>
+            <> Set collection mode to &ldquo;Available only&rdquo; to skip them next time.</>
           )}
         </p>
       )}
@@ -830,14 +830,14 @@ export function BuildReportPanel({
         <p className="build-report-conflict-note">
           Skipped <strong>{committedExcluded}</strong> card
           {committedExcluded === 1 ? '' : 's'} in these colors, all committed to other decks. Switch
-          collection mode to "Only my cards" to include them.
+          collection mode to &ldquo;Only my cards&rdquo; to include them.
         </p>
       )}
 
       {ownedExcluded != null && ownedExcluded > 0 && (
         <p className="build-report-line">
           Left out <strong>{ownedExcluded}</strong> card{ownedExcluded === 1 ? '' : 's'} you own in
-          these colors. Basic lands and your must-includes can still go in.
+          these colors. Basics and must-includes still go in.
         </p>
       )}
 
@@ -847,7 +847,7 @@ export function BuildReportPanel({
             Mana sources vs target
             <InfoTip
               label="mana sources"
-              text="Each count is every source of that color in the final deck: lands plus mana rocks and dorks, not lands alone."
+              text="Counts every source of that color: lands, rocks and dorks."
             />
           </span>
           <ul className="build-report-gaps-list">
