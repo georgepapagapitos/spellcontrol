@@ -1,4 +1,9 @@
-import type { Customization, DetectedCombo, ScryfallCard } from '@/deck-builder/types';
+import type {
+  CollectionStrategy,
+  Customization,
+  DetectedCombo,
+  ScryfallCard,
+} from '@/deck-builder/types';
 import { generateDeck } from '@/deck-builder/services/deckBuilder/deckGenerator';
 import { defaultCustomization } from '@/deck-builder/store';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
@@ -7,6 +12,7 @@ import { deckColorIdentity } from '@/lib/deck/deck-validation';
 import { getGameChangerNames } from '@/deck-builder/services/scryfall/client';
 import { logger } from '@/lib/util/logger';
 import { loadCoachObjective } from './coach-objective';
+import { coachDeckSettings } from './deck-settings-fit';
 import { planFill, type FillPlan } from './fill-deck-plan';
 import { createPlanJudge, type PlanJudge } from './plan-move-judge';
 import type { Deck } from '@/store/decks';
@@ -56,6 +62,22 @@ export function fillFormatSettings(
 }
 
 /**
+ * The collection rule the deck was built under, when it restricts what Fill
+ * may add: 'full' (only owned cards), 'available' (only owned cards no other
+ * deck holds) or 'partial' (owned first, the rest topped up). Null for a deck
+ * built without the collection (or with 'prefer'/'exclude'), where Fill's own
+ * "favor cards I own" choice applies. Coach's judge holds the deck to this same
+ * rule (coachCustomization), so the generator has to be asked for it too:
+ * otherwise every unowned pick it returns is a hard decline and slots stay open.
+ */
+export function fillCollectionRule(deck: Deck): CollectionStrategy | null {
+  const strategy = coachDeckSettings(deck)?.collectionStrategy;
+  return strategy === 'full' || strategy === 'available' || strategy === 'partial'
+    ? strategy
+    : null;
+}
+
+/**
  * Build the rest of a part-built commander-format deck (Commander, Brawl,
  * Pauper Commander) around the cards already in
  * it. Every nonbasic card in the mainboard goes to the generator as a
@@ -75,13 +97,25 @@ export async function buildFill(
 ): Promise<FillResult> {
   if (!deck.commander) throw new Error('Fill needs a commander deck.');
   const current = deck.cards.map((c) => c.card);
+  const rule = fillCollectionRule(deck);
+  const ownedPercent = coachDeckSettings(deck)?.collectionOwnedPercent;
   const customization: Customization = {
     ...defaultCustomization,
     currency: getCurrency(),
     ...fillFormatSettings(deck.format),
     brewLevel: options.brewLevel,
-    collectionMode: false,
-    collectionStrategy: options.preferOwned ? 'prefer' : defaultCustomization.collectionStrategy,
+    ...(rule
+      ? {
+          collectionMode: true,
+          collectionStrategy: rule,
+          ...(ownedPercent != null ? { collectionOwnedPercent: ownedPercent } : {}),
+        }
+      : {
+          collectionMode: false,
+          collectionStrategy: options.preferOwned
+            ? 'prefer'
+            : defaultCustomization.collectionStrategy,
+        }),
     mustIncludeCards: [],
     tempMustIncludeCards: [],
     tempBannedCards: [],
@@ -92,7 +126,7 @@ export async function buildFill(
     colorIdentity: [...deckColorIdentity(deck.commander, deck.partnerCommander)],
     customization,
     selectedThemes: deck.generationContext?.selectedThemes ?? [],
-    collectionNames: options.preferOwned ? env.ownedNames : undefined,
+    collectionNames: rule || options.preferOwned ? env.ownedNames : undefined,
     optimizeDeckCards: [...new Set(current.filter((c) => !isBasic(c)).map((c) => c.name))],
     onProgress: env.onProgress,
   });

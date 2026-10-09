@@ -6,7 +6,11 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import type { Deck } from '../../store/decks';
 
 const buildFill = vi.fn();
-vi.mock('@/lib/coach/fill-deck', () => ({ buildFill: (...a: unknown[]) => buildFill(...a) }));
+const fillCollectionRule = vi.fn();
+vi.mock('@/lib/coach/fill-deck', () => ({
+  buildFill: (...a: unknown[]) => buildFill(...a),
+  fillCollectionRule: (...a: unknown[]) => fillCollectionRule(...a),
+}));
 
 import { FillDeckSheet } from './FillDeckSheet';
 
@@ -40,6 +44,8 @@ function renderSheet(onAdd = vi.fn()) {
 // and mockReset() returns the mock itself.
 beforeEach(() => {
   buildFill.mockReset();
+  fillCollectionRule.mockReset();
+  fillCollectionRule.mockReturnValue(null);
 });
 
 describe('FillDeckSheet', () => {
@@ -109,5 +115,24 @@ describe('FillDeckSheet', () => {
     await waitFor(() => screen.getByText(/Left out: Mana Echoes\./));
     expect(screen.getByText('1 slot stays open.')).toBeTruthy();
     expect(screen.queryByText(/card pool ran out/)).toBeNull();
+  });
+
+  it('states the deck rule instead of offering the favor checkbox, and says why slots stay open', async () => {
+    fillCollectionRule.mockReturnValue('full');
+    buildFill.mockResolvedValue({
+      plan: {
+        additions: [card('Goblin Chieftain', 'Creature — Goblin')],
+        stillOpen: 2,
+        declined: [],
+      },
+      reasons: {},
+      notes: [],
+    });
+    renderSheet();
+    expect(screen.getByText('This deck uses only cards you own.')).toBeTruthy();
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Find 3 cards' }));
+    await waitFor(() => screen.getByText('2 slots stay open: you own no more cards that fit.'));
+    expect(buildFill.mock.calls[0][2]).toMatchObject({ preferOwned: false });
   });
 });
