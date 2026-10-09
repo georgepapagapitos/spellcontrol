@@ -128,7 +128,7 @@ export function GameClock({
         {canPause && (
           <button
             type="button"
-            className="game-clock-strip-btn"
+            className="game-clock-strip-btn game-clock-strip-btn--icon"
             aria-label={`${view.paused ? 'Resume' : 'Pause'} the game clock, ${describeClock(view.total)}`}
             onClick={() => {
               haptics.tap();

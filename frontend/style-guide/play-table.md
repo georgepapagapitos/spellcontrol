@@ -938,15 +938,22 @@ and undo.
   `env(safe-area-inset-*)`; the strip being an ordinary child of that padded
   box is what keeps its buttons clear of a home indicator — it carries no
   safe-area CSS of its own.
-- **One line, always.** At 320px there is a full sentence ("Game 12:04 ·
-  Max's turn 1:12") plus two buttons to fit on one row. Only the active
-  player's **name** is allowed to shrink (`.game-clock-strip-name`,
-  `max-width: 6ch` mobile-first, a `min-width: 2ch` floor so it never
-  vanishes to nothing) — every other segment (`Game 12:04`, the separator
-  dot, `'s turn 1:12`) is `flex: 0 0 auto` and never wraps or clips instead.
-  Text and button sizing themselves are mobile-first tight (`--text-xs`,
-  tight gaps) and widen at `min-width: 600px`, the same convention the rest
-  of the board uses, rather than starting roomy and trying to shrink.
+- **One line on a wide strip, two on a phone (E604).** The sentence ("Game
+  12:04 · Max's turn 1:12") stays on one line where it fits. On a strip
+  26rem wide or less (the `clock-strip` container) it stacks: the game time
+  on line 1, the turn on line 2, the separator dot hidden. One line used to
+  be the rule at every width, but an hour-long game's `h:mm:ss` pair left the
+  name nothing and clipped the turn time itself at 320px, and "(paused)"
+  clipped it at 375px. Two `--text-sm` lines (~35px) sit inside the buttons'
+  44px height, so the strip does not grow. Only the active player's
+  **name** may truncate (`.game-clock-strip-name`, a `min-width: 2ch` floor
+  so it never vanishes); every other segment is `flex: 0 0 auto`. The
+  sentence and the button labels share one size, `--text-sm` at weight 600.
+- **Rectangles, one height (E604).** Start, Pause and Pass are `var(--radius)`
+  rects (§ Shape language: rectangles act). Icon-only Pause is a square the
+  height of its labeled neighbors (`.game-clock-strip-btn--icon`). A 999px
+  radius drew it as a circle beside a Pass pill. Guard:
+  `styles/clock-strip-shape.test.ts`.
 - **Real 44px buttons, not a ghost.** The old pill was too small to carry its
   own touch floor, hence the invisible `::after` ghost pattern. The strip has
   genuine room, so Start/Pause/Pass are simply `min-height: 2.75rem` on
