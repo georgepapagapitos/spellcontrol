@@ -363,8 +363,8 @@ describe('coarse-pointer touch floor', () => {
     // B3-01: collection/deck row "Card actions" kebab — 20px glyph, ghosted
     // rather than inflated (the row is 32-66px tall).
     ['styles/modals-dialogs.css', '.card-edit-btn::after'],
-    // Binder page slot's "Open deck" badge: a 12×12 dot on touch (sweep-3 B4);
-    // corner-anchored ghost because the slot clips outward halves.
+    // Binder page slot's "Open deck" badge: a 24px dot on touch (sweep-3 B4);
+    // corner-anchored ghost because the preview cell clips outward halves.
     ['styles/deck-builder-binder-slot.css', '.slot-deck-badge::after'],
     // B3-03: bulk-select toolbar's mutating actions (Delete/Move/Mark as
     // proxy/Select all), a fixed 2.1rem .toolbar-pill with no coarse override.

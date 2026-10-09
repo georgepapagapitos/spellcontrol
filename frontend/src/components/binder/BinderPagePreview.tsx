@@ -357,25 +357,29 @@ function Cell({
 }) {
   if (!card) return <div className="binder-pages-cell empty" />;
   const foilStyle = classifyFoil(card);
+  // The deck link is the pocket button's sibling, not its child: a link inside
+  // a button fails axe nested-interactive. The wrapper is the grid item.
   return (
-    <button
-      type="button"
-      className={`binder-pages-cell${card.foil ? ` is-foil foil-${foilStyle}` : ''}${
-        allocation ? ' is-allocated' : ''
-      }`}
-      onClick={() => onTap(card)}
-      aria-label={`Open ${card.name}${card.foil ? ' (foil)' : ''}${
-        allocation
-          ? ` (in ${allocation.ownerKind === 'cube' ? 'cube' : 'deck'}: ${allocation.ownerName})`
-          : ''
-      }`}
-    >
-      {card.imageNormal ? (
-        <CellImage src={card.imageNormal} alt={card.name} />
-      ) : (
-        <span className="binder-pages-cell-fallback">{card.name}</span>
-      )}
-      {card.foil && <FoilShimmer seed={card.copyId} />}
+    <div className="binder-pages-cell-wrap">
+      <button
+        type="button"
+        className={`binder-pages-cell${card.foil ? ` is-foil foil-${foilStyle}` : ''}${
+          allocation ? ' is-allocated' : ''
+        }`}
+        onClick={() => onTap(card)}
+        aria-label={`Open ${card.name}${card.foil ? ' (foil)' : ''}${
+          allocation
+            ? ` (in ${allocation.ownerKind === 'cube' ? 'cube' : 'deck'}: ${allocation.ownerName})`
+            : ''
+        }`}
+      >
+        {card.imageNormal ? (
+          <CellImage src={card.imageNormal} alt={card.name} />
+        ) : (
+          <span className="binder-pages-cell-fallback">{card.name}</span>
+        )}
+        {card.foil && <FoilShimmer seed={card.copyId} />}
+      </button>
       {allocation && (
         <Link
           to={
@@ -404,7 +408,7 @@ function Cell({
           )}
         </Link>
       )}
-    </button>
+    </div>
   );
 }
 
