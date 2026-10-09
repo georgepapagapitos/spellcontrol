@@ -26,6 +26,18 @@
  * (`active`, `checked`) — every app class is hyphenated, and a bare word in
  * a string is far more often data than a class.
  *
+ * Class names built at runtime are covered too. A template literal
+ * (`deck-row-role-${tone}`) or concatenation ('deck-row-role-' + tone) whose
+ * static part ends in `-` or `__`, in a className-ish position (a className /
+ * class attribute, a clsx/cn/classNames/cx call, or beside a real class token
+ * in the same literal), is a class PREFIX: it stands for every class starting
+ * with it. Each of those classes must be defined by a stylesheet the module's
+ * chunk loads, exactly like a literal token. This is the hole #2739 (E592)
+ * fell through: CardPreview, an entry-path module, built `deck-row-role-${tone}`
+ * while the role-badge sheet was leaving the boot path, and the literal-only
+ * check saw nothing. A genuine non-class prefix goes in DYNAMIC_PREFIX_ALLOW
+ * with a reason.
+ *
  * Fix a failure by moving the rules into a stylesheet the using chunk loads:
  * a shared family into `src/styles/` (imported by main.tsx), a component's
  * own classes into its co-located `Component.css`, or an explicit stylesheet
@@ -90,7 +102,22 @@ interface ModuleInfo {
   staticImports: string[];
   dynamicImports: string[];
   classTokens: Set<string>;
+  classPrefixes: Set<string>;
 }
+
+/**
+ * Dynamic prefixes that are not class names, as `<prefix>` -> reason. Empty on
+ * purpose: add an entry only for a real false positive, never to silence a
+ * module that does render the classes.
+ */
+const DYNAMIC_PREFIX_ALLOW: Record<string, string> = {};
+
+const CLASS_CONTEXT = /(?:className|class|clsx|classNames|cx|cn)\s*[=:(]\s*[^;]{0,200}$/;
+// At least two segments (`deck-row-role-`, `card__`): one-word prefixes like
+// `is-` / `grid-` are state or utility families that match far too much.
+const isClassPrefix = (p: string) =>
+  /^[a-z][\w-]*(?:-|__)$/.test(p) && (p.endsWith('__') || p.slice(0, -1).includes('-'));
+
 const info = new Map<string, ModuleInfo>();
 for (const mod of modules) {
   const src = readFileSync(mod, 'utf8');
@@ -106,6 +133,7 @@ for (const mod of modules) {
     .map((m) => resolveSpec(mod, m[1]))
     .filter((f): f is string => f !== null && /\.tsx?$/.test(f));
   const classTokens = new Set<string>();
+  const classPrefixes = new Set<string>();
   // Comments name classes in prose ("(e.g. `card-group-img`)") — only code
   // renders them, so strip block and line comments before tokenising. A `//`
   // that follows `:` is a URL scheme inside a string, not a comment.
@@ -117,7 +145,27 @@ for (const mod of modules) {
       if (token.includes('-') && definedAnywhere.has(token)) classTokens.add(token);
     }
   }
-  info.set(mod, { staticImports, dynamicImports, classTokens });
+  // Dynamic prefixes: `prefix-${x}` templates and 'prefix-' + x concatenation.
+  const addPrefix = (prefix: string, context: string, hasRealClass: boolean) => {
+    if (!isClassPrefix(prefix) || prefix in DYNAMIC_PREFIX_ALLOW) return;
+    if (hasRealClass || CLASS_CONTEXT.test(context)) classPrefixes.add(prefix);
+  };
+  for (const lit of code.matchAll(/`((?:\\.|[^\\`])*)`/g)) {
+    const body = lit[1];
+    const before = code.slice(Math.max(0, lit.index! - 240), lit.index!);
+    const hasRealClass = body
+      .replace(/\$\{[^}]*\}/g, ' ')
+      .split(/\s+/)
+      .some((t) => t.includes('-') && definedAnywhere.has(t));
+    for (const m of body.matchAll(/(?:^|\s)([\w-]+)\$\{/g)) addPrefix(m[1], before, hasRealClass);
+  }
+  for (const m of code.matchAll(/(["'])((?:\\.|(?!\1)[^\\\n])*)\1\s*\+(?!\+)/g)) {
+    const last = m[2].split(/\s+/).pop() ?? '';
+    const before = code.slice(Math.max(0, m.index! - 240), m.index!);
+    const hasRealClass = m[2].split(/\s+/).some((t) => t.includes('-') && definedAnywhere.has(t));
+    addPrefix(last, before + m[0], hasRealClass);
+  }
+  info.set(mod, { staticImports, dynamicImports, classTokens, classPrefixes });
 }
 
 /** Modules + stylesheets in a chunk rooted at `entry` (static closure). */
@@ -180,6 +228,11 @@ describe('css chunk ownership (code-split by hub)', () => {
     expect(chunks.has(join(srcDir, 'pages', 'RulesPage.tsx'))).toBe(true);
   });
 
+  it('detects the runtime-built class prefix that #2739 fell through', () => {
+    const preview = info.get(join(srcDir, 'components', 'card', 'CardPreview.tsx'));
+    expect(preview?.classPrefixes.has('deck-row-role-')).toBe(true);
+  });
+
   it('every class a chunk renders is defined in a stylesheet that chunk loads', () => {
     const offenders: string[] = [];
     for (const [entry, chunk] of chunks) {
@@ -202,6 +255,36 @@ describe('css chunk ownership (code-split by hub)', () => {
       offenders,
       `Classes rendered by a chunk that never loads their stylesheet:\n  ${offenders.join('\n  ')}\n` +
         'Move the rules into a stylesheet that chunk loads (see the header comment).'
+    ).toEqual([]);
+  });
+
+  it('every class a dynamic prefix can produce is defined in a stylesheet the chunk loads', () => {
+    const offenders: string[] = [];
+    for (const [entry, chunk] of chunks) {
+      const available = sheetsAvailableTo(entry);
+      const definedHere = new Set<string>();
+      for (const sheet of available) for (const c of definedBy.get(sheet) ?? []) definedHere.add(c);
+      for (const mod of chunk.modules) {
+        for (const prefix of info.get(mod)?.classPrefixes ?? []) {
+          const matching = [...definedAnywhere].filter((c) => c.startsWith(prefix));
+          const missing = matching.filter((c) => !definedHere.has(c));
+          if (missing.length === 0) continue;
+          const owners = new Set<string>();
+          for (const [sheet, set] of definedBy) {
+            if (missing.some((c) => set.has(c))) owners.add(rel(sheet));
+          }
+          offenders.push(
+            `${rel(mod)} (loaded by ${rel(entry)}) builds class prefix "${prefix}" — ` +
+              `${missing.slice(0, 4).join(', ')}${missing.length > 4 ? ', …' : ''} defined only in ${[...owners].join(', ')}`
+          );
+        }
+      }
+    }
+    expect(
+      offenders,
+      `Dynamic class prefixes whose stylesheet the chunk never loads:\n  ${offenders.join('\n  ')}\n` +
+        'Move the rules into a stylesheet that chunk loads (see the header comment), ' +
+        'or add a non-class prefix to DYNAMIC_PREFIX_ALLOW with a reason.'
     ).toEqual([]);
   });
 });
