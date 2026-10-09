@@ -192,8 +192,9 @@ const MAX_VITAL_FLUSHES = 30;
  * credited to the landing route once. CLS (largest session window) and INP
  * (slowest interaction) are flushed for the route they happened on when the
  * SPA navigates (noteVitalsRoute) and when the page is hidden, then reset for
- * the next route. A later route with no shifts or interactions sends nothing;
- * the landing route still sends CLS 0, as before. INP is the slowest
+ * the next route. Every visited route sends CLS, 0 when it did not shift (a
+ * real good sample; leaving it out would skew the p75 verdict). A route with
+ * no interactions sends no INP, since INP has no value without one. INP is the slowest
  * interaction seen, which is the web-vitals value for routes with fewer than
  * fifty interactions and slightly pessimistic beyond that.
  */
@@ -203,6 +204,9 @@ export function startVitals(): void {
   let path = normalizePath(window.location.pathname);
   let landing = true;
   let flushes = 0;
+  // False until the current route has had a CLS sample, so a second hidden/pagehide
+  // for the same route does not send a duplicate 0.
+  let reported = false;
   let shifts: { startTime: number; value: number }[] = [];
   let lcp = -1;
   let inp = -1;
@@ -240,12 +244,14 @@ export function startVitals(): void {
       const pending = po.takeRecords?.() ?? [];
       if (pending.length) cb(pending);
     }
+    if (reported && !shifts.length && inp < 0 && !(landing && lcp >= 0)) return;
     flushes += 1;
     if (landing && lcp >= 0) send({ name: 'vital', path, metric: 'LCP', value: Math.round(lcp) });
     if (shifts.length) send({ name: 'vital', path, metric: 'CLS', value: clsSessionMax(shifts) });
-    else if (landing && supported.includes('layout-shift'))
+    else if (!reported && supported.includes('layout-shift'))
       send({ name: 'vital', path, metric: 'CLS', value: 0 });
     if (inp >= 0) send({ name: 'vital', path, metric: 'INP', value: Math.round(inp) });
+    reported = true;
     landing = false;
     lcp = -1;
     shifts = [];
@@ -259,6 +265,7 @@ export function startVitals(): void {
     if (next === path) return;
     flush();
     path = next;
+    reported = false;
   };
   document.addEventListener('visibilitychange', onHidden);
   window.addEventListener('pagehide', onHidden);

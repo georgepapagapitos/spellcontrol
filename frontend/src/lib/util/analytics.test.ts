@@ -225,7 +225,7 @@ describe('startVitals per-route attribution', () => {
     observers['event'].pending.push({ duration: 400 });
 
     noteVitalsRoute('/search');
-    // /search has no shifts or interactions: it sends nothing.
+    // /search has no shifts or interactions: CLS 0 and no INP.
     setVisibility('hidden');
 
     const vitals = sent.map((b) => [b.path, b.metric, b.value]);
@@ -235,6 +235,19 @@ describe('startVitals per-route attribution', () => {
       ['/decks/:id', 'INP', 120],
       ['/collection/binders/:id', 'CLS', 0.3],
       ['/collection/binders/:id', 'INP', 400],
+      ['/search', 'CLS', 0],
+    ]);
+  });
+
+  it('sends CLS 0 for a route that did not shift and no INP for one without interactions', () => {
+    startVitals();
+    noteVitalsRoute('/play');
+    noteVitalsRoute('/search');
+    setVisibility('hidden');
+    expect(sent.map((b) => [b.path, b.metric, b.value])).toEqual([
+      ['/decks/:id', 'CLS', 0],
+      ['/play', 'CLS', 0],
+      ['/search', 'CLS', 0],
     ]);
   });
 
@@ -246,7 +259,7 @@ describe('startVitals per-route attribution', () => {
     setVisibility('hidden');
     window.dispatchEvent(new Event('pagehide'));
     expect(sent.map((b) => [b.path, b.metric, b.value])).toEqual([
-      ['/decks/:id', 'CLS', 0], // the landing route, left with no shifts
+      ['/decks/:id', 'CLS', 0], // left with no shifts: a good sample, not a gap
       ['/play', 'CLS', 0.2],
       ['/play', 'INP', 250],
     ]);
