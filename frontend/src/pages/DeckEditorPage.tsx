@@ -453,6 +453,8 @@ export function DeckEditorPage() {
   // from the Deck-view toolbar — a modal on desktop, a bottom sheet on mobile
   // (same card-picker pattern as Add cards), so it's never pinned inline.
   const viewScrollRef = useRef<HTMLDivElement>(null);
+  // The tab row's stat slot (desktop): the Deck view's stat strip renders here.
+  const [statSlot, setStatSlot] = useState<HTMLDivElement | null>(null);
   const [showTestHand, setShowTestHand] = useState(false);
   // The active view lives in the URL (`?view=power`) so each tab switch is a real
   // history entry: hardware/gesture back walks back through the tabs you visited
@@ -3236,6 +3238,9 @@ export function DeckEditorPage() {
               controls: `deck-view-panel-${t.id}`,
             }))}
           />
+          {/* Desktop: the Deck view's stat strip sits on this row, beside the
+              tabs and sticky with them (STYLE_GUIDE § Deck view). */}
+          {isDesktop && <div className="deck-tabs-stats" ref={setStatSlot} />}
         </div>
       )}
 
@@ -3374,6 +3379,7 @@ export function DeckEditorPage() {
             activeView={safeView}
             tabbed={viewTabs.length > 1}
             onShowTestHand={() => setShowTestHand(true)}
+            statStripSlot={isDesktop ? statSlot : null}
             deckActionsInHeader
             editActions={deckEditActions({
               paste: () => setAppendOpen(true),

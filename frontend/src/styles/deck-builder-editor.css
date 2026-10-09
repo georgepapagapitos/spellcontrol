@@ -528,6 +528,78 @@
      single-column on tablet/mobile). */
 }
 
+/* Desktop: the Deck view's stat strip shares this row, right of the tabs, so
+   the tabs and the deck's numbers are one line and stay in reach as the list
+   scrolls (DeckEditorPage's .deck-tabs-stats slot; STYLE_GUIDE § Deck view).
+   The row carries the baseline rule across its full width; the tabs' own
+   1px border sits on it. Empty on Power and Coach: the strip is the Deck
+   view's. */
+.deck-editor-view-tabs:has(> .deck-tabs-stats) {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-5);
+  border-bottom: 1px solid var(--border);
+}
+
+.deck-editor-view-tabs:has(> .deck-tabs-stats) > .sc-tabs--underline {
+  flex: none;
+  margin-bottom: -1px;
+}
+
+.deck-tabs-stats {
+  display: flex;
+  flex: 1 1 0;
+  justify-content: flex-end;
+  min-width: 0;
+  padding-bottom: var(--space-2);
+}
+
+/* On the row each stat is one line, value then label, and the strip scrolls
+   rather than wraps (useOverflowEdges fades the edge with more behind it). */
+.deck-tabs-stats .deck-stat-strip {
+  flex-wrap: nowrap;
+  gap: var(--space-4);
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  /* Room for the focus ring inside the scroller's clip. */
+  padding: var(--space-1);
+  margin: calc(var(--space-1) * -1);
+}
+
+.deck-tabs-stats .deck-stat-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.deck-tabs-stats .deck-stat-strip[data-overflow='start'] {
+  mask-image: linear-gradient(to right, transparent 0, #000 var(--space-6));
+}
+
+.deck-tabs-stats .deck-stat-strip[data-overflow='end'] {
+  mask-image: linear-gradient(to right, #000 calc(100% - var(--space-6)), transparent 100%);
+}
+
+.deck-tabs-stats .deck-stat-strip[data-overflow='both'] {
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 var(--space-6),
+    #000 calc(100% - var(--space-6)),
+    transparent 100%
+  );
+}
+
+.deck-tabs-stats .deck-stat {
+  flex-direction: row;
+  align-items: baseline;
+  gap: var(--space-1-5);
+}
+
+.deck-tabs-stats .deck-stat-value {
+  font-size: var(--text-sm);
+}
+
 /* The active analysis view's content fills the column (no card chrome — it's a
    full page-level view now, not a folded-in panel). */
 .deck-analysis-view {

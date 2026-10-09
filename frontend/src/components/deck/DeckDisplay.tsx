@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type ReactNode,
 } from 'react';
 import { useOverflowEdges } from '@/lib/util/use-overflow-edges';
 import { useCurrency } from '@/lib/collection/currency';
@@ -147,6 +148,11 @@ export type {
   DeckView,
 } from './deck-display-types';
 
+/** Renders its children into `slot` when one is given, else in place. */
+function InSlot({ slot, children }: { slot?: HTMLElement | null; children: ReactNode }) {
+  return slot ? createPortal(children, slot) : children;
+}
+
 // ── Main component ────────────────────────────────────────────────────────
 export function DeckDisplay({
   title,
@@ -223,6 +229,7 @@ export function DeckDisplay({
   onShowTestHand,
   editActions,
   deckActionsInHeader,
+  statStripSlot,
   onAddCards,
   onChooseCommander,
   analysisState = 'ready',
@@ -1298,21 +1305,25 @@ export function DeckDisplay({
             page-top hub tab bar in DeckEditorPage switches between them. */}
         {activeView === 'deck' ? (
           <>
-            <DeckStatStrip
-              stripRef={statStripRef}
-              health={health}
-              onHealthClick={scrollToDeckStats}
-              averageCmc={manaData.averageCmc}
-              identity={identity}
-              missing={viewerMissing ?? missing}
-              hasMissingCards={viewerMissing ? true : missingTally.length > 0}
-              currency={currency}
-              onOpenBuyList={viewerMissing?.onOpen ?? (() => setBuyListOpen(true))}
-              openSlots={openSlots}
-              onFill={onFill}
-              arrivalCount={arrivalRows.length}
-              onOpenArrivals={() => setArrivalsOpen(true)}
-            />
+            {/* On a desktop the page hands a slot on its tab row; the strip
+                renders there, state and handlers still this component's. */}
+            <InSlot slot={statStripSlot}>
+              <DeckStatStrip
+                stripRef={statStripRef}
+                health={health}
+                onHealthClick={scrollToDeckStats}
+                averageCmc={manaData.averageCmc}
+                identity={identity}
+                missing={viewerMissing ?? missing}
+                hasMissingCards={viewerMissing ? true : missingTally.length > 0}
+                currency={currency}
+                onOpenBuyList={viewerMissing?.onOpen ?? (() => setBuyListOpen(true))}
+                openSlots={openSlots}
+                onFill={onFill}
+                arrivalCount={arrivalRows.length}
+                onOpenArrivals={() => setArrivalsOpen(true)}
+              />
+            </InSlot>
             {statCarousel.preview}
 
             <DeckToolbar

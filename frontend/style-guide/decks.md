@@ -235,6 +235,14 @@ three times on one screen, so these rulings now hold:
   leaves the bracket out, because the Power tab's badge directly under it
   already shows the bracket and the phone screen would otherwise say it twice.
   A stated bracket's "est. N" is then on the Power tab itself.
+- **On a desktop (≥1024px) the stat strip sits on the tab row (2026-10-08,
+  E589).** It renders right of Deck · Power · Coach, each stat one line (value
+  then label), and rides the sticky tab row as the list scrolls. It is still
+  `DeckDisplay`'s strip, portalled into the page's `.deck-tabs-stats` slot, so
+  its buttons (checks, missing, open slots, arrivals) keep their handlers. It
+  scrolls with an edge fade rather than wrap when the row is short. A tablet
+  or phone has no room beside the tabs and keeps it above the toolbar. Guards:
+  `DeckDisplay.toolbar-fold.test.tsx`, `DeckEditorPage.delete.test.tsx`.
 - **The top of the Deck tab puts the first cards on a phone's first screen
   (2026-09-25, E415).** Under 600px the glance strip is one line: its cells
   spread across the width, long labels swap for short ones ("avg MV"), and
