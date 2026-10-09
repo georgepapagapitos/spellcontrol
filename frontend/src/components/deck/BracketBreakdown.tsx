@@ -602,7 +602,7 @@ export function BracketBreakdown({
                 ? 'Sets no floor: Commander Spellbook rates it fine at Bracket 2, or it needs more than two cards. Adds to the power signal.'
                 : `These ${loops.length} combos set no floor: Commander Spellbook rates them fine at Bracket 2, or they need more than two cards. They add to the power signal.`}
             </p>
-            <ul className="bracket-breakdown-loop-list">
+            <ul className="list-stack list-stack--tight bracket-breakdown-loop-list">
               {loops.map((cards) => (
                 <li key={cards.join('+')}>
                   <CardChips names={cards} deckCardsByName={deckCardsByName} />

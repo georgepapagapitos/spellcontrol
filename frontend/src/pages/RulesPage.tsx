@@ -599,7 +599,7 @@ function AnswerBody({
       {!streaming && rules.length > 0 && (
         <section className="rules-cited" aria-label="Rules cited">
           <h3 className="rules-cited-title">Rules cited</h3>
-          <ul className="rules-cited-list" role="list">
+          <ul className="list-stack list-stack--tight rules-cited-list" role="list">
             {rules.map((rule) => {
               const open = expanded.has(rule.ref);
               return (

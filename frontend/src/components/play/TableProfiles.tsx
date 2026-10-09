@@ -54,7 +54,7 @@ export function TableProfiles({
           No saved tables yet. Set the game up below, then save it here.
         </p>
       ) : (
-        <ul className="table-profiles-list">
+        <ul className="list-stack list-stack--tight table-profiles-list">
           {profiles.map((profile) => (
             <li key={profile.id} className="table-profiles-row">
               <button

@@ -254,7 +254,7 @@ export function EnginePanel({
       <p className="engine-headline">{analysis.headline}</p>
 
       {axes.length > 0 && (
-        <ul className="engine-axes">
+        <ul className="list-stack engine-axes">
           {axes.map((a) => {
             const summary = axisSummaryMap?.get(a.axis);
             const onTap = summary && allCards ? () => openAxis(summary) : undefined;

@@ -420,15 +420,6 @@
   margin: 0 0 var(--space-2);
 }
 
-.play-history-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
 .play-history-item {
   background: var(--surface-raised);
   border: 0.5px solid var(--border);
@@ -486,20 +477,9 @@
   cursor: pointer;
 }
 
-/* 44px touch-target floor via a centered ghost hit-area (the
-   `.set-filter-chip-x` technique) — the glyph stays small so it doesn't
+/* 44px touch-target floor via a centered ghost hit-area (the shared
+   `.touch-ghost`) — the glyph stays small so it doesn't
    distort this compact meta row. */
-@media (pointer: coarse) {
-  .play-history-remove::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 44px;
-    height: 44px;
-    transform: translate(-50%, -50%);
-  }
-}
 
 @media (hover: hover) and (pointer: fine) {
   .play-history-remove:hover {
@@ -628,18 +608,6 @@
   margin: 0;
   accent-color: var(--accent);
   cursor: pointer;
-}
-
-@media (pointer: coarse) {
-  .play-history-check::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 44px;
-    height: 44px;
-    transform: translate(-50%, -50%);
-  }
 }
 
 .play-history-check:focus-visible {

@@ -236,11 +236,11 @@ describe('coarse-pointer touch floor', () => {
     ['components/deck/DeckCardRow.css', '.deck-card-row-secondary-act::after'],
     ['styles/deck-builder-card-list.css', '.deck-row-menu-trigger::after'],
     ['styles/auth.css', '.auth-reveal'],
-    ['components/trade/TradeComposer.css', '.trade-stepper-btn::after'],
-    ['components/trade/TradeComposer.css', '.trade-picked-remove::after'],
+    ['components/trade/TradeComposer.tsx', '.trade-stepper-btn::after'],
+    ['components/trade/TradeComposer.tsx', '.trade-picked-remove::after'],
     // The "which of my copies is leaving" disclosure — ghosted like its row
     // siblings, since the row's padding means a real 44px box would inflate it.
-    ['components/trade/TradeComposer.css', '.trade-picked-choose::after'],
+    ['components/trade/TradeComposer.tsx', '.trade-picked-choose::after'],
     // An expanded printing is its OWN row, not a control crowded into a dense
     // one, so it takes the floor on its real box — in the shared chooser both
     // trade dialogs render, where a 10-14 row printing list makes the VERTICAL
@@ -250,7 +250,7 @@ describe('coarse-pointer touch floor', () => {
     // …and the steppers inside it still need their own ghost: the row's height
     // is the VERTICAL axis only, and a 28px box stays a 28px target sideways.
     // Measured — without this a probe 18px right of `+` resolves to the row.
-    ['components/trade/PrintingChoices.css', '.printing-choice-step::after'],
+    ['components/trade/PrintingChoices.tsx', '.printing-choice-step::after'],
     // The give side's "Spare copies" narrowing — alone on its own line, so it
     // takes the floor on its real box rather than a ghost.
     ['components/trade/TradeComposer.css', '.trade-spare-toggle'],
@@ -327,7 +327,7 @@ describe('coarse-pointer touch floor', () => {
     // ── Polish-pass sweep: free-standing controls measured under 44px on a
     // coarse pointer by the route walk (320–768px, touch emulation). Inline
     // and dense-row controls ghost; everything else grows its box.
-    ['components/overlays/InfoTip.css', '.info-tip-btn::after'],
+    ['components/overlays/InfoTip.tsx', '.info-tip-btn::after'],
     ['components/shared/ColorMatchModeToggle.css', '.color-mode-toggle .chip-joiner::after'],
     ['styles/play-panel-menus.css', '.seat-menu-row input'],
     ['styles/search-controls.css', '.search-pill'],
@@ -362,7 +362,7 @@ describe('coarse-pointer touch floor', () => {
     ['styles/deck-builder-row-qty.css', '.deck-row-qty-edit::after'],
     // B3-01: collection/deck row "Card actions" kebab — 20px glyph, ghosted
     // rather than inflated (the row is 32-66px tall).
-    ['styles/modals-dialogs.css', '.card-edit-btn::after'],
+    ['components/collection/CardRowMenu.tsx', '.card-edit-btn::after'],
     // Binder page slot's "Open deck" badge: a 24px dot on touch (sweep-3 B4);
     // corner-anchored ghost because the preview cell clips outward halves.
     ['styles/deck-builder-binder-slot.css', '.slot-deck-badge::after'],
@@ -379,8 +379,8 @@ describe('coarse-pointer touch floor', () => {
     // The trade review (sheet, dock, tray). Stepper and remove are 28px boxes
     // in a one-line row, so they ghost; the thumb, printing line, note toggle
     // and tray button are free-standing and grow their own box.
-    ['components/trade/TradeReview.css', '.trade-review-step::after'],
-    ['components/trade/TradeReview.css', '.trade-review-remove::after'],
+    ['components/trade/TradeReview.tsx', '.trade-review-step::after'],
+    ['components/trade/TradeReview.tsx', '.trade-review-remove::after'],
     ['components/trade/TradeReview.css', '.trade-review-thumb-btn'],
     ['components/trade/TradeReview.css', '.trade-review-printing'],
     ['components/trade/TradeReview.css', '.trade-review-note-toggle'],
@@ -395,7 +395,7 @@ describe('coarse-pointer touch floor', () => {
     // both inside the 8px grid gap, never into the neighboring tile or the
     // row below; upward it reaches 4px into the art's bottom edge, which holds
     // no control on this surface (the corner badges sit above that).
-    ['components/trade/TradeAddButton.css', '.trade-add::after'],
+    ['components/trade/TradeAddButton.tsx', '.trade-add::after'],
     // The incoming review's Counter / Decline pair answer a real offer, so they
     // take the floor on their real boxes (`.btn` is 32-36px by default).
     ['components/trade/TradeIncomingReview.css', '.trade-incoming-actions .btn'],
@@ -444,7 +444,40 @@ describe('coarse-pointer touch floor', () => {
     }
   });
 
+  /**
+   * A .tsx entry in CONTROLS is a control that takes its ghost from the shared
+   * `.touch-ghost` class (forms-banners.css) instead of a rule of its own: the
+   * module must put `touch-ghost` in the same class string as the host, and
+   * the shared rule must still be a 44px box inside a coarse-pointer block.
+   */
+  function ghostApplied(tsx: string, host: string): boolean {
+    const token = host.replace(/::after$/, '').replace(/^\./, '');
+    const hostRe = new RegExp(`(?<![\\w-])${token}(?![\\w-])`);
+    return [...read(tsx).matchAll(/["'`]([^"'`\n]*)["'`]/g)].some(
+      (m) => hostRe.test(m[1]) && /(?<![\w-])touch-ghost(?![\w-])/.test(m[1])
+    );
+  }
+
+  it('.touch-ghost is a centered 44px box on coarse pointers', () => {
+    const css = read('styles/forms-banners.css');
+    const at = css.indexOf('.touch-ghost::after');
+    expect(css.lastIndexOf('@media (pointer: coarse)', at)).toBeGreaterThan(-1);
+    const found = blocks(css, '.touch-ghost::after');
+    expect(found.some((b) => /width:\s*44px/.test(b) && /height:\s*44px/.test(b))).toBe(true);
+    expect(found.some((b) => /position:\s*absolute/.test(b))).toBe(true);
+    expect(found.some((b) => /translate\(-50%,\s*-50%\)/.test(b))).toBe(true);
+  });
+
   for (const [file, selector] of CONTROLS) {
+    if (file.endsWith('.tsx')) {
+      it(`${selector} reaches 44px on touch through .touch-ghost`, () => {
+        expect(
+          ghostApplied(file, selector),
+          `${selector}'s host in ${file} lost its touch-ghost class`
+        ).toBe(true);
+      });
+      continue;
+    }
     it(`${selector} reaches 44px on touch`, () => {
       const found = blocks(read(file), selector);
       expect(found, `no rule for ${selector} in ${file}`).not.toEqual([]);

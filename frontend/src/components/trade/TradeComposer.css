@@ -64,16 +64,6 @@
   flex: 0 0 auto;
 }
 
-.trade-side-picked,
-.trade-side-results {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
 .trade-side-results {
   max-height: 14rem;
   overflow-y: auto;
@@ -315,48 +305,15 @@
     margin-left: var(--space-2);
   }
 
-  /* Kept as two rules, not one grouped selector: the CI guard in
-     styles/overlay-containment.test.ts matches `selector\s*{`, so a leading
-     selector in a comma group would not be seen and the floor would silently
-     stop being enforced. */
-  .trade-stepper-btn::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 44px;
-    height: 44px;
-    transform: translate(-50%, -50%);
-  }
-
-  .trade-picked-remove::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 44px;
-    height: 44px;
-    transform: translate(-50%, -50%);
-  }
-
   .trade-picked-choose {
     position: relative;
   }
 
-  /* Same ghost treatment, same reason — the row carries vertical padding on top
+  /* Same `.touch-ghost` treatment, same reason — the row carries vertical padding on top
      of its 44px min-height, so a real 44px box here would make the row ~52px
      and inflate the whole basket. Its visible box is wider than the 28px
      siblings, which is what keeps its ghost clear of `×`'s; verified by probing
      elementFromPoint, not by trusting that arithmetic. */
-  .trade-picked-choose::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 44px;
-    height: 44px;
-    transform: translate(-50%, -50%);
-  }
 
   /* The expanded printing rows take their own 44px floor — in
      PrintingChoices.css, which owns them now. */

@@ -55,7 +55,7 @@ export function ColorPicker({ value, onChange, ariaLabel }: Props) {
           </label>
         ))}
         <IconButton
-          className={`color-swatch color-swatch-custom${isCustom ? ' selected' : ''}`}
+          className={`color-swatch color-swatch-custom touch-ghost${isCustom ? ' selected' : ''}`}
           style={isCustom ? { background: value } : undefined}
           onClick={() => setShowCustom((v) => !v)}
           aria-expanded={showCustom}

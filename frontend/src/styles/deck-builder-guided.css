@@ -63,17 +63,6 @@
 .deck-row-provenance-trigger {
   position: relative;
 }
-@media (pointer: coarse) {
-  .deck-row-provenance-trigger::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 44px;
-    height: 44px;
-    transform: translate(-50%, -50%);
-  }
-}
 
 /* Phones: the name span holds qty/role/name + up to three trailing chips
    (allocation, synergy, inclusion). Let the chips wrap under the name rather

@@ -42,11 +42,14 @@ function ruleBody(css: string, selector: string): string | null {
  * short axis while the text-bearing chips beside it passed.
  */
 describe('play board touch targets', () => {
-  it('the ± step button carries a 44px ghost hit area', () => {
-    const body = ruleBody(board, '.player-panel-step-btn::after');
-    expect(body, '.player-panel-step-btn::after is missing').toBeTruthy();
-    expect(body).toContain('width: 44px');
-    expect(body).toContain('height: 44px');
+  it('the ± step button carries the shared 44px ghost hit area', () => {
+    // The ghost is the global `.touch-ghost` (forms-banners.css, a 44px box in
+    // a coarse-pointer block, asserted in overlay-containment.test.ts); the
+    // button only has to opt in.
+    const tsx = read('../components/play/GameBoard.tsx');
+    const classes = [...tsx.matchAll(/className="([^"]*player-panel-step-btn[^"]*)"/g)];
+    expect(classes.length).toBeGreaterThan(0);
+    for (const [, cls] of classes) expect(cls).toMatch(/(?<![\w-])touch-ghost(?![\w-])/);
   });
 
   it('the seat-name button carries a ghost hit area at least 44px on both axes', () => {
@@ -60,14 +63,14 @@ describe('play board touch targets', () => {
   });
 
   it('a ghost hit area is positioned, or it collapses onto the page', () => {
-    for (const sel of ['.player-panel-step-btn::after', '.player-panel-name::after']) {
+    for (const sel of ['.player-panel-name::after']) {
       const body = ruleBody(board, sel)!;
       expect(body, `${sel} needs position: absolute`).toContain('position: absolute');
       expect(body, `${sel} needs a centring transform`).toContain('translate(-50%, -50%)');
     }
     // The ghost only centers against its own button if that button is a
     // positioning context. `.player-panel-step-btn` already is (it is
-    // absolutely positioned); `.player-panel-name` is not, so it must be
+    // absolutely positioned; its ghost is the shared `.touch-ghost`); `.player-panel-name` is not, so it must be
     // made one explicitly.
     expect(board).toMatch(/\.player-panel-name\s*\{[^}]*position:\s*relative/);
   });
@@ -136,7 +139,7 @@ describe('play board touch targets', () => {
     // A floor applied unconditionally would inflate the desktop board, where
     // a mouse needs no 44px. Each of these selectors must appear only after a
     // `@media (pointer: coarse)` opener.
-    for (const sel of ['.player-panel-step-btn::after', '.player-panel-name::after']) {
+    for (const sel of ['.player-panel-name::after']) {
       const at = board.indexOf(sel);
       const coarseBefore = board.lastIndexOf('@media (pointer: coarse)', at);
       expect(coarseBefore, `${sel} is not inside a coarse-pointer block`).toBeGreaterThan(-1);

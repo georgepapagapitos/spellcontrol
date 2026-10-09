@@ -64,7 +64,7 @@ export function TaxCoins({ cards, commanderTax, onAdjust, placement }: Props) {
           <button
             key={c.id}
             type="button"
-            className={`playtest-tax-coin${i > 0 ? ' playtest-tax-coin--partner' : ''}`}
+            className={`playtest-tax-coin touch-ghost${i > 0 ? ' playtest-tax-coin--partner' : ''}`}
             data-tax-card-id={c.id}
             // Hovering a coin shows whose it is, which is the question two
             // coins side by side raise.

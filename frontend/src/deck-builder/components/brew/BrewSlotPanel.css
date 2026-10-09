@@ -107,29 +107,11 @@
   color: var(--err-text);
 }
 
-.brew-hand {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
 .brew-hand-empty {
   padding: var(--space-4);
   text-align: center;
   color: var(--text-secondary);
   font-size: var(--text-sm);
-}
-
-.brew-hand-skeleton {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
 }
 
 .brew-hand-skeleton-row {

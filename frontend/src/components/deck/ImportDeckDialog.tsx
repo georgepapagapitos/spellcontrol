@@ -899,7 +899,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                 Parsed <strong>{drafts.length}</strong> file{drafts.length === 1 ? '' : 's'}.
               </span>
             </div>
-            <ul className="import-deck-summary-list">
+            <ul className="list-stack import-deck-summary-list">
               {drafts.map((d) =>
                 d.status === 'failed' ? (
                   <li key={d.key} className="import-deck-summary-item is-failed">

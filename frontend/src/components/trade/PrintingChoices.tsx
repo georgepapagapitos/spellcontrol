@@ -115,7 +115,7 @@ export function PrintingChoices({
             {onSet ? (
               <span className="printing-choice-stepper">
                 <IconButton
-                  className="printing-choice-step"
+                  className="printing-choice-step touch-ghost"
                   onClick={() => onSet(group.key, count - 1)}
                   disabled={count === 0 || disabled}
                   label={`One fewer ${printingLabel} ${cardName}`}
@@ -126,7 +126,7 @@ export function PrintingChoices({
                   <span className="printing-choice-owned">/{owned}</span>
                 </span>
                 <IconButton
-                  className="printing-choice-step"
+                  className="printing-choice-step touch-ghost"
                   onClick={() => onSet(group.key, count + 1)}
                   disabled={count >= owned || disabled}
                   label={`One more ${printingLabel} ${cardName}`}

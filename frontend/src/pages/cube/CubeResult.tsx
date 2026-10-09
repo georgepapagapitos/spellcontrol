@@ -495,7 +495,7 @@ export function CubeResult({
                           {edit && (
                             <div className="cube-row-acts">
                               <IconButton
-                                className="card-edit-btn cube-row-lock-btn"
+                                className="card-edit-btn touch-ghost cube-row-lock-btn"
                                 aria-pressed={isLocked}
                                 label={`${isLocked ? 'Unlock' : 'Lock'} ${p.card.name}`}
                                 title={
@@ -513,14 +513,14 @@ export function CubeResult({
                                 onClick={() => edit.onToggleLock(p.card.oracleId, p.card.name)}
                               />
                               <IconButton
-                                className="card-edit-btn"
+                                className="card-edit-btn touch-ghost"
                                 label={`Swap ${p.card.name}`}
                                 title="Swap for a ranked replacement"
                                 icon={<ArrowLeftRight width={16} height={16} strokeWidth={2} />}
                                 onClick={() => edit.onSwap(flatIndex)}
                               />
                               <OverflowMenu
-                                triggerClassName="card-edit-btn"
+                                triggerClassName="card-edit-btn touch-ghost"
                                 ariaLabel={`More actions for ${p.card.name}`}
                                 contextHost=".cube-row"
                                 items={[

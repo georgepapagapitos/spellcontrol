@@ -28,7 +28,7 @@ export function SuggestionDismissMenu({
   return (
     <span ref={ref} className="suggestion-menu">
       <OverflowMenu
-        triggerClassName="suggestion-menu-trigger"
+        triggerClassName="suggestion-menu-trigger touch-ghost"
         ariaLabel={`More actions for ${name}`}
         contextHost={host}
         items={[

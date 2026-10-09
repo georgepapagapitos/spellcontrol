@@ -323,7 +323,7 @@ export function HistoryTab({
             No {filter} games yet.
           </EmptyState>
         )}
-        <ul className="play-history-list">
+        <ul className="list-stack play-history-list">
           {shown.map((rec) => {
             const winner =
               rec.winnerSeat != null ? rec.players.find((p) => p.seat === rec.winnerSeat) : null;
@@ -350,7 +350,7 @@ export function HistoryTab({
                   {selecting && canDropRecord(rec, userId) && (
                     <input
                       type="checkbox"
-                      className="play-history-check"
+                      className="play-history-check touch-ghost"
                       checked={selected.has(rec.id)}
                       aria-label={`Select game: ${when}`}
                       onChange={() => toggleSelected(rec.id)}
@@ -375,7 +375,7 @@ export function HistoryTab({
                   )}
                   {kind === 'remove' && canDropRecord(rec, userId) && (
                     <IconButton
-                      className="play-history-remove"
+                      className="play-history-remove touch-ghost"
                       label={`Remove game: ${when}`}
                       onClick={() => setPendingDrop([rec])}
                       icon={<X width={14} height={14} strokeWidth={1.8} />}
@@ -428,7 +428,7 @@ export function HistoryTab({
                   Loading…
                 </EmptyState>
               )}
-              <ul className="play-history-list">
+              <ul className="list-stack play-history-list">
                 {hiddenHistory.map((rec) => (
                   <li key={rec.id} className="play-history-item is-hidden-row">
                     <div className="play-history-head">

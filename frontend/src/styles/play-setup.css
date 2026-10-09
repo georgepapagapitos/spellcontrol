@@ -724,15 +724,6 @@ body:has(.game-board) .modal-backdrop {
   font-size: var(--text-sm);
 }
 
-.table-profiles-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
 .table-profiles-row {
   display: flex;
   align-items: stretch;

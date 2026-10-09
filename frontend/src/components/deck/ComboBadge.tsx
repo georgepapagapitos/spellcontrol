@@ -31,7 +31,7 @@ export function ComboBadge({ oracleId, matches }: ComboBadgeProps) {
 
   return (
     <InfoTip
-      className="combo-badge-tip"
+      className="combo-badge-tip touch-ghost"
       label="combos"
       ariaLabel={ariaLabel}
       icon={

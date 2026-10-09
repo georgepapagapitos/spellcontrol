@@ -114,6 +114,24 @@
   }
 }
 
+/* The shared 44px touch ghost: an invisible 44×44 box centered on a small
+   control so a thumb can hit it without growing the visible glyph. Add the
+   class beside the control's own and give the control a positioning context
+   (`position: relative`, or absolute/fixed if it already is one). A host whose
+   ghost has a different size or inset (.btn-link, .text-link above) keeps its
+   own rule instead. */
+@media (pointer: coarse) {
+  .touch-ghost::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+}
+
 .field {
   display: flex;
   flex-direction: column;

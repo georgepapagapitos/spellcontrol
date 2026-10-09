@@ -254,7 +254,7 @@ export function DeckFeedbackSheet({ deck, onClose }: Props) {
                 </header>
                 {response.comment && <p className="deck-feedback-comment">{response.comment}</p>}
                 {response.suggestions.length > 0 && (
-                  <ul className="deck-feedback-suggestions">
+                  <ul className="list-stack list-stack--tight deck-feedback-suggestions">
                     {response.suggestions.map((suggestion) => {
                       const blocked =
                         suggestion.status === 'pending'

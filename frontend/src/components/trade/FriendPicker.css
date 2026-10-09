@@ -1,12 +1,3 @@
-.friend-picker-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
 .friend-picker-row {
   display: flex;
   align-items: center;

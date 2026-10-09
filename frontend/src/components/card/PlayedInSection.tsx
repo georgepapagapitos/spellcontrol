@@ -98,7 +98,7 @@ function PlayRow({
 
 function SkeletonRows() {
   return (
-    <ul className="played-in-list" aria-hidden>
+    <ul className="list-stack list-stack--tight played-in-list" aria-hidden>
       {[0, 1, 2].map((i) => (
         <li key={i} className="played-in-row is-skeleton">
           <span className="played-in-art">
@@ -200,7 +200,7 @@ export function PlayedInSection({
     return (
       <div className="played-in-group">
         <h4 className="played-in-group-label">{label}</h4>
-        <ul className="played-in-list">
+        <ul className="list-stack list-stack--tight played-in-list">
           {shown.map((p) => (
             <PlayRow
               key={p.name}

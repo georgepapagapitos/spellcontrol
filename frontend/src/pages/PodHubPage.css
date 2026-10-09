@@ -137,14 +137,6 @@
 
 /* ── Roster — single-column at every width (STYLE_GUIDE Responsive: a
    handful of names never benefits from a grid). ─────────────────────────── */
-.pod-hub-roster {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
 
 .pod-hub-roster-row {
   display: flex;
@@ -336,14 +328,6 @@
    Each row is internally stacked (name, then status, then any deck rows) at
    every width — a per-member card reading top-to-bottom needs no
    breakpoint-specific layout. ────────────────────────────────────────────── */
-.pod-hub-wtpp-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
 
 .pod-hub-wtpp-row {
   display: flex;

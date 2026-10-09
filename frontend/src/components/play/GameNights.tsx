@@ -781,7 +781,7 @@ function AttendeeSheet({ night, onClose }: { night: GameNight; onClose: () => vo
               <h3 className="game-night-attendee-group-title">
                 {label} <span className="game-night-count">{group.length}</span>
               </h3>
-              <ul className="game-night-attendee-sheet-list">
+              <ul className="list-stack list-stack--tight game-night-attendee-sheet-list">
                 {group.map((r, i) => renderRow(r, r.id ?? `${status}-${i}-${r.displayName}`))}
               </ul>
             </section>
@@ -792,7 +792,7 @@ function AttendeeSheet({ night, onClose }: { night: GameNight; onClose: () => vo
             <h3 className="game-night-attendee-group-title">
               Hasn't replied yet <span className="game-night-count">{night.awaiting.length}</span>
             </h3>
-            <ul className="game-night-attendee-sheet-list">
+            <ul className="list-stack list-stack--tight game-night-attendee-sheet-list">
               {night.awaiting.map((username) => (
                 <li key={username} className="game-night-attendee-row">
                   <span className="game-night-person-name">{username}</span>

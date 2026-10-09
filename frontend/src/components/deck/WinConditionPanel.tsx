@@ -316,7 +316,7 @@ export function WinConditionPanel({
             <span>{assemblyClockSentence(clock, analysis.primary.category)}</span>
             <InfoTip
               label="the assembly estimate"
-              className="win-con-clock-tip"
+              className="win-con-clock-tip touch-ghost"
               text={assemblyClockTip()}
             />
           </p>

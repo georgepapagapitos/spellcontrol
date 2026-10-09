@@ -717,7 +717,7 @@ function StatsDrawer({
                 Nothing to break down yet.
               </EmptyState>
             ) : (
-              <ul className="breakdown-list">
+              <ul className="list-stack breakdown-list">
                 {visibleRows.map((row) => (
                   <BreakdownRow
                     key={row.key}

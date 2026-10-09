@@ -547,7 +547,7 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
                         <span>{assemblyClockSentence(assemblyClock, primaryWinCon.category)}</span>
                         <InfoTip
                           label="the assembly estimate"
-                          className="deck-test-hand-assembly-tip"
+                          className="deck-test-hand-assembly-tip touch-ghost"
                           text={assemblyClockTip()}
                         />
                       </p>

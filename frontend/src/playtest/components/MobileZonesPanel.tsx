@@ -86,7 +86,7 @@ export function MobileZonesPanel({
                     />
                   )}
                   <IconButton
-                    className="playtest-zone-tile__kebab"
+                    className="playtest-zone-tile__kebab touch-ghost"
                     aria-haspopup="menu"
                     onClick={() => {
                       setOpen(false);

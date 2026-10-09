@@ -651,7 +651,7 @@ export function FriendHubPage() {
                   titleClassName="friend-hub-section-head"
                   variant="overline"
                 />
-                <ul className="friend-hub-list">
+                <ul className="list-stack list-stack--tight friend-hub-list">
                   {rows.map((s) => (
                     <HubRow key={s.token} share={s} />
                   ))}

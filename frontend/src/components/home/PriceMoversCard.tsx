@@ -185,7 +185,7 @@ export function PriceMoversCard() {
       viewAllLabel="View trend"
       className="home-movers-card"
     >
-      <ul className="home-movers-list">
+      <ul className="list-stack home-movers-list">
         {shown.map((m, i) => {
           const moveAmount = m.after - m.before;
           const up = moveAmount > 0;

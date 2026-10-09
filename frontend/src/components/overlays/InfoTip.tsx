@@ -119,7 +119,7 @@ export function InfoTip({
       <button
         ref={btnRef}
         type="button"
-        className={`info-tip-btn${className ? ` ${className}` : ''}`}
+        className={`info-tip-btn touch-ghost${className ? ` ${className}` : ''}`}
         aria-label={ariaLabel ?? `What is ${label}?`}
         onMouseEnter={place}
         onMouseLeave={close}

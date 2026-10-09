@@ -108,7 +108,7 @@ export function ListEntryTargetPrice({ entry, onSave }: Props) {
         />
         {entry.targetPrice !== undefined && (
           <IconButton
-            className="list-target-price-clear"
+            className="list-target-price-clear touch-ghost"
             onMouseDown={(e) => {
               e.preventDefault();
               clearTarget();

@@ -257,7 +257,7 @@ export function LogDock({
           table.items.length === 0 ? (
             <p className="playtest-log-dock__empty">No table activity yet.</p>
           ) : (
-            <ol className="playtest-log-dock__ticker">
+            <ol className="list-stack list-stack--tight playtest-log-dock__ticker">
               {table.items.map((it) => (
                 <TickerLine key={it.id} item={it} name={table.nameFor(it.seat)} />
               ))}
@@ -269,7 +269,7 @@ export function LogDock({
           groups.map((group) => (
             <section key={`${group.turn}-${group.entries[0]?.seq ?? 'x'}`}>
               <h3 className="playtest-log-dock__turn">Turn {group.turn}</h3>
-              <ol className="playtest-log-dock__entries">
+              <ol className="list-stack list-stack--tight playtest-log-dock__entries">
                 {group.entries.map((e) => (
                   <li
                     key={e.seq}

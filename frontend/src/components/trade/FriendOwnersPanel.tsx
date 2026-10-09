@@ -123,7 +123,7 @@ export function FriendOwnersPanel({ oracleId, cardName }: Props) {
         <p className="friend-owners-status">None of your friends have this.</p>
       )}
       {owners !== null && owners.length > 0 && (
-        <ul className="friend-owners-list">
+        <ul className="list-stack list-stack--tight friend-owners-list">
           {owners.map((o) => {
             const { primary } = formatIdentity(o);
             return (

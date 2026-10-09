@@ -4,15 +4,6 @@
   font-size: var(--text-sm);
 }
 
-.room-browser-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
 .room-browser-row {
   display: flex;
   align-items: center;

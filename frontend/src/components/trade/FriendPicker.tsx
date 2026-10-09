@@ -84,7 +84,7 @@ export function FriendPicker({ onClose }: Props) {
       )}
 
       {friends !== null && friends.length > 0 && (
-        <ul className="friend-picker-list" aria-label="Your friends">
+        <ul className="list-stack list-stack--tight friend-picker-list" aria-label="Your friends">
           {friends.map((f) => {
             const { primary, secondary } = formatIdentity(f);
             return (

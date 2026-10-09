@@ -1275,7 +1275,7 @@ function PlayerPanel({
             <div className="player-panel-life-wrap">
               <button
                 type="button"
-                className="player-panel-step-btn"
+                className="player-panel-step-btn touch-ghost"
                 aria-label={stepLabel(-1)}
                 disabled={disabled}
                 onPointerDown={(e) => e.stopPropagation()}
@@ -1324,7 +1324,7 @@ function PlayerPanel({
               )}
               <button
                 type="button"
-                className="player-panel-step-btn"
+                className="player-panel-step-btn touch-ghost"
                 aria-label={stepLabel(1)}
                 disabled={disabled}
                 onPointerDown={(e) => e.stopPropagation()}

@@ -359,35 +359,6 @@
       "styles/play-setup.css:.play-setup-seat-deck-add:hover  [@media (hover: hover) and (pointer: fine)]"
     ]
   },
-  "5a65eadb90": {
-    "size": 24,
-    "locations": [
-      "components/binder/BinderVolumesSheet.css:.binder-volumes-list",
-      "components/deck/DeckTypeBreakdown.css:.deck-type-breakdown-rows",
-      "components/deck/EnginePanel.css:.engine-axes",
-      "components/friends/PeopleSearch.css:.people-results",
-      "components/home/PriceMoversCard.css:.home-movers-list",
-      "components/import/ImportHistorySheet.css:.import-history-list",
-      "components/play/NightPoll.css:.night-poll-options",
-      "components/play/PlayHome.css:.play-home-recent",
-      "components/play/RoomBrowser.css:.room-browser-list",
-      "components/social/FriendsManagement.css:.friends-activity-list",
-      "components/social/FriendsManagement.css:.friends-inbox-list",
-      "components/social/FriendsManagement.css:.friends-request-list",
-      "deck-builder/components/brew/BrewSlotPanel.css:.brew-hand",
-      "deck-builder/components/brew/BrewSlotPanel.css:.brew-hand-skeleton",
-      "pages/PodHubPage.css:.pod-hub-wtpp-list",
-      "pages/PodsIndexPage.css:.pods-invited-list",
-      "pages/SetsPage.css:.sets-list",
-      "pages/cube/cube.css:.cube-saved-list",
-      "playtest/components/CustomCountersDialog.css:.counters-dialog__active",
-      "styles/deck-builder-analysis.css:.deck-mana-prod",
-      "styles/deck-builder-analysis.css:.deck-roles",
-      "styles/deck-builder-import-dialog.css:.import-deck-summary-list",
-      "styles/play-history-inline.css:.play-history-list",
-      "styles/stats-breakdown.css:.breakdown-list"
-    ]
-  },
   "5ad2c098d1": {
     "size": 2,
     "locations": [
@@ -570,33 +541,6 @@
     "locations": [
       "components/deck/BuildReportSheet.css:.build-report-sheet-close",
       "components/deck/NewArrivalsSheet.css:.new-arrivals-sheet-close"
-    ]
-  },
-  "8452a60a0d": {
-    "size": 22,
-    "locations": [
-      "components/card/PlayedInSection.css:.played-in-list",
-      "components/deck/BracketBreakdown.css:.bracket-breakdown-loop-list",
-      "components/deck/DeckFeedbackSheet.css:.deck-feedback-suggestions",
-      "components/deck/FillDeckSheet.css:.fill-deck-list",
-      "components/import/ProductSearchPanel.css:.product-card-list",
-      "components/import/ProductSearchPanel.css:.product-result-list",
-      "components/play/GameNights.css:.game-night-attendee-sheet-list",
-      "components/trade/FriendOwnersPanel.css:.friend-owners-list",
-      "components/trade/FriendPicker.css:.friend-picker-list",
-      "components/trade/TradeComposer.css:.trade-side-picked, .trade-side-results",
-      "pages/FriendHubPage.css:.friend-hub-list",
-      "pages/GameNightView.css:.game-night-attendee-list",
-      "pages/PodHubPage.css:.pod-hub-roster",
-      "pages/RulesPage.css:.rules-cited-list",
-      "pages/cube/cube.css:.cube-commander-coverage-identity-list",
-      "pages/cube/cube.css:.cube-draft-sim-pair-list",
-      "playtest/components/LogDock.css:.playtest-log-dock__entries, .playtest-log-dock__ticker",
-      "styles/deck-builder-analysis.css:.deck-saltiest-list",
-      "styles/deck-builder-combos-list.css:.combo-aside-locations",
-      "styles/play-enhancements.css:.turn-times-list",
-      "styles/play-setup.css:.table-profiles-list",
-      "styles/search-controls.css:.sort-sheet-preview-list"
     ]
   },
   "86371a6ad7": {
@@ -1090,41 +1034,13 @@
     ]
   },
   "e588c3705c": {
-    "size": 33,
+    "size": 5,
     "locations": [
-      "components/deck/ComboBadge.css:.combo-badge-tip::after  [@media (pointer: coarse)]",
-      "components/deck/DeckCardPreviewMeta.css:.deck-card-preview-meta-tag-remove::after  [@media (pointer: coarse)]",
-      "components/deck/SuggestionDismissMenu.css:.suggestion-menu-trigger::after  [@media (pointer: coarse)]",
-      "components/deck/WinConditionPanel.css:.win-con-clock-tip::after  [@media (pointer: coarse)]",
       "components/decks/LikeButton.css:.decks-index-list.is-grid .tile-action-btn::after  [@media (pointer: coarse)]",
-      "components/overlays/InfoTip.css:.info-tip-btn::after  [@media (pointer: coarse)]",
-      "components/play/OnlineGameView.css:.ogv-stepper-btn::after  [@media (pointer: coarse)]",
-      "components/trade/PrintingChoices.css:.printing-choice-step::after  [@media (pointer: coarse)]",
-      "components/trade/TradeAddButton.css:.trade-add::after  [@media (pointer: coarse)]",
-      "components/trade/TradeComposer.css:.trade-picked-choose::after  [@media (pointer: coarse)]",
-      "components/trade/TradeComposer.css:.trade-picked-remove::after  [@media (pointer: coarse)]",
-      "components/trade/TradeComposer.css:.trade-stepper-btn::after  [@media (pointer: coarse)]",
-      "components/trade/TradeReview.css:.trade-review-remove::after  [@media (pointer: coarse)]",
-      "components/trade/TradeReview.css:.trade-review-step::after  [@media (pointer: coarse)]",
-      "styles/auth.css:.auth-reveal::after  [@media (pointer: coarse)]",
-      "styles/binder-rules-editor.css:.color-swatch-custom::after  [@media (pointer: coarse)]",
-      "styles/collection.css:.collection-filter-chip-clear::after  [@media (pointer: coarse)]",
-      "styles/collection.css:.list-target-price-clear::after  [@media (pointer: coarse)]",
-      "styles/collection.css:.set-filter-chip-x::after  [@media (pointer: coarse)]",
       "styles/deck-builder-binders-index.css:.binders-index-list.is-grid .binders-index-card-menu-btn::after  [@media (pointer: coarse)]",
       "styles/deck-builder-card-search.css:.inline-card-search-meta .card-list-binder-badge::after  [@media (pointer: coarse)]",
-      "styles/deck-builder-customizer.css:.deck-customizer-pill-remove::after  [@media (pointer: coarse)]",
       "styles/deck-builder-decks-index.css:.decks-index-list.is-grid .decks-index-card-menu-btn::after  [@media (pointer: coarse)]",
-      "styles/deck-builder-guided.css:.deck-row-provenance-trigger::after  [@media (pointer: coarse)]",
-      "styles/deck-builder-test-hand.css:.deck-test-hand-assembly-tip::after  [@media (pointer: coarse)]",
-      "styles/modals-dialogs.css:.card-edit-btn::after  [@media (pointer: coarse)]",
-      "styles/play-board.css:.player-panel-step-btn::after  [@media (pointer: coarse)]",
-      "styles/play-history-inline.css:.play-history-check::after  [@media (pointer: coarse)]",
-      "styles/play-history-inline.css:.play-history-remove::after  [@media (pointer: coarse)]",
-      "styles/playtest.css:.playtest-life-table__step::after  [@media (pointer: coarse)]",
-      "styles/playtest.css:.playtest-tax-coin::after  [@media (pointer: coarse)]",
-      "styles/playtest.css:.playtest-zone-card__overflow::after  [@media (pointer: coarse)]",
-      "styles/playtest.css:.playtest-zone-tile__kebab::after  [@media (pointer: coarse)]"
+      "styles/forms-banners.css:.touch-ghost::after  [@media (pointer: coarse)]"
     ]
   },
   "e7d9042834": {

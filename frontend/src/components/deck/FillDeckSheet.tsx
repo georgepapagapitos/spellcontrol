@@ -242,7 +242,7 @@ export function FillDeckSheet({
                     <h3 className="fill-deck-group-title">
                       {PLURAL[group]} <span className="fill-deck-group-count">{cards.length}</span>
                     </h3>
-                    <ul className="fill-deck-list" role="list">
+                    <ul className="list-stack list-stack--tight fill-deck-list" role="list">
                       {cards.map((c, i) => (
                         <li key={`${c.name}-${i}`} className="fill-deck-row">
                           <Thumb card={c} />

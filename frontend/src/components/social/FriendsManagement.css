@@ -74,15 +74,6 @@
   margin: 0 0 var(--space-2);
 }
 
-.friends-request-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
 .friends-request-item {
   display: flex;
   align-items: center;
@@ -113,14 +104,6 @@
 
 /* Empty / error / skeleton / guest-gate states: styles/social-shared.css. */
 /* ── Inbox (directed shares) ─────────────────────────────────────────────── */
-.friends-inbox-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
 
 .friends-inbox-item {
   display: flex;
@@ -159,14 +142,6 @@
 /* Structure/typography reuse .friends-inbox-* verbatim (row shape, from/label
    text, timestamp) — only the anchor-specific resets + hover/focus are new,
    since the whole row is now the link rather than a trailing "View" button. */
-.friends-activity-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
 
 .friends-activity-link {
   text-decoration: none;

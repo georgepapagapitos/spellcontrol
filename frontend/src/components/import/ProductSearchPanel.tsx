@@ -529,7 +529,7 @@ export function ProductSearchPanel({ onClose, context = 'collection' }: Props) {
       // list + compact share the row markup; compact just tightens via a modifier.
       return (
         <ul
-          className={`product-card-list${layout === 'compact' ? ' is-compact' : ''}`}
+          className={`list-stack list-stack--tight product-card-list${layout === 'compact' ? ' is-compact' : ''}`}
           aria-label={g.label}
         >
           {g.cards.map((pc, i) => (
@@ -747,7 +747,7 @@ export function ProductSearchPanel({ onClose, context = 'collection' }: Props) {
           <p className="card-picker-empty">No matching products. New releases may be missing.</p>
         )}
         {!loadingList && results.length > 0 && (
-          <ul className="product-result-list">
+          <ul className="list-stack list-stack--tight product-result-list">
             {results.map((p) => (
               <ProductResultRow
                 key={p.fileName}

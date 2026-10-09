@@ -38,7 +38,7 @@ export function FilterChipsRow({
           labelClassName="collection-filter-chip-label"
           onRemove={chip.onClear}
           removeLabel={`Remove filter: ${chip.label}`}
-          removeClassName="collection-filter-chip-clear"
+          removeClassName="collection-filter-chip-clear touch-ghost"
         >
           {chip.label}
         </Chip>
