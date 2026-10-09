@@ -153,8 +153,11 @@ export function DeckEditorHero({
                   The hero is the one place the Deck tab states it, so a stated
                   bracket the Estimate disagrees with carries the Estimate here
                   ("Bracket 2 · est. 4", § Bracket: the owner's word); the deck
-                  stats under the list no longer repeat either. */}
-          {bracketValue != null && (
+                  stats under the list no longer repeat either. On a phone the
+                  Power tab's badge, straight under the header, already shows
+                  it, so the one-line meta leaves it out rather than say it
+                  twice on one screen. */}
+          {bracketValue != null && !isPhone && (
             <span
               className="deck-hero-bracket"
               aria-label={heroBracket?.aria}

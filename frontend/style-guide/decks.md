@@ -231,6 +231,10 @@ three times on one screen, so these rulings now hold:
   what the hero does _not_ say: avg mana value, archetype, missing, new
   arrivals. Never re-print a hero number in a strip, panel title or badge below
   it. (Tab health badges are exempt — they are verdicts, not the number.)
+  One exception, on a phone only (2026-10-08): the header's one-line meta
+  leaves the bracket out, because the Power tab's badge directly under it
+  already shows the bracket and the phone screen would otherwise say it twice.
+  A stated bracket's "est. N" is then on the Power tab itself.
 - **The top of the Deck tab puts the first cards on a phone's first screen
   (2026-09-25, E415).** Under 600px the glance strip is one line: its cells
   spread across the width, long labels swap for short ones ("avg MV"), and

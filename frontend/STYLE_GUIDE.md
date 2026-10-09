@@ -349,6 +349,7 @@ meanwhile.
   zone's first row, so the meta line doesn't name it again, and sharing is
   its last segment ("Sharing: Public"), not a boxed chip under the title. On a
   phone sharing is instead a labelled action between Add cards and Deck ▾,
+  and the bracket is left to the Power tab's badge just under the header,
   so the meta line stays one line ([§ Page hero art](style-guide/app-shell.md#page-hero-art--phones-get-the-art-not-a-downgrade)). **Hub tabs, built:** see Hub pages below. The header
   and strip own their spacing (8px header → tabs on every hub; hosts with a
   flex gap declare it as `--host-gap` so it cancels instead of stacking).
