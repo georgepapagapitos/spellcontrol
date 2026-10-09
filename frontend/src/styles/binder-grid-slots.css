@@ -122,7 +122,6 @@
 .section-meta {
   font-size: var(--text-sm);
   color: var(--text-muted);
-  font-family: var(--font-mono);
   margin-left: auto;
   /* The wrapping chip list beside it has min-width: 0 and absorbs the
      squeeze; without this, a chip-heavy header wraps "24 cards · 2 pages"
@@ -163,7 +162,6 @@
 .page-num {
   font-size: var(--text-xs);
   color: var(--text-muted);
-  font-family: var(--font-mono);
 }
 
 /* What sits on THIS page — between the page number and the grid, in the

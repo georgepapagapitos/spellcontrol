@@ -1279,7 +1279,7 @@ user choice — see § Type sets.
 | Body    | `--font-serif`   | The default: body, controls, section/lane titles (incl. the serif-caps `.deck-combos-title` family)                                                                     | —                                                     |
 | Display | `--font-display` | **Hero tier only**: binder/deck hero names + page-identity titles at `--text-xl` and up (list below)                                                                    | body, chrome, section titles, dialog titles, numerals |
 | Label   | `--font-label`   | Chrome/tab/tape labels, stamps and tags, print-table `th`: the ONLY uppercase role — see [§ App chrome](style-guide/app-shell.md#app-chrome--leather--divider-tabs-t53) | prose, headings, form controls                        |
-| Data    | `--font-mono`    | Data: prices, qty, set codes, tabular numerals                                                                                                                          | —                                                     |
+| Data    | `--font-mono`    | Data: prices, qty, counts, set codes, collector numbers, tabular numerals, code                                                                                         | prose, hints, captions, descriptors, labels, names    |
 
 **Uppercase belongs to the label role, and only to it (E595).** A section
 label above its rows ("Mana curve", "Build report", a form block's heading, a
@@ -1306,6 +1306,14 @@ In the default set (**Codex**) those roles are Eczar / Marcellus / Archivo
 Narrow / IBM Plex Mono respectively. Older examples in this section were written
 against **Folio** or **Grimoire**, both still selectable sets — where one names
 a face, read the role.
+
+**The Data role is for data, not for small muted text.** Mono on a hint, a meta
+sentence, a caption, an empty state, a label or a name is the "faint monospaced
+descriptor" tell of generated UI. When a rule mixes a label with a number, wrap
+only the number in the data class; when alignment is all you need, keep the body
+face and add `font-variant-numeric: tabular-nums`. `font-mono-ratchet.test.ts`
+freezes the count of `--font-mono` rules (it may only fall) and bans literal
+face names outside the token and `@font-face` sheets.
 
 **The default set is chosen for legibility, not for taste.** A default is what
 every reader gets _before they know a picker exists_, so it is the one set that

@@ -487,7 +487,6 @@
 }
 
 .dice-slot-cap {
-  font-family: var(--font-mono);
   font-size: var(--text-sm);
   font-weight: 500;
   color: var(--text-secondary);

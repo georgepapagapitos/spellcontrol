@@ -11,7 +11,7 @@
    pasted batch. modal-body still owns the only scroll region. */
 .bulk-edit-deck-modal .bulk-edit-textarea {
   min-height: 320px;
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono);
   font-size: var(--text-sm);
   white-space: pre;
   overflow-x: auto;

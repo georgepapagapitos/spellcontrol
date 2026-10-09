@@ -49,7 +49,6 @@
 }
 
 .import-review-section--routing {
-  font-family: var(--font-mono);
   color: var(--accent-hover);
 }
 
@@ -92,7 +91,6 @@
 .unresolved-repair-name {
   min-width: 0;
   flex: 1;
-  font-family: var(--font-mono);
   font-size: var(--text-sm);
   color: var(--text-primary);
   white-space: nowrap;
@@ -223,7 +221,6 @@
 .stats-drawer-title {
   margin: 0;
   font-size: var(--text-md);
-  font-family: var(--font-mono);
   color: var(--text-secondary);
   font-weight: 600;
 }

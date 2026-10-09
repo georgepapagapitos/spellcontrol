@@ -66,7 +66,6 @@
 
 /* Mono uppercase section label (e.g. "Why it fits your commander"). */
 .deck-card-preview-meta-label {
-  font-family: var(--font-mono);
   font-size: var(--text-xs);
   color: rgba(255, 255, 255, 0.55);
 }

@@ -413,7 +413,6 @@
   border-color: var(--warn-border);
 }
 .cube-coverage-label {
-  font-family: var(--font-mono);
   font-size: var(--text-sm);
   font-weight: 600;
   color: var(--text-primary);
@@ -492,7 +491,6 @@
   gap: var(--space-2);
 }
 .cube-commander-coverage-identity-label {
-  font-family: var(--font-mono);
   font-size: var(--text-xs);
   color: var(--text-muted);
 }
@@ -1193,7 +1191,6 @@
   border-radius: 999px;
   background: var(--surface-raised);
   border: 1px solid var(--border);
-  font-family: var(--font-mono);
   font-size: var(--text-xs);
   color: var(--text-secondary);
   white-space: nowrap;
@@ -2109,7 +2106,6 @@
 }
 .cube-pull-row-slot {
   flex-shrink: 0;
-  font-family: var(--font-mono);
   font-size: var(--text-xs);
   color: var(--text-secondary);
 }

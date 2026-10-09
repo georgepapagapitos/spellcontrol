@@ -185,7 +185,6 @@
 /* The status as a word beside the icon — color is never the only signal. */
 .card-legality-status {
   margin-left: auto;
-  font-family: var(--font-mono);
   font-size: var(--text-xs);
   color: var(--text-muted);
   white-space: nowrap;
