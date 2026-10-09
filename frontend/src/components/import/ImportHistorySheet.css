@@ -72,14 +72,12 @@
 .import-history-meta {
   font-size: var(--text-xs);
   color: var(--text-muted);
-  font-family: var(--font-mono);
 }
 
 .import-history-empty {
   margin: 0;
   font-size: var(--text-sm);
   color: var(--text-muted);
-  font-family: var(--font-mono);
 }
 
 .delete-imports-list {

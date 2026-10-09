@@ -408,7 +408,6 @@
 
 .bracket-breakdown-summary-line {
   margin: 0;
-  font-family: var(--font-mono);
   font-size: var(--text-sm);
   color: var(--text-secondary);
   line-height: 1.5;

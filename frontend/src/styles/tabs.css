@@ -104,7 +104,6 @@
 .sort-label {
   font-size: var(--text-xs);
   color: var(--text-muted);
-  font-family: var(--font-mono);
   white-space: nowrap;
 }
 

@@ -31,7 +31,6 @@
 .footer-fineprint {
   font-size: var(--text-xs);
   color: var(--text-muted);
-  font-family: var(--font-mono);
   max-width: 600px;
   margin-left: auto;
   margin-right: auto;
@@ -699,7 +698,6 @@
 .card-preview-image-fallback {
   padding: var(--space-6);
   color: var(--text-muted);
-  font-family: var(--font-mono);
   font-size: var(--text-sm);
   text-align: center;
 }
@@ -955,7 +953,6 @@
   gap: var(--space-2);
   margin-top: var(--space-2);
   min-height: 1.5rem;
-  font-family: var(--font-mono);
   font-size: var(--text-xs);
   letter-spacing: 0.04em;
   color: var(--text-muted);
@@ -1234,7 +1231,6 @@
 
 .card-preview-kv dd {
   margin: 0;
-  font-family: var(--font-mono);
   color: rgb(255 255 255 / 92%);
 }
 
@@ -1274,7 +1270,6 @@
   margin-bottom: var(--space-2);
   font-size: var(--text-sm);
   color: rgba(255, 255, 255, 0.78);
-  font-family: var(--font-mono);
 }
 
 .card-preview-set {
@@ -1772,7 +1767,6 @@
 .binder-pages-cell-fallback {
   font-size: var(--text-xs);
   color: rgba(255, 255, 255, 0.55);
-  font-family: var(--font-mono);
   text-align: center;
   padding: var(--space-1);
   pointer-events: none;
@@ -1813,7 +1807,6 @@
 .binder-pages-context {
   max-width: min(100%, 40rem);
   min-height: calc(2 * 1.45em);
-  font-family: var(--font-mono);
   font-size: var(--text-xs);
   line-height: 1.45;
   color: rgb(255 255 255 / 70%);

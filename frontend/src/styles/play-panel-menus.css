@@ -205,7 +205,6 @@
   color: var(--table-ink);
   border-radius: var(--radius);
   padding: var(--space-1) var(--space-2);
-  font-family: var(--font-mono);
 }
 
 /* Mutating row on a phone game board: the field and its Set button share

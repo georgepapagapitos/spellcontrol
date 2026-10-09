@@ -23,7 +23,6 @@
 .editor-section h3 .muted {
   font-size: var(--text-sm);
   color: var(--text-muted);
-  font-family: var(--font-mono);
 }
 
 .editor-row {
@@ -433,7 +432,7 @@
 
 .color-picker-hex-hash {
   color: var(--text-muted);
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono);
   font-size: var(--text-sm);
 }
 
@@ -443,7 +442,7 @@
   border: 0;
   outline: none;
   color: var(--text-primary);
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono);
   font-size: var(--text-sm);
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -620,7 +619,6 @@
 }
 
 .filter-group-or span {
-  font-family: var(--font-mono);
   font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -727,7 +725,6 @@
   margin: 0 0 var(--space-1);
   padding: 0 var(--space-2);
   font-size: var(--text-xs);
-  font-family: var(--font-mono);
   color: var(--text-muted);
   font-weight: 600;
 }
@@ -882,7 +879,6 @@
    Distinguishable at a glance without painting in two fixed hues that
    clash with warm themes (boros / rakdos / izzet). */
 .chip-joiner {
-  font-family: var(--font-mono);
   font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -1000,7 +996,6 @@
 }
 
 .chip-builder-toggle {
-  font-family: var(--font-mono);
   font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -1116,7 +1111,6 @@
 .chip-suggest-item {
   padding: var(--space-1-5) var(--space-3);
   font-size: var(--text-sm);
-  font-family: var(--font-mono);
   color: var(--text-secondary);
   cursor: pointer;
   white-space: nowrap;

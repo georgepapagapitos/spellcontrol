@@ -406,7 +406,6 @@
   border: 0.5px solid var(--border);
   background: var(--surface-raised);
   color: var(--text-muted);
-  font-family: var(--font-mono);
   font-size: var(--text-xs);
   letter-spacing: 0.04em;
   cursor: pointer;

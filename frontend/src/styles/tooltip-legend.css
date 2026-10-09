@@ -32,7 +32,6 @@
 
 .tooltip-meta {
   color: var(--text-muted);
-  font-family: var(--font-mono);
   font-size: var(--text-xs);
 }
 
@@ -87,7 +86,6 @@
 .tooltip-set {
   margin-top: var(--space-0-5);
   color: var(--text-muted);
-  font-family: var(--font-mono);
   font-size: var(--text-xs);
   display: flex;
   align-items: center;
@@ -367,7 +365,6 @@ hr {
   border-radius: var(--radius);
   margin-bottom: var(--space-3);
   font-size: var(--text-base);
-  font-family: var(--font-mono);
 }
 
 .success-banner > span {
