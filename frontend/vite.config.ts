@@ -1,6 +1,5 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { VitePWA } from 'vite-plugin-pwa';
 import path from 'node:path';
 
 // Build identifier baked in at build time, so a bundle can identify itself.
@@ -20,51 +19,7 @@ export default defineConfig({
       input: path.resolve(__dirname, 'index.html'),
     },
   },
-  plugins: [
-    react(),
-    // The PWA / service worker has been RETIRED. SpellControl ships a native
-    // app for real offline use, and the web app-shell precache only ever
-    // caused stale-bundle confusion: a Fly deploy would land but returning
-    // browsers kept serving the previously-cached bundle until the SW updated.
-    // The web app is now a plain SPA (always online); offline card data is
-    // IndexedDB-backed and SW-independent (lib/offline/auto-sync).
-    //
-    // `selfDestroying: true` is the supported teardown path — it emits a
-    // service worker that UNREGISTERS any SW a prior build installed and
-    // purges its caches, so existing browsers self-heal on their next
-    // update check (a bare plugin removal would strand them on the old SW,
-    // since a 404 on sw.js does not reliably unregister it). Keep this for a
-    // few weeks until old SWs have aged out, then the plugin can be deleted
-    // entirely (register-pwa.ts already only tears SWs down — see there).
-    // `injectRegister: false` leaves the teardown to register-pwa.ts.
-    VitePWA({
-      selfDestroying: true,
-      injectRegister: false,
-      devOptions: { enabled: false },
-      // Not a PWA (the service worker was retired in #482) — the manifest only
-      // gives an Android "Add to home screen" a real name, icon and colours
-      // instead of the plugin's package-name defaults and a generic glyph.
-      manifest: {
-        name: 'SpellControl',
-        short_name: 'SpellControl',
-        description:
-          'Plan your physical Magic: The Gathering collection: rule-based binders, deck building, and game tracking.',
-        theme_color: '#111830',
-        background_color: '#111830',
-        display: 'standalone',
-        icons: [
-          { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
-          {
-            src: '/icon-maskable-512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'maskable',
-          },
-        ],
-      },
-    }),
-  ],
+  plugins: [react()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
