@@ -91,6 +91,8 @@
 .unresolved-repair-name {
   min-width: 0;
   flex: 1;
+  /* Data, not a label: the line exactly as the import file spelled it. */
+  font-family: var(--font-mono);
   font-size: var(--text-sm);
   color: var(--text-primary);
   white-space: nowrap;
