@@ -4,7 +4,7 @@ import { getCardsByNames, upgradeCardPrintings } from '@/deck-builder/services/s
 import { aggregateLiftCandidates, selectTopLiftPicks, type LiftCandidate } from '../liftSynergy';
 import {
   fitsColorIdentity,
-  notCommanderLegal,
+  notLegalForFormat,
   exceedsMaxRarity,
   isOwnedRarityExempt,
   notOnArena,
@@ -38,13 +38,25 @@ const FILTER_REASON_LABELS = {
 
 type FilterReason = keyof typeof FILTER_REASON_LABELS;
 
-function buildDisclosureNote(counts: Record<FilterReason, number>): string | undefined {
+const FORMAT_NAMES: Record<string, string> = {
+  brawl: 'Brawl',
+  paupercommander: 'Pauper Commander',
+};
+
+function buildDisclosureNote(
+  counts: Record<FilterReason, number>,
+  mtgFormat?: string
+): string | undefined {
   const total = Object.values(counts).reduce((sum, n) => sum + n, 0);
   if (total === 0) return undefined;
   const [dominant] = (Object.entries(counts) as [FilterReason, number][]).sort(
     (a, b) => b[1] - a[1]
   );
-  return `${total} higher-lift candidate${total === 1 ? '' : 's'} hidden: ${FILTER_REASON_LABELS[dominant[0]]}`;
+  return `${total} higher-lift candidate${total === 1 ? '' : 's'} hidden: ${
+    dominant[0] === 'legal'
+      ? `not legal in ${(mtgFormat && FORMAT_NAMES[mtgFormat]) || 'Commander'}`
+      : FILTER_REASON_LABELS[dominant[0]]
+  }`;
 }
 
 /** Seed cards for the lift lookup: commander(s) first, then theme-synergy
@@ -84,7 +96,7 @@ function rejectionReason(
   bracketGuard?: BracketGuard
 ): FilterReason | undefined {
   if (!fitsColorIdentity(card, state.context.colorIdentity)) return 'offColor';
-  if (notCommanderLegal(card)) return 'legal';
+  if (notLegalForFormat(card, state.cfg.mtgFormat)) return 'legal';
   if (
     !isOwnedRarityExempt(card.name, state.context.collectionNames, state.cfg.ignoreOwnedRarity) &&
     exceedsMaxRarity(card, state.cfg.maxRarity)
@@ -218,7 +230,7 @@ export async function liftPicksPhase(
     // an empty result with a lone "N hidden" footnote has nothing to anchor to.
     const picks = selectTopLiftPicks(survivors, { max: MAX_PICKS });
     if (picks.length === 0) return undefined;
-    const liftPicksNote = buildDisclosureNote(filterCounts);
+    const liftPicksNote = buildDisclosureNote(filterCounts, state.cfg.mtgFormat);
 
     const packagePicks: LiftPackagePick[] = picks.map((p) => ({
       name: p.candidate.name,

@@ -319,6 +319,45 @@ describe('liftPicksPhase constraint gates (E71 controls audit)', () => {
     expect(result?.liftPicksNote).toBe('1 higher-lift candidate hidden: not legal in Commander');
   });
 
+  // Real Scryfall legalities of Sol Ring (commander legal, brawl and
+  // paupercommander not legal) and a card legal in all three.
+  const SOL_RING = { commander: 'legal', brawl: 'not_legal', paupercommander: 'not_legal' };
+  const LEGAL_EVERYWHERE = { commander: 'legal', brawl: 'legal', paupercommander: 'legal' };
+
+  it.each([
+    ['brawl', 'not legal in Brawl'],
+    ['paupercommander', 'not legal in Pauper Commander'],
+  ])('%s: a Commander-legal card illegal in the format is not suggested', async (fmt, why) => {
+    const state = makeState();
+    state.cfg.mtgFormat = fmt as typeof state.cfg.mtgFormat;
+    getCardsByNamesMock.mockResolvedValue(
+      new Map([
+        ['Gated Card', card('Gated Card', { legalities: SOL_RING })],
+        ['Safe Card', card('Safe Card', { legalities: LEGAL_EVERYWHERE })],
+      ])
+    );
+
+    const result = await liftPicksPhase(state);
+    expect(result?.packagePicks.map((p) => p.name)).toEqual(['Safe Card']);
+    expect(result?.liftPicksNote).toBe(`1 higher-lift candidate hidden: ${why}`);
+  });
+
+  it('commander configs are unchanged: the same card is suggested, with or without mtgFormat', async () => {
+    const pool = new Map([
+      ['Gated Card', card('Gated Card', { legalities: SOL_RING })],
+      ['Safe Card', card('Safe Card', { legalities: LEGAL_EVERYWHERE })],
+    ]);
+    getCardsByNamesMock.mockResolvedValue(pool);
+
+    const unset = await liftPicksPhase(makeState());
+    const state = makeState();
+    state.cfg.mtgFormat = 'commander';
+    const explicit = await liftPicksPhase(state);
+
+    expect(unset?.packagePicks.map((p) => p.name)).toContain('Gated Card');
+    expect(explicit).toEqual(unset);
+  });
+
   it('rejects an over-rarity candidate unless owned-exempt', async () => {
     const state = makeState();
     state.cfg.maxRarity = 'uncommon';
