@@ -11,6 +11,7 @@ import {
 } from '@/lib/home/home-signals';
 import { readArrivalWatchlists } from '@/lib/coach/arrival-watchlist';
 import { useCardThumb } from '@/lib/cards/card-thumbs';
+import { thumbSrcSet } from '@/lib/cards/thumb-srcset';
 import { useAnimatedNumber } from '@/lib/util/use-animated-number';
 import { dayKey, formatDayKey } from '@/lib/collection/value-history';
 import { HomeCard } from './HomeCard';
@@ -23,7 +24,11 @@ function FanThumb({ name, owned }: { name: string; owned?: string }) {
   const src = owned ?? art;
   return (
     <span className="home-thumb home-added-fan-card" aria-hidden="true">
-      {src ? <img src={src} alt="" loading="lazy" /> : <span className="home-thumb-skeleton" />}
+      {src ? (
+        <img src={src} srcSet={thumbSrcSet(src)} sizes="3.25rem" alt="" loading="lazy" />
+      ) : (
+        <span className="home-thumb-skeleton" />
+      )}
     </span>
   );
 }
