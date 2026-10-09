@@ -4,7 +4,13 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, relative } from 'node:path';
-import postcss, { type AtRule, type Container, type Declaration, type Rule } from 'postcss';
+import postcss, {
+  type AtRule,
+  type Container,
+  type Declaration,
+  type Document,
+  type Rule,
+} from 'postcss';
 
 // Duplicate-block ratchet (E598). Parallel sessions extending the app tended
 // to write a new class that re-declares an existing one's whole block instead
@@ -29,7 +35,7 @@ import postcss, { type AtRule, type Container, type Declaration, type Rule } fro
 //   UPDATE_DUPLICATE_BLOCK_BASELINE=1 npm test -- src/styles/duplicate-block-ratchet.test.ts
 //
 // The update refuses to write while any group is new or larger, so it can only
-// ever lower the numbers. Editing a declaration inside a baselined group
+// ever lower the numbers. Run npm run format afterwards (prettier reflows the JSON). Editing a declaration inside a baselined group
 // changes its hash; make the same change in every copy and re-baseline, or
 // better, consolidate the copies.
 const srcRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -54,7 +60,7 @@ const squash = (s: string) => s.replace(/\s+/g, ' ').trim();
 
 function context(rule: Rule): string {
   const parts: string[] = [];
-  for (let p: Container | undefined = rule.parent; p; p = p.parent) {
+  for (let p: Container | Document | undefined = rule.parent; p; p = p.parent) {
     if (p.type === 'atrule')
       parts.unshift(`@${(p as AtRule).name} ${squash((p as AtRule).params)}`);
     else if (p.type === 'rule') parts.unshift(squash((p as Rule).selector));
