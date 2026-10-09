@@ -1,1 +1,1589 @@
-{"meta":{"effective":"August 7, 2026","fetchedAt":"2026-09-14T10:31:22.392Z"},"keywords":[{"name":"Activate","rule":"701.2","kind":"action","text":"To activate an activated ability is to put it onto the stack and pay its costs, so that it will eventually resolve and have its effect. Only an object’s controller (or its owner, if it doesn’t have a controller) can activate its activated ability unless the object specifically says otherwise. A player may activate an ability if they have priority."},{"name":"Attach","rule":"701.3","kind":"action","text":"To attach an Aura, Equipment, or Fortification to an object or player means to take it from where it currently is and put it onto that object or player."},{"name":"Behold","rule":"701.4","kind":"action","text":"“Behold a [quality]” means “Reveal a [quality] card from your hand or choose a [quality] permanent you control on the battlefield.”"},{"name":"Cast","rule":"701.5","kind":"action","text":"To cast a spell is to take it from the zone it’s in (usually the hand), put it on the stack, and pay its costs, so that it will eventually resolve and have its effect. A player may cast a spell if they have priority."},{"name":"Counter","rule":"701.6","kind":"action","text":"To counter a spell or ability means to cancel it, removing it from the stack."},{"name":"Create","rule":"701.7","kind":"action","text":"To create one or more tokens with certain characteristics, put the specified number of tokens with the specified characteristics onto the battlefield."},{"name":"Destroy","rule":"701.8","kind":"action","text":"To destroy a permanent, move it from the battlefield to its owner’s graveyard."},{"name":"Discard","rule":"701.9","kind":"action","text":"To discard a card, move it from its owner’s hand to that player’s graveyard."},{"name":"Double","rule":"701.10","kind":"action","text":"Doubling a creature’s power and/or toughness creates a continuous effect. This effect modifies that creature’s power and/or toughness but doesn’t set those characteristics to a specific value."},{"name":"Triple","rule":"701.11","kind":"action","text":"Tripling a creature’s power and/or toughness creates a continuous effect. This effect modifies that creature’s power and/or toughness but doesn’t set those characteristics to a specific value."},{"name":"Exchange","rule":"701.12","kind":"action","text":"A spell or ability may instruct players to exchange something (for example, life totals or control of two permanents) as part of its resolution. When such a spell or ability resolves, if the entire exchange can’t be completed, no part of the exchange occurs."},{"name":"Exile","rule":"701.13","kind":"action","text":"To exile an object, move it to the exile zone from wherever it is."},{"name":"Fight","rule":"701.14","kind":"action","text":"A spell or ability may instruct a creature to fight another creature or it may instruct two creatures to fight each other. Each of those creatures deals damage equal to its power to the other creature."},{"name":"Goad","rule":"701.15","kind":"action","text":"Certain spells and abilities can goad a creature. Until the next turn of the controller of that spell or ability, that creature is goaded. A goaded creature attacks each combat if able and attacks a player other than the controller of the permanent, spell, or ability that caused it to be goaded if able."},{"name":"Investigate","rule":"701.16","kind":"action","text":"“Investigate” means “Create a Clue token.”"},{"name":"Mill","rule":"701.17","kind":"action","text":"For a player to mill a number of cards, that player puts that many cards from the top of their library into their graveyard."},{"name":"Play","rule":"701.18","kind":"action","text":"To play a land means to put it onto the battlefield from the zone it’s in (usually the hand)."},{"name":"Regenerate","rule":"701.19","kind":"action","text":"In this case, “Regenerate [permanent]” means “The next time [permanent] would be destroyed this turn, instead remove all damage marked on it and its controller taps it. If it’s an attacking or blocking creature, remove it from combat.”"},{"name":"Reveal","rule":"701.20","kind":"action","text":"To reveal a card, show that card to all players for a brief time. If an effect causes a card to be revealed, it remains revealed for as long as necessary to complete the parts of the effect that card is relevant to."},{"name":"Sacrifice","rule":"701.21","kind":"action","text":"To sacrifice a permanent, its controller moves it from the battlefield directly to its owner’s graveyard. A player can’t sacrifice something that isn’t a permanent, or something that’s a permanent they don’t control. Sacrificing a permanent doesn’t destroy it, so regeneration or other effects that replace destruction can’t affect this action."},{"name":"Scry","rule":"701.22","kind":"action","text":"To “scry N” means to look at the top N cards of your library, then put any number of them on the bottom of your library in any order and the rest on top of your library in any order."},{"name":"Search","rule":"701.23","kind":"action","text":"To search for a card in a zone, look at all cards in that zone (even if it’s a hidden zone) and find a card that matches the given description."},{"name":"Shuffle","rule":"701.24","kind":"action","text":"To shuffle a library or a face-down pile of cards, randomize the cards within it so that no player knows their order."},{"name":"Surveil","rule":"701.25","kind":"action","text":"To “surveil N” means to look at the top N cards of your library, then put any number of them into your graveyard and the rest on top of your library in any order."},{"name":"Tap and Untap","rule":"701.26","kind":"action","text":"To tap a permanent, turn it sideways from an upright position. Only untapped permanents can be tapped."},{"name":"Transform","rule":"701.27","kind":"action","text":"To transform a permanent, turn it over so that its other face is up. Only permanents represented by double-faced tokens and double-faced cards can transform."},{"name":"Convert","rule":"701.28","kind":"action","text":"To convert a permanent, turn it so that its other face is up. This follows rules 701.27a–f, 712.9–10, and 712.18. Those rules apply to converting a permanent just as they apply to transforming a permanent."},{"name":"Fateseal","rule":"701.29","kind":"action","text":"To “fateseal N” means to look at the top N cards of an opponent’s library, then put any number of them on the bottom of that library in any order and the rest on top of that library in any order."},{"name":"Clash","rule":"701.30","kind":"action","text":"“Clash with an opponent” means “Choose an opponent. You and that opponent each clash.”"},{"name":"Planeswalk","rule":"701.31","kind":"action","text":"A player may planeswalk only during a Planechase game. Only the planar controller may planeswalk."},{"name":"Set in Motion","rule":"701.32","kind":"action","text":"Only a scheme card may be set in motion, and only during an Archenemy game. Only the archenemy may set a scheme card in motion."},{"name":"Abandon","rule":"701.33","kind":"action","text":"Only a face-up ongoing scheme card may be abandoned, and only during an Archenemy game."},{"name":"Proliferate","rule":"701.34","kind":"action","text":"To proliferate means to choose any number of permanents and/or players that have a counter, then give each one additional counter of each kind that permanent or player already has."},{"name":"Detain","rule":"701.35","kind":"action","text":"Certain spells and abilities can detain a permanent. Until the next turn of the controller of that spell or ability, that permanent can’t attack or block and its activated abilities can’t be activated."},{"name":"Populate","rule":"701.36","kind":"action","text":"To populate means to choose a creature token you control and create a token that’s a copy of that creature token."},{"name":"Monstrosity","rule":"701.37","kind":"action","text":"“Monstrosity N” means “If this permanent isn’t monstrous, put N +1/+1 counters on it and it becomes monstrous.”"},{"name":"Vote","rule":"701.38","kind":"action","text":"Some spells and abilities instruct players to vote for one choice from a list of options to determine some aspect of the effect of that spell or ability. To vote, each player, starting with a specified player and proceeding in turn order, chooses one of those choices."},{"name":"Bolster","rule":"701.39","kind":"action","text":"“Bolster N” means “Choose a creature you control with the least toughness or tied for least toughness among creatures you control. Put N +1/+1 counters on that creature.”"},{"name":"Manifest","rule":"701.40","kind":"action","text":"To manifest a card, turn it face down. It becomes a 2/2 face-down creature card with no text, no name, no subtypes, and no mana cost. Put that card onto the battlefield face down. That permanent is a manifested permanent for as long as it remains face down."},{"name":"Support","rule":"701.41","kind":"action","text":"“Support N” on a permanent means “Put a +1/+1 counter on each of up to N other target creatures.”"},{"name":"Meld","rule":"701.42","kind":"action","text":"To meld the two cards in a meld pair, put them onto the battlefield with their back faces up and combined. The resulting permanent is a single object represented by two cards."},{"name":"Exert","rule":"701.43","kind":"action","text":"To exert a permanent, you choose to have it not untap during your next untap step."},{"name":"Explore","rule":"701.44","kind":"action","text":"Certain spells and abilities instruct a permanent to explore. To do so, that permanent’s controller reveals the top card of their library. If a land card is revealed this way, that player puts that card into their hand. Otherwise, that player puts a +1/+1 counter on the exploring permanent and may put the revealed card into their graveyard."},{"name":"Assemble","rule":"701.45","kind":"action","text":"Outside of silver-bordered cards, only one card (Steamflogger Boss) refers to assembling a Contraption. Cards and mechanics from the Unstable set aren’t included in these rules. See the Unstable FAQ for more information."},{"name":"Adapt","rule":"701.46","kind":"action","text":"“Adapt N” means “If this permanent has no +1/+1 counters on it, put N +1/+1 counters on it.”"},{"name":"Amass","rule":"701.47","kind":"action","text":"To amass [subtype] N means “If you don’t control an Army creature, create a 0/0 black [subtype] Army creature token. Choose an Army creature you control. Put N +1/+1 counters on that creature. If it isn’t a [subtype], it becomes a [subtype] in addition to its other types.”"},{"name":"Learn","rule":"701.48","kind":"action","text":"“Learn” means “You may discard a card. If you do, draw a card. If you didn’t discard a card, you may reveal a Lesson card you own from outside the game and put it into your hand.”"},{"name":"Venture into the Dungeon","rule":"701.49","kind":"action","text":"If a player is instructed to venture into the dungeon while they don’t own a dungeon card in the command zone, they choose a dungeon card they own from outside the game and put it into the command zone. They put their venture marker on the topmost room."},{"name":"Connive","rule":"701.50","kind":"action","text":"Certain spells and abilities instruct a permanent to connive. To do so, that permanent’s controller draws a card, then discards a card. If a nonland card is discarded this way, that player puts a +1/+1 counter on the conniving permanent."},{"name":"Open an Attraction","rule":"701.51","kind":"action","text":"A player may open an Attraction only during a game in which that player is playing with an Attraction deck."},{"name":"Roll to Visit Your Attractions","rule":"701.52","kind":"action","text":"To roll to visit your Attractions, roll a six-sided die. Then if you control one or more Attractions with a number lit up that is equal to that result, each of those Attractions has been “visited” and its visit ability triggers."},{"name":"Incubate","rule":"701.53","kind":"action","text":"To incubate N, create an Incubator token that enters the battlefield with N +1/+1 counters on it."},{"name":"The Ring Tempts You","rule":"701.54","kind":"action","text":"Certain spells and abilities have the text “the Ring tempts you.” Each time the Ring tempts you, choose a creature you control. That creature becomes your Ring-bearer until another creature becomes your Ring-bearer or another player gains control of it."},{"name":"Face a Villainous Choice","rule":"701.55","kind":"action","text":"“[A player] faces a villainous choice — [option A], or [option B]” means “[A player] chooses [option A] or [option B]. Then all actions in the chosen option are performed.”"},{"name":"Time Travel","rule":"701.56","kind":"action","text":"To time travel means to choose any number of permanents you control with one or more time counters on them and/or suspended cards you own in exile with one or more time counters on them and, for each of those objects, put a time counter on it or remove a time counter from it."},{"name":"Discover","rule":"701.57","kind":"action","text":"“Discover N” means “Exile cards from the top of your library until you exile a nonland card with mana value N or less. You may cast that card without paying its mana cost if the resulting spell’s mana value is less than or equal to N. If you don’t cast it, put that card into your hand. Put the remaining exiled cards on the bottom of your library in a random order.”"},{"name":"Cloak","rule":"701.58","kind":"action","text":"To cloak a card, turn it face down. It becomes a 2/2 face-down creature card with ward {2}, no name, no subtypes, and no mana cost. Put that card onto the battlefield face down. That permanent is a cloaked permanent for as long as it remains face down."},{"name":"Collect Evidence","rule":"701.59","kind":"action","text":"To “collect evidence N” means to exile any number of cards from your graveyard with total mana value N or greater."},{"name":"Suspect","rule":"701.60","kind":"action","text":"Certain spells and abilities instruct a player to suspect a creature. That creature becomes suspected until it leaves the battlefield or until a spell or ability causes it to no longer be suspected."},{"name":"Forage","rule":"701.61","kind":"action","text":"To forage means “Exile three cards from your graveyard or sacrifice a Food.”"},{"name":"Manifest Dread","rule":"701.62","kind":"action","text":"“Manifest dread” means “Look at the top two cards of your library. Manifest one of them, then put the cards you looked at that were not manifested this way into your graveyard.”"},{"name":"Endure","rule":"701.63","kind":"action","text":"Certain abilities instruct a permanent to endure N. To do so, that permanent’s controller creates an N/N white Spirit creature token unless they put N +1/+1 counters on that permanent."},{"name":"Harness","rule":"701.64","kind":"action","text":"“Harness [this permanent]” means “If this permanent isn’t harnessed, it becomes harnessed.”"},{"name":"Airbend","rule":"701.65","kind":"action","text":"Certain spells and abilities instruct a player to airbend one or more permanents and/or spells. To do so, that player exiles those objects. For each card exiled this way, for as long as it remains exiled, its owner may cast it by paying {2} rather than paying its mana cost."},{"name":"Earthbend","rule":"701.66","kind":"action","text":"“Earthbend N” means “Target land you control becomes a 0/0 land creature with haste in addition to its other types. Put N +1/+1 counters on it. When that land dies or is put into exile, return it to the battlefield tapped under your control.”"},{"name":"Waterbend","rule":"701.67","kind":"action","text":"“Waterbend [cost]” means “Pay [cost]. For each generic mana in that cost, you may tap an untapped artifact or creature you control rather than pay that mana.”"},{"name":"Blight","rule":"701.68","kind":"action","text":"To “blight N” means to put N -1/-1 counters on a creature you control."},{"name":"Heal","rule":"701.69","kind":"action","text":"To heal damage already dealt to a permanent, remove that marked damage from that permanent. If an effect states that damage already dealt to a permanent “is healed,” that permanent’s controller removes all marked damage from that permanent."},{"name":"Recruit","rule":"701.70","kind":"action","text":"“Recruit” means “Draw a card, then discard a card. If you discarded a nonland card this way, create a 1/1 white Human Soldier creature token.”"},{"name":"Deathtouch","rule":"702.2","kind":"ability","text":"A creature with toughness greater than 0 that’s been dealt damage by a source with deathtouch since the last time state-based actions were checked is destroyed as a state-based action."},{"name":"Defender","rule":"702.3","kind":"ability","text":"A creature with defender can’t attack."},{"name":"Double Strike","rule":"702.4","kind":"ability","text":"A keyword ability that lets a creature deal its combat damage twice."},{"name":"Enchant","rule":"702.5","kind":"ability","text":"Enchant is a static ability, written “Enchant [object or player].” The enchant ability restricts what an Aura spell can target and what an Aura can enchant."},{"name":"Equip","rule":"702.6","kind":"ability","text":"“Equip [cost]” means “[Cost]: Attach this permanent to target creature you control. Activate only as a sorcery.”"},{"name":"First Strike","rule":"702.7","kind":"ability","text":"A keyword ability that lets a creature deal its combat damage before other creatures."},{"name":"Flash","rule":"702.8","kind":"ability","text":"“Flash” means “You may play this card any time you could cast an instant.”"},{"name":"Flying","rule":"702.9","kind":"ability","text":"A creature with flying can’t be blocked except by creatures with flying and/or reach. A creature with flying can block a creature with or without flying."},{"name":"Haste","rule":"702.10","kind":"ability","text":"If a creature has haste, it can attack even if it hasn’t been controlled by its controller continuously since their most recent turn began."},{"name":"Hexproof","rule":"702.11","kind":"ability","text":"“Hexproof” on a permanent means “This permanent can’t be the target of spells or abilities your opponents control.”"},{"name":"Indestructible","rule":"702.12","kind":"ability","text":"A permanent with indestructible can’t be destroyed. Such permanents aren’t destroyed by lethal damage, and they ignore the state-based action that checks for lethal damage."},{"name":"Intimidate","rule":"702.13","kind":"ability","text":"A creature with intimidate can’t be blocked except by artifact creatures and/or creatures that share a color with it."},{"name":"Landwalk","rule":"702.14","kind":"ability","text":"A creature with landwalk can’t be blocked as long as the defending player controls at least one land with the specified land type (as in “islandwalk”), with the specified type or supertype (as in “artifact landwalk”), without the specified type or supertype (as in “nonbasic landwalk”), or with both the specified type or supertype and the specified subtype (as in “snow swampwalk”)."},{"name":"Lifelink","rule":"702.15","kind":"ability","text":"Damage dealt by a source with lifelink causes that source’s controller, or its owner if it has no controller, to gain that much life (in addition to any other results that damage causes)."},{"name":"Protection","rule":"702.16","kind":"ability","text":"A permanent or player with protection can’t be targeted by spells with the stated quality and can’t be targeted by abilities from a source with the stated quality. Any damage that would be dealt by sources that have the stated quality to a permanent or player with protection is prevented."},{"name":"Reach","rule":"702.17","kind":"ability","text":"A creature with flying can’t be blocked except by creatures with flying and/or reach."},{"name":"Shroud","rule":"702.18","kind":"ability","text":"“Shroud” means “This permanent or player can’t be the target of spells or abilities.”"},{"name":"Trample","rule":"702.19","kind":"ability","text":"The controller of an attacking creature with trample first assigns damage to the creature(s) blocking it. Once all those blocking creatures are assigned lethal damage, any excess damage is assigned as its controller chooses among those blocking creatures and the player, planeswalker, or battle the creature is attacking."},{"name":"Vigilance","rule":"702.20","kind":"ability","text":"Attacking doesn’t cause creatures with vigilance to tap."},{"name":"Ward","rule":"702.21","kind":"ability","text":"Ward [cost] means “Whenever this permanent becomes the target of a spell or ability an opponent controls, counter that spell or ability unless that player pays [cost].”"},{"name":"Banding","rule":"702.22","kind":"ability","text":"As a player declares attackers, they may declare that one or more attacking creatures with banding and up to one attacking creature without banding (even if it has “bands with other”) are all in a “band.”"},{"name":"Rampage","rule":"702.23","kind":"ability","text":"“Rampage N” means “Whenever this creature becomes blocked, it gets +N/+N until end of turn for each creature blocking it beyond the first.”"},{"name":"Cumulative Upkeep","rule":"702.24","kind":"ability","text":"“Cumulative upkeep [cost]” means “At the beginning of your upkeep, if this permanent is on the battlefield, put an age counter on this permanent. Then you may pay [cost] for each age counter on it. If you don’t, sacrifice it.”"},{"name":"Flanking","rule":"702.25","kind":"ability","text":"“Flanking” means “Whenever this creature becomes blocked by a creature without flanking, the blocking creature gets -1/-1 until end of turn.”"},{"name":"Phasing","rule":"702.26","kind":"ability","text":"During each player’s untap step, before the active player untaps permanents, all phased-in permanents with phasing that player controls “phase out.” Simultaneously, all phased-out permanents that had phased out under that player’s control “phase in.”"},{"name":"Buyback","rule":"702.27","kind":"ability","text":"“Buyback [cost]” means “You may pay an additional [cost] as you cast this spell” and “If the buyback cost was paid, put this spell into its owner’s hand instead of into that player’s graveyard as it resolves.”"},{"name":"Shadow","rule":"702.28","kind":"ability","text":"A creature with shadow can’t be blocked by creatures without shadow, and a creature without shadow can’t be blocked by creatures with shadow."},{"name":"Cycling","rule":"702.29","kind":"ability","text":"“Cycling [cost]” means “[Cost], Discard this card: Draw a card.”"},{"name":"Echo","rule":"702.30","kind":"ability","text":"“Echo [cost]” means “At the beginning of your upkeep, if this permanent came under your control since the beginning of your last upkeep, sacrifice it unless you pay [cost].”"},{"name":"Horsemanship","rule":"702.31","kind":"ability","text":"A creature with horsemanship can’t be blocked by creatures without horsemanship. A creature with horsemanship can block a creature with or without horsemanship."},{"name":"Fading","rule":"702.32","kind":"ability","text":"“Fading N” means “This permanent enters with N fade counters on it” and “At the beginning of your upkeep, remove a fade counter from this permanent. If you can’t, sacrifice the permanent.”"},{"name":"Kicker","rule":"702.33","kind":"ability","text":"“Kicker [cost]” means “You may pay an additional [cost] as you cast this spell.”"},{"name":"Flashback","rule":"702.34","kind":"ability","text":"“Flashback [cost]” means “You may cast this card from your graveyard if the resulting spell is an instant or sorcery spell by paying [cost] rather than paying its mana cost” and “If the flashback cost was paid, exile this card instead of putting it anywhere else any time it would leave the stack.”"},{"name":"Madness","rule":"702.35","kind":"ability","text":"“Madness [cost]” means “If a player would discard this card, that player discards it, but exiles it instead of putting it into their graveyard” and “When this card is exiled this way, its owner may cast it by paying [cost] rather than paying its mana cost. If that player doesn’t, they put this card into their graveyard.”"},{"name":"Fear","rule":"702.36","kind":"ability","text":"A creature with fear can’t be blocked except by artifact creatures and/or black creatures."},{"name":"Morph","rule":"702.37","kind":"ability","text":"“Morph [cost]” means “You may cast this card as a 2/2 face-down creature with no text, no name, no subtypes, and no mana cost by paying {3} rather than paying its mana cost.”"},{"name":"Amplify","rule":"702.38","kind":"ability","text":"“Amplify N” means “As this object enters, reveal any number of cards from your hand that share a creature type with it. This permanent enters with N +1/+1 counters on it for each card revealed this way. You can’t reveal this card or any other cards that are entering the battlefield at the same time as this card.”"},{"name":"Provoke","rule":"702.39","kind":"ability","text":"“Provoke” means “Whenever this creature attacks, you may choose to have target creature defending player controls block this creature this combat if able. If you do, untap that creature.”"},{"name":"Storm","rule":"702.40","kind":"ability","text":"“Storm” means “When you cast this spell, copy it for each other spell that was cast before it this turn. If the spell has any targets, you may choose new targets for any of the copies.”"},{"name":"Affinity","rule":"702.41","kind":"ability","text":"“Affinity for [text]” means “This spell costs {1} less to cast for each [text] you control.”"},{"name":"Entwine","rule":"702.42","kind":"ability","text":"“Entwine [cost]” means “You may choose all modes of this spell instead of just the number specified. If you do, you pay an additional [cost].”"},{"name":"Modular","rule":"702.43","kind":"ability","text":"“Modular N” means “This permanent enters with N +1/+1 counters on it” and “When this permanent is put into a graveyard from the battlefield, you may put a +1/+1 counter on target artifact creature for each +1/+1 counter on this permanent.”"},{"name":"Sunburst","rule":"702.44","kind":"ability","text":"“Sunburst” means “If this object is entering as a creature, ignoring any type-changing effects that would affect it, it enters with a +1/+1 counter on it for each color of mana spent to cast it. Otherwise, it enters with a charge counter on it for each color of mana spent to cast it.”"},{"name":"Bushido","rule":"702.45","kind":"ability","text":"“Bushido N” means “Whenever this creature blocks or becomes blocked, it gets +N/+N until end of turn.”"},{"name":"Soulshift","rule":"702.46","kind":"ability","text":"“Soulshift N” means “When this permanent is put into a graveyard from the battlefield, you may return target Spirit card with mana value N or less from your graveyard to your hand.”"},{"name":"Splice","rule":"702.47","kind":"ability","text":"“Splice onto [quality] [cost]” means “You may reveal this card from your hand as you cast a [quality] spell. If you do, that spell gains the text of this card’s rules text and you pay [cost] as an additional cost to cast that spell.”"},{"name":"Offering","rule":"702.48","kind":"ability","text":"“[Quality] offering” means “As an additional cost to cast this spell, you may sacrifice a [quality] permanent. If you chose to pay the additional cost, this spell’s total cost is reduced by the sacrificed permanent’s mana cost, and you may cast this spell any time you could cast an instant.”"},{"name":"Ninjutsu","rule":"702.49","kind":"ability","text":"“Ninjutsu [cost]” means “[Cost], Reveal this card from your hand, Return an unblocked attacking creature you control to its owner’s hand: Put this card onto the battlefield from your hand tapped and attacking.”"},{"name":"Epic","rule":"702.50","kind":"ability","text":"“Epic” means “For the rest of the game, you can’t cast spells,” and “At the beginning of each of your upkeeps for the rest of the game, copy this spell except for its epic ability. If the spell has any targets, you may choose new targets for the copy.”"},{"name":"Convoke","rule":"702.51","kind":"ability","text":"“Convoke” means “For each colored mana in this spell’s total cost, you may tap an untapped creature of that color you control rather than pay that mana. For each generic mana in this spell’s total cost, you may tap an untapped creature you control rather than pay that mana.”"},{"name":"Dredge","rule":"702.52","kind":"ability","text":"“Dredge N” means “As long as you have at least N cards in your library, if you would draw a card, you may instead mill N cards and return this card from your graveyard to your hand.”"},{"name":"Transmute","rule":"702.53","kind":"ability","text":"“Transmute [cost]” means “[Cost], Discard this card: Search your library for a card with the same mana value as the discarded card, reveal that card, and put it into your hand. Then shuffle your library. Activate only as a sorcery.”"},{"name":"Bloodthirst","rule":"702.54","kind":"ability","text":"“Bloodthirst N” means “If an opponent was dealt damage this turn, this permanent enters with N +1/+1 counters on it.”"},{"name":"Haunt","rule":"702.55","kind":"ability","text":"“Haunt” on a permanent means “When this permanent is put into a graveyard from the battlefield, exile it haunting target creature.”"},{"name":"Replicate","rule":"702.56","kind":"ability","text":"“Replicate [cost]” means “As an additional cost to cast this spell, you may pay [cost] any number of times” and “When you cast this spell, if a replicate cost was paid for it, copy it for each time its replicate cost was paid. If the spell has any targets, you may choose new targets for any of the copies.”"},{"name":"Forecast","rule":"702.57","kind":"ability","text":"A forecast ability may be activated only during the upkeep step of the card’s owner and only once each turn. The controller of the forecast ability reveals the card with that ability from their hand as the ability is activated."},{"name":"Graft","rule":"702.58","kind":"ability","text":"“Graft N” means “This permanent enters with N +1/+1 counters on it” and “Whenever another creature enters, if this permanent has a +1/+1 counter on it, you may move a +1/+1 counter from this permanent onto that creature.”"},{"name":"Recover","rule":"702.59","kind":"ability","text":"“Recover [cost]” means “When a creature is put into your graveyard from the battlefield, you may pay [cost]. If you do, return this card from your graveyard to your hand. Otherwise, exile this card.”"},{"name":"Ripple","rule":"702.60","kind":"ability","text":"“Ripple N” means “When you cast this spell, you may reveal the top N cards of your library, or, if there are fewer than N cards in your library, you may reveal all the cards in your library. If you reveal cards from your library this way, you may cast any of those cards with the same name as this spell without paying their mana costs, then put all revealed cards not cast this way on the bottom of your library in any order.”"},{"name":"Split Second","rule":"702.61","kind":"ability","text":"“Split second” means “As long as this spell is on the stack, players can’t cast other spells or activate abilities that aren’t mana abilities.”"},{"name":"Suspend","rule":"702.62","kind":"ability","text":"“Suspend N—[cost]” means “If you could begin to cast this card by putting it onto the stack from your hand, you may pay [cost] and exile it with N time counters on it. This action doesn’t use the stack,” and “At the beginning of your upkeep, if this card is suspended, remove a time counter from it,” and “When the last time counter is removed from this card, if it’s exiled, you may play it without paying its mana cost if able. If you don’t, it remains exiled. If you cast a creature spell this way, it gains haste until you lose control of the spell or the permanent it becomes.”"},{"name":"Vanishing","rule":"702.63","kind":"ability","text":"“Vanishing N” means “This permanent enters with N time counters on it,” “At the beginning of your upkeep, if this permanent has a time counter on it, remove a time counter from it,” and “When the last time counter is removed from this permanent, sacrifice it.”"},{"name":"Absorb","rule":"702.64","kind":"ability","text":"“Absorb N” means “If a source would deal damage to this creature, prevent N of that damage.”"},{"name":"Aura Swap","rule":"702.65","kind":"ability","text":"“Aura swap [cost]” means “[Cost]: You may exchange this permanent with an Aura card in your hand.”"},{"name":"Delve","rule":"702.66","kind":"ability","text":"“Delve” means “For each generic mana in this spell’s total cost, you may exile a card from your graveyard rather than pay that mana.”"},{"name":"Fortify","rule":"702.67","kind":"ability","text":"“Fortify [cost]” means “[Cost]: Attach this Fortification to target land you control. Activate only as a sorcery.”"},{"name":"Frenzy","rule":"702.68","kind":"ability","text":"“Frenzy N” means “Whenever this creature attacks and isn’t blocked, it gets +N/+0 until end of turn.”"},{"name":"Gravestorm","rule":"702.69","kind":"ability","text":"“Gravestorm” means “When you cast this spell, copy it for each permanent that was put into a graveyard from the battlefield this turn. If the spell has any targets, you may choose new targets for any of the copies.”"},{"name":"Poisonous","rule":"702.70","kind":"ability","text":"“Poisonous N” means “Whenever this creature deals combat damage to a player, that player gets N poison counters.”"},{"name":"Transfigure","rule":"702.71","kind":"ability","text":"“Transfigure [cost]” means “[Cost], Sacrifice this permanent: Search your library for a creature card with the same mana value as this permanent and put it onto the battlefield. Then shuffle your library. Activate only as a sorcery.”"},{"name":"Champion","rule":"702.72","kind":"ability","text":"“Champion an [object]” means “When this permanent enters, sacrifice it unless you exile another [object] you control” and “When this permanent leaves the battlefield, return the exiled card to the battlefield under its owner’s control.”"},{"name":"Changeling","rule":"702.73","kind":"ability","text":"“Changeling” means “This object is every creature type.”"},{"name":"Evoke","rule":"702.74","kind":"ability","text":"“Evoke [cost]” means “You may cast this card by paying [cost] rather than paying its mana cost” and “When this permanent enters, if its evoke cost was paid, its controller sacrifices it.”"},{"name":"Hideaway","rule":"702.75","kind":"ability","text":"“Hideaway N” means “When this permanent enters, look at the top N cards of your library. Exile one of them face down and put the rest on the bottom of your library in a random order. The exiled card gains ‘The player who controls the permanent that exiled this card may look at this card in the exile zone.’”"},{"name":"Prowl","rule":"702.76","kind":"ability","text":"“Prowl [cost]” means “You may pay [cost] rather than pay this spell’s mana cost if a player was dealt combat damage this turn by a source that, at the time it dealt that damage, was under your control and had any of this spell’s creature types.”"},{"name":"Reinforce","rule":"702.77","kind":"ability","text":"“Reinforce N—[cost]” means “[Cost], Discard this card: Put N +1/+1 counters on target creature.”"},{"name":"Conspire","rule":"702.78","kind":"ability","text":"“Conspire” means “As an additional cost to cast this spell, you may tap two untapped creatures you control that each share a color with it” and “When you cast this spell, if its conspire cost was paid, copy it. If the spell has any targets, you may choose new targets for the copy.”"},{"name":"Persist","rule":"702.79","kind":"ability","text":"“Persist” means “When this permanent is put into a graveyard from the battlefield, if it had no -1/-1 counters on it, return it to the battlefield under its owner’s control with a -1/-1 counter on it.”"},{"name":"Wither","rule":"702.80","kind":"ability","text":"Damage dealt to a creature by a source with wither isn’t marked on that creature. Rather, it causes that source’s controller to put that many -1/-1 counters on that creature."},{"name":"Retrace","rule":"702.81","kind":"ability","text":"“Retrace” means “You may cast this card from your graveyard by discarding a land card as an additional cost to cast it.”"},{"name":"Devour","rule":"702.82","kind":"ability","text":"“Devour N” means “As this object enters, you may sacrifice any number of creatures. This permanent enters with N +1/+1 counters on it for each creature sacrificed this way.”"},{"name":"Exalted","rule":"702.83","kind":"ability","text":"“Exalted” means “Whenever a creature you control attacks alone, that creature gets +1/+1 until end of turn.”"},{"name":"Unearth","rule":"702.84","kind":"ability","text":"“Unearth [cost]” means “[Cost]: Return this card from your graveyard to the battlefield. It gains haste. Exile it at the beginning of the next end step. If it would leave the battlefield, exile it instead of putting it anywhere else. Activate only as a sorcery.”"},{"name":"Cascade","rule":"702.85","kind":"ability","text":"“Cascade” means “When you cast this spell, exile cards from the top of your library until you exile a nonland card whose mana value is less than this spell’s mana value. You may cast that card without paying its mana cost if the resulting spell’s mana value is less than this spell’s mana value. Then put all cards exiled this way that weren’t cast on the bottom of your library in a random order.”"},{"name":"Annihilator","rule":"702.86","kind":"ability","text":"“Annihilator N” means “Whenever this creature attacks, defending player sacrifices N permanents.”"},{"name":"Level Up","rule":"702.87","kind":"ability","text":"“Level up [cost]” means “[Cost]: Put a level counter on this permanent. Activate only as a sorcery.”"},{"name":"Rebound","rule":"702.88","kind":"ability","text":"“Rebound” means “If this spell was cast from your hand, instead of putting it into your graveyard as it resolves, exile it and, at the beginning of your next upkeep, you may cast this card from exile without paying its mana cost.”"},{"name":"Umbra Armor","rule":"702.89","kind":"ability","text":"“Umbra armor” means “If enchanted permanent would be destroyed, instead remove all damage marked on it and destroy this Aura.”"},{"name":"Infect","rule":"702.90","kind":"ability","text":"Damage dealt to a player by a source with infect doesn’t cause that player to lose life. Rather, it causes that source’s controller to give the player that many poison counters."},{"name":"Battle Cry","rule":"702.91","kind":"ability","text":"“Battle cry” means “Whenever this creature attacks, each other attacking creature gets +1/+0 until end of turn.”"},{"name":"Living Weapon","rule":"702.92","kind":"ability","text":"“Living weapon” means “When this Equipment enters, create a 0/0 black Phyrexian Germ creature token, then attach this Equipment to it.”"},{"name":"Undying","rule":"702.93","kind":"ability","text":"“Undying” means “When this permanent is put into a graveyard from the battlefield, if it had no +1/+1 counters on it, return it to the battlefield under its owner’s control with a +1/+1 counter on it.”"},{"name":"Miracle","rule":"702.94","kind":"ability","text":"“Miracle [cost]” means “You may reveal this card from your hand as you draw it if it’s the first card you’ve drawn this turn. When you reveal this card this way, you may cast it by paying [cost] rather than its mana cost.”"},{"name":"Soulbond","rule":"702.95","kind":"ability","text":"“Soulbond” means “When this creature enters, if you control both this creature and another creature and both are unpaired, you may pair this creature with another unpaired creature you control for as long as both remain creatures on the battlefield under your control” and “Whenever another creature you control enters, if you control both that creature and this one and both are unpaired, you may pair that creature with this creature for as long as both remain creatures on the battlefield under your control.”"},{"name":"Overload","rule":"702.96","kind":"ability","text":"Overload [cost] means “You may choose to pay [cost] rather than pay this spell’s mana cost” and “If you chose to pay this spell’s overload cost, change its text by replacing all instances of the word ‘target’ with the word ‘each.’”"},{"name":"Scavenge","rule":"702.97","kind":"ability","text":"“Scavenge [cost]” means “[Cost], Exile this card from your graveyard: Put a number of +1/+1 counters equal to the power of the card you exiled on target creature. Activate only as a sorcery.”"},{"name":"Unleash","rule":"702.98","kind":"ability","text":"“Unleash” means “You may have this permanent enter with an additional +1/+1 counter on it” and “This permanent can’t block as long as it has a +1/+1 counter on it.”"},{"name":"Cipher","rule":"702.99","kind":"ability","text":"“Cipher” means “If this spell is represented by a card, you may exile this card encoded on a creature you control” and “For as long as this card is encoded on that creature, that creature has ‘Whenever this creature deals combat damage to a player, you may copy the encoded card and you may cast the copy without paying its mana cost.’”"},{"name":"Evolve","rule":"702.100","kind":"ability","text":"“Evolve” means “Whenever a creature you control enters, if that creature’s power is greater than this creature’s power and/or that creature’s toughness is greater than this creature’s toughness, put a +1/+1 counter on this creature.”"},{"name":"Extort","rule":"702.101","kind":"ability","text":"“Extort” means “Whenever you cast a spell, you may pay {W/B}. If you do, each opponent loses 1 life and you gain life equal to the total life lost this way.”"},{"name":"Fuse","rule":"702.102","kind":"ability","text":"If a player casts a split card with fuse from their hand, the player may choose to cast both halves of that split card rather than choose one half. This choice is made before putting the split card with fuse onto the stack. The resulting spell is a fused split spell."},{"name":"Bestow","rule":"702.103","kind":"ability","text":"“Bestow [cost]” means “As you cast this spell, you may choose to cast it bestowed. If you do, you pay [cost] rather than its mana cost.”"},{"name":"Tribute","rule":"702.104","kind":"ability","text":"“Tribute N” means “As this creature enters, choose an opponent. That player may put an additional N +1/+1 counters on it as it enters.”"},{"name":"Dethrone","rule":"702.105","kind":"ability","text":"“Dethrone” means “Whenever this creature attacks the player with the most life or tied for most life, put a +1/+1 counter on this creature.”"},{"name":"Hidden Agenda","rule":"702.106","kind":"ability","text":"“Hidden agenda” means “As you put this conspiracy card into the command zone, turn it face down and secretly choose a card name.”"},{"name":"Outlast","rule":"702.107","kind":"ability","text":"“Outlast [cost]” means “[Cost], {T}: Put a +1/+1 counter on this creature. Activate only as a sorcery.”"},{"name":"Prowess","rule":"702.108","kind":"ability","text":"“Prowess” means “Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn.”"},{"name":"Dash","rule":"702.109","kind":"ability","text":"“Dash [cost]” means “You may cast this card by paying [cost] rather than its mana cost,” “If this spell’s dash cost was paid, return the permanent this spell becomes to its owner’s hand at the beginning of the next end step,” and “As long as this permanent’s dash cost was paid, it has haste.”"},{"name":"Exploit","rule":"702.110","kind":"ability","text":"“Exploit” means “When this creature enters, you may sacrifice a creature.”"},{"name":"Menace","rule":"702.111","kind":"ability","text":"A creature with menace can’t be blocked except by two or more creatures."},{"name":"Renown","rule":"702.112","kind":"ability","text":"“Renown N” means “When this creature deals combat damage to a player, if it isn’t renowned, put N +1/+1 counters on it and it becomes renowned.”"},{"name":"Awaken","rule":"702.113","kind":"ability","text":"“Awaken N—[cost]” means “You may pay [cost] rather than pay this spell’s mana cost as you cast this spell” and “If this spell’s awaken cost was paid, put N +1/+1 counters on target land you control. That land becomes a 0/0 Elemental creature with haste. It’s still a land.”"},{"name":"Devoid","rule":"702.114","kind":"ability","text":"“Devoid” means “This object is colorless.”"},{"name":"Ingest","rule":"702.115","kind":"ability","text":"“Ingest” means “Whenever this creature deals combat damage to a player, that player exiles the top card of their library.”"},{"name":"Myriad","rule":"702.116","kind":"ability","text":"“Myriad” means “Whenever this creature attacks, for each opponent other than defending player, you may create a token that’s a copy of this creature that’s tapped and attacking that player or a planeswalker they control. If one or more tokens are created this way, exile the tokens at end of combat.”"},{"name":"Surge","rule":"702.117","kind":"ability","text":"“Surge [cost]” means “You may pay [cost] rather than pay this spell’s mana cost as you cast this spell if you or one of your teammates has cast another spell this turn.”"},{"name":"Skulk","rule":"702.118","kind":"ability","text":"A creature with skulk can’t be blocked by creatures with greater power."},{"name":"Emerge","rule":"702.119","kind":"ability","text":"“Emerge [cost]” means “You may cast this spell by paying [cost] and sacrificing a creature rather than paying its mana cost” and “If you chose to pay this spell’s emerge cost, its total cost is reduced by an amount of generic mana equal to the sacrificed creature’s mana value.”"},{"name":"Escalate","rule":"702.120","kind":"ability","text":"“Escalate [cost]” means “For each mode you choose beyond the first as you cast this spell, you pay an additional [cost].”"},{"name":"Melee","rule":"702.121","kind":"ability","text":"“Melee” means “Whenever this creature attacks, it gets +1/+1 until end of turn for each opponent you attacked with a creature this combat.”"},{"name":"Crew","rule":"702.122","kind":"ability","text":"“Crew N” means “Tap any number of other untapped creatures you control with total power N or greater: This permanent becomes an artifact creature until end of turn.”"},{"name":"Fabricate","rule":"702.123","kind":"ability","text":"“Fabricate N” means “When this permanent enters, you may put N +1/+1 counters on it. If you don’t, create N 1/1 colorless Servo artifact creature tokens.”"},{"name":"Partner","rule":"702.124","kind":"ability","text":"Partner abilities are keyword abilities that modify the rules for deck construction in the Commander variant, and they function before the game begins. Each partner ability allows you to designate two legendary cards as your commander rather than one. Each partner ability has its own requirements for those two commanders."},{"name":"Undaunted","rule":"702.125","kind":"ability","text":"Undaunted means “This spell costs {1} less to cast for each opponent you have.”"},{"name":"Improvise","rule":"702.126","kind":"ability","text":"“Improvise” means “For each generic mana in this spell’s total cost, you may tap an untapped artifact you control rather than pay that mana.”"},{"name":"Aftermath","rule":"702.127","kind":"ability","text":"“Aftermath” means “You may cast this half of this split card from your graveyard,” “This half of this split card can’t be cast from any zone other than a graveyard,” and “If this spell was cast from a graveyard, exile it instead of putting it anywhere else any time it would leave the stack.”"},{"name":"Embalm","rule":"702.128","kind":"ability","text":"“Embalm [cost]” means “[Cost], Exile this card from your graveyard: Create a token that’s a copy of this card, except it’s white, it has no mana cost, and it’s a Zombie in addition to its other types. Activate only as a sorcery.”"},{"name":"Eternalize","rule":"702.129","kind":"ability","text":"“Eternalize [cost]” means “[Cost], Exile this card from your graveyard: Create a token that’s a copy of this card, except it’s black, it’s 4/4, it has no mana cost, and it’s a Zombie in addition to its other types. Activate only as a sorcery.”"},{"name":"Afflict","rule":"702.130","kind":"ability","text":"“Afflict N” means “Whenever this creature becomes blocked, defending player loses N life.”"},{"name":"Ascend","rule":"702.131","kind":"ability","text":"It means “If you control ten or more permanents and you don’t have the city’s blessing, you get the city’s blessing for the rest of the game.”"},{"name":"Assist","rule":"702.132","kind":"ability","text":"If the total cost to cast a spell with assist includes a generic mana component, before you activate mana abilities while casting it, you may choose another player. That player has a chance to activate mana abilities. Once that player chooses not to activate any more mana abilities, you have a chance to activate mana abilities."},{"name":"Jump-Start","rule":"702.133","kind":"ability","text":"“Jump-start” means “You may cast this card from your graveyard if the resulting spell is an instant or sorcery spell by discarding a card as an additional cost to cast it” and “If this spell was cast using its jump-start ability, exile this card instead of putting it anywhere else any time it would leave the stack.”"},{"name":"Mentor","rule":"702.134","kind":"ability","text":"“Mentor” means “Whenever this creature attacks, put a +1/+1 counter on target attacking creature with power less than this creature’s power.”"},{"name":"Afterlife","rule":"702.135","kind":"ability","text":"“Afterlife N” means “When this permanent is put into a graveyard from the battlefield, create N 1/1 white and black Spirit creature tokens with flying.”"},{"name":"Riot","rule":"702.136","kind":"ability","text":"“Riot” means “You may have this permanent enter with an additional +1/+1 counter on it. If you don’t, it gains haste.”"},{"name":"Spectacle","rule":"702.137","kind":"ability","text":"“Spectacle [cost]” means “You may pay [cost] rather than pay this spell’s mana cost if an opponent lost life this turn.”"},{"name":"Escape","rule":"702.138","kind":"ability","text":"“Escape [cost]” means “You may cast this card from your graveyard by paying [cost] rather than paying its mana cost.”"},{"name":"Companion","rule":"702.139","kind":"ability","text":"Before the game begins, you may reveal one card you own from outside the game with a companion ability whose condition is fulfilled by your starting deck. Once during the game, any time you have priority and the stack is empty, but only during a main phase of your turn, you may pay {3} and put that card into your hand. This is a change from previous rules."},{"name":"Mutate","rule":"702.140","kind":"ability","text":"“Mutate [cost]” means “You may pay [cost] rather than pay this spell’s mana cost. If you do, it becomes a mutating creature spell and targets a non-Human creature with the same owner as this spell.”"},{"name":"Encore","rule":"702.141","kind":"ability","text":"“Encore [cost]” means “[Cost], Exile this card from your graveyard: For each opponent, create a token that’s a copy of this card that attacks that opponent this turn if able. The tokens gain haste. Sacrifice them at the beginning of the next end step. Activate only as a sorcery.”"},{"name":"Boast","rule":"702.142","kind":"ability","text":"“Boast — [Cost]: [Effect]” means “[Cost]: [Effect]. Activate only if this creature attacked this turn and only once each turn.”"},{"name":"Foretell","rule":"702.143","kind":"ability","text":"Any time a player has priority during their turn, that player may pay {2} and exile a card with foretell from their hand face down. That player may look at that card as long as it remains in exile. They may cast that card after the current turn has ended by paying any foretell cost it has rather than paying that spell’s mana cost."},{"name":"Demonstrate","rule":"702.144","kind":"ability","text":"“Demonstrate” means “When you cast this spell, you may copy it and you may choose new targets for the copy. If you copy the spell, choose an opponent. That player copies the spell and may choose new targets for that copy.”"},{"name":"Daybound and Nightbound","rule":"702.145","kind":"ability","text":"An ability found on the front faces of some double-faced cards. Cards with daybound and nightbound are face up when it’s day and face down when it’s night."},{"name":"Disturb","rule":"702.146","kind":"ability","text":"“Disturb [cost]” means “You may cast this card transformed from your graveyard by paying [cost] rather than its mana cost.”"},{"name":"Decayed","rule":"702.147","kind":"ability","text":"“Decayed” means “This creature can’t block” and “When this creature attacks, sacrifice it at end of combat.”"},{"name":"Cleave","rule":"702.148","kind":"ability","text":"“Cleave [cost]” means “You may cast this spell by paying [cost] rather than paying its mana cost” and “If this spell’s cleave cost was paid, change its text by removing all text found within square brackets in the spell’s rules text.”"},{"name":"Training","rule":"702.149","kind":"ability","text":"“Training” means “Whenever this creature and at least one other creature with power greater than this creature’s power attack, put a +1/+1 counter on this creature.”"},{"name":"Compleated","rule":"702.150","kind":"ability","text":"Compleated means “If this permanent would enter with one or more loyalty counters on it and the player who cast it chose to pay life for any part of its cost represented by Phyrexian mana symbols, it instead enters the battlefield with that many loyalty counters minus two for each of those mana symbols.”"},{"name":"Reconfigure","rule":"702.151","kind":"ability","text":"Reconfigure [cost] means “[Cost]: Attach this permanent to another target creature you control. Activate only as a sorcery” and “[Cost]: Unattach this permanent. Activate only if this permanent is attached to a creature and only as a sorcery.”"},{"name":"Blitz","rule":"702.152","kind":"ability","text":"“Blitz [cost]” means “You may cast this card by paying [cost] rather than its mana cost,” “If this spell’s blitz cost was paid, sacrifice the permanent this spell becomes at the beginning of the next end step,” and “As long as this permanent’s blitz cost was paid, it has haste and ‘When this permanent is put into a graveyard from the battlefield, draw a card.’”"},{"name":"Casualty","rule":"702.153","kind":"ability","text":"Casualty N means “As an additional cost to cast this spell, you may sacrifice a creature with power N or greater,” and “When you cast this spell, if a casualty cost was paid for it, copy it. If the spell has any targets, you may choose new targets for the copy.”"},{"name":"Enlist","rule":"702.154","kind":"ability","text":"Enlist means “As this creature attacks, you may tap up to one untapped creature you control that you didn’t choose to attack with and that either has haste or has been under your control continuously since this turn began. When you do, this creature gets +X/+0 until end of turn, where X is the tapped creature’s power.”"},{"name":"Read Ahead","rule":"702.155","kind":"ability","text":"“Read ahead” means “Chapter abilities of this Saga can’t trigger the turn it entered the battlefield unless it has exactly the number of lore counters on it specified in the chapter symbol of that ability.”"},{"name":"Ravenous","rule":"702.156","kind":"ability","text":"“Ravenous” means “This permanent enters with X +1/+1 counters on it” and “When this permanent enters, if X is 5 or more, draw a card.”"},{"name":"Squad","rule":"702.157","kind":"ability","text":"“Squad [cost]” means “As an additional cost to cast this spell, you may pay [cost] any number of times” and “When this creature enters, if its squad cost was paid, create a token that’s a copy of it for each time its squad cost was paid.”"},{"name":"Space Sculptor","rule":"702.158","kind":"ability","text":"One card (Space Beleren) has the space sculptor ability. This keyword ability causes creatures to gain sector designations."},{"name":"Visit","rule":"702.159","kind":"ability","text":"“Visit — [Effect]” means “Whenever you roll to visit your Attractions, if the result is equal to a number that is lit up on this Attraction, [effect].”"},{"name":"Prototype","rule":"702.160","kind":"ability","text":"A player who casts a spell with prototype can choose to cast that card “prototyped.” If they do, the alternative set of its power, toughness, and mana cost characteristics are used. See 718, “Prototype Cards.”"},{"name":"Living Metal","rule":"702.161","kind":"ability","text":"“Living metal” means “During your turn, this permanent is an artifact creature in addition to its other types.”"},{"name":"More Than Meets the Eye","rule":"702.162","kind":"ability","text":"“More Than Meets the Eye [cost]” means “You may cast this card converted by paying [cost] rather than its mana cost.”"},{"name":"For Mirrodin!","rule":"702.163","kind":"ability","text":"“For Mirrodin!” means “When this Equipment enters, create a 2/2 red Rebel creature token, then attach this Equipment to it.”"},{"name":"Toxic","rule":"702.164","kind":"ability","text":"Combat damage dealt to a player by a creature with toxic causes that creature’s controller to give the player a number of poison counters equal to that creature’s total toxic value, in addition to the damage’s other results."},{"name":"Backup","rule":"702.165","kind":"ability","text":"“Backup N” means “When this creature enters, put N +1/+1 counters on target creature. If that’s another creature, it also gains the non-backup abilities of this creature printed below this one until end of turn.”"},{"name":"Bargain","rule":"702.166","kind":"ability","text":"“Bargain” means “As an additional cost to cast this spell, you may sacrifice an artifact, enchantment, or token.”"},{"name":"Craft","rule":"702.167","kind":"ability","text":"It means “[Cost], Exile this permanent, Exile [materials] from among permanents you control and/or cards in your graveyard: Return this card to the battlefield transformed under its owner’s control. Activate only as a sorcery.”"},{"name":"Disguise","rule":"702.168","kind":"ability","text":"“Disguise [cost]” means “You may cast this card as a 2/2 face-down creature with ward {2}, no name, no subtypes, and no mana cost by paying {3} rather than paying its mana cost.”"},{"name":"Solved","rule":"702.169","kind":"ability","text":"For a static ability, “Solved — [Ability text]” means “As long as this Case is solved, [ability text].”"},{"name":"Plot","rule":"702.170","kind":"ability","text":"“Plot [cost]” means “Any time you have priority during your main phase while the stack is empty, you may exile this card from your hand and pay [cost]. It becomes a plotted card.”"},{"name":"Saddle","rule":"702.171","kind":"ability","text":"“Saddle N” means “Tap any number of other untapped creatures you control with total power N or greater: This permanent becomes saddled until end of turn. Activate only as a sorcery.”"},{"name":"Spree","rule":"702.172","kind":"ability","text":"Spree means “Choose one or more modes. As an additional cost to cast this spell, pay the costs associated with those modes.”"},{"name":"Freerunning","rule":"702.173","kind":"ability","text":"“Freerunning [cost]” means “You may pay [cost] rather than pay this spell’s mana cost if a player was dealt combat damage this turn by a creature that, at the time it dealt that damage, was an Assassin creature or a commander under your control.”"},{"name":"Gift","rule":"702.174","kind":"ability","text":"A keyword ability that allows a spell’s caster to choose an opponent as to receive a benefit as the spell resolves or when the permanent with the ability enters."},{"name":"Offspring","rule":"702.175","kind":"ability","text":"“Offspring [cost]” means “You may pay an additional [cost] as you cast this spell” and “When this permanent enters, if its offspring cost was paid, create a token that’s a copy of it, except it’s 1/1.”"},{"name":"Impending","rule":"702.176","kind":"ability","text":"“Impending N—[cost]” means “You may choose to pay [cost] rather than pay this spell’s mana cost,” “If you chose to pay this permanent’s impending cost, it enters with N time counters on it,” “As long as this permanent’s impending cost was paid and it has a time counter on it, it’s not a creature,” and “At the beginning of your end step, if this permanent’s impending cost was paid and it has a time counter on it, remove a time counter from it.”"},{"name":"Exhaust","rule":"702.177","kind":"ability","text":"“Exhaust — [Cost]: [Effect]” means “[Cost]: [Effect]. Activate only once.”"},{"name":"Max Speed","rule":"702.178","kind":"ability","text":"“Max speed — [Ability]” means “As long as your speed is 4, this object has ‘[Ability].’”"},{"name":"Start Your Engines!","rule":"702.179","kind":"ability","text":"If a player controls a permanent with start your engines! and that player has no speed, their speed becomes 1."},{"name":"Harmonize","rule":"702.180","kind":"ability","text":"“Harmonize [cost]” means “You may cast this card from your graveyard by paying [cost] and tapping up to one untapped creature you control rather than paying this spell’s mana cost,” “If you cast this spell using its harmonize ability, its total cost is reduced by an amount of generic mana equal to the tapped creature’s power,” and “If the harmonize cost was paid, exile this card instead of putting it anywhere else any time it would leave the stack.”"},{"name":"Mobilize","rule":"702.181","kind":"ability","text":"“Mobilize N” means “Whenever this creature attacks, create N 1/1 red Warrior creature tokens. Those tokens enter tapped and attacking. Sacrifice them at the beginning of the next end step.”"},{"name":"Job Select","rule":"702.182","kind":"ability","text":"“Job select” means “When this Equipment enters, create a 1/1 colorless Hero creature token, then attach this Equipment to it.”"},{"name":"Tiered","rule":"702.183","kind":"ability","text":"Tiered means “Choose one. As an additional cost to cast this spell, pay the cost associated with that mode.”"},{"name":"Station","rule":"702.184","kind":"ability","text":"“Station” means “Tap another untapped creature you control: Put a number of charge counters on this permanent equal to the tapped creature’s power. Activate only as a sorcery.”"},{"name":"Warp","rule":"702.185","kind":"ability","text":"“Warp [cost]” means “You may cast this card from your hand by paying [cost] rather than its mana cost” and “If this spell’s warp cost was paid, exile the permanent this spell becomes at the beginning of the next end step. Its owner may cast this card after the current turn has ended for as long as it remains exiled.”"},{"name":"∞ (Infinity)","rule":"702.186","kind":"ability","text":"“∞ — [Ability]” means “As long as this permanent is harnessed, it has [ability].”"},{"name":"Mayhem","rule":"702.187","kind":"ability","text":"“Mayhem [cost]” means “As long as you discarded this card this turn, you may cast it from your graveyard by paying [cost] rather than paying its mana cost.”"},{"name":"Web-slinging","rule":"702.188","kind":"ability","text":"“Web-slinging [cost]” means “You may cast this spell by paying [cost] and returning a tapped creature you control to its owner’s hand rather than paying its mana cost.”"},{"name":"Firebending","rule":"702.189","kind":"ability","text":"“Firebending N” means “Whenever this creature attacks, add N {R}. Until end of combat, you don’t lose this mana as steps and phases end.”"},{"name":"Sneak","rule":"702.190","kind":"ability","text":"“Sneak [cost]” means “Any time you could cast an instant during your declare blockers step, you may cast this spell by paying [cost] and returning an unblocked creature you control to its owner’s hand rather than paying this spell’s mana cost.”"},{"name":"Increment","rule":"702.191","kind":"ability","text":"“Increment” means “Whenever you cast a spell, if this permanent is a creature and the amount of mana spent to cast that spell is greater than this creature’s power or this creature’s toughness, put a +1/+1 counter on this creature.”"},{"name":"Paradigm","rule":"702.192","kind":"ability","text":"Paradigm means “If this is the first time a spell you control with this spell’s name has resolved this game, at the beginning of each of your precombat main phases for the rest of the game, create a copy of this object in exile. You may cast the copy without paying its mana cost” and “Exile this spell.”"},{"name":"Power-up","rule":"702.193","kind":"ability","text":"“Power-up — [Cost]: [Effect]” means “[Cost]: [Effect]. If this permanent entered this turn, this ability’s cost is reduced by this permanent’s mana cost. Activate this ability only once.”"},{"name":"Teamwork","rule":"702.194","kind":"ability","text":"“Teamwork N” means “As an additional cost to cast this spell, you may tap any number of creatures you control with total power N or more.”"},{"name":"Storied","rule":"702.195","kind":"ability","text":"It means “Any time you control three or more permanents that are artifacts, Sagas, and/or legendary and you don’t have an enduring story, you have an enduring story for the rest of the game.”"}]}
+{
+  "meta": { "effective": "September 25, 2026", "fetchedAt": "2026-10-09T17:06:57.941Z" },
+  "keywords": [
+    {
+      "name": "Activate",
+      "rule": "701.2",
+      "kind": "action",
+      "text": "To activate an activated ability is to put it onto the stack and pay its costs, so that it will eventually resolve and have its effect. Only an object’s controller (or its owner, if it doesn’t have a controller) can activate its activated ability unless the object specifically says otherwise. A player may activate an ability if they have priority."
+    },
+    {
+      "name": "Attach",
+      "rule": "701.3",
+      "kind": "action",
+      "text": "To attach an Aura, Equipment, or Fortification to an object or player means to take it from where it currently is and put it onto that object or player."
+    },
+    {
+      "name": "Behold",
+      "rule": "701.4",
+      "kind": "action",
+      "text": "“Behold a [quality]” means “Reveal a [quality] card from your hand or choose a [quality] permanent you control on the battlefield.”"
+    },
+    {
+      "name": "Cast",
+      "rule": "701.5",
+      "kind": "action",
+      "text": "To cast a spell is to take it from the zone it’s in (usually the hand), put it on the stack, and pay its costs, so that it will eventually resolve and have its effect. A player may cast a spell if they have priority."
+    },
+    {
+      "name": "Counter",
+      "rule": "701.6",
+      "kind": "action",
+      "text": "To counter a spell or ability means to cancel it, removing it from the stack."
+    },
+    {
+      "name": "Create",
+      "rule": "701.7",
+      "kind": "action",
+      "text": "To create one or more tokens with certain characteristics, put the specified number of tokens with the specified characteristics onto the battlefield."
+    },
+    {
+      "name": "Destroy",
+      "rule": "701.8",
+      "kind": "action",
+      "text": "To destroy a permanent, move it from the battlefield to its owner’s graveyard."
+    },
+    {
+      "name": "Discard",
+      "rule": "701.9",
+      "kind": "action",
+      "text": "To discard a card, move it from its owner’s hand to that player’s graveyard."
+    },
+    {
+      "name": "Double",
+      "rule": "701.10",
+      "kind": "action",
+      "text": "Doubling a creature’s power and/or toughness creates a continuous effect. This effect modifies that creature’s power and/or toughness but doesn’t set those characteristics to a specific value."
+    },
+    {
+      "name": "Triple",
+      "rule": "701.11",
+      "kind": "action",
+      "text": "Tripling a creature’s power and/or toughness creates a continuous effect. This effect modifies that creature’s power and/or toughness but doesn’t set those characteristics to a specific value."
+    },
+    {
+      "name": "Exchange",
+      "rule": "701.12",
+      "kind": "action",
+      "text": "A spell or ability may instruct players to exchange something (for example, life totals or control of two permanents) as part of its resolution. When such a spell or ability resolves, if the entire exchange can’t be completed, no part of the exchange occurs."
+    },
+    {
+      "name": "Exile",
+      "rule": "701.13",
+      "kind": "action",
+      "text": "To exile an object, move it to the exile zone from wherever it is."
+    },
+    {
+      "name": "Fight",
+      "rule": "701.14",
+      "kind": "action",
+      "text": "A spell or ability may instruct a creature to fight another creature or it may instruct two creatures to fight each other. Each of those creatures deals damage equal to its power to the other creature."
+    },
+    {
+      "name": "Goad",
+      "rule": "701.15",
+      "kind": "action",
+      "text": "Certain spells and abilities can goad a creature. Until the next turn of the controller of that spell or ability, that creature is goaded. A goaded creature attacks each combat if able and attacks a player other than the controller of the permanent, spell, or ability that caused it to be goaded if able."
+    },
+    {
+      "name": "Investigate",
+      "rule": "701.16",
+      "kind": "action",
+      "text": "“Investigate” means “Create a Clue token.”"
+    },
+    {
+      "name": "Mill",
+      "rule": "701.17",
+      "kind": "action",
+      "text": "For a player to mill a number of cards, that player puts that many cards from the top of their library into their graveyard."
+    },
+    {
+      "name": "Play",
+      "rule": "701.18",
+      "kind": "action",
+      "text": "To play a land means to put it onto the battlefield from the zone it’s in (usually the hand)."
+    },
+    {
+      "name": "Regenerate",
+      "rule": "701.19",
+      "kind": "action",
+      "text": "In this case, “Regenerate [permanent]” means “The next time [permanent] would be destroyed this turn, instead remove all damage marked on it and its controller taps it. If it’s an attacking or blocking creature, remove it from combat.”"
+    },
+    {
+      "name": "Reveal",
+      "rule": "701.20",
+      "kind": "action",
+      "text": "To reveal a card, show that card to all players for a brief time. If an effect causes a card to be revealed, it remains revealed for as long as necessary to complete the parts of the effect that card is relevant to."
+    },
+    {
+      "name": "Sacrifice",
+      "rule": "701.21",
+      "kind": "action",
+      "text": "To sacrifice a permanent, its controller moves it from the battlefield directly to its owner’s graveyard. A player can’t sacrifice something that isn’t a permanent, or something that’s a permanent they don’t control. Sacrificing a permanent doesn’t destroy it, so regeneration or other effects that replace destruction can’t affect this action."
+    },
+    {
+      "name": "Scry",
+      "rule": "701.22",
+      "kind": "action",
+      "text": "To “scry N” means to look at the top N cards of your library, then put any number of them on the bottom of your library in any order and the rest on top of your library in any order."
+    },
+    {
+      "name": "Search",
+      "rule": "701.23",
+      "kind": "action",
+      "text": "To search for a card in a zone, look at all cards in that zone (even if it’s a hidden zone) and find a card that matches the given description."
+    },
+    {
+      "name": "Shuffle",
+      "rule": "701.24",
+      "kind": "action",
+      "text": "To shuffle a library or a face-down pile of cards, randomize the cards within it so that no player knows their order."
+    },
+    {
+      "name": "Surveil",
+      "rule": "701.25",
+      "kind": "action",
+      "text": "To “surveil N” means to look at the top N cards of your library, then put any number of them into your graveyard and the rest on top of your library in any order."
+    },
+    {
+      "name": "Tap and Untap",
+      "rule": "701.26",
+      "kind": "action",
+      "text": "To tap a permanent, turn it sideways from an upright position. Only untapped permanents can be tapped."
+    },
+    {
+      "name": "Transform",
+      "rule": "701.27",
+      "kind": "action",
+      "text": "To transform a permanent, turn it over so that its other face is up. Only permanents represented by double-faced tokens and double-faced cards can transform."
+    },
+    {
+      "name": "Convert",
+      "rule": "701.28",
+      "kind": "action",
+      "text": "To convert a permanent, turn it so that its other face is up. This follows rules 701.27a–f, 712.9–10, and 712.18. Those rules apply to converting a permanent just as they apply to transforming a permanent."
+    },
+    {
+      "name": "Fateseal",
+      "rule": "701.29",
+      "kind": "action",
+      "text": "To “fateseal N” means to look at the top N cards of an opponent’s library, then put any number of them on the bottom of that library in any order and the rest on top of that library in any order."
+    },
+    {
+      "name": "Clash",
+      "rule": "701.30",
+      "kind": "action",
+      "text": "“Clash with an opponent” means “Choose an opponent. You and that opponent each clash.”"
+    },
+    {
+      "name": "Planeswalk",
+      "rule": "701.31",
+      "kind": "action",
+      "text": "A player may planeswalk only during a Planechase game. Only the planar controller may planeswalk."
+    },
+    {
+      "name": "Set in Motion",
+      "rule": "701.32",
+      "kind": "action",
+      "text": "Only a scheme card may be set in motion, and only during an Archenemy game. Only the archenemy may set a scheme card in motion."
+    },
+    {
+      "name": "Abandon",
+      "rule": "701.33",
+      "kind": "action",
+      "text": "Only a face-up ongoing scheme card may be abandoned, and only during an Archenemy game."
+    },
+    {
+      "name": "Proliferate",
+      "rule": "701.34",
+      "kind": "action",
+      "text": "To proliferate means to choose any number of permanents and/or players that have a counter, then give each one additional counter of each kind that permanent or player already has."
+    },
+    {
+      "name": "Detain",
+      "rule": "701.35",
+      "kind": "action",
+      "text": "Certain spells and abilities can detain a permanent. Until the next turn of the controller of that spell or ability, that permanent can’t attack or block and its activated abilities can’t be activated."
+    },
+    {
+      "name": "Populate",
+      "rule": "701.36",
+      "kind": "action",
+      "text": "To populate means to choose a creature token you control and create a token that’s a copy of that creature token."
+    },
+    {
+      "name": "Monstrosity",
+      "rule": "701.37",
+      "kind": "action",
+      "text": "“Monstrosity N” means “If this permanent isn’t monstrous, put N +1/+1 counters on it and it becomes monstrous.”"
+    },
+    {
+      "name": "Vote",
+      "rule": "701.38",
+      "kind": "action",
+      "text": "Some spells and abilities instruct players to vote for one choice from a list of options to determine some aspect of the effect of that spell or ability. To vote, each player, starting with a specified player and proceeding in turn order, chooses one of those choices."
+    },
+    {
+      "name": "Bolster",
+      "rule": "701.39",
+      "kind": "action",
+      "text": "“Bolster N” means “Choose a creature you control with the least toughness or tied for least toughness among creatures you control. Put N +1/+1 counters on that creature.”"
+    },
+    {
+      "name": "Manifest",
+      "rule": "701.40",
+      "kind": "action",
+      "text": "To manifest a card, turn it face down. It becomes a 2/2 face-down creature card with no text, no name, no subtypes, and no mana cost. Put that card onto the battlefield face down. That permanent is a manifested permanent for as long as it remains face down."
+    },
+    {
+      "name": "Support",
+      "rule": "701.41",
+      "kind": "action",
+      "text": "“Support N” on a permanent means “Put a +1/+1 counter on each of up to N other target creatures.”"
+    },
+    {
+      "name": "Meld",
+      "rule": "701.42",
+      "kind": "action",
+      "text": "To meld the two cards in a meld pair, put them onto the battlefield with their back faces up and combined. The resulting permanent is a single object represented by two cards."
+    },
+    {
+      "name": "Exert",
+      "rule": "701.43",
+      "kind": "action",
+      "text": "To exert a permanent, you choose to have it not untap during your next untap step."
+    },
+    {
+      "name": "Explore",
+      "rule": "701.44",
+      "kind": "action",
+      "text": "Certain spells and abilities instruct a permanent to explore. To do so, that permanent’s controller reveals the top card of their library. If a land card is revealed this way, that player puts that card into their hand. Otherwise, that player puts a +1/+1 counter on the exploring permanent and may put the revealed card into their graveyard."
+    },
+    {
+      "name": "Assemble",
+      "rule": "701.45",
+      "kind": "action",
+      "text": "Outside of silver-bordered cards, only one card (Steamflogger Boss) refers to assembling a Contraption. Cards and mechanics from the Unstable set aren’t included in these rules. See the Unstable FAQ for more information."
+    },
+    {
+      "name": "Adapt",
+      "rule": "701.46",
+      "kind": "action",
+      "text": "“Adapt N” means “If this permanent has no +1/+1 counters on it, put N +1/+1 counters on it.”"
+    },
+    {
+      "name": "Amass",
+      "rule": "701.47",
+      "kind": "action",
+      "text": "To amass [subtype] N means “If you don’t control an Army creature, create a 0/0 black [subtype] Army creature token. Choose an Army creature you control. Put N +1/+1 counters on that creature. If it isn’t a [subtype], it becomes a [subtype] in addition to its other types.”"
+    },
+    {
+      "name": "Learn",
+      "rule": "701.48",
+      "kind": "action",
+      "text": "“Learn” means “You may discard a card. If you do, draw a card. If you didn’t discard a card, you may reveal a Lesson card you own from outside the game and put it into your hand.”"
+    },
+    {
+      "name": "Venture into the Dungeon",
+      "rule": "701.49",
+      "kind": "action",
+      "text": "If a player is instructed to venture into the dungeon while they don’t own a dungeon card in the command zone, they choose a dungeon card they own from outside the game and put it into the command zone. They put their venture marker on the topmost room."
+    },
+    {
+      "name": "Connive",
+      "rule": "701.50",
+      "kind": "action",
+      "text": "Certain spells and abilities instruct a permanent to connive. To do so, that permanent’s controller draws a card, then discards a card. If a nonland card is discarded this way, that player puts a +1/+1 counter on the conniving permanent."
+    },
+    {
+      "name": "Open an Attraction",
+      "rule": "701.51",
+      "kind": "action",
+      "text": "A player may open an Attraction only during a game in which that player is playing with an Attraction deck."
+    },
+    {
+      "name": "Roll to Visit Your Attractions",
+      "rule": "701.52",
+      "kind": "action",
+      "text": "To roll to visit your Attractions, roll a six-sided die. Then if you control one or more Attractions with a number lit up that is equal to that result, each of those Attractions has been “visited” and its visit ability triggers."
+    },
+    {
+      "name": "Incubate",
+      "rule": "701.53",
+      "kind": "action",
+      "text": "To incubate N, create an Incubator token that enters the battlefield with N +1/+1 counters on it."
+    },
+    {
+      "name": "The Ring Tempts You",
+      "rule": "701.54",
+      "kind": "action",
+      "text": "Certain spells and abilities have the text “the Ring tempts you.” Each time the Ring tempts you, choose a creature you control. That creature becomes your Ring-bearer until another creature becomes your Ring-bearer or another player gains control of it."
+    },
+    {
+      "name": "Face a Villainous Choice",
+      "rule": "701.55",
+      "kind": "action",
+      "text": "“[A player] faces a villainous choice — [option A], or [option B]” means “[A player] chooses [option A] or [option B]. Then all actions in the chosen option are performed.”"
+    },
+    {
+      "name": "Time Travel",
+      "rule": "701.56",
+      "kind": "action",
+      "text": "To time travel means to choose any number of permanents you control with one or more time counters on them and/or suspended cards you own in exile with one or more time counters on them and, for each of those objects, put a time counter on it or remove a time counter from it."
+    },
+    {
+      "name": "Discover",
+      "rule": "701.57",
+      "kind": "action",
+      "text": "“Discover N” means “Exile cards from the top of your library until you exile a nonland card with mana value N or less. You may cast that card without paying its mana cost if the resulting spell’s mana value is less than or equal to N. If you don’t cast it, put that card into your hand. Put the remaining exiled cards on the bottom of your library in a random order.”"
+    },
+    {
+      "name": "Cloak",
+      "rule": "701.58",
+      "kind": "action",
+      "text": "To cloak a card, turn it face down. It becomes a 2/2 face-down creature card with ward {2}, no name, no subtypes, and no mana cost. Put that card onto the battlefield face down. That permanent is a cloaked permanent for as long as it remains face down."
+    },
+    {
+      "name": "Collect Evidence",
+      "rule": "701.59",
+      "kind": "action",
+      "text": "To “collect evidence N” means to exile any number of cards from your graveyard with total mana value N or greater."
+    },
+    {
+      "name": "Suspect",
+      "rule": "701.60",
+      "kind": "action",
+      "text": "Certain spells and abilities instruct a player to suspect a creature. That creature becomes suspected until it leaves the battlefield or until a spell or ability causes it to no longer be suspected."
+    },
+    {
+      "name": "Forage",
+      "rule": "701.61",
+      "kind": "action",
+      "text": "To forage means “Exile three cards from your graveyard or sacrifice a Food.”"
+    },
+    {
+      "name": "Manifest Dread",
+      "rule": "701.62",
+      "kind": "action",
+      "text": "“Manifest dread” means “Look at the top two cards of your library. Manifest one of them, then put the cards you looked at that were not manifested this way into your graveyard.”"
+    },
+    {
+      "name": "Endure",
+      "rule": "701.63",
+      "kind": "action",
+      "text": "Certain abilities instruct a permanent to endure N. To do so, that permanent’s controller creates an N/N white Spirit creature token unless they put N +1/+1 counters on that permanent."
+    },
+    {
+      "name": "Harness",
+      "rule": "701.64",
+      "kind": "action",
+      "text": "“Harness [this permanent]” means “If this permanent isn’t harnessed, it becomes harnessed.”"
+    },
+    {
+      "name": "Airbend",
+      "rule": "701.65",
+      "kind": "action",
+      "text": "Certain spells and abilities instruct a player to airbend one or more permanents and/or spells. To do so, that player exiles those objects. For each card exiled this way, for as long as it remains exiled, its owner may cast it by paying {2} rather than paying its mana cost."
+    },
+    {
+      "name": "Earthbend",
+      "rule": "701.66",
+      "kind": "action",
+      "text": "“Earthbend N” means “Target land you control becomes a 0/0 land creature with haste in addition to its other types. Put N +1/+1 counters on it. When that land dies or is put into exile, return it to the battlefield tapped under your control.”"
+    },
+    {
+      "name": "Waterbend",
+      "rule": "701.67",
+      "kind": "action",
+      "text": "“Waterbend [cost]” means “Pay [cost]. For each generic mana in that cost, you may tap an untapped artifact or creature you control rather than pay that mana.”"
+    },
+    {
+      "name": "Blight",
+      "rule": "701.68",
+      "kind": "action",
+      "text": "To “blight N” means to put N -1/-1 counters on a creature you control."
+    },
+    {
+      "name": "Heal",
+      "rule": "701.69",
+      "kind": "action",
+      "text": "To heal damage already dealt to a permanent, remove that marked damage from that permanent. If an effect states that damage already dealt to a permanent “is healed,” that permanent’s controller removes all marked damage from that permanent."
+    },
+    {
+      "name": "Recruit",
+      "rule": "701.70",
+      "kind": "action",
+      "text": "“Recruit” means “Draw a card, then discard a card. If you discarded a nonland card this way, create a 1/1 white Human Soldier creature token.”"
+    },
+    {
+      "name": "Empower Jace",
+      "rule": "701.71",
+      "kind": "action",
+      "text": "To empower Jace N means “If you don’t control a Jace planeswalker token, create a blue Jace planeswalker token with 0 loyalty, ‘[−1]: Surveil 1,’ and ‘[−3]: Draw a card.’ Choose a Jace planeswalker token you control. Put N loyalty counters on it.”"
+    },
+    {
+      "name": "Deathtouch",
+      "rule": "702.2",
+      "kind": "ability",
+      "text": "A creature with toughness greater than 0 that’s been dealt damage by a source with deathtouch since the last time state-based actions were checked is destroyed as a state-based action."
+    },
+    {
+      "name": "Defender",
+      "rule": "702.3",
+      "kind": "ability",
+      "text": "A creature with defender can’t attack."
+    },
+    {
+      "name": "Double Strike",
+      "rule": "702.4",
+      "kind": "ability",
+      "text": "A keyword ability that lets a creature deal its combat damage twice."
+    },
+    {
+      "name": "Enchant",
+      "rule": "702.5",
+      "kind": "ability",
+      "text": "Enchant is a static ability, written “Enchant [object or player].” The enchant ability restricts what an Aura spell can target and what an Aura can enchant."
+    },
+    {
+      "name": "Equip",
+      "rule": "702.6",
+      "kind": "ability",
+      "text": "“Equip [cost]” means “[Cost]: Attach this permanent to target creature you control. Activate only as a sorcery.”"
+    },
+    {
+      "name": "First Strike",
+      "rule": "702.7",
+      "kind": "ability",
+      "text": "A keyword ability that lets a creature deal its combat damage before other creatures."
+    },
+    {
+      "name": "Flash",
+      "rule": "702.8",
+      "kind": "ability",
+      "text": "“Flash” means “You may play this card any time you could cast an instant.”"
+    },
+    {
+      "name": "Flying",
+      "rule": "702.9",
+      "kind": "ability",
+      "text": "A creature with flying can’t be blocked except by creatures with flying and/or reach. A creature with flying can block a creature with or without flying."
+    },
+    {
+      "name": "Haste",
+      "rule": "702.10",
+      "kind": "ability",
+      "text": "If a creature has haste, it can attack even if it hasn’t been controlled by its controller continuously since their most recent turn began."
+    },
+    {
+      "name": "Hexproof",
+      "rule": "702.11",
+      "kind": "ability",
+      "text": "“Hexproof” on a permanent means “This permanent can’t be the target of spells or abilities your opponents control.”"
+    },
+    {
+      "name": "Indestructible",
+      "rule": "702.12",
+      "kind": "ability",
+      "text": "A permanent with indestructible can’t be destroyed. Such permanents aren’t destroyed by lethal damage, and they ignore the state-based action that checks for lethal damage."
+    },
+    {
+      "name": "Intimidate",
+      "rule": "702.13",
+      "kind": "ability",
+      "text": "A creature with intimidate can’t be blocked except by artifact creatures and/or creatures that share a color with it."
+    },
+    {
+      "name": "Landwalk",
+      "rule": "702.14",
+      "kind": "ability",
+      "text": "A creature with landwalk can’t be blocked as long as the defending player controls at least one land with the specified land type (as in “islandwalk”), with the specified type or supertype (as in “artifact landwalk”), without the specified type or supertype (as in “nonbasic landwalk”), or with both the specified type or supertype and the specified subtype (as in “snow swampwalk”)."
+    },
+    {
+      "name": "Lifelink",
+      "rule": "702.15",
+      "kind": "ability",
+      "text": "Damage dealt by a source with lifelink causes that source’s controller, or its owner if it has no controller, to gain that much life (in addition to any other results that damage causes)."
+    },
+    {
+      "name": "Protection",
+      "rule": "702.16",
+      "kind": "ability",
+      "text": "A permanent or player with protection can’t be targeted by spells with the stated quality and can’t be targeted by abilities from a source with the stated quality. Any damage that would be dealt by sources that have the stated quality to a permanent or player with protection is prevented."
+    },
+    {
+      "name": "Reach",
+      "rule": "702.17",
+      "kind": "ability",
+      "text": "A creature with flying can’t be blocked except by creatures with flying and/or reach."
+    },
+    {
+      "name": "Shroud",
+      "rule": "702.18",
+      "kind": "ability",
+      "text": "“Shroud” means “This permanent or player can’t be the target of spells or abilities.”"
+    },
+    {
+      "name": "Trample",
+      "rule": "702.19",
+      "kind": "ability",
+      "text": "The controller of an attacking creature with trample first assigns damage to the creature(s) blocking it. Once all those blocking creatures are assigned lethal damage, any excess damage is assigned as its controller chooses among those blocking creatures and the player, planeswalker, or battle the creature is attacking."
+    },
+    {
+      "name": "Vigilance",
+      "rule": "702.20",
+      "kind": "ability",
+      "text": "Attacking doesn’t cause creatures with vigilance to tap."
+    },
+    {
+      "name": "Ward",
+      "rule": "702.21",
+      "kind": "ability",
+      "text": "Ward [cost] means “Whenever this permanent becomes the target of a spell or ability an opponent controls, counter that spell or ability unless that player pays [cost].”"
+    },
+    {
+      "name": "Banding",
+      "rule": "702.22",
+      "kind": "ability",
+      "text": "As a player declares attackers, they may declare that one or more attacking creatures with banding and up to one attacking creature without banding (even if it has “bands with other”) are all in a “band.”"
+    },
+    {
+      "name": "Rampage",
+      "rule": "702.23",
+      "kind": "ability",
+      "text": "“Rampage N” means “Whenever this creature becomes blocked, it gets +N/+N until end of turn for each creature blocking it beyond the first.”"
+    },
+    {
+      "name": "Cumulative Upkeep",
+      "rule": "702.24",
+      "kind": "ability",
+      "text": "“Cumulative upkeep [cost]” means “At the beginning of your upkeep, if this permanent is on the battlefield, put an age counter on this permanent. Then you may pay [cost] for each age counter on it. If you don’t, sacrifice it.”"
+    },
+    {
+      "name": "Flanking",
+      "rule": "702.25",
+      "kind": "ability",
+      "text": "“Flanking” means “Whenever this creature becomes blocked by a creature without flanking, the blocking creature gets -1/-1 until end of turn.”"
+    },
+    {
+      "name": "Phasing",
+      "rule": "702.26",
+      "kind": "ability",
+      "text": "During each player’s untap step, before the active player untaps permanents, all phased-in permanents with phasing that player controls “phase out.” Simultaneously, all phased-out permanents that had phased out under that player’s control “phase in.”"
+    },
+    {
+      "name": "Buyback",
+      "rule": "702.27",
+      "kind": "ability",
+      "text": "“Buyback [cost]” means “You may pay an additional [cost] as you cast this spell” and “If the buyback cost was paid, put this spell into its owner’s hand instead of into that player’s graveyard as it resolves.”"
+    },
+    {
+      "name": "Shadow",
+      "rule": "702.28",
+      "kind": "ability",
+      "text": "A creature with shadow can’t be blocked by creatures without shadow, and a creature without shadow can’t be blocked by creatures with shadow."
+    },
+    {
+      "name": "Cycling",
+      "rule": "702.29",
+      "kind": "ability",
+      "text": "“Cycling [cost]” means “[Cost], Discard this card: Draw a card.”"
+    },
+    {
+      "name": "Echo",
+      "rule": "702.30",
+      "kind": "ability",
+      "text": "“Echo [cost]” means “At the beginning of your upkeep, if this permanent came under your control since the beginning of your last upkeep, sacrifice it unless you pay [cost].”"
+    },
+    {
+      "name": "Horsemanship",
+      "rule": "702.31",
+      "kind": "ability",
+      "text": "A creature with horsemanship can’t be blocked by creatures without horsemanship. A creature with horsemanship can block a creature with or without horsemanship."
+    },
+    {
+      "name": "Fading",
+      "rule": "702.32",
+      "kind": "ability",
+      "text": "“Fading N” means “This permanent enters with N fade counters on it” and “At the beginning of your upkeep, remove a fade counter from this permanent. If you can’t, sacrifice the permanent.”"
+    },
+    {
+      "name": "Kicker",
+      "rule": "702.33",
+      "kind": "ability",
+      "text": "“Kicker [cost]” means “You may pay an additional [cost] as you cast this spell.”"
+    },
+    {
+      "name": "Flashback",
+      "rule": "702.34",
+      "kind": "ability",
+      "text": "“Flashback [cost]” means “You may cast this card from your graveyard if the resulting spell is an instant or sorcery spell by paying [cost] rather than paying its mana cost” and “If the flashback cost was paid, exile this card instead of putting it anywhere else any time it would leave the stack.”"
+    },
+    {
+      "name": "Madness",
+      "rule": "702.35",
+      "kind": "ability",
+      "text": "“Madness [cost]” means “If a player would discard this card, that player discards it, but exiles it instead of putting it into their graveyard” and “When this card is exiled this way, its owner may cast it by paying [cost] rather than paying its mana cost. If that player doesn’t, they put this card into their graveyard.”"
+    },
+    {
+      "name": "Fear",
+      "rule": "702.36",
+      "kind": "ability",
+      "text": "A creature with fear can’t be blocked except by artifact creatures and/or black creatures."
+    },
+    {
+      "name": "Morph",
+      "rule": "702.37",
+      "kind": "ability",
+      "text": "“Morph [cost]” means “You may cast this card as a 2/2 face-down creature with no text, no name, no subtypes, and no mana cost by paying {3} rather than paying its mana cost.”"
+    },
+    {
+      "name": "Amplify",
+      "rule": "702.38",
+      "kind": "ability",
+      "text": "“Amplify N” means “As this object enters, reveal any number of cards from your hand that share a creature type with it. This permanent enters with N +1/+1 counters on it for each card revealed this way. You can’t reveal this card or any other cards that are entering the battlefield at the same time as this card.”"
+    },
+    {
+      "name": "Provoke",
+      "rule": "702.39",
+      "kind": "ability",
+      "text": "“Provoke” means “Whenever this creature attacks, you may choose to have target creature defending player controls block this creature this combat if able. If you do, untap that creature.”"
+    },
+    {
+      "name": "Storm",
+      "rule": "702.40",
+      "kind": "ability",
+      "text": "“Storm” means “When you cast this spell, copy it for each other spell that was cast before it this turn. If the spell has any targets, you may choose new targets for any of the copies.”"
+    },
+    {
+      "name": "Affinity",
+      "rule": "702.41",
+      "kind": "ability",
+      "text": "“Affinity for [text]” means “This spell costs {1} less to cast for each [text] you control.”"
+    },
+    {
+      "name": "Entwine",
+      "rule": "702.42",
+      "kind": "ability",
+      "text": "“Entwine [cost]” means “You may choose all modes of this spell instead of just the number specified. If you do, you pay an additional [cost].”"
+    },
+    {
+      "name": "Modular",
+      "rule": "702.43",
+      "kind": "ability",
+      "text": "“Modular N” means “This permanent enters with N +1/+1 counters on it” and “When this permanent is put into a graveyard from the battlefield, you may put a +1/+1 counter on target artifact creature for each +1/+1 counter on this permanent.”"
+    },
+    {
+      "name": "Sunburst",
+      "rule": "702.44",
+      "kind": "ability",
+      "text": "“Sunburst” means “If this object is entering as a creature, ignoring any type-changing effects that would affect it, it enters with a +1/+1 counter on it for each color of mana spent to cast it. Otherwise, it enters with a charge counter on it for each color of mana spent to cast it.”"
+    },
+    {
+      "name": "Bushido",
+      "rule": "702.45",
+      "kind": "ability",
+      "text": "“Bushido N” means “Whenever this creature blocks or becomes blocked, it gets +N/+N until end of turn.”"
+    },
+    {
+      "name": "Soulshift",
+      "rule": "702.46",
+      "kind": "ability",
+      "text": "“Soulshift N” means “When this permanent is put into a graveyard from the battlefield, you may return target Spirit card with mana value N or less from your graveyard to your hand.”"
+    },
+    {
+      "name": "Splice",
+      "rule": "702.47",
+      "kind": "ability",
+      "text": "“Splice onto [quality] [cost]” means “You may reveal this card from your hand as you cast a [quality] spell. If you do, that spell gains the text of this card’s rules text and you pay [cost] as an additional cost to cast that spell.”"
+    },
+    {
+      "name": "Offering",
+      "rule": "702.48",
+      "kind": "ability",
+      "text": "“[Quality] offering” means “As an additional cost to cast this spell, you may sacrifice a [quality] permanent. If you chose to pay the additional cost, this spell’s total cost is reduced by the sacrificed permanent’s mana cost, and you may cast this spell any time you could cast an instant.”"
+    },
+    {
+      "name": "Ninjutsu",
+      "rule": "702.49",
+      "kind": "ability",
+      "text": "“Ninjutsu [cost]” means “[Cost], Reveal this card from your hand, Return an unblocked attacking creature you control to its owner’s hand: Put this card onto the battlefield from your hand tapped and attacking.”"
+    },
+    {
+      "name": "Epic",
+      "rule": "702.50",
+      "kind": "ability",
+      "text": "“Epic” means “For the rest of the game, you can’t cast spells,” and “At the beginning of each of your upkeeps for the rest of the game, copy this spell except for its epic ability. If the spell has any targets, you may choose new targets for the copy.”"
+    },
+    {
+      "name": "Convoke",
+      "rule": "702.51",
+      "kind": "ability",
+      "text": "“Convoke” means “For each colored mana in this spell’s total cost, you may tap an untapped creature of that color you control rather than pay that mana. For each generic mana in this spell’s total cost, you may tap an untapped creature you control rather than pay that mana.”"
+    },
+    {
+      "name": "Dredge",
+      "rule": "702.52",
+      "kind": "ability",
+      "text": "“Dredge N” means “As long as you have at least N cards in your library, if you would draw a card, you may instead mill N cards and return this card from your graveyard to your hand.”"
+    },
+    {
+      "name": "Transmute",
+      "rule": "702.53",
+      "kind": "ability",
+      "text": "“Transmute [cost]” means “[Cost], Discard this card: Search your library for a card with the same mana value as the discarded card, reveal that card, and put it into your hand. Then shuffle your library. Activate only as a sorcery.”"
+    },
+    {
+      "name": "Bloodthirst",
+      "rule": "702.54",
+      "kind": "ability",
+      "text": "“Bloodthirst N” means “If an opponent was dealt damage this turn, this permanent enters with N +1/+1 counters on it.”"
+    },
+    {
+      "name": "Haunt",
+      "rule": "702.55",
+      "kind": "ability",
+      "text": "“Haunt” on a permanent means “When this permanent is put into a graveyard from the battlefield, exile it haunting target creature.”"
+    },
+    {
+      "name": "Replicate",
+      "rule": "702.56",
+      "kind": "ability",
+      "text": "“Replicate [cost]” means “As an additional cost to cast this spell, you may pay [cost] any number of times” and “When you cast this spell, if a replicate cost was paid for it, copy it for each time its replicate cost was paid. If the spell has any targets, you may choose new targets for any of the copies.”"
+    },
+    {
+      "name": "Forecast",
+      "rule": "702.57",
+      "kind": "ability",
+      "text": "A forecast ability may be activated only during the upkeep step of the card’s owner and only once each turn. The controller of the forecast ability reveals the card with that ability from their hand as the ability is activated."
+    },
+    {
+      "name": "Graft",
+      "rule": "702.58",
+      "kind": "ability",
+      "text": "“Graft N” means “This permanent enters with N +1/+1 counters on it” and “Whenever another creature enters, if this permanent has a +1/+1 counter on it, you may move a +1/+1 counter from this permanent onto that creature.”"
+    },
+    {
+      "name": "Recover",
+      "rule": "702.59",
+      "kind": "ability",
+      "text": "“Recover [cost]” means “When a creature is put into your graveyard from the battlefield, you may pay [cost]. If you do, return this card from your graveyard to your hand. Otherwise, exile this card.”"
+    },
+    {
+      "name": "Ripple",
+      "rule": "702.60",
+      "kind": "ability",
+      "text": "“Ripple N” means “When you cast this spell, you may reveal the top N cards of your library, or, if there are fewer than N cards in your library, you may reveal all the cards in your library. If you reveal cards from your library this way, you may cast any of those cards with the same name as this spell without paying their mana costs, then put all revealed cards not cast this way on the bottom of your library in any order.”"
+    },
+    {
+      "name": "Split Second",
+      "rule": "702.61",
+      "kind": "ability",
+      "text": "“Split second” means “As long as this spell is on the stack, players can’t cast other spells or activate abilities that aren’t mana abilities.”"
+    },
+    {
+      "name": "Suspend",
+      "rule": "702.62",
+      "kind": "ability",
+      "text": "“Suspend N—[cost]” means “If you could begin to cast this card by putting it onto the stack from your hand, you may pay [cost] and exile it with N time counters on it. This action doesn’t use the stack,” and “At the beginning of your upkeep, if this card is suspended, remove a time counter from it,” and “When the last time counter is removed from this card, if it’s exiled, you may play it without paying its mana cost if able. If you don’t, it remains exiled. If you cast a creature spell this way, it gains haste until you lose control of the spell or the permanent it becomes.”"
+    },
+    {
+      "name": "Vanishing",
+      "rule": "702.63",
+      "kind": "ability",
+      "text": "“Vanishing N” means “This permanent enters with N time counters on it,” “At the beginning of your upkeep, if this permanent has a time counter on it, remove a time counter from it,” and “When the last time counter is removed from this permanent, sacrifice it.”"
+    },
+    {
+      "name": "Absorb",
+      "rule": "702.64",
+      "kind": "ability",
+      "text": "“Absorb N” means “If a source would deal damage to this creature, prevent N of that damage.”"
+    },
+    {
+      "name": "Aura Swap",
+      "rule": "702.65",
+      "kind": "ability",
+      "text": "“Aura swap [cost]” means “[Cost]: You may exchange this permanent with an Aura card in your hand.”"
+    },
+    {
+      "name": "Delve",
+      "rule": "702.66",
+      "kind": "ability",
+      "text": "“Delve” means “For each generic mana in this spell’s total cost, you may exile a card from your graveyard rather than pay that mana.”"
+    },
+    {
+      "name": "Fortify",
+      "rule": "702.67",
+      "kind": "ability",
+      "text": "“Fortify [cost]” means “[Cost]: Attach this Fortification to target land you control. Activate only as a sorcery.”"
+    },
+    {
+      "name": "Frenzy",
+      "rule": "702.68",
+      "kind": "ability",
+      "text": "“Frenzy N” means “Whenever this creature attacks and isn’t blocked, it gets +N/+0 until end of turn.”"
+    },
+    {
+      "name": "Gravestorm",
+      "rule": "702.69",
+      "kind": "ability",
+      "text": "“Gravestorm” means “When you cast this spell, copy it for each permanent that was put into a graveyard from the battlefield this turn. If the spell has any targets, you may choose new targets for any of the copies.”"
+    },
+    {
+      "name": "Poisonous",
+      "rule": "702.70",
+      "kind": "ability",
+      "text": "“Poisonous N” means “Whenever this creature deals combat damage to a player, that player gets N poison counters.”"
+    },
+    {
+      "name": "Transfigure",
+      "rule": "702.71",
+      "kind": "ability",
+      "text": "“Transfigure [cost]” means “[Cost], Sacrifice this permanent: Search your library for a creature card with the same mana value as this permanent and put it onto the battlefield. Then shuffle your library. Activate only as a sorcery.”"
+    },
+    {
+      "name": "Champion",
+      "rule": "702.72",
+      "kind": "ability",
+      "text": "“Champion an [object]” means “When this permanent enters, sacrifice it unless you exile another [object] you control” and “When this permanent leaves the battlefield, return the exiled card to the battlefield under its owner’s control.”"
+    },
+    {
+      "name": "Changeling",
+      "rule": "702.73",
+      "kind": "ability",
+      "text": "“Changeling” means “This object is every creature type.”"
+    },
+    {
+      "name": "Evoke",
+      "rule": "702.74",
+      "kind": "ability",
+      "text": "“Evoke [cost]” means “You may cast this card by paying [cost] rather than paying its mana cost” and “When this permanent enters, if its evoke cost was paid, its controller sacrifices it.”"
+    },
+    {
+      "name": "Hideaway",
+      "rule": "702.75",
+      "kind": "ability",
+      "text": "“Hideaway N” means “When this permanent enters, look at the top N cards of your library. Exile one of them face down and put the rest on the bottom of your library in a random order. The exiled card gains ‘The player who controls the permanent that exiled this card may look at this card in the exile zone.’”"
+    },
+    {
+      "name": "Prowl",
+      "rule": "702.76",
+      "kind": "ability",
+      "text": "“Prowl [cost]” means “You may pay [cost] rather than pay this spell’s mana cost if a player was dealt combat damage this turn by a source that, at the time it dealt that damage, was under your control and had any of this spell’s creature types.”"
+    },
+    {
+      "name": "Reinforce",
+      "rule": "702.77",
+      "kind": "ability",
+      "text": "“Reinforce N—[cost]” means “[Cost], Discard this card: Put N +1/+1 counters on target creature.”"
+    },
+    {
+      "name": "Conspire",
+      "rule": "702.78",
+      "kind": "ability",
+      "text": "“Conspire” means “As an additional cost to cast this spell, you may tap two untapped creatures you control that each share a color with it” and “When you cast this spell, if its conspire cost was paid, copy it. If the spell has any targets, you may choose new targets for the copy.”"
+    },
+    {
+      "name": "Persist",
+      "rule": "702.79",
+      "kind": "ability",
+      "text": "“Persist” means “When this permanent is put into a graveyard from the battlefield, if it had no -1/-1 counters on it, return it to the battlefield under its owner’s control with a -1/-1 counter on it.”"
+    },
+    {
+      "name": "Wither",
+      "rule": "702.80",
+      "kind": "ability",
+      "text": "Damage dealt to a creature by a source with wither isn’t marked on that creature. Rather, it causes that source’s controller to put that many -1/-1 counters on that creature."
+    },
+    {
+      "name": "Retrace",
+      "rule": "702.81",
+      "kind": "ability",
+      "text": "“Retrace” means “You may cast this card from your graveyard by discarding a land card as an additional cost to cast it.”"
+    },
+    {
+      "name": "Devour",
+      "rule": "702.82",
+      "kind": "ability",
+      "text": "“Devour N” means “As this object enters, you may sacrifice any number of creatures. This permanent enters with N +1/+1 counters on it for each creature sacrificed this way.”"
+    },
+    {
+      "name": "Exalted",
+      "rule": "702.83",
+      "kind": "ability",
+      "text": "“Exalted” means “Whenever a creature you control attacks alone, that creature gets +1/+1 until end of turn.”"
+    },
+    {
+      "name": "Unearth",
+      "rule": "702.84",
+      "kind": "ability",
+      "text": "“Unearth [cost]” means “[Cost]: Return this card from your graveyard to the battlefield. It gains haste. Exile it at the beginning of the next end step. If it would leave the battlefield, exile it instead of putting it anywhere else. Activate only as a sorcery.”"
+    },
+    {
+      "name": "Cascade",
+      "rule": "702.85",
+      "kind": "ability",
+      "text": "“Cascade” means “When you cast this spell, exile cards from the top of your library until you exile a nonland card whose mana value is less than this spell’s mana value. You may cast that card without paying its mana cost if the resulting spell’s mana value is less than this spell’s mana value. Then put all cards exiled this way that weren’t cast on the bottom of your library in a random order.”"
+    },
+    {
+      "name": "Annihilator",
+      "rule": "702.86",
+      "kind": "ability",
+      "text": "“Annihilator N” means “Whenever this creature attacks, defending player sacrifices N permanents.”"
+    },
+    {
+      "name": "Level Up",
+      "rule": "702.87",
+      "kind": "ability",
+      "text": "“Level up [cost]” means “[Cost]: Put a level counter on this permanent. Activate only as a sorcery.”"
+    },
+    {
+      "name": "Rebound",
+      "rule": "702.88",
+      "kind": "ability",
+      "text": "“Rebound” means “If this spell was cast from your hand, instead of putting it into your graveyard as it resolves, exile it and, at the beginning of your next upkeep, you may cast this card from exile without paying its mana cost.”"
+    },
+    {
+      "name": "Umbra Armor",
+      "rule": "702.89",
+      "kind": "ability",
+      "text": "“Umbra armor” means “If enchanted permanent would be destroyed, instead remove all damage marked on it and destroy this Aura.”"
+    },
+    {
+      "name": "Infect",
+      "rule": "702.90",
+      "kind": "ability",
+      "text": "Damage dealt to a player by a source with infect doesn’t cause that player to lose life. Rather, it causes that source’s controller to give the player that many poison counters."
+    },
+    {
+      "name": "Battle Cry",
+      "rule": "702.91",
+      "kind": "ability",
+      "text": "“Battle cry” means “Whenever this creature attacks, each other attacking creature gets +1/+0 until end of turn.”"
+    },
+    {
+      "name": "Living Weapon",
+      "rule": "702.92",
+      "kind": "ability",
+      "text": "“Living weapon” means “When this Equipment enters, create a 0/0 black Phyrexian Germ creature token, then attach this Equipment to it.”"
+    },
+    {
+      "name": "Undying",
+      "rule": "702.93",
+      "kind": "ability",
+      "text": "“Undying” means “When this permanent is put into a graveyard from the battlefield, if it had no +1/+1 counters on it, return it to the battlefield under its owner’s control with a +1/+1 counter on it.”"
+    },
+    {
+      "name": "Miracle",
+      "rule": "702.94",
+      "kind": "ability",
+      "text": "“Miracle [cost]” means “You may reveal this card from your hand as you draw it if it’s the first card you’ve drawn this turn. When you reveal this card this way, you may cast it by paying [cost] rather than its mana cost.”"
+    },
+    {
+      "name": "Soulbond",
+      "rule": "702.95",
+      "kind": "ability",
+      "text": "“Soulbond” means “When this creature enters, if you control both this creature and another creature and both are unpaired, you may pair this creature with another unpaired creature you control for as long as both remain creatures on the battlefield under your control” and “Whenever another creature you control enters, if you control both that creature and this one and both are unpaired, you may pair that creature with this creature for as long as both remain creatures on the battlefield under your control.”"
+    },
+    {
+      "name": "Overload",
+      "rule": "702.96",
+      "kind": "ability",
+      "text": "Overload [cost] means “You may choose to pay [cost] rather than pay this spell’s mana cost” and “If you chose to pay this spell’s overload cost, change its text by replacing all instances of the word ‘target’ with the word ‘each.’”"
+    },
+    {
+      "name": "Scavenge",
+      "rule": "702.97",
+      "kind": "ability",
+      "text": "“Scavenge [cost]” means “[Cost], Exile this card from your graveyard: Put a number of +1/+1 counters equal to the power of the card you exiled on target creature. Activate only as a sorcery.”"
+    },
+    {
+      "name": "Unleash",
+      "rule": "702.98",
+      "kind": "ability",
+      "text": "“Unleash” means “You may have this permanent enter with an additional +1/+1 counter on it” and “This permanent can’t block as long as it has a +1/+1 counter on it.”"
+    },
+    {
+      "name": "Cipher",
+      "rule": "702.99",
+      "kind": "ability",
+      "text": "“Cipher” means “If this spell is represented by a card, you may exile this card encoded on a creature you control” and “For as long as this card is encoded on that creature, that creature has ‘Whenever this creature deals combat damage to a player, you may copy the encoded card and you may cast the copy without paying its mana cost.’”"
+    },
+    {
+      "name": "Evolve",
+      "rule": "702.100",
+      "kind": "ability",
+      "text": "“Evolve” means “Whenever a creature you control enters, if that creature’s power is greater than this creature’s power and/or that creature’s toughness is greater than this creature’s toughness, put a +1/+1 counter on this creature.”"
+    },
+    {
+      "name": "Extort",
+      "rule": "702.101",
+      "kind": "ability",
+      "text": "“Extort” means “Whenever you cast a spell, you may pay {W/B}. If you do, each opponent loses 1 life and you gain life equal to the total life lost this way.”"
+    },
+    {
+      "name": "Fuse",
+      "rule": "702.102",
+      "kind": "ability",
+      "text": "If a player casts a split card with fuse from their hand, the player may choose to cast both halves of that split card rather than choose one half. This choice is made before putting the split card with fuse onto the stack. The resulting spell is a fused split spell."
+    },
+    {
+      "name": "Bestow",
+      "rule": "702.103",
+      "kind": "ability",
+      "text": "“Bestow [cost]” means “As you cast this spell, you may choose to cast it bestowed. If you do, you pay [cost] rather than its mana cost.”"
+    },
+    {
+      "name": "Tribute",
+      "rule": "702.104",
+      "kind": "ability",
+      "text": "“Tribute N” means “As this creature enters, choose an opponent. That player may put an additional N +1/+1 counters on it as it enters.”"
+    },
+    {
+      "name": "Dethrone",
+      "rule": "702.105",
+      "kind": "ability",
+      "text": "“Dethrone” means “Whenever this creature attacks the player with the most life or tied for most life, put a +1/+1 counter on this creature.”"
+    },
+    {
+      "name": "Hidden Agenda",
+      "rule": "702.106",
+      "kind": "ability",
+      "text": "“Hidden agenda” means “As you put this conspiracy card into the command zone, turn it face down and secretly choose a card name.”"
+    },
+    {
+      "name": "Outlast",
+      "rule": "702.107",
+      "kind": "ability",
+      "text": "“Outlast [cost]” means “[Cost], {T}: Put a +1/+1 counter on this creature. Activate only as a sorcery.”"
+    },
+    {
+      "name": "Prowess",
+      "rule": "702.108",
+      "kind": "ability",
+      "text": "“Prowess” means “Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn.”"
+    },
+    {
+      "name": "Dash",
+      "rule": "702.109",
+      "kind": "ability",
+      "text": "“Dash [cost]” means “You may cast this card by paying [cost] rather than its mana cost,” “If this spell’s dash cost was paid, return the permanent this spell becomes to its owner’s hand at the beginning of the next end step,” and “As long as this permanent’s dash cost was paid, it has haste.”"
+    },
+    {
+      "name": "Exploit",
+      "rule": "702.110",
+      "kind": "ability",
+      "text": "“Exploit” means “When this creature enters, you may sacrifice a creature.”"
+    },
+    {
+      "name": "Menace",
+      "rule": "702.111",
+      "kind": "ability",
+      "text": "A creature with menace can’t be blocked except by two or more creatures."
+    },
+    {
+      "name": "Renown",
+      "rule": "702.112",
+      "kind": "ability",
+      "text": "“Renown N” means “When this creature deals combat damage to a player, if it isn’t renowned, put N +1/+1 counters on it and it becomes renowned.”"
+    },
+    {
+      "name": "Awaken",
+      "rule": "702.113",
+      "kind": "ability",
+      "text": "“Awaken N—[cost]” means “You may pay [cost] rather than pay this spell’s mana cost as you cast this spell” and “If this spell’s awaken cost was paid, put N +1/+1 counters on target land you control. That land becomes a 0/0 Elemental creature with haste. It’s still a land.”"
+    },
+    {
+      "name": "Devoid",
+      "rule": "702.114",
+      "kind": "ability",
+      "text": "“Devoid” means “This object is colorless.”"
+    },
+    {
+      "name": "Ingest",
+      "rule": "702.115",
+      "kind": "ability",
+      "text": "“Ingest” means “Whenever this creature deals combat damage to a player, that player exiles the top card of their library.”"
+    },
+    {
+      "name": "Myriad",
+      "rule": "702.116",
+      "kind": "ability",
+      "text": "“Myriad” means “Whenever this creature attacks, for each opponent other than defending player, you may create a token that’s a copy of this creature that’s tapped and attacking that player or a planeswalker they control. If one or more tokens are created this way, exile the tokens at end of combat.”"
+    },
+    {
+      "name": "Surge",
+      "rule": "702.117",
+      "kind": "ability",
+      "text": "“Surge [cost]” means “You may pay [cost] rather than pay this spell’s mana cost as you cast this spell if you or one of your teammates has cast another spell this turn.”"
+    },
+    {
+      "name": "Skulk",
+      "rule": "702.118",
+      "kind": "ability",
+      "text": "A creature with skulk can’t be blocked by creatures with greater power."
+    },
+    {
+      "name": "Emerge",
+      "rule": "702.119",
+      "kind": "ability",
+      "text": "“Emerge [cost]” means “You may cast this spell by paying [cost] and sacrificing a creature rather than paying its mana cost” and “If you chose to pay this spell’s emerge cost, its total cost is reduced by an amount of generic mana equal to the sacrificed creature’s mana value.”"
+    },
+    {
+      "name": "Escalate",
+      "rule": "702.120",
+      "kind": "ability",
+      "text": "“Escalate [cost]” means “For each mode you choose beyond the first as you cast this spell, you pay an additional [cost].”"
+    },
+    {
+      "name": "Melee",
+      "rule": "702.121",
+      "kind": "ability",
+      "text": "“Melee” means “Whenever this creature attacks, it gets +1/+1 until end of turn for each opponent you attacked with a creature this combat.”"
+    },
+    {
+      "name": "Crew",
+      "rule": "702.122",
+      "kind": "ability",
+      "text": "“Crew N” means “Tap any number of other untapped creatures you control with total power N or greater: This permanent becomes an artifact creature until end of turn.”"
+    },
+    {
+      "name": "Fabricate",
+      "rule": "702.123",
+      "kind": "ability",
+      "text": "“Fabricate N” means “When this permanent enters, you may put N +1/+1 counters on it. If you don’t, create N 1/1 colorless Servo artifact creature tokens.”"
+    },
+    {
+      "name": "Partner",
+      "rule": "702.124",
+      "kind": "ability",
+      "text": "Partner abilities are keyword abilities that modify the rules for deck construction in the Commander variant, and they function before the game begins. Each partner ability allows you to designate two legendary cards as your commander rather than one. Each partner ability has its own requirements for those two commanders."
+    },
+    {
+      "name": "Undaunted",
+      "rule": "702.125",
+      "kind": "ability",
+      "text": "Undaunted means “This spell costs {1} less to cast for each opponent you have.”"
+    },
+    {
+      "name": "Improvise",
+      "rule": "702.126",
+      "kind": "ability",
+      "text": "“Improvise” means “For each generic mana in this spell’s total cost, you may tap an untapped artifact you control rather than pay that mana.”"
+    },
+    {
+      "name": "Aftermath",
+      "rule": "702.127",
+      "kind": "ability",
+      "text": "“Aftermath” means “You may cast this half of this split card from your graveyard,” “This half of this split card can’t be cast from any zone other than a graveyard,” and “If this spell was cast from a graveyard, exile it instead of putting it anywhere else any time it would leave the stack.”"
+    },
+    {
+      "name": "Embalm",
+      "rule": "702.128",
+      "kind": "ability",
+      "text": "“Embalm [cost]” means “[Cost], Exile this card from your graveyard: Create a token that’s a copy of this card, except it’s white, it has no mana cost, and it’s a Zombie in addition to its other types. Activate only as a sorcery.”"
+    },
+    {
+      "name": "Eternalize",
+      "rule": "702.129",
+      "kind": "ability",
+      "text": "“Eternalize [cost]” means “[Cost], Exile this card from your graveyard: Create a token that’s a copy of this card, except it’s black, it’s 4/4, it has no mana cost, and it’s a Zombie in addition to its other types. Activate only as a sorcery.”"
+    },
+    {
+      "name": "Afflict",
+      "rule": "702.130",
+      "kind": "ability",
+      "text": "“Afflict N” means “Whenever this creature becomes blocked, defending player loses N life.”"
+    },
+    {
+      "name": "Ascend",
+      "rule": "702.131",
+      "kind": "ability",
+      "text": "It means “If you control ten or more permanents and you don’t have the city’s blessing, you get the city’s blessing for the rest of the game.”"
+    },
+    {
+      "name": "Assist",
+      "rule": "702.132",
+      "kind": "ability",
+      "text": "If the total cost to cast a spell with assist includes a generic mana component, before you activate mana abilities while casting it, you may choose another player. That player has a chance to activate mana abilities. Once that player chooses not to activate any more mana abilities, you have a chance to activate mana abilities."
+    },
+    {
+      "name": "Jump-Start",
+      "rule": "702.133",
+      "kind": "ability",
+      "text": "“Jump-start” means “You may cast this card from your graveyard if the resulting spell is an instant or sorcery spell by discarding a card as an additional cost to cast it” and “If this spell was cast using its jump-start ability, exile this card instead of putting it anywhere else any time it would leave the stack.”"
+    },
+    {
+      "name": "Mentor",
+      "rule": "702.134",
+      "kind": "ability",
+      "text": "“Mentor” means “Whenever this creature attacks, put a +1/+1 counter on target attacking creature with power less than this creature’s power.”"
+    },
+    {
+      "name": "Afterlife",
+      "rule": "702.135",
+      "kind": "ability",
+      "text": "“Afterlife N” means “When this permanent is put into a graveyard from the battlefield, create N 1/1 white and black Spirit creature tokens with flying.”"
+    },
+    {
+      "name": "Riot",
+      "rule": "702.136",
+      "kind": "ability",
+      "text": "“Riot” means “You may have this permanent enter with an additional +1/+1 counter on it. If you don’t, it gains haste.”"
+    },
+    {
+      "name": "Spectacle",
+      "rule": "702.137",
+      "kind": "ability",
+      "text": "“Spectacle [cost]” means “You may pay [cost] rather than pay this spell’s mana cost if an opponent lost life this turn.”"
+    },
+    {
+      "name": "Escape",
+      "rule": "702.138",
+      "kind": "ability",
+      "text": "“Escape [cost]” means “You may cast this card from your graveyard by paying [cost] rather than paying its mana cost.”"
+    },
+    {
+      "name": "Companion",
+      "rule": "702.139",
+      "kind": "ability",
+      "text": "Before the game begins, you may reveal one card you own from outside the game with a companion ability whose condition is fulfilled by your starting deck. Once during the game, any time you have priority and the stack is empty, but only during a main phase of your turn, you may pay {3} and put that card into your hand. This is a change from previous rules."
+    },
+    {
+      "name": "Mutate",
+      "rule": "702.140",
+      "kind": "ability",
+      "text": "“Mutate [cost]” means “You may pay [cost] rather than pay this spell’s mana cost. If you do, it becomes a mutating creature spell and targets a non-Human creature with the same owner as this spell.”"
+    },
+    {
+      "name": "Encore",
+      "rule": "702.141",
+      "kind": "ability",
+      "text": "“Encore [cost]” means “[Cost], Exile this card from your graveyard: For each opponent, create a token that’s a copy of this card that attacks that opponent this turn if able. The tokens gain haste. Sacrifice them at the beginning of the next end step. Activate only as a sorcery.”"
+    },
+    {
+      "name": "Boast",
+      "rule": "702.142",
+      "kind": "ability",
+      "text": "“Boast — [Cost]: [Effect]” means “[Cost]: [Effect]. Activate only if this creature attacked this turn and only once each turn.”"
+    },
+    {
+      "name": "Foretell",
+      "rule": "702.143",
+      "kind": "ability",
+      "text": "Any time a player has priority during their turn, that player may pay {2} and exile a card with foretell from their hand face down. That player may look at that card as long as it remains in exile. They may cast that card after the current turn has ended by paying any foretell cost it has rather than paying that spell’s mana cost."
+    },
+    {
+      "name": "Demonstrate",
+      "rule": "702.144",
+      "kind": "ability",
+      "text": "“Demonstrate” means “When you cast this spell, you may copy it and you may choose new targets for the copy. If you copy the spell, choose an opponent. That player copies the spell and may choose new targets for that copy.”"
+    },
+    {
+      "name": "Daybound and Nightbound",
+      "rule": "702.145",
+      "kind": "ability",
+      "text": "An ability found on the front faces of some double-faced cards. Cards with daybound and nightbound are face up when it’s day and face down when it’s night."
+    },
+    {
+      "name": "Disturb",
+      "rule": "702.146",
+      "kind": "ability",
+      "text": "“Disturb [cost]” means “You may cast this card transformed from your graveyard by paying [cost] rather than its mana cost.”"
+    },
+    {
+      "name": "Decayed",
+      "rule": "702.147",
+      "kind": "ability",
+      "text": "“Decayed” means “This creature can’t block” and “When this creature attacks, sacrifice it at end of combat.”"
+    },
+    {
+      "name": "Cleave",
+      "rule": "702.148",
+      "kind": "ability",
+      "text": "“Cleave [cost]” means “You may cast this spell by paying [cost] rather than paying its mana cost” and “If this spell’s cleave cost was paid, change its text by removing all text found within square brackets in the spell’s rules text.”"
+    },
+    {
+      "name": "Training",
+      "rule": "702.149",
+      "kind": "ability",
+      "text": "“Training” means “Whenever this creature and at least one other creature with power greater than this creature’s power attack, put a +1/+1 counter on this creature.”"
+    },
+    {
+      "name": "Compleated",
+      "rule": "702.150",
+      "kind": "ability",
+      "text": "Compleated means “If this permanent would enter with one or more loyalty counters on it and the player who cast it chose to pay life for any part of its cost represented by Phyrexian mana symbols, it instead enters the battlefield with that many loyalty counters minus two for each of those mana symbols.”"
+    },
+    {
+      "name": "Reconfigure",
+      "rule": "702.151",
+      "kind": "ability",
+      "text": "Reconfigure [cost] means “[Cost]: Attach this permanent to another target creature you control. Activate only as a sorcery” and “[Cost]: Unattach this permanent. Activate only if this permanent is attached to a creature and only as a sorcery.”"
+    },
+    {
+      "name": "Blitz",
+      "rule": "702.152",
+      "kind": "ability",
+      "text": "“Blitz [cost]” means “You may cast this card by paying [cost] rather than its mana cost,” “If this spell’s blitz cost was paid, sacrifice the permanent this spell becomes at the beginning of the next end step,” and “As long as this permanent’s blitz cost was paid, it has haste and ‘When this permanent is put into a graveyard from the battlefield, draw a card.’”"
+    },
+    {
+      "name": "Casualty",
+      "rule": "702.153",
+      "kind": "ability",
+      "text": "Casualty N means “As an additional cost to cast this spell, you may sacrifice a creature with power N or greater,” and “When you cast this spell, if a casualty cost was paid for it, copy it. If the spell has any targets, you may choose new targets for the copy.”"
+    },
+    {
+      "name": "Enlist",
+      "rule": "702.154",
+      "kind": "ability",
+      "text": "Enlist means “As this creature attacks, you may tap up to one untapped creature you control that you didn’t choose to attack with and that either has haste or has been under your control continuously since this turn began. When you do, this creature gets +X/+0 until end of turn, where X is the tapped creature’s power.”"
+    },
+    {
+      "name": "Read Ahead",
+      "rule": "702.155",
+      "kind": "ability",
+      "text": "“Read ahead” means “Chapter abilities of this Saga can’t trigger the turn it entered the battlefield unless it has exactly the number of lore counters on it specified in the chapter symbol of that ability.”"
+    },
+    {
+      "name": "Ravenous",
+      "rule": "702.156",
+      "kind": "ability",
+      "text": "“Ravenous” means “This permanent enters with X +1/+1 counters on it” and “When this permanent enters, if X is 5 or more, draw a card.”"
+    },
+    {
+      "name": "Squad",
+      "rule": "702.157",
+      "kind": "ability",
+      "text": "“Squad [cost]” means “As an additional cost to cast this spell, you may pay [cost] any number of times” and “When this creature enters, if its squad cost was paid, create a token that’s a copy of it for each time its squad cost was paid.”"
+    },
+    {
+      "name": "Space Sculptor",
+      "rule": "702.158",
+      "kind": "ability",
+      "text": "One card (Space Beleren) has the space sculptor ability. This keyword ability causes creatures to gain sector designations."
+    },
+    {
+      "name": "Visit",
+      "rule": "702.159",
+      "kind": "ability",
+      "text": "“Visit — [Effect]” means “Whenever you roll to visit your Attractions, if the result is equal to a number that is lit up on this Attraction, [effect].”"
+    },
+    {
+      "name": "Prototype",
+      "rule": "702.160",
+      "kind": "ability",
+      "text": "A player who casts a spell with prototype can choose to cast that card “prototyped.” If they do, the alternative set of its power, toughness, and mana cost characteristics are used. See 718, “Prototype Cards.”"
+    },
+    {
+      "name": "Living Metal",
+      "rule": "702.161",
+      "kind": "ability",
+      "text": "“Living metal” means “During your turn, this permanent is an artifact creature in addition to its other types.”"
+    },
+    {
+      "name": "More Than Meets the Eye",
+      "rule": "702.162",
+      "kind": "ability",
+      "text": "“More Than Meets the Eye [cost]” means “You may cast this card converted by paying [cost] rather than its mana cost.”"
+    },
+    {
+      "name": "For Mirrodin!",
+      "rule": "702.163",
+      "kind": "ability",
+      "text": "“For Mirrodin!” means “When this Equipment enters, create a 2/2 red Rebel creature token, then attach this Equipment to it.”"
+    },
+    {
+      "name": "Toxic",
+      "rule": "702.164",
+      "kind": "ability",
+      "text": "Combat damage dealt to a player by a creature with toxic causes that creature’s controller to give the player a number of poison counters equal to that creature’s total toxic value, in addition to the damage’s other results."
+    },
+    {
+      "name": "Backup",
+      "rule": "702.165",
+      "kind": "ability",
+      "text": "“Backup N” means “When this creature enters, put N +1/+1 counters on target creature. If that’s another creature, it also gains the non-backup abilities of this creature printed below this one until end of turn.”"
+    },
+    {
+      "name": "Bargain",
+      "rule": "702.166",
+      "kind": "ability",
+      "text": "“Bargain” means “As an additional cost to cast this spell, you may sacrifice an artifact, enchantment, or token.”"
+    },
+    {
+      "name": "Craft",
+      "rule": "702.167",
+      "kind": "ability",
+      "text": "It means “[Cost], Exile this permanent, Exile [materials] from among permanents you control and/or cards in your graveyard: Return this card to the battlefield transformed under its owner’s control. Activate only as a sorcery.”"
+    },
+    {
+      "name": "Disguise",
+      "rule": "702.168",
+      "kind": "ability",
+      "text": "“Disguise [cost]” means “You may cast this card as a 2/2 face-down creature with ward {2}, no name, no subtypes, and no mana cost by paying {3} rather than paying its mana cost.”"
+    },
+    {
+      "name": "Solved",
+      "rule": "702.169",
+      "kind": "ability",
+      "text": "For a static ability, “Solved — [Ability text]” means “As long as this Case is solved, [ability text].”"
+    },
+    {
+      "name": "Plot",
+      "rule": "702.170",
+      "kind": "ability",
+      "text": "“Plot [cost]” means “Any time you have priority during your main phase while the stack is empty, you may exile this card from your hand and pay [cost]. It becomes a plotted card.”"
+    },
+    {
+      "name": "Saddle",
+      "rule": "702.171",
+      "kind": "ability",
+      "text": "“Saddle N” means “Tap any number of other untapped creatures you control with total power N or greater: This permanent becomes saddled until end of turn. Activate only as a sorcery.”"
+    },
+    {
+      "name": "Spree",
+      "rule": "702.172",
+      "kind": "ability",
+      "text": "Spree means “Choose one or more modes. As an additional cost to cast this spell, pay the costs associated with those modes.”"
+    },
+    {
+      "name": "Freerunning",
+      "rule": "702.173",
+      "kind": "ability",
+      "text": "“Freerunning [cost]” means “You may pay [cost] rather than pay this spell’s mana cost if a player was dealt combat damage this turn by a creature that, at the time it dealt that damage, was an Assassin creature or a commander under your control.”"
+    },
+    {
+      "name": "Gift",
+      "rule": "702.174",
+      "kind": "ability",
+      "text": "A keyword ability that allows a spell’s caster to choose an opponent as to receive a benefit as the spell resolves or when the permanent with the ability enters."
+    },
+    {
+      "name": "Offspring",
+      "rule": "702.175",
+      "kind": "ability",
+      "text": "“Offspring [cost]” means “You may pay an additional [cost] as you cast this spell” and “When this permanent enters, if its offspring cost was paid, create a token that’s a copy of it, except it’s 1/1.”"
+    },
+    {
+      "name": "Impending",
+      "rule": "702.176",
+      "kind": "ability",
+      "text": "“Impending N—[cost]” means “You may choose to pay [cost] rather than pay this spell’s mana cost,” “If you chose to pay this permanent’s impending cost, it enters with N time counters on it,” “As long as this permanent’s impending cost was paid and it has a time counter on it, it’s not a creature,” and “At the beginning of your end step, if this permanent’s impending cost was paid and it has a time counter on it, remove a time counter from it.”"
+    },
+    {
+      "name": "Exhaust",
+      "rule": "702.177",
+      "kind": "ability",
+      "text": "“Exhaust — [Cost]: [Effect]” means “[Cost]: [Effect]. Activate only once.”"
+    },
+    {
+      "name": "Max Speed",
+      "rule": "702.178",
+      "kind": "ability",
+      "text": "“Max speed — [Ability]” means “As long as your speed is 4, this object has ‘[Ability].’”"
+    },
+    {
+      "name": "Start Your Engines!",
+      "rule": "702.179",
+      "kind": "ability",
+      "text": "If a player controls a permanent with start your engines! and that player has no speed, their speed becomes 1."
+    },
+    {
+      "name": "Harmonize",
+      "rule": "702.180",
+      "kind": "ability",
+      "text": "“Harmonize [cost]” means “You may cast this card from your graveyard by paying [cost] and tapping up to one untapped creature you control rather than paying this spell’s mana cost,” “If you cast this spell using its harmonize ability, its total cost is reduced by an amount of generic mana equal to the tapped creature’s power,” and “If the harmonize cost was paid, exile this card instead of putting it anywhere else any time it would leave the stack.”"
+    },
+    {
+      "name": "Mobilize",
+      "rule": "702.181",
+      "kind": "ability",
+      "text": "“Mobilize N” means “Whenever this creature attacks, create N 1/1 red Warrior creature tokens. Those tokens enter tapped and attacking. Sacrifice them at the beginning of the next end step.”"
+    },
+    {
+      "name": "Job Select",
+      "rule": "702.182",
+      "kind": "ability",
+      "text": "“Job select” means “When this Equipment enters, create a 1/1 colorless Hero creature token, then attach this Equipment to it.”"
+    },
+    {
+      "name": "Tiered",
+      "rule": "702.183",
+      "kind": "ability",
+      "text": "Tiered means “Choose one. As an additional cost to cast this spell, pay the cost associated with that mode.”"
+    },
+    {
+      "name": "Station",
+      "rule": "702.184",
+      "kind": "ability",
+      "text": "“Station” means “Tap another untapped creature you control: Put a number of charge counters on this permanent equal to the tapped creature’s power. Activate only as a sorcery.”"
+    },
+    {
+      "name": "Warp",
+      "rule": "702.185",
+      "kind": "ability",
+      "text": "“Warp [cost]” means “You may cast this card from your hand by paying [cost] rather than its mana cost” and “If this spell’s warp cost was paid, exile the permanent this spell becomes at the beginning of the next end step. Its owner may cast this card after the current turn has ended for as long as it remains exiled.”"
+    },
+    {
+      "name": "∞ (Infinity)",
+      "rule": "702.186",
+      "kind": "ability",
+      "text": "“∞ — [Ability]” means “As long as this permanent is harnessed, it has [ability].”"
+    },
+    {
+      "name": "Mayhem",
+      "rule": "702.187",
+      "kind": "ability",
+      "text": "“Mayhem [cost]” means “As long as you discarded this card this turn, you may cast it from your graveyard by paying [cost] rather than paying its mana cost.”"
+    },
+    {
+      "name": "Web-slinging",
+      "rule": "702.188",
+      "kind": "ability",
+      "text": "“Web-slinging [cost]” means “You may cast this spell by paying [cost] and returning a tapped creature you control to its owner’s hand rather than paying its mana cost.”"
+    },
+    {
+      "name": "Firebending",
+      "rule": "702.189",
+      "kind": "ability",
+      "text": "“Firebending N” means “Whenever this creature attacks, add N {R}. Until end of combat, you don’t lose this mana as steps and phases end.”"
+    },
+    {
+      "name": "Sneak",
+      "rule": "702.190",
+      "kind": "ability",
+      "text": "“Sneak [cost]” means “Any time you could cast an instant during your declare blockers step, you may cast this spell by paying [cost] and returning an unblocked creature you control to its owner’s hand rather than paying this spell’s mana cost.”"
+    },
+    {
+      "name": "Increment",
+      "rule": "702.191",
+      "kind": "ability",
+      "text": "“Increment” means “Whenever you cast a spell, if this permanent is a creature and the amount of mana spent to cast that spell is greater than this creature’s power or this creature’s toughness, put a +1/+1 counter on this creature.”"
+    },
+    {
+      "name": "Paradigm",
+      "rule": "702.192",
+      "kind": "ability",
+      "text": "Paradigm means “If this is the first time a spell you control with this spell’s name has resolved this game, at the beginning of each of your precombat main phases for the rest of the game, create a copy of this object in exile. You may cast the copy without paying its mana cost” and “Exile this spell.”"
+    },
+    {
+      "name": "Power-up",
+      "rule": "702.193",
+      "kind": "ability",
+      "text": "“Power-up — [Cost]: [Effect]” means “[Cost]: [Effect]. If this permanent entered this turn, this ability’s cost is reduced by this permanent’s mana cost. Activate this ability only once.”"
+    },
+    {
+      "name": "Teamwork",
+      "rule": "702.194",
+      "kind": "ability",
+      "text": "“Teamwork N” means “As an additional cost to cast this spell, you may tap any number of creatures you control with total power N or more.”"
+    },
+    {
+      "name": "Storied",
+      "rule": "702.195",
+      "kind": "ability",
+      "text": "It means “Any time you control three or more permanents that are artifacts, Sagas, and/or legendary and you don’t have an enduring story, you have an enduring story for the rest of the game.”"
+    }
+  ]
+}
