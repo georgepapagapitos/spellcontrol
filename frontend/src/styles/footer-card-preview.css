@@ -1683,6 +1683,21 @@
   box-shadow: var(--shadow-tooltip);
 }
 
+.binder-pages-cell-wrap {
+  /* The grid item: the pocket button and its deck link side by side. The
+     link must not sit inside the button (axe nested-interactive), and it
+     pins to this box, which is the button's box. Does not clip, so the
+     link's coarse-pointer ghost is whole. */
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+
+.binder-pages-cell-wrap > .binder-pages-cell {
+  flex: 1;
+}
+
 .binder-pages-cell {
   position: relative;
   background: rgba(255, 255, 255, 0.04);

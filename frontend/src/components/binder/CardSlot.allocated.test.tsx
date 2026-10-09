@@ -52,3 +52,27 @@ describe('an allocated binder pocket', () => {
     expect(link.getAttribute('href')).toBe('/decks/deck_1');
   });
 });
+
+describe('the page preview cell (same rule)', () => {
+  it('keeps the deck link beside the pocket button, not inside it', async () => {
+    const { BinderPagePreview } = await import('./BinderPagePreview');
+    render(
+      <MemoryRouter>
+        <BinderPagePreview
+          pages={[{ pageNum: 1, slots: [card, null, null, null] }]}
+          pageLabels={['Page 1']}
+          startPageIndex={0}
+          pocketSize={4}
+          binderName="Test"
+          resolveCard={() => null}
+          onClose={() => {}}
+        />
+      </MemoryRouter>
+    );
+    const pocket = screen.getByRole('button', { name: /^Open Sheoldred/ });
+    const link = screen.getByRole('link', { name: 'Open deck Y’shtola' });
+    expect(pocket.querySelectorAll(INTERACTIVE)).toHaveLength(0);
+    expect(pocket.contains(link)).toBe(false);
+    expect(link.parentElement).toBe(pocket.parentElement);
+  });
+});
