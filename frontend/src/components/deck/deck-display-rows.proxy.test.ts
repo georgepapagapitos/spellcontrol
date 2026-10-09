@@ -2,7 +2,12 @@ import { describe, expect, it, vi } from 'vitest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '@/types/index';
 import { allocationSummary, buildRows } from './deck-display-rows';
-import { buildMissingTally, summarizeMissing } from './deck-display-derive';
+import {
+  buildFlatIndex,
+  buildMissingTally,
+  qtyOwnershipClass,
+  summarizeMissing,
+} from './deck-display-derive';
 import { deckCardActions } from './deck-card-actions';
 import type { DeckDisplayCard } from './deck-display-types';
 
@@ -61,5 +66,27 @@ describe('proxy row actions', () => {
     const row = rowFor([{ slotId: 's1', card, allocatedCopyId: 'c1' }]);
     deckCardActions({ row, onSetProxy }).find((a) => a.key === 'mark-proxy')!.run!();
     expect(onSetProxy).toHaveBeenCalledWith(['s1'], true);
+  });
+});
+
+describe('the proxy marks', () => {
+  const proxy: DeckDisplayCard = { slotId: 's1', card, allocatedCopyId: null, proxy: true };
+  const ownedSlot: DeckDisplayCard = { slotId: 's2', card, allocatedCopyId: 'c1' };
+  const missing: DeckDisplayCard = { slotId: 's3', card, allocatedCopyId: null };
+
+  it('dashes the count of a covered row with a proxy, and red still wins', () => {
+    expect(qtyOwnershipClass(rowFor([proxy]))).toBe(' deck-row-qty-proxy');
+    expect(qtyOwnershipClass(rowFor([ownedSlot, proxy]))).toBe(' deck-row-qty-proxy');
+    expect(qtyOwnershipClass(rowFor([missing, proxy]))).toBe(' deck-row-qty-missing');
+    expect(qtyOwnershipClass(rowFor([ownedSlot]))).toBe('');
+  });
+
+  it('marks the preview card a proxy only when every copy in the row is one', () => {
+    const previewOf = (cards: DeckDisplayCard[]) =>
+      buildFlatIndex([{ title: 'Creature', icon: '', rows: [rowFor(cards)] }], [], [], new Map())
+        .cards[0];
+    expect(previewOf([proxy]).proxy).toBe(true);
+    expect(previewOf([ownedSlot, proxy]).proxy).toBeFalsy();
+    expect(previewOf([ownedSlot]).proxy).toBeFalsy();
   });
 });

@@ -476,10 +476,20 @@ one playing the proxy.
   the card with no copy, the copy goes straight there with one Undo for both
   decks. Unmarking takes a free copy if there is one.
 - **A proxy reads as covered.** It never turns the count red, and never counts
-  toward missing, Shared copies, or Close to done. The row says so quietly: a
-  neutral `proxy` chip (the claimed-elsewhere tone, not warn) and a `Proxy`
-  plate on the grid tile; the summary sentence counts it ("1 of 2 from your
-  collection, 1 proxy").
+  toward missing, Shared copies, or Close to done. The summary sentence counts
+  it ("1 of 2 from your collection, 1 proxy").
+- **One proxy mark, in every place a card is read (2026-10-09).** The chip
+  alone hid: it is hover-revealed and drops below a 17rem name cell, so a
+  marked card looked like any other.
+  - **List row:** a dashed outline on the count (`.deck-row-qty-proxy`, from
+    `qtyOwnershipClass`). It is the count's ownership signal, like the red
+    count for a missing copy, so it never hides and takes no width. Red wins
+    when a copy is also missing. The hover chip stays as the label.
+  - **Grid tile:** the `Proxy` plate.
+  - **Inspector:** a neutral `proxy` chip on the ownership line, with **Not a
+    proxy** at its end.
+  - **Card preview:** "This copy · Marked Proxy", the line a proxy in the
+    collection already gets, set when every copy in the row is a proxy.
 - **Print proxies still prints it.** That sheet is where a stand-in comes from.
 - **The page passes the deck's own slots to the deck view.** It used to copy
   them field by field, and that copy dropped `proxy` and `sortIndex`. A new
