@@ -40,13 +40,6 @@ const OVERLAY_ROOTS = [
 
 const EXEMPT_DIRS = ['components/play/', 'playtest/'];
 
-// The deck editor's card-picker sheet has always rendered inline. This guard
-// only passed while the page shared a file with the overflow menu's
-// createPortal; the split (T176) made the gap visible. Moving it to <body>
-// changes where the sheet paints, so it is a behavior change owned by its own
-// ticket, not by the file split. Delete this entry when it is portaled.
-const EXEMPT_FILES = ['pages/deck-editor/DeckEditorCardPickerSheet.tsx'];
-
 function sourceFiles(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
     if (entry === 'node_modules') continue;
@@ -65,7 +58,7 @@ describe('overlay roots portal to <body>', () => {
     const offenders: string[] = [];
     for (const file of sourceFiles(srcDir)) {
       const rel = relative(srcDir, file).replace(/\\/g, '/');
-      if (EXEMPT_DIRS.some((d) => rel.startsWith(d)) || EXEMPT_FILES.includes(rel)) continue;
+      if (EXEMPT_DIRS.some((d) => rel.startsWith(d))) continue;
       const code = stripComments(readFileSync(file, 'utf8'));
       const root = OVERLAY_ROOTS.find((c) =>
         new RegExp(`className=\\{?[\`'"]${c}[\\s\`'"$]`).test(code)
