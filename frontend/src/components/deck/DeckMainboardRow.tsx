@@ -872,7 +872,7 @@ ${row.card.type_line}`}
                   <InfoTip
                     label={`why ${row.name} is in this deck`}
                     ariaLabel={`Why ${row.name} is in this deck`}
-                    className="deck-row-provenance-trigger"
+                    className="deck-row-provenance-trigger touch-ghost"
                     text={`Why it's here: ${provenanceReason}`}
                   />
                 </span>

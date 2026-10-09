@@ -153,7 +153,7 @@ export function SetFilterPicker({ options, value, onChange }: Props) {
               removeSet(s.code);
             }}
             removeLabel={`Remove ${s.label}`}
-            removeClassName="set-filter-chip-x"
+            removeClassName="set-filter-chip-x touch-ghost"
             removeIcon={<span>×</span>}
           >
             {s.code.toUpperCase()}

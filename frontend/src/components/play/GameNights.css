@@ -477,15 +477,6 @@
   font-weight: 400;
 }
 
-.game-night-attendee-sheet-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
 .game-night-attendee-row {
   display: flex;
   align-items: center;

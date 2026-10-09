@@ -72,7 +72,7 @@ export function BinderVolumesSheet({
         <p className="binder-volumes-sheet-intro">
           {binderName} fills {volumesOfCapacity(volumes.length, fixedCapacity)} cards.
         </p>
-        <ul className="binder-volumes-list">
+        <ul className="list-stack binder-volumes-list">
           {volumes.map((v) => (
             <li key={v.index} className="binder-volumes-row">
               <span className="binder-volumes-row-index">Vol {v.index}</span>

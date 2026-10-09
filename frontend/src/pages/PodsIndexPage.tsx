@@ -209,7 +209,7 @@ function PodsIndexPageBody() {
           {invited.length > 0 && (
             <section className="pods-index-section" aria-label="Pending pod invites">
               <h2 className="pods-index-section-title">Invited</h2>
-              <ul className="pods-invited-list">
+              <ul className="list-stack pods-invited-list">
                 {invited.map((pod) => (
                   <li key={pod.id} className="pods-invited-row">
                     <UserAvatar name={pod.ownerUsername} size={36} />

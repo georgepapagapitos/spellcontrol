@@ -350,17 +350,6 @@
     outline: none;
   }
 }
-@media (pointer: coarse) {
-  .set-filter-chip-x::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 44px;
-    height: 44px;
-    transform: translate(-50%, -50%);
-  }
-}
 
 /* "Clear all sets" ✕ — reuses .search-pill-clear visuals; margin-left:auto
    pins it to the pill's trailing edge regardless of chip wrapping. */
@@ -644,19 +633,8 @@
   min-height: 1rem;
 }
 
-@media (pointer: coarse) {
-  /* 44px hit area via ghost so the visible ✕ doesn't distort the chip
-     (mirrors .set-filter-chip-x). */
-  .collection-filter-chip-clear::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 44px;
-    height: 44px;
-    transform: translate(-50%, -50%);
-  }
-}
+/* 44px hit area via the shared `.touch-ghost` so the visible ✕ doesn't distort
+   the chip (mirrors .set-filter-chip-x). */
 
 .collection-filter-chip-clear:focus-visible {
   color: var(--text-primary);
@@ -2180,17 +2158,6 @@ i.ss.set-symbol--mythic {
 @media (hover: hover) and (pointer: fine) {
   .list-target-price-clear:hover {
     color: var(--text-primary);
-  }
-}
-@media (pointer: coarse) {
-  .list-target-price-clear::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 44px;
-    height: 44px;
-    transform: translate(-50%, -50%);
   }
 }
 

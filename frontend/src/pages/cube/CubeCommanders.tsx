@@ -411,7 +411,7 @@ function CommanderDraftSimReport({
             No drafter came away with a commander at all.
           </p>
         ) : (
-          <ul className="cube-commander-coverage-identity-list">
+          <ul className="list-stack list-stack--tight cube-commander-coverage-identity-list">
             {drafted.map((s) => (
               <IdentityRow key={s.identity} identity={s.identity} share={s.share} />
             ))}

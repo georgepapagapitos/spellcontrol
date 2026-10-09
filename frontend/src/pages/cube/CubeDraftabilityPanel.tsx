@@ -196,7 +196,7 @@ function DraftSimReport({
 
       <div className="cube-draft-sim-pairs">
         <p className="cube-draft-sim-label">Color pairs drafted</p>
-        <ul className="cube-draft-sim-pair-list">
+        <ul className="list-stack list-stack--tight cube-draft-sim-pair-list">
           {result.pairShares.map((p) => (
             <PairRow key={p.label} pair={p.pair} label={p.label} share={p.share} />
           ))}

@@ -31,14 +31,6 @@
 }
 
 /* ── Saltiest cards (Overview tab) ── */
-.deck-saltiest-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
 
 /* Name · band · score on a tight grid: the name takes the slack (and
    truncates), so a narrow column never strands the score a panel's width
@@ -574,14 +566,6 @@
 }
 
 /* Mana production */
-.deck-mana-prod {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
 
 .deck-mana-prod-row {
   display: flex;
@@ -622,14 +606,6 @@
 }
 
 /* Roles */
-.deck-roles {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
 
 .deck-roles-row {
   display: flex;

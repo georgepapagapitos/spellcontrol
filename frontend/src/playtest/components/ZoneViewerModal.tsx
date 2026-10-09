@@ -376,7 +376,7 @@ function ZoneCard({
                 : []),
             ]}
             ariaLabel={`Move ${c.name}`}
-            triggerClassName="playtest-zone-card__overflow"
+            triggerClassName="playtest-zone-card__overflow touch-ghost"
             panelClassName="playtest-zone-menu-popover"
           />
         </div>

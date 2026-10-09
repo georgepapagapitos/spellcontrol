@@ -211,7 +211,7 @@ export function CustomCountersDialog({ cardName, counters, onApply, onClose }: P
         {draft.length === 0 ? (
           <p className="counters-dialog__empty">No counters yet.</p>
         ) : (
-          <ul className="counters-dialog__active" role="list">
+          <ul className="list-stack counters-dialog__active" role="list">
             {draft.map(([kind, n]) => {
               const glyph = counterGlyph(kind);
               const label = counterLabel(kind);

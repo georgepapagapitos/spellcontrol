@@ -427,7 +427,7 @@ function SetsIndex() {
           ) : (
             <>
               {shown.length > 0 && (
-                <ul className="sets-list">
+                <ul className="list-stack sets-list">
                   {shown.map((s) => (
                     <SetProgressRow key={s.code} s={s} />
                   ))}
@@ -695,7 +695,7 @@ function SetDetail({ code }: { code: string }) {
       {isSld && !dropParam && dropRows.length > 0 && (
         <section className="sets-detail-drops" aria-label="Your Secret Lair drops">
           <h2 className="sets-detail-drops-title">Your drops</h2>
-          <ul className="sets-list">
+          <ul className="list-stack sets-list">
             {dropRows.map((s) => (
               <SetProgressRow key={s.drop} s={s} />
             ))}

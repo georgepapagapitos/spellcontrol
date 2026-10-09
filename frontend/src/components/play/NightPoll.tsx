@@ -90,7 +90,7 @@ export function NightPoll({
 
   return (
     <div className="night-poll">
-      <ul className="night-poll-options">
+      <ul className="list-stack night-poll-options">
         {options.map((o) => (
           <li key={o.id} className="night-poll-option">
             <label className="night-poll-check">

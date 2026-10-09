@@ -33,7 +33,7 @@ export function TurnTimes({ game }: { game: GameState }) {
   return (
     <section className="turn-times" aria-label="Time per player">
       <h3 className="turn-times-title">Time on turn</h3>
-      <ul className="turn-times-list">
+      <ul className="list-stack list-stack--tight turn-times-list">
         {rows.map(({ player, ms }) => (
           <li key={player.id} className="turn-times-row">
             <span className="turn-times-name" title={player.name}>

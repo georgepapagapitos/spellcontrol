@@ -134,7 +134,7 @@ export function ComboCollectionAside({ cards, produces, hosts, locations }: Prop
       )}
 
       {located.length > 0 && (
-        <ul className="combo-aside-locations" role="list">
+        <ul className="list-stack list-stack--tight combo-aside-locations" role="list">
           {located.map(({ card, at }) => (
             <li key={card.oracleId} className="combo-aside-line">
               <Library className="combo-aside-icon" width={12} height={12} aria-hidden />

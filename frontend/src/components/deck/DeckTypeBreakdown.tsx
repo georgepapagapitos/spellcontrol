@@ -87,7 +87,7 @@ export function DeckTypeBreakdown({
       {rows.length === 0 ? (
         <p className="deck-type-breakdown-empty">No cards to break down.</p>
       ) : (
-        <ul className="deck-type-breakdown-rows">
+        <ul className="list-stack deck-type-breakdown-rows">
           {rows.map((row) => {
             const interactive = (tallies[row.type]?.length ?? 0) > 0;
             const body = (

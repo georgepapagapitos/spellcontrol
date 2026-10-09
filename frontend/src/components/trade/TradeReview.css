@@ -641,26 +641,6 @@
     position: relative;
   }
 
-  .trade-review-step::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 44px;
-    height: 44px;
-    transform: translate(-50%, -50%);
-  }
-
-  .trade-review-remove::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 44px;
-    height: 44px;
-    transform: translate(-50%, -50%);
-  }
-
   /* The 44px tap target without 44px of layout: the box overlaps the rows
      above and below (neither is interactive), so name, printing and note read
      as one item at the same rhythm as a get line. */

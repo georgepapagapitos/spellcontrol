@@ -427,7 +427,7 @@ export function FriendsManagement() {
               {incomingList.length > 0 && (
                 <section className="friends-requests-section" aria-label="Incoming requests">
                   <h2 className="friends-requests-section-title">Incoming</h2>
-                  <ul className="friends-request-list">
+                  <ul className="list-stack friends-request-list">
                     {incomingList.map((req) => {
                       const identity = formatIdentity({
                         username: req.requesterUsername,
@@ -472,7 +472,7 @@ export function FriendsManagement() {
               {outgoingList.length > 0 && (
                 <section className="friends-requests-section" aria-label="Outgoing requests">
                   <h2 className="friends-requests-section-title">Outgoing</h2>
-                  <ul className="friends-request-list">
+                  <ul className="list-stack friends-request-list">
                     {outgoingList.map((req) => {
                       const identity = formatIdentity({
                         username: req.addresseeUsername,
@@ -521,7 +521,7 @@ export function FriendsManagement() {
           ) : inboxList.length === 0 ? (
             <EmptyState status tagline="Nothing shared yet." />
           ) : (
-            <ul className="friends-inbox-list" aria-label="Shared with you">
+            <ul className="list-stack friends-inbox-list" aria-label="Shared with you">
               {inboxList.map((item) => {
                 // Mid-sentence prose — primary name only, no secondary handle
                 // (matches H2HSummary: a "@handle" inline reads awkwardly).
@@ -573,7 +573,7 @@ export function FriendsManagement() {
           ) : activity.length === 0 ? (
             <EmptyState status tagline="Nothing new from friends yet." />
           ) : (
-            <ul className="friends-activity-list" aria-label="Recent friend activity">
+            <ul className="list-stack friends-activity-list" aria-label="Recent friend activity">
               {activity.map((item) => {
                 const key =
                   item.type === 'published_deck' ? `pub:${item.slug}` : `share:${item.token}`;

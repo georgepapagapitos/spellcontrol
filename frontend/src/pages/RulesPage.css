@@ -268,15 +268,6 @@
   color: var(--text-muted);
 }
 
-.rules-cited-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
 .rules-cite-toggle {
   display: flex;
   align-items: baseline;

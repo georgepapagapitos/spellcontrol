@@ -30,7 +30,11 @@ interface Props {
 
 /** Wrapper class, trigger class and right-click host per placement. */
 const PLACEMENT = {
-  row: { menu: 'deck-row-menu', trigger: 'card-edit-btn', host: '.collection-list-row' },
+  row: {
+    menu: 'deck-row-menu',
+    trigger: 'card-edit-btn touch-ghost',
+    host: '.collection-list-row',
+  },
   tile: {
     menu: 'collection-grid-menu',
     trigger: 'collection-grid-menu-btn',

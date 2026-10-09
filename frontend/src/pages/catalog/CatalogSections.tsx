@@ -215,7 +215,7 @@ function ChipSpecimen() {
         <Chip
           className="collection-filter-chip"
           labelClassName="collection-filter-chip-label"
-          removeClassName="collection-filter-chip-clear"
+          removeClassName="collection-filter-chip-clear touch-ghost"
           removeLabel="Remove Rare"
           onRemove={noop}
         >

@@ -457,7 +457,7 @@ function AttendeeList({ rsvps }: { rsvps: NightRsvp[] }) {
             <h2 className="game-night-section-title">
               {label} <span className="game-night-count">{group.length}</span>
             </h2>
-            <ul className="game-night-attendee-list">
+            <ul className="list-stack list-stack--tight game-night-attendee-list">
               {group.map((r, i) => (
                 <li key={`${r.displayName}-${i}`}>
                   {r.displayName}

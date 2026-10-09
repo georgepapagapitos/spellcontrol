@@ -532,7 +532,7 @@ export function PodHubPage() {
 
       <section className="pod-hub-section" aria-label="Pod roster">
         <SectionHeader title="Members" titleClassName="pod-hub-section-head" variant="overline" />
-        <ul className="pod-hub-roster">
+        <ul className="list-stack list-stack--tight pod-hub-roster">
           {activeMembers.map((m) => (
             <li key={m.userId} className="pod-hub-roster-row">
               <UserAvatar name={m.username} size={28} />
@@ -563,7 +563,7 @@ export function PodHubPage() {
               titleClassName="pod-hub-section-head"
               variant="overline"
             />
-            <ul className="pod-hub-roster">
+            <ul className="list-stack list-stack--tight pod-hub-roster">
               {invitedMembers.map((m) => (
                 <li key={m.userId} className="pod-hub-roster-row">
                   <UserAvatar name={m.username} size={28} />
@@ -701,7 +701,7 @@ export function PodHubPage() {
                 titleClassName="pod-hub-section-head"
                 variant="overline"
               />
-              <ul className="pod-hub-wtpp-list">
+              <ul className="list-stack pod-hub-wtpp-list">
                 {otherMembers.map((m) => {
                   const state = memberDeckState(m.userId);
                   return (

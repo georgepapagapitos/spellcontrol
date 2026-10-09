@@ -93,7 +93,7 @@ export function RoomBrowser({ onJoin, onWatch, onHostInstead }: Props) {
   }
 
   return (
-    <ul className="room-browser-list" aria-label="Public games">
+    <ul className="list-stack room-browser-list" aria-label="Public games">
       {games.map((g) => (
         <li key={g.code} className="room-browser-row">
           <div className="room-browser-row-main">

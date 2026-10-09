@@ -12,15 +12,6 @@
 /* Product type facet toggles paint through the shared `.filter-chip`
    (styles/search-controls.css) — nothing bespoke left here. */
 
-.product-result-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
 .product-result-row {
   display: flex;
   flex-direction: row;
@@ -279,14 +270,6 @@
 }
 
 /* ---- List + compact layouts (rows instead of an art grid) ---- */
-.product-card-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
 
 .product-card-row {
   display: flex;

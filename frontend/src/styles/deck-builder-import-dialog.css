@@ -254,15 +254,7 @@
   flex-shrink: 0;
 }
 
-/* Grows inline; the modal-body is the single scroll surface (no nested scroll). */
-.import-deck-summary-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
+/* `.import-deck-summary-list` (a `.list-stack`) grows inline; the modal-body is the single scroll surface (no nested scroll). */
 
 .import-deck-summary-item {
   border: 1px solid var(--border);

@@ -470,7 +470,7 @@ function GetLine({
       {!line.gone && (
         <span className="trade-review-stepper">
           <IconButton
-            className="trade-review-step"
+            className="trade-review-step touch-ghost"
             label={`One fewer ${line.name}`}
             icon={<Minus width={14} height={14} strokeWidth={1.8} />}
             disabled={disabled || line.quantity <= 1}
@@ -480,7 +480,7 @@ function GetLine({
             {line.quantity}
           </span>
           <IconButton
-            className="trade-review-step"
+            className="trade-review-step touch-ghost"
             label={`One more ${line.name}`}
             icon={<Plus width={14} height={14} strokeWidth={1.8} />}
             disabled={disabled || line.quantity >= line.max}
@@ -489,7 +489,7 @@ function GetLine({
         </span>
       )}
       <IconButton
-        className="trade-review-remove"
+        className="trade-review-remove touch-ghost"
         label={`Remove ${line.name} from the trade`}
         icon={<X width={14} height={14} strokeWidth={1.8} />}
         disabled={disabled}
@@ -572,7 +572,7 @@ function GiveLine({
           )}
         </span>
         <IconButton
-          className="trade-review-remove"
+          className="trade-review-remove touch-ghost"
           label={`Remove ${line.name} from the trade`}
           icon={<X width={14} height={14} strokeWidth={1.8} />}
           disabled={disabled}

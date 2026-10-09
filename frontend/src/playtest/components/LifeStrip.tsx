@@ -403,7 +403,12 @@ function LifeStep({
 }) {
   const press = usePressRepeat(onAdjust);
   return (
-    <button type="button" className="playtest-life-table__step" aria-label={label} {...press}>
+    <button
+      type="button"
+      className="playtest-life-table__step touch-ghost"
+      aria-label={label}
+      {...press}
+    >
       {children}
     </button>
   );

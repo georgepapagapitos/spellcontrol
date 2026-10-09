@@ -1118,7 +1118,7 @@ function CardListGroup({
               labelTitle={name}
               trailing={
                 <IconButton
-                  className="deck-customizer-pill-remove"
+                  className="deck-customizer-pill-remove touch-ghost"
                   label={`Remove ${name}`}
                   onClick={() => onChange(values.filter((v) => v !== name))}
                   icon={<X width={14} height={14} strokeWidth={1.8} />}

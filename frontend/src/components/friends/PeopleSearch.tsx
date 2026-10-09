@@ -185,7 +185,7 @@ export function PeopleSearch({ friends, incoming, outgoing, following, onChanged
           <p role="status" className="sr-only">
             Searching…
           </p>
-          <ul className="people-results" aria-hidden="true">
+          <ul className="list-stack people-results" aria-hidden="true">
             {[0, 1, 2].map((i) => (
               <li key={i} className="people-row people-row--skeleton">
                 <span className="people-skel-avatar" />
@@ -218,7 +218,7 @@ export function PeopleSearch({ friends, incoming, outgoing, following, onChanged
           <p role="status" className="sr-only">
             {result.people.length} {result.people.length === 1 ? 'person' : 'people'} found
           </p>
-          <ul className="people-results" aria-label="Search results">
+          <ul className="list-stack people-results" aria-label="Search results">
             {result.people.map((p) => {
               const { primary, secondary } = formatIdentity(p);
               const status = statusOf(p);

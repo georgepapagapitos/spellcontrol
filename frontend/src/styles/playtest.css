@@ -755,16 +755,6 @@ body[data-felt='slate'] {
   .playtest-tax-coins {
     gap: var(--space-4);
   }
-
-  .playtest-tax-coin::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 44px;
-    height: 44px;
-    transform: translate(-50%, -50%);
-  }
 }
 
 @media (pointer: coarse) {
@@ -1662,20 +1652,9 @@ button.playtest-card-pt__value--editable:focus-visible {
     color: var(--accent);
   }
 }
-/* 44px touch-target floor via a centered ghost hit-area, same technique as
+/* 44px touch-target floor via the shared `.touch-ghost` hit-area, same as
    .playtest-zone-tile__kebab — the visible trigger stays compact next to the
    primary button. */
-@media (pointer: coarse) {
-  .playtest-zone-card__overflow::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 44px;
-    height: 44px;
-    transform: translate(-50%, -50%);
-  }
-}
 
 /* E366's in-tile "Library X from top" prompt: Cancel sits AFTER the shared
    .playtest-ctx-count (CountPage), which insets its own stepper/confirm by
@@ -2323,22 +2302,11 @@ button.playtest-card-pt__value--editable:focus-visible {
   padding: var(--space-0-5) var(--space-1);
 }
 
-/* 44px touch-target floor via a centered ghost hit-area (the
-   `.set-filter-chip-x` technique) — the visible kebab stays compact so it
+/* 44px touch-target floor via the shared `.touch-ghost` hit-area — the
+   visible kebab stays compact so it
    doesn't crowd the tile's zone-name label. This is how the ≤1024px zones
    drawer reaches the pile menu, which right-click opens on the table tier,
    so it is the one control here that must clear the floor. */
-@media (pointer: coarse) {
-  .playtest-zone-tile__kebab::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 44px;
-    height: 44px;
-    transform: translate(-50%, -50%);
-  }
-}
 
 .playtest-zone-tile__body {
   /* Card-shaped peek; gives each tile (and so the auto-sized grid rows) a
@@ -3278,16 +3246,6 @@ button.playtest-card-pt__value--editable:focus-visible {
 @media (pointer: coarse) {
   .playtest-life-table__step {
     position: relative;
-  }
-
-  .playtest-life-table__step::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 44px;
-    height: 44px;
-    transform: translate(-50%, -50%);
   }
 }
 

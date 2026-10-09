@@ -188,7 +188,7 @@ export function DeckCardPreviewMeta({
                 {t}
                 {onSetTags && (
                   <IconButton
-                    className="deck-card-preview-meta-tag-remove"
+                    className="deck-card-preview-meta-tag-remove touch-ghost"
                     onClick={() => removeTag(t)}
                     label={`Remove tag “${t}”`}
                     icon={<X width={12} height={12} strokeWidth={2} />}

@@ -27,7 +27,7 @@ export function TradeAddButton({ name, count, verb, onAdd, onRemove }: Props) {
   return (
     <button
       type="button"
-      className={picked ? 'trade-add is-picked' : 'trade-add'}
+      className={picked ? 'trade-add touch-ghost is-picked' : 'trade-add touch-ghost'}
       aria-label={
         picked ? `Take one ${name} out of the trade. ${count} in the trade.` : `${verb} ${name}`
       }

@@ -719,7 +719,10 @@ function TradeSide({
       </h3>
 
       {picked.length > 0 && (
-        <ul className="trade-side-picked" aria-label={`${title}: chosen cards`}>
+        <ul
+          className="list-stack list-stack--tight trade-side-picked"
+          aria-label={`${title}: chosen cards`}
+        >
           {picked.map((row) => (
             <PickedRow
               key={row.key}
@@ -771,7 +774,10 @@ function TradeSide({
           {emptyResults}
         </p>
       ) : (
-        <ul className="trade-side-results" aria-label={`${title}: pick a card`}>
+        <ul
+          className="list-stack list-stack--tight trade-side-results"
+          aria-label={`${title}: pick a card`}
+        >
           {results.map((row) => (
             // Two sibling buttons, not one row-wide button with a nested one
             // (invalid HTML). The split is deliberately UNEVEN: this picker is
@@ -912,7 +918,7 @@ function PickedRow({
           canChoose && (
             <button
               type="button"
-              className="trade-picked-choose"
+              className="trade-picked-choose touch-ghost"
               onClick={() => setOpen((v) => !v)}
               aria-expanded={open}
               aria-controls={listId}
@@ -933,7 +939,7 @@ function PickedRow({
         ) : (
           <span className="trade-stepper">
             <IconButton
-              className="trade-stepper-btn"
+              className="trade-stepper-btn touch-ghost"
               onClick={() => onBump?.(row.key, -1, row.max)}
               label={`One fewer ${row.name}`}
               icon={<Minus width={14} height={14} strokeWidth={1.8} />}
@@ -942,7 +948,7 @@ function PickedRow({
               {row.quantity ?? 0}
             </span>
             <IconButton
-              className="trade-stepper-btn"
+              className="trade-stepper-btn touch-ghost"
               onClick={() => onBump?.(row.key, 1, row.max)}
               disabled={(row.quantity ?? 0) >= row.max}
               label={`One more ${row.name}`}
@@ -952,7 +958,7 @@ function PickedRow({
         )}
 
         <IconButton
-          className="trade-picked-remove"
+          className="trade-picked-remove touch-ghost"
           onClick={() => onRemove(row.key)}
           label={`Remove ${row.name} from the trade`}
           icon={<X width={14} height={14} strokeWidth={1.8} />}

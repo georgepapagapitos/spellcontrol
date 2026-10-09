@@ -64,7 +64,7 @@ export function SaltiestPanel({ cards, averageSalt }: SaltiestPanelProps): JSX.E
           <span className="deck-saltiest-avg-num">deck avg {avg.text}</span>
         </p>
       )}
-      <ul className="deck-saltiest-list">
+      <ul className="list-stack list-stack--tight deck-saltiest-list">
         {cards.map((c) => {
           const band = saltBandWord(c.salt);
           return (

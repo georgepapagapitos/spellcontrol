@@ -550,3 +550,21 @@ select {
   font-weight: 600;
   color: var(--text-secondary);
 }
+
+/* The shared vertical list: a ul/ol with its bullets, margin and padding
+   reset, laid out as a flex column. `.list-stack` gaps its rows --space-2;
+   add `.list-stack--tight` for --space-1. The component keeps its own class
+   for everything else (container-query gaps, borders, scroll caps), and its
+   rules in a later sheet override these at equal specificity. */
+.list-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.list-stack--tight {
+  gap: var(--space-1);
+}

@@ -385,17 +385,6 @@
 .deck-test-hand-assembly-tip {
   position: relative;
 }
-@media (pointer: coarse) {
-  .deck-test-hand-assembly-tip::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 44px;
-    height: 44px;
-    transform: translate(-50%, -50%);
-  }
-}
 
 /* a11y (sweep 3): ring parity for :hover selectors surfaced when the
    focus-visible guard's keyword list gained `card`. */

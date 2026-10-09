@@ -255,7 +255,7 @@ export default function AuthPage() {
               />
               <button
                 type="button"
-                className="auth-reveal"
+                className="auth-reveal touch-ghost"
                 onMouseDown={preventFocusSteal}
                 onClick={() => setShowPassword((v) => !v)}
                 aria-pressed={showPassword}
@@ -297,7 +297,7 @@ export default function AuthPage() {
                 />
                 <button
                   type="button"
-                  className="auth-reveal"
+                  className="auth-reveal touch-ghost"
                   onMouseDown={preventFocusSteal}
                   onClick={() => setShowConfirm((v) => !v)}
                   aria-pressed={showConfirm}

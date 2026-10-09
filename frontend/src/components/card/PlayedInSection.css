@@ -40,15 +40,6 @@
   font-weight: 600;
 }
 
-.played-in-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
 /* The whole row opens the commander: one target, never smaller than 44px. */
 .played-in-row {
   display: flex;

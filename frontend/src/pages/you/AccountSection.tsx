@@ -462,7 +462,7 @@ function PasswordModal({ hasPassword, onClose, onSaved }: PasswordModalProps) {
               />
               <button
                 type="button"
-                className="auth-reveal"
+                className="auth-reveal touch-ghost"
                 onMouseDown={preventFocusSteal}
                 onClick={() => setShowCurrent((v) => !v)}
                 aria-pressed={showCurrent}
@@ -488,7 +488,7 @@ function PasswordModal({ hasPassword, onClose, onSaved }: PasswordModalProps) {
             />
             <button
               type="button"
-              className="auth-reveal"
+              className="auth-reveal touch-ghost"
               onMouseDown={preventFocusSteal}
               onClick={() => setShowNew((v) => !v)}
               aria-pressed={showNew}
@@ -527,7 +527,7 @@ function PasswordModal({ hasPassword, onClose, onSaved }: PasswordModalProps) {
             />
             <button
               type="button"
-              className="auth-reveal"
+              className="auth-reveal touch-ghost"
               onMouseDown={preventFocusSteal}
               onClick={() => setShowConfirm((v) => !v)}
               aria-pressed={showConfirm}

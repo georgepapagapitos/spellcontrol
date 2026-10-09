@@ -213,7 +213,7 @@ function SortSheet({
                     <span>Your first sections</span>
                     {totalPages !== undefined && <span>{totalPages} pages</span>}
                   </p>
-                  <ul className="sort-sheet-preview-list">
+                  <ul className="list-stack list-stack--tight sort-sheet-preview-list">
                     {firstSections.map((s, i) => (
                       <li key={`${s.label}-${i}`}>
                         <span>{s.label}</span>

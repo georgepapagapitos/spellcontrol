@@ -213,7 +213,7 @@ export function PlayHome({
         {recent.length === 0 ? (
           <p className="play-home-muted">No games yet. Track a table to record one.</p>
         ) : (
-          <ul className="play-home-recent">
+          <ul className="list-stack play-home-recent">
             {recent.map((rec) => {
               const winner =
                 rec.winnerSeat != null

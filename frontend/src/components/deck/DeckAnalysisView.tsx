@@ -541,7 +541,7 @@ function RolesPanel({
           (every role a card fills) that disagreed with the chips and the
           bars; one count replaced the note explaining three. */}
       <p className="deck-roles-note">Each card counts once, under its main role.</p>
-      <ul className="deck-roles">
+      <ul className="list-stack deck-roles">
         {items.map((it) => {
           const hasTarget = typeof it.want === 'number';
           const short = hasTarget && it.value < (it.want as number);

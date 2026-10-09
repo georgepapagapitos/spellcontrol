@@ -82,7 +82,7 @@ function useResolvedManaCosts(names: string[]): Map<string, string> {
 
 function SlotSkeleton(): JSX.Element {
   return (
-    <ul className="brew-hand-skeleton" aria-hidden>
+    <ul className="list-stack brew-hand-skeleton" aria-hidden>
       {Array.from({ length: 4 }, (_, i) => (
         <li key={i} className="brew-hand-skeleton-row">
           <span className="deck-analysis-skeleton-bar brew-hand-skeleton-art" />
@@ -243,7 +243,7 @@ export function BrewSlotPanel(): JSX.Element {
           )}
         </div>
       ) : (
-        <ul className="brew-hand">
+        <ul className="list-stack brew-hand">
           {displayed.map((c) => (
             <DeckCardRow
               key={c.name}

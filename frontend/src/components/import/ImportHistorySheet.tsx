@@ -77,7 +77,7 @@ export function ImportHistorySheet({ onClose }: Props) {
         </div>
         <div className="card-picker-list import-history-sheet-body">
           {importHistory.length > 0 ? (
-            <ul className="import-history-list">
+            <ul className="list-stack import-history-list">
               {[...importHistory]
                 .map((h, originalIdx) => ({ h, originalIdx }))
                 .reverse()

@@ -856,7 +856,7 @@ function YourPanel({
             <div className="ogv-stepper">
               <button
                 type="button"
-                className="ogv-stepper-btn"
+                className="ogv-stepper-btn touch-ghost"
                 aria-label="-1 poison"
                 disabled={disabled}
                 onClick={() =>
@@ -875,7 +875,7 @@ function YourPanel({
               </span>
               <button
                 type="button"
-                className="ogv-stepper-btn"
+                className="ogv-stepper-btn touch-ghost"
                 aria-label="+1 poison"
                 disabled={disabled}
                 onClick={() =>
@@ -1052,7 +1052,7 @@ function CmdDmgHalf({
       <div className="ogv-stepper">
         <button
           type="button"
-          className="ogv-stepper-btn"
+          className="ogv-stepper-btn touch-ghost"
           aria-label={`-1 commander damage from ${name}`}
           disabled={disabled}
           onClick={() => onStep(-1)}
@@ -1062,7 +1062,7 @@ function CmdDmgHalf({
         <span className="ogv-stepper-value">{value}</span>
         <button
           type="button"
-          className="ogv-stepper-btn"
+          className="ogv-stepper-btn touch-ghost"
           aria-label={`+1 commander damage from ${name}`}
           disabled={disabled}
           onClick={() => onStep(1)}

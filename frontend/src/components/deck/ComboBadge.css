@@ -9,18 +9,7 @@
 }
 
 /* 44px floor on coarse pointers via an invisible centered ghost, without
-   inflating the visible glyph (mirrors .win-con-clock-tip). */
-@media (pointer: coarse) {
-  .combo-badge-tip::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 44px;
-    height: 44px;
-    transform: translate(-50%, -50%);
-  }
-}
+   inflating the visible glyph (mirrors .win-con-clock-tip); the ghost is the shared `.touch-ghost`. */
 
 .combo-badge-glyph {
   display: inline-flex;
