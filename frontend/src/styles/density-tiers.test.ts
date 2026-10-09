@@ -38,7 +38,8 @@ describe('density tiers (T135)', () => {
     expect(coarse).toBeGreaterThan(phone);
     expect(tokens.slice(tablet, phone)).toMatch(/--control-h:\s*2\.5rem/);
     expect(tokens.slice(phone, coarse)).toMatch(/--control-h:\s*2\.75rem/);
-    expect(tokens.slice(phone, coarse)).toMatch(/--text-base:\s*1rem/);
+    // body text is 1rem at every tier now (E594), so no phone override remains
+    expect(tokens.slice(phone, coarse)).not.toMatch(/--text-base/);
     expect(tokens.slice(coarse)).toMatch(/--control-h:\s*2\.75rem/);
   });
 

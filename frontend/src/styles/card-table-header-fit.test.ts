@@ -59,7 +59,7 @@ function minRem(col: string, value: string): number {
 
 /**
  * What the header needs, in rem. Measured in Chromium against the built
- * sheet: `--text-xs` (0.72rem) uppercase at weight 600 with 0.04em tracking
+ * sheet: `--text-xs` (0.78rem) uppercase at weight 600 with 0.04em tracking
  * runs 8.3–10.2px per character depending on the letters ("MANA" is the
  * widest, "PRICE" the narrowest), so 0.6rem (9.6px) is the conservative
  * per-character figure. Plus the cell's `padding-inline-end` (--space-2),

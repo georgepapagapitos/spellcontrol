@@ -91,11 +91,15 @@
   --font-display: 'Marcellus', 'Georgia', serif;
 
   /* Type scale — 8 steps. Use these instead of raw rem values so adjacent
-     sizes don't drift apart by a single pixel and look like accidents. */
-  --text-xs: 0.72rem; /* micro labels, badges, footnotes */
-  --text-sm: 0.82rem; /* small body, hints, secondary meta */
-  --text-base: 0.95rem; /* primary body text */
-  --text-md: 1.05rem; /* emphasized body, modal titles */
+     sizes don't drift apart by a single pixel and look like accidents.
+     The floor is 12.5px (xs) and body is 16px at every tier (E594): the app
+     once set nearly all text at 11.5 to 13px, which reads as timid and as
+     machine-made. xs is for dense chrome only (badges, tabular rows); a
+     sentence a person reads is sm or base. styles/type-floor.test.ts pins it. */
+  --text-xs: 0.78rem; /* 12.5px: micro labels, badges, footnotes */
+  --text-sm: 0.875rem; /* 14px: small body, hints, secondary meta */
+  --text-base: 1rem; /* 16px: primary body text, every tier */
+  --text-md: 1.125rem; /* 18px: emphasized body, modal titles */
   --text-lg: 1.25rem; /* section titles */
   --text-xl: 1.5rem; /* page titles, taglines */
   --text-2xl: 2rem; /* large numerals / glyphs / stat & score values */
@@ -535,7 +539,6 @@
     --control-h: 2.75rem;
     --row-h: 2.75rem;
     --gutter: var(--space-4);
-    --text-base: 1rem;
   }
 }
 

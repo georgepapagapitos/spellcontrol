@@ -474,12 +474,11 @@ meanwhile.
   `.app-shell:has(.scan-fab-btn)`, because the button is a sibling of
   `.app-main`, not inside it (`styles/scan-fab-clearance.test.ts`).
 - **Density tiers: phone ≤599 · tablet 600–1023 · desktop ≥1024.** Controls
-  44 / 40 / 36px, rows 44 / 40 / 36px, body text 16 / 15 / 15px, page gutter
+  44 / 40 / 36px, rows 44 / 40 / 36px, body text 16px at every tier (E594), page gutter
   16 / 24 / 32px, all driven by tier tokens rather than per-component media
   queries. Tablet is its own tier: it does not inherit phone-size controls. **Built** (T135): `tokens.css` sets `--control-h` and
   `--gutter` per tier, floors `--control-h` at 44px on a touch pointer (last,
-  so rule order can never undercut it), and sets `--text-base` to 1rem on a
-  phone. The shared controls (`.btn`, `.pill-btn`, `.toolbar-pill`, `.tab`,
+  so rule order can never undercut it). The shared controls (`.btn`, `.pill-btn`, `.toolbar-pill`, `.tab`,
   `.search-pill`), the page gutter and the desktop header read them. List
   and menu rows read `--row-h` the same way (`.switch-row`, the sets lists,
   game-night attendees, Home's table and Your cards rows, rules history, tags,
@@ -1296,6 +1295,18 @@ available; they are simply never the default. Flipping `DEFAULT_TYPESET` is four
 coordinated edits plus a test fixture — see the comment on the constant, and
 note the label face sets every mobile tab-bar cell's width, so a new default
 must be checked at 360px.
+
+### Type scale floor (E594)
+
+The scale is `--text-xs` 0.78rem (12.5px) · `--text-sm` 0.875rem (14px) ·
+`--text-base` 1rem (16px, every tier, no phone override) · `--text-md` 1.125rem
+(18px), then lg/xl/2xl/3xl. **Why:** the app once set almost all text at 11.5 to
+13px (`--text-sm` 962 uses, `--text-xs` 919, `--text-base` 99), which reads as
+timid and machine-made, and is hard to read on a phone. **Rules:** `--text-xs`
+is dense chrome only (badges, tabular rows, footnotes); anything a person reads
+as a sentence is `--text-sm` or `--text-base`. A dense surface that overflows at
+the bigger sizes stays on xs; never invent a step below it and never lower the
+floor. Guard: `styles/type-floor.test.ts`.
 
 ### Type sets — the user-selectable typeface axis
 
