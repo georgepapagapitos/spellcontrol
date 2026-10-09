@@ -2,6 +2,7 @@ import './InfoTip.css';
 import { type JSX, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Info } from 'lucide-react';
+import { useOverlayLayer } from '@/lib/overlays/overlay-layer';
 import { computePopoverPlacement, getSafeViewport } from '@/lib/overlays/popover-placement';
 
 /**
@@ -76,6 +77,11 @@ export function InfoTip({
   }, [wide]);
 
   const close = useCallback(() => setPos(null), []);
+
+  // A layer, not preventDefault: this listens on window, which runs after a
+  // sheet's document listener, so only the layer stack can tell the sheet to
+  // stand down while the tip is open.
+  useOverlayLayer(pos !== null);
 
   useEffect(() => {
     if (!pos) return;

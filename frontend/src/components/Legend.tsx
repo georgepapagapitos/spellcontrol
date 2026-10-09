@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { useOverlayLayer } from '@/lib/overlays/overlay-layer';
 import { computePopoverPlacement, getSafeViewport } from '@/lib/overlays/popover-placement';
 import { TYPE_ORDER } from '@/lib/cards/card-types';
 import { ROLE_BADGE_BY_TONE } from '@/lib/deck-analysis/role-badges';
@@ -77,6 +78,8 @@ export function Legend({ context, align = 'left', variant = 'link' }: LegendProp
   const popRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<KeyPos | null>(null);
   const open = pos !== null;
+  // A layer so a sheet stands down while the key is open (see InfoTip).
+  useOverlayLayer(open);
 
   const place = useCallback(
     (contentHeight = 240) => {

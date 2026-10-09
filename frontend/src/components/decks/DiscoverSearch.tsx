@@ -146,7 +146,9 @@ export function DiscoverSearch({
         setOpen(false);
       }
     } else if (e.key === 'Escape') {
-      // Closes the listbox only; the typed search stays applied.
+      // Closes the listbox only; the typed search stays applied. Handled only
+      // when a list was open, else the sheet this sits in gets the key.
+      if (showListbox) e.preventDefault();
       setOpen(false);
     }
   };

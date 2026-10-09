@@ -272,6 +272,8 @@ function FreetextAdd({
             e.preventDefault();
             commit(activeIdx >= 0 ? filtered[activeIdx] : undefined);
           } else if (e.key === 'Escape') {
+            // Handled only when it cleared something; else the sheet gets it.
+            if (draft !== '' || activeIdx >= 0) e.preventDefault();
             setDraft('');
             setActiveIdx(-1);
           } else if (e.key === 'Backspace' && draft === '') {
