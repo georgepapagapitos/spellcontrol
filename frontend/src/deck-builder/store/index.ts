@@ -282,6 +282,13 @@ export const useDeckBuilderStore = create<AppState>((set, get) => ({
       customization: {
         ...state.customization,
         mtgFormat: 'commander',
+        // A Brawl visit stamps a 60-card deck and its land counts; none of it
+        // may leak into the next Commander or Brew page.
+        ...(state.customization.deckFormat !== defaultCustomization.deckFormat && {
+          deckFormat: defaultCustomization.deckFormat,
+          landCount: defaultCustomization.landCount,
+          nonBasicLandCount: defaultCustomization.nonBasicLandCount,
+        }),
         mustIncludeCards: [],
         tempMustIncludeCards: [],
       },
