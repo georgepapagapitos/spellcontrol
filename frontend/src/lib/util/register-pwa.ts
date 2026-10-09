@@ -3,15 +3,14 @@ import { logger } from './logger';
 /**
  * Tear down the retired service worker.
  *
- * SpellControl no longer ships a PWA (see vite.config.ts: the plugin is in
- * `selfDestroying` mode, kept only to retire existing SWs). The web app is a
+ * SpellControl no longer ships a PWA (retired in #482). The web app is a
  * plain SPA — the app-shell precache only ever caused stale-bundle confusion
  * after a deploy. Offline card data is IndexedDB-backed and SW-independent
  * (lib/offline/auto-sync), so removing the SW costs nothing.
  *
  * Unregister any service worker a prior build left behind and clear its caches
  * so a returning browser drops straight to the freshly-served bundle. This
- * complements the selfDestroying sw.js, which also frees browsers via their own
+ * complements the self-destroying public/sw.js, which also frees browsers via their own
  * update check even when they never load this build.
  */
 

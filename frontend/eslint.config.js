@@ -93,5 +93,10 @@ export default [
       globals: { ...globals.node },
     },
   },
+  {
+    // The self-destroying worker that retires the old PWA (see the file).
+    files: ['public/sw.js'],
+    languageOptions: { globals: { ...globals.serviceworker } },
+  },
   prettier,
 ];
