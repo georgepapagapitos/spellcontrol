@@ -796,6 +796,12 @@
     --text-muted: var(--text-secondary);
     --border: var(--border-strong);
   }
+
+  /* The one muted line that paints a literal alpha instead of the token. The
+     panel prefix outranks .card-preview-set-code, which is declared later. */
+  .card-preview-panel .card-preview-set-code {
+    color: var(--text-secondary);
+  }
 }
 
 .card-preview-panel[data-stop='half'] {
@@ -952,7 +958,7 @@
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   letter-spacing: 0.04em;
-  color: rgb(255 255 255 / 55%);
+  color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
 }
@@ -1196,7 +1202,7 @@
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgb(255 255 255 / 55%);
+  color: var(--text-muted);
 }
 
 .card-preview-sec--disc .card-rulings-toggle,
@@ -1223,7 +1229,7 @@
 }
 
 .card-preview-kv dt {
-  color: rgb(255 255 255 / 55%);
+  color: var(--text-muted);
 }
 
 .card-preview-kv dd {

@@ -126,6 +126,27 @@ describe('Modal focus management', () => {
   });
 });
 
+describe('Modal Escape claimed by an inline control', () => {
+  // The collection Filters dialog and the binder rules editor are Modals, and
+  // their pickers preventDefault the Escape that closes their own list. The
+  // sheet hook honored that (E474); the Modal has to as well, or the first
+  // Escape closes the whole dialog (found in the browser, not by the unit tests).
+  it('a defaultPrevented Escape leaves the dialog open; the next one closes it', () => {
+    mockReducedMotion(true);
+    const onClose = vi.fn();
+    render(
+      <Modal onClose={onClose} label="Test">
+        <input aria-label="picker" onKeyDown={(e) => e.key === 'Escape' && e.preventDefault()} />
+      </Modal>
+    );
+    fireEvent.keyDown(screen.getByLabelText('picker'), { key: 'Escape' });
+    expect(onClose).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('Modal exit animation (delayed unmount)', () => {
   it('Escape defers onClose until the panel exit animation ends', () => {
     const onClose = vi.fn();
