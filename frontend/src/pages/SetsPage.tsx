@@ -364,6 +364,17 @@ function SetsIndex() {
     [cards, query, cardLimit]
   );
 
+  // The Show more button had focus and vanished (the last reveal): hand focus
+  // to the closing count line instead of dropping it to the document.
+  const [revealed, setRevealed] = useState(false);
+  const cardEndRef = useRef<HTMLParagraphElement>(null);
+  const allShown = cardResults.total > 0 && cardResults.total <= cardResults.matches.length;
+  useEffect(() => {
+    if (revealed && allShown && document.activeElement === document.body) {
+      cardEndRef.current?.focus();
+    }
+  }, [revealed, allShown]);
+
   return (
     <HubPage
       hub="collection"
@@ -427,19 +438,30 @@ function SetsIndex() {
                   {cardResults.matches.map((m) => (
                     <CardMatchGroup key={m.name} match={m} setMap={setMap} sldIndex={sldIndex} />
                   ))}
+                  {cardResults.total > CARD_REVEAL_STEP && (
+                    <p
+                      ref={cardEndRef}
+                      tabIndex={-1}
+                      role="status"
+                      aria-live="polite"
+                      className="sets-card-more"
+                    >
+                      {cardResults.total > cardResults.matches.length
+                        ? `Showing ${cardResults.matches.length} of ${cardResults.total} cards.`
+                        : `Showing all ${cardResults.total} cards.`}
+                    </p>
+                  )}
                   {cardResults.total > cardResults.matches.length && (
-                    <>
-                      <p className="sets-card-more">
-                        Showing {cardResults.matches.length} of {cardResults.total} cards.
-                      </p>
-                      <Button
-                        onClick={() => setCardReveal({ q: query, n: cardLimit + CARD_REVEAL_STEP })}
-                      >
-                        Show{' '}
-                        {Math.min(CARD_REVEAL_STEP, cardResults.total - cardResults.matches.length)}{' '}
-                        more
-                      </Button>
-                    </>
+                    <Button
+                      onClick={() => {
+                        setRevealed(true);
+                        setCardReveal({ q: query, n: cardLimit + CARD_REVEAL_STEP });
+                      }}
+                    >
+                      Show{' '}
+                      {Math.min(CARD_REVEAL_STEP, cardResults.total - cardResults.matches.length)}{' '}
+                      more
+                    </Button>
                   )}
                 </section>
               )}
