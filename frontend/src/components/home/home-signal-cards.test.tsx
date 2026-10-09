@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { render, renderHook, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest';
 import { pending } from '@/test/pending';
@@ -20,7 +20,31 @@ vi.mock('@/lib/binder/materialize', async (importOriginal) => {
   return { materializeBinders: vi.fn(actual.materializeBinders) };
 });
 const mockUseCardThumb = vi.hoisted(() => vi.fn(() => undefined as string | undefined));
-vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: mockUseCardThumb }));
+vi.mock('@/lib/cards/card-thumbs', () => ({
+  useCardThumb: mockUseCardThumb,
+  cachedCardThumb: () => 'cached-thumb.png',
+}));
+// The preview itself is CardPreview's own suite; here only what it was handed.
+vi.mock('@/components/card/CardPreview', () => ({
+  CardPreview: (p: {
+    cards: EnrichedCard[];
+    index: number;
+    sectionLabels: string[];
+    source: string;
+    onClose: () => void;
+  }) => (
+    <div role="dialog" aria-label="Card preview" data-source={p.source}>
+      <span data-testid="preview-card">{p.cards[p.index].scryfallId}</span>
+      <span data-testid="preview-copy">{p.cards[p.index].copyId}</span>
+      <span data-testid="preview-image">{p.cards[p.index].imageNormal}</span>
+      <span data-testid="preview-label">{p.sectionLabels[p.index]}</span>
+      <span data-testid="preview-count">{p.cards.length}</span>
+      <button type="button" onClick={p.onClose}>
+        Close
+      </button>
+    </div>
+  ),
+}));
 
 import { PriceMoversCard } from './PriceMoversCard';
 import { RecentlyAddedCard } from './RecentlyAddedCard';
@@ -228,6 +252,56 @@ describe('PriceMoversCard', () => {
     const img = container.querySelector('.home-thumb img') as HTMLImageElement | null;
     expect(img?.getAttribute('src')).toBe('my-printing.png');
     expect(mockUseCardThumb).toHaveBeenCalledWith(undefined, 'normal');
+  });
+
+  // A 1x screen draws the 488px `normal` image soft at tile size; Scryfall's
+  // pre-scaled `small` is offered beside it so the browser can pick it.
+  it('offers the small Scryfall image in a srcset', async () => {
+    const normal = 'https://cards.scryfall.io/normal/front/a/a/a.jpg?1';
+    mockUseCardThumb.mockReturnValue(normal);
+    mockGetLatestMovers.mockResolvedValue(freshMovers());
+    const { container } = renderIn(<PriceMoversCard />);
+    await screen.findByText('Riser');
+    const img = container.querySelector('.home-thumb img') as HTMLImageElement;
+    expect(img.getAttribute('srcset')).toBe(
+      'https://cards.scryfall.io/small/front/a/a/a.jpg?1 146w, ' + `${normal} 488w`
+    );
+  });
+
+  it('opens the card preview on the tapped mover, with every mover swipeable', async () => {
+    const owned = makeCard({ name: 'Riser', scryfallId: 'a', imageNormal: 'my-printing.png' });
+    mockUseCollectionStore.mockImplementation((sel: (s: Record<string, unknown>) => unknown) =>
+      sel({ cards: [owned], importHistory: [] })
+    );
+    mockGetLatestMovers.mockResolvedValue(
+      freshMovers([riser, { ...riser, scryfallId: 'b', name: 'Faller', before: 5, after: 2 }])
+    );
+    renderIn(<PriceMoversCard />);
+    fireEvent.click(await screen.findByRole('button', { name: /Faller/ }));
+    expect(await screen.findByRole('dialog', { name: 'Card preview' })).toBeTruthy();
+    // Faller left the collection: a stand-in on its own printing, with the
+    // art the thumbnail already resolved.
+    expect(screen.getByTestId('preview-card').textContent).toBe('b');
+    expect(screen.getByTestId('preview-image').textContent).toBe('cached-thumb.png');
+    expect(screen.getByTestId('preview-label').textContent).toBe('Down $3.00 (60%) today');
+    expect(screen.getByTestId('preview-count').textContent).toBe('2');
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('previews the copy you hold, in the finish that moved', async () => {
+    const nonfoil = makeCard({ name: 'Riser', scryfallId: 'a', finish: 'nonfoil' });
+    const foil = makeCard({ name: 'Riser', scryfallId: 'a', finish: 'foil', copyId: 'foil-copy' });
+    mockUseCollectionStore.mockImplementation((sel: (s: Record<string, unknown>) => unknown) =>
+      sel({ cards: [nonfoil, foil], importHistory: [] })
+    );
+    mockGetLatestMovers.mockResolvedValue(freshMovers([{ ...riser, finish: 'foil' }]));
+    renderIn(<PriceMoversCard />);
+    fireEvent.click(await screen.findByRole('button', { name: /Riser/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Card preview' });
+    expect(dialog.getAttribute('data-source')).toBe('collection');
+    expect(screen.getByTestId('preview-copy').textContent).toBe('foil-copy');
+    expect(screen.getByTestId('preview-label').textContent).toBe('Up $2.00 (200%) today');
   });
 
   it('carries polarity via glyph + sign + SR text, not color alone', async () => {

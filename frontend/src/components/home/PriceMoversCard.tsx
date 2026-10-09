@@ -1,19 +1,27 @@
 import './PriceMoversCard.css';
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { TrendingUp } from 'lucide-react';
 import { useCollectionStore } from '../../store/collection';
 import { useCurrency } from '@/lib/collection/currency';
 import { formatMoney } from '@/lib/collection/format-money';
-import { useCardThumb } from '@/lib/cards/card-thumbs';
+import { cachedCardThumb, useCardThumb } from '@/lib/cards/card-thumbs';
+import { thumbSrcSet } from '@/lib/cards/thumb-srcset';
+import type { EnrichedCard, Finish } from '@/types';
 import {
   dayKey,
   daysBetween,
   formatDayKey,
   getLatestMovers,
   onValueHistoryChange,
+  type CardMover,
   type MoverRecord,
 } from '@/lib/collection/value-history';
 import { HomeCard } from './HomeCard';
+
+// Loaded on the first tap: Home never pays for the preview until it is used.
+const CardPreview = lazy(() =>
+  import('@/components/card/CardPreview').then((m) => ({ default: m.CardPreview }))
+);
 
 const DISPLAY_LIMIT = 4;
 /** A movers record older than this reads as stale, not "news" — mirrors ValueTrend's own gate. */
@@ -39,9 +47,48 @@ function MoverThumb({ name, owned }: { name: string; owned?: string }) {
   const src = owned ?? art;
   return (
     <span className="home-thumb home-mover-thumb card-thumb-tilt" aria-hidden="true">
-      {src ? <img src={src} alt="" loading="lazy" /> : <span className="home-thumb-skeleton" />}
+      {src ? (
+        // The tile is at most 7.5rem wide (the wide layout); a 1x screen
+        // takes Scryfall's sharper `small` there (lib/cards/thumb-srcset.ts).
+        <img src={src} srcSet={thumbSrcSet(src)} sizes="7.5rem" alt="" loading="lazy" />
+      ) : (
+        <span className="home-thumb-skeleton" />
+      )}
     </span>
   );
+}
+
+/**
+ * The mover as a card the preview can show. The copy you hold when there is
+ * one (its binders, condition and price come with it); otherwise, for a
+ * printing that left the collection since the refresh, a stand-in carrying
+ * the mover's own printing, finish and price, with the art the thumbnail
+ * already resolved. The preview fetches the rest by scryfallId.
+ */
+function previewCard(m: CardMover, owned: EnrichedCard | undefined): EnrichedCard {
+  if (owned) return owned;
+  return {
+    copyId: `mover:${m.scryfallId}:${m.finish}`,
+    name: m.name,
+    setCode: m.setCode,
+    setName: '',
+    collectorNumber: '',
+    rarity: '',
+    scryfallId: m.scryfallId,
+    purchasePrice: m.after,
+    sourceCategory: '',
+    sourceFormat: '',
+    finish: m.finish as Finish,
+    foil: m.finish === 'foil',
+    imageNormal: cachedCardThumb(m.name),
+  };
+}
+
+/** "Down $6.83 (39%) today": the move, in words, as the preview's context line. */
+function moveLabel(m: CardMover, when: string): string {
+  const move = m.after - m.before;
+  const pct = m.before !== 0 ? ` (${Math.abs(Math.round((move / m.before) * 100))}%)` : '';
+  return `${move > 0 ? 'Up' : 'Down'} ${formatMoney(Math.abs(move))}${pct} ${when}`;
 }
 
 function whenLabel(day: string, today: string): string {
@@ -89,18 +136,37 @@ export function PriceMoversCard() {
   const shown = useMemo(() => movers?.movers.slice(0, DISPLAY_LIMIT) ?? [], [movers]);
 
   const collectionCards = useCollectionStore((s) => s.cards);
-  const ownedArt = useMemo(() => {
-    const want = new Set(shown.map((m) => m.scryfallId));
-    const found = new Map<string, string>();
+  // The copy held of each mover's printing, the same finish when there is one.
+  const ownedCopy = useMemo(() => {
+    const want = new Map(shown.map((m) => [m.scryfallId, m.finish]));
+    const found = new Map<string, EnrichedCard>();
     if (want.size === 0) return found;
     for (const card of collectionCards) {
-      if (found.size === want.size) break;
-      if (card.imageNormal && want.has(card.scryfallId) && !found.has(card.scryfallId)) {
-        found.set(card.scryfallId, card.imageNormal);
+      const finish = want.get(card.scryfallId);
+      if (finish === undefined) continue;
+      const prev = found.get(card.scryfallId);
+      if (!prev || (prev.finish !== finish && card.finish === finish)) {
+        found.set(card.scryfallId, card);
       }
     }
     return found;
   }, [collectionCards, shown]);
+
+  // A snapshot taken on the tap, so a refresh that rewrites the log under an
+  // open preview can't swap the cards out from under it.
+  const [preview, setPreview] = useState<{
+    cards: EnrichedCard[];
+    labels: string[];
+    index: number;
+  } | null>(null);
+  const openPreview = (index: number) => {
+    const when = data && movers ? whenLabel(movers.day, data.today) : '';
+    setPreview({
+      cards: shown.map((m) => previewCard(m, ownedCopy.get(m.scryfallId))),
+      labels: shown.map((m) => moveLabel(m, when)),
+      index,
+    });
+  };
 
   const fresh =
     !!data &&
@@ -120,40 +186,57 @@ export function PriceMoversCard() {
       className="home-movers-card"
     >
       <ul className="home-movers-list">
-        {shown.map((m) => {
+        {shown.map((m, i) => {
           const moveAmount = m.after - m.before;
           const up = moveAmount > 0;
           const pct = m.before !== 0 ? Math.round((moveAmount / m.before) * 100) : null;
           return (
-            <li key={`${m.scryfallId}:${m.finish}`} className="home-movers-row">
-              <MoverThumb name={m.name} owned={ownedArt.get(m.scryfallId)} />
-              <span className="home-movers-info">
-                <span className="home-movers-name">{m.name}</span>
-                <span className="home-movers-price">
-                  {formatMoney(m.after)}
-                  {/* Ranked by total impact, so name the copies that make a
+            <li key={`${m.scryfallId}:${m.finish}`}>
+              <button type="button" className="home-movers-row" onClick={() => openPreview(i)}>
+                <MoverThumb name={m.name} owned={ownedCopy.get(m.scryfallId)?.imageNormal} />
+                <span className="home-movers-info">
+                  <span className="home-movers-name">{m.name}</span>
+                  <span className="home-movers-price">
+                    {formatMoney(m.after)}
+                    {/* Ranked by total impact, so name the copies that make a
                       small per-copy move rank high. */}
-                  {m.copies > 1 && ` · ×${m.copies}`}
-                </span>
-              </span>
-              <span className={`home-movers-delta home-movers-delta--${up ? 'up' : 'down'}`}>
-                <span aria-hidden="true">{up ? '▲' : '▼'}</span>
-                <span className="sr-only">{up ? 'up' : 'down'}</span>
-                <span className="home-movers-delta-amount">
-                  {up ? '+' : '−'}
-                  {formatMoney(Math.abs(moveAmount))}
-                </span>
-                {pct !== null && (
-                  <span className="home-movers-delta-pct">
-                    ({up ? '+' : '−'}
-                    {Math.abs(pct)}%)
+                    {m.copies > 1 && ` · ×${m.copies}`}
                   </span>
-                )}
-              </span>
+                </span>
+                <span className={`home-movers-delta home-movers-delta--${up ? 'up' : 'down'}`}>
+                  <span aria-hidden="true">{up ? '▲' : '▼'}</span>
+                  <span className="sr-only">{up ? 'up' : 'down'}</span>
+                  <span className="home-movers-delta-amount">
+                    {up ? '+' : '−'}
+                    {formatMoney(Math.abs(moveAmount))}
+                  </span>
+                  {pct !== null && (
+                    <span className="home-movers-delta-pct">
+                      ({up ? '+' : '−'}
+                      {Math.abs(pct)}%)
+                    </span>
+                  )}
+                </span>
+              </button>
             </li>
           );
         })}
       </ul>
+      {preview && (
+        <Suspense fallback={null}>
+          <CardPreview
+            source="collection"
+            cards={preview.cards}
+            index={preview.index}
+            binderName="Price movers"
+            sectionLabels={preview.labels}
+            pageNumbers={preview.cards.map(() => 0)}
+            totalPages={0}
+            onIndexChange={(index) => setPreview((p) => (p ? { ...p, index } : p))}
+            onClose={() => setPreview(null)}
+          />
+        </Suspense>
+      )}
     </HomeCard>
   );
 }
