@@ -366,7 +366,7 @@ export function labelFor(links: readonly DiscoveryLink[]): string {
     const combo = group.some((g) => g.combo) ? ', a known combo' : '';
     return kind === 'makes'
       ? `makes ${nounOf(resource)} for ${names}${combo}`
-      : `pays off the ${nounOf(resource)} that ${names} makes${combo}`;
+      : `pays off the ${nounOf(resource)} that ${names} ${group.length > 1 ? 'make' : 'makes'}${combo}`;
   });
   return parts.join('; ');
 }

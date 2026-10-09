@@ -9,11 +9,13 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import { BASELINE, card, merenCtx } from '../deckObjective/__fixtures__/objectiveFixture';
 import {
   applySearchSwaps,
+  discoveryReason,
   landSeatedSpells,
   ownedExtraCandidates,
   reasonLine,
 } from './phaseWholeDeckSearch';
 import type { GenerationState } from './state';
+import type { DiscoveryPick } from '../deckObjective/discovery';
 
 const swap = (over: Partial<AppliedSwap>): AppliedSwap =>
   ({
@@ -165,5 +167,23 @@ describe('landSeatedSpells', () => {
     const forest = { name: 'Forest', type_line: 'Basic Land — Forest' } as ScryfallCard;
     const categories = { lands: [mdfc, forest] } as unknown as GenerationState['categories'];
     expect(landSeatedSpells(categories)).toEqual([mdfc.name]);
+  });
+});
+
+describe('discoveryReason', () => {
+  const pick = (inclusion: number | null) =>
+    ({
+      label: 'pays off the creature tokens that Krenko, Mob Boss and Goblinslide make',
+      inclusion,
+      rank: 1296,
+      cut: { name: 'Gundabad Opportunist' },
+    }) as unknown as DiscoveryPick;
+
+  it("says this commander's decks, never the page", () => {
+    expect(discoveryReason(pick(14.2))).toBe(
+      "Discovery pick: pays off the creature tokens that Krenko, Mob Boss and Goblinslide make. It is in 14% of this commander's decks but ranks 1296 on EDHREC overall. Gundabad Opportunist was filler."
+    );
+    expect(discoveryReason(pick(null))).toContain("It is not in this commander's decks but");
+    expect(discoveryReason(pick(null))).not.toMatch(/page/);
   });
 });
