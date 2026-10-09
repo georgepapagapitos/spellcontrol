@@ -24,6 +24,7 @@ import { gunzipSync } from 'node:zlib';
 // `load` is the safe loader (no arbitrary-type tags). js-yaml v5 dropped the
 // default export, so this must be the named import.
 import { load as loadYaml } from 'js-yaml';
+import { pruneOutlierDrops } from './sld-drop-dates.mjs';
 
 const JSON_URL = process.env.SLD_JSON_URL ?? 'https://mtgjson.com/api/v5/SLD.json.gz';
 const YAML_URL =
@@ -163,7 +164,26 @@ for (const [productName, productContents] of Object.entries(contents?.products ?
   }
 }
 
-const drops = [...numbersByDrop.entries()]
+/** Every SLD printing's [collector number, released_at] from Scryfall (~15 pages). */
+async function fetchPrintings() {
+  const printings = [];
+  let next =
+    'https://api.scryfall.com/cards/search?q=set%3Asld+unique%3Aprints&order=set&include_extras=true';
+  while (next) {
+    const res = await fetchOrKeep(next);
+    const page = await res.json();
+    for (const card of page.data ?? []) printings.push([card.collector_number, card.released_at]);
+    next = page.has_more ? page.next_page : null;
+    await new Promise((r) => setTimeout(r, 120));
+  }
+  return printings;
+}
+
+console.log('[sld] Fetching Scryfall SLD printings for date cross-check');
+const printings = await fetchPrintings();
+if (printings.length < 1500) bail(`Suspiciously few Scryfall SLD printings (${printings.length})`);
+
+const built = [...numbersByDrop.entries()]
   .filter(([, numbers]) => numbers.size > 0)
   .map(([name, numbers]) => ({
     name,
@@ -171,6 +191,12 @@ const drops = [...numbersByDrop.entries()]
     numbers: [...numbers].sort((a, b) => Number(a) - Number(b) || a.localeCompare(b)),
   }))
   .sort((a, b) => b.releasedAt.localeCompare(a.releasedAt) || a.name.localeCompare(b.name));
+
+// A drop whose date is far from the printing's own is MTGJSON misfiling a
+// bonus card (Ral, Storm Conduit #523 under 2021 drops): treat that drop as
+// unknown for the number. See sld-drop-dates.mjs for the cutoff.
+const { drops, removed } = pruneOutlierDrops(built, printings);
+console.log(`[sld] Dropped ${removed.length} number/drop pairs far from the printing's own date`);
 
 const mapped = new Set(drops.flatMap((d) => d.numbers)).size;
 if (drops.length < 300 || mapped < 1500) {
