@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { SortEntry } from '@spellcontrol/binder-routing';
+import { pickClosestDrop, type SortEntry } from '@spellcontrol/binder-routing';
 
 /**
  * Secret Lair drop identification (E140). Scryfall lumps every Secret Lair
@@ -83,18 +83,21 @@ export function dropsForNumber(index: SldDropsIndex, collectorNumber: string): S
  * degrades to today's flat-SLD behavior, and a `useMemo` over the result
  * doesn't invalidate for collections this can't affect.
  *
- * A number sold in more than one drop (the Dan Frazier Talisman pairs) takes
- * the first: a physical card can only sit in one binder section.
+ * A number sold in more than one drop (the Dan Frazier Talisman pairs, or
+ * Ral #523 in 2019-12 and again in 2020-01) takes the drop dated closest to the
+ * printing's own `releasedAt`, since a physical card can only sit in one binder
+ * section. With no `releasedAt` it falls back to the first (newest) drop. That
+ * is why the release-date decoration runs BEFORE this one, here and in the
+ * backend's shared-binder projection.
  */
-export function decorateSldDrops<T extends { setCode: string; collectorNumber: string }>(
-  cards: T[],
-  index: SldDropsIndex | null | undefined
-): T[] {
+export function decorateSldDrops<
+  T extends { setCode: string; collectorNumber: string; releasedAt?: string },
+>(cards: T[], index: SldDropsIndex | null | undefined): T[] {
   if (!index) return cards;
   let touched = false;
   const out = cards.map((card) => {
     if (card.setCode?.toUpperCase() !== SLD_CODE) return card;
-    const drop = dropsForNumber(index, card.collectorNumber)[0];
+    const drop = pickClosestDrop(dropsForNumber(index, card.collectorNumber), card.releasedAt);
     if (!drop) return card;
     touched = true;
     return { ...card, sldDrop: drop.name, sldDropReleasedAt: drop.releasedAt };
@@ -144,10 +147,9 @@ export function bindersUseSldDrops(binders: { sorts: SortEntry[] }[]): boolean {
  * loads. When `usesDrops` is false, returns `cards` by reference — zero cost.
  * Mirrors `useCardsWithTags`; pass `bindersUseSldDrops(binders)`.
  */
-export function useCardsWithSldDrops<T extends { setCode: string; collectorNumber: string }>(
-  cards: T[],
-  usesDrops: boolean
-): T[] {
+export function useCardsWithSldDrops<
+  T extends { setCode: string; collectorNumber: string; releasedAt?: string },
+>(cards: T[], usesDrops: boolean): T[] {
   const index = useSldDrops();
   return useMemo(
     () => (usesDrops ? decorateSldDrops(cards, index) : cards),

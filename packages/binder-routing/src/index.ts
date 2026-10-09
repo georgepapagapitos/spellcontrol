@@ -21,3 +21,4 @@ export * from './rules.js';
 export * from './materialize.js';
 export * from './next-match.js';
 export * from './volumes.js';
+export * from './sld-drops.js';

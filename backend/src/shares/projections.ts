@@ -756,20 +756,24 @@ export function projectBinder(
   const tagged = anyBinderUsesTagRules(binders)
     ? decorateCardsWithTags(rawCards as EnrichedCard[])
     : (rawCards as EnrichedCard[]);
+  // Each printing's own release date: a Release-date sort dates a rolling
+  // container set (SLD/PLST/PRM/SLP/SLC) per printing, so without this the shared
+  // view orders those cards differently from the owner's. Also stamped for a Set
+  // sort, because the drop pick below reads it. Must run BEFORE the drops.
+  const usesDrops = anyBinderUsesSetSorts(binders);
+  const dated =
+    usesDrops || anyBinderUsesReleaseDateSort(binders)
+      ? decorateCardsWithReleaseDates(tagged)
+      : tagged;
   // Same again for Secret Lair drops: a Set / Release-date sort sections an SLD
-  // card by its drop, and only decorated cards carry one.
-  const dropped = anyBinderUsesSetSorts(binders) ? decorateCardsWithSldDrops(tagged) : tagged;
-  // And again for each printing's own release date: a Release-date sort dates a
-  // rolling container set (SLD/PLST/PRM/SLP/SLC) per printing, so without this
-  // the shared view orders those cards differently from the owner's.
-  const dated = anyBinderUsesReleaseDateSort(binders)
-    ? decorateCardsWithReleaseDates(dropped)
-    : dropped;
+  // card by its drop, the one closest to its release date, and only decorated
+  // cards carry one.
+  const dropped = usesDrops ? decorateCardsWithSldDrops(dated) : dated;
   // And for a "Spare copies" rule: which copy is spare is a whole-collection
   // fact, decided by the same binder-routing function the owner's app uses.
   const cards = anyBinderUsesSpareCopies(binders)
-    ? decorateWithSpareCopies(dated, allocatedCopyIds)
-    : dated;
+    ? decorateWithSpareCopies(dropped, allocatedCopyIds)
+    : dropped;
 
   let materialized;
   try {
