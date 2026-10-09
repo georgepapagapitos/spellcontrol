@@ -176,8 +176,6 @@
   margin: 0 0 var(--space-1);
   color: var(--text-muted);
   font-size: var(--text-sm);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
   overflow-wrap: anywhere;
 }
 

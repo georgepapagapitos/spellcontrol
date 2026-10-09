@@ -140,8 +140,6 @@
 
 .play-setup-player legend {
   font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-overline);
   color: var(--text-muted);
   padding: 0 var(--space-1-5);
 }
@@ -303,8 +301,6 @@
 .play-setup-section-title {
   font-size: var(--text-sm);
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-overline);
   color: var(--text-secondary);
   margin: 0;
 }

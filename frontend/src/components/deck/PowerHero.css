@@ -40,8 +40,6 @@
 /* Eyebrow — mirrors .deck-stats-panel-title. */
 .power-hero-eyebrow {
   font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-overline);
   color: var(--text-muted);
 }
 

@@ -320,8 +320,6 @@
 .binder-card-editor-section-label {
   font-size: var(--text-xs);
   color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-overline);
   margin: var(--space-4) 0 var(--space-1-5);
 }
 
@@ -612,8 +610,6 @@
 .add-to-binder-label {
   font-size: var(--text-xs);
   color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-overline);
   margin: 0;
 }
 

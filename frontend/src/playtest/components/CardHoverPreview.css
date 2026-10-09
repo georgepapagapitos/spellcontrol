@@ -72,6 +72,7 @@
   text-transform: uppercase;
   color: #f3f4f6;
   background: rgba(31, 41, 55, 0.92);
+  font-family: var(--font-label);
 }
 
 /* The card's counters at the preview's scale: the enlarged face is ~2.5× a

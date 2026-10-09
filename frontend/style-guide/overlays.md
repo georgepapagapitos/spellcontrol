@@ -392,8 +392,8 @@ The seated pre-start table (`OnlineLobby`, `.lobby-*`) is its own surface, not
 the live board with a Start button in its header. Two regions at >=1024px
 (`grid-template-columns: 22rem minmax(0, 1fr)`):
 
-- **Rail** (left): the join-code ticket at the top, then `GAME SETTINGS`, then
-  `CHAT`. Small-caps section labels. Every settings row is a real field of
+- **Rail** (left): the join-code ticket at the top, then `Game settings`, then
+  `Chat`. Sentence-case section labels. Every settings row is a real field of
   `GameState` the reducer honors (format, starting life, mulligan, starting
   player, seat order, commander damage, poison, turn timer) — host-editable,
   read-only values for everyone else. **A setting the engine can't honor is

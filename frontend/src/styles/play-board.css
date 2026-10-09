@@ -642,6 +642,7 @@
   border-radius: 999px;
   padding: 0.05rem var(--space-1-5);
   margin-left: var(--space-1);
+  font-family: var(--font-label);
 }
 
 .player-panel-subtitle {
@@ -932,6 +933,7 @@
   border: 1px solid var(--pp-accent);
   padding: var(--space-1) var(--space-2-5);
   border-radius: 999px;
+  font-family: var(--font-label);
 }
 
 .player-panel-eliminated-tag {

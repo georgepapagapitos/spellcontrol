@@ -50,8 +50,6 @@
 .pp-highroll-caption {
   font-size: var(--text-sm);
   line-height: 1.2;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
   opacity: 0.85;
 }
 

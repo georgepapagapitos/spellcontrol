@@ -165,6 +165,7 @@
   background: var(--accent);
   border-radius: 999px;
   padding: 1px var(--space-1);
+  font-family: var(--font-label);
 }
 
 /* "(N new)" — arrivals in this seat's public zones since the viewer last
@@ -200,6 +201,7 @@
   border-radius: 999px;
   padding: 1px var(--space-2);
   white-space: nowrap;
+  font-family: var(--font-label);
 }
 
 .opponent-entry__status--playing {

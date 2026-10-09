@@ -35,8 +35,6 @@
   font-size: var(--text-xs);
   font-weight: 600;
   color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 /* Enlarged so the shared total reads across a real table. */

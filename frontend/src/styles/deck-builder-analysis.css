@@ -164,8 +164,6 @@
 
 .deck-stat-label {
   font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-overline);
   color: var(--text-muted);
 }
 
@@ -267,8 +265,6 @@
   font-weight: 700;
   margin: 0;
   color: var(--text-primary);
-  letter-spacing: var(--tracking-overline);
-  text-transform: uppercase;
   scroll-margin-top: 4.5rem;
 }
 
@@ -356,8 +352,6 @@
 .deck-stats-report-eyebrow {
   flex: none;
   font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-overline);
   color: var(--text-muted);
 }
 
@@ -475,8 +469,6 @@
 
 .deck-stats-panel-title {
   font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-overline);
   color: var(--text-muted);
   margin: 0 0 var(--space-2) 0;
 }

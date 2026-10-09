@@ -129,8 +129,6 @@
 .field .field-label {
   font-size: var(--text-xs);
   color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-overline);
   font-family: var(--font-mono);
 }
 

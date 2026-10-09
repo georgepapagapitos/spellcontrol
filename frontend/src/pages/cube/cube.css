@@ -110,8 +110,6 @@
   font-family: var(--font-serif);
   font-size: var(--text-sm);
   color: var(--text-primary);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-overline);
 }
 .cube-saved-list {
   list-style: none;
@@ -324,8 +322,6 @@
   font-family: var(--font-serif);
   font-size: var(--text-sm);
   color: var(--text-primary);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-overline);
 }
 .cube-commanders-empty {
   margin: 0;
@@ -364,8 +360,6 @@
   font-size: var(--text-sm);
   font-weight: inherit;
   color: var(--text-primary);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 @media (pointer: coarse) {
   .cube-commander-coverage-toggle {
@@ -547,8 +541,6 @@
   font-family: var(--font-serif);
   font-size: var(--text-sm);
   color: var(--text-primary);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-overline);
 }
 .cube-legend {
   list-style: none;
@@ -589,8 +581,6 @@
   font-family: var(--font-serif);
   font-size: var(--text-sm);
   color: var(--text-primary);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-overline);
 }
 .cube-draftability {
   display: inline-flex;
@@ -703,8 +693,6 @@
   font-size: var(--text-sm);
   font-weight: inherit;
   color: var(--text-primary);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 @media (pointer: coarse) {
   .cube-health-toggle {
@@ -758,8 +746,6 @@
   margin: 0 0 var(--space-2);
   font-size: var(--text-xs);
   color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-overline);
 }
 .cube-health-rows {
   list-style: none;
@@ -833,8 +819,6 @@
   font-size: var(--text-sm);
   font-weight: inherit;
   color: var(--text-primary);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 @media (pointer: coarse) {
   .cube-draft-sim-toggle {
@@ -994,8 +978,6 @@
   /* A <button> doesn't inherit its <h3>'s weight; match the sibling headings. */
   font-weight: inherit;
   color: var(--text-primary);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 @media (pointer: coarse) {
   .cube-sample-pack-toggle {
@@ -1059,8 +1041,6 @@
   text-align: left;
   font-size: var(--text-sm);
   color: var(--text-primary);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 .cube-group-toggle:focus-visible {
   outline: 2px solid var(--accent);
@@ -1583,8 +1563,6 @@
   font-family: var(--font-serif);
   font-size: var(--text-sm);
   color: var(--text-primary);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-overline);
 }
 .cube-supplier-list {
   list-style: none;
@@ -1662,8 +1640,6 @@
 }
 .section-head-rule h4 {
   font-family: var(--font-serif);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-overline);
   font-size: var(--text-xs);
   color: var(--text-muted);
   margin: 0;
@@ -2080,8 +2056,6 @@
   margin-top: var(--space-2);
   padding-left: var(--space-5);
   font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-overline);
   color: var(--text-muted);
 }
 

@@ -31,8 +31,6 @@
 .game-edit-note {
   margin: 0;
   font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
   color: var(--text-muted);
 }
 
@@ -48,8 +46,6 @@
   margin-bottom: var(--space-2);
   font-size: var(--text-xs);
   font-weight: 600;
-  letter-spacing: var(--tracking-overline);
-  text-transform: uppercase;
   color: var(--text-muted);
 }
 
@@ -101,8 +97,6 @@
 
 .game-edit-winner-out {
   font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
   color: var(--text-muted);
 }
 

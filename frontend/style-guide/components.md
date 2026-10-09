@@ -272,7 +272,7 @@ report. When you write that idiom, write the third line too.
      fifteen independent PRs, each adding one more item without ever looking
      at the whole menu). Group rows into small labeled clusters with hairline
      dividers between them (`DeckEditorOverflowMenu` in `DeckEditorPage.tsx`
-     is the reference — a plain `text-xs`/uppercase/`--text-muted` label
+     is the reference — a plain `text-xs`/sentence-case/`--text-muted` label
      above each cluster, same idiom as `.collection-filters-section-label`);
      keep Undo/Redo unlabeled at top (their own top-of-menu convention
      predates sectioning) and destructive actions unlabeled at the very
@@ -656,7 +656,7 @@ own dashed, ungrouped row last, unchanged from the single-preset case above.
 
 | Piece              | Use it for                                                                                                                                                                                    | Never                                                                   |
 | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Section heading    | The heading over a block of fields. The ONLY uppercase role in a form (`.form-section-heading`).                                                                                              | Field labels or option text in uppercase.                               |
+| Section heading    | The heading over a block of fields. Small, muted, sentence case like a field label (`.form-section-heading`); E595 retired the uppercase.                                                     | Uppercase anywhere in a form.                                           |
 | `Field`            | A sentence-case label, the control, a visible hint.                                                                                                                                           | An InfoTip where one line of hint fits.                                 |
 | `SwitchRow`        | A setting that is on or off: full-width `role="switch"`, label, one-line hint, On / Off value ([§ Table settings](overlays.md#table-settings-holds-preferences-never-game-state-2026-09-24)). | A checkbox for a setting. Checkboxes are for picking items from a list. |
 | `SegmentedControl` | Two or three short options: native radios in a track, raised chip. `fill` for a row of short tokens that must all stay in view (condition grades).                                            | aria-pressed button pairs; options needing a sentence.                  |

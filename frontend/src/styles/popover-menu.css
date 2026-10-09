@@ -69,8 +69,6 @@
   margin: 0 0 var(--space-0-5);
   padding: 0 var(--space-2);
   font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-overline);
   color: var(--text-muted);
 }
 
@@ -108,8 +106,6 @@
 
 .deck-card-menu-new-label {
   font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-overline);
   color: var(--text-muted);
 }
 

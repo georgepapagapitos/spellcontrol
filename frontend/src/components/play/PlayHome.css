@@ -171,8 +171,6 @@
 .play-home-record dt {
   font-size: var(--text-xs);
   color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-overline);
 }
 
 .play-home-record dd {

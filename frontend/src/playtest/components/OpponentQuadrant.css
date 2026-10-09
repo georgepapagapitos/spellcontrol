@@ -229,6 +229,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  font-family: var(--font-label);
 }
 
 .opponent-quadrant__pending {
@@ -399,8 +400,6 @@
 .opponent-quadrant__open-label {
   color: var(--text-muted);
   font-size: var(--text-sm);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
 }
 
 /* Arrow-drawing mode: each permanent becomes a target. The button carries
@@ -438,8 +437,6 @@
 .opponent-quadrant__revealed-label {
   font-size: var(--text-xs);
   font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
   color: var(--text-secondary);
 }
 

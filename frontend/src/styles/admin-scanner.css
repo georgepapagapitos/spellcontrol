@@ -1433,6 +1433,7 @@
   letter-spacing: var(--tracking-overline);
   color: var(--text-muted);
   font-weight: 600;
+  font-family: var(--font-label);
 }
 
 .admin-users-table tr:last-child td {

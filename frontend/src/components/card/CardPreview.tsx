@@ -754,7 +754,8 @@ export function CardPreview({
   if (!isPlaytest && languageLabel)
     copyRows.push({ k: 'Language', v: languageLabel, label: `Language ${languageLabel}` });
   if (!isPlaytest)
-    for (const f of flags) copyRows.push({ k: 'Marked', v: f.toUpperCase(), label: f });
+    for (const f of flags)
+      copyRows.push({ k: 'Marked', v: f.charAt(0).toUpperCase() + f.slice(1), label: f });
   if (pricedAt) copyRows.push({ k: 'Prices', v: `Updated ${pricedAt}` });
   // A deck slot isn't necessarily a card you own; a collection or binder row is.
   const owned = source === 'collection' || source === 'binder';

@@ -77,8 +77,6 @@
   justify-content: space-between;
   color: var(--text-muted);
   font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-overline);
 }
 
 .binder-editor-preview-sections {

@@ -70,7 +70,8 @@ Rakdos stays blood-black). Rulings:
   it). The route may keep a section's path (`/friends`): a path is an
   address, not a label.
 - **`--font-label` scope.** The condensed label face is for chrome, tab, and
-  tape labels ONLY — always uppercase with letter-spacing (0.05–0.12em).
+  tape labels, stamps and tags ONLY — always uppercase with letter-spacing
+  (0.05–0.12em), and the only role that is (E595).
   Body/content text stays `--font-serif`; data stays `--font-mono`. Never set
   `--font-label` on prose, headings, or form controls.
 - **…plus bare numerals in a badge or count pill**, which is the one non-label

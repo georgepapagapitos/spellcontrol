@@ -562,8 +562,6 @@
   padding: var(--space-1) var(--space-2-5) var(--space-0-5);
   font-size: var(--text-xs);
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-overline);
   color: var(--text-muted);
 }
 
@@ -2424,6 +2422,7 @@ i.ss.set-symbol--mythic {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-family: var(--font-label);
 }
 
 .collection-table-th.is-sortable {

@@ -6,13 +6,15 @@ import { dirname, join, relative } from 'node:path';
 
 // Tracking ratchet (T166). Uppercase labels across the app carried eleven
 // different letter-spacing values (0.03em to 0.12em, most of them 0.04em or
-// 0.06em) for what reads as one role. tokens.css now names the overline's
-// tracking, --tracking-overline, and SectionHeader's overline uses it. The
-// rest stay as they are for now; this guard freezes the raw (non-token)
-// letter-spacing declarations per file and only lets the count fall, the
-// same shape as elevation-ratchet.test.ts. A new uppercase label takes
-// var(--tracking-overline); a tape label in --font-label keeps its own
-// wider tracking (§ App chrome) and counts here like any other raw value.
+// 0.06em) for what reads as one role. E595 then retired the uppercase section
+// label altogether (styles/uppercase-role.test.ts): those labels are sentence
+// case with normal tracking, so their raw letter-spacing is gone. What is left
+// is the --font-label role (tape labels, stamps, print-table th), which keeps
+// its own wider tracking (§ App chrome), plus unrelated optical tracking
+// (display numerals, wordmarks). This guard freezes the raw (non-token)
+// letter-spacing declarations per file and only lets the count fall, the same
+// shape as elevation-ratchet.test.ts. Uppercase text that does need tracking
+// takes var(--tracking-overline) beside --font-label.
 //
 //   UPDATE_TRACKING_BASELINE=1 npm test -- src/styles/tracking-ratchet.test.ts
 //
@@ -96,7 +98,7 @@ describe('tracking ratchet (T166)', () => {
     const { rose } = compare();
     expect(
       rose,
-      `Use var(--tracking-overline) (tokens.css) for an uppercase label instead of a raw em value.\n${rose.join('\n')}`
+      `Use var(--tracking-overline) (tokens.css) on a --font-label stamp instead of a raw em value; sentence-case text takes no tracking.\n${rose.join('\n')}`
     ).toEqual([]);
   });
 

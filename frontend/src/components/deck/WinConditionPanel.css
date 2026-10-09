@@ -303,7 +303,5 @@
   margin: var(--space-0-5) 0 var(--space-0-5);
   font-size: var(--text-xs);
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-overline);
   color: var(--text-muted);
 }
