@@ -4,8 +4,10 @@ import {
   clsSessionMax,
   describeError,
   normalizePath,
+  noteVitalsRoute,
   reportError,
   setUsageSuppressed,
+  startVitals,
   track,
 } from './analytics';
 
@@ -166,5 +168,87 @@ describe('track', () => {
     track('play_started');
     await new Promise((r) => setTimeout(r, 0));
     expect(sent).toHaveLength(1);
+  });
+});
+
+describe('startVitals per-route attribution', () => {
+  type Cb = (list: { getEntries: () => PerformanceEntry[] }) => void;
+  let observers: Record<string, { cb: Cb; pending: unknown[] }>;
+  let sent: Record<string, unknown>[];
+  const deliver = (type: string, entries: unknown[]) =>
+    observers[type].cb({ getEntries: () => entries as PerformanceEntry[] });
+  const setVisibility = (state: 'visible' | 'hidden') => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: state });
+    document.dispatchEvent(new Event('visibilitychange'));
+  };
+
+  beforeEach(() => {
+    observers = {};
+    sent = [];
+    class FakeObserver {
+      static supportedEntryTypes = ['largest-contentful-paint', 'layout-shift', 'event'];
+      type = '';
+      constructor(private cb: Cb) {}
+      observe(opts: { type: string }) {
+        this.type = opts.type;
+        observers[opts.type] = { cb: this.cb, pending: [] };
+      }
+      takeRecords() {
+        const p = observers[this.type].pending;
+        observers[this.type].pending = [];
+        return p;
+      }
+    }
+    vi.stubGlobal('PerformanceObserver', FakeObserver);
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+    window.history.pushState({}, '', '/decks/abc123');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_u: string, init: { body: string }) => {
+        sent.push(JSON.parse(init.body));
+        return new Response(null, { status: 204 });
+      })
+    );
+    Object.defineProperty(navigator, 'sendBeacon', { configurable: true, value: undefined });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('gives each route only its own shifts and interactions', () => {
+    startVitals();
+    deliver('largest-contentful-paint', [{ startTime: 1200 }]);
+    deliver('layout-shift', [{ startTime: 100, value: 0.05, hadRecentInput: false }]);
+    deliver('event', [{ duration: 120 }]);
+
+    noteVitalsRoute('/collection/binders/xyz');
+    deliver('layout-shift', [{ startTime: 9000, value: 0.3, hadRecentInput: false }]);
+    // Delivered late: still sitting in the observer when the route changes.
+    observers['event'].pending.push({ duration: 400 });
+
+    noteVitalsRoute('/search');
+    // /search has no shifts or interactions: it sends nothing.
+    setVisibility('hidden');
+
+    const vitals = sent.map((b) => [b.path, b.metric, b.value]);
+    expect(vitals).toEqual([
+      ['/decks/:id', 'LCP', 1200],
+      ['/decks/:id', 'CLS', 0.05],
+      ['/decks/:id', 'INP', 120],
+      ['/collection/binders/:id', 'CLS', 0.3],
+      ['/collection/binders/:id', 'INP', 400],
+    ]);
+  });
+
+  it('flushes the current route when the page is hidden, once', () => {
+    startVitals();
+    noteVitalsRoute('/play');
+    deliver('layout-shift', [{ startTime: 50, value: 0.2, hadRecentInput: false }]);
+    deliver('event', [{ duration: 250 }]);
+    setVisibility('hidden');
+    window.dispatchEvent(new Event('pagehide'));
+    expect(sent.map((b) => [b.path, b.metric, b.value])).toEqual([
+      ['/decks/:id', 'CLS', 0], // the landing route, left with no shifts
+      ['/play', 'CLS', 0.2],
+      ['/play', 'INP', 250],
+    ]);
   });
 });

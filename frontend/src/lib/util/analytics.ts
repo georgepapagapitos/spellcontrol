@@ -176,33 +176,49 @@ export function clsSessionMax(shifts: { startTime: number; value: number }[]): n
   return max;
 }
 
+/** Set by startVitals(); App.tsx calls noteVitalsRoute on every SPA navigation. */
+let routeChanged: ((pathname: string) => void) | null = null;
+
+/** Tell the vitals observer the SPA moved to another route (flushes the one it leaves). */
+export function noteVitalsRoute(pathname: string): void {
+  routeChanged?.(pathname);
+}
+
+// A rapid navigator must not trip the endpoint's 60/min limiter with vitals alone.
+const MAX_VITAL_FLUSHES = 30;
+
 /**
- * Observe the page load's vitals and beacon them once, when the page is
- * first hidden. Attributed to the path the load started on. INP is the
- * slowest interaction seen, which is the web-vitals value for pages with
- * fewer than fifty interactions and slightly pessimistic beyond that.
+ * Observe vitals and beacon them per route. LCP is a load metric, so it is
+ * credited to the landing route once. CLS (largest session window) and INP
+ * (slowest interaction) are flushed for the route they happened on when the
+ * SPA navigates (noteVitalsRoute) and when the page is hidden, then reset for
+ * the next route. A later route with no shifts or interactions sends nothing;
+ * the landing route still sends CLS 0, as before. INP is the slowest
+ * interaction seen, which is the web-vitals value for routes with fewer than
+ * fifty interactions and slightly pessimistic beyond that.
  */
 export function startVitals(): void {
   if (typeof PerformanceObserver === 'undefined' || document.visibilityState === 'hidden') return;
   const supported = PerformanceObserver.supportedEntryTypes ?? [];
-  const path = normalizePath(window.location.pathname);
-  const shifts: { startTime: number; value: number }[] = [];
+  let path = normalizePath(window.location.pathname);
+  let landing = true;
+  let flushes = 0;
+  let shifts: { startTime: number; value: number }[] = [];
   let lcp = -1;
   let inp = -1;
+  const observers: { po: PerformanceObserver; cb: (entries: PerformanceEntry[]) => void }[] = [];
   const observe = (type: string, cb: (entries: PerformanceEntry[]) => void, opts = {}) => {
     if (!supported.includes(type)) return;
     try {
-      new PerformanceObserver((list) => cb(list.getEntries())).observe({
-        type,
-        buffered: true,
-        ...opts,
-      });
+      const po = new PerformanceObserver((list) => cb(list.getEntries()));
+      po.observe({ type, buffered: true, ...opts });
+      observers.push({ po, cb });
     } catch {
       // An observer type the browser lists but refuses is a skipped metric.
     }
   };
   observe('largest-contentful-paint', (entries) => {
-    lcp = entries[entries.length - 1]?.startTime ?? lcp;
+    if (landing) lcp = entries[entries.length - 1]?.startTime ?? lcp;
   });
   observe('layout-shift', (entries) => {
     for (const e of entries as LayoutShiftEntry[]) {
@@ -216,16 +232,34 @@ export function startVitals(): void {
     },
     { durationThreshold: 40 }
   );
-  let sent = false;
   const flush = () => {
-    if (sent || document.visibilityState !== 'hidden') return;
-    sent = true;
-    if (lcp >= 0) send({ name: 'vital', path, metric: 'LCP', value: Math.round(lcp) });
+    if (flushes >= MAX_VITAL_FLUSHES) return;
+    // Entries are delivered asynchronously; drain what the observers still hold
+    // so a late shift lands on the route it happened on, not the next one.
+    for (const { po, cb } of observers) {
+      const pending = po.takeRecords?.() ?? [];
+      if (pending.length) cb(pending);
+    }
+    flushes += 1;
+    if (landing && lcp >= 0) send({ name: 'vital', path, metric: 'LCP', value: Math.round(lcp) });
     if (shifts.length) send({ name: 'vital', path, metric: 'CLS', value: clsSessionMax(shifts) });
-    else if (supported.includes('layout-shift'))
+    else if (landing && supported.includes('layout-shift'))
       send({ name: 'vital', path, metric: 'CLS', value: 0 });
     if (inp >= 0) send({ name: 'vital', path, metric: 'INP', value: Math.round(inp) });
+    landing = false;
+    lcp = -1;
+    shifts = [];
+    inp = -1;
   };
-  document.addEventListener('visibilitychange', flush);
-  window.addEventListener('pagehide', flush);
+  const onHidden = () => {
+    if (document.visibilityState === 'hidden') flush();
+  };
+  routeChanged = (pathname) => {
+    const next = normalizePath(pathname);
+    if (next === path) return;
+    flush();
+    path = next;
+  };
+  document.addEventListener('visibilitychange', onHidden);
+  window.addEventListener('pagehide', onHidden);
 }

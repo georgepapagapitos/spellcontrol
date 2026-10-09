@@ -28,7 +28,7 @@ import { RecoveryBanner } from '@/components/account/RecoveryBanner';
 import { useFirstRunGate } from '@/lib/home/use-first-run-gate';
 import { useTradeSettlement } from '@/lib/trade/use-trade-settlement';
 import { hasEverVisited } from '@/lib/home/first-run';
-import { setUsageSuppressed, track } from '@/lib/util/analytics';
+import { noteVitalsRoute, setUsageSuppressed, track } from '@/lib/util/analytics';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 
 /** Named-export adapter for React.lazy (every page below exports by name). */
@@ -165,6 +165,11 @@ export default function App() {
   useEffect(() => {
     setUsageSuppressed(isAdmin);
   }, [isAdmin]);
+
+  // Vitals are credited to the route they happen on: leaving a route flushes it.
+  useEffect(() => {
+    noteVitalsRoute(pathname);
+  }, [pathname]);
 
   // First-party, cookieless page-view counter (lib/util/analytics). Path only,
   // ids/tokens collapsed client-side, so the server holds nothing per-person.
