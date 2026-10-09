@@ -2,21 +2,22 @@
  * Device-local, once-ever discovery hints for features that shipped without
  * any proactive signal telling the user they exist (the "wedge" audit):
  * the binder-location badge (PR #1344) only appears once a Collection-tab
- * row actually routes to a binder, deck re-sync (PR #1347) is one item
- * among a dozen in the ⋮ overflow menu, and the playtest drag-to-play hint
+ * row actually routes to a binder, and the playtest drag-to-play hint
  * (E484) only appears once a kept hand is actually on the board. Bare
  * localStorage flag per hint:
  * device-local (never synced, same
  * precedent as every other once-only tip in this codebase — see
  * `build-report-seen.ts`), fail-safe to HIDDEN
  * on a storage error (an unwanted popup is worse than a missed one). No
- * registry — this is three hints, so it's three pairs of functions, not a
+ * registry — this is two hints, so it's two pairs of functions, not a
  * config system.
+ *
+ * A deck re-sync hint lived here too until 2026-10. It took a full row above
+ * the deck's stats to pitch a Moxfield/Archidekt merge to decks that never
+ * came from either, so it was dropped; Resync stays in the deck's Edit menu.
  */
-import type { DeckSource } from '@/store/decks';
 
 const BINDER_HINT_KEY = 'sc-hint-binder-location-v1';
-const RESYNC_HINT_KEY = 'sc-hint-deck-resync-v1';
 const PLAYTEST_DRAG_HINT_KEY = 'sc-hint-playtest-drag-v1';
 
 function seen(key: string): boolean {
@@ -47,21 +48,6 @@ export function shouldShowBinderHint(hasBinderMatch: boolean): boolean {
 
 export function dismissBinderHint(): void {
   markSeen(BINDER_HINT_KEY);
-}
-
-/**
- * True for an existing deck with a real mainboard — a brand-new empty deck
- * has nothing to diff a pasted list against yet.
- */
-/** Resync diffs a list pasted from Moxfield or Archidekt, so it only makes
- *  sense on a deck that could have come from one. A generated deck never did:
- *  the hint on a player's first generated deck pointed at nothing. */
-export function shouldShowResyncHint(deckHasCards: boolean, source?: DeckSource): boolean {
-  return deckHasCards && source !== 'generated' && !seen(RESYNC_HINT_KEY);
-}
-
-export function dismissResyncHint(): void {
-  markSeen(RESYNC_HINT_KEY);
 }
 
 /**

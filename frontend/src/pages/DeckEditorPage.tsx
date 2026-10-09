@@ -1,4 +1,3 @@
-import { RefreshCw } from 'lucide-react';
 import { canRegenerate, regenerateHref, regenerateState } from '@/lib/deck/regenerate-prefill';
 import {
   useCallback,
@@ -55,8 +54,6 @@ import type { BinderInfo } from '../components/BinderBadge';
 import { CardSearchPanel, type CardSearchPanelHandle } from '../components/deck/CardSearchPanel';
 import { BuildTimeCoachStrip } from '../components/deck/BuildTimeCoachStrip';
 import { useBuildTimeNudge } from '@/lib/coach/use-build-time-nudge';
-import { WedgeHintStrip } from '../components/deck/WedgeHintStrip';
-import { dismissResyncHint, shouldShowResyncHint } from '@/lib/home/wedge-hints';
 import { DeckCombosPanel, type DeckCombosPanelHandle } from '../components/deck/DeckCombosPanel';
 import { DeckAnalysisPanel } from '../components/deck/DeckAnalysisPanel';
 import { DeckAiReview } from '../components/deck/DeckAiReview';
@@ -730,9 +727,6 @@ export function DeckEditorPage() {
   const [appendOpen, setAppendOpen] = useState(false);
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [resyncOpen, setResyncOpen] = useState(false);
-  // Deck re-sync discovery hint (see lib/home/wedge-hints.ts) — same
-  // dismiss-locally-then-persist shape as the binder hint in CardSearchPanel.
-  const [resyncHintDismissed, setResyncHintDismissed] = useState(false);
   const hasPullSlots =
     !!deck && (deck.cards.length > 0 || deck.sideboard.length > 0 || !!deck.commander);
   // The two printing rows in ⋮ Deck actions show only when they have slots to
@@ -3247,31 +3241,6 @@ export function DeckEditorPage() {
 
       <div className="deck-editor-layout">
         <div className="deck-editor-main">
-          {/* Deck re-sync discovery hint — Deck tab only (it acts on the list,
-              so it has no business above Stats/Power/Coach), and hidden while
-              the add-cards sheet is open so it can never be on screen at the
-              same time as the binder-location hint inside that sheet (at most
-              one wedge-discovery hint visible at once, app-wide). */}
-          {safeView === 'deck' &&
-            !showAddPanel &&
-            !resyncHintDismissed &&
-            shouldShowResyncHint(deck.cards.length > 0, deck.source) && (
-              <WedgeHintStrip
-                icon={<RefreshCw width={16} height={16} aria-hidden />}
-                headline="Keep this decklist in sync"
-                detail="Paste an updated list from Moxfield or Archidekt to diff and merge changes."
-                actionLabel="Resync"
-                onAction={() => {
-                  dismissResyncHint();
-                  setResyncHintDismissed(true);
-                  setResyncOpen(true);
-                }}
-                onDismiss={() => {
-                  dismissResyncHint();
-                  setResyncHintDismissed(true);
-                }}
-              />
-            )}
           <DeckDisplay
             title={deck.name}
             deckId={deck.id}
