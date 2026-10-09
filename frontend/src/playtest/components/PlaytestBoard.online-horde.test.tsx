@@ -440,11 +440,7 @@ describe('PlaytestBoard — a horde at an online table: load states', () => {
         <PlaytestBoard state={seededState()} />
       </MemoryRouter>
     );
-    expect(
-      screen.getByText(
-        "This horde needs a newer version. Reload to join."
-      )
-    ).toBeTruthy();
+    expect(screen.getByText('This horde needs a newer version. Reload to join.')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Reload' })).toBeTruthy();
   });
 
