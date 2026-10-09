@@ -24,13 +24,6 @@
       "components/deck/DeckSizePrompt.css:.deck-size-prompt-title"
     ]
   },
-  "05c1b12ae9": {
-    "size": 2,
-    "locations": [
-      "styles/deck-builder-combos.css:.deck-combos-header-summary",
-      "styles/deck-builder-test-hand.css:.deck-test-hand-header-summary"
-    ]
-  },
   "06d374f354": {
     "size": 12,
     "locations": [
@@ -243,8 +236,8 @@
   "324f6d7067": {
     "size": 2,
     "locations": [
-      "styles/deck-builder-analysis-panel.css:.deck-analysis-suggest-art img",
-      "styles/deck-builder-commander.css:.commander-result-art img"
+      "styles/commander-result.css:.commander-result-art img",
+      "styles/deck-builder-analysis-panel.css:.deck-analysis-suggest-art img"
     ]
   },
   "34f938ef44": {
@@ -323,8 +316,8 @@
       "components/deck/DeckFeedbackSheet.css:.deck-feedback-verdict:hover  [@media (hover: hover) and (pointer: fine)]",
       "components/play/BoardSheets.css:.dice-stepper-btn:hover:not(:disabled)  [@media (hover: hover) and (pointer: fine)]",
       "styles/binder-grid-slots.css:.section-header-toggle:hover  [@media (hover: hover) and (pointer: fine)]",
-      "styles/deck-builder-card-list.css:.deck-row-menu-item:hover:not(:disabled)  [@media (hover: hover) and (pointer: fine)]",
       "styles/forms-banners.css:.btn-link:hover  [@media (hover: hover) and (pointer: fine)]",
+      "styles/popover-menu.css:.deck-row-menu-item:hover:not(:disabled)  [@media (hover: hover) and (pointer: fine)]",
       "styles/shared.css:.feedback-row-main:hover, .feedback-add-result:not(:disabled):hover  [@media (hover: hover) and (pointer: fine)]"
     ]
   },
@@ -392,7 +385,7 @@
     ]
   },
   "5a65eadb90": {
-    "size": 25,
+    "size": 24,
     "locations": [
       "components/binder/BinderVolumesSheet.css:.binder-volumes-list",
       "components/deck/DeckTypeBreakdown.css:.deck-type-breakdown-rows",
@@ -413,7 +406,6 @@
       "pages/SetsPage.css:.sets-list",
       "pages/cube/cube.css:.cube-saved-list",
       "playtest/components/CustomCountersDialog.css:.counters-dialog__active",
-      "styles/deck-builder-analysis-panel.css:.deck-analysis-role-list",
       "styles/deck-builder-analysis.css:.deck-mana-prod",
       "styles/deck-builder-analysis.css:.deck-roles",
       "styles/deck-builder-import-dialog.css:.import-deck-summary-list",
@@ -912,7 +904,7 @@
       "components/deck/PullListSheet.css:.pull-list-titles",
       "components/shared/form.css:.switch-row-text",
       "pages/PodsIndexPage.css:.pods-invited-info",
-      "styles/deck-builder-commander.css:.commander-result-body"
+      "styles/commander-result.css:.commander-result-body"
     ]
   },
   "b8b43fbaf2": {
@@ -998,14 +990,6 @@
     "locations": [
       "playtest/components/OpponentRail.css:.opponent-entry__dot",
       "playtest/components/TableMoments.css:.table-moment__dot"
-    ]
-  },
-  "c962d2b120": {
-    "size": 3,
-    "locations": [
-      "styles/deck-builder-analysis.css:.deck-stats-title",
-      "styles/deck-builder-combos.css:.deck-combos-title",
-      "styles/deck-builder-test-hand.css:.deck-test-hand-title"
     ]
   },
   "ca9c37aff1": {
@@ -1214,7 +1198,7 @@
       "components/trade/TradeComposer.css:.trade-picked-detail",
       "playtest/components/ScrySheet.css:.playtest-scry-face__name",
       "playtest/components/TableSignals.css:.playtest-table-signal__name",
-      "styles/deck-builder-commander.css:.commander-result-type",
+      "styles/commander-result.css:.commander-result-type",
       "styles/playtest.css:.playtest-token-tile__type"
     ]
   },
