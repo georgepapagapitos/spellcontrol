@@ -25,6 +25,8 @@ import type { LandUpgradeMove } from '@/deck-builder/services/deckBuilder/landUp
 import { parsePrice } from '@/deck-builder/services/deckBuilder/costAnalyzer';
 import type { CostSwapRow } from '@/deck-builder/services/deckBuilder/costAnalyzer';
 import type { ComboMatch } from '@/types/combos';
+import { winningResultsFirst } from '@/deck-builder/services/winConditions/detect';
+import type { DeckPayoffs } from '@/deck-builder/services/winConditions/comboPayoffs';
 import type { CrossDeckMove } from './cross-deck-moves';
 import { classifyInclusion } from '@/lib/deck-analysis/inclusion-label';
 import type { BrewCandidate } from '@/deck-builder/services/deckBuilder/brewSlots';
@@ -816,7 +818,8 @@ export function fromCostSwapRow(row: CostSwapRow, ownership?: ChangeOwnership): 
 export function fromComboCompletion(
   match: ComboMatch,
   missingCardName: string,
-  ownership?: ChangeOwnership
+  ownership?: ChangeOwnership,
+  payoffs?: DeckPayoffs
 ): Change {
   const partnerNames = match.combo.cards
     .filter((c) => c.cardName !== missingCardName)
@@ -828,14 +831,19 @@ export function fromComboCompletion(
       ? partnerNames.join(' + ')
       : `${partnerNames.slice(0, 2).join(' + ')} +${partnerNames.length - 2} more`;
   // Show up to 2 produces results so the payoff is clear without overflowing.
-  const produces = match.combo.produces;
+  // The winning results lead (E625), then Spellbook's order.
+  const produces = winningResultsFirst(match.combo.produces, payoffs);
   const resultStr =
     produces.length === 0
       ? 'a combo'
       : produces.length === 1
         ? produces[0]
         : `${produces[0]} + ${produces[1]}${produces.length > 2 ? ` +${produces.length - 2} more` : ''}`;
-  const reason = `Completes ${partnerStr} → ${resultStr}`;
+  // A card that does it alone has no partners to name (E624).
+  const reason =
+    partnerNames.length === 0
+      ? `Does it alone: ${resultStr}`
+      : `Completes ${partnerStr} → ${resultStr}`;
   return {
     id: `combos:${missingCardName}`,
     type: 'add',
