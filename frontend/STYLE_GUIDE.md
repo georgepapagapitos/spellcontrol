@@ -127,14 +127,16 @@ nav, `noindex` (a robots meta while mounted, `Disallow: /dev/` in
 
 - **Theme and type set** switch in the page header, and `?theme=<id>&typeset=<id>`
   sets the same real stores, so a script can photograph any combination.
-- **The nightly diff photographs it.** `scripts/catalog-shots.mjs` shoots one
-  crop per section for every theme and every type set (each against the
-  default of the other; `--matrix full` crosses them), phone and desktop; the nightly journey
-  workflow compares them with the previous run's (`scripts/catalog-diff.mjs`) and
-  goes red on a changed crop, uploading the diff images. No baseline image is
-  committed: the baseline is the last night's artifact. A red run after an
-  intended restyle is expected once; an unintended one is the button that
-  quietly changed color.
+- **Every PR that can change a pixel is diffed against main.**
+  `scripts/catalog-shots.mjs` shoots one crop per section for every theme and
+  every type set (each against the default of the other; `--matrix full`
+  crosses them), phone and desktop. The `Visual catalog` workflow
+  (`visual-catalog.yml`) photographs main's head and the PR's merge commit on
+  the same runner and compares them (`scripts/catalog-diff.mjs`). A PR that
+  changes how a shared component looks fails that check until it carries the
+  `visual-change` label. Review the `catalog-diff` artifact first: changed
+  pixels are red over the dimmed base. A PR that touches no UI files passes at
+  once. No baseline image is committed.
 - **A new primitive adds its catalog entry in the same PR.**
   `src/test/catalog-coverage.test.ts` fails when a component exported from
   `components/shared/` is neither rendered in the catalog nor on that test's

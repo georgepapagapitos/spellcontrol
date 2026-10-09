@@ -1,0 +1,206 @@
+# Visual catalog: a change to how a shared component looks is reviewed and
+# approved on the PR that makes it, not found by the nightly.
+#
+# /dev/catalog renders every shared primitive in every state. This job
+# photographs it (scripts/catalog-shots.mjs: every theme in the default type
+# set plus every type set in the default theme, phone and desktop) on BOTH
+# sides of the PR, on the same runner with the same browser: main's head and
+# the PR's merge commit. Same machine means no cross-machine font or
+# anti-aliasing noise, and building the base here means no stale-baseline race
+# when main moves. scripts/catalog-diff.mjs then compares the two sets.
+#
+# Verdict: a changed crop fails the check unless the PR carries the
+# `visual-change` label (adding it re-runs this job). Review the
+# `catalog-diff` artifact first: changed pixels are red over the dimmed base.
+#
+# The job always runs and always concludes, so it can be a required check (a
+# path-filtered workflow that doesn't run never reports). A first step decides
+# whether the PR touched anything that can change pixels; if not it succeeds
+# at once. Every event recomputes from scratch on purpose: a skipped run on an
+# unrelated label event would otherwise replace an earlier red verdict.
+#
+# Serving: the catalog needs no backend (no API call, no auth), so the built
+# bundle is served by `vite preview` (SPA fallback included). No Postgres, no
+# card-cache ingest. See scripts/photograph-catalog.sh.
+#
+# workflow_dispatch: report-only run of any branch against origin/<base_ref>.
+# The label verdict does not apply.
+name: Visual catalog
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  workflow_dispatch:
+    inputs:
+      base_ref:
+        description: Branch to compare the dispatched ref against
+        required: false
+        default: main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: visual-catalog-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  catalog:
+    name: Visual catalog
+    runs-on: ubuntu-latest
+    # Measured locally: one shot set is ~50 s, a vite build ~2 s. Per side the
+    # CI cost is the cache-restored installs (~1-2 min) plus the shot set, so
+    # about 6-10 min for both; 25 leaves room for a cold npm cache or a slow
+    # registry without letting a hung browser hold a runner for hours.
+    timeout-minutes: 25
+
+    steps:
+      # Full history: the base is the merge commit's first parent (a PR) or
+      # origin/<base_ref> (a dispatch), and the relevance diff needs it.
+      # No LFS: the catalog never scans a card.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Decide whether the change can alter pixels
+        id: scope
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_REF: ${{ inputs.base_ref }}
+        run: |
+          set -euo pipefail
+          head=$(git rev-parse HEAD)
+          if [ "$EVENT" = "pull_request" ]; then
+            # The default pull_request checkout is the merge of the PR into
+            # main's head: its first parent IS main's head.
+            base=$(git rev-parse HEAD^1)
+          else
+            base=$(git rev-parse "origin/${BASE_REF:-main}")
+          fi
+          echo "head=$head" >> "$GITHUB_OUTPUT"
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          git diff --name-only "$base" "$head" > changed-files.txt
+          # Anything that can move a pixel in the catalog: component and style
+          # source, the theme and type-set registries, the HTML shell, fonts,
+          # the dependency manifest, the build config, the photographing
+          # scripts, and this workflow.
+          relevant='^(frontend/src/.*\.(css|tsx)|frontend/src/lib/account/(themes|typesets)\.ts|frontend/index\.html|frontend/public/fonts/.*|frontend/package(-lock)?\.json|frontend/vite\.config\.ts|scripts/(catalog-.*\.mjs|journey-browser\.mjs|photograph-catalog\.sh)|\.github/workflows/visual-catalog\.yml)$'
+          if grep -Eq "$relevant" changed-files.txt; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+            echo "Comparing $base (base) with $head (head)"
+            grep -E "$relevant" changed-files.txt
+          else
+            echo "relevant=false" >> "$GITHUB_OUTPUT"
+            echo "No UI files changed; nothing to photograph." | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        if: steps.scope.outputs.relevant == 'true'
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            frontend/package-lock.json
+
+      # ── Base side (main's head) ─────────────────────────────────────────
+      # Checked out detached over the same directory so each side installs
+      # from its own lockfiles. The head's photographing scripts are overlaid
+      # on the base tree, so both sets are taken by the same code; a theme the
+      # head adds just shows up as an added crop.
+      - name: Check out the base
+        if: steps.scope.outputs.relevant == 'true'
+        env:
+          BASE: ${{ steps.scope.outputs.base }}
+          HEAD: ${{ steps.scope.outputs.head }}
+        run: |
+          git checkout --force --detach "$BASE"
+          git checkout "$HEAD" -- scripts/catalog-shots.mjs scripts/journey-browser.mjs scripts/photograph-catalog.sh
+
+      - name: Build shared packages (base)
+        if: steps.scope.outputs.relevant == 'true'
+        uses: ./.github/actions/build-shared
+
+      - name: Install root dependencies (base)
+        if: steps.scope.outputs.relevant == 'true'
+        uses: ./.github/actions/npm-ci
+        with:
+          flags: --ignore-scripts --no-audit --no-fund
+
+      - name: Install frontend dependencies (base)
+        if: steps.scope.outputs.relevant == 'true'
+        uses: ./.github/actions/npm-ci
+        with:
+          working-directory: frontend
+
+      - name: Photograph the base
+        if: steps.scope.outputs.relevant == 'true'
+        run: bash scripts/photograph-catalog.sh catalog-base
+
+      # ── Head side (the PR's merge commit) ───────────────────────────────
+      - name: Check out the head
+        if: steps.scope.outputs.relevant == 'true'
+        env:
+          HEAD: ${{ steps.scope.outputs.head }}
+        run: git checkout --force --detach "$HEAD"
+
+      - name: Build shared packages (head)
+        if: steps.scope.outputs.relevant == 'true'
+        uses: ./.github/actions/build-shared
+
+      - name: Install root dependencies (head)
+        if: steps.scope.outputs.relevant == 'true'
+        uses: ./.github/actions/npm-ci
+        with:
+          flags: --ignore-scripts --no-audit --no-fund
+
+      - name: Install frontend dependencies (head)
+        if: steps.scope.outputs.relevant == 'true'
+        uses: ./.github/actions/npm-ci
+        with:
+          working-directory: frontend
+
+      - name: Photograph the head
+        if: steps.scope.outputs.relevant == 'true'
+        run: bash scripts/photograph-catalog.sh catalog-head
+
+      # catalog-diff exits 1 on a changed crop and writes its own job summary.
+      # The exit code is captured so the artifacts upload before the verdict.
+      - name: Compare the catalog
+        id: diff
+        if: steps.scope.outputs.relevant == 'true'
+        run: |
+          set +e
+          node scripts/catalog-diff.mjs --baseline catalog-base --current catalog-head --out catalog-diff
+          code=$?
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          # 0 = identical, 1 = something changed; anything else is a broken run.
+          if [ "$code" -gt 1 ]; then exit "$code"; fi
+
+      - name: Upload the catalog diff and both shot sets
+        if: steps.diff.outputs.code == '1'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: catalog-diff
+          path: |
+            catalog-diff
+            catalog-base
+            catalog-head
+          retention-days: 14
+
+      - name: Verdict
+        if: steps.diff.outputs.code == '1'
+        env:
+          EVENT: ${{ github.event_name }}
+          APPROVED: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'visual-change') }}
+        run: |
+          if [ "$EVENT" != "pull_request" ]; then
+            echo "Catalog changed (dispatch run: report only, no label verdict)." | tee -a "$GITHUB_STEP_SUMMARY"
+          elif [ "$APPROVED" = "true" ]; then
+            echo "Catalog changed; approved by the visual-change label." | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::error::This PR changes how a shared component looks. Review the catalog-diff artifact (changed pixels are red), and if the change is intended add the visual-change label; this check re-runs."
+            echo "**Not approved.** Review the catalog-diff artifact, then add the visual-change label if the change is intended." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi

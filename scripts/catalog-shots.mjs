@@ -6,9 +6,9 @@
 //
 //   <out>/<viewport>/<theme>__<typeset>/<section>.png
 //
-// The nightly workflow compares these with the previous run's set
-// (scripts/catalog-diff.mjs). Nothing is committed: the baseline is the last
-// uploaded artifact, so no PNG ever lands in git.
+// The Visual catalog workflow photographs main's head and the PR's merge
+// commit and compares the two sets (scripts/catalog-diff.mjs). Nothing is
+// committed, so no PNG ever lands in git.
 //
 //   node scripts/catalog-shots.mjs --base http://localhost:3737 --out catalog-shots
 //   node scripts/catalog-shots.mjs --themes azorius,obsidian --typesets codex --viewports phone

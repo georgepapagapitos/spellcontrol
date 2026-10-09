@@ -275,7 +275,7 @@ Per workspace, both `frontend` and `backend` also expose `test:watch` and `test:
 
 ## Tests & CI
 
-To add a test, drop a `*.test.ts` (or `*.test.tsx`) file next to the module — Vitest picks it up automatically. CI runs lint, typecheck, tests, and coverage on every push and pull request via GitHub Actions, and Dependabot keeps deps current. Frontend coverage is gated per directory (`frontend/vitest.config.ts` lists the six scopes and their floors); the floors only ever ratchet upward. Every `/api` response carries an `X-Request-Id` header (Fly's own request id when present), and a 500 body includes the same `requestId`, so a problem report can be matched to the server log line that carries it.
+To add a test, drop a `*.test.ts` (or `*.test.tsx`) file next to the module — Vitest picks it up automatically. CI runs lint, typecheck, tests, and coverage on every push and pull request via GitHub Actions, and Dependabot keeps deps current. A PR that changes how a shared component looks also fails the `Visual catalog` check until it carries the `visual-change` label: the check photographs `/dev/catalog` on main and on the PR's merge commit and uploads a `catalog-diff` artifact, which you review before adding the label (see the Component catalog section of `frontend/STYLE_GUIDE.md`). Frontend coverage is gated per directory (`frontend/vitest.config.ts` lists the six scopes and their floors); the floors only ever ratchet upward. Every `/api` response carries an `X-Request-Id` header (Fly's own request id when present), and a 500 body includes the same `requestId`, so a problem report can be matched to the server log line that carries it.
 
 ## License
 
