@@ -181,7 +181,8 @@ export function PriceMoversCard() {
       meta={fresh && movers && data ? whenLabel(movers.day, data.today) : undefined}
       loading={data === undefined}
       empty={!fresh}
-      viewAllHref="/collection"
+      // The trend chart leads the collection's Breakdown drawer, which ?stats opens.
+      viewAllHref="/collection?stats"
       viewAllLabel="View trend"
       className="home-movers-card"
     >
