@@ -99,7 +99,7 @@ describe('BrowseListPage', () => {
       'https://edhrec.com/commanders/week'
     );
     expect(screen.getByRole('link', { name: 'Search' }).getAttribute('href')).toBe('/search');
-    expect(document.title).toContain('Top commanders');
+    await waitFor(() => expect(document.title).toContain('Top commanders'));
   });
 
   it('says plainly when EDHREC was down and the list is an older copy', async () => {

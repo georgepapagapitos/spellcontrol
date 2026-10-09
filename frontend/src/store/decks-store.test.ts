@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   useDecksStore,
   newDeckCard,
@@ -11,6 +11,16 @@ import {
 import { useDeckHistoryStore } from './deck-history';
 import { useToastsStore } from './toasts';
 import type { ScryfallCard } from '@/deck-builder/types';
+
+// Every deck mutation fires a fire-and-forget `import('@/lib/sync')` persist.
+// This file runs in the node environment (no IndexedDB), so the real persist
+// rejected after the test had ended and its logger.warn landed on a closing
+// worker (EnvironmentTeardownError, E425). Persistence is covered by sync's own
+// suite; here it is a resolved no-op so nothing logs late.
+vi.mock('@/lib/sync', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/sync')>()),
+  persistDecksState: vi.fn().mockResolvedValue(undefined),
+}));
 
 function sfCard(name: string, id = 'sf-1'): ScryfallCard {
   return { name, id } as ScryfallCard;
