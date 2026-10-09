@@ -177,6 +177,27 @@ describe('computeHiddenGems — hard gates on the resolved card', () => {
     expect(rows).toHaveLength(0);
   });
 
+  it("gates on the deck's own format: Commander-legal but Brawl-banned is dropped from a Brawl deck only", async () => {
+    // Sol Ring's real oracle legalities: legal in Commander, banned in Brawl.
+    const solRing = sCard('Sol Ring', {
+      type_line: 'Artifact',
+      color_identity: [],
+      legalities: { commander: 'legal', brawl: 'banned', paupercommander: 'not_legal' },
+    });
+    const run = (mtgFormat?: string) =>
+      computeHiddenGems({
+        ...baseOpts,
+        mtgFormat,
+        edhrecData: edhrec([onPage('Sol Ring')]),
+        liftIndex: liftTwo('Sol Ring'),
+        resolveCards: resolverFor([solRing]),
+      });
+    expect(await run('brawl')).toHaveLength(0);
+    expect(await run('paupercommander')).toHaveLength(0);
+    expect((await run('commander')).map((r) => r.name)).toEqual(['Sol Ring']);
+    expect((await run()).map((r) => r.name)).toEqual(['Sol Ring']);
+  });
+
   it('drops lands — that lane belongs to landUpgrades', async () => {
     const rows = await computeHiddenGems({
       ...baseOpts,

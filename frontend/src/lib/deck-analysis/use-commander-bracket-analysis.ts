@@ -417,6 +417,7 @@ export function useCommanderBracketAnalysis(args: Args): {
             cards,
             deckSize: mainboardSize,
             colorIdentity,
+            mtgFormat: deck.format,
             detectedCombos,
             targetBracket,
             oneAwayCombos,
