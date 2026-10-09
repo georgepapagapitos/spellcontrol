@@ -124,26 +124,37 @@ own table.
   scroll. A surface with a deeper stack (Collection: tabs + search + controls)
   measures its own offset and passes `top` inline, which wins over the CSS.
 
-## Phone rows: the name owns line 1 (E602, 2026-10)
+## Phone rows: the name owns the row (E602, 2026-10)
 
-On a phone (up to 599px) a card row, thumbnail or compact, is two lines. Line 1
-is the name at full width, with the quantity and the overflow menu at the
-trailing edge. Line 2 is the muted meta (type glyph, rarity, set chip, mana
-cost) with the price right-aligned. The thumbnail and the menu span both lines.
-The card name is the row's primary content; one line lost it to the chips and
-the price ("Angu…") once the type floor raised them to 12.5px.
+On a phone (up to 599px) the card name is the row's primary content and wins
+the width. Two views, two treatments:
 
-- **CSS only.** `.collection-list-main` and `.collection-list-right` are
-  `display: contents` at this tier, so the row is one grid and `CardRow`'s
-  markup is shared with every wider tier, which keeps its one-line layout.
-  Guard: `styles/collection-phone-row-lines.test.ts`.
+- **Thumbnail rows are two lines.** Line 1 is the name at full width, with the
+  quantity and the overflow menu at the trailing edge. Line 2 is the muted meta
+  (type glyph, rarity, set chip, mana cost) with the price right-aligned. The
+  thumbnail and the menu span both lines.
+- **Compact rows stay one line** at their old height: name, mana cost,
+  quantity, price, menu. The type glyph, rarity and set chip are dropped on
+  phones so the name wins; the thumbnail view still carries them. Compact exists
+  for density, so it does not grow a second line.
+- After the type floor (E594) the chips and the price kept their width on one
+  line and the name truncated to "Angu…".
+
+Mechanics:
+
+- **CSS only.** For thumbnail rows `.collection-list-main` and
+  `.collection-list-right` are `display: contents` at this tier, so the row is
+  one grid and `CardRow`'s markup is shared with every wider tier, which keeps
+  its one-line layout. Guard: `styles/collection-phone-row-lines.test.ts`.
 - **The #CN token drops on phones**, as it already did on a compact row below
-  768px. Set code and rarity stay as the printing-identity floor.
+  768px. Set code and rarity stay on thumbnail rows as the printing-identity
+  floor.
 - **The virtualizer seeds from the tier.** `listRowEstimate(view, phone)` in
-  `card-list-table-config.tsx` returns the measured two-line heights on
-  phones. Re-measure and update them if the row's padding or chip size moves.
+  `card-list-table-config.tsx` returns the measured two-line height for phone
+  thumbnail rows and the one-line height for compact. Re-measure if the row's
+  padding or chip size moves.
 - **The menu's tap target** is the 44px ghost on `.card-edit-btn`, centered on
-  the two-line row, so no extra height is spent on it.
+  the row, so no extra height is spent on it.
 
 ## Collection search hands off to Add cards (T153 decision C, 2026-09-27)
 

@@ -9,7 +9,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const css = readFileSync(join(here, 'collection.css'), 'utf8');
 
 /**
- * Phone card rows are two lines, and the name owns line 1 (E602).
+ * Phone card rows: the name owns the row (E602).
  *
  * After the type floor (E594) the glyph, rarity, set chip, mana cost, menu and
  * price kept their width on a single line and the name took what was left:
@@ -38,46 +38,72 @@ const rule = (selector: string) => {
   return phoneBlock.slice(open + 1, phoneBlock.indexOf('}', open));
 };
 
-describe('phone collection rows — the name owns line 1', () => {
-  it('the row is a two-row grid, for the compact view too', () => {
-    const body = phoneBlock.match(
-      /\.collection-list-row:not\(\.collection-table-row\),\s*\.collection-list\.is-compact[^{]*\{([^}]*)\}/
-    )?.[1];
-    expect(body, 'no grid rule covering both views').toBeTruthy();
+const T = '.collection-list:not(.is-compact) ';
+
+describe('phone collection rows: thumbnail view is two lines', () => {
+  it('the row is a two-row grid that excludes the compact view', () => {
+    const body = rule(`${T}.collection-list-row:not(.collection-table-row)`);
+    expect(body, 'no grid rule for thumbnail rows').toBeTruthy();
     expect(body).toMatch(/display:\s*grid/);
     expect(body).toMatch(/grid-template-rows:\s*auto auto/);
     expect(body).toMatch(/column-gap:\s*0/);
   });
 
   it('main and right dissolve so their children are the grid items', () => {
-    expect(phoneBlock).toMatch(
-      /\.collection-list-main,\s*\.collection-list\.is-compact \.collection-list-main,\s*\.collection-list-right\s*\{\s*display:\s*contents/
-    );
+    const body = rule(`${T}.collection-list-main,
+  ${T}.collection-list-right`);
+    expect(body).toMatch(/display:\s*contents/);
   });
 
   it('the name is on line 1 and the meta, mana and price are on line 2', () => {
-    expect(rule('.collection-list-name')).toMatch(/grid-row:\s*1;/);
-    expect(
-      rule('.collection-list-meta,\n  .collection-list.is-compact .collection-list-meta')
-    ).toMatch(/grid-row:\s*2/);
-    expect(rule('.collection-list-row > .mana-cost-row')).toMatch(/grid-row:\s*2/);
-    expect(rule('.collection-list-price')).toMatch(/grid-row:\s*2/);
+    expect(rule(`${T}.collection-list-name`)).toMatch(/grid-row:\s*1;/);
+    expect(rule(`${T}.collection-list-meta`)).toMatch(/grid-row:\s*2/);
+    expect(rule(`${T}.collection-list-row > .mana-cost-row`)).toMatch(/grid-row:\s*2/);
+    expect(rule(`${T}.collection-list-price`)).toMatch(/grid-row:\s*2/);
   });
 
   it('the thumbnail and the menu span both lines, the menu at the trailing edge', () => {
-    expect(rule('.collection-list-check,\n  .collection-list-thumb')).toMatch(/grid-row:\s*1 \/ 3/);
-    const menu = rule('.collection-list-right > .deck-row-menu');
+    expect(
+      rule(`${T}.collection-list-check,
+  ${T}.collection-list-thumb`)
+    ).toMatch(/grid-row:\s*1 \/ 3/);
+    const menu = rule(`${T}.collection-list-right > .deck-row-menu`);
     expect(menu).toMatch(/grid-row:\s*1 \/ 3/);
     expect(menu).toMatch(/grid-column:\s*6/);
   });
+});
 
-  it('a phone row seed estimate is taller than the one-line tiers', () => {
-    expect(listRowEstimate('list', true)).toBeGreaterThanOrEqual(listRowEstimate('list', false));
-    expect(listRowEstimate('compact', true)).toBeGreaterThan(listRowEstimate('compact', false));
+describe('phone collection rows: compact stays one line', () => {
+  it('compact is never put on the grid', () => {
+    expect(phoneBlock).not.toMatch(
+      /\.collection-list\.is-compact[^{]*\{[^}]*display:\s*(grid|contents)/
+    );
   });
 
-  it('wider tiers keep the one-line estimates', () => {
-    expect(listRowEstimate('list', false)).toBe(66);
+  it('compact drops the type glyph, rarity and set chip so the name wins', () => {
+    expect(rule('.collection-list.is-compact .collection-list-meta')).toMatch(/display:\s*none/);
+  });
+});
+
+describe('phone collection rows: compact reserves nothing for an empty quantity', () => {
+  it('hides the aria-hidden qty cell', () => {
+    expect(rule(".collection-list.is-compact .collection-list-qty[aria-hidden='true']")).toMatch(
+      /display:\s*none/
+    );
+  });
+});
+
+describe('phone collection rows: virtualizer estimates', () => {
+  it('a phone thumbnail row seeds at its two-line height', () => {
+    expect(listRowEstimate('list', true)).toBe(68);
+  });
+
+  it('compact keeps its one-line estimate at every tier', () => {
+    expect(listRowEstimate('compact', true)).toBe(32);
     expect(listRowEstimate('compact', false)).toBe(32);
+  });
+
+  it('wider tiers keep the one-line thumbnail estimate', () => {
+    expect(listRowEstimate('list', false)).toBe(66);
   });
 });
