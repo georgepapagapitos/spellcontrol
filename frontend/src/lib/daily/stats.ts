@@ -89,3 +89,32 @@ export function mergeResults(
   for (const r of [...primary, ...secondary]) if (!byDate.has(r.date)) byDate.set(r.date, r);
   return [...byDate.values()].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
 }
+
+/** A day played within this many days makes someone a regular, for Home's reminder. */
+const REGULAR_DAYS = 7;
+
+export interface DailyReminder {
+  /** The streak today's card would extend; 0 when there's none to keep. */
+  streak: number;
+  /** Guesses already made today, from a guest's local list (the server keeps a signed-in player's). */
+  guessesUsed: number;
+}
+
+/**
+ * Whether Home should remind the player about today's card: only while it's
+ * unfinished, and only for a regular (a result in the last week, or a guess
+ * today). Someone who never plays isn't asked every day; their door is the
+ * hero's ⋮.
+ */
+export function dailyReminder(
+  results: readonly DailyResult[],
+  todayGuesses: number,
+  today: string
+): DailyReminder | null {
+  if (results.some((r) => r.date === today)) return null;
+  let oldest = today;
+  for (let i = 0; i < REGULAR_DAYS; i++) oldest = previousDay(oldest);
+  const regular = todayGuesses > 0 || results.some((r) => r.date >= oldest && r.date < today);
+  if (!regular) return null;
+  return { streak: computeStreak(results, today), guessesUsed: todayGuesses };
+}

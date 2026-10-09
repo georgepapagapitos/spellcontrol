@@ -7,6 +7,7 @@ import {
   ClipboardList,
   FolderPlus,
   Layers,
+  Puzzle,
   Target,
   UserPlus,
   type LucideIcon,
@@ -16,6 +17,7 @@ import { useDecksStore } from '../../store/decks';
 import { useAwaitingFirstPull } from '@/lib/sync/use-awaiting-first-pull';
 import { findPriceTargetHits } from '@/lib/collection/price-alerts';
 import { formatIdentity } from '@/lib/social/display-name';
+import { MAX_GUESSES } from '@/lib/daily/stats';
 import { upcomingGameNights } from '@/lib/home/home-signals';
 import { readHomeShape, rememberHomeShape } from '@/lib/home/home-shape';
 import { Count } from '../shared/Count';
@@ -24,6 +26,7 @@ import type { GameNight } from '@/lib/play/game-nights-api';
 import { formatSlot } from '@/components/play/NightPoll';
 import { CalendarLeaf } from './CalendarLeaf';
 import { useBinderReviewCount } from './use-binder-review-count';
+import { useDailyReminder } from './use-daily-reminder';
 
 const SHAPE_SLOT = 'waiting';
 
@@ -51,7 +54,8 @@ interface Props {
  * Everything on Home that needs an answer from you, in one row: trade offers,
  * friend requests, game nights you haven't replied to, cards waiting to be
  * filed in a binder, want-list cards under your target price, and the setup
- * steps a new account still has left. These used to be scattered through
+ * steps a new account still has left, and today's Daily card for a regular
+ * who hasn't played it yet. These used to be scattered through
  * five cards, most of which were empty most of the time.
  *
  * One line, never wrapping (§ Index-page insight strips): a grid-like row on
@@ -69,12 +73,14 @@ export function WaitingOnYou({ actionRequired, activityLoading, nights, nightsLo
   const decksHydrated = useDecksStore((s) => s.hydrated);
   const awaitingFirstPull = useAwaitingFirstPull();
   const review = useBinderReviewCount();
+  const daily = useDailyReminder();
   const [remembered] = useState(() => readHomeShape()[SHAPE_SLOT]);
 
   const loading =
     activityLoading ||
     nightsLoading ||
     review === null ||
+    daily.loading ||
     hydrating ||
     !decksHydrated ||
     awaitingFirstPull;
@@ -141,6 +147,25 @@ export function WaitingOnYou({ actionRequired, activityLoading, nights, nightsLo
       });
     }
 
+    // Today's card goes before the jobs that keep: it's gone tomorrow.
+    const reminder = daily.reminder;
+    if (reminder) {
+      const detail =
+        reminder.guessesUsed > 0
+          ? `${reminder.guessesUsed} of ${MAX_GUESSES} guesses used`
+          : reminder.streak > 0
+            ? `Keep your ${reminder.streak}-day streak`
+            : "Today's card is up";
+      out.push({
+        key: 'daily',
+        to: '/daily',
+        icon: Puzzle,
+        title: 'Daily card',
+        detail,
+        ariaLabel: `Daily card: ${detail}`,
+      });
+    }
+
     if (review && review.count > 0) {
       out.push({
         key: 'binders',
@@ -199,7 +224,7 @@ export function WaitingOnYou({ actionRequired, activityLoading, nights, nightsLo
       });
     }
     return out;
-  }, [actionRequired, nights, review, lists, cardCount, binderCount, deckCount]);
+  }, [actionRequired, nights, daily.reminder, review, lists, cardCount, binderCount, deckCount]);
 
   useEffect(() => {
     if (!loading) rememberHomeShape(SHAPE_SLOT, tasks.length > 0 ? 1 : 0);

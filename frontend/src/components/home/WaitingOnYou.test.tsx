@@ -34,6 +34,16 @@ vi.mock('./use-binder-review-count', () => ({
   useBinderReviewCount: () => review.value,
 }));
 
+const daily = vi.hoisted(() => ({
+  value: { loading: false, reminder: null } as {
+    loading: boolean;
+    reminder: { streak: number; guessesUsed: number } | null;
+  },
+}));
+vi.mock('./use-daily-reminder', () => ({
+  useDailyReminder: () => daily.value,
+}));
+
 const priceHits = vi.hoisted(() => ({ value: [] as unknown[] }));
 vi.mock('@/lib/collection/price-alerts', () => ({
   findPriceTargetHits: () => priceHits.value,
@@ -138,6 +148,7 @@ beforeEach(() => {
   awaiting.value = false;
   review.value = { count: 0, binderCount: 0 };
   priceHits.value = [];
+  daily.value = { loading: false, reminder: null };
 });
 
 describe('WaitingOnYou', () => {
@@ -282,5 +293,31 @@ describe('WaitingOnYou', () => {
     const pill = container.querySelector('.home-waiting-count');
     expect(pill?.textContent).toBe('2');
     expect(pill?.getAttribute('aria-label')).toBe('2 items');
+  });
+
+  it('waits for the Daily read before settling', () => {
+    daily.value = { loading: true, reminder: null };
+    const { container } = renderWaiting();
+    expect(container.innerHTML).toBe('');
+    expect(readHomeShape()['waiting']).toBeUndefined();
+  });
+
+  it('an unplayed Daily card links to /daily with the streak to keep', () => {
+    daily.value = { loading: false, reminder: { streak: 6, guessesUsed: 0 } };
+    renderWaiting();
+    const link = screen.getByRole('link', { name: 'Daily card: Keep your 6-day streak' });
+    expect(link.getAttribute('href')).toBe('/daily');
+  });
+
+  it('a Daily card in progress says how many guesses are used', () => {
+    daily.value = { loading: false, reminder: { streak: 6, guessesUsed: 2 } };
+    renderWaiting();
+    expect(screen.getByRole('link', { name: 'Daily card: 2 of 6 guesses used' })).toBeTruthy();
+  });
+
+  it('with no streak, the Daily card just says it is up', () => {
+    daily.value = { loading: false, reminder: { streak: 0, guessesUsed: 0 } };
+    renderWaiting();
+    expect(screen.getByRole('link', { name: "Daily card: Today's card is up" })).toBeTruthy();
   });
 });
