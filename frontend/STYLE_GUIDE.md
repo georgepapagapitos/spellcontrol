@@ -379,9 +379,12 @@ meanwhile.
   - A tab with something running on it (Play's Local or Online with a game in
     progress) carries the strip's dot, and its link name says so ("Local, game
     in progress").
-  - One width per hub: Collection and Decks use the wide page, Play the
-    standard page, Social one 760px column. Content under the strip may be narrower, left-aligned with
-    it; it never moves the strip.
+  - One width per hub: Collection and Decks use the wide page, Play and
+    Social the standard page. Social was a 760px column until it left a
+    desktop screen two-thirds empty and the brewer grid one card wide; a
+    list that reads better narrow narrows itself under the strip. Content
+    under the strip may be narrower, left-aligned with it; it never moves the
+    strip.
   - A loading or guest state renders inside the hub page, under the strip,
     never instead of it.
 
@@ -2388,9 +2391,8 @@ CTA, never a silent redirect. (5) A page reached only via a button from its hub 
 itself a hub tab) gets a `BackLink` to that hub, matching its siblings at the same depth
 (`/decks/new`, `/decks/new/brew`, `/decks/compare`; `/decks/new/generate` backs to New deck). A hub
 tab (`/decks/cube`) gets none: see § Layout system → Hub pages. (6) Social hub pages share
-one width through `HubPage` (§ Layout system → Hub pages); a friend's page uses the
-`.social-page-shell` cap in `social-shared.css`, so a new page can't ship uncapped
-(`/pods` did) or a pixel off its siblings.
+one width through `HubPage` (§ Layout system → Hub pages); a friend's page (`.social-page-shell`) and a pod (`.pod-hub`) take the same standard width,
+so the column doesn't narrow between a hub tab and the page it opens.
 
 - **`role="status"` goes on a wrapper, never on a list.** A loading row of
   skeleton tiles is a `<ul>`, and ARIA does not allow `status` on a list

@@ -452,7 +452,7 @@ export function FriendHubPage() {
   ];
 
   return (
-    <div className="friend-hub social-page-shell friend-hub--wide">
+    <div className="friend-hub social-page-shell">
       <BackLink to="/friends" label="Friends" />
       <PageHeader
         title={heading}

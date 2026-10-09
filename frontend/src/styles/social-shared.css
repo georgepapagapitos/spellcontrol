@@ -13,14 +13,13 @@
    pattern. */
 
 /* ── Page shell ─────────────────────────────────────────────────────────── */
-/* The content cap for a friend's page (/friends/:id). The hub tabs
-   (/friends, /trades, /pods) are HubPage roots, which own their width
-   (.hub-page--social, binder-hero.css), so the strip can't shift between
-   them. `width: 100%` is load-bearing next to the auto margins. */
+/* A friend's page (/friends/:id). It takes the standard page width, the
+   same as the Social hub tabs (/friends, /trades, /pods) it is reached
+   from, so the column doesn't jump narrower on the way in. A 640px cap here
+   (960 on the friend hub) and a 760px one on the hub left a third of a
+   desktop screen in use and the brewer grid one card wide. */
 .social-page-shell {
   width: 100%;
-  max-width: 640px;
-  margin-inline: auto;
   padding: var(--space-4);
 }
 
