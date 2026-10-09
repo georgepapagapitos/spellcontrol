@@ -15,6 +15,8 @@
  * Best-effort throughout: a card that doesn't resolve keeps what it had, and
  * the settings check treats unknown data as allowed.
  */
+import { dropExcluded } from './coachExclusions';
+import { notLegalForFormat } from './deckFilters';
 import type { GapAnalysisCard, ScryfallCard } from '@/deck-builder/types';
 import type { SynergySuggestion } from '@/deck-builder/services/synergy/suggest';
 import {
@@ -117,9 +119,13 @@ interface StampableRow {
 }
 
 export interface CandidateSources {
-  gaps?: readonly GapAnalysisCard[];
-  additions?: readonly OptimizeCard[];
-  synergy?: readonly SynergySuggestion[];
+  gaps?: GapAnalysisCard[];
+  additions?: OptimizeCard[];
+  synergy?: SynergySuggestion[];
+  /** The deck's format: rows whose resolved card isn't legal in it are dropped
+   *  in place (EDHREC lists Commander staples that Brawl and Pauper ban, E617).
+   *  A card that doesn't resolve is kept, as everywhere else in this module. */
+  mtgFormat?: string;
   /** Names with no row of their own to stamp (a one-away combo's missing piece). */
   loose?: readonly string[];
   /** This commander's page, for the loose names' play rate. */
@@ -145,9 +151,16 @@ export async function stampCandidateCardData(
   const cards = await resolveCards(names);
   const byName = byLowerName(cards);
   const find = (name: string) => cards.get(name) ?? byName.get(name.toLowerCase());
+  const illegal = (name: string) => {
+    const card = find(name);
+    return !!card?.legalities && notLegalForFormat(card, sources.mtgFormat);
+  };
+  dropExcluded(sources.gaps, (g) => g.name, illegal);
+  dropExcluded(sources.additions, (a) => a.name, illegal);
+  dropExcluded(sources.synergy, (s) => s.cardName, illegal);
   for (const [name, row] of entries) {
     const card = find(name);
-    if (!card) continue;
+    if (!card || illegal(name)) continue;
     const price = getCardPrice(card, 'USD');
     if (row.price == null && price != null) row.price = price;
     if (card.rarity) row.rarity = card.rarity;

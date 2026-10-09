@@ -1117,12 +1117,12 @@ export async function analyzeCommanderDeck(
         undefined
       );
     }
-
-    // Price + rarity of every card Coach may suggest (lib/coach/deck-settings-fit.ts).
+    // Price + rarity (and format legality) of every card Coach may suggest.
     const pageIndex = buildInclusionIndex(edhrecData);
     const suggestionCards = await scryfallBudget(
       stampCandidateCardData(
         {
+          mtgFormat: params.mtgFormat,
           gaps: gapAnalysis,
           additions: optimizeSwaps?.additions,
           synergy: synergyAnalysis?.suggestions,
