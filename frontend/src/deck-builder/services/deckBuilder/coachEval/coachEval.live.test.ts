@@ -487,6 +487,7 @@ function settingsOf(dump: CoachDump): DeckSettings {
   const tb = cz.targetBracket;
   return {
     colorIdentity: dump.colorIdentity,
+    mtgFormat: typeof cz.mtgFormat === 'string' ? cz.mtgFormat : undefined,
     deckBudget: (cz.deckBudget as number | null) ?? null,
     maxCardPrice: (cz.maxCardPrice as number | null) ?? null,
     targetBracket: typeof tb === 'number' ? tb : null,
