@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type CSSProperties } from 'react';
+import { useCallback, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Navigate, useParams } from 'react-router-dom';
 import { Printer, RotateCw } from 'lucide-react';
@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/app-shell/PageHeader';
 import { Button } from '@/components/shared/Button';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { MeterBar } from '@/components/shared/MeterBar';
+import { SelectMenu } from '@/components/overlays/SelectMenu';
 import { Field, SegmentedControl, SwitchRow } from '@/components/shared/form';
 import { useCollectionByCopyId } from '@/lib/collection/allocations';
 import { useAwaitingFirstPull } from '@/lib/sync/use-awaiting-first-pull';
@@ -20,6 +21,22 @@ import {
   type ProxyScope,
   type ProxyTile,
 } from '@/lib/collection/proxy-sheet';
+import {
+  CARD_CORNER_PATH,
+  GAPS_MM,
+  PAGE_MARGIN_MM,
+  PAPERS,
+  SCALES,
+  decklistSections,
+  fullPageScale,
+  readSettings,
+  sheetLayout,
+  writeSettings,
+  type DecklistSection,
+  type PaperId,
+  type PrintSettings,
+  type SheetLayout,
+} from '@/lib/collection/proxy-layout';
 import { useDecksStore } from '@/store/decks';
 import './ProxySheetPage.css';
 
@@ -31,14 +48,8 @@ interface SheetTile extends ProxyTile {
   status: ImageStatus | 'loading';
 }
 
-/**
- * Only while this page is mounted: the printer's margins. An `@page` rule in
- * the page's stylesheet would stay in the document after navigating away (a
- * lazy chunk's CSS is never removed) and change every later print, so it
- * lives in a `<style>` that unmounts with the page. 5 mm leaves room for the
- * 195 × 267 mm sheet (cards plus crop marks) on Letter as well as A4.
- */
-const PAGE_RULE = '@page { size: auto; margin: 5mm; }';
+/** A unitless number as a CSS custom property, scaled by `--u` where it's used. */
+type Vars = CSSProperties & Record<`--${string}`, number>;
 
 const plural = (n: number, one: string, many: string) =>
   `${n.toLocaleString()} ${n === 1 ? one : many}`;
@@ -63,11 +74,30 @@ export function ProxySheetPage() {
 
   // null until the player picks: the default follows whether anything is missing.
   const [scopeChoice, setScopeChoice] = useState<ProxyScope | null>(null);
-  const [skipBasics, setSkipBasics] = useState(true);
+  const [settings, setSettings] = useState(() => readSettings(navigator.language));
   const [includeSideboard, setIncludeSideboard] = useState(false);
   // Keyed by the card's own image URL: every copy of a card shares one load.
   const [attempts, setAttempts] = useState<Record<string, number>>({});
   const [status, setStatus] = useState<Record<string, ImageStatus>>({});
+
+  const update = useCallback(
+    <K extends keyof PrintSettings>(key: K, value: PrintSettings[K]) =>
+      setSettings((prev) => {
+        const next = { ...prev, [key]: value };
+        writeSettings(next);
+        return next;
+      }),
+    []
+  );
+  const { skipBasics, paper, gap, scale, cropMarks, bleed } = settings;
+  const layout = useMemo(
+    () => sheetLayout({ paper, gap, scale, cropMarks, bleed }),
+    [paper, gap, scale, cropMarks, bleed]
+  );
+  const betterScale = useMemo(
+    () => fullPageScale({ paper, gap, scale, cropMarks, bleed }),
+    [paper, gap, scale, cropMarks, bleed]
+  );
 
   const slots = useMemo(
     () => (deck ? proxySlots(deck, includeSideboard) : []),
@@ -93,7 +123,11 @@ export function ProxySheetPage() {
       }),
     [cards, attempts, status]
   );
-  const pages = useMemo(() => chunkPages(tiles), [tiles]);
+  const pages = useMemo(() => chunkPages(tiles, layout.perPage), [tiles, layout.perPage]);
+  const decklist = useMemo(
+    () => (deck && settings.decklist ? decklistSections(deck, includeSideboard) : []),
+    [deck, settings.decklist, includeSideboard]
+  );
 
   const mark = useCallback((src: string, next: ImageStatus) => {
     setStatus((prev) => (prev[src] === next ? prev : { ...prev, [src]: next }));
@@ -150,7 +184,7 @@ export function ProxySheetPage() {
       : [
           plural(cards.length, 'card', 'cards'),
           backFaces > 0 ? plural(backFaces, 'back face', 'back faces') : null,
-          plural(pages.length, 'page', 'pages'),
+          plural(pages.length + (decklist.length > 0 ? 1 : 0), 'page', 'pages'),
         ]
           .filter(Boolean)
           .join(' · ');
@@ -187,17 +221,96 @@ export function ProxySheetPage() {
             />
           </Field>
         )}
-        <SwitchRow label="Skip basic lands" checked={skipBasics} onChange={setSkipBasics} />
-        {hasSideboard && (
-          <SwitchRow
-            label="Include sideboard"
-            checked={includeSideboard}
-            onChange={setIncludeSideboard}
-          />
+        <div className="proxy-sheet-fields">
+          <Field label="Paper">
+            <SelectMenu<PaperId>
+              ariaLabel="Paper"
+              value={paper}
+              onChange={(v) => update('paper', v)}
+              options={(Object.keys(PAPERS) as PaperId[]).map((id) => ({
+                value: id,
+                label: PAPERS[id].label,
+              }))}
+            />
+          </Field>
+          <Field label="Gap">
+            <SegmentedControl<number>
+              ariaLabel="Gap between cards"
+              value={gap}
+              onChange={(v) => update('gap', v)}
+              options={GAPS_MM.map((mm) => ({
+                value: mm,
+                label: mm === 0 ? 'None' : `${mm} mm`,
+              }))}
+            />
+          </Field>
+          <Field label="Scale">
+            <SelectMenu<number>
+              ariaLabel="Scale"
+              value={scale}
+              onChange={(v) => update('scale', v)}
+              options={SCALES.map((pct) => ({
+                value: pct,
+                label: `${pct}%`,
+                itemLabel: pct === 100 ? '100% · real size' : `${pct}%`,
+              }))}
+            />
+          </Field>
+        </div>
+        {betterScale !== undefined && (
+          <p className="proxy-sheet-hint" role="status">
+            {plural(layout.perPage, 'card fits', 'cards fit')} a page with these settings. At{' '}
+            {betterScale}% scale, {fullPerPage(settings)} fit.
+          </p>
         )}
+        <div className="proxy-sheet-switches">
+          <SwitchRow
+            label="Skip basic lands"
+            checked={skipBasics}
+            onChange={(v) => update('skipBasics', v)}
+          />
+          {hasSideboard && (
+            <SwitchRow
+              label="Include sideboard"
+              checked={includeSideboard}
+              onChange={setIncludeSideboard}
+            />
+          )}
+          <SwitchRow
+            label="Crop marks"
+            hint="Lines in the margins to cut along."
+            checked={cropMarks}
+            onChange={(v) => update('cropMarks', v)}
+          />
+          <SwitchRow
+            label="Black corners"
+            hint="Fills each card's rounded corners in black."
+            checked={settings.blackCorners}
+            onChange={(v) => update('blackCorners', v)}
+          />
+          <SwitchRow
+            label="Bleed"
+            hint="A 1 mm black edge around each card, so a cut that drifts shows no white."
+            checked={bleed}
+            onChange={(v) => update('bleed', v)}
+          />
+          <SwitchRow
+            label="Playtest watermark"
+            hint="Marks each card as a playtest card."
+            checked={settings.watermark}
+            onChange={(v) => update('watermark', v)}
+          />
+          <SwitchRow
+            label="Print decklist"
+            hint="Adds a page that lists the deck."
+            checked={settings.decklist}
+            onChange={(v) => update('decklist', v)}
+          />
+        </div>
         {tiles.length > 0 && (
           <p className="proxy-sheet-hint">
-            Set the print scale to 100% so cards come out at real size.
+            In the print dialog, set the scale to 100% so cards come out at the size set here.
+            Choose Save as PDF there to keep a copy.
           </p>
         )}
       </div>
@@ -213,7 +326,9 @@ export function ProxySheetPage() {
           <EmptyState
             tagline="Only basic lands to print."
             hint="Turn off Skip basic lands to print them."
-            actions={<Button onClick={() => setSkipBasics(false)}>Include basic lands</Button>}
+            actions={
+              <Button onClick={() => update('skipBasics', false)}>Include basic lands</Button>
+            }
           />
         )
       ) : (
@@ -251,17 +366,33 @@ export function ProxySheetPage() {
               <li
                 key={p}
                 className="proxy-sheet-page"
+                style={paperVars(layout)}
                 aria-label={`Page ${p + 1} of ${pages.length}`}
               >
-                <div className="proxy-sheet-grid">
-                  {page.map((tile) => (
-                    <ScreenTile key={tile.key} tile={tile} onStatus={mark} onRetry={retry} />
-                  ))}
-                </div>
+                <CardSheet
+                  layout={layout}
+                  settings={settings}
+                  tiles={page}
+                  renderCard={(tile) => <ScreenTile tile={tile} onStatus={mark} onRetry={retry} />}
+                />
               </li>
             ))}
+            {decklist.length > 0 && (
+              <li className="proxy-sheet-page" style={paperVars(layout)} aria-label="Decklist page">
+                <Decklist name={deck.name} sections={decklist} layout={layout} />
+              </li>
+            )}
           </ol>
-          {createPortal(<PrintSheet pages={pages} />, document.body)}
+          {createPortal(
+            <PrintSheet
+              pages={pages}
+              layout={layout}
+              settings={settings}
+              deckName={deck.name}
+              decklist={decklist}
+            />,
+            document.body
+          )}
         </>
       )}
     </div>
@@ -317,46 +448,165 @@ function ScreenTile({
   );
 }
 
-/** Crop-mark offsets: the grid's four column edges and four row edges. */
-const EDGES = [0, 1, 2, 3];
+const fullPerPage = (settings: PrintSettings) =>
+  sheetLayout({ ...settings, scale: 100, gap: 0, bleed: false }).perPage;
+
+/** The paper's size, for the screen preview's proportions and its mm unit. */
+const paperVars = (layout: SheetLayout): Vars => ({
+  '--paper-w': layout.paper.width,
+  '--paper-h': layout.paper.height,
+  '--margin': PAGE_MARGIN_MM,
+});
+
+/**
+ * One page of cards, laid out in millimetres scaled by `--u`: 1 mm on paper,
+ * a fraction of the preview's width on screen. Crop marks sit under the cards,
+ * so only the part in the margins and gaps shows.
+ */
+function CardSheet({
+  layout,
+  settings,
+  tiles,
+  renderCard,
+  className = 'proxy-layout',
+}: {
+  layout: SheetLayout;
+  settings: PrintSettings;
+  tiles: SheetTile[];
+  renderCard: (tile: SheetTile) => ReactNode;
+  className?: string;
+}) {
+  const vars: Vars = {
+    '--w': layout.width,
+    '--h': layout.height,
+    '--cw': layout.card.width,
+    '--ch': layout.card.height,
+    '--bleed': layout.bleed,
+  };
+  // A part-filled page cuts only the rows it uses: the vertical cuts stop the
+  // same mark-room below its last row as below a full page's.
+  const { cells, card, cols } = layout;
+  const lastRowBottom = cells[(Math.ceil(tiles.length / cols) - 1) * cols].y + card.height;
+  const markBelow = layout.height - cells[cells.length - 1].y - card.height;
+  const cutsY = layout.cutsY.filter((at) => at <= lastRowBottom + 1e-6);
+  return (
+    <div className={className} style={vars}>
+      {settings.cropMarks &&
+        layout.cutsX.map((at) => (
+          <span
+            key={`x${at}`}
+            className="proxy-cut is-x"
+            style={{ '--at': at, '--end': lastRowBottom + markBelow } as Vars}
+          />
+        ))}
+      {settings.cropMarks &&
+        cutsY.map((at) => (
+          <span key={`y${at}`} className="proxy-cut is-y" style={{ '--at': at } as Vars} />
+        ))}
+      {tiles.map((tile, i) => (
+        <div
+          key={tile.key}
+          className="proxy-cell"
+          style={{ '--x': layout.cells[i].x, '--y': layout.cells[i].y } as Vars}
+        >
+          {layout.bleed > 0 && <span className="proxy-bleed" aria-hidden="true" />}
+          {renderCard(tile)}
+          {settings.blackCorners && (
+            <svg
+              className="proxy-corners"
+              viewBox="0 0 63 88"
+              preserveAspectRatio="none"
+              aria-hidden="true"
+            >
+              <path d={CARD_CORNER_PATH} fillRule="evenodd" />
+            </svg>
+          )}
+          {settings.watermark && (
+            <span className="proxy-watermark" aria-hidden="true">
+              Playtest card
+            </span>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Decklist({
+  name,
+  sections,
+  layout,
+}: {
+  name: string;
+  sections: DecklistSection[];
+  layout: SheetLayout;
+}) {
+  return (
+    <div className="proxy-decklist" style={{ '--dw': layout.printableWidth } as Vars}>
+      <h2 className="proxy-decklist-title">{name}</h2>
+      {sections.map((section) => (
+        <section key={section.title} className="proxy-decklist-section">
+          <h3>
+            {section.title} · {section.lines.reduce((n, line) => n + line.qty, 0)}
+          </h3>
+          <ul>
+            {section.lines.map((line) => (
+              <li key={line.name}>
+                {line.qty} {line.name}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </div>
+  );
+}
 
 /**
  * The full-size copy that actually prints. Hidden on screen; the screen
- * previews above it are what the player sees and acts on.
+ * previews above it are what the player sees and acts on. The `@page` rule
+ * lives here, not in the stylesheet, so it unmounts with the page: a lazy
+ * chunk's CSS stays in the document after navigating away and would change
+ * every later print.
  */
-function PrintSheet({ pages }: { pages: SheetTile[][] }) {
+function PrintSheet({
+  pages,
+  layout,
+  settings,
+  deckName,
+  decklist,
+}: {
+  pages: SheetTile[][];
+  layout: SheetLayout;
+  settings: PrintSettings;
+  deckName: string;
+  decklist: DecklistSection[];
+}) {
+  const { width, height } = layout.paper;
   return (
     <div className="proxy-print" aria-hidden="true">
-      <style>{PAGE_RULE}</style>
+      <style>{`@page { size: ${width}mm ${height}mm; margin: ${PAGE_MARGIN_MM}mm; }`}</style>
       {pages.map((page, p) => (
-        <section key={p} className="proxy-print-page">
-          {EDGES.map((i) => (
-            <span
-              key={`v${i}`}
-              className="proxy-print-tick is-col"
-              style={{ '--edge': i } as CSSProperties}
-            />
-          ))}
-          {EDGES.map((i) => (
-            <span
-              key={`h${i}`}
-              className="proxy-print-tick is-row"
-              style={{ '--edge': i } as CSSProperties}
-            />
-          ))}
-          <div className="proxy-print-grid">
-            {page.map((tile) =>
-              tile.src && tile.status !== 'failed' ? (
-                <img key={tile.key} className="proxy-print-card" src={tile.src} alt="" />
-              ) : (
-                <div key={tile.key} className="proxy-print-card proxy-print-blank">
-                  {tile.name}
-                </div>
-              )
-            )}
-          </div>
-        </section>
+        <CardSheet
+          key={p}
+          className="proxy-layout proxy-print-page"
+          layout={layout}
+          settings={settings}
+          tiles={page}
+          renderCard={(tile) =>
+            tile.src && tile.status !== 'failed' ? (
+              <img className="proxy-print-card" src={tile.src} alt="" />
+            ) : (
+              <div className="proxy-print-card proxy-print-blank">{tile.name}</div>
+            )
+          }
+        />
       ))}
+      {decklist.length > 0 && (
+        <div className="proxy-print-page proxy-print-decklist">
+          <Decklist name={deckName} sections={decklist} layout={layout} />
+        </div>
+      )}
     </div>
   );
 }

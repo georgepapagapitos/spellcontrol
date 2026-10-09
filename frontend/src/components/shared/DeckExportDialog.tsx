@@ -13,6 +13,7 @@ const EXPORT_FORMAT_LABEL: Record<ExportFormat, string> = {
   plain: 'Plaintext',
   moxfield: 'Moxfield',
   mtgo: 'MTGO',
+  mpc: 'MPC Autofill',
 };
 
 interface Props {
@@ -89,7 +90,11 @@ export function DeckExportDialog({ text, format, onFormatChange, title, onClose 
               value: f,
               label: EXPORT_FORMAT_LABEL[f],
               itemLabel:
-                f === 'mtgo' ? `${EXPORT_FORMAT_LABEL[f]} (.dek file for Magic Online)` : undefined,
+                f === 'mtgo'
+                  ? `${EXPORT_FORMAT_LABEL[f]} (.dek file for Magic Online)`
+                  : f === 'mpc'
+                    ? `${EXPORT_FORMAT_LABEL[f]} (search list for printing proxies)`
+                    : undefined,
             }))}
           />
           <span className="export-dialog-meta">
