@@ -71,6 +71,8 @@ export interface GenerationContext {
   onProgress?: (message: string, percent: number) => void;
   /** Overrides the whole-deck search's wall-clock cap (tests; a slow-device probe). */
   searchTimeBudgetMs?: number;
+  /** Caps the whole-deck search's applied swaps (tests that compare runs; unset = the optimizer's own cap). */
+  searchMaxSwaps?: number;
 }
 
 // Immutable config snapshot — verbatim from generateDeck's top-of-body derivations.

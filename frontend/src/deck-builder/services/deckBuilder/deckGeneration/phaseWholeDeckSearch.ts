@@ -81,6 +81,8 @@ export interface WholeDeckSearchInput {
   surplusCuts?: readonly string[];
   /** Overrides SEARCH_TIME_BUDGET_MS (tests). */
   timeBudgetMs?: number;
+  /** Overrides the optimizer's swap cap (tests). */
+  maxSwaps?: number;
 }
 
 /** One swap as the build report records a swap: what left, what came in, and why. */
@@ -215,6 +217,7 @@ export async function wholeDeckSearchPhase(
       landUpgrades: !!ctx.ownedNames,
       trust: { roleCeilings },
       timeBudgetMs: input.timeBudgetMs ?? SEARCH_TIME_BUDGET_MS,
+      ...(input.maxSwaps !== undefined ? { maxSwaps: input.maxSwaps } : {}),
     },
     (beat) => {
       const done = Math.max(beat.evaluations / beat.maxEvaluations, beat.swaps / MAX_SWAPS);
