@@ -455,6 +455,7 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
           lookupCardsTool(cache, {
             colorIdentity: commanderIdentity(cache, commandZone(request)),
             exclude: [...commandZone(request), ...request.cards.map((c) => c.name)],
+            format: request.format,
             ...scoped,
           }),
         ],
@@ -808,6 +809,7 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
   const searchContext = {
     colorIdentity: commanderIdentity(cache, commandZone(request)),
     exclude: [...commandZone(request), ...request.cards.map((c) => c.name)],
+    format: request.format,
     ...scoped,
   };
   const resolveCandidate = makeCandidateResolver(cache, searchContext);

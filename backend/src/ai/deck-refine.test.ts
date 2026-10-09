@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { parseDeckReviewRequest } from './deck-review';
 import {
   MAX_TWEAKS,
   STRATEGY_MARK,
@@ -19,6 +20,7 @@ const REQ: RefineRequest = {
   pool: [card('Boros Signet'), card('Orzhov Signet'), card('Burnished Hart')],
   scope: 'any',
   currency: 'usd',
+  format: 'commander',
   ownedOnly: false,
   analysis: { totalNonCommander: 13 },
 };
@@ -380,5 +382,31 @@ describe('parseRefineOutput — the research narration never reaches the reader'
   it('reads a reply with no marker unchanged — cached v3 rows still render', () => {
     const out = parseRefineOutput(reply('Your deck cheats fatties in.', []), REQ);
     expect(out.strategy).toBe('Your deck cheats fatties in.');
+  });
+});
+
+describe('deck format on the AI request schemas (E612)', () => {
+  it('keys the refine hash by a non-commander format only', () => {
+    expect(hashRefineInput({ ...REQ, format: 'brawl' })).not.toBe(hashRefineInput(REQ));
+    expect(hashRefineInput({ ...REQ, format: 'commander' })).toBe(hashRefineInput(REQ));
+  });
+
+  const base = {
+    deckId: 'd1',
+    commander: 'Kaalia of the Vast',
+    cards: [{ name: 'Sol Ring', oracleId: 'o', qty: 1 }],
+    pool: [],
+    analysis: {},
+  };
+
+  it('defaults to commander, accepts a known format, rejects an unknown one', () => {
+    for (const parse of [parseRefineRequest, parseDeckReviewRequest]) {
+      const none = parse(base);
+      expect(none.ok && none.value.format).toBe('commander');
+      const brawl = parse({ ...base, format: 'brawl' });
+      expect(brawl.ok && brawl.value.format).toBe('brawl');
+      expect(parse({ ...base, format: 'duel-commander' }).ok).toBe(false);
+      expect(parse({ ...base, format: 5 }).ok).toBe(false);
+    }
   });
 });

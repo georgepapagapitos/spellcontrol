@@ -218,6 +218,7 @@ export function DeckAiRefine({
         pool,
         scope,
         currency: aiPriceCurrency(),
+        format,
         analysis,
       },
       setStreamed,

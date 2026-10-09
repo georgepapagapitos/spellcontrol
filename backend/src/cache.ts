@@ -58,6 +58,19 @@ export interface PriceCeiling {
   currency: 'usd' | 'eur';
 }
 
+/** Scryfall legality keys a search may filter on (the deck formats the app builds). */
+export const LEGALITY_KEYS: ReadonlySet<string> = new Set([
+  'commander',
+  'brawl',
+  'paupercommander',
+  'standard',
+  'pauper',
+  'modern',
+  'pioneer',
+  'legacy',
+  'vintage',
+]);
+
 export interface CardSearchOptions {
   /** Plain-language effect text. Not FTS5 syntax — see {@link toMatchExpression}. */
   query: string;
@@ -65,6 +78,13 @@ export interface CardSearchOptions {
   colorIdentity?: readonly string[];
   /** Restrict to cards legal in Commander. */
   commanderLegalOnly?: boolean;
+  /**
+   * Restrict to cards legal in this Scryfall legality key (e.g. 'brawl'). For
+   * non-Commander formats only: the index carries just a Commander bit, so
+   * this joins `cards` and reads the key out of the stored JSON. The key must
+   * come from a closed list ({@link LEGALITY_KEYS}); anything else is ignored.
+   */
+  legalityKey?: string;
   /** Substring match on the type line, e.g. 'Instant', 'Land'. */
   typeLine?: string;
   /** Names to exclude — the deck's own cards, so results are things it lacks. */
@@ -677,7 +697,14 @@ export class ScryfallCache {
     // a ceiling joins the card rows and takes the cheapest fresh printing per
     // oracle card. NULLIF guards the CAST: '' would cast to 0 and read as free.
     const ceiling = options.maxPrice;
-    const from = ceiling ? 'card_search JOIN cards USING (scryfall_id)' : 'card_search';
+    const legalityKey =
+      options.legalityKey && LEGALITY_KEYS.has(options.legalityKey) ? options.legalityKey : null;
+    // The key is validated against a closed list above, so splicing it into the
+    // JSON path is safe (SQLite cannot bind a JSON path inside the literal).
+    if (legalityKey)
+      where.push(`json_extract(cards.data, '$.legalities.${legalityKey}') = 'legal'`);
+    const from =
+      ceiling || legalityKey ? 'card_search JOIN cards USING (scryfall_id)' : 'card_search';
     // The JSON path is one of two literals, never the caller's string.
     const priceCol = ceiling?.currency === 'eur' ? '$.prices.eur' : '$.prices.usd';
     const having = ceiling

@@ -377,6 +377,31 @@ export function parseAiScope(scope: unknown, ownedOnly?: unknown): AiScope {
   return ownedOnly === true ? 'owned' : 'any';
 }
 
+/** Deck formats the AI requests accept; each is also its Scryfall legality key. */
+export const AI_DECK_FORMATS = [
+  'commander',
+  'brawl',
+  'paupercommander',
+  'standard',
+  'pauper',
+  'modern',
+  'pioneer',
+  'legacy',
+  'vintage',
+] as const;
+export type AiDeckFormat = (typeof AI_DECK_FORMATS)[number];
+
+/** Optional deck format: absent means Commander (old clients); unknown is rejected. */
+export function parseDeckFormat(
+  value: unknown
+): { ok: true; value: AiDeckFormat } | { ok: false; error: string } {
+  if (value === undefined || value === null) return { ok: true, value: 'commander' };
+  if (typeof value === 'string' && (AI_DECK_FORMATS as readonly string[]).includes(value)) {
+    return { ok: true, value: value as AiDeckFormat };
+  }
+  return { ok: false, error: 'Invalid format.' };
+}
+
 export interface DeckReviewRequest {
   deckId: string;
   commander: string;
@@ -388,6 +413,8 @@ export interface DeckReviewRequest {
   scope: AiScope;
   /** The player's display currency; only the `budget` scope reads it. */
   currency: PriceCurrency;
+  /** The deck's format; decides which cards count as legal suggestions. */
+  format: AiDeckFormat;
   /** The frontend's DeckAnalysisResult — opaque here; rendered defensively. */
   analysis: Record<string, unknown>;
 }
@@ -457,6 +484,8 @@ export function parseDeckReviewRequest(
   if (JSON.stringify(b.analysis).length > MAX_ANALYSIS_JSON_BYTES) {
     return { ok: false, error: 'analysis is too large.' };
   }
+  const format = parseDeckFormat(b.format);
+  if (!format.ok) return format;
   return {
     ok: true,
     value: {
@@ -466,6 +495,7 @@ export function parseDeckReviewRequest(
       cards,
       scope: parseAiScope(b.scope),
       currency: parseCurrency(b.currency),
+      format: format.value,
       analysis: b.analysis as Record<string, unknown>,
     },
   };
@@ -515,6 +545,8 @@ export function hashDeckReviewInput(req: DeckReviewRequest): string {
     // Only a EUR budget is a different question; USD budget readings written
     // before currencies existed keep their key, and no other scope reads it.
     currency: req.scope === 'budget' && req.currency === 'eur' ? 'eur' : undefined,
+    // Omitted for Commander so every reading written before formats keep its key.
+    format: req.format === 'commander' ? undefined : req.format,
     analysis: req.analysis,
   });
   return crypto.createHash('sha256').update(canonical).digest('hex');

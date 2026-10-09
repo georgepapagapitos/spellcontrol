@@ -50,6 +50,8 @@ export interface DeckRefinePayload {
   scope: AiScope;
   /** Display currency; the server reads it only under the `budget` scope. */
   currency: AiPriceCurrency;
+  /** The deck's format key; the server judges suggestions legal in it (absent = Commander). */
+  format?: string;
   analysis: AiAnalysisPayload;
 }
 
