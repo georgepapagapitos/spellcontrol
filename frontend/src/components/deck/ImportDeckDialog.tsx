@@ -41,6 +41,7 @@ import {
 import { DECK_NAME_MAX } from '@/lib/deck/deck-name';
 import { userMessage } from '@/lib/util/user-error';
 import { Button, IconButton } from '@/components/shared/Button';
+import '@/styles/deck-builder-deck-extras.css';
 interface Props {
   onClose: () => void;
   /** Initial / fallback format selection. The user can change it per deck. */

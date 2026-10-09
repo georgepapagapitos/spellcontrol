@@ -2,6 +2,7 @@ import { useCallback, useId, useState, type ReactNode } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, Download, Hand, Package, Plus, Wand2 } from 'lucide-react';
 // New-deck-only stylesheets ship with this chunk, not the boot payload (E265).
+import '@/styles/deck-builder-deck-extras.css';
 import '@/styles/deck-builder-import-dialog.css';
 import './DeckNewPage.css';
 import { ImportDeckDialog } from '../components/deck/ImportDeckDialog';

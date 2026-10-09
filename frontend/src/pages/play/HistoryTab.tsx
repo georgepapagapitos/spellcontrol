@@ -13,6 +13,7 @@ import { aggregateMatchupRecords } from '@/lib/play/matchup-records';
 import type { GameRecord } from '@/lib/play/game-state';
 import { coopResultLabel } from '@/lib/horde/horde-records';
 import { Button, IconButton } from '@/components/shared/Button';
+import '@/styles/social-shared.css';
 
 type HistoryFilter = 'all' | 'local' | 'online';
 

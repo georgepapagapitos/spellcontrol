@@ -147,6 +147,7 @@ export type {
   AnalysisTabId,
   DeckView,
 } from './deck-display-types';
+import '@/styles/deck-builder-deck-extras.css';
 
 /** Renders its children into `slot` when one is given, else in place. */
 function InSlot({ slot, children }: { slot?: HTMLElement | null; children: ReactNode }) {

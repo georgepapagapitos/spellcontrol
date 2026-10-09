@@ -1,3 +1,4 @@
+import '@/styles/social-shared.css';
 import './TradesPage.css';
 import { HubPage } from '@/components/app-shell/HubPage';
 import { useCallback, useEffect, useState } from 'react';

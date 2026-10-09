@@ -1,3 +1,4 @@
+import '@/styles/social-shared.css';
 import './PodsIndexPage.css';
 import { HubPage } from '@/components/app-shell/HubPage';
 import { useCallback, useEffect, useId, useState } from 'react';

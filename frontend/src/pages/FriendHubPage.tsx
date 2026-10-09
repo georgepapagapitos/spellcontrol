@@ -1,3 +1,4 @@
+import '@/styles/social-shared.css';
 import './FriendHubPage.css';
 import { PageHeader } from '@/components/app-shell/PageHeader';
 import { useEffect, useMemo, useState } from 'react';

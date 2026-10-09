@@ -1,3 +1,4 @@
+import '@/styles/social-shared.css';
 import './H2HSummary.css';
 import { StackedBar } from '../shared/MeterBar';
 import { formatIdentity } from '@/lib/social/display-name';
