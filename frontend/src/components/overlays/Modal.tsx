@@ -142,6 +142,9 @@ export function Modal({
       // Only the topmost overlay handles keys — see useOverlayLayer.
       if (!isTopmost()) return;
       if (e.key === 'Escape') {
+        // An inline picker that closed its own list claimed this key (see
+        // useSheetExit, which applies the same rule to sheets).
+        if (e.defaultPrevented) return;
         if (dismissableRef.current) beginClose();
         return;
       }

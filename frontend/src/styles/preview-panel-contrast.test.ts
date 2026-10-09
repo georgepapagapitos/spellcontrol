@@ -245,4 +245,17 @@ describe('card-preview panel: honors prefers-contrast: more', () => {
     );
     expect(parseColor(panel['border-strong'])[3]).toBeGreaterThan(parseColor(panel['border'])[3]);
   });
+  // The remap above only reaches text that reads the token. Eyebrows, the
+  // context line and kv labels once painted a literal white-alpha, so they
+  // stayed at 55% under high contrast (the browser check of E489 caught it).
+  it('muted-text rules read the token, not a literal white-alpha', () => {
+    const literal: string[] = [];
+    for (const m of panelCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      const color = m[2].match(/(?:^|[\s;])color:\s*rgb\(255 255 255 \/ (\d+)%\)/);
+      if (color && +color[1] >= 50 && +color[1] <= 55) literal.push(m[1].trim());
+    }
+    // .card-preview-set-code paints 50% by design and is lifted in the media block.
+    expect(literal).toEqual(['.card-preview-set-code']);
+    expect(rule).toContain('.card-preview-panel .card-preview-set-code {');
+  });
 });
