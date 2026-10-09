@@ -227,6 +227,20 @@ export function comboEndsGame(results: string[], payoffs?: DeckPayoffs): boolean
   );
 }
 
+/**
+ * A line's results with the ones that end the game first: each label comboBucket
+ * counts as winning, or that the deck's payoff converts (`loopConverts`); the
+ * rest keep Spellbook's order after them. Great Henge + Viscera Seer lists
+ * "Infinite scry 1" first and wins only through "Infinite death triggers", so
+ * a row naming the first label promised a result that doesn't win (E625).
+ * Same labels, same count: only the order moves.
+ */
+export function winningResultsFirst(results: string[], payoffs?: DeckPayoffs): string[] {
+  const wins = (label: string) =>
+    comboBucket([label]) !== 'other' || (payoffs !== undefined && loopConverts([label], payoffs));
+  return [...results.filter(wins), ...results.filter((l) => !wins(l))];
+}
+
 // ── Voltron heuristic ────────────────────────────────────────────────────────
 
 const EVASION_KW = ['flying', 'trample', 'menace', 'shadow', 'fear', 'intimidate', 'unblockable'];

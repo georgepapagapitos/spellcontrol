@@ -28,7 +28,12 @@ import { useOwnedCardThumb } from '@/lib/cards/owned-printing';
 import { classifyInclusion } from '@/lib/deck-analysis/inclusion-label';
 import { buildCoachChanges } from '@/lib/coach/coach-changes';
 import { isOffMetaChange, type Change, type ChangeOwnership } from '@/lib/coach/deck-change';
-import { rankCoachMoves, type CoachContext, diversifyRankedMoves } from '@/lib/coach/coach-rank';
+import {
+  rankCoachMoves,
+  type CoachContext,
+  dedupeRankedAdds,
+  diversifyRankedMoves,
+} from '@/lib/coach/coach-rank';
 import { cutLane, isPairedCut } from '@/lib/coach/coach-cut-swaps';
 import { useCutSwaps, type CutSwapSources } from '@/lib/coach/use-cut-swaps';
 import { usePlanJudge } from '@/lib/coach/use-plan-judge';
@@ -450,7 +455,7 @@ export function CoachFeed({
   );
 
   // Rank, then dedupe add-type rows by card name keeping the highest-ranked
-  // occurrence — mergeImprove only dedupes the three improve sources, so a card
+  // slot (a winning combo completion takes that slot's content) — mergeImprove only dedupes the three improve sources, so a card
   // suggested by both (say) the gap engine and a combo completion would
   // otherwise render twice in one feed.
   // Then diversify: a combo whose partner set is already shown twice defers
@@ -459,14 +464,7 @@ export function CoachFeed({
   // Prospector" rows.
   const ranked = useMemo(() => {
     const all = rankCoachMoves(allChanges, ctx);
-    const seenAdds = new Set<string>();
-    const deduped = all.filter((m) => {
-      if (m.change.type !== 'add') return true;
-      const key = m.change.name.toLowerCase();
-      if (seenAdds.has(key)) return false;
-      seenAdds.add(key);
-      return true;
-    });
+    const deduped = dedupeRankedAdds(all);
     return diversifyRankedMoves(deduped);
   }, [allChanges, ctx]);
 

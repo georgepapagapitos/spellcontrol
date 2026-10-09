@@ -30,7 +30,7 @@ import type { BracketFitPlan } from '@/deck-builder/services/deckBuilder/bracket
 import type { LandUpgradeMove } from '@/deck-builder/services/deckBuilder/landUpgrades';
 import type { MisfitSummary } from '@/deck-builder/services/deckBuilder/cardFit';
 import type { ComboMatch } from '@/types/combos';
-import { comboEndsGame } from '@/deck-builder/services/winConditions/detect';
+import { comboEndsGame, winningResultsFirst } from '@/deck-builder/services/winConditions/detect';
 import type { DeckPayoffs } from '@/deck-builder/services/winConditions/comboPayoffs';
 
 /**
@@ -81,13 +81,19 @@ export function onPlanCombos(
  * The new lines whose loop ends the game (`comboEndsGame`, E437): by its results
  * alone, or because a payoff the deck holds converts it (`deckComboPayoffs`,
  * E578: Staff of Domination + a mana elf in a Lathril deck). What the combos lane
- * and its feed rows are built from.
+ * and its feed rows are built from, each with the results that win named first
+ * (E625).
  */
 export function winningCombos(
   combos: Parameters<typeof newLineCombos>[0],
   payoffs?: DeckPayoffs
 ): ComboMatch[] {
-  return newLineCombos(combos).filter((m) => comboEndsGame(m.combo.produces, payoffs));
+  return newLineCombos(combos)
+    .filter((m) => comboEndsGame(m.combo.produces, payoffs))
+    .map((m) => ({
+      ...m,
+      combo: { ...m.combo, produces: winningResultsFirst(m.combo.produces, payoffs) },
+    }));
 }
 
 /**

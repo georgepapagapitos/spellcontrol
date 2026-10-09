@@ -331,6 +331,33 @@ export function diversityKey(c: Change): string | null {
 }
 
 /**
+ * One row per added card, at the slot its highest-ranked occurrence earned. A
+ * card that is also a winning combo completion shows as that completion (the
+ * combos lane, the "Completes X" reason), not as the ramp or gap row that
+ * outranked it: the combos lane is built from winning lines only, so the row
+ * must not vanish from the Combos filter behind a stand-in (E626, Priest of
+ * Titania in a Lathril deck). The feed's order is unchanged; only the Change
+ * in the slot differs.
+ */
+export function dedupeRankedAdds(moves: RankedMove[]): RankedMove[] {
+  const completion = new Map<string, Change>();
+  for (const m of moves) {
+    const key = m.change.name.toLowerCase();
+    if (m.change.type === 'add' && m.change.lane === 'combos' && !completion.has(key))
+      completion.set(key, m.change);
+  }
+  const seen = new Set<string>();
+  return moves.flatMap((m) => {
+    if (m.change.type !== 'add') return [m];
+    const key = m.change.name.toLowerCase();
+    if (seen.has(key)) return [];
+    seen.add(key);
+    const combo = completion.get(key);
+    return [combo && combo !== m.change ? { ...m, change: combo } : m];
+  });
+}
+
+/**
  * Let a diversity key appear at most `cap` times in ranked order; every later
  * row with that key is deferred to the END of the list, in its original order.
  * Deliberately not per-tier: a deck with four owned combo lines and thirty

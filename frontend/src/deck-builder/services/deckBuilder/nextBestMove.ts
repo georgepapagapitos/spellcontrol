@@ -4,7 +4,7 @@ import { synergyStrength, bySynergyStrength } from './synergyLift';
 import type { DeckView } from '@/lib/deck-analysis/deck-view';
 import type { ComboMatch } from '@/types/combos';
 import type { WinConditionAnalysis } from '@/deck-builder/services/winConditions/types';
-import { comboEndsGame } from '@/deck-builder/services/winConditions/detect';
+import { comboEndsGame, winningResultsFirst } from '@/deck-builder/services/winConditions/detect';
 import type { DeckPayoffs } from '@/deck-builder/services/winConditions/comboPayoffs';
 
 /**
@@ -339,7 +339,7 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
       const missingCard = match.combo.cards.find((c) => c.oracleId === missingId);
       const missingName = missingCard?.cardName;
       if (!missingName || usedCards.has(missingName)) continue;
-      const produces = match.combo.produces[0] ?? 'a combo';
+      const produces = winningResultsFirst(match.combo.produces, deckPayoffs)[0] ?? 'a combo';
       const partnerNames = match.combo.cards
         .filter((c) => c.oracleId !== missingId)
         .map((c) => c.cardName);
@@ -351,9 +351,14 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
       // Owned-only: can't complete this combo without buying — skip and keep
       // scanning for one the player can finish with cards in hand.
       if (ownedOnly && !alreadyOwns) continue;
-      const detail = alreadyOwns
-        ? `You already own ${missingName}. Add it to complete ${partnerStr} → ${produces}.`
-        : `Completes ${partnerStr} → ${produces}. Add ${missingName}.`;
+      const detail =
+        partnerNames.length === 0
+          ? alreadyOwns
+            ? `You already own ${missingName}. It does it alone: ${produces}.`
+            : `${missingName} does it alone: ${produces}.`
+          : alreadyOwns
+            ? `You already own ${missingName}. Add it to complete ${partnerStr} → ${produces}.`
+            : `Completes ${partnerStr} → ${produces}. Add ${missingName}.`;
       moves.push({
         id: `combo-${match.combo.id}`,
         tier: 3,
