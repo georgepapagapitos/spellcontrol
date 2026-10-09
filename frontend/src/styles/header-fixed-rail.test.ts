@@ -100,14 +100,16 @@ describe('one page frame', () => {
   it('no page root centers itself inside the frame', () => {
     // A root is a class ending in -page (or -page--variant) as the last
     // compound of the selector: `.rules-page`, not `.rules-page-header`.
-    // `.proxy-print-page` is a printed sheet (@media print), not a page in
-    // the frame; it centers on the paper.
+    // Two exemptions, neither a page in the frame: `.proxy-print-page` is a
+    // printed sheet (@media print) that centers on the paper, and
+    // `.catalog-page` is the /dev/catalog specimen sheet whose fixed geometry
+    // the Visual catalog check photographs (moving it changes every shot).
+    const exempt = new Set(['.proxy-print-page', '.catalog-page']);
     const offenders: string[] = [];
     for (const [f, css] of allCss) {
       for (const [, sel, body] of css.matchAll(/([^{}@]+)\{([^{}]*)\}/g)) {
         const roots = sel.split(',').map((s) => s.trim().split(/\s+/).pop() ?? '');
-        if (!roots.some((s) => /\.[a-z-]+-page(--[a-z-]+)?$/.test(s) && s !== '.proxy-print-page'))
-          continue;
+        if (!roots.some((s) => /\.[a-z-]+-page(--[a-z-]+)?$/.test(s) && !exempt.has(s))) continue;
         if (/margin-inline\s*:\s*auto|margin\s*:[^;]*\bauto\b/.test(body)) {
           offenders.push(`${f}: ${sel.trim()}`);
         }
