@@ -89,7 +89,11 @@ import {
   PRICE_SANITY_INCLUSION_BAND,
 } from './cardPicking';
 import { commanderMustSurvive, makeProtectionAdmits } from './deckGeneration/protectionPicks';
-import { buildRoleCapOverflowNote, withoutDanglingPointer } from './deckGeneration/roleCapNote';
+import {
+  buildFinalRoleCapOverflowNote,
+  buildRoleCapOverflowNote,
+  withoutDanglingPointer,
+} from './deckGeneration/roleCapNote';
 import { achievableComboPieces } from './deckGeneration/comboLines';
 import {
   categorizeCards,
@@ -4762,7 +4766,14 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // every gated path over the whole generation; undefined when the cap was
   // never actually breached.
   const roleCapOverflowNote = withoutDanglingPointer(
-    buildRoleCapOverflowNote(roleCapOverflowCounts, roleCapStapleCounts, roleCapComboCounts),
+    buildFinalRoleCapOverflowNote(
+      roleTargets ?? undefined,
+      Object.values(categories).flat(),
+      (name) => cardInclusionMap?.[name] ?? 0,
+      new Set(
+        (detectedCombos ?? []).flatMap((c) => c.cards.map((n) => frontFaceName(n).toLowerCase()))
+      )
+    ),
     roleTargets ?? undefined,
     finalRoleCounts
   );
