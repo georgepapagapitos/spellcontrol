@@ -165,7 +165,7 @@ export function OpponentQuadrant({
             <span className="opponent-quadrant__designations">
               {held.map((d) => (
                 <span key={d.key} className="opponent-quadrant__designation" title={d.label}>
-                  {d.icon}
+                  <d.Icon width={12} height={12} strokeWidth={2} aria-hidden="true" />
                 </span>
               ))}
             </span>

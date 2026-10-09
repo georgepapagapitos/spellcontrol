@@ -1,3 +1,4 @@
+import { Ghost, Link2 } from 'lucide-react';
 import { forwardRef, memo, useState } from 'react';
 import type { BattlefieldCard, PlaytestCard } from '@/lib/playtest';
 import { displayPT, type PtDisplay } from '../lib/power-toughness';
@@ -129,12 +130,12 @@ export const PlaytestCardFace = memo(
         )}
         {attached && (
           <span className="playtest-card__attached" title="Attached" aria-hidden>
-            🔗
+            <Link2 width={12} height={12} strokeWidth={2} aria-hidden="true" />
           </span>
         )}
         {phased && (
           <span className="playtest-card__phased-badge" title="Phased out" aria-hidden>
-            👻
+            <Ghost width={12} height={12} strokeWidth={2} aria-hidden="true" />
           </span>
         )}
         {faceDown ? (

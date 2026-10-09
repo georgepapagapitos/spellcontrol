@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, type ReactNode, type Ref } from 'react';
+import './Tabs.css';
 import { useOverflowEdges } from '@/lib/util/use-overflow-edges';
 import { Chip } from '@/components/shared/Chip';
 

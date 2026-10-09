@@ -73,8 +73,8 @@ export function pickFirstPlayer(
 /** Human-readable log line for a dice roll. */
 export function describeRoll(r: DiceRoll): string {
   const spec = `${r.count}d${r.sides}`;
-  if (r.count === 1) return `🎲 ${spec} → ${r.total}`;
-  return `🎲 ${spec} → [${r.rolls.join(', ')}] = ${r.total}`;
+  if (r.count === 1) return `${spec} → ${r.total}`;
+  return `${spec} → [${r.rolls.join(', ')}] = ${r.total}`;
 }
 
 export interface HighRollResult {

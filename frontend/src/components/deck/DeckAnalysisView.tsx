@@ -1,6 +1,7 @@
 // Full-width analysis views (Stats / Power / Tune tabs) rendered atop the
 // deck card list. Split out of DeckDisplay.tsx purely to shrink the file —
 // no logic changes.
+import '@/styles/deck-builder-analysis.css';
 import { useMemo } from 'react';
 import { ChevronDown } from 'lucide-react';
 import type { ScryfallCard, Archetype } from '@/deck-builder/types';

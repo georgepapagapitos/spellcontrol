@@ -61,7 +61,7 @@ describe('settings-card-body children keep their intrinsic width', () => {
 // the row's center line.
 const SHARED_TRACKS: Array<[file: string, selector: string]> = [
   ['../components/shared/form.css', '.segmented'],
-  ['deck-builder-tabs.css', '.sc-tabs--scrollable'],
+  ['../components/overlays/Tabs.css', '.sc-tabs--scrollable'],
   ['deck-builder-display.css', '.toolbar-viewmode'],
 ];
 

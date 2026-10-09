@@ -1,3 +1,4 @@
+import '@/styles/shared.css';
 import { useMemo, useState } from 'react';
 import '@/styles/binder-grid-slots.css';
 import { AlignJustify, LayoutGrid, List as ListIcon } from 'lucide-react';

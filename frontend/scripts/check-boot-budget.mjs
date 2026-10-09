@@ -64,12 +64,20 @@
 // (Tabs via AuthPage, Button, OverflowMenu, TrendingRail, CardImageFrame) or is
 // overridden by deck-builder-responsive.css by ORDER (deck-builder-page,
 // -settings); binder-card-management is rendered by ~60 modules across hubs.
+// CSS went 60 → 52 on 2026-10-09 (E592): the sheets E591 left behind were global
+// only because a few entry-graph components use one or two of their classes.
+// Those classes moved into small boot sheets (deck-bento, commander-result,
+// popover-menu, deck-row-role, load-failure-strip) or the component that owns
+// them (components/overlays/Tabs.css); the remainder of deck-builder-tabs,
+// -analysis, -card-list, -commander and shared.css moved to the modules that
+// render it. Each override that lived in deck-builder-responsive.css moved with
+// the rule it overrides, so it still follows it. Measured 51.06 (was 59.4).
 import { readFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const BUDGET_KB = { js: 410, css: 60 };
+export const BUDGET_KB = { js: 410, css: 52 };
 
 const dist = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 // Vite emits multi-line <link> tags; a line-based scan misses them.

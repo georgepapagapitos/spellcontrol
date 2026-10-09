@@ -1,0 +1,73 @@
+.deck-row-role-badge {
+  width: 1.25rem;
+  flex: 0 0 auto;
+}
+
+/* Rarity pill — single letter, MTG-canonical colors that are never themed. */
+
+/* Two-letter functional-role label (RA/MR/SR/WI/CA/…). Plain colored
+   text — no pill — so it sits quietly next to the qty column. Hue groups
+   by parent role; the letters convey the subtype variant. */
+
+.deck-row-role-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  /* stylelint-disable-next-line declaration-property-value-disallowed-list */
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+
+.deck-row-role-mana-producer,
+.deck-row-role-mana-rock,
+.deck-row-role-cost-reducer,
+.deck-row-role-ramp {
+  --role-ink-scrim: var(--art-scrim-success);
+  color: var(--role-ink-ramp);
+}
+
+.deck-row-role-counterspell,
+.deck-row-role-bounce,
+.deck-row-role-spot-removal,
+.deck-row-role-removal {
+  --role-ink-scrim: var(--art-scrim-err);
+  color: var(--role-ink-removal);
+}
+
+.deck-row-role-bounce-wipe,
+.deck-row-role-boardwipe {
+  --role-ink-scrim: var(--art-scrim-warn);
+  color: var(--role-ink-wipe);
+}
+
+.deck-row-role-tutor,
+.deck-row-role-wheel,
+.deck-row-role-cantrip,
+.deck-row-role-card-draw,
+.deck-row-role-card-advantage {
+  --role-ink-scrim: var(--art-scrim-info);
+  color: var(--role-ink-draw);
+}
+
+.deck-row-role-multi-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: conic-gradient(
+    from 210deg,
+    #ff6ad5,
+    #c779d0,
+    #6dc9ff,
+    #94e3a4,
+    #ffe27a,
+    #ff8a5b,
+    #ff6ad5
+  );
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.25),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.45);
+}

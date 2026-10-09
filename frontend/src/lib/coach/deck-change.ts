@@ -14,6 +14,7 @@
  * the full `ScryfallCard` is carried only when already resolved; thin EDHREC
  * rows carry `name` + `imageUrl` and resolve lazily on apply.
  */
+import '@/styles/deck-builder-card-list.css';
 import type { ScryfallCard, GapAnalysisCard } from '@/deck-builder/types';
 import type { SynergySuggestion } from '@/deck-builder/services/synergy/suggest';
 import type { OptimizeCard } from '@/deck-builder/services/deckBuilder/deckAnalyzer';

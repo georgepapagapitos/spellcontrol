@@ -1,3 +1,5 @@
+import '@/styles/deck-builder-analysis.css';
+import '@/styles/deck-builder-tabs.css';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { HubPage } from '@/components/app-shell/HubPage';
 // Shared with the deck editor; ships with the two chunks, not the boot payload (E265).

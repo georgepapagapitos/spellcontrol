@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { searchCollectibleCards } from '@/deck-builder/services/scryfall/client';
 import type { ScryfallCard } from '@/deck-builder/types';
 
@@ -19,6 +19,21 @@ interface UseSearchCardsResult<T> {
    * a bare array, because then the true total is unknown.
    */
   total: number | null;
+  /**
+   * Paged mode only (see `paged`): Scryfall has pages beyond the ones held.
+   * Always false otherwise.
+   */
+  hasMore: boolean;
+  /** Paged mode: the next page is in flight. Separate from `loading`, which stays false. */
+  loadingMore: boolean;
+  /** Paged mode: the last next-page fetch failed. Held results are untouched. */
+  moreError: string | null;
+  /**
+   * Paged mode: fetch the next Scryfall page and append it. Resolves true when
+   * the page landed, false when it failed, was superseded by a query change,
+   * or there was nothing to fetch. Safe to call twice: one request at a time.
+   */
+  loadMore: () => Promise<boolean>;
 }
 
 /** A fetcher that knows the true match count reports it alongside the page. */
@@ -46,6 +61,13 @@ interface UseSearchCardsOptions<T> {
   debounceMs?: number;
   /** When false the hook stays idle (no fetch, results/loading/error cleared). Default true. */
   enabled?: boolean;
+  /**
+   * Keep every card Scryfall returns instead of cutting at `limit`, and let
+   * `loadMore()` pull the following pages (board E341). Default false: the
+   * add-card sheets keep their 60-card preview. Only the default Scryfall
+   * fetcher pages; with a custom `fetcher` this is ignored.
+   */
+  paged?: boolean;
 }
 
 // Every default caller searches for something to own or look at, not to play,
@@ -56,6 +78,19 @@ const defaultFetcher = (q: string): Promise<SearchPage<ScryfallCard>> =>
     // Scryfall's own count for the whole query, not the page it returned.
     total: resp.total_cards,
   }));
+
+/** Items with an `id` dedupe across pages; Scryfall's order can shift between requests. */
+function appendUnique<T>(held: T[], incoming: T[]): T[] {
+  const seen = new Set<unknown>();
+  for (const h of held) seen.add((h as { id?: unknown }).id ?? h);
+  const fresh = incoming.filter((i) => {
+    const key = (i as { id?: unknown }).id ?? i;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  return fresh.length ? [...held, ...fresh] : held;
+}
 
 /**
  * Debounced search hook. Defaults to Scryfall card search, but accepts a custom
@@ -83,7 +118,9 @@ export function useSearchCards<T = ScryfallCard>(
     minLength = DEFAULT_MIN_QUERY_LENGTH,
     debounceMs = DEFAULT_DEBOUNCE_MS,
     enabled = true,
+    paged: pagedOpt = false,
   } = opts;
+  const paged = pagedOpt && opts.fetcher === undefined;
 
   const [results, setResults] = useState<T[]>([]);
   // Born pending when the first query is already searchable (a deep link):
@@ -96,11 +133,25 @@ export function useSearchCards<T = ScryfallCard>(
   // Cancels the in-flight debounce wait: clears its timer AND settles its
   // promise, so a superseded `run()` exits through `if (cancelled) return`
   // instead of hanging on a promise nothing will ever resolve.
+  // Paging cursor: the next Scryfall page number, null when exhausted.
+  const [nextPage, setNextPage] = useState<number | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [moreError, setMoreError] = useState<string | null>(null);
+  // Bumped whenever the query (or any search input) changes. A next-page
+  // response checks it so a page for the OLD query is dropped, not appended.
+  const generationRef = useRef(0);
+  const moreInFlightRef = useRef(false);
+  const queryRef = useRef('');
   const debounceRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    generationRef.current += 1;
+    moreInFlightRef.current = false;
     async function run() {
+      setNextPage(null);
+      setLoadingMore(false);
+      setMoreError(null);
       const q = query.trim();
       if (!enabled || q.length < minLength) {
         if (!cancelled) {
@@ -135,8 +186,12 @@ export function useSearchCards<T = ScryfallCard>(
         const page = await fetcher(q);
         const items = Array.isArray(page) ? page : page.items;
         if (!cancelled) {
-          setResults(items.slice(0, limit));
-          setTotal(Array.isArray(page) ? null : page.total);
+          queryRef.current = q;
+          setResults(paged ? items : items.slice(0, limit));
+          const pageTotal = Array.isArray(page) ? null : page.total;
+          setTotal(pageTotal);
+          // Another page exists when Scryfall matched more than page one held.
+          setNextPage(paged && pageTotal !== null && pageTotal > items.length ? 2 : null);
         }
       } catch (e) {
         if (!cancelled) {
@@ -155,7 +210,43 @@ export function useSearchCards<T = ScryfallCard>(
       cancelled = true;
       debounceRef.current?.();
     };
-  }, [query, limit, fetcher, minLength, debounceMs, enabled]);
+  }, [query, limit, fetcher, minLength, debounceMs, enabled, paged]);
 
-  return { results, loading, error, total };
+  const loadMore = useCallback(async (): Promise<boolean> => {
+    if (!paged || nextPage === null || moreInFlightRef.current) return false;
+    const generation = generationRef.current;
+    const q = queryRef.current;
+    moreInFlightRef.current = true;
+    setLoadingMore(true);
+    setMoreError(null);
+    try {
+      const resp = await searchCollectibleCards(q, nextPage);
+      if (generation !== generationRef.current) return false;
+      setResults((held) => appendUnique(held, resp.data as unknown as T[]));
+      setNextPage(resp.has_more && resp.data.length > 0 ? nextPage + 1 : null);
+      return true;
+    } catch (e) {
+      if (generation !== generationRef.current) return false;
+      setMoreError(
+        userMessage(e, "Couldn't load more results. Check your connection and try again.")
+      );
+      return false;
+    } finally {
+      if (generation === generationRef.current) {
+        moreInFlightRef.current = false;
+        setLoadingMore(false);
+      }
+    }
+  }, [paged, nextPage]);
+
+  return {
+    results,
+    loading,
+    error,
+    total,
+    hasMore: nextPage !== null,
+    loadingMore,
+    moreError,
+    loadMore,
+  };
 }

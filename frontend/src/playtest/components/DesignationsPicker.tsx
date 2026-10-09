@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react';
+import { Check, Compass, Crown, Landmark, type LucideIcon } from 'lucide-react';
 import './DesignationsPicker.css';
 import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
 import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
@@ -15,7 +15,7 @@ interface Props {
 
 interface Row {
   key: Designation;
-  icon: string;
+  Icon: LucideIcon;
   inactiveLabel: string;
   activeLabel: string;
   description: string;
@@ -27,21 +27,21 @@ interface Row {
 const ROWS: Row[] = [
   {
     key: 'monarch',
-    icon: '👑',
+    Icon: Crown,
     inactiveLabel: 'Take Monarch',
     activeLabel: 'Remove Monarch',
     description: 'Draw an extra card at your end step. Passes to whoever deals you combat damage.',
   },
   {
     key: 'initiative',
-    icon: '🧭',
+    Icon: Compass,
     inactiveLabel: 'Take Initiative',
     activeLabel: 'Remove Initiative',
     description: 'Venture into the Undercity when you deal combat damage. Passes the same way.',
   },
   {
     key: 'citysBlessing',
-    icon: '🏙️',
+    Icon: Landmark,
     inactiveLabel: "Achieve City's Blessing",
     activeLabel: "City's Blessing achieved",
     description: 'Permanent once you control 10+ permanents. Never lost for the rest of the game.',
@@ -94,7 +94,7 @@ export function DesignationsPicker({ monarch, initiative, citysBlessing, onSet, 
                 onClick={() => onSet(row.key, row.oneWay ? true : !active)}
               >
                 <span className="playtest-designations-picker__row-icon" aria-hidden>
-                  {row.icon}
+                  <row.Icon width={16} height={16} strokeWidth={2} aria-hidden="true" />
                 </span>
                 <span className="playtest-designations-picker__row-text">
                   <span className="playtest-designations-picker__row-label">

@@ -1,0 +1,59 @@
+/* The bento board grid (.deck-bento): the deck analysis tabs, Home and the
+   Trending rail all mount it, so it stays in the boot sheet. The rest of the
+   analysis surface lives in deck-builder-analysis.css, which loads with the
+   chunks that render it (E592). */
+
+/* Grid items must be allowed to shrink below their content's min-content, or a
+   wide child (the Power tab's combos grid / bracket breakdown) blows the
+   single-column track out past the viewport on phones — panels render wider than
+   their container and spill off the right edge. The ≥640px template already uses
+   minmax(0,1fr); this covers the base single column + the nested pair sub-grid. */
+
+.deck-bento > * {
+  min-width: 0;
+}
+
+/* ── Bento boards (Stats / Tune analysis tabs) ───────────────────────────────
+   Each analysis tab is one dense, contained bento that reflows to its OWN
+   width (container queries), not just the viewport — so it fills desktop
+   width with 2 dense columns + spanning heroes, and collapses to a single
+   column on phones, with no dead space and no orphaned cells.
+
+   `container-type: inline-size` makes the board a query container; the
+   `@container` rules below drive the column count off the board's measured
+   width. The board still inherits the shared --analysis-max cap + centering
+   from .deck-analysis-view. */
+
+.deck-bento {
+  container-type: inline-size;
+  container-name: bento;
+  display: grid;
+  /* minmax(0, …) not 1fr: 1fr's floor is min-content, which lets a wide child
+     blow the single column past the container on phones. */
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  grid-auto-flow: row dense;
+  gap: clamp(var(--space-3), 2.2cqi, var(--space-5));
+  max-width: var(--analysis-max, 1320px);
+  margin-inline: auto;
+  /* width: 100% is load-bearing for non-block mount contexts (Home and /pods
+     mount this inside flex COLUMNS): a cross-axis auto margin in flex cancels
+     the default stretch, dropping the item to shrink-to-fit — and inline-size
+     containment makes this element's intrinsic width ZERO by definition, so
+     the bento collapsed to a ~0-width strip (#1269). In normal block flow
+     (deck analysis) this renders byte-identically: a block already fills its
+     containing block, and max-width + auto margins still cap and center. */
+  width: 100%;
+}
+
+@container bento-host (min-width: 640px) {
+  .deck-bento {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container bento-host (min-width: 1040px) {
+  .deck-bento {
+    gap: clamp(var(--space-4), 1.6cqi, var(--space-6));
+  }
+}

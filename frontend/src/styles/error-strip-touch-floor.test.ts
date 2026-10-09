@@ -56,10 +56,10 @@ describe('load-failure strip touch floor', () => {
     expect(raw, 'render the strip Retry as Button').toEqual([]);
   });
 
-  it('declares the Retry pill in no stylesheet but shared.css', () => {
+  it('declares the Retry pill in no stylesheet but load-failure-strip.css', () => {
     const owners = cssFiles(srcRoot)
       .filter((path) => readFileSync(path, 'utf8').includes('.discover-decks-error-retry'))
       .map((path) => path.slice(srcRoot.length + 1).replace(/\\/g, '/'));
-    expect(owners).toEqual(['styles/shared.css']);
+    expect(owners).toEqual(['styles/load-failure-strip.css']);
   });
 });

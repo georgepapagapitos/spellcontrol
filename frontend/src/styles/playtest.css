@@ -1138,6 +1138,8 @@ body[data-felt='slate'] {
 }
 
 .playtest-card__attached {
+  display: flex;
+  color: var(--art-scrim-text);
   position: absolute;
   top: var(--space-1);
   right: var(--space-1);
@@ -1162,6 +1164,8 @@ body[data-felt='slate'] {
 }
 
 .playtest-card__phased-badge {
+  display: flex;
+  color: var(--art-scrim-text);
   position: absolute;
   top: var(--space-1);
   left: var(--space-1);
@@ -2535,10 +2539,11 @@ button.playtest-card-pt__value--editable:focus-visible {
 }
 
 .playtest-designation-badge {
-  /* A touch larger than --text-sm: these are detailed multi-color emoji
-     (crown/compass/cityscape), not simple line icons, so they need a few
-     extra px to stay legible at a glance instead of reading as a blob. */
-  font-size: var(--text-base);
+  /* A lucide glyph (STYLE_GUIDE § Icon scale), centered in a flex box so the
+     svg sits on the chip's baseline instead of an inline line box. */
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
 }
 
 .playtest-life-chip__life {

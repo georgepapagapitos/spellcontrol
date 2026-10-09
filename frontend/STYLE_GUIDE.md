@@ -2345,6 +2345,7 @@ aria-label="Loading" aria-busy="true">` and mark the list itself
 
 ## CSS file layout
 
+- **Reuse before you add.** Before writing a class, look for the one that already does it (`components/shared`, the global sheets above) and use it, or extract a shared class both callers use. Copying an existing block of five or more declarations under a new selector in another file is what `src/styles/duplicate-block-ratchet.test.ts` fails on: it freezes the current duplicate groups in `duplicate-block-ratchet.baseline.json` and fails on a new group or a group that grows. Consolidating copies shrinks the baseline; re-baseline downwards with `UPDATE_DUPLICATE_BLOCK_BASELINE=1`.
 - **`src/styles/` holds the global (unscoped) stylesheets**, imported once in
   `main.tsx` in cascade order. The former 13k-line `global.css` was split into
   feature files — each is a contiguous slice of the original, so the cascade is

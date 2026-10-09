@@ -8,17 +8,10 @@
    still browsable without endless vertical scroll. */
 @media (max-width: 1100px) {
   /* `.deck-display` is a flex column at every width (see the base rule), so it
-     already stacks toolbar → stats → banner → body with no per-breakpoint grid
-     needed. (A vestigial `grid-template-areas` block used to live here from the
-     old stats-sidebar layout; it was inert dead CSS — `display` was never
-     `grid` — and was removed.) */
-
-  /* One column: DeckDisplay reads this same breakpoint and packs into a single
-     column, so the sections simply stack. */
-  .deck-card-columns,
-  .deck-command-zone .deck-section-rows {
-    grid-template-columns: 1fr;
-  }
+       already stacks toolbar → stats → banner → body with no per-breakpoint grid
+       needed. (A vestigial `grid-template-areas` block used to live here from the
+       old stats-sidebar layout; it was inert dead CSS — `display` was never
+       `grid` — and was removed.) */
 
   .deck-toolbar {
     flex-direction: column;
@@ -64,17 +57,6 @@
     justify-content: space-between;
   }
 
-  /* Commander preview wraps so the Change button drops below on narrow
-     screens instead of squeezing the name. */
-  .commander-pick {
-    flex-wrap: wrap;
-    gap: var(--space-3);
-  }
-
-  .commander-pick-body {
-    flex: 1 1 60%;
-  }
-
   /* Stale override removed — the new commander pick uses the full card
      image at the 488/680 portrait aspect, so we just let the parent
      breakpoint at 600px handle the stack. */
@@ -104,10 +86,6 @@
     flex: 1 1 12rem;
     min-width: 0;
     max-width: none;
-  }
-
-  .deck-curve {
-    height: clamp(110px, 30vh, 220px);
   }
 }
 

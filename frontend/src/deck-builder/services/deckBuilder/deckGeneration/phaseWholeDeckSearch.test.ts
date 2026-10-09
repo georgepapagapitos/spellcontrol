@@ -7,7 +7,12 @@ import { describe, expect, it } from 'vitest';
 import type { AppliedSwap } from '../deckObjective/optimizer';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { BASELINE, card, merenCtx } from '../deckObjective/__fixtures__/objectiveFixture';
-import { ownedExtraCandidates, reasonLine } from './phaseWholeDeckSearch';
+import {
+  applySearchSwaps,
+  landSeatedSpells,
+  ownedExtraCandidates,
+  reasonLine,
+} from './phaseWholeDeckSearch';
 import type { GenerationState } from './state';
 
 const swap = (over: Partial<AppliedSwap>): AppliedSwap =>
@@ -92,5 +97,73 @@ describe('ownedExtraCandidates', () => {
   it('keeps the owned lands the list does not hold, and no spell while no rule is broken', async () => {
     const got = await run([...LANDS, SPELL]);
     expect([...got.keys()].sort()).toEqual([...LANDS].sort());
+  });
+});
+
+// Nightly 2026-10-09, Yuriko kitchen-sink: the search swapped Aetherize for
+// Devastation Tide, then Devastation Tide for Covert Technician. Applying the
+// first swap looked Devastation Tide up in the final list, didn't find it, and
+// skipped cutting Aetherize, so the deck shipped 101 cards.
+describe('applySearchSwaps', () => {
+  const named = (name: string, type_line = 'Instant') => ({ name, type_line }) as ScryfallCard;
+  const stateWith = (cards: ScryfallCard[]) =>
+    ({
+      categories: {
+        lands: [],
+        ramp: [],
+        cardDraw: [],
+        singleRemoval: [],
+        boardWipes: [],
+        creatures: [],
+        synergy: cards,
+        utility: [],
+      },
+      usedNames: new Set(cards.map((c) => c.name)),
+      bannedCards: new Set<string>(),
+      currentRoleCounts: {},
+      gameChangerNames: new Set<string>(),
+      gameChangerCount: { value: 0 },
+    }) as unknown as GenerationState;
+
+  it('applies a chained swap, so the card count holds', () => {
+    const state = stateWith([named('Aetherize'), named('Opt')]);
+    const byName = new Map(
+      [named('Devastation Tide', 'Sorcery'), named('Covert Technician', 'Creature — Human')].map(
+        (c) => [c.name, c]
+      )
+    );
+    const records = applySearchSwaps(
+      state,
+      [
+        swap({ out: ['Aetherize'], in: ['Devastation Tide'] }),
+        swap({ out: ['Devastation Tide'], in: ['Covert Technician'] }),
+      ],
+      byName
+    );
+    const names = Object.values(state.categories)
+      .flat()
+      .map((c) => c.name)
+      .sort();
+    expect(names).toEqual(['Covert Technician', 'Opt']);
+    expect(records.map((r) => `${r.cut}>${r.added}`)).toEqual([
+      'Aetherize>Devastation Tide',
+      'Devastation Tide>Covert Technician',
+    ]);
+  });
+});
+
+// Nightly 2026-10-07..09: the search read Bala Ged Recovery // Bala Ged
+// Sanctuary, seated as a land, as a spell and traded it for one, so the deck
+// delivered a land short of its plan.
+describe('landSeatedSpells', () => {
+  it('names the spell // land MDFCs in the lands category, not the plain lands', () => {
+    const mdfc = {
+      name: 'Bala Ged Recovery // Bala Ged Sanctuary',
+      type_line: 'Sorcery // Land',
+      card_faces: [{ type_line: 'Sorcery' }, { type_line: 'Land' }],
+    } as ScryfallCard;
+    const forest = { name: 'Forest', type_line: 'Basic Land — Forest' } as ScryfallCard;
+    const categories = { lands: [mdfc, forest] } as unknown as GenerationState['categories'];
+    expect(landSeatedSpells(categories)).toEqual([mdfc.name]);
   });
 });

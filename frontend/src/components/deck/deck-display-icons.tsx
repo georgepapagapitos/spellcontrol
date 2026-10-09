@@ -1,5 +1,6 @@
 // JSX-returning presentational helpers for DeckDisplay, split out alongside
 // deck-display-rows.ts purely to shrink DeckDisplay.tsx — no logic changes.
+import '@/styles/deck-builder-card-list.css';
 import {
   ArrowLeftRight,
   Bomb,

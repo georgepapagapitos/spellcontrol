@@ -1,127 +1,12 @@
-/* deck-builder-analysis-panel.css — DeckAnalysisPanel: roles list, suggestions grid, diagnosis verdict, warnings.
+/* deck-builder-analysis-panel.css — DeckAnalysisPanel: suggestions grid.
  * Byte-identical contiguous slice of the former monolithic deck-builder.css (E28; method #634/#637).
  * Original lines 7800-8109. Import order in main.tsx is load-bearing — see STYLE_GUIDE "CSS file layout". */
 /* ─── Deck analysis panel ───────────────────────────────────────────────── */
-/* Shares the deck-combos-panel header/body chrome (see DeckCombosPanel) so
+/* Shares the deck-combos-panel body chrome (see DeckCombosPanel) so
    panels stack as one visual family. Only the inner sections are unique. */
 
 .deck-analysis-panel {
   /* No additional styling — picks up .deck-combos-panel base. */
-}
-
-.deck-analysis-section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.deck-analysis-verdict--top-heavy {
-  color: var(--warn-text);
-}
-
-.deck-analysis-verdict--low-curve {
-  color: var(--info, #4a6fa5);
-}
-
-.deck-analysis-warning {
-  display: flex;
-  gap: var(--space-2);
-  padding: var(--space-2-5) var(--space-2-5);
-  background: var(--bg);
-  border: 0.5px solid var(--warn-border);
-  border-radius: var(--radius);
-  color: var(--text-secondary);
-  font-size: var(--text-sm);
-}
-
-.deck-analysis-warning svg {
-  flex: 0 0 auto;
-  color: var(--warn-text);
-  margin-top: var(--space-0-5);
-}
-
-.deck-analysis-warning strong {
-  display: block;
-  color: var(--text-primary);
-  margin-bottom: var(--space-0-5);
-}
-
-.deck-analysis-warning p {
-  margin: 0;
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-}
-
-/* Roles tab */
-
-.deck-analysis-role-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.deck-analysis-role-row {
-  background: var(--bg);
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius);
-  padding: var(--space-2) var(--space-2-5);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.deck-analysis-role-row.is-low {
-  border-color: var(--warn-border);
-}
-.deck-analysis-role-row.is-high {
-  border-color: var(--info, #4a6fa5);
-}
-.deck-analysis-role-row.is-ok {
-  border-color: var(--border);
-}
-
-.deck-analysis-role-header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.deck-analysis-role-row.is-low .deck-analysis-role-header > svg {
-  color: var(--warn-text);
-}
-.deck-analysis-role-row.is-high .deck-analysis-role-header > svg {
-  color: var(--info, #4a6fa5);
-}
-.deck-analysis-role-row.is-ok .deck-analysis-role-header > svg {
-  color: var(--success, #2f7d4f);
-}
-
-.deck-analysis-role-label {
-  font-family: var(--font-serif);
-  font-size: var(--text-sm);
-  font-weight: 700;
-  color: var(--text-primary);
-  flex: 1 1 auto;
-}
-
-.deck-analysis-role-count {
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.deck-analysis-role-target {
-  color: var(--text-muted);
-  font-weight: 500;
-}
-
-.deck-analysis-role-message {
-  margin: 0;
-  font-size: var(--text-xs);
-  color: var(--text-muted);
 }
 
 /* Suggestions tab */
@@ -298,21 +183,6 @@
   font-size: var(--text-xs);
   color: var(--text-muted);
   margin: var(--space-1) 0 0;
-}
-
-.deck-analysis-diagnosis {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.deck-analysis-verdict {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1-5);
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
-  margin: 0;
 }
 
 /* Archetype filter — the shared SelectMenu (toolbar-pill) keeps it left-

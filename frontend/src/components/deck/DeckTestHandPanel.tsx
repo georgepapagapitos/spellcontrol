@@ -1,3 +1,4 @@
+import '@/styles/deck-builder-analysis.css';
 import {
   forwardRef,
   useEffect,
@@ -27,10 +28,7 @@ import { restrictToHorizontalAxis, restrictToParentElement } from '@dnd-kit/modi
 import { CSS } from '@dnd-kit/utilities';
 import {
   BookOpen,
-  ChevronDown,
-  ChevronUp,
   Dices,
-  Hand,
   Hourglass,
   Mountain,
   Play,
@@ -41,7 +39,6 @@ import {
 } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { useDecksStore } from '../../store/decks';
-import { useCollapsedPref } from '@/lib/util/use-collapsed-pref';
 import { scryfallToEnrichedCard } from '@/lib/cards/scryfall-to-enriched';
 import { getCardRole } from '@/deck-builder/services/tagger/client';
 import { useTaggerReady } from '@/lib/cards/use-tagger-ready';
@@ -68,12 +65,6 @@ export interface DeckTestHandPanelHandle {
 
 interface Props {
   deckId: string;
-  /**
-   * Render without the collapsible header chrome (always-open body), for use
-   * inside the tabbed analysis surface. The reveal() handle still scrolls into
-   * view so feature-strip chips behave.
-   */
-  embedded?: boolean;
 }
 
 const HAND_SIZE = 7;
@@ -149,7 +140,7 @@ function makeSlot(card: ScryfallCard): HandSlot {
 }
 
 export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
-  function DeckTestHandPanel({ deckId, embedded = false }, ref) {
+  function DeckTestHandPanel({ deckId }, ref) {
     const deck = useDecksStore((s) => s.decks.find((d) => d.id === deckId) ?? null);
 
     const containerRef = useRef<HTMLDivElement>(null);
@@ -158,16 +149,8 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
     // tab) rather than a fixed viewport guess. Drives the spread-vs-overlap math.
     const fanScrollRef = useRef<HTMLDivElement>(null);
     const [fanWidth, setFanWidth] = useState(0);
-    // Default to collapsed: test-hand is opt-in — most users don't need a fresh
-    // hand on every deck-page load, and the header summary already shows total
-    // cards / land count for at-a-glance sanity.
-    const [collapsed, setCollapsed] = useCollapsedPref('spellcontrol-test-hand-panel-collapsed');
-    // Embedded in a tab: no header chrome, body always open.
-    const isCollapsed = embedded ? false : collapsed;
-
     useImperativeHandle(ref, () => ({
       reveal: () => {
-        setCollapsed(false);
         window.requestAnimationFrame(() => {
           containerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         });
@@ -378,49 +361,11 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
         as="div"
         variant="framed"
         ref={containerRef}
-        className={`deck-test-hand-panel${isCollapsed ? ' is-collapsed' : ''}${embedded ? ' is-embedded' : ''}`}
+        className="deck-test-hand-panel is-embedded"
         role="region"
         aria-label="Test hand"
       >
-        {!embedded && (
-          <button
-            type="button"
-            className="deck-test-hand-header"
-            aria-expanded={!collapsed}
-            aria-controls="deck-test-hand-body"
-            onClick={() => setCollapsed((c) => !c)}
-            title={collapsed ? 'Expand test hand' : 'Collapse test hand'}
-          >
-            <Hand width={16} height={16} aria-hidden />
-            <span className="deck-test-hand-title">Test hand</span>
-            <span className="deck-test-hand-header-summary" aria-hidden>
-              {empty ? (
-                <span className="deck-test-hand-header-empty">Empty deck</span>
-              ) : (
-                <>
-                  <span>{totalCards} cards</span>
-                  <span>
-                    {landCount} {landCount === 1 ? 'land' : 'lands'}
-                  </span>
-                </>
-              )}
-            </span>
-            <span className="deck-test-hand-header-chevron" aria-hidden>
-              {collapsed ? (
-                <ChevronDown width={16} height={16} />
-              ) : (
-                <ChevronUp width={16} height={16} />
-              )}
-            </span>
-          </button>
-        )}
-
-        <div
-          id="deck-test-hand-body"
-          className="deck-test-hand-body"
-          hidden={isCollapsed}
-          aria-hidden={isCollapsed}
-        >
+        <div id="deck-test-hand-body" className="deck-test-hand-body">
           {empty ? (
             <p className="deck-test-hand-empty">Add cards to the deck to draw a test hand.</p>
           ) : (

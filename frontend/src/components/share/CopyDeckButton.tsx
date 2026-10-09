@@ -1,3 +1,4 @@
+import '@/styles/shared.css';
 import { Copy } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { copySharedDeck } from '@/lib/social/copy-shared-deck';

@@ -14,6 +14,7 @@ import {
   Swords,
   Undo2,
   Users,
+  Trophy,
   X,
 } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -1807,7 +1808,7 @@ function WinCelebration({
         {winner ? (
           <>
             <span className="win-celebration-trophy" aria-hidden="true">
-              🏆
+              <Trophy />
             </span>
             <span className="win-celebration-name">{winner.name}</span>
             <span className="win-celebration-sub">wins the game</span>
