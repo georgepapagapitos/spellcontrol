@@ -50,7 +50,7 @@ describe('AiSourcesControl', () => {
     // The ceiling is stated on the option, never left for the reading to reveal.
     expect(screen.getByText(/under \$5/)).toBeTruthy();
     // The cost of a change is stated on the control, with the real cap.
-    expect(screen.getByText(/counts toward today's 10/)).toBeTruthy();
+    expect(screen.getByText(/uses one of today's 10/)).toBeTruthy();
   });
 
   it('disables the collection scopes when there is no collection to search', async () => {

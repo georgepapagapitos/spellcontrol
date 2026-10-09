@@ -651,7 +651,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
       >
         {isDragging && (
           <div className="import-deck-drop-overlay" aria-hidden="true">
-            <div className="import-deck-drop-message">Drop files, each becomes its own deck</div>
+            <div className="import-deck-drop-message">Drop files. Each becomes its own deck.</div>
           </div>
         )}
 
@@ -897,7 +897,6 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
             <div className="import-deck-review-summary">
               <span>
                 Parsed <strong>{drafts.length}</strong> file{drafts.length === 1 ? '' : 's'}.
-                Nothing is saved until you create them.
               </span>
             </div>
             <ul className="import-deck-summary-list">
@@ -1169,7 +1168,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
           <Button
             onClick={handlePickFile}
             disabled={isLoading}
-            title="Choose files, each becomes its own deck"
+            title="Choose files. Each becomes its own deck."
             icon={<Upload width={14} height={14} strokeWidth={1.8} />}
           >
             Upload files

@@ -126,19 +126,17 @@ export function computeBrewRoleTargets(
 function slotPurpose(key: BrewSlotKey, target: number, themeLabel?: string): string {
   switch (key) {
     case 'ramp':
-      return `Rocks, dorks and land ramp put you ahead on mana. Most decks run about ${target}.`;
+      return `Most decks run about ${target}.`;
     case 'cardDraw':
-      return `Card draw keeps your hand full after wipes. Aim for about ${target}.`;
+      return `Aim for about ${target}.`;
     case 'removal':
-      return `Spot removal answers one threat at a time. Most decks run about ${target}.`;
+      return `Most decks run about ${target}.`;
     case 'boardwipe':
-      return `Board wipes reset a game that got away from you. Aim for about ${target}.`;
+      return `Aim for about ${target}.`;
     case 'theme':
-      return themeLabel
-        ? `The ${themeLabel} package. The cards that define this deck.`
-        : `Your commander's signature synergy. The cards that define this deck.`;
+      return themeLabel ? `The ${themeLabel} package.` : `Your commander's signature synergy.`;
     case 'finishers':
-      return `Finishers and wincons: the cards that win the game.`;
+      return `Finishers and wincons.`;
     case 'flex':
       return `Flex slots for utility and value.`;
   }

@@ -217,7 +217,7 @@ describe('DeckAiRefine', () => {
     // that were never generated. Caught by driving a real hand-built deck.
     stubApi(true, []);
     renderPanel(() => {});
-    expect(await screen.findByText(/Suggests a few changes/)).toBeTruthy();
+    expect(await screen.findByText(/Get a few swaps/)).toBeTruthy();
     expect(screen.queryByText(/the generator built/)).toBeNull();
   });
 
@@ -516,7 +516,7 @@ describe('DeckAiRefine', () => {
     expect(await screen.findByText('Card A2')).toBeTruthy();
     // The AI's why no longer applies to a card it never evaluated.
     expect(screen.queryByText("The AI's own reasoning about Card A.")).toBeNull();
-    expect(screen.getByText(/Engine alternative, same role as Card A\./)).toBeTruthy();
+    expect(screen.getByText(/Coach's alternative, same role as Card A\./)).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Try another alternative to Card A2' }));
     expect(await screen.findByText('Card A3')).toBeTruthy();

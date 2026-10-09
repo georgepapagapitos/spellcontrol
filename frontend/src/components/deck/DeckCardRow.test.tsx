@@ -90,7 +90,7 @@ describe('DeckCardRow', () => {
     const gc = screen.getByText('Game Changer').closest('.verdict-chip')!;
     expect(gc.classList.contains('verdict-chip')).toBe(true);
     expect(gc.getAttribute('data-tone')).toBe('warn');
-    expect(gc.getAttribute('title')).toContain('bracket-relevant');
+    expect(gc.getAttribute('title')).toContain('Counts toward your bracket');
     const syn = screen.getByText('Synergy').closest('.verdict-chip')!;
     expect(syn.classList.contains('verdict-chip')).toBe(true);
     expect(syn.getAttribute('data-tone')).toBe('accent');

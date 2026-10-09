@@ -175,9 +175,7 @@ export function FillDeckSheet({
         <div className="fill-deck-body">
           {phase.kind === 'setup' && (
             <>
-              <p className="fill-deck-lead">
-                Every card you picked stays. You review the rest before anything is added.
-              </p>
+              <p className="fill-deck-lead">Your picks stay.</p>
               <fieldset className="bracket-pill-row fill-deck-lean" aria-label="Lean toward">
                 {LEANS.map((l) => (
                   <label
@@ -262,9 +260,8 @@ export function FillDeckSheet({
               )}
               {phase.result.plan.declined.length > 0 && (
                 <p className="fill-deck-note">
-                  Left out for this deck:{' '}
-                  {phase.result.plan.declined.map((d) => d.card.name).join(', ')}. Each scores worse
-                  here or breaks a rule the deck was built with.
+                  Left out: {phase.result.plan.declined.map((d) => d.card.name).join(', ')}. They
+                  score worse here or break a build rule.
                 </p>
               )}
               {phase.result.plan.stillOpen > 0 && (

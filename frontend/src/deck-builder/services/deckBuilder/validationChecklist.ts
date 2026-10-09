@@ -206,7 +206,7 @@ export function buildValidationChecklist(input: ValidationInput): ValidationResu
       id: 'curve',
       label: 'Curve',
       status: averageCmc <= CURVE_AVG_MAX ? 'pass' : 'warn',
-      detail: `Avg MV ${averageCmc.toFixed(2)}`,
+      detail: `Avg mana value ${averageCmc.toFixed(2)}`,
     });
   }
 

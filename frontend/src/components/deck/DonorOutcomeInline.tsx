@@ -153,7 +153,7 @@ export function DonorOutcomeInline({
             <p className="donor-outcome-replace-empty">Finding cards you own…</p>
           ) : owned.length === 0 ? (
             <p className="donor-outcome-replace-empty">
-              No owned alternatives found. Pick another option above.
+              No owned alternatives found. Pick another option.
             </p>
           ) : (
             <ul className="donor-outcome-replace-list">

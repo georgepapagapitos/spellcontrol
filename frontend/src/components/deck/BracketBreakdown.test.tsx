@@ -228,7 +228,7 @@ describe('BracketBreakdown', () => {
     });
     const { container } = render(<BracketBreakdown estimation={est} />);
     expect(container.textContent).toContain(
-      'These 3 combos set no floor: Commander Spellbook rates them fine at Bracket 2, or they take more than two cards.'
+      'These 3 combos set no floor: Commander Spellbook rates them fine at Bracket 2, or they need more than two cards.'
     );
     // E382: the rule limits intentional two-card infinite combos; it never said
     // "only combos that end the game".

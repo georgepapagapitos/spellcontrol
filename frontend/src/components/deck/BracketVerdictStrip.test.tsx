@@ -42,7 +42,7 @@ describe('BracketVerdictStrip', () => {
     render(<BracketVerdictStrip bracket={1} estimate={2} />);
     expect(screen.getByText('Exhibition')).toBeTruthy();
     expect(screen.queryByText('Plays above')).toBeNull();
-    expect(screen.getByText(/estimate at Core \(2\) or higher/)).toBeTruthy();
+    expect(screen.getByText(/estimate at Core or higher/)).toBeTruthy();
   });
 
   it('Bracket 1 with an estimate of 3+ reads as "Plays above" toward the Core floor', () => {

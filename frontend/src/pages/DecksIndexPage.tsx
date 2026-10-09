@@ -683,7 +683,7 @@ export function DecksIndexPage() {
         {confirmBulkDelete && (
           <ConfirmDialog
             title={`Delete ${sel.selected.size} selected deck${sel.selected.size === 1 ? '' : 's'}?`}
-            body="The selected decks will be removed. You can undo from the toast."
+            body="You can undo this from the toast."
             confirmLabel="Delete"
             danger
             onConfirm={() => {
@@ -698,7 +698,7 @@ export function DecksIndexPage() {
         {confirmDeleteAll && (
           <ConfirmDialog
             title={`Delete all ${decks.length} decks?`}
-            body="Every deck will be removed. You can undo from the toast."
+            body="You can undo this from the toast."
             confirmLabel="Delete all decks"
             danger
             onConfirm={confirmDeleteAllDecks}
@@ -751,7 +751,7 @@ export function DecksIndexPage() {
           <EmptyState
             tagline={
               debouncedSearch
-                ? `No decks match "${debouncedSearch}".`
+                ? `No decks match “${debouncedSearch}”.`
                 : 'No decks match the current filters.'
             }
           />

@@ -15,8 +15,8 @@ describe('DeckTagManager', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Rename "combo"' }));
-    const input = screen.getByLabelText('Rename tag "combo"');
+    fireEvent.click(screen.getByRole('button', { name: 'Rename “combo”' }));
+    const input = screen.getByLabelText('Rename tag “combo”');
     fireEvent.change(input, { target: { value: 'win con' } });
     fireEvent.keyDown(input, { key: 'Enter' });
 
@@ -34,13 +34,13 @@ describe('DeckTagManager', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Rename "combo"' }));
-    const input = screen.getByLabelText('Rename tag "combo"');
+    fireEvent.click(screen.getByRole('button', { name: 'Rename “combo”' }));
+    const input = screen.getByLabelText('Rename tag “combo”');
     fireEvent.change(input, { target: { value: 'discarded' } });
     fireEvent.keyDown(input, { key: 'Escape' });
 
     expect(onRename).not.toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: 'Rename "combo"' }).textContent).toContain('combo');
+    expect(screen.getByRole('button', { name: 'Rename “combo”' }).textContent).toContain('combo');
   });
 
   it('with no onRename renders a plain, non-interactive name', () => {
@@ -61,7 +61,7 @@ describe('DeckTagManager', () => {
         onDone={vi.fn()}
       />
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Remove "combo" from every card' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove “combo” from every card' }));
     expect(onRemove).toHaveBeenCalledWith('combo');
   });
 });

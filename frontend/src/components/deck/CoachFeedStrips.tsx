@@ -67,7 +67,7 @@ export function CutsLaneStatus({
       <div className="coach-feed-collection-strip">
         <span className="coach-feed-collection-summary">
           {lane.note === 'fallback'
-            ? "Coach can't judge swaps for this deck right now, so these cuts come without a replacement."
+            ? 'No replacements for these cuts right now.'
             : "Couldn't pair these cuts with replacements."}
         </span>
         {lane.note === 'error' && (

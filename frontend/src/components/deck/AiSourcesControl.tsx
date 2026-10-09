@@ -102,8 +102,8 @@ export function AiSourcesControl({
         })}
       </div>
       <p id={`${id}-note`} className="ai-sources-note">
-        Applies to Read the deck and Refine. Changing it makes the next reading a new one, which
-        counts toward today&apos;s {status.limit}.
+        Applies to Read the deck and Refine. A change uses one of today&apos;s {status.limit}{' '}
+        readings.
       </p>
     </fieldset>
   );

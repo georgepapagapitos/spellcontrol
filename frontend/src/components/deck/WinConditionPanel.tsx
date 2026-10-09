@@ -88,12 +88,8 @@ export function assemblyClockTip(): JSX.Element {
   return (
     <>
       <span className="info-tip-lead">
-        1,000 simulated games: mulligan to a keepable seven, then draw and spend mana every turn
-        until the win path is fully cast. A tutor still has to cast what it finds.
-      </span>
-      <span className="info-tip-lead">
-        Colors, rituals and opponents aren&apos;t modeled. It&apos;s a goldfish estimate, not a
-        promise.
+        Share of 1,000 goldfish games where the win path is fully cast by that turn, after mulligans
+        to a keepable seven. Colors, rituals and opponents aren&apos;t modeled.
       </span>
     </>
   );
@@ -350,8 +346,7 @@ export function WinConditionPanel({
             })}
           </div>
           <p className="win-con-clock-scope">
-            Drawing{analysis.tutors?.length ? ', tutoring' : ''} and casting the pieces, over 1,000
-            goldfish games. Combat and poison damage aren&apos;t simulated.
+            Goldfish estimate over 1,000 games. Combat and poison damage aren&apos;t simulated.
           </p>
         </div>
       )}

@@ -539,8 +539,7 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
                     </ul>
                     <LandHistogram result={sim} />
                     <p className="deck-test-hand-stat-secondary">
-                      Lands per opening hand across {sim.iterations.toLocaleString()} simulated
-                      draws · avg <strong>{sim.avgLands.toFixed(2)}</strong>
+                      Lands per opening hand · avg <strong>{sim.avgLands.toFixed(2)}</strong>
                     </p>
                     {assemblyClock && primaryWinCon && (
                       <p className="deck-test-hand-assembly">

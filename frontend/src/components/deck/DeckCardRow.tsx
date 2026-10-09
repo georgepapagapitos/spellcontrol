@@ -230,7 +230,7 @@ export function DeckCardRow({
             <VerdictBadge
               tone="warn"
               label="Game Changer"
-              title="Game Changer: high-power, bracket-relevant"
+              title="Game Changer. Counts toward your bracket."
             />
           )}
           {roleLabel && <VerdictBadge tone="neutral" label={roleLabel} />}
@@ -241,9 +241,7 @@ export function DeckCardRow({
               tone="accent"
               label={synergyShown > 0 ? `Synergy +${synergyShown}%` : 'Synergy'}
               title={
-                synergyShown > 0
-                  ? `Played ${synergyShown}% more with this commander than in its colors`
-                  : undefined
+                synergyShown > 0 ? `${synergyShown}% more played with this commander` : undefined
               }
             />
           )}

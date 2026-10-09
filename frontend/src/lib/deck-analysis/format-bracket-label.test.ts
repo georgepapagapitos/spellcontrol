@@ -34,8 +34,8 @@ describe('bracketAriaWithEstimate', () => {
 });
 
 describe('bracketSourceSentence', () => {
-  it('names the list contents as the source', () => {
-    expect(bracketSourceSentence('contents')).toBe("The estimate comes from what's in the list.");
+  it('says nothing extra when the list contents set the estimate', () => {
+    expect(bracketSourceSentence('contents')).toBe('');
   });
 
   it('names the power signal as the source', () => {
@@ -51,7 +51,7 @@ describe('bracketSourceSentence', () => {
 
 describe('EXHIBITION_BRACKET_NOTE', () => {
   it('explains the Core floor', () => {
-    expect(EXHIBITION_BRACKET_NOTE).toMatch(/Core \(2\) or higher/);
+    expect(EXHIBITION_BRACKET_NOTE).toMatch(/Core or higher/);
   });
 });
 

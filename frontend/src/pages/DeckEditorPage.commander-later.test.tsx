@@ -342,7 +342,7 @@ describe('DeckEditorPage — every door to the commander opens the picker (E465)
   it('the Coach tab says what Coach needs instead of "looks tuned", and its button opens the picker', () => {
     renderEditor('/decks/deck-1?view=tune');
     const coach = screen.getByTestId('coach-slot');
-    expect(coach.textContent).toContain('Choose a commander and Coach reads the deck against it.');
+    expect(coach.textContent).toContain('Choose a commander to get Coach suggestions.');
     expect(screen.queryByTestId('coach-feed')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Choose a commander' }));
     expect(screen.getByTestId('commander-picker')).toBeTruthy();

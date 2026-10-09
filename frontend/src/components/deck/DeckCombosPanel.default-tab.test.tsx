@@ -85,6 +85,6 @@ describe('DeckCombosPanel: default tab', () => {
     fireEvent.click(screen.getByRole('tab', { name: /^In deck/ }));
     expect(selected(/^In deck/)).toBe(true);
     expect(screen.getByText('No complete combos in this deck.')).toBeTruthy();
-    expect(screen.getByText('1 combo is one card away. Check the next tab.')).toBeTruthy();
+    expect(screen.getByText('1 combo is one card away. Open the One card away tab.')).toBeTruthy();
   });
 });

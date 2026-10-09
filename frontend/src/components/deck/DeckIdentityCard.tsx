@@ -305,7 +305,7 @@ export function DeckIdentityCard({
                     {planScore.limitedData && ' · limited data'}
                     <InfoTip
                       label="build health"
-                      text={`Each part of the build is scored out of 100. The mark is ${DIALED_IN_LINE}, the line for Dialed in.`}
+                      text={`Each part scores out of 100. ${DIALED_IN_LINE} or higher reads as Dialed in.`}
                     />
                   </span>
                 )}

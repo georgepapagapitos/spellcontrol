@@ -190,7 +190,7 @@ export function DeckCardPreviewMeta({
                   <IconButton
                     className="deck-card-preview-meta-tag-remove"
                     onClick={() => removeTag(t)}
-                    label={`Remove tag "${t}"`}
+                    label={`Remove tag “${t}”`}
                     icon={<X width={12} height={12} strokeWidth={2} />}
                   />
                 )}

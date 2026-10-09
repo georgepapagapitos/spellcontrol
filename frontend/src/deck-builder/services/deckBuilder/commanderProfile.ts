@@ -282,7 +282,7 @@ const DETECTORS: Detector[] = [
     themes: ['blink', 'flicker', 'etb'],
     feeder:
       /\b(when|whenever)\b[^.]*?\benters\b|\b(flicker|exile)\b[^.]*?\breturn\b[^.]*?\bbattlefield\b/,
-    reason: 'Re-triggers / adds an enters-the-battlefield effect',
+    reason: 'Re-triggers ETB effects',
   },
   {
     keyword: 'attack-trigger',
@@ -300,7 +300,7 @@ const DETECTORS: Detector[] = [
     archWeight: 1,
     feeder:
       /\b(can't be blocked|menace|trample|double strike|flying|additional combat)\b|\b(when|whenever)\b[^.]*?\battacks?\b/,
-    reason: 'Helps your commander connect / triggers on attack',
+    reason: 'Helps it connect',
   },
   {
     keyword: 'sacrifice',
@@ -315,7 +315,7 @@ const DETECTORS: Detector[] = [
     archetypeHint: Archetype.ARISTOCRATS,
     feeder:
       /\b(create|creates)\b[^.]*?\btoken\b|\b(treasure|clue|food|blood)\b|\bsacrifice (a|an|another|two|three)\b|\bwhenever\b[^.]*?\bdies\b/,
-    reason: 'Sac fodder, sac outlet, or death payoff',
+    reason: 'Sac fodder, outlet or payoff',
   },
   {
     keyword: 'dies-trigger',
@@ -367,7 +367,7 @@ const DETECTORS: Detector[] = [
     themes: ['counters', 'proliferate'],
     // Marker counters only, not counterspell phrasing.
     feeder: new RegExp(String.raw`\bcounters?\b${NOT_COUNTERSPELL}|\bproliferate\b`),
-    reason: 'Works with counters',
+    reason: 'Cares about counters',
   },
   {
     keyword: 'leaves-battlefield',
@@ -476,7 +476,7 @@ const DETECTORS: Detector[] = [
     themes: ['artifacts', 'treasures'],
     archetypeHint: Archetype.ARTIFACTS,
     feeder: /\bartifact\b/,
-    reason: 'Artifact synergy',
+    reason: 'Cares about artifacts',
   },
   {
     keyword: 'enchantment-matters',
@@ -486,7 +486,7 @@ const DETECTORS: Detector[] = [
     themes: ['enchantress', 'enchantments'],
     archetypeHint: Archetype.ENCHANTRESS,
     feeder: /\benchantment\b|\bconstellation\b/,
-    reason: 'Enchantment synergy',
+    reason: 'Cares about enchantments',
   },
   {
     keyword: 'landfall',
@@ -766,7 +766,7 @@ function pickPrimaryArchetype(abilities: CommanderAbility[]): Archetype {
 function buildSummary(name: string, abilities: CommanderAbility[]): string {
   const short = name.includes(',') ? name.split(',')[0].trim() : name;
   if (abilities.length === 0) {
-    return `${short} has a unique line of text. Pick your themes below.`;
+    return `${short} has no standard pattern. Pick your themes.`;
   }
   const phrases: Record<CommanderKeyword, string> = {
     etb: 'abuse enters-the-battlefield triggers',

@@ -3493,7 +3493,7 @@ export function DeckEditorPage() {
                 // Coach reads a deck against its commander; with none yet its
                 // feed would be empty and its "looks tuned" line untrue (E465).
                 <EmptyState
-                  tagline="Choose a commander and Coach reads the deck against it."
+                  tagline="Choose a commander to get Coach suggestions."
                   actions={
                     <Button
                       variant="primary"

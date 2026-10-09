@@ -790,7 +790,7 @@ export function CoachFeed({
           ) : (
             <EmptyState
               tagline="Nothing to coach. This deck looks tuned."
-              hint="Try another power bracket, or browse themes below."
+              hint="Try another power bracket, or browse themes."
             />
           )
         ) : (

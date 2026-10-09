@@ -106,7 +106,7 @@ export function NewArrivalsSheet({
             <div className="new-arrivals-sheet-title-text">
               <h2 className="new-arrivals-sheet-heading">{heading}</h2>
               <p className="new-arrivals-sheet-subheading">
-                Recommended cards you added to your collection since you last updated this deck.
+                Recommended cards you&apos;ve added since you last updated this deck.
               </p>
             </div>
             <IconButton

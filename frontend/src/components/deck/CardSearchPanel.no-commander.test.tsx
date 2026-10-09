@@ -79,7 +79,7 @@ describe('CardSearchPanel — a commander deck with no commander yet', () => {
   it('still holds back a card the format bans', () => {
     renderPanel();
     expect(screen.queryByText('Black Lotus')).toBeNull();
-    expect(screen.getByText(/1 card you own matches but cannot go in the mainboard/)).toBeTruthy();
+    expect(screen.getByText(/1 card you own matches but can't go in the mainboard/)).toBeTruthy();
   });
 
   it('offers no Suggestions tab until there is a commander to suggest for', () => {

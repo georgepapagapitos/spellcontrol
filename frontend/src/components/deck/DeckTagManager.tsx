@@ -36,8 +36,8 @@ export function DeckTagManager({
               <InlineRename
                 value={tag}
                 onCommit={(next) => onRename(tag, next)}
-                label={`Rename tag "${tag}"`}
-                renameLabel={`Rename "${tag}"`}
+                label={`Rename tag “${tag}”`}
+                renameLabel={`Rename “${tag}”`}
                 maxLength={40}
                 className="deck-tag-manager-name-btn"
                 inputClassName="deck-tag-manager-input"
@@ -52,7 +52,7 @@ export function DeckTagManager({
                 className="deck-tag-manager-icon-btn deck-tag-manager-remove"
                 title="Remove from every card"
                 onClick={() => onRemove(tag)}
-                label={`Remove "${tag}" from every card`}
+                label={`Remove “${tag}” from every card`}
                 icon={<Trash2 width={14} height={14} strokeWidth={1.8} />}
               />
             )}

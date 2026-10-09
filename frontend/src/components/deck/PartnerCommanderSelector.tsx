@@ -173,8 +173,8 @@ export function PartnerCommanderSelector({ commander, partner, onSelect, collect
         <h2 className="deck-builder-section-title">Partner commander</h2>
         {partnerNotOwned && (
           <p className="partner-warning" role="status">
-            {partner.name} isn't in your collection. Pick a different partner, remove it, or turn
-            off &ldquo;Use my collection&rdquo; to keep this pairing.
+            {partner.name} isn't in your collection. Pick another partner, or turn off &ldquo;Use my
+            collection&rdquo; to keep it.
           </p>
         )}
         <div className="commander-pick">
@@ -237,8 +237,8 @@ export function PartnerCommanderSelector({ commander, partner, onSelect, collect
 
       {showCollectionWarning && (
         <p className="partner-warning" role="status">
-          None of {commander.name}'s legal partners are in your collection. Turn off &ldquo;Build
-          from my collection&rdquo; or import one to pair it.
+          None of {commander.name}'s legal partners are in your collection. Turn off &ldquo;Use my
+          collection&rdquo; or import one to pair it.
         </p>
       )}
 

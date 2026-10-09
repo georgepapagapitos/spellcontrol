@@ -214,7 +214,7 @@ describe('DeckDisplay category groups (E124)', () => {
     const { container } = renderDeck(slots([forest(), bear(), opt()]));
     const caption = container.querySelector('.deck-group-caption');
     expect(caption, 'Roles grouping rendered no counting-rule caption').toBeTruthy();
-    expect(caption!.textContent).toMatch(/filed under one role/i);
+    expect(caption!.textContent).toMatch(/counts once, under its main role/i);
   });
 
   it('shows no such caption when grouping by type, where the question does not arise', () => {

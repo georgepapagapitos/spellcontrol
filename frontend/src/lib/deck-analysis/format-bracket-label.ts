@@ -15,7 +15,7 @@ export function formatBracketLabel(bracket: number): string {
 /** The one wording of the Bracket 1 caveat, shared by the customizer's hint
  *  and the build report's aimed-vs-estimated line. */
 export const EXHIBITION_BRACKET_NOTE =
-  'Exhibition is a themed-build intent, not a power level. Decks aimed there estimate at Core (2) or higher.';
+  'Exhibition is a themed build, not a power level. Decks aimed there estimate at Core or higher.';
 
 /**
  * One sentence naming where the estimate comes from — the Bracket panel's
@@ -26,7 +26,7 @@ export const EXHIBITION_BRACKET_NOTE =
 export function bracketSourceSentence(source: 'contents' | 'power' | 'baseline'): string {
   switch (source) {
     case 'contents':
-      return "The estimate comes from what's in the list.";
+      return '';
     case 'power':
       return 'The power signal raised the estimate.';
     case 'baseline':

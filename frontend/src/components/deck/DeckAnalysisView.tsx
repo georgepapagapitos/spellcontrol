@@ -349,11 +349,13 @@ export function DeckAnalysisView({
                   {/* Held while combos aren't counted: "nothing pushes it past
                       Core" is exactly what an uncounted combo can disprove, and
                       the strip above already says the estimate may rise. */}
-                  {bracketEstimation && !bracketMissesCombos && (
-                    <p className="deck-stats-bracket-source">
-                      {bracketSourceSentence(bracketSource(bracketEstimation))}
-                    </p>
-                  )}
+                  {bracketEstimation &&
+                    !bracketMissesCombos &&
+                    bracketSourceSentence(bracketSource(bracketEstimation)) && (
+                      <p className="deck-stats-bracket-source">
+                        {bracketSourceSentence(bracketSource(bracketEstimation))}
+                      </p>
+                    )}
                   {/* UX-313: the bracket control moved to the PowerHero above
                       (the "Bracket: N ▾" SelectMenu). Keeping just a small note
                       here when a stated bracket is active so the Bracket panel
@@ -538,7 +540,7 @@ function RolesPanel({
           under its main role. They used to sit under an overlapping tally
           (every role a card fills) that disagreed with the chips and the
           bars; one count replaced the note explaining three. */}
-      <p className="deck-roles-note">Each card counted once, under its main role.</p>
+      <p className="deck-roles-note">Each card counts once, under its main role.</p>
       <ul className="deck-roles">
         {items.map((it) => {
           const hasTarget = typeof it.want === 'number';

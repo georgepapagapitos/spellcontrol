@@ -828,8 +828,8 @@ export function getCurvePhases(
         letter: 'D',
         message:
           p.delta > 0
-            ? `Significantly overloaded in ${p.label.toLowerCase()}.`
-            : `Significantly lacking ${p.label.toLowerCase()} plays.`,
+            ? `Too heavy on ${p.label.toLowerCase()}.`
+            : `Short on ${p.label.toLowerCase()} plays.`,
       };
     } else {
       p.grade = {
@@ -837,7 +837,7 @@ export function getCurvePhases(
         message:
           p.delta > 0
             ? `Far too many ${p.label.toLowerCase()} cards.`
-            : `Critically lacking ${p.label.toLowerCase()} plays.`,
+            : `Almost no ${p.label.toLowerCase()} plays.`,
       };
     }
   }
@@ -1373,7 +1373,7 @@ export function computeOptimizeSwaps(
   // Co-played with 2+ of the deck's key cards → package-connected, never cut.
   const isLiftProtected = (name: string) => (liftEntryOf(name)?.liftedBy.length ?? 0) >= 2;
   const offPackageTrusted = liftSignal != null && liftSignal.seedCount >= LIFT_OFFPACKAGE_MIN_SEEDS;
-  const OFF_PACKAGE_REASON = 'Off-package: no co-play links with your key cards';
+  const OFF_PACKAGE_REASON = 'Off-package: not played with your key cards';
 
   type CandidateCard = OptimizeCard & { sortScore: number };
 

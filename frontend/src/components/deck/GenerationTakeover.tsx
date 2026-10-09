@@ -69,7 +69,7 @@ const FLAVOR_LINES: [string, string[]][] = [
   ],
   [
     'Attuning to',
-    ['Mana flows toward its master…', 'The planes resonate…', 'Identity crystallises from chaos.'],
+    ['Mana flows toward its master…', 'The planes resonate…', 'Identity crystallizes from chaos.'],
   ],
   [
     'Your commander heeds the call',

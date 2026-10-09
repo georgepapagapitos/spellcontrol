@@ -48,11 +48,7 @@ function ownedGapReason(
   }
   if (boughtOver.length > 3) parts.push(`${boughtOver.length - 3} more were added the same way.`);
   if (unowned - (held ?? 0) - boughtOver.length > 0 || parts.length === 0) {
-    parts.push(
-      held || boughtOver.length > 0
-        ? 'The rest hit your limits or a role cap.'
-        : 'The rest of your cards hit your limits, hit a role cap, or would have replaced a staple.'
-    );
+    parts.push("The rest didn't fit your limits or a role cap.");
   }
   return parts.join(' ');
 }

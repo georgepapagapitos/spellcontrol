@@ -1112,7 +1112,7 @@ export function buildBracketFitPlan(
     return {
       ...base,
       targetBracket: 1,
-      summary: 'Exhibition is a theme-first build, not a power level.',
+      summary: 'Exhibition is a themed build, not a power level.',
       note:
         detected <= EXHIBITION_TUNES_TO
           ? 'Your deck is already at Bracket 2, the Core floor.'

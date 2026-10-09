@@ -119,7 +119,7 @@ function discoveryReason(p: DiscoveryPick): string {
     p.inclusion === null
       ? 'is not on the commander page'
       : `is in ${Math.round(p.inclusion)}% of the page's decks`;
-  return `Discovery pick: ${p.label}. It ${played} but ranks ${p.rank ?? 'unranked'} on EDHREC overall, and the deck scores no worse with it. ${p.cut.name} was filler.`;
+  return `Discovery pick: ${p.label}. It ${played} but ranks ${p.rank ?? 'unranked'} on EDHREC overall. ${p.cut.name} was filler.`;
 }
 
 export async function wholeDeckSearchPhase(
@@ -256,11 +256,11 @@ export async function wholeDeckSearchPhase(
   const searchNote =
     result.swaps.length === 0
       ? ''
-      : `After the build, a check of the whole list made ${result.swaps.length} swap${result.swaps.length === 1 ? '' : 's'}: ${result.swaps
+      : `A whole-deck check made ${result.swaps.length} swap${result.swaps.length === 1 ? '' : 's'}: ${result.swaps
           .map((s) => `${s.in.join(' + ')} for ${s.out.join(' + ')}`)
           .join(
             '; '
-          )}.${result.stoppedBy === 'time' ? ' It stopped at its time limit, so it may have missed some.' : ''}`;
+          )}.${result.stoppedBy === 'time' ? ' It ran out of time and may have missed some.' : ''}`;
   const note = records.length === 0 ? undefined : `${searchNote}${discoveryNote}`.trim();
   return { swaps: records, note, stoppedBy: result.stoppedBy };
 }

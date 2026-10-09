@@ -63,9 +63,7 @@ describe('bracketPodLine', () => {
   });
 
   it("speaks in the owner's voice when their bracket differs from the estimate", () => {
-    expect(bracketPodLine(atraxa, 3, 3)).toMatch(
-      /^I play this at Bracket 3; the app estimates 4\. /
-    );
+    expect(bracketPodLine(atraxa, 3, 3)).toMatch(/^I play this at Bracket 3\. Estimate: 4\. /);
   });
 
   it('reads the stated bracket plainly when it matches the estimate', () => {

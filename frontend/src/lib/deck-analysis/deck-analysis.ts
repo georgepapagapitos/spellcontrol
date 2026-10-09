@@ -147,7 +147,7 @@ function landsMessageFor(
   avgCmc: number,
   rampCount: number
 ): string {
-  const basis = `avg MV ${avgCmc.toFixed(1)}, ${rampCount} ramp`;
+  const basis = `avg mana value ${avgCmc.toFixed(1)}, ${rampCount} ramp`;
   if (count < range[0]) {
     return `Add ${suggested - count} to reach ~${suggested} for this curve (${basis}).`;
   }

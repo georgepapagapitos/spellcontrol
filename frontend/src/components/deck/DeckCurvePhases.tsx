@@ -185,13 +185,13 @@ export function DeckCurvePhases({
                 <>
                   <ul className="info-tip-list">
                     <li>
-                      <strong>lean</strong>: cheap deck (avg under 2.8); plays out early
+                      <strong>lean</strong>: avg under 2.8. Plays out early
                     </li>
                     <li>
-                      <strong>balanced</strong>: healthy mix (avg 2.8–3.5)
+                      <strong>balanced</strong>: avg 2.8–3.5. A healthy mix
                     </li>
                     <li>
-                      <strong>top-heavy</strong>: pricey deck (avg over 3.5); leans on big spells
+                      <strong>top-heavy</strong>: avg over 3.5. Leans on big spells
                     </li>
                   </ul>
                 </>
@@ -366,12 +366,10 @@ export function DeckCurvePhases({
                 <span className="info-tip-lead">What the band means</span>
                 <ul className="info-tip-list">
                   <li>
-                    Cards split by mana value: <strong>Early</strong> (0–2), <strong>Mid</strong>{' '}
-                    (3–4), <strong>Late</strong> (5+).
+                    <strong>Early</strong> is mana value 0–2, <strong>Mid</strong> 3–4,{' '}
+                    <strong>Late</strong> 5+.
                   </li>
-                  <li>The number is how many cards fall in that phase.</li>
-                  <li>The band is how close that phase's share is to a healthy Commander curve.</li>
-                  <li>A guideline, not a verdict.</li>
+                  <li>The band shows how close each phase is to a healthy Commander curve.</li>
                 </ul>
               </>
             }

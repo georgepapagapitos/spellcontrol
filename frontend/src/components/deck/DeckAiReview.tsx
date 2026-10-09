@@ -257,7 +257,7 @@ export function DeckAiReview({
       <DeckAiConsent
         title="Read the deck"
         blurb={aiConsentBlurb(
-          "Writes what this deck is trying to do, and the structural problems the statistics can't show.",
+          'Get a read on what this deck is trying to do and where it breaks.',
           "this deck's card names and computed stats"
         )}
         onDismiss={() => setInviteDismissed(true)}
@@ -286,7 +286,7 @@ export function DeckAiReview({
         <div aria-live="polite">
           {stale && (
             <div className="deck-ai-stale" role="status">
-              <span>Your deck or its AI sources have changed since this was written.</span>
+              <span>The deck or AI sources changed since this reading.</span>
               <Button onClick={read} disabled={phase === 'reading'}>
                 Read again
               </Button>
@@ -393,7 +393,7 @@ export function DeckAiReview({
       {phase === 'idle' && !review && history !== null && (
         <div className="deck-ai-idle">
           <p className="deck-ai-idle-text">
-            What is this deck trying to do, and where does it break?
+            See what this deck is trying to do and where it breaks.
             {scope === 'owned'
               ? ' Fixes come from cards you own.'
               : scope === 'uncommitted'

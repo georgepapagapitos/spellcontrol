@@ -532,7 +532,7 @@ export function CommanderSearch({
           entries: [],
           total: 0,
           error: browse
-            ? "Couldn't reach EDHREC for popular commanders. Searching by name still works."
+            ? "Couldn't reach EDHREC for popular commanders. Search by name instead."
             : userMessage(e, "Couldn't run that search. Check your connection and try again."),
         });
       }

@@ -197,7 +197,7 @@ describe('DeckIdentityCard', () => {
     );
     renderCard({ planScore: plan });
     expect(hasText(/^Needs work$/)).toBe(true);
-    expect(hasText(/Your deck has the foundation\. It needs some tuning\./)).toBe(true);
+    expect(hasText(/The base is there\. It needs tuning\./)).toBe(true);
     expect(hasText(/is solid/)).toBe(false);
   });
 

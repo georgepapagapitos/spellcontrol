@@ -169,7 +169,7 @@ describe('computeOptimizeSwaps — off-package lift signal (E71 Phase 4)', () =>
     const swaps = runOptimizeSwaps(true, undefined, { index: new Map(), seedCount: 3 });
     const fringe = swaps.removals.find((r) => r.name === FRINGE);
     expect(fringe?.reasonCategory).toBe('off-package');
-    expect(fringe?.reason).toContain('no co-play links');
+    expect(fringe?.reason).toContain('not played with your key cards');
   });
 
   it('stays silent below the seed floor — absence of data is not evidence', () => {

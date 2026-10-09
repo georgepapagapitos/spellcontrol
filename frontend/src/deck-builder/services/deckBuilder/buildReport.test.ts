@@ -272,7 +272,7 @@ describe('assembleBuildReport', () => {
     });
 
     expect(report.ownedPercentGapNote).toBe(
-      'You asked for 50% owned cards and got 20%. The rest of your cards hit your limits, hit a role cap, or would have replaced a staple.'
+      "You asked for 50% owned cards and got 20%. The rest didn't fit your limits or a role cap."
     );
   });
 
@@ -321,7 +321,7 @@ describe('assembleBuildReport', () => {
     expect(report.ownedPercentGapNote).toContain(
       "5 of the 8 cards you don't own are each a staple"
     );
-    expect(report.ownedPercentGapNote).toContain('The rest hit your limits or a role cap.');
+    expect(report.ownedPercentGapNote).toContain("The rest didn't fit your limits or a role cap.");
   });
 
   // E571: a card the price bar let take an owned card's slot is named, with its price.

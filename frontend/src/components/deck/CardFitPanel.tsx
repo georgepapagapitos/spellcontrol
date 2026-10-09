@@ -53,9 +53,12 @@ function engineVerdict(report: AddFitReport): { tone: 'good' | 'mixed' | 'neutra
     };
   }
   if (axesNew.length > 0) {
-    return { tone: 'neutral', text: `Adds a ${joinLabels(axesNew)} angle.` };
+    return {
+      tone: 'neutral',
+      text: `Adds ${/^[aeiou]/i.test(joinLabels(axesNew)) ? 'an' : 'a'} ${joinLabels(axesNew)} angle.`,
+    };
   }
-  return { tone: 'neutral', text: 'No strong synergy signal either way.' };
+  return { tone: 'neutral', text: 'No clear synergy either way.' };
 }
 
 /** Adapt a ranked cut into a `type:'cut'` Change for the shared row. */
