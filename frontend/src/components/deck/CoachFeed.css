@@ -263,6 +263,7 @@
     border-bottom: 0.5px solid var(--border);
     font-size: var(--text-xs);
     color: var(--text-muted);
+    font-weight: 600;
   }
 
   .coach-feed-rows-head > :first-child {

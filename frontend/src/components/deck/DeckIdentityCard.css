@@ -94,6 +94,7 @@
 .deck-identity-card-eyebrow {
   font-size: var(--text-xs);
   color: var(--text-muted);
+  font-weight: 600;
 }
 
 .deck-identity-card-archetype-row {

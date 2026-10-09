@@ -256,6 +256,7 @@
 .deck-curve-phases-grade-head-label {
   font-size: var(--text-xs);
   color: var(--text-muted);
+  font-weight: 600;
 }
 
 /* The phases sit on the bars' own 8-column grid, each spanning the columns it

@@ -353,6 +353,7 @@
   flex: none;
   font-size: var(--text-xs);
   color: var(--text-muted);
+  font-weight: 600;
 }
 
 .deck-stats-report-line {
@@ -471,6 +472,7 @@
   font-size: var(--text-xs);
   color: var(--text-muted);
   margin: 0 0 var(--space-2) 0;
+  font-weight: 600;
 }
 
 .deck-stats-empty {

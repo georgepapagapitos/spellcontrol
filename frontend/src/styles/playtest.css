@@ -1956,6 +1956,7 @@ button.playtest-card-pt__value--editable:focus-visible {
   font-size: var(--text-xs);
   color: var(--text-muted);
   padding: var(--space-1) var(--space-2-5) var(--space-0-5);
+  font-weight: 600;
 }
 
 /* A count page (Draw several, and each bulk move): a stepper over the

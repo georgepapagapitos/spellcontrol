@@ -1284,9 +1284,11 @@ user choice — see § Type sets.
 **Uppercase belongs to the label role, and only to it (E595).** A section
 label above its rows ("Mana curve", "Build report", a form block's heading, a
 panel's eyebrow) is **sentence case in the body face**: no `text-transform`,
-normal `letter-spacing`, its own size and weight, `--text-secondary` or
-`--text-muted`. Caps are for `--font-label`: chrome, tabs, tape, print-table
-`th`, and stamps or tags (a ribbon, a turn chip, a status pill) where the mark
+normal `letter-spacing`, `--text-secondary` or `--text-muted`, and **weight
+600 when it heads a section** (caps used to carry that emphasis; a quiet
+regular-weight label disappears above its rows). A caption under a number (a
+record `dt`, a stat label) stays regular: there the number carries the weight.
+Caps are for `--font-label`: chrome, tabs, tape, print-table `th`, and stamps or tags (a ribbon, a turn chip, a status pill) where the mark
 is meant to catch the eye. A data code whose canonical form is uppercase (a set
 code, a hex value, a room code) is data, not a label, and is allowlisted with
 its reason. **Why:** an outside "does this read as AI-designed" review named

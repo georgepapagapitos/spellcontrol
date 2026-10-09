@@ -110,6 +110,7 @@
   font-family: var(--font-serif);
   font-size: var(--text-sm);
   color: var(--text-primary);
+  font-weight: 600;
 }
 .cube-saved-list {
   list-style: none;
@@ -322,6 +323,7 @@
   font-family: var(--font-serif);
   font-size: var(--text-sm);
   color: var(--text-primary);
+  font-weight: 600;
 }
 .cube-commanders-empty {
   margin: 0;
@@ -541,6 +543,7 @@
   font-family: var(--font-serif);
   font-size: var(--text-sm);
   color: var(--text-primary);
+  font-weight: 600;
 }
 .cube-legend {
   list-style: none;
@@ -581,6 +584,7 @@
   font-family: var(--font-serif);
   font-size: var(--text-sm);
   color: var(--text-primary);
+  font-weight: 600;
 }
 .cube-draftability {
   display: inline-flex;
@@ -746,6 +750,7 @@
   margin: 0 0 var(--space-2);
   font-size: var(--text-xs);
   color: var(--text-muted);
+  font-weight: 600;
 }
 .cube-health-rows {
   list-style: none;
@@ -1563,6 +1568,7 @@
   font-family: var(--font-serif);
   font-size: var(--text-sm);
   color: var(--text-primary);
+  font-weight: 600;
 }
 .cube-supplier-list {
   list-style: none;
@@ -1643,6 +1649,7 @@
   font-size: var(--text-xs);
   color: var(--text-muted);
   margin: 0;
+  font-weight: 600;
 }
 .cube-index-list {
   list-style: none;
@@ -2057,6 +2064,7 @@
   padding-left: var(--space-5);
   font-size: var(--text-xs);
   color: var(--text-muted);
+  font-weight: 600;
 }
 
 .cube-pull-rows {
