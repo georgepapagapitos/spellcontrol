@@ -220,7 +220,7 @@ export function CategorySection({
       const idx = rows.findIndex((r) => r.name === over.id);
       return `${active.id} dropped at position ${idx + 1} of ${rows.length}.`;
     },
-    onDragCancel: ({ active }) => `Reordering ${active.id} was cancelled.`,
+    onDragCancel: ({ active }) => `Reordering ${active.id} was canceled.`,
   };
 
   // A bucket with no rows still renders when it carries a target (the 0/N

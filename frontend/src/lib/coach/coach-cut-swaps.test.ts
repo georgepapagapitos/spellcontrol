@@ -386,7 +386,7 @@ describe('the words of a cut and its replacement', () => {
       { name: 'Animate Dead', term: 'roles', value: 0.3, note: 'roles: ramp 16 → 15 of target 12' },
     ]);
     expect(text).toBe(
-      "Cloud Key is not played with this commander. Animate Dead is in 35% of this commander's decks and the swap moves the deck's ramp from 16 to 15 (aiming for 12)."
+      "Cloud Key isn't played with this commander. Animate Dead is in 35% of this commander's decks and the swap moves the deck's ramp from 16 to 15 (aiming for 12)."
     );
   });
 
@@ -416,7 +416,7 @@ describe('the words of a cut and its replacement', () => {
     ]);
     // No "12% of decks" (the row shows it), and no list of feeders (the row has no room).
     expect(text).toBe(
-      "Ornithopter is not played with this commander. Vito pays off the deck's lifegain theme."
+      "Ornithopter isn't played with this commander. Vito pays off the deck's lifegain theme."
     );
   });
 
@@ -444,7 +444,7 @@ describe('the words of a cut and its replacement', () => {
       [{ name: 'Intruder Alarm', term: 'interaction', value: 1, note: 'answer #3: static (0.8)' }]
     );
     expect(text).toBe(
-      'Fyndhorn Elves is not played with this commander. Intruder Alarm adds a static-speed answer.'
+      "Fyndhorn Elves isn't played with this commander. Intruder Alarm adds a static-speed answer."
     );
   });
 

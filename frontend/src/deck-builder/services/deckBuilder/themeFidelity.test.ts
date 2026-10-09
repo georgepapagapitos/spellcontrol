@@ -144,7 +144,7 @@ describe('describeThemeFidelity', () => {
   it('names the cards each theme accounts for, in pick order, and the rest', () => {
     const f = measureThemeFidelity(cards(FX.deck), PAGES)!;
     expect(describeThemeFidelity(f)).toBe(
-      'Cats theme: 47 cards. Dogs theme: 8 cards. The other 9 cards are not tied to a theme.'
+      "Cats theme: 47 cards. Dogs theme: 8 cards. The other 9 cards aren't tied to a theme."
     );
   });
 
@@ -161,7 +161,7 @@ describe('describeThemeFidelity', () => {
         share: 0.5,
         themes: [{ name: 'Cats', cards: 1 }],
       })
-    ).toBe('Cats theme: 1 card. The other card is not tied to a theme.');
+    ).toBe("Cats theme: 1 card. The other card isn't tied to a theme.");
   });
 });
 
@@ -209,7 +209,7 @@ describe('the build report carries the per-theme line', () => {
       collectionNames: new Set(),
     });
     expect(report.themeFidelityNote).toBe(
-      'Cats theme: 47 cards. Dogs theme: 8 cards. The other 9 cards are not tied to a theme.'
+      "Cats theme: 47 cards. Dogs theme: 8 cards. The other 9 cards aren't tied to a theme."
     );
   });
 
