@@ -166,7 +166,6 @@ export function DeckDisplay({
   sideboard = [],
   considering = [],
   bracketEstimation,
-  deckCardsByName,
   bracketOverride,
   bracketMissesCombos,
   onSetBracketOverride,
@@ -688,6 +687,15 @@ export function DeckDisplay({
     for (const dc of cards) list.push(dc.card);
     return list;
   }, [commander, partnerCommander, cards]);
+
+  // The deck's own copies by name, so the bracket tiles show its art and
+  // printing. Built here from the cards every caller already passes: the
+  // shared deck page once left it out and its tiles came up blank.
+  const deckCardsByName = useMemo(() => {
+    const m = new Map<string, ScryfallCard>();
+    for (const c of allCards) if (!m.has(c.name)) m.set(c.name, c);
+    return m;
+  }, [allCards]);
 
   // The deck's legal color identity = the commander(s)' combined identity.
   // Undefined when there's no commander, which skips the identity validation gate.
@@ -1460,6 +1468,7 @@ export function DeckDisplay({
                         onMoveToSideboard: hasSideboard ? onMoveToSideboard : undefined,
                         onMoveToConsidering,
                         onRemoveCard,
+                        onSetProxy,
                       }}
                     />
                   )}

@@ -196,6 +196,11 @@
   min-width: 0;
 }
 
+.deck-card-inspector-unproxy {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
 .deck-card-inspector-chips {
   display: flex;
   flex-wrap: wrap;

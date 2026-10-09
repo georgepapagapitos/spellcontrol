@@ -620,6 +620,12 @@ describe('deck format legality (E612)', () => {
     return fetched.map((f) => f.name);
   };
 
+  it('the lookup_cards description promises the deck format, not Commander (E614)', () => {
+    const { description } = lookupCardsTool(cache, { format: 'brawl' }).definition;
+    expect(description).toMatch(/legal in its format/);
+    expect(description).not.toMatch(/Commander-legal|colour/);
+  });
+
   it('lookup_cards excludes a Brawl-banned card for a brawl deck', async () => {
     const got = await names('brawl');
     expect(got).not.toContain('Sol Ring');

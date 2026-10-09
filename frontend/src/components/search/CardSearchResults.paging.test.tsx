@@ -57,6 +57,25 @@ describe('CardSearchResults paging (E341)', () => {
     expect(screen.queryByText(/Card 5/)).toBeNull();
   });
 
+  it('keeps keyboard focus on the button when the last reveal hands over to the fetch', () => {
+    render(
+      <CardSearchResults
+        results={cards(0, 3)}
+        pageSize={2}
+        total={10}
+        hasMore
+        onLoadMore={vi.fn(async () => true)}
+      />
+    );
+    const btn = screen.getByRole('button', { name: 'Show 1 more' });
+    btn.focus();
+    fireEvent.click(btn);
+    // Same element, now the fetch: unmounting it dropped focus to <body>.
+    const next = screen.getByRole('button', { name: 'Show more' });
+    expect(next).toBe(btn);
+    expect(document.activeElement).toBe(next);
+  });
+
   it('shows a busy, same-slot button while the page loads', () => {
     render(
       <CardSearchResults

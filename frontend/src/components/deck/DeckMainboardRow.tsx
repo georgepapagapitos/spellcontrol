@@ -55,6 +55,7 @@ import {
   type CurrencyCode,
   type ShowPrefs,
 } from './deck-display-rows';
+import { qtyOwnershipClass } from './deck-display-derive';
 import { SectionIcon, AllocationChip } from './deck-display-icons';
 import { RoleBadge, LegalityBadge } from './deck-display-icons';
 import { CardName } from '@/components/shared/CardName';
@@ -616,7 +617,7 @@ function DeckCardRow({
   const qtyChip = (
     <button
       type="button"
-      className={`deck-row-qty deck-row-qty-edit${row.status !== 'allocated' ? ' deck-row-qty-missing' : ''}`}
+      className={`deck-row-qty deck-row-qty-edit${qtyOwnershipClass(row)}`}
       aria-label={allocationAriaLabel(row, { editable: true })}
       title={allocationTitle(row, { editable: true })}
       onClick={startEditQty}
@@ -689,7 +690,7 @@ ${row.card.type_line}`}
             max={99}
             autoFocus
             defaultValue={row.qty}
-            className={`deck-row-qty-input${row.status !== 'allocated' ? ' deck-row-qty-missing' : ''}`}
+            className={`deck-row-qty-input${qtyOwnershipClass(row)}`}
             aria-label={`Quantity of ${row.name} in deck`}
             onClick={(e) => e.stopPropagation()}
             onFocus={(e) => e.currentTarget.select()}
@@ -710,7 +711,7 @@ ${row.card.type_line}`}
           qtyChip
         ) : (
           <span
-            className={`deck-row-qty${row.status !== 'allocated' ? ' deck-row-qty-missing' : ''}`}
+            className={`deck-row-qty${qtyOwnershipClass(row)}`}
             aria-label={allocationAriaLabel(row, { editable: false })}
             role="img"
             title={allocationTitle(row, { editable: false })}

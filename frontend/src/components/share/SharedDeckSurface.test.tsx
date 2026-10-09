@@ -330,6 +330,39 @@ describe('SharedDeckSurface', () => {
     expect(screen.getByText(/Estimate: Bracket 4/)).toBeTruthy();
   });
 
+  it("draws a Game Changer floor's cards with the deck's own art, commander included", () => {
+    // The shared page once passed DeckDisplay no name-to-card map, so every
+    // floor tile came up as a blank box over the card name.
+    const est = estimation(3);
+    est.hardFloors = [{ bracket: 3, reason: '2 Game Changer cards' }];
+    est.breakdown.gameChangerCount = 2;
+    est.breakdown.gameChangerNames = ["Jeska's Will", 'Kinnan, Bonder Prodigy'];
+    const art = (name: string) => ({ art_crop: `https://cards.scryfall.io/art_crop/${name}.jpg` });
+    renderSurface(
+      makeDeck({
+        commander: {
+          name: 'Kinnan, Bonder Prodigy',
+          type_line: 'Legendary Creature',
+          image_uris: art('kinnan'),
+        },
+        cards: [
+          {
+            card: { name: "Jeska's Will", type_line: 'Sorcery', cmc: 3, image_uris: art('jeska') },
+          },
+        ],
+        bracketEstimation: est,
+      })
+    );
+    fireEvent.click(screen.getByRole('tab', { name: 'Power' }));
+    for (const [name, slug] of [
+      ["Jeska's Will", 'jeska'],
+      ['Kinnan, Bonder Prodigy', 'kinnan'],
+    ]) {
+      const tile = screen.getByRole('button', { name: `Preview ${name}` });
+      expect(tile.querySelector('img')?.getAttribute('src')).toContain(`${slug}.jpg`);
+    }
+  });
+
   it('shows only the stated bracket, no estimate line, when it matches the estimate', () => {
     renderSurface(
       makeDeck({
