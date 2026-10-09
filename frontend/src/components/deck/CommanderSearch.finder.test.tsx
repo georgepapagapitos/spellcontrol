@@ -253,6 +253,36 @@ describe('searching every commander', () => {
     expect(screen.getByRole('status').textContent).toContain('31 commanders');
   });
 
+  // E635: typing a new query kept the last search's tiles up (dimmed, on purpose)
+  // AND its count, so the status read "12 commanders · “Lathril”" over a list
+  // that wasn't Lathril's for a few seconds.
+  it("doesn't put the last search's count beside a new query while it loads", async () => {
+    render(<CommanderSearch value={null} onSelect={vi.fn()} />);
+    type('sacrifice');
+    await screen.findByText('Jarad, Golgari Lich Lord');
+    expect(screen.getByRole('status').textContent).toContain('31 commanders');
+
+    let resolve!: (v: { cards: ScryfallCard[]; total: number }) => void;
+    searchCommanderFinder.mockImplementationOnce(
+      () => new Promise((r) => (resolve = r as typeof resolve))
+    );
+    type('lathril');
+    await waitFor(() => expect(searchCommanderFinder).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole('status').textContent).not.toContain('31 commanders');
+    expect(screen.getByRole('status').textContent).toContain('Searching…');
+    // The previous tiles stay up while the new search runs.
+    expect(results()).toEqual(['Jarad, Golgari Lich Lord']);
+
+    const lathril = card(
+      'Lathril, Blade of the Elves',
+      ['B', 'G'],
+      'Menace. Whenever Lathril deals combat damage to a player, create that many 1/1 green Elf Warrior creature tokens.'
+    );
+    resolve({ cards: [lathril], total: 1 });
+    await screen.findByText('Lathril, Blade of the Elves');
+    expect(screen.getByRole('status').textContent).toContain('1 commander');
+  });
+
   it('combines a playstyle with colors and says what the playstyle means', async () => {
     render(<CommanderSearch value={null} onSelect={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Black' }));

@@ -27,6 +27,22 @@ describe('SuggestionLabelsTable', () => {
     expect(screen.getByText('Early Winter (3)')).toBeTruthy();
   });
 
+  // E634: 3 accepts of 831 shown rounded to "0%" beside "Accepted 3" on the real Admin page.
+  it('never shows a 0% rate beside a nonzero accept count', async () => {
+    getSuggestionStats.mockResolvedValue({
+      surfaces: [
+        { surface: 'coach:all', shown: 831, accept: 3, dismiss: 3, undo: 3 },
+        { surface: 'coach:cuts', shown: 8, accept: 0, dismiss: 0, undo: 0 },
+      ],
+      topDismissed: [],
+    });
+    render(<SuggestionLabelsTable />);
+    const all = (await screen.findByText('Coach, all lanes')).closest('tr')!;
+    expect(all.textContent).toContain('<1%');
+    expect(all.textContent).not.toContain('0%');
+    expect(screen.getByText('Coach, cuts').closest('tr')!.textContent).toContain('0%');
+  });
+
   it('shows an id this build does not know as it is', async () => {
     getSuggestionStats.mockResolvedValue({
       surfaces: [
