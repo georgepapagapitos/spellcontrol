@@ -68,9 +68,11 @@ export function CutsLaneStatus({
         <span className="coach-feed-collection-summary">
           {lane.note === 'fallback'
             ? 'No replacements for these cuts right now.'
-            : "Couldn't pair these cuts with replacements."}
+            : lane.note === 'combos-slow'
+              ? "Combos were still loading, so these cuts aren't paired with replacements yet."
+              : "Couldn't pair these cuts with replacements."}
         </span>
-        {lane.note === 'error' && (
+        {lane.note !== 'fallback' && (
           <Button variant="link" onClick={onRetry}>
             Retry
           </Button>

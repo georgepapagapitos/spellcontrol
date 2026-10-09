@@ -37,6 +37,7 @@ import {
 import { cutLane, isPairedCut } from '@/lib/coach/coach-cut-swaps';
 import { useCutSwaps, type CutSwapSources } from '@/lib/coach/use-cut-swaps';
 import { usePlanJudge } from '@/lib/coach/use-plan-judge';
+import { feedSkeletonStatus, useSettledFeed } from './use-settled-feed';
 import { useFilterCycle } from './use-filter-cycle';
 import { useCoachFeedLabels } from './use-coach-feed-labels';
 import { HiddenSuggestions } from './HiddenSuggestions';
@@ -462,11 +463,22 @@ export function CoachFeed({
   // its remaining completions to the end of the list (behind "Show all"), so
   // the first fold is different ideas rather than eight "Krenko + Skirk
   // Prospector" rows.
-  const ranked = useMemo(() => {
+  const rankedFresh = useMemo(() => {
     const all = rankCoachMoves(allChanges, ctx);
     const deduped = dedupeRankedAdds(all);
     return diversifyRankedMoves(deduped);
   }, [allChanges, ctx]);
+
+  const skeletonStatus = feedSkeletonStatus(analysisState, edhrecMissing);
+
+  // ── Settle, then never reorder (E627) ─────────────────────────────────────
+  const { ranked, holding } = useSettledFeed({
+    fresh: rankedFresh,
+    deckNames,
+    epochExtra: `${sliceKey}#${targetBracket ?? ''}`,
+    analysisBlocked: skeletonStatus !== null,
+    combosLoading: !!combosLoading,
+  });
 
   // ── Separate adds/swaps from cuts ────────────────────────────────────────
 
@@ -660,20 +672,6 @@ export function CoachFeed({
     [addsAndSwaps, lane]
   );
 
-  // ── Skeleton / error / EDHREC-missing ───────────────────────────────────
-  // A partial analysis (EDHREC unreachable) has `analysisState === 'ready'`
-  // (a real bracket exists), but every lane here — gaps, optimize, cost,
-  // synergy — is EDHREC-derived, so `allChanges` stays empty. Same
-  // notice-with-retry shape as pending/error, reworded.
-  const skeletonStatus: 'pending' | 'error' | 'edhrec-missing' | null =
-    analysisState === 'pending'
-      ? 'pending'
-      : analysisState === 'error'
-        ? 'error'
-        : edhrecMissing
-          ? 'edhrec-missing'
-          : null;
-
   // E458: one row that opens the plan, and the plan itself. Both render in
   // the skeleton branch too, so a deep link opened while the analysis runs
   // shows the plan loading instead of nothing.
@@ -705,7 +703,7 @@ export function CoachFeed({
     />
   );
 
-  if (skeletonStatus && allChanges.length === 0) {
+  if (holding || (skeletonStatus && allChanges.length === 0)) {
     return (
       <div className="coach-feed">
         {planEntry}
@@ -721,7 +719,7 @@ export function CoachFeed({
             currentView="tune"
           />
         )}
-        <DeckAnalysisSkeleton status={skeletonStatus} onRetry={onRetryAnalysis} />
+        <DeckAnalysisSkeleton status={skeletonStatus ?? 'pending'} onRetry={onRetryAnalysis} />
       </div>
     );
   }

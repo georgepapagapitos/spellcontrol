@@ -70,7 +70,11 @@ export function useCutSwaps(
   // The last verdict and the run it answers; a newer run's key leaves it stale.
   const [settled, setSettled] = useState<{ key: string; value: CutSwapState } | null>(null);
   const [attempt, setAttempt] = useState(0);
-  const retry = useCallback(() => setAttempt((n) => n + 1), []);
+  // A retry clears the last verdict so the lane shows its skeleton, not the stale fallback note.
+  const retry = useCallback(() => {
+    setSettled(null);
+    setAttempt((n) => n + 1);
+  }, []);
 
   // The run reads the latest inputs; it restarts only when the cuts or the deck's cards change.
   const latest = useRef({ cuts, sources, env });
