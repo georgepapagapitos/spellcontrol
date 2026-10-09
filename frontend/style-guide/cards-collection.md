@@ -1,7 +1,7 @@
 # Style guide: Cards, collection & binders
 
 Card rows and tables, the collection hub, binders, import review and card-level terminology. An appendix to the frontend style guide: the principles,
-tokens, verbs, voice, accessibility, responsive, motion, colour and
+tokens, verbs, voice, accessibility, responsive, motion, color and
 spacing rules every screen follows are in the core,
 [`STYLE_GUIDE.md`](../STYLE_GUIDE.md). Its Appendices section lists
 where every section lives.
@@ -55,7 +55,7 @@ Those heights are **layout contracts, not styling**:
 
 Every list of cards in the app is the same component at three densities: grid
 (`CardGridCell`), the thumbnail flow row and the compact row (`CardRow`), and —
-from **768px** up — the **card table**: aligned columns under a labelled header.
+from **768px** up — the **card table**: aligned columns under a labeled header.
 Collection, a binder's list view, a list's compact view and the shared/friend
 views all render it. A new card-listing surface joins them; it does not grow its
 own table.
@@ -267,7 +267,7 @@ accent-filled variant and OR the muted one.
   (OR) vs "White + Red" (AND) via `colorChipLabel`.
 - **Deliberate exceptions — no toggle:** combos ("fits inside these colors",
   subset), Discover decks (identity-subset, server-side), the browse lists
-  (an EDHREC colour list is one exact identity), and the commander
+  (an EDHREC color list is one exact identity), and the commander
   finder (`CommanderSearch`). The finder and the browse lists share one pip
   row, `ColorIdentityPicker` (`components/shared`). Their color rows mean something else; don't
   "unify" them onto this chip. The finder asks a commander question, so its
@@ -446,7 +446,7 @@ progress, so they moved off the panel entirely:
   on a blank collection, since `importCards` treats an empty collection's
   merge and replace the same). The rarer choices — add as a new binder (with
   its name field) and replace the whole collection (still its own confirm +
-  Undo) — live in a closed `Disclosure` labelled "Options" beside "Mark all
+  Undo) — live in a closed `Disclosure` labeled "Options" beside "Mark all
   as proxies", so a one-line paste is one click, not a dialog every time. The
   filename-based re-import warning (`findPriorImports`) still fires inline
   once a staged file's name matches prior history, pointing at Options rather
@@ -700,7 +700,7 @@ peeks) is **enhancement-only** — on coarse pointers it doesn't exist, so nothi
 may be _only_ reachable via hover. Every hover affordance needs a tap path;
 **tap-opens-the-card-preview is the canonical fallback** (the preview carousel
 shows the full printing detail), which is why the row glyphs can stay compact
-and `aria-hidden`/title-labelled.
+and `aria-hidden`/title-labeled.
 
 **Glyph literacy.** A glyph may carry meaning **alone** only if at least one of:
 
@@ -862,13 +862,13 @@ references. Rules:
 - **One hover for every tile, defined once** (`base-layout.css`, Index
   tiles). A tile that opens a deck or a binder, on any surface and in any
   view, answers the pointer the same way: its frame rings 1px in the tile's
-  own colour (`--tile-color`: the deck's or binder's colour, else accent)
+  own color (`--tile-color`: the deck's or binder's color, else accent)
   and lifts to `--shadow-card-hover`, and in grid its cover art zooms to
   1.03, clipped by the tile's link at the art's corners. Keyboard focus on
   the tile's link gets the same answer. Reduced motion keeps the ring and
   the lift and drops the zoom and the transitions. A family adds only what
   is its own, such as Discover's quick actions fading in; it never restyles
-  the frame or moves the cover. The hover used to be three behaviours, and
+  the frame or moves the cover. The hover used to be three behaviors, and
   the decks and binders one tinted a border that #2486 had removed, so for a
   day it did nothing. Guard: `styles/index-tile-hover.test.ts`.
 
@@ -1034,19 +1034,19 @@ in `lib/discover/browse-lists.ts`; a new list is a row there, not a new page.
   show when the device's offline card data can answer them.
 - **Filters live in the URL** (`period`, `colors`, `type`, `show`) so a list is
   a link, and change it in place. Period is a `SegmentedControl` (Week / Month
-  / 2 years), colour the shared `ColorIdentityPicker`, type a `SelectMenu`.
+  / 2 years), color the shared `ColorIdentityPicker`, type a `SelectMenu`.
   Wider than a phone they share one row; a phone keeps the period in the row
-  and folds colour, type and owned into one **Filters** popover
+  and folds color, type and owned into one **Filters** popover
   (`BrowseListFilters`), whose label counts what's on ("Filters · 2"), since
   four controls stacked three rows deep above the cards. In the popover the
   type is a row of radio chips: a `SelectMenu` nested in a popover closes its
   host on the first pick.
-  EDHREC's colour and type lists only cover the past 2 years, so either filter
-  locks the period to 2 years, greys the other two options and says why beside
+  EDHREC's color and type lists only cover the past 2 years, so either filter
+  locks the period to 2 years, grays the other two options and says why beside
   them ("Color and type lists cover the past 2 years."). The header's one line
   names the whole selection in words ("The Azorius mana rocks most played on
   EDHREC over the past 2 years."), so the filter row carries no label of its
-  own. The colour row has no AND/OR chip: an EDHREC colour list is one exact
+  own. The color row has no AND/OR chip: an EDHREC color list is one exact
   identity ([§ Color pip rows](#color-pip-rows--andor-match-mode-chip)).
 - **An unknown list is a broken link**: `/search/top/<anything else>` renders
   the app's "Page not found." state (`pages/NotFoundPage`).

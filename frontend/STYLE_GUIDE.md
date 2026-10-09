@@ -80,9 +80,9 @@ primitives directory.
 
 - **Sheet-presented dialogs (Pattern B).** A dialog you _pick from_ — the
   share audience, "send to a friend" — is a bottom sheet at ≤600px and a
-  centred dialog above, the way the OS share sheet behaves. Opt in with
+  centered dialog above, the way the OS share sheet behaves. Opt in with
   `<Modal backdropClassName="modal-backdrop--sheet">`; the rule lives next to
-  Pattern A in `modals-dialogs.css`. Confirmations stay centred at every
+  Pattern A in `modals-dialogs.css`. Confirmations stay centered at every
   width: an alert is read, a sheet is picked from. Every `<Modal>` portals to
   `<body>` — rendered in place it inherits a `container-type` ancestor as its
   containing block, which is how the share dialog once opened clipped inside
@@ -134,7 +134,7 @@ nav, `noindex` (a robots meta while mounted, `Disallow: /dev/` in
   goes red on a changed crop, uploading the diff images. No baseline image is
   committed: the baseline is the last night's artifact. A red run after an
   intended restyle is expected once; an unintended one is the button that
-  quietly changed colour.
+  quietly changed color.
 - **A new primitive adds its catalog entry in the same PR.**
   `src/test/catalog-coverage.test.ts` fails when a component exported from
   `components/shared/` is neither rendered in the catalog nor on that test's
@@ -145,7 +145,7 @@ nav, `noindex` (a robots meta while mounted, `Disallow: /dev/` in
 
 ---
 
-## Verbs: one behaviour per action (T157, 2026-09-27)
+## Verbs: one behavior per action (T157, 2026-09-27)
 
 The sections below this one are mostly about one surface each. This one is
 about the actions every surface shares. A user learns how delete, rename or
@@ -215,7 +215,7 @@ screen.
   art, for a tile). A right-click menu sits at the pointer, not beside its
   item, so the ring is how the user knows which card "Remove" means. In the
   deck's stacks the marked card also stays fanned out: the menu's backdrop
-  takes the hover away, and a card sliding back under its neighbours while its
+  takes the hover away, and a card sliding back under its neighbors while its
   menu was up is the bug that started this ruling.
 - **What keeps the browser's menu:** Shift + right-click (Firefox's own
   convention, made to hold in Chrome and Edge too), a field, selected text
@@ -289,8 +289,8 @@ screen.
   tag row). Adopted: pod name (drops the separate Done button — Enter/blur
   already saves a plain rename), the deck tag manager (one button per tag,
   dropping the old ✓/✕ pair), and the list/cube detail page title. The deck
-  name keeps its Done button: its editor is the name **and** the colour
-  together, one surface, and blur can't close that — picking a colour
+  name keeps its Done button: its editor is the name **and** the color
+  together, one surface, and blur can't close that — picking a color
   swatch keeps focus put on purpose, so Done is the explicit exit.
 - **Naming something that doesn't exist yet stays a dialog.** Creating a
   list or saving a cube (`NameInputDialog`) has nothing on screen to edit in
@@ -348,7 +348,7 @@ meanwhile.
   · value · bracket · sharing; the commander is the art and the command
   zone's first row, so the meta line doesn't name it again, and sharing is
   its last segment ("Sharing: Public"), not a boxed chip under the title. On a
-  phone sharing is instead a labelled action between Add cards and Deck ▾,
+  phone sharing is instead a labeled action between Add cards and Deck ▾,
   and the bracket is left to the Power tab's badge just under the header,
   so the meta line stays one line ([§ Page hero art](style-guide/app-shell.md#page-hero-art--phones-get-the-art-not-a-downgrade)). **Hub tabs, built:** see Hub pages below. The header
   and strip own their spacing (8px header → tabs on every hub; hosts with a
@@ -507,8 +507,8 @@ concrete, and MTG-literate** — it says what to do and what something means,
 never what the app "is."
 
 **US English spelling, everywhere (user ruling, 2026-09-30).** Color, colorless,
-flavor, favorite, gray, organize, center, catalog: never colour, flavour,
-favourite, grey, organise, centre. It is also the game's own spelling: the cards
+flavor, favorite, gray, organize, center, catalog: never color, flavor,
+favorite, gray, organize, center. It is also the game's own spelling: the cards
 print "flavor text" and the rules say "color". `copy-guards.test.ts` (rule
 UK_SPELLING) checks every string in `src/`, one-word labels included; a
 `keywords:` search-synonym list may keep a UK form so people who type it still
@@ -538,9 +538,9 @@ find the thing.
    "Awesome!", emoji, or marketing adjectives.
 5. **Apostrophes are straight, quotes are curly.** Copy writes `'` (the
    codebase and this guide's examples do; a typographic `’` reads as a
-   different glyph beside its neighbours), while quoted terms use `“ ”`
+   different glyph beside its neighbors), while quoted terms use `“ ”`
    ("try “sweeper”"). Card names and oracle text are data and keep whatever
-   the source has — fixtures that test apostrophe normalisation stay `’`.
+   the source has — fixtures that test apostrophe normalization stay `’`.
 6. **Use contractions** — "Couldn't add {card}", not "Could not add". They match
    the human register everywhere user-facing (errors, confirms, hints).
 
@@ -585,7 +585,7 @@ meaning)`, no `(not X)`. A count qualifier `(4 of 10)` is fine. Placeholders
     intelligent, powerful, comprehensive, elevate, unlock, leverage, seamless,
     robust, effortless (the proper noun "Comprehensive Rules" is exempt). Plurals
     are computed (`copies`), never `copy(ies)`. Sentence case applies to assembled
-    strings too (aria-labels and stepper labels built from templates capitalise
+    strings too (aria-labels and stepper labels built from templates capitalize
     the verb).
 15. **No hedging in verdicts.** "may stall", "could use a small bump", "Consider
     adding…" become the fact and the move: "Curve is heavy. Expect slow turns." /
@@ -599,7 +599,7 @@ meaning)`, no `(not X)`. A count qualifier `(4 of 10)` is fine. Placeholders
     engine decided. Several issues render as several short lines, never one
     semicolon-joined sentence. The E505 pass (2026-09-29) cut the same tails
     from hundreds of them:
-    - **A defence of the claim.** "Kept 2 payoffs the deck can't feed yet.
+    - **A defense of the claim.** "Kept 2 payoffs the deck can't feed yet.
       ~~Nothing stronger qualified.~~", "Already in your collection. ~~No
       purchase needed.~~", "Your deck is light on ramp. ~~This closes the
       gap.~~"
@@ -708,7 +708,7 @@ rather than crediting the house account as the deck's builder.
 
 **A filtered-to-zero empty state's own "reset" button must not repeat a
 nearby `SearchPill`'s built-in label.** `SearchPill` already renders its own
-inline `×` labelled "Clear search" whenever its box has text — exactly the
+inline `×` labeled "Clear search" whenever its box has text — exactly the
 condition under which a page-level zero-result empty state (`SharedEmptyState`
 and any future one) also wants a way back to the full list. Label that second
 affordance something distinct ("Reset search"), never a second "Clear search"
@@ -898,7 +898,7 @@ size.
 
 | `placement`        | Class                                  | Lives in                               | Differs by                                                                  |
 | ------------------ | -------------------------------------- | -------------------------------------- | --------------------------------------------------------------------------- |
-| `inline` (default) | `.btn` (+ `-primary` / `-danger`)      | dialogs, panels, inline actions        | grey hover, may shrink                                                      |
+| `inline` (default) | `.btn` (+ `-primary` / `-danger`)      | dialogs, panels, inline actions        | gray hover, may shrink                                                      |
 | `row`              | `.pill-btn` (+ `-primary` / `-danger`) | page heroes, action rows, the bulk bar | accent-tinted hover and focus, `flex-shrink: 0`, weight 500                 |
 | `toolbar`          | `.toolbar-pill` (+ `-danger`)          | toolbar control rows                   | the 999px toolbar-control pill (below); its `danger` is neutral until hover |
 
@@ -908,7 +908,7 @@ underlined mid-sentence link — takes `variant="link"` rather than a one-off
 class re-implementing the same background/underline/coarse-floor rules (T152
 W8j retired nine of those: `.card-rulings-retry`, `.link-button`, and their
 kin). Because a link button sits inside text, its 44px touch floor is a
-centred `::after` ghost, never a `min-height` that would push the sentence or
+centered `::after` ghost, never a `min-height` that would push the sentence or
 table row apart on a phone (`styles/inline-control-touch-floor.test.ts`).
 A plain navigation that is part of a sentence's words ("Shown on your public
 profile", "Browse by tag when…") stays a router `<Link>` with `.text-link`:
@@ -925,7 +925,7 @@ between a button's icon and its label in all three families, set by `.btn`,
 before T152 W8e, 26 did (from `0.2rem` to `--space-2`), and a dozen `.btn`
 icons that no surface covered touched their label.
 `styles/icon-gap-ownership.test.ts` fails on a rule that lands on a family
-class and sets `gap`. When a row of labelled buttons stops fitting a narrow
+class and sets `gap`. When a row of labeled buttons stops fitting a narrow
 phone, it wraps (the public deck's Playtest and Copy do at 360px); it doesn't
 squeeze its icon gap to fit.
 
@@ -968,10 +968,10 @@ and the convergence PRs then give each shape one look.
   reference, a 0.5px hairline on `--surface`, `text-xs` at 600, sentence
   case (uppercase belongs to `--font-label` tape, never a chip). Its status
   is `tone` (`success | info | warn | err | accent | neutral`), an outline
-  in the status colour painted by the pill, never a family `[data-tone]`
-  rule. An invalidating status (a cancelled night, a player who left, a card
-  the format bans) is the one filled case ([§ Invalidating-status cue](style-guide/components.md#invalidating-status-cue-cancelled-expired-)). A
-  family keeps its own layout (margins, flex), never the pill. Coloured-text
+  in the status color painted by the pill, never a family `[data-tone]`
+  rule. An invalidating status (a canceled night, a player who left, a card
+  the format bans) is the one filled case ([§ Invalidating-status cue](style-guide/components.md#invalidating-status-cue-canceled-expired-)). A
+  family keeps its own layout (margins, flex), never the pill. Colored-text
   labels (rules reference, set card, availability) are not pills; a chip on
   card art takes the scrim tones (§ On-art scrims). Guard:
   `styles/label-pill-plate.test.ts`.
@@ -979,7 +979,7 @@ and the convergence PRs then give each shape one look.
   (`top-start | top-end | bottom-start | bottom-end`). An icon-only one takes
   `label`, its accessible name. It is always the scrim plate
   (§ On-art scrims), never accent. The one fill is an identity mark (a
-  deck, cube or binder), which takes its owner's colour.
+  deck, cube or binder), which takes its owner's color.
 - A count bubble is `Count`, `placement` `inline` or `corner`. It renders
   nothing at zero and is `aria-hidden`: the control it sits in says the
   number in words. A plain text count ("12 cards") is not a bubble and stays
@@ -987,7 +987,7 @@ and the convergence PRs then give each shape one look.
   bubbles"): 1.125rem, `--font-label` 700 with tabular figures; a quiet tally
   is a hairline on `--surface`, an attention count (active filters, an unread
   door, the scan stack) is `tone="accent"` and fills; `corner` pins at one
-  offset. Never a literal colour. Guard: `styles/count-bubble-plate.test.ts`.
+  offset. Never a literal color. Guard: `styles/count-bubble-plate.test.ts`.
 - A tile, section card or anchored panel is `Surface` with its
   `variant` (`sleeve | framed | popover`, § Layout system). A tile that is
   itself a link or button keeps its own element.
@@ -996,7 +996,7 @@ Guard: `src/test/display-primitives-usage.test.ts`. The migration is done
 (T166 W1-W5); what stays raw is a list of permanent entries, each with its
 ruling: playtest and live-table chrome, the glyph components that are
 themselves primitives (Foil, Proxy, PriceOverride, Rarity), counts that show
-0 on purpose, role marks (coloured text, not a pill), the deck and binder
+0 on purpose, role marks (colored text, not a pill), the deck and binder
 domain badges that render on rows and on art, and the `<header>` rows with a
 collapse toggle ahead of the title. A new match is fixed with the primitive,
 never by adding an entry.
@@ -1081,7 +1081,7 @@ tab's accent fill): the tape value nearly matches the leather, so without the
 ring the chip silhouette sinks and only the digits float. The tape colors
 never change — visibility comes from the edge, not from theming the tape.
 
-**No labelled button is a pill — anywhere (T53 Phase 4).** The old hero-CTA
+**No labeled button is a pill — anywhere (T53 Phase 4).** The old hero-CTA
 pill tier is retired: hero CTAs are stamped rects like every other button
 (`.pill-btn`/`.pill-btn-primary` keep their historic class names — the
 role-not-name ruling below covers them). The only pill-shaped _buttons_ left
@@ -1120,11 +1120,11 @@ Anti-patterns this rule kills:
 
 - The same action rendered as two shapes across breakpoints (e.g. a pill on
   mobile, a rect on desktop).
-- Any labelled text button styled as a pill — it reads as a tag.
+- Any labeled text button styled as a pill — it reads as a tag.
 - A reskin that flattens the fill/outline hierarchy (every button filled, or
   every button outline) — the tiers are semantics, not decoration.
 
-**The one labelled-pill exception below the hero: toolbar controls.** Compact
+**The one labeled-pill exception below the hero: toolbar controls.** Compact
 toolbar _pickers and disclosures_ — Sort / Group / Show / the view-mode toggle /
 the card-size zoom stepper (`ZoomControl`) / the symbol **Key** — use the shared
 `.toolbar-pill` (`999px`, `--surface` bg,
@@ -1132,8 +1132,8 @@ the card-size zoom stepper (`ZoomControl`) / the symbol **Key** — use the shar
 _actions_ (those are rects) nor static _labels_ (those are non-actionable chips)
 but a third thing — _controls_ — and the pill is their established family
 (`SelectMenu`, the `ToolbarPopover` trigger, `Legend variant="pill"`). This and
-the circular icon-only button are the **only** labelled pills allowed below the
-hero; a one-off labelled pill that _isn't_ part of this toolbar-control family
+the circular icon-only button are the **only** labeled pills allowed below the
+hero; a one-off labeled pill that _isn't_ part of this toolbar-control family
 still reads as a tag — don't.
 
 **The class name does not decide the shape — the element's _role_ does.** A
@@ -1184,7 +1184,7 @@ viewports cap the max zoom step where larger steps stop changing the layout),
 not in hiding the control. Established by the grid zoom control (#1206), which
 replaced the 1×/2×/3× preset toggle.
 
-**Action-button anatomy (deck-analysis lanes & beyond).** A labelled action
+**Action-button anatomy (deck-analysis lanes & beyond).** A labeled action
 button is an \*\*accent-fill rect with a leading lucide icon at `width/height={14}`
 
 - a text label** (`var(--accent)` bg, `var(--on-accent)` text, `var(--radius)`,
@@ -1330,18 +1330,18 @@ Rulings:
   `typeSetHref(DEFAULT_TYPESET)` returns `null` for exactly that reason —
   returning a sheet would double-fetch the same families. The picker is the one
   place that loads them all, so its tiles preview rather than describe.
-- **Every face is self-hosted and centres its capital height.** No face loads
+- **Every face is self-hosted and centers its capital height.** No face loads
   from Google Fonts: each `@font-face` carries `ascent-override` /
   `descent-override` computed from the font's own tables so the capitals sit
   exactly mid line box, with the total unchanged (so `line-height: normal`
-  doesn't move). Without them every flex-centred label (`.btn`, `.pill-btn`,
+  doesn't move). Without them every flex-centered label (`.btn`, `.pill-btn`,
   chips, tabs) sat a pixel or two off the icon beside it, low in Plain and high
   in Codex. `styles/font-metrics.test.ts` re-reads each woff2 and fails on a
   face that's missing them or carries stale numbers; the header of that test
   has the formula. Plain can't override `system-ui`, so it leads with
   `'SC Segoe UI'`, a `local()` alias of Windows' system face with the same
   correction (SF and Roboto are already within 0.2px). Don't reach for
-  per-component nudges (`translate`, asymmetric padding) to centre a label:
+  per-component nudges (`translate`, asymmetric padding) to center a label:
   they fix one surface in one set and break it in the next.
   `text-box-trim` is not the fix either: it applies to block containers, and a
   button's bare text node is an anonymous flex item it never reaches.
@@ -1396,7 +1396,7 @@ Rulings for `--font-display` (restyle Phase 6):
   attribution line (`--text-xs`) function as labels, and an oldstyle display
   face dies in tiny tracked caps — don't "unify" those.
 
-## System preferences — honour them, don't reinvent them
+## System preferences — honor them, don't reinvent them
 
 The OS already carries the reader's accessibility choices. Respond to those
 signals rather than shipping an in-app duplicate of each one.
@@ -1409,10 +1409,10 @@ signals rather than shipping an in-app duplicate of each one.
 - **`prefers-contrast: more`** retires the two tokens that trade contrast for
   tone: `--text-muted` becomes `--text-secondary`, and `--border` becomes
   `--border-strong`. Every palette already clears AA (and AAA on primary text),
-  so this is not a rescue — it honours a reader who asked for less subtlety.
+  so this is not a rescue — it honors a reader who asked for less subtlety.
 
   Three rules for that block, all load-bearing:
-  1. **Re-point at stronger siblings; never declare new colours.** Each theme
+  1. **Re-point at stronger siblings; never declare new colors.** Each theme
      defines its own `--text-secondary` / `--border-strong`, so one block covers
      all ten with correct hues, and a new theme is covered the day it lands.
   2. **A token can never reference itself.**
@@ -1424,7 +1424,7 @@ signals rather than shipping an in-app duplicate of each one.
 
   `themes-contrast.test.ts` pins that secondary is at least as strong as muted
   in every theme — otherwise "more contrast" could mean _less_ in some theme,
-  and nothing else would catch it, since the block declares no colour of its own.
+  and nothing else would catch it, since the block declares no color of its own.
 
 ## Interactive semantics (jsx-a11y, 2026-09-09)
 
@@ -1718,7 +1718,7 @@ without), so the three layers carry no radius of their own.
 
 One engine (`styles/holographic.css`), three layers rendered by
 `components/shared/FoilShimmer`: a **spectrum × light-bars** shine
-colour-dodged onto the art (bright ink catches the colour, dark ink stays
+color-dodged onto the art (bright ink catches the color, dark ink stays
 dark, which is what makes it read as metal rather than tinted film), an
 optional **grain** for finishes with texture, and a **glare** hotspot. Rules:
 
@@ -1731,14 +1731,14 @@ optional **grain** for finishes with texture, and a **glare** hotspot. Rules:
   scroll-driven animations the thumbnail foil is tied to its scroller
   (`view-timeline`: block for grids, inline for the binder flipbook) and does
   nothing at rest; elsewhere it falls back to the 11s / 7s clock drift.
-- **Grain is mid-grey, never white.** Under `color-dodge` a white speck blows
-  out any pixel, black ink included (it reads as TV static); a grey one only
+- **Grain is mid-gray, never white.** Under `color-dodge` a white speck blows
+  out any pixel, black ink included (it reads as TV static); a gray one only
   brightens ink that already reflects.
 - **One treatment per finish** (`classifyFoil` → `.foil-{style}`): regular,
   etched (silver, not gold), oil slick, gilded, halo/surge, ripple, rainbow,
   textured/confetti/raised, galaxy, fracture. A new finish is a `FoilStyle`, a
   `FOIL_LABEL`, a `--foil-spectrum` (dark stops, since dodge brightens by the
-  blend colour) and a `.foil-badge.foil-{style}` chip fill.
+  blend color) and a `.foil-badge.foil-{style}` chip fill.
 - **The list-row foil chip is static.** `.foil-badge` used to drift with the
   card shimmer, which made every chip an infinitely animating layer (200 chips
   = 404 layers) for a motion invisible at 15px.
@@ -1859,11 +1859,11 @@ Moxfield/Archidekt dark-slate genre, so hold new surfaces to it:
   **Identity marks are the one fill (2026-09-28, user ruling).** A deck,
   cube or binder mark on art (`DeckBadge` / `BinderBadge`
   `placement="art"`, the binder pocket's deck mark and its hover preview)
-  is the plate's shape filled with the owner's colour under a light glyph
-  (`data-identity="one"`). It says whose card this is, and a colour disc
+  is the plate's shape filled with the owner's color under a light glyph
+  (`data-identity="one"`). It says whose card this is, and a color disc
   says it at 12px, on the card's black frame and on a dimmed pocket. A
-  coloured glyph on the scrim was specimened and rejected: a purple deck
-  vanished. Several owners have no one colour, so they stay on the scrim
+  colored glyph on the scrim was specimened and rejected: a purple deck
+  vanished. Several owners have no one color, so they stay on the scrim
   with its light glyph (`data-identity="many"`), and art never carries the
   count (the tooltip and the accessible name do). A cube that only
   **lists** the card holds no copy, so its mark is hollow, not filled: the
@@ -2100,7 +2100,7 @@ transform: translate(-50%, -50%)` on a `position: relative` parent) rather
   this floor silently inert on every `<a class="btn">`. **FIXED AT THE ROOT:
   `.btn` now declares `display: inline-flex` (+ centering) in `tabs.css`**, so
   a floor on an anchor lands like it does on a `<button>`. History, because the
-  diagnosis generalises: `.btn` used to set no `display`, so a real `<button>`
+  diagnosis generalizes: `.btn` used to set no `display`, so a real `<button>`
   computed `inline-block` (floor worked) while the 34 call sites styling a
   react-router `<Link>` computed `inline` (floor inert). `/trades`' empty-state
   CTA measured **29px** with `min-height: 44px` correctly applied (#1532).
@@ -2131,7 +2131,7 @@ transform: translate(-50%, -50%)` on a `position: relative` parent) rather
   the row's own coarse `min-height`, not 44px** — once rows are ~36px, two
   vertically adjacent 44px ghosts overlap and the later DOM sibling wins, so
   tapping the top of one row's control fires the **row above's**. Ghost
-  `width` can stay 44px (no horizontal neighbour).
+  `width` can stay 44px (no horizontal neighbor).
 - **When the row itself is the tap target, the row carries the floor —
   at 36px, not 44.** `.deck-row` is `role="button"` (opens the card preview),
   so the floor belongs on `.deck-row`, not on whichever child happens to be
@@ -2227,7 +2227,7 @@ gated, so the test is what holds the line — mirror of `radius-tokens.test.ts`)
   stepper `+`/`−` or remove `×` has no text affordance at rest; one control
   in a row with hover feedback and its sibling without reads as "this one is
   broken". `outline-offset: 2px` is the ring default — a tighter 1px is only
-  for a control whose ring would clip a flush neighbour, stated in a comment
+  for a control whose ring would clip a flush neighbor, stated in a comment
   at the declaration.
 
 - **`outline: none` inside a `:focus-visible` block is invalid.** A block that
@@ -2427,7 +2427,7 @@ must follow goes in the core.
   - [Empty states (E182)](style-guide/components.md#empty-states-e182)
   - [Wedge-feature discovery hints](style-guide/components.md#wedge-feature-discovery-hints)
   - [Info tooltips](style-guide/components.md#info-tooltips)
-  - [Invalidating-status cue (cancelled, expired, …)](style-guide/components.md#invalidating-status-cue-cancelled-expired-)
+  - [Invalidating-status cue (canceled, expired, …)](style-guide/components.md#invalidating-status-cue-canceled-expired-)
 - **[Overlays](style-guide/overlays.md)**: Dialogs, sheets, popovers and every other layer above the page.
   - [Overlays](style-guide/overlays.md#overlays)
 - **[Charts & meters](style-guide/data-display.md)**: Line, radar and money charts, bars and meters.

@@ -1,7 +1,7 @@
 # Style guide: App shell & first run
 
 The chrome around every page, the landing and welcome screens, Home, You, guest gates and app-wide moments. An appendix to the frontend style guide: the principles,
-tokens, verbs, voice, accessibility, responsive, motion, colour and
+tokens, verbs, voice, accessibility, responsive, motion, color and
 spacing rules every screen follows are in the core,
 [`STYLE_GUIDE.md`](../STYLE_GUIDE.md). Its Appendices section lists
 where every section lives.
@@ -130,12 +130,12 @@ different from desktop; it is not _absent_.
 - **Deck header: a thumbnail at every width (2026-10-08, T179).** The deck
   page is where the user works on the list, so its header is a compact bar
   that gives the deck the screen: the commander's art as a thumbnail (84×64
-  on a phone, 120×88 on a tablet, 152×108 on a desktop, the deck's colour as
+  on a phone, 120×88 on a tablet, 152×108 on a desktop, the deck's color as
   its foot), then back link, title and the meta line in a column, then the
   actions. The meta line opens with the deck's color pips.
   **A phone stacks rows, not columns:** the back link alone, the thumbnail
   beside the title only, the meta line at full width, then the actions. On a
-  phone, sharing is a labelled header action (the visibility glyph and "Private") beside Add cards
+  phone, sharing is a labeled header action (the visibility glyph and "Private") beside Add cards
   instead of the meta line's last segment, so the meta stays one line of
   facts. (The first version kept the column on a phone: the thumbnail stood
   beside a ~220px column whose meta wrapped onto three 44px touch rows, with
@@ -191,7 +191,7 @@ surface is for: a _header_ labels a page you are about to read, so a crop under
 a scrim is right; a _wait_ has nothing else to look at, so give the full card,
 which is the thing the deck is being built around. Cards stack above the text on
 phones and sit to the left of it at ≥600px. The whole composition lives in one
-centred stage capped at 54rem (the bar and phase list never stretch across a
+centered stage capped at 54rem (the bar and phase list never stretch across a
 wide desktop), the card is lit by a blurred copy of its own image, and a partner
 pair fans (two overlapping cards leaning apart) instead of widening the row.
 
@@ -202,7 +202,7 @@ collection value appeared twice word for word (hero and Value movers),
 Discover listed the viewer's own decks beside Recent decks, "326 new" summed
 per-deck counts so one card counted once per deck it fit, and four empty
 cards collapsed to 44px rows that still took whole grid cells and left holes
-beside their tall neighbours. The rebuild (mockups: Direction A, "the desk")
+beside their tall neighbors. The rebuild (mockups: Direction A, "the desk")
 is a column of sections in a fixed order, each answering one question:
 
 1. **The hero** — the collection itself (value + its sparkline, the scale
@@ -321,7 +321,7 @@ brand in the UI:
   shortcut need an image, and nobody sees them in the page itself. They get
   replaced together with any new mark.
 - **Anti-pattern:** don't add an interim logo, an icon beside the wordmark, or
-  a brand-flavoured loading animation. A new mark is a design decision with
+  a brand-flavored loading animation. A new mark is a design decision with
   its own brief (memory `project_brand_mark_exploration`), not a component
   tweak.
 
@@ -329,7 +329,7 @@ brand in the UI:
 
 The seal is the app's one celebration language: `SealBurst`
 (`components/shared/SealBurst.tsx`) — a brass flare and ring bloom at the
-centre and shed mana motes in the subject's colour identity. No logo sits in
+center and shed mana motes in the subject's color identity. No logo sits in
 the middle (§ Brand mark). **Never confetti, never a
 bespoke celebration** (the game board's `WinCelebration` predates this ruling
 and is grandfathered; don't copy it).
@@ -357,7 +357,7 @@ and is grandfathered; don't copy it).
   moment pairs with a real announcement element — the import success banner,
   the deck-complete toast, the binder "All caught up" status row — so
   reduced-motion users (for whom `fire` is a no-op) lose nothing but sparkle.
-- **Colours are honest:** pass the real colour identity when the completed
+- **Colors are honest:** pass the real color identity when the completed
   thing has one (a deck); pass nothing for identity-less completions (a
   collection import) and the motes fall back to seal gold.
 - **Anti-pattern — celebration inflation.** Low-stakes actions (copy link,
@@ -495,7 +495,7 @@ follow the full-viewport scroll pattern above. Design rulings settled here:
   where no copy is owned).
 - **The empty-sleeve fallback never floats behind content, and never
   flashes.** `HomeHero`'s empty state is an **empty sleeve** — the same 4:3
-  frame with a dashed `--border-strong` outline and one quiet centred line
+  frame with a dashed `--border-strong` outline and one quiet centered line
   saying what fills it ("A card from your collection goes here."), no tape —
   never decoration floating behind interactive content. And it renders only
   for a **settled** empty collection: while the IDB hydrate or a first-device
@@ -568,7 +568,7 @@ follow the full-viewport scroll pattern above. Design rulings settled here:
 A gated surface (Friends, Trades, Pods, Online play, game nights, Saved decks,
 a deck's share dialog, the feedback sheet, the friends-only shared view, the
 header's own Sign in) links to `useSignInPath()` from `lib/account/sign-in-path.ts`,
-never a bare `/auth`. AuthPage already honours `?returnTo=` (same-origin
+never a bare `/auth`. AuthPage already honors `?returnTo=` (same-origin
 relative paths only — `safeReturnTo`), so a finished sign-in — and "Continue
 without an account" — lands the person back on the page they were gated from.
 Before this, tapping Sign in on Friends and creating an account dropped a new
@@ -621,7 +621,7 @@ stopping to count, a sideboard over the new format's 15-card cap,
 Commander-only tools going away). The switch is one
 `replaceDeck` inside one `recordEdit`, removes no card (a commander the new
 format can't have moves into the deck with its copy), and its toast offers
-Undo, so it follows [§ Verbs](../STYLE_GUIDE.md#verbs-one-behaviour-per-action-t157-2026-09-27): undoable, so no confirm. Never promise a rule
+Undo, so it follows [§ Verbs](../STYLE_GUIDE.md#verbs-one-behavior-per-action-t157-2026-09-27): undoable, so no confirm. Never promise a rule
 nothing enforces. The 60-card formats' 15-card sideboard cap is enforced
 since E468 (`validateSideboardSize`: the legality banner, the deck checks'
 "Sideboard size" row, the complete seal), so the sheet names an overrun the
@@ -741,7 +741,7 @@ account linked." toast never fired.
 
 **The desktop guest's door is the Settings gear.** A guest has no avatar menu
 and the tab bar doesn't render at ≥1024px, so the header shows a gear
-`NavLink` labelled "Settings" beside "Sign in", opening Appearance like the
+`NavLink` labeled "Settings" beside "Sign in", opening Appearance like the
 menu's Settings item (every preference and data tool works without an
 account). Signed in, the gear gives way to the avatar menu.
 

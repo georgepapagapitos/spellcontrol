@@ -1,7 +1,7 @@
 # Style guide: Decks
 
 The deck view, analysis, bracket, Coach, upgrades, deck lists and AI-written content. An appendix to the frontend style guide: the principles,
-tokens, verbs, voice, accessibility, responsive, motion, colour and
+tokens, verbs, voice, accessibility, responsive, motion, color and
 spacing rules every screen follows are in the core,
 [`STYLE_GUIDE.md`](../STYLE_GUIDE.md). Its Appendices section lists
 where every section lives.
@@ -317,7 +317,7 @@ three times on one screen, so these rulings now hold:
   "✦ N new" chips are gone; the Deck-tab strip shows "N new arrivals" (accent,
   next to "missing") and opens the single all-category `NewArrivalsSheet`. The
   rows are narrowed at `DeckEditorPage` to cards the coach already recommends
-  for this deck or that finish a one-away combo — "in colour identity and
+  for this deck or that finish a one-away combo — "in color identity and
   bought recently" is not a recommendation.
 - **List is the default deck view** (reversing E127's card-forward grid). The
   list is the editing surface — editable count, kebab, reorder, price, mana cost,
@@ -336,7 +336,7 @@ three times on one screen, so these rulings now hold:
   flow.** The Commander section (one or two rows — a partner is just a second
   row with its existing "Partner" tag) is a full-width strip ABOVE the type
   columns, rendered by the same `CategorySection`/`DeckMainboardRow` as every
-  other card so its kebab, hover-peek, tags and allocation colour are identical;
+  other card so its kebab, hover-peek, tags and allocation color are identical;
   its rows sit on the same column grid as the sections below (`--deck-cols`),
   so one commander row is exactly a column wide and a partner pair reads as two
   aligned cells. The remaining sections are placed by `packSections`
@@ -366,7 +366,7 @@ what it did to the curve meant switching tabs every time.
   async with skeleton and error states, and they are long. Stacking them under
   the list would make one endless page with spinners in the middle.
 - **The checks verdict leads the stat strip** ("2 to fix" / "1 to tune" /
-  "All clear", coloured by tone, label "deck checks"). It replaces the old Stats
+  "All clear", colored by tone, label "deck checks"). It replaces the old Stats
   tab badge and is a button that jumps to the stats: on a phone the list is
   one long column, and this is the way down.
 - **Old links still land.** `?view=stats` (and the older `overview` / `mana`)
@@ -394,7 +394,7 @@ what it did to the curve meant switching tabs every time.
   stored headline, so they can't disagree; a "Needs work" over "Your deck is
   solid" came from exactly that.
 - **Under the list the board spans the list's width** (`--analysis-max: none`
-  inside `.deck-stats-below`). The 1320px cap centred a board on its own tab;
+  inside `.deck-stats-below`). The 1320px cap centered a board on its own tab;
   beside a full-width list it read as a ragged inset.
 - **Panels are sized to what they hold (2026-09-24, E415).** After the glance
   band, the stats sit on two `.deck-stats-row`s: Mana curve (two shares)
@@ -416,7 +416,7 @@ what it did to the curve meant switching tabs every time.
   to a newer player) with the non-land count, then one hairline row per
   color: its cards against its sources on one shared scale, a thin color
   flagged "▾ short" in words, and each count opening the list it counts. The
-  share-of-deck donut (an unlabelled 67 in the middle, "57% white" beside it)
+  share-of-deck donut (an unlabeled 67 in the middle, "57% white" beside it)
   and the boxed Demand/Sources cards inside the panel are gone.
 - **Types files the command zone as its own row**, "Commander" first, the way
   the list does, so the Creature count here is the list's Creature section.
@@ -437,16 +437,16 @@ what it did to the curve meant switching tabs every time.
 ## Deck page menus — each named for what it acts on (2026-10-08)
 
 The deck page had a `⋮` in the header and a `⋯` at the end of the toolbar,
-both unlabelled, with no rule between them: Export and Test hand sat in the
+both unlabeled, with no rule between them: Export and Test hand sat in the
 toolbar's, Paste cards, Bulk edit, Resync and the printing fixes in the
 header's. Finding Export meant opening both. Now every menu on the page is a
 named button, and each holds exactly one kind of thing:
 
-| Menu | Where | Holds |
-| --- | --- | --- |
+| Menu       | Where          | Holds                                                                                                                                                                                                                   |
+| ---------- | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Deck ▾** | header actions | the deck as a whole: Play (Playtest on a phone, Test hand), At the table (Pull list, Tokens to prep, Print proxies), Share (Export, Primer, Get feedback), This deck (Duplicate, Build report, Regenerate), then Delete |
-| **Edit ▾** | toolbar | changes to the card list: Select cards, Paste cards, Bulk edit, Resync from a list, Match my copies, Cheapest printings for missing |
-| **View** | toolbar, last | the display only: whatever layout/group/size control the row folded, row details, the role key and the symbol key. Never an action. |
+| **Edit ▾** | toolbar        | changes to the card list: Select cards, Paste cards, Bulk edit, Resync from a list, Match my copies, Cheapest printings for missing                                                                                     |
+| **View**   | toolbar, last  | the display only: whatever layout/group/size control the row folded, row details, the role key and the symbol key. Never an action.                                                                                     |
 
 - **Add cards stays the header's primary.** It is the page's main action on
   every tab, and the toolbar only exists on the Deck tab.
@@ -466,7 +466,7 @@ named button, and each holds exactly one kind of thing:
 
 A 100-card Commander deck on a ~2000px display used to render as six 280px
 columns — one section each, five of them mostly empty below the fold — while
-every card name was ellipsised to ~90px behind a role code, a combo chip, a
+every card name was ellipsized to ~90px behind a role code, a combo chip, a
 foil glyph, four mana pips, a price and a kebab. Compared against Moxfield's
 text view (`qty · name · ✓ · ⌄`, everything else opt-in or in a pinned
 preview) and Archidekt's static-card panel, these rulings now hold:
@@ -519,8 +519,8 @@ preview) and Archidekt's static-card panel, these rulings now hold:
   (see the 2026-09-25 amendment). The inspector never owns hover state — it
   remembers `useDeckHoverPeek`'s last non-null answer, so it doesn't blink back
   to the commander between rows.
-- **The group lens is a labelled dropdown.** "Group · Type ▾" (`SelectMenu`,
-  same as the collection toolbar's Group by), not three unlabelled icons.
+- **The group lens is a labeled dropdown.** "Group · Type ▾" (`SelectMenu`,
+  same as the collection toolbar's Group by), not three unlabeled icons.
   A display control whose options can't be told apart at a glance gets a
   word, not a tooltip.
 - **Three lenses, and every one of them partitions.** Type, Roles and Tags.
@@ -529,7 +529,7 @@ preview) and Archidekt's static-card panel, these rulings now hold:
   2026-09-21, when a fourth lens was retired: there were briefly TWO lenses
   over `DeckCard.tags`, one partitioning and one overlapping, and the
   overlapping one shipped a banner explaining why its counts did not add up.
-  A feature that has to apologise for its own numbers is the wrong feature.
+  A feature that has to apologize for its own numbers is the wrong feature.
   "Show me everything tagged Combo" is a **filter**, not a grouping, and it
   lives in the toolbar search (which matches a card's name OR any of its
   tags) so it works under every lens and in all three layouts.
@@ -546,7 +546,7 @@ preview) and Archidekt's static-card panel, these rulings now hold:
   height so the name strip reads), the hovered/focused tile opening to full
   size while the rest of the column slides down to clear it — the tile itself
   never moves, so the cursor stays on the card it opened, and the cards under
-  it keep their strips within reach (Archidekt's behaviour; z-order alone
+  it keep their strips within reach (Archidekt's behavior; z-order alone
   buried them). The slide is `--motion-gentle` `--ease-drawer`: it is a full
   card of travel, so it takes the drawer pair, not the 120ms hover one. Card width is the zoom
   ladder × 1.4 (`stackWidth`), driven by the same −/+ control as the grid.
@@ -563,7 +563,7 @@ moving off it. The rulings, guarded by `styles/stack-hover-reachable.test.ts`:
   `transform: translateY(--stack-open)` — `~`, not `+`, so each one travels
   from its own place and the tail arrives as one block of cards. The cursor is
   on the open card's name strip throughout.
-- **Never lift the open card by `z-index`.** Painted over its neighbours it
+- **Never lift the open card by `z-index`.** Painted over its neighbors it
   appears whole on the first frame and the tail slides out from under it, which
   is the pop. In DOM order the tail slides ACROSS its face and uncovers it top
   to bottom. That uncovering IS the animation.
@@ -590,7 +590,7 @@ moving off it. The rulings, guarded by `styles/stack-hover-reachable.test.ts`:
   step: the mouse opens by hover and the keyboard by focus, and both go straight
   to the carousel on activation. Stacks never open on load; the strips are the
   index.
-- **A tapped card scrolls into view by the least distance, never centred.**
+- **A tapped card scrolls into view by the least distance, never centered.**
   The card opens downward from the strip, so a strip low on the screen used to
   open most of its card below the fold. The tap now scrolls the cell with
   `block: 'nearest'`: a card that already fits does not move the page, so the
@@ -862,7 +862,7 @@ one question and made you pick which. Rulings:
   applies: "Picking from here builds with only your cards."
 - **Worth buying the commander for.** Under that same sort, popular commanders
   you don't own whose decks your collection covers, with the price, in their
-  own labelled section below the results.
+  own labeled section below the results.
 - **An empty result names the filter to drop** as buttons ("Search all
   commanders", "Within white", "Remove Reanimator"), never "No commanders
   found". A failed fetch is its own state with Retry, never an empty list.
@@ -1046,7 +1046,7 @@ the rest, so the panel labels which is which:
   practice-hand panel). The bracket question is whether a combo is early,
   which a median alone can't answer.
 - **Shows the shares as a fixed strip** (turns 4, 6, 8, 10, 12, 15), so two
-  decks compare column for column; the strip is a labelled `role="img"`, the
+  decks compare column for column; the strip is a labeled `role="img"`, the
   sentence carries the reading.
 - **Names its scope**: drawing, tutoring and casting the pieces over 1,000
   goldfish games; combat and poison damage aren't simulated.
@@ -1103,8 +1103,8 @@ and every zone wears the panel vocabulary the other analysis tabs already use:
    nothing to do ("Limited data") is a muted note under the steps, never a
    numbered step with an empty right edge.
    The steps are hairline rows inside the hero, not boxes inside a box; the
-   first step leads by its filled, tier-coloured rank chip and a larger
-   title, not by a lifted card with a coloured edge.
+   first step leads by its filled, tier-colored rank chip and a larger
+   title, not by a lifted card with a colored edge.
 2. **"Suggestions" panel** — the feed (chips + strips + rows) sits inside the
    shared `.deck-stats-panel--wide` chrome with a `.deck-stats-panel-title`
    header. A bare chips-and-rows zone on the bento reads as an unstructured
@@ -1313,7 +1313,7 @@ both); data it doesn't have never hides a move, except a price: **under a
 budget or a per-card cap, a card with no price is not shown** (`unpriced`),
 since reading it as free is how a $50 deck was once handed an unpriced
 Goblin Lackey. Basics and owned cards the budget ignores are exempt. An add
-to a full deck assumes the least favourable cut: nothing freed for the
+to a full deck assumes the least favorable cut: nothing freed for the
 budget, and an owned card out for a partial deck's owned share only when every
 card in it is owned. With an unowned card in the deck, the replace prompt
 offers only cuts that keep the deck's settings (`cutKeepsSettings`), so a
@@ -1496,7 +1496,7 @@ budget, over a bracket or Game Changer limit, or a banned card."
 - **The row is a swap that leads with the cut.** It is a `DeckCardRow` swap
   (`change.pairedCut`): the cut card's dimmed art, an arrow, the replacement's
   art, and a line above the replacement's name reading "Cut {X}, add". One
-  action, aria-labelled "Cut {X} and add {Y}", does both through the page's
+  action, aria-labeled "Cut {X} and add {Y}", does both through the page's
   swap path; the leave animation and Undo are the ordinary ones. There is no
   "Fit & cut" on it (the cut is already chosen), and its Why disclosure reads
   "Why this swap?".
@@ -1570,7 +1570,7 @@ collapsed by default, that expands the ranked alternatives as nested
   certain. Rank order carries fit, the Why disclosure carries the reasons, and
   no surface shows the score or a percentage.
 - **The ranking only reorders.** v2 never adds or drops an owned option: the
-  role gate, colour identity and the land rule decide which cards qualify, so
+  role gate, color identity and the land rule decide which cards qualify, so
   a row can only move, never appear from nowhere.
 - **A stand-in fills a short role, or it isn't offered** (T171). A missing
   staple gets owned stand-ins only while its role is under target
@@ -1581,7 +1581,7 @@ collapsed by default, that expands the ranked alternatives as nested
 ### Apply feedback
 
 When the user clicks Apply on a row, the order is **animate, then apply** —
-the persisted analyses don't recompute synchronously and a cut mutates the
+the persisted analyzes don't recompute synchronously and a cut mutates the
 store synchronously, so apply-first either snaps the row back or skips the
 animation entirely:
 
@@ -1652,7 +1652,7 @@ Model-written text always says so. The rulings:
   it.
 - **AI surfaces are additive and self-hiding.** An AI panel renders literally
   nothing (`null`) when the feature is unavailable or off — never a locked or
-  greyed-out teaser. The page without AI is exactly today's page.
+  grayed-out teaser. The page without AI is exactly today's page.
 - **Nothing is sent on render.** An AI surface may fetch its own cheap status,
   but model calls happen only on an explicit press of a clearly-AI button.
 - **Consent is granted in place, at the point of use (T102).** The first-use
@@ -1685,7 +1685,7 @@ Model-written text always says so. The rulings:
   (must-includes, commanders) are exempt, and the build report says how many
   owned cards it left out. The cube builder is the exception for now: its only
   pool IS the collection.
-- **The AI never annotates engine rows unlabelled (E274).** When the live
+- **The AI never annotates engine rows unlabeled (E274).** When the live
   refine reading picks the same card as an engine row, the row gets an
   "AI agrees" `AiMarker` followed by the model's own sentence, on its own line
   (`.deck-card-row-ai`) — apart from the engine's `reason` and never inside the
@@ -1699,7 +1699,7 @@ Model-written text always says so. The rulings:
   takes the quiet attention rail (`--warn-border` left rule, `--warn-text`
   title) and one step up in body size; the plate stays unfilled, because a
   finding is a finding, not an error. Prose too short to section honestly falls
-  back to plain paragraphs rather than mislabelling itself.
+  back to plain paragraphs rather than mislabeling itself.
 - **Card names inside AI prose are tappable as text, not as pills**
   (`.deck-ai-card-chip`): weight + underline on the running text, opening the
   shared card carousel seeded with every card the reading named. A pill per

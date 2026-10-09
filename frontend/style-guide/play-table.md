@@ -1,7 +1,7 @@
 # Style guide: Play, playtest & the table
 
 The playtest table, the online table, Horde and the life-counter play board. An appendix to the frontend style guide: the principles,
-tokens, verbs, voice, accessibility, responsive, motion, colour and
+tokens, verbs, voice, accessibility, responsive, motion, color and
 spacing rules every screen follows are in the core,
 [`STYLE_GUIDE.md`](../STYLE_GUIDE.md). Its Appendices section lists
 where every section lives.
@@ -37,7 +37,7 @@ The deck part is what makes the link per-board instead of per-account.
 Without it, holding a seat was the whole test, so opening any other deck to
 goldfish silently became your seat: it published that board to the table,
 fed its log lines into the table ticker, took the table's authoritative life
-total for its own, relabelled the page "Your board" with a back link into the
+total for its own, relabeled the page "Your board" with a back link into the
 game, and armed chat, reactions, dice, pointing and holds against a game it
 was not part of. A shared or public deck reaches the same board through
 `PlaytestSession`, so that was exposed too.
@@ -116,7 +116,7 @@ user). With the pointer over the fan, the cards either side part by exactly
 one fan step (a card's width less the overlap) and the drop goes into that
 gap, whether the card came from the felt, a pile, or the hand itself; a hand
 card lifted out also closes its own empty box. One step and no more, because
-the fan is centred: when the card lands every other card is already standing
+the fan is centered: when the card lands every other card is already standing
 where the new order puts it, so nothing jumps. The pointer decides, not the
 card's box, since the gap follows the pointer and the drop has to agree with
 the gap the player sees. There is no drop-onto-a-card target in the hand any
@@ -154,7 +154,7 @@ Three different weights of "look at this", and they are not interchangeable:
 | **Point** | a deliberate menu action | 5s            | yes                  |
 | **Arrow** | `W`, then a target       | until cleared | no                   |
 
-A **ping** is a ring in the pinging seat's palette colour
+A **ping** is a ring in the pinging seat's palette color
 (`paletteForIndex`), drawn by `TablePings` as a viewport overlay measured off
 `data-card-id` — the same DOM-lookup pattern `TableArrows` uses, rather than
 threading a prop through four components. It is deliberately silent in the
@@ -179,7 +179,7 @@ and the corner says which kind it is:
   resolve. Transient, paired with a ring so a covered card still reads.
 - **Top-right, slate: what the card is.** `Token` — this one is a token copy,
   not the printed card it is a picture of. Permanent for the card's whole life,
-  and deliberately ink rather than a status colour: being a token is not
+  and deliberately ink rather than a status color: being a token is not
   something happening to the permanent.
 
 Both can be true at once, which is why they take opposite corners rather than
@@ -217,7 +217,7 @@ The horde plays itself. There is no opposing player's board on screen — only
 the horde's own `Battlefield`/`ZonePile`/`LifeStrip`, built from the real
 playtest components, never a bespoke card grid.
 
-- **The attack ring is a third fixed colour, not a tap.** A creature the horde
+- **The attack ring is a third fixed color, not a tap.** A creature the horde
   declares as attacking wears a fixed red ring (`--pt-ring-attack`,
   `.playtest-card--attacking`), alongside the existing cyan-hover /
   gold-selected pair. It is never `tapped` — the horde has no tap step of its
@@ -254,7 +254,7 @@ playtest components, never a bespoke card grid.
   ("Horde library · N / N"), not a generic progress indicator.
 - **A boss banner's wording is derived from the crossed fraction, never
   hard-coded to "Half".** Casual has no ticks; Standard crosses only 50% and
-  100%; Brutal (and any Customise override) can cross a quarter, three
+  100%; Brutal (and any Customize override) can cross a quarter, three
   quarters, or the library emptying outright — "A quarter of the horde is
   gone." / "Half…" / "Three quarters…" / "The horde's library is empty.",
   each still followed by which boss joined.
@@ -282,7 +282,7 @@ these are the rulings specific to sharing one board with a real, live game.
   during setup is still exactly half the table, not a sliver that grows.
   `--pt-card-w`/`--pt-card-h`/`--pt-edge` are redeclared together on BOTH
   halves for the half-height row, same rule as the seat grid.
-- **The horde's half is dimmed, never relabelled.** A translucent
+- **The horde's half is dimmed, never relabeled.** A translucent
   `.horde-half::before` tint under its cards is the only visual difference
   from the paper table: a glance tells you which half is "not yours" without
   a badge or a border the paper table doesn't have.
@@ -305,8 +305,8 @@ these are the rulings specific to sharing one board with a real, live game.
 - **In combat, the damage total moves INTO the band's bar — nothing ever
   floats over either board on a phone.** The desktop equivalent
   (`HordeAttackBanner`) sits in YOUR half's own `.playtest-banners` stack,
-  `position: static`, never centred over the screen the way the paper
-  table's copy floats — two boards share the screen, so a screen-centred
+  `position: static`, never centered over the screen the way the paper
+  table's copy floats — two boards share the screen, so a screen-centered
   banner would sit on the seam between them. When any attacker's power is
   variable (`*`), the field is not capped at the printed total and the copy
   names the variable attackers, on the paper table too.
@@ -403,7 +403,7 @@ shows it?
      at every board size rather than only the one it was tuned at — for
      every board whose rows are a plain left/right pair, which is every
      col-seam board except the one shape rule 4 below carves out.
-  3. A **wide** satellite is anchored by its near edge, never centred at an
+  3. A **wide** satellite is anchored by its near edge, never centered at an
      offset — half of a 133px pill swallowed the 44px hub button and hid the ⋯
      glyph entirely on every row-seam board. Cap its width against the board
      edge too, so a narrow phone or a long player name shrinks the pill instead
@@ -490,7 +490,7 @@ reading a life total from across the table, and every ruling below serves it.
   on a sideways seat's corner controls.
 - **Ink is black or white per seat, whichever reads better.** White everywhere
   gave the W seat 1.8:1. `styles/play-numeral.test.ts` recomputes the choice
-  for every palette; a new colour picks its ink there, not by eye.
+  for every palette; a new color picks its ink there, not by eye.
 - **A zero count is not board state.** Poison at zero hides (the "+" chip's
   cover holds it). Commander damage stays because it is the only way into focus
   mode, but at zero it drops the "0" and reads as the action it is.
@@ -550,7 +550,7 @@ correctness bug the capacity work exposed.
 
 - **7-10 players fit the existing 2-column model.** 7p and 9p (odd) get a
   Wide top or Wide bottom row for the extra seat, the same device 3p/5p
-  already use — never an empty grey cell (`board-layouts.ts`'s `LAYOUTS[7]`
+  already use — never an empty gray cell (`board-layouts.ts`'s `LAYOUTS[7]`
   through `LAYOUTS[9]`). 8p and 10p (even) are fully populated 4- and 5-row
   grids, each with two far/near split variants (`8p-4v4`/`8p-2v6`,
   `10p-6v4`/`10p-4v6`), mirroring 4p/6p's own pair of splits. `MAX_LOCAL_PLAYERS`
@@ -593,8 +593,8 @@ correctness bug the capacity work exposed.
   right→left, up the left side. A Wide (colSpan-2) seat's position in that
   walk is taken from its right-hand cell, which is what keeps the order
   well-defined even for `5p-wide-middle`'s seat sitting exactly on the grid's
-  centre line. `board-layouts.test.ts`'s `clockwise seat order` suite pins
-  this by computing each seat's angle around the grid centre and asserting it
+  center line. `board-layouts.test.ts`'s `clockwise seat order` suite pins
+  this by computing each seat's angle around the grid center and asserting it
   increases monotonically (mod 360) in seat order, for every preset. A local
   game already mid-play when this ships will see seats 3/4 (and similar)
   swap screen position on the next load — seat _state_ follows the seat
@@ -628,16 +628,16 @@ picker.
   `3p-wide-top-sides` gets away with a row seam because it has only ONE
   sideways row below the wide top seat; `7p-sides`/`9p-sides` stack three
   and four. A row seam's undo satellite offsets ±3.4rem horizontally from
-  centre — a margin measured against upright/180° panels — and at 4-5 rows
+  center — a margin measured against upright/180° panels — and at 4-5 rows
   the sideways rows are short enough that their step buttons sit close
   enough to the seam in absolute px to be inside that margin: measured
   90-100px² of undo-vs-step overlap at 320px, on the sideways row on
-  _both_ sides of wherever the row seam landed (row 1 or a centred row 2 —
-  moving the row didn't fix it, since both neighbouring rows are sideways
+  _both_ sides of wherever the row seam landed (row 1 or a centered row 2 —
+  moving the row didn't fix it, since both neighboring rows are sideways
   either way). A COL seam sidesteps the whole problem: `seamSatellite`'s
   col-seam quarter-point rule (E299/E310) already keeps satellites off
   every panel's furniture regardless of row count, and the hub lands
-  dead-centre (`left/top: 50%`) — which reads fine even with a Wide seat
+  dead-center (`left/top: 50%`) — which reads fine even with a Wide seat
   at row 1, per the screenshot taken while fixing this. `8p-sides` and
   `10p-sides` were always col-seam (no Wide seat at all, so this never
   came up for them).
@@ -648,7 +648,7 @@ picker.
   It takes the row seam at `Math.floor(rows / 2)` — the vertical middle of
   the grid, same convention `Xp-sides` now uses above and the existing
   wide-middle presets already used for a seam that isn't a rotation
-  boundary — which keeps the hub centred rather than pulled toward
+  boundary — which keeps the hub centered rather than pulled toward
   whichever end happens to be first.
 - **Every new preset passes the existing clockwise/fill-grid suites
   unmodified** (`board-layouts.test.ts`'s `every preset fills its grid
@@ -667,7 +667,7 @@ exactly` and `clockwise seat order` both iterate `layoutsForCount` for
 
 Lotus parity group 2 (`BoardHubMenu.tsx`, `GameBoard.tsx`'s High Roll section,
 `lib/util/use-fullscreen.ts`). The hub was a direct shortcut to the game menu;
-tapping it now opens a fan of labelled petals first, Lotus's radial menu.
+tapping it now opens a fan of labeled petals first, Lotus's radial menu.
 
 ⛔ **Superseded in part by "the hub ring's keys, dock and sheets" below
 (2026-09-26, T155):** the five pill petals, the Menu petal and the tabbed game
@@ -699,7 +699,7 @@ and the fullscreen rulings (the manual toggle is now a Settings switch).
   unconditionally, which put five petals lopsided around a hub that already
   has room on every side (true for every layout this app's fixed 2-column
   board can produce — only a seam's row varies, its column is always
-  centred) and let two of them nearly touch. `hubPetalPositions`
+  centered) and let two of them nearly touch. `hubPetalPositions`
   (`lib/play/board-hub-layout.ts`) now tries a full circle first — 72° apart for
   five, starting straight up — at the largest radius that clears every
   petal's own angle (exact per-angle geometry, not a coarse four-direction
@@ -710,7 +710,7 @@ and the fullscreen rulings (the manual toggle is now a Settings switch).
   when that floor doesn't fit anywhere does it fall back to the half-circle
   fan toward the open side, tuned the same way against the hub positions
   this app's own presets can reach — not against a literal viewport corner,
-  which this board's fixed-centred-column geometry can't produce and which
+  which this board's fixed-centered-column geometry can't produce and which
   five petals at their real measured width (101px, the widest label) can't
   occupy without overlapping regardless of algorithm (verified empirically:
   every arrangement tried still overlaps inside roughly the closest 40-45%
@@ -776,15 +776,15 @@ e.currentTarget`, mirrors the win celebration's backdrop) so a
 ## Play board: the hub ring's keys, dock and sheets (2026-09-26, T155)
 
 Board T155, E442/E443, Direction A of the mockup. The pill petals read as
-five chips scattered over the seat colours, the Menu petal led to a tabbed
+five chips scattered over the seat colors, the Menu petal led to a tabbed
 catch-all, and Players was the same sheet at another tab. Now the hub opens
 one object, and every key opens one focused sheet. `BoardHubMenu.tsx`,
 `BoardSheets.tsx` (shell + Players, Settings, History, Help, Leave),
 `DiceSheet.tsx`.
 
-- **The ring is six labelled rect keys on one circle round the ✕**, over a
+- **The ring is six labeled rect keys on one circle round the ✕**, over a
   scrim that takes the seats to 38%, with a dark disc behind the keys and a
-  faint track through their centres. Clockwise from the top: High roll, Dice,
+  faint track through their centers. Clockwise from the top: High roll, Dice,
   Players, Settings, Help, Restart. High roll is first so a pointer or
   keyboard open lands on the table moment; Restart is last so focus never
   lands on it first. Keys are 72×64 (66×60 on a grid under 359px wide), a
@@ -795,7 +795,7 @@ one object, and every key opens one focused sheet. `BoardHubMenu.tsx`,
   the table:** History · Rules · Leave. It sits over the clock strip, and the
   ring's geometry is bounded to the seat grid AND above the dock, so with the
   clock strip turned off a key still can't land under it. The dock caps at
-  30rem wide and centres on a tablet. A compact board stacks each dock
+  30rem wide and centers on a tablet. A compact board stacks each dock
   item's icon over its word.
 - **Keys and dock are one menu, one order.** `useMenuKeyboard`
   (`preventScroll: true`) over `role="menu"`: keys clockwise, then the dock;
@@ -817,7 +817,7 @@ one object, and every key opens one focused sheet. `BoardHubMenu.tsx`,
 **Every sheet is one shell (`BoardSheet`):** grabber, a title with one meta
 line (its `aria-describedby`), a 44px rect ✕, ONE scroll region, and a footer
 only when there is something to commit. Corners are `--radius-lg`, top only
-on a phone; a centred dialog on a roomy unrotated board; `90cqw` tall on a
+on a phone; a centered dialog on a roomy unrotated board; `90cqw` tall on a
 board kept still in landscape. It renders inside `.game-board-rotator`, so it
 rotates with the board, and takes `useOverlayDismiss` (Escape, the Tab trap,
 focus back to the hub). Focus lands on the first control that does something,
@@ -900,7 +900,7 @@ paused, actorSeat }` pushes one `clock` event per tap; `isClockPaused` folds
   one call.
 - **Tapping the total pauses/resumes it.** A real button (`aria-label`
   "Pause the game clock, 12:04" / "Resume…"), and a paused state that pairs a
-  pause glyph with the word "paused" in the visible text — never colour alone.
+  pause glyph with the word "paused" in the visible text — never color alone.
 - **Not undoable.** Pausing is a table decision, not a misclick to
   compensate; it is deliberately excluded from `isUndoable`'s five kinds.
 - **Passing the turn stays reachable with the tracker off**, from the seat
@@ -978,7 +978,7 @@ direction.
   red alert" from across a table. `is-low-life::before` (`play-enhancements.css`)
   now pulses a translucent red `background` wash across the WHOLE panel
   together with the ring/glow (1.4s, peaking at 0.24 alpha so the numeral
-  stays legible) — still not colour-only (the wash+ring only exist in the
+  stays legible) — still not color-only (the wash+ring only exist in the
   danger state, a structural cue) and still steady-red (no blink) under
   `prefers-reduced-motion`, at the wash's peak intensity rather than its
   resting one so reduced-motion doesn't read as a quieter warning. It
@@ -1074,7 +1074,7 @@ direction.
     glance.
   - **Verify geometrically, not by eye**: `board-layouts.test.ts`'s
     `clockwise seat order` suite gained a mirror-image counterclockwise
-    assertion (angles run the other way around the grid centre, excluding
+    assertion (angles run the other way around the grid center, excluding
     the one seat0→seat1 edge that wraps through the anchor) plus a seat-0-
     stays-put check and a legacy-state-reads-clockwise check.
   - **It survives every flow that re-seats the same table.** Turn order is a
@@ -1226,19 +1226,19 @@ rotate(...)`, not flexbox, is load-bearing: CSS layout runs before a
   (2026-09-26).** Its entrance animates the individual `scale` property,
   never `transform`: a transform in a keyframe replaces the dialog's own
   translate + rotate for the animation's length, so it popped in unrotated
-  and off-centre, then snapped to its seat. With the board kept still in
+  and off-center, then snapped to its seat. With the board kept still in
   landscape, the keypad sits inside the counter-rotated board, whose own
   width is the screen's height, while vw/vh stay the physical viewport: a
   sideways seat's keypad ran ~80px off an 844x390 screen. Under that same
   media query it sizes from `.game-board`'s cq units (the board's own axes),
   and measures fully on-screen with 44px keys on every seat tried. The ✕
   holds its 44px width beside a long "Set life · <name>" title (it was
-  squeezed to 24-28px on a rotated keypad); the title ellipsises instead.
+  squeezed to 24-28px on a rotated keypad); the title ellipsizes instead.
 - **Commander-damage focus mode's bar keeps its full copy — a fixed-height
   single line handles the space problem, not shorter words.** The bar used
   to wrap onto 2-4 lines on a short/narrow seat and cover the focused
   player's own numeral (measured up to 100% coverage). The fix is
-  `flex-wrap: nowrap` + a fixed `min-height` the numeral's own centred box
+  `flex-wrap: nowrap` + a fixed `min-height` the numeral's own centered box
   reserves room for (`--cmd-focus-bar-h`, read by both), **not** trimming
   the words: the title stays "Commander damage received" and truncates with
   an ellipsis if it must, because "Commander damage" is the word that
@@ -1263,7 +1263,7 @@ rotate(...)`, not flexbox, is load-bearing: CSS layout runs before a
   wrap, so it can't land on a half's own − button the way the corner
   overlay did on a short panel.
 - **The focused seat's numeral clears both the bar (below) and the name
-  corner (above) by pulling in `.player-panel-life-wrap`'s own centred box
+  corner (above) by pulling in `.player-panel-life-wrap`'s own centered box
   from both edges** — padding on `.player-panel-content` has no effect here,
   a dead end tried first: the life-wrap is `position: absolute; inset: 0`,
   so its containing block is the panel's full padding box regardless of any
@@ -1380,10 +1380,10 @@ rule that only held on the seat or the orientation it was tuned on.
   top half of a seat is +1 and the bottom half −1, so the + sits above the
   numeral and the − below, in the seat's own axes (`.is-vertical-taps`). Left
   beside the numeral, the "+" sat on the zone boundary and a long press on the
-  visible "+" gave −10 on every 0° and 270° seat. The stack is centred in the
+  visible "+" gave −10 on every 0° and 270° seat. The stack is centered in the
   box below the name corner's band (`--pp-v-top`) and sized to fit it, so the +
   never lands on the name. A partner half takes top/bottom zones too, its pair
-  at the half's far edge, one glyph centred in each zone. In commander focus
+  at the half's far edge, one glyph centered in each zone. In commander focus
   "N to lethal" moves below the −. **Check it by touch**: a long press on each
   visible glyph must give that glyph's sign, on every seat rotation.
 - **Nothing inside the board reads the viewport.** Under keep-still the board

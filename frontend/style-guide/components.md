@@ -1,7 +1,7 @@
 # Style guide: Shared components
 
 Tabs, toolbars, editors, config surfaces, empty states, hints and tooltips: the pieces most screens compose. An appendix to the frontend style guide: the principles,
-tokens, verbs, voice, accessibility, responsive, motion, colour and
+tokens, verbs, voice, accessibility, responsive, motion, color and
 spacing rules every screen follows are in the core,
 [`STYLE_GUIDE.md`](../STYLE_GUIDE.md). Its Appendices section lists
 where every section lives.
@@ -53,7 +53,7 @@ where every section lives.
   guards every `fitted`/`scrollable` consumer; `underline` resets its own box
   and is exempt.
 - **A fitted strip that would ellipsize wraps instead.** `fitted` shares the
-  row equally and clips labels, so four labelled tabs with count badges read
+  row equally and clips labels, so four labeled tabs with count badges read
   as "Bat… 3 / Gra… 1 / Co… 0" on a 360px sheet (the opponent board, E280).
   Below the sheet breakpoint such a strip wraps to a 2×2 grid
   (`flex-wrap: wrap` + a ~50% basis on `.sc-tab`) — keeping every label a whole word
@@ -76,9 +76,9 @@ where every section lives.
   the consumer. Fix it on the primitive and never add a per-consumer `width`
   for it. Never `align-self` either: a definite width already opts out of a
   column's stretch, and these tracks also sit in toolbar rows, where
-  `align-self` knocks them off the row's centre line. A two-way picker is one
+  `align-self` knocks them off the row's center line. A two-way picker is one
   of the three primitives, never a hand-rolled fieldset: an icon layout switch
-  is `ViewModeToggle`, a labelled one-of inside a panel is `SegmentedControl`.
+  is `ViewModeToggle`, a labeled one-of inside a panel is `SegmentedControl`.
   `styles/settings-card-body-stretch.test.ts` guards all three.
 - **Pass `variant="underline"` explicitly on every page/section-level switcher.**
   `Tabs` defaults to `variant="fitted"` (equal-width segments, each label clipped
@@ -100,7 +100,7 @@ where every section lives.
   primitive — SettingsPage's Price currency row is one of its ~11 call sites.
   **Never hand-roll the ARIA instead** (`role="radiogroup"` + `role="radio"`
   buttons). Sixteen components did, and every one shipped with no roving
-  tabindex and no arrow-key handling — a 7-swatch colour picker ate 7 tab
+  tabindex and no arrow-key handling — a 7-swatch color picker ate 7 tab
   stops while announcing "radio group, 1 of 7" and then ignoring the arrows.
   That is the same "partial ARIA is worse than none" failure called out for
   tabs above. Pinned by `src/test/no-aria-only-radiogroups.test.ts` (E201).
@@ -114,9 +114,9 @@ where every section lives.
   chip (revised 2026-09-24, E410).** The chip alone read faint on the light
   themes, where `--surface-raised` sits a few shades off `--surface` (Public
   on the new-deck Visibility control looked unselected). The ring is inset so
-  it takes no layout and never overlaps a neighbour. Guard:
+  it takes no layout and never overlaps a neighbor. Guard:
   `styles/segmented-selected-chip.test.ts`. **`--accent` stays reserved
-  for primary actions** — filling a passive setting with the same colour as
+  for primary actions** — filling a passive setting with the same color as
   the Save button makes the two compete, which read worst on the home hero,
   where a scope toggle sits directly beneath the primary CTA. On a track that
   is already `--surface-raised`, invert it: the chip lifts to `--surface`
@@ -167,12 +167,12 @@ where every section lives.
   surfaces go through `Tabs.tsx`" above (E164).** It hand-rolls plain
   `<button className="tab">` elements instead of the primitive because each
   binder tab carries **what the primitive has no slot for**: a fill in the
-  binder's own colour and a Manual badge, plus a trailing "+ New binder" tab
+  binder's own color and a Manual badge, plus a trailing "+ New binder" tab
   and an "Export" action. It used to hang a per-tab ⋯ menu (reorder, edit,
   delete) off the active tab too; E472 removed it, because the binder's
   actions have one home on its page, the header ⋮ (see § Binder views).
   `Tabs`' `TabItem[]` is a flat label/count/icon shape with one `onChange`,
-  and bolting per-tab colour on for this single consumer would be speculative
+  and bolting per-tab color on for this single consumer would be speculative
   (YAGNI) until a second tab strip needs the same thing.
   **The a11y gap this used to leave open is closed (E206)** — hand-rolling the
   markup doesn't mean hand-waving the semantics: `BinderTabs` carries its own
@@ -253,29 +253,29 @@ report. When you write that idiom, write the third line too.
 
 1. **Action rows** — a primary call-to-action plus secondary actions (the page
    heroes: Decks / Collection / Binders).
-   - Keep the **primary CTA labelled and always visible.**
+   - Keep the **primary CTA labeled and always visible.**
    - Collapse the **secondary actions into a `⋮` overflow at `≤600px`** using the
      shared `components/overlays/OverflowMenu.tsx` (kebab + popover, outside-click/Esc
      close; opens from its own wrapper — for **virtualized rows** use
      `CardRowMenu` instead, which portals out of the clipping row). The Decks
-     hero is the reference: New deck stays a labelled pill, Import deck + Add
+     hero is the reference: New deck stays a labeled pill, Import deck + Add
      precon move into the kebab on phones.
    - Don't "solve" crowding by going **icon-only on ambiguous glyphs** — a box
      for "Add precon" isn't legible without its label. Icon-only is only for
-     universal glyphs (search, close, settings). When a labelled action must
+     universal glyphs (search, close, settings). When a labeled action must
      shrink on phones, swap to a **shorter label** instead of dropping the text
      (Home's Quick Actions are the reference: "Import cards" → "Import",
      "Plan a game night" → "Game night" at ≤600px, long/short span pair with
      the aria-label matching the long form).
-   - **A kebab that outgrows ~6-7 rows needs labelled sections, not one flat
+   - **A kebab that outgrows ~6-7 rows needs labeled sections, not one flat
      list** (E181 — the deck editor's `⋮` had grown to 12-13 rows across
      fifteen independent PRs, each adding one more item without ever looking
-     at the whole menu). Group rows into small labelled clusters with hairline
+     at the whole menu). Group rows into small labeled clusters with hairline
      dividers between them (`DeckEditorOverflowMenu` in `DeckEditorPage.tsx`
      is the reference — a plain `text-xs`/uppercase/`--text-muted` label
      above each cluster, same idiom as `.collection-filters-section-label`);
-     keep Undo/Redo unlabelled at top (their own top-of-menu convention
-     predates sectioning) and destructive actions unlabelled at the very
+     keep Undo/Redo unlabeled at top (their own top-of-menu convention
+     predates sectioning) and destructive actions unlabeled at the very
      bottom. **Every row still needs the coarse-pointer 44px floor** — apply
      it to the shared row class, not to whichever row happened to be newest
      when someone last touched the file. **A menu tall enough to threaten
@@ -302,7 +302,7 @@ report. When you write that idiom, write the third line too.
      (used while browsing: Select / Group / Sort) and **display preferences**
      (set-and-forget: zoom, detail-line toggles, view mode, the symbol Key),
      and collapse the display preferences into **one "View" `ToolbarPopover`
-     at `≤640px`** (labelled rows inside the panel; the Key opens as a
+     at `≤640px`** (labeled rows inside the panel; the Key opens as a
      sub-page of the same panel). Desktop keeps every control visible. The
      collection toolbar is the reference (`ViewPopoverPanel` in
      `CardListTable.tsx`); the Decks-hero `⋮` kebab is the _action-row_
@@ -361,11 +361,11 @@ report. When you write that idiom, write the third line too.
      a `⋮` `OverflowMenu` at the card's **top-right** (`margin-left: auto` in
      the head row). Destructive items go last in the menu with `danger: true` —
      a card footer is not the place for a standing red button.
-   - **Multi-destination exports** (calendar, share targets) are **one labelled
+   - **Multi-destination exports** (calendar, share targets) are **one labeled
      menu trigger** (`trigger` prop on `OverflowMenu`, e.g. "Add to calendar ▾"
      with a chevron), never one button per destination.
 
-**Multi-destination exports are one labelled menu trigger — everywhere, not
+**Multi-destination exports are one labeled menu trigger — everywhere, not
 just card action rows.** The rule above is stated in the card-row context
 where it was first settled, but it's binding on **any** surface offering
 multiple destinations for the same export/share action. The public
@@ -512,15 +512,15 @@ to anything new that edits a predicate.
   icons (⎘ ×), which made every rule look like a form to fill in before it
   could do anything.
 - **An info-tip sits beside the label it explains, never at the row's far
-  edge.** `justify-content: space-between` on the Behaviour rows parked each
+  edge.** `justify-content: space-between` on the Behavior rows parked each
   (i) 350px from its short checkbox label in the 700px modal, where it read
   as row decoration. A ragged tip column beats a tip nobody associates with
   its option.
 - **Every section of an editor carries a heading, including the first.** The
-  binder editor's name / layout / capacity / behaviour / colour block was the
+  binder editor's name / layout / capacity / behavior / color block was the
   only unheaded section next to "Filters" and "Sort within binder", so it
   read as the dialog's loose top and the others as sub-sections. (Since T139
-  the name and colour are the dialog's header, and the rest is Cards, Order
+  the name and color are the dialog's header, and the rest is Cards, Order
   and Pages; peers still look like peers.)
 - **A warning about a state the user has not authored yet waits for them.**
   "This binder has no filters" fired the instant "New binder" opened, before
@@ -585,7 +585,7 @@ stacked page section don't read the same. `DeckCustomizer` scopes
 **A config dialog answers its questions in order of how often they change.**
 The binder editor is the reference:
 
-1. **Identity is the header.** Name and colour are a colour dot and an inline
+1. **Identity is the header.** Name and color are a color dot and an inline
    name field in the dialog's title bar, the way the deck hero edits both. Not
    a "Basics" form section.
 2. **The main job is always open.** For a binder that is "Cards": its rules,
@@ -613,7 +613,7 @@ down the form with the rest of the form still showing and ignored. Editing
 never shows the chooser.
 
 **Ten-plus tiles group by job** (E495, the binder chooser): tiles doing the
-same kind of work sit under their own labelled group (`SectionHeader`
+same kind of work sit under their own labeled group (`SectionHeader`
 `variant="overline"`) — "Pull out a pile", "One slice", "Deck-building pools" —
 rather than one flat grid that mixes "keep this safe" with "feed a deck".
 Anything without a real filter (Blank, a catch-all, an import) stays in its
@@ -688,7 +688,7 @@ own dashed, ungrouped row last, unchanged from the single-preset case above.
   cleared, so a new match is fixed with the kit, never allowlisted.
 - **An option that can't be picked right now stays in the group, disabled,
   with the reason in view** (`Option.disabled`, on `SegmentedControl` and
-  `ChoiceList`). Hiding it teaches that the choice doesn't exist; greying it
+  `ChoiceList`). Hiding it teaches that the choice doesn't exist; graying it
   with no reason is a dead end. Public on the new-deck form while signed out
   is the case that needed it.
 
@@ -734,9 +734,9 @@ own dashed, ungrouped row last, unchanged from the single-preset case above.
   "Move above" fix as a link (the same handler the amber zero-landing warning
   already wires — reused, not rebuilt; the two can coexist, so a test
   clicking "Move above X" uses `getAllByRole(...)[0]`). On a phone the ladder
-  shows only its immediate neighbours (one above, the draft, one below) plus
+  shows only its immediate neighbors (one above, the draft, one below) plus
   a "Show all binders" expander — ordinals are computed over the FULL list
-  first, so the visible neighbours keep their real waterfall position instead
+  first, so the visible neighbors keep their real waterfall position instead
   of renumbering 1/2/3.
 - **A whole-library destructive action has one home: the last, `danger`
   item in the index page's header ⋮.** "Delete all binders" / "decks" /
@@ -770,7 +770,7 @@ own dashed, ungrouped row last, unchanged from the single-preset case above.
   same rule: cap in rows, not items.
 - **A page's header is its door into the page viewer.** "Page 3" on the left,
   the book glyph "Browse pages" uses on the right, the whole row one button.
-  It replaced an underlined mono "page 3" link floating centred above the page.
+  It replaced an underlined mono "page 3" link floating centered above the page.
 - **The cards no binder takes are the index's last tile, "Uncategorized"**
   (E471). One name for that pile everywhere: the collection filter, both pull
   lists and the ownership lens already said Uncategorized, so the tile does too
@@ -1021,7 +1021,7 @@ like" question while the binder is still a draft:
   `binder-page-sizing.test.ts` and the journey's "binder page viewer geometry"
   check, which injects a long line.
 - **The open page is the only thing at full strength.** Opaque page,
-  neighbours under the card preview's dark wash (never opacity, which let the
+  neighbors under the card preview's dark wash (never opacity, which let the
   grid behind read through them) and a 90% scrim.
 - **Each fact once.** The top bar says where you are ("Page 3 of 14"; during a
   search only matching pages remain, so it reads "Page 12 · 3 of 5 shown",
@@ -1091,9 +1091,9 @@ like" question while the binder is still a draft:
   lengths; "GRBUW" (WUBRG spelled backwards) was never anyone's word for that.
 - **The field picker hides fields another row already uses.** A second pass on
   the same field has no ties left to break.
-- **Levels have jobs, not just positions.** Row 1 is labelled **"Sections"**
+- **Levels have jobs, not just positions.** Row 1 is labeled **"Sections"**
   and has no remove control, ever — a binder needs one, so removing it isn't a
-  disabled button, it's an absent one. Every row after it is labelled **"Inside
+  disabled button, it's an absent one. Every row after it is labeled **"Inside
   each section"** once, not per row. This is the existing
   first-sort-makes-the-header rule, now visible instead of implicit.
 - **Reorder is a drag handle with full keyboard support on a wide host, and a
@@ -1401,7 +1401,7 @@ of text.
 **Secondary sections: nothing, or one quiet line.** On a page made of
 several sections (Home), a section with nothing in it takes one of two shapes,
 never a full empty card and never a 44px row holding a grid cell (the old Home
-bento left holes beside tall neighbours that way):
+bento left holes beside tall neighbors that way):
 
 - **It renders nothing** when it only reports (price movers, recently added,
   things waiting on you). "All caught up" is reassurance, not content.
@@ -1411,7 +1411,7 @@ bento left holes beside tall neighbours that way):
   its doors on the right, and not a card, since there is no content to frame.
 
 Either way, the doors a removed empty state carried have to live somewhere
-with content (a header ⋮, a neighbouring section), or they are lost.
+with content (a header ⋮, a neighboring section), or they are lost.
 
 ## Wedge-feature discovery hints
 
@@ -1532,7 +1532,7 @@ rules text through `components/card/RulesText.tsx` (`RulesTextLine` with
 yourself. That gives reminder text its printed-card italic and every keyword its
 link, on every surface at once.
 
-- **The word stays the word.** A keyword keeps the text's font, size and colour.
+- **The word stays the word.** A keyword keeps the text's font, size and color.
   A dotted underline in `--text-muted` is the only mark. It turns solid accent on
   hover and while its popover is open. A keyword line ("Flying, trample, haste")
   has to read as a line of text, not a row of links.
@@ -1697,13 +1697,13 @@ non-negotiables that follow from that:
   (it sits in a dense row) and the tappable area expands via a centered
   pseudo-element, same as `.set-filter-chip-x`.
 
-## Invalidating-status cue (cancelled, expired, …)
+## Invalidating-status cue (canceled, expired, …)
 
-When a status means "this no longer applies" (a cancelled game night; a
+When a status means "this no longer applies" (a canceled game night; a
 future lapsed/expired subject), the cue must survive a passing glance, not
 just a close read: **a filled tone-colored badge** — background + border +
 text all from the same status token trio (`--err-bg`/`--err-border`/
-`--err-text` for "cancelled") — never just an outline chip, which reads at
+`--err-text` for "canceled") — never just an outline chip, which reads at
 the same weight as a neutral label, **plus a strike-through on the subject
 text it invalidates** (the card/page title, and any "when" line whose time no
 longer matters). **Don't dim the badge along with the rest of the card** — a

@@ -1,7 +1,7 @@
 # Style guide: Overlays
 
 Dialogs, sheets, popovers and every other layer above the page. An appendix to the frontend style guide: the principles,
-tokens, verbs, voice, accessibility, responsive, motion, colour and
+tokens, verbs, voice, accessibility, responsive, motion, color and
 spacing rules every screen follows are in the core,
 [`STYLE_GUIDE.md`](../STYLE_GUIDE.md). Its Appendices section lists
 where every section lives.
@@ -10,7 +10,7 @@ where every section lives.
 
 ## Overlays
 
-- **Multi-destination exports/shares are one labelled menu trigger**, never
+- **Multi-destination exports/shares are one labeled menu trigger**, never
   one button per destination — see [§ Toolbars & action rows](components.md#toolbars--action-rows-responsive) → Card action
   rows for the full rule. It's binding on any surface, not just card footers.
 - On-demand panels that shouldn't live inline (Add cards, Test hand) use the
@@ -129,28 +129,28 @@ calc(100vw - 4rem)) }`) — the two-class form outweighs the shell rule
     Back first (it is the topmost overlay layer), and a `role="presentation"`
     wrapper stops its touch and click events before they reach the sheet
     below, the rule the keyword popover already follows.
-  - **Actions are labelled rects on the panel**, never pills floating over the
+  - **Actions are labeled rects on the panel**, never pills floating over the
     scrim. Owner/management actions (`overflow: true`, e.g. Remove from deck)
     go in the row's ⋮. Flip / Turn act on the image, so they sit **on the
     card's art**, which reserves no space on a single-faced card.
   - **The card is inert.** Tapping it never closes the preview: that is the
     gesture a reader makes most, and pinch-zoom starts with it. Empty space
     closes (the backdrop, the stage, the gaps between slides, the top bar), a
-    neighbour centers, and on touch a tap on the card lowers a raised sheet.
-  - **Neighbours recede under a dark wash only: never opacity, never a
-    transform.** A see-through neighbour let the page behind read through it.
+    neighbor centers, and on touch a tap on the card lowers a raised sheet.
+  - **Neighbors recede under a dark wash only: never opacity, never a
+    transform.** A see-through neighbor let the page behind read through it.
     A slide is a scroll-snap target, and `scrollIntoView` and the snap both
-    centre its transformed box, so the `scale(.94)` #2259 shipped left every
-    arrow-key or neighbour-click page turn 17.5px off centre (guarded in
+    center its transformed box, so the `scale(.94)` #2259 shipped left every
+    arrow-key or neighbor-click page turn 17.5px off center (guarded in
     `binder-page-sizing.test.ts` and the journey's centring check). The binder
     page viewer uses the same wash. The backdrop is 90% (the old 60% left a
     field of cards competing with the one being read). In the split the stage
-    fades into both edges, so the inspector never slices a neighbour.
+    fades into both edges, so the inspector never slices a neighbor.
 - **`CardPreview`'s action row holds one line** (#2252, carried into the
   E421 header row). Callers add their own buttons (binder "Set cover", search
   Add + Printings, a feedback view's Suggest cut), so on a 360px phone the
-  labelled row can outgrow the sheet. `CardPreview` measures the fully
-  labelled width; when it won't fit it sets `.is-compact`: the universal-glyph
+  labeled row can outgrow the sheet. `CardPreview` measures the fully
+  labeled width; when it won't fit it sets `.is-compact`: the universal-glyph
   buttons (Share, Edit, marked `data-compactable`) drop their word, a caller
   action with a `shortLabel` ("Cover") swaps to it, and the gap tightens. Every
   other caller action keeps its words, since an ambiguous glyph never goes
@@ -394,9 +394,9 @@ the live board with a Start button in its header. Two regions at >=1024px
 
 - **Rail** (left): the join-code ticket at the top, then `GAME SETTINGS`, then
   `CHAT`. Small-caps section labels. Every settings row is a real field of
-  `GameState` the reducer honours (format, starting life, mulligan, starting
+  `GameState` the reducer honors (format, starting life, mulligan, starting
   player, seat order, commander damage, poison, turn timer) — host-editable,
-  read-only values for everyone else. **A setting the engine can't honour is
+  read-only values for everyone else. **A setting the engine can't honor is
   still not drawn**: a toggle that changes nothing is worse than no toggle.
   That is why there is no sideboard row — nothing in play models one. The
   mulligan rule and the turn timer earned their rows by being wired end to
@@ -443,8 +443,8 @@ the live board with a Start button in its header. Two regions at >=1024px
   change. The reducer stays pure and every seat sees the same first player.
   Same split for shuffling seats: the client rolls the order, `reseat` only
   applies the permutation it is handed.
-- **Main** (right): the table name as a centred heading, a 2-up seat grid
-  (one column below 1024) capped at `54rem` and centred, and the bracket hint.
+- **Main** (right): the table name as a centered heading, a 2-up seat grid
+  (one column below 1024) capped at `54rem` and centered, and the bracket hint.
   The grid is capped rather than stretched: a seat card is an object with a
   proportion, and two of them filling a 1600px column grow taller than a
   laptop viewport can hold alongside the footer.
@@ -462,13 +462,13 @@ bottom: 0`), carrying the deck picker, the board link, Ready, Start and
 A **seat card** is the seat's commander art (`useCardThumb(name,
 'art_crop')`, never a new fetch path) under the always-dark
 `--art-scrim` gradient, with the name (crown for the host), the deck, a
-status chip, the colour-identity pips and the bracket italic at the right.
+status chip, the color-identity pips and the bracket italic at the right.
 Your own seat carries the accent ring (`.is-me`). An empty seat is a dashed
-card with a grey avatar and "Open seat"; the grid always draws a full pod,
+card with a gray avatar and "Open seat"; the grid always draws a full pod,
 so a table of two shows two open seats.
 
 - **A status chip says its state in words** ("Ready", "Not ready", "Choosing a
-  deck"), never in colour alone.
+  deck"), never in color alone.
 - **A bracket is shown only where one exists.** Your own seat resolves it
   through `effectiveBracket(deck)`; the game state carries no bracket for
   anyone else's deck, so those cards omit the line rather than estimate one
@@ -500,7 +500,7 @@ reference.
   the mode was tried and reverted: it reads as the seats themselves moving, so
   the board looks broken at the moment the user most needs to trust it. A mode
   changes what a panel _says_, never where it sits or which way it faces.
-- **Three ways out, always:** an explicit labelled button
+- **Three ways out, always:** an explicit labeled button
   (`.pp-cmd-focus-done`), a swipe back down on any panel, and `Esc`. The
   title and the button live on the anchor panel, which is already rotated
   correctly and is where the user is looking.
@@ -542,7 +542,7 @@ Untap):
   cascade hid names from the second card on). A face-down play lands in the
   creature row — it is a 2/2 whatever it was printed as.
 - **A card the player placed never moves under the cursor, and the board's two
-  rings are fixed colours.** Hover on the battlefield is a cyan ring
+  rings are fixed colors.** Hover on the battlefield is a cyan ring
   (`0 0 0 2px var(--pt-ring-hover)`) plus `--shadow-card`, never a lift; a
   selected card wears a gold one (`var(--pt-ring-selected)`, inset). That is
   EDHPlay's pair, and both are fixed rather than themed because they are drawn
@@ -562,11 +562,11 @@ Untap):
   (2026-09-24).** `CardCounters`: a counter a card prints (+1/+1, charge,
   flying, ward…, the list is `playtest/lib/counter-kinds.ts`) is its mana-font
   glyph on a black disc with the count in a red bubble, in a column just off
-  the card's top-right corner; a counter the player named is a coloured disc
+  the card's top-right corner; a counter the player named is a colored disc
   with the count on it, stacked oldest-on-top up the card's bottom-left. Click
   adds one, right-click or a long press takes one off, − / ↓ on a focused
   counter does too, hovering names it ("Charge (4)"), and a "+1" floats up so
-  a click on a 22px disc visibly landed. Fixed ink, never theme colours: the
+  a click on a 22px disc visibly landed. Fixed ink, never theme colors: the
   discs sit on art, the P/T plates' ruling. They are the card's SIBLING in its
   slot, never inside it (a control can't nest in the card's `role="button"`),
   so every way the card moves without its slot has a rule: hidden during the
@@ -581,11 +581,11 @@ Untap):
   delay and no fade (2026-09-23: the old 220ms rest plus a 120ms fade read as
   a slow table), hidden while dragging or while any modal sheet is open (the
   docked log is not a sheet). A two-faced card shows both faces side by side.
-  The face is a fixed pane, `min(22rem, 24vw)` wide, vertically centred
+  The face is a fixed pane, `min(22rem, 24vw)` wide, vertically centered
   at the table's right edge; it flips to the left edge only when the hovered
   card itself would sit under it (a permanent parked at the far right, a zone
   pile). A tooltip that floats beside the card was tried first and covers the
-  neighbours you are comparing against; a fixed slot never covers what it
+  neighbors you are comparing against; a fixed slot never covers what it
   describes and the eye learns where to look. Touch gets no hover: a TAP on a
   hand card pins it in the same slot (#2282), and a long-press opens the menu.
   Under a tapped card, one line says so ("Hold a card for its menu."), until a
@@ -593,7 +593,7 @@ Untap):
   used to open it, so the hold is the one left to find. The line sits under the
   face, never on it (the face is shown for its rules text). On an upright
   phone a quarter of the width is barely bigger than the card tapped, so the
-  pane is 72% of the width, centred in the felt between the corner clusters
+  pane is 72% of the width, centered in the felt between the corner clusters
   and the hand (`previewSlot`'s upright branch).
 - **Every card surface has a menu, and it says what it will do.** Battlefield
   permanents and hand cards both open a menu (right-click, long-press, the
@@ -611,7 +611,7 @@ Untap):
   reports a host only while the dragged card is an Aura / Equipment /
   Fortification (`isPlaytestAttachment`), and the host under the POINTER wins
   over the battlefield; any other drag never sees a host, so a permanent
-  nudged over a neighbour in a full row is a reposition, not an attachment.
+  nudged over a neighbor in a full row is a reposition, not an attachment.
   The host lights with the same gold as the attached ring. An attachment
   dragged straight from hand enters the battlefield and attaches in one
   gesture (cast an Aura onto a creature). Anything else still attaches
@@ -649,7 +649,7 @@ cleaner with the sub menus"). Three rulings, all on the battlefield:
   command zone) is one engine, `TableContextMenu`: with a pointer a `▸` row
   opens its submenu beside the root on a 150ms hover, a click or →, and ← or
   resting on a sibling backs out, so the path stays in view (EDHPlay's
-  behaviour). In the bottom sheet there is no room beside anything, so the
+  behavior). In the bottom sheet there is no room beside anything, so the
   same tree goes a page at a time behind a back row. Groups are separated by a
   hairline (`SEPARATOR`), never by headings, and the engine drops a line that
   would land first, last or doubled. A row that does nothing right now (a card
@@ -658,7 +658,7 @@ cleaner with the sub menus"). Three rulings, all on the battlefield:
 - **Every menu row prints its live key.** Rows take the binding from
   `keyFor(id)` (the board's resolved shortcut map), so a rebind moves the key
   on the row too. The menu is the discoverable face of the keyboard map —
-  never a second set of behaviour, and never a hard-coded `<kbd>`.
+  never a second set of behavior, and never a hard-coded `<kbd>`.
 - **Controls that ride a card are SIBLINGS of it, inside a card-sized slot.**
   A battlefield card is itself a `role="button"` (it is the drag handle and
   the tap target), so a control nested inside it is invalid and unreachable —
@@ -739,7 +739,7 @@ before settling must not leave three announcements in the log.
 
 ### The table's look is per-device, never table-wide (2026-09-20, E347)
 
-The felt colour and the sleeves are **preferences on this device**, the same
+The felt color and the sleeves are **preferences on this device**, the same
 class as card size and the takeback rule — not `GameState` like the mulligan
 rule or the turn timer. The test is who has to agree: opponents see the board
 you publish, never your CSS, so there is nothing for a pod to settle. They live
@@ -754,7 +754,7 @@ says so in one line ("Your table only").
 - **A default writes no attribute and stores nothing.** The plain rules ARE the
   default look, so a device that never opened this carries no storage and no
   markup, and "Theme" means the felt keeps following the app's theme.
-- **A sleeve is the one card back in another colour, never a second image.**
+- **A sleeve is the one card back in another color, never a second image.**
   `background-blend-mode: luminosity` over a solid `--sleeve-color` keeps the
   printed back's light and shade and takes the hue from underneath. #2010
   collapsed the library pile, face-down permanents and the opponent rail's mini
@@ -842,7 +842,7 @@ absolute` inside `.playtest-battlefield-wrap`, not inside `.playtest-board`,
   for exactly as long as it is live — a pending takeback says it is waiting
   on the table, and Select shows a "Done" button with its count while a
   selection is open. Bottom-right: the zone piles as a horizontal row, each
-  labelled `Library (92)` with the count in the label, a click on the tile
+  labeled `Library (92)` with the count in the label, a click on the tile
   itself doing that zone's one obvious action (the library draws; everything
   else opens its viewer), and a kebab opening the zone's menu.
 - **The zone shelf is tucked, and opens on intent.** A pile shows its label,
@@ -888,7 +888,7 @@ absolute` inside `.playtest-battlefield-wrap`, not inside `.playtest-board`,
   `user-select: none` / `-webkit-touch-callout: none`, or the OS menu and a
   touch text-selection eat the gesture.
 - **Banners float, they never displace.** `ResistanceBanner`, the session
-  summary and the takeback pending banner stack top-centre in
+  summary and the takeback pending banner stack top-center in
   `.playtest-banners` (max 36rem), under the corner clusters' z-index.
 - **Fan geometry.** Each card sits in a `.playtest-hand__slot` whose inline
   transform is `rotate(i × 2deg)` plus a squared translateY arc, with
@@ -905,7 +905,7 @@ absolute` inside `.playtest-battlefield-wrap`, not inside `.playtest-board`,
   the way EDHPlay's do. Up to seven cards neither cap binds. The
   **lift is on the card, never the
   slot** — the slot owns the fan rotation, so lifting the card leaves every
-  neighbour still. Hover and `:focus-visible` both lift. dnd-kit composes by
+  neighbor still. Hover and `:focus-visible` both lift. dnd-kit composes by
   construction: the source card is never transformed (the moving copy is the
   top-level `<DragOverlay>`).
 - **An upright phone gives the hand a row of its own.** Beside the two piles a
@@ -958,7 +958,7 @@ absolute` inside `.playtest-battlefield-wrap`, not inside `.playtest-board`,
     exile and the command zone behind the edge tab.
   - On its side, the Hand button stays in the pile row beside the library
     (upright it stands above the library's label), and the tab is anchored
-    just above the piles instead of centred, where it rose into the menu
+    just above the piles instead of centered, where it rose into the menu
     and TURN stack.
   - **The hand is the tucked fan at every size.** The short-landscape tier
     used to swap it for `HandDrawer`, a 44px strip of card NAMES under the
@@ -1013,7 +1013,7 @@ sheet is unchanged — a phone has no room for the fan.
   registers a hand-slot droppable **on its own node** (the same shape as the
   battlefield's host droppable) and a drop dispatches `REORDER_HAND`. Two
   rulings survive the move and still hold:
-  - **The card under the POINTER wins, not the nearest centre.** The fan
+  - **The card under the POINTER wins, not the nearest center.** The fan
     overlaps by two thirds, so box-vs-box collision is a guess;
     `makePlaytestCollision` answers a hand drag with `pointerWithin` over the
     hand slots, and filters those slots out of every other drag so a card
@@ -1031,7 +1031,7 @@ sheet is unchanged — a phone has no room for the fan.
   Mulligan (warn tone), Keep hand (primary, and where focus lands on open).
   "View battlefield" is a _peek_: the whole takeover goes
   `visibility: hidden` behind a transparent scrim with one "Back to hand"
-  pill top-centre, and Esc returns. Esc does nothing else — the opening hand
+  pill top-center, and Esc returns. Esc does nothing else — the opening hand
   is non-dismissable, you leave it by keeping, mulliganing or exiting.
 - **On a phone on its side the whole hand is readable, and nothing covers a
   card.** Under `(max-height: 500px) and (orientation: landscape)` (the same
@@ -1164,7 +1164,7 @@ answer, untouched — its presence and glance densities are exactly what they
 were.
 
 **Revised 2026-09-21 (E372): the gate used to sit at 1440px, which lost every
-opponent's board on an ordinary unmaximised laptop window, not just a phone —
+opponent's board on an ordinary unmaximized laptop window, not just a phone —
 an opponent's battlefield is the point of the table, and a rail (even
 glance's mini-thumbnails) is the last resort, not the default the moment a
 window is a little narrower than full-screen.** 1024 was chosen over
@@ -1199,10 +1199,10 @@ the reversal is scoped to one gate and not argued as a general improvement.
   establishes a containing block, which is what makes that `fixed` legal —
   never put `container-type` on the wrap.
 - **An opponent quadrant is a live board, and the inspector is still the deep
-  dive.** Name pill top-centre with the seat's colour dot, life top-left with
+  dive.** Name pill top-center with the seat's color dot, life top-left with
   designations and the "N new" chip, the battlefield laid out from the same
   0..1 fractions with tapped rotation and counters, `handCount` face-down backs
-  fanned bottom-centre, the four zone piles bottom-right. The pill and every
+  fanned bottom-center, the four zone piles bottom-right. The pill and every
   pile open `OpponentBoardModal` — the quadrant is the glance, the modal is
   still where a pile gets browsed.
 - **Density is container-driven, never viewport-driven.** The quadrant is a
@@ -1219,7 +1219,7 @@ the reversal is scoped to one gate and not argued as a general improvement.
 - **The fan spreads into its container, not the window.** `Hand` measures the
   battlefield wrap with a `ResizeObserver` (it used `window.innerWidth`, which
   was the same number until a quadrant stopped being the whole table). In the
-  grid it is re-centred in the space left of the pile row, and the log dock is
+  grid it is re-centered in the space left of the pile row, and the log dock is
   lifted one extra rem clear of its top edge.
 - **Chrome never covers a seat it had somewhere else to go.** The play ticker
   loses the rail column it lived in, and lands at the top-right of **your own**
