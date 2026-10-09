@@ -577,7 +577,7 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
               aria-busy={loadingMore}
               onClick={loadMore}
             >
-              {loadingMore ? 'Loading more…' : moreError ? 'Try again' : 'Show more'}
+              {loadingMore ? 'Loading more…' : moreError ? 'Retry' : 'Show more'}
             </Button>
           </>
         )}

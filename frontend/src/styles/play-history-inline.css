@@ -548,7 +548,6 @@
 .play-history-player-deck {
   color: var(--text-muted);
   margin-right: var(--space-1-5);
-  font-style: italic;
 }
 
 .play-history-player-life {

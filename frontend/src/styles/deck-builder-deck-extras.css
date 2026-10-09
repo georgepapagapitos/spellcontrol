@@ -317,7 +317,6 @@
   padding: var(--space-2) var(--space-0-5);
   color: var(--text-muted);
   font-size: var(--text-sm);
-  font-style: italic;
 }
 
 /* ── Zone toggle (mainboard / sideboard / considering, E122) ──────── */

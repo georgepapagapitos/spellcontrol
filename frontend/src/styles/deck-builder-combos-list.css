@@ -331,7 +331,6 @@
 .deck-combos-sideboard-note {
   font-size: var(--text-xs);
   color: var(--text-secondary);
-  font-style: italic;
 }
 
 /* ── Missing piece footer (one-away only) ───────────────────────────────── */

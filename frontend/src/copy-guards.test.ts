@@ -37,6 +37,10 @@
  *                 (styles/uppercase-role.test.ts), never typed into the string.
  *                 An all-caps word of four or more letters must be a known
  *                 acronym or format name (SHOUTING_OK below).
+ *   BUTTON_LABEL — a button's whole label names the outcome, never "Submit",
+ *                 "Learn more" or "Click here" (STYLE_GUIDE § Voice & copy).
+ *                 Reads a <Button>/<button> child's JSX text and a string
+ *                 literal inside its `{cond ? 'a' : 'b'}` child expression.
  *   BREWER     — a person who makes decks is a "brewer", never a "builder"
  *                 (STYLE_GUIDE § Voice & copy, canonical terms). Plural
  *                 "builders" only ever means people, so that is what fires;
@@ -155,6 +159,11 @@ const RULES: Rule[] = [
   ],
   ['SHOUTING', shouts, 'ALL-CAPS in copy: write sentence case; the stylesheet owns any caps'],
   [
+    'BUTTON_LABEL',
+    (s, kind) => kind === 'jsx:button' && /^(Submit|Learn more|Click here)$/i.test(s.trim()),
+    'a button names its outcome ("Send report", "Save deck"), never "Submit", "Learn more" or "Click here"',
+  ],
+  [
     'BREWER',
     (s) => /\bbuilders\b/i.test(s),
     'a person who makes decks is a "brewer", not a "builder"',
@@ -229,6 +238,16 @@ function enclosingTag(n: ts.Node): string | null {
     if (ts.isJsxElement(p)) return p.openingElement.tagName.getText();
   }
   return null;
+}
+
+// A string literal that is (a branch of) a `{...}` child of a <Button>/<button>,
+// e.g. `{busy ? 'Sending…' : 'Submit'}`: the label, not an attribute value.
+function inButtonChildExpression(n: ts.Node): boolean {
+  let p: ts.Node = n.parent;
+  while (ts.isConditionalExpression(p) || ts.isParenthesizedExpression(p)) p = p.parent;
+  if (!ts.isJsxExpression(p) || !ts.isJsxElement(p.parent)) return false;
+  const tag = p.parent.openingElement.tagName.getText();
+  return tag === 'Button' || tag === 'button';
 }
 
 function isBetweenExpressions(n: ts.JsxText): boolean {
@@ -309,6 +328,7 @@ function scan(file: string): Violation[] {
           : undefined;
       if (v != null) check(n, 'infotip:text', v);
     }
+    if (ts.isStringLiteral(n) && inButtonChildExpression(n)) check(n, 'jsx:button', n.text);
     if (ts.isJsxText(n)) {
       const t = n.text.replace(/\s+/g, ' ').trim();
       // `{name} — {detail}`: a bare em-dash between two expressions is a

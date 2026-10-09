@@ -149,12 +149,6 @@
   overscroll-behavior: contain;
 }
 
-/* No-signal inclusion note — same muted color as the rest of the meta line,
-   italicized so it reads as an aside rather than a data point. */
-.card-search-offmeta {
-  font-style: italic;
-}
-
 /* Toolbar row under the search pill: syntax/keyboard ⓘ · sort, right-aligned.
    (The old always-on "↑ ↓ to navigate…" text row moved into the ⓘ tip — it
    was a permanent line of chrome burying the content below it.) */

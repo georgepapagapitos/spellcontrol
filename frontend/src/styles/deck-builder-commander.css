@@ -197,7 +197,6 @@
 .commander-pick-type {
   font-size: var(--text-sm);
   color: var(--text-muted);
-  font-style: italic;
 }
 
 .commander-pick-oracle {

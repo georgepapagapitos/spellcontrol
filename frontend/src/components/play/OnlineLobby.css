@@ -192,7 +192,6 @@
 
 .lobby-line.is-system .lobby-line-who,
 .lobby-line.is-system .lobby-line-text {
-  font-style: italic;
   color: var(--text-muted);
 }
 
@@ -550,7 +549,6 @@
 .lobby-seat-bracket {
   margin-left: auto;
   font-size: var(--text-xs);
-  font-style: italic;
   color: var(--text-secondary);
 }
 

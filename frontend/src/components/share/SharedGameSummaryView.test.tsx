@@ -99,7 +99,7 @@ describe('SharedGameSummaryView', () => {
     fireEvent.change(screen.getByLabelText('Why are you reporting this?'), {
       target: { value: 'Table conduct issue' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send report' }));
 
     await waitFor(() => {
       expect(submitReportMock).toHaveBeenCalledWith({

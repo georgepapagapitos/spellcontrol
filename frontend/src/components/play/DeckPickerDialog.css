@@ -131,7 +131,6 @@
 .deck-picker-row-bracket {
   flex: 0 0 auto;
   font-size: var(--text-xs);
-  font-style: italic;
   color: var(--text-muted);
 }
 

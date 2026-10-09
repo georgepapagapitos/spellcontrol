@@ -90,7 +90,7 @@ export function ReportDialog({ kind, targetId, onClose }: Props) {
             Cancel
           </Button>
           <Button variant="primary" type="submit" disabled={!canSubmit}>
-            {submitting ? 'Sending…' : 'Submit'}
+            {submitting ? 'Sending…' : 'Send report'}
           </Button>
         </div>
       </form>
