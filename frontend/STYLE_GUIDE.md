@@ -192,6 +192,15 @@ screen.
   (`copy-guards.test.ts`). A public link's `ErrorView` requires `onRetry`, so a
   new caller without one fails typecheck. Retry sits beside a way out, not
   instead of it.
+- **An error message names the next step.** Where no Retry control sits beside
+  it, `Couldn't <do the thing>.` ends with what to do: `Try again.` by default,
+  `Check your connection and try again.` when the cause is the network,
+  `Check the link and try again.` for a bad link, `Try again in a moment.` only
+  when the server is busy. A bare `Couldn't load decks.` leaves the player
+  guessing (E609 found about 200).
+- **A fact shared by several surfaces lives in one constant** (for example
+  `lib/play/shared-copy.ts`), so its wordings can't drift apart. The play
+  screens had six versions of "discard without saving to history".
 - Empty states follow [§ Empty states](style-guide/components.md#empty-states-e182).
 
 **Menus**

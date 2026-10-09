@@ -205,12 +205,6 @@ const STIFF_ALLOW: { file: RegExp; why: string }[] = [
     file: /^components\/search\/FilterGroupEditor\.tsx$/,
     why: '"Is not" is a filter operator label, parallel to "Is"',
   },
-  {
-    // PENDING: strings in other copy-wave lanes (deck, play). Delete each
-    // entry when that lane's PR lands; the rule then covers the file.
-    file: /^(components\/deck\/(CardSearchPanel|DeckCustomizer|DeckMainboardRow)\.tsx|components\/play\/GameNights\.tsx|deck-builder\/services\/deckBuilder\/themeFidelity\.ts|lib\/coach\/coach-cut-swaps\.ts)$/,
-    why: 'player-facing, fixed by the deck and play copy lanes (still open when this rule landed)',
-  },
 ];
 
 // UK spellings (the US form is the fix). Word-bounded, case-insensitive. The
