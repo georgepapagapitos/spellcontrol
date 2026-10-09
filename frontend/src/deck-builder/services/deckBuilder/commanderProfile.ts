@@ -817,6 +817,24 @@ function cap(s: string): string {
 // ─── Why a card matches ──────────────────────────────────────────────
 
 /**
+ * Does this card buff or shield a creature? Equipment always attaches to one.
+ * An Aura only counts when it pumps or grants something to the creature it
+ * enchants: Wild Growth enchants a land, Pacifism and Darksteel Mutation are
+ * removal. Anything else counts only when it grants protection or evasion, so
+ * "creatures your opponents control lose hexproof" doesn't.
+ */
+function suitsUpACreature(card: ScryfallCard, text: string): boolean {
+  const tl = frontTypeLine(card).toLowerCase();
+  if (tl.includes('equipment')) return true;
+  if (tl.includes('aura')) {
+    return /\benchanted creature (?:gets \+|has|gains|can't be blocked)/.test(text);
+  }
+  return /(?<!(?:can't|don't|didn't) )\b(?:gains?|have|has) (?:hexproof|shroud|indestructible|double strike|protection from)\b|\bcan't be blocked\b/.test(
+    text
+  );
+}
+
+/**
  * Explain why a candidate card synergizes with this commander. Returns
  * short, deduped reason strings (empty if no synergy detected). Used for
  * "why this card" badges on recommendations.
@@ -841,14 +859,7 @@ export function whyCardMatches(
       continue;
     }
     if (ability.keyword === 'voltron') {
-      const tl = frontTypeLine(card).toLowerCase();
-      if (
-        tl.includes('equipment') ||
-        tl.includes('aura') ||
-        /\bequipped creature\b|\benchanted creature\b|\bhexproof\b|\bshroud\b|\bcan't be blocked\b|\bdouble strike\b/.test(
-          text
-        )
-      ) {
+      if (suitsUpACreature(card, text)) {
         reasons.push('Suits up / protects your commander');
       }
       continue;
