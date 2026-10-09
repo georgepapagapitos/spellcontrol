@@ -18,8 +18,6 @@
   font-size: var(--text-sm);
   font-weight: 700;
   color: var(--text-primary);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-overline);
 }
 
 .deck-combos-body {

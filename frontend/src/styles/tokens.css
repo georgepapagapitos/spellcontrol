@@ -83,7 +83,8 @@
        --font-display  HERO TIER only (--text-xl and up); always weight 400,
                        several sets' display faces ship a single cut and the
                        browser synthesizes a smeared faux-bold otherwise
-       --font-label    chrome/tab/tape labels, uppercase + letter-spaced only
+       --font-label    chrome/tab/tape labels, stamps, print-table th: the only
+                       face that is uppercase + letter-spaced (E595)
        --font-mono     data: prices, qty, set codes, tabular numerals */
   --font-serif: 'Eczar', 'Georgia', serif;
   --font-mono: 'IBM Plex Mono', 'Menlo', 'Consolas', monospace;
@@ -104,10 +105,11 @@
   --text-xl: 1.5rem; /* page titles, taglines */
   --text-2xl: 2rem; /* large numerals / glyphs / stat & score values */
   --text-3xl: 2.25rem; /* hero titles (binder / deck names) — the top step */
-  /* The one tracking for an uppercase overline (a section label above its
-     rows). Tape labels in --font-label keep their own wider range (§ App
-     chrome). New uppercase text takes this, never a raw em value
-     (styles/tracking-ratchet.test.ts). */
+  /* The one tracking for uppercase text, which now means a --font-label stamp
+     or tag only (E595). A section label above its rows is sentence case with
+     normal tracking, so it takes none. Tape labels keep their own wider range
+     (§ App chrome). Never a raw em value (styles/tracking-ratchet.test.ts);
+     styles/uppercase-role.test.ts holds the uppercase half. */
   --tracking-overline: 0.06em;
   /* Not a scale step — the iOS-zoom-safe floor for form controls. Mobile
      Safari zooms the page on focus for any control under 16px (1rem at the

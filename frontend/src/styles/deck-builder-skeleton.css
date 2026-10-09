@@ -22,10 +22,9 @@
 
 .deck-analysis-skeleton-eyebrow {
   font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-overline);
   color: var(--text-muted);
   margin: 0;
+  font-weight: 600;
 }
 
 /* A shimmering bar — reuse global skeleton-shimmer keyframe. Each bar is a

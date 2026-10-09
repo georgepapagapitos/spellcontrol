@@ -32,6 +32,11 @@
  *                 or a `toast`/`actionLabel` value that reads exactly "Try
  *                 again" — a full sentence in a message ("Couldn't load X.
  *                 Try again.") is prose, not a label, and is untouched.
+ *   SHOUTING   — no ALL-CAPS label in source (E595): "YOUR TURN", "GAME SETTINGS".
+ *                 Uppercase is the --font-label CSS role, applied by the stylesheet
+ *                 (styles/uppercase-role.test.ts), never typed into the string.
+ *                 An all-caps word of four or more letters must be a known
+ *                 acronym or format name (SHOUTING_OK below).
  *   BREWER     — a person who makes decks is a "brewer", never a "builder"
  *                 (STYLE_GUIDE § Voice & copy, canonical terms). Plural
  *                 "builders" only ever means people, so that is what fires;
@@ -55,6 +60,44 @@ const SKIP_FILE =
 const COPY_PROPS =
   /^(title|aria-label|aria-description|placeholder|label|hint|tagline|message|description|body|heading|subtitle|caption|tooltip|confirmLabel|cancelLabel|actionLabel|emptyText|helper|text|summary|reason|note|alt|blurb|action|detail)$/;
 const LOG_CALLEE = /^(console\.|logger?\.|debug\b|warn\b|log\b|trace\b|reportError\b)/;
+
+// All-caps words that are real acronyms or proper format names, not labels.
+const SHOUTING_OK = new Set([
+  'MTGA',
+  'MTGO',
+  'EDHREC',
+  'WUBRG',
+  'JSON',
+  'HTML',
+  'HTTP',
+  'HTTPS',
+  'RSVP',
+  'TSV',
+  'CSV',
+  'PDF',
+  'ABCD',
+  'OAUTH',
+  'MDFC',
+  'SMS',
+  'NFC',
+  'USD',
+  'EUR',
+  'TIX',
+  'GBP',
+  'CAD',
+  'JPEG',
+  'WEBP',
+  'SVG',
+  'GIF',
+]);
+// Only a string with no lowercase at all shouts: "IS NOT" inside a sentence is
+// an operator, and "EDHREC API error" is an acronym in prose.
+const shouts = (s: string) => {
+  const words = s.match(/[A-Za-z]+/g) ?? [];
+  if (words.length === 0 || /[a-z]/.test(s)) return false;
+  const loud = words.filter((w) => !SHOUTING_OK.has(w));
+  return loud.some((w) => w.length >= 4) || (loud.length >= 2 && loud.every((w) => w.length >= 2));
+};
 
 type Rule = [id: string, test: (text: string, kind: string) => boolean, why: string];
 const RULES: Rule[] = [
@@ -110,6 +153,7 @@ const RULES: Rule[] = [
       (kind === 'jsx:button' || kind === 'prop:actionLabel' || kind === 'attr:actionLabel'),
     'the retry action label is "Retry", not "Try again"',
   ],
+  ['SHOUTING', shouts, 'ALL-CAPS in copy: write sentence case; the stylesheet owns any caps'],
   [
     'BREWER',
     (s) => /\bbuilders\b/i.test(s),

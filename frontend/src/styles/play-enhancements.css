@@ -433,8 +433,6 @@
 .win-celebration-sub {
   font-size: var(--text-sm);
   color: var(--table-focus-ring);
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
 }
 
 .win-celebration-actions {

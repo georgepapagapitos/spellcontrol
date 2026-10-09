@@ -20,31 +20,19 @@ function uppercaseSelectors(css: string): string[] {
 }
 
 /**
- * Uppercase is a HEADING role in a form, never an option's (STYLE_GUIDE §
- * Config surfaces). `.field label` used to uppercase every label inside a
- * field, checkbox labels included, so the binder editor's options read as
- * section headings: "DOUBLE-SIDED", "FIXED", "SHOW CARDS THAT ARE IN A DECK".
+ * No form text is uppercase (E595; styles/uppercase-role.test.ts holds the
+ * global rule). It used to be a HEADING role in a form (STYLE_GUIDE § Config
+ * surfaces): `.field label` uppercased every label inside a field, checkbox
+ * labels included, so the binder editor's options read as section headings:
+ * "DOUBLE-SIDED", "FIXED", "SHOW CARDS THAT ARE IN A DECK". Now field labels,
+ * option labels and block headings are all sentence case.
  */
 describe('form labels', () => {
-  it('a bare `.field label` selector never carries the uppercase role', () => {
-    const selectors = uppercaseSelectors(read('forms-banners.css'));
-    expect(selectors.length, 'read the stylesheet at all').toBeGreaterThan(0);
-    for (const sel of selectors) {
-      if (!/\.field\s+label\b/.test(sel)) continue;
-      expect(sel, `${sel} would uppercase a checkbox option`).toContain(':not(.field-checkbox)');
-    }
+  it('forms-banners.css uppercases no field label', () => {
+    expect(uppercaseSelectors(read('forms-banners.css'))).toEqual([]);
   });
 
-  it('the kit keeps uppercase on headings and off field and option labels', () => {
-    const selectors = uppercaseSelectors(read('../components/shared/form.css'));
-    expect(selectors).toContain('.form-section-heading');
-    for (const bad of [
-      '.form-field-label',
-      '.switch-row-label',
-      '.choice-option-label',
-      '.segmented-option > span',
-    ]) {
-      expect(selectors, `${bad} is an option or field label`).not.toContain(bad);
-    }
+  it('the config kit uppercases neither headings nor field and option labels', () => {
+    expect(uppercaseSelectors(read('../components/shared/form.css'))).toEqual([]);
   });
 });

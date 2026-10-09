@@ -164,8 +164,6 @@
   font-size: var(--text-xs);
   font-weight: 700;
   color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 .playtest-log-dock__entries,

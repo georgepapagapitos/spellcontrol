@@ -26,8 +26,6 @@
 
 .bracket-verdict-figure dt {
   font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-overline);
   color: var(--text-muted);
 }
 

@@ -49,8 +49,6 @@
 
 .import-deck-name-label {
   font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-overline);
   color: var(--text-muted);
   font-weight: 600;
 }
@@ -115,8 +113,6 @@
 
 .import-deck-section-title {
   font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-overline);
   color: var(--text-muted);
   font-weight: 600;
   margin-bottom: var(--space-1-5);
@@ -152,8 +148,6 @@
 
 .import-deck-format-label {
   font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-overline);
   color: var(--text-muted);
   font-weight: 600;
 }

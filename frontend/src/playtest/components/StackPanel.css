@@ -200,6 +200,7 @@
   background: rgba(31, 41, 55, 0.92);
   border-radius: 0 6px 0 5px;
   white-space: nowrap;
+  font-family: var(--font-label);
 }
 
 .stack-panel__actions {

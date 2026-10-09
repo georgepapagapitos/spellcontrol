@@ -133,8 +133,6 @@
   font-family: var(--font-mono);
   color: var(--text-muted);
   margin-bottom: var(--space-0-5);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
 }
 
 .binder-hero-crumb-link {

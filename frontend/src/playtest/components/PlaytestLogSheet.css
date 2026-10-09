@@ -39,8 +39,6 @@
   font-size: var(--text-sm);
   font-weight: 700;
   color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 .playtest-log-entries {

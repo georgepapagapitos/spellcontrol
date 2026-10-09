@@ -116,8 +116,7 @@ own table.
   card data ("Bloomburrow", "Secret Lair Drop: Artist Series"). CSS can't tell
   them apart, so uppercasing decorated the first kind by mangling the second.
   (A `*-section-label` heading a block of FORM controls — the filter panels,
-  the card editor — is a different class and stays uppercase: that text is
-  always a category word the app wrote.)
+  the card editor — is sentence case like every section label, E595.)
 - **The header pins below whatever is sticky above it.** A table nested under a
   hub's tab strip pins at `--hub-tabs-sticky-h`, not at the top of the
   scrollport — which is behind the tabs, where the header vanishes for the whole
@@ -349,7 +348,7 @@ implementation is `components/import/UploadPanel.tsx`'s `.import-review` contain
 and `UnresolvedNameRow`:
 
 - **One container** (`.import-review`, `--radius-lg`, `--surface` bg) with a
-  single header: a small-caps title that reads `Import needs a look` if
+  single header: a small title that reads `Import needs a look` if
   anything is still actionable (fetch errors to retry, names to fix) or
   `Import summary` when everything resolved cleanly — `lib/import-export/import-review.ts`
   `importReviewHeadline()` is the pure decision. Only fetch-errors and

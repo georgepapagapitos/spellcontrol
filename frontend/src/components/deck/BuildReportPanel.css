@@ -51,8 +51,6 @@
 .build-report-gaps-label {
   font-size: var(--text-xs);
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-overline);
   color: var(--text-muted);
 }
 

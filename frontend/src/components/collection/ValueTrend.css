@@ -144,8 +144,6 @@
   font-size: var(--text-xs);
   font-weight: 600;
   color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-overline);
 }
 
 .value-movers-list {

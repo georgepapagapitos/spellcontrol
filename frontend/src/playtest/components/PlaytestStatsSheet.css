@@ -36,8 +36,6 @@
   font-size: var(--text-sm);
   font-weight: 700;
   color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 /* ── Stat rows (label + value pairs) ─────────────────────────────────────── */
@@ -189,8 +187,6 @@
   font-size: var(--text-xs);
   font-weight: 600;
   color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 .playtest-stats-sim-note {

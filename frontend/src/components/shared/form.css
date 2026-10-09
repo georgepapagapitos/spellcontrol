@@ -3,9 +3,9 @@
    switch row, a segmented control, a choice list and a disclosure row. Every
    editor dialog composes these instead of carrying its own copy. */
 
-/* ── Section heading: the ONE uppercase role in a form ─────────────────── */
-/* Field labels are sentence case; only the heading of a block of fields is
-   uppercase, so an option can never be mistaken for a heading again. */
+/* ── Section heading: a block's label, small and muted (E595: sentence case) ── */
+/* Field labels and block headings are both sentence case now. The heading is
+   told apart by its serif face and muted color, not by caps. */
 .form-section-heading {
   display: flex;
   align-items: center;
@@ -14,8 +14,6 @@
   font-family: var(--font-serif);
   font-size: var(--text-xs);
   font-weight: 600;
-  letter-spacing: var(--tracking-overline);
-  text-transform: uppercase;
   color: var(--text-muted);
 }
 
@@ -413,8 +411,6 @@ textarea.form-input {
   font-family: var(--font-serif);
   font-size: var(--text-xs);
   font-weight: 600;
-  letter-spacing: var(--tracking-overline);
-  text-transform: uppercase;
   color: var(--text-muted);
 }
 

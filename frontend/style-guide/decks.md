@@ -1112,7 +1112,7 @@ and every zone wears the panel vocabulary the other analysis tabs already use:
    as the Stats/Power bentos.
 3. **Browse catalog** (`Browse all EDHREC suggestions` disclosure) — sits
    **after** the Suggestions panel, never between the filter chips and the
-   rows they filter (there its all-caps summary read as a heading for the
+   rows they filter (there its summary read as a heading for the
    feed below it).
 4. **AI strips** — both Coach-tab AI panels take the E244 insight-strip
    posture (see "AI-written content"); a list surface never mounts a full AI
@@ -1713,7 +1713,7 @@ Model-written text always says so. The rulings:
 - **Generated AI prose persists — reopening a surface restores its last
   output, and past outputs stay reachable.** The review panel restores the
   newest stored reading on expand (a DB read, never a model call) and lists
-  every kept reading on a quiet date rail (`.deck-ai-history`: uppercase
+  every kept reading on a quiet date rail (`.deck-ai-history`: sentence-case
   micro-label + outline date pills, `aria-current` on the shown one) under the
   prose; reopening one is a local swap. A restored reading is dated, not
   flagged stale — whether the deck changed since isn't knowable client-side,
@@ -1876,7 +1876,7 @@ Model-written text always says so. The rulings:
 - **The reference is a dictionary, and both lists draw it the same way**
   (settled 2026-09-20). Keyword entries and glossary terms are
   **hairline-separated rows, never bordered cards**, and the category badge
-  beside a term is a **small-caps label, not a chip** — the pill form is for
+  beside a term is a **small label, not a chip** — the pill form is for
   a mark that must catch the eye against other content, and here the same
   mark repeats on nearly every row. Keywords shipped as cards while the
   glossary next door was already a hairline list; at 2-up the cards' grid

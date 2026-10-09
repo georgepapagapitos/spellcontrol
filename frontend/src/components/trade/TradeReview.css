@@ -126,8 +126,6 @@
   margin: 0;
   font-size: var(--text-xs);
   font-weight: 600;
-  letter-spacing: var(--tracking-overline);
-  text-transform: uppercase;
   color: var(--text-muted);
 }
 

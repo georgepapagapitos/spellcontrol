@@ -324,8 +324,6 @@
   margin: var(--space-3) 0;
   color: var(--text-muted);
   font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
 }
 
 .auth-divider::before,

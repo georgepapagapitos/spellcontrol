@@ -5,9 +5,8 @@
 .card-otags-eyebrow {
   font-size: var(--text-xs);
   color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
   margin: 0;
+  font-weight: 600;
 }
 
 .card-otags-card-name {

@@ -73,7 +73,7 @@ primitives directory.
 | `components/shared/form` (`SegmentedControl`)                  | a new segmented-pill CSS family                      | [§ Config surfaces](style-guide/components.md#config-surfaces-t139)                                                         |
 | `components/shared/form` (`ChoiceList`)                        | a hint that rewrites per option                      | [§ Config surfaces](style-guide/components.md#config-surfaces-t139)                                                         |
 | `components/shared/form` (`Disclosure`)                        | a hand-rolled collapsible group                      | [§ Config surfaces](style-guide/components.md#config-surfaces-t139)                                                         |
-| `components/shared/form` (`Field`)                             | an uppercase `.field label`                          | [§ Config surfaces](style-guide/components.md#config-surfaces-t139)                                                         |
+| `components/shared/form` (`Field`)                             | a sentence-case `.field label`                       | [§ Config surfaces](style-guide/components.md#config-surfaces-t139)                                                         |
 | `components/shared/form.css` (`.form-input`)                   | a bare `<input>` / `<textarea>` in a `Field`         | [§ Config surfaces](style-guide/components.md#config-surfaces-t139)                                                         |
 
 ### Overlays
@@ -460,9 +460,10 @@ meanwhile.
   follows it that a heading can't hold (the category gauge), and tools with
   no `toolsClassName` sit in the row as its last items. Its `variant` is the heading's role, painted
   once in `styles/base-layout.css`: a `title` (serif, `--text-lg`, 700) or an
-  `overline` (a small uppercase serif label above its rows, at
-  `--tracking-overline`). A family keeps its spacing, never the type. New
-  uppercase text takes `--tracking-overline`, never a raw em value;
+  `overline` (a small sentence-case label above its rows: no caps, no
+  tracking, `--text-secondary`). A family keeps its spacing, never the type.
+  Uppercase text is a `--font-label` stamp and takes `--tracking-overline`,
+  never a raw em value;
   `styles/tracking-ratchet.test.ts` freezes the raw letter-spacing left in
   each file and only lets it fall. Guard: `styles/section-heading-plate.test.ts`.
 - **The camera button lives on the collection pages, on phones, only**, with
@@ -1196,10 +1197,11 @@ button is an \*\*accent-fill rect with a leading lucide icon at `width/height={1
   control. A genuine **secondary\*\* action (e.g. Cost's "Auto-select to target")
   may stay outline (`var(--surface-raised)` bg + border), but that's the only tier-2.
 
-**Collapsible/section titles use `var(--font-serif)`, uppercase,
-`letter-spacing`** — the `.deck-combos-title` family. Any new lane/group heading
-(`.synergy-picks-title`, `.engine-suggestion-group-label`, …) joins it; a plain
-sans-bold heading reads as off-family.
+**Collapsible/section titles use `var(--font-serif)` in sentence case** (E595:
+they were uppercase + tracked until then) — the `.deck-combos-title` family. Any
+new lane/group heading (`.synergy-picks-title`,
+`.engine-suggestion-group-label`, …) joins it; a plain sans-bold heading reads
+as off-family.
 
 **Collapsed disclosure groups show their current setting in the header** — a
 muted, right-aligned, ellipsizing value summary (`.deck-customizer-group-summary`
@@ -1272,12 +1274,33 @@ There are always exactly **four type roles**, and every rule below is written
 against the _token_, never against a face name. Which faces fill them is a
 user choice — see § Type sets.
 
-| Role    | Token            | Scope                                                                                                                            | Never                                                 |
-| ------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| Body    | `--font-serif`   | The default: body, controls, section/lane titles (incl. the serif-caps `.deck-combos-title` family)                              | —                                                     |
-| Display | `--font-display` | **Hero tier only**: binder/deck hero names + page-identity titles at `--text-xl` and up (list below)                             | body, chrome, section titles, dialog titles, numerals |
-| Label   | `--font-label`   | Chrome/tab/tape labels, uppercase + tracked — see [§ App chrome](style-guide/app-shell.md#app-chrome--leather--divider-tabs-t53) | prose, headings, form controls                        |
-| Data    | `--font-mono`    | Data: prices, qty, set codes, tabular numerals                                                                                   | —                                                     |
+| Role    | Token            | Scope                                                                                                                                                                   | Never                                                 |
+| ------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| Body    | `--font-serif`   | The default: body, controls, section/lane titles (incl. the serif-caps `.deck-combos-title` family)                                                                     | —                                                     |
+| Display | `--font-display` | **Hero tier only**: binder/deck hero names + page-identity titles at `--text-xl` and up (list below)                                                                    | body, chrome, section titles, dialog titles, numerals |
+| Label   | `--font-label`   | Chrome/tab/tape labels, stamps and tags, print-table `th`: the ONLY uppercase role — see [§ App chrome](style-guide/app-shell.md#app-chrome--leather--divider-tabs-t53) | prose, headings, form controls                        |
+| Data    | `--font-mono`    | Data: prices, qty, set codes, tabular numerals                                                                                                                          | —                                                     |
+
+**Uppercase belongs to the label role, and only to it (E595).** A section
+label above its rows ("Mana curve", "Build report", a form block's heading, a
+panel's eyebrow) is **sentence case in the body face**: no `text-transform`,
+normal `letter-spacing`, `--text-secondary` or `--text-muted`, and **weight
+600 when it heads a section** (caps used to carry that emphasis; a quiet
+regular-weight label disappears above its rows). A caption under a number (a
+record `dt`, a stat label) stays regular: there the number carries the weight.
+Caps are for `--font-label`: chrome, tabs, tape, print-table `th`, and stamps or tags (a ribbon, a turn chip, a status pill) where the mark
+is meant to catch the eye. A data code whose canonical form is uppercase (a set
+code, a hex value, a room code) is data, not a label, and is allowlisted with
+its reason. **Why:** an outside "does this read as AI-designed" review named
+"big words above headlines", "overuse of eyebrow type in all caps" and "eyebrow
+text with pill borders" as tells; 150 rules shouted a label above every block,
+which flattens hierarchy (everything is the loudest thing) and reads as
+template. Sentence case keeps the label quiet so the heading and the number
+carry the weight. Do not type copy in ALL CAPS in source either; the
+`SHOUTING` rule in `copy-guards.test.ts` fails it, and
+`styles/uppercase-role.test.ts` fails a CSS rule that uppercases without
+`--font-label`. A section's only title is its label: when a block carries a
+label and a heading that say the same thing, delete the label.
 
 In the default set (**Codex**) those roles are Eczar / Marcellus / Archivo
 Narrow / IBM Plex Mono respectively. Older examples in this section were written
@@ -1402,9 +1425,10 @@ Rulings for `--font-display` (restyle Phase 6):
   `--text-lg`+ / weight 400. A split wordmark (two faces for the same brand
   name) is the one wrong state; if a new surface needs the brand at identity
   scale, copy the `.site-brand` treatment. **Micro renders are exempt and
-  stay as they are**: the welcome hero's uppercase-tracked eyebrow
-  (`.welcome-hero-wordmark`, `--text-sm`) and the deck-identity card's
-  attribution line (`--text-xs`) function as labels, and an oldstyle display
+  stay as they are** (E595 kept both): the welcome hero's uppercase-tracked
+  wordmark (`.welcome-hero-wordmark`, `--text-sm`, an `ALLOWED` entry in
+  `styles/uppercase-role.test.ts`) and the deck-identity card's attribution
+  line (`--text-xs`, sentence case since it is a plain label) function as labels, and an oldstyle display
   face dies in tiny tracked caps — don't "unify" those.
 
 ## System preferences — honor them, don't reinvent them

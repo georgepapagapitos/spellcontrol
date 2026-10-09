@@ -725,8 +725,6 @@
   color: rgba(255, 255, 255, 0.82);
   font-size: var(--text-xs, 0.72rem);
   font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
   text-align: center;
   overflow: hidden;
   text-overflow: ellipsis;

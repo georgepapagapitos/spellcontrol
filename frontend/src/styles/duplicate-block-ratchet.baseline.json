@@ -193,15 +193,6 @@
       "styles/playtest.css:.playtest-life-panel__opponents"
     ]
   },
-  "28400c9a49": {
-    "size": 4,
-    "locations": [
-      "components/account/ConflictPanel.css:.conflict-panel-eyebrow",
-      "components/deck/DeckFeedbackSheet.css:.deck-feedback-eyebrow",
-      "styles/binder-card-management.css:.add-to-binder-label",
-      "styles/deck-builder-skeleton.css:.deck-analysis-skeleton-eyebrow"
-    ]
-  },
   "2b48b38547": {
     "size": 2,
     "locations": [
@@ -366,22 +357,6 @@
       "styles/deck-builder-card-list.css:.deck-display-scryfall-trigger:hover  [@media (hover: hover) and (pointer: fine)]",
       "styles/play-setup.css:.play-setup-roster-add:hover  [@media (hover: hover) and (pointer: fine)]",
       "styles/play-setup.css:.play-setup-seat-deck-add:hover  [@media (hover: hover) and (pointer: fine)]"
-    ]
-  },
-  "539225d099": {
-    "size": 11,
-    "locations": [
-      "components/deck/BuildReportPanel.css:.build-report-gaps-label",
-      "components/deck/CommanderReadiness.css:.cmdr-readiness-eyebrow",
-      "components/deck/NextBestMove.css:.next-best-move-header-label",
-      "components/deck/SimilarCardsStrip.css:.similar-cards-group-label",
-      "components/share/SharedGameSummaryView.css:.game-summary-winner-label",
-      "styles/admin-scanner.css:.admin-users-table th",
-      "styles/deck-builder-editor.css:.deck-editor-hero-edit-label",
-      "styles/deck-builder-import-dialog.css:.import-deck-format-label",
-      "styles/deck-builder-import-dialog.css:.import-deck-name-label",
-      "styles/import-upload.css:.import-link-label",
-      "styles/search-controls.css:.deck-filters-section-label"
     ]
   },
   "5a65eadb90": {
@@ -851,21 +826,6 @@
       "styles/binder-rules-editor.css:.chip-suggest-item.active"
     ]
   },
-  "b6aad59225": {
-    "size": 3,
-    "locations": [
-      "components/deck/SubScoreTile.css:.sub-score-tile-band",
-      "playtest/components/TriggerReminder.css:.trigger-reminder__title",
-      "styles/horde-table.css:.horde-table-life-label"
-    ]
-  },
-  "b6c4b5b420": {
-    "size": 2,
-    "locations": [
-      "playtest/components/PlaytestLogSheet.css:.playtest-log-turn__heading",
-      "playtest/components/PlaytestStatsSheet.css:.playtest-stats-section-title"
-    ]
-  },
   "b6d7e4fb5a": {
     "size": 4,
     "locations": [
@@ -1121,14 +1081,6 @@
       "styles/modals-dialogs.css:.choice-dialog-option:hover  [@media (hover: hover) and (pointer: fine)]"
     ]
   },
-  "e2ff67a0e5": {
-    "size": 3,
-    "locations": [
-      "components/deck/DeckAiReview.css:.deck-ai-history-label",
-      "pages/RulesPage.css:.rules-history-label",
-      "styles/deck-builder-display.css:.deck-role-legend-group-title"
-    ]
-  },
   "e4929b1c2e": {
     "size": 3,
     "locations": [
@@ -1181,13 +1133,6 @@
       "components/deck/DeckCurvePhases.css:.deck-curve-phases-head",
       "components/play/GameNights.css:.game-nights-header",
       "pages/cube/cube.css:.cube-result-head"
-    ]
-  },
-  "e97045a865": {
-    "size": 2,
-    "locations": [
-      "components/deck/DeckAiReview.css:.deck-ai-section-title",
-      "pages/RulesPage.css:.rules-cited-title"
     ]
   },
   "e9adc99acb": {
@@ -1250,13 +1195,6 @@
       "styles/playtest.css:.playtest-life-table__details::after  [@media (pointer: coarse)]"
     ]
   },
-  "f502cc3ff2": {
-    "size": 2,
-    "locations": [
-      "components/share/ReportDialog.css:.report-dialog-label",
-      "styles/forms-banners.css:.field label:not(.field-checkbox), .field .field-label"
-    ]
-  },
   "f5bfc9911f": {
     "size": 2,
     "locations": [
@@ -1300,13 +1238,6 @@
       "styles/deck-builder-settings.css:.bracket-pill.active",
       "styles/settings-page.css:.settings-theme-option.is-active",
       "styles/shared.css:.feedback-bracket.is-active"
-    ]
-  },
-  "fe4acc5558": {
-    "size": 2,
-    "locations": [
-      "components/social/FriendsManagement.css:.friends-requests-section-title",
-      "styles/modals-dialogs.css:.shortcuts-overlay-section-title"
     ]
   }
 }
