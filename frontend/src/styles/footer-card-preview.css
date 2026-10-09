@@ -124,6 +124,10 @@
 }
 
 .card-preview-sheet {
+  /* The close button's footprint. The inspector head reads the same values to
+     keep its right edge (the price) clear of the button. */
+  --pv-close-size: 44px;
+  --pv-close-inset: max(var(--space-3), var(--safe-right));
   --pv-top: calc(52px + var(--safe-top));
   --pv-gutter: var(--space-5);
   --pv-gap: var(--space-2);
@@ -171,10 +175,10 @@
 .card-preview-close {
   position: absolute;
   top: calc(var(--safe-top) + var(--space-1));
-  right: max(var(--space-3), var(--safe-right));
+  right: var(--pv-close-inset);
   z-index: 6;
-  width: 44px;
-  height: 44px;
+  width: var(--pv-close-size);
+  height: var(--pv-close-size);
   border-radius: var(--radius);
   border: 1px solid rgb(255 255 255 / 22%);
   background: rgb(255 255 255 / 6%);
@@ -899,7 +903,9 @@
   gap: var(--space-1);
   font-family: var(--font-mono);
   font-size: var(--text-base);
-  color: rgb(255 255 255 / 92%);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
 }
 
 .card-preview-typeline {
@@ -1418,15 +1424,22 @@
     display: none;
   }
 
-  /* Room on the right for the close button, which sits in this corner. */
+  /* Room on the right for the close button, which sits in this corner, plus a
+     gap so the price beside the name doesn't crowd it. */
   .card-preview-head {
-    padding: calc(var(--safe-top) + var(--space-5)) var(--space-8) var(--space-4) var(--space-6);
+    padding: calc(var(--safe-top) + var(--space-5))
+      calc(var(--pv-close-inset) + var(--pv-close-size) + var(--space-4)) var(--space-4)
+      var(--space-6);
     border-bottom: 1px solid rgb(255 255 255 / 8%);
   }
 
   .card-preview-name {
     white-space: normal;
     font-size: var(--text-xl);
+  }
+
+  .card-preview-price {
+    font-size: var(--text-lg);
   }
 
   .card-preview-typeline {
@@ -1488,10 +1501,12 @@
     bottom: var(--space-3);
   }
 
+  .card-preview-sheet {
+    --pv-close-size: 40px;
+  }
+
   .card-preview-close {
     top: calc(var(--safe-top) + 2px);
-    width: 40px;
-    height: 40px;
   }
 
   .card-preview-head {
