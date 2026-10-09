@@ -532,7 +532,6 @@ export interface AnalyzeCommanderDeckParams {
   /** Numeric mainboard size (99 for Commander). */
   deckSize: number;
   colorIdentity?: string[];
-  /** The deck's format (Deck.format); Brawl and Pauper Commander gate suggestions on their own legality. */
   mtgFormat?: string;
   /** Combos already matched by the editor's combos panel. */
   detectedCombos?: DetectedCombo[];
@@ -905,11 +904,9 @@ export async function analyzeCommanderDeck(
     // `isOwned` later against the live collection.
     const gapAnalysis = buildGapAnalysis(edhrecData, allCardNames, { liftIndex });
 
-    // Hidden gems (E146): underrated candidates the inclusion ranking above
-    // missed, vouched for by lift / similar / axis evidence. Best-effort — a
-    // failure (similar snapshot unreachable, card batch fetch down) yields an
-    // empty lane, never a failed analysis. Always an array so a re-analysis
-    // clears stale rows.
+    // Hidden gems (E146): underrated candidates the ranking above missed, backed
+    // by lift / similar / axis evidence. Best-effort: a failure yields an empty
+    // lane, never a failed analysis. Always an array so re-analysis clears stale rows.
     let hiddenGems: HiddenGemRow[] = [];
     try {
       await loadCardSimilar(); // soft-fails → getSimilarRank returns null
