@@ -8,6 +8,8 @@ import type { GapAnalysisCard, ScryfallCard } from '@/deck-builder/types';
 import type { RecommendedCard } from './deckAnalyzer';
 import { COACH_CARDS as COACH_BASE } from './__fixtures__/coach-cards.fixtures';
 import landFixture from '@/lib/mana-sim/__fixtures__/land-abilities.fixture.json';
+import invariantFixture from './__fixtures__/invariant-cards.fixture.json';
+import round2Fixture from './deckObjective/__fixtures__/round2.fixture.json';
 
 // E585: Power Depot's {T} mana is {C}; its any-colour mana is artifact-only.
 const COACH_CARDS: Record<string, ScryfallCard> = {
@@ -24,6 +26,7 @@ vi.mock('@/deck-builder/services/scryfall/client', async (orig) => ({
   }),
 }));
 
+import { buildRefinePool } from '@/lib/ai/ai-refine';
 import { enrichRecommendationPrices, stampCandidateCardData } from './candidateCardData';
 
 const resolve = async (names: string[]) => {
@@ -66,6 +69,46 @@ describe('stampCandidateCardData', () => {
     ];
     await stampCandidateCardData({ gaps }, resolve);
     expect(gaps[0].price).toBe('0.99');
+  });
+});
+
+// E617: real Scryfall records. Sol Ring is legal in Commander only; Mana Drain
+// is banned in Brawl and not legal in PDH; Arcane Signet is legal in all three.
+const LEGALITY_CARDS: Record<string, ScryfallCard> = Object.fromEntries(
+  [
+    ...(invariantFixture.cards as unknown as ScryfallCard[]),
+    ...(round2Fixture.cards as unknown as ScryfallCard[]),
+  ]
+    .filter((c) => ['Sol Ring', 'Mana Drain', 'Arcane Signet'].includes(c.name))
+    .map((c) => [c.name, c])
+);
+const resolveLegal = async (names: string[]) => {
+  const out = new Map<string, ScryfallCard>();
+  for (const n of names) if (LEGALITY_CARDS[n]) out.set(n, { ...LEGALITY_CARDS[n] });
+  return out;
+};
+const gapRows = (): GapAnalysisCard[] =>
+  ['Sol Ring', 'Mana Drain', 'Arcane Signet', 'Unresolved Card'].map((name) => ({
+    name,
+    price: null,
+    inclusion: 50,
+    synergy: 0,
+    typeLine: 'Artifact',
+  }));
+
+describe('stampCandidateCardData format legality (E617)', () => {
+  it('drops cards the deck format bans from the lists and the refine pool; Commander keeps them', async () => {
+    for (const [fmt, kept] of [
+      ['brawl', ['Arcane Signet', 'Unresolved Card']],
+      ['paupercommander', ['Arcane Signet', 'Unresolved Card']],
+      ['commander', ['Sol Ring', 'Mana Drain', 'Arcane Signet', 'Unresolved Card']],
+    ] as const) {
+      const gaps = gapRows();
+      await stampCandidateCardData({ gaps, mtgFormat: fmt }, resolveLegal);
+      expect(gaps.map((g) => g.name)).toEqual(kept);
+      const pool = buildRefinePool({ gaps, deckNames: new Set() });
+      expect(pool.map((c) => c.name)).toEqual(kept);
+    }
   });
 });
 
