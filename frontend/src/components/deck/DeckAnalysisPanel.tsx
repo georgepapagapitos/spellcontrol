@@ -566,13 +566,15 @@ function SuggestionRow({
         onClick={onPreview}
         aria-label={`Preview ${card.name}`}
       >
-        <div className="deck-analysis-suggest-title-row">
-          <span className="deck-analysis-suggest-name" title={card.name}>
-            {card.name}
-          </span>
-          {role && <span className="deck-analysis-suggest-role">{ROLE_BADGE[role] ?? role}</span>}
-          {ownershipBadge}
-        </div>
+        <span className="deck-analysis-suggest-name" title={card.name}>
+          {card.name}
+        </span>
+        {(role || ownershipBadge) && (
+          <div className="deck-analysis-suggest-chips">
+            {role && <span className="deck-analysis-suggest-role">{ROLE_BADGE[role] ?? role}</span>}
+            {ownershipBadge}
+          </div>
+        )}
         <p className="deck-analysis-suggest-meta">
           {classifyInclusion(card.inclusion).label}
           {card.synergy != null && card.synergy > 0 && (

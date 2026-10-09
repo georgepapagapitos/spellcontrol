@@ -33,7 +33,10 @@
      stacking into one tall narrow column. Mirrors the combos-list grid. */
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr));
-  align-items: start;
+  /* Every cell the same height, across rows too: one tall card (a long meta
+     line, wrapped chips) no longer makes its row taller than the next, so the
+     grid reads as even tiles and each Add button sits at the same height. */
+  grid-auto-rows: 1fr;
   gap: var(--space-1-5);
 }
 
@@ -94,12 +97,12 @@
   }
 }
 
-.deck-analysis-suggest-title-row {
+/* Name on its own line so it gets the body's full width; the chips (role /
+   Owned / In other deck) sit on a fixed second line rather than sharing the
+   name's line, which truncated the name and moved the chips row by row. */
+.deck-analysis-suggest-chips {
   display: flex;
   align-items: center;
-  /* Wrap so the nowrap chips (role / Owned / In other deck) drop to a second
-     line in a narrow column instead of spilling under the Add button once the
-     name has ellipsized to nothing. Mirrors .deck-card-row-title. */
   flex-wrap: wrap;
   gap: var(--space-1) var(--space-1-5);
   min-width: 0;

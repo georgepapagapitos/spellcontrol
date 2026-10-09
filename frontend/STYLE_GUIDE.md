@@ -445,6 +445,17 @@ meanwhile.
   and Discover repeated the decks shown beside it. A per-item count belongs on
   its item (a deck's new-card count on that deck's tile), never summed into a
   page-level figure that counts the same thing more than once.
+- **Tiles in a grid share a height: the bordered tile fills its cell**
+  (settled 2026-10-09). A grid item stretches by default, but the visible frame
+  often sits one level down (`<li>` → `<button>`), and that frame ends at its
+  own content. A wrapped name or an optional chip line then leaves the tile
+  shorter than its neighbors. So the framed element is the grid child itself, or
+  it takes `height: 100%`, and a tile grid never sets `align-items: start`. A
+  grid of fixed-shape tiles (the Coach tab's EDHREC suggestions) also sets
+  `grid-auto-rows: 1fr`, so every row matches and the Add buttons line up.
+  Give each optional detail its own line rather than sharing the name's line.
+  Sharing it truncates the name and moves the chips between lines from tile to
+  tile. Guard: `styles/deck-analysis-suggest-grid.test.ts`.
 - **A row of tiles is a grid on desktop and a swipe row below it.** On a
   phone each tile is under three-quarters of the width (72%) and on a tablet
   30%, so the next tile always peeks in and the row reads as scrollable; a
