@@ -523,4 +523,9 @@ describe('BracketBreakdown pod line', () => {
       screen.getByText(/^Bracket 4 \(Optimized\), borderline 3\. 1 Game Changer: Rhystic Study\./)
     ).toBeTruthy();
   });
+
+  it('offers no Copy button: the line is read out or selected', () => {
+    render(<BracketBreakdown estimation={ratingOnly()} onSetBracketOverride={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: /copy/i })).toBeNull();
+  });
 });

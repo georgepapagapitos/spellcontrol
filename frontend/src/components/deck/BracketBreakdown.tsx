@@ -32,7 +32,6 @@ import { Chip } from '../shared/Chip';
 import { imageFromCard } from '@/lib/cards/card-thumbs';
 import { scryfallArtCrop } from '@/lib/offline/slim-to-scryfall';
 import { Button } from '@/components/shared/Button';
-import { CopyButton } from '@/components/shared/CopyButton';
 
 /** Actual deck `ScryfallCard`s by name. Passed so the card preview shows the
  *  printing in the deck instead of re-fetching the default printing by name. */
@@ -332,17 +331,18 @@ function BracketAnswer({
   );
 }
 
-/** The sentence an owner reads out (or pastes) before a game. */
+/** The sentence an owner reads out before a game; a phone can also share it. */
 function PodLine({ text }: { text: string }): JSX.Element {
   return (
     <div className="bracket-breakdown-section">
       <h4 className="bracket-breakdown-heading">Tell your pod</h4>
       <div className="bracket-pod">
         <p className="bracket-pod-text">{text}</p>
-        <div className="bracket-pod-actions">
-          <CopyButton value={text} what="the line for your pod" />
-          {canShare() && <Button onClick={() => void openShareSheet({ text })}>Share</Button>}
-        </div>
+        {canShare() && (
+          <div className="bracket-pod-actions">
+            <Button onClick={() => void openShareSheet({ text })}>Share</Button>
+          </div>
+        )}
       </div>
     </div>
   );
