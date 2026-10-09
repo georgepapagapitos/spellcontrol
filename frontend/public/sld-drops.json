@@ -199,6 +199,11 @@
       "numbers": ["2387", "2388", "2389", "2390", "2391", "7080"]
     },
     {
+      "name": "The Eyes Have It",
+      "releasedAt": "2026-05-12",
+      "numbers": ["2066", "2067", "2068", "2069", "2070"]
+    },
+    {
       "name": "Marvels Deadpool I Fixed It (Youre Welcome)",
       "releasedAt": "2026-04-06",
       "numbers": ["7126", "7127", "IFIYW-1", "IFIYW-2", "IFIYW-3", "IFIYW-4", "IFIYW-5"]
@@ -671,6 +676,11 @@
       "numbers": ["2071", "2072", "2073", "2074", "2075", "7028"]
     },
     {
+      "name": "Viva Las Rakdos",
+      "releasedAt": "2025-05-13",
+      "numbers": ["2524", "2525", "2526", "2527", "2528"]
+    },
+    {
       "name": "vroooOOOMMMMMM!",
       "releasedAt": "2025-05-13",
       "numbers": ["2037", "2038", "2039", "2040", "2041"]
@@ -689,6 +699,11 @@
       "name": "Secret Lair Promo Deadeye Navigator",
       "releasedAt": "2025-04-23",
       "numbers": ["902"]
+    },
+    {
+      "name": "So Salty",
+      "releasedAt": "2025-04-22",
+      "numbers": ["2396", "2397", "2398", "2399", "2400"]
     },
     {
       "name": "Secret Lair x Marvels Deadpool April Pools Day",
@@ -1961,7 +1976,7 @@
     {
       "name": "Far Out Man",
       "releasedAt": "2022-05-06",
-      "numbers": ["330", "331", "332", "333", "334", "599"]
+      "numbers": ["330", "331", "332", "333", "334"]
     },
     {
       "name": "Fblthp Completely Utterly Totally Lost",
@@ -1976,7 +1991,7 @@
     {
       "name": "PixelSnowLandsjpg",
       "releasedAt": "2022-05-06",
-      "numbers": ["325", "326", "327", "328", "329", "599"]
+      "numbers": ["325", "326", "327", "328", "329"]
     },
     {
       "name": "Secret Lair x Arcane",
@@ -1991,12 +2006,12 @@
     {
       "name": "The Dracula Lands",
       "releasedAt": "2022-05-06",
-      "numbers": ["359", "360", "361", "362", "363", "599"]
+      "numbers": ["359", "360", "361", "362", "363"]
     },
     {
       "name": "Welcome to Castle Dracula",
       "releasedAt": "2022-05-06",
-      "numbers": ["206", "207", "208", "562", "599"]
+      "numbers": ["206", "207", "208", "562"]
     },
     { "name": "Astrology Lands Capricorn", "releasedAt": "2022-04-29", "numbers": ["384"] },
     {
@@ -2052,7 +2067,7 @@
     {
       "name": "Artist Series Thomas Baxa",
       "releasedAt": "2021-12-13",
-      "numbers": ["274", "275", "276", "277", "587"]
+      "numbers": ["274", "275", "276", "277", "551", "587"]
     },
     {
       "name": "Kamigawa Ink",
@@ -2097,7 +2112,7 @@
     {
       "name": "Special Guest Fiona Staples",
       "releasedAt": "2021-10-29",
-      "numbers": ["190", "191", "192", "193", "194"]
+      "numbers": ["190", "191", "192", "193", "194", "514"]
     },
     {
       "name": "Special Guest Jen Bartel",
@@ -2147,6 +2162,11 @@
       "name": "Black is Magic",
       "releasedAt": "2021-05-13",
       "numbers": ["244", "245", "246", "247", "248", "249", "250"]
+    },
+    {
+      "name": "Faerie Faerie Faerie Rad",
+      "releasedAt": "2021-04-13",
+      "numbers": ["115", "116", "117", "118", "512", "529", "534"]
     },
     {
       "name": "Showcase Kaldheim Part 1",
