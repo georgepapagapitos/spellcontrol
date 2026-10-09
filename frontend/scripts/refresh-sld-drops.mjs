@@ -9,7 +9,9 @@
 //    own card list maps uuid → collector number).
 //  - mtgjson/mtg-sealed-content data/products/SLD.yaml — the upstream source
 //    feeding MTGJSON; its `variable` blocks carry chase/bonus card numbers
-//    that don't always survive into the compiled SLD.json.
+//    that don't always survive into the compiled SLD.json. Bonus cards it names
+//    only by booster `pack` code resolve through the compiled `booster` table and
+//    go to the one drop dated closest to the printing (sld-drop-packs.mjs).
 //
 // Run manually via `npm run refresh-sld-drops`, or auto-invoked by predev when
 // the local copy is missing or older than MAX_AGE_DAYS; `prebuild` passes
@@ -27,7 +29,8 @@ import { gunzipSync } from 'node:zlib';
 // default export, so this must be the named import.
 import { load as loadYaml } from 'js-yaml';
 import { pruneOutlierDrops } from './sld-drop-dates.mjs';
-import { assertNoShrink, carryForward } from './sld-drop-merge.mjs';
+import { assertNoShrink } from './sld-drop-merge.mjs';
+import { assignPackNumbers, packNumbers } from './sld-drop-packs.mjs';
 
 const JSON_URL = process.env.SLD_JSON_URL ?? 'https://mtgjson.com/api/v5/SLD.json.gz';
 const YAML_URL =
@@ -125,6 +128,7 @@ function dropName(productName) {
 }
 
 const numbersByDrop = new Map(); // drop name → Set<collector number>
+const packCodesByDrop = new Map(); // drop name → Set<booster pack code>
 const dateByDrop = new Map(); // drop name → earliest release date
 
 function addNumber(drop, number) {
@@ -168,10 +172,15 @@ for (const [productName, productContents] of Object.entries(contents?.products ?
   // key (data/contents/ became data/products/); the old flat shape still parses.
   const blocks = productContents?.contents ?? productContents ?? {};
   addCardRefs(drop, blocks);
-  // Upstream now names bonus/chase cards by `pack` code (a shared sheet in the compiled
-  // set's `booster` table) instead of listing numbers. Resolving packs credits one pool
-  // card to up to 47 drops, so they are skipped here and the committed snapshot's
-  // membership is carried forward below (sld-drop-merge.mjs).
+  // Upstream names bonus/chase cards by `pack` code (a sheet in the compiled set's
+  // `booster` table) instead of listing numbers. Collected here, resolved to one drop
+  // per card once the Scryfall printing dates are in (sld-drop-packs.mjs).
+  for (const ref of blocks.pack ?? []) {
+    if (!ref?.code) continue;
+    const codes = packCodesByDrop.get(drop) ?? new Set();
+    codes.add(ref.code);
+    packCodesByDrop.set(drop, codes);
+  }
   for (const ref of blocks.deck ?? []) {
     const deck = decksByName.get(ref?.name);
     if (!deck) continue;
@@ -208,34 +217,49 @@ console.log('[sld] Fetching Scryfall SLD printings for date cross-check');
 const printings = await fetchPrintings();
 if (printings.length < 1500) bail(`Suspiciously few Scryfall SLD printings (${printings.length})`);
 
-const built = [...numbersByDrop.entries()]
-  .filter(([, numbers]) => numbers.size > 0)
-  .map(([name, numbers]) => ({
-    name,
-    releasedAt: dateByDrop.get(name) ?? '',
-    numbers: [...numbers].sort((a, b) => Number(a) - Number(b) || a.localeCompare(b)),
-  }))
-  .sort((a, b) => b.releasedAt.localeCompare(a.releasedAt) || a.name.localeCompare(b.name));
+const toDrops = () =>
+  [...numbersByDrop.entries()]
+    .filter(([, numbers]) => numbers.size > 0)
+    .map(([name, numbers]) => ({
+      name,
+      releasedAt: dateByDrop.get(name) ?? '',
+      numbers: [...numbers].sort((a, b) => Number(a) - Number(b) || a.localeCompare(b)),
+    }))
+    .sort((a, b) => b.releasedAt.localeCompare(a.releasedAt) || a.name.localeCompare(b.name));
 
-// Keep the committed snapshot's membership for anything upstream no longer lists
-// as explicit numbers, so a refresh adds drops and corrects dates but never loses
-// a mapping just because upstream changed how it writes it down.
-const previousSnapshot = await readPrevious();
-const merged = carryForward(built, previousSnapshot?.drops);
-console.log(
-  `[sld] Carried forward ${merged.carried.length} number/drop pairs the snapshot had and upstream no longer lists explicitly` +
-    (merged.carried.length
-      ? ` (e.g. ${merged.carried
-          .slice(0, 5)
-          .map((c) => `${c.drop} #${c.number}`)
-          .join(', ')})`
-      : '')
+// A card some drop lists by number is not a pack-only card: take that listing as is.
+// Prune the misfiled ones first (Ral, Storm Conduit #523 sits under Mountain Go) so a
+// bad explicit listing doesn't hide a card from the pack resolution below.
+const explicit = new Set(
+  pruneOutlierDrops(toDrops(), printings).drops.flatMap((drop) => drop.numbers)
 );
+
+// Every card a pack lists is credited to the ONE drop dated closest to the card's own
+// printing, never to every drop whose pack sheet happens to contain it (the Astrology
+// pool is shared by twelve packs).
+const { assigned, unmapped } = assignPackNumbers({
+  packCodesByDrop,
+  numbersByPack: packNumbers(data.booster, numberByUuid),
+  dateByDrop,
+  printings,
+  explicit,
+});
+for (const [drop, numbers] of assigned) for (const number of numbers) addNumber(drop, number);
+const packPairs = [...assigned.values()].reduce((n, set) => n + set.size, 0);
+console.log(`[sld] Resolved ${packPairs} pack-only cards to one drop each`);
+if (unmapped.length) {
+  console.warn(
+    `[sld] ${unmapped.length} pack-only cards left unmapped: ` +
+      unmapped.map((u) => `#${u.number} (${u.reason})`).join(', ')
+  );
+}
+
+const previousSnapshot = await readPrevious();
 
 // A drop whose date is far from the printing's own is MTGJSON misfiling a
 // bonus card (Ral, Storm Conduit #523 under 2021 drops): treat that drop as
 // unknown for the number. See sld-drop-dates.mjs for the cutoff.
-const { drops, removed } = pruneOutlierDrops(merged.drops, printings);
+const { drops, removed } = pruneOutlierDrops(toDrops(), printings);
 console.log(`[sld] Dropped ${removed.length} number/drop pairs far from the printing's own date`);
 
 // Refuse a rewrite that guts the map (a structural upstream change) instead of
