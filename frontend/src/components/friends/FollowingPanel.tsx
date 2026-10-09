@@ -1,3 +1,4 @@
+import '@/styles/social-shared.css';
 import './FollowingPanel.css';
 import { Compass } from 'lucide-react';
 import { BrewerCard, BrewerCardSkeleton } from '../social/BrewerCard';

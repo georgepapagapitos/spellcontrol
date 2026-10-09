@@ -1,5 +1,6 @@
 // Shared with DeckNewPage / DeckEditorPage; ships with those chunks, not the boot payload (E265).
 import { canRegenerate, regenerateHref, regenerateState } from '@/lib/deck/regenerate-prefill';
+import '@/styles/deck-builder-deck-extras.css';
 import '@/styles/deck-builder-import-dialog.css';
 import {
   AlignJustify,

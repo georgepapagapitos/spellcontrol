@@ -12,6 +12,7 @@ import { useAllocations, type AllocationInfo } from '@/lib/collection/allocation
 import { classifyFoil } from '@/lib/cards/foil-style';
 import { IconButton } from '@/components/shared/Button';
 import { FoilShimmer } from '@/components/shared/FoilShimmer';
+import '@/styles/deck-builder-binder-slot.css';
 
 export interface InnerCardScope {
   cards: EnrichedCard[];

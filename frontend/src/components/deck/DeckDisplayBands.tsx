@@ -15,6 +15,7 @@ import type { DeckBulkAction } from './DeckSelectionMenu';
 import type { CurrencyCode } from './deck-display-rows';
 import type { DeckSelection } from './deck-display-actions';
 import type { DeckDisplayProps } from './deck-display-types';
+import '@/styles/deck-builder-deck-extras.css';
 
 // Deck-tab metrics, glanceable while editing the list. Each reads
 // as a metric: a bold value over a small muted label. Only what the

@@ -57,12 +57,19 @@
 // export dialogs' rules left deck-builder-export.css for
 // components/shared/ExportDialog.css, imported by the two dialogs. Measured
 // 60.73; the ceiling stays 61.
+// CSS went 61 → 60 on 2026-10-09 (E591): five more sheets left main.tsx for the
+// modules that render them (deck-builder-deck-extras, -guided and -export,
+// deck-builder-binder-slot, social-shared). Measured 59.4 (was 60.8). The rest
+// stay global on purpose: each has a class rendered from the entry graph
+// (Tabs via AuthPage, Button, OverflowMenu, TrendingRail, CardImageFrame) or is
+// overridden by deck-builder-responsive.css by ORDER (deck-builder-page,
+// -settings); binder-card-management is rendered by ~60 modules across hubs.
 import { readFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const BUDGET_KB = { js: 410, css: 61 };
+export const BUDGET_KB = { js: 410, css: 60 };
 
 const dist = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 // Vite emits multi-line <link> tags; a line-based scan misses them.

@@ -10,6 +10,7 @@ import {
   useSyncExternalStore,
 } from 'react';
 // Editor-only stylesheets ship with this chunk, not the boot payload (E265).
+import '@/styles/deck-builder-export.css';
 import '@/styles/deck-builder-editor.css';
 import '@/styles/deck-builder-test-hand.css';
 import '@/styles/deck-builder-combos-list.css';

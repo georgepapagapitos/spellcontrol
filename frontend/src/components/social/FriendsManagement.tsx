@@ -1,4 +1,5 @@
 import { EmptyState } from '@/components/shared/EmptyState';
+import '@/styles/social-shared.css';
 import './FriendsManagement.css';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';

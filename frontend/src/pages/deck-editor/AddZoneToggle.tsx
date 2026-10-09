@@ -1,5 +1,6 @@
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import type { Deck } from '../../store/decks';
+import '@/styles/deck-builder-deck-extras.css';
 
 export type AddZone = 'main' | 'side' | 'considering';
 

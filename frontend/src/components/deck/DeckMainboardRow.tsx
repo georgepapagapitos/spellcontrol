@@ -61,6 +61,8 @@ import { IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { SectionHeader } from '@/components/shared/SectionHeader';
+import '@/styles/deck-builder-guided.css';
+import '@/styles/deck-builder-deck-extras.css';
 
 // ── Category section ──────────────────────────────────────────────────────
 export function CategorySection({

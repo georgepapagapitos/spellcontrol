@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Zap } from 'lucide-react';
 // Generate-only stylesheets ship with this chunk, not the boot payload (E265).
+import '@/styles/deck-builder-guided.css';
 import '@/styles/deck-builder-customizer.css';
 import '@/styles/deck-builder-commander-profile.css';
 import './DeckGeneratePage.css';

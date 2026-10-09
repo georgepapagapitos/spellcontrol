@@ -1,3 +1,4 @@
+import '@/styles/social-shared.css';
 import './PeopleSearch.css';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';

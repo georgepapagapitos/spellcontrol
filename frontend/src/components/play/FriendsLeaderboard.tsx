@@ -10,6 +10,7 @@ import {
   type LeaderboardEntry,
   type H2HResponse,
 } from '@/lib/play/game-results-client';
+import '@/styles/social-shared.css';
 import './FriendsLeaderboard.css';
 
 import { userMessage } from '@/lib/util/user-error';

@@ -36,6 +36,7 @@ import { IconButton } from '@/components/shared/Button';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ArtBadge } from '@/components/shared/ArtBadge';
 import { SectionHeader } from '@/components/shared/SectionHeader';
+import '@/styles/deck-builder-deck-extras.css';
 
 /** Section chrome around one card (0.85rem of padding a side) and the gap
  *  between columns, in px at a 16px root — the two numbers the CSS spends on
