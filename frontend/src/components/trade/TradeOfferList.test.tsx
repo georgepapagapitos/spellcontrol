@@ -315,6 +315,42 @@ describe('whose move, the net, and finished rows', () => {
     expect(screen.getByText('They come out about $8.00 ahead')).toBeTruthy();
   });
 
+  it('prices an asked printing at THAT printing, not the cheapest one', async () => {
+    // Llanowar Elves pinned to a printing this device has never owned: it
+    // read "from $0.30" (the cheapest printing) while its own preview said
+    // $2.26. The floor is set here only to prove it is not what gets used.
+    const { __resetFloorCache } =
+      await vi.importActual<typeof import('@/lib/trade/trade-value')>('@/lib/trade/trade-value');
+    __resetFloorCache();
+    pinned = { 'scry-sol': 2.57 };
+    floors = new Map([['Llanowar Elves', 0.3]]);
+    const fetchMock = vi.fn(async (url: string) => ({
+      ok: url.includes('/api/cards/by-id/scry-elves'),
+      json: async () => ({ card: { prices: { usd: '2.26', usd_foil: '20.00' } } }),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    try {
+      mount({
+        ...open,
+        mine: true,
+        receive: [
+          {
+            oracleId: 'o-elves',
+            name: 'Llanowar Elves',
+            quantity: 1,
+            copies: [{ scryfallId: 'scry-elves', finish: 'nonfoil' }],
+          },
+        ],
+      });
+      expect(await screen.findByText('$2.26')).toBeTruthy();
+      expect(screen.queryByText(/from \$0\.30/)).toBeNull();
+      // Both sides exact now, so the net is stated without "about".
+      expect(screen.getByText('Even')).toBeTruthy();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('states no net at all while a side cannot be priced', () => {
     pinned = { 'scry-sol': 2 };
     // No floor for Rhystic Study → the get side reads "+?" and the net stays
