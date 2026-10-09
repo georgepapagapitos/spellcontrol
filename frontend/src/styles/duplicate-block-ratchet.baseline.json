@@ -1,0 +1,1334 @@
+{
+  "1255788411": {
+    "size": 4,
+    "locations": [
+      "components/play/GameResultEditDialog.css:.game-edit-winners, .game-edit-seats",
+      "styles/deck-builder-combos-list.css:.deck-combos-results",
+      "styles/play-history-inline.css:.game-stats-rows",
+      "styles/shared.css:.feedback-rows"
+    ]
+  },
+  "015de370ca": {
+    "size": 4,
+    "locations": [
+      "components/deck/CommanderSearch.css:.commander-finder-source",
+      "pages/TagsPage.css:.tags-results-toolbar",
+      "styles/binder-hero.css:.binder-drift-queue-group-header",
+      "styles/deck-builder-customizer.css:.collection-group-title-row"
+    ]
+  },
+  "02eb2f6ff7": {
+    "size": 2,
+    "locations": [
+      "components/deck/CardFitPanel.css:.card-fit-title",
+      "components/deck/DeckSizePrompt.css:.deck-size-prompt-title"
+    ]
+  },
+  "05c1b12ae9": {
+    "size": 2,
+    "locations": [
+      "styles/deck-builder-combos.css:.deck-combos-header-summary",
+      "styles/deck-builder-test-hand.css:.deck-test-hand-header-summary"
+    ]
+  },
+  "06d374f354": {
+    "size": 12,
+    "locations": [
+      "components/deck/DeckFeedbackSheet.css:.deck-feedback-suggestion-name",
+      "components/play/BoardSheets.css:.board-roster-name",
+      "pages/SetsPage.css:.set-list-name",
+      "playtest/components/horde/HordeBand.css:.horde-band__combat-label",
+      "playtest/components/horde/HordeBand.css:.horde-band__line",
+      "styles/binder-card-management.css:.import-binder-file-name",
+      "styles/deck-builder-import-dialog.css:.import-deck-batch-file-name",
+      "styles/import-upload.css:.staged-files-name",
+      "styles/playtest.css:.playtest-ctx-attached > span",
+      "styles/playtest.css:.playtest-ctx-sticker span",
+      "styles/shared.css:.feedback-row-name",
+      "styles/stats-breakdown.css:.breakdown-row-label"
+    ]
+  },
+  "0a53b3599f": {
+    "size": 2,
+    "locations": [
+      "components/deck/CardGroupSheet.css:.card-group-handle",
+      "playtest/components/OpponentBoardModal.css:.opponent-board-handle"
+    ]
+  },
+  "0a6d582532": {
+    "size": 5,
+    "locations": [
+      "components/deck/DeckAiReview.css:.deck-ai-tweak-reroll::after, .deck-ai-tweak-dismiss::after  [@media (pointer: coarse)]",
+      "components/deck/DeckAiReview.css:.deck-ai-tweak-reset::after  [@media (pointer: coarse)]",
+      "styles/deck-builder-card-list.css:.deck-row-menu-trigger::after  [@media (pointer: coarse)]",
+      "styles/deck-builder-card-list.css:.deck-row-select-check::after, .deck-row-drag-handle::after  [@media (pointer: coarse)]",
+      "styles/deck-builder-display.css:.role-badge-btn::after  [@media (pointer: coarse)]"
+    ]
+  },
+  "0b3287efab": {
+    "size": 10,
+    "locations": [
+      "components/deck/BuildTimeCoachStrip.css:.build-time-coach-strip-headline",
+      "components/deck/DeckSizePrompt.css:.deck-size-prompt-name",
+      "components/deck/FillDeckSheet.css:.fill-deck-name",
+      "components/deck/MoveToDeckSheet.css:.move-deck-row-name",
+      "components/deck/NewArrivalsSheet.css:.new-arrivals-row-name",
+      "components/deck/SharedCopiesSheet.css:.shared-copies-row-name",
+      "components/home/FollowedBrewersCard.css:.home-followed-deck",
+      "components/import/ProductSearchPanel.css:.product-result-name",
+      "components/trade/TradeOfferList.css:.trade-offer-who-name",
+      "components/trade/TradeReview.css:.trade-review-name"
+    ]
+  },
+  "0c651907da": {
+    "size": 2,
+    "locations": [
+      "components/decks/DeckLibrary.css:.public-profile-tile-banner-stats",
+      "components/decks/DiscoverDeckTile.css:.discover-tile-banner-stats"
+    ]
+  },
+  "0f2b4e42ce": {
+    "size": 2,
+    "locations": [
+      "styles/deck-builder-import-dialog.css:.import-deck-drop-overlay",
+      "styles/import-upload.css:.file-drop-overlay"
+    ]
+  },
+  "0fc60ced05": {
+    "size": 2,
+    "locations": [
+      "playtest/components/TableSignals.css:.playtest-table-signal .sr-only",
+      "styles/feedback-spinner.css:.visually-hidden"
+    ]
+  },
+  "0fe11b792e": {
+    "size": 10,
+    "locations": [
+      "components/decks/DiscoverFiltersPopover.css:.discover-filter-chip input",
+      "components/shared/form.css:.segmented-option input",
+      "playtest/components/TakebackModePicker.css:.playtest-takeback-picker__row input",
+      "styles/admin-scanner.css:.scan-row-input",
+      "styles/binder-rules-editor.css:.color-swatch-option input",
+      "styles/deck-builder-deck-extras.css:.deck-editor-zone-toggle-option input",
+      "styles/deck-builder-settings.css:.bracket-pill input",
+      "styles/play-layout-editor.css:.seat-menu-facing-btn input",
+      "styles/play-panel-menus.css:.seat-menu-swatch input",
+      "styles/shared.css:.feedback-bracket input"
+    ]
+  },
+  "1107b02c74": {
+    "size": 2,
+    "locations": [
+      "playtest/components/OpponentBoardModal.css:.opponent-board-empty",
+      "styles/playtest.css:.playtest-zone-empty"
+    ]
+  },
+  "1155ebfa97": {
+    "size": 5,
+    "locations": [
+      "pages/TagsPage.css:.tags-selected-list",
+      "pages/cube/cube.css:.cube-commander-coverage-pill-list",
+      "pages/cube/cube.css:.cube-draft-sim-pill-list",
+      "playtest/components/ScrySheet.css:.playtest-scry-hand__list",
+      "styles/play-setup.css:.play-setup-counter-chips"
+    ]
+  },
+  "12281a241c": {
+    "size": 2,
+    "locations": [
+      "pages/DeckComparePage.css:.deck-compare-picker-row",
+      "pages/FriendHubPage.css:.friend-hub-collection-controls"
+    ]
+  },
+  "165e0fdf87": {
+    "size": 3,
+    "locations": [
+      "components/deck/BuyListDialog.css:.buy-list-header",
+      "components/shared/ExportDialog.css:.export-dialog-header",
+      "styles/play-effects.css:.life-keypad-head"
+    ]
+  },
+  "170f49ce15": {
+    "size": 2,
+    "locations": [
+      "components/social/FriendsManagement.css:.friends-page-links",
+      "styles/settings-page.css:.settings-row-action-group"
+    ]
+  },
+  "18faa80b72": {
+    "size": 2,
+    "locations": [
+      "components/deck/PowerHero.css:.power-hero",
+      "styles/deck-builder-skeleton.css:.deck-analysis-skeleton"
+    ]
+  },
+  "1a04ce9e90": {
+    "size": 2,
+    "locations": [
+      "components/card/CardDetails.css:.card-disc-toggle",
+      "components/card/CardRulings.css:.card-rulings-toggle"
+    ]
+  },
+  "1a69681a90": {
+    "size": 3,
+    "locations": [
+      "components/friends/FriendRow.css:.friend-row-body",
+      "components/home/FollowedBrewersCard.css:.home-followed-text",
+      "components/home/WaitingOnYou.css:.home-task-text"
+    ]
+  },
+  "1b3d478de7": {
+    "size": 3,
+    "locations": [
+      "components/play/OnlineGameView.css:.ogv-opp-name",
+      "playtest/components/OpponentRail.css:.opponent-entry__name",
+      "styles/binder-rules-editor.css:.filter-group-title"
+    ]
+  },
+  "1ece3697bf": {
+    "size": 2,
+    "locations": [
+      "components/deck/DeckAiReview.css:.deck-ai-tweak-done",
+      "components/deck/SharedCopiesSheet.css:.shared-copies-row-where"
+    ]
+  },
+  "26432e4c7a": {
+    "size": 3,
+    "locations": [
+      "styles/binder-rules-editor.css:.color-picker-custom-panel",
+      "styles/playtest.css:.playtest-life-panel__cmd-list",
+      "styles/playtest.css:.playtest-life-panel__opponents"
+    ]
+  },
+  "28400c9a49": {
+    "size": 4,
+    "locations": [
+      "components/account/ConflictPanel.css:.conflict-panel-eyebrow",
+      "components/deck/DeckFeedbackSheet.css:.deck-feedback-eyebrow",
+      "styles/binder-card-management.css:.add-to-binder-label",
+      "styles/deck-builder-skeleton.css:.deck-analysis-skeleton-eyebrow"
+    ]
+  },
+  "2b48b38547": {
+    "size": 2,
+    "locations": [
+      "components/deck/DeckCurvePhases.css:.deck-curve-phases-legend",
+      "styles/deck-builder-customizer.css:.mana-philosophy-legend"
+    ]
+  },
+  "2c1de50e55": {
+    "size": 3,
+    "locations": [
+      "components/play/NightPoll.css:.night-poll-suggest-field input",
+      "pages/GameNightView.css:.game-night-name-field input",
+      "pages/PodsIndexPage.css:.pods-dialog-field input"
+    ]
+  },
+  "2f5196fb71": {
+    "size": 2,
+    "locations": [
+      "components/rules/RulesReference.css:.rules-ref-link",
+      "styles/tooltip-legend.css:.legend-trigger"
+    ]
+  },
+  "30b86fcdcb": {
+    "size": 4,
+    "locations": [
+      "playtest/components/PlaytestLogSheet.css:.playtest-log-entry",
+      "playtest/components/PlaytestStatsSheet.css:.playtest-stats-row",
+      "styles/deck-builder-display.css:.deck-role-legend-item",
+      "styles/stats-breakdown.css:.breakdown-row-head"
+    ]
+  },
+  "324f6d7067": {
+    "size": 2,
+    "locations": [
+      "styles/deck-builder-analysis-panel.css:.deck-analysis-suggest-art img",
+      "styles/deck-builder-commander.css:.commander-result-art img"
+    ]
+  },
+  "34f938ef44": {
+    "size": 5,
+    "locations": [
+      "styles/binder-card-management.css:.inline-card-search-row.active",
+      "styles/deck-builder-commander.css:.commander-search-item:focus-visible",
+      "styles/deck-builder-customizer.css:.deck-customizer-autocomplete-item:focus-visible",
+      "styles/deck-builder-display.css:.sort-menu-reverse:focus-visible",
+      "styles/deck-builder-display.css:.toolbar-popover-item:focus-visible"
+    ]
+  },
+  "35cbd19bce": {
+    "size": 14,
+    "locations": [
+      "components/binder/BinderEditor.css:.binder-start-shelf-text",
+      "components/deck/MoveToDeckSheet.css:.move-deck-titles",
+      "components/deck/NewArrivalsSheet.css:.new-arrivals-row-meta",
+      "components/deck/SharedCopiesSheet.css:.shared-copies-row-text",
+      "components/deck/SharedCopiesSheet.css:.shared-copies-titles",
+      "components/home/PriceMoversCard.css:.home-movers-info",
+      "components/import/ImportHistorySheet.css:.import-history-text",
+      "components/import/ProductSearchPanel.css:.product-result-text",
+      "components/play/DeckPickerDialog.css:.deck-picker-row-text",
+      "components/play/PlayHome.css:.play-home-live-body",
+      "pages/SearchPage.css:.search-rules-hit-body",
+      "styles/admin-scanner.css:.scanner-card-panel-body",
+      "styles/collection.css:.collection-list-main",
+      "styles/play-history-inline.css:.timeline-body"
+    ]
+  },
+  "3c7de40753": {
+    "size": 2,
+    "locations": [
+      "styles/deck-builder-import-dialog.css:.import-deck-batch-mode",
+      "styles/modals-dialogs.css:.name-input-mode"
+    ]
+  },
+  "3ce40d8616": {
+    "size": 14,
+    "locations": [
+      "components/binder/BinderEditor.css:.binder-editor-result small",
+      "components/deck/BuildTimeCoachStrip.css:.build-time-coach-strip-detail",
+      "components/friends/FriendRow.css:.friend-row-handle, .friend-row-since",
+      "components/friends/PeopleSearch.css:.people-row-handle",
+      "components/home/FollowedBrewersCard.css:.home-followed-by",
+      "components/social/BrewerCard.css:.brewer-card-handle, .brewer-card-stats, .brewer-card-commander",
+      "components/social/FriendsManagement.css:.friends-identity-handle",
+      "components/trade/TradeReview.css:.trade-tray-sub",
+      "pages/cube/cube.css:.cube-index-row-meta",
+      "pages/cube/cube.css:.cube-saved-meta",
+      "playtest/components/OpponentRail.css:.opponent-entry__permanents",
+      "styles/binder-card-management.css:.inline-card-search-tile-owned",
+      "styles/import-upload.css:.binder-import-row-file",
+      "styles/stats-breakdown.css:.collection-insight-row-detail"
+    ]
+  },
+  "3d2139eae0": {
+    "size": 2,
+    "locations": [
+      "components/share/ReportDialog.css:.report-dialog-error",
+      "styles/shared.css:.share-dialog-error"
+    ]
+  },
+  "3f483e6762": {
+    "size": 3,
+    "locations": [
+      "components/deck/TableRecordPanel.css:.table-record-matchup-opponent",
+      "components/social/FriendsManagement.css:.friends-identity-text",
+      "components/trade/FriendOwnersPanel.css:.friend-owners-name"
+    ]
+  },
+  "4356b1d175": {
+    "size": 6,
+    "locations": [
+      "components/deck/DeckFeedbackSheet.css:.deck-feedback-verdict:hover  [@media (hover: hover) and (pointer: fine)]",
+      "components/play/BoardSheets.css:.dice-stepper-btn:hover:not(:disabled)  [@media (hover: hover) and (pointer: fine)]",
+      "styles/binder-grid-slots.css:.section-header-toggle:hover  [@media (hover: hover) and (pointer: fine)]",
+      "styles/deck-builder-card-list.css:.deck-row-menu-item:hover:not(:disabled)  [@media (hover: hover) and (pointer: fine)]",
+      "styles/forms-banners.css:.btn-link:hover  [@media (hover: hover) and (pointer: fine)]",
+      "styles/shared.css:.feedback-row-main:hover, .feedback-add-result:not(:disabled):hover  [@media (hover: hover) and (pointer: fine)]"
+    ]
+  },
+  "489447f237": {
+    "size": 2,
+    "locations": [
+      "components/deck/BuyListDialog.css:.buy-list-title",
+      "components/shared/ExportDialog.css:.export-dialog-title"
+    ]
+  },
+  "4d2eb6c6b8": {
+    "size": 2,
+    "locations": [
+      "components/deck/WedgeHintStrip.css:.wedge-hint-strip-icon",
+      "styles/deck-builder-card-list.css:.deck-empty-state-icon"
+    ]
+  },
+  "4ddc830d44": {
+    "size": 2,
+    "locations": [
+      "styles/deck-builder-customizer.css:.preset-pill.active",
+      "styles/playtest.css:.playtest-corner-btn.is-primary"
+    ]
+  },
+  "504fc38a8c": {
+    "size": 2,
+    "locations": [
+      "components/play/OnlineLobby.css:.lobby-seat-foot",
+      "playtest/components/PlaytestStatsSheet.css:.playtest-stats-colors"
+    ]
+  },
+  "51e90b3c97": {
+    "size": 3,
+    "locations": [
+      "components/play/PlayHome.css:.play-home-live-players",
+      "styles/binder-card-management.css:.inline-card-search-head-title",
+      "styles/play-setup.css:.play-resume-banner-players"
+    ]
+  },
+  "537e9ab616": {
+    "size": 6,
+    "locations": [
+      "styles/binder-card-management.css:.collection-grid-scryfall:hover  [@media (hover: hover) and (pointer: fine)]",
+      "styles/binder-card-management.css:.collection-list-scryfall:hover  [@media (hover: hover) and (pointer: fine)]",
+      "styles/binder-hero.css:.pill-btn:hover  [@media (hover: hover) and (pointer: fine)]",
+      "styles/deck-builder-card-list.css:.deck-display-scryfall-trigger:hover  [@media (hover: hover) and (pointer: fine)]",
+      "styles/play-setup.css:.play-setup-roster-add:hover  [@media (hover: hover) and (pointer: fine)]",
+      "styles/play-setup.css:.play-setup-seat-deck-add:hover  [@media (hover: hover) and (pointer: fine)]"
+    ]
+  },
+  "539225d099": {
+    "size": 11,
+    "locations": [
+      "components/deck/BuildReportPanel.css:.build-report-gaps-label",
+      "components/deck/CommanderReadiness.css:.cmdr-readiness-eyebrow",
+      "components/deck/NextBestMove.css:.next-best-move-header-label",
+      "components/deck/SimilarCardsStrip.css:.similar-cards-group-label",
+      "components/share/SharedGameSummaryView.css:.game-summary-winner-label",
+      "styles/admin-scanner.css:.admin-users-table th",
+      "styles/deck-builder-editor.css:.deck-editor-hero-edit-label",
+      "styles/deck-builder-import-dialog.css:.import-deck-format-label",
+      "styles/deck-builder-import-dialog.css:.import-deck-name-label",
+      "styles/import-upload.css:.import-link-label",
+      "styles/search-controls.css:.deck-filters-section-label"
+    ]
+  },
+  "5a65eadb90": {
+    "size": 25,
+    "locations": [
+      "components/binder/BinderVolumesSheet.css:.binder-volumes-list",
+      "components/deck/DeckTypeBreakdown.css:.deck-type-breakdown-rows",
+      "components/deck/EnginePanel.css:.engine-axes",
+      "components/friends/PeopleSearch.css:.people-results",
+      "components/home/PriceMoversCard.css:.home-movers-list",
+      "components/import/ImportHistorySheet.css:.import-history-list",
+      "components/play/NightPoll.css:.night-poll-options",
+      "components/play/PlayHome.css:.play-home-recent",
+      "components/play/RoomBrowser.css:.room-browser-list",
+      "components/social/FriendsManagement.css:.friends-activity-list",
+      "components/social/FriendsManagement.css:.friends-inbox-list",
+      "components/social/FriendsManagement.css:.friends-request-list",
+      "deck-builder/components/brew/BrewSlotPanel.css:.brew-hand",
+      "deck-builder/components/brew/BrewSlotPanel.css:.brew-hand-skeleton",
+      "pages/PodHubPage.css:.pod-hub-wtpp-list",
+      "pages/PodsIndexPage.css:.pods-invited-list",
+      "pages/SetsPage.css:.sets-list",
+      "pages/cube/cube.css:.cube-saved-list",
+      "playtest/components/CustomCountersDialog.css:.counters-dialog__active",
+      "styles/deck-builder-analysis-panel.css:.deck-analysis-role-list",
+      "styles/deck-builder-analysis.css:.deck-mana-prod",
+      "styles/deck-builder-analysis.css:.deck-roles",
+      "styles/deck-builder-import-dialog.css:.import-deck-summary-list",
+      "styles/play-history-inline.css:.play-history-list",
+      "styles/stats-breakdown.css:.breakdown-list"
+    ]
+  },
+  "5ad2c098d1": {
+    "size": 2,
+    "locations": [
+      "styles/deck-builder-import-dialog.css:.import-deck-batch",
+      "styles/import-upload.css:.staged-files"
+    ]
+  },
+  "5dd0922944": {
+    "size": 3,
+    "locations": [
+      "styles/deck-builder-customizer.css:.deck-customizer-group-reset:hover  [@media (hover: hover) and (pointer: fine)]",
+      "styles/play-setup.css:.play-stepper-btn:hover:not(:disabled)  [@media (hover: hover) and (pointer: fine)]",
+      "styles/search-controls.css:.search-pill-clear:hover  [@media (hover: hover) and (pointer: fine)]"
+    ]
+  },
+  "5ea9d09502": {
+    "size": 2,
+    "locations": [
+      "pages/PodHubPage.css:.pod-hub-wtpp-decks",
+      "styles/auth.css:.auth-rules"
+    ]
+  },
+  "5ee93f0e01": {
+    "size": 2,
+    "locations": [
+      "components/trade/TradeComposer.css:.trade-thumb-btn",
+      "components/trade/TradeReview.css:.trade-review-thumb-btn"
+    ]
+  },
+  "5f02b7540a": {
+    "size": 2,
+    "locations": [
+      "playtest/components/HoldBanner.css:.playtest-hold-banner__release",
+      "styles/playtest.css:.playtest-takeback-pending__cancel"
+    ]
+  },
+  "65e8ee07bf": {
+    "size": 3,
+    "locations": [
+      "components/app-shell/BulkSelectBar.css:.bulk-bar-done",
+      "styles/binder-hero.css:.pill-btn-primary",
+      "styles/tabs.css:.btn-primary"
+    ]
+  },
+  "6747d9ef48": {
+    "size": 2,
+    "locations": [
+      "components/app-shell/CommandPalette.css:.cmdk-option-label",
+      "components/deck/OwnershipLensStrip.css:.ownership-lens-strip-label"
+    ]
+  },
+  "679236ec9c": {
+    "size": 3,
+    "locations": [
+      "components/card/PlayedInSection.css:.played-in-name",
+      "components/deck/SubScoreTile.css:.sub-score-tile-label",
+      "styles/deck-builder-analysis-panel.css:.deck-analysis-suggest-name"
+    ]
+  },
+  "6b0d8ac153": {
+    "size": 2,
+    "locations": [
+      "components/welcome/WelcomeHero.css:.welcome-hero-search-submit::after  [@media (pointer: coarse)]",
+      "pages/HomePage.css:.home-section-search-submit::after  [@media (pointer: coarse)]"
+    ]
+  },
+  "6d16202fc8": {
+    "size": 9,
+    "locations": [
+      "components/binder/BinderLadder.css:.binder-ladder-rung.is-me",
+      "components/play/OnlineGameView.css:.ogv-life-step:active:not(:disabled)",
+      "components/play/PhaseChip.css:button.ogv-phase-chip--tappable:not(:disabled):active",
+      "pages/DailyPage.css:.daily-guess-option.is-highlight",
+      "playtest/components/ReactionPicker.css:.playtest-reaction-picker__emote:active",
+      "styles/admin-scanner.css:.scan-row.is-selected",
+      "styles/deck-builder-card-list.css:.deck-row.is-selected",
+      "styles/playtest.css:.playtest-ctx-action:active:not(:disabled)",
+      "styles/playtest.css:.playtest-hand.is-over"
+    ]
+  },
+  "6f860c92fd": {
+    "size": 2,
+    "locations": [
+      "styles/deck-builder-binders-index.css:.binders-index-list.is-compact .binders-index-card-body",
+      "styles/deck-builder-decks-index.css:.decks-index-list.is-compact .decks-index-card-body"
+    ]
+  },
+  "7007223556": {
+    "size": 2,
+    "locations": [
+      "pages/DailyPage.css:.daily-dist",
+      "pages/SearchPage.css:.search-syntax-list"
+    ]
+  },
+  "7394b42b4b": {
+    "size": 2,
+    "locations": [
+      "components/social/FriendsManagement.css:.friends-inbox-item",
+      "pages/FriendHubPage.css:.friend-hub-row"
+    ]
+  },
+  "749f65f198": {
+    "size": 2,
+    "locations": [
+      "components/deck/DeckSizePrompt.css:.deck-size-prompt-thumb",
+      "components/deck/FillDeckSheet.css:.fill-deck-thumb"
+    ]
+  },
+  "74d23e06e3": {
+    "size": 2,
+    "locations": [
+      "styles/admin-scanner.css:.admin-raw-actions button:hover  [@media (hover: hover) and (pointer: fine)]",
+      "styles/search-controls.css:.filter-popover-btn:hover  [@media (hover: hover) and (pointer: fine)]"
+    ]
+  },
+  "75467e97e3": {
+    "size": 2,
+    "locations": [
+      "styles/collection.css:.collection-filters-dialog-header",
+      "styles/import-upload.css:.stats-drawer-header"
+    ]
+  },
+  "7a81428a3f": {
+    "size": 2,
+    "locations": [
+      "components/deck/CardGroupSheet.css:.card-group-close",
+      "playtest/components/OpponentBoardModal.css:.opponent-board-close"
+    ]
+  },
+  "7d4243d9e2": {
+    "size": 2,
+    "locations": [
+      "styles/deck-builder-test-hand.css:.deck-test-hand-sim-stats",
+      "styles/play-panel-menus.css:.play-board-door-seats"
+    ]
+  },
+  "7f483f93a5": {
+    "size": 3,
+    "locations": [
+      "components/decks/DeckLibrary.css:.deck-library-controls",
+      "pages/DiscoverDecksPage.css:.discover-toolbar",
+      "pages/TagsPage.css:.tags-selected"
+    ]
+  },
+  "7f8790a8b4": {
+    "size": 3,
+    "locations": [
+      "styles/deck-builder-customizer.css:.deck-customizer-group-reset:focus-visible",
+      "styles/play-setup.css:.play-stepper-btn:focus-visible",
+      "styles/search-controls.css:.search-pill-clear:focus-visible"
+    ]
+  },
+  "803b04fe05": {
+    "size": 3,
+    "locations": [
+      "components/deck/BuildReportSheet.css:.build-report-sheet-backdrop",
+      "components/deck/NewArrivalsSheet.css:.new-arrivals-sheet-backdrop",
+      "deck-builder/components/brew/BrewRunningDeck.css:.brew-running-sheet-backdrop"
+    ]
+  },
+  "80fc515156": {
+    "size": 2,
+    "locations": [
+      "components/play/RoomBrowser.css:.room-browser-row-meta",
+      "components/play/TonightTrades.css:.tonight-trades-loading"
+    ]
+  },
+  "81a0490ee6": {
+    "size": 11,
+    "locations": [
+      "components/deck/BracketBreakdown.css:.bracket-breakdown-floors",
+      "components/deck/CoachFeed.css:.coach-feed-rows",
+      "components/deck/DeckColorBalance.css:.deck-color-balance-rows",
+      "components/deck/NextBestMove.css:.next-best-move-list",
+      "components/play/BoardSheets.css:.board-roster",
+      "components/trade/TradeReview.css:.trade-review-lines",
+      "pages/SetsPage.css:.set-list",
+      "pages/SetsPage.css:.sets-card-lines",
+      "styles/deck-builder-display.css:.toolbar-popover-list",
+      "styles/modals-dialogs.css:.shortcuts-overlay-list",
+      "styles/shared.css:.shared-cube-card-list"
+    ]
+  },
+  "82667311be": {
+    "size": 2,
+    "locations": [
+      "components/deck/BuildReportSheet.css:.build-report-sheet-close",
+      "components/deck/NewArrivalsSheet.css:.new-arrivals-sheet-close"
+    ]
+  },
+  "8452a60a0d": {
+    "size": 22,
+    "locations": [
+      "components/card/PlayedInSection.css:.played-in-list",
+      "components/deck/BracketBreakdown.css:.bracket-breakdown-loop-list",
+      "components/deck/DeckFeedbackSheet.css:.deck-feedback-suggestions",
+      "components/deck/FillDeckSheet.css:.fill-deck-list",
+      "components/import/ProductSearchPanel.css:.product-card-list",
+      "components/import/ProductSearchPanel.css:.product-result-list",
+      "components/play/GameNights.css:.game-night-attendee-sheet-list",
+      "components/trade/FriendOwnersPanel.css:.friend-owners-list",
+      "components/trade/FriendPicker.css:.friend-picker-list",
+      "components/trade/TradeComposer.css:.trade-side-picked, .trade-side-results",
+      "pages/FriendHubPage.css:.friend-hub-list",
+      "pages/GameNightView.css:.game-night-attendee-list",
+      "pages/PodHubPage.css:.pod-hub-roster",
+      "pages/RulesPage.css:.rules-cited-list",
+      "pages/cube/cube.css:.cube-commander-coverage-identity-list",
+      "pages/cube/cube.css:.cube-draft-sim-pair-list",
+      "playtest/components/LogDock.css:.playtest-log-dock__entries, .playtest-log-dock__ticker",
+      "styles/deck-builder-analysis.css:.deck-saltiest-list",
+      "styles/deck-builder-combos-list.css:.combo-aside-locations",
+      "styles/play-enhancements.css:.turn-times-list",
+      "styles/play-setup.css:.table-profiles-list",
+      "styles/search-controls.css:.sort-sheet-preview-list"
+    ]
+  },
+  "86371a6ad7": {
+    "size": 17,
+    "locations": [
+      "components/deck/GenerationModePicker.css:.gen-mode-chip.is-active",
+      "components/trade/TradeOfferList.css:.trade-offer-status.is-accepted",
+      "playtest/components/DiceRoller.css:.playtest-dice-grid button:active",
+      "playtest/components/LogDock.css:.playtest-log-dock__phase.is-current",
+      "playtest/components/TableTicker.css:.table-ticker-dock__toggle.is-open",
+      "styles/binder-card-management.css:.collection-grid-scryfall:focus-visible, .collection-grid-scryfall.is-open",
+      "styles/binder-card-management.css:.collection-list-scryfall:focus-visible, .collection-list-scryfall.is-open",
+      "styles/binder-rules-editor.css:.chip-joiner.and",
+      "styles/binder-rules-editor.css:.sort-preset-chip.is-selected",
+      "styles/deck-builder-customizer.css:.option-card.active",
+      "styles/deck-builder-display.css:.deck-toolbar-select-toggle[aria-pressed='true']",
+      "styles/modals-dialogs.css:.card-edit-owned-toggle[aria-pressed='true']",
+      "styles/play-layout-editor.css:.cle-tray-chip.is-selected",
+      "styles/play-layout-editor.css:.seat-menu-facing-btn.is-selected",
+      "styles/playtest.css:.playtest-ctx-sticker-add button:enabled:active, .playtest-ctx-sticker button:active",
+      "styles/playtest.css:.playtest-zone-card__primary:active",
+      "styles/search-controls.css:.sort-popover-btn:focus-visible, .sort-popover-btn.open"
+    ]
+  },
+  "88cd39b49e": {
+    "size": 2,
+    "locations": [
+      "components/deck/PlaystyleRadar.css:.playstyle-radar-few-axes",
+      "styles/playtest.css:.playtest-peek__moves"
+    ]
+  },
+  "89ae325ed0": {
+    "size": 2,
+    "locations": [
+      "components/deck/DeckAiReview.css:.deck-ai-strip-title",
+      "components/rules/RulesReferenceSheet.css:.rules-ref-ask-ai-text"
+    ]
+  },
+  "8a91b9239d": {
+    "size": 3,
+    "locations": [
+      "components/deck/DeckIdentityCard.css:.deck-identity-card-health",
+      "components/friends/FollowingPanel.css:.following-list",
+      "pages/DailyPage.css:.daily-friends-skeleton ul"
+    ]
+  },
+  "8c42fdc0a6": {
+    "size": 2,
+    "locations": [
+      "components/decks/DeckLibrary.css:.decks-index-card.public-profile-tile .public-profile-tile-banner",
+      "components/decks/DiscoverDeckTile.css:.decks-index-card.discover-tile .discover-tile-banner"
+    ]
+  },
+  "8cd320668c": {
+    "size": 3,
+    "locations": [
+      "components/deck/BuildReportPanel.css:.build-report-gaps-list",
+      "components/deck/DeckTokensSheet.css:.deck-tokens-chips",
+      "styles/deck-builder-display.css:.deck-bulk-tag-chip-list"
+    ]
+  },
+  "8cd6b71fe9": {
+    "size": 2,
+    "locations": [
+      "styles/deck-builder-binders-index.css:.binders-index-search-row, .combos-search-row",
+      "styles/deck-builder-decks-index.css:.decks-index-search-row"
+    ]
+  },
+  "9ab4f14f86": {
+    "size": 2,
+    "locations": [
+      "components/deck/CardGroupSheet.css:.card-group-head",
+      "playtest/components/OpponentBoardModal.css:.opponent-board-head"
+    ]
+  },
+  "9e21e35097": {
+    "size": 5,
+    "locations": [
+      "pages/BrewBuildPage.css:.brew-resume-banner",
+      "styles/deck-builder-display.css:.deck-toolbar",
+      "styles/forms-banners.css:.unresolved-summary",
+      "styles/import-upload.css:.import-card-footer",
+      "styles/import-upload.css:.import-card-header"
+    ]
+  },
+  "a2ad206ec2": {
+    "size": 4,
+    "locations": [
+      "components/deck/DeckColorBalance.css:.deck-color-balance-value-btn::after  [@media (pointer: coarse)]",
+      "components/deck/DeckIdentityCard.css:.deck-identity-card-archetype-menu .toolbar-pill::after  [@media (pointer: coarse)]",
+      "components/play/BoardSheets.css:.board-sheet .board-sheet-note-fix::after  [@media (pointer: coarse)]",
+      "components/shared/ColorMatchModeToggle.css:.color-mode-toggle .chip-joiner::after  [@media (pointer: coarse)]"
+    ]
+  },
+  "a4c87b3ff6": {
+    "size": 2,
+    "locations": [
+      "components/deck/AppendDeckDialog.css:.append-deck-offline",
+      "components/deck/GenerationModePicker.css:.gen-mode-offline"
+    ]
+  },
+  "a6144aae8b": {
+    "size": 5,
+    "locations": [
+      "components/play/GameNights.css:.game-nights-list",
+      "components/trade/TradeIncomingReview.css:.trade-incoming-cards",
+      "components/trade/TradeOfferList.css:.trade-offer-list",
+      "pages/cube/cube.css:.cube-supplier-list",
+      "styles/deck-builder-commander-profile.css:.cmdr-profile-abilities"
+    ]
+  },
+  "a69641d48a": {
+    "size": 2,
+    "locations": [
+      "components/import/ProductSearchPanel.css:.product-card-rowname",
+      "deck-builder/components/brew/BrewManabaseStep.css:.brew-land-name"
+    ]
+  },
+  "a7811121c7": {
+    "size": 2,
+    "locations": [
+      "components/deck/MoveToDeckSheet.css:.move-deck-list",
+      "components/deck/SharedCopiesSheet.css:.shared-copies-list"
+    ]
+  },
+  "a942d3c8e3": {
+    "size": 2,
+    "locations": [
+      "components/play/horde/horde-sheets.css:.horde-damage-milled",
+      "deck-builder/components/brew/BrewProgressRail.css:.brew-rail-list"
+    ]
+  },
+  "a985cb97f9": {
+    "size": 3,
+    "locations": [
+      "components/binder/BinderEditor.css:.binder-start-color-pip input",
+      "styles/playtest.css:.playtest-skin__option input",
+      "styles/settings-page.css:.settings-theme-radio"
+    ]
+  },
+  "a9f1b2bb09": {
+    "size": 4,
+    "locations": [
+      "styles/deck-builder-commander.css:.commander-search-item:hover  [@media (hover: hover) and (pointer: fine)]",
+      "styles/deck-builder-customizer.css:.deck-customizer-autocomplete-item:hover  [@media (hover: hover) and (pointer: fine)]",
+      "styles/deck-builder-display.css:.sort-menu-reverse:hover  [@media (hover: hover) and (pointer: fine)]",
+      "styles/deck-builder-display.css:.toolbar-popover-item:hover  [@media (hover: hover) and (pointer: fine)]"
+    ]
+  },
+  "aaf7b7fb2c": {
+    "size": 2,
+    "locations": [
+      "components/play/DeckPickerDialog.css:.deck-picker-panel",
+      "components/shared/ExportDialog.css:.export-dialog-body"
+    ]
+  },
+  "abf509eaa4": {
+    "size": 2,
+    "locations": [
+      "deck-builder/components/brew/BrewManabaseStep.css:.brew-manabase",
+      "deck-builder/components/brew/BrewSlotPanel.css:.brew-slot"
+    ]
+  },
+  "ac7e5e8123": {
+    "size": 2,
+    "locations": [
+      "components/deck/EnginePanel.css:.engine-suggestion-add",
+      "components/deck/NewArrivalsSheet.css:.new-arrivals-row-add"
+    ]
+  },
+  "aca6d01aa6": {
+    "size": 3,
+    "locations": [
+      "pages/SetsPage.css:.sets-row-body",
+      "styles/admin-scanner.css:.scan-row-body",
+      "styles/import-upload.css:.binder-import-row-main"
+    ]
+  },
+  "ad90d93b02": {
+    "size": 3,
+    "locations": [
+      "styles/deck-builder-import-dialog.css:.import-deck-batch-head",
+      "styles/import-upload.css:.binder-import-head",
+      "styles/import-upload.css:.staged-files-head"
+    ]
+  },
+  "ada6077e8c": {
+    "size": 2,
+    "locations": [
+      "styles/deck-builder-card-list.css:.deck-row-partner-tag",
+      "styles/shared.css:.shared-list-owned-badges"
+    ]
+  },
+  "ae18389123": {
+    "size": 2,
+    "locations": [
+      "components/decks/DiscoverFiltersPopover.css:.discover-filters-panel",
+      "styles/search-controls.css:.deck-filters-panel"
+    ]
+  },
+  "ae40cdc4a3": {
+    "size": 2,
+    "locations": [
+      "components/aggregates/TrendingRail.css:.trending-tile-skeleton",
+      "components/deck/DeckSizePrompt.css:.deck-size-prompt-row"
+    ]
+  },
+  "b15e7a8592": {
+    "size": 3,
+    "locations": [
+      "components/deck/CommanderSearch.css:.commander-finder-control",
+      "styles/binder-rules-editor.css:.chip-builder-inner",
+      "styles/deck-builder-combos-list.css:.deck-combos-missing-footer"
+    ]
+  },
+  "b2b520aef1": {
+    "size": 2,
+    "locations": [
+      "components/trade/PrintingChoices.css:.printing-choice-step",
+      "components/trade/TradeComposer.css:.trade-stepper-btn"
+    ]
+  },
+  "b5fbc94984": {
+    "size": 2,
+    "locations": [
+      "styles/binder-card-management.css:.inline-card-search-printing.is-selected",
+      "styles/binder-rules-editor.css:.chip-suggest-item.active"
+    ]
+  },
+  "b6aad59225": {
+    "size": 3,
+    "locations": [
+      "components/deck/SubScoreTile.css:.sub-score-tile-band",
+      "playtest/components/TriggerReminder.css:.trigger-reminder__title",
+      "styles/horde-table.css:.horde-table-life-label"
+    ]
+  },
+  "b6c4b5b420": {
+    "size": 2,
+    "locations": [
+      "playtest/components/PlaytestLogSheet.css:.playtest-log-turn__heading",
+      "playtest/components/PlaytestStatsSheet.css:.playtest-stats-section-title"
+    ]
+  },
+  "b6d7e4fb5a": {
+    "size": 4,
+    "locations": [
+      "styles/binder-hero.css:.pill-btn:focus-visible",
+      "styles/deck-builder-card-list.css:.deck-display-scryfall-trigger:focus-visible",
+      "styles/play-setup.css:.play-setup-roster-add:focus-visible",
+      "styles/play-setup.css:.play-setup-seat-deck-add:focus-visible"
+    ]
+  },
+  "b84a52f571": {
+    "size": 3,
+    "locations": [
+      "styles/binder-card-management.css:.inline-card-search-sr-only",
+      "styles/binder-rules-editor.css:.sr-only",
+      "styles/play-effects.css:.is-minimalist .player-panel-life-wrap > .player-panel-step-btn"
+    ]
+  },
+  "b8a75e1655": {
+    "size": 7,
+    "locations": [
+      "components/app-shell/CommandPalette.css:.cmdk-option[data-active='true']",
+      "components/decks/DiscoverSearch.css:.discover-search-option.is-highlight",
+      "playtest/components/PlaytestStatsSheet.css:.playtest-stats-verdict--keep",
+      "styles/admin-scanner.css:.admin-deck-link.is-active",
+      "styles/collection.css:.set-filter-result.is-highlight",
+      "styles/search-controls.css:.filter-popover-btn:focus-visible, .filter-popover-btn[aria-expanded='true']",
+      "styles/settings-page.css:.you-layout .you-nav-row[aria-current='page']"
+    ]
+  },
+  "b8b108d91c": {
+    "size": 7,
+    "locations": [
+      "components/deck/DeckSizePrompt.css:.deck-size-prompt-card",
+      "components/deck/DeckTokensSheet.css:.deck-tokens-sheet-titles",
+      "components/deck/NextBestMove.css:.next-best-move-body",
+      "components/deck/PullListSheet.css:.pull-list-titles",
+      "components/shared/form.css:.switch-row-text",
+      "pages/PodsIndexPage.css:.pods-invited-info",
+      "styles/deck-builder-commander.css:.commander-result-body"
+    ]
+  },
+  "b8b43fbaf2": {
+    "size": 2,
+    "locations": [
+      "components/decks/DeckLibrary.css:.decks-index-card.public-profile-tile .public-profile-tile-banner .decks-index-card-art, .decks-index-card.public-profile-tile .public-profile-tile-banner .decks-index-card-banner",
+      "components/decks/DiscoverDeckTile.css:.decks-index-card.discover-tile .discover-tile-banner .decks-index-card-art, .decks-index-card.discover-tile .discover-tile-banner .decks-index-card-banner"
+    ]
+  },
+  "b94fc6b79b": {
+    "size": 2,
+    "locations": [
+      "components/play/OnlineGameView.css:.ogv-header",
+      "pages/CatalogPage.css:.catalog-head"
+    ]
+  },
+  "bba4b9a9fc": {
+    "size": 2,
+    "locations": [
+      "styles/deck-builder-import-dialog.css:.import-deck-drop-message",
+      "styles/import-upload.css:.file-drop-message"
+    ]
+  },
+  "bd8493caf2": {
+    "size": 2,
+    "locations": [
+      "components/binder/BinderEditor.css:.binder-capacity-count",
+      "styles/deck-builder-settings.css:.deck-builder-field"
+    ]
+  },
+  "bf4e1c11ac": {
+    "size": 2,
+    "locations": [
+      "playtest/components/OpponentQuadrant.css:.opponent-quadrant.is-active-turn::after",
+      "styles/playtest.css:.playtest-battlefield-wrap.is-my-turn::after"
+    ]
+  },
+  "c048f33960": {
+    "size": 2,
+    "locations": [
+      "styles/deck-builder-combos.css:.deck-combos-panel",
+      "styles/deck-builder-test-hand.css:.deck-test-hand-panel"
+    ]
+  },
+  "c49034f42b": {
+    "size": 2,
+    "locations": [
+      "styles/deck-builder-import-dialog.css:.import-deck-batch-remove",
+      "styles/import-upload.css:.staged-files-remove"
+    ]
+  },
+  "c65961eb39": {
+    "size": 3,
+    "locations": [
+      "components/aggregates/TrendingRail.css:.trending-tile-skeleton-body",
+      "components/card/PlayedInSection.css:.played-in-body",
+      "components/deck/FillDeckSheet.css:.fill-deck-card"
+    ]
+  },
+  "c67bda60b7": {
+    "size": 2,
+    "locations": [
+      "components/card/RulesText.css:.keyword-pop-name",
+      "pages/SearchPage.css:.search-rules-hit-name"
+    ]
+  },
+  "c79650befe": {
+    "size": 2,
+    "locations": [
+      "components/card/CardDetails.css:.card-legality",
+      "styles/tooltip-legend.css:.legend-item"
+    ]
+  },
+  "c8b519b475": {
+    "size": 2,
+    "locations": [
+      "pages/PodHubPage.css:.pod-hub-invite-list",
+      "pages/PodsIndexPage.css:.pods-dialog-friend-list"
+    ]
+  },
+  "c95466623f": {
+    "size": 2,
+    "locations": [
+      "playtest/components/OpponentRail.css:.opponent-entry__dot",
+      "playtest/components/TableMoments.css:.table-moment__dot"
+    ]
+  },
+  "c962d2b120": {
+    "size": 3,
+    "locations": [
+      "styles/deck-builder-analysis.css:.deck-stats-title",
+      "styles/deck-builder-combos.css:.deck-combos-title",
+      "styles/deck-builder-test-hand.css:.deck-test-hand-title"
+    ]
+  },
+  "ca9c37aff1": {
+    "size": 3,
+    "locations": [
+      "components/deck/EnginePanel.css:.engine-empty",
+      "styles/admin-scanner.css:.scanner-sheet-none",
+      "styles/deck-builder-commander.css:.commander-search-status"
+    ]
+  },
+  "cd81ca1351": {
+    "size": 2,
+    "locations": [
+      "styles/deck-builder-binders-index.css:.binders-index-list",
+      "styles/deck-builder-decks-index.css:.decks-index-list"
+    ]
+  },
+  "ce54044bd4": {
+    "size": 7,
+    "locations": [
+      "components/deck/DonorOutcomeInline.css:.donor-outcome-replace-list",
+      "components/deck/EnginePanel.css:.engine-warnings",
+      "components/deck/SimilarCardsStrip.css:.similar-cards-list",
+      "deck-builder/components/brew/BrewManabaseStep.css:.brew-land-skeleton",
+      "playtest/components/PlaytestLogSheet.css:.playtest-log-entries",
+      "styles/deck-builder-import-dialog.css:.import-deck-commander-list",
+      "styles/play-setup.css:.play-setup-roster-list"
+    ]
+  },
+  "ce7ec285bd": {
+    "size": 2,
+    "locations": [
+      "playtest/components/HoldBanner.css:.playtest-hold-banner__release:hover  [@media (hover: hover) and (pointer: fine)]",
+      "styles/playtest.css:.playtest-takeback-pending__cancel:hover  [@media (hover: hover) and (pointer: fine)]"
+    ]
+  },
+  "ce8169d489": {
+    "size": 2,
+    "locations": [
+      "components/deck/BracketBreakdown.css:.bracket-breakdown-chips",
+      "components/deck/WinConditionPanel.css:.win-con-evidence"
+    ]
+  },
+  "d3512b3c9d": {
+    "size": 3,
+    "locations": [
+      "components/deck/GenerationModePicker.css:.gen-mode-chips",
+      "styles/binder-rules-editor.css:.color-picker",
+      "styles/deck-builder-deck-extras.css:.format-pill-row"
+    ]
+  },
+  "d35c6fb532": {
+    "size": 6,
+    "locations": [
+      "components/deck/GenerationModePicker.css:.gen-mode-card input",
+      "components/deck/GenerationModePicker.css:.gen-mode-chip input",
+      "playtest/components/ScrySheet.css:.playtest-scry-mode input",
+      "styles/deck-builder-customizer.css:.option-card input",
+      "styles/deck-builder-deck-extras.css:.format-pill input",
+      "styles/play-effects.css:.layout-option input"
+    ]
+  },
+  "d43a5ab7fd": {
+    "size": 3,
+    "locations": [
+      "components/decks/DiscoverSearch.css:.discover-search-results",
+      "pages/DailyPage.css:.daily-guess-options",
+      "styles/collection.css:.set-filter-results"
+    ]
+  },
+  "d5709d7b47": {
+    "size": 2,
+    "locations": [
+      "pages/FriendHubPage.css:.friend-hub-row-name",
+      "pages/PodHubPage.css:.pod-hub-wtpp-deck-name"
+    ]
+  },
+  "d8332e35cc": {
+    "size": 4,
+    "locations": [
+      "styles/binder-rules-editor.css:.chip-suggest-item:hover  [@media (hover: hover) and (pointer: fine)]",
+      "styles/deck-builder-deck-extras.css:.deck-role-bar-clear:hover  [@media (hover: hover) and (pointer: fine)]",
+      "styles/playtest.css:.playtest-resistance-banner__dismiss:hover  [@media (hover: hover) and (pointer: fine)]",
+      "styles/playtest.css:.playtest-session-summary__dismiss:hover  [@media (hover: hover) and (pointer: fine)]"
+    ]
+  },
+  "d89d044d13": {
+    "size": 2,
+    "locations": [
+      "components/deck/DeckCardRow.css:.deck-card-row-secondary-act::after  [@media (pointer: coarse)]",
+      "styles/binder-hero.css:.binder-summary-browse-pages::after  [@media (pointer: coarse)]"
+    ]
+  },
+  "d8fe007470": {
+    "size": 3,
+    "locations": [
+      "components/friends/PeopleSearch.css:.people-row-name",
+      "components/profile/ProfileBrews.css:.profile-brews-commander-name",
+      "components/trade/TradeReview.css:.trade-tray-title"
+    ]
+  },
+  "d93fc20a2a": {
+    "size": 2,
+    "locations": [
+      "components/deck/BracketBreakdown.css:.bracket-breakdown-bar-value",
+      "components/deck/DeckTokensSheet.css:.deck-tokens-chip-count"
+    ]
+  },
+  "da8bc2e273": {
+    "size": 2,
+    "locations": [
+      "components/app-shell/BulkSelectBar.css:.bulk-bar",
+      "styles/collection.css:.card-list-bulk-toolbar"
+    ]
+  },
+  "df439aa802": {
+    "size": 4,
+    "locations": [
+      "styles/play-effects.css:.life-keypad-btn:hover  [@media (hover: hover) and (pointer: fine)]",
+      "styles/play-effects.css:.life-keypad-close:hover  [@media (hover: hover) and (pointer: fine)]",
+      "styles/search-controls.css:.filter-chip:hover  [@media (hover: hover) and (pointer: fine)]",
+      "styles/search-controls.css:.sort-popover-btn:hover  [@media (hover: hover) and (pointer: fine)]"
+    ]
+  },
+  "e2143fd333": {
+    "size": 2,
+    "locations": [
+      "playtest/components/ReactionPicker.css:.playtest-reaction-picker__emote:hover  [@media (hover: hover) and (pointer: fine)]",
+      "styles/modals-dialogs.css:.choice-dialog-option:hover  [@media (hover: hover) and (pointer: fine)]"
+    ]
+  },
+  "e2ff67a0e5": {
+    "size": 3,
+    "locations": [
+      "components/deck/DeckAiReview.css:.deck-ai-history-label",
+      "pages/RulesPage.css:.rules-history-label",
+      "styles/deck-builder-display.css:.deck-role-legend-group-title"
+    ]
+  },
+  "e4929b1c2e": {
+    "size": 3,
+    "locations": [
+      "components/play/OnlineLobby.css:.lobby-seat-guest-label",
+      "deck-builder/components/brew/BrewProgressRail.css:.brew-rail-total",
+      "styles/shared.css:.feedback-field"
+    ]
+  },
+  "e588c3705c": {
+    "size": 33,
+    "locations": [
+      "components/deck/ComboBadge.css:.combo-badge-tip::after  [@media (pointer: coarse)]",
+      "components/deck/DeckCardPreviewMeta.css:.deck-card-preview-meta-tag-remove::after  [@media (pointer: coarse)]",
+      "components/deck/SuggestionDismissMenu.css:.suggestion-menu-trigger::after  [@media (pointer: coarse)]",
+      "components/deck/WinConditionPanel.css:.win-con-clock-tip::after  [@media (pointer: coarse)]",
+      "components/decks/LikeButton.css:.decks-index-list.is-grid .tile-action-btn::after  [@media (pointer: coarse)]",
+      "components/overlays/InfoTip.css:.info-tip-btn::after  [@media (pointer: coarse)]",
+      "components/play/OnlineGameView.css:.ogv-stepper-btn::after  [@media (pointer: coarse)]",
+      "components/trade/PrintingChoices.css:.printing-choice-step::after  [@media (pointer: coarse)]",
+      "components/trade/TradeAddButton.css:.trade-add::after  [@media (pointer: coarse)]",
+      "components/trade/TradeComposer.css:.trade-picked-choose::after  [@media (pointer: coarse)]",
+      "components/trade/TradeComposer.css:.trade-picked-remove::after  [@media (pointer: coarse)]",
+      "components/trade/TradeComposer.css:.trade-stepper-btn::after  [@media (pointer: coarse)]",
+      "components/trade/TradeReview.css:.trade-review-remove::after  [@media (pointer: coarse)]",
+      "components/trade/TradeReview.css:.trade-review-step::after  [@media (pointer: coarse)]",
+      "styles/auth.css:.auth-reveal::after  [@media (pointer: coarse)]",
+      "styles/binder-rules-editor.css:.color-swatch-custom::after  [@media (pointer: coarse)]",
+      "styles/collection.css:.collection-filter-chip-clear::after  [@media (pointer: coarse)]",
+      "styles/collection.css:.list-target-price-clear::after  [@media (pointer: coarse)]",
+      "styles/collection.css:.set-filter-chip-x::after  [@media (pointer: coarse)]",
+      "styles/deck-builder-binders-index.css:.binders-index-list.is-grid .binders-index-card-menu-btn::after  [@media (pointer: coarse)]",
+      "styles/deck-builder-card-search.css:.inline-card-search-meta .card-list-binder-badge::after  [@media (pointer: coarse)]",
+      "styles/deck-builder-customizer.css:.deck-customizer-pill-remove::after  [@media (pointer: coarse)]",
+      "styles/deck-builder-decks-index.css:.decks-index-list.is-grid .decks-index-card-menu-btn::after  [@media (pointer: coarse)]",
+      "styles/deck-builder-guided.css:.deck-row-provenance-trigger::after  [@media (pointer: coarse)]",
+      "styles/deck-builder-test-hand.css:.deck-test-hand-assembly-tip::after  [@media (pointer: coarse)]",
+      "styles/modals-dialogs.css:.card-edit-btn::after  [@media (pointer: coarse)]",
+      "styles/play-board.css:.player-panel-step-btn::after  [@media (pointer: coarse)]",
+      "styles/play-history-inline.css:.play-history-check::after  [@media (pointer: coarse)]",
+      "styles/play-history-inline.css:.play-history-remove::after  [@media (pointer: coarse)]",
+      "styles/playtest.css:.playtest-life-table__step::after  [@media (pointer: coarse)]",
+      "styles/playtest.css:.playtest-tax-coin::after  [@media (pointer: coarse)]",
+      "styles/playtest.css:.playtest-zone-card__overflow::after  [@media (pointer: coarse)]",
+      "styles/playtest.css:.playtest-zone-tile__kebab::after  [@media (pointer: coarse)]"
+    ]
+  },
+  "e7d9042834": {
+    "size": 3,
+    "locations": [
+      "components/deck/DeckCurvePhases.css:.deck-curve-phases-head",
+      "components/play/GameNights.css:.game-nights-header",
+      "pages/cube/cube.css:.cube-result-head"
+    ]
+  },
+  "e97045a865": {
+    "size": 2,
+    "locations": [
+      "components/deck/DeckAiReview.css:.deck-ai-section-title",
+      "pages/RulesPage.css:.rules-cited-title"
+    ]
+  },
+  "e9adc99acb": {
+    "size": 7,
+    "locations": [
+      "components/binder/BinderEditorPreviewStrip.css:.binder-editor-preview-strip-sub",
+      "components/trade/RadarCardTile.css:.friend-hub-radar-sub",
+      "components/trade/TradeComposer.css:.trade-picked-detail",
+      "playtest/components/ScrySheet.css:.playtest-scry-face__name",
+      "playtest/components/TableSignals.css:.playtest-table-signal__name",
+      "styles/deck-builder-commander.css:.commander-result-type",
+      "styles/playtest.css:.playtest-token-tile__type"
+    ]
+  },
+  "eb06d37631": {
+    "size": 2,
+    "locations": [
+      "components/trade/PrintingChoices.css:.printing-choice-label",
+      "styles/binder-card-management.css:.inline-card-search-tile-printing"
+    ]
+  },
+  "eb9edd5d5d": {
+    "size": 3,
+    "locations": [
+      "components/binder/BinderEditorPreviewStrip.css:.binder-editor-preview-strip-text",
+      "components/trade/TradeReview.css:.trade-review-info",
+      "styles/stats-breakdown.css:.collection-insight-row-text"
+    ]
+  },
+  "ed67ba1efe": {
+    "size": 2,
+    "locations": [
+      "components/profile/AvatarPickerSheet.css:.avatar-picker-tile-img",
+      "components/social/BrewerCard.css:.brewer-card-art, .brewer-card-fallback"
+    ]
+  },
+  "eeab226e62": {
+    "size": 2,
+    "locations": [
+      "deck-builder/components/brew/BrewRunningDeck.css:.brew-running-item-name",
+      "pages/cube/cube.css:.cube-row-name"
+    ]
+  },
+  "efd528bac2": {
+    "size": 2,
+    "locations": [
+      "styles/binder-card-management.css:.collection-list-scryfall-text",
+      "styles/deck-builder-card-list.css:.deck-display-scryfall-trigger-text"
+    ]
+  },
+  "f2f352df49": {
+    "size": 7,
+    "locations": [
+      "components/card/RulesText.css:.keyword-term::after  [@media (pointer: coarse)]",
+      "components/shared/InlineRename.css:.inline-rename-btn::after  [@media (pointer: coarse)]",
+      "pages/PodHubPage.css:.pod-hub-name-btn::after  [@media (pointer: coarse)]",
+      "styles/forms-banners.css:.btn-link::after  [@media (pointer: coarse)]",
+      "styles/forms-banners.css:.text-link::after  [@media (pointer: coarse)]",
+      "styles/play-board.css:.player-panel-name::after  [@media (pointer: coarse)]",
+      "styles/playtest.css:.playtest-life-table__details::after  [@media (pointer: coarse)]"
+    ]
+  },
+  "f502cc3ff2": {
+    "size": 2,
+    "locations": [
+      "components/share/ReportDialog.css:.report-dialog-label",
+      "styles/forms-banners.css:.field label:not(.field-checkbox), .field .field-label"
+    ]
+  },
+  "f5bfc9911f": {
+    "size": 2,
+    "locations": [
+      "components/deck/SubstituteOptions.css:.substitute-options-toggle",
+      "components/deck/WhyBreakdown.css:.why-breakdown-toggle"
+    ]
+  },
+  "f6f0198a79": {
+    "size": 3,
+    "locations": [
+      "pages/DeckComparePage.css:.deck-compare-skeleton-bar",
+      "pages/PublicProfilePage.css:.public-profile-skeleton",
+      "styles/social-shared.css:.friends-skeleton-bar"
+    ]
+  },
+  "fc4ba03b75": {
+    "size": 2,
+    "locations": [
+      "components/deck/BuildTimeCoachStrip.css:.build-time-coach-strip-view, .build-time-coach-strip-dismiss",
+      "components/deck/WedgeHintStrip.css:.wedge-hint-strip-action, .wedge-hint-strip-dismiss"
+    ]
+  },
+  "fca282a88e": {
+    "size": 2,
+    "locations": [
+      "playtest/components/OpeningHandSheet.css:.playtest-opening-card img",
+      "styles/deck-builder-test-hand.css:.deck-test-hand-card-art img"
+    ]
+  },
+  "fda052d21c": {
+    "size": 11,
+    "locations": [
+      "components/deck/GenerationModePicker.css:.gen-mode-card.is-active",
+      "components/shared/form.css:.choice-option.is-selected",
+      "pages/cube/cube.css:.cube-collab-friend-row.checked",
+      "playtest/components/DesignationsPicker.css:.playtest-designations-picker__row.is-active",
+      "playtest/components/TakebackModePicker.css:.playtest-takeback-picker__row.is-active",
+      "styles/deck-builder-commander.css:.partner-toggle.active",
+      "styles/deck-builder-customizer.css:.option-card-editing",
+      "styles/deck-builder-display.css:.toolbar-pill.open",
+      "styles/deck-builder-settings.css:.bracket-pill.active",
+      "styles/settings-page.css:.settings-theme-option.is-active",
+      "styles/shared.css:.feedback-bracket.is-active"
+    ]
+  },
+  "fe4acc5558": {
+    "size": 2,
+    "locations": [
+      "components/social/FriendsManagement.css:.friends-requests-section-title",
+      "styles/modals-dialogs.css:.shortcuts-overlay-section-title"
+    ]
+  }
+}
