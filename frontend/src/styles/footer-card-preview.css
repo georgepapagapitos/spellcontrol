@@ -1243,6 +1243,16 @@
   min-width: 0;
 }
 
+/* The extra slot can hold several ruled sections in a row (a deck card's
+   "Swap this card" then "Similar cards"). Each draws its own top rule, so
+   the slot owns the gap between them; without it the next rule sat flush
+   against the last row above (nightly journey, card preview). */
+.card-preview-slot--extra {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
 .card-preview-rarity {
   margin-top: var(--space-2);
   font-size: var(--text-sm);
