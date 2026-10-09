@@ -21,12 +21,24 @@
   right: 3%;
   width: 18cqw;
   height: 18cqw;
-  min-width: 12px;
-  min-height: 12px;
-  max-width: 22px;
-  max-height: 22px;
+  /* WCAG 2.5.8 (axe target-size): the badge is a link, so it never drops
+     below 24px, the same floor the identity paint carries (collection.css).
+     The 12px floor that stood here silently beat that :where() rule. */
+  min-width: 24px;
+  min-height: 24px;
+  max-width: 28px;
+  max-height: 28px;
   padding: 0;
   pointer-events: auto;
+}
+
+/* On a pocket the link is the .slot-cell's child, beside the pocket's
+   role="button" rather than inside it (axe nested-interactive), so there is
+   no .slot container to size cqw against: it takes a share of the cell. */
+.slot-cell > .slot-deck-badge {
+  width: 18%;
+  height: auto;
+  aspect-ratio: 1;
 }
 
 .slot-deck-badge svg {
@@ -35,13 +47,13 @@
   height: 60%;
 }
 
-/* Badge itself stays a small dot at slot scale (12-22px); the tap target
+/* Badge itself stays a small dot at slot scale (24-28px); the tap target
    grows on a ghost instead (STYLE_GUIDE "44px touch targets"). Anchored to
-   the badge's own corner rather than centered: `.slot` clips overflow (it
-   crops the card art to its rounded corners), so a centered ghost got
-   clipped on its outward half — measured, the right-edge probe fell through
-   to the neighboring slot's image. Growing only inward, toward slot
-   center, keeps the whole ghost inside the clip. */
+   the badge's own corner rather than centered: the binder preview's cell
+   clips overflow, so a centered ghost got clipped on its outward half
+   — measured, the right-edge probe fell through to the neighboring slot's
+   image. Growing only inward, toward slot center, keeps the whole ghost
+   inside the clip. */
 @media (pointer: coarse) {
   .slot-deck-badge::after {
     content: '';

@@ -179,8 +179,9 @@ export function CardSlot({ card, showImage }: Props) {
 
   return (
     <>
-      {/* The pocket is itself role="button", so its ⋮ is a sibling rather
-          than a child; the cell is the grid item and the right-click host. */}
+      {/* The pocket is itself role="button", so its ⋮ and its deck link are
+          siblings rather than children (axe nested-interactive); the cell is
+          the grid item and the right-click host. */}
       <div className={`slot-cell${menu ? ' has-menu' : ''}`}>
         <div
           ref={slotRef}
@@ -215,42 +216,6 @@ export function CardSlot({ card, showImage }: Props) {
           ) : (
             <span className="slot-name">{displayName}</span>
           )}
-          {allocation && (
-            <Link
-              to={
-                allocation.ownerKind === 'cube'
-                  ? `/decks/cube/${allocation.ownerId}`
-                  : `/decks/${allocation.ownerId}`
-              }
-              className="art-badge slot-deck-badge"
-              data-identity="one"
-              style={
-                {
-                  '--identity-color':
-                    allocation.ownerKind === 'cube'
-                      ? 'var(--cube-color)'
-                      : allocation.ownerColor || 'var(--accent)',
-                } as React.CSSProperties
-              }
-              title={
-                allocation.ownerKind === 'cube'
-                  ? `In cube: ${allocation.ownerName}`
-                  : `In deck: ${allocation.ownerName}`
-              }
-              onClick={(e) => e.stopPropagation()}
-              aria-label={
-                allocation.ownerKind === 'cube'
-                  ? `Open cube ${allocation.ownerName}`
-                  : `Open deck ${allocation.ownerName}`
-              }
-            >
-              {allocation.ownerKind === 'cube' ? (
-                <Boxes width={9} height={9} strokeWidth={2.2} aria-hidden />
-              ) : (
-                <Layers width={9} height={9} strokeWidth={2.2} aria-hidden />
-              )}
-            </Link>
-          )}
           {groupedQty > 1 && (
             <ArtBadge
               className="slot-qty-badge"
@@ -261,6 +226,42 @@ export function CardSlot({ card, showImage }: Props) {
             </ArtBadge>
           )}
         </div>
+        {allocation && (
+          <Link
+            to={
+              allocation.ownerKind === 'cube'
+                ? `/decks/cube/${allocation.ownerId}`
+                : `/decks/${allocation.ownerId}`
+            }
+            className="art-badge slot-deck-badge"
+            data-identity="one"
+            style={
+              {
+                '--identity-color':
+                  allocation.ownerKind === 'cube'
+                    ? 'var(--cube-color)'
+                    : allocation.ownerColor || 'var(--accent)',
+              } as React.CSSProperties
+            }
+            title={
+              allocation.ownerKind === 'cube'
+                ? `In cube: ${allocation.ownerName}`
+                : `In deck: ${allocation.ownerName}`
+            }
+            onClick={(e) => e.stopPropagation()}
+            aria-label={
+              allocation.ownerKind === 'cube'
+                ? `Open cube ${allocation.ownerName}`
+                : `Open deck ${allocation.ownerName}`
+            }
+          >
+            {allocation.ownerKind === 'cube' ? (
+              <Boxes width={9} height={9} strokeWidth={2.2} aria-hidden />
+            ) : (
+              <Layers width={9} height={9} strokeWidth={2.2} aria-hidden />
+            )}
+          </Link>
+        )}
         {menu}
       </div>
       {hovered &&
