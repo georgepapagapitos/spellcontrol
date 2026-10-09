@@ -1,5 +1,5 @@
 import { Check, ChevronDown, ChevronRight, Layers, Minus, Plus } from 'lucide-react';
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { ManaCost } from '@/components/ManaCost';
 import { CardPreview } from '@/components/card/CardPreview';
 import { PrintingPicker, type AddExtras } from '@/components/card/PrintingPicker';
@@ -38,6 +38,16 @@ interface Props {
   /** Scryfall's true match count, for a "Showing X of Y" note when the
    *  fetcher already capped `results` below what actually matched. */
   total?: number | null;
+  /**
+   * Paging (board E341). Pass `onLoadMore` and the reveal button fetches the
+   * next page once every loaded row is shown and `hasMore`; without it the
+   * stack ends at `results` and the total line tells the person to narrow the
+   * search. `onLoadMore` resolves true when rows were appended.
+   */
+  hasMore?: boolean;
+  loadingMore?: boolean;
+  moreError?: string | null;
+  onLoadMore?: () => Promise<boolean>;
   /** Pin every add to this binder, and unpin its copies on undo. */
   binderId?: string;
   /**
@@ -95,6 +105,10 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
       view = 'list',
       pageSize,
       total = null,
+      hasMore = false,
+      loadingMore = false,
+      moreError = null,
+      onLoadMore,
       binderId,
       onAdd,
       onAdded,
@@ -140,8 +154,19 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
     // Reset per-result UI state whenever the result set changes. Deferred to a
     // microtask so a render immediately followed by a click (tests) doesn't
     // land the reset after the click and collapse whatever it just opened.
+    const prevResultsRef = useRef<ScryfallCard[]>([]);
+    // Set once a next page landed: switches on the screen-reader count and the
+    // focus hand-off when the button goes away.
+    const [pagedIn, setPagedIn] = useState(false);
+    const endRef = useRef<HTMLParagraphElement>(null);
     useEffect(() => {
+      const prev = prevResultsRef.current;
+      prevResultsRef.current = results;
+      // A next page APPENDS: same head, more rows. That must not collapse the
+      // reveal window, close an open row or move the keyboard cursor.
+      if (prev.length > 0 && results.length > prev.length && results[0]?.id === prev[0]?.id) return;
       void Promise.resolve().then(() => {
+        setPagedIn(false);
         setActiveIndex(0);
         setNavigated(false);
         setOpenPrintingsId(null);
@@ -311,9 +336,34 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
       onActiveChange?.(idx >= 0 ? results[idx] : null);
     }, [results, activeIndex, onActiveChange]);
 
+    // The fetch button had focus and vanished (the last page landed): hand
+    // focus to the closing line instead of dropping it to the document.
+    useEffect(() => {
+      if (
+        pagedIn &&
+        results.length <= visible &&
+        !hasMore &&
+        document.activeElement === document.body
+      ) {
+        endRef.current?.focus();
+      }
+    }, [pagedIn, visible, hasMore, results.length]);
+
     if (results.length === 0) return null;
 
     const shown = results.slice(0, visible);
+    const moreToReveal = results.length > shown.length;
+    const showFetchButton = !moreToReveal && onLoadMore !== undefined && hasMore;
+
+    const loadMore = () => {
+      if (!onLoadMore || loadingMore) return;
+      const held = results.length;
+      void onLoadMore().then((ok) => {
+        if (!ok) return;
+        setPagedIn(true);
+        setVisible(held + (pageSize ?? DEFAULT_PAGE));
+      });
+    };
 
     return (
       <>
@@ -513,7 +563,7 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
           </div>
         )}
 
-        {pageSize !== undefined && results.length > shown.length && (
+        {pageSize !== undefined && moreToReveal && (
           <Button
             className="inline-card-search-more"
             onClick={() => setVisible((v) => v + (pageSize ?? DEFAULT_PAGE))}
@@ -521,14 +571,41 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
             Show {Math.min(pageSize ?? DEFAULT_PAGE, results.length - shown.length)} more
           </Button>
         )}
-        {/* The stack holds at most `results.length` (the fetcher's own cap), so
-            when the search matched more than that it has to say so — a count
-            that only describes the fetched-but-hidden rows implies the fetch
-            is the whole answer (board E341). */}
-        {total !== null && total > results.length && (
-          <p className="inline-card-search-total">
-            Showing {Math.min(shown.length, results.length).toLocaleString()} of{' '}
-            {total.toLocaleString()} matches. Narrow the search to see the rest.
+        {showFetchButton && (
+          <>
+            {moreError && (
+              <p role="alert" className="inline-card-search-status inline-card-search-error">
+                {moreError}
+              </p>
+            )}
+            {/* aria-disabled, not disabled: a disabled button drops focus while
+                the page loads. Same box in every state, so nothing jumps. */}
+            <Button
+              className="inline-card-search-more"
+              aria-disabled={loadingMore}
+              aria-busy={loadingMore}
+              onClick={loadMore}
+            >
+              {loadingMore ? 'Loading more…' : moreError ? 'Try again' : 'Show more'}
+            </Button>
+          </>
+        )}
+        {onLoadMore !== undefined && (
+          <div role="status" aria-live="polite" className="inline-card-search-sr-only">
+            {pagedIn && total !== null
+              ? `Showing ${Math.min(shown.length, results.length).toLocaleString()} of ${total.toLocaleString()} matches.`
+              : ''}
+          </div>
+        )}
+        {/* The stack holds at most `results.length`, so when the search matched
+            more than that it has to say so — a count that only describes the
+            fetched-but-hidden rows implies the fetch is the whole answer (board
+            E341). "Narrow the search" only where paging is not offered. */}
+        {total !== null && (total > results.length || (onLoadMore !== undefined && pagedIn)) && (
+          <p ref={endRef} tabIndex={-1} className="inline-card-search-total">
+            {total > results.length
+              ? `Showing ${Math.min(shown.length, results.length).toLocaleString()} of ${total.toLocaleString()} matches.${onLoadMore ? '' : ' Narrow the search to see the rest.'}`
+              : `Showing all ${total.toLocaleString()} matches.`}
           </p>
         )}
 

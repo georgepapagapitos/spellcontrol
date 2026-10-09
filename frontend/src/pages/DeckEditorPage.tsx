@@ -3504,7 +3504,6 @@ export function DeckEditorPage() {
               formatConfig?.hasCommander ? (
                 <DeckCombosPanel
                   ref={combosRef}
-                  embedded
                   deckId={deck.id}
                   deckOracleIds={deckOracleIds}
                   mainboardOracleIds={mainboardOracleIds}
@@ -3575,7 +3574,6 @@ export function DeckEditorPage() {
                   }
                   browser={
                     <DeckAnalysisPanel
-                      embedded
                       deckId={deck.id}
                       format={deck.format}
                       commander={deck.commander}

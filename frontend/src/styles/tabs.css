@@ -26,7 +26,7 @@
 
 /* Touch ergonomics — full 44px hit target on coarse pointers / narrow screens
    (the 6px padding alone is ~33px tall). Mirrors `.sc-tab` in
-   deck-builder-tabs.css; keep the two in lockstep (STYLE_GUIDE § Tabs). */
+   components/overlays/Tabs.css; keep the two in lockstep (STYLE_GUIDE § Tabs). */
 @media (max-width: 700px) {
   .tab {
     min-height: 44px;

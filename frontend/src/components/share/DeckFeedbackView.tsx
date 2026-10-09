@@ -1,3 +1,4 @@
+import '@/styles/shared.css';
 import { useId, useMemo, useRef, useState } from 'react';
 import { LayoutGrid, List as ListIcon, Plus, Scissors, Undo2 } from 'lucide-react';
 import type { PublicCard, PublicDeck } from '@/lib/social/shared-types';

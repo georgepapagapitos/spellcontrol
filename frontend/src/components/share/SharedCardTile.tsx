@@ -1,3 +1,4 @@
+import '@/styles/shared.css';
 import { useMemo, type ReactNode } from 'react';
 import { Star } from 'lucide-react';
 import type { PublicCard } from '@/lib/social/shared-types';

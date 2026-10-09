@@ -187,9 +187,12 @@ export async function wholeDeckSearchPhase(
   candidates.push(...offPage.values());
   // The generator's own protections: must-includes (the customization's are
   // the search's too), a partial build's owned quota.
-  const locks = seed.cards
-    .filter((c) => c.isMustInclude || state.cfg.ownedQuotaProtects?.(c.name))
-    .map((c) => c.name);
+  const locks = [
+    ...seed.cards
+      .filter((c) => c.isMustInclude || state.cfg.ownedQuotaProtects?.(c.name))
+      .map((c) => c.name),
+    ...landSeatedSpells(state.categories),
+  ];
   // A role the rebalance trimmed (a disclosed conversion) is capped at the
   // count it left: the search may not fill it again.
   const seedRoles = countRoles(seed, countedRoleOf);
@@ -225,16 +228,10 @@ export async function wholeDeckSearchPhase(
     }
   );
 
-  const records: WholeDeckSwapRecord[] = [];
-  for (const s of result.swaps) {
-    s.out.forEach((outName, j) => {
-      const inCard = result.deck.cards.find((c) => c.name === s.in[j]);
-      if (!inCard) return;
-      removeFromDeck(state, outName);
-      addToDeck(state, inCard);
-      records.push({ cut: outName, added: inCard.name, reason: reasonLine(s) });
-    });
-  }
+  const byName = new Map(
+    [...seed.cards, ...candidates, ...result.deck.cards].map((c) => [c.name, c])
+  );
+  const records = applySearchSwaps(state, result.swaps, byName);
   // E515: the discovery slot, after the search, on the list it left.
   let discoveryNote = '';
   if (discoveryEnabled(cz)) {
@@ -266,6 +263,42 @@ export async function wholeDeckSearchPhase(
           )}.${result.stoppedBy === 'time' ? ' It stopped at its time limit, so it may have missed some.' : ''}`;
   const note = records.length === 0 ? undefined : `${searchNote}${discoveryNote}`.trim();
   return { swaps: records, note, stoppedBy: result.stoppedBy };
+}
+
+/**
+ * The spell // land MDFCs the generator seated in the lands category. The
+ * search reads a card by its front face, so it would trade one for a spell and
+ * deliver a land short of the plan (nightly 2026-10-07..09: Bala Ged Recovery
+ * and Song-Mad Treachery cut for spells). Locked, so the land count holds.
+ */
+export function landSeatedSpells(categories: GenerationState['categories']): string[] {
+  return categories.lands.filter((c) => !isLandCard(c)).map((c) => c.name);
+}
+
+/**
+ * Applies the search's swaps to the generator's categories, in order. A swap
+ * may cut a card an earlier swap seated (Aetherize -> Devastation Tide, then
+ * Devastation Tide -> Covert Technician), so the incoming card is looked up in
+ * everything the search could seat, not in the final list, where that middle
+ * card no longer is. Looking it up in the final list skipped the first swap's
+ * cut and shipped 101 cards (nightly 2026-10-09, Yuriko kitchen-sink).
+ */
+export function applySearchSwaps(
+  state: GenerationState,
+  swaps: readonly AppliedSwap[],
+  byName: ReadonlyMap<string, ScryfallCard>
+): WholeDeckSwapRecord[] {
+  const records: WholeDeckSwapRecord[] = [];
+  for (const s of swaps) {
+    s.out.forEach((outName, j) => {
+      const inCard = byName.get(s.in[j]);
+      if (!inCard) return;
+      removeFromDeck(state, outName);
+      addToDeck(state, inCard);
+      records.push({ cut: outName, added: inCard.name, reason: reasonLine(s) });
+    });
+  }
+  return records;
 }
 
 /** Owned replacements per slot a repair needs, and for any slot: enough to

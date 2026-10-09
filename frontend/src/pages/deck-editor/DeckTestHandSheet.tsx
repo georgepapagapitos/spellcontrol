@@ -19,7 +19,7 @@ export function DeckTestHandSheet({ deckId, onClose }: { deckId: string; onClose
             />
           </div>
           <div className="deck-test-hand-sheet-body">
-            <DeckTestHandPanel embedded deckId={deckId} />
+            <DeckTestHandPanel deckId={deckId} />
           </div>
         </>
       )}

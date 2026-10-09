@@ -1,0 +1,24 @@
+/* ── Load-failure strip ──────────────────────────────────────────────────
+   One row: message + Retry. Shared by Discover, Saved decks, the Trending
+   rail and both combo surfaces, so it lives here (global) rather than in
+   DiscoverDecksPage.css — a page can hit an error before Discover's chunk
+   has ever loaded. */
+
+.discover-decks-error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--err-text);
+  font-size: var(--text-sm);
+}
+
+.discover-decks-error-retry {
+  /* A Button: its look and touch floor come from `.btn`; this only seats it
+     at the strip's trailing edge. */
+  margin-left: auto;
+  flex-shrink: 0;
+}

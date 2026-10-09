@@ -1,4 +1,4 @@
-import { Clock, Compass, Crown, Headphones, Undo2 } from 'lucide-react';
+import { Clock, Compass, Crown, Hand, Headphones, Trophy, Undo2 } from 'lucide-react';
 import { DiscordMark } from '@/components/shared/DiscordMark';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DesignationKind, GameAction, GamePlayer, GameState } from '@/lib/play/game-state';
@@ -711,13 +711,13 @@ function OpponentTile({
           </span>
         )}
         {designations.monarch === player.seat && (
-          <span className="ogv-chip" title="Monarch">
-            👑
+          <span className="ogv-chip" title="Monarch" role="img" aria-label="Monarch">
+            <Crown width={12} height={12} strokeWidth={2} aria-hidden="true" />
           </span>
         )}
         {designations.initiative === player.seat && (
-          <span className="ogv-chip" title="Initiative">
-            🧭
+          <span className="ogv-chip" title="Initiative" role="img" aria-label="Initiative">
+            <Compass width={12} height={12} strokeWidth={2} aria-hidden="true" />
           </span>
         )}
       </div>
@@ -968,7 +968,8 @@ function HoldControl({
         disabled={disabled || busy}
         onClick={() => void toggle()}
       >
-        <span aria-hidden="true">✋</span> {pendingHold ? 'Release hold' : 'Hold'}
+        <Hand width={14} height={14} strokeWidth={1.8} aria-hidden="true" />{' '}
+        {pendingHold ? 'Release hold' : 'Hold'}
       </button>
       {error && (
         <p className="ogv-hold-error" role="alert">
@@ -1102,7 +1103,7 @@ function FinishedPanel({
         ) : winner ? (
           <>
             <span className="ogv-finished-trophy" aria-hidden="true">
-              🏆
+              <Trophy />
             </span>
             <span className="ogv-finished-name">{winner.name}</span>
             <span className="ogv-finished-sub">wins the game</span>

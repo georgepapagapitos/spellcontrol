@@ -1,3 +1,4 @@
+import '@/styles/shared.css';
 import { useMemo, useState, type ReactNode } from 'react';
 // This surface renders the OWNER's deck components (DeckDisplay, its rows and
 // toolbar, DeckAnalysisView, the combo panel), whose classes live in the
@@ -513,7 +514,6 @@ export function SharedDeckSurface({
         combosSlot={
           combosEnabled ? (
             <DeckCombosPanel
-              embedded
               deckId={deck.id}
               deckOracleIds={deckOracleIds}
               mainboardOracleIds={mainboardOracleIds}

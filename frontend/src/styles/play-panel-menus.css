@@ -168,7 +168,7 @@
 }
 
 /* Scroll-edge fade — same convention as Tabs.tsx's horizontal `data-overflow`
-   (deck-builder-tabs.css), applied to this vertical scroller. */
+   (components/overlays/Tabs.css), applied to this vertical scroller. */
 .seat-menu-body[data-overflow='bottom'] {
   mask-image: linear-gradient(to bottom, #000 calc(100% - var(--space-6)), transparent 100%);
 }

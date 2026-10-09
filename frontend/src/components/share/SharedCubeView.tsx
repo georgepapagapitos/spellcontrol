@@ -1,3 +1,4 @@
+import '@/styles/shared.css';
 import { useMemo, useState, type ReactNode } from 'react';
 import type { PublicCube, PublicCubeCard } from '@/lib/social/shared-types';
 import { normalizeForSearch } from '@/lib/search/normalize-search';

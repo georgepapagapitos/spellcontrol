@@ -40,6 +40,12 @@ interface Props {
   onAdded?: (card: ScryfallCard, finish?: Finish) => void;
   /** Pass-through to {@link CardSearchResults} — see its own doc comment. */
   onActiveChange?: (card: ScryfallCard | null) => void;
+  /**
+   * Page through every Scryfall match behind "Show more" instead of stopping at
+   * the first 60 (board E341). Default off: the add-card sheets keep the short
+   * preview. /search and /tags turn it on.
+   */
+  paged?: boolean;
 }
 
 const RESULT_LIMIT = 60;
@@ -63,11 +69,12 @@ const PAGE_SIZE = 10;
  */
 export const InlineCardSearch = forwardRef<CardSearchResultsHandle, Props>(
   function InlineCardSearch(
-    { query, view = 'list', onClose, onAdd, onAdded, onActiveChange },
+    { query, view = 'list', onClose, onAdd, onAdded, onActiveChange, paged = false },
     ref
   ) {
     const q = query.trim();
-    const { results, loading, error, total } = useSearchCards(query, RESULT_LIMIT);
+    const { results, loading, error, total, hasMore, loadingMore, moreError, loadMore } =
+      useSearchCards<ScryfallCard>(query, { limit: RESULT_LIMIT, paged });
 
     return (
       <div className={`inline-card-search${view === 'grid' ? ' inline-card-search--grid' : ''}`}>
@@ -95,6 +102,10 @@ export const InlineCardSearch = forwardRef<CardSearchResultsHandle, Props>(
           view={view}
           pageSize={PAGE_SIZE}
           total={total}
+          hasMore={hasMore}
+          loadingMore={loadingMore}
+          moreError={moreError}
+          onLoadMore={paged ? loadMore : undefined}
           onAdd={onAdd}
           onAdded={onAdded}
           onActiveChange={onActiveChange}

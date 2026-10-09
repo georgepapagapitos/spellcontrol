@@ -1,3 +1,4 @@
+import '@/styles/deck-builder-analysis.css';
 import './CoachFeed.css';
 import { type JSX, useMemo, useState, useEffect, useRef, useCallback, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
@@ -193,7 +194,7 @@ export interface CoachFeedProps {
  * The unified Coach tab feed. Consolidates every prescriptive suggestion
  * surface — fill gaps, upgrades, budget swaps, owned substitutes, bracket-fit
  * moves, and combo completions — into one ranked, filterable list. Replaces
- * the three separate CollapsibleLane components (ImproveLane + CostPanel +
+ * the three separate collapsible lanes (ImproveLane + CostPanel +
  * BracketFitLane).
  */
 export function CoachFeed({

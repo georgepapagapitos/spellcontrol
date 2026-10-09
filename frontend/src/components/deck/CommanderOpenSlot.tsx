@@ -1,3 +1,4 @@
+import '@/styles/deck-builder-card-list.css';
 import { useId } from 'react';
 import { Button } from '@/components/shared/Button';
 import { SectionHeader } from '@/components/shared/SectionHeader';

@@ -57,7 +57,8 @@
 
 .playtest-designations-picker__row-icon {
   flex-shrink: 0;
-  font-size: var(--text-lg);
+  display: inline-flex;
+  align-items: center;
   line-height: 1;
 }
 

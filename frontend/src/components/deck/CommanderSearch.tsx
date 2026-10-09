@@ -1,3 +1,4 @@
+import '@/styles/deck-builder-commander.css';
 import './CommanderSearch.css';
 import { Shuffle, SlidersHorizontal } from 'lucide-react';
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';

@@ -1072,11 +1072,6 @@
   text-align: right;
 }
 
-.deck-row-role-badge {
-  width: 1.25rem;
-  flex: 0 0 auto;
-}
-
 .deck-row-name {
   flex: 1 1 auto;
   /* Row of identity + trailing chips (partner/legality/alloc/foil/synergy/
@@ -1555,54 +1550,6 @@
   white-space: nowrap;
 }
 
-/* Rarity pill — single letter, MTG-canonical colors that are never themed. */
-/* Two-letter functional-role label (RA/MR/SR/WI/CA/…). Plain colored
-   text — no pill — so it sits quietly next to the qty column. Hue groups
-   by parent role; the letters convey the subtype variant. */
-.deck-row-role-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-mono);
-  /* stylelint-disable-next-line declaration-property-value-disallowed-list */
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  line-height: 1;
-  flex: 0 0 auto;
-}
-
-.deck-row-role-mana-producer,
-.deck-row-role-mana-rock,
-.deck-row-role-cost-reducer,
-.deck-row-role-ramp {
-  --role-ink-scrim: var(--art-scrim-success);
-  color: var(--role-ink-ramp);
-}
-
-.deck-row-role-counterspell,
-.deck-row-role-bounce,
-.deck-row-role-spot-removal,
-.deck-row-role-removal {
-  --role-ink-scrim: var(--art-scrim-err);
-  color: var(--role-ink-removal);
-}
-
-.deck-row-role-bounce-wipe,
-.deck-row-role-boardwipe {
-  --role-ink-scrim: var(--art-scrim-warn);
-  color: var(--role-ink-wipe);
-}
-
-.deck-row-role-tutor,
-.deck-row-role-wheel,
-.deck-row-role-cantrip,
-.deck-row-role-card-draw,
-.deck-row-role-card-advantage {
-  --role-ink-scrim: var(--art-scrim-info);
-  color: var(--role-ink-draw);
-}
-
 /* On the grid's dark art plate the list-row inks above drop below AA
    (red is ~2.4:1 there); each hue group names its pale scrim variant
    via --role-ink-scrim so the role→hue map stays in one place (E155). */
@@ -1682,222 +1629,6 @@
     background: var(--surface-raised);
     color: var(--text-primary);
   }
-}
-
-/* Portaled to <body> by ToolbarPopover and positioned `fixed` via inline styles
-   (with viewport flip/clamp) — this rule is the visual surface only.
-   Deliberately NO z-index: this class is always composed with a second class
-   that owns the layer (`.overflow-menu-popover` at --z-menu, or
-   `.toolbar-popover-panel--fixed` whose caller sets --z-portal-popover inline).
-   Both were same-specificity (0,1,0), so a bare z-index here won or lost purely
-   on stylesheet order — and in the production bundle OverflowMenu's chunk is
-   linked BEFORE index.css, so this rule silently pinned every kebab and the
-   account menu to 50, under all sticky chrome (--z-popover: 60). See
-   styles/z-index-ownership.test.ts. */
-.deck-row-menu-popover {
-  min-width: 11rem;
-  padding: var(--space-1);
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius);
-  /* Small anchored popover = tooltip tier (parity w/ .deck-editor-overflow-panel). */
-  box-shadow: var(--shadow-tooltip);
-  display: flex;
-  flex-direction: column;
-  /* Tall menus on a short viewport scroll rather than overflow off-screen. */
-  max-height: min(360px, calc(100dvh - 4rem));
-  overflow-y: auto;
-}
-
-/* Popover enter (STYLE_GUIDE Motion pattern 4): fade + scale(0.98) + 2px
-   rise from the trigger corner; exit stays instant. Transform/opacity only,
-   so the viewport-aware measured positioning (flip-up etc.) is untouched.
-   The default origin matches the in-flow anchoring (below the trigger,
-   right-aligned); portaled menus override it inline per their placement. */
-.deck-row-menu-popover,
-.toolbar-popover-panel {
-  animation: menu-pop-in var(--motion-fast) var(--ease-out-soft);
-  transform-origin: top right;
-}
-
-@keyframes menu-pop-in {
-  from {
-    opacity: 0;
-    transform: translateY(2px) scale(0.98);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .deck-row-menu-popover,
-  .toolbar-popover-panel {
-    animation: none;
-  }
-}
-
-/* Labeled clusters inside the card menu. The menu runs past a dozen rows,
-   and the style guide asks for sections with hairline dividers rather than
-   one flat list once it does. */
-.deck-card-menu-group + .deck-card-menu-group {
-  margin-top: var(--space-1);
-  padding-top: var(--space-1);
-  border-top: 0.5px solid var(--border);
-}
-
-.deck-card-menu-heading {
-  margin: 0 0 var(--space-0-5);
-  padding: 0 var(--space-2);
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-overline);
-  color: var(--text-muted);
-}
-
-.deck-card-menu-drill,
-.deck-card-menu-back,
-.deck-card-menu-pick {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-
-.deck-card-menu-drill {
-  justify-content: space-between;
-}
-
-/* Fixed gutter so the picked stack's check does not shunt the labels. */
-.deck-card-menu-pick-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 14px;
-  flex: 0 0 14px;
-  color: var(--accent);
-}
-
-.deck-card-menu-new {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  margin-top: var(--space-1);
-  padding: var(--space-1) var(--space-2) var(--space-0-5);
-  border-top: 0.5px solid var(--border);
-}
-
-.deck-card-menu-new-label {
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-overline);
-  color: var(--text-muted);
-}
-
-.deck-card-menu-new-input {
-  width: 100%;
-  min-height: 32px;
-  padding: var(--space-1) var(--space-1-5);
-  font-size: var(--text-sm);
-  color: var(--text-primary);
-  background: var(--surface-raised);
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius);
-}
-
-.deck-card-menu-new-input:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
-.deck-row-menu-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-1-5) var(--space-2-5);
-  background: transparent;
-  border: 0;
-  border-radius: var(--radius);
-  color: var(--text-primary);
-  font-size: var(--text-sm);
-  text-align: left;
-  cursor: pointer;
-  min-height: var(--row-h);
-}
-
-/* Menu items rest at desktop density; floor them on touch (STYLE_GUIDE
-   § Responsive). Covers every OverflowMenu/CardRowMenu caller. */
-@media (pointer: coarse) {
-  .deck-row-menu-item {
-    min-height: 44px;
-  }
-}
-
-.deck-row-menu-status {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1-5);
-  padding: var(--space-1-5) var(--space-2-5) var(--space-1-5);
-  margin-bottom: var(--space-0-5);
-  border-bottom: 0.5px solid var(--border);
-  color: var(--text-secondary);
-  font-size: var(--text-xs);
-}
-
-.deck-row-menu-status strong {
-  color: var(--text-primary);
-  font-weight: 600;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .deck-row-menu-item:hover:not(:disabled) {
-    background: var(--accent-light);
-    --text-muted: var(--text-muted-tint);
-    --text-secondary: var(--text-secondary-tint);
-    --accent: var(--accent-tint);
-    --accent-hover: var(--accent-hover-tint);
-  }
-}
-
-.deck-row-menu-item:disabled {
-  color: var(--text-muted);
-  cursor: not-allowed;
-}
-
-.deck-row-menu-item--danger {
-  color: var(--err-text);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .deck-row-menu-item--danger:hover:not(:disabled) {
-    background: var(--err-bg);
-  }
-}
-
-.deck-row-role-multi-dot {
-  width: 0.55rem;
-  height: 0.55rem;
-  border-radius: 999px;
-  background: conic-gradient(
-    from 210deg,
-    #ff6ad5,
-    #c779d0,
-    #6dc9ff,
-    #94e3a4,
-    #ffe27a,
-    #ff8a5b,
-    #ff6ad5
-  );
-  box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.25),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.45);
-}
-
-/* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover. */
-.deck-row-menu-item:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
 }
 .deck-row-menu-trigger:focus-visible {
   outline: 2px solid var(--accent);
@@ -1992,4 +1723,18 @@
 
 .card-search-unowned {
   color: var(--text-muted);
+}
+
+@media (max-width: 1100px) {
+  /* Tablet: the sections stack (moved here from deck-builder-responsive.css so the
+   override still follows the base `.deck-card-columns` rule above now that this
+   sheet loads with its chunks, E592). */
+
+  /* One column: DeckDisplay reads this same breakpoint and packs into a single
+     column, so the sections simply stack. */
+
+  .deck-card-columns,
+  .deck-command-zone .deck-section-rows {
+    grid-template-columns: 1fr;
+  }
 }

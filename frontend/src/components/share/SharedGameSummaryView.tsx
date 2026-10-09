@@ -1,3 +1,4 @@
+import '@/styles/shared.css';
 import { useState } from 'react';
 import { Trophy } from 'lucide-react';
 import type { PublicGameResultShare } from '@/lib/social/shared-types';

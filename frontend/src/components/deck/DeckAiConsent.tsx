@@ -1,3 +1,4 @@
+import '@/styles/deck-builder-analysis.css';
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import { grantAiConsent } from '@/lib/ai/use-ai-status';

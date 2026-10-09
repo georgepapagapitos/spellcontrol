@@ -4,6 +4,7 @@
 // DeckMainboardRow (not DeckCardRow) because components/deck/DeckCardRow.tsx
 // already exists as an unrelated swap-suggestion row component — the
 // `DeckCardRow` function name itself is unchanged, only the file differs.
+import '@/styles/deck-builder-card-list.css';
 import { useId, useRef, useState } from 'react';
 import { Check, ChevronDown, GripVertical, Handshake, MoreVertical } from 'lucide-react';
 import { DeckCardMenuBody, type DeckCardMenuPage } from './DeckCardMenuBody';

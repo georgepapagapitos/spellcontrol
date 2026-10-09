@@ -1,3 +1,4 @@
+import '@/styles/deck-builder-commander.css';
 import './CommanderResultCard.css';
 import { formatCount } from '@/lib/util/format-count';
 import type { ReactNode } from 'react';

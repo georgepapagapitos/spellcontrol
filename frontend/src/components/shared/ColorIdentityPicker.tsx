@@ -1,3 +1,4 @@
+import '@/styles/deck-builder-commander.css';
 import { IconButton } from './Button';
 import { ColorPip } from './ManaSymbol';
 

@@ -247,6 +247,7 @@ export function SearchPage() {
             ref={resultsRef}
             query={query}
             view={view}
+            paged
             onActiveChange={onActiveChange}
           />
         </>

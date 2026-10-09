@@ -1,3 +1,4 @@
+import '@/styles/shared.css';
 import { EmptyState } from '../shared/EmptyState';
 import { Button } from '@/components/shared/Button';
 
