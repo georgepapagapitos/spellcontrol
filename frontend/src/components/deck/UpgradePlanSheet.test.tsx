@@ -237,6 +237,34 @@ describe('UpgradePlanSheet', () => {
     expect(planRows()).toEqual([]);
   });
 
+  it('blames the bracket goal, not the budget, when the goal left everything out', () => {
+    render(<UpgradePlanSheet {...props({ moves: [add('Cyclonic Rift')] })} />);
+    fireEvent.click(screen.getByRole('switch', { name: /Use cards I own/ }));
+    fireEvent.click(screen.getByRole('radio', { name: '$100' }));
+    expect(screen.getByText('Everything left out goes past Bracket 2.')).toBeTruthy();
+    expect(screen.queryByText(/Nothing fits/)).toBeNull();
+    expect(screen.queryByText(/Raise the budget/)).toBeNull();
+    expect(screen.getByText('Nothing else fits Bracket 2.')).toBeTruthy();
+    const empty = document.querySelector('.upgrade-plan-empty') as HTMLElement;
+    fireEvent.click(within(empty).getByRole('button', { name: 'Plan for Bracket 3' }));
+    expect(planRows()).toEqual(['Cyclonic Rift']);
+  });
+
+  it('says no price today when that is all that is left out', () => {
+    render(<UpgradePlanSheet {...props({ moves: [add('Breeding Pool')] })} />);
+    fireEvent.click(screen.getByRole('switch', { name: /Use cards I own/ }));
+    expect(screen.getByText('Nothing here has a price today.')).toBeTruthy();
+    expect(screen.queryByText(/Nothing fits/)).toBeNull();
+  });
+
+  it('still blames the budget when a card was over it', () => {
+    render(<UpgradePlanSheet {...props({ moves: [add('Abhorrent Oculus')] })} />);
+    fireEvent.click(screen.getByRole('switch', { name: /Use cards I own/ }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Custom amount' }));
+    fireEvent.change(screen.getByLabelText('Amount'), { target: { value: '5' } });
+    expect(screen.getByText('Nothing fits $5.')).toBeTruthy();
+  });
+
   it('remembers the budget and goal for the deck', () => {
     const { unmount } = render(<UpgradePlanSheet {...props()} />);
     fireEvent.click(screen.getByRole('radio', { name: '$100' }));

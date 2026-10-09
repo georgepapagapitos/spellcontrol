@@ -120,12 +120,20 @@ vi.mock('../store/decks', () => ({
 // recordEdit runs the mutation and remembers its label, so a test can assert
 // the drop was ONE undoable edit.
 const recorded: string[] = [];
+const hoisted = vi.hoisted(() => ({
+  top: null as { label: string } | null,
+  undoIfLatest: vi.fn(),
+}));
+const undoIfLatest = hoisted.undoIfLatest;
 vi.mock('../store/deck-history', () => {
   const state = {
     record: (_id: string, label: string, fn: () => void) => {
       recorded.push(label);
       fn();
+      hoisted.top = { label };
     },
+    topCommand: () => hoisted.top,
+    undoIfLatest: hoisted.undoIfLatest,
     begin: vi.fn(),
     commit: vi.fn(),
     undo: vi.fn(),
@@ -147,7 +155,7 @@ vi.mock('../store/collection', () => ({
     sel({ cards: [], binders: [], importHistory: [] }),
 }));
 
-type Toast = { message: string; tone?: string };
+type Toast = { message: string; tone?: string; actionLabel?: string; onAction?: () => void };
 const toasts: Toast[] = [];
 vi.mock('../store/toasts', () => ({
   useToastsStore: (sel: (s: { push: (t: Toast) => void }) => unknown) =>
@@ -307,6 +315,8 @@ const overlay = () => document.querySelector('.deck-link-drop');
 
 beforeEach(() => {
   recorded.length = 0;
+  hoisted.top = null;
+  undoIfLatest.mockClear();
   toasts.length = 0;
   sizePrompts.length = 0;
   mockAddCard.mockClear();
@@ -345,6 +355,14 @@ describe('DeckEditorPage: dropping a card from Scryfall', () => {
     expect(recorded).toEqual(['add Sol Ring']);
     expect(toasts.map((t) => t.message)).toEqual(['Added Sol Ring']);
     expect(overlay()).toBeNull();
+  });
+
+  it('gives the add toast an Undo that takes back that edit', async () => {
+    renderEditor();
+    await dropOnEditor(SCRYFALL_DRAG);
+    expect(toasts[0].actionLabel).toBe('Undo');
+    toasts[0].onAction?.();
+    expect(undoIfLatest).toHaveBeenCalledWith('deck-1', hoisted.top);
   });
 
   it('says it is finding the card while the lookup runs', async () => {

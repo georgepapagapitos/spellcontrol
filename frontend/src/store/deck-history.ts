@@ -10,6 +10,7 @@ import {
   undoLabel as undoLabelCore,
   redoLabel as redoLabelCore,
   type History,
+  type Command,
 } from '@/lib/deck/deck-history-core';
 import { haptics } from '@/lib/util/haptics';
 import { useDecksStore, type Deck } from './decks';
@@ -60,6 +61,14 @@ interface DeckHistoryState {
   undo(deckId: string): boolean;
   /** Redo the most recently undone edit for this deck. Returns false if none. */
   redo(deckId: string): boolean;
+  /** The edit an undo would take back right now, or null. */
+  topCommand(deckId: string): Command<Deck> | null;
+  /**
+   * Undo `command` only while it is still the latest edit. A toast's Undo uses
+   * this so it never takes back a later edit in place of its own. Returns false
+   * when `command` is no longer on top.
+   */
+  undoIfLatest(deckId: string, command: Command<Deck>): boolean;
 
   /** Drop the stacks for the given decks (stale after a server pull rewrote them). */
   invalidate(deckIds: Iterable<string>): void;
@@ -106,6 +115,11 @@ export const useDeckHistoryStore = create<DeckHistoryState>((set, get) => ({
     haptics.tap();
     return true;
   },
+
+  topCommand: (deckId) => get().history.byDeck[deckId]?.past.at(-1) ?? null,
+
+  undoIfLatest: (deckId, command) =>
+    get().topCommand(deckId) === command ? get().undo(deckId) : false,
 
   redo: (deckId) => {
     const r = redoCore(get().history, deckId);

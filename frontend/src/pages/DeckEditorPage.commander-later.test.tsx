@@ -127,6 +127,8 @@ vi.mock('../store/deck-history', () => {
     },
     begin: vi.fn(),
     commit: vi.fn(),
+    topCommand: () => null,
+    undoIfLatest: () => false,
     undo: (id: string) => mockUndo(id),
     redo: vi.fn(),
     canUndo: () => false,

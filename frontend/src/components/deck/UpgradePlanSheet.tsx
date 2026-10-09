@@ -506,6 +506,18 @@ export function UpgradePlanSheet({
   const bracketLeftOut = plan.leftOut.some(
     (l) => l.reason === 'bracket' || l.reason === 'game-changer-limit'
   );
+  const noPriceLeftOut = plan.leftOut.some((l) => l.reason === 'no-price');
+  // Why the money is unspent. The budget is only to blame when a card was
+  // actually over it; otherwise the goal or a missing price left everything out.
+  const unspentCause: 'budget' | 'bracket' | 'no-price' = plan.nextOverBudget
+    ? 'budget'
+    : bracketLeftOut
+      ? 'bracket'
+      : plan.picks.length === 0 && noPriceLeftOut
+        ? 'no-price'
+        : 'budget';
+  const bracketGoalPhrase =
+    goal === 'hold' ? `Bracket ${tools.current}` : `the Game Changer limit for Bracket ${upTarget}`;
 
   const summary = (
     <div className="upgrade-plan-summary" aria-live="polite">
@@ -532,9 +544,13 @@ export function UpgradePlanSheet({
       )}
       {left >= 1 && (
         <p className="upgrade-plan-note">
-          {plan.spent === 0
-            ? `Nothing worth buying fits ${budgetLabel}.`
-            : `Nothing else worth buying fits the ${formatMoney(left)} left.`}
+          {unspentCause === 'bracket'
+            ? `Nothing else fits ${bracketGoalPhrase}.`
+            : unspentCause === 'no-price'
+              ? 'Nothing left out has a price today.'
+              : plan.spent === 0
+                ? `Nothing worth buying fits ${budgetLabel}.`
+                : `Nothing else worth buying fits the ${formatMoney(left)} left.`}
           {plan.nextOverBudget &&
             ` Next: ${plan.nextOverBudget.change.name}, ${formatMoney(plan.nextOverBudget.cost)}.`}
         </p>
@@ -665,19 +681,39 @@ export function UpgradePlanSheet({
     body = (
       <EmptyState
         className="upgrade-plan-empty"
-        tagline={noUpgrades ? 'Nothing here improves the deck.' : `Nothing fits ${budgetLabel}.`}
+        tagline={
+          noUpgrades
+            ? 'Nothing here improves the deck.'
+            : unspentCause === 'bracket'
+              ? `Everything left out goes past ${bracketGoalPhrase}.`
+              : unspentCause === 'no-price'
+                ? 'Nothing here has a price today.'
+                : `Nothing fits ${budgetLabel}.`
+        }
         hint={
           noUpgrades
             ? 'Every swap Coach found scores worse, or would cut a card the deck needs.'
-            : ownedFree
-              ? 'Raise the budget to see swaps.'
-              : 'Raise the budget or use cards you own.'
+            : unspentCause === 'bracket'
+              ? canMoveUp
+                ? `Plan for Bracket ${upTarget} or any bracket to see them.`
+                : 'Pick any bracket to see them.'
+              : unspentCause === 'no-price'
+                ? 'A card with no price is left out, never counted as free.'
+                : ownedFree
+                  ? 'Raise the budget to see swaps.'
+                  : 'Raise the budget or use cards you own.'
         }
         actions={
-          !ownedFree && (
-            <Button variant="secondary" onClick={() => setOwnedFree(true)}>
-              Use cards I own
+          !noUpgrades && unspentCause === 'bracket' ? (
+            <Button variant="secondary" onClick={() => setGoal(canMoveUp ? 'up' : 'any')}>
+              {canMoveUp ? `Plan for Bracket ${upTarget}` : 'Any bracket'}
             </Button>
+          ) : (
+            !ownedFree && (
+              <Button variant="secondary" onClick={() => setOwnedFree(true)}>
+                Use cards I own
+              </Button>
+            )
           )
         }
       />

@@ -142,3 +142,22 @@ describe('deck-history store', () => {
     expect(cardNames(b)).toEqual(['Y']); // b untouched
   });
 });
+
+describe("undoIfLatest (an add toast's Undo)", () => {
+  it('removes the card the add put in', () => {
+    const id = decks().createDeck({ source: 'manual', commander: null });
+    history().record(id, 'add Sol Ring', () => decks().addCard(id, sf('Sol Ring')));
+    const cmd = history().topCommand(id)!;
+    expect(history().undoIfLatest(id, cmd)).toBe(true);
+    expect(cardNames(id)).toEqual([]);
+  });
+
+  it('leaves a later edit alone when the add is no longer the latest', () => {
+    const id = decks().createDeck({ source: 'manual', commander: null });
+    history().record(id, 'add Sol Ring', () => decks().addCard(id, sf('Sol Ring')));
+    const addCmd = history().topCommand(id)!;
+    history().record(id, 'add Arcane Signet', () => decks().addCard(id, sf('Arcane Signet')));
+    expect(history().undoIfLatest(id, addCmd)).toBe(false);
+    expect(cardNames(id)).toEqual(['Sol Ring', 'Arcane Signet']);
+  });
+});
