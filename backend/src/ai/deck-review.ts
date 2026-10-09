@@ -141,8 +141,8 @@ engine's shape is only a weakness if the deck needs that engine to win.
 Search for the EFFECT the deck is missing, in rules wording: "destroy
 target artifact", "return creature card from your graveyard to the
 battlefield", "add one mana of any colour". Not a card name, not a concept.
-Results come back already filtered to this commander's colour identity, to
-Commander-legal cards, and excluding what the deck already runs, so
+Results come back already filtered to this deck's color identity, to
+cards legal in its format, and excluding what the deck already runs, so
 anything you get is a legal suggestion for this deck.
 
 Two searches. Three at the very most, and only if the first two came back

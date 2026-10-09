@@ -102,8 +102,8 @@ export function lookupCardsTool(
         '',
         'Query with the effect in plain rules wording, not a card name and not a concept:',
         '"destroy target artifact", "return creature card from your graveyard to the battlefield",',
-        '"whenever a creature you control dies". Results are already filtered to the commander\'s',
-        'colour identity, to Commander-legal cards, and exclude cards the deck already runs, so',
+        '"whenever a creature you control dies". Results are already filtered to the deck\'s',
+        'color identity, to cards legal in its format, and exclude cards the deck already runs, so',
         'anything returned is a legal suggestion for this deck.',
         ...(ownedOnly
           ? [
