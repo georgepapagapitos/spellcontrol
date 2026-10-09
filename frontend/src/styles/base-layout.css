@@ -99,6 +99,11 @@ body {
   overflow-y: auto;
   overflow-x: hidden;
   overflow-x: clip;
+  /* Reserve the classic scrollbar's lane whether or not this page scrolls.
+     Without it a short page and a long sibling differ by the scrollbar width
+     (12px in Firefox, Windows) and the hub tab strip shifts sideways when
+     switching tabs. Overlay scrollbars reserve nothing, so no effect there. */
+  scrollbar-gutter: stable;
   /* Keep scroll/overscroll contained to this region — no chaining to the
      shell and no browser overscroll glow/navigation. */
   overscroll-behavior: contain;
