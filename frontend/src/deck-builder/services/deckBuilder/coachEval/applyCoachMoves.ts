@@ -18,6 +18,7 @@ import type { ChangeOwnership } from '@/lib/coach/deck-change';
 import { frontFaceName } from '@/lib/cards/card-text';
 import { isBasicLandName } from '@/lib/collection/allocations';
 import { getCardPrice, getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
+import { notLegalForFormat } from '../deckFilters';
 import type { CoachView } from './coachView';
 
 export type MoveType = 'add' | 'swap' | 'cut';
@@ -90,6 +91,8 @@ export interface EvalDeckState {
 /** The deck's own build settings, from the dump's customization. */
 export interface DeckSettings {
   colorIdentity: string[];
+  /** The deck's mtgFormat key (a deck's `format`); unset checks Commander legality. */
+  mtgFormat?: string;
   deckBudget: number | null;
   maxCardPrice: number | null;
   /** Numeric target bracket, null for 'all'. */
@@ -207,7 +210,7 @@ export function moveViolations(
   if (!incoming) return v;
   const identity = new Set(settings.colorIdentity);
   if ((incoming.color_identity ?? []).some((c) => !identity.has(c))) v.push('off-identity');
-  if (incoming.legalities && incoming.legalities.commander !== 'legal') v.push('not-legal');
+  if (incoming.legalities && notLegalForFormat(incoming, settings.mtgFormat)) v.push('not-legal');
 
   const basic = isBasicLandName(incoming.name);
   const owned = basic || isOwned(settings, incoming.name);
