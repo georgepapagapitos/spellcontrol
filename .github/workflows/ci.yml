@@ -72,6 +72,11 @@ jobs:
       - name: Check shared package registration
         run: node scripts/check-shared-package-registration.mjs
 
+      # Docker Hub caps anonymous pulls per IP and the runners share IPs; a
+      # Docker Hub service image failed every Backend job on 2026-10-09 (E620).
+      - name: Check workflow images avoid Docker Hub
+        run: node scripts/check-workflow-images.mjs
+
   # One job per packages/* shared package. The `name` must stay exactly
   # "<package> — typecheck & test": those are the required status checks in the
   # "protect main" ruleset, and a renamed check never reports, so every PR would
@@ -310,7 +315,9 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16-alpine
+        # Docker Hub's anonymous pull cap failed this job on shared runners
+        # (E620); scripts/check-workflow-images.mjs keeps it off Docker Hub.
+        image: public.ecr.aws/docker/library/postgres:16-alpine
         env:
           POSTGRES_USER: spellcontrol
           POSTGRES_PASSWORD: spellcontrol
