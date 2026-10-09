@@ -81,16 +81,19 @@ describe('hub pages', () => {
   });
 });
 
-describe('Social width', () => {
-  // Social sat in a 760px column (a friend's page 640/960, a pod 760) while
-  // Decks and Play filled the page: on a desktop screen two-thirds of it was
-  // empty and the brewer grid showed one card. Social takes the standard page
-  // like Play; a component that reads better narrow caps itself.
+describe('standard page width', () => {
+  // Social sat in a 760px column (a friend's page 640/960, a pod 760) and
+  // Daily in a 68rem one while Decks and Play filled the page: on a desktop
+  // screen two-thirds of Social was empty and the brewer grid showed one
+  // card, and the header nav jumped between pages of different widths. These
+  // take the standard page like Play; a component that reads better narrow
+  // caps itself.
   it.each([
     ['styles/binder-hero.css', '.hub-page--social'],
     ['styles/social-shared.css', '.social-page-shell'],
     ['pages/FriendHubPage.css', '.social-page-shell'],
     ['pages/PodHubPage.css', '.pod-hub'],
+    ['pages/DailyPage.css', '.daily-page'],
   ])('%s puts no max-width on %s', (file, selector) => {
     const css = stripComments(read(file));
     const esc = selector.replace(/\./g, '\\.');
