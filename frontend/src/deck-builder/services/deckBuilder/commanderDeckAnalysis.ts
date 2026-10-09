@@ -532,6 +532,8 @@ export interface AnalyzeCommanderDeckParams {
   /** Numeric mainboard size (99 for Commander). */
   deckSize: number;
   colorIdentity?: string[];
+  /** The deck's format (Deck.format); Brawl and Pauper Commander gate suggestions on their own legality. */
+  mtgFormat?: string;
   /** Combos already matched by the editor's combos panel. */
   detectedCombos?: DetectedCombo[];
   /**
@@ -927,6 +929,7 @@ export async function analyzeCommanderDeck(
             ]),
           ],
           edhrecData,
+          mtgFormat: params.mtgFormat,
           gapNames: gapAnalysis.map((g) => g.name),
           liftIndex,
           similarRankFor: getSimilarRank,

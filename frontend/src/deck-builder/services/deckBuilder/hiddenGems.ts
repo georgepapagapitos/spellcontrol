@@ -24,7 +24,7 @@ import type { HiddenGemRow, HiddenGemSignal } from '@/deck-builder/types';
 import { isBasicLandName } from '@/lib/collection/allocations';
 import { frontFaceName } from '@/lib/cards/card-text';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
-import { fitsColorIdentity, notCommanderLegal } from './deckFilters';
+import { fitsColorIdentity, notLegalForFormat } from './deckFilters';
 import { tallyAxisInvestment, packageFitAxes } from './packageBoost';
 import { synergyStrength, bySynergyStrength } from './synergyLift';
 import { AXES } from '@/deck-builder/services/synergy/axes';
@@ -65,6 +65,9 @@ export interface ComputeHiddenGemsOptions {
   similarRankFor?: (name: string) => ReadonlyMap<string, number> | null;
   /** Batched name → card resolver (scryfall client getCardsByNames). */
   resolveCards: (names: string[]) => Promise<Map<string, ScryfallCard>>;
+  /** The deck's mtgFormat (commander / brawl / paupercommander) picks the
+   *  legality gate; absent = Commander. */
+  mtgFormat?: string;
 }
 
 interface Candidate {
@@ -127,6 +130,7 @@ export async function computeHiddenGems(opts: ComputeHiddenGemsOptions): Promise
     liftIndex,
     similarRankFor,
     resolveCards,
+    mtgFormat,
   } = opts;
 
   // Names that can never be gems: everything in the deck (front faces too,
@@ -257,7 +261,7 @@ export async function computeHiddenGems(opts: ComputeHiddenGemsOptions): Promise
     if (excluded.has(card.name.toLowerCase()) || tooPopular(card.name)) continue;
     if (getFrontFaceTypeLine(card).toLowerCase().includes('land')) continue;
     if (!fitsColorIdentity(card, colorIdentity)) continue;
-    if (notCommanderLegal(card)) continue;
+    if (notLegalForFormat(card, mtgFormat)) continue;
 
     const edhrecEntry = edhrecByLower.get(card.name.toLowerCase());
     // A gem has to fit THIS deck: it completes one of the deck's engines, or
