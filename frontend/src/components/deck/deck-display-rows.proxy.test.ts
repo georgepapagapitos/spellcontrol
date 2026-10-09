@@ -74,9 +74,9 @@ describe('the proxy marks', () => {
   const ownedSlot: DeckDisplayCard = { slotId: 's2', card, allocatedCopyId: 'c1' };
   const missing: DeckDisplayCard = { slotId: 's3', card, allocatedCopyId: null };
 
-  it('dashes the count of a covered row with a proxy, and red still wins', () => {
-    expect(qtyOwnershipClass(rowFor([proxy]))).toBe(' deck-row-qty-proxy');
-    expect(qtyOwnershipClass(rowFor([ownedSlot, proxy]))).toBe(' deck-row-qty-proxy');
+  it('leaves the count of a covered proxy row alone, and red still wins', () => {
+    expect(qtyOwnershipClass(rowFor([proxy]))).toBe('');
+    expect(qtyOwnershipClass(rowFor([ownedSlot, proxy]))).toBe('');
     expect(qtyOwnershipClass(rowFor([missing, proxy]))).toBe(' deck-row-qty-missing');
     expect(qtyOwnershipClass(rowFor([ownedSlot]))).toBe('');
   });

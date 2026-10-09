@@ -1386,12 +1386,15 @@
   color: var(--err-text, #d8442a);
 }
 
-/* Played as a proxy: a dashed outline on the count, the stand-in mark. It
-   never hides (unlike the hover chip) and takes no width. Focus outlines win. */
-.deck-row-qty-proxy {
-  outline: 1px dashed var(--text-muted);
-  outline-offset: -1px;
-  border-radius: var(--radius);
+/* Played as a proxy: the word, in muted small caps, right after the name.
+   Never hover-gated and never dropped by the chip tiers, so a stand-in reads
+   as one at every column width; the name ellipsizes first. */
+.deck-row-proxy-tag {
+  flex: 0 0 auto;
+  margin-left: var(--space-1-5);
+  color: var(--text-muted);
+  font-variant: all-small-caps;
+  white-space: nowrap;
 }
 
 /* Inline allocation chip rendered next to the card name on partial
@@ -1419,8 +1422,7 @@
   color: var(--err-text);
   border-color: var(--err-border);
 }
-.deck-row-alloc-chip-claimed-elsewhere,
-.deck-row-alloc-chip-proxy {
+.deck-row-alloc-chip-claimed-elsewhere {
   background: var(--surface-raised);
   color: var(--text-secondary);
   border-color: var(--border);

@@ -481,10 +481,12 @@ one playing the proxy.
 - **One proxy mark, in every place a card is read (2026-10-09).** The chip
   alone hid: it is hover-revealed and drops below a 17rem name cell, so a
   marked card looked like any other.
-  - **List row:** a dashed outline on the count (`.deck-row-qty-proxy`, from
-    `qtyOwnershipClass`). It is the count's ownership signal, like the red
-    count for a missing copy, so it never hides and takes no width. Red wins
-    when a copy is also missing. The hover chip stays as the label.
+  - **List row:** the word `proxy` right after the name, in muted small caps
+    (`.deck-row-proxy-tag`; "1 proxy" on a stack that is partly proxies). It
+    sits outside the hover-gated cluster and no chip tier drops it; the name
+    ellipsizes first. The count is left alone. A dashed box on the count was
+    tried first and read as a text field crowding the name, so a proxy is
+    said in words, never encoded in a symbol the reader has to learn.
   - **Grid tile:** the `Proxy` plate.
   - **Inspector:** a neutral `proxy` chip on the ownership line, with **Not a
     proxy** at its end.

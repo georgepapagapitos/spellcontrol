@@ -92,6 +92,18 @@ export function SectionIcon({ icon }: { icon: string }) {
   return <ManaSymbol symbol={icon} />;
 }
 
+// "proxy" right after the card name, at rest and in every column width (it
+// sits outside the hover-gated cluster). Muted small caps, not a pill: it is
+// a word, so a stand-in reads as one without a symbol to learn.
+export function ProxyTag({ row }: { row: Row }) {
+  if (row.proxyQty === 0) return null;
+  return (
+    <Chip className="deck-row-proxy-tag" title={allocationSummary(row)}>
+      {row.proxyQty === row.qty ? 'proxy' : `${row.proxyQty} proxy`}
+    </Chip>
+  );
+}
+
 // Inline chip rendered next to the card name. Stays out of the way when the
 // row is fully allocated; surfaces a precise "M of N owned" count when only
 // some slots are bound to a real collection copy. Orphans get their own
@@ -102,20 +114,9 @@ export function SectionIcon({ icon }: { icon: string }) {
 // "unowned" for a card that's already in the binder.
 export function AllocationChip({ row }: { row: Row }) {
   const missing = row.unownedQty + row.orphanQty + row.claimedElsewhereQty;
-  if (missing === 0) {
-    if (row.proxyQty === 0) return null;
-    // Every slot is covered, some by a proxy: say so quietly, so the list
-    // shows which copies are stand-ins without reading as a warning.
-    return (
-      <Chip
-        className="deck-row-alloc-chip deck-row-alloc-chip-proxy"
-        title={allocationSummary(row)}
-        aria-label={allocationSummary(row)}
-      >
-        {row.proxyQty === row.qty ? 'proxy' : `${row.proxyQty} proxy`}
-      </Chip>
-    );
-  }
+  // A covered row says nothing here; a proxy says so beside the name instead
+  // (DeckMainboardRow's .deck-row-proxy-tag), where it never hides.
+  if (missing === 0) return null;
   // "Claimed elsewhere" gets the deck-link badge — when there's no genuinely
   // unowned/orphan slot mixed in, the chip is purely a navigation affordance.
   if (row.claimedElsewhereQty > 0 && row.unownedQty === 0 && row.orphanQty === 0 && row.claimedBy) {
