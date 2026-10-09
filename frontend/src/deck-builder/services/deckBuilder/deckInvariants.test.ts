@@ -692,14 +692,14 @@ describe('report truth (E166)', () => {
 describe('roles over target: what E532 admits past the cap (E554)', () => {
   // Real Tatyova cards, roles from the pinned tagger snapshot. `target` is
   // chosen so the deck's ramp sits past the invariant's cap
-  // (target + max(2, ceil(0.2 target))) and, for the admitted cases, inside
+  // (roleCapLimit(target)) and, for the admitted cases, inside
   // the staple ceiling (roleCapLimit(target, 2)).
   const NOTE = "3 cards went past a role cap. They're in 40% or more of this commander's decks.";
   const clean = () => assemble(cleanCategories());
   const rampCount = () => clean().roleCounts!.ramp;
   function targetFor(actual: number, pastCeiling = false): number {
     for (let t = actual - 1; t > 0; t--) {
-      const cap = t + Math.max(2, Math.ceil(0.2 * t));
+      const cap = roleCapLimit(t);
       if (actual <= cap) continue;
       if (actual <= roleCapLimit(t, 2) !== pastCeiling) return t;
     }
@@ -772,6 +772,26 @@ describe('roles over target: what E532 admits past the cap (E554)', () => {
       roleCapOverflowNote: NOTE,
     });
     expect(rolesFlag(deck)).toBeUndefined();
+  });
+});
+
+describe('roles over target: one cap for the checker and the picker (E608)', () => {
+  // ceil(0.2 * 11) = 3 but the picker's roleCapTolerance rounds to 2, so the
+  // cap is 13, not 14. A role seated at 14 is over the picker's cap.
+  it('reads roleCapLimit, not its own ceil, for a target where they differ', () => {
+    const cats = cleanCategories();
+    const actual = assemble(cats).roleCounts!.ramp;
+    const ceilCap = (t: number) => t + Math.max(2, Math.ceil(0.2 * t));
+    // A target whose ceil cap admits the deck's ramp but whose picker cap does not.
+    let t = 0;
+    for (let c = actual - 1; c > 0 && !t; c--) {
+      if (ceilCap(c) >= actual && roleCapLimit(c) < actual) t = c;
+    }
+    expect(t).toBeGreaterThan(0);
+    const flag = checkDeckInvariants(assemble(cats, { roleTargets: { ramp: t } }), context()).find(
+      (x) => x.check === 'roles'
+    );
+    expect(flag?.detail).toContain(`(cap ${roleCapLimit(t)})`);
   });
 });
 

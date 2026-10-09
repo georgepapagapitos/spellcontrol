@@ -29,7 +29,7 @@ import type {
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 import { frontFaceName } from '@/lib/cards/card-text';
 import { computeRoleCounts, countedRoleOf } from './commanderDeckAnalysis';
-import { overflowIsAdmitted, passesRoleCap } from './roleCapAllowance';
+import { overflowIsAdmitted, passesRoleCap, roleCapLimit } from './roleCapAllowance';
 import { commanderIneligibility, commanderPreviewNote } from './commanderEligibility';
 import { cardManaValue } from './deckStats';
 import {
@@ -754,7 +754,7 @@ export function checkDeckInvariants(
   }
   for (const [role, target] of Object.entries(deck.roleTargets ?? {})) {
     const actual = deck.roleCounts?.[role] ?? 0;
-    const cap = target + Math.max(2, Math.ceil(0.2 * target));
+    const cap = roleCapLimit(target);
     if (actual <= cap) continue;
     const admitted = overflowIsAdmitted({
       target,
