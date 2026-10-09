@@ -422,6 +422,18 @@ The canonical pattern (`.auth-page`, `.welcome-page`):
 - This is a real bug that has shipped twice (auth register mode; the `/` landing
   footer). Treat it as a hard constraint.
 
+## The scroll lane is always reserved (2026-10-09)
+
+`.app-main` is the app's one scroll container, and it carries
+`scrollbar-gutter: stable`. With a classic scrollbar (Firefox or Chrome on
+Windows) a page that scrolls is 12px narrower than one that doesn't, so
+without the reserved lane the hub tab strip slid sideways between a short tab
+and a long one. The nightly journey caught it in Firefox. Keep the rule on the
+scroll container. Never compensate for the scrollbar with `padding-right`
+(no scroll lock does that, since `body` never scrolls). A full-bleed band
+inside `.app-main` ends at the lane, not the window edge. Guard:
+`src/styles/app-main-scrollbar-gutter.test.ts`.
+
 ## First-run welcome / landing screen (UX-331, pass 2c "welcome storefront")
 
 The first-run gate routes a fresh visitor (and crawlers) to `/` — the public
