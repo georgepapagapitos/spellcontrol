@@ -344,6 +344,7 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
 
     const shown = results.slice(0, visible);
     const moreToReveal = results.length > shown.length;
+    const revealing = pageSize !== undefined && moreToReveal;
     const showFetchButton = !moreToReveal && onLoadMore !== undefined && hasMore;
 
     const loadMore = () => {
@@ -554,31 +555,35 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
           </div>
         )}
 
-        {pageSize !== undefined && moreToReveal && (
-          <Button
-            className="inline-card-search-more"
-            onClick={() => setVisible((v) => v + (pageSize ?? DEFAULT_PAGE))}
-          >
-            Show {Math.min(pageSize ?? DEFAULT_PAGE, results.length - shown.length)} more
-          </Button>
-        )}
-        {showFetchButton && (
+        {/* One Button element for both jobs, in one place in the tree: the last
+            "Show N more" hands over to the fetch without unmounting, so a
+            keyboard user keeps focus on it (E341 follow-up). */}
+        {(revealing || showFetchButton) && (
           <>
-            {moreError && (
+            {showFetchButton && moreError && (
               <p role="alert" className="inline-card-search-status inline-card-search-error">
                 {moreError}
               </p>
             )}
-            {/* aria-disabled, not disabled: a disabled button drops focus while
-                the page loads. Same box in every state, so nothing jumps. */}
-            <Button
-              className="inline-card-search-more"
-              aria-disabled={loadingMore}
-              aria-busy={loadingMore}
-              onClick={loadMore}
-            >
-              {loadingMore ? 'Loading more…' : moreError ? 'Retry' : 'Show more'}
-            </Button>
+            {revealing ? (
+              <Button
+                className="inline-card-search-more"
+                onClick={() => setVisible((v) => v + (pageSize ?? DEFAULT_PAGE))}
+              >
+                Show {Math.min(pageSize ?? DEFAULT_PAGE, results.length - shown.length)} more
+              </Button>
+            ) : (
+              // aria-disabled, not disabled: a disabled button drops focus while
+              // the page loads. Same box in every state, so nothing jumps.
+              <Button
+                className="inline-card-search-more"
+                aria-disabled={loadingMore}
+                aria-busy={loadingMore}
+                onClick={loadMore}
+              >
+                {loadingMore ? 'Loading more…' : moreError ? 'Retry' : 'Show more'}
+              </Button>
+            )}
           </>
         )}
         {onLoadMore !== undefined && (
