@@ -85,7 +85,7 @@ export function ScanFab({ scrollEl }: { scrollEl?: HTMLElement | null }) {
         message:
           `Added ${added.toLocaleString()}${tail} scanned card${added === 1 ? '' : 's'}` +
           (fetchErrors > 0
-            ? ` · ${fetchErrorMessage(fetchErrors, 'Retry from the import page.')}`
+            ? ` · ${fetchErrorMessage(fetchErrors, 'Retry with Add from list.')}`
             : ''),
         tone: fetchErrors > 0 ? 'warn' : 'success',
       });

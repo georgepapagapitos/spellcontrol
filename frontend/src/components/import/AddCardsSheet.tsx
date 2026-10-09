@@ -160,14 +160,14 @@ export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: 
           `Added ${added.toLocaleString()} of ${requested.toLocaleString()} scanned cards`,
         ];
         if (fetchErrors > 0) {
-          parts.push(fetchErrorMessage(fetchErrors, 'Retry from “Add from list.”'));
+          parts.push(fetchErrorMessage(fetchErrors, 'Retry with Add from list.'));
         }
         setScanSuccess(parts.join(' · '));
       } else {
         const parts = [`Added ${added.toLocaleString()} scanned card${added === 1 ? '' : 's'}`];
         if (unresolved > 0) parts.push(`${unresolved} unresolved`);
         if (fetchErrors > 0) {
-          parts.push(fetchErrorMessage(fetchErrors, 'Retry from “Add from list.”'));
+          parts.push(fetchErrorMessage(fetchErrors, 'Retry with Add from list.'));
         }
         setScanSuccess(parts.join(' · '));
       }
@@ -203,8 +203,7 @@ export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: 
         `Added ${added.toLocaleString()}${added === requested ? '' : ` of ${requested.toLocaleString()}`} card${added === 1 ? '' : 's'}`,
       ];
       if (unresolved > 0) parts.push(`${unresolved} unresolved`);
-      if (fetchErrors > 0)
-        parts.push(fetchErrorMessage(fetchErrors, 'Retry from the import page.'));
+      if (fetchErrors > 0) parts.push(fetchErrorMessage(fetchErrors, 'Retry with Add from list.'));
       // The routing summary itself is derived from `layout` above, which
       // picks up the just-imported cards (and any tags/setMap still loading)
       // as soon as it re-renders — no imperative snapshot to go stale.

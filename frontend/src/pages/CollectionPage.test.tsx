@@ -308,19 +308,19 @@ describe('CollectionPage – Delete collection from ⋮', () => {
     expect(items[items.length - 1].textContent).toBe('Delete collection');
     fireEvent.click(screen.getByRole('menuitem', { name: 'Delete collection' }));
 
-    expect(screen.getByRole('heading', { name: 'Delete entire collection?' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Delete your collection?' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     expect(clearCards).not.toHaveBeenCalled();
 
     // The store offers Undo from its toast, so the final step must not claim otherwise.
-    expect(screen.getByRole('heading', { name: 'Last chance: delete everything?' })).toBeTruthy();
-    expect(screen.getByText(/Undo is only in the toast that follows/)).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Delete all 2 cards?' })).toBeTruthy();
+    expect(screen.getByText(/You can undo from the toast/)).toBeTruthy();
     expect(screen.queryByText(/can't be undone/)).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Delete everything' }));
 
     await waitFor(() => expect(clearCards).toHaveBeenCalledTimes(1));
     await waitFor(() =>
-      expect(screen.queryByRole('heading', { name: 'Last chance: delete everything?' })).toBeNull()
+      expect(screen.queryByRole('heading', { name: 'Delete all 2 cards?' })).toBeNull()
     );
   });
 
@@ -334,7 +334,7 @@ describe('CollectionPage – Delete collection from ⋮', () => {
     fireEvent.click(screen.getByRole('button', { name: 'More collection actions' }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Delete collection' }));
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(screen.queryByRole('heading', { name: 'Delete entire collection?' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Delete your collection?' })).toBeNull();
     expect(clearCards).not.toHaveBeenCalled();
   });
 });

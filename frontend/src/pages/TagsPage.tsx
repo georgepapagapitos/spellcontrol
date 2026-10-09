@@ -202,7 +202,7 @@ export function TagsPage() {
           ) : matches.length === 0 ? (
             <div className="tags-page-status">
               <p>No tag matches “{tagQuery.trim()}”.</p>
-              <p>Tags describe function. Try “sweeper” or “tutor”.</p>
+              <p>Try “sweeper” or “tutor”.</p>
             </div>
           ) : (
             <>

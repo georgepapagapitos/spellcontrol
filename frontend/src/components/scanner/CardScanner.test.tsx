@@ -82,7 +82,9 @@ describe('CardScanner', () => {
 
     render(<CardScanner onClose={vi.fn()} onConfirm={vi.fn()} />);
 
-    expect(await screen.findByText("Camera isn't available in this browser.")).toBeTruthy();
+    expect(
+      await screen.findByText("This browser can't open the camera. Use Add from list instead.")
+    ).toBeTruthy();
   });
 
   it('shows the queue count badge once cards are queued', async () => {

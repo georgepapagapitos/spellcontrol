@@ -62,7 +62,7 @@ export function UncategorizedSheet({ cards, onClose }: Props) {
         >
           <span className="choice-dialog-option-title">Everything else</span>
           <span className="choice-dialog-option-desc">
-            No rules, last in line: catches{' '}
+            No rules, last in line. Takes{' '}
             {total === 1 ? 'this card' : `all ${total.toLocaleString()}`} and anything else your
             binders pass on.
           </span>

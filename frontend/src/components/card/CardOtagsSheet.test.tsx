@@ -93,7 +93,7 @@ describe('CardOtagsSheet', () => {
     readyRef.value = false;
     errorRef.value = true;
     renderSheet(<CardOtagsSheet card={solRing} onClose={() => {}} />);
-    expect(screen.getByRole('alert').textContent).toContain("Couldn't load the tag snapshot.");
+    expect(screen.getByRole('alert').textContent).toContain("Couldn't load tags. Try again.");
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(ensureCardTags).toHaveBeenCalledTimes(1);
   });

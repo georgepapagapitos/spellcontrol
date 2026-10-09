@@ -124,6 +124,6 @@ describe('AuthPage register-failure form state', () => {
     // one — never both, never neither.
     const alerts = screen.getAllByRole('alert');
     expect(alerts).toHaveLength(1);
-    expect(alerts[0].textContent).toBe('Passwords do not match.');
+    expect(alerts[0].textContent).toBe("Passwords don't match.");
   });
 });

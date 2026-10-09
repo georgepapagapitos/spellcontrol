@@ -349,7 +349,7 @@ describe('UploadPanel — import with no mode dialog (D, board T153)', () => {
     (mockState as { binders: unknown[] }).binders = [{ id: 'b1', name: 'Bulk', filterGroups: [] }];
     render(<UploadPanel />);
     openOptions();
-    expect(screen.getByText(/routed through your binder rules/)).toBeTruthy();
+    expect(screen.getByText(/Cards file into your binders by rule/)).toBeTruthy();
     (mockState as { binders: unknown[] }).binders = [];
   });
 });
@@ -367,7 +367,7 @@ describe('UploadPanel Options — replace my collection', () => {
     const confirmHeading = await screen.findByText('Replace your collection?');
     expect(importCardsMock).not.toHaveBeenCalled();
     // The confirm names the Undo the store's replace path offers.
-    expect(screen.getByText(/You can undo it right after/)).toBeTruthy();
+    expect(screen.getByText(/You can undo from the toast/)).toBeTruthy();
 
     const confirmDialog = confirmHeading.closest('[role="dialog"]') as HTMLElement;
     fireEvent.click(within(confirmDialog).getByRole('button', { name: 'Cancel' }));

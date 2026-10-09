@@ -95,7 +95,7 @@ export function BinderExportDialog({ binders, activeId, onClose }: Props) {
           </span>
           <span className="choice-dialog-option-desc">
             {active
-              ? `"${active.def.name}" and its ${active.totalCards.toLocaleString()} card${active.totalCards === 1 ? '' : 's'}.`
+              ? `${active.totalCards.toLocaleString()} card${active.totalCards === 1 ? '' : 's'} and its rules.`
               : 'No active binder.'}
           </span>
         </button>

@@ -830,7 +830,7 @@ function DialogBody({
             {showSurplus && (
               <SwitchRow
                 label="Tradeable surplus only"
-                hint="Copies not in any deck or cube, beyond your first kept copy. Basic lands excluded."
+                hint="Copies beyond the priciest one you keep of each card. Copies in a deck or cube and basic lands never count."
                 checked={draftSurplusOnly}
                 onChange={setDraftSurplusOnly}
               />

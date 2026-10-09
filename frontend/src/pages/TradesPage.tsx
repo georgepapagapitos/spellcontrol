@@ -162,9 +162,7 @@ function TradesPageBody() {
       <HubPage hub="social" section="Trades" className="trades-page">
         <div className="friends-signin-prompt">
           <p className="friends-signin-title">Sign in to see your trades</p>
-          <p className="friends-signin-body">
-            Trade offers travel between accounts, so they need one on both ends.
-          </p>
+          <p className="friends-signin-body">Trades need an account on both sides.</p>
           <Button variant="primary" to={signInHref}>
             Sign in
           </Button>

@@ -438,11 +438,8 @@ export function AdminPage() {
                 Informational, not a problem (click to expand)
               </summary>
               <p className="admin-sub">
-                These slots are bound to a real owned copy. You also own the printing the generator
-                happened to pick by default, but every copy of it is already in another deck.
-                Nothing is broken, double-claimed, or orphaned. The only way to &quot;match&quot;
-                would be to steal a copy out of another deck, which you don&apos;t want. Safe to
-                ignore; listed for transparency.
+                Bound to a real owned copy. You own the generator's default printing, but every copy
+                is already in another deck. Nothing is broken.
               </p>
               <ScrollTable
                 label="Slots on another printing"

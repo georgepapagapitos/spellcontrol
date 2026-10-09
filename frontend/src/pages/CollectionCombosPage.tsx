@@ -333,7 +333,7 @@ export function CollectionCombosPage() {
     >
       {partial && (
         <div className="deck-combos-partial-banner" role="status" aria-live="polite">
-          <span>Showing partial results. Some combos didn't load.</span>
+          <span>Some combos didn't load.</span>
           <Button variant="link" onClick={refetch} disabled={loading}>
             {loading ? 'Retrying…' : 'Retry'}
           </Button>
@@ -376,7 +376,7 @@ export function CollectionCombosPage() {
               {searchMatches.length.toLocaleString()}
               {searchTruncated ? ` of ${searchResult!.total.toLocaleString()}` : ''} combos matching
               “{query}”, closest first.
-              {searchTruncated ? ' Narrow with filters to see more.' : ''}
+              {searchTruncated ? ' Narrow with search or filters to see more.' : ''}
             </p>
           ) : (
             <Tabs
@@ -404,7 +404,7 @@ export function CollectionCombosPage() {
           {!searchMode && tab === 'oneAway' && oneAwayTruncated && (
             <p className="combos-truncation-note">
               Showing {rawOneAway.length.toLocaleString()} of {oneAwayTotal.toLocaleString()} combos
-              one card away. Narrow with search or filters to find more.
+              one card away. Narrow with search or filters to see more.
             </p>
           )}
 
@@ -412,7 +412,7 @@ export function CollectionCombosPage() {
               (a bare gateway status) named nothing the reader could act on. */}
           {error && (
             <div className="discover-decks-error" role="alert">
-              <span>Couldn't check your collection against the combo database.</span>
+              <span>Couldn't load combos. Try again.</span>
               <Button onClick={refetch} disabled={loading} className="discover-decks-error-retry">
                 {loading ? 'Retrying…' : 'Retry'}
               </Button>
@@ -421,9 +421,7 @@ export function CollectionCombosPage() {
 
           {(loading || searchPending) && matches.length === 0 && (
             <p className="deck-combos-empty" role="status" aria-live="polite">
-              {searchPending
-                ? 'Searching every combo…'
-                : 'Checking your collection against the combo database…'}
+              {searchPending ? 'Searching every combo…' : 'Checking your collection…'}
             </p>
           )}
 
@@ -454,8 +452,8 @@ export function CollectionCombosPage() {
                   {oneAway.length > 0 && (
                     <p className="deck-combos-empty-secondary">
                       {oneAway.length === 1
-                        ? '1 combo is one card away. Check the next tab.'
-                        : `${oneAway.length} combos are one card away. Check the next tab.`}
+                        ? '1 combo is one card away.'
+                        : `${oneAway.length} combos are one card away.`}
                     </p>
                   )}
                 </>

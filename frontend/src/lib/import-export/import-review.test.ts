@@ -129,10 +129,8 @@ describe('fetchErrorMessage', () => {
   });
 
   it('carries a longer explanatory retry hint verbatim', () => {
-    expect(
-      fetchErrorMessage(2, 'The card service was unreachable, so they weren’t imported.')
-    ).toBe(
-      "2 cards couldn't be fetched. The card service was unreachable, so they weren’t imported."
+    expect(fetchErrorMessage(2, 'Scryfall couldn’t be reached, so they weren’t imported.')).toBe(
+      "2 cards couldn't be fetched. Scryfall couldn’t be reached, so they weren’t imported."
     );
   });
 });

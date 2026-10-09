@@ -358,7 +358,7 @@ describe('HomePage', () => {
       const fallback = container.querySelector('.home-hero-fallback');
       expect(fallback).toBeTruthy();
       // It says what fills the sleeve rather than showing a logo.
-      expect(fallback?.textContent).toBe('A card from your collection goes here.');
+      expect(fallback?.textContent).toBe('Your first card shows here.');
       expect(fallback?.querySelector('svg, img')).toBeNull();
       expect(container.querySelector('.home-hero-art')).toBeNull();
       expect(container.querySelector('.home-hero-caption')).toBeNull();
