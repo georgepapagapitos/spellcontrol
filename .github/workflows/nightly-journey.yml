@@ -34,7 +34,9 @@ jobs:
   journey:
     name: Chrome + Firefox journey
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    # 50 before the card-cache ingest; the cold ingest streams ~450 MB / ~107k
+    # cards (budget 15 min on a cold cache, seconds when restored), so 65.
+    timeout-minutes: 65
 
     services:
       postgres:
@@ -54,7 +56,16 @@ jobs:
     env:
       DATABASE_URL: postgres://spellcontrol:spellcontrol@localhost:5432/spellcontrol
       JWT_SECRET: nightly-journey-jwt-secret-not-a-secret
-      # Reference-data ingests are hours of network; the journey needs none.
+      # The Scryfall card cache is the one reference ingest the journey needs:
+      # /api/cards/named and /lookup are cache-only, so an empty cache sends
+      # every card lookup to the browser's own live api.scryfall.com calls,
+      # which throttle a CI runner (Firefox runs last and died on it, E535).
+      # The "Ingest Scryfall bulk" step below fills it before the server
+      # starts, so the server's own background ingest stays off. The other
+      # reference ingests (combos, rules, offline bulk) are hours of network
+      # the journey does not read, so they stay off.
+      DB_PATH: ${{ github.workspace }}/.scryfall-cache/scryfall-cache.db
+      SCRYFALL_BULK_FLUSH_PAUSE_MS: '0'
       SCRYFALL_BULK_INGEST_DISABLED: '1'
       COMBOS_INGEST_DISABLED: '1'
       RULES_INGEST_DISABLED: '1'
@@ -85,6 +96,25 @@ jobs:
           npm ci --prefix frontend --no-audit --no-fund
           npm ci --prefix backend --no-audit --no-fund
 
+      # Daily-ish cache of the card DB + its meta file (not the downloaded
+      # dump, which the ingest deletes). The key carries the UTC date so a
+      # new day re-saves; restore-keys fall back to the latest earlier day.
+      # The ingest's 20h recency guard then skips or tops up a restored cache.
+      - name: Scryfall cache key
+        id: scryfall_day
+        run: echo "day=$(date -u +%F)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the Scryfall card cache
+        id: scryfall_cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .scryfall-cache/scryfall-cache.db
+            .scryfall-cache/scryfall-bulk.meta.json
+          key: scryfall-bulk-${{ runner.os }}-${{ steps.scryfall_day.outputs.day }}
+          restore-keys: |
+            scryfall-bulk-${{ runner.os }}-
+
       # Same build the Docker image ships: prebuild keeps the committed
       # snapshots (--no-fetch), postbuild writes the pre-compressed siblings.
       - name: Build the frontend
@@ -102,6 +132,26 @@ jobs:
             echo '::error::dev-server proxy paths in the bundle — NODE_ENV leaked into the frontend build'
             exit 1
           fi
+
+      # Runs the server's own ingest to completion (backend/src/scripts).
+      # --if-stale honors the 20h guard, so a cache restored from last night
+      # is not re-streamed. Fails the job on any error or an empty dump.
+      - name: Ingest Scryfall bulk card data
+        run: |
+          start=$(date +%s)
+          npm run ingest:scryfall-bulk --prefix backend -- --if-stale
+          echo "ingest took $(( $(date +%s) - start ))s"
+          ls -l .scryfall-cache
+
+      # Saved straight after the ingest, before the server opens the DB (no
+      # live WAL). A hit on the exact key is a no-op save.
+      - name: Save the Scryfall card cache
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .scryfall-cache/scryfall-cache.db
+            .scryfall-cache/scryfall-bulk.meta.json
+          key: scryfall-bulk-${{ runner.os }}-${{ steps.scryfall_day.outputs.day }}
 
       # server.ts serves backend/public when it exists — the Dockerfile copies
       # frontend/dist there; a symlink is the same thing here.

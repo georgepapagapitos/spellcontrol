@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "tsx watch --env-file .env src/server.ts",
+    "ingest:scryfall-bulk": "tsx src/scripts/ingest-scryfall-bulk.ts",
     "db:reset": "tsx --env-file .env src/scripts/reset-dev-db.ts",
     "build": "tsc",
     "start": "node dist/server.js",
