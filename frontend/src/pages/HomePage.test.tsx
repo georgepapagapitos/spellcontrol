@@ -36,6 +36,9 @@ vi.mock('../store/auth', () => ({
 vi.mock('@/lib/social/friends-client', () => ({
   getFriendsActivity: () => Promise.resolve([]),
 }));
+vi.mock('@/lib/daily/daily-client', () => ({
+  fetchMyDailyResults: () => Promise.resolve([]),
+}));
 vi.mock('@/lib/discover/discover-client', () => ({
   listDiscoverDecks: () => Promise.resolve({ decks: [], page: 1, hasMore: false }),
   likeDeck: vi.fn(),

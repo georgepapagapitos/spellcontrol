@@ -1437,7 +1437,9 @@ rule that only held on the seat or the orientation it was tuned on.
 - **Its own destination, not a Play tab.** Play is your real games. The header
   gets a Daily link between Play and Social; the phone tab bar is full, so the
   phone door is Home's hero ⋮ ("Daily card"), per
-  [§ App chrome](app-shell.md#app-chrome--leather--divider-tabs-t53).
+  [§ App chrome](app-shell.md#app-chrome--leather--divider-tabs-t53). A
+  regular also gets a task in Home's Waiting on you while today's card is
+  unfinished ([§ Home](app-shell.md#home--the-page-reads-as-questions-not-a-board-2026-09-24-t138)).
 - **Every miss teaches twice.** A wrong guess opens the next clue and gets a
   scored row: colors, mana value, type, rarity and year of the first
   printing. Colors and type read **close** on a partial overlap, rarity one

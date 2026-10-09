@@ -3,6 +3,7 @@ import {
   bestStreak,
   computeStats,
   computeStreak,
+  dailyReminder,
   mergeResults,
   previousDay,
   type DailyResult,
@@ -83,5 +84,37 @@ describe('mergeResults', () => {
       [r('2026-10-02', true, 5), r('2026-10-03', false, 6)]
     );
     expect(merged).toEqual([r('2026-10-03', false, 6), r('2026-10-02', true, 2)]);
+  });
+});
+
+describe('dailyReminder', () => {
+  const today = '2026-10-09';
+
+  it('reminds a regular who has not played today, with the streak to keep', () => {
+    expect(dailyReminder([r('2026-10-08'), r('2026-10-07')], 0, today)).toEqual({
+      streak: 2,
+      guessesUsed: 0,
+    });
+  });
+
+  it('stays quiet once today is finished, solved or not', () => {
+    expect(dailyReminder([r(today), r('2026-10-08')], 0, today)).toBeNull();
+    expect(dailyReminder([r(today, false, 6)], 0, today)).toBeNull();
+  });
+
+  it('never asks someone who has not played in the last week', () => {
+    expect(dailyReminder([], 0, today)).toBeNull();
+    expect(dailyReminder([r('2026-10-01')], 0, today)).toBeNull();
+  });
+
+  it('counts a played day exactly a week back as regular', () => {
+    expect(dailyReminder([r('2026-10-02', false, 6)], 0, today)).toEqual({
+      streak: 0,
+      guessesUsed: 0,
+    });
+  });
+
+  it('reminds anyone partway through today, even a first-timer', () => {
+    expect(dailyReminder([], 3, today)).toEqual({ streak: 0, guessesUsed: 3 });
   });
 });

@@ -252,6 +252,15 @@ Rulings:
   source has settled and holds its line while loading if the last visit had
   one (`home-shape` slot `waiting`), so it never pushes the decks down after
   first paint.
+- **Waiting on you carries today's Daily card, for regulars only.** The task
+  shows while today's card is unfinished, and only to someone with a result
+  in the last week or a guess today. Shown to everyone, it would fill the
+  row every day, and the row should be empty when there's nothing to answer.
+  The detail is the guesses used, else the streak to keep. Signed in, the
+  row waits for the account's history, so a card solved on another device
+  never reads as unplayed. It sits after the social tasks and before the ones
+  that keep, because it expires at the end of the day. Anyone else finds the
+  puzzle through the hero's ⋮.
 - **Tiles are the index's tiles** (the row itself: [§ Layout system](../STYLE_GUIDE.md#layout-system-t135--one-build-of-each-pattern-every-screen), a row of
   tiles). Your decks renders the decks index's own
   `.decks-index-card` markup and Discover renders `DiscoverDeckTile` — one
