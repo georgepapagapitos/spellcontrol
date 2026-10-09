@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-// T102 slice 4 — the refine panel's load-bearing behaviour: it renders only
+// T102 slice 4 — the refine panel's load-bearing behavior: it renders only
 // with consent, and accepting a tweak goes through the SAME Change the coach
 // feed applies (never a parallel mutation path).
 
@@ -169,7 +169,7 @@ describe('DeckAiRefine', () => {
   });
 
   it('opens the carousel from either half of a swap — a name alone is unreadable', async () => {
-    // The row names two cards the player may not have memorised. Both halves
+    // The row names two cards the player may not have memorized. Both halves
     // open the app's ONE preview carousel, and it opens holding every live
     // swap so the pair can be compared by swiping.
     stubApi(true, [

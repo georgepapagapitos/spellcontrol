@@ -32,7 +32,7 @@ export const SCRYFALL_BULK_INDEX_URL = 'https://api.scryfall.com/bulk-data';
 const FLUSH_AT = 1000;
 
 /**
- * Milliseconds to idle after each flush, so this job cannot monopolise the CPU.
+ * Milliseconds to idle after each flush, so this job cannot monopolize the CPU.
  *
  * ⚠️ `setImmediate` alone is NOT enough, and assuming it was cost a production
  * outage. Yielding lets a queued request *run*, but it hands the CPU straight
@@ -313,7 +313,7 @@ export function projectBulkCard(card: BulkCard): ScryfallCard | null {
     loyalty: card.loyalty,
     // What a land or rock taps for. The mana-base analysis, the cost
     // analyzer and `lib/mana-sources` all read it; without it a Command
-    // Tower produces no colours as far as this app is concerned.
+    // Tower produces no colors as far as this app is concerned.
     produced_mana: card.produced_mana,
     // Partner detection, flash/changeling checks, the commander profile —
     // roughly twenty reads across the deck builder.
@@ -323,7 +323,7 @@ export function projectBulkCard(card: BulkCard): ScryfallCard | null {
     // carries it, and a cached one reading differently from a fetched one
     // is exactly the inconsistency this whole whitelist keeps producing.
     games: card.games,
-    // Printed flavour text, for the card detail pane. Same weight class as
+    // Printed flavor text, for the card detail pane. Same weight class as
     // `oracle_text`, which is already here.
     flavor_text: card.flavor_text,
     // Distilled rather than stored raw: `all_parts` carries a uri + id per

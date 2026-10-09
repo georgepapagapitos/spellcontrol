@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 /**
- * A night that already happened is closed, like a cancelled one: no reply
+ * A night that already happened is closed, like a canceled one: no reply
  * buttons, no calendar entry, and the page says so up front — the server
  * refuses every write after its 24h grace with "This game night has already
  * happened.", and before this the visitor only found out from the 400 after

@@ -25,7 +25,7 @@ describe('counter kinds', () => {
   });
 
   it('keeps the kinds a saved board already stores', () => {
-    // Boards saved before the catalogue hold "charge" and "loyalty" in
+    // Boards saved before the catalog hold "charge" and "loyalty" in
     // lowercase; those must keep drawing as icons.
     expect(counterGlyph('charge')).toBe('ms-counter-charge');
     expect(counterGlyph('loyalty')).toBe('ms-counter-loyalty');
@@ -46,7 +46,7 @@ describe('counter kinds', () => {
     expect(nextGenericCounter({ 'Counter 2': 1 })).toBe('Counter 1');
   });
 
-  it('gives a named counter one colour, and the next number a different one', () => {
+  it('gives a named counter one color, and the next number a different one', () => {
     expect(counterColor('Counter 1')).toBe(counterColor('Counter 1'));
     expect(counterColor('Counter 1')).not.toBe(counterColor('Counter 2'));
   });

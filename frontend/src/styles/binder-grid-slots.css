@@ -43,7 +43,7 @@
   padding: var(--space-1) var(--space-1) var(--space-2);
   border-radius: var(--radius) var(--radius) 0 0;
   transition: background var(--motion-fast);
-  /* The ghost below centres on this box, so it must be a containing block. */
+  /* The ghost below centers on this box, so it must be a containing block. */
   position: relative;
 }
 
@@ -391,7 +391,7 @@
    both sides of it, the section header above and the page's card slots below,
    so a 44px ghost on the bare ~19px row reached into both and stole the
    section header's bottom strip (nightly journey, E455). The row grows just
-   enough that the centred ghost's reach, (44 - min-height) / 2, fits in the
+   enough that the centered ghost's reach, (44 - min-height) / 2, fits in the
    section header's bottom margin and in the gap + page padding below;
    touch-ghost-clearance.test.ts holds that arithmetic. */
 @media (pointer: coarse) {

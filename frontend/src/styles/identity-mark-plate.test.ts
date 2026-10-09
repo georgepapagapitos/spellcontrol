@@ -5,13 +5,13 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join, relative, sep } from 'node:path';
 
 // T166 follow-up guard: a deck, cube or binder mark on card art is one
-// identity disc, the plate's shape filled with its owner's colour. The marks
+// identity disc, the plate's shape filled with its owner's color. The marks
 // were the last things on art to skip `.art-badge`: the grid clusters
 // restyled the row chip in place (scrim, a 55% ring, the glyph in the owner's
-// colour, each rule written twice, once per kind), and the binder slot
+// color, each rule written twice, once per kind), and the binder slot
 // painted its own solid disc. Several binders on a tile took the themed
 // --text-primary, dark on the dark scrim in a light theme. The user chose the
-// solid disc over a coloured glyph on the scrim (2026-09-28 specimen): a
+// solid disc over a colored glyph on the scrim (2026-09-28 specimen): a
 // purple deck's glyph vanished on the scrim, and so did any mark on a dimmed
 // binder pocket.
 //
@@ -60,7 +60,7 @@ function rules(css: string): [string, string][] {
   return [...text.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => [m[1].trim(), m[2]]);
 }
 
-describe('identity marks on card art are one disc in the owner colour', () => {
+describe('identity marks on card art are one disc in the owner color', () => {
   const all = cssFiles(srcRoot).map((f) => ({
     file: relative(srcRoot, f).split(sep).join('/'),
     css: readFileSync(f, 'utf8'),

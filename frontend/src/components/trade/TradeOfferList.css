@@ -155,7 +155,7 @@
      reads. Side-by-side once there's room. */
   grid-template-columns: 1fr;
   /* Top-aligned: a caption ("Any printing", "Foil") makes one side's tile
-     taller, and centring dropped the other side's label out of line. */
+     taller, and centering dropped the other side's label out of line. */
   align-items: start;
   gap: var(--space-2);
 }

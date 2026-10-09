@@ -241,7 +241,7 @@
 .binder-summary {
   display: flex;
   /* Center every item on the row's cross axis. The row mixes a mono sort
-     chip, labelled pills and the view toggle, so baseline alignment
+     chip, labeled pills and the view toggle, so baseline alignment
      staggered them. */
   align-items: center;
   gap: var(--space-2);

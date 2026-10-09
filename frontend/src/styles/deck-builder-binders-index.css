@@ -160,7 +160,7 @@
 }
 
 /* Name is the colored header band. Its ink is picked from the band's own
-   colour (--binder-ink, see lib/util/ink.ts), so it stays legible on any
+   color (--binder-ink, see lib/util/ink.ts), so it stays legible on any
    user-chosen binder color (pale gold through dark purple); an uncoloured
    tile falls back to the accent and its --on-accent pair.
    Right padding clears the absolutely-positioned 3-dot menu: the button, its
@@ -431,11 +431,11 @@
   }
 }
 
-/* Grid mode: the ⋮ sits on the tile's art or colour band, where no bare
-   glyph colour reads on every crop: a white glyph with a shadow vanished on
+/* Grid mode: the ⋮ sits on the tile's art or color band, where no bare
+   glyph color reads on every crop: a white glyph with a shadow vanished on
    pale and busy art (user reports, E466). A solid surface square reads on
    anything. Under a coarse pointer
-   the square keeps its size and a centred ghost carries the 44px target, so
+   the square keeps its size and a centered ghost carries the 44px target, so
    each tile isn't capped by a 44px block. */
 .binders-index-list.is-grid .binders-index-card-menu-btn {
   background: var(--surface);

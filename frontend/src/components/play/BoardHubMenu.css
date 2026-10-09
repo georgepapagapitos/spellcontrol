@@ -13,7 +13,7 @@
   inset: 0;
   z-index: 9;
   /* Seats dim to 38%: enough that the ring reads as one object on top of
-     the board, not chips scattered over the seat colours. */
+     the board, not chips scattered over the seat colors. */
   background: rgba(0, 0, 0, 0.62);
 }
 
@@ -24,9 +24,9 @@
   pointer-events: none;
 }
 
-/* A dark disc behind the keys and a faint track through their centres: the
+/* A dark disc behind the keys and a faint track through their centers: the
    ring reads as one object, and the keys' words never sit on a seat's own
-   colour however bright it is. Both are decoration (aria-hidden). */
+   color however bright it is. Both are decoration (aria-hidden). */
 .board-hub-disc,
 .board-hub-track {
   position: absolute;

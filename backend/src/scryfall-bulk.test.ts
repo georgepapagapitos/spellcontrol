@@ -138,7 +138,7 @@ describe('ingestScryfallBulk', () => {
     for (const c of cards) yield c as never;
   }
 
-  it('idles between flushes so it cannot monopolise a shared CPU', async () => {
+  it('idles between flushes so it cannot monopolize a shared CPU', async () => {
     // The regression this guards: `setImmediate` yields but hands the CPU
     // straight back, so on shared-cpu-1x the ingest still burned the burst
     // quota, Fly throttled the machine, /health took >5s, and the proxy

@@ -502,7 +502,7 @@ describe('HomePage', () => {
       expect(container.querySelector('.home-hero-stats')).toBeNull();
     });
 
-    it('renders one labelled door per count once any store holds rows', () => {
+    it('renders one labeled door per count once any store holds rows', () => {
       useCollectionStore.setState({
         cards: [makeRow(), makeRow(), makeRow()],
         binders: [{ id: 'b1', name: 'Binder', filterGroups: [] } as unknown as BinderDef],

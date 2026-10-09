@@ -227,7 +227,7 @@ function buildSignature(
         .join(',')
     : COMBOS_UNCHECKED;
   // The analysis sizes the deck from its format (99 vs 59), so a deck whose
-  // format changed must not match the signature it was analysed under, here
+  // format changed must not match the signature it was analyzed under, here
   // or in this device's analysis cache (which a format switch on another
   // device never clears). Folded into the version segment so the segment
   // count `missesCombos` relies on stays put, and only for formats other

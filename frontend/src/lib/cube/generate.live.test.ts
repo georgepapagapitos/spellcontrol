@@ -936,7 +936,7 @@ describe.skipIf(!POOL_PATH)('draft simulation (real collection, reported only)',
 // self-contained pool load, own JSON report). Measures the three metrics the
 // UI surfaces (`CommanderCoveragePanel`): the share of drafters who end with
 // a commander AND enough identity-legal playables to build, how often each
-// colour identity got drafted as a commander, and which supported identities
+// color identity got drafted as a commander, and which supported identities
 // never got built by anyone.
 describe.skipIf(!POOL_PATH)('commander draft simulation (real collection, reported only)', () => {
   let commanderPool: CubeCard[];

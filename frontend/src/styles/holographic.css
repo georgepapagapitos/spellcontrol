@@ -65,9 +65,9 @@
   opacity: calc(var(--foil-lift) * var(--foil-strength, 0.8));
 }
 
-/* Slightly curved bands (a far-off radial centre), not ruler-straight
+/* Slightly curved bands (a far-off radial center), not ruler-straight
    stripes: diffraction bands on a real foil bow with the viewing geometry.
-   Dark, saturated stops because colour-dodge brightens by the blend colour;
+   Dark, saturated stops because colour-dodge brightens by the blend color;
    explicit stop lengths so the gradient genuinely repeats. */
 .card-preview-foil-shine::before {
   background: var(
@@ -132,7 +132,7 @@
   opacity: calc(0.18 + 0.62 * var(--active, 0));
 }
 
-/* The hotspot centre lands on the cursor. With no cursor it parks upper-left
+/* The hotspot center lands on the cursor. With no cursor it parks upper-left
    like a room light (useHolographic eases back to the same 32% / 22%). The
    canvas spans [m − 1, m + 1] card widths, so it always covers. Moves by
    transform: the old `radial-gradient(circle at var(--mx) …)` repainted the
@@ -162,7 +162,7 @@
    the render-blocking path, and a texture is only fetched once a card with
    that finish renders. The noise is feTurbulence thresholded to sparse specks
    in MID-GREY, never white — under color-dodge a white speck blows out any
-   pixel (static on black ink), a grey one only brightens ink that already
+   pixel (static on black ink), a gray one only brightens ink that already
    reflects. */
 /* Regular: the default spectrum and bars above. */
 
@@ -212,7 +212,7 @@
   --foil-strength: 0.75;
 }
 
-/* Halo / surge: concentric rings around the card centre. */
+/* Halo / surge: concentric rings around the card center. */
 .foil-halo {
   --foil-spectrum: repeating-radial-gradient(
     circle at 50% 50%,

@@ -311,7 +311,7 @@ describe('standardBinderSizes / smallestFittingCapacity', () => {
     expect(standardBinderSizes(9)).toEqual([360, 480, 640]);
   });
 
-  it('has a reasoned (not formula-derived) catalogue for 4 and 12 pockets too', () => {
+  it('has a reasoned (not formula-derived) catalog for 4 and 12 pockets too', () => {
     expect(standardBinderSizes(4)).toEqual([160, 240, 320]);
     expect(standardBinderSizes(12)).toEqual([480, 720, 960]);
   });
@@ -332,11 +332,11 @@ describe('standardBinderSizes / smallestFittingCapacity', () => {
     expect(smallestFittingCapacity(45, 9)).toBe(480);
   });
 
-  it('returns null when nothing in the catalogue fits', () => {
+  it('returns null when nothing in the catalog fits', () => {
     expect(smallestFittingCapacity(72, 9)).toBeNull();
   });
 
-  it('accepts a custom size catalogue', () => {
+  it('accepts a custom size catalog', () => {
     expect(smallestFittingCapacity(15, 4, [40, 80])).toBe(80);
     expect(smallestFittingCapacity(10, 4, [40, 80])).toBe(40);
   });

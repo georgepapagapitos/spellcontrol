@@ -339,8 +339,8 @@
 }
 
 /* The checks verdict ("2 to fix" / "1 to tune" / "All clear") leads the strip
-   and jumps to the stats under the list. Coloured by tone; a clean deck reads
-   in the plain value colour, since "All clear" needs no alarm. */
+   and jumps to the stats under the list. Colored by tone; a clean deck reads
+   in the plain value color, since "All clear" needs no alarm. */
 .deck-stat-health--err .deck-stat-value,
 .deck-stat-health--err .deck-stat-label {
   color: var(--err-text);
@@ -365,7 +365,7 @@
 }
 
 /* Under the list the board lines up with the list's edges. The 1320px cap
-   centred it on its own tab; here it left a ragged inset beside a full-width
+   centered it on its own tab; here it left a ragged inset beside a full-width
    list. */
 .deck-stats-below .deck-analysis-view {
   --analysis-max: none;
@@ -402,7 +402,7 @@
 /* Deck stats rows (§ Deck stats sit under the list): panels sized to what
    they hold instead of every panel spanning the board. A row is a flex line
    whose `-main` member takes two shares to the others' one (curve beside
-   types; colour beside salt and the table record), so an absent panel just
+   types; color beside salt and the table record), so an absent panel just
    closes the row up. Under ~900px of board the row stacks. */
 .deck-stats-row {
   grid-column: 1 / -1;

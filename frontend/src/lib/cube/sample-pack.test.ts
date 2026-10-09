@@ -80,7 +80,7 @@ describe('samplePack — natural odds over a mixed pool (board #12, PR3)', () =>
     expect(sawLegend).toBe(true);
   });
 
-  it('degrades to the old spells-only behaviour when there are no legends', () => {
+  it('degrades to the old spells-only behavior when there are no legends', () => {
     const pack = samplePack(CUBE_PICKS, 1);
     expect(pack.every((p) => !('identity' in p))).toBe(true);
   });

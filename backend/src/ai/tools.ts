@@ -230,7 +230,7 @@ export function withinBudget(cache: ScryfallCache, name: string, ceiling: PriceC
  * The refine pass used to answer that question with "is this name in the pool
  * the engine supplied". Once the model can look cards up, the pool stops being
  * the boundary, so the boundary becomes the one the lookup query already
- * enforces: a real card, legal in Commander, inside the commander's colour
+ * enforces: a real card, legal in Commander, inside the commander's color
  * identity, not already in the deck, and owned when the build is owned-only.
  *
  * Deliberately a PROPERTY check rather than a provenance one. A cached refine
@@ -432,7 +432,7 @@ export function checkBracketTool(
  * it is false when the model searches mid-answer — it emits a section label,
  * THEN searches, then writes the body, so the body lands in markerless turns
  * and the rule throws the real answer away (seen on the raw stream 1 run in 8;
- * a labelled section came back EMPTY in 3 of 6).
+ * a labeled section came back EMPTY in 3 of 6).
  *
  * - **`tool_choice: none` once the gate opens**, to make the heuristic true by
  *   removing the tool. Measured n=22: mid-answer leaks 2→3 (no gain) and
@@ -501,7 +501,7 @@ export function createMarkerGate(
      *
      * `hadToolCalls` is the whole decision: it is what distinguishes a markerless
      * turn of research notes from a markerless turn that is simply the answer
-     * running on past a section it already labelled.
+     * running on past a section it already labeled.
      */
     endTurn(hadToolCalls: boolean) {
       if (closed) {

@@ -3,10 +3,10 @@ import './SealBurst.css';
 
 /**
  * One-shot completion flourish, Magic-native by design: a brass seal flare
- * (`--brand-seal-gold`) sheds mana sparks in the deck's own colour identity.
+ * (`--brand-seal-gold`) sheds mana sparks in the deck's own color identity.
  * NOT confetti — the material is brass + WUBRG mana, so the celebration knows
  * what you built. Purely decorative (`aria-hidden`); the surrounding surface
- * carries the real announcement. There is no logo at the centre: the app
+ * carries the real announcement. There is no logo at the center: the app
  * currently ships without a brand mark (board T167).
  *
  * Reduced-motion safe two ways: renders nothing when the user prefers reduced
@@ -27,7 +27,7 @@ const SPARK_HEX: Record<string, string> = {
   R: '#e8564d',
   G: '#46c274',
 };
-/** Colourless / unknown identity — a warm gold in the seal's own family. */
+/** Colorless / unknown identity — a warm gold in the seal's own family. */
 const FALLBACK_HEX = '#e6d2a0';
 
 // Restrained on purpose — a handful of drifting motes reads more refined than
@@ -44,9 +44,9 @@ export interface SealMote {
 }
 
 /**
- * Deterministic radial spark field for a colour identity. Colours cycle across
+ * Deterministic radial spark field for a color identity. Colors cycle across
  * the identity so a two-colour deck alternates both; an empty identity (a
- * colourless commander) falls back to the seal gold so it still sparks. The
+ * colorless commander) falls back to the seal gold so it still sparks. The
  * motes drift outward unhurriedly and fade — settling embers, not a burst.
  */
 export function buildMotes(colors: string[], scale = 1): SealMote[] {

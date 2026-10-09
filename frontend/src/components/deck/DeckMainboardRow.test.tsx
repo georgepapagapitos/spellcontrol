@@ -12,7 +12,7 @@ import { useCurrencyStore } from '@/lib/collection/currency';
 // than hand-built against the raw `Row` type directly (30+ derived fields:
 // allocation counts, printing groups, image variants...). DeckDisplay's own
 // row-building (deck-display-rows.ts) is what produces a real Row, so this
-// is the shortest path to a row that actually reflects app behaviour.
+// is the shortest path to a row that actually reflects app behavior.
 vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
 function bolt(overrides: Partial<ScryfallCard> = {}): ScryfallCard {

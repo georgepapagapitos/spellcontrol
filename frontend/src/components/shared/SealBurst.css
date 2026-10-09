@@ -1,7 +1,7 @@
 /* ── SealBurst ─────────────────────────────────────────────────────────────
    Deck-generation-complete flourish: a soft brass glow (--brand-seal-gold)
-   blooms at the centre and a few mana motes drift outward in the deck's
-   colour identity, then everything fades.
+   blooms at the center and a few mana motes drift outward in the deck's
+   color identity, then everything fades.
    Restrained by design — one gentle bloom, not a firework. One-shot; plays as
    the takeover holds, then unmounts. Every keyframe is reduced-motion gated
    (the component also returns null under reduce; this is the CSS backstop). */
@@ -14,7 +14,7 @@
   overflow: hidden;
 }
 
-/* Anchor every child to the hero's centre. */
+/* Anchor every child to the hero's center. */
 .seal-burst-flare,
 .seal-burst-ring,
 .seal-burst-mote {
@@ -23,7 +23,7 @@
   left: 50%;
 }
 
-/* ── The flare — a soft brass halo that swells gently at the centre. ──────── */
+/* ── The flare — a soft brass halo that swells gently at the center. ──────── */
 .seal-burst-flare {
   width: 24rem;
   height: 24rem;

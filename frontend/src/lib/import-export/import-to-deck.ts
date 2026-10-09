@@ -18,7 +18,7 @@ import type { DeckImportResponse } from '@/types/index';
  * Deliberately NOT the same path as an import: nothing here allocates a
  * physical copy from the collection (`buildDeckInputFromImport` does that,
  * and it is an owner-side concept this deck has no business claiming), and
- * nothing is written to any store. Modelled on `public-deck-to-deck.ts`,
+ * nothing is written to any store. Modeled on `public-deck-to-deck.ts`,
  * which solves the same problem for a deck the viewer does not own.
  */
 

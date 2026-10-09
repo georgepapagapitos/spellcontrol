@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-// E261 — the rules Q&A's behaviours that cost something if they break: consent
+// E261 — the rules Q&A's behaviors that cost something if they break: consent
 // gates the ask box, nothing is sent without an explicit Ask, and the answer's
 // verified citations expand to the official rule text.
 

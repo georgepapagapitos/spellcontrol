@@ -12,8 +12,8 @@ const COLOR_LABEL: Record<(typeof COLORS)[number], string> = {
 };
 
 /**
- * The WUBRG + colorless filter: one toggle pip per colour. Colorless is an
- * identity of its own, so picking it clears the colours and picking a colour
+ * The WUBRG + colorless filter: one toggle pip per color. Colorless is an
+ * identity of its own, so picking it clears the colors and picking a color
  * clears it. Shared by the commander finder and the browse lists; the pips'
  * look lives with the finder (`styles/deck-builder-commander.css`).
  */

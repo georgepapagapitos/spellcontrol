@@ -495,7 +495,7 @@
 }
 
 /* ── Time on turn (game menu) ──
-   Per-seat turn totals, longest first. Bars normalise to the longest holder,
+   Per-seat turn totals, longest first. Bars normalize to the longest holder,
    not to the game, because the question is relative pace. */
 .turn-times {
   margin-top: var(--space-3);

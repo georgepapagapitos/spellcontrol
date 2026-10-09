@@ -272,7 +272,7 @@ export const WINS_MARK = '---WINS---';
  * The answer's terminator (prompt v11).
  *
  * The server discards everything past it before storing, but the live view is
- * built from deltas — by the time the model's trailing notes are recognised as
+ * built from deltas — by the time the model's trailing notes are recognized as
  * notes, those bytes are already here. Cutting at the marker on this side too
  * means they never render, not even for a frame.
  */
@@ -307,7 +307,7 @@ const stripListMarker = (line: string): string => line.replace(/^\s*(?:[-*•]|\
  * seen, or the stream is done. Callers use it to decide when card-name chips
  * are safe to apply, since chipping a half-typed name would jitter the line.
  *
- * A section the content never labelled comes back with no paragraphs rather
+ * A section the content never labeled comes back with no paragraphs rather
  * than being dropped, so a live stream can render its heading as a placeholder.
  * A finished review renders only what it actually has — which is what keeps a
  * pre-v11 cached reading, written before the fixes section existed, from
@@ -391,7 +391,7 @@ export function stripEmphasis(text: string): string {
  *
  * The model writes "Teferi", "Ioreth", "Vizier" and "Captain America" for cards
  * whose printed names are far longer, and exact-name matching left exactly
- * those as dead text beside chipped neighbours — the reader sees an arbitrary
+ * those as dead text beside chipped neighbors — the reader sees an arbitrary
  * half of the names light up. Both standard legend shapes are covered:
  * `Name, Title` and `Name of Place`.
  *
@@ -401,7 +401,7 @@ export function stripEmphasis(text: string): string {
  *   identifies neither.
  * - **Never shadows a real card name.** A prefix that is itself somebody's full
  *   name stays that card.
- * - **Must be capitalised where it appears** (enforced at match time) and at
+ * - **Must be capitalized where it appears** (enforced at match time) and at
  *   least 4 characters. Without this, "Will, Scion of Peace" turns every "will"
  *   in the prose into a chip.
  */
@@ -461,7 +461,7 @@ export function tokenizeCardNames(text: string, matchNames: string[]): ProseToke
   for (const m of text.matchAll(re)) {
     const at = m.index ?? 0;
     const key = m[0].toLowerCase();
-    // A short form only counts when it is capitalised as written: "Will" is a
+    // A short form only counts when it is capitalized as written: "Will" is a
     // card, "will" is a verb, and the alternation above is case-insensitive.
     if (aliases.has(key) && m[0][0] !== m[0][0].toUpperCase()) continue;
     if (at > last) tokens.push({ text: text.slice(last, at) });

@@ -1,5 +1,5 @@
 /* The format sheet (E465): a ChoiceList of formats, then what switching this
-   deck does, then the switch. A bottom sheet on a phone, a centred dialog
+   deck does, then the switch. A bottom sheet on a phone, a centered dialog
    above (STYLE_GUIDE § Overlays, Pattern B). */
 .deck-format-sheet {
   max-width: 640px;
@@ -11,7 +11,7 @@
   gap: var(--space-4);
 }
 
-/* Nine formats: two columns wherever the dialog is centred, so the list and
+/* Nine formats: two columns wherever the dialog is centered, so the list and
    what the switch does stay in view together. */
 @media (min-width: 600px) {
   .deck-format-sheet .choice-list {

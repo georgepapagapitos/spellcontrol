@@ -344,7 +344,7 @@ describe('upcomingGameNights', () => {
 
   const NOW = 1_000_000;
 
-  it('excludes cancelled nights', () => {
+  it('excludes canceled nights', () => {
     const nights = [gameNight({ startsAt: NOW + 1000, cancelledAt: Date.now() })];
     expect(upcomingGameNights(nights, NOW)).toEqual([]);
   });

@@ -50,7 +50,7 @@ export function useRarityCorrections(cards: ScryfallCard[]): ReadonlyMap<string,
   useEffect(() => {
     if (!suspectKey) return;
     const myReqId = ++reqIdRef.current;
-    // Cancelled on unmount: the offline-IDB lookup can outlive the component
+    // Canceled on unmount: the offline-IDB lookup can outlive the component
     // (same pattern as CardListTable's catalog fetch).
     let cancelled = false;
     void (async () => {

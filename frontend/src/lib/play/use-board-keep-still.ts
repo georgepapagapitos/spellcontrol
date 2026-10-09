@@ -35,7 +35,7 @@ export const KEEP_STILL_QUERY =
  * clean, unmirrored 90° rotation either way, opposite handedness for
  * primary vs secondary — see the lane's report for the exact geometry), not
  * against a real phone — there's no hardware in this environment to confirm
- * which sign a real Android/iOS auto-rotate expects cancelled. If a real
+ * which sign a real Android/iOS auto-rotate expects canceled. If a real
  * device shows seats spinning 90° the wrong way, flip the two `return`
  * values in the `type ===` branches above; everything downstream (the CSS
  * transform, the gesture composition) only cares that primary/secondary are

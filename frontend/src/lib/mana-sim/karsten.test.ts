@@ -4,7 +4,7 @@
  * 2022-08-02):
  * https://www.tcgplayer.com/content/article/How-Many-Sources-Do-You-Need-to-Consistently-Cast-Your-Spells-A-2022-Update/dc23a7d2-0a16-4c0b-ad36-586fcca03ad8/
  *
- * His summary table, 99-card column (minimum coloured sources to cast on curve
+ * His summary table, 99-card column (minimum colored sources to cast on curve
  * "consistently", i.e. at (89 + mana value)% probability):
  *
  *   C    19   1C   19   2C   18   3C   16   4C   15   5C   14
@@ -13,13 +13,13 @@
  *   CCCC 39   1CCCC 36
  *
  * The probabilities below are read from the article's full 99-card table
- * ("How-many-sources-99-cards-.png"): P(at least N coloured sources by turn M
+ * ("How-many-sources-99-cards-.png"): P(at least N colored sources by turn M
  * on the play | at least M lands by turn M), in percent, for a cost of mana
- * value M with N pips of one colour.
+ * value M with N pips of one color.
  *
  * His assumptions, quoted, and how `mulligan: 'karsten'` matches them:
  * - "a 99-card deck contains 41 lands": the decks below are S sources of the
- *   colour + (41 − S) basics of another colour + 58 copies of the card.
+ *   color + (41 − S) basics of another color + 58 copies of the card.
  * - "In Commander, there's a free mulligan and a free draw on turn one" (CR
  *   103.4c, 800.7): `freeMulligan` and `drawOnTurnOne` default on.
  * - "we mulligan any free seven-card hand in Commander with zero, one, two,
@@ -34,7 +34,7 @@
  *   `onCurveGivenMana`. With untapped basics and one draw a turn, "drew M
  *   lands by turn M" and "made every land drop through M" are the same event,
  *   and re-choosing the drops for the card counts exactly his "at least N
- *   coloured sources among the lands drawn".
+ *   colored sources among the lands drawn".
  *
  * Result (seed 20220802, 20,000 games a cell, all 19 cost shapes at their
  * published minimum and at 15 sources): deviations from his figures run from
@@ -97,7 +97,7 @@ const TABLE: Cell[] = [
 
 const KARSTEN: ManaSimOptions = { mulligan: 'karsten', games: 20000, seed: 20220802 };
 
-/** Karsten's test deck: `sources` of the colour, the rest of 41 lands off-colour, 58 of the card. */
+/** Karsten's test deck: `sources` of the color, the rest of 41 lands off-colour, 58 of the card. */
 function testDeck(cell: Cell, sources: number) {
   return {
     commanders: [],
@@ -154,7 +154,7 @@ describe('where the default configuration departs from his table, and why', () =
   it('keeps two-landers his free mulligan throws back, so early pips read a few points lower', () => {
     // The app's keep rule (isKeepableHand) keeps a first seven with two lands
     // that Karsten mulligans for free, and mulligans five-landers he keeps:
-    // kept hands hold fewer lands, so fewer coloured sources are seen by turn
+    // kept hands hold fewer lands, so fewer colored sources are seen by turn
     // 2. Measured: CC at 20 sources 68.2 (his rule) vs 60.8 (app rule); C at 20
     // sources 91.4 vs 88.1. Later costs converge (2CC at 20: 82.0 vs 81.4).
     const app: ManaSimOptions = { games: 20000, seed: 20220802 };

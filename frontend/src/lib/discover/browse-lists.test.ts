@@ -87,7 +87,7 @@ describe('list filters in the URL', () => {
     ).toEqual({ period: 'year', colors: 'C', type: 'lands', show: 'owned' });
   });
 
-  it('locks the window to 2 years under a colour or type', () => {
+  it('locks the window to 2 years under a color or type', () => {
     const week = { ...DEFAULT_BROWSE_FILTERS };
     expect(periodLocked(week)).toBe(false);
     expect(effectivePeriod(week)).toBe('week');

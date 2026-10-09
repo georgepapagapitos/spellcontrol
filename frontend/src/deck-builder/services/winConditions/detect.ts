@@ -113,7 +113,7 @@ const BURN_RE =
 
 /** A clause that fires repeatedly: a "whenever"/upkeep trigger or an activated
  *  ability. A one-shot "when X enters/dies" is deliberately NOT repeatable.
- *  Trigger words are unanchored because the normaliser folds a keyword line
+ *  Trigger words are unanchored because the normalizer folds a keyword line
  *  into the next clause ("flying whenever you draw a card, …"). */
 const REPEATABLE_RE = /\bwhenever\b|\bat the beginning of\b|^[^:.]{0,40}:/;
 

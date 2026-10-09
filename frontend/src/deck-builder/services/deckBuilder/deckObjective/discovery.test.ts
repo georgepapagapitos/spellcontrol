@@ -122,7 +122,7 @@ describe('discover', { timeout: 120_000 }, () => {
     expect(only.picks).toEqual([]);
   });
 
-  it('honours a lock and an exclusion', () => {
+  it('honors a lock and an exclusion', () => {
     const base = discover(BASE, poolFor(BASE), ctx);
     const cut = base.picks[0].cut.name;
     const locked = discover(BASE, poolFor(BASE), ctx, { locks: [cut] });

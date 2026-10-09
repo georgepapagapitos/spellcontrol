@@ -101,7 +101,7 @@ export async function fetchAndHashArtCrop(card: ScryfallCard): Promise<bigint | 
     clearTimeout(timeout);
   }
 
-  // sharp normalizes to single-channel greyscale and resamples via libvips.
+  // sharp normalizes to single-channel grayscale and resamples via libvips.
   // The raw output is row-major byte-per-pixel, exactly what computePHash
   // expects.
   const raw = await sharp(Buffer.from(bytes))

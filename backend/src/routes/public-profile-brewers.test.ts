@@ -208,7 +208,7 @@ describe('GET /api/public/users/:username, brewer fields', () => {
     expect(res.body.stats).toEqual({ likesReceived: 2, copiesReceived: 5 });
   });
 
-  it('topCommanders (top 3 by live deck count) and colorSpread (colourless is C)', async () => {
+  it('topCommanders (top 3 by live deck count) and colorSpread (colorless is C)', async () => {
     const owner = await makeUser('pf-cmd');
     await deck(owner.id, { commander: 'Atraxa', colors: ['W', 'U', 'B', 'G'], art: 'a1.jpg' });
     await deck(owner.id, { commander: 'Atraxa', colors: ['U'], art: 'a2.jpg' });

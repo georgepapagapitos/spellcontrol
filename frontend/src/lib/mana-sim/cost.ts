@@ -181,7 +181,7 @@ export function canPayWithDrops(cost: ManaCost, s: DropSupply): boolean {
 
 /**
  * Which mana types were short when the amount was there but the cost still
- * could not be paid: the smallest violated union, so a single missing colour
+ * could not be paid: the smallest violated union, so a single missing color
  * is blamed alone and a shared shortfall (a {W}{U} cost off one W/U dual)
  * blames both. 0 when payable.
  */

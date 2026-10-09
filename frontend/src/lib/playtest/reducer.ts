@@ -341,7 +341,7 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
       next.zones[action.from] = [];
       // As in SHUFFLE_ZONE_INTO_LIBRARY: no `pluck`, so clear it by hand.
       if (action.from === 'exile') next.faceDownExile = [];
-      // Into the library, the block is randomised: everyone watched those
+      // Into the library, the block is randomized: everyone watched those
       // cards go in, so keeping their order would hand the caster a known
       // deck order. `toIndex: 0` only decides whether the block lands above
       // or below what is already there.

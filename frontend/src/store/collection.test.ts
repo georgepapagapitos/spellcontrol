@@ -1649,7 +1649,7 @@ describe('binder CRUD', () => {
         .map((b) => `${b.id}${b.position}`);
     expect(order()).toEqual(['a0', 'c1', 'b2']);
 
-    // Moving down works the same way: above its new neighbour.
+    // Moving down works the same way: above its new neighbor.
     useCollectionStore.getState().moveBinderAbove('a', 'b');
     expect(order()).toEqual(['c0', 'a1', 'b2']);
 

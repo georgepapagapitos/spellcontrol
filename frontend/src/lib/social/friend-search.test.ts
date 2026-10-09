@@ -62,19 +62,19 @@ describe('buildFriendSearch — answerable clauses', () => {
 
 describe('buildFriendSearch — ci: is the bug this feature exists to fix', () => {
   it('does NOT match a green card against ci<=r', () => {
-    // The engine matches `subset` by walking the colours ON THE CARD, so an
+    // The engine matches `subset` by walking the colors ON THE CARD, so an
     // absent identity (empty set) vacuously satisfied every needle — the whole
     // collection came back for any ci: query.
     expect(buildFriendSearch('ci<=r').match(forest)).toBe(false);
   });
 
-  it('matches a green card against ci<=g and colourless against anything', () => {
+  it('matches a green card against ci<=g and colorless against anything', () => {
     expect(buildFriendSearch('ci<=g').match(forest)).toBe(true);
     expect(buildFriendSearch('ci<=r').match(card())).toBe(true); // truly colourless
   });
 
   it('falls back to `colors` when a cached payload predates the enrichment', () => {
-    // Absent identity must NOT read as colourless — that is the original bug.
+    // Absent identity must NOT read as colorless — that is the original bug.
     const legacy: FriendCard = {
       name: 'Llanowar Elves',
       oracleId: 'o-elf',

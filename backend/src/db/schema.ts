@@ -428,7 +428,7 @@ export const shares = pgTable(
  * Scheduled game nights (E123). A night is a *scheduling* artifact — date,
  * place, who's coming — separate from `game_sessions` (the live authed game).
  * The unguessable `token` powers the public no-account RSVP page (`/gn/:token`),
- * mirroring the shares token contract: unknown and revoked (cancelled nights
+ * mirroring the shares token contract: unknown and revoked (canceled nights
  * stay readable so the page can say "cancelled") — only unknown tokens 404.
  */
 export const gameNights = pgTable(

@@ -511,7 +511,7 @@ function TradeOfferAge({ offer }: { offer: TradeOffer }) {
  * (which keeps working after the card has left the collection), else by looking
  * that printing up. A side still oracle-level (an any-printing ask, before it's
  * accepted) has no printing to price, so it falls back to the cheapest-printing
- * floor and is labelled "from". Never renders a bare 0 for "unknown": the whole
+ * floor and is labeled "from". Never renders a bare 0 for "unknown": the whole
  * point of putting a number here is that it can be trusted.
  */
 function useSideValue(cards: TradeCard[]): SideValue {

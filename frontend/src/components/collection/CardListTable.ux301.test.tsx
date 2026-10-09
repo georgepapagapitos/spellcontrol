@@ -209,7 +209,7 @@ describe('UX-306 — row/summary polish', () => {
       expect(within(bulkRegion).getByText(/1 row · 1 copy/)).toBeDefined();
     });
 
-    it('pluralises rows and copies correctly', () => {
+    it('pluralizes rows and copies correctly', () => {
       // Two distinct printings both selected
       const c = [
         mk({ name: 'Alpha', scryfallId: 'sf-a2' }),

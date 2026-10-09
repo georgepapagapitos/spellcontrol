@@ -8,7 +8,7 @@
  *    them (accepted by gain, then refused, then unscored in legacy order), and
  *    `objective-drop`, the same with the refused rows removed (what S5 would
  *    show if it filtered).
- * The labelled decks (the gates' critics and differs, E539) give precision@k
+ * The labeled decks (the gates' critics and differs, E539) give precision@k
  * of the cut lists and recall@k of the feed against them; every deck gives the
  * refusal and disagreement numbers.
  */

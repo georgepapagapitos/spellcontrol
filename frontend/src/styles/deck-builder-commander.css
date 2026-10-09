@@ -593,7 +593,7 @@
 
 /* Coarse-pointer floor for the WUBRG pip row: six pips plus Clear must still
    fit a 320px phone, so the box grows to 40px and a vertical-only ghost
-   supplies the last 4px — sideways ghosts would overlap the neighbouring pip
+   supplies the last 4px — sideways ghosts would overlap the neighboring pip
    and hand its tap to whichever sibling is later in the DOM. */
 @media (pointer: coarse) {
   .commander-color-pip {

@@ -152,7 +152,7 @@
    2. The STEPPERS still need their own 44px GHOST, because the row's height
       only fixes the vertical axis — a 28px box is a 28px target horizontally no
       matter how tall its row is. (Measured: without this, a probe 18px right of
-      `+`'s centre resolves to the row, not the button, at every width.) A real
+      `+`'s center resolves to the row, not the button, at every width.) A real
       44px box instead would inflate the row and, at 320px, squeeze the printing
       label to a sliver — see [[project_dense_row_ghost_hit_area]]. `−` and `+`
       sit ~60px apart centre-to-centre (28 + 4 + ~24 + 4), wider than 44, so the

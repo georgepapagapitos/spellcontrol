@@ -111,7 +111,7 @@ const SHOW_PREFS_LABEL: Record<keyof ShowPrefs, string> = {
 // The full role-badge key: every 2-letter abbreviation spelled out,
 // grouped by top-level role. Shared by the toolbar legend (below) and
 // the tap-to-reveal badge popover so the two can't drift. `highlightTone`
-// emphasises the row for the badge a user just tapped.
+// emphasizes the row for the badge a user just tapped.
 function RoleBadgeKey({ highlightTone }: { highlightTone?: string }) {
   return (
     <div className="deck-role-legend-body" role="group" aria-label="Role badge key">
@@ -582,10 +582,10 @@ function DeckViewModeToggle({
   );
 }
 
-// ── Group-by menu (E124, +'tag' E171; a labelled dropdown since 2026-09-19) ──
+// ── Group-by menu (E124, +'tag' E171; a labeled dropdown since 2026-09-19) ──
 // 'type' (canonical card type, the long-standing default), 'category' (the
 // derived buckets) or 'tag' (the user's own). This was a three-icon segmented
-// toggle (Shapes / Tags / Tag) — three near-identical unlabelled glyphs that
+// toggle (Shapes / Tags / Tag) — three near-identical unlabeled glyphs that
 // nobody could read; Moxfield and Archidekt both spell it out as
 // "Group: Type ▾", and so does the collection toolbar's own Group by menu
 // (CardListTable), which this now matches.

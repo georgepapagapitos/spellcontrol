@@ -182,7 +182,7 @@
   flex-shrink: 0;
 }
 
-/* The status as a word beside the icon — colour is never the only signal. */
+/* The status as a word beside the icon — color is never the only signal. */
 .card-legality-status {
   margin-left: auto;
   font-family: var(--font-mono);

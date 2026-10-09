@@ -12,7 +12,7 @@ import type { FriendCard } from '@/lib/cube/pool';
  * including the public share views, which open it from the same kind of grid
  * (`SharedCollectionView`). A friend's binder was the one collection you could
  * look at but not open a card in. The obstacle was only shape: the friend
- * endpoint sends card FACTS (`FriendCard` — name, colours, type line, oracle
+ * endpoint sends card FACTS (`FriendCard` — name, colors, type line, oracle
  * text), while `CardPreview` consumes `EnrichedCard`, a physical copy.
  *
  * There is no printing to prefer here, and that is the point: a friend sees
@@ -43,7 +43,7 @@ export async function resolveFriendPreview(cards: FriendCard[]): Promise<{
     // Dropped rather than faked, as in `resolveTradePreview`: a slide with no
     // art and no oracle text is worse than one fewer slide. The caller maps a
     // tapped tile to its slide through `indexOf`, which accounts for the drop —
-    // a positional index would silently open the neighbouring card the moment a
+    // a positional index would silently open the neighboring card the moment a
     // single lookup missed.
     if (!scryfall) continue;
     slideByName.set(card.name, resolved.length);

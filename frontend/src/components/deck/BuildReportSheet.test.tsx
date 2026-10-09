@@ -11,7 +11,7 @@ vi.mock('@/lib/cards/card-thumbs', () => ({
 }));
 
 // BuildReportPanel pulls in analysis logic; mock it to a simple stub so the
-// sheet test stays focused on the one-shot / dismiss behaviour.
+// sheet test stays focused on the one-shot / dismiss behavior.
 vi.mock('./BuildReportPanel', () => ({
   BuildReportPanel: () => <div data-testid="build-report-panel" />,
 }));

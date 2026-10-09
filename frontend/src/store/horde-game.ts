@@ -160,7 +160,7 @@ interface HordeStore extends HordeData {
   retryLoad(): void;
   /** Rematch a finished Horde game from Play history: the same horde, the
    *  same difficulty (from this device's own `finished` list when it has the
-   *  game, Standard otherwise; Customise values aren't recorded) and the same
+   *  game, Standard otherwise; Customize values aren't recorded) and the same
    *  survivors with their decks. Replaces any game in progress, so the page
    *  asks first. */
   rematch(rec: GameRecord): Promise<void>;

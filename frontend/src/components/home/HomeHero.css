@@ -237,7 +237,7 @@
 /* ── Actions ───────────────────────────────────────────────────────────────
    Add cards (filled) · the secondary (outline) · ⋮. Density tiers: 44px on a
    phone, 40 on a tablet, 36 on a desktop (§ Layout system). On a phone the
-   two labelled buttons split the row and the ⋮ is a square. */
+   two labeled buttons split the row and the ⋮ is a square. */
 .home-hero-actions {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 44px;

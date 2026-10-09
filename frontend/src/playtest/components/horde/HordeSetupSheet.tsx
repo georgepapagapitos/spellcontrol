@@ -28,7 +28,7 @@ interface Props {
 /**
  * "Fight a horde" (STYLE_GUIDE "Horde table" setup, solo'd): the paper
  * table's own `HordeSetupFields` for one survivor, in a bottom sheet on
- * phones / a centred dialog at >=1024px. Opens on the current fight's
+ * phones / a centered dialog at >=1024px. Opens on the current fight's
  * settings when one is already armed, offering "Stop the fight" instead of
  * just Cancel there.
  */

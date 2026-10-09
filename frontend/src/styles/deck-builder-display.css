@@ -67,7 +67,7 @@
   /* An icon-only pill (Select or ⋯ with the label hidden on a phone) is
      never narrower than it is tall: min-width is the tier's control height,
      44px on a touch pointer (density-tiers.test). It measured 36 and 38
-     wide. The content centres in that box. */
+     wide. The content centers in that box. */
   justify-content: center;
   min-width: var(--control-h);
   gap: var(--icon-gap);

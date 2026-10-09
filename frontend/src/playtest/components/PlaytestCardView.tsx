@@ -169,7 +169,7 @@ export const PlaytestCardView = memo(function PlaytestCardView({
         //
         // Enter only, deliberately: Space is the board's "move the game on"
         // key and has to mean that everywhere. A card holds focus after every
-        // click, so honouring Space here made the biggest key on the keyboard
+        // click, so honoring Space here made the biggest key on the keyboard
         // tap whatever was last touched instead of taking the turn.
         if (e.key !== 'Enter') return;
         e.preventDefault();

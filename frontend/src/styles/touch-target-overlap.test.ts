@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
  *
  * Every assertion here was written against a MEASURED hit area from a real
  * browser at the phone tier on 2026-09-20 — `elementFromPoint` walked outward
- * from each control's centre, never `getBoundingClientRect` alone. That
+ * from each control's center, never `getBoundingClientRect` alone. That
  * distinction is the whole point: all four defects below reported a 44x44
  * BOX, so the nightly journey's box-reading floor check passed them, while the
  * real target was 39-41px and the missing strip activated the control NEXT to
@@ -32,7 +32,7 @@ import { fileURLToPath } from 'node:url';
  *
  * The same rule applies to a `::after` ghost, which is the app's other way of
  * reaching 44px: the ghost may not be wider than the control's own pitch, or it
- * overlaps its neighbour's ghost.
+ * overlaps its neighbor's ghost.
  *
  * The live guard is `overlappingTouchTargets()` in `scripts/journey.mjs`, which
  * hit-tests all 38 screens nightly and FAILS the run — it is what caught the
@@ -132,7 +132,7 @@ describe('touch targets do not overlap each other', () => {
   });
 
   // ── Ghosts may not be wider than the control's own pitch ─────────────────
-  it('the collection tile badges ghost to their pitch, not past their neighbour', () => {
+  it('the collection tile badges ghost to their pitch, not past their neighbor', () => {
     const css = read('styles/collection.css');
     for (const selector of ['.card-list-binder-badge::after', '.card-list-deck-badge::after']) {
       const body = ruleBody(css, selector);

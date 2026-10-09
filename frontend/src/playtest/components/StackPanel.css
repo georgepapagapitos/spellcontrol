@@ -87,7 +87,7 @@
 
 /* A card under the top of the stack shows the slice a real pile shows: its
    own top border and printed title bar, name and mana cost in the card's
-   own type-set over its own frame colour. 100/22 of the card's width is
+   own type-set over its own frame color. 100/22 of the card's width is
    that band plus a sliver of art, and the sliver is what the next card
    overlaps. */
 .stack-panel__card--clipped {

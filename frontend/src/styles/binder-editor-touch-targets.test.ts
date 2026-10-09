@@ -25,7 +25,7 @@ const forms = read('forms-banners.css');
  *    would add ~264px of scroll to the product's headline page.
  *  - `.binder-card-editor-remove` and `.binder-card-editor-drag` GROW. Their
  *    rows are 42px tall and butt together with zero gap, so a ghost would
- *    overhang the neighbouring row — and for Remove, the thing it would
+ *    overhang the neighboring row — and for Remove, the thing it would
  *    overlap is the next row's *destructive* control.
  *  - Text inputs GROW. A caret and a selection live on the real box; a ghost
  *    cannot receive them.
@@ -86,7 +86,7 @@ describe('binder editor coarse-pointer touch targets', () => {
       'position: absolute'
     );
     expect(body!, 'the ghost must centre on its own button').toContain('translateY(-50%)');
-    // It only centres against the button if the button is a containing block.
+    // It only centers against the button if the button is a containing block.
     expect(gridSlots).toMatch(/\.section-header-toggle\s*\{[^}]*position:\s*relative/);
     // `height: 100%` + `min-height` rather than a flat height, so the 12
     // sections that already compute 57px keep their larger target.
@@ -186,7 +186,7 @@ describe('binder editor coarse-pointer touch targets', () => {
 
   it('.filter-group-name is floored despite escaping the shared rule', () => {
     // It has NO `type` attribute, so `input[type='text']` never matched it —
-    // which is exactly why it measured 38px while its neighbours read 42.
+    // which is exactly why it measured 38px while its neighbors read 42.
     const body = ruleBody(coarseBlocks(rulesEditor), '.filter-group-name');
     expect(
       body,

@@ -442,7 +442,7 @@ function CommanderDraftSimReport({
   );
 }
 
-/** One identity's "drafted as commander" row — plain text label (colour is
+/** One identity's "drafted as commander" row — plain text label (color is
  *  never the only signal; there is no swatch here at all, same choice the
  *  static grid above already makes), a share meter, and the percentage. */
 function IdentityRow({ identity, share }: { identity: LegendIdentity; share: number }) {

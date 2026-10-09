@@ -2,7 +2,7 @@ import { logger } from '@/lib/util/logger';
 
 /**
  * Keyboard shortcuts for the table — the binding table, its persistence, and
- * the key normaliser the board's one keydown handler dispatches through.
+ * the key normalizer the board's one keydown handler dispatches through.
  *
  * Every shortcut has an id the board maps to a handler, a default key, and a
  * home in the sheet. The defaults are EDHPlay's map: a player arriving from

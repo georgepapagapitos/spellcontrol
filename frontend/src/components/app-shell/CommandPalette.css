@@ -1,6 +1,6 @@
 /* CommandPalette.css — the ⌘K palette.
    Rides <Modal>'s backdrop + entrance motion; this file styles only the panel
-   interior. Co-located per STYLE_GUIDE § CSS organisation. */
+   interior. Co-located per STYLE_GUIDE § CSS organization. */
 
 .command-palette {
   display: flex;

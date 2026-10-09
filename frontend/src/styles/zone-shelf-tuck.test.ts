@@ -54,7 +54,7 @@ describe('the zone shelf’s tuck', () => {
 
   it('shows the TOP of the card, the part that identifies it', () => {
     // The card inside is a full card height in a box a third of that, so the
-    // box's cross-axis alignment picks which third you see. Centred, it
+    // box's cross-axis alignment picks which third you see. Centered, it
     // showed the middle — type line and rules text, name and art cut off
     // above — which identifies nothing. `object-position` on the image
     // cannot fix this: the image element is full height and has nothing to

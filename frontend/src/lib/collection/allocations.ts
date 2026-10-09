@@ -21,7 +21,7 @@ export * from './allocations-core';
 
 /**
  * Map<copyId → AllocationInfo>. Read by `CardSlot` and the binder UI
- * to grey out copies that are "checked out" to a saved deck. The map only
+ * to gray out copies that are "checked out" to a saved deck. The map only
  * contains entries with a non-null `allocatedCopyId`; cards in decks
  * the user does not own (or that have been orphaned by a collection
  * delete) do not appear here.

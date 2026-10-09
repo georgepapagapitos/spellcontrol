@@ -7,9 +7,9 @@
  * Every EDHREC path is built from the enums below, never from raw request
  * input, so only allowlisted pages can ever be fetched.
  *
- * Verified live 2026-09-29 (all 81 pages 200): colour and type pages carry
+ * Verified live 2026-09-29 (all 81 pages 200): color and type pages carry
  * the same deck counts as the 2-year list, so they are 2-year lists and a
- * colour or type filter always answers with period `year`.
+ * color or type filter always answers with period `year`.
  */
 
 export const TOP_LIST_KINDS = ['commanders', 'cards', 'salt'] as const;
@@ -33,7 +33,7 @@ export const TOP_CARD_TYPES = [
 ] as const;
 export type TopCardType = (typeof TOP_CARD_TYPES)[number];
 
-/** A colour page holds one cardlist per type, tagged without the hyphen. */
+/** A color page holds one cardlist per type, tagged without the hyphen. */
 const COLOUR_PAGE_TYPE_TAG: Record<TopCardType, string> = {
   creatures: 'creatures',
   instants: 'instants',
@@ -47,7 +47,7 @@ const COLOUR_PAGE_TYPE_TAG: Record<TopCardType, string> = {
   lands: 'lands',
 };
 
-/** Two or more colours: the same slug on the commander and card pages. */
+/** Two or more colors: the same slug on the commander and card pages. */
 const MULTICOLOUR_SLUG: Record<string, string> = {
   WU: 'azorius',
   WB: 'orzhov',
@@ -77,7 +77,7 @@ const MULTICOLOUR_SLUG: Record<string, string> = {
   WUBRG: 'five-color',
 };
 
-/** `/pages/commanders/<slug>.json`. Mono colours are `mono-<colour>` here. */
+/** `/pages/commanders/<slug>.json`. Mono colors are `mono-<colour>` here. */
 export const COMMANDER_COLOUR_SLUG: Record<string, string> = {
   C: 'colorless',
   W: 'mono-white',
@@ -88,7 +88,7 @@ export const COMMANDER_COLOUR_SLUG: Record<string, string> = {
   ...MULTICOLOUR_SLUG,
 };
 
-/** `/pages/top/<slug>.json`. Mono colours are the bare colour here
+/** `/pages/top/<slug>.json`. Mono colors are the bare color here
  *  (`/top/mono-white.json` is 403, `/top/white.json` is 200). */
 export const CARD_COLOUR_SLUG: Record<string, string> = {
   C: 'colorless',
@@ -127,7 +127,7 @@ function single(v: unknown): string | undefined | false {
   return typeof v === 'string' ? v : false;
 }
 
-/** Normalises a colour filter to WUBRG order, or `C`. `null` = no filter. */
+/** Normalizes a color filter to WUBRG order, or `C`. `null` = no filter. */
 export function normalizeColors(raw: string): string | null | false {
   const upper = raw.trim().toUpperCase();
   if (upper === '') return null;
@@ -173,7 +173,7 @@ export function parseTopListQuery(query: Record<string, unknown>): TopListQueryR
   if (kind === 'commanders' && type !== null) {
     return { ok: false, error: 'Only the card list can be filtered by type.' };
   }
-  // Colour and type pages are 2-year lists (see the header comment).
+  // Color and type pages are 2-year lists (see the header comment).
   const period: TopListPeriod =
     colors !== null || type !== null ? 'year' : (periodPicked ?? 'week');
   return { ok: true, key: { kind, period, colors, type } };
@@ -233,7 +233,7 @@ export class TopListParseError extends Error {}
 /**
  * Parses an EDHREC page body into ranked entries for `key`. Throws
  * TopListParseError on a `redirect` body, a missing cardlist array, or (for a
- * list that must exist) a missing list. A colour page with no list for the
+ * list that must exist) a missing list. A color page with no list for the
  * requested type is a real empty list: EDHREC omits the tag when no card of
  * that type has that identity (Bant has no battles).
  */

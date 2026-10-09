@@ -13,7 +13,7 @@ import type { StateStorage } from 'zustand/middleware';
 export function createIndexedDbStorage(dbName: string): StateStorage {
   // Non-browser environments (SSR, unit tests under the `node` runtime) have
   // no IndexedDB. Fall back to an in-memory map so store creation/hydration
-  // never throws — same effective "no persistence" behaviour as before.
+  // never throws — same effective "no persistence" behavior as before.
   if (typeof indexedDB === 'undefined') {
     const mem = new Map<string, string>();
     return {

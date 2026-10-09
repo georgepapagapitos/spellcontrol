@@ -514,7 +514,7 @@ interface CoachPass {
 
 const fixingLandCache = new Map<string, ScryfallCard[]>();
 async function fixingLands(identity: string[]): Promise<ScryfallCard[]> {
-  // DeckEditorPage fetchFixingLands: 2+ colours only, the search hook's 60.
+  // DeckEditorPage fetchFixingLands: 2+ colors only, the search hook's 60.
   if (identity.length < 2) return [];
   const key = [...identity].sort().join('');
   if (!fixingLandCache.has(key)) {

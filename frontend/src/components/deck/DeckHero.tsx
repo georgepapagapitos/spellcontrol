@@ -12,7 +12,7 @@ const COLOR_NAMES: Record<string, string> = {
 interface Props {
   /** The commander's art_crop, drawn as a thumbnail. Absent → no thumbnail. */
   art?: string;
-  /** The deck's own colour: the thumbnail's foot, or the title column's rule. */
+  /** The deck's own color: the thumbnail's foot, or the title column's rule. */
   color?: string;
   /** The deck's color identity (WUBRG), as pips at the head of the meta line. */
   colors?: readonly string[];

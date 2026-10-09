@@ -256,7 +256,7 @@ export function SharedDeckSurface({
     data.cards.length + (data.commander ? 1 : 0) + (data.partnerCommander ? 1 : 0);
 
   // Same hero the owner's deck page renders (.deck-editor-hero, DeckEditorPage):
-  // commander art behind the title, the deck's colour on the left edge, and one
+  // commander art behind the title, the deck's color on the left edge, and one
   // meta line of format · commander · cards · value · bracket. A visitor was
   // getting a plain caption-and-title block instead — the same deck, dressed as
   // a different product.

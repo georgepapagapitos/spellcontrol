@@ -608,7 +608,7 @@ function buildSections(
  * routing so the labeling is consistent). Empty sections are omitted. Within
  * each section, cards are sorted by `sorts`.
  *
- * Honours the same page settings as sort-driven sections (E473: this used to
+ * Honors the same page settings as sort-driven sections (E473: this used to
  * ignore both): page filling (`packSections`) flows small rule sections onto
  * a shared page exactly like `packGroups` does for sort groups, and "Leave
  * room" (`sparePockets`) reserves pockets after each rule's cards. Merged

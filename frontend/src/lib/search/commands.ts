@@ -117,7 +117,7 @@ export interface BuildCommandsCtx {
   go: (path: string, state?: Record<string, unknown>) => void;
   /**
    * AI feature reachable for this account (`useAiStatus()` non-null). The AI
-   * group self-hides like every AI surface — absent, not greyed out (E247).
+   * group self-hides like every AI surface — absent, not grayed out (E247).
    */
   aiAvailable?: boolean;
   /** The deck page currently open, when there is one — enables deck-scoped AI. */
@@ -247,7 +247,7 @@ export function buildCommands({
   }
 
   // AI commands exist only while the feature is reachable — same self-hiding
-  // rule as every AI surface (unavailable ⇒ absent, never greyed out).
+  // rule as every AI surface (unavailable ⇒ absent, never grayed out).
   if (aiAvailable) {
     if (deckPage) {
       out.push({

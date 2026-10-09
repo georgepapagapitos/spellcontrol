@@ -13,7 +13,7 @@
  * Newton. The objective is the MEAN loss plus lambda times the squared distance
  * of the weights from the hand weights (all ones). Pure and
  * deterministic. (validation.ts's fitBeta is the leave-one-out version for ~50
- * labelled pairs; it is far too slow for thousands.)
+ * labeled pairs; it is far too slow for thousands.)
  */
 import { hit, rng } from './validation';
 

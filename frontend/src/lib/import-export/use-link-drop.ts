@@ -14,7 +14,7 @@ export function hasLinkPayload(types: readonly string[]): boolean {
   return types.includes('text/uri-list') || types.includes('text/html');
 }
 
-/** Every text flavour the drop carried, joined, for a link parser to scan. */
+/** Every text flavor the drop carried, joined, for a link parser to scan. */
 export function readLinkPayload(data: DataTransfer): string {
   return ['text/uri-list', 'text/html', 'text/plain']
     .map((type) => data.getData(type))

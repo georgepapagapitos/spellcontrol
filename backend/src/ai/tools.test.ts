@@ -76,7 +76,7 @@ describe('lookup_cards', () => {
     expect(text).toMatch(/Naturalize \(mana value 2\) — Instant:/);
   });
 
-  it('confines results to the commander colour identity', async () => {
+  it('confines results to the commander color identity', async () => {
     const tool = lookupCardsTool(cache, { colorIdentity: ['B', 'G'] });
     const names = (await tool.run({ query: 'destroy target artifact' })).fetched.map((f) => f.name);
     expect(names).toContain('Naturalize');
@@ -520,7 +520,7 @@ describe('makeCandidateResolver', () => {
     expect(makeCandidateResolver(cache, {})('Blightsteel Chancellor of Nothing')).toBeNull();
   });
 
-  it('rejects a card outside the commander colour identity', () => {
+  it('rejects a card outside the commander color identity', () => {
     const resolve = makeCandidateResolver(cache, { colorIdentity: ['B', 'G'] });
     expect(resolve('Naturalize')).toBe('Naturalize');
     expect(resolve('Shatter')).toBeNull();

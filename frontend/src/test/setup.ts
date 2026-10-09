@@ -47,7 +47,7 @@ afterEach(async () => {
  * whose body the code under test never reads (every early-return error path)
  * leaves undici's body stream open, and `--detectAsyncLeaks` counts its pending
  * promise — 30 of the 110 leaks at the slice-3 baseline, across 17 client
- * tests. A null body, a consumed body or a cancelled body all settle. Rather
+ * tests. A null body, a consumed body or a canceled body all settle. Rather
  * than touching every stub, track each Response a test constructs and cancel
  * whatever it left unread once the test is over.
  */

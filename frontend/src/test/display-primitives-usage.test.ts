@@ -259,8 +259,8 @@ describe('badges, counts, surfaces and section headers come from the display pri
     ).toEqual([]);
   });
 
-  it('the scan recognises the migrated call sites (guards the guard)', () => {
-    // A matcher change that silently stopped recognising a family would pass
+  it('the scan recognizes the migrated call sites (guards the guard)', () => {
+    // A matcher change that silently stopped recognizing a family would pass
     // every case above. Each shape's classes must still be found on the
     // primitives that now carry them.
     for (const shape of SHAPES) expect(migrated[shape], shape).toBeGreaterThan(0);

@@ -27,7 +27,7 @@ interface CombosPayload {
 /**
  * Gzip a sequence of string parts without ever materializing the joined text:
  * each part is hashed, counted and written to the compressor as it is produced,
- * honouring backpressure. Keeps the six-hourly rebuild's peak at "rows in
+ * honoring backpressure. Keeps the six-hourly rebuild's peak at "rows in
  * memory + ~18 MB of gzip" instead of "rows + 160 MB string + 160 MB buffer".
  */
 async function gzipParts(

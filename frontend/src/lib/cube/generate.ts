@@ -295,7 +295,7 @@ function cubeQuotas(band: BandTargets, nonlandTarget: number): Record<Quota, num
  * a role — EDHREC rank filled 15–18% of a cube with ramp against a corpus 8%
  * (E288), and the cube-native signal does the same with removal (cube staples
  * skew to interaction: with a p75 ceiling the seed sat at 29–31% removal and
- * the interaction term, centred on the median with a half-IQR tolerance, fell
+ * the interaction term, centered on the median with a half-IQR tolerance, fell
  * to 0.6). So the seed lands each role on the corpus MEDIAN whenever the pool
  * can supply it, and the quality order decides only which non-role cards fill
  * the rest. Past its quota a role card is filler of last resort: deferred while

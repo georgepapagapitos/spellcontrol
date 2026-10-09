@@ -111,7 +111,7 @@ const CARD_ASPECT = 5 / 7;
  *      on the same physical card.
  *
  * `DETECT_LOST_TICKS` is how many consecutive empty ticks must elapse
- * before we drop the locked-on outline back to the default centred
+ * before we drop the locked-on outline back to the default centered
  * box — quick enough to feel responsive, slow enough to ride out a
  * single noisy frame.
  */
@@ -208,7 +208,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
   /**
    * Two rectangles, both in viewport (px) coordinates:
    *
-   *   - `defaultViewfinderRect` — the static centred 5:7 box. Anchors the
+   *   - `defaultViewfinderRect` — the static centered 5:7 box. Anchors the
    *     title-band variance probe when the detector has no lock, and is the
    *     fallback capture region when the card-edge detector turns up empty.
    *   - `searchRect` — the *full visible camera band* (minus a thin
@@ -443,7 +443,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
    * 4:3 frame, full width, with black bars above and below that hold the
    * corner controls and the last-scan panel, like a phone's camera app.
    * (Filling the screen instead cropped a third of the width off and read as
-   * zoomed in.) A 5:7 portrait box sits centred in the band at ~78% of the
+   * zoomed in.) A 5:7 portrait box sits centered in the band at ~78% of the
    * smaller axis. Capture and detection map these rects back into video
    * pixels through `computeDisplayRect`.
    */

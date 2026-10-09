@@ -676,7 +676,7 @@ describe('DeckEditorPage — the Deck menu holds the deck, the toolbar the list 
     }
   });
 
-  it('sections the menu into labelled clusters instead of one flat list', () => {
+  it('sections the menu into labeled clusters instead of one flat list', () => {
     renderEditor();
     fireEvent.click(screen.getByLabelText('Deck actions'));
 
@@ -880,7 +880,7 @@ describe('DeckEditorPage — header actions by tier (STYLE_GUIDE § Layout syste
     expect(document.querySelector('.deck-editor-actions .btn-primary')?.textContent).toContain(
       'Add cards'
     );
-    // Undo/redo lead the menu, above its first labelled section.
+    // Undo/redo lead the menu, above its first labeled section.
     const items = menuLabels();
     expect(items.slice(0, 2)).toEqual(['Undo remove Sol Ring', 'Redo add Sol Ring']);
     expect(items).toContain('Playtest');

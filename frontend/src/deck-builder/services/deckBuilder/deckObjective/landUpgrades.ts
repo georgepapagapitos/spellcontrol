@@ -4,7 +4,7 @@
  * The generator meets a land only through the commander page's land list, so an
  * owned dual, check land or utility land the page never ranked has no way into
  * a collection build. The search seats one by swapping it for a basic: a 1:1
- * move that keeps the land count the plan chose, judged by the mana term (colour
+ * move that keeps the land count the plan chose, judged by the mana term (color
  * sources against pip demand, an enters-tapped land against the curve, all in
  * the goldfish) like any other swap.
  *
@@ -35,7 +35,7 @@ export const MAX_LAND_EVALUATIONS = 120;
 /** Land upgrades judged in full per step. */
 export const UPGRADES_PER_STEP = 6;
 
-/** The colours a land taps for, as the goldfish reads them (0 = colourless or none). */
+/** The colors a land taps for, as the goldfish reads them (0 = colorless or none). */
 export function landColours(card: ScryfallCard, ctx: ObjectiveContext): number {
   const face = ctx.manaCardOf(card).land;
   return face ? face.units.reduce((m, u) => m | u, 0) : 0;
@@ -48,9 +48,9 @@ export interface LandUpgrade {
 }
 
 /**
- * The basics a land could replace: the most numerous basic it shares a colour
- * with (it still taps for that colour), and the most numerous it doesn't (a
- * dual adds a second colour while giving up a surplus one). A colourless land
+ * The basics a land could replace: the most numerous basic it shares a color
+ * with (it still taps for that color), and the most numerous it doesn't (a
+ * dual adds a second color while giving up a surplus one). A colorless land
  * takes the most numerous basic. At most two per land, ties by name.
  */
 export function landUpgrades(
@@ -114,7 +114,7 @@ export interface RankedUpgrade extends LandUpgrade {
 
 /**
  * The land upgrades worth a full score this step: the owned nonbasic lands that
- * give colour and don't pay for their mana, each against the basics it could
+ * give color and don't pay for their mana, each against the basics it could
  * replace, ranked by the short goldfish and kept to UPGRADES_PER_STEP.
  */
 export function rankLandUpgrades(
@@ -165,9 +165,9 @@ export function nonbasicLands(deck: ObjectiveDeck): number {
 }
 
 /**
- * Whether a land move gives up a colour source the deck is short of: the
- * manabase summary (the build report's own) finds a colour short after the
- * move, and the move took away a source of it. A colourless utility land for a
+ * Whether a land move gives up a color source the deck is short of: the
+ * manabase summary (the build report's own) finds a color short after the
+ * move, and the move took away a source of it. A colorless utility land for a
  * red source in a deck short of red (Faceless Haven in Krenko, gate 9).
  */
 export function losesShortSource(

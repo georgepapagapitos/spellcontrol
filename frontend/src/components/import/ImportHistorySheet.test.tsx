@@ -70,7 +70,7 @@ describe('ImportHistorySheet (T153 — moved off the add-cards flow)', () => {
     expect(useCollectionStore.getState().cards).toEqual([]);
   });
 
-  it('cancelling the delete confirm keeps the import', () => {
+  it('canceling the delete confirm keeps the import', () => {
     useCollectionStore.setState({ importHistory: [ENTRY_A] });
     render(<ImportHistorySheet onClose={() => {}} />);
 

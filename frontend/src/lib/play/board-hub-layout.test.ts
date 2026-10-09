@@ -54,7 +54,7 @@ describe('hubPetalPositions', () => {
     expect(hubPetalPositions({ x: 160, y: 284 }, VIEWPORT_320, 0)).toHaveLength(0);
   });
 
-  it('keeps every petal on screen at 320px wide, hub at centre', () => {
+  it('keeps every petal on screen at 320px wide, hub at center', () => {
     const points = hubPetalPositions({ x: 160, y: 284 }, VIEWPORT_320, 6);
     for (const p of points) inBounds(p, VIEWPORT_320);
   });
@@ -71,7 +71,7 @@ describe('hubPetalPositions', () => {
     }
   });
 
-  it('keeps every petal on screen at the hub sitting exactly at viewport centre', () => {
+  it('keeps every petal on screen at the hub sitting exactly at viewport center', () => {
     const points = hubPetalPositions(
       { x: VIEWPORT_320.width / 2, y: VIEWPORT_320.height / 2 },
       VIEWPORT_320,
@@ -107,9 +107,9 @@ describe('hubPetalPositions', () => {
     // the board is always a 2-column grid, so a seam's LEFT is always exactly
     // 50% and only its TOP varies by row — see board-hub-layout.ts's header
     // comment. `board-layouts.ts`'s own most extreme row fraction is 1/4
-    // (25%); this checks that and dead centre, at both viewports.
+    // (25%); this checks that and dead center, at both viewports.
     for (const viewport of [VIEWPORT_320, VIEWPORT_390]) {
-      it(`hub at centre, ${viewport.width}x${viewport.height}`, () => {
+      it(`hub at center, ${viewport.width}x${viewport.height}`, () => {
         const hub = { x: viewport.width / 2, y: viewport.height / 2 };
         expectNoOverlap(hubPetalPositions(hub, viewport, 6));
       });

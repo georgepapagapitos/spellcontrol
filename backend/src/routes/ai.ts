@@ -77,10 +77,10 @@ import { getRulesIndex, type RuleEntry } from '../rules';
 const ORACLE_MAX_AGE_MS = Number.MAX_SAFE_INTEGER;
 
 /**
- * The command zone's colour identity (both partners, unioned), so card search
+ * The command zone's color identity (both partners, unioned), so card search
  * only returns cards this deck could legally run. A miss on either commander
  * returns undefined, which searches unrestricted — better a wider search than
- * one missing a partner's colours, and the prompt still states the rule.
+ * one missing a partner's colors, and the prompt still states the rule.
  */
 function commanderIdentity(
   cache: ReturnType<typeof getScryfallCache>,
@@ -404,7 +404,7 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
   // reasons without that card's text (the prompt tells it how), never a live
   // Scryfall call from the shared egress IP.
   const cache = getScryfallCache();
-  // The review's search honours the same deck-scoped sources contract as the
+  // The review's search honors the same deck-scoped sources contract as the
   // refine pass, so a restricted deck is never prescribed a card to buy.
   const scoped = await scopeSearch(userId, request.scope, request.deckId, request.currency);
   const oracle: OracleEntry[] = [];
@@ -450,7 +450,7 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
       {
         // Scoped to this deck, so anything the model retrieves is already a
         // legal suggestion for it — the filtering that used to live in the
-        // prompt as "stay inside the colour identity" is now in the query.
+        // prompt as "stay inside the color identity" is now in the query.
         tools: [
           lookupCardsTool(cache, {
             colorIdentity: commanderIdentity(cache, commandZone(request)),

@@ -60,7 +60,7 @@ export interface PublicProfile {
   stats: { likesReceived: number; copiesReceived: number };
   /** Up to three, most live decks first. */
   topCommanders: ProfileTopCommander[];
-  /** Live decks carrying each colour; a colourless deck counts under C. */
+  /** Live decks carrying each color; a colorless deck counts under C. */
   colorSpread: Record<ProfileColor, number>;
   /** Only while still a live publication of theirs. */
   pinnedDeckSlug: string | null;

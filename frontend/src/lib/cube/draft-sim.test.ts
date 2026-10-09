@@ -28,7 +28,7 @@ function legend(p: Partial<CubeCard>): CubeCard {
 }
 
 /** A full-size, well-shaped 8-player pool: plenty of nonland playables in
- *  every colour and in mixed pairs, plus a deep tokens axis and a barely-there
+ *  every color and in mixed pairs, plus a deep tokens axis and a barely-there
  *  (undraftable) graveyard axis. */
 function wellShapedPool(): CubeCard[] {
   const pool: CubeCard[] = [];
@@ -187,7 +187,7 @@ describe('simulateDraft — undrafted archetypes', () => {
 
 // ── simulateCommanderDraft (board E461) ─────────────────────────────────────
 
-/** A generous legend section: 2-3 candidates in every mono colour and every
+/** A generous legend section: 2-3 candidates in every mono color and every
  *  pair, cubePop spread wide enough that roughly half clear any pool-derived
  *  quality bar and half don't. */
 function richLegends(): CubeCard[] {
@@ -209,7 +209,7 @@ function richLegends(): CubeCard[] {
 
 /**
  * A spell pool built around a handful of specific 2-colour PAIR identities
- * (mono of each colour in the pair, plus gold of that exact pair, all of
+ * (mono of each color in the pair, plus gold of that exact pair, all of
  * which are identity-legal for it) rather than every identity at once —
  * spreading supply thin across all 16 possible identities dilutes any one
  * of them below what a 45-pick draft can realistically capture (a real
@@ -364,7 +364,7 @@ describe('simulateCommanderDraft — a mono-identity-starved cube', () => {
 
   it('an identity with legend supply but zero identity-legal spells anywhere is flagged unbuildable', () => {
     // W has real backing (50 mono-white spells); BG has NONE — no black, no
-    // green, and no colourless nonland card exists anywhere in this pool, so
+    // green, and no colorless nonland card exists anywhere in this pool, so
     // any drafter who ends up with a BG commander can never field 23
     // identity-legal playables around it, however the draft itself goes.
     const spells: CubeCard[] = [];
@@ -403,8 +403,8 @@ const CHOOSE_BACKGROUND_TEXT =
  * WHOLE pool (every pack it holds empties into its own picks before passing
  * would matter), so both halves of a pairing are always drafted by the same
  * seat, in a fixed order, on a fixed seed. 15 nonland playables in each of
- * two colours alone is short of `COMMANDER_PLAYABLE_TARGET` (23); only
- * combining both colours' spells clears it.
+ * two colors alone is short of `COMMANDER_PLAYABLE_TARGET` (23); only
+ * combining both colors' spells clears it.
  */
 function pairedPool(secondOracleText: string | undefined, commanderOracleText: string | undefined) {
   const spells: CubeCard[] = [];
@@ -435,7 +435,7 @@ describe('simulateCommanderDraft — Partner combining', () => {
     const { spells, legends } = pairedPool(undefined, undefined);
     const result = simulateCommanderDraft(spells, legends, SIZE_180_CMDR, { runs: 5, seed: 1 });
     expect(result.noCommanderShare).toBe(0); // one of the two always qualifies as commander
-    expect(result.builtDeckShare).toBe(0); // 15 of one colour alone never reaches 23
+    expect(result.builtDeckShare).toBe(0); // 15 of one color alone never reaches 23
   });
 
   it('two plain-Partner legends combine into a WU identity and clear the bar', () => {

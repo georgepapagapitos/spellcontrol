@@ -63,7 +63,7 @@
 
 /* `underline` — page-level "distinct views" switcher: flat labels with an
    accent underline tracking the active tab. Reuses `.sc-tab` items but drops
-   the pill look in favour of a bottom-border indicator that sits on the strip's
+   the pill look in favor of a bottom-border indicator that sits on the strip's
    baseline. Scrolls horizontally on overflow (mobile). */
 .sc-tabs--underline {
   /* Positioning context for the sliding .sc-tab-indicator (abs-pos children
@@ -218,7 +218,7 @@
    A tab's own verdict, carried on the strip so "which view needs attention"
    is answerable without opening anything. Tone-tinted rather than accent-
    filled: the accent is reserved for selection, and a badge that changed
-   colour on select would read as a state change. Colour is never the only
+   color on select would read as a state change. Color is never the only
    cue — the badge text (a bracket number, "2 to tune") carries the meaning,
    and the .sr-only description beside it carries the rest. */
 .sc-tab-badge {

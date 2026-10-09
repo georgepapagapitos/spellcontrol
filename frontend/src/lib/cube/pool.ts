@@ -17,9 +17,9 @@ export interface FriendCard {
   name: string;
   oracleId: string;
   colors: string[];
-  /** Colour IDENTITY — optional because payloads cached before it shipped lack
+  /** Color IDENTITY — optional because payloads cached before it shipped lack
    *  it. `friend-search.ts` treats absent-vs-empty as the difference between
-   *  "unknown" and "colourless"; do NOT default it to [] at the boundary. */
+   *  "unknown" and "colorless"; do NOT default it to [] at the boundary. */
   colorIdentity?: string[];
   cmc: number;
   typeLine: string;

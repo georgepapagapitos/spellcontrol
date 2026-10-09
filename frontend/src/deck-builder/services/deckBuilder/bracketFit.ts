@@ -437,7 +437,7 @@ function makeCutMove(
  * estimated bracket to <= target. Uses a verify loop against the real
  * estimateBracket so the produced set is exactly what's needed — no over-cut.
  *
- * Cut prioritisation, highest-impact first:
+ * Cut prioritization, highest-impact first:
  *   1. Mass land denial (target <= 3 → cut all)
  *   2. Game Changers over allowance (lowest inclusion first)
  *   3. Combos (target <= 2 → break all, including late/setup combos: B1/B2

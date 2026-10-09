@@ -58,9 +58,9 @@ describe('table channel names', () => {
     }
   });
 
-  // The sweep deletes what this recognises, so a channel a moderator made in
+  // The sweep deletes what this recognizes, so a channel a moderator made in
   // the category must never read as a table.
-  it('recognises nothing else', () => {
+  it('recognizes nothing else', () => {
     for (const name of [
       'Lounge',
       'Table',

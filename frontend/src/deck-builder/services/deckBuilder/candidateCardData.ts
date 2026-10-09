@@ -53,7 +53,7 @@ function byLowerName(cards: Map<string, ScryfallCard>): Map<string, ScryfallCard
  * rows) and Optimize's curve-fill + cost confidence bands degrade (cmc
  * undefined → cmcDelta = Infinity). Backfill the gaps from Scryfall in place —
  * one batched, cache-backed `/cards/collection` call. Best-effort: on failure
- * the recommendations are left as-is (the prior behaviour).
+ * the recommendations are left as-is (the prior behavior).
  */
 export async function enrichRecommendationPrices(recs: RecommendedCard[]): Promise<void> {
   const need = recs.filter(

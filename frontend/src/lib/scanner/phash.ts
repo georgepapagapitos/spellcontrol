@@ -180,7 +180,7 @@ export function cropFullArtRegion(warped: HTMLCanvasElement): HTMLCanvasElement 
  * window is cropped out first so the resulting hash compares against the
  * backend's `art_crop`-derived hashes, not the full-card image. Resizing to
  * INPUT_SIZE × INPUT_SIZE → RGBA → BT.601 luminance happens on a scratch
- * canvas; the conversion weights match sharp's default greyscale.
+ * canvas; the conversion weights match sharp's default grayscale.
  */
 export function hashCanvas(source: HTMLCanvasElement): bigint {
   const art = cropArtRegion(source);
@@ -198,7 +198,7 @@ export function hashCanvas(source: HTMLCanvasElement): bigint {
   const rgba = imageData.data;
   const gray = new Uint8Array(PHASH_INPUT_SIZE * PHASH_INPUT_SIZE);
   for (let i = 0, j = 0; i < rgba.length; i += 4, j++) {
-    // BT.601 luminance — matches sharp's default greyscale conversion.
+    // BT.601 luminance — matches sharp's default grayscale conversion.
     gray[j] = Math.round(0.299 * rgba[i] + 0.587 * rgba[i + 1] + 0.114 * rgba[i + 2]);
   }
   return computePHash(gray);

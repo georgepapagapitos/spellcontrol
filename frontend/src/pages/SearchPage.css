@@ -52,7 +52,7 @@
   gap: var(--space-1);
   padding: var(--space-0-5) var(--space-2);
   border: 1px solid var(--border);
-  /* Labelled disclosure button = rect (T53 Phase 4). */
+  /* Labeled disclosure button = rect (T53 Phase 4). */
   border-radius: var(--radius);
   background: none;
   color: var(--text-secondary);

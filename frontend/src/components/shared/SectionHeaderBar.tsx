@@ -4,7 +4,7 @@ import type { SectionHeader } from '@/lib/collection/group-sections';
 
 /**
  * The group divider inside a grouped card list: a disclosure button carrying a
- * chevron, an optional colour pip, the section's label, and its count.
+ * chevron, an optional color pip, the section's label, and its count.
  *
  * It lives here rather than in `CardListTable` because a binder's list needs
  * the same bar. A binder used to render the PAGE-GRID section header instead —
@@ -33,8 +33,8 @@ export function SectionHeaderBar({
 }: {
   pip?: SectionHeader['meta']['pip'];
   /**
-   * Replaces the plain colour dot. A binder section is headed by the real mana
-   * symbol (`ColorPip`), not a swatch, because the section IS a colour.
+   * Replaces the plain color dot. A binder section is headed by the real mana
+   * symbol (`ColorPip`), not a swatch, because the section IS a color.
    */
   pipSlot?: ReactNode;
   label: string;

@@ -97,7 +97,7 @@ function ProfileSkeleton() {
  * identically. Never empty — `formatRelativeTime` always returns something.
  *
  * Recency is the deck's last UPDATE, the same fact the shelf sorts by (the
- * server orders by updated_at, the library's sort is labelled "Updated"). It
+ * server orders by updated_at, the library's sort is labeled "Updated"). It
  * used to be the publish date — a deck edited an hour ago read "4d ago" and
  * sorted under a newer publish (playtest batch 11). Discover's rail keeps
  * publishedAt on purpose: that surface is "fresh decks", and its payload

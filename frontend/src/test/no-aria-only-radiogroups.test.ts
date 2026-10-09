@@ -10,7 +10,7 @@
 //
 // That is the exact failure the guide condemns for tabs: "Partial ARIA … is
 // worse than none: it advertises a contract the component then fails to
-// honor." Concretely it meant a 7-swatch colour picker ate 7 tab stops instead
+// honor." Concretely it meant a 7-swatch color picker ate 7 tab stops instead
 // of 1, and a screen reader announced "radio group, 1 of 7" and then ignored
 // the arrows. Native radios carry exclusivity, arrow-key nav and a single group
 // tab stop for free, with no JS at all.

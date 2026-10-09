@@ -232,7 +232,7 @@ export function CardListTable({
   // `__uncategorized` is the value the filter dialog itself uses for the
   // fallthrough pile, so the post-import "matched no binder" row (E296) can
   // hand the user straight to the cards that escaped every rule. Captured in
-  // the lazy initialiser (like CollectionPage's `?add=`) so it survives the
+  // the lazy initializer (like CollectionPage's `?add=`) so it survives the
   // param being stripped from the URL on the next line.
   const [searchParams, setSearchParams] = useSearchParams();
   const [binderExpr, setBinderExpr] = useState<ChipExpression>(() => {

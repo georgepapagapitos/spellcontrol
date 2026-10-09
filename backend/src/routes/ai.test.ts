@@ -416,7 +416,7 @@ describe('POST /api/ai/deck-review', () => {
       .send(reviewBody());
     // Absent, not `[]` — the client tells "looked nothing up" apart from "this
     // row predates the column" by the key being missing either way, so the two
-    // must serialise identically.
+    // must serialize identically.
     expect(parseStream(res.text).done).not.toHaveProperty('fetched');
   });
 

@@ -15,7 +15,7 @@ interface Props {
   /** e.g. "No cards match your search or filters." */
   filteredTagline: string;
   /** Clears the view's own search box (rendered as "Reset search" — see the
-   *  button below for why it isn't labelled "Clear search"). Omit when the
+   *  button below for why it isn't labeled "Clear search"). Omit when the
    *  search box is already empty (the zero result came from filters alone)
    *  — a button that clears nothing is worse than no button; the filter
    *  popover already has its own Clear affordance one click away. */

@@ -36,7 +36,7 @@ import { useNow } from '@/lib/util/use-now';
  * `clockView` already subtracts paused stretches from every reading, so this
  * component only renders what it's handed. When paused, the note lands on
  * whichever reading is shown first (total, else turn) rather than on both, so
- * the state is said exactly once — never colour alone (a `Pause` glyph on the
+ * the state is said exactly once — never color alone (a `Pause` glyph on the
  * button plus the word "paused" in the text).
  *
  * Three controls, each a real button: **Start** (before any seat holds the

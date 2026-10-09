@@ -11,7 +11,7 @@ const EMPTY_COLORS: FriendColorFilter = new Set();
 /**
  * Lift a friend card into the public-card shape the shared filter dialog
  * matches on (`useSharedFilters` → `makeSharedMatcher`). The friend payload is
- * public card FACTS only — name, type line, colours, mana value, rarity, and
+ * public card FACTS only — name, type line, colors, mana value, rarity, and
  * (on an enriched payload) rules text and filterable-format legality. No
  * printing and no price: those fields are left empty and the dialog is
  * mounted with the `card-facts` facet set, which hides the rows they drive.
@@ -44,7 +44,7 @@ export function friendCardToPublic(card: FriendCard): PublicCard {
  * copies with one implementation.
  *
  * `colorIdentity` stays undefined when the payload lacks it (absent is not
- * colourless; see `FriendCard`). A card with no oracle id keys on its
+ * colorless; see `FriendCard`). A card with no oracle id keys on its
  * printing so the required field is never empty.
  */
 export function publicCardToFriendCard(card: PublicCard): FriendCard {

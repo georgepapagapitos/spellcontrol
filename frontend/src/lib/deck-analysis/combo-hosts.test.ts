@@ -48,7 +48,7 @@ describe('commandersForIdentity', () => {
   const thrasios = card({ name: 'Thrasios', colorIdentity: ['G', 'U'] });
   const commanders = [kess, thrasios];
 
-  it('keeps only commanders whose identity covers every colour the combo needs', () => {
+  it('keeps only commanders whose identity covers every color the combo needs', () => {
     expect(commandersForIdentity(commanders, 'ub').map((c) => c.name)).toEqual([
       'Kess, Dissident Mage',
     ]);
@@ -59,12 +59,12 @@ describe('commandersForIdentity', () => {
     expect(commandersForIdentity(commanders, '')).toHaveLength(2);
   });
 
-  it('excludes a commander missing even one required colour', () => {
+  it('excludes a commander missing even one required color', () => {
     // Thrasios is GU — a UBR combo needs B and R it doesn't have.
     expect(commandersForIdentity([thrasios], 'ubr')).toEqual([]);
   });
 
-  it('treats an unrecorded colour identity as colorless rather than guessing a match', () => {
+  it('treats an unrecorded color identity as colorless rather than guessing a match', () => {
     const unknown = card({ name: 'Mystery Legend', colorIdentity: undefined });
     expect(commandersForIdentity([unknown], 'u')).toEqual([]);
     expect(commandersForIdentity([unknown], 'c')).toHaveLength(1);
@@ -97,7 +97,7 @@ describe('rankHosts', () => {
     ]);
   });
 
-  it('breaks an EDHREC-rank tie by tighter colour identity, not name', () => {
+  it('breaks an EDHREC-rank tie by tighter color identity, not name', () => {
     const kess = card({ colorIdentity: ['U', 'B', 'R'], edhrecRank: 100 }); // Kess, Dissident Mage
     const aardvark = card({
       name: 'Aardvark, Broad Ruler',

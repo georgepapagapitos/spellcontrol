@@ -19,7 +19,7 @@ interface Props {
  *
  * The hit area is a ghost that grows to 44px on touch (overlay-containment's
  * coarse floor): the tile packs the control into its caption corner, between
- * the art above and the neighbour beside it, so a real 44px box would swell
+ * the art above and the neighbor beside it, so a real 44px box would swell
  * the caption.
  */
 export function TradeAddButton({ name, count, verb, onAdd, onRemove }: Props) {

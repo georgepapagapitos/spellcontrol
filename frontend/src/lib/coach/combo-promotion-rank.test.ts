@@ -1,5 +1,5 @@
 // Guard (E540 S-combo): the shadow run of the whole-deck objective over 119
-// labelled decks found one clear win over Coach's feed order: a one-card combo
+// labeled decks found one clear win over Coach's feed order: a one-card combo
 // add that ends the game sat at #17-43 in the legacy feed. The cause is the
 // within-tier key (coach-rank.ts): [ownership, plan band, EDHREC inclusion, ...].
 // A combo completion carries no inclusion, so it sorted behind every row that

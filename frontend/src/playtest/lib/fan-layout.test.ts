@@ -73,7 +73,7 @@ describe('fanTilt', () => {
     }
   });
 
-  it('mirrors about the centre', () => {
+  it('mirrors about the center', () => {
     expect(fanTilt(0, 22).deg).toBeCloseTo(-edge(22).deg);
     expect(fanTilt(0, 22).drop).toBeCloseTo(edge(22).drop);
   });
@@ -134,7 +134,7 @@ describe('fanCardWidth', () => {
 });
 
 describe('fanInsertIndex', () => {
-  it('counts the cards whose centre is left of the held card', () => {
+  it('counts the cards whose center is left of the held card', () => {
     const centers = [100, 200, 300];
     expect(fanInsertIndex(centers, 50)).toBe(0);
     expect(fanInsertIndex(centers, 150)).toBe(1);
@@ -146,7 +146,7 @@ describe('fanInsertIndex', () => {
 
 /**
  * The gap a held card opens has to be the room it will actually take: the fan
- * is centred, so a card's resting x is `(i - (n - 1) / 2) * step`, and every
+ * is centered, so a card's resting x is `(i - (n - 1) / 2) * step`, and every
  * other card must already stand at its place in the NEW order while the gap
  * is open. Anything else and the drop throws the cards sideways and slides
  * them back.

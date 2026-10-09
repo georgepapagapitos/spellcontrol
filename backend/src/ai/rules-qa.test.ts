@@ -43,7 +43,7 @@ describe('parseRulesQuestion', () => {
 });
 
 describe('hashRulesQaInput', () => {
-  it('normalises case and whitespace so trivially equal questions share a cache row', () => {
+  it('normalizes case and whitespace so trivially equal questions share a cache row', () => {
     expect(hashRulesQaInput('Can I  respond?')).toBe(hashRulesQaInput('can i respond?'));
     expect(hashRulesQaInput('Can I respond?')).not.toBe(hashRulesQaInput('Can I respond now?'));
   });

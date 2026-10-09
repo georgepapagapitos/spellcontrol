@@ -266,14 +266,14 @@ export function CardPreview({
   const nameId = useId();
   const [selected, setSelected] = useState(index);
 
-  // The action row holds one line (#2252). When its labelled width won't fit,
+  // The action row holds one line (#2252). When its labeled width won't fit,
   // the buttons with universal glyphs (Share, Edit) drop their words, a caller
   // action with a `shortLabel` swaps to it, and the row tightens. Every other
   // caller action keeps its words: an ambiguous glyph never goes icon-only
   // (STYLE_GUIDE § Toolbars & action rows). Re-measured every render: it is a
   // handful of buttons, and which ones exist changes per card. A hidden full
   // label is absolutely positioned, so it still reports the width it would
-  // take back — `need` is always the fully labelled width, whichever mode is
+  // take back — `need` is always the fully labeled width, whichever mode is
   // showing, so the row can't flip back and forth at the boundary.
   const actionRowRef = useRef<HTMLDivElement>(null);
   const labelledGap = useRef(0);
@@ -919,7 +919,7 @@ export function CardPreview({
       className={`card-preview-backdrop${isClosing ? ' is-closing' : ''}`}
       // Empty space closes: the backdrop, the stage around the card, the gaps
       // between slides, the top bar. The card itself is inert (reading it,
-      // pinching it, touching it must never close it), a neighbour centers,
+      // pinching it, touching it must never close it), a neighbor centers,
       // and nothing inside the panel is empty space.
       onClick={(e) => {
         e.stopPropagation();

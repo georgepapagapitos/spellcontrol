@@ -10,7 +10,7 @@ import { Chip } from '@/components/shared/Chip';
 /**
  * Deliberately diverges from the shared `Tabs` component (board E164): plain
  * `<button className="tab">` elements instead of the primitive's flat
- * `TabItem[]` shape, because each tab fills with its own binder's colour and
+ * `TabItem[]` shape, because each tab fills with its own binder's color and
  * carries a Manual badge, which `Tabs` has no slot for. (It also used to hang
  * a per-tab ⋯ menu here; E472 removed it: the binder's actions have one home
  * on this page, the header ⋮, shared with its index tile.) E206 closed the resulting a11y gap directly on this component

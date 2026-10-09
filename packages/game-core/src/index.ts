@@ -230,7 +230,7 @@ export interface GameEvent {
   /**
    * Set on an event a later Undo reversed. Every consumer that derives a
    * story from the log — first blood, biggest hit, damage taken, the life
-   * chart — skips these together with the `undo` events that cancelled them,
+   * chart — skips these together with the `undo` events that canceled them,
    * so a mis-tap that was taken back never becomes a fact about the game.
    */
   undone?: true;
@@ -374,7 +374,7 @@ export interface GameState {
    * 404 an unknown code gets, and opening that up is the host's decision to
    * make rather than ours. Legacy states carried this as the
    * `spectatorsAllowed` boolean; they resolve to `'public'` when that was
-   * `true`, else `'private'` — the same behaviour they already had.
+   * `true`, else `'private'` — the same behavior they already had.
    */
   visibility: 'public' | 'friends' | 'private';
   /**
@@ -398,7 +398,7 @@ export interface GameState {
   /**
    * Which way seats are arranged around the table. Optional: absent (every
    * game persisted before this field existed) reads as `'clockwise'`
-   * wherever it is consumed — there is no reducer behaviour keyed on it, so
+   * wherever it is consumed — there is no reducer behavior keyed on it, so
    * no normalization is needed here (contrast `mulliganType`, which the
    * reducer itself branches on). A custom (user-arranged) layout ignores
    * this field entirely and keeps the order the user set.
@@ -407,7 +407,7 @@ export interface GameState {
   /**
    * The seat number of the player whose turn it currently is, or null when
    * turn tracking has not yet started. Games that never call `pass-turn` keep
-   * this null and behave exactly as before — no change in existing behaviour.
+   * this null and behave exactly as before — no change in existing behavior.
    * Persisted per game; legacy states read this as null via the resolver.
    */
   activeSeat: number | null;
@@ -482,7 +482,7 @@ export type GameAction =
    * `coopOutcome` is meaningful only for `format === 'horde'`: when given, it
    * sets `GameState.coopOutcome` and forces `winnerSeat` to null regardless of
    * what was passed. Every other format ignores it and keeps today's
-   * behaviour.
+   * behavior.
    */
   | { type: 'end'; winnerSeat: number | null; coopOutcome?: 'won' | 'lost'; ts?: number }
   /**
@@ -618,7 +618,7 @@ export type GameAction =
    * next non-eliminated player in seat order (wraps; from null starts at the
    * lowest-seat non-eliminated player). With `toSeat`: set the marker
    * directly to that seat ("start/take the turn here") — ignored if that
-   * seat is eliminated/unknown, falling back to the advance behaviour.
+   * seat is eliminated/unknown, falling back to the advance behavior.
    * Safe to call at any game status — the UI gates it to active games.
    */
   | { type: 'pass-turn'; actorSeat: number | null; toSeat?: number | null; ts?: number }
@@ -1974,7 +1974,7 @@ const NOTABLE_KINDS: ReadonlySet<GameEvent['kind']> = new Set(['eliminate', 'end
  *  MAX_NOTABLE_EVENTS if more qualify, so a pathological game with hundreds
  *  of eliminations/designation-flips doesn't bloat the persisted row. */
 export function selectNotableEvents(events: GameEvent[]): GameEvent[] {
-  // An undone tap (and the Undo that cancelled it) is not a moment of the game.
+  // An undone tap (and the Undo that canceled it) is not a moment of the game.
   const notable = events.filter((e) => NOTABLE_KINDS.has(e.kind) && !e.undone && !e.undo);
   return notable.length > MAX_NOTABLE_EVENTS ? notable.slice(-MAX_NOTABLE_EVENTS) : notable;
 }

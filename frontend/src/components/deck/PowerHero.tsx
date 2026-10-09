@@ -24,7 +24,7 @@ export interface PowerHeroProps {
   /** Pre-formatted hard-floor reasons (top 3 are shown) — these explain the estimate. */
   bracketReasons: string[];
   /**
-   * The neighbouring bracket when the estimate's power signal sits within
+   * The neighboring bracket when the estimate's power signal sits within
    * {@link import('@spellcontrol/deck-metrics').SOFT_SCORE.borderlineWithin}
    * of the threshold that could move it (`bracketBorderline` from the
    * estimator package). Renders a compact "Borderline N/M" marker next to

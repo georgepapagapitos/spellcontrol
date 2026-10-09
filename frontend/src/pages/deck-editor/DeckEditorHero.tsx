@@ -41,7 +41,7 @@ interface DeckEditorHeroProps {
   overflowMenu: ReactNode;
 }
 
-/** The editor's hero: identity (name + colour), totals and bracket meta line, and the action row. */
+/** The editor's hero: identity (name + color), totals and bracket meta line, and the action row. */
 export function DeckEditorHero({
   deck,
   art,
@@ -74,9 +74,9 @@ export function DeckEditorHero({
       back={<BackLink to="/decks" label="All decks" />}
       title={
         // Identity is the header (STYLE_GUIDE § Config surfaces): name and
-        // colour are a colour dot and an inline name field together, one
+        // color are a color dot and an inline name field together, one
         // editing surface — so the explicit Done stays (unlike a plain
-        // rename, blur can't close this: picking a colour swatch keeps
+        // rename, blur can't close this: picking a color swatch keeps
         // focus put on purpose, InlineRename's own mousedown guard).
         <h1 className="deck-editor-title">
           {/* renameLabel carries the deck's own name (not a bare "Rename

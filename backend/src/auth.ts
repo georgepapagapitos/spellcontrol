@@ -103,7 +103,7 @@ function decodeSession(token: string): { user: AuthedUser; iat: number } | null 
   }
 }
 
-/** Signature + expiry only. Request paths use `checkSession`, which also honours revocation. */
+/** Signature + expiry only. Request paths use `checkSession`, which also honors revocation. */
 export function verifySession(token: string): AuthedUser | null {
   return decodeSession(token)?.user ?? null;
 }

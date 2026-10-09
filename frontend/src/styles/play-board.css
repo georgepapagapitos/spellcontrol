@@ -11,7 +11,7 @@
   z-index: var(--z-overlay);
   /* Black behind the panels in every theme. The board is an always-dark
      surface (STYLE_GUIDE: white rings, near-black hub), and a light theme's
-     --bg framed the seats in a pale border that dulled their colour and
+     --bg framed the seats in a pale border that dulled their color and
      glared at a dim table. Black also leaves OLED pixels off. */
   background: #000;
   color: var(--table-text);
@@ -195,7 +195,7 @@
 .player-panel {
   --pp-ink: #fff;
   /* The opposite of the ink: a plate a mark sits on (the designation chips)
-     so its glyph keeps the ink's contrast on every seat colour. */
+     so its glyph keeps the ink's contrast on every seat color. */
   --pp-ink-plate: #000;
   /* On the panel, not only on the numeral: the life button resets itself to
      `color: inherit` (play-effects.css), so this is what it inherits. */
@@ -365,7 +365,7 @@
 }
 
 /* Two seats are roomy and their ± sit at the panel ends, away from the
-   centred numeral, so it can take more of the height (2p-side on a phone
+   centered numeral, so it can take more of the height (2p-side on a phone
    drew 133px before this sizing and must not shrink). */
 .game-board-2 .player-panel {
   --life-size: min(72cqh, 38cqw);
@@ -464,11 +464,11 @@
    tier above condenses for upright seats exist here too — 10p-sides has NO
    upright seat at all, every cell is this short. That tier only ever
    shrank the numeral for sideways (the width-keyed `max-width: 10rem` rule
-   above), never the name or the ±: measured as the name ellipsising to
+   above), never the name or the ±: measured as the name ellipsizing to
    "Pla…" (10p-sides @320) and grazing the "up next" chip (335-478px², one
    seat per preset — whichever one the probe starts the turn on), and the ±
    spilling past the panel's short half-width by 3-6px (their fixed offset
-   from centre assumed more half-width than a ~74-115px-tall cell has).
+   from center assumed more half-width than a ~74-115px-tall cell has).
    Placed after `.player-panel-corner`'s own rule (not inside the 9.5rem
    block above it) so `play-touch-targets.test.ts`'s first-match search for
    the base (unscoped) corner rule still finds that one, not this override.
@@ -483,7 +483,7 @@
        chip/± fixes below stopped eating into it. Re-measured zero collision
        at every 7-10p preset x 320/390/430px after this, same as before it. */
     --life-size: min(42cqh, 40cqw);
-    /* Tighter than the base 0.72: an unshrunk offset from centre assumed
+    /* Tighter than the base 0.72: an unshrunk offset from center assumed
        more half-width than a 74-115px-tall cell has, and spilled the ±
        past the panel's edge (measured 3-6px). */
     --life-half: calc(var(--life-size) * 0.48);
@@ -704,7 +704,7 @@
 }
 
 /* F2: on a coarse pointer the ± are Lotus's model — hints, not their own hit
-   targets. Each sits at the exact centre of its tap-zone half, so as a real
+   targets. Each sits at the exact center of its tap-zone half, so as a real
    button it swallowed pointerdown before useTapAndHold ever saw it: a long
    press on the visible "+" gave +1 instead of the zone's +10, and a swipe
    starting on one did nothing. Removing it from touch hit-testing lets the
@@ -720,7 +720,7 @@
 }
 
 /* The − / + hug the numeral at every player count: anchored to the panel
-   centre and pushed out by half its width (--life-half, a fixed share of
+   center and pushed out by half its width (--life-half, a fixed share of
    --life-size), so they sit beside the number at any digit count and never
    out at the panel ends, where a sideways seat keeps its corner controls
    (2p-side pinned them there and ran them into ⋯ and the turn chip).
@@ -749,13 +749,13 @@
    and the bottom half (−), so the hints move with them, + above the numeral
    and − below, in the seat's own axes. Left beside the numeral, the "+" sat
    on the zone boundary and a long press on it gave −10 on 0° and 270° seats.
-   The stack (+, numeral, −) is centred in the box below the name corner's
+   The stack (+, numeral, −) is centered in the box below the name corner's
    band (--pp-v-top), so the + never lands on the name (147px² on every 5p/6p
-   seat at 320px when it was centred on the whole panel), and above whatever
+   seat at 320px when it was centered on the whole panel), and above whatever
    a mode reserves at the bottom (--pp-v-bottom). The size the three share is
    capped so the stack fits that box, in the panel's own axes (the cell's
    height upright, its width sideways). Each glyph stays in its own zone: the
-   box's centre is never more than the band's half below the panel's. */
+   box's center is never more than the band's half below the panel's. */
 .player-panel.is-vertical-taps {
   --pp-v-top: calc(var(--space-2) + var(--seam-keepout) + 1.4rem);
   --pp-v-bottom: 0px;

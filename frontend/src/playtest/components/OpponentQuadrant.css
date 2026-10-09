@@ -51,7 +51,7 @@
 }
 
 /* The turn ring the local board wears for your own turn (playtest.css
-   `.playtest-battlefield-wrap.is-my-turn`) — same weight, same colour, same
+   `.playtest-battlefield-wrap.is-my-turn`) — same weight, same color, same
    inset, so "whose turn" reads as one signal whether the active seat is
    yours or an opponent's. Kept wide enough (plus an outer glow) to read at
    a glance across the whole table, not just up close. */

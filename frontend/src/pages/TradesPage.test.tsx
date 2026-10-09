@@ -2,7 +2,7 @@
 /**
  * TradesPage — /trades, the cross-friend offer index.
  *
- * The load-bearing behaviours: it asks for EVERY offer (no `withUserId`, the
+ * The load-bearing behaviors: it asks for EVERY offer (no `withUserId`, the
  * whole reason the page can exist without backend work), it buckets by what
  * the viewer has to do rather than by friend, each row links to that
  * counterparty's hub, and all four states render (loading / whole-page empty /

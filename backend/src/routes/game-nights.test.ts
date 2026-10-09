@@ -472,7 +472,7 @@ describe('PATCH /api/game-nights/:id', () => {
     expect(invalid.body.night.format).toBeNull();
   });
 
-  it('rejects edits to a cancelled night (400)', async () => {
+  it('rejects edits to a canceled night (400)', async () => {
     const host = await makeUser('gn-patch-cancelled');
     const { id } = await createNight(host);
     await request(app).delete(`/api/game-nights/${id}`).set('Cookie', host);
@@ -630,7 +630,7 @@ describe('POST /api/game-nights/public/:token/rsvp', () => {
     expect(res.body.rsvp.displayName).toBe('Player P.');
   });
 
-  it('rejects RSVPs to a cancelled night and to a long-past night (400)', async () => {
+  it('rejects RSVPs to a canceled night and to a long-past night (400)', async () => {
     const host = await makeUser('gn-rsvp-closed');
     const { id, token } = await createNight(host);
     await request(app).delete(`/api/game-nights/${id}`).set('Cookie', host);
@@ -993,7 +993,7 @@ describe('POST /api/game-nights/:id/lock', () => {
     expect(foreign.status).toBe(400);
   });
 
-  it('rejects locking a cancelled night', async () => {
+  it('rejects locking a canceled night', async () => {
     const host = await makeUser('gn-lock-cancelled');
     const night = await createPollNight(host);
     await request(app).delete(`/api/game-nights/${night.id}`).set('Cookie', host);
@@ -1110,7 +1110,7 @@ describe('recurring game nights (E125)', () => {
     expect(guestNights.some((n) => n.id === occurrence!.id)).toBe(true);
   });
 
-  it('skipping a week: cancelling the upcoming occurrence materializes the following one', async () => {
+  it('skipping a week: canceling the upcoming occurrence materializes the following one', async () => {
     const host = await makeUser('gn-rec-skip');
     const night = await createWeeklyNight(host, { startsAt: Date.now() + DAY_MS });
     await request(app).delete(`/api/game-nights/${night.id}`).set('Cookie', host);
@@ -1219,7 +1219,7 @@ describe('POST /api/game-nights/:id/poll (open a date vote on an existing night)
     expect(again.status).toBe(400);
   });
 
-  it('rejects opening a vote on a cancelled night (400)', async () => {
+  it('rejects opening a vote on a canceled night (400)', async () => {
     const host = await makeUser('gn-openpoll-cancelled');
     const { id } = await createNight(host);
     await request(app).delete(`/api/game-nights/${id}`).set('Cookie', host);
@@ -1304,7 +1304,7 @@ describe('lookupGameNightLandingMeta', () => {
     expect(meta!.description).toContain('3 times proposed');
   });
 
-  it('returns null for an unknown token and a cancelled description after cancel', async () => {
+  it('returns null for an unknown token and a canceled description after cancel', async () => {
     expect(await lookupGameNightLandingMeta('nope')).toBeNull();
     const host = await makeUser('gn-og-cancel');
     const { id, token } = await createNight(host);

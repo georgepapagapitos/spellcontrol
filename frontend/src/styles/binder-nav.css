@@ -43,7 +43,7 @@
   border-radius: var(--radius);
 }
 
-/* The active tab fills with the binder's own colour, so its label takes the
+/* The active tab fills with the binder's own color, so its label takes the
    ink picked for that fill (BinderTabs.tsx), not the fixed --on-accent. */
 .binder-tab-group .tab.active {
   color: var(--binder-ink, var(--on-accent));

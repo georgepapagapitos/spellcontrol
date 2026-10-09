@@ -304,7 +304,7 @@ function* scoreSteps(
       .slice(0, opts.maxCandidates);
   }
 
-  // Memoised fast reads of what each card is worth in this deck.
+  // Memoized fast reads of what each card is worth in this deck.
   const loss = new Map<string, number>();
   const gain = new Map<string, number>();
   function* lossOf(c: ScryfallCard): Generator<void, number> {

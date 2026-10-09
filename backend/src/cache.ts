@@ -10,7 +10,7 @@ const TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 /** Colour-identity bits, so "fits inside this commander's identity" is one AND. */
 const COLOR_BITS: Record<string, number> = { W: 1, U: 2, B: 4, R: 8, G: 16 };
 
-/** `['B','G'] -> 20`. Colourless is 0, which is a subset of every identity. */
+/** `['B','G'] -> 20`. Colorless is 0, which is a subset of every identity. */
 export function colorIdentityMask(identity: readonly string[] | undefined): number {
   let mask = 0;
   for (const c of identity ?? []) mask |= COLOR_BITS[c.toUpperCase()] ?? 0;
@@ -61,7 +61,7 @@ export interface PriceCeiling {
 export interface CardSearchOptions {
   /** Plain-language effect text. Not FTS5 syntax — see {@link toMatchExpression}. */
   query: string;
-  /** Only cards whose colour identity fits INSIDE this one (e.g. ['B','G']). */
+  /** Only cards whose color identity fits INSIDE this one (e.g. ['B','G']). */
   colorIdentity?: readonly string[];
   /** Restrict to cards legal in Commander. */
   commanderLegalOnly?: boolean;
@@ -265,7 +265,7 @@ export class ScryfallCache {
       const started = Date.now();
       // Read in PAGES, never `.all()` and never `.iterate()`.
       //
-      // `.all()` materialises every blob at once — the rows are full Scryfall
+      // `.all()` materializes every blob at once — the rows are full Scryfall
       // JSON, ~470MB across 107k cards, which is a heap spike that matters on
       // the 2GB production VM (we have OOM'd on bulk card data before).
       //
@@ -620,7 +620,7 @@ export class ScryfallCache {
    *
    * ⚠️ Deliberately ignores the 7-day TTL. That TTL exists because PRICES move;
    * a card's rules text does not — the same reasoning `getMany`'s `allowStale`
-   * already documents. Honouring it here would make search results vanish as
+   * already documents. Honoring it here would make search results vanish as
    * rows aged out and force exactly the Scryfall round-trips this index exists
    * to avoid. Never read a price off these results.
    */
@@ -648,8 +648,8 @@ export class ScryfallCache {
 
     if (options.commanderLegalOnly) where.push('commander_legal = 1');
     if (options.colorIdentity) {
-      // Subset test: every colour bit the card needs must be present in the
-      // deck's identity. Colourless (0) passes against every identity.
+      // Subset test: every color bit the card needs must be present in the
+      // deck's identity. Colorless (0) passes against every identity.
       where.push('(ci_mask & ~?) = 0');
       params.push(colorIdentityMask(options.colorIdentity));
     }

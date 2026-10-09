@@ -502,7 +502,7 @@ describe('GET /api/friends', () => {
     expect(bobFriends.body.friends).toHaveLength(0);
   });
 
-  it('carries a peek of each friend’s public decks: count, art, colours, commander', async () => {
+  it('carries a peek of each friend’s public decks: count, art, colors, commander', async () => {
     const alice = await makeUser('gf-peek-alice');
     const carol = await makeUser('gf-peek-carol');
     const dana = await makeUser('gf-peek-dana');
@@ -913,7 +913,7 @@ describe('GET /api/friends/:friendId/collection', () => {
 
   it('200 — colorIdentity is [] (not missing) when the stored row lacks it', async () => {
     // The client distinguishes absent (fall back to `colors`) from empty
-    // (genuinely colourless), so the wire shape must stay stable.
+    // (genuinely colorless), so the wire shape must stay stable.
     const alice = await makeUserFull('fc-ci2-alice');
     const bob = await makeUserFull('fc-ci2-bob');
     await befriend(alice, bob);
@@ -1271,7 +1271,7 @@ describe('GET /api/friends/:friendId/wants', () => {
     expect(JSON.stringify(res.body)).not.toContain('lowball him');
   }, 15000);
 
-  it('200 — skips tracking lists (a catalogue of what they OWN is not a want)', async () => {
+  it('200 — skips tracking lists (a catalog of what they OWN is not a want)', async () => {
     const alice = await makeUserFull('fw-track-alice');
     const bob = await makeUserFull('fw-track-bob');
     await befriend(alice, bob);

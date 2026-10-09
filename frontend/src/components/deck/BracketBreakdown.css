@@ -584,10 +584,10 @@
   color: var(--text-muted);
 }
 
-/* ── Settled / Judgment ── the two kinds of evidence, each labelled in its
+/* ── Settled / Judgment ── the two kinds of evidence, each labeled in its
    heading. A label is a pill (it names state, it isn't a control). Judgment
    takes the warn plate: a caution, like a Budget verdict. The words carry the
-   meaning; the colour only backs them up. */
+   meaning; the color only backs them up. */
 .bracket-call-kind {
   padding: 0.05rem var(--space-2);
   background: var(--surface-raised);

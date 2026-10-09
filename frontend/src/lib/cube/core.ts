@@ -27,7 +27,7 @@ export interface CubeCard {
   synergyProducers?: AxisKey[]; // archetype axes this card enables (see synergy-tags)
   synergyPayoffs?: AxisKey[]; // archetype axes this card pays off
   /**
-   * Commander-rules colour identity. Optional — absent on pools built before
+   * Commander-rules color identity. Optional — absent on pools built before
    * this shipped, or when the source facts don't carry it. `pairOf`/
    * `pairsFixedBy` fall back to `colors` when it's missing, so an old saved
    * cube or a pool without it still classifies (just less precisely for a

@@ -85,7 +85,7 @@ describe('boxed <Tabs> consumers position the strip with margin, not padding', (
 });
 
 describe('four-tab fitted strips wrap below the sheet breakpoint', () => {
-  // E280: a fitted strip shares the row equally, so four labelled tabs with
+  // E280: a fitted strip shares the row equally, so four labeled tabs with
   // count badges ellipsize on a 360px sheet ("Bat…", "Gra…", "Co…"). The
   // strip wraps to 2×2 under 600px instead; this pins the wrap so a later
   // "tidy" of the file cannot silently restore the truncation.

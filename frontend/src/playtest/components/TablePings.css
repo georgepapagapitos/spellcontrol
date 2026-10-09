@@ -10,7 +10,7 @@
   overflow: hidden;
 }
 
-/* Anchored at the card's centre; each ring grows outward from it. */
+/* Anchored at the card's center; each ring grows outward from it. */
 .table-ping {
   position: absolute;
   width: 0;

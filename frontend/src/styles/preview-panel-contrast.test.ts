@@ -6,7 +6,7 @@ import { dirname, join } from 'node:path';
 
 // The card-preview panel (`.card-preview-panel`, footer-card-preview.css) is an
 // always-dark island inside every theme: it paints its own ground and remaps the
-// theme's colour tokens so the shared rows injected into it (DeckCardRow,
+// theme's color tokens so the shared rows injected into it (DeckCardRow,
 // SwapThisCard, VerdictBadge pills) read on dark. It once remapped the TEXT
 // tokens but not --surface, so in a light theme a neutral "Ramp" pill painted
 // 55%-white text on the paper-coloured --surface: invisible. This resolves the
@@ -37,7 +37,7 @@ function parseColor(v: string): RGBA {
   if (!m) throw new Error(`unparsed colour: ${v}`);
   return [+m[1], +m[2], +m[3], m[4] === undefined ? 1 : +m[4]];
 }
-/** Source-over composite of a (possibly translucent) colour onto an opaque ground. */
+/** Source-over composite of a (possibly translucent) color onto an opaque ground. */
 function over([r, g, b, a]: RGBA, ground: RGB): RGB {
   return [r * a + ground[0] * (1 - a), g * a + ground[1] * (1 - a), b * a + ground[2] * (1 - a)];
 }
@@ -177,12 +177,12 @@ describe('card-preview panel: text, status and accent clear AA in every theme', 
 });
 
 // The context pill (a binder, deck or cube the card is in) is painted in that
-// container's OWN colour, which is any hex a user picks. Raw, its label read
-// 3.51:1 on its own tint (the Red preset). The label is the colour lifted
+// container's OWN color, which is any hex a user picks. Raw, its label read
+// 3.51:1 on its own tint (the Red preset). The label is the color lifted
 // toward white; this reads the percentages from the CSS and holds every preset
 // and a sweep of the RGB cube at AA, on the panel and a row, resting and on
 // hover/focus (the stronger tint).
-describe('card-preview context pill: any container colour reads', () => {
+describe('card-preview context pill: any container color reads', () => {
   const at = panelCss.indexOf('.card-preview-context-pill {');
   const rule = panelCss.slice(at, panelCss.indexOf('\n}', at)).replace(/\/\*[\s\S]*?\*\//g, '');
   const pct = (re: RegExp, what: string) => {
@@ -198,7 +198,7 @@ describe('card-preview context pill: any container colour reads', () => {
     ),
   ].map((m) => hex(m[1]));
 
-  it('reads every preset colour', () => expect(presets.length).toBeGreaterThan(5));
+  it('reads every preset color', () => expect(presets.length).toBeGreaterThan(5));
   it('clears AA for every preset and the RGB cube', () => {
     const ink = pct(
       /\bcolor:\s*color-mix\(in srgb, var\(--pill-color[^)]*\)\) (\d+)%, white\)/,
@@ -230,7 +230,7 @@ describe('card-preview context pill: any container colour reads', () => {
 // themes.css retires --text-muted and --border under prefers-contrast: more, but
 // the panel re-declares both, so that remap never reached its descendants. The
 // panel must carry its own, pointing at its own (white-alpha) siblings.
-describe('card-preview panel: honours prefers-contrast: more', () => {
+describe('card-preview panel: honors prefers-contrast: more', () => {
   const at = panelCss.indexOf('@media (prefers-contrast: more) {');
   const rule = at < 0 ? '' : panelCss.slice(at, panelCss.indexOf('\n}\n', at));
   it('remaps muted to secondary and border to border-strong on the panel', () => {

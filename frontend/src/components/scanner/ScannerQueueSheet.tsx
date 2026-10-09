@@ -40,7 +40,7 @@ import type { ScannedEntry } from '@/lib/scanner/use-scan-queue';
 
 /** Every scanner sheet sits over the full-screen camera, which is above the
  *  modal tier: `--over-sheet` lifts the backdrop past it. A bottom sheet on a
- *  phone, a centred dialog on anything wider. */
+ *  phone, a centered dialog on anything wider. */
 export const SCANNER_SHEET_BACKDROP = 'modal-backdrop--sheet modal-backdrop--over-sheet';
 
 interface Props {

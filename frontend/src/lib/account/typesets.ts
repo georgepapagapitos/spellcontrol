@@ -19,8 +19,8 @@
  * downloads without waiting for JS.
  *
  * Every face is self-hosted, not linked from Google Fonts, so it can carry
- * ascent/descent overrides that centre the capital height in the line box.
- * Without them each face sat its labels a pixel or two off the optical centre
+ * ascent/descent overrides that center the capital height in the line box.
+ * Without them each face sat its labels a pixel or two off the optical center
  * of any box that flex-centres them, a different direction per set.
  */
 export interface TypeSetDef {

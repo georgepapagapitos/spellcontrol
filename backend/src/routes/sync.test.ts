@@ -139,7 +139,7 @@ describe('GET /api/sync (pull)', () => {
     expect(card.importId).toBe('imp-1');
   });
 
-  it('honours the since cursor and only returns rows newer than it', async () => {
+  it('honors the since cursor and only returns rows newer than it', async () => {
     const cookie = await registerAndGetCookie('pull_cursor');
     await push(cookie, {
       upserts: [{ kind: 'binder', id: 'b-1', data: { id: 'b-1', name: 'first' } }],
@@ -561,7 +561,7 @@ describe('card printing-group reject-stale (E129)', () => {
     // A collection-wide delete sends up to 500 checks per batch, resolved by a
     // single grouped query. Every group must still be judged on its own
     // baseline, and a group the client under-claims must not spill staleness
-    // onto its neighbours.
+    // onto its neighbors.
     const cookie = await registerAndGetCookie('card_group_many');
     const sid = (n: number) => `aaaaaaaa-0000-0000-0000-0000000000${String(n).padStart(2, '0')}`;
     await push(cookie, {

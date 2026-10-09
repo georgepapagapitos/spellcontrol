@@ -3,7 +3,7 @@
  * it: the body counters, the bookkeeping ones, then the keyword counters.
  * `kind` is what the reducer stores, so it stays lowercase like every counter
  * already on a saved board ("charge", "loyalty"). A counter not listed here is
- * one the player named, and it is drawn as a coloured disc instead.
+ * one the player named, and it is drawn as a colored disc instead.
  */
 export const COUNTER_CATALOG: ReadonlyArray<{ kind: string; glyph: string }> = [
   { kind: '+1/+1', glyph: 'ms-counter-plus' },
@@ -62,7 +62,7 @@ export function counterLabel(kind: string): string {
   return kind.charAt(0).toUpperCase() + kind.slice(1);
 }
 
-/** Disc colours for named counters. Fixed, not themed: a disc sits on card
+/** Disc colors for named counters. Fixed, not themed: a disc sits on card
  *  art, the same ruling as the P/T plates. Each clears 4.5:1 against white. */
 const DISC_COLORS = [
   '#be185d',
@@ -75,9 +75,9 @@ const DISC_COLORS = [
   '#4d7c0f',
 ];
 
-/** A named counter keeps its colour for as long as it keeps its name, so
+/** A named counter keeps its color for as long as it keeps its name, so
  *  "Counter 1" is the same disc on every render and every seat. Consecutive
- *  names ("Counter 1", "Counter 2") land on neighbouring colours. */
+ *  names ("Counter 1", "Counter 2") land on neighboring colors. */
 export function counterColor(kind: string): string {
   let sum = 0;
   for (let i = 0; i < kind.length; i++) sum += kind.charCodeAt(i);
@@ -91,7 +91,7 @@ export function nextGenericCounter(counters: Record<string, number>): string {
   return `Counter ${n}`;
 }
 
-/** Printed counters first in catalogue order (the body counters lead), then
+/** Printed counters first in catalog order (the body counters lead), then
  *  the player's own in the order they were added. */
 export function sortCounters(counters: Record<string, number>): Array<[string, number]> {
   const order = (k: string) => {

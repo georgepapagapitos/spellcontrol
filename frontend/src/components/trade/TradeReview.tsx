@@ -389,7 +389,7 @@ function AddMore({
   return (
     // The glyph goes through Button's icon slot. As a child it landed inside
     // the inline `.btn-label` span, on the text baseline, above the label's
-    // optical centre; the slot makes it a sibling flex item the row centres.
+    // optical center; the slot makes it a sibling flex item the row centers.
     <Button
       className="trade-review-add"
       icon={<Plus width={16} height={16} />}

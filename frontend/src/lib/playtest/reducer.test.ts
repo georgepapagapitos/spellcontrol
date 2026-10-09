@@ -1370,7 +1370,7 @@ describe('MOVE_ALL_TO', () => {
     expect(applyAction(s, { type: 'MOVE_ALL_TO', from: 'library', to: 'library' })).toBe(s);
   });
 
-  it('randomises the moved block on request, and only then', () => {
+  it('randomizes the moved block on request, and only then', () => {
     const base = init(20, 7, 0);
     // Everything into the graveyard first, so the block has an order to lose.
     const filled = applyAction(base, { type: 'MOVE_ALL_TO', from: 'library', to: 'graveyard' });
@@ -1393,7 +1393,7 @@ describe('MOVE_ALL_TO', () => {
     expect(rolled.rngSeed).not.toBe(filled.rngSeed);
   });
 
-  it('randomises only the block, leaving what was already there in place', () => {
+  it('randomizes only the block, leaving what was already there in place', () => {
     const base = init(20, 3, 0);
     // Two cards already on top of the library, then a graveyard block under.
     const some = applyAction(base, { type: 'MOVE_TOP_N', n: 5, to: 'graveyard' });

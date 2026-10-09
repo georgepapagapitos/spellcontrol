@@ -70,8 +70,8 @@
 }
 
 /* The #1 move — the verdict-hero headline. Its rank chip fills with the tier
-   colour and its title is larger, so it reads first without a box of its own.
-   The chip's text is the surface colour: the tier colours are text colours,
+   color and its title is larger, so it reads first without a box of its own.
+   The chip's text is the surface color: the tier colors are text colors,
    legible on the surface, so the pair holds the same contrast reversed. */
 .next-best-move-row.is-primary .next-best-move-rank {
   width: 1.7rem;
@@ -224,7 +224,7 @@
 }
 
 /* ── Combo-check placeholder (async one-away combos still loading) ── */
-/* Dimmed by colour, not row opacity, which blended the detail text under 4.5:1. */
+/* Dimmed by color, not row opacity, which blended the detail text under 4.5:1. */
 .next-best-move-row.is-loading .next-best-move-title {
   color: var(--text-secondary);
 }

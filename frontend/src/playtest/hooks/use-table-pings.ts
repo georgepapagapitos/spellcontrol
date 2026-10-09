@@ -15,7 +15,7 @@ export interface TablePing {
   /** Unique per ring, so React keys and the expiry timer never collide when
    *  the same card is pinged twice in a row. */
   id: number;
-  /** Seat that pinged — picks the ring's colour. */
+  /** Seat that pinged — picks the ring's color. */
   seat: number;
   /** Seat whose board the card is on. */
   targetSeat: number;
@@ -32,7 +32,7 @@ export interface TablePings {
  * The rings currently lit on the table.
  *
  * A ping is the table's lightest signal: tapping a card rings it, on every
- * screen, in the colour of the seat that tapped it — which is how you say
+ * screen, in the color of the seat that tapped it — which is how you say
  * "this one" without saying anything. It writes nothing to the play ticker
  * and carries no state; a missed ping is a missed moment, exactly like a
  * reaction.

@@ -162,7 +162,7 @@ describe('object filters narrow a substitute (E517)', () => {
     expect(narrowing('Plummet', 'Murder')).toBe(0);
     expect(narrowing('Plummet', 'Plummet')).toBe(0);
     expect(narrowing('Murder', 'Cast Down')).toBe(0);
-    // A colour restriction is not narrowing: Doom Blade is Murder's equal.
+    // A color restriction is not narrowing: Doom Blade is Murder's equal.
     expect(narrowing('Murder', 'Doom Blade')).toBe(0);
   });
 

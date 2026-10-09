@@ -198,7 +198,7 @@ describe('CardHoverPreview', () => {
     render(<CardHoverPreview suspended={false} resolve={resolve} pinned="a" />);
     const pane = document.querySelector<HTMLElement>('.playtest-hover-preview')!;
     expect(parseFloat(pane.style.width)).toBeCloseTo(390 * 0.72, 1);
-    // Centred between the margins, nothing on this bare page to avoid.
+    // Centered between the margins, nothing on this bare page to avoid.
     expect(parseFloat(pane.style.left)).toBeCloseTo((12 + 378 - 390 * 0.72) / 2, 1);
   });
 

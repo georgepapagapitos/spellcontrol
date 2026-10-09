@@ -140,8 +140,8 @@ function gapForRole(
  *  the player already owns (owned-first) among the positive-synergy candidates.
  *  Under `ownedOnly`, restricted to owned candidates only. "Highest synergy"
  *  is the ratio-weighted strength (E510, synergyLift.ts), not EDHREC's
- *  subtraction, so a card played far more than in its colours isn't buried
- *  under one the colours already play nearly as much. */
+ *  subtraction, so a card played far more than in its colors isn't buried
+ *  under one the colors already play nearly as much. */
 function topSynergyGap(
   gapAnalysis: GapAnalysisCard[] | undefined,
   used: Set<string>,

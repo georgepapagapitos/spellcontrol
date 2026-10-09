@@ -202,7 +202,7 @@ describe('what the scorer will not score', () => {
 
   it('pairs a cut only with a replacement the deck may hold', () => {
     const obj = objective();
-    // Seven blue and white cards the fast read likes, and one colourless card it likes less.
+    // Seven blue and white cards the fast read likes, and one colorless card it likes less.
     const offIdentity = [
       'Counterspell',
       'Enlightened Tutor',

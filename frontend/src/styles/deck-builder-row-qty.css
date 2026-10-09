@@ -74,7 +74,7 @@ input.deck-row-qty-input.deck-row-qty-missing {
 
 /* Coarse-pointer floor for the qty readout/editor in a dense row. These rows
    are ~24-30px tall with zero inter-row gap, so a full 44px vertical reach
-   would bleed into the neighbouring row's hit area; the ghost is horizontal
+   would bleed into the neighboring row's hit area; the ghost is horizontal
    only, where it can't bleed into anything above or below. */
 @media (pointer: coarse) {
   .deck-row-qty-edit {

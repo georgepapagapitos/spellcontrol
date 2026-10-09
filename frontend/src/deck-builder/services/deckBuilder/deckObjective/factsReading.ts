@@ -220,7 +220,7 @@ function needsOpponentDiscard(facts: CardFacts, ability: number): boolean {
  * A land that becomes a creature only for snow mana (Faceless Haven's
  * {S}{S}{S}) is a creature in a deck of snow sources and a plain land in any
  * other: the extractor credited it with the creature types it gains, and a
- * Krenko deck with no snow sources seated it as a colourless land on that claim
+ * Krenko deck with no snow sources seated it as a colorless land on that claim
  * (E509 gate 9). Only its mana counts.
  */
 const SNOW_ANIMATED_LAND = /\{s\}[^:\n]*:[^\n]*\bbecomes?\b[^\n]*\bcreature/i;

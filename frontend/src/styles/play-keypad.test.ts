@@ -47,7 +47,7 @@ describe('life keypad is a board-level dialog', () => {
 
   it('rotates to face its seat, swapping axes for a sideways (90/270) seat', () => {
     const dialog = block('.life-keypad {');
-    // Centred by its own position + transform (not flexbox — a flex parent
+    // Centered by its own position + transform (not flexbox — a flex parent
     // shrank a rotated dialog's deliberately-larger local width to fit its
     // own available WIDTH, since layout happens before the rotate() below
     // swaps the axes back; measured 14px-wide digit keys before this fix).

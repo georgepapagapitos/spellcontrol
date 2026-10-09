@@ -1,4 +1,4 @@
-// E509: a land's coloured output comes from the abilities that always work, not
+// E509: a land's colored output comes from the abilities that always work, not
 // from Scryfall's produced_mana, which also lists what a paid or restricted
 // ability makes. Real Oracle text, from the lands the collection gate seated for
 // a basic on that misreading.
@@ -15,7 +15,7 @@ const units = (name: string, identity = ANY_COLOR) => {
   return classifyManaCard(card, identity).land?.units;
 };
 
-describe('a land that makes colour only by paying or by restriction taps for {C}', () => {
+describe('a land that makes color only by paying or by restriction taps for {C}', () => {
   it.each([
     ['Daily Bugle Building', '{1}, {T}: Add one mana of any color'],
     ['Captivating Cave', '{1}, {T}: Add one mana of any color'],
@@ -32,7 +32,7 @@ describe('a land that makes colour only by paying or by restriction taps for {C}
   });
 });
 
-describe('lands that tap for colour unconditionally keep it', () => {
+describe('lands that tap for color unconditionally keep it', () => {
   it('Command Tower clamps to the identity', () => {
     expect(units('Command Tower', MANA_W | MANA_G)).toEqual([MANA_W | MANA_G]);
   });

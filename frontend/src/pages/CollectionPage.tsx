@@ -45,7 +45,7 @@ export function CollectionPage() {
   // Deep-link: ?add=search|list|scan|products opens the AddCardsSheet on the
   // matching tab, with &q= seeding the Search tab's query (T153 decision C).
   // Both the open-flag and the initial tab/query are captured at mount via the
-  // lazy useState initialiser so they remain stable even after the params are
+  // lazy useState initializer so they remain stable even after the params are
   // stripped from the URL (which triggers a re-render with empty
   // searchParams). Unknown/absent-but-present ?add= values open on 'search'
   // (this is also how the pre-T153 ?add=list-only link kept working). 'scan'

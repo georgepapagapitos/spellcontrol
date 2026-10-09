@@ -75,7 +75,7 @@ describe('computePopoverPlacement — vertical', () => {
   // The online host form at 1440x900, measured: the Format trigger at
   // y 699-732 with 168px below it, a ten-option list 383px tall. The 160px
   // floor alone opened it downward and clamped it up over its own trigger,
-  // with Horde (co-op) centred on the viewport's bottom edge.
+  // with Horde (co-op) centered on the viewport's bottom edge.
   it('flips ABOVE when the panel is taller than the room below, even past the 160px floor', () => {
     const safe: SafeViewport = { top: 52, bottom: 900, left: 0, right: 1440 };
     const anchor: AnchorRect = { top: 699, bottom: 732, left: 80, right: 230 };
@@ -176,7 +176,7 @@ describe('computePopoverPlacement — horizontal', () => {
     }
   });
 
-  // Regression: a wide panel whose trigger sits well right of centre fits
+  // Regression: a wide panel whose trigger sits well right of center fits
   // NEITHER alignment. The flip used to fire unconditionally, so right-aligning
   // put the panel's left edge off-screen. Measured on the binder sort popover:
   // left:-16px @360w and left:-43px @414w before the fix.

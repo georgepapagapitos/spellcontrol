@@ -53,7 +53,7 @@ export default [
       // list semantics of any list styled `list-style: none`, and every
       // list here is. The explicit role restores them.
       'jsx-a11y/no-redundant-roles': ['error', { ul: ['list'], ol: ['list'] }],
-      // A labelled `role="region"` that scrolls must take focus, or a keyboard
+      // A labeled `role="region"` that scrolls must take focus, or a keyboard
       // user cannot scroll it (WCAG 2.1.1; axe scrollable-region-focusable).
       // The rule's default allows only tabpanel; region joins it, nothing else.
       'jsx-a11y/no-noninteractive-tabindex': [

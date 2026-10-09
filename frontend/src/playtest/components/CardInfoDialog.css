@@ -8,7 +8,7 @@
 .card-info-dialog {
   /* Dense-dialog width (STYLE_GUIDE § Overlays): art beside a rules box and a
      rulings list needs more than the 480px phone default; 720 is the shell's
-     own max and the width its neighbours (NewArrivals, PullList) use. */
+     own max and the width its neighbors (NewArrivals, PullList) use. */
   max-width: 720px;
 }
 

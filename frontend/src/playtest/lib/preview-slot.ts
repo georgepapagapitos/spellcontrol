@@ -51,12 +51,12 @@ const box = (left: number, top: number, w: number, h: number): Box => ({
 });
 
 /**
- * The desk slot: vertically centred at the table's right edge, flipped to the
+ * The desk slot: vertically centered at the table's right edge, flipped to the
  * left edge only when the card itself sits under it, and started below any
  * corner cluster it would cover (EDHPlay's; the eye always knows where to
  * look). That is where the pane goes whenever it clears the table's chrome.
  *
- * A phone on its side has no such room: centred at the right edge, the pane
+ * A phone on its side has no such room: centered at the right edge, the pane
  * sat over the TURN chip, the zones tab and the Hand/Library row. Then it
  * goes to the top of the table instead, just left of the right-hand corner
  * column, shrinking only as far as the room above the pile row and the hand
@@ -89,7 +89,7 @@ export function previewSlot(s: SlotInput): Slot {
   return { left, top, scale };
 }
 
-/** Centred in the felt the chrome leaves: below the corner clusters, above
+/** Centered in the felt the chrome leaves: below the corner clusters, above
  *  the floor, left of an edge tab. Shrinks to fit that room, with no floor
  *  on the scale: a two-faced card is two faces across a 390px screen. */
 function uprightSlot(s: SlotInput): Slot {

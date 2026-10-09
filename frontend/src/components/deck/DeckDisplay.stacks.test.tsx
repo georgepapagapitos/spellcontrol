@@ -219,7 +219,7 @@ describe('deck Stacks view', () => {
             }));
       };
 
-      it('by the least distance, never centred', () => {
+      it('by the least distance, never centered', () => {
         const calls = scrolled();
         const { container } = renderDeck();
         tap(tile(container, 'Goblin Lackey'));

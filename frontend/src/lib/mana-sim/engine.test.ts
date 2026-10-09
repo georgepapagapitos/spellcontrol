@@ -141,7 +141,7 @@ describe('mulligans', () => {
     expect(r.mulligan.keptSizeShare[3]).toBeUndefined();
   });
 
-  it('honours a mulligan depth of zero', () => {
+  it('honors a mulligan depth of zero', () => {
     const r = run(
       [
         ['Plains', 80],
@@ -331,7 +331,7 @@ describe('land mechanics', () => {
     expect(r.mana.average[7]).toBeGreaterThan(plains.mana.average[7] - 0.35);
   });
 
-  it('chooses the colour a Thriving land or Pathway makes as it enters', () => {
+  it('chooses the color a Thriving land or Pathway makes as it enters', () => {
     const r = run(
       [
         ['Thriving Isle', 19],
@@ -341,7 +341,7 @@ describe('land mechanics', () => {
       {},
       ['Jodah, the Unifier']
     );
-    // In a five-colour deck Thriving Isle could name any of four colours; it
+    // In a five-colour deck Thriving Isle could name any of four colors; it
     // names white, the one the Wraths need, or they could never be cast.
     expect(row(r, 'Wrath of God').nextTurnGivenMana ?? 0).toBeGreaterThan(0.5);
     const path = run(
@@ -414,7 +414,7 @@ describe('ramp', () => {
     }
   });
 
-  it('makes Treasures that count as any colour', () => {
+  it('makes Treasures that count as any color', () => {
     // White comes only from Big Score's Treasures: cast on turn 4, they pay
     // Baneslayer's {W}{W} on turn 5.
     const r = run([
@@ -426,7 +426,7 @@ describe('ramp', () => {
     expect(row(r, 'Baneslayer Angel').onCurve ?? 0).toBeGreaterThan(0.05);
   });
 
-  it('picks the colour of a choose-a-colour rock', () => {
+  it('picks the color of a choose-a-colour rock', () => {
     const r = run(
       [
         ['Plains', 36],

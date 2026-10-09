@@ -25,14 +25,14 @@ function block(header: string): string {
 }
 
 describe('table chrome at the wide tier', () => {
-  it('fans the hand: overlap, rotation origin and a lift that leaves neighbours alone', () => {
+  it('fans the hand: overlap, rotation origin and a lift that leaves neighbors alone', () => {
     // Overlap is a negative margin in card widths, so it tracks the density
     // custom property instead of a per-breakpoint pixel guess.
     expect(css).toContain('.playtest-hand--fan');
     expect(block('.playtest-hand__slot {')).toContain('transform-origin: bottom center');
     // The lift is on the card's wrapper inside the slot (the card AND its cost
     // badge rise together) — putting it on the slot would fight the inline
-    // fan rotation and shove the neighbours; putting it on the card alone left
+    // fan rotation and shove the neighbors; putting it on the card alone left
     // the badge behind on the felt.
     expect(css).toContain('.playtest-hand--fan .playtest-hand__slot:hover .playtest-hand__lift {');
     expect(css).toContain(
@@ -55,7 +55,7 @@ describe('table chrome at the wide tier', () => {
     // restores focus on close, which left the card stuck up under
     // `:focus-within` once the pointer had moved away.
     expect(css).not.toMatch(/\.playtest-hand__slot:focus-within/);
-    // The fan centres itself left of the pile row rather than on the viewport.
+    // The fan centers itself left of the pile row rather than on the viewport.
     expect(block('.playtest-hand--fan {')).not.toContain('left: 50%');
   });
 
@@ -95,7 +95,7 @@ describe('table chrome at the wide tier', () => {
     expect(pile).not.toContain('background');
     expect(pile).not.toContain('border');
     expect(pile).not.toContain('backdrop-filter');
-    // The label prints on the felt, so it takes the felt's own text colour
+    // The label prints on the felt, so it takes the felt's own text color
     // rather than a surface's — every named felt is dark whatever theme the
     // app is in.
     expect(block('.playtest-pile__label {')).toContain('color: var(--felt-text)');
@@ -376,7 +376,7 @@ describe('the narrow tier is the same board, sized for a thumb', () => {
     // Desk-sized pills are a quarter of a phone's width each.
     expect(phone).toContain('.playtest-corner-btn,');
     expect(phone).toContain('min-width: 0');
-    // The fan centres in what the piles leave, or its outer card lands off
+    // The fan centers in what the piles leave, or its outer card lands off
     // the left edge and under the library.
     expect(phone).toContain('.playtest-hand--fan {');
     // Ordering is the whole point: a media query adds no specificity, so
@@ -478,7 +478,7 @@ describe('the desktop seat grid', () => {
 });
 
 /**
- * The felt colour setting did nothing for its entire life: the defaults were
+ * The felt color setting did nothing for its entire life: the defaults were
  * declared on `.playtest-page, body`, and a custom property resolves from the
  * NEAREST declaring ancestor rather than by specificity across elements — so
  * `.playtest-page` sat between `body[data-felt='…']` and the felt that reads
@@ -508,7 +508,7 @@ describe('the felt setting can actually reach the felt', () => {
     }
   });
 
-  it('keeps a named felt overriding all three, so a colour is one surface', () => {
+  it('keeps a named felt overriding all three, so a color is one surface', () => {
     for (const felt of ['green', 'blue', 'wine', 'slate']) {
       const b = block(`body[data-felt='${felt}'] {`);
       expect(b, felt).toContain('--felt-base');

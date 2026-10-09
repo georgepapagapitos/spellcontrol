@@ -13,7 +13,7 @@ import { projectBulkCard } from './scryfall-bulk';
  * meant the playtest board could never print a real body. `tokens` meant
  * BOTH token checklists ("Tokens to prep" and the playtest token picker)
  * reported that every deck in the app makes no tokens. `produced_mana`
- * meant a Command Tower produced no colours as far as the mana-base
+ * meant a Command Tower produced no colors as far as the mana-base
  * analysis was concerned. `keywords` meant partner, flash and changeling
  * detection all read as absent. Every one was found by a human noticing a
  * feature was wrong, never by a test.

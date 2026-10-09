@@ -47,7 +47,7 @@ let attempted = false;
 /**
  * The tag lookup, or `null` when the data could not be read.
  *
- * Loaded once and memoised — the file is ~1MB of JSON and the parse is far too
+ * Loaded once and memoized — the file is ~1MB of JSON and the parse is far too
  * expensive to repeat per request. A failure is logged once, loudly, and never
  * retried: if the asset is missing from the image it will still be missing on
  * the next request, and a per-request warning would just flood the log.

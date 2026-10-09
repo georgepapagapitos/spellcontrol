@@ -207,7 +207,7 @@ describe('DeckDisplay category groups (E124)', () => {
    * The caption is the fix, so it is what this pins.
    */
   it('says the Roles list files each card once, so its counts can be told from the Roles panel', () => {
-    // The lens is labelled "Roles" since 2026-09-21 — its buckets ARE
+    // The lens is labeled "Roles" since 2026-09-21 — its buckets ARE
     // ROLE_TITLES, so calling it "Category" made the derived taxonomy
     // compete with the user's own tags for the same word.
     localStorage.setItem('mtg-decks-group-by', 'category');

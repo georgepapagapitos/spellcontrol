@@ -47,7 +47,7 @@ export interface PublicationListingRow {
    *  else the deck's signature card). A tile's own thumb resolution prefers
    *  `commanderImageNormal`/a by-name lookup first; this is the fallback for
    *  a deck with neither (board E482 — a deck with no commander otherwise
-   *  rendered as a flat colourless swatch, the first thing a cold visitor
+   *  rendered as a flat colorless swatch, the first thing a cold visitor
    *  saw on the landing's Fresh public decks rail). */
   ogArtCrop: string | null;
 }

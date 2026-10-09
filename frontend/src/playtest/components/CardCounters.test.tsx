@@ -3,7 +3,7 @@
  * EDHPlay's counters (2026-09-24, from the user's screenshots): a counter on
  * the felt is itself the control. A click adds one, a right-click takes one
  * off, hovering names it, and a "+1" floats up so a click on a small disc
- * visibly landed. Printed counters are icons; named ones are coloured discs.
+ * visibly landed. Printed counters are icons; named ones are colored discs.
  */
 import { describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
@@ -71,7 +71,7 @@ describe('CardCounters', () => {
     expect(disc?.style.getPropertyValue('--disc')).toMatch(/^#/);
   });
 
-  it('is read-only with no handler: a labelled image, not a button', () => {
+  it('is read-only with no handler: a labeled image, not a button', () => {
     render(<CardCounters counters={{ charge: 1 }} placement="inset" />);
     expect(screen.queryByRole('button')).toBeNull();
     expect(screen.getByRole('img', { name: 'Charge: 1' })).toBeTruthy();

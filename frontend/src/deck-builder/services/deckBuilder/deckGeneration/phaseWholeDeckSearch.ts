@@ -65,7 +65,7 @@ export const SEARCH_TIME_BUDGET_MS = 15_000;
 /** The ownership checks. */
 const OWNED_RULES = new Set(['collection', 'owned-share']);
 
-/** What the phase needs besides the state (commanders, customization, colour
+/** What the phase needs besides the state (commanders, customization, color
  *  identity and the owned names come from state.context). */
 export interface WholeDeckSearchInput {
   roleTargets: Record<string, number> | null;

@@ -34,7 +34,7 @@ describe('parseManaCost', () => {
     expect(parseManaCost('')).toBeNull();
   });
 
-  it('reads generic and coloured pips (Wrath of God)', () => {
+  it('reads generic and colored pips (Wrath of God)', () => {
     const c = cost('{2}{W}{W}');
     expect(c).toMatchObject({ mv: 4, generic: 2, pips: [MANA_W, MANA_W], units: 4 });
     expect(c.checks).toEqual([{ mask: MANA_W, need: 2 }]);
@@ -48,7 +48,7 @@ describe('parseManaCost', () => {
     expect(cost('{X}{R}')).toMatchObject({ mv: 1, generic: 0, pips: [MANA_R] });
   });
 
-  it('reads hybrid as one pip of either colour (Kitchen Finks)', () => {
+  it('reads hybrid as one pip of either color (Kitchen Finks)', () => {
     const c = cost('{1}{G/W}{G/W}');
     expect(c.pips).toEqual([MANA_W | MANA_G, MANA_W | MANA_G]);
     expect(c.mv).toBe(3);
@@ -99,12 +99,12 @@ describe('canPay', () => {
     expect(canPay(cost('{U}{U}'), [MANA_U], [MANA_U | MANA_B])).toBe(true);
   });
 
-  it('pays hybrid from either colour', () => {
+  it('pays hybrid from either color', () => {
     expect(canPay(cost('{1}{G/W}{G/W}'), [MANA_G, MANA_W, MANA_B])).toBe(true);
     expect(canPay(cost('{1}{G/W}{G/W}'), [MANA_G, MANA_B, MANA_B])).toBe(false);
   });
 
-  it('needs a real colourless source for {C}', () => {
+  it('needs a real colorless source for {C}', () => {
     expect(canPay(cost('{3}{C}'), [MANA_W, MANA_W, MANA_W, ANY_COLOR])).toBe(false);
     expect(canPay(cost('{3}{C}'), [MANA_W, MANA_W, MANA_W, MANA_C])).toBe(true);
   });
@@ -148,7 +148,7 @@ describe('drop supply', () => {
     expect(canPayWithDrops(cost('{2}{G}'), s)).toBe(true);
   });
 
-  it('memoises per mask when given a memo', () => {
+  it('memoizes per mask when given a memo', () => {
     const memo = new Int32Array(64).fill(-1);
     const s = supply({ flex: [MANA_W], today: [MANA_W], drops: 1, memo });
     expect(canPayWithDrops(cost('{W}{W}'), s)).toBe(true);
@@ -156,7 +156,7 @@ describe('drop supply', () => {
     expect(canPayWithDrops(cost('{W}{W}'), s)).toBe(true);
   });
 
-  it('blames the colour that was short, or both when they share one source', () => {
+  it('blames the color that was short, or both when they share one source', () => {
     const one = supply({ flex: [MANA_W, MANA_W], drops: 1 });
     expect(dropShortMask(cost('{W}{U}'), one)).toBe(MANA_U);
     const shared = supply({ flex: [MANA_W | MANA_U, MANA_R], drops: 1 });
@@ -183,7 +183,7 @@ describe('allocate', () => {
 
   it('spends lands before Treasures and plain mana before flexible mana', () => {
     const pool = [unit(ANY_COLOR, 1), unit(MANA_W | MANA_U), unit(MANA_C), unit(MANA_G)];
-    // {1}{G}: the Forest pays G, the colourless unit pays the 1; the dual and the Treasure stay.
+    // {1}{G}: the Forest pays G, the colorless unit pays the 1; the dual and the Treasure stay.
     expect(allocate(cost('{1}{G}'), pool)?.sort()).toEqual([2, 3]);
   });
 

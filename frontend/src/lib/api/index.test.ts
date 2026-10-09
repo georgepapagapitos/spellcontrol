@@ -204,7 +204,7 @@ describe('api', () => {
     } catch {
       /* expected */
     }
-    // No partial UploadResponse ever materialised — the local responses[]
+    // No partial UploadResponse ever materialized — the local responses[]
     // array stays internal to importText and is discarded on throw.
     expect(resolvedValue).toBe('not-resolved');
   });

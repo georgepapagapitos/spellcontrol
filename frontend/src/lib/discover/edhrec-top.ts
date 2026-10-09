@@ -14,7 +14,7 @@ export type EdhrecTopKind = 'commanders' | 'cards' | 'salt';
 export type EdhrecTopPeriod = 'week' | 'month' | 'year';
 
 /** The card-type lists, in the order a picker shows them. Each exists both as
- *  a type-only list and as a section of every colour list. */
+ *  a type-only list and as a section of every color list. */
 export const EDHREC_TOP_TYPES = [
   { value: 'creatures', label: 'Creatures' },
   { value: 'instants', label: 'Instants' },
@@ -37,7 +37,7 @@ export function isEdhrecTopType(value: string | null | undefined): value is Edhr
 export interface EdhrecTopParams {
   kind: EdhrecTopKind;
   period?: EdhrecTopPeriod;
-  /** Colour identity as WUBRG letters (`WU`), or `C` for colorless. */
+  /** Color identity as WUBRG letters (`WU`), or `C` for colorless. */
   colors?: string;
   type?: EdhrecTopType;
 }
@@ -56,7 +56,7 @@ export interface EdhrecTopEntry {
 
 export interface EdhrecTopList {
   kind: EdhrecTopKind;
-  /** The window the list covers; colour and type lists are always `year`,
+  /** The window the list covers; color and type lists are always `year`,
    *  and the salt list has none. */
   period: EdhrecTopPeriod | null;
   colors: string | null;
@@ -86,7 +86,7 @@ export function edhrecTopQuery(params: EdhrecTopParams): string {
   if (params.kind !== 'salt') {
     const colors = normalizeColors(params.colors);
     const type = params.kind === 'cards' ? params.type : undefined;
-    // Colour and type lists only exist for the past 2 years.
+    // Color and type lists only exist for the past 2 years.
     q.set('period', colors || type ? 'year' : (params.period ?? 'week'));
     if (colors) q.set('colors', colors);
     if (type) q.set('type', type);

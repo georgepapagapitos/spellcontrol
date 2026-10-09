@@ -194,7 +194,7 @@ export async function computeHiddenGems(opts: ComputeHiddenGemsOptions): Promise
   }
 
   // Axis-only candidate source — the commander page's low-inclusion tail,
-  // synergy-leaning first: played more here than in the commander's colours,
+  // synergy-leaning first: played more here than in the commander's colors,
   // strongest ratio-weighted reading first (E510, synergyLift.ts).
   // These earn a row only if the axis check below finds real engine fit;
   // lift/similar candidates get the axis check too, as confirming evidence.

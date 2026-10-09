@@ -787,10 +787,10 @@ function limitsOf(phrase: string): Limit[] {
     limits.push('colour');
   if (/\battacking\b|\bblocking\b|\btapped creature\b|attacked or blocked/.test(phrase))
     limits.push('combat');
-  // Object filters beyond a type and a colour: the target must be legendary
+  // Object filters beyond a type and a color: the target must be legendary
   // (Hero's Demise), carry a trait (Plummet's "with flying") or be in a state
   // ("that was dealt damage this turn"). Each narrows the answer; none changes
-  // the role's tier. Colour, mana value and power bounds are recorded above, an
+  // the role's tier. Color, mana value and power bounds are recorded above, an
   // artifact-or-enchantment-only or nonland answer in the hits, an attacking or
   // tapped one as 'combat'.
   const object = clip(phrase);
@@ -1746,7 +1746,7 @@ export function parseSentence(s: string, ctx: SentenceCtx): EffectSig[] {
       'menace',
     ]) {
       if (!new RegExp(`\\b${kw}\\b`).test(grant[2])) continue;
-      // "Protection from black and from green" guards against two colours;
+      // "Protection from black and from green" guards against two colors;
       // "from the color of your choice" or "from everything" is real protection.
       const partial =
         kw === 'protection' &&

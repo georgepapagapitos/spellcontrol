@@ -30,7 +30,7 @@
 }
 
 /* A rename control living inside a heading keeps the heading's line height,
-   so the coarse-pointer touch floor is a centred ghost rather than padding. */
+   so the coarse-pointer touch floor is a centered ghost rather than padding. */
 @media (pointer: coarse) {
   .inline-rename-btn::after {
     content: '';

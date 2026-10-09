@@ -56,7 +56,7 @@
   cursor: pointer;
   /* Dim + slightly desaturate the card leaving the deck. Kept light enough
      that the card is still recognisable at 2rem (E264: at 0.5 it read as a
-     grey ghost, not the card you are cutting). */
+     gray ghost, not the card you are cutting). */
   opacity: 0.72;
   filter: grayscale(0.25);
   transition: opacity var(--motion-fast) ease;
@@ -79,7 +79,7 @@
    45px tall. A ghost rather than a wider box because the img is aspect-locked
    (488/680), so widening the button to 44px would make it 61px TALL and
    inflate every row — the exact failure `.deck-row-menu-trigger`'s ghost was
-   written to avoid. Height tracks the row, so neighbouring ghosts can't
+   written to avoid. Height tracks the row, so neighboring ghosts can't
    overlap vertically. */
 @media (pointer: coarse) {
   .deck-card-row-out {

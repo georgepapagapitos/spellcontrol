@@ -6,11 +6,11 @@
  * week reads the same as a staple: shocks ("you may pay 2 life"), check lands,
  * fast and slow lands, tango lands, bond lands, snarls, the legendary-creature
  * condition, and plain taplands. An `unless` clause it does not know reads as
- * tapped. Fetch lands are recognised by a sacrifice-and-search ability with no
+ * tapped. Fetch lands are recognized by a sacrifice-and-search ability with no
  * mana in its cost; they are cracked on entry for the best land still in the
  * library.
  *
- * Ramp is recognised the same way: a nonland permanent with a mana ability (a
+ * Ramp is recognized the same way: a nonland permanent with a mana ability (a
  * rock, a dork), a land search that puts lands onto the battlefield (Cultivate,
  * Wood Elves, Sakura-Tribe Elder), or a one-shot Treasure maker.
  */
@@ -61,7 +61,7 @@ function countWord(word: string | undefined): number {
   return NUMBER_WORDS[word] ?? 0;
 }
 
-/** Basic land types named in a phrase, as colour bits. */
+/** Basic land types named in a phrase, as color bits. */
 function typesIn(phrase: string): ManaMask {
   let m = 0;
   for (const [word, bit] of TYPE_WORDS) if (new RegExp(`\\b${word}\\b`).test(phrase)) m |= bit;
@@ -92,7 +92,7 @@ interface ManaClause {
   oneShot: boolean;
 }
 
-/** The mana abilities of a normalised text that cost {T} and no coloured mana. */
+/** The mana abilities of a normalized text that cost {T} and no colored mana. */
 function manaClauses(text: string): ManaClause[] {
   const out: ManaClause[] = [];
   for (const line of text.split('\n')) {
@@ -114,8 +114,8 @@ function manaClauses(text: string): ManaClause[] {
       );
       if (syms.length === 0) continue;
       // A filter ("{W/U}, {T}: Add {W}{W}, {W}{U}, or {U}{U}") is
-      // skipped as needing coloured mana, so a filter land reads as its {T}
-      // colours: a dual. Model the filter step if a filter-heavy deck misreads.
+      // skipped as needing colored mana, so a filter land reads as its {T}
+      // colors: a dual. Model the filter step if a filter-heavy deck misreads.
       const choice = /\bor\b|,/.test(effect);
       const k = choice ? 1 : syms.length;
       out.push({ net: k - generic, symbols: choice ? [] : syms, anyCount: 0, oneShot });
@@ -140,9 +140,9 @@ function unitsFrom(clauses: readonly ManaClause[], produced: ManaMask): ManaMask
   if (best.net > 1) {
     // "three mana of any one color" becomes three independent
     // any-colour units, so Gilded Lotus can pay {W}{U}{B}. Tie the units to one
-    // colour if a deck leans on such a rock for fixing.
+    // color if a deck leans on such a rock for fixing.
     if (best.anyCount > 0) return new Array<ManaMask>(best.net).fill(ANY_COLOR);
-    // A {1},{T} rock nets fewer units than it names; keep the named colours.
+    // A {1},{T} rock nets fewer units than it names; keep the named colors.
     return best.symbols.slice(0, best.net);
   }
   return [produced || best.symbols.reduce((m, s) => m | s, 0) || ANY_COLOR];
@@ -183,7 +183,7 @@ export function parseLandSearch(ability: string): LandSearch | null {
   };
 }
 
-/** Classify how a land face enters from its normalised text. */
+/** Classify how a land face enters from its normalized text. */
 export function parseLandEntry(text: string, names: readonly string[]): LandEntry {
   const self = selfSubject(names);
   if (
@@ -345,7 +345,7 @@ function rampOf(card: ScryfallCard, face: Face, identity: ManaMask): RampEffect 
 
   if (spell) return null;
   // "Spend this mana only to cast…" restrictions are ignored and a
-  // Signet is one unit of its two colours (its {1} filter is not modelled).
+  // Signet is one unit of its two colors (its {1} filter is not modeled).
   // Both read slightly generous; model the restriction if a deck leans on it.
   const clauses = manaClauses(text);
   if (!clauses.some((c) => c.net > 0)) return null;

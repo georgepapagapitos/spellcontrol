@@ -43,7 +43,7 @@ const EXEMPT_DIRS = ['components/play/', 'playtest/'];
 // The deck editor's card-picker sheet has always rendered inline. This guard
 // only passed while the page shared a file with the overflow menu's
 // createPortal; the split (T176) made the gap visible. Moving it to <body>
-// changes where the sheet paints, so it is a behaviour change owned by its own
+// changes where the sheet paints, so it is a behavior change owned by its own
 // ticket, not by the file split. Delete this entry when it is portaled.
 const EXEMPT_FILES = ['pages/deck-editor/DeckEditorCardPickerSheet.tsx'];
 

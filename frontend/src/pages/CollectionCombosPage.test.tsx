@@ -184,7 +184,7 @@ describe('CollectionCombosPage', () => {
       target: { value: 'owned' },
     });
 
-    // Tabs stay — this is the old behaviour, which E212's banner explains.
+    // Tabs stay — this is the old behavior, which E212's banner explains.
     await waitFor(() => expect(screen.getByText(/Owned Combo/)).toBeTruthy());
     expect(screen.queryByText(/closest first/)).toBeNull();
   });

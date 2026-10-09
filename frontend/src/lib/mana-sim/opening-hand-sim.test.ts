@@ -147,7 +147,7 @@ describe('simulateOpeningHands', () => {
     expect(r.landHistogram.every((n) => n === 0)).toBe(true);
   });
 
-  it('tallies land colour identity per land-count bucket', () => {
+  it('tallies land color identity per land-count bucket', () => {
     // An all-green-land library: every hand draws 7 green lands, so the only
     // populated bucket is 7 and it holds 7 × iterations green shares.
     const greenLands = Array.from({ length: 99 }, () => land(['G']));
@@ -156,13 +156,13 @@ describe('simulateOpeningHands', () => {
     expect(r.landColorByCount[6]).toBeUndefined();
   });
 
-  it('gives a dual land one share to each of its colours', () => {
+  it('gives a dual land one share to each of its colors', () => {
     const dualLands = Array.from({ length: 99 }, () => land(['G', 'W']));
     const r = simulateOpeningHands(dualLands, { iterations: 50, seed: 4 });
     expect(r.landColorByCount[7]).toEqual({ G: 350, W: 350 });
   });
 
-  it('files colourless lands under the C key', () => {
+  it('files colorless lands under the C key', () => {
     const r = simulateOpeningHands(
       Array.from({ length: 99 }, () => land()),
       { iterations: 40, seed: 6 }

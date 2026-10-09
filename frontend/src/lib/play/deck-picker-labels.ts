@@ -4,7 +4,7 @@ import type { Deck } from '@/store/decks';
  * One label per deck for a picker, guaranteed distinct.
  *
  * Generation names a deck after its commander, so an account that rebuilt
- * around a favourite has several "Abigale · Abigale, Eloquent First-Year"
+ * around a favorite has several "Abigale · Abigale, Eloquent First-Year"
  * rows. B7-04 appended the card count to colliding rows — but every generated
  * Commander deck is 99 cards, so the dev account's four Abigales still read as
  * four identical rows (playtest batch 7). Each tier below only kicks in for

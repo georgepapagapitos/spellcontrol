@@ -348,7 +348,7 @@ describe('buildAppendPlan', () => {
     expect(plan.addedCards.map((c) => c.card.name)).toEqual(['The Ur-Dragon', 'Sol Ring']);
     expect(plan.addedCount).toBe(2);
     expect(plan.commanderChanged).toBe(false);
-    // And it's judged like any other added card: five colours under Korvold.
+    // And it's judged like any other added card: five colors under Korvold.
     const zones = validateDeckZones(plan.cards, plan.sideboard, DECK_FORMAT_CONFIGS.commander, {
       commander: plan.commander,
       partnerCommander: plan.partnerCommander,

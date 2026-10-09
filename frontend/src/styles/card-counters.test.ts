@@ -41,7 +41,7 @@ describe('the counters beside a card', () => {
     );
   });
 
-  it('paint fixed ink on fixed discs, never theme colours', () => {
+  it('paint fixed ink on fixed discs, never theme colors', () => {
     // They sit on card art, the same ruling as the P/T plates.
     expect(rule('.card-counter')).toMatch(/(?<![-\w])color:\s*#fff\b/);
     expect(rule('.card-counter--mark')).toMatch(/background:\s*#0b0b0c\b/);

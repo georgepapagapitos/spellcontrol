@@ -15,7 +15,7 @@ export interface RuleFieldVisibility {
  *
  * Null everywhere else — notably in the collection Filters dialog, which shares
  * `FilterFieldEditor` but is a flat always-visible form and should stay one.
- * A null context means "render every row", which is exactly the old behaviour,
+ * A null context means "render every row", which is exactly the old behavior,
  * so nothing outside the rule editor changes.
  */
 export const RuleFieldContext = createContext<RuleFieldVisibility | null>(null);

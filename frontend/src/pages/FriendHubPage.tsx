@@ -118,7 +118,7 @@ export function FriendHubPage() {
   // friend's collection — the same oracle-level fetch the cube collab pool
   // uses, so it rides the existing sharing model (no new privacy surface).
   const lists = useCollectionStore((s) => s.lists);
-  // Tracking lists catalogue cards the viewer owns — never wants.
+  // Tracking lists catalog cards the viewer owns — never wants.
   const wantsAnything = lists.some((l) => !isTrackingList(l) && l.entries.length > 0);
 
   // ONE fetch of the friend's collection, copy by copy, feeds the trade radar

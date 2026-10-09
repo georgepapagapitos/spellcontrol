@@ -35,7 +35,7 @@ interface Props {
 /**
  * Filters anchored to the combos search pill's trailing slot. Mirrors
  * DeckFiltersPopover's structure and reuses its classes wholesale, so the
- * search-pill affordance looks identical across pages — colour row, chip
+ * search-pill affordance looks identical across pages — color row, chip
  * sections, live toggling (no Apply staging).
  */
 export function ComboFiltersPopover({ filters, setFilters, hasCommanders }: Props) {

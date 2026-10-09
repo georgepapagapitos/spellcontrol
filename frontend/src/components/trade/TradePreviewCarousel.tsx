@@ -26,7 +26,7 @@ export interface TradePreviewState {
  * `getActions` is keyed by SLIDE index. Callers that resolved their slides
  * through `resolveTradePreview` must map back through its `indexOf` rather
  * than by position — a card that resolved nowhere is dropped, and a positional
- * assumption would then point every later action at its neighbour.
+ * assumption would then point every later action at its neighbor.
  */
 export function TradePreviewCarousel({
   state,

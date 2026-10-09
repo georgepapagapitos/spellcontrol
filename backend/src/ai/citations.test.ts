@@ -4,7 +4,7 @@ import { unverifiedCitations } from './deck-review';
 /**
  * A stand-in card database. The real predicate is a cache lookup; what matters
  * for these tests is that only these phrases are real cards, so anything else
- * capitalised in the prose has to be recognised as ordinary English.
+ * capitalized in the prose has to be recognized as ordinary English.
  */
 const REAL = new Set([
   'Wooded Foothills',
@@ -57,7 +57,7 @@ describe('unverifiedCitations', () => {
     expect(unverifiedCitations(prose, [], isRealCard)).toEqual([]);
   });
 
-  it('ignores capitalised phrases that are not cards', () => {
+  it('ignores capitalized phrases that are not cards', () => {
     const prose = 'Your Command Zone strategy leans on the Early Game.';
     expect(unverifiedCitations(prose, [], isRealCard)).toEqual([]);
   });

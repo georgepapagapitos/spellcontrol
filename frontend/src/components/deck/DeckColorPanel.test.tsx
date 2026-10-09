@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { DeckColorPanel } from './DeckColorPanel';
 
-// The panel led with a share-of-deck donut ("57% white", an unlabelled "67"
+// The panel led with a share-of-deck donut ("57% white", an unlabeled "67"
 // in the middle) that answered a question nobody asks. It now leads with the
 // deck's colors in words and goes straight to the mana base: each color's
 // cards against the sources that make it, every count opening its list.

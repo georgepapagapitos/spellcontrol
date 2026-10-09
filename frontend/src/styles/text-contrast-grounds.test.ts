@@ -121,7 +121,7 @@ describe('text on the accent-tinted selected ground', () => {
         ).toBeGreaterThanOrEqual(0.3);
       }
     });
-    // Accent text (a selected tile's accent label, the hover colour of a link in
+    // Accent text (a selected tile's accent label, the hover color of a link in
     // it) fell to 3.6-4.2:1 on the tint in eight themes; tinted rules point
     // --accent / --accent-hover at this pair. A control filled with it inside a
     // selected tile still writes --on-accent, so that pairing holds too.
@@ -189,12 +189,12 @@ describe('no opacity on text that must clear AA', () => {
     // Comments may talk about opacity; only declarations count.
     return css.slice(at, css.indexOf('}', at)).replace(/\/\*[\s\S]*?\*\//g, '');
   };
-  it('.tab-count sets a colour, not opacity', () => {
+  it('.tab-count sets a color, not opacity', () => {
     const block = rule(read('tabs.css'), '.tab-count');
     expect(block).not.toMatch(/opacity/);
     expect(block).toMatch(/color:\s*var\(--text-muted\)/);
   });
-  it('the loading next-best-move row is dimmed by colour, not opacity', () => {
+  it('the loading next-best-move row is dimmed by color, not opacity', () => {
     const css = read('../components/deck/NextBestMove.css');
     expect(css).not.toMatch(/\.next-best-move-row\.is-loading\s*\{[^}]*opacity/);
   });
@@ -238,9 +238,9 @@ describe('text on the deck identity warn/fail row tints', () => {
   });
 });
 
-// Text painted on a binder's own colour takes its ink from lib/util/ink.ts (numeric
-// proof in lib/util/ink.test.ts); these pin the wiring so a fixed colour can't return.
-describe('binder colour fills use the picked ink', () => {
+// Text painted on a binder's own color takes its ink from lib/util/ink.ts (numeric
+// proof in lib/util/ink.test.ts); these pin the wiring so a fixed color can't return.
+describe('binder color fills use the picked ink', () => {
   it('the active binder tab and the index name band read --binder-ink', () => {
     expect(read('binder-nav.css')).toMatch(/\.tab\.active\s*\{\s*color:\s*var\(--binder-ink/);
     const index = read('deck-builder-binders-index.css');

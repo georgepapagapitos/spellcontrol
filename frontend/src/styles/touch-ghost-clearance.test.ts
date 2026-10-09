@@ -10,8 +10,8 @@ const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
  * A 44px coarse-pointer target is only a floor if it doesn't take its
- * neighbour's pixels. Two did (nightly journey, E455): the binder page header's
- * centred ghost reached 2.5px into the section header button above it, and the
+ * neighbor's pixels. Two did (nightly journey, E455): the binder page header's
+ * centered ghost reached 2.5px into the section header button above it, and the
  * deck hero's back link (then absolute on the phone art) covered the top of
  * the deck name's rename button once the hero's meta wrapped. The journey caught both, but only on the
  * nights the data happened to fill the space; this holds the arithmetic every
@@ -64,13 +64,13 @@ const after = (css: string, marker: string) => {
   return i;
 };
 
-describe('coarse-pointer ghosts stay off their neighbours', () => {
+describe('coarse-pointer ghosts stay off their neighbors', () => {
   it("the binder page header's ghost fits between the section header and the page's slots", () => {
     const css = read('styles/binder-grid-slots.css');
     const coarse = after(css, '@media (pointer: coarse) {\n  .page-num-link {');
     const row = px(decl(css, '.page-num-link', 'min-height', coarse));
     const ghost = px(decl(css, '.page-num-link::after', 'height', coarse));
-    const reach = (ghost - row) / 2; // centred: top 50% + translateY(-50%)
+    const reach = (ghost - row) / 2; // centered: top 50% + translateY(-50%)
     const above = px(decl(css, '.section-header', 'margin-bottom'));
     // Below: the page-wrap gap, then the page's own border and padding.
     const below =
@@ -91,7 +91,7 @@ describe('coarse-pointer ghosts stay off their neighbours', () => {
   it("the deck hero's back link stays off the name's slack under it", () => {
     // The back link heads the title column, straight above the deck name
     // (InlineRename's button), whose box starts 0.22em above its text: padding
-    // cancelled by a negative margin. The link's bottom margin plus the
+    // canceled by a negative margin. The link's bottom margin plus the
     // column gap must cover that slack at the largest name size, or the top
     // strip of the name's rename button would open "All decks" (E455). The
     // link's own 44px coarse floor is its own box and grows away from it.
@@ -142,7 +142,7 @@ describe('coarse-pointer ghosts stay off their neighbours', () => {
       gap + pad,
       `meta line starts ${gap + pad}px under the name, its box reaches ${slack}px`
     ).toBeGreaterThanOrEqual(slack - 1e-6);
-    // InlineRename's own coarse ghost (44px, centred) stays inside the name's
+    // InlineRename's own coarse ghost (44px, centered) stays inside the name's
     // box because the box clips it.
     expect(decl(deck, name, 'overflow')).toBe('hidden');
 
@@ -171,7 +171,7 @@ describe('coarse-pointer ghosts stay off their neighbours', () => {
   it("the deck checks' Fix in Coach links stay off the next row's link", () => {
     // Nightly journey 2026-09-28: `.btn-link loses its bottom edge to
     // .btn-link` on ?view=stats. The fix links stack one per check row, and
-    // the shared `.btn-link` ghost (44px, centred) is taller than a row, so
+    // the shared `.btn-link` ghost (44px, centered) is taller than a row, so
     // each one reached into the next row's link.
     const card = read('components/deck/DeckIdentityCard.css');
     const shared = read('styles/forms-banners.css');

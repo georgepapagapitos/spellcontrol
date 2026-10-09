@@ -10,7 +10,7 @@ import type { CommanderStats } from '@/lib/discover/aggregates-client';
 // dependency-injected `resolvePlatformCounts` helper directly: the one piece
 // of genuinely new logic (batch-once semantics, skip-on-resolution-failure).
 // The surrounding effects that call it (gated on pdh / activeSearchMode,
-// cancelled via the same closure-scoped flag every sibling effect in this
+// canceled via the same closure-scoped flag every sibling effect in this
 // file already uses) are thin wiring proven by code review, matching this
 // file's own zero-existing-coverage baseline for that cancellation idiom.
 

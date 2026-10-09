@@ -36,7 +36,7 @@ describe('normalizeColors', () => {
     expect(normalizeColors('RUx')).toBe('UR');
   });
 
-  it('keeps colorless only when no colour is picked', () => {
+  it('keeps colorless only when no color is picked', () => {
     expect(normalizeColors('C')).toBe('C');
     expect(normalizeColors('CW')).toBe('W');
     expect(normalizeColors('')).toBe('');
@@ -49,7 +49,7 @@ describe('edhrecTopQuery', () => {
     expect(edhrecTopQuery({ kind: 'commanders' })).toBe('kind=commanders&period=week');
   });
 
-  it('locks a colour or type list to the past 2 years, the only window EDHREC has', () => {
+  it('locks a color or type list to the past 2 years, the only window EDHREC has', () => {
     expect(edhrecTopQuery({ kind: 'cards', period: 'week', colors: 'uw' })).toBe(
       'kind=cards&period=year&colors=WU'
     );

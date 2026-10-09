@@ -80,7 +80,7 @@ export async function matchCombos(req: MatchRequest): Promise<ComboMatchResponse
  * popularity before bucketing, which is exactly the truncation this exists to
  * escape). Returns `null` when the local dataset isn't cached, and the caller
  * then falls back to filtering the already-fetched buckets — i.e. the old
- * behaviour, alongside E212's partial-results banner that already explains why
+ * behavior, alongside E212's partial-results banner that already explains why
  * the answer is incomplete.
  */
 export async function searchCombos(req: {

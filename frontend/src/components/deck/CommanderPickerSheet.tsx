@@ -12,7 +12,7 @@ import './CommanderPickerSheet.css';
  * Choose a deck's commander from inside the editor (E465): a deck can start
  * without one, so this is where it gets one later, and where an existing one
  * is changed. A sheet you pick from (STYLE_GUIDE § Overlays, Pattern B): a
- * bottom sheet on phones, a centred dialog above 600px.
+ * bottom sheet on phones, a centered dialog above 600px.
  *
  * Leads with the commander-eligible cards already in the deck (format-aware:
  * PDH derives eligibility, the other formats use the legendary rule), which is

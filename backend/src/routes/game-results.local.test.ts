@@ -922,7 +922,7 @@ describe('DELETE /api/game-results/:sessionId (online, as host)', () => {
 
   /**
    * Every online row recorded before host_user_id existed carries NULL. Those
-   * must keep the behaviour they had — nobody deletes them, everyone at the
+   * must keep the behavior they had — nobody deletes them, everyone at the
    * table can still hide them. Written as a test because the obvious SQL for
    * the hide rule (`NOT (mode = 'online' AND host_user_id = $3)`) evaluates to
    * NULL on exactly these rows and quietly filters them out, taking hide away

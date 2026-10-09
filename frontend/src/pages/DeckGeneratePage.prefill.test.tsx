@@ -180,7 +180,7 @@ describe('DeckGeneratePage prefill', () => {
   describe('keep my edits', () => {
     const edits = { added: ['Skullclamp'], cut: ['Sol Ring', 'Arcane Signet'] };
 
-    it('starts on: additions pinned, cuts banned, control labelled with the counts', () => {
+    it('starts on: additions pinned, cuts banned, control labeled with the counts', () => {
       renderWithPrefill({ commander, edits, customization: { mustIncludeCards: ['Sol Ring'] } });
       const { customization } = useDeckBuilderStore.getState();
       expect(customization.mustIncludeCards).toEqual(['Skullclamp']);

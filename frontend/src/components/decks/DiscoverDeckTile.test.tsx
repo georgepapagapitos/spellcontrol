@@ -148,7 +148,7 @@ describe('DiscoverDeckTile — grid art banner', () => {
 
   // ============================================================
   // A deck with no commander (any non-Commander format) — E482. Was a flat
-  // colourless swatch: no image, and no visible colour pips (colorIdentity
+  // colorless swatch: no image, and no visible color pips (colorIdentity
   // is always [] for a non-Commander deck; see backend deckColorIdentity).
   // ============================================================
 
@@ -168,9 +168,9 @@ describe('DiscoverDeckTile — grid art banner', () => {
   });
 
   // A no-commander deck's colorIdentity is empty because the listing only
-  // derives colours from a commander, not because the deck is colourless: a
+  // derives colors from a commander, not because the deck is colorless: a
   // mono-white Pauper deck must never wear a colorless pip.
-  it('shows no colour claim in the swatch when a no-commander deck has no known colours', () => {
+  it('shows no color claim in the swatch when a no-commander deck has no known colors', () => {
     useCardThumbMock.mockReturnValue(undefined);
     const { container } = renderTile({
       format: 'pauper',

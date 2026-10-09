@@ -821,7 +821,7 @@
 
 /* Zero the body padding because each panel handles its own gutters —
    UploadPanel has its own internal grid spacing, the search panel
-   uses card-picker-search/body padding, and the scan tab centres
+   uses card-picker-search/body padding, and the scan tab centers
    itself with its own padding. */
 .add-cards-modal-body {
   padding: 0;
@@ -898,7 +898,7 @@
   padding: 0;
 }
 
-/* The scan tab is a one-shot launcher: centred icon, brief copy,
+/* The scan tab is a one-shot launcher: centered icon, brief copy,
    prominent CTA. Banners stack below the CTA. */
 .add-cards-panel-scan {
   padding: var(--space-6) var(--space-5);
@@ -1867,7 +1867,7 @@
 .back-link {
   display: inline-flex;
   align-items: center;
-  /* Labelled navigation action = rect (T53 Phase 4; was a 999px outlier
+  /* Labeled navigation action = rect (T53 Phase 4; was a 999px outlier
      among the app's otherwise-flat back links). */
   /* `align-self: flex-start` so the link hugs its text when it sits
      inside a flex/grid column (e.g. `.deck-editor-page`). Without it,

@@ -108,7 +108,7 @@
   gap: var(--space-2);
 }
 
-/* Cancelled cue — title/when strike through so the "this doesn't happen"
+/* Canceled cue — title/when strike through so the "this doesn't happen"
    read survives even for a viewer skimming past the pill; the pill itself
    (below) stays full-strength so it's the loudest thing on the card, not
    dimmed along with everything else. */

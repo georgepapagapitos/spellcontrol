@@ -34,7 +34,7 @@ export function useTableSeat(): { online: GameState; seat: GamePlayer } | null {
   const online = usePlayStore((s) => s.online);
   const userId = useAuth((s) => s.user?.id ?? null);
   // The deck this board is actually playing. Null on a session that has not
-  // initialised, which can never match a seat.
+  // initialized, which can never match a seat.
   const playtestDeckId = usePlaytestStore((s) => s.deckId);
 
   return useMemo(() => {

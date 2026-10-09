@@ -18,7 +18,7 @@ interface Props {
 
 /**
  * One friend as a person: avatar, name, a peek at what they brew (deck count,
- * top commander, colour bar, the art of a deck), and when you became friends.
+ * top commander, color bar, the art of a deck), and when you became friends.
  * The whole identity is one link to their profile. Everything else lives in a
  * ⋮ menu beside it, kept out of the link: Start a trade, View profile, the friend hub (trades,
  * head-to-head, what they shared with you), and Remove, which is danger-toned

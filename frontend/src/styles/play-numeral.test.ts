@@ -16,7 +16,7 @@ const counters = readFileSync(join(here, 'play-counters-panel.css'), 'utf8');
  * the room was the least legible thing on the board. Each seat now takes
  * black or white ink, whichever has the better worst case across its base and
  * the base/edge mid-tone. This recomputes that choice for every palette, so a
- * new or re-tuned colour cannot ship with the wrong ink.
+ * new or re-tuned color cannot ship with the wrong ink.
  */
 
 const lum = (hex: string) => {
@@ -65,7 +65,7 @@ describe('seat ink', () => {
     }
   });
 
-  it('every identity colour is in the dark-ink list exactly when black reads better', () => {
+  it('every identity color is in the dark-ink list exactly when black reads better', () => {
     const blocks = [
       ...identity.matchAll(/\.pp-color-(\w) \{\s*--pp-base: (#\w{6});\s*--pp-edge: (#\w{6});/g),
     ];
@@ -146,7 +146,7 @@ describe('numeral size', () => {
   it('that same tier condenses the name, or the numeral shrink alone leaves it grazing the numeral', () => {
     // E416: the name's own font never shrank with the panel, so on a
     // 90-145px cell the corner keep-out alone can't clear a fixed ~23px-tall
-    // label from the centred numeral — measured as a real overlap (up to
+    // label from the centered numeral — measured as a real overlap (up to
     // 450px², always the name, never a badge or chip) at every 7-10p preset.
     const tierStart = board.indexOf('@container (max-height: 9.5rem)');
     expect(tierStart, '9.5rem tier is missing').toBeGreaterThan(-1);
@@ -181,7 +181,7 @@ describe('numeral size', () => {
     // The 9.5rem tier above only ever shrank the sideways numeral (the
     // width-keyed `max-width: 10rem` rule) — never the ±'s reach, the name,
     // or the chip rail. Measured before this: the ± spilling 3-6px past a
-    // 74-115px-tall cell's short half-width, the name ellipsising to "Pla…"
+    // 74-115px-tall cell's short half-width, the name ellipsizing to "Pla…"
     // (10p-sides @320, no upright seat exists to fall back on there), and
     // the "up next" chip grazing the name (335-478px²). This override is a
     // SECOND `@container (max-height: 9.5rem)` block, placed after

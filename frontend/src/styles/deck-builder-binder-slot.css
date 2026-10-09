@@ -10,7 +10,7 @@
 
 /* Icon-only "in a deck" mark pinned to the bottom-right of an allocated
    slot, where the Collection grid pins its marks, so both surfaces read the
-   same. Its paint is the identity disc (collection.css): the deck's colour
+   same. Its paint is the identity disc (collection.css): the deck's color
    under a light glyph. Slot is too narrow to fit a deck name
    legibly, so the full name is exposed via the title attribute (and
    aria-label) instead. Sized as a fraction of the slot width so it
@@ -40,7 +40,7 @@
    the badge's own corner rather than centered: `.slot` clips overflow (it
    crops the card art to its rounded corners), so a centered ghost got
    clipped on its outward half — measured, the right-edge probe fell through
-   to the neighbouring slot's image. Growing only inward, toward slot
+   to the neighboring slot's image. Growing only inward, toward slot
    center, keeps the whole ghost inside the clip. */
 @media (pointer: coarse) {
   .slot-deck-badge::after {

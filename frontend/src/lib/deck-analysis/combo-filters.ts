@@ -78,14 +78,14 @@ export function pieceCountBucket(n: number): ComboPieceCount {
 }
 
 /**
- * Colour semantics: selecting {U, B} means "combos I could run in a UB deck" —
+ * Color semantics: selecting {U, B} means "combos I could run in a UB deck" —
  * i.e. the combo's identity must FIT INSIDE the selection, not merely overlap
  * it. Same subset rule `useDeckCombos.filterByIdentity` applies against a
  * commander, which is what makes the filter useful for "what can I build".
  *
  * Spellbook identities are lowercase WUBRG, or 'c' for colorless. Colorless
  * fits in any selection, so a combo with identity 'c' (or '') always passes
- * once any colour is chosen.
+ * once any color is chosen.
  */
 function fitsColors(identity: string, selected: ReadonlySet<string>): boolean {
   if (selected.size === 0) return true;

@@ -429,7 +429,7 @@ function DialogBody({
     if (draftCmcMin !== undefined) f.cmcMin = draftCmcMin;
     if (draftCmcMax !== undefined) f.cmcMax = draftCmcMax;
     // The page's search box is outside this dialog but narrows the same list,
-    // so the count has to honour it or it won't match what Apply produces.
+    // so the count has to honor it or it won't match what Apply produces.
     const trimmed = searchTerm?.trim();
     if (trimmed) f.nameContains = trimmed;
     return countMatchingRows(rows, {

@@ -153,7 +153,7 @@
   align-items: center;
   flex: 0 0 auto;
   /* Takes the coarse floor on its REAL box, not a ghost: these rows are 44px
-     tall already, and a ghost here would overlap the neighbouring row's thumb
+     tall already, and a ghost here would overlap the neighboring row's thumb
      and open the wrong card. */
   min-height: 44px;
   padding: 0;

@@ -198,7 +198,7 @@ describe('TradeComposer — a picked row opens the DEAL', () => {
   it('maps the tapped card through indexOf, so a DROPPED card cannot shift the slide', async () => {
     // The give card resolves nowhere (an unresolvable printing) and is
     // dropped; the ask card must still open on ITSELF, not on slide 0's
-    // neighbour. A positional assumption fails this.
+    // neighbor. A positional assumption fails this.
     resolveTradePreview.mockImplementation((cards: { name: string; oracleId: string }[]) => {
       const kept = cards.filter((c) => c.name !== 'Sol Ring').map((c) => ({ name: c.name }));
       return Promise.resolve({

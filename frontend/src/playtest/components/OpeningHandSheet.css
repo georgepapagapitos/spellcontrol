@@ -183,7 +183,7 @@
 
 /* Solo Horde (E387 PR 5): a third row that opens a sheet rather than a
    checkbox, so it spans both columns of the grid above (and both of the
-   takeover's own auto-sized pair) and centres its own content instead of
+   takeover's own auto-sized pair) and centers its own content instead of
    sitting flush left like a checkbox label. */
 .horde-opening-row {
   grid-column: 1 / -1;
@@ -765,7 +765,7 @@
   }
 
   /* The way out keeps its corner but shrinks to a line that cannot reach the
-     centred title. */
+     centered title. */
   .is-takeover .playtest-opening-back {
     top: 0;
     left: var(--space-2);

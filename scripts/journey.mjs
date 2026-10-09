@@ -22,7 +22,7 @@
 //
 // With --a11y it also runs axe-core (WCAG 2.2 A/AA) on every screen, and on
 // desktop re-runs its color-contrast rule under every theme and every type
-// set: a colour that clears AA in one theme can vanish in another (the
+// set: a color that clears AA in one theme can vanish in another (the
 // card-preview panel's "Ramp" pill read 1.08:1 in the light guilds only).
 // A finding fails the screen, with the details in a11y.json; see axeSweep.
 //
@@ -118,8 +118,8 @@ const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
  * size and weight that decide axe's large-text threshold, and it swaps the
  * faces, so it gets the same rule.
  *
- * Transitions and animations are frozen first: the theme swap fades colours
- * over --motion-*, and axe reading mid-fade reports a colour no one sees.
+ * Transitions and animations are frozen first: the theme swap fades colors
+ * over --motion-*, and axe reading mid-fade reports a color no one sees.
  */
 async function axeSweep(page, sweep) {
   if (!(await page.evaluate(() => !!window.axe))) await page.evaluate(AXE_SRC);
@@ -251,7 +251,7 @@ async function keyboardWalk(page) {
       const el = document.activeElement;
       if (!el || el === document.body) return null;
       // Identity, not description: two deck tiles for one commander, or two
-      // unlabelled radios in a row, describe the same and are not a trap.
+      // unlabeled radios in a row, describe the same and are not a trap.
       window.__journeyStops ??= new WeakMap();
       if (!window.__journeyStops.has(el)) {
         window.__journeyStopN = (window.__journeyStopN ?? 0) + 1;
@@ -511,7 +511,7 @@ const NO_WRAP_AT_PHONE = [
  *     which opens the card. Measured hit area 53x37 — a secondary action
  *     nested in a primary target, above the AA floor.
  *   - `.deck-curve-phases-bar-hit` is a chart column, 32px wide with a 39px
- *     hit area. Widening one column eats its neighbour; the fix is a different
+ *     hit area. Widening one column eats its neighbor; the fix is a different
  *     chart, not a floor.
  * So the flip needs those three carried as documented exceptions, not as an
  * allowlist of 21 — and nothing else added to it without a measured reason.
@@ -844,7 +844,7 @@ async function main() {
         return record(label);
       };
       /**
-       * Behavioural check against the page already `record()`ed as `rec` —
+       * Behavioral check against the page already `record()`ed as `rec` —
        * a screen can pass the generic no-error/no-overflow checks while
        * showing the wrong data entirely (E.g. a card count of 0). Folds
        * into the same `rec` (screenshot already taken) instead of a
@@ -1387,8 +1387,8 @@ async function main() {
                     card && stage ? (card.width * card.height) / (stage.width * stage.height) : 0,
                   cardW: Math.round(card?.width ?? 0),
                   headH: Math.round(head?.height ?? 0),
-                  // Paging must land the card dead centre on its stage: a
-                  // transformed neighbour once left it 17.5px off (#2259).
+                  // Paging must land the card dead center on its stage: a
+                  // transformed neighbor once left it 17.5px off (#2259).
                   centerOff:
                     card && stage
                       ? Math.round(

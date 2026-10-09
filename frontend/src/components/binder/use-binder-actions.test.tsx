@@ -82,7 +82,7 @@ describe('useBinderActions', () => {
   });
 
   // The tab strip's ⋯ reordered silently; the index toasted. One move, one
-  // behaviour, wherever it is made.
+  // behavior, wherever it is made.
   it('says how many cards a move sent to another binder', () => {
     const { result } = renderHook(() => useBinderActions());
     const moveDown = result.current

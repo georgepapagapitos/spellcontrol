@@ -69,7 +69,7 @@ describe('BinderVolumesSheet', () => {
     expect(screen.getByRole('button', { name: 'Use a 480-card binder' })).toBeTruthy();
   });
 
-  it('says a split is the only fit when nothing in the catalogue holds every page', () => {
+  it('says a split is the only fit when nothing in the catalog holds every page', () => {
     renderSheet({ totalPages: 5000 });
     expect(
       screen.getByText('No standard size holds it in one book, so it stays in 3 volumes.')

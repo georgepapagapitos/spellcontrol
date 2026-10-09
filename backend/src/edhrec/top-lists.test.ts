@@ -58,7 +58,7 @@ describe('parseTopListQuery', () => {
     }
   });
 
-  it('answers a colour or type filter with the 2-year list', () => {
+  it('answers a color or type filter with the 2-year list', () => {
     expect(key({ kind: 'commanders', period: 'week', colors: 'wu' })).toEqual({
       kind: 'commanders',
       period: 'year',
@@ -74,11 +74,11 @@ describe('parseTopListQuery', () => {
     });
   });
 
-  it('treats an empty colour filter as none', () => {
+  it('treats an empty color filter as none', () => {
     expect(key({ kind: 'cards', colors: '' })).toMatchObject({ colors: null, period: 'week' });
   });
 
-  it('gives salt no period, colour or type', () => {
+  it('gives salt no period, color or type', () => {
     expect(key({ kind: 'salt' })).toEqual({ kind: 'salt', period: null, colors: null, type: null });
     expect(key({ kind: 'salt', period: 'month' }).period).toBeNull();
   });
@@ -133,7 +133,7 @@ describe('parseTopListQuery', () => {
       }
     }
     for (const path of paths) expect(path).toMatch(/^\/pages\/(commanders|top)\/[a-z-]+\.json$/);
-    // 3 period pages × 2 kinds, 32 colour pages × 2 kinds, 10 type pages, salt.
+    // 3 period pages × 2 kinds, 32 color pages × 2 kinds, 10 type pages, salt.
     expect(paths.size).toBe(3 * 2 + 32 * 2 + TOP_CARD_TYPES.length + 1);
   });
 });
@@ -147,7 +147,7 @@ describe('normalizeColors', () => {
 });
 
 describe('edhrecPathFor', () => {
-  it('maps every colour identity to a slug on both kinds', () => {
+  it('maps every color identity to a slug on both kinds', () => {
     const subsets = allColourSubsets();
     expect(subsets).toHaveLength(31);
     for (const colors of [...subsets, 'C']) {
@@ -159,14 +159,14 @@ describe('edhrecPathFor', () => {
       expect(edhrecPathFor(key({ kind: 'cards', colors }))).toBe(
         `/pages/top/${CARD_COLOUR_SLUG[colors]}.json`
       );
-      // A type filter reads a list on the same colour page.
+      // A type filter reads a list on the same color page.
       expect(edhrecPathFor(key({ kind: 'cards', colors, type: 'lands' }))).toBe(
         `/pages/top/${CARD_COLOUR_SLUG[colors]}.json`
       );
     }
   });
 
-  it('uses mono-<colour> for commanders and the bare colour for cards', () => {
+  it('uses mono-<color> for commanders and the bare color for cards', () => {
     expect(edhrecPathFor(key({ kind: 'commanders', colors: 'W' }))).toBe(
       '/pages/commanders/mono-white.json'
     );
@@ -260,7 +260,7 @@ describe('parseTopList', () => {
     expect(entries[0].salt).toBeCloseTo(3.057, 2);
   });
 
-  it("picks the colour page's top cards, or the requested type's list", () => {
+  it("picks the color page's top cards, or the requested type's list", () => {
     const top = parseTopList(topAzorius, key({ kind: 'cards', colors: 'WU' }));
     expect(top.map((e) => e.name)).toEqual([
       'Talisman of Progress',
@@ -275,7 +275,7 @@ describe('parseTopList', () => {
     expect(creatures[0].name).not.toBe(top[0].name);
   });
 
-  it('answers an empty list when a colour page has no card of that type', () => {
+  it('answers an empty list when a color page has no card of that type', () => {
     // The fixture, like the real Azorius page trimmed, has no battles list.
     expect(parseTopList(topAzorius, key({ kind: 'cards', colors: 'WU', type: 'battles' }))).toEqual(
       []
@@ -309,7 +309,7 @@ describe('parseTopList', () => {
     expect(() => parseTopList(body, key({ kind: 'commanders' }))).toThrow(TopListParseError);
   });
 
-  it('throws when a colour page has no top cards at all', () => {
+  it('throws when a color page has no top cards at all', () => {
     const page = structuredClone(topAzorius);
     page.container.json_dict.cardlists = page.container.json_dict.cardlists.filter(
       (l) => l.tag !== 'topcards'

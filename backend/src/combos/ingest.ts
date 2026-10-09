@@ -513,7 +513,7 @@ export async function ingestCombos(
           // Yield to the event loop so the HTTP server can answer health
           // checks (and any in-flight user requests) between batches. The
           // ingest itself runs at roughly the same wall-clock as before;
-          // it just stops monopolising the worker, which is what lets a
+          // it just stops monopolizing the worker, which is what lets a
           // shared-cpu-1x VM survive a full bulk run without flapping its
           // Fly healthchecks. Tested empirically — every flush is ~80-150ms
           // of CPU work, so a single setImmediate per ~500-combo batch is

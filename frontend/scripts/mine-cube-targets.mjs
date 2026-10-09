@@ -144,7 +144,7 @@ const cardCmc = (c) => Number(c.details?.cmc ?? c.cmc ?? 0) || 0;
 const cardColors = (c) => c.details?.colors ?? c.colors ?? [];
 // Color IDENTITY (for the pair split — a card's cast colors can differ from
 // its identity, e.g. hybrid mana) and produced mana (for fixing-land pairing:
-// an "add one mana of any color" land like Command Tower has an EMPTY colour
+// an "add one mana of any color" land like Command Tower has an EMPTY color
 // identity but a full produced_mana, so lands must key off produced mana, not
 // identity — see core.ts's `pairsFixedBy`).
 const cardColorIdentity = (c) => c.details?.color_identity ?? cardColors(c);

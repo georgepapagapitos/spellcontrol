@@ -146,7 +146,7 @@ function cubeClaim(cube: SavedCube, cardName: string): AllocationInfo {
 /**
  * Map<copyId → AllocationInfo> of every physical copy "checked out" to a deck
  * or to a cube the user flagged as physical (`isPhysical`). Read by `CardSlot`,
- * the binder UI, and the deck editor to grey out / badge copies that aren't
+ * the binder UI, and the deck editor to gray out / badge copies that aren't
  * free. `physicalCubes` is the raw saved-cube list (non-physical cubes are
  * filtered out here). It is required: a map built from decks alone reads a
  * physical cube's copies as free, and a deck path that bound from one could

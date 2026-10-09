@@ -23,7 +23,7 @@ export interface SoloHordeConfig {
   hordeId: string;
   hordeName: string;
   level: HordeLevel;
-  /** The Customise values, kept so Reset can rebuild the same fight. */
+  /** The Customize values, kept so Reset can rebuild the same fight. */
   overrides: Partial<HordeSettings>;
   /** Resolved for one survivor. */
   settings: HordeSettings;

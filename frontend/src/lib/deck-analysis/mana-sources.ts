@@ -29,11 +29,11 @@ const COLOR_KEYS = ['W', 'U', 'B', 'R', 'G'] as const;
  * A land counts only the abilities that always work (`unconditionalMana`).
  * Scryfall's `produced_mana` also lists what a paid, sacrifice or
  * spend-restricted ability makes, so Power Depot, Springjack Pasture, Daily
- * Bugle Building, Captivating Cave and Cavern of Souls would read as coloured
+ * Bugle Building, Captivating Cave and Cavern of Souls would read as colored
  * sources; they tap for {C}. The mana sim reads lands the same way.
  *
  * `allAbilities` keeps Scryfall's reading, for the one caller that must not let
- * the colour count move a staple's slot (see landGenerator's boosts).
+ * the color count move a staple's slot (see landGenerator's boosts).
  *
  * Name/text fallbacks cover the rare card cached without `produced_mana`.
  * Returns `[]` for non-producers.

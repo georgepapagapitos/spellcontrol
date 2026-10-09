@@ -58,7 +58,7 @@ export interface DeckCardInspectorActions {
  *
  * Deliberately NOT an `aria-live` region. It follows focus as well as hover, so
  * announcing it would re-read a card's whole rules text on every Tab, over the
- * row the reader just landed on. It's a labelled landmark instead: reachable on
+ * row the reader just landed on. It's a labeled landmark instead: reachable on
  * purpose, silent when it changes underneath you.
  */
 export function DeckCardInspector({

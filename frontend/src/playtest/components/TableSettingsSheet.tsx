@@ -86,7 +86,7 @@ interface Props {
     hint: string;
     onZoom(zoom: number): void;
   };
-  /** Felt colour. Absent (tests, previews) hides the row. */
+  /** Felt color. Absent (tests, previews) hides the row. */
   skin?: TableSkin;
   /** Snap to grid, and the turn alert when seated online. */
   toggles?: SettingToggle[];

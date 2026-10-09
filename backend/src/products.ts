@@ -190,7 +190,7 @@ export async function searchProducts(
 /**
  * Every product of the given MTGJSON types, oldest first. Unlike
  * {@link searchProducts} there is no cap: the precon seed job needs the whole
- * catalogue, not a page of it.
+ * catalog, not a page of it.
  */
 export async function listProducts(types: string[]): Promise<ProductSummary[]> {
   const typeSet = new Set(types);
@@ -215,7 +215,7 @@ const deckInFlight = new Map<string, Promise<MtgjsonDeckFile | null>>();
 /**
  * Fetches and caches a product's full deck file. Returns null when the fileName
  * isn't in the index (unknown/not-yet-ingested product) — which is also what
- * guards against arbitrary-path fetches, since only catalogued fileNames pass.
+ * guards against arbitrary-path fetches, since only cataloged fileNames pass.
  */
 export async function getProductDeck(fileName: string): Promise<MtgjsonDeckFile | null> {
   const cached = deckCache.get(fileName);
@@ -243,7 +243,7 @@ export async function getProductDeck(fileName: string): Promise<MtgjsonDeckFile 
 }
 
 async function fetchProductDeck(fileName: string): Promise<MtgjsonDeckFile | null> {
-  // Only catalogued fileNames are fetchable (validates the param + prevents SSRF).
+  // Only cataloged fileNames are fetchable (validates the param + prevents SSRF).
   const summary = await getProductSummary(fileName);
   if (!summary) return null;
   // A pending product is served from the repo until MTGJSON lists it.

@@ -13,7 +13,7 @@ import { withTagAdded, withTagRemoved } from '@/lib/deck/deck-tags';
 import type { Row } from './deck-display-rows';
 
 /** Clusters, in render order. The menu runs past a dozen rows, and the style
- *  guide asks for labelled sections rather than one flat list once it does. */
+ *  guide asks for labeled sections rather than one flat list once it does. */
 export type DeckCardActionSection =
   'copies' | 'move' | 'collection' | 'commander' | 'tag' | 'cover';
 

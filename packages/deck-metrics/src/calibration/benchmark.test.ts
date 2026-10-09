@@ -169,7 +169,7 @@ describe('disagreement causes', () => {
   const est = bench.estimate(bench.state(deck));
   const as = (set: string) => ({ ...deck, set, spellbook: undefined, scrollvault: undefined });
 
-  it('buckets a Core read of a list labelled higher as the known gap, and Bracket 1 as intent', () => {
+  it('buckets a Core read of a list labeled higher as the known gap, and Bracket 1 as intent', () => {
     expect(disagreementCause(as('declared'), est, 3)).toMatch(/known gap/);
     expect(disagreementCause(as('declared'), est, 1)).toMatch(/intent/);
     expect(disagreementCause(as('declared'), est, 5)).toBe('cEDH: no Bracket 4 floor');

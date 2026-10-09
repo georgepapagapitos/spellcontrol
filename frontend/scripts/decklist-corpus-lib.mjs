@@ -80,7 +80,7 @@ export function tournamentWeight(bracket) {
  * EDHTop16 entries (graphql `entries { commander { name } maindeck { name } }`)
  * as corpus decks. The pilot, the standing's player and the decklist URL are
  * not read. `maindeck` lists each name once, so basics lose their counts;
- * `padBasics` is filled in by the caller once colour identity is known.
+ * `padBasics` is filled in by the caller once color identity is known.
  */
 export function edhtop16Decks(tournament) {
   const out = [];

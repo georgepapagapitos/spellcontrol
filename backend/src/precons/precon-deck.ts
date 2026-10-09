@@ -15,7 +15,7 @@ export function releaseDateMs(releaseDate: string): number | null {
 }
 
 /**
- * Deck names for a catalogue. Wizards reprints some precons under the same
+ * Deck names for a catalog. Wizards reprints some precons under the same
  * name (Heavenly Inferno is both a 2011 deck and an Anthology reprint), and two
  * identical tiles would read as a duplicate. So a repeated name gets its
  * release year; a unique one stays as printed.

@@ -75,7 +75,7 @@ describe('precompressed', () => {
   });
 
   it('never rewrites a traversal attempt or a non-GET', () => {
-    // Called directly: every HTTP client normalises `..` (and `%2e%2e`) away
+    // Called directly: every HTTP client normalizes `..` (and `%2e%2e`) away
     // before the request leaves, so the guard can only be exercised in-process.
     const handler = precompressed(root);
     for (const [method, url] of [

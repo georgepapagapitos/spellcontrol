@@ -93,7 +93,7 @@ describe('filterFriendCollection', () => {
   });
 
   // E237 — operator syntax now routes through the shared Scryfall engine.
-  it('supports operator syntax alongside the colour chips', () => {
+  it('supports operator syntax alongside the color chips', () => {
     const { cards: result } = filterFriendCollection(cards, {
       query: 't:creature',
       colors: new Set(),
@@ -114,7 +114,7 @@ describe('filterFriendCollection', () => {
     expect(result).toHaveLength(0);
   });
 
-  it('keeps the answerable half of a mixed query, and still applies colour chips', () => {
+  it('keeps the answerable half of a mixed query, and still applies color chips', () => {
     const { cards: result, ignored } = filterFriendCollection(cards, {
       query: 't:creature o:destroy',
       colors: new Set(['W']),
@@ -179,7 +179,7 @@ describe('sortFriendCollection', () => {
     ]);
   });
 
-  it('breaks mana-value and rarity ties by name and honours direction', () => {
+  it('breaks mana-value and rarity ties by name and honors direction', () => {
     expect(sortFriendCollection(cards, 'cmc', 'asc').map((c) => c.name)).toEqual([
       'Lightning Bolt',
       'Sol Ring',

@@ -37,7 +37,7 @@ const TAGS: Record<string, string[]> = {
   'mass-land-denial': ['Armageddon'],
   'extra-turn': ['Time Warp'],
   counterspell: ['Counterspell', 'Mana Drain'],
-  // Tagged, but with nothing the role folds recognise → no role.
+  // Tagged, but with nothing the role folds recognize → no role.
   tapland: ['Jungle Hollow'],
 };
 

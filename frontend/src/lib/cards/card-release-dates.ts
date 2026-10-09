@@ -95,7 +95,7 @@ export function _resetForTests(): void {
  * just before materializing.
  *
  * Returns the input array by identity when nothing is cached yet, so a cold
- * cache degrades to the set/drop-date behaviour and a `useMemo` over the result
+ * cache degrades to the set/drop-date behavior and a `useMemo` over the result
  * doesn't invalidate for collections this can't affect.
  */
 export function decorateReleaseDates<T extends { scryfallId?: string }>(cards: T[]): T[] {

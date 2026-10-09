@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 /**
- * GameBoard end-of-game and overlay behaviour. Mirrors the mock harness
+ * GameBoard end-of-game and overlay behavior. Mirrors the mock harness
  * already proven out by GameBoard.ux321.test.tsx (GameBoard unconditionally
  * touches usePlayStore/haptics/wake-lock/undo-stack/dnd-kit regardless of
  * scenario) — this file adds its own describe blocks rather than growing
@@ -166,7 +166,7 @@ describe('Board overlays answer Escape', () => {
 describe('Right-click belongs to the board', () => {
   // The board is a game surface, not a document: its own gestures own
   // right-click, so the native browser menu never opens over the felt or the
-  // chrome. `fireEvent` returns false when the event was cancelled, which is
+  // chrome. `fireEvent` returns false when the event was canceled, which is
   // exactly "no native menu here".
   it('cancels the native menu across the board, chrome included', () => {
     const game = makeTestState([makeTestPlayer()], { mode: 'local', status: 'active' });

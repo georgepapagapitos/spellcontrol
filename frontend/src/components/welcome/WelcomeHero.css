@@ -181,7 +181,7 @@
     content: '';
     position: absolute;
     top: 50%;
-    /* Anchored to the button's LEFT edge, not centred on it: a centred 44px
+    /* Anchored to the button's LEFT edge, not centered on it: a centered 44px
        ghost around a 1.6rem circle reaches ~9px past the button on each side,
        and the left reach measured 2.8px INTO the search field — a tap aimed
        at the end of the query submitted it instead of placing the caret.
@@ -215,7 +215,7 @@
 
 /* Secondary CTA needs its own on-scrim treatment — the shared .pill-btn
    default (--surface / --border-strong / --text-secondary) is a themed
-   surface color that would render as a random grey box on top of card art.
+   surface color that would render as a random gray box on top of card art.
    Compound `.pill-btn.welcome-hero-cta-secondary` beats the base rule's own
    specificity regardless of stylesheet import order — same defensive
    pattern documented on DiscoverDeckTile.css / STYLE_GUIDE's Discover-tile

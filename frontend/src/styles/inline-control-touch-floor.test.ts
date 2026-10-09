@@ -11,7 +11,7 @@ const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 /**
  * Controls that live inside a line of text (a sentence, a table cell, a
  * heading) can't take a `min-height` without pushing that line apart, so they
- * meet the coarse-pointer floor with a centred `::after` ghost instead
+ * meet the coarse-pointer floor with a centered `::after` ghost instead
  * (STYLE_GUIDE § Responsive). This shipped with no floor at all (T152 W8d):
  * the rename button that is the pod's name in the pod hub's heading had
  * `padding: 0`.
@@ -39,7 +39,7 @@ describe('inline controls meet the coarse touch floor', () => {
       expect(ghost).toContain('height: 44px');
       expect(ghost).toMatch(/min-width:\s*44px/);
       expect(ghost).toContain('translate(-50%, -50%)');
-      // The ghost centres on its own control only if that control is a
+      // The ghost centers on its own control only if that control is a
       // positioning context.
       expect(css).toMatch(new RegExp(`\\n${sel}\\s*\\{[^}]*position:\\s*relative`));
     });

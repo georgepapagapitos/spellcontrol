@@ -411,7 +411,7 @@ export function CommanderSearch({
   }, [activeSource, collectionLegends, ownedPlaystyles, query]);
 
   // ── Every commander: EDHREC's popular list, or a Scryfall search ──────
-  // The key summarises everything the fetch reads, so the effect runs once
+  // The key summarizes everything the fetch reads, so the effect runs once
   // per distinct request rather than once per `query` identity.
   const remoteKey = JSON.stringify([
     activeSource,

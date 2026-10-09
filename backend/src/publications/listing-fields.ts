@@ -67,7 +67,7 @@ const WUBRG = ['W', 'U', 'B', 'R', 'G'];
  * - Without one (Pauper, Modern, Standard, …): the union over the mainboard and
  *   sideboard cards, most-used color first, ties in WUBRG order. Reading only
  *   the commander here left every non-commander deck colorless in Discover,
- *   on /u/:username and in the friend library: no pips, a grey strip, and a
+ *   on /u/:username and in the friend library: no pips, a gray strip, and a
  *   color filter that matched it under any selection.
  */
 function deckColorIdentity(

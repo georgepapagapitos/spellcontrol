@@ -51,7 +51,7 @@ function ColorSpread({ spread }: { spread: PublicProfile['colorSpread'] }) {
 const MIN_REPEAT_DECKS = 2;
 
 /**
- * What a brewer's decks lean on: the colours across every live deck, and the
+ * What a brewer's decks lean on: the colors across every live deck, and the
  * commanders they keep coming back to. A commander built once is left out
  * (with 17 one-off decks, "top 3" is an arbitrary three), so the commander
  * row only shows when something repeats. Renders nothing for a brewer with

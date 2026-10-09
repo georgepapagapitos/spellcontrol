@@ -1833,7 +1833,7 @@ describe('sparePockets ("leave room")', () => {
   });
 });
 
-describe('rule sections honour page filling (sectionMode: group, E473)', () => {
+describe('rule sections honor page filling (sectionMode: group, E473)', () => {
   const byRarity = (value: string) => ({
     rarities: { chips: [{ value, negate: false }], joiners: [] },
   });

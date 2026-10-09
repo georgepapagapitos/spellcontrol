@@ -1,6 +1,6 @@
 /* ── GenerationTakeover ────────────────────────────────────────────────────
    Focused panel that replaces the page body during commander-deck generation.
-   One centred, width-bounded stage: the commander card (plus its partner) lit
+   One centered, width-bounded stage: the commander card (plus its partner) lit
    by a blurred copy of its own art, beside a single column carrying the name,
    the live step, the bar and the phase timeline. Nothing stretches to the
    panel edge, so a wide desktop reads as one composition, not a strip.
@@ -28,7 +28,7 @@
   animation: gen-takeover-exit var(--motion-base) var(--ease-out-soft) both;
 }
 
-/* Dim + desaturate the cards so the seal flare and colour sparks pop against
+/* Dim + desaturate the cards so the seal flare and color sparks pop against
    them during the celebration. */
 .gen-takeover.is-celebrating .gen-takeover-cards {
   filter: brightness(0.6) saturate(0.9);
@@ -115,7 +115,7 @@
     width: min(clamp(9rem, 22cqi, 19rem), 34dvh);
   }
 
-  /* The column stops at a readable measure; the stage centres the pair. */
+  /* The column stops at a readable measure; the stage centers the pair. */
   .gen-takeover-body {
     max-width: 36rem;
   }

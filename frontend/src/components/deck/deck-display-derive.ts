@@ -259,7 +259,7 @@ export function buildFlatIndex(
     // in more than one of `groups`. Dedupe within this zone's pass so the
     // carousel never repeats the same card as consecutive slides. The other
     // three lenses (including 'stack') do partition, so this is a no-op
-    // there rather than a second behaviour to keep in step.
+    // there rather than a second behavior to keep in step.
     const pushedThisZone = new Set<string>();
     for (const g of groups) {
       for (const row of g.rows) {

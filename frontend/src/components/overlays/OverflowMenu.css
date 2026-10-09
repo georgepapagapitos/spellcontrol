@@ -79,7 +79,7 @@
 /* Coarse-pointer floor on BOTH axes. The width half came from a trigger that
    measured 34×44 inside a 44px row; the pod hub's header trigger sits beside a
    36px button and measured 44×20 at phone width — a probe 18px above or below
-   its centre hit the wrapper, not the button (playtest batch 9). The trigger
+   its center hit the wrapper, not the button (playtest batch 9). The trigger
    is its own thing, not a control crowded into a dense row, so it takes the
    floor on its real box rather than a ghost. */
 @media (pointer: coarse) {
@@ -94,7 +94,7 @@
    item's menu is open, from its ⋮ or a right-click, the item wears the accent
    ring, so "which card is this menu for" never needs guessing: a right-click
    menu sits at the pointer, not beside the item. Inset, so a tile inside a
-   clipping grid or a virtualised list still shows all four sides. Set and
+   clipping grid or a virtualized list still shows all four sides. Set and
    cleared only by lib/overlays/context-menu.ts `markMenuTarget`. */
 [data-menu-open] {
   outline: 2px solid var(--accent);

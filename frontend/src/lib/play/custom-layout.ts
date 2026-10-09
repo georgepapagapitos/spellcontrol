@@ -88,7 +88,7 @@ export function rangeFreeRows(
 
 /**
  * Pick a sensible hub-seam position from the arrangement. Purely cosmetic
- * (where the centre menu button sits): a single row of sideways seats
+ * (where the center menu button sits): a single row of sideways seats
  * gets a vertical seam; otherwise the seam sits below the lowest
  * 180°-rotated ("far side") row, falling back to the middle.
  */

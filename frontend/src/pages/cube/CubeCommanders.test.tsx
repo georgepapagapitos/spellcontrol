@@ -283,7 +283,7 @@ describe('CubeCommandersSection — Partner/Background labels (board E462)', () 
     expect(document.querySelector('.collection-grid-caption')!.textContent).toBe('Background');
   });
 
-  it('list: the same labels render as a plain-text row chip, never colour alone', () => {
+  it('list: the same labels render as a plain-text row chip, never color alone', () => {
     const legends = [legendPick({ oracleText: "Doctor's companion (…)" }), legendPick()];
     render(
       <CubeCommandersSection cube={cubeOf(60, legends)} view="list" enrichedMap={enrichedMap} />

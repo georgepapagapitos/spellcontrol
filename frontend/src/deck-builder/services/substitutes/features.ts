@@ -159,7 +159,7 @@ function opposed(a: string, b: string): boolean {
  * unrestricted, less for each object filter the extractor records on the
  * role-carrying interaction (Plummet's "with flying" 0.5, Hero's Demise's
  * "legendary" 0.35, Kill Shot's "attacking" 0.6). A card with several answers
- * counts its broadest. A colour, mana value or power bound is not here: the
+ * counts its broadest. A color, mana value or power bound is not here: the
  * graded judgments treat Doom Blade as Murder's equal, and a bound removes
  * little of the board. Cards with no interaction fact are 1.
  */

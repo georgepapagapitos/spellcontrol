@@ -197,7 +197,7 @@ describe('DeckCurvePhases', () => {
 
   it('makes each by-color column ONE drill-down button; segments are not targets', () => {
     // Stacked slivers cannot each be a 24px target (WCAG 2.5.8), so the column
-    // is the target and the sheet it opens is grouped by colour.
+    // is the target and the sheet it opens is grouped by color.
     const cardsByCmc = {
       2: [
         { name: 'Counterspell', count: 1, card: { color_identity: ['U'] } as ScryfallCard },

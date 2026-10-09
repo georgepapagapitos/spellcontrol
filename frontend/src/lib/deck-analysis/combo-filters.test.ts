@@ -51,7 +51,7 @@ describe('comboResultKinds', () => {
     expect(comboResultKinds(['Each opponent loses the game']).has('win')).toBe(true);
   });
 
-  it('returns nothing for text it does not recognise', () => {
+  it('returns nothing for text it does not recognize', () => {
     expect(comboResultKinds(['Something unusual happens']).size).toBe(0);
   });
 });
@@ -82,7 +82,7 @@ describe('filterCombos', () => {
       expect(ids).toEqual(['u']);
     });
 
-    it('surfaces the UB combo once both its colours are selected', () => {
+    it('surfaces the UB combo once both its colors are selected', () => {
       const ids = filterCombos(all, filters({ colors: new Set(['U', 'B']) })).map(
         (m) => m.combo.id
       );
@@ -146,7 +146,7 @@ describe('filterCombos', () => {
 
   it('ANDs the filters together', () => {
     const out = filterCombos(all, filters({ colors: new Set(['U']), results: new Set(['mana']) }));
-    // mono-U is the only colour match, but it produces damage, not mana.
+    // mono-U is the only color match, but it produces damage, not mana.
     expect(out).toEqual([]);
   });
 });

@@ -477,9 +477,9 @@
   }
 }
 
-/* Grid mode: the ⋮ sits on the commander art or colour band. A solid surface
+/* Grid mode: the ⋮ sits on the commander art or color band. A solid surface
    square reads on any crop where a white glyph with a shadow vanished on pale
-   and busy art (E466); a centred ghost carries the coarse 44px target. Mirrors
+   and busy art (E466); a centered ghost carries the coarse 44px target. Mirrors
    the binders-index grid treatment, which says why. */
 .decks-index-list.is-grid .decks-index-card-menu-btn {
   background: var(--surface);

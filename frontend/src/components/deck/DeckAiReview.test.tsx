@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-// T102 — the AI review's two behaviours that cost something if they break:
+// T102 — the AI review's two behaviors that cost something if they break:
 // consent is granted in place (and only ever by an explicit press), and the
 // reading renders weakness-first with the model's card names made tappable.
 
@@ -54,7 +54,7 @@ function card(name: string): ScryfallCard {
   return { id: name, oracle_id: `o-${name}`, name } as ScryfallCard;
 }
 
-// Prompt v4 shape: labelled sections, weakness emitted first.
+// Prompt v4 shape: labeled sections, weakness emitted first.
 const REVIEW = [
   "---WEAKNESS---\nYour mana cannot support it — Sol Ring's colorless does not fix colors.",
   '---GAMEPLAN---\nYour deck ramps into Sol Ring and casts Kaalia of the Vast.',
@@ -178,7 +178,7 @@ describe('AI sources contract (T112)', () => {
 });
 
 // E381: a partner pair used to go out as one "A // B" commander string, which
-// the server can't look up as a card, so check_bracket and colour identity
+// the server can't look up as a card, so check_bracket and color identity
 // ignored both commanders.
 describe('partner commanders', () => {
   it('sends the partner as its own card name', async () => {

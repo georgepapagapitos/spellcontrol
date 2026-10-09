@@ -107,7 +107,7 @@ interface UpsertOp {
    * Deck-only optimistic-concurrency token: the `rev` the client last saw for
    * this deck. When > 0 the server only writes if the stored rev still matches,
    * otherwise it reports a conflict (see the deck reject-stale path below).
-   * Absent/0 = unconditional last-write-wins, the behaviour for every other kind.
+   * Absent/0 = unconditional last-write-wins, the behavior for every other kind.
    */
   clientRev?: number;
 }
@@ -233,7 +233,7 @@ syncRouter.get('/', requireAuth, syncLimiter, async (req: Request, res: Response
   // tombstone and return only live rows — it has nothing to delete, and a
   // long-lived account's historical tombstones would otherwise dominate the
   // first pull. `$3 = includeTombstones`: true keeps the delete-propagating
-  // behaviour for incremental (since > 0) pulls.
+  // behavior for incremental (since > 0) pulls.
   const includeTombstones = req.query.fresh !== '1';
 
   // Fetch limit+1 to detect hasMore without a second COUNT query.

@@ -16,7 +16,7 @@
   padding-block: var(--space-3);
 }
 
-/* Size, colour and states now come from the shared .icon-btn look
+/* Size, color and states now come from the shared .icon-btn look
    (IconButton variant="quiet"); this class only nudges it flush with the
    header's left edge. */
 .binder-editor-back {
@@ -315,7 +315,7 @@
 
 /* ── When a section ends: the fill pictogram ───────────────────────────── */
 /* Two tiny 9-pocket pages (decorative, aria-hidden). The three section
-   colours are mana colours, as in the mockup: they only need to differ. */
+   colors are mana colors, as in the mockup: they only need to differ. */
 .choice-option-label:has(.binder-fill-pic) {
   display: flex;
   align-items: center;
@@ -487,7 +487,7 @@
 }
 
 /* Tiles are grouped by job (E495: Pull out a pile / One slice / Deck-building
-   pools), each its own labelled grid, so a section header never reads as
+   pools), each its own labeled grid, so a section header never reads as
    just another tile. */
 .binder-start-group {
   display: flex;

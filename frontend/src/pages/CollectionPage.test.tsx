@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Stub heavy dependencies so the test stays lightweight and focused on the
-// deep-link / sheet-open behaviour, not on data rendering.
+// deep-link / sheet-open behavior, not on data rendering.
 vi.mock('@/lib/collection/allocations', () => ({ useAllocations: () => new Map() }));
 vi.mock('@/lib/api', () => ({ useSetMap: () => new Map() }));
 vi.mock('@/lib/binder/materialize', () => ({
@@ -223,8 +223,8 @@ describe('CollectionPage – AddCardsSheet deep-link (UX-333)', () => {
     // routing hooks, so we verify the param was consumed by rendering again at
     // the same URL and checking the component doesn't re-open the sheet after
     // close. This test simply confirms the sheet renders (param consumed means
-    // re-renders after close don't re-open — covered by the open-once behaviour
-    // of useState initialiser).
+    // re-renders after close don't re-open — covered by the open-once behavior
+    // of useState initializer).
     //
     // The actual URL mutation is tested implicitly: useEffect strips it via
     // setSearchParams({ replace: true }) which is a no-op in MemoryRouter but

@@ -81,7 +81,7 @@ export function foilSeed(id: string): number {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (Math.imul(h, 31) + id.charCodeAt(i)) | 0;
   // murmur3's finalizer: without it, ids that differ in one trailing character
-  // ("copy-1", "copy-2") land on neighbouring phases and drift in near-lockstep.
+  // ("copy-1", "copy-2") land on neighboring phases and drift in near-lockstep.
   h ^= h >>> 16;
   h = Math.imul(h, 0x85ebca6b);
   h ^= h >>> 13;

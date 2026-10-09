@@ -166,7 +166,7 @@ describe('fetchFriendCollection', () => {
     expect(result.cards).toHaveLength(1);
   });
 
-  it('throws on 403 (friend not authorised)', async () => {
+  it('throws on 403 (friend not authorized)', async () => {
     vi.mocked(fetch).mockResolvedValue({
       ok: false,
       status: 403,

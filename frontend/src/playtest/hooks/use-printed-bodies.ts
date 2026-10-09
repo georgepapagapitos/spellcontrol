@@ -26,7 +26,7 @@ const NOTHING: PrintedBodies = new Map();
  * the session once the answer lands. The board opens at its normal speed
  * either way: this only ever adds badges a moment later, never delays a card,
  * and a lookup that fails or finds nothing (offline, an unknown name) leaves
- * exactly the behaviour there was before it.
+ * exactly the behavior there was before it.
  */
 export function usePrintedBodies(deck: Deck): void {
   const applyPrintedBodies = usePlaytestStore((s) => s.applyPrintedBodies);

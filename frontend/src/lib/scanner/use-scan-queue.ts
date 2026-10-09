@@ -274,7 +274,7 @@ export interface UseScanQueueResult {
   totalCount: number;
   /**
    * Sum of `qty × unit USD price`. Falls back to foil / etched when the
-   * regular `usd` field is missing (Scryfall's convention). Memoised so
+   * regular `usd` field is missing (Scryfall's convention). Memoized so
    * the topbar pill doesn't recalculate on every parent re-render.
    */
   totalPrice: number;

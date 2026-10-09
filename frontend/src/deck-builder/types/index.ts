@@ -173,7 +173,7 @@ export interface EDHRECCard {
    *  the app synthesizes; see synergyLift.ts for how that's read. */
   potential_decks?: number;
   /** EDHREC synergy as a FRACTION (-1 to 1): this page's play rate minus its
-   *  colour identity's, so the colours' rate in percent is
+   *  color identity's, so the colors' rate in percent is
    *  `inclusion − synergy × 100`. Read it as a ratio via synergyLift.ts. */
   synergy?: number;
   // Track if this card came from a high-priority synergy list

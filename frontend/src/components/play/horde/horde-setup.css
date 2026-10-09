@@ -1,5 +1,5 @@
 /* horde-setup.css — the Local setup form's Horde (co-op) branch: the horde
-   picker grid, the difficulty radio rows, the Customise disclosure, and the
+   picker grid, the difficulty radio rows, the Customize disclosure, and the
    ban-list warning strip. Loaded once, from HordeTile.tsx (the first of
    these pieces the form ever mounts). */
 
@@ -155,7 +155,7 @@
   flex-shrink: 0;
 }
 
-/* ── Customise disclosure ────────────────────────────────────────────────── */
+/* ── Customize disclosure ────────────────────────────────────────────────── */
 
 .horde-customise {
   margin-top: var(--space-3);

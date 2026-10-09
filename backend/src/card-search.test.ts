@@ -35,7 +35,7 @@ describe('toMatchExpression', () => {
     expect(toMatchExpression('destroy artifact')).toBe('"destroy" AND "artifact"');
   });
 
-  it('neutralises FTS5 syntax rather than erroring on it', () => {
+  it('neutralizes FTS5 syntax rather than erroring on it', () => {
     // The caller is a language model; a stray quote or star must degrade into a
     // word search, never `fts5: syntax error`.
     expect(toMatchExpression('destroy "target" artifact*')).toBe(
@@ -53,12 +53,12 @@ describe('toMatchExpression', () => {
 });
 
 describe('colorIdentityMask', () => {
-  it('is 0 for colourless, which is a subset of every identity', () => {
+  it('is 0 for colorless, which is a subset of every identity', () => {
     expect(colorIdentityMask([])).toBe(0);
     expect(colorIdentityMask(undefined)).toBe(0);
   });
 
-  it('ORs the colour bits', () => {
+  it('ORs the color bits', () => {
     expect(colorIdentityMask(['B'])).toBe(4);
     expect(colorIdentityMask(['B', 'G'])).toBe(20);
     expect(colorIdentityMask(['W', 'U', 'B', 'R', 'G'])).toBe(31);
@@ -132,7 +132,7 @@ describe('searchCards', () => {
     expect(hit.cmc).toBe(1);
   });
 
-  it('restricts to a commander colour identity, keeping colourless', () => {
+  it('restricts to a commander color identity, keeping colorless', () => {
     const names = cache
       .searchCards({ query: 'destroy target artifact', colorIdentity: ['B', 'G'] })
       .map((r) => r.name);
@@ -361,13 +361,13 @@ describe('searchCards', () => {
     expect(hits.map((r) => r.name)).toContain('Relic of Progenitus');
   });
 
-  it('still honours filters on the fallback pass', () => {
+  it('still honors filters on the fallback pass', () => {
     const hits = cache.searchCards({
       query: 'exile graveyard cards from anywhere instead',
       colorIdentity: ['R'],
       commanderLegalOnly: true,
     });
-    // Relic is colourless so it survives; nothing outside red may appear.
+    // Relic is colorless so it survives; nothing outside red may appear.
     for (const h of hits) {
       expect([...h.colorIdentity].every((c) => c === 'R')).toBe(true);
     }

@@ -139,7 +139,7 @@ describe('computeHandStats', () => {
     expect(result.lands).toBe(0);
   });
 
-  it('marks colourless lands with C in colorBreakdown when color_identity is empty', () => {
+  it('marks colorless lands with C in colorBreakdown when color_identity is empty', () => {
     const hand: PlaytestCard[] = [
       makePlaytestCard({ id: 'w1', name: 'Wastes', typeLine: 'Basic Land' }),
     ];

@@ -12,7 +12,7 @@ export function isPlaytestLand(typeLine?: string): boolean {
 /**
  * True for the permanents that attach to something by rule — an Aura,
  * Equipment or Fortification. Drag-to-attach is gated on this so that
- * dropping an ordinary creature onto a neighbour (a nudge in a full row)
+ * dropping an ordinary creature onto a neighbor (a nudge in a full row)
  * can never attach it by accident; anything else still attaches through
  * the card menu's "Attach to…" picker.
  */
@@ -96,7 +96,7 @@ const TAX_COINS_MAX = 2;
  * The cards whose commander tax the coins above the command zone track, in a
  * fixed order: the deck's commander first (the gold coin), its partner second
  * (the silver one). `order` is those two ids; anything else sorts after them
- * by id, so a coin never changes colour when its commander changes zone.
+ * by id, so a coin never changes color when its commander changes zone.
  *
  * A commander is tracked wherever it is (on the battlefield, in the
  * graveyard), because that is exactly when the tax matters: it is the price of

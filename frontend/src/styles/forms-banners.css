@@ -79,7 +79,7 @@
 
 /* A link button sits inside text: a sentence, a table cell, a card line. A
    min-height would push that line apart on a phone, so the 44px floor is a
-   centred ghost instead (STYLE_GUIDE § Responsive, `.set-filter-chip-x`),
+   centered ghost instead (STYLE_GUIDE § Responsive, `.set-filter-chip-x`),
    the same as the other inline controls in inline-control-touch-floor.test. */
 /* A plain link in running text keeps the prose look (no button padding,
    which opens gaps mid-sentence) and takes `.text-link` for the same ghost.

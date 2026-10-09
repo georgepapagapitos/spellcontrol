@@ -163,7 +163,7 @@ describe('buildNextBestMoves', () => {
 
   it('uses the strongest-synergy gap for a weak strategy sub-score, read as a ratio (E510)', () => {
     // Real Sythis, Harvest's Hand rows. Reliquary Tower: 59.6% vs 28.1% in the
-    // colours (+0.315, 2.1x). Overgrowth: 31.7% vs 3.7% (+0.280, 8.6x). The
+    // colors (+0.315, 2.1x). Overgrowth: 31.7% vs 3.7% (+0.280, 8.6x). The
     // subtraction picked the tower; the ratio picks the enchantress card.
     const moves = buildNextBestMoves(
       base({

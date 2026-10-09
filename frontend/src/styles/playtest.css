@@ -288,7 +288,7 @@ body:has(.playtest-page, .horde-table-page) {
   animation: playtest-takeback-fade-in var(--motion-base) ease;
 }
 
-/* A hold and a takeback request can be live at once, and both are centred
+/* A hold and a takeback request can be live at once, and both are centered
    banners a few rem apart: hold at 3.25rem, this at 6rem. That 44px of
    clearance only survives a ONE-LINE hold message. The summary is free text a
    seat types, and a real pod holding for a complicated stack does not write
@@ -455,16 +455,16 @@ body:has(.playtest-hold-banner) .playtest-takeback-consent {
     radial-gradient(circle at 70% 70%, var(--felt-glow), transparent 60%), var(--felt-base);
 }
 
-/* The felt's own colours (E347). Per-device, set as `data-felt` on <body> —
+/* The felt's own colors (E347). Per-device, set as `data-felt` on <body> —
    see playtest/lib/table-skin.ts. The default IS the theme: the accent glows
    over the app background, which is what the table has always looked like.
    Each named felt replaces the base and dims its glow to a tint of itself, so
-   a coloured table still reads as one surface rather than a colour with two
+   a colored table still reads as one surface rather than a color with two
    accent blobs on it. */
 /* On `body` ALONE, deliberately. A custom property resolves from the nearest
    declaring ancestor, not by specificity across elements — so listing
    `.playtest-page` here too (as this once did) put a reset between
-   `body[data-felt='…']` and the felt that reads these, and every colour but
+   `body[data-felt='…']` and the felt that reads these, and every color but
    the default silently did nothing. */
 body {
   --felt-base: var(--bg);
@@ -473,7 +473,7 @@ body {
   /* Text printed ON the felt rather than on a surface above it — the zone
      labels. The theme felt IS the app background, so theme text is already
      right; every named felt below is dark whatever theme the app is in, so
-     each overrides this alongside its own colours. */
+     each overrides this alongside its own colors. */
   --felt-text: var(--text-primary);
 }
 
@@ -506,7 +506,7 @@ body[data-felt='slate'] {
 }
 
 /* The positioned surface is inset by `--pt-edge` on each side so a tapped
-   card at the far left/right (rotated 90° about its centre, so wider than
+   card at the far left/right (rotated 90° about its center, so wider than
    its slot) stays fully inside the wrap's clip. PlaytestBoard's geometry
    read subtracts the same inset — keep the two in step. */
 .playtest-battlefield {
@@ -528,7 +528,7 @@ body[data-felt='slate'] {
 
 /* Bottom-right corner cluster (table tier; `display: none` below 1024px,
    where MobileZonesPanel owns the zones instead). A horizontal row of tiles
-   floating over the felt, each labelled with its own count. */
+   floating over the felt, each labeled with its own count. */
 .playtest-piles {
   position: absolute;
   right: var(--space-3);
@@ -778,7 +778,7 @@ body[data-felt='slate'] {
   /* Card width, so the piles read as the same objects as the battlefield and
      follow the card-size setting — but only the TOP SLICE of the height. The
      shelf is a tucked-away reference, not a fifth row of cards: at rest it
-     shows the label, the count and enough art to recognise the top card,
+     shows the label, the count and enough art to recognize the top card,
      and gives the felt back the corner it used to eat. Hover/focus/drag-over
      below opens it to the full card, growing UPWARD off the edge because the
      row is anchored to the table's bottom. */
@@ -791,9 +791,9 @@ body[data-felt='slate'] {
   overflow: hidden;
   background: var(--surface-raised);
   display: flex;
-  /* TOP, not centre. The card inside is a FULL card height inside a box a
+  /* TOP, not center. The card inside is a FULL card height inside a box a
      third of that, so this is what decides which third of it you see —
-     centring showed the middle of the card (type line and rules text, with
+     centering showed the middle of the card (type line and rules text, with
      the name and art cut off above), which is the one slice that identifies
      nothing. The card now hangs from the top of the box the way it rests on
      a table: name, then art, then the table edge cuts it off.
@@ -874,7 +874,7 @@ body[data-felt='slate'] {
    are the look of a pile that HAS something in it (and the fallback for a top
    card whose art failed to load); a graveyard at 0 rendering as a solid brown
    card reads as a card, which is half of what made this shelf so loud.
-   Washed out of the felt's own text colour rather than a surface: with the
+   Washed out of the felt's own text color rather than a surface: with the
    tile gone the well sits directly on the felt, and a light-theme
    `--surface-raised` on a dark felt glowed like a lightbox. */
 .playtest-pile.is-empty .playtest-pile__stack {
@@ -1002,7 +1002,7 @@ body[data-felt='slate'] {
    invisible in practice: on a dark theme that token is a dark navy sitting on
    top of a card's own black border, over art. Checked in a browser at both
    ends of the theme range, not read off the sheet. It was then `--accent`
-   (#2049), which is visible but is a different colour in every theme and
+   (#2049), which is visible but is a different color in every theme and
    collides with the selection's ring in some of them — the two states are
    now the fixed cyan/gold pair EDHPlay uses. The geometry that fix found,
    a ring drawn OUTSIDE the card rather than inset, is kept. */
@@ -1089,8 +1089,8 @@ body[data-felt='slate'] {
 }
 
 /* A face-down permanent and the library tile are the same object, a card
-   back: a dark leather field, a centred oval, a pale rim, so it's a card and
-   not a missing image or a coloured slab. */
+   back: a dark leather field, a centered oval, a pale rim, so it's a card and
+   not a missing image or a colored slab. */
 /* A face-down permanent and the library tile are the same object: the real
    card back. It is the same Scryfall CDN artwork every card face in this app
    already comes from, downloaded once and served locally rather than
@@ -1207,7 +1207,7 @@ body[data-felt='slate'] {
 /* A token copy. The same physical-ribbon treatment as the stack banner, on
    the opposite corner and in ink rather than gold: the two can be true at
    once, and a token on the stack must read as both. Slate, not a status
-   colour — being a token is what the card IS, not something happening to
+   color — being a token is what the card IS, not something happening to
    it. */
 .playtest-card__token-ribbon {
   position: absolute;
@@ -1249,7 +1249,7 @@ body[data-felt='slate'] {
   visibility: hidden;
 }
 
-/* A tapped card turns 90° about its centre inside this portrait slot, so its
+/* A tapped card turns 90° about its center inside this portrait slot, so its
    box sticks out past the slot at the sides and stops short of it top and
    bottom. Pinned to the SLOT's corner, the body hung below the card, off it
    entirely. It follows the printed corner instead, which the turn carries to
@@ -1280,8 +1280,8 @@ body[data-felt='slate'] {
 /* The <DragOverlay> wrapper. dnd-kit sizes it from the source card's bounding
    box, which for a TAPPED (90°-rotated) permanent is the rotated box — width
    and height swapped. The copy inside keeps its printed size and rotates about
-   its own centre, so left at the wrapper's top-left it sat half the difference
-   down and to the left of the card actually grabbed. Centring the copy puts
+   its own center, so left at the wrapper's top-left it sat half the difference
+   down and to the left of the card actually grabbed. Centering the copy puts
    its rotated box back exactly where the source's was; for an untapped card
    the two boxes are identical and this does nothing. */
 .playtest-drag-overlay {
@@ -1934,7 +1934,7 @@ button.playtest-card-pt__value--editable:focus-visible {
 }
 
 /* Says, before anything is clicked, that this menu is the selection's and not
-   one card's. Gold, the same colour as the ring around the cards it means. */
+   one card's. Gold, the same color as the ring around the cards it means. */
 .playtest-ctx-selection {
   padding: var(--space-0-5) var(--space-2-5) var(--space-1-5);
   font-size: var(--text-xs);
@@ -3560,7 +3560,7 @@ button.playtest-card-pt__value--editable:focus-visible {
   cursor: pointer;
 }
 
-/* The hamburger is a square tile, not a labelled pill. */
+/* The hamburger is a square tile, not a labeled pill. */
 .playtest-corner--tr > .overflow-menu .playtest-corner-btn {
   width: 44px;
   min-width: 0;
@@ -3654,7 +3654,7 @@ button.playtest-card-pt__value--editable:focus-visible {
 }
 
 /* Always-dark felt: the focus ring has to be the light one, never the
-   surrounding border colour (STYLE_GUIDE always-dark rule). */
+   surrounding border color (STYLE_GUIDE always-dark rule). */
 .playtest-corner-btn:focus-visible,
 .playtest-mana-collapsed:focus-visible,
 .playtest-life-table__step:focus-visible,
@@ -3680,7 +3680,7 @@ button.playtest-card-pt__value--editable:focus-visible {
 }
 
 /* ── Bottom hand fan ────────────────────────────────────────────────────── */
-/* Centred in the width the zone-pile row leaves free (the row is the Hand
+/* Centered in the width the zone-pile row leaves free (the row is the Hand
    button and four card-width tiles: `pilesWidth` in lib/fan-layout.ts is the
    same sum), and
    tucked so the lower part of every card hangs below the table edge: the
@@ -3722,7 +3722,7 @@ button.playtest-card-pt__value--editable:focus-visible {
   flex: 0 0 auto;
   transform-origin: bottom center;
   /* `translate` is the gap a held card opens (Hand.tsx `fanGapShift`): the
-     neighbours slide apart to make its room and close up when it leaves. */
+     neighbors slide apart to make its room and close up when it leaves. */
   transition:
     transform var(--motion-fast) ease,
     translate var(--motion-base) ease;
@@ -3741,7 +3741,7 @@ button.playtest-card-pt__value--editable:focus-visible {
 }
 
 /* The lift is on the card's wrapper (card + cost badge together), so the
-   slot keeps the fan rotation and the neighbours never move.
+   slot keeps the fan rotation and the neighbors never move.
 
    Keyboard focus only (`:focus-visible`), never `:focus-within`: a right-click
    focuses the card and its menu hands focus back on close, so any focus left
@@ -3897,7 +3897,7 @@ button.playtest-card-pt__value--editable:focus-visible {
    the felt carries — drag feedback was a second one saying less.
    
    Outside the >=1024px block above on purpose: a phone plays the same game
-   and needs the signal more, not less. Same weight and colour as the opponent
+   and needs the signal more, not less. Same weight and color as the opponent
    quadrant's ring (OpponentQuadrant.css `.opponent-quadrant.is-active-turn`),
    so at a 2/3/4-seat table "whose turn" reads as one signal wherever the
    active seat sits — your own quadrant here, theirs there. */
@@ -4032,9 +4032,9 @@ button.playtest-card-pt__value--editable:focus-visible {
   grid-column: 2;
 }
 
-/* Your fan is centred on your quadrant, and your quadrant is half a table: at
+/* Your fan is centered on your quadrant, and your quadrant is half a table: at
    that width the pile row's real footprint (~21rem) reaches into the fan's
-   right end and swallowed the Library tile. Centre the fan in the space LEFT
+   right end and swallowed the Library tile. Center the fan in the space LEFT
    of the piles instead — the same answer the 1024-1150px tier already uses,
    rather than shrinking the cards below what a hand has to be readable at. */
 .playtest-main--grid .playtest-hand--fan {
@@ -4123,7 +4123,7 @@ button.playtest-card-pt__value--editable:focus-visible {
 
 /* An overlay, not a dialog: no panel, the words sit on the scrim. The scrim
    is the opening-hand takeover's own (`.playtest-opening-root.is-takeover`),
-   so the two layers read as one surface in every theme. Centred, not
+   so the two layers read as one surface in every theme. Centered, not
    top-anchored: it is the only thing to read on the screen. */
 .modal-backdrop.playtest-rotate-backdrop {
   align-items: center;
@@ -4523,9 +4523,9 @@ button.playtest-card-pt__value--editable:focus-visible {
   }
 
   /* One bottom band: the hand on the left, the piles on the right. The fan
-     centres itself on the felt at desk widths, where there is room either
-     side of it; here there is not, so it centres in what the piles leave —
-     centred on the viewport, its outermost card lands off the left edge and
+     centers itself on the felt at desk widths, where there is room either
+     side of it; here there is not, so it centers in what the piles leave —
+     centered on the viewport, its outermost card lands off the left edge and
      under the library. `--pt-pile-span` is how much the piles take, which
      depends on how many of them stand out here (four on a tablet, two on a
      phone). */
@@ -4635,7 +4635,7 @@ button.playtest-card-pt__value--editable:focus-visible {
 }
 
 /* On its side there is width to spare, so the button stays in the row beside
-   the library, as in EDHPlay, and the fan centres in what the button and the
+   the library, as in EDHPlay, and the fan centers in what the button and the
    two piles leave. Placed after the phone block so it wins wherever both
    match. */
 @media (max-height: 500px) and (orientation: landscape) {

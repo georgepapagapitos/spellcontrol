@@ -5,7 +5,7 @@ import type { useDismissedSuggestions } from '@/lib/coach/dismissed-suggestions'
 
 /**
  * Suggestion labels (E518) for the Add panel's three groups, and its "Not for
- * this deck" (E580): which group a row sits in decides the surface it is labelled
+ * this deck" (E580): which group a row sits in decides the surface it is labeled
  * with, and the rank is its place inside that group.
  */
 export function useAddSuggestionLabels(

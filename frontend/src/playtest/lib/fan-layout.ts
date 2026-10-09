@@ -16,7 +16,7 @@ const HAND_BUTTON = 88;
 const PILES_GAP = 8;
 const PILES_INSET = 12;
 
-/** How wide the zone-pile row is at a given card width. The fan is centred in
+/** How wide the zone-pile row is at a given card width. The fan is centered in
  *  what the row leaves free (`.playtest-hand--fan` reads the same number off
  *  `--pt-card-w`), and the two must agree or the fan drifts under the piles. */
 export function pilesWidth(cardW: number): number {
@@ -93,7 +93,7 @@ export function fanCardWidth(
   return Math.max(cardW * MIN_HAND_CARD_SCALE, Math.min(cardW, fits));
 }
 
-/** Rotation per card away from the centre, and the drop per squared step that
+/** Rotation per card away from the center, and the drop per squared step that
  *  arcs the fan. What a normal hand gets. */
 const FAN_STEP_DEG = 2;
 const FAN_ARC_PX = 1.2;
@@ -106,7 +106,7 @@ const MAX_EDGE_DROP_PX = 12;
 
 /**
  * Where a card held over the hand would go: the number of the OTHER cards
- * whose centre lies left of `x`. `centers` are those cards' resting centres,
+ * whose center lies left of `x`. `centers` are those cards' resting centers,
  * in hand order, without the held card when it came from the hand itself. The
  * result indexes that list, which is what both `REORDER_HAND` (remove, then
  * insert) and `MOVE_TO_ZONE` (insert) take.
@@ -125,7 +125,7 @@ export function fanInsertIndex(centers: readonly number[], x: number): number {
  * its own step back first, so its empty box closes up instead of leaving a
  * second hole.
  *
- * One step and no more, on purpose: the fan is centred, so once the card
+ * One step and no more, on purpose: the fan is centered, so once the card
  * lands every other card is already where the new layout puts it.
  */
 export function fanGapShift(

@@ -310,7 +310,7 @@ export const useAuth = create<AuthState>((set) => {
         return false;
       }
       // Server rows are gone and the cookie is cleared. stopSyncAndWipeLocal
-      // detaches subscribers (cancelling any pending debounced push) and clears
+      // detaches subscribers (canceling any pending debounced push) and clears
       // the zustand-persist + IndexedDB cache so nothing can re-push it.
       await stopSyncAndWipeLocal();
       storeUser(null);

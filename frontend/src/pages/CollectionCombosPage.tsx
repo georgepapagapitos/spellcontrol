@@ -202,7 +202,7 @@ export function CollectionCombosPage() {
       })
       .catch(() => {
         // Search is an enhancement over the bucket filter, not a replacement —
-        // on failure fall through to the old behaviour rather than erroring.
+        // on failure fall through to the old behavior rather than erroring.
         if (!cancelled) setSearchState({ query, result: null });
       });
     return () => {

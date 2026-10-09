@@ -265,9 +265,9 @@ export async function generateLands(
       }
     }
 
-    // A staple of this commander's page (40%+) keeps the priority its colour
+    // A staple of this commander's page (40%+) keeps the priority its color
     // reading earned before the paid, sacrifice and restricted abilities were
-    // left out of it: the colour COUNT changes, a staple's slot does not
+    // left out of it: the color COUNT changes, a staple's slot does not
     // (Phyrexian Tower, 41.8% on Meren, taps {B}{B} only by sacrificing).
     const inclusionOf = new Map(edhrecLands.map((l) => [l.name, l.inclusion ?? 0]));
     const readingFor = (name: string) => ({

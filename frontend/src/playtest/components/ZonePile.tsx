@@ -133,7 +133,7 @@ export function ZonePile({
   const faceDown = shown !== undefined && (hiddenIds?.has(shown.id) ?? false);
   const faceUp = Boolean(shown) && (zone !== 'library' || revealTop) && !faceDown;
   // An empty command zone stays a plain empty well — there is nothing to lay
-  // out, and the row would just be a labelled gap.
+  // out, and the row would just be a labeled gap.
   const isCommandRow = zone === 'command' && cards.length > 0;
   return (
     <div

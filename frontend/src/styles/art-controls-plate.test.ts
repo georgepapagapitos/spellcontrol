@@ -33,7 +33,7 @@ describe('controls on deck-tile art sit on the scrim plate', () => {
     expect(body).toMatch(/color:\s*var\(--art-scrim-text\)/);
   });
 
-  it.each(cases)('%s %s paints no raw colour or glyph shadow', (file, selector) => {
+  it.each(cases)('%s %s paints no raw color or glyph shadow', (file, selector) => {
     const body = rule(file, selector);
     expect(body).not.toMatch(/rgba?\(|#[0-9a-f]{3,8}\b|drop-shadow/i);
   });

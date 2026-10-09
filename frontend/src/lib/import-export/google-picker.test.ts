@@ -19,7 +19,7 @@ function stubGoogle(
     /** ms after popup_closed that the token arrives — reproduces the race. */
     tokenAfterPopupClose?: number;
     /** Delay the token, as a real consent popup does — without this the whole
-     *  flow resolves synchronously and concurrency can't be modelled. */
+     *  flow resolves synchronously and concurrency can't be modeled. */
     tokenDelay?: number;
     docs?: { id: string; name: string; mimeType: string }[];
     cancel?: boolean;
@@ -211,7 +211,7 @@ describe('picking', () => {
     await expect(m.pickFromGoogleDrive()).resolves.toHaveLength(2);
   });
 
-  it('reports cancelling the picker as CancelledError, not a silent empty result', async () => {
+  it('reports canceling the picker as CancelledError, not a silent empty result', async () => {
     const m = await load(KEYED);
     stubGoogle({ cancel: true });
     await expect(m.pickFromGoogleDrive()).rejects.toSatisfy(m.isCancelled);
@@ -240,7 +240,7 @@ describe('picking', () => {
   it('THE REGRESSION: a token arriving after popup_closed still opens the picker', async () => {
     // Google reports the consent window closing before delivering the token of
     // the grant that just succeeded. Treating popup_closed as an immediate
-    // cancel aborted AFTER the user had authorised — they got signed in and
+    // cancel aborted AFTER the user had authorized — they got signed in and
     // nothing opened, silently. The grace period must let the token win.
     const m = await load(KEYED);
     stubGoogle({

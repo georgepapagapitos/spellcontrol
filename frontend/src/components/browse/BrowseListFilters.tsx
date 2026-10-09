@@ -31,7 +31,7 @@ const TYPE_OPTIONS: Array<{ value: EdhrecTopType | ''; label: string }> = [
 
 /**
  * A browse list's filters. On a tablet or desktop they sit in one row: the
- * period, the colour pips, the type menu and the owned toggle. A phone keeps
+ * period, the color pips, the type menu and the owned toggle. A phone keeps
  * the period in the row and folds the rest into one Filters popover, since
  * the four controls would stack three rows deep above the cards (STYLE_GUIDE
  * § Toolbars & action rows: a control row that wraps to a third row isn't

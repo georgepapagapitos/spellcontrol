@@ -3,7 +3,7 @@
  * Guard: the hold banner and the takeback consent prompt can both be live at
  * once, and must not land on each other.
  *
- * Both are centred, body-portaled banners with fixed top offsets — hold at
+ * Both are centered, body-portaled banners with fixed top offsets — hold at
  * `3.25rem`, consent at `6rem`. That is 44px of clearance, which only survives
  * a ONE-LINE hold message. The hold summary is free text a seat types, and a
  * pod holding for a complicated stack does not write four words: measured in a

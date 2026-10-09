@@ -22,14 +22,14 @@ export interface SimCard {
   /** Deck role from the tagger, or null when unclassified / data not loaded. */
   role: 'ramp' | 'removal' | 'boardwipe' | 'cardDraw' | null;
   /**
-   * Colour-identity letters (subset of W/U/B/R/G). Empty = colourless.
-   * Only consulted for lands, to colour the land-count histogram.
+   * Colour-identity letters (subset of W/U/B/R/G). Empty = colorless.
+   * Only consulted for lands, to color the land-count histogram.
    */
   colors: string[];
 }
 
 export interface SimOptions {
-  /** Hands to simulate. Default 1000 — enough to stabilise rates to ~±1.5%. */
+  /** Hands to simulate. Default 1000 — enough to stabilize rates to ~±1.5%. */
   iterations?: number;
   /** Cards per opening hand. Default 7. */
   handSize?: number;
@@ -48,11 +48,11 @@ export interface SimResult {
   /** Histogram of land counts: index = lands in the opening hand, value = hand count. */
   landHistogram: number[];
   /**
-   * Per land-count bucket, the aggregate colour breakdown of the lands across
+   * Per land-count bucket, the aggregate color breakdown of the lands across
    * every hand in that bucket. `landColorByCount[3] = { G: 412, C: 88 }` means
    * the simulated 3-land hands contained 412 green land-shares and 88
-   * colourless ones. A multi-colour land adds one share to each of its
-   * colours (mirrors the stats-panel mana curve). Keyed W/U/B/R/G plus `C`.
+   * colorless ones. A multi-colour land adds one share to each of its
+   * colors (mirrors the stats-panel mana curve). Keyed W/U/B/R/G plus `C`.
    */
   landColorByCount: Record<number, Record<string, number>>;
   /** Mean lands in the opening (pre-mulligan) hand. */
@@ -140,9 +140,9 @@ export function simulateOpeningHands(
     landHistogram[lands] += 1;
     landSum += lands;
 
-    // Tally the colour identity of this hand's lands into its land-count
-    // bucket. A multi-colour land contributes one share per colour; a
-    // colourless land contributes one `C` share.
+    // Tally the color identity of this hand's lands into its land-count
+    // bucket. A multi-colour land contributes one share per color; a
+    // colorless land contributes one `C` share.
     const colorBucket = (landColorByCount[lands] ??= {});
     for (const c of opener) {
       if (!c.isLand) continue;

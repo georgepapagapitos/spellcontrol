@@ -28,7 +28,7 @@ vi.mock('@/deck-builder/services/tagger/client', () => ({
 }));
 
 // Real EDHREC row: Obeka, Brute Chronologist's page (8,739 decks can play
-// it), enchantments list. 27.2% vs 1.3% in the colours: +0.258, 21x.
+// it), enchantments list. 27.2% vs 1.3% in the colors: +0.258, 21x.
 const FABLE_ROW: EDHRECCard = {
   name: 'Fable of the Mirror-Breaker',
   sanitized: 'fable-of-the-mirror-breaker',

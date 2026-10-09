@@ -305,7 +305,7 @@ const LAYOUTS: Record<number, BoardLayout[]> = {
       // Wide top (1) + 3 right + 3 left, every side seat rotated to face
       // its own long edge. Clockwise: top, right top→bottom, left
       // bottom→top. COL-seam, not row-seam like 3p-wide-top-sides: a row
-      // seam's undo satellite offsets ±3.4rem horizontally from centre, a
+      // seam's undo satellite offsets ±3.4rem horizontally from center, a
       // margin measured against upright/180° panels, and it lands square on
       // a sideways row's step buttons once the board is short enough (4+
       // rows) to put those buttons close to the seam in absolute px —
@@ -716,17 +716,17 @@ export function homeSlotIndex(layout: BoardLayout): number {
  * button relative to the seam hub.
  *
  * Row-seam (hub on a horizontal boundary, e.g. 2p-stacked, 4p-pod):
- *   • Hub is centred left-right → undo button offsets to the LEFT (−X).
+ *   • Hub is centered left-right → undo button offsets to the LEFT (−X).
  *   • Icon at 0° (default Undo2 arrow pointing left) is readable for both
  *     the near-side (upright) and far-side (180°) players.
  *
  * Col-seam (hub on a vertical boundary, e.g. 2p-side, 4p-sides):
- *   • Hub is centred top-bottom → undo button offsets ABOVE the hub (−Y).
+ *   • Hub is centered top-bottom → undo button offsets ABOVE the hub (−Y).
  *   • Seats rotate 90°/270° so the icon needs 90° rotation so the curved
  *     arrow reads naturally when the device is placed in landscape.
  *
  * @param seam  The layout seam from {@link BoardLayout}.
- * @param offset  Distance from the hub centre to the undo button centre.
+ * @param offset  Distance from the hub center to the undo button center.
  *                Defaults to "3.4rem" (mobile). Pass "4rem" for the ≥600px size.
  */
 export function seamOffset(
@@ -759,7 +759,7 @@ const HUB_CLEARANCE = '2rem';
  *
  * On a ROW seam, the seam is a horizontal gutter with a panel above and below;
  * a satellite offset left or right of the hub sits over that gutter and clears
- * everything. That is the original behaviour and is unchanged.
+ * everything. That is the original behavior and is unchanged.
  *
  * On a COLUMN seam it is different, and this is the part that kept producing
  * collisions (E299/E310): a col-seam board is a grid, so the hub sits where
@@ -826,13 +826,13 @@ export function seamSatellite(
   const topPct = `${(seam.row / rows) * 100}%`;
   if (side > 0) {
     // The "after" satellite on a row seam is the clock, a WIDE pill, and the
-    // offset is applied to its centre — so half its width (66px at phone size)
+    // offset is applied to its center — so half its width (66px at phone size)
     // swallowed the hub button, which is only 22px in radius. Measured at
     // 1357px² of the hub covered, with the clock painting last at the same
     // z-index: the ⋯ glyph was simply invisible on every row-seam board,
     // including the default `4p-pod` and `2p-stacked`.
     //
-    // So this one is anchored by its NEAR EDGE instead of its centre — no
+    // So this one is anchored by its NEAR EDGE instead of its center — no
     // `-50%` — which makes the gap independent of how wide the pill gets when
     // a long player name lands in it.
     return { topPct, tx: HUB_CLEARANCE, ty: '-50%' };

@@ -21,7 +21,7 @@ function page(entries: Array<{ name: string; num_decks: number }>) {
   };
 }
 
-/** Pages keyed by the colour letters the backend is asked for (`G`, `WU`, `C`). */
+/** Pages keyed by the color letters the backend is asked for (`G`, `WU`, `C`). */
 function mockFetch(pages: Record<string, ReturnType<typeof page>>) {
   const calls: string[] = [];
   const fn = vi.fn(async (url: string) => {

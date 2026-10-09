@@ -220,7 +220,7 @@ export function TradeComposer({
   }, [ownedLines, giveQuery, giveTagsReady, spareOnly, surplusByName, wantedOnly, wantedKeys]);
 
   // E237: the want side used to be a bare name substring while the friend
-  // BROWSER beside it already had colour chips — the composer was the weaker
+  // BROWSER beside it already had color chips — the composer was the weaker
   // of the two. Both now run the same Scryfall-syntax search.
   const wantWantsTags = /\b(otag|oracletag|function)[:=]/i.test(wantQuery);
   const wantTagsReady = useCardTagsReady(wantWantsTags);
@@ -248,7 +248,7 @@ export function TradeComposer({
   // Slide → the row that produced it, for the preview's own Add button. Built
   // from `indexOf`, never by position: `resolveTradePreview` DROPS a card it
   // can't resolve, so a positional map would aim every later action at its
-  // neighbour.
+  // neighbor.
   const [previewActions, setPreviewActions] = useState<(() => void)[] | null>(null);
 
   function closePreview() {
@@ -816,7 +816,7 @@ function TradeSide({
 /**
  * "Wanted" — this card is on the friend's want list.
  *
- * Never colour alone: the word carries the meaning, so it survives a
+ * Never color alone: the word carries the meaning, so it survives a
  * colour-blind reader and a screen reader alike (`aria-hidden` would drop the
  * one signal a give row can't otherwise express).
  */

@@ -90,7 +90,7 @@ jobs:
       - name: Build the frontend
         run: npm run build --prefix frontend
 
-      # Vite honours a pre-set NODE_ENV during `vite build`: with NODE_ENV=
+      # Vite honors a pre-set NODE_ENV during `vite build`: with NODE_ENV=
       # development in scope, import.meta.env.DEV is true and the bundle bakes
       # the dev-server proxy paths (/edhrec-api, /scryfall-api) that only Vite
       # serves — every EDHREC and Scryfall call then 404s against the backend

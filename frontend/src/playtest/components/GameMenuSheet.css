@@ -2,7 +2,7 @@
    A right-docked drawer rather than the shared `.card-picker-*` bottom-sheet
    shell: it opens from the hamburger in the board's top-right corner, so it
    arrives from that edge, and its rows are a scannable list rather than a
-   centred panel. Same contract as the collection stats drawer (slide in,
+   centered panel. Same contract as the collection stats drawer (slide in,
    symmetric slide out via `useSheetExit`'s `.is-closing`). */
 
 .playtest-game-menu-root {

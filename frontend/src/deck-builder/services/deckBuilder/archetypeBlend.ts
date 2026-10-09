@@ -13,7 +13,7 @@ import { liftDeckFloor } from '../edhrec/client';
  *
  * Pure. The caller (dataAcquisition's pool phase) fetches the tag page and
  * applies the result to the candidate pool BEFORE the type passes run, so
- * budget, bracket, role caps, colour identity, legality, salt, ban lists and
+ * budget, bracket, role caps, color identity, legality, salt, ban lists and
  * price sanity all apply to injected cards unchanged, by construction.
  */
 
@@ -102,7 +102,7 @@ export interface BlendInput {
    * cards. Injected FIRST and marked `isThemeSynergyCard`, which is what earns
    * them priority in cardPicking's `isHighSynergyCard` split regardless of
    * their `Unknown` primary_type. Deliberately NOT `topcards`/`gamechangers`:
-   * those are generic power in these colours, i.e. the goodstuff this feature
+   * those are generic power in these colors, i.e. the goodstuff this feature
    * exists to be an alternative to.
    */
   highSynergyNames?: readonly string[];

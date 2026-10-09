@@ -30,9 +30,9 @@ import {
 import type { CubeSize } from './targets';
 import { canBeCommanderByType } from '@spellcontrol/binder-routing';
 
-/** A legend's colour identity, at the granularity the section is organized by:
- *  a single colour, one of the ten two-colour pairs, or 'other' for anything
- *  else (colourless, or 3+ colours — real but rare, and not worth its own
+/** A legend's color identity, at the granularity the section is organized by:
+ *  a single color, one of the ten two-colour pairs, or 'other' for anything
+ *  else (colorless, or 3+ colors — real but rare, and not worth its own
  *  per-combination quota at v1). */
 export type LegendIdentity = (typeof COLORS)[number] | ColorPair | 'other';
 
@@ -114,7 +114,7 @@ export function isBackground(c: LegendClassifiable): boolean {
   return /\blegendary\b/i.test(t) && /\benchantment\b/i.test(t) && /\bbackground\b/i.test(t);
 }
 
-/** The small text label a legend/background tile or row carries (never colour
+/** The small text label a legend/background tile or row carries (never color
  *  alone) — "Partner" for any Partner-family keyword (including Doctor's
  *  companion, label-only per the module doc above), "Background" for either
  *  half of the choose-a-Background pairing. null for an ordinary legend. */
@@ -178,12 +178,12 @@ const LEGEND_WEIGHT: Record<LegendIdentity, number> = (() => {
   return w;
 })();
 
-/** Every mono colour gets this many slots before the weighted water-fill runs
+/** Every mono color gets this many slots before the weighted water-fill runs
  *  — a Commander cube's legend section always offers a real mono option per
- *  colour (design doc § Pool design), capped by what the pool actually owns. */
+ *  color (design doc § Pool design), capped by what the pool actually owns. */
 const MONO_FLOOR = 5;
 /** Every OTHER identity bucket the pool can supply at all still gets at least
- *  one slot — the coverage guarantee: a colour identity the pool genuinely
+ *  one slot — the coverage guarantee: a color identity the pool genuinely
  *  supports is never left at zero just because it's a thin pair. */
 const OTHER_FLOOR = 1;
 
@@ -194,7 +194,7 @@ const isMono = (b: LegendIdentity): boolean => (COLORS as readonly string[]).inc
  * (capped by supply), then the remainder water-filled by `LEGEND_WEIGHT`,
  * pinning any bucket the common factor would push past its supply and
  * re-scaling the rest — the same pin-and-rescale shape as ./generate's
- * `distributeQuota`, just over identity buckets instead of colour buckets
+ * `distributeQuota`, just over identity buckets instead of color buckets
  * (a genuinely different domain: a legend's identity isn't its `bucketOf`).
  */
 export function distributeLegendQuota(
@@ -266,7 +266,7 @@ const labelFor = (b: LegendIdentity): string => (b === 'other' ? '3+ color' : b)
  * `pool` not already used as a spell (`alreadyPickedIds` — the final spell
  * picks' oracleIds, so a legendary creature the greedy or refiner actually
  * seated as a spell is never double-counted here), ranked by the same
- * cube-native signal as spells (`byQuality`) and spread across colour
+ * cube-native signal as spells (`byQuality`) and spread across color
  * identity via `distributeLegendQuota`. Additional to the cube's stated size —
  * the caller never subtracts this from `size`.
  */
@@ -369,7 +369,7 @@ export function selectBackgrounds(
     let idx = remaining.findIndex((bg) =>
       identityColors(bg).some((c) => chooserColors.includes(c))
     );
-    if (idx === -1) idx = 0; // no colour match left — take the next-best Background anyway
+    if (idx === -1) idx = 0; // no color match left — take the next-best Background anyway
     const [background] = remaining.splice(idx, 1);
     picks.push({
       card: background,

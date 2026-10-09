@@ -137,7 +137,7 @@
   /* Up to five stats must sit on ONE line at 390px: value over label, in
      equal columns, instead of five sentences that wrap and orphan the last
      ("37 copies" alone on a second row). */
-  /* The text column is centred and shrink-to-fit on a phone; give the stat
+  /* The text column is centered and shrink-to-fit on a phone; give the stat
      line the header's whole width so five columns have room for their labels. */
   .public-profile-header-text {
     align-self: stretch;

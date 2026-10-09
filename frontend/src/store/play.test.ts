@@ -830,7 +830,7 @@ describe('usePlayStore — online flow', () => {
     expect(usePlayStore.getState().onlinePolling).toBe(false);
   });
 
-  it('refreshOnline’s 404 path is a full teardown: boards/requests cleared, publish cancelled', async () => {
+  it('refreshOnline’s 404 path is a full teardown: boards/requests cleared, publish canceled', async () => {
     const cancelSpy = vi.spyOn(gamesBoard, 'cancelBoardPublish');
     try {
       mockCreate.mockResolvedValue(makeOnlineGame(1));

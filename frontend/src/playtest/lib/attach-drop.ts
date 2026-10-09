@@ -30,7 +30,7 @@ export function makePlaytestCollision(lookup: (cardId: string) => PlaytestCard |
       if (hosts.length > 0) return hosts;
     }
     // Host droppables must never win an ordinary drag — a permanent nudged
-    // over a neighbour is a reposition, not an attachment.
+    // over a neighbor is a reposition, not an attachment.
     return rectIntersection(args).filter((c) => hostFromDroppableId(String(c.id)) === null);
   };
   return detect;
