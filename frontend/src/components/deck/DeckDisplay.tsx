@@ -1,6 +1,6 @@
 import '@/styles/deck-builder-card-list.css';
 import '@/styles/deck-builder-analysis.css';
-import { CircleAlert, Layers, Search } from 'lucide-react';
+import { CircleAlert, Search } from 'lucide-react';
 import {
   Fragment,
   useCallback,
@@ -111,7 +111,7 @@ import { DeckSelectionMenu, type DeckBulkAction } from './DeckSelectionMenu';
 import { hasCardActions, type DeckCardActionCtx } from './deck-card-actions';
 import { DeckAnalysisView } from './DeckAnalysisView';
 import { CardName } from '@/components/shared/CardName';
-import { Button, buttonClass } from '@/components/shared/Button';
+import { buttonClass } from '@/components/shared/Button';
 import type { DeckDisplayProps } from './deck-display-types';
 import type { DeckView } from '@/lib/deck-analysis/deck-view';
 import type { AnalysisTabId } from '@/lib/deck-analysis/deck-view';
@@ -122,7 +122,6 @@ import {
   validateDisplayedZones,
   buildSynergyByName,
   summarizeMissing,
-  countClaimedElsewhere,
   buildMissingTally,
   buildFlatIndex,
   buildInspectorCard,
@@ -210,7 +209,6 @@ export function DeckDisplay({
   onReleaseCopy,
   onSetProxy,
   onUseOwnCopy,
-  onReviewShared,
   collectionByCopyId,
   binderByCopyId,
   exportOpen: exportOpenProp,
@@ -761,13 +759,6 @@ export function DeckDisplay({
   const missing = useMemo(
     () => summarizeMissing(cards, collectionByCopyId, currency),
     [cards, collectionByCopyId, currency]
-  );
-  // Owned-but-elsewhere count — mainboard cards you own where every copy is in
-  // another deck. Drives the "Use my copies (N)" resolver banner. Uses the same
-  // cross-deck context as the per-row chips so the number matches the rows.
-  const claimedElsewhereCount = useMemo(
-    () => countClaimedElsewhere(cards, collectionByCopyId, crossDeck),
-    [cards, collectionByCopyId, crossDeck]
   );
   // Tally of the unallocated (missing) cards — the tappable "missing" stat opens
   // a carousel of these so the count doubles as a shopping list.
@@ -1390,19 +1381,6 @@ export function DeckDisplay({
                     <span>{part}</span>
                   </Fragment>
                 ))}
-              </div>
-            )}
-
-            {onReviewShared && claimedElsewhereCount > 0 && (
-              <div className="deck-claimed-banner">
-                <Layers width={16} height={16} strokeWidth={2} aria-hidden />
-                <span className="deck-claimed-banner-text">
-                  {claimedElsewhereCount} {claimedElsewhereCount === 1 ? 'card' : 'cards'} here{' '}
-                  {claimedElsewhereCount === 1 ? 'is' : 'are'} also in your other decks
-                </span>
-                <Button onClick={onReviewShared} className="deck-claimed-banner-btn">
-                  Review
-                </Button>
               </div>
             )}
 

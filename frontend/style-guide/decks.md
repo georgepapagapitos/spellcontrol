@@ -481,9 +481,24 @@ one playing the proxy.
   plate on the grid tile; the summary sentence counts it ("1 of 2 from your
   collection, 1 proxy").
 - **Print proxies still prints it.** That sheet is where a stand-in comes from.
+- **The page passes the deck's own slots to the deck view.** It used to copy
+  them field by field, and that copy dropped `proxy` and `sortIndex`. A new
+  slot field reaches the view without touching the page.
 - Guard: `store/decks.proxy-slot.test.ts` (the reported two-deck case, all
   three zones), `lib/collection/proxy-slot.test.ts`,
-  `components/deck/deck-display-rows.proxy.test.ts`.
+  `components/deck/deck-display-rows.proxy.test.ts`, and
+  `pages/DeckEditorPage.delete.test.tsx` (the proxy marker and drag position
+  reach the deck view).
+
+### No "also in your other decks" banner (2026-10-09)
+
+The deck list had a banner above it, "N cards here are also in your other
+decks · Review". Its count and the Review sheet were computed two different
+ways, so it could say 2 and open an empty sheet, which it did once proxies
+existed. It repeated what the rows already say: a card whose copy is in
+another deck carries a chip naming that deck, and its ⋮ has Use my copy. The
+banner is gone. The Shared copies sheet stays behind the build report's
+"review conflicts", where it is computed one way and opened on purpose.
 
 ## Deck list on a wide screen (2026-09-19)
 

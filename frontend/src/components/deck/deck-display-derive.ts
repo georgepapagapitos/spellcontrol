@@ -204,26 +204,6 @@ export function summarizeMissing(
   return { count, price };
 }
 
-/** Mainboard cards you own where every copy is in another deck. */
-export function countClaimedElsewhere(
-  cards: DeckDisplayCard[],
-  collectionByCopyId: Map<string, EnrichedCard> | undefined,
-  crossDeck: CrossDeckCtx
-): number {
-  if (!crossDeck.copiesByName || !crossDeck.otherDeckAllocations) return 0;
-  let n = 0;
-  for (const dc of cards) {
-    if (dc.proxy) continue;
-    const status = classifyAllocation(dc.allocatedCopyId ?? null, collectionByCopyId, {
-      cardName: dc.card.name,
-      copiesByName: crossDeck.copiesByName,
-      allocations: crossDeck.otherDeckAllocations,
-    });
-    if (status === 'claimed-elsewhere') n += 1;
-  }
-  return n;
-}
-
 /** Tally of the unallocated (missing) cards. */
 export function buildMissingTally(
   cards: DeckDisplayCard[],

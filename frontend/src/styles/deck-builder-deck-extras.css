@@ -171,41 +171,6 @@
   }
 }
 
-/* ── "Use my copies" resolver banner ──────────────────────────────── */
-/* Owned-but-elsewhere cards: a one-tap pull-them-in CTA. Informational accent
-   tone (not warn) — these cards are owned, just checked out to other decks. */
-.deck-claimed-banner {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1-5);
-  padding: var(--space-2) var(--space-3);
-  margin-bottom: var(--space-2);
-  border-radius: var(--radius);
-  background: var(--accent-light);
-  --text-muted: var(--text-muted-tint);
-  --text-secondary: var(--text-secondary-tint);
-  --accent: var(--accent-tint);
-  --accent-hover: var(--accent-hover-tint);
-  border: 0.5px solid color-mix(in srgb, var(--accent) 30%, transparent);
-  color: var(--text-primary);
-  font-size: var(--text-sm);
-  font-weight: 500;
-}
-
-.deck-claimed-banner > svg {
-  color: var(--accent);
-  flex-shrink: 0;
-}
-
-.deck-claimed-banner-text {
-  min-width: 0;
-}
-
-.deck-claimed-banner-btn {
-  margin-left: auto;
-  flex-shrink: 0;
-}
-
 /* ── Tag overlap-honesty banner (E171) ────────────────────────────── */
 /* Only rendered in "Group by tag" — a card with 2+ tags shows up in every
    group it's tagged with, so the section counts below don't sum to the

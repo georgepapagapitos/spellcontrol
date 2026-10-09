@@ -193,13 +193,6 @@ export interface DeckDisplayProps {
    * steal-confirm flow).
    */
   onUseOwnCopy?: (card: ScryfallCard) => void;
-  /**
-   * Open the Shared-copies review for cards this deck wants whose copies are in
-   * other decks. Drives the neutral "N cards also in your other decks · Review"
-   * banner — pulling a copy in is a conscious per-card choice in the sheet, never
-   * a bulk grab. When omitted, the banner is not shown.
-   */
-  onReviewShared?: () => void;
   /** Lookup of owned cards by scryfallId, for allocation badges + status. */
   collectionByCopyId?: Map<string, EnrichedCard>;
   /** Binder(s) each collection copy is filed in, keyed by copyId — drives
