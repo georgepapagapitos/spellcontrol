@@ -46,7 +46,9 @@ export function unconditionalMana(
   const symbols = new Set<string>();
   let anyColour = false;
   for (const line of lines) {
-    const m = /^([^:]*):\s*adds?\s([^]*)$/.exec(line.trim());
+    // "{2}, {T}: Choose a color. Add an amount of mana of that color ..." is a
+    // mana ability too: the leading choice picks the color, then it adds.
+    const m = /^([^:]*):\s*(?:choose a colou?r\.\s*)?adds?\s([^]*)$/.exec(line.trim());
     if (fixing && !m && /^(?:when|whenever|at)\b[^:]*\badds?\b/.test(line.trim())) {
       dropped = true;
       continue;
@@ -70,7 +72,11 @@ export function unconditionalMana(
     kept.push(line);
     for (const [, sym] of effect.split('.')[0].matchAll(/\{([wubrgc])\}/g))
       symbols.add(sym.toUpperCase());
-    if (/any (?:one )?(?:colou?r|type)|color identity|could produce/.test(effect)) anyColour = true;
+    if (
+      /any (?:one )?(?:colou?r|type)|color identity|could produce/.test(effect) ||
+      /:\s*choose a colou?r\./.test(line)
+    )
+      anyColour = true;
   }
   if (!dropped) return null;
   return { text: kept.join('\n'), colours: anyColour ? null : [...symbols] };
