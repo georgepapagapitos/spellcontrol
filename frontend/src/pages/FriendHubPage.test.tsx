@@ -42,7 +42,10 @@ vi.mock('@/lib/collection/allocations', async () => {
   return { ...actual, useAllocations: () => NO_CLAIMS };
 });
 
-vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({
+  useCardThumb: () => undefined,
+  usePrintingThumb: () => ({ src: undefined, id: undefined }),
+}));
 
 vi.mock('@/lib/social/share-client', () => ({
   getFriendShares: vi.fn(() =>

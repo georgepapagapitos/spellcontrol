@@ -186,7 +186,7 @@ const ALLOWED: Record<Shape, Record<string, number | { count: number; why: strin
     'components/play/OnlineGameView.tsx': { count: 4, why: BOARD_CHROME },
     'components/play/PhaseChip.tsx': { count: 2, why: BOARD_CHROME },
     'components/search/SortValueOrderEditor.tsx': { count: 1, why: STRUCTURE },
-    'components/trade/TradeOfferList.tsx': { count: 1, why: CARD_ART },
+    'components/trade/TradeOfferCardTile.tsx': { count: 1, why: CARD_ART },
     'playtest/components/CardStatusStrip.tsx': { count: 2, why: BOARD_CHROME },
     'playtest/components/LifeStrip.tsx': { count: 2, why: BOARD_CHROME },
     'playtest/components/board/TableCornerActions.tsx': { count: 5, why: BOARD_CHROME },

@@ -10,7 +10,7 @@ vi.mock('@/deck-builder/services/scryfall/client', () => ({
   getCardsByNames: (names: string[]) => getCardsByNames(names),
 }));
 
-import { resolveTradePreview } from './trade-preview';
+import { ANY_PRINTING_NOTE, FALLBACK_PRINTING_NOTE, resolveTradePreview } from './trade-preview';
 
 function scry(over: Partial<ScryfallCard> & { id: string; name: string }): ScryfallCard {
   return {
@@ -90,6 +90,31 @@ describe('resolveTradePreview', () => {
     expect(getCardsByNames).toHaveBeenCalledTimes(1);
     expect(getCardsByNames).toHaveBeenCalledWith(['Rhystic Study', 'Sol Ring']);
     expect(cards.map((c) => c.name)).toEqual(['Rhystic Study', 'Sol Ring']);
+  });
+
+  it('notes an "any printing" line and a pinned one that fell back, each in its own words', async () => {
+    getCardById.mockImplementation(async (id: string) =>
+      id === 'lea-233' ? scry({ id: 'lea-233', name: 'Sol Ring' }) : null
+    );
+    getCardsByNames.mockResolvedValue(
+      new Map([
+        ['Rhystic Study', scry({ id: 'r1', name: 'Rhystic Study' })],
+        ['Arcane Signet', scry({ id: 'a1', name: 'Arcane Signet' })],
+      ])
+    );
+
+    const { slideNotes } = await resolveTradePreview([
+      tradeCard({ name: 'Sol Ring', copies: [{ scryfallId: 'lea-233', finish: 'nonfoil' }] }),
+      tradeCard({ name: 'Rhystic Study' }),
+      tradeCard({ name: 'Arcane Signet', copies: [{ scryfallId: 'gone', finish: 'foil' }] }),
+    ]);
+
+    // The pinned Sol Ring resolved: no note. The fallback must NOT say "Any
+    // printing", because that ask still names one printing.
+    expect([...slideNotes]).toEqual([
+      [1, ANY_PRINTING_NOTE],
+      [2, FALLBACK_PRINTING_NOTE],
+    ]);
   });
 
   it('drops a card it cannot resolve, and indexOf still finds the others', async () => {

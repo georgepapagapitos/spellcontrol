@@ -1,3 +1,4 @@
+import './TradePreviewPanel.css';
 import { CardPreview, type CardPreviewAction } from '@/components/card/CardPreview';
 import type { EnrichedCard } from '../../types';
 
@@ -5,6 +6,9 @@ import type { EnrichedCard } from '../../types';
 export interface TradePreviewState {
   cards: EnrichedCard[];
   index: number;
+  /** Per-slide note when the art is not the printing in the deal (see
+   *  `resolveTradePreview`'s `slideNotes`). */
+  slideNotes?: Map<number, string>;
 }
 
 /**
@@ -45,6 +49,10 @@ export function TradePreviewCarousel({
       pageNumbers={[]}
       totalPages={0}
       getActions={getActions}
+      renderPanelExtra={(i) => {
+        const note = state.slideNotes?.get(i);
+        return note ? <p className="trade-preview-status">{note}</p> : null;
+      }}
       onIndexChange={onIndexChange}
       onClose={onClose}
     />

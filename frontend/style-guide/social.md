@@ -39,6 +39,37 @@ chips · value` over `You get · chips · value`, no arrow, at every width),
   (the record of what changed hands). Anything still in
   motion, including an accepted trade that has not settled here, keeps the
   full card and has no Remove.
+- **A line is a card tile, not a chip (E590).** The point of the row is to SEE
+  what is changing hands, so each line is a button holding card art at the
+  63:88 aspect with the card corner radius, the name under it (two lines,
+  ellipsis) and `×N` as a badge on the art. Open offers size the tile by the
+  side's own width (a container query on `.trade-offer-side`, because the row
+  is a different width on `/trades` and the friend hub): 120px under 20rem,
+  144px from 20rem, 160px from 26rem, i.e. two across on a 390 phone and in
+  each half of a desktop row. Three across left a desktop row with 90px
+  thumbnails in a 760px card, too small to read the printing. A finished
+  ledger row keeps the cards at 44px of art (52px from 36rem) with the name
+  beside them, so it stays a line but never goes back to a 20px thumbnail.
+  The tile stays a button that opens the carousel at that card, keeps the 44px
+  coarse-pointer floor and the focus ring, and its accessible name carries the
+  name, the quantity and the printing state (`Preview Sol Ring, 2 copies,
+  foil`). Loading and error are the same card-shaped box (the name on it), so
+  nothing shifts when art arrives.
+- **The art is the printing the line names.** A line pinned to a printing
+  (`copies[0].scryfallId`) shows THAT printing, resolved by id through the
+  batched `usePrintingThumb`, and carries it as `data-scryfall-id`; only a
+  line with no printing, or one whose id no longer resolves, falls back to the
+  card by name. A pinned nonfoil says nothing extra (the art is the proof); a
+  foil or etched printing says `Foil` / `Etched`.
+- **An oracle-level ask says "Any printing".** Offers sent before asks were per
+  printing have no copies on the ask side. The tile captions it `Any printing`
+  (also in its accessible name), and in the carousel the panel opens with
+  `Any printing. This one is an example.` so the picture never reads as a
+  promise. A pinned line whose printing fails to load is NOT "any printing"
+  (the ask still names one); its slide says `Couldn't load the printing in
+  this trade. This is another printing of the card.` The two sides of an open
+  offer align to the top, so a caption on one tile never drops the other
+  side's label out of line.
 - **Remove is per-side.** The other person keeps their copy, so a single row
   needs no confirm; the bulk `Clear history` on `/trades` does confirm.
 

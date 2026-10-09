@@ -18,7 +18,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EnrichedCard } from '../../types';
 import type { TradeOffer } from '@/lib/trade/trades-client';
 
-vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({
+  useCardThumb: () => undefined,
+  usePrintingThumb: () => ({ src: undefined, id: undefined }),
+}));
 vi.mock('@/lib/binder/use-binder-by-copy', () => ({ useBinderByCopyId: () => new Map() }));
 vi.mock('@/lib/binder/card-locations', async () => {
   const actual = await vi.importActual<typeof import('@/lib/binder/card-locations')>(

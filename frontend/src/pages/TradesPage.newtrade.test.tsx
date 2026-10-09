@@ -12,7 +12,10 @@ vi.mock('../store/collection', () => ({
   useCollectionStore: (sel: (s: { cards: unknown[]; binders: unknown[] }) => unknown) =>
     sel({ cards: [], binders: [] }),
 }));
-vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({
+  useCardThumb: () => undefined,
+  usePrintingThumb: () => ({ src: undefined, id: undefined }),
+}));
 
 const listTrades = vi.fn();
 vi.mock('@/lib/trade/trades-client', async () => {

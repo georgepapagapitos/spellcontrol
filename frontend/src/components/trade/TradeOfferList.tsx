@@ -3,7 +3,6 @@ import { useId, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, X } from 'lucide-react';
 import { UserAvatar } from '@/components/profile/UserAvatar';
-import { useCardThumb } from '@/lib/cards/card-thumbs';
 import { formatMoney } from '@/lib/collection/format-money';
 import { formatRelativeTime } from '@/lib/util/format-time';
 import {
@@ -26,6 +25,7 @@ import { useCollectionStore } from '../../store/collection';
 import { groupOwnedForTrade, type OwnedTradeLine } from '@/lib/trade/trade-picker';
 import { settleTrade } from '@/lib/trade/use-trade-settlement';
 import { resolveTradePreview } from '@/lib/trade/trade-preview';
+import { TradeOfferCardTile } from './TradeOfferCardTile';
 import { TradePreviewCarousel, type TradePreviewState } from './TradePreviewCarousel';
 import { formatLocation, useCardLocations, type CardLocation } from '@/lib/binder/card-locations';
 import { TradeIncomingReview, type AcceptChoice } from './TradeIncomingReview';
@@ -172,7 +172,7 @@ function TradeOfferCard({
    */
   async function inspect(card: TradeCard) {
     const all = [...offer.give, ...offer.receive];
-    const { cards, indexOf } = await resolveTradePreview(all);
+    const { cards, indexOf, slideNotes } = await resolveTradePreview(all);
     if (cards.length === 0) {
       toast.show({ message: "Couldn't load these cards right now.", tone: 'warn' });
       return;
@@ -180,7 +180,7 @@ function TradeOfferCard({
     // A card whose own lookup failed is not in the carousel; open at the
     // nearest slide rather than refusing, so one bad card can't block the rest.
     const at = indexOf(card);
-    setPreview({ cards, index: at >= 0 ? at : 0 });
+    setPreview({ cards, index: at >= 0 ? at : 0, slideNotes });
   }
 
   const who = offer.counterpartyDisplayName || `@${offer.counterpartyUsername}`;
@@ -325,12 +325,19 @@ function TradeOfferCard({
       </header>
 
       <div className="trade-offer-sides">
-        <TradeOfferSide label="You give" cards={offer.give} value={give.text} onInspect={inspect} />
+        <TradeOfferSide
+          label="You give"
+          cards={offer.give}
+          value={give.text}
+          compact={compact}
+          onInspect={inspect}
+        />
         <ArrowRight className="trade-offer-arrow" width={18} height={18} aria-label="for" />
         <TradeOfferSide
           label="You get"
           cards={offer.receive}
           value={receive.text}
+          compact={compact}
           onInspect={inspect}
         />
       </div>
@@ -528,11 +535,13 @@ function TradeOfferSide({
   label,
   cards,
   value,
+  compact,
   onInspect,
 }: {
   label: string;
   cards: TradeCard[];
   value: string;
+  compact: boolean;
   onInspect: (card: TradeCard) => void;
 }) {
   const headingId = useId();
@@ -549,45 +558,14 @@ function TradeOfferSide({
       ) : (
         <ul className="trade-offer-side-cards" aria-labelledby={headingId}>
           {cards.map((card) => (
-            <li key={card.oracleId || card.name}>
-              {/* A chip is a card, and every other card in the app opens the
-                  preview carousel when you tap it. This was the one that
-                  didn't — you could read a name and a 20px thumbnail and had
-                  no way to actually LOOK at what you were being offered. */}
-              <button
-                type="button"
-                className="trade-offer-chip"
-                onClick={() => onInspect(card)}
-                aria-label={`Preview ${card.name}`}
-              >
-                <OfferChipThumb name={card.name} />
-                <span className="trade-offer-chip-name" title={card.name}>
-                  {card.name}
-                  {card.quantity > 1 && (
-                    <span className="trade-offer-chip-qty"> ×{card.quantity}</span>
-                  )}
-                </span>
-              </button>
+            <li
+              key={`${card.oracleId || card.name}|${card.copies[0]?.scryfallId ?? ''}|${card.copies[0]?.finish ?? ''}`}
+            >
+              <TradeOfferCardTile card={card} compact={compact} onInspect={onInspect} />
             </li>
           ))}
         </ul>
       )}
     </div>
-  );
-}
-
-function OfferChipThumb({ name }: { name: string }) {
-  const thumb = useCardThumb(name, 'small');
-  return thumb ? (
-    <img
-      className="trade-offer-chip-thumb"
-      src={thumb}
-      alt=""
-      aria-hidden
-      loading="lazy"
-      draggable={false}
-    />
-  ) : (
-    <span className="trade-offer-chip-thumb is-placeholder" aria-hidden />
   );
 }

@@ -15,7 +15,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BinderDef, EnrichedCard } from '../../types';
 import type { TradeOffer } from '@/lib/trade/trades-client';
 
-vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({
+  useCardThumb: () => undefined,
+  usePrintingThumb: () => ({ src: undefined, id: undefined }),
+}));
 // The value line fetches floor prices; mocked so a test can price a side (the
 // net tests) and everything else sees "unknown".
 let floors = new Map<string, number>();
@@ -65,7 +68,11 @@ vi.mock('../../store/cube', () => ({
 // the chip opens it, with the whole offer and on the right slide.
 const previewProps = vi.fn();
 vi.mock('@/components/card/CardPreview', () => ({
-  CardPreview: (props: { cards: { name: string }[]; index: number }) => {
+  CardPreview: (props: {
+    cards: { name: string }[];
+    index: number;
+    renderPanelExtra?: unknown;
+  }) => {
     previewProps(props);
     return <div data-testid="preview">{props.cards[props.index]?.name}</div>;
   },
@@ -212,7 +219,7 @@ describe('card preview', () => {
 
   it('opens the carousel on the card you tapped', async () => {
     mount(twoSided);
-    fireEvent.click(screen.getByLabelText('Preview Rhystic Study'));
+    fireEvent.click(screen.getByLabelText(/^Preview Rhystic Study/));
     expect((await screen.findByTestId('preview')).textContent).toBe('Rhystic Study');
   });
 
@@ -220,13 +227,27 @@ describe('card preview', () => {
     // A trade is one decision about a set of cards — you should be able to
     // swipe from what you're giving straight into what you're getting.
     mount(twoSided);
-    fireEvent.click(screen.getByLabelText('Preview Sol Ring'));
+    fireEvent.click(screen.getByLabelText(/^Preview Sol Ring/));
     await screen.findByTestId('preview');
     expect(resolveTradePreview).toHaveBeenCalledWith([...twoSided.give, ...twoSided.receive]);
     expect(previewProps.mock.calls[0][0].cards.map((c: { name: string }) => c.name)).toEqual([
       'Sol Ring',
       'Rhystic Study',
     ]);
+  });
+
+  it('notes in the carousel that an "any printing" slide is only an example', async () => {
+    resolveTradePreview.mockResolvedValue({
+      cards: [{ name: 'Sol Ring' }, { name: 'Rhystic Study' }],
+      indexOf: (c: { name: string }) => (c.name === 'Sol Ring' ? 0 : 1),
+      slideNotes: new Map([[1, 'Any printing. This one is an example.']]),
+    });
+    mount(twoSided);
+    fireEvent.click(screen.getByLabelText(/^Preview Rhystic Study/));
+    await screen.findByTestId('preview');
+    const extra = previewProps.mock.calls[0][0].renderPanelExtra as (i: number) => unknown;
+    expect(extra(0)).toBeNull();
+    expect(JSON.stringify(extra(1))).toContain('Any printing. This one is an example.');
   });
 
   it('opens at the first slide when the tapped card itself could not resolve', async () => {
@@ -236,14 +257,14 @@ describe('card preview', () => {
       indexOf: () => -1,
     });
     mount(twoSided);
-    fireEvent.click(screen.getByLabelText('Preview Rhystic Study'));
+    fireEvent.click(screen.getByLabelText(/^Preview Rhystic Study/));
     expect((await screen.findByTestId('preview')).textContent).toBe('Sol Ring');
   });
 
   it('stays closed and warns when nothing resolves at all', async () => {
     resolveTradePreview.mockResolvedValue({ cards: [], indexOf: () => -1 });
     mount(twoSided);
-    fireEvent.click(screen.getByLabelText('Preview Sol Ring'));
+    fireEvent.click(screen.getByLabelText(/^Preview Sol Ring/));
     await Promise.resolve();
     expect(screen.queryByTestId('preview')).toBeNull();
   });
@@ -319,7 +340,7 @@ describe('whose move, the net, and finished rows', () => {
     expect(screen.queryByText(/Bring these Thursday/)).toBeNull();
     expect(screen.queryByText(/come out/)).toBeNull();
     // The record of what changed hands stays, and stays tappable.
-    expect(screen.getByRole('button', { name: 'Preview Sol Ring' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Preview Sol Ring/ })).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: /Remove this trade with Trade Pal/ }));
     await waitFor(() => expect(removeTrade).toHaveBeenCalledWith('gone'));
