@@ -244,7 +244,7 @@ describe('Online setup — table visibility (T139)', () => {
 
   it('names what each choice does', () => {
     renderPage('/play/online');
-    expect(screen.getByText('Only people with the code.')).toBeTruthy();
+    expect(screen.getByText('Not listed. Only people with the code can join.')).toBeTruthy();
     expect(screen.getByText('Listed for your friends. They can watch.')).toBeTruthy();
     fireEvent.click(screen.getByRole('radio', { name: /^Public/ }));
     expect((screen.getByRole('radio', { name: /^Public/ }) as HTMLInputElement).checked).toBe(true);
@@ -986,7 +986,7 @@ describe('History tab — local and online records together', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Remove game:/ }));
     expect(screen.getByText('Remove this game?')).toBeTruthy();
     // The copy must not claim this only leaves YOUR history — it does not.
-    expect(screen.getByText(/leaves the record for everyone who played it/)).toBeTruthy();
+    expect(screen.getByText(/Removes this game for everyone who played it/)).toBeTruthy();
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Remove' }));
     expect(usePlayStore.getState().history).toHaveLength(0);
   });
@@ -1181,8 +1181,8 @@ describe('History — a co-op Horde game', () => {
     renderPage('/play/history');
     fireEvent.click(screen.getByRole('button', { name: /^Rematch/ }));
     expect(rematch).not.toHaveBeenCalled();
-    expect(screen.getByRole('dialog', { name: 'Start a new Horde fight?' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Start the rematch' }));
+    expect(screen.getByRole('dialog', { name: 'Start a rematch?' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Start rematch' }));
     expect(rematch).toHaveBeenCalledTimes(1);
   });
 });

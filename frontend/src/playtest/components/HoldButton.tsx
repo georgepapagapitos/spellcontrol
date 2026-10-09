@@ -21,7 +21,7 @@ export function HoldButton() {
       className={`playtest-corner-btn playtest-hold-button${hold.pending ? ' is-pending' : ''}`}
       aria-pressed={hold.pending !== null}
       onClick={hold.toggle}
-      title={hold.pending ? 'Release the hold' : 'Hold: ask the table to wait a beat'}
+      title={hold.pending ? 'Release the hold' : 'Ask the table to wait'}
     >
       {hold.pending ? 'Release' : 'Hold'}
     </button>

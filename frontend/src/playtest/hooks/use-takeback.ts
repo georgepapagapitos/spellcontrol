@@ -190,7 +190,7 @@ export function useTakeback(onlineTable: OnlineTable | null): TakebackStatus {
         setMyRequestId(req.id);
       })
       .catch((err: unknown) => {
-        setRaiseError(userMessage(err, "Couldn't ask the table."));
+        setRaiseError(userMessage(err, "Couldn't ask the table. Try again."));
       });
     return plan;
   }, [pendingRequest, plan, next, dispatch, raiseGameRequest]);

@@ -451,7 +451,7 @@ describe('watchers and the voice link', () => {
     expect(radios.map((r) => r.getAttribute('value'))).toEqual(['public', 'friends', 'private']);
     expect(screen.getByText('Listed in the room browser. Anyone can watch.')).toBeTruthy();
     expect(screen.getByText('Listed for your friends. They can watch.')).toBeTruthy();
-    expect(screen.getByText('Only people with the code.')).toBeTruthy();
+    expect(screen.getByText('Not listed. Only people with the code can join.')).toBeTruthy();
   });
 
   it('lets the host open the table to watchers', () => {

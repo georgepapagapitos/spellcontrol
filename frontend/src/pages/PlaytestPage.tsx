@@ -49,7 +49,7 @@ export function PlaytestPage() {
     return (
       <EmptyState
         tagline="Deck not found."
-        hint="It may have been deleted. Pick another deck to playtest."
+        hint="Pick another deck to playtest."
         actions={
           <Button variant="primary" to="/decks">
             Back to decks

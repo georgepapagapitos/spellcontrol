@@ -194,12 +194,12 @@ export function DailyPage() {
     ? [
         `#${daily.number}`,
         dayLabel(daily.date),
-        daily.status === 'solved'
-          ? `Solved in ${daily.guesses.length}`
-          : daily.status === 'failed'
-            ? 'Not solved'
-            : `Guess ${Math.min(daily.guesses.length + 1, daily.maxGuesses)} of ${daily.maxGuesses}`,
-      ].join(' · ')
+        daily.status === 'playing'
+          ? `Guess ${Math.min(daily.guesses.length + 1, daily.maxGuesses)} of ${daily.maxGuesses}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(' · ')
     : undefined;
 
   const shareText =

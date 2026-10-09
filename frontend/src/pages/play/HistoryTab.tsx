@@ -80,25 +80,25 @@ function dropConfirmBody(records: GameRecord[], userId: string | null): string {
   if (removing > 0) {
     parts.push(
       removing === 1
-        ? 'One game leaves your history for good, along with the deck records built from it.'
-        : `${removing} games leave your history for good, along with the deck records built from them.`
+        ? 'Removes this game and the deck records built from it.'
+        : `Removes ${removing} games and the deck records built from them.`
     );
   }
   if (shared > 0) {
     parts.push(
       shared === 1
-        ? 'One game you hosted leaves the record for everyone who played it, and their win-loss with it.'
-        : `${shared} games you hosted leave the record for everyone who played them, and their win-loss with them.`
+        ? 'Removes this game for everyone who played it, including their win-loss.'
+        : `Removes ${shared} games for everyone who played them, including their win-loss.`
     );
   }
   if (hiding > 0) {
     parts.push(
       hiding === 1
-        ? 'One game leaves your list. The table keeps its record, and your win-loss still counts it.'
-        : `${hiding} games leave your list. The table keeps its record, and your win-loss still counts them.`
+        ? 'Hides this game from your list. It still counts in your win-loss.'
+        : `Hides ${hiding} games from your list. They still count in your win-loss.`
     );
   }
-  if (removing + shared > 0) parts.push("Removing can't be undone.");
+  if (removing + shared > 0) parts.push("This can't be undone.");
   return parts.join(' ');
 }
 
@@ -176,22 +176,14 @@ export function HistoryTab({
   // Authed users always get the server-authoritative Friends leaderboard, even
   // before any games are recorded.
   if (history.length === 0 && userId === null) {
-    return (
-      <EmptyState
-        tagline="No games yet."
-        hint="Pick a door on the Play tab to start your first game."
-      />
-    );
+    return <EmptyState tagline="No games yet." hint="Start a game from the Play tab." />;
   }
 
   return (
     <div className="play-history">
       {userId !== null && <FriendsLeaderboard />}
       {history.length === 0 && hiddenCount === 0 && (
-        <EmptyState
-          tagline="No games yet."
-          hint="Pick a door on the Play tab to start your first game."
-        />
+        <EmptyState tagline="No games yet." hint="Start a game from the Play tab." />
       )}
       {hasBothModes && (
         <Tabs<HistoryFilter>

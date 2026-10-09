@@ -107,7 +107,7 @@ export function useGameNights(enabled: boolean) {
         setError(null);
       })
       .catch((err: unknown) => {
-        setError(userMessage(err, "Couldn't load game nights."));
+        setError(userMessage(err, "Couldn't load game nights. Try again."));
       })
       .finally(() => setLoading(false));
   }, [enabled]);
@@ -167,7 +167,7 @@ export function GameNightsTab({ isGuest, nights, loading, error, refresh }: Game
       {nights.length === 0 ? (
         <EmptyState
           tagline="No game nights planned."
-          hint="Pick a date or let the group vote, then share the link. Anyone can RSVP, no account needed."
+          hint="Pick a date or let the group vote, then share the link. No account needed to RSVP."
           actions={
             <Button variant="primary" onClick={() => setDialog('create')}>
               Plan a game night
@@ -220,8 +220,8 @@ export function GameNightsTab({ isGuest, nights, loading, error, refresh }: Game
           }
           body={
             pendingCancel.series && pendingCancel.series.endedAt === null
-              ? "Anyone opening the link will see it as cancelled, and next week's night will take its place."
-              : "Everyone opening the link will see it as cancelled. This can't be undone."
+              ? "Anyone with the link sees it as canceled. Next week's night takes its place."
+              : "Anyone with the link sees it as canceled. This can't be undone."
           }
           confirmLabel={
             pendingCancel.series && pendingCancel.series.endedAt === null
@@ -237,12 +237,12 @@ export function GameNightsTab({ isGuest, nights, loading, error, refresh }: Game
               .then(refresh)
               .then(() =>
                 toast.show({
-                  message: skipped ? 'Night skipped. See you next week.' : 'Game night cancelled.',
+                  message: skipped ? 'Night skipped.' : 'Game night canceled.',
                 })
               )
               .catch((err) =>
                 toast.show({
-                  message: userMessage(err, "Couldn't cancel the game night."),
+                  message: userMessage(err, "Couldn't cancel the game night. Try again."),
                   tone: 'error',
                 })
               );
@@ -254,7 +254,7 @@ export function GameNightsTab({ isGuest, nights, loading, error, refresh }: Game
       {pendingDelete && (
         <ConfirmDialog
           title={`Delete "${pendingDelete.title}"?`}
-          body="This removes the night for everyone and the link stops working. This can't be undone."
+          body="Deletes the night and its link for everyone. This can't be undone."
           confirmLabel="Delete night"
           danger
           onConfirm={() => {
@@ -265,7 +265,7 @@ export function GameNightsTab({ isGuest, nights, loading, error, refresh }: Game
               .then(() => toast.show({ message: `Deleted ${night.title}`, tone: 'success' }))
               .catch((err) =>
                 toast.show({
-                  message: userMessage(err, "Couldn't delete the game night."),
+                  message: userMessage(err, "Couldn't delete the game night. Try again."),
                   tone: 'error',
                 })
               );
@@ -363,7 +363,7 @@ function NightCard({
       await refresh();
     } catch (err) {
       toast.show({
-        message: userMessage(err, "Couldn't save your RSVP."),
+        message: userMessage(err, "Couldn't save your RSVP. Try again."),
         tone: 'error',
       });
     } finally {
@@ -416,7 +416,7 @@ function NightCard({
             "at a glance" cancelled-cue ruling). */}
         {cancelled && (
           <Chip className="game-night-cancelled-pill" tone="err">
-            Cancelled
+            Canceled
           </Chip>
         )}
         {formatLabel && (
@@ -612,7 +612,7 @@ function NightCard({
       {pendingStopRepeat && (
         <ConfirmDialog
           title={`Stop repeating "${night.title}"?`}
-          body="This night stays on the calendar, but no new weeks will be scheduled. The series link keeps opening the last night."
+          body="No new weeks get scheduled. This night stays on the calendar."
           confirmLabel="Stop repeating"
           onConfirm={() => {
             setPendingStopRepeat(false);
@@ -621,7 +621,7 @@ function NightCard({
               .then(() => toast.show({ message: 'Series stopped. No more weekly nights.' }))
               .catch((err) =>
                 toast.show({
-                  message: userMessage(err, "Couldn't stop the series."),
+                  message: userMessage(err, "Couldn't stop the series. Try again."),
                   tone: 'error',
                 })
               );
@@ -643,7 +643,7 @@ function NightCard({
               .then(() => toast.show({ message: 'Date locked in.' }))
               .catch((err) =>
                 toast.show({
-                  message: userMessage(err, "Couldn't lock the date in."),
+                  message: userMessage(err, "Couldn't lock the date in. Try again."),
                   tone: 'error',
                 })
               );
@@ -707,7 +707,7 @@ function AttendeeSheet({ night, onClose }: { night: GameNight; onClose: () => vo
       toast.show({ message: `Friend request sent to ${displayName}.`, tone: 'success' });
     } catch (err) {
       toast.show({
-        message: userMessage(err, "Couldn't send the friend request."),
+        message: userMessage(err, "Couldn't send the friend request. Try again."),
         tone: 'error',
       });
     } finally {
@@ -769,7 +769,7 @@ function AttendeeSheet({ night, onClose }: { night: GameNight; onClose: () => vo
           <p className="game-night-dialog-hint">
             {friendsFetch.status === 'loading'
               ? "Checking who you're already friends with…"
-              : "Couldn't check friend status. Add friend isn't available right now."}
+              : "Couldn't check your friends. Try again later."}
           </p>
         )}
         {night.rsvps.length === 0 && <p className="game-night-dialog-hint">No replies yet.</p>}
@@ -844,7 +844,7 @@ function PollDialog({
       toast.show({ message: 'Date vote opened. Attendees can vote now.' });
       onSaved();
     } catch (err) {
-      setFormError(userMessage(err, "Couldn't open the date vote."));
+      setFormError(userMessage(err, "Couldn't open the date vote. Try again."));
       setSaving(false);
     }
   }
@@ -1077,7 +1077,7 @@ function NightDialog({
       onPeopleChanged();
     } catch (err) {
       toast.show({
-        message: userMessage(err, "Couldn't remove them from the night."),
+        message: userMessage(err, "Couldn't remove them from the night. Try again."),
         tone: 'error',
       });
     } finally {
@@ -1096,7 +1096,7 @@ function NightDialog({
       onPeopleChanged();
     } catch (err) {
       toast.show({
-        message: userMessage(err, "Couldn't block them."),
+        message: userMessage(err, "Couldn't block them. Try again."),
         tone: 'error',
       });
     } finally {
@@ -1114,7 +1114,7 @@ function NightDialog({
       onPeopleChanged();
     } catch (err) {
       toast.show({
-        message: userMessage(err, "Couldn't unblock them."),
+        message: userMessage(err, "Couldn't unblock them. Try again."),
         tone: 'error',
       });
     } finally {
@@ -1132,7 +1132,7 @@ function NightDialog({
       onPeopleChanged();
     } catch (err) {
       toast.show({
-        message: userMessage(err, "Couldn't remove the invite."),
+        message: userMessage(err, "Couldn't remove the invite. Try again."),
         tone: 'error',
       });
     } finally {
@@ -1152,7 +1152,7 @@ function NightDialog({
       onPeopleChanged();
     } catch (err) {
       toast.show({
-        message: userMessage(err, "Couldn't create the invite link."),
+        message: userMessage(err, "Couldn't create the invite link. Try again."),
         tone: 'error',
       });
     } finally {
@@ -1176,12 +1176,12 @@ function NightDialog({
       toast.show(
         ok
           ? { message: `Copied the invite link for ${label}`, tone: 'success' }
-          : { message: `Couldn't copy the invite link for ${label}.`, tone: 'error' }
+          : { message: `Couldn't copy the invite link for ${label}. Try again.`, tone: 'error' }
       );
     } catch (err) {
       // A dismissed share sheet rejects; that's a choice, not a failure.
       if (err instanceof DOMException && err.name === 'AbortError') return;
-      toast.show({ message: "Couldn't share the link.", tone: 'error' });
+      toast.show({ message: "Couldn't share the link. Try again.", tone: 'error' });
     }
   }
 
@@ -1195,7 +1195,7 @@ function NightDialog({
       onPeopleChanged();
     } catch (err) {
       toast.show({
-        message: userMessage(err, "Couldn't revoke the link."),
+        message: userMessage(err, "Couldn't revoke the link. Try again."),
         tone: 'error',
       });
     } finally {
@@ -1285,7 +1285,7 @@ function NightDialog({
       }
       onSaved();
     } catch (err) {
-      setFormError(userMessage(err, "Couldn't save the game night."));
+      setFormError(userMessage(err, "Couldn't save the game night. Try again."));
       setSaving(false);
     }
   }
@@ -1551,8 +1551,8 @@ function NightDialog({
               <legend>Invite someone without an account</legend>
               <p className="game-night-dialog-hint">
                 {night.series !== null
-                  ? 'Each person gets their own link that works every week, no signup needed. It works on invite-only nights.'
-                  : 'Each person gets their own link, no signup needed. It works on invite-only nights.'}
+                  ? 'Each person gets their own link, valid every week. No signup, and it works on invite-only nights.'
+                  : 'Each person gets their own link. No signup, and it works on invite-only nights.'}
               </p>
               <div className="game-night-guest-invite-add">
                 <Field label="Who's it for?" htmlFor={guestLabelId}>

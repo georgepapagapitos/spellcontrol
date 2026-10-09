@@ -72,9 +72,7 @@ export function ResistancePicker({ level, options, bracket, onSave, onClose }: P
   }
 
   const gameChangersHint =
-    bracket !== null && bracket < 3
-      ? `Cyclonic Rift, Force of Will and Fierce Guardianship. Off by default at bracket ${bracket}.`
-      : 'Cyclonic Rift, Force of Will and Fierce Guardianship. Off by default below bracket 3.';
+    'Opponents cast cards like Cyclonic Rift and Force of Will. Off by default below bracket 3.';
 
   return (
     <div className="card-picker-root">
@@ -94,7 +92,7 @@ export function ResistancePicker({ level, options, bracket, onSave, onClose }: P
             Resistance
           </h2>
           <p className="playtest-resistance-picker__intro">
-            Simulated opponents answer your plays, so you see how the deck holds up at a real table.
+            Simulated opponents answer your plays.
           </p>
         </div>
         <div className="playtest-resistance-picker__body">
@@ -122,7 +120,7 @@ export function ResistancePicker({ level, options, bracket, onSave, onClose }: P
               <Disclosure title="Timing" summary={`From turn ${draft.firstTurn}`}>
                 <Field
                   label="First answer on turn"
-                  hint="Nothing happens before this turn. Few tables have an answer up on turns 1 and 2."
+                  hint="Opponents hold their answers until this turn."
                 >
                   <SegmentedControl
                     ariaLabel="First answer on turn"

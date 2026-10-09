@@ -56,7 +56,7 @@ function revealModeFor(choice: RevealChoice): RevealMode {
 const REVEAL_OPTIONS: { value: RevealChoice; label: string }[] = [
   { value: 'until-nontoken', label: 'Until a nontoken card' },
   { value: 'waves', label: 'Two waves a turn' },
-  { value: 'waves-pattern', label: 'Waves 1, 2, 3, 2' },
+  { value: 'waves-pattern', label: '1, 2, 3, 2 waves, repeating' },
   { value: 'fixed', label: 'Reveal two cards' },
 ];
 

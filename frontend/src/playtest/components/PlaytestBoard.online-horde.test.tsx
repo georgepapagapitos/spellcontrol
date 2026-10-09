@@ -442,7 +442,7 @@ describe('PlaytestBoard — a horde at an online table: load states', () => {
     );
     expect(
       screen.getByText(
-        "This table's horde comes from a newer version of the app. Reload to join in."
+        "This horde needs a newer version. Reload to join."
       )
     ).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Reload' })).toBeTruthy();

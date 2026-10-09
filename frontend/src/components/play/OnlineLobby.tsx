@@ -42,6 +42,7 @@ import { Button, IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 import { useCopyFeedback } from '@/lib/util/use-copy-feedback';
 import { voiceLinkLabel } from '@/lib/play/voice-link';
+import { endTableBody, TABLE_VISIBILITY_OPTIONS } from '@/lib/play/shared-copy';
 import { VoiceLinkRow } from './VoiceLinkRow';
 
 /** Same cap as the create/join paths and the local setup's seat names. */
@@ -477,11 +478,7 @@ export function OnlineLobby({
         ) : (
           <ConfirmDialog
             title="End the table for everyone?"
-            body={
-              game.players.length > 1
-                ? `Leaving ends the table for ${game.players.length === 2 ? 'the other player' : `all ${game.players.length - 1} other players`} still seated.`
-                : 'Leaving ends the table.'
-            }
+            body={endTableBody(game.players.length - 1)}
             confirmLabel="End table"
             danger
             onConfirm={() => {
@@ -963,7 +960,7 @@ function LobbyRail({
             <RuleToggle
               labelId="lobby-turntimer-label"
               label="Turn timer"
-              hint="Shows how long the current turn has run. Nothing expires."
+              hint="Shows how long the current turn has run."
               on={game.turnTimerEnabled ?? false}
               onChange={(turnTimerEnabled) =>
                 dispatch({ type: 'settings', patch: { turnTimerEnabled } })
@@ -976,19 +973,7 @@ function LobbyRail({
               <VisibilityChoice
                 ariaLabel="Visibility"
                 value={game.visibility ?? 'private'}
-                options={[
-                  {
-                    value: 'public',
-                    label: 'Public',
-                    hint: 'Listed in the room browser. Anyone can watch.',
-                  },
-                  {
-                    value: 'friends',
-                    label: 'Friends',
-                    hint: 'Listed for your friends. They can watch.',
-                  },
-                  { value: 'private', label: 'Private', hint: 'Only people with the code.' },
-                ]}
+                options={TABLE_VISIBILITY_OPTIONS}
                 onChange={(visibility) => dispatch({ type: 'settings', patch: { visibility } })}
               />
             </div>

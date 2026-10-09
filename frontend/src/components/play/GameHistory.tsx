@@ -71,7 +71,7 @@ function GameStats({ game, summary }: { game: GameState; summary: GameSummary })
       </header>
 
       {!started ? (
-        <p className="game-history-empty">Stats appear once life totals start moving.</p>
+        <p className="game-history-empty">Change a life total to see stats.</p>
       ) : (
         <>
           <div className="game-stats-chips">
@@ -330,7 +330,7 @@ function LifeChart({ game }: { game: GameState }) {
   const legendId = useId();
 
   if (data.series.length === 0 || data.totalPoints <= 1) {
-    return <p className="game-history-empty">Not enough life changes yet to chart.</p>;
+    return <p className="game-history-empty">Change a few life totals to chart them.</p>;
   }
 
   const width = 320;

@@ -185,7 +185,7 @@ export async function createGameNight(input: GameNightInput): Promise<GameNight>
     body: JSON.stringify(input),
   });
   if (!res.ok) {
-    throw new Error(await readError(res, "Couldn't create the game night."));
+    throw new Error(await readError(res, "Couldn't create the game night. Try again."));
   }
   const body = (await res.json()) as { night: GameNight };
   return body.night;
@@ -194,7 +194,7 @@ export async function createGameNight(input: GameNightInput): Promise<GameNight>
 export async function listGameNights(): Promise<GameNight[]> {
   const res = await fetch(apiUrl('/api/game-nights'), { credentials: 'include' });
   if (!res.ok) {
-    throw new Error(await readError(res, "Couldn't load game nights."));
+    throw new Error(await readError(res, "Couldn't load game nights. Try again."));
   }
   const body = (await res.json()) as { nights: GameNight[] };
   return body.nights;
@@ -211,7 +211,7 @@ export async function updateGameNight(
     body: JSON.stringify(patch),
   });
   if (!res.ok) {
-    throw new Error(await readError(res, "Couldn't update the game night."));
+    throw new Error(await readError(res, "Couldn't update the game night. Try again."));
   }
   const body = (await res.json()) as { night: GameNight };
   return body.night;
@@ -223,7 +223,7 @@ export async function cancelGameNight(id: string): Promise<void> {
     credentials: 'include',
   });
   if (!res.ok && res.status !== 204) {
-    throw new Error(await readError(res, "Couldn't cancel the game night."));
+    throw new Error(await readError(res, "Couldn't cancel the game night. Try again."));
   }
 }
 
@@ -234,7 +234,7 @@ export async function deleteGameNight(id: string): Promise<void> {
     credentials: 'include',
   });
   if (!res.ok && res.status !== 204) {
-    throw new Error(await readError(res, "Couldn't delete the game night."));
+    throw new Error(await readError(res, "Couldn't delete the game night. Try again."));
   }
 }
 
@@ -257,7 +257,7 @@ export async function removeGameNightRsvp(
     { method: 'DELETE', credentials: 'include' }
   );
   if (!res.ok && res.status !== 204) {
-    throw new Error(await readError(res, "Couldn't remove them from the night."));
+    throw new Error(await readError(res, "Couldn't remove them from the night. Try again."));
   }
 }
 
@@ -270,7 +270,7 @@ export async function unblockGameNightUser(nightId: string, username: string): P
     { method: 'DELETE', credentials: 'include' }
   );
   if (!res.ok && res.status !== 204) {
-    throw new Error(await readError(res, "Couldn't unblock them."));
+    throw new Error(await readError(res, "Couldn't unblock them. Try again."));
   }
 }
 
@@ -283,7 +283,7 @@ export async function removeGameNightInvite(nightId: string, username: string): 
     { method: 'DELETE', credentials: 'include' }
   );
   if (!res.ok && res.status !== 204) {
-    throw new Error(await readError(res, "Couldn't remove the invite."));
+    throw new Error(await readError(res, "Couldn't remove the invite. Try again."));
   }
 }
 
@@ -336,7 +336,7 @@ export async function resolveGuestInvite(inviteToken: string): Promise<{ nightTo
     throw new GameNightNotFoundError();
   }
   if (!res.ok) {
-    throw new Error(await readError(res, "Couldn't open that invite."));
+    throw new Error(await readError(res, "Couldn't open that invite. Try again."));
   }
   return (await res.json()) as { nightToken: string };
 }
@@ -353,7 +353,7 @@ export async function createGameNightGuestInvite(
     body: JSON.stringify({ label }),
   });
   if (!res.ok) {
-    throw new Error(await readError(res, "Couldn't create the invite link."));
+    throw new Error(await readError(res, "Couldn't create the invite link. Try again."));
   }
   const body = (await res.json()) as { invite: Omit<GuestInvite, 'weekly'> & { weekly?: boolean } };
   return { weekly: false, ...body.invite };
@@ -368,7 +368,7 @@ export async function revokeGameNightGuestInvite(nightId: string, inviteId: stri
     { method: 'DELETE', credentials: 'include' }
   );
   if (!res.ok && res.status !== 204) {
-    throw new Error(await readError(res, "Couldn't revoke the link."));
+    throw new Error(await readError(res, "Couldn't revoke the link. Try again."));
   }
 }
 
@@ -390,7 +390,7 @@ export async function fetchPublicGameNight(
     throw new GameNightNotFoundError();
   }
   if (!res.ok) {
-    throw new Error(await readError(res, "Couldn't load the game night."));
+    throw new Error(await readError(res, "Couldn't load the game night. Try again."));
   }
   return (await res.json()) as PublicGameNight;
 }
@@ -417,7 +417,7 @@ export async function rsvpGameNight(
     throw new GameNightNotFoundError();
   }
   if (!res.ok) {
-    throw new Error(await readError(res, "Couldn't save your RSVP."));
+    throw new Error(await readError(res, "Couldn't save your RSVP. Try again."));
   }
   const body = (await res.json()) as {
     rsvp: { id: string; displayName: string; status: RsvpStatus; tradeOptIn?: boolean };
@@ -444,7 +444,7 @@ export async function voteGameNight(
     throw new GameNightNotFoundError();
   }
   if (!res.ok) {
-    throw new Error(await readError(res, "Couldn't save your votes."));
+    throw new Error(await readError(res, "Couldn't save your votes. Try again."));
   }
   const body = (await res.json()) as { rsvp: { id: string; displayName: string } };
   return body.rsvp;
@@ -465,7 +465,7 @@ export async function suggestGameNightOption(
     throw new GameNightNotFoundError();
   }
   if (!res.ok) {
-    throw new Error(await readError(res, "Couldn't suggest that time."));
+    throw new Error(await readError(res, "Couldn't suggest that time. Try again."));
   }
   const body = (await res.json()) as { rsvp: { id: string; displayName: string } };
   return body.rsvp;
@@ -480,7 +480,7 @@ export async function openGameNightPoll(id: string, options: number[]): Promise<
     body: JSON.stringify({ options }),
   });
   if (!res.ok) {
-    throw new Error(await readError(res, "Couldn't open the date vote."));
+    throw new Error(await readError(res, "Couldn't open the date vote. Try again."));
   }
   const body = (await res.json()) as { night: GameNight };
   return body.night;
@@ -493,7 +493,7 @@ export async function endGameNightSeries(id: string): Promise<void> {
     credentials: 'include',
   });
   if (!res.ok && res.status !== 204) {
-    throw new Error(await readError(res, "Couldn't stop the series."));
+    throw new Error(await readError(res, "Couldn't stop the series. Try again."));
   }
 }
 
@@ -509,7 +509,7 @@ export async function resolveGameNightSeries(token: string): Promise<string> {
     throw new GameNightNotFoundError();
   }
   if (!res.ok) {
-    throw new Error(await readError(res, "Couldn't load the game night."));
+    throw new Error(await readError(res, "Couldn't load the game night. Try again."));
   }
   const body = (await res.json()) as { nightToken: string };
   return body.nightToken;
@@ -524,7 +524,7 @@ export async function lockGameNight(id: string, optionId: string): Promise<GameN
     body: JSON.stringify({ optionId }),
   });
   if (!res.ok) {
-    throw new Error(await readError(res, "Couldn't lock the date in."));
+    throw new Error(await readError(res, "Couldn't lock the date in. Try again."));
   }
   const body = (await res.json()) as { night: GameNight };
   return body.night;
@@ -566,7 +566,7 @@ export async function fetchTonightTrades(nightId: string): Promise<TonightTradeA
     throw new TonightTradesNotFoundError();
   }
   if (!res.ok) {
-    throw new Error(await readError(res, "Couldn't load tonight's trades."));
+    throw new Error(await readError(res, "Couldn't load tonight's trades. Try again."));
   }
   const body = (await res.json()) as { attendees: TonightTradeAttendee[] };
   return body.attendees;

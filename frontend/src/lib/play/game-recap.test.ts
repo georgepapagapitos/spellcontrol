@@ -64,7 +64,7 @@ describe('buildGameRecap', () => {
     expect(byId['designation-monarch']).toBe(
       'Sam held it at the end, after it changed hands 2 times.'
     );
-    expect(byId['designation-initiative']).toBe('Maya claimed it and never let go.');
+    expect(byId['designation-initiative']).toBe('Maya claimed it and kept it.');
   });
 
   // F12b: a keypad `set-life` isn't a "hit" — it's a direct entry, not a

@@ -216,7 +216,7 @@ export async function patchGameResult(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(edit),
   });
-  if (!res.ok) throw new Error(await readError(res, "Couldn't save that change."));
+  if (!res.ok) throw new Error(await readError(res, "Couldn't save that change. Try again."));
   const body = (await res.json()) as { result: PublicGameResult };
   return body.result;
 }
@@ -233,7 +233,10 @@ export async function setGameResultHidden(sessionId: string, hidden: boolean): P
   });
   if (!res.ok)
     throw new Error(
-      await readError(res, hidden ? "Couldn't hide that game." : "Couldn't bring that game back.")
+      await readError(
+        res,
+        hidden ? "Couldn't hide that game. Try again." : "Couldn't bring that game back. Try again."
+      )
     );
 }
 
@@ -251,7 +254,7 @@ export async function postLocalResult(game: GameState): Promise<PublicGameResult
   });
   if (!res.ok) {
     const err = new Error(
-      await readError(res, "Couldn't save the game to your record.")
+      await readError(res, "Couldn't save the game to your record. Try again.")
     ) as Error & {
       status?: number;
     };
@@ -268,7 +271,7 @@ export async function deleteGameResult(sessionId: string): Promise<void> {
     method: 'DELETE',
     credentials: 'include',
   });
-  if (!res.ok) throw new Error(await readError(res, "Couldn't remove that game."));
+  if (!res.ok) throw new Error(await readError(res, "Couldn't remove that game. Try again."));
 }
 
 /**

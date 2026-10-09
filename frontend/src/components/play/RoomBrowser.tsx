@@ -43,7 +43,7 @@ export function RoomBrowser({ onJoin, onWatch, onHostInstead }: Props) {
         setError(null);
       })
       .catch((err: unknown) => {
-        setError(userMessage(err, "Couldn't load public games."));
+        setError(userMessage(err, "Couldn't load public games. Try again."));
       })
       .finally(() => setLoading(false));
   }, []);

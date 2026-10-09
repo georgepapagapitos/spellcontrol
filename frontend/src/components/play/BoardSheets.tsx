@@ -1,3 +1,4 @@
+import { DISCARD_GAME_BODY } from '@/lib/play/shared-copy';
 import { ChartLine, Flag, Lock, Minimize2, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import type { GameAction, GameState } from '@spellcontrol/game-core';
@@ -676,7 +677,7 @@ export function LeaveSheet({
             >
               Discard game
             </Button>
-            <p className="board-sheet-hint">Removes it without saving to History.</p>
+            <p className="board-sheet-hint">{DISCARD_GAME_BODY}</p>
           </div>
         </>
       )}

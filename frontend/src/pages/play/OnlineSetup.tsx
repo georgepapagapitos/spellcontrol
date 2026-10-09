@@ -12,6 +12,7 @@ import { deckBoardPath } from '@/lib/play/starter-decks';
 import type { GameAction, GameFormat, GameState } from '@spellcontrol/game-core';
 import type { PublicBoard } from '@/lib/playtest/projection';
 import { Button } from '@/components/shared/Button';
+import { TABLE_VISIBILITY_OPTIONS } from '@/lib/play/shared-copy';
 import { SeatDeck } from './SeatControls';
 
 export function OnlineSetup({
@@ -188,19 +189,7 @@ export function OnlineSetup({
             <VisibilityChoice
               ariaLabel="Table visibility"
               value={visibility}
-              options={[
-                {
-                  value: 'public',
-                  label: 'Public',
-                  hint: 'Listed in the room browser. Anyone can watch.',
-                },
-                {
-                  value: 'friends',
-                  label: 'Friends',
-                  hint: 'Listed for your friends. They can watch.',
-                },
-                { value: 'private', label: 'Private', hint: 'Only people with the code.' },
-              ]}
+              options={TABLE_VISIBILITY_OPTIONS}
               onChange={setVisibility}
             />
           </section>

@@ -44,7 +44,7 @@ const ROWS: Row[] = [
     Icon: Landmark,
     inactiveLabel: "Achieve City's Blessing",
     activeLabel: "City's Blessing achieved",
-    description: 'Permanent once you control 10+ permanents. Never lost for the rest of the game.',
+    description: 'Yours for the rest of the game once you control 10+ permanents.',
     oneWay: true,
   },
 ];
