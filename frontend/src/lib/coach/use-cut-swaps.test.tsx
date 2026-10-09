@@ -90,6 +90,46 @@ describe('useCutSwaps', () => {
     }
   });
 
+  it('pairs the cuts on retry once the combos that missed the budget have landed (E628)', async () => {
+    vi.useFakeTimers();
+    try {
+      const { result, rerender } = renderHook(
+        ({ hold }) => useCutSwaps([cut('A')], sources(['A']), env, hold),
+        { initialProps: { hold: true } }
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(4001);
+      });
+      expect(result.current.state).toEqual({ status: 'fallback', reason: 'combos-slow' });
+      // The combos land late: the settled lane is not re-paired under the user.
+      rerender({ hold: false });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(50);
+      });
+      expect(result.current.state).toEqual({ status: 'fallback', reason: 'combos-slow' });
+      expect(loadCoachObjective).not.toHaveBeenCalled();
+      // Retry shows the skeleton, then pairs.
+      loadCoachObjective.mockResolvedValue({
+        ok: true,
+        ctx: { edhrec: new Map() },
+        deck: { commanders: [], cards: [] },
+        pageRows: 300,
+      });
+      const verdicts = new Map<string, CutOutcome>([
+        ['upgrade:cut:A', { status: 'none', reason: 'x' }],
+      ]);
+      pairCuts.mockResolvedValue(verdicts);
+      act(() => result.current.retry());
+      expect(result.current.state).toEqual({ status: 'loading' });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(50);
+      });
+      expect(result.current.state).toEqual({ status: 'ready', outcomes: verdicts });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('loads, then reports the verdicts per cut', async () => {
     loadCoachObjective.mockResolvedValue({
       ok: true,

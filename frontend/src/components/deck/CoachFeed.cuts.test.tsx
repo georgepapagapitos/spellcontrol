@@ -209,6 +209,16 @@ describe('a deck the pairing cannot serve', () => {
     expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
   });
 
+  it('says the combos were slow, not that there are no replacements, and offers a retry (E628)', () => {
+    pairing = { status: 'fallback', reason: 'combos-slow' };
+    const { container } = renderCuts();
+    expect(rowNames(container)).toHaveLength(3);
+    expect(screen.getByText(/Combos were still loading/)).toBeTruthy();
+    expect(screen.queryByText(/No replacements for these cuts/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(retry).toHaveBeenCalledTimes(1);
+  });
+
   it("on an error shows today's rows and a retry", () => {
     pairing = { status: 'error' };
     const { container } = renderCuts();

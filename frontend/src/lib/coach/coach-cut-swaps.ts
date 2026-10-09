@@ -410,7 +410,7 @@ export type CutSwapState =
 export interface CutLane {
   rows: RankedMove[];
   /** Why the rows are today's, unpaired: shown as a note above them. */
-  note: 'fallback' | 'error' | null;
+  note: 'fallback' | 'combos-slow' | 'error' | null;
   /** Rows the pairing left out (a cut with no acceptable replacement and no rule to fix). */
   withheld: number;
 }
@@ -426,7 +426,11 @@ export function cutLane(
   state: CutSwapState,
   deckNames: ReadonlySet<string>
 ): CutLane {
-  if (state.status === 'fallback') return { rows: [...cuts], note: 'fallback', withheld: 0 };
+  if (state.status === 'fallback') {
+    // The deck's combos missed the budget: the cuts were never scored, which a retry can fix.
+    const note = state.reason === 'combos-slow' ? 'combos-slow' : 'fallback';
+    return { rows: [...cuts], note, withheld: 0 };
+  }
   if (state.status === 'error') return { rows: [...cuts], note: 'error', withheld: 0 };
   if (state.status !== 'ready') return { rows: [...cuts], note: null, withheld: 0 };
   const scored: RankedMove[] = [];
