@@ -17,6 +17,7 @@
  */
 
 import { openDB, type IDBPDatabase } from 'idb';
+import { openWithoutBfcache } from '@/lib/util/idb-open';
 import { logger } from '@/lib/util/logger';
 
 const DB_NAME = 'spellcontrol-sync';
@@ -57,20 +58,22 @@ let dbPromise: Promise<IDBPDatabase> | null = null;
 
 function getDB(): Promise<IDBPDatabase> {
   if (!dbPromise) {
-    dbPromise = openDB(DB_NAME, DB_VERSION, {
-      upgrade(db) {
-        for (const name of Object.values(STORE_NAMES)) {
-          if (!db.objectStoreNames.contains(name)) {
-            const store = db.createObjectStore(name, { keyPath: 'id' });
-            store.createIndex('rev', 'rev');
-            store.createIndex('deletedAt', 'deletedAt');
-            if (name === STORE_NAMES.card) {
-              store.createIndex('importId', 'importId');
+    dbPromise = openWithoutBfcache(() =>
+      openDB(DB_NAME, DB_VERSION, {
+        upgrade(db) {
+          for (const name of Object.values(STORE_NAMES)) {
+            if (!db.objectStoreNames.contains(name)) {
+              const store = db.createObjectStore(name, { keyPath: 'id' });
+              store.createIndex('rev', 'rev');
+              store.createIndex('deletedAt', 'deletedAt');
+              if (name === STORE_NAMES.card) {
+                store.createIndex('importId', 'importId');
+              }
             }
           }
-        }
-      },
-    });
+        },
+      })
+    );
   }
   return dbPromise;
 }

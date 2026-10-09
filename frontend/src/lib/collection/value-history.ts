@@ -1,4 +1,5 @@
 import { openDB, type IDBPDatabase } from 'idb';
+import { openWithoutBfcache } from '@/lib/util/idb-open';
 import { getCurrency } from './currency';
 import { formatMoney } from './format-money';
 
@@ -68,13 +69,15 @@ let dbPromise: Promise<IDBPDatabase> | null = null;
 
 function getDB(): Promise<IDBPDatabase> {
   if (!dbPromise) {
-    dbPromise = openDB(DB_NAME, 2, {
-      upgrade(db) {
-        if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: 'day' });
-        if (!db.objectStoreNames.contains(MOVERS_STORE))
-          db.createObjectStore(MOVERS_STORE, { keyPath: 'day' });
-      },
-    });
+    dbPromise = openWithoutBfcache(() =>
+      openDB(DB_NAME, 2, {
+        upgrade(db) {
+          if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: 'day' });
+          if (!db.objectStoreNames.contains(MOVERS_STORE))
+            db.createObjectStore(MOVERS_STORE, { keyPath: 'day' });
+        },
+      })
+    );
   }
   return dbPromise;
 }
