@@ -4,14 +4,17 @@ import { renderHook, waitFor } from '@testing-library/react';
 import type { ScryfallCard } from '@/deck-builder/types';
 
 const getCardsByNames = vi.fn();
+const getCardsByIds = vi.fn();
 vi.mock('@/deck-builder/services/scryfall/client', () => ({
   getCardsByNames: (names: string[]) => getCardsByNames(names),
+  getCardsByIds: (ids: string[]) => getCardsByIds(ids),
 }));
 
 import {
   imageFromCard,
   loadCard,
   useCardThumb,
+  usePrintingThumb,
   __resetCardThumbCacheForTests,
 } from './card-thumbs';
 
@@ -25,6 +28,7 @@ function card(name: string, normal: string): ScryfallCard {
 beforeEach(() => {
   __resetCardThumbCacheForTests();
   getCardsByNames.mockReset();
+  getCardsByIds.mockReset();
 });
 afterEach(() => vi.clearAllMocks());
 
@@ -110,5 +114,52 @@ describe('useCardThumb', () => {
     await loadCard('Sol Ring'); // warm the cache
     const { result } = renderHook(() => useCardThumb('Sol Ring', 'normal'));
     expect(result.current).toBe('http://cdn/sol.png');
+  });
+});
+
+describe('usePrintingThumb', () => {
+  it('shows the PINNED printing by id and reports that id', async () => {
+    getCardsByIds.mockResolvedValue(
+      new Map([['scry-lea', card('Sol Ring', 'http://cdn/sol-lea.png')]])
+    );
+    const { result } = renderHook(() => usePrintingThumb('scry-lea', 'Sol Ring', 'normal'));
+    await waitFor(() =>
+      expect(result.current).toEqual({ src: 'http://cdn/sol-lea.png', id: 'scry-lea' })
+    );
+    // A pinned line never also asks for the default printing by name.
+    expect(getCardsByNames).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the card by name when there is no printing', async () => {
+    getCardsByNames.mockResolvedValue(
+      new Map([['Sol Ring', card('Sol Ring', 'http://cdn/sol-default.png')]])
+    );
+    const { result } = renderHook(() => usePrintingThumb(undefined, 'Sol Ring', 'normal'));
+    await waitFor(() => expect(result.current.src).toBe('http://cdn/sol-default.png'));
+    expect(result.current.id).toBeUndefined();
+    expect(getCardsByIds).not.toHaveBeenCalled();
+  });
+
+  it('falls back by name, with no id, when the pinned printing does not resolve', async () => {
+    getCardsByIds.mockResolvedValue(new Map());
+    getCardsByNames.mockResolvedValue(
+      new Map([['Sol Ring', card('Sol Ring', 'http://cdn/sol-default.png')]])
+    );
+    const { result } = renderHook(() => usePrintingThumb('gone', 'Sol Ring', 'normal'));
+    await waitFor(() => expect(result.current.src).toBe('http://cdn/sol-default.png'));
+    expect(result.current.id).toBeUndefined();
+  });
+
+  it('coalesces pinned lookups mounted in one tick into one batched call', async () => {
+    getCardsByIds.mockResolvedValue(
+      new Map([
+        ['a', card('A', 'http://cdn/a.png')],
+        ['b', card('B', 'http://cdn/b.png')],
+      ])
+    );
+    renderHook(() => usePrintingThumb('a', 'A'));
+    renderHook(() => usePrintingThumb('b', 'B'));
+    await waitFor(() => expect(getCardsByIds).toHaveBeenCalledTimes(1));
+    expect(getCardsByIds).toHaveBeenCalledWith(['a', 'b']);
   });
 });

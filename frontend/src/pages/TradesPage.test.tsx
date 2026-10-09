@@ -25,7 +25,10 @@ vi.mock('../store/collection', () => ({
     sel({ cards: [], binders: [] }),
 }));
 
-vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({
+  useCardThumb: () => undefined,
+  usePrintingThumb: () => ({ src: undefined, id: undefined }),
+}));
 
 const listTrades = vi.fn();
 const clearTradeHistory = vi.fn();

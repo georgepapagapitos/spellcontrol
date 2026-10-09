@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getCardsByNames } from '@/deck-builder/services/scryfall/client';
+import { getCardsByIds, getCardsByNames } from '@/deck-builder/services/scryfall/client';
 import type { ScryfallCard } from '@/deck-builder/types';
 
 /**
@@ -113,9 +113,82 @@ export function useCardThumb(
   return cached ?? resolved;
 }
 
+// scryfall id -> resolved printing (null = looked up and not found). Same
+// micro-batching as the name path, through `getCardsByIds`, which is itself
+// cache-first (memory + offline IDB) and batches 75 per request.
+const idCache = new Map<string, ScryfallCard | null>();
+let idQueue = new Set<string>();
+let idFlushing: Promise<void> | null = null;
+
+function flushIds(): Promise<void> {
+  if (idFlushing) return idFlushing;
+  idFlushing = new Promise<void>((resolve) => {
+    queueMicrotask(async () => {
+      const ids = [...idQueue];
+      idQueue = new Set();
+      idFlushing = null;
+      if (ids.length > 0) {
+        try {
+          const found = await getCardsByIds(ids);
+          for (const id of ids) idCache.set(id, found.get(id) ?? null);
+        } catch {
+          for (const id of ids) idCache.set(id, null);
+        }
+      }
+      resolve();
+    });
+  });
+  return idFlushing;
+}
+
+/** Resolve one exact printing by Scryfall id (cache-first, batched). */
+export async function loadPrinting(id: string): Promise<ScryfallCard | null> {
+  if (idCache.has(id)) return idCache.get(id) ?? null;
+  idQueue.add(id);
+  await flushIds();
+  return idCache.get(id) ?? null;
+}
+
+/**
+ * Art for an EXACT printing. Resolves `scryfallId` first; when there is no id,
+ * or it does not resolve (merged away, offline, not found), falls back to the
+ * card by `name`. `id` is the printing the image really is: the scryfall id
+ * when the pinned printing resolved, undefined for a name fallback, so a caller
+ * can state honestly whether it is showing the printing or a stand-in.
+ */
+export function usePrintingThumb(
+  scryfallId: string | undefined,
+  name: string,
+  version: ThumbVersion = 'normal'
+): { src: string | undefined; id: string | undefined } {
+  const pinnedCard = scryfallId ? idCache.get(scryfallId) : undefined;
+  const [, bump] = useState(0);
+  useEffect(() => {
+    if (!scryfallId || idCache.has(scryfallId)) return;
+    let alive = true;
+    void loadPrinting(scryfallId).then(() => {
+      if (alive) bump((n) => n + 1);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [scryfallId]);
+
+  const pinnedSrc = pinnedCard ? imageFromCard(pinnedCard, version) : undefined;
+  // The name path is only needed once the id lookup has settled without art
+  // (or there never was an id), so a pinned line does not also fetch by name.
+  const settled = !scryfallId || idCache.has(scryfallId);
+  const byName = useCardThumb(settled && !pinnedSrc ? name : undefined, version);
+  if (pinnedSrc) return { src: pinnedSrc, id: scryfallId };
+  return { src: byName, id: undefined };
+}
+
 /** Test-only: clear the module-level resolution cache between cases. */
 export function __resetCardThumbCacheForTests(): void {
   cache.clear();
   queue = new Set();
   flushing = null;
+  idCache.clear();
+  idQueue = new Set();
+  idFlushing = null;
 }

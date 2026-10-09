@@ -39,9 +39,15 @@ function asFinish(raw: string | undefined): Finish {
  * anything dropped — a naive positional index would silently open the wrong
  * card once a single lookup failed.
  */
-export async function resolveTradePreview(
-  cards: TradeCard[]
-): Promise<{ cards: EnrichedCard[]; indexOf: (card: TradeCard) => number }> {
+export async function resolveTradePreview(cards: TradeCard[]): Promise<{
+  cards: EnrichedCard[];
+  indexOf: (card: TradeCard) => number;
+  /** A note for each slide whose art is NOT the printing in the deal: an
+   *  oracle-level "any printing" line, or a pinned one whose printing failed to
+   *  load and fell back to the card by name. Those two say different things:
+   *  the second ask still names one printing, so it must not read "Any printing". */
+  slideNotes: Map<number, string>;
+}> {
   // One batched by-name call for EVERY card, pinned or not. The unpinned side
   // needs it outright; the pinned side needs it as a fallback, because a
   // printing id can stop resolving (an old offer whose printing Scryfall later
@@ -58,13 +64,16 @@ export async function resolveTradePreview(
   // Keyed by the same identity the chips render with, so `indexOf` never has
   // to care what got dropped.
   const slideByKey = new Map<string, number>();
+  const slideNotes = new Map<number, string>();
 
   for (const card of cards) {
     const pinned = card.copies[0];
     let scryfall = null;
+    let pinnedFound = false;
     if (pinned?.scryfallId) {
       try {
         scryfall = await getCardById(pinned.scryfallId);
+        pinnedFound = scryfall !== null;
       } catch (err) {
         logger.warn('[trades] Could not resolve a traded printing for preview:', err);
       }
@@ -74,14 +83,21 @@ export async function resolveTradePreview(
     scryfall ??= byName.get(card.name) ?? null;
     if (!scryfall) continue;
     slideByKey.set(keyOf(card), resolved.length);
+    if (!pinned) slideNotes.set(resolved.length, ANY_PRINTING_NOTE);
+    else if (!pinnedFound) slideNotes.set(resolved.length, FALLBACK_PRINTING_NOTE);
     resolved.push(scryfallToEnrichedCard(scryfall, asFinish(pinned?.finish)));
   }
 
   return {
     cards: resolved,
     indexOf: (card) => slideByKey.get(keyOf(card)) ?? -1,
+    slideNotes,
   };
 }
+
+export const ANY_PRINTING_NOTE = 'Any printing. This one is an example.';
+export const FALLBACK_PRINTING_NOTE =
+  "Couldn't load the printing in this trade. This is another printing of the card.";
 
 /** Matches TradeOfferSide's own `key` — oracle id, or the name for legacy rows —
  *  plus the printing when the line names one, so two printings of a card in one
