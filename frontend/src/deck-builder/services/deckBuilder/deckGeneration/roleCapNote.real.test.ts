@@ -16,11 +16,14 @@ import { frontFaceName } from '@/lib/cards/card-text';
 import { BASELINE, FIX, TREATMENT } from '../deckObjective/__fixtures__/objectiveFixture';
 import { buildFinalRoleCapOverflowNote } from './roleCapNote';
 
-// The committed tagger snapshot (public/tagger-tags.json), the one the app ships.
+// The shipped tagger snapshot (public/tagger-tags.json) cut to the names in these decks.
 beforeAll(async () => {
   const here = dirname(fileURLToPath(import.meta.url));
   const data = JSON.parse(
-    readFileSync(resolve(here, '../../../../../public/tagger-tags.json'), 'utf8')
+    readFileSync(
+      resolve(here, '../deckObjective/__fixtures__/meren-tagger-tags.fixture.json'),
+      'utf8'
+    )
   );
   vi.stubGlobal('fetch', async () => ({ ok: true, status: 200, json: async () => data }));
   if (!(await loadTaggerData())) throw new Error('tagger data failed to load');
