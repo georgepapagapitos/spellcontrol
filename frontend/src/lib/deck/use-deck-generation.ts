@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { haptics } from '@/lib/util/haptics';
 import { toast } from '@/store/toasts';
-import { useDeckBuilderStore } from '@/deck-builder/store';
+import { defaultCustomization, useDeckBuilderStore } from '@/deck-builder/store';
 import { buildCommanderProfile } from '@/deck-builder/services/deckBuilder/commanderProfile';
 import { generateDeck } from '@/deck-builder/services/deckBuilder/deckGenerator';
 import { skipsOwnedCards } from '@/deck-builder/services/deckBuilder/deckFilters';
@@ -239,7 +239,15 @@ export function useDeckGeneration({
         setEdhrecLandSuggestion({ landCount: total, nonBasicLandCount: nonbasic });
         setEdhrecStats(data.stats);
         // Auto-apply suggestion if the user hasn't manually changed lands yet.
-        if (!useDeckBuilderStore.getState().userEditedLands) {
+        // The suggestion describes a 100-card deck: a format with its own deck
+        // size (Brawl's 60) keeps the land counts the page stamped, because
+        // setCommander() clears userEditedLands when the commander is picked
+        // (E479 shipped 35 lands in a 60-card deck that way).
+        const state = useDeckBuilderStore.getState();
+        if (
+          !state.userEditedLands &&
+          state.customization.deckFormat === defaultCustomization.deckFormat
+        ) {
           updateCustomization({ landCount: total, nonBasicLandCount: nonbasic });
         }
       })

@@ -63,4 +63,20 @@ describe('useDeckGeneration land pre-fill', () => {
     await waitFor(() => expect(useDeckBuilderStore.getState().customization.landCount).toBe(39));
     expect(fetchPartnerCommanderData).not.toHaveBeenCalled();
   });
+
+  it('leaves a 60-card format its own land counts when the commander is picked', async () => {
+    // Brawl: the page stamps 60 cards / 23 lands, then setCommander() clears
+    // userEditedLands, so the EDHREC 100-card suggestion used to overwrite them.
+    useDeckBuilderStore
+      .getState()
+      .updateCustomization({ deckFormat: 60, landCount: 23, nonBasicLandCount: 9 });
+    useDeckBuilderStore.getState().setCommander(card('The Tenth Doctor', ['U', 'R']));
+    renderHook(() => useDeckGeneration(), { wrapper });
+
+    await waitFor(() => expect(fetchCommanderData).toHaveBeenCalled());
+    await new Promise((r) => setTimeout(r, 20));
+    const cz = useDeckBuilderStore.getState().customization;
+    expect(cz.landCount).toBe(23);
+    expect(cz.nonBasicLandCount).toBe(9);
+  });
 });
