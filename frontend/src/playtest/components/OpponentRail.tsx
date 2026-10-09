@@ -263,7 +263,7 @@ function OpponentEntry({
           <span className="opponent-entry__designations" aria-hidden="true">
             {held.map((d) => (
               <span key={d.key} className="opponent-entry__designation" title={d.label}>
-                {d.icon}
+                <d.Icon width={12} height={12} strokeWidth={2} aria-hidden="true" />
               </span>
             ))}
           </span>

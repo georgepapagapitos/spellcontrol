@@ -760,6 +760,13 @@
 .ogv-finished-trophy {
   font-size: var(--text-3xl);
   line-height: 1;
+  color: var(--accent);
+}
+
+.ogv-finished-trophy svg {
+  display: block;
+  width: 1em;
+  height: 1em;
 }
 
 .ogv-finished-name {

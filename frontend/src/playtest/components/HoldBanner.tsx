@@ -1,3 +1,4 @@
+import { Pause } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { usePlayStore } from '@/store/play';
@@ -91,7 +92,7 @@ export function HoldBanner() {
         return (
           <div key={hold.id} className="playtest-hold-banner__row" style={{ color: palette.base }}>
             <span aria-hidden className="playtest-hold-banner__icon">
-              ⏸
+              <Pause width={14} height={14} strokeWidth={1.8} aria-hidden="true" />
             </span>
             <span className="playtest-hold-banner__message">
               {isMine ? (

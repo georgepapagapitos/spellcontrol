@@ -1692,7 +1692,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     takeback.mode === 'off'
       ? 'Off'
       : takeback.verdict === 'locked'
-        ? '🔒'
+        ? 'Locked'
         : takeback.stepsAvailable > 0
           ? String(takeback.stepsAvailable)
           : null;

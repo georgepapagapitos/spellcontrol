@@ -180,12 +180,10 @@ describe('highRoll', () => {
 
 describe('describeRoll', () => {
   it('compacts a single die', () => {
-    expect(describeRoll({ sides: 20, count: 1, rolls: [17], total: 17 })).toBe('🎲 1d20 → 17');
+    expect(describeRoll({ sides: 20, count: 1, rolls: [17], total: 17 })).toBe('1d20 → 17');
   });
 
   it('expands a multi-die roll', () => {
-    expect(describeRoll({ sides: 6, count: 2, rolls: [3, 5], total: 8 })).toBe(
-      '🎲 2d6 → [3, 5] = 8'
-    );
+    expect(describeRoll({ sides: 6, count: 2, rolls: [3, 5], total: 8 })).toBe('2d6 → [3, 5] = 8');
   });
 });
