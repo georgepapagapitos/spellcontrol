@@ -199,4 +199,33 @@ describe('deck toolbar — narrow-viewport fold', () => {
     // DOCUMENT_POSITION_FOLLOWING === 4: the toolbar comes after the strip.
     expect(strip.compareDocumentPosition(toolbar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
+
+  // Desktop: the page hands a slot on its tab row, and the strip renders there
+  // (sticky with the tabs) instead of above the toolbar, with its buttons
+  // still wired to this component (STYLE_GUIDE § Deck view).
+  it('renders the stat strip into the slot the page hands it', () => {
+    const slot = document.createElement('div');
+    document.body.appendChild(slot);
+    try {
+      setNarrow(false);
+      const { container } = render(
+        <MemoryRouter>
+          <DeckDisplay
+            title="Test deck"
+            commander={null}
+            format="commander"
+            cards={slots(['Mainboard Card'])}
+            sideboard={[]}
+            considering={[]}
+            statStripSlot={slot}
+          />
+        </MemoryRouter>
+      );
+      expect(container.querySelector('.deck-stat-strip')).toBeNull();
+      expect(slot.querySelector('.deck-stat-strip')).not.toBeNull();
+      expect(slot.querySelector('button.deck-stat-health')).not.toBeNull();
+    } finally {
+      slot.remove();
+    }
+  });
 });

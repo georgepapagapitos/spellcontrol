@@ -266,6 +266,9 @@ export interface DeckDisplayProps {
   /** The header's Deck menu holds Test hand and Export, so the toolbar leaves
    *  them out (STYLE_GUIDE § Deck page menus). */
   deckActionsInHeader?: boolean;
+  /** Where the Deck view's stat strip renders instead of above the toolbar:
+   *  the page's tab row on a desktop. Null/absent → its usual place. */
+  statStripSlot?: HTMLElement | null;
   /** Opens the add-cards sheet — used by the empty-deck state's CTA (E182). */
   onAddCards?: () => void;
   /**

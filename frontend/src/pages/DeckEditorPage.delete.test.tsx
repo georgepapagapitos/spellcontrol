@@ -185,11 +185,17 @@ vi.mock('../components/deck/DeckDisplay', () => ({
   DeckDisplay: ({
     editActions,
     deckActionsInHeader,
+    statStripSlot,
   }: {
     editActions?: { label: string; onClick: () => void }[];
     deckActionsInHeader?: boolean;
+    statStripSlot?: HTMLElement | null;
   }) => (
-    <div data-testid="deck-display" data-deck-actions-in-header={String(!!deckActionsInHeader)}>
+    <div
+      data-testid="deck-display"
+      data-deck-actions-in-header={String(!!deckActionsInHeader)}
+      data-stat-slot={statStripSlot ? statStripSlot.className : 'none'}
+    >
       {editActions?.map((a) => (
         <button key={a.label} type="button" data-testid="edit-action" onClick={a.onClick}>
           {a.label}
@@ -528,6 +534,23 @@ describe('DeckEditorPage — the format in the hero meta', () => {
     mockDeck.format = 'modern';
     const modern = renderEditor();
     expect(modern.container.querySelector('.deck-hero-bracket')).toBeNull();
+  });
+
+  // Desktop: the Deck view's stat strip shares the sticky tab row, so the
+  // page hands DeckDisplay a slot there. A tablet or phone has no room beside
+  // the tabs and keeps the strip above the toolbar.
+  it.each([
+    [1280, 'deck-tabs-stats'],
+    [768, 'none'],
+    [390, 'none'],
+  ])('at %ipx hands the stat strip the slot "%s"', (px, slot) => {
+    atWidth(px);
+    renderEditor();
+    expect(screen.getByTestId('deck-display').dataset.statSlot).toBe(slot);
+    if (slot !== 'none') {
+      expect(document.querySelector('.deck-editor-view-tabs > .deck-tabs-stats')).toBeTruthy();
+    }
+    vi.unstubAllGlobals();
   });
 
   // A phone's Power tab badge sits straight under the header and already says
