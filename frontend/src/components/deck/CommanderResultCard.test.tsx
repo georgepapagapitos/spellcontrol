@@ -45,6 +45,23 @@ describe('CommanderResultCard', () => {
     expect(screen.getByText('1,200 on SpellControl')).toBeTruthy();
   });
 
+  it('says the colors are unavailable, never Colorless, when the identity is unknown', () => {
+    const { container } = render(
+      <CommanderResultCard name="Atraxa" colors={[]} colorsUnknown onSelect={vi.fn()} />
+    );
+    expect(screen.getByText('Colors unavailable')).toBeTruthy();
+    expect(screen.queryByText('Colorless')).toBeNull();
+    expect(container.querySelector('.commander-result-pips')).toBeNull();
+  });
+
+  it('still says Colorless for a real colorless commander', () => {
+    render(
+      <CommanderResultCard name="Karn" colors={['C']} comboName="Colorless" onSelect={vi.fn()} />
+    );
+    expect(screen.getByText('Colorless')).toBeTruthy();
+    expect(screen.queryByText('Colors unavailable')).toBeNull();
+  });
+
   it('calls onSelect when the card is clicked', () => {
     const onSelect = vi.fn();
     render(<CommanderResultCard name="Sol Ring" colors={['C']} onSelect={onSelect} />);

@@ -224,7 +224,8 @@ const identityOf = (ci: readonly string[] | undefined): string[] =>
 const popularEntry = (c: EDHRECTopCommander, i: number): Entry => ({
   key: c.sanitized || c.name,
   name: c.name,
-  colors: identityOf(c.colorIdentity),
+  colors: c.colorsUnknown ? [] : identityOf(c.colorIdentity),
+  colorsUnknown: c.colorsUnknown,
   popularity: i,
   numDecks: c.numDecks,
   playstyleIds: [],
@@ -513,6 +514,7 @@ export function CommanderSearch({
             for (const c of list) {
               const k = c.name.toLowerCase();
               if (seen.has(k) || c.name.includes('//')) continue;
+              if (c.colorsUnknown && q.colors.size > 0) continue;
               if (!colorIdentityMatches(c.colorIdentity, q.colors, q.colorMode)) continue;
               seen.add(k);
               entries.push({
@@ -1133,6 +1135,7 @@ export function CommanderSearch({
                     name={e.name}
                     imageUrl={e.imageUrl}
                     colors={e.colors}
+                    colorsUnknown={e.colorsUnknown}
                     comboName={colorComboName(e.colors)}
                     reason={matchReason(e, query.text)}
                     owned={activeSource === 'all' && ownedLegendNames.has(e.name.toLowerCase())}
@@ -1212,7 +1215,11 @@ export function CommanderSearch({
         )}
       </div>
 
-      {error && <p className="commander-search-error">{error}</p>}
+      {error && (
+        <p className="commander-search-error" role="alert">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

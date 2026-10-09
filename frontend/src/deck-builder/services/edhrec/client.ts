@@ -301,11 +301,14 @@ async function backfillColorIdentities(
     return commanders.map((c) => {
       if (c.colorIdentity.length > 0) return c;
       const card = cardMap.get(c.name);
-      return { ...c, colorIdentity: card?.color_identity ?? [] };
+      // A commander Scryfall didn't return is unknown, not colorless.
+      return card ? { ...c, colorIdentity: card.color_identity } : { ...c, colorsUnknown: true };
     });
   } catch {
-    // Scryfall lookup failed — show without color pips
-    return commanders;
+    // Scryfall lookup failed: flag the blanks as unknown rather than colorless.
+    return commanders.map((c) =>
+      c.colorIdentity.length === 0 ? { ...c, colorsUnknown: true } : c
+    );
   }
 }
 
@@ -1100,7 +1103,10 @@ export async function fetchTopCommanders(colors: string[]): Promise<EDHRECTopCom
     // to fill it in.
     if (isOverall) commanders = await backfillColorIdentities(commanders);
 
-    topCommanderCache.set(key, { data: commanders, timestamp: Date.now() });
+    // A list with unresolved colors isn't cached: the next view looks them up again.
+    if (!commanders.some((c) => c.colorsUnknown)) {
+      topCommanderCache.set(key, { data: commanders, timestamp: Date.now() });
+    }
     return commanders;
   } catch (error) {
     logger.warn(`[EDHREC] Failed to fetch top commanders for "${slug}":`, error);

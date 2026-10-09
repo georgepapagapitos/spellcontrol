@@ -235,6 +235,8 @@ export interface FinderEntry {
   name: string;
   /** Color identity letters, `['C']` for colorless. */
   colors: string[];
+  /** The identity couldn't be looked up: `colors` is empty and means unknown, not colorless. */
+  colorsUnknown?: boolean;
   typeLine?: string;
   oracleText?: string;
   cmc?: number;

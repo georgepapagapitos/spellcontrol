@@ -17,6 +17,8 @@ interface Props {
   imageUrl?: string;
   /** Color-identity letters (WUBRGC) for the pip strip. */
   colors: string[];
+  /** The identity couldn't be looked up: say so instead of showing pips or "Colorless". */
+  colorsUnknown?: boolean;
   /**
    * The color combination in words ("Golgari", "Mono-black"), printed beside
    * the pips. Pips name themselves on hover only; touch has no hover, so the
@@ -108,6 +110,7 @@ export function CommanderResultCard({
   name,
   imageUrl,
   colors,
+  colorsUnknown,
   comboName,
   typeLine,
   readiness,
@@ -154,15 +157,21 @@ export function CommanderResultCard({
       </span>
       <span className="commander-result-body">
         <span className="commander-result-name">{selecting ? 'Loading…' : name}</span>
-        {colors.length > 0 && (
+        {colorsUnknown ? (
           <span className="commander-result-colors">
-            <span className="commander-result-pips" aria-hidden>
-              {colors.map((color) => (
-                <ColorPip key={color} color={color} pip={false} />
-              ))}
-            </span>
-            {comboName && <span className="commander-result-combo">{comboName}</span>}
+            <span className="commander-result-combo">Colors unavailable</span>
           </span>
+        ) : (
+          colors.length > 0 && (
+            <span className="commander-result-colors">
+              <span className="commander-result-pips" aria-hidden>
+                {colors.map((color) => (
+                  <ColorPip key={color} color={color} pip={false} />
+                ))}
+              </span>
+              {comboName && <span className="commander-result-combo">{comboName}</span>}
+            </span>
+          )
         )}
         {typeLine && <span className="commander-result-type">{typeLine}</span>}
         {reason && reason.field !== 'name' && <ReasonLine reason={reason} />}
