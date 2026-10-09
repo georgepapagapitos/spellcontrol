@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { usePlayStore } from './play';
-import { applyAction, createGameState, makePlayer, type GameState } from '@/lib/play/game-state';
+import { applyAction, createGameState, makePlayer, type GameState } from '@spellcontrol/game-core';
 import { createGame, sendGameSignal, type GameSignal } from '@/lib/play/games-api';
 
 /**

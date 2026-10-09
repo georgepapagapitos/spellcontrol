@@ -17,7 +17,8 @@ import { CardRowMenu } from './CardRowMenu';
 import type { OverflowMenuItem } from '@/components/overlays/OverflowMenu';
 import { CardPreview } from '@/components/card/CardPreview';
 import { renderFriendOwners } from '@/components/trade/FriendOwnersPanel';
-import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
+import { CardEditDialog } from './CardEditDialog';
+import { type PrintingSelection } from '@/lib/collection/edit-card';
 import { RemoveCopiesDialog } from './RemoveCopiesDialog';
 import { BulkMoveToBinderSheet } from '@/components/binder/BulkMoveToBinderSheet';
 import { useConfirm } from '@/components/overlays/use-confirm';
@@ -42,7 +43,7 @@ import { useCardsWithTags } from '@/lib/cards/card-tags';
 import { useCardsWithReleaseDates } from '@/lib/cards/card-release-dates';
 import { useMediaQuery } from '@/lib/util/use-media-query';
 import { useDebouncedValue } from '@/lib/util/use-debounced-value';
-import { sortDirectionLabel } from '@/lib/search/sorting';
+import { sortDirectionLabel } from '@spellcontrol/binder-routing';
 import { getSectionMeta } from '@spellcontrol/binder-routing';
 import {
   groupRowsIntoSections,
@@ -52,7 +53,7 @@ import {
   type GridLayoutRow,
   type ListLayoutRow,
 } from '@/lib/collection/group-sections';
-import { type ColorMatchMode } from '@/lib/cards/colors';
+import { type ColorMatchMode } from '@spellcontrol/binder-routing';
 import { rowMatchesCollectionFilter } from '@/lib/search/collection-filter';
 import { useCollectionStore } from '@/store/collection';
 import {
@@ -80,7 +81,7 @@ import {
   stackDetailMix,
   printingStubFromEnriched,
 } from '@/lib/collection/edit-card';
-import { compileExpression, compileFilter, isExpressionEmpty } from '@/lib/binder/rules';
+import { compileExpression, compileFilter, isExpressionEmpty } from '@spellcontrol/binder-routing';
 import { Button } from '@/components/shared/Button';
 import { CardListBulkToolbar } from './CardListBulkToolbar';
 import { CardListControls } from './CardListControls';

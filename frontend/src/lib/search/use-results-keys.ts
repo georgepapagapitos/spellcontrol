@@ -1,5 +1,4 @@
 import { useRef, useState, type KeyboardEvent } from 'react';
-import type { CardSearchResultsHandle } from '@/components/search/CardSearchResults';
 import type { ScryfallCard } from '@/deck-builder/types';
 
 interface UseResultsKeysOptions {
@@ -72,4 +71,14 @@ export function useResultsKeys(opts: UseResultsKeysOptions = {}) {
   };
 
   return { resultsRef, onActiveChange, onKeyDown };
+}
+
+/** Imperative keyboard-nav surface for a host that owns a search input
+ *  elsewhere in the tree (this component renders no input of its own). */
+export interface CardSearchResultsHandle {
+  /** Move the active row by one row (list/compact views only). 0 keeps the
+   *  row and just shows it as selected. */
+  moveActive: (delta: 1 | 0 | -1) => void;
+  /** Add the active row's card, same as clicking its "+". */
+  addActive: () => void;
 }

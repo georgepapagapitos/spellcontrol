@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { GameRecord } from './game-state';
+import type { GameRecord } from '@spellcontrol/game-core';
 import { deckTableRead, seatCountsForDeck } from './table-read';
 
 let n = 0;

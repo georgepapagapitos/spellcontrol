@@ -7,8 +7,8 @@
  */
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { GameAction, GameState } from '@/lib/play/game-state';
-import { applyAction, createGameState, makePlayer } from '@/lib/play/game-state';
+import type { GameAction, GameState } from '@spellcontrol/game-core';
+import { applyAction, createGameState, makePlayer } from '@spellcontrol/game-core';
 
 const mockPlayState = {
   hapticsEnabled: false,

@@ -1,4 +1,4 @@
-import { reseatSummaryWinner, type GameRecord, type GameState } from './game-state';
+import { reseatSummaryWinner, type GameRecord, type GameState } from '@spellcontrol/game-core';
 import type { GameResultEdit } from './game-results-client';
 
 /**

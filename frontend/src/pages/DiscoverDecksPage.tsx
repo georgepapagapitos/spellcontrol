@@ -14,7 +14,8 @@ import { DiscoverFiltersPopover } from '@/components/decks/DiscoverFiltersPopove
 import { TrendingRail } from '../components/aggregates/TrendingRail';
 import { PreconsRail } from '@/components/decks/PreconsRail';
 import { DiscoverSearch } from '@/components/decks/DiscoverSearch';
-import { SelectMenu, type SelectOption } from '@/components/overlays/SelectMenu';
+import { SelectMenu } from '@/components/overlays/SelectMenu';
+import { type SelectOption } from '@/lib/util/select-option';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { FilterChipsRow, type FilterChipDescriptor } from '../components/shared/FilterChipsRow';

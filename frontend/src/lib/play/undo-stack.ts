@@ -14,7 +14,7 @@
  * for immediate misclicks, not session-spanning time travel.
  */
 
-import type { GameAction, GameState } from './game-state';
+import type { GameAction, GameState } from '@spellcontrol/game-core';
 
 interface SeatSnapshot {
   seat: number;

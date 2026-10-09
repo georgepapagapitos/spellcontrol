@@ -51,7 +51,7 @@ import type {
   NextBestMove,
   NextBestMoveFocus,
 } from '@/deck-builder/services/deckBuilder/nextBestMove';
-import type { DeckView } from './DeckDisplay';
+import type { DeckView } from '@/lib/deck-analysis/deck-view';
 import { Chip } from '@/components/shared/Chip';
 import type { SettingsBreak } from '@/lib/coach/deck-settings-fit';
 import {

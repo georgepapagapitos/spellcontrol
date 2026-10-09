@@ -1,5 +1,5 @@
 import type { BinderFilter, BinderFilterGroup, ChipExpression } from '@/types/index';
-import type { ColorMatchMode } from '@/lib/cards/colors';
+import type { ColorMatchMode } from '@spellcontrol/binder-routing';
 import { currencySymbol } from '@/lib/collection/currency';
 import { cardTagLabel } from '@/lib/cards/card-tags';
 

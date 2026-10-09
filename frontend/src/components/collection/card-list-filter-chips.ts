@@ -2,8 +2,8 @@ import type { ChipExpression, ScryfallQueryRule } from '@/types/index';
 import { formatMoney } from '@/lib/collection/format-money';
 import { LANGUAGE_OPTIONS } from '@/lib/collection/copy-options';
 import { cardTagLabel } from '@/lib/cards/card-tags';
-import { isExpressionEmpty } from '@/lib/binder/rules';
-import type { ColorMatchMode } from '@/lib/cards/colors';
+import { isExpressionEmpty } from '@spellcontrol/binder-routing';
+import type { ColorMatchMode } from '@spellcontrol/binder-routing';
 import type { FilterChipDescriptor } from '@/components/shared/FilterChipsRow';
 
 // The active-filter chip descriptors for CardListTable, lifted out of its

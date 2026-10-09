@@ -3,7 +3,7 @@ import { act, render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { usePlayStore } from '@/store/play';
 import { useAuth } from '@/store/auth';
-import { createGameState, makePlayer } from '@/lib/play/game-state';
+import { createGameState, makePlayer } from '@spellcontrol/game-core';
 import type { GameSignal } from '@/lib/play/games-api';
 import { usePlaytestStore } from '../store';
 import { TableSignals } from './TableSignals';

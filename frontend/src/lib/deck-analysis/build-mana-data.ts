@@ -10,8 +10,9 @@
  * editor for the same deck. Pure: depends only on the card array + commanders.
  */
 import type { ScryfallCard } from '@/deck-builder/types';
-import type { CardTally } from '@/components/deck/useCardCarousel';
-import type { CurveColorBucket, DeckManaData } from '@/components/deck/deck-mana-types';
+import type { CardTally } from '@/lib/deck-analysis/card-tally';
+import type { DeckManaData } from '@/lib/deck-analysis/deck-mana-types';
+import type { CurveColorBucket } from '@/lib/deck-analysis/deck-mana-types';
 import { producedManaColors, isManaSourceType, deckColorIdentity } from './mana-sources';
 
 export type { DeckManaData };

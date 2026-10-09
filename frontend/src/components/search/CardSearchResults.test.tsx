@@ -115,7 +115,9 @@ describe('CardSearchResults keyboard nav handle', () => {
     useCollectionStore.setState({ addCard });
 
     const second: ScryfallCard = { ...RESULT, id: 'row-parity-2', name: 'Ash Barrens' };
-    const ref = { current: null as import('./CardSearchResults').CardSearchResultsHandle | null };
+    const ref = {
+      current: null as import('@/lib/search/use-results-keys').CardSearchResultsHandle | null,
+    };
     render(<CardSearchResults ref={ref} results={[RESULT, second]} />);
     await act(async () => {});
 
@@ -211,7 +213,9 @@ describe('CardSearchResults onActiveChange / hideRowDisclosure (T153 phase 4, de
 
   it('follows moveActive (the same keyboard nav AddCardSearchPanel drives)', async () => {
     const onActiveChange = vi.fn();
-    const ref = { current: null as import('./CardSearchResults').CardSearchResultsHandle | null };
+    const ref = {
+      current: null as import('@/lib/search/use-results-keys').CardSearchResultsHandle | null,
+    };
     render(
       <CardSearchResults ref={ref} results={[RESULT, second]} onActiveChange={onActiveChange} />
     );

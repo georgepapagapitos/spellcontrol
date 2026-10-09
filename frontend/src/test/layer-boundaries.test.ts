@@ -10,8 +10,9 @@
 // layer. components/shared/ holds the primitives every surface uses, so it
 // may not reach into one feature's folder either.
 //
-// Three rules, value imports only (type-only edges are erased at build time
-// and are allowed):
+// Three rules, over every import, type-only ones included (a type-only edge is
+// erased at build time, but it still makes lib/ depend on a screen's file for
+// its shape, and the type belongs in the lower layer; E548 moved the last nine):
 //   1. non-UI code (lib, store, types, the deck-builder's services/lib/store/
 //      types, playtest/lib) imports nothing from a UI folder (components,
 //      pages, deck-builder/components, playtest/components).
@@ -90,7 +91,7 @@ const ROOT_COMPONENTS = new Set([
 
 describe('layer boundaries', () => {
   const files = sourceFiles();
-  const edges = files.flatMap((f) => valueImports(f).map((t) => [rel(f), rel(t)] as const));
+  const edges = files.flatMap((f) => valueImports(f, true).map((t) => [rel(f), rel(t)] as const));
   const broken = edges
     .map(([from, to]) => ({ edge: `${from} -> ${to}`, rule: brokenRule(from, to) }))
     .filter((e): e is { edge: string; rule: string } => e.rule !== null);

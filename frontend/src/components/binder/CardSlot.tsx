@@ -8,7 +8,7 @@ import { useCallback, useContext, useEffect, useLayoutEffect, useRef, useState }
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import type { EnrichedCard } from '@/types/index';
-import { isLand } from '@/lib/cards/colors';
+import { isLand } from '@spellcontrol/binder-routing';
 import { truncateLongWords } from '@/lib/binder/slot-text';
 import { getSafeViewport } from '@/lib/overlays/popover-placement';
 import { CardPreviewContext } from './CardPreviewContext';

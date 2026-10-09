@@ -16,7 +16,8 @@ import { CardPreviewContext } from './CardPreviewContext';
 import { CardRowMenu } from '@/components/collection/CardRowMenu';
 import { ColorPip } from '@/components/shared/ManaSymbol';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { CardEditDialog, type PrintingSelection } from '@/components/collection/CardEditDialog';
+import { CardEditDialog } from '@/components/collection/CardEditDialog';
+import { type PrintingSelection } from '@/lib/collection/edit-card';
 import {
   buildEditedCards,
   isNoOpCardEdit,

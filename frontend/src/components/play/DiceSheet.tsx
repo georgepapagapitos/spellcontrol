@@ -1,6 +1,6 @@
 import { Coins, Minus, Plus, Target } from 'lucide-react';
 import { useId, useState } from 'react';
-import type { GameAction, GameState } from '@/lib/play/game-state';
+import type { GameAction, GameState } from '@spellcontrol/game-core';
 import {
   DIE_PRESETS,
   describeRoll,

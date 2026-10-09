@@ -4,7 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useCollectionStore } from '@/store/collection';
 import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
 import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
-import { compileFilterGroups, cardMatchesAnyGroup, areAllGroupsEmpty } from '@/lib/binder/rules';
+import {
+  compileFilterGroups,
+  cardMatchesAnyGroup,
+  areAllGroupsEmpty,
+} from '@spellcontrol/binder-routing';
 import type { EnrichedCard } from '@/types/index';
 import { Button } from '@/components/shared/Button';
 

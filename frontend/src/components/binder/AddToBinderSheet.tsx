@@ -5,7 +5,11 @@ import { useCollectionStore } from '@/store/collection';
 import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
 import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
 import { useAllocations } from '@/lib/collection/allocations';
-import { compileFilterGroups, cardMatchesAnyGroup, areAllGroupsEmpty } from '@/lib/binder/rules';
+import {
+  compileFilterGroups,
+  cardMatchesAnyGroup,
+  areAllGroupsEmpty,
+} from '@spellcontrol/binder-routing';
 import { FoilBadge } from '@/components/FoilBadge';
 import type { EnrichedCard } from '@/types/index';
 import { Button } from '@/components/shared/Button';

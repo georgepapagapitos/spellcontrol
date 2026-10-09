@@ -1,5 +1,5 @@
 import './ColorMatchModeToggle.css';
-import type { ColorMatchMode } from '@/lib/cards/colors';
+import type { ColorMatchMode } from '@spellcontrol/binder-routing';
 
 export interface ColorMatchModeToggleProps {
   mode: ColorMatchMode;

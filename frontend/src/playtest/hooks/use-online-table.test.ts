@@ -7,7 +7,7 @@ import type { GameLogEntry } from '@/lib/playtest/game-log';
 import { usePlayStore } from '@/store/play';
 import { usePlaytestStore } from '../store';
 import { useAuth } from '@/store/auth';
-import { applyAction, createGameState, makePlayer, type GameState } from '@/lib/play/game-state';
+import { applyAction, createGameState, makePlayer, type GameState } from '@spellcontrol/game-core';
 import { toast } from '@/store/toasts';
 
 vi.mock('@/lib/play/games-board', () => ({ publishBoard: vi.fn(), cancelBoardPublish: vi.fn() }));

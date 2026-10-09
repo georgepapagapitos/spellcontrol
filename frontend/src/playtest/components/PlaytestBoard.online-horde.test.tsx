@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, within, act } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { createPlaytestState } from '@/lib/playtest';
-import type { GameState } from '@/lib/play/game-state';
+import type { GameState } from '@spellcontrol/game-core';
 import { usePlayStore } from '@/store/play';
 import { usePlaytestStore } from '../store';
 import { buildTestHorde } from '../lib/horde-solo.fixtures';

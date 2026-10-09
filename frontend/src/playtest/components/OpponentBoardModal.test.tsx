@@ -13,7 +13,7 @@ import type { PublicBattlefieldCard, PublicBoard } from '@/lib/playtest/projecti
 import { getCardsByIds, getCardsByNames } from '@/deck-builder/services/scryfall/client';
 import { usePlayStore } from '@/store/play';
 import { useAuth } from '@/store/auth';
-import { createGameState, makePlayer } from '@/lib/play/game-state';
+import { createGameState, makePlayer } from '@spellcontrol/game-core';
 import { usePlaytestStore } from '../store';
 
 const MY_DECK = 'deck-mine';

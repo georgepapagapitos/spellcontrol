@@ -24,8 +24,8 @@
  * the still-open pause never bleeds into "how long the game ran".
  */
 
-import { isClockPaused } from './game-state';
-import type { GameEvent, GameState } from './game-state';
+import { isClockPaused } from '@spellcontrol/game-core';
+import type { GameEvent, GameState } from '@spellcontrol/game-core';
 
 /**
  * Total paused milliseconds that fall inside `[from, to)`, folding the

@@ -9,7 +9,7 @@ import { FORMAT_OPTIONS } from '@/lib/play/game-formats';
 import { SeatPips } from '@/components/play/SetupControls';
 import type { PickedDeck } from '@/components/play/DeckPickerDialog';
 import { deckBoardPath } from '@/lib/play/starter-decks';
-import type { GameAction, GameFormat, GameState } from '@/lib/play/game-state';
+import type { GameAction, GameFormat, GameState } from '@spellcontrol/game-core';
 import type { PublicBoard } from '@/lib/playtest/projection';
 import { Button } from '@/components/shared/Button';
 import { SeatDeck } from './SeatControls';

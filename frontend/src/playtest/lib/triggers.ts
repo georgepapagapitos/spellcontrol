@@ -1,4 +1,4 @@
-import type { GamePhase } from '@/lib/play/game-state';
+import type { GamePhase } from '@spellcontrol/game-core';
 
 /**
  * "At the beginning of …" triggers, read straight off a permanent's oracle

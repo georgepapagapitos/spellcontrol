@@ -8,7 +8,7 @@ import {
   turnElapsed,
   turnStartedAt,
 } from './game-clock';
-import type { GameEvent, GameState } from './game-state';
+import type { GameEvent, GameState } from '@spellcontrol/game-core';
 
 const S = 1000;
 const M = 60 * S;

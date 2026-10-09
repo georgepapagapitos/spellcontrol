@@ -1,4 +1,4 @@
-import type { GameState } from '@/lib/play/game-state';
+import type { GameState } from '@spellcontrol/game-core';
 import { buildGameRecap } from '@/lib/play/game-recap';
 import './GameRecap.css';
 

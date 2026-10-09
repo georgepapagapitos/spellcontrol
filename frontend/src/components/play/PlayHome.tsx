@@ -2,7 +2,7 @@ import './PlayHome.css';
 import { CalendarDays, ChevronRight, KeyRound, Radio, Swords, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { GameNight } from '@/lib/play/game-nights-api';
-import type { GameRecord, GameState } from '@/lib/play/game-state';
+import type { GameRecord, GameState } from '@spellcontrol/game-core';
 import { gameFormatLabel } from '@/lib/play/game-formats';
 import { aggregateDeckRecords } from '../../store/play';
 import { Button } from '@/components/shared/Button';

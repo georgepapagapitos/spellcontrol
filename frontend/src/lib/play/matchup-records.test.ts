@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { aggregateMatchupRecords } from './matchup-records';
-import type { GameRecord } from './game-state';
+import type { GameRecord } from '@spellcontrol/game-core';
 
 // ── Fixture helpers ──────────────────────────────────────────────────────────
 

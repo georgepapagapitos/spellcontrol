@@ -1,6 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import { ClipboardPaste, Coins, FileText, Library, RefreshCw } from 'lucide-react';
-import type { DeckView } from '../../components/deck/DeckDisplay';
+import type { DeckView } from '@/lib/deck-analysis/deck-view';
 import type { ListAction } from '../../components/deck/DeckToolbar';
 import type { TabBadge } from '@/components/overlays/Tabs';
 import { bracketLabel } from '@/deck-builder/services/deckBuilder/bracketEstimator';

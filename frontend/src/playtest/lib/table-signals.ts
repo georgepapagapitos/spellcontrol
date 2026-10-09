@@ -1,4 +1,4 @@
-import type { GamePlayer } from '@/lib/play/game-state';
+import type { GamePlayer } from '@spellcontrol/game-core';
 import type { GameSignal } from '@/lib/play/games-api';
 
 /** The fixed reaction set — the server whitelists exactly these six, so this

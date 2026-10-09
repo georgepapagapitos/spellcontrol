@@ -96,7 +96,7 @@ import { LogDock } from './LogDock';
 import { EndGameDialog } from '@/components/play/EndGameDialog';
 import { useRulesReferenceStore } from '@/store/rules-reference';
 import { GameMenuSheet, type GameMenuSection } from './GameMenuSheet';
-import { cardsToBottom, GAME_PHASES, nextHostSeat } from '@/lib/play/game-state';
+import { cardsToBottom, GAME_PHASES, nextHostSeat } from '@spellcontrol/game-core';
 import {
   SHORTCUTS,
   formatChord,

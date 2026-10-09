@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { applyEditToRecord, applyEditToState } from './edit-game-record';
-import type { GameRecord, GameState, GameSummary } from './game-state';
+import type { GameRecord, GameState, GameSummary } from '@spellcontrol/game-core';
 
 function player(seat: number, over: Partial<GameRecord['players'][number]> = {}) {
   return {

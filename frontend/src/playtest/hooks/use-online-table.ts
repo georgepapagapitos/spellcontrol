@@ -12,7 +12,7 @@ import type {
   GamePhase,
   GamePlayer,
   MulliganType,
-} from '@/lib/play/game-state';
+} from '@spellcontrol/game-core';
 import { usePlaytestStore } from '../store';
 import { useTableSeat } from './use-table-seat';
 import type { OpponentSeat } from '../components/OpponentRail';

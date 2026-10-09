@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
-import type { GamePhase } from '@/lib/play/game-state';
+import type { GamePhase } from '@spellcontrol/game-core';
 import { useEscapeKey } from '@/lib/overlays/use-escape-key';
 import { BEAT_LABEL, firesAt, type TriggerHit } from '../lib/triggers';
 import './TriggerReminder.css';

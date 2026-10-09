@@ -1,4 +1,4 @@
-import type { GameLayout, GameState, TurnOrder } from './game-state';
+import type { GameLayout, GameState, TurnOrder } from '@spellcontrol/game-core';
 export type { TurnOrder };
 
 /**

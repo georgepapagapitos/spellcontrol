@@ -10,8 +10,8 @@
  */
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { GamePlayer, GameState } from '@/lib/play/game-state';
-import { createGameState, makePlayer } from '@/lib/play/game-state';
+import type { GamePlayer, GameState } from '@spellcontrol/game-core';
+import { createGameState, makePlayer } from '@spellcontrol/game-core';
 
 // ── Shared helpers ─────────────────────────────────────────────────────────
 

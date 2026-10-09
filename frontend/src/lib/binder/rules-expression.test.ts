@@ -5,7 +5,7 @@ import {
   isExpressionEmpty,
   setMatchesExpression,
   substringMatchesExpression,
-} from './rules';
+} from '@spellcontrol/binder-routing';
 import type { ChipExpression } from '@/types/index';
 
 /**

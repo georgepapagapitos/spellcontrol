@@ -9,8 +9,8 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { vi } from 'vitest';
-import type { GamePlayer, GameState } from '@/lib/play/game-state';
-import { createGameState, makePlayer } from '@/lib/play/game-state';
+import type { GamePlayer, GameState } from '@spellcontrol/game-core';
+import { createGameState, makePlayer } from '@spellcontrol/game-core';
 
 function makeTestPlayer(overrides: Partial<GamePlayer> = {}): GamePlayer {
   return {

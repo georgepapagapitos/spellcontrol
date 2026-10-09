@@ -13,13 +13,13 @@
  * frontend needs to change. Only the functions below are local.
  */
 
-export type { HordeLevel, HordeSettings } from '@/lib/play/game-state';
+export type { HordeLevel, HordeSettings } from '@spellcontrol/game-core';
 import type {
   HordeRevealMode,
   HordeSafeZone,
   HordeLevel,
   HordeSettings,
-} from '@/lib/play/game-state';
+} from '@spellcontrol/game-core';
 export type RevealMode = HordeRevealMode;
 export type SafeZone = HordeSafeZone;
 

@@ -11,8 +11,8 @@
  */
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { GamePlayer, GameState } from '@/lib/play/game-state';
-import { createGameState, makePlayer } from '@/lib/play/game-state';
+import type { GamePlayer, GameState } from '@spellcontrol/game-core';
+import { createGameState, makePlayer } from '@spellcontrol/game-core';
 
 vi.mock('@/lib/util/haptics', () => ({
   haptics: { tap: vi.fn(), lethal: vi.fn(), warning: vi.fn(), success: vi.fn(), bump: vi.fn() },

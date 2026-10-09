@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { STARTER_TEMPLATES } from './binder-templates';
 import { cleanFilter } from '@/lib/search/clean-filter';
-import { SORT_PRESETS } from '@/lib/search/sorting';
+import { SORT_PRESETS } from '@spellcontrol/binder-routing';
 
 describe('STARTER_TEMPLATES', () => {
   it('every template is either an action or applies a real (non-empty) constraint', () => {

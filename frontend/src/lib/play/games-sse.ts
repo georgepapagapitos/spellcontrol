@@ -1,5 +1,5 @@
 import { apiUrl } from '@/lib/api/api-base';
-import type { GameState } from './game-state';
+import type { GameState } from '@spellcontrol/game-core';
 import type { PublicBoard } from '@/lib/playtest/projection';
 import type { GameRequest, GameSignal } from './games-api';
 

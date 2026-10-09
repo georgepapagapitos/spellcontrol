@@ -10,7 +10,7 @@ import {
 } from '@dnd-kit/core';
 import { useId, useMemo, useRef, useState } from 'react';
 import { X } from 'lucide-react';
-import type { GameLayout, GameState } from '@/lib/play/game-state';
+import type { GameLayout, GameState } from '@spellcontrol/game-core';
 import type { BoardLayout, TurnOrder } from '@/lib/play/board-layouts';
 import {
   encodeCustomLayout,

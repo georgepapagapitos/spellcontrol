@@ -8,7 +8,7 @@ import {
   isUndoable,
   runSuppressed,
 } from './undo-stack';
-import { applyAction, createGameState, makePlayer, type GameState } from './game-state';
+import { applyAction, createGameState, makePlayer, type GameState } from '@spellcontrol/game-core';
 
 function game(): GameState {
   return createGameState({

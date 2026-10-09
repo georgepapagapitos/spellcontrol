@@ -7,7 +7,7 @@ import {
   type PlaytestInit,
   type PlaytestState,
 } from '@/lib/playtest';
-import { cardsToBottom, type MulliganType } from '@/lib/play/game-state';
+import { cardsToBottom, type MulliganType } from '@spellcontrol/game-core';
 import { appendLogEntries, buildLogEntries, type GameLogEntry } from '@/lib/playtest/game-log';
 import { classifyAction } from '@/lib/playtest/rewind';
 import {

@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import type { ChipExpression } from '@/types/index';
-import { SUPERTYPES, TYPES } from '@/lib/cards/card-types';
+import { SUPERTYPES, TYPES } from '@spellcontrol/binder-routing';
 import { ChipExpressionBuilder } from './ChipExpressionBuilder';
 
 const MAX_SUGGESTIONS = 8;

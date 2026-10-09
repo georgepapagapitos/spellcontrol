@@ -1,6 +1,6 @@
 import { API_BASE_URL } from '@/lib/api/api-base';
 import { pollGame, type GameRequest, type GameSignal } from './games-api';
-import type { GameState } from './game-state';
+import type { GameState } from '@spellcontrol/game-core';
 import type { PublicBoard } from '@/lib/playtest/projection';
 
 /** Minimum time between long-poll round-trips — see the floor in the loop below. */

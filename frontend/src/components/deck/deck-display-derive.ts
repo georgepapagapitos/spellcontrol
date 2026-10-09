@@ -22,7 +22,7 @@ import {
   COMMANDER_SLOT_ID,
   PARTNER_COMMANDER_SLOT_ID,
 } from '@/lib/deck/deck-validation';
-import type { BinderInfo } from '../BinderBadge';
+import type { BinderInfo } from '@/lib/binder/binder-refs';
 import type { DeckCardInspectorCard } from './DeckCardInspector';
 import type { DeckDisplayCard } from './deck-display-types';
 import type { ComboMatch } from '@/types/combos';

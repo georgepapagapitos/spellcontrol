@@ -5,7 +5,7 @@ import type {
   EnrichedCard,
   MaterializedBinder,
 } from '@/types/index';
-import { compileFilterGroups, cardMatchesCompiled } from './rules';
+import { compileFilterGroups, cardMatchesCompiled } from '@spellcontrol/binder-routing';
 import type { BinderLayoutInputs } from './use-binder-layout-inputs';
 import { materializeBinders } from './materialize';
 

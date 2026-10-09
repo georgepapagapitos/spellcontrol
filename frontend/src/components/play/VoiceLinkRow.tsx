@@ -1,6 +1,6 @@
 import { Headphones } from 'lucide-react';
 import { useState } from 'react';
-import type { GameAction, GameState } from '@/lib/play/game-state';
+import type { GameAction, GameState } from '@spellcontrol/game-core';
 import { Button } from '@/components/shared/Button';
 import { DiscordMark } from '@/components/shared/DiscordMark';
 import { openDiscordTable } from '@/lib/play/games-api';

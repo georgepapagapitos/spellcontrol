@@ -1,4 +1,4 @@
-import type { GameRecord } from './game-state';
+import type { GameRecord } from '@spellcontrol/game-core';
 
 export interface MatchupRow {
   /** Lexicographically-first deckId in the pair (canonical A slot). */

@@ -317,3 +317,9 @@ export function reconcileBinderRefs(
 
   return { binders: changed ? out : binders, changed };
 }
+
+export interface BinderInfo {
+  id: string;
+  name: string;
+  color: string | null;
+}

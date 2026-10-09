@@ -7,7 +7,7 @@
  */
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { createGameState, makePlayer } from '@/lib/play/game-state';
+import { createGameState, makePlayer } from '@spellcontrol/game-core';
 import { SeatMenu } from './SeatMenu';
 
 function makeGame() {

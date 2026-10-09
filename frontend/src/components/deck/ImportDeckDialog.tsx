@@ -29,7 +29,8 @@ import {
 } from '@/lib/import-export/google-picker';
 import { usePublishOnCreate, type PublishOutcome } from '@/lib/social/use-publish-on-create';
 import { VisibilityChoice } from '@/components/share/VisibilityChoice';
-import { SelectMenu, type SelectOption } from '@/components/overlays/SelectMenu';
+import { SelectMenu } from '@/components/overlays/SelectMenu';
+import { type SelectOption } from '@/lib/util/select-option';
 
 import {
   MAX_STAGED_FILES as MAX_FILES,

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { BinderDef, BinderFilter, EnrichedCard, SortEntry } from '@/types/index';
 import { materializeBinders } from './materialize';
-import { compileFilterGroups, cardMatchesCompiled } from './rules';
+import { compileFilterGroups, cardMatchesCompiled } from '@spellcontrol/binder-routing';
 import type { BinderLayoutInputs } from './use-binder-layout-inputs';
 
 /** A chooser tile's answer to "what will this look like" (E495). */

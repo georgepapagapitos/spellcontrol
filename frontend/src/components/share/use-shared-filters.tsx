@@ -4,8 +4,8 @@ import type { ChipExpression } from '../../types';
 import type { SetMap } from '@/lib/api';
 import { CollectionFiltersDialog } from '@/components/search/CollectionFiltersDialog';
 import { useCardTagsReady } from '@/lib/cards/card-tags';
-import type { ColorMatchMode } from '@/lib/cards/colors';
-import { isExpressionEmpty } from '@/lib/binder/rules';
+import type { ColorMatchMode } from '@spellcontrol/binder-routing';
+import { isExpressionEmpty } from '@spellcontrol/binder-routing';
 import {
   countActiveSharedFilters,
   makeSharedMatcher,

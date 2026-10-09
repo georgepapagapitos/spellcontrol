@@ -7,7 +7,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { usePlayStore } from '@/store/play';
-import { applyAction, createGameState, makePlayer, type GameState } from '@/lib/play/game-state';
+import { applyAction, createGameState, makePlayer, type GameState } from '@spellcontrol/game-core';
 import { TableFinishedBanner } from './TableFinishedBanner';
 
 const navigateMock = vi.fn();

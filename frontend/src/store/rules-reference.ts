@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import type { RulesReferenceTab } from '@/components/rules/RulesReference';
 
 /** Where the sheet opens: a tab, its search, and optionally one keyword row already expanded. */
 export interface RulesReferenceTarget {
@@ -31,3 +30,6 @@ export const useRulesReferenceStore = create<RulesReferenceState>((set) => ({
   openAt: (target) => set({ isOpen: true, target }),
   close: () => set({ isOpen: false, target: null }),
 }));
+
+/** The three sections of the Comprehensive Rules reference. */
+export type RulesReferenceTab = 'keywords' | 'glossary' | 'rules';

@@ -1,5 +1,5 @@
 import type { ManaColor, PlaytestState, Zone } from '@/lib/playtest';
-import type { MulliganType } from '@/lib/play/game-state';
+import type { MulliganType } from '@spellcontrol/game-core';
 
 // Module-level constants, types and small helpers that PlaytestBoard used to
 // declare above its component. Nothing here reads React or the DOM beyond

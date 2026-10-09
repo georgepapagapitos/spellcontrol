@@ -4,7 +4,7 @@ import {
   formatGameEventSentence,
   type DescribableEvent,
 } from './game-event-text';
-import type { GameEvent } from './game-state';
+import type { GameEvent } from '@spellcontrol/game-core';
 
 // Behavior-preserving extraction from GameHistory.tsx's private describeRow —
 // one case per GameEvent.kind, asserting the exact strings the original

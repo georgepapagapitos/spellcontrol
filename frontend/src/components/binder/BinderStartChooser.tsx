@@ -15,14 +15,14 @@ import {
   type PreviewRequest,
   type TilePreview,
 } from '@/lib/binder/binder-chooser-preview';
-import { SORT_PRESETS } from '@/lib/search/sorting';
+import { SORT_PRESETS } from '@spellcontrol/binder-routing';
 import { formatCaughtBy } from '@/lib/binder/binder-counts';
 import { ColorPip } from '@/components/shared/ManaSymbol';
 import { SectionHeader } from '@/components/shared/SectionHeader';
 import type { BinderDef, BinderFilter, EnrichedCard } from '@/types/index';
 import type { BinderLayoutInputs } from '@/lib/binder/use-binder-layout-inputs';
 import { useCollectionStore } from '@/store/collection';
-import { COLOR_INFO } from '@/lib/cards/colors';
+import { COLOR_INFO } from '@spellcontrol/binder-routing';
 
 /** The lead tile's little shelf: a row of binder spines in the color-group
  *  swatches the planner itself uses, decorative only. Heights vary so it reads

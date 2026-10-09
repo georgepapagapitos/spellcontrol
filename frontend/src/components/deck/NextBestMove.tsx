@@ -5,7 +5,7 @@ import type {
   NextBestMove,
   NextBestMoveFocus,
 } from '@/deck-builder/services/deckBuilder/nextBestMove';
-import type { DeckView } from './DeckDisplay';
+import type { DeckView } from '@/lib/deck-analysis/deck-view';
 
 /** Human-readable destination names for the navigate button's aria-label. */
 const VIEW_LABELS: Record<DeckView, string> = {

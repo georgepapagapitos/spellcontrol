@@ -19,8 +19,13 @@ import type {
   GameState,
   HordeTable as HordeTableState,
   MulliganType,
-} from '@/lib/play/game-state';
-import { makePlayer, MAX_ONLINE_SEATS, HORDE_MAX_SEATS, nextHostSeat } from '@/lib/play/game-state';
+} from '@spellcontrol/game-core';
+import {
+  makePlayer,
+  MAX_ONLINE_SEATS,
+  HORDE_MAX_SEATS,
+  nextHostSeat,
+} from '@spellcontrol/game-core';
 import { ColorPip } from '../shared/ManaSymbol';
 import { HordeSetupFields, levelSummary } from './horde/HordeSetupFields';
 import {

@@ -16,8 +16,16 @@
 import type { PublicCard, PublicDeckCard } from './shared-types';
 import type { BinderFilter, ChipExpression, EnrichedCard } from '@/types/index';
 import { getCardTags } from '@/lib/cards/card-tags';
-import { colorSelectionMatches, getColorKey, type ColorMatchMode } from '@/lib/cards/colors';
-import { cardMatchesCompiled, compileFilter, isExpressionEmpty } from '@/lib/binder/rules';
+import {
+  colorSelectionMatches,
+  getColorKey,
+  type ColorMatchMode,
+} from '@spellcontrol/binder-routing';
+import {
+  cardMatchesCompiled,
+  compileFilter,
+  isExpressionEmpty,
+} from '@spellcontrol/binder-routing';
 
 /** Committed filter state the shared views hold and the dialog edits. */
 export interface SharedFilterState {

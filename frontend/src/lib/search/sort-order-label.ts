@@ -1,4 +1,4 @@
-import { matchSortPreset, describeSortChain } from './sorting';
+import { matchSortPreset, describeSortChain } from '@spellcontrol/binder-routing';
 import type { SortEntry } from '@/types/index';
 
 /**

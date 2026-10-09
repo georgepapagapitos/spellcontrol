@@ -5,8 +5,8 @@ import type {
   ScryfallQueryRule,
 } from '@/types/index';
 import { currencySymbol } from '@/lib/collection/currency';
-import type { ColorMatchMode } from '@/lib/cards/colors';
-import { isExpressionEmpty } from '@/lib/binder/rules';
+import type { ColorMatchMode } from '@spellcontrol/binder-routing';
+import { isExpressionEmpty } from '@spellcontrol/binder-routing';
 
 /**
  * Subset of collection filter state that can be mapped to a binder rule group.

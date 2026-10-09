@@ -1,7 +1,7 @@
 import { ChartLine, Flag, Lock, Minimize2, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import type { GameAction, GameState } from '@/lib/play/game-state';
-import { isClockPaused, makePlayer } from '@/lib/play/game-state';
+import type { GameAction, GameState } from '@spellcontrol/game-core';
+import { isClockPaused, makePlayer } from '@spellcontrol/game-core';
 import { isCustomLayout, layoutName, resolveLayout, turnOrderOf } from '@/lib/play/board-layouts';
 import { clockView, formatClock, msToNextSecond } from '@/lib/play/game-clock';
 import { gameFormatLabel } from '@/lib/play/game-formats';

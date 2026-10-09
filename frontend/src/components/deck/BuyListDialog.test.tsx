@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/react';
 import type { ScryfallCard } from '@/deck-builder/types';
-import type { CardTally } from './useCardCarousel';
+import type { CardTally } from '@/lib/deck-analysis/card-tally';
 import { BuyListDialog, buyListText, tcgplayerMassEntryUrl } from './BuyListDialog';
 
 function mk(name: string, count: number, usd?: string): CardTally {

@@ -7,7 +7,7 @@ import { useCardCarousel, tallyToEntries } from './useCardCarousel';
 import { CardGroupSheet } from './CardGroupSheet';
 import { InfoTip } from '@/components/overlays/InfoTip';
 import type { ScryfallCard } from '@/deck-builder/types';
-import type { CardTally } from './useCardCarousel';
+import type { CardTally } from '@/lib/deck-analysis/card-tally';
 import type { AxisSummary } from '@/deck-builder/services/synergy/deckSynergy';
 import { Chip } from '@/components/shared/Chip';
 

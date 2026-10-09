@@ -1,5 +1,5 @@
 import { ChevronRight, Pause, Play } from 'lucide-react';
-import { isClockPaused, type GameAction, type GameState } from '@/lib/play/game-state';
+import { isClockPaused, type GameAction, type GameState } from '@spellcontrol/game-core';
 import {
   clockView,
   describeClock,

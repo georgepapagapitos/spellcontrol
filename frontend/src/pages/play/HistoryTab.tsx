@@ -10,7 +10,7 @@ import { Tabs } from '@/components/overlays/Tabs';
 import { StackedBar } from '@/components/shared/MeterBar';
 import { FriendsLeaderboard } from '@/components/play/FriendsLeaderboard';
 import { aggregateMatchupRecords } from '@/lib/play/matchup-records';
-import type { GameRecord } from '@/lib/play/game-state';
+import type { GameRecord } from '@spellcontrol/game-core';
 import { coopResultLabel } from '@/lib/horde/horde-records';
 import { Button, IconButton } from '@/components/shared/Button';
 import '@/styles/social-shared.css';

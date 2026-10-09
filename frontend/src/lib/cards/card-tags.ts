@@ -20,7 +20,7 @@
  */
 import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import { logger } from '@/lib/util/logger';
-import { isExpressionEmpty } from '@/lib/binder/rules';
+import { isExpressionEmpty } from '@spellcontrol/binder-routing';
 import type { BinderDef, BinderFilter, BinderFilterGroup, EnrichedCard } from '@/types/index';
 
 const OTAG_INDEX_URL =

@@ -1,8 +1,10 @@
 import { type JSX, useState } from 'react';
-import { COLOR_INFO, colorIdentityWords } from '@/lib/cards/colors';
+import { colorIdentityWords } from '@/lib/cards/colors';
+import { COLOR_INFO } from '@spellcontrol/binder-routing';
 import { ColorPip } from '../shared/ManaSymbol';
 import { DeckColorBalance } from './DeckColorBalance';
-import { useCardCarousel, tallyToEntries, type CardTally } from './useCardCarousel';
+import { useCardCarousel, tallyToEntries } from './useCardCarousel';
+import { type CardTally } from '@/lib/deck-analysis/card-tally';
 import { CardGroupSheet } from './CardGroupSheet';
 import './DeckColorPanel.css';
 

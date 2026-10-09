@@ -5,12 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
 import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
 import { useAiStatus } from '@/lib/ai/use-ai-status';
-import {
-  RulesReference,
-  RulesReferenceFoot,
-  useRulesBundle,
-  type RulesReferenceTab,
-} from './RulesReference';
+import { RulesReference, RulesReferenceFoot, useRulesBundle } from './RulesReference';
+import { type RulesReferenceTab } from '@/store/rules-reference';
 import { useRulesReferenceStore, type RulesReferenceTarget } from '@/store/rules-reference';
 import './RulesReferenceSheet.css';
 import { IconButton } from '@/components/shared/Button';

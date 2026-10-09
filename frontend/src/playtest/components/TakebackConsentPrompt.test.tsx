@@ -2,7 +2,7 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { usePlayStore } from '@/store/play';
-import { applyAction, createGameState, makePlayer } from '@/lib/play/game-state';
+import { applyAction, createGameState, makePlayer } from '@spellcontrol/game-core';
 import type { GameRequest } from '@/lib/play/games-api';
 import { TakebackConsentPrompt } from './TakebackConsentPrompt';
 import type { OnlineTable } from '../hooks/use-online-table';

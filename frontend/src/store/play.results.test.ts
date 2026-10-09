@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import type { GameRecord, GameState } from '@/lib/play/game-state';
+import type { GameRecord, GameState } from '@spellcontrol/game-core';
 import type { PublicGameResult } from '@/lib/play/game-results-client';
 
 /**

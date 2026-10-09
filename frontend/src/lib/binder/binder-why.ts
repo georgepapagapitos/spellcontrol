@@ -1,5 +1,9 @@
 import type { BinderDef, EnrichedCard, MaterializedBinder } from '@/types/index';
-import { areAllGroupsEmpty, cardMatchesAnyGroup, compileFilterGroups } from './rules';
+import {
+  areAllGroupsEmpty,
+  cardMatchesAnyGroup,
+  compileFilterGroups,
+} from '@spellcontrol/binder-routing';
 import { ruleGroupLabel } from '@/lib/search/filter-summary';
 
 /** Why a card sits in a binder, in the words the card preview shows. */

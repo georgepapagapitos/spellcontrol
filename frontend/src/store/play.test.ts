@@ -16,7 +16,7 @@ import {
   type GameRecord,
   type GameState,
   type HordeStep,
-} from '@/lib/play/game-state';
+} from '@spellcontrol/game-core';
 import { resolveHordeSettings } from '../lib/horde';
 import { gameElapsed } from '@/lib/play/game-clock';
 import type { PublicBoard, TickerEntry } from '../lib/playtest/projection';

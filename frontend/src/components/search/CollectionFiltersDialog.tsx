@@ -14,14 +14,14 @@ import { ColorPip } from '@/components/shared/ManaSymbol';
 import { ColorMatchModeToggle } from '@/components/shared/ColorMatchModeToggle';
 import { Field, SwitchRow } from '@/components/shared/form';
 import { countMatchingRows, type FilterableRow } from '@/lib/search/collection-filter';
-import { compileExpression, compileFilter, isExpressionEmpty } from '@/lib/binder/rules';
+import { compileExpression, compileFilter, isExpressionEmpty } from '@spellcontrol/binder-routing';
 import {
   collectionFiltersToFilterGroup,
   deriveBinderName,
   hasStructuredFilter,
 } from '@/lib/search/collection-filters-to-binder';
 import { FILTER_FIELD_GROUPS, type FilterFieldGroup } from '@/lib/search/filter-fields';
-import type { ColorMatchMode } from '@/lib/cards/colors';
+import type { ColorMatchMode } from '@spellcontrol/binder-routing';
 import { ChipExpressionBuilder } from './ChipExpressionBuilder';
 import { TypeLineExpressionBuilder } from './TypeLineExpressionBuilder';
 import { FilterFieldEditor, NumberRangeInput } from './FilterFieldEditor';

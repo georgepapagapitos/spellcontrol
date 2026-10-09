@@ -1,8 +1,9 @@
 import { type JSX, useMemo, useState } from 'react';
-import { COLOR_INFO } from '@/lib/cards/colors';
-import { useCardCarousel, tallyToEntries, type CardTally } from './useCardCarousel';
+import { COLOR_INFO } from '@spellcontrol/binder-routing';
+import { useCardCarousel, tallyToEntries } from './useCardCarousel';
+import { type CardTally } from '@/lib/deck-analysis/card-tally';
 import { CardGroupSheet } from './CardGroupSheet';
-import type { CurveColorBucket } from './deck-mana-types';
+import type { CurveColorBucket } from '@/lib/deck-analysis/deck-mana-types';
 import { gradeCurve } from '@/deck-builder/services/deckBuilder/curveGrading';
 import type { Pacing } from '@/deck-builder/services/deckBuilder/pacingDetector';
 import { InfoTip } from '@/components/overlays/InfoTip';

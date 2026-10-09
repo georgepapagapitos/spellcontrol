@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { usePlayStore } from '@/store/play';
 import { useAuth } from '@/store/auth';
-import type { GamePlayer, GameState } from '@/lib/play/game-state';
+import type { GamePlayer, GameState } from '@spellcontrol/game-core';
 import { usePlaytestStore } from '../store';
 
 /**

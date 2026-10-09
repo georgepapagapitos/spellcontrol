@@ -4,7 +4,7 @@
  */
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { AxisSummary } from './deckSynergy';
-import type { CardTally } from '@/components/deck/useCardCarousel';
+import type { CardTally } from '@/lib/deck-analysis/card-tally';
 
 /**
  * Build the CardTally list for an axis tap-through.

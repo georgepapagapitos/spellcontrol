@@ -10,7 +10,7 @@ import { buildAxisTally } from '@/deck-builder/services/synergy/axisTally';
 import { useCardCarousel, tallyToEntries } from './useCardCarousel';
 import { CardGroupSheet } from './CardGroupSheet';
 import type { CardAnnotation } from './CardGroupSheet';
-import type { CardTally } from './useCardCarousel';
+import type { CardTally } from '@/lib/deck-analysis/card-tally';
 import { useOwnedCardThumb } from '@/lib/cards/owned-printing';
 import { classifyInclusion } from '@/lib/deck-analysis/inclusion-label';
 import { StackedBar } from '../shared/MeterBar';

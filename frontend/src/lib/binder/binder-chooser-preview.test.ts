@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { previewTile } from './binder-chooser-preview';
 import { materializeBinders } from './materialize';
 import { STARTER_TEMPLATES, colorPickFilter } from './binder-templates';
-import { SORT_PRESETS } from '@/lib/search/sorting';
+import { SORT_PRESETS } from '@spellcontrol/binder-routing';
 import type { BinderDef, BinderFilter, EnrichedCard, SortEntry } from '@/types/index';
 
 let n = 0;

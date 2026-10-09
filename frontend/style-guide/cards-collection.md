@@ -257,7 +257,7 @@ accent-filled variant and OR the muted one.
   itself; standing alone it doesn't — never render the bare pill without the
   hint text.
 - **Semantics:** OR = card shows any selected color (`colorSelectionMatches`
-  in `lib/cards/colors.ts`, the single predicate); AND = the card's colors are
+  in `@spellcontrol/binder-routing`, the single predicate); AND = the card's colors are
   **exactly** the selection (Blue alone = mono-blue, R + W = Boros only, not
   Naya). AND is an exact match, not a superset one: a lone pip reading as
   "every card that happens to contain blue" is the bug that made the mode

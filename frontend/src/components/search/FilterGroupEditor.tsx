@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { isFilterEmpty } from '@/lib/binder/rules';
+import { isFilterEmpty } from '@spellcontrol/binder-routing';
 import { countBinderMatches } from '@/lib/binder/binder-counts';
 import { useDebouncedValue } from '@/lib/util/use-debounced-value';
 import { autoSummary } from '@/lib/search/filter-summary';
