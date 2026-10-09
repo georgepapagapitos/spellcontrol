@@ -186,15 +186,22 @@ vi.mock('../components/deck/DeckDisplay', () => ({
     editActions,
     deckActionsInHeader,
     statStripSlot,
+    cards,
   }: {
     editActions?: { label: string; onClick: () => void }[];
     deckActionsInHeader?: boolean;
     statStripSlot?: HTMLElement | null;
+    cards?: { slotId?: string; proxy?: boolean; sortIndex?: number }[];
   }) => (
     <div
       data-testid="deck-display"
       data-deck-actions-in-header={String(!!deckActionsInHeader)}
       data-stat-slot={statStripSlot ? statStripSlot.className : 'none'}
+      data-proxy-slots={cards
+        ?.filter((c) => c.proxy)
+        .map((c) => c.slotId)
+        .join(',')}
+      data-sort-indexes={cards?.map((c) => c.sortIndex ?? '').join(',')}
     >
       {editActions?.map((a) => (
         <button key={a.label} type="button" data-testid="edit-action" onClick={a.onClick}>
@@ -315,7 +322,9 @@ vi.mock('../deck-builder/services/deckBuilder/nextBestMove', () => ({
 vi.mock('../deck-builder/services/deckBuilder/commanderDeckAnalysis', () => ({
   computeRoleCounts: () => ({}),
 }));
-vi.mock('../deck-builder/services/tagger/client', () => ({
+vi.mock('../deck-builder/services/tagger/client', async (importOriginal) => ({
+  // The rest of the module is pure lookups over tag data that never loads here.
+  ...(await importOriginal<typeof import('../deck-builder/services/tagger/client')>()),
   loadTaggerData: () => Promise.resolve(null),
   hasTaggerData: () => false,
 }));
@@ -1063,5 +1072,37 @@ describe('DeckEditorPage — rename (STYLE_GUIDE § Verbs — Rename)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Done' }));
 
     expect(mockRenameDeck).toHaveBeenCalledWith('deck-1', 'Renamed via Done');
+  });
+});
+
+// The page hands the deck's own slots to the deck view. It used to rebuild
+// them field by field, which dropped `proxy` and `sortIndex`, so a marked
+// slot never showed as one (no "Not a proxy" in its menu) and a custom drag
+// order never applied.
+describe('DeckEditorPage — every slot field reaches the deck view', () => {
+  afterEach(() => {
+    mockDeck.cards = [];
+  });
+
+  it('passes the proxy marker and drag position through', () => {
+    (mockDeck as { cards: unknown[] }).cards = [
+      {
+        slotId: 's1',
+        card: {
+          id: 'dryad',
+          name: 'Dryad of the Ilysian Grove',
+          type_line: 'Enchantment Creature — Nymph Dryad',
+          cmc: 3,
+          prices: {},
+        },
+        allocatedCopyId: null,
+        proxy: true,
+        sortIndex: 7,
+      },
+    ];
+    renderEditor();
+    const view = screen.getByTestId('deck-display');
+    expect(view.dataset.proxySlots).toBe('s1');
+    expect(view.dataset.sortIndexes).toBe('7');
   });
 });

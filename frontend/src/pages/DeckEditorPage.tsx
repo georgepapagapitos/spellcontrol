@@ -34,11 +34,7 @@ import {
 import { useCubeStore } from '../store/cube';
 import { useDeckHistoryStore } from '../store/deck-history';
 import { useCollectionStore } from '../store/collection';
-import {
-  DeckDisplay,
-  type DeckDisplayCard,
-  scrollToDeckStats,
-} from '../components/deck/DeckDisplay';
+import { DeckDisplay, scrollToDeckStats } from '../components/deck/DeckDisplay';
 import { type DeckView } from '@/lib/deck-analysis/deck-view';
 import { type AnalysisTabId } from '@/lib/deck-analysis/deck-view';
 import { Tabs } from '@/components/overlays/Tabs';
@@ -3135,30 +3131,6 @@ export function DeckEditorPage() {
     });
   };
 
-  const displayCards: DeckDisplayCard[] = deck.cards.map((c) => ({
-    slotId: c.slotId,
-    card: c.card,
-    allocatedCopyId: c.allocatedCopyId,
-    addedAt: c.addedAt,
-    tags: c.tags,
-  }));
-
-  const displaySideboard: DeckDisplayCard[] = deck.sideboard.map((c) => ({
-    slotId: c.slotId,
-    card: c.card,
-    allocatedCopyId: c.allocatedCopyId,
-    addedAt: c.addedAt,
-    tags: c.tags,
-  }));
-
-  const displayConsidering: DeckDisplayCard[] = (deck.considering ?? []).map((c) => ({
-    slotId: c.slotId,
-    card: c.card,
-    allocatedCopyId: c.allocatedCopyId,
-    addedAt: c.addedAt,
-    tags: c.tags,
-  }));
-
   // Page-top hub tabs: Deck (card list) · Stats (mana + overview) · Power +
   // Tune. Stats always shows for every format.
   const hasCommanderFormat = !!formatConfig?.hasCommander;
@@ -3281,9 +3253,11 @@ export function DeckEditorPage() {
             selectedThemes={deck.generationContext?.selectedThemes}
             commanderAllocatedCopyId={deck.commanderAllocatedCopyId}
             partnerCommanderAllocatedCopyId={deck.partnerCommanderAllocatedCopyId}
-            cards={displayCards}
-            sideboard={displaySideboard}
-            considering={displayConsidering}
+            // The deck's own slots, never rebuilt field by field: a copy that
+            // listed fields dropped `proxy` and `sortIndex` on the way.
+            cards={deck.cards}
+            sideboard={deck.sideboard}
+            considering={deck.considering ?? []}
             onRemoveCard={handleRemoveCard}
             onRemoveSideboardCard={handleRemoveSideboardCard}
             onRemoveConsideringCard={handleRemoveConsideringCard}
@@ -3329,7 +3303,6 @@ export function DeckEditorPage() {
             onReleaseCopy={setReleaseCard}
             onSetProxy={handleSetProxy}
             onUseOwnCopy={handleUseOwnCopy}
-            onReviewShared={() => setShowSharedCopies(true)}
             collectionByCopyId={collectionById}
             binderByCopyId={binderByCopyId}
             onAddFromSearch={(q) => {
