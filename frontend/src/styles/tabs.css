@@ -108,7 +108,6 @@
 }
 
 .btn {
-  outline: 3px solid red; /* TEMP: visual-catalog fail-path probe, reverted before merge */
   font-size: var(--text-sm);
   /* On a <button> this changes nothing (that element already computes
      inline-block); on the 34 call sites that put `.btn` on a react-router
