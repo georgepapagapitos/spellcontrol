@@ -677,7 +677,7 @@
   color: var(--text-primary);
 }
 
-/* ── Tell your pod ── the sentence, then its actions. */
+/* ── Tell your pod ── the sentence, then Share where the device has a share sheet. */
 .bracket-pod {
   display: flex;
   flex-direction: column;
