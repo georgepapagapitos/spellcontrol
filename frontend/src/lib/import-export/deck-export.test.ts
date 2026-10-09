@@ -237,6 +237,31 @@ describe('buildExport', () => {
   });
 });
 
+describe('mpc export (MPC Autofill search list)', () => {
+  it('is one Nx query per card, commanders first, with no headers to search', () => {
+    const result = buildExport(
+      {
+        commander: card({ name: 'Krenko, Mob Boss' }),
+        partner: null,
+        cards: [
+          { card: card({ name: 'Sol Ring', set: 'cmr' }) },
+          { card: card({ name: 'Delver of Secrets // Insectile Aberration' }) },
+          { card: card({ name: 'Sol Ring', set: 'c21' }) },
+        ],
+        sideboard: [{ card: card({ name: 'Pyroblast' }) }],
+        considering: [{ card: card({ name: 'Rhystic Study' }) }],
+      },
+      'mpc'
+    );
+    expect(result.split('\n')).toEqual([
+      '1x Krenko, Mob Boss',
+      '1x Delver of Secrets // Insectile Aberration',
+      '1x Pyroblast',
+      '2x Sol Ring',
+    ]);
+  });
+});
+
 describe('mtgo export (.dek XML)', () => {
   it('emits the XML declaration and Deck root with NetDeckID/PreconstructedDeckID', () => {
     const result = buildExport({ cards: [{ card: card() }] }, 'mtgo');

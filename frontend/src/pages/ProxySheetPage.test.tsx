@@ -55,6 +55,7 @@ function mount() {
 const printButton = () => screen.getByRole('button', { name: 'Print' }) as HTMLButtonElement;
 
 beforeEach(() => {
+  localStorage.clear();
   useCollectionStore.setState({
     cards: [{ copyId: 'owned-1', name: 'Goblin Guide' }],
     hydrating: false,
@@ -81,7 +82,7 @@ describe('ProxySheetPage', () => {
   it('prints the whole deck with no choice when nothing is missing', () => {
     seed(deck([slot('Goblin Guide', 'owned-1')]));
     mount();
-    expect(screen.queryByRole('radio')).toBeNull();
+    expect(screen.queryByRole('group', { name: 'Cards to print' })).toBeNull();
     expect(screen.getByText('1 card · 1 page')).toBeTruthy();
   });
 
@@ -171,5 +172,48 @@ describe('ProxySheetPage', () => {
     useCollectionStore.setState({ hydrating: true } as never);
     mount();
     expect(screen.getByRole('status', { name: 'Loading' })).toBeTruthy();
+  });
+
+  it('lays out pages by the print settings and keeps them for next time', () => {
+    seed(deck(Array.from({ length: 9 }, (_, i) => slot(`Card ${i}`))));
+    mount();
+    expect(screen.getByText('9 cards · 1 page')).toBeTruthy();
+
+    // A 1 mm bleed costs Letter a row at real size, and the page says how to win it back.
+    fireEvent.click(screen.getByRole('switch', { name: /^Bleed/ }));
+    expect(screen.getByText('9 cards · 2 pages')).toBeTruthy();
+    expect(
+      screen.getByText('6 cards fit a page with these settings. At 97% scale, 9 fit.')
+    ).toBeTruthy();
+
+    cleanup();
+    mount();
+    expect(screen.getByRole('switch', { name: /^Bleed/ }).getAttribute('aria-checked')).toBe(
+      'true'
+    );
+    expect(screen.getByText('9 cards · 2 pages')).toBeTruthy();
+  });
+
+  it('marks each card and adds a decklist page when asked', () => {
+    seed(
+      deck([slot('Sol Ring'), slot('Sol Ring'), slot('Opt')], {
+        commander: card('Krenko, Mob Boss'),
+      })
+    );
+    mount();
+    fireEvent.click(screen.getByRole('switch', { name: /^Playtest watermark/ }));
+    fireEvent.click(screen.getByRole('switch', { name: /^Black corners/ }));
+    const preview = screen.getByRole('listitem', { name: 'Page 1 of 1' });
+    expect(preview.querySelectorAll('.proxy-watermark')).toHaveLength(4);
+    expect(preview.querySelectorAll('.proxy-corners')).toHaveLength(4);
+
+    fireEvent.click(screen.getByRole('switch', { name: /^Print decklist/ }));
+    expect(screen.getByText('4 cards · 2 pages')).toBeTruthy();
+    const list = screen.getByRole('listitem', { name: 'Decklist page' });
+    expect([...list.querySelectorAll('li')].map((li) => li.textContent)).toEqual([
+      '1 Krenko, Mob Boss',
+      '1 Opt',
+      '2 Sol Ring',
+    ]);
   });
 });

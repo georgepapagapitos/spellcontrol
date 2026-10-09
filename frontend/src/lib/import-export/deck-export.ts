@@ -20,7 +20,7 @@ export interface ExportCardSlot {
   allocatedCopyId?: string | null;
 }
 
-export type ExportFormat = 'mtga' | 'plain' | 'moxfield' | 'mtgo';
+export type ExportFormat = 'mtga' | 'plain' | 'moxfield' | 'mtgo' | 'mpc';
 
 const EXPORT_FORMAT_STORAGE_KEY = 'mtg-decks-export-format';
 
@@ -28,7 +28,7 @@ export function readStoredExportFormat(): ExportFormat {
   if (typeof window === 'undefined') return 'mtga';
   try {
     const v = window.localStorage.getItem(EXPORT_FORMAT_STORAGE_KEY);
-    if (v === 'mtga' || v === 'plain' || v === 'moxfield' || v === 'mtgo') return v;
+    if (v === 'mtga' || v === 'plain' || v === 'moxfield' || v === 'mtgo' || v === 'mpc') return v;
   } catch {
     /* ignore */
   }
@@ -212,6 +212,24 @@ function buildMtgoExport(
   ].join('\n');
 }
 
+/**
+ * MPC Autofill's search list: one `Nx Name` query per card, nothing else. A
+ * section header would be searched as a card, so there are none; it picks
+ * its own images, so printings merge by name. A double-faced card's
+ * `Front // Back` name is the tool's own front-and-back query. The commander
+ * and sideboard print with the deck; Considering doesn't.
+ */
+function buildMpcExport(input: BuildExportInput): string {
+  const { commander, partner, cards, sideboard = [] } = input;
+  const names = [...cards, ...sideboard].map((slot) => slot.card.name);
+  names.sort((a, b) => a.localeCompare(b));
+  for (const card of [partner, commander]) if (card) names.unshift(card.name);
+  // A Map keeps first-seen order: commanders, then the rest by name.
+  const counts = new Map<string, number>();
+  for (const name of names) counts.set(name, (counts.get(name) ?? 0) + 1);
+  return [...counts].map(([name, qty]) => `${qty}x ${name}`).join('\n');
+}
+
 export function buildExport(input: BuildExportInput, format: ExportFormat): string {
   const {
     commander = null,
@@ -228,6 +246,7 @@ export function buildExport(input: BuildExportInput, format: ExportFormat): stri
     return { ...printing, qty: 1 };
   };
   if (format === 'mtgo') return buildMtgoExport(cmdEntry, input);
+  if (format === 'mpc') return buildMpcExport(input);
 
   const lines: string[] = [];
   if (format === 'mtga' && (commander || partner)) {
