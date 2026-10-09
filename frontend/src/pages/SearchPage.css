@@ -1,10 +1,8 @@
 /* SearchPage.css — standalone any-card lookup (/search). Sized to the shared
-   .inline-card-search column (540px) so the pill and list results read as one
-   centered rail; grid results and the landing's browse rails widen it. */
+   .inline-card-search column (540px), left-aligned under the title like every
+   page in the frame; grid results and the landing's browse rails widen it. */
 .search-page {
-  max-width: calc(540px + var(--space-4) * 2);
-  margin: 0 auto;
-  padding: var(--space-4);
+  max-width: 540px;
 }
 
 .search-page-head h1 {
@@ -275,7 +273,7 @@
 
 /* Grid results and the landing's browse rails get the wide column so their
    tiles breathe on desktop; the head, pill, and toggle stay on the 540px rail
-   so the page still reads as one centered column. */
+   at the left edge. */
 .search-page--wide {
   max-width: 1100px;
 }
@@ -286,10 +284,8 @@
 .search-page--wide .search-page-toolbar {
   width: 100%;
   max-width: 540px;
-  margin-inline: auto;
 }
 
 .search-page--wide .search-page-pill {
   max-width: 540px;
-  margin-inline: auto;
 }

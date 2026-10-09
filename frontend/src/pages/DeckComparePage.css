@@ -1,7 +1,5 @@
 .deck-compare-page {
-  padding: var(--space-4);
   max-width: 1100px;
-  margin-inline: auto;
 }
 
 .deck-compare-heading {

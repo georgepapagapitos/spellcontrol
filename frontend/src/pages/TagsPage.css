@@ -1,10 +1,8 @@
 /* TagsPage.css — tag-driven card discovery (/tags). Mirrors SearchPage's
-   centered rail: the head/pill/tag browser sit on the 540px column, and grid
+   rail: the head/pill/tag browser sit on the 540px column, left-aligned, and grid
    results widen the page so tiles breathe on desktop. */
 .tags-page {
-  max-width: calc(540px + var(--space-4) * 2);
-  margin: 0 auto;
-  padding: var(--space-4);
+  max-width: 540px;
 }
 
 .tags-page-head h1 {
@@ -293,8 +291,8 @@
   margin-top: var(--space-2);
 }
 
-/* Grid results widen the page; everything above the results stays on the rail
-   so the page still reads as one centered column. */
+/* Grid results widen the page; everything above the results stays on the
+   540px rail at the left edge. */
 .tags-page--grid {
   max-width: 1100px;
 }
@@ -308,5 +306,4 @@
 .tags-page--grid .tags-page-status {
   width: 100%;
   max-width: 540px;
-  margin-inline: auto;
 }

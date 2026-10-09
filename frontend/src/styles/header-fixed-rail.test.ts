@@ -6,9 +6,9 @@ import { dirname, join } from 'node:path';
 
 /**
  * The site header sits on one rail on every route (STYLE_GUIDE § Device
- * tiers → Width caps). #1953 widened the card-grid routes to --page-max-wide
- * by overriding --page-max on the shell, and the header — capped by the same
- * token — followed: the brand and account menu jumped ~260px between
+ * tiers → Width caps). #1953 widened the card-grid routes to a 1920px
+ * --page-max on the shell, and the header — capped by the same token —
+ * followed: the brand and account menu jumped ~260px between
  * Collection and Play/Home on a wide monitor. The header now caps at its own
  * --header-max, which nothing per-route may override.
  *
@@ -54,6 +54,65 @@ describe('site header rail', () => {
     const offenders = cssFiles(srcRoot)
       .filter((f) => !f.endsWith('tokens.css'))
       .filter((f) => /--header-max\s*:/.test(readFileSync(f, 'utf8')));
+    expect(offenders).toEqual([]);
+  });
+});
+
+/**
+ * One page frame (2026-10-09). The header and every page share one width, so
+ * a page's title starts under the brand on every route. Before this the
+ * Collection, Decks and deck-editor routes overrode --page-max to 1920px, and
+ * Cube, Compare, Goldfish, Rules, Search and Tags each centered their own
+ * narrower column: on a 2000px screen the title sat anywhere from x=46 to
+ * x=723 against a brand at 300. A page whose content reads better narrow
+ * keeps a max-width but stays left-aligned under its title.
+ *
+ * Fix for a failure here: drop the route-scoped --page-max override, or the
+ * page root's auto inline margins (and its own side padding: .app-main owns
+ * the gutter).
+ */
+describe('one page frame', () => {
+  const allCss = cssFiles(srcRoot)
+    .filter((f) => !/\.test\./.test(f))
+    .map(
+      (f) =>
+        [
+          f.slice(srcRoot.length + 1),
+          readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, ''),
+        ] as const
+    );
+
+  it('defines --page-max once, the same length as --header-max', () => {
+    const defs = tokens.replace(/\/\*[\s\S]*?\*\//g, '');
+    const page = [...defs.matchAll(/--page-max:\s*([^;]+);/g)].map((m) => m[1].trim());
+    const header = defs.match(/--header-max:\s*([^;]+);/)?.[1].trim();
+    expect(page).toEqual([header]);
+  });
+
+  it('no stylesheet overrides --page-max per route', () => {
+    const offenders = allCss
+      .filter(([f]) => !f.endsWith('tokens.css'))
+      .filter(([, css]) => /--page-max\s*:/.test(css))
+      .map(([f]) => f);
+    expect(offenders).toEqual([]);
+  });
+
+  it('no page root centers itself inside the frame', () => {
+    // A root is a class ending in -page (or -page--variant) as the last
+    // compound of the selector: `.rules-page`, not `.rules-page-header`.
+    // `.proxy-print-page` is a printed sheet (@media print), not a page in
+    // the frame; it centers on the paper.
+    const offenders: string[] = [];
+    for (const [f, css] of allCss) {
+      for (const [, sel, body] of css.matchAll(/([^{}@]+)\{([^{}]*)\}/g)) {
+        const roots = sel.split(',').map((s) => s.trim().split(/\s+/).pop() ?? '');
+        if (!roots.some((s) => /\.[a-z-]+-page(--[a-z-]+)?$/.test(s) && s !== '.proxy-print-page'))
+          continue;
+        if (/margin-inline\s*:\s*auto|margin\s*:[^;]*\bauto\b/.test(body)) {
+          offenders.push(`${f}: ${sel.trim()}`);
+        }
+      }
+    }
     expect(offenders).toEqual([]);
   });
 });

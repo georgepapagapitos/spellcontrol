@@ -3,8 +3,6 @@
 
 .goldfish-page {
   max-width: 44rem;
-  margin: 0 auto;
-  padding: var(--space-4) var(--space-4) var(--space-6);
 }
 
 .goldfish-header {

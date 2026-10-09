@@ -256,19 +256,15 @@
 
   /* ── Layout ───────────────────────────────────────────────────────────── */
   --page-max: 1400px;
-  /* The header's own rail. Pinned, never overridden per route: the brand,
-     nav and account menu sit in the same place on every page, even the ones
-     whose content widens to --page-max-wide below (#1953 let the header
-     follow the page, and the chrome jumped ~260px between routes). */
+  /* The header's rail, the same length as --page-max: one frame for the
+     chrome and every page. Neither is overridden per route; the card-grid
+     routes used to widen to 1920px, and their titles sat ~250px left of the
+     brand on a wide screen. */
   --header-max: 1400px;
   /* Height of the site header (.site-header-inner, desktop). It sits outside the
      scrolling .app-main, so a sticky panel that budgets its own height against
      the viewport subtracts it. */
   --site-header-h: 3.25rem;
-  /* Ceiling for the card-grid routes (collection hub, decks index, deck
-     editor) — see base-layout.css `.app-shell:has(…)`. Still a
-     cap: an ultrawide gets balanced gutters, not a 30-card row. */
-  --page-max-wide: 1920px;
   /* Height of the sticky Collection hub-tabs strip — also the offset the
      Collection search row pins below, so the two stack flush. Single
      source of truth for both rules. */
