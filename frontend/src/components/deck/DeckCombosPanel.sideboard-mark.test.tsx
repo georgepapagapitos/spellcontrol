@@ -67,7 +67,6 @@ function renderPanel(mainboardOracleIds?: Set<string>) {
       mainboardOracleIds={mainboardOracleIds}
       format="commander"
       onAdd={() => {}}
-      embedded
     />
   );
 }
@@ -124,7 +123,6 @@ describe('DeckCombosPanel: counts and one-away read the mainboard', () => {
         mainboardOracleIds={mainboardOracleIds}
         format="commander"
         onAdd={() => {}}
-        embedded
       />
     );
   }

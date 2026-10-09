@@ -1,8 +1,7 @@
 import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import { CheckCircle2, ChevronDown, ChevronUp, Circle, Sparkles } from 'lucide-react';
+import { CheckCircle2, Circle } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { getCardByName } from '@/deck-builder/services/scryfall/client';
-import { useCollapsedPref } from '@/lib/util/use-collapsed-pref';
 import { useComboPreview } from './use-combo-preview';
 import { buildCardImageIndex, buildCardIndex } from '@/lib/deck-analysis/deck-card-index';
 import { useCollectionStore } from '../../store/collection';
@@ -26,7 +25,7 @@ import { Chip } from '@/components/shared/Chip';
 import { Surface } from '@/components/shared/Surface';
 
 export interface DeckCombosPanelHandle {
-  /** Expand the panel (if collapsed), optionally switch to `tab`, scroll it into
+  /** Optionally switch to `tab`, scroll it into
    *  view, and focus the first tab. */
   reveal(tab?: Tab): void;
 }
@@ -58,11 +57,6 @@ interface Props {
    */
   onAdd?: (card: ScryfallCard, allocatedCopyId: string | null) => void;
   /**
-   * Render without the collapsible header chrome (always-open body), for use
-   * inside the tabbed analysis surface.
-   */
-  embedded?: boolean;
-  /**
    * The caller's own combo match for these same inputs. The deck page passes
    * the result its hero and bracket already use, so the panel shows the same
    * answer and its Retry refreshes everything; without it the panel runs a
@@ -76,16 +70,7 @@ type Tab = 'inDeck' | 'oneAway';
 type OwnershipFilter = 'all' | 'owned' | 'notOwned';
 
 export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function DeckCombosPanel(
-  {
-    deckId: _deckId,
-    deckOracleIds,
-    mainboardOracleIds,
-    format,
-    colorIdentity,
-    onAdd,
-    embedded = false,
-    combos,
-  },
+  { deckId: _deckId, deckOracleIds, mainboardOracleIds, format, colorIdentity, onAdd, combos },
   ref
 ) {
   const collection = useCollectionStore((s) => s.cards);
@@ -121,12 +106,6 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
 
   // The owner's pick, once they make one; until then `tab` is derived below.
   const [pickedTab, setTab] = useState<Tab | null>(null);
-  // Default to collapsed: the panel is opt-in discovery — most deck-page loads
-  // don't need the full combo list, and the always-visible header summary
-  // already shows the at-a-glance counts.
-  const [collapsed, setCollapsed] = useCollapsedPref('spellcontrol-combos-panel-collapsed');
-  // Embedded in a tab: no header chrome, body always open.
-  const isCollapsed = embedded ? false : collapsed;
   const [announce, setAnnounce] = useState('');
   const firstButtonRef = useRef<HTMLButtonElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -166,9 +145,8 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
 
   useImperativeHandle(ref, () => ({
     reveal: (revealTab) => {
-      setCollapsed(false);
       if (revealTab) setTab(revealTab);
-      // Wait a frame so the panel has expanded before scrolling/focusing.
+      // Wait a frame before scrolling/focusing.
       window.requestAnimationFrame(() => {
         containerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         firstButtonRef.current?.focus();
@@ -286,57 +264,11 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
       as="div"
       variant="framed"
       ref={containerRef}
-      className={`deck-combos-panel${isCollapsed ? ' is-collapsed' : ''}${embedded ? ' is-embedded' : ''}`}
+      className="deck-combos-panel is-embedded"
       role="region"
       aria-label="Combos"
     >
-      {!embedded && (
-        <button
-          type="button"
-          className="deck-combos-header"
-          aria-expanded={!collapsed}
-          aria-controls="deck-combos-body"
-          onClick={() => setCollapsed((c) => !c)}
-          title={collapsed ? 'Expand combos panel' : 'Collapse combos panel'}
-        >
-          <Sparkles width={16} height={16} aria-hidden />
-          <span className="deck-combos-title">Combos</span>
-          {/* Compact summary always visible so the collapsed strip is informative. */}
-          <span className="deck-combos-header-summary" aria-hidden>
-            {inDeckCount > 0 && <span>{inDeckCount} in deck</span>}
-            {oneAwayCount > 0 && <span>{oneAwayCount} one away</span>}
-            {inDeckCount === 0 && oneAwayCount === 0 && !loading && (
-              <span className="deck-combos-header-empty">No matches</span>
-            )}
-          </span>
-          {/* Spinner slot is ALWAYS rendered (just visibility-hidden when
-              idle) so the trailing wrapper's width never changes between
-              loading + idle states. Without this the summary column would
-              shrink by the spinner's width every time a request fired,
-              shifting the layout. */}
-          <span className="deck-combos-header-trailing" aria-hidden>
-            <span className={`deck-combos-spinner${loading ? '' : ' is-idle'}`} aria-hidden />
-            <span className="deck-combos-header-chevron">
-              {collapsed ? (
-                <ChevronDown width={16} height={16} />
-              ) : (
-                <ChevronUp width={16} height={16} />
-              )}
-            </span>
-          </span>
-        </button>
-      )}
-
-      {!embedded && isCollapsed && (
-        <div className="sr-only">Combos panel collapsed. Click to expand.</div>
-      )}
-
-      <div
-        id="deck-combos-body"
-        className="deck-combos-body"
-        hidden={isCollapsed}
-        aria-hidden={isCollapsed}
-      >
+      <div id="deck-combos-body" className="deck-combos-body">
         <Tabs
           ariaLabel="Combo bucket"
           variant="scrollable"

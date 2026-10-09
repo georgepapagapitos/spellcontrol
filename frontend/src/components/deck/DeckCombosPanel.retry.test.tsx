@@ -27,13 +27,7 @@ function renderPanel(over: { loading?: boolean; error?: string | null } = {}) {
     refetch,
   });
   return render(
-    <DeckCombosPanel
-      deckId="deck-1"
-      deckOracleIds={['o1']}
-      format="commander"
-      onAdd={() => {}}
-      embedded
-    />
+    <DeckCombosPanel deckId="deck-1" deckOracleIds={['o1']} format="commander" onAdd={() => {}} />
   );
 }
 
@@ -81,7 +75,6 @@ describe("DeckCombosPanel with the caller's combo match", () => {
         deckId="deck-1"
         deckOracleIds={['o1']}
         format="commander"
-        embedded
         combos={{
           data: null,
           loading: false,

@@ -7,10 +7,9 @@ import {
   useRef,
   useState,
 } from 'react';
-import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Gauge, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
 import { getCardByName } from '@/deck-builder/services/scryfall/client';
-import { useCollapsedPref } from '@/lib/util/use-collapsed-pref';
 import {
   fetchCommanderData,
   fetchCommanderThemeData,
@@ -23,7 +22,6 @@ import {
   analyzeDeck,
   classifyCandidate,
   type DeckAnalysisResult,
-  type RoleHealth,
 } from '@/lib/deck-analysis/deck-analysis';
 import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
@@ -35,7 +33,6 @@ import { useCardThumb } from '@/lib/cards/card-thumbs';
 import { classifyInclusion } from '@/lib/deck-analysis/inclusion-label';
 import type { EnrichedCard } from '../../types';
 import { CardPreview } from '@/components/card/CardPreview';
-import { Tabs } from '@/components/overlays/Tabs';
 import { SelectMenu, type SelectOption } from '@/components/overlays/SelectMenu';
 import { OwnershipBadge } from './OwnershipBadge';
 import { Chip } from '@/components/shared/Chip';
@@ -43,7 +40,7 @@ import { Surface } from '@/components/shared/Surface';
 
 import { userMessage } from '@/lib/util/user-error';
 export interface DeckAnalysisPanelHandle {
-  /** Expand the panel, scroll it into view, and focus the diagnosis header. */
+  /** Scroll the panel into view. */
   reveal(): void;
 }
 
@@ -54,34 +51,19 @@ interface Props {
   partnerCommander: ScryfallCard | null;
   mainboard: { slotId: string; card: ScryfallCard }[];
   onAdd: (card: ScryfallCard, allocatedCopyId: string | null) => void;
-  /**
-   * Render without the collapsible header chrome AND without the internal
-   * Diagnosis/Suggestions tabs — just the Suggestions list — for use inside
-   * the tabbed analysis surface's "Improve" tab. The Diagnosis view is
-   * intentionally dropped there (the Roles strip already covers role
-   * current-vs-target, so showing both was redundant).
-   */
-  embedded?: boolean;
 }
 
 export const DeckAnalysisPanel = forwardRef<DeckAnalysisPanelHandle, Props>(
   function DeckAnalysisPanel(
-    { deckId, format, commander, partnerCommander, mainboard, onAdd, embedded = false },
+    { deckId, format, commander, partnerCommander, mainboard, onAdd },
     ref
   ) {
-    const [collapsed, setCollapsed] = useCollapsedPref('spellcontrol-analysis-panel-collapsed');
-    const [tab, setTab] = useState<'diagnosis' | 'suggestions'>('diagnosis');
-    // Embedded in a tab: no header chrome, body always open, Suggestions only.
-    const isCollapsed = embedded ? false : collapsed;
     const containerRef = useRef<HTMLDivElement>(null);
-    const focusTargetRef = useRef<HTMLButtonElement>(null);
 
     useImperativeHandle(ref, () => ({
       reveal: () => {
-        setCollapsed(false);
         window.requestAnimationFrame(() => {
           containerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-          focusTargetRef.current?.focus();
         });
       },
     }));
@@ -93,187 +75,31 @@ export const DeckAnalysisPanel = forwardRef<DeckAnalysisPanelHandle, Props>(
       [format, commander, partnerCommander, mainboard, taggerReady]
     );
 
-    const summary = useMemo(() => {
-      const lowCount = analysis.roles.filter((r) => r.status === 'low').length;
-      const highCount = analysis.roles.filter((r) => r.status === 'high').length;
-      const offColor = analysis.colorIdentity.offColorCards.length;
-      return { lowCount, highCount, offColor };
-    }, [analysis]);
-
     return (
       <Surface
         as="div"
         variant="framed"
         ref={containerRef}
-        className={`deck-analysis-panel deck-combos-panel${isCollapsed ? ' is-collapsed' : ''}${embedded ? ' is-embedded' : ''}`}
+        className="deck-analysis-panel deck-combos-panel is-embedded"
         role="region"
         aria-label="Analysis"
       >
-        {!embedded && (
-          <button
-            type="button"
-            className="deck-combos-header"
-            aria-expanded={!collapsed}
-            aria-controls="deck-analysis-body"
-            onClick={() => setCollapsed((c) => !c)}
-            title={collapsed ? 'Expand analysis panel' : 'Collapse analysis panel'}
-          >
-            <Gauge width={16} height={16} aria-hidden />
-            <span className="deck-combos-title">Analysis</span>
-            <span className="deck-combos-header-summary" aria-hidden>
-              {summary.lowCount > 0 && (
-                <span>
-                  {summary.lowCount} {summary.lowCount === 1 ? 'gap' : 'gaps'}
-                </span>
-              )}
-              {summary.highCount > 0 && <span>{summary.highCount} over</span>}
-              {summary.offColor > 0 && <span>{summary.offColor} off-color</span>}
-              {summary.lowCount === 0 &&
-                summary.highCount === 0 &&
-                summary.offColor === 0 &&
-                taggerReady && <span className="deck-combos-header-empty">Looks healthy</span>}
-              {!taggerReady && <span className="deck-combos-header-empty">Loading…</span>}
-            </span>
-            <span className="deck-combos-header-trailing" aria-hidden>
-              <span className="deck-combos-header-chevron">
-                {collapsed ? (
-                  <ChevronDown width={16} height={16} />
-                ) : (
-                  <ChevronUp width={16} height={16} />
-                )}
-              </span>
-            </span>
-          </button>
-        )}
-
-        <div
-          id="deck-analysis-body"
-          className="deck-combos-body"
-          hidden={isCollapsed}
-          aria-hidden={isCollapsed}
-        >
-          {embedded ? (
-            /* Improve tab: Suggestions only — the Roles strip already covers
-               the Diagnosis (role current-vs-target), so it's dropped here. */
-            <SuggestionsSection
-              analysis={analysis}
-              commander={commander}
-              partnerCommander={partnerCommander}
-              mainboard={mainboard}
-              deckId={deckId}
-              onAdd={onAdd}
-            />
-          ) : (
-            <>
-              {/* Diagnosis and Suggestions are peer views, not stacked sections —
-                  tabs keep only one tall column on screen at a time (matching the
-                  Combos panel) instead of nesting a collapse inside a collapse. */}
-              <Tabs
-                ariaLabel="Analysis view"
-                value={tab}
-                onChange={setTab}
-                firstTabRef={focusTargetRef}
-                tabs={[
-                  { id: 'diagnosis', label: 'Diagnosis' },
-                  { id: 'suggestions', label: 'Suggestions' },
-                ]}
-              />
-
-              {/* Diagnosis — role health vs. format targets. This is the value
-                  add over the Stats panel: stats shows counts; this shows status
-                  + an actionable verdict per role. */}
-              {tab === 'diagnosis' ? (
-                <DiagnosisSection analysis={analysis} />
-              ) : (
-                /* Suggestions — popular cards for this commander, filtered to
-                   the deck's diagnosed gaps by default. */
-                <SuggestionsSection
-                  analysis={analysis}
-                  commander={commander}
-                  partnerCommander={partnerCommander}
-                  mainboard={mainboard}
-                  deckId={deckId}
-                  onAdd={onAdd}
-                />
-              )}
-            </>
-          )}
+        <div id="deck-analysis-body" className="deck-combos-body">
+          {/* Suggestions only: the Roles strip already covers the Diagnosis
+              (role current-vs-target). */}
+          <SuggestionsSection
+            analysis={analysis}
+            commander={commander}
+            partnerCommander={partnerCommander}
+            mainboard={mainboard}
+            deckId={deckId}
+            onAdd={onAdd}
+          />
         </div>
       </Surface>
     );
   }
 );
-
-// ─── Diagnosis ─────────────────────────────────────────────────────────────
-
-function DiagnosisSection({ analysis }: { analysis: DeckAnalysisResult }) {
-  if (!analysis.taggerReady) {
-    return <p className="deck-combos-empty">Loading role data…</p>;
-  }
-  return (
-    <section className="deck-analysis-diagnosis">
-      <ul className="deck-analysis-role-list">
-        {analysis.roles.map((role) => (
-          <RoleRow key={role.key} role={role} />
-        ))}
-      </ul>
-      <CurveVerdict analysis={analysis} />
-      {analysis.colorIdentity.commanderColors.length > 0 &&
-        analysis.colorIdentity.offColorCards.length > 0 && (
-          <div className="deck-analysis-warning">
-            <AlertTriangle width={14} height={14} strokeWidth={1.8} aria-hidden />
-            <div>
-              <strong>
-                {analysis.colorIdentity.offColorCards.length} card
-                {analysis.colorIdentity.offColorCards.length === 1 ? '' : 's'} outside color
-                identity
-              </strong>
-              <p>
-                {analysis.colorIdentity.offColorCards
-                  .slice(0, 4)
-                  .map((c) => c.cardName)
-                  .join(', ')}
-                {analysis.colorIdentity.offColorCards.length > 4 &&
-                  ` +${analysis.colorIdentity.offColorCards.length - 4} more`}
-              </p>
-            </div>
-          </div>
-        )}
-    </section>
-  );
-}
-
-function RoleRow({ role }: { role: RoleHealth }) {
-  const Icon = role.status === 'ok' ? CheckCircle2 : AlertTriangle;
-  return (
-    <li className={`deck-analysis-role-row is-${role.status}`}>
-      <header className="deck-analysis-role-header">
-        <Icon width={14} height={14} aria-hidden />
-        <span className="deck-analysis-role-label">{role.label}</span>
-        <span className="deck-analysis-role-count" aria-label={`${role.count} cards`} role="group">
-          {role.count}
-          <span className="deck-analysis-role-target">
-            {' / '}
-            {role.range[0]}–{role.range[1]}
-          </span>
-        </span>
-      </header>
-      <p className="deck-analysis-role-message">{role.message}</p>
-    </li>
-  );
-}
-
-function CurveVerdict({ analysis }: { analysis: DeckAnalysisResult }) {
-  const { curve } = analysis;
-  // Stats already renders the curve. We only surface a VERDICT line so the
-  // user sees "is my curve too top-heavy?" without re-reading the chart.
-  if (curve.verdict === 'curve-ok') return null;
-  return (
-    <p className={`deck-analysis-verdict deck-analysis-verdict--${curve.verdict}`}>
-      <AlertTriangle width={14} height={14} strokeWidth={1.8} aria-hidden /> {curve.message}
-    </p>
-  );
-}
 
 // ─── Suggestions ───────────────────────────────────────────────────────────
 

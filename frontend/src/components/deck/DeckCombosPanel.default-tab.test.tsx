@@ -61,7 +61,6 @@ function renderWith(inDeck: ComboMatch[], away: ComboMatch[]) {
       deckOracleIds={['c1-0', 'c1-1', 'c2-0']}
       format="commander"
       onAdd={() => {}}
-      embedded
     />
   );
 }
