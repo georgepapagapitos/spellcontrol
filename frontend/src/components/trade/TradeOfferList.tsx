@@ -7,8 +7,10 @@ import { formatMoney } from '@/lib/collection/format-money';
 import { formatRelativeTime } from '@/lib/util/format-time';
 import {
   describeNet,
+  printingKey,
   splitSideValue,
   useFloorPrices,
+  usePrintingPrices,
   type SideValue,
 } from '@/lib/trade/trade-value';
 import { toast } from '../../store/toasts';
@@ -504,29 +506,39 @@ function TradeOfferAge({ offer }: { offer: TradeOffer }) {
 /**
  * What one side of an offer is worth.
  *
- * A side whose copies are pinned down (`scryfallId` + `finish`) is priced
- * EXACTLY from the device-local price cache — and that keeps working after the
- * cards have left the collection, because the cache is keyed by printing, not
- * by ownership. A side still oracle-level (the ask, before it's accepted) has
- * no printing to price, so it falls back to the cheapest-printing floor and is
- * labelled "from". Never renders a bare 0 for "unknown": the whole point of
- * putting a number here is that it can be trusted.
+ * A copy pinned down to a printing (`scryfallId` + `finish`) is priced EXACTLY:
+ * from the device-local price cache when this device has owned that printing
+ * (which keeps working after the card has left the collection), else by looking
+ * that printing up. A side still oracle-level (an any-printing ask, before it's
+ * accepted) has no printing to price, so it falls back to the cheapest-printing
+ * floor and is labelled "from". Never renders a bare 0 for "unknown": the whole
+ * point of putting a number here is that it can be trusted.
  */
 function useSideValue(cards: TradeCard[]): SideValue {
-  const { exact, needFloor } = useMemo(() => splitSideValue(cards), [cards]);
+  const { exact, needPrinting, needFloor } = useMemo(() => splitSideValue(cards), [cards]);
   const names = useMemo(() => needFloor.map((c) => c.name), [needFloor]);
-  const { prices: floors, pending } = useFloorPrices(names);
+  const { prices: floors, pending: floorPending } = useFloorPrices(names);
+  const { prices: printings, pending: printingPending } = usePrintingPrices(needPrinting);
 
-  if (names.length === 0) return { text: formatMoney(exact), amount: exact, estimate: false };
-  if (pending) return { text: '…', amount: null, estimate: true };
+  if (names.length === 0 && needPrinting.length === 0)
+    return { text: formatMoney(exact), amount: exact, estimate: false };
+  if (floorPending || printingPending) return { text: '…', amount: null, estimate: true };
 
+  const looked = needPrinting.reduce((sum, c) => sum + (printings.get(printingKey(c)) ?? 0), 0);
   const floor = needFloor.reduce((sum, c) => sum + (floors.get(c.name) ?? 0) * c.quantity, 0);
-  const anyUnknown = names.some((n) => (floors.get(n) ?? null) === null);
+  const anyUnknown =
+    names.some((n) => (floors.get(n) ?? null) === null) ||
+    needPrinting.some((c) => (printings.get(printingKey(c)) ?? null) === null);
+  const total = exact + looked + floor;
   // "+?" when something could not be priced at all — better an admitted gap
   // than a total that quietly omits a card.
+  const suffix = anyUnknown ? ' +?' : '';
+  if (names.length === 0 && !anyUnknown)
+    return { text: formatMoney(total), amount: total, estimate: false };
   return {
-    text: `from ${formatMoney(exact + floor)}${anyUnknown ? ' +?' : ''}`,
-    amount: anyUnknown ? null : exact + floor,
+    text:
+      names.length > 0 ? `from ${formatMoney(total)}${suffix}` : `${formatMoney(total)}${suffix}`,
+    amount: anyUnknown ? null : total,
     estimate: true,
   };
 }

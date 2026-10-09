@@ -1,5 +1,10 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { fetchFloorPrice, splitSideValue, __resetFloorCache } from './trade-value';
+import {
+  fetchFloorPrice,
+  fetchPrintingPrice,
+  splitSideValue,
+  __resetFloorCache,
+} from './trade-value';
 import { setPrices, _resetForTests } from '@/lib/collection/card-prices';
 import type { TradeCard } from './trades-client';
 
@@ -17,7 +22,7 @@ describe('splitSideValue', () => {
   });
 
   it('prices each copy at ITS OWN printing and finish', () => {
-    const { exact, needFloor } = splitSideValue([
+    const { exact, needPrinting, needFloor } = splitSideValue([
       card({
         name: 'Sol Ring',
         quantity: 2,
@@ -29,6 +34,7 @@ describe('splitSideValue', () => {
     ]);
     // Not 2 × either price — the whole point is that the two copies differ.
     expect(exact).toBe(35);
+    expect(needPrinting).toEqual([]);
     expect(needFloor).toEqual([]);
   });
 
@@ -38,19 +44,23 @@ describe('splitSideValue', () => {
     expect(needFloor.map((c) => c.name)).toEqual(['Rhystic Study']);
   });
 
-  it('defers an UNCACHED printing rather than summing it as free', () => {
+  it('looks an UNCACHED printing up by printing, never by the name floor', () => {
     // The bug this pins: the cache only holds printings the viewer has owned,
     // so the side you're RECEIVING is usually absent from it. Summing those as
-    // 0 rendered "You get $0.00" on a real offer.
-    const { exact, needFloor } = splitSideValue([
-      card({ name: 'Mystery', copies: [{ scryfallId: 'not-cached', finish: 'nonfoil' }] }),
+    // 0 rendered "You get $0.00"; pricing them from the cheapest printing then
+    // quoted a $2.26 Llanowar Elves as "from $0.30" next to a preview of the
+    // very printing being traded.
+    const copy = { scryfallId: 'not-cached', finish: 'nonfoil' };
+    const { exact, needPrinting, needFloor } = splitSideValue([
+      card({ name: 'Llanowar Elves', copies: [copy] }),
     ]);
     expect(exact).toBe(0);
-    expect(needFloor.map((c) => c.name)).toEqual(['Mystery']);
+    expect(needPrinting).toEqual([copy]);
+    expect(needFloor).toEqual([]);
   });
 
-  it('does not half-count a card whose copies are only partly priced', () => {
-    const { exact, needFloor } = splitSideValue([
+  it('prices the cached copies of a card and looks up only the rest', () => {
+    const { exact, needPrinting, needFloor } = splitSideValue([
       card({
         name: 'Half',
         quantity: 2,
@@ -60,8 +70,45 @@ describe('splitSideValue', () => {
         ],
       }),
     ]);
-    expect(exact).toBe(0);
-    expect(needFloor.map((c) => c.name)).toEqual(['Half']);
+    expect(exact).toBe(10);
+    expect(needPrinting).toEqual([{ scryfallId: 'not-cached', finish: 'nonfoil' }]);
+    expect(needFloor).toEqual([]);
+  });
+});
+
+describe('fetchPrintingPrice', () => {
+  const fetchMock = vi.fn();
+
+  beforeEach(() => {
+    __resetFloorCache();
+    fetchMock.mockReset();
+    vi.stubGlobal('fetch', fetchMock);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function respond(prices: unknown) {
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ card: { prices } }) });
+  }
+
+  it('asks for that printing by id and reads its finish', async () => {
+    respond({ usd: '2.26', usd_foil: '9.50' });
+    expect(await fetchPrintingPrice({ scryfallId: 'id-1', finish: 'nonfoil' })).toBe(2.26);
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/api/cards/by-id/id-1');
+    expect(await fetchPrintingPrice({ scryfallId: 'id-1', finish: 'foil' })).toBe(9.5);
+  });
+
+  it('falls back to another finish rather than reading as free', async () => {
+    respond({ usd: null, usd_etched: '7.00' });
+    expect(await fetchPrintingPrice({ scryfallId: 'id-2', finish: 'nonfoil' })).toBe(7);
+  });
+
+  it('returns null on a failure and caches it', async () => {
+    fetchMock.mockRejectedValue(new Error('offline'));
+    expect(await fetchPrintingPrice({ scryfallId: 'id-3', finish: 'nonfoil' })).toBeNull();
+    expect(await fetchPrintingPrice({ scryfallId: 'id-3', finish: 'nonfoil' })).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
 

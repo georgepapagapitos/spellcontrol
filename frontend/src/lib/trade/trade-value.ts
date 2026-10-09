@@ -3,7 +3,7 @@ import { apiUrl } from '@/lib/api/api-base';
 import { getPrice } from '@/lib/collection/card-prices';
 import { getCurrency } from '@/lib/collection/currency';
 import { formatMoney } from '@/lib/collection/format-money';
-import type { TradeCard } from './trades-client';
+import type { TradeCard, TradeCopy } from './trades-client';
 
 /**
  * Valuing the ASK side of a trade.
@@ -30,6 +30,7 @@ import type { TradeCard } from './trades-client';
 interface ScryfallPrices {
   usd?: string | null;
   usd_foil?: string | null;
+  usd_etched?: string | null;
   eur?: string | null;
   eur_foil?: string | null;
 }
@@ -92,28 +93,100 @@ export async function fetchFloorPrice(name: string): Promise<number | null> {
 /** Test seam — the module-level memo would otherwise leak between cases. */
 export function __resetFloorCache(): void {
   floorCache.clear();
+  printingCache.clear();
 }
 
 /**
- * Splits a side into what we can price exactly and what we can't.
+ * One printing's price at one finish, in the active display currency. Picks the
+ * finish's own price first and falls back to the others, the same order
+ * `scryfallToEnriched` prices a collection row with, so a trade quotes what the
+ * card preview of that printing shows.
+ */
+function printingPriceInActiveCurrency(
+  prices: ScryfallPrices | undefined,
+  finish: string
+): number | null {
+  if (!prices) return null;
+  const order: Array<string | null | undefined> =
+    getCurrency() === 'EUR'
+      ? finish === 'nonfoil'
+        ? [prices.eur, prices.eur_foil]
+        : [prices.eur_foil, prices.eur]
+      : [
+          finish === 'foil'
+            ? prices.usd_foil
+            : finish === 'etched'
+              ? prices.usd_etched
+              : prices.usd,
+          prices.usd,
+          prices.usd_foil,
+          prices.usd_etched,
+        ];
+  for (const raw of order) {
+    const n = parsePrice(raw);
+    if (n !== null) return n;
+  }
+  return null;
+}
+
+/** Same memo contract as `floorCache`, keyed by currency + printing + finish. */
+const printingCache = new Map<string, number | null>();
+
+/** Key a copy's printing the way `fetchPrintingPrice` and `usePrintingPrices` share. */
+export function printingKey(copy: TradeCopy): string {
+  return `${copy.scryfallId}:${copy.finish}`;
+}
+
+/**
+ * The price of ONE named printing, for a copy the device-local cache has never
+ * seen (the side you are receiving). `null` = unknown and renders as "+?".
+ */
+export async function fetchPrintingPrice(copy: TradeCopy): Promise<number | null> {
+  const key = `${getCurrency()}:${printingKey(copy)}`;
+  const cached = printingCache.get(key);
+  if (cached !== undefined) return cached;
+
+  let price: number | null = null;
+  try {
+    const res = await fetch(apiUrl(`/api/cards/by-id/${encodeURIComponent(copy.scryfallId)}`));
+    if (res.ok) {
+      const { card } = (await res.json()) as { card?: { prices?: ScryfallPrices } | null };
+      price = printingPriceInActiveCurrency(card?.prices, copy.finish);
+    }
+  } catch {
+    // Same as the floor: a failure renders as an admitted gap, never an error.
+  }
+  printingCache.set(key, price);
+  return price;
+}
+
+/**
+ * Splits a side into what we can price from the device cache, the printings we
+ * must look up, and the oracle-level cards that only have a floor.
  *
- * The device-local cache is keyed by printing, so a pinned-down copy is exact —
- * and stays exact after the card has LEFT the collection, which is what lets a
+ * The device-local cache is keyed by printing, so a cached copy is exact — and
+ * stays exact after the card has LEFT the collection, which is what lets a
  * settled trade still show what it was worth.
  *
  * ⚠️ But that cache only ever holds printings the viewer has OWNED. The side
  * you are RECEIVING is by definition cards you don't own, so its printings are
- * usually absent — and summing absent entries as 0 rendered "You get $0.00" on
- * a real offer, which reads as "these are worthless" when the truth is "we
- * haven't priced them". Anything unpriced comes back as a name for the caller
- * to resolve to a floor instead.
+ * usually absent. Those copies still name a printing, so they are looked up BY
+ * PRINTING (`needPrinting`). Pricing them from the cheapest-printing floor
+ * instead quoted a $2.26 Llanowar Elves as "from $0.30" — a number the card's
+ * own preview contradicted one tap later. Only a card with no copies at all
+ * (an any-printing ask) falls to the floor.
  *
  * EUR mirrors applyPrices' tri-state: an entry with no `eur` field predates EUR
- * support and counts as unpriced rather than as €0.
+ * support and counts as uncached rather than as €0.
  */
-export function splitSideValue(cards: TradeCard[]): { exact: number; needFloor: TradeCard[] } {
+export function splitSideValue(cards: TradeCard[]): {
+  exact: number;
+  needPrinting: TradeCopy[];
+  needFloor: TradeCard[];
+} {
   const eur = getCurrency() === 'EUR';
   let exact = 0;
+  const needPrinting: TradeCopy[] = [];
   const needFloor: TradeCard[] = [];
 
   for (const card of cards) {
@@ -121,21 +194,14 @@ export function splitSideValue(cards: TradeCard[]): { exact: number; needFloor: 
       needFloor.push(card);
       continue;
     }
-    let sum = 0;
-    let allPriced = true;
     for (const copy of card.copies) {
       const entry = getPrice(copy.scryfallId, copy.finish);
       const price = entry ? (eur ? entry.eur : entry.usd) : undefined;
-      if (price == null) {
-        allPriced = false;
-        break;
-      }
-      sum += price;
+      if (price == null) needPrinting.push(copy);
+      else exact += price;
     }
-    if (allPriced) exact += sum;
-    else needFloor.push(card);
   }
-  return { exact, needFloor };
+  return { exact, needPrinting, needFloor };
 }
 
 /**
@@ -148,11 +214,11 @@ export function splitSideValue(cards: TradeCard[]): { exact: number; needFloor: 
  */
 const NO_PRICES: Map<string, number | null> = new Map();
 
-export function useFloorPrices(names: string[]): {
-  prices: Map<string, number | null>;
-  pending: boolean;
-} {
-  const key = names.join('|');
+function useResolvedPrices(
+  keys: string[],
+  fetchOne: (key: string) => Promise<number | null>
+): { prices: Map<string, number | null>; pending: boolean } {
+  const key = keys.join('|');
   // Resolved state carries the key it was resolved FOR, so `pending` is derived
   // rather than set. Writing setState synchronously in the effect body (the
   // obvious shape) triggers cascading renders and is a lint error here.
@@ -164,18 +230,41 @@ export function useFloorPrices(names: string[]): {
   useEffect(() => {
     if (!key) return;
     let cancelled = false;
-    void Promise.all(
-      key.split('|').map(async (name) => [name, await fetchFloorPrice(name)] as const)
-    ).then((entries) => {
-      if (!cancelled) setResolved({ key, prices: new Map(entries) });
-    });
+    void Promise.all(key.split('|').map(async (k) => [k, await fetchOne(k)] as const)).then(
+      (entries) => {
+        if (!cancelled) setResolved({ key, prices: new Map(entries) });
+      }
+    );
     return () => {
       cancelled = true;
     };
-  }, [key]);
+  }, [key, fetchOne]);
 
   const fresh = resolved.key === key;
   return { prices: fresh ? resolved.prices : NO_PRICES, pending: key !== '' && !fresh };
+}
+
+export function useFloorPrices(names: string[]): {
+  prices: Map<string, number | null>;
+  pending: boolean;
+} {
+  return useResolvedPrices(names, fetchFloorPrice);
+}
+
+function fetchPrintingByKey(key: string): Promise<number | null> {
+  const at = key.lastIndexOf(':');
+  return fetchPrintingPrice({ scryfallId: key.slice(0, at), finish: key.slice(at + 1) });
+}
+
+/**
+ * Exact prices for printings the device cache doesn't hold, by `printingKey`.
+ * Same `pending` / cached-null contract as {@link useFloorPrices}.
+ */
+export function usePrintingPrices(copies: TradeCopy[]): {
+  prices: Map<string, number | null>;
+  pending: boolean;
+} {
+  return useResolvedPrices([...new Set(copies.map(printingKey))], fetchPrintingByKey);
 }
 
 export interface SideValue {
