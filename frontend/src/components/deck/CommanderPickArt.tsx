@@ -1,3 +1,4 @@
+import '@/styles/deck-builder-commander.css';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { useCardCarousel } from './useCardCarousel';
 

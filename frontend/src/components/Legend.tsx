@@ -1,3 +1,4 @@
+import '@/styles/deck-builder-card-list.css';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useOverlayLayer } from '@/lib/overlays/overlay-layer';

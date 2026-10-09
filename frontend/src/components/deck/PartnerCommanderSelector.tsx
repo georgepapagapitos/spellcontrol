@@ -1,3 +1,4 @@
+import '@/styles/deck-builder-commander.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatDeckCount } from './CommanderResultCard';
 import {

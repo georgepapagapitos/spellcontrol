@@ -1,3 +1,4 @@
+import '@/styles/shared.css';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useDocumentTitle } from '@/lib/util/use-document-title';

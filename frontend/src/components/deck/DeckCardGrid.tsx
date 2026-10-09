@@ -9,6 +9,7 @@
 // same <li> tile as the grid — qty pip, allocation, legality, foil, badge
 // cluster — so the two can't drift; only the section/list classes and the
 // `--stack-w` width differ (see deck-builder-card-list.css § Stacks).
+import '@/styles/deck-builder-card-list.css';
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { ChevronDown, Handshake, MoreVertical, Tag as TagIcon } from 'lucide-react';
 import { getRoleBadge, type RoleKey } from '@/lib/deck-analysis/role-badges';

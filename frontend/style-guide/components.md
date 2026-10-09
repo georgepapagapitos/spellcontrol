@@ -31,7 +31,7 @@ where every section lives.
 - **A scrollable tab strip tells you it scrolls.** `Tabs` (`--scrollable`,
   `--underline`) sets `data-overflow="start|end|both"` on its root
   from its own scroll position and the stylesheet masks that edge with a
-  `--space-6` fade (`deck-builder-tabs.css`), the same tell `HubTabsNav`
+  `--space-6` fade (`components/overlays/Tabs.css`), the same tell `HubTabsNav`
   carries; the selected tab is also scrolled into view on change. A strip
   whose last tab is cut off flat at the viewport edge reads as the end of
   the list — the fade is what says "more". Every strip on the primitive

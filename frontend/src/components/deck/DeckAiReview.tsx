@@ -1,3 +1,4 @@
+import '@/styles/deck-builder-analysis.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';

@@ -1,3 +1,4 @@
+import '@/styles/shared.css';
 import { useMemo, useState } from 'react';
 import type { PublicList, PublicListEntry } from '@/lib/social/shared-types';
 import { normalizeForSearch } from '@/lib/search/normalize-search';

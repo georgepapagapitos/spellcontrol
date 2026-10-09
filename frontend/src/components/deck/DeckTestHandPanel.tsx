@@ -1,3 +1,4 @@
+import '@/styles/deck-builder-analysis.css';
 import {
   forwardRef,
   useEffect,

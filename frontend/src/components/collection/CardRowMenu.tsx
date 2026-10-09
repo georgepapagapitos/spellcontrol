@@ -1,3 +1,4 @@
+import '@/styles/deck-builder-card-list.css';
 import { Layers, Notebook, Pencil, Tags, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { AddToBinderSheet } from '@/components/binder/AddToBinderSheet';

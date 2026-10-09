@@ -1,3 +1,4 @@
+import '@/styles/deck-builder-analysis.css';
 import { formatBytes } from '@/lib/util/format-bytes';
 import { formatMoney } from '@/lib/collection/format-money';
 import { useCallback, useEffect, useRef, useState } from 'react';

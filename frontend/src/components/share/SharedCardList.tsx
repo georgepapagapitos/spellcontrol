@@ -1,3 +1,4 @@
+import '@/styles/shared.css';
 import { useMemo, type ReactNode } from 'react';
 import type { PublicCard } from '@/lib/social/shared-types';
 import { publicCardToEnriched } from '@/lib/social/shared-filter';

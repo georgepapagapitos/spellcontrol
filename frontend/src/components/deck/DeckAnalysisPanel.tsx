@@ -1,3 +1,4 @@
+import '@/styles/deck-builder-tabs.css';
 import {
   forwardRef,
   useCallback,

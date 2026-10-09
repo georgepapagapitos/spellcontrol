@@ -1,3 +1,4 @@
+import '@/styles/deck-builder-tabs.css';
 import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { CheckCircle2, Circle } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';

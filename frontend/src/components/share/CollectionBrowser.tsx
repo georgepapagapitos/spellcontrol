@@ -1,3 +1,5 @@
+import '@/styles/deck-builder-analysis.css';
+import '@/styles/shared.css';
 import { useState, type ReactNode } from 'react';
 import { CardPreview, type CardPreviewAction } from '@/components/card/CardPreview';
 import { EmptyState } from '@/components/shared/EmptyState';
