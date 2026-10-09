@@ -1132,10 +1132,10 @@ export function CardPreview({
             ref={panelInnerRef}
           >
             {slot(metaSlot, ' card-preview-slot--meta')}
-            {leadsWithExtra && slot(extraSlot)}
+            {leadsWithExtra && slot(extraSlot, ' card-preview-slot--extra')}
             {copySection}
             {rulesSection}
-            {!leadsWithExtra && slot(extraSlot)}
+            {!leadsWithExtra && slot(extraSlot, ' card-preview-slot--extra')}
             {playedInSection}
             {printingSection}
             {rulingsSection}
