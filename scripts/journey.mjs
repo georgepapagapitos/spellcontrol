@@ -761,12 +761,12 @@ function restoreScroll() {
 }
 
 /** Screenshot the page a fatal step died on and print what it was showing. */
-async function saveFatal({ page, tierName, consoleErrors }) {
+async function saveFatal({ page, tierName, consoleErrors, thirdPartyFailures = [] }) {
   const file = `fatal__${tierName}.png`;
   await page.screenshot({ path: path.join(OUT, file) });
   const seen = await page.evaluate(() => ({
     url: location.pathname + location.search,
-    alerts: [...document.querySelectorAll('[role=alert], .error-banner')]
+    alerts: [...document.querySelectorAll('[role=alert], .error-banner, .commander-search-error')]
       .map((e) => e.textContent.trim())
       .filter(Boolean),
     disabled: [...document.querySelectorAll('button:disabled')]
@@ -778,6 +778,9 @@ async function saveFatal({ page, tierName, consoleErrors }) {
   if (seen.alerts.length) console.log(`  alerts: ${seen.alerts.join(' | ')}`);
   if (seen.disabled.length) console.log(`  disabled buttons: ${seen.disabled.join(' | ')}`);
   for (const e of consoleErrors.slice(-10)) console.log(`  console: ${e}`);
+  // Third-party noise stays out of the per-route error count (THIRD_PARTY), but a
+  // fatal step is where it explains a missing card or a refused lookup.
+  for (const e of thirdPartyFailures.slice(-15)) console.log(`  third-party: ${e}`);
 }
 
 /** Click the first element whose visible text matches, waiting for it to exist. */
@@ -826,11 +829,21 @@ async function main() {
       const page = await context.newPage();
       await page.setViewport(tier);
       const consoleErrors = [];
-      live = { page, tierName, consoleErrors };
+      const thirdPartyFailures = [];
+      live = { page, tierName, consoleErrors, thirdPartyFailures };
       page.on('console', (m) => {
         if (m.type() !== 'error') return;
         if (THIRD_PARTY.test(m.location()?.url ?? '') || THIRD_PARTY.test(m.text())) return;
         consoleErrors.push(m.text().slice(0, 300));
+      });
+      // Both events exist on Chrome (CDP) and Firefox (WebDriver BiDi).
+      page.on('requestfailed', (r) => {
+        if (!THIRD_PARTY.test(r.url())) return;
+        thirdPartyFailures.push(`${r.url().slice(0, 160)} ${r.failure()?.errorText ?? 'failed'}`);
+      });
+      page.on('response', (r) => {
+        if (r.status() < 400 || !THIRD_PARTY.test(r.url())) return;
+        thirdPartyFailures.push(`${r.url().slice(0, 160)} HTTP ${r.status()}`);
       });
       page.on('pageerror', (e) => {
         if (THIRD_PARTY.test(String(e))) return;
@@ -1071,6 +1084,19 @@ async function main() {
               ?.textContent?.trim() ?? null
         );
         await page.evaluate(() => document.querySelector('button.commander-result-card')?.click());
+        // A pick that fails shows its reason in an alert; fail with that text
+        // instead of a generic "no clickable element" on Start blank.
+        await page.waitForFunction(
+          () =>
+            [...document.querySelectorAll('button, a, [role=button]')].some((e) =>
+              /^Start blank$/.test(e.textContent.trim())
+            ) || document.querySelector('.commander-search-error'),
+          { timeout: 60_000 }
+        );
+        const pickError = await page.evaluate(
+          () => document.querySelector('.commander-search-error')?.textContent?.trim() ?? null
+        );
+        if (pickError) throw new Error(`commander selection failed: ${pickError}`);
         await clickText(page, /^Start blank$/, { timeout: 60_000 });
         await page.waitForFunction(() => /^\/decks\/deck_/.test(location.pathname), {
           timeout: 60_000,
