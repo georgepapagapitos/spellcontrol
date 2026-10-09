@@ -22,7 +22,7 @@ interface Enrich {
   rarity: string;
   usd: string | null;
   games: string[];
-  legalities: { commander: string; paupercommander: string };
+  legalities: { commander: string; paupercommander: string; brawl: string };
 }
 
 // Deterministic per-index rarity/price/arena/PDH-legality so settings have real, varied material to filter against.
@@ -40,7 +40,13 @@ export function enrich(i: number): Enrich {
   // common") — model that as common/uncommon being PDH-legal, same rule
   // deckFilters.ts's notPauperCommanderLegal relies on.
   const paupercommander = rarity === 'common' || rarity === 'uncommon' ? 'legal' : 'not_legal';
-  return { rarity, usd, games, legalities: { commander: 'legal', paupercommander } };
+  // Brawl is Standard-only, so it is independent of rarity. The generated
+  // cards are not real printings; model a mostly-legal pool with a quarter
+  // that fail the gate, so the brawl case seats from a legal pool and still
+  // has illegal cards to refuse. The real pinned cards below keep their
+  // true Scryfall brawl values.
+  const brawl = i % 4 === 3 ? 'not_legal' : 'legal';
+  return { rarity, usd, games, legalities: { commander: 'legal', paupercommander, brawl } };
 }
 
 export function mkSC(name: string, typeLine: string, cmc: number, i = 0): ScryfallCard {

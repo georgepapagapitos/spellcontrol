@@ -526,6 +526,13 @@ const CASES: Case[] = [
     ctx: (ctx) => {
       ctx.commander = { ...COMMANDER, legalities: { ...COMMANDER.legalities, brawl: 'legal' } };
     },
+    // The pool is mostly Brawl-legal (settings-universe enrich), so the deck
+    // seats real cards, and none of them may be illegal in Brawl.
+    extra: (deck) => {
+      const nonBasic = allCards(deck).filter((c) => !c.type_line.includes('Basic'));
+      expect(nonBasic.length).toBeGreaterThan(20);
+      expect(nonBasic.filter((c) => c.legalities.brawl !== 'legal')).toEqual([]);
+    },
   },
   { name: 'deckFormat 40', customize: { deckFormat: 40, landCount: 16, nonBasicLandCount: 6 } },
   {
