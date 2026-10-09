@@ -42,6 +42,76 @@ permissions:
 # Every job below caps its runtime (GitHub's default is 6h) so a hung install
 # or test can't silently drain the Actions budget.
 jobs:
+  # Which parts of the repo a PR touches, so a PR runs only the suites its
+  # files can break: a backend-only PR skips the frontend's nine jobs, and a
+  # frontend-only PR skips the backend. A full run bills ~33 runner-minutes,
+  # which costs nothing on a public repo and is the whole bill on a private one.
+  #
+  # Every other event (a push to main, a merge_group) runs everything, so main
+  # still checks the whole tree after each merge before the Fly deploy chains
+  # off it. A path this classifier gets wrong is caught there, not shipped.
+  #
+  # It fails toward running: anything it doesn't recognize, a failed API call,
+  # or this job failing outright (its outputs are then empty, and the jobs
+  # below test `!= 'false'`) all run every suite. Only a known-harmless path
+  # skips anything.
+  #
+  # The required checks must still REPORT when skipped. A skipped plain job
+  # does (a skip counts as passing), but a skipped MATRIX job reports under its
+  # unexpanded `${{ matrix.package }}` name, so a required matrix check would
+  # never arrive. That is why `package` gates its steps instead of the job.
+  changes:
+    name: changed areas
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      frontend: ${{ steps.areas.outputs.frontend }}
+      backend: ${{ steps.areas.outputs.backend }}
+      packages: ${{ steps.areas.outputs.packages }}
+
+    steps:
+      - id: areas
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          frontend=false backend=false packages=false
+          all() { frontend=true backend=true packages=true; }
+          # The files endpoint stops at 3,000 entries, so a list that long
+          # may be cut short.
+          if [ "$EVENT" != pull_request ]; then
+            all
+          elif ! files=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --jq '.[].filename'); then
+            all
+          elif [ "$(printf '%s\n' "$files" | wc -l)" -ge 3000 ]; then
+            all
+          else
+            while IFS= read -r f; do
+              case "$f" in
+                '') ;;
+                # The backend reads the tag and otag snapshots from here.
+                frontend/public/*) frontend=true backend=true ;;
+                frontend/*) frontend=true ;;
+                backend/*) backend=true ;;
+                # Both apps build against the shared packages.
+                packages/*) all ;;
+                *.md | LICENSE | .vscode/*) ;;
+                # Root config, lockfiles, .github, scripts, .nvmrc: everything.
+                *) all ;;
+              esac
+            done <<< "$files"
+          fi
+          echo "frontend=$frontend backend=$backend packages=$packages"
+          {
+            echo "frontend=$frontend"
+            echo "backend=$backend"
+            echo "packages=$packages"
+          } >> "$GITHUB_OUTPUT"
+
   # Cheap structural gate, deliberately first: a packages/* shared package has to
   # be registered in every place that installs a consumer, and the places that
   # are NOT PR checks (the cron ingests, the release build, the image build) fail
@@ -77,8 +147,12 @@ jobs:
   # "protect main" ruleset, and a renamed check never reports, so every PR would
   # wait on it forever. Adding a package here does NOT make it required — that
   # is a ruleset edit (Settings → Rules → protect main).
+  #
+  # The job always runs and its steps skip instead (see `changes` for why).
   package:
     name: ${{ matrix.package }} — typecheck & test
+    needs: changes
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -93,25 +167,31 @@ jobs:
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: ${{ needs.changes.outputs.packages != 'false' }}
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        if: ${{ needs.changes.outputs.packages != 'false' }}
         with:
           node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: packages/${{ matrix.package }}/package-lock.json
 
       - name: Install dependencies
+        if: ${{ needs.changes.outputs.packages != 'false' }}
         uses: ./.github/actions/npm-ci
         with:
           working-directory: packages/${{ matrix.package }}
 
       - name: Type check
+        if: ${{ needs.changes.outputs.packages != 'false' }}
         run: npm run typecheck
 
       - name: Format check
+        if: ${{ needs.changes.outputs.packages != 'false' }}
         run: npm run format:check
 
       - name: Run tests with coverage
+        if: ${{ needs.changes.outputs.packages != 'false' }}
         run: npm run test:coverage
 
   # The frontend runs as parallel jobs so the slow parts overlap: three static
@@ -124,6 +204,8 @@ jobs:
   # parallel sessions push overlapping runs often.
   frontend-static:
     name: Frontend — ${{ matrix.check }}
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.frontend != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -205,6 +287,8 @@ jobs:
   # PinnedPartSequencer in vitest.config.ts).
   frontend-tests:
     name: Frontend — tests (${{ matrix.shard }}/${{ strategy.job-total }})
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.frontend != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -258,9 +342,12 @@ jobs:
   # canceled and fails on its own when any leg did not succeed, because a
   # job skipped over a failed `needs` reports as skipped, and a skipped
   # required check counts as passing.
+  #
+  # When `changes` says the PR can't touch the frontend, the legs are skipped
+  # on purpose, so every step here skips too and the check passes empty.
   frontend:
     name: Frontend — typecheck & test
-    needs: [frontend-static, frontend-tests]
+    needs: [changes, frontend-static, frontend-tests]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -271,29 +358,34 @@ jobs:
 
     steps:
       - name: Require every frontend leg
-        if: ${{ needs.frontend-static.result != 'success' || needs.frontend-tests.result != 'success' }}
+        if: ${{ needs.changes.outputs.frontend != 'false' && (needs.frontend-static.result != 'success' || needs.frontend-tests.result != 'success') }}
         working-directory: .
         run: |
           echo "static checks: ${{ needs.frontend-static.result }}, tests: ${{ needs.frontend-tests.result }}"
           exit 1
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: ${{ needs.changes.outputs.frontend != 'false' }}
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        if: ${{ needs.changes.outputs.frontend != 'false' }}
         with:
           node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
       - name: Build shared packages
+        if: ${{ needs.changes.outputs.frontend != 'false' }}
         uses: ./.github/actions/build-shared
 
       - name: Install dependencies
+        if: ${{ needs.changes.outputs.frontend != 'false' }}
         uses: ./.github/actions/npm-ci
         with:
           working-directory: frontend
 
       - name: Download blob reports
+        if: ${{ needs.changes.outputs.frontend != 'false' }}
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: frontend-blob-*
@@ -301,10 +393,13 @@ jobs:
           merge-multiple: true
 
       - name: Merge coverage and check the floors
+        if: ${{ needs.changes.outputs.frontend != 'false' }}
         run: npx vitest run --merge-reports --coverage
 
   backend:
     name: Backend — typecheck & test
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.backend != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
