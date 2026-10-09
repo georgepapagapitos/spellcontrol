@@ -77,6 +77,17 @@ export type SortKey =
 
 export const ROW_HEIGHT_LIST = 66;
 export const ROW_HEIGHT_COMPACT = 32;
+// Phone thumbnail rows (<=599px) are two lines, name on line 1 and meta + price
+// on line 2 (collection.css "Phone rows are two lines"). Phone compact rows stay
+// one line, so compact has no phone estimate. measureElement still supplies the
+// exact height.
+export const ROW_HEIGHT_LIST_PHONE = 68;
+
+/** Seed height for one list/compact card row at the given tier. */
+export function listRowEstimate(view: 'list' | 'compact', phone: boolean): number {
+  if (view === 'compact') return ROW_HEIGHT_COMPACT;
+  return phone ? ROW_HEIGHT_LIST_PHONE : ROW_HEIGHT_LIST;
+}
 // Which of the shared table's columns drive a sort here, and the sort key
 // each one sets. Columns absent from this map render as labels (the SortMenu
 // still covers every key, and is the phone path where the table doesn't
