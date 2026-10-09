@@ -102,7 +102,13 @@ export default defineConfig({
     // line and produced a DIFFERENT failure set on every run, on an
     // unmodified tree. Raising the ceiling only costs wall-clock on a test
     // that was going to fail anyway; a passing test finishes exactly as fast.
-    testTimeout: 20_000,
+    // 20s held until the whole-deck search (#2639) joined every generateDeck
+    // call. Measured on CI on 2026-10-09 (merged blob report, a passing run):
+    // the settings-matrix cases take 8-11s and the optimizer/judge suites
+    // 15-17s, about 5x a dev box under coverage. The heaviest generator cases
+    // then crossed 20s and failed main three runs in a row, skipping the Fly
+    // deploy. 60s leaves room for a slow runner without hiding a hang.
+    testTimeout: 60_000,
     hookTimeout: 30_000,
     // Installs an in-memory `localStorage` shim for persisted stores; inert
     // for tests that don't touch storage.
