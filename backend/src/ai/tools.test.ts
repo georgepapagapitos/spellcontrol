@@ -582,3 +582,68 @@ describe('makeCandidateResolver', () => {
     );
   });
 });
+
+describe('deck format legality (E612)', () => {
+  // Sol Ring is Commander-legal and Brawl-banned; Pauper-banned too (not a common).
+  beforeEach(() => {
+    cache.setMany([
+      card({
+        id: 'id-solring',
+        name: 'Sol Ring',
+        oracle_id: 'o-solring',
+        type_line: 'Artifact',
+        oracle_text: 'T: Add CC. Destroy target artifact mana rock.',
+        color_identity: [],
+        cmc: 1,
+        legalities: { commander: 'legal', brawl: 'banned', paupercommander: 'not_legal' },
+      }),
+      card({
+        id: 'id-brawlok',
+        name: 'Brawl Breaker',
+        oracle_id: 'o-brawlok',
+        type_line: 'Artifact',
+        oracle_text: 'Destroy target artifact mana rock.',
+        color_identity: [],
+        cmc: 2,
+        legalities: { commander: 'legal', brawl: 'legal', paupercommander: 'legal' },
+      }),
+    ]);
+    cache.setLookups([
+      { key: 'ns:sol ring|tst', scryfallId: 'id-solring' },
+      { key: 'ns:brawl breaker|tst', scryfallId: 'id-brawlok' },
+    ]);
+  });
+
+  const names = async (format?: string) => {
+    const tool = lookupCardsTool(cache, { format });
+    const { fetched } = await tool.run({ query: 'destroy target artifact mana rock' });
+    return fetched.map((f) => f.name);
+  };
+
+  it('lookup_cards excludes a Brawl-banned card for a brawl deck', async () => {
+    const got = await names('brawl');
+    expect(got).not.toContain('Sol Ring');
+    expect(got).toContain('Brawl Breaker');
+  });
+
+  it('lookup_cards keeps it for a commander deck or no format', async () => {
+    expect(await names('commander')).toContain('Sol Ring');
+    expect(await names(undefined)).toContain('Sol Ring');
+    expect(await names('not-a-format')).toContain('Sol Ring');
+  });
+
+  it('lookup_cards judges a pauper commander deck by its own key', async () => {
+    const got = await names('paupercommander');
+    expect(got).not.toContain('Sol Ring');
+    expect(got).toContain('Brawl Breaker');
+  });
+
+  it('the resolver rejects it for brawl and accepts it for commander or no format', () => {
+    expect(makeCandidateResolver(cache, { format: 'brawl' })('Sol Ring')).toBeNull();
+    expect(makeCandidateResolver(cache, { format: 'brawl' })('Brawl Breaker')).toBe(
+      'Brawl Breaker'
+    );
+    expect(makeCandidateResolver(cache, { format: 'commander' })('Sol Ring')).toBe('Sol Ring');
+    expect(makeCandidateResolver(cache, {})('Sol Ring')).toBe('Sol Ring');
+  });
+});

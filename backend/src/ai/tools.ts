@@ -1,7 +1,12 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import type { BracketEstimation } from '@spellcontrol/deck-metrics';
 import { logger } from '../logger';
-import type { PriceCeiling, ScryfallCache } from '../cache';
+import { LEGALITY_KEYS, type PriceCeiling, type ScryfallCache } from '../cache';
+
+/** The legality key a deck's format is judged by; unknown or absent is Commander. */
+export function deckLegalityKey(format: string | undefined): string {
+  return format && LEGALITY_KEYS.has(format) ? format : 'commander';
+}
 
 /**
  * Tools the AI features can call. The backend had none before this — every
@@ -79,8 +84,11 @@ export function lookupCardsTool(
     notOwnedNames?: readonly string[];
     /** When set, every result's cheapest fresh printing costs at most this. */
     maxPrice?: PriceCeiling;
+    /** The deck's format key (a Scryfall legality key). Absent or unknown means Commander. */
+    format?: string;
   }
 ): AiTool {
+  const legalityKey = deckLegalityKey(context.format);
   const ownedOnly = context.ownedNames !== undefined;
   const unownedOnly = context.notOwnedNames !== undefined;
   const budget = context.maxPrice;
@@ -161,7 +169,9 @@ export function lookupCardsTool(
         query,
         typeLine: asString(input.type_line),
         colorIdentity: context.colorIdentity,
-        commanderLegalOnly: true,
+        // Commander keeps its indexed column; any other format joins the card rows.
+        commanderLegalOnly: legalityKey === 'commander',
+        legalityKey: legalityKey === 'commander' ? undefined : legalityKey,
         exclude: context.exclude,
         ownedNames: context.ownedNames,
         notOwnedNames: context.notOwnedNames,
@@ -248,8 +258,11 @@ export function makeCandidateResolver(
     ownedNames?: readonly string[];
     notOwnedNames?: readonly string[];
     maxPrice?: PriceCeiling;
+    /** The deck's format key (a Scryfall legality key). Absent or unknown means Commander. */
+    format?: string;
   }
 ): (name: string) => string | null {
+  const legalityKey = deckLegalityKey(context.format);
   const identity = context.colorIdentity ? new Set(context.colorIdentity) : null;
   const excluded = new Set((context.exclude ?? []).map((n) => n.toLowerCase()));
   const owned = context.ownedNames ? new Set(context.ownedNames.map((n) => n.toLowerCase())) : null;
@@ -267,7 +280,7 @@ export function makeCandidateResolver(
     const canonical = card.name;
     const key = canonical.toLowerCase();
     if (excluded.has(key) || excluded.has(trimmed.toLowerCase())) return null;
-    if (card.legalities?.commander !== 'legal') return null;
+    if (card.legalities?.[legalityKey] !== 'legal') return null;
     if (identity && (card.color_identity ?? []).some((c) => !identity.has(c))) return null;
     if (owned && !owned.has(key)) return null;
     if (notOwned?.has(key)) return null;

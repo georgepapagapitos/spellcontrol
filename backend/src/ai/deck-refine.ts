@@ -6,8 +6,10 @@ import {
   isCollectionScope,
   parseAiScope,
   parseCurrency,
+  parseDeckFormat,
   parsePartnerCommander,
   renderAnalysis,
+  type AiDeckFormat,
   type AiScope,
   type OracleEntry,
   type PriceCurrency,
@@ -210,6 +212,8 @@ export interface RefineRequest {
   scope: AiScope;
   /** The player's display currency; only the `budget` scope reads it. */
   currency: PriceCurrency;
+  /** The deck's format; decides which cards count as legal suggestions. */
+  format: AiDeckFormat;
   /** Derived: `scope !== 'any'`. Kept as the prompt's OWNED ONLY marker and the
    *  hash field, so readings written under the boolean keep their keys. */
   ownedOnly: boolean;
@@ -271,6 +275,8 @@ export function parseRefineRequest(
     return { ok: false, error: 'analysis is too large.' };
   }
   const scope = parseAiScope(b.scope, b.ownedOnly);
+  const format = parseDeckFormat(b.format);
+  if (!format.ok) return format;
   return {
     ok: true,
     value: {
@@ -281,6 +287,7 @@ export function parseRefineRequest(
       pool: pool.value,
       scope,
       currency: parseCurrency(b.currency),
+      format: format.value,
       ownedOnly: isCollectionScope(scope),
       analysis: b.analysis as Record<string, unknown>,
     },
@@ -324,6 +331,8 @@ export function hashRefineInput(req: RefineRequest): string {
             ? req.scope
             : undefined,
         currency: req.scope === 'budget' && req.currency === 'eur' ? 'eur' : undefined,
+        // Omitted for Commander so readings written before formats keep their key.
+        format: req.format === 'commander' ? undefined : req.format,
         analysis: req.analysis,
       })
     )

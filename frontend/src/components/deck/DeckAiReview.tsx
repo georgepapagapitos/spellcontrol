@@ -201,6 +201,7 @@ export function DeckAiReview({
         cards,
         scope,
         currency: aiPriceCurrency(),
+        format,
         analysis,
       },
       setStreamed,
