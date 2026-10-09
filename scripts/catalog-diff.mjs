@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 // Compare two sets of catalog crops (scripts/catalog-shots.mjs output) and
-// fail when a crop changed. Used by the nightly workflow: the baseline is the
-// previous run's uploaded artifact, never a file in git.
+// fail when a crop changed. Used by .github/workflows/visual-catalog.yml: the
+// baseline is main's head photographed on the same runner as the PR's merge
+// commit, never a file in git.
 //
-//   node scripts/catalog-diff.mjs --baseline prev-shots --current catalog-shots --out catalog-diff
+//   node scripts/catalog-diff.mjs --baseline base-shots --current catalog-shots --out catalog-diff
 //
 // Identical bytes short-circuit (a clean night decodes nothing). Crops whose
 // bytes differ are decoded in the headless browser itself (canvas), so no PNG
@@ -11,7 +12,7 @@
 // than TOLERANCE, and a crop as changed when at least MIN_PIXELS pixels did or
 // its size differs. Each changed crop gets a diff PNG (baseline dimmed, changed
 // pixels red) under --out. Added or removed crops (a new theme, a new section)
-// are reported but do not fail: the next night's baseline includes them.
+// are reported but do not fail: they have nothing to differ from.
 //
 // Exit 0: nothing changed. Exit 1: at least one crop changed. Exit 2: bad usage.
 import { appendFile, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
@@ -156,7 +157,7 @@ async function main() {
   if (process.env.GITHUB_STEP_SUMMARY) {
     const lines = [
       '## Component catalog',
-      `${current.length} crops compared with the previous run: **${changed.length} changed**, ${added.length} added, ${removed.length} removed.`,
+      `${current.length} crops compared with the base: **${changed.length} changed**, ${added.length} added, ${removed.length} removed.`,
       ...changed.slice(0, 60).map((c) => `- \`${c.rel}\`: ${c.reason}`),
       changed.length > 0 ? '\nDiff images are in the `catalog-diff` artifact.' : '',
     ];
