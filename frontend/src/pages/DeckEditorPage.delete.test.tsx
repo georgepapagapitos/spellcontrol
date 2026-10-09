@@ -529,6 +529,16 @@ describe('DeckEditorPage — the format in the hero meta', () => {
     const modern = renderEditor();
     expect(modern.container.querySelector('.deck-hero-bracket')).toBeNull();
   });
+
+  // A phone's Power tab badge sits straight under the header and already says
+  // the bracket, so the phone's one-line meta doesn't repeat it.
+  it('leaves the bracket to the Power tab badge on a phone', () => {
+    atWidth(390);
+    const { container } = renderEditor();
+    expect(container.querySelector('.deck-hero-bracket')).toBeNull();
+    expect(screen.getByRole('tab', { name: /Power/ }).textContent).toContain('3');
+    vi.unstubAllGlobals();
+  });
 });
 
 describe('DeckEditorPage — Delete in ⋮ overflow (UX-316)', () => {
