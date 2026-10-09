@@ -154,13 +154,22 @@ const RULES: Rule[] = [
     'RETRY',
     (s, kind) =>
       s.trim() === 'Try again' &&
-      (kind === 'jsx:button' || kind === 'prop:actionLabel' || kind === 'attr:actionLabel'),
+      (kind === 'jsx:button' ||
+        kind === 'jsx:button-expr' ||
+        kind === 'prop:actionLabel' ||
+        kind === 'attr:actionLabel'),
     'the retry action label is "Retry", not "Try again"',
   ],
-  ['SHOUTING', shouts, 'ALL-CAPS in copy: write sentence case; the stylesheet owns any caps'],
+  [
+    'SHOUTING',
+    (s, kind) => kind !== 'jsx:button-expr' && shouts(s),
+    'ALL-CAPS in copy: write sentence case; the stylesheet owns any caps',
+  ],
   [
     'BUTTON_LABEL',
-    (s, kind) => kind === 'jsx:button' && /^(Submit|Learn more|Click here)$/i.test(s.trim()),
+    (s, kind) =>
+      (kind === 'jsx:button' || kind === 'jsx:button-expr') &&
+      /^(Submit|Learn more|Click here)$/i.test(s.trim()),
     'a button names its outcome ("Send report", "Save deck"), never "Submit", "Learn more" or "Click here"',
   ],
   [
@@ -328,7 +337,7 @@ function scan(file: string): Violation[] {
           : undefined;
       if (v != null) check(n, 'infotip:text', v);
     }
-    if (ts.isStringLiteral(n) && inButtonChildExpression(n)) check(n, 'jsx:button', n.text);
+    if (ts.isStringLiteral(n) && inButtonChildExpression(n)) check(n, 'jsx:button-expr', n.text);
     if (ts.isJsxText(n)) {
       const t = n.text.replace(/\s+/g, ' ').trim();
       // `{name} — {detail}`: a bare em-dash between two expressions is a
