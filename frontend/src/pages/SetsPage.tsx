@@ -59,6 +59,8 @@ import { ArtBadge } from '@/components/shared/ArtBadge';
  *  "Completion moments": once per subject per app-open). */
 const celebratedSetComplete = new Set<string>();
 
+const CARD_REVEAL_STEP = 6;
+
 export function SetsPage() {
   const { code } = useParams();
   return code ? <SetDetail code={code} /> : <SetsIndex />;
@@ -353,7 +355,14 @@ function SetsIndex() {
   }, [progress, query]);
   const completeCount = useMemo(() => progress.filter((s) => s.pct === 100).length, [progress]);
   // Card-name search: which sets is this card in? (fires at 3+ characters)
-  const cardResults = useMemo(() => searchCollectionCardSets(cards, query), [cards, query]);
+  // The reveal count belongs to the query it was raised for, so typing again
+  // starts back at the first handful without a reset effect.
+  const [cardReveal, setCardReveal] = useState({ q: '', n: CARD_REVEAL_STEP });
+  const cardLimit = cardReveal.q === query ? cardReveal.n : CARD_REVEAL_STEP;
+  const cardResults = useMemo(
+    () => searchCollectionCardSets(cards, query, cardLimit),
+    [cards, query, cardLimit]
+  );
 
   return (
     <HubPage
@@ -419,11 +428,18 @@ function SetsIndex() {
                     <CardMatchGroup key={m.name} match={m} setMap={setMap} sldIndex={sldIndex} />
                   ))}
                   {cardResults.total > cardResults.matches.length && (
-                    <p className="sets-card-more">
-                      +{cardResults.total - cardResults.matches.length} more{' '}
-                      {cardResults.total - cardResults.matches.length === 1 ? 'card' : 'cards'}{' '}
-                      match. Keep typing to narrow.
-                    </p>
+                    <>
+                      <p className="sets-card-more">
+                        Showing {cardResults.matches.length} of {cardResults.total} cards.
+                      </p>
+                      <Button
+                        onClick={() => setCardReveal({ q: query, n: cardLimit + CARD_REVEAL_STEP })}
+                      >
+                        Show{' '}
+                        {Math.min(CARD_REVEAL_STEP, cardResults.total - cardResults.matches.length)}{' '}
+                        more
+                      </Button>
+                    </>
                   )}
                 </section>
               )}

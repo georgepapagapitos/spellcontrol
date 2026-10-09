@@ -212,3 +212,99 @@ describe('useSearchCards', () => {
     expect(mockSearchCards).toHaveBeenCalledWith('bolt');
   });
 });
+
+describe('useSearchCards paged mode (E341)', () => {
+  const page = (from: number, to: number, hasMore: boolean) => ({
+    data: Array.from({ length: to - from }, (_, i) => makeCard(String(from + i))),
+    total_cards: 5,
+    has_more: hasMore,
+  });
+  const ids = (rows: unknown[]) => rows.map((c) => (c as { id: string }).id);
+  const settle = async () => {
+    await act(async () => {
+      vi.advanceTimersByTime(300);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+  };
+
+  it('keeps every card of page one and appends the next page, deduped', async () => {
+    mockSearchCards.mockResolvedValueOnce(page(0, 3, true));
+    const { result } = renderHook(() =>
+      useSearchCards<never>('sweeper', { limit: 2, paged: true })
+    );
+    await settle();
+    expect(result.current.results).toHaveLength(3);
+    expect(result.current.hasMore).toBe(true);
+
+    // Page two overlaps page one by one card.
+    mockSearchCards.mockResolvedValueOnce(page(2, 5, false));
+    await act(async () => {
+      await result.current.loadMore();
+    });
+    expect(mockSearchCards).toHaveBeenLastCalledWith('sweeper', 2);
+    expect(ids(result.current.results)).toEqual(['0', '1', '2', '3', '4']);
+    expect(result.current.hasMore).toBe(false);
+  });
+
+  it('does not page unless asked', async () => {
+    mockSearchCards.mockResolvedValueOnce(page(0, 3, true));
+    const { result } = renderHook(() => useSearchCards('sweeper', 2));
+    await settle();
+    expect(result.current.results).toHaveLength(2);
+    expect(result.current.hasMore).toBe(false);
+  });
+
+  it('drops a page that lands after the query changed', async () => {
+    mockSearchCards.mockResolvedValueOnce(page(0, 3, true));
+    const { result, rerender } = renderHook(({ q }) => useSearchCards<never>(q, { paged: true }), {
+      initialProps: { q: 'sweeper' },
+    });
+    await settle();
+
+    let resolveStale: (v: unknown) => void = () => {};
+    mockSearchCards.mockReturnValueOnce(new Promise((r) => (resolveStale = r)));
+    let pending: Promise<boolean> = Promise.resolve(false);
+    act(() => {
+      pending = result.current.loadMore();
+    });
+
+    mockSearchCards.mockResolvedValueOnce({
+      data: [makeCard('x')],
+      total_cards: 1,
+      has_more: false,
+    });
+    rerender({ q: 'ramp' });
+    await settle();
+    expect(ids(result.current.results)).toEqual(['x']);
+
+    await act(async () => {
+      resolveStale(page(3, 5, false));
+      expect(await pending).toBe(false);
+    });
+    expect(ids(result.current.results)).toEqual(['x']);
+    expect(result.current.hasMore).toBe(false);
+  });
+
+  it('keeps prior results and allows a retry when a page fails', async () => {
+    mockSearchCards.mockResolvedValueOnce(page(0, 3, true));
+    const { result } = renderHook(() => useSearchCards<never>('sweeper', { paged: true }));
+    await settle();
+
+    mockSearchCards.mockRejectedValueOnce(new Error('boom'));
+    await act(async () => {
+      expect(await result.current.loadMore()).toBe(false);
+    });
+    expect(result.current.results).toHaveLength(3);
+    expect(result.current.moreError).toBeTruthy();
+    expect(result.current.hasMore).toBe(true);
+    expect(result.current.loadingMore).toBe(false);
+
+    mockSearchCards.mockResolvedValueOnce(page(3, 5, false));
+    await act(async () => {
+      expect(await result.current.loadMore()).toBe(true);
+    });
+    expect(result.current.results).toHaveLength(5);
+    expect(result.current.moreError).toBeNull();
+  });
+});

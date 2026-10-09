@@ -357,10 +357,14 @@ const NOT_COLLECTIBLE = '-layout:art_series -layout:front_card -is:digital';
  * EDHREC order sank the Treasure token to 21st of 23 behind every card with
  * "treasure" in its name, under the very search a person types to add one.
  */
-export async function searchCollectibleCards(query: string): Promise<ScryfallSearchResponse> {
-  if (offlineActive()) return searchCards(query, [], { skipFormatFilter: true });
+export async function searchCollectibleCards(
+  query: string,
+  page = 1
+): Promise<ScryfallSearchResponse> {
+  if (offlineActive()) return searchCards(query, [], { skipFormatFilter: true, page });
   const q = encodeURIComponent(`(${normalizeScryfallQuery(query)}) ${NOT_COLLECTIBLE}`);
-  const path = `/cards/search?q=${q}&order=edhrec&include_extras=true`;
+  // Page 1 keeps the exact path it always had, so its cache entry is shared.
+  const path = `/cards/search?q=${q}&order=edhrec&include_extras=true${page > 1 ? `&page=${page}` : ''}`;
   const cached = searchCache.get(path);
   if (cached && Date.now() - cached.timestamp < SEARCH_CACHE_TTL) return cached.data;
   const result = await scryfallFetch<ScryfallSearchResponse>(path);

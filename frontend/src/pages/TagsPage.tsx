@@ -263,7 +263,7 @@ export function TagsPage() {
               ]}
             />
           </div>
-          <InlineCardSearch query={query} view={view} />
+          <InlineCardSearch query={query} view={view} paged />
         </section>
       ) : (
         // The unknown-slug note above already says what happened and what to
