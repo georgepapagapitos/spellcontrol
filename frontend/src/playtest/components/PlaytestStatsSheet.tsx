@@ -331,7 +331,7 @@ function DeckStatsSection({
 
       {/* Simulation context */}
       <div className="playtest-stats-sim">
-        <p className="playtest-stats-sim-title">Deck opener profile (500 simulated hands)</p>
+        <p className="playtest-stats-sim-title">Opening hands, 500 simulated</p>
         {simResult ? (
           <div className="playtest-stats-rows">
             <div className="playtest-stats-row">
@@ -382,9 +382,11 @@ function DeckStatsSection({
             </div>
           </div>
         ) : deck === undefined ? (
-          <p className="playtest-stats-sim-note">Deck data unavailable.</p>
+          <p className="playtest-stats-sim-note">
+            Couldn't read this deck. Reopen the playtest from the deck page.
+          </p>
         ) : (
-          <p className="playtest-stats-sim-note">Deck must have at least 7 cards to simulate.</p>
+          <p className="playtest-stats-sim-note">Needs 7 cards to simulate.</p>
         )}
       </div>
     </div>
@@ -484,19 +486,20 @@ function SimulateSection({ deck }: { deck: Deck | undefined }) {
   };
 
   if (!deck) {
-    return <p className="playtest-stats-empty">Deck data unavailable.</p>;
+    return (
+      <p className="playtest-stats-empty">
+        Couldn't read this deck. Reopen the playtest from the deck page.
+      </p>
+    );
   }
   if (deck.cards.length < 7) {
-    return <p className="playtest-stats-empty">Deck must have at least 7 cards to simulate.</p>;
+    return <p className="playtest-stats-empty">Needs 7 cards to simulate.</p>;
   }
 
   const maxLandBucket = batch ? Math.max(...batch.landHistogram, 1) : 1;
 
   return (
     <div className="playtest-stats-rows">
-      <p className="playtest-stats-sim-note">
-        1,000 goldfished games: opener, land drops, and kill turn.
-      </p>
       <Button onClick={handleSimulate} disabled={running}>
         {running && <Loader2 className="playtest-stats-sim-spinner" aria-hidden />}
         {running ? 'Simulating…' : batch ? 'Re-run simulation' : 'Simulate 1,000 games'}
@@ -619,8 +622,8 @@ function SimulateSection({ deck }: { deck: Deck | undefined }) {
                 <p className="playtest-stats-row" style={{ flexWrap: 'wrap' }}>
                   <Hourglass width={14} height={14} strokeWidth={1.8} aria-hidden />
                   <span>
-                    Predicted: win condition kills ~turn <strong>{batch.clock.typicalTurn}</strong>{' '}
-                    (median) / <strong>{batch.clock.p90Turn}</strong> (p90)
+                    Median turn <strong>{batch.clock.typicalTurn}</strong>, p90 turn{' '}
+                    <strong>{batch.clock.p90Turn}</strong>
                   </span>
                   <InfoTip
                     label="the kill-turn estimate"
@@ -633,14 +636,12 @@ function SimulateSection({ deck }: { deck: Deck | undefined }) {
               <p className="playtest-stats-sim-note">
                 {batch.primaryLabel
                   ? `${batch.primaryLabel} doesn't win on its own. No kill turn to predict.`
-                  : 'No win conditions to predict from yet.'}
+                  : 'Add a win condition to see a kill turn.'}
               </p>
             )}
           </div>
 
-          <p className="playtest-stats-sim-note">
-            Goldfish runs: no opponent, and colors aren't modeled.
-          </p>
+          <p className="playtest-stats-sim-note">Goldfish only: no opponent, colors not modeled.</p>
         </>
       )}
     </div>

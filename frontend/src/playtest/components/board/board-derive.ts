@@ -211,7 +211,7 @@ export function deriveOnlineHorde(onlineHorde: OnlineHordeResult | null) {
   const onlineHordeBlocked =
     onlineHorde?.status === 'skew'
       ? {
-          message: "This table's horde comes from a newer version of the app. Reload to join in.",
+          message: 'This horde needs a newer version. Reload to join.',
           actionLabel: 'Reload',
           onAction: () => window.location.reload(),
         }

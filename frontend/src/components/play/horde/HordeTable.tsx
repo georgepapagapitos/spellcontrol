@@ -1,3 +1,4 @@
+import { DISCARD_GAME_BODY } from '@/lib/play/shared-copy';
 import { useEffect, useRef, useState } from 'react';
 import { DndContext } from '@dnd-kit/core';
 import { Minimize2 } from 'lucide-react';
@@ -358,9 +359,7 @@ export function HordeTable() {
         <ConfirmDialog
           title={pendingLeave === 'end' ? 'End this game?' : 'Discard this game?'}
           body={
-            pendingLeave === 'end'
-              ? "Ends the game as a loss. This can't be undone."
-              : 'The current game will be removed without saving to history.'
+            pendingLeave === 'end' ? "Counts as a loss. This can't be undone." : DISCARD_GAME_BODY
           }
           confirmLabel={pendingLeave === 'end' ? 'End game' : 'Discard'}
           danger

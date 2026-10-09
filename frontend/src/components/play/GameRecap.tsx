@@ -3,7 +3,7 @@ import { buildGameRecap } from '@/lib/play/game-recap';
 import './GameRecap.css';
 
 /**
- * "The story of the game" — a short list of narrative stats shown under the
+ * "Recap" — a short list of narrative stats shown under the
  * winner announcement (or draw notice) in the finished-game overlay. Works
  * for both local and online games alike, since both populate `game.events`.
  *
@@ -15,7 +15,7 @@ export function GameRecap({ game }: { game: GameState }) {
   if (stats.length === 0) return null;
   return (
     <div className="game-recap">
-      <h3 className="game-recap-title">The story of the game</h3>
+      <h3 className="game-recap-title">Recap</h3>
       <ul className="game-recap-list">
         {stats.map((stat) => (
           <li key={stat.id} className="game-recap-row">

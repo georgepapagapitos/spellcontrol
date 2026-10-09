@@ -451,7 +451,7 @@ describe('Leave confirmation (OGV-01)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Leave' }));
     expect(screen.getByText('End the table for everyone?')).toBeTruthy();
-    expect(screen.getByText(/ends the game for the other player still seated/)).toBeTruthy();
+    expect(screen.getByText(/ends the table for the other player still seated/)).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'End table' }));
     expect(onLeave).toHaveBeenCalledOnce();
@@ -495,7 +495,7 @@ describe('Leave confirmation (OGV-01)', () => {
     render(<OnlineGameView game={game} onLeave={onLeave} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Leave' }));
-    expect(screen.getByText(/ends the game for all 2 other players still seated/)).toBeTruthy();
+    expect(screen.getByText(/ends the table for all 2 other players still seated/)).toBeTruthy();
   });
 
   // E449: a spectator never sat at this table; its Rematch would seat

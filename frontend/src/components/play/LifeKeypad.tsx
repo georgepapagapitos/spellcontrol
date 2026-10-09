@@ -169,9 +169,7 @@ export function LifeKeypad({ playerName, currentLife, onConfirm, onClose, rotati
             aria-label={mode === 'set' ? 'Switch to change mode' : 'Switch to set mode'}
             aria-pressed={mode === 'delta'}
             title={
-              mode === 'set'
-                ? 'Type a number then − or + to apply a change'
-                : 'Back to set-life mode'
+              mode === 'set' ? 'Type a number, then tap − or + to change life' : 'Back to set mode'
             }
           >
             {mode === 'set' ? '±Δ' : 'set'}

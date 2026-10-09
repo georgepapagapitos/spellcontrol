@@ -76,7 +76,7 @@ export function VoiceLinkRow({
             {opening ? 'Opening a Discord table…' : 'Open a Discord table'}
           </Button>
           <p className="lobby-voice-hint">
-            A voice channel in the SpellControl server. Anyone in the server can see it.
+            Opens a voice channel in the SpellControl Discord. Anyone in the server can see it.
           </p>
         </>
       )}

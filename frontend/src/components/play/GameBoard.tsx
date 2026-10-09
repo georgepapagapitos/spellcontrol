@@ -1,3 +1,4 @@
+import { GAME_OVER_NO_WINNER } from '@/lib/play/shared-copy';
 import {
   BookOpen,
   ChartLine,
@@ -728,7 +729,7 @@ export function GameBoard({
         // live (store/play.ts) instead of stranding it in `lobby`.
         <ConfirmDialog
           title="Restart the game?"
-          body="Every life total, counter and elimination goes back to the start, and Undo can't bring them back."
+          body="The table resets to the starting state. Undo can't bring it back."
           confirmLabel="Restart"
           danger
           onCancel={() => setRestartConfirmOpen(false)}
@@ -1802,7 +1803,7 @@ function WinCelebration({
         className="win-celebration-card"
         role="dialog"
         aria-modal="true"
-        aria-label={winner ? `${winner.name} wins` : 'Game over. No winner.'}
+        aria-label={winner ? `${winner.name} wins` : GAME_OVER_NO_WINNER}
         style={palette ? { ['--win-accent' as never]: palette.edge } : undefined}
       >
         {winner ? (
@@ -1814,7 +1815,7 @@ function WinCelebration({
             <span className="win-celebration-sub">wins the game</span>
           </>
         ) : (
-          <span className="win-celebration-sub">Game over. No winner.</span>
+          <span className="win-celebration-sub">{GAME_OVER_NO_WINNER}</span>
         )}
         <GameRecap game={game} />
         {/* The recap is the end of the session: Done leaves the table (the

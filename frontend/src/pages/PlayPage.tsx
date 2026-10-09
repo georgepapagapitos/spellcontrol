@@ -1,5 +1,6 @@
 // The play table's stylesheets ship with this chunk, not the boot payload
 // (E265) — same relative order as the former main.tsx block.
+import { DISCARD_GAME_BODY, DISCARD_HORDE_BODY } from '@/lib/play/shared-copy';
 import '@/styles/play-fonts.css';
 import '@/styles/play-setup.css';
 import '@/styles/play-board.css';
@@ -505,9 +506,9 @@ export function PlayPage() {
 
       {pendingHordeRematch && (
         <ConfirmDialog
-          title="Start a new Horde fight?"
-          body="The Horde fight in progress will be removed without saving to history."
-          confirmLabel="Start the rematch"
+          title="Start a rematch?"
+          body={DISCARD_HORDE_BODY}
+          confirmLabel="Start rematch"
           danger
           onConfirm={() => {
             void useHordeGameStore.getState().rematch(pendingHordeRematch);
@@ -521,7 +522,7 @@ export function PlayPage() {
       {pendingDiscard && (
         <ConfirmDialog
           title="Discard this game?"
-          body="The current game will be removed without saving to history."
+          body={DISCARD_GAME_BODY}
           confirmLabel="Discard"
           danger
           onConfirm={() => {
@@ -535,7 +536,7 @@ export function PlayPage() {
       {pendingStart && (
         <ConfirmDialog
           title="Start a new game?"
-          body="You have a game in progress. Starting a new one discards it without saving to history."
+          body={DISCARD_GAME_BODY}
           confirmLabel="Start new game"
           danger
           onConfirm={() => {

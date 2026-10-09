@@ -211,7 +211,7 @@ export function PlayHome({
           </dl>
         )}
         {recent.length === 0 ? (
-          <p className="play-home-muted">No games yet. Pick a door above.</p>
+          <p className="play-home-muted">No games yet. Start one above.</p>
         ) : (
           <ul className="play-home-recent">
             {recent.map((rec) => {

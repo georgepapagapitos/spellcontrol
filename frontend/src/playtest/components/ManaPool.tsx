@@ -110,7 +110,7 @@ export function ManaPool({ layout = 'row', pool, onAdjust, onEmpty }: Props) {
         className="playtest-mana-pool__empty"
         onClick={onEmpty}
         disabled={total === 0}
-        title="Also empties automatically at Next Turn"
+        title="Empties at the next turn"
       >
         Empty
       </button>

@@ -85,7 +85,7 @@ export function useHold(): HoldStatus | null {
         // (network, a race with the server's 409 — "a request is already
         // pending for this seat", which covers a pending takeback ask too).
         toast.show({
-          message: userMessage(err, "Couldn't ask the table."),
+          message: userMessage(err, "Couldn't ask the table. Try again."),
           tone: 'warn',
         });
       });

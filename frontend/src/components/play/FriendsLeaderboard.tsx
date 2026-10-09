@@ -172,7 +172,7 @@ function H2HDetail({ friendId }: { friendId: string }) {
   if (error) {
     return (
       <p className="leaderboard-error" role="alert">
-        Couldn't load head-to-head.
+        Couldn't load head-to-head. Try again.
       </p>
     );
   }

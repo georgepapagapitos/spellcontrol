@@ -63,7 +63,7 @@ export function NightPoll({
       await onVote([...selected]);
       setSelected(null); // back to mirroring the (refreshed) server state
     } catch (err) {
-      setError(userMessage(err, "Couldn't save your votes."));
+      setError(userMessage(err, "Couldn't save your votes. Try again."));
     } finally {
       setBusy(null);
     }
@@ -82,7 +82,7 @@ export function NightPoll({
       await onSuggest(startsAt);
       setSuggestAt('');
     } catch (err) {
-      setError(userMessage(err, "Couldn't suggest that time."));
+      setError(userMessage(err, "Couldn't suggest that time. Try again."));
     } finally {
       setBusy(null);
     }

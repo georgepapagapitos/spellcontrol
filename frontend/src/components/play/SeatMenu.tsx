@@ -476,7 +476,7 @@ export function SeatMenu({
                       name={panelColorGroup}
                       value="auto"
                       checked={player.panelColorKey === null}
-                      aria-label="Seat default (auto from commander color identity)"
+                      aria-label="Seat default"
                       onChange={() => {
                         dispatch({
                           type: 'update-player',
@@ -487,9 +487,7 @@ export function SeatMenu({
                     />
                   </label>
                 </fieldset>
-                <span className="seat-menu-color-hint">
-                  Seat default uses your deck&apos;s colors, or your seat color.
-                </span>
+                <span className="seat-menu-color-hint">Matches your deck&apos;s colors.</span>
               </div>
             </div>
           )}

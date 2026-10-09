@@ -41,8 +41,7 @@ export function DailyFriendsPanel(props: Props) {
       {props.kind === 'guest' && (
         <>
           <p className="daily-panel-note">
-            Sign in to see your friends' scores each day and keep your streak on every device.
-            Results on this device come with you.
+            Sign in to compare scores with friends and keep your streak on every device.
           </p>
           <Button to={signInPath('/daily')}>Sign in</Button>
         </>

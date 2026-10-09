@@ -196,7 +196,7 @@ describe('the mulligan rule in force', () => {
   it('bottoms the count it is given, not the mulligan count', () => {
     // A commander-rule table on its second mulligan owes one, not two.
     renderSheet({ phase: 'mulligan-bottom', mulliganCount: 2, cardsOwedToBottom: 1 });
-    expect(screen.getByText(/Tap 1 card to send to the bottom/)).toBeTruthy();
+    expect(screen.getByText(/Tap the card you want on the bottom/)).toBeTruthy();
   });
 
   it('offers the free-mulligan switch solo, and states the table rule instead when seated', () => {

@@ -71,7 +71,7 @@ export function TonightTrades({
       void refresh();
     } catch (err) {
       toast.show({
-        message: userMessage(err, "Couldn't update tonight's trades."),
+        message: userMessage(err, "Couldn't update tonight's trades. Try again."),
         tone: 'error',
       });
     } finally {
@@ -97,7 +97,7 @@ export function TonightTrades({
           // state — but fall back to the not-opted-in state rather than a
           // dead sheet if it somehow happens.
           setOptedIn(false);
-          toast.show({ message: "Couldn't load tonight's trades.", tone: 'error' });
+          toast.show({ message: "Couldn't load tonight's trades. Try again.", tone: 'error' });
         } else {
           setResult({ key: dataKey, data: null });
         }
@@ -139,7 +139,7 @@ export function TonightTrades({
 
           {!optedIn && (
             <p className="game-night-dialog-hint">
-              Matches your want lists and tradeable binders with everyone else opted in tonight.
+              See what you can trade with everyone else here tonight.
             </p>
           )}
 

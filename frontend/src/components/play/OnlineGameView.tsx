@@ -1,3 +1,4 @@
+import { endTableBody, GAME_OVER_NO_WINNER } from '@/lib/play/shared-copy';
 import { Clock, Compass, Crown, Hand, Headphones, Trophy, Undo2 } from 'lucide-react';
 import { DiscordMark } from '@/components/shared/DiscordMark';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -248,11 +249,7 @@ export function OnlineGameView({ game, errorMessage, onEnd, onLeave, onRematch }
         ) : (
           <ConfirmDialog
             title="End the table for everyone?"
-            body={
-              opponents.length > 0
-                ? `Leaving ends the game for ${opponents.length === 1 ? 'the other player' : `all ${opponents.length} other players`} still seated.`
-                : 'Leaving ends the game.'
-            }
+            body={endTableBody(opponents.length)}
             confirmLabel="End table"
             danger
             onConfirm={() => {
@@ -348,7 +345,7 @@ function SpectatorHorde({ game }: { game: GameState }) {
   const blocked =
     status === 'skew'
       ? {
-          message: "This table's horde comes from a newer build. Reload to watch.",
+          message: 'This horde needs a newer version. Reload to watch.',
           actionLabel: 'Reload',
           onAction: () => window.location.reload(),
         }
@@ -1109,7 +1106,7 @@ function FinishedPanel({
             <span className="ogv-finished-sub">wins the game</span>
           </>
         ) : (
-          <span className="ogv-finished-sub">Game over. No winner.</span>
+          <span className="ogv-finished-sub">{GAME_OVER_NO_WINNER}</span>
         )}
       </div>
       <GameRecap game={game} />

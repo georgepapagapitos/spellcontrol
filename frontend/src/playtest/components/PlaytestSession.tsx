@@ -174,7 +174,7 @@ export function PlaytestSession({ deck, external: isExternal, back, emptyHint }:
     return (
       <EmptyState
         tagline="Couldn't start this playtest."
-        hint="Something in this deck couldn't be dealt into a game."
+        hint="Something in this deck couldn't be dealt. Retry, or go back and check the list."
         actions={
           <>
             <Button

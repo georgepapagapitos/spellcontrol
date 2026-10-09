@@ -1,3 +1,4 @@
+import { GAME_OVER_NO_WINNER } from '@/lib/play/shared-copy';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { usePlayStore } from '@/store/play';
@@ -44,7 +45,7 @@ export function TableFinishedBanner() {
     <div className="playtest-finished-banner">
       <div className="playtest-finished-banner__panel" role="status">
         <span className="playtest-finished-banner__headline">
-          {winner ? `${winner.name} wins the game` : 'Game over. No winner.'}
+          {winner ? `${winner.name} wins the game` : GAME_OVER_NO_WINNER}
         </span>
         <Button variant="primary" onClick={handleLeave} className="playtest-finished-banner__leave">
           Leave table

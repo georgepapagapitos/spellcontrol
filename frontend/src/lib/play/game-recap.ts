@@ -148,7 +148,7 @@ function designationStat(
   const detail =
     claims > 1
       ? `${name} held it at the end, after it changed hands ${claims} times.`
-      : `${name} claimed it and never let go.`;
+      : `${name} claimed it and kept it.`;
   return { id: `designation-${kind}`, label, detail };
 }
 

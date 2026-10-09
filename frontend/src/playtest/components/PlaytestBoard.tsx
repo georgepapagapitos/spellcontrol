@@ -1067,8 +1067,8 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       body: !onlineTable.isHost
         ? 'You give up your seat.'
         : heir
-          ? `You give up your seat, and ${heir.name} becomes host.`
-          : 'You give up your seat, and the table ends for everyone.',
+          ? `${heir.name} becomes host.`
+          : 'Leaving ends the table for everyone still seated.',
       confirmLabel: 'Leave',
       danger: true,
     });
@@ -1559,7 +1559,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       ? [
           {
             label: 'Turn alert',
-            hint: 'A chime when the turn passes to you, and a tab title that says so.',
+            hint: "Chimes and flags the tab title when it's your turn.",
             on: turnAlert,
             onChange: (on: boolean) => {
               setTurnAlert(on);

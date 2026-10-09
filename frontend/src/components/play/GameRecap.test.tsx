@@ -38,7 +38,7 @@ describe('GameRecap', () => {
 
     render(<GameRecap game={game} />);
 
-    expect(screen.getByText('The story of the game')).toBeTruthy();
+    expect(screen.getByText('Recap')).toBeTruthy();
     expect(screen.getByText('Game length')).toBeTruthy();
     expect(screen.getByText('1 minute')).toBeTruthy();
   });
