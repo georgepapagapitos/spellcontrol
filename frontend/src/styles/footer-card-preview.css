@@ -786,6 +786,18 @@
   --err-border: #8a3838;
 }
 
+/* prefers-contrast: more. The panel re-declares --text-muted and --border
+   above, so themes.css's remap (muted -> secondary, border -> border-strong)
+   never reaches anything inside it: flavor, reminder text, eyebrows and kv
+   labels would stay at 0.55 white. Repeat the remap against the panel's own
+   siblings. Guard: styles/preview-panel-contrast.test.ts. */
+@media (prefers-contrast: more) {
+  .card-preview-panel {
+    --text-muted: var(--text-secondary);
+    --border: var(--border-strong);
+  }
+}
+
 .card-preview-panel[data-stop='half'] {
   transform: translateY(calc(var(--pv-full) - var(--pv-half)));
 }

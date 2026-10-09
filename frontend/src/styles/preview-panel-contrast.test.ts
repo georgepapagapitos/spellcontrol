@@ -226,3 +226,23 @@ describe('card-preview context pill: any container colour reads', () => {
     expect(failures).toEqual([]);
   });
 });
+
+// themes.css retires --text-muted and --border under prefers-contrast: more, but
+// the panel re-declares both, so that remap never reached its descendants. The
+// panel must carry its own, pointing at its own (white-alpha) siblings.
+describe('card-preview panel: honours prefers-contrast: more', () => {
+  const at = panelCss.indexOf('@media (prefers-contrast: more) {');
+  const rule = at < 0 ? '' : panelCss.slice(at, panelCss.indexOf('\n}\n', at));
+  it('remaps muted to secondary and border to border-strong on the panel', () => {
+    expect(rule, 'no prefers-contrast: more block in footer-card-preview.css').not.toBe('');
+    expect(rule).toContain('.card-preview-panel {');
+    expect(rule).toMatch(/--text-muted:\s*var\(--text-secondary\);/);
+    expect(rule).toMatch(/--border:\s*var\(--border-strong\);/);
+  });
+  it('the siblings it points at are the lifted white-alphas', () => {
+    expect(parseColor(panel['text-secondary'])[3]).toBeGreaterThan(
+      parseColor(panel['text-muted'])[3]
+    );
+    expect(parseColor(panel['border-strong'])[3]).toBeGreaterThan(parseColor(panel['border'])[3]);
+  });
+});
