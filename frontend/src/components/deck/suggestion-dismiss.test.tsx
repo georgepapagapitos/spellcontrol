@@ -4,8 +4,8 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CardSearchPanel } from './CardSearchPanel';
 import { CoachFeed, type CoachFeedProps } from './CoachFeed';
-import { SimilarCardsStrip } from './SimilarCardsStrip';
-import { SwapThisCard } from './SwapThisCard';
+import { SIMILAR_OPEN_KEY, SimilarCardsStrip } from './SimilarCardsStrip';
+import { SWAP_OPEN_KEY, SwapThisCard } from './SwapThisCard';
 import { ATRAXA, hiddenOf, hideFromMenu, openDeck, pressUndo } from './dismiss-test-helpers';
 import { toSwapAgainst, type Change } from '@/lib/coach/deck-change';
 import { resetSuggestionLabelsForTests } from '@/lib/util/suggestion-labels';
@@ -53,6 +53,9 @@ let deckId = '';
 beforeEach(() => {
   sent.length = 0;
   localStorage.clear();
+  // These cover the open section; SuggestionSection.test.tsx covers closed.
+  localStorage.setItem(SWAP_OPEN_KEY, '1');
+  localStorage.setItem(SIMILAR_OPEN_KEY, '1');
   resetSuggestionLabelsForTests();
   deckId = openDeck();
 });

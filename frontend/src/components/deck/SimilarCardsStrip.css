@@ -4,18 +4,12 @@
    STYLE_GUIDE.md. Mirrors SwapThisCard.css in structure. */
 
 .similar-cards {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding-top: var(--space-2-5);
+  padding-top: var(--space-1);
   border-top: 0.5px solid var(--border);
 }
 
-.similar-cards-title {
-  margin: 0;
-  font-size: var(--text-sm);
-  font-weight: 700;
-  color: var(--text-primary);
+.similar-cards .suggestion-section-body {
+  gap: var(--space-2);
 }
 
 .similar-cards-group {

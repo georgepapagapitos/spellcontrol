@@ -3,18 +3,8 @@
    Theme vars + --text-* scale only; see STYLE_GUIDE.md. */
 
 .swap-this-card {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1-5);
-  padding-top: var(--space-2-5);
+  padding-top: var(--space-1);
   border-top: 0.5px solid var(--border);
-}
-
-.swap-this-card-title {
-  margin: 0;
-  font-size: var(--text-sm);
-  font-weight: 700;
-  color: var(--text-primary);
 }
 
 .swap-this-card-sub {

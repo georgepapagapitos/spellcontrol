@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { render, fireEvent } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { SwapThisCard } from './SwapThisCard';
+import { SWAP_OPEN_KEY, SwapThisCard } from './SwapThisCard';
 import { toSwapAgainst, type Change } from '@/lib/coach/deck-change';
 import {
   resetSuggestionLabelsForTests,
@@ -21,6 +21,8 @@ const ATRAXA = '0b0a8d28-1b0f-4d3e-9a3e-5e1a5a7a1f11';
 beforeEach(() => {
   sent.length = 0;
   localStorage.clear();
+  // These cover the open section; SuggestionSection.test.tsx covers closed.
+  localStorage.setItem(SWAP_OPEN_KEY, '1');
   resetSuggestionLabelsForTests();
   setSuggestionContext({
     id: 'deck-secret-1',

@@ -8,12 +8,18 @@ import type { EnrichedCard } from '@/types';
 import { recordShown, recordSuggestion } from '@/lib/util/suggestion-labels';
 import { useDismissedSuggestions } from '@/lib/coach/dismissed-suggestions';
 import type { RankedSimilar } from '@/deck-builder/services/substitutes/surfaces';
+import { SuggestionSection, suggestionSummary, useRememberedOpen } from './SuggestionSection';
+
+/** The open/closed choice, shared by every card's preview. */
+export const SIMILAR_OPEN_KEY = 'sc-preview-similar-open';
 
 export interface SimilarCardsStripProps {
   /** The full focused deck card (carries oracle text — must already be resolved). */
   target: ScryfallCard;
   /** All card names currently in the deck — never re-suggested. */
   deckCardNames: string[];
+  /** Cards another section of the same panel already offers (Swap this card). */
+  excludeNames?: string[];
   /** The user's collection, one entry per physical copy. */
   collectionCards: EnrichedCard[];
   /** Render-time ownership for a card name — never cached. */
@@ -81,6 +87,7 @@ function toChange(c: RankedSimilar, group: 'owned' | 'discovery', anchorName: st
 export function SimilarCardsStrip({
   target,
   deckCardNames,
+  excludeNames,
   collectionCards,
   ownershipFor,
   freeCountFor,
@@ -108,19 +115,27 @@ export function SimilarCardsStrip({
     enabled,
   });
 
-  // "Not for this deck" (E580): what the player hid stays out of both groups.
+  // "Not for this deck" (E580): what the player hid stays out of both groups,
+  // and so does a card Swap this card already lists above.
+  const skip = useMemo(() => {
+    const names = new Set(hidden.inNames);
+    for (const n of excludeNames ?? []) names.add(n.toLowerCase());
+    return names;
+  }, [hidden.inNames, excludeNames]);
   const owned = useMemo(
-    () => allOwned.filter((c) => !hidden.inNames.has(c.name.toLowerCase())),
-    [allOwned, hidden.inNames]
+    () => allOwned.filter((c) => !skip.has(c.name.toLowerCase())),
+    [allOwned, skip]
   );
   const discovery = useMemo(
-    () => allDiscovery.filter((c) => !hidden.inNames.has(c.name.toLowerCase())),
-    [allDiscovery, hidden.inNames]
+    () => allDiscovery.filter((c) => !skip.has(c.name.toLowerCase())),
+    [allDiscovery, skip]
   );
   const shown = owned.length + discovery.length;
+  const [open, toggle] = useRememberedOpen(SIMILAR_OPEN_KEY);
+  // "Shown" means the rows were on screen, so a closed section records nothing.
   useEffect(() => {
-    recordShown('similar', shown, target.name);
-  }, [shown, target.name]);
+    if (open) recordShown('similar', shown, target.name);
+  }, [open, shown, target.name]);
 
   if (!loading && shown === 0) return null;
 
@@ -158,9 +173,22 @@ export function SimilarCardsStrip({
   }
 
   return (
-    <section className="similar-cards" aria-label={`Cards like ${target.name}`}>
-      <h4 className="similar-cards-title">Similar cards</h4>
-
+    <SuggestionSection
+      className="similar-cards"
+      label={`Cards like ${target.name}`}
+      title="Similar cards"
+      summary={
+        shown === 0
+          ? 'Finding similar cards…'
+          : suggestionSummary(
+              shown,
+              ['card', 'cards'],
+              [...owned.map((c) => c.ownership), ...discovery.map((c) => c.ownership)]
+            )
+      }
+      open={open}
+      onToggle={toggle}
+    >
       {owned.length > 0 && (
         <div className="similar-cards-group">
           <span className="similar-cards-group-label">From your collection</span>
@@ -204,6 +232,6 @@ export function SimilarCardsStrip({
           )}
         </div>
       )}
-    </section>
+    </SuggestionSection>
   );
 }
