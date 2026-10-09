@@ -328,7 +328,7 @@ describe('CubePullList — already out of your binders', () => {
     expect(scope.getByText('Already out of your binders')).toBeTruthy();
     expect(
       scope.getByText(
-        'Consignment leaves out cards held by a deck or cube, so these are likely already pulled.'
+        'Consignment leaves out cards a deck or cube holds, so these are probably already out.'
       )
     ).toBeTruthy();
     expect(scope.getByText('Force of Will')).toBeTruthy();
@@ -376,7 +376,7 @@ describe('CubePullList — already out of your binders', () => {
     const scope = interactive(container);
     expect(
       scope.getByText(
-        'Consignment and Trades leave out cards held by a deck or cube, so these are likely already pulled.'
+        'Consignment and Trades leave out cards a deck or cube holds, so these are probably already out.'
       )
     ).toBeTruthy();
   });

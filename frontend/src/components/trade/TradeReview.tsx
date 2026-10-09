@@ -309,8 +309,8 @@ export function TradeReview({
 /** What the footer promises about printings, true to what is in the trade. */
 function footerHint(friendName: string, anyPrinting: boolean): string {
   return anyPrinting
-    ? `${friendName} chooses the printing for cards with none named, and confirms when they accept. Closing keeps this as a draft.`
-    : `${friendName} gets the exact printings above and confirms when they accept. Closing keeps this as a draft.`;
+    ? `${friendName} picks the printing for cards with none named. Closing keeps this as a draft.`
+    : `${friendName} gets the exact printings above. Closing keeps this as a draft.`;
 }
 
 function Banner({

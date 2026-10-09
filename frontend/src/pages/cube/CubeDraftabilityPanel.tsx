@@ -6,7 +6,7 @@ import type { DraftSimResult } from '../../lib/cube/draft-sim';
 import type { ColorPair } from '../../lib/cube/core';
 import type { GeneratedCube } from '../../lib/cube/generate';
 import { sizeInfo, type ColorBucket } from '../../lib/cube/targets';
-import { BUCKET_COLOR, BUCKET_LABEL } from './shared';
+import { BUCKET_COLOR, BUCKET_LABEL, podArticle } from './shared';
 import { Button } from '../../components/shared/Button';
 import { Chip } from '../../components/shared/Chip';
 
@@ -175,7 +175,7 @@ function DraftSimReport({
       <p className="cube-draft-sim-sub">
         {`${result.runs} simulated ${result.playersPerRun}-player drafts (3 packs of 15) off this ${size}-card cube.`}
         {result.shortCube &&
-          ` This cube has fewer cards than a ${nominalPlayers}-player pod needs, so fewer players were drafted.`}
+          ` This cube has fewer cards than ${podArticle(nominalPlayers)} ${nominalPlayers}-player pod needs, so fewer players were drafted.`}
       </p>
 
       <div className="cube-draft-sim-stat">
@@ -189,7 +189,7 @@ function DraftSimReport({
         </p>
         {result.reachedBarShare < REACH_NOTE_THRESHOLD && (
           <p className="cube-draft-sim-note">
-            {`Only ${reachPct}% of simulated decks reached a full two-color build. The cube is likely thin in too many color pairs for a ${nominalPlayers}-player pod.`}
+            {`Only ${reachPct}% of simulated decks reached a full two-color build. The cube is likely thin in too many color pairs for ${podArticle(nominalPlayers)} ${nominalPlayers}-player pod.`}
           </p>
         )}
       </div>

@@ -143,7 +143,7 @@ function PoolFilterRow({
         <InfoTip
           label="Draw from"
           ariaLabel="How Cards, Price and Rarity work"
-          text="Available skips copies a deck or physical cube claims. Spares needs two or more copies. Price reads your cheapest copy; rarity, the printing you own."
+          text="Available skips copies held by a deck or physical cube. Spares needs two or more copies. Price uses your cheapest copy; rarity uses the printing you own."
         />
       </div>
 
@@ -206,8 +206,8 @@ function PoolFilterRow({
           </fieldset>
         )}
         <p className="cube-friend-picker-note">
-          Their cards always count, whatever Cards is set to. The rarity cap applies. The price
-          ceiling doesn't, since friends' cards have no prices.
+          Friends' cards ignore the Cards setting and the price ceiling (they have no prices). The
+          rarity cap still applies.
         </p>
       </div>
     </Disclosure>
@@ -515,8 +515,7 @@ export function CubeBuildPage() {
               <p className="cube-collab-warn-line">
                 Only {legendCount.toLocaleString()} legendary creatures are eligible,{' '}
                 {(LEGEND_TARGET[size] - legendCount).toLocaleString()} short of the{' '}
-                {LEGEND_TARGET[size]}-commander target. The cube will build with fewer commander
-                choices than usual.
+                {LEGEND_TARGET[size]}-commander target. Expect fewer commander choices.
               </p>
             </div>
           )}
@@ -528,7 +527,8 @@ export function CubeBuildPage() {
                 hidden.basics > 0 && `${hidden.basics.toLocaleString()} basic lands left out`,
                 hidden.committed > 0 &&
                   `${hidden.committed.toLocaleString()} committed to a deck or cube`,
-                hidden.singles > 0 && `${hidden.singles.toLocaleString()} single copies`,
+                hidden.singles > 0 &&
+                  `${hidden.singles.toLocaleString()} left out with only one copy`,
                 hidden.commanderOnly > 0 &&
                   `${hidden.commanderOnly.toLocaleString()} Commander-only cards left out`,
                 hidden.politics > 0 &&
@@ -548,7 +548,7 @@ export function CubeBuildPage() {
                   <Link to="/collection">refresh prices</Link>)
                 </span>
               )}
-              {filters.format === 'commander' && (
+              {filters.format === 'commander' && legendCount >= LEGEND_TARGET[size] && (
                 <span> · {legendCount.toLocaleString()} legendary creatures eligible</span>
               )}
             </p>

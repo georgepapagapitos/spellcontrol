@@ -68,7 +68,7 @@ export function FriendRow({ friend, busy, onRemove }: Props) {
             onClick: () => navigate(`/u/${friend.username}`),
           },
           {
-            label: 'Trades, games and shared',
+            label: 'Open friend page',
             icon: ArrowLeftRight,
             onClick: () => navigate(`/friends/${friend.id}`),
           },

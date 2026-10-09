@@ -63,7 +63,7 @@ interface Props {
 export const SPARE_LABEL = 'Spare copy';
 
 /** Tooltip for the list row's chip, same meaning as SPARE_LABEL. */
-export const SPARE_TITLE = 'A copy to spare: not in any of their decks, past the one they keep';
+export const SPARE_TITLE = 'A spare: past the one copy they keep, and in none of their decks.';
 
 function capitalize(w: string): string {
   return w ? w[0].toUpperCase() + w.slice(1) : w;

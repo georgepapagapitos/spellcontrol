@@ -97,7 +97,7 @@ describe('FriendRow', () => {
   it('opens the friend hub from the menu', () => {
     renderRow(friend());
     fireEvent.click(screen.getByRole('button', { name: 'More actions for Ada Brews' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Trades, games and shared' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Open friend page' }));
     expect(screen.getByText('friend hub /friends/f1')).toBeTruthy();
   });
 });

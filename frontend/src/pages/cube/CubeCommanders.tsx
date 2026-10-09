@@ -43,7 +43,7 @@ import { legendKindLabel, type LegendIdentity } from '../../lib/cube/legend';
 import { simulateCommanderDraftAsync } from '../../lib/cube/generate-async';
 import { COMMANDER_PLAYABLE_TARGET, type CommanderDraftSimResult } from '../../lib/cube/draft-sim';
 import { sizeInfo } from '../../lib/cube/targets';
-import { pickToPreviewCard, pickThumb, type CopyFor } from './shared';
+import { pickToPreviewCard, pickThumb, podArticle, type CopyFor } from './shared';
 import { Button } from '../../components/shared/Button';
 import { Chip } from '../../components/shared/Chip';
 import { ArtBadge } from '../../components/shared/ArtBadge';
@@ -388,7 +388,7 @@ function CommanderDraftSimReport({
       <p className="cube-commander-coverage-sim-sub">
         {`${result.runs} simulated ${result.playersPerRun}-player Commander drafts (3 packs of 15) off this cube.`}
         {result.shortCube &&
-          ` This cube has fewer cards than a ${nominalPlayers}-player pod needs, so fewer players were drafted.`}
+          ` This cube has fewer cards than ${podArticle(nominalPlayers)} ${nominalPlayers}-player pod needs, so fewer players were drafted.`}
       </p>
 
       <div className="cube-commander-coverage-sim-stat">

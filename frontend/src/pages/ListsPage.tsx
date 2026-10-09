@@ -192,7 +192,7 @@ export function ListsPage() {
   const handleDeleteAll = async () => {
     const ok = await confirm({
       title: `Delete all ${lists.length} lists?`,
-      body: `Every list and all of its entries will be removed. You can undo from the toast.`,
+      body: `Removes the lists and every entry in them. You can undo right after.`,
       confirmLabel: 'Delete all lists',
       danger: true,
     });

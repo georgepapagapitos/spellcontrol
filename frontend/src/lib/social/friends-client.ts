@@ -53,7 +53,7 @@ export async function searchUsers(q: string): Promise<FriendUser[]> {
   });
   if (!res.ok) {
     throw new Error(
-      await readError(res, "Couldn't search for players. Check your connection and try again.")
+      await readError(res, "Couldn't search for people. Check your connection and try again.")
     );
   }
   const body = (await res.json()) as { users: FriendUser[] };

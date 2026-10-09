@@ -220,7 +220,7 @@ export function CubeDetailPage() {
             message: `Copied ${target.cube.picks.length} cards for CubeCobra's Add Cards`,
             tone: 'success',
           }
-        : { message: "Couldn't copy the cube list.", tone: 'error' }
+        : { message: "Couldn't copy the cube list. Try again.", tone: 'error' }
     );
   };
 
@@ -421,7 +421,7 @@ export function CubeDetailPage() {
             icon: Boxes,
             primary: true,
             disabled: rebuildStatus === 'working' || target.cube.picks.length === 0,
-            title: 'Keeps locked cards.',
+            title: 'Locked cards stay.',
             onClick: () => setRebuildConfirmOpen(true),
           },
           { label: 'Share', icon: Share2, opensDialog: true, onClick: () => setShareOpen(true) },
@@ -534,7 +534,7 @@ export function CubeDetailPage() {
       {physicalConfirmOpen && (
         <ConfirmDialog
           title="Mark as a physical cube?"
-          body={`"${target.name}" will reserve one of your copies for each card it can. Those copies stop showing as available for decks and binders. You can unmark it any time to free them.`}
+          body={`Reserves one copy of each card in "${target.name}", so decks and binders stop counting them as available. Unmark it any time to free them.`}
           confirmLabel="Mark physical"
           onConfirm={confirmPhysical}
           onCancel={() => setPhysicalConfirmOpen(false)}

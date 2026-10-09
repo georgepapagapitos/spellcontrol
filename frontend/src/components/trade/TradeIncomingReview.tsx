@@ -342,7 +342,7 @@ export function TradeIncomingReview({
                         </span>
                         {where && (
                           <span className="trade-review-meta">
-                            Files next to your copy in{' '}
+                            Goes next to your copy in{' '}
                             {formatLocation({
                               binderName: where.binderName,
                               pageNum: where.pageNum,

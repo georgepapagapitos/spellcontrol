@@ -218,7 +218,7 @@ export default function AuthPage() {
               minLength={3}
               maxLength={32}
               pattern="[A-Za-z0-9_\-]{3,32}"
-              title="3–32 characters: letters, digits, underscore, hyphen"
+              title="3 to 32 characters: a-z, 0-9, _, -"
             />
           </label>
 

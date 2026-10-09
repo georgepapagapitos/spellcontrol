@@ -204,7 +204,7 @@ function ProfileCollection({
           setResult({
             attempt,
             data: null,
-            error: userMessage(err, 'The request did not go through.'),
+            error: userMessage(err, "That didn't go through. Try again."),
           });
         }
       });

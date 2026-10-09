@@ -277,9 +277,7 @@ export function CubeResult({
       <div className="cube-gaps">
         <h3>Where your collection lands</h3>
         {shorts.length === 0 && notes.length === 0 && (
-          <p className="cube-gap cube-gap-note">
-            This cube fits the template for its size cleanly.
-          </p>
+          <p className="cube-gap cube-gap-note">No gaps for a cube this size.</p>
         )}
         {shorts.map((g, i) => (
           <p key={`s${i}`} className="cube-gap cube-gap-short">
@@ -418,8 +416,8 @@ export function CubeResult({
                                 <ArtBadge
                                   className="cube-lock-mark"
                                   tone="accent"
-                                  title='Locked, stays on "Rebuild the rest"'
-                                  label='Locked, stays on "Rebuild the rest"'
+                                  title="Locked: kept when you rebuild"
+                                  label="Locked: kept when you rebuild"
                                   icon={<Lock width={12} height={12} strokeWidth={2} />}
                                 />
                               )}
@@ -502,8 +500,8 @@ export function CubeResult({
                                 label={`${isLocked ? 'Unlock' : 'Lock'} ${p.card.name}`}
                                 title={
                                   isLocked
-                                    ? 'Stays on "Rebuild the rest"'
-                                    : 'Locks this card for "Rebuild the rest"'
+                                    ? 'Kept when you rebuild'
+                                    : 'Lock to keep it when you rebuild'
                                 }
                                 icon={
                                   isLocked ? (

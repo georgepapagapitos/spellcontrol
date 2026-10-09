@@ -100,7 +100,13 @@ export function DailyPage() {
         setLoad({ state: 'ready', daily: state });
       })
       .catch((err: unknown) =>
-        setLoad({ state: 'error', message: userMessage(err, "Couldn't load today's card.") })
+        setLoad({
+          state: 'error',
+          message: userMessage(
+            err,
+            "Couldn't load today's card. Check your connection and try again."
+          ),
+        })
       );
   }, [signedIn, guestGuesses, recordFinish]);
 
@@ -126,7 +132,10 @@ export function DailyPage() {
       .catch((err: unknown) =>
         setFriends({
           kind: 'error',
-          message: userMessage(err, "Couldn't load your friends' results."),
+          message: userMessage(
+            err,
+            "Couldn't load your friends' results. Check your connection and try again."
+          ),
         })
       );
   }, []);
@@ -170,7 +179,7 @@ export function DailyPage() {
       if (next.status !== 'playing' && signedIn) loadFriends(next.date);
       return null;
     } catch (err) {
-      return userMessage(err, "Couldn't send that guess.");
+      return userMessage(err, "Couldn't send that guess. Try again.");
     }
   };
 

@@ -106,7 +106,10 @@ function GameNightViewInner({ token }: { token: string }) {
         } else {
           setState({
             status: 'error',
-            message: userMessage(err, "Couldn't load the game night."),
+            message: userMessage(
+              err,
+              "Couldn't load the game night. Check your connection and try again."
+            ),
           });
         }
       });
@@ -239,7 +242,7 @@ function NightBody({
       // Re-fetch so the attendee list reflects the change without a reload.
       onPayload(await fetchPublicGameNight(token, username === null ? rsvp.id : undefined));
     } catch (err) {
-      setFormError(userMessage(err, "Couldn't save your RSVP."));
+      setFormError(userMessage(err, "Couldn't save your RSVP. Try again."));
     } finally {
       setBusy(null);
     }
@@ -261,9 +264,9 @@ function NightBody({
         {cancelled && (
           <p className="game-night-cancelled" role="status">
             <Chip className="game-night-cancelled-badge" tone="err">
-              Cancelled
+              Canceled
             </Chip>
-            This game night was cancelled.
+            This game night was canceled.
           </p>
         )}
         {over && (

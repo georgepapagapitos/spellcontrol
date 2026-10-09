@@ -157,15 +157,13 @@ describe('TradeReview: an ask names its printing', () => {
     seed({ [SEVENTH]: pinned('sf-7ed', 1) });
     const { unmount } = render(<TradeReview {...base} theirCards={THEIRS} />);
     expect(
-      screen.getByText(
-        'Pal gets the exact printings above and confirms when they accept. Closing keeps this as a draft.'
-      )
+      screen.getByText('Pal gets the exact printings above. Closing keeps this as a draft.')
     ).toBeTruthy();
     unmount();
 
     seed({ 'o-elves': { name: 'Llanowar Elves', oracleId: 'o-elves', quantity: 1 } });
     render(<TradeReview {...base} theirCards={THEIRS} />);
-    expect(screen.getByText(/Pal chooses the printing for cards with none named/)).toBeTruthy();
+    expect(screen.getByText(/Pal picks the printing for cards with none named/)).toBeTruthy();
     expect(screen.queryByText(/picks exact printings/)).toBeNull();
   });
 

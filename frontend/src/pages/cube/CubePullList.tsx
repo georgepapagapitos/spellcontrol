@@ -29,10 +29,10 @@ function joinNames(names: string[]): string {
  *  `pull-list.ts` couldn't identify one. */
 function outHint(binderNames: string[] | undefined): string {
   if (!binderNames || binderNames.length === 0) {
-    return 'This binder hides cards held by a deck or a cube from its own view, so this copy is likely already pulled.';
+    return 'This binder hides cards a deck or cube holds, so this copy is probably already out.';
   }
   const verb = binderNames.length === 1 ? 'leaves' : 'leave';
-  return `${joinNames(binderNames)} ${verb} out cards held by a deck or cube, so these are likely already pulled.`;
+  return `${joinNames(binderNames)} ${verb} out cards a deck or cube holds, so these are probably already out.`;
 }
 
 const REASON_TEXT: Record<CubePullUnreservedReason, string> = {

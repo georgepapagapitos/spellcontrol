@@ -111,7 +111,7 @@ export function ProfileEditor() {
       toast.show({ message: 'Profile saved.', tone: 'success' });
     } catch (err) {
       toast.show({
-        message: userMessage(err, "Couldn't save your profile."),
+        message: userMessage(err, "Couldn't save your profile. Try again."),
         tone: 'error',
       });
     } finally {

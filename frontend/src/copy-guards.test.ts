@@ -45,6 +45,13 @@
  *                 (STYLE_GUIDE § Voice & copy, canonical terms). Plural
  *                 "builders" only ever means people, so that is what fires;
  *                 the singular stays free for the deck builder tool.
+ *   CONTRACTION — "do not", "does not", "did not", "is not", "are not" and
+ *                 "cannot" read stiff in UI copy: write don't, doesn't, didn't,
+ *                 isn't, aren't, can't (STYLE_GUIDE § Voice & copy). An
+ *                 operator label such as "IS NOT" is left alone.
+ *   CANCELED   — US spelling is "canceled"/"canceling" (the `cancelled` API
+ *                 status value is data, not copy, and never reaches a string
+ *                 that looks like prose).
  *
  * Card names and oracle text are data, not copy: fixtures and tests are
  * excluded, and strings inside console/logger calls are ignored.
@@ -177,11 +184,38 @@ const RULES: Rule[] = [
     (s) => /\bbuilders\b/i.test(s),
     'a person who makes decks is a "brewer", not a "builder"',
   ],
+  [
+    'CONTRACTION',
+    (s) =>
+      /\b(do not|does not|did not|is not|are not|cannot)\b/i.test(s) &&
+      !/\b[A-Z]{2,} NOT\b/.test(s),
+    "use the contraction: don't, doesn't, didn't, isn't, aren't, can't",
+  ],
+  ['CANCELED', (s) => /\bcancel(led|ling)\b/i.test(s), 'US spelling: canceled, canceling'],
+];
+
+// Files whose CONTRACTION / CANCELED hits are not (or not yet) copy. Each names why.
+const STIFF_RULES = new Set(['CONTRACTION', 'CANCELED']);
+const STIFF_ALLOW: { file: RegExp; why: string }[] = [
+  {
+    file: /^deck-builder\/services\/(cardFacts\/|deckBuilder\/(coachEval\/|deckInvariants|deckObjective\/|deckGeneration\/phaseWholeDeckSearch))/,
+    why: 'validator findings, eval dumps and LLM prompts: developer diagnostics, never rendered',
+  },
+  {
+    file: /^components\/search\/FilterGroupEditor\.tsx$/,
+    why: '"Is not" is a filter operator label, parallel to "Is"',
+  },
+  {
+    // PENDING: strings in other copy-wave lanes (deck, play). Delete each
+    // entry when that lane's PR lands; the rule then covers the file.
+    file: /^(components\/deck\/(CardSearchPanel|DeckCustomizer|DeckMainboardRow)\.tsx|components\/play\/GameNights\.tsx|deck-builder\/services\/deckBuilder\/themeFidelity\.ts|lib\/coach\/coach-cut-swaps\.ts)$/,
+    why: 'player-facing, fixed by the deck and play copy lanes (still open when this rule landed)',
+  },
 ];
 
 // UK spellings (the US form is the fix). Word-bounded, case-insensitive. The
-// double-L past tenses ("cancelled", "labelled") are left out on purpose: US
-// usage accepts both, and "cancelled" is an API status value.
+// double-L past tenses ("labelled") are left out on purpose: US usage accepts
+// both. "cancelled" is its own CANCELED rule above.
 const UK_WORDS =
   /\b(colours?|coloured|colouring|colourless|colourful|flavours?|flavoured|favourites?|favourable|grey(s|ed|ing|ish)?|organis(e|es|ed|ing|ation|ations)|honours?|behaviours?|centres?|centred|catalogues?|analyse[sd]?|analysing|licence|judgement|artefacts?|aluminium|programme)\b/i;
 
@@ -296,6 +330,7 @@ function scan(file: string): Violation[] {
     for (const [rule, test] of RULES) {
       // The other rules already saw this string as `attr:text` or at its const.
       if (kind === 'infotip:text' && rule !== 'INFOTIP_LONG') continue;
+      if (STIFF_RULES.has(rule) && STIFF_ALLOW.some((x) => x.file.test(rel))) continue;
       if (test(text, kind))
         out.push({
           file: rel,

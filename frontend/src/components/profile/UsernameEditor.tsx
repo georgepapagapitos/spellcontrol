@@ -97,7 +97,7 @@ export function UsernameEditor() {
         />
         <span id={hintId} className="settings-row-hint">
           {changed && !valid
-            ? '3 to 32 characters, using lowercase letters, digits, _ and -.'
+            ? '3 to 32 characters: a-z, 0-9, _ and -.'
             : 'You can change this once every 30 days.'}
         </span>
       </div>

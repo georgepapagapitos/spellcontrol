@@ -300,7 +300,7 @@ export function DiscoverDecksPage() {
         intro={
           precons
             ? 'Every Commander precon Wizards has printed.'
-            : 'Public decks from the SpellControl community.'
+            : 'Decks other brewers have published.'
         }
         // On a phone this goes to the ⋮ menu; the Discover tab is the same way
         // back and always shows.
@@ -355,9 +355,7 @@ export function DiscoverDecksPage() {
           />
 
           {filters.budget != null && (
-            <p className="discover-budget-note">
-              Some decks may not appear until pricing is available.
-            </p>
+            <p className="discover-budget-note">The budget filter skips decks with no price yet.</p>
           )}
 
           {loading ? (
@@ -393,10 +391,7 @@ export function DiscoverDecksPage() {
                 }
               />
             ) : precons ? (
-              <EmptyState
-                tagline="No precons yet."
-                hint="They load in the background. Check back soon."
-              />
+              <EmptyState tagline="Precons are still loading." />
             ) : (
               <EmptyState
                 tagline="No public decks yet."

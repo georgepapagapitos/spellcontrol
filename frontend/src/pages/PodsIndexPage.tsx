@@ -123,7 +123,7 @@ function PodsIndexPageBody() {
       loadPods();
     } catch (err) {
       toast.show({
-        message: userMessage(err, "Couldn't accept the invite."),
+        message: userMessage(err, "Couldn't accept the invite. Try again."),
         tone: 'error',
       });
     } finally {
@@ -139,7 +139,7 @@ function PodsIndexPageBody() {
       loadPods();
     } catch (err) {
       toast.show({
-        message: userMessage(err, "Couldn't decline the invite."),
+        message: userMessage(err, "Couldn't decline the invite. Try again."),
         tone: 'error',
       });
     } finally {
@@ -342,7 +342,7 @@ function CreatePodDialog({
       }
       onCreated(pod);
     } catch (err) {
-      setFormError(userMessage(err, "Couldn't create the pod."));
+      setFormError(userMessage(err, "Couldn't create the pod. Try again."));
     } finally {
       setSaving(false);
     }

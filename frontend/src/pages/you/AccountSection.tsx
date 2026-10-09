@@ -86,7 +86,7 @@ export function AccountSection() {
           ? 'That Google account is already linked to a different SpellControl account.'
           : linkError === 'has_google'
             ? 'This account already has a Google account linked. Unlink it first.'
-            : "Couldn't link Google account.";
+            : "Couldn't link Google account. Try again.";
       toast.show({ message: msg, tone: 'error' });
     }
     setSearchParams(
@@ -119,7 +119,7 @@ export function AccountSection() {
       toast.show({ message: 'Verification email sent.', tone: 'success' });
     } catch (err) {
       toast.show({
-        message: userMessage(err, "Couldn't resend the verification email."),
+        message: userMessage(err, "Couldn't resend the verification email. Try again."),
         tone: 'error',
       });
     } finally {
@@ -137,7 +137,7 @@ export function AccountSection() {
     } catch (err) {
       setIdentities(identities); // revert
       toast.show({
-        message: userMessage(err, "Couldn't update email notifications."),
+        message: userMessage(err, "Couldn't update email notifications. Try again."),
         tone: 'error',
       });
     } finally {
@@ -153,7 +153,10 @@ export function AccountSection() {
       toast.show({ message: 'Google account unlinked.', tone: 'success' });
       setUnlinkOpen(false);
     } catch (err) {
-      toast.show({ message: userMessage(err, "Couldn't unlink Google."), tone: 'error' });
+      toast.show({
+        message: userMessage(err, "Couldn't unlink Google. Try again."),
+        tone: 'error',
+      });
     } finally {
       setUnlinkBusy(false);
     }
@@ -203,7 +206,7 @@ export function AccountSection() {
       <SettingsSection id="settings-account-title" title="Sign in">
         <SettingsRow
           label="Not signed in"
-          hint="Saved on this device. Sign in to sync it to your account."
+          hint="Your data is only on this device."
           actions={
             <Button variant="primary" placement="row" to={signInHref}>
               Sign in to sync
@@ -256,7 +259,7 @@ export function AccountSection() {
           >
             {!identities.emailVerified && (
               <div className="settings-row-hint">
-                Add a verified email so you can reset your password if you get locked out.
+                Add a verified email to reset your password if you're locked out.
               </div>
             )}
           </SettingsRow>
@@ -316,7 +319,7 @@ export function AccountSection() {
         </header>
         <div className="settings-card-body">
           <SettingsRow
-            hint="Permanently deletes your account and everything on the server. This can't be undone."
+            hint="Removes your account and everything synced to the server."
             actions={
               <Button variant="danger" onClick={() => setDeleteStep(1)}>
                 Delete account
@@ -358,10 +361,10 @@ export function AccountSection() {
           title="Sign out?"
           body={
             signOutPending > 0
-              ? `You have ${signOutPending} unsynced ${
-                  signOutPending === 1 ? 'change' : 'changes'
-                } that haven't reached the server yet. Signing out removes all data from this device, and those changes will be lost.`
-              : `Your data is synced to @${username} and will be restored when you sign back in. It will be removed from this device.`
+              ? `${signOutPending} ${
+                  signOutPending === 1 ? 'change hasn' : 'changes haven'
+                }'t synced. Signing out clears this device and loses ${signOutPending === 1 ? 'it' : 'them'}.`
+              : `Signing out clears this device. Your data stays on @${username} and returns when you sign back in.`
           }
           confirmLabel={signOutBusy ? 'Signing out…' : 'Sign out'}
           danger={signOutPending > 0}
@@ -413,7 +416,7 @@ function PasswordModal({ hasPassword, onClose, onSaved }: PasswordModalProps) {
     e.preventDefault();
     if (newPassword !== confirm) {
       setError(null);
-      setConfirmError('Passwords do not match.');
+      setConfirmError("Passwords don't match.");
       return;
     }
     setConfirmError(null);
@@ -428,7 +431,7 @@ function PasswordModal({ hasPassword, onClose, onSaved }: PasswordModalProps) {
       onSaved();
       onClose();
     } catch (err) {
-      setError(userMessage(err, "Couldn't update your password."));
+      setError(userMessage(err, "Couldn't update your password. Try again."));
     } finally {
       setSaving(false);
     }
@@ -592,7 +595,7 @@ function EmailModal({ currentEmail, onClose, onSaved }: EmailModalProps) {
       onSaved();
       onClose();
     } catch (err) {
-      setError(userMessage(err, "Couldn't update your email."));
+      setError(userMessage(err, "Couldn't update your email. Try again."));
     } finally {
       setSaving(false);
     }
@@ -608,7 +611,7 @@ function EmailModal({ currentEmail, onClose, onSaved }: EmailModalProps) {
       <h2 id="email-modal-title" className="choice-dialog-title">
         {currentEmail ? 'Change email' : 'Add an email'}
       </h2>
-      <p className="choice-dialog-body">We'll send a link to confirm this address.</p>
+      <p className="choice-dialog-body">A confirmation link goes to this address.</p>
       <form onSubmit={(e) => void handleSubmit(e)} className="auth-form">
         <label className="auth-field">
           <span>Email</span>
@@ -673,18 +676,18 @@ function DeleteAccountDialog({
       labelledBy="delete-account-title"
     >
       <h2 id="delete-account-title" className="choice-dialog-title">
-        {isFinal ? 'Last chance: delete your account?' : 'Delete your account?'}
+        {isFinal ? 'Delete your account for good?' : 'Delete your account?'}
       </h2>
       <p className="choice-dialog-body">
         {isFinal ? (
           <>
-            This permanently deletes <strong>{username}</strong> and erases every server-side
-            record: collection, binders, decks, games, backups, share links. This can't be undone.
+            Your collection, binders, decks, games, backups and share links are erased from the
+            server. This can't be undone.
           </>
         ) : (
           <>
-            This permanently deletes the account <strong>{username}</strong> and all of its data
-            from the server. Download a backup first if you want to keep your collection.
+            This deletes <strong>{username}</strong> and everything synced to the server. Download a
+            backup first if you want to keep your collection.
           </>
         )}
       </p>

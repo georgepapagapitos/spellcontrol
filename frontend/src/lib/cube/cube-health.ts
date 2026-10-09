@@ -59,7 +59,7 @@ export interface HealthRow {
 export interface CubeHealth {
   /** True when the band was mined for this exact size (360/450/540/720,
    *  limited format) — false when it's a reused/scaled band (180/270, or any
-   *  Commander cube), so the UI can say "real cubes" instead of "real Ns". */
+   *  Commander cube), so the UI can say "cubes" instead of "Ns". */
   bandIsSizeSpecific: boolean;
   curve: HealthRow[];
   types: HealthRow[];
@@ -131,20 +131,20 @@ export function computeCubeHealth(
   };
 }
 
-/** "real pauper cubes" / "real peasant cubes" when the cube is measured
- *  against that corpus (board E464); "real Commander cubes" when it's judged
+/** "pauper cubes" / "peasant cubes" when the cube is measured
+ *  against that corpus (board E464); "Commander cubes" when it's judged
  *  against that band instead of a size band (board E462 — this had the same
- *  "real cubes" generic fallback the color/fixing gaps did); else "real 360s"
- *  when the band was mined for this exact size, else "real cubes". */
+ *  "cubes" generic fallback the color/fixing gaps did); else "360s"
+ *  when the band was mined for this exact size, else "cubes". */
 export function corpusWord(
   size: CubeSize,
   bandIsSizeSpecific: boolean,
   rarity: BandRarity = 'any',
   format: CubeFormat = 'limited'
 ): string {
-  if (format === 'commander') return 'real Commander cubes';
-  if (rarity === 'pauper' || rarity === 'peasant') return `real ${rarity} cubes`;
-  return bandIsSizeSpecific ? `real ${size}s` : 'real cubes';
+  if (format === 'commander') return 'Commander cubes';
+  if (rarity === 'pauper' || rarity === 'peasant') return `${rarity} cubes`;
+  return bandIsSizeSpecific ? `${size}s` : 'cubes';
 }
 
 /** The always-visible one-line verdict: everything in range, or which

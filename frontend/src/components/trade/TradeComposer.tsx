@@ -400,7 +400,7 @@ export function TradeComposer({
             Trade with {friendName}
           </h2>
           <p className="game-night-dialog-hint">
-            {friendName} sees the exact printings and confirms theirs when they accept.
+            {friendName} confirms the exact printings when they accept.
           </p>
 
           {counterTo && (
@@ -526,7 +526,7 @@ export function TradeComposer({
               searchLabel={`Search ${friendName}'s collection`}
               searchNote={
                 wantSearch.ignored.length > 0
-                  ? `${wantSearch.ignored.join(', ')} ${wantSearch.ignored.length === 1 ? 'is' : 'are'} not searchable in a friend's collection. The rest of your search still ran.`
+                  ? `${wantSearch.ignored.join(', ')} can't be searched in a friend's collection, so the rest of your search is applied.`
                   : undefined
               }
               picked={wantCards.map((c) => ({

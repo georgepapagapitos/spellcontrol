@@ -64,7 +64,7 @@ function listMeta(def: BrowseListDef, filters: BrowseFilters): string {
     case 'game-changers':
       return 'Cards Wizards limits by bracket: none in brackets 1 and 2, up to three in bracket 3.';
     case 'banned':
-      return 'Cards a Commander deck is not allowed to run.';
+      return "Cards Commander decks can't run.";
   }
 }
 

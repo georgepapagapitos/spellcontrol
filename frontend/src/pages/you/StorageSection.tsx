@@ -41,8 +41,7 @@ export function StorageSection() {
     } catch (err) {
       logger.warn('[settings] reset app cache failed:', err);
       toast.show({
-        message:
-          "Couldn't reset the app cache. Try clearing this site's data in your browser settings.",
+        message: "Couldn't reset the cache. Clear this site's data in your browser settings.",
         tone: 'error',
       });
       setResetCacheBusy(false);
@@ -56,7 +55,7 @@ export function StorageSection() {
       <SettingsSection id="settings-privacy-title" title="Privacy">
         <SwitchRow
           label="Share suggestion feedback"
-          hint="Sends the commander, the cards and what you did with a suggestion: took it, cut it or undid it. Never tied to your account or a deck."
+          hint="Shares which suggestions you take, cut or undo, with the commander and cards. Not linked to you or a deck."
           checked={shareLabels}
           onChange={(next) => {
             setSuggestionLabelsEnabled(next);
@@ -68,7 +67,7 @@ export function StorageSection() {
       <SettingsSection id="settings-troubleshooting-title" title="Troubleshooting">
         <SettingsRow
           value="Reset app cache"
-          hint="Reloads the app. Your data isn't touched."
+          hint="Reloads the app with the latest version."
           actions={
             <Button onClick={() => setResetCacheOpen(true)} disabled={resetCacheBusy}>
               {resetCacheBusy ? 'Resetting…' : 'Reset cache'}
@@ -81,7 +80,7 @@ export function StorageSection() {
               Repair deck allocations
               <InfoTip
                 label="deck allocations"
-                text="Each deck slot reserves one of your physical copies. Repair redoes that match after edits or re-imports."
+                text="Each deck slot holds one of your copies. Repair re-matches them after edits or re-imports."
               />
             </>
           }
@@ -98,7 +97,7 @@ export function StorageSection() {
       {resetCacheOpen && (
         <ConfirmDialog
           title="Reset app cache?"
-          body="Reloads the app to fetch the latest version. Your data is kept."
+          body="Your cards and decks stay."
           confirmLabel="Reset cache"
           onConfirm={() => void handleResetAppCache()}
           onCancel={() => setResetCacheOpen(false)}
