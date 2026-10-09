@@ -17,6 +17,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { writeKeywordGlossary, writeRulesGlossary } from './keyword-glossary.mjs';
+import { isNewerRelease } from './rules-release.mjs';
 
 const RULES_PAGE = 'https://magic.wizards.com/en/rules';
 const FALLBACK_URL = 'https://media.wizards.com/2026/downloads/MagicCompRules%2020260417.txt';
@@ -82,12 +83,21 @@ if (noFetch && Number.isFinite(age)) {
   console.log(`[rules] --no-fetch, keeping the committed snapshot (${age.toFixed(1)}d old)`);
   await done();
 }
+// Inside the age gate the bundle is only kept while WotC has not posted a newer
+// release: a new CR is a content change, not a staleness one, and waiting out
+// the gate left /rules a release behind for weeks (E338).
+let discovered = process.env.RULES_SOURCE_URL ?? null;
 if (!force && age < MAX_AGE_DAYS) {
-  console.log(`[rules] ${dest} is ${age.toFixed(1)}d old (< ${MAX_AGE_DAYS}d), skipping`);
-  await done();
+  discovered ??= await discoverLatest();
+  const committedSource = JSON.parse(await readFile(dest, 'utf8')).meta?.source;
+  if (!isNewerRelease(discovered, committedSource)) {
+    console.log(`[rules] ${dest} is ${age.toFixed(1)}d old (< ${MAX_AGE_DAYS}d), skipping`);
+    await done();
+  }
+  console.log(`[rules] A newer release is published (${discovered}), refetching inside the gate`);
 }
 
-const SOURCE_URL = process.env.RULES_SOURCE_URL ?? (await discoverLatest()) ?? FALLBACK_URL;
+const SOURCE_URL = discovered ?? (await discoverLatest()) ?? FALLBACK_URL;
 console.log(`[rules] Fetching ${SOURCE_URL}`);
 let text;
 try {
