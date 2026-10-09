@@ -322,10 +322,17 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
 
     // Desktop workbench inspector (T153 phase 4): the active row, or null
     // once the reset effect above has settled on an empty result set.
+    // The callback lives in a ref (the style guide's latest-callback rule):
+    // hosts pass an inline arrow, and depending on it re-ran this effect, and
+    // its parent setState, after every render of the host.
+    const onActiveChangeRef = useRef(onActiveChange);
+    useEffect(() => {
+      onActiveChangeRef.current = onActiveChange;
+    });
     useEffect(() => {
       const idx = Math.min(activeIndex, results.length - 1);
-      onActiveChange?.(idx >= 0 ? results[idx] : null);
-    }, [results, activeIndex, onActiveChange]);
+      onActiveChangeRef.current?.(idx >= 0 ? results[idx] : null);
+    }, [results, activeIndex]);
 
     // The fetch button had focus and vanished (the last page landed): hand
     // focus to the closing line instead of dropping it to the document.
