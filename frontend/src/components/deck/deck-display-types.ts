@@ -61,9 +61,6 @@ export interface DeckDisplayProps {
   considering?: DeckDisplayCard[];
   /** Optional grade/bracket — if provided, renders in the stats and toolbar. */
   bracketEstimation?: BracketEstimation;
-  /** Actual deck cards by name — lets bracket-breakdown card previews show the
-   *  deck's printing instead of the default printing fetched by name. */
-  deckCardsByName?: ReadonlyMap<string, ScryfallCard>;
   /** User-pinned bracket (1–5); when set it overrides the auto estimate. */
   bracketOverride?: 1 | 2 | 3 | 4 | 5 | null;
   /** The estimate was made before the combo match answered, so it is a floor

@@ -106,8 +106,10 @@ export interface PublicDeckCard {
   card: {
     id?: string;
     name: string;
-    image_uris?: { small?: string; normal?: string; large?: string };
-    card_faces?: Array<{ image_uris?: { small?: string; normal?: string; large?: string } }>;
+    image_uris?: { small?: string; normal?: string; large?: string; art_crop?: string };
+    card_faces?: Array<{
+      image_uris?: { small?: string; normal?: string; large?: string; art_crop?: string };
+    }>;
     type_line?: string;
     mana_cost?: string;
     cmc?: number;
