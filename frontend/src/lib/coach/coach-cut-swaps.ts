@@ -154,7 +154,7 @@ export function repairCopy(repairs: readonly string[]): string {
 function present(s: string): string {
   return (
     s
-      .replace(/was in only 0% of this commander's decks/, 'is not played with this commander')
+      .replace(/was in only 0% of this commander's decks/, "isn't played with this commander")
       // The generation copy's article: "an static-speed answer".
       .replace(/\ban ([b-df-hj-np-tv-z]\w*-speed)/, 'a $1')
       // The feeders are a list of up to three names: the row has no room for it (a 3-line reason).
@@ -180,7 +180,7 @@ function weakerFromLegacy(cut: Change, outName: string): string {
     return `${outName} isn't played alongside this deck's key cards.`;
   if (/low synergy/i.test(reason)) return `${outName} does little for this deck's plan.`;
   if (typeof cut.inclusion === 'number' && cut.inclusion < 1)
-    return `${outName} is not played with this commander.`;
+    return `${outName} isn't played with this commander.`;
   if (typeof cut.inclusion === 'number' && cut.inclusion < 30)
     return `${outName} is in only ${Math.round(cut.inclusion)}% of this commander's decks.`;
   if (/low inclusion|not played/i.test(reason))

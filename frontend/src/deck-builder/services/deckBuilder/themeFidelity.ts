@@ -140,8 +140,8 @@ export function describeThemeFidelity(f: ThemeFidelity): string {
   const rest = f.nonland - f.onTheme;
   const tail =
     rest === 1
-      ? 'The other card is not tied to a theme.'
-      : `The other ${rest} cards are not tied to a theme.`;
+      ? "The other card isn't tied to a theme."
+      : `The other ${rest} cards aren't tied to a theme.`;
   return `${parts.join(' ')} ${tail}`;
 }
 

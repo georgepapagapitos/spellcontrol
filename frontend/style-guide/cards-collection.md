@@ -964,6 +964,9 @@ chips, tooltips, analysis messages):
 - "Mana value" is MTG's official term since 2021; "CMC" is legacy and reads as
   jargon to newer players. Spell it out ("Mana value"), don't abbreviate to
   "MV" — an unfamiliar abbreviation trades one bit of jargon for another.
+  The one exception is a stat cell too narrow for the words, where the long
+  label swaps for "avg MV" (the deck stat strip, `style-guide/decks.md`). Prose,
+  hints, tips and generated reasons always say "mana value".
 - **Reserve "cost" for mana _cost_ (the pips) only.** Don't use "cost" for the
   mana-value number (say "mana value") or for money (say "price"). This keeps
   "cost" and "price" from colliding on the same screen.
