@@ -32,7 +32,7 @@ export interface BinderLayoutInputs {
 }
 
 /**
- * `rawCards` → tags → Secret Lair drops → release dates, plus the allocation
+ * `rawCards` → tags → release dates → Secret Lair drops, plus the allocation
  * map and set map — exactly `pages/BinderPage.tsx`'s own chain, extracted so
  * there is one source of these inputs rather than each caller re-deriving
  * (and inevitably under-deriving) its own subset.
@@ -46,11 +46,18 @@ export function useBinderLayoutInputs(): BinderLayoutInputs {
   // No-op (returns its input by reference) unless a binder actually uses the
   // corresponding rule/sort — each decoration only costs what it's for.
   const taggedCards = useCardsWithTags(rawCards, bindersUseTags(binders));
-  const droppedCards = useCardsWithSldDrops(taggedCards, bindersUseSldDrops(binders));
-  const dateCards = useCardsWithReleaseDates(droppedCards, bindersUseReleaseDates(binders));
+  // Dates BEFORE drops: a Secret Lair number sold in several drops picks the one
+  // closest to the printing's own date, so `releasedAt` must already be stamped.
+  // Hence dates also decorate for a Set sort, which needs drops but not dates.
+  const usesDrops = bindersUseSldDrops(binders);
+  const dateCards = useCardsWithReleaseDates(
+    taggedCards,
+    usesDrops || bindersUseReleaseDates(binders)
+  );
+  const droppedCards = useCardsWithSldDrops(dateCards, usesDrops);
   // Last in the chain: needs `allocatedCopyIds`, computed above.
   const cards = useCardsWithSpareCopies(
-    dateCards,
+    droppedCards,
     allocatedCopyIds,
     bindersUseSpareCopies(binders)
   );

@@ -15,7 +15,7 @@
  */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import type { EnrichedCard } from '@spellcontrol/binder-routing';
+import { pickClosestDrop, type EnrichedCard } from '@spellcontrol/binder-routing';
 
 const SNAPSHOT_PATH =
   process.env.SLD_DROPS_SNAPSHOT_PATH ??
@@ -26,9 +26,9 @@ interface Drop {
   releasedAt: string;
 }
 
-let byNumber: Map<string, Drop> | null = null;
+let byNumber: Map<string, Drop[]> | null = null;
 
-function ensureLoaded(): Map<string, Drop> {
+function ensureLoaded(): Map<string, Drop[]> {
   if (byNumber) return byNumber;
   byNumber = new Map();
   try {
@@ -41,8 +41,13 @@ function ensureLoaded(): Map<string, Drop> {
         name: d.name,
         releasedAt: typeof d.releasedAt === 'string' ? d.releasedAt : '',
       };
-      // A number sold in more than one drop takes the first, as the frontend does.
-      for (const n of d.numbers) if (!byNumber.has(String(n))) byNumber.set(String(n), drop);
+      // Snapshot order (newest first) is kept: a number sold in more than one drop is
+      // resolved per card by `pickClosestDrop`, exactly as the frontend does.
+      for (const n of d.numbers) {
+        const list = byNumber.get(String(n));
+        if (list) list.push(drop);
+        else byNumber.set(String(n), [drop]);
+      }
     }
   } catch {
     // No snapshot on disk (dev/test) — Secret Lairs keep the flat set. Not an error.
@@ -65,7 +70,10 @@ export function anyBinderUsesSetSorts(bindersRaw: unknown): boolean {
   });
 }
 
-/** Stamp `sldDrop` / `sldDropReleasedAt` onto mapped SLD cards (copies only those). */
+/**
+ * Stamp `sldDrop` / `sldDropReleasedAt` onto mapped SLD cards (copies only those).
+ * Run AFTER `decorateCardsWithReleaseDates`: the closest-dated drop needs `releasedAt`.
+ */
 export function decorateCardsWithSldDrops(cards: EnrichedCard[]): EnrichedCard[] {
   const index = ensureLoaded();
   if (index.size === 0) return cards;
@@ -73,7 +81,8 @@ export function decorateCardsWithSldDrops(cards: EnrichedCard[]): EnrichedCard[]
     if ((c.setCode ?? '').toUpperCase() !== 'SLD') return c;
     const n = c.collectorNumber ?? '';
     // Suffixed variants ("1627★") share their base number's drop.
-    const drop = index.get(n) ?? index.get(n.replace(/[^0-9]+$/, ''));
+    const candidates = index.get(n) ?? index.get(n.replace(/[^0-9]+$/, '')) ?? [];
+    const drop = pickClosestDrop(candidates, c.releasedAt);
     return drop ? { ...c, sldDrop: drop.name, sldDropReleasedAt: drop.releasedAt } : c;
   });
 }

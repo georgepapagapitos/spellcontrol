@@ -14,6 +14,9 @@ beforeAll(() => {
       drops: [
         { name: 'Goblin Storm', releasedAt: '2026-05-22', numbers: ['2418', '2419'] },
         { name: 'Undated Promo', releasedAt: '', numbers: ['923'] },
+        // SLD #523, newest first, as the real snapshot lists it.
+        { name: 'Year of the Rat', releasedAt: '2020-01-07', numbers: ['523'] },
+        { name: 'Kaleidoscope Killers', releasedAt: '2019-12-08', numbers: ['523'] },
       ],
     })
   );
@@ -60,6 +63,18 @@ describe('card-sld-drops', () => {
     expect(out[2].sldDropReleasedAt).toBe('');
     expect(out[3].sldDrop).toBeUndefined();
     expect(out[4].sldDrop).toBeUndefined();
+  });
+
+  it('picks the same drop as the frontend for a number sold in several (parity fixture)', async () => {
+    // Same fixture and answers as frontend/src/lib/cards/sld-drops.test.ts: both
+    // call binder-routing's pickClosestDrop, so a drift in either shows up as a diff.
+    const { decorateCardsWithSldDrops, resetSldDropsCache } = await import('./card-sld-drops');
+    resetSldDropsCache();
+    const dated = { ...card('SLD', '523'), releasedAt: '2019-12-16' };
+    const [ral, undated] = decorateCardsWithSldDrops([dated, card('SLD', '523')]);
+    expect(ral.sldDrop).toBe('Kaleidoscope Killers');
+    expect(ral.sldDropReleasedAt).toBe('2019-12-08');
+    expect(undated.sldDrop).toBe('Year of the Rat');
   });
 
   it('anyBinderUsesSetSorts gates on either set sort or the retired sldDrop field', async () => {

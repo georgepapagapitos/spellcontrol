@@ -7,7 +7,7 @@
 //  - https://mtgjson.com/api/v5/SLD.json.gz — sealedProduct release dates +
 //    per-drop decklists (deck refs resolve to uuid-keyed boards; the set's
 //    own card list maps uuid → collector number).
-//  - mtgjson/mtg-sealed-content data/contents/SLD.yaml — the upstream source
+//  - mtgjson/mtg-sealed-content data/products/SLD.yaml — the upstream source
 //    feeding MTGJSON; its `variable` blocks carry chase/bonus card numbers
 //    that don't always survive into the compiled SLD.json.
 //
@@ -29,7 +29,7 @@ import { pruneOutlierDrops } from './sld-drop-dates.mjs';
 const JSON_URL = process.env.SLD_JSON_URL ?? 'https://mtgjson.com/api/v5/SLD.json.gz';
 const YAML_URL =
   process.env.SLD_CONTENTS_URL ??
-  'https://raw.githubusercontent.com/mtgjson/mtg-sealed-content/main/data/contents/SLD.yaml';
+  'https://raw.githubusercontent.com/mtgjson/mtg-sealed-content/main/data/products/SLD.yaml';
 const MAX_AGE_DAYS = 30;
 const force = process.argv.includes('--force');
 // --no-fetch: never reach the network, just keep whatever snapshot is committed.
@@ -67,10 +67,10 @@ if (!force && age < MAX_AGE_DAYS) {
 }
 
 /** Fetch a URL; on any failure keep the existing snapshot (exit 0) if we have one. */
-async function fetchOrKeep(url) {
+async function fetchOrKeep(url, init) {
   let res;
   try {
-    res = await fetch(url);
+    res = await fetch(url, init);
   } catch (err) {
     bail(`Fetch failed for ${url}: ${err.message}`);
   }
@@ -151,8 +151,15 @@ for (const product of data.sealedProduct ?? []) {
 for (const [productName, productContents] of Object.entries(contents?.products ?? {})) {
   if (productName.startsWith('Secret Lair Bundle')) continue;
   const drop = dropName(productName);
-  addCardRefs(drop, productContents ?? {});
-  for (const ref of productContents?.deck ?? []) {
+  // Upstream moved the card/deck/variable blocks under each product's `contents`
+  // key (data/contents/ became data/products/); the old flat shape still parses.
+  const blocks = productContents?.contents ?? productContents ?? {};
+  addCardRefs(drop, blocks);
+  // ponytail: upstream now names bonus/chase cards by `pack` code (a shared sheet in
+  // the compiled set's `booster` table) instead of listing numbers. Resolving packs
+  // credits one pool card to up to 47 drops, so they are skipped: those cards keep the
+  // flat SLD set until someone rules which drop owns a shared bonus pool (E606 leftover).
+  for (const ref of blocks.deck ?? []) {
     const deck = decksByName.get(ref?.name);
     if (!deck) continue;
     for (const board of ['mainBoard', 'sideBoard', 'commander']) {
@@ -166,11 +173,16 @@ for (const [productName, productContents] of Object.entries(contents?.products ?
 
 /** Every SLD printing's [collector number, released_at] from Scryfall (~15 pages). */
 async function fetchPrintings() {
+  // Scryfall answers a bare Node fetch with HTTP 400: it requires a User-Agent
+  // and an Accept header on every API request.
+  const init = {
+    headers: { 'User-Agent': 'SpellControl-SldDrops/1.0', Accept: 'application/json' },
+  };
   const printings = [];
   let next =
     'https://api.scryfall.com/cards/search?q=set%3Asld+unique%3Aprints&order=set&include_extras=true';
   while (next) {
-    const res = await fetchOrKeep(next);
+    const res = await fetchOrKeep(next, init);
     const page = await res.json();
     for (const card of page.data ?? []) printings.push([card.collector_number, card.released_at]);
     next = page.has_more ? page.next_page : null;

@@ -13,6 +13,9 @@ const VALID = {
     { name: 'OMG KITTIES', releasedAt: '2019-12-02', numbers: ['92', '93'] },
     { name: 'Allied Talismans', releasedAt: '2023-05-01', numbers: ['708'] },
     { name: 'Enemy Talismans', releasedAt: '2023-05-01', numbers: ['708'] },
+    // SLD #523, newest first, as the real snapshot lists it.
+    { name: 'Year of the Rat', releasedAt: '2020-01-07', numbers: ['523'] },
+    { name: 'Kaleidoscope Killers', releasedAt: '2019-12-08', numbers: ['523'] },
   ],
 };
 
@@ -87,6 +90,19 @@ describe('decorateSldDrops', () => {
     });
   });
 
+  it('picks the drop closest to the printing release date, newest when it is unknown', () => {
+    // Ral, Storm Conduit #523 printed 2019-12-16: not the newest drop (2020-01-07).
+    // The backend's card-sld-drops.test.ts asserts the same fixture, same answers.
+    const ral = { ...card('SLD', '523'), releasedAt: '2019-12-16' };
+    expect(decorateSldDrops([ral], index)[0]).toMatchObject({
+      sldDrop: 'Kaleidoscope Killers',
+      sldDropReleasedAt: '2019-12-08',
+    });
+    expect(decorateSldDrops([card('SLD', '523')], index)[0]).toMatchObject({
+      sldDrop: 'Year of the Rat',
+    });
+  });
+
   it('leaves non-SLD cards and unmapped SLD numbers undecorated', () => {
     const cards = [card('MH3', '92'), card('SLD', '9999')];
     const out = decorateSldDrops(cards, index);
@@ -143,7 +159,7 @@ describe('getSldDrops', () => {
     vi.stubGlobal('fetch', fetchMock);
     const load = await freshLoader();
     const first = await load();
-    expect(first?.drops).toHaveLength(3);
+    expect(first?.drops).toHaveLength(VALID.drops.length);
     await load();
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
@@ -163,7 +179,7 @@ describe('getSldDrops', () => {
     const load = await freshLoader();
     await expect(load()).resolves.toBeNull();
     const retried = await load();
-    expect(retried?.drops).toHaveLength(3);
+    expect(retried?.drops).toHaveLength(VALID.drops.length);
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
