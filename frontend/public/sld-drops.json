@@ -1,10 +1,60 @@
 {
-  "generatedAt": "2026-09-14T10:31:23.180Z",
+  "generatedAt": "2026-10-09T19:02:51.332Z",
   "drops": [
+    {
+      "name": "Masters of the Universe Allies and Enemies of Eternia",
+      "releasedAt": "2026-09-29",
+      "numbers": ["2784", "2785", "2786", "2787", "2788", "2789"]
+    },
+    {
+      "name": "Masters of the Universe By the Power of Grayskull!",
+      "releasedAt": "2026-09-29",
+      "numbers": ["2768", "2769", "2770", "2771", "2772"]
+    },
+    {
+      "name": "Masters of the Universe Nyah ha ha!",
+      "releasedAt": "2026-09-29",
+      "numbers": ["2773", "2774", "2775", "2776", "2777"]
+    },
+    {
+      "name": "Masters of the Universe She Ra, Princess of Power",
+      "releasedAt": "2026-09-29",
+      "numbers": ["2778", "2779", "2780", "2781", "2782", "2783"]
+    },
+    {
+      "name": "Masters of the Universe Sold Separately",
+      "releasedAt": "2026-09-29",
+      "numbers": ["2790", "2791", "2792", "2793", "2794"]
+    },
+    {
+      "name": "The Oddlands Forests",
+      "releasedAt": "2026-09-29",
+      "numbers": ["2116", "2117", "2118", "2119", "2120"]
+    },
+    {
+      "name": "The Oddlands Islands",
+      "releasedAt": "2026-09-29",
+      "numbers": ["2116", "2117", "2118", "2119", "2120"]
+    },
+    {
+      "name": "The Oddlands Mountains",
+      "releasedAt": "2026-09-29",
+      "numbers": ["2116", "2117", "2118", "2119", "2120"]
+    },
+    {
+      "name": "The Oddlands Plains",
+      "releasedAt": "2026-09-29",
+      "numbers": ["2116", "2117", "2118", "2119", "2120"]
+    },
+    {
+      "name": "The Oddlands Swamps",
+      "releasedAt": "2026-09-29",
+      "numbers": ["2116", "2117", "2118", "2119", "2120"]
+    },
     {
       "name": "Artist Series Ian Miller",
       "releasedAt": "2026-09-01",
-      "numbers": ["2759", "2760", "2761", "2762"]
+      "numbers": ["2759", "2760", "2761", "2762", "7180"]
     },
     {
       "name": "Cosmic Chill by Robin Eisenberg",
@@ -19,7 +69,7 @@
     {
       "name": "Lofi Girl Beats to Cast To",
       "releasedAt": "2026-09-01",
-      "numbers": ["2821", "2822", "2823", "2824", "2825"]
+      "numbers": ["2821", "2822", "2823", "2824", "2825", "7191"]
     },
     {
       "name": "Marvel Dan Hipp",
@@ -44,43 +94,87 @@
     {
       "name": "The Hobbit Desolation",
       "releasedAt": "2026-08-18",
-      "numbers": ["2562", "2563", "2564", "2565", "2566"]
+      "numbers": ["2562", "2563", "2564", "2565", "2566", "7114"]
     },
     {
       "name": "The Hobbit He Who Walks Unseen Out of Sight",
       "releasedAt": "2026-08-18",
-      "numbers": ["2567", "2568", "2569", "2570", "2571"]
+      "numbers": ["2567", "2568", "2569", "2570", "2571", "7115"]
     },
     {
       "name": "The Hobbit Over the Edge of the Wild",
       "releasedAt": "2026-08-18",
-      "numbers": ["2552", "2553", "2554", "2555", "2556"]
+      "numbers": ["2552", "2553", "2554", "2555", "2556", "7112"]
+    },
+    {
+      "name": "The Hobbit Second Breakfast and Beyond",
+      "releasedAt": "2026-08-18",
+      "numbers": ["7111"]
     },
     {
       "name": "The Hobbit Smaugs Spoils",
       "releasedAt": "2026-08-18",
-      "numbers": ["2557", "2558", "2559", "2560", "2561"]
+      "numbers": ["2557", "2558", "2559", "2560", "2561", "7113"]
     },
-    { "name": "Hatsune Miku", "releasedAt": "2026-08-10", "numbers": ["7093"] },
+    {
+      "name": "Secret Lair Promo x The Hobbit Arcane Signet",
+      "releasedAt": "2026-08-17",
+      "numbers": ["916"]
+    },
+    {
+      "name": "Hatsune Miku",
+      "releasedAt": "2026-08-10",
+      "numbers": [
+        "2429",
+        "2430",
+        "2431",
+        "2432",
+        "2433",
+        "2434",
+        "2435",
+        "2436",
+        "2437",
+        "2438",
+        "2439",
+        "2440",
+        "2441",
+        "2442",
+        "2444",
+        "2445",
+        "7093"
+      ]
+    },
     {
       "name": "Stardew Valley A Flicker in the Deep",
       "releasedAt": "2026-08-03",
-      "numbers": ["2814", "2815", "2816", "2817", "2818"]
+      "numbers": ["2814", "2815", "2816", "2817", "2818", "7190"]
     },
     {
       "name": "Stardew Valley Life in Pelican Town",
       "releasedAt": "2026-08-03",
-      "numbers": ["2809", "2810", "2811", "2812", "2813"]
+      "numbers": ["2809", "2810", "2811", "2812", "2813", "7189"]
     },
     {
       "name": "Stardew Valley Welcome to Stardew Valley",
       "releasedAt": "2026-08-03",
-      "numbers": ["2801", "2802", "2803", "2804", "2805", "2806", "2807"]
+      "numbers": ["2801", "2802", "2803", "2804", "2805", "2806", "2807", "7188"]
     },
     {
       "name": "Their Magic is Limitless",
       "releasedAt": "2026-07-22",
-      "numbers": ["2678", "2679", "2680", "2681", "2682", "2683", "2684"]
+      "numbers": [
+        "2678",
+        "2679",
+        "2680",
+        "2681",
+        "2682",
+        "2683",
+        "2684",
+        "7167",
+        "7168",
+        "7169",
+        "7170"
+      ]
     },
     {
       "name": "Marvel Spinner Rack Specials",
@@ -204,6 +298,11 @@
       "numbers": ["2066", "2067", "2068", "2069", "2070"]
     },
     {
+      "name": "Viva Las Rakdos",
+      "releasedAt": "2026-04-13",
+      "numbers": ["2524", "2525", "2526", "2527", "2528"]
+    },
+    {
       "name": "Marvels Deadpool I Fixed It (Youre Welcome)",
       "releasedAt": "2026-04-06",
       "numbers": ["7126", "7127", "IFIYW-1", "IFIYW-2", "IFIYW-3", "IFIYW-4", "IFIYW-5"]
@@ -212,6 +311,11 @@
       "name": "Marvels Deadpool I Fixed It (Youre Welcome) Pool Party Dazzle",
       "releasedAt": "2026-04-06",
       "numbers": ["7128", "7129", "IFIYW-10", "IFIYW-6", "IFIYW-7", "IFIYW-8", "IFIYW-9"]
+    },
+    {
+      "name": "So Salty",
+      "releasedAt": "2026-03-26",
+      "numbers": ["2396", "2397", "2398", "2399", "2400"]
     },
     {
       "name": "Dandân Deck",
@@ -676,11 +780,6 @@
       "numbers": ["2071", "2072", "2073", "2074", "2075", "7028"]
     },
     {
-      "name": "Viva Las Rakdos",
-      "releasedAt": "2025-05-13",
-      "numbers": ["2524", "2525", "2526", "2527", "2528"]
-    },
-    {
       "name": "vroooOOOMMMMMM!",
       "releasedAt": "2025-05-13",
       "numbers": ["2037", "2038", "2039", "2040", "2041"]
@@ -699,11 +798,6 @@
       "name": "Secret Lair Promo Deadeye Navigator",
       "releasedAt": "2025-04-23",
       "numbers": ["902"]
-    },
-    {
-      "name": "So Salty",
-      "releasedAt": "2025-04-22",
-      "numbers": ["2396", "2397", "2398", "2399", "2400"]
     },
     {
       "name": "Secret Lair x Marvels Deadpool April Pools Day",
@@ -1085,8 +1179,6 @@
       "name": "Secret Lair x Hatsune Miku Sakura Superstar English",
       "releasedAt": "2024-05-30",
       "numbers": [
-        "805",
-        "808",
         "1587",
         "1587★",
         "1594",
@@ -1098,7 +1190,9 @@
         "1602",
         "1602★",
         "1605",
-        "1605★"
+        "1605★",
+        "805",
+        "808"
       ]
     },
     {
@@ -2356,6 +2450,11 @@
       "numbers": ["918"]
     },
     { "name": "Secret Lair Promo x Marvel Arcane Signet", "releasedAt": "", "numbers": ["908"] },
+    {
+      "name": "Secret Lair Promo x Masters of the Universe Swan Song",
+      "releasedAt": "",
+      "numbers": ["922"]
+    },
     {
       "name": "Secret Lair Promo x Stardew Valley Puca's Mischief as Lucky Purple Memento",
       "releasedAt": "",

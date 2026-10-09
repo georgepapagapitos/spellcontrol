@@ -120,7 +120,7 @@ jobs:
               ["public/comprehensive-rules.json", (d) => !!d.meta],
               ["public/keyword-glossary.json", (d) => (d.keywords || []).length > 200],
               ["public/rules-glossary.json", (d) => (d.terms || []).length > 300],
-              ["public/sld-drops.json", (d) => !!d.generatedAt],
+              ["public/sld-drops.json", (d) => !!d.generatedAt && (d.drops || []).length >= 400 && new Set((d.drops || []).flatMap((x) => x.numbers)).size >= 2300],
               ["public/cube-signal.json", (d) => Object.keys(d.cards || {}).length > 20000],
               ["public/cube-signal-pauper.json", (d) => Object.keys(d.cards || {}).length > 500],
               ["public/cube-signal-peasant.json", (d) => Object.keys(d.cards || {}).length > 500],
