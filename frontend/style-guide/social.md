@@ -1,7 +1,7 @@
 # Style guide: Sharing & social
 
 Public shared views, discovery tiles and trades. An appendix to the frontend style guide: the principles,
-tokens, verbs, voice, accessibility, responsive, motion, colour and
+tokens, verbs, voice, accessibility, responsive, motion, color and
 spacing rules every screen follows are in the core,
 [`STYLE_GUIDE.md`](../STYLE_GUIDE.md). Its Appendices section lists
 where every section lives.
@@ -53,7 +53,7 @@ chips · value` over `You get · chips · value`, no arrow, at every width),
   The tile stays a button that opens the carousel at that card, keeps the 44px
   coarse-pointer floor and the focus ring, and its accessible name carries the
   name, the quantity and the printing state (`Preview Sol Ring, 2 copies,
-  foil`). Loading and error are the same card-shaped box (the name on it), so
+foil`). Loading and error are the same card-shaped box (the name on it), so
   nothing shifts when art arrives.
 - **The art is the printing the line names.** A line pinned to a printing
   (`copies[0].scryfallId`) shows THAT printing, resolved by id through the
@@ -67,7 +67,7 @@ chips · value` over `You get · chips · value`, no arrow, at every width),
   `Any printing. This one is an example.` so the picture never reads as a
   promise. A pinned line whose printing fails to load is NOT "any printing"
   (the ask still names one); its slide says `Couldn't load the printing in
-  this trade. This is another printing of the card.` The two sides of an open
+this trade. This is another printing of the card.` The two sides of an open
   offer align to the top, so a caption on one tile never drops the other
   side's label out of line.
 - **Remove is per-side.** The other person keeps their copy, so a single row
@@ -105,7 +105,7 @@ Friends / Private**, or **Anyone with the link / Friends / Private** for a
 kind with no public page of its own. Every option's hint stays visible, not
 just the picked one's, and an option that isn't available right now (Public
 while signed out or offline) stays in the group, disabled, with the reason as
-its hint — never hidden, never a bare greyed-out label with no explanation.
+its hint — never hidden, never a bare grayed-out label with no explanation.
 There is no confirm step, no display-name gate and no list of links to revoke
 anywhere in Settings. The control opens on the real current state and never
 creates anything just by opening. The link it shows is the thing's own
@@ -219,7 +219,7 @@ filled glyph `--art-scrim-accent`. A bare white glyph with a drop-shadow was
 the old treatment, and it vanished wherever the cover is a full card image,
 since the corner lands on the pale name bar and the mana cost. On touch the
 disc stays 1.9rem and the 44px target comes from an `::after`, as with the
-owner's ⋮ button, with the cluster gap widened so neighbouring targets don't
+owner's ⋮ button, with the cluster gap widened so neighboring targets don't
 overlap. Guard: `styles/art-controls-plate.test.ts`.
 
 **Footer**: `buildablePercent`, `estimatedValueUsd`, and "no data" are mutually
@@ -239,7 +239,7 @@ Top to bottom: header (banner, identity, stat line, follow), the Colors and
 Game record panels, then the deck library.
 
 - **Banner source order**: the pinned deck's art, else the top commander's
-  art, else no banner at all. Never an empty grey box. The box reserves its
+  art, else no banner at all. Never an empty gray box. The box reserves its
   aspect ratio (16 / 5, capped at 14rem; 5 / 2 on a phone) so it holds its
   size before the image loads. The image is decorative (`alt=""`, lazy) under
   an always-dark `--art-scrim` gradient, in both themes. No text sits on it;
@@ -258,7 +258,7 @@ Game record panels, then the deck library.
   the grid while nothing is searched or filtered; once the viewer narrows the
   list it is an ordinary tile so a search still finds it. It never shows twice.
 - **Colors** (was "Brews most", renamed 2026-09-29 after the user asked what
-  it meant): a stacked colour bar with `ColorPip` counts under a plain
+  it meant): a stacked color bar with `ColorPip` counts under a plain
   "Colors" heading and a caption saying what the numbers count ("Decks per
   color, across 17 decks"). A panel heading names what it shows; never a
   clever label that needs decoding. Below it, **Most-built commanders** lists
@@ -301,7 +301,7 @@ empty, one empty state invites the viewer to publish a deck. Rail order:
 **Rails scroll on a phone and grid when wide.** Below 1024px a rail is a snapping
 sideways scroller that fades its overflowing edge (`useOverflowEdges`); from
 1024px the same cards lay out as a grid, so a mouse never needs a horizontal
-wheel. (`SnapCarousel` is the centred card-preview carousel and is not a rail.)
+wheel. (`SnapCarousel` is the centered card-preview carousel and is not a rail.)
 
 **Search replaces the rails.** Two characters minimum, debounced 300ms; under two
 the rails stay. Results are `row` cards; states are skeleton rows, "No brewers
@@ -317,7 +317,7 @@ a strip of brewers to meet.
 - **A friend row is a person** (`components/friends/FriendRow`): avatar, name,
   `@handle`, a peek at what they brew ("3 decks · Brews Atraxa", or the honest
   "No public decks yet"), "Friends since …", and from 600px the art of one of
-  their decks with its colour bar. The whole identity is one link to
+  their decks with its color bar. The whole identity is one link to
   `/u/:username`; everything else lives in a `⋮` beside it, outside the link.
   Friends are accepted mutuals, so the avatar and public deck count are fine to
   show. The peek comes from `GET /api/friends` (backend `friends/peek.ts`,

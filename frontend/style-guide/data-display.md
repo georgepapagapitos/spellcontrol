@@ -1,7 +1,7 @@
 # Style guide: Charts & meters
 
 Line, radar and money charts, bars and meters. An appendix to the frontend style guide: the principles,
-tokens, verbs, voice, accessibility, responsive, motion, colour and
+tokens, verbs, voice, accessibility, responsive, motion, color and
 spacing rules every screen follows are in the core,
 [`STYLE_GUIDE.md`](../STYLE_GUIDE.md). Its Appendices section lists
 where every section lives.
