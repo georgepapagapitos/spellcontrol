@@ -12,6 +12,7 @@
  */
 
 import { openDB, type IDBPDatabase } from 'idb';
+import { openWithoutBfcache } from '@/lib/util/idb-open';
 import type { EntityKind } from './entity-store';
 
 export type { EntityKind };
@@ -69,13 +70,15 @@ let dbPromise: Promise<IDBPDatabase> | null = null;
 
 function getDB(): Promise<IDBPDatabase> {
   if (!dbPromise) {
-    dbPromise = openDB(DB_NAME, DB_VERSION, {
-      upgrade(db) {
-        if (!db.objectStoreNames.contains(STORE_NAME)) {
-          db.createObjectStore(STORE_NAME, { keyPath: 'seq', autoIncrement: true });
-        }
-      },
-    });
+    dbPromise = openWithoutBfcache(() =>
+      openDB(DB_NAME, DB_VERSION, {
+        upgrade(db) {
+          if (!db.objectStoreNames.contains(STORE_NAME)) {
+            db.createObjectStore(STORE_NAME, { keyPath: 'seq', autoIncrement: true });
+          }
+        },
+      })
+    );
   }
   return dbPromise;
 }

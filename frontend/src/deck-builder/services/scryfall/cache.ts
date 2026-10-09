@@ -20,6 +20,7 @@
  * must only cost us the network request we would have made anyway.
  */
 import { openDB, type IDBPDatabase } from 'idb';
+import { openWithoutBfcache } from '@/lib/util/idb-open';
 import { logger } from '@/lib/util/logger';
 import type { ScryfallCard } from '@/deck-builder/types';
 
@@ -56,14 +57,16 @@ function getDB(): Promise<IDBPDatabase> | null {
     return null;
   }
   try {
-    dbPromise = openDB(DB_NAME, DB_VERSION, {
-      upgrade(db) {
-        if (!db.objectStoreNames.contains(STORE)) {
-          const store = db.createObjectStore(STORE, { keyPath: 'key' });
-          store.createIndex('cachedAt', 'cachedAt');
-        }
-      },
-    });
+    dbPromise = openWithoutBfcache(() =>
+      openDB(DB_NAME, DB_VERSION, {
+        upgrade(db) {
+          if (!db.objectStoreNames.contains(STORE)) {
+            const store = db.createObjectStore(STORE, { keyPath: 'key' });
+            store.createIndex('cachedAt', 'cachedAt');
+          }
+        },
+      })
+    );
   } catch (err) {
     unavailable = true;
     logger.warn('[scryfall-cache] IndexedDB unavailable; using in-memory only', err);

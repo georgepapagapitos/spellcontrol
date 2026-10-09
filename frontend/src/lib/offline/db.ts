@@ -1,4 +1,5 @@
 import { openDB, type IDBPDatabase } from 'idb';
+import { openWithoutBfcache } from '@/lib/util/idb-open';
 import type { OfflineCombo, OfflineManifest, SlimCard } from './types';
 import { frontFaceName } from '@/lib/cards/card-text';
 
@@ -29,28 +30,30 @@ let dbPromise: Promise<IDBPDatabase> | null = null;
 
 function getDB(): Promise<IDBPDatabase> {
   if (!dbPromise) {
-    dbPromise = openDB(DB_NAME, DB_VERSION, {
-      upgrade(db) {
-        if (!db.objectStoreNames.contains(STORE_CARDS)) {
-          // Key path is `oracleId` — every SlimCard has one.
-          db.createObjectStore(STORE_CARDS, { keyPath: 'oracleId' });
-        }
-        if (!db.objectStoreNames.contains(STORE_NAMES)) {
-          // Standalone store mapping lowercase canonical name -> oracleId.
-          // Built post-insert during downloadAndStore so we can resolve
-          // by-name searches without an inline index (inline indexes on
-          // SlimCard would bloat IDB and we want to support multi-face
-          // alias names cheaply).
-          db.createObjectStore(STORE_NAMES);
-        }
-        if (!db.objectStoreNames.contains(STORE_COMBOS)) {
-          db.createObjectStore(STORE_COMBOS, { keyPath: 'id' });
-        }
-        if (!db.objectStoreNames.contains(STORE_META)) {
-          db.createObjectStore(STORE_META);
-        }
-      },
-    });
+    dbPromise = openWithoutBfcache(() =>
+      openDB(DB_NAME, DB_VERSION, {
+        upgrade(db) {
+          if (!db.objectStoreNames.contains(STORE_CARDS)) {
+            // Key path is `oracleId` — every SlimCard has one.
+            db.createObjectStore(STORE_CARDS, { keyPath: 'oracleId' });
+          }
+          if (!db.objectStoreNames.contains(STORE_NAMES)) {
+            // Standalone store mapping lowercase canonical name -> oracleId.
+            // Built post-insert during downloadAndStore so we can resolve
+            // by-name searches without an inline index (inline indexes on
+            // SlimCard would bloat IDB and we want to support multi-face
+            // alias names cheaply).
+            db.createObjectStore(STORE_NAMES);
+          }
+          if (!db.objectStoreNames.contains(STORE_COMBOS)) {
+            db.createObjectStore(STORE_COMBOS, { keyPath: 'id' });
+          }
+          if (!db.objectStoreNames.contains(STORE_META)) {
+            db.createObjectStore(STORE_META);
+          }
+        },
+      })
+    );
   }
   return dbPromise;
 }
