@@ -56,7 +56,7 @@ import {
   type ShowPrefs,
 } from './deck-display-rows';
 import { qtyOwnershipClass } from './deck-display-derive';
-import { SectionIcon, AllocationChip } from './deck-display-icons';
+import { SectionIcon, AllocationChip, ProxyTag } from './deck-display-icons';
 import { RoleBadge, LegalityBadge } from './deck-display-icons';
 import { CardName } from '@/components/shared/CardName';
 import { IconButton } from '@/components/shared/Button';
@@ -777,6 +777,7 @@ ${row.card.type_line}`}
             </Chip>
           )}
           {legalityIssue && <LegalityBadge issue={legalityIssue} className="deck-row-illegal" />}
+          <ProxyTag row={row} />
           {/* User tags (E171) — always visible when set (never hover-gated,
               unlike the system-derived hints below): a card's own tags are
               user-authored content, and staying visible is exactly what
@@ -801,8 +802,8 @@ ${row.card.type_line}`}
               On hover-capable pointers it's hidden at rest so the card name reads
               fully in the dense multi-column desktop layout, and revealed on row
               hover/focus; on touch (no hover) it stays inline — those rows are
-              full-width. Allocation status is still conveyed at rest via the
-              dimmed qty cell (deck-row-qty-missing) and the deck-level banner. */}
+              full-width. At rest a missing copy turns the count red and a proxy
+              says so by the name (ProxyTag). */}
           <span className="deck-row-hovermeta">
             {/* Foil and combo membership moved in here (2026-09-19): both are
                 facts about the card, not the list, and each was one more glyph

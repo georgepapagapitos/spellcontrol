@@ -185,11 +185,10 @@ export function buildSynergyByName(
   return map;
 }
 
-/** The count's ownership class: red while a copy is missing, a dashed outline
- *  when every slot is covered and some by a proxy, nothing otherwise. */
+/** The count's ownership class: red while a copy is missing. A proxy reads as
+ *  covered, so it leaves the count alone and says "proxy" by the name. */
 export function qtyOwnershipClass(row: Row): string {
-  if (row.status !== 'allocated') return ' deck-row-qty-missing';
-  return row.proxyQty > 0 ? ' deck-row-qty-proxy' : '';
+  return row.status !== 'allocated' ? ' deck-row-qty-missing' : '';
 }
 
 /** Missing summary: cards not allocated to a collection copy. */
