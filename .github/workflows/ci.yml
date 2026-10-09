@@ -234,11 +234,17 @@ jobs:
         with:
           working-directory: frontend
 
+      # The default reporter too, so a failing shard names its failing test in
+      # its own log. With the blob reporter alone a red shard printed nothing
+      # but "exit code 1" (2026-10-09: four red shards, none readable).
       - name: Run tests with coverage
-        run: npx vitest run --coverage --shard=${{ matrix.shard }}/${{ strategy.job-total }} --reporter=blob
+        run: npx vitest run --coverage --shard=${{ matrix.shard }}/${{ strategy.job-total }} --reporter=default --reporter=blob
 
       # .vitest/ is a dot-directory, which upload-artifact skips unless told.
+      # Uploaded when the tests fail as well: a failing shard's blob is the
+      # one worth reading.
       - name: Upload blob report
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: frontend-blob-${{ matrix.shard }}
