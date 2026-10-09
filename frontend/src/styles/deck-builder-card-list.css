@@ -1403,7 +1403,8 @@
   color: var(--err-text);
   border-color: var(--err-border);
 }
-.deck-row-alloc-chip-claimed-elsewhere {
+.deck-row-alloc-chip-claimed-elsewhere,
+.deck-row-alloc-chip-proxy {
   background: var(--surface-raised);
   color: var(--text-secondary);
   border-color: var(--border);

@@ -451,6 +451,16 @@ export function DeckCardGrid({
                         ×{row.qty}
                       </ArtBadge>
                     )}
+                    {row.status === 'allocated' && row.proxyQty > 0 && (
+                      <ArtBadge
+                        corner="top-end"
+                        className="deck-card-grid-alloc"
+                        title={allocationSummary(row)}
+                        label={allocationSummary(row)}
+                      >
+                        Proxy
+                      </ArtBadge>
+                    )}
                     {row.status !== 'allocated' &&
                       (row.allocatedQty > 0 ? (
                         <ArtBadge

@@ -89,6 +89,7 @@ export function CategorySection({
   onChangeCommander,
   onMoveToAnotherDeck,
   onReleaseCopy,
+  onSetProxy,
   onUseOwnCopy,
   headerAction,
   synergyByName,
@@ -140,6 +141,7 @@ export function CategorySection({
   onChangeCommander?: () => void;
   onMoveToAnotherDeck?: (card: ScryfallCard) => void;
   onReleaseCopy?: (card: ScryfallCard) => void;
+  onSetProxy?: (slotIds: string[], proxy: boolean) => void;
   onUseOwnCopy?: (card: ScryfallCard) => void;
   /** Optional control rendered at the end of the section header (e.g. the
    *  Commander section's "Add/Edit partner" button). */
@@ -257,6 +259,7 @@ export function CategorySection({
           onChangeCommander={entry.leaving ? undefined : onChangeCommander}
           onMoveToAnotherDeck={entry.leaving ? undefined : onMoveToAnotherDeck}
           onReleaseCopy={entry.leaving ? undefined : onReleaseCopy}
+          onSetProxy={entry.leaving ? undefined : onSetProxy}
           onUseOwnCopy={entry.leaving ? undefined : onUseOwnCopy}
           synergyReasons={synergyByName?.get(entry.item.card.name)}
           inclusionPct={resolveInclusionPct(cardInclusionMap, entry.item)}
@@ -411,6 +414,7 @@ function DeckCardRow({
   onChangeCommander,
   onMoveToAnotherDeck,
   onReleaseCopy,
+  onSetProxy,
   onUseOwnCopy,
   synergyReasons,
   inclusionPct,
@@ -462,6 +466,7 @@ function DeckCardRow({
   onChangeCommander?: () => void;
   onMoveToAnotherDeck?: (card: ScryfallCard) => void;
   onReleaseCopy?: (card: ScryfallCard) => void;
+  onSetProxy?: (slotIds: string[], proxy: boolean) => void;
   onUseOwnCopy?: (card: ScryfallCard) => void;
   synergyReasons?: string[];
   /** EDHREC inclusion rate (0–100) for this card; renders a subtle chip when set. */
@@ -580,6 +585,7 @@ function DeckCardRow({
     onUseOwnCopy,
     onMoveToAnotherDeck,
     onReleaseCopy,
+    onSetProxy,
     onMakeCommander,
     canMakeCommander,
     onMakePartner,

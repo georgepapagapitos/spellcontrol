@@ -37,6 +37,7 @@ import { withTagAdded, withTagRemoved } from '@/lib/deck/deck-tags';
 
 const decksIdbStorage = createIndexedDbStorage('spellcontrol-decks');
 import { pickRandomPresetColor } from '@/lib/util/preset-colors';
+import { migrateDecksState } from './decks-migrate';
 import type { EnrichedCard } from '../types';
 import type { SavedCube } from './cube';
 import { toast } from './toasts';
@@ -94,6 +95,21 @@ export interface DeckCard {
    * never rewritten.
    */
   sortIndex?: number;
+  /**
+   * The user plays a proxy in this slot, so it never claims a physical copy.
+   * Every automatic matcher (`remapAllocations` on boot, re-import, sync and
+   * Settings → Repair) skips it, which is what keeps a released copy from
+   * drifting back here. Binding a copy to the slot clears it.
+   */
+  proxy?: true;
+}
+
+/** A slot with `copyId` bound to it. Binding a real copy ends a proxy. */
+function bindCopy(c: DeckCard, copyId: string | null): DeckCard {
+  if (!copyId || !c.proxy) return { ...c, allocatedCopyId: copyId };
+  const { proxy: _proxy, ...rest } = c;
+  void _proxy;
+  return { ...rest, allocatedCopyId: copyId };
 }
 
 /** The three zones a `DeckCard` slot can live in — tags (and any other
@@ -441,6 +457,16 @@ interface DecksState {
   addCard(deckId: string, card: ScryfallCard, allocatedCopyId?: string | null): string;
   removeCard(deckId: string, slotId: string): void;
   setCardAllocation(deckId: string, slotId: string, allocatedCopyId: string | null): void;
+  /**
+   * Mark (or unmark) one slot, in any zone, as a proxy. Marking releases the
+   * slot's copy; unmarking binds `allocatedCopyId` when one is given.
+   */
+  setCardProxy(
+    deckId: string,
+    slotId: string,
+    proxy: boolean,
+    allocatedCopyId?: string | null
+  ): void;
 
   /**
    * Set user tags (E171) on every slot in `slotIds` within `zone`, in ONE
@@ -818,11 +844,36 @@ export const useDecksStore = create<DecksState>()(
             d.id === deckId
               ? touch({
                   ...d,
-                  cards: d.cards.map((c) => (c.slotId === slotId ? { ...c, allocatedCopyId } : c)),
+                  cards: d.cards.map((c) =>
+                    c.slotId === slotId ? bindCopy(c, allocatedCopyId) : c
+                  ),
                 })
               : d
           ),
         })),
+
+      setCardProxy: (deckId, slotId, proxy, allocatedCopyId = null) => {
+        const apply = (list: DeckCard[] | undefined) =>
+          (list ?? []).map((c): DeckCard => {
+            if (c.slotId !== slotId) return c;
+            if (proxy) return { ...c, allocatedCopyId: null, proxy: true };
+            const { proxy: _proxy, ...rest } = c;
+            void _proxy;
+            return { ...rest, allocatedCopyId };
+          });
+        set((s) => ({
+          decks: s.decks.map((d) =>
+            d.id === deckId
+              ? touch({
+                  ...d,
+                  cards: apply(d.cards),
+                  sideboard: apply(d.sideboard),
+                  considering: apply(d.considering),
+                })
+              : d
+          ),
+        }));
+      },
 
       setCardTags: (deckId, zone, slotIds, tags) => {
         const ids = new Set(slotIds);
@@ -1094,7 +1145,7 @@ export const useDecksStore = create<DecksState>()(
               ? touch({
                   ...d,
                   cards: d.cards.map((c) =>
-                    c.slotId === slotId ? { ...c, card, allocatedCopyId } : c
+                    c.slotId === slotId ? bindCopy({ ...c, card }, allocatedCopyId) : c
                   ),
                 })
               : d
@@ -1165,15 +1216,15 @@ export const useDecksStore = create<DecksState>()(
               // shape actually landed in IDB) — must not crash on a missing array.
               cards: (deck.cards ?? []).map((c) => ({
                 slotId: c.slotId,
-                allocatedCopyId: c.allocatedCopyId,
+                allocatedCopyId: c.proxy ? null : c.allocatedCopyId,
               })),
               sideboard: (deck.sideboard ?? []).map((c) => ({
                 slotId: c.slotId,
-                allocatedCopyId: c.allocatedCopyId,
+                allocatedCopyId: c.proxy ? null : c.allocatedCopyId,
               })),
               considering: (deck.considering ?? []).map((c) => ({
                 slotId: c.slotId,
-                allocatedCopyId: c.allocatedCopyId,
+                allocatedCopyId: c.proxy ? null : c.allocatedCopyId,
               })),
             });
           }
@@ -1206,7 +1257,11 @@ export const useDecksStore = create<DecksState>()(
                 },
               });
             }
+            // A proxy slot never enters the matching: the user plays a stand-in
+            // there, so handing it a copy is what used to pull a released copy
+            // back out of the deck that should have it.
             for (const c of deck.cards ?? []) {
+              if (c.proxy) continue;
               const slotId = c.slotId;
               slots.push({
                 deckId: deck.id,
@@ -1222,6 +1277,7 @@ export const useDecksStore = create<DecksState>()(
               });
             }
             for (const c of deck.sideboard ?? []) {
+              if (c.proxy) continue;
               const slotId = c.slotId;
               slots.push({
                 deckId: deck.id,
@@ -1242,6 +1298,7 @@ export const useDecksStore = create<DecksState>()(
             // (see lib/collection/allocations.ts DonorZone), which stays mainboard/sideboard
             // only. This loop is the passive bookkeeping half only.
             for (const c of deck.considering ?? []) {
+              if (c.proxy) continue;
               const slotId = c.slotId;
               slots.push({
                 deckId: deck.id,
@@ -1463,78 +1520,7 @@ export const useDecksStore = create<DecksState>()(
       // before `deleteLegacyDatabasesOnce()` removes the `spellcontrol-decks`
       // DB out from under it.
       partialize: () => ({}),
-      /**
-       * v1→v2: allocation tracking moved from `scryfallId` (which identifies a
-       * printing) to `copyId` (which identifies a single physical card). Old
-       * allocations point at scryfallIds that have no equivalent copyId in the
-       * collection, so we clear them and let the user re-pick. Deck contents
-       * are preserved.
-       */
-      migrate: (persistedState, fromVersion) => {
-        const state = persistedState as Record<string, unknown> | undefined;
-        if (!state) return state as never;
-        if (fromVersion < 2 && Array.isArray(state.decks)) {
-          state.decks = (state.decks as Array<Record<string, unknown>>).map((d) => {
-            const {
-              commanderAllocatedScryfallId: _c,
-              partnerCommanderAllocatedScryfallId: _p,
-              ...deckRest
-            } = d as Record<string, unknown> & {
-              commanderAllocatedScryfallId?: unknown;
-              partnerCommanderAllocatedScryfallId?: unknown;
-            };
-            void _c;
-            void _p;
-            return {
-              ...deckRest,
-              commanderAllocatedCopyId: null,
-              partnerCommanderAllocatedCopyId: null,
-              cards: Array.isArray(d.cards)
-                ? (d.cards as Array<Record<string, unknown>>).map((c) => {
-                    const { allocatedScryfallId: _a, ...rest } = c as Record<string, unknown> & {
-                      allocatedScryfallId?: unknown;
-                    };
-                    void _a;
-                    return { ...rest, allocatedCopyId: null };
-                  })
-                : [],
-            };
-          });
-        }
-        if (fromVersion < 3 && Array.isArray(state.decks)) {
-          state.decks = (state.decks as Array<Record<string, unknown>>).map((d) => ({
-            ...d,
-            format: d.format ?? 'commander',
-            sideboard: d.sideboard ?? [],
-          }));
-        }
-        if (fromVersion < 4 && Array.isArray(state.decks)) {
-          state.decks = (state.decks as Array<Record<string, unknown>>).map((d) => ({
-            ...d,
-            color: typeof d.color === 'string' ? d.color : pickRandomPresetColor(),
-          }));
-        }
-        // v4→v5: generationContext.bracketLevel → targetBracket. The renamed
-        // field is the EDHREC card-pool filter (build-time target), now
-        // distinguished from the computed bracket estimation in
-        // bracketEstimation.bracket. Preserves prior value verbatim.
-        if (fromVersion < 5 && Array.isArray(state.decks)) {
-          state.decks = (state.decks as Array<Record<string, unknown>>).map((d) => {
-            const gc = d.generationContext as Record<string, unknown> | null | undefined;
-            if (!gc || typeof gc !== 'object') return d;
-            if (!('bracketLevel' in gc)) return d;
-            const { bracketLevel, ...rest } = gc as { bracketLevel: unknown } & Record<
-              string,
-              unknown
-            >;
-            return {
-              ...d,
-              generationContext: { ...rest, targetBracket: bracketLevel },
-            };
-          });
-        }
-        return state as never;
-      },
+      migrate: migrateDecksState,
     }
   )
 );

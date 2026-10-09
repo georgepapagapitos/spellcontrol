@@ -155,7 +155,8 @@ export interface SharedCopyRow {
  * Demand counts DISTINCT wanting containers, not physical copies wanted -
  * this app is predominantly Commander-singleton, so one listing equals one
  * wanted copy. Considering-zone and sideboard slots are excluded: they are
- * park-candidates, not committed picks.
+ * park-candidates, not committed picks. Proxy slots too: the user plays a
+ * stand-in there, so they want no copy.
  */
 export function computeSharedCopies(
   cards: EnrichedCard[],
@@ -183,7 +184,7 @@ export function computeSharedCopies(
   for (const deck of decks) {
     if (deck.commander) addWant(deck.commander.name, 'deck', deck.id, deck.name);
     if (deck.partnerCommander) addWant(deck.partnerCommander.name, 'deck', deck.id, deck.name);
-    for (const dc of deck.cards) addWant(dc.card.name, 'deck', deck.id, deck.name);
+    for (const dc of deck.cards) if (!dc.proxy) addWant(dc.card.name, 'deck', deck.id, deck.name);
   }
   for (const cube of cubes) {
     if (!cube.isPhysical) continue;
@@ -223,7 +224,8 @@ const CLOSE_TO_DONE_MAX_MISSING = 5;
  * the collection) — the ones a single trip to the store finishes. Basic
  * lands are never counted as missing (assumed always available). Reads
  * `deck.cards` (mainboard) plus both commander slots; sideboard/considering
- * are excluded, same reasoning as `computeSharedCopies`. Deck cards are
+ * are excluded, same reasoning as `computeSharedCopies`, and a proxy slot
+ * counts as covered. Deck cards are
  * frozen Scryfall snapshots (see memory
  * project_deck_cards_are_frozen_cache_copies) — `priceOf` reads the price the
  * card carried when it was added, exactly like the decks index's own value.
@@ -244,7 +246,7 @@ export function computeCloseToDone(
     };
     consider(deck.commander);
     consider(deck.partnerCommander);
-    for (const dc of deck.cards) consider(dc.card);
+    for (const dc of deck.cards) if (!dc.proxy) consider(dc.card);
 
     if (missing.size === 0 || missing.size > CLOSE_TO_DONE_MAX_MISSING) continue;
     const missingNames = [...missing.keys()];

@@ -549,7 +549,7 @@ export function listContestedCards(
 ): ContestedCard[] {
   const out: ContestedCard[] = [];
   for (const slot of deck.cards) {
-    if (slot.allocatedCopyId) continue;
+    if (slot.allocatedCopyId || slot.proxy) continue;
     const owned = collection.filter((c) => c.name === slot.card.name).length;
     if (owned === 0) continue;
     const donor = findStealableCopy(
@@ -571,4 +571,35 @@ export function listContestedCards(
     });
   }
   return out;
+}
+
+/** A mainboard slot in another deck that lists the card but holds no copy. */
+export interface WaitingSlot {
+  deckId: string;
+  deckName: string;
+  slotId: string;
+}
+
+/**
+ * The slot in some other deck that should take a copy this deck just let go
+ * of (a slot turned into a proxy): same card, no copy bound, not itself a
+ * proxy. One whose printing matches the copy wins, then deck order. Null when
+ * no other deck is waiting on the card, which leaves the copy free.
+ */
+export function findWaitingSlot(
+  copy: EnrichedCard,
+  decks: Deck[],
+  excludeDeckId: string
+): WaitingSlot | null {
+  let fallback: WaitingSlot | null = null;
+  for (const deck of decks) {
+    if (deck.id === excludeDeckId) continue;
+    for (const slot of deck.cards) {
+      if (slot.card.name !== copy.name || slot.allocatedCopyId || slot.proxy) continue;
+      const hit = { deckId: deck.id, deckName: deck.name, slotId: slot.slotId };
+      if (slot.card.id === copy.scryfallId) return hit;
+      fallback ??= hit;
+    }
+  }
+  return fallback;
 }
