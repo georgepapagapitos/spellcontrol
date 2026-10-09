@@ -201,6 +201,21 @@ describe('CardSearchResults onActiveChange / hideRowDisclosure (T153 phase 4, de
     expect(onActiveChange).toHaveBeenLastCalledWith(RESULT);
   });
 
+  it('does not re-fire when only the host re-renders with a fresh inline callback (E618)', async () => {
+    const calls = vi.fn();
+    const results = [RESULT, second];
+    const { rerender } = render(
+      <CardSearchResults results={results} onActiveChange={(c) => calls(c)} />
+    );
+    await act(async () => {});
+    expect(calls).toHaveBeenCalledTimes(1);
+    for (let i = 0; i < 5; i++) {
+      rerender(<CardSearchResults results={results} onActiveChange={(c) => calls(c)} />);
+      await act(async () => {});
+    }
+    expect(calls).toHaveBeenCalledTimes(1);
+  });
+
   it('follows the row the pointer hovers', async () => {
     const onActiveChange = vi.fn();
     render(<CardSearchResults results={[RESULT, second]} onActiveChange={onActiveChange} />);
