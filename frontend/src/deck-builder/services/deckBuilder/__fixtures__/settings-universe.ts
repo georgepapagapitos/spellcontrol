@@ -223,6 +223,11 @@ export function customization(overrides: Partial<Customization> = {}): Customiza
     historicalYear: 2005,
     permanentsOnly: false,
     brewLevel: 0.5,
+    // The matrix asserts the generator's own settings handling. The whole-deck
+    // search is on by default and runs against a 15 s wall clock, so leaving it
+    // on made every case slow under CI coverage and its result load-dependent.
+    // The search has its own cases in deckGenerator.golden.test.ts.
+    wholeDeckSearch: false,
     ...overrides,
   };
 }

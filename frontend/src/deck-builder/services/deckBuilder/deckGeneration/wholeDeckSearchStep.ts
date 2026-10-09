@@ -49,6 +49,7 @@ export async function run(
   state.wholeDeckSearch = await wholeDeckSearchPhase(state, {
     ...input,
     timeBudgetMs: state.context.searchTimeBudgetMs ?? input.timeBudgetMs,
+    maxSwaps: state.context.searchMaxSwaps,
     detectedCombos: combos,
     surplusCuts: state.surplusCuts,
   });

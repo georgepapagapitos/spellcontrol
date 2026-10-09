@@ -219,6 +219,10 @@ function context(
     historicalYear: 2005,
     permanentsOnly: false,
     brewLevel: 0.5,
+    // These pin how the generator resolves and seats owned cards. The whole-deck
+    // search runs against a wall clock and has its own ownership cases
+    // (deckObjective/ownership.test.ts, phaseWholeDeckSearch.test.ts).
+    wholeDeckSearch: false,
   } as unknown as Customization;
   const pool: SubstituteCandidate[] = owned.map((name) => {
     const c = REAL.get(name)!;

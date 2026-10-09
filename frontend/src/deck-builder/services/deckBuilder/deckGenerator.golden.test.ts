@@ -583,7 +583,10 @@ describe('generateDeck — whole-deck search (E513, on unless customization.whol
       customization: rest as typeof base.customization,
     });
     expect('wholeDeckSearch' in ctx.customization).toBe(false);
-    const deck = await generateDeck(ctx);
+    // The step is announced and entered; its budget is spent before the first
+    // evaluation, so this checks the default is on without paying for a search
+    // (the next test runs one to its end).
+    const deck = await generateDeck({ ...ctx, searchTimeBudgetMs: -1 });
     expect(steps).toContainEqual(SEARCH_STEP);
     // The step comes after the last build step and never moves the bar back.
     const percents = steps.map(([, p]) => p);
@@ -591,14 +594,17 @@ describe('generateDeck — whole-deck search (E513, on unless customization.whol
     expect(Math.max(...percents)).toBeLessThanOrEqual(96); // never into "Shuffling up"
     expect(Object.values(deck.categories).flat()).toHaveLength(99);
     clearGenerationCache();
-  }, 120_000);
+  });
 
   it('with the flag on, keeps a legal 99 and discloses each swap against the final list', async () => {
     const ctx = baseContext();
     ctx.customization = customization({ wholeDeckSearch: true });
     // No wall-clock cap here: a loaded CI worker would stop the search early,
-    // and this test compares two runs swap for swap.
-    const deck = await generateDeck({ ...ctx, searchTimeBudgetMs: 600_000 });
+    // and this test compares two runs swap for swap. One swap is enough to
+    // check the disclosure and the determinism; the optimizer's own cap of
+    // five is pinned in deckObjective/optimizer.test.ts.
+    const search = { searchTimeBudgetMs: 600_000, searchMaxSwaps: 1 };
+    const deck = await generateDeck({ ...ctx, ...search });
     const names = Object.values(deck.categories)
       .flat()
       .map((c) => c.name);
@@ -614,7 +620,7 @@ describe('generateDeck — whole-deck search (E513, on unless customization.whol
     }
     // Deterministic: the same inputs make the same swaps.
     clearGenerationCache();
-    const again = await generateDeck({ ...ctx, searchTimeBudgetMs: 600_000 });
+    const again = await generateDeck({ ...ctx, ...search });
     expect(again.wholeDeckSearchSwaps).toEqual(deck.wholeDeckSearchSwaps);
     // Two generations, each with the search's goldfish games: slow by design.
   }, 120_000);
