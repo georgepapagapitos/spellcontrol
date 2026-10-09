@@ -208,6 +208,7 @@ export function DeckDisplay({
   onEditPartner,
   onMoveToAnotherDeck,
   onReleaseCopy,
+  onSetProxy,
   onUseOwnCopy,
   onReviewShared,
   collectionByCopyId,
@@ -1119,6 +1120,7 @@ export function DeckDisplay({
         onUseOwnCopy,
         onMoveToAnotherDeck,
         onReleaseCopy,
+        onSetProxy,
         onMakeCommander,
         canMakeCommander,
         onMakePartner,
@@ -1167,6 +1169,7 @@ export function DeckDisplay({
       onChangeCommander={onChangeCommander}
       onMoveToAnotherDeck={onMoveToAnotherDeck}
       onReleaseCopy={onReleaseCopy}
+      onSetProxy={onSetProxy}
       onUseOwnCopy={onUseOwnCopy}
       headerAction={
         g.icon === 'commander' && onEditPartner ? (
@@ -1223,6 +1226,7 @@ export function DeckDisplay({
         canMakePartner={canMakePartner}
         onMoveToAnotherDeck={inSideboard ? onMoveToAnotherDeck : undefined}
         onReleaseCopy={inSideboard ? onReleaseCopy : undefined}
+        onSetProxy={inSideboard ? onSetProxy : undefined}
         onUseOwnCopy={inSideboard ? onUseOwnCopy : undefined}
         synergyByName={synergyByName}
         cardInclusionMap={cardInclusionMap}

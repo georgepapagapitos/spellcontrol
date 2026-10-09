@@ -60,6 +60,7 @@ export interface DeckCardActionCtx {
   onUseOwnCopy?: (card: ScryfallCard) => void;
   onMoveToAnotherDeck?: (card: ScryfallCard) => void;
   onReleaseCopy?: (card: ScryfallCard) => void;
+  onSetProxy?: (slotIds: string[], proxy: boolean) => void;
   onMakeCommander?: (slotId: string, card: ScryfallCard) => void;
   canMakeCommander?: (card: ScryfallCard) => boolean;
   onMakePartner?: (slotId: string, card: ScryfallCard) => void;
@@ -93,6 +94,7 @@ export function deckCardActions(ctx: DeckCardActionCtx): DeckCardAction[] {
     onUseOwnCopy,
     onMoveToAnotherDeck,
     onReleaseCopy,
+    onSetProxy,
     onMakeCommander,
     canMakeCommander,
     onMakePartner,
@@ -227,6 +229,22 @@ export function deckCardActions(ctx: DeckCardActionCtx): DeckCardAction[] {
       label: 'Release copy',
       section: 'collection',
       run: () => onReleaseCopy(row.card),
+    });
+  }
+  if (onSetProxy && hasSlots && row.proxyQty < row.qty) {
+    out.push({
+      key: 'mark-proxy',
+      label: row.qty > 1 ? 'Mark one as proxy' : 'Mark as proxy',
+      section: 'collection',
+      run: () => onSetProxy(row.slotIds, true),
+    });
+  }
+  if (onSetProxy && row.proxyQty > 0) {
+    out.push({
+      key: 'unmark-proxy',
+      label: row.qty > 1 ? 'Unmark one proxy' : 'Not a proxy',
+      section: 'collection',
+      run: () => onSetProxy(row.slotIds, false),
     });
   }
 

@@ -300,6 +300,8 @@ export interface Row {
   orphanQty: number;
   /** Number of slots in this row where the user owns a copy by name but every copy is allocated to another deck. */
   claimedElsewhereQty: number;
+  /** Number of slots in this row the user plays as a proxy. Counted as covered, never as missing. */
+  proxyQty: number;
   /** First deck claiming a copy of this card (for the badge link/color). Only set when claimedElsewhereQty > 0. */
   claimedBy?: AllocationInfo;
   /**
@@ -426,7 +428,8 @@ export function buildRows(
   for (const dc of cards) {
     const card = dc.card;
     const existing = map.get(card.name);
-    const status = classify(dc);
+    // A proxy slot reads as covered: it holds no copy on purpose.
+    const status: AllocationStatus = dc.proxy ? 'allocated' : classify(dc);
     const owned = dc.allocatedCopyId ? collectionById?.get(dc.allocatedCopyId) : undefined;
 
     // Per-printing bucket, keyed by the slot's *printing identity* (set +
@@ -486,7 +489,8 @@ export function buildRows(
       for (const t of cardTagsOf(dc)) if (!existing.tags.includes(t)) existing.tags.push(t);
       if (isTagsEdited(dc)) existing.tagsEdited = true;
       if (dc.allocatedCopyId) existing.allocatedCopyIds.push(dc.allocatedCopyId);
-      if (status === 'allocated') existing.allocatedQty += 1;
+      if (dc.proxy) existing.proxyQty += 1;
+      else if (status === 'allocated') existing.allocatedQty += 1;
       else if (status === 'orphan') existing.orphanQty += 1;
       else if (status === 'claimed-elsewhere') existing.claimedElsewhereQty += 1;
       else existing.unownedQty += 1;
@@ -529,10 +533,11 @@ export function buildRows(
       slotIds: dc.slotId ? [dc.slotId] : [],
       allocatedCopyIds: dc.allocatedCopyId ? [dc.allocatedCopyId] : [],
       status,
-      allocatedQty: status === 'allocated' ? 1 : 0,
+      allocatedQty: status === 'allocated' && !dc.proxy ? 1 : 0,
       unownedQty: status === 'unowned' ? 1 : 0,
       orphanQty: status === 'orphan' ? 1 : 0,
       claimedElsewhereQty: status === 'claimed-elsewhere' ? 1 : 0,
+      proxyQty: dc.proxy ? 1 : 0,
       claimedBy: status === 'claimed-elsewhere' ? claimedByFor(card.name) : undefined,
       imageNormal: owned?.imageNormal ?? frontFaceImage(card),
       imageNormalBack: owned?.imageNormalBack ?? backFaceImage(card),
@@ -571,10 +576,15 @@ export function statusSeverity(s: AllocationStatus): number {
 // allocation truth is conveyed even when no warning glyph is shown.
 export function allocationSummary(row: Row): string {
   const missing = row.unownedQty + row.orphanQty + row.claimedElsewhereQty;
+  const proxies = row.proxyQty === 1 ? '1 proxy' : `${row.proxyQty} proxies`;
   if (missing === 0) {
+    if (row.proxyQty === row.qty)
+      return row.qty === 1 ? 'Played as a proxy' : `All ${row.qty} played as proxies`;
+    if (row.proxyQty > 0)
+      return `${row.allocatedQty} of ${row.qty} from your collection, ${proxies}`;
     return row.qty === 1 ? 'From your collection' : `All ${row.qty} copies from your collection`;
   }
-  if (row.allocatedQty === 0) {
+  if (row.allocatedQty === 0 && row.proxyQty === 0) {
     if (row.orphanQty > 0)
       return 'The collection copy this slot was assigned to is no longer present';
     if (row.unownedQty > 0) return 'Not in your collection';
@@ -586,6 +596,7 @@ export function allocationSummary(row: Row): string {
   if (row.claimedElsewhereQty > 0) parts.push(`${row.claimedElsewhereQty} in another deck`);
   if (row.orphanQty > 0) parts.push(`${row.orphanQty} no longer in collection`);
   if (row.unownedQty > 0) parts.push(`${row.unownedQty} not in collection`);
+  if (row.proxyQty > 0) parts.push(proxies);
   const note = parts.length > 0 ? ` (${parts.join('; ')})` : '';
   return `${row.allocatedQty} of ${row.qty} from your collection${note}`;
 }

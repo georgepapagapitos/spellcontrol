@@ -25,6 +25,7 @@ export type CardMenuHandlers = Pick<
   | 'onUseOwnCopy'
   | 'onMoveToAnotherDeck'
   | 'onReleaseCopy'
+  | 'onSetProxy'
   | 'onMakeCommander'
   | 'canMakeCommander'
   | 'onMakePartner'
@@ -71,6 +72,7 @@ export function buildCardMenuCtx(args: {
     onUseOwnCopy: h.onUseOwnCopy,
     onMoveToAnotherDeck: h.onMoveToAnotherDeck,
     onReleaseCopy: h.onReleaseCopy,
+    onSetProxy: h.onSetProxy,
     onMakeCommander: h.onMakeCommander,
     canMakeCommander: h.canMakeCommander,
     onMakePartner: h.onMakePartner,

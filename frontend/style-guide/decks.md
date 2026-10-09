@@ -462,6 +462,29 @@ named button, and each holds exactly one kind of thing:
   View and no kebab, at both widths) and `DeckEditorPage.delete.test.tsx`
   (Export and Test hand in Deck ▾ at every width, list edits never).
 
+## Proxy slots — a stand-in is covered, not missing (2026-10-09)
+
+A deck slot can be marked as played with a proxy (`DeckCard.proxy`). It never
+holds a physical copy, and no matcher (boot, sync, re-import, Settings →
+Repair) hands it one. Before this, Release was the only tool, and Repair gave
+the released copy back to whichever deck listed its exact printing, often the
+one playing the proxy.
+
+- **Row ⋮ → Mark as proxy / Not a proxy**, in the collection section beside
+  Use my copy and Release copy. On a stacked row they act on one slot ("Mark
+  one as proxy"). Marking frees the slot's copy, and when another deck lists
+  the card with no copy, the copy goes straight there with one Undo for both
+  decks. Unmarking takes a free copy if there is one.
+- **A proxy reads as covered.** It never turns the count red, and never counts
+  toward missing, Shared copies, or Close to done. The row says so quietly: a
+  neutral `proxy` chip (the claimed-elsewhere tone, not warn) and a `Proxy`
+  plate on the grid tile; the summary sentence counts it ("1 of 2 from your
+  collection, 1 proxy").
+- **Print proxies still prints it.** That sheet is where a stand-in comes from.
+- Guard: `store/decks.proxy-slot.test.ts` (the reported two-deck case, all
+  three zones), `lib/collection/proxy-slot.test.ts`,
+  `components/deck/deck-display-rows.proxy.test.ts`.
+
 ## Deck list on a wide screen (2026-09-19)
 
 A 100-card Commander deck on a ~2000px display used to render as six 280px

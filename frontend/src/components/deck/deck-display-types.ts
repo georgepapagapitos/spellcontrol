@@ -26,6 +26,8 @@ export interface DeckDisplayCard {
   card: ScryfallCard;
   /** scryfallId of the specific collection copy claimed by this slot, if any. */
   allocatedCopyId?: string | null;
+  /** Played as a proxy — see the doc on `DeckCard.proxy`. */
+  proxy?: boolean;
   /** Unix ms when this slot was added. Absent on cards predating the field. */
   addedAt?: number;
   /** User tags (E171) — see the `tags` doc on `DeckCard` for the
@@ -179,6 +181,12 @@ export interface DeckDisplayProps {
    * else, not a deck.
    */
   onReleaseCopy?: (card: ScryfallCard) => void;
+  /**
+   * When provided, rows get "Mark as proxy" / "Not a proxy". A proxy slot is
+   * played with a stand-in, so it never claims a physical copy. Called with the
+   * row's slot ids; the handler picks which one to flip.
+   */
+  onSetProxy?: (slotIds: string[], proxy: boolean) => void;
   /**
    * When provided, an unowned row whose every owned copy is in OTHER decks gets
    * a "Use my copy" option that pulls a copy in (routes through the explicit

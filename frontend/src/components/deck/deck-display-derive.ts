@@ -114,6 +114,7 @@ export function buildCommanderRows(args: {
       unownedQty: status === 'unowned' ? 1 : 0,
       orphanQty: status === 'orphan' ? 1 : 0,
       claimedElsewhereQty: status === 'claimed-elsewhere' ? 1 : 0,
+      proxyQty: 0,
       claimedBy: status === 'claimed-elsewhere' ? claimedByForName(c.name) : undefined,
       imageNormal: owned?.imageNormal ?? frontFaceImage(c),
       imageNormalBack: owned?.imageNormalBack ?? backFaceImage(c),
@@ -194,6 +195,7 @@ export function summarizeMissing(
   let count = 0;
   let price = 0;
   for (const dc of cards) {
+    if (dc.proxy) continue;
     const status = classifyAllocation(dc.allocatedCopyId ?? null, collectionByCopyId);
     if (status === 'allocated') continue;
     count += 1;
@@ -211,6 +213,7 @@ export function countClaimedElsewhere(
   if (!crossDeck.copiesByName || !crossDeck.otherDeckAllocations) return 0;
   let n = 0;
   for (const dc of cards) {
+    if (dc.proxy) continue;
     const status = classifyAllocation(dc.allocatedCopyId ?? null, collectionByCopyId, {
       cardName: dc.card.name,
       copiesByName: crossDeck.copiesByName,
@@ -229,6 +232,7 @@ export function buildMissingTally(
   if (!collectionByCopyId) return tallyNames([]);
   const list: ScryfallCard[] = [];
   for (const dc of cards) {
+    if (dc.proxy) continue;
     const status = classifyAllocation(dc.allocatedCopyId ?? null, collectionByCopyId);
     if (status === 'allocated') continue;
     list.push(dc.card);

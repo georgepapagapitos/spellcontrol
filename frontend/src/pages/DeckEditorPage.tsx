@@ -148,6 +148,7 @@ import { planQtyChange } from '@/lib/deck/deck-qty';
 import { deckColorIdentity, fitsColorIdentity, getMaxCopies } from '@/lib/deck/deck-validation';
 import { ConfirmDialog } from '@/components/overlays/ConfirmDialog';
 import { SharedCopiesSheet } from '../components/deck/SharedCopiesSheet';
+import { planProxyToggle, proxyToastMessage } from '@/lib/deck/proxy-slot';
 import { DeckFeedbackSheet } from '../components/deck/DeckFeedbackSheet';
 import { MovePrintingPrompt } from '../components/deck/MovePrintingPrompt';
 import { MoveToDeckSheet } from '../components/deck/MoveToDeckSheet';
@@ -249,6 +250,7 @@ export function DeckEditorPage() {
   const updateCardPrinting = useDecksStore((s) => s.updateCardPrinting);
   const swapCard = useDecksStore((s) => s.swapCard);
   const setCardAllocation = useDecksStore((s) => s.setCardAllocation);
+  const setCardProxy = useDecksStore((s) => s.setCardProxy);
   const setCardTags = useDecksStore((s) => s.setCardTags);
   const bulkEditTag = useDecksStore((s) => s.bulkEditTag);
   const renameDeckTag = useDecksStore((s) => s.renameDeckTag);
@@ -1982,8 +1984,36 @@ export function DeckEditorPage() {
   // pull a copy in via the same conscious leave-gap move.
   const handleUseOwnCopy = (card: ScryfallCard): void => {
     if (!deck) return;
-    const slot = deck.cards.find((c) => c.card.name === card.name && !c.allocatedCopyId);
+    const slot = deck.cards.find(
+      (c) => c.card.name === card.name && !c.allocatedCopyId && !c.proxy
+    );
     if (slot) handleMoveSharedCopy(slot.slotId);
+  };
+
+  // Row ⋮ "Mark as proxy" / "Not a proxy": a proxy slot never claims a copy, so
+  // no matcher (boot, sync, Repair) pulls one back in (lib/deck/proxy-slot.ts).
+  const handleSetProxy = (slotIds: string[], proxy: boolean): void => {
+    if (!deck) return;
+    const { decks: all } = useDecksStore.getState();
+    const plan = planProxyToggle(deck, slotIds, proxy, collectionCards, all, savedCubes);
+    if (!plan) return;
+    if (plan.kind === 'hand-over') {
+      const { waiting, copy, slot } = plan;
+      return executeReallocation({
+        donorDeckId: deck.id,
+        recipientDeckId: waiting.deckId,
+        recipientApply: () => setCardAllocation(waiting.deckId, waiting.slotId, copy.copyId),
+        donorApply: () => setCardProxy(deck.id, slot.slotId, true),
+        label: proxyToastMessage(plan),
+      });
+    }
+    const copyId = plan.kind === 'unmark' ? plan.copyId : null;
+    recordEdit(deck.id, `${proxy ? '' : 'un'}proxy ${plan.slot.card.name}`, () =>
+      setCardProxy(deck.id, plan.slot.slotId, proxy, copyId)
+    );
+    haptics.tap();
+    const onAction = () => undoEdit(deck.id);
+    pushToast({ message: proxyToastMessage(plan), tone: 'success', actionLabel: 'Undo', onAction });
   };
 
   // The single brain for adding an already-resolved card — used by every add path
@@ -3297,6 +3327,7 @@ export function DeckEditorPage() {
             }
             onMoveToAnotherDeck={decks.length > 1 ? setMoveCard : undefined}
             onReleaseCopy={setReleaseCard}
+            onSetProxy={handleSetProxy}
             onUseOwnCopy={handleUseOwnCopy}
             onReviewShared={() => setShowSharedCopies(true)}
             collectionByCopyId={collectionById}
