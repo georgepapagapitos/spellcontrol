@@ -312,6 +312,7 @@ export function CubeEmptyState({
 /** "a 4-player pod" / "an 8-player pod" — the only two player counts a cube
  *  size ever carries (see `sizeInfo`), so a lookup beats a spoken-number rule. */
 const POD_ARTICLE: Record<number, string> = { 4: 'a', 6: 'a', 8: 'an' };
+export const podArticle = (players: number): string => POD_ARTICLE[players] ?? 'a';
 
 /** Draft/Commander (board #12, PR2) — a `SegmentedControl` (2 short options,
  *  STYLE_GUIDE § Config surfaces "by option count") with its own note, same
@@ -377,7 +378,7 @@ export function CubeSizePicker({
   // specific to THIS size (the spells + commanders split and the pod it fits).
   const note =
     format === 'commander'
-      ? `${size} spells + ${LEGEND_TARGET[size]} commanders · ${POD_ARTICLE[info.players] ?? 'a'} ${info.players}-player pod`
+      ? `${size} spells + ${LEGEND_TARGET[size]} commanders · ${podArticle(info.players)} ${info.players}-player pod`
       : info.note;
   return (
     <div className="cube-size">
@@ -547,7 +548,7 @@ export function PhysicalCubeSwitch({
   return (
     <SwitchRow
       label="Physical cube"
-      hint="Reserves one of your copies of each card, so decks stop counting them as free. You can unmark it any time."
+      hint="Reserves one copy of each card so decks stop counting it as available."
       checked={checked}
       onChange={onChange}
     />

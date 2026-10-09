@@ -910,7 +910,7 @@ function buildGaps(
   // that format's own band (board E462 — a Commander cube was judged against
   // the Commander band already, but every gap still named the generic
   // "N-card cubes" phrase, as if it'd been measured against the plain size
-  // band) — never the generic "real N-card cubes" phrase when the cube was
+  // band) — never the generic "N-card cubes" phrase when the cube was
   // actually measured against a different corpus.
   const corpusPhrase =
     format === 'commander'
@@ -932,9 +932,9 @@ function buildGaps(
     if (share < band.color[c].p25) {
       gaps.push({
         severity: 'short',
-        text: `Light on ${COLOR_NAME[c]} (${Math.round(share * 100)}% vs the ${Math.round(
+        text: `Light on ${COLOR_NAME[c].toLowerCase()}: ${Math.round(share * 100)}% of the cube, where ${corpusPhrase} run ${Math.round(
           band.color[c].p25 * 100
-        )}–${Math.round(band.color[c].p75 * 100)}% real ${corpusPhrase} run). You own few good ${COLOR_NAME[
+        )} to ${Math.round(band.color[c].p75 * 100)}%. You own few good ${COLOR_NAME[
           c
         ].toLowerCase()} cards.`,
       });
@@ -942,15 +942,15 @@ function buildGaps(
   }
 
   // Fixing: nonbasic land count vs corpus. "No fixing lands" (never "Only 0")
-  // when the count is zero, and "real ... cubes run" — the same phrasing the
+  // when the count is zero, and "... cubes run" — the same phrasing the
   // color gap above uses — rather than "Good ... cubes run" (board E462).
   if (got.land < band.fixingLands.p25) {
     const landPhrase = got.land === 0 ? 'No fixing lands.' : `Only ${got.land} fixing lands.`;
     gaps.push({
       severity: 'short',
-      text: `${landPhrase} Real ${corpusPhrase} run ${Math.round(
+      text: `${landPhrase} ${corpusPhrase[0].toUpperCase()}${corpusPhrase.slice(1)} run ${Math.round(
         band.fixingLands.p25
-      )}–${Math.round(band.fixingLands.p75)}. Multicolor cards will be hard to cast.`,
+      )} to ${Math.round(band.fixingLands.p75)}. Multicolor cards will be hard to cast.`,
     });
   }
 
@@ -976,7 +976,7 @@ function buildGaps(
       const [axis, n] = strong;
       gaps.push({
         severity: 'note',
-        text: `Strong ${AXIS_LABEL.get(axis) ?? axis} support: ${n.producers} enablers / ${n.payoffs} payoffs in your collection. Slide toward Synergy to lean in.`,
+        text: `Strong ${AXIS_LABEL.get(axis) ?? axis} support: ${n.producers} enablers / ${n.payoffs} payoffs in your collection. Raise Synergy to build around it.`,
       });
     }
 

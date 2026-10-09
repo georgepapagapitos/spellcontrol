@@ -67,7 +67,7 @@ export function ImportCube() {
       setBuildStatus('idle');
       setMyVersion(null);
     } catch (e) {
-      setError(e instanceof CubeImportError ? e.message : "Couldn't import that cube.");
+      setError(e instanceof CubeImportError ? e.message : "Couldn't import that cube. Try again.");
       setStatus('error');
     }
   }, [url, ownershipFor]);

@@ -702,23 +702,23 @@ describe('gap copy — fixing lands and corpus naming (board E462)', () => {
     expect(fixingGap.text.startsWith('Only 3 fixing lands.')).toBe(true);
   });
 
-  it('names the size-band corpus with "Real ... run" phrasing for a limited cube', () => {
+  it('names the size-band corpus with "... run" phrasing for a limited cube', () => {
     const cube = generateCube(poolNoLands(), 360);
     const fixingGap = cube.gaps.find((g) => /fixing lands/i.test(g.text))!;
-    expect(fixingGap.text).toMatch(/Real 360-card cubes run \d+–\d+\./);
+    expect(fixingGap.text).toMatch(/360-card cubes run \d+ to \d+\./);
   });
 
   it('names the Commander corpus, not the generic size band, for a Commander cube', () => {
     const cube = generateCube(poolNoLands(), 360, { format: 'commander' });
     const fixingGap = cube.gaps.find((g) => /fixing lands/i.test(g.text))!;
-    expect(fixingGap.text).toMatch(/Real Commander cubes run \d+–\d+\./);
+    expect(fixingGap.text).toMatch(/Commander cubes run \d+ to \d+\./);
     expect(fixingGap.text).not.toMatch(/360-card cubes/);
   });
 
   it('still names the pauper/peasant corpus for a rarity-shaped limited cube (unaffected by this fix)', () => {
     const cube = generateCube(poolNoLands(), 360, { rarity: 'pauper' });
     const fixingGap = cube.gaps.find((g) => /fixing lands/i.test(g.text))!;
-    expect(fixingGap.text).toMatch(/Real pauper cubes run/);
+    expect(fixingGap.text).toMatch(/Pauper cubes run/);
   });
 });
 

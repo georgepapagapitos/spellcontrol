@@ -30,7 +30,9 @@ describe('ForgotPasswordPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send reset link' }));
 
     await waitFor(() => expect(mockForgotPassword).toHaveBeenCalledWith('alice@example.com'));
-    expect(screen.getByText(/If an account uses that email, we've sent a link/)).toBeTruthy();
+    expect(
+      screen.getByText(/If that email has an account, a reset link is on its way/)
+    ).toBeTruthy();
     // The form is gone — nothing left to distinguish "account exists" from not.
     expect(screen.queryByLabelText('Email')).toBeNull();
   });

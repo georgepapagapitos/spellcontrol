@@ -132,7 +132,7 @@ describe('CollectionBrowser', () => {
   it('error state offers Retry and a way out', () => {
     stubViewport(false);
     const onRetry = vi.fn();
-    renderBrowser({ cards: null, error: 'The request did not go through.', onRetry });
+    renderBrowser({ cards: null, error: "That didn't go through. Try again.", onRetry });
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(onRetry).toHaveBeenCalled();
     expect(screen.getByRole('link', { name: 'Go to SpellControl' })).toBeTruthy();

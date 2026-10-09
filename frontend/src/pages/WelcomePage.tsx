@@ -81,7 +81,7 @@ const FEATURES = [
   {
     Icon: SlidersHorizontal,
     title: 'Tune any deck with the Coach',
-    body: 'Build in eight formats with live legality checks. The Coach ranks adds, cuts, and swaps.',
+    body: 'Build in eight formats with live legality checks, then take ranked adds, cuts and swaps.',
   },
   {
     Icon: Swords,

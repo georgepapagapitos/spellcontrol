@@ -246,7 +246,7 @@ export function FriendsManagement() {
     setBusy(req.addresseeId, true);
     try {
       await cancelRequest(req.addresseeId);
-      toast.show({ message: 'Request cancelled.', tone: 'info' });
+      toast.show({ message: 'Request canceled.', tone: 'info' });
       void loadData();
     } catch (err) {
       toast.show({
@@ -262,7 +262,7 @@ export function FriendsManagement() {
     const identity = formatIdentity(friend);
     const ok = await confirm({
       title: `Remove ${identity.primary}?`,
-      body: `You'll both lose access to anything the other shared friends-only, and any head-to-head history stops updating.`,
+      body: `You both lose access to each other's friends-only shares.`,
       confirmLabel: 'Remove friend',
       danger: true,
     });
@@ -495,7 +495,7 @@ export function FriendsManagement() {
                               disabled={busyIds.has(req.addresseeId)}
                               aria-label={`Cancel friend request to ${identity.primary}`}
                             >
-                              {busyIds.has(req.addresseeId) ? 'Cancelling…' : 'Cancel'}
+                              {busyIds.has(req.addresseeId) ? 'Canceling…' : 'Cancel'}
                             </Button>
                           </div>
                         </li>

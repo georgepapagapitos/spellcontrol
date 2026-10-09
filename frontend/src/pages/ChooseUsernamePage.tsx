@@ -85,7 +85,7 @@ export default function ChooseUsernamePage() {
     <main className="auth-page">
       <Surface as="div" variant="framed" className="auth-card">
         <h1 className="auth-title">Pick a username</h1>
-        <p className="auth-subtitle">This is how you&apos;ll appear to other players.</p>
+        <p className="auth-subtitle">This is how you&apos;ll appear to other brewers.</p>
 
         <form onSubmit={handleCreate} className="auth-form">
           <label className="auth-field">
@@ -113,12 +113,12 @@ export default function ChooseUsernamePage() {
             <ul className="auth-rules" aria-label="Username requirements" aria-live="polite">
               <li
                 className={`auth-rule${valid ? ' is-met' : ''}`}
-                aria-label={`3-32 characters, lowercase letters, digits, underscore, or hyphen: ${valid ? 'met' : 'not yet met'}`}
+                aria-label={`3 to 32 characters: a-z, 0-9, _ and -: ${valid ? 'met' : 'not yet met'}`}
               >
                 <span className="auth-rule-mark" aria-hidden="true">
                   {valid ? '✓' : '•'}
                 </span>
-                3–32 characters: lowercase letters, digits, _ or -
+                3 to 32 characters: a-z, 0-9, _ and -.
               </li>
             </ul>
           </label>

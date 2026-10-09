@@ -274,11 +274,9 @@ export function DeckFeedbackView({ data, token }: Props) {
           <h1>Feedback sent</h1>
           <p>
             {/* Prose, not a row/label — no secondary handle mid-sentence. */}
-            {owner.primary} will see your{' '}
             {suggestionCount > 0
-              ? `${suggestionCount} suggestion${suggestionCount === 1 ? '' : 's'}`
-              : 'comment'}{' '}
-            and can apply each one with a tap.
+              ? `${owner.primary} will see your ${suggestionCount} suggestion${suggestionCount === 1 ? '' : 's'} and can apply ${suggestionCount === 1 ? 'it' : 'each one'} with a tap.`
+              : `${owner.primary} will see your comment.`}
           </p>
           <Button variant="primary" to="/" className="shared-copy-btn">
             Try SpellControl

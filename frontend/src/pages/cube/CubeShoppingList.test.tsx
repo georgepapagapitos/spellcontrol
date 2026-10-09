@@ -177,9 +177,7 @@ describe('CubeShoppingList', () => {
     const loadPool = vi.fn(async () => []);
     buildShoppingListMock.mockReturnValue([]);
     render(<CubeShoppingList target={saved()} loadPool={loadPool} />);
-    await waitFor(() =>
-      expect(screen.getByText("Nothing you could buy beats what's in the cube.")).toBeTruthy()
-    );
+    await waitFor(() => expect(screen.getByText('No upgrades to buy.')).toBeTruthy());
   });
 
   it('shows an error with a retry that re-runs the whole load', async () => {
@@ -195,9 +193,7 @@ describe('CubeShoppingList', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
 
-    await waitFor(() =>
-      expect(screen.getByText("Nothing you could buy beats what's in the cube.")).toBeTruthy()
-    );
+    await waitFor(() => expect(screen.getByText('No upgrades to buy.')).toBeTruthy());
     expect(loadPool).toHaveBeenCalledTimes(2);
   });
 
@@ -213,7 +209,7 @@ describe('CubeShoppingList', () => {
 
     await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
     expect(screen.getByText("Couldn't load card popularity. Try again.")).toBeTruthy();
-    expect(screen.queryByText("Nothing you could buy beats what's in the cube.")).toBeNull();
+    expect(screen.queryByText('No upgrades to buy.')).toBeNull();
     expect(buildShoppingListMock).not.toHaveBeenCalled();
   });
 

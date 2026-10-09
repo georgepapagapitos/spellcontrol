@@ -67,14 +67,12 @@ export default function VerifyEmailPage() {
     heading = 'Email verified';
     body = (
       <p className="auth-subtitle" role="status">
-        Your email is confirmed. You can use it to reset your password.
+        You can use it to reset your password.
       </p>
     );
   } else if (phase === 'missing') {
-    heading = "There's nothing to verify here";
-    body = (
-      <p className="auth-subtitle">This link is missing its token. Check the link and try again.</p>
-    );
+    heading = 'This link is incomplete';
+    body = <p className="auth-subtitle">Open the full link from your email.</p>;
   } else {
     heading = "That link didn't work";
     body = (

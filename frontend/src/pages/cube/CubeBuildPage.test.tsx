@@ -169,8 +169,9 @@ describe('CubeBuildPage — format (board #12, PR2)', () => {
     // deck with a commander") lives only in the format note above, not here.
     expect(screen.getByText(/540 spells \+ \d+ commanders · an 8-player pod/)).toBeTruthy();
     expect(screen.getByText(/60-card decks with a commander, multiplayer/)).toBeTruthy();
-    // Footer pool line grows a legend-eligibility count.
-    expect(screen.getByText(/legendary creatures eligible/)).toBeTruthy();
+    // The legend count shows once, in the short-of-target banner, not again in the footer.
+    expect(screen.getByText(/Only 0 legendary creatures are eligible/)).toBeTruthy();
+    expect(screen.queryByText(/ · 0 legendary creatures eligible/)).toBeNull();
   });
 
   it('warns when the owned collection is short on eligible legends, without disabling Build', () => {
@@ -178,7 +179,7 @@ describe('CubeBuildPage — format (board #12, PR2)', () => {
     renderPage();
     fireEvent.click(screen.getByRole('radio', { name: 'Commander' }));
     expect(screen.getByText(/Only 0 legendary creatures are eligible/)).toBeTruthy();
-    expect(screen.getByText(/fewer commander choices than usual/)).toBeTruthy();
+    expect(screen.getByText(/Expect fewer commander choices/)).toBeTruthy();
     const buildButton = screen.getByRole('button', { name: /Build cube/ }) as HTMLButtonElement;
     expect(buildButton.disabled).toBe(false);
   });

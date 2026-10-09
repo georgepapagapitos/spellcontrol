@@ -51,9 +51,7 @@ describe('UsernameEditor', () => {
     expect(
       (screen.getByRole('button', { name: 'Change username' }) as HTMLButtonElement).disabled
     ).toBe(true);
-    expect(
-      screen.getByText('3 to 32 characters, using lowercase letters, digits, _ and -.')
-    ).toBeTruthy();
+    expect(screen.getByText('3 to 32 characters: a-z, 0-9, _ and -.')).toBeTruthy();
     expect(
       (screen.getByLabelText('New username') as HTMLInputElement).getAttribute('aria-invalid')
     ).toBe('true');

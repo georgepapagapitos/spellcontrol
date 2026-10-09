@@ -46,7 +46,10 @@ export function GameNightLinkForward({
         } else {
           setState({
             status: 'error',
-            message: userMessage(err, "Couldn't load the game night."),
+            message: userMessage(
+              err,
+              "Couldn't load the game night. Check your connection and try again."
+            ),
           });
         }
       });

@@ -277,7 +277,7 @@ describe('T173 — a section is its own page', () => {
   it("sends a guest's Profile link to the sign-in card", () => {
     renderYouPage('/you/profile');
     expect(location()).toBe('/you/account');
-    expect(screen.getByText(/sign in to sync it to your account/i)).toBeTruthy();
+    expect(screen.getByText(/your data is only on this device/i)).toBeTruthy();
   });
 });
 
@@ -340,7 +340,7 @@ describe('Account — sign-in methods, notifications, this device', () => {
     authState.user = null;
     authState.status = 'guest';
     renderYouPage('/you/account');
-    expect(screen.getByText(/sign in to sync it to your account/i)).toBeTruthy();
+    expect(screen.getByText(/your data is only on this device/i)).toBeTruthy();
   });
 
   it('orders sign-in methods, notifications, this device, then Delete account', async () => {
@@ -406,7 +406,7 @@ describe('Account — sign-in methods, notifications, this device', () => {
     renderYouPage('/you/account');
     expect(await screen.findByText('Not set')).toBeTruthy();
     expect(
-      screen.getByText('Add a verified email so you can reset your password if you get locked out.')
+      screen.getByText("Add a verified email to reset your password if you're locked out.")
     ).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Add' })).toBeTruthy();
   });
@@ -423,7 +423,7 @@ describe('Account — sign-in methods, notifications, this device', () => {
 
     expect(await screen.findByText(/Pending verification, alice@example\.com/)).toBeTruthy();
     expect(
-      screen.getByText('Add a verified email so you can reset your password if you get locked out.')
+      screen.getByText("Add a verified email to reset your password if you're locked out.")
     ).toBeTruthy();
     // A mistyped address must be correctable while it is still pending.
     const change = screen.getByRole('button', { name: 'Change' });
@@ -444,9 +444,7 @@ describe('Account — sign-in methods, notifications, this device', () => {
     renderYouPage('/you/account');
     expect(await screen.findByText('alice@example.com')).toBeTruthy();
     expect(
-      screen.queryByText(
-        'Add a verified email so you can reset your password if you get locked out.'
-      )
+      screen.queryByText("Add a verified email to reset your password if you're locked out.")
     ).toBeNull();
     expect(screen.getByRole('button', { name: 'Change' })).toBeTruthy();
   });

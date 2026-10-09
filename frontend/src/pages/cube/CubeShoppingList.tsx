@@ -296,8 +296,8 @@ export function CubeShoppingList({ target, loadPool }: Props) {
   if (rows.length === 0) {
     return (
       <EmptyState
-        tagline="Nothing you could buy beats what's in the cube."
-        hint="Every eligible card you own already outranks what's on the market."
+        tagline="No upgrades to buy."
+        hint="Nothing on the market outranks the cards in this cube."
       />
     );
   }

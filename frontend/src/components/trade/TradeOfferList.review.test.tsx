@@ -169,7 +169,7 @@ describe('incoming review', () => {
     expect(within(sheet).getByText('“Thursday?”')).toBeTruthy();
     expect(within(sheet).getByText('You give · 1')).toBeTruthy();
     expect(within(sheet).getByText('You get · 2')).toBeTruthy();
-    expect(within(sheet).getByText(/Files next to your copy in Green Staples/)).toBeTruthy();
+    expect(within(sheet).getByText(/Goes next to your copy in Green Staples/)).toBeTruthy();
   });
 
   it('accepts the cheapest-first pick through acceptTrade and settleTrade, with no copyId', async () => {

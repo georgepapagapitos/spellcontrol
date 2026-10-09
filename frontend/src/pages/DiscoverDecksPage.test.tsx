@@ -195,7 +195,7 @@ describe('DiscoverDecksPage', () => {
     );
 
     await waitFor(() =>
-      expect(screen.getByText('Some decks may not appear until pricing is available.')).toBeTruthy()
+      expect(screen.getByText('The budget filter skips decks with no price yet.')).toBeTruthy()
     );
   });
 
@@ -341,6 +341,6 @@ describe('DiscoverDecksPage', () => {
         <DiscoverDecksPage />
       </MemoryRouter>
     );
-    await waitFor(() => expect(screen.getByText('No precons yet.')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('Precons are still loading.')).toBeTruthy());
   });
 });

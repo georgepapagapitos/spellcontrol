@@ -219,8 +219,8 @@ export function CollectionBrowser({
 
       {b.ignored.length > 0 && (
         <p className="collection-browser-note" role="status">
-          {b.ignored.join(', ')} {b.ignored.length === 1 ? "isn't" : "aren't"} searchable in this
-          collection. The rest of your search still ran.
+          {b.ignored.join(', ')} can't be searched in this collection, so the rest of your search is
+          applied.
         </p>
       )}
 

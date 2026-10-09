@@ -217,7 +217,7 @@ describe('CubeDraftabilityPanel — under-75% line', () => {
     // The real number, not a vague "most decks" — true at 50% as much as 74%.
     // sizeInfo(360).players === 8.
     expect(note.textContent).toBe(
-      'Only 50% of simulated decks reached a full two-color build. The cube is likely thin in too many color pairs for a 8-player pod.'
+      'Only 50% of simulated decks reached a full two-color build. The cube is likely thin in too many color pairs for an 8-player pod.'
     );
     expect(note.querySelector('svg')).toBeNull();
     expect(note.className).not.toMatch(/warn|err|alert/i);

@@ -146,12 +146,14 @@ describe('CubeHealthPanel — rows', () => {
     expect(removalRow.textContent).toContain('Off target');
   });
 
-  it('the sub line says "real cubes" (not "real 180s") for a size whose band is reused from 360', () => {
+  it('the sub line says "cubes" (not "180s") for a size whose band is reused from 360', () => {
     const picks = Array.from({ length: 100 }, (_, i) => pick(i));
     render(<CubeHealthPanel cube={cubeOf(picks, 180)} />);
     const body = openBody();
-    expect(body.querySelector('.cube-health-sub')!.textContent).toContain('real cubes');
-    expect(body.querySelector('.cube-health-sub')!.textContent).not.toContain('real 180s');
+    expect(body.querySelector('.cube-health-sub')!.textContent).toContain(
+      'compares to cubes of its size'
+    );
+    expect(body.querySelector('.cube-health-sub')!.textContent).not.toContain('180s of its size');
   });
 });
 

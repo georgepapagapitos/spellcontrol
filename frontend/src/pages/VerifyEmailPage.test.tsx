@@ -36,7 +36,7 @@ beforeEach(() => {
 describe('VerifyEmailPage', () => {
   it('shows "nothing to verify" when the URL has no token', () => {
     renderPage('/verify-email');
-    expect(screen.getByText("There's nothing to verify here")).toBeTruthy();
+    expect(screen.getByText('This link is incomplete')).toBeTruthy();
     expect(mockVerifyEmail).not.toHaveBeenCalled();
   });
 

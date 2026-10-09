@@ -16,7 +16,7 @@ describe('Storage > Privacy', () => {
     expect(toggle.getAttribute('aria-checked')).toBe('true');
     expect(toggle.getAttribute('aria-describedby')).toBeTruthy();
     expect(document.getElementById(toggle.getAttribute('aria-describedby')!)?.textContent).toMatch(
-      /Never tied to your account or a deck/
+      /Not linked to you or a deck/
     );
 
     fireEvent.click(toggle);

@@ -310,7 +310,7 @@ export function PodHubPage() {
       loadPod();
     } catch (err) {
       toast.show({
-        message: userMessage(err, "Couldn't accept the invite."),
+        message: userMessage(err, "Couldn't accept the invite. Try again."),
         tone: 'error',
       });
     } finally {
@@ -327,7 +327,7 @@ export function PodHubPage() {
       navigate('/pods');
     } catch (err) {
       toast.show({
-        message: userMessage(err, "Couldn't decline the invite."),
+        message: userMessage(err, "Couldn't decline the invite. Try again."),
         tone: 'error',
       });
       setInviteRespondBusy(false);
@@ -340,7 +340,7 @@ export function PodHubPage() {
       setPod((prev) => (prev ? { ...prev, name: newName } : prev));
     } catch (err) {
       toast.show({
-        message: userMessage(err, "Couldn't rename the pod."),
+        message: userMessage(err, "Couldn't rename the pod. Try again."),
         tone: 'error',
       });
       throw err;
@@ -357,7 +357,7 @@ export function PodHubPage() {
       loadPod();
     } catch (err) {
       toast.show({
-        message: userMessage(err, "Couldn't remove that member."),
+        message: userMessage(err, "Couldn't remove that member. Try again."),
         tone: 'error',
       });
     } finally {
@@ -374,7 +374,7 @@ export function PodHubPage() {
       navigate('/pods');
     } catch (err) {
       toast.show({
-        message: userMessage(err, "Couldn't delete the pod."),
+        message: userMessage(err, "Couldn't delete the pod. Try again."),
         tone: 'error',
       });
       setDeleteBusy(false);
@@ -394,7 +394,7 @@ export function PodHubPage() {
       navigate('/pods');
     } catch (err) {
       toast.show({
-        message: userMessage(err, "Couldn't leave the pod."),
+        message: userMessage(err, "Couldn't leave the pod. Try again."),
         tone: 'error',
       });
       setLeaveBusy(false);
@@ -760,7 +760,7 @@ export function PodHubPage() {
           title={`Remove ${removeTarget.username} from ${pod.name}?`}
           body={
             removeTarget.status === 'invited'
-              ? "The invite is withdrawn. They can't join from it anymore."
+              ? "Withdraws the invite, so they can't join."
               : "They'll lose access to the pod immediately."
           }
           confirmLabel={removeBusy ? 'Removing…' : 'Remove'}
@@ -773,7 +773,7 @@ export function PodHubPage() {
       {deleteConfirmOpen && (
         <ConfirmDialog
           title={`Delete "${pod.name}"?`}
-          body="This removes the pod for everyone in it. This can't be undone."
+          body="Removes the pod for everyone in it. This can't be undone."
           confirmLabel={deleteBusy ? 'Deleting…' : 'Delete'}
           danger
           onConfirm={() => void handleDeletePod()}
