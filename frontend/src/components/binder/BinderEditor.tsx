@@ -266,7 +266,7 @@ function FooterResult({
         <strong>
           {pinned.toLocaleString()} pinned {pinned === 1 ? 'card' : 'cards'}
         </strong>
-        <small>Manual mode: rules are paused.</small>
+        <small>Manual mode.</small>
       </div>
     );
   }
@@ -1376,10 +1376,7 @@ export function BinderEditor() {
 
                     {routingMode === 'manual' && existing && (
                       <div className="manual-mode-banner">
-                        <p>
-                          This binder uses manual mode. Only pinned cards appear; its rules are
-                          paused.
-                        </p>
+                        <p>Manual mode: only pinned cards show, and rules are paused.</p>
                         <Button onClick={() => setRoutingMode('rules')}>Switch to rules</Button>
                       </div>
                     )}
@@ -1442,7 +1439,7 @@ export function BinderEditor() {
                       <div className="binder-editor-switches">
                         <SwitchRow
                           label="Include cards in decks and cubes"
-                          hint="Off hides a card that is in a deck or cube, even one pinned by hand."
+                          hint="Off hides cards in a deck or cube, even pinned ones."
                           checked={showDeckAllocated}
                           onChange={setShowDeckAllocated}
                         />
@@ -1719,7 +1716,7 @@ export function BinderEditor() {
           labelledBy="binder-collision-title"
         >
           <h2 className="choice-dialog-title" id="binder-collision-title">
-            Some binder names need a decision
+            Duplicate binder names
           </h2>
           <ul className="choice-dialog-body" style={{ paddingLeft: 'var(--space-4)' }}>
             {collisionPrompt.map((c) => {
@@ -1747,11 +1744,7 @@ export function BinderEditor() {
               >
                 <span className="choice-dialog-option-title">Merge same-named files</span>
                 <span className="choice-dialog-option-desc">
-                  Files that share a name go into one new binder together. Other files still get
-                  their own binder.
-                  {collisionPrompt.some((c) => c.existing)
-                    ? ' Existing same-named binders are left alone.'
-                    : ''}
+                  Same-named files go into one binder. The rest keep their own.
                 </span>
               </button>
             )}
@@ -1763,13 +1756,10 @@ export function BinderEditor() {
                 void executeImport('separate');
               }}
             >
-              <span className="choice-dialog-option-title">Create separate binders</span>
+              <span className="choice-dialog-option-title">Keep them separate</span>
               <span className="choice-dialog-option-desc">
-                Keep one binder per file. You'll get additional binders with the same name
-                {collisionPrompt.some((c) => c.existing)
-                  ? ', including alongside the existing ones'
-                  : ''}
-                .
+                One binder per file. Names may repeat
+                {collisionPrompt.some((c) => c.existing) ? ', even next to existing binders' : ''}.
               </span>
             </button>
             <button
@@ -1777,10 +1767,8 @@ export function BinderEditor() {
               className="choice-dialog-option"
               onClick={() => setCollisionPrompt(null)}
             >
-              <span className="choice-dialog-option-title">Let me rename them</span>
-              <span className="choice-dialog-option-desc">
-                Go back to the list and edit the binder names first.
-              </span>
+              <span className="choice-dialog-option-title">Rename first</span>
+              <span className="choice-dialog-option-desc">Go back and edit the names.</span>
             </button>
           </div>
         </Modal>

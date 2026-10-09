@@ -298,7 +298,7 @@ function FilterGroupCard({
             { label: name ? 'Rename' : 'Name this rule', onClick: () => setRenaming(true) },
             { label: 'Duplicate', onClick: onDuplicate },
             {
-              label: total <= 1 ? 'Remove (a binder keeps one rule)' : 'Remove',
+              label: total <= 1 ? 'A binder needs at least one rule' : 'Remove',
               onClick: onRemove,
               danger: true,
               disabled: total <= 1,
@@ -582,7 +582,7 @@ function FilterGroupFields({
             Spare copies{' '}
             <InfoTip
               label="spare copies"
-              text="Copies beyond the priciest one you keep of each card. Copies in a deck or cube and basic lands are never spare."
+              text="Copies beyond the priciest one you keep of each card. Copies in a deck or cube and basic lands never count."
             />
           </>
         }

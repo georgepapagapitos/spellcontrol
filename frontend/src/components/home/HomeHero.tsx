@@ -352,7 +352,7 @@ export function HomeHero() {
         </>
       ) : showFallback ? (
         <span className="home-hero-fallback">
-          <span className="home-hero-fallback-text">A card from your collection goes here.</span>
+          <span className="home-hero-fallback-text">Your first card shows here.</span>
         </span>
       ) : (
         <>

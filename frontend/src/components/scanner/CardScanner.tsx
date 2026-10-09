@@ -280,7 +280,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
     setErrorMsg(null);
     try {
       if (!navigator.mediaDevices?.getUserMedia) {
-        throw new Error("Camera isn't available in this browser.");
+        throw new Error("This browser can't open the camera. Use Add from list instead.");
       }
       // Ask for the full 4:3 sensor, in its own landscape terms. Mobile
       // browsers match width/height against the camera's native (landscape)
@@ -608,7 +608,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
             const noCard = result.kind === 'miss' && result.reason === 'no_quad';
             showHint(
               noCard
-                ? 'Center a card in the frame, in good light.'
+                ? "Can't see a card. Try better light."
                 : "Can't read this card. Try better light or lay it flat.",
               2200
             );

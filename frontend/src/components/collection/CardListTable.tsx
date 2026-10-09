@@ -1073,8 +1073,8 @@ export function CardListTable({
       title: `Delete ${removable.length} selected ${removable.length === 1 ? 'copy' : 'copies'}?`,
       body:
         skipped > 0
-          ? `${skipped} ${skipped === 1 ? 'copy' : 'copies'} reserved by a deck will be kept. This can be undone.`
-          : `The selected copies will be removed from your collection. This can be undone.`,
+          ? `${skipped} ${skipped === 1 ? 'copy' : 'copies'} reserved by a deck stay. You can undo from the toast.`
+          : `Removes the selected copies from your collection. You can undo from the toast.`,
       confirmLabel: 'Delete',
       danger: true,
     });
@@ -1675,7 +1675,7 @@ export function CardListTable({
         // and offer the Add cards sheet (search · list · scan) right here.
         <EmptyState
           tagline="Your collection is empty."
-          hint={'Search above to add a card, or use Add cards.'}
+          hint={'Search to add a card, or tap Add cards.'}
           actions={
             onAddCards && (
               <Button

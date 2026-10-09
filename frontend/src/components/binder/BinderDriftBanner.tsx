@@ -35,27 +35,19 @@ const celebratedBinderCleared = new Set<string>();
 
 const DRIFT_TIP = (
   <>
-    <p className="info-tip-lead">
-      <strong>To file</strong> lists cards that changed binder since this one last matched your
-      shelf.
-    </p>
+    <p className="info-tip-lead">Cards that moved between this binder and another.</p>
     <ul className="info-tip-list">
       <li>
-        <strong>Incoming (binder → here):</strong> cards that now file here.{' '}
-        <strong>Added it</strong> means you've slotted the card in; <strong>Don't add</strong>{' '}
-        excludes it.
+        <strong>Incoming:</strong> cards that now file here. <strong>Added it</strong> or{' '}
+        <strong>Don't add</strong>.
       </li>
       <li>
-        <strong>Outgoing (here → binder):</strong> cards that no longer file here.{' '}
-        <strong>Moved it</strong> means you've re-filed the card; <strong>Keep it here</strong> pins
-        it back.
+        <strong>Outgoing:</strong> cards that no longer file here. <strong>Moved it</strong> or{' '}
+        <strong>Keep it here</strong>.
       </li>
+      <li>Confirming a card in one binder checks it off in both.</li>
       <li>
-        <strong>One move, one confirmation:</strong> confirming a card in either binder checks it
-        off in both.
-      </li>
-      <li>
-        <strong>All filed</strong> checks off everything at once.
+        <strong>All filed</strong> checks off everything.
       </li>
     </ul>
   </>

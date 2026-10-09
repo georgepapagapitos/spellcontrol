@@ -336,7 +336,7 @@ describe('CollectionCombosPage', () => {
     setResult({ inDeck: [combo('c1', 'Owned Combo')], source: 'server' });
     renderPage();
 
-    expect(screen.getByText(/Showing partial results/)).toBeTruthy();
+    expect(screen.getByText(/Some combos didn't load/)).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
   });
 
@@ -344,7 +344,7 @@ describe('CollectionCombosPage', () => {
     setResult({ inDeck: [combo('c1', 'Owned Combo')], source: 'local' });
     renderPage();
 
-    expect(screen.queryByText(/Showing partial results/)).toBeNull();
+    expect(screen.queryByText(/Some combos didn't load/)).toBeNull();
   });
 
   it('retrying the partial banner calls refetch', () => {

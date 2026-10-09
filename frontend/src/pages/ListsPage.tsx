@@ -334,7 +334,7 @@ export function ListsPage() {
       ) : lists.length === 0 ? (
         <EmptyState
           tagline="No lists yet."
-          hint="A wishlist, a trade pile, or a rule that keeps itself current. Lists never touch your collection."
+          hint="Track a wishlist, a trade pile, or a rule that stays current."
           actions={
             <>
               <Button variant="primary" onClick={handleCreate}>

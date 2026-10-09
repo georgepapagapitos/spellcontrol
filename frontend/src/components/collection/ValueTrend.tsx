@@ -261,7 +261,7 @@ export function ValueTrend() {
           {chip.changes && <span className="value-trend-delta-changes">{chip.changes}</span>}
         </span>
         <span className="value-trend-delta-sub">
-          One point per day, on this device (last 90 days)
+          Daily for the last 90 days. Stored on this device.
         </span>
       </p>
       <p className="sr-only">
@@ -307,7 +307,7 @@ export function ValueTrend() {
             })}
           </ul>
           <p className="value-movers-sub">
-            Across all your copies, vs the previous refresh on this device
+            Total change across your copies since the last price refresh.
           </p>
         </div>
       )}

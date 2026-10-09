@@ -52,18 +52,22 @@ export function DeleteCollectionDialog({ onClose }: { onClose: () => void }) {
       labelledBy="wipe-collection-title"
     >
       <h2 id="wipe-collection-title" className="choice-dialog-title">
-        {isFinal ? 'Last chance: delete everything?' : 'Delete entire collection?'}
+        {isFinal
+          ? count === 1
+            ? 'Delete 1 card?'
+            : `Delete all ${count.toLocaleString()} cards?`
+          : 'Delete your collection?'}
       </h2>
       <p className="choice-dialog-body">
         {isFinal ? (
           <>
-            This removes <strong>{count.toLocaleString()}</strong> {noun} and the import history.
-            Binders stay but will be empty. Undo is only in the toast that follows.
+            Removes the cards and your import history. Binders stay, empty. You can undo from the
+            toast.
           </>
         ) : (
           <>
-            This removes all <strong>{count.toLocaleString()}</strong> {noun}. Binders and decks are
-            kept, but decks lose their copy assignments.
+            Removes all <strong>{count.toLocaleString()}</strong> {noun}. Binders and decks stay;
+            decks lose their copy assignments.
           </>
         )}
       </p>

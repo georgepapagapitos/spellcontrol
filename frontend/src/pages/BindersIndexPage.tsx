@@ -464,14 +464,10 @@ export function BindersIndexPage() {
                   label="binder priority order"
                   text={
                     <>
-                      <p className="info-tip-lead">
-                        This order is a <strong>priority list</strong>, not just a display order.
-                      </p>
+                      <p className="info-tip-lead">The top binder claims first.</p>
                       <ul className="info-tip-list">
-                        <li>
-                          A binder further down only sees the cards every binder above passed on.
-                        </li>
-                        <li>Reorder from a row's ⋮ menu (Move up / Move down).</li>
+                        <li>A binder only sees cards the binders above passed on.</li>
+                        <li>Reorder from a row's ⋮ menu.</li>
                       </ul>
                     </>
                   }
@@ -707,8 +703,8 @@ function SamplesIntroDialog({
       </h2>
       <p className="choice-dialog-body">
         {bindersOnly
-          ? `Adds ${SAMPLE_BINDERS.length} sample binders. They filter your existing collection and add no cards.`
-          : `Adds ${SAMPLE_BINDERS.length} sample binders and a starter pack of ${SAMPLE_CARDS.length} cards.`}
+          ? `Adds ${SAMPLE_BINDERS.length} sample binders that filter your collection. No cards added.`
+          : `Adds ${SAMPLE_BINDERS.length} sample binders and ${SAMPLE_CARDS.length} starter cards.`}
       </p>
       <ul className="samples-intro-list">
         {SAMPLE_BINDERS.map((s) => (
@@ -718,20 +714,18 @@ function SamplesIntroDialog({
         ))}
       </ul>
       <p className="choice-dialog-body">
-        <strong>Removing samples later:</strong>
-      </p>
-      <ul className="samples-intro-list">
-        <li>Delete a sample binder from its card menu.</li>
+        Delete a sample binder from its menu.
         {!bindersOnly && (
-          <li>
-            The bundled cards land in{' '}
+          <>
+            {' '}
+            Starter cards sit in{' '}
             <Link to="/collection" className="link-warn">
-              Collection → Import history
+              Import history
             </Link>{' '}
-            as "Sample: starter pack". Select it and delete to remove them.
-          </li>
+            as “Sample: starter pack”.
+          </>
         )}
-      </ul>
+      </p>
       {loading && (
         <ProgressBar
           indeterminate

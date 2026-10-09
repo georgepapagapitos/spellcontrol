@@ -182,7 +182,7 @@ export function ScannerQueueSheet({
   const clearAll = async () => {
     const ok = await confirm({
       title: `Clear ${countLabel(totalCount)}?`,
-      body: "They haven't been added to your collection yet, so this removes them for good.",
+      body: "Scanned cards aren't in your collection yet. This can't be undone.",
       confirmLabel: 'Clear',
       cancelLabel: 'Keep them',
       danger: true,
@@ -194,7 +194,7 @@ export function ScannerQueueSheet({
   const removeSelected = async () => {
     const ok = await confirm({
       title: `Remove ${countLabel(selectedCount)}?`,
-      body: "They haven't been added to your collection yet, so this removes them for good.",
+      body: "Scanned cards aren't in your collection yet. This can't be undone.",
       confirmLabel: 'Remove',
       cancelLabel: 'Keep them',
       danger: true,

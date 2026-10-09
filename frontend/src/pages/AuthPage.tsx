@@ -98,7 +98,7 @@ export default function AuthPage() {
       // taken") — otherwise it keeps showing while this mismatch, the
       // actual reason this submit is blocked, has no banner of its own.
       clearError();
-      setConfirmError('Passwords do not match.');
+      setConfirmError("Passwords don't match.");
       return;
     }
     setConfirmError(null);

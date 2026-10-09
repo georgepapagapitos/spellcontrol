@@ -316,7 +316,7 @@ function RulesAsk({ seed }: { seed?: string }) {
         <RulesAskHeader />
         <DeckAiConsent
           title="Ask a rules question"
-          blurb={`AI answers rules questions from the Comprehensive Rules and the cards involved, with citations. Turning this on sends your question to Anthropic when you press Ask. You get ${status.limit} uses a day, shared across AI features. Turn it off anytime in Settings.`}
+          blurb={`Your question goes to Anthropic when you press Ask. ${status.limit} uses a day, shared with the other AI features. Turn it off in Settings.`}
         />
       </div>
     );
@@ -482,8 +482,7 @@ function RulesAsk({ seed }: { seed?: string }) {
       )}
 
       <p className="rules-disclaimer">
-        Answers cite the official Comprehensive Rules. AI can misread corner cases, so ask a judge
-        for tournament play.
+        Answers cite the official Comprehensive Rules. For tournament play, ask a judge.
       </p>
     </div>
   );
@@ -496,9 +495,7 @@ function RulesAskHeader() {
         Ask a rules question
         <AiMarker label="AI-written" />
       </h2>
-      <p className="rules-page-sub">
-        Ask how an interaction works. Answers cite the rules and the cards involved.
-      </p>
+      <p className="rules-page-sub">Ask how an interaction works.</p>
     </header>
   );
 }

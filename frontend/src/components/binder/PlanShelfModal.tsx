@@ -282,7 +282,7 @@ export function PlanShelfModal({ onClose }: { onClose: () => void }) {
 
             <section className="plan-shelf-section">
               <h3 className="form-section-heading">Pull these out first</h3>
-              <p className="form-field-hint">They go first, ahead of the split below.</p>
+              <p className="form-field-hint">Taken before the split.</p>
               <ul className="plan-shelf-rows">
                 {pullOutRows.map((row, i) => (
                   <Row

@@ -55,7 +55,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 logger.error above for debugging; this stays a fixed,
                 honest line regardless of what actually threw. */}
             <h1 className="auth-title">Something went wrong</h1>
-            <p className="auth-subtitle">Your data on this device is safe.</p>
+            <p className="auth-subtitle">Retry, or reload the page.</p>
             <div className="error-boundary-actions">
               <Button variant="primary" onClick={() => this.setState({ error: null })}>
                 Retry

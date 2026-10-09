@@ -307,7 +307,7 @@ export function BinderStartChooser({
       )}
       <div className="binder-start-head">
         <h3 className="binder-start-title">What goes in it?</h3>
-        <p className="binder-start-sub">You can change everything after.</p>
+        <p className="binder-start-sub">Change anything later.</p>
       </div>
 
       {GROUP_ORDER.map((group) => {

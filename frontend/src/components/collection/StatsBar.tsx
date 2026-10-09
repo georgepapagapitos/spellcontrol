@@ -82,8 +82,8 @@ export function StatsBar({ open, cards, binderDefs, onClose, onFilterJump }: Pro
       )}
       {scryfallMisses > 0 && (
         <div className="warn-banner">
-          {scryfallMisses} card{scryfallMisses !== 1 ? 's' : ''} couldn't be matched to Scryfall.
-          Their color, mana value, and type sorting may be off.
+          {scryfallMisses} card{scryfallMisses !== 1 ? 's' : ''} didn't match Scryfall, so color,
+          mana value and type sorts misplace them.
         </div>
       )}
 

@@ -73,7 +73,7 @@ describe('ResetPasswordPage', () => {
     fireEvent.change(confirm, { target: { value: 'something else entirely' } });
     fireEvent.click(screen.getByRole('button', { name: 'Reset password' }));
 
-    expect(screen.getByText('Passwords do not match.')).toBeTruthy();
+    expect(screen.getByText("Passwords don't match.")).toBeTruthy();
     expect(mockResetPasswordWithToken).not.toHaveBeenCalled();
   });
 

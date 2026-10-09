@@ -62,7 +62,7 @@ import { PROXY_HINT } from '@/lib/util/shared-copy';
 // never showed what their export actually looks like).
 const IMPORT_FORMAT_EXAMPLES = (
   <>
-    <p className="info-tip-lead">The format is detected from the columns:</p>
+    <p className="info-tip-lead">Paste or upload any of these:</p>
     <ul className="info-tip-list">
       <li>
         <strong>ManaBox</strong> CSV: <code>Name, Set code, Quantity, Foil, Scryfall ID</code>
@@ -487,7 +487,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
       title: 'Replace your collection?',
       body: `This replaces your ${cards.length.toLocaleString()} card${
         cards.length === 1 ? '' : 's'
-      } with this file's contents. You can undo it right after.`,
+      } with this file's contents. You can undo from the toast.`,
       confirmLabel: 'Replace',
       danger: true,
     });
@@ -555,7 +555,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
       }
       await commitSingle(result, mode, p, binderName);
     } catch (err) {
-      const fallback = "Couldn't read that file. Double-check the format and try again.";
+      const fallback = "Couldn't read that file. Check the format and try again.";
       setError(err instanceof Error ? err.message : fallback);
     } finally {
       setLoading(false);
@@ -705,7 +705,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
                 <span>
                   {fetchErrorMessage(
                     fetchErrors.length,
-                    "The card service was unreachable, so they weren't imported."
+                    "Scryfall couldn't be reached, so they weren't imported. Try again."
                   )}
                 </span>
                 <span className="fetch-error-actions">
@@ -958,13 +958,12 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
                 {
                   value: 'merge',
                   label: 'Add to collection',
-                  hint:
-                    binders.length > 0 ? 'Cards are routed through your binder rules.' : undefined,
+                  hint: binders.length > 0 ? 'Cards file into your binders by rule.' : undefined,
                 },
                 {
                   value: 'binder',
                   label: 'Add as a new binder',
-                  hint: 'Keeps the listed order, and adds the cards to your collection too.',
+                  hint: "Keeps your list's order. Cards also join your collection.",
                 },
                 {
                   value: 'replace',

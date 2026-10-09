@@ -605,7 +605,7 @@ export function ProductSearchPanel({ onClose, context = 'collection' }: Props) {
             <p className="product-detail-warn">
               {fetchErrorMessage(
                 selected.fetchErrors.length,
-                'The card service was unreachable, so this list is incomplete.'
+                "Scryfall couldn't be reached, so this list is incomplete."
               )}{' '}
               <Button
                 variant="link"

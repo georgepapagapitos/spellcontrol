@@ -27,7 +27,7 @@ export default function ResetPasswordPage() {
 
   useEffect(() => {
     if (status === 'authed') {
-      toast.show({ message: 'Password reset. You are signed in.', tone: 'success' });
+      toast.show({ message: "Password reset. You're signed in.", tone: 'success' });
       navigate('/', { replace: true });
     }
   }, [status, navigate]);
@@ -44,7 +44,7 @@ export default function ResetPasswordPage() {
     e.preventDefault();
     if (password !== confirm) {
       clearError();
-      setConfirmError('Passwords do not match.');
+      setConfirmError("Passwords don't match.");
       return;
     }
     setConfirmError(null);
