@@ -2381,20 +2381,20 @@ export function DeckEditorPage() {
     }
   };
 
-  // Build the in-context "Swap this card" section for an in-deck card: role-scoped
+  // The in-context "Swap this card" alternatives for an in-deck card: role-scoped
   // EDHREC alternatives (same functional role, not the card itself), owned-first,
-  // capped. Returns null when the role is untagged or there are no alternatives.
-  const renderSwapSuggestions = (card: ScryfallCard, slotId: string, close: () => void) => {
-    if (!deck) return null;
+  // capped. Empty when the role is untagged or nothing fits.
+  const swapAlternativesFor = (card: ScryfallCard) => {
+    if (!deck) return [];
     const role = classifyCandidate(card.name);
-    if (!role) return null;
+    if (!role) return [];
     // Never re-propose a card already in the deck (addCard doesn't dedup, so it
     // would duplicate a slot) — guards the gapAnalysis recompute/offline window.
     const deckCardNames = new Set(deck.cards.map((c) => c.card.name));
     const gaps = (deck.gapAnalysis ?? []).filter(
       (g) => g.role === role && g.name !== card.name && !deckCardNames.has(g.name)
     );
-    if (gaps.length === 0) return null;
+    if (gaps.length === 0) return [];
     // Each alternative is a real swap (this card → the alternative), so the row
     // shows the trade: the focused card dimmed on the left, the alternative
     // coming in. The apply path still reads the incoming name (`onSwap`).
@@ -2414,10 +2414,15 @@ export function DeckEditorPage() {
       };
     });
     // E517: owned first, then by how well each replaces this card (v2), else by play rate.
-    const alternatives = (
+    return (
       substitutesV2.rankSwapAlternatives(card.name, role, built, [...deckCardNames]) ??
       sortOwnedFirst(built)
     ).slice(0, 6);
+  };
+
+  const renderSwapSuggestions = (card: ScryfallCard, slotId: string, close: () => void) => {
+    const alternatives = swapAlternativesFor(card);
+    if (!deck || alternatives.length === 0) return null;
     return (
       <SwapThisCard
         currentName={card.name}
@@ -2438,6 +2443,7 @@ export function DeckEditorPage() {
       <SimilarCardsStrip
         target={card}
         deckCardNames={deck.cards.map((c) => c.card.name)}
+        excludeNames={swapAlternativesFor(card).map((c) => c.name)}
         collectionCards={collectionCards}
         ownershipFor={ownershipFor}
         freeCountFor={freeCountFor}

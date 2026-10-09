@@ -115,6 +115,14 @@ calc(100vw - 4rem)) }`) — the two-class form outweighs the shell rule
     reads the card, and it carries current Oracle wording. It just doesn't
     lead. Played in, Rulings and Legalities open by default, and the two that
     fetch wait for the card to settle first.
+  - **Suggestions wait to be asked for.** A deck card's Swap this card and
+    Similar cards sit after Rules text, each as one closed row that says what
+    it holds ("6 options · 2 in your collection") through
+    `components/deck/SuggestionSection.tsx`. Open, they ran 2,000 to 3,000px
+    and pushed Printing, Rulings and Legalities out of reach of a player who
+    opened the card to read it. Opening one is remembered for every card, a
+    closed one records no "shown" suggestion label, and Similar cards leaves
+    out a card Swap this card already lists.
   - **Played in** (`components/card/PlayedInSection.tsx`, E519) lists the
     commanders EDHREC sees the card played under: the card's own rate across
     decks that can play it, the Top commanders (five, then Show all) and New

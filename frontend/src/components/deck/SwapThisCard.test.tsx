@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
-import { SwapThisCard } from './SwapThisCard';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { SWAP_OPEN_KEY, SwapThisCard } from './SwapThisCard';
 import { toSwapAgainst, type Change } from '@/lib/coach/deck-change';
 
 // The page hands SwapThisCard real swap Changes (the focused card → an
@@ -17,6 +17,9 @@ function alt(name: string, currentName = 'Rampant Growth', over: Partial<Change>
   };
   return toSwapAgainst(incoming, currentName);
 }
+
+// These cover the open section; SuggestionSection.test.tsx covers closed.
+beforeEach(() => localStorage.setItem(SWAP_OPEN_KEY, '1'));
 
 describe('SwapThisCard', () => {
   it('renders the heading and a "Swap in" action per alternative', () => {
