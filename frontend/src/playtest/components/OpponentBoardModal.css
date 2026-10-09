@@ -146,6 +146,7 @@
 }
 
 .opponent-board-designation {
+  display: inline-flex;
   font-size: var(--text-sm);
   line-height: 1;
 }

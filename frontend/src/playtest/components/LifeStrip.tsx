@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, Compass, Crown, Landmark, type LucideIcon } from 'lucide-react';
 import { paletteForIndex } from '@/lib/play/seat-palette';
 import { usePressRepeat } from '@/lib/play/use-press-repeat';
 import { cmdDamageKey, type GamePlayer } from '@/lib/play/game-state';
@@ -202,9 +202,21 @@ export function LifeStrip({
         <span className="playtest-life-chip__label">You</span>
         {heldDesignationLabels.length > 0 && (
           <span className="playtest-life-chip__designations" aria-hidden>
-            {monarch && <span className="playtest-designation-badge">👑</span>}
-            {initiative && <span className="playtest-designation-badge">🧭</span>}
-            {citysBlessing && <span className="playtest-designation-badge">🏙️</span>}
+            {monarch && (
+              <span className="playtest-designation-badge">
+                <Crown width={14} height={14} strokeWidth={1.8} aria-hidden="true" />
+              </span>
+            )}
+            {initiative && (
+              <span className="playtest-designation-badge">
+                <Compass width={14} height={14} strokeWidth={1.8} aria-hidden="true" />
+              </span>
+            )}
+            {citysBlessing && (
+              <span className="playtest-designation-badge">
+                <Landmark width={14} height={14} strokeWidth={1.8} aria-hidden="true" />
+              </span>
+            )}
           </span>
         )}
         <span className="playtest-life-chip__life">{life}</span>
@@ -555,9 +567,9 @@ function SeatChip({
   const palette = paletteForIndex(player.seat);
   const isDead = player.eliminated || player.life <= 0;
   const held = [
-    designations.monarch === player.seat && { icon: '👑', label: 'Monarch' },
-    designations.initiative === player.seat && { icon: '🧭', label: 'Initiative' },
-  ].filter((v): v is { icon: string; label: string } => Boolean(v));
+    designations.monarch === player.seat && { Icon: Crown, label: 'Monarch' },
+    designations.initiative === player.seat && { Icon: Compass, label: 'Initiative' },
+  ].filter((v): v is { Icon: LucideIcon; label: string } => Boolean(v));
 
   const ariaLabel = [
     isMe ? `You (${player.name})` : player.name,
@@ -587,7 +599,7 @@ function SeatChip({
         <span className="playtest-life-chip__designations" aria-hidden>
           {held.map((h) => (
             <span key={h.label} className="playtest-designation-badge">
-              {h.icon}
+              <h.Icon width={14} height={14} strokeWidth={1.8} aria-hidden="true" />
             </span>
           ))}
         </span>

@@ -232,6 +232,7 @@
 }
 
 .opponent-entry__designation {
+  display: inline-flex;
   font-size: var(--text-xs);
   line-height: 1;
 }

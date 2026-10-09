@@ -167,6 +167,7 @@
 
 .opponent-quadrant__designations {
   display: inline-flex;
+  align-items: center;
   gap: var(--space-0-5);
   font-size: var(--text-sm);
 }
