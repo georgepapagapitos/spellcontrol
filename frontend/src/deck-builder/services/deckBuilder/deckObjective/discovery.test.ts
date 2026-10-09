@@ -172,6 +172,23 @@ describe('labelFor', () => {
     ).toBe('pays off the creature deaths that Viscera Seer makes');
   });
 
+  it('agrees the verb with several makers', () => {
+    expect(
+      labelFor([
+        { kind: 'feeds-on', resource: 'creature-token', partner: 'Krenko, Mob Boss', strength: 1 },
+        {
+          kind: 'feeds-on',
+          resource: 'creature-token',
+          partner: 'Battle Cry Goblin',
+          strength: 0.9,
+        },
+        { kind: 'feeds-on', resource: 'creature-token', partner: 'Goblinslide', strength: 0.8 },
+      ])
+    ).toBe(
+      'pays off the creature tokens that Krenko, Mob Boss, Battle Cry Goblin and Goblinslide make'
+    );
+  });
+
   it('says so when the pair is a known combo', () => {
     expect(
       labelFor([

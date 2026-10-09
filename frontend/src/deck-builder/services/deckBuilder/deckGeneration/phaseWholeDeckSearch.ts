@@ -116,11 +116,11 @@ export function reasonLine(s: AppliedSwap): string {
 }
 
 /** A discovery pick's reason: its link first, then what it replaced and why that was filler. */
-function discoveryReason(p: DiscoveryPick): string {
+export function discoveryReason(p: DiscoveryPick): string {
   const played =
     p.inclusion === null
-      ? 'is not on the commander page'
-      : `is in ${Math.round(p.inclusion)}% of the page's decks`;
+      ? "is not in this commander's decks"
+      : `is in ${Math.round(p.inclusion)}% of this commander's decks`;
   return `Discovery pick: ${p.label}. It ${played} but ranks ${p.rank ?? 'unranked'} on EDHREC overall. ${p.cut.name} was filler.`;
 }
 
