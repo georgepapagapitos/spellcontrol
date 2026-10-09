@@ -2267,22 +2267,108 @@ i.ss.set-symbol--mythic {
   }
 }
 
-/* Type floor (E594): at 12.5/14px the meta chips + name + price no longer fit
-   a phone row, and the main box's overflow clipped the set chip. Win
-   the width back from gaps, not from type (the chips stay on --text-xs). */
+/* Phone rows are two lines, and the name owns line 1 (E602). After the type
+   floor (E594) the glyph, rarity, set chip, mana cost, menu and price kept
+   their width on one line and the name took what was left: "Angu…". Now line 1
+   is the name at full width (plus the quantity and the menu at the trailing
+   edge) and line 2 is the muted meta with the price right-aligned; the
+   thumbnail and the menu span both lines. `main` and `right` are
+   `display: contents` so their children are the grid items, which leaves
+   CardRow's markup (and so every wider tier) untouched. Columns: check,
+   thumb, meta, mana (1fr), price/qty, menu. Gaps ride on the items so an
+   absent check or thumb leaves no hole. Guard:
+   styles/collection-phone-row-lines.test.ts. */
 @media (max-width: 599px) {
-  .collection-list-row,
-  .collection-list.is-compact .collection-list-row {
-    gap: var(--space-2);
+  .collection-list-row:not(.collection-table-row),
+  .collection-list.is-compact .collection-list-row:not(.collection-table-row) {
+    display: grid;
+    grid-template-columns: auto auto minmax(0, auto) 1fr auto auto;
+    grid-template-rows: auto auto;
+    column-gap: 0;
+    row-gap: var(--space-0-5);
+    align-items: center;
+  }
+
+  .collection-list-main,
+  .collection-list.is-compact .collection-list-main,
+  .collection-list-right {
+    display: contents;
+  }
+
+  .collection-list-check,
+  .collection-list-thumb {
+    grid-row: 1 / 3;
+    margin-inline-end: var(--space-2);
+  }
+
+  .collection-list-name {
+    grid-row: 1;
+    grid-column: 3 / 6;
+  }
+
+  .collection-list-row:has(.collection-list-qty[aria-hidden='false']) .collection-list-name {
+    grid-column: 3 / 5;
+  }
+
+  .collection-list-qty {
+    grid-row: 1;
+    grid-column: 5;
+    justify-self: end;
+    margin-inline-start: var(--space-2);
+    font-size: var(--text-sm);
+  }
+
+  .collection-list-qty[aria-hidden='true'] {
+    display: none;
   }
 
   .collection-list-meta,
   .collection-list.is-compact .collection-list-meta {
+    grid-row: 2;
+    grid-column: 3;
     gap: var(--space-1);
+    flex-wrap: nowrap;
+    min-width: 0;
+    overflow: hidden;
+    font-size: var(--text-xs);
   }
 
-  .collection-list.is-compact .collection-list-main {
-    gap: var(--space-1-5);
+  .collection-list-row > .mana-cost-row {
+    grid-row: 2;
+    grid-column: 4;
+    justify-self: start;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    margin-inline-start: var(--space-2);
+  }
+
+  /* The #CN token is the first thing to go, as it already is on a compact
+     row below 768px: at 320px it pushed the mana cost into the price. The
+     set code and rarity stay as the printing-identity floor (T36). */
+  .collection-list-row .card-list-cn {
+    display: none;
+  }
+
+  .collection-list-price {
+    grid-row: 2;
+    grid-column: 5;
+    justify-self: end;
+    margin-inline-start: var(--space-2);
+    font-size: var(--text-xs);
+  }
+
+  .collection-list-right > .deck-row-menu {
+    grid-row: 1 / 3;
+    grid-column: 6;
+    margin-inline-start: var(--space-2);
+  }
+
+  .collection-list-surplus,
+  .collection-list-right > .list-target-price {
+    grid-row: 3;
+    grid-column: 3 / 6;
+    justify-self: start;
   }
 
   .card-list-set-code {

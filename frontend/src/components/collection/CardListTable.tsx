@@ -105,8 +105,7 @@ import {
   GRID_SIZE_KEY,
   GROUP_KEY_TO_FIELD,
   RARITIES,
-  ROW_HEIGHT_COMPACT,
-  ROW_HEIGHT_LIST,
+  listRowEstimate,
   SORT_FIELD_BY_KEY,
   SORT_KEY_TO_FIELD,
   loadCollapsedKeys,
@@ -207,6 +206,7 @@ export function CardListTable({
   // from tablet width up; on phones twelve columns don't fit, so compact stays
   // the text-only flow row and sort stays in the SortMenu.
   const wideEnoughForTable = useMediaQuery('(min-width: 768px)');
+  const phone = useMediaQuery('(max-width: 599px)');
   const isTable = view === 'compact' && wideEnoughForTable;
   const [gridZoom, setGridZoomRaw] = useState(() => readStoredZoom(GRID_SIZE_KEY));
   const setGridZoom = (z: number) => {
@@ -765,9 +765,9 @@ export function CardListTable({
   const estimateListRowHeight = useCallback(
     (index: number) => {
       if (listLayout[index]?.kind === 'header') return GRID_SECTION_HEADER_H;
-      return view === 'compact' ? ROW_HEIGHT_COMPACT : ROW_HEIGHT_LIST;
+      return listRowEstimate(view === 'compact' ? 'compact' : 'list', phone);
     },
-    [listLayout, view]
+    [listLayout, view, phone]
   );
 
   const listVirtualizer = useVirtualizer({
