@@ -1,4 +1,4 @@
-import type { GameEvent } from './game-state';
+import type { GameEvent } from '@spellcontrol/game-core';
 
 export interface RichEvent {
   target?: string;

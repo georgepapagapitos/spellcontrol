@@ -1,3 +1,4 @@
+import type { RulesReferenceTab } from '@/store/rules-reference';
 import { ChevronDown } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { SearchPill } from '@/components/search/SearchPill';
@@ -13,9 +14,6 @@ import {
 } from '@/lib/cards/comprehensive-rules';
 import './RulesReference.css';
 import { Chip } from '@/components/shared/Chip';
-
-/** The three sections of the Comprehensive Rules reference. */
-export type RulesReferenceTab = 'keywords' | 'glossary' | 'rules';
 
 export const RULES_REFERENCE_TABS: ReadonlySet<string> = new Set(['keywords', 'glossary', 'rules']);
 

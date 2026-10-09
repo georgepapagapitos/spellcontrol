@@ -7,8 +7,8 @@ import {
 } from './collection-filters-to-binder';
 import type { BinderFilter, ChipExpression, EnrichedCard } from '@/types/index';
 import type { CollectionFilterCriteria } from './collection-filter';
-import { cardMatchesFilter } from '@/lib/binder/rules';
-import { colorSelectionMatches, getColorKey } from '@/lib/cards/colors';
+import { cardMatchesFilter } from '@spellcontrol/binder-routing';
+import { colorSelectionMatches, getColorKey } from '@spellcontrol/binder-routing';
 
 const EMPTY_EXPR: ChipExpression = { chips: [], joiners: [] };
 

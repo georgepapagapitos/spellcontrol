@@ -3,7 +3,7 @@ import { Modal } from '@/components/overlays/Modal';
 import { DeckPicker, SeatPips } from './SetupControls';
 import type { PickedDeck } from './DeckPickerDialog';
 import type { GameResultEdit } from '@/lib/play/game-results-client';
-import type { GameRecord } from '@/lib/play/game-state';
+import type { GameRecord } from '@spellcontrol/game-core';
 import type { Deck } from '../../store/decks';
 import './GameResultEditDialog.css';
 import { Button } from '@/components/shared/Button';

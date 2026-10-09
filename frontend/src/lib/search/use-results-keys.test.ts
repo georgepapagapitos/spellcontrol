@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import type { KeyboardEvent } from 'react';
 import { useResultsKeys } from './use-results-keys';
-import type { CardSearchResultsHandle } from '@/components/search/CardSearchResults';
+import type { CardSearchResultsHandle } from '@/lib/search/use-results-keys';
 
 function keyEvent(
   key: string,

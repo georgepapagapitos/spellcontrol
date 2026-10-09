@@ -1,5 +1,5 @@
 import { apiUrl } from '@/lib/api/api-base';
-import type { GameEvent, GameRecord, GameState, GameSummary } from './game-state';
+import type { GameEvent, GameRecord, GameState, GameSummary } from '@spellcontrol/game-core';
 
 /** One friend's shared-game W/L, as returned by GET /api/game-results/leaderboard. */
 export interface LeaderboardEntry {

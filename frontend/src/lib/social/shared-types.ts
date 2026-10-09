@@ -1,4 +1,4 @@
-import type { GameEvent } from '@/lib/play/game-state';
+import type { GameEvent } from '@spellcontrol/game-core';
 
 /**
  * Public share payload types. Mirror backend/src/shares/projections.ts —

@@ -7,8 +7,8 @@ import { PlayPage } from './PlayPage';
 import { usePlayStore } from '../store/play';
 import { useAuth } from '../store/auth';
 import { HORDE_BAN_LIST } from '../lib/horde/ban-list';
-import type { GameRecord } from '@/lib/play/game-state';
-import { createGameState, makePlayer } from '@/lib/play/game-state';
+import type { GameRecord } from '@spellcontrol/game-core';
+import { createGameState, makePlayer } from '@spellcontrol/game-core';
 import { useHordeGameStore } from '../store/horde-game';
 
 // Signed in, the History tab reads the server record and the leaderboard;

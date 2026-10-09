@@ -30,8 +30,8 @@ import { DeckCurvePhases } from './DeckCurvePhases';
 import { DeckTypeBreakdown } from './DeckTypeBreakdown';
 import { SaltiestPanel } from './SaltiestPanel';
 import { DeckIdentityCard } from './DeckIdentityCard';
-import { type DeckManaData } from './deck-mana-types';
-import type { AnalysisTabId } from './DeckDisplay';
+import { type DeckManaData } from '@/lib/deck-analysis/deck-mana-types';
+import type { AnalysisTabId } from '@/lib/deck-analysis/deck-view';
 
 /** Renders a single analysis view's content full-width (no header / tabs /
  *  collapse — the hub tab bar in the page does the switching). */

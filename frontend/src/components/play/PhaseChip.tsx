@@ -1,5 +1,5 @@
-import type { GameAction, GamePhase } from '@/lib/play/game-state';
-import { GAME_PHASES } from '@/lib/play/game-state';
+import type { GameAction, GamePhase } from '@spellcontrol/game-core';
+import { GAME_PHASES } from '@spellcontrol/game-core';
 import { haptics } from '@/lib/util/haptics';
 import './PhaseChip.css';
 

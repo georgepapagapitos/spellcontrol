@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { pending } from '@/test/pending';
 import { subscribeGameLongPoll, usesLongPoll } from './games-longpoll';
-import type { GameState } from './game-state';
+import type { GameState } from '@spellcontrol/game-core';
 import type { GameRequest, GameSignal, PollResult } from './games-api';
 import type { PublicBoard } from '@/lib/playtest/projection';
 

@@ -7,9 +7,9 @@ import {
   SHELF_STRATEGIES,
   type ShelfStrategyId,
 } from './shelf-plan';
-import { SORT_PRESETS } from '@/lib/search/sorting';
+import { SORT_PRESETS } from '@spellcontrol/binder-routing';
 import { materializeBinders } from './materialize';
-import { getColorKey } from '@/lib/cards/colors';
+import { getColorKey } from '@spellcontrol/binder-routing';
 import type { BinderDef, EnrichedCard } from '@/types/index';
 
 let n = 0;

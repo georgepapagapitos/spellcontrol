@@ -15,7 +15,7 @@ import type { PublicDeckCard } from '@/lib/social/shared-types';
 import { materializeBinders } from '@/lib/binder/materialize';
 import type { BinderLayoutInputs } from '@/lib/binder/use-binder-layout-inputs';
 import type { BinderDef, EnrichedCard } from '@/types/index';
-import type { BinderInfo } from '@/components/BinderBadge';
+import type { BinderInfo } from '@/lib/binder/binder-refs';
 
 export interface OwnershipLens {
   ownedCount: number;

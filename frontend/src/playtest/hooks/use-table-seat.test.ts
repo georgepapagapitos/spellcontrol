@@ -9,7 +9,7 @@ import { renderHook } from '@testing-library/react';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { usePlayStore } from '@/store/play';
 import { useAuth } from '@/store/auth';
-import { applyAction, createGameState, makePlayer, type GameState } from '@/lib/play/game-state';
+import { applyAction, createGameState, makePlayer, type GameState } from '@spellcontrol/game-core';
 import { usePlaytestStore } from '../store';
 import { useTableSeat } from './use-table-seat';
 

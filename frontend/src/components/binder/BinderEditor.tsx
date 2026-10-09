@@ -11,13 +11,13 @@ import {
   stripExtension,
 } from '@/lib/import-export/staged-files';
 import { useFileDrop } from '@/lib/import-export/use-file-drop';
-import { NEW_BINDER_DEFAULT_SORTS, SORT_FIELDS, SORT_PRESETS } from '@/lib/search/sorting';
+import { NEW_BINDER_DEFAULT_SORTS, SORT_FIELDS, SORT_PRESETS } from '@spellcontrol/binder-routing';
 import { useAnchoredPanel } from '@/lib/overlays/use-anchored-panel';
 import { SortEditor } from '@/components/search/SortEditor';
 import { SortPresetChips } from '@/components/search/SortPresets';
 import { focusFirstSortField } from '@/lib/search/sort-field-focus';
 import { sortOrderSummaryLabel } from '@/lib/search/sort-order-label';
-import { areAllGroupsEmpty } from '@/lib/binder/rules';
+import { areAllGroupsEmpty } from '@spellcontrol/binder-routing';
 import {
   countEffectiveLanding,
   formatCaughtBy,

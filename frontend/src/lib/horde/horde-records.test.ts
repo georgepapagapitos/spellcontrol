@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { aggregateHordeRecords, coopResultLabel } from './horde-records';
-import type { GameRecord } from '@/lib/play/game-state';
+import type { GameRecord } from '@spellcontrol/game-core';
 
 function hordeGame(
   id: string,

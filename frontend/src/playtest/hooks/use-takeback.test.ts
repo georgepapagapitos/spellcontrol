@@ -5,7 +5,7 @@ import type { PlaytestCard } from '@/lib/playtest';
 import { usePlaytestStore } from '../store';
 import { usePlayStore } from '@/store/play';
 import type { GameRequest } from '@/lib/play/games-api';
-import { makePlayer } from '@/lib/play/game-state';
+import { makePlayer } from '@spellcontrol/game-core';
 import { useTakeback } from './use-takeback';
 import type { OnlineTable } from './use-online-table';
 

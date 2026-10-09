@@ -49,7 +49,7 @@ import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
 import { nextStop, useSheetStops, type SheetStop } from '@/lib/overlays/use-sheet-stops';
 import type { AllocationInfo } from '@/lib/collection/allocations';
 import type { CubeListing } from '@/lib/cube/cube-listings';
-import type { BinderInfo } from '@/components/BinderBadge';
+import type { BinderInfo } from '@/lib/binder/binder-refs';
 import { CardName } from '@/components/shared/CardName';
 import { IconButton } from '@/components/shared/Button';
 

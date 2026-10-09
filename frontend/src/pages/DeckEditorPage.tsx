@@ -38,10 +38,10 @@ import { useCollectionStore } from '../store/collection';
 import {
   DeckDisplay,
   type DeckDisplayCard,
-  type AnalysisTabId,
-  type DeckView,
   scrollToDeckStats,
 } from '../components/deck/DeckDisplay';
+import { type DeckView } from '@/lib/deck-analysis/deck-view';
+import { type AnalysisTabId } from '@/lib/deck-analysis/deck-view';
 import { Tabs } from '@/components/overlays/Tabs';
 import {
   bracketReasons,
@@ -51,7 +51,7 @@ import { formatMoney } from '@/lib/collection/format-money';
 import { deckValue } from '@/lib/deck/deck-value';
 import { useCurrency } from '@/lib/collection/currency';
 import { buildCommanderKey } from '@/lib/deck/commander-key';
-import type { BinderInfo } from '../components/BinderBadge';
+import type { BinderInfo } from '@/lib/binder/binder-refs';
 import { CardSearchPanel, type CardSearchPanelHandle } from '../components/deck/CardSearchPanel';
 import { BuildTimeCoachStrip } from '../components/deck/BuildTimeCoachStrip';
 import { useBuildTimeNudge } from '@/lib/coach/use-build-time-nudge';
@@ -131,7 +131,8 @@ import { buildWinConditionSummary } from '@/lib/deck-analysis/win-condition-summ
 import { useCommanderBracketAnalysis } from '@/lib/deck-analysis/use-commander-bracket-analysis';
 import { useUndoRedoKeyboard } from '@/lib/deck/use-undo-redo-keyboard';
 import { useRegisterShortcuts } from '@/components/app-shell/shortcut-registry';
-import { CardEditDialog, type PrintingSelection } from '@/components/collection/CardEditDialog';
+import { CardEditDialog } from '@/components/collection/CardEditDialog';
+import { type PrintingSelection } from '@/lib/collection/edit-card';
 import {
   buildAllocationMap,
   pickCollectionCopy,

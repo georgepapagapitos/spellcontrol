@@ -8,8 +8,8 @@ import { classifyCardCategory } from '@/deck-builder/services/deckBuilder/catego
 import { cardTagsOf, isTagsEdited } from '@/lib/deck/deck-tags';
 import { classifyType, type TypeGroup } from '@/lib/deck-analysis/build-mana-data';
 import { priceOf } from '@/lib/deck/deck-value';
-import { typeIcon } from '@/lib/cards/card-types';
-import { COLOR_INFO } from '@/lib/cards/colors';
+import { typeIcon } from '@spellcontrol/binder-routing';
+import { COLOR_INFO } from '@spellcontrol/binder-routing';
 import { classifyFoil } from '@/lib/cards/foil-style';
 import {
   classifyAllocation,

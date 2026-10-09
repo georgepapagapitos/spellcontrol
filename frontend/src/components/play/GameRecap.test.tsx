@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import type { GameAction, GamePlayer, GameState } from '@/lib/play/game-state';
-import { applyAction, createGameState, makePlayer } from '@/lib/play/game-state';
+import type { GameAction, GamePlayer, GameState } from '@spellcontrol/game-core';
+import { applyAction, createGameState, makePlayer } from '@spellcontrol/game-core';
 import { GameRecap } from './GameRecap';
 
 function player(seat: number, name: string, startingLife: number): GamePlayer {

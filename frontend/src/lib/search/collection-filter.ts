@@ -2,9 +2,13 @@ import {
   cardMatchesCompiled,
   exactMatchesExpression,
   type CompiledExpression,
-} from '@/lib/binder/rules';
-import { colorSelectionMatches, getColorKey, type ColorMatchMode } from '@/lib/cards/colors';
-import type { compileFilter } from '@/lib/binder/rules';
+} from '@spellcontrol/binder-routing';
+import {
+  colorSelectionMatches,
+  getColorKey,
+  type ColorMatchMode,
+} from '@spellcontrol/binder-routing';
+import type { compileFilter } from '@spellcontrol/binder-routing';
 import type { EnrichedCard } from '@/types/index';
 
 type CompiledFilter = ReturnType<typeof compileFilter>;

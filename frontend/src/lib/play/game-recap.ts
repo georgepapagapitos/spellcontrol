@@ -23,7 +23,7 @@
  * from the most recent events — game length via timestamps, the biggest hit
  * within the window, eliminations, designations — stays honest.
  */
-import { summarizeGame, type GameEvent, type GameState } from './game-state';
+import { summarizeGame, type GameEvent, type GameState } from '@spellcontrol/game-core';
 
 export interface RecapStat {
   id: string;

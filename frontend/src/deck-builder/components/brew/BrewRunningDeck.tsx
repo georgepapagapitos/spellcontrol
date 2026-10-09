@@ -9,7 +9,7 @@ import { useCardThumb } from '@/lib/cards/card-thumbs';
 import { getCardsByNames } from '@/deck-builder/services/scryfall/client';
 import { useBrewStore } from '@/deck-builder/store/brew';
 import { flattenAccepted } from '@/deck-builder/services/deckBuilder/brewSlots';
-import { COLOR_INFO } from '@/lib/cards/colors';
+import { COLOR_INFO } from '@spellcontrol/binder-routing';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { IconButton } from '@/components/shared/Button';
 

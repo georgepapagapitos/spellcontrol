@@ -36,17 +36,18 @@ function resolveSpec(fromFile: string, spec: string): string | null {
  * Files this one imports at least one VALUE from. `import type ...` and a
  * braced clause whose specifiers are all `type X` are skipped; `export * from`
  * and `export { x } from` count, since a re-export is a real runtime edge.
+ * With `includeTypes`, type-only imports count too (the layer guard wants them).
  */
-export function valueImports(file: string): string[] {
+export function valueImports(file: string, includeTypes = false): string[] {
   const src = readFileSync(file, 'utf8');
   const out = new Set<string>();
   const re = /(?:^|\n)\s*(?:import|export)\s+([\s\S]*?)\s*from\s*['"]([^'"]+)['"]/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(src))) {
     const clause = m[1].trim();
-    if (/^type\s/.test(clause)) continue;
+    if (!includeTypes && /^type\s/.test(clause)) continue;
     const braced = clause.match(/^\{([\s\S]*)\}$/);
-    if (braced) {
+    if (braced && !includeTypes) {
       const names = braced[1]
         .split(',')
         .map((s) => s.trim())

@@ -18,8 +18,8 @@ import {
   X,
 } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import type { GameAction, GamePlayer, GameState } from '@/lib/play/game-state';
-import { cmdDamageKey, nextActiveSeat } from '@/lib/play/game-state';
+import type { GameAction, GamePlayer, GameState } from '@spellcontrol/game-core';
+import { cmdDamageKey, nextActiveSeat } from '@spellcontrol/game-core';
 import { genId } from '@/lib/util/id';
 import type { EmptyCell, SeatSlot } from '@/lib/play/board-layouts';
 import {
@@ -44,7 +44,7 @@ import { useCardThumb } from '@/lib/cards/card-thumbs';
 import { scryfallArtCrop } from '../../lib/offline/slim-to-scryfall';
 import { cmdDamageFillRatio, cmdDamageToLethal } from '@/lib/play/cmd-damage';
 import { highRoll as rollHighRoll, type HighRollResult } from '@/lib/play/game-tools';
-import { seatCounters } from '@/lib/play/game-state';
+import { seatCounters } from '@spellcontrol/game-core';
 import { usePlayStore } from '../../store/play';
 import { HOLD_JUMP } from '@/lib/play/hold-ramp';
 import { useTapAndHold } from '@/lib/play/tap-and-hold';

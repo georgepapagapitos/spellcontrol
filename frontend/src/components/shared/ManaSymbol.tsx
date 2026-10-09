@@ -1,5 +1,5 @@
 import { colorGlyph } from '@/lib/cards/mana-symbols';
-import { typeIcon } from '@/lib/cards/card-types';
+import { typeIcon } from '@spellcontrol/binder-routing';
 import { joinClasses } from '@/lib/util/join-classes';
 
 /**

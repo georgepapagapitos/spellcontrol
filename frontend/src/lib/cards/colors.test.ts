@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { colorIdentityWords, colorSelectionMatches } from './colors';
+import { colorIdentityWords } from './colors';
+import { colorSelectionMatches } from '@spellcontrol/binder-routing';
 
 describe('colorSelectionMatches', () => {
   const boros = { key: 'M', ci: ['R', 'W'] };

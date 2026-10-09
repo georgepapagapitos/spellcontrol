@@ -3,7 +3,7 @@ import { Download, ExternalLink, X } from 'lucide-react';
 import { Modal } from '@/components/overlays/Modal';
 import { formatMoney } from '@/lib/collection/format-money';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
-import type { CardTally } from './useCardCarousel';
+import type { CardTally } from '@/lib/deck-analysis/card-tally';
 import './BuyListDialog.css';
 import { Button, IconButton } from '@/components/shared/Button';
 import { CopyButton } from '@/components/shared/CopyButton';

@@ -112,7 +112,9 @@ import { hasCardActions, type DeckCardActionCtx } from './deck-card-actions';
 import { DeckAnalysisView } from './DeckAnalysisView';
 import { CardName } from '@/components/shared/CardName';
 import { Button, buttonClass } from '@/components/shared/Button';
-import type { DeckDisplayProps, AnalysisTabId, DeckView } from './deck-display-types';
+import type { DeckDisplayProps } from './deck-display-types';
+import type { DeckView } from '@/lib/deck-analysis/deck-view';
+import type { AnalysisTabId } from '@/lib/deck-analysis/deck-view';
 import {
   titlesUnder,
   buildCrossDeckCtx,
@@ -143,12 +145,7 @@ const INSPECTOR_QUERY = '(min-width: 1024px) and (hover: hover) and (pointer: fi
 
 // Props and view ids live in ./deck-display-types; re-exported so every
 // importer of this module keeps its path.
-export type {
-  DeckDisplayCard,
-  DeckDisplayProps,
-  AnalysisTabId,
-  DeckView,
-} from './deck-display-types';
+export type { DeckDisplayCard, DeckDisplayProps } from './deck-display-types';
 import '@/styles/deck-builder-deck-extras.css';
 
 /** Renders its children into `slot` when one is given, else in place. */

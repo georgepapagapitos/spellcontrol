@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { usePlayStore } from '@/store/play';
 import { useAuth } from '@/store/auth';
 import { toast } from '@/store/toasts';
-import { createGameState, makePlayer } from '@/lib/play/game-state';
+import { createGameState, makePlayer } from '@spellcontrol/game-core';
 import type { GameRequest } from '@/lib/play/games-api';
 import { usePlaytestStore } from '../store';
 import { HoldButton } from './HoldButton';

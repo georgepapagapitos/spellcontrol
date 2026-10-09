@@ -22,7 +22,7 @@ vi.mock('react-router-dom', async () => {
   return { ...actual, useNavigate: () => navigateSpy };
 });
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { GameState } from '@/lib/play/game-state';
+import type { GameState } from '@spellcontrol/game-core';
 import type { Deck } from '../store/decks';
 import type { PublicBoard } from '../lib/playtest/projection';
 

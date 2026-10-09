@@ -17,7 +17,7 @@ import {
   type GameRecord,
   type GameState,
   type HordeStep,
-} from '@/lib/play/game-state';
+} from '@spellcontrol/game-core';
 import {
   createGame as apiCreateGame,
   getGame as apiGetGame,

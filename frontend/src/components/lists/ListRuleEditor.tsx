@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { BinderFilter, BinderFilterGroup, ListDef } from '@/types/index';
 import { useCollectionStore } from '@/store/collection';
 import { cleanFilter } from '@/lib/search/clean-filter';
-import { areAllGroupsEmpty } from '@/lib/binder/rules';
+import { areAllGroupsEmpty } from '@spellcontrol/binder-routing';
 import { dynamicListCount } from '@/lib/collection/dynamic-list';
 import { useCardsWithTags, groupsUseTags } from '@/lib/cards/card-tags';
 import { fetchTypeSuggestions, fetchOracleSuggestions } from '@/lib/cards/scryfall-catalog';

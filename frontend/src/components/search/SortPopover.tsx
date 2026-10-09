@@ -1,7 +1,7 @@
 import { ArrowLeft, ArrowUpDown } from 'lucide-react';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { SORT_FIELDS, sortDirectionLabel } from '@/lib/search/sorting';
+import { SORT_FIELDS, sortDirectionLabel } from '@spellcontrol/binder-routing';
 import { SortEditor } from './SortEditor';
 import { focusFirstSortField } from '@/lib/search/sort-field-focus';
 import { SortPresetChips, SortPresetList } from './SortPresets';

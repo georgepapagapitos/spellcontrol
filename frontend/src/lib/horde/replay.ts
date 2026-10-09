@@ -1,6 +1,6 @@
 import { applyAction, type PlaytestCard, type PlaytestState } from '@/lib/playtest';
 import type { Rect } from '@/playtest/lib/auto-place';
-import type { HordeTable } from '@/lib/play/game-state';
+import type { HordeTable } from '@spellcontrol/game-core';
 import type { SoloHordeConfig, SoloHordePhase, SoloHordeState } from '@/playtest/lib/horde-solo';
 import { createHordeBoard, dealDueBosses } from './board';
 import { buildHordeLibrary, type HordeDeckDef } from './library';

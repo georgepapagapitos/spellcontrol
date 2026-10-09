@@ -9,7 +9,7 @@ import { CardThumb } from '@/components/card/CardThumb';
 import { ViewModeToggle } from '../ViewModeToggle';
 import { VerdictBadge } from './VerdictBadge';
 import type { VerdictTone } from './VerdictBadge';
-import type { CardTally } from './useCardCarousel';
+import type { CardTally } from '@/lib/deck-analysis/card-tally';
 import { IconButton } from '../shared/Button';
 import { ArtBadge } from '@/components/shared/ArtBadge';
 import './CardGroupSheet.css';

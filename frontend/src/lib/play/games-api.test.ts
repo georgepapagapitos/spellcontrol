@@ -15,7 +15,7 @@ import {
   type GameListing,
   type GameRequest,
 } from './games-api';
-import type { GameState } from './game-state';
+import type { GameState } from '@spellcontrol/game-core';
 import type { PublicBoard } from '@/lib/playtest/projection';
 
 function mockState(overrides: Partial<GameState> = {}): GameState {

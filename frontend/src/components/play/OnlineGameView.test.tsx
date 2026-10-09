@@ -9,8 +9,8 @@
  */
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { GameAction, GamePhase, GamePlayer, GameState } from '@/lib/play/game-state';
-import { createGameState, makePlayer } from '@/lib/play/game-state';
+import type { GameAction, GamePhase, GamePlayer, GameState } from '@spellcontrol/game-core';
+import { createGameState, makePlayer } from '@spellcontrol/game-core';
 import type { GameRequest } from '@/lib/play/games-api';
 import { loadHordeDeck, resolveHordeSettings } from '../../lib/horde';
 

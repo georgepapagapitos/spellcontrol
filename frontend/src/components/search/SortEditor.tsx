@@ -24,7 +24,7 @@ import {
   CUSTOMIZABLE_VALUE_ORDER_FIELDS,
   resolveValueOrder,
   getValueLabel,
-} from '@/lib/search/sorting';
+} from '@spellcontrol/binder-routing';
 import { SelectMenu } from '@/components/overlays/SelectMenu';
 import { SortValueOrderEditor } from './SortValueOrderEditor';
 import { OverflowMenu, type OverflowMenuItem } from '@/components/overlays/OverflowMenu';

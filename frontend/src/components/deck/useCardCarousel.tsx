@@ -1,3 +1,4 @@
+import type { CardTally } from '@/lib/deck-analysis/card-tally';
 import { type JSX, useCallback, useRef, useState } from 'react';
 import { getCardByNameResilient, getOwnedPrinting } from '@/deck-builder/services/scryfall/client';
 import { scryfallToEnrichedCard } from '@/lib/cards/scryfall-to-enriched';
@@ -80,16 +81,6 @@ function placeholderCard(name: string, key: string): EnrichedCard {
 export interface CarouselEntry {
   name: string;
   label: string;
-  card?: ScryfallCard;
-}
-
-/** A unique card with how many copies are in the deck — the shape the deck-stat
- *  drill-downs (mana sources, type/curve/color breakdowns) pass to the carousel.
- *  `card` carries the already-loaded Scryfall object so the carousel renders
- *  instantly instead of re-querying Scryfall by name. */
-export interface CardTally {
-  name: string;
-  count: number;
   card?: ScryfallCard;
 }
 

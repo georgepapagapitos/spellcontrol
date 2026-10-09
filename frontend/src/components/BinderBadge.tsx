@@ -1,13 +1,8 @@
+import type { BinderInfo } from '@/lib/binder/binder-refs';
 import { Notebook } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { IconButton } from '@/components/shared/Button';
 import { ArtBadge } from '@/components/shared/ArtBadge';
-
-export interface BinderInfo {
-  id: string;
-  name: string;
-  color: string | null;
-}
 
 interface Props {
   /** All binders covering this row's copies. Empty → no badge. */

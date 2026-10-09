@@ -1,6 +1,5 @@
 import type { ScryfallCard } from '@/deck-builder/types';
-import type { EnrichedCard } from '@/types/index';
-import type { PrintingSelection } from '@/components/collection/CardEditDialog';
+import type { Condition, EnrichedCard, Finish } from '@/types/index';
 import { getCurrency } from './currency';
 import { formatMoney } from './format-money';
 
@@ -333,4 +332,57 @@ export function isNoOpCardEdit(
     }
   }
   return true;
+}
+
+/** Per-copy inventory details (condition/language/flags). A missing key means "not set". */
+export interface CardDetails {
+  condition?: Condition;
+  language?: string;
+  /** Free-text per-copy note. Absent (or blank) means none; the applier trims and drops blanks. */
+  notes?: string;
+  /** Physical card has custom/altered art. */
+  altered?: boolean;
+  /** Copy is a proxy rather than a real printing. */
+  proxy?: boolean;
+  /** Physical card is a misprint. */
+  misprint?: boolean;
+  /**
+   * What the user paid for this copy — cost basis, NOT market value. Absent
+   * means "not recorded", and so does 0 (`buildEditedCards` normalizes it away).
+   * The applier stamps which display currency it was entered in.
+   */
+  acquiredPrice?: number;
+  /**
+   * Manual market-price override for this copy (E204) — for a printing
+   * Scryfall prices wrong or not at all. Absent means "use market price", and
+   * so does 0 (`buildEditedCards` normalizes it away, same as `acquiredPrice`).
+   * Separate from `acquiredPrice`: this replaces market value everywhere it's
+   * read; cost basis never does. The applier stamps which display currency it
+   * was entered in.
+   */
+  priceOverride?: number;
+}
+
+export interface PrintingSelection {
+  card: ScryfallCard;
+  finish: Finish;
+  quantity?: number;
+  /**
+   * Present only when the dialog ran with the `details` prop. Missing
+   * condition/language/flag keys mean the user cleared (or never set) that
+   * field — appliers should overwrite, not merge.
+   *
+   * `conditionTouched`/`languageTouched`/`acquiredPriceTouched`/`priceOverrideTouched`
+   * are only ever sent `false` — and only when the corresponding `mixedDetails`
+   * field was set — meaning the user left that field at its "Mixed" placeholder.
+   * Absent (or `true`) tells the applier to write the field across the whole
+   * stack, same as before mixed detection existed.
+   */
+  details?: CardDetails & {
+    conditionTouched?: boolean;
+    languageTouched?: boolean;
+    notesTouched?: boolean;
+    acquiredPriceTouched?: boolean;
+    priceOverrideTouched?: boolean;
+  };
 }

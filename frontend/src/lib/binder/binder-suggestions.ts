@@ -1,5 +1,5 @@
 import type { BinderFilter, ChipExpression, EnrichedCard } from '@/types/index';
-import { cardMatchesAnyGroup, compileFilterGroups } from './rules';
+import { cardMatchesAnyGroup, compileFilterGroups } from '@spellcontrol/binder-routing';
 
 /**
  * A binder the Uncategorized pile could become: one rule, the name it would

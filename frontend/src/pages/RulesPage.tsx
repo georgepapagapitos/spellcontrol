@@ -7,8 +7,8 @@ import {
   RulesReference,
   RulesReferenceFoot,
   useRulesBundle,
-  type RulesReferenceTab,
 } from '@/components/rules/RulesReference';
+import { type RulesReferenceTab } from '@/store/rules-reference';
 import { Tabs } from '@/components/overlays/Tabs';
 // The answer's skeleton, inline error and card chips reuse the review panel's
 // classes by name; this page is its own lazy chunk, so it has to load the

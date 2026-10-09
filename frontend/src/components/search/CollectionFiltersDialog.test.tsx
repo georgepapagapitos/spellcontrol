@@ -10,7 +10,7 @@ import { useState } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import type { ChipExpression, EnrichedCard } from '@/types/index';
-import type { ColorMatchMode } from '@/lib/cards/colors';
+import type { ColorMatchMode } from '@spellcontrol/binder-routing';
 import type { FilterableRow } from '@/lib/search/collection-filter';
 import { useCollectionStore } from '@/store/collection';
 import { CollectionFiltersDialog } from './CollectionFiltersDialog';

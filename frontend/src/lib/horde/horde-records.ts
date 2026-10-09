@@ -1,4 +1,4 @@
-import type { GameRecord } from '@/lib/play/game-state';
+import type { GameRecord } from '@spellcontrol/game-core';
 import { HORDE_CATALOG } from '@/lib/horde/catalog';
 
 /** Per-horde co-op tally: how a player's table has fared against one horde

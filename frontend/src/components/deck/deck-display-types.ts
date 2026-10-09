@@ -1,3 +1,4 @@
+import type { DeckView } from '@/lib/deck-analysis/deck-view';
 import type { ClockCard } from '@/lib/mana-sim/opening-hand-sim';
 import type {
   ScryfallCard,
@@ -14,7 +15,7 @@ import type { PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
 import type { LaneId, ChangeOwnership } from '@/lib/coach/deck-change';
 import type { ArrivalsByType } from '@/lib/coach/new-arrivals';
 import type { ComboMatch } from '@/types/combos';
-import type { BinderInfo } from '../BinderBadge';
+import type { BinderInfo } from '@/lib/binder/binder-refs';
 import type { DeckCardActionCtx } from './deck-card-actions';
 import type { ListAction } from './DeckToolbar';
 
@@ -380,10 +381,3 @@ export interface DeckDisplayProps {
 }
 
 // ── Analysis views ─────────────────────────────────────────────────────────
-/** The page-top analysis view ids. (Test hand is a separate standalone panel,
- *  not a view — goldfishing is a distinct activity.) */
-export type AnalysisTabId = 'stats' | 'power' | 'tune';
-
-/** The full page-top view set: the card-list editing surface plus the analysis
- *  views. `DeckEditorPage` owns this state and renders the hub tab bar. */
-export type DeckView = 'deck' | AnalysisTabId;

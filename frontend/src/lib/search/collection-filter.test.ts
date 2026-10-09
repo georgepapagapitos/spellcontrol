@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { countMatchingRows, rowMatchesCollectionFilter } from './collection-filter';
-import { compileExpression, compileFilter } from '@/lib/binder/rules';
+import { compileExpression, compileFilter } from '@spellcontrol/binder-routing';
 import type { EnrichedCard } from '@/types/index';
 
 const card = (over: Partial<EnrichedCard> = {}): EnrichedCard =>

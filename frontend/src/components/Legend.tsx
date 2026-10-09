@@ -3,7 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNo
 import { createPortal } from 'react-dom';
 import { useOverlayLayer } from '@/lib/overlays/overlay-layer';
 import { computePopoverPlacement, getSafeViewport } from '@/lib/overlays/popover-placement';
-import { TYPE_ORDER } from '@/lib/cards/card-types';
+import { TYPE_ORDER } from '@spellcontrol/binder-routing';
 import { ROLE_BADGE_BY_TONE } from '@/lib/deck-analysis/role-badges';
 import type { RarityTint } from '@/lib/cards/set-symbols';
 import { TypeIcon } from './shared/ManaSymbol';

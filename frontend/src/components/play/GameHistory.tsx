@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useState } from 'react';
-import type { GameEvent, GameState, GameSummary } from '@/lib/play/game-state';
-import { isKeyMoment, summarizeGame } from '@/lib/play/game-state';
+import type { GameEvent, GameState, GameSummary } from '@spellcontrol/game-core';
+import { isKeyMoment, summarizeGame } from '@spellcontrol/game-core';
 import { describeGameEvent } from '@/lib/play/game-event-text';
 import { paletteForSeat } from '@/lib/play/seat-palette';
 import { Chip } from '@/components/shared/Chip';

@@ -14,8 +14,8 @@
 import { materializeBinders } from '@/lib/binder/materialize';
 import { isBasicLandName, SURPLUS_KEEP_COPIES, computeSurplusByName } from './allocations-core';
 import { priceOf } from '@/lib/deck/deck-value';
-import { getColorKey, COLOR_INFO } from '@/lib/cards/colors';
-import { getCardType, TYPE_ORDER } from '@/lib/cards/card-types';
+import { getColorKey, COLOR_INFO } from '@spellcontrol/binder-routing';
+import { getCardType, TYPE_ORDER } from '@spellcontrol/binder-routing';
 import type { AllocationInfo } from './allocations-core';
 import type { Currency } from './currency';
 import type { Deck } from '@/store/decks';

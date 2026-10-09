@@ -1,4 +1,4 @@
-import type { GameRecord } from './game-state';
+import type { GameRecord } from '@spellcontrol/game-core';
 
 /**
  * Does this seat's result belong to its deck in this viewer's record? One

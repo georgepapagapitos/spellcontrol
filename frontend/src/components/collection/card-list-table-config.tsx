@@ -1,9 +1,9 @@
 import { AlignJustify, LayoutGrid, List as ListIconLucide } from 'lucide-react';
 import type { SortField, EnrichedCard } from '@/types/index';
-import type { BinderInfo } from '@/components/BinderBadge';
+import type { BinderInfo } from '@/lib/binder/binder-refs';
 import type { CardTableCol } from '@/components/shared/CardTable';
 import type { SortMenuOption } from '@/components/search/SortMenu';
-import { sortDirectionLabel } from '@/lib/search/sorting';
+import { sortDirectionLabel } from '@spellcontrol/binder-routing';
 import { readLocalStorage } from '@/lib/util/local-storage';
 
 // Row model, view/sort/group vocabularies and their persisted-state helpers

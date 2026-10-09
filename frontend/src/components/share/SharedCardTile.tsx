@@ -4,7 +4,8 @@ import { Star } from 'lucide-react';
 import type { PublicCard } from '@/lib/social/shared-types';
 import { publicCardToEnriched } from '@/lib/social/shared-filter';
 import { ArtBadge } from '../shared/ArtBadge';
-import { BinderBadge, type BinderInfo } from '../BinderBadge';
+import { BinderBadge } from '../BinderBadge';
+import { type BinderInfo } from '@/lib/binder/binder-refs';
 import { DeckBadge } from '../DeckBadge';
 import type { AllocationInfo } from '@/lib/collection/allocations-core';
 import {

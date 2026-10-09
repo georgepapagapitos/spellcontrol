@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { applyAction } from '@/lib/playtest';
-import type { HordeSettings, HordeStep, HordeTable } from '@/lib/play/game-state';
+import type { HordeSettings, HordeStep, HordeTable } from '@spellcontrol/game-core';
 import type { SoloHordePhase } from '@/playtest/lib/horde-solo';
 import { replayHorde } from './replay';
 import { buildHordeLibrary, type HordeDeckDef } from './library';

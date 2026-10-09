@@ -1,5 +1,9 @@
 import type { BinderFilterGroup, EnrichedCard, ListEntry } from '@/types/index';
-import { compileFilterGroups, cardMatchesAnyGroup, areAllGroupsEmpty } from '@/lib/binder/rules';
+import {
+  compileFilterGroups,
+  cardMatchesAnyGroup,
+  areAllGroupsEmpty,
+} from '@spellcontrol/binder-routing';
 import { printingFinishKey } from './collection-mutations';
 import type { EnrichedListRow } from './use-enriched-list-entries';
 

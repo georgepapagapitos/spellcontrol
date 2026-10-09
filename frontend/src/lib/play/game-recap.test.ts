@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { GameAction, GamePlayer, GameState } from './game-state';
-import { applyAction, createGameState, makePlayer } from './game-state';
+import type { GameAction, GamePlayer, GameState } from '@spellcontrol/game-core';
+import { applyAction, createGameState, makePlayer } from '@spellcontrol/game-core';
 import { buildGameRecap } from './game-recap';
 
 function player(seat: number, name: string, startingLife: number): GamePlayer {

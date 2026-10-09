@@ -1,6 +1,6 @@
 import type { FriendCard } from '@/lib/cube/pool';
 import type { PublicCard } from './shared-types';
-import { colorSelectionMatches, type ColorMatchMode } from '@/lib/cards/colors';
+import { colorSelectionMatches, type ColorMatchMode } from '@spellcontrol/binder-routing';
 import { buildFriendSearch, type FriendSearchCaps } from './friend-search';
 
 /** WUBRG identity codes plus 'C' for colorless. */

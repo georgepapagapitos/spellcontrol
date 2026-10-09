@@ -5,7 +5,7 @@ import {
   setFilterFields,
   type FilterFieldId,
 } from './filter-fields';
-import { isFilterEmpty } from '@/lib/binder/rules';
+import { isFilterEmpty } from '@spellcontrol/binder-routing';
 import type { BinderFilter } from '@/types/index';
 
 const chips = (...values: string[]) => ({

@@ -1,4 +1,4 @@
-import type { GameFormat } from './game-state';
+import type { GameFormat } from '@spellcontrol/game-core';
 
 /**
  * The Play tab's local/online game formats — single source of truth so a

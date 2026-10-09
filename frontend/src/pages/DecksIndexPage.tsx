@@ -39,7 +39,7 @@ import { ConfirmDialog } from '@/components/overlays/ConfirmDialog';
 import { SortMenu, type SortMenuOption } from '@/components/search/SortMenu';
 import { ColorIdentityBar } from '../components/shared/ColorIdentityBar';
 import { ColorPip } from '../components/shared/ManaSymbol';
-import { colorSelectionMatches, type ColorMatchMode } from '@/lib/cards/colors';
+import { colorSelectionMatches, type ColorMatchMode } from '@spellcontrol/binder-routing';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SearchPill } from '@/components/search/SearchPill';

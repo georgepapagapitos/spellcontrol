@@ -1,8 +1,8 @@
 import { Clock, Compass, Crown, Hand, Headphones, Trophy, Undo2 } from 'lucide-react';
 import { DiscordMark } from '@/components/shared/DiscordMark';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { DesignationKind, GameAction, GamePlayer, GameState } from '@/lib/play/game-state';
-import { cmdDamageKey, nextHostSeat } from '@/lib/play/game-state';
+import type { DesignationKind, GameAction, GamePlayer, GameState } from '@spellcontrol/game-core';
+import { cmdDamageKey, nextHostSeat } from '@spellcontrol/game-core';
 import type { GameRequest } from '@/lib/play/games-api';
 import { paletteForIndex } from '@/lib/play/seat-palette';
 import { useAnimatedNumber } from '@/lib/util/use-animated-number';

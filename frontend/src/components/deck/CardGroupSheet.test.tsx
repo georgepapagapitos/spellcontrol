@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CardGroupSheet } from './CardGroupSheet';
 import type { CardAnnotation } from './CardGroupSheet';
-import type { CardTally } from './useCardCarousel';
+import type { CardTally } from '@/lib/deck-analysis/card-tally';
 import type { ScryfallCard } from '@/deck-builder/types';
 
 /** Minimal ScryfallCard fixture — only the fields the sheet reads. */

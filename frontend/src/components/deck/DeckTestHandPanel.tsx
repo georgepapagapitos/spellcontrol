@@ -42,7 +42,7 @@ import { useDecksStore } from '../../store/decks';
 import { scryfallToEnrichedCard } from '@/lib/cards/scryfall-to-enriched';
 import { getCardRole } from '@/deck-builder/services/tagger/client';
 import { useTaggerReady } from '@/lib/cards/use-tagger-ready';
-import { COLOR_INFO } from '@/lib/cards/colors';
+import { COLOR_INFO } from '@spellcontrol/binder-routing';
 import {
   assemblyClockSentence,
   isKeepableHand,

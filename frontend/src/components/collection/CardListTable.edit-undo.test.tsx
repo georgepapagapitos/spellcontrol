@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import type { EnrichedCard } from '@/types/index';
 import { useCollectionStore } from '@/store/collection';
 import { useToastsStore } from '@/store/toasts';
-import type { PrintingSelection } from './CardEditDialog';
+import type { PrintingSelection } from '@/lib/collection/edit-card';
 
 interface StubDialogProps {
   currentScryfallId: string;

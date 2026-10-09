@@ -1,5 +1,5 @@
 import { authedFetch, handleResponse } from '@/lib/api/fetch-utils';
-import type { GameAction, GameState } from './game-state';
+import type { GameAction, GameState } from '@spellcontrol/game-core';
 import type { PublicBoard } from '@/lib/playtest/projection';
 
 /**

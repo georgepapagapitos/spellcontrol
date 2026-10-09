@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ChevronDown, ChevronUp, Compass, Crown, Landmark, type LucideIcon } from 'lucide-react';
 import { paletteForIndex } from '@/lib/play/seat-palette';
 import { usePressRepeat } from '@/lib/play/use-press-repeat';
-import { cmdDamageKey, type GamePlayer } from '@/lib/play/game-state';
+import { cmdDamageKey, type GamePlayer } from '@spellcontrol/game-core';
 import { LifeAdjustPanel, type CmdDamageRow, type OnlinePanelData } from './LifeAdjustPanel';
 import type { OnlineTable } from '../hooks/use-online-table';
 

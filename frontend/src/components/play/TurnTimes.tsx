@@ -1,4 +1,4 @@
-import { isClockPaused, type GameState } from '@/lib/play/game-state';
+import { isClockPaused, type GameState } from '@spellcontrol/game-core';
 import { describeClock, formatClock, msToNextSecond, seatTurnTotals } from '@/lib/play/game-clock';
 import { useNow } from '@/lib/util/use-now';
 

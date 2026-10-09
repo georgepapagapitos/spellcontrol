@@ -1,18 +1,10 @@
+import type { SelectOption } from '@/lib/util/select-option';
 import { ChevronDown } from 'lucide-react';
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useMenuKeyboard } from '@/lib/overlays/use-menu-keyboard';
 import { computePopoverPlacement, getSafeViewport } from '@/lib/overlays/popover-placement';
 import { Surface } from '@/components/shared/Surface';
-
-export interface SelectOption<T extends string | number> {
-  value: T;
-  label: ReactNode;
-  /** Visible only inside the popover; falls back to `label` when omitted. */
-  itemLabel?: ReactNode;
-  /** Hidden text used when the trigger renders this option's label. */
-  triggerLabel?: ReactNode;
-}
 
 interface Props<T extends string | number> {
   value: T;

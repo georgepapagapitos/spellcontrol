@@ -14,13 +14,13 @@ import {
   X,
 } from 'lucide-react';
 import { useId, useLayoutEffect, useRef, useState } from 'react';
-import type { DesignationKind, GameAction, GamePlayer, GameState } from '@/lib/play/game-state';
+import type { DesignationKind, GameAction, GamePlayer, GameState } from '@spellcontrol/game-core';
 import {
   MAX_COUNTERS_PER_SCOPE,
   MAX_COUNTER_NAME_LENGTH,
   normalizeCounterName,
   seatCounters,
-} from '@/lib/play/game-state';
+} from '@spellcontrol/game-core';
 import { encodeCustomLayout, resolveLayout, turnOrderOf } from '@/lib/play/board-layouts';
 import { paletteForSeat } from '@/lib/play/seat-palette';
 import { useOverlayDismiss } from '@/lib/overlays/use-overlay-dismiss';

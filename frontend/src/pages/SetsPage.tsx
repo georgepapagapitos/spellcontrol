@@ -39,7 +39,8 @@ import {
   useSldDrops,
   type SldDropsIndex,
 } from '@/lib/cards/sld-drops';
-import { SelectMenu, type SelectOption } from '@/components/overlays/SelectMenu';
+import { SelectMenu } from '@/components/overlays/SelectMenu';
+import { type SelectOption } from '@/lib/util/select-option';
 import { SearchPill } from '@/components/search/SearchPill';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { scryfallToEnrichedCard } from '@/lib/cards/scryfall-to-enriched';

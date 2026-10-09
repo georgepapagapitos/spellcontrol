@@ -31,7 +31,7 @@ import {
   makePlayer,
   type GameRecord,
   type GameState,
-} from '@/lib/play/game-state';
+} from '@spellcontrol/game-core';
 import { usePlayStore } from '@/store/play';
 
 export interface HordeSurvivor {

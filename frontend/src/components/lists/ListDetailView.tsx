@@ -11,10 +11,18 @@ import type {
   SortDir,
   SortField,
 } from '@/types/index';
-import type { SortContext } from '@/lib/search/sorting';
-import { compileFilter, cardMatchesCompiled, isExpressionEmpty } from '@/lib/binder/rules';
-import { sortCards, printingKey, sortDirectionLabel } from '@/lib/search/sorting';
-import { colorSelectionMatches, getColorKey, type ColorMatchMode } from '@/lib/cards/colors';
+import type { SortContext } from '@spellcontrol/binder-routing';
+import {
+  compileFilter,
+  cardMatchesCompiled,
+  isExpressionEmpty,
+} from '@spellcontrol/binder-routing';
+import { sortCards, printingKey, sortDirectionLabel } from '@spellcontrol/binder-routing';
+import {
+  colorSelectionMatches,
+  getColorKey,
+  type ColorMatchMode,
+} from '@spellcontrol/binder-routing';
 import { cardTagLabel } from '@/lib/cards/card-tags';
 import { useCardsWithTags } from '@/lib/cards/card-tags';
 import type { EnrichedListRow } from '@/lib/collection/use-enriched-list-entries';
@@ -52,7 +60,8 @@ import { OverflowMenu } from '@/components/overlays/OverflowMenu';
 import { InlineCardSearch } from '@/components/search/InlineCardSearch';
 import { scryfallToEnrichedCard } from '@/lib/cards/scryfall-to-enriched';
 import { formatMoney } from '@/lib/collection/format-money';
-import { CardEditDialog, type PrintingSelection } from '@/components/collection/CardEditDialog';
+import { CardEditDialog } from '@/components/collection/CardEditDialog';
+import { type PrintingSelection } from '@/lib/collection/edit-card';
 import { ListEntryTargetPrice } from './ListEntryTargetPrice';
 import { VerdictBadge } from '@/components/deck/VerdictBadge';
 import { ZoomControl } from '@/components/ZoomControl';

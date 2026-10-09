@@ -1,7 +1,7 @@
 import type { PlanScore, SubScoreKey } from './planScore';
 import type { GapAnalysisCard } from '@/deck-builder/types';
 import { synergyStrength, bySynergyStrength } from './synergyLift';
-import type { DeckView } from '@/components/deck/DeckDisplay';
+import type { DeckView } from '@/lib/deck-analysis/deck-view';
 import type { ComboMatch } from '@/types/combos';
 import type { WinConditionAnalysis } from '@/deck-builder/services/winConditions/types';
 import { comboEndsGame } from '@/deck-builder/services/winConditions/detect';

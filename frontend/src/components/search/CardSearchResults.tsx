@@ -1,3 +1,4 @@
+import type { CardSearchResultsHandle } from '@/lib/search/use-results-keys';
 import { Check, ChevronDown, ChevronRight, Layers, Minus, Plus } from 'lucide-react';
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { ManaCost } from '@/components/ManaCost';
@@ -18,16 +19,6 @@ import { Button, IconButton } from '@/components/shared/Button';
 /** Result layouts: `list` (thumbnail rows, the default), `grid` (card-image
  *  tiles, preview-first), `compact` (text-only rows). */
 export type CardSearchResultsView = 'grid' | 'list' | 'compact';
-
-/** Imperative keyboard-nav surface for a host that owns a search input
- *  elsewhere in the tree (this component renders no input of its own). */
-export interface CardSearchResultsHandle {
-  /** Move the active row by one row (list/compact views only). 0 keeps the
-   *  row and just shows it as selected. */
-  moveActive: (delta: 1 | 0 | -1) => void;
-  /** Add the active row's card, same as clicking its "+". */
-  addActive: () => void;
-}
 
 interface Props {
   results: ScryfallCard[];

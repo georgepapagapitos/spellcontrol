@@ -10,7 +10,7 @@
  */
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import type { BinderFilter, ChipExpression, ScryfallQueryRule } from '@/types/index';
-import { SUPERTYPES, TYPES } from '@/lib/cards/card-types';
+import { SUPERTYPES, TYPES } from '@spellcontrol/binder-routing';
 import { FINISH_LABELS } from '@/lib/scanner/scanner-feedback';
 import { cardTagLabel, listCardTags, useCardTagsReady } from '@/lib/cards/card-tags';
 import { searchCardsLive } from '@/deck-builder/services/scryfall/client';

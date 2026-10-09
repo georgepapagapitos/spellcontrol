@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { subscribeGameEvents } from './games-sse';
-import type { GameState } from './game-state';
+import type { GameState } from '@spellcontrol/game-core';
 import type { PublicBoard } from '@/lib/playtest/projection';
 import type { GameRequest } from './games-api';
 

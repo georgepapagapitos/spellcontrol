@@ -1,6 +1,6 @@
 import { Check, ChevronRight } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { SORT_PRESETS, matchSortPreset, type SortPreset } from '@/lib/search/sorting';
+import { SORT_PRESETS, matchSortPreset, type SortPreset } from '@spellcontrol/binder-routing';
 import { ColorPip } from '@/components/shared/ManaSymbol';
 import { ChoiceList } from '@/components/shared/form';
 import { Chip } from '@/components/shared/Chip';

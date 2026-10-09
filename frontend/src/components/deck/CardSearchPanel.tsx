@@ -26,8 +26,8 @@ import { InfoTip } from '@/components/overlays/InfoTip';
 import { useToastsStore } from '../../store/toasts';
 import { useSetMap } from '@/lib/api';
 import { fetchTypeSuggestions } from '@/lib/cards/scryfall-catalog';
-import { parseTypeLine, SUPERTYPES, TYPES } from '@/lib/cards/card-types';
-import { colorSelectionMatches, type ColorMatchMode } from '@/lib/cards/colors';
+import { parseTypeLine, SUPERTYPES, TYPES } from '@spellcontrol/binder-routing';
+import { colorSelectionMatches, type ColorMatchMode } from '@spellcontrol/binder-routing';
 import {
   compileExpression,
   effectiveTreatments,
@@ -36,11 +36,13 @@ import {
   legalityMatchesExpression,
   setMatchesExpression,
   substringMatchesExpression,
-} from '@/lib/binder/rules';
+} from '@spellcontrol/binder-routing';
 import { CollectionFiltersDialog } from '@/components/search/CollectionFiltersDialog';
-import { SelectMenu, type SelectOption } from '@/components/overlays/SelectMenu';
+import { SelectMenu } from '@/components/overlays/SelectMenu';
+import { type SelectOption } from '@/lib/util/select-option';
 import type { FilterableRow } from '@/lib/search/collection-filter';
-import { BinderBadge, type BinderInfo } from '../BinderBadge';
+import { BinderBadge } from '../BinderBadge';
+import { type BinderInfo } from '@/lib/binder/binder-refs';
 import { SearchPill } from '@/components/search/SearchPill';
 import { Tabs, type TabItem } from '@/components/overlays/Tabs';
 import { WedgeHintStrip } from './WedgeHintStrip';

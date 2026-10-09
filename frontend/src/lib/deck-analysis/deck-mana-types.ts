@@ -1,4 +1,4 @@
-import type { CardTally } from './useCardCarousel';
+import type { CardTally } from './card-tally';
 
 /** Per-CMC color split for the stacked "by color" curve. 0 colors → colorless,
  *  exactly 1 → that color, 2+ → gold (multicolor). */

@@ -7,9 +7,9 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
-import type { GamePlayer, GameState } from '@/lib/play/game-state';
+import type { GamePlayer, GameState } from '@spellcontrol/game-core';
 import type { Deck } from '../../store/decks';
-import { applyAction, createGameState, makePlayer } from '@/lib/play/game-state';
+import { applyAction, createGameState, makePlayer } from '@spellcontrol/game-core';
 import { resolveHordeSettings, HORDE_CATALOG } from '@/lib/horde';
 import { HORDE_BAN_LIST } from '@/lib/horde/ban-list';
 

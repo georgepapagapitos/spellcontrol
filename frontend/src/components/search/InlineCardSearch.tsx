@@ -1,10 +1,7 @@
 import { forwardRef } from 'react';
 import { useSearchCards } from '@/lib/search/use-search-cards';
-import {
-  CardSearchResults,
-  type CardSearchResultsHandle,
-  type CardSearchResultsView,
-} from './CardSearchResults';
+import { CardSearchResults, type CardSearchResultsView } from './CardSearchResults';
+import { type CardSearchResultsHandle } from '@/lib/search/use-results-keys';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Finish } from '@/types/index';
 

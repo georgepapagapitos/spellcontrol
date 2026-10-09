@@ -19,7 +19,8 @@ import { prefersReducedMotion } from '@/lib/util/use-list-flip';
 import type { LegalityIssue } from '@/lib/deck/deck-validation';
 import { countedRoleOf } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import { MeterBar } from '../shared/MeterBar';
-import { BinderBadge, type BinderInfo } from '../BinderBadge';
+import { BinderBadge } from '../BinderBadge';
+import { type BinderInfo } from '@/lib/binder/binder-refs';
 import { formatMoney } from '@/lib/collection/format-money';
 import {
   foilTileClass,

@@ -3,7 +3,7 @@ import {
   isColorShort,
   shortfallThresholdsForCurve,
 } from '@/deck-builder/services/deckBuilder/colorShortfall';
-import type { CardTally } from './useCardCarousel';
+import type { CardTally } from '@/lib/deck-analysis/card-tally';
 import { MeterBar } from '../shared/MeterBar';
 import './DeckColorBalance.css';
 
