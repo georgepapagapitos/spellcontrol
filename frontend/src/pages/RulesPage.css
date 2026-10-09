@@ -9,8 +9,6 @@
 
 .rules-page {
   max-width: 640px;
-  margin-inline: auto;
-  padding: var(--space-4);
   display: flex;
   flex-direction: column;
   gap: var(--space-4);

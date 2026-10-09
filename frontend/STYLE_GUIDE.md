@@ -2076,12 +2076,12 @@ does not count. Everything else is refinement _within_ a tier, not a tier wall. 
 content hits its `max-width` cap and centers with side gutters (`--analysis-max:
 1320px` for deck-analysis boards, `--page-max: 1400px` for page containers).
 
-| Tier           | Viewport range | Test at (px)                    | What defines it                                                                                                                                                                                                                                                                                                                                                          |
-| -------------- | -------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Mobile**     | `≤ 600`        | **320** · 375 · 414 · 480 · 600 | base styles; phone layouts, bottom sheets. **320 = hard no-overflow floor.** 480 = cramped-phone refinement.                                                                                                                                                                                                                                                             |
-| **Tablet**     | `601 – 1023`   | 640 · 768 · 820 · 1023          | the gap between the two poles. 640 = deck-bento 2-col **container**-query trigger (not viewport).                                                                                                                                                                                                                                                                        |
-| **Desktop**    | `1024 – 1399`  | **1024** · 1101 · 1280          | sticky panels, multi-column, deck card inspector (`≥1024`). 1101 = deck-editor layout shift.                                                                                                                                                                                                                                                                             |
-| **XL desktop** | `≥ 1400`       | 1440 · 1920                     | content **stops growing** and centers: deck-analysis caps at `--analysis-max` (1320), pages at `--page-max` (1400), and the card-grid routes (collection hub, decks index, deck editor) at `--page-max-wide` (1920) via the `.app-shell:has(…)` opt-in in base-layout.css. Test for balanced gutters / no dead space, not a reflow; the wide routes also at 1920 · 2560. |
+| Tier           | Viewport range | Test at (px)                    | What defines it                                                                                                                                                                                       |
+| -------------- | -------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Mobile**     | `≤ 600`        | **320** · 375 · 414 · 480 · 600 | base styles; phone layouts, bottom sheets. **320 = hard no-overflow floor.** 480 = cramped-phone refinement.                                                                                          |
+| **Tablet**     | `601 – 1023`   | 640 · 768 · 820 · 1023          | the gap between the two poles. 640 = deck-bento 2-col **container**-query trigger (not viewport).                                                                                                     |
+| **Desktop**    | `1024 – 1399`  | **1024** · 1101 · 1280          | sticky panels, multi-column, deck card inspector (`≥1024`). 1101 = deck-editor layout shift.                                                                                                          |
+| **XL desktop** | `≥ 1400`       | 1440 · 1920                     | content **stops growing** and centers: deck-analysis caps at `--analysis-max` (1320), every page at `--page-max` (1400), the header's width. Test for balanced gutters / no dead space, not a reflow. |
 
 - **The two real breakpoints:** `max-width: 600px` (mobile) and `min-width: 1024px`
   (desktop). Use **600**, not 599 — the codebase tolerates the 1px overlap with
@@ -2138,17 +2138,16 @@ content hits its `max-width` cap and centers with side gutters (`--analysis-max:
   div) to carry the span — `grid-column` one level below the grid is inert
   (the DeckIdentityCard cascade-wrapper trap).
 - **Width caps:** `--page-max: 1400px` (page containers), `--analysis-max: 1320px`
-  (deck-analysis boards) — both `margin-inline: auto`. These define the XL tier.
-  Card-grid routes widen to `--page-max-wide: 1920px` by overriding `--page-max`
-  on `.app-shell:has(<route root class>)` (base-layout.css). **The header does
-  not follow the page**: `.site-header-inner` sits on its own `--header-max`
-  (1400px) rail that no route overrides, so the brand, nav and account menu
-  are in the same place on every route and at every width — a widened page
-  grows past the header's edges, not the other way round (guard:
-  `styles/header-fixed-rail.test.ts`). Opt a route in only when its content
-  is an auto-fill grid or a width-derived column layout; prose and form
-  routes stay at 1400, and nothing goes uncapped — past ~1920 density hurts
-  scanning and browser zoom serves the reader better than a wider app.
+  (deck-analysis boards). These define the XL tier.
+  **One page frame (2026-10-09):** every route uses `--page-max`, the same
+  1400px as the header's `--header-max`, so a page's title starts under the
+  brand on every route. No route overrides it: the card-grid routes used to
+  widen to 1920px, and on a 2000px screen titles sat anywhere from x=46 to
+  x=723 against a brand at 300. A page whose content reads better narrow
+  (rules prose, the search pill, a paste box) keeps a `max-width` on its
+  root but stays **left-aligned** under its title, never centered in the
+  frame, and adds no side padding (`.app-main` owns the gutter). Guard:
+  `styles/header-fixed-rail.test.ts`.
 
 ### Other responsive rules
 
