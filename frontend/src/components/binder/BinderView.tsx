@@ -682,7 +682,7 @@ const SectionBlock = memo(function SectionBlock({
         <span className="section-chevron" aria-hidden="true">
           ▾
         </span>
-        {section.pip && <ColorPip color={section.key} pip="lg" />}
+        {section.pip && <ColorPip color={section.key} />}
         <span className="section-title">{section.label}</span>
         <span className="section-meta">
           {section.cards.length} {section.cards.length === 1 ? 'card' : 'cards'} ·{' '}

@@ -373,7 +373,7 @@ export function BinderListView({
                   className="collection-list-section-header binder-table-section"
                   id={headerId}
                   controls={panelId}
-                  pipSlot={section.pip ? <ColorPip color={section.key} pip="lg" /> : undefined}
+                  pipSlot={section.pip ? <ColorPip color={section.key} /> : undefined}
                   label={sectionHeading(section.cardLabels, section.label)}
                   title={section.label}
                   count={totalQty}
@@ -393,7 +393,7 @@ export function BinderListView({
                   <span className="section-chevron" aria-hidden="true">
                     ▾
                   </span>
-                  {section.pip && <ColorPip color={section.key} pip="lg" />}
+                  {section.pip && <ColorPip color={section.key} />}
                   <span className="section-title" title={section.label}>
                     {sectionHeading(section.cardLabels, section.label)}
                   </span>

@@ -177,9 +177,8 @@
 }
 
 .deck-combos-pip {
-  /* Match the look of the in-row mana symbols. em-scaling intentional. */
-  /* stylelint-disable-next-line declaration-property-value-disallowed-list */
-  font-size: 0.95em;
+  /* Sized to sit beside the row's mana costs. */
+  --pip-size: var(--text-sm);
 }
 
 .deck-combos-row-meta {

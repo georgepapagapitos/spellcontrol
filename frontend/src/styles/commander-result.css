@@ -117,6 +117,7 @@
 .commander-result-pips {
   display: inline-flex;
   gap: var(--space-0-5);
+  --pip-size: var(--text-sm);
 }
 
 .commander-result-type {

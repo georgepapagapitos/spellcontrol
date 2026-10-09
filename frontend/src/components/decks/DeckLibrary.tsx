@@ -297,7 +297,7 @@ function DeckLibraryTile({
               {colors.length > 0 && (
                 <span className="decks-index-card-banner-pips">
                   {colors.map((c) => (
-                    <ColorPip key={c} color={c} pip="lg" />
+                    <ColorPip key={c} color={c} />
                   ))}
                 </span>
               )}

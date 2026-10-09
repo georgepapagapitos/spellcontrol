@@ -166,7 +166,7 @@ export function CommanderResultCard({
             <span className="commander-result-colors">
               <span className="commander-result-pips" aria-hidden>
                 {colors.map((color) => (
-                  <ColorPip key={color} color={color} pip={false} />
+                  <ColorPip key={color} color={color} />
                 ))}
               </span>
               {comboName && <span className="commander-result-combo">{comboName}</span>}

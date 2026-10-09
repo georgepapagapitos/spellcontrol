@@ -163,7 +163,7 @@ export function DiscoverDeckTile({ deck, view, buildablePercent = null, onUnsave
                 {deck.colorIdentity.length > 0 && (
                   <span className="decks-index-card-banner-pips">
                     {deck.colorIdentity.map((c) => (
-                      <ColorPip key={c} color={c} pip="lg" />
+                      <ColorPip key={c} color={c} />
                     ))}
                   </span>
                 )}

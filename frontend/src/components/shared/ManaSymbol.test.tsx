@@ -18,10 +18,8 @@ describe('ManaSymbol', () => {
   });
 
   it('adds split + pip + extra classes', () => {
-    const { container } = render(<ManaSymbol symbol="2w" cost split pip="lg" className="extra" />);
-    expect(glyph(container).className).toBe(
-      'ms ms-2w ms-cost ms-split color-pip-mana color-pip-mana--lg extra'
-    );
+    const { container } = render(<ManaSymbol symbol="2w" cost split pip className="extra" />);
+    expect(glyph(container).className).toBe('ms ms-2w ms-cost ms-split color-pip-mana extra');
   });
 
   it('exposes an accessible name + title when label is given', () => {
@@ -32,7 +30,7 @@ describe('ManaSymbol', () => {
     expect(i.getAttribute('title')).toBe('Creature');
   });
 
-  it('maps the base pip without a size modifier', () => {
+  it('maps the pip treatment', () => {
     const { container } = render(<ManaSymbol symbol="r" cost pip />);
     expect(glyph(container).className).toBe('ms ms-r ms-cost color-pip-mana');
   });
@@ -44,15 +42,15 @@ describe('ColorPip', () => {
     expect(glyph(container).className).toBe('ms ms-u ms-cost color-pip-mana');
   });
 
-  it('honors pip=false for a bare glyph and passes className through', () => {
-    const { container } = render(<ColorPip color="B" pip={false} className="deck-combos-pip" />);
-    expect(glyph(container).className).toBe('ms ms-b ms-cost deck-combos-pip');
+  it('always wraps the glyph in the pip and passes className through', () => {
+    const { container } = render(<ColorPip color="B" className="deck-combos-pip" />);
+    expect(glyph(container).className).toBe('ms ms-b ms-cost color-pip-mana deck-combos-pip');
   });
 
   it('maps multicolor and colorless keys', () => {
-    const { container: m } = render(<ColorPip color="M" pip="lg" />);
+    const { container: m } = render(<ColorPip color="M" />);
     expect(glyph(m).className).toContain('ms-multicolor');
-    const { container: c } = render(<ColorPip color="C" pip={false} />);
+    const { container: c } = render(<ColorPip color="C" />);
     expect(glyph(c).className).toContain('ms-c');
   });
 });
