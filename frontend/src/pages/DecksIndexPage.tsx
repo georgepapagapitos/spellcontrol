@@ -822,7 +822,7 @@ export function DecksIndexPage() {
                           {colorIdentity.length > 0 && (
                             <span className="decks-index-card-banner-pips">
                               {colorIdentity.map((c) => (
-                                <ColorPip key={c} color={c} pip="lg" />
+                                <ColorPip key={c} color={c} />
                               ))}
                             </span>
                           )}

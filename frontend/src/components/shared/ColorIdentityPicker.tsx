@@ -49,7 +49,7 @@ export function ColorIdentityPicker({
               onChange(next);
             }}
             label={COLOR_LABEL[c]}
-            icon={<ColorPip color={c} pip={false} />}
+            icon={<ColorPip color={c} />}
           />
         );
       })}

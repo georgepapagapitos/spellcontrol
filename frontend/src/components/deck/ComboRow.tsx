@@ -575,7 +575,7 @@ const COLOR_ORDER = ['w', 'u', 'b', 'r', 'g'] as const;
 function ColorIdentityPips({ identity }: { identity: string }) {
   const colors = identity ? COLOR_ORDER.filter((c) => identity.includes(c)) : [];
   if (colors.length === 0) {
-    return <ColorPip color="C" pip={false} className="deck-combos-pip" label="Colorless" />;
+    return <ColorPip color="C" className="deck-combos-pip" label="Colorless" />;
   }
   return (
     <span
@@ -584,7 +584,7 @@ function ColorIdentityPips({ identity }: { identity: string }) {
       role="img"
     >
       {colors.map((c) => (
-        <ColorPip key={c} color={c} pip={false} className="deck-combos-pip" />
+        <ColorPip key={c} color={c} className="deck-combos-pip" />
       ))}
     </span>
   );

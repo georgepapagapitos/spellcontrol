@@ -90,7 +90,7 @@ export function ComboFiltersPopover({ filters, setFilters, hasCommanders }: Prop
                       onClick={() => toggleIn('colors', c.key)}
                       aria-pressed={active}
                       label={c.label}
-                      icon={<ColorPip color={c.key} pip="lg" />}
+                      icon={<ColorPip color={c.key} />}
                     />
                   );
                 })}

@@ -286,6 +286,7 @@
 }
 
 .commander-color-pip {
+  --pip-size: var(--text-base);
   width: 2rem;
   height: 2rem;
   display: inline-flex;
@@ -303,12 +304,6 @@
     opacity var(--motion-fast) ease,
     transform var(--motion-fast) ease,
     box-shadow var(--motion-fast) ease;
-}
-
-.commander-color-pip .ms {
-  /* The mana-font glyph drives its own size; we just want it readable. */
-  /* stylelint-disable-next-line declaration-property-value-disallowed-list */
-  font-size: 1.4em;
 }
 
 @media (hover: hover) and (pointer: fine) {

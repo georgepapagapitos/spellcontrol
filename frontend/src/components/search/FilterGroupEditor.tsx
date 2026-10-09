@@ -448,7 +448,7 @@ function FilterGroupFields({
                   }}
                   aria-pressed={active}
                   label={c.label}
-                  icon={<ColorPip color={c.key} pip="lg" />}
+                  icon={<ColorPip color={c.key} />}
                 />
               );
             })}

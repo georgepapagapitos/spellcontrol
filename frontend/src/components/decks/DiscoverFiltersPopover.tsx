@@ -141,7 +141,7 @@ export function DiscoverFiltersPopover({ filters, onChange, hideBudget }: Props)
                       checked={filters.colors.includes(c.key)}
                       onChange={() => toggleColor(c.key)}
                     />
-                    <ColorPip color={c.key} pip="lg" />
+                    <ColorPip color={c.key} />
                     <span className="sr-only">{c.label}</span>
                   </label>
                 ))}

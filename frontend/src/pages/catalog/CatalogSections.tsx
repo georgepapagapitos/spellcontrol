@@ -288,7 +288,7 @@ function SurfaceSpecimen() {
         className="catalog-section-head"
         variant="overline"
         level={3}
-        leading={<ColorPip color="G" pip />}
+        leading={<ColorPip color="G" />}
         title="Leading and titleAfter"
         titleAfter={<Count className="catalog-count" value={5} placement="inline" />}
       />
@@ -355,12 +355,8 @@ function SymbolSpecimen() {
     <Specimen id="symbols" title="ManaSymbol, ColorPip, TypeIcon, SetSymbol, RarityBadge">
       <Row label="ColorPip">
         {['W', 'U', 'B', 'R', 'G', 'C'].map((c) => (
-          <ColorPip key={c} color={c} pip label={c} />
+          <ColorPip key={c} color={c} label={c} />
         ))}
-      </Row>
-      <Row label="pip md / lg">
-        <ColorPip color="R" pip="md" label="R" />
-        <ColorPip color="U" pip="lg" label="U" />
       </Row>
       <Row label="ManaSymbol cost">
         {['w', '2', 'x', 'wu', 'tap', 'e'].map((s) => (

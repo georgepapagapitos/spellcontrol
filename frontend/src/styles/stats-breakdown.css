@@ -116,34 +116,31 @@
   color: var(--text-secondary);
 }
 
-/* Color-identity pip — shared between the stats breakdown, binder section
-   headers, and the collection color-filter buttons. Wraps mana-font's
-   ms-cost circle, widening it slightly and shrinking the glyph since several
-   icons (W/U/B/R) otherwise overflow ms-cost's default 1.3em box. Override
-   --pip-size to scale; default matches body text. */
-.color-pip-mana {
-  --pip-glyph-size: 0.78em;
-  font-size: var(--pip-size, var(--text-base));
-  line-height: 1;
-  flex-shrink: 0;
-}
+/* Color-identity pip — every <ColorPip>. Wraps mana-font's ms-cost circle,
+   widening it so the glyph has room: the bare 1.3em circle hugs a full-size
+   glyph, and a 1px text snap then reads as off-center.
+
+   The circle is --pip-size × 1.5 with the glyph at 0.78 of that. The glyph
+   IS the element's font-size and the circle is sized in that em, because
+   mana-font centers a glyph by line-height on its own font-size: shrinking
+   only the ::before (the old treatment) or flex-centering its box left the
+   ink 1.5–2px high, the vendor 1.35em line-height 0.5px low. line-height =
+   height is centered to within the 0.5px baseline snap at every DPR.
+
+   Two classes on purpose: the vendor `.ms-cost { font-size: .95em }` loads
+   after the app CSS (styles/icon-fonts-async.ts) and won the old one-class
+   rule, which is why the md/lg sizes never rendered and were removed. The
+   default --pip-size is that 0.95em, the size every pip has shipped at.
+   Guard: styles/color-pip-centering.test.ts. */
 .color-pip-mana.ms-cost {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.5em;
-  height: 1.5em;
-  line-height: 1;
-}
-.color-pip-mana.ms-cost::before {
-  font-size: var(--pip-glyph-size);
-  line-height: 1;
-}
-.color-pip-mana--md {
-  --pip-size: var(--text-md);
-}
-.color-pip-mana--lg {
-  --pip-size: var(--text-lg);
+  /* em-scaling intentional: a pip tracks the text it sits in. */
+  /* stylelint-disable-next-line declaration-property-value-disallowed-list */
+  font-size: calc(var(--pip-size, 0.95em) * 0.78);
+  width: 1.92em;
+  height: 1.92em;
+  line-height: 1.92em;
+  text-align: center;
+  flex-shrink: 0;
 }
 
 .breakdown-icon-rarity {

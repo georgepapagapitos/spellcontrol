@@ -76,7 +76,7 @@ function ManaPip({
       }}
       {...touch}
     >
-      <ColorPip color={color} pip="md" />
+      <ColorPip color={color} />
       <span className="playtest-mana-pip__count">{count}</span>
     </button>
   );

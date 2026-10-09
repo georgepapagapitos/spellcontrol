@@ -2,23 +2,6 @@ import { colorGlyph } from '@/lib/cards/mana-symbols';
 import { typeIcon } from '@spellcontrol/binder-routing';
 import { joinClasses } from '@/lib/util/join-classes';
 
-/**
- * Pip sizing — maps onto the existing `.color-pip-mana` CSS treatment (the
- * widened circular pip used in stats breakdowns, binder section headers, and
- * color-filter buttons). `true` = the base pip; `'md'`/`'lg'` add the size
- * modifier; `false`/omitted = a bare cost glyph with no pip background.
- */
-type Pip = boolean | 'md' | 'lg';
-
-function pipClasses(pip: Pip | undefined): string {
-  if (!pip) return '';
-  return joinClasses(
-    'color-pip-mana',
-    pip === 'md' && 'color-pip-mana--md',
-    pip === 'lg' && 'color-pip-mana--lg'
-  );
-}
-
 interface ManaSymbolProps {
   /** mana-font glyph token (the part after `ms-`) — e.g. "w", "2w", "tap", "creature". */
   symbol: string;
@@ -26,8 +9,11 @@ interface ManaSymbolProps {
   cost?: boolean;
   /** Split/hybrid diagonal treatment (`ms-split`). */
   split?: boolean;
-  /** Wrap with the circular `color-pip-mana` pip treatment + optional size. */
-  pip?: Pip;
+  /**
+   * The circular `color-pip-mana` pip treatment (styles/stats-breakdown.css):
+   * a roomier circle with the glyph centered in it. Size it with `--pip-size`.
+   */
+  pip?: boolean;
   /** Extra class(es) for per-surface tweaks (e.g. `breakdown-icon`). */
   className?: string;
   /**
@@ -56,7 +42,7 @@ export function ManaSymbol({ symbol, cost, split, pip, className, label, title }
     `ms-${symbol}`,
     cost && 'ms-cost',
     split && 'ms-split',
-    pipClasses(pip),
+    pip && 'color-pip-mana',
     className
   );
   return label ? (
@@ -69,18 +55,19 @@ export function ManaSymbol({ symbol, cost, split, pip, className, label, title }
 interface ColorPipProps {
   /** Color-identity key — WUBRG, `C`/`L` (colorless), or `M` (multicolor). */
   color: string;
-  /** Pip treatment/size — defaults to the base pip; pass `false` for a bare glyph. */
-  pip?: Pip;
   className?: string;
   /** Accessible name; defaults to `aria-hidden` (parent usually carries the label). */
   label?: string;
 }
 
-/** A single color-identity pip (the WUBRG/colorless/multicolor circle). */
-export function ColorPip({ color, pip = true, className, label }: ColorPipProps) {
-  return (
-    <ManaSymbol symbol={colorGlyph(color)} cost pip={pip} className={className} label={label} />
-  );
+/**
+ * A single color-identity pip (the WUBRG/colorless/multicolor circle). Always
+ * the `color-pip-mana` treatment: mana-font's bare `ms-cost` circle hugs a
+ * full-size glyph with ~1px of clearance, so pixel snapping pushes it visibly
+ * off-center. Resize a pip with `--pip-size`, never by going bare.
+ */
+export function ColorPip({ color, className, label }: ColorPipProps) {
+  return <ManaSymbol symbol={colorGlyph(color)} cost pip className={className} label={label} />;
 }
 
 interface TypeIconProps {
