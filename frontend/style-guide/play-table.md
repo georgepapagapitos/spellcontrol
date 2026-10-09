@@ -1447,6 +1447,10 @@ rule that only held on the seat or the orientation it was tuned on.
   [§ App chrome](app-shell.md#app-chrome--leather--divider-tabs-t53). A
   regular also gets a task in Home's Waiting on you while today's card is
   unfinished ([§ Home](app-shell.md#home--the-page-reads-as-questions-not-a-board-2026-09-24-t138)).
+- **The standard page width, like Play.** A 68rem column of its own made the
+  page narrower than its neighbors in the header and set its title lower;
+  the layout is fractional columns and scales to the page. Guarded in
+  `styles/hub-tabs-placement.test.ts`.
 - **Every miss teaches twice.** A wrong guess opens the next clue and gets a
   scored row: colors, mana value, type, rarity and year of the first
   printing. Colors and type read **close** on a partial overlap, rarity one

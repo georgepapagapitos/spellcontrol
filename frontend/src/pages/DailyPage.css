@@ -3,9 +3,7 @@
 
 .daily-page {
   container: daily-page / inline-size;
-  max-width: 68rem;
-  margin-inline: auto;
-  padding-block: var(--space-4) var(--space-6);
+  padding-block-end: var(--space-6);
 }
 
 .daily-section-title {
