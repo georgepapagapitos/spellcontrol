@@ -19,7 +19,6 @@
 
 .played-in-headline.is-offmeta {
   color: var(--text-muted);
-  font-style: italic;
 }
 
 .played-in-status {
@@ -140,7 +139,6 @@
 
 .played-in-incl.is-offmeta {
   color: var(--text-muted);
-  font-style: italic;
 }
 
 .played-in-incl-pct {

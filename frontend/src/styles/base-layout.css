@@ -20,6 +20,20 @@ body {
   overflow: hidden;
 }
 
+/* Line breaking, set once. Headings balance their lines so a wrapped title
+   never strands one word; paragraphs avoid a one-word last line. Only the
+   style longhand is set, so it never fights a component's
+   `white-space: nowrap` (the shorthand would also reset text-wrap-mode). */
+h1,
+h2,
+h3 {
+  text-wrap-style: balance;
+}
+
+p {
+  text-wrap-style: pretty;
+}
+
 /* #root IS the viewport: a 100dvh flex column. The account banners
    (RecoveryBanner, AutoLinkBanner) render as its first children, above the
    page, so the page root below them takes the REST of the height. When the

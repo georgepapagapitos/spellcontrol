@@ -231,7 +231,6 @@
 
 .deck-card-row-incl.is-offmeta {
   color: var(--text-muted);
-  font-style: italic;
 }
 
 /* The inclusion % is hue-tinted (inline style) by how staple the card is — the

@@ -3627,7 +3627,6 @@ button.playtest-card-pt__value--editable:focus-visible {
   padding: var(--space-1) var(--space-3);
   color: var(--text-muted);
   font-size: var(--text-sm);
-  font-style: italic;
 }
 
 /* The bare life steppers have no border to light, so they take a wash

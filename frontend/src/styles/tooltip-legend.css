@@ -210,7 +210,6 @@
 .legend-footnote {
   font-size: var(--text-xs);
   color: var(--text-muted);
-  font-style: italic;
 }
 
 hr {
@@ -251,7 +250,6 @@ hr {
 
 .empty-state-tagline {
   font-family: var(--font-serif);
-  font-style: italic;
   font-size: var(--text-xl);
   color: var(--accent);
   margin: 0 0 var(--space-3);

@@ -129,7 +129,6 @@
 .tab-new {
   border-style: dashed;
   color: var(--text-muted);
-  font-style: italic;
 }
 
 @media (hover: hover) and (pointer: fine) {

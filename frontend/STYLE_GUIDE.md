@@ -514,6 +514,10 @@ UK_SPELLING) checks every string in `src/`, one-word labels included; a
 `keywords:` search-synonym list may keep a UK form so people who type it still
 find the thing.
 
+**A button's label names the outcome.** "Send report", "Save deck", "Delete
+binder", never "Submit", "Learn more" or "Click here" (`copy-guards.test.ts`,
+rule BUTTON_LABEL).
+
 **The five rules:**
 
 1. **Second person, imperative, concrete verb.** "Import your collection",
@@ -1326,6 +1330,15 @@ available; they are simply never the default. Flipping `DEFAULT_TYPESET` is four
 coordinated edits plus a test fixture — see the comment on the constant, and
 note the label face sets every mobile tab-bar cell's width, so a new default
 must be checked at 360px.
+
+**Italic is reserved for card-text conventions** (reminder text, flavor text,
+the italic parts of oracle text), because the printed cards use it. The default
+body face (Eczar) ships no italic, so any other `font-style: italic` is a
+browser-slanted upright, the same defect as faux bold on the display face: say
+"secondary" with `--text-muted` or `--text-secondary` instead.
+`src/styles/italic-allowlist.test.ts` fails on an italic rule outside its
+commented allowlist. In the default set the card-text italics are a synthesized
+oblique until a real italic face ships.
 
 ### Type scale floor (E594)
 

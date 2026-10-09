@@ -1993,7 +1993,6 @@
 }
 .cube-row-price-unpriced {
   font-family: var(--font-serif);
-  font-style: italic;
   color: var(--text-muted);
 }
 /* Pricing still in flight — quiet, not a red flag; `No price yet` above is

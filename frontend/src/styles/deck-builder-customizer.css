@@ -45,7 +45,6 @@
    never gets aria-pressed; the italic keeps it visually distinct from the
    real theme toggles beside it. */
 .theme-chip-more {
-  font-style: italic;
   color: var(--text-secondary);
 }
 

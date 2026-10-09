@@ -49,9 +49,3 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
-/* A sticker is the player's own handwriting; italic keeps it from reading as
-   a rules term the card actually has. */
-.card-status-chip--sticker {
-  font-style: italic;
-}

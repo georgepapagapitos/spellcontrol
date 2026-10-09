@@ -73,7 +73,7 @@ describe('CardSearchResults paging (E341)', () => {
     expect(btn.getAttribute('aria-disabled')).toBe('true');
   });
 
-  it('keeps loaded rows and offers Try again when a page fails', () => {
+  it('keeps loaded rows and offers Retry when a page fails', () => {
     render(
       <CardSearchResults
         results={cards(0, 2)}
@@ -85,7 +85,7 @@ describe('CardSearchResults paging (E341)', () => {
       />
     );
     expect(screen.getByRole('alert').textContent).toContain("Couldn't load more");
-    expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
     expect(screen.getByText(/Card 1/)).toBeTruthy();
   });
 

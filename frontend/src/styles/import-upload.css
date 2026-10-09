@@ -341,7 +341,6 @@
   font-size: var(--text-lg);
   color: var(--accent);
   margin: 0 0 var(--space-4);
-  font-style: italic;
   letter-spacing: -0.005em;
 }
 

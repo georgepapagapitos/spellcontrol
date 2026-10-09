@@ -104,7 +104,6 @@
   list-style: none;
   margin-top: var(--space-1);
   color: var(--text-muted);
-  font-style: italic;
 }
 
 .import-deck-commander-section {

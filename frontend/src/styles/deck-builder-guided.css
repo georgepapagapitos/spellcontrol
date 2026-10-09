@@ -43,12 +43,6 @@
   vertical-align: middle;
 }
 
-/* No-signal state (0/missing EDHREC inclusion) — same quiet chip, just
-   italicized so "Off-meta" reads as an intentional note, not an alarm. */
-.deck-row-inclusion.is-offmeta {
-  font-style: italic;
-}
-
 /* E120: the third "why is this here" affordance — only rendered when a row
    has a recorded provenance reason but neither the synergy pill nor the
    inclusion chip above it (alt-generator modes with no EDHREC data). Reuses

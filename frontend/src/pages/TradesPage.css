@@ -77,13 +77,6 @@
   }
 }
 
-/* Both are informational tails, not group content, so they share the muted
-   group-empty type rather than inventing a third size. */
-.trades-no-matches,
-.trades-cap-note {
-  font-style: italic;
-}
-
 /* The page-scoped `.trades-page .empty-state .btn` floor that used to live
    here is GONE — it was #1532's local workaround for a bug that is now fixed
    at the root: `.btn` is `display: inline-flex` (tabs.css) so the floor lands

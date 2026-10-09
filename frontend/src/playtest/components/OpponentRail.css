@@ -307,7 +307,6 @@
 .opponent-entry__battlefield-empty {
   font-size: var(--text-xs);
   color: var(--text-muted);
-  font-style: italic;
 }
 
 .opponent-mini-card {
