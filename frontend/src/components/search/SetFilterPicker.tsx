@@ -110,6 +110,10 @@ export function SetFilterPicker({ options, value, onChange }: Props) {
       const last = [...value].pop();
       if (last) removeSet(last);
     } else if (e.key === 'Escape') {
+      // Only a key that closed the open list is handled; otherwise it falls
+      // through to the sheet this picker sits in (useSheetExit skips a
+      // defaultPrevented key).
+      if (open) e.preventDefault();
       setOpen(false);
     }
   };
