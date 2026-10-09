@@ -44,7 +44,8 @@
 import { Pool } from 'pg';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 
-// Pin to match CI (.github/workflows/ci.yml uses postgres:16-alpine).
+// Pin to match CI, which pulls the same tag from Amazon's public mirror to
+// dodge Docker Hub's pull limit (guard: src/ci-postgres-image.test.ts).
 const CONTAINER_IMAGE = 'postgres:16-alpine';
 
 function redact(url: string): string {
