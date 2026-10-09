@@ -255,8 +255,12 @@ describe('RulesPage — every row has a menu', () => {
   // E557: OverflowMenu attaches its right-click listener in an effect, which can
   // run after the row's text is already in the DOM. A right-click sent in that
   // gap is lost, so keep sending it until the menu is open.
-  const rightClickUntilOpen = (host: Element) =>
+  // The host is re-queried on every attempt: a re-render (the ?q= search
+  // settling) can replace the node a captured reference points at.
+  const rightClickUntilOpen = (findHost: () => Element | null) =>
     waitFor(() => {
+      const host = findHost();
+      if (!host) throw new Error('row not rendered yet');
       if (!screen.queryByText('Copy text')) fireEvent.contextMenu(host);
       expect(screen.getByText('Copy text')).toBeTruthy();
     });
@@ -280,15 +284,24 @@ describe('RulesPage — every row has a menu', () => {
 
   it('opens from a right-click on the row too', async () => {
     renderPage(undefined, '?tab=rules&q=702.2b');
-    const text = await screen.findByText('Any nonzero amount of combat damage is lethal.');
-    await rightClickUntilOpen(text.closest('.rules-ref-rule')!);
+    await screen.findByText('Any nonzero amount of combat damage is lethal.');
+    await rightClickUntilOpen(
+      () =>
+        screen
+          .queryByText('Any nonzero amount of combat damage is lethal.')
+          ?.closest('.rules-ref-rule') ?? null
+    );
   });
 
   it('right-clicks anywhere on a keyword card, not just its head row', async () => {
     renderPage(undefined, '');
     // The summary line sits below the head button — outside the old target.
-    const summary = await screen.findByText('A keyword ability. See rule 702.2.');
-    await rightClickUntilOpen(summary.closest('.rules-ref-keyword')!);
+    await screen.findByText('A keyword ability. See rule 702.2.');
+    await rightClickUntilOpen(
+      () =>
+        screen.queryByText('A keyword ability. See rule 702.2.')?.closest('.rules-ref-keyword') ??
+        null
+    );
     expect(screen.getByText('Cards with this keyword')).toBeTruthy();
   });
 

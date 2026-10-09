@@ -645,20 +645,27 @@ describe('Horde (co-op) lobby — the pick, synced from table state', () => {
     expect(screen.getByText('Customise')).toBeTruthy();
   });
 
-  // Real timers throughout: the deck is a genuine dynamic `import()` (no
-  // mock), so mixing it with fake timers is unreliable — these wait on the
-  // real 300ms debounce and the real (near-instant) import settling.
+  // Fake timers (shouldAdvanceTime, as the picker test above): the debounce is
+  // stepped explicitly instead of raced against the wall clock, and the deck's
+  // dynamic `import()` settles while the clock is advanced.
   it('debounces a pick change, then publishes it as horde-setup', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     const dispatch = renderLobby(hordeTable(2), 'u0');
     // Let the initial deck load (and its own first publish) settle.
-    await waitFor(() => expect(dispatch).toHaveBeenCalled(), { timeout: 2000 });
+    await waitFor(() => expect(dispatch).toHaveBeenCalled());
+    await vi.advanceTimersByTimeAsync(1000);
     dispatch.mockClear();
 
     fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${HORDE_CATALOG[1].name}`) }));
     // Not yet — the publish is debounced.
+    await vi.advanceTimersByTimeAsync(100);
     expect(dispatch).not.toHaveBeenCalled();
 
-    await waitFor(
+    // The newly picked horde's deck still arrives through a real dynamic
+    // import (settles on real time), and the 300ms debounce only arms once it
+    // has. vi.waitFor steps the fake clock on every poll while timing out on
+    // the real one, so the debounce elapses by the clock, not by a race.
+    await vi.waitFor(
       () =>
         expect(dispatch).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -668,7 +675,7 @@ describe('Horde (co-op) lobby — the pick, synced from table state', () => {
             settings: resolveHordeSettings('standard', 2, {}),
           })
         ),
-      { timeout: 2000 }
+      { timeout: 5000, interval: 100 }
     );
   });
 
