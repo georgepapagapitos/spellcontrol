@@ -1,4 +1,4 @@
-/* deck-builder-combos.css — Deck combos panel header/tabs/spinner.
+/* deck-builder-combos.css — Deck combos panel shell + body, and the .deck-combos-title section-head class.
  * Byte-identical contiguous slice of the former monolithic deck-builder.css (E28; method #634/#637).
  * Original lines 5260-5416. Import order in main.tsx is load-bearing — see STYLE_GUIDE "CSS file layout". */
 /* ── Deck combos panel ───────────────────────────────────────────────── */
@@ -10,15 +10,10 @@
   min-width: 0;
 }
 
-.deck-combos-panel.is-collapsed {
-  /* When collapsed the panel becomes a single header strip — no body padding,
-     just the toggle. Saves vertical space without giving up the slot. */
-  padding: var(--space-2-5) var(--space-3);
-}
-
 .deck-combos-title {
-  /* Same chrome as INSTANT / SORCERY section headers so every collapsible
-     header in the deck view reads as one family. */
+  /* The serif overline title of the discovery rails (Trending, Precons, Fresh
+     decks) and the Settings, Pods and Trades section heads; same chrome as the
+     INSTANT / SORCERY section headers. */
   font-family: var(--font-serif);
   font-size: var(--text-sm);
   font-weight: 700;
@@ -27,81 +22,9 @@
   letter-spacing: var(--tracking-overline);
 }
 
-.deck-combos-header-summary {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-  margin-left: var(--space-1);
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.deck-combos-header-empty {
-  color: var(--text-muted);
-  font-style: italic;
-}
-
-/* Trailing slot — the 4th grid column. Holds spinner (when loading) AND the
-   chevron together so the spinner toggling never re-flows the chevron's x
-   position. The chevron itself is always-rendered; only the spinner appears
-   conditionally beside it. */
-.deck-combos-header-trailing {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1-5);
-  flex: 0 0 auto;
-  margin-left: auto;
-}
-
-.deck-combos-header-chevron {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-muted);
-  flex: 0 0 auto;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .deck-combos-header:hover .deck-combos-header-chevron {
-    color: var(--accent);
-  }
-}
-
 .deck-combos-body {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
   margin-top: var(--space-2);
-}
-
-.deck-combos-panel.is-collapsed .deck-combos-body {
-  display: none;
-}
-
-.deck-combos-spinner {
-  width: 0.7rem;
-  height: 0.7rem;
-  border-radius: 999px;
-  border: 1.5px solid var(--border-strong);
-  border-top-color: var(--accent);
-  animation: spin 0.8s linear infinite;
-  /* Slot is ALWAYS rendered (visibility toggled, not display) so the
-     trailing wrapper's width never changes between loading and idle.
-     Without this the summary column shrinks by the spinner's width every
-     time a request fires, shifting the rest of the header sideways. */
-  flex: 0 0 auto;
-}
-
-.deck-combos-spinner.is-idle {
-  visibility: hidden;
-  animation: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .deck-combos-spinner {
-    animation: none;
-  }
 }

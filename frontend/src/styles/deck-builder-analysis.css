@@ -5,9 +5,7 @@
    The collapsible `.deck-stats` card wrapper and `.deck-analysis-surface-body`
    were retired when the analysis surface became page-top distinct views; the
    `.deck-stats-panel` / `.deck-overview-*` / saltiest /
-   bracket rules below are still used by the view content. The
-   `.deck-stats-header*` rules further down are now shared only by the live
-   Combos / Test-hand collapsible panels. */
+   bracket rules below are still used by the view content. */
 .deck-analysis-tabpanel {
   /* The panel is focusable (tabIndex 0) for keyboard users arriving from the
      tablist — suppress the default focus ring on the container itself; the
@@ -105,114 +103,6 @@
   margin: var(--space-2) 0 0;
   font-size: var(--text-xs);
   color: var(--text-muted);
-}
-
-/* All deck-view collapsible panel headers (Statistics / Combos / Test hand)
-   share this look. Mirrors `.deck-section-header` (used for SORCERY,
-   INSTANT, etc.) so every section in the deck view reads as one family:
-   accent-colored icon, serif uppercase title with light count, optional
-   meta on the right, chevron at the far right, separator line below.
-
-   When the panel is collapsed (no body to separate from) we drop the
-   bottom border + margin so the header reads as a clean strip. */
-.deck-stats-header,
-.deck-combos-header,
-.deck-test-hand-header {
-  display: grid;
-  /* Combos / test-hand keep the 4-col layout (icon · title · summary ·
-     trailing). The stats header overrides this below — it only has 3
-     children since the meta moved into the Overview panel. */
-  grid-template-columns: auto auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-2);
-  width: 100%;
-  background: transparent;
-  border: 0;
-  border-bottom: 0.5px solid var(--border);
-  padding: var(--space-1) var(--space-0-5) var(--space-2);
-  margin: 0 0 var(--space-2) 0;
-  cursor: pointer;
-  color: inherit;
-  text-align: left;
-  font: inherit;
-}
-
-/* 44px touch targets on coarse pointers for every disclosure header — Combos,
-   Test hand, Stats, and the Tune intent lanes (which reuse .deck-combos-header
-   chrome via CollapsibleLane). */
-@media (pointer: coarse) {
-  .deck-combos-header,
-  .deck-test-hand-header,
-  .deck-stats-header {
-    min-height: 44px;
-  }
-}
-
-/* Stats header has only icon · title · caret (meta moved into the
-   Overview panel). Title takes the slack so the caret stays pinned to
-   the panel's right edge on every breakpoint. */
-.deck-stats-header {
-  grid-template-columns: auto minmax(0, 1fr) auto;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .deck-stats-header:hover .deck-stats-caret,
-  .deck-combos-header:hover .deck-combos-header-chevron,
-  .deck-test-hand-header:hover .deck-test-hand-header-chevron {
-    color: var(--accent);
-  }
-}
-
-.deck-stats-header:focus-visible,
-.deck-combos-header:focus-visible,
-.deck-test-hand-header:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  border-radius: var(--radius);
-}
-
-/* Icons (Sparkles for Combos, Hand for Test Hand, the lucide BarChart3 we
-   added for Stats) take the accent color, matching .deck-section-icon. */
-.deck-combos-header > svg:first-child,
-.deck-test-hand-header > svg:first-child,
-.deck-stats-header > svg:first-child {
-  color: var(--accent);
-  flex-shrink: 0;
-}
-
-/* Collapsed state — no body below, so no separator line. */
-.deck-stats-header[aria-expanded='false'],
-.deck-combos-panel.is-collapsed .deck-combos-header,
-.deck-test-hand-panel.is-collapsed .deck-test-hand-header {
-  border-bottom: none;
-  margin-bottom: 0;
-  padding-bottom: var(--space-1);
-}
-
-/* Static variant (desktop): the panel is permanently open and there's
-   no toggle button — render the header as a plain header strip with
-   no cursor pointer / hover affordance. */
-.deck-stats-header--static {
-  cursor: default;
-  /* Desktop: no caret, no meta — just icon · title. */
-  grid-template-columns: auto minmax(0, 1fr);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .deck-stats-header--static:hover .deck-stats-caret {
-    color: inherit;
-  }
-}
-
-.deck-stats-title {
-  /* Matches the deck-section-title used for INSTANT / SORCERY etc. so
-     every collapsible section header in the deck view shares one style. */
-  font-family: var(--font-serif);
-  font-size: var(--text-sm);
-  font-weight: 700;
-  color: var(--text-primary);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-overline);
 }
 
 /* Deck-view glance strip: high-level stats that used to live behind the
@@ -389,14 +279,6 @@
 .deck-stat-new .deck-stat-value,
 .deck-stat-new .deck-stat-label {
   color: var(--accent);
-}
-
-.deck-stats-caret {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-muted);
-  line-height: 1;
 }
 
 /* Deck stats rows (§ Deck stats sit under the list): panels sized to what

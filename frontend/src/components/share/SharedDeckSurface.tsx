@@ -513,7 +513,6 @@ export function SharedDeckSurface({
         combosSlot={
           combosEnabled ? (
             <DeckCombosPanel
-              embedded
               deckId={deck.id}
               deckOracleIds={deckOracleIds}
               mainboardOracleIds={mainboardOracleIds}
