@@ -1217,6 +1217,14 @@
   flex: 0 0 auto;
 }
 
+/* On a deck row the column is the trigger's full hit box (24px, see
+   .deck-row-menu-trigger). The 12px slot above predates the 24px box: the
+   trigger hung ~9px past it, over the row's padding and edge, so its hover
+   and open plate read as a tab stuck to the row. */
+.deck-row > .deck-row-menu {
+  width: 24px;
+}
+
 /* Mana cost is a fixed-width, right-aligned slot in the deck row (a plain
    trailing cell elsewhere — see collection.css). 3.9rem holds four pips,
    which covers all but a handful of cards; a longer cost simply grows the
@@ -1584,11 +1592,12 @@
   line-height: 0;
   cursor: pointer;
   /* WCAG 2.5.8: the 0.875rem glyph + padding measured 18px. The box is 24px
-     for a fine pointer; the negative margin hands the extra 3px a side back so
-     the row's layout (and height) stays what it was. */
+     for a fine pointer; the negative block margin hands the extra 3px top and
+     bottom back so the row's height stays what it was. Inline, the deck row's
+     menu column is sized to the full 24px, so the box stays inside the row. */
   min-width: 24px;
   min-height: 24px;
-  margin: -3px;
+  margin-block: -3px;
 }
 
 /* Coarse-pointer floor (STYLE_GUIDE § Responsive): a 0.875rem glyph with
