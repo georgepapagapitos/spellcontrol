@@ -6,7 +6,7 @@ import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
 import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
 import { imageFromCard } from '@/lib/cards/card-thumbs';
-import { buildFill, type FillResult } from '@/lib/coach/fill-deck';
+import { buildFill, fillCollectionRule, type FillResult } from '@/lib/coach/fill-deck';
 import { userMessage } from '@/lib/util/user-error';
 import { MeterBar } from '../shared/MeterBar';
 import type { Deck } from '../../store/decks';
@@ -18,6 +18,17 @@ const LEANS = [
   { value: 0.5, label: 'Balanced', hint: 'Popular picks and cards that fit your plan' },
   { value: 1, label: 'Synergy', hint: 'Cards that play off this commander' },
 ] as const;
+
+/** What the sheet says when the deck's own collection rule decides the pool. */
+const RULE_LINE: Record<string, string> = {
+  full: 'This deck uses only cards you own.',
+  available: 'This deck uses only cards you own that no other deck is using.',
+  partial: 'This deck leans on cards you own and fills the rest from outside your collection.',
+};
+const OUT_OF_POOL: Record<string, string> = {
+  full: 'you own no more cards that fit',
+  available: 'you have no more free cards that fit',
+};
 
 /** Type buckets for the review list, in deck-list order. */
 const GROUPS = [
@@ -93,6 +104,8 @@ export function FillDeckSheet({
   const leanGroup = useId();
   const open = Math.max(0, target - deck.cards.length);
   const [lean, setLean] = useState<number>(0.5);
+  // A deck built from the collection keeps its rule: Fill can't loosen it.
+  const rule = fillCollectionRule(deck);
   const [preferOwned, setPreferOwned] = useState(ownedNames.size > 0);
   const [phase, setPhase] = useState<Phase>({ kind: 'setup' });
   // A build can't be canceled mid-flight; closing just drops its answer.
@@ -118,7 +131,7 @@ export function FillDeckSheet({
       const result = await buildFill(
         deck,
         target,
-        { brewLevel: lean, preferOwned: preferOwned && ownedNames.size > 0 },
+        { brewLevel: lean, preferOwned: !rule && preferOwned && ownedNames.size > 0 },
         {
           ownedNames,
           onProgress: (message, percent) => {
@@ -194,7 +207,8 @@ export function FillDeckSheet({
                   </label>
                 ))}
               </fieldset>
-              {ownedNames.size > 0 && (
+              {rule && <p className="fill-deck-lead fill-deck-rule">{RULE_LINE[rule]}</p>}
+              {!rule && ownedNames.size > 0 && (
                 <label className="field-checkbox fill-deck-owned">
                   <input
                     type="checkbox"
@@ -269,7 +283,9 @@ export function FillDeckSheet({
                   {phase.result.plan.stillOpen === 1
                     ? '1 slot stays open'
                     : `${phase.result.plan.stillOpen} slots stay open`}
-                  {phase.result.plan.declined.length > 0 ? '.' : ': the card pool ran out.'}
+                  {phase.result.plan.declined.length > 0
+                    ? '.'
+                    : `: ${(rule && OUT_OF_POOL[rule]) ?? 'the card pool ran out'}.`}
                 </p>
               )}
             </>

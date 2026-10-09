@@ -17,7 +17,7 @@ vi.mock('@/deck-builder/services/scryfall/client', async (orig) => ({
   getGameChangerNames: async () => new Set<string>(),
 }));
 
-const { buildFill, fillFormatSettings } = await import('./fill-deck');
+const { buildFill, fillFormatSettings, fillCollectionRule } = await import('./fill-deck');
 
 function card(name: string, over: Partial<ScryfallCard> = {}): ScryfallCard {
   return {
@@ -143,5 +143,59 @@ describe('fillFormatSettings', () => {
   it("hands the generator a format whose legality gate turns away a Commander card Brawl doesn't allow", () => {
     expect(notLegalForFormat(SOL_RING, fillFormatSettings('brawl').mtgFormat)).toBe(true);
     expect(notLegalForFormat(SOL_RING, fillFormatSettings('commander').mtgFormat)).toBe(false);
+  });
+});
+
+// E630: a deck built from the collection keeps its rule when Fill runs.
+describe('buildFill on a collection-rule deck', () => {
+  const ruled = (strategy: Customization['collectionStrategy'], collectionMode = true): Deck => ({
+    ...deck('commander'),
+    generationContext: {
+      customization: { collectionMode, collectionStrategy: strategy },
+    } as unknown as Deck['generationContext'],
+  });
+  const owned = new Set(Array.from({ length: 70 }, (_, i) => `Spell ${i}`));
+
+  it('asks the generator for the owned-only rule and the owned names, so every open slot fills', async () => {
+    const { plan } = await buildFill(
+      ruled('full'),
+      71,
+      { brewLevel: 0.5, preferOwned: false },
+      { ownedNames: owned }
+    );
+    expect(customizationOf()).toMatchObject({ collectionMode: true, collectionStrategy: 'full' });
+    expect(generateDeck.mock.calls[0][0].collectionNames).toBe(owned);
+    expect(plan.additions).toHaveLength(70);
+    expect(plan.stillOpen).toBe(0);
+  });
+
+  it('carries the available and partial rules too, whatever the favor choice says', async () => {
+    for (const strategy of ['available', 'partial'] as const) {
+      generateDeck.mockClear();
+      await buildFill(
+        ruled(strategy),
+        71,
+        { brewLevel: 0.5, preferOwned: true },
+        { ownedNames: owned }
+      );
+      expect(customizationOf()).toMatchObject({
+        collectionMode: true,
+        collectionStrategy: strategy,
+      });
+    }
+  });
+
+  it('leaves a deck built without the collection on the favor-owned choice', async () => {
+    expect(fillCollectionRule(ruled('full', false))).toBeNull();
+    await buildFill(
+      ruled('full', false),
+      71,
+      { brewLevel: 0.5, preferOwned: true },
+      { ownedNames: owned }
+    );
+    expect(customizationOf()).toMatchObject({
+      collectionMode: false,
+      collectionStrategy: 'prefer',
+    });
   });
 });
