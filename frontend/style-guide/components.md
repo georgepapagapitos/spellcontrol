@@ -1446,13 +1446,16 @@ on dismiss.
   `HintProvider`/config array, stop — that's over-built for a handful of
   hints.
 - **At most one visible at a time, enforced by placement, not a priority
-  queue.** The two reference hints physically can't overlap — the binder hint
-  only renders inside the add-cards sheet, the resync hint only on the base
-  deck-editor page — except for the one real overlap vector (the resync strip
-  would sit directly behind the add-cards sheet's scrim), which is closed by
-  hiding it while `showAddPanel` is true. A third hint sharing a surface with
-  an existing one needs the same explicit mutual exclusion; don't rely on
-  hoping two preconditions never line up.
+  queue.** The binder hint only renders inside the add-cards sheet and the
+  playtest drag hint only on the playtest board, so they can't overlap. A hint
+  sharing a surface with an existing one needs explicit mutual exclusion;
+  don't rely on hoping two preconditions never line up.
+- **A hint earns its row, or it doesn't ship.** The deck editor's resync hint
+  ("Keep this decklist in sync") was removed in 2026-10: it took a full row
+  above the deck's stats to pitch a Moxfield/Archidekt merge to every
+  non-generated deck, most of which never came from either. A hint shows only
+  where its feature applies to what's on screen, and never sits between a
+  page's header and its primary content.
 - **`WedgeHintStrip` ground rules** (mirrors the Build-time coach strip's box
   model, since both are one-row insight surfaces, but is NOT the same
   component — a coaching nudge and an onboarding hint are different concepts
