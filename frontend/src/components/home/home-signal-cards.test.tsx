@@ -198,8 +198,10 @@ describe('PriceMoversCard', () => {
     expect(screen.getByText('Faller')).toBeTruthy();
     expect(screen.getByText('−$3.00')).toBeTruthy();
     expect(screen.getByText('today')).toBeTruthy();
+    // The trend chart lives in the Breakdown drawer; bare /collection opened
+    // the card list instead.
     expect(screen.getByRole('link', { name: 'View trend' }).getAttribute('href')).toBe(
-      '/collection'
+      '/collection?stats'
     );
   });
 
