@@ -185,6 +185,13 @@ export function buildSynergyByName(
   return map;
 }
 
+/** The count's ownership class: red while a copy is missing, a dashed outline
+ *  when every slot is covered and some by a proxy, nothing otherwise. */
+export function qtyOwnershipClass(row: Row): string {
+  if (row.status !== 'allocated') return ' deck-row-qty-missing';
+  return row.proxyQty > 0 ? ' deck-row-qty-proxy' : '';
+}
+
 /** Missing summary: cards not allocated to a collection copy. */
 export function summarizeMissing(
   cards: DeckDisplayCard[],
@@ -252,24 +259,26 @@ export function buildFlatIndex(
         if (!indexByName.has(row.name)) indexByName.set(row.name, enrichedCards.length);
         rows.push(row);
         zones.push(zone);
-        enrichedCards.push(
-          scryfallToEnrichedCard(row.card, {
-            frontImageOverride: row.imageNormal,
-            backImageOverride: row.imageNormalBack,
-            sourceFormat: 'deck-builder',
-            overrides: {
-              foil: row.foil,
-              finish: row.finish,
-              finishes: row.finishes,
-              promoTypes: row.promoTypes,
-              frameEffects: row.frameEffects,
-              setCode: row.setCode,
-              setName: row.setName,
-              collectorNumber: row.collectorNumber,
-              rarity: row.card.oracle_id ? rarityCorrections.get(row.card.oracle_id) : undefined,
-            },
-          })
-        );
+        const enriched = scryfallToEnrichedCard(row.card, {
+          frontImageOverride: row.imageNormal,
+          backImageOverride: row.imageNormalBack,
+          sourceFormat: 'deck-builder',
+          overrides: {
+            foil: row.foil,
+            finish: row.finish,
+            finishes: row.finishes,
+            promoTypes: row.promoTypes,
+            frameEffects: row.frameEffects,
+            setCode: row.setCode,
+            setName: row.setName,
+            collectorNumber: row.collectorNumber,
+            rarity: row.card.oracle_id ? rarityCorrections.get(row.card.oracle_id) : undefined,
+          },
+        });
+        // The preview's "This copy · Marked Proxy" line, the one a proxy in the
+        // collection gets. Only when every copy in the row is one.
+        if (row.proxyQty > 0 && row.proxyQty === row.qty) enriched.proxy = true;
+        enrichedCards.push(enriched);
         labels.push(g.title);
       }
     }

@@ -1460,6 +1460,7 @@ export function DeckDisplay({
                         onMoveToSideboard: hasSideboard ? onMoveToSideboard : undefined,
                         onMoveToConsidering,
                         onRemoveCard,
+                        onSetProxy,
                       }}
                     />
                   )}

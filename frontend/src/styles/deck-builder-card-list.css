@@ -1386,6 +1386,14 @@
   color: var(--err-text, #d8442a);
 }
 
+/* Played as a proxy: a dashed outline on the count, the stand-in mark. It
+   never hides (unlike the hover chip) and takes no width. Focus outlines win. */
+.deck-row-qty-proxy {
+  outline: 1px dashed var(--text-muted);
+  outline-offset: -1px;
+  border-radius: var(--radius);
+}
+
 /* Inline allocation chip rendered next to the card name on partial
    rows. Quiet by design — fully-allocated rows render nothing — so
    the deck list still reads as a list. */

@@ -33,6 +33,8 @@ export interface DeckCardInspectorActions {
   onMoveToSideboard?: (slotIds: string[]) => void;
   onMoveToConsidering?: (slotIds: string[]) => void;
   onRemoveCard?: (slotId: string) => void;
+  /** Flips a slot of the row to or from a proxy (see `DeckCard.proxy`). */
+  onSetProxy?: (slotIds: string[], proxy: boolean) => void;
 }
 
 /**
@@ -142,8 +144,17 @@ export function DeckCardInspector({
       )}
 
       <div className="deck-card-inspector-owned">
+        {row.proxyQty > 0 && <Chip className="deck-card-inspector-chip">proxy</Chip>}
         <span className="deck-card-inspector-owned-text">{allocationSummary(row)}</span>
         <BinderBadge binders={card.binders} />
+        {row.proxyQty > 0 && slotIds.length > 0 && actions?.onSetProxy && (
+          <Button
+            onClick={() => actions.onSetProxy?.(slotIds, false)}
+            className="deck-card-inspector-unproxy"
+          >
+            {row.qty > 1 ? 'Unmark one proxy' : 'Not a proxy'}
+          </Button>
+        )}
       </div>
 
       {(roles.length > 0 ||
