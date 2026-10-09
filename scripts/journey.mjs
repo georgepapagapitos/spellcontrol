@@ -806,7 +806,34 @@ async function clickText(page, re, { timeout = 15000, within = 'button, a, [role
   throw new Error(`no clickable element matching ${re}`);
 }
 
+/**
+ * Fail fast, with the cause named, when the backend's card cache is empty.
+ * /api/cards/named is cache-only, so an empty cache sends every card lookup to
+ * the browser's own live api.scryfall.com calls, which throttle a CI runner
+ * and made Firefox runs die far from the cause (E535). The nightly workflow
+ * ingests Scryfall bulk data first; this proves it did.
+ */
+async function assertCardCache() {
+  const url = `${BASE}/api/cards/named?exact=${encodeURIComponent('Sol Ring')}`;
+  let card = null;
+  try {
+    const res = await fetch(url);
+    if (res.ok) card = (await res.json()).card;
+  } catch {
+    // fall through to the failure below
+  }
+  if (!card) {
+    console.error(
+      `preflight: ${url} returned no card. The backend's Scryfall card cache is empty, so the ` +
+        'journey would fall back to the live (rate-limited) Scryfall API. Run ' +
+        '`npm run ingest:scryfall-bulk --prefix backend` first, or pass --skip-card-cache-check.'
+    );
+    process.exit(1);
+  }
+}
+
 async function main() {
+  if (!argv.includes('--skip-card-cache-check')) await assertCardCache();
   await mkdir(OUT, { recursive: true });
   const browser = await puppeteer.launch({
     browser: BROWSER,
