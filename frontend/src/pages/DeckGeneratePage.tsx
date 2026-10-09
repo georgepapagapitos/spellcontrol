@@ -33,6 +33,7 @@ import { Button } from '@/components/shared/Button';
 import { KeepEditsToggle } from '@/components/deck/KeepEditsToggle';
 import { keepEditsPatch, type DeckEdits } from '@/lib/deck/regenerate-edits';
 import { parseDeckFormat } from '@/lib/deck/deck-format-param';
+import { fillFormatSettings } from '@/lib/coach/fill-deck';
 import { getCardByName } from '@/deck-builder/services/scryfall/client';
 import { commanderIneligibility } from '@/deck-builder/services/deckBuilder/commanderEligibility';
 import { buildsFromOwnedCards } from '@/deck-builder/services/deckBuilder/deckFilters';
@@ -234,11 +235,14 @@ export function DeckGeneratePage() {
   useEffect(() => {
     resetDeckBuilder();
     // reset() keeps customization, so a stale mtgFormat from a previous visit
-    // must be stamped back to match this page's format. Only PDH generates as
-    // its own format today; every other commander format builds the standard 100.
-    updateCustomizationStore({
-      mtgFormat: format === 'paupercommander' ? 'paupercommander' : 'commander',
-    });
+    // must be stamped back to match this page's format. The table is Fill's
+    // (fillFormatSettings), so Brawl builds the 60-card deck here too; the
+    // 99-card formats stamp only mtgFormat, as before.
+    const formatSettings = fillFormatSettings(format);
+    updateCustomizationStore(formatSettings);
+    // The EDHREC land pre-fill describes a 100-card deck: a format that sets
+    // its own land count must not have it overwritten when a commander loads.
+    if (formatSettings.landCount !== undefined) setUserEditedLands(true);
     if (prefill) {
       // ORDER IS LOAD-BEARING: setCommander() clears mustIncludeCards (forced
       // picks are commander-specific, so a carried-over pick would warp the
