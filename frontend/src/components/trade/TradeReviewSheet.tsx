@@ -11,7 +11,7 @@ export interface TradeReviewSheetProps extends Omit<TradeReviewProps, 'className
 
 /**
  * The sheet chrome shared by every trade review: a full-height bottom sheet
- * below 1024px, the same panel centred above it. `TradeReviewSheet` (composing
+ * below 1024px, the same panel centered above it. `TradeReviewSheet` (composing
  * an offer) and `TradeIncomingReview` (answering one) both sit in it, so they
  * cannot drift apart. The children own the header-below layout: a flex column
  * with one scroll region and a pinned footer.

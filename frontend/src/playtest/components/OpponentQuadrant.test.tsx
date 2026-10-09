@@ -65,7 +65,7 @@ beforeEach(() => {
 });
 
 describe('OpponentQuadrant', () => {
-  it('renders the seat as a labelled section carrying every fact the rail entry carries', () => {
+  it('renders the seat as a labeled section carrying every fact the rail entry carries', () => {
     render(<OpponentQuadrant {...props} opp={seat(1, { monarch: true })} active />);
 
     const section = screen.getByRole('region');

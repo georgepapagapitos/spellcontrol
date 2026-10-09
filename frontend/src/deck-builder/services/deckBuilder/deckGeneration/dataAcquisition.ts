@@ -997,7 +997,7 @@ async function applyOwnedSimilarPool(
  *
  * Pool AUGMENTATION, deliberately not a post-fill phase. Injecting here — after
  * the pool ladder has settled, before any type pass runs — means budget,
- * bracket, role caps, colour identity, legality, salt, ban lists and price
+ * bracket, role caps, color identity, legality, salt, ban lists and price
  * sanity all apply to injected cards unchanged, for free. Every post-fill phase
  * we've shipped that seated cards outside the normal pick path discovered at
  * the gate that it had bypassed a gate the pick path enforces (#1044).

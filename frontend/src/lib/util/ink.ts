@@ -1,6 +1,6 @@
-// Text on a colour the user chose (binder colour, avatar fill) can't use a fixed
+// Text on a color the user chose (binder color, avatar fill) can't use a fixed
 // ink: the presets run from pale gold to dark purple. Pick near-black or white
-// per fill; whichever wins clears 4.5:1 on ANY colour (the worst case, a fill
+// per fill; whichever wins clears 4.5:1 on ANY color (the worst case, a fill
 // around L=0.18, still measures 4.58 either way). Guard: lib/util/ink.test.ts.
 
 function channel(c: number): number {
@@ -15,7 +15,7 @@ function relativeLuminance(hex: string): number {
   );
 }
 
-/** WCAG 2.x contrast ratio between two `#rrggbb` colours (1:1 to 21:1). */
+/** WCAG 2.x contrast ratio between two `#rrggbb` colors (1:1 to 21:1). */
 export function contrastRatio(hexA: string, hexB: string): number {
   const a = relativeLuminance(hexA);
   const b = relativeLuminance(hexB);

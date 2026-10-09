@@ -49,7 +49,7 @@ const DEFAULT_TYPESET = constant(TYPESETS_TS, 'DEFAULT_TYPESET');
 
 // Which (theme, type set) pairs to shoot. The default, `--matrix axes`, is
 // every theme in the default type set plus every type set in the default
-// theme: 17 pairs rather than 77. A theme changes colour and a type set
+// theme: 17 pairs rather than 77. A theme changes color and a type set
 // changes metrics, and a primitive's look doesn't depend on the two together,
 // so the full cross product mostly photographs one change 7 or 11 times.
 // `--matrix full` is there for a restyle where they do interact.

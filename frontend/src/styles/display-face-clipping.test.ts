@@ -23,7 +23,7 @@ import { dirname, join, relative } from 'node:path';
  * The fix is never to drop the clip (a long deck name must still truncate
  * inside its column) and never to fatten the line-height (that loosens the
  * display setting on every set to satisfy the worst one). It is vertical
- * padding — which moves the clip edge outward — cancelled by an equal
+ * padding — which moves the clip edge outward — canceled by an equal
  * negative margin, so the layout is byte-identical and only the ink survives:
  *
  *   padding: 0.22em 0;

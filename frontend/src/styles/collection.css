@@ -475,7 +475,7 @@
    (collection dialog, deck / combo popovers) and, at 34px, the smallest.
    The pips sit in a `gap: 0.3rem` row with slack on both sides, so they take
    the floor on their real boxes; a ghost would bleed over the pip next door
-   and toggle the wrong colour. */
+   and toggle the wrong color. */
 @media (pointer: coarse) {
   .color-filter-btn {
     min-width: 44px;
@@ -1249,11 +1249,11 @@ i.ss.set-symbol--mythic {
 
 /* Shared mana-cost treatment for list rows — the deck list and the
    collection list both render mana as a dedicated, right-aligned cell that
-   sits vertically centred in the row. Pass this class to <ManaCost> at both
+   sits vertically centered in the row. Pass this class to <ManaCost> at both
    call sites (DeckDisplay row + CardListTable row) so the two stay in lockstep.
    The .mana-cost base bumps the span to --text-base; we pin it down to
    --text-xs so the icons read a touch smaller than the row text. flex: 0 0 auto
-   keeps it a fixed cell; the neighbouring flex:1 name column pushes it right. */
+   keeps it a fixed cell; the neighboring flex:1 name column pushes it right. */
 .mana-cost-row {
   flex: 0 0 auto;
   font-size: var(--text-xs);
@@ -1485,7 +1485,7 @@ i.ss.set-symbol--mythic {
    :where() so it has no specificity, and a family keeps only what is its
    own: a code's mono face, a status fill, a size tier that scales with the
    card. A deck, cube or binder mark on art is this plate too, with its
-   owner's colour (data-identity, below). */
+   owner's color (data-identity, below). */
 :where(.art-badge) {
   display: inline-flex;
   align-items: center;
@@ -1592,12 +1592,12 @@ i.ss.set-symbol--mythic {
 
 /* An identity mark on art: which deck, cube or binder holds the copy
    (DeckBadge / BinderBadge placement="art", the binder slot's deck mark).
-   The plate's shape and shadow, filled with the owner's colour
+   The plate's shape and shadow, filled with the owner's color
    (--identity-color) under a light glyph: the mark says whose card this is,
-   and a colour disc says it at 12px, on the card's black frame and on a
-   dimmed pocket, where a coloured glyph on the scrim vanished (a purple deck
+   and a color disc says it at 12px, on the card's black frame and on a
+   dimmed pocket, where a colored glyph on the scrim vanished (a purple deck
    was near invisible). Identity is not status, so it is the one thing on art
-   that is not the scrim. Several owners have no one colour, so they stay on
+   that is not the scrim. Several owners have no one color, so they stay on
    the scrim with its light glyph. A family keeps its size and place; the
    paint is only here. Guard: styles/identity-mark-plate.test.ts. */
 :where(.art-badge[data-identity]) {
@@ -1625,7 +1625,7 @@ i.ss.set-symbol--mythic {
 }
 
 /* A single owner is a link or a button: it lifts and brightens, keeping its
-   colour, and its focus ring reads on any artwork. */
+   color, and its focus ring reads on any artwork. */
 :where(.art-badge[data-identity]:is(a, button)):focus-visible {
   filter: brightness(1.1);
   transform: scale(1.15);
@@ -2363,7 +2363,7 @@ i.ss.set-symbol--mythic {
 }
 
 /* Under a hub's tab strip the scrollport top is BEHIND the tabs, so a header
-   pinned at 0 slides under them and the columns go unlabelled for the whole
+   pinned at 0 slides under them and the columns go unlabeled for the whole
    scroll — which is what a binder and a list did. Pin beneath the strip, the
    same offset the search row and the index toolbars already use. A surface
    with a deeper sticky stack (Collection: tabs + search + controls) measures
@@ -2680,7 +2680,7 @@ i.ss.set-symbol--mythic {
     /* Capped at the badge's own pitch (its box plus the row's gap), for the
        same reason the height is capped at the row: the two badges sit 33.8px
        apart in the tile corner, so a 44px-wide ghost overlapped its
-       neighbour by ~10px and the badge painted later won that strip — a tap
+       neighbor by ~10px and the badge painted later won that strip — a tap
        on the deck badge opened the BINDER sheet. The nightly journey's
        overlapping-target check caught it. */
     width: calc(100% + var(--space-1));
@@ -2701,7 +2701,7 @@ i.ss.set-symbol--mythic {
     /* Capped at the badge's own pitch (its box plus the row's gap), for the
        same reason the height is capped at the row: the two badges sit 33.8px
        apart in the tile corner, so a 44px-wide ghost overlapped its
-       neighbour by ~10px and the badge painted later won that strip — a tap
+       neighbor by ~10px and the badge painted later won that strip — a tap
        on the deck badge opened the BINDER sheet. The nightly journey's
        overlapping-target check caught it. */
     width: calc(100% + var(--space-1));

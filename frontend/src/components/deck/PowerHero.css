@@ -65,7 +65,7 @@
   text-align: left;
   cursor: pointer;
   transition: background var(--motion-fast) ease;
-  /* No grey box-flash on touch — the resulting scroll/reveal is the feedback. */
+  /* No gray box-flash on touch — the resulting scroll/reveal is the feedback. */
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -239,7 +239,7 @@
 }
 
 /* The bracket line is baseline-aligned for its number; the spinner row
-   centres like the combo line's. */
+   centers like the combo line's. */
 .power-hero-bracket.is-loading {
   align-items: center;
 }

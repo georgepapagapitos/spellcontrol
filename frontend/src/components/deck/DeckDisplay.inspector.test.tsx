@@ -3,7 +3,7 @@
 // on a wide, hover-capable display, shared by all three view modes, showing
 // what a row cannot (oracle text, ownership) and holding a card while it's
 // read. Also covers the 2026-09-19 rulings it inherits: rows that rest sparse
-// (no role code by default) and a labelled Group dropdown.
+// (no role code by default) and a labeled Group dropdown.
 // See style-guide/decks.md § Deck list on a wide screen.
 import 'fake-indexeddb/auto';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -174,7 +174,7 @@ describe('card inspector', () => {
   });
 });
 
-describe('deck list on a wide screen — sparse rows and a labelled Group menu', () => {
+describe('deck list on a wide screen — sparse rows and a labeled Group menu', () => {
   beforeEach(() => {
     localStorage.clear();
     localStorage.setItem('mtg-decks-view-mode', 'list');
@@ -194,7 +194,7 @@ describe('deck list on a wide screen — sparse rows and a labelled Group menu',
     expect(container.querySelector('.deck-row .deck-row-role-badge')).not.toBeNull();
   });
 
-  it('the group lens is a labelled dropdown, not an unlabelled icon group', () => {
+  it('the group lens is a labeled dropdown, not an unlabeled icon group', () => {
     const { getByRole, queryByRole } = renderDeck({ wideHover: false });
     // The trigger carries its visible label + current value ("Group" "Type").
     expect(getByRole('button', { name: /Group.*Type/ })).toBeTruthy();

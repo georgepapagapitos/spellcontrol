@@ -173,7 +173,7 @@ interface TimelineRow {
 function groupEvents(events: readonly GameEvent[]): TimelineRow[] {
   const rows: TimelineRow[] = [];
   for (const ev of events) {
-    // An undone tap and the Undo that cancelled it are one non-event.
+    // An undone tap and the Undo that canceled it are one non-event.
     if (ev.undone || ev.undo) continue;
     const last = rows[rows.length - 1];
     if (

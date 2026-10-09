@@ -703,9 +703,9 @@
 
 /* Coarse-pointer touch floor (STYLE_GUIDE § "44px touch targets"). The
    stepper's real box is 36px — right for the poison/commander-damage rows'
-   density — so it grows a centred GHOST rather than its own box (the
+   density — so it grows a centered GHOST rather than its own box (the
    TradeComposer stepper treatment; see project_dense_row_ghost_hit_area).
-   Neighbouring ghosts can't collide: the `−`/`+` centres sit ≥60px apart
+   Neighboring ghosts can't collide: the `−`/`+` centers sit ≥60px apart
    (36px button + 4px gaps + the ≥2ch value between them), and the rows
    above/below are themselves ≥44px of rhythm. */
 @media (pointer: coarse) {

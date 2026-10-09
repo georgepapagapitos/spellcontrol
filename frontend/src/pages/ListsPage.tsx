@@ -81,7 +81,7 @@ export function ListsPage() {
   // `dynamic` creates a rule-driven list (the rule editor opens on arrival).
   const [nameDialog, setNameDialog] = useState<{ mode: 'create'; dynamic?: boolean } | null>(null);
   // Purpose of the static list being created (want = acquire, tracking =
-  // catalogue of owned cards). Reset to want each time the dialog opens.
+  // catalog of owned cards). Reset to want each time the dialog opens.
   const [createKind, setCreateKind] = useState<ListKind>('want');
 
   const { sortField, sortDir, toggleSort } = useStoredSort<ListSortField>(

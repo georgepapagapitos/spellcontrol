@@ -15,7 +15,7 @@
  * turn late) ≈ 1; ten points of commander on-curve ≈ 1; ten points of screw
  * ≈ 1.5 (a missed third drop loses a game more often than a late spell);
  * ten points of flood ≈ 1. Card draw and cost reducers aren't simulated
- * (mana-sim's "not modelled" list), so this is a goldfish, and says so.
+ * (mana-sim's "not modeled" list), so this is a goldfish, and says so.
  */
 import { buildManaDeck, simulateManaDeck, type ManaSimResult } from '@/lib/mana-sim';
 import type { CardNote, ObjectiveDeck, ObjectiveContext } from '../types';

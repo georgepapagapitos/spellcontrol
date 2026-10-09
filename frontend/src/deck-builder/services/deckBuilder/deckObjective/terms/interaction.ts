@@ -2,7 +2,7 @@
  * Interaction quality: what the deck's answers hit, how fast and how cheaply,
  * plus its protection. The roles term counts removal; this term asks whether
  * the answers are GOOD ones, so Path to Exile (instant, one mana, exiles any
- * creature) outranks Magus of the Abyss, and Lightning Greaves is recognised
+ * creature) outranks Magus of the Abyss, and Lightning Greaves is recognized
  * as the protection piece it is.
  *
  * Each card's answer value is its best interaction fact (cardFacts/schema.ts):

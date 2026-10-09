@@ -88,7 +88,7 @@ export function BinderPagePreview({
   const sheetRef = useRef<HTMLDivElement>(null);
   const carousel = useRef<SnapCarouselHandle>(null);
 
-  // Each page is one carousel slide. (Double-sided binders are modelled as
+  // Each page is one carousel slide. (Double-sided binders are modeled as
   // pocketSize-per-side already; the back of a sheet is its own page in the
   // pages[] list.)
   const cols = pocketSize === 4 ? 2 : pocketSize === 12 ? 4 : 3;

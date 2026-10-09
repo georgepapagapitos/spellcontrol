@@ -135,7 +135,7 @@ function SetPtPage({
  * stepper, a picker or a text field one submenu down. Every row prints its
  * live binding, the same one the board's keydown handler dispatches: the menu
  * is the discoverable face of the keyboard map, never a second set of
- * behaviour.
+ * behavior.
  *
  * Phasing, copying onto the stack, attachments and stickers are ours
  * (EDHPlay has none of them in this menu) and live under More, last, where
@@ -285,7 +285,7 @@ export function CardContextMenu({
         // J opens the same dialog straight from the board, as on EDHPlay.
         { label: 'Custom counters', shortcut: key('counters'), onClick: onOpenCustomCounters },
         // A generic counter straight onto the card, as EDHPlay does: "Counter
-        // 1", "Counter 2"…, each its own colour. Named ones come from Custom
+        // 1", "Counter 2"…, each its own color. Named ones come from Custom
         // counters.
         { label: 'Add new counter', onClick: () => onAddCounter(nextGenericCounter(counters)) },
         {

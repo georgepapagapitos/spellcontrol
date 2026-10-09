@@ -35,7 +35,7 @@
  * one that gives a valid aspect.
  *
  * Search is restricted to the middle `SEARCH_INSET` of the frame on
- * each side, so a neighbouring card laid down right next to the one
+ * each side, so a neighboring card laid down right next to the one
  * being scanned doesn't capture detection.
  */
 
@@ -115,7 +115,7 @@ export function detectCardBox(
     }
   }
 
-  // Constrain search to inset region — neighbouring cards on the edge
+  // Constrain search to inset region — neighboring cards on the edge
   // of the frame shouldn't pull detection.
   const xInset = Math.max(1, Math.round(width * SEARCH_INSET));
   const yInset = Math.max(1, Math.round(height * SEARCH_INSET));
@@ -235,7 +235,7 @@ export function detectCardBox(
           const hMax = Math.max(topStrength, bottomStrength);
           if (hMax > 0 && hMin / hMax < OPPOSITE_EDGE_RATIO) continue;
 
-          // Score: heavily reward aspect-fit, then add a normalised
+          // Score: heavily reward aspect-fit, then add a normalized
           // edge-strength bonus so when two candidates tie on aspect
           // (e.g. card's true border vs an artwork band that happens
           // to span the right width) the stronger-edged one wins.

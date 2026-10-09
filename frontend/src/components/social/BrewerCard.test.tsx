@@ -71,7 +71,7 @@ describe('BrewerCard', () => {
     expect(screen.queryByText(/^Brews /)).toBeNull();
   });
 
-  it('row variant has no banner or colour bar', () => {
+  it('row variant has no banner or color bar', () => {
     const { container } = renderCard(brewer(), 'row');
     expect(container.querySelector('.brewer-card--row')).not.toBeNull();
     expect(container.querySelector('.brewer-card-banner')).toBeNull();

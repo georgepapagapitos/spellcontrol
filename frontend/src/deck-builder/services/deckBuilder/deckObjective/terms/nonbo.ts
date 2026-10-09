@@ -92,7 +92,7 @@ interface Own {
   types: string[];
   mv: number;
   tokens: boolean;
-  /** Front-face colours. */
+  /** Front-face colors. */
   colors: string[];
   /** Printed toughness, null when not a number (a creature's "*"). */
   toughness: number | null;
@@ -104,7 +104,7 @@ interface Own {
 interface WipeText {
   /** "-2/-2": only creatures of toughness this or less die. Null for -X/-X or no shrink. */
   shrink: number | null;
-  /** "permanents of the color of your choice": the caster names a colour. */
+  /** "permanents of the color of your choice": the caster names a color. */
   colourChoice: boolean;
   /** "Non-Elf creatures get -2/-2" (Eyeblight Massacre): the creature type it spares. */
   spares: string | null;
@@ -118,7 +118,7 @@ function wipeText(card: ScryfallCard): WipeText {
     shrink: m ? Number(m[1]) : null,
     colourChoice:
       /\bof the colou?r of (?:your|its controller's) choice\b|\bchoose a colou?r\b/i.test(text),
-    // "Nonblack creatures" names a colour, "nontoken" a kind: only a creature
+    // "Nonblack creatures" names a color, "nontoken" a kind: only a creature
     // type ("Non-Elf") spares part of the deck's own board.
     spares: non && !NOT_A_TYPE.has(non[1].toLowerCase()) ? non[1].toLowerCase() : null,
   };
@@ -163,7 +163,7 @@ function exposureOf(
   return Math.min(1, hit / own.length);
 }
 
-/** The exposure at the colour the caster would name: the one the deck's board has least of. */
+/** The exposure at the color the caster would name: the one the deck's board has least of. */
 function exposureRead(fact: InteractionFact, self: string, own: readonly Own[], text: WipeText) {
   if (!text.colourChoice) return exposureOf(fact, self, own, text);
   return Math.min(...['W', 'U', 'B', 'R', 'G'].map((c) => exposureOf(fact, self, own, text, c)));

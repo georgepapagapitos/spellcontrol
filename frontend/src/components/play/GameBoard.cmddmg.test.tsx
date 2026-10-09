@@ -6,7 +6,7 @@
  * flip (every OTHER panel becomes "damage this player dealt to me", the
  * focused player keeps their life), the dispatch attribution, and the ways
  * out. The dangerous failure here is a number that still reads as life, so
- * the labelling is asserted as hard as the wiring.
+ * the labeling is asserted as hard as the wiring.
  *
  * Mock harness mirrors GameBoard.test.tsx — GameBoard unconditionally touches
  * usePlayStore / haptics / wake-lock / undo-stack / dnd-kit regardless of
@@ -135,7 +135,7 @@ describe('entering commander-damage focus mode', () => {
     drag(tapZone(0), ALICE_UP);
 
     expect(focusBar()).toBeTruthy();
-    // Bob and Carol's panels now log damage TO Alice, labelled by commander
+    // Bob and Carol's panels now log damage TO Alice, labeled by commander
     // with a name fallback.
     expect(screen.getByLabelText('Atraxa: 0 commander damage dealt to Alice')).toBeTruthy();
     expect(screen.getByLabelText('Carol: 0 commander damage dealt to Alice')).toBeTruthy();

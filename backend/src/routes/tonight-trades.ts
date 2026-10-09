@@ -197,7 +197,7 @@ tonightTradesRouter.get(
           tradeableCards = [];
         }
 
-        // Tracking lists catalogue owned cards, not wants — same gate as
+        // Tracking lists catalog owned cards, not wants — same gate as
         // frontend's isTrackingList (lib/lists.ts).
         // Duplicated one-line predicate (list.kind !== 'tracking');
         // if this logic ever grows past one line, promote it to a tiny

@@ -546,7 +546,7 @@ tableRouter.post(
  * else gets 403, matching /respond's shape for an invalid-but-authenticated
  * actor. This is a hold's ONLY requester-driven resolution path (the other
  * being its TTL) — the wire status is `'cancelled'` for both kinds; a
- * cancelled hold just reads as "released" in the UI.
+ * canceled hold just reads as "released" in the UI.
  */
 tableRouter.post(
   '/:code/request/:id/cancel',

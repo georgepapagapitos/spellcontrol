@@ -1,6 +1,6 @@
 /* ── Resistance setup (E142, E533) — co-located styles ───────────────────
  * Layered on the shared card-picker-root / card-picker-sheet primitive
- * (bottom sheet on a phone, centred dialog at >=1024px, safe-area and scrim
+ * (bottom sheet on a phone, centered dialog at >=1024px, safe-area and scrim
  * by construction). The level list, disclosures and switches are the config
  * kit (components/shared/form); this file only lays them out in the sheet. */
 

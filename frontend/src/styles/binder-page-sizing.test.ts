@@ -73,8 +73,8 @@ describe('binder page viewer surface', () => {
     expect(bg).not.toMatch(/rgba|\/\s*\d|transparent/);
   });
 
-  it('neighbouring pages recede like the card preview — under a wash, never see-through', () => {
-    // An opacity fade let the binder grid behind read through the neighbours.
+  it('neighboring pages recede like the card preview — under a wash, never see-through', () => {
+    // An opacity fade let the binder grid behind read through the neighbors.
     for (const sel of ['.binder-pages-slide', '.card-preview-slide']) {
       for (const b of blocks(css, sel)) expect(b, sel).not.toMatch(/(^|;|\s)opacity:/);
     }
@@ -112,11 +112,11 @@ describe('binder page viewer surface', () => {
     expect(blocks(css, '.carousel-nav:disabled').join(';')).toMatch(/opacity:\s*0/);
   });
 
-  // 2026-09-25: the card preview's neighbours were `scale(0.94)`. A slide is a
-  // scroll-snap target, and scrollIntoView and the snap both centre its
+  // 2026-09-25: the card preview's neighbors were `scale(0.94)`. A slide is a
+  // scroll-snap target, and scrollIntoView and the snap both center its
   // TRANSFORMED box, so every arrow-key / neighbour-click page turn stopped 3%
-  // of a card width short and left the card 17.5px off centre once it grew
-  // back. Neighbours recede by the ::after wash only; the slide itself never
+  // of a card width short and left the card 17.5px off center once it grew
+  // back. Neighbors recede by the ::after wash only; the slide itself never
   // takes a transform, in any state, in either viewer.
   it('no carousel slide is ever transformed (it is a snap target)', () => {
     const offenders: string[] = [];

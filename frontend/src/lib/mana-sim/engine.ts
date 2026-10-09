@@ -178,7 +178,7 @@ export function simulateManaDeck(deck: ManaDeck, options: ManaSimOptions = {}): 
     if (s.onTurn + 1 <= maxTurn) nextAt[s.onTurn + 1].push(i);
   });
 
-  // Deck colour demand: pips weighted toward early costs (the manabaseMath
+  // Deck color demand: pips weighted toward early costs (the manabaseMath
   // earliness curve), commanders counted twice since they are always in reach.
   const demand = new Float64Array(6);
   const addPips = (target: Float64Array, cost: ManaCost, weight: number): void => {
@@ -350,7 +350,7 @@ export function simulateManaDeck(deck: ManaDeck, options: ManaSimOptions = {}): 
 
   /**
    * Biggest mana value castable now from hand or command zone with `extra` on
-   * top of `base`. Memoised per land-drop phase for zero- and one-unit extras
+   * top of `base`. Memoized per land-drop phase for zero- and one-unit extras
    * (every fetch target and most land candidates), which is where it is hot.
    */
   // Slot 64 is "no extra unit"; a slot is valid while its stamp is the phase's.
@@ -404,7 +404,7 @@ export function simulateManaDeck(deck: ManaDeck, options: ManaSimOptions = {}): 
   /**
    * The best search target. A fetch cracked for the land drop weighs what it
    * lets you cast this turn first; a ramp spell's search (its mana already
-   * spent) goes straight to the most-needed colours. Untapped breaks ties.
+   * spent) goes straight to the most-needed colors. Untapped breaks ties.
    */
   const pickTarget = (search: LandSearch, forDrop: boolean): number => {
     let best = -1;
@@ -518,7 +518,7 @@ export function simulateManaDeck(deck: ManaDeck, options: ManaSimOptions = {}): 
       const f = cards[id].land;
       if (!f || f.minLands > lands.length + 1) continue;
       if (f.fetch) {
-        // A fetch counts as one land of every colour it can reach,
+        // A fetch counts as one land of every color it can reach,
         // even as today's drop where only its untapped targets could serve
         // (a fetch into a tapped triome). Split the mask by use if it matters.
         const r = fetchReach(f.fetch);
@@ -547,8 +547,8 @@ export function simulateManaDeck(deck: ManaDeck, options: ManaSimOptions = {}): 
   };
 
   /**
-   * Fetches in hand share one library: no colour can be fetched by more of
-   * them than there are cards left that make it. The colour is stripped from
+   * Fetches in hand share one library: no color can be fetched by more of
+   * them than there are cards left that make it. The color is stripped from
    * the fetches with the most alternatives first.
    */
   const capFetches = (list: HandFetch[]): void => {
@@ -680,7 +680,7 @@ export function simulateManaDeck(deck: ManaDeck, options: ManaSimOptions = {}): 
       // The land drop: a real land if one is in hand; an MDFC only when no real
       // land is and its spell side can't be cast this turn anyway. Best is
       // what it lets you cast now, then a tapland when that costs nothing,
-      // then the colours the deck needs most.
+      // then the colors the deck needs most.
       // One-turn greedy sequencing, no plan for next turn's curve.
       // It moves the mana and screw stats, never the per-card castability
       // (that re-chooses the drops). Add lookahead if the mana curve reads low.
@@ -744,7 +744,7 @@ export function simulateManaDeck(deck: ManaDeck, options: ManaSimOptions = {}): 
 
       // Spend: ramp first (cheapest), then the commanders, then the biggest spell.
       // Casting a spell does nothing but spend mana; card draw is not
-      // modelled, so a draw-heavy deck's land drops read low. Feed a draw role
+      // modeled, so a draw-heavy deck's land drops read low. Feed a draw role
       // through (like simulateAssemblyClock's +2) if that bias matters.
       for (;;) {
         const work = pool.map((u) => u.mask);

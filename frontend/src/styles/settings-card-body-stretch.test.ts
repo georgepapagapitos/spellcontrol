@@ -58,7 +58,7 @@ describe('settings-card-body children keep their intrinsic width', () => {
 // what that variant is for. A definite width is the whole opt-out (stretch
 // only applies to an `auto` width); `align-self` on a primitive is refused
 // because these also sit in toolbar ROWS, where it would move the track off
-// the row's centre line.
+// the row's center line.
 const SHARED_TRACKS: Array<[file: string, selector: string]> = [
   ['../components/shared/form.css', '.segmented'],
   ['deck-builder-tabs.css', '.sc-tabs--scrollable'],

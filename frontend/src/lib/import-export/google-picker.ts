@@ -45,7 +45,7 @@ const PICKABLE_MIMES = [
 /**
  * The user backed out. A distinct type, NOT an Error with an empty message:
  * the empty-string convention this replaces meant "stay quiet", and it silently
- * swallowed a real abort — the user authorised, the flow gave up, and nothing
+ * swallowed a real abort — the user authorized, the flow gave up, and nothing
  * appeared or was logged. Callers must special-case cancellation explicitly.
  */
 export class CancelledError extends Error {
@@ -139,7 +139,7 @@ let token: { value: string; expiresAt: number } | null = null;
  * `popup_closed` fires when the consent window goes away — which also happens
  * on a SUCCESSFUL grant, and it can arrive before the token callback. Treating
  * it as an immediate cancel aborted the whole flow *after* the user had already
- * authorised: they got signed in, then nothing opened. Waiting briefly lets the
+ * authorized: they got signed in, then nothing opened. Waiting briefly lets the
  * token that is already on its way win the race.
  */
 const POPUP_CLOSED_GRACE_MS = 1500;

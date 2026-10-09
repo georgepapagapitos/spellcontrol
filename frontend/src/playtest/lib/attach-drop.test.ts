@@ -160,7 +160,7 @@ describe('makePlaytestCollision — the hand', () => {
  * keeps "drag this to the graveyard" working is that rect intersection ranks
  * by the ratio of the overlap to the two boxes, not by raw area, so a huge
  * container never outranks the small pile you are aiming at. dnd-kit takes
- * the FIRST collision as `over`, so that order is the behaviour; asserted
+ * the FIRST collision as `over`, so that order is the behavior; asserted
  * here because a collision-detection change is exactly what would silently
  * turn every send-to-zone drop back into a reposition.
  */

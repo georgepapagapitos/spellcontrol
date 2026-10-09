@@ -1,7 +1,7 @@
 /**
  * Ranking metrics for the Coach benchmark (E539): precision@k of a ranked
- * cut list against labelled weak cards, recall@k of a ranked add list
- * against labelled missing cards, macro-averaged over decks, with a seeded
+ * cut list against labeled weak cards, recall@k of a ranked add list
+ * against labeled missing cards, macro-averaged over decks, with a seeded
  * bootstrap over decks for the interval. Names compare by front face,
  * case-insensitively, so "Esika, God of the Tree" and the full DFC name meet.
  */

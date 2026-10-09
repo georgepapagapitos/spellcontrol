@@ -143,7 +143,7 @@ describe('useSheetStops', () => {
     expect(end.stopPropagation).toHaveBeenCalled();
   });
 
-  it('a cancelled touch releases without a stop change', () => {
+  it('a canceled touch releases without a stop change', () => {
     const { result, ev, onStop, panel } = setup('peek');
     result.current.onTouchStart(ev(600));
     result.current.onTouchMove(ev(560));

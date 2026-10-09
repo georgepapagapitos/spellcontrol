@@ -93,7 +93,7 @@ const baseOpts = {
   gapNames: [] as string[],
 };
 
-/** On the commander's page, under the gem ceiling, played more here than in its colours. */
+/** On the commander's page, under the gem ceiling, played more here than in its colors. */
 const onPage = (name: string) => eCard(name, 4, { synergy: 0.03 });
 
 beforeEach(() => clearPackageBoostCache());
@@ -224,7 +224,7 @@ describe('computeHiddenGems — similar signal', () => {
 
 describe('computeHiddenGems — tail order (E510)', () => {
   // Real Meren of Clan Nel Toth rows (22,305 decks), both under the gem
-  // ceiling. Survival of the Fittest: 8.3% vs 1.9% in the colours (+0.0632,
+  // ceiling. Survival of the Fittest: 8.3% vs 1.9% in the colors (+0.0632,
   // 4.3x). Pattern of Rebirth: 7.3% vs 1.1% (+0.0629, 7.0x). The subtraction
   // ranked Survival first; the ratio-weighted strength ranks Pattern first.
   const survival = eCard('Survival of the Fittest', (1841 / 22305) * 100, {
@@ -389,7 +389,7 @@ describe('computeHiddenGems — fit to this deck (T171)', () => {
     expect(await computeHiddenGems(fastMana)).toEqual([]);
   });
 
-  it("keeps it when this commander's decks play it more than others in its colours", async () => {
+  it("keeps it when this commander's decks play it more than others in its colors", async () => {
     const rows = await computeHiddenGems({
       ...fastMana,
       edhrecData: edhrec([eCard('Mox Opal', 6, { synergy: 0.05 })]),

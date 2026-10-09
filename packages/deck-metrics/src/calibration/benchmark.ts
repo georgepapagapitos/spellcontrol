@@ -1,5 +1,5 @@
 /**
- * Bracket calibration benchmark: the estimator measured against labelled real
+ * Bracket calibration benchmark: the estimator measured against labeled real
  * decks, the way deck generation is measured against its panel.
  *
  * The corpus (`calibration/fixtures/corpus.json`, built by
@@ -21,7 +21,7 @@
  *    decoupled precons from Core because some carry Game Changers or combos,
  *    and Spellbook's tag is the independent read of exactly that content. It
  *    is a floor from contents, not a read of how the list plays, so a precon
- *    that plays above Core with clean contents is labelled Core: the known
+ *    that plays above Core with clean contents is labeled Core: the known
  *    limit of this label.
  *  - `cedh`: 5. Top-8 finishes at large cEDH events (EDHTop16).
  *  - `synthetic`: the bracket the official text (or, marked `heuristic`, a

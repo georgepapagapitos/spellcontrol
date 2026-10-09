@@ -20,7 +20,7 @@ const deck = (id: string, name: string, color = '#c33'): AllocationInfo => ({
 const inRouter = (ui: React.ReactNode) => render(<MemoryRouter>{ui}</MemoryRouter>);
 
 describe('identity marks on card art (placement="art")', () => {
-  it('a single deck is a link on the plate, coloured by the deck, with no row chip class', () => {
+  it('a single deck is a link on the plate, colored by the deck, with no row chip class', () => {
     inRouter(<DeckBadge allocations={[deck('d1', 'Krenko')]} placement="art" />);
     const link = screen.getByRole('link', { name: 'In deck: Krenko' });
     expect(link.className).toBe('art-badge identity-mark');
@@ -28,7 +28,7 @@ describe('identity marks on card art (placement="art")', () => {
     expect(link.style.getPropertyValue('--identity-color')).toBe('#c33');
   });
 
-  it('several decks are one neutral glyph: no colour and no count', () => {
+  it('several decks are one neutral glyph: no color and no count', () => {
     const { container } = inRouter(
       <DeckBadge allocations={[deck('d1', 'Krenko'), deck('d2', 'Ghalta')]} placement="art" />
     );
@@ -46,7 +46,7 @@ describe('identity marks on card art (placement="art")', () => {
     expect(container.querySelector('.card-list-deck-badge-count')?.textContent).toBe('2');
   });
 
-  it('a single binder is a button on the plate, coloured by the binder', () => {
+  it('a single binder is a button on the plate, colored by the binder', () => {
     inRouter(
       <BinderBadge binders={[{ id: 'b1', name: 'Rares', color: '#39f' }]} placement="art" />
     );
@@ -57,7 +57,7 @@ describe('identity marks on card art (placement="art")', () => {
     expect(btn.style.getPropertyValue('--identity-color')).toBe('#39f');
   });
 
-  it('several binders on art take the scrim text, not the themed text colour', () => {
+  it('several binders on art take the scrim text, not the themed text color', () => {
     const binders = [
       { id: 'b1', name: 'Rares', color: '#39f' },
       { id: 'b2', name: 'Trade', color: null },

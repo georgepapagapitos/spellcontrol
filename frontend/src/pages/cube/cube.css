@@ -315,7 +315,7 @@
 /* ---- commanders (board #12, PR3) ---- */
 /* A Commander cube's legend section, above the spell buckets: a legend is
    chosen for what it enables as a commander, not its curve slot, so it gets
-   its own header + gallery/rows rather than joining the colour groups below. */
+   its own header + gallery/rows rather than joining the color groups below. */
 .cube-commanders-head {
   display: flex;
   align-items: center;
@@ -399,7 +399,7 @@
   line-height: 1.4;
 }
 /* auto-fill wraps to more rows on a phone rather than dropping any identity
-   — every colour pair still reports its count, just at a narrower width. */
+   — every color pair still reports its count, just at a narrower width. */
 .cube-coverage-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(3.4rem, 1fr));
@@ -803,7 +803,7 @@
 /* "Draftability" (T150 W4 #6) — its own disclosure directly under Cube health
    (same collapsed-by-default family, same idiom), so the two read as one
    group and the cards below never move further than one more summary line.
-   No warn colour anywhere here on purpose: a cube that doesn't clear the
+   No warn color anywhere here on purpose: a cube that doesn't clear the
    two-colour bar yet isn't a defect the way an off-curve mana base is (see
    `.cube-draft-sim-note`). Note: `.cube-draftability` (singular, no `sim`) is
    a DIFFERENT, pre-existing class — the archetype-support score badge above —
@@ -1199,8 +1199,8 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* A commander row's colour identity ("WU", "3+") — same pill shape as the
-   friend-supplier chip, letters only (colour is never the only signal). */
+/* A commander row's color identity ("WU", "3+") — same pill shape as the
+   friend-supplier chip, letters only (color is never the only signal). */
 .cube-row-identity {
   display: inline-flex;
   align-items: center;
@@ -1216,8 +1216,8 @@
 }
 /* A legend's Partner/Background mechanic (board E462) — same pill shape as
    the identity chip right next to it, accent-tinted so it reads as a
-   different KIND of fact (a rules keyword, not a colour), plain text either
-   way (never colour alone). */
+   different KIND of fact (a rules keyword, not a color), plain text either
+   way (never color alone). */
 .cube-row-kind {
   display: inline-flex;
   align-items: center;
@@ -1308,7 +1308,7 @@
   margin-bottom: var(--space-4);
 }
 /* Two-sided substitution row — art + name on each side, both always
-   labelled (STYLE_GUIDE "Comparing two of anything": no bare arrow). A
+   labeled (STYLE_GUIDE "Comparing two of anything": no bare arrow). A
    `container` (not a viewport media query — the page itself is width-capped,
    see STYLE_GUIDE "container query in capped panels") lets the row switch to
    a stacked layout on its OWN available width. */

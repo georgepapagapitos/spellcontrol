@@ -85,7 +85,7 @@ function clampPoint(p: Point, b: Bounds): Point {
  *
  * When the hub has room on every side — true mid-board, which is every real
  * layout this app has today (the board is always a 2-column grid, so a
- * seam's horizontal position is always exactly centred; only its vertical
+ * seam's horizontal position is always exactly centered; only its vertical
  * position varies by row) — the petals go evenly around a full circle,
  * Lotus's own layout: 60° apart for six, starting straight up. The radius
  * is the largest that still clears every petal's own angle (see

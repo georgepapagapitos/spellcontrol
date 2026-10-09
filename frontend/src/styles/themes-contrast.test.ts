@@ -131,7 +131,7 @@ describe('theme contrast (UX-103)', () => {
  * (see the block at the end of themes.css). That is only sound if secondary is
  * genuinely stronger than muted in EVERY theme — otherwise a reader who asked
  * the OS for more contrast would get LESS of it in whichever theme inverted,
- * and nothing else would catch it: the media block declares no colour of its
+ * and nothing else would catch it: the media block declares no color of its
  * own, so it can never fail a palette check directly.
  */
 describe('prefers-contrast: more remap is an improvement everywhere', () => {
@@ -167,11 +167,11 @@ describe('prefers-contrast: more remap is an improvement everywhere', () => {
 
 /**
  * `--accent` is TEXT all over the app, not only a fill: accent-toned label
- * pills, link-styled buttons, the hover colour of every outline button. The
+ * pills, link-styled buttons, the hover color of every outline button. The
  * header's "accent vs surface ≥ 3:1" is the non-text (WCAG 1.4.11) floor, and
  * three themes sat between the two (Simic 4.28 on bg, Izzet 4.38 and Rakdos
  * 4.04 on surface-raised), so accent text there failed AA. Text needs 4.5:1,
- * and the hover colour is the same text one pointer-move later.
+ * and the hover color is the same text one pointer-move later.
  */
 describe('accent as text clears AA', () => {
   const blocks = [...themesCss.matchAll(/\[data-theme='([a-z]+)'\]\s*\{([^}]*)\}/g)];

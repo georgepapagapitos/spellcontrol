@@ -14,7 +14,7 @@ describe('previewSlot', () => {
   // A 1440x900 desk: menu/turn stack top-right, piles bottom-right, fan
   // bottom-centre. The pane clears all of it, so it keeps the slot the table
   // has always used.
-  it('keeps the centred right-edge slot wherever it clears the chrome', () => {
+  it('keeps the centered right-edge slot wherever it clears the chrome', () => {
     const width = 345.6;
     const slot = previewSlot({
       vw: 1440,
@@ -30,7 +30,7 @@ describe('previewSlot', () => {
   });
 
   // The 832x384 phone on its side, measured off the real board (2026-09-25):
-  // centred at the right edge the pane covered the TURN chip, the zones tab
+  // centered at the right edge the pane covered the TURN chip, the zones tab
   // and the Hand/Library row.
   it('moves to the top of the table, left of the corner column, on a phone on its side', () => {
     const width = 832 * 0.24;
@@ -115,7 +115,7 @@ describe('previewSlot', () => {
     const card = box(150, 740, 236, 860);
     const input = { vw: 390, vh: 844, card, corners, edges, floor, upright: true };
 
-    it('centres the pane in the felt between the chrome, clear of all of it', () => {
+    it('centers the pane in the felt between the chrome, clear of all of it', () => {
       const width = 281;
       const slot = previewSlot({ ...input, paneWidth: width, height: width * 1.4 });
       expect(slot.scale).toBe(1);

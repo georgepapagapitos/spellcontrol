@@ -23,7 +23,7 @@ export interface ObjectiveDeck {
 export interface EdhrecRow {
   /** Share of this page's decks that play the card, in percent (0-100). */
   inclusion: number;
-  /** EDHREC synergy as a fraction: this page's rate minus its colours', / 100. */
+  /** EDHREC synergy as a fraction: this page's rate minus its colors', / 100. */
   synergy?: number;
   /** Decks on this page that could play the card (the sample behind `inclusion`). */
   potential_decks?: number;
@@ -82,7 +82,7 @@ export interface Protection {
 
 /** Everything a score depends on besides the deck itself. Build with `createObjectiveContext`. */
 export interface ObjectiveContextInput {
-  /** The deck's colour identity (the commanders'). */
+  /** The deck's color identity (the commanders'). */
   colorIdentity: readonly string[];
   /** What the deck was built under: constraints and a few preferences. */
   customization: Partial<Customization>;

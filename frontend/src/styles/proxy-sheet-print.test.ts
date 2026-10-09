@@ -51,7 +51,7 @@ describe('proxy sheet print geometry', () => {
     expect(mm(page, 'height')).toBeLessThanOrEqual(LETTER_FIT_MM);
   });
 
-  it('holds the whole grid inside the page box, centred, with its crop marks aligned', () => {
+  it('holds the whole grid inside the page box, centered, with its crop marks aligned', () => {
     const top = mm(grid, 'top');
     expect(top + 3 * 88 + top).toBeCloseTo(mm(page, 'height'), 5);
     expect(block('.proxy-print-tick.is-row')).toContain(`calc(${top}mm + var(--edge) * 88mm)`);

@@ -18,9 +18,9 @@ export const MANA_B = 4;
 export const MANA_R = 8;
 export const MANA_G = 16;
 export const MANA_C = 32;
-/** Every colour (a Treasure, Birds of Paradise). Not {C}. */
+/** Every color (a Treasure, Birds of Paradise). Not {C}. */
 export const ANY_COLOR = 31;
-/** Every mana type, colourless included. */
+/** Every mana type, colorless included. */
 export const ALL_MANA = 63;
 
 /** The mana symbols a mask is built from, in bit order. */
@@ -41,7 +41,7 @@ export interface ManaCost {
   mv: number;
   /** Generic mana (numbers, snow), payable by any unit. */
   generic: number;
-  /** One entry per coloured or {C} pip: the mask of mana that can pay it. */
+  /** One entry per colored or {C} pip: the mask of mana that can pay it. */
   pips: readonly ManaMask[];
   /** Units needed to pay the cost: `generic + pips.length` (Phyrexian pips are paid with life). */
   units: number;
@@ -52,8 +52,8 @@ export interface ManaCost {
 }
 
 /**
- * How a land enters. Every conditional wording the simulator recognises has its
- * own kind; an `unless` clause it does not recognise is `conditional` and is
+ * How a land enters. Every conditional wording the simulator recognizes has its
+ * own kind; an `unless` clause it does not recognize is `conditional` and is
  * treated as tapped (the conservative reading).
  */
 export type LandEntry =
@@ -81,7 +81,7 @@ export type LandEntry =
 export interface LandSearch {
   /** Only basic lands qualify ("basic land card", "basic Forest card"). */
   basicOnly: boolean;
-  /** Basic land types that qualify, as colour bits (Plains = W). ANY_COLOR for "basic land card". */
+  /** Basic land types that qualify, as color bits (Plains = W). ANY_COLOR for "basic land card". */
   types: ManaMask;
   /** Lands put onto the battlefield. */
   count: number;
@@ -97,7 +97,7 @@ export interface LandSearch {
 export interface ManaChoice {
   /** Always produced (Thriving Isle's {U}). */
   fixed: ManaMask;
-  /** The colours one may be chosen from. */
+  /** The colors one may be chosen from. */
   options: ManaMask;
 }
 
@@ -106,7 +106,7 @@ export interface LandFace {
   /** One entry per mana the land makes when tapped (Ancient Tomb: `[C, C]`). Empty for a land that makes none. */
   units: readonly ManaMask[];
   entry: LandEntry;
-  /** Basic land types on its type line, as colour bits. */
+  /** Basic land types on its type line, as color bits. */
   types: ManaMask;
   /** Has the Basic supertype. */
   basic: boolean;
@@ -190,7 +190,7 @@ export interface CastRates {
   /** P(castable on the turn equal to its mana value). */
   onCurve: number | null;
   /**
-   * P(castable on curve | the mana amount was there). Only colour can fail
+   * P(castable on curve | the mana amount was there). Only color can fail
    * this: the Karsten measure, with ramp counted as mana.
    */
   onCurveGivenMana: number | null;

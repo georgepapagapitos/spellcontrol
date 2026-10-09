@@ -3,7 +3,7 @@
  * The group divider shared by Collection's grouped list and a binder's table.
  *
  * It carries two slots because the two surfaces genuinely differ: a binder is
- * headed by the real mana symbol rather than a colour swatch, and it counts
+ * headed by the real mana symbol rather than a color swatch, and it counts
  * both cards and distinct printings. Everything else — the disclosure
  * semantics above all — has to stay identical, which is the reason the bar is
  * one component instead of two that drift.
@@ -21,7 +21,7 @@ const base = {
 };
 
 describe('the shared section header bar', () => {
-  it('shows the plain count and colour dot by default', () => {
+  it('shows the plain count and color dot by default', () => {
     const { container } = render(
       <SectionHeaderBar {...base} pip={{ background: '#fff', border: '#ccc' }} />
     );

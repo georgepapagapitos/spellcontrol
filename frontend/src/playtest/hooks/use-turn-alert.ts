@@ -7,7 +7,7 @@ export const TURN_TITLE_PREFIX = '● Your turn · ';
 let audio: AudioContext | null = null;
 
 /**
- * Two short rising notes, synthesised rather than shipped as a file: no asset
+ * Two short rising notes, synthesized rather than shipped as a file: no asset
  * on the boot path, nothing to decode. The page already has the user's
  * gesture by the time a turn can pass to them, so the context is allowed to
  * start even from a background tab.

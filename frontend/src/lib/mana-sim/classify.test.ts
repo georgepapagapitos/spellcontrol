@@ -181,7 +181,7 @@ describe('ramp', () => {
     expect(ramp('Chromatic Lantern')).toMatchObject({ units: [FIVE] });
   });
 
-  it('reads a rock that enters tapped and chooses its colour', () => {
+  it('reads a rock that enters tapped and chooses its color', () => {
     expect(ramp('Coldsteel Heart', AZORIUS)).toMatchObject({
       delay: 1,
       choice: { fixed: 0, options: AZORIUS },

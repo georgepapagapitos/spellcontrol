@@ -41,7 +41,7 @@ function covers(commander: EnrichedCard, needed: string[]): boolean {
   return needed.every((ch) => have.has(ch));
 }
 
-/** Filter `commanders` to those whose colour identity contains every colour the combo needs. */
+/** Filter `commanders` to those whose color identity contains every color the combo needs. */
 export function commandersForIdentity(
   commanders: EnrichedCard[],
   identity: string

@@ -84,7 +84,7 @@ describe('parseDeckReviewRequest', () => {
 });
 
 describe('AI scope (T112)', () => {
-  it('defaults to any and honours the legacy ownedOnly boolean', () => {
+  it('defaults to any and honors the legacy ownedOnly boolean', () => {
     expect(parseAiScope(undefined)).toBe('any');
     expect(parseAiScope('bogus')).toBe('any');
     expect(parseAiScope(undefined, true)).toBe('owned');
@@ -226,7 +226,7 @@ describe('renderAnalysis', () => {
   });
 
   describe('bracket line', () => {
-    it('renders target and estimate together, unambiguously labelled', () => {
+    it('renders target and estimate together, unambiguously labeled', () => {
       const out = renderAnalysis({ bracket: { target: 2, estimate: 4 } });
       expect(out).toContain(
         '- Bracket: target 2 (what the owner wants) · estimate 4 (what the deck is now)'

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef } from 'react';
 interface Options {
   delayMs?: number;
   onLongPress(clientX: number, clientY: number): void;
-  /** Called when a pending (or already-fired) press is cancelled by movement
+  /** Called when a pending (or already-fired) press is canceled by movement
    *  past the 6px slop — e.g. the gesture turned out to be a scroll — or by a
    *  second finger (a pinch). Lets a
    *  consumer that shows something eagerly on fire (a touch peek) tear it
@@ -88,8 +88,8 @@ export function useLongPress({ delayMs = 500, onLongPress, onCancelByMove }: Opt
       // A long-press that fired opened something (a menu sheet) UNDER the
       // finger. Lifting it would still synthesize a click — delivered to
       // whatever now sits at that point, i.e. a random item of the menu the
-      // press just opened. Cancelling the touch's default cancels that click
-      // (React registers touchend non-passively, so this is honoured).
+      // press just opened. Canceling the touch's default cancels that click
+      // (React registers touchend non-passively, so this is honored).
       if (fired.current && e?.cancelable) e.preventDefault();
     },
     [cancel]

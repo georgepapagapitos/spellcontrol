@@ -308,7 +308,7 @@ describe('whose move, the net, and finished rows', () => {
     expect(screen.getByText('You come out about $40.00 ahead')).toBeTruthy();
   });
 
-  it('says so when the deal favours them', () => {
+  it('says so when the deal favors them', () => {
     pinned = { 'scry-sol': 50 };
     floors = new Map([['Rhystic Study', 42]]);
     mount(open);

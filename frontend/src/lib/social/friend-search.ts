@@ -8,7 +8,7 @@
  * (oracle-level public fields only, no oracle text), so some clauses cannot be
  * answered here and must not pretend otherwise.
  *
- * Three behaviours, and the difference matters:
+ * Three behaviors, and the difference matters:
  *
  *  - **Answerable** — `t:`, `c:`, `ci:`, `cmc`, `r:`, `is:`, `otag:`, plain
  *    names. `otag:` works because `tagsFor` is keyed by card NAME, which the
@@ -22,7 +22,7 @@
  *    degrade to match-anything inside the engine itself.
  *
  * `ci:` is the reason the enrichment in `friends.ts` exists at all: the engine
- * matches `op:'subset'` by checking every colour ON THE CARD against the
+ * matches `op:'subset'` by checking every color ON THE CARD against the
  * needle, so an absent identity (empty set) vacuously matched EVERY query.
  * A friend browser that answers "what fits my Atraxa deck" with the entire
  * collection is worse than one that can't answer at all.
@@ -95,9 +95,9 @@ function toQueryCard(card: FriendCard, tagsFor?: (name: string) => string[]): Qu
     oracleText: card.oracleText,
     colors: card.colors,
     // Absent identity falls back to `colors`: a card's identity is a superset
-    // of its cost colours, so this is the closest honest approximation for a
+    // of its cost colors, so this is the closest honest approximation for a
     // payload cached before the enrichment shipped. It is NOT `[]`, which the
-    // engine would read as colourless and match against everything.
+    // engine would read as colorless and match against everything.
     colorIdentity: card.colorIdentity ?? card.colors,
     legalities: card.legalities ?? {},
     rarity: card.rarity,

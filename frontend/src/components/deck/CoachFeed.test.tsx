@@ -17,7 +17,7 @@ vi.mock('./useCardCarousel', () => ({
 vi.mock('./use-deck-hover-peek', () => ({
   useDeckHoverPeek: () => ({ listHandlers: {}, peek: null }),
 }));
-// The plan's own behaviour lives in UpgradePlanSheet.test.tsx; here only what
+// The plan's own behavior lives in UpgradePlanSheet.test.tsx; here only what
 // the feed hands it.
 vi.mock('./UpgradePlanSheet', () => ({
   UpgradePlanSheet: (p: {

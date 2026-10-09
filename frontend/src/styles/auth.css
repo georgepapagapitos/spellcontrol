@@ -309,7 +309,7 @@
   font-size: var(--text-base);
 }
 
-/* Continue with Google: the coloured G mark carries the branding. */
+/* Continue with Google: the colored G mark carries the branding. */
 .auth-google {
   width: 100%;
   padding: var(--space-2-5) var(--space-4);
@@ -369,8 +369,8 @@
    screen is always escapable. */
 .auth-back {
   /* `align-self` was inert here — the parent is `.auth-card`, which is
-     `display: block`. (Its sibling `.auth-forgot-link` centres because ITS
-     parent `.auth-form` is a flex container.) Centring needs a mechanism that
+     `display: block`. (Its sibling `.auth-forgot-link` centers because ITS
+     parent `.auth-form` is a flex container.) Centering needs a mechanism that
      works inside a block parent, or the dismiss link sits ~70px left of every
      other element in the card. */
   display: flex;

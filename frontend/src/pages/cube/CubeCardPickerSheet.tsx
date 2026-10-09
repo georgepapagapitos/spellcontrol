@@ -14,7 +14,7 @@ export interface CubeCardCandidate {
 
 /**
  * The shared sheet for both "Swap this card" and "Add from collection" —
- * a bottom sheet on phone / centred dialog on desktop (STYLE_GUIDE Pattern B,
+ * a bottom sheet on phone / centered dialog on desktop (STYLE_GUIDE Pattern B,
  * `modal-backdrop--sheet`; a departure from the mockup's row-anchored desktop
  * popover, reusing the same shell `ShareDialog`/`ListRuleEditor` already use
  * on this page rather than building a second overlay mechanism). Lists ranked

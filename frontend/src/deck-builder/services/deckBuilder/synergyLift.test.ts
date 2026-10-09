@@ -51,7 +51,7 @@ const ROGUES_PASSAGE = row("Rogue's Passage", 727, 4364, -0.10652767881218514);
 // Thrasios, Triton Hero // Tymna the Weaver: a PARTNER page (11,589 decks).
 const SILENCE = row('Silence', 9679, 11589, 0.6525598666824483);
 const PLAINS = row('Plains', 2075, 11589, -0.5844551346667248);
-// The Tenth Doctor // Rose Tyler: a colour baseline below the floor (0.3%).
+// The Tenth Doctor // Rose Tyler: a color baseline below the floor (0.3%).
 const JENNY = row('Jenny, Generated Anomaly', 757, 5642, 0.1311878059711292);
 // Gisa, Glorious Resurrector (1,638 decks): the brief's two shapes, live.
 // Eradicator Valkyrie 12.5% vs 1.0% (+0.11, 12x); Tragic Slip 41.9% vs 18.7%
@@ -69,7 +69,7 @@ describe('readSynergy', () => {
     expect(r.sampleDecks).toBe(22305);
   });
 
-  it('reads Meren’s signature cards by ratio: Grim Haruspex (13× its colours) beats Sakura-Tribe Elder (2.9×)', () => {
+  it('reads Meren’s signature cards by ratio: Grim Haruspex (13× its colors) beats Sakura-Tribe Elder (2.9×)', () => {
     // The subtraction ranks them the other way (+0.55 vs +0.46).
     expect(SAKURA_TRIBE_ELDER.synergy!).toBeGreaterThan(GRIM_HARUSPEX.synergy!);
     const elder = readSynergy(SAKURA_TRIBE_ELDER)!;
@@ -93,7 +93,7 @@ describe('readSynergy', () => {
   });
 
   it('keeps a card few decks play small, however big its ratio (the Hyper Focus guard)', () => {
-    // Enchanted River's Grasp: 1.5% of Tuvasa decks, 1.5x its colours.
+    // Enchanted River's Grasp: 1.5% of Tuvasa decks, 1.5x its colors.
     const r = readSynergy(ENCHANTED_RIVERS_GRASP)!;
     expect(r.lift).toBeGreaterThan(1);
     expect(r.strength).toBeLessThan(0.01);
@@ -106,7 +106,7 @@ describe('readSynergy', () => {
     expect(r.strength).toBeCloseTo(2.862, 3);
   });
 
-  it('shrinks a 15-deck page toward the colours: 12 of 15 decks keeps 75% of its own evidence', () => {
+  it('shrinks a 15-deck page toward the colors: 12 of 15 decks keeps 75% of its own evidence', () => {
     const r = readSynergy(POWER_CONDUIT)!;
     const weight = 15 / (15 + SYNERGY_PRIOR_DECKS);
     expect(weight).toBeCloseTo(0.75, 5);
@@ -130,7 +130,7 @@ describe('readSynergy', () => {
     expect(isSignatureSynergy(GRAVE_BETRAYAL)).toBe(true);
   });
 
-  it('floors a near-zero colour baseline so the ratio stays finite', () => {
+  it('floors a near-zero color baseline so the ratio stays finite', () => {
     // Raw baseline 13.42% − 13.12 = 0.30%: a raw ratio of 45×.
     const r = readSynergy(JENNY)!;
     expect(r.baselinePct).toBe(BASELINE_FLOOR_PCT);
@@ -151,14 +151,14 @@ describe('readSynergy', () => {
     expect(r.lift).toBeGreaterThan(1);
   });
 
-  it('reads a theme page against the same colour baseline', () => {
+  it('reads a theme page against the same color baseline', () => {
     const r = readSynergy(LYRA)!;
     expect(r.baselinePct).toBeCloseTo(14.42, 2);
     expect(r.lift).toBeCloseTo(6.222, 2);
     expect(isSignatureSynergy(LYRA)).toBe(true);
   });
 
-  it('reads a partner page against the pair’s colour baseline', () => {
+  it('reads a partner page against the pair’s color baseline', () => {
     expect(readSynergy(SILENCE)!.lift).toBeCloseTo(4.572, 2);
     expect(isSignatureSynergy(SILENCE)).toBe(true);
   });
@@ -231,7 +231,7 @@ describe('isSignatureSynergy (the shared replacement for synergy > 0.3)', () => 
     expect(readSynergy(JHOIRAS_FAMILIAR)!.lift).toBeLessThan(2);
   });
 
-  it('does not call a colour staple a signature card', () => {
+  it('does not call a color staple a signature card', () => {
     expect(isSignatureSynergy(SOL_RING)).toBe(false);
     expect(isSignatureSynergy(TRAGIC_SLIP)).toBe(false);
   });
@@ -253,8 +253,8 @@ describe('isAntiSynergy', () => {
     expect(isAntiSynergy(ROGUES_PASSAGE)).toBe(false);
   });
 
-  it('needs a baseline the colours genuinely play', () => {
-    // 1 deck in 15 of a card its colours play at 10%: below the 15% bar, so
+  it('needs a baseline the colors genuinely play', () => {
+    // 1 deck in 15 of a card its colors play at 10%: below the 15% bar, so
     // a dip there says nothing about avoidance.
     expect(isAntiSynergy(row('Field of the Dead', 1, 15, -0.030424772813395964))).toBe(false);
   });

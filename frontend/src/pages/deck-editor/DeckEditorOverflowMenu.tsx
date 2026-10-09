@@ -116,9 +116,9 @@ export function DeckEditorOverflowMenu({
   };
 
   // Sectioned groups (E181): a flat list read as an undifferentiated wall.
-  // Undo/Redo stay unlabelled at top (existing convention) and Delete stays
+  // Undo/Redo stay unlabeled at top (existing convention) and Delete stays
   // last (STYLE_GUIDE UX-316: destructive actions live in this menu);
-  // everything else buckets into labelled clusters. Each row is `{ key, label,
+  // everything else buckets into labeled clusters. Each row is `{ key, label,
   // onClick }` so a whole section can be built + filtered in one line.
   type Row = { key: string; label: string; onClick: () => void };
   const play: Row[] = [

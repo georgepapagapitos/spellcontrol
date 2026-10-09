@@ -20,7 +20,7 @@ export const RATE_LIMITED = Symbol.for('spellcontrol.rateLimited');
  *
  * Always a real express-rate-limit instance. Tests are exempted per request via
  * `skip` rather than by swapping the middleware for a passthrough, which is the
- * same behaviour by a better route:
+ * same behavior by a better route:
  *
  *   - `skip` is evaluated before the key generator and before any store write
  *     (see express-rate-limit's `index.cjs`), so a test still accumulates no

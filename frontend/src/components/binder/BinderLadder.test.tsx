@@ -137,7 +137,7 @@ describe('BinderLadder', () => {
     expect(screen.queryByText(/went to/)).toBeNull();
   });
 
-  it('on a phone, shows only the neighbours until Show all is pressed', () => {
+  it('on a phone, shows only the neighbors until Show all is pressed', () => {
     stubViewport(true);
     render(
       <BinderLadder
@@ -149,7 +149,7 @@ describe('BinderLadder', () => {
         moveAboveLabel="Move above Commanders"
       />
     );
-    // Neighbours: Commanders (above), the draft, Mana rocks (below).
+    // Neighbors: Commanders (above), the draft, Mana rocks (below).
     let rows = screen.getAllByRole('listitem');
     expect(rows).toHaveLength(3);
     expect(screen.queryByText('Secret Lair')).toBeNull();

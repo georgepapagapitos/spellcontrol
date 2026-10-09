@@ -45,7 +45,7 @@ interface Drawn {
  * The arrows everyone at the table drew, laid over the whole viewport and
  * re-measured on a short timer while any exist (cards move, boards scroll,
  * sizes change — measuring a handful of rects is cheaper than tracking every
- * cause). Coloured by the seat that drew them; yours a shade brighter.
+ * cause). Colored by the seat that drew them; yours a shade brighter.
  */
 export function TableArrows({ mySeat }: { mySeat: number }) {
   const arrows = usePlayStore((s) => s.onlineArrows);
@@ -101,7 +101,7 @@ export function TableArrows({ mySeat }: { mySeat: number }) {
         ))}
       </defs>
       {drawn.map(({ arrow, from, to }) => {
-        // Shorten the tail so the head lands on the card's edge, not its centre.
+        // Shorten the tail so the head lands on the card's edge, not its center.
         const dx = to.x - from.x;
         const dy = to.y - from.y;
         const len = Math.hypot(dx, dy) || 1;

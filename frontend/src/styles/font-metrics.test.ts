@@ -6,12 +6,12 @@ import { basename, dirname, join } from 'node:path';
 import { brotliDecompressSync } from 'node:zlib';
 
 /**
- * Every face a type set ships centres its capital height in the line box.
+ * Every face a type set ships centers its capital height in the line box.
  *
  * A browser places a glyph by the font's own ascent/descent, and those are
  * never symmetric around the capitals: Segoe UI's capitals sat 6.5% of an em
- * below the centre of the line box and Eczar's 7% above it. Anything that
- * centres a label by its box (every `.btn`, `.pill-btn`, chip and tab is a
+ * below the center of the line box and Eczar's 7% above it. Anything that
+ * centers a label by its box (every `.btn`, `.pill-btn`, chip and tab is a
  * flex row with `align-items: center`) therefore drew its text a pixel or two
  * off the icon beside it, low in one set and high in the next.
  *
@@ -118,7 +118,7 @@ const percent = (body: string, prop: string) => {
   return m ? Number(m[1]) : undefined;
 };
 
-describe('type-set faces centre their capital height', () => {
+describe('type-set faces center their capital height', () => {
   const all = faces();
 
   it('finds the default sheet, the play-board sheet and every per-set sheet', () => {
@@ -140,7 +140,7 @@ describe('type-set faces centre their capital height', () => {
       // numbers are derived in that sheet's header from segoeui.ttf.
       if (!file) return;
       const m = woff2Metrics(readFileSync(join(publicFonts, file)));
-      // Capital height centred: ascent - descent == cap.
+      // Capital height centered: ascent - descent == cap.
       expect(ascent! - descent!).toBeCloseTo(m.cap, 1);
       // Same total as the font's own, so line-height: normal doesn't move.
       expect(ascent! + descent!).toBeCloseTo(m.ascent + m.descent, 1);

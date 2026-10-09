@@ -26,14 +26,14 @@ const STALE_AFTER_MS = 7 * DAY_MS;
 /**
  * How many stale decks one run re-resolves. At a few hundred precons and one
  * run a day this refreshes each about weekly, and it keeps a redeploy-heavy
- * day from re-downloading the whole catalogue on every boot.
+ * day from re-downloading the whole catalog on every boot.
  */
 const REFRESH_PER_RUN = 50;
 
 /** Where precons come from. Injected so tests don't reach MTGJSON or Scryfall. */
 export interface PreconSource {
   list(): Promise<ProductSummary[]>;
-  /** Null when the product has no deck file (MTGJSON hasn't catalogued it yet). */
+  /** Null when the product has no deck file (MTGJSON hasn't cataloged it yet). */
   resolve(fileName: string): Promise<DeckSections | null>;
 }
 

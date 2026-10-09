@@ -34,7 +34,7 @@
   min-width: 0;
 }
 
-/* With no art, the deck's own colour (the rename editor's picker sets it)
+/* With no art, the deck's own color (the rename editor's picker sets it)
    is the title column's rule; with art it is the thumbnail's foot. */
 .deck-editor-hero:not(.deck-editor-hero--art) .deck-editor-hero-text {
   padding-left: var(--space-3);
@@ -118,7 +118,7 @@
    each line box 44px tall: a link fills its own line and nothing else, so it
    can't take the name's pixels above or a wrapped second line's below. A
    ghost can't do that here: an inline link doesn't know which line it's on,
-   and every pixel above and below the line belongs to a neighbour. */
+   and every pixel above and below the line belongs to a neighbor. */
 @media (pointer: coarse) {
   .deck-editor-hero .binder-hero-meta:has(> .deck-meta-link) {
     line-height: var(--touch-target);
@@ -301,7 +301,7 @@
   color: var(--text-primary);
   background: transparent;
   border: 0;
-  /* Vertical slack, cancelled by the matching negative margin so the hero's
+  /* Vertical slack, canceled by the matching negative margin so the hero's
      layout is unchanged. `overflow: hidden` below clips at the CONTENT box,
      which at line-height 1.1 is shorter than the ink of every display face
      the typeset picker offers: measured em-relative ink heights run 1.13
@@ -365,7 +365,7 @@
      the inline style is the only source of truth for where this sits. */
   z-index: var(--z-menu);
   min-width: 12rem;
-  /* Cap so a labelled "Undo remove <long card name>" row can't run off-screen;
+  /* Cap so a labeled "Undo remove <long card name>" row can't run off-screen;
      the row wraps instead (see overflow-wrap on the item). */
   max-width: min(20rem, calc(100vw - 1.5rem));
   background: var(--surface);

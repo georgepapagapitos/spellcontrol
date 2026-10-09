@@ -6,8 +6,8 @@ import { dirname, join } from 'node:path';
 
 /**
  * The card-preview panel is an always-dark surface in BOTH app themes, so
- * `.card-preview-panel` remaps the theme colour tokens to white-alpha
- * for everything inside it. Any colour token a *shared* rule reaches for
+ * `.card-preview-panel` remaps the theme color tokens to white-alpha
+ * for everything inside it. Any color token a *shared* rule reaches for
  * inside that panel must therefore appear in the remap block — otherwise it
  * silently resolves to the light app theme's value.
  *
@@ -25,7 +25,7 @@ import { dirname, join } from 'node:path';
  */
 const srcRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-/** Declarations whose value paints a colour — the only ones the always-dark
+/** Declarations whose value paints a color — the only ones the always-dark
  *  remap has to cover. Sizing tokens (--radius, --text-base, --space-*) are
  *  theme-independent and must NOT be remapped. */
 const COLOUR_PROPERTY =
@@ -61,12 +61,12 @@ describe('always-dark preview panel token remap', () => {
 
   const remapped = definedTokens(ruleBody(previewCss, /\.card-preview-panel\s*\{([^}]*)\}/));
 
-  it('remaps every colour token the shared form-control rule reads', () => {
+  it('remaps every color token the shared form-control rule reads', () => {
     // The `select, input[type='number'], input[type='text'], …` block.
     const controlRule = ruleBody(formsCss, /[^{}]*input\[type='text'\][^{}]*\{([^}]*)\}/);
     const needed = colourTokensRead(controlRule);
 
-    // Sanity: if this ever reads zero colour tokens the regex has drifted and
+    // Sanity: if this ever reads zero color tokens the regex has drifted and
     // the guard would pass vacuously.
     expect(needed.size).toBeGreaterThan(0);
 

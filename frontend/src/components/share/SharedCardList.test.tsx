@@ -127,7 +127,7 @@ describe('SharedCardList in compact (table) mode', () => {
     expect(rowCols).toEqual(cols);
   });
 
-  it('drops the withheld columns rather than labelling empty ones', () => {
+  it('drops the withheld columns rather than labeling empty ones', () => {
     // A friend's collection reports contents, not count or value. On a flow
     // row those simply don't render; a table would otherwise keep three
     // headed tracks promising numbers that never arrive.

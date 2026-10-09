@@ -152,7 +152,7 @@
 
 /* Absolutely positioned so a wide count (double digits from a −10 burst)
    never widens the button's own box: the button is already `position:
-   absolute` (play-board.css) and offset from the panel centre by a
+   absolute` (play-board.css) and offset from the panel center by a
    transform proportional to its own width — a count that grew that box in
    normal flow pushed the whole button further out and spilled it past the
    panel edge. Anchored toward the numeral (inward), the side with room. */
@@ -261,7 +261,7 @@
   animation: pp-fade-in var(--motion-base) var(--ease-out-soft);
 }
 
-/* Centred via its own absolute position + transform, NOT flexbox centring —
+/* Centered via its own absolute position + transform, NOT flexbox centering —
    layout (sizing, flex-shrink) happens in the UNROTATED local box model
    before the `rotate()` in the transform is applied, so a flex parent read
    a 90°/270° dialog's "local width" (deliberately the LARGER, viewport-
@@ -378,7 +378,7 @@
 
 /* The individual `scale` property, not `transform: scale()`: a transform in
    a keyframe REPLACES the element's own transform for the animation's
-   length, and the life keypad centres and rotates itself with its
+   length, and the life keypad centers and rotates itself with its
    transform, so for 200ms it popped in unrotated and off-centre, then
    snapped to face its seat. `scale` composes with the transform instead. */
 @keyframes pp-scale-in {
@@ -659,7 +659,7 @@
 }
 
 /* The preset's name under its thumbnail. Selected reads bold as well as
-   ringed, so the choice never rides on the accent colour alone. */
+   ringed, so the choice never rides on the accent color alone. */
 .layout-option-name {
   font-size: var(--text-xs);
   line-height: 1.2;

@@ -357,9 +357,9 @@ describe('ScryfallCache.getCheapestByName', () => {
     expect(cache.getCheapestByName('Priceless')?.id).toBe('id-a');
   });
 
-  // The prefix scan is the whole trick — it must not bleed into a neighbouring
+  // The prefix scan is the whole trick — it must not bleed into a neighboring
   // name, and it must not pick up the `nsc:` keys (which sort after every `ns:`).
-  it('scans only the requested name, not neighbours or nsc: keys', () => {
+  it('scans only the requested name, not neighbors or nsc: keys', () => {
     printing('id-rector', 'Arena Rector', 'bro', { usd: '18.99' });
     printing('id-arena', 'Arena', 'unh', { usd: '0.25' });
     printing('id-long', 'Arena Rector of Doom', 'xxx', { usd: '0.01' });

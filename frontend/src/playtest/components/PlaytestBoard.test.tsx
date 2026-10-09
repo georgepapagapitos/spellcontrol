@@ -545,7 +545,7 @@ describe('PlaytestBoard', () => {
     });
   });
 
-  it('randomises a pile moved INTO the library, and says so on the row', () => {
+  it('randomizes a pile moved INTO the library, and says so on the row', () => {
     render(
       <MemoryRouter>
         <PlaytestBoard
@@ -696,7 +696,7 @@ describe('PlaytestBoard', () => {
     unmount();
 
     // Right at the gate, still a grid — an ordinary laptop window, not just a
-    // maximised one, keeps real boards.
+    // maximized one, keeps real boards.
     stubWidth(1024);
     const atGate = render(
       <MemoryRouter>
@@ -864,7 +864,7 @@ describe('PlaytestBoard — rebindable shortcuts', () => {
     expect(dispatch).not.toHaveBeenCalled();
   });
 
-  it('honours a saved rebinding: W draws and D no longer does', () => {
+  it('honors a saved rebinding: W draws and D no longer does', () => {
     localStorage.setItem('playtest-shortcuts-v1', JSON.stringify({ draw: 'j' }));
     render(
       <MemoryRouter>
@@ -1327,7 +1327,7 @@ describe('PlaytestBoard — arrows', () => {
     expect(banner()).toBeTruthy();
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(banner()).toBeNull();
-    // A cancelled arrow sends nothing. The click that armed it DID ping the
+    // A canceled arrow sends nothing. The click that armed it DID ping the
     // card (every tap does), so this asserts on the arrow specifically
     // rather than on "nothing was sent at all".
     expect(sendSignal).not.toHaveBeenCalledWith(expect.objectContaining({ kind: 'arrow' }));
@@ -1500,11 +1500,11 @@ describe('PlaytestBoard — Space moves the game on', () => {
     fireEvent.click(advancers[0]);
     expect(dispatch).toHaveBeenCalledWith({ type: 'NEXT_TURN' });
   });
-  // The hole the per-element handlers left: right-click was cancelled on cards
+  // The hole the per-element handlers left: right-click was canceled on cards
   // and on bare felt, so the native browser menu still popped on the zone
   // piles, the chrome and every gap between them — one gesture meaning two
   // different things a few pixels apart. `fireEvent` returns false when the
-  // event was cancelled, which is exactly "no native menu here".
+  // event was canceled, which is exactly "no native menu here".
   it('keeps the native browser menu off the whole board, not just the cards', () => {
     const state = seededState();
     render(
@@ -2035,7 +2035,7 @@ describe('PlaytestBoard — the command zone with partners', () => {
     );
   });
 
-  it('is an empty well with no commanders, not a labelled gap', () => {
+  it('is an empty well with no commanders, not a labeled gap', () => {
     mount(withCommanders([]));
     expect(document.querySelectorAll('.playtest-pile__commander').length).toBe(0);
     expect(screen.getByRole('button', { name: /^View the command zone\./ })).toBeTruthy();

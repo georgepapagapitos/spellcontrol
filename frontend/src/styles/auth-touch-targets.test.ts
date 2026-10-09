@@ -168,11 +168,11 @@ describe('the password field clears its reveal toggle', () => {
   });
 });
 
-describe('auth card centring', () => {
-  it('.auth-back centres with a mechanism that works in a block parent', () => {
+describe('auth card centering', () => {
+  it('.auth-back centers with a mechanism that works in a block parent', () => {
     // It previously used `align-self: center`, which is inert: its parent is
     // `.auth-card` (display: block). Only `.auth-forgot-link` sits in the flex
-    // `.auth-form`. The dismiss link rendered ~70px left of the card's centre.
+    // `.auth-form`. The dismiss link rendered ~70px left of the card's center.
     const rule = css.match(/\n\.auth-back\s*\{([^}]*)\}/);
     expect(rule, '.auth-back rule is gone').toBeTruthy();
     const body = rule![1];

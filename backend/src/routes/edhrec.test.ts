@@ -42,7 +42,7 @@ beforeEach(async () => {
 });
 
 describe('GET /api/edhrec/top', () => {
-  it('answers the contract shape, normalising the key', async () => {
+  it('answers the contract shape, normalizing the key', async () => {
     const calls = stubEdhrec({ '/pages/top/azorius.json': topAzorius });
     const res = await request(app).get(
       '/api/edhrec/top?kind=cards&colors=uw&type=creatures&period=week'
@@ -65,7 +65,7 @@ describe('GET /api/edhrec/top', () => {
     );
   });
 
-  it('gives salt null period, colour and type', async () => {
+  it('gives salt null period, color and type', async () => {
     stubEdhrec({ '/pages/top/salt.json': topSalt });
     const res = await request(app).get('/api/edhrec/top?kind=salt');
     expect(res.status).toBe(200);

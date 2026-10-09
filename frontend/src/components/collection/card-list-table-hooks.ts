@@ -32,7 +32,7 @@ export function useSubtypeSuggestions(cards: EnrichedCard[]): string[] {
   const [subtypeSuggestions, setSubtypeSuggestions] = useState<string[]>([]);
   useEffect(() => {
     const collectionSubtypeTokens = collectSubtypeTokens(cards);
-    // Cancelled on unmount: the catalog promise can outlive the component
+    // Canceled on unmount: the catalog promise can outlive the component
     // (flaked CI: a setState after vitest tore the DOM env down).
     let cancelled = false;
     fetchTypeSuggestions().then((catalog) => {

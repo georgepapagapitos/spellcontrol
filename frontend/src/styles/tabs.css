@@ -70,7 +70,7 @@
 
 .tab-count {
   font-size: var(--text-xs);
-  /* A colour, not `opacity`: opacity blends the text into whatever ground
+  /* A color, not `opacity`: opacity blends the text into whatever ground
      the tab has and dropped it under 4.5:1 (styles/text-contrast-grounds.test.ts). */
   color: var(--text-muted);
   margin-left: var(--space-1);
@@ -123,7 +123,7 @@
      blockified, so the floor worked on a phone and was dead on a tablet in
      landscape. Setting it here rather than per-surface is the root fix — any
      future floor on any `.btn` anchor now lands instead of failing quietly.
-     Centring comes with it: a min-height on an inline-block leaves the label
+     Centering comes with it: a min-height on an inline-block leaves the label
      sitting at the top of the taller box. */
   display: inline-flex;
   align-items: center;

@@ -15,7 +15,7 @@ export interface BrewerCard {
   /** Live published decks. */
   deckCount: number;
   followerCount: number;
-  /** Colour letters (W U B R G, C for colourless) by how many live decks
+  /** Color letters (W U B R G, C for colorless) by how many live decks
    *  carry them, most first, at most five. */
   topColors: string[];
   /** The commander they have the most live decks of. */
@@ -45,7 +45,7 @@ interface DeckRow {
   published_at: string;
 }
 
-/** Colour letters of one deck; a deck with none is colourless ('C'). */
+/** Color letters of one deck; a deck with none is colorless ('C'). */
 export function deckColors(identity: unknown): string[] {
   const letters = Array.isArray(identity)
     ? identity.filter((c): c is string => typeof c === 'string' && COLOR_ORDER.includes(c))

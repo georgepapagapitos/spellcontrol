@@ -1,5 +1,5 @@
 /**
- * Statistics for validating the objective against labelled gate runs: does
+ * Statistics for validating the objective against labeled gate runs: does
  * the sign of score(treatment) − score(baseline) agree with a per-deck
  * differ's verdict? Pure and seeded, so a validation run reproduces exactly.
  *

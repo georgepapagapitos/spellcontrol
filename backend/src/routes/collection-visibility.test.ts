@@ -5,7 +5,7 @@ import type { Pool } from 'pg';
 import { createTestEnv, extractSessionCookie, setSnapshotViaSyncApi } from '../test-helpers';
 
 // Who can see a collection (board T136): the setting, what narrowing it
-// revokes, and the ambient friend view honouring Private.
+// revokes, and the ambient friend view honoring Private.
 
 let app: Server;
 let pool: Pool;
@@ -111,7 +111,7 @@ describe('PATCH /api/auth/me/collection-visibility', () => {
   });
 });
 
-describe('the ambient friend collection honours the choice', () => {
+describe('the ambient friend collection honors the choice', () => {
   it('Private hides it from friends too, and says so rather than "empty"', async () => {
     const owner = await makeUser('cv-fr-owner');
     const friend = await makeUser('cv-fr-friend');

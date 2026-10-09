@@ -195,7 +195,7 @@ const LEAVE_ROOM_OPTIONS: { value: LeaveRoom; label: string }[] = [
   { value: 'full', label: 'A full page' },
 ];
 
-/** The binder's tab colour as a dot beside its name; the picker opens on tap. */
+/** The binder's tab color as a dot beside its name; the picker opens on tap. */
 function ColorDot({
   value,
   onChange,
@@ -421,7 +421,7 @@ export function BinderEditor() {
   // Set codes the user actually owns — used to populate the multi-select.
   // Gated on `isOpen` like every other memo below: this component sits in the
   // Layout on every signed-in route, and a closed editor must cost nothing
-  // (the ungated version walked and materialised the whole collection on
+  // (the ungated version walked and materialized the whole collection on
   // every page load — E276).
   const ownedSets = useMemo(() => {
     const map = new Map<string, string>(); // code → name
@@ -458,7 +458,7 @@ export function BinderEditor() {
       }
     }
 
-    // Cancelled on cleanup: the catalog promises can outlive the editor
+    // Canceled on cleanup: the catalog promises can outlive the editor
     // (a post-teardown setState flaked CI in the CardListTable twin of this).
     let cancelled = false;
     fetchTypeSuggestions().then((catalog) => {
@@ -605,7 +605,7 @@ export function BinderEditor() {
   // position order) so a binder placed behind a broader one shows the truth:
   // it may match plenty of cards and still land none of them. Skipped for
   // manual-mode binders, which don't route by rules at all — and while closed,
-  // where it was a full binder materialisation on every signed-in page (E276).
+  // where it was a full binder materialization on every signed-in page (E276).
   const effectiveLanding = useMemo(() => {
     if (!isOpen || routingMode === 'manual') return null;
     return countEffectiveLanding(
@@ -1012,7 +1012,7 @@ export function BinderEditor() {
   // The draft's own volumes, from the SAME materialize pass the preview
   // column already computes (`draftPreview`), never a second one. That pass
   // is debounced, so a capacity edit is only answered once the preview has
-  // caught up with it: until then the old answer would be labelled with the
+  // caught up with it: until then the old answer would be labeled with the
   // new size. `volumesFor` needs an unfiltered pass, which the preview is.
   const previewCurrent = !!draftPreview && draftPreview.def.fixedCapacity === fixedCapacity;
   const draftVolumes = draftPreview ? volumesFor(draftPreview) : null;

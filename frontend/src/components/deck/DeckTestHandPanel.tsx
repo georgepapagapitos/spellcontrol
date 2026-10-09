@@ -734,8 +734,8 @@ function SimStat({ label, value, tone }: { label: string; value: number; tone?: 
 function LandHistogram({ result }: { result: SimResult }) {
   // Reuses the stats panel's `.deck-curve` chart. Bar height is the share of
   // hands with that many lands; each bar is split into WUBRG segments by the
-  // colour identity of the lands actually drawn — same treatment, and same
-  // `COLOR_INFO` pip colours, as the mana curve chart.
+  // color identity of the lands actually drawn — same treatment, and same
+  // `COLOR_INFO` pip colors, as the mana curve chart.
   const max = Math.max(1, ...result.landHistogram);
   const order = ['W', 'U', 'B', 'R', 'G', 'C'];
   return (

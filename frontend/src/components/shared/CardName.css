@@ -59,7 +59,7 @@
   flex-direction: column;
   flex-wrap: nowrap;
   /* Stretch, so both lines follow the header's own text-align (the card
-     preview centres its name). */
+     preview centers its name). */
   align-items: stretch;
   max-height: none;
 }

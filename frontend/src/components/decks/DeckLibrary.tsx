@@ -135,7 +135,7 @@ export function DeckLibrary({
         (d.bracket == null || !filters.brackets.includes(d.bracket))
       )
         return false;
-      // Colors narrow to decks whose identity CONTAINS every picked colour —
+      // Colors narrow to decks whose identity CONTAINS every picked color —
       // the same "at least these" reading Discover's own filter uses, so one
       // control can't mean two things in two places.
       if (filters.colors.length > 0 && !filters.colors.every((c) => d.colorIdentity.includes(c)))

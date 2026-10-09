@@ -119,7 +119,7 @@ describe('buildTradeRadar', () => {
     expect(buildTradeRadar(lists, friend)[0].quantity).toBe(1);
   });
 
-  it('skips tracking lists — owned catalogues are not wants', () => {
+  it('skips tracking lists — owned catalogs are not wants', () => {
     const friend = [friendCard({ name: 'Sol Ring', oracleId: 'o-sol' })];
     const tracking: ListDef = {
       ...list('Eligible commanders', [entry({ name: 'Sol Ring', oracleId: 'o-sol' })]),

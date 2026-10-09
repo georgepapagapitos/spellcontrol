@@ -24,7 +24,7 @@ const css = readFileSync(join(here, 'collection.css'), 'utf8');
  *
  * 2. A sticky header pinned at `top: 0` on a surface whose scrollport top is
  *    behind the hub's sticky tab strip, so it slid under the tabs and the
- *    columns went unlabelled for the whole scroll.
+ *    columns went unlabeled for the whole scroll.
  */
 
 /** The base (non-@container) `.collection-table` block that declares the tracks. */

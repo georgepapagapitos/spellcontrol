@@ -142,7 +142,7 @@ export function useTakeback(onlineTable: OnlineTable | null): TakebackStatus {
         setMyRequestId(null);
       } else {
         // Clearing is owned by the dedicated staleApproval effect below — a
-        // timeout scheduled here would be cancelled by this effect's own
+        // timeout scheduled here would be canceled by this effect's own
         // cleanup on the user's next action (rewindTrail is a dependency),
         // and the appliedRef guard above would then block rescheduling it,
         // sticking the banner forever.

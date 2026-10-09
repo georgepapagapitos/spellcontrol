@@ -80,7 +80,7 @@
 /* The "matched no binder" fallthrough row (E296). Same row mechanics as a
    binder destination, but it is a prompt rather than a report — it earns a
    hairline separator above it and a hollow pip, because there is no binder
-   colour to show and a filled neutral dot would read as just another binder. */
+   color to show and a filled neutral dot would read as just another binder. */
 .import-routing-row--unrouted {
   align-items: flex-start;
   margin-top: var(--space-0-5);

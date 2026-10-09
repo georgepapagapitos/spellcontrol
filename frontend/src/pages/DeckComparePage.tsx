@@ -81,7 +81,7 @@ function CompareTable({
   );
 }
 
-/** A labelled band inside a compare table ("Card types", "What the cards do"). */
+/** A labeled band inside a compare table ("Card types", "What the cards do"). */
 function CompareGroup({ title, children }: { title?: ReactNode; children: ReactNode }) {
   return (
     <tbody className="deck-compare-tbody">

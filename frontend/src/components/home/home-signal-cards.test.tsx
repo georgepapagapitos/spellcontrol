@@ -230,7 +230,7 @@ describe('PriceMoversCard', () => {
     expect(mockUseCardThumb).toHaveBeenCalledWith(undefined, 'normal');
   });
 
-  it('carries polarity via glyph + sign + SR text, not colour alone', async () => {
+  it('carries polarity via glyph + sign + SR text, not color alone', async () => {
     mockGetLatestMovers.mockResolvedValue(freshMovers());
     const { container } = renderIn(<PriceMoversCard />);
     await screen.findByText('Riser');

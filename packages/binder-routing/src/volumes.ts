@@ -182,7 +182,7 @@ export function standardBinderSizes(pocketSize: PocketSize): readonly number[] {
  * `planVolumes` itself requires.
  *
  * `sizes` defaults to {@link standardBinderSizes}; a caller with its own
- * catalogue (e.g. a store's actual SKU list) can pass its own.
+ * catalog (e.g. a store's actual SKU list) can pass its own.
  */
 export function smallestFittingCapacity(
   totalPages: number,

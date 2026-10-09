@@ -555,7 +555,7 @@
 
 /* ── Re-rolled row: an engine pick, not an AI claim ──
    The AI's `why` was about the AI's card, so a re-rolled row drops it for a
-   plain, honestly-sourced line — never labelled "AI-written" (it isn't). */
+   plain, honestly-sourced line — never labeled "AI-written" (it isn't). */
 .deck-ai-tweak-why--engine {
   font-style: italic;
 }

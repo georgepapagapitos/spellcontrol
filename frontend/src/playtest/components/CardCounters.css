@@ -38,7 +38,7 @@
   gap: calc(var(--cc-size) * 0.25);
 }
 
-/* Named counters: coloured discs on the card's left edge, anchored at the
+/* Named counters: colored discs on the card's left edge, anchored at the
    bottom and clear of the P/T plates in the other corner. Oldest on top, so
    a new one lands at the bottom and lifts the rest, as on EDHPlay. */
 .card-counters__discs {
@@ -102,7 +102,7 @@ button.card-counter-slot:focus-visible {
   }
 }
 
-/* Fixed ink on fixed discs, never theme colours: a counter sits on card art,
+/* Fixed ink on fixed discs, never theme colors: a counter sits on card art,
    the same ruling as the P/T plates. */
 .card-counter {
   position: relative;

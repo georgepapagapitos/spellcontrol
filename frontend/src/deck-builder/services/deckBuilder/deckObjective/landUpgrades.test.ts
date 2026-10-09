@@ -38,12 +38,12 @@ const SMALL = { maxSwaps: 3, maxEvaluations: 60, shortlist: 12, escapes: 0, comb
 describe('landUpgrades', () => {
   const ctx = merenCtx();
 
-  it('pairs a land with the most numerous basic it shares a colour with and the most numerous it does not', () => {
+  it('pairs a land with the most numerous basic it shares a color with and the most numerous it does not', () => {
     const named = (land: string) =>
       landUpgrades(swapped, [card(land)], ctx).map((u) => swapped.cards[u.out].name);
     // Gaea's Cradle taps for green: it replaces the Forest, or a surplus Swamp.
     expect(named("Gaea's Cradle")).toEqual(['Forest', 'Swamp']);
-    // A Swamp-and-Forest land shares both colours: the Swamps give way.
+    // A Swamp-and-Forest land shares both colors: the Swamps give way.
     expect(named('Exotic Orchard')).toHaveLength(1);
   });
 
@@ -124,7 +124,7 @@ describe('sacrificesLandsToEnter', () => {
   });
 });
 
-describe('the nonbasic ceiling and the colour a land move gives up', () => {
+describe('the nonbasic ceiling and the color a land move gives up', () => {
   const owned = (nonBasicLandCount: number) =>
     merenCtx({
       customization: { deckFormat: 99, currency: 'USD', nonBasicLandCount },
@@ -147,7 +147,7 @@ describe('the nonbasic ceiling and the colour a land move gives up', () => {
     ).toBe(true);
   });
 
-  it('refuses the last green sources of a deck short of green for a colourless land', () => {
+  it('refuses the last green sources of a deck short of green for a colorless land', () => {
     const GREEN = [
       'Overgrown Tomb',
       'Woodland Cemetery',

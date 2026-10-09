@@ -1,7 +1,7 @@
 /**
  * Builds an ObjectiveContext: fills defaults, derives the page statistics the
  * quality prior reads, and memoizes every per-card read (facts, quality, mana
- * classification) so a local search that scores thousands of neighbouring
+ * classification) so a local search that scores thousands of neighboring
  * decks pays for each card once.
  */
 import type { ScryfallCard } from '@/deck-builder/types';

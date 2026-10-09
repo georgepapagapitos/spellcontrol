@@ -136,7 +136,7 @@
 }
 
 /* A real 44px target without inflating the circle. Anchored to the button's
-   LEFT edge, not centred: a centred ghost reached into the search field, so a
+   LEFT edge, not centered: a centered ghost reached into the search field, so a
    tap at the end of the query submitted it instead of placing the caret. It
    grows rightwards into the pill's own trailing padding. */
 @media (pointer: coarse) {

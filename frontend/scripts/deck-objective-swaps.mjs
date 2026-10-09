@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Adversarial validation of the whole-deck search: every swap the optimizer
-// made in a gated panel, labelled from the gate's own verdicts, replayed one
+// made in a gated panel, labeled from the gate's own verdicts, replayed one
 // at a time against the generator's deck and judged by the CURRENT objective
 // and acceptance rule (optimizer.ts judgeSwap). A good search refuses the
 // swaps the gate called bad and keeps the rest.

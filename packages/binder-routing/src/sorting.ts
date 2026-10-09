@@ -22,7 +22,7 @@ export interface SortContext {
  * the user will SEE. "Ascending release date" is newest-last, "ascending EDHREC
  * rank" is most-popular-first, and "ascending price" is cheapest-first — three
  * different mental models behind one word. Each field therefore carries the
- * concrete phrasing for both directions, so a direction control can be labelled
+ * concrete phrasing for both directions, so a direction control can be labeled
  * with its effect ("Newest first") instead of its implementation ("desc").
  */
 export const SORT_FIELDS: {

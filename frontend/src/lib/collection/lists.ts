@@ -3,7 +3,7 @@ import type { EnrichedCard, Finish, ListDef, ListEntry } from '@/types/index';
 export const MAX_LIST_NAME = 60;
 
 /**
- * True for a static list that catalogues owned cards rather than cards to
+ * True for a static list that catalogs owned cards rather than cards to
  * acquire. The single gate every acquisition surface (trade radar, cost to
  * complete, move-to-collection) checks — see ListDef.kind.
  */

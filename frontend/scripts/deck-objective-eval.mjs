@@ -2,7 +2,7 @@
 // Scores LIVE_GEN panel dumps with the whole-deck objective
 // (src/deck-builder/services/deckBuilder/deckObjective) so a deck-generation
 // gate can be prescreened mechanically before any critic is spent, and
-// validates the objective against labelled gate runs.
+// validates the objective against labeled gate runs.
 //
 //   node scripts/deck-objective-eval.mjs score \
 //     --baseline <dir> --treatment <dir> [--verdicts <gate output json>]

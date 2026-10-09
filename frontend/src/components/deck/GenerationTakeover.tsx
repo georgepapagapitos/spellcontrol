@@ -15,12 +15,12 @@ interface Props {
   percent: number;
   isExiting?: boolean;
   onExitComplete?: () => void;
-  /** Deck colour identity (WUBRG keys) — tints the completion seal-burst sparks. */
+  /** Deck color identity (WUBRG keys) — tints the completion seal-burst sparks. */
   colorIdentity?: string[];
 }
 
 // Flavor lines keyed by substring match against real generator messages.
-// First matching key wins; FALLBACK_LINES catches anything unrecognised.
+// First matching key wins; FALLBACK_LINES catches anything unrecognized.
 const FLAVOR_LINES: [string, string[]][] = [
   [
     'Reshuffling',

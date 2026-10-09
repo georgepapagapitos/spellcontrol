@@ -43,7 +43,7 @@ interface Held {
 }
 
 /** The held card's x on screen: the pointer when there is one, otherwise the
- *  centre of the moving copy (a keyboard drag has no pointer). */
+ *  center of the moving copy (a keyboard drag has no pointer). */
 function heldX(e: DragMoveEvent): number | null {
   const a = e.activatorEvent;
   if (a && 'clientX' in a) return (a as PointerEvent).clientX + e.delta.x;
@@ -74,7 +74,7 @@ function fanStyle(i: number, n: number, overlap: number, shift: number): React.C
  * The width the fan actually has: its CONTAINER (the battlefield wrap), not
  * the viewport. They were the same thing until the desktop seat grid gave the
  * wrap half the screen — a viewport-wide fan then reached across into the
- * neighbouring seat's board and under your own pile row. Observed rather than
+ * neighboring seat's board and under your own pile row. Observed rather than
  * listened for on `resize`, so a layout change that isn't a window resize
  * (the rail giving way to the grid) re-spreads too.
  */
@@ -109,7 +109,7 @@ export function Hand({ cards, fan = false, onCardMenu, onCardPreview, revealedId
     data: { insertAt: held?.insertAt ?? null },
   });
   const rootRef = useRef<HTMLDivElement | null>(null);
-  /** Each other card's resting centre, measured as the drag starts, before
+  /** Each other card's resting center, measured as the drag starts, before
    *  anything has moved. The gap is placed against these, not against where
    *  the cards have slid to, or it would chase itself across the fan. */
   const restRef = useRef<{ source: number | null; centers: number[] } | null>(null);

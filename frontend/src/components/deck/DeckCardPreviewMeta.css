@@ -170,7 +170,7 @@
   gap: var(--space-1);
 }
 
-/* Layout only. Fill, text colour, border and padding come from the shared
+/* Layout only. Fill, text color, border and padding come from the shared
    input[type='text'] rule (styles/forms-banners.css), which reads the theme
    tokens the always-dark preview panel remaps (footer-card-preview.css).
    The hand-rolled white-alpha that used to live here both duplicated that

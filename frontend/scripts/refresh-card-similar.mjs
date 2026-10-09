@@ -93,7 +93,7 @@ if (seed.length === 0) {
 console.log(`[card-similar] seeded ${seed.length} top cards; BFS-walking similar graph (cap ${CAP})…`);
 
 // BFS over the similarity graph: every visited card becomes an index key with
-// its similar list; its neighbours join the frontier. Popular-first ordering
+// its similar list; its neighbors join the frontier. Popular-first ordering
 // means the CAP keeps the most-played staples.
 const index = {};
 const queued = new Set(seed);

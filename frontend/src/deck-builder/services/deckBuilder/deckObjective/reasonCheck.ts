@@ -174,7 +174,7 @@ export function reasonProblem(
         if (sweeps.length === 0) return 'no "all" or "each" effect on the face you cast';
         if (sweeps.every((s) => ONE_SIDED.test(s))) return 'one-sided';
         // A fixed exception ("except for Krakens") still sweeps this deck; a
-        // colour the caster names need not.
+        // color the caster names need not.
         if (sweeps.every((s) => /\bof the colou?r of your choice\b/i.test(s)))
           return 'it spares the color its caster names';
         if (!facts.interaction.some((f) => f.scope === 'mass' && f.side === 'all'))

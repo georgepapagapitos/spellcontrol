@@ -30,7 +30,7 @@ describe('playtest phone query', () => {
     expect(css).not.toContain('max-height: 420px');
   });
 
-  // CardHoverPreview centres the preview on an upright phone; the stylesheet
+  // CardHoverPreview centers the preview on an upright phone; the stylesheet
   // gives the hand its own row there, as a portrait block nested in the phone
   // block (a second top-level 767 would be one more off-tier breakpoint). The
   // two must mean the same screens.

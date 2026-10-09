@@ -28,7 +28,7 @@ export function useLoadSamples() {
     } catch (err) {
       const msg = userMessage(err, "Couldn't load the sample cards. Try again in a moment.");
       setError(msg);
-      // Propagate to the global error banner too (matches BindersIndexPage behaviour).
+      // Propagate to the global error banner too (matches BindersIndexPage behavior).
       setGlobalError(msg);
       return false;
     } finally {

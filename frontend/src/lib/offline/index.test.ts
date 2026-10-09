@@ -135,7 +135,7 @@ describe('offlineSearchCards', () => {
   });
 
   // Defect A (iter-6 Slice B follow-up, CRITICAL): a colorless commander must
-  // not seat coloured cards (live repro: Kozilek, the Great Distortion seating
+  // not seat colored cards (live repro: Kozilek, the Great Distortion seating
   // Omniscience — a {U}{U}{U} enchantment — since scryfallFill.ts's
   // fillWithScryfall has no client-side color-identity check and relies
   // entirely on this query-string filter). Colorless is spelled ['C'], which
@@ -156,7 +156,7 @@ describe('offlineSearchCards', () => {
   // AvatarPickerSheet) passes [] with no commander in sight. The implicit
   // `id<=c` fallback this file used to carry made all of them colorless-only —
   // on native, where the offline bundle is what serves search, "tainted"
-  // returned NO MATCHES because every Tainted card is coloured.
+  // returned NO MATCHES because every Tainted card is colored.
   it('does not restrict by color for an empty (no-commander) colorIdentity', async () => {
     await replaceOracleCards([
       slim('o-omni', 'Omniscience', { colorIdentity: ['U'], typeLine: 'Enchantment' }),

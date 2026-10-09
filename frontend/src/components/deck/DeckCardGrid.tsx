@@ -417,7 +417,7 @@ export function DeckCardGrid({
                         setOpenCell(cellKey);
                         // A strip low on the screen opens most of its card below
                         // the fold. Scroll just enough to show it whole, never to
-                        // centre it: a card that already fits stays under the
+                        // center it: a card that already fits stays under the
                         // finger. The cell is a full card tall at rest (the tail
                         // only overlaps it), so its box is already the open card.
                         e.currentTarget.parentElement?.scrollIntoView({

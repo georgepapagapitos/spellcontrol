@@ -479,7 +479,7 @@ export function DeckEditorPage() {
   );
   // One-shot deep link from the decks-index overflow menu ("Export deck" →
   // `/decks/:id?export=1`): the open flag is captured at mount via the lazy
-  // useState initialiser (mirrors CollectionPage's `?add=` pattern) so it
+  // useState initializer (mirrors CollectionPage's `?add=` pattern) so it
   // stays true even after the param is stripped below and re-renders with an
   // empty searchParams. Hoisted (rather than owned by DeckDisplay) so the
   // mobile action sheet can open Export without rendering a duplicate button.
@@ -530,7 +530,7 @@ export function DeckEditorPage() {
   // The exact printing behind `pendingAdd` when the add came with one (a search
   // result, a card dropped from Scryfall), so every way out of the full-deck
   // prompt stores that printing instead of re-resolving the name to the
-  // cheapest one. Honoured only while its name matches `pendingAdd`.
+  // cheapest one. Honored only while its name matches `pendingAdd`.
   const [pendingAddPrinting, setPendingAddPrinting] = useState<ScryfallCard | null>(null);
   const pendingPrinting =
     pendingAdd && pendingAddPrinting?.name === pendingAdd ? pendingAddPrinting : null;
@@ -1341,7 +1341,7 @@ export function DeckEditorPage() {
   );
   // New arrivals, tailored to THIS deck: only cards the coach recommends for
   // it or that finish a one-away combo (lib/coach/arrival-watchlist.ts says which
-  // lanes, and why not the owned-only ones). The raw arrivals are "in colour
+  // lanes, and why not the owned-only ones). The raw arrivals are "in color
   // identity, acquired since the deck last changed", which on any real import
   // reads as random: every red card you bought lit up a Krenko deck.
   const coachWanted = useMemo(

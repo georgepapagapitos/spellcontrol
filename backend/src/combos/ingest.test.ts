@@ -39,7 +39,7 @@ describe('streamSpellbookVariants', () => {
   // the server instead of failing the ingest.
   //
   // A rejected promise is the whole point. Without the forward these do not
-  // fail — they CRASH the worker, which is precisely the production behaviour.
+  // fail — they CRASH the worker, which is precisely the production behavior.
   // (Verified: with `pipeForwardingErrors` reverted to a bare `.pipe()`, the
   // run dies with "Channel closed"/worker exit rather than reporting a failure.)
   it('a dropped download rejects the caller instead of killing the process (object payload)', async () => {
@@ -293,7 +293,7 @@ describe('parseVariant', () => {
     expect(result?.bracketTag).toBeNull();
   });
 
-  it('old numeric v.bracket field is ignored in favour of bracketTag', () => {
+  it('old numeric v.bracket field is ignored in favor of bracketTag', () => {
     const result = parseVariant({
       id: 'x',
       uses: [{ card: { name: 'Card', oracleId: 'oa' } }],

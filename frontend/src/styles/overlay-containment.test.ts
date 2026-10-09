@@ -256,12 +256,12 @@ describe('coarse-pointer touch floor', () => {
     ['components/trade/TradeComposer.css', '.trade-spare-toggle'],
     // Offer chips are buttons now (they open the card-preview carousel) and
     // they WRAP in a flex row, so they take the floor on their real box — a
-    // ghost would overlap the neighbouring chip and open the wrong card.
+    // ghost would overlap the neighboring chip and open the wrong card.
     ['components/trade/TradeOfferList.css', '.trade-offer-chip'],
     // The composer's result row is now TWO buttons — the thumb previews, the
     // rest adds. Both take the floor on their real boxes: the crowded axis
     // here is VERTICAL (rows stack at 44px), so a ghost on either would
-    // overlap the neighbouring ROW and add or preview the wrong card. Same
+    // overlap the neighboring ROW and add or preview the wrong card. Same
     // class carries the accept dialog's card-head thumb.
     ['components/trade/TradeComposer.css', '.trade-thumb-btn'],
     ['components/trade/TradeComposer.css', '.trade-result-pick'],
@@ -388,11 +388,11 @@ describe('coarse-pointer touch floor', () => {
     // The profile's "Resume" link in the saved-draft line (E586): inline text.
     ['components/profile/ProfileHeader.css', '.public-profile-resume-link'],
     // The trade "+" on a card tile: a 30px circle in the tile's caption corner,
-    // between the art above and the neighbouring tile, so it ghosts. Hit-test
+    // between the art above and the neighboring tile, so it ghosts. Hit-test
     // reasoning (measured geometry, phone 3-up grid with an 8px gap): the
     // button sits 4px from the cell's right edge and 3px above its bottom, so
     // the 44px ghost reaches 3px past the right edge and 4px below the bottom,
-    // both inside the 8px grid gap, never into the neighbouring tile or the
+    // both inside the 8px grid gap, never into the neighboring tile or the
     // row below; upward it reaches 4px into the art's bottom edge, which holds
     // no control on this surface (the corner badges sit above that).
     ['components/trade/TradeAddButton.css', '.trade-add::after'],

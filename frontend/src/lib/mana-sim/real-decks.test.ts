@@ -39,7 +39,7 @@ describe('a tuned five-colour manabase against the same deck on 37 Forests', () 
   const tuned = evaluateManabase(jodah(), OPTIONS);
   const forests = evaluateManabase(jodah([['Forest', 37]]), OPTIONS);
 
-  it('casts its spells with the right colours far more often', () => {
+  it('casts its spells with the right colors far more often', () => {
     expect(tuned.castability.onCurveGivenMana).toBeGreaterThan(0.88);
     expect(forests.castability.onCurveGivenMana).toBeLessThan(0.45);
     expect(tuned.castability.belowKarstenBar + 15).toBeLessThan(
@@ -53,12 +53,12 @@ describe('a tuned five-colour manabase against the same deck on 37 Forests', () 
     expect(cmd.name).toBe('Jodah, the Unifier');
     expect(cmd.onCurveGivenMana).toBeGreaterThan(0.9);
     expect(starved.onCurveGivenMana).toBeLessThan(0.05);
-    // And it says why: every non-green colour is missing.
+    // And it says why: every non-green color is missing.
     for (const c of ['W', 'U', 'B', 'R'] as const) expect(starved.shortBy[c]).toBeGreaterThan(0.05);
     expect(starved.shortBy.G).toBeUndefined();
   });
 
-  it("names the hardest spells in the tuned list and the colour they're short of", () => {
+  it("names the hardest spells in the tuned list and the color they're short of", () => {
     const bolas = tuned.cards.find((c) => c.name === 'Nicol Bolas, Dragon-God');
     expect(bolas?.onCurveGivenMana).toBeLessThan(0.75);
     expect(bolas?.shortBy.B).toBeGreaterThan(0.2);
@@ -71,7 +71,7 @@ describe('a tuned five-colour manabase against the same deck on 37 Forests', () 
 describe('33 against 38 lands in the same Azorius deck', () => {
   // 36 lands is the base list; 38 swaps Mulldrifter and Opposition for a
   // Plains and an Island; 33 swaps two Plains and an Island for Negate,
-  // Disenchant and Divination (real cards, same colours).
+  // Disenchant and Divination (real cards, same colors).
   const lands38 = evaluateManabase(
     brago(
       BRAGO_UNTAPPED_DUALS,
@@ -106,9 +106,9 @@ describe('33 against 38 lands in the same Azorius deck', () => {
     expect(lands38.flood.rate).toBeGreaterThan(lands33.flood.rate);
   });
 
-  it('casts more spells on curve on 38 (mana, not colour, is what 33 lacks)', () => {
+  it('casts more spells on curve on 38 (mana, not color, is what 33 lacks)', () => {
     expect(lands38.castability.onCurve).toBeGreaterThan((lands33.castability.onCurve ?? 1) + 0.02);
-    // Given the mana, colours are equally fine: same dual ratio in both.
+    // Given the mana, colors are equally fine: same dual ratio in both.
     expect(
       Math.abs(
         (lands38.castability.onCurveGivenMana ?? 0) - (lands33.castability.onCurveGivenMana ?? 0)
@@ -117,7 +117,7 @@ describe('33 against 38 lands in the same Azorius deck', () => {
   });
 });
 
-describe('taplands against untapped duals, same colours, same count', () => {
+describe('taplands against untapped duals, same colors, same count', () => {
   const untapped = evaluateManabase(brago(BRAGO_UNTAPPED_DUALS), OPTIONS);
   const tapped = evaluateManabase(brago(BRAGO_TAPPED_DUALS), OPTIONS);
 
@@ -135,7 +135,7 @@ describe('taplands against untapped duals, same colours, same count', () => {
     }
   });
 
-  it('catches up a turn later: colours given the mana are about even by next turn', () => {
+  it('catches up a turn later: colors given the mana are about even by next turn', () => {
     const late = (r: ManaSimResult) => bandMean(r, 'nextTurnGivenMana', (mv) => mv >= 4);
     expect(Math.abs(late(untapped) - late(tapped))).toBeLessThan(0.02);
   });

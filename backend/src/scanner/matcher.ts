@@ -141,7 +141,7 @@ async function runMatch(
   const t0 = Date.now();
 
   // Decode the image once with sharp, fork into two preprocessing branches:
-  // a 32×32 grey buffer for pHash and a 256×256 RGB tensor for CLIP. Sharp
+  // a 32×32 gray buffer for pHash and a 256×256 RGB tensor for CLIP. Sharp
   // amortizes the heavy decode (libvips); each downstream resize is cheap.
   const image = sharp(imageBuffer);
   const decodeStart = Date.now();

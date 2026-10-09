@@ -29,7 +29,7 @@ function rectOf(ping: TablePing, mySeat: number | null): Placed['rect'] | null {
 
 /**
  * Rings radiating off whichever cards are being pinged right now, laid over
- * the whole viewport and coloured by the seat that pinged.
+ * the whole viewport and colored by the seat that pinged.
  *
  * Measured once per ping rather than on a timer (unlike `TableArrows`): a
  * ring lives about a second, and a card that moves inside that second is a

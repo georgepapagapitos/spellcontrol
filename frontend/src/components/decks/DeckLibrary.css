@@ -76,8 +76,8 @@
 
 /* Desktop: the pinned deck spans the grid's row as a wide feature, art left
    and details right, instead of a half-width tile with dead space beside it.
-   The link becomes a two-column grid: banner over its colour bar on the left,
-   the body centred on the right across both rows. A phone and a tablet keep
+   The link becomes a two-column grid: banner over its color bar on the left,
+   the body centered on the right across both rows. A phone and a tablet keep
    the stacked tile above. */
 @media (min-width: 1024px) {
   .decks-index-list.is-grid.deck-library-featured {

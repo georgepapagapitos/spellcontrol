@@ -9,7 +9,7 @@ interface Props {
   /** All allocations (deck and/or cube) covering this row's copies. Empty → no badge. */
   allocations: AllocationInfo[];
   /**
-   * Render the single-owner badge as a plain labelled marker instead of a link.
+   * Render the single-owner badge as a plain labeled marker instead of a link.
    * For surfaces where following it would abandon an in-progress flow — the
    * trade dialogs, where leaving for the deck drops the offer being composed.
    * Tooltip and accessible name are unchanged; only the navigation goes.
@@ -17,7 +17,7 @@ interface Props {
   nonInteractive?: boolean;
   /**
    * `art` for a mark on card art (a grid tile's corner cluster): the on-art
-   * identity disc, filled with the owner's colour, with no count.
+   * identity disc, filled with the owner's color, with no count.
    * `row` (default) is the tinted chip beside a name.
    */
   placement?: 'row' | 'art';
@@ -35,7 +35,7 @@ interface Owner {
 }
 
 /**
- * - deck: a deck holds a copy. The deck's colour, Layers glyph.
+ * - deck: a deck holds a copy. The deck's color, Layers glyph.
  * - cube: a physical cube holds a copy. Violet (--cube-color), Boxes glyph.
  * - listed: a cube lists the card but holds no copy. The cube mark drawn
  *   hollow and dashed (a dashed row chip; on art, the scrim with a dashed
@@ -74,9 +74,9 @@ function OwnerBadge({
   const label = multi
     ? `${words.many(owners.length)}: ${owners.map((o) => o.name).join(', ')}`
     : `${words.one}: ${owners[0].name}`;
-  // Several decks have no one colour; every cube kind is the cube's violet.
+  // Several decks have no one color; every cube kind is the cube's violet.
   const color = kind === 'deck' && multi ? 'var(--accent)' : owners[0].color;
-  // On art, several deck/cube owners have no one colour, so the plate's
+  // On art, several deck/cube owners have no one color, so the plate's
   // `many` gives them the neutral scrim rather than passing the accent off as
   // an owner's. A listing is always the cube's violet ring, one cube or many.
   const identity = kind === 'listed' ? 'listed' : multi ? 'many' : 'one';

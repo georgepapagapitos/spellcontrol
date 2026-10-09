@@ -65,7 +65,7 @@ describe('CtxMenuShell', () => {
     expect(getByRole('menu', { name: 'Brago' })).toBeTruthy();
   });
 
-  it('renders the sheet variant as a labelled modal dialog with a visible title', () => {
+  it('renders the sheet variant as a labeled modal dialog with a visible title', () => {
     const { getByRole, getByText } = render(
       <CtxMenuShell x={0} y={0} title="Brago" variant="sheet" onClose={vi.fn()}>
         {items()}

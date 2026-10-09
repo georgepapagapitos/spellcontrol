@@ -109,7 +109,7 @@ export const END_MARK = '---END---';
  * that ended in a tool call is research, so drop it — is only true if the model
  * never searches while writing. Measured on the raw stream, it does: it emits a
  * section label, THEN searches, then writes the body, so the body arrived in
- * markerless turns and was discarded as research (a labelled section came back
+ * markerless turns and was discarded as research (a labeled section came back
  * EMPTY in 3 of 6 runs). Asking the prompt to search first did not hold, and
  * `tool_choice: none` after the answer opens was measured and rejected — denied
  * the tool the model narrates a search it cannot perform and never finishes.
@@ -370,7 +370,7 @@ export const isCollectionScope = (scope: AiScope): scope is 'owned' | 'uncommitt
   scope === 'owned' || scope === 'uncommitted';
 
 /** Parse an untrusted scope. `ownedOnly` is the pre-scope wire field a native
- *  bundle built before T112 still sends — honoured so a stale bundle keeps working. */
+ *  bundle built before T112 still sends — honored so a stale bundle keeps working. */
 export function parseAiScope(scope: unknown, ownedOnly?: unknown): AiScope {
   if (scope === 'owned' || scope === 'uncommitted' || scope === 'budget' || scope === 'unowned')
     return scope;
@@ -625,7 +625,7 @@ export interface OracleEntry {
  * checkable: a cited card must be in the decklist or in what it fetched.
  *
  * Pure, so it tests without a cache: `isRealCard` decides what counts as a card
- * name. Over-collects capitalised runs and lets that predicate reject the
+ * name. Over-collects capitalized runs and lets that predicate reject the
  * prose, which is the same shape the eval's grader uses — a phrase only counts
  * once the card database confirms it.
  *
@@ -646,7 +646,7 @@ export function unverifiedCitations(
 
   for (const match of prose.matchAll(re)) {
     const words = match[0].replace(/[\s,]+$/, '').split(/\s+/);
-    // Scan every window in the run, not just its prefixes. A capitalised run
+    // Scan every window in the run, not just its prefixes. A capitalized run
     // routinely starts on an ordinary word — "Cut Wooded Foothills", "Swap
     // Wooded Foothills for Verdant Catacombs" — and a prefix-only scan tries
     // "Cut Wooded Foothills", then "Cut Wooded", and never reaches the card.

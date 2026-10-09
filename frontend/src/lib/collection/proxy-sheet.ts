@@ -43,7 +43,7 @@ const byName = (a: DeckCard, b: DeckCard) => a.card.name.localeCompare(b.card.na
 
 /**
  * Every copy the deck wants, commanders first, then the mainboard grouped by
- * name so a 4-of prints as four neighbours, then the sideboard when asked.
+ * name so a 4-of prints as four neighbors, then the sideboard when asked.
  * Considering is never part of the deck.
  */
 export function proxySlots(

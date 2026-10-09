@@ -1,10 +1,10 @@
 // @vitest-environment happy-dom
 /**
- * The "+" in the review's text buttons shares a centred line with its label.
+ * The "+" in the review's text buttons shares a centered line with its label.
  *
  * It sat above the label because the glyph was passed as a CHILD of Button,
  * which lands it inside the inline `.btn-label` span, on the text baseline.
- * Button's `icon` slot makes it a sibling flex item the row centres. The first
+ * Button's `icon` slot makes it a sibling flex item the row centers. The first
  * two tests pin the rendered structure, the third the rule for the one control
  * that is not a Button, and the last scans the folder so a new one can't
  * reintroduce the child form.
@@ -55,7 +55,7 @@ beforeEach(() => {
   useTradeDraftsStore.setState({ drafts: {} });
 });
 
-describe('the review centres its text-button icons', () => {
+describe('the review centers its text-button icons', () => {
   it('puts the "+" of the empty-side buttons in Button\'s icon slot, not in its label', () => {
     render(<TradeReview {...props} />);
     for (const name of ["Pick from Pal's cards", 'Pick from your cards']) {
@@ -77,7 +77,7 @@ describe('the review centres its text-button icons', () => {
     expect(button.querySelector('.btn-label svg')).toBeNull();
   });
 
-  it('declares the note toggle as a centred flex row whose glyph is its own item', () => {
+  it('declares the note toggle as a centered flex row whose glyph is its own item', () => {
     const css = readFileSync(join(here, 'TradeReview.css'), 'utf8');
     const rule = (selector: string) => {
       const at = css.indexOf(`${selector} {`);

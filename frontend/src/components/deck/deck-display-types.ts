@@ -255,7 +255,7 @@ export interface DeckDisplayProps {
    */
   activeView?: DeckView;
   /** False when the page shows no view tabs (a lone Deck view), so this is
-   *  not labelled as a tab panel. */
+   *  not labeled as a tab panel. */
   tabbed?: boolean;
   /** Reveal the standalone Test hand panel. In the toolbar only when the page
    *  has no header Deck menu of its own (`deckActionsInHeader`). */

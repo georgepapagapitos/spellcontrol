@@ -168,7 +168,7 @@ describe('extractListingFields', () => {
 
   // A non-commander deck's colors come from its cards, as on the owner's own
   // deck index. Reading only the commander left every Pauper deck colorless on
-  // Discover and /u/:username: no pips, a grey strip.
+  // Discover and /u/:username: no pips, a gray strip.
   it('colors a non-commander deck from its cards, most-used color first', () => {
     const slot = (name: string, color_identity: string[]) => ({
       slotId: name,

@@ -5,7 +5,7 @@
  * `HordeLevel` picks the shape of the fight (life pool, library size, setup
  * turns, how fast the horde reveals cards, when bosses show up, how gentle
  * the opening draws are) for a given survivor count; `overrides` is the
- * "Customise" panel layered on top.
+ * "Customize" panel layered on top.
  *
  * The settings TYPES themselves live in `@spellcontrol/game-core` (the
  * online co-op table stores a resolved `HordeSettings` in `GameState.horde`)
@@ -69,7 +69,7 @@ function presetFor(level: HordeLevel, survivors: number): HordeSettings {
 }
 
 /** Resolve a level + survivor count into concrete settings, with `overrides`
- *  (the Customise panel) winning field-by-field. `survivors` is clamped to
+ *  (the Customize panel) winning field-by-field. `survivors` is clamped to
  *  1..4 before the preset math runs. */
 export function resolveHordeSettings(
   level: HordeLevel,

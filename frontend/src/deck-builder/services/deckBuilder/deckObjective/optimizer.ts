@@ -843,7 +843,7 @@ export function* optimizeSteps(
     for (const c of taken.move.in) tabuOut.set(key(c.name), applied.length + opts.tabuTenure);
     for (const c of outs) tabuIn.set(key(c.name), applied.length + opts.tabuTenure);
     current = applyMove(current, taken.move);
-    // The new deck is the new slot reference: every next neighbour differs
+    // The new deck is the new slot reference: every next neighbor differs
     // from it in one position.
     ctx = withSlots(current);
     currentScore = full(current);

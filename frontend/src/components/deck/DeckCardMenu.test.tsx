@@ -100,7 +100,7 @@ describe('deck card menu', () => {
     expect(queryByRole('menu', { name: 'Bear' })).toBeNull();
   });
 
-  it('groups its actions under labelled headings rather than one flat list', () => {
+  it('groups its actions under labeled headings rather than one flat list', () => {
     const { container, getByRole } = renderDeck({ onRemoveCard: vi.fn(), onEditCard: vi.fn() });
     fireEvent.contextMenu(rowFor(container, 'Bear'));
     const menu = getByRole('menu', { name: 'Bear' });

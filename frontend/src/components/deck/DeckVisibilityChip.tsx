@@ -43,7 +43,7 @@ export function DeckVisibilityChip({ deckId, deckName, colorIdentity, variant = 
   return (
     <>
       {variant === 'button' ? (
-        // A labelled button among the header actions: the state on its face,
+        // A labeled button among the header actions: the state on its face,
         // the visibility glyph beside it, "Sharing" in its name.
         <Button
           className="deck-editor-action-btn deck-visibility-btn"

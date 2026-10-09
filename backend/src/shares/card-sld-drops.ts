@@ -11,7 +11,7 @@
  *
  * Same snapshot-on-disk trick as the tags: Vite copies `public/sld-drops.json`
  * into the frontend `dist`, which the Dockerfile copies to `backend/public`.
- * Missing in dev/test → no decoration, flat-SLD behaviour, never an error.
+ * Missing in dev/test → no decoration, flat-SLD behavior, never an error.
  */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';

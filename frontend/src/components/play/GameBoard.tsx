@@ -96,7 +96,7 @@ interface Props {
  * its number and faint ± hints. Tap the left half of a panel to decrement life,
  * the right half to increment (top/bottom when tapOrientation is vertical); a
  * long press jumps ±10 and repeats. Swipe a seat toward its player to pull its
- * drawer (name, partner, counters, colour, turn, out) down over it like a
+ * drawer (name, partner, counters, color, turn, out) down over it like a
  * shade; swipe it away from them for commander damage. Tap the number to type
  * a total.
  *
@@ -169,7 +169,7 @@ export function GameBoard({
   // How the ring's current open was triggered — a real pointer click's
   // synthesized `MouseEvent.detail` is >=1, a keyboard (Enter/Space)
   // activation's is 0. Keyboard opening should focus the first key with a
-  // visible ring (WAI-ARIA menu behaviour); a pointer open shouldn't draw one
+  // visible ring (WAI-ARIA menu behavior); a pointer open shouldn't draw one
   // (a tap on the hub is not "selecting" High roll) — see BoardHubMenu.
   // State, not a ref: BoardHubMenu reads this during render.
   const [hubOpenedByKeyboard, setHubOpenedByKeyboard] = useState(true);

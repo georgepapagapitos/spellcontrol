@@ -1,4 +1,4 @@
-// E585: the deck-analysis mana tally reads a land's colours from the abilities
+// E585: the deck-analysis mana tally reads a land's colors from the abilities
 // that always work, not from Scryfall's produced_mana (which also lists what a
 // paid, sacrifice or spend-restricted ability makes). Real Oracle text.
 import { describe, expect, it } from 'vitest';
@@ -13,7 +13,7 @@ const colours = (name: string, identity: string[] = ['W', 'U', 'B', 'R', 'G']) =
   return producedManaColors(card, new Set(identity)).sort();
 };
 
-describe('a land that makes colour only by paying or by restriction counts as {C}', () => {
+describe('a land that makes color only by paying or by restriction counts as {C}', () => {
   it.each([
     'Daily Bugle Building',
     'Captivating Cave',
@@ -27,7 +27,7 @@ describe('a land that makes colour only by paying or by restriction counts as {C
   });
 });
 
-describe('lands that tap for colour unconditionally keep it', () => {
+describe('lands that tap for color unconditionally keep it', () => {
   it('Command Tower clamps to the identity', () => {
     expect(colours('Command Tower', ['W', 'G'])).toEqual(['G', 'W']);
   });
@@ -38,7 +38,7 @@ describe('lands that tap for colour unconditionally keep it', () => {
     expect(colours('Exotic Orchard', ['B', 'G'])).toEqual(['B', 'G']);
     expect(colours('Cactus Preserve', ['B', 'G'])).toEqual(['B', 'G']);
   });
-  it('a shock land keeps both colours', () => {
+  it('a shock land keeps both colors', () => {
     expect(colours('Hallowed Fountain')).toEqual(['U', 'W']);
   });
 });

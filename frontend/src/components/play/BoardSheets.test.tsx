@@ -74,7 +74,7 @@ beforeEach(() => {
 });
 
 describe('the sheet shell', () => {
-  it('is a labelled modal dialog with its meta line as its description', () => {
+  it('is a labeled modal dialog with its meta line as its description', () => {
     render(<HistorySheet game={activeGame()} onClose={vi.fn()} />);
     const dialog = screen.getByRole('dialog', { name: 'History' });
     expect(dialog.getAttribute('aria-modal')).toBe('true');

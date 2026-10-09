@@ -6,9 +6,9 @@ import { dirname, join, relative, sep } from 'node:path';
 
 // Every index tile answers the pointer the same way, defined once in
 // styles/base-layout.css (§ Index tiles): the frame rings in the tile's own
-// colour and lifts, and in grid the cover art zooms.
+// color and lifts, and in grid the cover art zooms.
 //
-// It was three behaviours, each family writing its own: Discover and the
+// It was three behaviors, each family writing its own: Discover and the
 // profile tiles zoomed the art, while the decks and binders indexes tinted a
 // border. #2486 then removed that border from every tile, so the decks and
 // binders hover did nothing at all, and nothing noticed. A family may still

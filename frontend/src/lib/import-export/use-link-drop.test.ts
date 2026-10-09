@@ -39,7 +39,7 @@ describe('hasLinkPayload / readLinkPayload', () => {
     expect(hasLinkPayload([])).toBe(false);
   });
 
-  it('joins every text flavour that is present', () => {
+  it('joins every text flavor that is present', () => {
     const data = { 'text/uri-list': 'a', 'text/plain': 'c' } as Record<string, string>;
     const dt = { getData: (t: string) => data[t] ?? '' } as unknown as DataTransfer;
     expect(readLinkPayload(dt)).toBe('a\nc');
@@ -176,7 +176,7 @@ describe('useLinkDrop', () => {
   it('comes back on dragover when the enter was missed or the watchdog fired mid-drag', () => {
     const { result } = renderHook(() => useLinkDrop(vi.fn()));
 
-    // No dragenter at all (a real browser run showed a drag after a cancelled
+    // No dragenter at all (a real browser run showed a drag after a canceled
     // one arriving without one): the first dragover shows it.
     drag('dragover', LINK);
     expect(result.current).toBe(true);

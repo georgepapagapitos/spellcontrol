@@ -19,7 +19,7 @@
 export interface SkinOption {
   id: string;
   label: string;
-  /** The colour the picker's swatch shows. */
+  /** The color the picker's swatch shows. */
   swatch: string;
 }
 

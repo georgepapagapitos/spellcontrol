@@ -79,10 +79,10 @@ function isFormatLegal(c: EnrichedCard, legalityKey: string): boolean {
 /**
  * Can this owned card go in the mainboard of a commander deck? The two rules
  * the mainboard enforces and the out-of-deck zones don't: the commander's
- * colour identity, and legality in the format. `commanderCI` is null while
- * the command zone is still empty: every colour is allowed until there is an
+ * color identity, and legality in the format. `commanderCI` is null while
+ * the command zone is still empty: every color is allowed until there is an
  * identity to check against. Null and not `[]`, because `[]` is a real
- * identity (a colorless commander) that must keep hiding coloured cards.
+ * identity (a colorless commander) that must keep hiding colored cards.
  */
 function isMainboardLegal(
   c: EnrichedCard,
@@ -209,7 +209,7 @@ interface Props {
   legalityKey?: string;
   /**
    * The format has a command zone but nothing sits in it yet (E465). Adding is
-   * allowed before a commander: the format's legality still applies, colour
+   * allowed before a commander: the format's legality still applies, color
    * identity doesn't (there is none yet), and one quiet line says so.
    * Suggestions stay off (`enableSuggestions`), since they are read against a
    * commander.
@@ -557,7 +557,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
       const { subtypes } = parseTypeLine(c.typeLine);
       for (const s of subtypes) collectionSubtypeTokens.add(s);
     }
-    // Cancelled on unmount: the catalog promise can outlive the component
+    // Canceled on unmount: the catalog promise can outlive the component
     // (a post-teardown setState flaked CI in the CardListTable twin of this).
     let cancelled = false;
     fetchTypeSuggestions().then((catalog) => {
@@ -1003,7 +1003,7 @@ interface CollectionResultsProps extends ResultsProps, FitProps {
   /**
    * How the commander deck's colour-identity + legality rule applies to these
    * rows. 'filter' hides the offenders (mainboard, where they'd be illegal),
-   * 'badge' shows them labelled (sideboard / Considering, where parking an
+   * 'badge' shows them labeled (sideboard / Considering, where parking an
    * off-colour or illegal card is legitimate but still worth naming), 'off' is
    * a format with no commander to check against.
    */

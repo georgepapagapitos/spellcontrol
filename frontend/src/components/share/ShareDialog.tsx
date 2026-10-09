@@ -51,7 +51,7 @@ interface Props {
   resourceLabel: string;
   /** Deck-only: the commander(s)' color identity, for the first-publish seal
    *  moment's motes (E150). Omit for identity-less / non-deck shares — the
-   *  seal falls back to gold, per STYLE_GUIDE's "colours are honest" ruling. */
+   *  seal falls back to gold, per STYLE_GUIDE's "colors are honest" ruling. */
   colorIdentity?: string[];
   onClose: () => void;
 }

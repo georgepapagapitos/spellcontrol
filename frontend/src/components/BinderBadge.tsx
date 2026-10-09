@@ -21,7 +21,7 @@ interface Props {
    */
   onSelect?: (binder: BinderInfo) => void;
   /**
-   * Render the single-binder badge as a plain labelled marker with no action at
+   * Render the single-binder badge as a plain labeled marker with no action at
    * all — for surfaces that want the indicator but no way out, like the trade
    * dialogs, where leaving mid-offer loses it. Takes precedence over
    * `onSelect`; tooltip and accessible name are unchanged.
@@ -29,7 +29,7 @@ interface Props {
   nonInteractive?: boolean;
   /**
    * `art` for a mark on card art (a grid tile's corner cluster): the on-art
-   * identity disc, filled with the binder's colour, with no count.
+   * identity disc, filled with the binder's color, with no count.
    * `row` (default) is the tinted chip beside a name.
    */
   placement?: 'row' | 'art';
@@ -56,7 +56,7 @@ export function BinderBadge({ binders, onSelect, nonInteractive, placement = 'ro
       ? `In binder: ${unique[0].name}`
       : `In ${unique.length} binders: ${summary}`;
 
-  // One binder: its colour. On art it fills the identity disc; on a row it
+  // One binder: its color. On art it fills the identity disc; on a row it
   // tints the chip.
   const oneStyle = (color: string): React.CSSProperties =>
     art
@@ -65,7 +65,7 @@ export function BinderBadge({ binders, onSelect, nonInteractive, placement = 'ro
   const glyph = <Notebook width={12} height={12} strokeWidth={2} aria-hidden />;
 
   // A marker with no action, on art: the plate. Several binders have no one
-  // colour, so they stay on the neutral scrim (the plate's `many`), and the count
+  // color, so they stay on the neutral scrim (the plate's `many`), and the count
   // stays in the tooltip.
   if (art && (unique.length > 1 || nonInteractive)) {
     const many = unique.length > 1;

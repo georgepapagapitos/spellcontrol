@@ -66,7 +66,7 @@ const own = (
 });
 
 describe('Home and the deck page count the same new cards', () => {
-  // The bug this guards: Home counted every card in colour identity bought
+  // The bug this guards: Home counted every card in color identity bought
   // since the last edit (and summed copies); the deck page narrowed to the
   // coach's picks and counted names. Home said +2 and the deck showed none.
   const goblins = deck({

@@ -57,7 +57,7 @@ describe('resolveFriendPreview', () => {
     expect(cards.map((c) => c.name)).toEqual(['Sol Ring', 'Arcane Signet']);
   });
 
-  it('maps a card to its slide THROUGH indexOf, so a dropped lookup never opens its neighbour', async () => {
+  it('maps a card to its slide THROUGH indexOf, so a dropped lookup never opens its neighbor', async () => {
     // The middle card fails to resolve. A positional index would then point
     // the third tile at the second slide — i.e. open the wrong card.
     getCardsByNames.mockResolvedValue(

@@ -99,7 +99,7 @@ describe('packInOrder', () => {
 describe('listColumnCount', () => {
   // The screenshot that motivated this (2026-09-19): a 100-card Commander
   // deck on a ~1700px list got six 280px columns — one section each, most of
-  // them empty below the fold — and every card name ellipsised to ~90px.
+  // them empty below the fold — and every card name ellipsized to ~90px.
   const commanderDeck = [
     { rows: Array(26) },
     { rows: Array(6) },

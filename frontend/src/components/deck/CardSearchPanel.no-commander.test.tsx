@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 /**
  * E465: a commander deck can take cards before it has a commander. Until one
- * is chosen there is no colour identity to check, so the mainboard search
- * shows every colour and says so once; the format's legality still applies,
+ * is chosen there is no color identity to check, so the mainboard search
+ * shows every color and says so once; the format's legality still applies,
  * judged against the deck's own format rather than hard-coded Commander.
  */
 import { fireEvent, render, screen } from '@testing-library/react';
@@ -110,8 +110,8 @@ describe('CardSearchPanel — a chosen commander still filters by its identity',
   });
 
   // `[]` is a real identity (a colorless commander), not "no commander": only
-  // the explicit noCommanderYet flag lifts the colour rule.
-  it('keeps hiding coloured cards for a colorless commander', () => {
+  // the explicit noCommanderYet flag lifts the color rule.
+  it('keeps hiding colored cards for a colorless commander', () => {
     render(
       <CardSearchPanel
         deckId="deck-1"

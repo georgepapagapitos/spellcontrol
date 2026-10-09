@@ -11,7 +11,7 @@ const read = (f: string) => readFileSync(join(here, f), 'utf8');
  * Two `::after` touch ghosts cannot share a stride narrower than their width.
  *
  * The deck list row puts the quantity editor and the role badge 24px apart in a
- * 36px row, and BOTH declared a 44px-wide centred ghost. The badge is the later
+ * 36px row, and BOTH declared a 44px-wide centered ghost. The badge is the later
  * sibling, so it painted on top and won the overlap: the quantity editor's hit
  * area collapsed to 25x28 instead of the 44 its own rule intends, and a tap
  * 13px right of the quantity digit activated the ROLE FILTER rather than the

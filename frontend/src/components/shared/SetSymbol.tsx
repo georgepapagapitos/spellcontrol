@@ -23,7 +23,7 @@ interface SetSymbolProps {
   /**
    * Accessible name + native tooltip (use `setSymbolTitle`). When omitted the
    * glyph is `aria-hidden` — most call sites sit next to a visible set-code
-   * label or inside a labelled row.
+   * label or inside a labeled row.
    */
   title?: string;
   /** Extra class(es) for per-surface tweaks. */

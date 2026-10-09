@@ -216,7 +216,7 @@ describe('GET /api/discover/decks', () => {
   // E482: a deck with no commander (any non-Commander format) has neither
   // commanderName nor commanderImageNormal, so DiscoverDeckTile needs the
   // deck's own cover art (ogArtCrop, deck_publications.og_art_crop — #2449)
-  // to avoid a flat colourless swatch. Confirms the listing endpoint
+  // to avoid a flat colorless swatch. Confirms the listing endpoint
   // actually surfaces the column, not just that extractListingFields
   // computes it (covered separately in publications/listing-fields.test.ts).
   it('surfaces ogArtCrop for a deck with no commander (E482)', async () => {

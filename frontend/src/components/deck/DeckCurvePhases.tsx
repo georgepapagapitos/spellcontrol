@@ -109,7 +109,7 @@ export function DeckCurvePhases({
   const [groupSheet, setGroupSheet] = useState<{ title: string; tally: CardTally[] } | null>(null);
 
   // Open the grouped overview sheet for a set of cards (already a CardTally[]).
-  // `keepOrder` keeps the caller's order (the by-colour column groups by colour).
+  // `keepOrder` keeps the caller's order (the by-colour column groups by color).
   const showTally = (tally: CardTally[], title: string, keepOrder = false) => {
     if (tally.length === 0) return;
     const sorted = keepOrder
@@ -253,11 +253,11 @@ export function DeckCurvePhases({
                 {effectiveMode === 'color' && bucket ? (
                   // Stacked bar. DOM order W..colorless; CSS column-reverse puts
                   // W at the baseline so the stack reads bottom→top W,U,B,R,G,
-                  // gold, colorless. The segments are DATA only: a 1-card colour
+                  // gold, colorless. The segments are DATA only: a 1-card color
                   // is a 6px sliver, and stacked slivers cannot each be a 24px
                   // target (WCAG 2.5.8). The whole column is the one target (the
                   // same overlay as count mode) and opens the sheet of every card
-                  // at this mana value, already grouped by colour.
+                  // at this mana value, already grouped by color.
                   <>
                     <div
                       className="deck-curve-phases-bar-stack"

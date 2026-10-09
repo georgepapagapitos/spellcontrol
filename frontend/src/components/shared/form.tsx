@@ -91,7 +91,7 @@ export interface Option<T> {
   /** Accessible name when `label` is not plain text. */
   ariaLabel?: string;
   /** Shown but not pickable (e.g. Public while signed out). Say why in a hint
-   *  or beside the group; a greyed option with no reason is a dead end. */
+   *  or beside the group; a grayed option with no reason is a dead end. */
   disabled?: boolean;
 }
 

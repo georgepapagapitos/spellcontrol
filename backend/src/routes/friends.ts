@@ -537,8 +537,8 @@ interface FriendCard {
   oracleId: string;
   colors: string[];
   /**
-   * Colour IDENTITY (commander-legal colours), distinct from `colors` (the
-   * mana cost's colours). Load-bearing for `ci:` search on the friend browser:
+   * Color IDENTITY (commander-legal colors), distinct from `colors` (the
+   * mana cost's colors). Load-bearing for `ci:` search on the friend browser:
    * the client matcher treats an ABSENT identity as the empty set, and the
    * empty set is a subset of every needle — so without this every card matched
    * `ci<=…`. Five characters per card at worst.
@@ -894,7 +894,7 @@ friendsRouter.get(
     for (const row of listRows.rows) {
       const list = asRecord(row.data);
       if (!list) continue;
-      // Tracking lists catalogue cards the owner already HAS — same gate as
+      // Tracking lists catalog cards the owner already HAS — same gate as
       // the frontend's isTrackingList. `kind` absent means 'want'.
       if (list.kind === 'tracking') continue;
       // Dynamic lists (`rule` set) carry no entries — membership is computed

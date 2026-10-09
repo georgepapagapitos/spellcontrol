@@ -207,7 +207,7 @@ describe('buildManaData', () => {
     expect(r.manaCurve[3]).toBe(1);
     // classifyType() checks the full type_line and finds "Land" first in
     // CLASSIFY_PRIORITY, so the type-breakdown bucket is Land — that is correct
-    // behaviour for the type panel; what matters here is that the curve sees it.
+    // behavior for the type panel; what matters here is that the curve sees it.
     expect(r.typeBreakdown.Land).toBe(1);
     expect(r.typeBreakdown.Instant).toBe(0);
   });

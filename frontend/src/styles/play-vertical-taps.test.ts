@@ -29,7 +29,7 @@ describe('vertical tap areas: the life numeral', () => {
   const css = read('play-board.css');
   const STEP = '.player-panel.is-vertical-taps .player-panel-life-wrap > .player-panel-step-btn';
 
-  it('centres both hints on the numeral axis', () => {
+  it('centers both hints on the numeral axis', () => {
     const b = block(css, `${STEP} {`);
     expect(b).toMatch(/left:\s*50%/);
     expect(b).toMatch(/right:\s*auto/);
@@ -45,7 +45,7 @@ describe('vertical tap areas: the life numeral', () => {
   });
 
   it('keeps the stack clear of the name corner and inside the seat', () => {
-    // Centred in the box below the name band, sized so the stack fits it.
+    // Centered in the box below the name band, sized so the stack fits it.
     expect(block(css, '.player-panel.is-vertical-taps .player-panel-life-wrap {')).toMatch(
       /top:\s*var\(--pp-v-top\)/
     );
@@ -65,7 +65,7 @@ describe('vertical tap areas: commander damage', () => {
     expect(block(css, '.is-vertical-taps .pp-cmd-half-zone.is-minus {')).toMatch(/bottom:\s*0/);
   });
 
-  it("centres each of a half's hints in its own zone", () => {
+  it("centers each of a half's hints in its own zone", () => {
     expect(block(css, '.is-vertical-taps .pp-cmd-half-row > .pp-cmd-half-step {')).toMatch(
       /top:\s*75%/
     );

@@ -95,7 +95,7 @@ export function FillDeckSheet({
   const [lean, setLean] = useState<number>(0.5);
   const [preferOwned, setPreferOwned] = useState(ownedNames.size > 0);
   const [phase, setPhase] = useState<Phase>({ kind: 'setup' });
-  // A build can't be cancelled mid-flight; closing just drops its answer.
+  // A build can't be canceled mid-flight; closing just drops its answer.
   // Re-armed on every mount: StrictMode runs the cleanup once after the first
   // mount, and a flag only ever set false there dropped every result.
   const alive = useRef(true);

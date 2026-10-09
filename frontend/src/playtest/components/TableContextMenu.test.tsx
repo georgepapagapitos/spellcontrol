@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 /**
  * The table's own right-click menu. It is the only place several board
- * actions are labelled with the key that fires them, so the shortcut text is
+ * actions are labeled with the key that fires them, so the shortcut text is
  * as load-bearing as the items themselves.
  */
 import { describe, expect, it, vi } from 'vitest';

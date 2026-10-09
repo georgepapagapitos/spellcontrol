@@ -12,7 +12,7 @@ export interface GameMenuItem {
   onClick(): void;
   /** Short right-aligned state: "New", "On", a count. */
   note?: string;
-  /** Ends a game or gives up a seat: reads in the error colour. */
+  /** Ends a game or gives up a seat: reads in the error color. */
   danger?: boolean;
   disabled?: boolean;
 }

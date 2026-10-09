@@ -82,7 +82,7 @@ describe('HoldButton', () => {
   });
 
   // It stands in the corner stack, which is where its look and its 44px
-  // floor come from; bare, it drew as an unstyled grey box.
+  // floor come from; bare, it drew as an unstyled gray box.
   it('is a corner pill', () => {
     render(<HoldButton />);
     expect(screen.getByRole('button', { name: 'Hold' }).classList).toContain('playtest-corner-btn');

@@ -61,7 +61,7 @@ describe('ReactionPicker', () => {
   });
 
   // It stands in the corner stack, which is where its look and its 44px
-  // floor come from; bare, it drew as a 28px grey box.
+  // floor come from; bare, it drew as a 28px gray box.
   it('is a corner pill', () => {
     render(<ReactionPicker />);
     expect(screen.getByRole('button', { name: 'React' }).classList).toContain(

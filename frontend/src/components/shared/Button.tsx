@@ -28,7 +28,7 @@ export type ButtonVariant = 'secondary' | 'primary' | 'danger' | 'link';
 
 /**
  * Where the button lives, which is what separates the three families:
- * `inline` (`.btn`, dialogs and panels, grey hover), `row` (`.pill-btn`, page
+ * `inline` (`.btn`, dialogs and panels, gray hover), `row` (`.pill-btn`, page
  * heroes and action rows: accent-tinted hover, a 0.4rem icon gap, never
  * shrinks), `toolbar` (`.toolbar-pill`, the toolbar-control pill).
  */

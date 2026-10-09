@@ -172,7 +172,7 @@ export function recordToRematch(rec: GameRecord): RematchTemplate {
     startingLife: rec.startingLife,
     // A record written before the toggles were persisted has nothing to
     // carry (undefined) — fall back to inferring cmdr damage from format and
-    // leaving poison off, exactly the old behaviour.
+    // leaving poison off, exactly the old behavior.
     commanderDamageEnabled: rec.commanderDamageEnabled ?? rec.format === 'commander',
     poisonEnabled: rec.poisonEnabled ?? false,
     // A record written before turnOrder was persisted (or an explicitly

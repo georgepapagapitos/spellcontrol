@@ -197,7 +197,7 @@ export function readStoredShowPrefs(): ShowPrefs {
 
 // ── Group-by (E124, +'tag' E171) ─────────────────────────────────────────
 // Mainboard grouping lens: 'type' (canonical card type — the long-standing
-// default), 'category' (the derived role buckets, labelled "Roles" in the
+// default), 'category' (the derived role buckets, labeled "Roles" in the
 // toolbar, with target gauges on a generated deck) or 'tag' (the user's own
 // tags, a PARTITION — first tag wins, untagged cards fall back to their
 // type; see groupByTag's doc). Persisted like view mode/show prefs; default
@@ -290,7 +290,7 @@ export interface Row {
   /** Non-null allocatedCopyIds across this row's slots — resolves to
    *  binder membership for the grid badge. */
   allocatedCopyIds: string[];
-  /** Allocation status of this row, summarised across the slots it covers. */
+  /** Allocation status of this row, summarized across the slots it covers. */
   status: AllocationStatus;
   /** Number of slots in this row whose allocatedCopyId resolves to a real owned copy. */
   allocatedQty: number;
@@ -672,12 +672,12 @@ export type TypedGroup = {
 // Column sizing for the list view. The old rule was width-only (as many
 // 280px columns as fit), so a 100-card deck on a 2000px display got six
 // columns — one section each, five of them mostly empty below the fold —
-// while every card name was squeezed to ~90px and ellipsised. Two changes:
+// while every card name was squeezed to ~90px and ellipsized. Two changes:
 // a wider floor per column, and a cap from the deck's own row count so the
 // leftover width goes to the names, not to more columns.
 export const LIST_COL_MIN_PX = 320;
 export const LIST_COL_GAP_PX = 16;
-/** Rows a column should hold before it earns a neighbour — a 100-card
+/** Rows a column should hold before it earns a neighbor — a 100-card
  *  Commander deck (≈110 rows with section headers) lands on four columns. */
 export const LIST_TARGET_ROWS_PER_COL = 30;
 

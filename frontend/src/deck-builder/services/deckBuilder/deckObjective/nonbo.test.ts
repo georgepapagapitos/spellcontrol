@@ -80,8 +80,8 @@ describe('graded symmetric wipes', () => {
 });
 
 describe('what a wipe actually reaches (the first optimizer gate)', () => {
-  it('reads "the color of your choice" as the colour the caster would name', () => {
-    // Talrand's own deck is mono-blue: Wash Out names another colour.
+  it('reads "the color of your choice" as the color the caster would name', () => {
+    // Talrand's own deck is mono-blue: Wash Out names another color.
     const talrand = {
       commanders: [card('Talrand, Sky Summoner')],
       cards: cards('Wash Out', 'Sol Ring', 'Rhystic Study'),

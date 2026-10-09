@@ -72,7 +72,7 @@ export interface ScryfallCard {
   /** Which game clients this printing exists in; `paper` for anything the
    *  ingest keeps. Read to filter Arena-only printings. */
   games?: string[];
-  /** Printed flavour text, for the card detail pane. */
+  /** Printed flavor text, for the card detail pane. */
   flavor_text?: string;
   /** Older full-art lands set this without populating frame_effects. */
   full_art?: boolean;

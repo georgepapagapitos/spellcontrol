@@ -163,7 +163,7 @@
   gap: var(--space-1);
   padding: var(--space-1) var(--space-2);
   border-radius: 999px;
-  /* The scrim plate its Like/Bookmark neighbours sit on (§ On-art scrims). */
+  /* The scrim plate its Like/Bookmark neighbors sit on (§ On-art scrims). */
   background: var(--art-scrim);
   color: var(--art-scrim-text);
   box-shadow: var(--shadow-raised);

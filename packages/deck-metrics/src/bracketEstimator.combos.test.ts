@@ -297,7 +297,7 @@ describe('bracketBorderline', () => {
     expect(bracketBorderline(makeEst({ softScore: 60 }))).toBe(3);
   });
 
-  it('flags the floor as the neighbour just above the threshold (already bumped)', () => {
+  it('flags the floor as the neighbor just above the threshold (already bumped)', () => {
     expect(bracketBorderline(makeEst({ softScore: 70 }))).toBe(2);
   });
 
@@ -319,7 +319,7 @@ describe('bracketBorderline', () => {
     expect(bracketBorderline(est)).toBeNull();
   });
 
-  it('flags the cEDH neighbour at floor 4 with enough Game Changers', () => {
+  it('flags the cEDH neighbor at floor 4 with enough Game Changers', () => {
     const est = makeEst({
       softScore: 75,
       hardFloors: [{ bracket: 4, reason: '' }],

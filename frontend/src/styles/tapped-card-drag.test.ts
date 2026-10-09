@@ -14,24 +14,24 @@ const board = readFileSync(join(here, '..', 'playtest', 'components', 'PlaytestB
  * dnd-kit sizes the <DragOverlay> wrapper from the source card's measured
  * box. A tapped permanent carries `rotate(90deg)`, so that box is the ROTATED
  * one — width and height swapped. The copy inside keeps the printed card's own
- * size and rotates about its own centre, so left at the wrapper's top-left it
+ * size and rotates about its own center, so left at the wrapper's top-left it
  * lands half the width/height difference off the card under the pointer.
  *
  * The other half of that bug is in `PlaytestBoard`'s `measuring` prop, which
  * takes dnd-kit off its transform-agnostic measurement (it reads a rotation
  * matrix as a zero scale and hands back a box half a card away). Both halves
- * are needed; this guard covers the centring.
+ * are needed; this guard covers the centering.
  *
- * Centring the copy in the wrapper puts its rotated box exactly where the
+ * Centering the copy in the wrapper puts its rotated box exactly where the
  * source's was, and is a no-op for an untapped card (the two boxes are the
- * same). This guard is on the pair — the class has to carry the centring AND
+ * same). This guard is on the pair — the class has to carry the centering AND
  * the overlay has to still be wearing the class — because either half alone
  * brings the offset back.
  */
 describe('dragging a tapped card', () => {
   const rule = /\.playtest-drag-overlay\s*\{([^}]*)\}/.exec(css)?.[1] ?? '';
 
-  it('centres the copy in the wrapper dnd-kit sizes', () => {
+  it('centers the copy in the wrapper dnd-kit sizes', () => {
     expect(rule).toMatch(/display\s*:\s*grid/);
     expect(rule).toMatch(/place-items\s*:\s*center/);
   });
@@ -45,7 +45,7 @@ describe('dragging a tapped card', () => {
     expect(board).toMatch(/<DndContext[\s\S]{0,400}?measuring=\{measuring\}/);
   });
 
-  it('wears the centring class on the DragOverlay itself, not the card', () => {
+  it('wears the centering class on the DragOverlay itself, not the card', () => {
     // `<DragOverlay ` with the trailing space: the file also talks about
     // `<DragOverlay>` in prose, which carries no props to check.
     const overlay = /<DragOverlay [^>]*>/.exec(board)?.[0] ?? '';

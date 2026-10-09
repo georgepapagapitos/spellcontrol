@@ -10,7 +10,7 @@ import { X } from 'lucide-react';
 import { IconButton } from './Button';
 
 /**
- * A chip: a small labelled pill or rect that names a state, filters a list,
+ * A chip: a small labeled pill or rect that names a state, filters a list,
  * or opens something (STYLE_GUIDE § Shape language, "Chips are a primitive").
  *
  * Chips have no shared look across roles — except actionable filter/toggle

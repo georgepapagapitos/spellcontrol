@@ -439,7 +439,7 @@ export const SOFT_SCORE = {
   /** A deck at floor 4 reads as cEDH at this score. */
   cedhAt: 80,
   /** How close the power signal has to sit to `bumpAt`/`cedhAt` (either side)
-   *  to call the deck borderline between its bracket and the neighbouring
+   *  to call the deck borderline between its bracket and the neighboring
    *  one — see {@link bracketBorderline}. */
   borderlineWithin: 6,
   /** ...and runs at least this many Game Changers. The premier tutors and fast
@@ -543,17 +543,17 @@ export function ratingOnlyComboFloor(est: BracketEstimation): BracketFloor | nul
 }
 
 /**
- * The neighbouring bracket when the estimate could reasonably read one
+ * The neighboring bracket when the estimate could reasonably read one
  * bracket over — else `null`. A Bracket 4 that rests on Spellbook's rating
  * alone (`ratingOnlyComboFloor`) is borderline 3. Otherwise only the soft
  * power signal can make a deck borderline:
  *   - floor < 4: `bumpAt` (66) is the threshold, either side. Below it, the
- *     neighbour is the bump target (`floor + 1`, capped at 4); at/above it
- *     (already bumped), the neighbour is the floor itself.
+ *     neighbor is the bump target (`floor + 1`, capped at 4); at/above it
+ *     (already bumped), the neighbor is the floor itself.
  *   - floor >= 4: `cedhAt` (80) applies only when the deck also clears
  *     `cedhMinGameChangers` — without enough Game Changers cEDH isn't reachable
  *     at any score, so there's no borderline to report. Below the threshold
- *     the neighbour is 5; at/above it (already cEDH) the neighbour is 4.
+ *     the neighbor is 5; at/above it (already cEDH) the neighbor is 4.
  */
 export function bracketBorderline(est: BracketEstimation): number | null {
   if (est.bracket === 4 && ratingOnlyComboFloor(est)) return 3;

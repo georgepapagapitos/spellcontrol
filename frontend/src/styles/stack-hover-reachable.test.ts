@@ -8,7 +8,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const css = readFileSync(join(here, 'deck-builder-card-list.css'), 'utf8');
 
 /**
- * In the stacks view a card must not become unreachable because its neighbour
+ * In the stacks view a card must not become unreachable because its neighbor
  * is open, and the opening has to read as the stack moving OFF that card.
  *
  * The column overlaps its tiles so only each card's name strip shows, and the
@@ -24,7 +24,7 @@ const css = readFileSync(join(here, 'deck-builder-card-list.css'), 'utf8');
  *     later column of the wrapped row down, a frame at a time), and it moves
  *     the tail by reflowing the card in front of it rather than by moving each
  *     card, so the cards never travel from their own place in the stack.
- *  3. Lifting the open card over its neighbours with `z-index`. It then paints
+ *  3. Lifting the open card over its neighbors with `z-index`. It then paints
  *     whole on the first frame and the tail slides out from under it, which is
  *     the card popping in rather than the stack moving. Left in DOM order, the
  *     tail slides across its face and uncovers it top to bottom.

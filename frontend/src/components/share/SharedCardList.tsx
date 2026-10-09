@@ -37,7 +37,7 @@ interface Props {
    */
   showQty?: boolean;
   /**
-   * Render the shared card table (aligned columns under a labelled header)
+   * Render the shared card table (aligned columns under a labeled header)
    * instead of the flow row, the way Collection's own compact view does.
    * Below tablet width the columns don't fit and the flow row is used
    * regardless — the caller offers the mode, this decides if it fits.
@@ -76,7 +76,7 @@ export function SharedCardList({
   const wideEnoughForTable = useMediaQuery('(min-width: 768px)');
   const isTable = table && wideEnoughForTable;
   // A withheld column doesn't render as an empty one. On a flow row a hidden
-  // price is simply absent, but a table would keep a labelled track promising
+  // price is simply absent, but a table would keep a labeled track promising
   // a number that never arrives — three of them on a friend's collection,
   // which reports contents and neither count nor value. So the contract
   // decides the column set, not just the cell contents.

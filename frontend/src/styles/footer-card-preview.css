@@ -115,7 +115,7 @@
   inset: 0;
   /* Near-opaque: behind a card preview is almost always a grid of other cards,
      and at the old 60% that grid read as a second layer of cards around the
-     one being read (and through its see-through neighbours). Same call as the
+     one being read (and through its see-through neighbors). Same call as the
      binder page viewer's 85%. Fades in on open / out on close (.is-closing)
      but does NOT slide — only the card and the sheet travel. */
   background: rgb(6 7 12 / 90%);
@@ -418,12 +418,12 @@
   scroll-snap-stop: always;
   /* The slide is the perspective container; the frame inside is what tilts. */
   perspective: 1400px;
-  /* Neighbours recede under the dark wash below, never by opacity (a
-     see-through neighbour let the page behind read through it) and never by
+  /* Neighbors recede under the dark wash below, never by opacity (a
+     see-through neighbor let the page behind read through it) and never by
      a transform: a slide is a snap target, and scrollIntoView and the snap
-     both centre its TRANSFORMED box. A 94% neighbour shrunk toward the card
+     both center its TRANSFORMED box. A 94% neighbor shrunk toward the card
      being read left every arrow-key / neighbour-click page turn 3% of a card
-     width (17.5px at 1440) off centre once it grew back. */
+     width (17.5px at 1440) off center once it grew back. */
 }
 
 .card-preview-slide::after,
@@ -985,9 +985,9 @@
   border-radius: 999px;
   background: color-mix(in srgb, var(--pill-color, var(--accent)) 18%, transparent);
   border: 1px solid color-mix(in srgb, var(--pill-color, var(--accent)) 45%, transparent);
-  /* The label is the binder's own hue lifted toward white: a binder colour is
+  /* The label is the binder's own hue lifted toward white: a binder color is
      any hex a user picks, and raw it read 3.51:1 on its own tint here (Red).
-     At 40% it clears 5.6:1 for every colour, black included, on the panel and
+     At 40% it clears 5.6:1 for every color, black included, on the panel and
      a row, resting or hovered. Guard: preview-panel-contrast.test.ts. */
   color: color-mix(in srgb, var(--pill-color, var(--accent)) 40%, white);
   font-size: var(--text-xs);
@@ -1030,7 +1030,7 @@
   border-style: dashed;
 }
 
-/* Actions: labelled rects (STYLE_GUIDE § Shape language), the owner/
+/* Actions: labeled rects (STYLE_GUIDE § Shape language), the owner/
    management ones folded into a ⋮ at the end. */
 .card-preview-actions {
   display: flex;
@@ -1115,7 +1115,7 @@
 }
 
 /* The row's one-line fallback (CardPreview measures, then sets .is-compact
-   when the labelled row won't fit): Share and Edit drop their word, a caller
+   when the labeled row won't fit): Share and Edit drop their word, a caller
    action swaps to its short label, and the gap tightens. The word leaves the
    flow but stays in the box (absolute + hidden) so it can still be measured;
    aria-label and title carry it. */
@@ -1657,8 +1657,8 @@
   min-width: 0;
   scroll-snap-align: center;
   scroll-snap-stop: always;
-  /* Neighbours recede under the same dark wash as .card-preview-slide (the
-     shared ::after above), never by opacity: a see-through neighbour let the
+  /* Neighbors recede under the same dark wash as .card-preview-slide (the
+     shared ::after above), never by opacity: a see-through neighbor let the
      binder grid behind read through it. */
 }
 

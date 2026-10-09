@@ -123,7 +123,7 @@ const stamp = (ms: number | undefined) => {
 
 /**
  * ManaBox-compatible, plus every per-copy field this app holds. Headers are
- * ones `backend/src/parsers/csv.ts`'s HEADER_ALIASES recognise, and the
+ * ones `backend/src/parsers/csv.ts`'s HEADER_ALIASES recognize, and the
  * "Scryfall ID" + "Binder name" pair is `detectCsvFormat`'s manabox
  * signature, so the file round-trips straight back through Add cards →
  * Upload. "Purchase price" is `acquiredPrice` (cost basis); "Market price"

@@ -364,7 +364,7 @@
 }
 
 /* These chips WRAP inside a popover or row that has room to grow, so they
-   take the floor on their real box — a ghost would overlap the neighbouring
+   take the floor on their real box — a ghost would overlap the neighboring
    chip and toggle the wrong filter. */
 @media (pointer: coarse) {
   .filter-chip {
@@ -619,7 +619,7 @@ input[type='url']:focus {
    the § Verdict badges reference: a 0.5px hairline on --surface, text-xs
    at 600, sentence case (§ Voice: uppercase belongs to --font-label tape
    and form section headings, never a chip). Status is `tone`: an outline
-   in the status colour. The invalidating-status pills (a cancelled night, a
+   in the status color. The invalidating-status pills (a canceled night, a
    player who left) are the one filled case (§ Invalidating-status cue).
    The plate is in :where(), so a family keeps its own layout and margins,
    never the pill. Coloured-text labels (rules-ref, set-card, availability)
@@ -907,7 +907,7 @@ input[type='url']:focus {
   border-color: var(--border);
 }
 
-/* The filled pills: an invalidating status (a cancelled night, a player
+/* The filled pills: an invalidating status (a canceled night, a player
    who left, a card the format bans) takes a fill in its tone, never an
    outline (§ Invalidating-status cue). */
 :where(

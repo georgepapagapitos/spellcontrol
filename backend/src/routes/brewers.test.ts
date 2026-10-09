@@ -175,7 +175,7 @@ describe('GET /api/public/brewers (search)', () => {
     expect(names(res.body.brewers)).toEqual([human.username, house.username]);
   });
 
-  it('treats % and _ literally and honours limit', async () => {
+  it('treats % and _ literally and honors limit', async () => {
     const a = await person('lim');
     const b = await person('lim');
     const c = await person('lim');
@@ -191,7 +191,7 @@ describe('GET /api/public/brewers (search)', () => {
 });
 
 describe('BrewerCard fields', () => {
-  it('reports the deck count, follower count, colours, commander and join date', async () => {
+  it('reports the deck count, follower count, colors, commander and join date', async () => {
     const owner = await person('card', { createdAt: 1234 });
     await deck(owner, { commander: 'Atraxa', colors: ['W', 'U', 'B', 'G'] });
     await deck(owner, { commander: 'Atraxa', colors: ['U'] });
@@ -207,7 +207,7 @@ describe('BrewerCard fields', () => {
       bannerImage: null,
       deckCount: 3,
       followerCount: 2,
-      // U in two decks, then W B G once each in WUBRG order, then colourless.
+      // U in two decks, then W B G once each in WUBRG order, then colorless.
       topColors: ['U', 'W', 'B', 'G', 'C'],
       topCommander: 'Atraxa',
       joinedAt: 1234,

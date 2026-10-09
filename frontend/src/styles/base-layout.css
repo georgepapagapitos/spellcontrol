@@ -443,9 +443,9 @@ select {
 /* ── Index tiles: one hover (§ Index tiles) ──────────────────────────────
    Every tile that opens a deck or a binder (the decks and binders indexes,
    Lists, Discover, profiles, Home's rows) answers the pointer the same way:
-   the frame rings in the tile's own colour and lifts, and in grid the cover
+   the frame rings in the tile's own color and lifts, and in grid the cover
    art zooms. Keyboard focus on the tile's link gets the same answer.
-   It was three behaviours: Discover and profiles zoomed the art, while the
+   It was three behaviors: Discover and profiles zoomed the art, while the
    decks and binders indexes tinted a border #2486 had removed, so they did
    nothing. A family adds only what is its own (Discover's quick actions).
    Guard: styles/index-tile-hover.test.ts. */

@@ -53,7 +53,7 @@ export function loadDailyNames(): Promise<DailyNames> {
   return namesPromise;
 }
 
-/** Test hook: forget the memoised fetch. */
+/** Test hook: forget the memoized fetch. */
 export function resetDailyNamesCache(): void {
   namesPromise = null;
 }

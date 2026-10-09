@@ -83,7 +83,7 @@ describe('shadowNumbers', () => {
     expect(n.noObjective).toEqual({ 'no-page': 1 });
   });
 
-  it('measures the objective order against the labels, higher where it surfaces the labelled card', () => {
+  it('measures the objective order against the labels, higher where it surfaces the labeled card', () => {
     // Legacy has Add C third, so R@1-style recall at 5 is 1 either way; precision of the cut list is what moves.
     expect(n.cutPrecision.legacy.p5.mean).toBeCloseTo(0.5);
     expect(n.cutPrecision.objective.p5.mean).toBeCloseTo(0.5);

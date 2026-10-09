@@ -163,7 +163,7 @@ export function LocalSetup({
         setFriends(list);
         // A game night seeds handles, not ids (its RSVPs never carry account
         // ids). Now that the list is here, seat the account behind each
-        // handle so the game credits them; a handle nobody recognises stays
+        // handle so the game credits them; a handle nobody recognizes stays
         // a guest.
         setPlayers((prev) =>
           prev.map((p) => {

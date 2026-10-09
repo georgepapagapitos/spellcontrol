@@ -15,7 +15,7 @@ const ITEM_SELECTOR = '[role="menuitem"], [role="menuitemcheckbox"], [role="menu
 const MENU_MARGIN = 8;
 
 export interface CtxMenuShellProps {
-  /** Anchor (pointer position, or the card's centre for keyboard opens). */
+  /** Anchor (pointer position, or the card's center for keyboard opens). */
   x: number;
   y: number;
   /** Which corner of the floating menu sits on (x, y). `top-start` (the
@@ -115,7 +115,7 @@ export function CtxMenuShell({
     // The sheet is a real modal (aria-modal="true"): Tab should stay inside
     // it, never close it. The floating popover is role="menu", not a dialog,
     // so Tab closing and handing focus back to the trigger is the right menu
-    // behaviour (matches OverflowMenu et al).
+    // behavior (matches OverflowMenu et al).
     dialog: variant === 'sheet',
   });
 

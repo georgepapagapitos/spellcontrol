@@ -227,11 +227,11 @@
 /* Source panels dim and desaturate — the board visibly leaves its resting
    state, and the focused player's own (undimmed) panel stays the anchor. */
 /* The focused player's panel is the mode's title card: dark, so the seats
-   around it, still in their own colours, read as the ones answering. */
+   around it, still in their own colors, read as the ones answering. */
 .player-panel.is-cmd-self {
   box-shadow: inset 0 0 0 2.5px rgba(255, 255, 255, 0.55);
   /* Reserves exactly the focus bar's own height at the player's edge, so the
-     centred life numeral above it (`.player-panel-content`'s padding box
+     centered life numeral above it (`.player-panel-content`'s padding box
      shrinks by this much) can never sit under the bar regardless of panel
      size — the bar used to wrap onto 2-3 lines on a short/narrow seat and
      covered the numeral entirely (measured 100% on several presets).
@@ -250,9 +250,9 @@
 /* `.player-panel-life-wrap` is `position: absolute; inset: 0` (play-board.css)
    — its containing block is the PANEL's full padding box regardless of any
    padding on `.player-panel-content`, so reserving room via padding there
-   has no effect on where the centred numeral lands. Pulling the wrap's own
+   has no effect on where the centered numeral lands. Pulling the wrap's own
    BOTTOM inset in by the bar's height is what actually shrinks the box the
-   numeral centres within, shifting it clear of the bar underneath.
+   numeral centers within, shifting it clear of the bar underneath.
    The top inset keeps it off the seam. The bar pushes the numeral toward the
    panel's far edge, which faces the middle of the table, where the hub and
    undo sit on the seam: on 4p-sides the undo bit 986px² out of the focused
@@ -500,7 +500,7 @@
 
 /* Vertical tap areas: a half's zones are its top (+) and bottom (−) halves,
    like the panel's own, and its hints leave the value's row for the half's
-   far edge, + at the centre of the top zone and − at the centre of the
+   far edge, + at the center of the top zone and − at the center of the
    bottom one, so each glyph always sits in the zone it names whatever the
    name and "to lethal" lines around the value do to the row's position. */
 .is-vertical-taps .pp-cmd-half {
@@ -1037,7 +1037,7 @@
   height: 1.75rem;
   border-radius: 50%;
   /* Ink on the ink's opposite (play-board.css), so the glyph reads on every
-     seat colour: a black glyph on a black plate was mud on the light seats. */
+     seat color: a black glyph on a black plate was mud on the light seats. */
   color: var(--pp-ink);
   background: color-mix(in srgb, var(--pp-ink-plate) 40%, transparent);
   border: 1.5px solid color-mix(in srgb, var(--pp-ink) 30%, transparent);
@@ -1050,7 +1050,7 @@
 /* E416: on a 7-10p board's ~90-145px cells (play-board.css's matching
    numeral/name tier), the chip rail's fixed 28px size — anchored at the same
    top corner as the name, by the same unconditional seam-keepout — reaches
-   down far enough to graze the ± step button, which sits vertically centred
+   down far enough to graze the ± step button, which sits vertically centered
    in a cell this short. Shrinking the chip here clears it, the same fix as
    the name in the tier next to it. */
 @container (max-height: 9.5rem) {

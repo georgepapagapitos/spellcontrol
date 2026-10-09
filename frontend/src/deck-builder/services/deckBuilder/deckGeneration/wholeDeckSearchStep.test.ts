@@ -57,7 +57,7 @@ describe('the search is on unless a build says false', () => {
   });
 });
 
-describe('discovery picks are labelled with the link that earned them (E515)', () => {
+describe('discovery picks are labeled with the link that earned them (E515)', () => {
   const state = {
     wholeDeckSearch: {
       swaps: [

@@ -57,7 +57,7 @@ describe('getRoleBadge', () => {
     expect(getRoleBadge({ name: 'Grizzly Bears' })).toBeNull();
   });
 
-  it('returns null for an unrecognised role value', () => {
+  it('returns null for an unrecognized role value', () => {
     mockGetCardRole.mockReturnValue('mystery' as RoleKey);
     expect(getRoleBadge({ name: 'Weird Card' })).toBeNull();
   });

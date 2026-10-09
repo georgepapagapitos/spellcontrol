@@ -98,7 +98,7 @@ describe('buildCardLocationIndex', () => {
   // The reason this takes BinderPage's inputs whole: a binder that hides deck
   // cards lays its other cards out without them, so a raw-cards index put the
   // card after the deck card one pocket off.
-  it('honours deck allocations the way the binder view does', () => {
+  it('honors deck allocations the way the binder view does', () => {
     const cards = [card('Card A', 'o-a'), card('Card B', 'o-b')];
     const hides = binder('b1', 'Rares', 0, 'rare', { hideDeckAllocated: false });
     expect(buildCardLocationIndex(layout(cards, [hides])).byCopyId.get('copy-Card B')?.slot).toBe(

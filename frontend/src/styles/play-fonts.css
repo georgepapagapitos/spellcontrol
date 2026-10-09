@@ -6,7 +6,7 @@
    this stylesheet, which only the play-board chunk loads (PlayPage.tsx), so
    a visitor who never opens a game never fetches it. Files + OFL notice
    live in public/fonts/.
-   The overrides centre the digits (Bebas's figures are cap height) in their
+   The overrides center the digits (Bebas's figures are cap height) in their
    line box like every other face (styles/font-metrics.test.ts): natively
    they sat 0.05em high, ~7px on a two-seat life total. The numeral's box
    keeps its size on Mac and shrinks 0.1em on Windows, which had been reading

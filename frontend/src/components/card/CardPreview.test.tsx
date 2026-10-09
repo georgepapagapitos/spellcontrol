@@ -521,7 +521,7 @@ describe('CardPreview action row (one line on a phone)', () => {
     expect(compactable('Share card image')).toBe(true);
     expect(compactable('Edit printing')).toBe(true);
     expect(compactable('Set cover')).toBe(false);
-    // Flip sits on the card's art (E421), always labelled, and never joins the
+    // Flip sits on the card's art (E421), always labeled, and never joins the
     // row it would crowd; the sheet handle isn't in the row either.
     const row = document.querySelector('.card-preview-actions')!;
     expect(row.contains(screen.getByRole('button', { name: 'Show back face' }))).toBe(false);

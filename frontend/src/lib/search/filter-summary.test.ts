@@ -47,7 +47,7 @@ describe('autoSummary — Color group field', () => {
     expect(autoSummary({ colors: chip('U') })).toBe('Blue');
   });
 
-  it('covers Multicolor, which colour IDENTITY has no bucket for', () => {
+  it('covers Multicolor, which color IDENTITY has no bucket for', () => {
     expect(autoSummary({ colors: chip('M') })).toBe('Multicolor');
   });
 

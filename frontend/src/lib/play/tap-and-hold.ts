@@ -60,7 +60,7 @@ export function toPanelSpace(dx: number, dy: number, rot: number): [number, numb
  *
  * Also detects vertical swipes in the PANEL's own space: if the pointer moves
  * >40px along the panel's up/down axis (and predominantly along it) before
- * lift, the hold timer is cancelled and onSwipeUp/onSwipeDown fires instead
+ * lift, the hold timer is canceled and onSwipeUp/onSwipeDown fires instead
  * of a tap or repeater. "Up" is away from the seat's player whatever the
  * rotation — on a sideways (90°/270°) seat that is a horizontal screen motion,
  * which a screen-vertical check used to ignore.

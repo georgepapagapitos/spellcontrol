@@ -24,7 +24,7 @@ let burstSeq = 0;
 /**
  * A card's counters the way EDHPlay draws them. A counter a card prints
  * (+1/+1, charge, flying) is its icon on a black disc with the count in a red
- * bubble; a counter the player named is a coloured disc with the count on it,
+ * bubble; a counter the player named is a colored disc with the count on it,
  * up the card's left edge. Hovering one names it.
  *
  * Rendered BESIDE the card on the felt, never inside it: the card is a
@@ -71,7 +71,7 @@ export function CardCounters({ counters, placement, onStep }: Props) {
   );
 }
 
-/** The disc itself: an icon, or a colour with the count (or nothing, when
+/** The disc itself: an icon, or a color with the count (or nothing, when
  *  the count is shown elsewhere, as in the "+1" that floats up). */
 function CounterFace({ kind, n }: { kind: string; n?: number }) {
   const glyph = counterGlyph(kind);

@@ -25,7 +25,7 @@ export function getPool(): Pool {
  *
  * Node treats an unhandled `'error'` event as **fatal**, and a dropped
  * connection surfaces as exactly that. Neon recycles serverless compute and
- * drops connections as NORMAL behaviour, so this fires on its own schedule: on
+ * drops connections as NORMAL behavior, so this fires on its own schedule: on
  * 2026-08-17 it crash-looped production for over an hour — `error: server conn
  * crashed?` (Neon's wording, code 08P01) out of `pg-protocol`'s parser,
  * `exit_code=1, oom_killed=false`.

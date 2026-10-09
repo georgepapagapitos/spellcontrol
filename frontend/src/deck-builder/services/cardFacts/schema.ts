@@ -21,7 +21,7 @@
  *
  *  abilities    The primary structure: clause-level (trigger, effects) tuples,
  *               one per ability line (bullet modes are abilities of their own,
- *               sharing a modal group). A trigger is modelled the way a rules
+ *               sharing a modal group). A trigger is modeled the way a rules
  *               engine models one: an event mode, the zone change it watches
  *               (origin → destination), and a valid-card filter of object type
  *               + controller polarity (you / opp / each / any / self). "Dies" is
@@ -561,7 +561,7 @@ export const ZONES = [
 export type Zone = (typeof ZONES)[number];
 
 /**
- * A trigger, modelled the way a rules engine models one: an event mode, the
+ * A trigger, modeled the way a rules engine models one: an event mode, the
  * zone change it watches (origin → destination; null when the mode is not a
  * zone change or a side is unconstrained) and a valid-card filter (`object`
  * type + controller `who`). "Dies" is battlefield → graveyard; landfall is

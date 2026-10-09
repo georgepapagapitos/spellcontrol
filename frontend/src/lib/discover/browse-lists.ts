@@ -114,7 +114,7 @@ export function browseListDef(id: string | undefined): BrowseListDef | undefined
 export interface BrowseFilters {
   /** The window the viewer picked; see {@link effectivePeriod}. */
   period: EdhrecTopPeriod;
-  /** WUBRG letters, `C`, or '' for every colour. */
+  /** WUBRG letters, `C`, or '' for every color. */
   colors: string;
   type: EdhrecTopType | '';
   /** Only cards in the viewer's collection. */
@@ -156,7 +156,7 @@ export function browseFiltersToParams(filters: BrowseFilters): Record<string, st
   return out;
 }
 
-/** EDHREC's colour and type lists only cover the past 2 years, so either
+/** EDHREC's color and type lists only cover the past 2 years, so either
  *  filter locks the window to it. */
 export function periodLocked(filters: BrowseFilters): boolean {
   return filters.colors !== '' || filters.type !== '';

@@ -6,12 +6,12 @@ describe('buildMotes', () => {
     expect(buildMotes(['G']).length).toBe(16);
   });
 
-  it('cycles every colour in the identity', () => {
+  it('cycles every color in the identity', () => {
     const hexes = new Set(buildMotes(['B', 'G']).map((m) => m.hex));
     expect(hexes).toEqual(new Set(['#a986c9', '#46c274'])); // B lifted to violet, G green
   });
 
-  it('falls back to seal gold for a colourless identity', () => {
+  it('falls back to seal gold for a colorless identity', () => {
     const motes = buildMotes([]);
     expect(motes.every((m) => m.hex === '#e6d2a0')).toBe(true);
   });

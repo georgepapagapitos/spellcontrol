@@ -8,7 +8,7 @@
 // EDHREC's `synergy` is a difference of two play rates:
 //
 //   synergy = (share of THIS page's decks playing the card)
-//           − (share of decks in the page's colour identity playing it)
+//           − (share of decks in the page's color identity playing it)
 //
 // Our parsed EDHRECCard carries the first as `inclusion` (a PERCENT, 0-100)
 // and the difference as `synergy` (a FRACTION: 0.75 = +75 points), so the
@@ -18,16 +18,16 @@
 //
 // That holds for every page kind we read: a commander page, a partner-pair
 // page and a commander×theme page all measure against the decks sharing that
-// page's colour identity (a theme page's own decks are the numerator; the
-// colours' decks are still the baseline).
+// page's color identity (a theme page's own decks are the numerator; the
+// colors' decks are still the baseline).
 //
 // A subtraction buries commander-specific cards. 40% here vs 20% in the
-// colours reads +20 (twice as played), and outranks 12% vs 1% at +11 (twelve
+// colors reads +20 (twice as played), and outranks 12% vs 1% at +11 (twelve
 // times as played). The ratio (lift) says which card this commander actually
 // asks for. Three problems with a raw ratio, and what this module does:
 //
 // 1. Thin samples. A page with 15 decks can show 3/15 = 20% for a card the
-//    colours play at 2%: a lift of 10 from three decks. The commander rate is
+//    colors play at 2%: a lift of 10 from three decks. The commander rate is
 //    shrunk toward the baseline with a beta prior worth SYNERGY_PRIOR_DECKS
 //    decks (see its comment for the derivation):
 //
@@ -37,7 +37,7 @@
 //    play it). Large pages barely move (N=22,305: 0.04%); a 15-deck page
 //    keeps 75% of its own evidence.
 //
-// 2. Baselines near zero. A card the colours almost never play has a lift
+// 2. Baselines near zero. A card the colors almost never play has a lift
 //    that explodes on noise (1 deck / 0.1%). The baseline is floored at
 //    BASELINE_FLOOR_PCT, the level EDHREC's own lists bottom out at, so the
 //    ratio stops measuring "how obscure" below it.
@@ -50,8 +50,8 @@
 //      strength = (shrunkPct / 100) × log2(lift)
 //
 //    This is the card's term of the KL divergence between the commander's
-//    card distribution and its colours', "played a lot AND played far more
-//    than the colours", the same rate × lift shape as the validated E71
+//    card distribution and its colors', "played a lot AND played far more
+//    than the colors", the same rate × lift shape as the validated E71
 //    card-page lift score (liftSynergy.ts edgeScore). It is negative when the
 //    commander's players avoid a card (lift < 1), zero at lift 1.
 //
@@ -79,8 +79,8 @@ import type { EDHRECCard } from '@/deck-builder/types';
 
 /**
  * Pseudo-count α of the beta prior that pulls a page's play rate toward its
- * colours' rate: the prior is worth α decks of "this commander plays it like
- * its colours do".
+ * colors' rate: the prior is worth α decks of "this commander plays it like
+ * its colors do".
  *
  * Derived by simulation over the 90 EDHREC pages cached by the LIVE_GEN
  * panels (23,595 card rows, 2026-09-29), scratchpad scripts alpha-sim*.mjs:
@@ -95,12 +95,12 @@ import type { EDHRECCard } from '@/deck-builder/types';
  *           2.04  1.82  1.82  2.11  2.53  2.99  3.95  6.00  8.71 11.51
  *
  *    (log2(lift) bottoms out at α=5 too.) Commanders genuinely differ from
- *    their colours (the method-of-moments between-commander spread gives a
+ *    their colors (the method-of-moments between-commander spread gives a
  *    Bühlmann k ≈ 12 at the median card), so heavy shrinkage throws away
  *    real signal.
  * 2. A thin page LISTS a card because it was seen, so its rows carry a
- *    winner's curse the first simulation can't see. Modelled explicitly: 1,500
- *    noise cards per page played exactly at their colours' rate (0.2-3%,
+ *    winner's curse the first simulation can't see. Modeled explicitly: 1,500
+ *    noise cards per page played exactly at their colors' rate (0.2-3%,
  *    below a big page's list cutoff), resampled with the real cards, kept
  *    only when seen (k ≥ 1). α=5 still has the lowest strength error at 8,
  *    15, 60 and 150 decks (ties α=2 at 30), and reads 0.02% of the listed
@@ -116,20 +116,20 @@ import type { EDHRECCard } from '@/deck-builder/types';
 export const SYNERGY_PRIOR_DECKS = 5;
 
 /** Floor on the colour-identity baseline, in percent. EDHREC's commander
- *  lists bottom out near 1-5% inclusion; below 1% a baseline is "the colours
+ *  lists bottom out near 1-5% inclusion; below 1% a baseline is "the colors
  *  don't play it", and dividing by 0.1% vs 0.9% measures obscurity, not fit. */
 export const BASELINE_FLOOR_PCT = 1;
 
 /**
  * The old signature bar, EDHREC synergy above +0.3 (30 points more played
- * than in the colours). Kept as half of the signature test so nothing it
+ * than in the colors). Kept as half of the signature test so nothing it
  * marked drops out.
  */
 export const LEGACY_SIGNATURE_SYNERGY = 0.3;
 
 /**
  * The ratio half of the signature test: strength at or above this, with the
- * commander playing the card at least twice as often as its colours. It ADDS
+ * commander playing the card at least twice as often as its colors. It ADDS
  * the specific cards a subtraction under-reads (Overgrowth in Sythis, 32% vs
  * 3.7%, +0.28; Pestilence Rats in Karumonix, 31% vs 1.8%, +0.29). 0.9 is the
  * bar that, on its own, would keep the signature set the size of the old one
@@ -137,17 +137,17 @@ export const LEGACY_SIGNATURE_SYNERGY = 0.3;
  * tier grows by the 480 rows only the ratio sees.
  */
 export const SIGNATURE_STRENGTH = 0.9;
-/** A ratio-signature card is played at least twice as often as in its colours. */
+/** A ratio-signature card is played at least twice as often as in its colors. */
 export const SIGNATURE_MIN_LIFT = 2;
 
 /**
- * Anti-synergy: the commander's players avoid a card its colours usually
+ * Anti-synergy: the commander's players avoid a card its colors usually
  * play. Both bars, deliberately conservative:
- *  - lift ≤ 0.5: played at half the colours' rate or less, the mirror of the
+ *  - lift ≤ 0.5: played at half the colors' rate or less, the mirror of the
  *    signature bar's doubling (log2 lift ≤ −1). The shrinkage above already
  *    pulls a thin page's rates toward lift 1, so a small page has to show a
  *    real gap to cross it.
- *  - baseline ≥ 15%: the colours genuinely play it. Below that, halving a
+ *  - baseline ≥ 15%: the colors genuinely play it. Below that, halving a
  *    niche card's rate is a few decks and says nothing about avoidance.
  * Over the 90 cached pages this flags 740 of 23,595 rows (3.1%), e.g. Llanowar
  * Elves and Cultivate in Sythis (enchantress ramp instead), Mind Stone in
@@ -172,7 +172,7 @@ export interface SynergyReading {
   sampleDecks: number | null;
   /** commanderPct shrunk toward baselinePct by SYNERGY_PRIOR_DECKS. */
   shrunkPct: number;
-  /** shrunkPct / baselinePct. 1 = plays it like its colours. */
+  /** shrunkPct / baselinePct. 1 = plays it like its colors. */
   lift: number;
   /** (shrunkPct / 100) × log2(lift): the ranking signal, and the ratio half
    *  of the signature test. */
@@ -240,7 +240,7 @@ export function isSignatureSynergy(card: SynergyFields): boolean {
   return r != null && r.strength >= SIGNATURE_STRENGTH && r.lift >= SIGNATURE_MIN_LIFT;
 }
 
-/** The commander's players avoid a card its colours usually play. */
+/** The commander's players avoid a card its colors usually play. */
 export function isAntiSynergy(card: SynergyFields): boolean {
   const r = readSynergy(card);
   return (

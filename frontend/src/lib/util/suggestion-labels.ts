@@ -300,7 +300,7 @@ function watchHistory(): void {
 
 // ── Public emitters ────────────────────────────────────────────────────────
 
-/** A player acted on a suggestion. An `accept` is remembered so a later undo is labelled. */
+/** A player acted on a suggestion. An `accept` is remembered so a later undo is labeled. */
 export function recordSuggestion(input: SuggestionInput): void {
   if (!isSuggestionLabelsEnabled() || !context) return;
   send(input, context.commander);

@@ -529,7 +529,7 @@ export function ListDetailView({
   // Compact becomes the shared card table from tablet width up, as it does on
   // Collection and a binder page. The target-price column only exists where
   // the editor does: a want list. A dynamic list's rows are owned collection
-  // copies and a tracking list already catalogues them, so neither shows it.
+  // copies and a tracking list already catalogs them, so neither shows it.
   const wideEnoughForTable = useMediaQuery('(min-width: 768px)');
   const isTable = view === 'compact' && wideEnoughForTable;
   const tablePreset = dynamic || tracking ? LIST_TABLE_COLUMNS : LIST_TABLE_COLUMNS_WITH_TARGET;
@@ -548,7 +548,7 @@ export function ListDetailView({
   // oracleId/name match the header cost stat uses, so the two never disagree.
   // On a want list, unowned is the default state (no badge); on a tracking
   // list it's the anomaly worth flagging — the card slipped out of the
-  // collection since it was catalogued.
+  // collection since it was cataloged.
   const ownedBadge = (entry: ListEntry) => {
     const ownedQty = ownedCountForEntry(entry, ownedCards);
     if (ownedQty === 0) {
@@ -594,7 +594,7 @@ export function ListDetailView({
             ]
           : []),
         { label: 'Edit printing', onClick: () => setEditing(entry) },
-        // A tracking list catalogues cards already owned — "moving" one would
+        // A tracking list catalogs cards already owned — "moving" one would
         // mint a duplicate copy.
         ...(tracking
           ? []
@@ -826,7 +826,7 @@ export function ListDetailView({
                 ownedBadge={dynamic ? undefined : ownedBadge(r.entry)}
                 targetPriceSlot={
                   // A want list is what target price means — a tracking list
-                  // already catalogues owned cards, and a dynamic list's rows
+                  // already catalogs owned cards, and a dynamic list's rows
                   // are owned collection copies (see isTrackingList).
                   dynamic || tracking ? undefined : (
                     <ListEntryTargetPrice

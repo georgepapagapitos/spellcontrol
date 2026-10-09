@@ -296,11 +296,11 @@ interface CollectionState {
 
   // List actions
   /** Pass `rule` to create a dynamic list (rule-driven, no manual entries),
-   *  or `kind: 'tracking'` for a static catalogue of owned cards. */
+   *  or `kind: 'tracking'` for a static catalog of owned cards. */
   createList: (name: string, rule?: BinderFilterGroup[], kind?: ListKind) => string;
   /** Replace a dynamic list's rule groups (already cleaned via cleanFilter). */
   setListRule: (id: string, rule: BinderFilterGroup[]) => void;
-  /** Switch a static list between want (acquire) and tracking (owned catalogue). */
+  /** Switch a static list between want (acquire) and tracking (owned catalog). */
   setListKind: (id: string, kind: ListKind) => void;
   renameList: (id: string, name: string) => void;
   reorderLists: (orderedIds: string[]) => void;

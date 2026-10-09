@@ -65,7 +65,7 @@ describe('play board touch targets', () => {
       expect(body, `${sel} needs position: absolute`).toContain('position: absolute');
       expect(body, `${sel} needs a centring transform`).toContain('translate(-50%, -50%)');
     }
-    // The ghost only centres against its own button if that button is a
+    // The ghost only centers against its own button if that button is a
     // positioning context. `.player-panel-step-btn` already is (it is
     // absolutely positioned); `.player-panel-name` is not, so it must be
     // made one explicitly.
@@ -248,7 +248,7 @@ describe('table clock is an edge strip, not a seam satellite', () => {
  * or `.game-board` would also silence the seat drawer and game menu sheets
  * nested inside them, which must keep scrolling by touch.
  */
-describe('F1: a fast swipe on the panel is not cancelled by the browser', () => {
+describe('F1: a fast swipe on the panel is not canceled by the browser', () => {
   it('every tap-zone half stops the browser from taking the gesture as a pan', () => {
     const body = ruleBody(board, '.player-panel-tapzone');
     expect(body, '.player-panel-tapzone is missing').toBeTruthy();
@@ -306,7 +306,7 @@ describe('the hub ring and its sheets clear the touch floor', () => {
 });
 
 /**
- * F2 (P0): the ± buttons sit at the exact centre of each tap-zone half and,
+ * F2 (P0): the ± buttons sit at the exact center of each tap-zone half and,
  * as real buttons, intercepted pointerdown ahead of useTapAndHold — a long
  * press on the visible "+" gave +1 (not the zone's +10) and a swipe starting
  * on one did nothing. Lotus's model: on a coarse pointer the ± are hints,

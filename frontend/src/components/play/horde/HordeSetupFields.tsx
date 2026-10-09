@@ -75,7 +75,7 @@ interface Props {
 
 /**
  * The Horde branch of the Local setup form's Game + Rules sections (design
- * point 1): pick a horde, a difficulty, then the Customise disclosure and the
+ * point 1): pick a horde, a difficulty, then the Customize disclosure and the
  * ban-list warning. Pure/controlled — LocalSetup owns every value so
  * `buildSetup`-equivalent stays a single source of truth.
  */

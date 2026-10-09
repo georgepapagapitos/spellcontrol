@@ -66,7 +66,7 @@ function localRectRelativeTo(el: HTMLElement, ancestor: HTMLElement): Box {
 /**
  * The board hub's ring (Lotus's radial menu; board T155, Direction A).
  * Tapping the hub outside commander-damage mode dims the board under a scrim
- * and places labelled rect keys evenly on one circle round it, with a dock of
+ * and places labeled rect keys evenly on one circle round it, with a dock of
  * the away-from-the-table places along the board's bottom edge. Keys and dock
  * are one `role="menu"`, in that order.
  *
@@ -85,7 +85,7 @@ function localRectRelativeTo(el: HTMLElement, ancestor: HTMLElement): Box {
  * covers the clock strip, and with the strip turned off it covers the grid's
  * bottom edge instead, so the grid alone is not the bound.
  *
- * `useMenuKeyboard` supplies the WAI-ARIA menu behaviour: focus moves to the
+ * `useMenuKeyboard` supplies the WAI-ARIA menu behavior: focus moves to the
  * first key on open, Arrow/Home/End walk the keys clockwise and then the
  * dock, Escape and an outside tap close it and return focus to the hub. The
  * scrim is what an outside tap lands on, so it never falls through to the

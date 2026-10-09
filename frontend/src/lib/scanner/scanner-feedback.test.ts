@@ -138,7 +138,7 @@ describe('pulseValueHaptic', () => {
 });
 
 /**
- * playValueChime synthesises a WebAudio flourish. We only verify here
+ * playValueChime synthesizes a WebAudio flourish. We only verify here
  * that each tier wires up *at least one* oscillator → gain → destination
  * chain — the exact note choices are tuning, not contract. A no-op
  * AudioContext stand-in keeps the test pure; missing/broken WebAudio

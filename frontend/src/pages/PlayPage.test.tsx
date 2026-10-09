@@ -357,7 +357,7 @@ describe('Local setup — Horde (co-op)', () => {
     fireEvent.click(screen.getByRole('option', { name: 'Horde (co-op)' }));
   }
 
-  it('swaps the Game/Rules sections for the horde tiles, difficulty and Customise', () => {
+  it('swaps the Game/Rules sections for the horde tiles, difficulty and Customize', () => {
     renderPage('/play/local');
     pickHorde();
     expect(screen.getByText('Zombies')).toBeTruthy();
@@ -395,7 +395,7 @@ describe('Local setup — Horde (co-op)', () => {
   });
 
   // Bosses / Safe zone moved off `RulePill` onto `SwitchRow` too (board T139).
-  it('the Customise switches carry a visible hint and flip on click', () => {
+  it('the Customize switches carry a visible hint and flip on click', () => {
     renderPage('/play/local');
     pickHorde();
     fireEvent.click(screen.getByText('Customise'));

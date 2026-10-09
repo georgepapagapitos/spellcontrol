@@ -1,6 +1,6 @@
 /**
  * Goldfish manabase simulator: does this deck cast its spells on time, with
- * the right colours?
+ * the right colors?
  *
  * A deterministic Monte-Carlo goldfish. Each game shuffles the library (the
  * commanders wait in the command zone), mulligans to a keepable hand, then
@@ -50,8 +50,8 @@
  * - Mana available each turn after the land drop, ramp included.
  * - Per card, P(castable on the turn equal to its mana value) and on the turn
  *   after, each also conditioned on the mana amount being there, so only
- *   colour can fail it (Karsten's measure, with ramp counted as mana), plus
- *   which colour was short. Commanders the same. Deck averages weigh every
+ *   color can fail it (Karsten's measure, with ramp counted as mana), plus
+ *   which color was short. Commanders the same. Deck averages weigh every
  *   copy of every nonland spell once: one card is one draw's worth of the
  *   deck, and the per-card list is there for any other weighting. The count of
  *   spells under Karsten's (89 + mana value)% bar is the gate-shaped number.
@@ -62,11 +62,11 @@
  *   103.4c) and the starting player draws on turn 1 (CR 800.7).
  * - Lands: shocks enter untapped (a goldfish pays the life); check, fast,
  *   slow, tango, bond, snarl and legendary-condition lands follow their
- *   condition; unrecognised conditions read as tapped. Fetch lands crack on
+ *   condition; unrecognized conditions read as tapped. Fetch lands crack on
  *   entry for the land still in the library that serves the turn best (typed
  *   fetches can find duals and triomes; a fetch with nothing left to find
  *   finds nothing). Pathways and
- *   Thriving lands choose their colour on entry; Karoos bounce a land;
+ *   Thriving lands choose their color on entry; Karoos bounce a land;
  *   Temple of the False God waits for five lands. A spell//land MDFC is played
  *   as a land only when no real land is in hand and its spell can't be cast
  *   that turn.
@@ -76,7 +76,7 @@
  * - Paying a cost is an exact matching of pips to mana (Hall's theorem, see
  *   `./cost.ts`), so hybrid, {C} and multi-colour costs are handled exactly.
  *
- * ## Not modelled
+ * ## Not modeled
  *
  * Card draw and card selection (a Brainstorm finds no land), cost reducers,
  * rituals, extra land drops, mana doublers and auras (Wild Growth), granted
@@ -121,7 +121,7 @@ export { canPay, maskOf, parseManaCost } from './cost';
 export { FLOOD_SURPLUS, FLOOD_TURN, simulateManaDeck } from './engine';
 export * from './types';
 
-/** Commander colour identity as a mask (the commanders' identities united). */
+/** Commander color identity as a mask (the commanders' identities united). */
 export function identityMask(commanders: readonly ScryfallCard[]): ManaMask {
   let m = 0;
   for (const c of commanders) m |= maskOf(c.color_identity ?? []);

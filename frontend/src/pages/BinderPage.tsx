@@ -63,7 +63,7 @@ export function BinderPage() {
   // the user away from the page they asked for.
   // `hasSyncError()` is the bail: a pull that fails leaves the state at
   // 'syncing' forever, and waiting on it would spin instead of falling back to
-  // the pre-existing behaviour.
+  // the pre-existing behavior.
   const awaitingFirstPull = isAuthed && getSyncState() !== 'ready' && !hasSyncError();
   const search = useCollectionStore((s) => s.search);
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);

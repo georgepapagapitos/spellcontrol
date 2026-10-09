@@ -63,7 +63,7 @@ describe('mostSimilar', () => {
     expect(top.slice(0, 2).sort()).toEqual(['Butcher of Malakir', 'Dictate of Erebos']);
   });
 
-  it('holds the query out, filters the pool and honours IDF weights', () => {
+  it('holds the query out, filters the pool and honors IDF weights', () => {
     const query = gold('Wrath of God');
     const idf = tagIdf(pool.map(similarityTags));
     const top = mostSimilar(query, pool, 5, { idf, filter: (f) => f.types.includes('sorcery') });

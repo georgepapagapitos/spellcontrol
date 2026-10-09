@@ -129,7 +129,7 @@ describe('BrowseListPage', () => {
     expect(screen.getByText('The commanders most built on EDHREC this month.')).toBeTruthy();
   });
 
-  it('locks a colour list to the past 2 years and says why', async () => {
+  it('locks a color list to the past 2 years and says why', async () => {
     renderList('/search/top/cards?period=week&colors=UW&type=mana-artifacts');
 
     await waitFor(() =>
@@ -143,7 +143,7 @@ describe('BrowseListPage', () => {
     ).toBeTruthy();
   });
 
-  it('picks colours with the shared pips, writing them to the URL', async () => {
+  it('picks colors with the shared pips, writing them to the URL', async () => {
     renderList('/search/top/commanders?period=month');
     await screen.findByRole('button', { name: /Ygra/ });
 

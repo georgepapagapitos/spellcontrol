@@ -28,7 +28,7 @@ interface Props {
  *
  * An empty card renders NOTHING. It used to collapse to a 44px invitation row,
  * which still claimed a whole grid cell and left a hole beside its tall
- * neighbour; four of them made a quarter of the page say "nothing here".
+ * neighbor; four of them made a quarter of the page say "nothing here".
  * Every door those rows carried now lives somewhere with content (the hero's
  * actions, Waiting on you, Around the table).
  *

@@ -24,7 +24,7 @@ function frameWithCard(
 }
 
 describe('detectCardBox', () => {
-  it('finds a centred 5:7 rectangle', () => {
+  it('finds a centered 5:7 rectangle', () => {
     const W = 64;
     const H = 90;
     const cardW = 30;
@@ -81,7 +81,7 @@ describe('detectCardBox', () => {
   });
 
   it('rejects a one-sided gradient (background ramp, not a card)', () => {
-    // Synthesise a left-bright-to-right-dark ramp — no actual rectangle.
+    // Synthesize a left-bright-to-right-dark ramp — no actual rectangle.
     // The old detector would lock onto this because *one* column has a
     // huge gradient relative to mean; the symmetry check rejects it.
     const W = 64;

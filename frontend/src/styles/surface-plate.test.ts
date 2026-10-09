@@ -11,7 +11,7 @@ import { dirname, join, relative, sep } from 'node:path';
 // against 1px, --radius against --radius-lg. A family keeps its padding and
 // layout, which follow its content, but not the frame: its fill, border,
 // radius or shadow. A state rule (:hover, :focus-within) may still lift a
-// tile, the error card keeps its status border colour, and a surface nested
+// tile, the error card keeps its status border color, and a surface nested
 // in another frame may drop its own (0, none, transparent): one frame per
 // surface, never a card in a card.
 //

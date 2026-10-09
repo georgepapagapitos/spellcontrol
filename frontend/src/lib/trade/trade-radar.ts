@@ -27,7 +27,7 @@ export interface TradeRadarMatch {
  * case-insensitive exact name match for legacy entries without one. One match
  * per distinct card, aggregated across lists; sorted by name.
  *
- * Tracking lists (catalogues of cards the viewer already owns) are skipped —
+ * Tracking lists (catalogs of cards the viewer already owns) are skipped —
  * their entries are not wants, so a friend owning the same card is not a
  * trade opportunity.
  */

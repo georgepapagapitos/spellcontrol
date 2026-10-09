@@ -2,7 +2,7 @@
  * The cards each deck's coach wants, remembered so Home can say "+N new
  * cards" and mean the same N the deck page shows.
  *
- * A new arrival (lib/coach/new-arrivals.ts) is any owned card in the deck's colour
+ * A new arrival (lib/coach/new-arrivals.ts) is any owned card in the deck's color
  * identity acquired since the deck last changed. On a real import that reads
  * as random, so the deck page narrows it to the cards the coach recommends
  * (`CoachLanes`) plus the missing piece of a one-away combo.

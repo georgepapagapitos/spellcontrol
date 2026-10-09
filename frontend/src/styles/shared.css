@@ -270,7 +270,7 @@
   margin-bottom: var(--space-4);
 }
 
-/* A visitor's two actions (Playtest, Copy) are both labelled, so on a narrow
+/* A visitor's two actions (Playtest, Copy) are both labeled, so on a narrow
    phone they wrap rather than squeeze. */
 .shared-deck-header .deck-editor-actions {
   flex-wrap: wrap;

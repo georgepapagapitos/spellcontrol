@@ -15,7 +15,7 @@
  * is CI-enforced (themes-contrast.test.ts). The material re-derivation
  * additionally holds --text-secondary ≥ 4.5:1, --text-primary ≥ 6.5:1,
  * --on-accent vs --accent ≥ 4.5:1, and --accent and --accent-hover ≥ 4.5:1 as
- * text on bg/surface/surface-raised (they colour labels, not only fills).
+ * text on bg/surface/surface-raised (they color labels, not only fills).
  *
  * Only semantic UI tokens are overridden here. Mana pip colors live in
  * lib/cards/colors.ts; rarity colors live in :root in tokens.css. Both are
@@ -331,11 +331,11 @@
 
 /* ── prefers-contrast: more ───────────────────────────────────────────────
    The OS "increase contrast" setting. Every palette already clears AA (and
-   AAA on primary text), so this is not a rescue — it honours a reader who has
+   AAA on primary text), so this is not a rescue — it honors a reader who has
    asked for less subtlety by retiring the two tokens that trade contrast for
    tone.
 
-   It re-points tokens at STRONGER SIBLINGS rather than declaring new colours,
+   It re-points tokens at STRONGER SIBLINGS rather than declaring new colors,
    which is what lets one block cover all ten themes: each theme defines its
    own --text-secondary and --border-strong, so each gets correctly hued
    high-contrast values for free, and a new theme is covered the day it lands

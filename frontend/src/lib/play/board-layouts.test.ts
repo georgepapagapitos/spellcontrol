@@ -163,7 +163,7 @@ describe('seamSatellite', () => {
     const after = seamSatellite({ col: 1 }, 2, 1, '3.4rem');
     expect(before.topPct).toBe('25%');
     expect(after.topPct).toBe('75%');
-    // Centred on that point — no hub-relative offset left to apply.
+    // Centered on that point — no hub-relative offset left to apply.
     for (const p of [before, after]) {
       expect(p.tx).toBe('-50%');
       expect(p.ty).toBe('-50%');
@@ -203,14 +203,14 @@ describe('seamSatellite', () => {
     }
   });
 
-  it('row seam: the wide satellite is anchored by its edge, not its centre', () => {
-    // Centring a 133px pill 3.4rem from a 44px hub put 1357px² of the hub
+  it('row seam: the wide satellite is anchored by its edge, not its center', () => {
+    // Centering a 133px pill 3.4rem from a 44px hub put 1357px² of the hub
     // underneath it — the ⋯ glyph was invisible on every row-seam board. An
     // edge anchor keeps the gap fixed however wide the pill gets.
     const clock = seamSatellite({ row: 1 }, 2, 1, '3.4rem');
     expect(clock.tx).not.toContain('-50%');
     expect(clock.tx).toBe('2rem');
-    // The small icon satellite still centres — it is narrower than the gap.
+    // The small icon satellite still centers — it is narrower than the gap.
     expect(seamSatellite({ row: 1 }, 2, -1, '3.4rem').tx).toContain('-50%');
   });
 
@@ -465,14 +465,14 @@ describe('clockwise seat order (T-tenplayers)', () => {
   // far row left→right, down the right side, near row right→left, up the
   // left side. Verified geometrically: seat 0 is the anchor (relative angle
   // 0) and every other seat's angle, measured clockwise from seat 0 around
-  // the grid's centre, must be non-decreasing. A Wide (colSpan-2) seat's
+  // the grid's center, must be non-decreasing. A Wide (colSpan-2) seat's
   // angle is taken from its right-hand cell — the corner that keeps its
   // clockwise position well-defined even when the seat sits exactly on the
-  // grid's centre line (5p-wide-middle).
+  // grid's center line (5p-wide-middle).
   function angleDeg(seat: SeatSlot, rows: number): number {
     const cx = seat.col + (seat.colSpan ?? 1) - 1;
     const cy = seat.row + (seat.rowSpan ?? 1) - 1;
-    const dx = cx - 1.5; // cols is always 2, centre col = 1.5
+    const dx = cx - 1.5; // cols is always 2, center col = 1.5
     const dyNorth = (rows + 1) / 2 - cy;
     return (Math.atan2(dx, dyNorth) * (180 / Math.PI) + 360) % 360;
   }

@@ -345,7 +345,7 @@ describe('comboIntegrityAuditPhase', () => {
     state.categories.creatures = [pieceA, pieceB, filler];
     state.usedNames = new Set(['PieceA', 'PieceB', 'Filler']);
     // Filler (evicted) reads as 'removal'; Enabler (added) reads as 'ramp' —
-    // distinct roles so increment/decrement aren't just cancelling each other.
+    // distinct roles so increment/decrement aren't just canceling each other.
     mockGetCardRole.mockImplementation((name: string) =>
       name === 'Filler' ? 'removal' : name === 'Enabler' ? 'ramp' : null
     );

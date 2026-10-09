@@ -128,7 +128,7 @@ function useHordeDeckLoad(hordeId: string): HordeDeckLoad & { retry(): void } {
  * "Start game" button bolted into its header — the board answers "what is
  * everyone's life total", a question nobody has yet.
  *
- * Only the settings the reducer can actually honour are here. Everything a
+ * Only the settings the reducer can actually honor are here. Everything a
  * rules engine would be needed for (mulligan style, sideboards, a turn
  * timer) is deliberately absent rather than faked: this is a life pad with a
  * shared log, and a toggle that changes nothing is worse than no toggle.
@@ -165,7 +165,7 @@ export function OnlineLobby({
   const [hordeId, setHordeId] = useState<string>(HORDE_CATALOG[0].id);
   const [hordeLevel, setHordeLevel] = useState<HordeLevel>('standard');
   const [hordeCustomiseOpen, setHordeCustomiseOpen] = useState(false);
-  // Customise overrides never travel with the table — a host reload falls
+  // Customize overrides never travel with the table — a host reload falls
   // back to the preset, which is fine (see design point 2).
   const [hordeOverrides, setHordeOverrides] = useState<Partial<HordeSettings>>({});
   const hordeDeck = useHordeDeckLoad(hordeId);

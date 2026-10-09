@@ -11,7 +11,7 @@ const MIGRATION = 'publication_card_colors_v1';
  * so every published Pauper / Modern / Standard deck was written as colorless.
  * It now falls back to the deck's cards, but the sync hook only rewrites a
  * publication when its deck is next edited, so without this pass an existing
- * deck would stay grey on Discover and /u/:username until its owner touched it.
+ * deck would stay gray on Discover and /u/:username until its owner touched it.
  *
  * Only `color_identity` is written: `deck_rev` and `updated_at` stay put, so a
  * later sync still refreshes the row and "Recently updated" doesn't reshuffle.

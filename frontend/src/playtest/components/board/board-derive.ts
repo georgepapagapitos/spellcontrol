@@ -15,7 +15,7 @@ import type { TriggerCard } from '../TriggerReminder';
 
 // Values PlaytestBoard derives from its state and the deck, lifted out as
 // plain functions. The board still calls them at the same points (inside the
-// same useMemo where it memoised), so nothing recomputes more or less often.
+// same useMemo where it memoized), so nothing recomputes more or less often.
 
 /** Map from each PlaytestCard instance id back to the underlying
  *  ScryfallCard, so the OpeningHandSheet can pass full card data to the

@@ -34,7 +34,7 @@ export type ProgressFn = (p: DownloadProgress) => void;
  * below is exactly what bunches requests together — every client on a venue's
  * shared address enters this loop at once after a deploy. Treating 429 as
  * fatal turned "wait a moment" into "Couldn't reach the card data service" for
- * all of them. `Retry-After` (which express-rate-limit sets) is honoured below,
+ * all of them. `Retry-After` (which express-rate-limit sets) is honored below,
  * and the exponential backoff is the fallback when it is absent.
  */
 const RETRYABLE_STATUSES = new Set([429, 502, 503, 504]);

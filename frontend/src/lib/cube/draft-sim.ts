@@ -5,7 +5,7 @@
 // in the live stress harness without flaking.
 //
 // Scope: this measures DRAFTABILITY, not deck quality — a bot is a simple,
-// legible heuristic (power + synergy snowball + a one-time colour commitment),
+// legible heuristic (power + synergy snowball + a one-time color commitment),
 // not a competitive drafter. The point is exposing structural cube problems
 // (too few playables in most pairs, an archetype nobody can actually build),
 // not grading individual picks.
@@ -14,7 +14,7 @@
 // `simulateCommanderDraft`, for a Commander cube's combined spells+legends
 // pool: bots draft naturally (no guaranteed legend slot, per the design doc's
 // open question 5), take a commander when a good one appears, then draft
-// inside that commander's colour identity instead of a 2-colour pair. It
+// inside that commander's color identity instead of a 2-colour pair. It
 // shares the pack-dealing/pass-around mechanics with the limited-format pod
 // below (`dealAndDraft`) and the module's RNG/seed conventions, but needs its
 // own scoring and deck-building because a singleton, identity-restricted
@@ -26,7 +26,7 @@
 //
 // Board E462 teaches the commander pod about Partner/Background: a bot whose
 // commander has a Partner-family keyword or can choose a Background may draft
-// a second, compatible legend and use both, with the combined colour identity
+// a second, compatible legend and use both, with the combined color identity
 // (see `isCompatiblePartnerCard`) — at most one pairing, same as the real
 // rules allow.
 
@@ -52,10 +52,10 @@ import {
 import { mulberry32, shuffle } from '../playtest/rng';
 import type { AxisKey } from '@/deck-builder/services/synergy/axes';
 
-/** Canonical `ColorPair` for two (unordered) colours — the reverse of what a
+/** Canonical `ColorPair` for two (unordered) colors — the reverse of what a
  *  string pair like 'WU' already gives you by indexing. `core` only exposes
- *  this lookup keyed off a card's colours (`pairOf`); a bot's committed
- *  colours are computed from popularity counts, not a card, so it needs the
+ *  this lookup keyed off a card's colors (`pairOf`); a bot's committed
+ *  colors are computed from popularity counts, not a card, so it needs the
  *  same lookup built from `COLOR_PAIRS` itself. */
 const PAIR_BY_COLORS = new Map<string, ColorPair>(
   COLOR_PAIRS.map((p) => [[...p].sort().join(''), p])
@@ -65,7 +65,7 @@ const PACKS_PER_PLAYER = 3;
 const CARDS_PER_PACK = 15;
 const PLAYABLE_TARGET = 23;
 /**
- * Pick number (0-indexed, own picks only) a bot commits to its two colours at.
+ * Pick number (0-indexed, own picks only) a bot commits to its two colors at.
  * 8 is roughly the midpoint of pack 1 — enough picks to read what's actually
  * open without stubbornly staying open the way real over-cautious drafters do.
  */
@@ -140,7 +140,7 @@ function scoreCard(card: CubeCard, state: DrafterState, basis: PowerBasis): numb
   if (state.commitPair) {
     const colors = realColorsOf(card);
     if (colors.length === 0) {
-      // colourless always fits, no bonus or penalty
+      // colorless always fits, no bonus or penalty
     } else if (colors.every((c) => state.commitPair!.includes(c))) {
       score += 0.5;
     } else if (colors.some((c) => state.commitPair!.includes(c))) {
@@ -247,7 +247,7 @@ function draftPod(
 }
 
 /** The best 23-or-fewer non-land playables a drafted pool can field in one
- *  two-colour pair (colourless cards count in every pair). Ties break on
+ *  two-colour pair (colorless cards count in every pair). Ties break on
  *  total power, then on `COLOR_PAIRS` order, so the choice is deterministic. */
 function buildBestDeck(pool: CubeCard[], basis: PowerBasis): { pair: ColorPair; deck: CubeCard[] } {
   const nonland = pool.filter((c) => !isLand(c));
@@ -315,9 +315,9 @@ export interface DraftSimResult {
   /** True when the cube has fewer than `sizeInfo(size).players * 45` cards —
    *  the pod actually drafted is smaller than the size's own nominal pod. */
   shortCube: boolean;
-  /** 0..1 share of decks that reached 23 non-land playables in two colours. */
+  /** 0..1 share of decks that reached 23 non-land playables in two colors. */
   reachedBarShare: number;
-  /** All 10 colour pairs, sorted by share descending. */
+  /** All 10 color pairs, sorted by share descending. */
   pairShares: PairShare[];
   /** Axes the cube's pool can support (has both an enabler and a payoff
    *  somewhere) that no drafted deck, across every run, ever leaned into. */
@@ -413,7 +413,7 @@ const COMMANDER_BONUS = 0.5;
  * Own-pick index (0-indexed, inclusive) after which a bot with no commander
  * yet force-commits to the best legend it has already drafted (or keeps
  * waiting if it hasn't picked one up at all yet — see `takeCommanderPick`).
- * Deliberately as early as `COMMIT_PICK` anchors the limited pod's colour
+ * Deliberately as early as `COMMIT_PICK` anchors the limited pod's color
  * commitment: reaching `COMMANDER_PLAYABLE_TARGET` (23) identity-legal
  * playables out of 45 total picks needs most of the draft to happen AFTER
  * commitment, mirroring how a real Commander Legends drafter locks their
@@ -438,7 +438,7 @@ interface CommanderDrafterState {
   /** Set once `commander` is, from `identityColors(commander)` — kept
    *  alongside `commander` (rather than re-derived) so a hybrid/colour-
    *  indicator commander's identity is fixed at commit time. Merged with the
-   *  partner/Background's own colours the moment one is drafted (see
+   *  partner/Background's own colors the moment one is drafted (see
    *  `isCompatiblePartnerCard`), so every legality check downstream of that
    *  pick already sees the combined identity for free. */
   identity: string[] | null;
@@ -638,7 +638,7 @@ export interface CommanderDraftSimResult {
    *  "couldn't even start" half of the decks `builtDeckShare` excludes,
    *  distinct from "got one but couldn't fill 23 playables around it." */
   noCommanderShare: number;
-  /** All 16 identity buckets (5 colours + 10 pairs + 3+), by how often a
+  /** All 16 identity buckets (5 colors + 10 pairs + 3+), by how often a
    *  drafted deck's commander landed there, sorted by share descending. */
   identityShares: CommanderIdentityShare[];
   /** Identity buckets the legend section actually supplies at least one
@@ -652,7 +652,7 @@ export interface CommanderDraftSimResult {
  * (default 50): bots draft naturally off the whole pool (legends fall at
  * natural odds, same as the sample pack — no guaranteed per-pack legend
  * slot), take a commander when a good one appears, then draft inside that
- * commander's colour identity for the rest of the pod. Pure and deterministic
+ * commander's color identity for the rest of the pod. Pure and deterministic
  * like `simulateDraft`; same seed contract (derived from the combined pool
  * unless overridden).
  */

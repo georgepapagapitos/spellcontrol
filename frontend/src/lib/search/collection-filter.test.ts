@@ -43,7 +43,7 @@ describe('rowMatchesCollectionFilter', () => {
 
   // The six collection-only post-checks. They can't go through the rule engine
   // — binder membership and deck allocation aren't card properties, and the
-  // colour semantics differ — so they're the part most at risk of drifting if
+  // color semantics differ — so they're the part most at risk of drifting if
   // the dialog ever grew its own copy of this predicate.
   it('filters on binder membership, with a name for the uncategorized bucket', () => {
     const c = { ...base, binder: compileExpression(expr('Commanders')) };
@@ -54,7 +54,7 @@ describe('rowMatchesCollectionFilter', () => {
     expect(rowMatchesCollectionFilter(row({}, null), uncat)).toBe(true);
   });
 
-  it('filters on colour identity, honouring the OR/AND mode', () => {
+  it('filters on color identity, honoring the OR/AND mode', () => {
     const wu = row({ colorIdentity: ['W', 'U'] });
     const any = { ...base, colors: new Set(['W', 'B']) };
     const all = { ...base, colors: new Set(['W', 'B']), colorMode: 'all' as const };

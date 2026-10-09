@@ -11,7 +11,7 @@ import { Button } from '../../components/shared/Button';
 import { Chip } from '../../components/shared/Chip';
 
 /** A deck reaching fewer than this share of the 23-playable bar gets one
- *  plain, unstyled line saying so (design decision: no warn colour, no icon
+ *  plain, unstyled line saying so (design decision: no warn color, no icon
  *  — a cube that doesn't support a two-colour draft yet isn't a defect the
  *  way an off-curve mana base is). */
 const REACH_NOTE_THRESHOLD = 0.75;
@@ -223,7 +223,7 @@ function DraftSimReport({
   );
 }
 
-/** One colour-pair row: two lettered pips (colour is never the only signal
+/** One colour-pair row: two lettered pips (color is never the only signal
  *  — each pip carries its letter, and the pair also gets a plain-text
  *  "WU"-style label), a share meter, and the percentage as text. */
 function PairRow({

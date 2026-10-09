@@ -3,7 +3,7 @@ import { isTrackingList } from '@/lib/collection/lists';
 import { useCollectionStore } from '@/store/collection';
 import type { ListDef } from '@/types/index';
 
-/** Oracle ids on the viewer's want lists. Tracking lists catalogue cards the
+/** Oracle ids on the viewer's want lists. Tracking lists catalog cards the
  *  viewer owns, so they are never wants (the same rule the trade radar uses). */
 export function wantedOracleIds(lists: readonly ListDef[]): Set<string> {
   const out = new Set<string>();

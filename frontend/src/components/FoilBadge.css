@@ -3,7 +3,7 @@
    used to drift like the card shimmer, which made every chip an infinitely
    animating compositor layer (200 chips in a list = 404 layers) for a motion
    nobody can see at 15px. Formerly a round `.deck-row-foil` pip, now a
-   labelled "F" generalized for every dense surface. */
+   labeled "F" generalized for every dense surface. */
 .foil-badge {
   display: inline-flex;
   align-items: center;

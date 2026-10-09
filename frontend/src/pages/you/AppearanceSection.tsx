@@ -3,7 +3,7 @@ import { THEMES } from '@/lib/account/themes';
 import { TypeSetPicker } from '@/components/settings/TypeSetPicker';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 
-/** Colour theme and type set: the two looks of the whole app, on this device. */
+/** Color theme and type set: the two looks of the whole app, on this device. */
 export function AppearanceSection() {
   const theme = useThemeStore((s) => s.theme);
   const setTheme = useThemeStore((s) => s.setTheme);

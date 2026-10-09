@@ -9,7 +9,7 @@
  *    list beside the open section and marks it;
  *  - every old `?section=` link and the Google link callback land on the
  *    section that now holds what they pointed at;
- *  - each section's own behaviour (sign-in methods, backup and restore,
+ *  - each section's own behavior (sign-in methods, backup and restore,
  *    the disabled-action reasons, the allocations InfoTip, Help).
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';

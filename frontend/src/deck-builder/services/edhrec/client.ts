@@ -1096,7 +1096,7 @@ export async function fetchTopCommanders(colors: string[]): Promise<EDHRECTopCom
       numDecks: entry.numDecks,
     }));
 
-    // The overall list carries no colour identity. Batch-fetch from Scryfall
+    // The overall list carries no color identity. Batch-fetch from Scryfall
     // to fill it in.
     if (isOverall) commanders = await backfillColorIdentities(commanders);
 
@@ -1138,7 +1138,7 @@ export interface EDHRECTagPageData {
   /**
    * Names off the page's `highsynergycards` list specifically — the cards that
    * define this archetype, as opposed to `topcards`/`gamechangers`, which are
-   * generic power in these colours. `parseCardlists` collapses all three under
+   * generic power in these colors. `parseCardlists` collapses all three under
    * `isThemeSynergyCard`, so the distinction has to be captured here or it's
    * lost: injecting the generic lists into a thin pool adds exactly the
    * goodstuff an archetype blend is supposed to be an alternative to (E221).

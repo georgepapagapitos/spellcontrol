@@ -137,7 +137,7 @@ describe('CubeDraftabilityPanel — loaded', () => {
 
     const rows = document.querySelectorAll('.cube-draft-sim-pair-row');
     expect(rows).toHaveLength(10);
-    // Colour is never the only signal — every row carries a plain text label.
+    // Color is never the only signal — every row carries a plain text label.
     const labelTexts = Array.from(document.querySelectorAll('.cube-draft-sim-pair-label')).map(
       (el) => el.textContent ?? ''
     );

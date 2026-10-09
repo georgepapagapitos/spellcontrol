@@ -39,7 +39,7 @@
   outline: none;
 }
 
-/* A roomy, unrotated board: a centred dialog. */
+/* A roomy, unrotated board: a centered dialog. */
 @media (min-width: 600px) {
   :where(.game-board-rotator:not([data-board-rot])) .board-sheet-backdrop {
     align-items: center;

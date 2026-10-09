@@ -10,7 +10,7 @@ const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
  * A control painted straight onto card art has no background of its own to
- * read against, and art can be any colour. The binder and deck tile ⋮ were a
+ * read against, and art can be any color. The binder and deck tile ⋮ were a
  * white glyph with a drop shadow, which users reported as hard to see: it
  * vanished on pale and busy art (E466). Every such control paints a solid
  * surface under its glyph at rest. A new control over art belongs in this

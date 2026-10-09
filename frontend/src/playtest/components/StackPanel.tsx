@@ -44,7 +44,7 @@ const DEFAULT_POS = { right: 24, top: 96 };
 /**
  * One entry in the pile, rendered from the card's real face. The ones
  * underneath are clipped to the printed title bar, so what you read is the
- * card's own name and mana cost over its own frame colour and the pile
+ * card's own name and mana cost over its own frame color and the pile
  * looks like cardboard tucked under cardboard rather than a list.
  *
  * A clipped card carries `data-preview-id`, which is all the delegated

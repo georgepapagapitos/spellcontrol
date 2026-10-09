@@ -37,7 +37,7 @@ const PERIOD_PHRASE: Record<EdhrecTopPeriod, string> = {
   year: 'over the past 2 years',
 };
 
-/** "Azorius", "mono-white", "colorless", or nothing: the colour filter as it
+/** "Azorius", "mono-white", "colorless", or nothing: the color filter as it
  *  reads mid-sentence (a guild keeps its capital, a description doesn't). */
 function colorPhrase(colors: string): string {
   const name = colorComboName([...colors]);

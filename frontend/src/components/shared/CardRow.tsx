@@ -161,7 +161,7 @@ export function CardRow({
 }: CardRowProps) {
   const colorKey = getColorKey(card);
   // Name-keyed CDN thumb is only a fallback, exactly as in `CardGridCell`: a
-  // shared/friend projection can arrive with no image at all, and a colour
+  // shared/friend projection can arrive with no image at all, and a color
   // block where the grid shows real art reads as a broken row. No-ops (no
   // fetch) whenever the row already carries its own art.
   const nameThumb = useCardThumb(card.imageSmall ? undefined : card.name, 'small');

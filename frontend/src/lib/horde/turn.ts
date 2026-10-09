@@ -226,7 +226,7 @@ export interface HordeDamageResult {
 
 /** The shared clause for a boss's arrival, derived from the crossed
  *  `bossTicks` fraction rather than hard-coded to "Half" — Casual/Standard/
- *  Brutal (and any Customise override) can cross a quarter, three quarters,
+ *  Brutal (and any Customize override) can cross a quarter, three quarters,
  *  or the library emptying outright. Used by the damage sheet's banner and
  *  by the toast a reveal-triggered arrival shows (E436). */
 export function bossTickPhrase(tick: number): string {

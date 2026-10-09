@@ -157,7 +157,7 @@ describe('interaction: answer quality and protection', () => {
     expect(answer('Cyclonic Rift')).toBeGreaterThan(answer('Toxic Deluge'));
   });
 
-  it('recognises protection, and reads the commander free-cast clause as free', () => {
+  it('recognizes protection, and reads the commander free-cast clause as free', () => {
     expect(
       protectionValue(card('Lightning Greaves'), ctx.factsOf(card('Lightning Greaves')))
     ).toBeGreaterThan(0);
@@ -206,7 +206,7 @@ describe('mana: the goldfish with a fixed seed', () => {
     expect(a).toBe(b);
   });
 
-  it('scores a Golgari deck on Islands far below the same deck on its own colours', () => {
+  it('scores a Golgari deck on Islands far below the same deck on its own colors', () => {
     const lands = BASELINE.cards.filter((c) => /\bLand\b/.test(c.type_line));
     const spells = BASELINE.cards.filter((c) => !/\bLand\b/.test(c.type_line));
     const islands: ObjectiveDeck = {

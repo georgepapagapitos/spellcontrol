@@ -22,7 +22,7 @@ import { notifyUser } from '../notify';
  * deliberately separate from `game_sessions` (the live authed game state).
  *
  * Token contract mirrors shares: unguessable, unknown tokens 404 (stealthy),
- * but a *cancelled* night stays readable so a guest holding the link sees
+ * but a *canceled* night stays readable so a guest holding the link sees
  * "cancelled" instead of a dead page.
  */
 export const gameNightsRouter: Router = Router();
@@ -417,12 +417,12 @@ export function plusWeek(t: number, timezone: string | null): number {
  * night — title, place, notes, timezone, format, and the invite list all
  * carry forward, so the latest occurrence IS the template and editing this week's
  * night is how the template evolves. Steps a week at a time past unmaterialized
- * weeks and cancelled ("skipped") slots; the unique (series_id, starts_at)
+ * weeks and canceled ("skipped") slots; the unique (series_id, starts_at)
  * index makes concurrent calls collapse into one row.
  */
 async function ensureNextOccurrence(seriesId: string): Promise<void> {
   const pool = getPool();
-  // Each pass inserts a slot or steps past a cancelled one; 8 outlasts any
+  // Each pass inserts a slot or steps past a canceled one; 8 outlasts any
   // realistic chain of consecutively skipped weeks.
   for (let pass = 0; pass < 8; pass++) {
     const latestRes = await pool.query<{
@@ -471,7 +471,7 @@ async function ensureNextOccurrence(seriesId: string): Promise<void> {
         latest.venue,
       ]
     );
-    if (inserted.rows.length === 0) continue; // slot already exists (race, or cancelled) — re-read
+    if (inserted.rows.length === 0) continue; // slot already exists (race, or canceled) — re-read
     const nightId = inserted.rows[0].id;
     // The standing invite list carries forward from the latest occurrence.
     await pool.query(
@@ -886,7 +886,7 @@ gameNightsRouter.post('/', requireAuth, hostWriteLimiter, async (req: Request, r
 /**
  * The caller's game nights: hosting, invited to, or RSVP'd to (e.g. joined via
  * link while signed in). Upcoming plus a 24h grace window; soonest first.
- * Cancelled nights stay listed until they age out so invitees see the cancellation.
+ * Canceled nights stay listed until they age out so invitees see the cancellation.
  */
 gameNightsRouter.get('/', requireAuth, publicLimiter, async (req: Request, res: Response) => {
   const pool = getPool();
@@ -1530,7 +1530,7 @@ gameNightsRouter.delete(
 );
 
 /**
- * Cancel a night (host only) — the link keeps working and shows the cancelled
+ * Cancel a night (host only) — the link keeps working and shows the canceled
  * state. With `?hard=1` the night is deleted outright instead: gone from
  * everyone's list and the link 404s (invites/RSVPs/options cascade). Hard
  * delete is refused for a live weekly occurrence — the next read would just

@@ -307,7 +307,7 @@
 @media (min-width: 1024px) {
   .lobby-seats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    /* Capped and centred, not stretched: a seat card is a fixed-ish object
+    /* Capped and centered, not stretched: a seat card is a fixed-ish object
        with a proportion, and letting two of them fill a 1600px column makes
        each one taller than a laptop viewport can hold along with the footer. */
     max-width: 54rem;

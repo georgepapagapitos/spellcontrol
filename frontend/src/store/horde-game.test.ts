@@ -358,7 +358,7 @@ describe('posting the result (T118: same durable path as a real local game)', ()
     expect(game?.mode).toBe('local');
   });
 
-  it("carries each survivor's commander, partner and colour identity", async () => {
+  it("carries each survivor's commander, partner and color identity", async () => {
     await useHordeGameStore.getState().startHorde('zombies', 'standard', undefined, [
       {
         name: 'Alice',

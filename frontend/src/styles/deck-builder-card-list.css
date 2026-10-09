@@ -233,7 +233,7 @@
    cursor is on its name strip and the reveal happens away from the pointer.
 
    The open card is deliberately NOT lifted by z-order. Painting it over its
-   neighbours made it appear whole on the first frame and the cards then slid
+   neighbors made it appear whole on the first frame and the cards then slid
    out from under it — the "pops in" read. Left in DOM order, the tail slides
    down ACROSS its face and uncovers it top to bottom, which is the motion.
 
@@ -264,7 +264,7 @@
 
    A card whose menu is open (`[data-menu-open]`, T162) stays open too. The
    menu's backdrop takes the pointer, so the card loses its hover the moment
-   the menu appears; without this the card slid back under its neighbours and
+   the menu appears; without this the card slid back under its neighbors and
    the user picked "Move to sideboard" for a card they could no longer see. */
 .deck-card-stack .deck-card-grid-cell.is-open ~ .deck-card-grid-cell,
 .deck-card-stack .deck-card-grid-cell[data-menu-open] ~ .deck-card-grid-cell {
@@ -691,7 +691,7 @@
 }
 
 /* A collapsed stack keeps its header and drops its card column, so the
-   neighbouring stacks close up instead of leaving a card-width void. */
+   neighboring stacks close up instead of leaving a card-width void. */
 .deck-grid-section--stack.is-collapsed {
   width: auto;
 }
@@ -1160,7 +1160,7 @@
    is NARROWER than the desktop column that rule was protecting, so the one
    tier that needed the space was the only tier still paying for it. The
    allocation chip + ✦ + "62%" cost ~70px, which is what pushed the card NAME
-   — the thing you actually scan a decklist by — down to ~18 ellipsised
+   — the thing you actually scan a decklist by — down to ~18 ellipsized
    characters ("Champions of the P…", "Dionus, Elvish Arch…").
    Nothing is lost: all three live in the card preview with the reason prose
    their tooltips can't deliver on touch anyway, and tapping the row is
@@ -1378,7 +1378,7 @@
 
 /* "Not in collection" cue — tint the qty cell so the signal lives
    inside an existing column, no layout shift, no extra glyph. Owned
-   rows keep the muted default colour; missing rows light up red. */
+   rows keep the muted default color; missing rows light up red. */
 .deck-row-qty-missing {
   color: var(--err-text, #d8442a);
 }
@@ -1556,7 +1556,7 @@
 }
 
 /* Rarity pill — single letter, MTG-canonical colors that are never themed. */
-/* Two-letter functional-role label (RA/MR/SR/WI/CA/…). Plain coloured
+/* Two-letter functional-role label (RA/MR/SR/WI/CA/…). Plain colored
    text — no pill — so it sits quietly next to the qty column. Hue groups
    by parent role; the letters convey the subtype variant. */
 .deck-row-role-badge {
@@ -1739,7 +1739,7 @@
   }
 }
 
-/* Labelled clusters inside the card menu. The menu runs past a dozen rows,
+/* Labeled clusters inside the card menu. The menu runs past a dozen rows,
    and the style guide asks for sections with hairline dividers rather than
    one flat list once it does. */
 .deck-card-menu-group + .deck-card-menu-group {

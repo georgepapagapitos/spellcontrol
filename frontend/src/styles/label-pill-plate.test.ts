@@ -10,7 +10,7 @@ import { dirname, join, relative, sep } from 'node:path';
 // weights, uppercase on a third of them and three different fonts. The pill
 // is in :where(), so a family rule may keep its own layout (margin, flex,
 // display, vertical-align, white-space) but may not restate the pill: its
-// padding, border, fill, colour, type or casing. Status is `tone`, painted
+// padding, border, fill, color, type or casing. Status is `tone`, painted
 // by the plate, never a per-family [data-tone] rule.
 //
 // Read off disk: CSS `?raw` imports come back empty under this setup.

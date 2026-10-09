@@ -246,7 +246,7 @@ export type { PoolRung, PoolFallbackCause };
 
 /**
  * Return the simple card type string from a lowercased type line, or null for
- * lands and unrecognised types. Used for counting/targeting by type.
+ * lands and unrecognized types. Used for counting/targeting by type.
  */
 function getSimpleCardType(typeLine: string): string | null {
   if (typeLine.includes('land')) return null;

@@ -50,9 +50,9 @@ describe('bucketForSlot', () => {
 
   it('routes an untagged signature card to theme: the old bar OR the ratio (E510)', () => {
     // Real Sythis, Harvest's Hand rows (14,250 decks). Overgrowth: 31.7% vs
-    // 3.7% in the colours (+0.28, 8.6x), which the old `synergy > 0.3` missed.
+    // 3.7% in the colors (+0.28, 8.6x), which the old `synergy > 0.3` missed.
     // Reliquary Tower: 59.6% vs 28.1% (+0.315, 2.1x), which it kept and still
-    // does. Cultivate: 15.7% vs 41.7%, played less here than in the colours.
+    // does. Cultivate: 15.7% vs 41.7%, played less here than in the colors.
     const overgrowth = card({
       name: 'Overgrowth',
       primary_type: 'Enchantment',

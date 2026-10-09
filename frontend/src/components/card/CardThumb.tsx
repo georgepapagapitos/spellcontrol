@@ -3,7 +3,7 @@ import { type JSX, type ReactNode, useState } from 'react';
 
 /**
  * The shared card-art thumbnail — an `<img>` that shows a shimmer skeleton
- * while it loads (instead of flashing a flat grey box) and a graceful
+ * while it loads (instead of flashing a flat gray box) and a graceful
  * fallback if the art 404s or fails to resolve.
  *
  * Sizing/shape is the host's job: pass the surface's existing image class

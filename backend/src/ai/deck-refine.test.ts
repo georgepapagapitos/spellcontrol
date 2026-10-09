@@ -223,7 +223,7 @@ describe('parseRefineRequest', () => {
     analysis: {},
   });
 
-  it('derives ownedOnly from the scope, honouring the legacy boolean (T112)', () => {
+  it('derives ownedOnly from the scope, honoring the legacy boolean (T112)', () => {
     const body = {
       deckId: 'd1',
       commander: 'Kaalia of the Vast',

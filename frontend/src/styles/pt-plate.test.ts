@@ -26,7 +26,7 @@ function rule(selector: string): string {
 
 /**
  * A creature's power and toughness sit on CARD ART, so they are painted in
- * fixed colours — solid black plates, bold white numerals — never a theme's.
+ * fixed colors — solid black plates, bold white numerals — never a theme's.
  *
  * They were `color: var(--text-primary)` on `background: var(--art-scrim)`.
  * In a dark theme that is light-on-dark and reads; in every light theme it is
@@ -43,7 +43,7 @@ describe('the power/toughness plate', () => {
     expect(plate).not.toBe('');
   });
 
-  it('paints fixed ink on a fixed plate, never theme colours', () => {
+  it('paints fixed ink on a fixed plate, never theme colors', () => {
     expect(plate).toMatch(/(?<![-\w])color:\s*#fff\b/);
     expect(plate).toMatch(/background:\s*#0b0b0c\b/);
     expect(plate).not.toMatch(/var\(--text-primary\)|var\(--art-scrim\)/);

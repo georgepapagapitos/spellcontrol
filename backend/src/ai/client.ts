@@ -262,7 +262,7 @@ export async function generateReview(
     // All results go back in ONE user message — splitting them across messages
     // trains the model out of calling tools in parallel.
     // Run the turn's tool calls in parallel — the model issues them together,
-    // and `check_bracket` waits on Postgres, so serialising them would add a
+    // and `check_bracket` waits on Postgres, so serializing them would add a
     // round-trip per call to a request the user is already watching.
     const results: Anthropic.ToolResultBlockParam[] = await Promise.all(
       toolUses.map(async (use): Promise<Anthropic.ToolResultBlockParam> => {

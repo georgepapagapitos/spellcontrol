@@ -24,10 +24,10 @@ on:
 
 # Cancel superseded runs on the same PR when new commits are pushed — rapid
 # re-pushes otherwise run every stacked CI to completion and waste Actions
-# minutes. main is never cancelled (each push gets its own group via run_id):
+# minutes. main is never canceled (each push gets its own group via run_id):
 # its CI success gates the Fly deploy chain, so we never want a main run killed.
 #
-# A merge_group run is likewise never cancelled, and must not be: the queue is
+# A merge_group run is likewise never canceled, and must not be: the queue is
 # blocked waiting on exactly that run, so killing it would stall the queue
 # rather than save anything. It gets that for free twice over — `head_ref` is
 # empty outside a pull_request, so the group key falls back to the per-run
@@ -249,7 +249,7 @@ jobs:
 
   # The required status check: its `name` must stay exactly "Frontend —
   # typecheck & test" (see the `package` job). It runs unless the run was
-  # cancelled and fails on its own when any leg did not succeed, because a
+  # canceled and fails on its own when any leg did not succeed, because a
   # job skipped over a failed `needs` reports as skipped, and a skipped
   # required check counts as passing.
   frontend:

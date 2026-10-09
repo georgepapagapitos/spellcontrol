@@ -3992,7 +3992,7 @@ describe('Horde: games routes guard the trust boundary', () => {
     expect(after.body.game.horde.steps).toMatchObject([{ k: 'reveal', seat: 0 }]);
   });
 
-  describe('sanitising horde-setup', () => {
+  describe('sanitizing horde-setup', () => {
     const badSettings = (patch: Record<string, unknown>) => ({ ...hordeSettings, ...patch });
     const cases: Array<[string, Record<string, unknown>]> = [
       ['hordeId with an uppercase/invalid char', { hordeId: 'Test_ID!' }],
@@ -4037,7 +4037,7 @@ describe('Horde: games routes guard the trust boundary', () => {
     });
   });
 
-  describe('sanitising horde-step / horde-undo / end.coopOutcome', () => {
+  describe('sanitizing horde-step / horde-undo / end.coopOutcome', () => {
     it.each([
       ['negative at', { type: 'horde-step', step: { k: 'reveal' }, at: -1, actorSeat: 0 }],
       ['unknown step kind', { type: 'horde-step', step: { k: 'bogus' }, at: 0, actorSeat: 0 }],

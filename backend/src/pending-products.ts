@@ -1,5 +1,5 @@
 /**
- * Products MTGJSON hasn't catalogued yet, so the product search can offer a
+ * Products MTGJSON hasn't cataloged yet, so the product search can offer a
  * precon the day it ships. MTGJSON can lag weeks behind a Secret Lair drop:
  * Odds and Ends shipped 2026-09-28 and was still absent from DeckList.json on
  * 2026-10-07. Each entry is shaped like an MTGJSON deck file, so it resolves

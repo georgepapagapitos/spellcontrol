@@ -20,7 +20,7 @@ export type DeckCardMenuPage = 'root' | 'tag' | 'tag-add';
  * any of the three. The chrome around it differs (a ToolbarPopover anchored
  * to the kebab, or CtxMenuShell anchored to the pointer); the items do not.
  *
- * Two pages. The root lists the actions in labelled clusters, because the
+ * Two pages. The root lists the actions in labeled clusters, because the
  * menu is past a dozen rows and the style guide asks for sections rather than
  * one flat list at that length. The tag page picks which tag files the card,
  * and can name a new one.

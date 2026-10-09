@@ -603,7 +603,7 @@ describe('generateLands hard gates on real cards', () => {
   });
 });
 
-describe('E585: a 40%+ staple keeps its slot when its paid colour no longer counts', () => {
+describe('E585: a 40%+ staple keeps its slot when its paid color no longer counts', () => {
   it('seats Phyrexian Tower (41.8% on Meren) over Exotic Orchard (22.7%)', async () => {
     const fx = JSON.parse(
       readFileSync(

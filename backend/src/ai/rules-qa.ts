@@ -42,7 +42,7 @@ export function parseRulesQuestion(
 }
 
 /**
- * Cache key. Case and spacing normalised so "Can I respond?" and "can i
+ * Cache key. Case and spacing normalized so "Can I respond?" and "can i
  * respond" share an answer; the prompt version is folded in so a prompt change
  * invalidates every stored answer (#1649's rule).
  */
@@ -142,7 +142,7 @@ export function citedRuleRefs(content: string): string[] {
  * knows the answer started), so both the stream and the final content begin
  * with it. The deck features consume their markers downstream — the review's
  * client renders them as section titles, refine's `makeProseGate` strips its
- * one — but a rules answer is a single unlabelled block, so the strip happens
+ * one — but a rules answer is a single unlabeled block, so the strip happens
  * here, once, for both the stream and the stored copy.
  */
 export function stripAnswerMark(text: string): string {

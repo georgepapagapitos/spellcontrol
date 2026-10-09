@@ -293,7 +293,7 @@ function SectionList({
   // Page filling (`packSections`) merges several groups onto shared pages, so a
   // section stops being a thing you can point at — its boundary is just wherever
   // the fill happened to land on a page edge. Render those binders as ONE run of
-  // pages with each page labelled by what's physically in it, instead of section
+  // pages with each page labeled by what's physically in it, instead of section
   // blocks whose headers would re-list every drop the page labels already name.
   const merged = useMemo(() => sections.some((s) => (s.labels?.length ?? 0) > 1), [sections]);
 

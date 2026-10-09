@@ -254,7 +254,7 @@
 }
 
 /* A pass keeps one line: its detail only restates the ✓ ("no duplicates"),
-   so it truncates rather than wrap a row taller than its neighbours in the
+   so it truncates rather than wrap a row taller than its neighbors in the
    two-column list. A row that needs attention wraps, so its detail and its
    fix link are read in full. */
 .deck-identity-card-check.is-pass {
@@ -313,7 +313,7 @@
 }
 
 /* Fix links stack one per row, and a row is 2rem. The shared `.btn-link`
-   ghost is 44px and centred, so each one reached 6px into the next row and
+   ghost is 44px and centered, so each one reached 6px into the next row and
    the lower link won the tap (nightly journey, 2026-09-28). On a coarse
    pointer the link is its own 44px instead and the row grows around it; no
    ghost (guard: styles/touch-ghost-clearance.test.ts). */

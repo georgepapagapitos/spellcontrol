@@ -496,7 +496,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     ? onlineArrows.filter((a) => a.seat === onlineTable.mySeat).length
     : 0;
   // Pings: tapping a card rings it, on every screen at the table, in the
-  // colour of the seat that tapped it. The lightest way to say "this one"
+  // color of the seat that tapped it. The lightest way to say "this one"
   // — no ticker line, no state, gone in a second. Solo still rings locally
   // (`send` null), because the ring is also the feedback that a tap landed.
   const sendPing = useMemo(() => {
@@ -1220,7 +1220,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     function onKeyDown(e: KeyboardEvent) {
       if (anySheetOpen || isTypingTarget(e.target)) return;
       // Keyboard route to the table menu: the physical Context Menu key, or
-      // Shift+F10 on keyboards without one. Anchored at the board's centre,
+      // Shift+F10 on keyboards without one. Anchored at the board's center,
       // since a keyboard has no cursor to open at.
       if (e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey)) {
         e.preventDefault();
@@ -1323,7 +1323,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         'tap-selection': () => {
           if (bfTargets.length === 0) return false;
           // Any untapped in the group taps them all, matching the selection
-          // behaviour a single hovered card collapses to anyway.
+          // behavior a single hovered card collapses to anyway.
           const tapped = state.battlefield.some((b) => bfTargets.includes(b.card.id) && !b.tapped);
           for (const cardId of bfTargets) dispatch({ type: 'TAP', cardId, tapped });
           haptics.tap();

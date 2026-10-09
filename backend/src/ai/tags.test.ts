@@ -5,7 +5,7 @@ import fs from 'fs';
 import { getTagLookup, __resetTagLookup } from './tags';
 
 /**
- * The behaviour worth pinning is the ABSENCE case. Every `TagLookup` predicate
+ * The behavior worth pinning is the ABSENCE case. Every `TagLookup` predicate
  * answers `false`/`null` on a miss, so a lookup built over missing data claims
  * no deck has mass land denial, extra turns or roles — and the bracket that
  * comes back is confidently too low. `null` (tool not offered) and an empty
@@ -76,7 +76,7 @@ describe('getTagLookup', () => {
     fs.rmSync(outside, { recursive: true, force: true });
   });
 
-  it('memoises, so a 1MB parse does not repeat per request', () => {
+  it('memoizes, so a 1MB parse does not repeat per request', () => {
     writeTags({ tags: { ramp: ['Cultivate'] } });
     const first = getTagLookup();
     // Removing the file must not change the answer — proof it was not re-read.
@@ -84,7 +84,7 @@ describe('getTagLookup', () => {
     expect(getTagLookup()).toBe(first);
   });
 
-  it('memoises the FAILURE too — a missing asset stays missing', () => {
+  it('memoizes the FAILURE too — a missing asset stays missing', () => {
     expect(getTagLookup()).toBeNull();
     writeTags({ tags: { ramp: ['Cultivate'] } });
     expect(getTagLookup()).toBeNull();

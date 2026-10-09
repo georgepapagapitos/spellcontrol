@@ -19,7 +19,7 @@
  * What a tutor can find is read from its text, and read narrowly (the second
  * optimizer gate caught Oriq Loremage, Higure and Goblin Matron "finding
  * Command Tower"):
- *  - the card it names: type, colour, supertype, and any other word as a
+ *  - the card it names: type, color, supertype, and any other word as a
  *    subtype ("a Ninja card" finds Ninjas, "a Goblin card" Goblins);
  *  - where the card goes: to hand, to the top, onto the battlefield, or into
  *    the graveyard, which is a tutor only through the deck's own recursion

@@ -2,7 +2,7 @@
 /**
  * <BinderEditor/> is mounted in the Layout on every signed-in route. While it
  * is CLOSED it must do no collection-sized work: the ungated landing-count memo
- * materialised every binder (a full ~11.5k-card sort per binder) on every page
+ * materialized every binder (a full ~11.5k-card sort per binder) on every page
  * load — the largest single memo in the deck editor's 2.3 s long task (E276).
  * Pair of BinderEditor.catalogs.test.tsx, which pins the same rule for the
  * Scryfall catalog fetch.
@@ -55,7 +55,7 @@ describe('BinderEditor while closed', () => {
     });
   });
 
-  it('materialises nothing while closed, and counts the landing once it opens', async () => {
+  it('materializes nothing while closed, and counts the landing once it opens', async () => {
     render(<BinderEditor />);
     expect(countEffectiveLanding).not.toHaveBeenCalled();
     expect(countBinderMatches).not.toHaveBeenCalled();

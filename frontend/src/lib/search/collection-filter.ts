@@ -19,7 +19,7 @@ export interface FilterableRow {
  * Everything the collection's row predicate needs, already compiled.
  *
  * Six of these can't go through the shared rule engine: binder membership,
- * colour identity (the collection's OR/AND-across-pips semantics differ from
+ * color identity (the collection's OR/AND-across-pips semantics differ from
  * the engine's), condition and language (physical-copy fields), tradeable
  * surplus (needs deck allocation) and proxy-only. They ran as post-checks
  * around `cardMatchesCompiled`, inline in CardListTable's `filtered` memo.

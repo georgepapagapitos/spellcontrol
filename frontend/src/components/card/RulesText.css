@@ -10,7 +10,7 @@
 }
 
 /* A keyword reads as the word it is. The dotted underline is the only mark:
-   no colour, no weight, so a keyword line ("Flying, trample, haste") stays a
+   no color, no weight, so a keyword line ("Flying, trample, haste") stays a
    line of text, not a row of links. It turns solid on hover and while its
    popover is open, so you can see which word the popover belongs to. */
 .keyword-term {
@@ -50,7 +50,7 @@
   outline-offset: 2px;
 }
 
-/* The word sits in a line of text, so the 44px floor is a centred ghost
+/* The word sits in a line of text, so the 44px floor is a centered ghost
    rather than a min-height that would push the lines apart
    (inline-control-touch-floor.test.ts). */
 @media (pointer: coarse) {

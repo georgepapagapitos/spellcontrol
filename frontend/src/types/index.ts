@@ -103,7 +103,7 @@ export interface ListDef {
   /**
    * Purpose of a static list. Absent = `'want'` (cards to acquire — feeds the
    * friend-hub trade radar and the cost-to-complete stat). `'tracking'` = a
-   * hand-curated catalogue of cards the user owns (e.g. eligible commanders
+   * hand-curated catalog of cards the user owns (e.g. eligible commanders
    * split across binders) — excluded from trade/acquisition surfaces.
    * Not meaningful for dynamic lists (`rule` set), which are owned by
    * construction.

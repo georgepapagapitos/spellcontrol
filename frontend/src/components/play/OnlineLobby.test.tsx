@@ -190,7 +190,7 @@ describe('OnlineLobby', () => {
     const seats = within(screen.getByRole('list', { name: 'Seats' })).getAllByRole('listitem');
     expect(seats[1].className).toContain('is-me');
     expect(seats[0].className).not.toContain('is-me');
-    // The crown is the host tell, and it is labelled, not colour-only.
+    // The crown is the host tell, and it is labeled, not colour-only.
     expect(within(seats[0]).getByLabelText('Host')).toBeTruthy();
   });
 
@@ -205,7 +205,7 @@ describe('OnlineLobby', () => {
     expect(within(seats[0]).queryByText(/^Bracket /)).toBeNull();
   });
 
-  it('states readiness in words, not only in colour', () => {
+  it('states readiness in words, not only in color', () => {
     const game = applyAction(table(2), { type: 'set-ready', actorSeat: 0, ready: true });
     renderLobby(game);
     const seats = within(screen.getByRole('list', { name: 'Seats' })).getAllByRole('listitem');

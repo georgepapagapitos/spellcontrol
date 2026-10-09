@@ -8,7 +8,7 @@ describe('gameSeed', () => {
     expect(gameSeed(7, 3)).not.toBe(gameSeed(8, 3));
   });
 
-  it('spreads neighbouring games across the 32-bit range', () => {
+  it('spreads neighboring games across the 32-bit range', () => {
     const seeds = new Set(Array.from({ length: 10000 }, (_, g) => gameSeed(20260929, g)));
     expect(seeds.size).toBe(10000);
     const high = [...seeds].filter((s) => s >= 2 ** 31).length;

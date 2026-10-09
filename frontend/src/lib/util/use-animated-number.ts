@@ -101,11 +101,11 @@ export function useAnimatedNumber(
     if (legacyMode) return;
     if (typeof revealKey !== 'string' || revealKey === null) return;
     // This instance armed a reveal that never finished: its cleanup ran (and
-    // cancelled the frame loop) before the tween completed, then the effect
+    // canceled the frame loop) before the tween completed, then the effect
     // re-ran on the SAME instance. That is React StrictMode's dev-only
     // mount → cleanup → mount cycle. Treat it as "resume the reveal", not as
     // a consumed key — otherwise the re-run bails and `display` freezes at
-    // wherever the cancelled tween left it, which is how the collection hero
+    // wherever the canceled tween left it, which is how the collection hero
     // showed "0 cards · $0" over an 81-card grid. A genuinely new instance
     // (real unmount + remount) still sees the consumed key and starts at
     // target, so the once-per-key contract holds there.
@@ -169,7 +169,7 @@ export function useAnimatedNumber(
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
       }
-      // A cancelled mid-reveal tween is resumed by the effect's next run on
+      // A canceled mid-reveal tween is resumed by the effect's next run on
       // this instance (see `resumingOwnReveal` above); drop the stale tween so
       // that run starts a fresh one.
       if (!revealDoneRef.current) tweenRef.current = null;

@@ -12,7 +12,7 @@ import { useCopyFeedback } from '@/lib/util/use-copy-feedback';
  *
  * For a control this doesn't fit (a bespoke non-`Button` trigger), reach for
  * `useCopyFeedback` (`lib/util/use-copy-feedback.ts`) directly instead of
- * re-deriving this behaviour by hand.
+ * re-deriving this behavior by hand.
  */
 
 type NativeButtonProps = Omit<

@@ -13,7 +13,7 @@ export interface BrewerCard {
   /** Live published decks. */
   deckCount: number;
   followerCount: number;
-  /** Colour letters (W U B R G, C for colourless), most decks first, max five. */
+  /** Color letters (W U B R G, C for colorless), most decks first, max five. */
   topColors: string[];
   topCommander: string | null;
   joinedAt: number;

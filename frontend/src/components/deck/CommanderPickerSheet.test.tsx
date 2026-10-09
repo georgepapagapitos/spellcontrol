@@ -70,7 +70,7 @@ function renderSheet(props: Partial<Parameters<typeof CommanderPickerSheet>[0]> 
 }
 
 describe('CommanderPickerSheet (E465)', () => {
-  it('is a labelled sheet you pick from: bottom sheet on phones, centred above', () => {
+  it('is a labeled sheet you pick from: bottom sheet on phones, centered above', () => {
     renderSheet();
     const dialog = screen.getByRole('dialog', { name: 'Choose a commander' });
     expect(dialog.parentElement?.className).toContain('modal-backdrop--sheet');

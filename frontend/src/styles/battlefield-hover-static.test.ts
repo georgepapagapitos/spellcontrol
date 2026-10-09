@@ -108,15 +108,15 @@ describe('battlefield cards do not move on hover', () => {
   // The first cut of this fix used an inset `--border-strong` ring. It passed
   // every check above and was invisible on screen: on a dark theme that token
   // is a dark navy, drawn on top of a card's own black border, over art. The
-  // second used `--accent`, which is visible but is a different colour in
+  // second used `--accent`, which is visible but is a different color in
   // every theme — and the board has a SECOND ring to tell apart, the gold one
   // a selected card wears, which an accent near it in some themes blurs into.
   //
-  // So the cue is `--pt-ring-hover`: one fixed colour (EDHPlay's cyan) that
+  // So the cue is `--pt-ring-hover`: one fixed color (EDHPlay's cyan) that
   // carries over card art in every theme and can never drift into the
   // selection's gold. A neutral border token or a raw hex here is the
   // regression this guards.
-  it('draws the cue in the fixed hover-ring colour', () => {
+  it('draws the cue in the fixed hover-ring color', () => {
     const wrongColour = hoverRules.filter((r) => !r.body.includes('var(--pt-ring-hover)'));
     expect(
       wrongColour.map((r) => r.selector),
@@ -126,7 +126,7 @@ describe('battlefield cards do not move on hover', () => {
 
   // The other half of the pair: if the two rings ever resolve to the same
   // token, "under the cursor" and "selected" stop being two states.
-  it('keeps the selection ring a different colour from the hover ring', () => {
+  it('keeps the selection ring a different color from the hover ring', () => {
     const selected = rules(css).find((r) => r.selector === '.playtest-card--selected');
     expect(selected, '.playtest-card--selected went missing').toBeTruthy();
     expect(selected?.body).toContain('var(--pt-ring-selected)');

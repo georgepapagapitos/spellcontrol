@@ -4,7 +4,7 @@ import { currencySymbol } from '@/lib/collection/currency';
 import { cardTagLabel } from '@/lib/cards/card-tags';
 
 /**
- * Filter-facing colour names, matching the filter popovers' own option labels.
+ * Filter-facing color names, matching the filter popovers' own option labels.
  * Deliberately not `COLOR_INFO` from binder-routing — that's the *grouping*
  * vocabulary ('C' reads "Colorless / Artifact", plus M/L/? buckets), too long
  * and too broad for a filter chip.
@@ -21,7 +21,7 @@ const FILTER_COLOR_LABELS: Record<string, string> = {
 /**
  * The "Color group" field's bucket keys (`FilterGroupEditor`'s `COLORS`
  * array) — WUBRG plus Multicolor, distinct from `FILTER_COLOR_LABELS` (which
- * only covers colour IDENTITY's WUBRG-C). A rule's autoSummary otherwise read
+ * only covers color IDENTITY's WUBRG-C). A rule's autoSummary otherwise read
  * the raw chip code ("U") as its title once an unnamed rule started showing
  * its summary as the headline (E497).
  */

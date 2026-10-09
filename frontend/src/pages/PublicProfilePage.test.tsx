@@ -429,7 +429,7 @@ describe('PublicProfilePage — banner, stats, follow and what they brew (T175)'
     expect(screen.getAllByText('Korvold Deck')).toHaveLength(1);
   });
 
-  it('lists repeated commanders linking to Discover, under the colour spread', async () => {
+  it('lists repeated commanders linking to Discover, under the color spread', async () => {
     fetchPublicProfileMock.mockResolvedValue(rich());
     renderProfile();
     const link = await screen.findByRole('link', { name: /Atraxa\s*2 decks/ });

@@ -21,7 +21,7 @@ import {
  * The load-bearing constraint: **the model curates, it never invents.** Every
  * name it returns is verified here before the client ever sees it, and a name
  * that fails is dropped rather than surfaced — the prompt is the first line of
- * defence and {@link parseRefineOutput} is the second.
+ * defense and {@link parseRefineOutput} is the second.
  *
  * ⚠️ **v4 moved where the candidates come from.** Through v3 the ONLY cards the
  * model could propose were the engine's `pool`, and the verifier's whole job was
@@ -381,7 +381,7 @@ function engineCardNames(analysis: Record<string, unknown> | undefined): Set<str
  * An "add" is accepted when it is in the engine's `pool`, OR when
  * `resolveCandidate` vouches for it — the v4 path, where the model found the
  * card with `lookup_cards` rather than being handed it. Omit `resolveCandidate`
- * and the pool is the only source, which is exactly the pre-v4 behaviour.
+ * and the pool is the only source, which is exactly the pre-v4 behavior.
  */
 export function parseRefineOutput(
   raw: string,

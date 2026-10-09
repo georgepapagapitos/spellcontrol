@@ -171,7 +171,7 @@ function NightBody({
   // the page opens (a reply that then crosses the line is refused server-side).
   const [openedAt] = useState(() => Date.now());
   const over = !cancelled && night.startsAt < openedAt - REPLY_GRACE_MS;
-  // No replies, votes or calendar entries once the night is cancelled or over.
+  // No replies, votes or calendar entries once the night is canceled or over.
   const closed = cancelled || over;
   const polling = options.length > 0;
   const when = useMemo(

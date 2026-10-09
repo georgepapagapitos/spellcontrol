@@ -158,7 +158,7 @@ const FREE_MULLIGAN_KEY = 'spellcontrol:playtest:freeMulligan';
 
 /** Which variant actually governs this board: the online table's rule when
  *  seated, else this device's own free-mulligan preference (whose "off" has
- *  always meant London — solo's behaviour is unchanged by the table setting
+ *  always meant London — solo's behavior is unchanged by the table setting
  *  existing). */
 export function effectiveMulliganType(
   freeMulligan: boolean,

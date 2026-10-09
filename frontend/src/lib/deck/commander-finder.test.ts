@@ -245,7 +245,7 @@ describe('relaxations and filterSummary', () => {
     expect(relaxations({ ...q(), source: 'all' })).toEqual([]);
   });
 
-  it('summarises the filters on one line', () => {
+  it('summarizes the filters on one line', () => {
     expect(filterSummary(full)).toBe('Golgari · Aristocrats or Tokens · “sac”');
     expect(filterSummary({ ...full, colorMode: 'within', text: '' })).toBe(
       'within black-green · Aristocrats or Tokens'

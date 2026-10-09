@@ -392,13 +392,13 @@
 }
 
 /* Land-count histogram — reuses the stats-panel `.deck-curve` chart, bars
-   WUBRG-segmented by the colour identity of the lands drawn. Just shorter
+   WUBRG-segmented by the color identity of the lands drawn. Just shorter
    than the deck curve. */
 .deck-test-hand-sim-curve {
   height: clamp(5.5rem, 14vh, 9rem);
 }
 
-/* The 0-land bucket has no lands to colour, so its bar has no segments —
+/* The 0-land bucket has no lands to color, so its bar has no segments —
    render it muted rather than the `.deck-curve-bar` default accent, which
    would wrongly read as a healthy result. */
 .deck-test-hand-sim-curve .deck-curve-bar:empty {

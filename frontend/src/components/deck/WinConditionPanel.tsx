@@ -71,7 +71,7 @@ export interface WinConditionPanelProps {
  * still show. Strategic paths keep their row and evidence, just no clock line.
  *
  * Restoring a number for strategic paths means defining a real per-category
- * "online" bar (10 poison counters, a payoff plus N bodies) — a modelling job
+ * "online" bar (10 poison counters, a payoff plus N bodies) — a modeling job
  * with no ground truth to validate against, deliberately not attempted here.
  */
 export function isKillClock(category: WinConCategory): boolean {

@@ -355,7 +355,7 @@ describe('useTakeback', () => {
 
     // The user keeps playing mid-beat — the clear timer must survive the
     // rewindTrail change (a timer owned by the trail-dependent effect gets
-    // cancelled by that effect's own cleanup here, and the applied-once
+    // canceled by that effect's own cleanup here, and the applied-once
     // guard then blocks rescheduling it, sticking the banner forever).
     act(() => {
       vi.advanceTimersByTime(2000);

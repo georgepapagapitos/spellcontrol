@@ -637,7 +637,7 @@ describe('useCommanderBracketAnalysis — device cache of the last result', () =
 // deck from its format, and the switch clears the persisted result, so the
 // signature and an in-flight result must both respect the format.
 describe('useCommanderBracketAnalysis — after a format switch', () => {
-  it('recomputes a Brawl deck whose result was analysed as Commander', async () => {
+  it('recomputes a Brawl deck whose result was analyzed as Commander', async () => {
     vi.mocked(analyzeCommanderDeck).mockResolvedValue(RESULT as never);
     const commanderDeck = makeDeck({ format: 'commander' });
     // What the device cache restores after a switch made on another device:
