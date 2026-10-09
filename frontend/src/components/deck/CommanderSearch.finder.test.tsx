@@ -10,7 +10,7 @@
  */
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ScryfallCard } from '@/deck-builder/types';
+import type { EDHRECTopCommander, ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '../../types';
 
 vi.mock('@/lib/cards/card-thumbs', async (importOriginal) => ({
@@ -86,7 +86,7 @@ vi.mock('../../store/collection', () => ({
 }));
 
 // ── EDHREC ──────────────────────────────────────────────────────────────
-const top = (name: string, colorIdentity: string[], numDecks: number) => ({
+const top = (name: string, colorIdentity: string[], numDecks: number): EDHRECTopCommander => ({
   rank: 1,
   name,
   sanitized: name.toLowerCase().replace(/\W+/g, '-'),
@@ -205,6 +205,36 @@ describe('browsing with nothing typed', () => {
     expect(alert.textContent).toContain("Couldn't reach EDHREC");
     fireEvent.click(within(alert).getByRole('button', { name: 'Retry' }));
     await screen.findByText('Krenko, Mob Boss');
+  });
+});
+
+describe('a commander whose colors did not load', () => {
+  it('says the colors are unavailable instead of calling it Colorless', async () => {
+    fetchTopCommanders.mockResolvedValueOnce([
+      { ...top("Y'shtola, Night's Blessed", [], 9000), colorsUnknown: true },
+      top('Karn, Legacy Reforged', ['C'], 800),
+    ]);
+    render(<CommanderSearch value={null} onSelect={vi.fn()} />);
+    await screen.findByText("Y'shtola, Night's Blessed");
+    expect(screen.getAllByText('Colors unavailable')).toHaveLength(1);
+    // Karn is genuinely colorless and still reads that way.
+    expect(screen.getAllByText('Colorless')).toHaveLength(1);
+  });
+});
+
+describe('a pick that fails', () => {
+  it('announces the error', async () => {
+    render(<CommanderSearch value={null} onSelect={vi.fn()} />);
+    const krenko = await screen.findByText('Krenko, Mob Boss');
+    // The platform-count lookup also reads cards by name; fail every read from here.
+    getCardByName.mockRejectedValue(new Error('down'));
+    try {
+      fireEvent.click(krenko);
+      const alert = await screen.findByRole('alert');
+      expect(alert.className).toContain('commander-search-error');
+    } finally {
+      getCardByName.mockImplementation(async (name: string) => card(name, ['R'], ''));
+    }
   });
 });
 

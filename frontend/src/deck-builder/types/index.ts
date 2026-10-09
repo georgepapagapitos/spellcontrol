@@ -1,10 +1,8 @@
 import type { SubstituteRow } from '@/deck-builder/services/deckBuilder/substituteFinder';
 
 /**
- * A token (or emblem) a card can create, derived from Scryfall's `all_parts`
- * relationship array. Carried through the offline slim payload so the deck
- * Stats tab can build a physical-token prep checklist. Just the name + the
- * Scryfall token type line.
+ * A token (or emblem) a card can create, from Scryfall's `all_parts`. Carried
+ * through the offline slim payload for the deck Stats tab's token checklist.
  */
 export interface CardToken {
   name: string;
@@ -242,6 +240,8 @@ export interface EDHRECTopCommander {
   name: string;
   sanitized: string;
   colorIdentity: string[];
+  /** The identity couldn't be looked up, so `colorIdentity: []` means "unknown", not colorless. */
+  colorsUnknown?: boolean;
   numDecks: number;
 }
 
