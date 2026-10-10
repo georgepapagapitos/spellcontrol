@@ -446,6 +446,7 @@ export function SharedDeckSurface({
         sideboard={deck.sideboard}
         activeView={view}
         tabbed={viewTabs.length > 1}
+        readOnly
         ownershipFor={ownershipFor}
         viewerMissing={viewerMissing}
         // ── Deck-describing analysis, straight off the payload ──────────────

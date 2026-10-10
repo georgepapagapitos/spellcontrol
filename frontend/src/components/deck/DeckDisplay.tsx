@@ -225,6 +225,7 @@ export function DeckDisplay({
   renderSimilarCards,
   activeView = 'deck',
   tabbed = true,
+  readOnly = false,
   onShowTestHand,
   editActions,
   suggestGroups,
@@ -1261,6 +1262,8 @@ export function DeckDisplay({
       illegalCardNames={illegalCardNames}
       formatLabel={formatConfig.label}
       allCards={allCards}
+      manaCards={manaCards}
+      readOnly={readOnly}
       manaData={manaData}
       bracketEstimation={bracketEstimation}
       deckCardsByName={deckCardsByName}
