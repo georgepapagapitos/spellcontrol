@@ -55,7 +55,7 @@ import { hiddenGemReason } from '@/deck-builder/services/deckBuilder/hiddenGems'
 import { useDismissedSuggestions } from '@/lib/coach/dismissed-suggestions';
 import { useAddSuggestionLabels } from './use-add-suggestion-labels';
 import { useAddCastability } from './use-add-castability';
-import { castSegment, ProblemSegments } from './add-problem-segments';
+import { problemSegmentsFor, ProblemSegments } from './add-problem-segments';
 import { SYNTAX_TIP } from './card-search-syntax-tip';
 import { HiddenSuggestions } from './HiddenSuggestions';
 import { SuggestionDismissMenu } from './SuggestionDismissMenu';
@@ -1473,7 +1473,7 @@ function SuggestionsResults({
   // A row says so only when the card would clearly miss its colors in this
   // deck; every other row keeps its usual line.
   const rowNames = useMemo(() => rows.map((r) => r.name), [rows]);
-  const castShort = useAddCastability(deckId, rowNames);
+  const addProblems = useAddCastability(deckId, rowNames);
 
   // Suggestion rows carry only a name; resolve the full card on add (same as
   // the Collection tab) so the deck gets a real ScryfallCard.
@@ -1601,9 +1601,8 @@ function SuggestionsResults({
     const inDeckCount = existingCardCounts.get(row.name) ?? 0;
     const active = i === activeIndex;
     const badge = OWNERSHIP_BADGE[row.ownership];
-    // What is wrong with this card here, one segment per kind, each only when
-    // there is something to say. The chance-card kind joins this list.
-    const problems = [castSegment(row.name, castShort.get(row.name))].filter((p) => p !== null);
+    // What is wrong with this card here; empty for most rows.
+    const problems = problemSegmentsFor(row.name, addProblems);
     // Unowned buy candidates show their price when EDHREC has one.
     const badgeLabel = row.ownership === 'unowned' && row.price ? `$${row.price}` : badge.label;
     return (
@@ -1664,7 +1663,7 @@ function SuggestionsResults({
         <ProblemSegments segments={problems} />
         {onPreviewFit && (
           <>
-            {' · '}
+            <span className="card-search-sep">{' · '}</span>
             <button
               type="button"
               className="card-search-fit"

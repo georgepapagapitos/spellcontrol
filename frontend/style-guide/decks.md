@@ -1267,8 +1267,13 @@ with nothing wrong keeps its usual line, with no "castable" reassurance.
   in N%"), and the same rule for when it shows: the 95% interval sits under
   Karsten's bar (`castability.ts`), never the raw rate.
 - **One kind of segment per fact,** each its own element in the row's segment
-  list, joined by " · ". A row that carries a segment lets its meta line wrap
-  as text, so the tail wraps to a second line instead of running off the row.
+  list, joined by " · ". The kinds so far: castability (`▾ Short on red in
+14%`) and a chance card's likely weak result (`▾ Cascades into a mana
+creature 42%`, `▾ Finds a land 35%`, from `chanceProblem`; exact odds, so no
+  interval).
+- **On a phone, each segment and "Fit & cut" take their own line,** with no
+  separator at the end of a line. A segment never breaks inside (`nowrap`), so
+  the ▾ stays with its words. From 600px the line stays one row.
 
 ### Why disclosure (the reasoning behind a suggestion)
 
@@ -2026,6 +2031,5 @@ Model-written text always says so. The rulings:
 - **The odds are exact, not simulated.** Each card carries its own hand-written
   rule for a good hit, read off its oracle text. A new card goes in that list with
   a real-oracle fixture, never from memory.
-
 
 ---

@@ -236,6 +236,8 @@
 /* A problem with the card in this deck: "▾ Short on red in 14%". The glyph
    plus the words carry it, the warn tone only backs them. */
 .card-search-problem {
+  /* The glyph stays with its words when the line wraps. */
+  white-space: nowrap;
   font-weight: 600;
   color: var(--warn-text);
 }
@@ -253,6 +255,19 @@
   display: block;
   flex-shrink: 1;
   min-width: 0;
+}
+
+/* On a phone each problem and "Fit & cut" take their own line, so no separator
+   dangles at the end of the one above it. */
+@media (max-width: 599px) {
+  .inline-card-search-meta.is-flow .card-search-sep {
+    display: none;
+  }
+
+  .inline-card-search-meta.is-flow .card-search-fit,
+  .inline-card-search-meta.is-flow .card-search-problem {
+    display: block;
+  }
 }
 
 /* Hidden-gem evidence line, e.g. "Lifted by A, B · Plays like C" (E146). */
