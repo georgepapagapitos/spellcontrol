@@ -47,7 +47,7 @@ import { deckValue } from '@/lib/deck/deck-value';
 import { useCurrency } from '@/lib/collection/currency';
 import { buildCommanderKey } from '@/lib/deck/commander-key';
 import type { BinderInfo } from '@/lib/binder/binder-refs';
-import { collectDeckTags } from '@/lib/deck/deck-tags';
+import { collectGroupNames } from '@/lib/deck/deck-tags';
 import { CardSearchPanel, type CardSearchPanelHandle } from '../components/deck/CardSearchPanel';
 import { BuildTimeCoachStrip } from '../components/deck/BuildTimeCoachStrip';
 import { useBuildTimeNudge } from '@/lib/coach/use-build-time-nudge';
@@ -530,6 +530,9 @@ export function DeckEditorPage() {
   // prompt stores that printing instead of re-resolving the name to the
   // cheapest one. Honored only while its name matches `pendingAdd`.
   const [pendingAddPrinting, setPendingAddPrinting] = useState<ScryfallCard | null>(null);
+  // The group the Add cards panel had chosen when the add hit the full prompt,
+  // so whichever way out the user takes still files the card into it.
+  const [pendingAddGroup, setPendingAddGroup] = useState<string | null>(null);
   const pendingPrinting =
     pendingAdd && pendingAddPrinting?.name === pendingAdd ? pendingAddPrinting : null;
   const [refillAfterCut, setRefillAfterCut] = useState<{
@@ -1516,14 +1519,14 @@ export function DeckEditorPage() {
     card: ScryfallCard,
     notify: boolean,
     full: boolean = deckIsFull,
-    stack: string | null = null
+    group: string | null = null
   ): 'added' | 'full' => {
     if (addZone === 'side' || addZone === 'considering') {
       // allocateAndAdd resolves the copy itself (free / auto-move /
       // proxy) — the panel's own pick only ever sees free copies, so
       // routing through it is what makes "add an owned card whose copy
       // is in another deck" Just Work instead of silently proxying.
-      allocateAndAdd(card, addZone === 'side' ? 'sideboard' : 'considering', notify, stack);
+      allocateAndAdd(card, addZone === 'side' ? 'sideboard' : 'considering', notify, group);
       return 'added';
     }
     // A full Commander deck would overfill — open the intelligent
@@ -1535,13 +1538,14 @@ export function DeckEditorPage() {
       setPendingMove(null);
       setPendingAdd(card.name);
       setPendingAddPrinting(card);
+      setPendingAddGroup(group);
       return 'full';
     }
     // Arm the build-time nudge BEFORE the mutation lands, so its
     // baseline token snapshot is genuinely "before" — see
     // notifyMainboardAdd's own doc for why the order matters.
     buildTimeNudge.notifyMainboardAdd(card.name);
-    allocateAndAdd(card, 'main', notify, stack);
+    allocateAndAdd(card, 'main', notify, group);
     return 'added';
   };
 
@@ -1650,8 +1654,8 @@ export function DeckEditorPage() {
         existingCardCounts={existingCardCounts}
         atCopyLimit={atCopyLimit}
         binderByCardName={binderByCardName}
-        stackTags={collectDeckTags(deck).map((t) => t.tag)}
-        onAdd={({ card, stack }) => addChosenCard(card, false, undefined, stack ?? null)}
+        groupNames={collectGroupNames(deck)}
+        onAdd={({ card, group }) => addChosenCard(card, false, undefined, group ?? null)}
         onPreviewFit={(card) => setAuditionCard(card)}
         onClose={close}
         suggestions={deck.gapAnalysis}
@@ -2037,7 +2041,7 @@ export function DeckEditorPage() {
     card: ScryfallCard,
     zone: 'main' | 'sideboard' | 'considering',
     notify: boolean,
-    stack: string | null = null
+    group: string | null = null
   ): void => {
     if (!deck) return;
     const plan = planCardAdd(
@@ -2057,12 +2061,12 @@ export function DeckEditorPage() {
           : zone === 'considering'
             ? addConsideringCard(deck.id, card, allocatedId)
             : addCard(deck.id, card, allocatedId);
-      // Same write the card menu's "file into stack" makes, in the same edit
+      // Same write the card menu's "file into group" makes, in the same edit
       // so one undo takes back both.
-      if (stack) {
+      if (group) {
         const tagZone: DeckZone =
           zone === 'sideboard' ? 'sideboard' : zone === 'considering' ? 'considering' : 'cards';
-        setCardTags(deck.id, tagZone, [slotId], [stack]);
+        setCardTags(deck.id, tagZone, [slotId], [group]);
       }
     });
     if (notify)
@@ -2078,14 +2082,15 @@ export function DeckEditorPage() {
   const addResolvedCard = async (
     cardName: string,
     zone: 'main' | 'sideboard' | 'considering' = 'main',
-    printing: ScryfallCard | null = null
+    printing: ScryfallCard | null = null,
+    group: string | null = null
   ) => {
     if (!deck) return;
     setAddingEngineNames((prev) => new Set(prev).add(cardName));
     try {
       const scry = printing ?? (await getCardByName(cardName));
       if (!scry) return;
-      allocateAndAdd(scry, zone, true);
+      allocateAndAdd(scry, zone, true, group);
       haptics.tap();
     } catch {
       pushToast({ message: `Couldn't add ${cardName}`, tone: 'error' });
@@ -2107,6 +2112,7 @@ export function DeckEditorPage() {
       setPendingMove(null);
       setPendingAdd(cardName);
       setPendingAddPrinting(null);
+      setPendingAddGroup(null);
       return;
     }
     await addResolvedCard(cardName);
@@ -2135,6 +2141,7 @@ export function DeckEditorPage() {
     if (!deck || !pendingAdd) return;
     const name = pendingAdd;
     const printing = pendingPrinting;
+    const group = pendingAddGroup;
     setPendingAdd(null);
     if (pendingMoveFor) {
       // Atomic 1-for-1 here too: the cut frees its copy, the moved one binds.
@@ -2159,7 +2166,9 @@ export function DeckEditorPage() {
       );
       const claim = pickCollectionCopy(name, collectionCards, allocations, scry.id);
       // Atomic 1-for-1: never passes through a transient over/under-size state.
-      swapCard(deck.id, cutSlotId, scry, claim?.copyId ?? null);
+      const newSlotId = swapCard(deck.id, cutSlotId, scry, claim?.copyId ?? null);
+      // Filed in the same edit as the swap, so one undo takes back both.
+      if (group && newSlotId) setCardTags(deck.id, 'cards', [newSlotId], [group]);
       if (before)
         commitEdit(deck.id, cutName ? `replace ${cutName} → ${name}` : `add ${name}`, before);
       pushToast({
@@ -2180,30 +2189,21 @@ export function DeckEditorPage() {
   };
 
   // Full-deck escape hatches: stash the card off-mainboard, or add over-limit.
-  const addToSideboardAndClose = async () => {
+  const closeFullPromptInto = async (
+    zone: 'main' | 'sideboard' | 'considering',
+    moveAdd: Parameters<typeof commitCrossDeckMove>[1]
+  ) => {
     if (!pendingAdd) return;
     const name = pendingAdd;
     const printing = pendingPrinting;
+    const group = pendingAddGroup;
     setPendingAdd(null);
-    if (pendingMoveFor) return commitCrossDeckMove(pendingMoveFor, addSideboardCard);
-    await addResolvedCard(name, 'sideboard', printing);
+    if (pendingMoveFor) return commitCrossDeckMove(pendingMoveFor, moveAdd);
+    await addResolvedCard(name, zone, printing, group);
   };
-  const addToConsideringAndClose = async () => {
-    if (!pendingAdd) return;
-    const name = pendingAdd;
-    const printing = pendingPrinting;
-    setPendingAdd(null);
-    if (pendingMoveFor) return commitCrossDeckMove(pendingMoveFor, addConsideringCard);
-    await addResolvedCard(name, 'considering', printing);
-  };
-  const addAnywayAndClose = async () => {
-    if (!pendingAdd) return;
-    const name = pendingAdd;
-    const printing = pendingPrinting;
-    setPendingAdd(null);
-    if (pendingMoveFor) return commitCrossDeckMove(pendingMoveFor, addCard);
-    await addResolvedCard(name, 'main', printing);
-  };
+  const addToSideboardAndClose = () => closeFullPromptInto('sideboard', addSideboardCard);
+  const addToConsideringAndClose = () => closeFullPromptInto('considering', addConsideringCard);
+  const addAnywayAndClose = () => closeFullPromptInto('main', addCard);
 
   // Replace-when-full options (E20 intelligent cuts): rank cuts by how
   // *related/replaceable* they are vs the card being added (shared role, same
@@ -2377,6 +2377,7 @@ export function DeckEditorPage() {
         setPendingMove(move);
         setPendingAdd(move.cardName);
         setPendingAddPrinting(null);
+        setPendingAddGroup(null);
         return;
       }
       await commitCrossDeckMove(move, addCard);

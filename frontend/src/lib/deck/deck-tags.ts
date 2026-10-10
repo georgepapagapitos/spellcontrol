@@ -63,3 +63,21 @@ export function collectDeckTags(zones: {
     .map(([tag, count]) => ({ tag, count }))
     .sort((a, b) => a.tag.localeCompare(b.tag));
 }
+
+/** Every group the Tags view shows for a deck: the user's tags plus the group
+ *  names Suggest groups filed untouched mainboard slots under (`DeckCard.stack`,
+ *  used only while a slot's tags are unedited). Case-insensitively unique, the
+ *  way the view keys its sections, and sorted alphabetically. */
+export function collectGroupNames(zones: {
+  cards: Array<Pick<DeckCard, 'tags' | 'stack'>>;
+  sideboard?: Array<Pick<DeckCard, 'tags'>>;
+  considering?: Array<Pick<DeckCard, 'tags'>>;
+}): string[] {
+  const byKey = new Map<string, string>();
+  const add = (name: string) => {
+    if (!byKey.has(name.toLowerCase())) byKey.set(name.toLowerCase(), name);
+  };
+  for (const { tag } of collectDeckTags(zones)) add(tag);
+  for (const c of zones.cards) if (c.tags === undefined && c.stack) add(c.stack);
+  return [...byKey.values()].sort((a, b) => a.localeCompare(b));
+}

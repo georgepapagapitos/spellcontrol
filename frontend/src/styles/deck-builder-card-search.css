@@ -159,9 +159,9 @@
   gap: var(--space-2);
 }
 
-/* Add cards: which stack a new card is filed into. Its own row so it also
+/* Add cards: which group a new card is filed into. Its own row so it also
    shows on the Suggestions tab, which hides the toolbar above. */
-.card-search-stack {
+.card-search-group {
   display: flex;
   align-items: center;
 }
