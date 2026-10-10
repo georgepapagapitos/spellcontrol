@@ -39,6 +39,7 @@ import {
 } from '@spellcontrol/binder-routing';
 import { CollectionFiltersDialog } from '@/components/search/CollectionFiltersDialog';
 import { SelectMenu } from '@/components/overlays/SelectMenu';
+import { AddStackPicker, useAddStack } from './AddStackPicker';
 import { type SelectOption } from '@/lib/util/select-option';
 import type { FilterableRow } from '@/lib/search/collection-filter';
 import { BinderBadge } from '../BinderBadge';
@@ -109,6 +110,8 @@ export interface AddCardChoice {
   card: ScryfallCard;
   /** copyId of the collection copy claimed for this slot, or null if none. */
   allocatedCopyId: string | null;
+  /** The stack (tag) the new slot is filed into, or null for an unfiled add. */
+  stack?: string | null;
 }
 
 export interface CardSearchPanelHandle {
@@ -136,6 +139,8 @@ interface Props {
    */
   atCopyLimit: (name: string) => boolean;
   onAdd: (choice: AddCardChoice) => void;
+  /** The deck's stacks. Shows the "Add to stack" picker when non-empty. */
+  stackTags?: string[];
   /** Audition a card's fit before adding (E20). Opens the fit-preview panel with
    *  the resolved card. Omit to hide the per-row "Fit & cut" affordance. */
   onPreviewFit?: (card: ScryfallCard) => void;
@@ -470,7 +475,8 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
     commanderColorIdentity,
     existingCardCounts,
     atCopyLimit,
-    onAdd,
+    onAdd: onAddChoice,
+    stackTags,
     onPreviewFit,
     onClose,
     suggestions,
@@ -491,6 +497,8 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
   },
   ref
 ) {
+  const { stack: addStack, choose: chooseAddStack } = useAddStack(deckId, stackTags ?? []);
+  const onAdd = (choice: AddCardChoice) => onAddChoice({ ...choice, stack: addStack });
   // A commander format's deckbuilding rules apply whether or not the command
   // zone is filled yet; only suggestions wait for a commander.
   const commanderFormat = !!enableSuggestions || noCommanderYet;
@@ -822,6 +830,9 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
           ) : undefined
         }
       />
+      {stackTags && stackTags.length > 0 && (
+        <AddStackPicker stacks={stackTags} value={addStack} onChange={chooseAddStack} />
+      )}
       {/* Syntax ⓘ (which also carries the keyboard hints) + Sort. Only the
           Collection/Scryfall tabs get this row: Suggestions' filter box is a
           plain substring match with no sort, so the row would be pure chrome
