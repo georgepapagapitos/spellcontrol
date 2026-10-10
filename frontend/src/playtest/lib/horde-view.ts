@@ -57,6 +57,18 @@ export function cardsUntilNextBoss(
   return Math.max(0, remaining - nextRemaining);
 }
 
+/** The horde half's reserved chrome, as `autoPlace` sees it: a fraction of the
+ *  felt's height, capped at a pixel size so a tall felt (a big screen) does
+ *  not reserve more than the status block / action row actually cover.
+ *  `.playtest-main--horde`'s `--pt-card-w` in playtest.css is derived from
+ *  the same numbers (`horde-card-size.test.ts` pins the two together). */
+export const HORDE_RESERVED_TOP = { fraction: 0.18, px: 81 };
+export const HORDE_RESERVED_BOTTOM = { fraction: 0.24, px: 108 };
+
+function reserved(r: { fraction: number; px: number }, height: number): number {
+  return height > 0 ? Math.min(r.fraction, r.px / height) : r.fraction;
+}
+
 /** Reads the live battlefield box for `autoPlace` — the same reserved-
  *  fraction constants HordeTable's own `measureRect` uses (this
  *  table's own corner chrome, not the main board's). */
@@ -70,7 +82,7 @@ export function measureHordeRect(el: HTMLElement): Rect {
     height: box.height,
     cardW: Number.isFinite(cardW) && cardW > 0 ? cardW : undefined,
     cardH: Number.isFinite(cardH) && cardH > 0 ? cardH : undefined,
-    reservedTop: 0.18,
-    reservedBottom: 0.24,
+    reservedTop: reserved(HORDE_RESERVED_TOP, box.height),
+    reservedBottom: reserved(HORDE_RESERVED_BOTTOM, box.height),
   };
 }
