@@ -2,14 +2,25 @@ import { useEffect, useMemo, useState } from 'react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { getCardsByNames } from '@/deck-builder/services/scryfall/client';
 import { candidateShortfalls, type CastabilityRow } from '@/lib/deck-analysis/castability';
+import { chanceProblem, type ChanceProblem } from '@/lib/deck-analysis/chance-cards';
 import { useDecksStore } from '@/store/decks';
 import { useProducedMana } from './use-produced-mana';
 
-const NONE: ReadonlyMap<string, CastabilityRow> = new Map();
+const NO_CAST: ReadonlyMap<string, CastabilityRow> = new Map();
+
+/** What is wrong with each candidate card in this deck, by name. Absent means nothing is. */
+export interface AddProblems {
+  cast: ReadonlyMap<string, CastabilityRow>;
+  chance: ReadonlyMap<string, ChanceProblem>;
+}
 
 /**
  * For the Add cards suggestions: which candidates would clearly miss their
- * castability bar in this deck, by name.
+ * castability bar in this deck, and which are chance cards likely to roll a
+ * weak result, by name.
+ *
+ * The chance odds are exact and cheap, so they are computed with the render.
+ * The castability half is measured, so it waits for idle (below).
  *
  * One goldfish run of the current deck answers every candidate (see
  * `candidateShortfalls`), about 150 ms for a 100-card list. It runs when the
@@ -19,10 +30,7 @@ const NONE: ReadonlyMap<string, CastabilityRow> = new Map();
  * than one that is a beat late), but an answer is tagged with its deck and
  * never shown on another.
  */
-export function useAddCastability(
-  deckId: string,
-  names: readonly string[]
-): ReadonlyMap<string, CastabilityRow> {
+export function useAddCastability(deckId: string, names: readonly string[]): AddProblems {
   const deck = useDecksStore((s) => s.decks.find((d) => d.id === deckId));
   const commander = deck?.commander ?? null;
   const partner = deck?.partnerCommander ?? null;
@@ -86,5 +94,14 @@ export function useAddCastability(
     return () => window.clearTimeout(id);
   }, [deckId, key, commanders, library, resolved.cards]);
 
-  return answer?.deckId === deckId ? answer.rows : NONE;
+  const chance = useMemo(() => {
+    const out = new Map<string, ChanceProblem>();
+    for (const card of resolved.cards) {
+      const problem = chanceProblem(card, library);
+      if (problem) out.set(card.name, problem);
+    }
+    return out;
+  }, [resolved.cards, library]);
+
+  return { cast: answer?.deckId === deckId ? answer.rows : NO_CAST, chance };
 }

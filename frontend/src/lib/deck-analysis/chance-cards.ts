@@ -290,6 +290,13 @@ export function chanceLine(odds: ChanceOdds): string {
   return parts.join(' · ');
 }
 
+export interface ChanceProblem {
+  label: string;
+  p: number;
+  /** The row segment's words, `Cascades into a mana creature 42%`. */
+  text: string;
+}
+
 /**
  * For add-card suggestions: the one weak result a candidate card is likely to
  * produce in this deck, e.g. `{ text: 'Cascades into a mana creature 42%' }`.
@@ -298,7 +305,7 @@ export function chanceLine(odds: ChanceOdds): string {
 export function chanceProblem(
   card: ScryfallCard,
   deck: readonly ScryfallCard[]
-): { label: string; p: number; text: string } | null {
+): ChanceProblem | null {
   const odds = chanceOdds(card, deck);
   const weak = odds?.outcomes.filter((o) => o.weak).sort((a, b) => b.p - a.p)[0];
   if (!weak) return null;
