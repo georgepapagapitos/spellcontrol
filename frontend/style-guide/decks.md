@@ -418,6 +418,21 @@ what it did to the curve meant switching tabs every time.
   flagged "▾ short" in words, and each count opening the list it counts. The
   share-of-deck donut (an unlabeled 67 in the middle, "57% white" beside it)
   and the boxed Demand/Sources cards inside the panel are gone.
+- **"Castable on curve" lists misses only, and only real ones** (2026-10-10,
+  E356). Under the mana base, below a hairline: the spells that miss Frank
+  Karsten's bar for having their colors on curve when the mana is there
+  (`lib/deck-analysis/castability.ts`, 4,000 goldfish games). A card is listed
+  only when its whole 95% interval sits under the bar; a miss inside the noise
+  goes on one "At the bar:" line, so the list doesn't reshuffle on every edit.
+  It opens on the verdict, the color most often short, then one row per card:
+  name and cost, the rate, and "Turn 6 · needs 95%" over a "▾ short on red in
+  10% of games" flag in the caution tone. No bars: 90% against 95% look the
+  same on a 0–100 bar, and a zoomed one would break honest length. A deck that
+  clears the bar gets one line ("Every spell has its colors on curve."), never
+  a list of passes. The owner reads advice ("Add red sources.") and five rows
+  before "Show all"; a shared deck (`readOnly`) reads a description ("Red is
+  this deck's tight color.") and its worst row. The scope line names a
+  commander whose cost changes the simulation doesn't model.
 - **Types files the command zone as its own row**, "Commander" first, the way
   the list does, so the Creature count here is the list's Creature section.
   Count only: on a 100-card deck a percentage beside it just repeated it.

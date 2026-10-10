@@ -38,6 +38,8 @@ import type { AnalysisTabId } from '@/lib/deck-analysis/deck-view';
 export function DeckAnalysisView({
   view,
   allCards,
+  manaCards,
+  readOnly = false,
   manaData,
   bracketEstimation,
   deckCardsByName,
@@ -86,6 +88,11 @@ export function DeckAnalysisView({
 }: {
   view: AnalysisTabId;
   allCards: ScryfallCard[];
+  /** `allCards` with mana production backfilled (use-produced-mana), commanders
+   *  first: what the castability simulation reads. */
+  manaCards?: readonly ScryfallCard[];
+  /** The shared deck page: advice reads as a description of the deck. */
+  readOnly?: boolean;
   manaData: DeckManaData;
   bracketEstimation?: BracketEstimation;
   deckCardsByName?: ReadonlyMap<string, ScryfallCard>;
@@ -178,6 +185,12 @@ export function DeckAnalysisView({
     () => [commander, partnerCommander].filter((c): c is ScryfallCard => !!c),
     [commander, partnerCommander]
   );
+  // The simulation's two halves. `manaCards` lists the command zone first.
+  const [simCommanders, simLibrary] = useMemo(() => {
+    if (!manaCards) return [undefined, undefined];
+    const n = commandZone.length;
+    return [manaCards.slice(0, n), manaCards.slice(n)];
+  }, [manaCards, commandZone.length]);
 
   const bracketOverridden = bracketOverride != null;
   // The parent `.deck-display` is the tabpanel for the active view; this just
@@ -251,6 +264,9 @@ export function DeckAnalysisView({
                 manaCurve={manaData.manaCurve}
                 landUpgradeCount={landUpgradeCount}
                 onReanalyzeLands={onNavigateToTune ? () => onNavigateToTune('lands') : undefined}
+                simCommanders={simCommanders}
+                simLibrary={simLibrary}
+                readOnly={readOnly}
               />
             </Panel>
             {saltiestCards && saltiestCards.length > 0 && (

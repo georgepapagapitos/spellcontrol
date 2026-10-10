@@ -258,6 +258,9 @@ export interface DeckDisplayProps {
   /** False when the page shows no view tabs (a lone Deck view), so this is
    *  not labeled as a tab panel. */
   tabbed?: boolean;
+  /** A deck the viewer can't change (the shared deck page). Analysis that
+   *  gives advice describes the deck instead. */
+  readOnly?: boolean;
   /** Reveal the standalone Test hand panel. In the toolbar only when the page
    *  has no header Deck menu of its own (`deckActionsInHeader`). */
   onShowTestHand?: () => void;
