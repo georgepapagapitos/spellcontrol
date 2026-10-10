@@ -25,6 +25,13 @@
   line-height: 1.4;
 }
 
+.deck-card-preview-meta-chance {
+  min-width: 0;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.78);
+}
+
 .deck-card-preview-meta-sep {
   color: rgba(255, 255, 255, 0.35);
 }
