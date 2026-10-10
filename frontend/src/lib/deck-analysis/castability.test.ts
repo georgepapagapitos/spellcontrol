@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { ScryfallCard } from '@/deck-builder/types';
-import { analyzeCastability, costChangingCommander, wilsonUpper } from './castability';
+import {
+  analyzeCastability,
+  candidateShortfalls,
+  costChangingCommander,
+  wilsonUpper,
+} from './castability';
+import { compileManaDeck, simulateManaDeck } from '@/lib/mana-sim';
 import { brago, BRAGO_TAPPED_DUALS, card, cards } from '@/lib/mana-sim/__fixtures__/decks';
 
 /**
@@ -109,5 +115,36 @@ describe('analyzeCastability', () => {
     const a = analyzeCastability([], lordDeck(22), 1000);
     const b = analyzeCastability([], lordDeck(22), 1000);
     expect(b).toEqual(a);
+  });
+});
+
+describe('candidateShortfalls', () => {
+  const lord = card('Lord of Atlantis');
+
+  it('reads a probe exactly as the same card inside the deck', () => {
+    const library = lordDeck(15);
+    const inDeck = analyzeCastability([], library).under[0];
+    // The deck has no Lord to find in; give the probe a deck of its own shape.
+    const probed = candidateShortfalls([], library, [lord]).get('Lord of Atlantis');
+    expect(probed).toBeDefined();
+    expect(probed?.rate).toBeCloseTo(inDeck.rate, 10);
+    expect(probed?.short?.symbol).toBe('U');
+  });
+
+  it('stays quiet for a candidate the mana base supports', () => {
+    expect(candidateShortfalls([], lordDeck(15), [card('Plains')]).size).toBe(0);
+    // Plenty of blue: the same {U}{U} two-drop clears its bar.
+    expect(candidateShortfalls([], lordDeck(37), [lord]).size).toBe(0);
+  });
+
+  it('measures probes without changing how the deck plays', () => {
+    const deck = compileManaDeck({ commanders: [], library: lordDeck(20) });
+    const plain = simulateManaDeck(deck, { games: 500, seed: 3 });
+    const probe = compileManaDeck({ commanders: [], library: [lord] }).library[0].cost!;
+    const withProbe = simulateManaDeck(deck, { games: 500, seed: 3, probes: [probe] });
+    expect(withProbe.cards).toEqual(plain.cards);
+    expect(withProbe.mana).toEqual(plain.mana);
+    expect(withProbe.probes).toHaveLength(1);
+    expect(plain.probes).toEqual([]);
   });
 });

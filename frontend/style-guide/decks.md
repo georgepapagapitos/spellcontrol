@@ -1248,6 +1248,20 @@ own line at the right.
 - **The rows name the commander by its short name** ("Sram", not "Sram,
   Senior Edificer"), so the played-in line holds one line in its column.
 
+### Add cards rows: a problem segment, only when there is one (2026-10-10, E356)
+
+A row in Add cards → Suggestions says what is wrong with the card in this deck
+in one segment on its trailing line, before "Fit & cut": `▾ Short on red in
+14%`. The glyph and the words carry it; the warn tone only backs them. A row
+with nothing wrong keeps its usual line, with no "castable" reassurance.
+
+- **Same words as the Color panel's flag** (`SYMBOL_WORD`, "short on {color}
+  in N%"), and the same rule for when it shows: the 95% interval sits under
+  Karsten's bar (`castability.ts`), never the raw rate.
+- **One kind of segment per fact,** each its own element in the row's segment
+  list, joined by " · ". A row that carries a segment lets its meta line wrap
+  as text, so the tail wraps to a second line instead of running off the row.
+
 ### Why disclosure (the reasoning behind a suggestion)
 
 The differentiator is **explainable** editing: a cut/swap suggestion must be
