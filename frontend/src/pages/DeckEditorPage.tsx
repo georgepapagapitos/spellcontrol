@@ -47,6 +47,7 @@ import { deckValue } from '@/lib/deck/deck-value';
 import { useCurrency } from '@/lib/collection/currency';
 import { buildCommanderKey } from '@/lib/deck/commander-key';
 import type { BinderInfo } from '@/lib/binder/binder-refs';
+import { collectDeckTags } from '@/lib/deck/deck-tags';
 import { CardSearchPanel, type CardSearchPanelHandle } from '../components/deck/CardSearchPanel';
 import { BuildTimeCoachStrip } from '../components/deck/BuildTimeCoachStrip';
 import { useBuildTimeNudge } from '@/lib/coach/use-build-time-nudge';
@@ -1512,14 +1513,15 @@ export function DeckEditorPage() {
   const addChosenCard = (
     card: ScryfallCard,
     notify: boolean,
-    full: boolean = deckIsFull
+    full: boolean = deckIsFull,
+    stack: string | null = null
   ): 'added' | 'full' => {
     if (addZone === 'side' || addZone === 'considering') {
       // allocateAndAdd resolves the copy itself (free / auto-move /
       // proxy) — the panel's own pick only ever sees free copies, so
       // routing through it is what makes "add an owned card whose copy
       // is in another deck" Just Work instead of silently proxying.
-      allocateAndAdd(card, addZone === 'side' ? 'sideboard' : 'considering', notify);
+      allocateAndAdd(card, addZone === 'side' ? 'sideboard' : 'considering', notify, stack);
       return 'added';
     }
     // A full Commander deck would overfill — open the intelligent
@@ -1537,7 +1539,7 @@ export function DeckEditorPage() {
     // baseline token snapshot is genuinely "before" — see
     // notifyMainboardAdd's own doc for why the order matters.
     buildTimeNudge.notifyMainboardAdd(card.name);
-    allocateAndAdd(card, 'main', notify);
+    allocateAndAdd(card, 'main', notify, stack);
     return 'added';
   };
 
@@ -1646,7 +1648,8 @@ export function DeckEditorPage() {
         existingCardCounts={existingCardCounts}
         atCopyLimit={atCopyLimit}
         binderByCardName={binderByCardName}
-        onAdd={({ card }) => addChosenCard(card, false)}
+        stackTags={collectDeckTags(deck).map((t) => t.tag)}
+        onAdd={({ card, stack }) => addChosenCard(card, false, undefined, stack ?? null)}
         onPreviewFit={(card) => setAuditionCard(card)}
         onClose={close}
         suggestions={deck.gapAnalysis}
@@ -2031,7 +2034,8 @@ export function DeckEditorPage() {
   const allocateAndAdd = (
     card: ScryfallCard,
     zone: 'main' | 'sideboard' | 'considering',
-    notify: boolean
+    notify: boolean,
+    stack: string | null = null
   ): void => {
     if (!deck) return;
     const plan = planCardAdd(
@@ -2045,9 +2049,19 @@ export function DeckEditorPage() {
     const label = zone === 'main' ? `add ${card.name}` : `add ${card.name} to ${zone}`;
     const topBefore = useDeckHistoryStore.getState().topCommand(deck.id);
     recordEdit(deck.id, label, () => {
-      if (zone === 'sideboard') addSideboardCard(deck.id, card, allocatedId);
-      else if (zone === 'considering') addConsideringCard(deck.id, card, allocatedId);
-      else addCard(deck.id, card, allocatedId);
+      const slotId =
+        zone === 'sideboard'
+          ? addSideboardCard(deck.id, card, allocatedId)
+          : zone === 'considering'
+            ? addConsideringCard(deck.id, card, allocatedId)
+            : addCard(deck.id, card, allocatedId);
+      // Same write the card menu's "file into stack" makes, in the same edit
+      // so one undo takes back both.
+      if (stack) {
+        const tagZone: DeckZone =
+          zone === 'sideboard' ? 'sideboard' : zone === 'considering' ? 'considering' : 'cards';
+        setCardTags(deck.id, tagZone, [slotId], [stack]);
+      }
     });
     if (notify)
       pushToast({

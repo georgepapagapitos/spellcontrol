@@ -159,6 +159,13 @@
   gap: var(--space-2);
 }
 
+/* Add cards: which stack a new card is filed into. Its own row so it also
+   shows on the Suggestions tab, which hides the toolbar above. */
+.card-search-stack {
+  display: flex;
+  align-items: center;
+}
+
 /* otag: snapshot status (loading / failed) — a non-blocking note above results. */
 .card-search-tag-note {
   font-size: var(--text-xs);
