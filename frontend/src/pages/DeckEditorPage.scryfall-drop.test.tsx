@@ -55,7 +55,13 @@ type MockDeck = {
   partnerCommander: null;
   commanderAllocatedCopyId: string | null;
   partnerCommanderAllocatedCopyId: null;
-  cards: { slotId: string; card: Card; allocatedCopyId: string | null }[];
+  cards: {
+    slotId: string;
+    card: Card;
+    allocatedCopyId: string | null;
+    tags?: string[];
+    stack?: string;
+  }[];
   sideboard: never[];
   considering: never[];
   generationContext: null;
@@ -84,6 +90,8 @@ function freshDeck(cards: MockDeck['cards']): MockDeck {
 
 const mockAddCard = vi.fn();
 const mockAddConsideringCard = vi.fn();
+const mockSetCardTags = vi.fn();
+const mockSwapCard = vi.fn(() => 'swapped-slot');
 const storeState = () => ({
   decks: [mockDeck],
   hydrated: true,
@@ -101,7 +109,8 @@ const storeState = () => ({
   duplicateDeck: vi.fn(() => 'dup-id'),
   setCardAllocation: vi.fn(),
   updateCardPrinting: vi.fn(),
-  swapCard: vi.fn(),
+  swapCard: mockSwapCard,
+  setCardTags: mockSetCardTags,
   replaceDeck: vi.fn(),
   createDeck: vi.fn(() => 'new-id'),
 });
@@ -164,11 +173,30 @@ vi.mock('../store/toasts', () => ({
 
 // ── Children, reduced to what the drop touches ──────────────────────────────
 vi.mock('../components/deck/DeckDisplay', () => ({ DeckDisplay: () => <div /> }));
-vi.mock('../components/deck/CardSearchPanel', () => ({ CardSearchPanel: () => <div /> }));
+// The panel's props are kept so a test can fire its onAdd the way the + does.
+type PanelAdd = (c: { card: Card; allocatedCopyId: string | null; group?: string | null }) => void;
+const panel = vi.hoisted(() => ({
+  onAdd: null as unknown as PanelAdd,
+  groupNames: undefined as string[] | undefined,
+}));
+vi.mock('../components/deck/CardSearchPanel', () => ({
+  CardSearchPanel: (p: { onAdd: PanelAdd; groupNames?: string[] }) => {
+    panel.onAdd = p.onAdd;
+    panel.groupNames = p.groupNames;
+    return <div />;
+  },
+}));
 type Footer = { label: string; onClick: () => void };
-const sizePrompts: { title: string; footer: Footer[] }[] = [];
+type PromptOption = { onPick: () => void };
+type SizePrompt = {
+  title: string;
+  footer: Footer[];
+  options: PromptOption[];
+  moreOptions?: PromptOption[];
+};
+const sizePrompts: SizePrompt[] = [];
 vi.mock('../components/deck/DeckSizePrompt', () => ({
-  DeckSizePrompt: (p: { title: string; footer: Footer[] }) => {
+  DeckSizePrompt: (p: SizePrompt & { title: string }) => {
     sizePrompts.push(p);
     return <div role="dialog" aria-label={p.title} />;
   },
@@ -321,6 +349,10 @@ beforeEach(() => {
   sizePrompts.length = 0;
   mockAddCard.mockClear();
   mockAddConsideringCard.mockClear();
+  mockAddCard.mockReset();
+  mockAddCard.mockReturnValue('new-slot');
+  mockSetCardTags.mockClear();
+  mockSwapCard.mockClear();
   mockPlanCardAdd.mockClear();
   mockPickCollectionCopy.mockClear();
   lookup.getCardsByRefs.mockReset();
@@ -479,5 +511,88 @@ describe('DeckEditorPage: dropping a card from Scryfall', () => {
     drag('drop', SCRYFALL_DRAG);
     drag('dragend', SCRYFALL_DRAG);
     expect(lookup.getCardsByRefs).not.toHaveBeenCalled();
+  });
+});
+
+describe('DeckEditorPage: adding from the panel into a chosen group', () => {
+  // The panel mounts when the Add cards sheet opens; open it fresh each time so
+  // onAdd is this render's, not a previous test's.
+  const addFromPanel = async (group: string | null) => {
+    panel.onAdd = null as unknown as PanelAdd;
+    fireEvent.click(screen.getAllByRole('button', { name: 'Add cards' })[0]);
+    await act(async () => {
+      panel.onAdd({ card: COUNTERSPELL, allocatedCopyId: null, group });
+    });
+  };
+  const fullDeck = () =>
+    freshDeck(
+      Array.from({ length: 99 }, (_, i) => ({
+        slotId: `slot-${i}`,
+        card: sf(`Filler ${i}`, ['R']),
+        allocatedCopyId: null,
+      }))
+    );
+
+  it('files the new slot into the group, in the same edit as the add', async () => {
+    renderEditor();
+    await addFromPanel('Ramp');
+    expect(mockAddCard).toHaveBeenCalledTimes(1);
+    expect(mockSetCardTags).toHaveBeenCalledWith('deck-1', 'cards', ['new-slot'], ['Ramp']);
+    expect(recorded).toEqual(['add Counterspell']);
+  });
+
+  it('offers the same groups the Tags view shows: user tags plus suggested group names', () => {
+    mockDeck = freshDeck([
+      { slotId: 'a', card: BOLT, allocatedCopyId: null, tags: ['Burn'] },
+      { slotId: 'b', card: COUNTERSPELL, allocatedCopyId: null, stack: 'Card Draw' },
+    ]);
+    renderEditor();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Add cards' })[0]);
+    expect(panel.groupNames).toEqual(['Burn', 'Card Draw']);
+  });
+
+  it('adds unfiled when no group is chosen', async () => {
+    renderEditor();
+    await addFromPanel(null);
+    expect(mockAddCard).toHaveBeenCalledTimes(1);
+    expect(mockSetCardTags).not.toHaveBeenCalled();
+  });
+
+  it('keeps the group through the replace-when-full prompt, filing the swapped-in slot', async () => {
+    mockDeck = fullDeck();
+    renderEditor();
+    await addFromPanel('Ramp');
+    expect(mockAddCard).not.toHaveBeenCalled();
+    const prompt = sizePrompts.at(-1)!;
+    const cut = [...prompt.options, ...(prompt.moreOptions ?? [])][0];
+    await act(async () => {
+      cut.onPick();
+    });
+    expect(mockSwapCard).toHaveBeenCalledTimes(1);
+    expect(mockSetCardTags).toHaveBeenCalledWith('deck-1', 'cards', ['swapped-slot'], ['Ramp']);
+  });
+
+  it('keeps the group through the other ways out of the prompt', async () => {
+    mockDeck = fullDeck();
+    renderEditor();
+    await addFromPanel('Ramp');
+    await act(async () => {
+      sizePrompts
+        .at(-1)!
+        .footer.find((f) => f.label === 'Add anyway')!
+        .onClick();
+    });
+    expect(mockSetCardTags).toHaveBeenCalledWith('deck-1', 'cards', ['new-slot'], ['Ramp']);
+  });
+
+  it('does not file an unfiled add that goes through the full prompt', async () => {
+    mockDeck = fullDeck();
+    renderEditor();
+    await addFromPanel(null);
+    await act(async () => {
+      [...sizePrompts.at(-1)!.options, ...(sizePrompts.at(-1)!.moreOptions ?? [])][0].onPick();
+    });
+    expect(mockSwapCard).toHaveBeenCalledTimes(1);
+    expect(mockSetCardTags).not.toHaveBeenCalled();
   });
 });
