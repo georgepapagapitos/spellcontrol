@@ -35,7 +35,7 @@ vi.mock('./CardImageFrame', () => ({
 }));
 vi.mock('@/lib/cards/card-rulings', () => ({ fetchCardRulings: async () => [] }));
 
-import { PlayedInSection, PLAYED_IN_SETTLE_MS } from './PlayedInSection';
+import { PlayedInSection, PLAYED_IN_OPEN_KEY, PLAYED_IN_SETTLE_MS } from './PlayedInSection';
 import { parseCardPlayedIn } from '@/deck-builder/services/edhrec/client';
 import { useCollectionStore } from '@/store/collection';
 
@@ -61,11 +61,16 @@ function Location() {
   return <p data-testid="location">{loc.pathname + loc.search}</p>;
 }
 
-function renderSection(onLeave = vi.fn()) {
+function renderSection(onLeave = vi.fn(), startClosed = false) {
   const utils = render(
     <MemoryRouter initialEntries={['/search']}>
       <Routes>
-        <Route path="*" element={<PlayedInSection name="The One Ring" onLeave={onLeave} />} />
+        <Route
+          path="*"
+          element={
+            <PlayedInSection name="The One Ring" onLeave={onLeave} startClosed={startClosed} />
+          }
+        />
       </Routes>
       <Location />
     </MemoryRouter>
@@ -74,6 +79,7 @@ function renderSection(onLeave = vi.fn()) {
 }
 
 beforeEach(() => {
+  localStorage.clear();
   playedInMock.mockReset();
   useCollectionStore.setState({ cards: [] });
 });
@@ -188,5 +194,50 @@ describe('PlayedInSection', () => {
       '/decks/new/generate?commander=Smaug%20the%20Impenetrable'
     );
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+});
+
+// Guard: in a deck's 99, Played in ran about 1,000px open between the rules
+// text and Printing, Rulings and Legalities, for a deck whose commander is
+// already chosen. There it starts as one row stating the headline and
+// remembers being opened; everywhere else it opens as before.
+describe('PlayedInSection startClosed', () => {
+  it('starts as one closed row that states the headline', async () => {
+    playedInMock.mockResolvedValue(ring);
+    const { container } = renderSection(vi.fn(), true);
+    const summary = await waitFor(() => {
+      const el = container.querySelector('.played-in-summary');
+      expect(el).not.toBeNull();
+      return el!;
+    });
+    expect(summary.textContent).toBe('In 8% of decks that can play it');
+    const toggle = screen.getByRole('button', { name: /^Played in/ });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByText('Top commanders')).toBeNull();
+  });
+
+  it('opens on a tap, drops the summary, and stays open for the next card', async () => {
+    playedInMock.mockResolvedValue(ring);
+    const { container, unmount } = renderSection(vi.fn(), true);
+    await waitFor(() => expect(container.querySelector('.played-in-summary')).not.toBeNull());
+    fireEvent.click(screen.getByRole('button', { name: /^Played in/ }));
+    expect(await screen.findByText('Top commanders')).toBeTruthy();
+    expect(container.querySelector('.played-in-summary')).toBeNull();
+    expect(localStorage.getItem(PLAYED_IN_OPEN_KEY)).toBe('1');
+
+    unmount();
+    renderSection(vi.fn(), true);
+    expect(screen.getByRole('button', { name: 'Played in' }).getAttribute('aria-expanded')).toBe(
+      'true'
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Played in' }));
+    expect(localStorage.getItem(PLAYED_IN_OPEN_KEY)).toBeNull();
+  });
+
+  it('leaves the remembered choice alone where it opens by default', async () => {
+    playedInMock.mockResolvedValue(ring);
+    renderSection();
+    fireEvent.click(screen.getByRole('button', { name: 'Played in' }));
+    expect(localStorage.getItem(PLAYED_IN_OPEN_KEY)).toBeNull();
   });
 });

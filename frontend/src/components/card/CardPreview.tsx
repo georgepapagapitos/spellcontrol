@@ -167,6 +167,8 @@ interface Props {
    * context-agnostic — it only renders the slot.
    */
   renderPanelMeta?: (i: number) => ReactNode;
+  /** Start Played in closed for the card at index `i` (a deck's 99, not its commander). */
+  playedInStartsClosed?: (i: number) => boolean;
   /**
    * Suppress every monetary line in the panel — the price, its override badge
    * and the "Prices updated" stamp. For a surface where the card is real but
@@ -253,6 +255,7 @@ export function CardPreview({
   showRole,
   renderPanelExtra,
   renderPanelMeta,
+  playedInStartsClosed,
   hidePrice,
   theirCopy,
   source,
@@ -881,7 +884,12 @@ export function CardPreview({
   // inspector, where the card is being played, not built around.
   const playedInSection = isPlaytest ? null : (
     <Suspense fallback={null}>
-      <PlayedInSection key={current.name} name={current.name} onLeave={onClose} />
+      <PlayedInSection
+        key={current.name}
+        name={current.name}
+        onLeave={onClose}
+        startClosed={playedInStartsClosed?.(selected) ?? false}
+      />
     </Suspense>
   );
 

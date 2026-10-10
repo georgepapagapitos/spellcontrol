@@ -10,6 +10,7 @@ import { Button } from '@/components/shared/Button';
 import { MeterBar } from '@/components/shared/MeterBar';
 import { OwnershipBadge } from '@/components/deck/OwnershipBadge';
 import { useCardCarousel, type CarouselEntry } from '@/components/deck/useCardCarousel';
+import { useRememberedOpen } from '@/components/deck/SuggestionSection';
 import { useOwnedCardThumb } from '@/lib/cards/owned-printing';
 import { frontFaceName } from '@/lib/cards/card-text';
 import { formatCount } from '@/lib/util/format-count';
@@ -28,6 +29,9 @@ export const PLAYED_IN_SETTLE_MS = 350;
 
 /** Top commanders shown before "Show all". */
 const TOP_SHOWN = 5;
+
+/** The open/closed choice where the section starts closed, shared by every card. */
+export const PLAYED_IN_OPEN_KEY = 'sc-preview-played-in-open';
 
 type State = { status: 'loading' } | CardPlayedIn;
 
@@ -125,18 +129,28 @@ function SkeletonRows() {
  * own, with a way to build a deck around it.
  *
  * Loaded lazily by CardPreview. Render with `key={name}` so it resets per card.
+ * `startClosed` (a card in a deck's 99, where the deck's own commander is
+ * settled) folds it to one row stating the headline, and remembers the
+ * player's choice; everywhere else it opens, since "who plays this?" is often
+ * why the card was opened.
  * Renders nothing when EDHREC has no page for the card (tokens, brand-new
  * printings, offline).
  */
 export function PlayedInSection({
   name,
   onLeave,
+  startClosed = false,
 }: {
   name: string;
   /** Closes the preview this section sits in, before navigating away. */
   onLeave: () => void;
+  /** Start closed unless the player left it open last time (see above). */
+  startClosed?: boolean;
 }) {
-  const [open, setOpen] = useState(true);
+  const [remembered, toggleRemembered] = useRememberedOpen(PLAYED_IN_OPEN_KEY);
+  const [plainOpen, setPlainOpen] = useState(true);
+  const open = startClosed ? remembered : plainOpen;
+  const toggle = startClosed ? toggleRemembered : () => setPlainOpen((o) => !o);
   const [showAll, setShowAll] = useState(false);
   const [state, setState] = useState<State>({ status: 'loading' });
   // Bumped by Retry to run the fetch again.
@@ -221,12 +235,7 @@ export function PlayedInSection({
 
   return (
     <section className="card-preview-sec card-preview-sec--disc played-in">
-      <button
-        type="button"
-        className="card-disc-toggle"
-        aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
-      >
+      <button type="button" className="card-disc-toggle" aria-expanded={open} onClick={toggle}>
         <ChevronDown
           width={14}
           height={14}
@@ -235,6 +244,9 @@ export function PlayedInSection({
           className={`card-disc-chevron${open ? ' is-open' : ''}`}
         />
         Played in
+        {!open && state.status === 'ok' && state.card && (
+          <span className="played-in-summary">{headlineText(state.card.pct)}</span>
+        )}
       </button>
 
       {open && (
@@ -310,6 +322,14 @@ export function PlayedInSection({
       )}
     </section>
   );
+}
+
+/** The headline as plain text, for the closed row. */
+function headlineText(pct: number): string {
+  const info = classifyInclusion(pct);
+  return info.kind === 'offmeta'
+    ? 'Under 1% of decks that can play it'
+    : `In ${info.pct}% of decks that can play it`;
 }
 
 /** The card across every deck that could run it. */
