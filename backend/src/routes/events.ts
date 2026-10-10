@@ -54,6 +54,10 @@ export const EVENT_NAMES = new Set([
   'deck_created',
   'binder_created',
   'skipped_welcome',
+  'deck_power_viewed',
+  'deck_coach_viewed',
+  'deck_stats_viewed',
+  'test_hand_opened',
 ]);
 
 export const ERROR_KINDS = new Set(['error', 'rejection', 'render']);

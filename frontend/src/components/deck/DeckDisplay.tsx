@@ -12,6 +12,7 @@ import {
   type ReactNode,
 } from 'react';
 import { useOverflowEdges } from '@/lib/util/use-overflow-edges';
+import { useDeckViewAnalytics } from '@/lib/util/use-deck-view-analytics';
 import { useCurrency } from '@/lib/collection/currency';
 import { isKeyboardContextMenu, keepsBrowserMenu } from '@/lib/overlays/context-menu';
 import { createPortal } from 'react-dom';
@@ -1018,6 +1019,8 @@ export function DeckDisplay({
   useOverflowEdges(roleBarRef, roleFilterEntries.length > 0, roleFilterEntries.length);
   const statStripRef = useRef<HTMLDivElement>(null);
   useOverflowEdges(statStripRef, activeView === 'deck');
+  const statsHeadingRef = useRef<HTMLHeadingElement>(null);
+  useDeckViewAnalytics(activeView, statsHeadingRef);
 
   // "Not in the deck" (E176): whether the format has a real sideboard at all
   // (every DECK_FORMAT_CONFIGS entry does today, but the format config's own
@@ -1646,7 +1649,11 @@ export function DeckDisplay({
                 stay tabs; they are verdicts and actions, and load async. */}
             <section className="deck-stats-below" aria-labelledby={DECK_STATS_HEADING_ID}>
               {/* h3, like its twin "Not in the deck"; the panels are h4. */}
-              <h3 id={DECK_STATS_HEADING_ID} className="deck-stats-below-heading">
+              <h3
+                ref={statsHeadingRef}
+                id={DECK_STATS_HEADING_ID}
+                className="deck-stats-below-heading"
+              >
                 Deck stats
               </h3>
               {renderAnalysis('stats')}
