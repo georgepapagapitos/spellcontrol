@@ -1,6 +1,6 @@
 import '@/styles/deck-builder-card-list.css';
 import '@/styles/deck-builder-analysis.css';
-import { CircleAlert, Search } from 'lucide-react';
+import { CircleAlert, Layers, Search } from 'lucide-react';
 import {
   Fragment,
   useCallback,
@@ -226,6 +226,7 @@ export function DeckDisplay({
   tabbed = true,
   onShowTestHand,
   editActions,
+  suggestGroups,
   deckActionsInHeader,
   statStripSlot,
   onAddCards,
@@ -436,6 +437,22 @@ export function DeckDisplay({
       /* ignore */
     }
   };
+  // Filing is only useful if the reader can see it, so it opens the Tags lens.
+  const toolbarEditActions =
+    editActions && suggestGroups
+      ? [
+          ...editActions,
+          {
+            label: 'Suggest groups',
+            icon: Layers,
+            disabled: suggestGroups.pending,
+            onClick: () => {
+              suggestGroups.run();
+              handleGroupByChange('tag');
+            },
+          },
+        ]
+      : editActions;
   const handleGridZoomChange = (z: number) => {
     setGridZoom(z);
     try {
@@ -1350,7 +1367,7 @@ export function DeckDisplay({
               canBulkEdit={canBulkEdit}
               selectMode={selectMode}
               onToggleSelectMode={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
-              editActions={editActions}
+              editActions={toolbarEditActions}
               deckActionsInHeader={deckActionsInHeader}
             />
 

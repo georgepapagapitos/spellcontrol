@@ -19,6 +19,23 @@ const titles = (groups: Array<{ title: string }>) => groups.map((g) => g.title);
 const total = (groups: Array<{ rows: Row[] }>) =>
   groups.reduce((n, g) => n + g.rows.reduce((m, r) => m + r.qty, 0), 0);
 
+describe('groupByTag with a suggested group', () => {
+  const filed = (name: string, stack: string, extra: Partial<Row> = {}): Row =>
+    ({ ...row(name, 'Creature'), stack, tagsEdited: false, ...extra }) as Row;
+
+  it('files an unedited row under its suggested group instead of its type', () => {
+    expect(titles(groupByTag([filed('Birds', 'Ramp')]))).toEqual(['Ramp']);
+  });
+
+  it('a user tag wins, and an edited row with no tags falls back to its type', () => {
+    const groups = groupByTag([
+      filed('A', 'Ramp', { tags: ['Blink'] }),
+      filed('B', 'Ramp', { tagsEdited: true }),
+    ]);
+    expect(titles(groups)).toEqual(['Blink', 'Creature']);
+  });
+});
+
 describe('groupByTag', () => {
   it('files a tagged card under its FIRST tag, not its type', () => {
     const groups = groupByTag([row('Brago', 'Legendary Creature', ['Blink', 'Wincon'])]);

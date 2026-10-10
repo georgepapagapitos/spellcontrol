@@ -88,6 +88,18 @@ export interface DeckCard {
    */
   tags?: string[];
   /**
+   * The generator's 8-bucket category, recorded at save so "Suggest groups"
+   * files a generated deck by what the generator decided. NOT a user edit and
+   * not sticky: never read as a tag, so `tags` stays undefined.
+   */
+  category?: DeckCategory;
+  /**
+   * Group "Suggest groups" filed this slot under. Display-only Tags-lens
+   * fallback while `tags` is undefined; any tag edit supersedes it. Beside
+   * `tags`, not in it, so filing never flips a slot to user-edited.
+   */
+  stack?: string;
+  /**
    * Manual drag-order position (E172), only meaningful when the deck view's
    * sort mode is 'custom'. `undefined` ("never dragged") sorts by `addedAt`
    * instead — see `lib/deck/deck-reorder.ts` for the fractional-index math. A
@@ -485,6 +497,8 @@ interface DecksState {
    * existing tags) doesn't clobber anything but the one tag being toggled.
    */
   bulkEditTag(deckId: string, zone: DeckZone, slotIds: string[], tag: string, add: boolean): void;
+  /** File slots under suggested groups in ONE write; never touches `tags`. */
+  fileSuggestedStacks(deckId: string, assignments: Array<{ slotId: string; stack: string }>): void;
   /** Rename a tag everywhere it appears across cards/sideboard/considering,
    *  in one write. Merges into an existing `to` tag on a card that already
    *  has both (no duplicate). No-op for slots that never had `from`. */
@@ -882,6 +896,23 @@ export const useDecksStore = create<DecksState>()(
         set((s) => ({
           decks: s.decks.map((d) =>
             d.id === deckId ? touch({ ...d, [zone]: apply(d[zone]) }) : d
+          ),
+        }));
+      },
+
+      fileSuggestedStacks: (deckId, assignments) => {
+        const byId = new Map(assignments.map((a) => [a.slotId, a.stack]));
+        set((s) => ({
+          decks: s.decks.map((d) =>
+            d.id === deckId
+              ? touch({
+                  ...d,
+                  cards: d.cards.map((c) => {
+                    const stack = byId.get(c.slotId);
+                    return stack === undefined ? c : { ...c, stack };
+                  }),
+                })
+              : d
           ),
         }));
       },

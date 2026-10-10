@@ -197,6 +197,8 @@ export interface ListAction {
   label: string;
   icon: LucideIcon;
   onClick: () => void;
+  /** Shown but not yet usable (its inputs are still loading). */
+  disabled?: boolean;
 }
 
 // The toolbar's fold panel. What doesn't fit the row lands here instead of

@@ -81,7 +81,7 @@ export function saveGeneratedDeck(
   const cards = [];
   for (const cat of Object.keys(generated.categories) as DeckCategory[]) {
     for (const card of generated.categories[cat]) {
-      cards.push(newDeckCard(card, allocateFor(card)));
+      cards.push({ ...newDeckCard(card, allocateFor(card)), category: cat });
     }
   }
 
