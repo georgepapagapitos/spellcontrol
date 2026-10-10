@@ -42,6 +42,7 @@ import { CubeDraftabilityPanel } from './CubeDraftabilityPanel';
 import { CubeCommandersSection, CommanderCoveragePanel, CommanderBadge } from './CubeCommanders';
 import { Button, IconButton } from '../../components/shared/Button';
 import { CubeSuppliers } from './CubeSuppliers';
+import { assignSuppliers } from '../../lib/cube/pool';
 import { Chip } from '@/components/shared/Chip';
 import { ArtBadge } from '@/components/shared/ArtBadge';
 
@@ -199,6 +200,13 @@ export function CubeResult({
       for (const s of suppliers) if (s !== myUsername) set.add(s);
     return [...set];
   }, [supplierMap, myUsername]);
+  // The one person bringing each pick, the same assignment the "Who brings
+  // what" pull lists use, so a row's chip never names someone whose list
+  // doesn't carry that card.
+  const bringer = useMemo(
+    () => (supplierMap ? assignSuppliers(cube.picks, supplierMap, myUsername) : undefined),
+    [cube.picks, supplierMap, myUsername]
+  );
 
   return (
     <section className="cube-result" aria-label="Generated cube">
@@ -434,15 +442,10 @@ export function CubeResult({
                       const own = ownershipFor(p.card.name);
                       const img = pickThumb(p.card.name, enrichedMap, copyFor);
                       const isLocked = edit?.locked.has(p.card.oracleId) ?? false;
-                      // A friend-only pick (I don't supply it myself) shows who does
-                      // instead of the ownership badge — "not owned" would say less.
-                      const suppliers = p.card.oracleId
-                        ? supplierMap?.get(p.card.oracleId)
-                        : undefined;
-                      const friendSuppliers = suppliers
-                        ? suppliers.filter((u) => u !== myUsername)
-                        : [];
-                      const iSupply = !suppliers || suppliers.includes(myUsername);
+                      // A friend-only pick (I don't supply it myself) shows who brings
+                      // it instead of the ownership badge — "not owned" would say less.
+                      const who = p.card.oracleId ? bringer?.get(p.card.oracleId) : undefined;
+                      const friendBrings = who !== undefined && who !== myUsername;
                       return (
                         <li
                           key={p.card.oracleId || p.card.name}
@@ -471,7 +474,7 @@ export function CubeResult({
                                     Locked
                                   </Chip>
                                 )}
-                                {iSupply || friendSuppliers.length === 0 ? (
+                                {!friendBrings ? (
                                   // A cube is built from cards you own, so "Owned" on every
                                   // row is noise that truncates the name on a phone; the
                                   // row speaks only for the exceptions (in a deck, in
@@ -480,12 +483,9 @@ export function CubeResult({
                                 ) : (
                                   <Chip
                                     className="cube-collab-supplier-chip"
-                                    aria-label={`Supplied by ${friendSuppliers.join(', ')}`}
+                                    aria-label={`Supplied by ${who}`}
                                   >
-                                    {friendSuppliers[0]}
-                                    {friendSuppliers.length > 1 && (
-                                      <span aria-hidden> +{friendSuppliers.length - 1}</span>
-                                    )}
+                                    {who}
                                   </Chip>
                                 )}
                               </span>

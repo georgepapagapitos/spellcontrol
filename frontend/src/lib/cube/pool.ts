@@ -66,13 +66,6 @@ export interface PoolCard extends CubeCard {
   suppliers: string[];
 }
 
-export interface ContributionSummary {
-  username: string;
-  role: 'me' | 'friend';
-  /** How many picked cards this person can supply (a multi-supplier card counts for each). */
-  supplies: number;
-}
-
 // ---------------------------------------------------------------------------
 // Fetch
 // ---------------------------------------------------------------------------
@@ -258,4 +251,41 @@ export function namesToCubePool(
       ...synergyTags(s ?? { name }),
     };
   });
+}
+
+/**
+ * Who brings each pick to the table. A cube needs ONE copy of each card, so a
+ * card more than one of you owns goes on exactly one person's pull list, never
+ * all of them:
+ * - the builder (`myUsername`) brings anything they own, which matches the
+ *   card list's own row chip and the physical pull list, where their copies
+ *   are the ones reserved;
+ * - a card only friends own goes to whichever of them has been handed the
+ *   fewest so far (ties go to the earlier listed supplier), so the load
+ *   spreads instead of piling onto the first friend added.
+ *
+ * Picks are walked in cube order, so the result is deterministic for a given
+ * cube. Returns oracleId → username; a pick with no supplier entry is absent.
+ */
+export function assignSuppliers(
+  picks: ReadonlyArray<{ card: { oracleId: string } }>,
+  supplierMap: ReadonlyMap<string, string[]>,
+  myUsername: string
+): Map<string, string> {
+  const assigned = new Map<string, string>();
+  const load = new Map<string, number>();
+  for (const { card } of picks) {
+    if (!card.oracleId || assigned.has(card.oracleId)) continue;
+    const suppliers = supplierMap.get(card.oracleId);
+    if (!suppliers || suppliers.length === 0) continue;
+    let who = suppliers.includes(myUsername) ? myUsername : suppliers[0];
+    if (who !== myUsername) {
+      for (const s of suppliers) {
+        if ((load.get(s) ?? 0) < (load.get(who) ?? 0)) who = s;
+      }
+    }
+    assigned.set(card.oracleId, who);
+    load.set(who, (load.get(who) ?? 0) + 1);
+  }
+  return assigned;
 }
