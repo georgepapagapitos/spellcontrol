@@ -115,12 +115,6 @@
   white-space: pre-line;
 }
 
-.rules-wt-rulings {
-  margin: var(--space-3) 0 0;
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-}
-
 .rules-wt-body {
   display: flex;
   flex-direction: column;

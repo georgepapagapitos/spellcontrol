@@ -46,6 +46,20 @@ describe('walkthroughs', () => {
     for (const w of WALKTHROUGHS) expect(w.steps.length).toBeGreaterThan(1);
   });
 
+  // A walkthrough teaches a rule, and a card is only its example. The index
+  // once had a group named after one commander, which read as a feature for
+  // that one deck (#2828).
+  it('are named for the rule they teach, never for a card', () => {
+    // The short name too: "Ulamog: countered" names "Ulamog, the Ceaseless Hunger".
+    const cards = new Set(
+      WALKTHROUGHS.flatMap((w) => Object.keys(w.oracle ?? {}).map((n) => n.split(',')[0]))
+    );
+    for (const c of cards) {
+      for (const g of WALKTHROUGH_GROUPS) expect(g.title).not.toContain(c);
+      for (const w of WALKTHROUGHS) expect(w.title).not.toContain(c);
+    }
+  });
+
   it('looks a walkthrough up by id', () => {
     expect(getWalkthrough('hold-priority')?.title).toBe('Hold priority');
     expect(getWalkthrough('nope')).toBeUndefined();

@@ -1,7 +1,6 @@
 import { apnap } from './apnap';
 import { basicLoop, creatureEnters, holdPriority, respond } from './stack-basics';
 import type { Walkthrough } from './types';
-import { ulamogAttacks, ulamogCast, ulamogCountered, ulamogIllegalTarget } from './ulamog';
 
 export type { StackItem, Walkthrough, WalkthroughStep } from './types';
 
@@ -15,10 +14,6 @@ export const WALKTHROUGH_GROUPS: WalkthroughGroup[] = [
   {
     title: 'Priority and the stack',
     walkthroughs: [basicLoop, holdPriority, respond, creatureEnters, apnap],
-  },
-  {
-    title: 'Ulamog, the Ceaseless Hunger',
-    walkthroughs: [ulamogCast, ulamogCountered, ulamogIllegalTarget, ulamogAttacks],
   },
 ];
 

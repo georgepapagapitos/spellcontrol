@@ -21,18 +21,6 @@ const icon = {
   strokeWidth: ICON_SCALE.inline.stroke,
 } as const;
 
-/** "Card: 2015-08-25" → "Card, August 25, 2015". */
-function formatRuling(ruling: string): string {
-  const [card, date] = ruling.split(/: (?=\d{4}-\d{2}-\d{2}$)/);
-  if (!date) return ruling;
-  const when = new Date(`${date}T00:00:00`).toLocaleDateString('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  });
-  return `${card}, ${when}`;
-}
-
 /**
  * `/rules/walkthroughs/:id` — one walkthrough, a step at a time (board E357).
  * The step lives in the URL (`?step=`, 1-based) so a step is a link; the
@@ -127,12 +115,6 @@ export function RulesWalkthroughPage() {
                 </div>
               ))}
             </dl>
-            {walkthrough.rulings && (
-              <p className="rules-wt-rulings">
-                Follows the official rulings of{' '}
-                {walkthrough.rulings.map(formatRuling).join(' and ')}.
-              </p>
-            )}
           </Disclosure>
         )}
       </div>

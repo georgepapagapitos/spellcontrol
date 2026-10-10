@@ -113,15 +113,11 @@ describe('RulesWalkthroughPage', () => {
     expect(screen.getByText(`Step ${hold.steps.length} of ${hold.steps.length}`)).toBeTruthy();
   });
 
-  it('shows the card text and rulings, and who holds priority', () => {
-    renderAt('/rules/walkthroughs/ulamog-countered?step=2');
+  it('shows the card text, and who holds priority while a trigger waits', () => {
+    renderAt('/rules/walkthroughs/creature-enters?step=5');
     fireEvent.click(screen.getByRole('button', { name: /Card text/ }));
-    expect(screen.getByText(/exile two target permanents/)).toBeTruthy();
-    expect(
-      screen.getByText(
-        'Follows the official rulings of Ulamog, the Ceaseless Hunger, August 25, 2015.'
-      )
-    ).toBeTruthy();
+    const oracle = screen.getByText('Elvish Visionary', { selector: 'dt' }).closest('div')!;
+    expect(within(oracle).getByText('When this creature enters, draw a card.')).toBeTruthy();
     expect(screen.getByText('Nobody has priority')).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Waiting to go on the stack' })).toBeTruthy();
   });

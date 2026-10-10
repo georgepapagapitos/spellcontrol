@@ -79,7 +79,5 @@ export interface Walkthrough {
   setup: string;
   /** Oracle text quoted on the page, keyed by card name. */
   oracle?: Record<string, string>;
-  /** Official rulings the walkthrough follows, as "<card>: <date>". */
-  rulings?: string[];
   steps: WalkthroughStep[];
 }
