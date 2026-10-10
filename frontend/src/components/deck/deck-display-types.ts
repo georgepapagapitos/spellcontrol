@@ -33,6 +33,8 @@ export interface DeckDisplayCard {
   /** User tags (E171) — see the `tags` doc on `DeckCard` for the
    *  sticky-override contract (`undefined` = untouched, `[]` = edited/cleared). */
   tags?: string[];
+  /** The group "Suggest groups" filed this slot under — see `DeckCard.stack`. */
+  stack?: string;
   /** Manual drag-order position (E172) — see the doc on `DeckCard`. */
   sortIndex?: number;
 }
@@ -262,6 +264,10 @@ export interface DeckDisplayProps {
   /** The owner's list edits for the toolbar's Edit menu (paste, bulk edit,
    *  resync, printings). Absent on a read-only deck. */
   editActions?: ListAction[];
+  /** "Suggest groups" in the Edit menu: present when the owner could run it.
+   *  `run` files the slots; DeckDisplay switches to the Tags lens first so the
+   *  result is visible. `pending` shows it disabled while roles still load. */
+  suggestGroups?: { pending: boolean; run: () => void };
   /** The header's Deck menu holds Test hand and Export, so the toolbar leaves
    *  them out (STYLE_GUIDE § Deck page menus). */
   deckActionsInHeader?: boolean;

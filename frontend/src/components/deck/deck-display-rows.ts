@@ -354,6 +354,7 @@ export interface Row {
    *  `tags` doc on `DeckCard`). Drives the "edited" affordance and hides the
    *  live auto-suggestion once true. */
   tagsEdited: boolean;
+  stack?: string;
 }
 
 // ── Foil treatment ─────────────────────────────────────────────────────────
@@ -488,6 +489,7 @@ export function buildRows(
       if (dc.slotId) existing.slotIds.push(dc.slotId);
       for (const t of cardTagsOf(dc)) if (!existing.tags.includes(t)) existing.tags.push(t);
       if (isTagsEdited(dc)) existing.tagsEdited = true;
+      existing.stack ??= dc.stack;
       if (dc.allocatedCopyId) existing.allocatedCopyIds.push(dc.allocatedCopyId);
       if (dc.proxy) existing.proxyQty += 1;
       else if (status === 'allocated') existing.allocatedQty += 1;
@@ -553,6 +555,7 @@ export function buildRows(
       collectorNumber: owned?.collectorNumber || card.collector_number || '',
       tags: [...cardTagsOf(dc)],
       tagsEdited: isTagsEdited(dc),
+      stack: dc.stack,
     });
   }
   const rows = [...map.values()];
@@ -942,7 +945,7 @@ export function groupByTag(rows: Row[], commanderRows?: Row[]): TypedGroup[] {
     }
   };
   for (const row of rows) {
-    const primary = row.tags[0];
+    const primary = row.tags[0] ?? (row.tagsEdited ? undefined : row.stack);
     if (primary === undefined) {
       const t = classifyType(row.card);
       add(t, typeIcon(t.toLowerCase()), false, row);

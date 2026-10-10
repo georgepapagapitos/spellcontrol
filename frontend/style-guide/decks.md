@@ -445,9 +445,15 @@ named button, and each holds exactly one kind of thing:
 | Menu       | Where          | Holds                                                                                                                                                                                                                   |
 | ---------- | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Deck ▾** | header actions | the deck as a whole: Play (Playtest on a phone, Test hand), At the table (Pull list, Tokens to prep, Print proxies), Share (Export, Primer, Get feedback), This deck (Duplicate, Build report, Regenerate), then Delete |
-| **Edit ▾** | toolbar        | changes to the card list: Select cards, Paste cards, Bulk edit, Resync from a list, Match my copies, Cheapest printings for missing                                                                                     |
+| **Edit ▾** | toolbar        | changes to the card list: Select cards, Paste cards, Bulk edit, Resync from a list, Match my copies, Cheapest printings for missing, Suggest groups                                                                     |
 | **View**   | toolbar, last  | the display only: whatever layout/group/size control the row folded, row details, the role key and the symbol key. Never an action.                                                                                     |
 
+- **Suggest groups files only untouched slots** (no user tags, not already
+  filed) into the generator's buckets, shown under the Tags lens. A generated
+  deck uses the bucket saved on each slot (`DeckCard.category`); a hand-built
+  one derives it. It writes `DeckCard.stack`, never `tags`, so no slot turns
+  user-edited, and it is hidden when it would file nothing. "Stacks" stays the
+  layout's name, so the action says groups.
 - **Add cards stays the header's primary.** It is the page's main action on
   every tab, and the toolbar only exists on the Deck tab.
 - **Select leads Edit ▾.** While selecting, Done sits on the row, so leaving

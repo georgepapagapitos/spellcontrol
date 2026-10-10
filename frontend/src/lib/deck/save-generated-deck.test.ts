@@ -226,6 +226,26 @@ describe('saveGeneratedDeck', () => {
     expect(captured.buildReport?.claimedConflicts).toBeUndefined();
   });
 
+  it('records the generator bucket on each slot without tagging it', () => {
+    const generated = generatedDeck({
+      categories: categories({
+        ramp: [scryfallCard('Sol Ring')],
+        creatures: [scryfallCard('Bear')],
+      }),
+    });
+    const { createDeck, calls } = fakeCreateDeck();
+
+    saveGeneratedDeck(generated, customization(), [], [], [], createDeck);
+
+    const cards = calls[0].cards!;
+    expect(cards.map((c) => [c.card.name, c.category])).toEqual([
+      ['Sol Ring', 'ramp'],
+      ['Bear', 'creatures'],
+    ]);
+    // Seeding tags here would flip every slot to user-edited.
+    expect(cards.every((c) => c.tags === undefined)).toBe(true);
+  });
+
   it('passes the generator composition through as categoryTargets (E124)', () => {
     const generated = generatedDeck({
       composition: {

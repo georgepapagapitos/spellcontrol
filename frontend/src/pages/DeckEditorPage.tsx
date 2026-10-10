@@ -204,6 +204,7 @@ import { ReplaceCommanderDialog } from './deck-editor/ReplaceCommanderDialog';
 import { DeckEditorHero } from './deck-editor/DeckEditorHero';
 import { DeckEditorOverflowMenu } from './deck-editor/DeckEditorOverflowMenu';
 import { deckEditActions, deckViewTabs } from './deck-editor/deck-page-chrome';
+import { useSuggestGroups } from './deck-editor/use-suggest-groups';
 import { DeckScryfallDropOverlay } from './deck-editor/DeckScryfallDropOverlay';
 import { useSuggestionContext } from '@/lib/util/use-suggestion-context';
 
@@ -1036,6 +1037,7 @@ export function DeckEditorPage() {
   });
 
   const taggerReady = useTaggerReady();
+  const suggestGroups = useSuggestGroups(deck ?? undefined, taggerReady);
 
   // E90 "Your decks" Coach rows: owned copies idle in a sibling deck that would
   // feed an engine here, each paired with an owned patch for the deck it
@@ -3398,6 +3400,7 @@ export function DeckEditorPage() {
               matchCopies: hasCopyMismatches ? () => void handleMatchMyCopies() : undefined,
               cheapestPrintings: hasMissingSlots ? () => void handleCheapestPrintings() : undefined,
             })}
+            suggestGroups={suggestGroups}
             onAddCards={handleToggleAddPanel}
             onChooseCommander={
               formatConfig?.hasCommander ? () => setShowCommanderPicker(true) : undefined
