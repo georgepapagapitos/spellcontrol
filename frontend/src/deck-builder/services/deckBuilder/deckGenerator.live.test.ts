@@ -72,6 +72,7 @@ import { frontFaceName } from '@/lib/cards/card-text';
 import { measureThemeFidelity, type ThemePage } from './themeFidelity';
 import { loadThemePages } from './deckGeneration/themeFidelityData';
 import { choosesColorBeforeGame, withChosenColor } from '@/deck-builder/lib/partnerUtils';
+import { liveSearchBudgetMs } from './liveGenSearch';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = process.env.LIVE_GEN_OUTDIR ?? join(tmpdir(), 'spellcontrol-live-gen');
@@ -865,6 +866,9 @@ describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
           })),
           collectionNames,
           collectionPool: fixture ? fixture.pool : collectionNames ? COLLECTION_POOL : undefined,
+          // E638: the search ends on its evaluation cap, not the machine's clock,
+          // so two runs of one commit build the same deck (liveGenSearch.ts).
+          searchTimeBudgetMs: liveSearchBudgetMs(process.env),
         };
 
         const deck = await generateDeck(ctx);
