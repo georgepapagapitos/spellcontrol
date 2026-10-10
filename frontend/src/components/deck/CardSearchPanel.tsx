@@ -54,6 +54,9 @@ import type { GapAnalysisCard, HiddenGemRow } from '@/deck-builder/types';
 import { hiddenGemReason } from '@/deck-builder/services/deckBuilder/hiddenGems';
 import { useDismissedSuggestions } from '@/lib/coach/dismissed-suggestions';
 import { useAddSuggestionLabels } from './use-add-suggestion-labels';
+import { useAddCastability } from './use-add-castability';
+import { castSegment, ProblemSegments } from './add-problem-segments';
+import { SYNTAX_TIP } from './card-search-syntax-tip';
 import { HiddenSuggestions } from './HiddenSuggestions';
 import { SuggestionDismissMenu } from './SuggestionDismissMenu';
 import type { ComboMatch } from '@/types/combos';
@@ -251,28 +254,6 @@ const SORT_OPTIONS: SelectOption<AddSort>[] = [
   { value: 'price', label: 'Price' },
 ];
 
-// One explainer for the query language every tab's search box understands.
-const SYNTAX_TIP = (
-  <>
-    <p className="info-tip-lead">Search by name, rules text, or Scryfall-style filters:</p>
-    <ul className="info-tip-list">
-      <li>
-        <code>o:draw</code> rules text · <code>t:instant</code> type
-      </li>
-      <li>
-        <code>otag:removal</code> oracle tag · <code>r:rare</code> rarity
-      </li>
-      <li>
-        <code>cmc&lt;=2</code> mana value · <code>c:UG</code> colors
-      </li>
-      <li>
-        <code>-t:land</code> excludes · <code>OR</code> combines
-      </li>
-      <li>↑ ↓ navigate · Enter adds · Esc closes</li>
-    </ul>
-  </>
-);
-
 /** Portrait mini-card thumbnail + name, the row's preview trigger — matching
  *  `CardSearchResults`' list row (E457) so the deck panel's own engine paints
  *  the same thumbnail/name treatment as the collection-wide add-cards search.
@@ -333,6 +314,7 @@ function SearchResultRow({
   onPreview,
   manaCost,
   onDismiss,
+  flowMeta,
   children,
 }: {
   resultIndex: number;
@@ -351,6 +333,8 @@ function SearchResultRow({
   manaCost?: string;
   /** "Not for this deck" (E580): adds the row's quiet ⋮ menu. */
   onDismiss?: () => void;
+  /** Let the meta line wrap on a phone instead of pushing its tail off the row. */
+  flowMeta?: boolean;
   /** The row's meta line — owned/in-deck counts, badges, fit signal. */
   children: React.ReactNode;
 }) {
@@ -381,7 +365,7 @@ function SearchResultRow({
           />
         )}
         <span className="inline-card-search-trailing">
-          <span className="inline-card-search-meta">{children}</span>
+          <span className={`inline-card-search-meta${flowMeta ? ' is-flow' : ''}`}>{children}</span>
         </span>
       </div>
     </li>
@@ -1428,6 +1412,7 @@ interface SuggestionsResultsProps extends ResultsProps {
 }
 
 function SuggestionsResults({
+  deckId,
   existingCardCounts,
   atCopyLimit,
   query,
@@ -1484,6 +1469,11 @@ function SuggestionsResults({
   const rows = useMemo(() => [...staples, ...combos, ...gems], [staples, combos, gems]);
 
   const { labelAdd, dismissFor } = useAddSuggestionLabels(staples, combos, gems, hidden);
+
+  // A row says so only when the card would clearly miss its colors in this
+  // deck; every other row keeps its usual line.
+  const rowNames = useMemo(() => rows.map((r) => r.name), [rows]);
+  const castShort = useAddCastability(deckId, rowNames);
 
   // Suggestion rows carry only a name; resolve the full card on add (same as
   // the Collection tab) so the deck gets a real ScryfallCard.
@@ -1611,6 +1601,9 @@ function SuggestionsResults({
     const inDeckCount = existingCardCounts.get(row.name) ?? 0;
     const active = i === activeIndex;
     const badge = OWNERSHIP_BADGE[row.ownership];
+    // What is wrong with this card here, one segment per kind, each only when
+    // there is something to say. The chance-card kind joins this list.
+    const problems = [castSegment(row.name, castShort.get(row.name))].filter((p) => p !== null);
     // Unowned buy candidates show their price when EDHREC has one.
     const badgeLabel = row.ownership === 'unowned' && row.price ? `$${row.price}` : badge.label;
     return (
@@ -1632,6 +1625,7 @@ function SuggestionsResults({
         image={row.imageUrl}
         onPreview={() => carousel.open(previewEntries, row.name)}
         onDismiss={dismissFor(row.name)}
+        flowMeta={problems.length > 0}
       >
         <span className={badge.className}>{badgeLabel}</span>
         {row.kind === 'staple' ? (
@@ -1667,6 +1661,7 @@ function SuggestionsResults({
             </span>
           </>
         )}
+        <ProblemSegments segments={problems} />
         {onPreviewFit && (
           <>
             {' · '}

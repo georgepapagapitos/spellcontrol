@@ -1,7 +1,12 @@
 import type { ScryfallCard } from '@/deck-builder/types';
 import {
+  classifyManaCard,
+  compileManaDeck,
   evaluateManabase,
+  identityMask,
   MANA_SYMBOLS,
+  simulateManaDeck,
+  type ManaCost,
   type CardCastability,
   type ManaSymbol,
 } from '@/lib/mana-sim';
@@ -26,6 +31,16 @@ import {
  */
 
 export const CASTABILITY_GAMES = 4000;
+
+/** How each mana type reads in a sentence. */
+export const SYMBOL_WORD: Record<ManaSymbol, string> = {
+  W: 'white',
+  U: 'blue',
+  B: 'black',
+  R: 'red',
+  G: 'green',
+  C: 'colorless',
+};
 
 /** Two-sided 95%. */
 const Z = 1.96;
@@ -97,6 +112,18 @@ function toRow(row: CardCastability, commander: boolean): CastabilityRow {
 const pct = (x: number): number => Math.round(x * 100);
 
 /**
+ * Whether a measured card clearly misses its bar: under it on the rounded
+ * numbers (rounded equal reads as "95% · needs 95%", a failure that looks like
+ * a bug) and with the whole 95% interval under it (a shortfall inside the
+ * interval may not be there at all).
+ */
+function clearlyUnder(r: CardCastability, games: number): boolean {
+  const rate = r.onCurveGivenMana;
+  if (rate === null || rate >= r.karstenBar) return false;
+  return pct(rate) < pct(r.karstenBar) && wilsonUpper(rate, samplesOf(r, games)) < r.karstenBar;
+}
+
+/**
  * Commander text that changes what spells cost: blitz (Henzie, "its mana cost
  * minus {2}"), a flat reduction, "less to cast". The simulator pays printed
  * costs, so the panel names the commander in its scope line.
@@ -133,10 +160,7 @@ export function analyzeCastability(
     const rate = r.onCurveGivenMana ?? 0;
     if (rate >= r.karstenBar) continue;
     const row = toRow(r, commander);
-    // Rounded equal reads as "95% · needs 95%": a failure that looks like a
-    // bug. And a shortfall inside the interval may not be there at all.
-    const clear =
-      pct(rate) < pct(r.karstenBar) && wilsonUpper(rate, samplesOf(r, result.games)) < r.karstenBar;
+    const clear = clearlyUnder(r, result.games);
     (clear ? under : atBar).push(row);
   }
   under.sort((a, b) => b.bar - b.rate - (a.bar - a.rate) || a.name.localeCompare(b.name));
@@ -161,4 +185,40 @@ export function analyzeCastability(
     atBar,
     tightSymbol,
   };
+}
+
+/**
+ * Which candidate cards would clearly miss their bar if added to this deck.
+ *
+ * One simulation of the current deck answers every candidate: a candidate's
+ * cost rides the same games as a probe, so the price is one run however long
+ * the list, and adding one card to a hundred barely moves the mana base. The
+ * deck is not rebuilt per candidate (4,000 games each is seconds per list), so
+ * a candidate that is itself a mana source reads against the base without it.
+ *
+ * Only clear misses come back, by the same interval rule as the Color panel.
+ * `library` holds one entry per copy, commanders excluded.
+ */
+export function candidateShortfalls(
+  commanders: readonly ScryfallCard[],
+  library: readonly ScryfallCard[],
+  candidates: readonly ScryfallCard[],
+  games = CASTABILITY_GAMES
+): Map<string, CastabilityRow> {
+  const identity = identityMask(commanders);
+  const probed: { card: ScryfallCard; cost: ManaCost }[] = [];
+  for (const card of candidates) {
+    const mana = classifyManaCard(card, identity);
+    if (mana.cost && !mana.landCard) probed.push({ card, cost: mana.cost });
+  }
+  const out = new Map<string, CastabilityRow>();
+  if (probed.length === 0) return out;
+  const result = simulateManaDeck(compileManaDeck({ commanders, library }), {
+    games,
+    probes: probed.map((p) => p.cost),
+  });
+  result.probes.forEach((r, i) => {
+    if (clearlyUnder(r, result.games)) out.set(probed[i].card.name, toRow(r, false));
+  });
+  return out;
 }

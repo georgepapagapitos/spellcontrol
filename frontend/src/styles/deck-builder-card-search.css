@@ -233,6 +233,28 @@
   color: var(--text-secondary);
 }
 
+/* A problem with the card in this deck: "▾ Short on red in 14%". The glyph
+   plus the words carry it, the warn tone only backs them. */
+.card-search-problem {
+  font-weight: 600;
+  color: var(--warn-text);
+}
+
+/* A meta line with a problem segment is the longest one a row has, and a
+   combo row's own text is long already. It flows as text so the tail ("Fit &
+   cut" and the problem itself) wraps to a second line instead of running off
+   the row. */
+.inline-card-search-trailing:has(.is-flow) {
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.inline-card-search-meta.is-flow {
+  display: block;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
 /* Hidden-gem evidence line, e.g. "Lifted by A, B · Plays like C" (E146). */
 .card-search-gem {
   color: var(--text-secondary);

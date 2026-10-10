@@ -1,17 +1,11 @@
 import { type JSX, useId, useState } from 'react';
-import type { ManaSymbol } from '@/lib/mana-sim';
-import type { CastabilityReport, CastabilityRow } from '@/lib/deck-analysis/castability';
+import {
+  SYMBOL_WORD,
+  type CastabilityReport,
+  type CastabilityRow,
+} from '@/lib/deck-analysis/castability';
 import { InfoTip } from '@/components/overlays/InfoTip';
 import { ManaCost } from '../ManaCost';
-
-const SYMBOL_WORD: Record<ManaSymbol, string> = {
-  W: 'white',
-  U: 'blue',
-  B: 'black',
-  R: 'red',
-  G: 'green',
-  C: 'colorless',
-};
 
 const pct = (x: number): number => Math.round(x * 100);
 const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);

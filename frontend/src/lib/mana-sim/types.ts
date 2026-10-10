@@ -166,6 +166,13 @@ export interface ManaSimOptions {
   games?: number;
   /** PRNG seed. Default: derived from the card names, so the same list always gives the same numbers. */
   seed?: number;
+  /**
+   * Costs to measure that no card in the deck carries: "had you drawn a card
+   * costing this, could you cast it on curve?". They ride the same games and
+   * change nothing about how the deck plays, so one run answers any number of
+   * candidates. Results come back in `ManaSimResult.probes`, in this order.
+   */
+  probes?: readonly ManaCost[];
   /** Last turn simulated. Default 10. Castability is measured for mana values up to this turn. */
   maxTurn?: number;
   /**
@@ -215,6 +222,8 @@ export interface CardCastability extends CastRates {
 }
 
 export interface ManaSimResult {
+  /** The `probes` asked for, in order (`copies` is 0). */
+  probes: CardCastability[];
   games: number;
   seed: number;
   maxTurn: number;

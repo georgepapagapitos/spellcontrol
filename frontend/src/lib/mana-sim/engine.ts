@@ -171,6 +171,8 @@ export function simulateManaDeck(deck: ManaDeck, options: ManaSimOptions = {}): 
   };
   const cardCost = cards.map((c) => (isSpell(c) ? costIdOf(c.cost as ManaCost) : -1));
   const commanderCost = commanders.map((c) => (c.cost ? costIdOf(c.cost) : -1));
+  // Probes are measured like any other cost but belong to no card in the deck.
+  const probeCost = (options.probes ?? []).map(costIdOf);
   const onAt: number[][] = Array.from({ length: maxTurn + 1 }, () => []);
   const nextAt: number[][] = Array.from({ length: maxTurn + 1 }, () => []);
   costStats.forEach((s, i) => {
@@ -880,6 +882,8 @@ export function simulateManaDeck(deck: ManaDeck, options: ManaSimOptions = {}): 
     if (r.onCurveGivenMana !== null && r.onCurveGivenMana < r.karstenBar) below += r.copies;
   }
 
+  const probes = (options.probes ?? []).map((cost, i) => castRow(cost.text, cost, probeCost[i], 0));
+
   const keptSizeShare: Record<number, number> = {};
   for (const [size, n] of Object.entries(keptSizes)) keptSizeShare[Number(size)] = n / games;
 
@@ -908,5 +912,6 @@ export function simulateManaDeck(deck: ManaDeck, options: ManaSimOptions = {}): 
       c.cost ? [castRow(c.name, c.cost, commanderCost[i], 1)] : []
     ),
     cards: rows,
+    probes,
   };
 }
