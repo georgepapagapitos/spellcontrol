@@ -92,6 +92,14 @@ const SearchPage = lazyPage(() => import('./pages/SearchPage'), 'SearchPage');
 const BrowseListPage = lazyPage(() => import('./pages/BrowseListPage'), 'BrowseListPage');
 const TagsPage = lazyPage(() => import('./pages/TagsPage'), 'TagsPage');
 const RulesPage = lazyPage(() => import('./pages/RulesPage'), 'RulesPage');
+const RulesWalkthroughsPage = lazyPage(
+  () => import('./pages/RulesWalkthroughsPage'),
+  'RulesWalkthroughsPage'
+);
+const RulesWalkthroughPage = lazyPage(
+  () => import('./pages/RulesWalkthroughPage'),
+  'RulesWalkthroughPage'
+);
 const DailyPage = lazyPage(() => import('./pages/DailyPage'), 'DailyPage');
 const AdminPage = lazyPage(() => import('./pages/AdminPage'), 'AdminPage');
 const SharedView = lazyPage(() => import('./pages/SharedView'), 'SharedView');
@@ -393,6 +401,8 @@ export default function App() {
             <Route path="/play" element={<PlayPage />} />
             <Route path="/play/:section" element={<PlayPage />} />
             <Route path="/rules" element={<RulesPage />} />
+            <Route path="/rules/walkthroughs" element={<RulesWalkthroughsPage />} />
+            <Route path="/rules/walkthroughs/:id" element={<RulesWalkthroughPage />} />
             <Route path="/daily" element={<DailyPage />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/search/top/:list" element={<BrowseListPage />} />

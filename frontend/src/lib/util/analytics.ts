@@ -45,7 +45,10 @@ export type EventName =
   | 'deck_power_viewed'
   | 'deck_coach_viewed'
   | 'deck_stats_viewed'
-  | 'test_hand_opened';
+  | 'test_hand_opened'
+  // A rules walkthrough reached its last step (board E357). Its pageview
+  // counts the opens, and this counts the finishes, per walkthrough path.
+  | 'walkthrough_finished';
 
 const ID_ROUTES =
   /^\/(s|d|u|gn|pods|friends|decks\/cube|decks|collection\/(?:binders|lists|sets))\/([^/]+)(\/.*)?$/;

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
-import { ChevronDown, Sparkles } from 'lucide-react';
+import { ChevronDown, ChevronRight, Sparkles } from 'lucide-react';
 import { AiMarker, DeckAiConsent } from '../components/deck/DeckAiConsent';
 import {
   isRulesReferenceTab,
@@ -25,6 +25,7 @@ import {
 import { stripEmphasis, tokenizeCardNames } from '@/lib/ai/ai-review';
 import { noteAiExhausted, noteAiSpend, useAiStatus } from '@/lib/ai/use-ai-status';
 import { formatRelativeTime } from '@/lib/util/format-time';
+import '@/components/rules/RuleCitations.css';
 import './RulesPage.css';
 
 import { userMessage } from '@/lib/util/user-error';
@@ -139,6 +140,14 @@ export function RulesPage() {
       <header className="rules-page-header">
         <h1 className="rules-page-heading">Rules</h1>
         <p className="rules-page-sub">Search the Comprehensive Rules by keyword or rule number.</p>
+        <Button
+          variant="link"
+          to="/rules/walkthroughs"
+          className="rules-page-door"
+          iconEnd={<ChevronRight width={14} height={14} strokeWidth={1.8} />}
+        >
+          Step through the stack
+        </Button>
       </header>
 
       <Tabs<PageTab>

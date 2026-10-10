@@ -1,0 +1,101 @@
+/* One cited rule per row: its number, its text clamped to one line, a
+   chevron that opens the full text. The Ask tab's "Rules cited" list and the
+   rules walkthroughs (RuleCitations) share these rows. */
+
+.rules-cite-toggle {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2);
+  border: 0;
+  border-radius: calc(var(--radius) * 0.5);
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .rules-cite-toggle:hover {
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
+  }
+}
+
+.rules-cite-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+@media (pointer: coarse) {
+  .rules-cite-toggle {
+    min-height: 44px;
+  }
+}
+
+.rules-cite-ref {
+  flex: 0 0 auto;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+
+.rules-cite-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: 1.5;
+  /* Example lines in the CR arrive as real newlines ; keep them when open. */
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.rules-cite-text--clamped {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rules-cite-chevron {
+  flex: 0 0 auto;
+  align-self: center;
+  color: var(--text-muted);
+  transition: transform var(--motion-fast) ease;
+}
+
+.rules-cite-chevron--open {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rules-cite-chevron {
+    transition: none;
+  }
+}
+
+/* RuleCitations: the text hasn't loaded, or couldn't. */
+.rules-cite-toggle:disabled {
+  cursor: default;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .rules-cite-toggle:disabled:hover {
+    background: none;
+  }
+}
+
+.rules-cite-skeleton {
+  flex: 1 1 auto;
+  align-self: center;
+  height: var(--space-2);
+  border-radius: var(--radius);
+  background: var(--border);
+}
+
+.rules-cite-note {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}

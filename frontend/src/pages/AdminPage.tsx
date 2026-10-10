@@ -890,6 +890,13 @@ function AnalyticsTab({
       <CountTable caption="Events" rows={sumBy(events.events, (r) => r.name)} />
       <CountTable caption="Page views by path" rows={sumBy(views, (r) => r.path).slice(0, 25)} />
       <CountTable
+        caption="Events by path"
+        rows={sumBy(
+          events.events.filter((r) => r.name !== 'pageview'),
+          (r) => `${r.name} · ${r.path}`
+        ).slice(0, 25)}
+      />
+      <CountTable
         caption="Page views by day"
         rows={sumBy(views, (r) => r.day).sort((a, b) => (a[0] < b[0] ? 1 : -1))}
       />
