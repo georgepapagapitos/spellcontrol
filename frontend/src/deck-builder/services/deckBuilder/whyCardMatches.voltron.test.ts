@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { buildCommanderProfile, whyCardMatches } from './commanderProfile';
+import { buildCommanderProfile } from './commanderProfile';
+import { whyCardMatches } from './whyCardMatches';
 import type { ScryfallCard } from '@/deck-builder/types';
 
 // The voltron reason matched any Aura by type line, so Wild Growth ("Enchant

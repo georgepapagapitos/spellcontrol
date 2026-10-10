@@ -9,7 +9,8 @@
  *  - a plain-English game-plan summary
  *  - the EDHREC theme names the deck should lean into (for preselect)
  *  - a primary archetype hint
- *  - `whyCardMatches`, which explains why a candidate card synergizes
+ *
+ * `whyCardMatches` (the "why it fits" pills) builds on this in whyCardMatches.ts.
  *
  * No network, no store, no React — fully unit-testable and reused by both
  * the one-shot generator and the guided builder.
@@ -146,7 +147,7 @@ function findEvidence(text: string, pattern: RegExp): string | null {
 
 // ─── Tribal subtypes ─────────────────────────────────────────────────
 
-function frontTypeLine(card: ScryfallCard): string {
+export function frontTypeLine(card: ScryfallCard): string {
   if (card.card_faces?.[0]?.type_line) return card.card_faces[0].type_line;
   return card.type_line ?? '';
 }
@@ -227,7 +228,7 @@ function tribeTheme(tribe: string): string {
   return creatureTypePlurals(resolveCreatureType(tribe) ?? tribe)[0].toLowerCase();
 }
 
-function detectTribes(card: ScryfallCard): string[] {
+export function detectTribes(card: ScryfallCard): string[] {
   const tl = frontTypeLine(card).toLowerCase();
   if (!tl.includes('creature')) return [];
   const dash = tl.split(/[—–-]/);
@@ -259,10 +260,6 @@ interface Detector {
    * combat clause on a sacrifice commander doesn't read as an aggro deck.
    */
   archWeight?: number;
-  /** Recognizes a candidate card that feeds this ability. */
-  feeder: RegExp;
-  /** Short reason shown on a matching candidate. */
-  reason: string;
 }
 
 /**
@@ -271,7 +268,7 @@ interface Detector {
  * A marker counter ("a +1/+1 counter", "counters on", "a counter on") never
  * reads like that, so the counter detectors append it to their bare-word test.
  */
-const NOT_COUNTERSPELL = String.raw`(?! (?:target|that|unless|it|this|all|each|up to|a|an|the|any|another)\b)`;
+export const NOT_COUNTERSPELL = String.raw`(?! (?:target|that|unless|it|this|all|each|up to|a|an|the|any|another)\b)`;
 
 const DETECTORS: Detector[] = [
   {
@@ -280,9 +277,6 @@ const DETECTORS: Detector[] = [
     commander: /\b(when|whenever)\b[^.]*?\benters\b/,
     wants: ['Blink and flicker effects to re-trigger it', 'Creatures with strong ETB abilities'],
     themes: ['blink', 'flicker', 'etb'],
-    feeder:
-      /\b(when|whenever)\b[^.]*?\benters\b|\b(flicker|exile)\b[^.]*?\breturn\b[^.]*?\bbattlefield\b/,
-    reason: 'Re-triggers ETB effects',
   },
   {
     keyword: 'attack-trigger',
@@ -298,9 +292,6 @@ const DETECTORS: Detector[] = [
     themes: ['combat', 'aggro', 'extra combat', 'attack triggers'],
     archetypeHint: Archetype.AGGRO,
     archWeight: 1,
-    feeder:
-      /\b(can't be blocked|menace|trample|double strike|flying|additional combat)\b|\b(when|whenever)\b[^.]*?\battacks?\b/,
-    reason: 'Helps it connect',
   },
   {
     keyword: 'sacrifice',
@@ -313,9 +304,6 @@ const DETECTORS: Detector[] = [
     ],
     themes: ['aristocrats', 'sacrifice'],
     archetypeHint: Archetype.ARISTOCRATS,
-    feeder:
-      /\b(create|creates)\b[^.]*?\btoken\b|\b(treasure|clue|food|blood)\b|\bsacrifice (a|an|another|two|three)\b|\bwhenever\b[^.]*?\bdies\b/,
-    reason: 'Sac fodder, outlet or payoff',
   },
   {
     keyword: 'dies-trigger',
@@ -324,8 +312,6 @@ const DETECTORS: Detector[] = [
     wants: ['Sacrifice outlets', 'Expendable creatures and tokens'],
     themes: ['aristocrats', 'sacrifice'],
     archetypeHint: Archetype.ARISTOCRATS,
-    feeder: /\bsacrifice\b|\b(create|creates)\b[^.]*?\btoken\b|\bwhenever\b[^.]*?\bdies\b/,
-    reason: 'Triggers / feeds your death payoff',
   },
   {
     keyword: 'plus-one-counters',
@@ -337,8 +323,6 @@ const DETECTORS: Detector[] = [
       'Ways to move/use counters',
     ],
     themes: ['+1/+1 counters', 'counters', 'proliferate'],
-    feeder: /\+1\/\+1 counter|\bproliferate\b/,
-    reason: 'Adds or pays off +1/+1 counters',
   },
   {
     keyword: 'minus-counters',
@@ -346,8 +330,6 @@ const DETECTORS: Detector[] = [
     commander: /-1\/-1 counter/,
     wants: ['Proliferate', '-1/-1 counter payoffs', 'Wither / infect support'],
     themes: ['-1/-1 counters', 'counters', 'proliferate'],
-    feeder: /-1\/-1 counter|\b(proliferate|wither|infect)\b/,
-    reason: 'Adds or pays off -1/-1 counters',
   },
   {
     keyword: 'proliferate',
@@ -356,8 +338,6 @@ const DETECTORS: Detector[] = [
     wants: ['Cards that place counters of any kind', 'Counter payoffs to scale'],
     themes: ['proliferate', 'counters'],
     // Singular only (as before); the bare word also read "Counter target spell".
-    feeder: new RegExp(String.raw`\bcounter\b${NOT_COUNTERSPELL}|\bproliferate\b`),
-    reason: 'Places or scales counters',
   },
   {
     keyword: 'counters-generic',
@@ -366,8 +346,6 @@ const DETECTORS: Detector[] = [
     wants: ['Counter generators', 'Counter doublers and proliferate'],
     themes: ['counters', 'proliferate'],
     // Marker counters only, not counterspell phrasing.
-    feeder: new RegExp(String.raw`\bcounters?\b${NOT_COUNTERSPELL}|\bproliferate\b`),
-    reason: 'Cares about counters',
   },
   {
     keyword: 'leaves-battlefield',
@@ -375,9 +353,6 @@ const DETECTORS: Detector[] = [
     commander: /\bleaves the battlefield\b/,
     wants: ['Blink, flicker and bounce to reuse it', 'Sacrifice outlets'],
     themes: ['blink', 'flicker'],
-    feeder:
-      /\b(flicker|exile)\b[^.]*?\breturn\b|\breturn\b[^.]*?\bto (its|their) owner|\bsacrifice\b/,
-    reason: 'Bounces/blinks to retrigger leave effects',
   },
   {
     keyword: 'tokens',
@@ -386,9 +361,6 @@ const DETECTORS: Detector[] = [
     wants: ['Token doublers', 'Anthems and go-wide payoffs', 'Sacrifice outlets to convert tokens'],
     themes: ['tokens', 'go wide'],
     archetypeHint: Archetype.TOKENS,
-    feeder:
-      /\b(create|creates)\b[^.]*?\btoken\b|\btoken\b[^.]*?\b(double|twice)\b|\bcreatures you control get\b/,
-    reason: 'Makes or pumps tokens',
   },
   {
     keyword: 'lifegain',
@@ -396,8 +368,6 @@ const DETECTORS: Detector[] = [
     commander: /\bgains? \d* ?life\b|\bwhenever you gain life\b/,
     wants: ['Repeatable lifegain', 'Lifegain payoffs'],
     themes: ['lifegain', 'life gain'],
-    feeder: /\bgain \d* ?life\b|\blifelink\b|\bwhenever you gain life\b/,
-    reason: 'Gains life / lifegain payoff',
   },
   {
     keyword: 'lifeloss-drain',
@@ -406,8 +376,6 @@ const DETECTORS: Detector[] = [
     wants: ['Repeatable drain effects', 'Aristocrats payoffs'],
     themes: ['lifedrain', 'aristocrats'],
     archetypeHint: Archetype.ARISTOCRATS,
-    feeder: /\beach opponent loses\b|\bdrain\b|\bloses \d* ?life\b/,
-    reason: 'Drains opponents',
   },
   {
     keyword: 'draw',
@@ -415,8 +383,6 @@ const DETECTORS: Detector[] = [
     commander: /\bdraws? (a|\d+|x|that many)? ?cards?\b/,
     wants: ['Low curve so you can use the cards', 'Payoffs for a full hand'],
     themes: ['card draw'],
-    feeder: /\bdraw \d* ?cards?\b/,
-    reason: 'Refills your hand',
   },
   {
     keyword: 'wheel-discard',
@@ -424,8 +390,6 @@ const DETECTORS: Detector[] = [
     commander: /\beach player (draws|discards)\b|\bdiscards? (their|your) hand\b/,
     wants: ['Discard payoffs', 'Reanimation / graveyard value'],
     themes: ['wheels', 'discard'],
-    feeder: /\beach player (draws|discards)\b|\bdiscard\b/,
-    reason: 'Wheel / discard synergy',
   },
   {
     keyword: 'tutor',
@@ -433,8 +397,6 @@ const DETECTORS: Detector[] = [
     commander: /\bsearch(es)? your library\b/,
     wants: ['High-impact targets worth tutoring for', 'Combo finishers'],
     themes: ['tutors', 'combo'],
-    feeder: /\bsearch your library\b/,
-    reason: 'Tutors for your key pieces',
   },
   {
     keyword: 'mill',
@@ -443,8 +405,6 @@ const DETECTORS: Detector[] = [
     wants: ['Graveyard payoffs', 'Reanimation'],
     themes: ['mill', 'graveyard'],
     archetypeHint: Archetype.REANIMATOR,
-    feeder: /\bmill\b|\bgraveyard\b/,
-    reason: 'Fills graveyards',
   },
   {
     keyword: 'graveyard-recursion',
@@ -453,9 +413,6 @@ const DETECTORS: Detector[] = [
     wants: ['Self-mill and discard to stock the yard', 'Recursive value targets'],
     themes: ['reanimator', 'graveyard'],
     archetypeHint: Archetype.REANIMATOR,
-    feeder:
-      /\bfrom (your|a) graveyard\b|\breturn\b[^.]*?\bgraveyard\b|\b(unearth|flashback|escape|disturb|embalm)\b/,
-    reason: 'Recurs cards from the graveyard',
   },
   {
     keyword: 'spellcast',
@@ -464,9 +421,6 @@ const DETECTORS: Detector[] = [
     wants: ['Cheap instants and sorceries', 'Cost reducers and rituals', 'Spell copy effects'],
     themes: ['spellslinger', 'storm'],
     archetypeHint: Archetype.SPELLSLINGER,
-    feeder:
-      /\b(instant|sorcery)\b|\bwhenever you cast\b|\bcopy (that|target) (spell|instant|sorcery)\b|\bcosts? \{?\d.*less\b/,
-    reason: 'Spellslinger payoff or enabler',
   },
   {
     keyword: 'artifact-matters',
@@ -475,8 +429,6 @@ const DETECTORS: Detector[] = [
     wants: ['Cheap artifacts and artifact tokens', 'Artifact payoffs'],
     themes: ['artifacts', 'treasures'],
     archetypeHint: Archetype.ARTIFACTS,
-    feeder: /\bartifact\b/,
-    reason: 'Cares about artifacts',
   },
   {
     keyword: 'enchantment-matters',
@@ -485,8 +437,6 @@ const DETECTORS: Detector[] = [
     wants: ['Cheap enchantments and auras', 'Constellation payoffs'],
     themes: ['enchantress', 'enchantments'],
     archetypeHint: Archetype.ENCHANTRESS,
-    feeder: /\benchantment\b|\bconstellation\b/,
-    reason: 'Cares about enchantments',
   },
   {
     keyword: 'landfall',
@@ -495,9 +445,6 @@ const DETECTORS: Detector[] = [
     wants: ['Extra land drops and land ramp', 'Fetch / land bounce for repeat triggers'],
     themes: ['landfall', 'lands'],
     archetypeHint: Archetype.LANDFALL,
-    feeder:
-      /\blandfall\b|\bplay an additional land\b|\bsearch your library for a [^.]*?land\b|\breturn [^.]*?land [^.]*?to [^.]*?hand\b/,
-    reason: 'Triggers / enables landfall',
   },
   {
     keyword: 'extra-combat',
@@ -506,8 +453,6 @@ const DETECTORS: Detector[] = [
     wants: ['Attack triggers worth repeating', 'Evasive threats'],
     themes: ['extra combat', 'combat'],
     archetypeHint: Archetype.AGGRO,
-    feeder: /\badditional combat\b|\bwhenever\b[^.]*?\battacks?\b/,
-    reason: 'Extra combat / attack payoff',
   },
   {
     keyword: 'extra-turn',
@@ -516,8 +461,6 @@ const DETECTORS: Detector[] = [
     wants: ['Payoffs that snowball over turns', 'Protection to survive to the next one'],
     themes: ['extra turns', 'combo'],
     archetypeHint: Archetype.COMBO,
-    feeder: /\bextra turn\b|\badditional turn\b/,
-    reason: 'Extra-turn synergy',
   },
   {
     keyword: 'untap-engine',
@@ -526,8 +469,6 @@ const DETECTORS: Detector[] = [
     wants: ['Permanents worth untapping', 'Combo finishers'],
     themes: ['combo'],
     archetypeHint: Archetype.COMBO,
-    feeder: /\buntap\b/,
-    reason: 'Untap / combo enabler',
   },
   {
     keyword: 'monarch',
@@ -535,8 +476,6 @@ const DETECTORS: Detector[] = [
     commander: /\bmonarch\b/,
     wants: ['Ways to defend the crown', 'Repeatable monarch triggers'],
     themes: ['monarch', 'politics'],
-    feeder: /\bmonarch\b/,
-    reason: 'Monarch synergy',
   },
   {
     keyword: 'group-hug',
@@ -544,8 +483,6 @@ const DETECTORS: Detector[] = [
     commander: /\beach player (draws|gains|may)\b/,
     wants: ['Payoffs that turn shared resources to your favor', 'Protection / pillowfort'],
     themes: ['group hug', 'politics'],
-    feeder: /\beach player\b/,
-    reason: 'Group / political synergy',
   },
   {
     keyword: 'ramp',
@@ -553,8 +490,6 @@ const DETECTORS: Detector[] = [
     commander: /\badds? \{|\bmana of any\b|\bspells? [^.]*?costs? [^.]*?less\b/,
     wants: ['Big-mana payoffs to spend it on', 'Cost reducers'],
     themes: ['big mana', 'ramp'],
-    feeder: /\badd \{|\bcosts? [^.]*?less\b|\bsearch your library for a [^.]*?land\b/,
-    reason: 'Mana acceleration / payoff',
   },
 ];
 
@@ -810,66 +745,6 @@ function buildSummary(name: string, abilities: CommanderAbility[]): string {
   return `${short} wants to ${list}.`;
 }
 
-function cap(s: string): string {
+export function cap(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-// ─── Why a card matches ──────────────────────────────────────────────
-
-/**
- * Does this card buff or shield a creature? Equipment always attaches to one.
- * An Aura only counts when it pumps or grants something to the creature it
- * enchants: Wild Growth enchants a land, Pacifism and Darksteel Mutation are
- * removal. Anything else counts only when it grants protection or evasion, so
- * "creatures your opponents control lose hexproof" doesn't.
- */
-function suitsUpACreature(card: ScryfallCard, text: string): boolean {
-  const tl = frontTypeLine(card).toLowerCase();
-  if (tl.includes('equipment')) return true;
-  if (tl.includes('aura')) {
-    return /\benchanted creature (?:gets \+|has|gains|can't be blocked)/.test(text);
-  }
-  return /(?<!(?:can't|don't|didn't) )\b(?:gains?|have|has) (?:hexproof|shroud|indestructible|double strike|protection from)\b|\bcan't be blocked\b/.test(
-    text
-  );
-}
-
-/**
- * Explain why a candidate card synergizes with this commander. Returns
- * short, deduped reason strings (empty if no synergy detected). Used for
- * "why this card" badges on recommendations.
- */
-export function whyCardMatches(
-  card: ScryfallCard,
-  profile: CommanderProfile,
-  maxReasons = 3
-): string[] {
-  const text = getCombinedOracleText(card);
-  const reasons: string[] = [];
-
-  const detectorByKeyword = new Map(DETECTORS.map((d) => [d.keyword, d]));
-
-  for (const ability of profile.abilities) {
-    if (ability.keyword === 'tribal') {
-      const cardTribes = detectTribes(card);
-      const shared = cardTribes.filter((t) => profile.tribes.includes(t));
-      if (shared.length > 0) {
-        reasons.push(`Shares your ${shared.map(cap).join(' / ')} tribe`);
-      }
-      continue;
-    }
-    if (ability.keyword === 'voltron') {
-      if (suitsUpACreature(card, text)) {
-        reasons.push('Suits up / protects your commander');
-      }
-      continue;
-    }
-    const d = detectorByKeyword.get(ability.keyword);
-    if (d && d.feeder.test(text)) {
-      reasons.push(d.reason);
-    }
-  }
-
-  // Dedupe while preserving order, then cap.
-  return [...new Set(reasons)].slice(0, maxReasons);
 }

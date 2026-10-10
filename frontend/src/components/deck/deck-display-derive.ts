@@ -5,10 +5,8 @@ import type { ScryfallCard, DeckFormatConfig } from '@/deck-builder/types';
 import type { DeckCard, DeckZone } from '../../store/decks';
 import type { EnrichedCard } from '../../types';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
-import {
-  whyCardMatches,
-  type CommanderProfile,
-} from '@/deck-builder/services/deckBuilder/commanderProfile';
+import { type CommanderProfile } from '@/deck-builder/services/deckBuilder/commanderProfile';
+import { whyCardMatches } from '@/deck-builder/services/deckBuilder/whyCardMatches';
 import { scryfallToEnrichedCard } from '@/lib/cards/scryfall-to-enriched';
 import { tallyNames } from '@/lib/deck-analysis/build-mana-data';
 import {

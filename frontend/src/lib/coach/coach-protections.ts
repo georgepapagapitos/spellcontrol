@@ -40,10 +40,8 @@ import {
   premiumReason,
   type PremiumReason,
 } from '@/deck-builder/services/deckBuilder/premiumCards';
-import {
-  buildCommanderProfile,
-  whyCardMatches,
-} from '@/deck-builder/services/deckBuilder/commanderProfile';
+import { buildCommanderProfile } from '@/deck-builder/services/deckBuilder/commanderProfile';
+import { whyCardMatches } from '@/deck-builder/services/deckBuilder/whyCardMatches';
 import { isBasicLand } from '@/deck-builder/services/deckBuilder/deckObjective/context';
 import { isSurvivalPiece } from '@/deck-builder/services/deckBuilder/deckObjective/factsReading';
 import type { Protection } from '@/deck-builder/services/deckBuilder/deckObjective/types';
