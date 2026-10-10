@@ -1992,4 +1992,18 @@ Model-written text always says so. The rulings:
   the answer instead of above it. Every desktop rule is scoped under
   `.rules-page` so the in-game sheet stays the single-column quick look.
 
+### Chance-card odds in the card preview
+
+- **One line, under the summary, for a chance card only.** `DeckCardPreviewMeta`
+  shows it for the cards listed in `lib/deck-analysis/chance-cards.ts` (cascade,
+  reveal-until, look at the top N) and for nothing else. A card with no odds gets
+  no row and no "n/a".
+- **Shape:** the lead names the condition and ends "in this deck", then the good
+  hits ("Finds a land 93% · a creature of 4+ 61%", "Casts" for a cascade), then a
+  weak hit as "Or a mana creature 18%" once it passes 15%.
+- **The odds are exact, not simulated.** Each card carries its own hand-written
+  rule for a good hit, read off its oracle text. A new card goes in that list with
+  a real-oracle fixture, never from memory.
+
+
 ---

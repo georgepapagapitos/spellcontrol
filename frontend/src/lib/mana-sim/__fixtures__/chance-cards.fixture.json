@@ -1,0 +1,191 @@
+{
+  "note": "Real Scryfall card data for the chance-card odds tests, resolved 2026-10-10 from POST https://api.scryfall.com/cards/collection by exact name; trimmed to the fields the module reads plus oracle text and power/toughness. The rules each card is encoded against are asserted in chance-cards.test.ts.",
+  "cards": [
+    {
+      "name": "Bloodbraid Elf",
+      "layout": "normal",
+      "mana_cost": "{2}{R}{G}",
+      "cmc": 4.0,
+      "type_line": "Creature — Elf Berserker",
+      "oracle_text": "Haste (This creature can attack and {T} as soon as it comes under your control.)\nCascade (When you cast this spell, exile cards from the top of your library until you exile a nonland card that costs less. You may cast it without paying its mana cost. Put the exiled cards on the bottom in a random order.)",
+      "colors": ["G", "R"],
+      "color_identity": ["G", "R"],
+      "keywords": ["Haste", "Cascade"],
+      "power": "3",
+      "toughness": "2"
+    },
+    {
+      "name": "Bituminous Blast",
+      "layout": "normal",
+      "mana_cost": "{3}{B}{R}",
+      "cmc": 5.0,
+      "type_line": "Instant",
+      "oracle_text": "Cascade (When you cast this spell, exile cards from the top of your library until you exile a nonland card that costs less. You may cast it without paying its mana cost. Put the exiled cards on the bottom in a random order.)\nBituminous Blast deals 4 damage to target creature.",
+      "colors": ["B", "R"],
+      "color_identity": ["B", "R"],
+      "keywords": ["Cascade"]
+    },
+    {
+      "name": "Apex Devastator",
+      "layout": "normal",
+      "mana_cost": "{8}{G}{G}",
+      "cmc": 10.0,
+      "type_line": "Creature — Chimera Hydra",
+      "oracle_text": "Cascade, cascade, cascade, cascade (When you cast this spell, exile cards from the top of your library until you exile a nonland card that costs less. You may cast it without paying its mana cost. Put the exiled cards on the bottom in a random order. Multiple instances of cascade each trigger separately.)",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": ["Cascade"],
+      "power": "10",
+      "toughness": "10"
+    },
+    {
+      "name": "Shardless Agent",
+      "layout": "normal",
+      "mana_cost": "{1}{G}{U}",
+      "cmc": 3.0,
+      "type_line": "Artifact Creature — Human Rogue",
+      "oracle_text": "Cascade (When you cast this spell, exile cards from the top of your library until you exile a nonland card that costs less. You may cast it without paying its mana cost. Put the exiled cards on the bottom in a random order.)",
+      "colors": ["G", "U"],
+      "color_identity": ["G", "U"],
+      "keywords": ["Cascade"],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Maelstrom Wanderer",
+      "layout": "normal",
+      "mana_cost": "{5}{G}{U}{R}",
+      "cmc": 8.0,
+      "type_line": "Legendary Creature — Elemental",
+      "oracle_text": "Creatures you control have haste.\nCascade, cascade (When you cast this spell, exile cards from the top of your library until you exile a nonland card that costs less. You may cast it without paying its mana cost. Put the exiled cards on the bottom in a random order. Then do it again.)",
+      "colors": ["G", "R", "U"],
+      "color_identity": ["G", "R", "U"],
+      "keywords": ["Cascade"],
+      "power": "7",
+      "toughness": "5"
+    },
+    {
+      "name": "Yidris, Maelstrom Wielder",
+      "layout": "normal",
+      "mana_cost": "{U}{B}{R}{G}",
+      "cmc": 4.0,
+      "type_line": "Legendary Creature — Ogre Wizard",
+      "oracle_text": "Trample\nWhenever Yidris deals combat damage to a player, as you cast spells from your hand this turn, they gain cascade. (When you cast the spell, exile cards from the top of your library until you exile a nonland card that costs less. You may cast it without paying its mana cost. Put the exiled cards on the bottom in a random order.)",
+      "colors": ["B", "G", "R", "U"],
+      "color_identity": ["B", "G", "R", "U"],
+      "keywords": ["Trample"],
+      "power": "5",
+      "toughness": "4"
+    },
+    {
+      "name": "Gamekeeper",
+      "layout": "normal",
+      "mana_cost": "{3}{G}",
+      "cmc": 4.0,
+      "type_line": "Creature — Elf",
+      "oracle_text": "When this creature dies, you may exile it. If you do, reveal cards from the top of your library until you reveal a creature card. Put that card onto the battlefield and put all other cards revealed this way into your graveyard.",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": [],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Kethek, Crucible Goliath",
+      "layout": "normal",
+      "mana_cost": "{2}{B}{R}",
+      "cmc": 4.0,
+      "type_line": "Legendary Creature — Phyrexian Beast",
+      "oracle_text": "At the beginning of your end step, you may sacrifice another creature. If you do, reveal cards from the top of your library until you reveal a nonlegendary creature card with lesser mana value, put it onto the battlefield, then put the rest on the bottom of your library in a random order.",
+      "colors": ["B", "R"],
+      "color_identity": ["B", "R"],
+      "keywords": [],
+      "power": "4",
+      "toughness": "4"
+    },
+    {
+      "name": "Proteus Staff",
+      "layout": "normal",
+      "mana_cost": "{3}",
+      "cmc": 3.0,
+      "type_line": "Artifact",
+      "oracle_text": "{2}{U}, {T}: Put target creature on the bottom of its owner's library. That creature's controller reveals cards from the top of their library until they reveal a creature card. The player puts that card onto the battlefield and the rest on the bottom of their library in any order. Activate only as a sorcery.",
+      "colors": [],
+      "color_identity": ["U"],
+      "keywords": []
+    },
+    {
+      "name": "Synthetic Destiny",
+      "layout": "normal",
+      "mana_cost": "{4}{U}{U}",
+      "cmc": 6.0,
+      "type_line": "Instant",
+      "oracle_text": "Exile all creatures you control. At the beginning of the next end step, reveal cards from the top of your library until you reveal that many creature cards, put all creature cards revealed this way onto the battlefield, then shuffle the rest of the revealed cards into your library.",
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": []
+    },
+    {
+      "name": "Ojer Kaslem, Deepest Growth // Temple of Cultivation",
+      "layout": "transform",
+      "cmc": 5.0,
+      "type_line": "Legendary Creature — God // Land",
+      "color_identity": ["G"],
+      "keywords": ["Transform", "Trample"],
+      "produced_mana": ["G"],
+      "card_faces": [
+        {
+          "name": "Ojer Kaslem, Deepest Growth",
+          "mana_cost": "{3}{G}{G}",
+          "type_line": "Legendary Creature — God",
+          "oracle_text": "Trample\nWhenever Ojer Kaslem deals combat damage to a player, reveal that many cards from the top of your library. You may put a creature card and/or a land card from among them onto the battlefield. Put the rest on the bottom in a random order.\nWhen Ojer Kaslem dies, return it to the battlefield tapped and transformed under its owner's control.",
+          "colors": ["G"],
+          "power": "6",
+          "toughness": "5"
+        },
+        {
+          "name": "Temple of Cultivation",
+          "mana_cost": "",
+          "type_line": "Land",
+          "oracle_text": "(Transforms from Ojer Kaslem, Deepest Growth.)\n{T}: Add {G}.\n{2}{G}, {T}: Transform this land. Activate only if you control ten or more permanents and only as a sorcery.",
+          "colors": []
+        }
+      ]
+    },
+    {
+      "name": "Birthing Ritual",
+      "layout": "normal",
+      "mana_cost": "{1}{G}",
+      "cmc": 2.0,
+      "type_line": "Enchantment",
+      "oracle_text": "At the beginning of your end step, if you control a creature, look at the top seven cards of your library. Then you may sacrifice a creature. If you do, you may put a creature card with mana value X or less from among those cards onto the battlefield, where X is 1 plus the sacrificed creature's mana value. Put the rest on the bottom of your library in a random order.",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": []
+    },
+    {
+      "name": "Collected Company",
+      "layout": "normal",
+      "mana_cost": "{3}{G}",
+      "cmc": 4.0,
+      "type_line": "Instant",
+      "oracle_text": "Look at the top six cards of your library. Put up to two creature cards with mana value 3 or less from among them onto the battlefield. Put the rest on the bottom of your library in any order.",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": []
+    },
+    {
+      "name": "Etali, Primal Storm",
+      "layout": "normal",
+      "mana_cost": "{4}{R}{R}",
+      "cmc": 6.0,
+      "type_line": "Legendary Creature — Elder Dinosaur",
+      "oracle_text": "Whenever Etali attacks, exile the top card of each player's library, then you may cast any number of spells from among those cards without paying their mana costs.",
+      "colors": ["R"],
+      "color_identity": ["R"],
+      "keywords": [],
+      "power": "6",
+      "toughness": "6"
+    }
+  ]
+}

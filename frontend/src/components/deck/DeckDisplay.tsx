@@ -1719,6 +1719,7 @@ export function DeckDisplay({
                   }
                   status={r.status}
                   tags={r.tags}
+                  deckCards={cards}
                   existingDeckTags={deckTags.map((t) => t.tag)}
                   onSetTags={
                     canEditTags

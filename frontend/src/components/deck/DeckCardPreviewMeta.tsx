@@ -1,10 +1,11 @@
-import { Fragment, useId, useState, type ReactNode } from 'react';
+import { Fragment, useId, useMemo, useState, type ReactNode } from 'react';
 import { Crown, Handshake, Plus, X } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { LegalityIssue } from '@/lib/deck/deck-validation';
 import type { AllocationStatus } from '@/lib/collection/allocations';
 import { getRoleBadge, rolesForCard, multiRoleTitle } from '@/lib/deck-analysis/role-badges';
 import { classifyInclusion, OFFMETA_TOOLTIP } from '@/lib/deck-analysis/inclusion-label';
+import { chanceLine, chanceOdds } from '@/lib/deck-analysis/chance-cards';
 import { withTagAdded, withTagRemoved } from '@/lib/deck/deck-tags';
 import './DeckCardPreviewMeta.css';
 import { IconButton } from '@/components/shared/Button';
@@ -43,6 +44,9 @@ interface Props {
    *  input's autocomplete — encourages reusing "Ramp" over "ramp"/"Ramps". */
   existingDeckTags?: string[];
   onSetTags?: (tags: string[]) => void;
+  /** The deck's mainboard, for a chance card's odds against its own library.
+   *  Omitted means no odds line. */
+  deckCards?: ReadonlyArray<{ card: ScryfallCard }>;
 }
 
 /** Short, human-readable note for a non-ideal ownership status. `allocated`
@@ -85,11 +89,21 @@ export function DeckCardPreviewMeta({
   tags,
   existingDeckTags,
   onSetTags,
+  deckCards,
 }: Props) {
   const roleBadge = getRoleBadge(card);
   const roleText =
     roleBadge && rolesForCard(card).length > 1 ? multiRoleTitle(card) : roleBadge?.title;
   const ownership = ownershipNote(status);
+  const chance = useMemo(() => {
+    const odds = deckCards
+      ? chanceOdds(
+          card,
+          deckCards.map((d) => d.card)
+        )
+      : null;
+    return odds ? chanceLine(odds) : null;
+  }, [card, deckCards]);
   const reasons = synergies?.filter(Boolean) ?? [];
   const tagList = tags ?? [];
   const datalistId = useId();
@@ -138,6 +152,7 @@ export function DeckCardPreviewMeta({
 
   if (
     segments.length === 0 &&
+    !chance &&
     !ownership &&
     !legality &&
     reasons.length === 0 &&
@@ -162,6 +177,8 @@ export function DeckCardPreviewMeta({
           ))}
         </div>
       )}
+
+      {chance && <div className="deck-card-preview-meta-chance">{chance}</div>}
 
       {(ownership || legality) && (
         <div className="deck-card-preview-meta-warn">{legality?.detail ?? ownership}</div>
