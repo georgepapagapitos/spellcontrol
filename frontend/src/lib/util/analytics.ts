@@ -38,7 +38,14 @@ export type EventName =
   // The landing's own escape hatch. Counted like any other door, because
   // "how many people wanted past the storefront without taking any of it"
   // is the question that justifies the door existing.
-  | 'skipped_welcome';
+  | 'skipped_welcome'
+  // Inside a deck page, where the path alone can't tell the views apart:
+  // the Power and Coach tabs are a `?view=` param, Test hand is an overlay,
+  // and the stats sit under the list (lib/util/use-deck-view-analytics.ts).
+  | 'deck_power_viewed'
+  | 'deck_coach_viewed'
+  | 'deck_stats_viewed'
+  | 'test_hand_opened';
 
 const ID_ROUTES =
   /^\/(s|d|u|gn|pods|friends|decks\/cube|decks|collection\/(?:binders|lists|sets))\/([^/]+)(\/.*)?$/;

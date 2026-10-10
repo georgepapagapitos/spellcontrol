@@ -1,9 +1,12 @@
+import { useEffect } from 'react';
 import { X } from 'lucide-react';
 import { DeckTestHandPanel } from '../../components/deck/DeckTestHandPanel';
 import { IconButton } from '@/components/shared/Button';
+import { track } from '@/lib/util/analytics';
 import { DeckEditorCardPickerSheet } from './DeckEditorCardPickerSheet';
 
 export function DeckTestHandSheet({ deckId, onClose }: { deckId: string; onClose: () => void }) {
+  useEffect(() => track('test_hand_opened'), []);
   return (
     <DeckEditorCardPickerSheet label="Test hand" className="deck-test-hand-sheet" onClose={onClose}>
       {(dismiss) => (
