@@ -8,9 +8,15 @@ import { useAuth } from '../store/auth';
 import type { BeaconRows } from '@/lib/account/admin-api';
 
 // Only the Analytics tab's own fetch is exercised; the rest of the page's
-// network (AdminPanel) and the wipe path are stubbed.
+// network (AdminPanel) and the wipe path are stubbed. The tab also mounts the
+// Suggestions table (E518), so the mock carries its fetch too: without it the
+// table threw "No getSuggestionStats export" whenever it mounted before the test
+// ended, which CI's slower runner hit and a local run did not (main 83e004537).
 const listEventsMock = vi.fn<() => Promise<BeaconRows>>();
-vi.mock('@/lib/account/admin-api', () => ({ listEvents: () => listEventsMock() }));
+vi.mock('@/lib/account/admin-api', () => ({
+  listEvents: () => listEventsMock(),
+  getSuggestionStats: () => Promise.resolve({ surfaces: [], topDismissed: [] }),
+}));
 vi.mock('@/components/admin/AdminPanel', () => ({ AdminPanel: () => null }));
 vi.mock('@/lib/sync', () => ({ stopSyncAndWipeLocal: vi.fn() }));
 
@@ -42,6 +48,8 @@ describe('AdminPage — Analytics tab load states (playtest batch 12)', () => {
     await screen.findByText('Analytics (last 30 days)');
     await waitFor(() => expect(screen.queryByText('Beacon store is offline.')).toBeNull());
     expect(listEventsMock).toHaveBeenCalledTimes(2);
+    // The tab has settled, Suggestions table included, before the test ends.
+    await screen.findByText('No suggestion labels yet.');
   });
 
   it('the error state has a Retry that fetches again', async () => {
@@ -58,5 +66,6 @@ describe('AdminPage — Analytics tab load states (playtest batch 12)', () => {
     await screen.findByText('Analytics (last 30 days)');
     expect(screen.queryByText('Beacon store is offline.')).toBeNull();
     expect(listEventsMock).toHaveBeenCalledTimes(2);
+    await screen.findByText('No suggestion labels yet.');
   });
 });
