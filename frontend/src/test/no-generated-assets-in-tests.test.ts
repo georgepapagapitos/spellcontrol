@@ -49,8 +49,16 @@ const REGENERATED_ASSETS = [
  * sight. That is the opposite of the failure this guard exists to prevent — an
  * eval's nDCG floor silently scoring against different data and sending someone
  * off to retune validated weights.
+ *
+ * `rules-walkthroughs/walkthroughs` asserts every rule number a walkthrough
+ * cites exists in the bundled rules. A refresh that renumbers a rule SHOULD go
+ * red: the message names the walkthrough step and the missing number, and the
+ * fix is to re-cite it.
  */
-const ALLOWED = new Set(['lib/cards/otag-descriptions.test.ts']);
+const ALLOWED = new Set([
+  'lib/cards/otag-descriptions.test.ts',
+  'lib/rules-walkthroughs/walkthroughs.test.ts',
+]);
 
 function testFiles(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {

@@ -101,6 +101,8 @@ import { DeckNewPage } from './DeckNewPage';
 import { DeckGeneratePage } from './DeckGeneratePage';
 import { PlayPage } from './PlayPage';
 import { RulesPage } from './RulesPage';
+import { RulesWalkthroughPage } from './RulesWalkthroughPage';
+import { RulesWalkthroughsPage } from './RulesWalkthroughsPage';
 import { DailyPage } from './DailyPage';
 import { SearchPage } from './SearchPage';
 import { BrowseListPage } from './BrowseListPage';
@@ -219,6 +221,16 @@ const CASES: RouteCase[] = [
   },
   { path: '/play', routes: <Route path="/play" element={<PlayPage />} />, ready: /Play/ },
   { path: '/rules', routes: <Route path="/rules" element={<RulesPage />} />, ready: /rules/i },
+  {
+    path: '/rules/walkthroughs',
+    routes: <Route path="/rules/walkthroughs" element={<RulesWalkthroughsPage />} />,
+    ready: /walkthroughs/i,
+  },
+  {
+    path: '/rules/walkthroughs/ulamog-countered?step=2',
+    routes: <Route path="/rules/walkthroughs/:id" element={<RulesWalkthroughPage />} />,
+    ready: /ulamog: countered/i,
+  },
   { path: '/daily', routes: <Route path="/daily" element={<DailyPage />} />, ready: /daily/i },
   { path: '/search', routes: <Route path="/search" element={<SearchPage />} />, ready: /search/i },
   {

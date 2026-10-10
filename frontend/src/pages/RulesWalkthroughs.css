@@ -1,0 +1,187 @@
+/* The rules walkthroughs (board E357): the index at /rules/walkthroughs and
+   one walkthrough at /rules/walkthroughs/:id. A reading column like /rules on
+   phones and tablets; from 1024px a walkthrough puts the narration beside the
+   table. The table and the rule rows are components/rules/Walkthrough.css. */
+
+.rules-wt-page {
+  max-width: 640px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* ── Index ── */
+.rules-wt-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.rules-wt-group h2 {
+  margin: 0;
+}
+
+.rules-wt-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rules-wt-list > li + li {
+  border-top: 0.5px solid var(--border);
+}
+
+.rules-wt-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--row-h);
+  padding: var(--space-3) 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.rules-wt-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.rules-wt-row-text {
+  display: grid;
+  flex: 1 1 auto;
+  row-gap: var(--space-0-5);
+  min-width: 0;
+}
+
+.rules-wt-row-title {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.rules-wt-row-summary {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.rules-wt-row-steps {
+  flex: 0 0 auto;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.rules-wt-row-chevron {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .rules-wt-row:hover .rules-wt-row-title {
+    color: var(--accent);
+  }
+}
+
+/* ── One walkthrough ── */
+.rules-wt-intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.rules-wt-setup {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.rules-wt-oracle {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.rules-wt-oracle dt {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.rules-wt-oracle dd {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: 1.5;
+  white-space: pre-line;
+}
+
+.rules-wt-rulings {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.rules-wt-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.rules-wt-narration {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* The controls lead the step, so Next stays put however long the step text
+   runs: tapping through at the table never chases the button. */
+.rules-wt-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.rules-wt-progress {
+  margin-right: auto;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.rules-wt-nav {
+  gap: var(--space-1);
+}
+
+.rules-wt-why {
+  margin: 0;
+  font-size: var(--text-md);
+  line-height: 1.55;
+  color: var(--text-primary);
+}
+
+@media (min-width: 1024px) {
+  .rules-wt-page {
+    max-width: 1100px;
+  }
+
+  .rules-wt-page > .rules-wt-intro {
+    max-width: 44rem;
+  }
+
+  /* Narration beside the table; it stays in view while the stack grows. */
+  .rules-wt-body {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    column-gap: var(--space-8);
+    align-items: start;
+  }
+
+  .rules-wt-narration {
+    position: sticky;
+    top: var(--space-4);
+  }
+
+  .rules-wt-group {
+    max-width: 44rem;
+  }
+}
