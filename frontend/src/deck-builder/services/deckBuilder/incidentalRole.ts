@@ -20,7 +20,8 @@
  */
 import type { ScryfallCard } from '@/deck-builder/types';
 import { getCardFacts, type FactRole } from '@/deck-builder/services/cardFacts';
-import { whyCardMatches, type CommanderProfile } from './commanderProfile';
+import { type CommanderProfile } from './commanderProfile';
+import { whyCardMatches } from './whyCardMatches';
 
 /** The card-facts roles each counted role reads (the tagger's vocabulary). */
 const FACT_ROLES: Record<string, readonly FactRole[]> = {

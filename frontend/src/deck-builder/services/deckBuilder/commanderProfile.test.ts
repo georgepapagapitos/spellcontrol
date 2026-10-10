@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildCommanderProfile,
-  whyCardMatches,
   getCombinedOracleText,
   type CommanderKeyword,
 } from './commanderProfile';
+import { whyCardMatches } from './whyCardMatches';
 import { Archetype } from '@/deck-builder/types';
 import type { ScryfallCard } from '@/deck-builder/types';
 
