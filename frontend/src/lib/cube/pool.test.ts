@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { mergePools, fetchFriendCollection, namesToCubePool } from './pool';
+import { mergePools, fetchFriendCollection, namesToCubePool, assignSuppliers } from './pool';
 import type { CubeCard } from './generate';
 import type { FriendCard } from './pool';
 import type { EnrichedCard } from '@/types';
@@ -353,5 +353,41 @@ describe('scoped cube signal on the pool', () => {
       'pauper'
     );
     expect(pool[0]).toMatchObject({ cubePop: 90 });
+  });
+});
+
+describe('assignSuppliers', () => {
+  const picks = (...ids: string[]) => ids.map((oracleId) => ({ card: { oracleId } }));
+
+  it('gives a card the builder owns to the builder, even when a friend owns it too', () => {
+    const out = assignSuppliers(picks('a'), new Map([['a', ['me', 'Alex']]]), 'me');
+    expect(out.get('a')).toBe('me');
+  });
+
+  it('spreads friend-only cards across friends instead of the first one listed', () => {
+    const map = new Map([
+      ['a', ['Alex', 'Sam']],
+      ['b', ['Alex', 'Sam']],
+      ['c', ['Alex', 'Sam']],
+      ['d', ['Alex']],
+    ]);
+    const out = assignSuppliers(picks('a', 'b', 'c', 'd'), map, 'me');
+    expect([...out.entries()]).toEqual([
+      ['a', 'Alex'],
+      ['b', 'Sam'],
+      ['c', 'Alex'],
+      ['d', 'Alex'],
+    ]);
+  });
+
+  it('assigns every pick exactly once and skips picks with no supplier entry', () => {
+    const map = new Map([
+      ['a', ['me', 'Alex', 'Sam']],
+      ['b', ['Sam', 'Alex']],
+    ]);
+    const out = assignSuppliers(picks('a', 'b', 'x', ''), map, 'me');
+    expect(out.size).toBe(2);
+    expect(out.get('b')).toBe('Sam');
+    expect(out.has('x')).toBe(false);
   });
 });

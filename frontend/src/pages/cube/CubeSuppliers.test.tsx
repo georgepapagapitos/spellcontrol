@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import { CubeResult } from './CubeResult';
 import type { GeneratedCube, Pick } from '../../lib/cube/generate';
 import { BUCKET_ORDER } from './shared';
@@ -79,12 +79,52 @@ describe('CubeResult — Who brings what', () => {
     expect(screen.getByText('Who brings what')).toBeTruthy();
     expect(screen.queryByText('Sam')).toBeNull();
 
+    // Lightning Bolt is owned by both of us but is one copy to bring: it goes
+    // on my list only. Alex keeps a row (they're a source) at zero.
     const you = screen.getByText('You').closest('li') as HTMLElement;
     expect(within(you).getByText('2 cards')).toBeTruthy();
+    within(you).getByText('Pull list').click();
+    expect(within(you).getByText('Lightning Bolt')).toBeTruthy();
 
     const alex = screen.getByText('Alex').closest('li') as HTMLElement;
-    expect(within(alex).getByText('1 card')).toBeTruthy();
-    within(alex).getByText('Pull list').click();
-    expect(within(alex).getByText('Lightning Bolt')).toBeTruthy();
+    expect(within(alex).getByText('0 cards')).toBeTruthy();
+    expect(within(alex).queryByText('Pull list')).toBeNull();
+  });
+
+  it('puts a card only friends own on exactly one friend list', () => {
+    const cube = cubeOf([pick('Counterspell', 'cs'), pick('Brainstorm', 'bs')]);
+    const supplierMap = new Map<string, string[]>([
+      ['cs', ['Alex', 'Sam']],
+      ['bs', ['Alex', 'Sam']],
+    ]);
+
+    render(
+      <CubeResult
+        cube={cube}
+        onCopy={() => {}}
+        onSave={() => {}}
+        loaded={null}
+        ownershipFor={NOOP_STRING}
+        committedFor={NOOP_ARR}
+        copyFor={() => null}
+        enrichedMap={new Map()}
+        supplierMap={supplierMap}
+        myUsername="me"
+      />
+    );
+
+    const panel = screen.getByText('Who brings what').closest('div') as HTMLElement;
+    for (const name of ['Alex', 'Sam']) {
+      const row = within(panel).getByText(name).closest('li') as HTMLElement;
+      expect(within(row).getByText('1 card')).toBeTruthy();
+    }
+    // Each card appears once across every pull list.
+    for (const card of ['Counterspell', 'Brainstorm']) {
+      expect(within(panel).getAllByText(card)).toHaveLength(1);
+    }
+    // The card list's chip (list view) names the same friend the pull list does.
+    act(() => screen.getByLabelText('List view (with reasons)').click());
+    expect(screen.getByLabelText('Supplied by Alex')).toBeTruthy();
+    expect(screen.getByLabelText('Supplied by Sam')).toBeTruthy();
   });
 });

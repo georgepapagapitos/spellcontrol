@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { MeterBar } from '../../components/shared/MeterBar';
 import type { GeneratedCube } from '../../lib/cube/generate';
+import { assignSuppliers } from '../../lib/cube/pool';
 
 interface SupplierRow {
   username: string;
@@ -18,6 +19,11 @@ interface SupplierRow {
  * later lock/ban/swap edit is harmless — it just names an oracleId no pick
  * carries anymore, and this never iterates the map's keys directly.
  *
+ * Each pick lands on exactly one person's pull list (`assignSuppliers`): a
+ * card two of you own is one copy to bring, not two. Anyone who could supply
+ * a pick still gets a row, at zero if every card they own went to someone
+ * else, so the panel names the same people as the "Drawn from" line.
+ *
  * Rendered by `CubeResult` behind one line, so the card-list edits another
  * lane owns there stay a clean merge.
  */
@@ -31,16 +37,15 @@ export function CubeSuppliers({
   myUsername: string;
 }) {
   const rows = useMemo<SupplierRow[]>(() => {
+    const assigned = assignSuppliers(cube.picks, supplierMap, myUsername);
     const byUser = new Map<string, string[]>();
     for (const p of cube.picks) {
       if (!p.card.oracleId) continue;
-      const suppliers = supplierMap.get(p.card.oracleId);
-      if (!suppliers) continue;
-      for (const s of suppliers) {
-        const list = byUser.get(s);
-        if (list) list.push(p.card.name);
-        else byUser.set(s, [p.card.name]);
+      for (const s of supplierMap.get(p.card.oracleId) ?? []) {
+        if (!byUser.has(s)) byUser.set(s, []);
       }
+      const who = assigned.get(p.card.oracleId);
+      if (who) byUser.get(who)?.push(p.card.name);
     }
     const list: SupplierRow[] = [...byUser.entries()].map(([username, cardNames]) => ({
       username,
@@ -87,8 +92,8 @@ export function CubeSuppliers({
         ))}
       </ul>
       <p className="cube-suppliers-note">
-        A card supplied by more than one of you counts for each. A saved cube keeps the counts from
-        its last build.
+        Each card is on one list. You bring the cards you own, and a card only friends own goes to
+        whoever has the fewest so far. A saved cube keeps the lists from its last build.
       </p>
     </div>
   );
