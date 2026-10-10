@@ -66,8 +66,10 @@ vi.mock('@/lib/cards/comprehensive-rules', async (importOriginal) => ({
 
 // "Played in" asks EDHREC; a stand-in shows where it lands and what it was given.
 vi.mock('./PlayedInSection', () => ({
-  PlayedInSection: ({ name }: { name: string }) => (
-    <section data-testid="played-in">Played in {name}</section>
+  PlayedInSection: ({ name, startClosed }: { name: string; startClosed?: boolean }) => (
+    <section data-testid="played-in" data-start-closed={String(!!startClosed)}>
+      Played in {name}
+    </section>
   ),
 }));
 
@@ -121,6 +123,7 @@ function renderPreview(
     theirCopy?: boolean;
     source?: 'playtest' | 'collection';
     renderPanelMeta?: () => ReactNode;
+    playedInStartsClosed?: (i: number) => boolean;
   } = {}
 ) {
   return render(
@@ -845,6 +848,16 @@ describe('CardPreview Played in section', () => {
   it('keys on the card name, so a name-only placeholder still gets one', async () => {
     renderPreview(mk({ name: 'Arcane Signet', scryfallId: '' }));
     expect((await screen.findByTestId('played-in')).textContent).toBe('Played in Arcane Signet');
+  });
+
+  it('starts closed only where the host asks, per card', async () => {
+    renderPreview(mk({ name: 'Sol Ring' }), { playedInStartsClosed: (i) => i === 0 });
+    expect((await screen.findByTestId('played-in')).dataset.startClosed).toBe('true');
+  });
+
+  it('starts open when the host says nothing', async () => {
+    renderPreview(mk({ name: 'Sol Ring' }));
+    expect((await screen.findByTestId('played-in')).dataset.startClosed).toBe('false');
   });
 
   it('is left out of the playtest inspector', async () => {

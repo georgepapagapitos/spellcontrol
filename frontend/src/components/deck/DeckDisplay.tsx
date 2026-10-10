@@ -1701,6 +1701,9 @@ export function DeckDisplay({
                 />
               );
             }}
+            // The 99, where the deck's own commander is settled; the commander's
+            // own "who else plays this?" stays open.
+            playedInStartsClosed={(i) => !!flat.rows[i]?.slotIds.length}
             renderPanelExtra={(i) => {
               // In-context "Swap this card" + "Similar cards": offered only for a
               // real in-deck card (commander/partner rows carry no slotId, so

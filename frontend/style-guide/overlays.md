@@ -114,7 +114,11 @@ calc(100vw - 4rem)) }`) — the two-class form outweighs the shell rule
     **Rules text stays in the panel on purpose.** It is how a screen reader
     reads the card, and it carries current Oracle wording. It just doesn't
     lead. Played in, Rulings and Legalities open by default, and the two that
-    fetch wait for the card to settle first.
+    fetch wait for the card to settle first. The one exception is Played in
+    on a card in a deck's 99 (the host's `playedInStartsClosed`): the deck's
+    commander is already chosen, so "who else plays this?" starts as one
+    closed row stating its headline ("Played in · In 42% of decks that can
+    play it") and remembers being opened. A deck's commander keeps it open.
   - **Suggestions wait to be asked for.** A deck card's Swap this card and
     Similar cards sit after Rules text, each as one closed row that says what
     it holds ("6 options · 2 in your collection") through
