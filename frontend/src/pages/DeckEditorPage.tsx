@@ -2189,33 +2189,21 @@ export function DeckEditorPage() {
   };
 
   // Full-deck escape hatches: stash the card off-mainboard, or add over-limit.
-  const addToSideboardAndClose = async () => {
+  const closeFullPromptInto = async (
+    zone: 'main' | 'sideboard' | 'considering',
+    moveAdd: Parameters<typeof commitCrossDeckMove>[1]
+  ) => {
     if (!pendingAdd) return;
     const name = pendingAdd;
     const printing = pendingPrinting;
     const group = pendingAddGroup;
     setPendingAdd(null);
-    if (pendingMoveFor) return commitCrossDeckMove(pendingMoveFor, addSideboardCard);
-    await addResolvedCard(name, 'sideboard', printing, group);
+    if (pendingMoveFor) return commitCrossDeckMove(pendingMoveFor, moveAdd);
+    await addResolvedCard(name, zone, printing, group);
   };
-  const addToConsideringAndClose = async () => {
-    if (!pendingAdd) return;
-    const name = pendingAdd;
-    const printing = pendingPrinting;
-    const group = pendingAddGroup;
-    setPendingAdd(null);
-    if (pendingMoveFor) return commitCrossDeckMove(pendingMoveFor, addConsideringCard);
-    await addResolvedCard(name, 'considering', printing, group);
-  };
-  const addAnywayAndClose = async () => {
-    if (!pendingAdd) return;
-    const name = pendingAdd;
-    const printing = pendingPrinting;
-    const group = pendingAddGroup;
-    setPendingAdd(null);
-    if (pendingMoveFor) return commitCrossDeckMove(pendingMoveFor, addCard);
-    await addResolvedCard(name, 'main', printing, group);
-  };
+  const addToSideboardAndClose = () => closeFullPromptInto('sideboard', addSideboardCard);
+  const addToConsideringAndClose = () => closeFullPromptInto('considering', addConsideringCard);
+  const addAnywayAndClose = () => closeFullPromptInto('main', addCard);
 
   // Replace-when-full options (E20 intelligent cuts): rank cuts by how
   // *related/replaceable* they are vs the card being added (shared role, same
