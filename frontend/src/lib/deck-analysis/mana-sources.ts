@@ -7,6 +7,22 @@ export const MANA_KEYS = ['W', 'U', 'B', 'R', 'G', 'C'] as const;
 const COLOR_KEYS = ['W', 'U', 'B', 'R', 'G'] as const;
 
 /**
+ * A land whose paid mana ability makes an amount that grows with the board:
+ * Three Tree City ("equal to the number of creatures you control of the chosen
+ * type"), Nykthos ("equal to your devotion to that color"). Read strictly, its
+ * {2} ability is left out and it taps for {C} (E631): in a two-color deck it
+ * makes one chosen color at a time for {2}, which isn't fixing. In a mono-color
+ * deck every color it can make is the deck's one color and the deck built
+ * around it nets mana from it, so there it counts as a source of that color
+ * (E631 ship gate: Krenko, Mob Boss lost both to basics on the strict reading).
+ */
+export function isScalingColorBurst(card: Pick<ScryfallCard, 'oracle_text'>): boolean {
+  return /\badd an amount of mana of that colou?r equal to (?:the number of|your devotion)\b/i.test(
+    card.oracle_text ?? ''
+  );
+}
+
+/**
  * The colors of mana a card can produce, as WUBRG + C keys. This is the single
  * source of truth for "what does this card tap for" used by the deck's
  * mana-source tally (lands, rocks, dorks — any permanent that produces mana).
@@ -48,6 +64,10 @@ export function producedManaColors(
   { allAbilities = false }: { allAbilities?: boolean } = {}
 ): string[] {
   const typeLine = card.type_line || card.card_faces?.[0]?.type_line || '';
+  const monoColor = COLOR_KEYS.filter((c) => identity.has(c));
+  if (!allAbilities && monoColor.length === 1 && isScalingColorBurst(card)) {
+    return [monoColor[0], 'C'];
+  }
   const free =
     !allAbilities && /\bland\b/i.test(typeLine.split('//')[0].split('—')[0])
       ? unconditionalMana(card.oracle_text ?? '', { fixing: true })

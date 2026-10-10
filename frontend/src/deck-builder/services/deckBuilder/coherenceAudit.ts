@@ -215,7 +215,13 @@ function landSanityFindings(input: CoherenceAuditInput): CoherenceFinding[] {
       // Positive evidence required: the land demonstrably taps for {C} and
       // nothing colored. Zero mana signal (thin/absent oracle data) must NOT
       // read as colorless — that's missing data, not a colorless land.
-      const produced = producedManaColors(land, FULL_IDENTITY);
+      // A mono-color deck reads its lands in that identity, so a scaling
+      // one-color burst land (Three Tree City, Nykthos) counts as its color
+      // there, as the manabase summary counts it (isScalingColorBurst, E631).
+      const produced = producedManaColors(
+        land,
+        input.colorIdentity?.length === 1 ? new Set(input.colorIdentity) : FULL_IDENTITY
+      );
       return produced.includes('C') && !produced.some((c) => c !== 'C');
     });
     if (colorlessOnly.length >= MIN_COLORLESS_UTILITY) {
