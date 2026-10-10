@@ -647,3 +647,84 @@ describe('E585: a 40%+ staple keeps its slot when its paid color no longer count
     expect(lands.map((c) => c.name)).not.toContain('Exotic Orchard');
   });
 });
+
+describe('E631: a scaling one-color burst land keeps its color in a mono-color deck', () => {
+  // Real oracle text (Three Tree City from Scryfall, the rest from the card cache).
+  const land = (name: string, oracle_text: string, produced_mana: string[]): ScryfallCard => ({
+    ...card(name),
+    type_line: name === 'Three Tree City' ? 'Legendary Land' : 'Land',
+    oracle_text,
+    produced_mana,
+  });
+  const THREE_TREE = land(
+    'Three Tree City',
+    'As Three Tree City enters, choose a creature type.\n{T}: Add {C}.\n{2}, {T}: Choose a color. Add an amount of mana of that color equal to the number of creatures you control of the chosen type.',
+    ['B', 'C', 'G', 'R', 'U', 'W']
+  );
+  const PATH = land(
+    'Path of Ancestry',
+    "This land enters tapped.\n{T}: Add one mana of any color in your commander's color identity. When that mana is spent to cast a creature spell that shares a creature type with your commander, scry 1. (Look at the top card of your library. You may put that card on the bottom.)",
+    ['B', 'G', 'R', 'U', 'W']
+  );
+  const TAINTED_WOOD = land(
+    'Tainted Wood',
+    '{T}: Add {C}.\n{T}: Add {B} or {G}. Activate only if you control a Swamp.',
+    ['B', 'C', 'G']
+  );
+  const pick = async (
+    candidates: [ScryfallCard, number][],
+    identity: string[],
+    spell: ScryfallCard
+  ) => {
+    vi.mocked(getCardsByNames).mockResolvedValueOnce(
+      new Map(candidates.map(([c]) => [c.name, structuredClone(c)]))
+    );
+    const lands = await generateLands(
+      candidates.map(([c, inclusion]) => ({
+        name: c.name,
+        sanitized: c.name.toLowerCase(),
+        primary_type: 'Land',
+        inclusion,
+        num_decks: 1000,
+      })),
+      identity,
+      // One basic and one contested slot.
+      2,
+      new Set(),
+      1,
+      99,
+      [spell],
+      undefined,
+      new Set(),
+      null
+    );
+    return lands.map((c) => c.name);
+  };
+
+  // The E631 ship gate's regression: Krenko lost Three Tree City for Path of Ancestry.
+  it('Krenko (mono-red) seats Three Tree City (29.5%) over Path of Ancestry (29.2%)', async () => {
+    const names = await pick(
+      [
+        [THREE_TREE, 29.5],
+        [PATH, 29.2],
+      ],
+      ['R'],
+      sc({ name: 'Goblin Rally', mana_cost: '{3}{R}{R}', cmc: 5 })
+    );
+    expect(names).toContain('Three Tree City');
+    expect(names).not.toContain('Path of Ancestry');
+  });
+
+  it('a two-color deck reads it as colorless: Tainted Wood takes the slot', async () => {
+    const names = await pick(
+      [
+        [THREE_TREE, 26.5],
+        [TAINTED_WOOD, 25.3],
+      ],
+      ['B', 'G'],
+      sc({ name: 'Costly Plunder', mana_cost: '{B}{B}{G}{G}', cmc: 4 })
+    );
+    expect(names).toContain('Tainted Wood');
+    expect(names).not.toContain('Three Tree City');
+  });
+});
