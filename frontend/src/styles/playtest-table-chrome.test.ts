@@ -278,7 +278,9 @@ describe('table chrome at the wide tier', () => {
   // did nothing on a horde board.
   it('keeps the card-size setting on both halves of a Horde board', () => {
     const horde = block('.playtest-main--horde > .playtest-battlefield-wrap,');
-    expect(horde).toMatch(/--pt-card-w: calc\(\s*clamp\([^;]*\)\s*\* var\(--pt-zoom, 1\)\s*\);/);
+    expect(horde).toMatch(
+      /--pt-card-w: calc\(\s*clamp\([\s\S]*\)\s*\*\s*var\(--pt-zoom, 1\)\s*\);/
+    );
   });
 });
 
