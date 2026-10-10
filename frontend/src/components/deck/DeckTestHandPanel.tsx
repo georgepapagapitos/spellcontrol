@@ -58,6 +58,7 @@ import { assemblyClockTip, isKillClock } from './WinConditionPanel';
 import { Chip } from '@/components/shared/Chip';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
+import { AskYourOwn } from './AskYourOwn';
 
 export interface DeckTestHandPanelHandle {
   reveal(): void;
@@ -569,6 +570,8 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
                     : ''}
                 </p>
               </section>
+
+              <AskYourOwn library={library} taggerReady={taggerReady} />
             </>
           )}
         </div>

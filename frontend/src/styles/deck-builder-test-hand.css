@@ -392,3 +392,24 @@
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* ── Ask your own — "at least N of X by turn T" ──────────────────────────── */
+.deck-test-hand-ask-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1-5);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.deck-test-hand-ask-num {
+  width: 3.5rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.deck-test-hand-ask-pick {
+  min-width: 0;
+  max-width: 100%;
+}
