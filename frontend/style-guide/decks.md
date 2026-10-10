@@ -294,6 +294,14 @@ three times on one screen, so these rulings now hold:
   overlapping density line, the frozen snapshot), and one Sram deck showed
   Removal as 11, 10 and 6. Never add a second tally beside it; if a card's
   other roles matter, they belong on that card (the inspector lists them).
+- **A role row carries one chance, in neutral tone (2026-10-10).** Beside the
+  count, the Roles panel says the exact odds of at least one card of the role by
+  the turn it matters, on the play before a mulligan: ramp by turn 2, removal
+  and card advantage by 4, board wipes by 6 (`lib/deck-analysis/role-odds.ts`,
+  hypergeometric, so the same deck always reads the same number). The note line
+  names the assumption once. The odds never take the warning color: the red
+  count against its target already carries that. A role with no cards shows no
+  odds, and the shared deck page reads the same.
 - **The deck is the commander and the mainboard (2026-09-25).** Every stat,
   verdict, score and count on the deck page (the stats, Power, Coach) reads
   the commander zone and the mainboard, never the sideboard or Considering.

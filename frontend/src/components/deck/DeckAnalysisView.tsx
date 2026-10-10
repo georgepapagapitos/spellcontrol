@@ -15,6 +15,7 @@ import {
 import { bracketSourceSentence } from '@/lib/deck-analysis/format-bracket-label';
 import type { PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
 import { ROLE_TITLES } from '@/lib/deck-analysis/role-badges';
+import { formatChance, roleOdds, type OddsRole } from '@/lib/deck-analysis/role-odds';
 import { ARCHETYPE_LABEL } from '@/deck-builder/services/deckBuilder/strategyVocabulary';
 import type { ValidationResult } from '@/deck-builder/services/deckBuilder/validationChecklist';
 import type { BuildReport } from '@/deck-builder/types';
@@ -410,6 +411,7 @@ export function DeckAnalysisView({
                   removalSubtypeCounts={removalSubtypeCounts}
                   boardwipeSubtypeCounts={boardwipeSubtypeCounts}
                   cardDrawSubtypeCounts={cardDrawSubtypeCounts}
+                  librarySize={simLibrary?.length}
                 />
               </Panel>
             )}
@@ -491,6 +493,7 @@ function RolesPanel({
   removalSubtypeCounts,
   boardwipeSubtypeCounts,
   cardDrawSubtypeCounts,
+  librarySize,
 }: {
   roleCounts?: Record<string, number>;
   roleTargets?: Record<string, number>;
@@ -498,6 +501,8 @@ function RolesPanel({
   removalSubtypeCounts?: Record<string, number>;
   boardwipeSubtypeCounts?: Record<string, number>;
   cardDrawSubtypeCounts?: Record<string, number>;
+  /** Cards in the library (the deck less its command zone); odds wait for it. */
+  librarySize?: number;
 }) {
   const ramp = roleCounts?.ramp ?? 0;
   const removal = roleCounts?.singleRemoval ?? roleCounts?.removal ?? 0;
@@ -516,9 +521,17 @@ function RolesPanel({
     return entries.map(([k, v]) => `${v} ${k}`).join(' · ');
   };
 
-  const items = [
+  const items: {
+    label: string;
+    role: OddsRole;
+    value: number;
+    want?: number;
+    sub: string;
+    color: string;
+  }[] = [
     {
       label: ROLE_TITLES.ramp,
+      role: 'ramp',
       value: ramp,
       want: rampWant,
       sub: subSummary(rampSubtypeCounts),
@@ -526,6 +539,7 @@ function RolesPanel({
     },
     {
       label: ROLE_TITLES.removal,
+      role: 'removal',
       value: removal,
       want: removalWant,
       sub: subSummary(removalSubtypeCounts),
@@ -533,6 +547,7 @@ function RolesPanel({
     },
     {
       label: ROLE_TITLES.boardwipe,
+      role: 'boardwipe',
       value: wipes,
       want: wipesWant,
       sub: subSummary(boardwipeSubtypeCounts),
@@ -540,6 +555,7 @@ function RolesPanel({
     },
     {
       label: ROLE_TITLES.cardDraw,
+      role: 'cardDraw',
       value: draw,
       want: drawWant,
       sub: subSummary(cardDrawSubtypeCounts),
@@ -556,11 +572,17 @@ function RolesPanel({
           under its main role. They used to sit under an overlapping tally
           (every role a card fills) that disagreed with the chips and the
           bars; one count replaced the note explaining three. */}
-      <p className="deck-roles-note">Each card counts once, under its main role.</p>
+      <p className="deck-roles-note">
+        Each card counts once, under its main role.
+        {librarySize ? (
+          <span className="deck-roles-note-line">Odds are on the play, before a mulligan.</span>
+        ) : null}
+      </p>
       <ul className="list-stack deck-roles">
         {items.map((it) => {
           const hasTarget = typeof it.want === 'number';
           const short = hasTarget && it.value < (it.want as number);
+          const odds = roleOdds(it.role, it.value, librarySize);
           return (
             <li key={it.label}>
               <div className="deck-roles-row">
@@ -594,7 +616,16 @@ function RolesPanel({
                 color={it.color}
                 tick={hasTarget ? (it.want as number) : undefined}
               />
-              {it.sub && <div className="deck-roles-sub">{it.sub}</div>}
+              {(it.sub || odds) && (
+                <div className="deck-roles-sub">
+                  <span>{it.sub}</span>
+                  {odds && (
+                    <span className="deck-roles-odds">
+                      By turn {odds.turn} · <b>{formatChance(odds.chance)}</b>
+                    </span>
+                  )}
+                </div>
+              )}
             </li>
           );
         })}
