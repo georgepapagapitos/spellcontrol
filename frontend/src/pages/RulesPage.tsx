@@ -228,10 +228,15 @@ function RulesAsk({ seed }: { seed?: string }) {
    *  here). */
   const [lastAsked, setLastAsked] = useState('');
 
-  // A row handed its question over: the box is the next thing to touch.
+  // A row or a card door handed its question over: the box is the next thing
+  // to touch, with the caret after the seed so the player edits on from it.
+  const seeded = !!(seed ?? (location.state as { question?: string } | null)?.question);
   useEffect(() => {
-    if (seed) inputRef.current?.focus();
-  }, [seed]);
+    const box = inputRef.current;
+    if (!seeded || !box) return;
+    box.focus();
+    box.setSelectionRange(box.value.length, box.value.length);
+  }, [seeded, seed]);
 
   // Restoring past answers is a DB read of the user's own content — free,
   // never a model call. Keyed on the idle phase so it can never race a stream,
