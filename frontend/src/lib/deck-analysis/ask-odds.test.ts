@@ -95,3 +95,67 @@ describe('tutorsFor', () => {
     ]);
   });
 });
+
+describe('tutorFinds reads a tutor restriction (real oracle text)', () => {
+  const reaches = (tutor: string, target: string) => tutorFinds(card(tutor), card(target));
+  it('Trinket Mage fetches artifacts with mana value 1 or less only', () => {
+    expect(reaches('Trinket Mage', 'Sol Ring')).toBe(true);
+    expect(reaches('Trinket Mage', 'Skullclamp')).toBe(true);
+    expect(reaches('Trinket Mage', 'Ornithopter')).toBe(true);
+    expect(reaches('Trinket Mage', 'Mind Stone')).toBe(false);
+    expect(reaches('Trinket Mage', 'Sword of Fire and Ice')).toBe(false);
+    expect(reaches('Trinket Mage', 'Llanowar Elves')).toBe(false);
+  });
+  it('Ranger-Captain of Eos fetches creatures with mana value 1 or less only', () => {
+    expect(reaches('Ranger-Captain of Eos', 'Llanowar Elves')).toBe(true);
+    expect(reaches('Ranger-Captain of Eos', 'Mother of Runes')).toBe(true);
+    expect(reaches('Ranger-Captain of Eos', 'Kitchen Finks')).toBe(false);
+    expect(reaches('Ranger-Captain of Eos', 'Eternal Witness')).toBe(false);
+    expect(reaches('Ranger-Captain of Eos', 'Skullclamp')).toBe(false);
+  });
+  it('Imperial Recruiter reads power, Recruiter of the Guard reads toughness', () => {
+    expect(reaches('Imperial Recruiter', 'Goblin Guide')).toBe(true);
+    expect(reaches('Imperial Recruiter', 'Squire')).toBe(true);
+    expect(reaches('Imperial Recruiter', 'Kitchen Finks')).toBe(false);
+    expect(reaches('Recruiter of the Guard', 'Squire')).toBe(true);
+    expect(reaches('Recruiter of the Guard', 'Kitchen Finks')).toBe(true);
+    expect(reaches('Recruiter of the Guard', 'Wall of Roots')).toBe(false);
+    expect(reaches('Recruiter of the Guard', 'Sol Ring')).toBe(false);
+  });
+  it('reads a subtype or type word: Goblin Matron, Steelshaper, Fabricate, Idyllic', () => {
+    expect(reaches('Goblin Matron', 'Goblin Guide')).toBe(true);
+    expect(reaches('Goblin Matron', 'Goblin Chieftain')).toBe(true);
+    expect(reaches('Goblin Matron', 'Kitchen Finks')).toBe(false);
+    expect(reaches("Steelshaper's Gift", 'Skullclamp')).toBe(true);
+    expect(reaches("Steelshaper's Gift", 'Sol Ring')).toBe(false);
+    expect(reaches('Stoneforge Mystic', 'Sword of Fire and Ice')).toBe(true);
+    expect(reaches('Stoneforge Mystic', 'Sol Ring')).toBe(false);
+    expect(reaches('Fabricate', 'Mind Stone')).toBe(true);
+    expect(reaches('Fabricate', 'Burnished Hart')).toBe(true);
+    expect(reaches('Idyllic Tutor', 'Rancor')).toBe(true);
+    expect(reaches('Idyllic Tutor', 'Sol Ring')).toBe(false);
+  });
+  it('transmute reaches exactly its own mana value', () => {
+    expect(reaches('Dimir Infiltrator', 'Mind Stone')).toBe(true);
+    expect(reaches('Dimir Infiltrator', 'Squire')).toBe(true);
+    expect(reaches('Dimir Infiltrator', 'Sol Ring')).toBe(false);
+    expect(reaches('Dimir Infiltrator', 'Kitchen Finks')).toBe(false);
+    expect(reaches('Tolaria West', 'Ornithopter')).toBe(true);
+    expect(reaches('Tolaria West', 'Sol Ring')).toBe(false);
+  });
+  it('leaves unrestricted tutors and battlefield searches as they were', () => {
+    expect(reaches('Diabolic Intent', 'Kitchen Finks')).toBe(true);
+    // the opponent chooses what Gifts Ungiven puts in hand, so it is no reliable tutor
+    expect(reaches('Gifts Ungiven', 'Sol Ring')).toBe(false);
+    expect(reaches("Green Sun's Zenith", 'Llanowar Elves')).toBe(false);
+  });
+  it('tutorsFor lists only the restricted tutors that reach Mind Stone', () => {
+    const deck = ['Trinket Mage', 'Fabricate', 'Dimir Infiltrator', 'Ranger-Captain of Eos'].map(
+      card
+    );
+    expect(tutorsFor(deck, card('Mind Stone')).map((c) => c.name)).toEqual([
+      'Fabricate',
+      'Dimir Infiltrator',
+    ]);
+  });
+});
