@@ -8,6 +8,8 @@
 
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import request from 'supertest';
+import type { Pool } from 'pg';
+import { lockUserRevs } from './sync';
 import type { Server } from 'node:http';
 import { createTestEnv, extractSessionCookie } from '../test-helpers';
 
@@ -23,11 +25,13 @@ vi.mock('../publications/sync-hook', async (importOriginal) => {
 });
 
 let app: Server;
+let pool: Pool;
 let cleanup: () => Promise<void>;
 
 beforeAll(async () => {
   const env = await createTestEnv();
   app = env.app;
+  pool = env.pool;
   cleanup = env.cleanup;
 });
 
@@ -963,5 +967,55 @@ describe('publications refresh hook (fire-and-forget)', () => {
     expect(res.applied).toHaveLength(1);
     expect(res.applied[0].kind).toBe('deck');
     expect(res.cursor).toBeGreaterThan(0);
+  });
+});
+
+describe('E354: a cursor never passes a row that commits later', () => {
+  it('a concurrent push waits for an in-flight one, so its revs sort after it', async () => {
+    const cookie = await registerAndGetCookie('revorder');
+    const { rows } = await pool.query<{ id: string }>(`SELECT id FROM users WHERE username = $1`, [
+      'revorder',
+    ]);
+    const userId = rows[0].id;
+
+    // Device A's push: transaction open, rev drawn, row written, not yet committed.
+    const a = await pool.connect();
+    let aOpen = true;
+    try {
+      await a.query('BEGIN');
+      await lockUserRevs(a, userId);
+      const { rows: seq } = await a.query<{ rev: string }>(
+        `SELECT nextval('user_data_rev_seq') AS rev`
+      );
+      const revA = Number(seq[0].rev);
+      await a.query(
+        `INSERT INTO user_cubes (user_id, id, data, rev, deleted_at, updated_at)
+         VALUES ($1, 'cube-a', '{"id":"cube-a"}'::jsonb, $2, NULL, 1)`,
+        [userId, revA]
+      );
+
+      // Device B pushes meanwhile (draws a higher rev).
+      const bPush = request(app)
+        .post('/api/sync')
+        .set('Cookie', cookie)
+        .send({ upserts: [{ kind: 'deck', id: 'deck-b', data: { id: 'deck-b' } }] })
+        .then((r) => r);
+      // Give B time to finish if nothing stops it.
+      await new Promise((r) => setTimeout(r, 400));
+
+      // Device C pulls now and keeps whatever cursor it is handed.
+      const mid = await pull(cookie, 0);
+
+      await a.query('COMMIT');
+      aOpen = false;
+      expect((await bPush).status).toBe(200);
+
+      // Resuming from that cursor must still deliver device A's cube.
+      const after = await pull(cookie, mid.cursor);
+      expect(after.rows.map((r) => r.id)).toContain('cube-a');
+    } finally {
+      if (aOpen) await a.query('ROLLBACK');
+      a.release();
+    }
   });
 });
