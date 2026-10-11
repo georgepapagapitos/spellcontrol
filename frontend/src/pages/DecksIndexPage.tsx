@@ -61,7 +61,7 @@ import { MIN_COLLECTION_SIZE } from '@/lib/deck/commander-readiness';
 import { useAllocations } from '@/lib/collection/allocations';
 import { useSetMap } from '@/lib/api';
 import { useBinderLayoutInputs } from '@/lib/binder/use-binder-layout-inputs';
-import { buildBinderPlacement, buildPullList, isPullableKind } from '@/lib/collection/pull-list';
+import { useDeckPullCounts } from '@/lib/collection/use-deck-pull-counts';
 import { deckValue } from '@/lib/deck/deck-value';
 import { useCurrency } from '@/lib/collection/currency';
 import { formatMoney } from '@/lib/collection/format-money';
@@ -210,35 +210,10 @@ export function DecksIndexPage() {
   const canBuildFromBinder = rawCollectionCards.length >= MIN_COLLECTION_SIZE;
 
   // Pull-readiness per deck for the card badge ("58 of 100 pullable") — the
-  // same derivation as the deck editor's Pull list sheet. The expensive step,
-  // materializing every binder, runs once for the whole page via
-  // buildBinderPlacement; each deck then only pays slot resolution. Null (no
-  // badges at all) until the user has configured binders.
-  const pullCounts = useMemo(() => {
-    if (binderDefs.length === 0) return null;
-    const placement = buildBinderPlacement(collectionCards, binderDefs, setMap);
-    const counts = new Map<string, { pullable: number; total: number }>();
-    for (const deck of decks) {
-      let pullable = 0;
-      let total = 0;
-      const groups = buildPullList(
-        deck,
-        collectionCards,
-        binderDefs,
-        allocations,
-        setMap,
-        placement
-      );
-      for (const g of groups) {
-        for (const r of g.rows) {
-          total += r.qty;
-          if (isPullableKind(g.kind)) pullable += r.qty;
-        }
-      }
-      if (total > 0) counts.set(deck.id, { pullable, total });
-    }
-    return counts;
-  }, [decks, collectionCards, binderDefs, allocations, setMap]);
+  // same derivation as the deck editor's Pull list sheet. Null (no badges at
+  // all) until the user has configured binders, and until the tiles are up:
+  // the hook computes it after paint (see useDeckPullCounts).
+  const pullCounts = useDeckPullCounts(decks, collectionCards, binderDefs, allocations, setMap);
 
   const { sortField, sortDir, toggleSort } = useStoredSort<DeckSortField>(
     'decks-index-sort',
