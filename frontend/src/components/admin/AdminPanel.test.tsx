@@ -152,6 +152,11 @@ describe('AdminPanel — clear profile', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Actions for nova' }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Clear profile' }));
     await screen.findByText('Clear profile?');
+    // Clearing the name cascades to the account's publications; the dialog
+    // says so, in Hide profile's words (E348).
+    expect(
+      screen.getByText(/unpublishes every deck this account has published/, { exact: false })
+    ).toBeTruthy();
 
     // Cancel: dismisses without calling the API.
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));

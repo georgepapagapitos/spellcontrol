@@ -7,6 +7,7 @@ import { users } from '../db/schema';
 import { invalidateDeckPublicationCache, invalidatePublicUserCache } from '../publications/cache';
 import { invalidateShareContext } from '../shares/context';
 import { purgeUserPublicCaches } from '../publications/purge';
+import { unpublishAllUserDecks } from '../publications/unpublish';
 import { AI_MODEL, estimateUsd, type AiTokenCounts } from '../ai/client';
 import { logger } from '../logger';
 
@@ -390,7 +391,8 @@ adminRouter.delete(
 /**
  * POST /api/admin/users/:id/clear-profile
  * Reactive-moderation lever (social program W0): wipes a target user's
- * public-profile fields (display name, bio, avatar) in one UPDATE. No
+ * public-profile fields (display name, bio, avatar) in one UPDATE, and
+ * unpublishes every deck they have published. No
  * self-target guard — unlike account deletion, clearing a profile is
  * reversible by re-setting it, so there's no lockout risk.
  */
@@ -418,6 +420,10 @@ adminRouter.post(
     if (cleared.length === 0) {
       return res.status(404).json({ error: 'User not found.' });
     }
+    // Publishing requires a display name, so a cleared account can't keep live
+    // publications under a bare handle; the owner republishes once they've set
+    // a new name. Same cascade as Hide profile (E348).
+    await unpublishAllUserDecks(id, Date.now());
     await purgeUserPublicCaches(id);
     res.json({ ok: true });
   }
@@ -562,13 +568,7 @@ adminRouter.post(
           report.target_owner_id,
           now,
         ]);
-        const cascaded = await pool.query<{ slug: string }>(
-          `UPDATE deck_publications SET unpublished_at = $2
-           WHERE user_id = $1 AND unpublished_at IS NULL
-         RETURNING slug`,
-          [report.target_owner_id, now]
-        );
-        for (const row of cascaded.rows) invalidateDeckPublicationCache(row.slug);
+        await unpublishAllUserDecks(report.target_owner_id, now);
         invalidatePublicUserCache(report.owner_username);
       } else if (report.kind === 'game-result') {
         // target_id is the share TOKEN (not the session id) — revoking exactly

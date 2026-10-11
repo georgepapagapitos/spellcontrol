@@ -521,6 +521,30 @@ describe('POST /api/admin/users/:id/clear-profile', () => {
   });
 });
 
+describe('POST /api/admin/users/:id/clear-profile — publications (E348)', () => {
+  // Publishing requires a display name, so clearing the name must not leave
+  // live publications under a bare handle. Same cascade as Hide profile.
+  it('unpublishes every live deck the account owns, and the deck page 404s at once', async () => {
+    const adminCookie = await registerAdmin('e348-admin');
+    const { ownerId, slug } = await publishDeck('e348-owner', 'deck-e348');
+    // Warm the cache first: an unwarmed 404 proves nothing.
+    expect((await request(app).get(`/api/public/decks/${slug}`)).status).toBe(200);
+
+    const res = await request(app)
+      .post(`/api/admin/users/${ownerId}/clear-profile`)
+      .set('Cookie', adminCookie);
+    expect(res.status).toBe(200);
+
+    expect((await request(app).get(`/api/public/decks/${slug}`)).status).toBe(404);
+    const rows = await pool.query<{ unpublished_at: string | null }>(
+      `SELECT unpublished_at FROM deck_publications WHERE user_id = $1`,
+      [ownerId]
+    );
+    expect(rows.rows).toHaveLength(1);
+    expect(rows.rows[0]!.unpublished_at).not.toBeNull();
+  });
+});
+
 describe('public caches after identity writes (playtest batch 12)', () => {
   // The public deck page, profile page and share payloads are served from
   // 60 s in-memory caches. Every write that changes who a user is on the
@@ -540,7 +564,7 @@ describe('public caches after identity writes (playtest batch 12)', () => {
     expect((await request(app).get('/api/public/users/purge-deleted')).status).toBe(404);
   });
 
-  it('POST /api/admin/users/:id/clear-profile — the profile and the deck byline drop the name at once', async () => {
+  it('POST /api/admin/users/:id/clear-profile — the profile drops the name and the deck page goes at once', async () => {
     const adminCookie = await registerAdmin('purge-admin-b');
     const { ownerId, slug } = await publishDeck('purge-cleared', 'deck-purge-clear');
     const warmProfile = await request(app).get('/api/public/users/purge-cleared');
@@ -554,9 +578,9 @@ describe('public caches after identity writes (playtest batch 12)', () => {
     expect(res.status).toBe(200);
 
     expect((await request(app).get('/api/public/users/purge-cleared')).body.displayName).toBeNull();
-    expect(
-      (await request(app).get(`/api/public/decks/${slug}`)).body.deck.ownerDisplayName
-    ).toBeNull();
+    // The deck no longer renders under a bare handle at all: clear-profile
+    // unpublishes it (E348), so the page is gone rather than nameless.
+    expect((await request(app).get(`/api/public/decks/${slug}`)).status).toBe(404);
   });
 
   it('PATCH /api/auth/profile — a renamed owner shows on their deck page at once', async () => {
