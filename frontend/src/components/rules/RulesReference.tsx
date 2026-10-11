@@ -70,8 +70,6 @@ interface Props {
   showTabs?: boolean;
   searchClassName?: string;
   bodyClassName?: string;
-  /** Present while AI is available: every row's menu can hand it to Ask. */
-  onAsk?: (question: string) => void;
   /** Called before a row's menu navigates elsewhere (the sheet closes). */
   onLeave?: () => void;
   /** A keyword row to show open on mount — the one a card's keyword link asked for. */
@@ -95,7 +93,6 @@ export function RulesReference({
   showTabs = true,
   searchClassName,
   bodyClassName,
-  onAsk,
   onLeave,
   initialExpanded,
 }: Props) {
@@ -116,7 +113,7 @@ export function RulesReference({
     setExpanded(null);
   };
 
-  const menu: MenuProps = { onAsk, onLeave };
+  const menu: MenuProps = { onLeave };
 
   /**
    * Typing a rule number anywhere in the reference goes to the rules. Keywords
@@ -237,7 +234,7 @@ function Empty({ what }: { what: string }) {
   return <p className="rules-ref-status">No {what} match your search.</p>;
 }
 
-type MenuProps = Pick<Props, 'onAsk' | 'onLeave'>;
+type MenuProps = Pick<Props, 'onLeave'>;
 
 const address = (tab: RulesReferenceTab, q: string) =>
   `/rules?tab=${tab}&q=${encodeURIComponent(q)}`;
@@ -258,7 +255,6 @@ function RuleRow({
     label: `Rule ${number}`,
     text: `${number} ${text}`,
     href: address('rules', number),
-    question: `Explain rule ${number}.`,
   };
   return (
     <div className="rules-ref-rule">
@@ -298,7 +294,6 @@ function KeywordList({
           text: summary ? `${k.name} (${k.rule}): ${summary}` : `${k.name}, rule ${k.rule}`,
           href: address('keywords', k.name),
           keyword: k.kind === 'ability' ? k.name : undefined,
-          question: `How does ${k.name} work?`,
         };
         const bodyId = `rules-kw-${k.kind}-${k.rule}`;
         return (
@@ -383,7 +378,6 @@ function GlossaryList({
                 label: g.term,
                 text: `${g.term}: ${g.definition}`,
                 href: address('glossary', g.term),
-                question: `What does "${g.term}" mean in the rules?`,
               }}
               {...menu}
             />

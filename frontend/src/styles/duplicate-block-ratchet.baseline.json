@@ -572,13 +572,6 @@
       "styles/playtest.css:.playtest-peek__moves"
     ]
   },
-  "89ae325ed0": {
-    "size": 2,
-    "locations": [
-      "components/deck/DeckAiReview.css:.deck-ai-strip-title",
-      "components/rules/RulesReferenceSheet.css:.rules-ref-ask-ai-text"
-    ]
-  },
   "8a91b9239d": {
     "size": 3,
     "locations": [

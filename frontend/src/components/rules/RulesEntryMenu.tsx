@@ -1,4 +1,4 @@
-import { Copy, ExternalLink, Link2, Search, Share2, Sparkles } from 'lucide-react';
+import { Copy, ExternalLink, Link2, Search, Share2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { OverflowMenu, type OverflowMenuItem } from '@/components/overlays/OverflowMenu';
 import { toast } from '@/store/toasts';
@@ -14,14 +14,10 @@ export interface RulesEntry {
   href: string;
   /** Keyword abilities only: the term a `keyword:` card search takes. */
   keyword?: string;
-  /** The question Ask opens with. */
-  question: string;
 }
 
 interface Props {
   entry: RulesEntry;
-  /** Present while AI is available: opens the Ask tab seeded with the question. */
-  onAsk?: (question: string) => void;
   /** Called before the menu navigates away (the sheet closes itself). */
   onLeave?: () => void;
   /** The row this menu belongs to. A right-click, the Context Menu key or
@@ -46,11 +42,11 @@ async function copyText(text: string, what: string) {
 /**
  * The ⋮ menu on every rule, keyword and glossary row: copy the official text
  * for the group chat, share the row's own address, see the cards that carry
- * a keyword (yours, then Scryfall's), and hand the row to Ask. Keyword
+ * a keyword (yours, then Scryfall's). Keyword
  * actions ("Destroy", "Exile") get no card searches: `keyword:` matches
  * abilities, and an empty Scryfall page answers nothing.
  */
-export function RulesEntryMenu({ entry, onAsk, onLeave, contextHost }: Props) {
+export function RulesEntryMenu({ entry, onLeave, contextHost }: Props) {
   const navigate = useNavigate();
   const canShare = typeof navigator.share === 'function';
   const url = `${window.location.origin}${entry.href}`;
@@ -104,9 +100,6 @@ export function RulesEntryMenu({ entry, onAsk, onLeave, contextHost }: Props) {
             },
           },
         ]
-      : []),
-    ...(onAsk
-      ? [{ label: 'Ask AI about this', icon: Sparkles, onClick: () => onAsk(entry.question) }]
       : []),
   ];
 

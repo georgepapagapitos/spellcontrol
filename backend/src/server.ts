@@ -64,7 +64,6 @@ import { brewersRouter } from './routes/brewers';
 import { aiRouter } from './routes/ai';
 import { getMatcher } from './scanner/matcher';
 import { lastSuccessfulIngestAt, runScheduledIngest } from './combos/ingest';
-import { scheduleRulesIngest } from './rules/ingest';
 import { scheduleRetentionSweep } from './retention';
 import { isDiscordConfigured, lfgChannelId } from './discord';
 import { nudgeLfgPosts, syncLfgPosts } from './games/discord-lfg';
@@ -1451,12 +1450,6 @@ async function start() {
 
   if (process.env.AGGREGATES_ROLLUP_DISABLED !== '1') {
     afterBoot('aggregates rollup', 60_000, scheduleAggregatesRollup);
-  }
-
-  if (process.env.RULES_INGEST_DISABLED !== '1') {
-    // Comprehensive Rules for the AI rules Q&A (E261) — ~1MB text, quarterly
-    // updates, skipped entirely when the published URL hasn't moved.
-    afterBoot('rules ingest', 45_000, scheduleRulesIngest);
   }
 
   if (process.env.PRECON_SEED_DISABLED !== '1') {

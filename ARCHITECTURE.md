@@ -77,7 +77,7 @@ its store and its backend domain. Start here:
 | Share links                                   | `components/share/`, `pages/SharedView.tsx`, `backend/src/shares/`                                                                                                                          |
 | Scanner                                       | `components/scanner/CardScanner.tsx`, `lib/scanner/`                                                                                                                                        |
 | Sync & offline                                | `lib/sync/`, `lib/offline/`, `backend/src/routes/sync.ts`                                                                                                                                   |
-| AI review, refine, rules Q&A                  | `lib/ai/`, `backend/src/ai/`                                                                                                                                                                |
+| AI review and refine                          | `lib/ai/`, `backend/src/ai/`                                                                                                                                                                |
 | Rules reference & walkthroughs                | `pages/RulesPage.tsx`, `pages/RulesWalkthrough*.tsx`, `components/rules/`, `lib/rules-walkthroughs/`                                                                                        |
 
 ### Conventions

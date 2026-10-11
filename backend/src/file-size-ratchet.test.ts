@@ -20,7 +20,6 @@ const SLACK = 200;
 
 const CEILINGS: Record<string, number> = {
   'db/schema.ts': 1300,
-  'routes/ai.ts': 1300,
   'routes/auth.ts': 1400,
   'routes/friends.ts': 1200,
   'routes/game-nights.ts': 2100,

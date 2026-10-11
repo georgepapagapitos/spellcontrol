@@ -1,14 +1,11 @@
 import { createPortal } from 'react-dom';
-import { Sparkles, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useId, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
 import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
-import { useAiStatus } from '@/lib/ai/use-ai-status';
 import { RulesReference, RulesReferenceFoot, useRulesBundle } from './RulesReference';
 import { type RulesReferenceTab } from '@/store/rules-reference';
 import { useRulesReferenceStore, type RulesReferenceTarget } from '@/store/rules-reference';
-import './RulesReferenceSheet.css';
 import { IconButton } from '@/components/shared/Button';
 
 /**
@@ -36,9 +33,6 @@ function RulesReferenceBody({
   const [tab, setTab] = useState<RulesReferenceTab>(target?.tab ?? 'keywords');
   const [query, setQuery] = useState(target?.query ?? '');
   const labelId = useId();
-  const navigate = useNavigate();
-  // The AI door self-hides like every AI surface (null = unavailable/loading).
-  const aiStatus = useAiStatus();
 
   // Don't autofocus the search on touch — it raises the soft keyboard the
   // instant the sheet opens and squashes the layout. Desktop (fine pointer +
@@ -91,37 +85,7 @@ function RulesReferenceBody({
           initialExpanded={target?.expand}
           bodyClassName="modal-body"
           onLeave={() => beginClose()}
-          onAsk={
-            aiStatus
-              ? (question) => {
-                  beginClose();
-                  navigate('/rules?tab=ask', { state: { question } });
-                }
-              : undefined
-          }
         />
-
-        {/* The escalation door (E261): browsing didn't settle it → the Ask tab
-            of the /rules page, seeded with the current search. Self-hiding
-            when AI is unavailable — the sheet without AI is exactly today's
-            sheet. */}
-        {aiStatus && (
-          <button
-            type="button"
-            className="rules-ref-ask-ai"
-            onClick={() => {
-              beginClose();
-              navigate(
-                '/rules?tab=ask',
-                query.trim() ? { state: { question: query.trim() } } : undefined
-              );
-            }}
-          >
-            <Sparkles width={14} height={14} strokeWidth={1.8} aria-hidden />
-            <span className="rules-ref-ask-ai-text">Ask a rules question</span>
-            <span className="rules-ref-ask-ai-hint">AI · cites the rules</span>
-          </button>
-        )}
 
         <RulesReferenceFoot bundle={bundle} />
       </div>

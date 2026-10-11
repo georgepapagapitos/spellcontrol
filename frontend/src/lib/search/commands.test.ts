@@ -114,7 +114,7 @@ describe('buildCommands', () => {
     expect(go).toHaveBeenCalledWith('/decks/d1?view=tune', { openAiReview: true });
   });
 
-  it('navigates to the Rules page unconditionally, and the AI ask lands on its Ask tab', () => {
+  it('navigates to the Rules page unconditionally, and offers no AI rules question', () => {
     const go = vi.fn();
     const plain = buildCommands({ decks: [], go });
     const rules = plain.find((c) => c.id === 'nav:/rules');
@@ -124,8 +124,7 @@ describe('buildCommands', () => {
     expect(go).toHaveBeenCalledWith('/rules');
 
     const withAi = buildCommands({ decks: [], go, aiAvailable: true });
-    withAi.find((c) => c.id === 'ai:rules-question')?.run();
-    expect(go).toHaveBeenCalledWith('/rules?tab=ask');
+    expect(withAi.some((c) => c.id === 'ai:rules-question')).toBe(false);
   });
 
   it('offers Add cards and Import a list unconditionally, routing to the deep links', () => {
