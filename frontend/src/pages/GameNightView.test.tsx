@@ -86,6 +86,28 @@ describe('GameNightView — a night that already happened', () => {
   });
 });
 
+describe('GameNightView — a visitor who cannot reply', () => {
+  // E345: the invite-only note rendered, then "Add it to your calendar" followed
+  // it for a visitor with no standing on the night.
+  it('gets the invite-only note and no calendar entry', async () => {
+    const base = night(Date.now() + 3 * DAY);
+    fetchPublicGameNightMock.mockResolvedValue({
+      ...base,
+      night: { ...base.night, inviteOnly: true },
+      canRsvp: false,
+    });
+    renderNight();
+    expect((await screen.findByRole('status')).textContent).toContain('invite-only');
+    expect(screen.queryByRole('region', { name: 'Add to calendar' })).toBeNull();
+  });
+
+  it('a visitor who can reply still gets the calendar entry', async () => {
+    fetchPublicGameNightMock.mockResolvedValue(night(Date.now() + 3 * DAY));
+    renderNight();
+    expect(await screen.findByRole('region', { name: 'Add to calendar' })).toBeTruthy();
+  });
+});
+
 describe('GameNightView — a link that goes nowhere', () => {
   // E344: this page carried its own copy of the dead-end view, so it missed the
   // tab title the shared one now sets and the tab kept claiming to be the

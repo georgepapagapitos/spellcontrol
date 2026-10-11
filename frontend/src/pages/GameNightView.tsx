@@ -394,7 +394,7 @@ function NightBody({
         </section>
       )}
 
-      {!closed && !polling && (
+      {!closed && canRsvp && !polling && (
         <section className="game-night-calendar" aria-label="Add to calendar">
           <h2 className="game-night-section-title">Add it to your calendar</h2>
           <div className="game-night-calendar-btns">
