@@ -227,9 +227,9 @@ const CASES: RouteCase[] = [
     ready: /walkthroughs/i,
   },
   {
-    path: '/rules/walkthroughs/ulamog-countered?step=2',
+    path: '/rules/walkthroughs/creature-enters?step=5',
     routes: <Route path="/rules/walkthroughs/:id" element={<RulesWalkthroughPage />} />,
-    ready: /ulamog: countered/i,
+    ready: /a creature enters/i,
   },
   { path: '/daily', routes: <Route path="/daily" element={<DailyPage />} />, ready: /daily/i },
   { path: '/search', routes: <Route path="/search" element={<SearchPage />} />, ready: /search/i },
