@@ -717,8 +717,9 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
               Clear profile?
             </h2>
             <p className="choice-dialog-body">
-              This clears <strong>{pendingClear.username}</strong>'s display name, bio, and avatar.
-              They can set a new profile any time. This only removes what's there now.
+              This clears <strong>{pendingClear.username}</strong>'s display name, bio, and avatar,
+              and unpublishes every deck this account has published. They can set a new profile any
+              time, and each deck stays unpublished until they publish it again.
             </p>
             <div className="choice-dialog-actions admin-modal-actions">
               <Button
