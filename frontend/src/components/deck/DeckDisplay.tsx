@@ -130,7 +130,6 @@ import {
   allocationsForRow,
 } from './deck-display-derive';
 import { buildCardMenuCtx, buildBulkActions, buildPreviewActions } from './deck-display-actions';
-import { useAskRules } from '@/lib/ai/use-ask-rules';
 import { useDeckCompleteMoment } from './use-deck-complete-moment';
 import { DeckStatStrip, DeckBulkBar, DeckRoleBar, DeckEmptyState } from './DeckDisplayBands';
 
@@ -1029,7 +1028,9 @@ export function DeckDisplay({
   // sideboardSize gate is the single source). false → Considering alone.
   const hasSideboard = formatConfig.sideboardSize > 0;
 
-  // One list feeds the bulk bar and a selected card's right-click menu (T162).
+  // The selection's moves and Remove: the bulk bar's buttons and the menu a
+  // right-click on a selected card opens, from one list (T162). Tagging is the
+  // bar's Tag popover and the menu's two tag pages, over the same handler.
   const bulkActions: DeckBulkAction[] = buildBulkActions({
     selection,
     hasSideboard,
@@ -1037,8 +1038,6 @@ export function DeckDisplay({
     onBulkRemove,
     setSelection,
     setConfirmBulkRemove,
-    askRules: useAskRules(),
-    zones: [cards, sideboard, considering],
   });
   const selectionTitle = selection
     ? `${selection.keys.size} ${selection.keys.size === 1 ? 'card' : 'cards'} selected`

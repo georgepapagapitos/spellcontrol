@@ -72,7 +72,6 @@ describe('density tiers (T135)', () => {
     ['components/home/AroundTheTable.css', '.home-table-row'],
     ['components/home/YourCardsCard.css', '.home-your-cards-row'],
     ['styles/stats-breakdown.css', '.collection-insight-row'],
-    ['pages/RulesPage.css', '.rules-history-item'],
     ['pages/TagsPage.css', '.tags-row'],
     ['pages/cube/cube.css', '.cube-collab-friend-row'],
     ['styles/popover-menu.css', '.deck-row-menu-item'],

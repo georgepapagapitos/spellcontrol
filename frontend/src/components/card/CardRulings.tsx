@@ -1,9 +1,7 @@
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useInRouterContext } from 'react-router-dom';
 import { fetchCardRulings, type Ruling } from '@/lib/cards/card-rulings';
 import { Button } from '@/components/shared/Button';
-import { useAskRules } from '@/lib/ai/use-ask-rules';
 import './CardRulings.css';
 
 /** How long a default-open disclosure waits before fetching (see below). */
@@ -17,24 +15,14 @@ const RULINGS_SETTLE_MS = 350;
  * `defaultOpen` starts it expanded and fetches on mount — for the playtest
  * inspector, where a ruling is the reason the card was opened at all, so
  * making the player find a chevron mid-game is the wrong default.
- *
- * With `name`, the open list ends in a door to the rules Q&A seeded with a
- * question about this card, shown only while AI is available. `onLeave` runs
- * first, so the overlay holding the preview closes before the page changes.
  */
 export function CardRulings({
   scryfallId,
   defaultOpen = false,
-  name,
-  onLeave,
 }: {
   scryfallId: string;
   defaultOpen?: boolean;
-  name?: string;
-  onLeave?: () => void;
 }) {
-  // A preview rendered outside a router has no rules page to open.
-  const canLeave = useInRouterContext();
   const [open, setOpen] = useState(defaultOpen);
   const [state, setState] = useState<'idle' | 'loading' | 'error' | 'done'>(
     defaultOpen ? 'loading' : 'idle'
@@ -125,29 +113,9 @@ export function CardRulings({
                 <p className="card-rulings-meta">{formatDate(r.published_at)}</p>
               </div>
             ))}
-          {canLeave && name && <AskAboutCard name={name} onLeave={onLeave} />}
         </div>
       )}
     </div>
-  );
-}
-
-/** The door to the rules Q&A, seeded with this card; nothing while AI is unavailable. */
-function AskAboutCard({ name, onLeave }: { name: string; onLeave?: () => void }) {
-  const askRules = useAskRules();
-  if (!askRules) return null;
-  return (
-    <Button
-      variant="link"
-      className="card-rulings-ask"
-      iconEnd={<ChevronRight width={14} height={14} strokeWidth={1.8} />}
-      onClick={() => {
-        onLeave?.();
-        askRules([name]);
-      }}
-    >
-      Ask a rules question about this card
-    </Button>
   );
 }
 

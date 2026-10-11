@@ -1,6 +1,5 @@
 /* One cited rule per row: its number, its text clamped to one line, a
-   chevron that opens the full text. The Ask tab's "Rules cited" list and the
-   rules walkthroughs (RuleCitations) share these rows. */
+   chevron that opens the full text (RuleCitations, the rules walkthroughs). */
 
 .rules-cite-toggle {
   display: flex;

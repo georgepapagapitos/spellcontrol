@@ -60,13 +60,12 @@ jobs:
       # which throttle a CI runner (Firefox runs last and died on it, E535).
       # The "Ingest Scryfall bulk" step below fills it before the server
       # starts, so the server's own background ingest stays off. The other
-      # reference ingests (combos, rules, offline bulk) are hours of network
+      # reference ingests (combos, offline bulk) are hours of network
       # the journey does not read, so they stay off.
       DB_PATH: ${{ github.workspace }}/.scryfall-cache/scryfall-cache.db
       SCRYFALL_BULK_FLUSH_PAUSE_MS: '0'
       SCRYFALL_BULK_INGEST_DISABLED: '1'
       COMBOS_INGEST_DISABLED: '1'
-      RULES_INGEST_DISABLED: '1'
       OFFLINE_BULK_DISABLED: '1'
       UPTIME_HEARTBEAT_DISABLED: '1'
 

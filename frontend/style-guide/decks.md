@@ -1880,28 +1880,19 @@ Model-written text always says so. The rulings:
   height; the standalone bulk-apply and undo buttons take their floor
   directly via a two-class selector (`.btn.deck-ai-bulk-apply`) so it beats
   responsive-nav.css's same-specificity `.btn { min-height: 36px }`.
-- **Rule citations in AI prose are text-level, in the accent, and expand to
-  the official text on the same page** (E261, `/rules`). A cited rule number
-  (`.rules-ref-chip`) takes the card-chip treatment (weight + underline in
-  running text, never a pill) but in `--accent`, because it expands content
-  below rather than opening a preview overlay; it carries `aria-expanded` +
-  `aria-controls` for the row it toggles in the "Rules cited" list. **Only
-  refs the server verified against the corpus become interactive** — an
-  unverified number stays plain prose, exactly as a hallucinated card name
-  gets no chip. Every AI answer that quotes an authority renders the
-  authority's own text within reach, plus a plain-words disclaimer
-  ("AI can misread corner cases — for tournament play, ask a judge"):
-  grounding the reader can check is the feature, not decoration.
-- **The Rules Reference sheet carries the AI escalation door** (E261): one
-  quiet insight-strip row above its footer — "Ask a rules question", Sparkles
-  glyph, "AI — cites the rules" hint — that closes the sheet and navigates to
-  `/rules?tab=ask`, seeding the ask box with the search that came up short (a
-  seed only; nothing sends until Ask). Self-hiding like every AI surface:
-  without AI the sheet is exactly today's sheet.
+- **Rules help is official text, never an AI answer** (settled 2026-10-10).
+  Everything the app says about the rules is the authority's own words or
+  checked against them: Scryfall's official rulings in the card preview, the
+  offline Comprehensive Rules on `/rules`, and the stack walkthroughs, whose
+  every cited rule number a test checks against the bundle. The AI rules Q&A
+  (E261) was removed for this reason: a confident wrong ruling at the table is
+  worse than no answer, and the deterministic alternative, a rules engine,
+  resolves about one card in six of a typical deck (board E357, parked). Don't
+  add an AI rules answerer back, and don't seed a rules question from a card.
 - **Rules is a place, and the sheet is its quick look** (settled 2026-09-19).
   `/rules` is the Rules hub: Keywords / Glossary / Rules (the offline
   Comprehensive Rules, `components/rules/RulesReference.tsx`, the same lists the
-  sheet shows) plus an Ask tab that self-hides without AI. Section and search
+  sheet shows). Section and search
   live in the URL (`?tab=`, `?q=`) so a rule lookup is a linkable address.
   Its doors are utility-shaped, never a fifth primary tab: the header's
   utility cluster beside Search (on a phone, the Search page itself; see
@@ -1913,9 +1904,7 @@ Model-written text always says so. The rulings:
   only from Play.
 - **A Rules door lives in three kinds of places, never on a page** (settled
   2026-09-19): the global utility slot, the place you can't leave (the game
-  menu), and a contextual escalation (the sheet's "Ask a rules question" when
-  a search came up short; a row's "Ask AI about this"; Search's keyword row,
-  below). The Play hero's own Rules pill sat one row under the header door
+  menu), and a contextual escalation (Search's keyword row, below). The Play hero's own Rules pill sat one row under the header door
   and was removed for that reason. The same shape as Search, which does not
   repeat on Collection.
 - **The utility slot is the header from 1024px and the Search tab below it**
@@ -1952,8 +1941,7 @@ Model-written text always says so. The rulings:
   native share sheet where there is one, else the clipboard), and for
   keyword abilities only, "Cards with this keyword" (`/search?q=keyword:…`)
   and "Search Scryfall"; keyword actions get neither, since `keyword:`
-  matches abilities and an empty result page answers nothing. "Ask AI about
-  this" seeds the Ask tab and self-hides without AI. The ⋮ is the visible
+  matches abilities and an empty result page answers nothing. The ⋮ is the visible
   affordance on every pointer; right-click, the Context Menu key and
   Shift+F10 on the row open the same menu (`openEntryMenu`). The ⋮ is
   **always present, never hover-revealed** (settled 2026-09-20): reference
@@ -2014,9 +2002,8 @@ Model-written text always says so. The rulings:
   the search share one toolbar row over a single hairline; keyword cards and
   glossary terms, which are short, go two abreast (a grid that reads across,
   never CSS `columns`, which would send a long list down one column and back
-  up the next); numbered rules and the AI answer are prose and keep a ~44rem
-  measure; the Ask tab seats the box, its starters and past questions beside
-  the answer instead of above it. Every desktop rule is scoped under
+  up the next); numbered rules are prose and keep a ~44rem measure. Every
+  desktop rule is scoped under
   `.rules-page` so the in-game sheet stays the single-column quick look.
 
 ### Chance-card odds in the card preview

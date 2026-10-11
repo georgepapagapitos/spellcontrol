@@ -1,15 +1,13 @@
 /**
  * One source of truth for "which Comprehensive Rules is this app on" (board E338).
  *
- * The app holds TWO rules corpora, on purpose: the bundled snapshot the
- * reference sheet renders offline (`public/comprehensive-rules.json`, refreshed
- * by the weekly snapshot PR) and the backend's nightly-ingested index the AI
- * Q&A is grounded in. They are different documents with different effective
- * dates, so any surface that prints a date is printing ITS corpus's date — and
- * /rules printed both, one tab apart: "(effective September 25, 2026)" under
- * the Q&A and "Comprehensive Rules, effective August 7, 2026" under the sheet.
- * Two dates for one set of rules; whichever a reader believed, they were being
- * told the other was wrong.
+ * The app ships one rules corpus: the bundled snapshot the reference renders
+ * offline (`public/comprehensive-rules.json`, refreshed by the weekly snapshot
+ * PR). It once held a second, the backend's nightly-ingested index behind the
+ * AI rules Q&A (removed 2026-10-10), and /rules printed both dates one tab
+ * apart: "(effective September 25, 2026)" under the Q&A and "Comprehensive
+ * Rules, effective August 7, 2026" under the sheet. Two dates for one set of
+ * rules; whichever a reader believed, they were being told the other was wrong.
  *
  * The ruling: the app states a CR version in exactly ONE place —
  * `RulesReferenceFoot`, which labels the rules text it actually renders. Every
@@ -57,11 +55,5 @@ describe('the app states one Comprehensive Rules version, in one place', () => {
         'text actually shown. A second date is a second corpus, and the two ' +
         'contradict each other on screen (E338).'
     ).toEqual([]);
-  });
-
-  it('the Q&A disclaimer cites the rules without a competing date', () => {
-    const page = readFileSync(join(srcDir, 'pages', 'RulesPage.tsx'), 'utf8');
-    expect(page).toContain('Answers cite the official Comprehensive Rules.');
-    expect(stripComments(page)).not.toMatch(/effective/);
   });
 });
