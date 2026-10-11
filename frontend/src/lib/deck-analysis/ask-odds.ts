@@ -9,7 +9,15 @@ export interface OddsCard {
   name: string;
   type_line?: string;
   oracle_text?: string;
-  card_faces?: Array<{ type_line?: string; oracle_text?: string }>;
+  cmc?: number;
+  power?: string;
+  toughness?: string;
+  card_faces?: Array<{
+    type_line?: string;
+    oracle_text?: string;
+    power?: string;
+    toughness?: string;
+  }>;
 }
 
 const OPENING_HAND = 7;
@@ -88,11 +96,50 @@ function altMatches(alt: string, target: Set<string>): boolean {
   });
 }
 
+type Stat = 'mana value' | 'power' | 'toughness';
+
+/** The target's number for a stat, or undefined when it has none ("*" power counts as none). */
+function statOf(card: OddsCard, stat: Stat): number | undefined {
+  const raw =
+    stat === 'mana value'
+      ? card.cmc
+      : (card[stat] ?? card.card_faces?.find((f) => f[stat] !== undefined)?.[stat]);
+  const n = typeof raw === 'number' ? raw : raw === undefined ? NaN : Number(raw);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+const SAME_MV = /^\s+with the same mana value as this card\b/;
+const LIMIT = /^\s+with (mana value|power|toughness) (x|\d+)(?: (or less|or greater))?(?![\w-])/;
+const OPEN_LIMIT = /^\s+with (?:mana value|power|toughness) (?:equal to|less than|greater than)\b/;
+
+/**
+ * Whether the target meets the "with mana value 1 or less" style limit that
+ * follows the card type in a search clause. An X limit is the caster's choice,
+ * so it never rules a card out; a limit this does not understand does.
+ */
+function meetsLimit(after: string, tutor: OddsCard, target: OddsCard): boolean {
+  if (SAME_MV.test(after)) {
+    const mv = statOf(target, 'mana value');
+    return mv !== undefined && mv === tutor.cmc;
+  }
+  const m = LIMIT.exec(after);
+  if (!m) return !OPEN_LIMIT.test(after);
+  if (m[2] === 'x') return true;
+  const have = statOf(target, m[1] as Stat);
+  if (have === undefined) return false;
+  const bound = Number(m[2]);
+  if (m[3] === 'or less') return have <= bound;
+  if (m[3] === 'or greater') return have >= bound;
+  return have === bound;
+}
+
 /**
  * Whether `tutor` can search the library for `target` and leave it in hand or
  * on top of the library, read from the tutor's oracle text. Searches that put
- * a card onto the battlefield (ramp, Chord of Calling) are not counted, and
- * mana value limits are not read.
+ * a card onto the battlefield (ramp, Chord of Calling) are not counted. Type,
+ * subtype and supertype words, and "with mana value / power / toughness N or
+ * less / greater" limits, are checked against the target. Gifts Ungiven is not
+ * counted: the opponent chooses which of its cards reach your hand.
  */
 export function tutorFinds(tutor: OddsCard, target: OddsCard): boolean {
   if (tutor.name === target.name) return false;
@@ -105,6 +152,7 @@ export function tutorFinds(tutor: OddsCard, target: OddsCard): boolean {
   const named = /^\s+named (.+?)(?:,|$)/.exec(m[2]);
   if (named) return named[1].trim().toLowerCase() === target.name.toLowerCase();
   const descriptor = m[1].toLowerCase().replace(LEADING, '').trim();
+  if (!meetsLimit(m[2], tutor, target)) return false;
   if (!descriptor) return true;
   const tokens = typeTokens(target);
   return descriptor.split(/,\s*or\s+|,\s*|\s+or\s+/).some((alt) => altMatches(alt.trim(), tokens));
