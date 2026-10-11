@@ -12,7 +12,7 @@ import { Chip } from '../components/shared/Chip';
 import { InfoTip } from '@/components/overlays/InfoTip';
 import { DiffGroup } from '../components/deck/DiffCardRow';
 import { diffDecks, type DeckDiff } from '@/lib/deck/deck-diff';
-import { formatRelativeTime } from '@/lib/util/format-time';
+import { deckPickerMeta } from '@/lib/deck/compare-picker-meta';
 import { buildManaData, type DeckManaData } from '@/lib/deck-analysis/build-mana-data';
 import { gradeCurve, type CurveGrading } from '@/deck-builder/services/deckBuilder/curveGrading';
 import { useCurrency } from '@/lib/collection/currency';
@@ -233,16 +233,14 @@ const NONE_OPTION: SelectOption<string> = { value: '', label: 'Select a deck' };
  * `label` stays the bare name so the closed trigger reads "Abigale"; the meta
  * line rides on `itemLabel`, which SelectMenu renders only inside the popover.
  */
-function deckOption(d: Deck): SelectOption<string> {
+function deckOption(d: Deck, meta: string): SelectOption<string> {
   return {
     value: d.id,
     label: d.name,
     itemLabel: (
       <span className="deck-compare-option">
         <span className="deck-compare-option-name">{d.name}</span>
-        <span className="deck-compare-option-meta">
-          {d.cards.length} cards · Edited {formatRelativeTime(d.updatedAt)}
-        </span>
+        <span className="deck-compare-option-meta">{meta}</span>
       </span>
     ),
   };
@@ -294,13 +292,23 @@ export function DeckComparePage() {
   // `label` stays the bare name so the closed trigger reads "Abigale"; the
   // meta line rides on `itemLabel`, which SelectMenu renders only inside the
   // popover.
+  //
+  // Rows that would still render identically (same name, same size, same day)
+  // fall back to an absolute date and time — see deckPickerMeta.
+  const metaById = useMemo(() => deckPickerMeta(decks), [decks]);
   const optionsA = useMemo(
-    () => [NONE_OPTION, ...decks.filter((d) => d.id !== bId).map(deckOption)],
-    [decks, bId]
+    () => [
+      NONE_OPTION,
+      ...decks.filter((d) => d.id !== bId).map((d) => deckOption(d, metaById.get(d.id) ?? '')),
+    ],
+    [decks, bId, metaById]
   );
   const optionsB = useMemo(
-    () => [NONE_OPTION, ...decks.filter((d) => d.id !== aId).map(deckOption)],
-    [decks, aId]
+    () => [
+      NONE_OPTION,
+      ...decks.filter((d) => d.id !== aId).map((d) => deckOption(d, metaById.get(d.id) ?? '')),
+    ],
+    [decks, aId, metaById]
   );
 
   const setSide = (side: 'a' | 'b') => (id: string) =>

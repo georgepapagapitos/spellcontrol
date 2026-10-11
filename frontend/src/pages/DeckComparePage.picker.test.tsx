@@ -62,4 +62,24 @@ describe('/decks/compare picker rows', () => {
     expect(screen.getAllByText(/99 cards · Edited/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/60 cards · Edited/).length).toBeGreaterThan(0);
   });
+
+  it('tells same-name, same-size, same-day decks apart with an absolute time (E322)', () => {
+    const base = Date.now() - 3 * DAY;
+    useDecksStore.setState({
+      decks: [
+        deck('t1', 'Thassa', 99, base),
+        deck('t2', 'Thassa', 99, base - 2 * 3_600_000),
+        deck('t3', 'Thassa', 99, base - 5 * 3_600_000),
+      ] as never,
+    });
+    render(
+      <MemoryRouter initialEntries={['/decks/compare']}>
+        <DeckComparePage />
+      </MemoryRouter>
+    );
+    fireEvent.click(screen.getByRole('button', { name: /deck a/i }));
+    const lines = screen.getAllByText(/99 cards · Edited/).map((el) => el.textContent);
+    expect(lines).toHaveLength(3);
+    expect(new Set(lines).size).toBe(3);
+  });
 });
