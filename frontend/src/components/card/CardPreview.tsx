@@ -896,7 +896,13 @@ export function CardPreview({
   // Real Scryfall printings only — placeholder/synthetic ids would 400.
   const rulingsSection = UUID_RE.test(current.scryfallId) ? (
     <section className="card-preview-sec card-preview-sec--disc">
-      <CardRulings key={current.scryfallId} scryfallId={current.scryfallId} defaultOpen />
+      <CardRulings
+        key={current.scryfallId}
+        scryfallId={current.scryfallId}
+        defaultOpen
+        name={current.name}
+        onLeave={onClose}
+      />
     </section>
   ) : null;
 

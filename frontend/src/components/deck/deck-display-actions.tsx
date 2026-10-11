@@ -7,7 +7,8 @@ import type { CardPreviewAction } from '@/components/card/CardPreview';
 import type { DeckBulkAction } from './DeckSelectionMenu';
 import type { DeckCardActionCtx } from './deck-card-actions';
 import type { Row } from './deck-display-rows';
-import type { DeckDisplayProps } from './deck-display-types';
+import type { DeckDisplayCard, DeckDisplayProps } from './deck-display-types';
+import { MAX_ASK_CARDS } from '@/lib/ai/use-ask-rules';
 
 export type DeckSelection = { zone: DeckZone; keys: Set<string> };
 
@@ -94,9 +95,25 @@ export function buildBulkActions(args: {
   onBulkRemove: DeckDisplayProps['onBulkRemove'];
   setSelection: (next: DeckSelection | null) => void;
   setConfirmBulkRemove: (next: boolean) => void;
+  /** Opens the rules Q&A about some cards; null while AI is unavailable. */
+  askRules?: ((names: string[]) => void) | null;
+  /** Every pile's cards, to name the selected slots for a rules question. */
+  zones?: DeckDisplayCard[][];
 }): DeckBulkAction[] {
   const { selection, hasSideboard, onBulkMove, onBulkRemove, setSelection, setConfirmBulkRemove } =
     args;
+  // A question names a few cards, so the door shows for one to MAX_ASK_CARDS.
+  const names = selection
+    ? [
+        ...new Set(
+          (args.zones ?? [])
+            .flat()
+            .filter((c) => c.slotId && selection.keys.has(c.slotId))
+            .map((c) => c.card.name)
+        ),
+      ]
+    : [];
+  const askRules = args.askRules;
   return selection
     ? [
         ...(onBulkMove && selection.zone === 'cards' && hasSideboard
@@ -131,6 +148,18 @@ export function buildBulkActions(args: {
                 run: () => {
                   onBulkMove([...selection.keys], selection.zone, 'cards');
                   setSelection(null);
+                },
+              },
+            ]
+          : []),
+        ...(askRules && names.length > 0 && names.length <= MAX_ASK_CARDS
+          ? [
+              {
+                key: 'ask',
+                label: 'Ask a rules question',
+                run: () => {
+                  setSelection(null);
+                  askRules(names);
                 },
               },
             ]

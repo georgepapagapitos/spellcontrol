@@ -140,9 +140,11 @@ describe('RulesPage — the Rules hub', () => {
   it('opens on Ask when the sheet door sends a question along, even without ?tab', () => {
     renderPage({ question: 'deathtouch indestructible' }, '');
     expect(screen.getByRole('tab', { name: /Ask/ }).getAttribute('aria-selected')).toBe('true');
-    expect((screen.getByLabelText('Your rules question') as HTMLTextAreaElement).value).toBe(
-      'deathtouch indestructible'
-    );
+    const box = screen.getByLabelText('Your rules question') as HTMLTextAreaElement;
+    expect(box.value).toBe('deathtouch indestructible');
+    // The seed is the start of a question: the box has focus, caret at the end.
+    expect(document.activeElement).toBe(box);
+    expect(box.selectionStart).toBe('deathtouch indestructible'.length);
     expect(requestRulesAnswer).not.toHaveBeenCalled();
   });
 });
