@@ -257,6 +257,17 @@
   min-width: 0;
 }
 
+/* The name is the row's whole point (see the 480px note in
+   binder-card-management.css). With two problem segments the meta line is
+   wide enough to fit on one line and squeeze the name to "Bloodbr…" on a
+   tablet sheet, so a flow row keeps the name a floor and the meta wraps
+   instead. Under 480px the row wraps and the trailing group owns line two. */
+@media (min-width: 600px) {
+  .inline-card-search-row:has(.is-flow) .inline-card-search-preview-trigger {
+    min-width: 12rem;
+  }
+}
+
 /* On a phone each problem and "Fit & cut" take their own line, so no separator
    dangles at the end of the one above it. */
 @media (max-width: 599px) {
@@ -266,6 +277,24 @@
 
   .inline-card-search-meta.is-flow .card-search-fit,
   .inline-card-search-meta.is-flow .card-search-problem {
+    display: block;
+  }
+}
+
+/* A tablet-wide sheet: a row with two problems ("Short on green in 7%" and
+   "Cascades into a mana creature 23%") wraps mid-line and leaves a " ·" at the
+   end of the first line. It stacks like the phone does. ponytail: keyed on the
+   viewport, not the sheet width; the 900px desktop popover fits the line. */
+@media (min-width: 600px) and (max-width: 1023px) {
+  .inline-card-search-meta.is-flow:has(.card-search-problem ~ .card-search-problem)
+    .card-search-sep {
+    display: none;
+  }
+
+  .inline-card-search-meta.is-flow:has(.card-search-problem ~ .card-search-problem)
+    .card-search-fit,
+  .inline-card-search-meta.is-flow:has(.card-search-problem ~ .card-search-problem)
+    .card-search-problem {
     display: block;
   }
 }
