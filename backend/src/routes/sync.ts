@@ -422,6 +422,7 @@ syncRouter.post('/', requireAuth, syncLimiter, async (req: Request, res: Respons
   let rollbackFailed: Error | undefined;
   try {
     await client.query('BEGIN');
+    await lockUserRevs(client, userId);
 
     // ── E129: card printing-group reject-stale check. Runs BEFORE any of this
     //    transaction's own writes, so it reflects the pre-batch server state.
@@ -796,6 +797,7 @@ syncRouter.post('/clear-collection', requireAuth, syncLimiter, async (req, res) 
   let rollbackFailed: Error | undefined;
   try {
     await client.query('BEGIN');
+    await lockUserRevs(client, userId);
     const cleared: Record<string, number> = {};
     let cursor = 0;
     for (const [kind, table] of [
@@ -837,6 +839,22 @@ syncRouter.post('/clear-collection', requireAuth, syncLimiter, async (req, res) 
     client.release(rollbackFailed);
   }
 });
+
+/**
+ * Serialize one user's rev-drawing transactions (E354). Revs come from a global
+ * sequence, but a row only becomes visible to a puller when its transaction
+ * COMMITS. Without this, tx A draws rev 100, tx B (another device, same
+ * account) draws 101 and commits first, a peer pulls and advances its cursor to
+ * 101, then A commits rev 100 below that cursor and the peer never receives it,
+ * not even after a full reload (the cursor is persisted). Holding a per-user
+ * transaction-scoped advisory lock from before the first nextval() until
+ * COMMIT/ROLLBACK makes rev order equal commit order per account, so a cursor
+ * can never pass an uncommitted row. Take it right after BEGIN, before any
+ * nextval().
+ */
+export async function lockUserRevs(client: QueryClient, userId: string): Promise<void> {
+  await client.query(`SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, [userId]);
+}
 
 interface QueryClient {
   query<T extends Record<string, unknown> = Record<string, unknown>>(
