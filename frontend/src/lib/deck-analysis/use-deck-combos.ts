@@ -71,17 +71,18 @@ function filterByIdentity(
     oneAway: data.oneAway.filter(fits),
     almostInCollection: data.almostInCollection.filter(fits),
     source: data.source,
+    truncated: data.truncated,
     almostInCollectionTotal: data.almostInCollectionTotal,
   };
 }
 
 function rememberCache(key: string, value: ComboMatchResponse): void {
-  // Never cache a `source: 'server'` result. It's the fallback path (the
-  // device-local dataset couldn't be used) and can under-report a large
-  // collection — caching it made the degraded answer stick for the rest of
-  // the session even after the local cache recovered (E212). Leaving it
-  // uncached means the next mount retries automatically.
-  if (value.source === 'server') return;
+  // Never cache a TRUNCATED server result: it can under-report a large
+  // collection, and caching it made the degraded answer stick for the rest of
+  // the session (E212). Leaving it uncached means the next mount retries. An
+  // exact server answer (`truncated === false`) is the default path now (E560)
+  // and caches like a local one.
+  if (value.source === 'server' && value.truncated !== false) return;
   if (cache.size >= CACHE_LIMIT) {
     const oldestKey = cache.keys().next().value;
     if (oldestKey) cache.delete(oldestKey);

@@ -1,6 +1,8 @@
 import { apiUrl } from '@/lib/api/api-base';
 import {
+  clearOfflineData,
   getOfflineDataStats,
+  offlineDbExists,
   readManifest,
   readStandaloneCombosVersion,
   writeStandaloneCombosVersion,
@@ -9,13 +11,16 @@ import { importCombos } from './combos-import';
 import { logger } from '@/lib/util/logger';
 
 /**
- * Ensure the global combo dataset is cached in the device-local offline DB so
- * combo matching can run client-side — no login, no per-request server load,
- * works offline.
+ * Use the device-local combo dataset for client-side matching, but ONLY for a
+ * visitor who opted into offline card data in Settings (the manifest is written
+ * by that download and nowhere else). Everyone else gets `false` and matches on
+ * the server (`/api/combos/match`): the dataset is 19 MB gzipped and 80 to 95 MB
+ * in IndexedDB, and fetching it silently the first time anyone opened a deck is
+ * what put hundreds of MB into a visitor's site storage (E560). It is the same
+ * rule that made the ~30 MB oracle seed opt-in.
  *
- * This is the *combos-only* slice of the offline snapshot: it does NOT download
- * the ~30MB oracle-card cache (that's full offline mode). The combo dataset is
- * global reference data (identical for everyone, nightly-ingested from
+ * Opted in, this keeps the dataset fresh: a version bump re-imports it in the
+ * background. The combo dataset is global reference data (identical for everyone, nightly-ingested from
  * Commander Spellbook), and lives in `spellcontrol-offline` — the same
  * device-local store as the Scryfall/tagger caches, **never** touched by the
  * per-account `/api/sync` machinery. It is NOT tiny: measured 2026-07-31 at
@@ -25,8 +30,8 @@ import { logger } from '@/lib/util/logger';
  * Deduped per session (one inflight promise). Refreshes when the dataset
  * version moves, but serves a stale cache rather than failing if the refresh
  * can't complete. Returns false only when nothing is cached and the dataset
- * can't be fetched (e.g. offline on first use) — the caller then falls back to
- * the authed server `/api/combos/match` endpoint.
+ * can't be fetched (e.g. offline on first use) — the caller then uses the
+ * public server `/api/combos/match` endpoint.
  */
 let inflight: Promise<boolean> | null = null;
 
@@ -54,13 +59,14 @@ export function ensureCombosCached(): Promise<boolean> {
 }
 
 async function run(): Promise<boolean> {
+  const manifest = await readManifest();
+  if (!manifest) return false; // not opted in: never download, the server answers
   const { comboCount } = await getOfflineDataStats();
   const server = await fetchManifest();
   // "Cached" means rows AND a version stamp. The import streams rows in and
   // stamps the version only when the whole dataset arrived, so rows without a
   // stamp are a download that died mid-stream — finish it, don't serve it.
-  const cached =
-    (await readStandaloneCombosVersion()) ?? (await readManifest())?.combosVersion ?? null;
+  const cached = (await readStandaloneCombosVersion()) ?? manifest.combosVersion ?? null;
 
   if (comboCount > 0 && cached) {
     // Have combos already (combos-only cache or full offline mode). Refresh
@@ -141,4 +147,22 @@ function importInWorker(version: string): Promise<boolean> {
     };
     worker.postMessage({ version });
   });
+}
+
+/**
+ * Boot-time cleanup for visitors who have the combo dataset on disk without
+ * having opted in: before E560 the first deck they opened downloaded it. No
+ * manifest means no opt-in (and so no oracle cards worth keeping), so the whole
+ * offline database is cleared, which also frees the match index built from it.
+ * Returns whether anything was removed. A visitor who opted in is never touched.
+ */
+export async function discardUnoptedComboCache(): Promise<boolean> {
+  if (!(await offlineDbExists())) return false;
+  if (await readManifest()) return false;
+  const { cardCount, comboCount } = await getOfflineDataStats();
+  if (cardCount === 0 && comboCount === 0 && (await readStandaloneCombosVersion()) === null) {
+    return false;
+  }
+  await clearOfflineData();
+  return true;
 }

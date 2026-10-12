@@ -295,6 +295,17 @@ export async function writeStandaloneCombosVersion(version: string): Promise<voi
   await db.put(STORE_META, version, META_COMBOS_VERSION_KEY);
 }
 
+/**
+ * Does the offline database exist yet? Lets boot-time cleanup skip a visitor who
+ * never had one instead of creating an empty database just to look inside it.
+ * Where `indexedDB.databases()` is missing, answers true (open it and look).
+ */
+export async function offlineDbExists(): Promise<boolean> {
+  if (typeof indexedDB === 'undefined') return false;
+  if (typeof indexedDB.databases !== 'function') return true;
+  return (await indexedDB.databases()).some((d) => d.name === DB_NAME);
+}
+
 export async function clearOfflineData(): Promise<void> {
   comboWriteGeneration++;
   const db = await getDB();

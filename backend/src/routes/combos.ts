@@ -3,7 +3,7 @@ import { errorMessage } from '../error-utils';
 import { createHash } from 'node:crypto';
 import { Router, type Request, type Response } from 'express';
 import { testAwareLimiter } from '../route-utils';
-import { desc, eq, inArray, isNotNull } from 'drizzle-orm';
+import { asc, desc, eq, inArray, isNotNull } from 'drizzle-orm';
 import { requireAuth, requireAdmin } from '../auth';
 import { getDb } from '../db';
 import { combos, comboCards, comboIngestRuns } from '../db/schema';
@@ -165,26 +165,40 @@ function asStringArray(value: unknown, max: number): string[] | null {
  * for just those N. Two round-trips total (vs. three in the naive shape).
  */
 export async function loadRelevantCombos(oracleIds: string[]): Promise<ComboInput[]> {
-  if (oracleIds.length === 0) return [];
+  return (await loadRelevantCombosWithMeta(oracleIds)).combos;
+}
+
+/**
+ * `loadRelevantCombos` plus whether the MAX_CANDIDATE_COMBOS cap actually
+ * dropped candidates. `/match` reports it so the client can tell an exact
+ * answer from a truncated one (it is the default matcher for visitors who have
+ * not downloaded the dataset, so most answers are exact and must read that way).
+ */
+export async function loadRelevantCombosWithMeta(
+  oracleIds: string[]
+): Promise<{ combos: ComboInput[]; truncated: boolean }> {
+  if (oracleIds.length === 0) return { combos: [], truncated: false };
   const db = getDb();
 
-  // Hop 1: combo ids whose card list intersects the seed set.
-  const matchingComboIds = await db
-    .selectDistinct({ comboId: comboCards.comboId })
+  // Hops 1 and 2 in ONE statement: the candidate combo ids stay a subquery, never
+  // a bound list. Binding them was a 500 for a large collection (a 4,000-card
+  // collection touches ~39k combos, past the 32,767-parameter limit of one
+  // Postgres bind message), and `/match` is the default matcher now (E560).
+  // Take the top-N by popularity (id breaks ties, so the cut is stable), plus
+  // one so a dropped candidate shows up as `truncated` without a count query.
+  const candidateIds = db
+    .select({ comboId: comboCards.comboId })
     .from(comboCards)
     .where(inArray(comboCards.oracleId, oracleIds));
-  const allCandidateIds = matchingComboIds.map((r) => r.comboId);
-  if (allCandidateIds.length === 0) return [];
-
-  // Hop 2: take the top-N candidate combos by popularity. Avoids
-  // materializing 30k+ combo rows when the user has a huge collection.
-  const comboRows = await db
+  const fetched = await db
     .select()
     .from(combos)
-    .where(inArray(combos.id, allCandidateIds))
-    .orderBy(desc(combos.popularity))
-    .limit(MAX_CANDIDATE_COMBOS);
-  if (comboRows.length === 0) return [];
+    .where(inArray(combos.id, candidateIds))
+    .orderBy(desc(combos.popularity), asc(combos.id))
+    .limit(MAX_CANDIDATE_COMBOS + 1);
+  const truncated = fetched.length > MAX_CANDIDATE_COMBOS;
+  const comboRows = truncated ? fetched.slice(0, MAX_CANDIDATE_COMBOS) : fetched;
+  if (comboRows.length === 0) return { combos: [], truncated: false };
   const ids = comboRows.map((r) => r.id);
 
   // Hop 3: load ONLY the cards belonging to the surviving candidates. With
@@ -202,7 +216,7 @@ export async function loadRelevantCombos(oracleIds: string[]): Promise<ComboInpu
     cardsByCombo.set(r.comboId, list);
   }
 
-  return comboRows.map((row) => ({
+  const combosOut = comboRows.map((row) => ({
     id: row.id,
     identity: row.identity,
     produces: row.produces,
@@ -218,9 +232,14 @@ export async function loadRelevantCombos(oracleIds: string[]): Promise<ComboInpu
     templateQueries: row.templateQueries ?? null,
     cards: cardsByCombo.get(row.id) ?? [],
   }));
+  return { combos: combosOut, truncated };
 }
 
-combosRouter.post('/match', matchLimiter, requireAuth, async (req: Request, res: Response) => {
+// Public on purpose: the combo dataset is global reference data (the whole of it
+// is already served unauthenticated at /api/offline/combos), and a signed-out
+// visitor opening a deck is the common caller now that the browser no longer
+// downloads the dataset unless asked to (E560). The limiter is what bounds it.
+combosRouter.post('/match', matchLimiter, async (req: Request, res: Response) => {
   const body = req.body as {
     ownedOracleIds?: unknown;
     deckOracleIds?: unknown;
@@ -257,17 +276,37 @@ combosRouter.post('/match', matchLimiter, requireAuth, async (req: Request, res:
   const seedIds = new Set<string>(ownedOracleIds);
   if (deckOracleIds) for (const id of deckOracleIds) seedIds.add(id);
 
-  const relevant = await loadRelevantCombos(Array.from(seedIds));
-  const result = matchCombos({
-    combos: relevant,
-    ownedOracleIds,
-    deckOracleIds: deckOracleIds ?? undefined,
-    format,
-  });
+  const { combos: relevant, truncated } = await loadRelevantCombosWithMeta(Array.from(seedIds));
+  const result = {
+    ...matchCombos({
+      combos: relevant,
+      ownedOracleIds,
+      deckOracleIds: deckOracleIds ?? undefined,
+      format,
+    }),
+    truncated,
+  };
 
   rememberMatch(cacheKey, result);
   res.set('X-Combos-Cache', 'miss');
   res.json(result);
+});
+
+// Bracket tags for a handful of combo ids (deck generation tags the combos
+// EDHREC returns, which carry none). Public for the same reason as /match, and
+// small by construction: one indexed lookup, MAX_TAG_IDS ids.
+const MAX_TAG_IDS = 200;
+combosRouter.post('/bracket-tags', matchLimiter, async (req: Request, res: Response) => {
+  const ids = asStringArray((req.body as { ids?: unknown }).ids, MAX_TAG_IDS);
+  if (!ids) return res.status(400).json({ error: 'ids must be a string array.' });
+  if (ids.length === 0) return res.json({ tags: {} });
+  const rows = await getDb()
+    .select({ id: combos.id, bracketTag: combos.bracketTag })
+    .from(combos)
+    .where(inArray(combos.id, ids));
+  const tags: Record<string, string | null> = {};
+  for (const r of rows) tags[r.id] = r.bracketTag ?? null;
+  res.json({ tags });
 });
 
 combosRouter.get('/:id', requireAuth, detailLimiter, async (req: Request, res: Response) => {

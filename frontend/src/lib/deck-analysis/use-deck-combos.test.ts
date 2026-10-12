@@ -75,8 +75,8 @@ describe('useDeckCombos — server-fallback result never sticks', () => {
 
   const args = { deckOracleIds: [], ownedOracleIds: ['a', 'b'], format: 'commander' };
 
-  it('does not cache a source:"server" result, so a later mount refetches', async () => {
-    matchCombos.mockResolvedValue({ ...response(), source: 'server' });
+  it('does not cache a truncated server result, so a later mount refetches', async () => {
+    matchCombos.mockResolvedValue({ ...response(), source: 'server', truncated: true });
 
     const first = renderHook(() => useDeckCombos(args));
     await waitFor(() => expect(first.result.current.loading).toBe(false));
@@ -89,6 +89,31 @@ describe('useDeckCombos — server-fallback result never sticks', () => {
     const second = renderHook(() => useDeckCombos(args));
     await waitFor(() => expect(second.result.current.loading).toBe(false));
     expect(matchCombos.mock.calls.length).toBeGreaterThan(callsAfterFirst);
+  });
+
+  it('caches an exact server result (the default path, E560) like a local one', async () => {
+    matchCombos.mockResolvedValue({ ...response(), source: 'server', truncated: false });
+
+    const first = renderHook(() => useDeckCombos(args));
+    await waitFor(() => expect(first.result.current.loading).toBe(false));
+    first.unmount();
+    const callsAfterFirst = matchCombos.mock.calls.length;
+
+    const second = renderHook(() => useDeckCombos(args));
+    await waitFor(() => expect(second.result.current.data).not.toBeNull());
+    expect(matchCombos.mock.calls.length).toBe(callsAfterFirst);
+  });
+
+  it('treats a server result with no truncated flag as truncated (older server)', async () => {
+    matchCombos.mockResolvedValue({ ...response(), source: 'server' });
+
+    const first = renderHook(() => useDeckCombos(args));
+    await waitFor(() => expect(first.result.current.loading).toBe(false));
+    first.unmount();
+    const callsAfterFirst = matchCombos.mock.calls.length;
+
+    renderHook(() => useDeckCombos(args));
+    await waitFor(() => expect(matchCombos.mock.calls.length).toBeGreaterThan(callsAfterFirst));
   });
 
   it('caches a source:"local" result normally (no refetch on remount)', async () => {

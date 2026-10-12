@@ -29,13 +29,11 @@ async function fetchJson<T>(url: string, init: RequestInit): Promise<T> {
 }
 
 export async function matchCombos(req: MatchRequest): Promise<ComboMatchResponse> {
-  // Prefer client-side matching against the device-local combo dataset: no
-  // login required, no per-request load on the server (whose /match endpoint
-  // has OOM-crashed under load), and it works offline. The dataset is global
-  // reference data, lazily cached on first use. We only fall back to the authed
-  // server endpoint when the dataset can't be cached (e.g. offline + empty
-  // cache on first run) — for a logged-in user that still works.
-  let localFailed = false;
+  // The server matcher is the default (E560): the full dataset is 19 MB
+  // gzipped and 80 to 95 MB on disk, so the browser holds it only for a visitor
+  // who opted into offline card data in Settings. `ensureCombosCached` is false
+  // for everyone else and never downloads. `/api/combos/match` is public, so a
+  // signed-out visitor gets the same answer.
   if (await ensureCombosCached()) {
     try {
       const local = await matchCombosLocal({
@@ -47,29 +45,19 @@ export async function matchCombos(req: MatchRequest): Promise<ComboMatchResponse
     } catch (err) {
       // A local matcher failure is a browser-storage failure (e.g. Firefox's
       // IndexedDB response cap, a wedged database), and its message is a
-      // browser internal — never authored copy. "The dataset couldn't be
-      // used" is exactly the case the server fallback below exists for, so
-      // take it rather than surfacing the raw exception on the deck panel.
+      // browser internal, never authored copy. "The dataset couldn't be
+      // used" is exactly the case the server path below is for, so take it
+      // rather than surfacing the raw exception on the deck panel.
       logger.warn('[combos] local matcher failed, falling back to the server', err);
-      localFailed = true;
     }
   }
-  // Fallback path — device-local cache couldn't be used. `/api/combos/match`
-  // caps candidates at 2000 for memory safety (see MAX_CANDIDATE_COMBOS), so
-  // this can under-report a large collection. Tag it so callers don't present
-  // it as a complete answer (E212).
+  // `/api/combos/match` caps candidates at 2000 for memory safety (see
+  // MAX_CANDIDATE_COMBOS). It says when the cap dropped any (`truncated`), so
+  // callers only present the answer as partial when it is (E212).
   const server = await fetchJson<Omit<ComboMatchResponse, 'source'>>('/api/combos/match', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
-  }).catch((err: Error & { status?: number }) => {
-    // Signed out AND the device-local matcher just failed: the server's
-    // "Sign in to continue." is accurate but names the wrong problem — the
-    // user did nothing auth-shaped, their browser storage did. Say that.
-    if (localFailed && err.status === 401) {
-      throw new Error("Couldn't load combos on this device. Try again in a moment.");
-    }
-    throw err;
   });
   return { ...server, source: 'server' };
 }
@@ -90,6 +78,24 @@ export async function searchCombos(req: {
 }): Promise<ComboSearchResult | null> {
   if (!(await ensureCombosCached())) return null;
   return searchCombosLocal(req);
+}
+
+/**
+ * Spellbook's bracket tag for a few combo ids, from the server: how deck
+ * generation tags EDHREC's combos on a device that has not downloaded the
+ * dataset (E560). Ids the dataset doesn't know are absent from the map.
+ */
+export async function fetchComboBracketTags(ids: string[]): Promise<Map<string, string | null>> {
+  if (ids.length === 0) return new Map();
+  const data = await fetchJson<{ tags: Record<string, string | null> }>(
+    '/api/combos/bracket-tags',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    }
+  );
+  return new Map(Object.entries(data.tags));
 }
 
 export async function getCombo(id: string): Promise<ComboDetail> {

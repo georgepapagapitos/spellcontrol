@@ -167,6 +167,27 @@ export default function App() {
     void bootstrap();
   }, [bootstrap]);
 
+  // The combo dataset is opt-in (Settings, offline card data) since E560, but
+  // earlier builds downloaded it the first time any visitor opened a deck. Once
+  // the app has settled, drop that copy for anyone who didn't opt in. A timer,
+  // not a boot dependency: the cleanup chunk stays out of the entry's graph.
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      void import('@/lib/offline/ensure-combos')
+        .then((m) => m.discardUnoptedComboCache())
+        .catch(() => {});
+      // Same pass: analysis entries of decks that no longer exist. Skipped while
+      // the deck list is empty, which also reads as "not loaded yet".
+      void Promise.all([import('@/store/decks'), import('@/lib/deck-analysis/deck-analysis-cache')])
+        .then(([{ useDecksStore }, cache]) => {
+          const ids = useDecksStore.getState().decks.map((d) => d.id);
+          if (ids.length > 0) return cache.pruneAnalysisCache(ids);
+        })
+        .catch(() => {});
+    }, 4000);
+    return () => window.clearTimeout(t);
+  }, []);
+
   // Keep the app's own admin out of the usage counters. The beacon holds no
   // identity by design, so this is the only way to tell the owner's browsing
   // from a visitor's; errors and vitals still report either way.

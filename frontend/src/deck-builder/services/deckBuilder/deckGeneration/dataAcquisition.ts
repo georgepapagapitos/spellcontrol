@@ -20,6 +20,7 @@ import {
 import { prefetchBasicLands, getGameChangerNames } from '@/deck-builder/services/scryfall/client';
 import { loadTaggerData, hasTaggerData } from '@/deck-builder/services/tagger/client';
 import { offlineCombosCached, offlineGetCombosByIds } from '@/lib/offline';
+import { fetchComboBracketTags } from '@/lib/api/combos';
 import { bracketLabel } from '../bracketEstimator';
 import { loadCardSimilar, hasCardSimilar } from '../cardSimilar';
 import { buildAlternatePool, type AlternatePoolResult } from '../phaseAlternatePool';
@@ -312,10 +313,10 @@ export function setGenerationCacheCardMap(cardMap: Map<string, ScryfallCard>): v
  * Bracket 4 the tag means — so generation and the deck page (which sees the
  * real Spellbook tag) disagree on the same deck.
  *
- * Only a dataset already on the device is used. It is 17 MB gzipped, and a
- * device that has never cached it must not make generation wait for (or share
- * its bandwidth with) that download; the deck page fetches it and re-estimates
- * with the tags anyway.
+ * A dataset already on the device (the offline-data opt-in) is read locally.
+ * Everyone else asks the server for just these ids (`/api/combos/bracket-tags`,
+ * a few hundred bytes): the dataset is 19 MB gzipped and is never downloaded
+ * for generation's sake (E560).
  *
  * Runs once per generation, right after the EDHREC fetch, so every downstream
  * phase (combo detection, the combo floor, bracket convergence, the build
@@ -327,13 +328,16 @@ export function setGenerationCacheCardMap(cardMap: Map<string, ScryfallCard>): v
 async function enrichCombosWithBracketTags(combos: EDHRECCombo[]): Promise<EDHRECCombo[]> {
   if (combos.length === 0) return combos;
   try {
-    if (!(await offlineCombosCached())) return combos;
-    const rows = await offlineGetCombosByIds(combos.map((c) => c.comboId));
-    if (rows.size === 0) return combos;
-    return combos.map((c) => {
-      const row = rows.get(c.comboId);
-      return row ? { ...c, bracketTag: row.bracketTag ?? null } : c;
-    });
+    const ids = combos.map((c) => c.comboId);
+    const tags = (await offlineCombosCached())
+      ? new Map(
+          Array.from(await offlineGetCombosByIds(ids), ([id, row]) => [id, row.bracketTag ?? null])
+        )
+      : await fetchComboBracketTags(ids);
+    if (tags.size === 0) return combos;
+    return combos.map((c) =>
+      tags.has(c.comboId) ? { ...c, bracketTag: tags.get(c.comboId) ?? null } : c
+    );
   } catch (error) {
     logger.warn('[DeckGen] combo bracketTag enrichment skipped —', error);
     return combos;

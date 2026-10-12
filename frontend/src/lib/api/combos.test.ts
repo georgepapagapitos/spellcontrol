@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { matchCombos, getCombo, fetchOracleIds } from './combos';
+import { matchCombos, getCombo, fetchOracleIds, fetchComboBracketTags } from './combos';
 import { ensureCombosCached, matchCombosLocal } from '../offline';
 
 // matchCombos prefers client-side matching; mock the offline layer so we can
@@ -117,26 +117,70 @@ describe('matchCombos (client-side)', () => {
   });
 });
 
-describe('matchCombos (local failure + signed out)', () => {
-  it('names the device, not sign-in, when the local matcher failed and the server says 401', async () => {
-    vi.mocked(ensureCombosCached).mockResolvedValue(true);
-    vi.mocked(matchCombosLocal).mockRejectedValue(new Error('IndexedDB is not available.'));
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      jsonResponse({ error: 'Sign in to continue.' }, { status: 401 })
-    );
+describe('matchCombos (server path, the default)', () => {
+  const body = { inDeck: [], oneAway: [], almostInCollection: [], almostInCollectionTotal: 0 };
 
-    await expect(matchCombos({ ownedOracleIds: ['a'] })).rejects.toThrow(
-      /couldn't load combos on this device/i
+  it('goes to the server without ever touching the dataset when it is not cached', async () => {
+    vi.mocked(ensureCombosCached).mockResolvedValue(false);
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(jsonResponse({ ...body, truncated: false }));
+
+    const result = await matchCombos({ ownedOracleIds: ['a'], deckOracleIds: ['b'] });
+
+    expect(matchCombosLocal).not.toHaveBeenCalled();
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/combos/match',
+      expect.objectContaining({ method: 'POST' })
     );
+    expect(result).toEqual({ ...body, truncated: false, source: 'server' });
   });
 
-  it('keeps the server message for a 401 when the local matcher was never tried', async () => {
+  it('passes the server truncation flag through', async () => {
     vi.mocked(ensureCombosCached).mockResolvedValue(false);
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      jsonResponse({ error: 'Sign in to continue.' }, { status: 401 })
-    );
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ ...body, truncated: true }));
 
-    await expect(matchCombos({ ownedOracleIds: ['a'] })).rejects.toThrow(/sign in to continue/i);
+    expect((await matchCombos({ ownedOracleIds: ['a'] })).truncated).toBe(true);
+  });
+
+  it('takes the server path when the local matcher throws', async () => {
+    vi.mocked(ensureCombosCached).mockResolvedValue(true);
+    vi.mocked(matchCombosLocal).mockRejectedValue(new Error('IndexedDB is not available.'));
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ ...body, truncated: false }));
+
+    expect((await matchCombos({ ownedOracleIds: ['a'] })).source).toBe('server');
+  });
+
+  it('surfaces a server error as authored copy, not the raw exception', async () => {
+    vi.mocked(ensureCombosCached).mockResolvedValue(false);
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('Failed to fetch'));
+
+    await expect(matchCombos({ ownedOracleIds: ['a'] })).rejects.toThrow(
+      /couldn't reach combos right now/i
+    );
+  });
+});
+
+describe('fetchComboBracketTags', () => {
+  it('skips the request for no ids', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    expect((await fetchComboBracketTags([])).size).toBe(0);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('POSTs the ids and returns a map of tags', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(jsonResponse({ tags: { '1-2': 'R', '3-4': null } }));
+
+    const tags = await fetchComboBracketTags(['1-2', '3-4']);
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/combos/bracket-tags',
+      expect.objectContaining({ method: 'POST', body: JSON.stringify({ ids: ['1-2', '3-4'] }) })
+    );
+    expect(tags.get('1-2')).toBe('R');
+    expect(tags.get('3-4')).toBeNull();
   });
 });
 

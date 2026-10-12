@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { __resetMatchCacheForTesting, __expireDatasetVersionForTesting } from './combos';
 import request from 'supertest';
+import { eq } from 'drizzle-orm';
 import type { Server } from 'node:http';
 import { createTestEnv, extractSessionCookie } from '../test-helpers';
 import { getDb } from '../db';
@@ -89,10 +90,79 @@ beforeEach(() => {
   __resetMatchCacheForTesting();
 });
 
+describe('POST /api/combos/match with a huge candidate set', () => {
+  // A 4,000-card collection touches ~39k combos. Binding those ids into one
+  // statement is past Postgres's 32,767-parameter limit and 500ed the request;
+  // `/match` is the default matcher now (E560), so this must stay a 200.
+  it('answers 200 and reports truncation instead of failing on 33k candidates', async () => {
+    const db = getDb();
+    const N = 33_000;
+    const ids = Array.from({ length: N }, (_, i) => `bulk-${i}`);
+    for (let i = 0; i < N; i += 2000) {
+      await db.insert(combos).values(
+        ids.slice(i, i + 2000).map((id, k) => ({
+          id,
+          identity: 'c',
+          produces: ['Win the game'],
+          legalities: { commander: 'legal' },
+          popularity: N - i - k,
+          cardCount: 1,
+          updatedAt: Date.now(),
+        }))
+      );
+    }
+    for (let i = 0; i < N; i += 5000) {
+      await db.insert(comboCards).values(
+        ids.slice(i, i + 5000).map((comboId) => ({
+          comboId,
+          oracleId: 'oracle-bulk',
+          cardName: 'Bulk Card',
+          position: 0,
+        }))
+      );
+    }
+
+    const res = await request(app)
+      .post('/api/combos/match')
+      .send({ ownedOracleIds: ['oracle-bulk'], deckOracleIds: [], format: 'commander' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.truncated).toBe(true);
+  }, 60_000);
+});
+
+describe('POST /api/combos/bracket-tags', () => {
+  it('returns the stored tag for known ids and omits unknown ones, signed out', async () => {
+    await getDb().update(combos).set({ bracketTag: 'R' }).where(eq(combos.id, 'combo-labman'));
+    const res = await request(app)
+      .post('/api/combos/bracket-tags')
+      .send({ ids: ['combo-labman', 'combo-thoracle', 'nope'] });
+    expect(res.status).toBe(200);
+    expect(res.body.tags).toEqual({ 'combo-labman': 'R', 'combo-thoracle': null });
+  });
+
+  it('answers an empty list without a query, and 400s a non-array', async () => {
+    const empty = await request(app).post('/api/combos/bracket-tags').send({ ids: [] });
+    expect(empty.body).toEqual({ tags: {} });
+    const bad = await request(app).post('/api/combos/bracket-tags').send({ ids: 'x' });
+    expect(bad.status).toBe(400);
+  });
+});
+
 describe('POST /api/combos/match', () => {
-  it('returns 401 without auth', async () => {
-    const res = await request(app).post('/api/combos/match').send({ ownedOracleIds: [] });
-    expect(res.status).toBe(401);
+  it('answers a signed-out visitor: the dataset is public and the browser no longer holds it (E560)', async () => {
+    const res = await request(app)
+      .post('/api/combos/match')
+      .send({
+        ownedOracleIds: ['oracle-thassa', 'oracle-consult'],
+        deckOracleIds: ['oracle-thassa', 'oracle-consult'],
+      });
+    expect(res.status).toBe(200);
+    expect(res.body.inDeck.map((m: { combo: { id: string } }) => m.combo.id)).toEqual([
+      'combo-thoracle',
+    ]);
+    // Two candidates against a 2000 cap: an exact answer, not a partial one.
+    expect(res.body.truncated).toBe(false);
   });
 
   it('400s when ownedOracleIds is missing', async () => {
