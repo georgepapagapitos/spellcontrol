@@ -1,5 +1,5 @@
 import { canRegenerate, regenerateHref, regenerateState } from '@/lib/deck/regenerate-prefill';
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 // Editor-only stylesheets ship with this chunk, not the boot payload (E265).
 import '@/styles/deck-builder-export.css';
 import '@/styles/deck-builder-editor.css';
@@ -16,7 +16,6 @@ import { useDecksStore, effectiveBracket, type Deck } from '../store/decks';
 import { useDeckHistoryStore } from '../store/deck-history';
 import { type DeckView } from '@/lib/deck-analysis/deck-view';
 import { Tabs } from '@/components/overlays/Tabs';
-import { type CardSearchPanelHandle } from '../components/deck/CardSearchPanel';
 import { buildAlternativeIndex } from '@/lib/ai/refine-alternatives';
 import { DeckPublishNudge } from '../components/deck/DeckPublishNudge';
 import { useSealMoment } from '../components/shared/SealMoment';
@@ -29,17 +28,12 @@ import { heroBracketReadout } from '@/lib/deck-analysis/format-bracket-label';
 import { loadTaggerData, hasTaggerData } from '@/deck-builder/services/tagger/client';
 import { useUndoRedoKeyboard } from '@/lib/deck/use-undo-redo-keyboard';
 import { useRegisterShortcuts } from '@/components/app-shell/shortcut-registry';
-import { isBuildReportSeen } from '@/lib/deck/build-report-seen';
 import type { ComboSeedContext } from '../types/combos';
 import { useToastsStore } from '../store/toasts';
 import { getCardByName } from '../deck-builder/services/scryfall/client';
 import { getSyncState, onSyncedChange } from '@/lib/sync';
 import { Button } from '@/components/shared/Button';
-import {
-  DECK_EDITOR_SHORTCUTS,
-  OWNED_ONLY_KEY,
-  readOwnedOnly,
-} from './deck-editor/deck-editor-helpers';
+import { DECK_EDITOR_SHORTCUTS } from './deck-editor/deck-editor-helpers';
 import { DeckEditorHero } from './deck-editor/DeckEditorHero';
 import { DeckEditorOverflowMenu } from './deck-editor/DeckEditorOverflowMenu';
 import { deckViewTabs } from './deck-editor/deck-page-chrome';
@@ -48,6 +42,7 @@ import { useSuggestionContext } from '@/lib/util/use-suggestion-context';
 import { useDeckArrivals } from './deck-editor/use-deck-arrivals';
 import { useDeckPrintingEdits } from './deck-editor/use-deck-printing-edits';
 import { useDeckCommanderEdits } from './deck-editor/use-deck-commander-edits';
+import { useDeckEditorUi } from './deck-editor/use-deck-editor-ui';
 import { useDeckView } from './deck-editor/use-deck-view';
 import { useDeckAddFlow } from './deck-editor/use-deck-add-flow';
 import { useDeckReallocation } from './deck-editor/use-deck-reallocation';
@@ -146,6 +141,7 @@ function DeckEditor({ deck }: { deck: Deck }) {
   // holds exactly what isn't on screen at that width.
   const isPhone = useMediaQuery('(max-width: 599px)');
   const isDesktop = useMediaQuery('(min-width: 1024px)');
+  const ownership = useDeckOwnership({ collectionCards, deck });
   const {
     collectionById,
     ownedOracleIds,
@@ -155,55 +151,24 @@ function DeckEditor({ deck }: { deck: Deck }) {
     ownershipFor,
     binderByCardName,
     freeCountFor,
-    binderByCopyId,
-    effectiveCostPlan,
-    resolveAvailability,
-    resolveOwnedFinishes,
-  } = useDeckOwnership({ collectionCards, deck });
-  const { arrivalsByType } = useDeckArrivals({ deck, collectionById });
+  } = ownership;
+  const deckArrivals = useDeckArrivals({ deck, collectionById });
+  const { arrivalsByType } = deckArrivals;
   const [renaming, setRenaming] = useState(false);
+  const commanderEdits = useDeckCommanderEdits({ deck, collectionCards });
+  const ui = useDeckEditorUi({ deck });
   const {
-    handleMakeCommanderClick,
-    handleMakePartnerClick,
-    canMakePartner,
-    setShowCommanderPicker,
-    setShowPartnerPicker,
-    makeCommanderTarget,
-    setMakeCommanderTarget,
-    handleConfirmMakeCommander,
-    makePartnerTarget,
-    setMakePartnerTarget,
-    handleConfirmMakePartner,
-    showCommanderPicker,
-    handleSelectCommanderFromPicker,
-    showPartnerPicker,
-    handleSelectPartnerFromPicker,
-  } = useDeckCommanderEdits({ deck, collectionCards });
-  const [showAddPanel, setShowAddPanel] = useState(false);
-  // Coach "Owned only" filter — shared by the feed and the Next-best-move hero.
-  const [ownedOnly, setOwnedOnly] = useState<boolean>(readOwnedOnly);
-  const handleOwnedOnlyChange = useCallback((next: boolean) => {
-    setOwnedOnly(next);
-    try {
-      window.localStorage.setItem(OWNED_ONLY_KEY, next ? '1' : '0');
-    } catch {
-      /* storage unavailable — non-fatal */
-    }
-  }, []);
-  // One-shot build-report sheet: shown once immediately after deck generation.
-  // Gated on BOTH the justGenerated router state (set by the build flow's
-  // post-save navigate — so pre-existing generated decks never pop it) AND the
-  // localStorage seen-set (so a refresh that restores history state doesn't
-  // re-show it).
-  const [showBuildReport, setShowBuildReport] = useState(
-    () =>
-      !!(
-        (location.state as { justGenerated?: boolean } | null)?.justGenerated &&
-        deck?.source === 'generated' &&
-        deck?.buildReport &&
-        !isBuildReportSeen(deck?.id ?? '')
-      )
-  );
+    showAddPanel,
+    setShowAddPanel,
+    searchPanelRef,
+    ownedOnly,
+    handleToggleAddPanel,
+    setFeedbackOpen,
+    setPrimerOpen,
+    setShowBuildReport,
+    setTokensOpen,
+    setPullListOpen,
+  } = ui;
   // First-publish seal + post-create visibility nudge (E150) — two more
   // one-shot router-state flags in the same `justGenerated` shape, set by
   // whichever creation flow the deck just came from:
@@ -234,53 +199,29 @@ function DeckEditor({ deck }: { deck: Deck }) {
   const [comboSeedContext] = useState(
     () => (location.state as { comboContext?: ComboSeedContext } | null)?.comboContext ?? null
   );
-  // Feedback Tool: mint/copy the suggestion link + review submitted responses.
-  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [addZone, setAddZone] = useState<'main' | 'side' | 'considering'>('main');
-  const searchPanelRef = useRef<CardSearchPanelHandle>(null);
+  const deckView = useDeckView();
   const {
     combosRef,
     planOpen,
-    view,
-    openAnalysisTab,
     setPlanOpen,
-    setExportOpen,
-    setShowTestHand,
     viewScrollRef,
     setView,
     setStatSlot,
-    arrivalsDeepLink,
-    exportOpen,
-    statSlot,
-    handleNavigateToTune,
-    tuneFocusLane,
-    clearTuneFocus,
-    handleNbmNavigate,
-    showTestHand,
-  } = useDeckView();
-  const {
+    setExportOpen,
+    setShowTestHand,
+    openAnalysisTab,
+    view,
+  } = deckView;
+  const realloc = useDeckReallocation({ deck, collectionCards });
+  const { executeReallocation, applyDonorOutcome } = realloc;
+  const printingEdits = useDeckPrintingEdits({
+    deck,
+    collectionCards,
     executeReallocation,
     applyDonorOutcome,
-    setMoveCard,
-    setReleaseCard,
-    handleSetProxy,
-    handleUseOwnCopy,
-    moveCard,
-    handleMoveConfirm,
-    releaseCard,
-    handleReleaseConfirm,
-    handleMoveSharedCopy,
-  } = useDeckReallocation({ deck, collectionCards });
-  const {
-    setEditingSlot,
-    handleMatchMyCopies,
-    handleCheapestPrintings,
-    editingSlot,
-    handleEditConfirm,
-    movePrompt,
-    handleMovePrintingConfirm,
-    setMovePrompt,
-  } = useDeckPrintingEdits({ deck, collectionCards, executeReallocation, applyDonorOutcome });
+  });
+  const { setEditingSlot } = printingEdits;
 
   // Load tagger role data on mount (deduped) so the in-context "Swap this card"
   // section can scope alternatives to a card's role even when the preview is
@@ -288,10 +229,10 @@ function DeckEditor({ deck }: { deck: Deck }) {
   useEffect(() => {
     if (!hasTaggerData()) void loadTaggerData();
   }, []);
+  const derived = useDeckDerived({ deck, addZone, collectionById });
   const {
     deckScryCards,
     commanderColorIdentity,
-    deckOracleIds,
     comboColorIdentity,
     mainboardOracleIds,
     formatConfig,
@@ -305,19 +246,9 @@ function DeckEditor({ deck }: { deck: Deck }) {
     commanderKey,
     isCommander,
     hasPullSlots,
-    deckLibrary,
-    hasCopyMismatches,
-    hasMissingSlots,
-    axisSummaries,
-  } = useDeckDerived({ deck, addZone, collectionById });
+    deckOracleIds,
+  } = derived;
   const deckTokens = useDeckTokens(deckScryCards);
-  const [tokensOpen, setTokensOpen] = useState(false);
-  const [pullListOpen, setPullListOpen] = useState(false);
-  const [primerOpen, setPrimerOpen] = useState(false);
-  const [appendOpen, setAppendOpen] = useState(false);
-  const [bulkEditOpen, setBulkEditOpen] = useState(false);
-  const [resyncOpen, setResyncOpen] = useState(false);
-  const [showSharedCopies, setShowSharedCopies] = useState(false);
 
   // First-publish seal moment (E150), driven by the justPublished router
   // state set above. Fires here rather than on the creating page (DeckNewPage
@@ -339,16 +270,7 @@ function DeckEditor({ deck }: { deck: Deck }) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [justPublished, deck?.id]);
-  const {
-    mainboardComboData,
-    comboData,
-    handleViewCombos,
-    handleViewWinConditions,
-    handleViewBracket,
-    combosByOracle,
-    comboOwnedMissingCount,
-    handleViewEngine,
-  } = useDeckCombosView({
+  const combosView = useDeckCombosView({
     deckOracleIds,
     ownedOracleIds,
     deck,
@@ -358,20 +280,13 @@ function DeckEditor({ deck }: { deck: Deck }) {
     combosRef,
   });
   const {
-    liveRoleCounts,
-    taggerReady,
-    buildTimeNudge,
-    analysisState,
-    bracketAnalysis,
-    replaceCuts,
-    crossDeckMoves,
-    suggestGroups,
-    scoreRevealKey,
-    coachSettings,
-    planAvailable,
-    upgradePlanTools,
-    nextBestMoves,
-  } = useDeckAnalysisData({
+    mainboardComboData,
+    comboData,
+    handleViewCombos,
+    handleViewWinConditions,
+    handleViewBracket,
+  } = combosView;
+  const analysis = useDeckAnalysisData({
     deck,
     mainboardComboData,
     comboData,
@@ -386,34 +301,15 @@ function DeckEditor({ deck }: { deck: Deck }) {
     ownedOnly,
   });
   const {
-    setAuditionPinnedCutName,
-    setAuditionCard,
-    addChosenCard,
-    setPendingMove,
-    setPendingAdd,
-    setPendingAddPrinting,
-    setPendingAddGroup,
-    commitCrossDeckMove,
-    handleAddEngineCard,
-    handleCutEngineCard,
-    setShowFill,
-    addingEngineNames,
-    auditionCard,
-    auditionReport,
-    auditionPinnedCutName,
-    showFill,
-    pendingAdd,
-    replaceOptions,
-    pendingMoveFor,
-    addToSideboardAndClose,
-    addToConsideringAndClose,
-    addAnywayAndClose,
-    refillAfterCut,
-    refillOptions,
-    setRefillAfterCut,
-    addZoneLabel,
-    handleScryfallDrop,
-  } = useDeckAddFlow({
+    liveRoleCounts,
+    taggerReady,
+    buildTimeNudge,
+    analysisState,
+    bracketAnalysis,
+    replaceCuts,
+    crossDeckMoves,
+  } = analysis;
+  const addFlow = useDeckAddFlow({
     deckIsFull,
     addZone,
     setShowAddPanel,
@@ -431,13 +327,20 @@ function DeckEditor({ deck }: { deck: Deck }) {
     executeReallocation,
   });
   const {
-    handleApplyCoachMove,
-    handleApplyCostSwaps,
-    swappingSlot,
-    handleSwapInDeck,
-    bracketFitSwapName,
-    handleApplyPlan,
-  } = useDeckCoachApply({
+    setAuditionPinnedCutName,
+    setAuditionCard,
+    addChosenCard,
+    setPendingMove,
+    setPendingAdd,
+    setPendingAddPrinting,
+    setPendingAddGroup,
+    commitCrossDeckMove,
+    handleAddEngineCard,
+    handleCutEngineCard,
+    addZoneLabel,
+    handleScryfallDrop,
+  } = addFlow;
+  const coachApply = useDeckCoachApply({
     deck,
     collectionCards,
     crossDeckMoves,
@@ -451,18 +354,19 @@ function DeckEditor({ deck }: { deck: Deck }) {
     handleCutEngineCard,
     setPlanOpen,
   });
-  const { refinePool, aiScope, landUpgrades, setAiAgrees, substitutionPlan, aiAgrees } =
-    useDeckRefineData({
-      collectionCards,
-      view,
-      deck,
-      ownedNames,
-      liveRoleCounts,
-      commanderColorIdentity,
-      deckCards,
-      deckCardNames,
-    });
-  const { coachArrivals, arrivalsSettled } = useCoachArrivals({
+  const { handleApplyCoachMove, handleApplyCostSwaps, swappingSlot, handleSwapInDeck } = coachApply;
+  const refine = useDeckRefineData({
+    collectionCards,
+    view,
+    deck,
+    ownedNames,
+    liveRoleCounts,
+    commanderColorIdentity,
+    deckCards,
+    deckCardNames,
+  });
+  const { refinePool, aiScope } = refine;
+  const arrivals = useCoachArrivals({
     deck,
     mainboardComboData,
     arrivalsByType,
@@ -513,68 +417,42 @@ function DeckEditor({ deck }: { deck: Deck }) {
     const newId = duplicateDeck(deck.id);
     if (newId) navigate(`/decks/${newId}`);
   };
-  const handleToggleAddPanel = () => {
-    const next = !showAddPanel;
-    setShowAddPanel(next);
-    if (next) {
-      window.requestAnimationFrame(() => searchPanelRef.current?.focusInput());
-    }
-  };
-  const { renderSwapSuggestions, renderSimilarCards, renderAddPanelContent } = useDeckCardRenderers(
-    {
-      addZone,
-      setAddZone,
-      formatConfig,
-      buildTimeNudge,
-      openAnalysisTab,
-      handleViewCombos,
-      handleViewWinConditions,
-      handleViewBracket,
-      searchPanelRef,
-      deck,
-      commanderColorIdentity,
-      commanderNames,
-      existingCardCounts,
-      atCopyLimit,
-      binderByCardName,
-      addChosenCard,
-      setAuditionCard,
-      mainboardComboData,
-      ownershipFor,
-      analysisState,
-      bracketAnalysis,
-      commanderKey,
-      refinePool,
-      aiScope,
-      refineAlternatives,
-      deckIsFull,
-      setShowAddPanel,
-      handleApplyCoachMove,
-      handleApplyCostSwaps,
-      swappingSlot,
-      handleSwapInDeck,
-      collectionCards,
-      freeCountFor,
-    }
-  );
-  const {
-    handleRemoveCard,
-    handleRemoveSideboardCard,
-    handleRemoveConsideringCard,
-    handleMoveToSideboard,
-    handleMoveToMainboard,
-    handleMoveToConsidering,
-    handleMoveFromConsidering,
-    handleSetQty,
-    handleEditCard,
-    handleSetCardTags,
-    handleRenameDeckTag,
-    handleRemoveDeckTag,
-    handleBulkRemove,
-    handleBulkMove,
-    handleBulkEditTag,
-    handleReorder,
-  } = useDeckZoneEdits({ deck, formatConfig, collectionCards, setEditingSlot });
+  const renderers = useDeckCardRenderers({
+    addZone,
+    setAddZone,
+    formatConfig,
+    buildTimeNudge,
+    openAnalysisTab,
+    handleViewCombos,
+    handleViewWinConditions,
+    handleViewBracket,
+    searchPanelRef,
+    deck,
+    commanderColorIdentity,
+    commanderNames,
+    existingCardCounts,
+    atCopyLimit,
+    binderByCardName,
+    addChosenCard,
+    setAuditionCard,
+    mainboardComboData,
+    ownershipFor,
+    analysisState,
+    bracketAnalysis,
+    commanderKey,
+    refinePool,
+    aiScope,
+    refineAlternatives,
+    deckIsFull,
+    setShowAddPanel,
+    handleApplyCoachMove,
+    handleApplyCostSwaps,
+    swappingSlot,
+    handleSwapInDeck,
+    collectionCards,
+    freeCountFor,
+  });
+  const zoneEdits = useDeckZoneEdits({ deck, formatConfig, collectionCards, setEditingSlot });
 
   // Page-top hub tabs: Deck (card list) · Stats (mana + overview) · Power +
   // Tune. Stats always shows for every format.
@@ -689,209 +567,47 @@ function DeckEditor({ deck }: { deck: Deck }) {
 
       <DeckEditorLayout
         deck={deck}
-        handleRemoveCard={handleRemoveCard}
-        handleRemoveSideboardCard={handleRemoveSideboardCard}
-        handleRemoveConsideringCard={handleRemoveConsideringCard}
-        handleMoveToSideboard={handleMoveToSideboard}
-        handleMoveToMainboard={handleMoveToMainboard}
-        handleMoveToConsidering={handleMoveToConsidering}
-        handleMoveFromConsidering={handleMoveFromConsidering}
-        handleSetQty={handleSetQty}
-        handleEditCard={handleEditCard}
-        handleSetCardTags={handleSetCardTags}
-        handleRenameDeckTag={handleRenameDeckTag}
-        handleRemoveDeckTag={handleRemoveDeckTag}
-        handleBulkRemove={handleBulkRemove}
-        handleBulkMove={handleBulkMove}
-        handleBulkEditTag={handleBulkEditTag}
-        handleReorder={handleReorder}
-        formatConfig={formatConfig}
-        handleMakeCommanderClick={handleMakeCommanderClick}
-        handleMakePartnerClick={handleMakePartnerClick}
-        canMakePartner={canMakePartner}
-        setShowCommanderPicker={setShowCommanderPicker}
-        cover={cover}
-        setShowPartnerPicker={setShowPartnerPicker}
-        setMoveCard={setMoveCard}
-        setReleaseCard={setReleaseCard}
-        handleSetProxy={handleSetProxy}
-        handleUseOwnCopy={handleUseOwnCopy}
-        collectionById={collectionById}
-        binderByCopyId={binderByCopyId}
-        setShowAddPanel={setShowAddPanel}
-        searchPanelRef={searchPanelRef}
-        handleAddEngineCard={handleAddEngineCard}
-        isCommander={isCommander}
-        mainboardLimit={mainboardLimit}
-        setShowFill={setShowFill}
-        addingEngineNames={addingEngineNames}
-        mainboardComboData={mainboardComboData}
-        ownedOracleIdSet={ownedOracleIdSet}
-        landUpgrades={landUpgrades}
-        coachArrivals={coachArrivals}
-        arrivalsDeepLink={arrivalsDeepLink}
-        arrivalsSettled={arrivalsSettled}
-        existingCardCounts={existingCardCounts}
-        ownershipFor={ownershipFor}
-        combosByOracle={combosByOracle}
-        bracketAnalysis={bracketAnalysis}
-        deckLibrary={deckLibrary}
-        exportOpen={exportOpen}
-        setExportOpen={setExportOpen}
-        safeView={safeView}
-        viewTabs={viewTabs}
-        setShowTestHand={setShowTestHand}
-        isDesktop={isDesktop}
-        statSlot={statSlot}
-        setAppendOpen={setAppendOpen}
-        setBulkEditOpen={setBulkEditOpen}
-        setResyncOpen={setResyncOpen}
-        hasCopyMismatches={hasCopyMismatches}
-        handleMatchMyCopies={handleMatchMyCopies}
-        hasMissingSlots={hasMissingSlots}
-        handleCheapestPrintings={handleCheapestPrintings}
-        suggestGroups={suggestGroups}
-        handleToggleAddPanel={handleToggleAddPanel}
-        analysisState={analysisState}
-        scoreRevealKey={scoreRevealKey}
-        handleNavigateToTune={handleNavigateToTune}
-        renderSwapSuggestions={renderSwapSuggestions}
-        renderSimilarCards={renderSimilarCards}
-        comboOwnedMissingCount={comboOwnedMissingCount}
-        comboData={comboData}
-        handleViewBracket={handleViewBracket}
-        handleViewEngine={handleViewEngine}
-        handleViewCombos={handleViewCombos}
-        handleViewWinConditions={handleViewWinConditions}
-        aiScope={aiScope}
         collectionCards={collectionCards}
-        setAiAgrees={setAiAgrees}
-        refinePool={refinePool}
+        chrome={{ safeView, viewTabs, isDesktop, cover }}
+        ui={ui}
+        zoneEdits={zoneEdits}
+        printingEdits={printingEdits}
+        commanderEdits={commanderEdits}
+        realloc={realloc}
+        ownership={ownership}
+        addFlow={addFlow}
+        derived={derived}
+        view={deckView}
+        combosView={combosView}
+        analysis={analysis}
+        refine={refine}
         refineAlternatives={refineAlternatives}
-        handleApplyCoachMove={handleApplyCoachMove}
-        handleApplyCostSwaps={handleApplyCostSwaps}
-        combosRef={combosRef}
-        deckOracleIds={deckOracleIds}
-        mainboardOracleIds={mainboardOracleIds}
-        comboColorIdentity={comboColorIdentity}
-        substitutionPlan={substitutionPlan}
-        coachSettings={coachSettings}
-        effectiveCostPlan={effectiveCostPlan}
-        crossDeckMoves={crossDeckMoves}
-        liveRoleCounts={liveRoleCounts}
-        ownedNames={ownedNames}
-        deckCardNames={deckCardNames}
-        handleCoachPreviewFit={handleCoachPreviewFit}
-        tuneFocusLane={tuneFocusLane}
-        clearTuneFocus={clearTuneFocus}
-        bracketFitSwapName={bracketFitSwapName}
-        ownedOnly={ownedOnly}
-        handleOwnedOnlyChange={handleOwnedOnlyChange}
-        replaceCuts={replaceCuts}
-        aiAgrees={aiAgrees}
-        planAvailable={planAvailable}
-        upgradePlanTools={upgradePlanTools}
-        planOpen={planOpen}
-        setPlanOpen={setPlanOpen}
-        handleApplyPlan={handleApplyPlan}
-        nextBestMoves={nextBestMoves}
-        handleNbmNavigate={handleNbmNavigate}
-        axisSummaries={axisSummaries}
-        deckCards={deckCards}
+        coachApply={coachApply}
+        arrivals={arrivals}
+        renderers={renderers}
+        onCoachPreviewFit={handleCoachPreviewFit}
       />
 
       <DeckEditorOverlays
-        showTestHand={showTestHand}
         deck={deck}
-        setShowTestHand={setShowTestHand}
-        showAddPanel={showAddPanel}
-        setShowAddPanel={setShowAddPanel}
-        buildTimeNudge={buildTimeNudge}
-        renderAddPanelContent={renderAddPanelContent}
-        auditionCard={auditionCard}
-        auditionReport={auditionReport}
-        swappingSlot={swappingSlot}
-        auditionPinnedCutName={auditionPinnedCutName}
-        handleSwapInDeck={handleSwapInDeck}
-        setAuditionCard={setAuditionCard}
-        setAuditionPinnedCutName={setAuditionPinnedCutName}
-        handleAddEngineCard={handleAddEngineCard}
-        tokensOpen={tokensOpen}
-        deckTokens={deckTokens}
-        setTokensOpen={setTokensOpen}
-        primerOpen={primerOpen}
-        setPrimerOpen={setPrimerOpen}
-        appendOpen={appendOpen}
-        setAppendOpen={setAppendOpen}
-        bulkEditOpen={bulkEditOpen}
-        setBulkEditOpen={setBulkEditOpen}
-        resyncOpen={resyncOpen}
-        setResyncOpen={setResyncOpen}
-        pullListOpen={pullListOpen}
         collectionCards={collectionCards}
         binderDefs={binderDefs}
-        printingAllocationMap={printingAllocationMap}
-        setPullListOpen={setPullListOpen}
-        editingSlot={editingSlot}
-        collectionById={collectionById}
-        resolveAvailability={resolveAvailability}
-        resolveOwnedFinishes={resolveOwnedFinishes}
-        handleEditConfirm={handleEditConfirm}
-        setEditingSlot={setEditingSlot}
-        movePrompt={movePrompt}
-        handleMovePrintingConfirm={handleMovePrintingConfirm}
-        setMovePrompt={setMovePrompt}
-        makeCommanderTarget={makeCommanderTarget}
-        setMakeCommanderTarget={setMakeCommanderTarget}
-        handleConfirmMakeCommander={handleConfirmMakeCommander}
-        makePartnerTarget={makePartnerTarget}
-        setMakePartnerTarget={setMakePartnerTarget}
-        handleConfirmMakePartner={handleConfirmMakePartner}
-        showCommanderPicker={showCommanderPicker}
-        formatConfig={formatConfig}
-        commanderNames={commanderNames}
-        handleSelectCommanderFromPicker={handleSelectCommanderFromPicker}
-        setShowCommanderPicker={setShowCommanderPicker}
-        showPartnerPicker={showPartnerPicker}
-        setShowPartnerPicker={setShowPartnerPicker}
-        handleSelectPartnerFromPicker={handleSelectPartnerFromPicker}
-        showFill={showFill}
-        mainboardLimit={mainboardLimit}
-        ownedNames={ownedNames}
-        setShowFill={setShowFill}
-        pendingAdd={pendingAdd}
-        replaceOptions={replaceOptions}
-        pendingMoveFor={pendingMoveFor}
-        handleApplyCoachMove={handleApplyCoachMove}
-        setPendingAdd={setPendingAdd}
-        addToSideboardAndClose={addToSideboardAndClose}
-        addToConsideringAndClose={addToConsideringAndClose}
-        addAnywayAndClose={addAnywayAndClose}
-        refillAfterCut={refillAfterCut}
-        refillOptions={refillOptions}
-        setRefillAfterCut={setRefillAfterCut}
-        moveCard={moveCard}
-        ownershipFor={ownershipFor}
-        freeCountFor={freeCountFor}
-        handleMoveConfirm={handleMoveConfirm}
-        setMoveCard={setMoveCard}
-        releaseCard={releaseCard}
-        handleReleaseConfirm={handleReleaseConfirm}
-        setReleaseCard={setReleaseCard}
-        feedbackOpen={feedbackOpen}
-        setFeedbackOpen={setFeedbackOpen}
-        showSharedCopies={showSharedCopies}
-        handleMoveSharedCopy={handleMoveSharedCopy}
-        setShowSharedCopies={setShowSharedCopies}
-        showBuildReport={showBuildReport}
-        mainboardComboData={mainboardComboData}
-        ownedOracleIdSet={ownedOracleIdSet}
+        deckTokens={deckTokens}
         comboSeedContext={comboSeedContext}
-        setShowBuildReport={setShowBuildReport}
-        refinePool={refinePool}
-        aiScope={aiScope}
+        ui={ui}
+        view={deckView}
+        ownership={ownership}
+        addFlow={addFlow}
+        printingEdits={printingEdits}
+        commanderEdits={commanderEdits}
+        realloc={realloc}
+        derived={derived}
+        analysis={analysis}
+        combosView={combosView}
+        coachApply={coachApply}
+        refine={refine}
         refineAlternatives={refineAlternatives}
-        handleApplyCostSwaps={handleApplyCostSwaps}
+        renderers={renderers}
       />
 
       <DeckScryfallDropOverlay zoneLabel={addZoneLabel} onDropText={handleScryfallDrop} />
