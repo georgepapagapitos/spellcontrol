@@ -681,6 +681,23 @@ export async function ensureSchema(): Promise<void> {
       PRIMARY KEY (user_id, deck_id)
     );
     CREATE UNIQUE INDEX IF NOT EXISTS deck_publications_slug_idx ON deck_publications(slug);
+
+    -- Public binder / list pages (E401). Same shape as deck_publications minus
+    -- the deck-only listing fields: a frozen slug, so the URL survives an
+    -- unpublish -> republish. kind is 'binder' or 'list'. No FK to the entity
+    -- tables (soft reference, tombstones are read at page load).
+    CREATE TABLE IF NOT EXISTS resource_publications (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL,
+      resource_id TEXT NOT NULL,
+      slug TEXT NOT NULL,
+      name TEXT NOT NULL,
+      published_at BIGINT NOT NULL,
+      updated_at BIGINT NOT NULL,
+      unpublished_at BIGINT,
+      PRIMARY KEY (user_id, kind, resource_id)
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS resource_publications_slug_idx ON resource_publications(slug);
     CREATE INDEX IF NOT EXISTS deck_publications_public_idx
       ON deck_publications(updated_at DESC) WHERE unpublished_at IS NULL;
 

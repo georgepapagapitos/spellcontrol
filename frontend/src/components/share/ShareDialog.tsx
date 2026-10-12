@@ -11,8 +11,12 @@ import { createShare, listShares, revokeShare, shareUrl } from '@/lib/social/sha
 import {
   getPublication,
   publicationUrl,
+  getResourcePublication,
   publishDeck,
+  publishResource,
+  resourcePublicationUrl,
   unpublishDeck,
+  unpublishResource,
   type Publication,
 } from '@/lib/social/publications-client';
 import { shouldCelebrateFirstPublish } from '@/lib/social/first-publish-celebration';
@@ -27,9 +31,10 @@ import { CopyButton } from '@/components/shared/CopyButton';
 /**
  * Who can see a resource: one choice, applied the moment it's picked.
  *
- * - `public` (decks): a `deck_publications` row. Listed on the profile and in
- *   Discover, at a frozen /d/:slug.
- * - `link` (everything else, until each kind gets a public page of its own):
+ * - `public` (decks, binders, lists): a publication row. Decks are listed on
+ *   the profile and in Discover at a frozen /d/:slug; binders and lists on the
+ *   profile at /b/:slug and /l/:slug.
+ * - `link` (collection and cube, until they get a public page of their own):
  *   an unlisted /s/:token anyone with the address can open.
  * - `friends`: a friends-audience /s/:token, gated on friendship.
  * - `private`: nothing live.
@@ -41,7 +46,12 @@ import { CopyButton } from '@/components/shared/CopyButton';
  */
 type Rung = 'public' | 'link' | 'friends' | 'private';
 
-/** A deck on the retired link rung (board T136): it still works, but it is
+/** The kinds whose Public rung is a page of their own. */
+function hasPublicPage(kind: ShareKind): kind is 'deck' | 'binder' | 'list' {
+  return kind === 'deck' || kind === 'binder' || kind === 'list';
+}
+
+/** A deck, binder or list on the retired link rung (board T136, E401): it still works, but it is
  *  no longer an option, so nothing reads as selected until the owner picks. */
 type Current = Rung | 'legacy-link';
 
@@ -61,18 +71,20 @@ function rungsFor(kind: ShareKind): { value: Rung; label: string; hint: string }
   const friends = {
     value: 'friends' as const,
     label: 'Friends',
-    hint:
-      kind === 'deck'
-        ? 'Only your friends can open it. They find it on your page in their Friends list.'
-        : 'Only your friends can open it, signed in.',
+    hint: hasPublicPage(kind)
+      ? 'Only your friends can open it. They find it on your page in their Friends list.'
+      : 'Only your friends can open it, signed in.',
   };
   const priv = { value: 'private' as const, label: 'Private', hint: 'Only you can see it.' };
-  if (kind === 'deck') {
+  if (hasPublicPage(kind)) {
     return [
       {
         value: 'public',
         label: 'Public',
-        hint: 'Anyone can find it on your profile and in Discover, and copy it.',
+        hint:
+          kind === 'deck'
+            ? 'Anyone can find it on your profile and in Discover, and copy it.'
+            : 'Anyone can find it on your profile and open it, no account needed.',
       },
       friends,
       priv,
@@ -127,9 +139,13 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
     let cancelled = false;
     Promise.all([
       kind === 'deck' && resourceId ? getPublication(resourceId).catch(() => null) : null,
+      (kind === 'binder' || kind === 'list') && resourceId
+        ? getResourcePublication(kind, resourceId).catch(() => null)
+        : null,
       listShares().catch((): ShareRow[] => []),
-    ]).then(([pub, all]) => {
+    ]).then(([deckPub, resourcePub, all]) => {
       if (cancelled) return;
+      const pub = deckPub ?? resourcePub;
       setPublication(pub);
       const mine = all.filter((s) => s.kind === kind && s.resourceId === rid);
       const friendsShare = mine.find((s) => s.audience === 'friends');
@@ -141,7 +157,7 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
         setCurrent('friends');
       } else if (linkShare) {
         setShare(linkShare);
-        setCurrent(kind === 'deck' ? 'legacy-link' : 'link');
+        setCurrent(hasPublicPage(kind) ? 'legacy-link' : 'link');
       } else {
         setCurrent('private');
       }
@@ -178,19 +194,25 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
         const all = await listShares();
         const mine = all.filter((s) => s.kind === kind && s.resourceId === rid);
         await Promise.all(mine.map((s) => revokeShare(s.token)));
-        if (kind === 'deck' && resourceId && publication && !publication.unpublishedAt) {
-          await unpublishDeck(resourceId);
+        if (hasPublicPage(kind) && resourceId && publication && !publication.unpublishedAt) {
+          if (kind === 'deck') await unpublishDeck(resourceId);
+          else await unpublishResource(kind, resourceId);
         }
         setShare(null);
         setPublication(null);
       } else if (next === 'public') {
         if (!resourceId) return;
-        const pub = await publishDeck(resourceId);
-        // The server retired this deck's link/friends shares as it published.
-        setShare(null);
-        setPublication(pub);
-        if (shouldCelebrateFirstPublish(resourceId, pub.isFirstPublish)) {
-          fireSealMoment(colorIdentity);
+        // The server retires this resource's link/friends shares as it publishes.
+        if (kind === 'deck') {
+          const pub = await publishDeck(resourceId);
+          setShare(null);
+          setPublication(pub);
+          if (shouldCelebrateFirstPublish(resourceId, pub.isFirstPublish)) {
+            fireSealMoment(colorIdentity);
+          }
+        } else if (kind === 'binder' || kind === 'list') {
+          setShare(null);
+          setPublication(await publishResource(kind, resourceId));
         }
       } else {
         const row = await createShare({ kind, resourceId, audience: next });
@@ -225,7 +247,9 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
 
   const url =
     current === 'public' && publication
-      ? publicationUrl(publication.slug)
+      ? kind === 'binder' || kind === 'list'
+        ? resourcePublicationUrl(kind, publication.slug)
+        : publicationUrl(publication.slug)
       : (current === 'friends' || current === 'link' || current === 'legacy-link') && share
         ? shareUrl(share.token)
         : '';
@@ -332,15 +356,19 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
 
       {current === 'public' && publication && (
         <p className="choice-dialog-body">
-          {publication.viewCount.toLocaleString()} {publication.viewCount === 1 ? 'view' : 'views'}{' '}
-          · {publication.copyCount.toLocaleString()}{' '}
-          {publication.copyCount === 1 ? 'copy' : 'copies'}
+          {kind === 'deck' && (
+            <>
+              {publication.viewCount.toLocaleString()}{' '}
+              {publication.viewCount === 1 ? 'view' : 'views'} ·{' '}
+              {publication.copyCount.toLocaleString()}{' '}
+              {publication.copyCount === 1 ? 'copy' : 'copies'}
+            </>
+          )}
           {username && (
             <>
-              {' '}
-              ·{' '}
+              {kind === 'deck' ? ' · ' : 'Listed on '}
               <Link to={`/u/${username}`} onClick={onClose}>
-                Your profile
+                {kind === 'deck' ? 'Your profile' : 'your profile'}
               </Link>
             </>
           )}

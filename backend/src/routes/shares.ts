@@ -10,6 +10,7 @@ import type { ShareDataView } from '../shares/cache';
 import { invalidateShareContext, loadShareContext } from '../shares/context';
 import { invalidateDeckPublicationCache } from '../publications/cache';
 import { invalidatePublicUserCacheById } from '../publications/purge';
+import { invalidateResourcePageCache } from '../publications/resource-pages';
 import { resolveShareLabels } from '../shares/labels';
 import { getSetMap } from '../sets';
 import { collectAllocatedCopyIds } from '@spellcontrol/binder-routing';
@@ -95,6 +96,23 @@ async function retirePublication(userId: string, deckId: string): Promise<void> 
     [userId, deckId, Date.now()]
   );
   for (const row of result.rows) invalidateDeckPublicationCache(row.slug);
+  if (result.rows.length > 0) await invalidatePublicUserCacheById(userId);
+}
+
+/** The binder / list twin of retirePublication: minting a link or friends share
+ *  takes a live /b/:slug or /l/:slug page down (E401). */
+async function retireResourcePublication(
+  userId: string,
+  kind: 'binder' | 'list',
+  resourceId: string
+): Promise<void> {
+  const result = await getPool().query<{ slug: string }>(
+    `UPDATE resource_publications SET unpublished_at = $4
+       WHERE user_id = $1 AND kind = $2 AND resource_id = $3 AND unpublished_at IS NULL
+     RETURNING slug`,
+    [userId, kind, resourceId, Date.now()]
+  );
+  for (const row of result.rows) invalidateResourcePageCache(row.slug);
   if (result.rows.length > 0) await invalidatePublicUserCacheById(userId);
 }
 
@@ -189,6 +207,9 @@ sharesRouter.post('/', requireAuth, writeLimiter, async (req: Request, res: Resp
 
   if (kind === 'deck' && audience !== 'direct') {
     await retirePublication(req.user!.id, resourceId);
+  }
+  if ((kind === 'binder' || kind === 'list') && audience !== 'direct') {
+    await retireResourcePublication(req.user!.id, kind, resourceId);
   }
   if (audience !== 'direct' && RUNG_KINDS.has(kind)) {
     await retireOtherRung(req.user!.id, kind, resourceId, audience);

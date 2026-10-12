@@ -105,6 +105,8 @@ const AdminPage = lazyPage(() => import('./pages/AdminPage'), 'AdminPage');
 const SharedView = lazyPage(() => import('./pages/SharedView'), 'SharedView');
 const PublicProfilePage = lazyPage(() => import('./pages/PublicProfilePage'), 'PublicProfilePage');
 const PublicDeckPage = lazyPage(() => import('./pages/PublicDeckPage'), 'PublicDeckPage');
+const PublicBinderPage = lazyPage(() => import('./pages/PublicResourcePage'), 'PublicBinderPage');
+const PublicListPage = lazyPage(() => import('./pages/PublicResourcePage'), 'PublicListPage');
 const PublicDeckPlaytestPage = lazyPage(
   () => import('./pages/PublicDeckPlaytestPage'),
   'PublicDeckPlaytestPage'
@@ -302,6 +304,8 @@ export default function App() {
             <Route path="/s/:token" element={<SharedView />} />
             <Route path="/u/:username" element={<PublicProfilePage />} />
             <Route path="/d/:slug" element={<PublicDeckPage />} />
+            <Route path="/b/:slug" element={<PublicBinderPage />} />
+            <Route path="/l/:slug" element={<PublicListPage />} />
             <Route path="/s/:token/playtest" element={<PublicDeckPlaytestPage />} />
             <Route path="/d/:slug/playtest" element={<PublicDeckPlaytestPage />} />
           </Route>
@@ -368,6 +372,8 @@ export default function App() {
             <Route path="/s/:token" element={<SharedView />} />
             <Route path="/u/:username" element={<PublicProfilePage />} />
             <Route path="/d/:slug" element={<PublicDeckPage />} />
+            <Route path="/b/:slug" element={<PublicBinderPage />} />
+            <Route path="/l/:slug" element={<PublicListPage />} />
             <Route path="/s/:token/playtest" element={<PublicDeckPlaytestPage />} />
             <Route path="/d/:slug/playtest" element={<PublicDeckPlaytestPage />} />
             {/* The default landing for authed users (w3-nav-activation) — the "/"

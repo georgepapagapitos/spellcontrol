@@ -41,6 +41,99 @@ export function stampSharePrices(cards: unknown[]): void {
 }
 
 /**
+ * Materialize the slice of an owner's data one share kind's projection reads.
+ * Shared by the token path (`loadShareContext`) and the published-page path
+ * (`publications/resource-pages.ts`), so both project from identical input.
+ */
+export async function loadOwnerShareData(
+  userId: string,
+  kind: string,
+  gameResultSessionId = ''
+): Promise<ShareDataView> {
+  const db = getDb();
+  // Per-kind fetch: only the tables this share's projection actually reads
+  // (E70 — the old six-table fan-out meant one table's transient failure
+  // 500'd every share kind). Binder shares also need every card, because
+  // binder materialization (matchers, priority) is only correct over the
+  // full collection. `importHistory` had no consumer at all and is now
+  // always empty. Unknown kinds fetch nothing — the projectors 404 them.
+  const wantCards = kind === 'collection' || kind === 'binder';
+  const wantGameResult = kind === 'game-result';
+  const [cards, lists, binders, decks, cubes, gameResultRows] = await Promise.all([
+    wantCards
+      ? db
+          .select({ data: userCards.data })
+          .from(userCards)
+          .where(and(eq(userCards.userId, userId), isNull(userCards.deletedAt)))
+      : [],
+    kind === 'list'
+      ? db
+          .select({ data: userLists.data })
+          .from(userLists)
+          .where(and(eq(userLists.userId, userId), isNull(userLists.deletedAt)))
+      : [],
+    kind === 'binder'
+      ? db
+          .select({ data: userBinders.data })
+          .from(userBinders)
+          .where(and(eq(userBinders.userId, userId), isNull(userBinders.deletedAt)))
+      : [],
+    kind === 'deck' || kind === 'feedback'
+      ? db
+          .select({ data: userDecks.data })
+          .from(userDecks)
+          .where(and(eq(userDecks.userId, userId), isNull(userDecks.deletedAt)))
+      : [],
+    kind === 'cube'
+      ? db
+          .select({ data: userCubes.data })
+          .from(userCubes)
+          .where(and(eq(userCubes.userId, userId), isNull(userCubes.deletedAt)))
+      : [],
+    // No userId filter — game_results has no owner column; the participant
+    // check already happened at share-creation time (see routes/shares.ts).
+    wantGameResult
+      ? db.select().from(gameResults).where(eq(gameResults.sessionId, gameResultSessionId)).limit(1)
+      : [],
+  ]);
+
+  // A binder share whose owner has a "Spare copies" rule anywhere needs their
+  // decks and cubes too: which copy of a card is spare depends on which copies
+  // those claim. A second round trip only in that case, so every other binder
+  // share keeps its single fetch.
+  const binderData = binders.map((r) => r.data).filter((d): d is unknown => d != null);
+  let allocationDecks: { data: unknown }[] = decks;
+  let allocationCubes: { data: unknown }[] = cubes;
+  if (kind === 'binder' && anyBinderUsesSpareCopies(binderData)) {
+    [allocationDecks, allocationCubes] = await Promise.all([
+      db
+        .select({ data: userDecks.data })
+        .from(userDecks)
+        .where(and(eq(userDecks.userId, userId), isNull(userDecks.deletedAt))),
+      db
+        .select({ data: userCubes.data })
+        .from(userCubes)
+        .where(and(eq(userCubes.userId, userId), isNull(userCubes.deletedAt))),
+    ]);
+  }
+
+  const data: ShareDataView = {
+    collection: {
+      cards: cards.map((r) => r.data).filter((d): d is unknown => d != null),
+      importHistory: [],
+      lists: lists.map((r) => r.data).filter((d): d is unknown => d != null),
+    },
+    binders: binderData,
+    decks: allocationDecks.map((r) => r.data).filter((d): d is unknown => d != null),
+    cubes: allocationCubes.map((r) => r.data).filter((d): d is unknown => d != null),
+    gameResult: gameResultRows[0],
+  };
+
+  stampSharePrices(data.collection.cards);
+  return data;
+}
+
+/**
  * Resolve a share token to its full lookup context — the share row, the
  * owner's username, and a materialized view of the owner's data assembled
  * from the per-entity sync tables. The view mirrors the shape projection
@@ -78,86 +171,7 @@ export async function loadShareContext(token: string): Promise<ShareContext | nu
   const ownerUsername = userRows[0].username;
   const ownerDisplayName = userRows[0].displayName;
 
-  // Per-kind fetch: only the tables this share's projection actually reads
-  // (E70 — the old six-table fan-out meant one table's transient failure
-  // 500'd every share kind). Binder shares also need every card, because
-  // binder materialization (matchers, priority) is only correct over the
-  // full collection. `importHistory` had no consumer at all and is now
-  // always empty. Unknown kinds fetch nothing — the projectors 404 them.
-  const kind = share.kind;
-  const wantCards = kind === 'collection' || kind === 'binder';
-  const wantGameResult = kind === 'game-result';
-  const [cards, lists, binders, decks, cubes, gameResultRows] = await Promise.all([
-    wantCards
-      ? db
-          .select({ data: userCards.data })
-          .from(userCards)
-          .where(and(eq(userCards.userId, share.userId), isNull(userCards.deletedAt)))
-      : [],
-    kind === 'list'
-      ? db
-          .select({ data: userLists.data })
-          .from(userLists)
-          .where(and(eq(userLists.userId, share.userId), isNull(userLists.deletedAt)))
-      : [],
-    kind === 'binder'
-      ? db
-          .select({ data: userBinders.data })
-          .from(userBinders)
-          .where(and(eq(userBinders.userId, share.userId), isNull(userBinders.deletedAt)))
-      : [],
-    kind === 'deck' || kind === 'feedback'
-      ? db
-          .select({ data: userDecks.data })
-          .from(userDecks)
-          .where(and(eq(userDecks.userId, share.userId), isNull(userDecks.deletedAt)))
-      : [],
-    kind === 'cube'
-      ? db
-          .select({ data: userCubes.data })
-          .from(userCubes)
-          .where(and(eq(userCubes.userId, share.userId), isNull(userCubes.deletedAt)))
-      : [],
-    // No userId filter — game_results has no owner column; the participant
-    // check already happened at share-creation time (see routes/shares.ts).
-    wantGameResult
-      ? db.select().from(gameResults).where(eq(gameResults.sessionId, share.resourceId)).limit(1)
-      : [],
-  ]);
-
-  // A binder share whose owner has a "Spare copies" rule anywhere needs their
-  // decks and cubes too: which copy of a card is spare depends on which copies
-  // those claim. A second round trip only in that case, so every other binder
-  // share keeps its single fetch.
-  const binderData = binders.map((r) => r.data).filter((d): d is unknown => d != null);
-  let allocationDecks: { data: unknown }[] = decks;
-  let allocationCubes: { data: unknown }[] = cubes;
-  if (kind === 'binder' && anyBinderUsesSpareCopies(binderData)) {
-    [allocationDecks, allocationCubes] = await Promise.all([
-      db
-        .select({ data: userDecks.data })
-        .from(userDecks)
-        .where(and(eq(userDecks.userId, share.userId), isNull(userDecks.deletedAt))),
-      db
-        .select({ data: userCubes.data })
-        .from(userCubes)
-        .where(and(eq(userCubes.userId, share.userId), isNull(userCubes.deletedAt))),
-    ]);
-  }
-
-  const data: ShareDataView = {
-    collection: {
-      cards: cards.map((r) => r.data).filter((d): d is unknown => d != null),
-      importHistory: [],
-      lists: lists.map((r) => r.data).filter((d): d is unknown => d != null),
-    },
-    binders: binderData,
-    decks: allocationDecks.map((r) => r.data).filter((d): d is unknown => d != null),
-    cubes: allocationCubes.map((r) => r.data).filter((d): d is unknown => d != null),
-    gameResult: gameResultRows[0],
-  };
-
-  stampSharePrices(data.collection.cards);
+  const data = await loadOwnerShareData(share.userId, share.kind, share.resourceId);
 
   const ctx: ShareContext = { share, ownerUsername, ownerDisplayName, data };
   shareCache.set(token, ctx);

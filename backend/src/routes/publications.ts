@@ -7,6 +7,13 @@ import { insertPublication, type PublicationRow } from '../publications/insert';
 import { invalidateDeckPublicationCache } from '../publications/cache';
 import { invalidatePublicUserCacheById } from '../publications/purge';
 import { invalidateShareContext } from '../shares/context';
+import {
+  invalidateResourcePageCache,
+  newResourceSlug,
+  readResourceName,
+  RESOURCE_PATH,
+  type ResourceKind,
+} from '../publications/resource-pages';
 
 /**
  * Owner-facing publish/unpublish/status endpoints for `deck_publications` —
@@ -273,3 +280,122 @@ publicationsRouter.get(
     });
   }
 );
+
+/**
+ * Public binder and list pages (E401). Same ladder as decks: publishing retires
+ * the resource's link/friends shares, minting one retires the publication
+ * (routes/shares.ts). A binder or list has no moderation state of its own, but
+ * an account a moderator hid can't put new pages up.
+ */
+interface ResourcePublicationRow {
+  slug: string;
+  published_at: string;
+  updated_at: string;
+  unpublished_at: string | null;
+}
+
+function toResourcePublication(kind: ResourceKind, row: ResourcePublicationRow) {
+  return {
+    slug: row.slug,
+    url: `${PUBLIC_ORIGIN}${RESOURCE_PATH[kind]}${row.slug}`,
+    publishedAt: Number(row.published_at),
+    updatedAt: Number(row.updated_at),
+    unpublishedAt: row.unpublished_at === null ? null : Number(row.unpublished_at),
+    // Binder and list pages carry no counters; the dialog reads the same shape as a deck's.
+    viewCount: 0,
+    copyCount: 0,
+  };
+}
+
+function registerResourceRoutes(kind: ResourceKind, segment: string): void {
+  const base = `/${segment}/:resourceId`;
+  const noun = kind === 'binder' ? 'binder' : 'list';
+
+  publicationsRouter.post(base, requireAuth, publishLimiter, async (req, res) => {
+    const userId = req.user!.id;
+    const resourceId = String(req.params.resourceId);
+    const pool = getPool();
+    const name = await readResourceName(userId, kind, resourceId);
+    if (name === null) return res.status(404).json({ error: `${noun} not found.` });
+
+    const hidden = await pool.query<{ profile_hidden_at: string | null }>(
+      `SELECT profile_hidden_at FROM users WHERE id = $1`,
+      [userId]
+    );
+    if (hidden.rows[0]?.profile_hidden_at != null) {
+      return res.status(403).json({
+        error: `A moderator hid this account, so its ${noun}s can't be made public.`,
+      });
+    }
+
+    const now = Date.now();
+    const existing = await pool.query<ResourcePublicationRow>(
+      `UPDATE resource_publications
+          SET name = $4, updated_at = $5, unpublished_at = NULL
+        WHERE user_id = $1 AND kind = $2 AND resource_id = $3
+        RETURNING slug, published_at, updated_at, unpublished_at`,
+      [userId, kind, resourceId, name, now]
+    );
+    let row = existing.rows[0];
+    let created = false;
+    if (!row) {
+      for (let attempt = 0; attempt < 3 && !row; attempt++) {
+        const inserted = await pool
+          .query<ResourcePublicationRow>(
+            `INSERT INTO resource_publications
+               (user_id, kind, resource_id, slug, name, published_at, updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $6)
+             ON CONFLICT DO NOTHING
+             RETURNING slug, published_at, updated_at, unpublished_at`,
+            [userId, kind, resourceId, newResourceSlug(kind, name), name, now]
+          )
+          .catch(() => null);
+        row = inserted?.rows[0] as ResourcePublicationRow;
+        created = !!row;
+      }
+      if (!row) return res.status(500).json({ error: 'Could not allocate a unique page address.' });
+    }
+
+    // Retire the lesser rungs: a publication replaces a link or friends share.
+    const retired = await pool.query<{ token: string }>(
+      `UPDATE shares SET revoked_at = $4
+         WHERE user_id = $1 AND kind = $2 AND resource_id = $3
+           AND audience IN ('link', 'friends') AND revoked_at IS NULL
+       RETURNING token`,
+      [userId, kind, resourceId, now]
+    );
+    for (const r of retired.rows) invalidateShareContext(r.token);
+    invalidateResourcePageCache(row.slug);
+    await invalidatePublicUserCacheById(userId);
+    return res.status(created ? 201 : 200).json({ publication: toResourcePublication(kind, row) });
+  });
+
+  publicationsRouter.delete(base, requireAuth, publishLimiter, async (req, res) => {
+    const result = await getPool().query<{ slug: string }>(
+      `UPDATE resource_publications SET unpublished_at = $4
+         WHERE user_id = $1 AND kind = $2 AND resource_id = $3 AND unpublished_at IS NULL
+       RETURNING slug`,
+      [req.user!.id, kind, String(req.params.resourceId), Date.now()]
+    );
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: `This ${noun} is not published.` });
+    }
+    invalidateResourcePageCache(result.rows[0].slug);
+    await invalidatePublicUserCacheById(req.user!.id);
+    res.status(204).end();
+  });
+
+  publicationsRouter.get(base, requireAuth, publishLimiter, async (req, res) => {
+    const result = await getPool().query<ResourcePublicationRow>(
+      `SELECT slug, published_at, updated_at, unpublished_at
+         FROM resource_publications WHERE user_id = $1 AND kind = $2 AND resource_id = $3`,
+      [req.user!.id, kind, String(req.params.resourceId)]
+    );
+    res.json({
+      publication: result.rows[0] ? toResourcePublication(kind, result.rows[0]) : null,
+    });
+  });
+}
+
+registerResourceRoutes('binder', 'binders');
+registerResourceRoutes('list', 'lists');

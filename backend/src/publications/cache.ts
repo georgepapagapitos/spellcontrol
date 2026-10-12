@@ -12,6 +12,7 @@
  */
 
 import type { PublicDeck } from '../shares/projections';
+import type { PublicResourceSummary } from './resource-pages';
 import type { BaseRails } from '../brewers/rails';
 import type { ColorSpread, GameRecord, ProfileStats, TopCommander } from '../brewers/profile-stats';
 
@@ -67,6 +68,8 @@ export interface PublicUserProfile {
   isOfficial: boolean;
   deckCount: number;
   decks: PublicDeckSummary[];
+  /** Published binders and lists (E401), newest first. */
+  resources: PublicResourceSummary[];
   /** Viewer-agnostic numbers (T175). Follower counts are per request instead. */
   stats: ProfileStats;
   topCommanders: TopCommander[];

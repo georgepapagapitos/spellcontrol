@@ -1,6 +1,6 @@
 import '@/styles/shared.css';
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { NotFoundView, ErrorView } from '../components/share/SharedShell';
 import { ProfileHeader } from '../components/profile/ProfileHeader';
 import { ProfileBrews, ProfileGameRecordPanel } from '../components/profile/ProfileBrews';
@@ -21,7 +21,11 @@ import { Tabs, type TabItem } from '@/components/overlays/Tabs';
 import { CollectionBrowser } from '../components/share/CollectionBrowser';
 import { FriendProfileCollection } from '../components/trade/FriendProfileCollection';
 import { CollectionVisibilityDialog } from '@/components/collection/CollectionVisibilityDialog';
-import type { PublicProfile, PublicProfileDeck } from '@/lib/social/profile-client';
+import type {
+  PublicProfile,
+  PublicProfileDeck,
+  PublicProfileResource,
+} from '@/lib/social/profile-client';
 import { DeckLibrary, type LibraryDeck } from '../components/decks/DeckLibrary';
 import './PublicProfilePage.css';
 
@@ -112,6 +116,40 @@ function tileStatsLine(deck: PublicProfileDeck): string {
   );
   parts.push(formatRelativeTime(deck.updatedAt));
   return parts.join(' · ');
+}
+
+/** The owner's published binders and lists, as plain links under the decks. */
+function ProfileShelf({
+  id,
+  heading,
+  basePath,
+  items,
+}: {
+  id: string;
+  heading: string;
+  basePath: '/b/' | '/l/';
+  items: PublicProfileResource[];
+}) {
+  if (items.length === 0) return null;
+  return (
+    <section className="public-profile-shelf" aria-labelledby={id}>
+      <h2 id={id} className="public-profile-shelf-title">
+        {heading}
+      </h2>
+      <ul className="list-stack">
+        {items.map((item) => (
+          <li key={item.slug}>
+            <Link className="public-profile-shelf-link" to={`${basePath}${item.slug}`}>
+              <span className="truncate-name">{item.name}</span>
+              <span className="public-profile-shelf-meta">
+                {formatRelativeTime(item.updatedAt)}
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
 }
 
 function DeckGrid({
@@ -370,6 +408,22 @@ function PublicProfilePageInner({ username }: { username: string }) {
       pinnedSlug={profile.pinnedDeckSlug}
     />
   );
+  const shelves = profile.moderationHidden ? null : (
+    <>
+      <ProfileShelf
+        id="public-profile-binders"
+        heading="Binders"
+        basePath="/b/"
+        items={profile.binders ?? []}
+      />
+      <ProfileShelf
+        id="public-profile-lists"
+        heading="Lists"
+        basePath="/l/"
+        items={profile.lists ?? []}
+      />
+    </>
+  );
   const joined = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(
     new Date(profile.joinedAt)
   );
@@ -408,6 +462,7 @@ function PublicProfilePageInner({ username }: { username: string }) {
               hidden={tab !== 'decks'}
             >
               {decksBody}
+              {shelves}
             </div>
             <div
               role="tabpanel"
@@ -428,7 +483,10 @@ function PublicProfilePageInner({ username }: { username: string }) {
             </div>
           </>
         ) : (
-          decksBody
+          <>
+            {decksBody}
+            {shelves}
+          </>
         )}
       </div>
 

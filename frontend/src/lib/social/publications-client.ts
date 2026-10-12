@@ -122,6 +122,62 @@ export async function unpublishDeck(deckId: string): Promise<void> {
   }
 }
 
+/** The kinds with a public page of their own besides decks (E401). */
+export type ResourcePublicationKind = 'binder' | 'list';
+
+const RESOURCE_SEGMENT: Record<ResourcePublicationKind, string> = {
+  binder: 'binders',
+  list: 'lists',
+};
+
+function resourcePath(kind: ResourcePublicationKind, id: string): string {
+  return `/api/publications/${RESOURCE_SEGMENT[kind]}/${encodeURIComponent(id)}`;
+}
+
+/** Current publish status for the caller's own binder or list; null = not published. */
+export async function getResourcePublication(
+  kind: ResourcePublicationKind,
+  id: string
+): Promise<Publication | null> {
+  const res = await fetch(apiUrl(resourcePath(kind, id)), { credentials: 'include' });
+  if (!res.ok) {
+    throw new Error(await readError(res, "Couldn't check who can see this. Try again."));
+  }
+  return ((await res.json()) as { publication: Publication | null }).publication;
+}
+
+/** Publish (or republish) the caller's own binder or list. */
+export async function publishResource(
+  kind: ResourcePublicationKind,
+  id: string
+): Promise<Publication> {
+  const res = await fetch(apiUrl(resourcePath(kind, id)), {
+    method: 'POST',
+    credentials: 'include',
+  });
+  if (!res.ok) {
+    throw new Error(await readError(res, "Couldn't make it public. Try again."));
+  }
+  return ((await res.json()) as { publication: Publication }).publication;
+}
+
+/** Unpublish. A 404 (already unpublished) is a no-op, like unpublishDeck. */
+export async function unpublishResource(kind: ResourcePublicationKind, id: string): Promise<void> {
+  const res = await fetch(apiUrl(resourcePath(kind, id)), {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+  if (!res.ok && res.status !== 404) {
+    throw new Error(await readError(res, "Couldn't make it private. Try again."));
+  }
+}
+
+/** Displayed URL of a published binder (/b/:slug) or list (/l/:slug). */
+export function resourcePublicationUrl(kind: ResourcePublicationKind, slug: string): string {
+  const path = `${kind === 'binder' ? '/b/' : '/l/'}${slug}`;
+  return typeof window === 'undefined' ? path : `${window.location.origin}${path}`;
+}
+
 /**
  * Build the owner-facing, *displayed* URL for a published deck. The server's
  * own `publication.url` field always bakes in the hardcoded prod origin (correct

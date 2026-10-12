@@ -59,16 +59,27 @@ export function buildSitemapXml(entries: SitemapEntry[]): string {
  */
 export async function loadDynamicEntries(): Promise<SitemapEntry[]> {
   const pool = getPool();
-  const [decks, users] = await Promise.all([
+  const [decks, users, resources] = await Promise.all([
     pool.query<{ slug: string; updated_at: string }>(
       `SELECT slug, updated_at FROM deck_publications
         WHERE unpublished_at IS NULL ORDER BY updated_at DESC LIMIT $1`,
       [MAX_DYNAMIC]
     ),
     pool.query<{ username: string; updated_at: string }>(
-      `SELECT u.username, MAX(dp.updated_at) AS updated_at
-         FROM users u JOIN deck_publications dp ON dp.user_id = u.id AND dp.unpublished_at IS NULL
+      `SELECT u.username, MAX(p.updated_at) AS updated_at
+         FROM users u
+         JOIN (SELECT user_id, updated_at FROM deck_publications WHERE unpublished_at IS NULL
+               UNION ALL
+               SELECT user_id, updated_at FROM resource_publications WHERE unpublished_at IS NULL) p
+           ON p.user_id = u.id
         WHERE u.profile_hidden_at IS NULL GROUP BY u.username LIMIT $1`,
+      [MAX_DYNAMIC]
+    ),
+    pool.query<{ kind: string; slug: string; updated_at: string }>(
+      `SELECT rp.kind, rp.slug, rp.updated_at
+         FROM resource_publications rp JOIN users u ON u.id = rp.user_id
+        WHERE rp.unpublished_at IS NULL AND u.profile_hidden_at IS NULL
+        ORDER BY rp.updated_at DESC LIMIT $1`,
       [MAX_DYNAMIC]
     ),
   ]);
@@ -77,6 +88,11 @@ export async function loadDynamicEntries(): Promise<SitemapEntry[]> {
       path: `/d/${r.slug}`,
       lastmod: Number(r.updated_at),
       priority: 0.7,
+    })),
+    ...resources.rows.map((r) => ({
+      path: `${r.kind === 'binder' ? '/b/' : '/l/'}${r.slug}`,
+      lastmod: Number(r.updated_at),
+      priority: 0.5,
     })),
     ...users.rows.map((r) => ({
       path: `/u/${r.username}`,

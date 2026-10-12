@@ -1019,6 +1019,32 @@ export const deckPublications = pgTable(
 );
 
 /**
+ * Public binder / list pages (E401): the publish state behind /b/:slug and
+ * /l/:slug. A sibling of `deckPublications` with only what a page and a
+ * profile row need; `slug` is frozen once minted so republishing keeps the URL.
+ */
+export const resourcePublications = pgTable(
+  'resource_publications',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** 'binder' | 'list' */
+    kind: text('kind').notNull(),
+    resourceId: text('resource_id').notNull(),
+    slug: text('slug').notNull(),
+    name: text('name').notNull(),
+    publishedAt: bigint('published_at', { mode: 'number' }).notNull(),
+    updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+    unpublishedAt: bigint('unpublished_at', { mode: 'number' }),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.userId, t.kind, t.resourceId] }),
+    slugIdx: uniqueIndex('resource_publications_slug_idx').on(t.slug),
+  })
+);
+
+/**
  * Per-viewer like state (w2-likes-bookmarks). Keyed by `(userId, slug)` —
  * see `deckPublications`' own doc comment for why slug, not a bare deckId:
  * slug is the frozen-forever public identity, and it's what

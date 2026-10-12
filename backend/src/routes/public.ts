@@ -6,6 +6,11 @@ import { normalizeUsername, optionalAuth } from '../auth';
 import { getPool } from '../db';
 import { ORIGIN, type ShareLandingMeta, type ShareLandingResult } from '../shares/og';
 import { projectDeck, type PublicDeck } from '../shares/projections';
+import {
+  listPublishedResources,
+  loadPublicResourcePage,
+  type ResourceKind,
+} from '../publications/resource-pages';
 import { projectWithSignals } from '../shares/project-with-signals';
 import { buildDeckLandingBody, buildProfileLandingBody } from '../shares/landing-body';
 import { areFriends } from '../friends/relations';
@@ -150,6 +155,22 @@ publicRouter.get('/decks/:slug', publicReadLimiter, async (req: Request, res: Re
 });
 
 /**
+ * A published binder or list (E401). Public means anyone, signed in or not;
+ * unknown, unpublished, deleted and moderation-hidden all answer the same 404.
+ * Friends-only and private binders never reach here: they have no publication
+ * row, and /api/shares/public/:token enforces friendship for the former.
+ */
+function registerResourcePage(kind: ResourceKind, segment: string): void {
+  publicRouter.get(`/${segment}/:slug`, publicReadLimiter, async (req: Request, res: Response) => {
+    const page = await loadPublicResourcePage(kind, readSlugParam(req));
+    if (!page) return res.status(404).json({ error: 'Page not found.' });
+    res.json(page);
+  });
+}
+registerResourcePage('binder', 'binders');
+registerResourcePage('list', 'lists');
+
+/**
  * View beacon. Always 204 — unknown slug, unpublished deck, a repeat view and
  * a successful count all read identically to the caller (a view beacon must
  * be zero-information). A repeat within the day is dropped before the query
@@ -261,7 +282,7 @@ async function loadPublicUserProfile(username: string): Promise<PublicUserProfil
 
   // The house account lists newest precon first. Its updated_at moves with
   // every price refresh, which would shuffle the page for no reason.
-  const [decksResult, countResult, extras] = await Promise.all([
+  const [decksResult, countResult, extras, resources] = await Promise.all([
     pool.query<PublicDeckSummaryRow>(
       `SELECT slug, deck_name, format, commander_name, og_art_crop, color_identity,
               bracket, estimated_bracket, estimated_bracket_floor, card_count, view_count, copy_count, published_at,
@@ -281,6 +302,7 @@ async function loadPublicUserProfile(username: string): Promise<PublicUserProfil
       pinnedDeckSlug: user.pinned_deck_slug,
       showGameRecord: user.show_game_record,
     }),
+    listPublishedResources(user.id),
   ]);
 
   const profile: PublicUserProfile = {
@@ -298,6 +320,7 @@ async function loadPublicUserProfile(username: string): Promise<PublicUserProfil
     // heavy publisher.
     deckCount: Number(countResult.rows[0].count),
     decks: decksResult.rows.map(toDeckSummary),
+    resources,
     ...extras,
   };
   publicUserCache.set(username, profile);
@@ -395,6 +418,8 @@ publicRouter.get(
       pinnedDeckSlug: profile.pinnedDeckSlug,
       gameRecord: profile.gameRecord,
       decks: moderationHidden ? [] : profile.decks,
+      binders: moderationHidden ? [] : profile.resources.filter((r) => r.kind === 'binder'),
+      lists: moderationHidden ? [] : profile.resources.filter((r) => r.kind === 'list'),
       collection: {
         // The setting in force, for the owner's "who can see this" note
         // (never chose reads as friends; storedCollectionVisibility).
@@ -536,8 +561,10 @@ export async function lookupPublicUserLandingMeta(
     has_live: boolean;
   }>(
     `SELECT u.display_name, u.profile_hidden_at,
-            EXISTS(SELECT 1 FROM deck_publications dp
-                   WHERE dp.user_id = u.id AND dp.unpublished_at IS NULL) AS has_live
+            (EXISTS(SELECT 1 FROM deck_publications dp
+                    WHERE dp.user_id = u.id AND dp.unpublished_at IS NULL)
+             OR EXISTS(SELECT 1 FROM resource_publications rp
+                    WHERE rp.user_id = u.id AND rp.unpublished_at IS NULL)) AS has_live
        FROM users u WHERE u.username = $1`,
     [handle]
   );
