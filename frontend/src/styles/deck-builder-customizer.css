@@ -561,14 +561,6 @@
   min-height: 3rem;
 }
 
-.option-card input {
-  position: absolute;
-  inset: 0;
-  margin: 0;
-  opacity: 0;
-  cursor: inherit;
-}
-
 button.option-card:focus-visible,
 .option-card:has(input:focus-visible) {
   border-color: var(--accent);
