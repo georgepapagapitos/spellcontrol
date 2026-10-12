@@ -29,7 +29,6 @@ const SLACK = 200;
 
 const CEILINGS: Record<string, number> = {
   'components/binder/BinderEditor.tsx': 1800,
-  'components/collection/CardListTable.tsx': 1900,
   'components/card/CardPreview.tsx': 1200,
   'components/scanner/CardScanner.tsx': 1300,
   'components/deck/CardSearchPanel.tsx': 2000,

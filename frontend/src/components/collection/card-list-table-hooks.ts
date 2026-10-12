@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { EnrichedCard } from '@/types/index';
 import type { AllocationInfo } from '@/lib/collection/allocations';
 import { fetchTypeSuggestions } from '@/lib/cards/scryfall-catalog';
+import { isTypingTarget, useRegisterShortcuts } from '@/components/app-shell/shortcut-registry';
 import { collectSubtypeTokens, mergeSubtypeSuggestions } from './card-list-table-derive';
+import { COLLECTION_SHORTCUTS, type ViewMode } from './card-list-table-config';
 
 // The self-contained hooks CardListTable calls, lifted out of its body (T176).
 // Each one is the exact state + effect/memo block that sat inline, with no
@@ -80,4 +82,58 @@ export function useAllocationsFor(
     },
     [groupPrintings, allocations, allocationsByPrinting]
   );
+}
+
+/** The Collection hotkeys (search focus, view switches, add) while the table is
+ *  mounted, plus their entry in the `?` overlay. */
+export function useCollectionHotkeys(
+  setView: (v: ViewMode) => void,
+  onAddCards: ((query?: string) => void) | undefined
+): void {
+  // Global hotkeys while the table is mounted. We ignore key events when the
+  // user is typing into an input/textarea/contenteditable so the shortcuts
+  // don't fight with normal text entry.
+  // NOTE: `?` is handled globally by Layout's ShortcutRegistryProvider.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (isTypingTarget(e.target)) return;
+      if (e.key === '/') {
+        const el = document.getElementById('collection-search');
+        if (el instanceof HTMLInputElement) {
+          e.preventDefault();
+          el.focus();
+          el.select();
+        }
+        return;
+      }
+      if (e.key === 'g') {
+        e.preventDefault();
+        setView('grid');
+        return;
+      }
+      if (e.key === 'l') {
+        e.preventDefault();
+        setView('list');
+        return;
+      }
+      if (e.key === 'c') {
+        e.preventDefault();
+        setView('compact');
+        return;
+      }
+      if (e.key === 'a') {
+        e.preventDefault();
+        onAddCards?.();
+        return;
+      }
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onAddCards, setView]);
+
+  // Register the Collection shortcut section while this table is mounted.
+  // The `?` overlay is owned by Layout; we contribute our shortcuts to the
+  // registry so they appear under the "Collection" section automatically.
+  useRegisterShortcuts('Collection', COLLECTION_SHORTCUTS);
 }
