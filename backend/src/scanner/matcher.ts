@@ -20,6 +20,7 @@
 
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
+import { Worker } from 'node:worker_threads';
 import sharp from 'sharp';
 import * as ort from 'onnxruntime-node';
 import { logger } from '../logger';
@@ -27,10 +28,12 @@ import { computePHash, PHASH_INPUT_SIZE } from './phash';
 import { loadHashDbFromFile, findNearest, type HashDb, type HashMatch } from './hash-db';
 import {
   loadEmbeddingDbFromFile,
+  buildUuidIndexYielding,
   rerankByCosineUuids,
   type EmbeddingDb,
   type EmbedMatch,
 } from './embedding-db';
+import type { LoadedDbs } from './load-dbs.worker';
 
 /** Raw dot-product score above which the top-1 is "confident". Must stay
  *  in lock-step with the frontend's CONFIDENT_SCORE — same threshold tuned
@@ -98,9 +101,8 @@ export async function createMatcher(opts: MatcherOptions): Promise<Matcher> {
 
   logger.info(`[matcher] loading from ${opts.dataDir}`);
   const t0 = Date.now();
-  const [hashDb, embeddingDb, session] = await Promise.all([
-    loadHashDbFromFile(hashPath),
-    loadEmbeddingDbFromFile(embeddingPath),
+  const [{ hashDb, embeddingDb }, session] = await Promise.all([
+    loadDbsOffThread(hashPath, embeddingPath),
     ort.InferenceSession.create(modelPath, {
       executionProviders: ['cpu'],
       graphOptimizationLevel: 'all',
@@ -129,6 +131,44 @@ export async function createMatcher(opts: MatcherOptions): Promise<Matcher> {
       await session.release();
     },
   };
+}
+
+/**
+ * Read + decode both DBs in a worker thread and take the typed arrays back as
+ * transferables (no copy). Decoding ~54k records is synchronous CPU work that
+ * used to hold the event loop (and the health check) on a slow shared vCPU.
+ * Only the uuid → row Map is built here, in yielding slices, since a Map would
+ * need a structured clone. Any worker failure falls back to the in-thread
+ * load, so the preload degrades to the old behaviour rather than disabling
+ * the scanner.
+ */
+export async function loadDbsOffThread(hashPath: string, embeddingPath: string) {
+  try {
+    const loaded = await new Promise<LoadedDbs>((resolve, reject) => {
+      const ext = path.extname(__filename);
+      const worker = new Worker(path.join(__dirname, `load-dbs.worker${ext}`), {
+        workerData: { hashPath, embeddingPath },
+        // A .ts entry (tests, tsx dev) needs tsx to resolve extensionless imports.
+        execArgv: ext === '.ts' ? ['--import', 'tsx', '--no-warnings'] : undefined,
+      });
+      worker.once('message', (m: { ok: true; dbs: LoadedDbs } | { ok: false; error: string }) => {
+        if (m.ok) resolve(m.dbs);
+        else reject(new Error(m.error));
+      });
+      worker.once('error', reject);
+      worker.once('exit', (code) => reject(new Error(`load worker exited with code ${code}`)));
+    });
+    const { uuids, recordCount } = loaded.embeddingDb;
+    const uuidIndex = await buildUuidIndexYielding(uuids, recordCount);
+    return { hashDb: loaded.hashDb, embeddingDb: { ...loaded.embeddingDb, uuidIndex } };
+  } catch (err) {
+    logger.warn('[matcher] worker load failed, loading on the main thread:', err);
+    const [hashDb, embeddingDb] = await Promise.all([
+      loadHashDbFromFile(hashPath),
+      loadEmbeddingDbFromFile(embeddingPath),
+    ]);
+    return { hashDb, embeddingDb };
+  }
 }
 
 async function runMatch(

@@ -30,7 +30,35 @@ export async function loadEmbeddingDbFromFile(filePath: string): Promise<Embeddi
   return decodeEmbeddingDb(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
 }
 
+/** Everything in an EmbeddingDb except the uuid → row Map, which can't cross a
+ *  thread boundary without a structured clone of 54k strings. */
+export type EmbeddingDbRaw = Omit<EmbeddingDb, 'uuidIndex'>;
+
 export function decodeEmbeddingDb(buf: ArrayBuffer): EmbeddingDb {
+  const raw = decodeEmbeddingDbRaw(buf);
+  const uuidIndex = new Map<string, number>();
+  for (let i = 0; i < raw.recordCount; i++) {
+    uuidIndex.set(uuidFromBytes(raw.uuids, i * UUID_BYTES), i);
+  }
+  return { ...raw, uuidIndex };
+}
+
+/** Build the uuid → row Map in slices, yielding to the event loop between
+ *  them so a 54k-entry build never holds the thread for more than a few ms. */
+export async function buildUuidIndexYielding(
+  uuids: Uint8Array,
+  recordCount: number,
+  sliceSize = 2048
+): Promise<Map<string, number>> {
+  const uuidIndex = new Map<string, number>();
+  for (let i = 0; i < recordCount; i++) {
+    uuidIndex.set(uuidFromBytes(uuids, i * UUID_BYTES), i);
+    if ((i + 1) % sliceSize === 0) await new Promise<void>((r) => setImmediate(r));
+  }
+  return uuidIndex;
+}
+
+export function decodeEmbeddingDbRaw(buf: ArrayBuffer): EmbeddingDbRaw {
   if (buf.byteLength < HEADER_BYTES) {
     throw new Error(`embedding-db too small: ${buf.byteLength} bytes`);
   }
@@ -55,18 +83,16 @@ export function decodeEmbeddingDb(buf: ArrayBuffer): EmbeddingDb {
 
   const refs = new Int8Array(recordCount * dim);
   const uuids = new Uint8Array(recordCount * UUID_BYTES);
-  const uuidIndex = new Map<string, number>();
   const src = new Uint8Array(buf);
 
   let cursor = HEADER_BYTES;
   for (let i = 0; i < recordCount; i++) {
     refs.set(new Int8Array(buf, cursor, dim), i * dim);
     uuids.set(src.subarray(cursor + dim, cursor + dim + UUID_BYTES), i * UUID_BYTES);
-    uuidIndex.set(uuidFromBytes(uuids, i * UUID_BYTES), i);
     cursor += recordBytes;
   }
 
-  return { refs, uuids, uuidIndex, dim, recordCount, bytes: buf.byteLength };
+  return { refs, uuids, dim, recordCount, bytes: buf.byteLength };
 }
 
 export function rerankByCosineUuids(
