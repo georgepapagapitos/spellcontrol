@@ -239,14 +239,6 @@
   line-height: 1;
 }
 
-.opponent-entry__permanents {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .opponent-entry__counts {
   font-size: var(--text-xs);
   color: var(--text-muted);

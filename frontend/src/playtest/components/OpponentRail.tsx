@@ -269,7 +269,7 @@ function OpponentEntry({
           </span>
         )}
         {pending ? (
-          <span className="opponent-entry__permanents" aria-hidden="true">
+          <span className="truncate-meta opponent-entry__permanents" aria-hidden="true">
             No board shared yet
           </span>
         ) : glance ? (
@@ -286,7 +286,7 @@ function OpponentEntry({
             <MiniBattlefield cards={board.battlefield} />
           </>
         ) : (
-          <span className="opponent-entry__permanents" aria-hidden="true">
+          <span className="truncate-meta opponent-entry__permanents" aria-hidden="true">
             {permanentCount} permanent{permanentCount === 1 ? '' : 's'}
           </span>
         )}

@@ -101,7 +101,7 @@ export function DeckColorBalance({
       {rows.length === 0 ? (
         <p className="deck-color-balance-empty">No colored mana to balance.</p>
       ) : (
-        <ul className="deck-color-balance-rows">
+        <ul className="list-stack list-stack--flush deck-color-balance-rows">
           {rows.map((row) => {
             const name = COLOR_NAME[row.color];
             const lower = name.toLowerCase();

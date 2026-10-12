@@ -230,7 +230,9 @@ export function PeopleSearch({ friends, incoming, outgoing, following, onChanged
                     <UserAvatar imageUrl={p.avatarImageUrl} name={primary} size={40} />
                     <span className="people-row-body">
                       <span className="people-row-name">{primary}</span>
-                      {secondary && <span className="people-row-handle">{secondary}</span>}
+                      {secondary && (
+                        <span className="truncate-meta people-row-handle">{secondary}</span>
+                      )}
                     </span>
                   </Link>
                   <span className="people-row-actions">

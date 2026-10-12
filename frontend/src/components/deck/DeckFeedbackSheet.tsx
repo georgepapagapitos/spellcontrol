@@ -280,7 +280,7 @@ export function DeckFeedbackSheet({ deck, onClose }: Props) {
                           >
                             {suggestion.type === 'add' ? 'Add' : 'Cut'}
                           </span>
-                          <span className="deck-feedback-suggestion-name">
+                          <span className="truncate-fill deck-feedback-suggestion-name">
                             {suggestion.cardName}
                           </span>
                           {suggestion.status === 'pending' ? (

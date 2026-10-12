@@ -92,7 +92,7 @@ export function NextBestMove({
         <Sparkles className="next-best-move-header-icon" aria-hidden="true" />
         <span className="next-best-move-header-label">Next best move</span>
       </header>
-      <ol className="next-best-move-list">
+      <ol className="list-stack list-stack--flush next-best-move-list">
         {shown.map((move, i) => {
           // Every card-naming move is an "Add X" (role/synergy gap or combo
           // completion), so a direct apply is unambiguous. Adds route through the

@@ -81,14 +81,6 @@
   color: var(--text-primary);
 }
 
-.sets-card-lines {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-}
-
 .sets-card-line {
   display: flex;
   align-items: center;
@@ -435,14 +427,6 @@
   margin-bottom: var(--space-3);
 }
 
-.set-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-}
-
 .set-list-row {
   display: flex;
   align-items: center;
@@ -503,14 +487,6 @@
   font-variant-numeric: tabular-nums;
   color: var(--text-secondary);
   font-size: var(--text-xs);
-}
-
-.set-list-name {
-  flex: 1;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .set-list-qty {

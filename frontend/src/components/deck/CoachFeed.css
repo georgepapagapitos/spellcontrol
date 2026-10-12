@@ -187,14 +187,6 @@
 
 /* ── Row list ───────────────────────────────────────────────────────────── */
 
-.coach-feed-rows {
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
 /* ── Suggestion rows as a table (E415) ──────────────────────────────────
    Hairline rows, not bordered cards inside the panel (§ Surfaces: one
    frame). From a 48rem feed each row is a grid: art | name + chips | why |

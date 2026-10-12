@@ -79,14 +79,6 @@
   color: var(--text-primary);
 }
 
-.breakdown-row-label {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .breakdown-row-meta {
   font-size: var(--text-xs);
   color: var(--text-secondary);
@@ -230,14 +222,6 @@
 .collection-insight-row-label {
   font-size: var(--text-sm);
   font-weight: 600;
-}
-
-.collection-insight-row-detail {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .collection-insight-row-bar {

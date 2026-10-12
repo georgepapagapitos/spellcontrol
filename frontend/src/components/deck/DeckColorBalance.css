@@ -13,14 +13,6 @@
 /* One hairline row per color: name · the two bars · the two counts. The panel
    is the frame; rows inside it are never boxes of their own (§ Layout
    system, one frame). */
-.deck-color-balance-rows {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-}
-
 .deck-color-balance-row {
   display: grid;
   grid-template-columns: 7.5rem minmax(0, 1fr) auto;

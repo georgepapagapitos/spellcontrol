@@ -158,7 +158,10 @@ export function TradeReview({
             />
           ) : (
             <>
-              <ul className="trade-review-lines" aria-label="You get: chosen cards">
+              <ul
+                className="list-stack list-stack--flush trade-review-lines"
+                aria-label="You get: chosen cards"
+              >
                 {m.getLines.map((line) => (
                   <GetLine
                     key={line.key}
@@ -201,7 +204,10 @@ export function TradeReview({
             />
           ) : (
             <>
-              <ul className="trade-review-lines" aria-label="You give: chosen cards">
+              <ul
+                className="list-stack list-stack--flush trade-review-lines"
+                aria-label="You give: chosen cards"
+              >
                 {m.giveLines.map((line) => (
                   <GiveLine
                     key={line.key}

@@ -329,7 +329,10 @@ export function TradeIncomingReview({
             {receive.length === 0 ? (
               <p className="trade-incoming-nothing">Nothing</p>
             ) : (
-              <ul className="trade-review-lines" aria-label="You get: cards">
+              <ul
+                className="list-stack list-stack--flush trade-review-lines"
+                aria-label="You get: cards"
+              >
                 {receive.map((card) => {
                   const where = card.oracleId ? locations.get(card.oracleId) : undefined;
                   return (

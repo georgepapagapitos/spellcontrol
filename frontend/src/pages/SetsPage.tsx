@@ -256,7 +256,7 @@ function CardMatchGroup({
   return (
     <div className="sets-card-group">
       <h3 className="sets-card-group-name">{match.name}</h3>
-      <ul className="sets-card-lines">
+      <ul className="list-stack list-stack--flush sets-card-lines">
         {ownedSorted.map((p) => (
           <CardSetLine
             key={`${p.setCode}:${p.collectorNumber}`}
@@ -300,7 +300,7 @@ function CardMatchGroup({
             </p>
           ) : (
             <>
-              <ul className="sets-card-lines">
+              <ul className="list-stack list-stack--flush sets-card-lines">
                 {visible.map((card) => {
                   const code = (card.set ?? '').toUpperCase();
                   const cn = card.collector_number ?? '';
@@ -812,7 +812,7 @@ function SetDetail({ code }: { code: string }) {
               ))}
             </div>
           ) : (
-            <ul className="set-list">
+            <ul className="list-stack list-stack--flush set-list">
               {filtered.map((r, idx) => (
                 <SetListRow key={r.card.id} row={r} onOpen={() => setPreviewIndex(idx)} />
               ))}
@@ -881,7 +881,7 @@ function SetListRow({ row, onOpen }: { row: SetGridRow; onOpen: () => void }) {
           <span className="set-list-thumb set-list-thumb-ph" aria-hidden />
         )}
         <span className="set-list-num">#{card.collector_number}</span>
-        <span className="set-list-name">
+        <span className="truncate-fill set-list-name">
           <CardName card={card} />
         </span>
         {qty > 1 && <span className="set-list-qty">×{qty}</span>}

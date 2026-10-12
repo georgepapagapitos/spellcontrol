@@ -357,7 +357,7 @@ export function DeckFeedbackView({ data, token }: Props) {
                   >
                     <Plus width={14} height={14} strokeWidth={1.8} aria-hidden />
                     <RowThumb src={imageFromCard(card, 'small')} />
-                    <span className="feedback-row-name">{card.name}</span>
+                    <span className="truncate-fill feedback-row-name">{card.name}</span>
                     <span className="feedback-row-type">
                       {inDeck ? 'Already in deck' : (card.type_line ?? '')}
                     </span>
@@ -386,7 +386,7 @@ export function DeckFeedbackView({ data, token }: Props) {
                 >
                   <Plus width={14} height={14} strokeWidth={1.8} aria-hidden />
                   <RowThumb src={imageFromCard(card, 'small')} />
-                  <span className="feedback-row-name">{card.name}</span>
+                  <span className="truncate-fill feedback-row-name">{card.name}</span>
                   <span className="feedback-row-type">{card.type_line ?? ''}</span>
                   {typeof card.mana_cost === 'string' && (
                     <ManaCost cost={card.mana_cost} className="feedback-row-mana" />
@@ -483,7 +483,7 @@ export function DeckFeedbackView({ data, token }: Props) {
                       onClick={() => setPreviewIndex(s.start + j)}
                     >
                       <RowThumb src={it.pc.imageSmall} />
-                      <span className="feedback-row-name">
+                      <span className="truncate-fill feedback-row-name">
                         {it.quantity > 1 ? `${it.quantity}× ` : ''}
                         {it.pc.name}
                       </span>

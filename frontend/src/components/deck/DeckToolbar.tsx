@@ -172,7 +172,11 @@ function ShowPrefsList({
   onShowPrefsChange: (next: ShowPrefs) => void;
 }) {
   return (
-    <ul className="toolbar-popover-list" role="menu" aria-label="Row details">
+    <ul
+      className="list-stack list-stack--flush toolbar-popover-list"
+      role="menu"
+      aria-label="Row details"
+    >
       {(Object.keys(SHOW_PREFS_LABEL) as (keyof ShowPrefs)[]).map((k) => (
         <li key={k}>
           <button

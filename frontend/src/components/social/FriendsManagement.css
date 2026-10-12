@@ -41,14 +41,6 @@
   white-space: nowrap;
 }
 
-.friends-identity-handle {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 /* ── Tabs panel area ─────────────────────────────────────────────────────── */
 .friends-tabs-area {
   margin-top: var(--space-4);

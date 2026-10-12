@@ -43,7 +43,7 @@ export function TradeTray({
         </span>
         <span className="trade-tray-text" aria-hidden>
           <span className="trade-tray-title">Trade with {friendName}</span>
-          <span className="trade-tray-sub">
+          <span className="truncate-meta trade-tray-sub">
             {summary}
             {m.netShort && (
               <>

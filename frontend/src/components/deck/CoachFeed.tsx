@@ -927,7 +927,10 @@ export function CoachFeed({
               </div>
             )}
             {filteredRows.length > 0 && (
-              <ul className="coach-feed-rows" aria-label="Deck suggestions">
+              <ul
+                className="list-stack list-stack--flush coach-feed-rows"
+                aria-label="Deck suggestions"
+              >
                 {(showAllRows ? filteredRows : filteredRows.slice(0, ROW_CAP)).map(({ change }) => {
                   const isLeaving = leavingIds.has(change.id);
                   // A move row's apply carries the donor's patch; the Fit audition

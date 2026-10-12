@@ -368,14 +368,6 @@
   margin: 0 0 var(--space-2);
 }
 
-.shortcuts-overlay-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-}
-
 .shortcuts-overlay-row {
   display: flex;
   align-items: center;

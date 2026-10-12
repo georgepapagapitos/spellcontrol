@@ -547,6 +547,29 @@ select {
   list-style: none;
 }
 
+/* No gap between rows: the rows draw their own hairlines or padding. */
+.list-stack--flush {
+  gap: 0;
+}
+
+/* A flex child that gives way and ellipsizes instead of pushing its siblings. */
+.truncate-fill {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A one-line muted caption that ellipsizes. */
+.truncate-meta {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .list-stack--tight {
   gap: var(--space-1);
 }

@@ -1581,7 +1581,7 @@ export function BinderEditor() {
                               disabled={saving}
                               aria-label={`Binder name for ${f.name}`}
                             />
-                            <span className="binder-import-row-file">{f.name}</span>
+                            <span className="truncate-meta binder-import-row-file">{f.name}</span>
                           </div>
                           <IconButton
                             className="staged-files-remove"

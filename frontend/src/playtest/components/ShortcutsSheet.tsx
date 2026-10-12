@@ -108,7 +108,7 @@ export function ShortcutsSheet({ overrides, onChange, onClose }: Props) {
           <section key={group}>
             <h3 className="shortcuts-overlay-section-title">{SHORTCUT_GROUP_LABEL[group]}</h3>
             {group === 'card' && <p className="playtest-shortcuts-group-help">{CARD_GROUP_HELP}</p>}
-            <ul className="shortcuts-overlay-list">
+            <ul className="list-stack list-stack--flush shortcuts-overlay-list">
               {SHORTCUTS.filter((d) => d.group === group).map((def) => {
                 const chord = bindings[def.id];
                 const isListening = listening === def.id;

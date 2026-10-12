@@ -29,7 +29,7 @@ export function DeckTagManager({
   return (
     <div className="deck-tag-manager">
       <h3 className="deck-tag-manager-title">Tags in this deck</h3>
-      <ul className="toolbar-popover-list deck-tag-manager-list">
+      <ul className="list-stack list-stack--flush toolbar-popover-list deck-tag-manager-list">
         {tags.map(({ tag, count }) => (
           <li key={tag} className="deck-tag-manager-row">
             {onRename ? (

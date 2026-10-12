@@ -215,7 +215,11 @@ export function SelectMenu<T extends string | number>({
             }}
           />
         )}
-        <ul className="toolbar-popover-list" role="listbox" aria-label={ariaLabel ?? undefined}>
+        <ul
+          className="list-stack list-stack--flush toolbar-popover-list"
+          role="listbox"
+          aria-label={ariaLabel ?? undefined}
+        >
           {visibleOptions.length === 0 ? (
             <li className="toolbar-popover-empty" role="option" aria-disabled aria-selected={false}>
               No matches
