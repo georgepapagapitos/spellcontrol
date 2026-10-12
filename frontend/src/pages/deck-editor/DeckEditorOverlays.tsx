@@ -11,7 +11,6 @@ import { PullListSheet } from '@/components/deck/PullListSheet';
 import { CommanderPickerSheet } from '@/components/deck/CommanderPickerSheet';
 import { DeckSizePrompt } from '@/components/deck/DeckSizePrompt';
 import { FillDeckSheet } from '@/components/deck/FillDeckSheet';
-import { type Change } from '@/lib/coach/deck-change';
 import { CardFitPanel } from '@/components/deck/CardFitPanel';
 import { CardEditDialog } from '@/components/collection/CardEditDialog';
 import {
@@ -30,267 +29,157 @@ import type { ComboSeedContext } from '@/types/combos';
 import { Modal } from '@/components/overlays/Modal';
 import { PartnerCommanderSelector } from '@/components/deck/PartnerCommanderSelector';
 import { useToastsStore } from '@/store/toasts';
-import type { ScryfallCard } from '@/deck-builder/types';
 import { DeckEditorCardPickerSheet } from './DeckEditorCardPickerSheet';
 import { DeckTestHandSheet } from './DeckTestHandSheet';
 import { ReplaceCommanderDialog } from './ReplaceCommanderDialog';
-import type { Dispatch, SetStateAction, JSX } from 'react';
-import type { BuildTimeNudge } from '@/lib/coach/use-build-time-nudge';
-import type { AddFitReport } from '@/lib/coach/card-fit';
 import type { DeckToken } from '@/lib/deck/deck-tokens';
-import type { EnrichedCard, BinderDef, Finish } from '@spellcontrol/binder-routing';
-import type { AllocationInfo, StealableCopy, DonorOutcome } from '@/lib/collection/allocations';
-import type { ChangeOwnership } from '@/lib/coach/deck-change';
-import type { PrintingSelection } from '@/lib/collection/edit-card';
-import type { DeckFormatConfig } from '@/deck-builder/types';
-import type { SizePromptOption } from '@/components/deck/DeckSizePrompt';
-import type { CrossDeckMove } from '@/lib/coach/cross-deck-moves';
-import type { ComboMatchResponse } from '@/types/combos';
-import type { RefineCard } from '@/lib/ai/ai-refine';
-import type { AiScope } from '@/lib/ai/ai-scope';
+import type { EnrichedCard, BinderDef } from '@spellcontrol/binder-routing';
+import type { useDeckEditorUi } from './use-deck-editor-ui';
+import type { useDeckView } from './use-deck-view';
+import type { useDeckOwnership } from './use-deck-ownership';
+import type { useDeckAddFlow } from './use-deck-add-flow';
+import type { useDeckPrintingEdits } from './use-deck-printing-edits';
+import type { useDeckCommanderEdits } from './use-deck-commander-edits';
+import type { useDeckReallocation } from './use-deck-reallocation';
+import type { useDeckDerived } from './use-deck-derived';
+import type { useDeckAnalysisData } from './use-deck-analysis-data';
+import type { useDeckCombosView } from './use-deck-combos-view';
+import type { useDeckCoachApply } from './use-deck-coach-apply';
+import type { useDeckRefineData } from './use-deck-refine-data';
+import type { useDeckCardRenderers } from './use-deck-card-renderers';
 
+/** Every prop but the plain data is a hook's returned object, passed whole. */
 export function DeckEditorOverlays({
-  showTestHand,
   deck,
-  setShowTestHand,
-  showAddPanel,
-  setShowAddPanel,
-  buildTimeNudge,
-  renderAddPanelContent,
-  auditionCard,
-  auditionReport,
-  swappingSlot,
-  auditionPinnedCutName,
-  handleSwapInDeck,
-  setAuditionCard,
-  setAuditionPinnedCutName,
-  handleAddEngineCard,
-  tokensOpen,
-  deckTokens,
-  setTokensOpen,
-  primerOpen,
-  setPrimerOpen,
-  appendOpen,
-  setAppendOpen,
-  bulkEditOpen,
-  setBulkEditOpen,
-  resyncOpen,
-  setResyncOpen,
-  pullListOpen,
   collectionCards,
   binderDefs,
-  printingAllocationMap,
-  setPullListOpen,
-  editingSlot,
-  collectionById,
-  resolveAvailability,
-  resolveOwnedFinishes,
-  handleEditConfirm,
-  setEditingSlot,
-  movePrompt,
-  handleMovePrintingConfirm,
-  setMovePrompt,
-  makeCommanderTarget,
-  setMakeCommanderTarget,
-  handleConfirmMakeCommander,
-  makePartnerTarget,
-  setMakePartnerTarget,
-  handleConfirmMakePartner,
-  showCommanderPicker,
-  formatConfig,
-  commanderNames,
-  handleSelectCommanderFromPicker,
-  setShowCommanderPicker,
-  showPartnerPicker,
-  setShowPartnerPicker,
-  handleSelectPartnerFromPicker,
-  showFill,
-  mainboardLimit,
-  ownedNames,
-  setShowFill,
-  pendingAdd,
-  replaceOptions,
-  pendingMoveFor,
-  handleApplyCoachMove,
-  setPendingAdd,
-  addToSideboardAndClose,
-  addToConsideringAndClose,
-  addAnywayAndClose,
-  refillAfterCut,
-  refillOptions,
-  setRefillAfterCut,
-  moveCard,
-  ownershipFor,
-  freeCountFor,
-  handleMoveConfirm,
-  setMoveCard,
-  releaseCard,
-  handleReleaseConfirm,
-  setReleaseCard,
-  feedbackOpen,
-  setFeedbackOpen,
-  showSharedCopies,
-  handleMoveSharedCopy,
-  setShowSharedCopies,
-  showBuildReport,
-  mainboardComboData,
-  ownedOracleIdSet,
+  deckTokens,
   comboSeedContext,
-  setShowBuildReport,
-  refinePool,
-  aiScope,
+  ui,
+  view,
+  ownership,
+  addFlow,
+  printingEdits,
+  commanderEdits,
+  realloc,
+  derived,
+  analysis,
+  combosView,
+  coachApply,
+  refine,
   refineAlternatives,
-  handleApplyCostSwaps,
+  renderers,
 }: {
-  showTestHand: boolean;
   deck: Deck;
-  setShowTestHand: Dispatch<SetStateAction<boolean>>;
-  showAddPanel: boolean;
-  setShowAddPanel: Dispatch<SetStateAction<boolean>>;
-  buildTimeNudge: {
-    nudge: BuildTimeNudge | null;
-    notifyMainboardAdd: (cardName: string) => void;
-    dismiss: () => void;
-  };
-  renderAddPanelContent: (close: () => void) => JSX.Element;
-  auditionCard: ScryfallCard | null;
-  auditionReport: AddFitReport | null;
-  swappingSlot: string | null;
-  auditionPinnedCutName: string | null;
-  handleSwapInDeck: (
-    slotId: string,
-    oldName: string,
-    newName: string,
-    close: () => void
-  ) => Promise<void>;
-  setAuditionCard: Dispatch<SetStateAction<ScryfallCard | null>>;
-  setAuditionPinnedCutName: Dispatch<SetStateAction<string | null>>;
-  handleAddEngineCard: (cardName: string) => Promise<void>;
-  tokensOpen: boolean;
-  deckTokens: DeckToken[];
-  setTokensOpen: Dispatch<SetStateAction<boolean>>;
-  primerOpen: boolean;
-  setPrimerOpen: Dispatch<SetStateAction<boolean>>;
-  appendOpen: boolean;
-  setAppendOpen: Dispatch<SetStateAction<boolean>>;
-  bulkEditOpen: boolean;
-  setBulkEditOpen: Dispatch<SetStateAction<boolean>>;
-  resyncOpen: boolean;
-  setResyncOpen: Dispatch<SetStateAction<boolean>>;
-  pullListOpen: boolean;
   collectionCards: EnrichedCard[];
   binderDefs: BinderDef[];
-  printingAllocationMap: Map<string, AllocationInfo>;
-  setPullListOpen: Dispatch<SetStateAction<boolean>>;
-  editingSlot: { slotId: string; card: ScryfallCard } | null;
-  collectionById: Map<string, EnrichedCard> | undefined;
-  resolveAvailability: (printing: ScryfallCard) => ChangeOwnership;
-  resolveOwnedFinishes: (printing: ScryfallCard) => Finish[];
-  handleEditConfirm: (selection: PrintingSelection) => void;
-  setEditingSlot: Dispatch<SetStateAction<{ slotId: string; card: ScryfallCard } | null>>;
-  movePrompt: {
-    editSlotId: string;
-    newCard: ScryfallCard;
-    chosenSetName: string;
-    donor: StealableCopy;
-    swap: { returnCopyId: string; returnCard: ScryfallCard; returnSetName: string } | null;
-  } | null;
-  handleMovePrintingConfirm: (mode: 'move' | 'swap') => void;
-  setMovePrompt: Dispatch<
-    SetStateAction<{
-      editSlotId: string;
-      newCard: ScryfallCard;
-      chosenSetName: string;
-      donor: StealableCopy;
-      swap: { returnCopyId: string; returnCard: ScryfallCard; returnSetName: string } | null;
-    } | null>
-  >;
-  makeCommanderTarget: {
-    slotId: string | null;
-    card: ScryfallCard;
-    allocatedCopyId: string | null;
-  } | null;
-  setMakeCommanderTarget: Dispatch<
-    SetStateAction<{
-      slotId: string | null;
-      card: ScryfallCard;
-      allocatedCopyId: string | null;
-    } | null>
-  >;
-  handleConfirmMakeCommander: (keepOldInDeck: boolean) => void;
-  makePartnerTarget: {
-    slotId: string;
-    card: ScryfallCard;
-    zone: 'main' | 'side';
-    allocatedCopyId: string | null;
-  } | null;
-  setMakePartnerTarget: Dispatch<
-    SetStateAction<{
-      slotId: string;
-      card: ScryfallCard;
-      zone: 'main' | 'side';
-      allocatedCopyId: string | null;
-    } | null>
-  >;
-  handleConfirmMakePartner: (keepOldInDeck: boolean) => void;
-  showCommanderPicker: boolean;
-  formatConfig: DeckFormatConfig | null;
-  commanderNames: string[];
-  handleSelectCommanderFromPicker: (card: ScryfallCard) => void;
-  setShowCommanderPicker: Dispatch<SetStateAction<boolean>>;
-  showPartnerPicker: boolean;
-  setShowPartnerPicker: Dispatch<SetStateAction<boolean>>;
-  handleSelectPartnerFromPicker: (card: ScryfallCard | null) => void;
-  showFill: boolean;
-  mainboardLimit: number;
-  ownedNames: Set<string>;
-  setShowFill: Dispatch<SetStateAction<boolean>>;
-  pendingAdd: string | null;
-  replaceOptions: {
-    suggested: SizePromptOption[];
-    all: SizePromptOption[];
-    anyRelated: boolean;
-  } | null;
-  pendingMoveFor: CrossDeckMove | null;
-  handleApplyCoachMove: (change: Change) => Promise<void>;
-  setPendingAdd: Dispatch<SetStateAction<string | null>>;
-  addToSideboardAndClose: () => Promise<void>;
-  addToConsideringAndClose: () => Promise<void>;
-  addAnywayAndClose: () => Promise<void>;
-  refillAfterCut: { name: string; role: string | null } | null;
-  refillOptions: SizePromptOption[];
-  setRefillAfterCut: Dispatch<SetStateAction<{ name: string; role: string | null } | null>>;
-  moveCard: ScryfallCard | null;
-  ownershipFor: (name: string) => ChangeOwnership;
-  freeCountFor: (name: string) => number;
-  handleMoveConfirm: (
-    card: ScryfallCard,
-    targetDeckId: string,
-    outcome: DonorOutcome,
-    replacement: { name: string; card: ScryfallCard } | null
-  ) => void;
-  setMoveCard: Dispatch<SetStateAction<ScryfallCard | null>>;
-  releaseCard: ScryfallCard | null;
-  handleReleaseConfirm: () => void;
-  setReleaseCard: Dispatch<SetStateAction<ScryfallCard | null>>;
-  feedbackOpen: boolean;
-  setFeedbackOpen: Dispatch<SetStateAction<boolean>>;
-  showSharedCopies: boolean;
-  handleMoveSharedCopy: (slotId: string) => void;
-  setShowSharedCopies: Dispatch<SetStateAction<boolean>>;
-  showBuildReport: boolean;
-  mainboardComboData: ComboMatchResponse | null;
-  ownedOracleIdSet: Set<string>;
+  deckTokens: DeckToken[];
   comboSeedContext: ComboSeedContext | null;
-  setShowBuildReport: Dispatch<SetStateAction<boolean>>;
-  refinePool: RefineCard[];
-  aiScope: AiScope;
+  ui: ReturnType<typeof useDeckEditorUi>;
+  view: ReturnType<typeof useDeckView>;
+  ownership: ReturnType<typeof useDeckOwnership>;
+  addFlow: ReturnType<typeof useDeckAddFlow>;
+  printingEdits: ReturnType<typeof useDeckPrintingEdits>;
+  commanderEdits: ReturnType<typeof useDeckCommanderEdits>;
+  realloc: ReturnType<typeof useDeckReallocation>;
+  derived: ReturnType<typeof useDeckDerived>;
+  analysis: ReturnType<typeof useDeckAnalysisData>;
+  combosView: ReturnType<typeof useDeckCombosView>;
+  coachApply: ReturnType<typeof useDeckCoachApply>;
+  refine: ReturnType<typeof useDeckRefineData>;
   refineAlternatives: Map<string, string[]>;
-  handleApplyCostSwaps: (
-    swaps: Array<{ removeName: string; addName: string }>,
-    kind?: 'budget' | 'bracket' | 'ai'
-  ) => Promise<void>;
+  renderers: ReturnType<typeof useDeckCardRenderers>;
 }) {
+  const {
+    showAddPanel,
+    setShowAddPanel,
+    tokensOpen,
+    setTokensOpen,
+    primerOpen,
+    setPrimerOpen,
+    appendOpen,
+    setAppendOpen,
+    bulkEditOpen,
+    setBulkEditOpen,
+    resyncOpen,
+    setResyncOpen,
+    pullListOpen,
+    setPullListOpen,
+    feedbackOpen,
+    setFeedbackOpen,
+    showSharedCopies,
+    setShowSharedCopies,
+    showBuildReport,
+    setShowBuildReport,
+  } = ui;
+  const { showTestHand, setShowTestHand } = view;
+  const {
+    printingAllocationMap,
+    collectionById,
+    resolveAvailability,
+    resolveOwnedFinishes,
+    ownedNames,
+    ownershipFor,
+    freeCountFor,
+    ownedOracleIdSet,
+  } = ownership;
+  const {
+    auditionCard,
+    auditionReport,
+    auditionPinnedCutName,
+    setAuditionCard,
+    setAuditionPinnedCutName,
+    handleAddEngineCard,
+    showFill,
+    setShowFill,
+    pendingAdd,
+    replaceOptions,
+    pendingMoveFor,
+    setPendingAdd,
+    addToSideboardAndClose,
+    addToConsideringAndClose,
+    addAnywayAndClose,
+    refillAfterCut,
+    refillOptions,
+    setRefillAfterCut,
+  } = addFlow;
+  const {
+    editingSlot,
+    handleEditConfirm,
+    setEditingSlot,
+    movePrompt,
+    handleMovePrintingConfirm,
+    setMovePrompt,
+  } = printingEdits;
+  const {
+    makeCommanderTarget,
+    setMakeCommanderTarget,
+    handleConfirmMakeCommander,
+    makePartnerTarget,
+    setMakePartnerTarget,
+    handleConfirmMakePartner,
+    showCommanderPicker,
+    handleSelectCommanderFromPicker,
+    setShowCommanderPicker,
+    showPartnerPicker,
+    setShowPartnerPicker,
+    handleSelectPartnerFromPicker,
+  } = commanderEdits;
+  const {
+    moveCard,
+    handleMoveConfirm,
+    setMoveCard,
+    releaseCard,
+    handleReleaseConfirm,
+    setReleaseCard,
+    handleMoveSharedCopy,
+  } = realloc;
+  const { formatConfig, commanderNames, mainboardLimit } = derived;
+  const { buildTimeNudge } = analysis;
+  const { mainboardComboData } = combosView;
+  const { swappingSlot, handleSwapInDeck, handleApplyCoachMove, handleApplyCostSwaps } = coachApply;
+  const { refinePool, aiScope } = refine;
+  const { renderAddPanelContent } = renderers;
   const decks = useDecksStore((s) => s.decks);
   const savedCubes = useCubeStore((s) => s.saved);
   const bulkAddCards = useDecksStore((s) => s.bulkAddCards);

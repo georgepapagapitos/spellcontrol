@@ -5,7 +5,6 @@ import {
   bracketReasons,
   bracketBorderline,
 } from '@/deck-builder/services/deckBuilder/bracketEstimator';
-import { type CardSearchPanelHandle } from '@/components/deck/CardSearchPanel';
 import { DeckCombosPanel } from '@/components/deck/DeckCombosPanel';
 import { DeckAnalysisPanel } from '@/components/deck/DeckAnalysisPanel';
 import { DeckAiReview } from '@/components/deck/DeckAiReview';
@@ -23,293 +22,186 @@ import { winningCombos } from '@/lib/coach/coach-changes';
 import { buildWinConditionSummary } from '@/lib/deck-analysis/win-condition-summary';
 import { isValidCommander, isPdhCommanderEligible } from '@/lib/deck/commanders';
 import { canHavePartner } from '@/deck-builder/lib/partnerUtils';
-import type { ScryfallCard } from '@/deck-builder/types';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import { Button } from '@/components/shared/Button';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { deckEditActions } from './deck-page-chrome';
-import type { DeckZone } from '@/store/decks';
-import type { DeckFormatConfig } from '@/deck-builder/types';
-import type { Dispatch, SetStateAction, RefObject, JSX } from 'react';
 import type { EnrichedCard } from '@spellcontrol/binder-routing';
-import type { BinderRef } from '@/lib/binder/use-binder-by-copy';
-import type { ComboMatchResponse, ComboMatch } from '@/types/combos';
-import type { LandUpgradeMove } from '@/deck-builder/services/deckBuilder/landUpgrades';
-import type { ArrivalRow } from '@/lib/coach/new-arrivals';
-import type { ChangeOwnership, LaneId } from '@/lib/coach/deck-change';
-import type { ClockCard } from '@/lib/mana-sim/opening-hand-sim';
 import type { DeckViewTab } from './deck-page-chrome';
-import type { AiScope } from '@/lib/ai/ai-scope';
-import type { RefineCard } from '@/lib/ai/ai-refine';
-import type { DeckCombosPanelHandle } from '@/components/deck/DeckCombosPanel';
-import type { SubstitutionPlan } from '@/deck-builder/services/deckBuilder/substituteFinder';
-import type { CoachSettingsHooks } from '@/lib/coach/deck-settings-fit';
-import type { CostPlan } from '@/deck-builder/services/deckBuilder/costAnalyzer';
-import type { CrossDeckMove } from '@/lib/coach/cross-deck-moves';
-import type { ReplaceCuts } from '@/lib/coach/replace-cuts';
-import type { UpgradePlanTools } from '@/lib/coach/upgrade-plan-tools';
-import type { PlanStep } from '@/lib/coach/apply-upgrade-plan';
-import type {
-  NextBestMove,
-  NextBestMoveFocus,
-} from '@/deck-builder/services/deckBuilder/nextBestMove';
-import type { AxisSummary } from '@/deck-builder/services/synergy/deckSynergy';
-import type { useDeckCombos } from '@/lib/deck-analysis/use-deck-combos';
+import type { useDeckEditorUi } from './use-deck-editor-ui';
+import type { useDeckZoneEdits } from './use-deck-zone-edits';
+import type { useDeckPrintingEdits } from './use-deck-printing-edits';
+import type { useDeckCommanderEdits } from './use-deck-commander-edits';
+import type { useDeckReallocation } from './use-deck-reallocation';
+import type { useDeckOwnership } from './use-deck-ownership';
+import type { useDeckAddFlow } from './use-deck-add-flow';
+import type { useDeckDerived } from './use-deck-derived';
+import type { useDeckView } from './use-deck-view';
+import type { useDeckCombosView } from './use-deck-combos-view';
+import type { useDeckAnalysisData } from './use-deck-analysis-data';
+import type { useDeckRefineData } from './use-deck-refine-data';
+import type { useDeckCoachApply } from './use-deck-coach-apply';
+import type { useCoachArrivals } from './use-coach-arrivals';
+import type { useDeckCardRenderers } from './use-deck-card-renderers';
+import type { useDeckHeroData } from './use-deck-hero-data';
 
-export function DeckEditorLayout({
-  deck,
-  handleRemoveCard,
-  handleRemoveSideboardCard,
-  handleRemoveConsideringCard,
-  handleMoveToSideboard,
-  handleMoveToMainboard,
-  handleMoveToConsidering,
-  handleMoveFromConsidering,
-  handleSetQty,
-  handleEditCard,
-  handleSetCardTags,
-  handleRenameDeckTag,
-  handleRemoveDeckTag,
-  handleBulkRemove,
-  handleBulkMove,
-  handleBulkEditTag,
-  handleReorder,
-  formatConfig,
-  handleMakeCommanderClick,
-  handleMakePartnerClick,
-  canMakePartner,
-  setShowCommanderPicker,
-  cover,
-  setShowPartnerPicker,
-  setMoveCard,
-  setReleaseCard,
-  handleSetProxy,
-  handleUseOwnCopy,
-  collectionById,
-  binderByCopyId,
-  setShowAddPanel,
-  searchPanelRef,
-  handleAddEngineCard,
-  isCommander,
-  mainboardLimit,
-  setShowFill,
-  addingEngineNames,
-  mainboardComboData,
-  ownedOracleIdSet,
-  landUpgrades,
-  coachArrivals,
-  arrivalsDeepLink,
-  arrivalsSettled,
-  existingCardCounts,
-  ownershipFor,
-  combosByOracle,
-  bracketAnalysis,
-  deckLibrary,
-  exportOpen,
-  setExportOpen,
-  safeView,
-  viewTabs,
-  setShowTestHand,
-  isDesktop,
-  statSlot,
-  setAppendOpen,
-  setBulkEditOpen,
-  setResyncOpen,
-  hasCopyMismatches,
-  handleMatchMyCopies,
-  hasMissingSlots,
-  handleCheapestPrintings,
-  suggestGroups,
-  handleToggleAddPanel,
-  analysisState,
-  scoreRevealKey,
-  handleNavigateToTune,
-  renderSwapSuggestions,
-  renderSimilarCards,
-  comboOwnedMissingCount,
-  comboData,
-  handleViewBracket,
-  handleViewEngine,
-  handleViewCombos,
-  handleViewWinConditions,
-  aiScope,
-  collectionCards,
-  setAiAgrees,
-  refinePool,
-  refineAlternatives,
-  handleApplyCoachMove,
-  handleApplyCostSwaps,
-  combosRef,
-  deckOracleIds,
-  mainboardOracleIds,
-  comboColorIdentity,
-  substitutionPlan,
-  coachSettings,
-  effectiveCostPlan,
-  crossDeckMoves,
-  liveRoleCounts,
-  ownedNames,
-  deckCardNames,
-  handleCoachPreviewFit,
-  tuneFocusLane,
-  clearTuneFocus,
-  bracketFitSwapName,
-  ownedOnly,
-  handleOwnedOnlyChange,
-  replaceCuts,
-  aiAgrees,
-  planAvailable,
-  upgradePlanTools,
-  planOpen,
-  setPlanOpen,
-  handleApplyPlan,
-  nextBestMoves,
-  handleNbmNavigate,
-  axisSummaries,
-  deckCards,
-}: {
-  deck: Deck;
-  handleRemoveCard: (slotId: string) => void;
-  handleRemoveSideboardCard: (slotId: string) => void;
-  handleRemoveConsideringCard: (slotId: string) => void;
-  handleMoveToSideboard: (slotIds: string[]) => void;
-  handleMoveToMainboard: (slotIds: string[]) => void;
-  handleMoveToConsidering: (slotIds: string[]) => void;
-  handleMoveFromConsidering: (slotIds: string[]) => void;
-  handleSetQty: (
-    zone: DeckZone,
-    card: ScryfallCard,
-    qty: number,
-    opts?: { relative?: boolean }
-  ) => void;
-  handleEditCard: (slotId: string, card: ScryfallCard) => void;
-  handleSetCardTags: (zone: DeckZone, slotIds: string[], tags: string[]) => void;
-  handleRenameDeckTag: (from: string, to: string) => void;
-  handleRemoveDeckTag: (tag: string) => void;
-  handleBulkRemove: (zone: DeckZone, slotIds: string[]) => void;
-  handleBulkMove: (slotIds: string[], from: DeckZone, to: DeckZone) => void;
-  handleBulkEditTag: (zone: DeckZone, slotIds: string[], tag: string, add: boolean) => void;
-  handleReorder: (zone: DeckZone, slotIds: string[], sortIndex: number) => void;
-  formatConfig: DeckFormatConfig | null;
-  handleMakeCommanderClick: (slotId: string, card: ScryfallCard) => void;
-  handleMakePartnerClick: (slotId: string, card: ScryfallCard) => void;
-  canMakePartner: (card: ScryfallCard) => boolean;
-  setShowCommanderPicker: Dispatch<SetStateAction<boolean>>;
-  cover:
-    | { chosen: string | null; current: string | null; set: (name: string | null) => void }
-    | undefined;
-  setShowPartnerPicker: Dispatch<SetStateAction<boolean>>;
-  setMoveCard: Dispatch<SetStateAction<ScryfallCard | null>>;
-  setReleaseCard: Dispatch<SetStateAction<ScryfallCard | null>>;
-  handleSetProxy: (slotIds: string[], proxy: boolean) => void;
-  handleUseOwnCopy: (card: ScryfallCard) => void;
-  collectionById: Map<string, EnrichedCard> | undefined;
-  binderByCopyId: Map<string, BinderRef[]>;
-  setShowAddPanel: Dispatch<SetStateAction<boolean>>;
-  searchPanelRef: RefObject<CardSearchPanelHandle | null>;
-  handleAddEngineCard: (cardName: string) => Promise<void>;
-  isCommander: boolean;
-  mainboardLimit: number;
-  setShowFill: Dispatch<SetStateAction<boolean>>;
-  addingEngineNames: Set<string>;
-  mainboardComboData: ComboMatchResponse | null;
-  ownedOracleIdSet: Set<string>;
-  landUpgrades: LandUpgradeMove[];
-  coachArrivals: Partial<
-    Record<
-      | 'Land'
-      | 'Creature'
-      | 'Planeswalker'
-      | 'Battle'
-      | 'Sorcery'
-      | 'Instant'
-      | 'Artifact'
-      | 'Enchantment',
-      ArrivalRow[]
-    >
-  >;
-  arrivalsDeepLink: boolean;
-  arrivalsSettled: boolean;
-  existingCardCounts: Map<string, number>;
-  ownershipFor: (name: string) => ChangeOwnership;
-  combosByOracle: Map<string, ComboMatch[]>;
-  bracketAnalysis: {
-    status: 'pending' | 'ready' | 'error';
-    retry: () => void;
-    missesCombos: boolean;
-    edhrecMissing: boolean;
-  };
-  deckLibrary: ClockCard[];
-  exportOpen: boolean;
-  setExportOpen: Dispatch<SetStateAction<boolean>>;
+export type DeckEditorChrome = {
   safeView: DeckView;
   viewTabs: DeckViewTab[];
-  setShowTestHand: Dispatch<SetStateAction<boolean>>;
   isDesktop: boolean;
-  statSlot: HTMLDivElement | null;
-  setAppendOpen: Dispatch<SetStateAction<boolean>>;
-  setBulkEditOpen: Dispatch<SetStateAction<boolean>>;
-  setResyncOpen: Dispatch<SetStateAction<boolean>>;
-  hasCopyMismatches: boolean;
-  handleMatchMyCopies: () => Promise<void>;
-  hasMissingSlots: boolean;
-  handleCheapestPrintings: () => Promise<void>;
-  suggestGroups: { pending: boolean; run: () => void } | undefined;
-  handleToggleAddPanel: () => void;
-  analysisState: 'error' | 'pending' | 'ready';
-  scoreRevealKey: string | null;
-  handleNavigateToTune: (lane: LaneId) => void;
-  renderSwapSuggestions: (
-    card: ScryfallCard,
-    slotId: string,
-    close: () => void
-  ) => JSX.Element | null;
-  renderSimilarCards: (card: ScryfallCard, slotId: string, close: () => void) => JSX.Element | null;
-  comboOwnedMissingCount: number;
-  comboData: ReturnType<typeof useDeckCombos>;
-  handleViewBracket: () => void;
-  handleViewEngine: () => void;
-  handleViewCombos: () => void;
-  handleViewWinConditions: () => void;
-  aiScope: AiScope;
+  cover: ReturnType<typeof useDeckHeroData>['cover'];
+};
+
+/**
+ * Every prop but `deck`, `collectionCards` and the page's own derived values is a
+ * hook's returned object, passed whole (types come from the hooks, so a new member
+ * needs no edit here).
+ */
+export function DeckEditorLayout({
+  deck,
+  collectionCards,
+  chrome,
+  ui,
+  zoneEdits,
+  printingEdits,
+  commanderEdits,
+  realloc,
+  ownership,
+  addFlow,
+  derived,
+  view,
+  combosView,
+  analysis,
+  refine,
+  refineAlternatives,
+  coachApply,
+  arrivals,
+  renderers,
+  onCoachPreviewFit: handleCoachPreviewFit,
+}: {
+  deck: Deck;
   collectionCards: EnrichedCard[];
-  setAiAgrees: Dispatch<SetStateAction<ReadonlyMap<string, string> | null>>;
-  refinePool: RefineCard[];
+  chrome: DeckEditorChrome;
+  ui: ReturnType<typeof useDeckEditorUi>;
+  zoneEdits: ReturnType<typeof useDeckZoneEdits>;
+  printingEdits: ReturnType<typeof useDeckPrintingEdits>;
+  commanderEdits: ReturnType<typeof useDeckCommanderEdits>;
+  realloc: ReturnType<typeof useDeckReallocation>;
+  ownership: ReturnType<typeof useDeckOwnership>;
+  addFlow: ReturnType<typeof useDeckAddFlow>;
+  derived: ReturnType<typeof useDeckDerived>;
+  view: ReturnType<typeof useDeckView>;
+  combosView: ReturnType<typeof useDeckCombosView>;
+  analysis: ReturnType<typeof useDeckAnalysisData>;
+  refine: ReturnType<typeof useDeckRefineData>;
   refineAlternatives: Map<string, string[]>;
-  handleApplyCoachMove: (change: Change) => Promise<void>;
-  handleApplyCostSwaps: (
-    swaps: Array<{ removeName: string; addName: string }>,
-    kind?: 'budget' | 'bracket' | 'ai'
-  ) => Promise<void>;
-  combosRef: RefObject<DeckCombosPanelHandle | null>;
-  deckOracleIds: string[];
-  mainboardOracleIds: Set<string>;
-  comboColorIdentity: string[] | undefined;
-  substitutionPlan: SubstitutionPlan | null;
-  coachSettings: CoachSettingsHooks;
-  effectiveCostPlan: CostPlan | null;
-  crossDeckMoves: CrossDeckMove[];
-  liveRoleCounts: Record<string, number> | undefined;
-  ownedNames: Set<string>;
-  deckCardNames: Set<string>;
-  handleCoachPreviewFit: (change: Change) => Promise<void>;
-  tuneFocusLane: LaneId | null;
-  clearTuneFocus: () => void;
-  bracketFitSwapName: string | null;
-  ownedOnly: boolean;
-  handleOwnedOnlyChange: (next: boolean) => void;
-  replaceCuts: ReplaceCuts;
-  aiAgrees: ReadonlyMap<string, string> | null;
-  planAvailable: boolean;
-  upgradePlanTools: UpgradePlanTools | null;
-  planOpen: boolean;
-  setPlanOpen: Dispatch<SetStateAction<boolean>>;
-  handleApplyPlan: (steps: PlanStep[], toCopy: boolean) => Promise<void>;
-  nextBestMoves: NextBestMove[];
-  handleNbmNavigate: (next: DeckView, focus?: NextBestMoveFocus) => void;
-  axisSummaries: AxisSummary[] | undefined;
-  deckCards: ScryfallCard[];
+  coachApply: ReturnType<typeof useDeckCoachApply>;
+  arrivals: ReturnType<typeof useCoachArrivals>;
+  renderers: ReturnType<typeof useDeckCardRenderers>;
+  onCoachPreviewFit: (change: Change) => Promise<void>;
 }) {
+  const { safeView, viewTabs, isDesktop, cover } = chrome;
+  const {
+    setShowAddPanel,
+    searchPanelRef,
+    handleToggleAddPanel,
+    ownedOnly,
+    handleOwnedOnlyChange,
+  } = ui;
+  const {
+    handleRemoveCard,
+    handleRemoveSideboardCard,
+    handleRemoveConsideringCard,
+    handleMoveToSideboard,
+    handleMoveToMainboard,
+    handleMoveToConsidering,
+    handleMoveFromConsidering,
+    handleSetQty,
+    handleEditCard,
+    handleSetCardTags,
+    handleRenameDeckTag,
+    handleRemoveDeckTag,
+    handleBulkRemove,
+    handleBulkMove,
+    handleBulkEditTag,
+    handleReorder,
+  } = zoneEdits;
+  const {
+    handleMakeCommanderClick,
+    handleMakePartnerClick,
+    canMakePartner,
+    setShowCommanderPicker,
+    setShowPartnerPicker,
+  } = commanderEdits;
+  const { handleMatchMyCopies, handleCheapestPrintings } = printingEdits;
+  const { setMoveCard, setReleaseCard, handleSetProxy, handleUseOwnCopy } = realloc;
+  const {
+    collectionById,
+    binderByCopyId,
+    ownedOracleIdSet,
+    ownershipFor,
+    effectiveCostPlan,
+    ownedNames,
+  } = ownership;
+  const { handleAddEngineCard, setShowFill, addingEngineNames } = addFlow;
+  const {
+    formatConfig,
+    isCommander,
+    mainboardLimit,
+    existingCardCounts,
+    deckLibrary,
+    hasCopyMismatches,
+    hasMissingSlots,
+    deckOracleIds,
+    mainboardOracleIds,
+    comboColorIdentity,
+    deckCardNames,
+    axisSummaries,
+    deckCards,
+  } = derived;
+  const {
+    exportOpen,
+    setExportOpen,
+    setShowTestHand,
+    statSlot,
+    handleNavigateToTune,
+    combosRef,
+    tuneFocusLane,
+    clearTuneFocus,
+    handleNbmNavigate,
+    planOpen,
+    setPlanOpen,
+    arrivalsDeepLink,
+  } = view;
+  const {
+    mainboardComboData,
+    comboData,
+    combosByOracle,
+    comboOwnedMissingCount,
+    handleViewBracket,
+    handleViewEngine,
+    handleViewCombos,
+    handleViewWinConditions,
+  } = combosView;
+  const {
+    bracketAnalysis,
+    suggestGroups,
+    analysisState,
+    scoreRevealKey,
+    coachSettings,
+    planAvailable,
+    upgradePlanTools,
+    nextBestMoves,
+    crossDeckMoves,
+    liveRoleCounts,
+    replaceCuts,
+  } = analysis;
+  const { landUpgrades, aiScope, setAiAgrees, refinePool, substitutionPlan, aiAgrees } = refine;
+  const { handleApplyCoachMove, handleApplyCostSwaps, bracketFitSwapName, handleApplyPlan } =
+    coachApply;
+  const { coachArrivals, arrivalsSettled } = arrivals;
+  const { renderSwapSuggestions, renderSimilarCards } = renderers;
+  const { setAppendOpen, setBulkEditOpen, setResyncOpen } = ui;
   const updateDeck = useDecksStore((s) => s.updateDeck);
   const markArrivalsReviewed = useDecksStore((s) => s.markArrivalsReviewed);
   const addCard = useDecksStore((s) => s.addCard);
