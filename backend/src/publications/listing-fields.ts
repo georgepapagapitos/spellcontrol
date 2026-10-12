@@ -7,6 +7,7 @@ import {
 } from '../shares/projections';
 import { pickDeckCover, type DeckCoverInput } from '@spellcontrol/deck-metrics';
 import { cardArtUrl } from '../shares/og';
+import { signatureMissesCombos } from '../shares/bracket-floor';
 
 export interface ListingFields {
   name: string;
@@ -22,6 +23,8 @@ export interface ListingFields {
    * the deck has never been analyzed.
    */
   estimatedBracket: number | null;
+  /** `estimatedBracket` ran before the combo match answered, so it is a floor. */
+  estimatedBracketFloor: boolean;
   cardCount: number;
   /**
    * og:image for the public `/d/:slug` landing (w1-public-routes-linkability).
@@ -129,6 +132,7 @@ export function extractListingFields(deckData: unknown): ListingFields | null {
       asFiniteNumber(asRecord(deck.bracketEstimation)?.bracket) ??
       null,
     estimatedBracket: asFiniteNumber(asRecord(deck.bracketEstimation)?.bracket) ?? null,
+    estimatedBracketFloor: signatureMissesCombos(deck.gradeBracketSignature),
     // Counted with the SAME guard the public deck page renders with, not
     // `cardsArr.length`: this number is the /d/:slug link preview's "N cards"
     // and the /u/ tile's count, and a slot with no `card` is one the page

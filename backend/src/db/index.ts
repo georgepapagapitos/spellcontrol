@@ -736,6 +736,8 @@ export async function ensureSchema(): Promise<void> {
     -- hiding what the deck actually estimates at (2026-09-24 ruling). Null
     -- for a row published before this, and for any deck never analyzed.
     ALTER TABLE deck_publications ADD COLUMN IF NOT EXISTS estimated_bracket INTEGER;
+    -- True when that estimate ran before the combo match answered (a floor, E414).
+    ALTER TABLE deck_publications ADD COLUMN IF NOT EXISTS estimated_bracket_floor BOOLEAN NOT NULL DEFAULT false;
     -- Discover's "Most liked" sort (board T136), alongside the copy/view ones.
     CREATE INDEX IF NOT EXISTS deck_publications_like_count_idx
       ON deck_publications (like_count DESC) WHERE unpublished_at IS NULL;

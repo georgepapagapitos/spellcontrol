@@ -73,7 +73,7 @@ function tileAriaLabel(
   if (deck.bracket != null) {
     parts.push(
       deck.estimatedBracket != null && deck.estimatedBracket !== deck.bracket
-        ? bracketAriaWithEstimate(deck.bracket, deck.estimatedBracket)
+        ? bracketAriaWithEstimate(deck.bracket, deck.estimatedBracket, deck.estimatedBracketFloor)
         : bracketLabel(deck.bracket)
     );
   }
@@ -201,7 +201,11 @@ export function DiscoverDeckTile({ deck, view, buildablePercent = null, onUnsave
             {deck.bracket != null && (
               <Chip className="deck-format-badge">
                 {deck.estimatedBracket != null && deck.estimatedBracket !== deck.bracket
-                  ? bracketBadgeWithEstimate(deck.bracket, deck.estimatedBracket)
+                  ? bracketBadgeWithEstimate(
+                      deck.bracket,
+                      deck.estimatedBracket,
+                      deck.estimatedBracketFloor
+                    )
                   : bracketLabel(deck.bracket)}
               </Chip>
             )}

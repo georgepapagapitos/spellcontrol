@@ -38,6 +38,8 @@ export interface PublicDeckSummary {
   /** The auto-estimate, independent of `bracket` — null on a row published
    *  before the 2026-09-24 ruling, or for a deck never analyzed. */
   estimatedBracket: number | null;
+  /** `estimatedBracket` is a floor (the combo match hadn't answered). */
+  estimatedBracketFloor: boolean;
   viewCount: number;
   copyCount: number;
   publishedAt: number;

@@ -65,6 +65,7 @@ function listingRow(overrides: Partial<PublicationListingRow>): PublicationListi
     colorIdentity: ['U'],
     bracket: 3,
     estimatedBracket: null,
+    estimatedBracketFloor: false,
     viewCount: 0,
     copyCount: 0,
     likeCount: 0,

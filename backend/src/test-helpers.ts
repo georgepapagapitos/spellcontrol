@@ -504,6 +504,7 @@ export async function createTestEnv(): Promise<TestEnv> {
       color_identity JSONB NOT NULL DEFAULT '[]',
       bracket INTEGER,
       estimated_bracket INTEGER,
+      estimated_bracket_floor BOOLEAN NOT NULL DEFAULT false,
       card_count INTEGER NOT NULL DEFAULT 0,
       view_count INTEGER NOT NULL DEFAULT 0,
       copy_count INTEGER NOT NULL DEFAULT 0,

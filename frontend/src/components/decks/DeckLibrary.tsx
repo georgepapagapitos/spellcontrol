@@ -46,6 +46,8 @@ export interface LibraryDeck {
    *  whenever they differ (2026-09-24 ruling), so a stated bracket can't
    *  hide what the deck actually estimates at. Null when unavailable. */
   estimatedBracket?: number | null;
+  /** `estimatedBracket` ran before the combo match answered: word it as a floor. */
+  estimatedBracketFloor?: boolean;
   /** Sort key for "Recently updated" — published-at or updated-at, per caller. */
   updatedAt: number;
   /** On-art overlay (views · copies · recency). The public profile has these
@@ -260,7 +262,7 @@ function DeckLibraryTile({
     colorSummary(deck.colorIdentity),
     deck.bracket != null
       ? deck.estimatedBracket != null && deck.estimatedBracket !== deck.bracket
-        ? bracketAriaWithEstimate(deck.bracket, deck.estimatedBracket)
+        ? bracketAriaWithEstimate(deck.bracket, deck.estimatedBracket, deck.estimatedBracketFloor)
         : BRACKET_LABELS[deck.bracket]
       : null,
     deck.statsLine,
@@ -331,7 +333,11 @@ function DeckLibraryTile({
             {deck.bracket != null && (
               <Chip className="deck-bracket-badge">
                 {deck.estimatedBracket != null && deck.estimatedBracket !== deck.bracket
-                  ? bracketBadgeWithEstimate(deck.bracket, deck.estimatedBracket)
+                  ? bracketBadgeWithEstimate(
+                      deck.bracket,
+                      deck.estimatedBracket,
+                      deck.estimatedBracketFloor
+                    )
                   : BRACKET_LABELS[deck.bracket]}
               </Chip>
             )}

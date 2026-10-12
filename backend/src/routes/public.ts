@@ -191,6 +191,7 @@ interface PublicDeckSummaryRow {
   color_identity: string[];
   bracket: number | null;
   estimated_bracket: number | null;
+  estimated_bracket_floor: boolean;
   card_count: number;
   view_count: number;
   copy_count: number;
@@ -212,6 +213,7 @@ function toDeckSummary(row: PublicDeckSummaryRow): PublicDeckSummary {
     cardCount: row.card_count,
     bracket: row.bracket,
     estimatedBracket: row.estimated_bracket,
+    estimatedBracketFloor: row.estimated_bracket_floor,
     viewCount: row.view_count,
     copyCount: row.copy_count,
     publishedAt: Number(row.published_at),
@@ -262,7 +264,7 @@ async function loadPublicUserProfile(username: string): Promise<PublicUserProfil
   const [decksResult, countResult, extras] = await Promise.all([
     pool.query<PublicDeckSummaryRow>(
       `SELECT slug, deck_name, format, commander_name, og_art_crop, color_identity,
-              bracket, estimated_bracket, card_count, view_count, copy_count, published_at,
+              bracket, estimated_bracket, estimated_bracket_floor, card_count, view_count, copy_count, published_at,
               updated_at
          FROM deck_publications
         WHERE user_id = $1 AND unpublished_at IS NULL

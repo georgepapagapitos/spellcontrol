@@ -10,6 +10,7 @@ import { FORMAT_OPTIONS } from '@/lib/play/game-formats';
 import { pickFirstPlayer } from '@/lib/play/game-tools';
 import { useCardThumb } from '@/lib/cards/card-thumbs';
 import { effectiveBracket, type Deck } from '../../store/decks';
+import { signatureMissesCombos } from '@/lib/deck-analysis/bracket-signature';
 import { bracketTextWithEstimate } from '@/lib/deck-analysis/format-bracket-label';
 import type {
   GameAction,
@@ -312,6 +313,11 @@ export function OnlineLobby({
                     player.seat === mySeat.seat && myDeck
                       ? myDeck.bracketEstimation?.bracket
                       : undefined
+                  }
+                  estimateIsFloor={
+                    player.seat === mySeat.seat && myDeck
+                      ? signatureMissesCombos(myDeck.gradeBracketSignature)
+                      : false
                   }
                   bracketOverridden={
                     player.seat === mySeat.seat && myDeck ? myDeck.bracketOverride != null : false
@@ -646,6 +652,7 @@ function SeatCard({
   isMe,
   bracket: ownBracket,
   estimatedBracket,
+  estimateIsFloor,
   bracketOverridden,
   manage,
 }: {
@@ -660,6 +667,7 @@ function SeatCard({
    *  whenever it differs and `bracket` is a stated bracket, not Auto
    *  (2026-09-24 ruling). Only ever set alongside `bracket`. */
   estimatedBracket?: number;
+  estimateIsFloor?: boolean;
   /** True when `bracket` is the owner's stated bracket rather than Auto. */
   bracketOverridden?: boolean;
   /** Set when the viewer is the host and this is a guest seat they manage. */
@@ -737,7 +745,7 @@ function SeatCard({
           {bracket != null && (
             <span className="lobby-seat-bracket">
               {bracketOverridden && estimatedBracket != null && estimatedBracket !== bracket
-                ? bracketTextWithEstimate(bracket, estimatedBracket)
+                ? bracketTextWithEstimate(bracket, estimatedBracket, estimateIsFloor)
                 : `Bracket ${bracket}`}
             </span>
           )}

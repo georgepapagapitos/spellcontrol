@@ -8,6 +8,7 @@ import {
   detectCombosForAnalysis,
 } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import { setApplyingAnalysis } from '@/lib/sync/applying-analysis';
+import { COMBOS_UNCHECKED, signatureMissesCombos } from './bracket-signature';
 import { readCachedAnalysis, writeCachedAnalysis } from './deck-analysis-cache';
 import { dismissedNames } from '@/lib/coach/dismissed-suggestions';
 
@@ -52,9 +53,6 @@ const DEBOUNCE_MS = 500;
  * signature, the UI calls it a floor, and it recomputes once combos land.
  */
 const COMBO_WAIT_MS = 6_000;
-
-/** Signature segment for "the combo match hadn't answered": not the same as no combos. */
-const COMBOS_UNCHECKED = '?';
 
 /**
  * E162: a defensive ceiling on a single analysis attempt. `analyzeCommanderDeck`
@@ -510,9 +508,7 @@ export function useCommanderBracketAnalysis(args: Args): {
         ? 'error'
         : 'pending';
 
-  // The combo segment is second to last (only the target follows it), and no
-  // card or commander name contains '|'.
-  const missesCombos = persistedSignature?.split('|').at(-2) === COMBOS_UNCHECKED;
+  const missesCombos = signatureMissesCombos(persistedSignature);
   const edhrecMissing = persistedSignature?.endsWith(EDHREC_MISSING_SUFFIX) ?? false;
 
   return { status, retry, missesCombos, edhrecMissing };

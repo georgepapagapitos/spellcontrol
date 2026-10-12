@@ -274,8 +274,12 @@ export function SharedDeckSurface({
       ? deck.bracketOverride != null &&
         deck.bracketEstimation?.bracket != null &&
         deck.bracketEstimation.bracket !== bracketValue
-        ? bracketTextWithEstimate(bracketValue, deck.bracketEstimation.bracket)
-        : `Bracket ${bracketValue}`
+        ? bracketTextWithEstimate(
+            bracketValue,
+            deck.bracketEstimation.bracket,
+            data.bracketEstimateIsFloor
+          )
+        : `Bracket ${bracketValue}${data.bracketEstimateIsFloor && deck.bracketOverride == null ? '+' : ''}`
       : null;
 
   const owner = formatIdentity({

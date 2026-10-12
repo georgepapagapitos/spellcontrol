@@ -985,6 +985,8 @@ export const deckPublications = pgTable(
     /** The auto-estimate, independent of `bracket` (stated ?? estimate) —
      *  see the ALTER in db/index.ts for the 2026-09-24 ruling this backs. */
     estimatedBracket: integer('estimated_bracket'),
+    /** `estimatedBracket` ran before the combo match answered: only a floor. */
+    estimatedBracketFloor: boolean('estimated_bracket_floor').notNull().default(false),
     cardCount: integer('card_count').notNull().default(0),
     /** One per viewer per day, owner excluded (routes/public.ts). */
     viewCount: integer('view_count').notNull().default(0),

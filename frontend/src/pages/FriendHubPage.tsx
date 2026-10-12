@@ -186,6 +186,7 @@ export function FriendHubPage() {
         colorIdentity: d.colorIdentity,
         bracket: d.bracket,
         estimatedBracket: d.estimatedBracket,
+        estimatedBracketFloor: d.estimatedBracketFloor,
         updatedAt: d.updatedAt,
         // No views/copies on this surface — those are publication stats, and
         // half these decks were never published.
