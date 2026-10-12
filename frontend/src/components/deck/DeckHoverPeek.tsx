@@ -2,6 +2,7 @@ import { createPortal } from 'react-dom';
 import { useEffect, useState } from 'react';
 import './DeckHoverPeek.css';
 import { ImageOff } from 'lucide-react';
+import type { buildFlatIndex } from './deck-display-derive';
 
 /** How long the touch variant waits with no `imageUrl` before treating it as
  *  a genuine miss (vs. still resolving) and swapping the shimmer for a "no
@@ -79,6 +80,32 @@ export function DeckHoverPeek({
         <div className="deck-card-hover-peek-loading" aria-hidden />
       )}
     </div>,
+    document.body
+  );
+}
+
+/**
+ * Touch long-press peek (E129): a printing sub-row's own art (data-peek-img),
+ * else the card's hero art by name; portaled to <body> so it can't get trapped
+ * by a `container-type`/transform ancestor.
+ */
+export function DeckTouchPeek({
+  peek,
+  flat,
+}: {
+  peek: { name: string; img?: string; left: number; top: number; width: number };
+  flat: ReturnType<typeof buildFlatIndex>;
+}) {
+  const i = flat.indexByName.get(peek.name);
+  const card = i !== undefined ? flat.cards[i] : undefined;
+  return createPortal(
+    <DeckHoverPeek
+      variant="touch"
+      imageUrl={peek.img || card?.imageLarge || card?.imageNormal}
+      left={peek.left}
+      top={peek.top}
+      width={peek.width}
+    />,
     document.body
   );
 }

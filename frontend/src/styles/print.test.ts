@@ -55,8 +55,8 @@ describe('printable checklists wire up .print-list (T117)', () => {
   const componentsRoot = join(stylesRoot, '..', 'components');
   const pagesRoot = join(stylesRoot, '..', 'pages');
 
-  it('DeckDisplay renders a .print-list checklist', () => {
-    const css = readFileSync(join(componentsRoot, 'deck', 'DeckDisplay.tsx'), 'utf8');
+  it('DeckPrintList renders a .print-list checklist', () => {
+    const css = readFileSync(join(componentsRoot, 'deck', 'DeckPrintList.tsx'), 'utf8');
     expect(css).toContain('className="print-list"');
   });
 

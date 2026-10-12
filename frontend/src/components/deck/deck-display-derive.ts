@@ -22,7 +22,7 @@ import {
 } from '@/lib/deck/deck-validation';
 import type { BinderInfo } from '@/lib/binder/binder-refs';
 import type { DeckCardInspectorCard } from './DeckCardInspector';
-import type { DeckDisplayCard } from './deck-display-types';
+import type { DeckDisplayCard, DeckDisplayProps } from './deck-display-types';
 import type { ComboMatch } from '@/types/combos';
 import {
   resolveInclusionPct,
@@ -372,3 +372,15 @@ export function buildInspectorCard(args: {
     inclusionPct: resolveInclusionPct(cardInclusionMap, row),
   };
 }
+
+/**
+ * Zone-aware qty (E175): bind the host's single `onSetQty(zone, card, qty,
+ * opts)` to a specific zone for a given section, so a sideboard/considering
+ * section's stepper can never reach mainboard.cards. An omitted prop stays
+ * omitted: the stepper doesn't render at all.
+ */
+export const bindQtyToZone = (onSetQty: DeckDisplayProps['onSetQty'], zone: DeckZone) =>
+  onSetQty
+    ? (card: ScryfallCard, qty: number, opts?: { relative?: boolean }) =>
+        onSetQty(zone, card, qty, opts)
+    : undefined;

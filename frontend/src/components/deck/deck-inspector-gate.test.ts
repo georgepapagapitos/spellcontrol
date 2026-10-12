@@ -17,6 +17,8 @@ import { dirname, join } from 'node:path';
 
 const dir = dirname(fileURLToPath(import.meta.url));
 const display = readFileSync(join(dir, 'DeckDisplay.tsx'), 'utf8');
+// The touch peek is mounted by DeckTouchPeek (DeckHoverPeek.tsx), which DeckDisplay renders.
+const peekSource = readFileSync(join(dir, 'DeckHoverPeek.tsx'), 'utf8');
 const css = readFileSync(join(dir, 'DeckCardInspector.css'), 'utf8');
 
 const inspectorMin = Number(/INSPECTOR_QUERY = '\(min-width: (\d+)px\)/.exec(display)?.[1] ?? NaN);
@@ -36,7 +38,7 @@ describe('deck card inspector gate', () => {
   });
 
   it('renders no floating hover peek, only the touch long-press one', () => {
-    const peeks = display.match(/<DeckHoverPeek[\s\S]*?\/>/g) ?? [];
+    const peeks = (display + peekSource).match(/<DeckHoverPeek[\s\S]*?\/>/g) ?? [];
     expect(peeks.length).toBeGreaterThan(0);
     for (const p of peeks) expect(p).toContain('variant="touch"');
   });
