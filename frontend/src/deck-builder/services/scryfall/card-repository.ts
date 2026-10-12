@@ -101,4 +101,12 @@ export interface GetCardsByNamesOptions {
    * per-printing `games` data). Default `false`.
    */
   arenaOnly?: boolean;
+
+  /**
+   * Which currency's cheapest printing the dump lookup picks per name, and
+   * which cache key the result lives under (E522). Omit for the USD default;
+   * an EUR viewer hunting for savings passes 'eur' so a printing cheaper only
+   * in EUR is found and never leaks into a USD lookup.
+   */
+  currency?: 'usd' | 'eur';
 }

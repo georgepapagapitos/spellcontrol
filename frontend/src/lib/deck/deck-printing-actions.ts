@@ -27,7 +27,7 @@ import { useCollectionStore } from '@/store/collection';
 import { useDeckHistoryStore } from '@/store/deck-history';
 import { classifyAllocation } from '@/lib/collection/allocations';
 import { priceOf } from './deck-value';
-import type { Currency } from '@/lib/collection/currency';
+import { aiPriceCurrency, type Currency } from '@/lib/collection/currency';
 
 /** Where a slot lives: a zone row by slot id, or one of the commander seats. */
 export type SlotRef =
@@ -232,8 +232,8 @@ export interface CheapestResult {
 /**
  * Move the deck's missing cards to their cheapest printings. The batch name
  * lookup answers each name's cheapest nonfoil USD printing from the bulk dump
- * (Scryfall's own batch for anything it lacks); an EUR viewer takes it only
- * when it is also cheaper in EUR, since there is no batched cheapest-by-EUR.
+ * (Scryfall's own batch for anything it lacks); the lookup is asked for the
+ * viewer's currency, so an EUR viewer gets the EUR-cheapest printing.
  * Throws `PrintingLookupOfflineError` offline; the deck is untouched on throw.
  */
 export async function applyCheapestPrintings(
@@ -245,7 +245,9 @@ export async function applyCheapestPrintings(
   const names = [...new Set(missingSlots(start, collectionMap()).map((s) => s.card.name))];
   if (names.length === 0) return { changed: 0, saved: 0, unresolved: 0 };
 
-  const cheapest = await live(() => getCardsByNames(names));
+  const cheapest = await live(() =>
+    getCardsByNames(names, undefined, undefined, { currency: aiPriceCurrency(currency) })
+  );
   const unresolved = names.filter((n) => !cheapest.has(n)).length;
 
   // Planned against the deck as it is now, not as it was before the await.

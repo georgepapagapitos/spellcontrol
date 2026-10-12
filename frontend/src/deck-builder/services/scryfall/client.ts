@@ -49,6 +49,8 @@ const FOLLOWUP_REQUEST_BUDGET = 100;
  * directly instead, because offline cards are rehydrated from the slim payload
  * and persisting those would poison later live reads with degraded data.
  */
+type LookupCurrency = 'usd' | 'eur';
+
 const memoryCache = new Map<string, ScryfallCard>();
 
 // Concurrent callers (land generator, land top-up, the deck generator) ask for
@@ -81,10 +83,18 @@ const cardCache = {
  * arena-preferred resolution never overwrites (or is served from) the
  * plain/cheapest-paper cache entry for the same name, and vice versa (E271).
  */
-function cacheKeyFor(name: string, preferredSet?: string, arenaOnly?: boolean): string {
+function cacheKeyFor(
+  name: string,
+  preferredSet?: string,
+  arenaOnly?: boolean,
+  currency?: LookupCurrency
+): string {
   const parts = [name];
   if (preferredSet) parts.push(preferredSet);
   if (arenaOnly) parts.push('arena');
+  // Only EUR is qualified: the bare key is the USD-cheapest printing, and
+  // keys already persisted on disk stay valid (E522).
+  if (currency === 'eur') parts.push('eur');
   return parts.join('|');
 }
 
@@ -492,6 +502,8 @@ async function bulkGetCardByName(name: string): Promise<ScryfallCard | null> {
 async function bulkLookup(body: {
   names?: string[];
   ids?: string[];
+  /** Which currency's cheapest printing the server picks per name. Default usd. */
+  currency?: LookupCurrency;
 }): Promise<{ byName: Record<string, ScryfallCard>; byId: Record<string, ScryfallCard> }> {
   const empty = { byName: {}, byId: {} };
   try {
@@ -917,9 +929,10 @@ async function fetchCheapestArenaPrintings(names: string[]): Promise<Map<string,
 function admitResolvedCard(
   card: ScryfallCard,
   result: Map<string, ScryfallCard>,
-  preferredSet?: string
+  preferredSet?: string,
+  currency?: LookupCurrency
 ): void {
-  const keyFor = (name: string) => (preferredSet ? `${name}|${preferredSet}` : name);
+  const keyFor = (name: string) => cacheKeyFor(name, preferredSet, false, currency);
   const copy = freshCopy(card);
   cardCache.set(keyFor(card.name), card);
   result.set(card.name, copy);
@@ -934,12 +947,13 @@ function admitResolvedCard(
 function partitionCachedCards(
   names: string[],
   preferredSet?: string,
-  arenaOnly?: boolean
+  arenaOnly?: boolean,
+  currency?: LookupCurrency
 ): { result: Map<string, ScryfallCard>; uncachedNames: string[] } {
   const result = new Map<string, ScryfallCard>();
   const uncachedNames: string[] = [];
   for (const name of names) {
-    const cached = cardCache.get(cacheKeyFor(name, preferredSet, arenaOnly));
+    const cached = cardCache.get(cacheKeyFor(name, preferredSet, arenaOnly, currency));
     if (cached) result.set(name, freshCopy(cached));
     else uncachedNames.push(name);
   }
@@ -988,11 +1002,12 @@ async function liveGetCardsByNames(
   if (names.length === 0) return new Map();
 
   const arenaOnly = opts?.arenaOnly ?? false;
+  const currency = opts?.currency;
 
   // One bulk disk read for the whole request, before the synchronous partition.
-  await primeFromDisk(names.map((n) => cacheKeyFor(n, preferredSet, arenaOnly)));
+  await primeFromDisk(names.map((n) => cacheKeyFor(n, preferredSet, arenaOnly, currency)));
 
-  const { result, uncachedNames } = partitionCachedCards(names, preferredSet, arenaOnly);
+  const { result, uncachedNames } = partitionCachedCards(names, preferredSet, arenaOnly, currency);
   if (uncachedNames.length === 0) return result;
 
   // Our own bulk dump first, in one POST per BULK_LOOKUP_BATCH_SIZE names. It
@@ -1004,13 +1019,13 @@ async function liveGetCardsByNames(
   if (!preferredSet) {
     for (let i = 0; i < uncachedNames.length; i += BULK_LOOKUP_BATCH_SIZE) {
       const chunk = uncachedNames.slice(i, i + BULK_LOOKUP_BATCH_SIZE);
-      const { byName } = await bulkLookup({ names: chunk });
+      const { byName } = await bulkLookup({ names: chunk, currency });
       for (const [name, card] of Object.entries(byName)) {
         if (!isPlayableCard(card)) continue;
-        admitResolvedCard(card, result);
+        admitResolvedCard(card, result, undefined, currency);
         if (name !== card.name) {
           result.set(name, freshCopy(card));
-          cardCache.set(name, card);
+          cardCache.set(cacheKeyFor(name, undefined, false, currency), card);
         }
         bulkResolved.add(name);
       }
