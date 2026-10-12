@@ -1002,6 +1002,7 @@ interface FriendDeckSummary {
   /** The auto-estimate, independent of `bracket` — null on a row published
    *  before the 2026-09-24 ruling, or for a deck never analyzed. */
   estimatedBracket: number | null;
+  estimatedBracketFloor: boolean;
   /** Why this deck is visible — drives the "Friends only" tile badge. */
   visibility: 'published' | 'friends';
   updatedAt: number;
@@ -1029,10 +1030,11 @@ async function loadFriendDeckShelf(ownerId: string): Promise<FriendDeckSummary[]
     card_count: number;
     bracket: number | null;
     estimated_bracket: number | null;
+    estimated_bracket_floor: boolean;
     updated_at: string;
   }>(
     `SELECT deck_id, slug, deck_name, format, commander_name, og_art_crop,
-            color_identity, card_count, bracket, estimated_bracket, updated_at
+            color_identity, card_count, bracket, estimated_bracket, estimated_bracket_floor, updated_at
        FROM deck_publications
       WHERE user_id = $1 AND unpublished_at IS NULL
       ORDER BY updated_at DESC
@@ -1077,6 +1079,7 @@ async function loadFriendDeckShelf(ownerId: string): Promise<FriendDeckSummary[]
       cardCount: r.card_count,
       bracket: r.bracket,
       estimatedBracket: r.estimated_bracket,
+      estimatedBracketFloor: r.estimated_bracket_floor,
       visibility: 'published',
       updatedAt: Number(r.updated_at),
     });
@@ -1097,6 +1100,7 @@ async function loadFriendDeckShelf(ownerId: string): Promise<FriendDeckSummary[]
       cardCount: fields.cardCount,
       bracket: fields.bracket,
       estimatedBracket: fields.estimatedBracket,
+      estimatedBracketFloor: fields.estimatedBracketFloor,
       visibility: 'friends',
       updatedAt: Number(r.updated_at ?? 0),
     });

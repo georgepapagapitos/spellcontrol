@@ -13,6 +13,8 @@ export interface PublicProfileDeck {
   /** The auto-estimate, independent of `bracket` — null on a row published
    *  before the 2026-09-24 ruling, or for a deck never analyzed. */
   estimatedBracket: number | null;
+  /** `estimatedBracket` ran before the combo match answered: word it as a floor. */
+  estimatedBracketFloor?: boolean;
   viewCount: number;
   copyCount: number;
   publishedAt: number;

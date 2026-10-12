@@ -49,24 +49,41 @@ export function bracketSourceSentence(source: 'contents' | 'power' | 'baseline')
  * badge`/`deck-bracket-badge` convention of a tier word with no "Bracket N"
  * prefix (tight on a tile at phone width). "Core · est. Optimized".
  */
-export function bracketBadgeWithEstimate(bracket: number, estimatedBracket: number): string {
-  return `${bracketLabel(bracket)} · est. ${bracketLabel(estimatedBracket)}`;
+export function bracketBadgeWithEstimate(
+  bracket: number,
+  estimatedBracket: number,
+  floor = false
+): string {
+  return `${bracketLabel(bracket)} · est. ${bracketLabel(estimatedBracket)}${floor ? '+' : ''}`;
 }
 
 /**
  * Running-text form, for a surface that already spells out "Bracket N" —
  * numbers, not tier words. "Bracket 2 · est. 4".
  */
-export function bracketTextWithEstimate(bracket: number, estimatedBracket: number): string {
-  return `Bracket ${bracket} · est. ${estimatedBracket}`;
+export function bracketTextWithEstimate(
+  bracket: number,
+  estimatedBracket: number,
+  floor = false
+): string {
+  return `Bracket ${bracket} · est. ${estimatedBracket}${floor ? '+' : ''}`;
 }
+
+/**
+ * `floor` on all three: the Estimate ran before the combo match answered, so it
+ * reads "est. 4+" (aria: "at least 4"), the same floor the deck page states.
+ */
 
 /**
  * The full sentence for an accessible name — a screen reader gets both facts
  * spelled out in plain words, not the abbreviated "est." form.
  */
-export function bracketAriaWithEstimate(bracket: number, estimatedBracket: number): string {
-  return `Bracket ${bracket} stated, estimate ${estimatedBracket}`;
+export function bracketAriaWithEstimate(
+  bracket: number,
+  estimatedBracket: number,
+  floor = false
+): string {
+  return `Bracket ${bracket} stated, estimate ${floor ? 'at least ' : ''}${estimatedBracket}`;
 }
 
 /**
@@ -89,8 +106,8 @@ export function heroBracketReadout(input: {
   const { bracket, stated, estimate, missesCombos } = input;
   if (stated != null && estimate !== undefined && estimate !== stated) {
     return {
-      text: bracketTextWithEstimate(stated, estimate),
-      aria: bracketAriaWithEstimate(stated, estimate),
+      text: bracketTextWithEstimate(stated, estimate, missesCombos),
+      aria: bracketAriaWithEstimate(stated, estimate, missesCombos),
     };
   }
   return { text: `Bracket ${bracket}${missesCombos && stated == null ? '+' : ''}` };

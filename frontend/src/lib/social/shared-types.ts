@@ -147,6 +147,8 @@ export interface PublicDeck {
    */
   averageSalt?: number;
   bracketEstimation?: unknown;
+  /** The estimate ran before the combo match answered: read it as a floor. */
+  bracketEstimateIsFloor?: boolean;
   bracketOverride?: 1 | 2 | 3 | 4 | 5 | null;
   coverCardName?: string;
   deckGrade?: { letter: string; headline: string };

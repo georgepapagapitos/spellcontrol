@@ -27,6 +27,7 @@ import {
   type SetMap,
 } from '@spellcontrol/binder-routing';
 import type { GameEvent } from '@spellcontrol/game-core';
+import { signatureMissesCombos } from './bracket-floor';
 import { anyBinderUsesTagRules, decorateCardsWithTags } from './card-tags';
 import { anyBinderUsesSetSorts, decorateCardsWithSldDrops } from './card-sld-drops';
 import { anyBinderUsesReleaseDateSort, decorateCardsWithReleaseDates } from './card-release-dates';
@@ -145,6 +146,9 @@ export interface PublicDeck {
    */
   averageSalt?: number;
   bracketEstimation?: unknown;
+  /** The estimate ran before the combo match answered, so it is only a floor.
+   *  Derived from the owner-private `gradeBracketSignature`, which stays withheld. */
+  bracketEstimateIsFloor?: boolean;
   /** Owner's self-declared bracket; wins over the estimate on every surface. */
   bracketOverride?: 1 | 2 | 3 | 4 | 5 | null;
   /** The owner's cover card by name (pickDeckCover); display-only. */
@@ -578,6 +582,7 @@ export function projectDeck(owner: ShareOwner, deckRaw: unknown): PublicDeck | n
     color: asString(r.color) ?? '#888',
     averageSalt: asNumber(r.averageSalt),
     bracketEstimation: r.bracketEstimation,
+    bracketEstimateIsFloor: signatureMissesCombos(r.gradeBracketSignature) || undefined,
     bracketOverride: asBracket(r.bracketOverride),
     coverCardName: asString(r.coverCardName),
     deckGrade: (() => {

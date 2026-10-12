@@ -27,6 +27,7 @@ const fields: ListingFields = {
   colorIdentity: ['R'],
   bracket: 3,
   estimatedBracket: 4,
+  estimatedBracketFloor: true,
   cardCount: 100,
 };
 
@@ -49,8 +50,13 @@ describe('insertPublication', () => {
   it('persists estimated_bracket alongside the stated bracket', async () => {
     await insertPublication('u-ins', 'd3', fields, 1, 40);
     const row = await pool.query(
-      `SELECT bracket, estimated_bracket FROM deck_publications WHERE deck_id = 'd3'`
+      `SELECT bracket, estimated_bracket, estimated_bracket_floor
+         FROM deck_publications WHERE deck_id = 'd3'`
     );
-    expect(row.rows[0]).toEqual({ bracket: 3, estimated_bracket: 4 });
+    expect(row.rows[0]).toEqual({
+      bracket: 3,
+      estimated_bracket: 4,
+      estimated_bracket_floor: true,
+    });
   });
 });

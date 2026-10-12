@@ -109,6 +109,7 @@ interface PublicationSqlRow {
   color_identity: string[];
   bracket: number | null;
   estimated_bracket: number | null;
+  estimated_bracket_floor: boolean;
   card_count: number;
   view_count: number;
   copy_count: number;
@@ -132,6 +133,7 @@ function toListingRow(row: PublicationSqlRow): PublicationListingRow {
     colorIdentity: row.color_identity,
     bracket: row.bracket,
     estimatedBracket: row.estimated_bracket,
+    estimatedBracketFloor: row.estimated_bracket_floor,
     viewCount: row.view_count,
     copyCount: row.copy_count,
     likeCount: row.like_count,
@@ -146,7 +148,7 @@ function toListingRow(row: PublicationSqlRow): PublicationListingRow {
 const LISTING_COLUMNS = `dp.user_id, dp.deck_id, dp.slug, dp.deck_name, u.username AS owner_username,
        u.display_name AS owner_display_name, u.avatar_image_url AS owner_avatar_url,
        dp.format, dp.commander_name, dp.commander_image_normal, dp.color_identity,
-       dp.bracket, dp.estimated_bracket, dp.card_count, dp.view_count, dp.copy_count,
+       dp.bracket, dp.estimated_bracket, dp.estimated_bracket_floor, dp.card_count, dp.view_count, dp.copy_count,
        dp.like_count, dp.published_at, dp.og_art_crop`;
 
 // Real deck_publications columns only — the required fold. $4 (colorIdentity)

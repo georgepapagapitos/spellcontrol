@@ -24,6 +24,9 @@ describe('bracketBadgeWithEstimate', () => {
 describe('bracketTextWithEstimate', () => {
   it('formats "Bracket N · est. M"', () => {
     expect(bracketTextWithEstimate(2, 4)).toBe('Bracket 2 · est. 4');
+    expect(bracketTextWithEstimate(2, 4, true)).toBe('Bracket 2 · est. 4+');
+    expect(bracketBadgeWithEstimate(2, 4, true)).toBe('Core · est. Optimized+');
+    expect(bracketAriaWithEstimate(2, 4, true)).toBe('Bracket 2 stated, estimate at least 4');
   });
 });
 
@@ -75,6 +78,13 @@ describe('heroBracketReadout', () => {
   it('marks an estimate made without the combo match as a floor', () => {
     expect(heroBracketReadout({ bracket: 4, estimate: 4, missesCombos: true })).toEqual({
       text: 'Bracket 4+',
+    });
+  });
+
+  it('carries the floor onto the Estimate beside a stated bracket', () => {
+    expect(heroBracketReadout({ bracket: 2, stated: 2, estimate: 4, missesCombos: true })).toEqual({
+      text: 'Bracket 2 · est. 4+',
+      aria: 'Bracket 2 stated, estimate at least 4',
     });
   });
 

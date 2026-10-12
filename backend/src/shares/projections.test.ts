@@ -389,6 +389,13 @@ describe('projectDeck', () => {
     }
   });
 
+  it('projects only a floor flag from the private gradeBracketSignature', () => {
+    const project = (gradeBracketSignature: string) =>
+      projectDeck(ALICE, { ...ANALYSIS_DECK, gradeBracketSignature })?.bracketEstimateIsFloor;
+    expect(project('v1|abc|?|3')).toBe(true);
+    expect(project('v1|abc|12,40|3')).toBeUndefined();
+  });
+
   it('drops malformed analysis rather than passing a broken shape through', () => {
     const out = projectDeck(ALICE, {
       id: 'd1',

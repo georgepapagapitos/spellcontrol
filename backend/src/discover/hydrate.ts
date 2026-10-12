@@ -38,6 +38,7 @@ export interface PublicationListingRow {
   /** The auto-estimate, independent of `bracket` — null on a row published
    *  before the 2026-09-24 ruling, or for a deck never analyzed. */
   estimatedBracket: number | null;
+  estimatedBracketFloor: boolean;
   viewCount: number;
   copyCount: number;
   likeCount: number;
@@ -64,6 +65,7 @@ export interface DiscoverDeckSummary {
   colorIdentity: string[];
   bracket: number | null;
   estimatedBracket: number | null;
+  estimatedBracketFloor: boolean;
   estimatedValueUsd: number | null;
   viewCount: number;
   copyCount: number;
@@ -210,6 +212,7 @@ export async function hydratePublicationRows(
       colorIdentity: row.colorIdentity,
       bracket: row.bracket,
       estimatedBracket: row.estimatedBracket,
+      estimatedBracketFloor: row.estimatedBracketFloor,
       estimatedValueUsd,
       viewCount: row.viewCount,
       copyCount: row.copyCount,

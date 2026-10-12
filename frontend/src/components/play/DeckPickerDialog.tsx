@@ -14,6 +14,7 @@ import {
 } from '@/lib/import-export/use-product-commander';
 import { userMessage } from '@/lib/util/user-error';
 import { effectiveBracket, type Deck } from '../../store/decks';
+import { signatureMissesCombos } from '@/lib/deck-analysis/bracket-signature';
 import { bracketTextWithEstimate } from '@/lib/deck-analysis/format-bracket-label';
 import type { ProductSummary } from '../../types';
 import { IconButton } from '@/components/shared/Button';
@@ -253,7 +254,11 @@ function MyDecksTab({
             const bracketText =
               bracket !== undefined
                 ? deck.bracketOverride != null && estimate != null && estimate !== bracket
-                  ? bracketTextWithEstimate(bracket, estimate)
+                  ? bracketTextWithEstimate(
+                      bracket,
+                      estimate,
+                      signatureMissesCombos(deck.gradeBracketSignature)
+                    )
                   : `Bracket ${bracket}`
                 : undefined;
             return (

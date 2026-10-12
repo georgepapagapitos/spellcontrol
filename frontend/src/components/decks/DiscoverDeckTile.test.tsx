@@ -304,6 +304,22 @@ describe('DiscoverDeckTile — bracket badge carries the estimate (2026-09-24 ru
     expect(link?.getAttribute('aria-label')).toContain('Bracket 2 stated, estimate 4');
   });
 
+  it('words a combo-less estimate as a floor in the badge and the accessible name (E414)', () => {
+    useCardThumbMock.mockReturnValue(undefined);
+    const { container } = renderTile({
+      bracket: 2,
+      estimatedBracket: 4,
+      estimatedBracketFloor: true,
+    });
+
+    expect(container.querySelector('.decks-index-card-meta')?.textContent).toContain(
+      'Core · est. Optimized+'
+    );
+    expect(container.querySelector('.discover-tile-link')?.getAttribute('aria-label')).toContain(
+      'Bracket 2 stated, estimate at least 4'
+    );
+  });
+
   it('omits the estimate when it equals the stated bracket', () => {
     useCardThumbMock.mockReturnValue(undefined);
     const { container } = renderTile({ bracket: 3, estimatedBracket: 3 });

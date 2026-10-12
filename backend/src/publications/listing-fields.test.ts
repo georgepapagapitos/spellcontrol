@@ -87,6 +87,18 @@ describe('extractListingFields', () => {
   // estimatedBracket is ALWAYS the raw estimate — never bracketOverride — so a
   // stated bracket can never hide what the deck actually estimates at in a
   // listing (2026-09-24 ruling).
+  // A '?' combo segment means the estimate ran before the combo match answered
+  // (E414): listings must word it as a floor, so the flag rides with the row.
+  it('estimatedBracketFloor reads the signature combo segment', () => {
+    const floor = (sig: unknown) =>
+      extractListingFields(
+        baseDeck({ bracketEstimation: { bracket: 3 }, gradeBracketSignature: sig })
+      )?.estimatedBracketFloor;
+    expect(floor('v1|abc|?|3')).toBe(true);
+    expect(floor('v1|abc|12,40|3')).toBe(false);
+    expect(floor(undefined)).toBe(false);
+  });
+
   it('estimatedBracket is the raw estimate regardless of a stated override', () => {
     expect(
       extractListingFields(baseDeck({ bracketOverride: 5, bracketEstimation: { bracket: 2 } }))
