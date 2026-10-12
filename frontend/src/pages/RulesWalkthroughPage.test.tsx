@@ -80,7 +80,11 @@ describe('RulesWalkthroughPage', () => {
 
   it('expands a rule and steps with the arrow keys', async () => {
     renderAt('/rules/walkthroughs/hold-priority?step=2');
-    const rule = await screen.findByRole('button', { name: /117\.3c/ });
+    // The citation button renders at once, disabled and without aria-expanded,
+    // and only becomes the toggle when the rules bundle resolves. Wait for the
+    // rule text, or findByRole can return the pre-load button.
+    await screen.findByText('A player who casts a spell receives priority afterward.');
+    const rule = screen.getByRole('button', { name: /117\.3c/ });
     expect(rule.getAttribute('aria-expanded')).toBe('false');
     fireEvent.click(rule);
     expect(rule.getAttribute('aria-expanded')).toBe('true');
