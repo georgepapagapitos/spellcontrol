@@ -70,7 +70,7 @@ const ALLOWED: Record<Pattern, Record<string, { count: number; why: string }>> =
     'components/home/AroundTheTable.tsx': { count: 1, why: RSVP },
     'components/play/GameNights.tsx': { count: 1, why: RSVP },
     'pages/GameNightView.tsx': { count: 1, why: RSVP },
-    'components/ViewModeToggle.tsx': {
+    'components/shared/ViewModeToggle.tsx': {
       count: 1,
       why: 'RULING: a view switcher, not a setting (§ View-mode toggle option order)',
     },

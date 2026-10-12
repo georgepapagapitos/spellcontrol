@@ -5,7 +5,7 @@ import { useSearchParams } from 'react-router-dom';
 import './TagsPage.css';
 import { SearchPill } from '@/components/search/SearchPill';
 import { InlineCardSearch, type InlineCardSearchView } from '@/components/search/InlineCardSearch';
-import { ViewModeToggle } from '../components/ViewModeToggle';
+import { ViewModeToggle } from '@/components/shared/ViewModeToggle';
 import {
   cardTagLabel,
   cardTagsGeneratedAt,

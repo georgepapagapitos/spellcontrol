@@ -41,7 +41,7 @@ import { ColorIdentityBar } from '../components/shared/ColorIdentityBar';
 import { ColorPip } from '../components/shared/ManaSymbol';
 import { colorSelectionMatches, type ColorMatchMode } from '@spellcontrol/binder-routing';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { ViewModeToggle } from '../components/ViewModeToggle';
+import { ViewModeToggle } from '@/components/shared/ViewModeToggle';
 import { SearchPill } from '@/components/search/SearchPill';
 import { DeckFiltersPopover } from '@/components/decks/DeckFiltersPopover';
 import { FilterChipsRow, type FilterChipDescriptor } from '../components/shared/FilterChipsRow';

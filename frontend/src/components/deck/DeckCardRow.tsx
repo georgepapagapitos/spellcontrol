@@ -18,7 +18,7 @@ const CONFIDENCE_BADGE: Record<string, { tone: VerdictTone; label: string }> = {
 import { useCardThumb } from '@/lib/cards/card-thumbs';
 import { useOwnedPrintingImage } from '@/lib/cards/owned-printing';
 import { formatMoney } from '@/lib/collection/format-money';
-import { ManaCost } from '../ManaCost';
+import { ManaCost } from '@/components/shared/ManaCost';
 import {
   classifyInclusion,
   inclusionColor,

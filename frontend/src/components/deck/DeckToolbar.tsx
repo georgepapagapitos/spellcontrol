@@ -18,13 +18,13 @@ import {
   SlidersHorizontal,
   type LucideIcon,
 } from 'lucide-react';
-import { LegendContent } from '../Legend';
+import { LegendContent } from '@/components/shared/Legend';
 import { OverflowMenu } from '@/components/overlays/OverflowMenu';
 import { SearchPill } from '@/components/search/SearchPill';
 import { SelectMenu } from '@/components/overlays/SelectMenu';
 import { SortMenu, type SortMenuOption } from '@/components/search/SortMenu';
-import { ViewModeToggle as SharedViewModeToggle } from '../ViewModeToggle';
-import { ZoomControl } from '../ZoomControl';
+import { ViewModeToggle as SharedViewModeToggle } from '@/components/shared/ViewModeToggle';
+import { ZoomControl } from '@/components/shared/ZoomControl';
 import { ZOOM_MAX, ZOOM_MAX_NARROW } from '@/lib/util/grid-zoom';
 import { ROLE_BADGE_BY_TONE, ROLE_BADGE_GROUPS } from '@/lib/deck-analysis/role-badges';
 import { ToolbarPopover } from '../shared/ToolbarPopover';

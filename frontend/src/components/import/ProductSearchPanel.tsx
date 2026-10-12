@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlignJustify, ChevronLeft, Layers, LayoutGrid, Package, Rows3, X } from 'lucide-react';
-import { ViewModeToggle, type ViewModeOption } from '@/components/ViewModeToggle';
+import { ViewModeToggle, type ViewModeOption } from '@/components/shared/ViewModeToggle';
 import { CardThumb } from '@/components/card/CardThumb';
 import { searchProducts, fetchProduct } from '@/lib/api';
 import {
@@ -23,7 +23,7 @@ import { readLocalStorage } from '@/lib/util/local-storage';
 import { fetchErrorMessage } from '@/lib/import-export/import-review';
 import { summarizeImportRouting } from '@/lib/import-export/import-routing';
 import { useCardCarousel, type CarouselEntry } from '@/components/deck/useCardCarousel';
-import { ManaCost } from '@/components/ManaCost';
+import { ManaCost } from '@/components/shared/ManaCost';
 import { SearchPill } from '@/components/search/SearchPill';
 import { ImportRoutingSummary } from './ImportRoutingSummary';
 import { getCardImageUrl } from '@/deck-builder/services/scryfall/client';

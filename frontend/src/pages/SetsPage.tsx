@@ -42,7 +42,7 @@ import {
 import { SelectMenu } from '@/components/overlays/SelectMenu';
 import { type SelectOption } from '@/lib/util/select-option';
 import { SearchPill } from '@/components/search/SearchPill';
-import { ViewModeToggle } from '../components/ViewModeToggle';
+import { ViewModeToggle } from '@/components/shared/ViewModeToggle';
 import { scryfallToEnrichedCard } from '@/lib/cards/scryfall-to-enriched';
 import { useCollectionStore } from '../store/collection';
 import { useToastsStore } from '../store/toasts';

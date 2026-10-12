@@ -1,7 +1,7 @@
 import { ArrowDownUp } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { SelectMenu } from '@/components/overlays/SelectMenu';
-import { SortDirArrow } from '@/components/SortDirArrow';
+import { SortDirArrow } from '@/components/shared/SortDirArrow';
 import type { SortDir } from '@/types/index';
 
 export interface SortMenuOption<T extends string> {

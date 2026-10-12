@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, Check, Copy, Move, X } from 'lucide-react';
-import { ManaCost } from '@/components/ManaCost';
+import { ManaCost } from '@/components/shared/ManaCost';
 import './StackPanel.css';
 import { IconButton } from '@/components/shared/Button';
 

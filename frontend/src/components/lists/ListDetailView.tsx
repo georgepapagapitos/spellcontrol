@@ -32,8 +32,8 @@ import { useCollectionStore } from '@/store/collection';
 import { CollectionFiltersDialog } from '@/components/search/CollectionFiltersDialog';
 import { SearchPill } from '@/components/search/SearchPill';
 import { SortMenu, type SortMenuOption } from '@/components/search/SortMenu';
-import { ViewModeToggle } from '@/components/ViewModeToggle';
-import { Legend } from '@/components/Legend';
+import { ViewModeToggle } from '@/components/shared/ViewModeToggle';
+import { Legend } from '@/components/shared/Legend';
 import { CardRow } from '@/components/shared/CardRow';
 import { EmptyState } from '@/components/shared/EmptyState';
 import {
@@ -64,7 +64,7 @@ import { CardEditDialog } from '@/components/collection/CardEditDialog';
 import { type PrintingSelection } from '@/lib/collection/edit-card';
 import { ListEntryTargetPrice } from './ListEntryTargetPrice';
 import { VerdictBadge } from '@/components/deck/VerdictBadge';
-import { ZoomControl } from '@/components/ZoomControl';
+import { ZoomControl } from '@/components/shared/ZoomControl';
 import {
   ZOOM_MAX,
   ZOOM_MAX_NARROW,

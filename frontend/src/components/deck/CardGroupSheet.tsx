@@ -6,7 +6,7 @@ import { useSwipeDownDismiss } from '@/lib/overlays/use-swipe-down-dismiss';
 import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
 import { getCardImageUrl } from '@/deck-builder/services/scryfall/client';
 import { CardThumb } from '@/components/card/CardThumb';
-import { ViewModeToggle } from '../ViewModeToggle';
+import { ViewModeToggle } from '@/components/shared/ViewModeToggle';
 import { VerdictBadge } from './VerdictBadge';
 import type { VerdictTone } from './VerdictBadge';
 import type { CardTally } from '@/lib/deck-analysis/card-tally';

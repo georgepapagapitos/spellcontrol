@@ -11,8 +11,8 @@ import {
 import { useState } from 'react';
 import type { SortEntry, SortField } from '@/types/index';
 import { SortPopover, type SortPreviewSection } from '@/components/search/SortPopover';
-import { ViewModeToggle, type ViewModeOption } from '@/components/ViewModeToggle';
-import { Legend, LegendContent } from '@/components/Legend';
+import { ViewModeToggle, type ViewModeOption } from '@/components/shared/ViewModeToggle';
+import { Legend, LegendContent } from '@/components/shared/Legend';
 import { ToolbarPopover } from '@/components/shared/ToolbarPopover';
 import { useMediaQuery } from '@/lib/util/use-media-query';
 import { Button, buttonClass } from '@/components/shared/Button';

@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode, Ref } from 'react';
 import type { SortDir } from '../../types';
-import { SortDirArrow } from '../SortDirArrow';
+import { SortDirArrow } from './SortDirArrow';
 
 /**
  * The table density shared by every card list in the app — Collection, a

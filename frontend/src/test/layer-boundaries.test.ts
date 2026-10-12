@@ -33,10 +33,9 @@
 // file, named after the product area it serves.
 //
 // A fifth does the same for components/: a component lives in its area's
-// folder (collection/, binder/, card/, app-shell/, ...). The root holds only
-// ROOT_COMPONENTS, the display pieces components/shared/ itself renders. Each
-// belongs in shared/ once it has a /dev/catalog specimen (catalog-coverage
-// requires one), so the list only shrinks.
+// folder (collection/, binder/, card/, app-shell/, ...). The root holds no
+// component at all: a display piece several areas render goes in components/shared/
+// with a /dev/catalog specimen (catalog-coverage requires one).
 
 import { describe, it, expect } from 'vitest';
 import { relative, sep } from 'node:path';
@@ -76,19 +75,6 @@ function brokenRule(from: string, to: string): string | null {
   return null;
 }
 
-// The components/ root: what components/shared/ renders and has not yet
-// absorbed. Shrink only.
-const ROOT_COMPONENTS = new Set([
-  'components/BinderBadge.tsx',
-  'components/DeckBadge.tsx',
-  'components/FoilBadge.tsx',
-  'components/Legend.tsx',
-  'components/ManaCost.tsx',
-  'components/SortDirArrow.tsx',
-  'components/ViewModeToggle.tsx',
-  'components/ZoomControl.tsx',
-]);
-
 describe('layer boundaries', () => {
   const files = sourceFiles();
   const edges = files.flatMap((f) => valueImports(f, true).map((t) => [rel(f), rel(t)] as const));
@@ -122,13 +108,9 @@ describe('layer boundaries', () => {
   it('keeps every component in an area folder', () => {
     const inRoot = files.map(rel).filter((f) => /^components\/[^/]+$/.test(f));
     expect(
-      inRoot.filter((f) => !ROOT_COMPONENTS.has(f)),
+      inRoot,
       'A component sits at the top of components/. Put it in the area folder it ' +
         'serves (ARCHITECTURE.md lists them).'
-    ).toEqual([]);
-    expect(
-      [...ROOT_COMPONENTS].filter((f) => !inRoot.includes(f)),
-      'These left the components/ root. Delete them from ROOT_COMPONENTS.'
     ).toEqual([]);
   });
 });

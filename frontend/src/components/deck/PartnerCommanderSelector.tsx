@@ -13,7 +13,7 @@ import { useCollectionStore } from '../../store/collection';
 import { OwnershipBadge } from './OwnershipBadge';
 import { CommanderPickArt } from './CommanderPickArt';
 import { SearchPill } from '@/components/search/SearchPill';
-import { ManaCost } from '../ManaCost';
+import { ManaCost } from '@/components/shared/ManaCost';
 
 import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';

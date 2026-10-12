@@ -36,7 +36,7 @@ primitives directory.
 | `components/card/CardThumb` + `lib/cards/card-thumbs` (`useCardThumb`) | a raw Scryfall image URL      | [§ Card art peek](style-guide/overlays.md#card-art-peek--hover--touch-long-press-e129)                                            |
 | `components/card/CardPreview`                                          | a second card-detail view     | [§ Card art peek](style-guide/overlays.md#card-art-peek--hover--touch-long-press-e129) — there is exactly one card view           |
 | `components/shared/ManaSymbol` (`ColorPip`)                            | a bare `mana-font` class      | [§ Symbol key / Legend](style-guide/cards-collection.md#symbol-key--legend)                                                       |
-| `components/ManaCost`                                                  | mapping a mana string by hand | [§ Card-stat terminology](style-guide/cards-collection.md#card-stat-terminology-mana-value--mana-cost--price)                     |
+| `components/shared/ManaCost`                                           | mapping a mana string by hand | [§ Card-stat terminology](style-guide/cards-collection.md#card-stat-terminology-mana-value--mana-cost--price)                     |
 | `components/shared/SetSymbol`                                          | a bare `keyrune` class        | [§ Symbol key / Legend](style-guide/cards-collection.md#symbol-key--legend)                                                       |
 
 ### Controls & chrome
@@ -67,7 +67,7 @@ primitives directory.
 | `components/shared/ToolbarPopover`                             | a second portal-popover impl                         | [§ Toolbars & action rows](style-guide/components.md#toolbars--action-rows-responsive)                                      |
 | `components/shared/ViewPopoverPanel`                           | letting a phone toolbar wrap rows                    | [§ Toolbars & action rows](style-guide/components.md#toolbars--action-rows-responsive)                                      |
 | `components/overlays/Tabs`                                     | bespoke tab markup                                   | [§ Tabs / view switchers](style-guide/components.md#tabs--view-switchers)                                                   |
-| `components/ViewModeToggle`                                    | a bespoke layout switcher                            | [§ View-mode toggle option order](style-guide/cards-collection.md#view-mode-toggle-option-order-richest--sparsest)          |
+| `components/shared/ViewModeToggle`                             | a bespoke layout switcher                            | [§ View-mode toggle option order](style-guide/cards-collection.md#view-mode-toggle-option-order-richest--sparsest)          |
 | `components/shared/FilterChipsRow`                             | a bespoke active-filter row                          | [§ Tag chips](style-guide/components.md#tag-chips-e171)                                                                     |
 | `components/shared/form` (`SwitchRow`)                         | a checkbox for an on/off setting                     | [§ Config surfaces](style-guide/components.md#config-surfaces-t139)                                                         |
 | `components/shared/form` (`SegmentedControl`)                  | a new segmented-pill CSS family                      | [§ Config surfaces](style-guide/components.md#config-surfaces-t139)                                                         |

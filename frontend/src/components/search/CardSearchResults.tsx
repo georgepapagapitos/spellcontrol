@@ -1,7 +1,7 @@
 import type { CardSearchResultsHandle } from '@/lib/search/use-results-keys';
 import { Check, ChevronDown, ChevronRight, Layers, Minus, Plus } from 'lucide-react';
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import { ManaCost } from '@/components/ManaCost';
+import { ManaCost } from '@/components/shared/ManaCost';
 import { CardPreview } from '@/components/card/CardPreview';
 import { PrintingPicker, type AddExtras } from '@/components/card/PrintingPicker';
 import { addedCardMessage, landedFinish } from '@/lib/import-export/add-card-message';

@@ -173,13 +173,13 @@ type Entry = { count: number; why: string };
 /** What stays raw after T166, each with the ruling that keeps it. */
 const ALLOWED: Record<Shape, Record<string, Entry>> = {
   rawBadge: {
-    'components/BinderBadge.tsx': { count: 2, why: DOMAIN_BADGE },
-    'components/DeckBadge.tsx': { count: 1, why: DOMAIN_BADGE },
+    'components/shared/BinderBadge.tsx': { count: 2, why: DOMAIN_BADGE },
+    'components/shared/DeckBadge.tsx': { count: 1, why: DOMAIN_BADGE },
     'components/card/CardPreview.tsx': { count: 1, why: ROLE_TEXT },
-    'components/Legend.tsx': { count: 1, why: ROLE_TEXT },
+    'components/shared/Legend.tsx': { count: 1, why: ROLE_TEXT },
     'components/deck/DeckMainboardRow.tsx': { count: 1, why: ROLE_TEXT },
     'components/deck/DeckToolbar.tsx': { count: 1, why: ROLE_TEXT },
-    'components/FoilBadge.tsx': { count: 1, why: OWN_PRIMITIVE },
+    'components/shared/FoilBadge.tsx': { count: 1, why: OWN_PRIMITIVE },
     'components/shared/PriceOverrideBadge.tsx': { count: 1, why: OWN_PRIMITIVE },
     'components/shared/ProxyBadge.tsx': { count: 1, why: OWN_PRIMITIVE },
     'components/shared/RarityBadge.tsx': { count: 1, why: OWN_PRIMITIVE },

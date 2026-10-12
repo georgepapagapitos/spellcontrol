@@ -1,7 +1,7 @@
 import { useId, useMemo, useState } from 'react';
 import { ExternalLink, RotateCw, X } from 'lucide-react';
 import { Modal } from '@/components/overlays/Modal';
-import { ManaCost } from '@/components/ManaCost';
+import { ManaCost } from '@/components/shared/ManaCost';
 import { CardLegalities, CardText } from '@/components/card/CardDetails';
 import { CardRulings } from '@/components/card/CardRulings';
 import { RarityBadge } from '@/components/shared/RarityBadge';

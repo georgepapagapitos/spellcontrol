@@ -15,7 +15,7 @@ import { CardPreview } from '@/components/card/CardPreview';
 import { publicCardToEnriched } from '@/lib/social/shared-filter';
 import { useSharedFilters } from './use-shared-filters';
 import { SearchPill } from '@/components/search/SearchPill';
-import { ViewModeToggle } from '../ViewModeToggle';
+import { ViewModeToggle } from '@/components/shared/ViewModeToggle';
 import { nameMatchesNormalized } from '@spellcontrol/binder-routing';
 
 interface Props {

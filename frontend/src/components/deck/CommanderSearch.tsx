@@ -56,7 +56,7 @@ import { useMediaQuery } from '@/lib/util/use-media-query';
 import { CommanderReadiness } from './CommanderReadiness';
 import { CommanderResultCard } from './CommanderResultCard';
 import type { EnrichedCard } from '../../types';
-import { ManaCost } from '../ManaCost';
+import { ManaCost } from '@/components/shared/ManaCost';
 import { ColorIdentityPicker } from '../shared/ColorIdentityPicker';
 import { SearchPill } from '@/components/search/SearchPill';
 import { SelectMenu } from '@/components/overlays/SelectMenu';

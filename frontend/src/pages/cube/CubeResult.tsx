@@ -9,11 +9,11 @@ import {
   Ban,
   Trash2,
 } from 'lucide-react';
-import { ViewModeToggle } from '../../components/ViewModeToggle';
+import { ViewModeToggle } from '@/components/shared/ViewModeToggle';
 import { useStoredView } from '@/lib/util/use-stored-view';
 import { StackedBar } from '../../components/shared/MeterBar';
 import { CardGridCell } from '../../components/shared/CardGridCell';
-import { DeckBadge } from '../../components/DeckBadge';
+import { DeckBadge } from '@/components/shared/DeckBadge';
 import { CardPreview } from '@/components/card/CardPreview';
 import { OverflowMenu } from '@/components/overlays/OverflowMenu';
 import { formatRelativeTime } from '@/lib/util/format-time';

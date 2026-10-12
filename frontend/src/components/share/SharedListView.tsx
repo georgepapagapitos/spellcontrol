@@ -5,7 +5,7 @@ import { normalizeForSearch } from '@/lib/search/normalize-search';
 import { formatMoney } from '@/lib/collection/format-money';
 import { formatIdentity } from '@/lib/social/display-name';
 import { SearchPill } from '@/components/search/SearchPill';
-import { SortDirArrow } from '../SortDirArrow';
+import { SortDirArrow } from '@/components/shared/SortDirArrow';
 import { SharedEmptyState } from './SharedEmptyState';
 import { nameMatchesNormalized, printedName } from '@spellcontrol/binder-routing';
 import { CardName } from '@/components/shared/CardName';

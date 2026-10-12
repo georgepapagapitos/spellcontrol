@@ -7,7 +7,7 @@ import { GridCaptionList, type GridCaptionPrefs } from '@/components/shared/Card
 import { ToolbarPopover } from '@/components/shared/ToolbarPopover';
 import { useMediaQuery } from '@/lib/util/use-media-query';
 import type { SharedSortKey, SortDir } from '@/lib/social/shared-grouping';
-import { ViewModeToggle, type ViewModeOption } from '../ViewModeToggle';
+import { ViewModeToggle, type ViewModeOption } from '@/components/shared/ViewModeToggle';
 import type { BrowserChip, BrowserChipId, BrowserView } from './use-collection-browser';
 
 /** The phone tier (STYLE_GUIDE § Responsive): matches the stylesheet's

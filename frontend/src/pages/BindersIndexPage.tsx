@@ -25,7 +25,7 @@ import { inkOn } from '@/lib/util/ink';
 import { useConfirm } from '@/components/overlays/use-confirm';
 import { Modal } from '@/components/overlays/Modal';
 import { SortMenu, type SortMenuOption } from '@/components/search/SortMenu';
-import { ViewModeToggle } from '../components/ViewModeToggle';
+import { ViewModeToggle } from '@/components/shared/ViewModeToggle';
 import { SearchPill } from '@/components/search/SearchPill';
 import { FilterChipsRow } from '../components/shared/FilterChipsRow';
 import { OverflowMenu, type OverflowMenuItem } from '@/components/overlays/OverflowMenu';

@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { ImageOff, Pin } from 'lucide-react';
 import './DeckCardInspector.css';
-import { ManaCost } from '../ManaCost';
-import { BinderBadge } from '../BinderBadge';
+import { ManaCost } from '@/components/shared/ManaCost';
+import { BinderBadge } from '@/components/shared/BinderBadge';
 import { type BinderInfo } from '@/lib/binder/binder-refs';
 import { formatMoney } from '@/lib/collection/format-money';
 import { ROLE_TITLES } from '@/lib/deck-analysis/role-badges';

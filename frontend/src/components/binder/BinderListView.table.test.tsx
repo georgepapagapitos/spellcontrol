@@ -39,7 +39,7 @@ vi.mock('@/components/card/CardPreview', () => ({ CardPreview: () => null }));
 vi.mock('@/components/collection/CardEditDialog', () => ({ CardEditDialog: () => null }));
 vi.mock('./BinderPagePreview', () => ({ BinderPagePreview: () => null }));
 vi.mock('@/components/collection/CardRowMenu', () => ({ CardRowMenu: () => null }));
-vi.mock('@/components/Legend', () => ({ Legend: () => null }));
+vi.mock('@/components/shared/Legend', () => ({ Legend: () => null }));
 vi.mock('@/components/search/SortPopover', () => ({ SortPopover: () => null }));
 
 import { BinderListView } from './BinderListView';

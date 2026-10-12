@@ -16,7 +16,7 @@ import { PreconsRail } from '@/components/decks/PreconsRail';
 import { DiscoverSearch } from '@/components/decks/DiscoverSearch';
 import { SelectMenu } from '@/components/overlays/SelectMenu';
 import { type SelectOption } from '@/lib/util/select-option';
-import { ViewModeToggle } from '../components/ViewModeToggle';
+import { ViewModeToggle } from '@/components/shared/ViewModeToggle';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { FilterChipsRow, type FilterChipDescriptor } from '../components/shared/FilterChipsRow';
 import { colorChipLabel } from '@/lib/search/filter-summary';

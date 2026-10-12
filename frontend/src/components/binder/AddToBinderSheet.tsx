@@ -10,7 +10,7 @@ import {
   cardMatchesAnyGroup,
   areAllGroupsEmpty,
 } from '@spellcontrol/binder-routing';
-import { FoilBadge } from '@/components/FoilBadge';
+import { FoilBadge } from '@/components/shared/FoilBadge';
 import type { EnrichedCard } from '@/types/index';
 import { Button } from '@/components/shared/Button';
 

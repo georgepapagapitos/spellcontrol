@@ -5,7 +5,7 @@ import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
 import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
 import { normalizeForSearch } from '@/lib/search/normalize-search';
 import type { EnrichedCard } from '@/types/index';
-import { FoilBadge } from '@/components/FoilBadge';
+import { FoilBadge } from '@/components/shared/FoilBadge';
 import { SearchPill } from '@/components/search/SearchPill';
 import { nameMatchesNormalized, printedName } from '@spellcontrol/binder-routing';
 import { CardName } from '@/components/shared/CardName';

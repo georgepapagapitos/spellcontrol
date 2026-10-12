@@ -8,7 +8,7 @@
  * so `useCardThumb`'s name lookup never fires and the crops are stable.
  */
 import { useState, type ReactNode } from 'react';
-import { Copy, Plus, Search, Trash2 } from 'lucide-react';
+import { Copy, Grid3x3, List, Plus, Search, Trash2 } from 'lucide-react';
 import { Button, IconButton, type ButtonVariant } from '@/components/shared/Button';
 import { Chip, type Tone } from '@/components/shared/Chip';
 import { Count } from '@/components/shared/Count';
@@ -41,6 +41,15 @@ import { CardName } from '@/components/shared/CardName';
 import { CardRow, ConditionChip } from '@/components/shared/CardRow';
 import { CardGridCell } from '@/components/shared/CardGridCell';
 import { SwipeRow } from '@/components/shared/SwipeRow';
+import { BinderBadge } from '@/components/shared/BinderBadge';
+import { DeckBadge } from '@/components/shared/DeckBadge';
+import { FoilBadge } from '@/components/shared/FoilBadge';
+import { Legend, LegendContent } from '@/components/shared/Legend';
+import { ManaCost } from '@/components/shared/ManaCost';
+import { SortDirArrow } from '@/components/shared/SortDirArrow';
+import { ViewModeToggle } from '@/components/shared/ViewModeToggle';
+import { ZoomControl } from '@/components/shared/ZoomControl';
+import { makeDeckAllocationInfo } from '@/lib/collection/allocations-core';
 import { Tabs } from '@/components/overlays/Tabs';
 import { SelectMenu } from '@/components/overlays/SelectMenu';
 import { OverflowMenu } from '@/components/overlays/OverflowMenu';
@@ -592,6 +601,78 @@ function CardSpecimen() {
   );
 }
 
+function DisplayPiecesSpecimen() {
+  const [view, setView] = useState('grid');
+  const [zoom, setZoom] = useState(2);
+  const binder = (id: string, name: string, color: string) => ({ id, name, color });
+  const deck = (id: string, name: string, color: string) =>
+    makeDeckAllocationInfo(id, name, color, 'Sol Ring');
+  return (
+    <Specimen
+      id="display-pieces"
+      title="ManaCost, FoilBadge, BinderBadge, DeckBadge, Legend, ViewModeToggle, ZoomControl, SortDirArrow"
+    >
+      <Row label="ManaCost">
+        <ManaCost cost="{2}{W}{U}" />
+        <ManaCost cost="{X}{R}{R}" />
+        <ManaCost cost="{G/P}" />
+      </Row>
+      <Row label="FoilBadge">
+        <FoilBadge card={{ foil: true }} />
+        <FoilBadge card={{ foil: true, finishes: ['etched'] }} />
+        <FoilBadge card={{ foil: true, promoTypes: ['oilslick'] }} />
+      </Row>
+      <Row label="BinderBadge">
+        <BinderBadge nonInteractive binders={[binder('b1', 'Trade binder', '#4a7c59')]} />
+        <BinderBadge
+          binders={[binder('b1', 'Trade binder', '#4a7c59'), binder('b2', 'Staples', '#7c4a6b')]}
+        />
+        <BinderBadge nonInteractive placement="art" binders={[binder('b1', 'Trade', '#4a7c59')]} />
+      </Row>
+      <Row label="DeckBadge">
+        <DeckBadge nonInteractive allocations={[deck('d1', 'Atraxa', '#2f6f9f')]} />
+        <DeckBadge
+          allocations={[deck('d1', 'Atraxa', '#2f6f9f'), deck('d2', 'Korvold', '#9f2f4a')]}
+        />
+        <DeckBadge nonInteractive placement="art" allocations={[deck('d1', 'Atraxa', '#2f6f9f')]} />
+      </Row>
+      <Row label="SortDirArrow">
+        <SortDirArrow dir="asc" />
+        <SortDirArrow dir="desc" />
+      </Row>
+      <Row label="ViewModeToggle">
+        <ViewModeToggle
+          value={view}
+          onChange={setView}
+          ariaLabel="View"
+          options={[
+            {
+              value: 'grid',
+              label: 'Grid',
+              icon: <Grid3x3 width={14} height={14} strokeWidth={1.8} />,
+            },
+            {
+              value: 'list',
+              label: 'List',
+              icon: <List width={14} height={14} strokeWidth={1.8} />,
+            },
+          ]}
+        />
+      </Row>
+      <Row label="ZoomControl">
+        <ZoomControl zoom={zoom} width={1200} max={4} onChange={setZoom} />
+      </Row>
+      <Row label="Legend">
+        <Legend context="collection" />
+        <Legend context="deck" variant="pill" />
+      </Row>
+      <Row label="LegendContent">
+        <LegendContent context="binder" />
+      </Row>
+    </Specimen>
+  );
+}
+
 export function CatalogSections() {
   return (
     <>
@@ -600,6 +681,7 @@ export function CatalogSections() {
       <SurfaceSpecimen />
       <MeterSpecimen />
       <SymbolSpecimen />
+      <DisplayPiecesSpecimen />
       <FormSpecimen />
       <NavSpecimen />
       <StateSpecimen />

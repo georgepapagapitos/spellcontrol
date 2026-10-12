@@ -343,7 +343,7 @@ is $0, not real"), never color-only (the letter carries the meaning).
 
 ## Symbol key / Legend
 
-The card-symbol key is **one shared component** (`components/Legend.tsx`), driven
+The card-symbol key is **one shared component** (`components/shared/Legend.tsx`), driven
 by a `context` prop (`collection` | `binder` | `deck`) — never hand-roll a
 per-view key. Context decides only the _content_ (binder adds slot-border
 colors; deck adds role badges + markers; collection shows the deck/binder
@@ -742,7 +742,7 @@ and `aria-hidden`/title-labeled.
   surface** (e.g. the foil pip is icon-only in compact rows because the list
   row spells "Etched" next to it);
 - **(c)** it's covered by the **symbol Key** on that surface
-  (`components/Legend`, the context-aware "Key" popover mounted on the
+  (`components/shared/Legend`, the context-aware "Key" popover mounted on the
   collection toolbar, binder summaries, and the deck toolbar).
 
 App-invented glyphs — type icons, the 2-letter role badges, the synergy `✦` —

@@ -18,7 +18,7 @@ import { useStoredSort } from '@/lib/util/use-stored-sort';
 import { useStoredView } from '@/lib/util/use-stored-view';
 import { useDebouncedValue } from '@/lib/util/use-debounced-value';
 import { SortMenu, type SortMenuOption } from '@/components/search/SortMenu';
-import { ViewModeToggle } from '../components/ViewModeToggle';
+import { ViewModeToggle } from '@/components/shared/ViewModeToggle';
 import { SearchPill } from '@/components/search/SearchPill';
 import { OverflowMenu, type OverflowMenuItem } from '@/components/overlays/OverflowMenu';
 import { EmptyState } from '@/components/shared/EmptyState';

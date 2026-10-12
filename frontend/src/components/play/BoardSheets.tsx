@@ -14,7 +14,7 @@ import { markBoardGesturesSeen } from '@/lib/play/board-gestures-seen';
 import { usePlayStore } from '../../store/play';
 import { Button, IconButton } from '@/components/shared/Button';
 import { SwitchRow } from '../shared/form';
-import { ViewModeToggle } from '../ViewModeToggle';
+import { ViewModeToggle } from '@/components/shared/ViewModeToggle';
 import { boardGestures, type BoardGestureId } from './BoardGestureHint';
 import { GameHistory } from './GameHistory';
 import { CustomLayoutEditor, LayoutPicker } from './LayoutEditor';

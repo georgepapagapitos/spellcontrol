@@ -1,9 +1,9 @@
 import type { Ref } from 'react';
 import { Captions, CheckSquare, ChevronsDownUp, ChevronsUpDown, Eye, Layers } from 'lucide-react';
 import { ZOOM_MAX, ZOOM_MAX_NARROW } from '@/lib/util/grid-zoom';
-import { Legend } from '@/components/Legend';
-import { ViewModeToggle } from '@/components/ViewModeToggle';
-import { ZoomControl } from '@/components/ZoomControl';
+import { Legend } from '@/components/shared/Legend';
+import { ViewModeToggle } from '@/components/shared/ViewModeToggle';
+import { ZoomControl } from '@/components/shared/ZoomControl';
 import { SelectMenu } from '@/components/overlays/SelectMenu';
 import { SortMenu } from '@/components/search/SortMenu';
 import { Button } from '@/components/shared/Button';

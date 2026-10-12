@@ -3,8 +3,8 @@ import type { SetMap } from '@/lib/api';
 import type { AllocationInfo } from '@/lib/collection/allocations';
 import { setSymbolTitle } from '@/lib/cards/set-symbols';
 import type { CubeListing } from '@/lib/cube/cube-listings';
-import { DeckBadge } from '@/components/DeckBadge';
-import { BinderBadge } from '@/components/BinderBadge';
+import { DeckBadge } from '@/components/shared/DeckBadge';
+import { BinderBadge } from '@/components/shared/BinderBadge';
 import { ArtBadge } from '@/components/shared/ArtBadge';
 import {
   CardGridCell,

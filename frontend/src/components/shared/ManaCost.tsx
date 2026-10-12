@@ -1,5 +1,5 @@
 import { parseSymbol } from '@/lib/cards/mana-symbols';
-import { ManaSymbol } from './shared/ManaSymbol';
+import { ManaSymbol } from './ManaSymbol';
 
 interface Props {
   cost: string | undefined;

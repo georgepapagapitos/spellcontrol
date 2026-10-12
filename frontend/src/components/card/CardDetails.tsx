@@ -3,7 +3,7 @@ import { useState } from 'react';
 import type { EnrichedCard } from '@/types/index';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { cardFaces, legalityRows, type LegalityStatus } from '@/lib/cards/card-details';
-import { ManaCost } from '@/components/ManaCost';
+import { ManaCost } from '@/components/shared/ManaCost';
 import { useRulesText } from '@/lib/cards/keyword-glossary';
 import { RulesTextLine } from './RulesText';
 import './CardDetails.css';

@@ -7,7 +7,7 @@ import { useCardThumb } from '@/lib/cards/card-thumbs';
 import type { ArrivalRow } from '@/lib/coach/new-arrivals';
 import { OWNERSHIP_BADGE, type ChangeOwnership } from '@/lib/coach/deck-change';
 import { TYPE_GROUP_PLURAL, type TypeGroup } from '@/lib/deck-analysis/build-mana-data';
-import { ManaCost } from '../ManaCost';
+import { ManaCost } from '@/components/shared/ManaCost';
 import './NewArrivalsSheet.css';
 import { IconButton } from '@/components/shared/Button';
 

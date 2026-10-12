@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useDndMonitor, useDroppable, type DragMoveEvent } from '@dnd-kit/core';
 import type { PlaytestCard } from '@/lib/playtest';
-import { ManaCost } from '@/components/ManaCost';
+import { ManaCost } from '@/components/shared/ManaCost';
 import { fanCardWidth, fanGapShift, fanInsertIndex, fanOverlap, fanTilt } from '../lib/fan-layout';
 import { isPlaytestLand } from '../lib/zones';
 import { PlaytestCardView } from './PlaytestCardView';

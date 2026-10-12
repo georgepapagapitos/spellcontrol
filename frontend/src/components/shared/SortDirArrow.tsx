@@ -1,5 +1,5 @@
 import { ArrowDown, ArrowUp } from 'lucide-react';
-import type { SortDir } from '../types';
+import type { SortDir } from '@/types/index';
 
 export function SortDirArrow({ dir }: { dir: SortDir }) {
   const Icon = dir === 'asc' ? ArrowUp : ArrowDown;
