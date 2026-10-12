@@ -135,7 +135,7 @@ export function parseSetFromQuery(scryfallQuery: string): string | undefined {
   );
   if (new Set(found).size !== 1) return undefined;
   // An OR next to the set term makes it optional, not required.
-  if (new RegExp(String.raw`${term}\s+or|or\s+\(?${term}`, 'i').test(positive)) {
+  if (new RegExp(String.raw`${term}\s+or\s|\sor\s+\(?${term}`, 'i').test(positive)) {
     return undefined;
   }
   return found[0];

@@ -493,7 +493,10 @@ export async function acquireCardPoolPhase(
     // so the strict printing upgrade + fallback fills match what was fetched.
     if (altPool.effectiveConstraint) {
       scryfallQuery = [scryfallQuery.trim(), altPool.effectiveConstraint].filter(Boolean).join(' ');
-      landScryfallQuery = [landScryfallQuery.trim(), altPool.landConstraint ?? altPool.effectiveConstraint]
+      landScryfallQuery = [
+        landScryfallQuery.trim(),
+        altPool.landConstraint ?? altPool.effectiveConstraint,
+      ]
         .filter(Boolean)
         .join(' ');
     }
