@@ -59,8 +59,8 @@ export function useOwnershipLens(deckCards: PublicDeckCard[]): UseOwnershipLensR
   );
 
   // Price resolution tagged with the lens it was resolved for (mirrors
-  // use-enriched-list-entries.ts's resolved/key pattern) — a stale sum from a
-  // previous lens is never shown while a new one is in flight.
+  // use-enriched-list-entries.ts's resolved/key pattern) — the first answer waits for its prices; after
+  // that the previous answer stays up while a new lens is in flight (E346).
   const [resolved, setResolved] = useState<ResolvedPricing>({
     forLens: null,
     cost: 0,
@@ -103,6 +103,19 @@ export function useOwnershipLens(deckCards: PublicDeckCard[]): UseOwnershipLensR
     return { lens, missingCost: 0, missingCardPrices: EMPTY_PRICES, loading: false };
   }
   const settled = resolved.forLens === lens;
+  // Stale-while-revalidate: once an answer has been shown, a later store change
+  // (late pull pages, price refresh) recomputes the lens and re-resolves prices;
+  // keep the last answer (lens + its cost, so the percent and the price never
+  // disagree) instead of dropping back to the skeleton (E346). Skeleton only
+  // before the first resolution.
+  if (!settled && resolved.forLens) {
+    return {
+      lens: resolved.forLens,
+      missingCost: resolved.cost,
+      missingCardPrices: resolved.prices,
+      loading: false,
+    };
+  }
   return {
     lens,
     missingCost: settled ? resolved.cost : null,
