@@ -39,11 +39,15 @@ const read = (f: string) => readFileSync(join(here, f), 'utf8');
 describe('deck row — the qty editor and the role badge do not both ghost', () => {
   const css = read('deck-builder-display.css');
 
-  it('cancels the role badge ghost on the deck-list row', () => {
-    // The rule must exist, target the ROW variant, and cancel the ghost.
+  it('shrinks the role badge ghost on the deck-list row to a right-growing 24px', () => {
+    // Never 44 centered (that is the collision), never none (the badge box is
+    // 20x9, under WCAG 2.5.8): anchored left, growing away from the qty editor.
     const rule = css.match(/\.role-badge-btn\.deck-row-role-badge::after\s*\{([^}]*)\}/);
-    expect(rule, 'no ::after cancel for .role-badge-btn.deck-row-role-badge').toBeTruthy();
-    expect(rule![1]).toMatch(/content:\s*none/);
+    expect(rule, 'no ::after rule for .role-badge-btn.deck-row-role-badge').toBeTruthy();
+    expect(rule![1]).not.toMatch(/content:\s*none/);
+    expect(rule![1]).toMatch(/left:\s*0/);
+    expect(rule![1]).toMatch(/width:\s*24px/);
+    expect(rule![1]).toMatch(/height:\s*24px/);
   });
 
   it('keeps the ghost for the generic badge, so grid tiles are unaffected', () => {

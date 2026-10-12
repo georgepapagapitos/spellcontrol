@@ -769,6 +769,12 @@
      that width from the card name, which is a different call than the one made
      here. Do not "fix" the 37 by re-ghosting the badge — that is the bug. */
   .role-badge-btn.deck-row-role-badge::after {
-    content: none;
+    /* Not removed: the visible box is 20x9, under WCAG 2.5.8's 24x24 (E1000).
+       The ghost is anchored to the badge's left edge and grows only to the
+       right, away from the quantity editor, so the two never overlap. */
+    left: 0;
+    width: 24px;
+    height: 24px;
+    transform: translateY(-50%);
   }
 }
