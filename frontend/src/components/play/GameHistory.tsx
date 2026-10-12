@@ -85,7 +85,7 @@ function GameStats({ game, summary }: { game: GameState; summary: GameSummary })
             )}
           </div>
 
-          <ul className="game-stats-rows">
+          <ul className="list-stack list-stack--hairline">
             {rows.map((s) => {
               const palette = paletteForSeat(game.id, s.seat);
               return (

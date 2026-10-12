@@ -465,7 +465,7 @@ export function ComboRow({
                   icon={<InfinityIcon width={14} height={14} strokeWidth={1.8} aria-hidden />}
                   title="Full results"
                 >
-                  <ul className="deck-combos-results">
+                  <ul className="list-stack list-stack--hairline deck-combos-results">
                     {combo.produces.map((p, i) => (
                       <li key={i}>
                         <span className="deck-combos-infinity" aria-hidden>

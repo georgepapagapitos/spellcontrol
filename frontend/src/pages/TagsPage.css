@@ -32,15 +32,6 @@
   margin-bottom: var(--space-3);
 }
 
-.tags-selected-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
 /* Removable chip: pill shape per the corner-radius rule (labels are pills),
    with the × making the action explicit rather than hover-only. */
 .tags-selected-chip {
@@ -271,14 +262,6 @@
   margin-top: var(--space-5);
   padding-top: var(--space-3);
   border-top: 1px solid var(--border);
-}
-
-.tags-results-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
 }
 
 .tags-results-title {

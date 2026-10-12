@@ -67,7 +67,7 @@ import { Surface } from '@/components/shared/Surface';
  *  reuse the real content's shape rather than a single flat placeholder. */
 function GameNightsSkeleton() {
   return (
-    <ul className="game-nights-list" aria-label="Loading" aria-busy="true">
+    <ul className="list-stack list-stack--loose" aria-label="Loading" aria-busy="true">
       {[0, 1].map((i) => (
         <Surface as="li" variant="sleeve" key={i} className="game-night-card">
           <div className="game-night-card-head">
@@ -184,7 +184,7 @@ export function GameNightsTab({ isGuest, nights, loading, error, refresh }: Game
               Plan a game night
             </Button>
           </header>
-          <ul className="game-nights-list">
+          <ul className="list-stack list-stack--loose">
             {nights.map((night) => (
               <NightCard
                 key={night.id}

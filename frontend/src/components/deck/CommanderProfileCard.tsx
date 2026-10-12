@@ -44,7 +44,7 @@ export function CommanderProfileCard({ profile }: CommanderProfileCardProps) {
         <p className="cmdr-profile-summary">{summary}</p>
 
         {abilities.length > 0 && (
-          <ul className="cmdr-profile-abilities">
+          <ul className="list-stack list-stack--loose">
             {abilities.map((a) => (
               <li key={a.keyword} className="cmdr-profile-ability">
                 <div className="cmdr-profile-ability-head">

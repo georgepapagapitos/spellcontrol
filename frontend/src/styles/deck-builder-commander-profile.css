@@ -54,15 +54,6 @@
   line-height: 1.5;
 }
 
-.cmdr-profile-abilities {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
 .cmdr-profile-ability {
   border-left: 2px solid var(--border-strong);
   padding-left: var(--space-3);

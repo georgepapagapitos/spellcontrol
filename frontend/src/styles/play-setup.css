@@ -828,15 +828,6 @@ body:has(.game-board) .modal-backdrop {
   color: var(--text-secondary);
 }
 
-.play-setup-counter-chips {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-}
-
 .play-setup-counter-chip {
   display: inline-flex;
   align-items: center;

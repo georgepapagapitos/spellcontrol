@@ -375,7 +375,7 @@ export function DeckFeedbackView({ data, token }: Props) {
       {adds.length > 0 && (
         <section className="shared-deck-section">
           <h2 className="shared-deck-section-heading">Suggested additions ({adds.length})</h2>
-          <ul className="feedback-rows">
+          <ul className="list-stack list-stack--hairline">
             {adds.map((card) => (
               <li key={card.oracle_id}>
                 <button
@@ -472,7 +472,7 @@ export function DeckFeedbackView({ data, token }: Props) {
               })}
             </ul>
           ) : (
-            <ul className="feedback-rows">
+            <ul className="list-stack list-stack--hairline">
               {s.items.map((it, j) => {
                 const isCut = cuts.has(it.key);
                 return (

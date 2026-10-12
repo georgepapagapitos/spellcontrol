@@ -141,7 +141,7 @@ export function TagsPage() {
 
       {known.length > 0 && (
         <div className="tags-selected">
-          <ul className="tags-selected-list" role="list">
+          <ul className="pill-list" role="list">
             {known.map((slug) => (
               <li key={slug}>
                 <Chip
@@ -241,7 +241,7 @@ export function TagsPage() {
 
       {known.length > 0 ? (
         <section className="tags-results" aria-label="Cards matching the selected tags">
-          <div className="tags-results-toolbar">
+          <div className="row-between row-between--snug tags-results-toolbar">
             <h2 className="tags-results-title">
               {known.length === 1 ? cardTagLabel(known[0]) : `${known.length} tags, all at once`}
             </h2>

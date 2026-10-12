@@ -249,15 +249,6 @@
   padding: var(--space-2) var(--space-4) 0;
 }
 
-.playtest-scry-hand__list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
 .playtest-scry-hand__chip {
   display: inline-flex;
   align-items: center;

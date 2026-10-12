@@ -16,14 +16,6 @@
 /* Toolbar — controls only. The deck name lives in the page hero, and the
    out-zone jump moved onto the hero's own "+N sideboard" / "+N considering"
    counts, so there is no left-hand summary column to balance against. */
-.deck-toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--space-4);
-  flex-wrap: wrap;
-}
-
 .deck-toolbar-meta {
   font-size: var(--text-sm);
   color: var(--text-muted);

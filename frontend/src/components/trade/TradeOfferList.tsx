@@ -121,7 +121,7 @@ export function TradeOfferList({ offers, onChanged, onCounter, linkCounterparty,
   }
 
   return (
-    <ul className="trade-offer-list" aria-label={label ?? 'Trade offers'}>
+    <ul className="list-stack list-stack--loose" aria-label={label ?? 'Trade offers'}>
       {offers.map((offer) => (
         <li key={offer.id}>
           <TradeOfferCard

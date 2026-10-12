@@ -384,7 +384,7 @@ export function DeckToolbar({
   );
 
   return (
-    <header className="deck-toolbar" ref={rowRef}>
+    <header className="row-between deck-toolbar" ref={rowRef}>
       {/* The toolbar holds controls and nothing else. The out-zone jump used
           to live here as a muted "Not in deck N" fragment alone on the left of
           a right-aligned control row — restating a count the page hero already
