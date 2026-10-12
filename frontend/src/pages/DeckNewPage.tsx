@@ -147,6 +147,7 @@ export function DeckNewPage() {
             return (
               <label key={fmt} className={`format-pill${active ? ' active' : ''}`}>
                 <input
+                  className="overlay-input overlay-input--inherit"
                   type="radio"
                   name={formatGroup}
                   value={fmt}

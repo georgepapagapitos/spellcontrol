@@ -223,7 +223,9 @@ function TokenGrid({
                   <span className="playtest-token-tile__placeholder" aria-hidden />
                 )}
                 <span className="playtest-token-tile__name">{t.name}</span>
-                {t.typeLine && <span className="playtest-token-tile__type">{t.typeLine}</span>}
+                {t.typeLine && (
+                  <span className="truncate-meta truncate-meta--secondary">{t.typeLine}</span>
+                )}
               </button>
             </li>
           ))}

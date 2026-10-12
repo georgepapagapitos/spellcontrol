@@ -56,7 +56,7 @@ export function PartnerImportPicker({
     <div className="import-deck-commander-section import-deck-partner-section">
       <div className="import-deck-section-title">Partner commander (optional)</div>
       <p className="import-deck-hint">{commander.name} can have a partner.</p>
-      <ul className="import-deck-commander-list">
+      <ul className="list-stack list-stack--snug">
         {candidates.map((card) => {
           const selected = partner?.name === card.name;
           return (

@@ -70,6 +70,7 @@ export function TakebackModePicker({ mode, onSelect, onClose, online }: Props) {
                 className={`playtest-takeback-picker__row${active ? ' is-active' : ''}`}
               >
                 <input
+                  className="overlay-input"
                   type="radio"
                   name="takeback-mode"
                   checked={active}

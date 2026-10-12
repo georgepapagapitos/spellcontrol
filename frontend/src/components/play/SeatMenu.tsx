@@ -446,6 +446,7 @@ export function SeatMenu({
                       }`}
                     >
                       <input
+                        className="overlay-input"
                         type="radio"
                         name={panelColorGroup}
                         value={k}
@@ -472,6 +473,7 @@ export function SeatMenu({
                     title="Seat default"
                   >
                     <input
+                      className="overlay-input"
                       type="radio"
                       name={panelColorGroup}
                       value="auto"
@@ -503,6 +505,7 @@ export function SeatMenu({
                       className={`seat-menu-facing-btn ${currentRot === opt.rot ? 'is-selected' : ''}`}
                     >
                       <input
+                        className="overlay-input"
                         type="radio"
                         name={facingGroup}
                         value={opt.rot}

@@ -302,14 +302,6 @@
   display: inline-flex;
 }
 
-.deck-editor-zone-toggle-option input {
-  position: absolute;
-  inset: 0;
-  margin: 0;
-  opacity: 0;
-  cursor: pointer;
-}
-
 .deck-editor-zone-toggle-option input:focus-visible + span {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -356,14 +348,6 @@
     background var(--motion-fast) ease,
     border-color var(--motion-fast) ease,
     color var(--motion-fast) ease;
-}
-
-.format-pill input {
-  position: absolute;
-  inset: 0;
-  margin: 0;
-  opacity: 0;
-  cursor: inherit;
 }
 
 .format-pill:has(input:focus-visible) {

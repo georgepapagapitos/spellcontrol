@@ -106,6 +106,7 @@ export function DiscoverFiltersPopover({ filters, onChange, hideBudget }: Props)
               <div className="discover-filters-chips">
                 <label className="discover-filter-chip">
                   <input
+                    className="overlay-input"
                     type="radio"
                     name="discover-format"
                     checked={filters.format === null}
@@ -116,6 +117,7 @@ export function DiscoverFiltersPopover({ filters, onChange, hideBudget }: Props)
                 {formatEntries.map(([key, cfg]) => (
                   <label key={key} className="discover-filter-chip">
                     <input
+                      className="overlay-input"
                       type="radio"
                       name="discover-format"
                       checked={filters.format === key}
@@ -137,6 +139,7 @@ export function DiscoverFiltersPopover({ filters, onChange, hideBudget }: Props)
                     title={c.label}
                   >
                     <input
+                      className="overlay-input"
                       type="checkbox"
                       checked={filters.colors.includes(c.key)}
                       onChange={() => toggleColor(c.key)}
@@ -154,6 +157,7 @@ export function DiscoverFiltersPopover({ filters, onChange, hideBudget }: Props)
                 {BRACKET_OPTIONS.map((n) => (
                   <label key={n} className="discover-filter-chip">
                     <input
+                      className="overlay-input"
                       type="checkbox"
                       checked={filters.brackets.includes(n)}
                       onChange={() => toggleBracket(n)}
@@ -170,6 +174,7 @@ export function DiscoverFiltersPopover({ filters, onChange, hideBudget }: Props)
                 <div className="discover-filters-chips">
                   <label className="discover-filter-chip">
                     <input
+                      className="overlay-input"
                       type="radio"
                       name="discover-budget"
                       checked={filters.budget === null}
@@ -180,6 +185,7 @@ export function DiscoverFiltersPopover({ filters, onChange, hideBudget }: Props)
                   {BUDGET_OPTIONS.map((b) => (
                     <label key={b.key} className="discover-filter-chip">
                       <input
+                        className="overlay-input"
                         type="radio"
                         name="discover-budget"
                         checked={filters.budget === b.key}

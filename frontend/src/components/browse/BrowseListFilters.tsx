@@ -141,6 +141,7 @@ export function BrowseListFilters({
                   {TYPE_OPTIONS.map((t) => (
                     <label key={t.value || 'all'} className="discover-filter-chip">
                       <input
+                        className="overlay-input"
                         type="radio"
                         name={typeName}
                         checked={filters.type === t.value}

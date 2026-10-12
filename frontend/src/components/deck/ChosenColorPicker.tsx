@@ -48,6 +48,7 @@ export function ChosenColorPicker({
         {COLORS.map((c) => (
           <label key={c.key} className={`bracket-pill${chosen === c.key ? ' active' : ''}`}>
             <input
+              className="overlay-input"
               type="radio"
               name={group}
               value={c.key}

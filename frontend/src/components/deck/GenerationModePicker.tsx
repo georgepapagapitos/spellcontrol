@@ -144,6 +144,7 @@ export function GenerationModePicker({
                   }`}
                 >
                   <input
+                    className="overlay-input overlay-input--inherit"
                     type="radio"
                     name={modeGroup}
                     value={m.id}
@@ -252,6 +253,7 @@ function ArtConfig({
         {ART_THEME_PRESETS.map((p) => (
           <label key={p.tag} className={`gen-mode-chip${slug === p.tag ? ' is-active' : ''}`}>
             <input
+              className="overlay-input overlay-input--inherit"
               type="radio"
               name={motifGroup}
               value={p.tag}
@@ -313,6 +315,7 @@ function HistoricalConfig({
             title={p.blurb}
           >
             <input
+              className="overlay-input overlay-input--inherit"
               type="radio"
               name={eraGroup}
               value={p.year}

@@ -155,7 +155,7 @@ export function CommanderResultCard({
           <span className="commander-result-art-skeleton" />
         )}
       </span>
-      <span className="commander-result-body">
+      <span className="text-stack text-stack--auto">
         <span className="commander-result-name">{selecting ? 'Loading…' : name}</span>
         {colorsUnknown ? (
           <span className="commander-result-colors">
@@ -173,7 +173,7 @@ export function CommanderResultCard({
             </span>
           )
         )}
-        {typeLine && <span className="commander-result-type">{typeLine}</span>}
+        {typeLine && <span className="truncate-meta truncate-meta--secondary">{typeLine}</span>}
         {reason && reason.field !== 'name' && <ReasonLine reason={reason} />}
         {showBar && (
           <span className="commander-result-coverage">

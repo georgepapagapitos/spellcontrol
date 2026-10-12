@@ -115,7 +115,7 @@ export function BinderEditorPreviewStrip({ binder, loading, binderName }: Props)
               ? ` · ${volumesOfCapacity(binderCount, fixedCapacity)}`
               : ''}
           </span>
-          {startLine && <span className="binder-editor-preview-strip-sub">{startLine}</span>}
+          {startLine && <span className="truncate-meta truncate-meta--secondary">{startLine}</span>}
           <span className="binder-editor-preview-strip-hint">Tap to flip through</span>
         </span>
         <ChevronRight

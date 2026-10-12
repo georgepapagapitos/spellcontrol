@@ -196,6 +196,7 @@ export function FillDeckSheet({
                     className={`bracket-pill${lean === l.value ? ' active' : ''}`}
                   >
                     <input
+                      className="overlay-input"
                       type="radio"
                       name={leanGroup}
                       value={l.value}

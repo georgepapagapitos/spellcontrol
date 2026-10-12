@@ -561,6 +561,11 @@ select {
   min-width: 0;
 }
 
+/* The column sizes from its content before it grows, so a sibling's width wins. */
+.text-stack--auto {
+  flex: 1 1 auto;
+}
+
 /* A flex child that gives way and ellipsizes instead of pushing its siblings. */
 .truncate-fill {
   flex: 1;
@@ -579,6 +584,11 @@ select {
   white-space: nowrap;
 }
 
+/* The same caption in the secondary text color. */
+.truncate-meta--secondary {
+  color: var(--text-secondary);
+}
+
 /* A one-line row title that ellipsizes: the name over a meta line. */
 .truncate-name {
   font-size: var(--text-sm);
@@ -589,6 +599,26 @@ select {
   white-space: nowrap;
 }
 
+/* A native radio or checkbox stretched over its styled label or card: invisible,
+   but it still takes the click, so the whole control is the hit area. Not
+   .sr-only, which would shrink it to a pixel. */
+.overlay-input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* The control draws its own cursor (disabled cards, drag surfaces). */
+.overlay-input--inherit {
+  cursor: inherit;
+}
+
 .list-stack--tight {
   gap: var(--space-1);
+}
+
+.list-stack--snug {
+  gap: var(--space-1-5);
 }

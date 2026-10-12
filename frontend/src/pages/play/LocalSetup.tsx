@@ -554,7 +554,7 @@ export function LocalSetup({
             ))}
           </div>
         )}
-        <ul className="play-setup-roster-list">
+        <ul className="list-stack list-stack--snug">
           {players.slice(0, count).map((p, i) => (
             <li key={i} className="play-setup-seat">
               <span className="play-setup-seat-num" aria-hidden="true">

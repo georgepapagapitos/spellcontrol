@@ -198,7 +198,7 @@ export function OnlineSetup({
             <header className="play-setup-roster-head">
               <h3 className="play-setup-section-title">You</h3>
             </header>
-            <ul className="play-setup-roster-list">
+            <ul className="list-stack list-stack--snug">
               <li className="play-setup-seat">
                 <span className="play-setup-seat-num" aria-hidden="true">
                   1
@@ -272,7 +272,7 @@ export function OnlineSetup({
             <header className="play-setup-roster-head">
               <h3 className="play-setup-section-title">You</h3>
             </header>
-            <ul className="play-setup-roster-list">
+            <ul className="list-stack list-stack--snug">
               <li className="play-setup-seat">
                 <span className="play-setup-seat-num" aria-hidden="true">
                   1

@@ -264,7 +264,7 @@ export function EnginePanel({
       )}
 
       {analysis.warnings.length > 0 && (
-        <ul className="engine-warnings">
+        <ul className="list-stack list-stack--snug">
           {analysis.warnings.map((w) => (
             <li key={w} className="engine-warning">
               {w}

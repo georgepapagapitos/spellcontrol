@@ -213,7 +213,7 @@ function PodsIndexPageBody() {
                 {invited.map((pod) => (
                   <li key={pod.id} className="pods-invited-row">
                     <UserAvatar name={pod.ownerUsername} size={36} />
-                    <div className="pods-invited-info">
+                    <div className="text-stack text-stack--auto">
                       <span className="pods-invited-name">{pod.name}</span>
                       <span className="pods-invited-meta">
                         <PodMemberCount count={pod.memberCount} /> · hosted by {pod.ownerUsername}

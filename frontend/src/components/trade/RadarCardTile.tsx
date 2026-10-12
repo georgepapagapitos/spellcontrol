@@ -39,7 +39,7 @@ export function RadarCardTile({ match }: { match: TradeRadarMatch }) {
         {match.name}
         {match.quantity > 1 && <span className="friend-hub-radar-qty"> ×{match.quantity}</span>}
       </span>
-      <span className="friend-hub-radar-sub" title={sub}>
+      <span className="truncate-meta truncate-meta--secondary" title={sub}>
         {sub}
       </span>
     </li>

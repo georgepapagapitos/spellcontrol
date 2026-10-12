@@ -300,7 +300,7 @@ export function AppendDeckDialog({ deck, onClose }: Props) {
                   </div>
                 ) : !showCommanderSearch ? (
                   <>
-                    <ul className="import-deck-commander-list">
+                    <ul className="list-stack list-stack--snug">
                       {decision.candidates.map((card) => (
                         <li key={card.id}>
                           <button

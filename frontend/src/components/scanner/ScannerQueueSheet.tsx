@@ -462,7 +462,7 @@ function ScanRow({
             type="checkbox"
             checked={selected}
             onChange={onToggle}
-            className="scan-row-input"
+            className="scan-row-input overlay-input"
           />
           {body}
         </label>

@@ -39,6 +39,7 @@ export function ColorPicker({ value, onChange, ariaLabel }: Props) {
         {PRESET_COLORS.map((c) => (
           <label key={c.hex} className="color-swatch-option" title={c.name}>
             <input
+              className="overlay-input"
               type="radio"
               name={groupName}
               checked={value === c.hex}

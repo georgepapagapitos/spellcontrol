@@ -52,7 +52,7 @@ export function DeckTokensSheet({
       >
         <div className="card-picker-handle" aria-hidden />
         <header className="deck-tokens-sheet-head">
-          <div className="deck-tokens-sheet-titles">
+          <div className="text-stack text-stack--auto">
             <h2 id={titleId} className="deck-tokens-sheet-title">
               Tokens to prep
             </h2>

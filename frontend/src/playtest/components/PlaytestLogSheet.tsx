@@ -67,7 +67,7 @@ export function PlaytestLogSheet({ log, table, onClose }: Props) {
             table.items.length === 0 ? (
               <p className="playtest-log-empty">No table activity yet.</p>
             ) : (
-              <ol className="playtest-log-entries playtest-log-table">
+              <ol className="list-stack list-stack--snug playtest-log-table">
                 {/* Newest first, matching the own-log view's reverse order. */}
                 {[...table.items].reverse().map((it) => (
                   <TickerLine key={it.id} item={it} name={table.nameFor(it.seat)} />
@@ -80,7 +80,7 @@ export function PlaytestLogSheet({ log, table, onClose }: Props) {
             groups.map((group) => (
               <section key={`${group.turn}-${group.entries[0].seq}`} className="playtest-log-turn">
                 <h3 className="playtest-log-turn__heading">Turn {group.turn}</h3>
-                <ol className="playtest-log-entries">
+                <ol className="list-stack list-stack--snug">
                   {group.entries
                     .filter((e) => e.kind !== 'turn')
                     .map((e) => (
