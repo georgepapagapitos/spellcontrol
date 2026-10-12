@@ -1,33 +1,23 @@
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useConfirm } from '@/components/overlays/use-confirm';
-import { DndContext, DragOverlay, getClientRect } from '@dnd-kit/core';
 import type { Designation, PlaytestCard, PlaytestState, Zone } from '@/lib/playtest';
 import { usePlaytestStore } from '../store';
 
 import { PHONE_QUERY, useNarrowViewport } from '../hooks/use-narrow-viewport';
 import { useTurnAlert } from '../hooks/use-turn-alert';
-import { useTurnSweep } from '../hooks/use-turn-sweep';
-import { useTablePointer } from '../hooks/use-table-pointer';
 import { useHoverTarget } from '../hooks/use-hover-target';
 import {} from './TablePings';
 import {} from './StackPanel';
 import { useOnlineTable } from '../hooks/use-online-table';
 import {} from '@/components/shared/Button';
 import { useTakeback } from '../hooks/use-takeback';
-import { OpponentRail } from './OpponentRail';
-import { OpenSeatQuadrant, OpponentQuadrant } from './OpponentQuadrant';
 import {} from './OpponentBoardModal';
 import {} from './TableMoments';
 import {} from './TableFinishedBanner';
 import {} from './TriggerReminder';
-import { TableTicker } from './TableTicker';
-import { TakebackPendingBanner } from './TakebackPendingBanner';
 import {} from './TakebackConsentPrompt';
 import { haptics } from '@/lib/util/haptics';
 import { suppressNativeContextMenu } from '@/lib/play/suppress-context-menu';
-import { Battlefield } from './Battlefield';
-import { Hand } from './Hand';
-import { CardHoverPreview } from './CardHoverPreview';
 import { useMediaQuery } from '@/lib/util/use-media-query';
 import { TableContextMenu, type MenuEntry } from './TableContextMenu';
 import { useRulesReferenceStore } from '@/store/rules-reference';
@@ -35,35 +25,27 @@ import {} from './TableArrows';
 import type {} from './menu-entries';
 import { MobileZonesPanel } from './MobileZonesPanel';
 import { RotatePrompt } from './RotatePrompt';
-import { PlaytestCardFace } from './PlaytestCardFace';
-import { HordeHalf } from './horde/HordeHalf';
-import { HordeBand } from './horde/HordeBand';
-import { HordeSoloBanner } from './horde/HordeSoloBanner';
 import { HordeActionsProvider } from './horde/horde-actions';
 import type {} from '../lib/auto-place';
 import { ZONE_VIEWER_LABEL } from '../lib/zones';
-import { LifeStrip } from './LifeStrip';
 import { useCardZoom } from '../hooks/use-card-zoom';
 import { type ContextState, type ViewerMode } from '../lib/board-support';
 import { deriveOnlineHorde } from './board/board-derive';
 import { BoardHordeSheets } from './board/BoardHordeSheets';
 import { buildPileMenuItems } from './board/pile-menu-items';
-import { TableCornerActions } from './board/TableCornerActions';
-import { TablePiles } from './board/TablePiles';
 import { useCardActions } from './board/use-card-actions';
 import { BoardTableOverlays } from './board/BoardTableOverlays';
 import { useBoardOnlineHorde, useSoloHorde } from './board/use-board-horde';
+import { BoardMain } from './board/BoardMain';
 import { BoardOpeningHand } from './board/BoardOpeningHand';
 import { useBattlefieldPlacement } from './board/use-battlefield-placement';
 import { useBoardDeck } from './board/use-board-deck';
 import { useOpeningHand } from './board/use-opening-hand';
 import { useTakebackFeedback } from './board/use-takeback-feedback';
-import { BoardBanners } from './board/BoardBanners';
 import { BoardEndSheets } from './board/BoardEndSheets';
 import { BoardLeftDock } from './board/BoardLeftDock';
 import { BoardSettingsSheets } from './board/BoardSettingsSheets';
 import { BoardZoneSheets } from './board/BoardZoneSheets';
-import { DragHintBanner } from './board/DragHintBanner';
 import { useBoardArrows } from './board/use-board-arrows';
 import { useBoardDrag } from './board/use-board-drag';
 import { useBoardLayout } from './board/use-board-layout';
@@ -278,28 +260,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     snap,
     onPickUp: () => setTappedPreviewId(null),
   });
-  // Measure drag sources and drop targets with the box the browser actually
-  // paints. dnd-kit's default is "transform-agnostic": it reads the element's
-  // own `transform` and inverts it, so a card dnd-kit itself has translated
-  // still measures where it started. That routine understands translate and
-  // scale only — it reads a rotation matrix's `a`/`d` as scaleX/scaleY, and
-  // for `rotate(90deg)` both are 0, so the box it hands back is half a card
-  // up and to the left of the real one. A TAPPED permanent wears exactly that
-  // rotation: its drag copy jumped off the card as you picked it up, and the
-  // attach-drop target sat beside the creature rather than on it. Nothing
-  // here needs the inversion — the source card is never translated (the
-  // moving copy is a top-level <DragOverlay>), and the hand's fan rotation
-  // lives on the slot wrapper rather than the card, so this changes the
-  // measurement of tapped permanents and nothing else.
-  const measuring = useMemo(
-    () => ({ draggable: { measure: getClientRect }, droppable: { measure: getClientRect } }),
-    []
-  );
-
   const takeback = useTakeback(onlineTable);
-  // Both signals the rail carries today, lit on the quadrant instead.
-  const sweepSeat = useTurnSweep(onlineTable?.activeSeat ?? undefined);
-  const tablePointer = useTablePointer();
 
   /**
    * Token-copy `sourceIds`, minting each clone's instance id here so the
@@ -338,14 +299,6 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
 
   const { placeOnBattlefield, playFromHand, createToken, castCommander, handlePeekMove } =
     useBattlefieldPlacement(state, dispatch, battlefieldRef);
-
-  // Playing with the hand revealed marks every card, the same way the
-  // projection shows every card.
-  const revealedIds = useMemo(
-    () => new Set(state.handRevealed ? state.zones.hand.map((c) => c.id) : (state.revealed ?? [])),
-    [state.handRevealed, state.zones.hand, state.revealed]
-  );
-  const stackIdSet = useMemo(() => new Set(state.stack ?? []), [state.stack]);
 
   // Gone from the battlefield (moved, or taken back) closes the dialog with it.
   const countersBf = countersFor
@@ -629,81 +582,6 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     handleTakebackClick,
   });
 
-  const trackers = (
-    <div className="playtest-trackers playtest-trackers--corner">
-      <LifeStrip
-        life={state.life}
-        isNarrow={isNarrow}
-        monarch={state.monarch}
-        initiative={state.initiative}
-        citysBlessing={state.citysBlessing}
-        playerCounters={state.playerCounters ?? {}}
-        onAdjustLife={(delta) => {
-          haptics.tap();
-          dispatch({ type: 'ADJUST_LIFE', delta });
-        }}
-        onAdjustCounter={(kind, delta) => {
-          haptics.tap();
-          dispatch({ type: 'SET_PLAYER_COUNTER', counter: kind, delta });
-        }}
-        onOpenChange={setLifePanelOpen}
-        onlineTable={onlineTable}
-        onViewOpponentBoard={setViewingBoardSeat}
-        variant="table"
-      />
-    </div>
-  );
-
-  const pendingBanner = takeback.pendingRequest && (
-    <TakebackPendingBanner
-      request={takeback.pendingRequest}
-      onCancel={takeback.cancelPending}
-      message={takeback.pendingOutcomeMessage ?? undefined}
-    />
-  );
-
-  // Whoever holds the TOP-RIGHT cell sits under the viewport-fixed turn/menu
-  // stack: the right column at two seats, the second of the upper pair at
-  // three or four. That quadrant insets its battlefield so no permanent of
-  // theirs can render beneath the stack (see OpponentQuadrant.css).
-  const topRightSeat = (opponents.length === 1 ? opponents[0] : opponents[1])?.board.seat;
-  const renderQuadrant = (opp: (typeof opponents)[number]) => (
-    <OpponentQuadrant
-      key={opp.board.seat}
-      opp={opp}
-      active={onlineTable?.activeSeat === opp.board.seat}
-      sweeping={sweepSeat === opp.board.seat}
-      pointed={tablePointer?.targetSeat === opp.board.seat}
-      watching={viewingBoardSeat === opp.board.seat}
-      underTurnStack={opp.board.seat === topRightSeat}
-      onOpen={() => setViewingBoardSeat(opp.board.seat)}
-      onPickCard={arrowFrom ? (cardId) => finishArrow(opp.board.seat, cardId) : undefined}
-    />
-  );
-
-  const cornerActions = (
-    <TableCornerActions
-      onlineTable={onlineTable}
-      onlineHorde={onlineHorde}
-      onlineHordePhase={onlineHordePhase}
-      isOnlineHordeTable={isOnlineHordeTable}
-      hordeBlocksTurn={hordeBlocksTurn}
-      isNarrow={isNarrow}
-      turn={state.turn}
-      canAdvanceTurn={canAdvanceTurn}
-      advanceTurn={advanceTurn}
-      activeName={activeName}
-      keyFor={keyFor}
-      showGameMenu={showGameMenu}
-      onOpenGameMenu={() => setShowGameMenu(true)}
-      hasUnreadLog={hasUnreadLog}
-      takebackPending={Boolean(takeback.pendingRequest)}
-      selectMode={selectMode}
-      selectedCount={selected.size}
-      onToggleSelectMode={toggleSelectMode}
-    />
-  );
-
   const pileMenuItems = (zone: Zone): MenuEntry[] =>
     buildPileMenuItems(zone, {
       state,
@@ -719,32 +597,6 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       setScryFrom,
       setShowScry,
     });
-
-  const openPileMenu = (zone: Zone) => (x: number, y: number) => setPileMenu({ zone, x, y });
-
-  /* Which piles stand on the felt, and which live behind the edge tab. Four
-     card-width tiles plus a hand do not fit a PHONE, and the two that earn
-     the room are the ones you touch every turn: the library (its click
-     draws) and the graveyard. Exile and the command zone are a tap away in
-     the tab — the same split EDHPlay makes, for the same reason. A tablet
-     has the width for all four, so it keeps them. */
-  const piles = (
-    <TablePiles
-      state={state}
-      dispatch={dispatch}
-      libraryCount={libraryCount}
-      libraryReveal={libraryReveal}
-      faceDownExile={faceDownExile}
-      taxCards={taxCards}
-      isPhone={isPhone}
-      handMenuOpen={pileMenu?.zone === 'hand'}
-      onOpenHandMenu={(x, y) => setPileMenu({ zone: 'hand', x, y, origin: 'bottom-end' })}
-      doDraw={doDraw}
-      openPileMenu={openPileMenu}
-      onViewZone={(zone) => setViewer({ zone })}
-      onCommanderMenu={(cardId, x, y) => setHandMenu({ cardId, x, y, zone: 'command' })}
-    />
-  );
 
   return (
     <div
@@ -774,185 +626,84 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         triggerCards={triggerCards}
         locateCard={locateCard}
       />
-      <DndContext
+
+      <BoardMain
+        activeId={activeId}
+        activeDrag={activeDrag}
+        dragCardBox={dragCardBox}
+        dragGroup={dragGroup}
         sensors={sensors}
         collisionDetection={collisionDetection}
-        measuring={measuring}
-        onDragStart={handleDragStart}
-        onDragMove={handleDragMove}
-        onDragEnd={handleDragEnd}
-        onDragCancel={handleDragCancel}
-      >
-        <div
-          className={`playtest-main${gridMode ? ' playtest-main--grid' : ''}${
-            gridMode && opponents.length === 1 ? ' playtest-main--seats-2' : ''
-          }${(!onlineTable ? hordeVisible : isOnlineHordeTable) && !isNarrow ? ' playtest-main--horde' : ''}${
-            isOnlineHordeTable && !isNarrow ? ' playtest-main--horde-rail' : ''
-          }`}
-        >
-          {onlineTable && !gridMode && (
-            <OpponentRail
-              opponents={
-                onlineHorde
-                  ? onlineTable.opponents.map((opp) => ({
-                      ...opp,
-                      status: (onlineTable.players.find((p) => p.seat === opp.board.seat)
-                        ?.connected === false
-                        ? 'Offline'
-                        : onlineHorde.team.done.includes(opp.board.seat)
-                          ? 'Done'
-                          : 'Playing') as 'Playing' | 'Done' | 'Offline',
-                    }))
-                  : onlineTable.opponents
-              }
-              activeSeat={onlineTable.activeSeat ?? undefined}
-            >
-              <TableTicker onlineTable={onlineTable} />
-            </OpponentRail>
-          )}
-          {/* Grid order is the table's seating: your own board is bottom-left,
-              so with two seats the single opponent sits beside you and with
-              three or four the others fill the row above. */}
-          {gridMode && opponents.length > 1 && opponents.slice(0, 2).map(renderQuadrant)}
-          {/* Solo Horde never exists at an online table, and a horde at an
-              online table (E387 online co-op, lane F2) never exists solo —
-              `hordeUiActive` below is exactly one or the other. The desktop
-              half sits above your board (fixed two-row grid via
-              `.playtest-main--horde`, plus a rail column online);
-              the phone band folds above it inline. */}
-          {(!onlineTable ? hordeVisible : isOnlineHordeTable) &&
-            withHordeActions(
-              isNarrow ? (
-                <HordeBand
-                  horde={onlineTable ? onlineHordeView : horde}
-                  hordeLoad={onlineHordeLoadView}
-                  playerTurn={onlineTable ? (onlineHorde?.team.survivorTurn ?? 1) : state.turn}
-                  feltRef={hordeFeltRef}
-                  onCardMenu={setHordeCardMenuId}
-                  onOpenDamage={() => setHordeDamageOpen(true)}
-                  statusText={onlineHordeBandStatusText}
-                  blocked={onlineHordeBlocked}
-                  extraAction={onlineHordeExtraAction}
-                />
-              ) : (
-                <HordeHalf
-                  horde={onlineTable ? onlineHordeView : horde}
-                  hordeLoad={onlineHordeLoadView}
-                  playerTurn={onlineTable ? (onlineHorde?.team.survivorTurn ?? 1) : state.turn}
-                  feltRef={hordeFeltRef}
-                  onCardMenu={setHordeCardMenuId}
-                  onOpenDamage={() => setHordeDamageOpen(true)}
-                  statusText={onlineHordeStatusText}
-                  blocked={onlineHordeBlocked}
-                />
-              )
-            )}
-          <div
-            ref={battlefieldRef}
-            // Solo play has no seat order, so every turn is yours and the
-            // ring is always lit — the same expression the trigger reminder
-            // already reads the board's turn with.
-            className={`playtest-battlefield-wrap${onlineTable === null || myTurn ? ' is-my-turn' : ''}`}
-            data-seat-anchor={onlineTable?.mySeat}
-          >
-            <Battlefield
-              cards={state.battlefield}
-              selectedIds={selected}
-              ridingIds={dragGroup?.riding}
-              stackIds={stackIdSet}
-              onBackgroundClick={clearSelection}
-              onMarqueeSelect={selectArea}
-              onBackgroundContextMenu={openTableMenu}
-              onCardClick={handleCardClick}
-              onCardContextMenu={handleCardContext}
-              onCardLongPress={handleCardLongPress}
-              onAdjustPT={(cardId, power, toughness) =>
-                dispatch({ type: 'ADJUST_PT', cardId, power, toughness })
-              }
-              onStepCounter={(cardId, counter, delta) =>
-                dispatch({ type: 'SET_COUNTER', cardId, counter, delta })
-              }
-            />
-            {/* The four corner clusters, floating over the felt rather than
-                taking rows off the board's height — at EVERY width. A phone
-                used to get a different board entirely: a title bar, eleven
-                buttons in two rows, a life row and a mana row, which between
-                them ate 40% of the screen before a single card was played.
-                The felt is the thing worth the pixels, so the phone gets the
-                same table the desktop does, sized for a thumb. */}
-            {
-              <>
-                <div className="playtest-banners">
-                  {pendingBanner}
-                  <BoardBanners resistanceLevel={resistanceLevel} />
-                  <DragHintBanner
-                    handCount={state.zones.hand.length}
-                    battlefieldCount={state.battlefield.length}
-                    isChoosingHand={isChoosingHand}
-                  />
-                  {!isNarrow &&
-                    (onlineTable
-                      ? onlineHordeView &&
-                        withHordeActions(<HordeSoloBanner horde={onlineHordeView} />)
-                      : horde && <HordeSoloBanner horde={horde} />)}
-                </div>
-                {trackers}
-                {cornerActions}
-                {/* The ticker's home when there is no rail to hold it: the top
-                    right of your own quadrant, so the feed stays visible
-                    without parking chrome over somebody else's board. */}
-                {gridMode && onlineTable && (
-                  <div className="playtest-ticker-dock">
-                    <TableTicker onlineTable={onlineTable} />
-                  </div>
-                )}
-                {piles}
-                <Hand
-                  cards={state.zones.hand}
-                  fan
-                  onCardMenu={handleHandCardMenu}
-                  onCardPreview={handleHandCardPreview}
-                  revealedIds={revealedIds}
-                />
-              </>
-            }
-          </div>
-          {gridMode &&
-            (opponents.length === 1
-              ? opponents.map(renderQuadrant)
-              : opponents.slice(2).map(renderQuadrant))}
-          {gridMode && opponents.length === 2 && <OpenSeatQuadrant />}
-        </div>
-        <CardHoverPreview
-          suspended={activeId !== null || anySheetOpen}
-          resolve={resolvePreview}
-          pinned={tappedPreviewId}
-          onUnpin={unpinPreview}
-          holdHint={!holdHintSeen}
-        />
-        {/* Above `--z-overlay` so a card dragged out of a sheet renders over
-            the sheet, not behind it. */}
-        {/* `playtest-drag-overlay` centres the copy in the wrapper, which
-            dnd-kit sizes from the source's box. For a TAPPED card that box is
-            the rotated one — width and height swapped — while the copy inside
-            keeps the printed card's size and rotates about its own centre, so
-            left at the wrapper's top-left it sits half the difference off the
-            card. A no-op for an untapped card: the two boxes are the same. */}
-        <DragOverlay dropAnimation={null} zIndex={1200} className="playtest-drag-overlay">
-          {activeDrag && (
-            <PlaytestCardFace
-              card={activeDrag.card}
-              bf={activeDrag.bf}
-              size={activeDrag.size}
-              className="playtest-card--dragging"
-              style={{
-                ...dragCardBox,
-                transform: activeDrag.bf?.tapped ? 'rotate(90deg)' : undefined,
-              }}
-            />
-          )}
-        </DragOverlay>
-      </DndContext>
+        handleDragStart={handleDragStart}
+        handleDragMove={handleDragMove}
+        handleDragEnd={handleDragEnd}
+        handleDragCancel={handleDragCancel}
+        tappedPreviewId={tappedPreviewId}
+        holdHintSeen={holdHintSeen}
+        resolvePreview={resolvePreview}
+        handleHandCardMenu={handleHandCardMenu}
+        handleHandCardPreview={handleHandCardPreview}
+        unpinPreview={unpinPreview}
+        selected={selected}
+        selectMode={selectMode}
+        handleCardClick={handleCardClick}
+        toggleSelectMode={toggleSelectMode}
+        clearSelection={clearSelection}
+        selectArea={selectArea}
+        opponents={opponents}
+        gridMode={gridMode}
+        arrowFrom={arrowFrom}
+        finishArrow={finishArrow}
+        activeName={activeName}
+        myTurn={myTurn}
+        hordeBlocksTurn={hordeBlocksTurn}
+        canAdvanceTurn={canAdvanceTurn}
+        advanceTurn={advanceTurn}
+        doDraw={doDraw}
+        horde={horde}
+        hordeVisible={hordeVisible}
+        hordeFeltRef={hordeFeltRef}
+        onlineHordePhase={onlineHordePhase}
+        onlineHordeStatusText={onlineHordeStatusText}
+        onlineHordeBandStatusText={onlineHordeBandStatusText}
+        onlineHordeLoadView={onlineHordeLoadView}
+        onlineHordeBlocked={onlineHordeBlocked}
+        onlineHordeExtraAction={onlineHordeExtraAction}
+        onlineHordeView={onlineHordeView}
+        onlineHorde={onlineHorde}
+        isOnlineHordeTable={isOnlineHordeTable}
+        state={state}
+        dispatch={dispatch}
+        onlineTable={onlineTable}
+        takeback={takeback}
+        isNarrow={isNarrow}
+        isPhone={isPhone}
+        isChoosingHand={isChoosingHand}
+        resistanceLevel={resistanceLevel}
+        keyFor={keyFor}
+        battlefieldRef={battlefieldRef}
+        anySheetOpen={anySheetOpen}
+        hasUnreadLog={hasUnreadLog}
+        showGameMenu={showGameMenu}
+        setShowGameMenu={setShowGameMenu}
+        setLifePanelOpen={setLifePanelOpen}
+        viewingBoardSeat={viewingBoardSeat}
+        setViewingBoardSeat={setViewingBoardSeat}
+        setPileMenu={setPileMenu}
+        setHandMenu={setHandMenu}
+        setViewer={setViewer}
+        libraryCount={libraryCount}
+        libraryReveal={libraryReveal}
+        faceDownExile={faceDownExile}
+        taxCards={taxCards}
+        openTableMenu={openTableMenu}
+        handleCardContext={handleCardContext}
+        handleCardLongPress={handleCardLongPress}
+        setHordeCardMenuId={setHordeCardMenuId}
+        setHordeDamageOpen={setHordeDamageOpen}
+        withHordeActions={withHordeActions}
+        handMenuOpen={pileMenu?.zone === 'hand'}
+      />
 
       <BoardLeftDock
         state={state}

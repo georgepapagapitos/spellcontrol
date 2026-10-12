@@ -54,7 +54,6 @@ const CEILINGS: Record<string, number> = {
   'lib/sync/index.ts': 2100,
   'pages/AdminPage.tsx': 1100,
   'pages/DecksIndexPage.tsx': 1100,
-  'playtest/components/PlaytestBoard.tsx': 1200,
   'playtest/store.ts': 1500,
   'store/collection.ts': 2100,
   'store/decks.ts': 1700,

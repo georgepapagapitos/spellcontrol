@@ -6,7 +6,10 @@ import { dirname, join } from 'node:path';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const css = readFileSync(join(here, 'playtest.css'), 'utf8');
-const board = readFileSync(join(here, '..', 'playtest', 'components', 'PlaytestBoard.tsx'), 'utf8');
+const board = readFileSync(
+  join(here, '..', 'playtest', 'components', 'board', 'BoardMain.tsx'),
+  'utf8'
+);
 
 /**
  * The moving copy of a TAPPED card has to sit where the card you grabbed is.
@@ -17,7 +20,7 @@ const board = readFileSync(join(here, '..', 'playtest', 'components', 'PlaytestB
  * size and rotates about its own center, so left at the wrapper's top-left it
  * lands half the width/height difference off the card under the pointer.
  *
- * The other half of that bug is in `PlaytestBoard`'s `measuring` prop, which
+ * The other half of that bug is in `BoardMain`'s `measuring` prop, which
  * takes dnd-kit off its transform-agnostic measurement (it reads a rotation
  * matrix as a zero scale and hands back a box half a card away). Both halves
  * are needed; this guard covers the centering.
