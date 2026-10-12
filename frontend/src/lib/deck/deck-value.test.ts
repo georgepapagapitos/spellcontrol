@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Deck } from '@/store/decks';
-import { deckValue } from './deck-value';
+import { setPrices, _resetForTests } from '@/lib/collection/card-prices';
+import { deckValue, priceOf } from './deck-value';
 
 function card(name: string, usd: string | null, eur: string | null): ScryfallCard {
   return { name, prices: { usd, eur } } as unknown as ScryfallCard;
@@ -43,5 +44,36 @@ describe('deckValue', () => {
 
   it('is zero for an empty deck', () => {
     expect(deckValue(deck({}), 'USD')).toBe(0);
+  });
+});
+
+describe('priceOf reprices on read', () => {
+  const frozen = {
+    id: 'abc',
+    name: 'Sol Ring',
+    prices: { usd: '1.00', eur: '0.80' },
+  } as unknown as ScryfallCard;
+
+  beforeEach(() => {
+    localStorage.clear();
+    _resetForTests();
+  });
+
+  it('prefers the device price cache over the frozen price', () => {
+    setPrices({ abc: { usd: 3, eur: 2.5, pricedAt: 1 } });
+    expect(priceOf(frozen, 'USD')).toBe(3);
+    expect(priceOf(frozen, 'EUR')).toBe(2.5);
+  });
+
+  it('falls back to the frozen price when the cache has nothing usable', () => {
+    expect(priceOf(frozen, 'USD')).toBe(1);
+    setPrices({ abc: { usd: 0, pricedAt: 1 } });
+    expect(priceOf(frozen, 'USD')).toBe(1);
+    expect(priceOf(frozen, 'EUR')).toBe(0.8);
+  });
+
+  it('feeds deckValue so the index and hero agree', () => {
+    setPrices({ abc: { usd: 3, pricedAt: 1 } });
+    expect(deckValue(deck({ cards: cards(frozen) }), 'USD')).toBe(3);
   });
 });
