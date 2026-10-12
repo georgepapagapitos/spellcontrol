@@ -1,5 +1,5 @@
 import type { SubstituteRow } from '@/deck-builder/services/deckBuilder/substituteFinder';
-
+import type { TargetMissFields } from './targetMiss';
 /**
  * A token (or emblem) a card can create, from Scryfall's `all_parts`. Carried
  * through the offline slim payload for the deck Stats tab's token checklist.
@@ -535,7 +535,7 @@ export type GenerationMode = 'edhrec' | 'oracle-role' | 'art-theme' | 'historica
  * time, since most of its inputs (dataSource, shortfalls, roleTargets) are not
  * otherwise persisted.
  */
-export interface BuildReport {
+export interface BuildReport extends TargetMissFields {
   /** What the user aimed for (EDHREC pool filter). */
   targetBracket: TargetBracket | 'all';
   /** Bracket the finished list actually estimated to, at generation time. */
@@ -782,7 +782,7 @@ export interface BuildReport {
   cardProvenance?: Record<string, string>;
 }
 
-export interface GeneratedDeck {
+export interface GeneratedDeck extends TargetMissFields {
   commander: ScryfallCard | null;
   partnerCommander: ScryfallCard | null;
   categories: Record<DeckCategory, ScryfallCard[]>;

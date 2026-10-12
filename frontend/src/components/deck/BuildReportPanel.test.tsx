@@ -965,3 +965,28 @@ describe('BuildReportPanel — archetype disclosure', () => {
     expect(screen.getByText(/Built as Enchantress/)).toBeTruthy();
   });
 });
+
+describe('BuildReportPanel — target misses (E1006)', () => {
+  it('leads the report with a flag per missed target, ahead of every other flag', () => {
+    const { container } = render(
+      <BuildReportPanel
+        report={makeReport({
+          commanderPreviewNote: "Seven of Nine isn't legal until Nov 13, 2026.",
+          targetMisses: [
+            { key: 'nonbasic', asked: 11, got: 8, cause: 'no fitting land under the budget' },
+            { key: 'budget', asked: 75, got: 90.5, cause: null, currency: 'USD' },
+          ],
+        })}
+      />
+    );
+    const flags = [...container.querySelectorAll('.build-report-flag')].map((n) => n.textContent);
+    expect(flags[0]).toBe('Asked for 11 nonbasic lands, got 8: no fitting land under the budget.');
+    expect(flags[1]).toBe('Budget of $75.00, deck costs $90.50.');
+    expect(flags[2]).toMatch(/Seven of Nine/);
+  });
+
+  it('renders nothing extra when every target was hit', () => {
+    const { container } = render(<BuildReportPanel report={makeReport()} />);
+    expect(container.querySelector('[data-target-miss]')).toBeNull();
+  });
+});
