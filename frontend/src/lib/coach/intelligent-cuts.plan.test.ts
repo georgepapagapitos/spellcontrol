@@ -200,7 +200,10 @@ describe('replaceCuts — only a combo the add newly completes counts', () => {
     "Akroma's Memorial",
     produces
   );
-  const deckCards = slots(['Skirk Prospector', 'Goblin Warchief', 'Diregraf Colossus']);
+  // Death Baron is the off-plan spare: Krenko now profiles as a token maker (it
+  // creates "X 1/1 red Goblin creature tokens"), so Diregraf Colossus, a Zombie
+  // token maker, is no longer the card to cut.
+  const deckCards = slots(['Skirk Prospector', 'Goblin Warchief', 'Death Baron']);
   const analysis = {
     commander: real('Krenko, Mob Boss'),
     roleTargets: {},
@@ -224,6 +227,6 @@ describe('replaceCuts — only a combo the add newly completes counts', () => {
     // The same add finishing a line the deck doesn't have keeps its rank.
     const fresh = replaceCuts({ deckCards, analysis, full: true, oneAwayCombos: [memorial] });
     expect(fresh.hasCut(row)).toBe(true);
-    expect(cutNames(fresh.cutsFor(real("Akroma's Memorial")))).toEqual(['Diregraf Colossus']);
+    expect(cutNames(fresh.cutsFor(real("Akroma's Memorial")))).toEqual(['Death Baron']);
   });
 });

@@ -187,7 +187,9 @@ describe('buildCommanderProfile', () => {
     });
     const profile = buildCommanderProfile(magda);
     expect(profile.tribes).toEqual(['dwarf', 'berserker']);
-    expect(profile.suggestedThemes).toEqual(expect.arrayContaining(['dwarves', 'berserkers']));
+    // Only the type the text is about becomes a theme: Magda never mentions Berserkers.
+    expect(profile.suggestedThemes).toContain('dwarves');
+    expect(profile.suggestedThemes).not.toContain('berserkers');
     expect(profile.suggestedThemes).not.toContain('dwarfs');
   });
 
@@ -231,10 +233,9 @@ describe('buildCommanderProfile', () => {
     expect(profile.primaryArchetype).toBe(Archetype.VOLTRON);
   });
 
-  it('does not let a power-only voltron vote beat tribal (Morcant-shaped regression guard)', () => {
-    // Zero evasion/protection keywords, power 4, typal ETB trigger. The
-    // power-only voltron branch still fires (weight 1) but must lose to the
-    // tribal signal (weight 2) instead of tying it and winning on precedence.
+  it('does not call a vanilla-statted typal commander voltron (Morcant-shaped regression guard)', () => {
+    // Zero evasion/protection keywords, power 4, typal ETB trigger. A big body alone
+    // was 12% voltron against the commander golden set, so it no longer votes.
     const profile = buildCommanderProfile(
       makeCard({
         name: 'High Perfect Morcant',
@@ -246,9 +247,38 @@ describe('buildCommanderProfile', () => {
         keywords: [],
       })
     );
-    const voltronAbility = profile.abilities.find((a) => a.keyword === 'voltron');
-    expect(voltronAbility?.archWeight).toBe(1);
+    expect(profile.abilities.some((a) => a.keyword === 'voltron')).toBe(false);
     expect(profile.primaryArchetype).toBe(Archetype.TRIBAL);
+  });
+
+  it('calls a creature that buffs itself with equipment or a commander clause voltron', () => {
+    // Real Oracle text.
+    const danitha = makeCard({
+      name: 'Danitha Capashen, Paragon',
+      type_line: 'Legendary Creature — Human Knight',
+      oracle_text:
+        'First strike, vigilance, lifelink\nAura and Equipment spells you cast cost {1} less to cast.',
+      power: '2',
+      toughness: '2',
+      keywords: ['First strike', 'Vigilance', 'Lifelink'],
+    });
+    expect(keywords(danitha)).toContain('voltron');
+  });
+
+  it('does not call a legendary Human tribal when its text never mentions Humans', () => {
+    // Real Oracle text.
+    const loran = makeCard({
+      name: 'Loran of the Third Path',
+      type_line: 'Legendary Creature — Human Artificer',
+      oracle_text:
+        'Vigilance\nWhen Loran enters, destroy up to one target artifact or enchantment.\n{T}: You and target opponent each draw a card.',
+      power: '2',
+      toughness: '1',
+      keywords: ['Vigilance'],
+    });
+    const profile = buildCommanderProfile(loran);
+    expect(profile.tribes).toContain('human');
+    expect(profile.abilities.some((a) => a.keyword === 'tribal')).toBe(false);
   });
 
   it('keeps the 2-keyword-hit voltron weight at the historical baseline of 2', () => {
@@ -276,7 +306,8 @@ describe('buildCommanderProfile', () => {
           {
             name: 'Back',
             type_line: 'Legendary Creature — Elf',
-            oracle_text: 'Whenever Back enters the battlefield, search your library for a Forest.',
+            oracle_text:
+              'Whenever Back enters the battlefield, search your library for a creature card.',
           },
         ],
       })

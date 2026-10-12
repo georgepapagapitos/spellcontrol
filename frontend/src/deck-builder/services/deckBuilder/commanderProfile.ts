@@ -127,6 +127,20 @@ export function getCombinedOracleText(card: ScryfallCard): string {
     .trim();
 }
 
+/**
+ * A creature commander whose back face is a land (the Ojer gods, "Temple of
+ * Power") keeps only its creature face: the land face's "{T}: Add {R}" is a plain
+ * land tap, not a mana engine the deck is built around.
+ */
+function withoutLandFaces(card: ScryfallCard): ScryfallCard {
+  const faces = card.card_faces;
+  if (!faces || faces.length < 2 || /\bland\b/i.test(frontTypeLine(card))) return card;
+  return {
+    ...card,
+    card_faces: faces.filter((f, i) => i === 0 || !/\bland\b/i.test(f.type_line ?? '')),
+  };
+}
+
 /** Split combined text into clauses for evidence extraction. */
 function clauses(text: string): string[] {
   return text
@@ -229,6 +243,26 @@ function tribeTheme(tribe: string): string {
   return creatureTypePlurals(resolveCreatureType(tribe) ?? tribe)[0].toLowerCase();
 }
 
+/** Every creature subtype on the front face, lowercased. */
+function ownSubtypes(card: ScryfallCard): string[] {
+  const tl = frontTypeLine(card).toLowerCase();
+  if (!tl.includes('creature')) return [];
+  const dash = tl.split(/[—–-]/);
+  if (dash.length < 2) return [];
+  return dash[dash.length - 1].split(/\s+/).filter(Boolean);
+}
+
+/** Does the (lowercased, name-neutralized) text name this creature type, singular or plural? */
+function mentionsType(text: string, type: string): boolean {
+  const forms = new Set([
+    type,
+    `${type}s`,
+    ...creatureTypePlurals(resolveCreatureType(type) ?? type).map((p) => p.toLowerCase()),
+  ]);
+  const alt = [...forms].map((f) => f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  return new RegExp(`\\b(?:${alt})\\b`).test(text);
+}
+
 export function detectTribes(card: ScryfallCard): string[] {
   const tl = frontTypeLine(card).toLowerCase();
   if (!tl.includes('creature')) return [];
@@ -275,7 +309,8 @@ const DETECTORS: Detector[] = [
   {
     keyword: 'etb',
     label: 'Enters-the-battlefield trigger',
-    commander: /\b(when|whenever)\b[^.]*?\benters\b/,
+    commander:
+      /\b(?:when|whenever)\b[^.,]*?~[^.,]*?\benters?\b|\bentering the battlefield causes\b|\bpermanents? entering (?:the battlefield )?causes?\b|\btriggers? an additional time\b|\bexile\b[^.]*?\bthen return (?:it|that card|them|those cards)\b|\breturn (?:that card|it|them|those cards) to the battlefield under (?:its|their) owners?'?s?'? control\b/,
     wants: ['Blink and flicker effects to re-trigger it', 'Creatures with strong ETB abilities'],
     themes: ['blink', 'flicker', 'etb'],
   },
@@ -285,7 +320,8 @@ const DETECTORS: Detector[] = [
     // [^.,] stops "whenever a creature dies, ... enters" from reading as this.
     keyword: 'creature-etb',
     label: 'Creature-enters trigger',
-    commander: /\bwhenever\b[^.,]*?\bcreatures?\b[^.,]*?\benters\b/,
+    commander:
+      /\b(?:whenever|when) (?![^.,]*?\b(?:lands?|permanents?|artifacts?|enchantments?|(?<!creature )tokens?)\b[^.,]*?\benters?\b)(?:~ or )?(?:another|other|one or more|an?|each|every)\b[^.,]*?\benters?\b|\beach other [a-z ]*?you control enters\b/,
     wants: ['Token makers and creature reanimation', 'Blink effects that re-enter creatures'],
     themes: ['tokens', 'reanimator', 'blink'],
   },
@@ -307,7 +343,8 @@ const DETECTORS: Detector[] = [
   {
     keyword: 'sacrifice',
     label: 'Sacrifice payoff',
-    commander: /\bsacrifices?\b/,
+    commander:
+      /^(?!.*\b(?:unless|ward)\b)(?!.*\bcan't be sacrificed\b).*(?:\bsacrifice (?!~|it\b|this (?:creature|permanent|artifact|land|enchantment)\b|them\b|that\b)[a-z0-9{]|\beach player sacrifices\b|\bsacrifice (?:it|that token|them|those tokens) at\b|\bwhenever (?:you|a player|an opponent|another player)(?: control)? sacrifices?\b|\bsacrificed\b)/,
     wants: [
       'Cheap, expendable creatures and tokens as fodder',
       'Recursion to rebuy sacrificed cards',
@@ -368,7 +405,8 @@ const DETECTORS: Detector[] = [
   {
     keyword: 'tokens',
     label: 'Token maker',
-    commander: /\b(create|creates)\b[^.]*?\btoken\b/,
+    commander:
+      /\bcreates?\b[^.]*?(?:\bcreature tokens?\b|\b(?:\d+|x)\/(?:\d+|x)\b|\btokens? that's a copy\b|\ba copy of\b)|\bpopulate\b|\bamass\b|\btokens? you control\b|\btokens? would be created\b|\bwhenever you create (?:a|one or more) (?:creature )?tokens?\b/,
     wants: ['Token doublers', 'Anthems and go-wide payoffs', 'Sacrifice outlets to convert tokens'],
     themes: ['tokens', 'go wide'],
     archetypeHint: Archetype.TOKENS,
@@ -383,7 +421,8 @@ const DETECTORS: Detector[] = [
   {
     keyword: 'lifeloss-drain',
     label: 'Drain / life loss',
-    commander: /\beach opponent loses\b|\bdrains?\b|\bloses? \d* ?life\b/,
+    commander:
+      /\b(?:each|target|defending|that|an) (?:opponent|player|other player)s? loses?\b[^.]*?\blife\b|\b(?:loses|they lose) (?:\d+|x|that much|half)\b[^.]*?\blife\b|\bopponents? loses? life\b|\bopponents? who lost life\b|\bdrains?\b|\bextort\b/,
     wants: ['Repeatable drain effects', 'Aristocrats payoffs'],
     themes: ['lifedrain', 'aristocrats'],
     archetypeHint: Archetype.ARISTOCRATS,
@@ -398,21 +437,24 @@ const DETECTORS: Detector[] = [
   {
     keyword: 'wheel-discard',
     label: 'Wheel / discard',
-    commander: /\beach player (draws|discards)\b|\bdiscards? (their|your) hand\b/,
+    commander:
+      /\beach player discards (?:their|his or her) hand\b|\bdiscard your hand\b|\bwhenever (?:you|a player|an opponent|one or more players?) discards?\b/,
     wants: ['Discard payoffs', 'Reanimation / graveyard value'],
     themes: ['wheels', 'discard'],
   },
   {
     keyword: 'tutor',
     label: 'Tutor',
-    commander: /\bsearch(es)? your library\b/,
+    commander:
+      /\bsearch(?:es)? (?:your|their) library for (?!(?:up to (?:one|two|three|x|that many) |a |an |any number of |x )?(?:basic |snow |nonbasic )?(?:land|forest|island|mountain|plains|swamp|gate|desert|mount)s? ?(?:cards?)?\b)/,
     wants: ['High-impact targets worth tutoring for', 'Combo finishers'],
     themes: ['tutors', 'combo'],
   },
   {
     keyword: 'mill',
     label: 'Mill / self-mill',
-    commander: /\bmills?\b|\bputs? [^.]*?into [^.]*?graveyard from [^.]*?library\b/,
+    commander:
+      /\bmills?\b|\bputs? [^.]*?\binto (?:your|their|its owner's|a|that player's|each opponent's) graveyards?\b(?! from (?:anywhere|the battlefield))/,
     wants: ['Graveyard payoffs', 'Reanimation'],
     themes: ['mill', 'graveyard'],
     archetypeHint: Archetype.REANIMATOR,
@@ -420,7 +462,8 @@ const DETECTORS: Detector[] = [
   {
     keyword: 'graveyard-recursion',
     label: 'Graveyard recursion',
-    commander: /\breturns? [^.]*?from [^.]*?graveyard\b|\bfrom your graveyard\b/,
+    commander:
+      /\breturns?\b[^.]*?\bgraveyard\b|\bfrom (?:your|a|an opponent's|target opponent's|each) graveyards? (?:onto|to) the battlefield\b|\b(?:cast|play)\b[^.]*?\bfrom (?:your|a) graveyard\b|\b(?:retrace|flashback|unearth|embalm|eternalize|disturb)\b|\banother\b[^.]*?\bdies\b[^.]*?\breturn (?:it|that card|them)\b/,
     wants: ['Self-mill and discard to stock the yard', 'Recursive value targets'],
     themes: ['reanimator', 'graveyard'],
     archetypeHint: Archetype.REANIMATOR,
@@ -428,7 +471,8 @@ const DETECTORS: Detector[] = [
   {
     keyword: 'spellcast',
     label: 'Spellcast trigger',
-    commander: /\bwhenever you cast\b[^.]*?\b(instant|sorcery|spell)\b|\bmagecraft\b|\bprowess\b/,
+    commander:
+      /^(?!.*\bopponents? casts?\b).*(?:\bwhenever (?:you|a player) (?:cast|casts|copy)(?: or copy)? (?:an? |their |your )?(?:(?:first|second|third) (?:noncreature )?)?(?:noncreature|instant|sorcery|spell\b(?! that targets)|white|blue|black|red|green|multicolored|colorless|historic|legendary|artifact, instant)|\bmagecraft\b|\bprowess\b|\binstants? (?:or|and) sorcer(?:y|ies)\b|\bextort\b|\bstorm\b)/,
     wants: ['Cheap instants and sorceries', 'Cost reducers and rituals', 'Spell copy effects'],
     themes: ['spellslinger', 'storm'],
     archetypeHint: Archetype.SPELLSLINGER,
@@ -436,7 +480,8 @@ const DETECTORS: Detector[] = [
   {
     keyword: 'artifact-matters',
     label: 'Artifact synergy',
-    commander: /\bartifacts?\b/,
+    commander:
+      /\b(?:treasures?|clues?|foods?|powerstones?|blood tokens?)\b|\bartifacts? (?:you control|spells?|cards?|tokens?)\b|\bother artifacts\b|\bnumber of artifacts\b|\bequipments?\b|\bequipped\b|\bhistoric\b|\baffinity for artifacts\b|\bmetalcraft\b|\bimprovise\b/,
     wants: ['Cheap artifacts and artifact tokens', 'Artifact payoffs'],
     themes: ['artifacts', 'treasures'],
     archetypeHint: Archetype.ARTIFACTS,
@@ -444,7 +489,8 @@ const DETECTORS: Detector[] = [
   {
     keyword: 'enchantment-matters',
     label: 'Enchantment synergy',
-    commander: /\benchantments?\b|\bconstellation\b/,
+    commander:
+      /\bconstellation\b|(?<!or )\benchantments? (?:you control|spells?|cards?)\b|\bother enchantments\b|\bnumber of enchantments\b|(?<!non-)\bauras?\b|\bsagas?\b|\benchanted or equipped\b/,
     wants: ['Cheap enchantments and auras', 'Constellation payoffs'],
     themes: ['enchantress', 'enchantments'],
     archetypeHint: Archetype.ENCHANTRESS,
@@ -476,7 +522,7 @@ const DETECTORS: Detector[] = [
   {
     keyword: 'untap-engine',
     label: 'Untap engine',
-    commander: /\buntaps?\b[^.]*?\b(target|all|each|it)\b/,
+    commander: /\buntap (?!~|it\b|this\b|during\b|that creature\b)[a-z{]/,
     wants: ['Permanents worth untapping', 'Combo finishers'],
     themes: ['combo'],
     archetypeHint: Archetype.COMBO,
@@ -498,13 +544,16 @@ const DETECTORS: Detector[] = [
   {
     keyword: 'ramp',
     label: 'Mana / cost engine',
-    commander: /\badds? \{|\bmana of any\b|\bspells? [^.]*?costs? [^.]*?less\b/,
+    commander:
+      /\badds? (?:\{|x\b|an amount\b|one\b|two\b|three\b|that much\b|mana\b|an additional\b)|(?<!this )\bspells?\b[^.]*?\bcosts?\b[^.]*?\bless\b|\bcreates? [^.]*?\btreasure\b|\brather than pay that mana\b|\bsearch your library for [^.]*?\bland\b[^.]*?\bonto the battlefield\b|\bput (?:a|up to|any number of)[^.]*?\bland\b[^.]*?\bonto the battlefield\b/,
     wants: ['Big-mana payoffs to spend it on', 'Cost reducers'],
     themes: ['big mana', 'ramp'],
   },
 ];
 
 // Voltron is detected structurally (not via a single oracle phrase).
+const VOLTRON_TEXT =
+  /\bequip|\bequipped\b|\baura\b|\benchanted\b|\bcommanders? you control\b|\bdouble strike\b/;
 // Exported so the display-side playstyle index can recover these from oracle
 // text for collection cards, which carry no Scryfall `keywords` array.
 export const VOLTRON_KEYWORDS = new Set([
@@ -531,7 +580,7 @@ export function buildCommanderProfile(
   partner?: ScryfallCard | null
 ): CommanderProfile {
   const sources = [commander, ...(partner ? [partner] : [])];
-  const text = sources.map(getCombinedOracleText).join('\n');
+  const text = sources.map((c) => getCombinedOracleText(withoutLandFaces(c))).join('\n');
 
   const abilities: CommanderAbility[] = [];
   const seen = new Set<CommanderKeyword>();
@@ -551,25 +600,41 @@ export function buildCommanderProfile(
     });
   }
 
-  // Tribal detection from the commander's own creature subtypes.
+  // Tribal: the text must say something about one of the commander's OWN creature
+  // types (lords, "whenever another Elf enters", typal costs), or be a changeling
+  // or "chosen type" lord. A legendary Human whose text never mentions Humans is
+  // not a tribal commander (10% precision against the golden set when the type
+  // line alone decided it). `tribes` stays the detected KNOWN_TRIBES subtypes.
   const tribes = [...new Set(sources.flatMap(detectTribes))];
-  if (tribes.length > 0) {
-    const themeNames = [...new Set(tribes.map(tribeTheme))];
+  const typal = [
+    ...new Set(sources.flatMap((src) => ownSubtypes(src).filter((t) => mentionsType(text, t)))),
+  ];
+  const anyType = /\bchangeling\b|\bchosen (?:creature )?type\b|\bcreature types?\b/.test(text);
+  if (typal.length > 0 || anyType) {
+    const themeNames = [...new Set(typal.map(tribeTheme))];
     abilities.push({
       keyword: 'tribal',
       label: 'Tribal',
-      evidence: `Legendary ${tribes.map(cap).join(' / ')}`,
-      wants: [`Other ${themeNames.join(' / ')} and tribal payoffs`, 'Lords and anthems'],
+      evidence:
+        typal.length > 0 ? `Legendary ${typal.map(cap).join(' / ')}` : 'Cares about creature types',
+      wants: [
+        themeNames.length > 0
+          ? `Other ${themeNames.join(' / ')} and tribal payoffs`
+          : 'Creatures of one type and tribal payoffs',
+        'Lords and anthems',
+      ],
       themes: [...themeNames, 'tribal'],
       archetypeHint: Archetype.TRIBAL,
     });
   }
 
-  // Voltron: a creature commander with stacked evasion/protection keywords
-  // or notable power, and no dominant engine, wants equipment/auras.
+  // Voltron: a creature commander that suits itself up (equipment, auras, double
+  // strike, a "commander you control" clause) or stacks two evasion/protection
+  // keywords with no dominant engine. A lone flyer or a big vanilla body is not a
+  // voltron plan: that rule alone was 12% precise against the golden set.
   const kw = new Set((commander.keywords ?? []).map((k) => k.toLowerCase()));
   const voltronHits = [...kw].filter((k) => VOLTRON_KEYWORDS.has(k));
-  const power = Number.parseInt(commander.power ?? '', 10);
+  const suitsUp = VOLTRON_TEXT.test(text);
   const engineKeywords: CommanderKeyword[] = [
     'tokens',
     'sacrifice',
@@ -582,14 +647,12 @@ export function buildCommanderProfile(
   if (
     !seen.has('voltron') &&
     frontTypeLine(commander).toLowerCase().includes('creature') &&
-    (voltronHits.length >= 2 || (!hasEngine && (voltronHits.length >= 1 || power >= 4)))
+    (suitsUp || (voltronHits.length >= 2 && !hasEngine))
   ) {
     abilities.push({
       keyword: 'voltron',
       label: 'Voltron threat',
-      evidence: voltronHits.length
-        ? `Has ${voltronHits.join(', ')}`
-        : `${commander.power ?? '?'} power evasive threat`,
+      evidence: voltronHits.length ? `Has ${voltronHits.join(', ')}` : 'Suits up one threat',
       wants: [
         'Equipment and auras to suit it up',
         'Protection (hexproof, shroud, totem armor)',
@@ -604,11 +667,11 @@ export function buildCommanderProfile(
       // vote to a couple of incidental weight-2 oracle-text detectors
       // (e.g. extra-combat) just because they total the same as voltron's old
       // flat weight of 2. Capped so it can't run away on a keyword-heavy but
-      // otherwise unfocused commander. Conversely, a power-only hit (zero
-      // evasion/protection keywords — e.g. a vanilla-statted 4-power typal
-      // commander like High Perfect Morcant) is the weakest evidence this
-      // branch accepts and must not tie a genuine signal like tribal, so it
-      // votes at weight 1 and only wins when nothing else fired.
+      // otherwise unfocused commander. Conversely, a text-only hit (zero
+      // evasion/protection keywords — an equipment or "commander you control"
+      // clause) is the weakest evidence this branch accepts and must not tie a
+      // genuine signal like tribal, so it votes at weight 1 and only wins when
+      // nothing else fired.
       archWeight: voltronHits.length ? Math.min(4, 2 + Math.max(0, voltronHits.length - 2)) : 1,
     });
   }
