@@ -63,7 +63,10 @@ describe('buildDeckLandingBody', () => {
         cards: [card('<i>', 'Creature')],
       }),
     });
-    expect(html).not.toMatch(/<(script|img|b|i)[ >]/);
+    // Remove the tags the builder emits itself; any `<` left came from user text.
+    const ownTags = /<\/?(?:main|h1|h2|p|ul|li|a)(?:\s[^>]*)?>/g;
+    expect(html.replace(ownTags, '')).not.toContain('<');
+    expect(html).toContain('&lt;script&gt;');
     expect(html).toContain('href="/u/a&quot;b"');
   });
 
