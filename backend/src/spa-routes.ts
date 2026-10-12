@@ -10,6 +10,7 @@ const SPA_ROOTS = new Set([
   '', // /
   'admin',
   'auth',
+  'b',
   'collection',
   'daily',
   'd',
@@ -19,6 +20,7 @@ const SPA_ROOTS = new Set([
   'friends',
   'gn',
   'home',
+  'l',
   'oauth',
   'play',
   'pods',
