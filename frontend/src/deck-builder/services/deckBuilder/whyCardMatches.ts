@@ -67,6 +67,11 @@ const BLINK =
   /\bexile (?:up to (?:one|two) |another |any number of )?(?:other )?target (?:[a-z]+ )?(?:creature|permanent|artifact|enchantment)s? you (?:control|own)\b[^.]*?\breturn\b|\bexile [^.]*?\btarget [^.]*?\byou (?:control|own)\b[^.]*?\breturn (?:it|them|that card|those cards)\b|\bexile [^.]*?you control[^.]*?\breturn (?:it|them|that card|those cards) to the battlefield\b|\breturn (?:another )?target (?:[a-z]+ )?(?:creature|permanent)s? you control to (?:its|their) owner's hand\b/;
 const ETB_DOUBLER = /\btriggers? an additional time\b/;
 
+// Creatures entering for you: reanimation and cheating a creature in, or a
+// creature that comes back from the dead. Regrowth to hand is not an entry.
+const CREATURE_ENTERS =
+  /\b(?:creature|permanent) cards?\b[^.]*?\b(?:onto|to) the battlefield\b|\bthe chosen cards to the battlefield\b|\bwhen (?:this creature|~) dies\b(?![^.]*?\bif it was a creature\b)[^.]*?\breturn it to the battlefield\b|\b(?:eternalize|embalm|unearth|encore|mobilize)\b|\bcreate [^.]*?\btokens? that are copies\b/;
+
 // Tokens YOU create: imperative "create", never "its controller creates".
 const YOU_CREATE_TOKEN = /\bcreate (?!or )[^.]*?\btokens?\b|\bamass\b|\bpopulate\b|\binvestigate\b/;
 const YOU_CREATE_CREATURE_TOKEN =
@@ -146,6 +151,11 @@ type FeederKeyword = Exclude<CommanderKeyword, 'tribal'>;
 
 const FEEDERS: Record<FeederKeyword, (text: string, card: ScryfallCard) => boolean> = {
   etb: (t) => BLINK.test(t) || ETB_DOUBLER.test(t),
+  'creature-etb': (t) =>
+    YOU_CREATE_CREATURE_TOKEN.test(t) ||
+    TOKEN_DOUBLER.test(t) ||
+    CREATURE_ENTERS.test(t) ||
+    BLINK.test(t),
   'attack-trigger': (t) =>
     GRANTS_EVASION.test(t) ||
     UNBLOCKABLE.test(t) ||
@@ -261,6 +271,7 @@ const FEEDERS: Record<FeederKeyword, (text: string, card: ScryfallCard) => boole
 /** The pill each check shows on a card it matches. */
 export const PILL_REASONS: Record<FeederKeyword, string> = {
   etb: 'Re-triggers ETB effects',
+  'creature-etb': 'Puts creatures onto the battlefield',
   'attack-trigger': 'Evasion or attack payoff',
   sacrifice: 'Sac fodder, outlet or payoff',
   'dies-trigger': 'Triggers / feeds your death payoff',

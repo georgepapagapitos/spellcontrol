@@ -52,6 +52,44 @@ describe('buildCommanderProfile', () => {
     expect(profile.summary.toLowerCase()).toContain('habby');
   });
 
+  it('reads "whenever a creature you control enters" as creature-etb and credits token makers (E642)', () => {
+    const terror = makeCard({
+      name: 'Terror of the Peaks',
+      type_line: 'Creature — Dragon',
+      oracle_text:
+        "Flying\nSpells your opponents cast that target this creature cost an additional 3 life to cast.\nWhenever another creature you control enters, this creature deals damage equal to that creature's power to any target.",
+    });
+    const profile = buildCommanderProfile(terror);
+    expect(profile.abilities.map((a) => a.keyword)).toContain('creature-etb');
+
+    const avenger = makeCard({
+      name: 'Avenger of Zendikar',
+      type_line: 'Creature — Elemental',
+      oracle_text:
+        'When this creature enters, create a 0/1 green Plant creature token for each land you control.\nLandfall — Whenever a land you control enters, you may put a +1/+1 counter on each Plant creature you control.',
+    });
+    expect(whyCardMatches(avenger, profile)).toContain('Puts creatures onto the battlefield');
+
+    const witness = makeCard({
+      name: 'Eternal Witness',
+      type_line: 'Creature — Human Shaman',
+      oracle_text:
+        'When this creature enters, you may return target card from your graveyard to your hand.',
+    });
+    expect(whyCardMatches(witness, profile)).not.toContain('Puts creatures onto the battlefield');
+  });
+
+  it('does not read a dies trigger that returns a creature as creature-etb (E642)', () => {
+    const kw = keywords(
+      makeCard({
+        name: 'Syr Konrad, the Grim',
+        oracle_text:
+          'Whenever another creature dies, or a creature card is put into a graveyard from anywhere other than the battlefield, or a creature card leaves your graveyard, Syr Konrad deals 1 damage to each opponent.',
+      })
+    );
+    expect(kw).not.toContain('creature-etb');
+  });
+
   it('detects the attack-trigger doubler idiom with no when/whenever token (Isshin)', () => {
     const kw = keywords(
       makeCard({

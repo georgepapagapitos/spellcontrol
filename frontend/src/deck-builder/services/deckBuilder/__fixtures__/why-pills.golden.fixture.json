@@ -1,5 +1,5 @@
 {
-  "source": "Scryfall oracle-cards bulk 2026-10-09T21:01:54.602+00:00, sha256 e0d22727dbe4b0b696047f66374c6ff2ed76cbc709bc19cebf0c5899e0b5df60; Commander-legal cards only",
+  "source": "Scryfall oracle-cards bulk 2026-10-12T09:02:38.125+00:00, sha256 8960dedb1d804b77cf32a0493b4947131172f9b7d0751e81939ab15b7807583e; Commander-legal cards only",
   "method": "Items: every card x check pair on the EDHREC top-500 cards where the old code, the new code or a Scryfall Tagger tag flagged it (stratum top500), plus 30 per check drawn with a fixed seed from cards ranked below 500 (stratum sample, held out from tuning). Each item rated blind by two independent raters against why-pills.golden.md; disagreements (72 of 1,994) settled by its written rulings.",
   "knownMisses": [
     "FN artifact-matters: Arcbound Whelp",
@@ -12,6 +12,8 @@
     "FN attack-trigger: Sea Hag // Aquatic Ingress",
     "FN counters-generic: Dack's Duplicate",
     "FN counters-generic: Villainous Hideout",
+    "FN creature-etb: Replication Technique",
+    "FN creature-etb: Winter Soldier, Icy Assassin",
     "FN dies-trigger: Cautery Sliver",
     "FN dies-trigger: Dutiful Replicator",
     "FP dies-trigger: Enduring Vitality",
@@ -5497,6 +5499,163 @@
     "Undead Gladiator": {
       "type_line": "Creature — Zombie Barbarian",
       "oracle_text": "{1}{B}, Discard a card: Return this card from your graveyard to your hand. Activate only during your upkeep.\nCycling {1}{B} ({1}{B}, Discard this card: Draw a card.)"
+    },
+    "Reality Shift": {
+      "type_line": "Instant",
+      "oracle_text": "Exile target creature. Its controller manifests the top card of their library. (That player puts the top card of their library onto the battlefield face down as a 2/2 creature. If it's a creature card, it can be turned face up any time for its mana cost.)"
+    },
+    "Voice of Victory": {
+      "type_line": "Creature — Human Bard",
+      "oracle_text": "Mobilize 2 (Whenever this creature attacks, create two tapped and attacking 1/1 red Warrior creature tokens. Sacrifice them at the beginning of the next end step.)\nYour opponents can't cast spells during your turn."
+    },
+    "Grand Abolisher": {
+      "type_line": "Creature — Human Cleric",
+      "oracle_text": "During your turn, your opponents can't cast spells or activate abilities of artifacts, creatures, or enchantments."
+    },
+    "Goblin Assault": {
+      "type_line": "Enchantment",
+      "oracle_text": "At the beginning of your upkeep, create a 1/1 red Goblin creature token with haste.\nGoblin creatures attack each combat if able."
+    },
+    "Ajani, Nacatl Pariah // Ajani, Nacatl Avenger": {
+      "type_line": "Legendary Creature — Cat Warrior // Legendary Planeswalker — Ajani",
+      "card_faces": [
+        {
+          "name": "Ajani, Nacatl Pariah",
+          "type_line": "Legendary Creature — Cat Warrior",
+          "oracle_text": "When Ajani enters, create a 2/1 white Cat Warrior creature token.\nWhenever one or more other Cats you control die, you may exile Ajani, then return him to the battlefield transformed under his owner's control."
+        },
+        {
+          "name": "Ajani, Nacatl Avenger",
+          "type_line": "Legendary Planeswalker — Ajani",
+          "oracle_text": "+2: Put a +1/+1 counter on each Cat you control.\n0: Create a 2/1 white Cat Warrior creature token. When you do, if you control a red permanent other than Ajani, he deals damage equal to the number of creatures you control to any target.\n−4: Each opponent chooses an artifact, a creature, an enchantment, and a planeswalker from among the nonland permanents they control, then sacrifices the rest."
+        }
+      ]
+    },
+    "Adverse Conditions": {
+      "type_line": "Instant",
+      "oracle_text": "Devoid (This card has no color.)\nTap up to two target creatures. Those creatures don't untap during their controller's next untap step. Create a 1/1 colorless Eldrazi Scion creature token. It has \"Sacrifice this token: Add {C}.\""
+    },
+    "Replication Technique": {
+      "type_line": "Sorcery",
+      "oracle_text": "Demonstrate (When you cast this spell, you may copy it. If you do, choose an opponent to also copy it. Players may choose new targets for their copies.)\nCreate a token that's a copy of target permanent you control."
+    },
+    "Rally at the Hornburg": {
+      "type_line": "Sorcery",
+      "oracle_text": "Create two 1/1 white Human Soldier creature tokens. Humans you control gain haste until end of turn."
+    },
+    "Strife Scholar // Awaken the Ages": {
+      "type_line": "Creature — Orc Sorcerer // Sorcery",
+      "card_faces": [
+        {
+          "name": "Strife Scholar",
+          "type_line": "Creature — Orc Sorcerer",
+          "oracle_text": "Ward—Pay 2 life.\nThis creature enters prepared. (While it's prepared, you may cast a copy of its spell. Doing so unprepares it.)"
+        },
+        {
+          "name": "Awaken the Ages",
+          "type_line": "Sorcery",
+          "oracle_text": "Create two 2/2 red and white Spirit creature tokens."
+        }
+      ]
+    },
+    "Tune Up": {
+      "type_line": "Sorcery",
+      "oracle_text": "Return target artifact card from your graveyard to the battlefield. If it's a Vehicle, it becomes an artifact creature."
+    },
+    "Leonin Warleader": {
+      "type_line": "Creature — Cat Soldier",
+      "oracle_text": "Whenever this creature attacks, create two 1/1 white Cat creature tokens with lifelink that are tapped and attacking."
+    },
+    "Loyal Retainers": {
+      "type_line": "Creature — Human Advisor",
+      "oracle_text": "Sacrifice this creature: Return target legendary creature card from your graveyard to the battlefield. Activate only during your turn, before attackers are declared."
+    },
+    "Shadow Summoning": {
+      "type_line": "Sorcery",
+      "oracle_text": "Create two tapped 1/1 white Spirit creature tokens with flying."
+    },
+    "Feign Death": {
+      "type_line": "Instant",
+      "oracle_text": "Until end of turn, target creature gains \"When this creature dies, return it to the battlefield tapped under its owner's control with a +1/+1 counter on it.\""
+    },
+    "Crimson Cowl, Master of Evil": {
+      "type_line": "Legendary Creature — Human Villain",
+      "oracle_text": "Whenever one or more nontoken Villains you control attack a player, you create a 2/1 black Villain creature token with menace. (It can't be blocked except by two or more creatures.)"
+    },
+    "Winter Soldier, Icy Assassin": {
+      "type_line": "Legendary Creature — Human Assassin Villain",
+      "oracle_text": "Vigilance, menace\nWinter Soldier gets +2/+0 for each Equipment attached to him.\n{3}{W}{B}: Return this card from your graveyard to the battlefield with a finality counter on him. Then you may attach an Equipment you control to him. (If a creature with a finality counter on it would die, exile it instead.)"
+    },
+    "Beacon of Creation": {
+      "type_line": "Sorcery",
+      "oracle_text": "Create a 1/1 green Insect creature token for each Forest you control. Shuffle Beacon of Creation into its owner's library."
+    },
+    "Inevitable Betrayal": {
+      "type_line": "Sorcery",
+      "oracle_text": "Suspend 3—{1}{U}{U} (Rather than cast this card from your hand, pay {1}{U}{U} and exile it with three time counters on it. At the beginning of your upkeep, remove a time counter. When the last is removed, you may cast it without paying its mana cost.)\nSearch target opponent's library for a creature card and put that card onto the battlefield under your control. Then that player shuffles."
+    },
+    "Nacatl War-Pride": {
+      "type_line": "Creature — Cat Warrior",
+      "oracle_text": "This creature must be blocked by exactly one creature if able.\nWhenever this creature attacks, create X tokens that are copies of it and that are tapped and attacking, where X is the number of creatures defending player controls. Exile the tokens at the beginning of the next end step."
+    },
+    "Nested Ghoul": {
+      "type_line": "Creature — Phyrexian Zombie Warrior",
+      "oracle_text": "Whenever a source deals damage to this creature, create a 2/2 black Phyrexian Zombie creature token."
+    },
+    "Jaheira's Respite": {
+      "type_line": "Instant",
+      "oracle_text": "Search your library for up to X basic land cards, where X is the number of creatures attacking you, put those cards onto the battlefield tapped, then shuffle.\nPrevent all combat damage that would be dealt this turn."
+    },
+    "Unstoppable Slasher": {
+      "type_line": "Creature — Zombie Assassin",
+      "oracle_text": "Deathtouch\nWhenever this creature deals combat damage to a player, they lose half their life, rounded up.\nWhen this creature dies, if it had no counters on it, return it to the battlefield tapped under its owner's control with two stun counters on it."
+    },
+    "Summoner's Grimoire": {
+      "type_line": "Artifact — Book Equipment",
+      "oracle_text": "Job select\nEquipped creature is a Shaman in addition to its other types and has \"Whenever this creature attacks, you may put a creature card from your hand onto the battlefield. If that card is an enchantment card, it enters tapped and attacking.\"\nAbraxas — Equip {3}"
+    },
+    "Chrome Replicator": {
+      "type_line": "Artifact Creature — Construct",
+      "oracle_text": "When this creature enters, if you control two or more nonland, nontoken permanents with the same name as one another, create a 4/4 colorless Construct artifact creature token."
+    },
+    "Magus of the Bridge": {
+      "type_line": "Creature — Human Wizard",
+      "oracle_text": "Whenever a nontoken creature is put into your graveyard from the battlefield, create a 2/2 black Zombie creature token.\nWhen a creature is put into an opponent's graveyard from the battlefield, exile this creature."
+    },
+    "Coram, the Undertaker": {
+      "type_line": "Legendary Creature — Human Warrior",
+      "oracle_text": "Coram gets +X/+0, where X is the greatest power among creature cards in all graveyards.\nWhenever Coram attacks, each player mills a card.\nDuring each of your turns, you may play a land and cast a spell from among cards in graveyards that were put there from libraries this turn."
+    },
+    "Bonecaller Cleric": {
+      "type_line": "Creature — Human Cleric",
+      "oracle_text": "{3}{B}, Sacrifice this creature: Return target creature card from your graveyard to the battlefield. Activate only as a sorcery."
+    },
+    "Cobra Trap": {
+      "type_line": "Instant — Trap",
+      "oracle_text": "If a noncreature permanent under your control was destroyed this turn by a spell or ability an opponent controlled, you may pay {G} rather than pay this spell's mana cost.\nCreate four 1/1 green Snake creature tokens."
+    },
+    "Dying to Serve": {
+      "type_line": "Enchantment",
+      "oracle_text": "Whenever you discard one or more cards, create a tapped 2/2 black Zombie creature token. This ability triggers only once each turn."
+    },
+    "Teachings of the Kirin // Kirin-Touched Orochi": {
+      "type_line": "Enchantment — Saga // Enchantment Creature — Snake Monk",
+      "card_faces": [
+        {
+          "name": "Teachings of the Kirin",
+          "type_line": "Enchantment — Saga",
+          "oracle_text": "(As this Saga enters and after your draw step, add a lore counter.)\nI — Mill three cards. Create a 1/1 colorless Spirit creature token.\nII — Put a +1/+1 counter on target creature you control.\nIII — Exile this Saga, then return it to the battlefield transformed under your control."
+        },
+        {
+          "name": "Kirin-Touched Orochi",
+          "type_line": "Enchantment Creature — Snake Monk",
+          "oracle_text": "Whenever this creature attacks, choose one —\n• Exile target creature card from a graveyard. When you do, create a 1/1 colorless Spirit creature token.\n• Exile target noncreature card from a graveyard. When you do, put a +1/+1 counter on target creature you control."
+        }
+      ]
+    },
+    "Undying Malice": {
+      "type_line": "Instant",
+      "oracle_text": "Until end of turn, target creature gains \"When this creature dies, return it to the battlefield tapped under its owner's control with a +1/+1 counter on it.\""
     }
   },
   "items": [
@@ -6927,6 +7086,664 @@
       "truth": true,
       "stratum": "sample",
       "why": "+1/+1 counter"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Academy Manufactor",
+      "truth": false,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Adeline, Resplendent Cathar",
+      "truth": true,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Adverse Conditions",
+      "truth": true,
+      "stratum": "sample",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Ajani, Nacatl Pariah // Ajani, Nacatl Avenger",
+      "truth": true,
+      "stratum": "sample",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Animate Dead",
+      "truth": true,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Anointed Procession",
+      "truth": true,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Avenger of Zendikar",
+      "truth": true,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Baleful Strix",
+      "truth": false,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Bastion of Remembrance",
+      "truth": true,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Beacon of Creation",
+      "truth": true,
+      "stratum": "sample",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Beast Whisperer",
+      "truth": false,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Black Market Connections",
+      "truth": true,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Bloom Tender",
+      "truth": false,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Bonecaller Cleric",
+      "truth": true,
+      "stratum": "sample",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Chrome Replicator",
+      "truth": true,
+      "stratum": "sample",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Cobra Trap",
+      "truth": true,
+      "stratum": "sample",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Conjurer's Closet",
+      "truth": true,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Coram, the Undertaker",
+      "truth": false,
+      "stratum": "sample",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Craterhoof Behemoth",
+      "truth": false,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Crimson Cowl, Master of Evil",
+      "truth": true,
+      "stratum": "sample",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Dauthi Voidwalker",
+      "truth": false,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Doubling Season",
+      "truth": true,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Dying to Serve",
+      "truth": true,
+      "stratum": "sample",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Enduring Vitality",
+      "truth": false,
+      "stratum": "top500",
+      "why": "R19: returns as a non-creature enchantment, no creature enters"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Entish Restoration",
+      "truth": false,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Ephemerate",
+      "truth": true,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Etali, Primal Storm",
+      "truth": false,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Eternal Witness",
+      "truth": false,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Evolution Sage",
+      "truth": false,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Faeburrow Elder",
+      "truth": false,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Fanatic of Rhonas",
+      "truth": true,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Feign Death",
+      "truth": true,
+      "stratum": "sample",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Field of the Dead",
+      "truth": true,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Finale of Devastation",
+      "truth": true,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Forgotten Ancient",
+      "truth": false,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Foundry Inspector",
+      "truth": false,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Goblin Assault",
+      "truth": true,
+      "stratum": "sample",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Goldspan Dragon",
+      "truth": false,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Grand Abolisher",
+      "truth": false,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Gruff Triplets",
+      "truth": true,
+      "stratum": "sample",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Helm of the Host",
+      "truth": true,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Hullbreaker Horror",
+      "truth": false,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Idol of Oblivion",
+      "truth": true,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Inevitable Betrayal",
+      "truth": true,
+      "stratum": "sample",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Jaheira's Respite",
+      "truth": false,
+      "stratum": "sample",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Leonin Warleader",
+      "truth": true,
+      "stratum": "sample",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Living Death",
+      "truth": true,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Loran of the Third Path",
+      "truth": false,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Loyal Retainers",
+      "truth": true,
+      "stratum": "sample",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Magus of the Bridge",
+      "truth": true,
+      "stratum": "sample",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Malakir Rebirth // Malakir Mire",
+      "truth": true,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Maskwood Nexus",
+      "truth": true,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Mirkwood Bats",
+      "truth": false,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Mondrak, Glory Dominus",
+      "truth": true,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Nacatl War-Pride",
+      "truth": true,
+      "stratum": "sample",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Nested Ghoul",
+      "truth": true,
+      "stratum": "sample",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Ohran Frostfang",
+      "truth": false,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Orcish Bowmasters",
+      "truth": true,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Ornithopter of Paradise",
+      "truth": false,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Parallel Lives",
+      "truth": true,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Phyrexian Metamorph",
+      "truth": false,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Professional Face-Breaker",
+      "truth": false,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Psychosis Crawler",
+      "truth": false,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Rally at the Hornburg",
+      "truth": true,
+      "stratum": "sample",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Rampaging Baloths",
+      "truth": true,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Ramunap Excavator",
+      "truth": false,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Reality Shift",
+      "truth": false,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Reanimate",
+      "truth": true,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Reclamation Sage",
+      "truth": false,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Replication Technique",
+      "truth": true,
+      "stratum": "sample",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Rise of the Dark Realms",
+      "truth": true,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Sakura-Tribe Elder",
+      "truth": false,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Scute Swarm",
+      "truth": true,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Sevinne's Reclamation",
+      "truth": true,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Shadow Summoning",
+      "truth": true,
+      "stratum": "sample",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Sheoldred, the Apocalypse",
+      "truth": false,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Solemn Simulacrum",
+      "truth": false,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Solid Ground",
+      "truth": false,
+      "stratum": "sample",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Strife Scholar // Awaken the Ages",
+      "truth": true,
+      "stratum": "sample",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Summoner's Grimoire",
+      "truth": true,
+      "stratum": "sample",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Sun Titan",
+      "truth": true,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Sword of the Animist",
+      "truth": false,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Syr Konrad, the Grim",
+      "truth": false,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Teachings of the Kirin // Kirin-Touched Orochi",
+      "truth": true,
+      "stratum": "sample",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Tune Up",
+      "truth": false,
+      "stratum": "sample",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Underworld Breach",
+      "truth": false,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Undying Malice",
+      "truth": true,
+      "stratum": "sample",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Unstoppable Slasher",
+      "truth": true,
+      "stratum": "sample",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Urza's Saga",
+      "truth": true,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Victimize",
+      "truth": true,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Voice of Victory",
+      "truth": true,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Warren Soultrader",
+      "truth": false,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Winter Soldier, Icy Assassin",
+      "truth": true,
+      "stratum": "sample",
+      "why": "per creature-etb rule"
+    },
+    {
+      "check": "creature-etb",
+      "name": "Witch Enchanter // Witch-Blessed Meadow",
+      "truth": false,
+      "stratum": "top500",
+      "why": "per creature-etb rule"
     },
     {
       "check": "dies-trigger",
