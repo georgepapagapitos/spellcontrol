@@ -171,4 +171,32 @@ describe('useOwnershipLens', () => {
     expect(result.current.missingCost).toBe(0);
     expect(result.current.missingCardPrices.get('Forest')).toBeNull();
   });
+
+  // E346: the strip answered at 4.1s, re-skeletoned for ~0.9s when a late pull
+  // page changed the collection store, then repeated the same answer.
+  it('after the first resolution a collection change keeps the answer up instead of flipping back to loading', async () => {
+    loadCardMock.mockImplementation(
+      (name: string) =>
+        new Promise((resolve) => {
+          setTimeout(() => resolve({ name, prices: { usd: '5.00' } }), 0);
+        })
+    );
+    storeState = { hydrating: false, cards: [], binders: [] };
+    const deckCards = [deckCard('Sol Ring', 'oracle-sol'), deckCard('Lightning Bolt')];
+    const { result, rerender } = renderHook(() => useOwnershipLens(deckCards));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.missingCost).toBe(10);
+
+    storeState = { ...storeState, cards: [owned({ name: 'Unrelated', oracleId: 'oracle-x' })] };
+    rerender();
+    expect(result.current.loading).toBe(false);
+    expect(result.current.missingCost).toBe(10);
+    expect(result.current.lens).not.toBeNull();
+
+    // ...and the recompute still lands.
+    storeState = { ...storeState, cards: [owned({ name: 'Sol Ring', oracleId: 'oracle-sol' })] };
+    rerender();
+    expect(result.current.loading).toBe(false);
+    await waitFor(() => expect(result.current.missingCost).toBe(5));
+  });
 });
