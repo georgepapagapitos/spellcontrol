@@ -7,6 +7,8 @@ import {
   getCardsByRefs,
 } from '@/deck-builder/services/scryfall/client';
 import { isScryfallLink, parseScryfallCardRefs } from '@/lib/cards/scryfall-card-link';
+import { AddButtonIcon, ScryfallCooldownNote } from './ScryfallCooldownNote';
+import { usePendingAdds } from './use-pending-adds';
 import { ManaCost } from '../ManaCost';
 import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
@@ -307,6 +309,7 @@ function SearchResultRow({
   onHover,
   addLabel,
   addDisabled,
+  addPending,
   onAdd,
   name,
   nameNode,
@@ -325,6 +328,7 @@ function SearchResultRow({
   onHover: () => void;
   addLabel: string;
   addDisabled: boolean;
+  addPending?: boolean;
   onAdd: () => void;
   name: string;
   nameNode?: React.ReactNode;
@@ -351,8 +355,9 @@ function SearchResultRow({
           className="inline-card-search-add"
           onClick={onAdd}
           disabled={addDisabled}
+          aria-busy={addPending || undefined}
           label={addLabel}
-          icon={<Plus width={12} height={12} strokeWidth={2} />}
+          icon={<AddButtonIcon pending={addPending} />}
         />
         <RowThumb name={name} nameNode={nameNode} image={image} onPreview={onPreview} />
         {manaCost && <ManaCost cost={manaCost} className="inline-card-search-mana" />}
@@ -840,6 +845,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
         id="card-search-tabpanel"
         aria-labelledby={`sc-tab-${activeMode}`}
       >
+        <ScryfallCooldownNote />
         {noCommanderYet && mainboardRules && (
           <p className="card-search-tag-note card-search-tag-note--quiet">
             No commander yet, so every color shows.
@@ -1187,19 +1193,18 @@ function CollectionResults({
   // after the playable ones so revealing never buries what they can use.
   const filtered = revealBlocked ? [...allowed, ...blocked] : allowed;
 
+  const pendingAdds = usePendingAdds(atCopyLimit);
   const addByName = async (name: string, preferPrintingId?: string) => {
-    // The button is disabled at the cap, but the row is also reachable by the
-    // list's Enter handler and by the preview carousel's add action, so the
-    // refusal lives at the one choke point every path goes through.
-    if (atCopyLimit(name)) return;
-    const full = await getCardByNameResilient(name);
-    if (!full) {
-      pushToast({ message: `Couldn't load ${name}. Try again.`, tone: 'error' });
-      return;
-    }
-    const claim = pickCollectionCopy(name, collection, allocations, preferPrintingId ?? full.id);
-    onAdd({ card: full, allocatedCopyId: claim?.copyId ?? null });
-    onAnnounce(`Added ${name}`);
+    return pendingAdds.track(name, async () => {
+      const full = await getCardByNameResilient(name);
+      if (!full) {
+        pushToast({ message: `Couldn't load ${name}. Try again.`, tone: 'error' });
+        return;
+      }
+      const claim = pickCollectionCopy(name, collection, allocations, preferPrintingId ?? full.id);
+      onAdd({ card: full, allocatedCopyId: claim?.copyId ?? null });
+      onAnnounce(`Added ${name}`);
+    });
   };
 
   const addAtIndex = (index: number) => {
@@ -1330,6 +1335,7 @@ function CollectionResults({
                     : `Add ${c.name}${flagNote}`
               }
               addDisabled={atCopyLimit(c.name)}
+              addPending={pendingAdds.isPending(c.name)}
               onAdd={() => addAtIndex(i)}
               name={c.name}
               nameNode={<CardName card={c} />}
@@ -1477,20 +1483,19 @@ function SuggestionsResults({
 
   // Suggestion rows carry only a name; resolve the full card on add (same as
   // the Collection tab) so the deck gets a real ScryfallCard.
+  const pendingAdds = usePendingAdds(atCopyLimit);
   const addByName = async (name: string) => {
-    // The button is disabled at the cap, but the row is also reachable by the
-    // list's Enter handler and by the preview carousel's add action, so the
-    // refusal lives at the one choke point every path goes through.
-    if (atCopyLimit(name)) return;
-    const full = await getCardByNameResilient(name);
-    if (!full) {
-      pushToast({ message: `Couldn't load ${name}. Try again.`, tone: 'error' });
-      return;
-    }
-    const claim = pickCollectionCopy(name, collection, allocations, full.id);
-    onAdd({ card: full, allocatedCopyId: claim?.copyId ?? null });
-    onAnnounce(`Added ${name}`);
-    labelAdd(name);
+    return pendingAdds.track(name, async () => {
+      const full = await getCardByNameResilient(name);
+      if (!full) {
+        pushToast({ message: `Couldn't load ${name}. Try again.`, tone: 'error' });
+        return;
+      }
+      const claim = pickCollectionCopy(name, collection, allocations, full.id);
+      onAdd({ card: full, allocatedCopyId: claim?.copyId ?? null });
+      onAnnounce(`Added ${name}`);
+      labelAdd(name);
+    });
   };
 
   const addAtIndex = (index: number) => {
@@ -1619,6 +1624,7 @@ function SuggestionsResults({
               : `Add ${row.name}`
         }
         addDisabled={atCopyLimit(row.name)}
+        addPending={pendingAdds.isPending(row.name)}
         onAdd={() => void addAtIndex(i)}
         name={row.name}
         image={row.imageUrl}

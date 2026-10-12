@@ -1412,6 +1412,16 @@
   transition: filter var(--motion-fast);
 }
 
+/* While the card lookup resolves, possibly parked in Scryfall's 429 cooldown (E329). */
+.inline-card-search-add-spinner {
+  animation: spin var(--motion-shimmer) linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .inline-card-search-add-spinner {
+    animation: none;
+  }
+}
+
 .inline-card-search-add:focus-visible {
   filter: brightness(1.1);
   outline: 2px solid var(--accent);

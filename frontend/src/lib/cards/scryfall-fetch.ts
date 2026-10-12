@@ -52,6 +52,12 @@ export function setScryfallRealTimingForTests(real: boolean): void {
 // remainder — forever, since the clock can't advance by less than 1ms.
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, Math.ceil(ms)));
 
+const cooldownListeners = new Set<() => void>();
+let cooldownTimer: ReturnType<typeof setTimeout> | null = null;
+function notifyCooldown(): void {
+  for (const fn of [...cooldownListeners]) fn();
+}
+
 /**
  * Queue-based rate limiter that ensures requests are properly spaced.
  * All Scryfall requests MUST go through this to prevent 429 errors.
@@ -82,13 +88,28 @@ class RateLimiter {
    */
   cooldown(ms: number): void {
     const target = Date.now() + Math.max(0, ms);
-    if (target > this.cooldownUntil) this.cooldownUntil = target;
+    if (target > this.cooldownUntil) {
+      this.cooldownUntil = target;
+      notifyCooldown();
+      // Listeners also hear when the window closes, so a pending control clears
+      // without polling. A later, longer cooldown supersedes this timer.
+      if (cooldownTimer) clearTimeout(cooldownTimer);
+      cooldownTimer = setTimeout(notifyCooldown, Math.ceil(target - Date.now()) + 1);
+    }
+  }
+
+  /** Epoch ms the queue is parked until, or 0 when it is not parked. */
+  parkedUntil(): number {
+    return Date.now() < this.cooldownUntil ? this.cooldownUntil : 0;
   }
 
   /** Drop the cooldown/spacing state. Tests only — a cooldown set under fake
    *  timers would otherwise stall the next test for real seconds. */
   reset(): void {
     this.cooldownUntil = 0;
+    if (cooldownTimer) clearTimeout(cooldownTimer);
+    cooldownTimer = null;
+    notifyCooldown();
     this.lastRequestTime = 0;
     this.lastSearchClassTime = 0;
   }
@@ -131,6 +152,23 @@ class RateLimiter {
 }
 
 const rateLimiter = new RateLimiter();
+
+/**
+ * Epoch ms the shared 429 cooldown parks every Scryfall caller until, or 0 when
+ * nothing is parked. Pair with {@link subscribeScryfallCooldown}; the UI uses it
+ * to say why a press is waiting instead of looking dead.
+ */
+export function getScryfallParkedUntil(): number {
+  return rateLimiter.parkedUntil();
+}
+
+/** Called when a cooldown starts or grows, and again when it ends. Returns the unsubscribe. */
+export function subscribeScryfallCooldown(listener: () => void): () => void {
+  cooldownListeners.add(listener);
+  return () => {
+    cooldownListeners.delete(listener);
+  };
+}
 
 /** Test hook — see `RateLimiter.reset`. Also drops any real-timing opt-in
  *  (`setScryfallRealTimingForTests`) back to the fast/0 default, so it can't

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
+  getScryfallParkedUntil,
   getScryfallStats,
   parseRetryAfter,
   resetScryfallRateLimit,
@@ -7,6 +8,7 @@ import {
   scryfallFetch,
   scryfallRequest,
   setScryfallRealTimingForTests,
+  subscribeScryfallCooldown,
 } from './scryfall-fetch';
 
 const ok = (body: unknown = {}) =>
@@ -307,5 +309,38 @@ describe('scryfallFetch', () => {
     await expect(scryfallFetch('/cards/named?exact=Sol%20Ring')).rejects.toThrow(
       /Couldn't reach Scryfall/
     );
+  });
+});
+
+// E329: a press that lands in the cooldown looked dead. The UI needs the window
+// as a signal, not just the limiter's private field.
+describe('cooldown signal', () => {
+  it('reports the parked-until time and tells subscribers when it starts and ends', async () => {
+    setScryfallRealTimingForTests(true);
+    vi.useFakeTimers();
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        new Response('slow down', { status: 429, headers: { 'Retry-After': '4' } })
+      )
+      .mockResolvedValue(ok());
+    const seen: number[] = [];
+    const off = subscribeScryfallCooldown(() => seen.push(getScryfallParkedUntil()));
+    expect(getScryfallParkedUntil()).toBe(0);
+
+    const pending = scryfallRequest('/cards/named?exact=x');
+    await vi.advanceTimersByTimeAsync(500);
+    expect(getScryfallParkedUntil()).toBeGreaterThan(Date.now());
+    expect(seen.length).toBeGreaterThanOrEqual(1);
+    expect(seen[0]).toBeGreaterThan(0);
+
+    await vi.runAllTimersAsync();
+    await pending;
+    expect(getScryfallParkedUntil()).toBe(0);
+    expect(seen.at(-1)).toBe(0);
+
+    const count = seen.length;
+    off();
+    resetScryfallRateLimit();
+    expect(seen).toHaveLength(count);
   });
 });
