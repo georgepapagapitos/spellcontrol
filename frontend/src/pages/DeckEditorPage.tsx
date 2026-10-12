@@ -44,6 +44,7 @@ import {
 } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import { formatMoney } from '@/lib/collection/format-money';
 import { deckValue } from '@/lib/deck/deck-value';
+import { useDeckPrices } from '@/components/deck/use-deck-prices';
 import { useCurrency } from '@/lib/collection/currency';
 import { buildCommanderKey } from '@/lib/deck/commander-key';
 import type { BinderInfo } from '@/lib/binder/binder-refs';
@@ -1417,6 +1418,7 @@ export function DeckEditorPage() {
   // considering" maybe-pile right next to it — E183) so the hero doesn't
   // claim "104 cards" on a 100-card deck. Computed BEFORE the missing-deck
   // early return so the hook order stays stable across renders.
+  const pricesVersion = useDeckPrices([deck?.commander, deck?.partnerCommander, ...deckCards]);
   const heroTotals = useMemo(() => {
     if (!deck) return { count: 0, value: 0, sideboard: 0, considering: 0 };
     return {
@@ -1425,7 +1427,7 @@ export function DeckEditorPage() {
       sideboard: deck.sideboard.length,
       considering: (deck.considering ?? []).length,
     };
-  }, [deck, currency]);
+  }, [deck, currency, pricesVersion]);
 
   // The deck's cover behind the hero, the same face its index tile wears
   // (lib/deck/deck-cover). Undefined only for a deck with no art at all; the hero
