@@ -3,7 +3,6 @@ import { getByCardName } from '@/lib/cards/card-text';
 import { evictionKeeper } from './evictionKeeper';
 import type { ScryfallCard, DeckCategory, CoherenceRepair } from '@/deck-builder/types';
 import {
-  getCardRole,
   readsAsProtection,
   isFreeInteraction,
   type RoleKey,
@@ -19,6 +18,7 @@ import {
 } from '../deckFilters';
 import { calculateCardPriority } from '../cardPicking';
 import { STAPLE_ROCK_NAMES } from './phaseStapleManaRocks';
+import { countedRoleOf } from '../commanderDeckAnalysis';
 import { ROLE_LABEL } from './phaseRoleSurplusRebalance';
 import { ownedShareGuard } from './ownedShareGuard';
 
@@ -126,7 +126,7 @@ export function postGenFixupPhase(
   // guards: Sythis partial50 kept Far Wanderings (ramp 17 of 13) over Farewell,
   // and the surplus phase then cut Exploration (42%) to get back to the cap.
   const inSurplus = (card: ScryfallCard) => {
-    const role = getCardRole(card.name);
+    const role = countedRoleOf(card);
     return !!role && !!roleTargets && (currentRoleCounts[role] ?? 0) > (roleTargets[role] ?? 0);
   };
 
@@ -154,14 +154,14 @@ export function postGenFixupPhase(
   function fixupRemoveCard(card: ScryfallCard, category: DeckCategory) {
     categories[category] = categories[category].filter((c) => c !== card);
     usedNames.delete(card.name);
-    const role = getCardRole(card.name);
+    const role = countedRoleOf(card);
     if (role && currentRoleCounts[role] > 0) currentRoleCounts[role]--;
   }
 
   // Helper: add a card to the appropriate category
   function fixupAddCard(card: ScryfallCard) {
     stampRoleSubtypes(card);
-    const role = getCardRole(card.name);
+    const role = countedRoleOf(card);
     routeCardByType(card, categories);
     usedNames.add(card.name);
     if (role) currentRoleCounts[role] = (currentRoleCounts[role] || 0) + 1;
@@ -186,8 +186,8 @@ export function postGenFixupPhase(
         (c) =>
           !usedNames.has(c.name) &&
           !bannedCards.has(c.name) &&
-          getCardRole(c.name) === role &&
           scryfallCardMap.has(c.name) &&
+          countedRoleOf(scryfallCardMap.get(c.name)!) === role &&
           // E525: allNonLand still carries utility lands (Nykthos has a ramp
           // role), and this swap fills a spell slot.
           fitsSpellSlot(scryfallCardMap.get(c.name)!) &&
@@ -234,7 +234,7 @@ export function postGenFixupPhase(
         for (let i = 0; i < swapsForRole; i++) {
           const replacement = findRoleCandidate(role);
           if (!replacement) break;
-          const weak = findWeakestFor((card) => getCardRole(card.name) !== role, replacement);
+          const weak = findWeakestFor((card) => countedRoleOf(card) !== role, replacement);
           if (!weak) break;
           fixupRemoveCard(weak.card, weak.category);
           fixupAddCard(replacement);
@@ -274,7 +274,7 @@ export function postGenFixupPhase(
         if (!replacement) break;
         const weak = findWeakestFor((card) => {
           if (inclusionOf(card) > FILLER_INCLUSION_MAX) return false;
-          const own = getCardRole(card.name);
+          const own = countedRoleOf(card);
           const lastOfOwn =
             own && (currentRoleCounts[own] ?? 0) <= Math.min(1, roleTargets[own] ?? 0);
           return own !== role && !lastOfOwn;
